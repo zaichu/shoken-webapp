@@ -141,6 +141,9 @@ fn revisit_refetches_only_visited_settled_tabs() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([
                 ReceiptsTab::Dividend,
@@ -198,6 +201,9 @@ fn revisit_skips_unauthenticated_and_unvisited() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([ReceiptsTab::Dividend])),
             cache: RwSignal::new(HashMap::new()),
@@ -302,6 +308,9 @@ fn revisit_does_not_dispatch_while_fetch_pending() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([
                 ReceiptsTab::Dividend,
@@ -352,6 +361,9 @@ fn generation_change_resets_search_tab_and_visited() {
             }),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([
                 ReceiptsTab::Dividend,
@@ -515,6 +527,8 @@ fn utility_rail_init_restores_per_tab_state_until_toggle() {
             fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
             csv: RwSignal::new(HashMap::new()),
             csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
         };
 
         // データあり→畳む、0件→開く。タブごとの初回の値を記憶し、再訪ではその値へ戻す

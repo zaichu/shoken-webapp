@@ -788,6 +788,8 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
     upload = failure
       ? { inserted: 0, skipped: 0, errors: [{ row: 2, message: '受取金額が数値ではありません' }] }
       : { inserted: 1, skipped: 0, errors: [] };
+    // 反映0件の全失敗と成功は別の見出しで読み上げられる
+    const heading = failure ? '保存できませんでした' : '保存しました';
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
     await expect(preview).toContainText('追加で保存されます', { timeout: 10000 });
@@ -795,7 +797,7 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
     await page.getByRole('button', { name: /追加で保存/ }).first().click();
     const notice = page.getByTestId('csv-save-result-notice');
     await expect(notice).toBeVisible({ timeout: 10000 });
-    await expect(notice).toContainText('保存しました');
+    await expect(notice).toContainText(heading);
     if (failure) {
       await expect(notice).toContainText('1件エラー');
     } else {
@@ -804,7 +806,7 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
     const after = await liveRegionTexts(page);
     expect(after, 'ライブリージョンの内容が保存で変わらなかった').not.toEqual(before);
     expect(
-      after.filter((text) => text.includes('保存しました')),
+      after.filter((text) => text.includes(heading)),
       '保存結果がライブリージョンに伝わらなかった',
     ).not.toHaveLength(0);
   }

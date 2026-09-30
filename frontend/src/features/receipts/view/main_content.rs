@@ -10,9 +10,12 @@ use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsStore, Recei
 use crate::session::use_session;
 use crate::support::row::Row;
 use crate::ui::badge::{Badge, BadgeVariant};
+use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
+use crate::ui::csv_preview::CsvPreviewBanner;
+use crate::ui::csv_section::click_csv_input;
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
-use crate::ui::empty_state::EmptyState;
+use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use leptos::ev;
 use leptos::prelude::*;
 
@@ -35,6 +38,9 @@ pub(crate) fn ReceiptsMainContent(
     });
     let preview_store = store;
     let preview_active = Memo::new(move |_| preview_store.has_csv_preview(tab));
+    let csv_store = store;
+    // CTA は隠しファイル入力を押すだけなので、入力が disabled の間はこちらも止める
+    let csv_input_disabled = Memo::new(move |_| csv_store.csv_input_disabled(tab));
     let filtered =
         Memo::new(move |_| filter_receipts(tab, &display_rows.get(), &search.get().query));
     // 配当タブの銘柄コード検索時に DividendInfo を出すための取得状態。
@@ -93,7 +99,19 @@ pub(crate) fn ReceiptsMainContent(
                             <EmptyState
                                 title="データがありません"
                                 description=tab.empty_hint().to_string()
-                            />
+                                icon=EmptyStateIcon::Tray
+                            >
+                                <div class="mt-4">
+                                    <Button
+                                        variant=ButtonVariant::Primary(ButtonSize::Md)
+                                        disabled=move || csv_input_disabled.get()
+                                        aria_disabled=move || csv_input_disabled.get()
+                                        on_click=move |_| click_csv_input(tab.csv_input_id())
+                                    >
+                                        "CSVを取り込む"
+                                    </Button>
+                                </div>
+                            </EmptyState>
                         </div>
                     </Card>
                 }
@@ -107,7 +125,13 @@ pub(crate) fn ReceiptsMainContent(
                 if !search_security_code(&rows, &query).is_empty() {
                     let totals = DividendKind::totals(&rows);
                     return view! {
-                        {preview_active.get().then(|| view! { <PreviewBanner /> })}
+                        {preview_active
+                            .get()
+                            .then(|| {
+                                view! {
+                                    <CsvPreviewBanner description="表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
+                                }
+                            })}
                         <DividendSummarySection
                             store=info
                             totals=totals
@@ -138,7 +162,11 @@ pub(crate) fn ReceiptsMainContent(
             );
             let preview = preview_active.get();
             view! {
-                {preview.then(|| view! { <PreviewBanner /> })}
+                {preview.then(|| {
+                    view! {
+                        <CsvPreviewBanner description="表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
+                    }
+                })}
                 <SummaryStrip items=header expanded=store.mobile_summary_expanded preview=preview />
                 <ReceiptTable
                     tab=tab
@@ -199,20 +227,6 @@ fn UtilityRailToggle(
                     </span>
                 </DisclosureToggle>
             </Card>
-        </div>
-    }
-}
-
-#[component]
-fn PreviewBanner() -> impl IntoView {
-    view! {
-        // 読み上げは既存のプレビュー通知(role="status")が担うので、帯は見た目だけにする
-        <div
-            data-testid="receipt-preview-banner"
-            class="mb-3 rounded-lg border border-accent-border-strong bg-accent-soft px-4 py-2.5 text-sm text-accent-text"
-        >
-            <span class="font-bold">"プレビュー中(未保存)"</span>
-            <span class="ml-2">"表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"</span>
         </div>
     }
 }

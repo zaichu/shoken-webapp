@@ -586,16 +586,33 @@ fn store_accessors_reflect_auth_and_tab_state() {
         );
 
         assert!(!store.is_authenticated());
+        assert!(
+            store.csv_input_disabled(ReceiptsTab::Dividend),
+            "未認証ではファイル選択を受け付けない"
+        );
         session.user.set(Some(user("alice")));
         assert!(store.is_authenticated());
         assert!(store.auth_loading());
+        assert!(
+            store.csv_input_disabled(ReceiptsTab::Dividend),
+            "認証確認中は選べない"
+        );
         session.loaded.set(true);
         assert!(!store.auth_loading());
         assert!(store.csv_busy(ReceiptsTab::Dividend));
         assert!(!store.csv_busy(ReceiptsTab::DomesticStock));
         assert!(store.any_tab_fetching());
+        assert!(
+            store.csv_input_disabled(ReceiptsTab::Dividend),
+            "当該タブの CSV 処理中"
+        );
+        assert!(
+            store.csv_input_disabled(ReceiptsTab::DomesticStock),
+            "別タブの一覧取得中も選べない"
+        );
         let settled_store = test_store(&session, HashMap::new(), HashMap::new());
         assert!(!settled_store.any_tab_fetching());
+        assert!(!settled_store.csv_input_disabled(ReceiptsTab::Dividend));
     });
 }
 

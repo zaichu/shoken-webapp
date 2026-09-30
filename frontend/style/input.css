@@ -202,6 +202,10 @@
     @apply lg:grid-cols-1;
   }
 
+  .skeleton-table-row {
+    @apply grid grid-cols-[1fr_6rem_6rem] items-center gap-3 max-sm:grid-cols-[1fr_5rem];
+  }
+
   .page-surface {
     @apply relative flex-1 overflow-hidden rounded-panel border border-ink/10 bg-surface/90 p-6 shadow-page backdrop-blur-sm;
   }

@@ -3,8 +3,8 @@ use crate::api::dto::Stock;
 use crate::ui::badge::CodeBadge;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::elements::{Alert, AlertVariant, PageHeader, Spinner, SpinnerSize};
-use crate::ui::empty_state::EmptyState;
+use crate::ui::elements::{Alert, AlertVariant, ListLoadError, PageHeader, Spinner, SpinnerSize};
+use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use leptos::prelude::*;
 
 const STOCK_LINKS: &[(&str, &str)] = &[
@@ -72,11 +72,12 @@ pub(crate) fn SearchPage() -> impl IntoView {
                 let is_loading = loading.get();
                 if let Some(message) = error {
                     view! {
-                        <Alert variant=AlertVariant::Danger>
-                            <strong>"エラー:"</strong>
-                            " "
-                            {message}
-                        </Alert>
+                        <ListLoadError message=message on_retry=move || {
+                            let code = stock_search.stock_code.get_untracked();
+                            if !code.is_empty() && !stock_search.search.pending().get_untracked() {
+                                stock_search.search.dispatch(code);
+                            }
+                        } />
                     }
                         .into_any()
                 } else if let Some(stock) = data {
@@ -162,24 +163,7 @@ fn EmptySearch() -> impl IntoView {
             class="py-10"
             title="銘柄を検索"
             description="銘柄コード（例：7203）または銘柄名を入力して検索してください。"
-            icon=view! {
-                <div class="mb-3 text-text-faint" aria-hidden="true">
-                    <svg
-                        class="h-10 w-10"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="1.5"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                    </svg>
-                </div>
-            }
-            .into_any()
+            icon=EmptyStateIcon::Search
         />
     }
 }

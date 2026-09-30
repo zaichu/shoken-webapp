@@ -326,7 +326,7 @@ test('取得失敗のタブではレールが開き、CSV 取り込みと検索�
   );
   await fileInput.setInputFiles(csvFixture('domesticstock-base.csv'));
   await expect(page.getByText('1件 追加で保存されます')).toBeVisible();
-  await expect(page.getByTestId('receipt-preview-banner')).toBeVisible();
+  await expect(page.getByTestId('csv-preview-banner')).toBeVisible();
   await expect(page.getByTestId('receipt-utility-toggle')).toHaveCount(0);
 
   // 戻るとユーザーの決定(畳み)が残り、トグルで開閉できる

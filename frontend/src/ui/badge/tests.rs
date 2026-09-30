@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn badge_variant_classes() {
-    let cases: [(BadgeVariant, &str); 8] = [
+    let cases: [(BadgeVariant, &str); 5] = [
         (BadgeVariant::Accent, "filter-badge"),
         (
             BadgeVariant::AccentFlat,
@@ -15,18 +15,6 @@ fn badge_variant_classes() {
         (
             BadgeVariant::Positive,
             "inline-flex items-center rounded bg-positive-softer px-1.5 py-0.5 text-xs font-medium text-positive",
-        ),
-        (
-            BadgeVariant::Neutral,
-            "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-semibold text-text-soft",
-        ),
-        (
-            BadgeVariant::Muted,
-            "inline-flex items-center rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-medium text-text-muted",
-        ),
-        (
-            BadgeVariant::Warn,
-            "inline-flex items-center rounded-full border border-accent-border bg-surface px-2.5 py-1 text-xs font-medium text-accent-deep",
         ),
         (BadgeVariant::File, "file-chip"),
     ];

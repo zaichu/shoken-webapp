@@ -5,9 +5,11 @@ use crate::features::receipts::csv::CsvPreviewRow;
 use crate::features::receipts::{
     truncated_list_warning, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
 };
-use crate::support::csv_flow::{row_error_text, CsvTabState};
+use crate::support::csv_flow::CsvTabState;
 use crate::ui::csv_section::{CsvSection, CsvSource};
-use crate::ui::elements::{ListLoadError, ListSkeleton, Spinner, SpinnerSize};
+use crate::ui::elements::{
+    Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant, LoadingStrip,
+};
 use leptos::prelude::*;
 
 pub(crate) fn empty_tab_data() -> ReceiptTabData {
@@ -26,7 +28,6 @@ pub(crate) fn utility_rail_id(tab: ReceiptsTab) -> String {
 #[component]
 pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let csv_store = store;
-    let preview_store = store;
     let loading_store = store;
     let main_store = store;
     let alert_store = store;
@@ -86,15 +87,11 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                         };
                         view! {
                             <section class="px-5 py-4">
-                                <div
-                                    class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-strong"
-                                    role="alert"
-                                    aria-live="assertive"
-                                >
+                                <Alert variant=AlertVariant::Danger>
                                     <strong>"エラー:"</strong>
                                     " "
                                     {message}
-                                </div>
+                                </Alert>
                             </section>
                         }
                             .into_any()
@@ -149,24 +146,30 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                             return ().into_any();
                         }
                         view! {
-                            <div aria-live="polite" aria-atomic="true">
-                                <section class="px-5 py-4" role="status">
-                                    <div class="flex items-center gap-2 text-text-muted">
-                                        <Spinner size=SpinnerSize::Sm class="" />
-                                        <p class="text-sm">
-                                            {auth_loading.then_some("認証状態を確認しています...")}
-                                            {fetching.then_some("データを読み込んでいます...")}
-                                        </p>
-                                    </div>
-                                </section>
-                            </div>
+                            <LoadingStrip text=Signal::derive(move || {
+                                if loading_store.auth_loading() {
+                                    "認証状態を確認しています..."
+                                } else {
+                                    "データを読み込んでいます..."
+                                }
+                                .to_string()
+                            }) />
                         }
                             .into_any()
                     }}
                     {move || match panel_state.get() {
                         TabState::Ready(data) => {
-                            view! { <ReceiptsSearchCard store=rail_store tab=tab data=data /> }
-                                .into_any()
+                            // 絞り込み対象がないのに検索オプションを出さない(適用中なら解除できるよう残す)。
+                            // プレビュー中は取り込み行が絞り込み対象になるためカードを残す
+                            if data.rows.is_empty()
+                                && rail_store.search.with(|search| search.is_default())
+                                && !rail_store.has_csv_preview(tab)
+                            {
+                                ().into_any()
+                            } else {
+                                view! { <ReceiptsSearchCard store=rail_store tab=tab data=data /> }
+                                    .into_any()
+                            }
                         }
                         TabState::Failed(_) => {
                             view! {
@@ -187,10 +190,10 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                 {move || match panel_state.get() {
                     TabState::Ready(data) if data.truncated => {
                         view! {
-                            <div class="mb-4" role="status" aria-live="polite">
-                                <div class="rounded-lg border border-accent-border bg-accent-soft px-4 py-3 text-sm font-medium text-accent-text">
+                            <div class="mb-4">
+                                <Alert variant=AlertVariant::Warning>
                                     {truncated_list_warning()}
-                                </div>
+                                </Alert>
                             </div>
                         }
                             .into_any()
@@ -198,7 +201,9 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                     _ => ().into_any(),
                 }}
                 {move || match panel_state.get() {
-                    TabState::Loading => view! { <ListSkeleton /> }.into_any(),
+                    TabState::Loading => {
+                        view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any()
+                    }
                     TabState::Ready(data) => {
                         view! {
                             <ReceiptsMainContent
@@ -274,7 +279,7 @@ impl CsvSource for ReceiptCsvSource {
     }
 
     fn input_disabled(&self) -> bool {
-        self.store.auth_loading() || self.store.csv_busy(self.tab) || self.store.any_tab_fetching()
+        self.store.csv_input_disabled(self.tab)
     }
 
     fn db_count(&self) -> usize {
