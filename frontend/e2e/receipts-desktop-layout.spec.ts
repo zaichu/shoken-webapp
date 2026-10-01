@@ -807,6 +807,21 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
 });
 
 test('A4の印字可能領域に全タブの右端の列を収めて印刷できる', async ({ page }) => {
+  // 集計行は「結合見出し + 末尾3列の集計セル」で組む前提でセル数を固定する。
+  // 国内株式は1件だけの約定日グループに集計を出さないため、fixture に単件の日が
+  // あるとそのグループだけ前提が崩れる(配当・投信の月次集計は件数に関わらず出る)
+  const rowsByTradeDate = new Map<string, number>();
+  for (const row of DOMESTIC_STOCKS) {
+    rowsByTradeDate.set(row.trade_date, (rowsByTradeDate.get(row.trade_date) ?? 0) + 1);
+  }
+  const singleRowDates = [...rowsByTradeDate.keys()].filter(
+    (date) => (rowsByTradeDate.get(date) ?? 0) < 2,
+  );
+  expect(
+    singleRowDates,
+    `国内株式の fixture に単件の約定日グループ(${singleRowDates.join(', ')})があるため集計行の前提が成り立たない`,
+  ).toEqual([]);
+
   // 長いファンド名は印刷で行数制限を外して全文を出すことを確かめるため、投資信託にだけ差し込む
   await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
     route.fulfill(
