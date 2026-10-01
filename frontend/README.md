@@ -31,6 +31,18 @@ npx playwright test --config playwright.vercel.config.ts
 
 `playwright.leptos.config.ts` は `e2e/migrated/` の主要画面テストと `e2e/` の Leptos テストを実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。既定では `trunk serve` でソースから配信しますが、`LEPTOS_E2E_DIST_DIR=<dir>` を指定するとビルド済みの dist(CI がアーティファクトで受け渡す trunk build 成果物)を `serve-dist.mjs` で配信します。配信前に `prepare-vercel-dist.mjs` を空の API origin で実行するため、モックに当たらない API 呼び出しは同一オリジンに留まり外部へ出ません。
 
+### CI と同じ環境で E2E を回す
+
+手元では通るのに CI でだけ落ちる(フォント差など)を再現するため、Ubuntu 24.04 のコンテナで Playwright を回せます。
+
+```bash
+bash scripts/e2e-ci-like.sh e2e/receipts-desktop-layout.spec.ts
+bash scripts/e2e-ci-like.sh e2e/receipts-desktop-layout.spec.ts --grep "768px"
+bash scripts/e2e-ci-like.sh --show-fonts e2e/receipts-desktop-layout.spec.ts
+```
+
+ホストで `npm ci` してから `trunk build --release --dist dist-e2e` して、コンテナに `LEPTOS_E2E_DIST_DIR=dist-e2e` で渡します(CI と同じ。コンテナに Rust は入れません)。フォント・依存パッケージは `.github/workflows/frontend.yml` の apt 行から読み取り、Node は `setup-node` の版、`@playwright/test` は `package-lock.json` の版を使います。イメージは内容のハッシュでタグ付けして使い回します(`--rebuild` で作り直し)。引数はそのまま Playwright に渡します。ポートは `LEPTOS_E2E_PORT` がなければ 8140 を使います。
+
 ## ソースの構成
 
 機能ごとにまとめる。親モジュールは `foo.rs`、子は `foo/bar.rs` に置き、`mod.rs` は使わない。
