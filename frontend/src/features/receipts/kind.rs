@@ -808,6 +808,8 @@ pub(crate) trait ReceiptKind: ListEndpoint {
     const PREVIEW_PATH: &'static str;
     const IMPORT_PATH: &'static str;
     const HEADERS: &'static [&'static str];
+    // 列幅は ch ではなく font-size 基準の em で指定する。`0` の字幅はフォントで変わるが、
+    // `¥`・`/`・漢字を含む本文の幅は font-size に対して安定するため
     const COLUMN_WIDTHS: &'static [&'static str];
     const COLUMN_TIERS: &'static [ColumnTier];
     const COLUMN_ALIGNS: &'static [&'static str];
@@ -950,7 +952,7 @@ impl ReceiptKind for DividendKind {
         "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "12.2ch", "9ch", "9ch", "13.5ch", "", "12.5ch", "9ch", "14.5ch", "14.5ch", "14.5ch",
+        "9em", "7.5em", "7.5em", "10em", "", "10em", "7em", "10em", "10em", "10em",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
@@ -1106,8 +1108,7 @@ impl ReceiptKind for DomesticStockKind {
         "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "12.2ch", "13.5ch", "", "9ch", "9ch", "12.5ch", "12.5ch", "12.5ch", "14.5ch", "14.5ch",
-        "14.5ch",
+        "9em", "10em", "", "7.5em", "7em", "10em", "10em", "10em", "10em", "10em", "10em",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
@@ -1236,7 +1237,7 @@ impl ReceiptKind for MutualFundKind {
         "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "12.2ch", "", "9ch", "9ch", "12.5ch", "12.5ch", "12.5ch", "14.5ch", "14.5ch", "14.5ch",
+        "9em", "", "7.5em", "7em", "10em", "10em", "10em", "10em", "10em", "10em",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,

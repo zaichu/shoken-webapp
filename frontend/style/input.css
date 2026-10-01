@@ -410,8 +410,11 @@
 }
 
 /* 金額・数量セルは桁数に上限がない(NUMERIC)。固定幅を超える値は … で省略せず
-   折り返して全桁を出す(印刷では下の td.text-right nowrap が後勝ちする) */
+   折り返して全桁を出す(印刷では下の td.text-right nowrap が後勝ちする)。
+   列幅は下記 COLUMN_WIDTHS の em 指定と対で、桁数の多い金額は左右の余白を詰めて
+   同じ固定幅の中で内容幅を広く取る */
 .receipt-table td.text-right {
+  @apply px-1;
   white-space: normal;
   overflow-wrap: anywhere;
 }
