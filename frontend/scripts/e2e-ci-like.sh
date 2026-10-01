@@ -56,7 +56,11 @@ PLAYWRIGHT_VERSION=$(grep -A2 '"node_modules/@playwright/test"' "$ROOT/frontend/
 [ -n "$NODE_MAJOR" ] || { echo "node-version を $WORKFLOW から読めません" >&2; exit 1; }
 [ -n "$APT_PACKAGES" ] || { echo "apt の一覧を $WORKFLOW から読めません" >&2; exit 1; }
 [ -n "$PLAYWRIGHT_VERSION" ] || { echo "@playwright/test の版を読めません" >&2; exit 1; }
-IMAGE_TAG=$( { cat "$DOCKERFILE"; printf '%s\n' "ubuntu24.04" "$NODE_MAJOR" "$APT_PACKAGES" "$PLAYWRIGHT_VERSION"; } | sha256sum | cut -c1-12)
+printf '%s' "$NODE_MAJOR" | grep -q -E '^[0-9]+$' || { echo "node-version が数字ではありません: $NODE_MAJOR" >&2; exit 1; }
+printf '%s' "$PLAYWRIGHT_VERSION" | grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "@playwright/test の版が不正です: $PLAYWRIGHT_VERSION" >&2; exit 1; }
+INVALID_PKGS=$(printf '%s\n' $APT_PACKAGES | grep -v -E '^[a-z0-9][a-z0-9.+-]*$' || true)
+[ -z "$INVALID_PKGS" ] || { echo "apt のパッケージ名として不正なトークンがあります:" >&2; printf '%s\n' "$INVALID_PKGS" >&2; exit 1; }
+IMAGE_TAG=$( { cat "$DOCKERFILE"; cat "$ROOT/frontend/package-lock.json"; printf '%s\n' "ubuntu24.04" "$NODE_MAJOR" "$APT_PACKAGES" "$PLAYWRIGHT_VERSION"; } | sha256sum | cut -c1-12)
 IMAGE="$IMAGE_BASE:$IMAGE_TAG"
 PORT="${LEPTOS_E2E_PORT:-8140}"
 
@@ -108,9 +112,11 @@ if [ "$SHOW_FONTS" -eq 1 ]; then
 fi
 
 cd "$FRONTEND_DIR"
+# ホストの node_modules を置き換えないよう、イメージ内のものを匿名ボリュームで使う
 docker run --rm --ipc=host \
   --user "$(id -u):$(id -g)" \
   -v "$ROOT:/work" \
+  -v /work/frontend/node_modules \
   -w /work/frontend \
   -e LEPTOS_E2E_DIST_DIR=dist-e2e \
   -e "LEPTOS_E2E_PORT=$PORT" \
@@ -118,4 +124,4 @@ docker run --rm --ipc=host \
   -e HOME=/tmp \
   -e CI=1 \
   "$IMAGE" \
-  bash -c 'npm ci --no-audit --no-fund && npx playwright install chromium && env -u NO_COLOR npx playwright test --config playwright.leptos.config.ts "$@"' bash "${PLAYWRIGHT_ARGS[@]}"
+  bash -c 'npx playwright install chromium && env -u NO_COLOR npx playwright test --config playwright.leptos.config.ts "$@"' bash "${PLAYWRIGHT_ARGS[@]}"
