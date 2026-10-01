@@ -714,11 +714,16 @@ impl<S: ReceiptRowData, P: ReceiptRowData> ReceiptRowData for Row<S, P> {
     }
 }
 
-/// lg 以上はレールが横に並んで表の幅が狭くなるため、隠す列の境目は xl と 2xl に置く
+/// 非 Core の列は画面帯とレール開閉で段階的に出す(input.css の .receipt-tier-* /
+/// .rail-collapsed と対になる)。lg でレールを開いている帯が最も狭い
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub(crate) enum ColumnTier {
     Core,
+    /// lg でレールを開いている帯だけ隠す
+    Md,
+    /// 畳むと lg から出る
     Wide,
+    /// 開いたままでも全列が入る 1650px から出す
     Wider,
 }
 
@@ -726,8 +731,9 @@ impl ColumnTier {
     pub(crate) fn class(self) -> &'static str {
         match self {
             ColumnTier::Core => "",
-            ColumnTier::Wide => " hidden xl:table-cell print:table-cell",
-            ColumnTier::Wider => " hidden 2xl:table-cell print:table-cell",
+            ColumnTier::Md => " receipt-tier-md",
+            ColumnTier::Wide => " receipt-tier-wide",
+            ColumnTier::Wider => " receipt-tier-wider",
         }
     }
 }
@@ -802,6 +808,8 @@ pub(crate) trait ReceiptKind: ListEndpoint {
     const PREVIEW_PATH: &'static str;
     const IMPORT_PATH: &'static str;
     const HEADERS: &'static [&'static str];
+    // 列幅は ch ではなく font-size 基準の em で指定する。`0` の字幅はフォントで変わるが、
+    // `¥`・`/`・漢字を含む本文の幅は font-size に対して安定するため
     const COLUMN_WIDTHS: &'static [&'static str];
     const COLUMN_TIERS: &'static [ColumnTier];
     const COLUMN_ALIGNS: &'static [&'static str];
@@ -944,16 +952,16 @@ impl ReceiptKind for DividendKind {
         "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "96px", "76px", "76px", "88px", "", "80px", "72px", "104px", "88px", "104px",
+        "9em", "7.5em", "7.5em", "10em", "", "10em", "7em", "10em", "10em", "10em",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
         ColumnTier::Wider,
+        ColumnTier::Wider,
         ColumnTier::Wide,
         ColumnTier::Core,
-        ColumnTier::Core,
-        ColumnTier::Wide,
-        ColumnTier::Wide,
+        ColumnTier::Wider,
+        ColumnTier::Md,
         ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Core,
@@ -1100,16 +1108,16 @@ impl ReceiptKind for DomesticStockKind {
         "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "96px", "88px", "", "76px", "72px", "80px", "104px", "104px", "104px", "88px", "104px",
+        "9em", "10em", "", "7.5em", "7em", "10em", "10em", "10em", "10em", "10em", "10em",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
-        ColumnTier::Core,
+        ColumnTier::Wide,
         ColumnTier::Core,
         ColumnTier::Wider,
+        ColumnTier::Wide,
         ColumnTier::Wider,
-        ColumnTier::Wide,
-        ColumnTier::Wide,
+        ColumnTier::Wider,
         ColumnTier::Wider,
         ColumnTier::Core,
         ColumnTier::Core,
@@ -1229,16 +1237,16 @@ impl ReceiptKind for MutualFundKind {
         "税引後",
     ];
     const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "96px", "", "76px", "72px", "80px", "104px", "104px", "104px", "88px", "104px",
+        "9em", "", "7.5em", "7em", "10em", "10em", "10em", "10em", "10em", "10em",
     ];
     const COLUMN_TIERS: &'static [ColumnTier] = &[
         ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Wider,
+        ColumnTier::Wide,
         ColumnTier::Wider,
         ColumnTier::Wide,
-        ColumnTier::Core,
-        ColumnTier::Wide,
+        ColumnTier::Wider,
         ColumnTier::Core,
         ColumnTier::Core,
         ColumnTier::Core,

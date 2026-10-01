@@ -7,6 +7,7 @@ use super::store::{
 };
 use super::*;
 use crate::api::ApiError;
+use crate::features::receipts::filter::tests::dividends;
 use crate::features::receipts::filter::ReceiptSearch;
 use crate::session::{Generation, SessionStore};
 use crate::support::row::Row;
@@ -91,6 +92,9 @@ fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
                 search: RwSignal::new(ReceiptSearch::default()),
                 expanded: RwSignal::new(HashSet::new()),
                 mobile_summary_expanded: RwSignal::new(false),
+                utility_rail_open: RwSignal::new(true),
+                utility_rail_decided: RwSignal::new(false),
+                utility_rail_initials: RwSignal::new(HashMap::new()),
                 expanded_epoch: RwSignal::new(None),
                 visited: RwSignal::new(HashSet::from([tab])),
                 cache,
@@ -138,6 +142,9 @@ fn revisit_refetches_only_visited_settled_tabs() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([
                 ReceiptsTab::Dividend,
@@ -195,6 +202,9 @@ fn revisit_skips_unauthenticated_and_unvisited() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([ReceiptsTab::Dividend])),
             cache: RwSignal::new(HashMap::new()),
@@ -299,6 +309,9 @@ fn revisit_does_not_dispatch_while_fetch_pending() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([
                 ReceiptsTab::Dividend,
@@ -349,6 +362,9 @@ fn generation_change_resets_search_tab_and_visited() {
             }),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([
                 ReceiptsTab::Dividend,
@@ -415,6 +431,9 @@ fn expanded_state_is_cleared_on_generation_change() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
@@ -430,6 +449,8 @@ fn expanded_state_is_cleared_on_generation_change() {
             set.insert("g0".to_string());
         });
         store.mobile_summary_expanded.set(true);
+        store.init_utility_rail(tab, false);
+        store.toggle_utility_rail();
 
         session.mark_unauthenticated();
         session.user.set(Some(user("bob")));
@@ -437,6 +458,11 @@ fn expanded_state_is_cleared_on_generation_change() {
 
         assert!(store.expanded.with_untracked(|set| set.is_empty()));
         assert!(!store.mobile_summary_expanded.get_untracked());
+        assert!(store
+            .utility_rail_initials
+            .with_untracked(|map| map.is_empty()));
+        assert!(!store.utility_rail_decided.get_untracked());
+        assert!(store.utility_rail_open.get_untracked());
     });
 }
 
@@ -454,6 +480,9 @@ fn expanded_state_survives_ensure_in_same_generation() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             cache: RwSignal::new(HashMap::new()),
@@ -473,6 +502,210 @@ fn expanded_state_survives_ensure_in_same_generation() {
 
         assert!(store.expanded.with_untracked(|set| set.contains("g0")));
         assert!(store.mobile_summary_expanded.get_untracked());
+    });
+}
+
+#[test]
+fn utility_rail_init_restores_per_tab_state_until_toggle() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let tab = ReceiptsTab::Dividend;
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(tab),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::from([tab])),
+            cache: RwSignal::new(HashMap::new()),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+
+        // データあり→畳む、0件→開く。タブごとの初回の値を記憶し、再訪ではその値へ戻す
+        store.init_utility_rail(ReceiptsTab::Dividend, true);
+        assert!(!store.utility_rail_open.get_untracked());
+        store.init_utility_rail(ReceiptsTab::DomesticStock, false);
+        assert!(store.utility_rail_open.get_untracked());
+        // 空タブへ移ってからデータありのタブに戻っても、直前のタブの状態を引き継がない
+        store.init_utility_rail(ReceiptsTab::Dividend, true);
+        assert!(!store.utility_rail_open.get_untracked());
+        // 同じタブの再評価(refetch)でも初回に決めた値へ戻るだけで巻き戻らない
+        store.init_utility_rail(ReceiptsTab::DomesticStock, true);
+        assert!(store.utility_rail_open.get_untracked());
+
+        // トグル済みなら以後の初期化は無視される
+        store.toggle_utility_rail();
+        assert!(!store.utility_rail_open.get_untracked());
+        store.init_utility_rail(ReceiptsTab::MutualFund, false);
+        assert!(!store.utility_rail_open.get_untracked());
+    });
+}
+
+// 一覧が取れたタブでは行の有無で初期値を決める。取れていないタブは開閉を
+// 決めず、ユーザーの決定をそのまま残す
+#[test]
+fn utility_rail_initial_follows_fetched_rows_only() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let tab = ReceiptsTab::Dividend;
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(tab),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::from([tab])),
+            cache: RwSignal::new(HashMap::new()),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+        let ready = |rows: Vec<ReceiptRow>| {
+            TabState::Ready(ReceiptTabData {
+                rows,
+                summary: None,
+                truncated: false,
+            })
+        };
+
+        store.init_utility_rail_from_state(tab, ready(dividends()));
+        assert!(!store.utility_rail_open.get_untracked());
+        store.init_utility_rail_from_state(ReceiptsTab::DomesticStock, ready(Vec::new()));
+        assert!(store.utility_rail_open.get_untracked());
+
+        // 一覧が取れていないタブでは開閉を変えない
+        store.utility_rail_open.set(false);
+        store.init_utility_rail_from_state(ReceiptsTab::MutualFund, TabState::Loading);
+        assert!(!store.utility_rail_open.get_untracked());
+        store.init_utility_rail_from_state(
+            ReceiptsTab::MutualFund,
+            TabState::Failed("取得に失敗".to_string()),
+        );
+        assert!(!store.utility_rail_open.get_untracked());
+    });
+}
+
+// ユーザーの開閉決定はタブ移動をまたいで残る。戻すのは初期値を記憶したタブだけで、
+// 記憶のないタブへ移ったときは直前の状態を引き継ぐ
+#[test]
+fn select_tab_restores_the_target_tab_initial_until_the_user_toggles() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let tab = ReceiptsTab::Dividend;
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(tab),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::from([tab])),
+            cache: RwSignal::new(HashMap::new()),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+
+        // 世代のリセットを先に済ませ、初期値の記憶が残った状態から始める
+        store.ensure(ReceiptsTab::Dividend);
+        // タブごとの初期値を記憶し、記録のあるタブへ移るたびにその値へ戻す
+        store.init_utility_rail(ReceiptsTab::Dividend, true);
+        assert!(!store.utility_rail_open.get_untracked());
+        store.init_utility_rail(ReceiptsTab::DomesticStock, false);
+        assert!(store.utility_rail_open.get_untracked());
+        store.select_tab(ReceiptsTab::DomesticStock);
+        assert!(store.utility_rail_open.get_untracked());
+        store.select_tab(ReceiptsTab::Dividend);
+        assert!(!store.utility_rail_open.get_untracked());
+
+        // トグルした開閉は記録済みの初期値にも優先して残る
+        store.toggle_utility_rail();
+        store.toggle_utility_rail();
+        assert!(!store.utility_rail_open.get_untracked());
+        store.select_tab(ReceiptsTab::DomesticStock);
+        assert!(
+            !store.utility_rail_open.get_untracked(),
+            "トグル後の開閉が初期値に戻された"
+        );
+        store.select_tab(ReceiptsTab::Dividend);
+        assert!(
+            !store.utility_rail_open.get_untracked(),
+            "トグル後の開閉が初期値に戻された"
+        );
+
+        // 記録のないタブへ移ると直前の状態を引き継ぐ
+        store.select_tab(ReceiptsTab::MutualFund);
+        assert!(!store.utility_rail_open.get_untracked());
+    });
+}
+
+// 開いたままなら絞り込みはレール内で確認できるので、表の上の件数バッジは畳んだときだけ出す
+#[test]
+fn utility_filter_badge_is_only_shown_while_collapsed_and_filtering() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let tab = ReceiptsTab::Dividend;
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(tab),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            utility_rail_decided: RwSignal::new(false),
+            utility_rail_initials: RwSignal::new(HashMap::new()),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::from([tab])),
+            cache: RwSignal::new(HashMap::new()),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+
+        assert!(!store.utility_filter_badge_visible());
+        store.search.set(ReceiptSearch {
+            query: "7203".to_string(),
+            ..Default::default()
+        });
+        assert!(!store.utility_filter_badge_visible());
+
+        store.toggle_utility_rail();
+        assert!(store.utility_filter_badge_visible());
+        store.toggle_utility_rail();
+        assert!(!store.utility_filter_badge_visible());
     });
 }
 

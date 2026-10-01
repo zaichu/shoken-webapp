@@ -123,20 +123,22 @@ pub(crate) fn ReceiptTable(
         })
         .collect();
     let tiers = displayed_tiers(tab, &order, promoted);
-    let group_label_spans: Vec<(&'static str, usize)> = [
-        (" xl:hidden print:hidden", ColumnTier::Core),
-        (
-            " hidden xl:table-cell 2xl:hidden print:hidden",
-            ColumnTier::Wide,
-        ),
-        (" hidden 2xl:table-cell print:table-cell", ColumnTier::Wider),
-    ]
-    .into_iter()
-    .map(|(class, level)| {
-        let visible = tiers.iter().filter(|tier| **tier <= level).count();
-        (class, visible.saturating_sub(labels.len()))
-    })
-    .collect();
+    // 帯(画面幅×レール開閉)ごとに1本だけ出す(input.css の .receipt-span-* と対になる)
+    let span_masks: [(&'static str, ColumnTier); 6] = [
+        (" receipt-span-sm", ColumnTier::Core),
+        (" receipt-span-mid", ColumnTier::Md),
+        (" receipt-span-lg-open", ColumnTier::Core),
+        (" receipt-span-lg-collapsed", ColumnTier::Wide),
+        (" receipt-span-xl-open", ColumnTier::Wide),
+        (" receipt-span-all", ColumnTier::Wider),
+    ];
+    let group_label_spans: Vec<(&'static str, usize)> = span_masks
+        .into_iter()
+        .map(|(class, max)| {
+            let visible = tiers.iter().filter(|tier| **tier <= max).count();
+            (class, visible.saturating_sub(labels.len()))
+        })
+        .collect();
     // サイトのヘッダーも sticky なので、表の見出し行はその直下で止める
     let header_offset = RwSignal::new(Option::<f64>::None);
     let measure_header = move || {
@@ -205,6 +207,7 @@ pub(crate) fn ReceiptTable(
                                                     scope="col"
                                                     style:width=width
                                                     style:max-width=width
+                                                    title=*header
                                                 >
                                                     {*header}
                                                 </th>
@@ -256,6 +259,7 @@ pub(crate) fn ReceiptTable(
                                                                 class=format!(
                                                                     "bg-surface-raised text-text text-right font-semibold{top}"
                                                                 )
+                                                                title=value.clone()
                                                                 data-negative=negative.then_some("true")
                                                             >
                                                                 {value.clone()}
@@ -283,20 +287,29 @@ pub(crate) fn ReceiptTable(
                                                                             </td>
                                                                         }
                                                                         .into_any(),
-                                                                        ReceiptCell::SecurityCode(code) => view! {
-                                                                            <td class=align>
-                                                                                <CodeBadge class="py-0">
-                                                                                    <SecurityCodeLink value=code class="font-semibold".to_string() />
-                                                                                </CodeBadge>
-                                                                            </td>
+                                                                        ReceiptCell::SecurityCode(code) => {
+                                                                            let title = code.clone();
+                                                                            view! {
+                                                                                <td class=align title=title>
+                                                                                    <CodeBadge class="py-0">
+                                                                                        <SecurityCodeLink value=code class="font-semibold".to_string() />
+                                                                                    </CodeBadge>
+                                                                                </td>
+                                                                            }
+                                                                            .into_any()
+                                                                        },
+                                                                        ReceiptCell::InstrumentName { name, code } => {
+                                                                            let title = name.clone();
+                                                                            view! {
+                                                                                <td
+                                                                                    class=format!("{align} receipt-instrument-cell")
+                                                                                    title=title
+                                                                                >
+                                                                                    <CopyableInstrumentName name=name code=code.unwrap_or_default() />
+                                                                                </td>
+                                                                            }
+                                                                            .into_any()
                                                                         }
-                                                                        .into_any(),
-                                                                        ReceiptCell::InstrumentName { name, code } => view! {
-                                                                            <td class=align>
-                                                                                <CopyableInstrumentName name=name code=code.unwrap_or_default() />
-                                                                            </td>
-                                                                        }
-                                                                        .into_any(),
                                                                         ReceiptCell::Text(value) => {
                                                                             let negative = is_profit_label(
                                                                                 tab,

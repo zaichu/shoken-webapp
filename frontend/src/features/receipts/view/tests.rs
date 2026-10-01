@@ -4,14 +4,16 @@ use super::pickers::*;
 use super::summary::*;
 use super::table::*;
 use super::tabs::*;
-use super::workspace::{initial_search_expanded, workspace_tools, WorkspaceTools};
+use super::workspace::{
+    initial_search_expanded, rail_shown, utility_rail_id, workspace_tools, WorkspaceTools,
+};
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::filter::{
     column_order, filter_receipts,
     tests::{dividends, domestic, funds},
     DateSegment, ReceiptSearch,
 };
-use crate::features::receipts::kind::{group_label, is_date_group_key};
+use crate::features::receipts::kind::{group_label, is_date_group_key, ColumnTier};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab, TabState,
 };
@@ -353,6 +355,94 @@ fn table_column_widths_match_headers_and_follow_column_order() {
         (headers[fields.account], widths[fields.account])
     );
     assert_eq!(displayed[3], (headers[fields.name], widths[fields.name]));
+}
+
+// 「表示項目は極力削らない」方針: 数量はできるだけ早い帯から出す。
+// 配当金は列が少なく md(768px)帯でも入るため Md。国内株式・投資信託は金額列が多く
+// md 帯で数量まで出すと銘柄名が潰れるため Wide(レールを畳んだ lg・xl から)にとどめる
+#[test]
+fn quantity_column_tiers_match_width_budget() {
+    let index_of = |tab: ReceiptsTab| {
+        table_headers(tab)
+            .iter()
+            .position(|header| *header == "数量")
+            .expect("数量列がある")
+    };
+    assert_eq!(
+        table_column_tiers(ReceiptsTab::Dividend)[index_of(ReceiptsTab::Dividend)],
+        ColumnTier::Md
+    );
+    for tab in [ReceiptsTab::DomesticStock, ReceiptsTab::MutualFund] {
+        assert_eq!(table_column_tiers(tab)[index_of(tab)], ColumnTier::Wide);
+    }
+}
+
+// 段のクラスは帯ごとの表示を制御する CSS ルールのフック。Core だけクラス無しで、
+// 残る段は互いに区別でき、CSS にも対応するルールが無いと隠れないまま全帯で出る
+#[test]
+fn non_core_tiers_have_distinct_class_backed_by_a_css_rule() {
+    let css = include_str!("../../../../style/input.css");
+    assert!(ColumnTier::Core.class().trim().is_empty());
+
+    let classes: Vec<&str> = [ColumnTier::Md, ColumnTier::Wide, ColumnTier::Wider]
+        .iter()
+        .map(|tier| tier.class().trim())
+        .collect();
+    for class in &classes {
+        assert!(!class.is_empty(), "段にクラスが無いと隠れない");
+        assert!(
+            css.contains(&format!(".{class} ")),
+            "{class} の CSS ルールが無い"
+        );
+    }
+    let mut unique = classes.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    assert_eq!(unique.len(), classes.len(), "段のクラスが区別できない");
+}
+
+// 開閉トグルの aria-controls が指す aside の id。空や重複だと ARIA の参照が効かない
+#[test]
+fn utility_rail_ids_are_non_empty_and_unique_per_tab() {
+    let ids: Vec<String> = ReceiptsTab::ALL
+        .iter()
+        .map(|tab| utility_rail_id(*tab))
+        .collect();
+    for id in &ids {
+        assert!(!id.trim().is_empty(), "id が空だと参照先が無い");
+        assert!(
+            !id.contains(char::is_whitespace),
+            "{id} は id として使えない"
+        );
+    }
+    let mut unique = ids.clone();
+    unique.sort();
+    unique.dedup();
+    assert_eq!(unique.len(), ReceiptsTab::ALL.len());
+}
+
+// 取得失敗・読み込み中は開閉トグルを出さないため、ユーザーの開閉が畳みでも
+// CSV 取り込み・検索へ届くようレールは必ず表示する
+#[test]
+fn rail_stays_shown_for_failed_and_loading_tabs_even_when_collapsed() {
+    let ready = || {
+        TabState::Ready(ReceiptTabData {
+            rows: dividends(),
+            summary: None,
+            truncated: false,
+        })
+    };
+    let cases = [
+        (true, ready(), true),
+        (false, ready(), false),
+        (false, TabState::Failed("取得に失敗".to_string()), true),
+        (false, TabState::Loading, true),
+        (true, TabState::Failed("取得に失敗".to_string()), true),
+        (true, TabState::Loading, true),
+    ];
+    for (open, state, expected) in cases {
+        assert_eq!(rail_shown(open, &state), expected, "{open} {state:?}");
+    }
 }
 
 #[test]

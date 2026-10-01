@@ -17,6 +17,12 @@ pub struct ReceiptsStore {
     // 開閉状態は検索変更や一覧再描画でビューが作り直されても消えないようストア側に持つ
     pub expanded: RwSignal<HashSet<String>>,
     pub mobile_summary_expanded: RwSignal<bool>,
+    // Cookie ポリシーへの記載を避けるため localStorage には保存せず、
+    // セッション内だけの画面状態として持つ。初期値はデータ有無でタブごとに決める
+    pub utility_rail_open: RwSignal<bool>,
+    pub(crate) utility_rail_decided: RwSignal<bool>,
+    // タブごとの初期開閉。ユーザーがトグルするまでは切替・再取得のたびにこの値へ戻す
+    pub(crate) utility_rail_initials: RwSignal<HashMap<ReceiptsTab, bool>>,
     // 再マウントなしのアカウント切替で前のユーザーの開閉状態を残さないためのセッション世代
     pub(crate) expanded_epoch: RwSignal<Option<Generation>>,
     pub(crate) visited: RwSignal<HashSet<ReceiptsTab>>,
@@ -61,11 +67,56 @@ impl ReceiptsStore {
         !self.session.loaded.get()
     }
 
+    // ユーザー操作を優先するため、トグル済みなら以後のデータ到着で初期値を上書きしない
+    pub fn toggle_utility_rail(&self) {
+        self.utility_rail_decided.set(true);
+        self.utility_rail_open.update(|open| *open = !*open);
+    }
+
+    /// 初期状態(データ→畳む、0件→開く)はタブごとの最初の Ready で一度だけ決めて記憶し、
+    /// ユーザーがトグルするまではタブ表示・再取得のたびにその値へ戻す。
+    /// 直前のタブの開閉状態を引き継がないため、タブ別の初期値を保持する。
+    pub(crate) fn init_utility_rail(&self, tab: ReceiptsTab, has_rows: bool) {
+        if self.utility_rail_decided.get_untracked() {
+            return;
+        }
+        let open = self
+            .utility_rail_initials
+            .with_untracked(|initials| initials.get(&tab).copied())
+            .unwrap_or(!has_rows);
+        self.utility_rail_initials.update(|initials| {
+            initials.entry(tab).or_insert(open);
+        });
+        self.utility_rail_open.set(open);
+    }
+
+    /// 取得できたタブでのみ初期値を決める。取得失敗・読み込み中は開閉トグルを
+    /// 出さないので、その時候の開閉はユーザーの決定をそのまま残す
+    pub(crate) fn init_utility_rail_from_state(&self, tab: ReceiptsTab, state: TabState) {
+        if let TabState::Ready(data) = state {
+            self.init_utility_rail(tab, !data.rows.is_empty());
+        }
+    }
+
+    /// 開いたままなら絞り込みはレール内で確認できるので、表の上への件数バッジは畳んだときだけ出す
+    pub fn utility_filter_badge_visible(&self) -> bool {
+        !self.utility_rail_open.get() && !self.search.get().is_default()
+    }
+
     pub fn select_tab(&self, tab: ReceiptsTab) {
         if self.active_tab.get_untracked() != tab {
             self.search.set(ReceiptSearch::default());
             self.expanded.update(|set| set.clear());
             self.mobile_summary_expanded.set(false);
+            // タブ切替時に、初期化済みかつ未操作ならそのタブの初期状態へ戻す
+            if !self.utility_rail_decided.get_untracked() {
+                let initial = self
+                    .utility_rail_initials
+                    .with_untracked(|initials| initials.get(&tab).copied());
+                if let Some(open) = initial {
+                    self.utility_rail_open.set(open);
+                }
+            }
         }
         self.visited.update(|visited| {
             visited.insert(tab);
@@ -107,6 +158,9 @@ impl ReceiptsStore {
             self.expanded_epoch.set(Some(generation));
             self.expanded.update(|set| set.clear());
             self.mobile_summary_expanded.set(false);
+            self.utility_rail_initials.update(|map| map.clear());
+            self.utility_rail_decided.set(false);
+            self.utility_rail_open.set(true);
             // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
             self.search.set(ReceiptSearch::default());
             self.active_tab.set(ReceiptsTab::Dividend);
@@ -559,6 +613,9 @@ fn build_receipts_store(session: SessionStore, initial_tab: ReceiptsTab) -> Rece
         search: RwSignal::new(ReceiptSearch::default()),
         expanded: RwSignal::new(HashSet::new()),
         mobile_summary_expanded: RwSignal::new(false),
+        utility_rail_open: RwSignal::new(true),
+        utility_rail_decided: RwSignal::new(false),
+        utility_rail_initials: RwSignal::new(HashMap::new()),
         expanded_epoch: RwSignal::new(None),
         visited,
         cache,

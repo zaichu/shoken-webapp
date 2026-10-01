@@ -97,6 +97,19 @@ async function liveRegionTexts(page: Page): Promise<string[]> {
   );
 }
 
+// データがあると右レールは畳まれた状態で始まるので、レール内の UI に触れる前に開く。
+// トグルはタブのデータ到着(Ready)まで描画されないため、出現を待ってから押す
+async function openReceiptRail(page: Page) {
+  const rail = page.getByTestId('receipt-utility-rail');
+  if (await rail.isVisible()) {
+    return;
+  }
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  await toggle.waitFor({ state: 'visible', timeout: 10000 });
+  await toggle.click();
+  await expect(rail).toBeVisible();
+}
+
 async function mockSession(page: Page, user: unknown = MOCK_USER, status = 200) {
   await page.route(ROUTES.authMe, (route) =>
     route.fulfill(json(user, status)),
@@ -365,6 +378,7 @@ test('CSVプレビューと確認モーダルに moderate 以上の WCAG 違反�
     await page.setViewportSize(size);
     await page.goto('/receipts');
     await page.waitForLoadState('networkidle');
+    await openReceiptRail(page);
     const fileInput = page.locator('[data-testid="csv-file-input"]');
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
@@ -433,6 +447,7 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
     await page.goto('/receipts');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
+    await openReceiptRail(page);
     const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible').first();
     if ((await header.getAttribute('aria-expanded')) === 'false') {
       await header.click();
@@ -496,6 +511,7 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await page.setViewportSize(PC);
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
+  await openReceiptRail(page);
 
   const dividendTab = page.locator('button[role="tab"][id="tab-dividend"]');
   const domesticTab = page.locator('button[role="tab"][id="tab-domesticstock"]');
@@ -764,6 +780,7 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
   await page.setViewportSize(PC);
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
+  await openReceiptRail(page);
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   const preview = page.locator('[role="status"][aria-live="polite"]').first();
 

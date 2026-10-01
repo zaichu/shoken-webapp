@@ -166,6 +166,17 @@ async function expectAssetDataLoaded(page: Page) {
   ).toBeVisible();
 }
 
+// データがあると右レールは畳まれた状態で始まるので、レール内の UI に触れる前に開く
+async function openReceiptUtilityRail(page: Page) {
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('receipt-utility-rail')).toBeVisible();
+}
+
 async function selectReceiptTab(page: Page, tab: ReceiptTab) {
   const button = page.getByRole('tab', { name: tab.name });
   await button.click();
@@ -279,6 +290,7 @@ test('口座検索で絞り込んでも表が収まり該当データが残る',
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/receipts');
   await selectReceiptTab(page, TABS[1]);
+  await openReceiptUtilityRail(page);
   await page.getByTestId('search-card').getByRole('button', { name: '特定口座', exact: true }).click();
   const table = page.getByRole('table');
   await expect(table).toContainText('特定口座');
