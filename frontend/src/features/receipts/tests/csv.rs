@@ -8,6 +8,7 @@ use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvPreview;
 use crate::support::csv_flow::CsvTabState;
+use crate::support::row::Row;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -861,7 +862,7 @@ fn display_rows_for_prefers_preview_only_when_rows_exist() {
 
         assert_eq!(
             display_rows_for(store, tab, saved.clone()),
-            vec![crate::support::row::Row::Preview(preview_row)]
+            vec![Row::Preview(preview_row)]
         );
         assert_eq!(
             display_rows_for(store, ReceiptsTab::DomesticStock, saved.clone()),
