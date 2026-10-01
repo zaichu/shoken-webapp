@@ -401,6 +401,14 @@ fn non_core_tiers_have_distinct_class_backed_by_a_css_rule() {
     assert_eq!(unique.len(), classes.len(), "段のクラスが区別できない");
 }
 
+// span_masks が `tier <= max` で集計見出しの結合幅を数えるため、宣言順の大小関係に依存する
+#[test]
+fn column_tier_declares_core_as_narrowest_then_widening() {
+    assert!(ColumnTier::Core < ColumnTier::Md);
+    assert!(ColumnTier::Md < ColumnTier::Wide);
+    assert!(ColumnTier::Wide < ColumnTier::Wider);
+}
+
 // 開閉トグルの aria-controls が指す aside の id。空や重複だと ARIA の参照が効かない
 #[test]
 fn utility_rail_ids_are_non_empty_and_unique_per_tab() {
