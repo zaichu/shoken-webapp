@@ -8,6 +8,7 @@ use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvPreview;
 use crate::support::csv_flow::CsvTabState;
+use crate::support::row::Row;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -820,5 +821,91 @@ fn ensure_keeps_entries_when_nothing_is_stale() {
         assert!(store
             .csv
             .with_untracked(|map| map.contains_key(&(generation, tab))));
+    });
+}
+
+#[test]
+fn display_rows_for_prefers_preview_only_when_rows_exist() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let tab = ReceiptsTab::Dividend;
+        let preview_row =
+            CsvPreviewRow::Dividend(crate::features::receipts::csv::DividendCsvRow::default());
+        let store = test_store(
+            &session,
+            HashMap::new(),
+            HashMap::from([
+                (
+                    (generation, tab),
+                    CsvTabState {
+                        preview: Some(CsvPreview {
+                            rows: vec![preview_row.clone()],
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                ),
+                (
+                    (generation, ReceiptsTab::DomesticStock),
+                    CsvTabState {
+                        preview: Some(CsvPreview::default()),
+                        ..Default::default()
+                    },
+                ),
+            ]),
+        );
+        let saved = crate::features::receipts::filter::tests::dividends();
+        let display_rows_for = crate::features::receipts::view::main_content::display_rows_for;
+
+        assert_eq!(
+            display_rows_for(store, tab, saved.clone()),
+            vec![Row::Preview(preview_row)]
+        );
+        assert_eq!(
+            display_rows_for(store, ReceiptsTab::DomesticStock, saved.clone()),
+            saved
+        );
+        assert_eq!(
+            display_rows_for(store, ReceiptsTab::MutualFund, saved.clone()),
+            saved
+        );
+    });
+}
+
+#[test]
+fn utility_display_rows_returns_rows_only_for_ready_tab() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let tab = ReceiptsTab::Dividend;
+        let saved = crate::features::receipts::filter::tests::dividends();
+        let store = test_store(
+            &session,
+            HashMap::from([
+                (
+                    (generation, tab),
+                    TabState::Ready(ReceiptTabData {
+                        rows: saved.clone(),
+                        summary: None,
+                        truncated: false,
+                    }),
+                ),
+                (
+                    (generation, ReceiptsTab::DomesticStock),
+                    TabState::Failed("取得失敗".to_string()),
+                ),
+            ]),
+            HashMap::new(),
+        );
+        let utility_display_rows = crate::features::receipts::view::utility_display_rows;
+
+        assert_eq!(utility_display_rows(store, tab), saved);
+        assert!(utility_display_rows(store, ReceiptsTab::DomesticStock).is_empty());
+        assert!(utility_display_rows(store, ReceiptsTab::MutualFund).is_empty());
     });
 }

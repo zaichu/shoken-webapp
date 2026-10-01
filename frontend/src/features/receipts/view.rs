@@ -1,6 +1,6 @@
 mod cards;
 mod groups;
-mod main_content;
+pub(crate) mod main_content;
 mod pickers;
 mod search_card;
 mod summary;
@@ -8,12 +8,16 @@ mod table;
 mod tabs;
 mod workspace;
 
-use crate::features::receipts::{use_receipts_data, ReceiptsTab, TabState};
+use crate::features::receipts::filter::filter_receipts;
+use crate::features::receipts::{use_receipts_data, ReceiptRow, ReceiptsTab, TabState};
 use crate::session::use_session;
+use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::elements::PageHeader;
+use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
+use main_content::display_rows_for;
 use tabs::{scroll_tab_into_view, ReceiptsTabButton, TabPanel};
+use workspace::utility_rail_id;
 
 pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
 
@@ -36,28 +40,43 @@ pub fn ReceiptsPage() -> impl IntoView {
             )
     });
     let tabs = store;
+    let trigger_store = store;
+    // 裏再取得の Ready→Ready で作り直さないよう対象タブの有無だけを memo 化する
+    let trigger_tab = Memo::new(move |_| {
+        let tab = trigger_store.active_tab.get();
+        matches!(trigger_store.tab_state(tab), TabState::Ready(_)).then_some(tab)
+    });
     // クリックとキー操作の両経路をカバーするため select_tab ではなく active_tab の変化に追従する
     Effect::new(move |_| scroll_tab_into_view(tabs.active_tab.get()));
 
     view! {
-        <PageHeader
-            title="取引明細"
-            description="配当金・国内株式・投資信託の取引明細を管理します。"
-        />
-        <nav class="mb-2 no-print" aria-label="取引明細タブ">
-            <div
-                class="receipts-tab-list"
-                role="tablist"
-            >
-                {ReceiptsTab::ALL
-                    .iter()
-                    .copied()
-                    .map(|tab| {
-                        view! { <ReceiptsTabButton store=store tab=tab /> }
-                    })
-                    .collect_view()}
-            </div>
-        </nav>
+        <h1 class="sr-only">"取引明細"</h1>
+        <div class="mb-2 flex items-center justify-between gap-3">
+            <nav class="no-print" aria-label="取引明細タブ">
+                <div
+                    class="receipts-tab-list"
+                    role="tablist"
+                >
+                    {ReceiptsTab::ALL
+                        .iter()
+                        .copied()
+                        .map(|tab| {
+                            view! { <ReceiptsTabButton store=store tab=tab /> }
+                        })
+                        .collect_view()}
+                </div>
+            </nav>
+            {move || {
+                trigger_tab.get().map(|tab| view! {
+                    <div
+                        class="hidden shrink-0 lg:flex no-print"
+                        data-testid="receipt-utility-toggle-bar"
+                    >
+                        <UtilityRailToggle store=store tab=tab />
+                    </div>
+                })
+            }}
+        </div>
         <div
             class="mt-0"
             aria-busy=move || {
@@ -117,3 +136,67 @@ pub fn ReceiptsPage() -> impl IntoView {
 
 #[cfg(test)]
 mod tests;
+
+#[component]
+fn UtilityRailToggle(
+    store: crate::features::receipts::ReceiptsStore,
+    tab: ReceiptsTab,
+) -> impl IntoView {
+    let rail_open = store.utility_rail_open;
+    let rows_store = store;
+    let display = Memo::new(move |_| utility_display_rows(rows_store, tab));
+    let search = store.search;
+    let filtered = Memo::new(move |_| {
+        filter_receipts(
+            tab,
+            &display.get(),
+            &search.with(|state| state.query.clone()),
+        )
+    });
+    let total = Signal::derive(move || display.get().len());
+    let badge_store = store;
+    view! {
+        <DisclosureToggle
+            style=DisclosureStyle::Rail
+            expanded=Signal::derive(move || rail_open.get())
+            controls=utility_rail_id(tab)
+            aria_label=Signal::derive(move || {
+                if rail_open.get() {
+                    "取り込み・検索パネルを閉じる".to_string()
+                } else {
+                    "取り込み・検索パネルを開く".to_string()
+                }
+            })
+            testid="receipt-utility-toggle"
+            hint=true
+            on_toggle=move || store.toggle_utility_rail()
+        >
+            <span class="flex min-w-0 items-center gap-2">
+                <span class="text-sm font-bold text-text">"取り込み・検索"</span>
+                {move || {
+                    badge_store.utility_filter_badge_visible().then(|| {
+                        view! {
+                            <Badge variant=BadgeVariant::Accent>
+                                {format!(
+                                    "絞り込み中 {} / {} 件",
+                                    filtered.get().len(),
+                                    total.get(),
+                                )}
+                            </Badge>
+                        }
+                    })
+                }}
+            </span>
+        </DisclosureToggle>
+    }
+}
+
+pub(crate) fn utility_display_rows(
+    store: crate::features::receipts::ReceiptsStore,
+    tab: ReceiptsTab,
+) -> Vec<ReceiptRow> {
+    match store.tab_state(tab) {
+        TabState::Ready(data) => display_rows_for(store, tab, data.rows),
+        _ => Vec::new(),
+    }
+}
