@@ -1,6 +1,6 @@
 mod cards;
 mod groups;
-mod main_content;
+pub(crate) mod main_content;
 mod pickers;
 mod search_card;
 mod summary;
@@ -9,7 +9,7 @@ mod tabs;
 mod workspace;
 
 use crate::features::receipts::filter::filter_receipts;
-use crate::features::receipts::{use_receipts_data, ReceiptsTab, TabState};
+use crate::features::receipts::{use_receipts_data, ReceiptRow, ReceiptsTab, TabState};
 use crate::session::use_session;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
@@ -144,10 +144,7 @@ fn UtilityRailToggle(
 ) -> impl IntoView {
     let rail_open = store.utility_rail_open;
     let rows_store = store;
-    let display = Memo::new(move |_| match rows_store.tab_state(tab) {
-        TabState::Ready(data) => display_rows_for(rows_store, tab, data.rows),
-        _ => Vec::new(),
-    });
+    let display = Memo::new(move |_| utility_display_rows(rows_store, tab));
     let search = store.search;
     let filtered = Memo::new(move |_| {
         filter_receipts(
@@ -191,5 +188,16 @@ fn UtilityRailToggle(
                 }}
             </span>
         </DisclosureToggle>
+    }
+}
+
+// 未 Ready のタブで表示行を参照しないようガードする(バッジ件数の基準)
+pub(crate) fn utility_display_rows(
+    store: crate::features::receipts::ReceiptsStore,
+    tab: ReceiptsTab,
+) -> Vec<ReceiptRow> {
+    match store.tab_state(tab) {
+        TabState::Ready(data) => display_rows_for(store, tab, data.rows),
+        _ => Vec::new(),
     }
 }
