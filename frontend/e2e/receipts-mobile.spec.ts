@@ -303,8 +303,9 @@ test('集計はツールバーから全項目を開く', async ({ page }) => {
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   const region = page.getByRole('region', { name: '集計情報' });
   await expect(region).toBeVisible();
-  await expect(region.getByText('配当金', { exact: true })).toBeVisible();
-  await expect(region.getByText('税引後', { exact: true })).toBeVisible();
+  const mobileBody = page.locator('#receipt-summary-mobile-body');
+  await expect(mobileBody.getByText('配当金', { exact: true })).toBeVisible();
+  await expect(mobileBody.getByText('税引後', { exact: true })).toBeVisible();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');

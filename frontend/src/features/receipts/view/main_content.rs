@@ -1,6 +1,5 @@
 use super::summary::{header_summary, SummaryStrip};
 use super::table::ReceiptTable;
-use super::workspace::utility_rail_id;
 use crate::features::receipts::dividend_info::{
     search_security_code, DividendInfoStore, DividendSummarySection,
 };
@@ -9,33 +8,37 @@ use crate::features::receipts::kind::{DividendKind, ReceiptKind};
 use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsStore, ReceiptsTab};
 use crate::session::use_session;
 use crate::support::row::Row;
-use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::csv_preview::CsvPreviewBanner;
 use crate::ui::csv_section::click_csv_input;
-use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use leptos::ev;
 use leptos::prelude::*;
+
+pub(crate) fn display_rows_for(
+    store: ReceiptsStore,
+    tab: ReceiptsTab,
+    rows: Vec<ReceiptRow>,
+) -> Vec<ReceiptRow> {
+    match store.csv_state(tab).preview {
+        Some(preview) if !preview.rows.is_empty() => {
+            preview.rows.into_iter().map(Row::Preview).collect()
+        }
+        _ => rows,
+    }
+}
 
 #[component]
 pub(crate) fn ReceiptsMainContent(
     store: ReceiptsStore,
     tab: ReceiptsTab,
     data: ReceiptTabData,
-    // 取得失敗タブではレールが表示上強制的に開くため、開閉状態と齟齬するトグルは出さない
-    rail_toggle: bool,
 ) -> impl IntoView {
     let search = store.search;
     let summary = data.summary.clone();
     let display_store = store;
-    let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
-        Some(preview) if !preview.rows.is_empty() => {
-            preview.rows.into_iter().map(Row::Preview).collect()
-        }
-        _ => data.rows.clone(),
-    });
+    let display_rows = Memo::new(move |_| display_rows_for(display_store, tab, data.rows.clone()));
     let preview_store = store;
     let preview_active = Memo::new(move |_| preview_store.has_csv_preview(tab));
     let csv_store = store;
@@ -80,16 +83,6 @@ pub(crate) fn ReceiptsMainContent(
         });
     }
     view! {
-        {rail_toggle.then(|| {
-            view! {
-                <UtilityRailToggle
-                    store=store
-                    tab=tab
-                    filtered=filtered
-                    total=Signal::derive(move || display_rows.get().len())
-                />
-            }
-        })}
         {move || {
             let display = display_rows.get();
             if display.is_empty() {
@@ -177,55 +170,5 @@ pub(crate) fn ReceiptsMainContent(
                 />
             }.into_any()
         }}
-    }
-}
-
-/// PC のみ出す右レールの開閉バー。畳んでいても絞り込み中が分かるよう件数を表の上に出す
-#[component]
-fn UtilityRailToggle(
-    store: ReceiptsStore,
-    tab: ReceiptsTab,
-    filtered: Memo<Vec<ReceiptRow>>,
-    #[prop(into)] total: Signal<usize>,
-) -> impl IntoView {
-    let rail_open = store.utility_rail_open;
-    let badge_store = store;
-    view! {
-        <div class="hidden lg:block no-print">
-            <Card variant=CardVariant::Collapsible testid="receipt-utility-toggle-bar">
-                <DisclosureToggle
-                    style=DisclosureStyle::Rail
-                    expanded=Signal::derive(move || rail_open.get())
-                    controls=utility_rail_id(tab)
-                    aria_label=Signal::derive(move || {
-                        if rail_open.get() {
-                            "取り込み・検索パネルを閉じる".to_string()
-                        } else {
-                            "取り込み・検索パネルを開く".to_string()
-                        }
-                    })
-                    testid="receipt-utility-toggle"
-                    hint=true
-                    on_toggle=move || store.toggle_utility_rail()
-                >
-                    <span class="flex min-w-0 items-center gap-2">
-                        <span class="text-sm font-bold text-text">"取り込み・検索"</span>
-                        {move || {
-                            badge_store.utility_filter_badge_visible().then(|| {
-                                view! {
-                                    <Badge variant=BadgeVariant::Accent>
-                                        {format!(
-                                            "絞り込み中 {} / {} 件",
-                                            filtered.get().len(),
-                                            total.get(),
-                                        )}
-                                    </Badge>
-                                }
-                            })
-                        }}
-                    </span>
-                </DisclosureToggle>
-            </Card>
-        </div>
     }
 }

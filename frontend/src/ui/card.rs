@@ -31,8 +31,6 @@ pub enum CardVariant {
     Holding,
     /// KPI のマス
     Stat,
-    /// 取引明細 KPI の小さいマス
-    StatSmall,
     /// 内側のくぼんだ箱(配当情報の小枠)
     Sunken,
     /// カード内の集計ストリップ(grid 等は class で)
@@ -67,7 +65,6 @@ impl CardVariant {
             Self::Group => "overflow-hidden rounded-lg border border-border-subtle",
             Self::Holding => "rounded-lg border border-ink/10 bg-surface shadow-sm",
             Self::Stat => "rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm",
-            Self::StatSmall => "rounded-lg border border-border-subtle bg-surface px-3.5 py-3",
             Self::Sunken => "rounded-lg bg-surface-sunken px-4 py-3",
             Self::Strip => "overflow-hidden rounded-md bg-surface-sunken",
             Self::DashedCompact => {
@@ -142,8 +139,6 @@ pub enum SectionHeaderVariant {
     Band,
     /// カード内の上段見出し(資産サマリー)。h2 で出す
     Card,
-    /// 下線だけの見出し(集計情報)。h2 で出す
-    Divider,
 }
 
 impl SectionHeaderVariant {
@@ -153,14 +148,13 @@ impl SectionHeaderVariant {
             Self::Card => {
                 "flex flex-col gap-3 border-b border-ink/10 pb-4 sm:flex-row sm:items-end sm:justify-between"
             }
-            Self::Divider => "flex items-start justify-between gap-3 border-b border-ink/10 pb-2.5",
         }
     }
 
     fn heading(self) -> &'static str {
         match self {
             Self::Band => "text-sm font-black text-text-strong",
-            Self::Card | Self::Divider => "text-sm font-black text-ink",
+            Self::Card => "text-sm font-black text-ink",
         }
     }
 }

@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn section_tag_is_only_collapsible_and_summary() {
-    let cases: [(CardVariant, bool); 19] = [
+    let cases: [(CardVariant, bool); 18] = [
         (CardVariant::Panel, false),
         (CardVariant::Login, false),
         (CardVariant::Table, false),
@@ -16,7 +16,6 @@ fn section_tag_is_only_collapsible_and_summary() {
         (CardVariant::Group, false),
         (CardVariant::Holding, false),
         (CardVariant::Stat, false),
-        (CardVariant::StatSmall, false),
         (CardVariant::Sunken, false),
         (CardVariant::Strip, false),
         (CardVariant::DashedCompact, false),

@@ -262,7 +262,6 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                                 store=main_store
                                 tab=tab
                                 data=data
-                                rail_toggle=true
                             />
                         }
                         .into_any()
@@ -276,7 +275,6 @@ pub(crate) fn ReceiptWorkspace(store: ReceiptsStore, tab: ReceiptsTab) -> impl I
                                         store=main_store
                                         tab=tab
                                         data=empty_tab_data()
-                                        rail_toggle=false
                                     />
                                 </div>
                             }

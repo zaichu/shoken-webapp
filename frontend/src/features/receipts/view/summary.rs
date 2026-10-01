@@ -1,7 +1,8 @@
 use crate::features::receipts::model::format_currency;
 use crate::features::receipts::{select_header_summary, ReceiptTabData, ReceiptsTab};
 use crate::ui::amount::Amount;
-use crate::ui::card::{Card, CardVariant, SectionHeader, SectionHeaderVariant, StatTone};
+use crate::ui::badge::{Badge, BadgeVariant};
+use crate::ui::card::StatTone;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
@@ -51,35 +52,6 @@ pub(crate) fn kpi_value_color(tone: StatTone) -> &'static str {
 }
 
 #[component]
-fn KpiGrid(
-    items: Vec<(&'static str, Decimal, StatTone)>,
-    grid_class: &'static str,
-) -> impl IntoView {
-    view! {
-        <div class=grid_class data-testid="kpi-grid">
-            {items
-                .into_iter()
-                .map(|(label, value, tone)| {
-                    let negative = matches!(tone, StatTone::Loss);
-                    let value = format_currency(value);
-                    view! {
-                        <Card variant=CardVariant::StatSmall>
-                            <p class="mb-1 text-xs font-medium text-text-muted">{label}</p>
-                            <Amount
-                                block=true
-                                text=value
-                                class=format!("text-2xl font-bold {}", kpi_value_color(tone))
-                                negative=negative
-                            />
-                        </Card>
-                    }
-                })
-                .collect_view()}
-        </div>
-    }
-}
-
-#[component]
 pub(crate) fn SummaryStrip(
     items: Vec<(&'static str, Decimal, StatTone)>,
     expanded: RwSignal<bool>,
@@ -94,31 +66,72 @@ pub(crate) fn SummaryStrip(
     let mobile_body_id = "receipt-summary-mobile-body";
     let mobile_items = items.clone();
     view! {
-        <Card variant=CardVariant::Collapsible testid="receipt-summary-strip" class=Signal::derive(move || {
-            if mobile_expanded.get() { "" } else { "max-sm:hidden" }.to_string()
-        })>
+        <section
+            data-testid="receipt-summary-strip"
+            role="region"
+            aria-label=title
+            class=move || {
+                if mobile_expanded.get() {
+                    "receipt-summary-band".to_string()
+                } else {
+                    "receipt-summary-band max-sm:hidden".to_string()
+                }
+            }
+        >
             <div
                 id=mobile_body_id
                 class="sm:hidden"
-                role="region"
-                aria-label=title
                 hidden=move || !mobile_expanded.get()
             >
                 {move || mobile_expanded.get().then(|| view! {
-                    <KpiGrid items=mobile_items.clone() grid_class="grid grid-cols-1 gap-2.5" />
+                    <div class="flex flex-col gap-2">
+                        {mobile_items
+                            .clone()
+                            .into_iter()
+                            .map(|(label, value, tone)| {
+                                let negative = matches!(tone, StatTone::Loss);
+                                view! {
+                                    <div class="flex items-baseline justify-between gap-3">
+                                        <span class="text-sm text-text-muted">{label}</span>
+                                        <Amount
+                                            text=format_currency(value)
+                                            class=format!("text-base font-bold {}", kpi_value_color(tone))
+                                            negative=negative
+                                        />
+                                    </div>
+                                }
+                            })
+                            .collect_view()}
+                    </div>
                 })}
             </div>
             <div class="hidden sm:block" data-testid="receipt-summary-desktop">
-                <SectionHeader variant=SectionHeaderVariant::Divider testid="receipt-header">
-                    {title}
-                </SectionHeader>
-                <div class="pt-3">
-                    <KpiGrid
-                        items=items
-                        grid_class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3"
-                    />
+                <div class="flex items-center gap-3">
+                    {preview.then(|| view! {
+                        <Badge variant=BadgeVariant::AccentFlat>"プレビュー"</Badge>
+                    })}
+                    <dl class="receipt-summary-band-grid flex-1" data-testid="kpi-grid">
+                        {items
+                            .into_iter()
+                            .map(|(label, value, tone)| {
+                                let negative = matches!(tone, StatTone::Loss);
+                                view! {
+                                    <div class="min-w-0">
+                                        <dt class="mb-1 text-xs font-medium text-text-muted">{label}</dt>
+                                        <dd class="wrap-anywhere text-lg font-bold">
+                                            <Amount
+                                                text=format_currency(value)
+                                                class=kpi_value_color(tone)
+                                                negative=negative
+                                            />
+                                        </dd>
+                                    </div>
+                                }
+                            })
+                            .collect_view()}
+                    </dl>
                 </div>
             </div>
-        </Card>
+        </section>
     }
 }
