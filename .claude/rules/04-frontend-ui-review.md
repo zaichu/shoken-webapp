@@ -13,3 +13,7 @@ Leptos の主要ページ（ホーム・銘柄検索・資産管理・取引明�
 5. 指摘は `docs/tasks/` の task file に優先度と再現手順を記録する。
 
 実 backend と DB を使う確認では DB → backend → Leptos の順に起動する。`./scripts/start-local.sh` がこの順序を守る。
+
+## CI と同じ環境での再現
+
+手元では通るのに CI でだけ落ちる(フォント差など)が疑われるときは、`frontend/` で `bash scripts/e2e-ci-like.sh [spec] [--grep ...]` を使う。Ubuntu 24.04・CI と同じフォントのコンテナで回し、`--show-fonts` でホストとコンテナの `fc-match` を比べられる。
