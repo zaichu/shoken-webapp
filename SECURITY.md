@@ -102,7 +102,7 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 
 開発に使う AI エージェントの権限を強く絞っていない。範囲:
 
-- Devin の実行環境の許可が広い
+- Devin の実行環境の許可が広い（`git` 全般（push を含む）・`gh`・`rm`・`python3`・`docker`、**本番デプロイの `fly` を含む**。許可リストの正本は agent-config の `devin/config.json`。`fly` を含めることは 2026-10-01 にユーザーが改めて確認した）
 - Codex を `danger-full-access` で実行している
 - 統合側の `gh` は管理者権限を持ち、必須チェックを通さないマージ（`gh pr merge --admin`）が可能
 
