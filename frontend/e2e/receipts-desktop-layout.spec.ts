@@ -807,9 +807,7 @@ test('1920px では集計+表の左列と CSV+検索の右レールになる', a
 });
 
 test('A4の印字可能領域に全タブの右端の列を収めて印刷できる', async ({ page }) => {
-  // 集計行は「結合見出し + 末尾3列の集計セル」で組む前提でセル数を固定する。
-  // 国内株式は1件だけの約定日グループに集計を出さないため、fixture に単件の日が
-  // あるとそのグループだけ前提が崩れる(配当・投信の月次集計は件数に関わらず出る)
+  // 国内株式は単件の約定日に集計行を出さないため、fixture の全日が2行以上ある前提を確かめる
   const rowsByTradeDate = new Map<string, number>();
   for (const row of DOMESTIC_STOCKS) {
     rowsByTradeDate.set(row.trade_date, (rowsByTradeDate.get(row.trade_date) ?? 0) + 1);
