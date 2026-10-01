@@ -191,7 +191,6 @@ fn UtilityRailToggle(
     }
 }
 
-// 未 Ready のタブで表示行を参照しないようガードする(バッジ件数の基準)
 pub(crate) fn utility_display_rows(
     store: crate::features::receipts::ReceiptsStore,
     tab: ReceiptsTab,
