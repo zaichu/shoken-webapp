@@ -1,8 +1,6 @@
 use leptos::ev;
 use leptos::prelude::*;
 
-// MS Learn型3カラムの骨格。左パネル・中央列・右レール(1440px以上)の枠組みだけを持ち、
-// パネル内部の部品は呼び出し側が渡す。フェーズ1では開閉・ドロワー・表不動が責務。
 // 非 wasm(単体テスト)では window が無いため開いて始める
 pub fn workspace_panel_default_open() -> bool {
     #[cfg(target_arch = "wasm32")]

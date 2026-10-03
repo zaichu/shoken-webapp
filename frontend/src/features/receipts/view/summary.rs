@@ -68,7 +68,6 @@ pub(crate) fn SummaryStrip(
     let mobile_items = items.clone();
     view! {
             <section
-                id="receipts-summary"
                 data-testid="receipt-summary-strip"
                 role="region"
                 aria-label=title
