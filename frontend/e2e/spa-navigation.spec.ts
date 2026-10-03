@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { json, paginated } from './support/test';
 
+const paginatedAll = (data: unknown[], extra: Record<string, unknown> = {}) =>
+  paginated(data, { per_page: 1000, ...extra });
+
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
   email: 'test@example.com',
@@ -58,7 +61,7 @@ interface ApiCounts {
 }
 
 async function setupApiMocks(page: Page, counts: ApiCounts, authed = true) {
-  await page.route('**/api/v1/**', (route) => route.fulfill(json(paginated([]))));
+  await page.route('**/api/v1/**', (route) => route.fulfill(json(paginatedAll([]))));
   await page.route('**/api/v1/session', (route) => {
     counts.session += 1;
     return route.fulfill(
@@ -71,7 +74,7 @@ async function setupApiMocks(page: Page, counts: ApiCounts, authed = true) {
     counts.assetBalances += 1;
     return route.fulfill(
       json(
-        paginated([ASSET], {
+        paginatedAll([ASSET], {
           summary: {
             total_purchase_amount: 250000,
             total_market_value: 260000,
@@ -87,7 +90,7 @@ async function setupApiMocks(page: Page, counts: ApiCounts, authed = true) {
     if (!route.request().url().includes('year=')) {
       counts.dividends += 1;
     }
-    return route.fulfill(json(paginated([DIVIDEND])));
+    return route.fulfill(json(paginatedAll([DIVIDEND])));
   });
   await page.route('**/api/v1/stocks**', (route) => route.fulfill(json(STOCK)));
 }
@@ -164,7 +167,7 @@ test('再訪では表示済みデータを残したまま裏で取り直す', as
         await new Promise((resolve) => setTimeout(resolve, 800));
       }
     }
-    return route.fulfill(json(paginated([DIVIDEND])));
+    return route.fulfill(json(paginatedAll([DIVIDEND])));
   });
 
   await page.goto('/');
@@ -193,11 +196,11 @@ test('裏再取得が失敗しても表示済みの行を残してエラーを�
   await page.unroute('**/api/v1/dividends**');
   await page.route('**/api/v1/dividends**', (route) => {
     if (route.request().url().includes('year=')) {
-      return route.fulfill(json(paginated([DIVIDEND])));
+      return route.fulfill(json(paginatedAll([DIVIDEND])));
     }
     counts.dividends += 1;
     return counts.dividends === 1
-      ? route.fulfill(json(paginated([DIVIDEND])))
+      ? route.fulfill(json(paginatedAll([DIVIDEND])))
       : route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
   });
 
