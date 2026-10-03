@@ -29,7 +29,7 @@ cd shoken-webapp
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
 | フロントエンド | Vercel | main push（`deploy-frontend.yml`、frontend/shared 変更時。CI 成功後に自動実行） |
-| フロントエンド（プレビュー） | Vercel preview | PR 作成・更新時。URL は PR コメントに投稿される |
+| フロントエンド（プレビュー） | Vercel preview | PR 作成・更新時（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。URL は PR コメントに投稿される |
 | バックエンド | Fly.io | main push（`deploy-backend.yml`） |
 
 ### 手動デプロイ（緊急時）

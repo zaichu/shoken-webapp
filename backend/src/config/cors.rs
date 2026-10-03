@@ -52,7 +52,7 @@ pub fn parse_cors_origins(raw: &str) -> Vec<String> {
 // Vercel プレビューはチームスラッグ入りのランダム URL しか取れない。
 // `-zaichus-projects` サフィックスを持つドメインは自チームのデプロイにしか発行されないため、
 // サフィックス一致でプレビュー origin を許可する
-fn is_vercel_preview_origin(origin: &str) -> bool {
+pub(crate) fn is_vercel_preview_origin(origin: &str) -> bool {
     origin
         .strip_prefix("https://")
         .is_some_and(|host| host.ends_with("-zaichus-projects.vercel.app"))

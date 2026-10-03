@@ -182,7 +182,7 @@ jobs:
           marker="<!-- frontend-preview-url -->"
           body="${marker}
           Frontend preview: ${{ steps.deploy.outputs.url }}"
-          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${{ github.event.pull_request.number }}/comments" \
+          existing=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq "[.[] | select(.body | contains(\"${marker}\"))] | last | .id // empty")
           if [[ -n "${existing}" ]]; then
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="${body}" > /dev/null
