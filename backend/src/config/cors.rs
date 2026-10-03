@@ -49,13 +49,16 @@ pub fn parse_cors_origins(raw: &str) -> Vec<String> {
         .collect()
 }
 
-// Vercel プレビューはチームスラッグ入りのランダム URL しか取れない。
-// `-zaichus-projects` サフィックスを持つドメインは自チームのデプロイにしか発行されないため、
-// サフィックス一致でプレビュー origin を許可する
+// Vercel プレビューは `<project>-<hash>-<team>.vercel.app` 形式で、チームスラッグは自チームの
+// デプロイにしか発行されない。前方のドット混入(別ドメイン偽装)も排除して厳密に一致させる
 pub(crate) fn is_vercel_preview_origin(origin: &str) -> bool {
-    origin
-        .strip_prefix("https://")
-        .is_some_and(|host| host.ends_with("-zaichus-projects.vercel.app"))
+    let Some(host) = origin.strip_prefix("https://") else {
+        return false;
+    };
+    let Some(project) = host.strip_suffix("-zaichus-projects.vercel.app") else {
+        return false;
+    };
+    project.starts_with("shoken-webapp") && !project.contains(['.', ':', '/'])
 }
 
 pub fn is_localhost_origin(origin: &str) -> bool {
@@ -176,8 +179,13 @@ mod tests {
             ),
             // チーム外の同名プロジェクトや偽装サフィックスは拒否する
             ("https://shoken-webapp-abc123-otherteam.vercel.app", false),
+            ("https://other-app-abc-zaichus-projects.vercel.app", false),
             ("https://notzaichus-projects.vercel.app", false),
             ("https://zaichus-projects.vercel.app.evil.com", false),
+            (
+                "https://shoken-webapp.evil-zaichus-projects.vercel.app",
+                false,
+            ),
             (
                 "http://shoken-webapp-abc-zaichus-projects.vercel.app",
                 false,
