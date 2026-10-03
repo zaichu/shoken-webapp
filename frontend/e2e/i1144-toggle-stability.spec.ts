@@ -47,18 +47,12 @@ test('開閉しても表のx座標と幅が変わらない(MS Learn と同じく
     await page.goto('/receipts');
     await expect(page.getByRole('table')).toBeVisible();
     const toggle = page.getByTestId('receipt-utility-toggle');
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByTestId('search-card')).toBeHidden();
+    // デスクトップでは開いた状態で始まる
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('search-card')).toBeVisible();
 
     const table = page.getByRole('table');
     const before = (await table.boundingBox())!;
-
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByTestId('search-card')).toBeVisible();
-    const opened = (await table.boundingBox())!;
-    expect(opened.x).toBeCloseTo(before.x, 0);
-    expect(opened.width).toBeCloseTo(before.width, 0);
 
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -67,12 +61,19 @@ test('開閉しても表のx座標と幅が変わらない(MS Learn と同じく
     expect(closed.x).toBeCloseTo(before.x, 0);
     expect(closed.width).toBeCloseTo(before.width, 0);
 
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('search-card')).toBeVisible();
+    const opened = (await table.boundingBox())!;
+    expect(opened.x).toBeCloseTo(before.x, 0);
+    expect(opened.width).toBeCloseTo(before.width, 0);
+
     // 開閉の状態は localStorage に保存しない
     const storedBefore = await page.evaluate(() => JSON.stringify(localStorage));
     await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const storedAfter = await page.evaluate(() => JSON.stringify(localStorage));
     expect(storedAfter).toBe(storedBefore);
   }
@@ -83,6 +84,9 @@ test('キーボードで開いた直後のTabがレール内へ進む', async ({
   await page.goto('/receipts');
   await expect(page.getByRole('table')).toBeVisible();
   const toggle = page.getByTestId('receipt-utility-toggle');
+  // 初期状態は開きなので、一度畳んでからキーボードで開き直す
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.focus();
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');

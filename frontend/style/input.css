@@ -276,10 +276,6 @@
     @apply inline-flex items-center rounded-full border border-border-subtle bg-surface px-3 py-1 text-sm font-medium text-text-muted transition-colors hover:bg-surface-sunken;
   }
 
-  .file-chip {
-    @apply inline-flex shrink-0 items-center rounded-full border border-border-subtle bg-surface px-3 py-1.5 text-sm font-semibold text-text-soft shadow-sm;
-  }
-
   .filter-badge {
     @apply mt-1 inline-flex whitespace-nowrap rounded-md border border-accent-border bg-accent-soft px-2 py-0.5 text-eyebrow font-bold text-accent-text-soft;
   }
@@ -485,8 +481,7 @@
   }
 
   .ws-panel,
-  .ws-backdrop,
-  .ws-prail {
+  .ws-backdrop {
     display: none !important;
   }
 }
@@ -523,15 +518,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.4rem;
-  min-height: 2.75rem;
-  padding: 0.3rem 0.6rem;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0.5rem 0.9rem;
   border: 0;
-  border-radius: 0.35rem;
+  border-radius: 0.45rem;
   background: none;
   color: var(--color-text-muted);
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
 }
@@ -552,7 +547,7 @@
 
 /* 折りたたみでは列幅(18rem)を保ったままパネル本体だけ細レール化する */
 .ws-sidegrid.ws-closed .ws-panel {
-  width: 2.6rem;
+  width: 3.25rem;
   justify-self: start;
 }
 
@@ -564,10 +559,10 @@
   writing-mode: vertical-rl;
   justify-content: flex-start;
   width: 100%;
-  min-height: 14rem;
-  padding: 0.7rem 0;
+  min-height: 16rem;
+  padding: 0.9rem 0;
   letter-spacing: 0.15em;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   position: sticky;
   top: 0.75rem;
 }
@@ -590,26 +585,6 @@
   margin-inline: auto;
 }
 
-.ws-prail {
-  display: none;
-}
-
-@media (min-width: 90rem) {
-  .ws-sidegrid {
-    grid-template-columns: 18rem minmax(0, 1fr) 14.5rem;
-  }
-
-  .ws-prail {
-    display: block;
-    position: sticky;
-    top: 4rem;
-    max-height: calc(100vh - 4.25rem);
-    overflow-y: auto;
-    padding: 0.6rem 0.4rem;
-    min-height: 20rem;
-  }
-}
-
 @media (max-width: 63.999rem) {
   .ws-sidegrid {
     display: block;
@@ -629,8 +604,8 @@
 
   .ws-sidegrid.ws-closed .ws-toggle {
     writing-mode: horizontal-tb;
-    min-height: 2.75rem;
-    padding: 0.3rem 0.9rem;
+    min-height: 3rem;
+    padding: 0.5rem 1.1rem;
     letter-spacing: normal;
   }
 
@@ -713,77 +688,6 @@
   justify-content: flex-end;
   gap: .4rem;
   padding: .3rem .6rem;
-}
-
-/* 右レール (prail) */
-.prail-toc {
-  display: flex;
-  flex-direction: column;
-  gap: .1rem;
-}
-
-.prail-title {
-  margin: 0 0 .4rem;
-  font-size: .72rem;
-  font-weight: 800;
-  letter-spacing: .02em;
-  color: var(--color-text-muted);
-}
-
-.prail-toc a {
-  display: block;
-  padding: .35rem .6rem;
-  border-radius: .35rem;
-  color: var(--color-text);
-  text-decoration: none;
-  font-size: .82rem;
-}
-
-.prail-toc a:hover {
-  background: var(--color-surface-raised);
-  color: var(--color-ink);
-}
-
-.prail-applied {
-  margin-top: 1rem;
-  border-top: 1px solid var(--color-border);
-  padding-top: .6rem;
-}
-
-.prail-applied-row {
-  display: flex;
-  justify-content: space-between;
-  gap: .5rem;
-  padding: .15rem 0;
-  font-size: .78rem;
-}
-
-.prail-applied-row b {
-  color: var(--color-ink);
-  font-weight: 700;
-}
-
-.prail-clear {
-  margin-top: .5rem;
-  min-width: 4.2rem;
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
-  border-radius: .4rem;
-  font: inherit;
-  font-size: .75rem;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  padding: .55rem .7rem;
-  min-height: 2.75rem;
-  cursor: pointer;
-  white-space: nowrap;
-  align-self: flex-end;
-  text-align: center;
-}
-
-.prail-clear:disabled {
-  opacity: .45;
-  cursor: not-allowed;
 }
 
 /* サマリーカード (sum-card) */

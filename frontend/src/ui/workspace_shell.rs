@@ -31,7 +31,6 @@ pub fn WorkspaceShell(
     on_toggle: Callback<()>,
     on_close: Callback<()>,
     panel: AnyView,
-    #[prop(optional)] right_rail: Option<impl Fn() -> AnyView + 'static + Send>,
     children: Children,
 ) -> impl IntoView {
     // ドロワー表示中だけ Esc で閉じる。デスクトップの常設パネルには干渉しない
@@ -91,9 +90,6 @@ pub fn WorkspaceShell(
             <div class="ws-main" data-testid=main_testid>
                 {children()}
             </div>
-            <aside class="ws-prail" aria-label="ページ情報">
-                {move || right_rail.as_ref().map(|f| f()).unwrap_or_else(|| ().into_any())}
-            </aside>
         </div>
     }
 }

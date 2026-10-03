@@ -19,7 +19,6 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{use_session, SessionStore};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::elements::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
-use crate::ui::page_info_rail::PageInfoRail;
 use crate::ui::workspace_shell::{workspace_panel_default_open, WorkspaceShell};
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
@@ -208,22 +207,6 @@ pub fn AssetBalancePage() -> impl IntoView {
                     />
                 }
                     .into_any()
-                right_rail=move || {
-                    let has_rows = resolved_view().is_some_and(|r| !r.rows.is_empty());
-                    let applied = (has_rows && !search_query.get().is_empty()).then(|| {
-                        vec![("銘柄", Signal::derive(move || search_query.get()))]
-                    });
-                    view! {
-                        <PageInfoRail
-                            links=vec![
-                                ("#assetbalance-summary", "集計情報"),
-                                ("#assetbalance-list", "保有銘柄"),
-                            ]
-                            applied=applied
-                            on_clear=Some(Callback::new(move |_| search_query.set(String::new())))
-                        />
-                    }.into_any()
-                }
             >
                     // パネル(ドロワー)が閉じていても見えるよう、CSV/再取得の失敗はメイン列に出す
                     {move || {

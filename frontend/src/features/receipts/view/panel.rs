@@ -88,10 +88,6 @@ fn ReceiptsCsvSection(
 pub(crate) fn ReceiptPanelContent(store: ReceiptsStore) -> impl IntoView {
     let csv_store = store;
     let rail_store = store;
-    Effect::new(move |_| {
-        let tab = rail_store.active_tab.get();
-        rail_store.init_utility_rail_from_state(tab, rail_store.tab_state(tab));
-    });
     // 狭い帯ではドロワー内の高さを抑えるため畳んで始める(640px未満)
     let search_expanded = RwSignal::new(!is_narrow_viewport());
     let active_tab = Memo::new(move |_| store.active_tab.get());

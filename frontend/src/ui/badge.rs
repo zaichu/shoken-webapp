@@ -11,8 +11,6 @@ pub enum BadgeVariant {
     Info,
     /// 保有銘柄の緑
     Positive,
-    /// ファイル選択の参照チップ
-    File,
 }
 
 impl BadgeVariant {
@@ -28,7 +26,6 @@ impl BadgeVariant {
             Self::Positive => {
                 "inline-flex items-center rounded bg-positive-softer px-1.5 py-0.5 text-xs font-medium text-positive"
             }
-            Self::File => "file-chip",
         }
     }
 }
@@ -64,5 +61,25 @@ pub fn CodeBadge(
         >
             {children()}
         </span>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn badge_variant_classes_are_distinguishable() {
+        let variants = [
+            BadgeVariant::Accent,
+            BadgeVariant::AccentFlat,
+            BadgeVariant::Info,
+            BadgeVariant::Positive,
+        ];
+        let classes: Vec<&str> = variants.iter().map(|variant| variant.class()).collect();
+        for (i, class) in classes.iter().enumerate() {
+            assert!(!class.is_empty(), "{:?}", variants[i]);
+            assert!(!classes[..i].contains(class), "{:?}", variants[i]);
+        }
     }
 }

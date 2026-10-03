@@ -2,7 +2,7 @@ use super::{ReceiptRow, ReceiptTabData, ReceiptsTab, TabState};
 use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
 use crate::api::ApiError;
 use crate::features::receipts::csv::{to_preview, CsvPreviewRow};
-use crate::features::receipts::filter::{DateSegment, ReceiptSearch};
+use crate::features::receipts::filter::ReceiptSearch;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::{csv_error_message, CsvTabState};
 use crate::ui::workspace_shell::workspace_panel_default_open;
@@ -19,11 +19,8 @@ pub struct ReceiptsStore {
     pub expanded: RwSignal<HashSet<String>>,
     pub mobile_summary_expanded: RwSignal<bool>,
     // Cookie ポリシーへの記載を避けるため localStorage には保存せず、
-    // セッション内だけの画面状態として持つ。初期値はデータ有無でタブごとに決める
+    // セッション内だけの画面状態として持つ。開閉はユーザー操作だけが変える
     pub utility_rail_open: RwSignal<bool>,
-    pub(crate) utility_rail_decided: RwSignal<bool>,
-    // タブごとの初期開閉。ユーザーがトグルするまでは切替・再取得のたびにこの値へ戻す
-    pub(crate) utility_rail_initials: RwSignal<HashMap<ReceiptsTab, bool>>,
     // 再マウントなしのアカウント切替で前のユーザーの開閉状態を残さないためのセッション世代
     pub(crate) expanded_epoch: RwSignal<Option<Generation>>,
     pub(crate) visited: RwSignal<HashSet<ReceiptsTab>>,
@@ -68,36 +65,8 @@ impl ReceiptsStore {
         !self.session.loaded.get()
     }
 
-    // ユーザー操作を優先するため、トグル済みなら以後のデータ到着で初期値を上書きしない
     pub fn toggle_utility_rail(&self) {
-        self.utility_rail_decided.set(true);
         self.utility_rail_open.update(|open| *open = !*open);
-    }
-
-    /// 初期状態(データ→畳む、0件→開く)はタブごとの最初の Ready で一度だけ決めて記憶し、
-    /// ユーザーがトグルするまではタブ表示・再取得のたびにその値へ戻す。
-    /// 直前のタブの開閉状態を引き継がないため、タブ別の初期値を保持する。
-    pub(crate) fn init_utility_rail(&self, tab: ReceiptsTab, has_rows: bool) {
-        if self.utility_rail_decided.get_untracked() {
-            return;
-        }
-        // 狭い帯ではドロワーになるため、データ有無にかかわらず畳んで始める
-        let open = self
-            .utility_rail_initials
-            .with_untracked(|initials| initials.get(&tab).copied())
-            .unwrap_or(!has_rows && workspace_panel_default_open());
-        self.utility_rail_initials.update(|initials| {
-            initials.entry(tab).or_insert(open);
-        });
-        self.utility_rail_open.set(open);
-    }
-
-    /// 取得できたタブでのみ初期値を決める。取得失敗・読み込み中は開閉トグルを
-    /// 出さないので、その時候の開閉はユーザーの決定をそのまま残す
-    pub(crate) fn init_utility_rail_from_state(&self, tab: ReceiptsTab, state: TabState) {
-        if let TabState::Ready(data) = state {
-            self.init_utility_rail(tab, !data.rows.is_empty());
-        }
     }
 
     /// 開いたままなら絞り込みはレール内で確認できるので、表の上への件数バッジは畳んだときだけ出す
@@ -105,54 +74,11 @@ impl ReceiptsStore {
         !self.utility_rail_open.get() && !self.search.get().is_default()
     }
 
-    /// 検索条件をクリアする
-    pub fn clear_search(&self) {
-        let has_years = self.cache.with_untracked(|map| {
-            map.values()
-                .any(|state| matches!(state, TabState::Ready(data) if !data.rows.is_empty()))
-        });
-        self.search.update(|s| s.clear(has_years));
-    }
-
-    /// 適用中の絞り込み条件のラベル一覧を取得する
-    pub fn filter_labels(&self, _tab: ReceiptsTab) -> Vec<(&'static str, String)> {
-        let search = self.search.get();
-        let mut labels = Vec::new();
-        if !search.selected_queries.securities.is_empty() {
-            labels.push(("銘柄", search.selected_queries.securities.clone()));
-        }
-        if !search.selected_queries.products.is_empty() {
-            labels.push(("商品", search.selected_queries.products.clone()));
-        }
-        if !search.selected_queries.accounts.is_empty() {
-            labels.push(("口座", search.selected_queries.accounts.clone()));
-        }
-        if !search.selected_queries.date.is_empty() {
-            let label = match search.date_segment {
-                DateSegment::Year => "期間(年)",
-                DateSegment::Month => "期間(月)",
-                DateSegment::Date => "期間(日)",
-                DateSegment::Range => "期間(範囲)",
-            };
-            labels.push((label, search.selected_queries.date.clone()));
-        }
-        labels
-    }
-
     pub fn select_tab(&self, tab: ReceiptsTab) {
         if self.active_tab.get_untracked() != tab {
             self.search.set(ReceiptSearch::default());
             self.expanded.update(|set| set.clear());
             self.mobile_summary_expanded.set(false);
-            // タブ切替時に、初期化済みかつ未操作ならそのタブの初期状態へ戻す
-            if !self.utility_rail_decided.get_untracked() {
-                let initial = self
-                    .utility_rail_initials
-                    .with_untracked(|initials| initials.get(&tab).copied());
-                if let Some(open) = initial {
-                    self.utility_rail_open.set(open);
-                }
-            }
         }
         self.visited.update(|visited| {
             visited.insert(tab);
@@ -192,8 +118,6 @@ impl ReceiptsStore {
             self.expanded_epoch.set(Some(generation));
             self.expanded.update(|set| set.clear());
             self.mobile_summary_expanded.set(false);
-            self.utility_rail_initials.update(|map| map.clear());
-            self.utility_rail_decided.set(false);
             self.utility_rail_open.set(workspace_panel_default_open());
             // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
             self.search.set(ReceiptSearch::default());
@@ -630,8 +554,6 @@ fn build_receipts_store(session: SessionStore, initial_tab: ReceiptsTab) -> Rece
         expanded: RwSignal::new(HashSet::new()),
         mobile_summary_expanded: RwSignal::new(false),
         utility_rail_open: RwSignal::new(true),
-        utility_rail_decided: RwSignal::new(false),
-        utility_rail_initials: RwSignal::new(HashMap::new()),
         expanded_epoch: RwSignal::new(None),
         visited,
         cache,

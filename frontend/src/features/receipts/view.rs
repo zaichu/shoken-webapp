@@ -13,7 +13,6 @@ use crate::features::receipts::{use_receipts_data, ReceiptRow, ReceiptsTab, TabS
 use crate::session::use_session;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::page_info_rail::PageInfoRail;
 use crate::ui::workspace_shell::WorkspaceShell;
 use leptos::prelude::*;
 use main_content::display_rows_for;
@@ -92,27 +91,6 @@ pub fn ReceiptsPage() -> impl IntoView {
                         }
                     })
                     panel=view! { <ReceiptPanelContent store=store /> }.into_any()
-                    right_rail=move || {
-                        let is_filtered = !panel_store.search.get().is_default();
-                        let filter_labels = panel_store.filter_labels(panel_store.active_tab.get());
-                        view! {
-                            <PageInfoRail
-                                links=vec![
-                                    ("#receipts-summary", "集計情報"),
-                                    ("#receipts-list", "一覧"),
-                                ]
-                                applied=is_filtered.then(|| {
-                                    filter_labels
-                                        .into_iter()
-                                        .map(|(label, value)| {
-                                            (label, Signal::derive(move || value.clone()))
-                                        })
-                                        .collect()
-                                })
-                                on_clear=Some(Callback::new(move |_| panel_store.clear_search()))
-                            />
-                        }.into_any()
-                    }
                 >
                     <div class="flex items-center justify-between gap-3">
                         <nav class="no-print" aria-label="取引明細タブ">
