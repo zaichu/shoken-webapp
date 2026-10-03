@@ -651,6 +651,49 @@ fn group_rows_contain_only_matching_rows() {
 }
 
 #[test]
+fn displayed_tiers_returns_non_empty_for_each_tab() {
+    use crate::features::receipts::filter::{column_order, promoted_column};
+    use crate::features::receipts::view::table::displayed_tiers;
+
+    for tab in ReceiptsTab::ALL {
+        let rows = match tab {
+            ReceiptsTab::Dividend => dividends(),
+            ReceiptsTab::DomesticStock => domestic(),
+            ReceiptsTab::MutualFund => funds(),
+        };
+        let order = column_order(tab, &rows, "");
+        let promoted = promoted_column(tab, &rows, "");
+        let tiers = displayed_tiers(tab, &order, promoted);
+        assert_eq!(tiers.len(), order.len());
+        assert!(
+            !tiers.is_empty(),
+            "{tab:?}: displayed_tiers should not be empty"
+        );
+        assert!(
+            tiers.contains(&ColumnTier::Core),
+            "{tab:?}: should have Core tier"
+        );
+    }
+}
+
+#[test]
+fn displayed_tiers_promotes_column_to_core() {
+    use crate::features::receipts::filter::{column_order, promoted_column};
+    use crate::features::receipts::view::table::displayed_tiers;
+
+    let rows = domestic();
+    let tab = ReceiptsTab::DomesticStock;
+    let order = column_order(tab, &rows, "特定");
+    let promoted = promoted_column(tab, &rows, "特定");
+    let tiers = displayed_tiers(tab, &order, promoted);
+    if let Some(p) = promoted {
+        // promoted は列 id なので、order 内の位置で tiers を引く
+        let pos = order.iter().position(|&c| c == p).unwrap();
+        assert_eq!(tiers[pos], ColumnTier::Core);
+    }
+}
+
+#[test]
 fn card_row_data_details_follow_column_reorder() {
     let rows = dividends();
     let query = "特定";
@@ -673,4 +716,147 @@ fn card_row_data_details_follow_column_reorder() {
         CardDetailValue::CopyName { display, .. } if display == "日本電信電話"
     ));
     assert_eq!(card.account, "特定");
+}
+
+fn csv_source_user(id: &str) -> crate::api::dto::SessionUser {
+    crate::api::dto::SessionUser {
+        id: id.to_string(),
+        email: format!("{id}@example.com"),
+        name: None,
+        picture_url: None,
+    }
+}
+
+fn csv_source_store() -> crate::features::receipts::ReceiptsStore {
+    use crate::features::receipts::filter::ReceiptSearch;
+    use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
+    use crate::session::{Generation, SessionStore};
+    use leptos::prelude::*;
+    use std::collections::{HashMap, HashSet};
+
+    let session = SessionStore::new();
+    session.loaded.set(true);
+    session.user.set(Some(csv_source_user("alice")));
+
+    let active_tab = RwSignal::new(ReceiptsTab::Dividend);
+    let visited = RwSignal::new(HashSet::from([ReceiptsTab::Dividend]));
+    let cache = RwSignal::new(HashMap::new());
+    let csv = RwSignal::new(HashMap::new());
+    let csv_files = RwSignal::new(HashMap::new());
+    let refresh_error = RwSignal::new(HashMap::new());
+    let fetch_rev = RwSignal::new(HashMap::new());
+
+    let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
+        let _generation = *generation;
+        let _tab = *tab;
+        async move {
+            let _ = _tab.fetch_list().await;
+        }
+    });
+
+    ReceiptsStore {
+        session,
+        active_tab,
+        search: RwSignal::new(ReceiptSearch::default()),
+        expanded: RwSignal::new(HashSet::new()),
+        mobile_summary_expanded: RwSignal::new(false),
+        utility_rail_open: RwSignal::new(true),
+        expanded_epoch: RwSignal::new(None),
+        visited,
+        cache,
+        fetch,
+        csv,
+        csv_files,
+        refresh_error,
+        fetch_rev,
+    }
+}
+
+#[test]
+fn receipt_csv_source_constants_match_expected_values() {
+    use super::panel::ReceiptCsvSource;
+    use crate::ui::csv_section::CsvSource;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let store = csv_source_store();
+        for tab in ReceiptsTab::ALL {
+            let source = ReceiptCsvSource { store, tab };
+            assert_eq!(source.input_id(), tab.csv_input_id());
+            assert_eq!(source.save_action(), "追加で保存");
+            assert_eq!(source.mode_label(), "追加保存");
+            assert_eq!(source.toggle_testid(), "receipt-csv-toggle");
+            assert_eq!(source.section_class(), "sm:rounded-t-xl");
+        }
+    });
+}
+
+#[test]
+fn receipt_csv_source_input_disabled_reflects_store_state() {
+    use super::panel::ReceiptCsvSource;
+    use crate::ui::csv_section::CsvSource;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let source = ReceiptCsvSource {
+            store: csv_source_store(),
+            tab: ReceiptsTab::Dividend,
+        };
+        assert!(
+            !source.input_disabled(),
+            "authenticated and not busy -> enabled"
+        );
+    });
+}
+
+#[test]
+fn receipt_csv_source_db_count_returns_zero_when_no_data() {
+    use super::panel::ReceiptCsvSource;
+    use crate::ui::csv_section::CsvSource;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let source = ReceiptCsvSource {
+            store: csv_source_store(),
+            tab: ReceiptsTab::Dividend,
+        };
+        assert_eq!(source.db_count(), 0);
+    });
+}
+
+#[test]
+fn receipt_csv_source_delete_disabled_reflects_state() {
+    use super::panel::ReceiptCsvSource;
+    use crate::support::csv_flow::CsvTabState;
+    use crate::ui::csv_section::CsvSource;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let source = ReceiptCsvSource {
+            store: csv_source_store(),
+            tab: ReceiptsTab::Dividend,
+        };
+
+        let idle_state = CsvTabState::default();
+        assert!(!source.delete_disabled(&idle_state), "idle -> not disabled");
+
+        let saving_state = CsvTabState {
+            saving: true,
+            ..Default::default()
+        };
+        assert!(source.delete_disabled(&saving_state), "saving -> disabled");
+
+        let deleting_state = CsvTabState {
+            deleting: true,
+            ..Default::default()
+        };
+        assert!(
+            source.delete_disabled(&deleting_state),
+            "deleting -> disabled"
+        );
+    });
 }

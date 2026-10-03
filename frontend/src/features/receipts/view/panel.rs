@@ -8,9 +8,9 @@ use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
 
 #[derive(Clone, Copy)]
-struct ReceiptCsvSource {
-    store: ReceiptsStore,
-    tab: ReceiptsTab,
+pub(crate) struct ReceiptCsvSource {
+    pub(crate) store: ReceiptsStore,
+    pub(crate) tab: ReceiptsTab,
 }
 
 impl CsvSource for ReceiptCsvSource {
