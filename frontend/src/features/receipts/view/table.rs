@@ -18,7 +18,11 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
 // 検索で前に出した列は、狭い画面でも隠さない
-fn displayed_tiers(tab: ReceiptsTab, order: &[usize], promoted: Option<usize>) -> Vec<ColumnTier> {
+pub(crate) fn displayed_tiers(
+    tab: ReceiptsTab,
+    order: &[usize],
+    promoted: Option<usize>,
+) -> Vec<ColumnTier> {
     order
         .iter()
         .map(|&column| {

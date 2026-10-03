@@ -1,9 +1,11 @@
 use super::*;
 use crate::api::dto::{AssetBalanceListResponse, SearchFacets};
 use crate::api::ApiError;
+use crate::features::asset_balance::csv_store::AssetBalanceCsvStore;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
+use crate::features::asset_balance::store::DataOps;
 use crate::features::dividend_per_share::DividendMaps;
-use crate::session::{Generation, SessionStore};
+use crate::session::SessionStore;
 use crate::support::pagination::collect_list_pages;
 use crate::testing::asset_balance::*;
 use crate::testing::block_on;
@@ -488,4 +490,43 @@ fn data_ops_reset_clears_inflight_and_error() {
     assert_eq!(ops.poll_rev, 4);
     assert!(ops.inflight.is_empty());
     assert!(ops.refresh_error.is_none());
+}
+
+#[test]
+fn csv_state_returns_none_when_no_user() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+        let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        let _csv: RwSignal<AssetCsvSlot> = RwSignal::new(None);
+        let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+
+        let store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
+
+        assert_eq!(store.csv_state(), CsvTabState::default());
+    });
+}
+
+#[test]
+fn csv_state_returns_value_when_user_exists() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        let generation = session.generation.get_untracked();
+        let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+        let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        let _csv: RwSignal<AssetCsvSlot> = RwSignal::new(None);
+        let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+
+        let store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
+
+        session.user.set(Some(user("alice")));
+        store.update_csv(generation, |state| {
+            state.file_name = Some("asset.csv".to_string());
+        });
+        assert_eq!(store.csv_state().file_name.as_deref(), Some("asset.csv"));
+    });
 }

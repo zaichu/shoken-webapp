@@ -611,3 +611,147 @@ fn dividend_cells_match_react_columns_and_formatting() {
         }
     );
 }
+
+#[test]
+fn refresh_error_returns_entry_for_current_generation_only() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(ReceiptsTab::Dividend),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::new()),
+            cache: RwSignal::new(HashMap::new()),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+        let tab = ReceiptsTab::Dividend;
+
+        assert_eq!(store.refresh_error(tab), None);
+
+        let generation = session.generation.get_untracked();
+        let stale = generation.next();
+        store.refresh_error.update(|map| {
+            map.insert((stale, tab), "旧世代のエラー".to_string());
+        });
+        assert_eq!(store.refresh_error(tab), None);
+
+        store.refresh_error.update(|map| {
+            map.insert((generation, tab), "再取得に失敗".to_string());
+        });
+        assert_eq!(store.refresh_error(tab).as_deref(), Some("再取得に失敗"));
+        assert_eq!(store.refresh_error(ReceiptsTab::DomesticStock), None);
+    });
+}
+
+#[test]
+fn csv_input_disabled_covers_unauth_busy_and_fetching() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.loaded.set(true);
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(ReceiptsTab::Dividend),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::new()),
+            cache: RwSignal::new(HashMap::new()),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+        let tab = ReceiptsTab::Dividend;
+
+        // 未ログインは他条件に関わらず無効(||→&& 変異はここで検出できる)
+        assert!(store.csv_input_disabled(tab));
+
+        session.user.set(Some(user("alice")));
+        assert!(!store.csv_input_disabled(tab));
+
+        let generation = session.generation.get_untracked();
+        store.csv.update(|map| {
+            map.insert(
+                (generation, tab),
+                crate::support::csv_flow::CsvTabState {
+                    previewing: true,
+                    ..Default::default()
+                },
+            );
+        });
+        assert!(store.csv_input_disabled(tab));
+        store.csv.set(HashMap::new());
+
+        store.cache.update(|map| {
+            map.insert((generation, tab), TabState::Loading);
+        });
+        assert!(store.csv_input_disabled(tab));
+    });
+}
+
+#[test]
+fn ensure_prunes_stale_generation_in_any_state_map() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let store = ReceiptsStore {
+            session,
+            active_tab: RwSignal::new(ReceiptsTab::Dividend),
+            search: RwSignal::new(ReceiptSearch::default()),
+            expanded: RwSignal::new(HashSet::new()),
+            mobile_summary_expanded: RwSignal::new(false),
+            utility_rail_open: RwSignal::new(true),
+            expanded_epoch: RwSignal::new(None),
+            visited: RwSignal::new(HashSet::new()),
+            cache: RwSignal::new(HashMap::new()),
+            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
+            csv: RwSignal::new(HashMap::new()),
+            csv_files: RwSignal::new(HashMap::new()),
+            refresh_error: RwSignal::new(HashMap::new()),
+            fetch_rev: RwSignal::new(HashMap::new()),
+        };
+        let tab = ReceiptsTab::Dividend;
+        let stale = session.generation.get_untracked().next();
+
+        // csv マップだけに旧世代の残滓を入れる。||→&& 変異は4マップ全部を要求するので
+        // 残滓が消えなければ変異を検出できる
+        store.csv.update(|map| {
+            map.insert(
+                (stale, tab),
+                crate::support::csv_flow::CsvTabState::default(),
+            );
+        });
+        // fetch_rev の retain は世代一致を保持する。==→!= 変異は新旧を反転させるので
+        // 現世代の残滓が消えれば検出できる
+        let generation = session.generation.get_untracked();
+        store.fetch_rev.update(|map| {
+            map.insert((generation, tab), 1_u64);
+            map.insert((stale, tab), 1_u64);
+        });
+
+        store.ensure(tab);
+
+        assert!(store
+            .csv
+            .with_untracked(|map| map.get(&(stale, tab)).is_none()));
+        assert!(store.fetch_rev.with_untracked(
+            |map| map.get(&(generation, tab)).is_some() && map.get(&(stale, tab)).is_none()
+        ));
+    });
+}

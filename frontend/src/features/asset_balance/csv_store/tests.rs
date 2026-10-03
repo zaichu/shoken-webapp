@@ -9,6 +9,39 @@ use crate::testing::asset_balance::*;
 use std::collections::HashMap;
 
 #[test]
+fn csv_state_returns_none_when_no_user() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        let store = csv_store(
+            &session,
+            RwSignal::new(None),
+            RwSignal::new(DividendMaps::default()),
+        );
+        assert_eq!(store.csv_state(), CsvTabState::default());
+    });
+}
+
+#[test]
+fn csv_state_returns_value_when_user_exists() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        let generation = session.generation.get_untracked();
+        let store = csv_store(
+            &session,
+            RwSignal::new(None),
+            RwSignal::new(DividendMaps::default()),
+        );
+        session.user.set(Some(user("alice")));
+        store.update_csv(generation, |state| {
+            state.file_name = Some("asset.csv".to_string());
+        });
+        assert_eq!(store.csv_state().file_name.as_deref(), Some("asset.csv"));
+    });
+}
+
+#[test]
 fn csv_state_is_scoped_to_session_generation() {
     let owner = Owner::new();
     owner.with(|| {
