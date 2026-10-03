@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test, json, paginated } from './support/test';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -24,13 +24,7 @@ const DIVIDENDS = Array.from({ length: 10 }, (_, i) => ({
   updated_at: '2024-03-01T00:00:00Z',
 }));
 
-function json(body: unknown) {
-  return { status: 200, contentType: 'application/json', body: JSON.stringify(body) };
-}
 
-function paginated(data: unknown[]) {
-  return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
-}
 
 async function mockApi(page: Page) {
   await page.route(/\/api\/v1\//, (route) => route.fulfill(json(paginated([]))));

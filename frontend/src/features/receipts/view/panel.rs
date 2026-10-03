@@ -215,38 +215,26 @@ pub(crate) fn ReceiptPanelContent(store: ReceiptsStore) -> impl IntoView {
             }}
             {move || {
                 let tab = active_tab.get();
-                match panel_state.get() {
-                    TabState::Ready(data) => {
-                        if data.rows.is_empty()
-                            && rail_store.search.with(|search| search.is_default())
-                            && !has_preview.get()
-                        {
-                            ().into_any()
-                        } else {
-                            view! {
-                                <ReceiptsSearchCard
-                                    store=rail_store
-                                    tab=tab
-                                    data=data
-                                    expanded=search_expanded
-                                />
-                            }
-                                .into_any()
-                        }
-                    }
+                let data = match panel_state.get() {
+                    TabState::Ready(data) => data,
                     TabState::Failed(_) => {
+                        crate::features::receipts::view::workspace::empty_tab_data()
+                    }
+                    _ => return ().into_any(),
+                };
+                show_search
+                    .get()
+                    .then(|| {
                         view! {
                             <ReceiptsSearchCard
                                 store=rail_store
                                 tab=tab
-                                data=crate::features::receipts::view::workspace::empty_tab_data()
+                                data=data
                                 expanded=search_expanded
                             />
                         }
-                            .into_any()
-                    }
-                    _ => ().into_any(),
-                }
+                    })
+                    .into_any()
             }}
         </div>
     }

@@ -23,6 +23,23 @@ pub(crate) struct ChartItem {
 }
 
 #[component]
+fn Kpi(
+    label: &'static str,
+    #[prop(into)] text: Signal<String>,
+    #[prop(optional)] note: &'static str,
+) -> impl IntoView {
+    view! {
+        <div class="kpi">
+            <dt>{label}</dt>
+            <dd class="kpi-value">
+                <Amount block=true text=text class="kpi-amount" />
+                {(!note.is_empty()).then(|| view! { <small>{note}</small> })}
+            </dd>
+        </div>
+    }
+}
+
+#[component]
 pub(crate) fn PortfolioSummary(
     views: Vec<HoldingView>,
     total_count: usize,
@@ -212,37 +229,9 @@ pub(crate) fn PortfolioSummary(
             </header>
             <div data-testid="portfolio-kpi-strip">
             <dl class="kpis" data-testid="portfolio-kpi-grid">
-                <div class="kpi">
-                    <dt>"合計取得総額"</dt>
-                    <dd class="kpi-value">
-                        <Amount
-                            block=true
-                            text=format_currency(total_purchase_amount)
-                            class="kpi-amount"
-                        />
-                    </dd>
-                </div>
-                <div class="kpi">
-                    <dt>"年間配当金額"</dt>
-                    <dd class="kpi-value">
-                        <Amount
-                            block=true
-                            text=total_annual_dividends
-                            class="kpi-amount"
-                        />
-                    </dd>
-                </div>
-                <div class="kpi">
-                    <dt>"配当利回り（年間）"</dt>
-                    <dd class="kpi-value">
-                        <Amount
-                            block=true
-                            text=dividend_yield
-                            class="kpi-amount"
-                        />
-                        <small>"年間配当金額 ÷ 合計取得総額"</small>
-                    </dd>
-                </div>
+                <Kpi label="合計取得総額" text=format_currency(total_purchase_amount) />
+                <Kpi label="年間配当金額" text=total_annual_dividends />
+                <Kpi label="配当利回り（年間）" text=dividend_yield note="年間配当金額 ÷ 合計取得総額" />
                 <div class="kpi">
                     <dt>"保有銘柄数"</dt>
                     <dd class="kpi-value kpi-count">

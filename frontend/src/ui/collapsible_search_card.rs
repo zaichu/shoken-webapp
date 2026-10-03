@@ -21,7 +21,6 @@ pub enum SearchCardLayout {
 
 #[component]
 pub fn CollapsibleSearchCard(
-    #[prop(default = true)] initial_expanded: bool,
     #[prop(optional)] expanded: Option<RwSignal<bool>>,
     #[prop(optional)] layout: SearchCardLayout,
     #[prop(into)] has_active_search: Signal<bool>,
@@ -30,7 +29,7 @@ pub fn CollapsibleSearchCard(
     #[prop(optional)] on_expanded_change: Option<Callback<(bool,)>>,
     children: ChildrenFn,
 ) -> impl IntoView {
-    let expanded = expanded.unwrap_or_else(|| RwSignal::new(initial_expanded));
+    let expanded = expanded.unwrap_or_else(|| RwSignal::new(true));
     // 初期値の通知も兼ねるためマウント時にも発火する
     Effect::new(move |_| {
         let open = expanded.get();

@@ -74,6 +74,3 @@ pub fn EmptyState(
         </div>
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -4,9 +4,7 @@ use crate::support::csv_flow::CsvPreview;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 
-// プレビュー行は lenient に受け取るため、銘柄コード・口座は検証せず元の文字列を表示する
-
-// プレビュー行は backend が Create*Request をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る
+// プレビュー行は backend が Create*Request をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る(銘柄コード・口座は未検証の生値)
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 pub struct DividendCsvRow {
     #[serde(default)]

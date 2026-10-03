@@ -34,27 +34,8 @@ impl BadgeVariant {
 }
 
 #[component]
-pub fn Badge(
-    variant: BadgeVariant,
-    #[prop(into, optional)] class: Signal<String>,
-    #[prop(optional)] testid: Option<&'static str>,
-    children: Children,
-) -> impl IntoView {
-    view! {
-        <span
-            class=move || {
-                let extra = class.get();
-                if extra.is_empty() {
-                    variant.class().to_string()
-                } else {
-                    format!("{} {extra}", variant.class())
-                }
-            }
-            data-testid=testid
-        >
-            {children()}
-        </span>
-    }
+pub fn Badge(variant: BadgeVariant, children: Children) -> impl IntoView {
+    view! { <span class=variant.class()>{children()}</span> }
 }
 
 #[component]
@@ -85,6 +66,3 @@ pub fn CodeBadge(
         </span>
     }
 }
-
-#[cfg(test)]
-mod tests;

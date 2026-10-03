@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { json, paginated } from './support/test';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -48,13 +49,7 @@ const STOCK = {
   size_category: '大型',
 };
 
-function json(body: unknown) {
-  return { status: 200, contentType: 'application/json', body: JSON.stringify(body) };
-}
 
-function paginated(data: unknown[], extra: Record<string, unknown> = {}) {
-  return { data, total: data.length, page: 1, per_page: 1000, ...extra };
-}
 
 interface ApiCounts {
   session: number;

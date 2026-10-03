@@ -45,7 +45,6 @@ pub enum ReceiptCell {
     InstrumentName { name: String, code: Option<String> },
 }
 
-#[cfg(test)]
 impl ReceiptCell {
     pub fn text(&self) -> &str {
         match self {

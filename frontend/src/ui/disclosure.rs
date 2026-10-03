@@ -88,24 +88,14 @@ pub fn DisclosureToggle(
     /// 末尾に「開く/閉じる」+山形を付ける(付けない側は children に ChevronIcon を置く)
     #[prop(optional)]
     hint: bool,
-    #[prop(into, optional)] class: Signal<String>,
     on_toggle: impl Fn() + 'static,
     children: Children,
 ) -> impl IntoView {
-    let style_class = style.class();
-    let classes = move || {
-        let extra = class.get();
-        if extra.is_empty() {
-            style_class.to_string()
-        } else {
-            format!("{style_class} {extra}")
-        }
-    };
     view! {
         <button
             type="button"
             id=id
-            class=classes
+            class=style.class()
             aria-expanded=move || expanded.get().to_string()
             aria-controls=controls
             aria-label=move || aria_label.map(|label| label.get())

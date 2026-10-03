@@ -1,3 +1,4 @@
+use crate::session::local_storage;
 use crate::session::pending_logout;
 use crate::session::SessionStore;
 use leptos::ev;
@@ -13,10 +14,6 @@ pub const ACTIVITY_KEY: &str = "last_activity_at";
 
 // 最終操作時刻の書き込みを間引く幅。取りこぼしは発火時の共有時刻確認で吸収する
 pub const ACTIVITY_THROTTLE_MS: u64 = 10_000;
-
-fn storage() -> Option<web_sys::Storage> {
-    web_sys::window().and_then(|window| window.local_storage().ok().flatten())
-}
 
 thread_local! {
     // None=未試行、Some(None)=構築不可、Some(Some)=利用中
@@ -36,7 +33,7 @@ fn broadcast_channel() -> Option<web_sys::BroadcastChannel> {
 pub fn notify_logout() {
     if let Some(channel) = broadcast_channel() {
         let _ = channel.post_message(&JsValue::from_str(LOGOUT_MESSAGE));
-    } else if let Some(storage) = storage() {
+    } else if let Some(storage) = local_storage() {
         let _ = storage.set_item(LOGOUT_NOTIFY_KEY, &(js_sys::Date::now() as u64).to_string());
     }
 }
@@ -84,13 +81,13 @@ pub fn record_activity() {
         return;
     }
     LAST_WRITTEN_MS.with(|last| last.set(now));
-    if let Some(storage) = storage() {
+    if let Some(storage) = local_storage() {
         let _ = storage.set_item(ACTIVITY_KEY, &now.to_string());
     }
 }
 
 pub fn last_activity_ms() -> Option<u64> {
-    storage()?
+    local_storage()?
         .get_item(ACTIVITY_KEY)
         .ok()
         .flatten()
@@ -108,7 +105,7 @@ fn is_recent_claim(now_ms: u64, claimed_at_ms: u64) -> bool {
 
 fn try_claim() -> bool {
     let now = js_sys::Date::now() as u64;
-    let recently_claimed = storage()
+    let recently_claimed = local_storage()
         .and_then(|storage| storage.get_item(LOGOUT_CLAIMED_KEY).ok().flatten())
         .and_then(|value| value.parse::<u64>().ok())
         .is_some_and(|claimed_at| is_recent_claim(now, claimed_at));
@@ -116,7 +113,7 @@ fn try_claim() -> bool {
         return false;
     }
     pending_logout::mark();
-    if let Some(storage) = storage() {
+    if let Some(storage) = local_storage() {
         let _ = storage.set_item(LOGOUT_CLAIMED_KEY, &now.to_string());
     }
     true

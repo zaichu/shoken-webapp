@@ -51,7 +51,6 @@ pub(crate) fn kpi_value_color(tone: StatTone) -> &'static str {
     }
 }
 
-#[allow(unused_variables)]
 #[component]
 pub(crate) fn SummaryStrip(
     items: Vec<(&'static str, Decimal, StatTone)>,

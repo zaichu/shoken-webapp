@@ -1,5 +1,6 @@
 use super::*;
 use crate::api::dto::{Dividend, DomesticStock, DomesticStockSummary, Mutualfund};
+use crate::support::list_search::is_valid_iso_date;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::de::DeserializeOwned;
@@ -85,7 +86,7 @@ fn group_mutual_funds_by_month(rows: &[Mutualfund]) -> Vec<MutualFundGroupSummar
 }
 
 fn create_iso_date_key(value: &str) -> String {
-    if super::valid_iso_date(value) {
+    if super::is_valid_iso_date(value) {
         value.to_string()
     } else {
         String::new()
@@ -584,7 +585,7 @@ fn date_helpers_match_react_output_and_reject_invalid_values() {
         "202403-01-",
         "X024-03-01",
     ] {
-        assert!(!valid_iso_date(malformed), "{malformed}");
+        assert!(!is_valid_iso_date(malformed), "{malformed}");
         assert_eq!(format_date(malformed), "—", "{malformed}");
     }
 }
@@ -613,16 +614,6 @@ fn percentage_helpers_match_react_cases() {
     assert_eq!(calculate_percentage(dec!(1), dec!(3), 1), dec!(33.3));
     assert_eq!(calculate_percentage(dec!(10), dec!(0), 2), dec!(0));
     assert_eq!(shared::tax::TAX_RATE, dec!(0.20315));
-}
-
-#[test]
-fn valid_iso_date_leap_day_boundary() {
-    assert!(valid_iso_date("2024-02-29"));
-    assert!(!valid_iso_date("2023-02-29"));
-    assert!(valid_iso_date("2000-02-29"));
-    assert!(!valid_iso_date("1900-02-29"));
-    assert!(!valid_iso_date("2024-02-30"));
-    assert!(!valid_iso_date("2024-04-31"));
 }
 
 use proptest::strategy::Strategy;
@@ -795,7 +786,7 @@ proptest::proptest! {
             _ => 0,
         };
         let expected = (1..=max_day).contains(&day) && (1..=12).contains(&month);
-        proptest::prop_assert_eq!(valid_iso_date(&input), expected, "input={}", input);
+        proptest::prop_assert_eq!(is_valid_iso_date(&input), expected, "input={}", input);
         if expected {
             proptest::prop_assert_eq!(format_date(&input), input.replace('-', "/"));
             proptest::prop_assert_eq!(create_year_month_key(&input), input[..7].to_string());
@@ -817,7 +808,7 @@ proptest::proptest! {
                 .enumerate()
                 .all(|(i, c)| i == 4 || i == 7 || c.is_ascii_digit());
         if !structural_ok {
-            proptest::prop_assert!(!valid_iso_date(&input), "input={}", input);
+            proptest::prop_assert!(!is_valid_iso_date(&input), "input={}", input);
         }
     }
 

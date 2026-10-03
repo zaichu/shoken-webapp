@@ -86,6 +86,11 @@ impl AssetBalanceCsvStore {
                     .with(|slot| !matches!(slot, Some((cached, _)) if *cached == generation)))
     }
 
+    fn current_generation(&self) -> Option<Generation> {
+        self.session.user.get_untracked()?;
+        Some(self.session.generation.get_untracked())
+    }
+
     pub(crate) fn update_csv(
         &self,
         generation: Generation,
@@ -102,10 +107,9 @@ impl AssetBalanceCsvStore {
     }
 
     pub(crate) fn select_file(&self, file: web_sys::File) {
-        if self.session.user.get_untracked().is_none() {
+        let Some(generation) = self.current_generation() else {
             return;
-        }
-        let generation = self.session.generation.get_untracked();
+        };
         if !self.begin_file_preview(generation, file.name()) {
             return;
         }
@@ -166,8 +170,7 @@ impl AssetBalanceCsvStore {
     }
 
     fn try_begin_save(&self) -> Option<(Generation, web_sys::File)> {
-        self.session.user.get_untracked()?;
-        let generation = self.session.generation.get_untracked();
+        let generation = self.current_generation()?;
         let file = self.csv_file.with_untracked(|slot| match slot {
             Some((cached, file)) if *cached == generation => Some(file.clone()),
             _ => None,
@@ -180,19 +183,15 @@ impl AssetBalanceCsvStore {
     }
 
     pub(crate) fn open_delete_confirm(&self) {
-        if self.session.user.get_untracked().is_none() {
-            return;
+        if let Some(generation) = self.current_generation() {
+            self.update_csv(generation, |state| state.open_delete_confirm());
         }
-        let generation = self.session.generation.get_untracked();
-        self.update_csv(generation, |state| state.open_delete_confirm());
     }
 
     pub(crate) fn close_delete_confirm(&self) {
-        if self.session.user.get_untracked().is_none() {
-            return;
+        if let Some(generation) = self.current_generation() {
+            self.update_csv(generation, |state| state.close_delete_confirm());
         }
-        let generation = self.session.generation.get_untracked();
-        self.update_csv(generation, |state| state.close_delete_confirm());
     }
 
     pub(crate) fn confirm_delete_all(&self) {
@@ -207,8 +206,7 @@ impl AssetBalanceCsvStore {
     }
 
     pub(crate) fn try_begin_delete(&self) -> Option<Generation> {
-        self.session.user.get_untracked()?;
-        let generation = self.session.generation.get_untracked();
+        let generation = self.current_generation()?;
         let mut started = false;
         self.update_csv(generation, |state| {
             started = state.begin_delete();
@@ -325,7 +323,6 @@ pub(crate) fn csv_status_text(state: &CsvTabState<AssetBalanceCsvRow>) -> Option
     }
 }
 
-#[allow(dead_code)]
 pub(crate) struct ResolvedAssetBalance {
     pub(crate) rows: Vec<AssetBalanceRow>,
     pub(crate) summary: Option<AssetBalanceSummary>,

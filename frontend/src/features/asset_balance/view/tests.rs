@@ -34,10 +34,7 @@ fn stale_asset_balance_result_is_rejected_after_same_or_different_user_login() {
             session.mark_unauthenticated();
             session.user.set(Some(next_user));
 
-            assert!(!should_apply_asset_balance_result(
-                &session,
-                fetch_generation
-            ));
+            assert!(!session.is_current(fetch_generation));
         }
     });
 }
@@ -488,6 +485,6 @@ fn asset_balance_result_applies_within_the_same_generation() {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
-        assert!(should_apply_asset_balance_result(&session, generation));
+        assert!(session.is_current(generation));
     });
 }

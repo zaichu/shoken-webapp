@@ -136,6 +136,23 @@ pub(crate) fn HoldingCard(
 }
 
 #[component]
+fn MobileStat(
+    label: &'static str,
+    #[prop(into)] value: String,
+    #[prop(optional)] numeric: bool,
+) -> impl IntoView {
+    view! {
+        <div class="flex items-center justify-between gap-2">
+            <dt class="shrink-0 font-medium text-text-subtle">{label}</dt>
+            <dd class=format!(
+                "truncate font-semibold text-text{}",
+                if numeric { " tabular-nums" } else { "" },
+            )>{value}</dd>
+        </div>
+    }
+}
+
+#[component]
 pub(crate) fn HoldingMobileCard(
     item: ChartItem,
     index: usize,
@@ -197,48 +214,13 @@ pub(crate) fn HoldingMobileCard(
                         view! {
                             <div id=detail_id.clone() class="border-t border-ink/10 px-3.5 py-3">
                                 <dl class="space-y-1.5 text-xs text-text-muted">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"取得単価"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-text">
-                                            {format_currency(item.view.average_price)}
-                                        </dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"数量"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-text">
-                                            {format!("{}株", format_number_value(item.view.shares))}
-                                        </dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"現在値（CSV取込時点）"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-text">
-                                            {current_price_display.clone()}
-                                        </dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"取得額構成比"</dt>
-                                        <dd class="truncate font-semibold tabular-nums text-text">
-                                            {composition.clone()}
-                                        </dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"予想年間配当"</dt>
-                                        <dd class="truncate font-semibold text-text">
-                                            {format_dividend_annual(&dividend)}
-                                        </dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"1株配当"</dt>
-                                        <dd class="truncate font-semibold text-text">
-                                            {format_dividend_per_share(&dividend)}
-                                        </dd>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <dt class="shrink-0 font-medium text-text-subtle">"取得額基準利回り"</dt>
-                                        <dd class="truncate font-semibold text-text">
-                                            {format_dividend_yield(&dividend)}
-                                        </dd>
-                                    </div>
+                                    <MobileStat label="取得単価" numeric=true value=format_currency(item.view.average_price) />
+                                    <MobileStat label="数量" numeric=true value=format!("{}株", format_number_value(item.view.shares)) />
+                                    <MobileStat label="現在値（CSV取込時点）" numeric=true value=current_price_display.clone() />
+                                    <MobileStat label="取得額構成比" numeric=true value=composition.clone() />
+                                    <MobileStat label="予想年間配当" value=format_dividend_annual(&dividend) />
+                                    <MobileStat label="1株配当" value=format_dividend_per_share(&dividend) />
+                                    <MobileStat label="取得額基準利回り" value=format_dividend_yield(&dividend) />
                                 </dl>
                                 <p class="mt-2.5 border-t border-border-faint pt-2.5 text-xs">
                                     <SecurityCodeLink

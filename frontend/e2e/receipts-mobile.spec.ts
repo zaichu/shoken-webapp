@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test, paginated } from './support/test';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
@@ -94,16 +94,13 @@ const FUND = {
   updated_at: '2024-02-01T00:00:00Z',
 };
 
-function paginatedResponse(data: unknown[]) {
-  return { data, total: data.length, page: 1, per_page: data.length };
-}
 
 async function mockApi(page: Page) {
   await page.route(/\/api\/v1\//, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([])),
+      body: JSON.stringify(paginated([])),
     }),
   );
   await page.route(/\/api\/v1\/session$/, (route) =>
@@ -117,21 +114,21 @@ async function mockApi(page: Page) {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse(DIVIDENDS)),
+      body: JSON.stringify(paginated(DIVIDENDS)),
     }),
   );
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([DOMESTIC])),
+      body: JSON.stringify(paginated([DOMESTIC])),
     }),
   );
   await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([FUND])),
+      body: JSON.stringify(paginated([FUND])),
     }),
   );
 }
@@ -461,7 +458,7 @@ test('全件削除は確認モーダル経由で実行される', async ({ page 
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([])),
+      body: JSON.stringify(paginated([])),
     }),
   );
   await page.route(/\/api\/v1\/session$/, (route) =>
@@ -484,7 +481,7 @@ test('全件削除は確認モーダル経由で実行される', async ({ page 
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse(rows)),
+      body: JSON.stringify(paginated(rows)),
     });
   });
   await page.goto('/receipts');
@@ -509,7 +506,7 @@ test('CSV取込の保存結果は一覧再取得後もレールが開いて見�
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([])),
+      body: JSON.stringify(paginated([])),
     }),
   );
   await page.route(/\/api\/v1\/session$/, (route) =>
@@ -523,7 +520,7 @@ test('CSV取込の保存結果は一覧再取得後もレールが開いて見�
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse(rows)),
+      body: JSON.stringify(paginated(rows)),
     }),
   );
   await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>

@@ -51,7 +51,6 @@ fn cell_error(row_num: RowNumber, message: String) -> CsvRowError {
 ///
 /// 正常な UTF-8 入力は借用のまま返し、アロケーションしない
 pub fn decode_bytes(bytes: &[u8]) -> Cow<'_, str> {
-    // std::str::from_utf8 はアロケーションなしで UTF-8 妥当性を検証する
     if let Ok(s) = std::str::from_utf8(bytes) {
         return Cow::Borrowed(s.strip_prefix('\u{FEFF}').unwrap_or(s));
     }

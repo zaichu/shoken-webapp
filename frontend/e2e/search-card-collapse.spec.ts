@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test, json, paginated } from './support/test';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000011',
@@ -39,44 +39,34 @@ const ASSET = {
   profit_loss_rate: 4.0,
 };
 
-function jsonResponse(body: unknown, status = 200) {
-  return {
-    status,
-    contentType: 'application/json',
-    body: JSON.stringify(body),
-  };
-}
 
-function paginated(data: unknown[]) {
-  return { data, total: data.length, page: 1, per_page: data.length };
-}
 
 async function mockSession(page: Page) {
   await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill(jsonResponse(MOCK_USER)),
+    route.fulfill(json(MOCK_USER)),
   );
 }
 
 async function mockReceipts(page: Page) {
   await mockSession(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
-    route.fulfill(jsonResponse(paginated([DIVIDEND]))),
+    route.fulfill(json(paginated([DIVIDEND]))),
   );
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
-    route.fulfill(jsonResponse(paginated([]))),
+    route.fulfill(json(paginated([]))),
   );
   await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
-    route.fulfill(jsonResponse(paginated([]))),
+    route.fulfill(json(paginated([]))),
   );
 }
 
 async function mockAssetBalance(page: Page) {
   await mockSession(page);
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
-    route.fulfill(jsonResponse({ ...paginated([ASSET]), per_page: 1000 })),
+    route.fulfill(json({ ...paginated([ASSET]), per_page: 1000 })),
   );
   await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
-    route.fulfill(jsonResponse({ items: [] })),
+    route.fulfill(json({ items: [] })),
   );
 }
 

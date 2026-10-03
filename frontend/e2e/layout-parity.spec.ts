@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test, json, paginated } from './support/test';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -116,13 +116,7 @@ const TABS = [
 
 type ReceiptTab = (typeof TABS)[number];
 
-function paginated(data: unknown[]) {
-  return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
-}
 
-function json(body: unknown) {
-  return { status: 200, contentType: 'application/json', body: JSON.stringify(body) };
-}
 
 // context 単位でモックするため、比較用に同じ context へ追加したページにも効く
 async function mockApi(context: BrowserContext) {

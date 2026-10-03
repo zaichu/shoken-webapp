@@ -1,5 +1,5 @@
 import type { Browser, Locator, Page } from '@playwright/test';
-import { expect, test } from '../support/test';
+import { expect, test, json, paginated } from '../support/test';
 import AxeBuilder from '@axe-core/playwright';
 import * as path from 'path';
 
@@ -81,13 +81,7 @@ const MOCK_STOCK = {
 const PC = { width: 1280, height: 800 };
 const MOBILE = { width: 390, height: 844 };
 
-function paginated(data: unknown[]) {
-  return { data, total: data.length, page: 1, per_page: data.length };
-}
 
-function json(body: unknown, status = 200) {
-  return { status, contentType: 'application/json', body: JSON.stringify(body) };
-}
 
 async function liveRegionTexts(page: Page): Promise<string[]> {
   return page.evaluate(() =>

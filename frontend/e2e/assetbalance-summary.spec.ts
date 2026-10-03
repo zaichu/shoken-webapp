@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test, json } from './support/test';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000010',
@@ -49,17 +49,10 @@ const FACETS = {
   ],
 };
 
-function jsonResponse(body: unknown, status = 200) {
-  return {
-    status,
-    contentType: 'application/json',
-    body: JSON.stringify(body),
-  };
-}
 
 async function setupAssetBalanceMocks(page: Page) {
   await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill(jsonResponse(MOCK_USER)),
+    route.fulfill(json(MOCK_USER)),
   );
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
@@ -67,7 +60,7 @@ async function setupAssetBalanceMocks(page: Page) {
       return route.abort();
     }
     return route.fulfill(
-      jsonResponse({
+      json({
         data: [TOYOTA, SONY],
         total: 2,
         page: 1,
@@ -79,7 +72,7 @@ async function setupAssetBalanceMocks(page: Page) {
   });
 
   await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
-    route.fulfill(jsonResponse({ items: [] })),
+    route.fulfill(json({ items: [] })),
   );
 }
 
