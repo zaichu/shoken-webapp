@@ -84,42 +84,33 @@ impl AssetBalanceRowData for AssetBalanceCsvRow {
     }
 }
 
+impl AssetBalanceRow {
+    fn inner(&self) -> &dyn AssetBalanceRowData {
+        match self {
+            Self::Saved(row) => row,
+            Self::Preview(row) => row,
+        }
+    }
+}
+
 impl AssetBalanceRowData for AssetBalanceRow {
     fn security_code(&self) -> &str {
-        match self {
-            Self::Saved(row) => row.security_code(),
-            Self::Preview(row) => row.security_code(),
-        }
+        self.inner().security_code()
     }
     fn security_name(&self) -> &str {
-        match self {
-            Self::Saved(row) => row.security_name(),
-            Self::Preview(row) => row.security_name(),
-        }
+        self.inner().security_name()
     }
     fn shares(&self) -> Decimal {
-        match self {
-            Self::Saved(row) => row.shares(),
-            Self::Preview(row) => row.shares(),
-        }
+        self.inner().shares()
     }
     fn average_purchase_price(&self) -> Decimal {
-        match self {
-            Self::Saved(row) => row.average_purchase_price(),
-            Self::Preview(row) => row.average_purchase_price(),
-        }
+        self.inner().average_purchase_price()
     }
     fn total_purchase_amount(&self) -> Decimal {
-        match self {
-            Self::Saved(row) => row.total_purchase_amount(),
-            Self::Preview(row) => row.total_purchase_amount(),
-        }
+        self.inner().total_purchase_amount()
     }
     fn current_price(&self) -> Decimal {
-        match self {
-            Self::Saved(row) => row.current_price(),
-            Self::Preview(row) => row.current_price(),
-        }
+        self.inner().current_price()
     }
 }
 

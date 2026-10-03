@@ -29,6 +29,12 @@ pub(crate) fn display_rows_for(
     }
 }
 
+fn preview_banner() -> impl IntoView {
+    view! {
+        <CsvPreviewBanner description="表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
+    }
+}
+
 #[component]
 pub(crate) fn ReceiptsMainContent(
     store: ReceiptsStore,
@@ -118,13 +124,7 @@ pub(crate) fn ReceiptsMainContent(
                 if !search_security_code(&rows, &query).is_empty() {
                     let totals = DividendKind::totals(&rows);
                     return view! {
-                        {preview_active
-                            .get()
-                            .then(|| {
-                                view! {
-                                    <CsvPreviewBanner description="表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
-                                }
-                            })}
+                        {preview_active.get().then(preview_banner)}
                         <section id="receipts-summary">
                             <DividendSummarySection
                                 store=info
@@ -159,11 +159,7 @@ pub(crate) fn ReceiptsMainContent(
             );
             let preview = preview_active.get();
             view! {
-                {preview.then(|| {
-                    view! {
-                        <CsvPreviewBanner description="表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
-                    }
-                })}
+                {preview.then(preview_banner)}
                 <section id="receipts-summary">
                     <SummaryStrip items=header expanded=store.mobile_summary_expanded preview=preview />
                 </section>

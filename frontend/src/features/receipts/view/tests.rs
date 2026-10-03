@@ -1,8 +1,6 @@
 use super::cards::*;
-use super::groups::*;
 use super::pickers::*;
 use super::summary::*;
-use super::table::*;
 use super::tabs::*;
 use super::workspace::utility_rail_id;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
@@ -123,12 +121,12 @@ fn header_tones_mark_negative_profit_only() {
 fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
     let rows = dividends();
     let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9432 2024");
-    let groups = table_groups(ReceiptsTab::Dividend, &filtered, &rows, "9432 2024");
+    let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, "9432 2024");
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].label, "NTT");
     assert_eq!(groups[0].summary, ["¥500", "¥100", "¥400"]);
     let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9432");
-    let groups = table_groups(ReceiptsTab::Dividend, &filtered, &rows, "9432");
+    let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, "9432");
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].rows.len(), 2);
     assert_eq!(groups[0].summary, ["¥1,000", "¥200", "¥800"]);
@@ -142,7 +140,7 @@ fn dividend_product_and_account_group_keys_follow_priority() {
         ("2024", "2024年6月"),
     ] {
         let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, query);
-        let groups = table_groups(ReceiptsTab::Dividend, &filtered, &rows, query);
+        let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, query);
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].label, expected);
     }
@@ -151,11 +149,11 @@ fn dividend_product_and_account_group_keys_follow_priority() {
 fn mutual_fund_name_groups_and_domestic_daily_groups_match_react() {
     let rows = funds();
     assert_eq!(
-        table_groups(ReceiptsTab::MutualFund, &rows, &rows, "\"Alpha Fund A\"")[0].label,
+        ReceiptsTab::MutualFund.table_groups(&rows, &rows, "\"Alpha Fund A\"")[0].label,
         "Alpha Fund A"
     );
     let rows = domestic();
-    let groups = table_groups(ReceiptsTab::DomesticStock, &rows, &rows, "7203");
+    let groups = ReceiptsTab::DomesticStock.table_groups(&rows, &rows, "7203");
     assert_eq!(groups[0].label, "2024年3月1日");
     assert!(groups[0].summary.is_empty());
 }
@@ -172,7 +170,7 @@ fn domestic_daily_summary_remains_for_multiple_rows_only() {
     second.id = "next-day".to_string().into();
     second.trade_date = "2024-03-02".into();
     rows.push(Saved(ReceiptItem::DomesticStock(second)));
-    let groups = table_groups(ReceiptsTab::DomesticStock, &rows, &rows, "");
+    let groups = ReceiptsTab::DomesticStock.table_groups(&rows, &rows, "");
     assert_eq!(groups.len(), 2);
     assert_eq!(groups[0].label, "2024年3月2日");
     assert_eq!(groups[0].rows.len(), 1);
@@ -260,7 +258,7 @@ fn card_fields_point_at_expected_columns() {
     ];
     for (tab, expected) in cases {
         let fields = tab.card_fields();
-        let headers = table_headers(tab);
+        let headers = tab.headers();
         assert_eq!(
             (
                 headers[fields.name],
@@ -288,15 +286,15 @@ fn card_fields_point_at_expected_columns() {
 fn table_column_widths_match_headers_and_follow_column_order() {
     for tab in ReceiptsTab::ALL {
         assert_eq!(
-            table_headers(tab).len(),
-            table_column_widths(tab).len(),
+            tab.headers().len(),
+            tab.column_widths().len(),
             "{tab:?}: 列幅の数がヘッダー数と一致しない"
         );
     }
     let rows = domestic();
     let order = column_order(ReceiptsTab::DomesticStock, &rows, "特定");
-    let headers = table_headers(ReceiptsTab::DomesticStock);
-    let widths = table_column_widths(ReceiptsTab::DomesticStock);
+    let headers = ReceiptsTab::DomesticStock.headers();
+    let widths = ReceiptsTab::DomesticStock.column_widths();
     let displayed: Vec<(&str, &str)> = order.iter().map(|&i| (headers[i], widths[i])).collect();
     let fields = ReceiptsTab::DomesticStock.card_fields();
     assert_eq!(displayed[0], (headers[fields.date], widths[fields.date]));
@@ -313,17 +311,17 @@ fn table_column_widths_match_headers_and_follow_column_order() {
 #[test]
 fn quantity_column_tiers_match_width_budget() {
     let index_of = |tab: ReceiptsTab| {
-        table_headers(tab)
+        tab.headers()
             .iter()
             .position(|header| *header == "数量")
             .expect("数量列がある")
     };
     assert_eq!(
-        table_column_tiers(ReceiptsTab::Dividend)[index_of(ReceiptsTab::Dividend)],
+        ReceiptsTab::Dividend.column_tiers()[index_of(ReceiptsTab::Dividend)],
         ColumnTier::Md
     );
     for tab in [ReceiptsTab::DomesticStock, ReceiptsTab::MutualFund] {
-        assert_eq!(table_column_tiers(tab)[index_of(tab)], ColumnTier::Wide);
+        assert_eq!(tab.column_tiers()[index_of(tab)], ColumnTier::Wide);
     }
 }
 
@@ -390,7 +388,7 @@ fn card_row_data_matches_react_card_fields() {
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
-        table_headers(ReceiptsTab::Dividend),
+        ReceiptsTab::Dividend.headers(),
         &order,
         ReceiptsTab::Dividend.card_fields(),
         false,
@@ -425,7 +423,7 @@ fn card_date_keeps_year_when_group_is_not_year_month() {
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
-        table_headers(ReceiptsTab::Dividend),
+        ReceiptsTab::Dividend.headers(),
         &order,
         ReceiptsTab::Dividend.card_fields(),
         true,
@@ -444,14 +442,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
-    card_row_data(
-        tab,
-        &cells,
-        table_headers(tab),
-        &order,
-        tab.card_fields(),
-        false,
-    )
+    card_row_data(tab, &cells, tab.headers(), &order, tab.card_fields(), false)
 }
 
 #[test]
@@ -524,7 +515,7 @@ fn card_details_link_security_code_and_copy_name() {
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
-        table_headers(ReceiptsTab::Dividend),
+        ReceiptsTab::Dividend.headers(),
         &order,
         ReceiptsTab::Dividend.card_fields(),
         false,
@@ -550,7 +541,7 @@ fn card_details_link_security_code_and_copy_name() {
     let card = card_row_data(
         ReceiptsTab::MutualFund,
         &cells,
-        table_headers(ReceiptsTab::MutualFund),
+        ReceiptsTab::MutualFund.headers(),
         &order,
         ReceiptsTab::MutualFund.card_fields(),
         false,
@@ -568,7 +559,7 @@ fn card_details_link_security_code_and_copy_name() {
 #[test]
 fn table_groups_carry_group_key_and_row_ids() {
     let rows = dividends();
-    let groups = table_groups(ReceiptsTab::Dividend, &rows, &rows, "");
+    let groups = ReceiptsTab::Dividend.table_groups(&rows, &rows, "");
     assert_eq!(groups[0].key, "2026-06");
     assert_eq!(groups[0].label, "2026年6月");
     let ids: Vec<Option<&str>> = groups
@@ -636,7 +627,7 @@ fn latest_name_uses_newest_settlement_per_code() {
     };
     same_date.security_name = "別名".into();
     rows.push(Saved(ReceiptItem::Dividend(same_date)));
-    let groups = table_groups(ReceiptsTab::Dividend, &rows, &rows, "9432");
+    let groups = ReceiptsTab::Dividend.table_groups(&rows, &rows, "9432");
     assert_eq!(groups[0].label, "NTT");
 }
 
@@ -652,15 +643,10 @@ fn cells_normalize_full_width_security_names() {
 #[test]
 fn group_rows_contain_only_matching_rows() {
     let domestic_rows = domestic();
-    let groups = table_groups(
-        ReceiptsTab::DomesticStock,
-        &domestic_rows,
-        &domestic_rows,
-        "",
-    );
+    let groups = ReceiptsTab::DomesticStock.table_groups(&domestic_rows, &domestic_rows, "");
     assert_eq!(groups[0].rows.len(), 1);
     let fund_rows = funds();
-    let groups = table_groups(ReceiptsTab::MutualFund, &fund_rows, &fund_rows, "");
+    let groups = ReceiptsTab::MutualFund.table_groups(&fund_rows, &fund_rows, "");
     assert_eq!(groups[0].rows.len(), 1);
 }
 
@@ -674,7 +660,7 @@ fn card_row_data_details_follow_column_reorder() {
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
-        table_headers(ReceiptsTab::Dividend),
+        ReceiptsTab::Dividend.headers(),
         &order,
         ReceiptsTab::Dividend.card_fields(),
         false,

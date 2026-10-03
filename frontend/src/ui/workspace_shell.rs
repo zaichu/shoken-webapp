@@ -42,7 +42,6 @@ pub fn WorkspaceShell(
     });
     on_cleanup(move || on_key_down.remove());
     let panel_id_toggle = panel_id;
-    let _panel_id_body = panel_id;
     view! {
         <div
             class=move || {

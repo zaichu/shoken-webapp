@@ -3,7 +3,6 @@ use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::model::normalize_display_name;
 use crate::features::dividend_per_share::DividendMaps;
 
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub(crate) struct HoldingView {
     pub(crate) code: String,
@@ -30,7 +29,6 @@ pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct HoldingDividend {
     pub(crate) per_share: Option<f64>,
@@ -39,7 +37,6 @@ pub(crate) struct HoldingDividend {
     pub(crate) status: Option<String>,
 }
 
-#[allow(dead_code)]
 pub(crate) fn holding_dividend(
     code: &str,
     shares: f64,
@@ -81,35 +78,26 @@ pub(crate) fn holding_dividend(
     }
 }
 
-pub(crate) fn format_dividend_per_share(dividend: &HoldingDividend) -> String {
+fn format_dividend_value(
+    dividend: &HoldingDividend,
+    value: Option<f64>,
+    format: fn(f64) -> String,
+) -> String {
     match dividend.status.as_deref() {
         Some("pending") => "取得中...".to_string(),
         Some("error") => "取得失敗".to_string(),
-        _ => match dividend.per_share {
-            Some(value) => format_currency(value),
-            None => "—".to_string(),
-        },
+        _ => value.map_or_else(|| "—".to_string(), format),
     }
+}
+
+pub(crate) fn format_dividend_per_share(dividend: &HoldingDividend) -> String {
+    format_dividend_value(dividend, dividend.per_share, format_currency)
 }
 
 pub(crate) fn format_dividend_annual(dividend: &HoldingDividend) -> String {
-    match dividend.status.as_deref() {
-        Some("pending") => "取得中...".to_string(),
-        Some("error") => "取得失敗".to_string(),
-        _ => match dividend.annual {
-            Some(value) => format_currency(value),
-            None => "—".to_string(),
-        },
-    }
+    format_dividend_value(dividend, dividend.annual, format_currency)
 }
 
 pub(crate) fn format_dividend_yield(dividend: &HoldingDividend) -> String {
-    match dividend.status.as_deref() {
-        Some("pending") => "取得中...".to_string(),
-        Some("error") => "取得失敗".to_string(),
-        _ => match dividend.yield_value {
-            Some(value) => format_percentage_value(value),
-            None => "—".to_string(),
-        },
-    }
+    format_dividend_value(dividend, dividend.yield_value, format_percentage_value)
 }

@@ -6,9 +6,13 @@ use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
 #[component]
-pub(crate) fn SecurityDropdown(
+pub(crate) fn SearchDropdown(
     search: RwSignal<ReceiptSearch>,
     options: Memo<Vec<SearchOption>>,
+    id: &'static str,
+    label: &'static str,
+    search_key: SearchKey,
+    #[prop(optional_no_strip)] class: Option<&'static str>,
 ) -> impl IntoView {
     view! {
         {move || {
@@ -18,45 +22,16 @@ pub(crate) fn SecurityDropdown(
             }
             view! {
                 <Select
-                    id="securities-search"
-                    label="銘柄"
+                    id=id
+                    label=label
                     value=Signal::derive(move || {
-                        search.with(|state| state.selected_queries.securities.clone())
+                        search.with(|state| state.selected_queries.get(search_key).to_string())
                     })
                     options=options
                     on_change=move |value| {
-                        search.update(|state| state.select_quick(SearchKey::Securities, value))
+                        search.update(|state| state.select_quick(search_key, value))
                     }
-                    class="search-select"
-                />
-            }
-            .into_any()
-        }}
-    }
-}
-
-#[component]
-pub(crate) fn YearDropdown(
-    search: RwSignal<ReceiptSearch>,
-    options: Memo<Vec<SearchOption>>,
-) -> impl IntoView {
-    view! {
-        {move || {
-            let options = options.get();
-            if options.is_empty() {
-                return ().into_any();
-            }
-            view! {
-                <Select
-                    id="years-search"
-                    label="西暦"
-                    value=Signal::derive(move || {
-                        search.with(|state| state.selected_queries.years.clone())
-                    })
-                    options=options
-                    on_change=move |value| {
-                        search.update(|state| state.select_quick(SearchKey::Years, value))
-                    }
+                    class=class
                 />
             }
             .into_any()

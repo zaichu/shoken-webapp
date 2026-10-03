@@ -1,10 +1,10 @@
-use super::csv_section::AssetBalanceCsvSection;
 use super::search_card::AssetBalanceSearchCard;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::csv_store::AssetBalanceCsvStore;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::search::asset_balance_search_options;
 use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::csv_section::CsvSection;
 use crate::ui::elements::{Alert, AlertVariant};
 use crate::ui::security_link::try_copy_to_clipboard;
 use leptos::prelude::*;
@@ -29,13 +29,12 @@ pub(crate) fn AssetBalancePanelContent(
     let options = Memo::new(move |_| {
         asset_balance_search_options(&rows_clone(), facets().as_ref(), has_csv_file())
     });
-    let options = std::sync::Arc::new(options);
     let review_rows = rows.clone();
 
     // パネル本体の直接の子は CSV → 検索 → 見直し促進カードの順で並べる
     view! {
         <div>
-            <AssetBalanceCsvSection store=view_csv />
+            <CsvSection source=view_csv />
             {move || {
                 warning().map(|text| {
                     view! {
@@ -45,9 +44,7 @@ pub(crate) fn AssetBalancePanelContent(
                     }
                 })
             }}
-            {move || {
-                view! { <AssetBalanceSearchCard query=search_query options=options.get() /> }
-            }}
+            <AssetBalanceSearchCard query=search_query options=options />
             {move || {
                 let has_rows = !review_rows().is_empty();
                 has_rows.then(|| view! {

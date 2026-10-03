@@ -12,7 +12,6 @@ mod tests;
 
 use crate::features::asset_balance::csv_store::{resolve_asset_balance, AssetBalanceCsvStore};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
-use crate::features::asset_balance::search::clear_search_query;
 use crate::features::asset_balance::store::{
     has_current_balances, load_asset_balances, BalanceSlot, DataOps,
 };
@@ -78,7 +77,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
             balances.set(None);
             dividends.set(DividendMaps::default());
             data_ops.update(DataOps::reset);
-            reset_query.set(clear_search_query());
+            reset_query.set(String::new());
             show_all.set(false);
             return;
         }
@@ -125,6 +124,11 @@ pub fn AssetBalancePage() -> impl IntoView {
     let disabled_csv = csv_store;
     let panel_open = state.panel_open;
     let csv_input_disabled = Memo::new(move |_| disabled_csv.csv_input_disabled());
+    let resolved_view = move || {
+        let generation = rail_session.generation.get();
+        let state = rail_csv.csv_state();
+        balances.with(|slot| resolve_asset_balance(generation, slot, &state))
+    };
     // 再訪では表示済みの一覧を消さず裏で取り直す(初回・未キャッシュは Effect が担う)
     // 前の取得が残っている往復では要求を重ねない
     if session.user.get_untracked().is_some()
@@ -194,46 +198,18 @@ pub fn AssetBalancePage() -> impl IntoView {
                         view_csv=view_csv
                         search_query=search_query
                         rows=move || {
-                            let generation = rail_session.generation.get();
-                            let state = rail_csv.csv_state();
-                            balances
-                                .with(|slot| resolve_asset_balance(generation, slot, &state))
-                                .map(|r| r.rows)
-                                .unwrap_or_default()
+                            resolved_view().map(|r| r.rows).unwrap_or_default()
                         }
-                        facets=move || {
-                            let generation = rail_session.generation.get();
-                            let state = rail_csv.csv_state();
-                            balances
-                                .with(|slot| resolve_asset_balance(generation, slot, &state))
-                                .and_then(|r| r.facets)
-                        }
+                        facets=move || resolved_view().and_then(|r| r.facets)
                         has_csv_file=move || {
-                            let generation = rail_session.generation.get();
-                            let state = rail_csv.csv_state();
-                            balances
-                                .with(|slot| resolve_asset_balance(generation, slot, &state))
-                                .map(|r| r.has_csv_file)
-                                .unwrap_or(false)
+                            resolved_view().map(|r| r.has_csv_file).unwrap_or(false)
                         }
-                        warning=move || {
-                            let generation = rail_session.generation.get();
-                            let state = rail_csv.csv_state();
-                            balances
-                                .with(|slot| resolve_asset_balance(generation, slot, &state))
-                                .and_then(|r| r.warning)
-                        }
+                        warning=move || resolved_view().and_then(|r| r.warning)
                     />
                 }
                     .into_any()
                 right_rail=move || {
-                    let has_rows = {
-                        let generation = rail_session.generation.get();
-                        let state = rail_csv.csv_state();
-                        balances
-                            .with(|slot| resolve_asset_balance(generation, slot, &state))
-                            .is_some_and(|r| !r.rows.is_empty())
-                    };
+                    let has_rows = resolved_view().is_some_and(|r| !r.rows.is_empty());
                     let applied = (has_rows && !search_query.get().is_empty()).then(|| {
                         vec![("銘柄", Signal::derive(move || search_query.get()))]
                     });
@@ -275,8 +251,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                             }
                             _ => None,
                         });
-                        let resolved = balances
-                            .with(|slot| resolve_asset_balance(generation, slot, &state));
+                        let resolved = resolved_view();
                         match (resolved, list_error) {
                             (None, _) => {
                                 show_all.set(false);

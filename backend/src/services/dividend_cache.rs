@@ -50,7 +50,6 @@ pub async fn get_batch(
 
     let now = Utc::now();
 
-    // コードをキーにしてキャッシュをマップ化
     let cache_map: std::collections::HashMap<&str, &DividendCache> = cached
         .iter()
         .map(|c| (c.security_code.as_str(), c))

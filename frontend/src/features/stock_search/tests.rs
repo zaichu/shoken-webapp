@@ -23,7 +23,7 @@ fn stale_search_result_is_rejected_after_same_or_different_user_login() {
             session.mark_unauthenticated();
             session.user.set(Some(next_user));
 
-            assert!(!should_apply_search_result(&session, fetch_generation));
+            assert!(!session.is_current(fetch_generation));
         }
     });
 }
@@ -35,18 +35,18 @@ fn search_result_applies_within_the_same_generation() {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
-        assert!(should_apply_search_result(&session, generation));
+        assert!(session.is_current(generation));
     });
 }
 
 #[test]
-fn valid_code_matches_react_regex() {
-    assert!(valid_code("7203"));
-    assert!(valid_code("BRK.B"));
-    assert!(!valid_code(""));
-    assert!(!valid_code("7203: トヨタ"));
-    assert!(!valid_code("７２０３"));
-    assert!(!valid_code("A B"));
+fn is_searchable_code_matches_react_regex() {
+    assert!(is_searchable_code("7203"));
+    assert!(is_searchable_code("BRK.B"));
+    assert!(!is_searchable_code(""));
+    assert!(!is_searchable_code("7203: トヨタ"));
+    assert!(!is_searchable_code("７２０３"));
+    assert!(!is_searchable_code("A B"));
 }
 
 fn stock(code: &str) -> Stock {

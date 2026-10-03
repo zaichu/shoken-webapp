@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test } from '../support/test';
+import { expect, test, paginated } from '../support/test';
 import * as path from 'path';
 
 const MOCK_USER = {
@@ -37,14 +37,6 @@ const DIVIDEND_RECORD = [
   },
 ];
 
-function paginatedResponse(data: unknown[]) {
-  return {
-    data,
-    total: data.length,
-    page: 1,
-    per_page: data.length,
-  };
-}
 
 async function setupAuthMocks(
   page: Page,
@@ -69,21 +61,21 @@ async function setupAuthMocks(
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse(dividends)),
+      body: JSON.stringify(paginated(dividends)),
     }),
   );
   await page.route(ROUTES.domesticStocks, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse(domesticStocks)),
+      body: JSON.stringify(paginated(domesticStocks)),
     }),
   );
   await page.route(ROUTES.mutualfunds, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse(mutualfunds)),
+      body: JSON.stringify(paginated(mutualfunds)),
     }),
   );
 }
@@ -143,7 +135,7 @@ test('別タブの一覧取得中は空状態の CSV 取り込み CTA が無効�
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([])),
+      body: JSON.stringify(paginated([])),
     });
   }
 });

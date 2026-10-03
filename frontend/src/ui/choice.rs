@@ -57,7 +57,6 @@ pub fn Chip(
     #[prop(into, optional)] selected: Option<Signal<bool>>,
     #[prop(into, optional)] disabled: Option<Signal<bool>>,
     #[prop(into, optional)] aria_label: Option<Signal<String>>,
-    #[prop(optional)] testid: Option<&'static str>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
 ) -> impl IntoView {
@@ -83,7 +82,6 @@ pub fn Chip(
             disabled=move || disabled.is_some_and(|disabled| disabled.get())
             aria-pressed=selected.map(|selected| move || selected.get().to_string())
             aria-label=move || aria_label.map(|label| label.get())
-            data-testid=testid
             on:click=on_click
         >
             {children()}
@@ -100,7 +98,7 @@ pub fn Select(
     #[prop(into)] value: Signal<String>,
     options: Vec<SearchOption>,
     on_change: impl Fn(String) + 'static,
-    #[prop(optional)] class: Option<&'static str>,
+    #[prop(optional_no_strip)] class: Option<&'static str>,
 ) -> impl IntoView {
     view! {
         <div>
@@ -207,6 +205,3 @@ pub fn OptionButton(
         </button>
     }
 }
-
-#[cfg(test)]
-mod tests;

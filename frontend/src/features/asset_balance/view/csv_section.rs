@@ -1,8 +1,7 @@
 use crate::features::asset_balance::csv::AssetBalanceCsvRow;
 use crate::features::asset_balance::csv_store::{can_save_csv, AssetBalanceCsvStore};
 use crate::support::csv_flow::CsvTabState;
-use crate::ui::csv_section::{CsvSection, CsvSource};
-use leptos::prelude::*;
+use crate::ui::csv_section::CsvSource;
 
 impl CsvSource for AssetBalanceCsvStore {
     type Row = AssetBalanceCsvRow;
@@ -65,15 +64,5 @@ impl CsvSource for AssetBalanceCsvStore {
 
     fn open_delete_confirm(&self) {
         AssetBalanceCsvStore::open_delete_confirm(self)
-    }
-}
-
-#[component]
-pub(crate) fn AssetBalanceCsvSection(store: AssetBalanceCsvStore) -> impl IntoView {
-    view! {
-        // divide の半透明線は下地色で見え方が変わるため、sm 以上は内側 section 側の線に揃える
-        <div class="sm:border-b-0">
-            <CsvSection source=store />
-        </div>
     }
 }

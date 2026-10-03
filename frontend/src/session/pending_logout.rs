@@ -1,4 +1,5 @@
 use crate::api::{ApiClient, ApiError};
+use crate::session::local_storage;
 use gloo_timers::future::TimeoutFuture;
 use std::cell::Cell;
 
@@ -15,10 +16,6 @@ pub fn is_finished(result: &Result<(), ApiError>) -> bool {
         Ok(()) => true,
         Err(error) => error.is_unauthorized(),
     }
-}
-
-fn local_storage() -> Option<web_sys::Storage> {
-    web_sys::window().and_then(|window| window.local_storage().ok().flatten())
 }
 
 trait FlagStore {

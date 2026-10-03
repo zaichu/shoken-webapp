@@ -1,11 +1,11 @@
 use super::cards::{
     card_row_data, is_negative_text, is_profit_label, CardRowData, MobileCardGroup,
 };
-use super::groups::{table_groups, TableGroup};
 use super::TAB_IDS;
 use crate::features::receipts::filter::{column_order, promoted_column};
 use crate::features::receipts::kind::is_date_group_key;
 use crate::features::receipts::kind::ColumnTier;
+use crate::features::receipts::kind::TableGroup;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::badge::CodeBadge;
 use crate::ui::card::{Card, CardVariant};
@@ -17,19 +17,6 @@ use std::collections::{HashMap, HashSet};
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
-pub(crate) fn table_headers(tab: ReceiptsTab) -> &'static [&'static str] {
-    tab.headers()
-}
-
-// 幅は列に追随させるため基本順で持ち、表示時に column_order と同じ並びにする。空は残り幅を使う列
-pub(crate) fn table_column_widths(tab: ReceiptsTab) -> &'static [&'static str] {
-    tab.column_widths()
-}
-
-pub(crate) fn table_column_tiers(tab: ReceiptsTab) -> &'static [ColumnTier] {
-    tab.column_tiers()
-}
-
 // 検索で前に出した列は、狭い画面でも隠さない
 fn displayed_tiers(tab: ReceiptsTab, order: &[usize], promoted: Option<usize>) -> Vec<ColumnTier> {
     order
@@ -38,14 +25,10 @@ fn displayed_tiers(tab: ReceiptsTab, order: &[usize], promoted: Option<usize>) -
             if promoted == Some(column) {
                 ColumnTier::Core
             } else {
-                table_column_tiers(tab)[column]
+                tab.column_tiers()[column]
             }
         })
         .collect()
-}
-
-fn table_column_aligns(tab: ReceiptsTab) -> &'static [&'static str] {
-    tab.column_aligns()
 }
 
 // Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
@@ -76,8 +59,8 @@ pub(crate) fn ReceiptTable(
     query: String,
     expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
-    let headers: &[&'static str] = table_headers(tab);
-    let groups: Vec<TableGroup> = table_groups(tab, &rows, &all_rows, &query);
+    let headers: &[&'static str] = tab.headers();
+    let groups: Vec<TableGroup> = tab.table_groups(&rows, &all_rows, &query);
     let order = column_order(tab, &rows, &query);
     let promoted = promoted_column(tab, &rows, &query);
     let fields = tab.card_fields();
@@ -109,12 +92,13 @@ pub(crate) fn ReceiptTable(
         })
         .collect();
     let headers: Vec<_> = order.iter().map(|i| headers[*i]).collect();
-    let widths: Vec<_> = order.iter().map(|i| table_column_widths(tab)[*i]).collect();
+    let widths: Vec<_> = order.iter().map(|i| tab.column_widths()[*i]).collect();
+    let tiers = displayed_tiers(tab, &order, promoted);
     let cell_classes: Vec<String> = order
         .iter()
-        .zip(displayed_tiers(tab, &order, promoted))
+        .zip(tiers.iter())
         .map(|(i, tier)| {
-            let align = match table_column_aligns(tab)[*i] {
+            let align = match tab.column_aligns()[*i] {
                 "center" => "text-center",
                 "right" => "text-right tabular-nums",
                 _ => "text-left",
@@ -122,7 +106,6 @@ pub(crate) fn ReceiptTable(
             format!("{align}{}", tier.class())
         })
         .collect();
-    let tiers = displayed_tiers(tab, &order, promoted);
     // 帯(画面幅)ごとに1本だけ出す(input.css の .receipt-span-* と対になる)
     let span_masks: [(&'static str, ColumnTier); 5] = [
         (" receipt-span-sm", ColumnTier::Core),
@@ -312,7 +295,7 @@ pub(crate) fn ReceiptTable(
                                                                         ReceiptCell::Text(value) => {
                                                                             let negative = is_profit_label(
                                                                                 tab,
-                                                                                table_headers(tab)[order[col_index]],
+                                                                                tab.headers()[order[col_index]],
                                                                             ) && is_negative_text(&value);
                                                                             let title = value.clone();
                                                                             view! {

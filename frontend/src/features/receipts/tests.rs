@@ -2,9 +2,7 @@ mod csv;
 mod fetch;
 mod search;
 
-use super::store::{
-    bump_fetch_rev, is_current_fetch, settle_tab_result, should_apply_fetch_result,
-};
+use super::store::{bump_fetch_rev, is_current_fetch, settle_tab_result};
 use super::*;
 use crate::api::ApiError;
 use crate::features::receipts::filter::tests::dividends;
@@ -37,7 +35,7 @@ fn stale_receipts_result_is_rejected_after_same_or_different_user_login() {
             session.mark_unauthenticated();
             session.user.set(Some(next_user));
 
-            assert!(!should_apply_fetch_result(&session, fetch_generation));
+            assert!(!session.is_current(fetch_generation));
         }
     });
 }

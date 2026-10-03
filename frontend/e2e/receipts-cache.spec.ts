@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test, paginated } from './support/test';
 
 const USER_A = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -72,9 +72,6 @@ const FUND = {
   updated_at: '2024-01-15T00:00:00Z',
 };
 
-function paginatedResponse(data: unknown[]) {
-  return { data, total: data.length, page: 1, per_page: data.length };
-}
 
 interface RequestLog {
   start: number;
@@ -124,16 +121,16 @@ async function setupMocks(
     dividendCalls += 1;
     return fulfillDelayed(
       route,
-      paginatedResponse(dividendResponder(dividendCalls)),
+      paginated(dividendResponder(dividendCalls)),
       delays.dividends(dividendCalls),
       logs.dividends,
     );
   });
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
-    fulfillDelayed(route, paginatedResponse([DOMESTIC]), delays.domestic, logs.domestic),
+    fulfillDelayed(route, paginated([DOMESTIC]), delays.domestic, logs.domestic),
   );
   await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
-    fulfillDelayed(route, paginatedResponse([FUND]), delays.funds, logs.funds),
+    fulfillDelayed(route, paginated([FUND]), delays.funds, logs.funds),
   );
 }
 
@@ -220,7 +217,7 @@ for (const failedTab of ['dividends', 'domestic', 'funds'] as const) {
       return route.fulfill(
         failedTab === 'dividends'
           ? { status: 401, body: '{}' }
-          : { status: 200, contentType: 'application/json', body: JSON.stringify(paginatedResponse([DIVIDEND_A])) },
+          : { status: 200, contentType: 'application/json', body: JSON.stringify(paginated([DIVIDEND_A])) },
       );
     });
     await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) => {
@@ -228,7 +225,7 @@ for (const failedTab of ['dividends', 'domestic', 'funds'] as const) {
       return route.fulfill(
         failedTab === 'domestic'
           ? { status: 401, body: '{}' }
-          : { status: 200, contentType: 'application/json', body: JSON.stringify(paginatedResponse([DOMESTIC])) },
+          : { status: 200, contentType: 'application/json', body: JSON.stringify(paginated([DOMESTIC])) },
       );
     });
     await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) => {
@@ -236,7 +233,7 @@ for (const failedTab of ['dividends', 'domestic', 'funds'] as const) {
       return route.fulfill(
         failedTab === 'funds'
           ? { status: 401, body: '{}' }
-          : { status: 200, contentType: 'application/json', body: JSON.stringify(paginatedResponse([FUND])) },
+          : { status: 200, contentType: 'application/json', body: JSON.stringify(paginated([FUND])) },
       );
     });
 

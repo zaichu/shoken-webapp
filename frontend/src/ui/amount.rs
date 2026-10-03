@@ -12,8 +12,6 @@ pub fn Amount(
     #[prop(optional)]
     block: bool,
     #[prop(into, optional)] class: Signal<String>,
-    #[prop(optional)] testid: Option<&'static str>,
-    #[prop(into, optional)] title: Option<Signal<String>>,
 ) -> impl IntoView {
     let classes = move || {
         let extra = class.get();
@@ -25,17 +23,16 @@ pub fn Amount(
     };
     let negative = move || negative.get().then_some("true");
     let text = move || text.get();
-    let title = move || title.map(|title| title.get());
     if block {
         view! {
-            <p class=classes data-negative=negative data-testid=testid title=title>
+            <p class=classes data-negative=negative>
                 {text}
             </p>
         }
         .into_any()
     } else {
         view! {
-            <span class=classes data-negative=negative data-testid=testid title=title>
+            <span class=classes data-negative=negative>
                 {text}
             </span>
         }

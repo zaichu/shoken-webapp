@@ -1,4 +1,4 @@
-use super::{asset_balance_search_options, clear_search_query, filter_asset_balances};
+use super::{asset_balance_search_options, filter_asset_balances};
 use crate::api::dto::{AssetBalance, SearchFacets};
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::support::row::Row as ListRow;
@@ -119,8 +119,7 @@ fn cleared_query_restores_all_rows() {
     let case = &fixture.filter_cases[2];
     let data = balances(&case.data);
     assert_eq!(filter_asset_balances(&data, &case.query).len(), 1);
-    assert_eq!(clear_search_query(), String::new());
-    let actual: Vec<_> = filter_asset_balances(&data, &clear_search_query())
+    let actual: Vec<_> = filter_asset_balances(&data, "")
         .iter()
         .map(|row| row_id(row))
         .collect();

@@ -8,7 +8,6 @@ use crate::services::domain::Domain;
 use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json};
 use shared::value::UserId;
 
-/// マルチパートフォームから `file` フィールドのバイト列を取得する
 pub async fn read_csv_file_bytes(mut multipart: Multipart) -> Result<Vec<u8>, ApiError> {
     while let Some(field) = multipart
         .next_field()
@@ -31,9 +30,6 @@ pub async fn read_csv_file_bytes(mut multipart: Multipart) -> Result<Vec<u8>, Ap
     Err(CsvError::MissingFile.into())
 }
 
-/// ドメイン共通のプレビュー処理
-///
-/// ハンドラーから `handle_preview_csv::<DividendDomain>(multipart).await` のように呼ぶ。
 pub async fn handle_preview_csv<D: CsvDomain>(
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -42,10 +38,6 @@ pub async fn handle_preview_csv<D: CsvDomain>(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// ドメイン共通のアップロード処理
-///
-/// ハンドラーから `handle_upload_csv::<DividendDomain>(&state.pool, auth_user.id(), multipart, state.config.user_row_limit).await` のように呼ぶ。
-/// HTTP ステータスコードは呼び出し元ハンドラーが決める。
 pub async fn handle_upload_csv<D: CsvDomain>(
     pool: &sqlx::PgPool,
     user_id: UserId,
@@ -57,11 +49,6 @@ pub async fn handle_upload_csv<D: CsvDomain>(
     Ok(Json(response))
 }
 
-/// 全削除の定型処理（削除実行 + 完了メッセージ）
-///
-/// 各ドメインの `delete_all` ハンドラーから
-/// `handle_delete_all::<DividendDomain>(&state.pool, auth_user.id(), "メッセージ").await`
-/// のように呼ぶ。
 pub async fn handle_delete_all<D: Domain>(
     pool: &sqlx::PgPool,
     user_id: UserId,

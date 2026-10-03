@@ -24,3 +24,12 @@ export const test = base.extend<{ _apiGuard: void }>({
 });
 
 export { expect };
+
+// route.fulfill 用の共通レスポンス。extra は追加フィールド(total 等)の上書き用
+export function json(body: unknown, status = 200) {
+  return { status, contentType: 'application/json', body: JSON.stringify(body) };
+}
+
+export function paginated(data: unknown[], extra: Record<string, unknown> = {}) {
+  return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1), ...extra };
+}

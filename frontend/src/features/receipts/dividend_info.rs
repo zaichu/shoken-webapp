@@ -190,6 +190,35 @@ fn AssetBadge() -> impl IntoView {
 }
 
 #[component]
+fn StatCard(
+    label: &'static str,
+    children: Children,
+    /// 非活性時の案内文。title_hint 指定時は値のツールチップにも使う
+    #[prop(optional_no_strip)]
+    hint: Option<Signal<Option<&'static str>>>,
+    #[prop(optional)] title_hint: bool,
+) -> impl IntoView {
+    view! {
+        <Card variant=CardVariant::Sunken>
+            <p class="text-xs font-medium text-text-muted mb-1">{label}</p>
+            <p
+                class="text-2xl font-bold tabular-nums text-text-deep"
+                title=move || {
+                    title_hint.then(|| hint.and_then(|hint| hint.get())).flatten()
+                }
+            >
+                {children()}
+            </p>
+            {move || {
+                hint.and_then(|hint| hint.get()).map(|text| {
+                    view! { <p class="mt-0.5 text-xs text-text-subtle">{text}</p> }
+                })
+            }}
+        </Card>
+    }
+}
+
+#[component]
 pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> impl IntoView {
     let asset = move || store.asset_balance.get();
     let per_share = move || store.per_share.get();
@@ -214,43 +243,28 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
     view! {
         <div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">"平均取得価格"</p>
-                    <p
-                        class="text-2xl font-bold tabular-nums text-text-deep"
-                        title=move || asset().is_none().then_some(ASSET_BALANCE_HINT)
-                    >
-                        {average_price_text}
-                    </p>
-                    {move || {
-                        asset().is_none().then(|| {
-                            view! { <p class="mt-0.5 text-xs text-text-subtle">{ASSET_BALANCE_HINT}</p> }
-                        })
-                    }}
-                </Card>
-                <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">"保有数量(株)"</p>
-                    <p
-                        class="text-2xl font-bold tabular-nums text-text-deep"
-                        title=move || asset().is_none().then_some(ASSET_BALANCE_HINT)
-                    >
-                        {shares_text}
-                    </p>
-                    {move || {
-                        asset().is_none().then(|| {
-                            view! { <p class="mt-0.5 text-xs text-text-subtle">{ASSET_BALANCE_HINT}</p> }
-                        })
-                    }}
-                </Card>
-                <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">"一株配当"</p>
-                    <p class="text-2xl font-bold tabular-nums text-text-deep">{per_share_text}</p>
-                    {move || {
-                        (!loading() && per_share().is_none()).then(|| {
-                            view! { <p class="mt-0.5 text-xs text-text-subtle">{JQUANTS_HINT}</p> }
-                        })
-                    }}
-                </Card>
+                <StatCard
+                    label="平均取得価格"
+                    title_hint=true
+                    hint=Some(Signal::derive(move || asset().is_none().then_some(ASSET_BALANCE_HINT)))
+                >
+                    {average_price_text}
+                </StatCard>
+                <StatCard
+                    label="保有数量(株)"
+                    title_hint=true
+                    hint=Some(Signal::derive(move || asset().is_none().then_some(ASSET_BALANCE_HINT)))
+                >
+                    {shares_text}
+                </StatCard>
+                <StatCard
+                    label="一株配当"
+                    hint=Some(Signal::derive(move || {
+                        (!loading() && per_share().is_none()).then_some(JQUANTS_HINT)
+                    }))
+                >
+                    {per_share_text}
+                </StatCard>
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-border-subtle">
                 <Card variant=CardVariant::Sunken>
