@@ -182,9 +182,9 @@ jobs:
           marker="<!-- frontend-preview-url -->"
           body="${marker}
           Frontend preview: ${{ steps.deploy.outputs.url }}"
-          # --paginate はページ単位で jq 評価するため --slurp で結合してから1件だけ取る
-          existing=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/issues/${{ github.event.pull_request.number }}/comments" \
-            --jq "[.[][] | select(.body | contains(\"${marker}\"))] | last | .id // empty")
+          # --paginate はページ単位で jq 評価するため、各ページの一致 ID を最終行だけ採用する
+          existing=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq ".[] | select(.body | contains(\"${marker}\")) | .id" | tail -n1)
           if [[ -n "${existing}" ]]; then
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="${body}" > /dev/null
           else
