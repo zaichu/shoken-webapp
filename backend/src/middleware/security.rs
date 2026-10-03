@@ -107,8 +107,8 @@ pub async fn validate_origin(
             match referer {
                 Some(ref r)
                     if extract_origin(r).is_some_and(|o| {
-                        allowed_origins.iter().any(|a| a == &o)
-                            || crate::config::cors::is_vercel_preview_origin(&o)
+                        allowed_origins.iter().any(|a| a == o)
+                            || crate::config::cors::is_vercel_preview_origin(o)
                     }) =>
                 {
                     // 許可済みオリジンの Referer → 通過
