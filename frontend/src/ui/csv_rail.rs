@@ -6,13 +6,6 @@ use crate::ui::csv_preview::CsvPreviewNotice;
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
 
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
-pub enum CsvRailLayout {
-    #[default]
-    Rail,
-    Toolbar,
-}
-
 #[component]
 pub fn CsvActionRail(
     input_id: &'static str,
@@ -34,7 +27,9 @@ pub fn CsvActionRail(
     body_id: String,
     section_class: &'static str,
     #[prop(optional_no_strip)] expanded: Option<RwSignal<bool>>,
-    #[prop(optional)] layout: CsvRailLayout,
+    /// true のとき開閉トリガーを外側(モバイルツールバー)へ委ね、セクション内には出さない
+    #[prop(optional)]
+    external_toggle: bool,
 ) -> impl IntoView {
     // スマホ幅ではCSV操作を折り畳む。常時展開だと明細が画面外へ押し出されるため
     let csv_expanded =
@@ -58,19 +53,21 @@ pub fn CsvActionRail(
 
     view! {
         <div>
-            {(layout == CsvRailLayout::Rail).then(|| view! {
-            <div class="bg-surface-sunken/60 px-5 sm:hidden">
-                <DisclosureToggle
-                    style=DisclosureStyle::Rail
-                    expanded=Signal::derive(move || csv_expanded.get())
-                    controls=csv_body_id.clone()
-                    testid=toggle_testid
-                    hint=true
-                    on_toggle=move || csv_expanded.update(|v| *v = !*v)
-                >
-                    <span class="text-sm font-bold text-text">"CSV取り込み・削除"</span>
-                </DisclosureToggle>
-            </div>
+            {(!external_toggle).then(|| {
+                view! {
+                    <div class="bg-surface-sunken/60 px-5 sm:hidden">
+                        <DisclosureToggle
+                            style=DisclosureStyle::Rail
+                            expanded=Signal::derive(move || csv_expanded.get())
+                            controls=csv_body_id.clone()
+                            testid=toggle_testid
+                            hint=true
+                            on_toggle=move || csv_expanded.update(|v| *v = !*v)
+                        >
+                            <span class="text-sm font-bold text-text">"CSV取り込み・削除"</span>
+                        </DisclosureToggle>
+                    </div>
+                }
             })}
             <div
                 id=csv_body_id

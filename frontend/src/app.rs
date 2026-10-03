@@ -217,7 +217,19 @@ pub fn App() -> impl IntoView {
                 "メインコンテンツへスキップ"
             </a>
             <SiteHeader />
-            <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 print:px-2 flex flex-1 flex-col py-5">
+            <main
+                id="main-content"
+                tabindex="-1"
+                class=move || {
+                    if matches!(route.get(), Route::Receipts | Route::AssetBalance) {
+                        // ワークスペース系は全幅グリッド(左パネル x=0 密着)のため中央コンテナを外す
+                        "w-full flex flex-1 flex-col py-5".to_string()
+                    } else {
+                        "mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 print:px-2 flex flex-1 flex-col py-5"
+                            .to_string()
+                    }
+                }
+            >
                 {move || {
                     // ?code= などクエリだけの遷移でも再マウントさせるためパス全体を追跡する
                     path.get();

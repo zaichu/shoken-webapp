@@ -3,6 +3,7 @@ use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::model::normalize_display_name;
 use crate::features::dividend_per_share::DividendMaps;
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub(crate) struct HoldingView {
     pub(crate) code: String,
@@ -29,6 +30,7 @@ pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct HoldingDividend {
     pub(crate) per_share: Option<f64>,
@@ -37,6 +39,7 @@ pub(crate) struct HoldingDividend {
     pub(crate) status: Option<String>,
 }
 
+#[allow(dead_code)]
 pub(crate) fn holding_dividend(
     code: &str,
     shares: f64,

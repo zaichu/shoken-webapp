@@ -1,4 +1,4 @@
-use super::csv_rail::{CsvActionRail, CsvRailLayout};
+use super::csv_rail::CsvActionRail;
 use crate::support::csv_flow::CsvTabState;
 use crate::ui::csv_preview::{preview_notice_text, should_show_preview_notice};
 use leptos::prelude::*;
@@ -52,7 +52,7 @@ pub fn click_csv_input(input_id: &str) {
 pub fn CsvSection<S: CsvSource>(
     source: S,
     #[prop(optional)] expanded: Option<RwSignal<bool>>,
-    #[prop(optional)] layout: CsvRailLayout,
+    #[prop(optional)] external_toggle: bool,
 ) -> impl IntoView {
     let selected_file_name = Memo::new(move |_| source.csv_state().file_name.unwrap_or_default());
     let file_input_disabled = Memo::new(move |_| source.input_disabled());
@@ -104,7 +104,7 @@ pub fn CsvSection<S: CsvSource>(
             body_id=source.body_id()
             section_class=source.section_class()
             expanded=expanded
-            layout=layout
+            external_toggle=external_toggle
         />
     }
 }

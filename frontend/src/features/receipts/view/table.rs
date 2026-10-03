@@ -123,13 +123,12 @@ pub(crate) fn ReceiptTable(
         })
         .collect();
     let tiers = displayed_tiers(tab, &order, promoted);
-    // 帯(画面幅×レール開閉)ごとに1本だけ出す(input.css の .receipt-span-* と対になる)
-    let span_masks: [(&'static str, ColumnTier); 6] = [
+    // 帯(画面幅)ごとに1本だけ出す(input.css の .receipt-span-* と対になる)
+    let span_masks: [(&'static str, ColumnTier); 5] = [
         (" receipt-span-sm", ColumnTier::Core),
         (" receipt-span-mid", ColumnTier::Md),
-        (" receipt-span-lg-open", ColumnTier::Core),
-        (" receipt-span-lg-collapsed", ColumnTier::Wide),
-        (" receipt-span-xl-open", ColumnTier::Wide),
+        (" receipt-span-lg", ColumnTier::Core),
+        (" receipt-span-xl", ColumnTier::Wide),
         (" receipt-span-all", ColumnTier::Wider),
     ];
     let group_label_spans: Vec<(&'static str, usize)> = span_masks

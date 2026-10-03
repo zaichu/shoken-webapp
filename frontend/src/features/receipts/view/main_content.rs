@@ -125,20 +125,24 @@ pub(crate) fn ReceiptsMainContent(
                                     <CsvPreviewBanner description="表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
                                 }
                             })}
-                        <DividendSummarySection
-                            store=info
-                            totals=totals
-                            expanded=summary_expanded
-                            mobile_expanded=store.mobile_summary_expanded
-                            preview=preview_active.get()
-                        />
-                        <ReceiptTable
-                            tab=tab
-                            rows=rows
-                            all_rows=display
-                            query=query
-                            expanded_ids=store.expanded
-                        />
+                        <section id="receipts-summary">
+                            <DividendSummarySection
+                                store=info
+                                totals=totals
+                                expanded=summary_expanded
+                                mobile_expanded=store.mobile_summary_expanded
+                                preview=preview_active.get()
+                            />
+                        </section>
+                        <section id="receipts-list">
+                            <ReceiptTable
+                                tab=tab
+                                rows=rows
+                                all_rows=display
+                                query=query
+                                expanded_ids=store.expanded
+                            />
+                        </section>
                     }
                     .into_any();
                 }
@@ -160,14 +164,18 @@ pub(crate) fn ReceiptsMainContent(
                         <CsvPreviewBanner description="表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
                     }
                 })}
-                <SummaryStrip items=header expanded=store.mobile_summary_expanded preview=preview />
-                <ReceiptTable
-                    tab=tab
-                    rows=rows
-                    all_rows=display
-                    query=query
-                    expanded_ids=store.expanded
-                />
+                <section id="receipts-summary">
+                    <SummaryStrip items=header expanded=store.mobile_summary_expanded preview=preview />
+                </section>
+                <section id="receipts-list">
+                    <ReceiptTable
+                        tab=tab
+                        rows=rows
+                        all_rows=display
+                        query=query
+                        expanded_ids=store.expanded
+                    />
+                </section>
             }.into_any()
         }}
     }

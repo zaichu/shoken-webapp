@@ -185,14 +185,6 @@
 }
 
 @layer components {
-  .workspace-grid {
-    @apply grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem];
-  }
-
-  .workspace-grid.rail-collapsed {
-    @apply lg:grid-cols-1;
-  }
-
   .skeleton-table-row {
     @apply grid grid-cols-[1fr_6rem_6rem] items-center gap-3 max-sm:grid-cols-[1fr_5rem];
   }
@@ -211,24 +203,6 @@
 
   .action-button-group {
     @apply flex flex-wrap items-center gap-3;
-  }
-
-  .mobile-toolbar {
-    @apply flex items-center gap-2 rounded-xl border border-border-subtle bg-surface p-1 sm:hidden;
-  }
-
-  .mobile-toolbar-trigger,
-  .mobile-toolbar-menu {
-    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md px-2 text-sm font-semibold text-text-soft hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
-  }
-
-  .mobile-toolbar-trigger[aria-expanded="true"],
-  .mobile-toolbar-menu[aria-expanded="true"] {
-    @apply bg-surface-raised text-ink;
-  }
-
-  .mobile-toolbar-menu {
-    @apply ml-auto;
   }
 
   .toolbar-search-card {
@@ -282,10 +256,6 @@
     @apply divide-y divide-ink/10 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-elevation-3 backdrop-blur-sm;
   }
 
-  .workspace-rail {
-    @apply sm:relative sm:z-20 sm:divide-y sm:divide-ink/10 sm:rounded-xl sm:border sm:border-ink/10 sm:bg-surface/90 sm:shadow-elevation-3 sm:backdrop-blur-sm;
-  }
-
   .search-card-mobile {
     @apply max-sm:rounded-xl max-sm:border max-sm:border-ink/10 max-sm:bg-surface/90 max-sm:shadow-elevation-3;
   }
@@ -296,6 +266,19 @@
 
   .rail-toggle {
     @apply flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+  }
+
+  /* スマホ幅のパネル内で検索・集計・CSVを1行に並べるツールバー */
+  .mobile-toolbar {
+    @apply flex items-stretch gap-1 border-b border-ink/10 bg-surface-sunken/60 px-2 py-1.5 sm:hidden;
+  }
+
+  .mobile-toolbar .rail-toggle {
+    @apply min-h-11 min-w-0 w-auto flex-1 items-center justify-center gap-1 rounded-lg px-2 text-sm font-semibold text-text-soft hover:bg-surface-raised;
+  }
+
+  .mobile-toolbar .rail-toggle[aria-expanded="true"] {
+    @apply bg-surface-raised text-ink;
   }
 
   .review-prompt-button {
@@ -363,7 +346,11 @@
   }
 
   .header-logo {
-    @apply flex h-10 w-10 items-center justify-center rounded-md border border-text-inverse/15 bg-surface text-sm font-black text-ink shadow-edge-brand max-sm:h-8 max-sm:w-8;
+    @apply flex h-11 w-11 items-center justify-center rounded-md border border-text-inverse/15 bg-surface text-2xl font-black text-ink shadow-edge-brand max-sm:h-10 max-sm:w-10;
+  }
+
+  .header-brand {
+    @apply text-xl font-black leading-tight tracking-normal;
   }
 
   .header-nav {
@@ -440,31 +427,17 @@
   @apply mt-0.5 shrink-0;
 }
 
-/* 列の表示段階。lg でレールを開いている帯だけ幅が最も厳しいため Md はそこだけ隠す。
-   右レールを畳んだ分だけ表が広がるので Wide・Wider は畳み時に一段早い帯から出す。
-   Wider は開いたままでも全列が入る 1650px から出す */
+/* 列の表示段階。左パネルは常時 18rem を占有するため、段階は画面幅だけで決める */
 .receipt-tier-md {
   @apply hidden md:table-cell lg:hidden xl:table-cell print:table-cell;
-}
-
-.rail-collapsed .receipt-tier-md {
-  @apply lg:table-cell;
 }
 
 .receipt-tier-wide {
   @apply hidden xl:table-cell print:table-cell;
 }
 
-.rail-collapsed .receipt-tier-wide {
-  @apply lg:table-cell;
-}
-
 .receipt-tier-wider {
   @apply hidden print:table-cell;
-}
-
-.rail-collapsed .receipt-tier-wider {
-  @apply xl:table-cell;
 }
 
 @media (min-width: 1650px) {
@@ -478,7 +451,7 @@
   @apply px-1 tracking-normal;
 }
 
-/* グループ見出し行の colspan は帯(画面幅×レール開閉)ごとに切り替える */
+/* グループ見出し行の colspan は帯(画面幅)ごとに切り替える */
 .receipt-span-sm {
   @apply md:hidden print:hidden;
 }
@@ -487,40 +460,20 @@
   @apply hidden md:table-cell lg:hidden print:hidden;
 }
 
-.receipt-span-lg-open {
+.receipt-span-lg {
   @apply hidden lg:table-cell xl:hidden print:hidden;
 }
 
-.rail-collapsed .receipt-span-lg-open {
-  @apply lg:hidden;
-}
-
-.receipt-span-lg-collapsed {
-  @apply hidden print:hidden;
-}
-
-.rail-collapsed .receipt-span-lg-collapsed {
-  @apply lg:table-cell xl:hidden print:hidden;
-}
-
-.receipt-span-xl-open {
+.receipt-span-xl {
   @apply hidden xl:table-cell print:hidden;
-}
-
-.rail-collapsed .receipt-span-xl-open {
-  @apply xl:hidden;
 }
 
 .receipt-span-all {
   @apply hidden print:table-cell;
 }
 
-.rail-collapsed .receipt-span-all {
-  @apply xl:table-cell;
-}
-
 @media (min-width: 1650px) {
-  .receipt-span-xl-open {
+  .receipt-span-xl {
     display: none;
   }
 
@@ -567,17 +520,11 @@
   }
 
   /* 集計行の見出しは帯別の colspan を1つだけ出す設計。印刷は全列なので
-     all だけを出し、.rail-collapsed 指定の variant は必ず隠す */
+     all だけを出し、画面帯の variant は必ず隠す */
   .receipt-table .receipt-span-sm,
   .receipt-table .receipt-span-mid,
-  .receipt-table .receipt-span-lg-open,
-  .receipt-table .receipt-span-lg-collapsed,
-  .receipt-table .receipt-span-xl-open,
-  .rail-collapsed .receipt-table .receipt-span-sm,
-  .rail-collapsed .receipt-table .receipt-span-mid,
-  .rail-collapsed .receipt-table .receipt-span-lg-open,
-  .rail-collapsed .receipt-table .receipt-span-lg-collapsed,
-  .rail-collapsed .receipt-table .receipt-span-xl-open {
+  .receipt-table .receipt-span-lg,
+  .receipt-table .receipt-span-xl {
     display: none !important;
   }
 
@@ -592,5 +539,510 @@
   .print-border {
     border: 1px solid #000 !important;
     box-shadow: none !important;
+  }
+
+  .ws-sidegrid {
+    display: block !important;
+  }
+
+  .ws-panel,
+  .ws-backdrop,
+  .ws-prail {
+    display: none !important;
+  }
+}
+
+/* utilities 層の指定に勝つよう層の外に置く */
+[hidden] {
+  display: none !important;
+}
+
+.ws-sidegrid {
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr);
+  align-items: start;
+}
+
+.ws-backdrop {
+  display: none;
+}
+
+.ws-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 12rem);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  position: sticky;
+  /* sticky ヘッダー(約3.75rem)の下に張り付くよう下げる */
+  top: 4rem;
+  max-height: calc(100vh - 4.25rem);
+  overflow-y: auto;
+}
+
+.ws-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.6rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: none;
+  color: var(--color-text-muted);
+  font-weight: 800;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ws-toggle:hover {
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+}
+
+.ws-toggle:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.ws-sidegrid:not(.ws-closed) .ws-toggle-label {
+  display: none;
+}
+
+/* 折りたたみでは列幅(18rem)を保ったままパネル本体だけ細レール化する */
+.ws-sidegrid.ws-closed .ws-panel {
+  width: 2.6rem;
+  justify-self: start;
+}
+
+.ws-sidegrid.ws-closed .phead {
+  padding: 0;
+}
+
+.ws-sidegrid.ws-closed .ws-toggle {
+  writing-mode: vertical-rl;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 14rem;
+  padding: 0.7rem 0;
+  letter-spacing: 0.15em;
+  font-size: 0.95rem;
+  position: sticky;
+  top: 0.75rem;
+}
+
+.ws-panel-body {
+  min-width: 0;
+}
+
+.ws-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-inline: clamp(1rem, 3.5vw, 3rem);
+}
+
+.ws-main > * {
+  width: 100%;
+  max-width: 96rem;
+  margin-inline: auto;
+}
+
+.ws-prail {
+  display: none;
+}
+
+@media (min-width: 90rem) {
+  .ws-sidegrid {
+    grid-template-columns: 18rem minmax(0, 1fr) 14.5rem;
+  }
+
+  .ws-prail {
+    display: block;
+    position: sticky;
+    top: 4rem;
+    max-height: calc(100vh - 4.25rem);
+    overflow-y: auto;
+    padding: 0.6rem 0.4rem;
+    min-height: 20rem;
+  }
+}
+
+@media (max-width: 63.999rem) {
+  .ws-sidegrid {
+    display: block;
+  }
+
+  .ws-panel {
+    position: static;
+    min-height: 0;
+    max-height: none;
+    border-right: 0;
+  }
+
+  .ws-sidegrid.ws-closed .ws-panel {
+    border-bottom: 1px solid var(--color-border);
+    width: auto;
+  }
+
+  .ws-sidegrid.ws-closed .ws-toggle {
+    writing-mode: horizontal-tb;
+    min-height: 2.75rem;
+    padding: 0.3rem 0.9rem;
+    letter-spacing: normal;
+  }
+
+  .ws-sidegrid:not(.ws-closed) .ws-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(20rem, 88vw);
+    /* ヘッダー(z-40)と同じにして DOM 順で上にし、モーダル(z-50)よりは下げる */
+    z-index: 40;
+    border-right: 1px solid var(--color-border);
+    overflow-y: auto;
+  }
+
+  .ws-sidegrid:not(.ws-closed) .ws-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.38);
+    z-index: 40;
+  }
+}
+
+@media (min-width: 64rem) {
+  .ws-header-inner {
+    display: grid;
+    grid-template-columns: 18rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    padding: 0.5rem 0.75rem 0.5rem 0;
+  }
+
+  .ws-header-flow {
+    display: contents;
+  }
+
+  .ws-header-brand {
+    padding-left: 0.5rem;
+  }
+
+  .ws-header-nav {
+    justify-self: start;
+    margin-inline: clamp(1rem, 3.5vw, 3rem);
+  }
+
+  .ws-header-user {
+    justify-self: end;
+  }
+
+  .ws-header-inner .header-logo {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.2rem;
+  }
+}
+
+@media print {
+  .ws-main {
+    padding-inline: 0;
+  }
+}
+
+/* 検索用セレクトボックス: 左に検索アイコンを配置 */
+.search-select {
+  padding-left: 1.9rem;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-3.5-3.5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: .55rem center;
+  background-size: .9rem;
+}
+
+/* パネルヘッダー */
+.phead {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .4rem;
+  padding: .3rem .6rem;
+}
+
+/* 右レール (prail) */
+.prail-toc {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+}
+
+.prail-title {
+  margin: 0 0 .4rem;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: var(--color-text-muted);
+}
+
+.prail-toc a {
+  display: block;
+  padding: .35rem .6rem;
+  border-radius: .35rem;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: .82rem;
+}
+
+.prail-toc a:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
+}
+
+.prail-applied {
+  margin-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: .6rem;
+}
+
+.prail-applied-row {
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .15rem 0;
+  font-size: .78rem;
+}
+
+.prail-applied-row b {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.prail-clear {
+  margin-top: .5rem;
+  min-width: 4.2rem;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  border-radius: .4rem;
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  padding: .55rem .7rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  align-self: flex-end;
+  text-align: center;
+}
+
+.prail-clear:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+/* サマリーカード (sum-card) */
+.sum-card {
+  background: rgba(255, 255, 255, .95);
+  border: 1px solid var(--color-border);
+  border-left: .3rem solid var(--color-accent);
+  border-radius: .8rem;
+  padding: .5rem .9rem .55rem;
+  box-shadow: 0 16px 44px -36px rgba(15, 23, 42, .9);
+}
+
+.sum-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: nowrap;
+  min-height: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: .3rem;
+}
+
+.sum-header strong {
+  font-size: .9rem;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sum-header strong::before {
+  content: "";
+  display: inline-block;
+  width: .3rem;
+  height: .95rem;
+  border-radius: .15rem;
+  background: var(--color-accent);
+  margin-right: .5rem;
+}
+
+.sum-header-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-left: auto;
+}
+
+.kpis {
+  display: grid;
+  gap: .2rem 0;
+  margin-top: .4rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: .6rem;
+  padding: .4rem 0;
+}
+
+.kpi {
+  min-width: 0;
+  padding: 0 .9rem;
+}
+
+.kpi + .kpi {
+  border-left: 1px solid var(--color-border);
+}
+
+.kpi dt {
+  font-size: .7rem;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: .02em;
+}
+
+.kpi dd {
+  margin: 0;
+  font-size: clamp(1rem, 1.4vw, 1.25rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.kpi-value {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  min-width: 0;
+}
+
+.kpi-count {
+  display: flex;
+  align-items: baseline;
+  gap: .25rem;
+}
+
+.kpi-unit {
+  font-size: .78rem;
+  font-weight: 400;
+  color: var(--color-text-subtle);
+}
+
+.kpi small {
+  display: block;
+  font-size: .68rem;
+  color: var(--color-text-subtle);
+  font-weight: 400;
+  margin-top: .1rem;
+}
+
+.neg {
+  color: var(--color-negative);
+}
+
+/* 構成比 */
+.sum-comp {
+  margin-top: .5rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: .5rem;
+}
+
+.sum-comp-title {
+  font-size: .72rem;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  margin: 0 0 .4rem;
+}
+
+.sum-comp-bar {
+  display: flex;
+  height: .75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-fill);
+}
+
+.sum-comp-segment {
+  flex: none;
+  transition: width .3s ease;
+}
+
+.sum-comp-others {
+  background: var(--color-fill-strong);
+}
+
+.sum-comp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem 1rem;
+  list-style: none;
+  margin: .45rem 0 0;
+  padding: 0;
+  font-size: .75rem;
+}
+
+.sum-comp-legend-item {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.sum-comp-legend-dot {
+  width: .65rem;
+  height: .65rem;
+  border-radius: .2rem;
+  flex: none;
+}
+
+.sum-comp-legend-dot-others {
+  background: var(--color-fill-strong);
+}
+
+.sum-comp-legend-name {
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sum-comp-legend-pct {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-subtle);
+  white-space: nowrap;
+}
+
+/* モバイル用サマリー */
+.sum-mobile {
+  padding-top: .5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* 折りたたみパネル時の調整 */
+@media (min-width: 64rem) {
+  .ws-side .spanel {
+    position: sticky;
+    top: .75rem;
+    max-height: calc(100vh - 1.5rem);
+    overflow: hidden auto;
   }
 }

@@ -97,17 +97,15 @@ async function liveRegionTexts(page: Page): Promise<string[]> {
   );
 }
 
-// データがあると右レールは畳まれた状態で始まるので、レール内の UI に触れる前に開く。
+// データがあるとパネルは畳んだ状態で始まるので、パネル内の UI に触れる前に開く。
 // トグルはタブのデータ到着(Ready)まで描画されないため、出現を待ってから押す
 async function openReceiptRail(page: Page) {
-  const rail = page.getByTestId('receipt-utility-rail');
-  if (await rail.isVisible()) {
-    return;
-  }
   const toggle = page.getByTestId('receipt-utility-toggle');
   await toggle.waitFor({ state: 'visible', timeout: 10000 });
-  await toggle.click();
-  await expect(rail).toBeVisible();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
 async function mockSession(page: Page, user: unknown = MOCK_USER, status = 200) {
@@ -458,6 +456,12 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
     await page.goto('/assetbalance');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
+    // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
+    const assetPanelToggle = page.getByTestId('asset-utility-toggle');
+    if ((await assetPanelToggle.getAttribute('aria-expanded')) !== 'true') {
+      await assetPanelToggle.click();
+    }
+    await expect(assetPanelToggle).toHaveAttribute('aria-expanded', 'true');
     // 検索カードは行がある時だけ描画される。空・取得失敗だと header が無くスキャンが黙って飛ばされる
     const assetHeader = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible').first();
     await expect(assetHeader).toBeVisible({ timeout: 10000 });

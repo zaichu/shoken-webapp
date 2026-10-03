@@ -105,11 +105,37 @@ pub fn SiteHeader() -> impl IntoView {
             delete_error.set(None);
         }
     });
+    // ワークスペース系ページでは MS Learn 型3カラムに合わせた全幅バーにする
+    let is_workspace = move || {
+        matches!(
+            path.get().split(['?', '#']).next().unwrap_or_default(),
+            "/receipts" | "/assetbalance"
+        )
+    };
     view! {
         <header class="site-header no-print">
-            <div class="mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 py-3">
-                <div class="flex flex-row items-center gap-2 max-sm:gap-1.5 lg:gap-3">
-                    <div class="flex items-center justify-between gap-4">
+            <div class=move || {
+                if is_workspace() {
+                    "w-full px-4 sm:px-6 ws-header-inner py-3".to_string()
+                } else {
+                    "mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 py-3".to_string()
+                }
+            }>
+                <div class=move || {
+                    if is_workspace() {
+                        "ws-header-flow flex flex-row items-center gap-2 max-sm:gap-1.5 lg:gap-3"
+                            .to_string()
+                    } else {
+                        "flex flex-row items-center gap-2 max-sm:gap-1.5 lg:gap-3".to_string()
+                    }
+                }>
+                    <div class=move || {
+                        if is_workspace() {
+                            "ws-header-brand flex items-center justify-between gap-4".to_string()
+                        } else {
+                            "flex items-center justify-between gap-4".to_string()
+                        }
+                    }>
                         <a
                             href="/"
                             class=move || {
@@ -124,13 +150,19 @@ pub fn SiteHeader() -> impl IntoView {
                                 "証"
                             </span>
                             // スマホではサービス名を隠し、ロゴ・ナビ・ユーザーを1行に収める
-                            <span class="block text-xl font-black leading-tight tracking-normal max-sm:hidden">
+                            <span class="header-brand max-sm:hidden">
                                 "証券Web"
                             </span>
                         </a>
                     </div>
                     <nav
-                        class="header-nav"
+                        class=move || {
+                            if is_workspace() {
+                                "header-nav ws-header-nav".to_string()
+                            } else {
+                                "header-nav".to_string()
+                            }
+                        }
                         aria-label="主要ナビゲーション"
                     >
                         {NAV_LINKS
@@ -154,7 +186,14 @@ pub fn SiteHeader() -> impl IntoView {
                             })
                             .collect_view()}
                     </nav>
-                    <div class="ml-auto flex shrink-0 items-center gap-3 max-sm:gap-1.5">
+                    <div class=move || {
+                        if is_workspace() {
+                            "ws-header-user ml-auto flex shrink-0 items-center gap-3 max-sm:gap-1.5"
+                                .to_string()
+                        } else {
+                            "ml-auto flex shrink-0 items-center gap-3 max-sm:gap-1.5".to_string()
+                        }
+                    }>
                         {move || {
                             if !session.loaded.get() {
                                 view! {

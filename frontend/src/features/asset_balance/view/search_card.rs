@@ -24,6 +24,7 @@ pub(crate) fn AssetBalanceSearchCard(
                         value=Signal::derive(move || query.get())
                         options=options.as_ref().clone()
                         on_change=move |value| query.set(value)
+                        class="search-select"
                     />
                 </div>
             </CollapsibleSearchCard>

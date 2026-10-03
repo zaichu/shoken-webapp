@@ -1,4 +1,4 @@
-use super::workspace::ReceiptWorkspace;
+use super::workspace::ReceiptMainColumn;
 use super::TAB_IDS;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::elements::{ListSkeleton, ListSkeletonVariant, Loading};
@@ -124,7 +124,7 @@ pub(crate) fn TabPanel(
                 if !store.is_authenticated() {
                     return view! { <Loading /> }.into_any();
                 }
-                view! { <ReceiptWorkspace store=store tab=tab /> }.into_any()
+                view! { <ReceiptMainColumn store=store tab=tab /> }.into_any()
             }}
         </div>
     }

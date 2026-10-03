@@ -47,37 +47,40 @@ test.beforeEach(async ({ page }) => {
   await mockApi(page);
 });
 
-test('開閉してもトリガーの右端とyが動かず同じ座標で開閉できる', async ({ page }) => {
+test('開閉しても表のx座標と幅が変わらない(MS Learn と同じく列幅は固定)', async ({ page }) => {
   for (const width of [1280, 1440, 1920]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/receipts');
     await expect(page.getByRole('table')).toBeVisible();
     const toggle = page.getByTestId('receipt-utility-toggle');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('search-card')).toBeHidden();
 
-    const before = (await toggle.boundingBox())!;
-    const beforeRight = before.x + before.width;
-    expect(await page.getByTestId('receipt-utility-rail')).toBeHidden();
+    const table = page.getByRole('table');
+    const before = (await table.boundingBox())!;
 
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByTestId('receipt-utility-rail')).toBeVisible();
-    const opened = (await toggle.boundingBox())!;
-    expect(opened.x + opened.width).toBeCloseTo(beforeRight, 0);
-    expect(opened.y).toBeCloseTo(before.y, 0);
+    await expect(page.getByTestId('search-card')).toBeVisible();
+    const opened = (await table.boundingBox())!;
+    expect(opened.x).toBeCloseTo(before.x, 0);
+    expect(opened.width).toBeCloseTo(before.width, 0);
 
-    const cx = opened.x + opened.width / 2;
-    const cy = opened.y + opened.height / 2;
-    await page.mouse.click(cx, cy);
+    await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    const closed = (await toggle.boundingBox())!;
-    expect(closed.x + closed.width).toBeCloseTo(beforeRight, 0);
-    expect(closed.y).toBeCloseTo(before.y, 0);
+    await expect(page.getByTestId('search-card')).toBeHidden();
+    const closed = (await table.boundingBox())!;
+    expect(closed.x).toBeCloseTo(before.x, 0);
+    expect(closed.width).toBeCloseTo(before.width, 0);
 
-    await page.mouse.click(cx, cy);
+    // 開閉の状態は localStorage に保存しない
+    const storedBefore = await page.evaluate(() => JSON.stringify(localStorage));
+    await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await page.mouse.click(cx, cy);
+    await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    const storedAfter = await page.evaluate(() => JSON.stringify(localStorage));
+    expect(storedAfter).toBe(storedBefore);
   }
 });
 

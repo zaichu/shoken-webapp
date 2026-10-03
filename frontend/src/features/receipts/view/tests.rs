@@ -4,9 +4,7 @@ use super::pickers::*;
 use super::summary::*;
 use super::table::*;
 use super::tabs::*;
-use super::workspace::{
-    initial_search_expanded, rail_shown, utility_rail_id, workspace_tools, WorkspaceTools,
-};
+use super::workspace::utility_rail_id;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::filter::{
     column_order, filter_receipts,
@@ -15,60 +13,12 @@ use crate::features::receipts::filter::{
 };
 use crate::features::receipts::kind::{group_label, is_date_group_key, ColumnTier};
 use crate::features::receipts::{
-    ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab, TabState,
+    ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
 use crate::support::row::Row::Saved;
 use crate::ui::card::StatTone;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-
-#[test]
-fn workspace_search_starts_collapsed_only_on_mobile() {
-    assert!(!initial_search_expanded(true));
-    assert!(initial_search_expanded(false));
-}
-
-#[test]
-fn workspace_tools_follow_loading_error_empty_search_and_preview_states() {
-    for state in [
-        TabState::Loading,
-        TabState::Failed("取得失敗".into()),
-        TabState::Ready(super::workspace::empty_tab_data()),
-        TabState::Ready(ReceiptTabData {
-            rows: dividends(),
-            summary: None,
-            truncated: false,
-        }),
-    ] {
-        for search_default in [false, true] {
-            for has_preview in [false, true] {
-                let expected = match &state {
-                    TabState::Loading => WorkspaceTools {
-                        search: false,
-                        summary: false,
-                    },
-                    TabState::Failed(_) => WorkspaceTools {
-                        search: true,
-                        summary: has_preview,
-                    },
-                    TabState::Ready(data) if data.rows.is_empty() => WorkspaceTools {
-                        search: !search_default || has_preview,
-                        summary: has_preview,
-                    },
-                    _ => WorkspaceTools {
-                        search: true,
-                        summary: true,
-                    },
-                };
-                assert_eq!(
-                    workspace_tools(&state, search_default, has_preview),
-                    expected,
-                    "state={state:?}, search_default={search_default}, has_preview={has_preview}"
-                );
-            }
-        }
-    }
-}
 
 #[test]
 fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
@@ -409,6 +359,9 @@ fn column_tier_declares_core_as_narrowest_then_widening() {
     assert!(ColumnTier::Wide < ColumnTier::Wider);
 }
 
+// パネルは常時マウントし、トグルも取得状態にかかわらず出す。
+// 開閉では表の列幅を変えないため、表示強制の分岐は持たない
+
 // 開閉トグルの aria-controls が指す aside の id。空や重複だと ARIA の参照が効かない
 #[test]
 fn utility_rail_ids_are_non_empty_and_unique_per_tab() {
@@ -427,30 +380,6 @@ fn utility_rail_ids_are_non_empty_and_unique_per_tab() {
     unique.sort();
     unique.dedup();
     assert_eq!(unique.len(), ReceiptsTab::ALL.len());
-}
-
-// 取得失敗・読み込み中は開閉トグルを出さないため、ユーザーの開閉が畳みでも
-// CSV 取り込み・検索へ届くようレールは必ず表示する
-#[test]
-fn rail_stays_shown_for_failed_and_loading_tabs_even_when_collapsed() {
-    let ready = || {
-        TabState::Ready(ReceiptTabData {
-            rows: dividends(),
-            summary: None,
-            truncated: false,
-        })
-    };
-    let cases = [
-        (true, ready(), true),
-        (false, ready(), false),
-        (false, TabState::Failed("取得に失敗".to_string()), true),
-        (false, TabState::Loading, true),
-        (true, TabState::Failed("取得に失敗".to_string()), true),
-        (true, TabState::Loading, true),
-    ];
-    for (open, state, expected) in cases {
-        assert_eq!(rail_shown(open, &state), expected, "{open} {state:?}");
-    }
 }
 
 #[test]

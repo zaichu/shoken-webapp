@@ -1,4 +1,3 @@
-use super::chart::ChartList;
 use super::palette::holding_bar_class;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::format::{
@@ -13,7 +12,6 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonVariant};
-use crate::ui::card::{Card, CardVariant, SectionHeader, SectionHeaderVariant};
 use crate::ui::choice::{Chip, ChipVariant};
 use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
@@ -37,8 +35,8 @@ pub(crate) fn PortfolioSummary(
     if views.is_empty() {
         show_all.set(false);
         return view! {
-            <Card variant=CardVariant::Soft class="mb-3">
-                <div>
+            <div class="sum-card mb-3">
+                <div class="sum-card-body">
                     <EmptyState
                         title="該当する銘柄がありません"
                         description="検索条件を変更するか、絞り込みを解除してください。"
@@ -49,7 +47,7 @@ pub(crate) fn PortfolioSummary(
                         </Button>
                     </div>
                 </div>
-            </Card>
+            </div>
         }
         .into_any();
     }
@@ -97,8 +95,8 @@ pub(crate) fn PortfolioSummary(
         .any(|item| item.percentage.is_some());
     let composition = has_composition.then(move || {
         view! {
-            <div class="mt-4 border-t border-ink/10 pt-4" data-testid="portfolio-composition">
-                <p class="mb-2 text-xs font-medium text-text-muted">"構成比"</p>
+            <div class="sum-comp" data-testid="portfolio-composition">
+                <p class="sum-comp-title">"構成比"</p>
                 {move || {
                     let display = chart_display(
                         composition_total,
@@ -107,7 +105,7 @@ pub(crate) fn PortfolioSummary(
                     );
                     view! {
                         <div
-                            class="flex h-3 overflow-hidden rounded-full bg-fill"
+                            class="sum-comp-bar"
                             aria-hidden="true"
                         >
                             {composition_items
@@ -118,7 +116,7 @@ pub(crate) fn PortfolioSummary(
                                     item.percentage.map(|percentage| {
                                         view! {
                                             <div
-                                                class=format!("h-full {}", holding_bar_class(index))
+                                                class=format!("sum-comp-segment {}", holding_bar_class(index))
                                                 style=format!("width: {}%", percentage.min(100.0))
                                             />
                                         }
@@ -128,26 +126,26 @@ pub(crate) fn PortfolioSummary(
                             {display.others.as_ref().map(|others| {
                                 view! {
                                     <div
-                                        class="h-full bg-fill-strong"
+                                        class="sum-comp-segment sum-comp-others"
                                         style=format!("width: {}%", others.percentage.min(100.0))
                                     />
                                 }
                             })}
                         </div>
-                        <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                        <ul class="sum-comp-legend">
                             {composition_items
                                 .iter()
                                 .take(display.visible_count)
                                 .enumerate()
                                 .map(|(index, item)| {
                                     view! {
-                                        <li class="flex min-w-0 items-center gap-1.5">
+                                        <li class="sum-comp-legend-item">
                                             <span
-                                                class=format!("h-2.5 w-2.5 shrink-0 rounded-sm {}", holding_bar_class(index))
+                                                class=format!("sum-comp-legend-dot {}", holding_bar_class(index))
                                                 aria-hidden="true"
                                             />
-                                            <span class="text-text">{item.view.name.clone()}</span>
-                                            <span class="shrink-0 tabular-nums text-text-subtle">
+                                            <span class="sum-comp-legend-name">{item.view.name.clone()}</span>
+                                            <span class="sum-comp-legend-pct">
                                                 {item.percentage.map_or("—".to_string(), |percentage| {
                                                     format_fixed_percent(percentage, 1)
                                                 })}
@@ -158,15 +156,12 @@ pub(crate) fn PortfolioSummary(
                                 .collect_view()}
                             {display.others.as_ref().map(|others| {
                                 view! {
-                                    <li class="flex min-w-0 items-center gap-1.5">
-                                        <span
-                                            class="h-2.5 w-2.5 shrink-0 rounded-sm bg-fill-strong"
-                                            aria-hidden="true"
-                                        />
-                                        <span class="text-text">
+                                    <li class="sum-comp-legend-item">
+                                        <span class="sum-comp-legend-dot sum-comp-legend-dot-others" aria-hidden="true" />
+                                        <span class="sum-comp-legend-name">
                                             {format!("その他 {}銘柄", others.count)}
                                         </span>
-                                        <span class="shrink-0 tabular-nums text-text-subtle">
+                                        <span class="sum-comp-legend-pct">
                                             {format_fixed_percent(others.percentage, 1)}
                                         </span>
                                     </li>
@@ -180,100 +175,85 @@ pub(crate) fn PortfolioSummary(
         .into_any()
     });
 
+    let total_annual_dividends = Signal::derive(move || {
+        kpi.with(|kpi| {
+            kpi.total_annual_dividends
+                .map_or("—".to_string(), format_currency)
+        })
+    });
+    let dividend_yield = Signal::derive(move || {
+        kpi.with(|kpi| {
+            kpi.dividend_yield
+                .map_or("—".to_string(), format_percentage_value)
+        })
+    });
+    let display_count_str = move || {
+        if is_filtered {
+            format!("{display_count} / {total_count}")
+        } else {
+            display_count.to_string()
+        }
+    };
+
     view! {
-        <div class="mb-3 space-y-4" data-testid="asset-portfolio-summary">
-            <Card variant=CardVariant::Summary testid="portfolio-kpi-strip">
-                <SectionHeader
-                    variant=SectionHeaderVariant::Card
-                    trailing=view! {
-                        {is_filtered.then(|| {
-                            view! {
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <Badge variant=BadgeVariant::Info>
-                                        {format!("絞り込み中: {display_count}/{total_count}件")}
-                                    </Badge>
-                                    <Chip
-                                        variant=ChipVariant::Pill
-                                        on_click=move |_| on_clear_filter()
-                                    >
-                                        "解除"
-                                    </Chip>
-                                </div>
-                            }
-                        })}
-                    }
-                    .into_any()
-                >
-                    "集計情報"
-                </SectionHeader>
-                <div
-                    class="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4"
-                    data-testid="portfolio-kpi-grid"
-                >
-                    <Card variant=CardVariant::Stat>
-                        <p class="mb-1 text-xs font-medium text-text-muted">"合計取得総額"</p>
+        <section id="assetbalance-summary" class="sum-card mb-3" data-testid="asset-portfolio-summary">
+            <header class="sum-header">
+                <strong>"集計情報"</strong>
+                {is_filtered.then(|| view! {
+                    <div class="sum-header-badges">
+                        <Badge variant=BadgeVariant::Info>
+                            {format!("絞り込み中: {display_count}/{total_count}件")}
+                        </Badge>
+                        <Chip variant=ChipVariant::Pill on_click=move |_| on_clear_filter()>
+                            "解除"
+                        </Chip>
+                    </div>
+                })}
+            </header>
+            <div data-testid="portfolio-kpi-strip">
+            <dl class="kpis" data-testid="portfolio-kpi-grid">
+                <div class="kpi">
+                    <dt>"合計取得総額"</dt>
+                    <dd class="kpi-value">
                         <Amount
                             block=true
                             text=format_currency(total_purchase_amount)
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-deep"
+                            class="kpi-amount"
                         />
-                    </Card>
-                    <Card variant=CardVariant::Stat>
-                        <p class="mb-1 text-xs font-medium text-text-muted">"年間配当金額"</p>
+                    </dd>
+                </div>
+                <div class="kpi">
+                    <dt>"年間配当金額"</dt>
+                    <dd class="kpi-value">
                         <Amount
                             block=true
-                            text=Signal::derive(move || {
-                                kpi.with(|kpi| {
-                                    kpi.total_annual_dividends
-                                        .map_or("—".to_string(), format_currency)
-                                })
-                            })
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-ink"
-                            testid="portfolio-annual-dividends"
+                            text=total_annual_dividends
+                            class="kpi-amount"
                         />
-                    </Card>
-                    <Card variant=CardVariant::Stat>
-                        <p class="mb-1 text-xs font-medium text-text-muted">"配当利回り（年間）"</p>
+                    </dd>
+                </div>
+                <div class="kpi">
+                    <dt>"配当利回り（年間）"</dt>
+                    <dd class="kpi-value">
                         <Amount
                             block=true
-                            text=Signal::derive(move || {
-                                kpi.with(|kpi| {
-                                    kpi.dividend_yield
-                                        .map_or("—".to_string(), format_percentage_value)
-                                })
-                            })
-                            class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-ink"
-                            testid="portfolio-dividend-yield"
+                            text=dividend_yield
+                            class="kpi-amount"
                         />
-                        <p class="mt-1 text-xs text-text-subtle">"年間配当金額 ÷ 合計取得総額"</p>
-                    </Card>
-                    <Card variant=CardVariant::Stat>
-                        <p class="mb-1 text-xs font-medium text-text-muted">"保有銘柄数"</p>
-                        <p class="whitespace-nowrap text-base font-bold sm:text-3xl xl:text-2xl text-text-soft tabular-nums">
-                            {if is_filtered {
-                                format!("{display_count} / {total_count}")
-                            } else {
-                                display_count.to_string()
-                            }}
-                            <span class="ml-1 text-sm font-normal text-text-subtle">"銘柄"</span>
-                        </p>
-                    </Card>
+                        <small>"年間配当金額 ÷ 合計取得総額"</small>
+                    </dd>
                 </div>
-                {composition}
-            </Card>
-
-            <div data-testid="portfolio-pie-chart">
-                <SectionHeader variant=SectionHeaderVariant::Band>
-                    "保有内訳"
-                    <span class="ml-1 font-medium text-text-subtle sm:hidden">
-                        {format!("（保有{display_count}銘柄）")}
-                    </span>
-                </SectionHeader>
-                <div class="p-4">
-                    <ChartList items=chart_items dividends=dividends show_all=show_all />
+                <div class="kpi">
+                    <dt>"保有銘柄数"</dt>
+                    <dd class="kpi-value kpi-count">
+                        <span class="tabular-nums">{display_count_str}</span>
+                        <span class="kpi-unit">"銘柄"</span>
+                    </dd>
                 </div>
+            </dl>
             </div>
-        </div>
+            {composition}
+        </section>
     }
         .into_any()
 }

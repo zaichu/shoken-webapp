@@ -3,7 +3,7 @@ mod chart;
 mod csv_section;
 mod main_content;
 mod palette;
-mod rail;
+mod panel;
 mod search_card;
 mod summary;
 
@@ -18,15 +18,13 @@ use crate::features::asset_balance::store::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{use_session, SessionStore};
-use crate::ui::card::{Card, CardVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::elements::{
-    Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant, PageHeader,
-};
-use csv_section::AssetBalanceCsvSection;
+use crate::ui::elements::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::page_info_rail::PageInfoRail;
+use crate::ui::workspace_shell::{workspace_panel_default_open, WorkspaceShell};
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
-use rail::AssetBalanceRailExtras;
+use panel::AssetBalancePanelContent;
 use std::cell::RefCell;
 
 #[derive(Clone, Copy)]
@@ -39,6 +37,7 @@ struct AssetBalanceState {
     show_all: RwSignal<bool>,
     data_ops: RwSignal<DataOps>,
     csv: AssetBalanceCsvStore,
+    panel_open: RwSignal<bool>,
 }
 
 thread_local! {
@@ -99,6 +98,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
         show_all,
         data_ops,
         csv: csv_store,
+        panel_open: RwSignal::new(workspace_panel_default_open()),
     }
 }
 
@@ -119,12 +119,11 @@ pub fn AssetBalancePage() -> impl IntoView {
     let busy_csv = csv_store;
     let view_csv = csv_store;
     let modal_csv = csv_store;
-    let alert_csv = csv_store;
     let rail_csv = csv_store;
-    let alert_ops = data_ops;
     let busy_ops = data_ops;
     let csv_slot = csv_store.csv;
     let disabled_csv = csv_store;
+    let panel_open = state.panel_open;
     let csv_input_disabled = Memo::new(move |_| disabled_csv.csv_input_disabled());
     // 再訪では表示済みの一覧を消さず裏で取り直す(初回・未キャッシュは Effect が担う)
     // 前の取得が残っている往復では要求を重ねない
@@ -161,10 +160,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         );
     };
     view! {
-        <PageHeader
-            title="資産管理"
-            description="保有している銘柄の一覧と取得額の内訳を確認できます。"
-        />
+        <h1 class="sr-only">"資産管理"</h1>
         <div
             class="mt-2"
             aria-busy=move || {
@@ -184,54 +180,92 @@ pub fn AssetBalancePage() -> impl IntoView {
                 }
             }
         >
-            <div
-                class="workspace-grid gap-4 xl:gap-5"
-                data-testid="assetbalance-workspace"
-            >
-                // DOM 順は rail 先(キーボード・読み上げ順のため)、lg 以上は order で見た目を main 先に戻す
-                <aside class="order-1 lg:order-2" data-testid="assetbalance-utility-rail">
-                    <Card variant=CardVariant::Rail>
-                        <AssetBalanceCsvSection store=view_csv />
-                        {move || {
-                            alert_ops
-                                .with(|ops| ops.refresh_error.clone())
-                                .or_else(|| alert_csv.csv_state().error)
-                                .map(|message| {
-                                    view! {
-                                        <div class="px-5 py-4">
-                                            <Alert variant=AlertVariant::Danger>
-                                                <strong>"エラー:"</strong>
-                                                " "
-                                                {message}
-                                            </Alert>
-                                        </div>
-                                    }
-                                })
-                        }}
-                        {move || {
+            <WorkspaceShell
+                workspace_testid="assetbalance-workspace"
+                rail_testid="assetbalance-utility-rail"
+                main_testid="assetbalance-main-stage"
+                panel_id=Signal::derive(|| "assetbalance-utility-panel".to_string())
+                toggle_testid="asset-utility-toggle"
+                panel_open=Signal::derive(move || panel_open.get())
+                on_toggle=Callback::new(move |_| panel_open.update(|open| *open = !*open))
+                on_close=Callback::new(move |_| panel_open.set(false))
+                panel=view! {
+                    <AssetBalancePanelContent
+                        view_csv=view_csv
+                        search_query=search_query
+                        rows=move || {
                             let generation = rail_session.generation.get();
                             let state = rail_csv.csv_state();
-                            match balances
+                            balances
                                 .with(|slot| resolve_asset_balance(generation, slot, &state))
-                            {
-                                None => ().into_any(),
-                                Some(resolved) => {
-                                    view! {
-                                        <AssetBalanceRailExtras
-                                            rows=resolved.rows
-                                            facets=resolved.facets
-                                            has_csv_file=resolved.has_csv_file
-                                            warning=resolved.warning
-                                            search_query=search_query
-                                        />
-                                    }
-                                        .into_any()
+                                .map(|r| r.rows)
+                                .unwrap_or_default()
+                        }
+                        facets=move || {
+                            let generation = rail_session.generation.get();
+                            let state = rail_csv.csv_state();
+                            balances
+                                .with(|slot| resolve_asset_balance(generation, slot, &state))
+                                .and_then(|r| r.facets)
+                        }
+                        has_csv_file=move || {
+                            let generation = rail_session.generation.get();
+                            let state = rail_csv.csv_state();
+                            balances
+                                .with(|slot| resolve_asset_balance(generation, slot, &state))
+                                .map(|r| r.has_csv_file)
+                                .unwrap_or(false)
+                        }
+                        warning=move || {
+                            let generation = rail_session.generation.get();
+                            let state = rail_csv.csv_state();
+                            balances
+                                .with(|slot| resolve_asset_balance(generation, slot, &state))
+                                .and_then(|r| r.warning)
+                        }
+                    />
+                }
+                    .into_any()
+                right_rail=move || {
+                    let has_rows = {
+                        let generation = rail_session.generation.get();
+                        let state = rail_csv.csv_state();
+                        balances
+                            .with(|slot| resolve_asset_balance(generation, slot, &state))
+                            .is_some_and(|r| !r.rows.is_empty())
+                    };
+                    let applied = (has_rows && !search_query.get().is_empty()).then(|| {
+                        vec![("銘柄", Signal::derive(move || search_query.get()))]
+                    });
+                    view! {
+                        <PageInfoRail
+                            links=vec![
+                                ("#assetbalance-summary", "集計情報"),
+                                ("#assetbalance-list", "保有銘柄"),
+                            ]
+                            applied=applied
+                            on_clear=Some(Callback::new(move |_| search_query.set(String::new())))
+                        />
+                    }.into_any()
+                }
+            >
+                    // パネル(ドロワー)が閉じていても見えるよう、CSV/再取得の失敗はメイン列に出す
+                    {move || {
+                        data_ops
+                            .with(|ops| ops.refresh_error.clone())
+                            .or_else(|| csv_store.csv_state().error)
+                            .map(|message| {
+                                view! {
+                                    <div class="no-print">
+                                        <Alert variant=AlertVariant::Danger>
+                                            <strong>"エラー:"</strong>
+                                            " "
+                                            {message}
+                                        </Alert>
+                                    </div>
                                 }
-                            }
-                        }}
-                    </Card>
-                </aside>
-                <div class="min-w-0 order-2 lg:order-1" data-testid="assetbalance-main-stage">
+                            })
+                    }}
                     {move || {
                         let generation = render_session.generation.get();
                         let state = view_csv.csv_state();
@@ -297,8 +331,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                             }
                         }
                     }}
-                </div>
-            </div>
+            </WorkspaceShell>
             {move || {
                 if !modal_csv.csv_state().show_delete_confirm {
                     return ().into_any();

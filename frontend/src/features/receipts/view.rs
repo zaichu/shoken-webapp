@@ -1,6 +1,7 @@
 mod cards;
 mod groups;
 pub(crate) mod main_content;
+mod panel;
 mod pickers;
 mod search_card;
 mod summary;
@@ -13,9 +14,11 @@ use crate::features::receipts::{use_receipts_data, ReceiptRow, ReceiptsTab, TabS
 use crate::session::use_session;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
+use crate::ui::page_info_rail::PageInfoRail;
+use crate::ui::workspace_shell::WorkspaceShell;
 use leptos::prelude::*;
 use main_content::display_rows_for;
+use panel::ReceiptPanelContent;
 use tabs::{scroll_tab_into_view, ReceiptsTabButton, TabPanel};
 use workspace::utility_rail_id;
 
@@ -29,7 +32,7 @@ pub fn ReceiptsPage() -> impl IntoView {
     let busy = store;
     let panels_store = store;
     let modal_store = store;
-    // 他タブの取得進捗で workspace 全体を再生成するとレール開閉などのローカル状態が
+    // 他タブの取得進捗で workspace 全体を再生成するとパネル開閉などのローカル状態が
     // 巻き戻るため、分岐条件だけを memo 化して再生成を実際の切替時に限定する
     let workspace_store = store;
     let panels_loading = Memo::new(move |_| {
@@ -40,43 +43,26 @@ pub fn ReceiptsPage() -> impl IntoView {
             )
     });
     let tabs = store;
-    let trigger_store = store;
-    // 裏再取得の Ready→Ready で作り直さないよう対象タブの有無だけを memo 化する
-    let trigger_tab = Memo::new(move |_| {
-        let tab = trigger_store.active_tab.get();
-        matches!(trigger_store.tab_state(tab), TabState::Ready(_)).then_some(tab)
+    let tabs_store = store;
+    let panel_store = store;
+    let badge_store = store;
+    // 畳んでいるときだけ表の上に件数を出す(開いていればパネル内で確認できる)
+    let badge_tab = Memo::new(move |_| badge_store.active_tab.get());
+    let display = Memo::new(move |_| utility_display_rows(badge_store, badge_tab.get()));
+    let search_state = badge_store.search;
+    let filtered = Memo::new(move |_| {
+        filter_receipts(
+            badge_tab.get(),
+            &display.get(),
+            &search_state.with(|state| state.query.clone()),
+        )
     });
+    let total = Signal::derive(move || display.get().len());
     // クリックとキー操作の両経路をカバーするため select_tab ではなく active_tab の変化に追従する
     Effect::new(move |_| scroll_tab_into_view(tabs.active_tab.get()));
 
     view! {
         <h1 class="sr-only">"取引明細"</h1>
-        <div class="mb-2 flex items-center justify-between gap-3">
-            <nav class="no-print" aria-label="取引明細タブ">
-                <div
-                    class="receipts-tab-list"
-                    role="tablist"
-                >
-                    {ReceiptsTab::ALL
-                        .iter()
-                        .copied()
-                        .map(|tab| {
-                            view! { <ReceiptsTabButton store=store tab=tab /> }
-                        })
-                        .collect_view()}
-                </div>
-            </nav>
-            {move || {
-                trigger_tab.get().map(|tab| view! {
-                    <div
-                        class="hidden shrink-0 lg:flex no-print"
-                        data-testid="receipt-utility-toggle-bar"
-                    >
-                        <UtilityRailToggle store=store tab=tab />
-                    </div>
-                })
-            }}
-        </div>
         <div
             class="mt-0"
             aria-busy=move || {
@@ -93,19 +79,90 @@ pub fn ReceiptsPage() -> impl IntoView {
             }
         >
             <div data-testid="receipts-workspace">
-                {move || {
-                    let workspace = panels_store;
-                    // 読み込み中も全タブの tabpanel を出す。非選択タブの aria-controls が
-                    // 存在しない要素を指すと tab/tabpanel の関係で axe が critical になる
-                    let loading = panels_loading.get();
-                    ReceiptsTab::ALL
-                        .iter()
-                        .copied()
-                        .map(|tab| {
-                            view! { <TabPanel store=workspace tab=tab loading=loading /> }
-                        })
-                        .collect_view()
-                }}
+                <WorkspaceShell
+                    workspace_testid="receipt-workspace"
+                    rail_testid="receipt-utility-rail"
+                    main_testid="receipt-main-stage"
+                    panel_id=Signal::derive(move || utility_rail_id(panel_store.active_tab.get()))
+                    toggle_testid="receipt-utility-toggle"
+                    panel_open=Signal::derive(move || panel_store.utility_rail_open.get())
+                    on_toggle=Callback::new(move |_| panel_store.toggle_utility_rail())
+                    on_close=Callback::new(move |_| {
+                        if panel_store.utility_rail_open.get_untracked() {
+                            panel_store.toggle_utility_rail();
+                        }
+                    })
+                    panel=view! { <ReceiptPanelContent store=store /> }.into_any()
+                    right_rail=move || {
+                        let is_filtered = !panel_store.search.get().is_default();
+                        let filter_labels = panel_store.filter_labels(panel_store.active_tab.get());
+                        view! {
+                            <PageInfoRail
+                                links=vec![
+                                    ("#receipts-summary", "集計情報"),
+                                    ("#receipts-list", "一覧"),
+                                ]
+                                applied=is_filtered.then(|| {
+                                    filter_labels
+                                        .into_iter()
+                                        .map(|(label, value)| {
+                                            (label, Signal::derive(move || value.clone()))
+                                        })
+                                        .collect()
+                                })
+                                on_clear=Some(Callback::new(move |_| panel_store.clear_search()))
+                            />
+                        }.into_any()
+                    }
+                >
+                    <div class="flex items-center justify-between gap-3">
+                        <nav class="no-print" aria-label="取引明細タブ">
+                            <div
+                                class="receipts-tab-list"
+                                role="tablist"
+                            >
+                                {ReceiptsTab::ALL
+                                    .iter()
+                                    .copied()
+                                    .map(|tab| {
+                                        view! { <ReceiptsTabButton store=tabs_store tab=tab /> }
+                                    })
+                                    .collect_view()}
+                            </div>
+                        </nav>
+                        {move || {
+                            badge_store.utility_filter_badge_visible().then(|| {
+                                view! {
+                                    <div
+                                        class="shrink-0 no-print"
+                                        data-testid="receipt-utility-toggle-bar"
+                                    >
+                                        <Badge variant=BadgeVariant::Accent>
+                                            {format!(
+                                                "絞り込み中 {} / {} 件",
+                                                filtered.get().len(),
+                                                total.get(),
+                                            )}
+                                        </Badge>
+                                    </div>
+                                }
+                            })
+                        }}
+                    </div>
+                    {move || {
+                        let workspace = panels_store;
+                        // 読み込み中も全タブの tabpanel を出す。非選択タブの aria-controls が
+                        // 存在しない要素を指すと tab/tabpanel の関係で axe が critical になる
+                        let loading = panels_loading.get();
+                        ReceiptsTab::ALL
+                            .iter()
+                            .copied()
+                            .map(|tab| {
+                                view! { <TabPanel store=workspace tab=tab loading=loading /> }
+                            })
+                            .collect_view()
+                    }}
+                </WorkspaceShell>
             </div>
             {move || {
                 let tab = modal_store.active_tab.get();
@@ -136,60 +193,6 @@ pub fn ReceiptsPage() -> impl IntoView {
 
 #[cfg(test)]
 mod tests;
-
-#[component]
-fn UtilityRailToggle(
-    store: crate::features::receipts::ReceiptsStore,
-    tab: ReceiptsTab,
-) -> impl IntoView {
-    let rail_open = store.utility_rail_open;
-    let rows_store = store;
-    let display = Memo::new(move |_| utility_display_rows(rows_store, tab));
-    let search = store.search;
-    let filtered = Memo::new(move |_| {
-        filter_receipts(
-            tab,
-            &display.get(),
-            &search.with(|state| state.query.clone()),
-        )
-    });
-    let total = Signal::derive(move || display.get().len());
-    let badge_store = store;
-    view! {
-        <DisclosureToggle
-            style=DisclosureStyle::Rail
-            expanded=Signal::derive(move || rail_open.get())
-            controls=utility_rail_id(tab)
-            aria_label=Signal::derive(move || {
-                if rail_open.get() {
-                    "取り込み・検索パネルを閉じる".to_string()
-                } else {
-                    "取り込み・検索パネルを開く".to_string()
-                }
-            })
-            testid="receipt-utility-toggle"
-            hint=true
-            on_toggle=move || store.toggle_utility_rail()
-        >
-            <span class="flex min-w-0 items-center gap-2">
-                <span class="text-sm font-bold text-text">"取り込み・検索"</span>
-                {move || {
-                    badge_store.utility_filter_badge_visible().then(|| {
-                        view! {
-                            <Badge variant=BadgeVariant::Accent>
-                                {format!(
-                                    "絞り込み中 {} / {} 件",
-                                    filtered.get().len(),
-                                    total.get(),
-                                )}
-                            </Badge>
-                        }
-                    })
-                }}
-            </span>
-        </DisclosureToggle>
-    }
-}
 
 pub(crate) fn utility_display_rows(
     store: crate::features::receipts::ReceiptsStore,
