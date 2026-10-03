@@ -4,7 +4,6 @@ use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::csv_store::AssetBalanceCsvStore;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::search::asset_balance_search_options;
-use crate::features::asset_balance::store::DataOps;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::elements::{Alert, AlertVariant};
 use crate::ui::security_link::try_copy_to_clipboard;
@@ -20,8 +19,6 @@ enum ReviewCopyStatus {
 #[component]
 pub(crate) fn AssetBalancePanelContent(
     view_csv: AssetBalanceCsvStore,
-    alert_ops: RwSignal<DataOps>,
-    alert_csv: AssetBalanceCsvStore,
     search_query: RwSignal<String>,
     rows: impl Fn() -> Vec<AssetBalanceRow> + 'static + Send + Sync + Clone,
     facets: impl Fn() -> Option<crate::api::dto::SearchFacets> + 'static + Send + Sync,
@@ -39,22 +36,6 @@ pub(crate) fn AssetBalancePanelContent(
     view! {
         <div>
             <AssetBalanceCsvSection store=view_csv />
-            {move || {
-                alert_ops
-                    .with(|ops| ops.refresh_error.clone())
-                    .or_else(|| alert_csv.csv_state().error)
-                    .map(|message| {
-                        view! {
-                            <div class="px-5 py-4">
-                                <Alert variant=AlertVariant::Danger>
-                                    <strong>"エラー:"</strong>
-                                    " "
-                                    {message}
-                                </Alert>
-                            </div>
-                        }
-                    })
-            }}
             {move || {
                 warning().map(|text| {
                     view! {

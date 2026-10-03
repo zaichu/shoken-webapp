@@ -110,9 +110,13 @@ pub(crate) fn AssetBalanceMainContent(
                         dividends=dividends
                         show_all=show_all
                     />
-                    <div data-testid="portfolio-pie-chart">
-                        <ChartList items=chart_items dividends=dividends show_all=show_all />
-                    </div>
+                    {(!chart_items.is_empty()).then(|| {
+                        view! {
+                            <div data-testid="portfolio-pie-chart">
+                                <ChartList items=chart_items dividends=dividends show_all=show_all />
+                            </div>
+                        }
+                    })}
                 </section>
             }
                 .into_any()

@@ -19,7 +19,7 @@ use crate::features::asset_balance::store::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{use_session, SessionStore};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::elements::{ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::elements::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use crate::ui::page_info_rail::PageInfoRail;
 use crate::ui::workspace_shell::{workspace_panel_default_open, WorkspaceShell};
 use leptos::prelude::*;
@@ -119,9 +119,7 @@ pub fn AssetBalancePage() -> impl IntoView {
     let busy_csv = csv_store;
     let view_csv = csv_store;
     let modal_csv = csv_store;
-    let alert_csv = csv_store;
     let rail_csv = csv_store;
-    let alert_ops = data_ops;
     let busy_ops = data_ops;
     let csv_slot = csv_store.csv;
     let disabled_csv = csv_store;
@@ -194,8 +192,6 @@ pub fn AssetBalancePage() -> impl IntoView {
                 panel=view! {
                     <AssetBalancePanelContent
                         view_csv=view_csv
-                        alert_ops=alert_ops
-                        alert_csv=alert_csv
                         search_query=search_query
                         rows=move || {
                             let generation = rail_session.generation.get();
@@ -253,6 +249,23 @@ pub fn AssetBalancePage() -> impl IntoView {
                     }.into_any()
                 }
             >
+                    // パネル(ドロワー)が閉じていても見えるよう、CSV/再取得の失敗はメイン列に出す
+                    {move || {
+                        data_ops
+                            .with(|ops| ops.refresh_error.clone())
+                            .or_else(|| csv_store.csv_state().error)
+                            .map(|message| {
+                                view! {
+                                    <div class="no-print">
+                                        <Alert variant=AlertVariant::Danger>
+                                            <strong>"エラー:"</strong>
+                                            " "
+                                            {message}
+                                        </Alert>
+                                    </div>
+                                }
+                            })
+                    }}
                     {move || {
                         let generation = render_session.generation.get();
                         let state = view_csv.csv_state();
