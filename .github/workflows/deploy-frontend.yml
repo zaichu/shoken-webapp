@@ -1,6 +1,18 @@
 name: Frontend Deploy
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-frontend.yml'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'frontend/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:
 
 permissions:
@@ -41,11 +53,17 @@ jobs:
   deploy:
     name: Build and deploy to Vercel
     needs: [vercel-secrets]
-    if: needs.vercel-secrets.outputs.available == 'true' && github.ref == 'refs/heads/main'
+    # pull_request では PR 版 workflow が secrets 付きで動くため、書き込み権限のある投稿者以外では実行しない
+    if: >-
+      needs.vercel-secrets.outputs.available == 'true'
+      && (github.ref == 'refs/heads/main'
+        || (github.event_name == 'pull_request'
+          && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       checks: read
+      pull-requests: write
     defaults:
       run:
         working-directory: frontend
@@ -55,21 +73,27 @@ jobs:
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       # テストは PR と main の CI で済んでいるため回し直さず、そのコミットの CI の結果だけを確かめる
+      # PR プレビューは検証用途のためゲートしない。push では CI と同時起動するので結論が出るまで待機する
       - name: Require passing CI on this commit
+        if: github.event_name != 'pull_request'
         working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?check_name=Check%2C%20build%2C%20and%20E2E" \
-            --jq '.check_runs | sort_by(.started_at) | last | if . == null then "missing" else (.conclusion // "pending") end')
-          if [[ "${conclusion}" == "missing" ]]; then
-            echo "::error::このコミットでは Frontend CI が実行されていません(Dependabot の自動マージなど)。main で Frontend CI を workflow_dispatch で実行し、成功してからデプロイをやり直してください"
-            exit 1
-          fi
-          if [[ "${conclusion}" != "success" ]]; then
-            echo "::error::このコミットの Check, build, and E2E が成功していません(${conclusion})。デプロイしません"
-            exit 1
-          fi
+          for i in $(seq 1 120); do
+            conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?check_name=Check%2C%20build%2C%20and%20E2E" \
+              --jq '.check_runs | sort_by(.started_at) | last | if . == null then "missing" else (.conclusion // "pending") end')
+            case "${conclusion}" in
+              success) exit 0 ;;
+              missing|pending) sleep 15 ;;
+              *)
+                echo "::error::このコミットの Check, build, and E2E が成功していません(${conclusion})。デプロイしません"
+                exit 1
+                ;;
+            esac
+          done
+          echo "::error::Frontend CI が 30 分以内に完了しませんでした(最終状態: ${conclusion})。デプロイしません"
+          exit 1
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
@@ -111,7 +135,7 @@ jobs:
       - name: Determine deploy target
         id: target
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             if [[ "${{ vars.LEPTOS_PRODUCTION_ENABLED }}" == "true" ]]; then
               echo "environment=production" >> "$GITHUB_OUTPUT"
             else
@@ -147,3 +171,22 @@ jobs:
           fi
           echo "url=${url}" >> "$GITHUB_OUTPUT"
           echo "Deployed (${{ steps.target.outputs.environment }}): ${url}" >> "$GITHUB_STEP_SUMMARY"
+
+      # synchronize ごとに新規コメントすると URL が積み上がるため、マーカー付きコメントを上書きする
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request' && steps.deploy.outputs.url != ''
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          marker="<!-- frontend-preview-url -->"
+          body="${marker}
+          Frontend preview: ${{ steps.deploy.outputs.url }}"
+          # --paginate はページ単位で jq 評価するため --slurp で結合してから1件だけ取る
+          existing=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq "[.[][] | select(.body | contains(\"${marker}\"))] | last | .id // empty")
+          if [[ -n "${existing}" ]]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="${body}" > /dev/null
+          else
+            gh pr comment "${{ github.event.pull_request.number }}" --body "${body}"
+          fi

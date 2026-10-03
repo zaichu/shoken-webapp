@@ -85,7 +85,10 @@ pub async fn validate_origin(
         .map(|s| s.to_string());
 
     match origin {
-        Some(ref o) if allowed_origins.iter().any(|a| a == o) => {
+        Some(ref o)
+            if allowed_origins.iter().any(|a| a == o)
+                || crate::config::cors::is_vercel_preview_origin(o) =>
+        {
             // 許可されたオリジン → 通過
             next.run(request).await
         }
@@ -103,8 +106,10 @@ pub async fn validate_origin(
 
             match referer {
                 Some(ref r)
-                    if extract_origin(r)
-                        .is_some_and(|o| allowed_origins.iter().any(|a| a == o)) =>
+                    if extract_origin(r).is_some_and(|o| {
+                        allowed_origins.iter().any(|a| a == o)
+                            || crate::config::cors::is_vercel_preview_origin(o)
+                    }) =>
                 {
                     // 許可済みオリジンの Referer → 通過
                     next.run(request).await
@@ -238,6 +243,24 @@ mod tests {
             ),
             (
                 &[("origin", "https://shoken-webapp.vercel.app")][..],
+                StatusCode::OK,
+            ),
+            (
+                &[(
+                    "origin",
+                    "https://shoken-webapp-abc-zaichus-projects.vercel.app",
+                )][..],
+                StatusCode::OK,
+            ),
+            (
+                &[("origin", "https://shoken-webapp-abc-otherteam.vercel.app")][..],
+                StatusCode::FORBIDDEN,
+            ),
+            (
+                &[(
+                    "referer",
+                    "https://shoken-webapp-abc-zaichus-projects.vercel.app/p",
+                )][..],
                 StatusCode::OK,
             ),
         ] {

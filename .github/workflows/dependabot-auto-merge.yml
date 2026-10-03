@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   auto-merge:
@@ -26,6 +27,29 @@ jobs:
           steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
           steps.metadata.outputs.update-type == 'version-update:semver-minor'
         run: gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # GITHUB_TOKEN の自動マージは push イベントを発火させず Deploy が起動しない。
+      # マージ完了を待ち、frontend 系変更なら CI(merge コミットの check-run 用) → Deploy を順に dispatch する
+      - name: Dispatch CI and deploy after merge
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: |
+          pr_number="${{ github.event.pull_request.number }}"
+          for i in $(seq 1 60); do
+            state=$(gh pr view "${pr_number}" --json state --jq '.state')
+            if [[ "${state}" == "CLOSED" ]]; then exit 0; fi
+            if [[ "${state}" == "MERGED" ]]; then break; fi
+            sleep 30
+          done
+          if [[ "${state}" != "MERGED" ]]; then exit 0; fi
+          files=$(gh pr view "${pr_number}" --json files --jq '[.files[].path] | join(" ")')
+          if grep -Eq '(^| )(frontend/|shared/)' <<< "${files}"; then
+            gh workflow run frontend.yml --ref main
+            gh workflow run deploy-frontend.yml --ref main
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
