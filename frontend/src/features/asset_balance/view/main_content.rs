@@ -5,7 +5,6 @@ use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::csv_store::csv_status_text;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::chart_plan;
-use crate::features::asset_balance::search::clear_search_query;
 use crate::features::asset_balance::store::{filtered_portfolio, FilteredPortfolio};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
@@ -104,7 +103,7 @@ pub(crate) fn AssetBalanceMainContent(
                         total_count=total_count
                         is_filtered=!query.is_empty()
                         on_clear_filter=move || {
-                            search_query.set(clear_search_query())
+                            search_query.set(String::new())
                         }
                         summary=summary
                         dividends=dividends

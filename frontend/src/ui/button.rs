@@ -193,38 +193,21 @@ impl IconButtonVariant {
     }
 }
 
-fn icon_button_classes(variant: IconButtonVariant, extra: &str) -> String {
-    let mut classes = variant.class().to_string();
-    if !extra.is_empty() {
-        classes.push(' ');
-        classes.push_str(extra);
-    }
-    classes
-}
-
-/// アイコンのみのボタン。aria-label か aria-hidden のどちらかを持たせる
+/// アイコンのみのボタン
 #[component]
 pub fn IconButton(
     variant: IconButtonVariant,
-    #[prop(into, optional)] class: Signal<String>,
-    #[prop(into, optional)] aria_label: Option<Signal<String>>,
-    #[prop(into, optional)] aria_hidden: Option<Signal<bool>>,
-    #[prop(into, optional)] tabindex: Option<Signal<&'static str>>,
+    #[prop(into)] aria_label: Signal<String>,
     #[prop(into, optional)] disabled: Option<Signal<bool>>,
-    #[prop(optional)] testid: Option<&'static str>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
 ) -> impl IntoView {
-    let classes = move || icon_button_classes(variant, &class.get());
     view! {
         <button
             type="button"
-            class=classes
-            aria-label=move || aria_label.map(|label| label.get())
-            aria-hidden=aria_hidden.map(|hidden| move || hidden.get().to_string())
-            tabindex=tabindex.map(|index| move || index.get())
+            class=variant.class()
+            aria-label=move || aria_label.get()
             disabled=move || disabled.is_some_and(|disabled| disabled.get())
-            data-testid=testid
             on:click=on_click
         >
             {children()}

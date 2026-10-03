@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test, json, paginated } from './support/test';
 import * as path from 'path';
 import {
   domesticStocksFixture,
@@ -125,13 +125,7 @@ async function openUtilityRail(page: Page) {
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
-function paginated(data: unknown[]) {
-  return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
-}
 
-function json(body: unknown) {
-  return { status: 200, contentType: 'application/json', body: JSON.stringify(body) };
-}
 
 async function mockApi(page: Page) {
   // 後から登録した route が優先されるため catch-all を先に登録する

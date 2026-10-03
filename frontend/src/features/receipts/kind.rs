@@ -492,225 +492,140 @@ impl ReceiptRowData for MutualfundCsvRow {
     }
 }
 
+impl CsvPreviewRow {
+    fn inner(&self) -> &dyn ReceiptRowData {
+        match self {
+            Self::Dividend(row) => row,
+            Self::DomesticStock(row) => row,
+            Self::MutualFund(row) => row,
+        }
+    }
+}
+
 impl ReceiptRowData for CsvPreviewRow {
     fn date(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.date(),
-            Self::DomesticStock(row) => row.date(),
-            Self::MutualFund(row) => row.date(),
-        }
+        self.inner().date()
     }
     fn code(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.code(),
-            Self::DomesticStock(row) => row.code(),
-            Self::MutualFund(row) => row.code(),
-        }
+        self.inner().code()
     }
     fn name(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.name(),
-            Self::DomesticStock(row) => row.name(),
-            Self::MutualFund(row) => row.name(),
-        }
+        self.inner().name()
     }
     fn account(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.account(),
-            Self::DomesticStock(row) => row.account(),
-            Self::MutualFund(row) => row.account(),
-        }
+        self.inner().account()
     }
     fn product(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.product(),
-            Self::DomesticStock(row) => row.product(),
-            Self::MutualFund(row) => row.product(),
-        }
+        self.inner().product()
+    }
+    fn is_specific(&self) -> bool {
+        self.inner().is_specific()
     }
     fn cells(&self) -> Vec<ReceiptCell> {
-        match self {
-            Self::Dividend(row) => row.cells(),
-            Self::DomesticStock(row) => row.cells(),
-            Self::MutualFund(row) => row.cells(),
-        }
+        self.inner().cells()
     }
     fn raw_key(&self) -> String {
-        match self {
-            Self::Dividend(row) => row.raw_key(),
-            Self::DomesticStock(row) => row.raw_key(),
-            Self::MutualFund(row) => row.raw_key(),
-        }
+        self.inner().raw_key()
     }
     fn search_amount(&self, index: usize) -> Decimal {
-        match self {
-            Self::Dividend(row) => row.search_amount(index),
-            Self::DomesticStock(row) => row.search_amount(index),
-            Self::MutualFund(row) => row.search_amount(index),
-        }
+        self.inner().search_amount(index)
     }
     fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
-        match self {
-            Self::Dividend(row) => row.summary_amounts(),
-            Self::DomesticStock(row) => row.summary_amounts(),
-            Self::MutualFund(row) => row.summary_amounts(),
-        }
+        self.inner().summary_amounts()
     }
     fn realized_pnl(&self) -> Decimal {
+        self.inner().realized_pnl()
+    }
+}
+
+impl ReceiptItem {
+    fn inner(&self) -> &dyn ReceiptRowData {
         match self {
-            Self::Dividend(row) => row.realized_pnl(),
-            Self::DomesticStock(row) => row.realized_pnl(),
-            Self::MutualFund(row) => row.realized_pnl(),
+            Self::Dividend(row) => row,
+            Self::DomesticStock(row) => row,
+            Self::MutualFund(row) => row,
         }
     }
 }
 
 impl ReceiptRowData for ReceiptItem {
     fn date(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.date(),
-            Self::DomesticStock(row) => row.date(),
-            Self::MutualFund(row) => row.date(),
-        }
+        self.inner().date()
     }
     fn code(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.code(),
-            Self::DomesticStock(row) => row.code(),
-            Self::MutualFund(row) => row.code(),
-        }
+        self.inner().code()
     }
     fn name(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.name(),
-            Self::DomesticStock(row) => row.name(),
-            Self::MutualFund(row) => row.name(),
-        }
+        self.inner().name()
     }
     fn account(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.account(),
-            Self::DomesticStock(row) => row.account(),
-            Self::MutualFund(row) => row.account(),
-        }
+        self.inner().account()
     }
     fn product(&self) -> &str {
-        match self {
-            Self::Dividend(row) => row.product(),
-            Self::DomesticStock(row) => row.product(),
-            Self::MutualFund(row) => row.product(),
-        }
+        self.inner().product()
     }
     fn is_specific(&self) -> bool {
-        match self {
-            Self::Dividend(row) => row.is_specific(),
-            Self::DomesticStock(row) => row.is_specific(),
-            Self::MutualFund(row) => row.is_specific(),
-        }
+        self.inner().is_specific()
     }
     fn cells(&self) -> Vec<ReceiptCell> {
-        match self {
-            Self::Dividend(row) => row.cells(),
-            Self::DomesticStock(row) => row.cells(),
-            Self::MutualFund(row) => row.cells(),
-        }
+        self.inner().cells()
     }
     fn raw_key(&self) -> String {
-        match self {
-            Self::Dividend(row) => row.raw_key(),
-            Self::DomesticStock(row) => row.raw_key(),
-            Self::MutualFund(row) => row.raw_key(),
-        }
+        self.inner().raw_key()
     }
     fn search_amount(&self, index: usize) -> Decimal {
-        match self {
-            Self::Dividend(row) => row.search_amount(index),
-            Self::DomesticStock(row) => row.search_amount(index),
-            Self::MutualFund(row) => row.search_amount(index),
-        }
+        self.inner().search_amount(index)
     }
     fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
-        match self {
-            Self::Dividend(row) => row.summary_amounts(),
-            Self::DomesticStock(row) => row.summary_amounts(),
-            Self::MutualFund(row) => row.summary_amounts(),
-        }
+        self.inner().summary_amounts()
     }
     fn realized_pnl(&self) -> Decimal {
+        self.inner().realized_pnl()
+    }
+}
+
+impl<S: ReceiptRowData, P: ReceiptRowData> Row<S, P> {
+    fn inner(&self) -> &dyn ReceiptRowData {
         match self {
-            Self::Dividend(row) => row.realized_pnl(),
-            Self::DomesticStock(row) => row.realized_pnl(),
-            Self::MutualFund(row) => row.realized_pnl(),
+            Self::Saved(row) => row,
+            Self::Preview(row) => row,
         }
     }
 }
 
 impl<S: ReceiptRowData, P: ReceiptRowData> ReceiptRowData for Row<S, P> {
     fn date(&self) -> &str {
-        match self {
-            Self::Saved(row) => row.date(),
-            Self::Preview(row) => row.date(),
-        }
+        self.inner().date()
     }
     fn code(&self) -> &str {
-        match self {
-            Self::Saved(row) => row.code(),
-            Self::Preview(row) => row.code(),
-        }
+        self.inner().code()
     }
     fn name(&self) -> &str {
-        match self {
-            Self::Saved(row) => row.name(),
-            Self::Preview(row) => row.name(),
-        }
+        self.inner().name()
     }
     fn account(&self) -> &str {
-        match self {
-            Self::Saved(row) => row.account(),
-            Self::Preview(row) => row.account(),
-        }
+        self.inner().account()
     }
     fn product(&self) -> &str {
-        match self {
-            Self::Saved(row) => row.product(),
-            Self::Preview(row) => row.product(),
-        }
+        self.inner().product()
     }
     fn is_specific(&self) -> bool {
-        match self {
-            Self::Saved(row) => row.is_specific(),
-            Self::Preview(row) => row.is_specific(),
-        }
+        self.inner().is_specific()
     }
     fn cells(&self) -> Vec<ReceiptCell> {
-        match self {
-            Self::Saved(row) => row.cells(),
-            Self::Preview(row) => row.cells(),
-        }
+        self.inner().cells()
     }
     fn raw_key(&self) -> String {
-        match self {
-            Self::Saved(row) => row.raw_key(),
-            Self::Preview(row) => row.raw_key(),
-        }
+        self.inner().raw_key()
     }
     fn search_amount(&self, index: usize) -> Decimal {
-        match self {
-            Self::Saved(row) => row.search_amount(index),
-            Self::Preview(row) => row.search_amount(index),
-        }
+        self.inner().search_amount(index)
     }
     fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
-        match self {
-            Self::Saved(row) => row.summary_amounts(),
-            Self::Preview(row) => row.summary_amounts(),
-        }
+        self.inner().summary_amounts()
     }
     fn realized_pnl(&self) -> Decimal {
-        match self {
-            Self::Saved(row) => row.realized_pnl(),
-            Self::Preview(row) => row.realized_pnl(),
-        }
+        self.inner().realized_pnl()
     }
 }
 

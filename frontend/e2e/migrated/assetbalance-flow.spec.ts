@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { Page } from '@playwright/test';
-import { expect, test } from '../support/test';
+import { expect, test, json } from '../support/test';
 
 const CSV_FIXTURE_PATH = path.resolve(process.cwd(), 'e2e/__fixtures__/csv/assetbalance-base.csv');
 
@@ -69,13 +69,6 @@ function cloneAssetBalances(assetBalances: typeof ASSET_BALANCES | typeof MOCK_P
   return assetBalances.map((assetBalance) => ({ ...assetBalance }));
 }
 
-function jsonResponse(body: unknown, status = 200) {
-  return {
-    status,
-    contentType: 'application/json',
-    body: JSON.stringify(body),
-  };
-}
 
 interface AssetBalanceMockController {
   getDeleteRequestCount: () => number;
@@ -102,11 +95,11 @@ async function setupAssetBalanceMocks(
   let previewRequestCount = 0;
   let uploadRequestCount = 0;
 
-  await page.route(ROUTES.authMe, (route) => route.fulfill(jsonResponse(MOCK_USER)));
+  await page.route(ROUTES.authMe, (route) => route.fulfill(json(MOCK_USER)));
 
   await page.route(ROUTES.dividendPerShareBatch, (route) =>
     route.fulfill(
-      jsonResponse({
+      json({
         items: [
           {
             security_code: '7203',
@@ -130,7 +123,7 @@ async function setupAssetBalanceMocks(
   await page.route(ROUTES.assetBalancePreview, (route) => {
     previewRequestCount += 1;
     return route.fulfill(
-      jsonResponse({
+      json({
         ...MOCK_PREVIEW,
         rows: cloneAssetBalances(previewRows),
       }),
@@ -140,7 +133,7 @@ async function setupAssetBalanceMocks(
   await page.route(ROUTES.assetBalanceUpload, (route) => {
     uploadRequestCount += 1;
     assetBalances = cloneAssetBalances(uploadedAssetBalances);
-    return route.fulfill(jsonResponse(MOCK_UPLOAD));
+    return route.fulfill(json(MOCK_UPLOAD));
   });
 
   await page.route(ROUTES.assetBalances, (route) => {
@@ -156,7 +149,7 @@ async function setupAssetBalanceMocks(
       listRequestCount += 1;
       const data = cloneAssetBalances(assetBalances);
       return route.fulfill(
-        jsonResponse({ data, total: data.length, page: 1, per_page: data.length }),
+        json({ data, total: data.length, page: 1, per_page: data.length }),
       );
     }
 

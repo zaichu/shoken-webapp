@@ -4,14 +4,8 @@ pub(crate) use view::SearchPage;
 
 use crate::api::{fetch_stock, ApiError, Stock};
 use crate::session::{use_session, Generation};
+use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
-
-fn should_apply_search_result(
-    session: &crate::session::SessionStore,
-    generation: Generation,
-) -> bool {
-    session.is_current(generation)
-}
 
 #[derive(Clone, Copy)]
 pub struct StockSearch {
@@ -24,14 +18,14 @@ pub struct StockSearch {
 
 impl StockSearch {
     pub fn stock_data(&self) -> Option<Stock> {
-        if !should_apply_search_result(&self.session, self.fetch_generation.get()) {
+        if !self.session.is_current(self.fetch_generation.get()) {
             return None;
         }
         self.search.value().get().and_then(|result| result.ok())
     }
 
     pub fn error_message(&self) -> Option<String> {
-        if !should_apply_search_result(&self.session, self.fetch_generation.get()) {
+        if !self.session.is_current(self.fetch_generation.get()) {
             return None;
         }
         self.search
@@ -43,7 +37,7 @@ impl StockSearch {
     }
 
     pub fn is_not_found(&self) -> bool {
-        if !should_apply_search_result(&self.session, self.fetch_generation.get()) {
+        if !self.session.is_current(self.fetch_generation.get()) {
             return false;
         }
         self.search
@@ -96,15 +90,11 @@ fn read_code_param() -> (String, bool) {
     if trimmed.is_empty() {
         return (String::new(), false);
     }
-    if valid_code(&trimmed) {
+    if is_searchable_code(&trimmed) {
         (trimmed, false)
     } else {
         (String::new(), true)
     }
-}
-
-fn valid_code(code: &str) -> bool {
-    !code.is_empty() && code.chars().all(|c| c.is_ascii_alphanumeric() || c == '.')
 }
 
 fn read_query_value(key: &str) -> Option<String> {

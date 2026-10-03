@@ -1,5 +1,4 @@
 mod cards;
-mod groups;
 pub(crate) mod main_content;
 mod panel;
 mod pickers;

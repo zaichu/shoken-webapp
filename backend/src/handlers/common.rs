@@ -14,10 +14,6 @@ pub fn ok_message(message: &str) -> (StatusCode, Json<MessageResponse>) {
     )
 }
 
-/// 検索の定型処理（汎用 search + 200 OK）
-///
-/// 各ドメインの一覧ハンドラーから
-/// `handle_search::<DividendDomain>(&state.pool, auth_user.id(), params).await` のように呼ぶ。
 pub async fn handle_search<D: Search>(
     pool: &PgPool,
     user_id: UserId,

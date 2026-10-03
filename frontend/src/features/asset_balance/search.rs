@@ -55,9 +55,5 @@ pub fn asset_balance_search_options(
     .collect()
 }
 
-pub fn clear_search_query() -> String {
-    String::new()
-}
-
 #[cfg(test)]
 mod tests;

@@ -1,7 +1,7 @@
-use super::pickers::{DatePeriod, SecurityDropdown, ToggleCategory, YearDropdown};
+use super::main_content::display_rows_for;
+use super::pickers::{DatePeriod, SearchDropdown, ToggleCategory};
 use crate::features::receipts::filter::{search_categories, DateSegment, ReceiptSearch, SearchKey};
 use crate::features::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab};
-use crate::support::row::Row;
 use crate::ui::collapsible_search_card::{CollapsibleSearchCard, SearchCardLayout};
 use leptos::prelude::*;
 
@@ -14,12 +14,7 @@ pub(crate) fn ReceiptsSearchCard(
 ) -> impl IntoView {
     let search = store.search;
     let display_store = store;
-    let display_rows = Memo::new(move |_| match display_store.csv_state(tab).preview {
-        Some(preview) if !preview.rows.is_empty() => {
-            preview.rows.into_iter().map(Row::Preview).collect()
-        }
-        _ => data.rows.clone(),
-    });
+    let display_rows = Memo::new(move |_| display_rows_for(display_store, tab, data.rows.clone()));
     let categories = Memo::new(move |_| search_categories(tab, &display_rows.get()));
     let securities = Memo::new(move |_| categories.with(|c| c.securities.clone()));
     let products = Memo::new(move |_| categories.with(|c| c.products.clone()));
@@ -81,10 +76,26 @@ pub(crate) fn ReceiptsSearchCard(
                     }
                 }}
                 <div class="grid grid-cols-1 gap-3">
-                    <SecurityDropdown search=search options=securities />
+                    <SearchDropdown
+                        search=search
+                        options=securities
+                        id="securities-search"
+                        label="銘柄"
+                        search_key=SearchKey::Securities
+                        class=Some("search-select")
+                    />
                     {move || {
                         if !has_dates() && has_years() {
-                            view! { <YearDropdown search=search options=years /> }.into_any()
+                            view! {
+                                <SearchDropdown
+                                    search=search
+                                    options=years
+                                    id="years-search"
+                                    label="西暦"
+                                    search_key=SearchKey::Years
+                                />
+                            }
+                            .into_any()
                         } else {
                             ().into_any()
                         }

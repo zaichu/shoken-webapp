@@ -7,6 +7,10 @@ use crate::api::dto::{MessageResponse, SessionUser};
 use crate::api::{ApiClient, ApiError};
 use leptos::prelude::*;
 
+pub(crate) fn local_storage() -> Option<web_sys::Storage> {
+    web_sys::window().and_then(|window| window.local_storage().ok().flatten())
+}
+
 fn oauth_authorize_url() -> String {
     format!("{}/api/v1/oauth/google/authorize", ApiClient::base_url())
 }

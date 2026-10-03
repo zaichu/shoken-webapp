@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test, paginated } from './support/test';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
@@ -62,16 +62,13 @@ const DOMESTIC = {
   updated_at: '2024-02-01T00:00:00Z',
 };
 
-function paginatedResponse(data: unknown[]) {
-  return { data, total: data.length, page: 1, per_page: data.length };
-}
 
 async function mockApi(page: Page) {
   await page.route(/\/api\/v1\//, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([])),
+      body: JSON.stringify(paginated([])),
     }),
   );
   await page.route(/\/api\/v1\/session$/, (route) =>
@@ -85,21 +82,21 @@ async function mockApi(page: Page) {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([DIVIDEND])),
+      body: JSON.stringify(paginated([DIVIDEND])),
     }),
   );
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([DOMESTIC])),
+      body: JSON.stringify(paginated([DOMESTIC])),
     }),
   );
   await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([FUND])),
+      body: JSON.stringify(paginated([FUND])),
     }),
   );
 }
@@ -249,7 +246,7 @@ test('マイナスの損益は符号を保ち負値として区別される', as
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(
-        paginatedResponse([
+        paginated([
           {
             ...DOMESTIC,
             realized_profit_and_loss: -5000,
@@ -321,7 +318,7 @@ test('国内株式は1件日の小計を省き、複数件日は税額を含む�
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(paginatedResponse([
+      body: JSON.stringify(paginated([
         DOMESTIC,
         { ...DOMESTIC, id: 'second', trade_date: '2024-02-02' },
         { ...DOMESTIC, id: 'third', trade_date: '2024-02-02' },
@@ -363,7 +360,7 @@ test('長い口座名は省略せず折り返して全文を出す', async ({ pa
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(
-        paginatedResponse([{ ...DOMESTIC, account: longAccount }]),
+        paginated([{ ...DOMESTIC, account: longAccount }]),
       ),
     }),
   );

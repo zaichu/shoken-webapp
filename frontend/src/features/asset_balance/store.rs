@@ -177,13 +177,6 @@ pub(crate) fn filtered_portfolio(
     }
 }
 
-pub(crate) fn should_apply_asset_balance_result(
-    session: &SessionStore,
-    generation: Generation,
-) -> bool {
-    session.is_current(generation)
-}
-
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DataOps {
     pub(crate) list_rev: u64,
@@ -252,13 +245,13 @@ pub(crate) fn load_asset_balances(
         match fetch_asset_balances().await {
             Err(error) => {
                 data_ops.update(|ops| ops.end_list_fetch(rev));
-                if should_apply_asset_balance_result(&session, generation) {
+                if session.is_current(generation) {
                     apply_list_error(generation, rev, error.message(), balances, data_ops);
                 }
             }
             Ok(loaded) => {
                 data_ops.update(|ops| ops.end_list_fetch(rev));
-                if !should_apply_asset_balance_result(&session, generation)
+                if !session.is_current(generation)
                     || !data_ops.with_untracked(|ops| ops.is_current_list(rev))
                 {
                     return;

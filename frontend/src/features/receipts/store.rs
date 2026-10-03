@@ -163,14 +163,13 @@ impl ReceiptsStore {
 
     // 再訪時に、表示済みの一覧を消さず裏で取り直す(未取得・取得中は既存の経路が担う)
     pub(crate) fn revisit(&self) {
-        if self.session.user.get_untracked().is_none() {
-            return;
-        }
         // 前の裏再取得が残っている往復では要求を重ねない
         if self.fetch.pending().get_untracked() {
             return;
         }
-        let generation = self.session.generation.get_untracked();
+        let Some(generation) = self.current_generation() else {
+            return;
+        };
         for tab in ReceiptsTab::ALL {
             if !self
                 .visited
@@ -185,10 +184,9 @@ impl ReceiptsStore {
     }
 
     pub(crate) fn ensure(&self, tab: ReceiptsTab) {
-        if self.session.user.get_untracked().is_none() {
+        let Some(generation) = self.current_generation() else {
             return;
-        }
-        let generation = self.session.generation.get_untracked();
+        };
         let mut tab = tab;
         if self.expanded_epoch.get_untracked() != Some(generation) {
             self.expanded_epoch.set(Some(generation));
@@ -285,17 +283,28 @@ impl ReceiptsStore {
         })
     }
 
+    fn current_generation(&self) -> Option<Generation> {
+        self.session.user.get_untracked()?;
+        Some(self.session.generation.get_untracked())
+    }
+
+    fn update_csv_state(
+        &self,
+        generation: Generation,
+        tab: ReceiptsTab,
+        update: impl FnOnce(&mut CsvTabState<CsvPreviewRow>),
+    ) {
+        self.csv
+            .update(|map| update(map.entry((generation, tab)).or_default()));
+    }
+
     pub fn select_file(&self, tab: ReceiptsTab, file: web_sys::File) {
-        if self.session.user.get_untracked().is_none() {
+        let Some(generation) = self.current_generation() else {
             return;
-        }
-        let generation = self.session.generation.get_untracked();
+        };
         let mut started = false;
-        self.csv.update(|map| {
-            started = map
-                .entry((generation, tab))
-                .or_default()
-                .begin_preview(file.name());
+        self.update_csv_state(generation, tab, |state| {
+            started = state.begin_preview(file.name());
         });
         if !started {
             return;
@@ -324,40 +333,27 @@ impl ReceiptsStore {
     }
 
     pub(crate) fn try_begin_save(&self, tab: ReceiptsTab) -> Option<(Generation, web_sys::File)> {
-        self.session.user.get_untracked()?;
-        let generation = self.session.generation.get_untracked();
+        let generation = self.current_generation()?;
         let file = self
             .csv_files
             .with_untracked(|map| map.get(&(generation, tab)).cloned())?;
         let mut started = false;
-        self.csv.update(|map| {
-            started = map.entry((generation, tab)).or_default().begin_save();
+        self.update_csv_state(generation, tab, |state| {
+            started = state.begin_save();
         });
         started.then_some((generation, file))
     }
 
     pub fn open_delete_confirm(&self, tab: ReceiptsTab) {
-        if self.session.user.get_untracked().is_none() {
-            return;
+        if let Some(generation) = self.current_generation() {
+            self.update_csv_state(generation, tab, |state| state.open_delete_confirm());
         }
-        let generation = self.session.generation.get_untracked();
-        self.csv.update(|map| {
-            map.entry((generation, tab))
-                .or_default()
-                .open_delete_confirm();
-        });
     }
 
     pub fn close_delete_confirm(&self, tab: ReceiptsTab) {
-        if self.session.user.get_untracked().is_none() {
-            return;
+        if let Some(generation) = self.current_generation() {
+            self.update_csv_state(generation, tab, |state| state.close_delete_confirm());
         }
-        let generation = self.session.generation.get_untracked();
-        self.csv.update(|map| {
-            map.entry((generation, tab))
-                .or_default()
-                .close_delete_confirm();
-        });
     }
 
     pub fn confirm_delete_all(&self, tab: ReceiptsTab) {
@@ -372,11 +368,10 @@ impl ReceiptsStore {
     }
 
     pub(crate) fn try_begin_delete(&self, tab: ReceiptsTab) -> Option<Generation> {
-        self.session.user.get_untracked()?;
-        let generation = self.session.generation.get_untracked();
+        let generation = self.current_generation()?;
         let mut started = false;
-        self.csv.update(|map| {
-            started = map.entry((generation, tab)).or_default().begin_delete();
+        self.update_csv_state(generation, tab, |state| {
+            started = state.begin_delete();
         });
         started.then_some(generation)
     }
@@ -390,10 +385,8 @@ impl ReceiptsStore {
         if !self.session.is_current(generation) {
             return;
         }
-        self.csv.update(|map| {
-            map.entry((generation, tab))
-                .or_default()
-                .finish_preview(result.ok().map(|response| to_preview(tab, response)));
+        self.update_csv_state(generation, tab, |state| {
+            state.finish_preview(result.ok().map(|response| to_preview(tab, response)));
         });
     }
 
@@ -409,10 +402,8 @@ impl ReceiptsStore {
         }
         match result {
             Ok(response) => {
-                self.csv.update(|map| {
-                    map.entry((generation, tab))
-                        .or_default()
-                        .finish_save(Ok(response));
+                self.update_csv_state(generation, tab, |state| {
+                    state.finish_save(Ok(response));
                 });
                 self.csv_files.update(|map| {
                     map.remove(&(generation, tab));
@@ -421,10 +412,8 @@ impl ReceiptsStore {
             }
             Err(error) => {
                 let message = csv_error_message(&error);
-                self.csv.update(|map| {
-                    map.entry((generation, tab))
-                        .or_default()
-                        .finish_save(Err(message));
+                self.update_csv_state(generation, tab, |state| {
+                    state.finish_save(Err(message));
                 });
                 false
             }
@@ -442,10 +431,8 @@ impl ReceiptsStore {
         }
         match result {
             Ok(()) => {
-                self.csv.update(|map| {
-                    map.entry((generation, tab))
-                        .or_default()
-                        .finish_delete(Ok(()));
+                self.update_csv_state(generation, tab, |state| {
+                    state.finish_delete(Ok(()));
                 });
                 // 削除前に出た裏再取得の遅れ応答が消した行を復活させないよう取得を失効させる
                 self.fetch_rev
@@ -467,20 +454,17 @@ impl ReceiptsStore {
             }
             Err(error) => {
                 let message = csv_error_message(&error);
-                self.csv.update(|map| {
-                    map.entry((generation, tab))
-                        .or_default()
-                        .finish_delete(Err(message));
+                self.update_csv_state(generation, tab, |state| {
+                    state.finish_delete(Err(message));
                 });
             }
         }
     }
 
     pub fn reload(&self, tab: ReceiptsTab) {
-        if self.session.user.get_untracked().is_none() {
+        let Some(generation) = self.current_generation() else {
             return;
-        }
-        let generation = self.session.generation.get_untracked();
+        };
         if self.refresh_tab_list(generation, tab) {
             self.fetch.dispatch((generation, tab));
         }
@@ -517,10 +501,6 @@ pub(crate) fn tab_settled(store: &ReceiptsStore, generation: Generation, tab: Re
             Some(TabState::Ready(_)) | Some(TabState::Failed(_))
         )
     })
-}
-
-pub(crate) fn should_apply_fetch_result(session: &SessionStore, generation: Generation) -> bool {
-    session.is_current(generation)
 }
 
 pub(crate) fn bump_fetch_rev(
@@ -617,7 +597,7 @@ fn build_receipts_store(session: SessionStore, initial_tab: ReceiptsTab) -> Rece
             .unwrap_or_default();
         async move {
             let result = tab.fetch_list().await;
-            if !should_apply_fetch_result(&session, generation)
+            if !session.is_current(generation)
                 || !fetch_rev.with_untracked(|map| is_current_fetch(map, generation, tab, rev))
             {
                 return;

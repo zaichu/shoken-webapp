@@ -55,22 +55,16 @@
   --color-positive-softer: var(--color-emerald-100);
   --color-positive-border: var(--color-emerald-200);
 
-  --color-gain: var(--color-teal-700);
-  --color-gain-soft: var(--color-teal-50);
-  --color-gain-border: var(--color-teal-200);
-
   --color-accent: #c08403;
   --color-accent-bright: var(--color-amber-500);
   --color-accent-ring: var(--color-amber-400);
   --color-accent-strong: var(--color-amber-600);
-  --color-accent-deep: var(--color-amber-700);
   --color-accent-text: var(--color-amber-900);
   --color-accent-text-soft: var(--color-amber-800);
   --color-accent-soft: var(--color-amber-50);
   --color-accent-softer: var(--color-amber-100);
   --color-accent-border: var(--color-amber-200);
   --color-accent-border-strong: var(--color-amber-300);
-  --color-accent-on-dark: var(--color-amber-300);
 
   --color-info: var(--color-blue-700);
   --color-info-strong: var(--color-blue-900);
@@ -104,9 +98,7 @@
 
   --shadow-elevation-1: 0 12px 34px -30px rgba(15, 23, 42, 0.85);
   --shadow-elevation-2: 0 16px 44px -36px rgba(15, 23, 42, 0.9);
-  --shadow-elevation-3: 0 18px 58px -42px rgba(15, 23, 42, 0.9);
   --shadow-card: 0 14px 38px -32px rgba(15, 23, 42, 0.85);
-  --shadow-summary-card: 0 16px 44px -38px rgba(15, 23, 42, 0.9);
   --shadow-card-hover: 0 18px 40px -32px rgba(15, 23, 42, 0.85);
   --shadow-header: 0 18px 44px -34px rgba(15, 23, 42, 0.95);
   --shadow-edge-lit: inset 0 1px 0 rgba(255, 255, 255, 0.12);
@@ -114,15 +106,11 @@
   --shadow-edge-brand: inset 0 -3px 0 rgba(192, 132, 3, 0.35);
 
   --radius-note: 1.35rem;
-  --radius-field: 1.15rem;
 
   --text-eyebrow: 0.6875rem;
   --text-cell: 0.75rem;
-  --text-cell-md: 0.8125rem;
 
   --container-wide: 1680px;
-  --container-form: 25rem;
-  --breakpoint-xs: 23.4375rem;
 
   --font-sans: 'BIZ UDPGothic', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
 }
@@ -189,22 +177,6 @@
     @apply grid grid-cols-[1fr_6rem_6rem] items-center gap-3 max-sm:grid-cols-[1fr_5rem];
   }
 
-  .form-input-container {
-    @apply w-full max-w-form;
-  }
-
-  .stat-grid {
-    @apply grid grid-cols-1 gap-4 md:grid-cols-3;
-  }
-
-  .action-toolbar {
-    @apply flex flex-wrap items-center gap-3 rounded-xl border border-ink/10 bg-surface/85 p-3 shadow-sm backdrop-blur;
-  }
-
-  .action-button-group {
-    @apply flex flex-wrap items-center gap-3;
-  }
-
   .toolbar-search-card {
     @apply px-4 py-4;
   }
@@ -217,10 +189,6 @@
     .toolbar-search-card[data-expanded="false"] {
       display: none;
     }
-  }
-
-  .status-message {
-    @apply my-4 flex flex-col items-center gap-2;
   }
 
   .panel-card {
@@ -239,29 +207,8 @@
     @apply mb-3 rounded-xl border border-ink/10 bg-surface/95 px-4 py-3 shadow-elevation-1 max-sm:px-3;
   }
 
-  .receipt-summary-band {
-    @apply mb-3 rounded-xl border border-ink/10 bg-surface/90 px-4 py-2 shadow-card print:border-black print:shadow-none;
-  }
-
-  .receipt-summary-band-grid {
-    @apply grid gap-x-4 gap-y-1;
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  }
-
   .empty-state {
     @apply flex flex-col items-center justify-center rounded-xl border border-dashed border-border-strong bg-surface-sunken/70 px-4 py-8 text-center;
-  }
-
-  .rail-panel {
-    @apply divide-y divide-ink/10 overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-elevation-3 backdrop-blur-sm;
-  }
-
-  .search-card-mobile {
-    @apply max-sm:rounded-xl max-sm:border max-sm:border-ink/10 max-sm:bg-surface/90 max-sm:shadow-elevation-3;
-  }
-
-  .collapsible-trigger {
-    @apply flex min-h-11 w-full items-center justify-between gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
   }
 
   .rail-toggle {
@@ -394,9 +341,6 @@
     @apply relative w-full rounded-lg border border-ink/10 bg-surface;
   }
 
-  .summary-section-header {
-    @apply flex flex-col gap-3 border-b border-ink/10 bg-surface-sunken/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between;
-  }
 }
 
 /* セル側の utility(whitespace-normal・border-*)を子孫セレクタが上書きしていた関係を
@@ -534,11 +478,6 @@
 
   .receipt-table td:not(.text-right) {
     overflow-wrap: anywhere;
-  }
-
-  .print-border {
-    border: 1px solid #000 !important;
-    box-shadow: none !important;
   }
 
   .ws-sidegrid {
@@ -956,10 +895,6 @@
   margin-top: .1rem;
 }
 
-.neg {
-  color: var(--color-negative);
-}
-
 /* 構成比 */
 .sum-comp {
   margin-top: .5rem;
@@ -1035,14 +970,4 @@
 .sum-mobile {
   padding-top: .5rem;
   border-top: 1px solid var(--color-border);
-}
-
-/* 折りたたみパネル時の調整 */
-@media (min-width: 64rem) {
-  .ws-side .spanel {
-    position: sticky;
-    top: .75rem;
-    max-height: calc(100vh - 1.5rem);
-    overflow: hidden auto;
-  }
 }

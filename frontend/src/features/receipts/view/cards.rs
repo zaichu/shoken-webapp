@@ -92,20 +92,13 @@ pub(crate) fn card_detail_value(
         _ => {
             let text = cells
                 .get(index)
-                .map(|cell| cell_text(cell).to_string())
+                .map(|cell| cell.text().to_string())
                 .unwrap_or_default();
             CardDetailValue::Text {
                 negative: is_negative_labeled_value(tab, label, &text),
                 text,
             }
         }
-    }
-}
-
-pub(crate) fn cell_text(cell: &ReceiptCell) -> &str {
-    match cell {
-        ReceiptCell::Text(value) | ReceiptCell::SecurityCode(value) => value,
-        ReceiptCell::InstrumentName { name, .. } => name,
     }
 }
 
@@ -122,7 +115,7 @@ pub(crate) fn card_row_data(
     let text = |index: usize| {
         cells
             .get(index)
-            .map(|cell| cell_text(cell).to_string())
+            .map(|cell| cell.text().to_string())
             .unwrap_or_default()
     };
     let header_fields = [fields.name, fields.date, fields.account];

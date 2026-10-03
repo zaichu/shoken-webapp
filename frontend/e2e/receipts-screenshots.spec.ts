@@ -1,5 +1,5 @@
 import type { Page, TestInfo } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test, json, paginated } from './support/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -128,13 +128,7 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
   };
 });
 
-function paginated(data: unknown[]) {
-  return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1) };
-}
 
-function json(body: unknown) {
-  return { status: 200, contentType: 'application/json', body: JSON.stringify(body) };
-}
 
 async function mockApi(page: Page) {
   // Playwright は後から登録した route が優先されるため、catch-all を最初に登録する
