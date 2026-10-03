@@ -15,12 +15,8 @@ pub enum CardVariant {
     Collapsible,
     /// ホームのリンクカード(a 要素で出す)
     Feature,
-    /// ユーティリティレールの外枠
-    Rail,
     /// 白く浮いた外枠(空の状態の包み)
     Shell,
-    /// 資産サマリーの外枠
-    Summary,
     /// 薄い外枠(資産管理の空状態)
     Soft,
     /// 明細カード(スマホの行カード)
@@ -29,8 +25,6 @@ pub enum CardVariant {
     Group,
     /// 保有カード(PC 一覧)
     Holding,
-    /// KPI のマス
-    Stat,
     /// 内側のくぼんだ箱(配当情報の小枠)
     Sunken,
     /// カード内の集計ストリップ(grid 等は class で)
@@ -51,12 +45,8 @@ impl CardVariant {
             Self::Table => "table-card",
             Self::Collapsible => "collapsible-card",
             Self::Feature => "feature-card",
-            Self::Rail => "rail-panel",
             Self::Shell => {
                 "overflow-hidden rounded-xl border border-ink/10 bg-surface/95 shadow-elevation-2"
-            }
-            Self::Summary => {
-                "rounded-xl border border-ink/10 bg-surface/95 px-5 py-5 shadow-summary-card"
             }
             Self::Soft => {
                 "overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-card"
@@ -64,7 +54,6 @@ impl CardVariant {
             Self::Item => "rounded-lg border border-border-strong bg-surface",
             Self::Group => "overflow-hidden rounded-lg border border-border-subtle",
             Self::Holding => "rounded-lg border border-ink/10 bg-surface shadow-sm",
-            Self::Stat => "rounded-lg border border-ink/10 bg-surface px-4 py-4 shadow-sm",
             Self::Sunken => "rounded-lg bg-surface-sunken px-4 py-3",
             Self::Strip => "overflow-hidden rounded-md bg-surface-sunken",
             Self::DashedCompact => {
@@ -77,7 +66,7 @@ impl CardVariant {
     }
 
     fn section_tag(self) -> bool {
-        matches!(self, Self::Collapsible | Self::Summary)
+        matches!(self, Self::Collapsible)
     }
 }
 
@@ -131,56 +120,6 @@ pub fn Card(
         </div>
     }
     .into_any()
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SectionHeaderVariant {
-    /// 帯の中の見出し(保有内訳)。h3 で出す
-    Band,
-    /// カード内の上段見出し(資産サマリー)。h2 で出す
-    Card,
-}
-
-impl SectionHeaderVariant {
-    fn frame(self) -> &'static str {
-        match self {
-            Self::Band => "summary-section-header",
-            Self::Card => {
-                "flex flex-col gap-3 border-b border-ink/10 pb-4 sm:flex-row sm:items-end sm:justify-between"
-            }
-        }
-    }
-
-    fn heading(self) -> &'static str {
-        match self {
-            Self::Band => "text-sm font-black text-text-strong",
-            Self::Card => "text-sm font-black text-ink",
-        }
-    }
-}
-
-/// 節見出し。trailing に右側の操作(バッジ・解除ボタンなど)を置く
-#[component]
-pub fn SectionHeader(
-    variant: SectionHeaderVariant,
-    #[prop(optional)] testid: Option<&'static str>,
-    #[prop(optional)] trailing: Option<AnyView>,
-    children: Children,
-) -> impl IntoView {
-    let frame = variant.frame();
-    let heading = variant.heading();
-    view! {
-        <div class=frame data-testid=testid>
-            <div>
-                {if variant == SectionHeaderVariant::Band {
-                    view! { <h3 class=heading>{children()}</h3> }.into_any()
-                } else {
-                    view! { <h2 class=heading>{children()}</h2> }.into_any()
-                }}
-            </div>
-            {trailing}
-        </div>
-    }
 }
 
 #[cfg(test)]

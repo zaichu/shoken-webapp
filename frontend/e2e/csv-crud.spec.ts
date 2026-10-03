@@ -813,6 +813,11 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto('/assetbalance');
 
+    // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
+    const panelToggle = page.getByTestId('asset-utility-toggle');
+    await panelToggle.click();
+    await expect(panelToggle).toHaveAttribute('aria-expanded', 'true');
+
     const toggle = page.getByTestId('assetbalance-csv-toggle');
     const body = page.locator('#assetbalance-csv-body');
     await expect(toggle).toBeVisible();

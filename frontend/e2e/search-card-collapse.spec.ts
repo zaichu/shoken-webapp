@@ -80,12 +80,32 @@ async function mockAssetBalance(page: Page) {
   );
 }
 
+// 狭い帯ではパネルが畳んで始まるので、検索カードに触れる前にドロワーを開ける
+async function openReceiptPanel(page: Page) {
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
+
+async function openAssetPanel(page: Page) {
+  const toggle = page.getByTestId('asset-utility-toggle');
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
+
 test('取引明細の検索カードは 390px では初期折り畳みでトグルで開閉できる', async ({ page }) => {
   await mockReceipts(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
+  await openReceiptPanel(page);
 
   const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible');
   const body = page.locator('#search-options-body');
@@ -108,6 +128,7 @@ test('取引明細の検索カードは 640px 以上で初期展開', async ({ p
 
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
+  await openReceiptPanel(page);
 
   await expect(page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible')).toHaveAttribute(
     'aria-expanded',
@@ -122,6 +143,7 @@ test('資産管理の検索カードは 390px でも初期展開でトグルで�
 
   await page.goto('/assetbalance');
   await page.waitForLoadState('networkidle');
+  await openAssetPanel(page);
 
   const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible');
   const body = page.locator('#search-options-body');
@@ -140,6 +162,7 @@ test('資産管理の検索カードは 640px 以上で初期展開', async ({ p
 
   await page.goto('/assetbalance');
   await page.waitForLoadState('networkidle');
+  await openAssetPanel(page);
 
   await expect(page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible')).toHaveAttribute(
     'aria-expanded',
@@ -154,6 +177,7 @@ test('絞り込み中は折り畳み状態で適用中バッジが出てクリ�
 
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
+  await openReceiptPanel(page);
 
   const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible');
   await header.click();
@@ -180,6 +204,7 @@ test('検索カードを閉じると年ピッカーも閉じる', async ({ page 
 
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
+  await openReceiptPanel(page);
 
   const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible');
   await header.click();

@@ -166,7 +166,7 @@ async function expectAssetDataLoaded(page: Page) {
   ).toBeVisible();
 }
 
-// データがあると右レールは畳まれた状態で始まるので、レール内の UI に触れる前に開く
+// データがあるとパネルは畳んだ状態で始まるので、パネル内の UI に触れる前に開く
 async function openReceiptUtilityRail(page: Page) {
   const toggle = page.getByTestId('receipt-utility-toggle');
   await expect(toggle).toBeVisible();
@@ -174,7 +174,16 @@ async function openReceiptUtilityRail(page: Page) {
     await toggle.click();
   }
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByTestId('receipt-utility-rail')).toBeVisible();
+}
+
+// 資産管理も狭い帯ではパネルが畳んで始まるので、パネル内の UI に触れる前に開く
+async function openAssetUtilityPanel(page: Page) {
+  const toggle = page.getByTestId('asset-utility-toggle');
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
 async function selectReceiptTab(page: Page, tab: ReceiptTab) {
@@ -252,6 +261,10 @@ async function expectReceiptsErrorLayout(page: Page, width: number) {
   await expect(alert).toBeVisible();
   await expect(alert).not.toBeEmpty();
   await expect(page.getByRole('alert')).toHaveCount(1);
+  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
+  if (width < 1024) {
+    await openReceiptUtilityRail(page);
+  }
   const searchCard = rail.getByTestId('search-card-compact');
   if (width < 640) {
     const toggle = rail.getByTestId('receipt-search-toggle');
@@ -369,6 +382,8 @@ test('資産管理の検索とCSV操作に390pxでもアクセスできる', asy
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
+  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
+  await openAssetUtilityPanel(page);
   const rail = page.getByTestId('assetbalance-utility-rail');
   await expect(rail.getByTestId('assetbalance-csv-toggle')).toBeVisible();
   await expect(rail.getByTestId('search-card-compact')).toBeVisible();

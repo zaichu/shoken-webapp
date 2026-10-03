@@ -325,6 +325,7 @@ pub(crate) fn csv_status_text(state: &CsvTabState<AssetBalanceCsvRow>) -> Option
     }
 }
 
+#[allow(dead_code)]
 pub(crate) struct ResolvedAssetBalance {
     pub(crate) rows: Vec<AssetBalanceRow>,
     pub(crate) summary: Option<AssetBalanceSummary>,

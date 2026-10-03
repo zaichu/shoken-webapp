@@ -27,6 +27,7 @@ pub(crate) fn SecurityDropdown(
                     on_change=move |value| {
                         search.update(|state| state.select_quick(SearchKey::Securities, value))
                     }
+                    class="search-select"
                 />
             }
             .into_any()

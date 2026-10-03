@@ -714,16 +714,16 @@ impl<S: ReceiptRowData, P: ReceiptRowData> ReceiptRowData for Row<S, P> {
     }
 }
 
-/// 非 Core の列は画面帯とレール開閉で段階的に出す(input.css の .receipt-tier-* /
-/// .rail-collapsed と対になる)。lg でレールを開いている帯が最も狭い
+/// 非 Core の列は画面帯で段階的に出す(input.css の .receipt-tier-* と対になる)。
+/// 左パネルは常時 18rem を占有するため、開閉では段階を変えない
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub(crate) enum ColumnTier {
     Core,
-    /// lg でレールを開いている帯だけ隠す
+    /// lg 帯だけ隠す
     Md,
-    /// 畳むと lg から出る
+    /// xl から出す
     Wide,
-    /// 開いたままでも全列が入る 1650px から出す
+    /// 1650px から出す
     Wider,
 }
 

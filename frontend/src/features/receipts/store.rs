@@ -2,9 +2,10 @@ use super::{ReceiptRow, ReceiptTabData, ReceiptsTab, TabState};
 use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
 use crate::api::ApiError;
 use crate::features::receipts::csv::{to_preview, CsvPreviewRow};
-use crate::features::receipts::filter::ReceiptSearch;
+use crate::features::receipts::filter::{DateSegment, ReceiptSearch};
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::{csv_error_message, CsvTabState};
+use crate::ui::workspace_shell::workspace_panel_default_open;
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -80,10 +81,11 @@ impl ReceiptsStore {
         if self.utility_rail_decided.get_untracked() {
             return;
         }
+        // 狭い帯ではドロワーになるため、データ有無にかかわらず畳んで始める
         let open = self
             .utility_rail_initials
             .with_untracked(|initials| initials.get(&tab).copied())
-            .unwrap_or(!has_rows);
+            .unwrap_or(!has_rows && workspace_panel_default_open());
         self.utility_rail_initials.update(|initials| {
             initials.entry(tab).or_insert(open);
         });
@@ -101,6 +103,40 @@ impl ReceiptsStore {
     /// 開いたままなら絞り込みはレール内で確認できるので、表の上への件数バッジは畳んだときだけ出す
     pub fn utility_filter_badge_visible(&self) -> bool {
         !self.utility_rail_open.get() && !self.search.get().is_default()
+    }
+
+    /// 検索条件をクリアする
+    pub fn clear_search(&self) {
+        let has_years = self.cache.with_untracked(|map| {
+            map.values()
+                .any(|state| matches!(state, TabState::Ready(data) if !data.rows.is_empty()))
+        });
+        self.search.update(|s| s.clear(has_years));
+    }
+
+    /// 適用中の絞り込み条件のラベル一覧を取得する
+    pub fn filter_labels(&self, _tab: ReceiptsTab) -> Vec<(&'static str, String)> {
+        let search = self.search.get();
+        let mut labels = Vec::new();
+        if !search.selected_queries.securities.is_empty() {
+            labels.push(("銘柄", search.selected_queries.securities.clone()));
+        }
+        if !search.selected_queries.products.is_empty() {
+            labels.push(("商品", search.selected_queries.products.clone()));
+        }
+        if !search.selected_queries.accounts.is_empty() {
+            labels.push(("口座", search.selected_queries.accounts.clone()));
+        }
+        if !search.selected_queries.date.is_empty() {
+            let label = match search.date_segment {
+                DateSegment::Year => "期間(年)",
+                DateSegment::Month => "期間(月)",
+                DateSegment::Date => "期間(日)",
+                DateSegment::Range => "期間(範囲)",
+            };
+            labels.push((label, search.selected_queries.date.clone()));
+        }
+        labels
     }
 
     pub fn select_tab(&self, tab: ReceiptsTab) {
@@ -160,7 +196,7 @@ impl ReceiptsStore {
             self.mobile_summary_expanded.set(false);
             self.utility_rail_initials.update(|map| map.clear());
             self.utility_rail_decided.set(false);
-            self.utility_rail_open.set(true);
+            self.utility_rail_open.set(workspace_panel_default_open());
             // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
             self.search.set(ReceiptSearch::default());
             self.active_tab.set(ReceiptsTab::Dividend);

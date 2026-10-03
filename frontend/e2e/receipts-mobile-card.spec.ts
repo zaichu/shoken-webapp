@@ -122,6 +122,11 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
   );
   await page.goto('/receipts');
 
+  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
+  const panelToggle = page.getByTestId('receipt-utility-toggle');
+  await panelToggle.click();
+  await expect(panelToggle).toHaveAttribute('aria-expanded', 'true');
+
   await page.getByTestId('receipt-csv-toggle').click();
   await page
     .getByTestId('csv-file-input')
@@ -293,6 +298,11 @@ test('見出しが年月でないグループではカードの日付を年付�
   // 年月見出し(2024年3月)では年は見出し側にあり MM/DD で足りる
   await expect(card.getByText('03/01', { exact: true })).toBeVisible();
   await expect(cardList.getByText('1件', { exact: true })).toBeVisible();
+
+  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
+  const panelToggle = page.getByTestId('receipt-utility-toggle');
+  await panelToggle.click();
+  await expect(panelToggle).toHaveAttribute('aria-expanded', 'true');
 
   await page.getByTestId('receipt-search-toggle').click();
   await page.locator('#securities-search').selectOption('7203');

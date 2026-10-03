@@ -136,8 +136,17 @@ async function mockApi(page: Page) {
   );
 }
 
-test('スマホ幅では明細がカード表示になりテーブルは隠れる', async ({ page }) => {
-  await mockApi(page);
+// 狭い帯ではパネルが畳んで始まるので、パネル内の UI に触れる前にドロワーを開ける
+async function openPanelDrawer(page: Page) {
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
+
+test('スマホ幅では明細がカード表示になりテーブルは隠れる', async ({ page }) => {  await mockApi(page);
   await page.goto('/receipts');
 
   const cardList = page.getByTestId('receipt-card-list');
@@ -255,6 +264,7 @@ test('矢印キーとHome/Endでタブを移動しフォーカスも追従する
 test('検索・集計・CSVは同じツールバーからキーボードで開閉できる', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
+  await openPanelDrawer(page);
   const toolbar = page.getByTestId('receipt-mobile-toolbar');
   await expect(toolbar).toBeVisible();
   const search = toolbar.getByTestId('receipt-search-toggle');
@@ -292,6 +302,7 @@ test('検索・集計・CSVは同じツールバーからキーボードで開�
 test('集計はツールバーから全項目を開く', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
+  await openPanelDrawer(page);
 
   const toggle = page.getByTestId('receipt-summary-compact-toggle');
   await expect(toggle).toBeVisible();
@@ -392,6 +403,8 @@ test('検索条件を変えても集計カードの開閉状態は保たれ、�
     name: /2024年3月 2件 税引後/,
   });
   await groupToggle.click();
+  // パネル操作はドロワーを開けてから行う
+  await openPanelDrawer(page);
   const summaryToggle = page.getByTestId('receipt-summary-compact-toggle');
   await summaryToggle.click();
 
@@ -412,6 +425,7 @@ test('検索条件を変えても集計カードの開閉状態は保たれ、�
 test('CSV操作レールはスマホ幅で折り畳み開閉できる', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
+  await openPanelDrawer(page);
 
   const toggle = page.getByTestId('receipt-csv-toggle');
   const region = page.getByRole('region', { name: 'CSV取り込み・削除' });
@@ -475,6 +489,7 @@ test('全件削除は確認モーダル経由で実行される', async ({ page 
   });
   await page.goto('/receipts');
 
+  await openPanelDrawer(page);
   await page.getByTestId('receipt-csv-toggle').click();
   await page.getByRole('button', { name: /全件削除/ }).click();
   const dialog = page.getByRole('dialog');
@@ -533,6 +548,7 @@ test('CSV取込の保存結果は一覧再取得後もレールが開いて見�
   });
   await page.goto('/receipts');
 
+  await openPanelDrawer(page);
   const toggle = page.getByTestId('receipt-csv-toggle');
   await toggle.click();
   const fileInput = page.getByTestId('csv-file-input');

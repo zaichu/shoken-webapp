@@ -159,7 +159,7 @@ test('1920px では見直し促進カードがレール内に表示され、ク�
 
   // レール内の順序は CSV → 検索 → 見直し促進カード
   const order = await rail
-    .locator('> div')
+    .locator('.ws-panel-body > div')
     .first()
     .evaluate((el) =>
       Array.from(el.children)
@@ -185,7 +185,7 @@ test('1920px では見直し促進カードがレール内に表示され、ク�
   ).toBeVisible({ timeout: 6_000 });
 });
 
-test('390px でも見直し促進カードはレール1枚カード内の末尾セクションになる', async ({
+test('390px でも見直し促進カードはドロワー内の末尾セクションになる', async ({
   page,
 }) => {
   await stubClipboard(page);
@@ -194,8 +194,13 @@ test('390px でも見直し促進カードはレール1枚カード内の末尾�
   await gotoAssetBalance(page);
   await expect(page.getByTestId('portfolio-holding-card').first()).toBeVisible();
 
+  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
+  const panelToggle = page.getByTestId('asset-utility-toggle');
+  await panelToggle.click();
+  await expect(panelToggle).toHaveAttribute('aria-expanded', 'true');
+
   const rail = page.getByTestId('assetbalance-utility-rail');
-  const outerCard = rail.locator('> div').first();
+  const outerCard = rail.locator('.ws-panel-body > div').first();
   const card = rail.getByTestId('asset-review-prompt-card');
   await expect(card).toBeVisible();
 

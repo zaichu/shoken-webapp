@@ -100,6 +100,7 @@ pub fn Select(
     #[prop(into)] value: Signal<String>,
     options: Vec<SearchOption>,
     on_change: impl Fn(String) + 'static,
+    #[prop(optional)] class: Option<&'static str>,
 ) -> impl IntoView {
     view! {
         <div>
@@ -110,10 +111,15 @@ pub fn Select(
                 <select
                     id=id
                     class=move || {
-                        if value.get().is_empty() {
+                        let base = if value.get().is_empty() {
                             "w-full appearance-none rounded-md border border-border-strong bg-surface py-2 pl-3 pr-9 text-sm max-sm:min-h-11"
                         } else {
                             "w-full appearance-none rounded-md border border-accent-bright bg-accent-soft py-2 pl-3 pr-9 text-sm font-semibold text-accent-text max-sm:min-h-11"
+                        };
+                        if let Some(c) = class {
+                            format!("{} {}", base, c)
+                        } else {
+                            base.to_string()
                         }
                     }
                     prop:value=move || value.get()

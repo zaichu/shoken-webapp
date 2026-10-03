@@ -3,10 +3,8 @@ use super::*;
 #[test]
 fn disclosure_styles_are_distinguishable() {
     let styles = [
-        DisclosureStyle::Toolbar,
         DisclosureStyle::Rail,
         DisclosureStyle::GroupCard,
-        DisclosureStyle::ToolbarMenu,
         DisclosureStyle::HeaderFlat,
         DisclosureStyle::AssetCard,
         DisclosureStyle::SearchCard,

@@ -187,7 +187,10 @@ test('スマホ幅で空状態 CTA からプレビューして保存ボタンま
   const chooser = await chooserPromise;
   await chooser.setFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
 
-  // 折り畳まれたレールが展開され、件数通知と保存ボタンが見える
+  // 取り込み結果はパネルに出る。狭い帯ではドロワーを開けて確認する
+  const panelToggle = page.getByTestId('receipt-utility-toggle');
+  await panelToggle.click();
+  await expect(panelToggle).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('csv-preview-notice')).toBeVisible();
   await expect(page.getByRole('button', { name: /追加で保存/ })).toBeVisible();
 });

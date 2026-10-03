@@ -1,8 +1,10 @@
-use super::summary::PortfolioSummary;
+use super::chart::ChartList;
+use super::summary::{ChartItem, PortfolioSummary};
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::csv_store::csv_status_text;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
+use crate::features::asset_balance::portfolio::chart_plan;
 use crate::features::asset_balance::search::clear_search_query;
 use crate::features::asset_balance::store::{filtered_portfolio, FilteredPortfolio};
 use crate::features::dividend_per_share::DividendMaps;
@@ -79,23 +81,39 @@ pub(crate) fn AssetBalanceMainContent(
                 generation,
                 has_csv_file,
             );
+            let chart_values: Vec<f64> = views.iter().map(|view| view.purchase).collect();
+            let plan = chart_plan(&chart_values);
+            let chart_items: Vec<ChartItem> = plan
+                .order
+                .iter()
+                .zip(&plan.percentages)
+                .map(|(&index, &percentage)| ChartItem {
+                    view: views[index].clone(),
+                    percentage,
+                })
+                .collect();
             view! {
                 {preview_active.then(|| {
                     view! {
                         <CsvPreviewBanner description="一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
                     }
                 })}
-                <PortfolioSummary
-                    views=views
-                    total_count=total_count
-                    is_filtered=!query.is_empty()
-                    on_clear_filter=move || {
-                        search_query.set(clear_search_query())
-                    }
-                    summary=summary
-                    dividends=dividends
-                    show_all=show_all
-                />
+                <section id="assetbalance-list">
+                    <PortfolioSummary
+                        views=views
+                        total_count=total_count
+                        is_filtered=!query.is_empty()
+                        on_clear_filter=move || {
+                            search_query.set(clear_search_query())
+                        }
+                        summary=summary
+                        dividends=dividends
+                        show_all=show_all
+                    />
+                    <div data-testid="portfolio-pie-chart">
+                        <ChartList items=chart_items dividends=dividends show_all=show_all />
+                    </div>
+                </section>
             }
                 .into_any()
         }}
