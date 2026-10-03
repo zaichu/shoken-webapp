@@ -105,7 +105,7 @@ src/
 | `Card` / `SectionHeader`(`ui/card.rs`) | カード状の面と節見出し | Panel・Login・Table・Collapsible・Feature(href で `<a>`)・Rail・Shell・Summary・Soft・Item・Group・Holding・Stat・Sunken・Strip・DashedCompact・Tile・GroupLabel など |
 | `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | Toolbar・ToolbarMenu・Rail・GroupCard・HeaderFlat・AssetCard・SearchCard。`hint=true` で末尾に「開く/閉じる」 |
 | `EmptyState`(`ui/empty_state.rs`) | データが空の画面 | `icon`・`as_h1`・children(次の行動)を持つ |
-| `Badge` / `CodeBadge`(`ui/badge.rs`) | 押せない小さなバッジ | Accent・Info・Positive・Neutral・Muted・Warn・File など |
+| `Badge` / `CodeBadge`(`ui/badge.rs`) | 押せない小さなバッジ | Accent・AccentFlat・Info・Positive |
 | `Chip` / `Select` / `FieldTrigger` / `OptionButton`(`ui/choice.rs`) | 押せる選択部品とフォーム | Chip は Filter・Segment(aria-pressed)・Pill |
 | `TabButton`(`ui/tabs.rs`) | `role="tab"` のタブ | 見た目と roving tabindex は部品が持つ。矢印キー移動は呼び出し側の `on_keydown` が担う(例: ReceiptsTabButton) |
 | `Amount`(`ui/amount.rs`) | 金額・率の値 | `tabular-nums` と `[data-negative]` をまとめる。`block=true` で `<p>` として出す |

@@ -131,6 +131,27 @@ test('集計帯は低く12桁金額でもはみ出さない', async ({ page }) =
   }
 });
 
+test('デスクトップで開いたパネルがモバイル幅での再訪時にドロワーとして残らない', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/receipts');
+  const toggle = page.getByTestId('receipt-utility-toggle');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  // 開いた状態のまま SPA 遷移し、狭い幅へ変えてから戻る
+  await page.getByRole('link', { name: '銘柄検索' }).first().click();
+  await expect(page.getByRole('heading', { name: '銘柄検索' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('link', { name: '取引明細' }).first().click();
+  await expect(page.getByRole('table')).toBeHidden();
+
+  // 畳んで始まる(開いたままだとドロワーが全面を塞ぐ)
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.ws-backdrop')).toBeHidden();
+  await expect(page.getByTestId('search-card')).toBeHidden();
+});
+
 test('取引明細の見出しはsr-onlyのh1だけ', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/receipts');
