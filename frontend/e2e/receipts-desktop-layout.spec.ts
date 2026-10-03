@@ -113,7 +113,8 @@ function expectedHeaders(tab: ReceiptTabSpec, width: number) {
   return [...headers].sort();
 }
 
-// データがあるとレールは畳まれた状態で始まるので、レール内の UI に触れる前に開く。
+// 1024px 以上ではレールは開いた状態で始まるが、畳んだ後の操作に備えて
+// レール内の UI に触れる前に開いた状態へ揃える。
 // lg 未満はトグルが出ずレールが常に上段に積まれるため、その帯では何もしない
 async function openUtilityRail(page: Page) {
   if ((page.viewportSize()?.width ?? 0) < 1024) return;
@@ -205,7 +206,7 @@ test('390px ではモバイル表示を維持する(カード表示・ドロワ�
   expect(mainBoxClosed.y).toBeCloseTo(mainBoxBefore.y, 0);
 });
 
-test('データがあるとパネルは畳んだ状態で始まり、開閉で表の位置と幅は変わらない', async ({
+test('パネルは開いた状態で始まり、開閉で表の位置と幅は変わらない', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -215,40 +216,40 @@ test('データがあるとパネルは畳んだ状態で始まり、開閉で�
   const panelBody = page.getByTestId('search-card');
   const table = page.getByRole('table');
 
-  // 初期状態: 畳み。aria-expanded/aria-controls がパネルと結びついている
+  // 初期状態: 開き。aria-expanded/aria-controls がパネルと結びついている
   await expect(toggle).toBeVisible();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   const controls = await toggle.getAttribute('aria-controls');
   expect(controls).toBe('receipt-utility-rail-dividend');
   await expect(page.locator(`#${controls}`)).toBeVisible();
-  await expect(panelBody).toBeHidden();
+  await expect(panelBody).toBeVisible();
 
   // 左パネルはビューポート左端に密着する
   const railBox = (await page.getByTestId('receipt-utility-rail').boundingBox())!;
   expect(railBox.x).toBeCloseTo(0, 0);
 
-  const collapsedBox = (await table.boundingBox())!;
+  const openBox = (await table.boundingBox())!;
 
-  // キーボード(Enter)で開ける
+  // キーボード(Enter)で畳める
   await toggle.focus();
   await page.keyboard.press('Enter');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(panelBody).toBeVisible();
-  const openBox = (await table.boundingBox())!;
-  expect(openBox.x).toBeCloseTo(collapsedBox.x, 0);
-  expect(openBox.width).toBeCloseTo(collapsedBox.width, 0);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(panelBody).toBeHidden();
+  const closedBox = (await table.boundingBox())!;
+  expect(closedBox.x).toBeCloseTo(openBox.x, 0);
+  expect(closedBox.width).toBeCloseTo(openBox.width, 0);
 
-  // キーボード(Space)でも畳める。開閉の状態は localStorage に保存しない
+  // キーボード(Space)でも開き直せる。開閉の状態は localStorage に保存しない
   const storedBefore = await page.evaluate(() => JSON.stringify(localStorage));
   await toggle.focus();
   await page.keyboard.press(' ');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(panelBody).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(panelBody).toBeVisible();
   const storedAfter = await page.evaluate(() => JSON.stringify(localStorage));
   expect(storedAfter).toBe(storedBefore);
 });
 
-test('0 件のタブではレールは開いた状態で始まり、データのあるタブでは畳む', async ({
+test('データの有無にかかわらずレールは開いた状態で始まり、タブ切替でも状態が残る', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -260,7 +261,7 @@ test('0 件のタブではレールは開いた状態で始まり、データの
   await expect(page.getByText('データがありません')).toBeVisible();
 
   const toggle = page.getByTestId('receipt-utility-toggle');
-  // 0 件なので開いた状態で始まる(CSV 取り込みにすぐ触れる)。
+  // 0 件でも開いた状態で始まる(CSV 取り込みにすぐ触れる)。
   // 0 件のタブには検索カードが出ない
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('search-card')).toHaveCount(0);
@@ -268,13 +269,13 @@ test('0 件のタブではレールは開いた状態で始まり、データの
     page.getByTestId('receipt-utility-rail').getByRole('button', { name: /ファイルを選択/ }),
   ).toBeVisible();
 
-  // データのある国内株式へ切り替えると畳んだ状態になる
+  // データのある国内株式へ切り替えても開いたまま残る
   await page.getByRole('tab', { name: '国内株式' }).click();
   await expect(page.getByTestId('tab-count-domesticstock')).toHaveText(
     String(DOMESTIC_STOCKS.length),
   );
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByTestId('search-card')).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('search-card')).toBeVisible();
 });
 
 test('取得失敗のタブではレールが開き、CSV 取り込みと検索に届く', async ({ page }) => {
@@ -285,11 +286,9 @@ test('取得失敗のタブではレールが開き、CSV 取り込みと検索�
   await gotoReceipts(page);
   const rail = page.getByTestId('receipt-utility-rail');
   const toggle = page.getByTestId('receipt-utility-toggle');
-  // データのある配当金タブでは畳まれた状態で始まる。一度開いて畳み直し、
-  // ユーザーが開閉を決定済み(decided)の状態にしておく
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByTestId('search-card')).toBeHidden();
-  await toggle.click();
+  // データのある配当金タブでも開いた状態で始まる。一度畳んで
+  // ユーザーが閉じた状態にしておく
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('search-card')).toBeVisible();
   await toggle.click();
   await expect(page.getByTestId('search-card')).toBeHidden();
@@ -356,8 +355,8 @@ test('レールを畳んでいても絞り込み中は件数が表の上に出�
   await gotoReceipts(page);
 
   const toggle = page.getByTestId('receipt-utility-toggle');
-  // 初期状態は畳み。絞り込んでいないので件数バッジは出ない
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  // 初期状態は開き。絞り込んでいないので件数バッジは出ない
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByText(/絞り込み中/)).toHaveCount(0);
 
   // レールを開いて口座で絞り込み、畳み直しても件数が残る
@@ -380,7 +379,7 @@ test('画面幅を変えてもレールと明細が重ならず表が収まる',
   const main = page.getByTestId('receipt-main-stage');
   for (const width of [1023, 1024, 1280]) {
     await page.setViewportSize({ width, height: 900 });
-    // 1024px 以上はデータがあると畳んで始まるので、開いてから配置を測る
+    // 開閉状態に依らず配置を測れるよう、開いた状態に揃えてから測る
     await openUtilityRail(page);
     await expect(rail).toBeVisible();
     await expect(main).toBeVisible();
@@ -763,7 +762,7 @@ test('768px〜1440pxで表示セルがはみ出さず、銘柄名は2行まで�
   }
 });
 
-test('1920px では左パネル・中央列・右レールの3カラムになる', async ({ page }) => {
+test('1920px では左パネル・中央列の2カラムになる', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await gotoReceipts(page);
 
@@ -777,7 +776,7 @@ test('1920px では左パネル・中央列・右レールの3カラムになる
     );
   expect(domOrder).toEqual(['receipt-utility-rail', 'receipt-main-stage']);
 
-  // データがあるので畳まれた状態で始まる。開くと左パネルが出る
+  // デスクトップでは開いた状態で始まる
   const rail = page.getByTestId('receipt-utility-rail');
   const main = page.getByTestId('receipt-main-stage');
   await openUtilityRail(page);
@@ -861,8 +860,17 @@ test('A4の印字可能領域に全タブの右端の列を収めて印刷でき
   await page.goto('/receipts');
   await expect(page.getByRole('table')).toBeVisible();
 
+  const railToggle = page.getByTestId('receipt-utility-toggle');
   for (const paper of PRINTABLE_A4_VIEWPORTS) {
     await page.setViewportSize(paper);
+    // ドロワー帯(1024px未満)では開いたパネルが画面を覆うので、タブ操作の前に畳む
+    if (
+      paper.width < 1024 &&
+      (await railToggle.getAttribute('aria-expanded')) === 'true'
+    ) {
+      await railToggle.click();
+      await expect(railToggle).toHaveAttribute('aria-expanded', 'false');
+    }
     for (const tab of [
       { label: '配当金', slug: 'dividend', count: String(DIVIDENDS.length) },
       { label: '国内株式', slug: 'domesticstock', count: String(DOMESTIC_STOCKS.length) },

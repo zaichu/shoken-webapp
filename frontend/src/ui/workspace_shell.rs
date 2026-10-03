@@ -20,6 +20,10 @@ fn is_compact_viewport() -> bool {
     !workspace_panel_default_open()
 }
 
+fn should_close_on_mount(compact: bool, open: bool) -> bool {
+    compact && open
+}
+
 #[component]
 pub fn WorkspaceShell(
     #[prop(into)] workspace_testid: &'static str,
@@ -31,9 +35,13 @@ pub fn WorkspaceShell(
     on_toggle: Callback<()>,
     on_close: Callback<()>,
     panel: AnyView,
-    #[prop(optional)] right_rail: Option<impl Fn() -> AnyView + 'static + Send>,
     children: Children,
 ) -> impl IntoView {
+    // SPA 遷移をまたいで open 状態が残ったまま狭い帯で再マウントされると、
+    // ドロワーが全面を塞ぐ。モバイルで畳んで始めるのと同じく、マウント時に畳み直す
+    if should_close_on_mount(is_compact_viewport(), panel_open.get_untracked()) {
+        on_close.run(());
+    }
     // ドロワー表示中だけ Esc で閉じる。デスクトップの常設パネルには干渉しない
     let on_key_down = window_event_listener(ev::keydown, move |ev| {
         if ev.key() == "Escape" && panel_open.get_untracked() && is_compact_viewport() {
@@ -91,9 +99,19 @@ pub fn WorkspaceShell(
             <div class="ws-main" data-testid=main_testid>
                 {children()}
             </div>
-            <aside class="ws-prail" aria-label="ページ情報">
-                {move || right_rail.as_ref().map(|f| f()).unwrap_or_else(|| ().into_any())}
-            </aside>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_close_on_mount;
+
+    #[test]
+    fn mount_close_only_when_compact_and_open() {
+        assert!(should_close_on_mount(true, true));
+        assert!(!should_close_on_mount(true, false));
+        assert!(!should_close_on_mount(false, true));
+        assert!(!should_close_on_mount(false, false));
     }
 }

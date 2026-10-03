@@ -3,7 +3,7 @@ use crate::api::dto::Stock;
 use crate::ui::badge::CodeBadge;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::elements::{Alert, AlertVariant, ListLoadError, PageHeader, Spinner, SpinnerSize};
+use crate::ui::elements::{Alert, AlertVariant, ListLoadError, Spinner, SpinnerSize};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use leptos::prelude::*;
 use shared::normalize::normalize_display_name;
@@ -54,10 +54,7 @@ pub(crate) fn SearchPage() -> impl IntoView {
 
     view! {
         <div>
-            <PageHeader
-                title="銘柄検索"
-                description="銘柄コードまたは銘柄名を入力して株式情報を検索できます。"
-            />
+            <h1 class="sr-only">"銘柄検索"</h1>
             <SearchForm
                 stock_code=stock_search.stock_code
                 loading=loading.into()

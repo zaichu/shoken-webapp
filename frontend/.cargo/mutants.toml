@@ -33,7 +33,7 @@ exclude_re = [
     # getElementById + click() の DOM 操作のみ。CTA→filechooser の導線は E2E で固定
     "click_csv_input",
     # コンポーネント(view 描画)内部の条件・算術。E2E 領域(末尾が関数名の記述に限定)
-    "in (App|SearchPage|AssetBalancePage|AssetBalanceCsvSection|AssetBalanceRailExtras|PortfolioSummary|HoldingCard|AssetReviewPromptCard|DividendInfo|YearPicker|DatePeriod|ReceiptsPage|ReceiptsCsvSection|ReceiptsSearchCard|ReceiptsMainContent|ReceiptTable|UserMenu|SecurityCodeLink|CsvSaveResultNotice|DividendSummarySection|AssetBadge|KpiGrid|SummaryStrip|CalendarDateButton|CsvActionRail|SiteHeader|SiteFooter|PageHeader|Loading|Alert|Spinner|EmptyState|HomePage|LoginPage|NotFoundPage|AssetBalancePortfolioPage|AssetBalanceChart|AssetBalanceList|HomeOverview|DividendInfoStore::poll_dividend|DividendInfoStore::set_code|DividendInfoStore::refresh_balance)$",
+    "in (App|SearchPage|AssetBalancePage|AssetBalanceCsvSection|AssetBalanceRailExtras|PortfolioSummary|HoldingCard|AssetReviewPromptCard|DividendInfo|YearPicker|DatePeriod|ReceiptsPage|ReceiptsCsvSection|ReceiptsSearchCard|ReceiptsMainContent|ReceiptTable|UserMenu|SecurityCodeLink|CsvSaveResultNotice|DividendSummarySection|AssetBadge|KpiGrid|SummaryStrip|CalendarDateButton|CsvActionRail|SiteHeader|SiteFooter|Loading|Alert|Spinner|EmptyState|HomePage|LoginPage|NotFoundPage|AssetBalancePortfolioPage|AssetBalanceChart|AssetBalanceList|HomeOverview|DividendInfoStore::poll_dividend|DividendInfoStore::set_code|DividendInfoStore::refresh_balance)$",
     # HTTP 通信・web_sys::AbortController/FormData 前提
     # fetch_pages / fetch_dividend_batch は executor 注入でテスト可能なため除外しない
     "fetch_stock",

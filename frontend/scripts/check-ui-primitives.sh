@@ -12,7 +12,7 @@ cd "$SCRIPT_DIR/.."
 # features/ では <button> / <select> を直書きしない(ui/ の部品を使う)
 RAW_ELEMENT='<button|<select'
 # カード・空状態・開閉・ボタン・バッジのコンポーネントクラスの直書き
-PRIMITIVE_CLASS='(panel-card|login-card|table-card|collapsible-card|feature-card|rail-panel|empty-state|summary-section-header|collapsible-trigger|rail-toggle|receipt-card-trigger|group-card-trigger|search-submit|chart-toggle-button|review-prompt-button|login-button|copyable-name|modal-close-button|filter-chip|filter-badge|code-badge|file-chip|skeleton-table-row)'
+PRIMITIVE_CLASS='(panel-card|login-card|table-card|collapsible-card|feature-card|rail-panel|empty-state|summary-section-header|collapsible-trigger|rail-toggle|receipt-card-trigger|group-card-trigger|search-submit|chart-toggle-button|review-prompt-button|login-button|copyable-name|modal-close-button|filter-chip|filter-badge|code-badge|skeleton-table-row)'
 # 開閉トリガーは DisclosureToggle(または Button/FieldTrigger の aria_expanded)を使う
 RAW_DISCLOSURE='aria-expanded'
 # 状態表示は ui/ の部品(Alert/ListLoadError/ListSkeleton/Skeleton 等)を使う。

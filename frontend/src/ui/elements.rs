@@ -459,22 +459,6 @@ pub fn Alert(variant: AlertVariant, children: Children) -> impl IntoView {
     }
 }
 
-#[component]
-pub fn PageHeader(title: &'static str, description: &'static str) -> impl IntoView {
-    view! {
-        <div class="mb-5 max-sm:mb-2">
-            <div class="flex flex-col gap-3 border-l-4 border-accent-bright pl-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h1 class="text-2xl font-black leading-tight tracking-normal text-ink max-sm:text-lg">
-                        {title}
-                    </h1>
-                    <p class="mt-1 text-sm font-medium text-text-muted max-sm:hidden">{description}</p>
-                </div>
-            </div>
-        </div>
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SpinnerSize {
     Sm,

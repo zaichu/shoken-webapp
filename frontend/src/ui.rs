@@ -11,7 +11,6 @@ pub(crate) mod csv_section;
 pub(crate) mod disclosure;
 pub(crate) mod elements;
 pub(crate) mod empty_state;
-pub(crate) mod page_info_rail;
 pub(crate) mod security_link;
 pub(crate) mod tabs;
 pub(crate) mod workspace_shell;

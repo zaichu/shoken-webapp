@@ -1,6 +1,5 @@
 use crate::api::dto::{CsvRowError, CsvUploadResponse};
 use crate::support::csv_flow::{row_error_text, CsvUploadResponseExt};
-use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::csv_preview::CsvPreviewNotice;
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
@@ -165,9 +164,9 @@ fn CsvFileInput(
     };
     let label_class = move || {
         if disabled.get() {
-            "flex min-h-20 items-center justify-between gap-3 rounded-lg border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors pointer-events-none opacity-65"
+            "flex min-h-20 items-center gap-3 rounded-lg border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors pointer-events-none opacity-65"
         } else {
-            "flex min-h-20 cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors hover:border-border-xstrong hover:bg-surface-raised focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink"
+            "flex min-h-20 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors hover:border-border-xstrong hover:bg-surface-raised focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink"
         }
     };
     view! {
@@ -219,9 +218,6 @@ fn CsvFileInput(
                     </p>
                 </div>
             </div>
-            <Badge variant=BadgeVariant::File>
-                "参照"
-            </Badge>
         </label>
     }
 }
