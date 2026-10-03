@@ -135,4 +135,4 @@ src/
 
 ## デプロイ
 
-GitHub Actions の `deploy-frontend.yml` が Vercel CLI でビルド・配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。本番デプロイは main の `workflow_dispatch` と `LEPTOS_PRODUCTION_ENABLED=true` で有効になります。
+GitHub Actions の `deploy-frontend.yml` が Vercel CLI でビルド・配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。main への frontend/shared 変更 push と `workflow_dispatch` で本番デプロイ（`LEPTOS_PRODUCTION_ENABLED=true` が必要）、PR では preview 環境へデプロイして URL を PR コメントに投稿します。

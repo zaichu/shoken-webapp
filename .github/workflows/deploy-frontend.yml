@@ -53,7 +53,12 @@ jobs:
   deploy:
     name: Build and deploy to Vercel
     needs: [vercel-secrets]
-    if: needs.vercel-secrets.outputs.available == 'true' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+    # pull_request では PR 版 workflow が secrets 付きで動くため、書き込み権限のある投稿者以外では実行しない
+    if: >-
+      needs.vercel-secrets.outputs.available == 'true'
+      && (github.ref == 'refs/heads/main'
+        || (github.event_name == 'pull_request'
+          && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -167,11 +172,20 @@ jobs:
           echo "url=${url}" >> "$GITHUB_OUTPUT"
           echo "Deployed (${{ steps.target.outputs.environment }}): ${url}" >> "$GITHUB_STEP_SUMMARY"
 
+      # synchronize ごとに新規コメントすると URL が積み上がるため、マーカー付きコメントを上書きする
       - name: Comment preview URL on PR
         if: github.event_name == 'pull_request' && steps.deploy.outputs.url != ''
         working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment "${{ github.event.pull_request.number }}" \
-            --body "Frontend preview: ${{ steps.deploy.outputs.url }}"
+          marker="<!-- frontend-preview-url -->"
+          body="${marker}
+          Frontend preview: ${{ steps.deploy.outputs.url }}"
+          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq "[.[] | select(.body | contains(\"${marker}\"))] | last | .id // empty")
+          if [[ -n "${existing}" ]]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="${body}" > /dev/null
+          else
+            gh pr comment "${{ github.event.pull_request.number }}" --body "${body}"
+          fi

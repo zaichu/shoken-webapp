@@ -23,6 +23,9 @@ pub fn build_cors_layer(cors_origins: &[String]) -> CorsLayer {
     CorsLayer::new()
         .allow_origin(tower_http::cors::AllowOrigin::predicate(
             move |origin, _| {
+                if is_vercel_preview_origin(origin.to_str().unwrap_or_default()) {
+                    return true;
+                }
                 cors_origins.iter().any(|allowed_origin| {
                     if let Ok(header_value) = allowed_origin.parse::<HeaderValue>() {
                         origin.eq(&header_value)
@@ -44,6 +47,15 @@ pub fn parse_cors_origins(raw: &str) -> Vec<String> {
         .filter(|origin| !origin.is_empty())
         .map(|origin| origin.to_string())
         .collect()
+}
+
+// Vercel プレビューはチームスラッグ入りのランダム URL しか取れない。
+// `-zaichus-projects` サフィックスを持つドメインは自チームのデプロイにしか発行されないため、
+// サフィックス一致でプレビュー origin を許可する
+fn is_vercel_preview_origin(origin: &str) -> bool {
+    origin
+        .strip_prefix("https://")
+        .is_some_and(|host| host.ends_with("-zaichus-projects.vercel.app"))
 }
 
 pub fn is_localhost_origin(origin: &str) -> bool {
@@ -68,7 +80,9 @@ pub fn is_localhost_origin(origin: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use {
-        super::{build_cors_layer, is_localhost_origin, parse_cors_origins},
+        super::{
+            build_cors_layer, is_localhost_origin, is_vercel_preview_origin, parse_cors_origins,
+        },
         crate::state::AppState,
         axum::{
             body::Body,
@@ -146,6 +160,35 @@ mod tests {
             ),
         ] {
             assert_eq!(parse_cors_origins(input), strings(expected));
+        }
+    }
+
+    #[test]
+    fn test_is_vercel_preview_origin() {
+        for (origin, expected) in [
+            (
+                "https://shoken-webapp-abc123-zaichus-projects.vercel.app",
+                true,
+            ),
+            (
+                "https://shoken-webapp-git-main-zaichus-projects.vercel.app",
+                true,
+            ),
+            // チーム外の同名プロジェクトや偽装サフィックスは拒否する
+            ("https://shoken-webapp-abc123-otherteam.vercel.app", false),
+            ("https://notzaichus-projects.vercel.app", false),
+            ("https://zaichus-projects.vercel.app.evil.com", false),
+            (
+                "http://shoken-webapp-abc-zaichus-projects.vercel.app",
+                false,
+            ),
+            ("https://shoken-webapp.vercel.app", false),
+        ] {
+            assert_eq!(
+                is_vercel_preview_origin(origin),
+                expected,
+                "unexpected classification: {origin}"
+            );
         }
     }
 
