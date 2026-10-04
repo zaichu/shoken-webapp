@@ -143,8 +143,6 @@ test('デスクトップで開いたパネルがモバイル幅での再訪時�
   await page.getByRole('link', { name: '銘柄検索' }).first().click();
   await expect(page.getByRole('heading', { name: '銘柄検索' })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  // 銘柄検索もワークスペース化され、開いたパネルは狭い帯でドロワーになりナビを覆うため畳む
-  await page.getByTestId('search-utility-toggle').click();
   await page.getByRole('link', { name: '取引明細' }).first().click();
   await expect(page.getByRole('table')).toBeHidden();
 

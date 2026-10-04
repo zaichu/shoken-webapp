@@ -20,7 +20,7 @@ fn is_compact_viewport() -> bool {
     !workspace_panel_default_open()
 }
 
-fn should_close_on_mount(compact: bool, open: bool) -> bool {
+fn should_close_panel(compact: bool, open: bool) -> bool {
     compact && open
 }
 
@@ -40,8 +40,29 @@ pub fn WorkspaceShell(
 ) -> impl IntoView {
     // SPA 遷移をまたいで open 状態が残ったまま狭い帯で再マウントされると、
     // ドロワーが全面を塞ぐ。モバイルで畳んで始めるのと同じく、マウント時に畳み直す
-    if should_close_on_mount(is_compact_viewport(), panel_open.get_untracked()) {
+    if should_close_panel(is_compact_viewport(), panel_open.get_untracked()) {
         on_close.run(());
+    }
+    // デスクトップ→狭い帯の越境でも同じくドロワーが全面を塞ぐ。
+    // change は境界越えでしか発火しないため、狭帯内のリサイズやトグルには干渉しない
+    #[cfg(target_arch = "wasm32")]
+    if let Some(media) = web_sys::window()
+        .and_then(|window| window.match_media("(max-width: 63.999rem)").ok().flatten())
+    {
+        use wasm_bindgen::JsCast;
+        let media_check = media.clone();
+        let on_change = wasm_bindgen::closure::Closure::wrap(Box::new(move |_: web_sys::Event| {
+            if should_close_panel(media_check.matches(), panel_open.get_untracked()) {
+                on_close.run(());
+            }
+        }) as Box<dyn FnMut(_)>);
+        media.set_onchange(Some(on_change.as_ref().unchecked_ref()));
+        // Closure/MediaQueryList は wasm の単一スレッド前提で Send にできないため SendWrapper で保持
+        let keep = send_wrapper::SendWrapper::new((media, on_change));
+        on_cleanup(move || {
+            let (media, _on_change) = &*keep;
+            media.set_onchange(None);
+        });
     }
     // ドロワー表示中だけ Esc で閉じる。デスクトップの常設パネルには干渉しない
     let on_key_down = window_event_listener(ev::keydown, move |ev| {
@@ -106,13 +127,13 @@ pub fn WorkspaceShell(
 
 #[cfg(test)]
 mod tests {
-    use super::should_close_on_mount;
+    use super::should_close_panel;
 
     #[test]
-    fn mount_close_only_when_compact_and_open() {
-        assert!(should_close_on_mount(true, true));
-        assert!(!should_close_on_mount(true, false));
-        assert!(!should_close_on_mount(false, true));
-        assert!(!should_close_on_mount(false, false));
+    fn close_only_when_compact_and_open() {
+        assert!(should_close_panel(true, true));
+        assert!(!should_close_panel(true, false));
+        assert!(!should_close_panel(false, true));
+        assert!(!should_close_panel(false, false));
     }
 }
