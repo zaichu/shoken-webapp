@@ -120,7 +120,7 @@ git switch main
 git pull --ff-only origin main
 
 # 3. worktree を削除（使用中ブランチを手放す）
-git worktree remove /tmp/<repo>-<topic>
+git worktree remove ../.worktrees/<repo>-<topic>
 
 # 4. ローカルブランチを削除（squash merge 済み短期ブランチのみ）
 git branch -d <branch-name>
