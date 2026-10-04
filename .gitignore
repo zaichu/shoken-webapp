@@ -10,7 +10,7 @@ frontend/.auth/
 .playwright-mcp
 CLAUDE.local.md
 backend/CLAUDE.local.md
-.claude/settings.local.json
+**/.claude/settings.local.json
 .claude/scheduled_tasks.lock
 docs/tasks/*.md
 !docs/tasks/TEMPLATE.md
