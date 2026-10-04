@@ -22,6 +22,7 @@ js-sys = "0.3"
 web-sys = { version = "0.3", features = ["Window", "Element", "SubmitEvent", "FormData", "File", "FileList", "Node", "NodeList", "AbortController", "RequestCredentials", "HtmlElement", "HtmlInputElement", "KeyboardEvent", "Event", "MouseEvent", "Storage", "BroadcastChannel", "MessageEvent", "console", "MediaQueryList", "DomRect", "Navigator", "ResizeObserver", "ResizeObserverEntry", "ScrollIntoViewOptions", "ScrollLogicalPosition"] }
 console_error_panic_hook = "0.1"
 shared = { path = "../shared" }
+send_wrapper = "0.6"
 
 [dev-dependencies]
 rust_decimal_macros = "1"

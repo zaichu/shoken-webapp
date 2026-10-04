@@ -83,6 +83,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     main_testid="receipt-main-stage"
                     panel_id=Signal::derive(move || utility_rail_id(panel_store.active_tab.get()))
                     toggle_testid="receipt-utility-toggle"
+                    panel_label="取り込み・検索"
                     panel_open=Signal::derive(move || panel_store.utility_rail_open.get())
                     on_toggle=Callback::new(move |_| panel_store.toggle_utility_rail())
                     on_close=Callback::new(move |_| {
