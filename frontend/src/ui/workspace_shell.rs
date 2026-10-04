@@ -31,6 +31,7 @@ pub fn WorkspaceShell(
     #[prop(into)] main_testid: &'static str,
     #[prop(into)] panel_id: Signal<String>,
     #[prop(into)] toggle_testid: &'static str,
+    #[prop(into)] panel_label: &'static str,
     #[prop(into)] panel_open: Signal<bool>,
     on_toggle: Callback<()>,
     on_close: Callback<()>,
@@ -68,7 +69,7 @@ pub fn WorkspaceShell(
                 class="ws-panel"
                 id=panel_id
                 data-testid=rail_testid
-                aria-label="取り込み・検索"
+                aria-label=panel_label
             >
                 <div class="phead">
                     <button
@@ -79,9 +80,9 @@ pub fn WorkspaceShell(
                         aria-controls=panel_id_toggle
                         aria-label=move || {
                             if panel_open.get() {
-                                "取り込み・検索パネルを閉じる".to_string()
+                                format!("{panel_label}パネルを閉じる")
                             } else {
-                                "取り込み・検索パネルを開く".to_string()
+                                format!("{panel_label}パネルを開く")
                             }
                         }
                         on:click=move |_| on_toggle.run(())
@@ -89,7 +90,7 @@ pub fn WorkspaceShell(
                         <span aria-hidden="true">
                             {move || if panel_open.get() { "«" } else { "»" }}
                         </span>
-                        <span class="ws-toggle-label">"取り込み・検索"</span>
+                        <span class="ws-toggle-label">{panel_label}</span>
                     </button>
                 </div>
                 <div class="ws-panel-body" hidden=move || !panel_open.get()>

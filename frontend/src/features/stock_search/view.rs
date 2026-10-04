@@ -5,6 +5,7 @@ use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::elements::{Alert, AlertVariant, ListLoadError, Spinner, SpinnerSize};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::workspace_shell::{workspace_panel_default_open, WorkspaceShell};
 use leptos::prelude::*;
 use shared::normalize::normalize_display_name;
 
@@ -52,14 +53,29 @@ pub(crate) fn SearchPage() -> impl IntoView {
         }
     };
 
+    let panel_open = RwSignal::new(workspace_panel_default_open());
+    let panel_form = view! {
+        <SearchForm
+            stock_code=stock_search.stock_code
+            loading=loading.into()
+            on_submit=on_submit
+        />
+    };
+
     view! {
-        <div>
-            <h1 class="sr-only">"銘柄検索"</h1>
-            <SearchForm
-                stock_code=stock_search.stock_code
-                loading=loading.into()
-                on_submit=on_submit
-            />
+        <h1 class="sr-only">"銘柄検索"</h1>
+        <WorkspaceShell
+            workspace_testid="search-workspace"
+            rail_testid="search-utility-rail"
+            main_testid="search-main-stage"
+            panel_id=Signal::derive(|| "stock-search-panel".to_string())
+            toggle_testid="search-utility-toggle"
+            panel_label="検索"
+            panel_open=Signal::derive(move || panel_open.get())
+            on_toggle=Callback::new(move |_| panel_open.update(|open| *open = !*open))
+            on_close=Callback::new(move |_| panel_open.set(false))
+            panel=panel_form.into_any()
+        >
             <Show when=move || has_invalid>
                 <Alert variant=AlertVariant::Warning>"不正な銘柄コードが指定されています。"</Alert>
             </Show>
@@ -94,7 +110,7 @@ pub(crate) fn SearchPage() -> impl IntoView {
                     ().into_any()
                 }
             }}
-        </div>
+        </WorkspaceShell>
     }
 }
 
@@ -105,9 +121,8 @@ fn SearchForm(
     on_submit: impl Fn(web_sys::SubmitEvent) + Send + Sync + 'static,
 ) -> impl IntoView {
     view! {
-        <Card variant=CardVariant::Panel class="mb-5 overflow-hidden">
-            <div class="p-4 sm:p-5">
-                <form on:submit=on_submit>
+        <div class="border-b border-ink/10 px-4 py-4 sm:px-5">
+            <form on:submit=on_submit>
                     <div class="search-input-frame">
                         <div class="flex-1 min-w-0">
                             <div class="w-full">
@@ -152,9 +167,8 @@ fn SearchForm(
                             }}
                         </Button>
                     </div>
-                </form>
-            </div>
-        </Card>
+            </form>
+        </div>
     }
 }
 

@@ -221,7 +221,7 @@ pub fn App() -> impl IntoView {
                 id="main-content"
                 tabindex="-1"
                 class=move || {
-                    if matches!(route.get(), Route::Receipts | Route::AssetBalance) {
+                    if matches!(route.get(), Route::Receipts | Route::AssetBalance | Route::Search) {
                         // ワークスペース系は全幅グリッド(左パネル x=0 密着)のため中央コンテナを外す
                         "w-full flex flex-1 flex-col py-5".to_string()
                     } else {

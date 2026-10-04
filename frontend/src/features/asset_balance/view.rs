@@ -189,6 +189,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 main_testid="assetbalance-main-stage"
                 panel_id=Signal::derive(|| "assetbalance-utility-panel".to_string())
                 toggle_testid="asset-utility-toggle"
+                panel_label="取り込み・検索"
                 panel_open=Signal::derive(move || panel_open.get())
                 on_toggle=Callback::new(move |_| panel_open.update(|open| *open = !*open))
                 on_close=Callback::new(move |_| panel_open.set(false))
