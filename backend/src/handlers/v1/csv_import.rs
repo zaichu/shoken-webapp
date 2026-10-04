@@ -38,17 +38,6 @@ pub async fn handle_preview_csv<D: CsvImport>(
     Ok((StatusCode::OK, Json(response)))
 }
 
-pub async fn handle_upload_csv<D: CsvImport>(
-    pool: &sqlx::PgPool,
-    user_id: UserId,
-    multipart: Multipart,
-    user_row_limit: RowLimit,
-) -> Result<Json<CsvUploadResponse>, ApiError> {
-    let bytes = read_csv_file_bytes(multipart).await?;
-    let response = D::upload_csv(pool, user_id, &bytes, user_row_limit).await?;
-    Ok(Json(response))
-}
-
 pub async fn handle_delete_all<D: Domain>(
     pool: &sqlx::PgPool,
     user_id: UserId,
@@ -58,9 +47,6 @@ pub async fn handle_delete_all<D: Domain>(
     Ok(ok_message(message))
 }
 
-/// CSV インポートの委譲ヘルパー（201 Created + JSON）
-///
-/// 実処理は `handle_upload_csv` に委譲し、ステータスコード付与まで面倒を見る。
 /// 戻り値を具体型にすることで、呼び出し元の借用（`&state.pool`）が戻り値に漏れ出さないようにする。
 pub async fn handle_import_csv<D: CsvImport>(
     pool: &sqlx::PgPool,
@@ -68,8 +54,9 @@ pub async fn handle_import_csv<D: CsvImport>(
     multipart: Multipart,
     user_row_limit: RowLimit,
 ) -> Result<(StatusCode, Json<CsvUploadResponse>), ApiError> {
-    let json = handle_upload_csv::<D>(pool, user_id, multipart, user_row_limit).await?;
-    Ok((StatusCode::CREATED, json))
+    let bytes = read_csv_file_bytes(multipart).await?;
+    let response = D::upload_csv(pool, user_id, &bytes, user_row_limit).await?;
+    Ok((StatusCode::CREATED, Json(response)))
 }
 #[cfg(test)]
 mod tests {
@@ -195,14 +182,13 @@ mod tests {
         State(pool): State<sqlx::PgPool>,
         multipart: Multipart,
     ) -> Result<impl IntoResponse, ApiError> {
-        let json = handle_upload_csv::<TestCsvImport>(
+        handle_import_csv::<TestCsvImport>(
             &pool,
             UserId::default(),
             multipart,
             RowLimit::new(100_000),
         )
-        .await?;
-        Ok((StatusCode::CREATED, json))
+        .await
     }
 
     #[tokio::test]
