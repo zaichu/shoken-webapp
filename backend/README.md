@@ -187,7 +187,8 @@ backend/
 │   ├── services/        # ビジネスロジック
 │   │   ├── domain/      # 4ドメイン共通の検索・一括登録・集計
 │   │   ├── csv/         # CSV の解析・検証・取り込み
-│   │   └── market_data/ # 外部の市場データ(J-Quants の型と通信)
+│   │   ├── jquants.rs   # J-Quants の通信
+│   │   └── jquants/     # J-Quants の応答型
 │   └── state.rs         # アプリケーション状態
 ├── migrations/          # SQLxマイグレーション
 ├── Cargo.toml
