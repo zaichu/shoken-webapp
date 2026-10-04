@@ -609,7 +609,7 @@
     letter-spacing: normal;
   }
 
-  .ws-sidegrid:not(.ws-closed) .ws-panel {
+  .ws-sidegrid:not(.ws-closed):not(.ws-static) .ws-panel {
     position: fixed;
     top: 0;
     left: 0;
@@ -619,6 +619,11 @@
     z-index: 40;
     border-right: 1px solid var(--color-border);
     overflow-y: auto;
+  }
+
+  /* 折りたたみなしのパネルは狭い帯でも常時セクションとして上に積む */
+  .ws-sidegrid.ws-static .ws-panel {
+    border-bottom: 1px solid var(--color-border);
   }
 
   .ws-sidegrid:not(.ws-closed) .ws-backdrop {

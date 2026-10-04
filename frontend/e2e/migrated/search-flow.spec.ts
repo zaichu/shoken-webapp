@@ -63,32 +63,23 @@ test('検索フォームはワークスペースの左パネル内にある', as
   await expect(
     rail.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }),
   ).toBeVisible();
-  await expect(page.getByTestId('search-utility-toggle')).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  );
+  // 検索はフォームが主操作なので折りたたみ機構を持たない
+  await expect(page.getByTestId('search-utility-toggle')).toHaveCount(0);
 });
 
-test('モバイルではパネルが畳んで始まりトグルで検索フォームが開く', async ({ page }) => {
+test('モバイルでも検索フォームが畳まれず見える', async ({ page }) => {
   await setupAuthMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto('/search');
   await page.waitForLoadState('networkidle');
 
-  const toggle = page.getByTestId('search-utility-toggle');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(
-    page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }),
-  ).toBeHidden();
-
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(
     page.getByTestId('search-utility-rail').getByRole('textbox', {
       name: '銘柄コードまたは銘柄名',
     }),
   ).toBeVisible();
+  await expect(page.getByTestId('search-utility-toggle')).toHaveCount(0);
 });
 
 test('検索フォームに文字を入力できる', async ({ page }) => {
