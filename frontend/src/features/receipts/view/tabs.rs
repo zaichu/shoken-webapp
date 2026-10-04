@@ -1,7 +1,7 @@
 use super::workspace::ReceiptMainColumn;
 use super::TAB_IDS;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
-use crate::ui::elements::{ListSkeleton, ListSkeletonVariant, Loading};
+use crate::ui::state::{ListSkeleton, ListSkeletonVariant, Loading};
 use crate::ui::tabs::TabButton;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;

@@ -25,12 +25,18 @@ test('メニューボタンでユーザーメニューが開閉し、aria-expand
   const menu = page.getByRole('menu', { name: 'ユーザーメニュー' });
 
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+  await expect(trigger).toHaveAttribute('aria-controls', 'user-menu');
   await expect(menu).toHaveCount(0);
 
   await trigger.click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   await expect(menu).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: 'ログアウト' })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'アカウント削除' })).toHaveAttribute(
+    'aria-describedby',
+    'delete-warning',
+  );
 
   await trigger.click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');

@@ -3,7 +3,7 @@ use super::TAB_IDS;
 use crate::features::receipts::{
     truncated_list_warning, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
 };
-use crate::ui::elements::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 
 pub(crate) fn empty_tab_data() -> ReceiptTabData {

@@ -298,7 +298,10 @@ test('資産管理の取得失敗と読み込み中に moderate 以上の WCAG �
     '資産管理(読み込み中)',
     () => page.goto('/assetbalance'),
     false,
-    () => expect(page.getByTestId('list-skeleton')).toBeVisible({ timeout: 10000 }),
+    async () => {
+      await expect(page.getByTestId('list-skeleton')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('list-skeleton')).toHaveAttribute('role', 'status');
+    },
   );
 });
 
@@ -353,7 +356,10 @@ test('取引明細の取得失敗と読み込み中に moderate 以上の WCAG �
     '取引明細(読み込み中)',
     () => page.goto('/receipts'),
     false,
-    () => expect(page.getByTestId('list-skeleton')).toBeVisible({ timeout: 10000 }),
+    async () => {
+      await expect(page.getByTestId('list-skeleton')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('list-skeleton')).toHaveAttribute('role', 'status');
+    },
   );
 });
 
