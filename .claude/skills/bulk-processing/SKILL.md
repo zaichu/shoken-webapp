@@ -218,4 +218,3 @@ pub struct BulkCreateResponse {
 
 - `backend/src/handlers/dividend.rs` - 重複スキップパターン
 - `backend/src/handlers/asset_balance.rs` - UPSERT パターン
-- `backend/src/bin/import_csv.rs` - バッチ処理パターン
