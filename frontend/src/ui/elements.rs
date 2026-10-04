@@ -109,7 +109,7 @@ pub fn SiteHeader() -> impl IntoView {
     let is_workspace = move || {
         matches!(
             path.get().split(['?', '#']).next().unwrap_or_default(),
-            "/receipts" | "/assetbalance"
+            "/receipts" | "/assetbalance" | "/search"
         )
     };
     view! {

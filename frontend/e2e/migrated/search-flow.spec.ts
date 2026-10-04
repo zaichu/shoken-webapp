@@ -52,6 +52,45 @@ test('検索ページの初期表示で検索フォームが表示される', as
   await expect(page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' })).toBeVisible();
 });
 
+test('検索フォームはワークスペースの左パネル内にある', async ({ page }) => {
+  await setupAuthMocks(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.goto('/search');
+  await page.waitForLoadState('networkidle');
+
+  const rail = page.getByTestId('search-utility-rail');
+  await expect(
+    rail.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }),
+  ).toBeVisible();
+  await expect(page.getByTestId('search-utility-toggle')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+});
+
+test('モバイルではパネルが畳んで始まりトグルで検索フォームが開く', async ({ page }) => {
+  await setupAuthMocks(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto('/search');
+  await page.waitForLoadState('networkidle');
+
+  const toggle = page.getByTestId('search-utility-toggle');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(
+    page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }),
+  ).toBeHidden();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(
+    page.getByTestId('search-utility-rail').getByRole('textbox', {
+      name: '銘柄コードまたは銘柄名',
+    }),
+  ).toBeVisible();
+});
+
 test('検索フォームに文字を入力できる', async ({ page }) => {
   await setupAuthMocks(page);
 

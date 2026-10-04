@@ -107,7 +107,12 @@ pub(crate) fn SearchPage() -> impl IntoView {
                     }
                         .into_any()
                 } else {
-                    ().into_any()
+                    view! {
+                        <div class="flex justify-center py-8">
+                            <Spinner size=SpinnerSize::Sm class="" />
+                        </div>
+                    }
+                        .into_any()
                 }
             }}
         </WorkspaceShell>
@@ -121,52 +126,52 @@ fn SearchForm(
     on_submit: impl Fn(web_sys::SubmitEvent) + Send + Sync + 'static,
 ) -> impl IntoView {
     view! {
-        <div class="border-b border-ink/10 px-4 py-4 sm:px-5">
+        <div class="border-b border-ink/10 px-5 py-4">
             <form on:submit=on_submit>
-                    <div class="search-input-frame">
-                        <div class="flex-1 min-w-0">
-                            <div class="w-full">
-                                <input
-                                    type="text"
-                                    class="search-input"
-                                    placeholder="銘柄コードまたは銘柄名"
-                                    aria-label="銘柄コードまたは銘柄名"
-                                    autocomplete="off"
-                                    aria-invalid="false"
-                                    disabled=move || loading.get()
-                                    prop:value=move || stock_code.get()
-                                    on:input=move |ev| {
-                                        stock_code.set(event_target_value(&ev));
-                                    }
-                                />
-                            </div>
-                        </div>
-                        <Button
-                            variant=ButtonVariant::SearchSubmit
-                            class="no-print"
-                            submit=true
-                            on_click=move |_| {}
-                            disabled=Signal::derive(move || {
-                                loading.get() || stock_code.get().is_empty()
-                            })
-                            data_loading=Signal::derive(move || loading.get())
-                            aria_label=Signal::derive(move || {
-                                if loading.get() { "検索中" } else { "銘柄を検索" }.to_string()
-                            })
-                        >
-                            {move || {
-                                if loading.get() {
-                                    view! {
-                                        <Spinner size=SpinnerSize::Sm class="mr-2" />
-                                        "読み込み中..."
-                                    }
-                                        .into_any()
-                                } else {
-                                    "検索".into_any()
+                <div class="search-input-frame">
+                    <div class="flex-1 min-w-0">
+                        <div class="w-full">
+                            <input
+                                type="text"
+                                class="search-input"
+                                placeholder="銘柄コードまたは銘柄名"
+                                aria-label="銘柄コードまたは銘柄名"
+                                autocomplete="off"
+                                aria-invalid="false"
+                                disabled=move || loading.get()
+                                prop:value=move || stock_code.get()
+                                on:input=move |ev| {
+                                    stock_code.set(event_target_value(&ev));
                                 }
-                            }}
-                        </Button>
+                            />
+                        </div>
                     </div>
+                    <Button
+                        variant=ButtonVariant::SearchSubmit
+                        class="no-print"
+                        submit=true
+                        on_click=move |_| {}
+                        disabled=Signal::derive(move || {
+                            loading.get() || stock_code.get().is_empty()
+                        })
+                        data_loading=Signal::derive(move || loading.get())
+                        aria_label=Signal::derive(move || {
+                            if loading.get() { "検索中" } else { "銘柄を検索" }.to_string()
+                        })
+                    >
+                        {move || {
+                            if loading.get() {
+                                view! {
+                                    <Spinner size=SpinnerSize::Sm class="mr-2" />
+                                    "読み込み中..."
+                                }
+                                    .into_any()
+                            } else {
+                                "検索".into_any()
+                            }
+                        }}
+                    </Button>
+                </div>
             </form>
         </div>
     }
