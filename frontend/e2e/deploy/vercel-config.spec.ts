@@ -75,7 +75,7 @@ test('CSP 下で wasm が起動して画面が描画され、API が埋め込み
   });
   page.on('pageerror', (err) => cspViolations.push(String(err)));
 
-  // API 接続先が index.html の shoken-api-origin meta(backend-origin.json 由来)に
+  // API 接続先が index.html の shoken-api-origin meta(vercel.json の CSP 由来)に
   // 埋め込まれていることを、実ネットワークへ出さずに確認する
   let apiRequestUrl = '';
   await page.route(`${BACKEND_ORIGIN}/**`, (route) => {

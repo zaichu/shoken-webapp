@@ -78,9 +78,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Check vercel.json is generated from backend-origin.json
-        run: node scripts/generate-vercel-json.mjs --check
-
       - name: Check formatting
         run: cargo fmt --check
 

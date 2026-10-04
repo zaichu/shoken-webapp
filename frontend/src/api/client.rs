@@ -136,7 +136,7 @@ impl ApiClient {
     }
 
     // API 接続先の正本は index.html の shoken-api-origin meta(session-probe.js と共通)。
-    // 本番は prepare-vercel-dist.mjs が backend-origin.json の値を埋め、
+    // 本番は prepare-vercel-dist.mjs が vercel.json の CSP connect-src の値を埋め、
     // ローカル開発では空のまま = 同一オリジン(trunk のプロキシが /api を受ける)
     #[cfg(target_arch = "wasm32")]
     pub fn base_url() -> String {
