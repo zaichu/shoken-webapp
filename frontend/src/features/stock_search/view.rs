@@ -5,7 +5,7 @@ use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::elements::{Alert, AlertVariant, ListLoadError, Spinner, SpinnerSize};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
-use crate::ui::workspace_shell::{workspace_panel_default_open, WorkspaceShell};
+use crate::ui::workspace_shell::WorkspaceShell;
 use leptos::prelude::*;
 use shared::normalize::normalize_display_name;
 
@@ -53,7 +53,6 @@ pub(crate) fn SearchPage() -> impl IntoView {
         }
     };
 
-    let panel_open = RwSignal::new(workspace_panel_default_open());
     let panel_form = view! {
         <SearchForm
             stock_code=stock_search.stock_code
@@ -71,9 +70,10 @@ pub(crate) fn SearchPage() -> impl IntoView {
             panel_id=Signal::derive(|| "stock-search-panel".to_string())
             toggle_testid="search-utility-toggle"
             panel_label="検索"
-            panel_open=Signal::derive(move || panel_open.get())
-            on_toggle=Callback::new(move |_| panel_open.update(|open| *open = !*open))
-            on_close=Callback::new(move |_| panel_open.set(false))
+            collapsible=false
+            panel_open=Signal::derive(|| true)
+            on_toggle=Callback::new(|_| {})
+            on_close=Callback::new(|_| {})
             panel=panel_form.into_any()
         >
             <Show when=move || has_invalid>
