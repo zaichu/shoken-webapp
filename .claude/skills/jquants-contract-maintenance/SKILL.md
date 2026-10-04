@@ -8,8 +8,8 @@ allowed-tools: Read, Grep, Glob, Bash
 
 ## 確認順
 
-1. J-Quants の実際の応答と `backend/src/services/market_data/providers/jquants/response.rs` を比較する。
-2. `backend/src/services/market_data/providers/jquants.rs` の変換と `backend/src/handlers/dividend_per_share.rs` の API 応答を確認する。
+1. J-Quants の実際の応答と `backend/src/services/jquants/response.rs` を比較する。
+2. `backend/src/services/jquants.rs` の変換と `backend/src/handlers/dividend_per_share.rs` の API 応答を確認する。
 3. API surface を変えた場合は `backend/src/openapi.rs` と `docs/openapi.json` を同期する。
 4. `frontend/src/api/dto.rs`、`features/dividend_per_share.rs`、`features/receipts/dividend_info.rs` と利用画面を確認する。
 5. 関連テストと契約テストを実行する。

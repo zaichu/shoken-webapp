@@ -1,6 +1,6 @@
 use crate::errors::ApiError;
 use crate::models::market_data::financial_statement::FinancialStatementsQuery;
-use crate::services::market_data::providers::jquants::JQuantsClient;
+use crate::services::jquants::JQuantsClient;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
 use sqlx::PgPool;

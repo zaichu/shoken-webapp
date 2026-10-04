@@ -6,7 +6,7 @@ pub mod persistence;
 
 use crate::errors::ApiError;
 use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
-use crate::services::market_data::providers::jquants::JQuantsClient;
+use crate::services::jquants::JQuantsClient;
 use chrono::Utc;
 use reqwest::Client;
 use shared::dividend_per_share::DividendCacheStatus;
