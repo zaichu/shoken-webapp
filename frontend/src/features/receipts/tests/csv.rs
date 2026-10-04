@@ -855,7 +855,7 @@ fn display_rows_for_prefers_preview_only_when_rows_exist() {
                 ),
             ]),
         );
-        let saved = crate::features::receipts::filter::tests::dividends();
+        let saved = crate::testing::receipts::dividends();
         let display_rows_for = crate::features::receipts::view::main_content::display_rows_for;
 
         assert_eq!(
@@ -881,7 +881,7 @@ fn utility_display_rows_returns_rows_only_for_ready_tab() {
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
         let tab = ReceiptsTab::Dividend;
-        let saved = crate::features::receipts::filter::tests::dividends();
+        let saved = crate::testing::receipts::dividends();
         let store = test_store(
             &session,
             HashMap::from([

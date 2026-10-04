@@ -1,3 +1,4 @@
+#[path = "integration.rs"]
 mod integration;
 
 use super::summary::{PortfolioSummary, PortfolioSummaryProps};

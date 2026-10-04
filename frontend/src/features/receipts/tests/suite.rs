@@ -1,5 +1,8 @@
+#[path = "csv.rs"]
 mod csv;
+#[path = "fetch.rs"]
 mod fetch;
+#[path = "search.rs"]
 mod search;
 
 use super::store::{bump_fetch_rev, is_current_fetch, settle_tab_result};

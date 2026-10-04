@@ -5,15 +5,14 @@ use super::tabs::*;
 use super::workspace::utility_rail_id;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::filter::{
-    column_order, filter_receipts,
-    tests::{dividends, domestic, funds},
-    DateSegment, ReceiptSearch,
+    column_order, filter_receipts, DateSegment, ReceiptSearch,
 };
 use crate::features::receipts::kind::{group_label, is_date_group_key, ColumnTier};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
 use crate::support::row::Row::Saved;
+use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::card::StatTone;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
