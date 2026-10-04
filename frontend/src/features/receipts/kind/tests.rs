@@ -108,6 +108,34 @@ fn api_summaries_accept_only_the_matching_tab() {
 }
 
 #[test]
+fn dividend_totals_keeps_signed_amounts_and_empty_totals() {
+    let rows = [[100, 20, 80], [-50, 5, -55]].map(|amounts| {
+        ReceiptRow::Preview(CsvPreviewRow::Dividend(DividendCsvRow {
+            dividends_before_tax: Decimal::from(amounts[0]),
+            taxes: Decimal::from(amounts[1]),
+            net_amount_received: Decimal::from(amounts[2]),
+            ..Default::default()
+        }))
+    });
+    assert_eq!(
+        dividend_totals(&rows),
+        DividendSummary {
+            total_dividends_before_tax: Decimal::from(50),
+            total_taxes: Decimal::from(25),
+            total_net_amount_received: Decimal::from(25),
+        }
+    );
+    assert_eq!(
+        dividend_totals(&[]),
+        DividendSummary {
+            total_dividends_before_tax: Decimal::ZERO,
+            total_taxes: Decimal::ZERO,
+            total_net_amount_received: Decimal::ZERO,
+        }
+    );
+}
+
+#[test]
 fn dividend_csv_row_cells_not_empty() {
     let row = DividendCsvRow {
         settlement_date: "2024-06-15".to_string(),
