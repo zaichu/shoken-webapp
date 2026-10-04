@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { json, paginated } from './support/test';
+import { json, paginated } from '../support/test';
 
 const paginatedAll = (data: unknown[], extra: Record<string, unknown> = {}) =>
   paginated(data, { per_page: 1000, ...extra });

@@ -1,14 +1,14 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json, paginated } from './support/test';
+import { expect, test, json, paginated } from '../support/test';
 import * as path from 'path';
 import {
   domesticStocksFixture,
   LONG_FUND_NAME,
   mutualFundsFixture,
-} from './__fixtures__/receipts-print';
+} from '../fixtures/receipts-print';
 
 function csvFixture(name: string): string {
-  return path.resolve(test.info().project.testDir, '__fixtures__/csv', name);
+  return path.resolve(test.info().project.testDir, 'fixtures/csv', name);
 }
 
 const MOCK_USER = {

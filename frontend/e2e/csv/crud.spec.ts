@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test } from '../support/test';
 import * as path from 'path';
 
 /**
@@ -10,7 +10,7 @@ import * as path from 'path';
 function fixtureDir(): string {
   return path.resolve(
     test.info().project.testDir,
-    '__fixtures__/csv',
+    'fixtures/csv',
   );
 }
 

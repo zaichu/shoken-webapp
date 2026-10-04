@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, test, paginated } from './support/test';
+import { expect, test, paginated } from '../support/test';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
@@ -130,7 +130,7 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
     .setInputFiles(
       path.resolve(
         test.info().project.testDir,
-        '__fixtures__/csv/dividend-base.csv',
+        'fixtures/csv/dividend-base.csv',
       ),
     );
 

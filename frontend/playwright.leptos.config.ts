@@ -11,17 +11,17 @@ const distDir = `${outputBase}/dist-leptos`;
 // 同一オリジン化し、モックに当たらない呼び出しが backend に出ないようにする。未指定なら trunk serve
 const prebuiltDist = process.env.LEPTOS_E2E_DIST_DIR;
 
+const screenTests = [
+  '**/stock-search/flow.spec.ts',
+  '**/receipts/flow.spec.ts',
+  '**/session/auth-flow.spec.ts',
+  '**/csv/error-scenarios.spec.ts',
+  '**/asset-balance/flow.spec.ts',
+  '**/accessibility/a11y.spec.ts',
+];
+
 export default defineConfig({
-  testDir: './e2e/migrated',
-  testMatch: [
-    '**/search-flow.spec.ts',
-    '**/receipt-flow.spec.ts',
-    '**/auth-flow.spec.ts',
-    '**/error-scenarios.spec.ts',
-    '**/assetbalance-flow.spec.ts',
-    '**/mobile-screenshots.spec.ts',
-    '**/a11y.spec.ts',
-  ],
+  testDir: './e2e',
   outputDir,
   fullyParallel: false,
   forbidOnly: true,
@@ -38,13 +38,13 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testMatch: screenTests,
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'leptos-e2e',
-      testDir: './e2e',
       testMatch: ['**/*.spec.ts'],
-      testIgnore: ['**/migrated/**'],
+      testIgnore: [...screenTests, '**/deploy/**'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

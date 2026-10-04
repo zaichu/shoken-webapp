@@ -87,6 +87,12 @@ jobs:
       - name: Check CSS tokens
         run: npm run check:css
 
+      - name: Test test layout checker
+        run: npm run test:test-layout
+
+      - name: Check test layout
+        run: npm run check:test-layout
+
       - name: Run Clippy (wasm32)
         run: cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings
 

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { get } from 'node:http';
-import { loadBackendOrigin } from '../scripts/backend-origin.cjs';
+import { loadBackendOrigin } from '../../scripts/backend-origin.cjs';
 
 const BACKEND_ORIGIN: string = loadBackendOrigin();
 const SERVE_PORT = Number(process.env.VERCEL_E2E_PORT ?? '8190');

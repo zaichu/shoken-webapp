@@ -17,7 +17,7 @@ const ROUTES = {
   dividendPerShare: /\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/,
 };
 
-const CSV_FIXTURES = path.resolve(process.cwd(), 'e2e/__fixtures__/csv');
+const CSV_FIXTURES = path.resolve(process.cwd(), 'e2e/fixtures/csv');
 
 const EMPTY_PAGE = { data: [], total: 0, page: 1, per_page: 0 };
 

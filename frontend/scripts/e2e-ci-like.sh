@@ -29,9 +29,9 @@ for arg in "$@"; do
 使い方: bash scripts/e2e-ci-like.sh [オプション] [playwright への引数]
 
 例:
-  bash scripts/e2e-ci-like.sh e2e/receipts-desktop-layout.spec.ts
-  bash scripts/e2e-ci-like.sh e2e/receipts-desktop-layout.spec.ts --grep "768px"
-  bash scripts/e2e-ci-like.sh --show-fonts e2e/receipts-desktop-layout.spec.ts
+  bash scripts/e2e-ci-like.sh e2e/receipts/desktop-layout.spec.ts
+  bash scripts/e2e-ci-like.sh e2e/receipts/desktop-layout.spec.ts --grep "768px"
+  bash scripts/e2e-ci-like.sh --show-fonts e2e/receipts/desktop-layout.spec.ts
 
 オプション:
   --rebuild           イメージを作り直す(既定はタグがあれば使い回す)

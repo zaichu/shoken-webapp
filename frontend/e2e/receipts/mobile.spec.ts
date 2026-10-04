@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, paginated } from './support/test';
+import { expect, test, paginated } from '../support/test';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
@@ -555,7 +555,7 @@ test('CSV取込の保存結果は一覧再取得後もレールが開いて見�
   await fileInput.setInputFiles(
       path.resolve(
         test.info().project.testDir,
-        '__fixtures__/csv/dividend-base.csv',
+        'fixtures/csv/dividend-base.csv',
       ),
     );
   await page.getByRole('button', { name: '1件 追加で保存' }).click();

@@ -16,7 +16,7 @@ const ROUTES = {
   dividendPreview: /\/api\/v1\/dividend-import-validations$/,
 };
 
-const CSV_FIXTURES = path.resolve(process.cwd(), 'e2e/__fixtures__/csv');
+const CSV_FIXTURES = path.resolve(process.cwd(), 'e2e/fixtures/csv');
 
 const DIVIDEND_RECORD = [
   {

@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import { expect, test, json, paginated } from './support/test';
+import { expect, test, json, paginated } from '../support/test';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',

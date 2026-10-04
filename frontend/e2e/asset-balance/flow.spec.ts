@@ -2,7 +2,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect, test, json } from '../support/test';
 
-const CSV_FIXTURE_PATH = path.resolve(process.cwd(), 'e2e/__fixtures__/csv/assetbalance-base.csv');
+const CSV_FIXTURE_PATH = path.resolve(process.cwd(), 'e2e/fixtures/csv/assetbalance-base.csv');
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000010',

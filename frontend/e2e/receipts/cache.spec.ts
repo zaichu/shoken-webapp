@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test, paginated } from './support/test';
+import { expect, test, paginated } from '../support/test';
 
 const USER_A = {
   id: '00000000-0000-0000-0000-000000000002',
