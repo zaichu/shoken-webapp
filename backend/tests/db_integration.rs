@@ -2,7 +2,7 @@ use axum::{
     body::{to_bytes, Body},
     http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request, StatusCode},
 };
-use backend::services::csv::import::CsvDomain;
+use backend::services::csv::import::CsvImport;
 use backend::{
     config::Config,
     db::{connect_pool_lazy, run_migrations, wait_for_pool_with_retry},

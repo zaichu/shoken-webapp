@@ -2,7 +2,7 @@ use crate::errors::{ApiError, CsvError};
 use crate::handlers::common::ok_message;
 use crate::models::common::MessageResponse;
 use crate::models::csv_import::CsvUploadResponse;
-use crate::services::csv::import::CsvDomain;
+use crate::services::csv::import::CsvImport;
 use crate::services::domain::bulk::{self, RowLimit};
 use crate::services::domain::Domain;
 use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json};
@@ -30,7 +30,7 @@ pub async fn read_csv_file_bytes(mut multipart: Multipart) -> Result<Vec<u8>, Ap
     Err(CsvError::MissingFile.into())
 }
 
-pub async fn handle_preview_csv<D: CsvDomain>(
+pub async fn handle_preview_csv<D: CsvImport>(
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
     let bytes = read_csv_file_bytes(multipart).await?;
@@ -38,7 +38,7 @@ pub async fn handle_preview_csv<D: CsvDomain>(
     Ok((StatusCode::OK, Json(response)))
 }
 
-pub async fn handle_upload_csv<D: CsvDomain>(
+pub async fn handle_upload_csv<D: CsvImport>(
     pool: &sqlx::PgPool,
     user_id: UserId,
     multipart: Multipart,
@@ -62,7 +62,7 @@ pub async fn handle_delete_all<D: Domain>(
 ///
 /// 実処理は `handle_upload_csv` に委譲し、ステータスコード付与まで面倒を見る。
 /// 戻り値を具体型にすることで、呼び出し元の借用（`&state.pool`）が戻り値に漏れ出さないようにする。
-pub async fn handle_import_csv<D: CsvDomain>(
+pub async fn handle_import_csv<D: CsvImport>(
     pool: &sqlx::PgPool,
     user_id: UserId,
     multipart: Multipart,
@@ -75,6 +75,11 @@ pub async fn handle_import_csv<D: CsvDomain>(
 mod tests {
     use super::*;
     use crate::errors::ErrorResponse;
+    use crate::models::common::BulkCreateResponse;
+    use crate::models::csv_import::CsvRowError;
+    use crate::services::csv::import::validate_csv_rows;
+    use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
+    use crate::services::csv::util::CsvCells;
     use axum::{
         body::{to_bytes, Body},
         extract::{Multipart, State},
@@ -96,49 +101,43 @@ mod tests {
         read_csv_file_bytes(multipart).await
     }
 
-    struct PreviewDomain;
+    struct TestCsvImport;
 
-    impl CsvDomain for PreviewDomain {
-        fn preview_csv(
-            bytes: &[u8],
-        ) -> Result<crate::models::csv_import::CsvPreviewResponse, ApiError> {
-            Ok(crate::models::csv_import::CsvPreviewResponse {
-                total_rows: bytes.len(),
-                valid_rows: 1,
-                errors: vec![],
-                rows: vec![serde_json::json!({ "ok": true })],
+    impl CsvImport for TestCsvImport {
+        type Row = String;
+        const CSV_CONFIG: CsvParserConfig = CsvParserConfig {
+            skip_header_rows: 0,
+            exclude_row_fn: None,
+        };
+
+        fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
+            validate_csv_rows(table, |row, row_num| {
+                let value = row.cell("a");
+                if value.is_empty() {
+                    Err(CsvRowError {
+                        row: row_num.get(),
+                        message: "a is empty".to_string(),
+                    })
+                } else {
+                    Ok(value.to_string())
+                }
             })
         }
 
-        async fn upload_csv(
+        async fn bulk_create(
             _pool: &sqlx::PgPool,
-            _user_id: UserId,
-            _bytes: &[u8],
-            _user_row_limit: RowLimit,
-        ) -> Result<crate::models::csv_import::CsvUploadResponse, ApiError> {
-            unreachable!("preview test does not call upload")
-        }
-    }
-
-    struct UploadDomain;
-
-    impl CsvDomain for UploadDomain {
-        fn preview_csv(
-            _bytes: &[u8],
-        ) -> Result<crate::models::csv_import::CsvPreviewResponse, ApiError> {
-            unreachable!("upload test does not call preview")
-        }
-
-        async fn upload_csv(
-            _pool: &sqlx::PgPool,
-            _user_id: UserId,
-            bytes: &[u8],
-            _user_row_limit: RowLimit,
-        ) -> Result<crate::models::csv_import::CsvUploadResponse, ApiError> {
-            Ok(crate::models::csv_import::CsvUploadResponse {
-                inserted: usize::from(!bytes.is_empty()),
+            user_id: UserId,
+            items: &[Self::Row],
+            limit: RowLimit,
+        ) -> Result<BulkCreateResponse, ApiError> {
+            assert_eq!(user_id, UserId::default());
+            assert_eq!(limit, RowLimit::new(100_000));
+            if items.iter().any(|value| value == "fail") {
+                return Err(ApiError::Internal("test upload failure"));
+            }
+            Ok(BulkCreateResponse {
+                inserted: items.len(),
                 skipped: 0,
-                errors: vec![],
             })
         }
     }
@@ -178,7 +177,7 @@ mod tests {
     }
 
     async fn preview_endpoint(multipart: Multipart) -> Result<impl IntoResponse, ApiError> {
-        handle_preview_csv::<PreviewDomain>(multipart).await
+        handle_preview_csv::<TestCsvImport>(multipart).await
     }
 
     fn upload_app() -> Router {
@@ -196,7 +195,7 @@ mod tests {
         State(pool): State<sqlx::PgPool>,
         multipart: Multipart,
     ) -> Result<impl IntoResponse, ApiError> {
-        let json = handle_upload_csv::<UploadDomain>(
+        let json = handle_upload_csv::<TestCsvImport>(
             &pool,
             UserId::default(),
             multipart,
@@ -273,5 +272,51 @@ mod tests {
             ),
             (StatusCode::CREATED, Some(1), Some(0))
         );
+    }
+
+    #[tokio::test]
+    async fn test_csv_default_pipeline_preserves_valid_rows_and_errors() {
+        let content = "a,b\n1,2\n,3\n4,5\n";
+        let response = preview_app()
+            .oneshot(multipart_request("file", Some("preview.csv"), content))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let preview: serde_json::Value = read_json_response(response).await;
+        assert_eq!(preview["total_rows"], 3);
+        assert_eq!(preview["valid_rows"], 2);
+        assert_eq!(preview["rows"], serde_json::json!(["1", "4"]));
+        assert_eq!(preview["errors"].as_array().unwrap().len(), 1);
+        assert_eq!(preview["errors"][0]["row"], 2);
+
+        let response = upload_app()
+            .oneshot(multipart_request("file", Some("upload.csv"), content))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let upload: serde_json::Value = read_json_response(response).await;
+        assert_eq!(upload["inserted"], 2);
+        assert_eq!(upload["skipped"], 0);
+        assert_eq!(upload["errors"], preview["errors"]);
+    }
+
+    #[tokio::test]
+    async fn test_csv_default_pipeline_propagates_parse_and_bulk_errors() {
+        for (content, status, code) in [
+            ("", StatusCode::BAD_REQUEST, "CSV_ERROR"),
+            (
+                "a,b\nfail,1\n",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+            ),
+        ] {
+            let response = upload_app()
+                .oneshot(multipart_request("file", Some("upload.csv"), content))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), status);
+            let error: ErrorResponse = read_json_response(response).await;
+            assert_eq!(error.error.code, code);
+        }
     }
 }
