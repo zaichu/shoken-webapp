@@ -30,6 +30,7 @@ jobs:
             frontend:
               - "frontend/**"
               - "shared/**"
+              - "rust-toolchain.toml"
               - "docs/openapi.json"
               - ".github/workflows/frontend.yml"
 
@@ -49,7 +50,6 @@ jobs:
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
         with:
-          toolchain: 1.96.0
           target: wasm32-unknown-unknown
           components: rustfmt, clippy
 

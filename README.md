@@ -18,7 +18,7 @@
 
 ## ローカル開発
 
-Rust 1.96.0、`wasm32-unknown-unknown`、Trunk 0.21.4、Node.js 22、npm、Docker が必要です。
+Rust（版はルートの `rust-toolchain.toml` を参照）、`wasm32-unknown-unknown`、Trunk 0.21.4、Node.js 22、npm、Docker が必要です。
 
 ```bash
 cd frontend
