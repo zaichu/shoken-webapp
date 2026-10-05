@@ -26,6 +26,7 @@ jobs:
       - id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
         with:
+          predicate-quantifier: some-with-excludes
           filters: |
             frontend:
               - "frontend/**"
@@ -36,11 +37,12 @@ jobs:
               - ".github/workflows/deploy-frontend.yml"
               - ".github/actions/rust-cache/**"
               - ".github/actions/setup-playwright/**"
+              - "!**/*.md"
 
   build:
     name: Check and build
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -259,7 +261,7 @@ jobs:
             if [ "$2" != "success" ]; then ok=false; fi
           }
           report changes "$CHANGES_RESULT"
-          if [ "$GITHUB_EVENT_NAME" != "pull_request" ] || [ "$FRONTEND_CHANGED" = "true" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$FRONTEND_CHANGED" = "true" ]; then
             report build "$BUILD_RESULT"
             report e2e "$E2E_RESULT"
             report e2e-vercel "$E2E_VERCEL_RESULT"

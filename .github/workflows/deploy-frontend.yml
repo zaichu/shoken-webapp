@@ -18,6 +18,7 @@ on:
       - 'rust-toolchain.toml'
       - '.github/workflows/deploy-frontend.yml'
       - '.github/actions/rust-cache/**'
+      - '!**/*.md'
   workflow_dispatch:
 
 permissions:

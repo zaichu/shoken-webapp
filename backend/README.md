@@ -152,7 +152,7 @@ make migrate-local
 make sqlx-prepare
 ```
 
-CI は `SQLX_OFFLINE=true cargo clippy`、`SQLX_OFFLINE=true cargo test`、Docker イメージビルドを実行します。
+CI は `cargo fmt --check`、`SQLX_OFFLINE=true cargo clippy --all-targets -- -D warnings`、`SQLX_OFFLINE=true cargo test`、Docker イメージビルドを実行します。
 `cargo sqlx prepare --check` はローカルDBの起動とマイグレーション適用が必要なためCIには入れていません。
 `query!` 追加・変更時は `make sqlx-prepare` の結果を必ずコミットします。
 `backend/Dockerfile` は本番ビルドを `SQLX_OFFLINE=true` かつ `.sqlx/` を build context にコピーして実行するため、DB接続なしでビルドできます。

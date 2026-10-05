@@ -14,6 +14,7 @@ on:
       - "frontend/.cargo/audit.toml"
       - "frontend/Cargo.toml"
       - "frontend/Cargo.lock"
+      - "shared/Cargo.toml"
       - "frontend/package.json"
       - "frontend/package-lock.json"
       - ".github/workflows/security-audit.yml"
@@ -26,6 +27,7 @@ on:
       - "frontend/.cargo/audit.toml"
       - "frontend/Cargo.toml"
       - "frontend/Cargo.lock"
+      - "shared/Cargo.toml"
       - "frontend/package.json"
       - "frontend/package-lock.json"
       - ".github/workflows/security-audit.yml"
@@ -54,6 +56,7 @@ jobs:
               - "frontend/.cargo/audit.toml"
               - "frontend/Cargo.toml"
               - "frontend/Cargo.lock"
+              - "shared/Cargo.toml"
               - ".github/workflows/security-audit.yml"
             npm:
               - "frontend/package.json"

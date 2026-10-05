@@ -28,6 +28,7 @@ jobs:
       - id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
         with:
+          predicate-quantifier: some-with-excludes
           # Rust の変更を条件にするため、README や fixture だけの変更では起動しない
           filters: |
             backend:
@@ -38,6 +39,7 @@ jobs:
               - "rust-toolchain.toml"
               - ".github/workflows/mutation-testing.yml"
               - ".github/actions/rust-cache/**"
+              - "!**/*.md"
             frontend:
               - "frontend/**/*.rs"
               - "frontend/Cargo.toml"
@@ -46,6 +48,7 @@ jobs:
               - "rust-toolchain.toml"
               - ".github/workflows/mutation-testing.yml"
               - ".github/actions/rust-cache/**"
+              - "!**/*.md"
             shared:
               - "shared/**/*.rs"
               - "shared/Cargo.toml"
@@ -53,6 +56,7 @@ jobs:
               - "rust-toolchain.toml"
               - ".github/workflows/mutation-testing.yml"
               - ".github/actions/rust-cache/**"
+              - "!**/*.md"
 
   diff:
     name: cargo-mutants (${{ matrix.crate }} diff)
