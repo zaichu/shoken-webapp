@@ -45,6 +45,7 @@ jobs:
               - 'rust-toolchain.toml'
               - 'fly.toml'
               - '.github/workflows/deploy-backend.yml'
+              - '.github/actions/rust-cache/**'
 
       # 手動実行は dependabot 自動マージ後のデプロイ経路なので、直前コミットが frontend だけでも検証を通す
       - name: Resolve backend detection
@@ -57,7 +58,7 @@ jobs:
 
       - name: Cache Rust dependencies
         if: steps.gate.outputs.backend == 'true'
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
+        uses: ./.github/actions/rust-cache
         with:
           workspaces: |
             backend -> target
@@ -81,18 +82,10 @@ jobs:
           rustup target add wasm32-unknown-unknown
           cargo check --manifest-path ../shared/Cargo.toml --target wasm32-unknown-unknown
 
-      - name: Generate OpenAPI schema
-        if: steps.gate.outputs.backend == 'true'
-        run: cargo run --bin generate_openapi
-
       - name: Check OpenAPI schema is up to date
         if: steps.gate.outputs.backend == 'true'
         working-directory: ${{ github.workspace }}
-        run: |
-          if ! git diff --exit-code docs/openapi.json; then
-            echo "openapi.json が古い状態です。cargo run --bin generate_openapi を実行してコミットしてください。"
-            exit 1
-          fi
+        run: bash scripts/check-openapi.sh
 
       - name: Set up Docker Buildx
         if: steps.gate.outputs.backend == 'true'

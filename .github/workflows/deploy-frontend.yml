@@ -8,6 +8,7 @@ on:
       - 'shared/**'
       - 'rust-toolchain.toml'
       - '.github/workflows/deploy-frontend.yml'
+      - '.github/actions/rust-cache/**'
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -15,6 +16,7 @@ on:
       - 'shared/**'
       - 'rust-toolchain.toml'
       - '.github/workflows/deploy-frontend.yml'
+      - '.github/actions/rust-cache/**'
   workflow_dispatch:
 
 permissions:
@@ -106,7 +108,7 @@ jobs:
           target: wasm32-unknown-unknown
 
       - name: Cache Cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2
+        uses: ./.github/actions/rust-cache
         with:
           workspaces: frontend -> target
           save-if: ${{ github.ref == 'refs/heads/main' }}
