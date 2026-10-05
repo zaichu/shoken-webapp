@@ -41,7 +41,7 @@ bash scripts/e2e-ci-like.sh e2e/receipts/desktop-layout.spec.ts --grep "768px"
 bash scripts/e2e-ci-like.sh --show-fonts e2e/receipts/desktop-layout.spec.ts
 ```
 
-ホストで `npm ci` してから `trunk build --release --dist dist-e2e` して、コンテナに `LEPTOS_E2E_DIST_DIR=dist-e2e` で渡します(CI と同じ。コンテナに Rust は入れません)。コンテナはイメージ内の `node_modules` を使い、ホストの `node_modules` には書き込みません。フォント・依存パッケージは `.github/workflows/frontend.yml` の apt 行から読み取り、Node は `setup-node` の版、`@playwright/test` は `package-lock.json` の版を使います。イメージは内容のハッシュでタグ付けして使い回します(`--rebuild` で作り直し)。引数はそのまま Playwright に渡します。ポートは `LEPTOS_E2E_PORT` がなければ 8140 を使います。
+ホストで `npm ci` してから `trunk build --release --dist dist-e2e` して、コンテナに `LEPTOS_E2E_DIST_DIR=dist-e2e` で渡します(CI と同じ。コンテナに Rust は入れません)。コンテナはイメージ内の `node_modules` を使い、ホストの `node_modules` には書き込みません。フォント・依存パッケージは `.github/actions/setup-playwright/action.yml` の apt 行から読み取り、Node は `setup-node` の版、`@playwright/test` は `package-lock.json` の版を使います。イメージは内容のハッシュでタグ付けして使い回します(`--rebuild` で作り直し)。引数はそのまま Playwright に渡します。ポートは `LEPTOS_E2E_PORT` がなければ 8140 を使います。
 
 ## ソースの構成
 

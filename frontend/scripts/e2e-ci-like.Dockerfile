@@ -1,6 +1,6 @@
 # CI と同じ Ubuntu 24.04 で Playwright を動かすためのイメージ。
 # フォント・依存パッケージの一覧は含めない。ビルド時に --build-arg APT_PACKAGES で
-# .github/workflows/frontend.yml から読み取った値を渡す(二重管理しない)。
+# .github/actions/setup-playwright/action.yml から読み取った値を渡す(二重管理しない)。
 FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive

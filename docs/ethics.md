@@ -40,7 +40,7 @@
 ## 4. 公平性・アクセシビリティ
 
 - 特定のユーザー層を不当に不利にする設計は避ける
-- WCAG 2.1 AA を目標基準とし、`@axe-core/playwright` による自動監査を E2E テスト（`frontend/e2e/migrated/a11y.spec.ts`）で実施している。ホーム・銘柄検索・資産管理・取引明細の各画面で critical/serious 違反がゼロであることを検査する
+- WCAG の A/AA を目標基準とし、`@axe-core/playwright` による自動監査を E2E テスト（`frontend/e2e/accessibility/a11y.spec.ts`）で実施している。適用タグ・重要度・対象画面は [`frontend/README.md`](../frontend/README.md) の「アクセシビリティ」を正本とする
 - 色のみで情報を伝えない、スクリーンリーダー対応ラベルを付与する
 
 ### チェックポイント
