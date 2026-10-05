@@ -4,7 +4,6 @@ use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadRespon
 use crate::services::csv::pipeline::{parse_csv_with_config, CsvParserConfig, CsvTable};
 use crate::services::csv::util::{CsvRowView, RowNumber};
 use crate::services::domain::bulk::RowLimit;
-use crate::services::domain::Domain;
 use shared::value::UserId;
 use sqlx::PgPool;
 use std::future::Future;
@@ -89,7 +88,7 @@ where
     Ok(finish_csv_upload(&result, errors))
 }
 /// CSV から取り込めるドメイン。ドメインごとに持つのはパース設定・行の読み取り・一括登録だけ
-pub trait CsvImport: Domain {
+pub trait CsvImport: Send + Sync + 'static {
     type Row: serde::Serialize + Send + Sync;
     const CSV_CONFIG: CsvParserConfig;
 
@@ -101,12 +100,11 @@ pub trait CsvImport: Domain {
         items: &[Self::Row],
         limit: RowLimit,
     ) -> impl Future<Output = Result<BulkCreateResponse, ApiError>> + Send;
-}
 
-/// ハンドラーから使う CSV の入口。テストで偽のドメインを差し込めるよう CsvImport と分ける
-pub trait CsvDomain: Send + Sync + 'static {
     /// CSV バイト列をパースして DB 書き込みなしのプレビューを返す
-    fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError>;
+    fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
+        build_csv_preview(bytes, &Self::CSV_CONFIG, Self::transform_rows)
+    }
 
     /// CSV バイト列をパースして DB に一括登録する
     fn upload_csv(
@@ -114,27 +112,16 @@ pub trait CsvDomain: Send + Sync + 'static {
         user_id: UserId,
         bytes: &[u8],
         user_row_limit: RowLimit,
-    ) -> impl Future<Output = Result<CsvUploadResponse, ApiError>> + Send;
-}
-
-impl<D: CsvImport> CsvDomain for D {
-    fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
-        build_csv_preview(bytes, &D::CSV_CONFIG, D::transform_rows)
-    }
-
-    async fn upload_csv(
-        pool: &PgPool,
-        user_id: UserId,
-        bytes: &[u8],
-        user_row_limit: RowLimit,
-    ) -> Result<CsvUploadResponse, ApiError> {
-        run_csv_upload(
-            bytes,
-            &D::CSV_CONFIG,
-            D::transform_rows,
-            |items| async move { D::bulk_create(pool, user_id, &items, user_row_limit).await },
-        )
-        .await
+    ) -> impl Future<Output = Result<CsvUploadResponse, ApiError>> + Send {
+        async move {
+            run_csv_upload(
+                bytes,
+                &Self::CSV_CONFIG,
+                Self::transform_rows,
+                |items| async move { Self::bulk_create(pool, user_id, &items, user_row_limit).await },
+            )
+            .await
+        }
     }
 }
 
@@ -330,7 +317,7 @@ mod tests {
     use crate::services::domestic_stock::DomesticStockDomain;
     use crate::services::mutualfund::MutualfundDomain;
 
-    fn assert_valid_rows<D: CsvDomain>(lines: &[&str], expected_valid_rows: usize) {
+    fn assert_valid_rows<D: CsvImport>(lines: &[&str], expected_valid_rows: usize) {
         let csv = lines.join("\n");
         assert_eq!(
             D::preview_csv(csv.as_bytes()).unwrap().valid_rows,

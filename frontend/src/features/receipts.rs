@@ -113,4 +113,5 @@ pub enum TabState {
 }
 
 #[cfg(test)]
+#[path = "receipts/tests/suite.rs"]
 mod tests;

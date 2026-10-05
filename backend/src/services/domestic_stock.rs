@@ -399,7 +399,7 @@ mod tests {
     use super::*;
     use crate::models::common::SearchParamsAccessor;
     use crate::models::csv_import::CsvPreviewResponse;
-    use crate::services::csv::import::CsvDomain;
+    use crate::services::csv::import::CsvImport;
     use crate::services::domain::search::search;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;

@@ -1,6 +1,20 @@
 use super::*;
 use rust_decimal_macros::dec;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+
+#[test]
+fn stock_and_session_are_shared_wire_types() {
+    let stock: shared::common::Stock = serde_json::from_str::<Stock>(
+        r#"{"code":"7203","name":"トヨタ自動車","date":"2024-03-01","market_category":"プライム"}"#,
+    )
+    .expect("stock");
+    assert_eq!(stock.code, "7203");
+    let user: shared::common::SessionUser =
+        serde_json::from_str::<SessionUser>(r#"{"id":1,"email":"test@example.com"}"#)
+            .expect("session");
+    assert_eq!(user.id, "1");
+}
 
 fn roundtrip<T>(value: serde_json::Value) -> Result<serde_json::Value, serde_json::Error>
 where
@@ -422,13 +436,4 @@ fn other_endpoints_deserialize_numbers() {
     .expect("session");
     assert_eq!(user.name.as_deref(), Some("テストユーザー"));
     assert!(user.picture_url.is_none());
-}
-
-#[test]
-fn session_user_accepts_numeric_id() {
-    // 共有E2E（a11y spec）のモックは id を数値で返す
-    let user: SessionUser =
-        serde_json::from_str(r#"{"id": 1, "email": "test@example.com", "name": "テストユーザー"}"#)
-            .expect("numeric id");
-    assert_eq!(user.id, "1");
 }

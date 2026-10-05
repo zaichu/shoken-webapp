@@ -1,8 +1,8 @@
 use crate::features::receipts::filter::filter_receipts;
-use crate::features::receipts::filter::tests::dividends;
 use crate::features::receipts::filter::ReceiptSearch;
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
+use crate::testing::receipts::dividends;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 

@@ -6,8 +6,8 @@
 |---|---|---|
 | Leptos 単体テスト | cargo test | `frontend/src/` |
 | バックエンド単体・統合テスト | cargo test | `backend/src/`、`backend/tests/` |
-| ブラウザ E2E | Playwright | `frontend/e2e/`、`frontend/e2e/migrated/` |
-| Vercel 配信設定 | Playwright | `frontend/e2e-vercel/` |
+| ブラウザ E2E | Playwright | `frontend/e2e/<機能>/` (`deploy/` を除く) |
+| Vercel 配信設定 | Playwright | `frontend/e2e/deploy/` |
 
 ## Leptos
 

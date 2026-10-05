@@ -2,6 +2,45 @@ use super::*;
 use crate::testing::block_on;
 
 #[test]
+fn fetch_dividend_batch_uses_shared_request_without_changing_wire_codes() {
+    let codes = vec![
+        "7203".to_string(),
+        "7203".to_string(),
+        "".to_string(),
+        "7203-1".to_string(),
+    ];
+    let result = block_on(fetch_dividend_batch(
+        &codes,
+        |request: shared::dividend_per_share::DividendPerShareBatchRequest| {
+            assert_eq!(
+                serde_json::to_value(request).unwrap(),
+                serde_json::json!({"security_codes":codes})
+            );
+            std::future::ready(Ok(DividendBatchResponse { items: vec![] }))
+        },
+    ));
+    assert!(result.unwrap().items.is_empty());
+}
+
+#[test]
+fn dividend_response_projection_keeps_partial_and_unknown_status_compatibility() {
+    for value in [
+        serde_json::json!({}),
+        serde_json::json!({"items":[{"security_code":"7203","status":"ok","dividend_per_share":50}]}),
+        serde_json::json!({"items":[{"security_code":"7203","status":"future","dividend_per_share":50,"is_stale":false}]}),
+        serde_json::json!({"items":[{"security_code":"7203","dividend_per_share":50,"is_stale":false}]}),
+    ] {
+        assert!(serde_json::from_value::<DividendBatchResponse>(value.clone()).is_ok());
+        assert!(
+            serde_json::from_value::<shared::dividend_per_share::DividendPerShareBatchResponse>(
+                value
+            )
+            .is_err()
+        );
+    }
+}
+
+#[test]
 fn unique_sorted_codes_dedupes() {
     assert_eq!(
         unique_sorted_codes(&["6758".to_string(), "7203".to_string(), "6758".to_string()]),
@@ -63,7 +102,11 @@ fn fetch_dividend_batch_forwards_codes_and_returns_response() {
     let captured = std::cell::RefCell::new(Vec::new());
     let codes = vec!["6758".to_string(), "7203".to_string(), "6758".to_string()];
     let result = block_on(fetch_dividend_batch(&codes, |request| {
-        *captured.borrow_mut() = request.security_codes;
+        *captured.borrow_mut() = request
+            .security_codes
+            .into_iter()
+            .map(String::from)
+            .collect();
         std::future::ready(Ok(DividendBatchResponse {
             items: vec![estimate("7203", Some(50.0), "ok")],
         }))

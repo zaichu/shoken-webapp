@@ -8,6 +8,7 @@ mod search_card;
 mod summary;
 
 #[cfg(test)]
+#[path = "view/tests/suite.rs"]
 mod tests;
 
 use crate::features::asset_balance::csv_store::{resolve_asset_balance, AssetBalanceCsvStore};

@@ -97,6 +97,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn generated_doc_matches_checked_in_contract() {
+        let expected: serde_json::Value =
+            serde_json::from_str(include_str!("../../docs/openapi.json"))
+                .expect("OpenAPI の正本が読み取れる");
+        let actual = serde_json::to_value(ApiDoc::openapi()).expect("OpenAPI がシリアライズできる");
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
     fn api_doc_registers_cookie_auth_scheme() {
         let doc = serde_json::to_value(ApiDoc::openapi()).expect("OpenAPI がシリアライズできる");
         let scheme = &doc["components"]["securitySchemes"]["cookieAuth"];
