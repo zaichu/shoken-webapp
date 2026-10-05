@@ -305,7 +305,7 @@ fn transform_asset_balance_row(
 mod tests {
     use super::*;
     use crate::models::common::SearchParamsAccessor;
-    use crate::services::csv::import::CsvDomain;
+    use crate::services::csv::import::CsvImport;
     use rust_decimal_macros::dec;
 
     type ExpectedRow<'a> = (

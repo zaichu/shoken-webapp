@@ -318,7 +318,7 @@ fn transform_mutualfund_row(
 mod tests {
     use super::*;
     use crate::models::common::SearchParamsAccessor;
-    use crate::services::csv::import::CsvDomain;
+    use crate::services::csv::import::CsvImport;
     use chrono::NaiveDate;
     #[test]
     fn test_preview_csv_basic() {
