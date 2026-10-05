@@ -18,7 +18,6 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
 use crate::support::row::Row;
 use crate::testing::asset_balance::*;
-use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
@@ -130,10 +129,6 @@ fn security_name_normalization_cases() {
     assert_eq!(normalize_display_name("ＫＤＤＩ"), "KDDI");
     assert_eq!(normalize_display_name("トヨタ自動車"), "トヨタ自動車");
     assert_eq!(normalize_security_code(" 7203: トヨタ自動車 "), "7203");
-    assert!(is_searchable_code("7203"));
-    assert!(is_searchable_code("BRK.B"));
-    assert!(!is_searchable_code(""));
-    assert!(!is_searchable_code("7203: トヨタ"));
 }
 
 #[test]

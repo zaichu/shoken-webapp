@@ -21,7 +21,7 @@ fn unauthorized_detection() {
 }
 
 #[test]
-fn user_message_matches_react() {
+fn user_message_maps_status_to_text() {
     assert_eq!(ApiError::http(401).user_message(), "ログインが必要です");
     assert_eq!(
         ApiError::http(404).user_message(),
@@ -86,7 +86,7 @@ fn with_timeout_ms_overrides_only_timeout() {
 }
 
 #[test]
-fn message_matches_react() {
+fn message_maps_variant_and_status_to_text() {
     for (error, expected) in [
         (ApiError::Network, "ネットワークエラーが発生しました"),
         (ApiError::Timeout, "リクエストがタイムアウトしました"),
@@ -118,7 +118,7 @@ fn message_matches_react() {
 }
 
 #[test]
-fn client_profiles_match_react_defaults() {
+fn client_profiles_have_expected_defaults() {
     let default = ApiClient::default_client();
     assert_eq!(default.timeout_ms, 30_000);
     assert_eq!(default.max_retries, 3);

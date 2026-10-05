@@ -1,5 +1,6 @@
 use crate::features::receipts::kind::CardFields;
 use crate::features::receipts::{ReceiptCell, ReceiptsTab};
+use crate::support::list_search::is_searchable_code;
 use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
@@ -58,13 +59,6 @@ pub(crate) struct CardRowData {
     pub(crate) date: String,
     pub(crate) account: String,
     pub(crate) details: Vec<CardDetail>,
-}
-
-pub(crate) fn is_security_code(value: &str) -> bool {
-    !value.is_empty()
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.')
 }
 
 pub(crate) fn card_detail_value(
@@ -154,7 +148,7 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
             let code = crate::features::receipts::model::normalize_security_code(raw);
             if code.is_empty() {
                 (view! { <span>"—"</span> }.into_any(), None)
-            } else if !is_security_code(&code) {
+            } else if !is_searchable_code(&code) {
                 (view! { <span>{code}</span> }.into_any(), None)
             } else {
                 let href = format!("/search?code={code}");

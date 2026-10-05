@@ -156,7 +156,7 @@ fn upload_success_does_not_fetch_uncached_tab() {
 }
 
 #[test]
-fn upload_error_sets_react_message_and_keeps_file() {
+fn upload_error_sets_message_and_keeps_file() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
@@ -528,7 +528,7 @@ fn confirm_delete_all_marks_state_deleting() {
 }
 
 #[test]
-fn tab_labels_and_api_paths_match_react() {
+fn tab_labels_and_api_paths_are_defined_per_tab() {
     for (tab, expected) in [
         (
             ReceiptsTab::Dividend,

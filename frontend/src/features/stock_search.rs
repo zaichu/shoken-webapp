@@ -4,7 +4,7 @@ pub(crate) use view::StockSearchPage;
 
 use crate::api::{fetch_stock, ApiError, Stock};
 use crate::session::{use_session, Generation};
-use crate::ui::security_link::is_searchable_code;
+use crate::support::list_search::is_searchable_code;
 use leptos::prelude::*;
 
 #[derive(Clone, Copy)]

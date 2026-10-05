@@ -199,21 +199,8 @@ pub struct Stock {
     pub size_category: Option<String>,
 }
 
-fn deserialize_string_id<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> Result<String, D::Error> {
-    match serde_json::Value::deserialize(deserializer)? {
-        serde_json::Value::String(id) => Ok(id),
-        serde_json::Value::Number(id) => Ok(id.to_string()),
-        value => Err(serde::de::Error::custom(format!(
-            "expected string or number id, got {value}"
-        ))),
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct SessionUser {
-    #[serde(deserialize_with = "deserialize_string_id")]
     pub id: String,
     pub email: String,
     #[serde(default)]
@@ -229,16 +216,6 @@ mod tests {
         SearchQueryParams, SessionUser, Stock,
     };
     use serde::{Deserialize, Serialize};
-
-    #[test]
-    fn session_user_accepts_numeric_id() {
-        // 共有E2E（a11y spec）のモックは id を数値で返す
-        let user: SessionUser = serde_json::from_str(
-            r#"{"id": 1, "email": "test@example.com", "name": "テストユーザー"}"#,
-        )
-        .expect("numeric id");
-        assert_eq!(user.id, "1");
-    }
 
     #[test]
     fn session_user_keeps_string_ids_and_optional_fields() {
@@ -261,9 +238,10 @@ mod tests {
     }
 
     #[test]
-    fn session_user_rejects_ids_other_than_strings_or_numbers() {
+    fn session_user_rejects_non_string_ids() {
         for id in [
             serde_json::Value::Null,
+            serde_json::json!(1),
             serde_json::json!(true),
             serde_json::json!([]),
             serde_json::json!({}),

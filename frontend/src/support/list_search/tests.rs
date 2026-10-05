@@ -94,141 +94,151 @@ fn check(case: &Case) {
     assert_eq!(actual, case.expected_ids, "{}", case.name);
 }
 #[test]
+fn searchable_code_accepts_ascii_alnum_and_dot() {
+    assert!(is_searchable_code("7203"));
+    assert!(is_searchable_code("BRK.B"));
+    assert!(!is_searchable_code(""));
+    assert!(!is_searchable_code("7203: トヨタ"));
+    assert!(!is_searchable_code("７２０３"));
+    assert!(!is_searchable_code("A B"));
+}
+
+#[test]
 fn shared_search_fixtures() {
     for case in fixture().cases {
         check(&case);
     }
 }
 #[test]
-fn react_search_exact_match() {
+fn search_exact_match() {
     check(&fixture().cases[0]);
 }
 #[test]
-fn react_search_exact_rejects_partial() {
+fn search_exact_rejects_partial() {
     check(&fixture().cases[1]);
 }
 #[test]
-fn react_search_partial_match() {
+fn search_partial_match() {
     check(&fixture().cases[2]);
 }
 #[test]
-fn react_search_case_insensitive() {
+fn search_case_insensitive() {
     check(&fixture().cases[3]);
 }
 #[test]
-fn react_search_multiple_partial_fields() {
+fn search_multiple_partial_fields() {
     check(&fixture().cases[4]);
 }
 #[test]
-fn react_search_and_tokens() {
+fn search_and_tokens() {
     check(&fixture().cases[5]);
 }
 #[test]
-fn react_search_quoted_token() {
+fn search_quoted_token() {
     check(&fixture().cases[6]);
 }
 #[test]
-fn react_search_half_width_label() {
+fn search_half_width_label() {
     check(&fixture().cases[7]);
 }
 #[test]
-fn react_search_full_width_colon_label() {
+fn search_full_width_colon_label() {
     check(&fixture().cases[8]);
 }
 #[test]
-fn react_search_exact_or_partial() {
+fn search_exact_or_partial() {
     check(&fixture().cases[9]);
 }
 #[test]
-fn react_search_empty_query() {
+fn search_empty_query() {
     check(&fixture().cases[10]);
 }
 #[test]
-fn react_search_year() {
+fn search_year() {
     check(&fixture().cases[11]);
 }
 #[test]
-fn react_search_year_month() {
+fn search_year_month() {
     check(&fixture().cases[12]);
 }
 #[test]
-fn react_search_date() {
+fn search_date() {
     check(&fixture().cases[13]);
 }
 #[test]
-fn react_search_closed_range() {
+fn search_closed_range() {
     check(&fixture().cases[14]);
 }
 #[test]
-fn react_search_range_start() {
+fn search_range_start() {
     check(&fixture().cases[15]);
 }
 #[test]
-fn react_search_range_end() {
+fn search_range_end() {
     check(&fixture().cases[16]);
 }
 #[test]
-fn react_search_invalid_range() {
+fn search_invalid_range() {
     check(&fixture().cases[17]);
 }
 #[test]
-fn react_search_invalid_date() {
+fn search_invalid_date() {
     check(&fixture().cases[18]);
 }
 #[test]
-fn react_search_reversed_range() {
+fn search_reversed_range() {
     check(&fixture().cases[19]);
 }
 #[test]
-fn react_search_amount_partial() {
+fn search_amount_partial() {
     check(&fixture().cases[20]);
 }
 #[test]
-fn react_search_amount_exact() {
+fn search_amount_exact() {
     check(&fixture().cases[21]);
 }
 
 #[test]
-fn react_year_options_sorted_unique() {
+fn year_options_sorted_unique() {
     assert_eq!(
         create_year_options(&["2024-03-01", "2023-12-15", "2024-07-01"], |r| r),
         vec![option("2023", "2023年"), option("2024", "2024年")]
     );
 }
 #[test]
-fn react_year_options_empty() {
+fn year_options_empty() {
     assert!(create_year_options::<&str>(&[], |r| r).is_empty());
 }
 #[test]
-fn react_unique_values() {
+fn unique_values_dedup_preserving_order() {
     assert_eq!(
         get_unique_values(&["特定", "NISA", "特定", ""], |r| r),
         vec!["特定", "NISA"]
     );
 }
 #[test]
-fn react_unique_values_empty() {
+fn unique_values_empty() {
     assert!(get_unique_values::<&str>(&[], |r| r).is_empty());
 }
 #[test]
-fn react_year_matches() {
+fn year_matches() {
     assert!(matches_year("2024-06-15", "2024"));
 }
 #[test]
-fn react_year_mismatch() {
+fn year_mismatch() {
     assert!(!matches_year("2024-06-15", "2023"));
 }
 #[test]
-fn react_month_matches() {
+fn month_matches() {
     assert!(matches_year_month("2024-03-15", "2024-03"));
 }
 #[test]
-fn react_month_padded() {
+fn month_padded() {
     assert!(matches_year_month("2024-01-05", "2024-01"));
     assert!(!matches_year_month("2024-01-05", "2024-1"));
 }
 #[test]
-fn react_month_mismatch() {
+fn month_mismatch() {
     assert!(!matches_year_month("2024-03-15", "2024-04"));
 }
 fn option(value: &str, label: &str) -> SearchOption {

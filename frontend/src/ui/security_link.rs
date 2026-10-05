@@ -1,15 +1,9 @@
+use crate::support::list_search::is_searchable_code;
 use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
 use shared::normalize::normalize_security_code;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
-
-pub(crate) fn is_searchable_code(code: &str) -> bool {
-    !code.is_empty()
-        && code
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '.')
-}
 
 /// 呼び出し側の font-weight 指定と競合しないよう、指定済みクラスを検出する
 fn has_font_weight_class(class: &str) -> bool {
