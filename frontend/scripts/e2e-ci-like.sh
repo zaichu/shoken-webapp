@@ -7,6 +7,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 FRONTEND_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 ROOT=$(cd "$FRONTEND_DIR/.." && pwd)
 WORKFLOW="$ROOT/.github/workflows/frontend.yml"
+PLAYWRIGHT_ACTION="$ROOT/.github/actions/setup-playwright/action.yml"
 DOCKERFILE="$SCRIPT_DIR/e2e-ci-like.Dockerfile"
 IMAGE_BASE="shoken-e2e-ci-like"
 
@@ -51,10 +52,10 @@ USAGE
 done
 
 NODE_MAJOR=$(grep 'node-version:' "$WORKFLOW" | head -n 1 | sed -e 's/^[^0-9]*//' -e 's/[^0-9].*//' || true)
-APT_PACKAGES=$(grep 'apt-get install' "$WORKFLOW" | sed -e 's/^.*apt-get install//' | tr ' ' '\n' | { grep -v -e '^-' -e '^$' -e '::' -e '=' -e 'apt-packages' -e '^\$' || true; } | sort -u | tr '\n' ' ' || true)
+APT_PACKAGES=$(grep 'apt-get install' "$PLAYWRIGHT_ACTION" | sed -e 's/^.*apt-get install//' | tr ' ' '\n' | { grep -v -e '^-' -e '^$' -e '::' -e '=' -e 'apt-packages' -e '^\$' || true; } | sort -u | tr '\n' ' ' || true)
 PLAYWRIGHT_VERSION=$(grep -A2 '"node_modules/@playwright/test"' "$ROOT/frontend/package-lock.json" | sed -n 's/.*"version": *"\([0-9][0-9.]*\)".*/\1/p' | head -n 1 || true)
 [ -n "$NODE_MAJOR" ] || { echo "node-version を $WORKFLOW から読めません" >&2; exit 1; }
-[ -n "$APT_PACKAGES" ] || { echo "apt の一覧を $WORKFLOW から読めません" >&2; exit 1; }
+[ -n "$APT_PACKAGES" ] || { echo "apt の一覧を $PLAYWRIGHT_ACTION から読めません" >&2; exit 1; }
 [ -n "$PLAYWRIGHT_VERSION" ] || { echo "@playwright/test の版を読めません" >&2; exit 1; }
 printf '%s' "$NODE_MAJOR" | grep -q -E '^[0-9]+$' || { echo "node-version が数字ではありません: $NODE_MAJOR" >&2; exit 1; }
 printf '%s' "$PLAYWRIGHT_VERSION" | grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "@playwright/test の版が不正です: $PLAYWRIGHT_VERSION" >&2; exit 1; }
