@@ -11,7 +11,7 @@ fn stock_and_session_are_shared_wire_types() {
     .expect("stock");
     assert_eq!(stock.code, "7203");
     let user: shared::common::SessionUser =
-        serde_json::from_str::<SessionUser>(r#"{"id":1,"email":"test@example.com"}"#)
+        serde_json::from_str::<SessionUser>(r#"{"id":"1","email":"test@example.com"}"#)
             .expect("session");
     assert_eq!(user.id, "1");
 }

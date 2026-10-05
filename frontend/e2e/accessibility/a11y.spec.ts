@@ -3,7 +3,7 @@ import { expect, test, json, paginated } from '../support/test';
 import AxeBuilder from '@axe-core/playwright';
 import * as path from 'path';
 
-const MOCK_USER = { id: 1, email: 'test@example.com', name: 'テストユーザー' };
+const MOCK_USER = { id: '00000000-0000-0000-0000-000000000001', email: 'test@example.com', name: 'テストユーザー' };
 
 const ROUTES = {
   authMe: /\/api\/v1\/session$/,
