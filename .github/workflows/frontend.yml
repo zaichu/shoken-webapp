@@ -175,44 +175,20 @@ jobs:
           name: e2e-dist
           path: frontend/dist-e2e
 
-      - name: Restore Playwright browsers cache
-        id: playwright-browsers
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Restore APT packages cache
-        id: apt-packages
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
-        with:
-          path: ~/apt-packages
-          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-v2
-          restore-keys: |
-            ${{ runner.os }}-apt-playwright-ubuntu24.04-
-
-      - name: Install APT packages (Playwright deps)
-        run: |
-          mkdir -p ~/apt-packages/partial
-          sudo apt-get update
-          sudo apt-get install -y -o Dir::Cache::Archives=$HOME/apt-packages xvfb fonts-noto-color-emoji fonts-unifont libfontconfig1 libfreetype6 xfonts-cyrillic xfonts-scalable fonts-liberation fonts-ipafont-gothic fonts-wqy-zenhei fonts-tlwg-loma-otf fonts-freefont-ttf libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0t64 libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2
-
-      - name: Install Playwright browser
-        if: steps.playwright-browsers.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
+      - name: Setup Playwright environment
+        id: playwright
+        uses: ./.github/actions/setup-playwright
 
       # キャッシュの保存はこのジョブに一本化する(複数ジョブの同時保存はキー競合で失敗する)
       - name: Save APT packages cache
-        if: matrix.shard == 1 && github.ref == 'refs/heads/main' && steps.apt-packages.outputs.cache-hit != 'true'
+        if: matrix.shard == 1 && github.ref == 'refs/heads/main' && steps.playwright.outputs.apt_cache_hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/apt-packages
           key: ${{ runner.os }}-apt-playwright-ubuntu24.04-v2
 
       - name: Save Playwright browsers cache
-        if: matrix.shard == 1 && github.ref == 'refs/heads/main' && steps.playwright-browsers.outputs.cache-hit != 'true'
+        if: matrix.shard == 1 && github.ref == 'refs/heads/main' && steps.playwright.outputs.browsers_cache_hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/.cache/ms-playwright
@@ -252,33 +228,8 @@ jobs:
           name: vercel-dist
           path: frontend/dist-release
 
-      - name: Restore Playwright browsers cache
-        id: playwright-browsers
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Restore APT packages cache
-        id: apt-packages
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
-        with:
-          path: ~/apt-packages
-          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-v2
-          restore-keys: |
-            ${{ runner.os }}-apt-playwright-ubuntu24.04-
-
-      - name: Install APT packages (Playwright deps)
-        run: |
-          mkdir -p ~/apt-packages/partial
-          sudo apt-get update
-          sudo apt-get install -y -o Dir::Cache::Archives=$HOME/apt-packages xvfb fonts-noto-color-emoji fonts-unifont libfontconfig1 libfreetype6 xfonts-cyrillic xfonts-scalable fonts-liberation fonts-ipafont-gothic fonts-wqy-zenhei fonts-tlwg-loma-otf fonts-freefont-ttf libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0t64 libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2
-
-      - name: Install Playwright browser
-        if: steps.playwright-browsers.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
+      - name: Setup Playwright environment
+        uses: ./.github/actions/setup-playwright
 
       - name: Run Vercel delivery E2E tests
         run: env -u NO_COLOR npx playwright test --config playwright.vercel.config.ts
