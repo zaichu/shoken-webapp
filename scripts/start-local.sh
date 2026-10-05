@@ -15,6 +15,9 @@ BACKEND_LOG="${BACKEND_LOG:-/tmp/shoken-backend-dev.log}"
 FRONTEND_LOG="${FRONTEND_LOG:-/tmp/shoken-frontend-dev.log}"
 DB_LOG="${DB_LOG:-/tmp/shoken-db-up.log}"
 
+BACKEND_PID_FILE="${BACKEND_PID_FILE:-/tmp/shoken-backend-dev.pid}"
+FRONTEND_PID_FILE="${FRONTEND_PID_FILE:-/tmp/shoken-frontend-dev.pid}"
+
 BACK_PID=""
 FRONT_PID=""
 TRUNK_TMP_CONFIG=""
@@ -29,6 +32,7 @@ cleanup() {
   if [[ -n "${TRUNK_TMP_CONFIG}" ]]; then
     rm -f "${TRUNK_TMP_CONFIG}"
   fi
+  rm -f "${BACKEND_PID_FILE}" "${FRONTEND_PID_FILE}"
 }
 
 trap cleanup EXIT
@@ -77,6 +81,7 @@ echo "2/3 Starting backend..."
     make run >"${BACKEND_LOG}" 2>&1
 ) &
 BACK_PID=$!
+printf '%s\n' "${BACK_PID}" > "${BACKEND_PID_FILE}"
 
 if ! wait_for_http_ok "${BACKEND_URL}/health" "Backend" 120 0.5; then
   tail -n 80 "${BACKEND_LOG}" >&2 || true
@@ -99,6 +104,7 @@ fi
   trunk serve --config "${TRUNK_CONFIG}" --port "${FRONTEND_PORT}" --no-autoreload >"${FRONTEND_LOG}" 2>&1
 ) &
 FRONT_PID=$!
+printf '%s\n' "${FRONT_PID}" > "${FRONTEND_PID_FILE}"
 
 if ! wait_for_http_ok "${FRONTEND_URL}/" "Frontend" 240 0.5; then
   tail -n 80 "${FRONTEND_LOG}" >&2 || true

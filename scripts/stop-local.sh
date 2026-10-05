@@ -7,6 +7,9 @@ BACKEND_DIR="$ROOT_DIR/backend"
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3001}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:8081}"
 
+BACKEND_PID_FILE="${BACKEND_PID_FILE:-/tmp/shoken-backend-dev.pid}"
+FRONTEND_PID_FILE="${FRONTEND_PID_FILE:-/tmp/shoken-frontend-dev.pid}"
+
 KEEP_DB=0
 
 usage() {
@@ -49,6 +52,19 @@ http_ok() {
   fi
 
   curl -sSf --connect-timeout 1 --max-time 2 "${url}" >/dev/null 2>&1
+}
+
+pids_from_file() {
+  local file="$1"
+  local pid=""
+
+  if [[ -f "${file}" ]]; then
+    pid="$(tr -d '[:space:]' < "${file}" 2>/dev/null || true)"
+  fi
+  if [[ "${pid}" =~ ^[0-9]+$ ]] && kill -0 "${pid}" >/dev/null 2>&1; then
+    printf '%s\n' "${pid}"
+  fi
+  return 0
 }
 
 pids_listening_on_port() {
@@ -187,31 +203,47 @@ BACKEND_PORT="${BACKEND_PORT:-3001}"
 FRONTEND_PORT="${FRONTEND_PORT:-$(extract_port_from_url "${FRONTEND_URL}")}"
 FRONTEND_PORT="${FRONTEND_PORT:-8081}"
 
-front_out=""
-if ! front_out="$(pids_listening_on_port "${FRONTEND_PORT}")"; then
-  echo "ERROR: Failed to detect frontend PID(s) for port ${FRONTEND_PORT}." >&2
-  exit 1
+front_pids=()
+front_file_pid="$(pids_from_file "${FRONTEND_PID_FILE}")"
+if [[ -n "${front_file_pid}" ]]; then
+  front_pids=("${front_file_pid}")
+else
+  rm -f "${FRONTEND_PID_FILE}"
+  front_out=""
+  if ! front_out="$(pids_listening_on_port "${FRONTEND_PORT}")"; then
+    echo "ERROR: Failed to detect frontend PID(s) for port ${FRONTEND_PORT}." >&2
+    exit 1
+  fi
+  mapfile -t front_pids < <(printf '%s\n' "${front_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
 fi
-mapfile -t front_pids < <(printf '%s\n' "${front_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
 if [[ "${#front_pids[@]}" -eq 0 ]] && http_ok "${FRONTEND_URL}/"; then
   echo "ERROR: Frontend responds at ${FRONTEND_URL} but no PID was detected for port ${FRONTEND_PORT}." >&2
   echo "       Install lsof/ss/fuser or run with sufficient permissions." >&2
   exit 1
 fi
 stop_pids "Frontend (port ${FRONTEND_PORT})" "${front_pids[@]}"
+rm -f "${FRONTEND_PID_FILE}"
 
-back_out=""
-if ! back_out="$(pids_listening_on_port "${BACKEND_PORT}")"; then
-  echo "ERROR: Failed to detect backend PID(s) for port ${BACKEND_PORT}." >&2
-  exit 1
+back_pids=()
+back_file_pid="$(pids_from_file "${BACKEND_PID_FILE}")"
+if [[ -n "${back_file_pid}" ]]; then
+  back_pids=("${back_file_pid}")
+else
+  rm -f "${BACKEND_PID_FILE}"
+  back_out=""
+  if ! back_out="$(pids_listening_on_port "${BACKEND_PORT}")"; then
+    echo "ERROR: Failed to detect backend PID(s) for port ${BACKEND_PORT}." >&2
+    exit 1
+  fi
+  mapfile -t back_pids < <(printf '%s\n' "${back_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
 fi
-mapfile -t back_pids < <(printf '%s\n' "${back_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
 if [[ "${#back_pids[@]}" -eq 0 ]] && http_ok "${BACKEND_URL}/health"; then
   echo "ERROR: Backend responds at ${BACKEND_URL} but no PID was detected for port ${BACKEND_PORT}." >&2
   echo "       Install lsof/ss/fuser or run with sufficient permissions." >&2
   exit 1
 fi
 stop_pids "Backend (port ${BACKEND_PORT})" "${back_pids[@]}"
+rm -f "${BACKEND_PID_FILE}"
 
 if [[ "${KEEP_DB}" -eq 1 ]]; then
   echo "DB: keep running (--keep-db)"
