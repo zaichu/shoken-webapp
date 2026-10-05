@@ -9,10 +9,10 @@ use crate::features::dividend_per_share::{
 use crate::features::receipts::model::DividendTotals;
 use crate::session::{Generation, SessionStore};
 use crate::support::list_search::group_key::derive_security_code_from_query;
+use crate::support::list_search::is_searchable_code;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
-use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;

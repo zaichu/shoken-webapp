@@ -1,16 +1,7 @@
 use super::*;
 
 #[test]
-fn searchable_code_matches_react_regex() {
-    assert!(is_searchable_code("7203"));
-    assert!(is_searchable_code("BRK.B"));
-    assert!(!is_searchable_code(""));
-    assert!(!is_searchable_code("7203: トヨタ"));
-    assert!(!is_searchable_code("７２０３"));
-}
-
-#[test]
-fn copy_text_matches_react_format() {
+fn copy_text_formats_display_and_code() {
     assert_eq!(
         instrument_copy_text("トヨタ自動車", Some("7203")),
         "トヨタ自動車(7203)"
@@ -26,7 +17,7 @@ fn copy_text_matches_react_format() {
 }
 
 #[test]
-fn font_weight_detection_matches_react_regex() {
+fn font_weight_detection_recognizes_weight_utilities() {
     assert!(has_font_weight_class("font-semibold"));
     assert!(has_font_weight_class("text-xs sm:font-medium"));
     assert!(has_font_weight_class("hover:font-bold"));

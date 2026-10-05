@@ -19,6 +19,14 @@ pub struct FilterConfig<T> {
     pub amount_fields: Option<Vec<AmountFieldFn<T>>>,
 }
 
+/// 検索クエリとして受理する銘柄コードの条件。空・記号（`.` を除く）・全角は不可
+pub(crate) fn is_searchable_code(code: &str) -> bool {
+    !code.is_empty()
+        && code
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '.')
+}
+
 pub(crate) fn is_js_whitespace(c: char) -> bool {
     matches!(
         c,

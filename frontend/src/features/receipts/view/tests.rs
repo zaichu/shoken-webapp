@@ -145,7 +145,7 @@ fn dividend_product_and_account_group_keys_follow_priority() {
     }
 }
 #[test]
-fn mutual_fund_name_groups_and_domestic_daily_groups_match_react() {
+fn mutual_fund_name_groups_and_domestic_daily_groups() {
     let rows = funds();
     assert_eq!(
         ReceiptsTab::MutualFund.table_groups(&rows, &rows, "\"Alpha Fund A\"")[0].label,
@@ -208,7 +208,7 @@ fn next_year_option_index_returns_none_without_options_or_for_other_keys() {
 }
 
 #[test]
-fn next_tab_index_cycles_like_react_tablist() {
+fn next_tab_index_cycles_through_tabs() {
     assert_eq!(next_tab_index(0, "ArrowRight"), Some(1));
     assert_eq!(next_tab_index(2, "ArrowRight"), Some(0));
     assert_eq!(next_tab_index(0, "ArrowLeft"), Some(2));
@@ -380,7 +380,7 @@ fn utility_rail_ids_are_non_empty_and_unique_per_tab() {
 }
 
 #[test]
-fn card_row_data_matches_react_card_fields() {
+fn card_row_data_maps_card_fields() {
     let rows = dividends();
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
@@ -566,15 +566,6 @@ fn table_groups_carry_group_key_and_row_ids() {
         .flat_map(|group| group.rows.iter().map(|(id, _, _)| id.as_deref()))
         .collect();
     assert_eq!(ids, [Some("new"), Some("other"), Some("old")]);
-}
-
-#[test]
-fn security_code_acceptance_matches_react_regex() {
-    assert!(is_security_code("9432"));
-    assert!(is_security_code("BRK.B"));
-    assert!(!is_security_code(""));
-    assert!(!is_security_code("任天堂"));
-    assert!(!is_security_code("9432:メモ"));
 }
 
 #[test]

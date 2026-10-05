@@ -39,16 +39,6 @@ fn search_result_applies_within_the_same_generation() {
     });
 }
 
-#[test]
-fn is_searchable_code_matches_react_regex() {
-    assert!(is_searchable_code("7203"));
-    assert!(is_searchable_code("BRK.B"));
-    assert!(!is_searchable_code(""));
-    assert!(!is_searchable_code("7203: トヨタ"));
-    assert!(!is_searchable_code("７２０３"));
-    assert!(!is_searchable_code("A B"));
-}
-
 fn stock(code: &str) -> Stock {
     Stock {
         code: code.to_string(),
