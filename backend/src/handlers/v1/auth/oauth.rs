@@ -1,10 +1,9 @@
 use crate::errors::{ApiError, ConfigError};
-use crate::models::user::UserResponse;
 use crate::services::auth::{self as auth_service, GoogleOAuthClient, SessionToken};
 use crate::state::AppState;
 use axum::{
     extract::{Query, State},
-    response::{IntoResponse, Json, Redirect, Response},
+    response::{IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::{
     cookie::{Cookie, SameSite},
@@ -184,37 +183,6 @@ pub async fn google_callback(
     Ok((jar, Redirect::to(&redirect_url)).into_response())
 }
 
-pub async fn get_current_user(
-    State(state): State<AppState>,
-    jar: CookieJar,
-) -> Result<Json<UserResponse>, ApiError> {
-    let token = get_session_id_from_jar(&jar)?;
-
-    // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
-    let user = auth_service::select_user_by_session(&state.pool, token)
-        .await?
-        .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです"))?;
-
-    Ok(Json(user.into()))
-}
-
-pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {
-    if let Some(token) = jar
-        .get(auth_service::SESSION_COOKIE_NAME)
-        .and_then(|c| c.value().parse::<SessionToken>().ok())
-    {
-        let _ = auth_service::delete_session(&state.pool, token).await;
-    }
-
-    let cookie = clear_session_cookie(state.config.secure_cookie);
-
-    let jar = jar.remove(cookie);
-
-    (
-        jar,
-        Json(serde_json::json!({"message": "ログアウトしました"})),
-    )
-}
 #[cfg(test)]
 mod tests {
     use super::*;

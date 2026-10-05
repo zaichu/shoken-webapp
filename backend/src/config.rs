@@ -40,10 +40,10 @@ impl Default for Config {
         Self {
             cors_origins: vec![
                 "https://shoken-webapp.vercel.app".to_string(),
-                "http://localhost:8080".to_string(),
-                "http://127.0.0.1:8080".to_string(),
-                "http://[::1]:8080".to_string(),
-                "http://localhost.:8080".to_string(),
+                "http://localhost:8081".to_string(),
+                "http://127.0.0.1:8081".to_string(),
+                "http://[::1]:8081".to_string(),
+                "http://localhost.:8081".to_string(),
             ],
             database_max_connections: 5,
             auth_rate_limit_rps: 10,
@@ -198,7 +198,7 @@ mod tests {
                     .contains(&"https://shoken-webapp.vercel.app".to_string()),
                 config
                     .cors_origins
-                    .contains(&"http://localhost:8080".to_string())
+                    .contains(&"http://localhost:8081".to_string())
             ),
             (5, 2, true, true)
         );
@@ -217,6 +217,33 @@ mod tests {
             ),
             (10, 1, "http://example.com", 2)
         );
+    }
+
+    #[tokio::test]
+    async fn test_default_frontend_cors_origins() {
+        let _lock = ENV_MUTEX.lock().await;
+        let _cors_origins = EnvGuard::set("CORS_ORIGINS", None);
+        let _rust_env = EnvGuard::set("RUST_ENV", None);
+        for app_env in ["development", "production"] {
+            let _app_env = EnvGuard::set("APP_ENV", Some(app_env));
+            let config = Config::from_env();
+            let app = build_test_app(&config);
+            for host in ["localhost", "127.0.0.1", "[::1]", "localhost."] {
+                let origin = format!("http://{host}:8081");
+                let response = preflight(app.clone(), &origin).await;
+                assert_eq!(
+                    allowed_origin(&response),
+                    if app_env == "development" {
+                        Some(origin.as_str())
+                    } else {
+                        None
+                    },
+                    "APP_ENV={app_env} origin={origin}"
+                );
+                let response = preflight(app.clone(), &format!("http://{host}:8080")).await;
+                assert_eq!(allowed_origin(&response), None);
+            }
+        }
     }
 
     #[test]

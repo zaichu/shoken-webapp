@@ -12,6 +12,8 @@ pub mod services;
 pub mod startup;
 pub mod state;
 #[cfg(test)]
+pub mod test_db;
+#[cfg(test)]
 pub mod test_env;
 
 pub use config::Config;

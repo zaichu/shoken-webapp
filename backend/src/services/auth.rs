@@ -806,11 +806,6 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         );
     }
 
-    use sqlx::postgres::PgPoolOptions;
-    use std::time::Duration;
-    use testcontainers::runners::AsyncRunner;
-    use testcontainers_modules::postgres::Postgres;
-
     fn test_google_user_info() -> GoogleUserInfo {
         GoogleUserInfo {
             sub: "test-google-id-804".to_string(),
@@ -818,35 +813,6 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
             name: Some("テストユーザー804".to_string()),
             picture: None,
         }
-    }
-
-    async fn start_auth_test_pool() -> (PgPool, impl Drop) {
-        let node = Postgres::default().start().await.unwrap();
-        let port = node.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
-        let mut last_error = None;
-        let mut pool_opt = None;
-        for _ in 0..20 {
-            match tokio::time::timeout(
-                Duration::from_secs(2),
-                PgPoolOptions::new().connect(&database_url),
-            )
-            .await
-            {
-                Ok(Ok(pool)) => {
-                    pool_opt = Some(pool);
-                    break;
-                }
-                Ok(Err(err)) => last_error = Some(format!("{err:?}")),
-                Err(_) => {}
-            }
-            tokio::time::sleep(Duration::from_millis(500)).await;
-        }
-        let pool = pool_opt.unwrap_or_else(|| panic!("Postgres接続失敗: {last_error:?}"));
-        crate::db::run_migrations(&pool)
-            .await
-            .expect("マイグレーション失敗");
-        (pool, node)
     }
 
     async fn session_count(pool: &PgPool, user_id: UserId) -> i64 {
@@ -860,7 +826,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
     #[tokio::test]
     #[ignore = "requires Docker to run Postgres container"]
     async fn test_relogin_invalidates_old_session() {
-        let (pool, _node) = start_auth_test_pool().await;
+        let (pool, _node) = crate::test_db::start_test_pool().await;
         let user_info = test_google_user_info();
 
         let first_token = upsert_user_and_rotate_session(&pool, &user_info)
@@ -903,7 +869,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     #[ignore = "requires Docker to run Postgres container"]
     async fn test_concurrent_login_keeps_single_session() {
-        let (pool, _node) = start_auth_test_pool().await;
+        let (pool, _node) = crate::test_db::start_test_pool().await;
         let user_info = test_google_user_info();
 
         let mut handles = Vec::new();

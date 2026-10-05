@@ -31,7 +31,7 @@ impl Secrets {
                     .to_string()
             })?),
             frontend_url: std::env::var("FRONTEND_URL")
-                .unwrap_or_else(|_| "http://localhost:8080".to_string()),
+                .unwrap_or_else(|_| "http://localhost:8081".to_string()),
         })
     }
 }
@@ -78,11 +78,17 @@ mod tests {
             let _google_client_id = EnvGuard::set("GOOGLE_CLIENT_ID", Some("client-id"));
             let _google_client_secret =
                 EnvGuard::set("GOOGLE_CLIENT_SECRET", Some("client-secret"));
-            let _fe = EnvGuard::set("FRONTEND_URL", None);
-            assert_eq!(
-                Secrets::from_env().unwrap().frontend_url,
-                "http://localhost:8080"
-            );
+            for (frontend_url, expected) in [
+                (None, "http://localhost:8081"),
+                (Some("http://localhost:8080"), "http://localhost:8080"),
+                (
+                    Some("https://frontend.example.com"),
+                    "https://frontend.example.com",
+                ),
+            ] {
+                let _fe = EnvGuard::set("FRONTEND_URL", frontend_url);
+                assert_eq!(Secrets::from_env().unwrap().frontend_url, expected);
+            }
         }
         {
             let _db = EnvGuard::set(

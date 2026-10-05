@@ -521,18 +521,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires Docker"]
     async fn test_bulk_create_reupload_deduplication() {
-        use testcontainers::runners::AsyncRunner;
-        use testcontainers_modules::postgres::Postgres;
-
-        let container = Postgres::default().start().await.unwrap();
-        let url = format!(
-            "postgres://postgres:postgres@{}:{}/postgres",
-            container.get_host().await.unwrap(),
-            container.get_host_port_ipv4(5432).await.unwrap()
-        );
-        let pool = sqlx::PgPool::connect(&url).await.unwrap();
-
-        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        let (pool, _node) = crate::test_db::start_test_pool().await;
 
         let user_id = UserId::from(Uuid::new_v4());
         sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
@@ -691,17 +680,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires Docker"]
     async fn test_search_summary_matches_frontend_daily_tax_calculation() {
-        use testcontainers::runners::AsyncRunner;
-        use testcontainers_modules::postgres::Postgres as PgContainer;
-
-        let container = PgContainer::default().start().await.unwrap();
-        let url = format!(
-            "postgres://postgres:postgres@{}:{}/postgres",
-            container.get_host().await.unwrap(),
-            container.get_host_port_ipv4(5432).await.unwrap()
-        );
-        let pool = sqlx::PgPool::connect(&url).await.unwrap();
-        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        let (pool, _node) = crate::test_db::start_test_pool().await;
 
         let user_id = UserId::from(Uuid::new_v4());
         sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
