@@ -3,9 +3,9 @@ pub mod oauth;
 use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
-    handlers::v1::auth::oauth::same_site,
+    handlers::v1::auth::oauth::{clear_session_cookie, get_session_id_from_jar, same_site},
     models::{common::MessageResponse, user::UserResponse},
-    services::auth as auth_service,
+    services::auth::{self as auth_service, SessionToken},
     state::AppState,
 };
 use axum::{
@@ -98,7 +98,14 @@ pub async fn get_session(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<Json<UserResponse>, ApiError> {
-    crate::handlers::v1::auth::oauth::get_current_user(State(state), jar).await
+    let token = get_session_id_from_jar(&jar)?;
+
+    // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
+    let user = auth_service::select_user_by_session(&state.pool, token)
+        .await?
+        .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです"))?;
+
+    Ok(Json(user.into()))
 }
 
 /// セッションを削除してログアウト（v1）
@@ -112,7 +119,21 @@ pub async fn get_session(
     security(("cookieAuth" = []))
 )]
 pub async fn delete_session(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {
-    crate::handlers::v1::auth::oauth::logout(State(state), jar).await
+    if let Some(token) = jar
+        .get(auth_service::SESSION_COOKIE_NAME)
+        .and_then(|c| c.value().parse::<SessionToken>().ok())
+    {
+        let _ = auth_service::delete_session(&state.pool, token).await;
+    }
+
+    let cookie = clear_session_cookie(state.config.secure_cookie);
+
+    let jar = jar.remove(cookie);
+
+    (
+        jar,
+        Json(serde_json::json!({"message": "ログアウトしました"})),
+    )
 }
 
 /// アカウントを削除（v1）
@@ -291,6 +312,79 @@ mod tests {
         let mut tag = tag.as_bytes().to_vec();
         tag[0] = if tag[0] == b'0' { b'1' } else { b'0' };
         format!("{head}.{}", std::str::from_utf8(&tag).unwrap())
+    }
+
+    #[tokio::test]
+    async fn test_session_handlers_preserve_errors_and_logout_cookie() {
+        use axum::{
+            body::{to_bytes, Body},
+            http::{header::SET_COOKIE, Method, Request},
+        };
+        use tower::ServiceExt;
+
+        for secure in [true, false] {
+            let mut state = make_test_state();
+            state.config = Arc::new(crate::config::Config {
+                secure_cookie: secure,
+                ..crate::config::Config::default()
+            });
+            state.pool.close().await;
+            let app = crate::handlers::v1::auth_routes().with_state(state);
+            for (token, status, message) in [
+                (None, StatusCode::UNAUTHORIZED, "ログインが必要です"),
+                (
+                    Some("invalid-uuid"),
+                    StatusCode::UNAUTHORIZED,
+                    "無効なセッショントークンです",
+                ),
+                (
+                    Some("550e8400-e29b-41d4-a716-446655440000"),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "",
+                ),
+            ] {
+                for method in [Method::GET, Method::DELETE] {
+                    let mut request = Request::builder()
+                        .method(method.clone())
+                        .uri("/api/v1/session");
+                    if let Some(token) = token {
+                        request = request.header("cookie", format!("session_token={token}"));
+                    }
+                    let response = app
+                        .clone()
+                        .oneshot(request.body(Body::empty()).unwrap())
+                        .await
+                        .unwrap();
+                    if method == Method::DELETE {
+                        assert_eq!(response.status(), StatusCode::OK);
+                        if token.is_some() {
+                            let cookie =
+                                Cookie::parse(response.headers()[SET_COOKIE].to_str().unwrap())
+                                    .unwrap();
+                            assert_eq!(cookie.name(), auth_service::SESSION_COOKIE_NAME);
+                            assert_eq!(cookie.path(), Some("/"));
+                            assert_eq!(cookie.http_only(), Some(true));
+                            assert_eq!(cookie.secure().unwrap_or(false), secure);
+                            assert_eq!(cookie.same_site(), Some(same_site(secure)));
+                            assert_eq!(cookie.max_age(), Some(time::Duration::ZERO));
+                        }
+                        let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+                        assert_eq!(
+                            serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
+                            serde_json::json!({"message": "ログアウトしました"})
+                        );
+                    } else {
+                        assert_eq!(response.status(), status);
+                        let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+                        let error: ErrorResponse = serde_json::from_slice(&body).unwrap();
+                        if status == StatusCode::UNAUTHORIZED {
+                            assert_eq!(error.error.code, "UNAUTHORIZED");
+                            assert_eq!(error.error.message, message);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[test]
