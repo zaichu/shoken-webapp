@@ -23,7 +23,7 @@ pub async fn fetch_and_cache(
 
     let (dividend_per_share, status) = extract_dividend(&response.data);
 
-    sqlx::query(
+    sqlx::query!(
         r#"
         INSERT INTO dividend_per_share_cache
             (security_code, dividend_per_share, status, fetched_at, stale_at, provider, updated_at)
@@ -37,10 +37,10 @@ pub async fn fetch_and_cache(
                 error_message      = NULL,
                 updated_at         = NOW()
         "#,
+        code.as_str(),
+        dividend_per_share,
+        status as DividendCacheStatus
     )
-    .bind(code)
-    .bind(dividend_per_share)
-    .bind(status)
     .execute(pool)
     .await?;
 
@@ -57,21 +57,21 @@ pub async fn update_cache_error_with_cooldown(
 ) -> Result<(), ApiError> {
     let truncated = truncate_error_message(error_msg);
 
-    sqlx::query(
+    sqlx::query!(
         r#"
         INSERT INTO dividend_per_share_cache
             (security_code, dividend_per_share, status, error_message, stale_at, provider, updated_at)
-        VALUES ($1, NULL, 'error', $2, NOW() + $3 * INTERVAL '1 second', 'jquants', NOW())
+        VALUES ($1, NULL, 'error', $2, NOW() + $3::int4 * INTERVAL '1 second', 'jquants', NOW())
         ON CONFLICT (security_code) DO UPDATE
             SET status        = 'error',
                 error_message = EXCLUDED.error_message,
-                stale_at      = NOW() + $3 * INTERVAL '1 second',
+                stale_at      = NOW() + $3::int4 * INTERVAL '1 second',
                 updated_at    = NOW()
         "#,
+        code.as_str(),
+        truncated,
+        cooldown_secs
     )
-    .bind(code)
-    .bind(truncated)
-    .bind(cooldown_secs)
     .execute(pool)
     .await?;
 
@@ -95,7 +95,7 @@ pub async fn update_cache_error(
 ) -> Result<(), ApiError> {
     let truncated = truncate_error_message(error_msg);
 
-    sqlx::query(
+    sqlx::query!(
         r#"
         INSERT INTO dividend_per_share_cache
             (security_code, dividend_per_share, status, error_message, stale_at, provider, updated_at)
@@ -106,9 +106,9 @@ pub async fn update_cache_error(
                 stale_at      = NULL,
                 updated_at    = NOW()
         "#,
+        code.as_str(),
+        truncated
     )
-    .bind(code)
-    .bind(truncated)
     .execute(pool)
     .await?;
 

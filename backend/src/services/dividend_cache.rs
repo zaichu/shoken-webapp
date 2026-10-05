@@ -36,15 +36,16 @@ pub async fn get_batch(
     }
 
     // DB からキャッシュを一括取得（ANY がDB側で重複を除く）
-    let cached: Vec<DividendCache> = sqlx::query_as::<_, DividendCache>(
+    let cached = sqlx::query_as!(
+        DividendCache,
         r#"
-        SELECT security_code, dividend_per_share, status, fetched_at, stale_at, provider,
-               created_at, updated_at
+        SELECT security_code AS "security_code: _", dividend_per_share, status AS "status: _",
+               fetched_at, stale_at, provider, created_at, updated_at
         FROM dividend_per_share_cache
         WHERE security_code = ANY($1)
         "#,
+        codes as &[SecurityCode]
     )
-    .bind(codes)
     .fetch_all(pool)
     .await?;
 
@@ -110,7 +111,7 @@ fn build_batch_items<'a>(
 /// 1リクエスト = 12秒間隔（60秒 / 5回）を全インスタンスで原子的に保証
 pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
     // UPSERT でスロットを予約し、前のスロット開始時刻を返す
-    let row: (Option<chrono::DateTime<chrono::Utc>>,) = sqlx::query_as(
+    let slot_time = sqlx::query_scalar!(
         r#"
         INSERT INTO market_data_provider_rate_control (provider, next_available_at)
             VALUES ($1, NOW() + INTERVAL '12 seconds')
@@ -120,12 +121,12 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
         RETURNING
             GREATEST(next_available_at - INTERVAL '12 seconds', NOW() - INTERVAL '1 second')
         "#,
+        JQUANTS_PROVIDER
     )
-    .bind(JQUANTS_PROVIDER)
     .fetch_one(pool)
     .await?;
 
-    if let Some(slot_time) = row.0 {
+    if let Some(slot_time) = slot_time {
         let now = Utc::now();
         if slot_time > now {
             let wait_ms = (slot_time - now).num_milliseconds().max(0) as u64;
@@ -142,17 +143,17 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
 /// 429 発生時に market_data_provider_rate_control.next_available_at を少なくとも cooldown 分先へ延ばす
 /// 既存の future 値がある場合は後退させず、GREATEST で大きい方を維持する
 async fn push_rate_control_cooldown(pool: &PgPool) -> Result<(), ApiError> {
-    sqlx::query(
+    sqlx::query!(
         r#"
         INSERT INTO market_data_provider_rate_control (provider, next_available_at)
-            VALUES ($1, NOW() + $2 * INTERVAL '1 second')
+            VALUES ($1, NOW() + $2::int4 * INTERVAL '1 second')
         ON CONFLICT (provider) DO UPDATE
             SET next_available_at =
-                GREATEST(market_data_provider_rate_control.next_available_at, NOW() + $2 * INTERVAL '1 second')
+                GREATEST(market_data_provider_rate_control.next_available_at, NOW() + $2::int4 * INTERVAL '1 second')
         "#,
+        JQUANTS_PROVIDER,
+        RATE_LIMIT_COOLDOWN_SECS
     )
-    .bind(JQUANTS_PROVIDER)
-    .bind(RATE_LIMIT_COOLDOWN_SECS)
     .execute(pool)
     .await?;
     Ok(())
