@@ -16,13 +16,11 @@ exclude_re = [
     # DOM フォーカス/キーボード操作のみ
     "src/ui/confirm_modal\\.rs",
     "src/ui/collapsible_search_card\\.rs",
-    "current_path",
     "current_location",
     "replace_location",
     "redirect_to",
     "navigate",
     "focus_main",
-    "scroll_to_top",
     # web_sys::Element 前提のラッパー。判定本体の spa_href_parts は単体テストで固定済み
     "spa_href",
     "read_query_value",
@@ -104,9 +102,6 @@ exclude_re = [
     "replace parse_quoted_token",
     "replace \\+ with - in parse_quoted_token",
     "replace \\+= with [*/]= in parse_quoted_token",
-    "PageCollector<T>::push -> bool with true",
-    "replace \\+= with [*/]= in PageCollector<T>::push",
-    "replace && with \\|\\| in PageCollector<T>::push",
     "delete ! in parse_search_tokens",
     "replace < with > in format_number_with_options",
     "replace \\+= with [*-]= in parse_search_tokens",

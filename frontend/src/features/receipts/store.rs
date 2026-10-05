@@ -4,7 +4,7 @@ use crate::api::ApiError;
 use crate::features::receipts::csv::{to_preview, CsvPreviewRow};
 use crate::features::receipts::filter::ReceiptSearch;
 use crate::session::{Generation, SessionStore};
-use crate::support::csv_flow::{csv_error_message, CsvTabState};
+use crate::support::csv_flow::CsvTabState;
 use crate::ui::workspace_shell::workspace_panel_default_open;
 use leptos::prelude::*;
 use std::cell::RefCell;
@@ -335,7 +335,7 @@ impl ReceiptsStore {
                 self.refresh_tab_list(generation, tab)
             }
             Err(error) => {
-                let message = csv_error_message(&error);
+                let message = error.message();
                 self.update_csv_state(generation, tab, |state| {
                     state.finish_save(Err(message));
                 });
@@ -377,7 +377,7 @@ impl ReceiptsStore {
                 });
             }
             Err(error) => {
-                let message = csv_error_message(&error);
+                let message = error.message();
                 self.update_csv_state(generation, tab, |state| {
                     state.finish_delete(Err(message));
                 });

@@ -32,4 +32,10 @@ fn nav_active_matches_path_or_prefix() {
     assert!(is_nav_active("/receipts?tab=domesticstock", "/receipts"));
     assert!(!is_nav_active("/receipt", "/receipts"));
     assert!(!is_nav_active("/", "/receipts"));
+    assert!(is_nav_active(
+        "/receipts/2024?tab=dividend#summary",
+        "/receipts"
+    ));
+    assert!(!is_nav_active("/receipts-other?tab=dividend", "/receipts"));
+    assert!(!is_nav_active("/search?next=/receipts", "/receipts"));
 }

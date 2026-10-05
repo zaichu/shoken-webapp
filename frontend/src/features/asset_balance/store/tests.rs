@@ -38,12 +38,7 @@ fn list_pages_join_all_pages_in_order() {
         }))
     };
 
-    let page = block_on(collect_list_pages(
-        ASSET_BALANCE_LIST_PER_PAGE,
-        ASSET_BALANCE_LIST_MAX_PAGES,
-        fetch,
-    ))
-    .expect("fetch");
+    let page = block_on(collect_list_pages(LIST_PER_PAGE, LIST_MAX_PAGES, fetch)).expect("fetch");
 
     assert_eq!(page.rows.len(), 2300);
     assert_eq!(page.total, Some(2300));
@@ -71,12 +66,7 @@ fn list_pages_stop_when_first_page_is_short() {
             Some(rust_decimal_macros::dec!(10)),
         )))
     };
-    let page = block_on(collect_list_pages(
-        ASSET_BALANCE_LIST_PER_PAGE,
-        ASSET_BALANCE_LIST_MAX_PAGES,
-        fetch,
-    ))
-    .expect("fetch");
+    let page = block_on(collect_list_pages(LIST_PER_PAGE, LIST_MAX_PAGES, fetch)).expect("fetch");
     assert_eq!(page.rows.len(), 3);
     assert_eq!(page.total, Some(3));
     assert!(page.summary.is_some());

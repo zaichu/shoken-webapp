@@ -3,11 +3,11 @@ use crate::api::ApiError;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRowData};
 use crate::features::asset_balance::csv_store::resolve_asset_balance;
 use crate::features::asset_balance::store::{
-    truncated_list_warning, BalanceSlot, LoadedAssetBalances, ASSET_BALANCE_LIST_PER_PAGE,
+    truncated_list_warning, BalanceSlot, LoadedAssetBalances,
 };
 use crate::session::Generation;
 use crate::support::csv_flow::CsvTabState;
-use crate::support::pagination::collect_list_pages;
+use crate::support::pagination::{collect_list_pages, LIST_PER_PAGE};
 use crate::testing::block_on;
 use std::future::{ready, Ready};
 
@@ -32,7 +32,7 @@ fn page(range: std::ops::Range<usize>, total: i64) -> AssetBalanceListResponse {
         data: range.map(balance).collect(),
         total,
         page: 1,
-        per_page: ASSET_BALANCE_LIST_PER_PAGE as i64,
+        per_page: LIST_PER_PAGE as i64,
         summary: None,
         facets: None,
     }

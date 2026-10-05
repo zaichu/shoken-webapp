@@ -1,5 +1,5 @@
 use crate::features::asset_balance::csv::AssetBalanceCsvRow;
-use crate::features::asset_balance::csv_store::{can_save_csv, AssetBalanceCsvStore};
+use crate::features::asset_balance::csv_store::AssetBalanceCsvStore;
 use crate::support::csv_flow::CsvTabState;
 use crate::ui::csv_section::CsvSource;
 
@@ -43,7 +43,7 @@ impl CsvSource for AssetBalanceCsvStore {
     }
 
     fn save_disabled(&self, state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
-        state.busy() || !can_save_csv(state)
+        state.busy() || !state.has_preview_rows()
     }
 
     fn db_count(&self) -> usize {

@@ -1,5 +1,6 @@
 use crate::api::dto::{
-    AssetBalanceListResponse, AssetBalanceSummary, DividendListResponse, DividendSummary,
+    AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, Dividend, DividendListResponse,
+    DividendSummary,
 };
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::{
@@ -7,6 +8,7 @@ use crate::features::asset_balance::{
     valuation_tone,
 };
 use crate::session::{use_session, Generation, SessionStore};
+use crate::support::pagination::ListEndpoint;
 use crate::ui::amount::Amount;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::state::Skeleton;
@@ -145,7 +147,7 @@ type SummarySlot<T> = RwSignal<Option<(Generation, Option<T>)>>;
 async fn fetch_asset_summary() -> Result<Option<AssetBalanceSummary>, ApiError> {
     ApiClient::read_client()
         .get_json::<AssetBalanceListResponse>(
-            "/api/v1/asset-balances",
+            <AssetBalance as ListEndpoint>::PATH,
             &[("per_page", "1"), ("include_summary", "true")],
         )
         .await
@@ -156,7 +158,7 @@ async fn fetch_dividend_summary(year: u32) -> Result<Option<DividendSummary>, Ap
     let year = year.to_string();
     ApiClient::read_client()
         .get_json::<DividendListResponse>(
-            "/api/v1/dividends",
+            <Dividend as ListEndpoint>::PATH,
             &[
                 ("per_page", "1"),
                 ("year", year.as_str()),

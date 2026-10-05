@@ -20,4 +20,4 @@ pub(crate) use csv_store::AssetBalanceCsvStore;
 #[cfg(test)]
 pub(crate) use lookup::AssetBalanceLookupStore;
 #[cfg(test)]
-pub(crate) use store::{BalanceSlot, DataOps, ASSET_BALANCE_LIST_PER_PAGE};
+pub(crate) use store::{BalanceSlot, DataOps};

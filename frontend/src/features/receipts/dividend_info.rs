@@ -6,7 +6,7 @@ use crate::features::dividend_per_share::{
     dividend_maps_from_batch, dividend_pending_max_retries, fetch_dividend_batch,
     post_dividend_batch, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
 };
-use crate::features::receipts::model::{format_currency, format_number, DividendTotals};
+use crate::features::receipts::model::DividendTotals;
 use crate::session::{Generation, SessionStore};
 use crate::support::list_search::group_key::derive_security_code_from_query;
 use crate::ui::badge::{Badge, BadgeVariant};
@@ -16,6 +16,7 @@ use crate::ui::security_link::is_searchable_code;
 use leptos::prelude::*;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use shared::format::{format_currency, format_number};
 use shared::normalize::normalize_security_code;
 
 const ASSET_BALANCE_HINT: &str = "資産管理にCSVを取り込むと表示されます";

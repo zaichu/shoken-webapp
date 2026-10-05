@@ -15,9 +15,7 @@ use crate::api::ApiError;
 use crate::features::receipts::csv::{
     CsvPreviewRow, DividendCsvRow, DomesticStockCsvRow, MutualfundCsvRow,
 };
-use crate::features::receipts::model::{
-    create_year_month_key, format_currency, format_date, format_number,
-};
+use crate::features::receipts::model::{create_year_month_key, format_date};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
@@ -26,6 +24,7 @@ use crate::support::list_search::support::{group_and_summarize, ColumnReorderRul
 use crate::support::list_search::FilterConfig;
 use crate::support::pagination::{fetch_all_pages, ListEndpoint};
 use crate::support::row::Row;
+use shared::format::{format_currency, format_number};
 
 /// 取引明細の一覧行。保存済み(DB の行)と CSV プレビュー行を分けて持ち、
 /// プレビュー行に永続化済みの偽 id は割り当てない。

@@ -234,12 +234,15 @@ fn save_error_keeps_preview_and_sets_message() {
 #[test]
 fn save_requires_preview_rows() {
     let state = CsvTabState::<AssetBalanceCsvRow>::default();
-    assert!(!can_save_csv(&state));
+    assert!(!state.has_preview_rows());
     let empty = CsvTabState::<AssetBalanceCsvRow> {
         preview: Some(crate::support::csv_flow::CsvPreview::default()),
         ..Default::default()
     };
-    assert!(!can_save_csv(&empty), "有効行0件のプレビューでは保存しない");
+    assert!(
+        !empty.has_preview_rows(),
+        "有効行0件のプレビューでは保存しない"
+    );
     let ready = CsvTabState::<AssetBalanceCsvRow> {
         preview: Some(crate::support::csv_flow::CsvPreview {
             rows: vec![AssetBalanceCsvRow::default()],
@@ -247,7 +250,7 @@ fn save_requires_preview_rows() {
         }),
         ..Default::default()
     };
-    assert!(can_save_csv(&ready));
+    assert!(ready.has_preview_rows());
 }
 
 #[test]
