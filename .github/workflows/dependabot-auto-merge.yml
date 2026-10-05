@@ -30,8 +30,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # GITHUB_TOKEN の自動マージは push イベントを発火させず Deploy が起動しない。
-      # マージ完了を待ち、frontend 系変更なら CI(merge コミットの check-run 用) → Deploy を順に dispatch する
+      # GITHUB_TOKEN の自動マージは push イベントを発火させず CI/Deploy が起動しない。
+      # マージ完了を待ち、frontend 系変更なら Frontend CI を dispatch する
+      # (デプロイは CI 成功後に CI 側から呼び出される)
       - name: Dispatch CI and deploy after merge
         if: >-
           steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
@@ -48,7 +49,6 @@ jobs:
           files=$(gh pr view "${pr_number}" --json files --jq '[.files[].path] | join(" ")')
           if grep -Eq '(^| )(frontend/|shared/)' <<< "${files}"; then
             gh workflow run frontend.yml --ref main
-            gh workflow run deploy-frontend.yml --ref main
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -141,4 +141,4 @@ src/
 
 ## デプロイ
 
-GitHub Actions の `deploy-frontend.yml` が Vercel CLI でビルド・配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。main への frontend/shared 変更 push と `workflow_dispatch` で本番デプロイ（`LEPTOS_PRODUCTION_ENABLED=true` が必要）、PR では preview 環境へデプロイして URL を PR コメントに投稿します。
+GitHub Actions の `deploy-frontend.yml` が Vercel CLI で配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。main への frontend/shared 変更 push 後と `workflow_dispatch`（main のみ）は Frontend CI（`frontend.yml`）成功後に呼び出され、CI が生成した成果物をそのまま本番デプロイします（`LEPTOS_PRODUCTION_ENABLED=true` が必要）。PR では `deploy-frontend.yml` が pull_request で起動し、preview 環境へデプロイして URL を PR コメントに投稿します（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。

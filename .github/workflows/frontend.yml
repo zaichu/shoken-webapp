@@ -33,6 +33,7 @@ jobs:
               - "rust-toolchain.toml"
               - "docs/openapi.json"
               - ".github/workflows/frontend.yml"
+              - ".github/workflows/deploy-frontend.yml"
               - ".github/actions/rust-cache/**"
               - ".github/actions/setup-playwright/**"
 
@@ -263,3 +264,22 @@ jobs:
             report e2e-vercel "$E2E_VERCEL_RESULT"
           fi
           $ok || { echo "::error::required jobs did not succeed"; exit 1; }
+
+  # デプロイはこの CI の成果物(vercel-dist)をそのまま使う。ビルドの重複を避けるため
+  # 別系統ではなく同一 run 内の呼び出しにする。PR プレビューは deploy-frontend.yml の
+  # pull_request トリガーが担当し、この run にはデプロイ用 secrets を載せない
+  deploy:
+    name: Deploy to Vercel
+    needs: [changes, ci]
+    # callee が pull-requests: write を要求するため caller でも許可が必要
+    permissions:
+      contents: read
+      pull-requests: write
+    if: >-
+      github.ref == 'refs/heads/main'
+      && (github.event_name == 'workflow_dispatch'
+        || (github.event_name == 'push' && needs.changes.outputs.frontend == 'true'))
+    uses: ./.github/workflows/deploy-frontend.yml
+    with:
+      use_prebuilt_dist: true
+    secrets: inherit
