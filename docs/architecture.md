@@ -39,20 +39,26 @@
 shoken-webapp/
 ├── frontend/
 │   ├── src/               # Leptos UI / API client / domain logic
-│   ├── e2e/               # Playwright E2E テストと CSV fixture
+│   ├── e2e/               # Playwright E2E テストと fixture
 │   ├── style/             # Tailwind CSS
+│   ├── scripts/           # CSS・テスト配置のチェックスクリプト
 │   └── Trunk.toml
 ├── backend/
-│   └── src/
-│       ├── handlers/      # HTTP ハンドラー（ドメイン別）
-│       ├── services/      # ビジネスロジック（CSV パース / DB アクセス）
-│       ├── models/        # データモデル・バリデーション
-│       ├── extractors/    # カスタム Axum エクストラクター
-│       ├── middleware/      # rate_limit / security / tracing サブモジュール
-│       ├── routes.rs      # ルーティング定義
-│       ├── config.rs      # 環境変数読み込み
-│       ├── errors.rs      # 統一エラーハンドリング
-│       └── state.rs       # AppState (DB pool / secrets / HTTP client)
+│   ├── src/
+│   │   ├── handlers/      # HTTP ハンドラー（ドメイン別）
+│   │   ├── services/      # ビジネスロジック（CSV パース / DB アクセス）
+│   │   ├── models/        # データモデル・バリデーション
+│   │   ├── extractors/    # カスタム Axum エクストラクター
+│   │   ├── middleware/    # rate_limit / security / origin 検証
+│   │   ├── config/        # 環境変数読み込み
+│   │   ├── routes.rs      # ルーティング定義
+│   │   ├── openapi.rs     # OpenAPI スキーマ生成（bin/generate_openapi.rs）
+│   │   ├── db.rs          # DB pool・起動時の migration 実行
+│   │   ├── errors.rs      # 統一エラーハンドリング
+│   │   └── state.rs       # AppState (DB pool / secrets / HTTP client)
+│   ├── migrations/        # DB スキーマの正本（追記のみ。テーブル構成はここを参照）
+│   └── scripts/           # repair-migrations.sql などの運用スクリプト
+├── shared/                # frontend/backend 共有の wire 型クレート
 ├── docs/                  # 設計・運用ドキュメント
 └── .github/               # CI/CD ワークフロー / Dependabot 設定
 ```
@@ -107,20 +113,22 @@ CSRF 対策: `Origin` / `Referer` ヘッダーによるオリジン検証
 内側から外側の順:
 
 1. ルートハンドラー
-2. ドメイン別ミドルウェア（keyed レート制限 / global レート制限）
-3. `validate_origin`（CSRF 防止）
-4. `RequestBodyLimitLayer`（10MB 上限）
-5. CORS
-6. `TraceLayer`（リクエストトレース、クエリパラメータ除外）
-7. `PropagateRequestIdLayer`（x-request-id をレスポンスに伝播）
-8. `SetRequestIdLayer`（x-request-id の UUID 自動付与）
-9. `add_security_headers`（最外層: すべてのレスポンスに付与）
+2. ドメイン別 keyed レート制限（auth / csv / stock_search / data）
+3. 起動完了ゲート（`startup_ready` が立つまで 503）
+4. `TraceLayer`（リクエストトレース。パスのみ記録・クエリパラメータ除外。`/health`・`/ready` は対象外）
+5. `validate_origin`（CSRF 防止）
+6. `RequestBodyLimitLayer`（10MB 上限）
+7. CORS
+8. `PropagateRequestIdLayer`（x-request-id をレスポンスに伝播）
+9. `SetRequestIdLayer`（x-request-id の UUID 自動付与）
+10. `CompressionLayer`（1KB 超のレスポンスのみ gzip。gRPC・画像・SSE は除外）
+11. `add_security_headers`（最外層: すべてのレスポンスに付与）
 
 ## CSV インポート設計
 
 CSV ファイルのアップロードは2段階。詳細な API 契約は `docs/api/v1-rest-design.md` を参照。
 
-1. **バリデーション** `POST /api/v1/{resource}-import-validations`: ファイルをパースして行エラー一覧を返す（DB 書き込みなし）
+1. **バリデーション** `POST /api/v1/{resource}-import-validations`: ファイルをパースして行プレビューとエラー一覧を返す（DB 書き込みなし）
 2. **確定インポート** `POST /api/v1/{resource}-imports`: パース + DB 挿入（ON CONFLICT DO NOTHING / occurrence_index）
 
 エンドポイント例:
@@ -138,13 +146,15 @@ CSV ファイルのアップロードは2段階。詳細な API 契約は `docs/
 Client → POST /api/v1/asset-balance-import-validations  # バリデーション（DB 書き込みなし）
   → middleware stack
   → handlers::v1::asset_balances::validate_import
-  → services::csv_import::parse_csv (with parse_asset_balance_row)
-  → 200 { errors: [...] }
+  → handlers::v1::csv_import::handle_preview_csv::<AssetBalanceDomain>
+  → services::csv::pipeline::parse_csv_with_config → CsvImport::transform_rows
+  → 200 { total_rows, valid_rows, rows, errors }
 
 Client → POST /api/v1/asset-balance-imports             # 確定インポート
   → middleware stack
   → handlers::v1::asset_balances::import
-  → services::csv_import::parse_csv (with parse_asset_balance_row)
+  → handlers::v1::csv_import::handle_import_csv::<AssetBalanceDomain>
+  → services::csv::pipeline::parse_csv_with_config → CsvImport::transform_rows
   → services::asset_balance::bulk_create (DELETE ALL → INSERT)
   → 201 { inserted, skipped, errors }
 ```
