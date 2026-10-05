@@ -107,20 +107,27 @@ file_pid_valid() {
   local pid="$2"
   local port="$3"
   local cmd=""
+  local name=""
+  local cwd=""
   cmd="$(pid_command "${pid}")"
   if [[ -z "${cmd}" ]]; then
     return 1
   fi
+  name="$(ps -p "${pid}" -o comm= 2>/dev/null)" || return 1
+  cwd="$(readlink -f "/proc/${pid}/cwd" 2>/dev/null)" || return 1
   if [[ "${service}" == "frontend" ]]; then
-    if [[ "${cmd}" != *"trunk"* ]]; then
+    if [[ "${name}" != "trunk" || "${cwd}" != "${ROOT_DIR}/frontend" ]]; then
       return 1
     fi
-    if [[ "${cmd}" == *"--port "* ]] && [[ "${cmd}" != *"--port ${port}"* ]]; then
+    if [[ "${cmd}" == *"--port "* ]] && [[ ! "${cmd}" =~ --port[[:space:]]+${port}([[:space:]]|$) ]]; then
       return 1
     fi
     return 0
   fi
-  if [[ "${cmd}" == *"make"* ]] || [[ "${cmd}" == *"cargo"* ]] || [[ "${cmd}" == *"backend"* ]]; then
+  if [[ "${cwd}" != "${BACKEND_DIR}" ]]; then
+    return 1
+  fi
+  if [[ "${name}" == "backend" ]] || [[ "${name}" == "cargo" && "${cmd}" =~ (^|[[:space:]])run[[:space:]]+--bin[[:space:]]+backend([[:space:]]|$) ]]; then
     return 0
   fi
   return 1
@@ -131,7 +138,6 @@ collect_service_pids() {
   local file="$2"
   local port="$3"
   local file_pid=""
-  local have_file_pid=0
   local port_out=""
   local scan_st=0
   local -A seen=()
@@ -141,11 +147,8 @@ collect_service_pids() {
   if [[ -n "${file_pid}" ]]; then
     if file_pid_valid "${service}" "${file_pid}" "${port}" \
       && file_pid_identity_ok "${file}" "${file_pid}"; then
-      if [[ -z "${seen[${file_pid}]:-}" ]]; then
-        printf '%s\n' "${file_pid}"
-        seen["${file_pid}"]=1
-        have_file_pid=1
-      fi
+      printf '%s\n' "${file_pid}"
+      return 0
     else
       rm -f "${file}"
     fi
@@ -157,15 +160,13 @@ collect_service_pids() {
   scan_st=0
   port_out="$(pids_listening_on_port "${port}")" || scan_st=$?
   if [ "${scan_st}" -ne 0 ]; then
-    if [[ "${have_file_pid}" -eq 1 ]]; then
-      return 0
-    fi
     return "${scan_st}"
   fi
   if [[ -n "${port_out}" ]]; then
     while IFS= read -r pid; do
       pid="$(printf '%s' "${pid}" | tr -d '[:space:]')"
-      if [[ "${pid}" =~ ^[0-9]+$ ]] && [[ -z "${seen[${pid}]:-}" ]]; then
+      if [[ "${pid}" =~ ^[0-9]+$ ]] && [[ -z "${seen[${pid}]:-}" ]] \
+        && file_pid_valid "${service}" "${pid}" "${port}"; then
         printf '%s\n' "${pid}"
         seen["${pid}"]=1
       fi
@@ -176,32 +177,32 @@ collect_service_pids() {
 
 pids_listening_on_port() {
   local port="$1"
+  local scan_st=127
 
   if have_cmd lsof; then
     local out=""
-    if out="$(lsof -nP -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null)"; then
+    local st=0
+    out="$(lsof -nP -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null)" || st=$?
+    if [[ "${st}" -eq 0 ]]; then
       printf '%s\n' "${out}" | sed '/^$/d' | sort -u
       return 0
     fi
 
-    local st=$?
     if [[ "${st}" -eq 1 ]]; then
       # No matches.
       return 0
     fi
 
+    scan_st="${st}"
     echo "WARN: lsof failed while checking port ${port} (exit ${st}); trying fallback..." >&2
   fi
 
   if have_cmd ss; then
     # Example: users:(("node",pid=1234,fd=23))
     local ss_out=""
-    local ss_st
-    ss_st=0
+    local ss_st=0
     ss_out="$(ss -H -ltnp "sport = :${port}" 2>/dev/null)" || ss_st=$?
-    if [[ "${ss_st}" -ne 0 ]]; then
-      echo "WARN: ss failed while checking port ${port} (exit ${ss_st}); trying fallback..." >&2
-    else
+    if [[ "${ss_st}" -eq 0 ]]; then
       printf '%s\n' "${ss_out}" \
         | grep -oE 'pid=[0-9]+' \
         | cut -d= -f2 \
@@ -209,11 +210,21 @@ pids_listening_on_port() {
         || true
       return 0
     fi
+
+    if [[ "${ss_st}" -eq 1 ]]; then
+      # No matches.
+      return 0
+    fi
+
+    scan_st="${ss_st}"
+    echo "WARN: ss failed while checking port ${port} (exit ${ss_st}); trying fallback..." >&2
   fi
 
   if have_cmd fuser; then
     local out=""
-    if out="$(fuser -n tcp "${port}" 2>/dev/null)"; then
+    local st=0
+    out="$(fuser -n tcp "${port}" 2>/dev/null)" || st=$?
+    if [[ "${st}" -eq 0 ]]; then
       printf '%s\n' "${out}" \
         | tr ' ' '\n' \
         | sed '/^$/d' \
@@ -223,7 +234,6 @@ pids_listening_on_port() {
       return 0
     fi
 
-    local st=$?
     if [[ "${st}" -eq 1 ]]; then
       # No matches.
       return 0
@@ -233,8 +243,8 @@ pids_listening_on_port() {
     return "${st}"
   fi
 
-  echo "ERROR: Cannot identify PID(s) listening on port ${port} (missing: lsof/ss/fuser)." >&2
-  return 127
+  echo "ERROR: Cannot identify PID(s) listening on port ${port} using lsof/ss/fuser." >&2
+  return "${scan_st}"
 }
 
 print_pids() {
