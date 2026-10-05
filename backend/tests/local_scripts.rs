@@ -87,8 +87,41 @@ printf '%s\n' "fuser $*" >> "${MOCK_DIR}/scan"
 if [[ "$*" == *"8081"* ]]; then printf '%s\n' "${FRONT_SCAN_PIDS:-}"; else printf '%s\n' "${BACK_SCAN_PIDS:-}"; fi
 exit "${FUSER_STATUS:-0}"
 "#);
-        sandbox.tool("curl", "exit 22\n");
+        sandbox.tool(
+            "curl",
+            r#"
+printf '%s\n' "$*" >> "${MOCK_DIR}/curl-calls"
+exit "${CURL_STATUS:-22}"
+"#,
+        );
+        sandbox.tool("docker", "exit 0\n");
         sandbox.tool("make", "exit 0\n");
+        sandbox.tool(
+            "cargo",
+            r#"
+printf 'args=%s PORT=%s BACKEND_URL=%s\n' "$*" "${PORT:-}" "${BACKEND_URL:-}" >> "${MOCK_DIR}/cargo-env"
+for _ in $(seq 1 1000000); do
+  [[ -f "${MOCK_DIR}/trunk-done" ]] && break
+done
+"#,
+        );
+        sandbox.tool(
+            "trunk",
+            r#"
+printf '%s\n' "$*" >> "${MOCK_DIR}/trunk-args"
+config=""
+prev=""
+for arg in "$@"; do
+  [[ "$prev" == "--config" ]] && config="$arg"
+  prev="$arg"
+done
+[[ -n "$config" ]] && cp "$config" "${MOCK_DIR}/trunk-config"
+for f in /tmp/shoken-backend-dev-*; do
+  [[ -e "$f" ]] && basename "$f"
+done >> "${MOCK_DIR}/backend-pid-names"
+touch "${MOCK_DIR}/trunk-done"
+"#,
+        );
         sandbox
     }
 
@@ -123,11 +156,12 @@ exit "${FUSER_STATUS:-0}"
             .env("HOME", &self.root)
             .env("LANG", "C")
             .env("BASH_ENV", self.root.join("shell-env"))
-            .env("MOCK_DIR", &self.root)
-            .env("BACKEND_PID_FILE", self.root.join("backend.pid"))
-            .env("FRONTEND_PID_FILE", self.root.join("frontend.pid"));
+            .env("MOCK_DIR", &self.root);
         if script == "stop-local.sh" {
-            command.arg("--keep-db");
+            command
+                .arg("--keep-db")
+                .env("BACKEND_PID_FILE", self.root.join("backend.pid"))
+                .env("FRONTEND_PID_FILE", self.root.join("frontend.pid"));
         }
         for (name, value) in env {
             command.env(name, value);
@@ -294,4 +328,129 @@ fn missing_scanner_is_an_error_when_there_is_no_valid_ledger() {
     let output = sandbox.run("stop-local.sh", &[("SCANNERS", " ")]);
     assert!(!output.status.success());
     assert!(sandbox.text("killed").is_empty());
+}
+
+fn remove_tmp_files_containing(marker: &str) {
+    if let Ok(entries) = fs::read_dir("/tmp") {
+        for entry in entries.flatten() {
+            if entry.file_name().to_string_lossy().contains(marker) {
+                let _ = fs::remove_file(entry.path());
+            }
+        }
+    }
+}
+
+#[test]
+fn start_uses_one_backend_port_for_listener_url_proxy_and_pid() {
+    let sandbox = Sandbox::new();
+    let base = sandbox
+        .root
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let output = sandbox.run(
+        "start-local.sh",
+        &[("CURL_STATUS", "0"), ("BACKEND_PORT", "4010")],
+    );
+    remove_tmp_files_containing(&base);
+    assert_success(&output);
+
+    let cargo = sandbox.text("cargo-env");
+    assert!(cargo.contains("PORT=4010"), "{cargo}");
+    assert!(
+        cargo.contains("BACKEND_URL=http://127.0.0.1:4010"),
+        "{cargo}"
+    );
+
+    let calls = sandbox.text("curl-calls");
+    assert!(calls.contains("http://127.0.0.1:4010/ready"), "{calls}");
+    assert!(!calls.contains("/health"), "{calls}");
+
+    let config = sandbox.text("trunk-config");
+    assert!(
+        config.contains("backend = \"http://127.0.0.1:4010/api/\""),
+        "{config}"
+    );
+
+    let names = sandbox.text("backend-pid-names");
+    let prefix = format!("shoken-backend-dev-{base}-");
+    assert!(
+        names
+            .lines()
+            .any(|n| n.starts_with(&prefix) && n.ends_with("-4010.pid")),
+        "{names}"
+    );
+    assert!(
+        names
+            .lines()
+            .any(|n| n.starts_with(&prefix) && n.ends_with("-4010.log")),
+        "{names}"
+    );
+}
+
+#[test]
+fn start_preserves_explicit_url_port_and_log_overrides() {
+    let sandbox = Sandbox::new();
+    let base = sandbox
+        .root
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let log = sandbox.root.join("backend.log");
+    let output = sandbox.run(
+        "start-local.sh",
+        &[
+            ("CURL_STATUS", "0"),
+            ("BACKEND_URL", "http://example.test:7777"),
+            ("BACKEND_LOG", log.to_str().unwrap()),
+            ("FRONTEND_PORT", "8090"),
+        ],
+    );
+    remove_tmp_files_containing(&base);
+    assert_success(&output);
+
+    let cargo = sandbox.text("cargo-env");
+    assert!(cargo.contains("PORT=7777"), "{cargo}");
+    assert!(
+        cargo.contains("BACKEND_URL=http://example.test:7777"),
+        "{cargo}"
+    );
+    assert!(log.exists());
+
+    let calls = sandbox.text("curl-calls");
+    assert!(calls.contains("http://example.test:7777/ready"), "{calls}");
+    assert!(calls.contains("http://127.0.0.1:8090/"), "{calls}");
+
+    let args = sandbox.text("trunk-args");
+    assert!(args.contains("--port 8090"), "{args}");
+    let config = sandbox.text("trunk-config");
+    assert!(
+        config.contains("backend = \"http://example.test:7777/api/\""),
+        "{config}"
+    );
+}
+
+#[test]
+fn start_defaults_keep_stock_trunk_config_and_3001() {
+    let sandbox = Sandbox::new();
+    let base = sandbox
+        .root
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let output = sandbox.run("start-local.sh", &[("CURL_STATUS", "0")]);
+    remove_tmp_files_containing(&base);
+    assert_success(&output);
+
+    let cargo = sandbox.text("cargo-env");
+    assert!(cargo.contains("PORT=3001"), "{cargo}");
+    let calls = sandbox.text("curl-calls");
+    assert!(calls.contains("http://127.0.0.1:3001/ready"), "{calls}");
+
+    let args = sandbox.text("trunk-args");
+    assert!(args.contains("Trunk.toml"), "{args}");
+    assert!(!args.contains("Trunk.local."), "{args}");
 }
