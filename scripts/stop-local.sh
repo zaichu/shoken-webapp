@@ -7,8 +7,10 @@ BACKEND_DIR="$ROOT_DIR/backend"
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3001}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:8081}"
 
-BACKEND_PID_FILE="${BACKEND_PID_FILE:-/tmp/shoken-backend-dev.pid}"
-FRONTEND_PID_FILE="${FRONTEND_PID_FILE:-/tmp/shoken-frontend-dev.pid}"
+BACKEND_PID_FILE_EXPLICIT="${BACKEND_PID_FILE:-}"
+FRONTEND_PID_FILE_EXPLICIT="${FRONTEND_PID_FILE:-}"
+BACKEND_PID_FILE="${BACKEND_PID_FILE_EXPLICIT}"
+FRONTEND_PID_FILE="${FRONTEND_PID_FILE_EXPLICIT}"
 
 KEEP_DB=0
 
@@ -63,6 +65,82 @@ pids_from_file() {
   fi
   if [[ "${pid}" =~ ^[0-9]+$ ]] && kill -0 "${pid}" >/dev/null 2>&1; then
     printf '%s\n' "${pid}"
+  fi
+  return 0
+}
+
+scoped_pid_tag() {
+  local base="worktree"
+  local hash="0"
+  base="$(basename "${ROOT_DIR}")"
+  hash="$(printf '%s' "${ROOT_DIR}" | cksum 2>/dev/null | cut -d' ' -f1)"
+  if [[ -z "${hash}" ]]; then
+    hash="0"
+  fi
+  printf '%s-%s' "${base}" "${hash}"
+}
+
+pid_command() {
+  ps -o command= -p "$1" 2>/dev/null || true
+}
+
+file_pid_valid() {
+  local service="$1"
+  local pid="$2"
+  local port="$3"
+  local cmd=""
+  cmd="$(pid_command "${pid}")"
+  if [[ -z "${cmd}" ]]; then
+    return 1
+  fi
+  if [[ "${service}" == "frontend" ]]; then
+    if [[ "${cmd}" != *"trunk"* ]]; then
+      return 1
+    fi
+    if [[ "${cmd}" == *"--port "* ]] && [[ "${cmd}" != *"--port ${port}"* ]]; then
+      return 1
+    fi
+    return 0
+  fi
+  if [[ "${cmd}" == *"make"* ]] || [[ "${cmd}" == *"cargo"* ]] || [[ "${cmd}" == *"backend"* ]]; then
+    return 0
+  fi
+  return 1
+}
+
+collect_service_pids() {
+  local service="$1"
+  local file="$2"
+  local port="$3"
+  local file_pid=""
+  local port_out=""
+  local -A seen=()
+  local pid=""
+
+  file_pid="$(pids_from_file "${file}")"
+  if [[ -n "${file_pid}" ]]; then
+    if file_pid_valid "${service}" "${file_pid}" "${port}"; then
+      if [[ -z "${seen[${file_pid}]:-}" ]]; then
+        printf '%s\n' "${file_pid}"
+        seen["${file_pid}"]=1
+      fi
+    else
+      rm -f "${file}"
+    fi
+  else
+    rm -f "${file}"
+  fi
+
+  port_out=""
+  port_out="$(pids_listening_on_port "${port}" 2>/dev/null || true)"
+  if [[ -n "${port_out}" ]]; then
+    while IFS= read -r pid; do
+      pid="$(printf '%s' "${pid}" | tr -d '[:space:]')"
+      if [[ "${pid}" =~ ^[0-9]+$ ]] && [[ -z "${seen[${pid}]:-}" ]]; then
+        printf '%s\n' "${pid}"
+        seen["${pid}"]=1
+      fi
+    done <<< "${port_out}"
   fi
   return 0
 }
@@ -203,19 +281,29 @@ BACKEND_PORT="${BACKEND_PORT:-3001}"
 FRONTEND_PORT="${FRONTEND_PORT:-$(extract_port_from_url "${FRONTEND_URL}")}"
 FRONTEND_PORT="${FRONTEND_PORT:-8081}"
 
-front_pids=()
-front_file_pid="$(pids_from_file "${FRONTEND_PID_FILE}")"
-if [[ -n "${front_file_pid}" ]]; then
-  front_pids=("${front_file_pid}")
-else
-  rm -f "${FRONTEND_PID_FILE}"
-  front_out=""
-  if ! front_out="$(pids_listening_on_port "${FRONTEND_PORT}")"; then
-    echo "ERROR: Failed to detect frontend PID(s) for port ${FRONTEND_PORT}." >&2
-    exit 1
-  fi
-  mapfile -t front_pids < <(printf '%s\n' "${front_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
+_SCOPED_TAG="$(scoped_pid_tag)"
+if [[ -z "${BACKEND_PID_FILE}" ]]; then
+  BACKEND_PID_FILE="/tmp/shoken-backend-dev-${_SCOPED_TAG}-${BACKEND_PORT}.pid"
 fi
+if [[ -z "${FRONTEND_PID_FILE}" ]]; then
+  FRONTEND_PID_FILE="/tmp/shoken-frontend-dev-${_SCOPED_TAG}-${FRONTEND_PORT}.pid"
+fi
+
+front_pids=()
+front_out=""
+if ! front_out="$(collect_service_pids "frontend" "${FRONTEND_PID_FILE}" "${FRONTEND_PORT}")"; then
+  echo "ERROR: Failed to detect frontend PID(s) for port ${FRONTEND_PORT}." >&2
+  exit 1
+fi
+mapfile -t front_pids < <(printf '%s\n' "${front_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
+
+back_pids=()
+back_out=""
+if ! back_out="$(collect_service_pids "backend" "${BACKEND_PID_FILE}" "${BACKEND_PORT}")"; then
+  echo "ERROR: Failed to detect backend PID(s) for port ${BACKEND_PORT}." >&2
+  exit 1
+fi
+mapfile -t back_pids < <(printf '%s\n' "${back_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
 if [[ "${#front_pids[@]}" -eq 0 ]] && http_ok "${FRONTEND_URL}/"; then
   echo "ERROR: Frontend responds at ${FRONTEND_URL} but no PID was detected for port ${FRONTEND_PORT}." >&2
   echo "       Install lsof/ss/fuser or run with sufficient permissions." >&2
@@ -224,19 +312,6 @@ fi
 stop_pids "Frontend (port ${FRONTEND_PORT})" "${front_pids[@]}"
 rm -f "${FRONTEND_PID_FILE}"
 
-back_pids=()
-back_file_pid="$(pids_from_file "${BACKEND_PID_FILE}")"
-if [[ -n "${back_file_pid}" ]]; then
-  back_pids=("${back_file_pid}")
-else
-  rm -f "${BACKEND_PID_FILE}"
-  back_out=""
-  if ! back_out="$(pids_listening_on_port "${BACKEND_PORT}")"; then
-    echo "ERROR: Failed to detect backend PID(s) for port ${BACKEND_PORT}." >&2
-    exit 1
-  fi
-  mapfile -t back_pids < <(printf '%s\n' "${back_out}" | sed '/^$/d' | grep -E '^[0-9]+$' || true)
-fi
 if [[ "${#back_pids[@]}" -eq 0 ]] && http_ok "${BACKEND_URL}/health"; then
   echo "ERROR: Backend responds at ${BACKEND_URL} but no PID was detected for port ${BACKEND_PORT}." >&2
   echo "       Install lsof/ss/fuser or run with sufficient permissions." >&2
