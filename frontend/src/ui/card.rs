@@ -85,7 +85,6 @@ pub fn Card(
     #[prop(into, optional)] class: Signal<String>,
     #[prop(optional)] href: Option<String>,
     #[prop(optional)] testid: Option<&'static str>,
-    #[prop(optional)] role: Option<&'static str>,
     children: Children,
 ) -> impl IntoView {
     let classes = move || {
@@ -98,7 +97,7 @@ pub fn Card(
     };
     if let Some(href) = href {
         return view! {
-            <a href=href class=classes data-testid=testid role=role>
+            <a href=href class=classes data-testid=testid>
                 {children()}
             </a>
         }
@@ -106,14 +105,14 @@ pub fn Card(
     }
     if variant.section_tag() {
         return view! {
-            <section class=classes data-testid=testid role=role>
+            <section class=classes data-testid=testid>
                 {children()}
             </section>
         }
         .into_any();
     }
     view! {
-        <div class=classes data-testid=testid role=role>
+        <div class=classes data-testid=testid>
             {children()}
         </div>
     }

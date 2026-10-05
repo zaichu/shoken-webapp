@@ -9,7 +9,7 @@ use crate::features::asset_balance::{
 use crate::session::{use_session, Generation, SessionStore};
 use crate::ui::amount::Amount;
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::elements::Skeleton;
+use crate::ui::state::Skeleton;
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
 use std::cell::RefCell;
