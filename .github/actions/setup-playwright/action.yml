@@ -6,6 +6,8 @@ outputs:
     value: ${{ steps.playwright-browsers.outputs.cache-hit }}
   apt_cache_hit:
     value: ${{ steps.apt-packages.outputs.cache-hit }}
+  apt_cache_key:
+    value: ${{ steps.apt-packages.outputs.cache-primary-key }}
 
 runs:
   using: composite
@@ -24,7 +26,7 @@ runs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
       with:
         path: ~/apt-packages
-        key: ${{ runner.os }}-apt-playwright-ubuntu24.04-v2
+        key: ${{ runner.os }}-apt-playwright-ubuntu24.04-${{ hashFiles('.github/actions/setup-playwright/action.yml') }}
         restore-keys: |
           ${{ runner.os }}-apt-playwright-ubuntu24.04-
 
