@@ -263,3 +263,20 @@ jobs:
             report e2e-vercel "$E2E_VERCEL_RESULT"
           fi
           $ok || { echo "::error::required jobs did not succeed"; exit 1; }
+
+  # デプロイはこの CI の成果物(vercel-dist)をそのまま使う。ビルドの重複を避けるため
+  # 別系統ではなく同一 run 内の呼び出しにする
+  deploy:
+    name: Deploy to Vercel
+    needs: [changes, ci]
+    if: >-
+      (github.ref == 'refs/heads/main'
+        && (github.event_name == 'workflow_dispatch'
+          || (github.event_name == 'push' && needs.changes.outputs.frontend == 'true')))
+      || (github.event_name == 'pull_request'
+        && needs.changes.outputs.frontend == 'true'
+        && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association))
+    uses: ./.github/workflows/deploy-frontend.yml
+    with:
+      use_prebuilt_dist: true
+    secrets: inherit
