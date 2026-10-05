@@ -55,6 +55,8 @@ jobs:
       - name: Setup Rust toolchain
         if: steps.gate.outputs.backend == 'true'
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          cache: false
 
       - name: Cache Rust dependencies
         if: steps.gate.outputs.backend == 'true'

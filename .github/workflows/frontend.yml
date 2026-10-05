@@ -53,6 +53,7 @@ jobs:
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
         with:
+          cache: false
           target: wasm32-unknown-unknown
           components: rustfmt, clippy
 
@@ -188,7 +189,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/apt-packages
-          key: ${{ runner.os }}-apt-playwright-ubuntu24.04-v2
+          key: ${{ steps.playwright.outputs.apt_cache_key }}
 
       - name: Save Playwright browsers cache
         if: matrix.shard == 1 && github.ref == 'refs/heads/main' && steps.playwright.outputs.browsers_cache_hit != 'true'
