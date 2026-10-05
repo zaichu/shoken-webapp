@@ -39,6 +39,7 @@ jobs:
               - "backend/.cargo/**"
               - "rust-toolchain.toml"
               - ".github/workflows/mutation-testing.yml"
+              - ".github/actions/rust-cache/**"
             frontend:
               - "frontend/**/*.rs"
               - "frontend/Cargo.toml"
@@ -46,12 +47,14 @@ jobs:
               - "frontend/.cargo/**"
               - "rust-toolchain.toml"
               - ".github/workflows/mutation-testing.yml"
+              - ".github/actions/rust-cache/**"
             shared:
               - "shared/**/*.rs"
               - "shared/Cargo.toml"
               - "shared/.cargo/**"
               - "rust-toolchain.toml"
               - ".github/workflows/mutation-testing.yml"
+              - ".github/actions/rust-cache/**"
 
   diff:
     name: cargo-mutants (${{ matrix.crate }} diff)

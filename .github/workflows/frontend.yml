@@ -33,6 +33,8 @@ jobs:
               - "rust-toolchain.toml"
               - "docs/openapi.json"
               - ".github/workflows/frontend.yml"
+              - ".github/actions/rust-cache/**"
+              - ".github/actions/setup-playwright/**"
 
   build:
     name: Check and build

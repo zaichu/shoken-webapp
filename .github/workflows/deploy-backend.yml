@@ -45,6 +45,7 @@ jobs:
               - 'rust-toolchain.toml'
               - 'fly.toml'
               - '.github/workflows/deploy-backend.yml'
+              - '.github/actions/rust-cache/**'
 
       # 手動実行は dependabot 自動マージ後のデプロイ経路なので、直前コミットが frontend だけでも検証を通す
       - name: Resolve backend detection

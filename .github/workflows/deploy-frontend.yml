@@ -8,6 +8,7 @@ on:
       - 'shared/**'
       - 'rust-toolchain.toml'
       - '.github/workflows/deploy-frontend.yml'
+      - '.github/actions/rust-cache/**'
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -15,6 +16,7 @@ on:
       - 'shared/**'
       - 'rust-toolchain.toml'
       - '.github/workflows/deploy-frontend.yml'
+      - '.github/actions/rust-cache/**'
   workflow_dispatch:
 
 permissions:
