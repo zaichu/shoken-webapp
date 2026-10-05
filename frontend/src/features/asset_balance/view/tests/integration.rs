@@ -1,7 +1,7 @@
 use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SearchFacets};
 use crate::api::ApiError;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRowData};
-use crate::features::asset_balance::csv_store::resolve_asset_balance;
+use crate::features::asset_balance::store::csv::resolve_asset_balance;
 use crate::features::asset_balance::store::{
     truncated_list_warning, BalanceSlot, LoadedAssetBalances,
 };

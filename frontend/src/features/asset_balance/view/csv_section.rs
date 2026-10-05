@@ -1,5 +1,5 @@
 use crate::features::asset_balance::csv::AssetBalanceCsvRow;
-use crate::features::asset_balance::csv_store::AssetBalanceCsvStore;
+use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::support::csv_flow::CsvTabState;
 use crate::ui::csv_section::CsvSource;
 

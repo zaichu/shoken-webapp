@@ -45,7 +45,9 @@ bash scripts/e2e-ci-like.sh --show-fonts e2e/receipts/desktop-layout.spec.ts
 
 ## ソースの構成
 
-機能ごとにまとめる。親モジュールは `foo.rs`、子は `foo/bar.rs` に置き、`mod.rs` は使わない。
+機能ごとにまとめる。1つの責務で完結する処理は `foo.rs` だけに置く。責務を分ける子モジュールがあるときだけ `foo.rs` + `foo/` にし、親は型・公開窓口・子の組み立て、子は `foo/bar.rs` に置く。`mod.rs` は使わない。単体テストだけの `foo/tests.rs` も下記の配置規則に従う。
+
+一覧と CSV を持つストアは `store.rs` に一覧取得・セッション世代・キャッシュを置き、CSV の状態操作は `store/csv.rs` に置く。CSV 行の型・レスポンス変換は別責務なので機能直下の `csv.rs` に置く。
 
 ```
 src/
@@ -54,9 +56,9 @@ src/
   session/           ログイン状態・無操作ログアウト・タブ間の同期
   ui/                画面部品。site はナビゲーション、state は読み込み・失敗表示
   features/
-    receipts/        取引明細。model(計算・整形)・store・filter・csv・view(画面)
-    asset_balance/   資産管理。model・store・csv_store・format・view(画面)など
-    stock_search/    銘柄検索。store と view(画面)
+    receipts/        取引明細。model・store(+store/csv)・filter・csv・view(画面)
+    asset_balance/   資産管理。model・store(+store/csv)・format・csv・view(画面)など
+    stock_search.rs, stock_search/view.rs  銘柄検索の状態と画面
     home, login, not_found, dividend_per_share
   support/           list_search・pagination・csv_flow など機能をまたぐ処理
   testing/           テスト用の補助(cfg(test) のみ)
@@ -64,6 +66,22 @@ src/
 
 - 依存の向きは view → store → model。model は Leptos に依存しない
 - 機能どうしは `features/<機能>.rs`(facade)が re-export する公開部分だけを使う。サブモジュールは非公開にして、可視性で守る
+
+### 共通処理の正本
+
+| 用途 | 正本 | 呼び出し側に残すもの |
+| --- | --- | --- |
+| 一覧の全件取得 | `support/pagination.rs` の `fetch_all_pages`。ページ結合・終了・切り詰め判定は `collect_list_pages`、上限は `LIST_PER_PAGE` / `LIST_MAX_PAGES` | `ListEndpoint` の行・集計型と PATH。ホームの集計のみ取得は同じ PATH を使い、`per_page=1`・年指定を維持する |
+| CSV の状態・通信 | `support/csv_flow.rs` の `CsvTabState` と preview/upload/delete 関数 | `store/csv.rs` の世代確認・ファイル保持・一覧再取得。エラー文言は `ApiError::message()`、銘柄検索の案内文は `user_message()` |
+| 金額・数値の書式 | Decimal は `shared::format`、表示要素は `ui/amount.rs` の `Amount` | `asset_balance/format.rs` の f64 変換・巨大値・非有限値の扱い。配当集計の率は既存の `to_fixed` を使い、Decimal の丸めと混ぜない |
+| URL と画面遷移 | `app.rs` の `CurrentPath`・`current_location`・`pathname_of`・`navigate` | `ui/site.rs` は現在パスを読んでナビを表示する。OAuth の外部遷移は `SessionStore::login` / `redirect_to`、通常のリンクは `<a>` と App のクリック処理を使う |
+
+### 画面部品の名前
+
+- `Page`: ルートに対応する画面入口。`<機能名>Page` とし、feature の公開窓口から使う(`ReceiptsPage`・`AssetBalancePage`・`StockSearchPage`)。
+- `View`: 引数を受けて表示する部分に役割名が必要なときだけ使う。画面の組み立ては `view.rs`、状態取得は store に置く。Card・Table・Tile など具体名がある部品に View を重ねない。
+- `Panel`: サイドパネル・ドロワー・タブパネルのように独立した表示領域(`ReceiptsPanel`・`AssetBalancePanel`・`TabPanel`)。
+- `Section`: 画面やパネル内のひとまとまりの内容(`CsvSection`・`DividendSummarySection`)。接尾辞だけの薄い部品や、Page / View / Panel / Section の転送層を作らない。
 
 ### テストの配置
 
@@ -115,6 +133,14 @@ src/
 | `Chip` / `Select` / `FieldTrigger` / `OptionButton`(`ui/choice.rs`) | 押せる選択部品とフォーム | Chip は Filter・Segment(aria-pressed)・Pill |
 | `TabButton`(`ui/tabs.rs`) | `role="tab"` のタブ | 見た目と roving tabindex は部品が持つ。矢印キー移動は呼び出し側の `on_keydown` が担う(例: ReceiptsTabButton) |
 | `Amount`(`ui/amount.rs`) | 金額・率の値 | `tabular-nums` と `[data-negative]` をまとめる。`block=true` で `<p>` として出す |
+| `Alert` / `Spinner` / `Loading` / `LoadingStrip` / `Skeleton` / `ListLoadError` / `ListSkeleton`(`ui/state.rs`) | 読み込み・失敗の状態表示 | Alert は Warning・Danger、SpinnerSize は Sm・Lg、ListSkeletonVariant は Cards・Table。ListLoadError は再読み込み操作を持つ |
+| `CollapsibleSearchCard`(`ui/collapsible_search_card.rs`) | 検索欄の開閉と解除操作 | SearchCardLayout は Card・Toolbar |
+| `CsvSection`(`ui/csv_section.rs`) / `CsvActionRail`(`ui/csv_rail.rs`) | CSV の選択・保存・結果・削除欄 | CsvSource が状態と操作を渡し、配線とマークアップを共有する |
+| `CsvPreviewBanner` / `CsvPreviewNotice`(`ui/csv_preview.rs`) | 未保存のプレビュー・行エラーの通知 | 保存操作と有効行数に合わせた通知。variant なし |
+| `ConfirmDeleteModal`(`ui/confirm_modal.rs`) | 削除確認ダイアログ | フォーカスの閉じ込め、処理中の閉じ操作無効化。item_count は任意 |
+| `WorkspaceShell`(`ui/workspace_shell.rs`) | サイドパネルと本文の配置 | collapsible でドロワーと常時表示を切り替える |
+| `SecurityCodeLink` / `CopyableInstrumentName`(`ui/security_link.rs`) | 銘柄コードの遷移と銘柄名コピー | SecurityLinkVariant は Code・Details |
+| `SiteHeader` / `SiteFooter`(`ui/site.rs`) | サイト共通のナビゲーション・ユーザーメニュー・フッター | URL と SPA 遷移は app.rs が持つ |
 
 ## デザインの決まり
 

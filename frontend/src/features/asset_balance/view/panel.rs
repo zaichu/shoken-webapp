@@ -1,8 +1,8 @@
 use super::search_card::AssetBalanceSearchCard;
 use crate::features::asset_balance::csv::AssetBalanceRow;
-use crate::features::asset_balance::csv_store::AssetBalanceCsvStore;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::search::asset_balance_search_options;
+use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::csv_section::CsvSection;
 use crate::ui::security_link::try_copy_to_clipboard;
@@ -17,7 +17,7 @@ enum ReviewCopyStatus {
 }
 
 #[component]
-pub(crate) fn AssetBalancePanelContent(
+pub(crate) fn AssetBalancePanel(
     view_csv: AssetBalanceCsvStore,
     search_query: RwSignal<String>,
     rows: impl Fn() -> Vec<AssetBalanceRow> + 'static + Send + Sync + Clone,

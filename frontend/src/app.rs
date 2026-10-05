@@ -3,7 +3,7 @@ use crate::features::home::HomePage;
 use crate::features::login::LoginPage;
 use crate::features::not_found::NotFoundPage;
 use crate::features::receipts::ReceiptsPage;
-use crate::features::stock_search::SearchPage;
+use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
 use crate::ui::site::{SiteFooter, SiteHeader};
 use crate::ui::state::Loading;
@@ -254,7 +254,7 @@ pub fn App() -> impl IntoView {
                     }
                     match route {
                         Route::Home => view! { <HomePage /> }.into_any(),
-                        Route::Search => view! { <SearchPage /> }.into_any(),
+                        Route::Search => view! { <StockSearchPage /> }.into_any(),
                         Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
                         Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
                         Route::Login => view! { <LoginPage /> }.into_any(),

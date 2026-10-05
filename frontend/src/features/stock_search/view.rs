@@ -39,7 +39,7 @@ const STOCK_LINKS: &[(&str, &str)] = &[
 ];
 
 #[component]
-pub(crate) fn SearchPage() -> impl IntoView {
+pub(crate) fn StockSearchPage() -> impl IntoView {
     let stock_search = use_stock_search();
     let loading = stock_search.search.pending();
     let has_invalid = stock_search.has_invalid_code_param;

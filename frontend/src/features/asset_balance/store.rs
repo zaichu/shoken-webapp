@@ -1,7 +1,9 @@
+pub(super) mod csv;
+
 use super::holdings::{holding_view, HoldingView};
 use crate::api::dto::{AssetBalance, AssetBalanceSummary, SearchFacets};
 use crate::api::{ApiClient, ApiError};
-use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
+use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::search::filter_asset_balances;
@@ -32,7 +34,7 @@ impl ListEndpoint for AssetBalance {
     type Row = AssetBalance;
     type Summary = AssetBalanceSummary;
 
-    const PATH: &'static str = csv::LIST_PATH;
+    const PATH: &'static str = super::csv::LIST_PATH;
     const INCLUDE_FACETS: bool = true;
 }
 

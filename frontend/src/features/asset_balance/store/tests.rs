@@ -1,8 +1,8 @@
 use super::*;
 use crate::api::dto::{AssetBalanceListResponse, SearchFacets};
 use crate::api::ApiError;
-use crate::features::asset_balance::csv_store::AssetBalanceCsvStore;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
+use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::features::asset_balance::store::DataOps;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::SessionStore;
