@@ -13,47 +13,13 @@ use {
     serde_json::Value,
     sqlx::{Pool, Postgres},
     std::sync::Arc,
-    testcontainers::runners::AsyncRunner,
-    testcontainers_modules::postgres::Postgres as PgImage,
-    tokio::time::{sleep, timeout, Duration},
     tower::ServiceExt,
 };
 
 const BODY_LIMIT: usize = 1024 * 1024;
 
 async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
-    let node = PgImage::default().start().await.unwrap();
-    let port = node.get_host_port_ipv4(5432).await.unwrap();
-    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
-
-    let pool = {
-        let mut last_error = None;
-        let mut pool_ok = None;
-
-        for _ in 0..20 {
-            match timeout(
-                Duration::from_secs(2),
-                sqlx::postgres::PgPoolOptions::new().connect(&database_url),
-            )
-            .await
-            {
-                Ok(Ok(pool)) => {
-                    pool_ok = Some(pool);
-                    break;
-                }
-                Ok(Err(error)) => last_error = Some(error),
-                Err(_) => {}
-            }
-
-            sleep(Duration::from_millis(500)).await;
-        }
-
-        pool_ok.unwrap_or_else(|| panic!("DB 接続失敗: {last_error:?}"))
-    };
-
-    crate::db::run_migrations(&pool)
-        .await
-        .expect("マイグレーション失敗");
+    let (pool, node) = crate::test_db::start_test_pool().await;
 
     sqlx::query(
         r#"INSERT INTO stock (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
