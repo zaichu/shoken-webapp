@@ -15,6 +15,39 @@ BACKEND_LOG="${BACKEND_LOG:-/tmp/shoken-backend-dev.log}"
 FRONTEND_LOG="${FRONTEND_LOG:-/tmp/shoken-frontend-dev.log}"
 DB_LOG="${DB_LOG:-/tmp/shoken-db-up.log}"
 
+# PIDファイルはチェックアウトとポートごとに分ける。同じ /tmp 既定を複数
+# worktree で共有すると後発の起動が先発の PID を上書きし、停止対象を取り違える。
+scoped_pid_tag() {
+  local base="worktree"
+  local hash="0"
+  base="$(basename "${ROOT_DIR}")"
+  hash="$(printf '%s' "${ROOT_DIR}" | cksum 2>/dev/null | cut -d' ' -f1)"
+  if [[ -z "${hash}" ]]; then
+    hash="0"
+  fi
+  printf '%s-%s' "${base}" "${hash}"
+}
+_SCOPED_TAG="$(scoped_pid_tag)"
+_BACKEND_DEFAULT_PORT="3001"
+if [[ "${BACKEND_URL}" =~ :([0-9]+)(/|$) ]]; then
+  _BACKEND_DEFAULT_PORT="${BASH_REMATCH[1]}"
+fi
+: "${BACKEND_PID_FILE:=/tmp/shoken-backend-dev-${_SCOPED_TAG}-${_BACKEND_DEFAULT_PORT}.pid}"
+: "${FRONTEND_PID_FILE:=/tmp/shoken-frontend-dev-${_SCOPED_TAG}-${FRONTEND_PORT}.pid}"
+
+# PID の使い回しで別プロセスを止めないよう、起動時刻も一緒に記録する
+write_pid_file() {
+  local file="$1"
+  local pid="$2"
+  local started=""
+  started="$(ps -p "${pid}" -o lstart= 2>/dev/null | sed 's/^ *//')"
+  if [[ -n "${started}" ]]; then
+    printf '%s\n%s\n' "${pid}" "${started}" > "${file}"
+  else
+    printf '%s\n' "${pid}" > "${file}"
+  fi
+}
+
 BACK_PID=""
 FRONT_PID=""
 TRUNK_TMP_CONFIG=""
@@ -29,6 +62,7 @@ cleanup() {
   if [[ -n "${TRUNK_TMP_CONFIG}" ]]; then
     rm -f "${TRUNK_TMP_CONFIG}"
   fi
+  rm -f "${BACKEND_PID_FILE}" "${FRONTEND_PID_FILE}"
 }
 
 trap cleanup EXIT
@@ -74,9 +108,10 @@ echo "2/3 Starting backend..."
     BACKEND_URL="${BACKEND_URL}" \
     FRONTEND_URL="${FRONTEND_URL}" \
     CORS_ORIGINS="${CORS_ORIGINS}" \
-    make run >"${BACKEND_LOG}" 2>&1
+    exec make run >"${BACKEND_LOG}" 2>&1
 ) &
 BACK_PID=$!
+write_pid_file "${BACKEND_PID_FILE}" "${BACK_PID}"
 
 if ! wait_for_http_ok "${BACKEND_URL}/health" "Backend" 120 0.5; then
   tail -n 80 "${BACKEND_LOG}" >&2 || true
@@ -96,9 +131,10 @@ if [[ "${BACKEND_URL}" != "http://127.0.0.1:3001" ]]; then
 fi
 (
   cd "${FRONTEND_DIR}"
-  trunk serve --config "${TRUNK_CONFIG}" --port "${FRONTEND_PORT}" --no-autoreload >"${FRONTEND_LOG}" 2>&1
+  exec trunk serve --config "${TRUNK_CONFIG}" --port "${FRONTEND_PORT}" --no-autoreload >"${FRONTEND_LOG}" 2>&1
 ) &
 FRONT_PID=$!
+write_pid_file "${FRONTEND_PID_FILE}" "${FRONT_PID}"
 
 if ! wait_for_http_ok "${FRONTEND_URL}/" "Frontend" 240 0.5; then
   tail -n 80 "${FRONTEND_LOG}" >&2 || true

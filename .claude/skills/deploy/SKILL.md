@@ -10,7 +10,7 @@ description: |
 ## 重要: 本番デプロイの経路
 
 - backend: `main` へのマージ(`backend/**`・`shared/**` 変更)で `deploy-backend.yml` が自動デプロイ
-- frontend: PR や `main` への push では自動デプロイしない(Vercel の Git 連携ビルドは `vercel-ignore-build.sh` で常にスキップ)。本番反映は `main` に対する `deploy-frontend.yml` の workflow_dispatch か、Vercel CLI の手動実行のみ
+- frontend: PR や `main` への push では自動デプロイしない(Vercel の Git 連携ビルドは `frontend/vercel.json` の ignoreCommand で常にスキップ)。本番反映は `main` に対する `deploy-frontend.yml` の workflow_dispatch か、Vercel CLI の手動実行のみ
 
 ブランチ運用の基準は `.claude/rules/03-git.md` を参照する。
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
-  "installCommand": "bash scripts/vercel-install.sh",
+  "ignoreCommand": "echo \"Skipped: deployments are done via 'vercel deploy --prebuilt' from GitHub Actions.\"; exit 0",
+  "installCommand": "npm ci",
   "buildCommand": "bash scripts/vercel-build.sh",
   "outputDirectory": "dist",
   "rewrites": [
