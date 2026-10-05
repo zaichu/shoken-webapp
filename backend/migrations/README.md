@@ -1,11 +1,11 @@
 # backend/migrations
 
-SQLx migration の baseline 管理。
+SQLx migration ファイルの置き場所と運用メモ。
 
 ## 現行方針
 
-`backend/migrations` は、新規 DB を現在の最終 schema にするための baseline だけを置く。
-過去の段階的な migration は保持しない。
+`backend/migrations` は追記のみで運用する。適用済みの migration ファイルは変更・削除しない。
+新規 DB には全 migration が番号順に適用され、現在の schema になる。
 
 | No. | ファイル | 内容 |
 |-----|---------|------|
@@ -76,9 +76,9 @@ make repair-and-migrate-local
 
 ## 新しい schema 変更を入れる場合
 
-baseline ファイルは、既存環境がある限り安易に編集しない。
-通常は `0002_<description>.sql` のように新規 migration を追加する。
-次に再ベースライン化する時だけ、baseline を作り直し、repair script と README を同じ PR で更新する。
+適用済みの migration ファイルは編集しない。
+`0017_<description>.sql` のように次番号の新規 migration を追加する。
+再ベースライン化する場合だけ、baseline を作り直し、repair script と README を同じ PR で更新する。
 
 ## 検証
 
