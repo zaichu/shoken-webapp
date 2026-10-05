@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
 
-BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3001}"
-FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:8081}"
+BACKEND_URL="${BACKEND_URL:-}"
+FRONTEND_URL="${FRONTEND_URL:-}"
 
 BACKEND_PID_FILE_EXPLICIT="${BACKEND_PID_FILE:-}"
 FRONTEND_PID_FILE_EXPLICIT="${FRONTEND_PID_FILE:-}"
@@ -211,11 +211,7 @@ pids_listening_on_port() {
       return 0
     fi
 
-    if [[ "${ss_st}" -eq 1 ]]; then
-      # No matches.
-      return 0
-    fi
-
+    # ss は lsof/fuser と違い該当なしでも exit 0(空出力)を返すので、非0はすべて失敗
     scan_st="${ss_st}"
     echo "WARN: ss failed while checking port ${port} (exit ${ss_st}); trying fallback..." >&2
   fi
@@ -324,9 +320,23 @@ done
 
 BACKEND_PORT="${BACKEND_PORT:-$(extract_port_from_url "${BACKEND_URL}")}"
 BACKEND_PORT="${BACKEND_PORT:-3001}"
+BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
 
 FRONTEND_PORT="${FRONTEND_PORT:-$(extract_port_from_url "${FRONTEND_URL}")}"
 FRONTEND_PORT="${FRONTEND_PORT:-8081}"
+FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:${FRONTEND_PORT}}"
+
+# PORT と URL を両方明示してポートが食い違うと、走査と応答確認が別サーバーを見るので拒否する
+_url_port="$(extract_port_from_url "${BACKEND_URL}")"
+if [[ -n "${_url_port}" && "${_url_port}" != "${BACKEND_PORT}" ]]; then
+  echo "ERROR: BACKEND_PORT (${BACKEND_PORT}) and BACKEND_URL port (${_url_port}) disagree." >&2
+  exit 2
+fi
+_url_port="$(extract_port_from_url "${FRONTEND_URL}")"
+if [[ -n "${_url_port}" && "${_url_port}" != "${FRONTEND_PORT}" ]]; then
+  echo "ERROR: FRONTEND_PORT (${FRONTEND_PORT}) and FRONTEND_URL port (${_url_port}) disagree." >&2
+  exit 2
+fi
 
 _SCOPED_TAG="$(scoped_pid_tag)"
 if [[ -z "${BACKEND_PID_FILE}" ]]; then

@@ -11,8 +11,23 @@ if [[ -z "${BACKEND_PORT}" && "${BACKEND_URL:-}" =~ :([0-9]+)(/|$) ]]; then
 fi
 BACKEND_PORT="${BACKEND_PORT:-3001}"
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
+FRONTEND_PORT="${FRONTEND_PORT:-}"
+if [[ -z "${FRONTEND_PORT}" && "${FRONTEND_URL:-}" =~ :([0-9]+)(/|$) ]]; then
+  FRONTEND_PORT="${BASH_REMATCH[1]}"
+fi
 FRONTEND_PORT="${FRONTEND_PORT:-8081}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:${FRONTEND_PORT}}"
+
+# PORT と URL を両方明示してポートが食い違うと、待機・プロキシが別サーバーへ向くので拒否する
+if [[ "${BACKEND_URL}" =~ :([0-9]+)(/|$) ]] && [[ "${BASH_REMATCH[1]}" != "${BACKEND_PORT}" ]]; then
+  echo "ERROR: BACKEND_PORT (${BACKEND_PORT}) and BACKEND_URL port (${BASH_REMATCH[1]}) disagree." >&2
+  exit 2
+fi
+if [[ "${FRONTEND_URL}" =~ :([0-9]+)(/|$) ]] && [[ "${BASH_REMATCH[1]}" != "${FRONTEND_PORT}" ]]; then
+  echo "ERROR: FRONTEND_PORT (${FRONTEND_PORT}) and FRONTEND_URL port (${BASH_REMATCH[1]}) disagree." >&2
+  exit 2
+fi
+
 DATABASE_URL="${DATABASE_URL:-postgresql://user:password@localhost:5432/shoken_db}"
 CORS_ORIGINS="${CORS_ORIGINS:-http://localhost:${FRONTEND_PORT},${FRONTEND_URL}}"
 

@@ -191,11 +191,7 @@ fn assert_success(output: &Output) {
 
 #[test]
 fn scanner_no_matches_is_success_without_a_warning() {
-    for (scanner, status) in [
-        ("lsof", "LSOF_STATUS"),
-        ("ss", "SS_STATUS"),
-        ("fuser", "FUSER_STATUS"),
-    ] {
+    for (scanner, status) in [("lsof", "LSOF_STATUS"), ("fuser", "FUSER_STATUS")] {
         let sandbox = Sandbox::new();
         let output = sandbox.run("stop-local.sh", &[("SCANNERS", scanner), (status, "1")]);
         assert_success(&output);
@@ -206,25 +202,64 @@ fn scanner_no_matches_is_success_without_a_warning() {
         );
         assert!(sandbox.text("killed").is_empty());
     }
+    // ss は該当なしを exit 0・空出力で返す
+    let sandbox = Sandbox::new();
+    let output = sandbox.run("stop-local.sh", &[("SCANNERS", "ss")]);
+    assert_success(&output);
+    assert!(sandbox.text("killed").is_empty());
 }
 
 #[test]
 fn scanner_failure_is_not_reported_as_no_matches() {
-    for (scanner, status) in [
-        ("lsof", "LSOF_STATUS"),
-        ("ss", "SS_STATUS"),
-        ("fuser", "FUSER_STATUS"),
+    for (scanner, name, code) in [
+        ("lsof", "LSOF_STATUS", "2"),
+        ("ss", "SS_STATUS", "1"),
+        ("fuser", "FUSER_STATUS", "2"),
     ] {
         let sandbox = Sandbox::new();
-        let output = sandbox.run("stop-local.sh", &[("SCANNERS", scanner), (status, "2")]);
+        let output = sandbox.run("stop-local.sh", &[("SCANNERS", scanner), (name, code)]);
         assert!(!output.status.success());
         assert!(
-            String::from_utf8_lossy(&output.stderr).contains("exit 2"),
+            String::from_utf8_lossy(&output.stderr).contains(&format!("exit {code}")),
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
         assert!(sandbox.text("killed").is_empty());
     }
+}
+
+#[test]
+fn conflicting_port_and_url_are_rejected() {
+    for script in ["start-local.sh", "stop-local.sh"] {
+        let sandbox = Sandbox::new();
+        let output = sandbox.run(
+            script,
+            &[
+                ("BACKEND_PORT", "4010"),
+                ("BACKEND_URL", "http://127.0.0.1:3001"),
+            ],
+        );
+        assert!(!output.status.success(), "{script}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("disagree"),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(sandbox.text("killed").is_empty());
+    }
+}
+
+#[test]
+fn backend_port_override_moves_the_probe_url() {
+    let sandbox = Sandbox::new();
+    let output = sandbox.run(
+        "stop-local.sh",
+        &[("BACKEND_PORT", "4010"), ("LSOF_STATUS", "1")],
+    );
+    assert_success(&output);
+    let calls = sandbox.text("curl-calls");
+    assert!(calls.contains("4010/health"), "{calls}");
+    assert!(!calls.contains("3001/health"), "{calls}");
 }
 
 #[test]
@@ -319,7 +354,9 @@ fn cargo_run_owner_can_be_stopped_during_compilation() {
     );
     assert_success(&output);
     assert_eq!(sandbox.text("killed"), "43\n");
-    assert_eq!(sandbox.text("scan").lines().count(), 1);
+    // backend は台帳で即停止するので走査は frontend 分の 1 行だけ残る
+    let scans = sandbox.text("scan");
+    assert!(scans.lines().all(|line| line.contains("8081")), "{scans}");
 }
 
 #[test]
@@ -430,6 +467,31 @@ fn start_preserves_explicit_url_port_and_log_overrides() {
         config.contains("backend = \"http://example.test:7777/api/\""),
         "{config}"
     );
+}
+
+#[test]
+fn start_derives_frontend_port_from_url() {
+    let sandbox = Sandbox::new();
+    let base = sandbox
+        .root
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let output = sandbox.run(
+        "start-local.sh",
+        &[
+            ("CURL_STATUS", "0"),
+            ("FRONTEND_URL", "http://127.0.0.1:8090"),
+        ],
+    );
+    remove_tmp_files_containing(&base);
+    assert_success(&output);
+
+    let args = sandbox.text("trunk-args");
+    assert!(args.contains("--port 8090"), "{args}");
+    let calls = sandbox.text("curl-calls");
+    assert!(calls.contains("http://127.0.0.1:8090/"), "{calls}");
 }
 
 #[test]
