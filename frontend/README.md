@@ -141,4 +141,10 @@ src/
 
 ## デプロイ
 
-GitHub Actions の `deploy-frontend.yml` が Vercel CLI で配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。main への frontend/shared 変更 push 後と `workflow_dispatch`（main のみ）は Frontend CI（`frontend.yml`）成功後に呼び出され、CI が生成した成果物をそのまま本番デプロイします（`LEPTOS_PRODUCTION_ENABLED=true` が必要）。PR では `deploy-frontend.yml` が pull_request で起動し、preview 環境へデプロイして URL を PR コメントに投稿します（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。
+GitHub Actions の `deploy-frontend.yml` が Vercel CLI で配信します。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` が必要です。
+
+- main への frontend/shared 変更 push 後と `frontend.yml` の `workflow_dispatch`（main のみ）は、Frontend CI 成功後に `vercel-dist` 成果物を再利用してデプロイします。本番への反映には `LEPTOS_PRODUCTION_ENABLED=true` が必要です。
+- `deploy-frontend.yml` 自体の `workflow_dispatch` は main 限定の独立ビルド経路です。Frontend CI の成功待ちや成果物の再利用は行いません。
+- PR では `deploy-frontend.yml` が `pull_request` で起動し、独立してビルド・preview 配信し、URL を PR コメントに投稿します（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功を待たず、CI が失敗しても preview が配信される場合があります。
+
+現行のセキュリティルールを守って PR preview に CI 成果物を再利用するには、権限のある後段ワークフローと run・PR・成果物の照合が必要になるため、二重ビルドのまま維持します（[#1185](https://github.com/zaichu/shoken-webapp/issues/1185)）。Frontend CI の PR ジョブへデプロイ用 secrets を追加する変更や、既存の権限・セキュリティルールの変更は行いません。

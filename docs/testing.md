@@ -47,7 +47,7 @@ DB を使う ignored test は Docker が必要です。外部 API を呼ぶ igno
 |---|---|---|
 | `frontend.yml` | Check, build, and E2E | fmt、CSS トークン、テスト配置、clippy、cargo test、release build、Playwright（E2E 3 シャード + Vercel 配信） |
 | `deploy-backend.yml` | Test & Build | clippy、cargo test、shared クレート、OpenAPI 同期、Docker build |
-| `deploy-frontend.yml` | Build and deploy to Vercel | 本番は Frontend CI から呼び出され CI の成果物をデプロイ。PR は pull_request で preview（権限のある投稿者のみ） |
+| `deploy-frontend.yml` | Build and deploy to Vercel | CI からの呼び出しは `vercel-dist` を再利用。PR は `pull_request` で独立ビルド・preview（権限のある投稿者のみ、CI 成功待ちなし）。直接の手動起動は main 限定の独立ビルド |
 | `mutation-testing.yml` | cargo-mutants (backend/frontend/shared diff) | PR 差分の変異テスト |
 | `scripts-test.yml` | Test gate scripts | ゲート系スクリプトのテスト |
 | `security-audit.yml` | cargo audit (Rust) / npm audit (Node.js) | 依存関係の脆弱性監査 |
