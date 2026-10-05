@@ -237,7 +237,7 @@ pub async fn bulk_create(
     ensure_user_row_limit_with::<MutualfundDomain, _>(&mut *tx, user_id, items.len(), limit)
         .await?;
 
-    let result = sqlx::query(
+    let result = sqlx::query!(
         r#"
         INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends,
                                  account, shares, exchange_rate, cancellation_unit_price_yen,
@@ -251,21 +251,21 @@ pub async fn bulk_create(
         ON CONFLICT (user_id, trade_date, fund_name, shares, cancellation_amount_yen)
         DO NOTHING
         "#,
+        &user_ids as &[UserId],
+        &trade_dates,
+        &settlement_dates,
+        &fund_names as &[&str],
+        &dividends as &[Option<&str>],
+        &accounts as &[&str],
+        &shares,
+        &exchange_rates,
+        &cancellation_unit_prices,
+        &cancellation_amounts,
+        &avg_acquisition_prices,
+        &realized_pls,
+        &taxes,
+        &realized_pls_after_tax
     )
-    .bind(&user_ids)
-    .bind(&trade_dates)
-    .bind(&settlement_dates)
-    .bind(&fund_names)
-    .bind(&dividends)
-    .bind(&accounts)
-    .bind(&shares)
-    .bind(&exchange_rates)
-    .bind(&cancellation_unit_prices)
-    .bind(&cancellation_amounts)
-    .bind(&avg_acquisition_prices)
-    .bind(&realized_pls)
-    .bind(&taxes)
-    .bind(&realized_pls_after_tax)
     .execute(&mut *tx)
     .await?;
 

@@ -282,7 +282,7 @@ pub async fn bulk_create(
     // batch_occurrence_index はバッチ内での content_hash 別の連番（WITH ORDINALITY で入力順保持）
     // db_counts は既存 DB の (user_id, content_hash) 単位の件数（他ユーザーに引っ張られない）
     // batch_occurrence_index > existing_count の行のみ挿入し、ON CONFLICT で冪等性を保証
-    let result = sqlx::query(
+    let result = sqlx::query!(
         r#"
         WITH batch_data AS (
             SELECT
@@ -336,21 +336,21 @@ pub async fn bulk_create(
         WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
         ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
         "#,
+        &user_ids as &[UserId],
+        &trade_dates,
+        &settlement_dates,
+        &security_codes as &[&str],
+        &security_names as &[&str],
+        &accounts as &[&str],
+        &shares,
+        &asked_prices,
+        &proceeds,
+        &purchase_prices,
+        &realized_pls,
+        &taxes,
+        &realized_pls_after_tax,
+        user_id.get() // $14: スカラーのユーザーID（db_counts WHERE 句用）
     )
-    .bind(&user_ids)
-    .bind(&trade_dates)
-    .bind(&settlement_dates)
-    .bind(&security_codes)
-    .bind(&security_names)
-    .bind(&accounts)
-    .bind(&shares)
-    .bind(&asked_prices)
-    .bind(&proceeds)
-    .bind(&purchase_prices)
-    .bind(&realized_pls)
-    .bind(&taxes)
-    .bind(&realized_pls_after_tax)
-    .bind(user_id) // $14: スカラーのユーザーID（db_counts WHERE 句用）
     .execute(&mut *tx)
     .await?;
 

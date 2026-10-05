@@ -28,6 +28,8 @@ SQLx migration ファイルの置き場所と運用メモ。
 
 ## 重要な注意
 
+全環境の baseline 切り替え完了を確認できるまでは、修復スクリプトと `make repair-and-migrate-local` を保持する。
+
 SQLx は `_sqlx_migrations` に migration の version と checksum を保存する。
 そのため、既存 DB に古い `0001〜0011` を適用済みの状態で、この baseline をそのまま `migrate run` すると checksum 不一致で失敗する。
 

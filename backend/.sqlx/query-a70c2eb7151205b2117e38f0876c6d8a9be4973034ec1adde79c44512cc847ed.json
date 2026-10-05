@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH batch_data AS (\n            SELECT\n                user_id, trade_date, settlement_date, security_code,\n                security_name, account, shares, asked_price, proceeds,\n                purchase_price, realized_profit_and_loss, taxes,\n                realized_profit_and_loss_after_tax,\n                ordinality,\n                md5(\n                    trade_date::text || '|' || settlement_date::text || '|' ||\n                    security_code || '|' || security_name || '|' || account || '|' ||\n                    shares::text || '|' || asked_price::text || '|' || proceeds::text || '|' ||\n                    purchase_price::text || '|' || realized_profit_and_loss::text || '|' ||\n                    taxes::text || '|' || realized_profit_and_loss_after_tax::text\n                ) AS content_hash\n            FROM UNNEST(\n                $1::uuid[], $2::date[], $3::date[], $4::text[],\n                $5::text[], $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],\n                $10::numeric[], $11::numeric[], $12::numeric[], $13::numeric[]\n            ) WITH ORDINALITY AS t(user_id, trade_date, settlement_date, security_code,\n                   security_name, account, shares, asked_price, proceeds,\n                   purchase_price, realized_profit_and_loss, taxes,\n                   realized_profit_and_loss_after_tax, ordinality)\n        ),\n        batch_indexed AS (\n            SELECT *,\n                ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4\n                    AS batch_occurrence_index\n            FROM batch_data\n        ),\n        db_counts AS (\n            SELECT content_hash, COUNT(*)::int4 AS existing_count\n            FROM domestic_stocks\n            WHERE user_id = $14::uuid\n            GROUP BY content_hash\n        )\n        INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code,\n                                     security_name, account, shares, asked_price, proceeds,\n                                     purchase_price, realized_profit_and_loss, taxes,\n                                     realized_profit_and_loss_after_tax,\n                                     content_hash, occurrence_index)\n        SELECT\n            b.user_id, b.trade_date, b.settlement_date, b.security_code,\n            b.security_name, b.account, b.shares, b.asked_price, b.proceeds,\n            b.purchase_price, b.realized_profit_and_loss, b.taxes,\n            b.realized_profit_and_loss_after_tax,\n            b.content_hash,\n            b.batch_occurrence_index\n        FROM batch_indexed b\n        LEFT JOIN db_counts d ON b.content_hash = d.content_hash\n        WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)\n        ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "DateArray",
+        "DateArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a70c2eb7151205b2117e38f0876c6d8a9be4973034ec1adde79c44512cc847ed"
+}

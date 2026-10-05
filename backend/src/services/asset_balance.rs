@@ -183,13 +183,15 @@ pub async fn bulk_create(
 
     ensure_user_row_limit_with::<AssetBalanceDomain, _>(&mut *tx, user_id, total, limit).await?;
 
-    sqlx::query("DELETE FROM asset_balances WHERE user_id = $1")
-        .bind(user_id)
-        .execute(&mut *tx)
-        .await?;
+    sqlx::query!(
+        "DELETE FROM asset_balances WHERE user_id = $1",
+        user_id.get()
+    )
+    .execute(&mut *tx)
+    .await?;
 
     if !items.is_empty() {
-        sqlx::query(
+        sqlx::query!(
             r#"
             INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
                                         average_purchase_price, total_purchase_amount, current_price,
@@ -199,18 +201,18 @@ pub async fn bulk_create(
                 $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[]
             )
             "#,
+            &user_ids as &[UserId],
+            &security_codes as &[&str],
+            &security_names as &[&str],
+            &shares,
+            &executing_shares,
+            &average_purchase_prices,
+            &total_purchase_amounts,
+            &current_prices,
+            &daily_changes,
+            &market_values,
+            &profit_loss_rates
         )
-        .bind(&user_ids)
-        .bind(&security_codes)
-        .bind(&security_names)
-        .bind(&shares)
-        .bind(&executing_shares)
-        .bind(&average_purchase_prices)
-        .bind(&total_purchase_amounts)
-        .bind(&current_prices)
-        .bind(&daily_changes)
-        .bind(&market_values)
-        .bind(&profit_loss_rates)
         .execute(&mut *tx)
         .await?;
     }

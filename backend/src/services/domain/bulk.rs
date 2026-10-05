@@ -141,10 +141,12 @@ pub async fn lock_user_domain<D: Domain>(
     tx: &mut Transaction<'_, Postgres>,
     user_id: UserId,
 ) -> Result<(), ApiError> {
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1::text))")
-        .bind(format!("{user_id}:{}", D::TABLE))
-        .execute(&mut **tx)
-        .await?;
+    sqlx::query!(
+        "SELECT pg_advisory_xact_lock(hashtext($1::text))",
+        format!("{user_id}:{}", D::TABLE)
+    )
+    .execute(&mut **tx)
+    .await?;
     Ok(())
 }
 
