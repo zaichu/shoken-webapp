@@ -342,7 +342,7 @@ fn intl_fixed_matches_number_format_boundary_cases() {
 }
 
 #[test]
-fn safe_add_matches_react_rounding() {
+fn safe_add_rounds_floating_point_noise() {
     assert_eq!(safe_add(0.1, 0.2), 0.3);
     assert_eq!(safe_add(10.0, 20.0), 30.0);
     assert_eq!(safe_add(safe_add(0.0, 0.00000000004), 0.00000000004), 0.0);
@@ -380,7 +380,7 @@ fn chart_percentages_match_component_conditions() {
 }
 
 #[test]
-fn missing_markers_match_react_cases() {
+fn missing_markers_are_not_parsed_as_amounts() {
     for marker in [
         "",
         "-",
@@ -407,7 +407,7 @@ fn missing_markers_match_react_cases() {
 }
 
 #[test]
-fn security_normalization_matches_react_cases() {
+fn security_normalization_covers_code_and_name_cases() {
     assert_eq!(normalize_security_code(" 7974: 任天堂 "), "7974");
     assert_eq!(normalize_security_code("7203: トヨタ自動車"), "7203");
     assert_eq!(normalize_security_code("brk.b"), "BRK.B");

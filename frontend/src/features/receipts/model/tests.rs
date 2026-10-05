@@ -488,7 +488,7 @@ fn mutual_funds_sum_multiple_rows() {
 }
 
 #[test]
-fn receipt_rows_are_sorted_by_their_react_date_keys() {
+fn receipt_rows_are_sorted_by_date_descending() {
     let dividends = vec![
         dividend_on("2024-03-31"),
         dividend_on("2024-01-31"),
@@ -569,7 +569,7 @@ fn monthly_mutual_fund_groups_sum_and_sort_descending() {
 }
 
 #[test]
-fn date_helpers_match_react_output_and_reject_invalid_values() {
+fn date_helpers_format_output_and_reject_invalid_values() {
     assert_eq!(format_date("2023-12-25"), "2023/12/25");
     assert_eq!(format_date("2023-02-29"), "—");
     assert_eq!(format_date("string"), "—");
@@ -591,7 +591,7 @@ fn date_helpers_match_react_output_and_reject_invalid_values() {
 }
 
 #[test]
-fn parse_normalize_and_decimal_helpers_match_react_cases() {
+fn parse_normalize_and_decimal_helpers_match_expected_cases() {
     assert_eq!(parse_number("1,234"), dec!(1234));
     assert_eq!(parse_number("invalid"), dec!(0));
     assert_eq!(normalize_security_code(" 7974: 任天堂 "), "7974");
@@ -606,7 +606,7 @@ fn parse_normalize_and_decimal_helpers_match_react_cases() {
 }
 
 #[test]
-fn percentage_helpers_match_react_cases() {
+fn percentage_helpers_match_expected_cases() {
     assert_eq!(format_percentage(dec!(25), dec!(100), 2), "25.00%");
     assert_eq!(format_percentage(dec!(1), dec!(3), 1), "33.3%");
     assert_eq!(format_percentage(dec!(10), dec!(0), 2), "0%");

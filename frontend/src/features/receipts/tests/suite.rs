@@ -43,7 +43,7 @@ fn stale_receipts_result_is_rejected_after_same_or_different_user_login() {
 }
 
 #[test]
-fn unauthorized_receipts_error_uses_react_message() {
+fn unauthorized_error_uses_401_message() {
     assert_eq!(ApiError::http(401).message(), "認証が必要です");
 }
 
@@ -572,7 +572,7 @@ fn utility_filter_badge_is_only_shown_while_collapsed_and_filtering() {
 }
 
 #[test]
-fn dividend_cells_match_react_columns_and_formatting() {
+fn dividend_cells_match_columns_and_formatting() {
     let row: crate::api::dto::Dividend = serde_json::from_value(serde_json::json!({
         "id": "550e8400-e29b-41d4-a716-446655440000",
         "settlement_date": "2024-03-01",

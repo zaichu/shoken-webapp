@@ -74,7 +74,7 @@ fn short_last_page_is_not_truncated_and_keeps_first_page_summary() {
 }
 
 #[test]
-fn truncated_warning_uses_the_same_wording_as_react_db_warning() {
+fn truncated_warning_uses_fixed_message() {
     assert_eq!(
         truncated_list_warning(),
         "一覧は最大100,000件まで表示しています。検索条件を絞り込んでください。"

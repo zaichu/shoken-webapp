@@ -24,7 +24,7 @@ fn dividend_filter_uses_exact_fields_and_all_amount_fields() {
     assert!(filter_receipts(ReceiptsTab::Dividend, &rows, "943").is_empty());
 }
 #[test]
-fn domestic_filter_uses_trade_date_and_only_react_amounts() {
+fn domestic_filter_matches_trade_date_and_amount_fields() {
     let rows = domestic();
     for query in [
         "7203",
@@ -139,7 +139,7 @@ fn whitespace_returns_all_three_tabs() {
     }
 }
 #[test]
-fn categories_use_latest_name_sorted_dates_and_react_tab_fields() {
+fn categories_use_latest_name_sorted_dates_and_tab_fields() {
     let result = search_categories(ReceiptsTab::Dividend, &dividends());
     assert!(result.dates);
     assert_eq!(
@@ -190,7 +190,7 @@ fn category_selections_quote_spaces_and_combine_with_year() {
 }
 
 #[test]
-fn combined_query_uses_react_order_and_quotes_whitespace() {
+fn combined_query_uses_fixed_order_and_quotes_whitespace() {
     let queries = SelectedQueries {
         date: " 2026-06 ".into(),
         securities: "9433: KDDI".into(),
@@ -213,7 +213,7 @@ fn combined_query_uses_react_order_and_quotes_whitespace() {
 }
 
 #[test]
-fn date_and_year_queries_keep_react_search_keys_separate() {
+fn date_and_year_queries_keep_search_keys_separate() {
     let mut state = ReceiptSearch::new(true);
     state.select_year("2026".into());
     assert_eq!(state.query, "2026");
@@ -224,7 +224,7 @@ fn date_and_year_queries_keep_react_search_keys_separate() {
 }
 
 #[test]
-fn range_query_matches_react_empty_and_open_ranges() {
+fn range_query_supports_empty_and_open_ranges() {
     assert_eq!(build_range_query("", ""), "");
     assert_eq!(build_range_query("2026-06-01", ""), "2026-06-01..");
     assert_eq!(build_range_query("", "2026-06-30"), "..2026-06-30");
@@ -264,7 +264,7 @@ fn changing_date_segment_only_clears_date_state() {
 }
 
 #[test]
-fn range_inputs_and_clear_match_react_state() {
+fn range_inputs_and_clear_reset_search_state() {
     let mut state = ReceiptSearch::new(true);
     state.change_date_segment(DateSegment::Range);
     state.set_range_start("2026-06-01".into());

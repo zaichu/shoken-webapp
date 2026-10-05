@@ -86,7 +86,7 @@ fn preview_response_maps_to_typed_rows_per_tab() {
 }
 
 #[test]
-fn preview_row_with_missing_fields_falls_back_like_react() {
+fn preview_row_with_missing_fields_falls_back_to_defaults() {
     let response = preview_response(vec![
         serde_json::Value::Null,
         serde_json::json!({"security_name": "トヨタ自動車"}),

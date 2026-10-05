@@ -38,7 +38,7 @@ fn init_test_executor() {
 }
 
 #[test]
-fn search_security_code_matches_react_gating() {
+fn search_security_code_gates_on_exact_code_or_name_match() {
     let rows = vec![dividend("7203", "トヨタ自動車"), dividend("6758", "ソニー")];
     assert_eq!(search_security_code(&rows, "7203"), "7203");
     assert_eq!(search_security_code(&rows, "トヨタ自動車"), "7203");
@@ -50,7 +50,7 @@ fn search_security_code_matches_react_gating() {
 }
 
 #[test]
-fn search_security_code_rejects_non_regex_codes() {
+fn search_security_code_rejects_non_ascii_codes() {
     let rows = vec![dividend("７２０３", "トヨタ自動車")];
     assert_eq!(search_security_code(&rows, "７２０３"), "");
 }
@@ -145,7 +145,7 @@ fn per_share_display_uses_short_decimal_digits() {
 }
 
 #[test]
-fn percentage_value_matches_react_to_fixed() {
+fn percentage_value_formats_with_fixed_decimals() {
     assert_eq!(format_percentage_value(2.0), "2.00%");
     assert_eq!(format_percentage_value(0.9564), "0.96%");
     assert_eq!(format_percentage_value(1.005), "1.00%");

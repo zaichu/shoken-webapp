@@ -247,7 +247,7 @@ fn delete_error_keeps_result_and_sets_message() {
 }
 
 #[test]
-fn notice_texts_match_react() {
+fn notice_texts_format_counts_and_row_errors() {
     let result = CsvUploadResponse {
         inserted: 2,
         skipped: 1,
