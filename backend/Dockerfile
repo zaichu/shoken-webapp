@@ -1,11 +1,12 @@
 # ビルドステージ
 # backend は ../shared を path 依存で参照するため、ビルドコンテキストはリポジトリルート
-FROM rust:1.96-bookworm AS builder
+FROM rust:1.99-bookworm AS builder
 
 WORKDIR /app/backend
 
 # 依存関係のキャッシュ用にCargo.tomlとCargo.lockをコピー
-COPY backend/Cargo.toml backend/Cargo.lock backend/rust-toolchain.toml ./
+COPY backend/Cargo.toml backend/Cargo.lock ./
+COPY rust-toolchain.toml /app/rust-toolchain.toml
 COPY shared /app/shared
 
 # ダミーのsrc/main.rsを作成して依存関係をキャッシュ

@@ -4,7 +4,7 @@ Leptos (CSR) のフロントエンドです。単独の Cargo パッケージで
 
 ## 前提
 
-- Rust 1.96.0 と `wasm32-unknown-unknown` ターゲット
+- Rust（版はルートの `../rust-toolchain.toml` を参照）と `wasm32-unknown-unknown` ターゲット
 - Trunk 0.21.4
 - Node.js 22 と npm
 

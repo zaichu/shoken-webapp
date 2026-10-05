@@ -8,6 +8,7 @@ on:
     paths:
       - 'backend/**'
       - 'shared/**'
+      - 'rust-toolchain.toml'
       - 'fly.toml'
       - '.github/workflows/deploy-backend.yml'
   # GITHUB_TOKEN による dependabot の自動マージでは push イベントが発火しないため、手動デプロイ用に残す
@@ -41,6 +42,7 @@ jobs:
             backend:
               - 'backend/**'
               - 'shared/**'
+              - 'rust-toolchain.toml'
               - 'fly.toml'
               - '.github/workflows/deploy-backend.yml'
 
