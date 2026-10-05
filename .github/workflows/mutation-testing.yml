@@ -18,9 +18,7 @@ jobs:
     name: Detect Rust changes
     runs-on: ubuntu-latest
     outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-      shared: ${{ steps.filter.outputs.shared }}
+      crates: ${{ steps.filter.outputs.changes }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
@@ -59,12 +57,13 @@ jobs:
   diff:
     name: cargo-mutants (${{ matrix.crate }} diff)
     needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs[matrix.crate] == 'true'
+    # ジョブの if は matrix 展開より前に評価されるため、未変更クレートは matrix 自体から外す
+    if: github.event_name == 'pull_request' && needs.changes.outputs.crates != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        crate: [backend, frontend, shared]
+        crate: ${{ fromJSON(needs.changes.outputs.crates) }}
     defaults:
       run:
         working-directory: ${{ matrix.crate }}
