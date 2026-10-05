@@ -1,5 +1,5 @@
-use crate::ui::button::{Button, ButtonSize, ButtonVariant, IconButton, IconButtonVariant};
-use crate::ui::elements::{Spinner, SpinnerSize};
+use crate::ui::button::{Button, ButtonSize, ButtonVariant, IconButton};
+use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -108,7 +108,6 @@ pub fn ConfirmDeleteModal(
                             {title}
                         </h5>
                         <IconButton
-                            variant=IconButtonVariant::Close
                             aria_label="閉じる".to_string()
                             disabled=move || loading.get()
                             on_click=move |_| close_cancel()

@@ -110,6 +110,7 @@ Google Cloud Console で以下の **Authorized redirect URIs** を登録する:
 worktree を使った作業ブランチをマージした後は、以下の順序で後片付けをする。
 ローカルブランチ削除を先に実行すると worktree がそのブランチを参照中のためエラーになる場合があるので、
 必ず **worktree 削除を先に行う**こと。
+worktree の配置先などの運用ルールは `.claude/rules/03-git.md` を正本とする。
 
 ```bash
 # 1. PR をマージ（GitHub 側でブランチを削除してもよい）

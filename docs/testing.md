@@ -43,10 +43,14 @@ DB を使う ignored test は Docker が必要です。外部 API を呼ぶ igno
 
 ## CI
 
-| ワークフロー | 必須チェック | 内容 |
+| ワークフロー | チェック名 | 内容 |
 |---|---|---|
-| `frontend.yml` | Check, build, and E2E | fmt、clippy、cargo test、release build、Playwright |
-| `deploy-backend.yml` | Test & Build | clippy、cargo test、OpenAPI 同期、Docker build |
-| `pr-gate.yml` | PR gate | Issue の紐付け、レビューコメント |
+| `frontend.yml` | Check, build, and E2E | fmt、CSS トークン、テスト配置、clippy、cargo test、release build、Playwright（E2E 3 シャード + Vercel 配信） |
+| `deploy-backend.yml` | Test & Build | clippy、cargo test、shared クレート、OpenAPI 同期、Docker build |
+| `deploy-frontend.yml` | Build and deploy to Vercel | PR プレビューのビルド・デプロイ（権限のある投稿者のみ） |
+| `mutation-testing.yml` | cargo-mutants (backend/frontend/shared diff) | PR 差分の変異テスト |
+| `scripts-test.yml` | Test gate scripts | ゲート系スクリプトのテスト |
+| `security-audit.yml` | cargo audit (Rust) / npm audit (Node.js) | 依存関係の脆弱性監査 |
+| `pr-gate.yml` | Evaluate PR gate | Issue の紐付け、未解決レビューコメント |
 
-依存関係の監査は `security-audit.yml` で Cargo と `frontend/` の npm を対象に実行します。
+`backend-db-integration.yml` は定期・手動実行のみで、Docker 必須の ignored DB 統合テストを実行します。

@@ -1,7 +1,7 @@
 use crate::session::use_session;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::elements::{Spinner, SpinnerSize};
+use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 
 #[component]

@@ -3,8 +3,8 @@ use crate::api::dto::Stock;
 use crate::ui::badge::CodeBadge;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::elements::{Alert, AlertVariant, ListLoadError, Spinner, SpinnerSize};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::state::{Alert, AlertVariant, ListLoadError, Spinner, SpinnerSize};
 use crate::ui::workspace_shell::WorkspaceShell;
 use leptos::prelude::*;
 use shared::normalize::normalize_display_name;
@@ -154,7 +154,7 @@ fn SearchForm(
                         disabled=Signal::derive(move || {
                             loading.get() || stock_code.get().is_empty()
                         })
-                        data_loading=Signal::derive(move || loading.get())
+                        attr:data-loading=move || loading.get().then_some("true")
                         aria_label=Signal::derive(move || {
                             if loading.get() { "検索中" } else { "銘柄を検索" }.to_string()
                         })

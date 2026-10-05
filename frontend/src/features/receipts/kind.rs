@@ -1,7 +1,9 @@
+mod config;
+
+use config::{ReceiptKind, RECEIPT_KINDS};
 use std::collections::HashMap;
 
 use rust_decimal::Decimal;
-use serde::de::DeserializeOwned;
 use shared::normalize::normalize_display_name;
 use shared::summary::{domestic_daily, domestic_total, DomesticDailyRow};
 use shared::tax::SPECIFIC_ACCOUNT_KEYWORD;
@@ -87,7 +89,7 @@ pub(crate) trait ReceiptRowData {
     // カードの開閉状態を引き継ぐ照合は表示丸め前の値で行う。
     // 数量 1.001 と 1.002 はともに「1.00」と出るが別行として区別する。
     fn raw_key(&self) -> String;
-    /// 検索用の金額フィールド。`ReceiptKind::SEARCH_AMOUNTS` の列番号に対応する。
+    /// 検索用の金額フィールド。`ReceiptKind::search_amounts` の列番号に対応する。
     fn search_amount(&self, index: usize) -> Decimal;
     /// グループ・ヘッダー集計用の金額 3 つ組。(対象金額, 税額, 税引後)
     fn summary_amounts(&self) -> (Decimal, Decimal, Decimal);
@@ -708,63 +710,6 @@ fn account_matches(row: &ReceiptRow, query: &str) -> bool {
         .contains(query)
 }
 
-// `search_amount` の列番号から fn ポインタの配列を作る
-macro_rules! amount_getters {
-    ($($index:literal),+ $(,)?) => {
-        &[$(|row: &ReceiptRow| row.search_amount($index)),+]
-    };
-}
-
-/// タブ種別ごとの違いを 1 か所に集約する。静的ディスパッチのため実体は持たない。
-pub(crate) trait ReceiptKind: ListEndpoint {
-    type CsvRow: Default + Clone + std::fmt::Debug + PartialEq + DeserializeOwned + ReceiptRowData;
-
-    const LABEL: &'static str;
-    const PREVIEW_PATH: &'static str;
-    const IMPORT_PATH: &'static str;
-    const HEADERS: &'static [&'static str];
-    // 列幅は ch ではなく font-size 基準の em で指定する。`0` の字幅はフォントで変わるが、
-    // `¥`・`/`・漢字を含む本文の幅は font-size に対して安定するため
-    const COLUMN_WIDTHS: &'static [&'static str];
-    const COLUMN_TIERS: &'static [ColumnTier];
-    const COLUMN_ALIGNS: &'static [&'static str];
-    const CARD_FIELDS: CardFields;
-    const SUMMARY_LABELS: [&'static str; 3];
-    // ヘッダー集計の項目。(ラベル, 損益系なら負数で赤文字にするか)
-    const HEADER_ITEMS: [(&'static str, bool); 3];
-    const EMPTY_HINT: &'static str;
-    const CSV_INPUT_ID: &'static str;
-    const STRING_FIELDS: &'static [fn(&ReceiptRow) -> &str];
-    const SEARCH_AMOUNTS: &'static [fn(&ReceiptRow) -> Decimal] = &[];
-    const PRODUCT_CATEGORY: bool = false;
-    const ACCOUNT_CATEGORY: bool = true;
-    const REORDER_RULES: &'static [ColumnReorderRule<ReceiptRow>] = &[];
-    const REORDER_FIXED: usize = 0;
-
-    fn wrap_row(row: Self::Row) -> ReceiptItem;
-    fn wrap_summary(summary: Self::Summary) -> ReceiptSummary;
-    fn wrap_csv_row(row: Self::CsvRow) -> CsvPreviewRow;
-    fn api_summary(summary: &ReceiptSummary) -> Option<[Decimal; 3]>;
-    /// 検索・プレビュー中に代わりに使う、画面側での行合計。
-    fn totals(rows: &[ReceiptRow]) -> Self::Summary;
-    fn summary_triple(summary: &Self::Summary) -> [Decimal; 3];
-    fn table_groups(rows: &[ReceiptRow], all_rows: &[ReceiptRow], query: &str) -> Vec<TableGroup>;
-
-    fn filter_config() -> FilterConfig<ReceiptRow> {
-        FilterConfig {
-            string_fields: Some(Self::STRING_FIELDS.to_vec()),
-            partial_string_fields: None,
-            date_field: Some(ReceiptRow::date),
-            year_search: true,
-            year_month_search: true,
-            date_search: true,
-            date_range_search: true,
-            amount_fields: (!Self::SEARCH_AMOUNTS.is_empty())
-                .then(|| Self::SEARCH_AMOUNTS.to_vec()),
-        }
-    }
-}
-
 fn sorted_rows(rows: &[ReceiptRow]) -> Vec<ReceiptRow> {
     let mut sorted = rows.to_vec();
     sorted.sort_by(|a, b| b.date().cmp(a.date()));
@@ -838,494 +783,213 @@ impl DomesticDailyRow for Row<ReceiptItem, CsvPreviewRow> {
     }
 }
 
-pub(crate) struct DividendKind;
-pub(crate) struct DomesticStockKind;
-pub(crate) struct MutualFundKind;
-
-impl ListEndpoint for DividendKind {
+impl ListEndpoint for Dividend {
     type Row = Dividend;
     type Summary = DividendSummary;
-    const PATH: &'static str = "/api/v1/dividends";
+    const PATH: &'static str = RECEIPT_KINDS[ReceiptsTab::Dividend as usize].list_path;
 }
 
-impl ReceiptKind for DividendKind {
-    type CsvRow = DividendCsvRow;
+pub(crate) fn dividend_totals(rows: &[ReceiptRow]) -> DividendSummary {
+    totals_from_amounts(rows, |(before_tax, taxes, net)| DividendSummary {
+        total_dividends_before_tax: before_tax,
+        total_taxes: taxes,
+        total_net_amount_received: net,
+    })
+}
 
-    const LABEL: &'static str = "配当金";
-    const PREVIEW_PATH: &'static str = "/api/v1/dividend-import-validations";
-    const IMPORT_PATH: &'static str = "/api/v1/dividend-imports";
-    const HEADERS: &'static [&'static str] = &[
-        "入金日",
-        "商品",
-        "口座",
-        "銘柄コード",
-        "銘柄名",
-        "単価",
-        "数量",
-        "配当金",
-        "税額",
-        "税引後",
-    ];
-    const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "9em", "7.5em", "7.5em", "10em", "", "10em", "7em", "10em", "10em", "10em",
-    ];
-    const COLUMN_TIERS: &'static [ColumnTier] = &[
-        ColumnTier::Core,
-        ColumnTier::Wider,
-        ColumnTier::Wider,
-        ColumnTier::Wide,
-        ColumnTier::Core,
-        ColumnTier::Wider,
-        ColumnTier::Md,
-        ColumnTier::Core,
-        ColumnTier::Core,
-        ColumnTier::Core,
-    ];
-    const COLUMN_ALIGNS: &'static [&'static str] = &[
-        "left", "left", "left", "center", "left", "right", "right", "right", "right", "right",
-    ];
-    const CARD_FIELDS: CardFields = CardFields {
-        name: 4,
-        date: 0,
-        account: 2,
-    };
-    const SUMMARY_LABELS: [&'static str; 3] = ["配当金", "税額", "税引後"];
-    const HEADER_ITEMS: [(&'static str, bool); 3] =
-        [("配当金", false), ("税額", false), ("税引後", false)];
-    const EMPTY_HINT: &'static str = "配当金明細をCSVで追加してください";
-    const CSV_INPUT_ID: &'static str = "csv-file-input-dividend";
-    const STRING_FIELDS: &'static [fn(&ReceiptRow) -> &str] = &[
-        ReceiptRow::code,
-        ReceiptRow::name,
-        ReceiptRow::account,
-        ReceiptRow::product,
-    ];
-    const SEARCH_AMOUNTS: &'static [fn(&ReceiptRow) -> Decimal] = amount_getters!(0, 1, 2, 3, 4);
-    const PRODUCT_CATEGORY: bool = true;
-    const REORDER_RULES: &'static [ColumnReorderRule<ReceiptRow>] = &[
-        ColumnReorderRule {
-            column_key: 1,
-            matches: product_matches,
-        },
-        ColumnReorderRule {
-            column_key: 2,
-            matches: account_matches,
-        },
-    ];
-    const REORDER_FIXED: usize = 1;
-
-    fn wrap_row(row: Self::Row) -> ReceiptItem {
-        ReceiptItem::Dividend(row)
-    }
-
-    fn wrap_summary(summary: Self::Summary) -> ReceiptSummary {
-        ReceiptSummary::Dividend(summary)
-    }
-
-    fn wrap_csv_row(row: Self::CsvRow) -> CsvPreviewRow {
-        CsvPreviewRow::Dividend(row)
-    }
-
-    fn api_summary(summary: &ReceiptSummary) -> Option<[Decimal; 3]> {
-        match summary {
-            ReceiptSummary::Dividend(summary) => Some(Self::summary_triple(summary)),
-            _ => None,
-        }
-    }
-
-    fn totals(rows: &[ReceiptRow]) -> Self::Summary {
-        totals_from_amounts(rows, |(before_tax, taxes, net)| DividendSummary {
-            total_dividends_before_tax: before_tax,
-            total_taxes: taxes,
-            total_net_amount_received: net,
-        })
-    }
-
-    fn summary_triple(summary: &Self::Summary) -> [Decimal; 3] {
-        [
-            summary.total_dividends_before_tax,
-            summary.total_taxes,
-            summary.total_net_amount_received,
-        ]
-    }
-
-    fn table_groups(rows: &[ReceiptRow], all_rows: &[ReceiptRow], query: &str) -> Vec<TableGroup> {
-        let sorted = sorted_rows(rows);
-        // 同じ銘柄コードでも新しい行の銘柄名を優先する。絞り込み前の全行から引く
-        let mut latest: HashMap<&str, (&str, &str)> = HashMap::new();
-        for row in all_rows {
-            match latest.get_mut(row.code()) {
-                Some(entry) if row.date() > entry.0 => {
-                    *entry = (row.date(), row.name());
-                }
-                None => {
-                    latest.insert(row.code(), (row.date(), row.name()));
-                }
-                _ => {}
+fn dividend_table_groups(
+    rows: &[ReceiptRow],
+    all_rows: &[ReceiptRow],
+    query: &str,
+) -> Vec<TableGroup> {
+    let sorted = sorted_rows(rows);
+    // 同じ銘柄コードでも新しい行の銘柄名を優先する。絞り込み前の全行から引く
+    let mut latest: HashMap<&str, (&str, &str)> = HashMap::new();
+    for row in all_rows {
+        match latest.get_mut(row.code()) {
+            Some(entry) if row.date() > entry.0 => {
+                *entry = (row.date(), row.name());
             }
+            None => {
+                latest.insert(row.code(), (row.date(), row.name()));
+            }
+            _ => {}
         }
-        let security_key = |row: &ReceiptRow| {
-            let name = latest
-                .get(row.code())
-                .map_or_else(|| row.name().to_string(), |(_, name)| (*name).to_string());
-            // 見出しは半角化して出すのでキーも揃え、全角・半角だけ違う名が別コード間で分かれないようにする
-            normalize_display_name(&name)
-        };
-        let rules = [
-            GroupKeyRule {
-                test: |row: &ReceiptRow, token| {
-                    row.code().to_lowercase() == token
-                        || normalize_display_name(row.name()).to_lowercase() == token
-                },
-                key_fn: &security_key,
-            },
-            GroupKeyRule {
-                test: |row: &ReceiptRow, token| {
-                    normalize_display_name(row.product()).to_lowercase() == token
-                },
-                key_fn: &|row: &ReceiptRow| normalize_display_name(row.product()),
-            },
-            GroupKeyRule {
-                test: |row: &ReceiptRow, token| {
-                    normalize_display_name(row.account()).to_lowercase() == token
-                },
-                key_fn: &|row: &ReceiptRow| normalize_display_name(row.account()),
-            },
-        ];
-        let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
-        summarize_groups(&sorted, key)
     }
+    let security_key = |row: &ReceiptRow| {
+        let name = latest
+            .get(row.code())
+            .map_or_else(|| row.name().to_string(), |(_, name)| (*name).to_string());
+        // 見出しは半角化して出すのでキーも揃え、全角・半角だけ違う名が別コード間で分かれないようにする
+        normalize_display_name(&name)
+    };
+    let rules = [
+        GroupKeyRule {
+            test: |row: &ReceiptRow, token| {
+                row.code().to_lowercase() == token
+                    || normalize_display_name(row.name()).to_lowercase() == token
+            },
+            key_fn: &security_key,
+        },
+        GroupKeyRule {
+            test: |row: &ReceiptRow, token| {
+                normalize_display_name(row.product()).to_lowercase() == token
+            },
+            key_fn: &|row: &ReceiptRow| normalize_display_name(row.product()),
+        },
+        GroupKeyRule {
+            test: |row: &ReceiptRow, token| {
+                normalize_display_name(row.account()).to_lowercase() == token
+            },
+            key_fn: &|row: &ReceiptRow| normalize_display_name(row.account()),
+        },
+    ];
+    let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
+    summarize_groups(&sorted, key)
 }
 
-impl ListEndpoint for DomesticStockKind {
+impl ListEndpoint for DomesticStock {
     type Row = DomesticStock;
     type Summary = DomesticStockSummary;
-    const PATH: &'static str = "/api/v1/domestic-stock-transactions";
+    const PATH: &'static str = RECEIPT_KINDS[ReceiptsTab::DomesticStock as usize].list_path;
 }
 
-impl ReceiptKind for DomesticStockKind {
-    type CsvRow = DomesticStockCsvRow;
-
-    const LABEL: &'static str = "国内株式";
-    const PREVIEW_PATH: &'static str = "/api/v1/domestic-stock-import-validations";
-    const IMPORT_PATH: &'static str = "/api/v1/domestic-stock-imports";
-    const HEADERS: &'static [&'static str] = &[
-        "約定日",
-        "銘柄コード",
-        "銘柄名",
-        "口座",
-        "数量",
-        "売却単価",
-        "売却額",
-        "取得価額",
-        "実現損益",
-        "税額",
-        "税引後",
-    ];
-    const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "9em", "10em", "", "7.5em", "7em", "10em", "10em", "10em", "10em", "10em", "10em",
-    ];
-    const COLUMN_TIERS: &'static [ColumnTier] = &[
-        ColumnTier::Core,
-        ColumnTier::Wide,
-        ColumnTier::Core,
-        ColumnTier::Wider,
-        ColumnTier::Wide,
-        ColumnTier::Wider,
-        ColumnTier::Wider,
-        ColumnTier::Wider,
-        ColumnTier::Core,
-        ColumnTier::Core,
-        ColumnTier::Core,
-    ];
-    const COLUMN_ALIGNS: &'static [&'static str] = &[
-        "left", "center", "left", "left", "right", "right", "right", "right", "right", "right",
-        "right",
-    ];
-    const CARD_FIELDS: CardFields = CardFields {
-        name: 2,
-        date: 0,
-        account: 3,
-    };
-    const SUMMARY_LABELS: [&'static str; 3] = ["実現損益", "税額", "税引後"];
-    const HEADER_ITEMS: [(&'static str, bool); 3] =
-        [("実現損益", true), ("税額", false), ("税引後", true)];
-    const EMPTY_HINT: &'static str = "国内株式明細をCSVで追加してください";
-    const CSV_INPUT_ID: &'static str = "csv-file-input-domesticstock";
-    const STRING_FIELDS: &'static [fn(&ReceiptRow) -> &str] =
-        &[ReceiptRow::code, ReceiptRow::name, ReceiptRow::account];
-    const SEARCH_AMOUNTS: &'static [fn(&ReceiptRow) -> Decimal] = amount_getters!(0, 1, 2, 3, 4);
-    const REORDER_RULES: &'static [ColumnReorderRule<ReceiptRow>] = &[ColumnReorderRule {
-        column_key: 3,
-        matches: account_matches,
-    }];
-    const REORDER_FIXED: usize = 2;
-
-    fn wrap_row(row: Self::Row) -> ReceiptItem {
-        ReceiptItem::DomesticStock(row)
-    }
-
-    fn wrap_summary(summary: Self::Summary) -> ReceiptSummary {
-        ReceiptSummary::DomesticStock(summary)
-    }
-
-    fn wrap_csv_row(row: Self::CsvRow) -> CsvPreviewRow {
-        CsvPreviewRow::DomesticStock(row)
-    }
-
-    fn api_summary(summary: &ReceiptSummary) -> Option<[Decimal; 3]> {
-        match summary {
-            ReceiptSummary::DomesticStock(summary) => Some(Self::summary_triple(summary)),
-            _ => None,
-        }
-    }
-
-    fn totals(rows: &[ReceiptRow]) -> Self::Summary {
-        domestic_total(rows)
-    }
-
-    fn summary_triple(summary: &Self::Summary) -> [Decimal; 3] {
-        [
-            summary.total_realized_profit_and_loss,
-            summary.total_taxes,
-            summary.total_realized_profit_and_loss_after_tax,
-        ]
-    }
-
-    fn table_groups(
-        rows: &[ReceiptRow],
-        _all_rows: &[ReceiptRow],
-        _query: &str,
-    ) -> Vec<TableGroup> {
-        let sorted = sorted_rows(rows);
-        domestic_daily(&sorted)
-            .into_iter()
-            .map(|day| {
-                let date = day.filter;
-                let rows: Vec<_> = sorted
-                    .iter()
-                    .filter(|row| row.date() == date)
-                    .map(row_tuple)
-                    .collect();
-                let summary = if rows.len() > 1 {
-                    vec![
-                        format_currency(day.total_realized_profit_and_loss),
-                        format_currency(day.total_taxes),
-                        format_currency(day.total_realized_profit_and_loss_after_tax),
-                    ]
-                } else {
-                    vec![]
-                };
-                TableGroup {
-                    key: date.clone(),
-                    label: group_label(&date),
-                    summary,
-                    rows,
-                }
-            })
-            .collect()
-    }
+fn domestic_table_groups(rows: &[ReceiptRow]) -> Vec<TableGroup> {
+    let sorted = sorted_rows(rows);
+    domestic_daily(&sorted)
+        .into_iter()
+        .map(|day| {
+            let date = day.filter;
+            let rows: Vec<_> = sorted
+                .iter()
+                .filter(|row| row.date() == date)
+                .map(row_tuple)
+                .collect();
+            let summary = if rows.len() > 1 {
+                vec![
+                    format_currency(day.total_realized_profit_and_loss),
+                    format_currency(day.total_taxes),
+                    format_currency(day.total_realized_profit_and_loss_after_tax),
+                ]
+            } else {
+                vec![]
+            };
+            TableGroup {
+                key: date.clone(),
+                label: group_label(&date),
+                summary,
+                rows,
+            }
+        })
+        .collect()
 }
 
-impl ListEndpoint for MutualFundKind {
+impl ListEndpoint for Mutualfund {
     type Row = Mutualfund;
     type Summary = MutualfundSummary;
-    const PATH: &'static str = "/api/v1/mutual-fund-transactions";
+    const PATH: &'static str = RECEIPT_KINDS[ReceiptsTab::MutualFund as usize].list_path;
 }
 
-impl ReceiptKind for MutualFundKind {
-    type CsvRow = MutualfundCsvRow;
-
-    const LABEL: &'static str = "投資信託";
-    const PREVIEW_PATH: &'static str = "/api/v1/mutual-fund-import-validations";
-    const IMPORT_PATH: &'static str = "/api/v1/mutual-fund-imports";
-    const HEADERS: &'static [&'static str] = &[
-        "約定日",
-        "ファンド名",
-        "口座",
-        "数量",
-        "解約単価",
-        "解約額",
-        "取得価額",
-        "実現損益",
-        "税額",
-        "税引後",
-    ];
-    const COLUMN_WIDTHS: &'static [&'static str] = &[
-        "9em", "", "7.5em", "7em", "10em", "10em", "10em", "10em", "10em", "10em",
-    ];
-    const COLUMN_TIERS: &'static [ColumnTier] = &[
-        ColumnTier::Core,
-        ColumnTier::Core,
-        ColumnTier::Wider,
-        ColumnTier::Wide,
-        ColumnTier::Wider,
-        ColumnTier::Wide,
-        ColumnTier::Wider,
-        ColumnTier::Core,
-        ColumnTier::Core,
-        ColumnTier::Core,
-    ];
-    const COLUMN_ALIGNS: &'static [&'static str] = &[
-        "left", "left", "left", "right", "right", "right", "right", "right", "right", "right",
-    ];
-    const CARD_FIELDS: CardFields = CardFields {
-        name: 1,
-        date: 0,
-        account: 2,
-    };
-    const SUMMARY_LABELS: [&'static str; 3] = ["実現損益", "税額", "税引後"];
-    const HEADER_ITEMS: [(&'static str, bool); 3] =
-        [("実現損益", true), ("税額", false), ("税引後", true)];
-    const EMPTY_HINT: &'static str = "投資信託明細をCSVで追加してください";
-    const CSV_INPUT_ID: &'static str = "csv-file-input-mutualfund";
-    const STRING_FIELDS: &'static [fn(&ReceiptRow) -> &str] =
-        &[ReceiptRow::name, ReceiptRow::account];
-    const ACCOUNT_CATEGORY: bool = false;
-
-    fn wrap_row(row: Self::Row) -> ReceiptItem {
-        ReceiptItem::MutualFund(row)
-    }
-
-    fn wrap_summary(summary: Self::Summary) -> ReceiptSummary {
-        ReceiptSummary::MutualFund(summary)
-    }
-
-    fn wrap_csv_row(row: Self::CsvRow) -> CsvPreviewRow {
-        CsvPreviewRow::MutualFund(row)
-    }
-
-    fn api_summary(summary: &ReceiptSummary) -> Option<[Decimal; 3]> {
-        match summary {
-            ReceiptSummary::MutualFund(summary) => Some(Self::summary_triple(summary)),
-            _ => None,
-        }
-    }
-
-    fn totals(rows: &[ReceiptRow]) -> Self::Summary {
-        totals_from_amounts(rows, |(pnl, taxes, after_tax)| MutualfundSummary {
-            total_realized_profit_and_loss: pnl,
-            total_taxes: taxes,
-            total_realized_profit_and_loss_after_tax: after_tax,
-        })
-    }
-
-    fn summary_triple(summary: &Self::Summary) -> [Decimal; 3] {
-        [
-            summary.total_realized_profit_and_loss,
-            summary.total_taxes,
-            summary.total_realized_profit_and_loss_after_tax,
-        ]
-    }
-
-    fn table_groups(rows: &[ReceiptRow], _all_rows: &[ReceiptRow], query: &str) -> Vec<TableGroup> {
-        let sorted = sorted_rows(rows);
-        let rules = [GroupKeyRule {
-            test: |row: &ReceiptRow, token| {
-                normalize_display_name(row.name())
-                    .to_lowercase()
-                    .contains(token)
-            },
-            // 見出しは半角化して出すのでキーも揃え、全角・半角だけ違う名をまとめる
-            key_fn: &|row: &ReceiptRow| normalize_display_name(row.name()),
-        }];
-        let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
-        summarize_groups(&sorted, key)
-    }
+fn mutual_fund_table_groups(rows: &[ReceiptRow], query: &str) -> Vec<TableGroup> {
+    let sorted = sorted_rows(rows);
+    let rules = [GroupKeyRule {
+        test: |row: &ReceiptRow, token| {
+            normalize_display_name(row.name())
+                .to_lowercase()
+                .contains(token)
+        },
+        // 見出しは半角化して出すのでキーも揃え、全角・半角だけ違う名をまとめる
+        key_fn: &|row: &ReceiptRow| normalize_display_name(row.name()),
+    }];
+    let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
+    summarize_groups(&sorted, key)
 }
 
-macro_rules! kind_const {
-    ($self:expr, $name:ident) => {
-        match $self {
-            ReceiptsTab::Dividend => DividendKind::$name,
-            ReceiptsTab::DomesticStock => DomesticStockKind::$name,
-            ReceiptsTab::MutualFund => MutualFundKind::$name,
-        }
-    };
-}
-
-macro_rules! dispatch_kind {
-    ($self:expr, $method:ident ( $($args:expr),* $(,)? )) => {
-        match $self {
-            ReceiptsTab::Dividend => DividendKind::$method($($args),*),
-            ReceiptsTab::DomesticStock => DomesticStockKind::$method($($args),*),
-            ReceiptsTab::MutualFund => MutualFundKind::$method($($args),*),
-        }
-    };
-}
-
-/// `ReceiptsTab` のタブ種別による分岐はすべてここを経由し、`ReceiptKind` の実装に委譲する。
 impl ReceiptsTab {
+    fn kind(self) -> &'static ReceiptKind {
+        &RECEIPT_KINDS[self as usize]
+    }
+
     pub fn label(self) -> &'static str {
-        kind_const!(self, LABEL)
+        self.kind().label
     }
 
     pub(crate) fn list_path(self) -> &'static str {
-        kind_const!(self, PATH)
+        self.kind().list_path
     }
 
     pub(crate) fn preview_path(self) -> &'static str {
-        kind_const!(self, PREVIEW_PATH)
+        self.kind().preview_path
     }
 
     pub(crate) fn import_path(self) -> &'static str {
-        kind_const!(self, IMPORT_PATH)
+        self.kind().import_path
     }
 
     pub(crate) fn headers(self) -> &'static [&'static str] {
-        kind_const!(self, HEADERS)
+        self.kind().headers
     }
 
     pub(crate) fn column_widths(self) -> &'static [&'static str] {
-        kind_const!(self, COLUMN_WIDTHS)
+        self.kind().column_widths
     }
 
     pub(crate) fn column_tiers(self) -> &'static [ColumnTier] {
-        kind_const!(self, COLUMN_TIERS)
+        self.kind().column_tiers
     }
 
     pub(crate) fn column_aligns(self) -> &'static [&'static str] {
-        kind_const!(self, COLUMN_ALIGNS)
+        self.kind().column_aligns
     }
 
     pub(crate) fn card_fields(self) -> CardFields {
-        kind_const!(self, CARD_FIELDS)
+        self.kind().card_fields
     }
 
     pub(crate) fn summary_labels(self) -> [&'static str; 3] {
-        kind_const!(self, SUMMARY_LABELS)
+        self.kind().summary_labels
     }
 
     pub(crate) fn header_items(self) -> [(&'static str, bool); 3] {
-        kind_const!(self, HEADER_ITEMS)
+        self.kind().header_items
     }
 
     pub(crate) fn empty_hint(self) -> &'static str {
-        kind_const!(self, EMPTY_HINT)
+        self.kind().empty_hint
     }
 
     pub(crate) fn csv_input_id(self) -> &'static str {
-        kind_const!(self, CSV_INPUT_ID)
+        self.kind().csv_input_id
     }
 
     pub(crate) fn product_category(self) -> bool {
-        kind_const!(self, PRODUCT_CATEGORY)
+        self.kind().product_category
     }
 
     pub(crate) fn account_category(self) -> bool {
-        kind_const!(self, ACCOUNT_CATEGORY)
+        self.kind().account_category
     }
 
     pub(crate) fn reorder_rules(self) -> &'static [ColumnReorderRule<ReceiptRow>] {
-        kind_const!(self, REORDER_RULES)
+        self.kind().reorder_rules
     }
 
     pub(crate) fn reorder_fixed(self) -> usize {
-        kind_const!(self, REORDER_FIXED)
+        self.kind().reorder_fixed
     }
 
     pub(crate) fn filter_config(self) -> FilterConfig<ReceiptRow> {
-        dispatch_kind!(self, filter_config())
+        let kind = self.kind();
+        FilterConfig {
+            string_fields: Some(kind.string_fields.to_vec()),
+            partial_string_fields: None,
+            date_field: Some(ReceiptRow::date),
+            year_search: true,
+            year_month_search: true,
+            date_search: true,
+            date_range_search: true,
+            amount_fields: (!kind.search_amounts.is_empty()).then(|| kind.search_amounts.to_vec()),
+        }
     }
 
     pub(crate) fn table_groups(
@@ -1334,53 +998,93 @@ impl ReceiptsTab {
         all_rows: &[ReceiptRow],
         query: &str,
     ) -> Vec<TableGroup> {
-        dispatch_kind!(self, table_groups(rows, all_rows, query))
+        match self {
+            Self::Dividend => dividend_table_groups(rows, all_rows, query),
+            Self::DomesticStock => domestic_table_groups(rows),
+            Self::MutualFund => mutual_fund_table_groups(rows, query),
+        }
     }
 
     /// API の集計行をヘッダー表示用の 3 値に変換する。タブの組が違う集計は None。
     pub(crate) fn api_summary_triple(self, summary: &ReceiptSummary) -> Option<[Decimal; 3]> {
-        dispatch_kind!(self, api_summary(summary))
+        match (self, summary) {
+            (Self::Dividend, ReceiptSummary::Dividend(summary)) => Some([
+                summary.total_dividends_before_tax,
+                summary.total_taxes,
+                summary.total_net_amount_received,
+            ]),
+            (Self::DomesticStock, ReceiptSummary::DomesticStock(summary)) => Some([
+                summary.total_realized_profit_and_loss,
+                summary.total_taxes,
+                summary.total_realized_profit_and_loss_after_tax,
+            ]),
+            (Self::MutualFund, ReceiptSummary::MutualFund(summary)) => Some([
+                summary.total_realized_profit_and_loss,
+                summary.total_taxes,
+                summary.total_realized_profit_and_loss_after_tax,
+            ]),
+            _ => None,
+        }
     }
 
     /// 検索・プレビュー中に使う画面側合計をヘッダー表示用の 3 値にする。
     pub(crate) fn client_summary_triple(self, rows: &[ReceiptRow]) -> [Decimal; 3] {
         match self {
-            ReceiptsTab::Dividend => DividendKind::summary_triple(&DividendKind::totals(rows)),
-            ReceiptsTab::DomesticStock => {
-                DomesticStockKind::summary_triple(&DomesticStockKind::totals(rows))
+            Self::DomesticStock => {
+                let summary = domestic_total(rows);
+                [
+                    summary.total_realized_profit_and_loss,
+                    summary.total_taxes,
+                    summary.total_realized_profit_and_loss_after_tax,
+                ]
             }
-            ReceiptsTab::MutualFund => {
-                MutualFundKind::summary_triple(&MutualFundKind::totals(rows))
-            }
+            Self::Dividend | Self::MutualFund => totals_from_amounts(rows, |(a, b, c)| [a, b, c]),
         }
     }
 
     pub(crate) fn parse_csv_row(self, value: serde_json::Value) -> CsvPreviewRow {
-        dispatch_kind!(
-            self,
-            wrap_csv_row(serde_json::from_value(value).unwrap_or_default())
-        )
+        match self {
+            Self::Dividend => {
+                CsvPreviewRow::Dividend(serde_json::from_value(value).unwrap_or_default())
+            }
+            Self::DomesticStock => {
+                CsvPreviewRow::DomesticStock(serde_json::from_value(value).unwrap_or_default())
+            }
+            Self::MutualFund => {
+                CsvPreviewRow::MutualFund(serde_json::from_value(value).unwrap_or_default())
+            }
+        }
     }
 
     pub(crate) async fn fetch_list(self) -> Result<ReceiptTabData, ApiError> {
         match self {
-            ReceiptsTab::Dividend => load_tab::<DividendKind>().await,
-            ReceiptsTab::DomesticStock => load_tab::<DomesticStockKind>().await,
-            ReceiptsTab::MutualFund => load_tab::<MutualFundKind>().await,
+            Self::Dividend => {
+                load_tab::<Dividend>(ReceiptItem::Dividend, ReceiptSummary::Dividend).await
+            }
+            Self::DomesticStock => {
+                load_tab::<DomesticStock>(ReceiptItem::DomesticStock, ReceiptSummary::DomesticStock)
+                    .await
+            }
+            Self::MutualFund => {
+                load_tab::<Mutualfund>(ReceiptItem::MutualFund, ReceiptSummary::MutualFund).await
+            }
         }
     }
 }
 
-async fn load_tab<K: ReceiptKind>() -> Result<ReceiptTabData, ApiError> {
-    let page = fetch_all_pages::<K>().await?;
+async fn load_tab<E: ListEndpoint>(
+    wrap_row: fn(E::Row) -> ReceiptItem,
+    wrap_summary: fn(E::Summary) -> ReceiptSummary,
+) -> Result<ReceiptTabData, ApiError> {
+    let page = fetch_all_pages::<E>().await?;
     Ok(ReceiptTabData {
         rows: page
             .rows
             .into_iter()
-            .map(K::wrap_row)
+            .map(wrap_row)
             .map(Row::Saved)
             .collect(),
-        summary: page.summary.map(K::wrap_summary),
+        summary: page.summary.map(wrap_summary),
         truncated: page.truncated,
     })
 }
