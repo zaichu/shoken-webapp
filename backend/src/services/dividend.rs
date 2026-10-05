@@ -245,7 +245,7 @@ pub async fn bulk_create(
 
     ensure_user_row_limit_with::<DividendDomain, _>(&mut *tx, user_id, items.len(), limit).await?;
 
-    let result = sqlx::query(
+    let result = sqlx::query!(
         r#"
         INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
                                security_name, unit_price, shares, dividends_before_tax,
@@ -258,18 +258,18 @@ pub async fn bulk_create(
         ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax)
         DO NOTHING
         "#,
+        &user_ids as &[UserId],
+        &settlement_dates,
+        &products as &[&str],
+        &accounts as &[&str],
+        &security_codes as &[&str],
+        &security_names as &[&str],
+        &unit_prices,
+        &shares,
+        &dividends_before_taxes,
+        &taxes,
+        &net_amounts
     )
-    .bind(&user_ids)
-    .bind(&settlement_dates)
-    .bind(&products)
-    .bind(&accounts)
-    .bind(&security_codes)
-    .bind(&security_names)
-    .bind(&unit_prices)
-    .bind(&shares)
-    .bind(&dividends_before_taxes)
-    .bind(&taxes)
-    .bind(&net_amounts)
     .execute(&mut *tx)
     .await?;
 

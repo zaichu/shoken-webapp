@@ -285,15 +285,16 @@ pub async fn select_user_by_session(
     pool: &PgPool,
     token: SessionToken,
 ) -> Result<Option<User>, sqlx::Error> {
-    sqlx::query_as::<_, User>(
+    sqlx::query_as!(
+        User,
         r#"
-        SELECT u.id, u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
+        SELECT u.id AS "id: _", u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
         FROM users u
         INNER JOIN sessions s ON u.id = s.user_id
         WHERE s.token_hash = $1 AND s.expires_at > NOW()
         "#,
+        token.hash()
     )
-    .bind(token.hash())
     .fetch_optional(pool)
     .await
 }
@@ -302,17 +303,15 @@ pub async fn select_user_id_by_session(
     pool: &PgPool,
     token: SessionToken,
 ) -> Result<Option<UserId>, sqlx::Error> {
-    let user_id: Option<(UserId,)> = sqlx::query_as(
+    sqlx::query_scalar!(
         r#"
-        SELECT user_id FROM sessions
+        SELECT user_id AS "user_id: UserId" FROM sessions
         WHERE token_hash = $1 AND expires_at > NOW()
         "#,
+        token.hash()
     )
-    .bind(token.hash())
     .fetch_optional(pool)
-    .await?;
-
-    Ok(user_id.map(|record| record.0))
+    .await
 }
 
 /// 旧セッションと期限切れセッションの削除、新セッションの発行を1文でアトミックに行う。
@@ -322,7 +321,7 @@ async fn rotate_session_in_tx(
     user_id: UserId,
 ) -> Result<SessionToken, sqlx::Error> {
     let token = SessionToken::new();
-    sqlx::query(
+    sqlx::query!(
         r#"
         WITH expired AS (
             SELECT id FROM sessions WHERE expires_at <= NOW() FOR UPDATE SKIP LOCKED
@@ -333,9 +332,9 @@ async fn rotate_session_in_tx(
         INSERT INTO sessions (user_id, token_hash)
         VALUES ($1, $2)
         "#,
+        user_id.get(),
+        token.hash()
     )
-    .bind(user_id)
-    .bind(token.hash())
     .execute(&mut **tx)
     .await?;
 
@@ -346,7 +345,8 @@ async fn upsert_user_in_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     user_info: &GoogleUserInfo,
 ) -> Result<User, sqlx::Error> {
-    sqlx::query_as::<_, User>(
+    sqlx::query_as!(
+        User,
         r#"
         INSERT INTO users (google_id, email, name, picture_url)
         VALUES ($1, $2, $3, $4)
@@ -355,20 +355,19 @@ async fn upsert_user_in_tx(
             name = EXCLUDED.name,
             picture_url = EXCLUDED.picture_url,
             updated_at = NOW()
-        RETURNING id, google_id, email, name, picture_url, created_at, updated_at
+        RETURNING id AS "id: _", google_id, email, name, picture_url, created_at, updated_at
         "#,
+        user_info.sub,
+        user_info.email,
+        user_info.name,
+        user_info.picture
     )
-    .bind(&user_info.sub)
-    .bind(&user_info.email)
-    .bind(&user_info.name)
-    .bind(&user_info.picture)
     .fetch_one(&mut **tx)
     .await
 }
 
 pub async fn delete_session(pool: &PgPool, token: SessionToken) -> Result<(), sqlx::Error> {
-    sqlx::query("DELETE FROM sessions WHERE token_hash = $1")
-        .bind(token.hash())
+    sqlx::query!("DELETE FROM sessions WHERE token_hash = $1", token.hash())
         .execute(pool)
         .await?;
 
@@ -377,8 +376,7 @@ pub async fn delete_session(pool: &PgPool, token: SessionToken) -> Result<(), sq
 
 /// ユーザーを削除（CASCADE により関連データも削除）
 pub async fn delete_account(pool: &PgPool, user_id: UserId) -> Result<(), sqlx::Error> {
-    sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(user_id)
+    sqlx::query!("DELETE FROM users WHERE id = $1", user_id.get())
         .execute(pool)
         .await?;
 

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO dividend_per_share_cache\n            (security_code, dividend_per_share, status, fetched_at, stale_at, provider, updated_at)\n        VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '7 days', 'jquants', NOW())\n        ON CONFLICT (security_code) DO UPDATE\n            SET dividend_per_share = EXCLUDED.dividend_per_share,\n                status             = EXCLUDED.status,\n                fetched_at         = EXCLUDED.fetched_at,\n                stale_at           = NOW() + INTERVAL '7 days',\n                provider           = EXCLUDED.provider,\n                error_message      = NULL,\n                updated_at         = NOW()\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Float8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c0e266b61e9274d8140f5379078fd90ee97eaff6f413e9a182d272b4fb990648"
+}

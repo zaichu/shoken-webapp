@@ -6,11 +6,15 @@ use sqlx::PgPool;
 
 pub async fn search(pool: &PgPool, query: &str) -> Result<Stock, ApiError> {
     let search_query: String = query.chars().map(halfwidth_to_fullwidth).collect();
-    let stock = sqlx::query_as::<_, Stock>(
-        "SELECT * FROM stock WHERE code = $1 OR name ILIKE $2 ESCAPE '\\' ORDER BY date DESC LIMIT 1",
+    let stock = sqlx::query_as!(
+        Stock,
+        r#"SELECT date, code AS "code: _", name AS "name: _", market_category,
+                  industry_code_33, industry_category_33, industry_code_17, industry_category_17,
+                  size_code, size_category
+           FROM stock WHERE code = $1 OR name ILIKE $2 ESCAPE '\' ORDER BY date DESC LIMIT 1"#,
+        search_query,
+        escape_like_pattern(&search_query)
     )
-    .bind(&search_query)
-    .bind(escape_like_pattern(&search_query))
     .fetch_optional(pool)
     .await?
     .ok_or(ApiError::NotFound)?;

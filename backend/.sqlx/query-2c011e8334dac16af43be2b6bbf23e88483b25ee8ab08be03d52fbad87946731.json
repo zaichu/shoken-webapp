@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,\n                                        average_purchase_price, total_purchase_amount, current_price,\n                                        daily_change, market_value, profit_loss_rate)\n            SELECT * FROM UNNEST(\n                $1::uuid[], $2::text[], $3::text[], $4::numeric[], $5::numeric[],\n                $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[]\n            )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "TextArray",
+        "TextArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray",
+        "NumericArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2c011e8334dac16af43be2b6bbf23e88483b25ee8ab08be03d52fbad87946731"
+}

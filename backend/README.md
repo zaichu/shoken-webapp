@@ -138,8 +138,9 @@ cargo sqlx prepare
 
 - 対象: `delete_all_for_user` のような固定テーブルへの `DELETE`
 - 対象: 条件と戻り列が固定された単純な `SELECT COUNT(*)`
-- 非対象: 検索条件、facet、並び順、対象カラムを `QueryBuilder` で組み立てる動的SQL
-- 非対象: バルク `UNNEST` のように列数や bind 配列を共通ヘルパーで扱う処理
+- 対象: 認証・銘柄検索・配当キャッシュ・advisory lock と、各ドメインの固定 `UNNEST` による一括登録
+- 非対象: ドメイン共通の件数取得・検索・集計・facet は、テーブル・列・条件・並び順を `QueryBuilder` で組み立てるため
+- 非対象: テストデータの投入・確認 SQL は実 DB テスト用であり、本番クエリのオフラインキャッシュには含めない
 
 `backend/.sqlx/` はリポジトリ管理します。
 理由は、CI とローカル検証を `SQLX_OFFLINE=true` で実行し、DB接続なしでも `query!` のメタデータ整合性を検証できるようにするためです。
