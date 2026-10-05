@@ -81,18 +81,10 @@ jobs:
           rustup target add wasm32-unknown-unknown
           cargo check --manifest-path ../shared/Cargo.toml --target wasm32-unknown-unknown
 
-      - name: Generate OpenAPI schema
-        if: steps.gate.outputs.backend == 'true'
-        run: cargo run --bin generate_openapi
-
       - name: Check OpenAPI schema is up to date
         if: steps.gate.outputs.backend == 'true'
         working-directory: ${{ github.workspace }}
-        run: |
-          if ! git diff --exit-code docs/openapi.json; then
-            echo "openapi.json が古い状態です。cargo run --bin generate_openapi を実行してコミットしてください。"
-            exit 1
-          fi
+        run: bash scripts/check-openapi.sh
 
       - name: Set up Docker Buildx
         if: steps.gate.outputs.backend == 'true'
