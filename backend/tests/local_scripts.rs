@@ -250,6 +250,36 @@ fn conflicting_port_and_url_are_rejected() {
 }
 
 #[test]
+fn leading_zero_ports_are_normalized_not_conflicts() {
+    // start-local.sh は CURL_STATUS=0 で待機を通過させる。stop-local.sh は既定の
+    // curl 失敗にして「応答はあるが PID 不明」エラーを避ける
+    for (script, curl_status) in [("start-local.sh", "0"), ("stop-local.sh", "22")] {
+        let sandbox = Sandbox::new();
+        let base = sandbox
+            .root
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let output = sandbox.run(
+            script,
+            &[
+                ("CURL_STATUS", curl_status),
+                ("BACKEND_PORT", "3001"),
+                ("BACKEND_URL", "http://127.0.0.1:03001"),
+            ],
+        );
+        remove_tmp_files_containing(&base);
+        assert_success(&output);
+        assert!(
+            !String::from_utf8_lossy(&output.stderr).contains("disagree"),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+#[test]
 fn backend_port_override_moves_the_probe_url() {
     let sandbox = Sandbox::new();
     let output = sandbox.run(
@@ -354,9 +384,10 @@ fn cargo_run_owner_can_be_stopped_during_compilation() {
     );
     assert_success(&output);
     assert_eq!(sandbox.text("killed"), "43\n");
-    // backend は台帳で即停止するので走査は frontend 分の 1 行だけ残る
+    // backend は台帳で即停止するので走査は frontend(8081)向けの 1 行だけ残る
     let scans = sandbox.text("scan");
-    assert!(scans.lines().all(|line| line.contains("8081")), "{scans}");
+    assert_eq!(scans.lines().count(), 1, "{scans}");
+    assert!(scans.contains("8081"), "{scans}");
 }
 
 #[test]

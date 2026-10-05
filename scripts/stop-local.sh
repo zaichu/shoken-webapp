@@ -42,8 +42,9 @@ have_cmd() {
 
 extract_port_from_url() {
   local url="$1"
+  # 03001 のような先頭ゼロ付き表記を 3001 と同一ポートとして扱うため 10 進数に揃える
   if [[ "${url}" =~ :([0-9]+)(/|$) ]]; then
-    echo "${BASH_REMATCH[1]}"
+    echo "$((10#${BASH_REMATCH[1]}))"
   fi
 }
 
@@ -320,10 +321,12 @@ done
 
 BACKEND_PORT="${BACKEND_PORT:-$(extract_port_from_url "${BACKEND_URL}")}"
 BACKEND_PORT="${BACKEND_PORT:-3001}"
+if [[ "${BACKEND_PORT}" =~ ^[0-9]+$ ]]; then BACKEND_PORT=$((10#${BACKEND_PORT})); fi
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
 
 FRONTEND_PORT="${FRONTEND_PORT:-$(extract_port_from_url "${FRONTEND_URL}")}"
 FRONTEND_PORT="${FRONTEND_PORT:-8081}"
+if [[ "${FRONTEND_PORT}" =~ ^[0-9]+$ ]]; then FRONTEND_PORT=$((10#${FRONTEND_PORT})); fi
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:${FRONTEND_PORT}}"
 
 # PORT と URL を両方明示してポートが食い違うと、走査と応答確認が別サーバーを見るので拒否する
