@@ -5,7 +5,6 @@ docs
 .agents
 .codex
 .githooks
-claude-review-ops-plugin
 .github
 scripts
 **/target
@@ -13,4 +12,3 @@ scripts
 **/test-results
 **/playwright-report
 **/mutants.out
-measure-wasm.mjs

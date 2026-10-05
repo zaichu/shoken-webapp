@@ -26,7 +26,7 @@ API 契約の正本は [`../docs/openapi.json`](../docs/openapi.json) です。
 
 ### 前提条件
 
-- Rust（ルートの `../rust-toolchain.toml` を正本とする）
+- Rust（リポジトリルートの `rust-toolchain.toml` を正本とする）
 - PostgreSQL データベース
 - 環境変数の設定
 

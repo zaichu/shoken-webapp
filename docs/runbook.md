@@ -32,6 +32,8 @@ cd shoken-webapp
 | フロントエンド（プレビュー） | Vercel preview | PR 作成・更新時（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。URL は PR コメントに投稿される |
 | バックエンド | Fly.io | main push（`deploy-backend.yml`） |
 
+`fly.toml` はリポジトリルートに置く(Docker build context が `shared/` を含むルートのため)。
+
 ### 手動デプロイ（緊急時）
 
 ```bash
