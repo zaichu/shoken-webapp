@@ -154,8 +154,9 @@ collect_service_pids() {
   fi
 
   port_out=""
-  if ! port_out="$(pids_listening_on_port "${port}")"; then
-    scan_st=$?
+  scan_st=0
+  port_out="$(pids_listening_on_port "${port}")" || scan_st=$?
+  if [[ "${scan_st}" -ne 0 ]]; then
     if [[ "${have_file_pid}" -eq 1 ]]; then
       return 0
     fi
