@@ -179,13 +179,112 @@ pub struct MessageResponse {
     pub message: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct Stock {
+    pub code: String,
+    pub name: String,
+    pub date: String,
+    pub market_category: String,
+    #[serde(default)]
+    pub industry_code_33: Option<String>,
+    #[serde(default)]
+    pub industry_category_33: Option<String>,
+    #[serde(default)]
+    pub industry_code_17: Option<String>,
+    #[serde(default)]
+    pub industry_category_17: Option<String>,
+    #[serde(default)]
+    pub size_code: Option<String>,
+    #[serde(default)]
+    pub size_category: Option<String>,
+}
+
+fn deserialize_string_id<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<String, D::Error> {
+    match serde_json::Value::deserialize(deserializer)? {
+        serde_json::Value::String(id) => Ok(id),
+        serde_json::Value::Number(id) => Ok(id.to_string()),
+        value => Err(serde::de::Error::custom(format!(
+            "expected string or number id, got {value}"
+        ))),
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct SessionUser {
+    #[serde(deserialize_with = "deserialize_string_id")]
+    pub id: String,
+    pub email: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub picture_url: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         FacetOption, PaginatedSearchResponse, PaginationParams, SearchFacets, SearchParamsAccessor,
-        SearchQueryParams,
+        SearchQueryParams, SessionUser, Stock,
     };
     use serde::{Deserialize, Serialize};
+
+    #[test]
+    fn session_user_accepts_numeric_id() {
+        // 共有E2E（a11y spec）のモックは id を数値で返す
+        let user: SessionUser = serde_json::from_str(
+            r#"{"id": 1, "email": "test@example.com", "name": "テストユーザー"}"#,
+        )
+        .expect("numeric id");
+        assert_eq!(user.id, "1");
+    }
+
+    #[test]
+    fn session_user_keeps_string_ids_and_optional_fields() {
+        let user: SessionUser = serde_json::from_str(
+            r#"{"id":"alice","email":"test@example.com","name":"テストユーザー","picture_url":"https://example.test/photo.png"}"#,
+        ).expect("session");
+        assert_eq!(user.id, "alice");
+        assert_eq!(user.name.as_deref(), Some("テストユーザー"));
+        assert_eq!(
+            user.picture_url.as_deref(),
+            Some("https://example.test/photo.png")
+        );
+        let parsed: SessionUser =
+            serde_json::from_value(serde_json::to_value(&user).unwrap()).unwrap();
+        assert_eq!(parsed, user);
+        let absent: SessionUser =
+            serde_json::from_str(r#"{"id":"alice","email":"test@example.com"}"#).unwrap();
+        assert!(absent.name.is_none());
+        assert!(absent.picture_url.is_none());
+    }
+
+    #[test]
+    fn session_user_rejects_ids_other_than_strings_or_numbers() {
+        for id in [
+            serde_json::Value::Null,
+            serde_json::json!(true),
+            serde_json::json!([]),
+            serde_json::json!({}),
+        ] {
+            assert!(serde_json::from_value::<SessionUser>(
+                serde_json::json!({"id":id,"email":"test@example.com"})
+            )
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn stock_keeps_optional_fields_and_raw_wire_strings() {
+        let stock: Stock = serde_json::from_str(r#"{"code":"7203-1","name":"トヨタ自動車","date":"2024-03-01","market_category":"プライム","industry_code_33":"3050","industry_category_33":"輸送用機器"}"#).unwrap();
+        assert_eq!(stock.code, "7203-1");
+        assert_eq!(stock.industry_code_33.as_deref(), Some("3050"));
+        assert!(stock.industry_code_17.is_none());
+        assert!(stock.size_code.is_none());
+        let parsed: Stock = serde_json::from_value(serde_json::to_value(&stock).unwrap()).unwrap();
+        assert_eq!(parsed, stock);
+    }
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     struct Row {

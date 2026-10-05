@@ -148,6 +148,9 @@ fn per_share_display_uses_short_decimal_digits() {
 fn percentage_value_matches_react_to_fixed() {
     assert_eq!(format_percentage_value(2.0), "2.00%");
     assert_eq!(format_percentage_value(0.9564), "0.96%");
+    assert_eq!(format_percentage_value(1.005), "1.00%");
+    assert_eq!(format_percentage_value(2.675), "2.67%");
+    assert_eq!(format_percentage_value(f64::INFINITY), "inf%");
     assert_eq!(format_percentage_value(f64::NAN), "—");
 }
 

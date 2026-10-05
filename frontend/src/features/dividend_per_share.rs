@@ -1,7 +1,9 @@
 //! `/api/v1/dividend-per-share-estimates` のバッチ取得。
 //! 資産管理ページと取引明細の配当タブで共有するため切り出した。
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use shared::dividend_per_share::DividendPerShareBatchRequest;
+use shared::value::SecurityCode;
 use std::collections::HashMap;
 
 use crate::api::{ApiClient, ApiError};
@@ -33,11 +35,6 @@ pub(crate) struct DividendEstimateItem {
 pub(crate) struct DividendBatchResponse {
     #[serde(default)]
     pub items: Vec<DividendEstimateItem>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub(crate) struct DividendBatchRequest {
-    pub security_codes: Vec<String>,
 }
 
 pub(crate) fn unique_sorted_codes(codes: &[String]) -> Vec<String> {
@@ -79,10 +76,13 @@ pub(crate) fn dividend_maps_from_batch(batch: &DividendBatchResponse) -> (Divide
 
 /// 本番の HTTP 実行。実ネットワーク境界のため mutation 評価は除外する
 pub(crate) async fn post_dividend_batch(
-    request: DividendBatchRequest,
+    request: DividendPerShareBatchRequest,
 ) -> Result<DividendBatchResponse, ApiError> {
     ApiClient::default_client()
-        .post_json::<DividendBatchRequest, DividendBatchResponse>(DIVIDEND_BATCH_PATH, &request)
+        .post_json::<DividendPerShareBatchRequest, DividendBatchResponse>(
+            DIVIDEND_BATCH_PATH,
+            &request,
+        )
         .await
 }
 
@@ -91,11 +91,11 @@ pub(crate) async fn fetch_dividend_batch<F, Fut>(
     post_json: F,
 ) -> Result<DividendBatchResponse, ApiError>
 where
-    F: FnOnce(DividendBatchRequest) -> Fut,
+    F: FnOnce(DividendPerShareBatchRequest) -> Fut,
     Fut: std::future::Future<Output = Result<DividendBatchResponse, ApiError>>,
 {
-    post_json(DividendBatchRequest {
-        security_codes: codes.to_vec(),
+    post_json(DividendPerShareBatchRequest {
+        security_codes: codes.iter().cloned().map(SecurityCode::from_raw).collect(),
     })
     .await
 }
