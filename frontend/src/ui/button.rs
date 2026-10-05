@@ -134,12 +134,7 @@ pub fn Button(
     #[prop(optional)] testid: Option<&'static str>,
     #[prop(into, optional)] aria_hidden: Option<Signal<bool>>,
     #[prop(into, optional)] tabindex: Option<Signal<&'static str>>,
-    #[prop(into, optional)] data_loading: Option<Signal<bool>>,
-    #[prop(optional)] role: Option<&'static str>,
-    #[prop(optional)] aria_haspopup: Option<&'static str>,
-    #[prop(optional)] aria_controls: Option<&'static str>,
     #[prop(into, optional)] aria_expanded: Option<Signal<bool>>,
-    #[prop(optional)] aria_describedby: Option<&'static str>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
 ) -> impl IntoView {
@@ -152,14 +147,9 @@ pub fn Button(
             aria-label=move || aria_label.map(|label| label.get())
             aria-hidden=aria_hidden.map(|hidden| move || hidden.get().to_string())
             aria-disabled=aria_disabled.map(|value| move || value.get().to_string())
-            aria-haspopup=aria_haspopup
-            aria-controls=aria_controls
             aria-expanded=aria_expanded.map(|expanded| move || expanded.get().to_string())
-            aria-describedby=aria_describedby
             tabindex=tabindex.map(|index| move || index.get())
-            role=role
             data-testid=testid
-            data-loading=data_loading.map(|loading| move || loading.get().then_some("true"))
             on:click=on_click
         >
             {children()}
@@ -179,24 +169,9 @@ pub fn LinkButton(
     view! { <a href=href class=classes>{children()}</a> }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum IconButtonVariant {
-    /// モーダルの閉じる
-    Close,
-}
-
-impl IconButtonVariant {
-    fn class(self) -> &'static str {
-        match self {
-            Self::Close => "modal-close-button",
-        }
-    }
-}
-
 /// アイコンのみのボタン
 #[component]
 pub fn IconButton(
-    variant: IconButtonVariant,
     #[prop(into)] aria_label: Signal<String>,
     #[prop(into, optional)] disabled: Option<Signal<bool>>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
@@ -205,7 +180,7 @@ pub fn IconButton(
     view! {
         <button
             type="button"
-            class=variant.class()
+            class="modal-close-button"
             aria-label=move || aria_label.get()
             disabled=move || disabled.is_some_and(|disabled| disabled.get())
             on:click=on_click

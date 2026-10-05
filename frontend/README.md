@@ -52,7 +52,7 @@ src/
   main.rs, app.rs    起動とルーティング
   api/               通信クライアント(client)と DTO(dto)
   session/           ログイン状態・無操作ログアウト・タブ間の同期
-  ui/                複数の機能で使う画面部品
+  ui/                画面部品。site はナビゲーション、state は読み込み・失敗表示
   features/
     receipts/        取引明細。model(計算・整形)・store・filter・csv・view(画面)
     asset_balance/   資産管理。model・store・csv_store・format・view(画面)など
@@ -106,10 +106,10 @@ src/
 
 | 部品 | 役割 | 主な variant |
 | --- | --- | --- |
-| `Button` / `IconButton`(`ui/button.rs`) | すべての `<button>` | 大きさを持つ variant は `Primary(ButtonSize)`・`Secondary(ButtonSize)`・`SecondarySoft(ButtonSize)`・`DangerSolid(ButtonSize)`・`Header(ButtonSize)`。それ以外は DangerGhost・Ghost・Quiet・Prompt・Login・SearchSubmit・Retry・MenuItem・MenuItemDanger・CopyName(size は持たない)。IconButton は Close |
+| `Button` / `IconButton`(`ui/button.rs`) | すべての `<button>` | 大きさを持つ variant は `Primary(ButtonSize)`・`Secondary(ButtonSize)`・`SecondarySoft(ButtonSize)`・`DangerSolid(ButtonSize)`・`Header(ButtonSize)`。それ以外は DangerGhost・Ghost・Quiet・Prompt・Login・SearchSubmit・Retry・MenuItem・MenuItemDanger・CopyName(size は持たない)。IconButton はモーダルの閉じるボタン(variant なし) |
 | `LinkButton`(同) | ボタンの見た目の遷移リンク(`<a>`) | ButtonVariant を共有 |
-| `Card` / `SectionHeader`(`ui/card.rs`) | カード状の面と節見出し | Panel・Login・Table・Collapsible・Feature(href で `<a>`)・Rail・Shell・Summary・Soft・Item・Group・Holding・Stat・Sunken・Strip・DashedCompact・Tile・GroupLabel など |
-| `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | Toolbar・ToolbarMenu・Rail・GroupCard・HeaderFlat・AssetCard・SearchCard。`hint=true` で末尾に「開く/閉じる」 |
+| `Card`(`ui/card.rs`) | カード状の面 | Panel・Login・Table・Collapsible・Feature(href で `<a>`)・Shell・Soft・Item・Group・Holding・Sunken・Strip・DashedCompact・Tile・GroupLabel |
+| `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | Rail・GroupCard・HeaderFlat・AssetCard・SearchCard。`hint=true` で末尾に「開く/閉じる」 |
 | `EmptyState`(`ui/empty_state.rs`) | データが空の画面 | `icon`・`as_h1`・children(次の行動)を持つ |
 | `Badge` / `CodeBadge`(`ui/badge.rs`) | 押せない小さなバッジ | Accent・AccentFlat・Info・Positive |
 | `Chip` / `Select` / `FieldTrigger` / `OptionButton`(`ui/choice.rs`) | 押せる選択部品とフォーム | Chip は Filter・Segment(aria-pressed)・Pill |

@@ -13,8 +13,8 @@ use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::csv_preview::CsvPreviewBanner;
 use crate::ui::csv_section::click_csv_input;
-use crate::ui::elements::LoadingStrip;
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::state::LoadingStrip;
 use leptos::prelude::*;
 
 #[component]

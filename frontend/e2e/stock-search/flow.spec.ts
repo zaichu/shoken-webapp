@@ -130,3 +130,27 @@ test('検索の取得が失敗したとき再読み込みで再取得できる',
   await expect(page.getByText('任天堂')).toBeVisible();
   expect(stockCalls).toBe(3);
 });
+
+test('検索ボタンの読み込み属性がリクエストの開始と完了に連動する', async ({ page }) => {
+  await setupAuthMocks(page);
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => { finish = resolve; });
+  await page.route(ROUTES.stock, async (route) => {
+    await pending;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_STOCK),
+    });
+  });
+
+  await page.goto('/search?code=7974');
+  const loading = page.getByRole('button', { name: '検索中' });
+  await expect(loading).toBeDisabled();
+  await expect(loading).toHaveAttribute('data-loading', 'true');
+
+  finish();
+  const ready = page.getByRole('button', { name: '銘柄を検索' });
+  await expect(ready).toBeEnabled();
+  await expect(ready).not.toHaveAttribute('data-loading', 'true');
+});

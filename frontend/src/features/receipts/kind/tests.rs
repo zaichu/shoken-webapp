@@ -7,6 +7,135 @@ use crate::features::receipts::kind::{
 use rust_decimal::Decimal;
 
 #[test]
+fn tab_columns_and_card_fields_match_row_cells() {
+    for tab in ReceiptsTab::ALL {
+        let row = ReceiptRow::Preview(tab.parse_csv_row(serde_json::Value::Null));
+        let count = row.cells().len();
+        assert_eq!(tab.headers().len(), count, "{tab:?}");
+        assert_eq!(tab.column_widths().len(), count, "{tab:?}");
+        assert_eq!(tab.column_tiers().len(), count, "{tab:?}");
+        assert_eq!(tab.column_aligns().len(), count, "{tab:?}");
+        let fields = tab.card_fields();
+        for field in [fields.name, fields.date, fields.account] {
+            assert!(field < count, "{tab:?}: {field}");
+        }
+    }
+}
+
+#[test]
+fn tab_filters_keep_distinct_amount_and_category_rules() {
+    for tab in ReceiptsTab::ALL {
+        let config = tab.filter_config();
+        assert_eq!(
+            config.string_fields.unwrap().len(),
+            match tab {
+                ReceiptsTab::Dividend => 4,
+                ReceiptsTab::DomesticStock => 3,
+                ReceiptsTab::MutualFund => 2,
+            }
+        );
+        assert_eq!(
+            config.amount_fields.map(|fields| fields.len()),
+            match tab {
+                ReceiptsTab::Dividend | ReceiptsTab::DomesticStock => Some(5),
+                ReceiptsTab::MutualFund => None,
+            }
+        );
+        assert_eq!(tab.product_category(), tab == ReceiptsTab::Dividend);
+        assert_eq!(tab.account_category(), tab != ReceiptsTab::MutualFund);
+        assert!(
+            config.year_search
+                && config.year_month_search
+                && config.date_search
+                && config.date_range_search
+        );
+    }
+}
+
+#[test]
+fn invalid_csv_rows_keep_tab_specific_defaults() {
+    for value in [
+        serde_json::Value::Null,
+        serde_json::json!({"shares": "invalid"}),
+    ] {
+        assert_eq!(
+            ReceiptsTab::Dividend.parse_csv_row(value.clone()),
+            CsvPreviewRow::Dividend(DividendCsvRow::default())
+        );
+        assert_eq!(
+            ReceiptsTab::DomesticStock.parse_csv_row(value.clone()),
+            CsvPreviewRow::DomesticStock(DomesticStockCsvRow::default())
+        );
+        assert_eq!(
+            ReceiptsTab::MutualFund.parse_csv_row(value),
+            CsvPreviewRow::MutualFund(MutualfundCsvRow::default())
+        );
+    }
+}
+
+#[test]
+fn api_summaries_accept_only_the_matching_tab() {
+    let values = [
+        Decimal::new(100, 0),
+        Decimal::new(20, 0),
+        Decimal::new(80, 0),
+    ];
+    let summaries = [
+        ReceiptSummary::Dividend(DividendSummary {
+            total_dividends_before_tax: values[0],
+            total_taxes: values[1],
+            total_net_amount_received: values[2],
+        }),
+        ReceiptSummary::DomesticStock(DomesticStockSummary {
+            total_realized_profit_and_loss: values[0],
+            total_taxes: values[1],
+            total_realized_profit_and_loss_after_tax: values[2],
+        }),
+        ReceiptSummary::MutualFund(MutualfundSummary {
+            total_realized_profit_and_loss: values[0],
+            total_taxes: values[1],
+            total_realized_profit_and_loss_after_tax: values[2],
+        }),
+    ];
+    for (index, tab) in ReceiptsTab::ALL.into_iter().enumerate() {
+        for (summary_index, summary) in summaries.iter().enumerate() {
+            assert_eq!(
+                tab.api_summary_triple(summary),
+                (index == summary_index).then_some(values)
+            );
+        }
+    }
+}
+
+#[test]
+fn dividend_totals_keeps_signed_amounts_and_empty_totals() {
+    let rows = [[100, 20, 80], [-50, 5, -55]].map(|amounts| {
+        ReceiptRow::Preview(CsvPreviewRow::Dividend(DividendCsvRow {
+            dividends_before_tax: Decimal::from(amounts[0]),
+            taxes: Decimal::from(amounts[1]),
+            net_amount_received: Decimal::from(amounts[2]),
+            ..Default::default()
+        }))
+    });
+    assert_eq!(
+        dividend_totals(&rows),
+        DividendSummary {
+            total_dividends_before_tax: Decimal::from(50),
+            total_taxes: Decimal::from(25),
+            total_net_amount_received: Decimal::from(25),
+        }
+    );
+    assert_eq!(
+        dividend_totals(&[]),
+        DividendSummary {
+            total_dividends_before_tax: Decimal::ZERO,
+            total_taxes: Decimal::ZERO,
+            total_net_amount_received: Decimal::ZERO,
+        }
+    );
+}
+
+#[test]
 fn dividend_csv_row_cells_not_empty() {
     let row = DividendCsvRow {
         settlement_date: "2024-06-15".to_string(),
