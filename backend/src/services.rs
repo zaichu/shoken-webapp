@@ -5,6 +5,6 @@ pub mod dividend;
 pub mod dividend_cache;
 pub mod domain;
 pub mod domestic_stock;
-pub mod market_data;
+pub mod jquants;
 pub mod mutualfund;
 pub mod stock;

@@ -1,5 +1,5 @@
 use crate::errors::{ApiError, UpstreamError};
-use crate::services::market_data::providers::jquants::JQuantsClient;
+use crate::services::jquants::JQuantsClient;
 use futures::stream::{FuturesUnordered, StreamExt};
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;

@@ -5,7 +5,8 @@ const dist = process.env.VERCEL_DIST_DIR ?? 'dist-vercel';
 const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
-  testDir: './e2e-vercel',
+  testDir: './e2e',
+  testMatch: ['**/deploy/*.spec.ts'],
   outputDir: `${process.env.LEPTOS_E2E_OUTPUT_DIR || 'test-results'}/vercel`,
   fullyParallel: false,
   forbidOnly: true,

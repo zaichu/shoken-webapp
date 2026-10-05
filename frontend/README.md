@@ -29,16 +29,16 @@ npx playwright test --config playwright.leptos.config.ts
 npx playwright test --config playwright.vercel.config.ts
 ```
 
-`playwright.leptos.config.ts` は `e2e/migrated/` の主要画面テストと `e2e/` の Leptos テストを実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。既定では `trunk serve` でソースから配信しますが、`LEPTOS_E2E_DIST_DIR=<dir>` を指定するとビルド済みの dist(CI がアーティファクトで受け渡す trunk build 成果物)を `serve-dist.mjs` で配信します。配信前に `prepare-vercel-dist.mjs` を空の API origin で実行するため、モックに当たらない API 呼び出しは同一オリジンに留まり外部へ出ません。
+`playwright.leptos.config.ts` は `e2e/<機能>/` のブラウザテストを、`playwright.vercel.config.ts` は `e2e/deploy/` の配信設定テストを実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。既定では `trunk serve` でソースから配信しますが、`LEPTOS_E2E_DIST_DIR=<dir>` を指定するとビルド済みの dist(CI がアーティファクトで受け渡す trunk build 成果物)を `serve-dist.mjs` で配信します。配信前に `prepare-vercel-dist.mjs` を空の API origin で実行するため、モックに当たらない API 呼び出しは同一オリジンに留まり外部へ出ません。
 
 ### CI と同じ環境で E2E を回す
 
 手元では通るのに CI でだけ落ちる(フォント差など)を再現するため、Ubuntu 24.04 のコンテナで Playwright を回せます。
 
 ```bash
-bash scripts/e2e-ci-like.sh e2e/receipts-desktop-layout.spec.ts
-bash scripts/e2e-ci-like.sh e2e/receipts-desktop-layout.spec.ts --grep "768px"
-bash scripts/e2e-ci-like.sh --show-fonts e2e/receipts-desktop-layout.spec.ts
+bash scripts/e2e-ci-like.sh e2e/receipts/desktop-layout.spec.ts
+bash scripts/e2e-ci-like.sh e2e/receipts/desktop-layout.spec.ts --grep "768px"
+bash scripts/e2e-ci-like.sh --show-fonts e2e/receipts/desktop-layout.spec.ts
 ```
 
 ホストで `npm ci` してから `trunk build --release --dist dist-e2e` して、コンテナに `LEPTOS_E2E_DIST_DIR=dist-e2e` で渡します(CI と同じ。コンテナに Rust は入れません)。コンテナはイメージ内の `node_modules` を使い、ホストの `node_modules` には書き込みません。フォント・依存パッケージは `.github/workflows/frontend.yml` の apt 行から読み取り、Node は `setup-node` の版、`@playwright/test` は `package-lock.json` の版を使います。イメージは内容のハッシュでタグ付けして使い回します(`--rebuild` で作り直し)。引数はそのまま Playwright に渡します。ポートは `LEPTOS_E2E_PORT` がなければ 8140 を使います。
@@ -64,12 +64,18 @@ src/
 
 - 依存の向きは view → store → model。model は Leptos に依存しない
 - 機能どうしは `features/<機能>.rs`(facade)が re-export する公開部分だけを使う。サブモジュールは非公開にして、可視性で守る
-- テストは各モジュールの `<モジュール>/tests.rs` に置く(`#[cfg(test)] mod tests;`)。1つのモジュールに複数ある場合は `tests.rs` から `tests/<名前>.rs` を宣言する
-- テストの fixture は `frontend/tests/fixtures/` に置き、`concat!(env!("CARGO_MANIFEST_DIR"), ...)` で読む
+
+### テストの配置
+
+- 単体テストは `<モジュール>/tests.rs` に置く(`#[cfg(test)] mod tests;`)。分割するときは `tests/suite.rs` を入口にして親から `#[path = "<モジュール>/tests/suite.rs"] mod tests;` で読み、子は `#[path = "<名前>.rs"] mod <名前>;` で宣言する。同じ階層に `tests.rs` と `tests/` を並べない
+- Rust の共有テスト補助・データ生成は `src/testing/<機能>.rs` に置く。データファイルは `frontend/tests/fixtures/` に置き、`concat!(env!("CARGO_MANIFEST_DIR"), ...)` で読む
+- E2E は `e2e/<機能>/<内容>.spec.ts` に置く。補助は `e2e/support/`、データは `e2e/fixtures/`。Issue 番号で命名せず、`migrated/` や `e2e-vercel/` は使わない
+- 撮影専用 spec は Git 管理外の `.local-e2e/` に置き、通常の Playwright 設定や CI の対象にしない
+- `npm run check:test-layout` で配置を検査する。検査スクリプトのテストは `npm run test:test-layout`。どちらも CI で実行する
 
 ## アクセシビリティ
 
-`e2e/migrated/a11y.spec.ts` が関門になる。axe は WCAG 2.0/2.1/2.2 の A/AA で moderate 以上ゼロを必須にする(minor は記録のみ)。対象は主要画面と読み込み中・取得失敗・空・データあり・CSV プレビュー・確認モーダル・フィルター展開で、PC 1280px とスマホ 390px の両方を見る。スキャンの前にその状態になったことを assert する(空表示や失敗表示のつもりで別の状態を検査しない)。
+`e2e/accessibility/a11y.spec.ts` が関門になる。axe は WCAG 2.0/2.1/2.2 の A/AA で moderate 以上ゼロを必須にする(minor は記録のみ)。対象は主要画面と読み込み中・取得失敗・空・データあり・CSV プレビュー・確認モーダル・フィルター展開で、PC 1280px とスマホ 390px の両方を見る。スキャンの前にその状態になったことを assert する(空表示や失敗表示のつもりで別の状態を検査しない)。
 
 - タップ領域: PC 幅は 24px 以上、スマホの操作要素は 44px 以上(`max-sm:min-h-11`)
 - 主要な操作は Tab だけで到達でき、Enter/Space で操作できること(`.focus()` での到達は検証にならない)
