@@ -154,6 +154,7 @@ collect_service_pids() {
   fi
 
   port_out=""
+  scan_st=0
   port_out="$(pids_listening_on_port "${port}")" || scan_st=$?
   if [ "${scan_st}" -ne 0 ]; then
     if [[ "${have_file_pid}" -eq 1 ]]; then
@@ -195,9 +196,9 @@ pids_listening_on_port() {
   if have_cmd ss; then
     # Example: users:(("node",pid=1234,fd=23))
     local ss_out=""
-    local ss_st=0
-    ss_out="$(ss -H -ltnp "sport = :${port}" 2>/dev/null)"
-    ss_st=$?
+    local ss_st
+    ss_st=0
+    ss_out="$(ss -H -ltnp "sport = :${port}" 2>/dev/null)" || ss_st=$?
     if [[ "${ss_st}" -ne 0 ]]; then
       echo "WARN: ss failed while checking port ${port} (exit ${ss_st}); trying fallback..." >&2
     else
