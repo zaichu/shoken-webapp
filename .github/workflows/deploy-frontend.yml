@@ -1,8 +1,8 @@
 name: Frontend Deploy
 
 on:
-  # 自動デプロイは Frontend CI(frontend.yml) からの呼び出しに一本化。
-  # 手動起動は main 限定(deploy ジョブの if で拒否)
+  # main へのデプロイは Frontend CI(frontend.yml) からの呼び出しに一本化。
+  # PR プレビューは pull_request で直接起動する(PR の CI run にデプロイ用 secrets を載せないため)
   workflow_call:
     inputs:
       use_prebuilt_dist:
@@ -10,6 +10,14 @@ on:
         type: boolean
         required: true
         default: false
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'frontend/**'
+      - 'shared/**'
+      - 'rust-toolchain.toml'
+      - '.github/workflows/deploy-frontend.yml'
+      - '.github/actions/rust-cache/**'
   workflow_dispatch:
 
 permissions:
@@ -46,9 +54,13 @@ jobs:
   deploy:
     name: Build and deploy to Vercel
     needs: [vercel-secrets]
+    # reusable workflow の github.event_name は呼び出し元のもの(push / workflow_dispatch)。
+    # pull_request は自前トリガーのプレビュー経路で投稿者を絞る
     if: >-
       needs.vercel-secrets.outputs.available == 'true'
-      && (github.event_name == 'workflow_call'
+      && ((github.event_name == 'pull_request'
+          && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association))
+        || github.event_name == 'push'
         || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     # workflow_call では github.workflow が呼び出し元(Frontend CI)になるため固定名を使う
     concurrency:

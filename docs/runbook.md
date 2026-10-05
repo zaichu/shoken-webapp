@@ -29,7 +29,7 @@ cd shoken-webapp
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
 | フロントエンド | Vercel | Frontend CI（`frontend.yml`）成功後に `deploy-frontend.yml` が呼び出されて自動デプロイ（frontend/shared 変更時） |
-| フロントエンド（プレビュー） | Vercel preview | PR の Frontend CI 成功後（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。URL は PR コメントに投稿される |
+| フロントエンド（プレビュー） | Vercel preview | PR 作成・更新時に `deploy-frontend.yml` が起動（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。URL は PR コメントに投稿される |
 | バックエンド | Fly.io | main push（`deploy-backend.yml`） |
 
 `fly.toml` はリポジトリルートに置く(Docker build context が `shared/` を含むルートのため)。
