@@ -61,7 +61,7 @@ pids_from_file() {
   local pid=""
 
   if [[ -f "${file}" ]]; then
-    pid="$(tr -d '[:space:]' < "${file}" 2>/dev/null || true)"
+    pid="$(sed -n '1p' "${file}" 2>/dev/null | tr -d '[:space:]' || true)"
   fi
   if [[ "${pid}" =~ ^[0-9]+$ ]] && kill -0 "${pid}" >/dev/null 2>&1; then
     printf '%s\n' "${pid}"
@@ -82,6 +82,24 @@ scoped_pid_tag() {
 
 pid_command() {
   ps -o command= -p "$1" 2>/dev/null || true
+}
+
+pid_started() {
+  ps -p "$1" -o lstart= 2>/dev/null | sed 's/^ *//' || true
+}
+
+# PID ファイルの2行目と起動中プロセスの起動時刻が一致する場合だけ有効とする
+file_pid_identity_ok() {
+  local file="$1"
+  local pid="$2"
+  local recorded=""
+  local current=""
+  recorded="$(sed -n '2p' "${file}" 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  if [[ -z "${recorded}" ]]; then
+    return 1
+  fi
+  current="$(pid_started "${pid}")"
+  [[ -n "${current}" && "${current}" == "${recorded}" ]]
 }
 
 file_pid_valid() {
@@ -113,16 +131,20 @@ collect_service_pids() {
   local file="$2"
   local port="$3"
   local file_pid=""
+  local have_file_pid=0
   local port_out=""
+  local scan_st=0
   local -A seen=()
   local pid=""
 
   file_pid="$(pids_from_file "${file}")"
   if [[ -n "${file_pid}" ]]; then
-    if file_pid_valid "${service}" "${file_pid}" "${port}"; then
+    if file_pid_valid "${service}" "${file_pid}" "${port}" \
+      && file_pid_identity_ok "${file}" "${file_pid}"; then
       if [[ -z "${seen[${file_pid}]:-}" ]]; then
         printf '%s\n' "${file_pid}"
         seen["${file_pid}"]=1
+        have_file_pid=1
       fi
     else
       rm -f "${file}"
@@ -132,7 +154,13 @@ collect_service_pids() {
   fi
 
   port_out=""
-  port_out="$(pids_listening_on_port "${port}" 2>/dev/null || true)"
+  if ! port_out="$(pids_listening_on_port "${port}")"; then
+    scan_st=$?
+    if [[ "${have_file_pid}" -eq 1 ]]; then
+      return 0
+    fi
+    return "${scan_st}"
+  fi
   if [[ -n "${port_out}" ]]; then
     while IFS= read -r pid; do
       pid="$(printf '%s' "${pid}" | tr -d '[:space:]')"
@@ -166,12 +194,20 @@ pids_listening_on_port() {
 
   if have_cmd ss; then
     # Example: users:(("node",pid=1234,fd=23))
-    ss -H -ltnp "sport = :${port}" 2>/dev/null \
-      | grep -oE 'pid=[0-9]+' \
-      | cut -d= -f2 \
-      | sort -u \
-      || true
-    return 0
+    local ss_out=""
+    local ss_st=0
+    ss_out="$(ss -H -ltnp "sport = :${port}" 2>/dev/null)"
+    ss_st=$?
+    if [[ "${ss_st}" -ne 0 ]]; then
+      echo "WARN: ss failed while checking port ${port} (exit ${ss_st}); trying fallback..." >&2
+    else
+      printf '%s\n' "${ss_out}" \
+        | grep -oE 'pid=[0-9]+' \
+        | cut -d= -f2 \
+        | sort -u \
+        || true
+      return 0
+    fi
   fi
 
   if have_cmd fuser; then

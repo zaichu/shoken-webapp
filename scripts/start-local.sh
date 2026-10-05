@@ -35,6 +35,19 @@ fi
 : "${BACKEND_PID_FILE:=/tmp/shoken-backend-dev-${_SCOPED_TAG}-${_BACKEND_DEFAULT_PORT}.pid}"
 : "${FRONTEND_PID_FILE:=/tmp/shoken-frontend-dev-${_SCOPED_TAG}-${FRONTEND_PORT}.pid}"
 
+# PID の使い回しで別プロセスを止めないよう、起動時刻も一緒に記録する
+write_pid_file() {
+  local file="$1"
+  local pid="$2"
+  local started=""
+  started="$(ps -p "${pid}" -o lstart= 2>/dev/null | sed 's/^ *//')"
+  if [[ -n "${started}" ]]; then
+    printf '%s\n%s\n' "${pid}" "${started}" > "${file}"
+  else
+    printf '%s\n' "${pid}" > "${file}"
+  fi
+}
+
 BACK_PID=""
 FRONT_PID=""
 TRUNK_TMP_CONFIG=""
@@ -98,7 +111,7 @@ echo "2/3 Starting backend..."
     exec make run >"${BACKEND_LOG}" 2>&1
 ) &
 BACK_PID=$!
-printf '%s\n' "${BACK_PID}" > "${BACKEND_PID_FILE}"
+write_pid_file "${BACKEND_PID_FILE}" "${BACK_PID}"
 
 if ! wait_for_http_ok "${BACKEND_URL}/health" "Backend" 120 0.5; then
   tail -n 80 "${BACKEND_LOG}" >&2 || true
@@ -121,7 +134,7 @@ fi
   exec trunk serve --config "${TRUNK_CONFIG}" --port "${FRONTEND_PORT}" --no-autoreload >"${FRONTEND_LOG}" 2>&1
 ) &
 FRONT_PID=$!
-printf '%s\n' "${FRONT_PID}" > "${FRONTEND_PID_FILE}"
+write_pid_file "${FRONTEND_PID_FILE}" "${FRONT_PID}"
 
 if ! wait_for_http_ok "${FRONTEND_URL}/" "Frontend" 240 0.5; then
   tail -n 80 "${FRONTEND_LOG}" >&2 || true
