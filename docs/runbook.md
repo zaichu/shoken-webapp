@@ -28,8 +28,8 @@ cd shoken-webapp
 
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
-| フロントエンド | Vercel | main push（`deploy-frontend.yml`、frontend/shared 変更時。CI 成功後に自動実行） |
-| フロントエンド（プレビュー） | Vercel preview | PR 作成・更新時（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。URL は PR コメントに投稿される |
+| フロントエンド | Vercel | Frontend CI（`frontend.yml`）成功後に `deploy-frontend.yml` が呼び出されて自動デプロイ（frontend/shared 変更時） |
+| フロントエンド（プレビュー） | Vercel preview | PR の Frontend CI 成功後（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。URL は PR コメントに投稿される |
 | バックエンド | Fly.io | main push（`deploy-backend.yml`） |
 
 `fly.toml` はリポジトリルートに置く(Docker build context が `shared/` を含むルートのため)。
@@ -143,7 +143,7 @@ git fetch origin --prune
 毎週月曜日に Dependabot PR が作成されます。Dependabot の PR は Issue の紐づけを免除されますが、未解決コメントは通常どおり PR gate の対象です。
 
 - **パッチ・マイナー更新**: `dependabot-auto-merge.yml` が `gh pr merge --auto --squash` を設定し、CI が green になれば自動マージされます
-- **自動マージ後のデプロイ**: `GITHUB_TOKEN` によるマージでは push イベントが発火しないため、main への push CI / デプロイは走りません。frontend/shared 変更を含むマージでは `dependabot-auto-merge.yml` がマージ完了後に Frontend CI → `deploy-frontend.yml` を自動 dispatch します。backend の依存がマージされたら `gh workflow run deploy-backend.yml` で手動デプロイしてください
+- **自動マージ後のデプロイ**: `GITHUB_TOKEN` によるマージでは push イベントが発火しないため、main への push CI / デプロイは走りません。frontend/shared 変更を含むマージでは `dependabot-auto-merge.yml` がマージ完了後に Frontend CI を自動 dispatch します（デプロイは CI 成功後に CI 側から呼び出されます）。backend の依存がマージされたら `gh workflow run deploy-backend.yml` で手動デプロイしてください
 - **メジャー更新**: 自動マージしません。エージェントが破壊的変更を確認して対応します
 - **セキュリティ更新**: `priority: P1` として扱い、優先して対応します
 - **CI が red の PR**: 失敗原因を調査して対応方針を決定（修正 / 保留 / close）
