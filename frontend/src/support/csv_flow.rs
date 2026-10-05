@@ -193,11 +193,6 @@ pub fn row_error_text(error: &CsvRowError) -> String {
     format!("{}行目: {}", error.row, error.message)
 }
 
-// user_message() とは別の文言体系(HTTP ステータス別の既定文)を使う
-pub fn csv_error_message(error: &ApiError) -> String {
-    error.message()
-}
-
 fn csv_form_data(file: &web_sys::File) -> Result<web_sys::FormData, ApiError> {
     let form = web_sys::FormData::new().map_err(|_| ApiError::Network)?;
     form.append_with_blob("file", file)

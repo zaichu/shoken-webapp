@@ -11,8 +11,8 @@ mod summary;
 #[path = "view/tests/suite.rs"]
 mod tests;
 
-use crate::features::asset_balance::csv_store::{resolve_asset_balance, AssetBalanceCsvStore};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
+use crate::features::asset_balance::store::csv::{resolve_asset_balance, AssetBalanceCsvStore};
 use crate::features::asset_balance::store::{
     has_current_balances, load_asset_balances, BalanceSlot, DataOps,
 };
@@ -23,7 +23,7 @@ use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSke
 use crate::ui::workspace_shell::{workspace_panel_default_open, WorkspaceShell};
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
-use panel::AssetBalancePanelContent;
+use panel::AssetBalancePanel;
 use std::cell::RefCell;
 
 #[derive(Clone, Copy)]
@@ -196,7 +196,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 on_toggle=Callback::new(move |_| panel_open.update(|open| *open = !*open))
                 on_close=Callback::new(move |_| panel_open.set(false))
                 panel=view! {
-                    <AssetBalancePanelContent
+                    <AssetBalancePanel
                         view_csv=view_csv
                         search_query=search_query
                         rows=move || {

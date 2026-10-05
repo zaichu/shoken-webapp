@@ -83,7 +83,7 @@ fn upload_response_deserializes() {
 }
 
 #[test]
-fn csv_error_message_matches_react() {
+fn csv_errors_use_api_error_messages() {
     for (error, expected) in [
         (ApiError::Network, "ネットワークエラーが発生しました"),
         (ApiError::Timeout, "リクエストがタイムアウトしました"),
@@ -99,7 +99,7 @@ fn csv_error_message_matches_react() {
             "エラーが発生しました (ステータス: 418)",
         ),
     ] {
-        assert_eq!(csv_error_message(&error), expected);
+        assert_eq!(error.message(), expected);
     }
 }
 

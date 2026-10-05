@@ -1,5 +1,4 @@
 pub use shared::domain::DividendSummary as DividendTotals;
-pub use shared::format::{format_currency, format_number};
 pub use shared::normalize::normalize_security_code;
 
 use crate::support::list_search::is_valid_iso_date;

@@ -52,6 +52,9 @@ fn pathname_of_strips_query_and_hash() {
     assert_eq!(pathname_of("/receipts?tab=domesticstock"), "/receipts");
     assert_eq!(pathname_of("/search?code=7203#x"), "/search");
     assert_eq!(pathname_of("/assetbalance"), "/assetbalance");
+    assert_eq!(pathname_of("/?code=7203#summary"), "/");
+    assert_eq!(pathname_of("/login#session"), "/login");
+    assert_eq!(pathname_of(""), "");
     assert_eq!(
         route_for_path(pathname_of("/search?code=7203")),
         Route::Search

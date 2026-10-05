@@ -1,4 +1,4 @@
-use super::store::{
+use super::{
     load_asset_balances, poll_dividend_maps, truncated_list_warning, AssetCsvFileSlot,
     AssetCsvSlot, BalanceSlot, DataOps, LoadedAssetBalances,
 };
@@ -8,13 +8,9 @@ use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalance
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::{unique_sorted_codes, DividendMaps};
 use crate::session::{Generation, SessionStore};
-use crate::support::csv_flow::{csv_error_message, CsvTabState};
+use crate::support::csv_flow::CsvTabState;
 use crate::support::row::Row;
 use leptos::prelude::*;
-
-pub(crate) fn can_save_csv(state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
-    state.has_preview_rows()
-}
 
 // 一覧キャッシュと同じく世代で区切り、ログアウト・ユーザー切替で自動的に無効化する
 #[derive(Clone, Copy)]
@@ -177,7 +173,7 @@ impl AssetBalanceCsvStore {
         })?;
         let mut started = false;
         self.update_csv(generation, |state| {
-            started = can_save_csv(state) && state.begin_save();
+            started = state.has_preview_rows() && state.begin_save();
         });
         started.then_some((generation, file))
     }
@@ -243,7 +239,7 @@ impl AssetBalanceCsvStore {
                 Some(codes)
             }
             Err(error) => {
-                let message = csv_error_message(&error);
+                let message = error.message();
                 self.update_csv(generation, |state| state.fail_preview(message));
                 None
             }
@@ -265,7 +261,7 @@ impl AssetBalanceCsvStore {
                 true
             }
             Err(error) => {
-                let message = csv_error_message(&error);
+                let message = error.message();
                 self.update_csv(generation, |state| state.finish_save(Err(message)));
                 false
             }
@@ -296,7 +292,7 @@ impl AssetBalanceCsvStore {
                 self.lookup.update(|store| store.clear());
             }
             Err(error) => {
-                let message = csv_error_message(&error);
+                let message = error.message();
                 self.update_csv(generation, |state| state.finish_delete(Err(message)));
             }
         }

@@ -3,15 +3,30 @@ use crate::features::home::HomePage;
 use crate::features::login::LoginPage;
 use crate::features::not_found::NotFoundPage;
 use crate::features::receipts::ReceiptsPage;
-use crate::features::stock_search::SearchPage;
+use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
-use crate::ui::site::{current_location, CurrentPath, SiteFooter, SiteHeader};
+use crate::ui::site::{SiteFooter, SiteHeader};
 use crate::ui::state::Loading;
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
 const BASE_TITLE: &str = "証券Web";
+
+pub(crate) fn current_location() -> String {
+    web_sys::window()
+        .and_then(|window| {
+            let location = window.location();
+            let pathname = location.pathname().ok()?;
+            let search = location.search().ok()?;
+            Some(format!("{pathname}{search}"))
+        })
+        .unwrap_or_default()
+}
+
+/// アプリ内遷移でナビのアクティブ表示を追随させるための現在パス(pathname + search)
+#[derive(Clone, Copy)]
+pub(crate) struct CurrentPath(pub RwSignal<String>);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Route {
@@ -52,7 +67,7 @@ fn route_for_path(path: &str) -> Route {
     }
 }
 
-fn pathname_of(path: &str) -> &str {
+pub(crate) fn pathname_of(path: &str) -> &str {
     path.split(['?', '#']).next().unwrap_or(path)
 }
 
@@ -90,10 +105,6 @@ fn strip_hash(path: &str) -> &str {
     path.split('#').next().unwrap_or(path)
 }
 
-fn scroll_to_top(window: &web_sys::Window) {
-    window.scroll_to_with_x_and_y(0.0, 0.0);
-}
-
 // SPA 遷移でフォーカスが取り残されないよう main に移す(tabindex=-1 で Tab 順には入らない)
 fn focus_main(window: &web_sys::Window) {
     if let Some(main) = window
@@ -122,7 +133,7 @@ fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
         let _ = result;
     }
     path.set(strip_hash(to).to_string());
-    scroll_to_top(&window);
+    window.scroll_to_with_x_and_y(0.0, 0.0);
     focus_main(&window);
 }
 
@@ -161,7 +172,7 @@ pub fn App() -> impl IntoView {
         ev.prevent_default();
         if to == path.get_untracked() {
             if let Some(window) = web_sys::window() {
-                scroll_to_top(&window);
+                window.scroll_to_with_x_and_y(0.0, 0.0);
             }
             return;
         }
@@ -177,7 +188,7 @@ pub fn App() -> impl IntoView {
         }
         path.set(next);
         if let Some(window) = web_sys::window() {
-            scroll_to_top(&window);
+            window.scroll_to_with_x_and_y(0.0, 0.0);
             // 戻る/進むでも遷移元のフォーカスがアンマウントされて取り残されないようにする
             focus_main(&window);
         }
@@ -243,7 +254,7 @@ pub fn App() -> impl IntoView {
                     }
                     match route {
                         Route::Home => view! { <HomePage /> }.into_any(),
-                        Route::Search => view! { <SearchPage /> }.into_any(),
+                        Route::Search => view! { <StockSearchPage /> }.into_any(),
                         Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
                         Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
                         Route::Login => view! { <LoginPage /> }.into_any(),

@@ -1,7 +1,9 @@
+pub(super) mod csv;
+
 use super::holdings::{holding_view, HoldingView};
 use crate::api::dto::{AssetBalance, AssetBalanceSummary, SearchFacets};
 use crate::api::{ApiClient, ApiError};
-use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
+use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::search::filter_asset_balances;
@@ -12,14 +14,10 @@ use crate::features::dividend_per_share::{
 };
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
-use crate::support::pagination::{fetch_all_pages, ListEndpoint};
+use crate::support::pagination::{fetch_all_pages, ListEndpoint, LIST_MAX_PAGES, LIST_PER_PAGE};
 use crate::support::row::Row;
 use leptos::prelude::*;
 use std::collections::HashSet;
-
-pub(crate) const ASSET_BALANCE_LIST_PER_PAGE: usize = 1000;
-// API の total が実データより大きい等の不整合でも必ず終了するためのページ数上限
-pub(crate) const ASSET_BALANCE_LIST_MAX_PAGES: usize = 100;
 
 #[derive(Clone, Debug)]
 pub(crate) struct LoadedAssetBalances {
@@ -32,20 +30,16 @@ pub(crate) struct LoadedAssetBalances {
 }
 
 /// 資産残高一覧のエンドポイント。検索候補に使う facets も取るため INCLUDE_FACETS を立てる。
-struct AssetBalanceList;
-
-impl ListEndpoint for AssetBalanceList {
+impl ListEndpoint for AssetBalance {
     type Row = AssetBalance;
     type Summary = AssetBalanceSummary;
 
-    const PATH: &'static str = csv::LIST_PATH;
-    const PER_PAGE: usize = ASSET_BALANCE_LIST_PER_PAGE;
-    const MAX_PAGES: usize = ASSET_BALANCE_LIST_MAX_PAGES;
+    const PATH: &'static str = super::csv::LIST_PATH;
     const INCLUDE_FACETS: bool = true;
 }
 
 async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
-    let page = fetch_all_pages::<AssetBalanceList>().await?;
+    let page = fetch_all_pages::<AssetBalance>().await?;
     Ok(LoadedAssetBalances {
         total: page.total.unwrap_or(page.rows.len()),
         rows: page.rows,
@@ -58,7 +52,7 @@ async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
 pub(crate) fn truncated_list_warning() -> String {
     format!(
         "一覧は最大{}件まで表示しています。未表示の銘柄がある可能性があります。",
-        format_number_value((ASSET_BALANCE_LIST_PER_PAGE * ASSET_BALANCE_LIST_MAX_PAGES) as f64)
+        format_number_value((LIST_PER_PAGE * LIST_MAX_PAGES) as f64)
     )
 }
 

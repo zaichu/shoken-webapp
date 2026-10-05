@@ -16,7 +16,7 @@ use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::workspace_shell::WorkspaceShell;
 use leptos::prelude::*;
 use main_content::display_rows_for;
-use panel::ReceiptPanelContent;
+use panel::ReceiptsPanel;
 use tabs::{scroll_tab_into_view, ReceiptsTabButton, TabPanel};
 use workspace::utility_rail_id;
 
@@ -92,7 +92,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                             panel_store.toggle_utility_rail();
                         }
                     })
-                    panel=view! { <ReceiptPanelContent store=store /> }.into_any()
+                    panel=view! { <ReceiptsPanel store=store /> }.into_any()
                 >
                     <div class="flex items-center justify-between gap-3">
                         <nav class="no-print" aria-label="取引明細タブ">

@@ -1,4 +1,5 @@
 use crate::api::dto::SessionUser;
+use crate::app::{current_location, pathname_of, CurrentPath};
 use crate::session::{use_session, SessionStore};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
@@ -33,29 +34,8 @@ const NAV_LINK_ACTIVE: &str = "bg-surface text-ink shadow-edge-accent";
 const NAV_LINK_INACTIVE: &str =
     "text-text-inverse-muted hover:bg-surface/10 hover:text-text-inverse";
 
-pub(crate) fn current_path() -> String {
-    web_sys::window()
-        .and_then(|window| window.location().pathname().ok())
-        .unwrap_or_default()
-}
-
-pub(crate) fn current_location() -> String {
-    web_sys::window()
-        .and_then(|window| {
-            let location = window.location();
-            let pathname = location.pathname().ok()?;
-            let search = location.search().ok()?;
-            Some(format!("{pathname}{search}"))
-        })
-        .unwrap_or_default()
-}
-
-/// アプリ内遷移でナビのアクティブ表示を追随させるための現在パス(pathname + search)
-#[derive(Clone, Copy)]
-pub(crate) struct CurrentPath(pub RwSignal<String>);
-
 fn is_nav_active(path: &str, to: &str) -> bool {
-    let path = path.split(['?', '#']).next().unwrap_or(path);
+    let path = pathname_of(path);
     path == to || path.starts_with(&format!("{to}/"))
 }
 
@@ -81,24 +61,14 @@ pub fn SiteHeader() -> impl IntoView {
     // App 配下では SPA 遷移の path を使い、単独で描くテスト等では現在の URL にフォールバック
     let path = use_context::<CurrentPath>()
         .map(|current| current.0)
-        .unwrap_or_else(|| RwSignal::new(current_path()));
+        .unwrap_or_else(|| RwSignal::new(current_location()));
     let delete_confirm_open = RwSignal::new(false);
     let delete_error = RwSignal::new(Option::<String>::None);
     let deleting = RwSignal::new(false);
     let deleting_memo = Memo::new(move |_| deleting.get());
     // ナビにホーム項目は置かず、ロゴがホームへのリンクを担う
-    let home_active = move || {
-        path.get()
-            .split(['?', '#'])
-            .next()
-            .is_some_and(|pathname| pathname == "/")
-    };
-    let on_login_page = move || {
-        path.get()
-            .split(['?', '#'])
-            .next()
-            .is_some_and(|pathname| pathname == "/login")
-    };
+    let home_active = move || pathname_of(&path.get()) == "/";
+    let on_login_page = move || pathname_of(&path.get()) == "/login";
     Effect::new(move |_| {
         if delete_confirm_open.get() {
             delete_error.set(None);

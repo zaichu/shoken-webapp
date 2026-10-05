@@ -1,10 +1,10 @@
-use crate::features::receipts::model::format_currency;
 use crate::features::receipts::{select_header_summary, ReceiptTabData, ReceiptsTab};
 use crate::ui::amount::Amount;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::StatTone;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
+use shared::format::format_currency;
 
 fn profit_tone(value: Decimal) -> StatTone {
     if value < Decimal::ZERO {

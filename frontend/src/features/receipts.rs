@@ -8,8 +8,8 @@ mod view;
 
 pub use view::ReceiptsPage;
 
-use crate::features::receipts::model::format_number;
 use rust_decimal::Decimal;
+use shared::format::format_number;
 
 pub use kind::ReceiptRow;
 pub use store::{use_receipts_data, ReceiptsStore};

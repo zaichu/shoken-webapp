@@ -85,7 +85,7 @@ fn ReceiptsCsvSection(
 }
 
 #[component]
-pub(crate) fn ReceiptPanelContent(store: ReceiptsStore) -> impl IntoView {
+pub(crate) fn ReceiptsPanel(store: ReceiptsStore) -> impl IntoView {
     let csv_store = store;
     let rail_store = store;
     // 狭い帯ではドロワー内の高さを抑えるため畳んで始める(640px未満)

@@ -1,5 +1,4 @@
 mod csv;
-mod csv_store;
 mod format;
 mod holdings;
 mod lookup;
@@ -16,8 +15,8 @@ pub(crate) use model::{calculate_valuation_from_decimal, to_fixed};
 pub(crate) use view::AssetBalancePage;
 
 #[cfg(test)]
-pub(crate) use csv_store::AssetBalanceCsvStore;
-#[cfg(test)]
 pub(crate) use lookup::AssetBalanceLookupStore;
 #[cfg(test)]
-pub(crate) use store::{BalanceSlot, DataOps, ASSET_BALANCE_LIST_PER_PAGE};
+pub(crate) use store::csv::AssetBalanceCsvStore;
+#[cfg(test)]
+pub(crate) use store::{BalanceSlot, DataOps};

@@ -1,4 +1,23 @@
 use super::*;
+use crate::api::dto::{AssetBalance, Dividend};
+use crate::support::pagination::{ListEndpoint, LIST_MAX_PAGES, LIST_PER_PAGE};
+
+#[test]
+fn summary_endpoints_share_the_list_paths() {
+    assert_eq!(
+        <AssetBalance as ListEndpoint>::PATH,
+        "/api/v1/asset-balances"
+    );
+    assert_eq!(<Dividend as ListEndpoint>::PATH, "/api/v1/dividends");
+    assert_eq!(<AssetBalance as ListEndpoint>::MAX_PAGES, LIST_MAX_PAGES);
+    assert_eq!(
+        (
+            <AssetBalance as ListEndpoint>::PER_PAGE,
+            <AssetBalance as ListEndpoint>::INCLUDE_FACETS
+        ),
+        (LIST_PER_PAGE, true)
+    );
+}
 
 #[test]
 fn has_current_summary_only_matches_same_generation() {
