@@ -29,17 +29,15 @@ pub fn asset_balance_search_options(
     facets: Option<&SearchFacets>,
     has_csv_file: bool,
 ) -> Vec<SearchOption> {
-    #[allow(clippy::collapsible_if)]
-    if !has_csv_file {
-        if let Some(securities) = facets.and_then(|facets| facets.securities.as_ref()) {
-            return securities
-                .iter()
-                .map(|option| SearchOption {
-                    value: option.value.clone(),
-                    label: normalize_display_name(&option.label),
-                })
-                .collect();
-        }
+    if !has_csv_file && let Some(securities) = facets.and_then(|facets| facets.securities.as_ref())
+    {
+        return securities
+            .iter()
+            .map(|option| SearchOption {
+                value: option.value.clone(),
+                label: normalize_display_name(&option.label),
+            })
+            .collect();
     }
     create_search_options(
         data,

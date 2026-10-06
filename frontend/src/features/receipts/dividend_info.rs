@@ -121,11 +121,10 @@ impl DividendInfoStore {
         let store = *self;
         leptos::task::spawn_local(async move {
             let client = ApiClient::read_client();
-            #[allow(clippy::collapsible_if)]
-            if let Ok(rows) = fetch_single_asset_balance(&client, &code).await {
-                if store.is_balance_active(generation, revision, &code) {
-                    store.asset_balance.set(find_by_code(&rows, &code).cloned());
-                }
+            if let Ok(rows) = fetch_single_asset_balance(&client, &code).await
+                && store.is_balance_active(generation, revision, &code)
+            {
+                store.asset_balance.set(find_by_code(&rows, &code).cloned());
             }
         });
     }

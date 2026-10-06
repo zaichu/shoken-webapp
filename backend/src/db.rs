@@ -222,7 +222,7 @@ mod tests {
             "channel_binding が残っている"
         );
         assert!(
-            parsed.query().is_none() || parsed.query() == Some(""),
+            parsed.query().is_none_or(|q| q.is_empty()),
             "query が空でない: {:?}",
             parsed.query()
         );

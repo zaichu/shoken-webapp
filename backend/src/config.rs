@@ -73,11 +73,10 @@ impl Config {
             env::var("BACKEND_URL").unwrap_or_else(|_| format!("http://localhost:{port}"));
         config.server_addr = format!("0.0.0.0:{port}");
 
-        #[allow(clippy::collapsible_if)]
-        if let Ok(v) = env::var("USER_ROW_LIMIT") {
-            if let Ok(n) = v.parse() {
-                config.user_row_limit = RowLimit::new(n);
-            }
+        if let Ok(v) = env::var("USER_ROW_LIMIT")
+            && let Ok(n) = v.parse()
+        {
+            config.user_row_limit = RowLimit::new(n);
         }
 
         if let Ok(origins) = env::var("CORS_ORIGINS") {

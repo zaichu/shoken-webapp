@@ -170,11 +170,10 @@ impl GoogleJwksCache {
     ) -> Result<CoreJsonWebKeySet, ApiError> {
         // 取得中も排他し、同時ログインによる重複取得を防ぐ。
         let mut entry = self.entry.lock().await;
-        #[allow(clippy::collapsible_if)]
-        if let Some((keys, fetched_at)) = entry.as_ref() {
-            if fetched_at.elapsed() < JWKS_CACHE_TTL {
-                return Ok(keys.clone());
-            }
+        if let Some((keys, fetched_at)) = entry.as_ref()
+            && fetched_at.elapsed() < JWKS_CACHE_TTL
+        {
+            return Ok(keys.clone());
         }
         let keys = CoreJsonWebKeySet::fetch_async(url, client)
             .await

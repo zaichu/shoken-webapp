@@ -113,21 +113,20 @@ impl AssetBalanceCsvStore {
         let store = *self;
         leptos::task::spawn_local(async move {
             let result = crate::support::csv_flow::preview_csv(csv::PREVIEW_PATH, &file).await;
-            #[allow(clippy::collapsible_if)]
-            if let Some(codes) = store.apply_preview_result(generation, result) {
-                if !codes.is_empty() {
-                    store.data_ops.update(DataOps::next_poll_rev);
-                    let poll_rev = store.data_ops.with_untracked(|ops| ops.poll_rev);
-                    leptos::task::spawn_local(poll_dividend_maps(
-                        store.session,
-                        generation,
-                        codes,
-                        store.balances,
-                        store.dividends,
-                        store.data_ops,
-                        poll_rev,
-                    ));
-                }
+            if let Some(codes) = store.apply_preview_result(generation, result)
+                && !codes.is_empty()
+            {
+                store.data_ops.update(DataOps::next_poll_rev);
+                let poll_rev = store.data_ops.with_untracked(|ops| ops.poll_rev);
+                leptos::task::spawn_local(poll_dividend_maps(
+                    store.session,
+                    generation,
+                    codes,
+                    store.balances,
+                    store.dividends,
+                    store.data_ops,
+                    poll_rev,
+                ));
             }
         });
     }
