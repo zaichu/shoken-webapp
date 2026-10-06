@@ -1,16 +1,16 @@
 use super::*;
-use crate::api::dto::{AssetBalanceListResponse, SearchFacets};
 use crate::api::ApiError;
+use crate::api::dto::{AssetBalanceListResponse, SearchFacets};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
-use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::features::asset_balance::store::DataOps;
+use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::SessionStore;
 use crate::support::pagination::collect_list_pages;
 use crate::testing::asset_balance::*;
 use crate::testing::block_on;
 use std::collections::HashMap;
-use std::future::{ready, Ready};
+use std::future::{Ready, ready};
 
 fn first_page_with_facets() -> AssetBalanceListResponse {
     let mut first = balance_page(0..1000, 2300, Some(rust_decimal_macros::dec!(10)));
@@ -381,12 +381,16 @@ fn delete_success_invalidates_late_list_and_poll_results() {
 
         store.apply_delete_result(generation, Ok(()));
 
-        assert!(!store
-            .data_ops
-            .with_untracked(|ops| ops.is_current_list(list_rev)));
-        assert!(!store
-            .data_ops
-            .with_untracked(|ops| ops.is_current_poll(poll_rev)));
+        assert!(
+            !store
+                .data_ops
+                .with_untracked(|ops| ops.is_current_list(list_rev))
+        );
+        assert!(
+            !store
+                .data_ops
+                .with_untracked(|ops| ops.is_current_poll(poll_rev))
+        );
     });
 }
 
@@ -441,9 +445,11 @@ fn begin_file_preview_stops_old_poll_and_clears_dividends() {
 
         assert!(store.begin_file_preview(generation, "next.csv".to_string()));
 
-        assert!(!store
-            .data_ops
-            .with_untracked(|ops| ops.is_current_poll(old_poll_rev)));
+        assert!(
+            !store
+                .data_ops
+                .with_untracked(|ops| ops.is_current_poll(old_poll_rev))
+        );
         assert!(dividends.get_untracked().per_share.is_empty());
     });
 }

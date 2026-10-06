@@ -27,10 +27,9 @@ pub fn build_cors_layer(cors_origins: &[String]) -> CorsLayer {
                     return true;
                 }
                 cors_origins.iter().any(|allowed_origin| {
-                    if let Ok(header_value) = allowed_origin.parse::<HeaderValue>() {
-                        origin.eq(&header_value)
-                    } else {
-                        false
+                    match allowed_origin.parse::<HeaderValue>() {
+                        Ok(header_value) => origin.eq(&header_value),
+                        _ => false,
                     }
                 })
             },
@@ -88,10 +87,10 @@ mod tests {
         },
         crate::state::AppState,
         axum::{
-            body::Body,
-            http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request},
-            routing::get,
             Router,
+            body::Body,
+            http::{Method, Request, header::ACCESS_CONTROL_ALLOW_ORIGIN},
+            routing::get,
         },
         reqwest::Client,
         std::sync::Arc,
@@ -217,9 +216,11 @@ mod tests {
             .unwrap();
 
         assert!(response.status().is_success());
-        assert!(response
-            .headers()
-            .get(ACCESS_CONTROL_ALLOW_ORIGIN)
-            .is_none());
+        assert!(
+            response
+                .headers()
+                .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+                .is_none()
+        );
     }
 }

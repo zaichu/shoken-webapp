@@ -48,26 +48,24 @@ pub fn WorkspaceShell(
     // デスクトップ→狭い帯の越境でも同じくドロワーが全面を塞ぐ。
     // change は境界越えでしか発火しないため、狭帯内のリサイズやトグルには干渉しない
     #[cfg(target_arch = "wasm32")]
-    if collapsible {
-        if let Some(media) = web_sys::window()
+    if collapsible
+        && let Some(media) = web_sys::window()
             .and_then(|window| window.match_media("(max-width: 63.999rem)").ok().flatten())
-        {
-            use wasm_bindgen::JsCast;
-            let media_check = media.clone();
-            let on_change =
-                wasm_bindgen::closure::Closure::wrap(Box::new(move |_: web_sys::Event| {
-                    if should_close_panel(media_check.matches(), panel_open.get_untracked()) {
-                        on_close.run(());
-                    }
-                }) as Box<dyn FnMut(_)>);
-            media.set_onchange(Some(on_change.as_ref().unchecked_ref()));
-            // Closure/MediaQueryList は wasm の単一スレッド前提で Send にできないため SendWrapper で保持
-            let keep = send_wrapper::SendWrapper::new((media, on_change));
-            on_cleanup(move || {
-                let (media, _on_change) = &*keep;
-                media.set_onchange(None);
-            });
-        }
+    {
+        use wasm_bindgen::JsCast;
+        let media_check = media.clone();
+        let on_change = wasm_bindgen::closure::Closure::wrap(Box::new(move |_: web_sys::Event| {
+            if should_close_panel(media_check.matches(), panel_open.get_untracked()) {
+                on_close.run(());
+            }
+        }) as Box<dyn FnMut(_)>);
+        media.set_onchange(Some(on_change.as_ref().unchecked_ref()));
+        // Closure/MediaQueryList は wasm の単一スレッド前提で Send にできないため SendWrapper で保持
+        let keep = send_wrapper::SendWrapper::new((media, on_change));
+        on_cleanup(move || {
+            let (media, _on_change) = &*keep;
+            media.set_onchange(None);
+        });
     }
     // ドロワー表示中だけ Esc で閉じる。デスクトップの常設パネルには干渉しない
     if collapsible {

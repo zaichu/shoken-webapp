@@ -7,7 +7,7 @@ use crate::features::asset_balance::{
     calculate_valuation_from_decimal, format_valuation_amount, format_valuation_rate,
     valuation_tone,
 };
-use crate::session::{use_session, Generation, SessionStore};
+use crate::session::{Generation, SessionStore, use_session};
 use crate::support::pagination::ListEndpoint;
 use crate::ui::amount::Amount;
 use crate::ui::card::{Card, CardVariant};

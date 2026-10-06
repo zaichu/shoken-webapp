@@ -94,12 +94,14 @@ fn stale_generation_csv_results_are_discarded() {
         session.mark_unauthenticated();
         session.user.set(Some(user("bob")));
 
-        assert!(store
-            .apply_preview_result(
-                generation,
-                Ok(csv_preview_response(vec![csv_preview_row("7203")])),
-            )
-            .is_none());
+        assert!(
+            store
+                .apply_preview_result(
+                    generation,
+                    Ok(csv_preview_response(vec![csv_preview_row("7203")])),
+                )
+                .is_none()
+        );
         assert!(!store.apply_upload_result(generation, Ok(csv_upload_response(2))));
         store.apply_delete_result(generation, Ok(()));
 
@@ -155,9 +157,11 @@ fn preview_success_collects_security_codes_and_failure_shows_error() {
             state.file_name = Some("asset.csv".to_string());
             state.previewing = true;
         });
-        assert!(store
-            .apply_preview_result(generation, Err(ApiError::http(500)))
-            .is_none());
+        assert!(
+            store
+                .apply_preview_result(generation, Err(ApiError::http(500)))
+                .is_none()
+        );
         let state = store.csv_state();
         assert!(!state.previewing);
         assert_eq!(

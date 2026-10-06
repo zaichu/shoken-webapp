@@ -9,7 +9,7 @@ mod tabs;
 mod workspace;
 
 use crate::features::receipts::filter::filter_receipts;
-use crate::features::receipts::{use_receipts_data, ReceiptRow, ReceiptsTab, TabState};
+use crate::features::receipts::{ReceiptRow, ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
@@ -17,7 +17,7 @@ use crate::ui::workspace_shell::WorkspaceShell;
 use leptos::prelude::*;
 use main_content::display_rows_for;
 use panel::ReceiptsPanel;
-use tabs::{scroll_tab_into_view, ReceiptsTabButton, TabPanel};
+use tabs::{ReceiptsTabButton, TabPanel, scroll_tab_into_view};
 use workspace::utility_rail_id;
 
 pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];

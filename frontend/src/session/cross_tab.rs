@@ -1,6 +1,6 @@
+use crate::session::SessionStore;
 use crate::session::local_storage;
 use crate::session::pending_logout;
-use crate::session::SessionStore;
 use leptos::ev;
 use leptos::prelude::*;
 use std::cell::{Cell, RefCell};

@@ -1,6 +1,6 @@
 use super::main_content::display_rows_for;
 use super::pickers::{DatePeriod, SearchDropdown, ToggleCategory};
-use crate::features::receipts::filter::{search_categories, DateSegment, ReceiptSearch, SearchKey};
+use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey, search_categories};
 use crate::features::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab};
 use crate::ui::collapsible_search_card::{CollapsibleSearchCard, SearchCardLayout};
 use leptos::prelude::*;

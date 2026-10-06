@@ -160,7 +160,7 @@ pub async fn delete_all<D: Domain>(pool: &PgPool, user_id: UserId) -> Result<u64
 
 #[cfg(test)]
 mod tests {
-    use super::{exceeds_user_row_limit, user_ids_for_bulk_insert, BulkTimer, RowLimit};
+    use super::{BulkTimer, RowLimit, exceeds_user_row_limit, user_ids_for_bulk_insert};
     use crate::services::domain::WriteMode;
     use shared::value::UserId;
     use uuid::Uuid;

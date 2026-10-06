@@ -1,4 +1,4 @@
-use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
+use crate::models::common::{SearchParamsAccessor, SearchQueryParams, validate_length_field};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use shared::value::SecurityCode;
@@ -149,27 +149,33 @@ mod tests {
         assert!("".parse::<SecurityCode>().is_err());
 
         // security_name は min=1 のため空文字は NG
-        assert!(CreateAssetBalanceRequest {
-            security_name: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        assert!(
+            CreateAssetBalanceRequest {
+                security_name: String::new(),
+                ..base()
+            }
+            .validate()
+            .is_err()
+        );
     }
 
     #[test]
     fn test_bulk_create_asset_balance_request_validation() {
         // items が空の場合は NG（min=1）
-        assert!(BulkCreateAssetBalanceRequest { items: vec![] }
-            .validate()
-            .is_err());
+        assert!(
+            BulkCreateAssetBalanceRequest { items: vec![] }
+                .validate()
+                .is_err()
+        );
 
         // items が 1 件以上なら OK
-        assert!(BulkCreateAssetBalanceRequest {
-            items: vec![base()]
-        }
-        .validate()
-        .is_ok());
+        assert!(
+            BulkCreateAssetBalanceRequest {
+                items: vec![base()]
+            }
+            .validate()
+            .is_ok()
+        );
     }
 
     #[test]
@@ -189,11 +195,13 @@ mod tests {
         assert!(format!("{errors}").contains("items[2]"));
 
         // 全要素が正常なら成功する
-        assert!(BulkCreateAssetBalanceRequest {
-            items: vec![base(), base()]
-        }
-        .validate()
-        .is_ok());
+        assert!(
+            BulkCreateAssetBalanceRequest {
+                items: vec![base(), base()]
+            }
+            .validate()
+            .is_ok()
+        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use crate::api::dto::SessionUser;
-use crate::app::{current_location, pathname_of, CurrentPath};
-use crate::session::{use_session, SessionStore};
+use crate::app::{CurrentPath, current_location, pathname_of};
+use crate::session::{SessionStore, use_session};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use leptos::ev;

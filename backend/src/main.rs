@@ -6,8 +6,8 @@ use backend::startup::build_startup_state;
 use backend::state::Secrets;
 use dotenvy::dotenv;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 use std::time::Instant;
 use tokio::net::TcpListener;

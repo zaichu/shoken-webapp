@@ -4,19 +4,19 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::mutualfund::{
     CreateMutualfundRequest, Mutualfund, MutualfundSearchQueryParams, MutualfundSummary,
 };
-use crate::services::csv::import::{validate_csv_rows, CsvImport};
+use crate::services::csv::import::{CsvImport, validate_csv_rows};
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
-    check_max_chars, parse_required_account, parse_required_date, parse_required_number,
-    parse_required_string, CsvCells, CsvRowView, RowNumber,
+    CsvCells, CsvRowView, RowNumber, check_max_chars, parse_required_account, parse_required_date,
+    parse_required_number, parse_required_string,
 };
 use crate::services::domain::bulk::{
-    ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
+    BulkTimer, RowLimit, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert,
 };
 use crate::services::domain::facets::{self, FacetOrder, GroupField};
 use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{
-    push_search_filters, tokens_from_query, DateAxisFilter,
+    DateAxisFilter, push_search_filters, tokens_from_query,
 };
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
@@ -96,8 +96,7 @@ impl Search for MutualfundDomain {
     type Filter = MutualfundFilter;
     type Summary = MutualfundSummary;
 
-    const COLUMNS: &'static str =
-        "id, user_id, trade_date, settlement_date, fund_name, dividends, \
+    const COLUMNS: &'static str = "id, user_id, trade_date, settlement_date, fund_name, dividends, \
         account, shares, exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
         average_acquisition_price_yen, realized_profit_and_loss, taxes, \
         realized_profit_and_loss_after_tax, created_at, updated_at";
@@ -322,7 +321,10 @@ mod tests {
     use chrono::NaiveDate;
     #[test]
     fn test_preview_csv_basic() {
-        let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\"");
+        let csv = concat!(
+            "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n",
+            "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"3,721,147\",\"-\",\"19,661\",\"7,316,147\",\"18,005.20\",\"615,849\""
+        );
         let preview = MutualfundDomain::preview_csv(csv.as_bytes()).unwrap();
         assert_eq!(
             (
@@ -334,7 +336,10 @@ mod tests {
             ),
             (1, 1, 1, true, true)
         );
-        let csv = concat!("約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n", "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\"");
+        let csv = concat!(
+            "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n",
+            "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\""
+        );
         let preview = MutualfundDomain::preview_csv(csv.as_bytes()).unwrap();
         assert_eq!(
             (preview.valid_rows, preview.rows[0]["dividends"].is_null()),

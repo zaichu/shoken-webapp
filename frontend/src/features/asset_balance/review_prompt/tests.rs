@@ -92,7 +92,9 @@ fn generate_asset_review_prompt_formats_fractional_numbers() {
 #[test]
 fn generate_asset_review_prompt_empty_rows_does_not_panic() {
     let prompt = generate_asset_review_prompt(&[]);
-    assert!(prompt.ends_with("【保有銘柄データ】\n銘柄コード | 銘柄名 | 保有株数 | 平均取得単価\n"));
+    assert!(
+        prompt.ends_with("【保有銘柄データ】\n銘柄コード | 銘柄名 | 保有株数 | 平均取得単価\n")
+    );
 }
 
 #[test]

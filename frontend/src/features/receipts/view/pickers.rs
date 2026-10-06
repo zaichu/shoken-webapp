@@ -159,10 +159,10 @@ fn CalendarDateButton(
             <FieldTrigger
                 active=Signal::derive(active)
                 on_click=move |_| {
-                    if let Some(input) = picker_ref.get() {
-                        if input.show_picker().is_err() {
-                            input.click();
-                        }
+                    if let Some(input) = picker_ref.get()
+                        && input.show_picker().is_err()
+                    {
+                        input.click();
                     }
                 }
             >

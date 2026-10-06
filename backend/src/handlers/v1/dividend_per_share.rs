@@ -1,12 +1,12 @@
 use crate::{
+    AppState,
     errors::ApiError,
     extractors::auth::AuthenticatedUser,
     extractors::validated_json::ValidatedJson,
     models::dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
     services::dividend_cache as dividend_cache_service,
-    AppState,
 };
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{Json, extract::State, response::IntoResponse};
 
 pub async fn batch(
     State(state): State<AppState>,

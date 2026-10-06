@@ -246,10 +246,12 @@ mod tests {
             serde_json::json!([]),
             serde_json::json!({}),
         ] {
-            assert!(serde_json::from_value::<SessionUser>(
-                serde_json::json!({"id":id,"email":"test@example.com"})
-            )
-            .is_err());
+            assert!(
+                serde_json::from_value::<SessionUser>(
+                    serde_json::json!({"id":id,"email":"test@example.com"})
+                )
+                .is_err()
+            );
         }
     }
 

@@ -3,10 +3,10 @@ use {
     super::*,
     crate::state::Secrets,
     axum::{
+        Router,
         body::Body,
         http::{Request, StatusCode},
         routing::get,
-        Router,
     },
     chrono::NaiveDate,
     reqwest::Client,
@@ -115,27 +115,35 @@ async fn test_search_stock() {
 #[test]
 fn test_stock_search_query_validation_bounds() {
     // 正常系: 1文字と100文字は通る
-    assert!(StockSearchQuery {
-        query: "7".to_string(),
-    }
-    .validate()
-    .is_ok());
-    assert!(StockSearchQuery {
-        query: "あ".repeat(100),
-    }
-    .validate()
-    .is_ok());
+    assert!(
+        StockSearchQuery {
+            query: "7".to_string(),
+        }
+        .validate()
+        .is_ok()
+    );
+    assert!(
+        StockSearchQuery {
+            query: "あ".repeat(100),
+        }
+        .validate()
+        .is_ok()
+    );
     // 異常系: 空文字と101文字は落ちる
-    assert!(StockSearchQuery {
-        query: String::new(),
-    }
-    .validate()
-    .is_err());
-    assert!(StockSearchQuery {
-        query: "あ".repeat(101),
-    }
-    .validate()
-    .is_err());
+    assert!(
+        StockSearchQuery {
+            query: String::new(),
+        }
+        .validate()
+        .is_err()
+    );
+    assert!(
+        StockSearchQuery {
+            query: "あ".repeat(101),
+        }
+        .validate()
+        .is_err()
+    );
 }
 
 #[tokio::test]

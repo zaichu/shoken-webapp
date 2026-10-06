@@ -1,15 +1,15 @@
-use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SearchFacets};
 use crate::api::ApiError;
+use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SearchFacets};
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRowData};
 use crate::features::asset_balance::store::csv::resolve_asset_balance;
 use crate::features::asset_balance::store::{
-    truncated_list_warning, BalanceSlot, LoadedAssetBalances,
+    BalanceSlot, LoadedAssetBalances, truncated_list_warning,
 };
 use crate::session::Generation;
 use crate::support::csv_flow::CsvTabState;
-use crate::support::pagination::{collect_list_pages, LIST_PER_PAGE};
+use crate::support::pagination::{LIST_PER_PAGE, collect_list_pages};
 use crate::testing::block_on;
-use std::future::{ready, Ready};
+use std::future::{Ready, ready};
 
 fn balance(id: usize) -> AssetBalance {
     AssetBalance {

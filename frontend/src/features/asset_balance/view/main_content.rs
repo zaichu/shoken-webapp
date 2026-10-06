@@ -5,7 +5,7 @@ use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::chart_plan;
 use crate::features::asset_balance::store::csv::csv_status_text;
-use crate::features::asset_balance::store::{filtered_portfolio, FilteredPortfolio};
+use crate::features::asset_balance::store::{FilteredPortfolio, filtered_portfolio};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::support::csv_flow::CsvTabState;

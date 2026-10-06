@@ -5,8 +5,7 @@ use leptos::prelude::*;
 /// 呼び出し側が持ち、この部品は見た目と属性を固定する。
 const TAB_BUTTON_BASE: &str = "inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold max-sm:min-h-11 max-sm:shrink-0 max-sm:px-3";
 const TAB_BUTTON_ACTIVE: &str = "border-ink bg-ink text-text-inverse shadow-edge-accent";
-const TAB_BUTTON_INACTIVE: &str =
-    "border-border-strong bg-surface text-text hover:border-border-xstrong hover:bg-surface hover:text-ink";
+const TAB_BUTTON_INACTIVE: &str = "border-border-strong bg-surface text-text hover:border-border-xstrong hover:bg-surface hover:text-ink";
 
 #[component]
 pub fn TabButton(

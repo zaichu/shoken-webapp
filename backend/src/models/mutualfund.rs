@@ -1,4 +1,4 @@
-use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
+use crate::models::common::{SearchParamsAccessor, SearchQueryParams, validate_length_field};
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -99,31 +99,37 @@ mod tests {
         assert!(base().validate().is_ok());
 
         // fund_name は min=1 のため空文字は NG
-        assert!(CreateMutualfundRequest {
-            fund_name: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        assert!(
+            CreateMutualfundRequest {
+                fund_name: String::new(),
+                ..base()
+            }
+            .validate()
+            .is_err()
+        );
 
         // account の形式は Account の serde(try_from) が JSON 入力時に検証する
         assert!("".parse::<Account>().is_err());
 
         // dividends は max=100 のため 101 文字は NG
-        assert!(CreateMutualfundRequest {
-            dividends: Some("あ".repeat(101)),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        assert!(
+            CreateMutualfundRequest {
+                dividends: Some("あ".repeat(101)),
+                ..base()
+            }
+            .validate()
+            .is_err()
+        );
 
         // dividends は None でも OK
-        assert!(CreateMutualfundRequest {
-            dividends: None,
-            ..base()
-        }
-        .validate()
-        .is_ok());
+        assert!(
+            CreateMutualfundRequest {
+                dividends: None,
+                ..base()
+            }
+            .validate()
+            .is_ok()
+        );
     }
 
     #[test]

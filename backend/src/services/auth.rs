@@ -3,11 +3,11 @@ use oauth2::{
     PkceCodeVerifier, RedirectUrl, TokenUrl,
 };
 use openidconnect::{
+    IssuerUrl, JsonWebKeySetUrl, Nonce, TokenResponse,
     core::{
         CoreIdToken, CoreIdTokenVerifier, CoreJsonWebKeySet, CoreJwsSigningAlgorithm,
         CoreTokenResponse,
     },
-    IssuerUrl, JsonWebKeySetUrl, Nonce, TokenResponse,
 };
 use sha2::{Digest, Sha256};
 use shared::value::UserId;
@@ -122,13 +122,15 @@ pub fn init_oauth_http_client() -> Result<(), ApiError> {
         // 並行して初期化が進んでいた場合は先勝ちした側を共有する。
         if OAUTH_HTTP_CLIENT.set(client).is_err() {
             tracing::debug!("OAuth HTTPクライアントは既に初期化されています");
-        } else if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            // 起動をブロックせず先読みする。失敗時は次のログイン時に再取得する。
-            runtime.spawn(async move {
-                if shared_google_jwks(&startup_client).await.is_err() {
-                    tracing::warn!("Google JWKSの先読みに失敗しました");
-                }
-            });
+        } else {
+            if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+                // 起動をブロックせず先読みする。失敗時は次のログイン時に再取得する。
+                runtime.spawn(async move {
+                    if shared_google_jwks(&startup_client).await.is_err() {
+                        tracing::warn!("Google JWKSの先読みに失敗しました");
+                    }
+                });
+            }
         }
     }
     Ok(())
@@ -168,10 +170,10 @@ impl GoogleJwksCache {
     ) -> Result<CoreJsonWebKeySet, ApiError> {
         // 取得中も排他し、同時ログインによる重複取得を防ぐ。
         let mut entry = self.entry.lock().await;
-        if let Some((keys, fetched_at)) = entry.as_ref() {
-            if fetched_at.elapsed() < JWKS_CACHE_TTL {
-                return Ok(keys.clone());
-            }
+        if let Some((keys, fetched_at)) = entry.as_ref()
+            && fetched_at.elapsed() < JWKS_CACHE_TTL
+        {
+            return Ok(keys.clone());
         }
         let keys = CoreJsonWebKeySet::fetch_async(url, client)
             .await
@@ -387,11 +389,11 @@ mod tests {
     use super::*;
 
     use openidconnect::{
+        JsonWebKeyId, PrivateSigningKey,
         core::{
             CoreIdToken, CoreIdTokenClaims, CoreJsonWebKeySet, CoreJwsSigningAlgorithm,
             CoreRsaPrivateSigningKey,
         },
-        JsonWebKeyId, PrivateSigningKey,
     };
 
     // このテスト専用に生成した公開済みの鍵。本番の認証には使用しない。
@@ -531,27 +533,31 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         jwt[start] = if jwt[start] == b'A' { b'B' } else { b'A' };
         let tampered: CoreIdToken =
             serde_json::from_value(serde_json::json!(String::from_utf8(jwt).unwrap())).unwrap();
-        assert!(verify_google_id_token(
-            &tampered,
-            &ClientId::new("client-id".into()),
-            keys,
-            &Nonce::new("test-nonce".into())
-        )
-        .is_err());
-        assert!(verify_google_id_token(
-            &token,
-            &ClientId::new("client-id".into()),
-            CoreJsonWebKeySet::new(vec![]),
-            &Nonce::new("test-nonce".into())
-        )
-        .is_err());
+        assert!(
+            verify_google_id_token(
+                &tampered,
+                &ClientId::new("client-id".into()),
+                keys,
+                &Nonce::new("test-nonce".into())
+            )
+            .is_err()
+        );
+        assert!(
+            verify_google_id_token(
+                &token,
+                &ClientId::new("client-id".into()),
+                CoreJsonWebKeySet::new(vec![]),
+                &Nonce::new("test-nonce".into())
+            )
+            .is_err()
+        );
     }
 
     #[tokio::test]
     async fn test_jwks_cache_shares_fetch_and_refreshes_after_expiry() {
         use wiremock::{
-            matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
         };
         let server = MockServer::start().await;
         let (_, keys) = signed_token(valid_claims());
@@ -594,7 +600,7 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
 
     #[tokio::test]
     async fn test_oidc_token_exchange_preserves_id_token() {
-        use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
+        use wiremock::{Mock, MockServer, ResponseTemplate, matchers::method};
         let server = MockServer::start().await;
         let (token, keys) = signed_token(valid_claims());
         Mock::given(method("POST"))
@@ -674,8 +680,8 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         use axum_extra::extract::CookieJar;
         use oauth2::PkceCodeChallenge;
         use wiremock::{
-            matchers::{body_string_contains, method},
             Mock, MockServer, ResponseTemplate,
+            matchers::{body_string_contains, method},
         };
 
         let secrets = std::sync::Arc::new(crate::state::Secrets {

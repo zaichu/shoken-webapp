@@ -1,8 +1,8 @@
 use crate::errors::ApiError;
 use axum::{
-    extract::{rejection::JsonRejection, FromRequest},
-    http::Request,
     Json,
+    extract::{FromRequest, rejection::JsonRejection},
+    http::Request,
 };
 use serde::de::DeserializeOwned;
 use tracing::error;

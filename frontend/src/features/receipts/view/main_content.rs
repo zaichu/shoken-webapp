@@ -1,7 +1,7 @@
-use super::summary::{header_summary, SummaryStrip};
+use super::summary::{SummaryStrip, header_summary};
 use super::table::ReceiptTable;
 use crate::features::receipts::dividend_info::{
-    search_security_code, DividendInfoStore, DividendSummarySection,
+    DividendInfoStore, DividendSummarySection, search_security_code,
 };
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::kind::dividend_totals;
@@ -120,32 +120,32 @@ pub(crate) fn ReceiptsMainContent(
             let rows = filtered.get();
             // 銘柄コード検索時は上段の集計カードの代わりに
             // DividendInfo（embedded）を折り畳み式で出す
-            if let Some(info) = dividend_info {
-                if !search_security_code(&rows, &query).is_empty() {
-                    let totals = dividend_totals(&rows);
-                    return view! {
-                        {preview_active.get().then(preview_banner)}
-                        <section id="receipts-summary">
-                            <DividendSummarySection
-                                store=info
-                                totals=totals
-                                expanded=summary_expanded
-                                mobile_expanded=store.mobile_summary_expanded
-                                preview=preview_active.get()
-                            />
-                        </section>
-                        <section id="receipts-list">
-                            <ReceiptTable
-                                tab=tab
-                                rows=rows
-                                all_rows=display
-                                query=query
-                                expanded_ids=store.expanded
-                            />
-                        </section>
-                    }
-                    .into_any();
+            if let Some(info) = dividend_info
+                && !search_security_code(&rows, &query).is_empty()
+            {
+                let totals = dividend_totals(&rows);
+                return view! {
+                    {preview_active.get().then(preview_banner)}
+                    <section id="receipts-summary">
+                        <DividendSummarySection
+                            store=info
+                            totals=totals
+                            expanded=summary_expanded
+                            mobile_expanded=store.mobile_summary_expanded
+                            preview=preview_active.get()
+                        />
+                    </section>
+                    <section id="receipts-list">
+                        <ReceiptTable
+                            tab=tab
+                            rows=rows
+                            all_rows=display
+                            query=query
+                            expanded_ids=store.expanded
+                        />
+                    </section>
                 }
+                .into_any();
             }
             let header = header_summary(
                 tab,

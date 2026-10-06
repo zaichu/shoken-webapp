@@ -4,24 +4,24 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
-use crate::services::csv::import::{validate_csv_rows, CsvImport};
+use crate::services::csv::import::{CsvImport, validate_csv_rows};
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
-    check_max_chars, parse_required_account, parse_required_date, parse_required_number,
-    parse_required_security_code, parse_required_string, CsvRowView, RowNumber,
+    CsvRowView, RowNumber, check_max_chars, parse_required_account, parse_required_date,
+    parse_required_number, parse_required_security_code, parse_required_string,
 };
 use crate::services::domain::bulk::{
-    ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
+    BulkTimer, RowLimit, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert,
 };
 use crate::services::domain::facets::{self, FacetOrder, GroupField};
 use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{
-    push_search_filters, tokens_from_query, DateAxisFilter,
+    DateAxisFilter, push_search_filters, tokens_from_query,
 };
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
-use shared::tax::{compute_taxes, SPECIFIC_ACCOUNT_KEYWORD, TAX_RATE};
+use shared::tax::{SPECIFIC_ACCOUNT_KEYWORD, TAX_RATE, compute_taxes};
 use shared::value::UserId;
 use sqlx::postgres::PgQueryResult;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -405,18 +405,12 @@ mod tests {
     use rust_decimal_macros::dec;
     use uuid::Uuid;
 
-    const HEADER: &str =
-        "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
-    const BASIC_ROW: &str =
-        "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
-    const NISA_ROW: &str =
-        "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"";
-    const MISSING_NAME_HEADER: &str =
-        "約定日,受渡日,銘柄コード,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
-    const MISSING_NAME_ROW: &str =
-        "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
-    const INVALID_PNL_ROW: &str =
-        "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"";
+    const HEADER: &str = "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
+    const BASIC_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
+    const NISA_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"";
+    const MISSING_NAME_HEADER: &str = "約定日,受渡日,銘柄コード,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
+    const MISSING_NAME_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
+    const INVALID_PNL_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"";
 
     fn preview_with_header(header: &str, row: &str) -> CsvPreviewResponse {
         DomesticStockDomain::preview_csv(format!("{header}\n{row}").as_bytes()).unwrap()

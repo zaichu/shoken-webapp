@@ -5,7 +5,7 @@ use crate::features::asset_balance::format::{
 };
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{
-    calculate_portfolio_kpi, total_purchase_amount, KpiHolding,
+    KpiHolding, calculate_portfolio_kpi, total_purchase_amount,
 };
 use crate::features::asset_balance::portfolio::{chart_display, chart_plan};
 use crate::features::dividend_per_share::DividendMaps;

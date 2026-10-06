@@ -113,7 +113,7 @@ pub async fn fetch_security_facets(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_group_facets_query, build_security_facets_query, FacetOrder, GroupField};
+    use super::{FacetOrder, GroupField, build_group_facets_query, build_security_facets_query};
     use uuid::Uuid;
 
     #[test]

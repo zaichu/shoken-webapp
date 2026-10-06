@@ -1,20 +1,19 @@
 pub(super) mod csv;
 
-use super::holdings::{holding_view, HoldingView};
+use super::holdings::{HoldingView, holding_view};
 use crate::api::dto::{AssetBalance, AssetBalanceSummary, SearchFacets};
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
-use crate::features::asset_balance::lookup::{fetch_single_asset_balance, AssetBalanceLookupStore};
+use crate::features::asset_balance::lookup::{AssetBalanceLookupStore, fetch_single_asset_balance};
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::search::filter_asset_balances;
 use crate::features::dividend_per_share::{
-    dividend_maps_from_batch, dividend_pending_max_retries, fetch_dividend_batch,
-    post_dividend_batch, unique_sorted_codes, DividendMaps, DIVIDEND_NETWORK_MAX_RETRIES,
-    DIVIDEND_RETRY_DELAY_MS,
+    DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS, DividendMaps, dividend_maps_from_batch,
+    dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch, unique_sorted_codes,
 };
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
-use crate::support::pagination::{fetch_all_pages, ListEndpoint, LIST_MAX_PAGES, LIST_PER_PAGE};
+use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fetch_all_pages};
 use crate::support::row::Row;
 use leptos::prelude::*;
 use std::collections::HashSet;

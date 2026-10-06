@@ -52,13 +52,12 @@ pub fn derive_security_code_from_query<T>(
         })
         .flatten();
 
-    if let Some(lower_code) = label_match {
-        if let Some(item) = data
+    if let Some(lower_code) = label_match
+        && let Some(item) = data
             .iter()
             .find(|item| code_getter(item).to_lowercase() == lower_code)
-        {
-            return code_getter(item).to_string();
-        }
+    {
+        return code_getter(item).to_string();
     }
 
     let tokens = parse_search_tokens(query);

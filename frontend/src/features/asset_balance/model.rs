@@ -66,11 +66,7 @@ pub fn to_fixed(value: f64, decimals: u32) -> f64 {
         return if negative { -0.0 } else { 0.0 };
     }
     let result = rounded as f64 / 10f64.powi(decimals as i32);
-    if negative {
-        -result
-    } else {
-        result
-    }
+    if negative { -result } else { result }
 }
 
 /// `Intl.NumberFormat`(maximumFractionDigits) 相当の丸め。
@@ -92,11 +88,7 @@ pub fn intl_fixed(value: f64, decimals: u32) -> f64 {
     else {
         return fallback();
     };
-    if negative {
-        -result
-    } else {
-        result
-    }
+    if negative { -result } else { result }
 }
 
 /// `formatters.ts` の `safeAdd` に対応する。加算ごとに小数10桁で丸める。

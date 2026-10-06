@@ -3,9 +3,9 @@ use crate::handlers::common::ok_message;
 use crate::models::common::MessageResponse;
 use crate::models::csv_import::CsvUploadResponse;
 use crate::services::csv::import::CsvImport;
-use crate::services::domain::bulk::{self, RowLimit};
 use crate::services::domain::Domain;
-use axum::{extract::Multipart, http::StatusCode, response::IntoResponse, Json};
+use crate::services::domain::bulk::{self, RowLimit};
+use axum::{Json, extract::Multipart, http::StatusCode, response::IntoResponse};
 use shared::value::UserId;
 
 pub async fn read_csv_file_bytes(mut multipart: Multipart) -> Result<Vec<u8>, ApiError> {
@@ -68,11 +68,11 @@ mod tests {
     use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
     use crate::services::csv::util::CsvCells;
     use axum::{
-        body::{to_bytes, Body},
+        Router,
+        body::{Body, to_bytes},
         extract::{Multipart, State},
         http::{Request, StatusCode},
         routing::post,
-        Router,
     };
     use serde::de::DeserializeOwned;
     use sqlx::postgres::PgPoolOptions;

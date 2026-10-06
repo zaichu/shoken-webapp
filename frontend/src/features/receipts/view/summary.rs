@@ -1,4 +1,4 @@
-use crate::features::receipts::{select_header_summary, ReceiptTabData, ReceiptsTab};
+use crate::features::receipts::{ReceiptTabData, ReceiptsTab, select_header_summary};
 use crate::ui::amount::Amount;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::StatTone;

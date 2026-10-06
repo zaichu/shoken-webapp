@@ -183,13 +183,12 @@ proptest::proptest! {
                 if status == "pending" {
                     expected_pending = true;
                 }
-                if status == "ok" {
-                    if let Some(per_share) = item.dividend_per_share {
-                        if per_share > 0.0 {
-                            expected_per_share
-                                .insert(item.security_code.clone(), per_share);
-                        }
-                    }
+                if status == "ok"
+                    && let Some(per_share) = item.dividend_per_share
+                    && per_share > 0.0
+                {
+                    expected_per_share
+                        .insert(item.security_code.clone(), per_share);
                 }
             }
         }

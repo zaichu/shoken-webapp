@@ -1,13 +1,13 @@
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
-use axum::{http::StatusCode, middleware, response::IntoResponse, routing::get, Json, Router};
+use axum::{Json, Router, http::StatusCode, middleware, response::IntoResponse, routing::get};
 use tower_http::{
     compression::{
-        predicate::{NotForContentType, Predicate, SizeAbove},
         CompressionLayer,
+        predicate::{NotForContentType, Predicate, SizeAbove},
     },
     limit::RequestBodyLimitLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -19,8 +19,8 @@ use crate::{
     config::build_cors_layer,
     handlers,
     middleware::{
-        add_security_headers, build_keyed_rate_limiter, keyed_rate_limit, validate_origin,
-        PathOnlyMakeSpan,
+        PathOnlyMakeSpan, add_security_headers, build_keyed_rate_limiter, keyed_rate_limit,
+        validate_origin,
     },
     openapi::ApiDoc,
     state::AppState,
@@ -184,13 +184,13 @@ mod tests {
         super::*,
         crate::{
             config::Config,
-            test_env::{EnvGuard, ENV_MUTEX},
+            test_env::{ENV_MUTEX, EnvGuard},
         },
         axum::{
             body::Body,
             http::{Method, Request},
         },
-        std::sync::{atomic::AtomicBool, Arc},
+        std::sync::{Arc, atomic::AtomicBool},
         tower::ServiceExt,
     };
     fn make_test_state() -> AppState {
@@ -218,13 +218,12 @@ mod tests {
     }
     #[tokio::test]
     async fn test_routes_rate_limit_returns_429() {
-        let router = if let Some(l) = crate::middleware::build_keyed_rate_limiter(1) {
-            handlers::v1::auth_routes().layer(middleware::from_fn(move |req, next| {
+        let router = match crate::middleware::build_keyed_rate_limiter(1) {
+            Some(l) => handlers::v1::auth_routes().layer(middleware::from_fn(move |req, next| {
                 let l = l.clone();
                 async move { keyed_rate_limit(l, req, next).await }
-            }))
-        } else {
-            handlers::v1::auth_routes()
+            })),
+            _ => handlers::v1::auth_routes(),
         }
         .with_state(make_test_state());
         assert_rate_limited(router, Method::GET, "/api/v1/session", Some("1.2.3.4")).await;
@@ -616,7 +615,7 @@ mod tests {
     #[tokio::test]
     async fn test_request_id_propagated_to_response() {
         use {
-            axum::{routing::get, Router},
+            axum::{Router, routing::get},
             tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
         };
         let router: Router = Router::new()

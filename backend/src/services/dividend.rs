@@ -4,19 +4,19 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
 };
-use crate::services::csv::import::{validate_csv_rows, CsvImport};
+use crate::services::csv::import::{CsvImport, validate_csv_rows};
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
-    check_max_chars, parse_optional_string, parse_required_account, parse_required_date,
-    parse_required_number, parse_required_string, CsvRowView, RowNumber,
+    CsvRowView, RowNumber, check_max_chars, parse_optional_string, parse_required_account,
+    parse_required_date, parse_required_number, parse_required_string,
 };
 use crate::services::domain::bulk::{
-    ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
+    BulkTimer, RowLimit, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert,
 };
 use crate::services::domain::facets::{self, FacetOrder, GroupField};
 use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{
-    push_search_filters, tokens_from_query, DateAxisFilter,
+    DateAxisFilter, push_search_filters, tokens_from_query,
 };
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
@@ -326,8 +326,7 @@ mod tests {
     use crate::services::csv::import::CsvImport;
     use chrono::NaiveDate;
 
-    const HEADER: &str =
-        "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]";
+    const HEADER: &str = "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]";
 
     fn preview_from_lines(lines: &[&str]) -> CsvPreviewResponse {
         DividendDomain::preview_csv(lines.join("\n").as_bytes()).unwrap()

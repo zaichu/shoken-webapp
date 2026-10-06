@@ -1,11 +1,11 @@
-use super::cards::{
-    card_row_data, is_negative_text, is_profit_label, CardRowData, MobileCardGroup,
-};
 use super::TAB_IDS;
+use super::cards::{
+    CardRowData, MobileCardGroup, card_row_data, is_negative_text, is_profit_label,
+};
 use crate::features::receipts::filter::{column_order, promoted_column};
-use crate::features::receipts::kind::is_date_group_key;
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::kind::TableGroup;
+use crate::features::receipts::kind::is_date_group_key;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::badge::CodeBadge;
 use crate::ui::card::{Card, CardVariant};
@@ -14,8 +14,8 @@ use leptos::ev;
 use leptos::prelude::*;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
-use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 
 // 検索で前に出した列は、狭い画面でも隠さない
 pub(crate) fn displayed_tiers(

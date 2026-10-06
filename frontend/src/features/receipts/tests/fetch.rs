@@ -1,10 +1,10 @@
-use crate::api::dto::{PaginatedSearchResponse, SearchFacets};
 use crate::api::ApiError;
+use crate::api::dto::{PaginatedSearchResponse, SearchFacets};
 use crate::features::receipts::truncated_list_warning;
-use crate::support::pagination::{collect_list_pages, LIST_MAX_PAGES, LIST_PER_PAGE};
+use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, collect_list_pages};
 use crate::testing::block_on;
 use std::cell::Cell;
-use std::future::{ready, Ready};
+use std::future::{Ready, ready};
 
 type Page = PaginatedSearchResponse<usize, (), SearchFacets>;
 

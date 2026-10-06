@@ -4,8 +4,8 @@ pub mod search;
 pub mod search_filters;
 
 use shared::value::UserId;
-use sqlx::postgres::PgQueryResult;
 use sqlx::PgPool;
+use sqlx::postgres::PgQueryResult;
 use std::future::Future;
 
 /// 書き込みで既存行に追記するか、利用者の行を全件置き換えるか

@@ -12,7 +12,7 @@ use reqwest::Client;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
 use sqlx::PgPool;
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{Arc, atomic::AtomicBool};
 use tokio::time::Duration;
 
 use logic::compute_is_stale;
@@ -99,7 +99,7 @@ fn build_batch_items<'a>(
             dividend_per_share: cached_entry.and_then(|c| c.dividend_per_share),
             status: cached_entry.map_or(DividendCacheStatus::Pending, |c| c.status),
             fetched_at: cached_entry.and_then(|c| c.fetched_at),
-            is_stale: cached_entry.is_some() && is_stale,
+            is_stale: cached_entry.is_some_and(|_| is_stale),
         };
         items.push(item);
     }
