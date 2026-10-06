@@ -12,7 +12,7 @@ use reqwest::Client;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
 use sqlx::PgPool;
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{Arc, atomic::AtomicBool};
 use tokio::time::Duration;
 
 use logic::compute_is_stale;

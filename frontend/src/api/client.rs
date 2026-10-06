@@ -1,5 +1,5 @@
 use gloo_timers::future::TimeoutFuture;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::cell::Cell;
 use std::fmt;
 use std::rc::Rc;

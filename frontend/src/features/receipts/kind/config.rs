@@ -1,4 +1,4 @@
-use super::{account_matches, product_matches, CardFields, ColumnTier, ReceiptRow};
+use super::{CardFields, ColumnTier, ReceiptRow, account_matches, product_matches};
 use crate::support::list_search::support::ColumnReorderRule;
 use rust_decimal::Decimal;
 

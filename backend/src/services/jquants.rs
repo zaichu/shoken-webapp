@@ -105,8 +105,8 @@ mod tests {
     use super::*;
     use serde_json::json;
     use wiremock::{
-        matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
+        matchers::{header, method, path, query_param},
     };
 
     async fn fetch_fin_summary(base_url: &str, code: &str) -> FinSummaryResponse {

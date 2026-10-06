@@ -1,12 +1,12 @@
 use super::{
-    load_asset_balances, poll_dividend_maps, truncated_list_warning, AssetCsvFileSlot,
-    AssetCsvSlot, BalanceSlot, DataOps, LoadedAssetBalances,
+    AssetCsvFileSlot, AssetCsvSlot, BalanceSlot, DataOps, LoadedAssetBalances, load_asset_balances,
+    poll_dividend_maps, truncated_list_warning,
 };
-use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse, SearchFacets};
 use crate::api::ApiError;
+use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse, SearchFacets};
 use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
-use crate::features::dividend_per_share::{unique_sorted_codes, DividendMaps};
+use crate::features::dividend_per_share::{DividendMaps, unique_sorted_codes};
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
 use crate::support::row::Row;
@@ -113,6 +113,7 @@ impl AssetBalanceCsvStore {
         let store = *self;
         leptos::task::spawn_local(async move {
             let result = crate::support::csv_flow::preview_csv(csv::PREVIEW_PATH, &file).await;
+            #[allow(clippy::collapsible_if)]
             if let Some(codes) = store.apply_preview_result(generation, result) {
                 if !codes.is_empty() {
                     store.data_ops.update(DataOps::next_poll_rev);

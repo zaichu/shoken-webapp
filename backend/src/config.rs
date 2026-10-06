@@ -73,6 +73,7 @@ impl Config {
             env::var("BACKEND_URL").unwrap_or_else(|_| format!("http://localhost:{port}"));
         config.server_addr = format!("0.0.0.0:{port}");
 
+        #[allow(clippy::collapsible_if)]
         if let Ok(v) = env::var("USER_ROW_LIMIT") {
             if let Ok(n) = v.parse() {
                 config.user_row_limit = RowLimit::new(n);
@@ -120,12 +121,12 @@ mod tests {
         crate::{
             routes::app_router,
             state::AppState,
-            test_env::{EnvGuard, ENV_MUTEX},
+            test_env::{ENV_MUTEX, EnvGuard},
         },
         axum::{
-            body::Body,
-            http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request, StatusCode},
             Router,
+            body::Body,
+            http::{Method, Request, StatusCode, header::ACCESS_CONTROL_ALLOW_ORIGIN},
         },
         reqwest::Client,
         std::sync::Arc,

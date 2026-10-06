@@ -38,13 +38,13 @@ mod tests {
         },
         tower_http::trace::MakeSpan,
         tracing::{
-            field::{Field, Visit},
             Subscriber,
+            field::{Field, Visit},
         },
         tracing_subscriber::{
+            Layer, Registry,
             layer::{Context, SubscriberExt},
             registry::LookupSpan,
-            Layer, Registry,
         },
     };
 

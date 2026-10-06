@@ -1,6 +1,6 @@
 use crate::errors::ApiError;
 use crate::models::common::{MessageResponse, PaginatedSearchResponse, SearchFacets};
-use crate::services::domain::search::{search, Search};
+use crate::services::domain::search::{Search, search};
 use axum::{http::StatusCode, response::Json};
 use shared::value::UserId;
 use sqlx::PgPool;

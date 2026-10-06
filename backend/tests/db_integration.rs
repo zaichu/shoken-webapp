@@ -1,6 +1,6 @@
 use axum::{
-    body::{to_bytes, Body},
-    http::{header::ACCESS_CONTROL_ALLOW_ORIGIN, Method, Request, StatusCode},
+    body::{Body, to_bytes},
+    http::{Method, Request, StatusCode, header::ACCESS_CONTROL_ALLOW_ORIGIN},
 };
 use backend::services::csv::import::CsvImport;
 use backend::{
@@ -56,8 +56,8 @@ use reqwest::Client;
 use rust_decimal_macros::dec;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::{SecurityCode, UserId};
-use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::{env, sync::atomic::AtomicBool, sync::Arc, time::Duration};
+use sqlx::{PgPool, postgres::PgPoolOptions};
+use std::{env, sync::Arc, sync::atomic::AtomicBool, time::Duration};
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, timeout};
@@ -73,8 +73,10 @@ impl EnvGuard {
     fn set(key: &'static str, value: Option<&str>) -> Self {
         let previous = env::var(key).ok();
         match value {
-            Some(value) => env::set_var(key, value),
-            None => env::remove_var(key),
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            Some(value) => unsafe { env::set_var(key, value) },
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            None => unsafe { env::remove_var(key) },
         }
         Self { key, previous }
     }
@@ -83,8 +85,10 @@ impl EnvGuard {
 impl Drop for EnvGuard {
     fn drop(&mut self) {
         match &self.previous {
-            Some(value) => env::set_var(self.key, value),
-            None => env::remove_var(self.key),
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            Some(value) => unsafe { env::set_var(self.key, value) },
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            None => unsafe { env::remove_var(self.key) },
         }
     }
 }
@@ -322,15 +326,17 @@ async fn service_coverage_all_domains() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
 
-    assert!(domain_search::<mutualfund_svc::MutualfundDomain>(
-        &pool,
-        user_id,
-        default_mutualfund_search_params(),
-    )
-    .await
-    .expect("initial mutualfund list failed")
-    .data
-    .is_empty());
+    assert!(
+        domain_search::<mutualfund_svc::MutualfundDomain>(
+            &pool,
+            user_id,
+            default_mutualfund_search_params(),
+        )
+        .await
+        .expect("initial mutualfund list failed")
+        .data
+        .is_empty()
+    );
     let mutualfund_empty =
         mutualfund_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
             .await
@@ -379,25 +385,29 @@ async fn service_coverage_all_domains() {
             .expect("mutualfund delete_all failed"),
         3
     );
-    assert!(domain_search::<mutualfund_svc::MutualfundDomain>(
-        &pool,
-        user_id,
-        default_mutualfund_search_params(),
-    )
-    .await
-    .expect("mutualfund list after delete failed")
-    .data
-    .is_empty());
+    assert!(
+        domain_search::<mutualfund_svc::MutualfundDomain>(
+            &pool,
+            user_id,
+            default_mutualfund_search_params(),
+        )
+        .await
+        .expect("mutualfund list after delete failed")
+        .data
+        .is_empty()
+    );
 
-    assert!(domain_search::<dividend_svc::DividendDomain>(
-        &pool,
-        user_id,
-        default_dividend_search_params()
-    )
-    .await
-    .expect("initial dividend list failed")
-    .data
-    .is_empty());
+    assert!(
+        domain_search::<dividend_svc::DividendDomain>(
+            &pool,
+            user_id,
+            default_dividend_search_params()
+        )
+        .await
+        .expect("initial dividend list failed")
+        .data
+        .is_empty()
+    );
     let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
         .await
         .expect("empty dividend bulk_create failed");
@@ -442,25 +452,29 @@ async fn service_coverage_all_domains() {
             .expect("dividend delete_all failed"),
         3
     );
-    assert!(domain_search::<dividend_svc::DividendDomain>(
-        &pool,
-        user_id,
-        default_dividend_search_params()
-    )
-    .await
-    .expect("dividend list after delete failed")
-    .data
-    .is_empty());
+    assert!(
+        domain_search::<dividend_svc::DividendDomain>(
+            &pool,
+            user_id,
+            default_dividend_search_params()
+        )
+        .await
+        .expect("dividend list after delete failed")
+        .data
+        .is_empty()
+    );
 
-    assert!(domain_search::<domestic_stock_svc::DomesticStockDomain>(
-        &pool,
-        user_id,
-        default_domestic_stock_search_params(),
-    )
-    .await
-    .expect("initial domestic_stock list failed")
-    .data
-    .is_empty());
+    assert!(
+        domain_search::<domestic_stock_svc::DomesticStockDomain>(
+            &pool,
+            user_id,
+            default_domestic_stock_search_params(),
+        )
+        .await
+        .expect("initial domestic_stock list failed")
+        .data
+        .is_empty()
+    );
     let domestic_stock_empty =
         domestic_stock_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
             .await
@@ -513,25 +527,29 @@ async fn service_coverage_all_domains() {
             .expect("domestic_stock delete_all failed"),
         3
     );
-    assert!(domain_search::<domestic_stock_svc::DomesticStockDomain>(
-        &pool,
-        user_id,
-        default_domestic_stock_search_params(),
-    )
-    .await
-    .expect("domestic_stock list after delete failed")
-    .data
-    .is_empty());
+    assert!(
+        domain_search::<domestic_stock_svc::DomesticStockDomain>(
+            &pool,
+            user_id,
+            default_domestic_stock_search_params(),
+        )
+        .await
+        .expect("domestic_stock list after delete failed")
+        .data
+        .is_empty()
+    );
 
-    assert!(domain_search::<asset_balance_svc::AssetBalanceDomain>(
-        &pool,
-        user_id,
-        default_asset_balance_search_params(),
-    )
-    .await
-    .expect("initial asset_balance list failed")
-    .data
-    .is_empty());
+    assert!(
+        domain_search::<asset_balance_svc::AssetBalanceDomain>(
+            &pool,
+            user_id,
+            default_asset_balance_search_params(),
+        )
+        .await
+        .expect("initial asset_balance list failed")
+        .data
+        .is_empty()
+    );
     let asset_balance_empty =
         asset_balance_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
             .await
@@ -592,15 +610,17 @@ async fn service_coverage_all_domains() {
             .expect("asset_balance delete_all failed"),
         1
     );
-    assert!(domain_search::<asset_balance_svc::AssetBalanceDomain>(
-        &pool,
-        user_id,
-        default_asset_balance_search_params(),
-    )
-    .await
-    .expect("asset_balance list after delete failed")
-    .data
-    .is_empty());
+    assert!(
+        domain_search::<asset_balance_svc::AssetBalanceDomain>(
+            &pool,
+            user_id,
+            default_asset_balance_search_params(),
+        )
+        .await
+        .expect("asset_balance list after delete failed")
+        .data
+        .is_empty()
+    );
 }
 
 #[tokio::test]
@@ -990,14 +1010,18 @@ async fn auth_session_upsert_rotate_and_delete() {
         .unwrap()
         .rows_affected();
     assert_eq!(updated, 1, "期限変更が対象行を更新すること");
-    assert!(auth_svc::select_user_id_by_session(&pool, session2)
-        .await
-        .unwrap()
-        .is_none());
-    assert!(auth_svc::select_user_by_session(&pool, session2)
-        .await
-        .unwrap()
-        .is_none());
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, session2)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        auth_svc::select_user_by_session(&pool, session2)
+            .await
+            .unwrap()
+            .is_none()
+    );
 
     // delete_session で明示失効
     let updated = sqlx::query("UPDATE sessions SET expires_at = NOW() + INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
@@ -1010,10 +1034,12 @@ async fn auth_session_upsert_rotate_and_delete() {
     auth_svc::delete_session(&pool, session2)
         .await
         .expect("セッション削除");
-    assert!(auth_svc::select_user_id_by_session(&pool, session2)
-        .await
-        .unwrap()
-        .is_none());
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, session2)
+            .await
+            .unwrap()
+            .is_none()
+    );
 
     // delete_account はセッションごとユーザーを削除する
     let token3 = auth_svc::upsert_user_and_rotate_session(&pool, &info2)
@@ -1023,10 +1049,12 @@ async fn auth_session_upsert_rotate_and_delete() {
     auth_svc::delete_account(&pool, user.id)
         .await
         .expect("アカウント削除");
-    assert!(auth_svc::select_user_by_session(&pool, session3)
-        .await
-        .unwrap()
-        .is_none());
+    assert!(
+        auth_svc::select_user_by_session(&pool, session3)
+            .await
+            .unwrap()
+            .is_none()
+    );
     let remaining: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM users WHERE id = $1")
         .bind(user.id)
         .fetch_optional(&pool)
@@ -1192,10 +1220,12 @@ async fn session_token_hash_rolling_deploy_compat() {
     auth_svc::delete_session(&pool, new_session)
         .await
         .expect("新版発行セッションの削除");
-    assert!(auth_svc::select_user_id_by_session(&pool, new_session)
-        .await
-        .unwrap()
-        .is_none());
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, new_session)
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[tokio::test]

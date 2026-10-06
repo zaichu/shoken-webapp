@@ -58,7 +58,7 @@ pub async fn keyed_rate_limit(
 mod tests {
     use {
         super::*,
-        axum::{middleware, routing::post, Router},
+        axum::{Router, middleware, routing::post},
         tower::ServiceExt,
     };
     fn test_route() -> Router {

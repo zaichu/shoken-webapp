@@ -1,7 +1,7 @@
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
-use tokio::time::{sleep, timeout, Duration};
+use tokio::time::{Duration, sleep, timeout};
 
 async fn connect_with_retry(database_url: &str) -> PgPool {
     let mut last_error = None;

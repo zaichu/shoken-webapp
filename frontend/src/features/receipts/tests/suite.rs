@@ -750,9 +750,11 @@ fn ensure_prunes_stale_generation_in_any_state_map() {
 
         store.ensure(tab);
 
-        assert!(store
-            .csv
-            .with_untracked(|map| map.get(&(stale, tab)).is_none()));
+        assert!(
+            store
+                .csv
+                .with_untracked(|map| map.get(&(stale, tab)).is_none())
+        );
         assert!(store.fetch_rev.with_untracked(
             |map| map.get(&(generation, tab)).is_some() && map.get(&(stale, tab)).is_none()
         ));

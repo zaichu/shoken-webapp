@@ -13,8 +13,8 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json},
 };
-use axum_extra::extract::{cookie::Cookie, CookieJar};
-use hmac::{digest::KeyInit, Hmac, Mac};
+use axum_extra::extract::{CookieJar, cookie::Cookie};
+use hmac::{Hmac, Mac, digest::KeyInit};
 use sha2::Sha256;
 
 const ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME: &str = "account_delete_confirmation";
@@ -317,8 +317,8 @@ mod tests {
     #[tokio::test]
     async fn test_session_handlers_preserve_errors_and_logout_cookie() {
         use axum::{
-            body::{to_bytes, Body},
-            http::{header::SET_COOKIE, Method, Request},
+            body::{Body, to_bytes},
+            http::{Method, Request, header::SET_COOKIE},
         };
         use tower::ServiceExt;
 

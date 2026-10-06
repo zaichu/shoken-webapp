@@ -159,6 +159,7 @@ fn CalendarDateButton(
             <FieldTrigger
                 active=Signal::derive(active)
                 on_click=move |_| {
+                    #[allow(clippy::collapsible_if)]
                     if let Some(input) = picker_ref.get() {
                         if input.show_picker().is_err() {
                             input.click();

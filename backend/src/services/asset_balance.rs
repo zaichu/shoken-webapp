@@ -4,15 +4,15 @@ use crate::models::asset_balance::{
 };
 use crate::models::common::{BulkCreateResponse, SearchFacets};
 use crate::models::csv_import::CsvRowError;
-use crate::services::csv::import::{validate_csv_rows, CsvImport};
+use crate::services::csv::import::{CsvImport, validate_csv_rows};
 #[cfg(test)]
 use crate::services::csv::pipeline::parse_csv_with_config;
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
-    check_max_chars, parse_number, parse_optional_string, CsvCells, CsvRowView, RowNumber,
+    CsvCells, CsvRowView, RowNumber, check_max_chars, parse_number, parse_optional_string,
 };
 use crate::services::domain::bulk::{
-    ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert, BulkTimer, RowLimit,
+    BulkTimer, RowLimit, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert,
 };
 use crate::services::domain::facets;
 use crate::services::domain::search::Search;
@@ -320,17 +320,13 @@ mod tests {
         Decimal,
     );
 
-    const HEADER: &str =
-        "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
-    const ASSET_BALANCE_CSV_HEADER: &str =
-        "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
+    const HEADER: &str = "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
+    const ASSET_BALANCE_CSV_HEADER: &str = "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
 
     const TEST_ROW_1: &str = "1234,テスト株式会社,100,0,100,0,1500,150000,1600,10,160000,6.67";
     const TEST_ROW_2: &str = "5678,サンプル株式会社,200,0,200,0,1800,360000,1900,15,380000,5.56";
-    const INPEX_ROW: &str =
-        "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"";
-    const NINTENDO_ROW: &str =
-        "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
+    const INPEX_ROW: &str = "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"";
+    const NINTENDO_ROW: &str = "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
     const ACCOUNT_SUMMARY_ROW: &str =
         ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
 

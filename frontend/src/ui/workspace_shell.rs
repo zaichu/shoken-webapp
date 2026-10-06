@@ -48,6 +48,7 @@ pub fn WorkspaceShell(
     // デスクトップ→狭い帯の越境でも同じくドロワーが全面を塞ぐ。
     // change は境界越えでしか発火しないため、狭帯内のリサイズやトグルには干渉しない
     #[cfg(target_arch = "wasm32")]
+    #[allow(clippy::collapsible_if)]
     if collapsible {
         if let Some(media) = web_sys::window()
             .and_then(|window| window.match_media("(max-width: 63.999rem)").ok().flatten())

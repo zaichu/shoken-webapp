@@ -1,4 +1,4 @@
-use super::{chart_display, chart_plan, ChartPlan};
+use super::{ChartPlan, chart_display, chart_plan};
 use serde::Deserialize;
 
 const PERCENTAGE_TOLERANCE: f64 = 1e-9;

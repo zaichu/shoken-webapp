@@ -2,8 +2,8 @@ mod view;
 
 pub(crate) use view::StockSearchPage;
 
-use crate::api::{fetch_stock, ApiError, Stock};
-use crate::session::{use_session, Generation};
+use crate::api::{ApiError, Stock, fetch_stock};
+use crate::session::{Generation, use_session};
 use crate::support::list_search::is_searchable_code;
 use leptos::prelude::*;
 

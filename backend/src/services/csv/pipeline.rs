@@ -1,5 +1,5 @@
 use crate::errors::{ApiError, CsvError};
-use crate::services::csv::util::{decode_bytes, CsvRowView, HeaderIndex};
+use crate::services::csv::util::{CsvRowView, HeaderIndex, decode_bytes};
 
 /// ヘッダー共有索引と StringRecord の行をそのまま保持する CSV テーブル。
 /// 行ごとに HashMap<String, String> へ複製しない

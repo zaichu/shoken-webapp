@@ -6,8 +6,8 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::{
-    cookie::{Cookie, SameSite},
     CookieJar,
+    cookie::{Cookie, SameSite},
 };
 use oauth2::{CsrfToken, PkceCodeChallenge, Scope};
 use openidconnect::Nonce;
@@ -193,14 +193,14 @@ mod tests {
         state::{AppState, Secrets},
     };
     use axum::{
-        body::{to_bytes, Body},
+        Router,
+        body::{Body, to_bytes},
         extract::{Query, State},
         http::{Method, Request, StatusCode},
-        Router,
     };
     use axum_extra::extract::{
-        cookie::{Cookie, SameSite},
         CookieJar,
+        cookie::{Cookie, SameSite},
     };
     use {reqwest::Client, serde::de::DeserializeOwned, std::sync::Arc, tower::ServiceExt};
     const BODY_LIMIT: usize = 1024 * 1024;
@@ -346,10 +346,12 @@ mod tests {
     fn test_jar_helpers() {
         use crate::services::auth::SESSION_COOKIE_NAME;
         assert!(get_session_id_from_jar(&CookieJar::new()).is_err());
-        assert!(get_session_id_from_jar(
-            &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"))
-        )
-        .is_err());
+        assert!(
+            get_session_id_from_jar(
+                &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"))
+            )
+            .is_err()
+        );
         let token = SessionToken::new();
         assert_eq!(
             get_session_id_from_jar(

@@ -32,10 +32,7 @@ const STOCK_LINKS: &[(&str, &str)] = &[
         "https://monex.ifis.co.jp/index.php?sa=report_index&bcode={code}",
     ),
     ("ザイマニ", "https://zaimani.com/search/?_sf_s={code}"),
-    (
-        "JPX Explorer",
-        "https://jpx-explorer.com/ja-JP/{code}-TSE",
-    ),
+    ("JPX Explorer", "https://jpx-explorer.com/ja-JP/{code}-TSE"),
 ];
 
 #[component]

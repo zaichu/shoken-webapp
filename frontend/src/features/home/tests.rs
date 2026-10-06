@@ -1,6 +1,6 @@
 use super::*;
 use crate::api::dto::{AssetBalance, Dividend};
-use crate::support::pagination::{ListEndpoint, LIST_MAX_PAGES, LIST_PER_PAGE};
+use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint};
 
 #[test]
 fn summary_endpoints_share_the_list_paths() {

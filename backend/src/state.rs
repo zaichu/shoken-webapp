@@ -1,6 +1,6 @@
 use reqwest::Client;
 use sqlx::PgPool;
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{Arc, atomic::AtomicBool};
 
 use crate::config::Config;
 use crate::services::auth::GoogleOAuthClient;
@@ -57,7 +57,7 @@ pub struct AppState {
 mod tests {
     use {
         super::*,
-        crate::test_env::{EnvGuard, ENV_MUTEX},
+        crate::test_env::{ENV_MUTEX, EnvGuard},
     };
     #[tokio::test]
     async fn test_secrets_from_env() {

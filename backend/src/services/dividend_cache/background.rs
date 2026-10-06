@@ -5,8 +5,8 @@ use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
 use sqlx::PgPool;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 use super::acquire_rate_slot;

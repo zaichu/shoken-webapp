@@ -1,5 +1,5 @@
-use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::filter::ReceiptSearch;
+use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
 use crate::testing::receipts::dividends;

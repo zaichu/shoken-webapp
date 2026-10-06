@@ -188,9 +188,9 @@ pub async fn fetch_if_included<T>(
 #[cfg(test)]
 mod tests {
     use super::{
-        escape_like_pattern, fetch_if_included, parse_date_param, parse_year_month_range,
-        push_date_axis_filters, push_token_ilike_filters, tokens_from_query, year_to_range,
-        DateAxisFilter,
+        DateAxisFilter, escape_like_pattern, fetch_if_included, parse_date_param,
+        parse_year_month_range, push_date_axis_filters, push_token_ilike_filters,
+        tokens_from_query, year_to_range,
     };
     use crate::errors::ApiError;
     use chrono::NaiveDate;

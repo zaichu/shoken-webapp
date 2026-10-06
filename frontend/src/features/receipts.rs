@@ -12,7 +12,7 @@ use rust_decimal::Decimal;
 use shared::format::format_number;
 
 pub use kind::ReceiptRow;
-pub use store::{use_receipts_data, ReceiptsStore};
+pub use store::{ReceiptsStore, use_receipts_data};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ReceiptsTab {

@@ -1,4 +1,4 @@
-use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
+use crate::models::common::{SearchParamsAccessor, SearchQueryParams, validate_length_field};
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -99,38 +99,46 @@ mod tests {
         assert!(base().validate().is_ok());
 
         // security_code は max=10 のため 11 文字は NG
-        assert!(CreateDividendRequest {
-            security_code: "12345678901".to_string(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        assert!(
+            CreateDividendRequest {
+                security_code: "12345678901".to_string(),
+                ..base()
+            }
+            .validate()
+            .is_err()
+        );
 
         // product は min=1 のため空文字は NG
-        assert!(CreateDividendRequest {
-            product: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        assert!(
+            CreateDividendRequest {
+                product: String::new(),
+                ..base()
+            }
+            .validate()
+            .is_err()
+        );
 
         // account の形式は Account の serde(try_from) が JSON 入力時に検証する
         assert!("".parse::<Account>().is_err());
 
         // security_name は min=1 のため空文字は NG
-        assert!(CreateDividendRequest {
-            security_name: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        assert!(
+            CreateDividendRequest {
+                security_name: String::new(),
+                ..base()
+            }
+            .validate()
+            .is_err()
+        );
 
         // security_code は空文字でも OK（max=10 のみ）
-        assert!(CreateDividendRequest {
-            security_code: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_ok());
+        assert!(
+            CreateDividendRequest {
+                security_code: String::new(),
+                ..base()
+            }
+            .validate()
+            .is_ok()
+        );
     }
 }

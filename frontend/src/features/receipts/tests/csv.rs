@@ -149,9 +149,11 @@ fn upload_success_does_not_fetch_uncached_tab() {
 
         assert!(!store.apply_upload_result(generation, tab, Ok(upload_response(1))));
 
-        assert!(store
-            .cache
-            .with_untracked(|map| !map.contains_key(&(generation, tab))));
+        assert!(
+            store
+                .cache
+                .with_untracked(|map| !map.contains_key(&(generation, tab)))
+        );
     });
 }
 
@@ -302,9 +304,11 @@ fn delete_success_without_cached_list_creates_nothing() {
 
         store.apply_delete_result(generation, tab, Ok(()));
 
-        assert!(store
-            .cache
-            .with_untracked(|map| !map.contains_key(&(generation, tab))));
+        assert!(
+            store
+                .cache
+                .with_untracked(|map| !map.contains_key(&(generation, tab)))
+        );
     });
 }
 
@@ -447,9 +451,11 @@ fn refresh_tab_list_marks_cached_tab_loading_only() {
             TabState::Loading
         ));
         assert!(!store.refresh_tab_list(generation, ReceiptsTab::MutualFund));
-        assert!(store
-            .cache
-            .with_untracked(|map| !map.contains_key(&(generation, ReceiptsTab::MutualFund))));
+        assert!(
+            store
+                .cache
+                .with_untracked(|map| !map.contains_key(&(generation, ReceiptsTab::MutualFund)))
+        );
     });
 }
 
@@ -713,15 +719,21 @@ fn ensure_prunes_only_stale_generation_entries() {
 
         store.ensure(ReceiptsTab::DomesticStock);
 
-        assert!(store
-            .cache
-            .with_untracked(|map| map.contains_key(&(generation, tab))));
-        assert!(!store
-            .cache
-            .with_untracked(|map| map.keys().any(|(cached, _)| *cached == stale)));
-        assert!(!store
-            .csv
-            .with_untracked(|map| map.keys().any(|(cached, _)| *cached == stale)));
+        assert!(
+            store
+                .cache
+                .with_untracked(|map| map.contains_key(&(generation, tab)))
+        );
+        assert!(
+            !store
+                .cache
+                .with_untracked(|map| map.keys().any(|(cached, _)| *cached == stale))
+        );
+        assert!(
+            !store
+                .csv
+                .with_untracked(|map| map.keys().any(|(cached, _)| *cached == stale))
+        );
     });
 }
 
@@ -759,12 +771,16 @@ fn ensure_prunes_csv_state_when_only_csv_has_stale_entries() {
 
         store.ensure(tab);
 
-        assert!(store
-            .csv
-            .with_untracked(|map| map.contains_key(&(generation, tab))));
-        assert!(!store
-            .csv
-            .with_untracked(|map| map.keys().any(|(cached, _)| *cached == stale)));
+        assert!(
+            store
+                .csv
+                .with_untracked(|map| map.contains_key(&(generation, tab)))
+        );
+        assert!(
+            !store
+                .csv
+                .with_untracked(|map| map.keys().any(|(cached, _)| *cached == stale))
+        );
     });
 }
 
@@ -813,12 +829,16 @@ fn ensure_keeps_entries_when_nothing_is_stale() {
 
         store.ensure(tab);
 
-        assert!(store
-            .cache
-            .with_untracked(|map| map.contains_key(&(generation, tab))));
-        assert!(store
-            .csv
-            .with_untracked(|map| map.contains_key(&(generation, tab))));
+        assert!(
+            store
+                .cache
+                .with_untracked(|map| map.contains_key(&(generation, tab)))
+        );
+        assert!(
+            store
+                .csv
+                .with_untracked(|map| map.contains_key(&(generation, tab)))
+        );
     });
 }
 

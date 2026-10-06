@@ -1,6 +1,6 @@
 use super::*;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const RATE_TOLERANCE: f64 = 1e-9;
 

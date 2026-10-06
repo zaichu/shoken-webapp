@@ -138,7 +138,7 @@ pub async fn validate_origin(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{middleware, routing::post, Router};
+    use axum::{Router, middleware, routing::post};
     use tower::ServiceExt;
 
     fn test_app(strict_origin_check: bool) -> Router {

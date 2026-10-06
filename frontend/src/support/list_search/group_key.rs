@@ -52,6 +52,7 @@ pub fn derive_security_code_from_query<T>(
         })
         .flatten();
 
+    #[allow(clippy::collapsible_if)]
     if let Some(lower_code) = label_match {
         if let Some(item) = data
             .iter()

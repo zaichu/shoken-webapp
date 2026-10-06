@@ -1,7 +1,7 @@
-use super::main_content::ReceiptsMainContent;
 use super::TAB_IDS;
+use super::main_content::ReceiptsMainContent;
 use crate::features::receipts::{
-    truncated_list_warning, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState,
+    ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState, truncated_list_warning,
 };
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;

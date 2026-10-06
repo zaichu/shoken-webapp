@@ -1,13 +1,12 @@
-use super::workspace::ReceiptMainColumn;
 use super::TAB_IDS;
+use super::workspace::ReceiptMainColumn;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant, Loading};
 use crate::ui::tabs::TabButton;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-const TAB_COUNT_BASE: &str =
-    "inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums";
+const TAB_COUNT_BASE: &str = "inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums";
 const TAB_COUNT_ACTIVE: &str = "border border-text-inverse/20 bg-surface text-ink";
 const TAB_COUNT_INACTIVE: &str = "border border-border-subtle bg-surface text-text-soft";
 

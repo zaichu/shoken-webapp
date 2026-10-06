@@ -1,4 +1,4 @@
-use crate::models::common::{validate_length_field, SearchParamsAccessor, SearchQueryParams};
+use crate::models::common::{SearchParamsAccessor, SearchQueryParams, validate_length_field};
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -96,12 +96,14 @@ mod tests {
         assert!(base().validate().is_ok());
 
         // security_name は min=1 のため空文字は NG
-        assert!(CreateDomesticStockRequest {
-            security_name: String::new(),
-            ..base()
-        }
-        .validate()
-        .is_err());
+        assert!(
+            CreateDomesticStockRequest {
+                security_name: String::new(),
+                ..base()
+            }
+            .validate()
+            .is_err()
+        );
 
         // security_code/account の形式は SecurityCode/Account の serde(try_from) が
         // JSON 入力時に検証するため、Validate の対象ではない

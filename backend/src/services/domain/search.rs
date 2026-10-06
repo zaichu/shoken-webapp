@@ -1,5 +1,5 @@
-use super::search_filters::fetch_if_included;
 use super::Domain;
+use super::search_filters::fetch_if_included;
 use crate::errors::ApiError;
 use crate::models::common::{PaginatedSearchResponse, SearchFacets, SearchParamsAccessor};
 use serde::Serialize;

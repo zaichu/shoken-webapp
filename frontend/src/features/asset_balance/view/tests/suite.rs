@@ -2,15 +2,15 @@
 mod integration;
 
 use super::summary::{PortfolioSummary, PortfolioSummaryProps};
-use crate::api::dto::AssetBalanceSummary;
 use crate::api::ApiError;
+use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::format::*;
 use crate::features::asset_balance::holdings::*;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::{
-    calculate_portfolio_kpi, format_number_value, normalize_display_name, normalize_security_code,
-    total_purchase_amount, KpiHolding,
+    KpiHolding, calculate_portfolio_kpi, format_number_value, normalize_display_name,
+    normalize_security_code, total_purchase_amount,
 };
 use crate::features::asset_balance::portfolio::chart_display;
 use crate::features::asset_balance::store::*;

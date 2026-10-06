@@ -5,9 +5,9 @@ use super::tabs::*;
 use super::workspace::utility_rail_id;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::filter::{
-    column_order, filter_receipts, DateSegment, ReceiptSearch,
+    DateSegment, ReceiptSearch, column_order, filter_receipts,
 };
-use crate::features::receipts::kind::{group_label, is_date_group_key, ColumnTier};
+use crate::features::receipts::kind::{ColumnTier, group_label, is_date_group_key};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
@@ -275,10 +275,12 @@ fn card_fields_point_at_expected_columns() {
         domestic()[0].cells()[1],
         ReceiptCell::SecurityCode(_)
     ));
-    assert!(!funds()[0]
-        .cells()
-        .iter()
-        .any(|cell| matches!(cell, ReceiptCell::SecurityCode(_))));
+    assert!(
+        !funds()[0]
+            .cells()
+            .iter()
+            .any(|cell| matches!(cell, ReceiptCell::SecurityCode(_)))
+    );
 }
 
 #[test]
@@ -401,10 +403,11 @@ fn card_row_data_maps_card_fields() {
     // 見出し(銘柄名・入金日・口座)と重複させず、残り7列を表の列順で入れる
     assert_eq!(card.details.len(), 7);
     assert_eq!(card.details[0].label, "商品");
-    assert!(card
-        .details
-        .iter()
-        .all(|detail| !["入金日", "口座", "銘柄名"].contains(&detail.label.as_str())));
+    assert!(
+        card.details
+            .iter()
+            .all(|detail| !["入金日", "口座", "銘柄名"].contains(&detail.label.as_str()))
+    );
     assert!(card.details.iter().all(|detail| match &detail.value {
         CardDetailValue::Text { text, negative } => {
             *negative
@@ -529,10 +532,12 @@ fn card_details_link_security_code_and_copy_name() {
         CardDetailValue::CopyName { display, copy }
             if display == "日本電信電話" && copy == "日本電信電話(9432)"
     ));
-    assert!(!card
-        .details
-        .iter()
-        .any(|detail| matches!(&detail.value, CardDetailValue::CopyName { .. })));
+    assert!(
+        !card
+            .details
+            .iter()
+            .any(|detail| matches!(&detail.value, CardDetailValue::CopyName { .. }))
+    );
 
     let rows = funds();
     let cells = rows[0].cells();
@@ -545,10 +550,12 @@ fn card_details_link_security_code_and_copy_name() {
         ReceiptsTab::MutualFund.card_fields(),
         false,
     );
-    assert!(!card
-        .details
-        .iter()
-        .any(|detail| matches!(&detail.value, CardDetailValue::SecurityCode(_))));
+    assert!(
+        !card
+            .details
+            .iter()
+            .any(|detail| matches!(&detail.value, CardDetailValue::SecurityCode(_)))
+    );
     assert!(matches!(
         &card.name,
         CardDetailValue::CopyName { display, copy } if display == copy

@@ -63,6 +63,7 @@ pub(crate) fn dividend_maps_from_batch(batch: &DividendBatchResponse) -> (Divide
                 has_pending = true;
             }
         }
+        #[allow(clippy::collapsible_if)]
         if item.status.as_deref() == Some("ok") {
             if let Some(per_share) = item.dividend_per_share {
                 if per_share > 0.0 {

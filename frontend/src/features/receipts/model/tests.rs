@@ -3,15 +3,15 @@ use crate::api::dto::{Dividend, DomesticStock, DomesticStockSummary, Mutualfund}
 use crate::support::list_search::is_valid_iso_date;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use shared::domain::MutualfundSummary;
 use shared::format::format_percentage_value;
 use shared::normalize::normalize_display_name;
 use shared::summary::{
-    dividend_totals as calculate_dividends, domestic_daily as calculate_domestic_daily,
-    domestic_total as calculate_domestic_total, mutualfund_totals as calculate_mutual_funds,
-    DomesticDailySummary,
+    DomesticDailySummary, dividend_totals as calculate_dividends,
+    domestic_daily as calculate_domestic_daily, domestic_total as calculate_domestic_total,
+    mutualfund_totals as calculate_mutual_funds,
 };
 use std::collections::BTreeMap;
 

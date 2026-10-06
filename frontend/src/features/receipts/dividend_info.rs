@@ -1,10 +1,10 @@
 use super::ReceiptRow;
-use crate::api::dto::AssetBalance;
 use crate::api::ApiClient;
+use crate::api::dto::AssetBalance;
 use crate::features::asset_balance::{fetch_single_asset_balance, find_by_code, to_fixed};
 use crate::features::dividend_per_share::{
-    dividend_maps_from_batch, dividend_pending_max_retries, fetch_dividend_batch,
-    post_dividend_batch, DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS,
+    DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS, dividend_maps_from_batch,
+    dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch,
 };
 use crate::features::receipts::model::DividendTotals;
 use crate::session::{Generation, SessionStore};
@@ -14,8 +14,8 @@ use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 use shared::format::{format_currency, format_number};
 use shared::normalize::normalize_security_code;
 
@@ -121,6 +121,7 @@ impl DividendInfoStore {
         let store = *self;
         leptos::task::spawn_local(async move {
             let client = ApiClient::read_client();
+            #[allow(clippy::collapsible_if)]
             if let Ok(rows) = fetch_single_asset_balance(&client, &code).await {
                 if store.is_balance_active(generation, revision, &code) {
                     store.asset_balance.set(find_by_code(&rows, &code).cloned());

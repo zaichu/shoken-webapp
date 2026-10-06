@@ -183,6 +183,7 @@ proptest::proptest! {
                 if status == "pending" {
                     expected_pending = true;
                 }
+                #[allow(clippy::collapsible_if)]
                 if status == "ok" {
                     if let Some(per_share) = item.dividend_per_share {
                         if per_share > 0.0 {

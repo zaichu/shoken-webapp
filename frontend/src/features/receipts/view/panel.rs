@@ -1,5 +1,5 @@
 use crate::features::receipts::view::search_card::ReceiptsSearchCard;
-use crate::features::receipts::{csv::CsvPreviewRow, ReceiptsStore, ReceiptsTab, TabState};
+use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState, csv::CsvPreviewRow};
 use crate::support::csv_flow::CsvTabState;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::collapsible_search_card::is_narrow_viewport;

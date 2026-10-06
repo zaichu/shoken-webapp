@@ -1,7 +1,7 @@
 use crate::state::AppState;
 use axum::{
-    routing::{delete, get, post},
     Router,
+    routing::{delete, get, post},
 };
 
 pub mod asset_balances;

@@ -1,5 +1,5 @@
-use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::OpenApi;
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 
 use crate::{
     errors::{ErrorDetails, ErrorResponse},
