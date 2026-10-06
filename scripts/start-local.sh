@@ -5,17 +5,36 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 
-BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3001}"
+# 03001 のような先頭ゼロ付き表記を 3001 と同一ポートとして扱うため 10 進数に揃える
+BACKEND_PORT="${BACKEND_PORT:-}"
+if [[ -z "${BACKEND_PORT}" && "${BACKEND_URL:-}" =~ :([0-9]+)(/|$) ]]; then
+  BACKEND_PORT="${BASH_REMATCH[1]}"
+fi
+BACKEND_PORT="${BACKEND_PORT:-3001}"
+if [[ "${BACKEND_PORT}" =~ ^[0-9]+$ ]]; then BACKEND_PORT=$((10#${BACKEND_PORT})); fi
+BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
+FRONTEND_PORT="${FRONTEND_PORT:-}"
+if [[ -z "${FRONTEND_PORT}" && "${FRONTEND_URL:-}" =~ :([0-9]+)(/|$) ]]; then
+  FRONTEND_PORT="${BASH_REMATCH[1]}"
+fi
 FRONTEND_PORT="${FRONTEND_PORT:-8081}"
+if [[ "${FRONTEND_PORT}" =~ ^[0-9]+$ ]]; then FRONTEND_PORT=$((10#${FRONTEND_PORT})); fi
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:${FRONTEND_PORT}}"
+
+# PORT と URL を両方明示してポートが食い違うと、待機・プロキシが別サーバーへ向くので拒否する
+if [[ "${BACKEND_URL}" =~ :([0-9]+)(/|$) ]] && [[ "$((10#${BASH_REMATCH[1]}))" != "${BACKEND_PORT}" ]]; then
+  echo "ERROR: BACKEND_PORT (${BACKEND_PORT}) and BACKEND_URL port (${BASH_REMATCH[1]}) disagree." >&2
+  exit 2
+fi
+if [[ "${FRONTEND_URL}" =~ :([0-9]+)(/|$) ]] && [[ "$((10#${BASH_REMATCH[1]}))" != "${FRONTEND_PORT}" ]]; then
+  echo "ERROR: FRONTEND_PORT (${FRONTEND_PORT}) and FRONTEND_URL port (${BASH_REMATCH[1]}) disagree." >&2
+  exit 2
+fi
+
 DATABASE_URL="${DATABASE_URL:-postgresql://user:password@localhost:5432/shoken_db}"
 CORS_ORIGINS="${CORS_ORIGINS:-http://localhost:${FRONTEND_PORT},${FRONTEND_URL}}"
 
-BACKEND_LOG="${BACKEND_LOG:-/tmp/shoken-backend-dev.log}"
-FRONTEND_LOG="${FRONTEND_LOG:-/tmp/shoken-frontend-dev.log}"
-DB_LOG="${DB_LOG:-/tmp/shoken-db-up.log}"
-
-# PIDファイルはチェックアウトとポートごとに分ける。同じ /tmp 既定を複数
+# PID/ログファイルはチェックアウトとポートごとに分ける。同じ /tmp 既定を複数
 # worktree で共有すると後発の起動が先発の PID を上書きし、停止対象を取り違える。
 scoped_pid_tag() {
   local base="worktree"
@@ -28,11 +47,12 @@ scoped_pid_tag() {
   printf '%s-%s' "${base}" "${hash}"
 }
 _SCOPED_TAG="$(scoped_pid_tag)"
-_BACKEND_DEFAULT_PORT="3001"
-if [[ "${BACKEND_URL}" =~ :([0-9]+)(/|$) ]]; then
-  _BACKEND_DEFAULT_PORT="${BASH_REMATCH[1]}"
-fi
-: "${BACKEND_PID_FILE:=/tmp/shoken-backend-dev-${_SCOPED_TAG}-${_BACKEND_DEFAULT_PORT}.pid}"
+
+BACKEND_LOG="${BACKEND_LOG:-/tmp/shoken-backend-dev-${_SCOPED_TAG}-${BACKEND_PORT}.log}"
+FRONTEND_LOG="${FRONTEND_LOG:-/tmp/shoken-frontend-dev-${_SCOPED_TAG}-${FRONTEND_PORT}.log}"
+DB_LOG="${DB_LOG:-/tmp/shoken-db-up-${_SCOPED_TAG}.log}"
+
+: "${BACKEND_PID_FILE:=/tmp/shoken-backend-dev-${_SCOPED_TAG}-${BACKEND_PORT}.pid}"
 : "${FRONTEND_PID_FILE:=/tmp/shoken-frontend-dev-${_SCOPED_TAG}-${FRONTEND_PORT}.pid}"
 
 # PID の使い回しで別プロセスを止めないよう、起動時刻も一緒に記録する
@@ -103,17 +123,21 @@ done
 echo "2/3 Starting backend..."
 (
   cd "${BACKEND_DIR}"
+  # make 経由だと台帳に残る PID が make になり実サーバーを止められない。
+  # cargo run は Unix では同じ PID のままバイナリへ exec される。
   DATABASE_URL="${DATABASE_URL}" \
     APP_ENV="${APP_ENV:-development}" \
     BACKEND_URL="${BACKEND_URL}" \
     FRONTEND_URL="${FRONTEND_URL}" \
     CORS_ORIGINS="${CORS_ORIGINS}" \
-    exec make run >"${BACKEND_LOG}" 2>&1
+    PORT="${BACKEND_PORT}" \
+    exec cargo run --bin backend >"${BACKEND_LOG}" 2>&1
 ) &
 BACK_PID=$!
 write_pid_file "${BACKEND_PID_FILE}" "${BACK_PID}"
 
-if ! wait_for_http_ok "${BACKEND_URL}/health" "Backend" 120 0.5; then
+# /health はプロセスの生存確認だけなので、DB・マイグレーション完了を表す /ready を待つ
+if ! wait_for_http_ok "${BACKEND_URL}/ready" "Backend" 120 0.5; then
   tail -n 80 "${BACKEND_LOG}" >&2 || true
   cleanup
   exit 1
