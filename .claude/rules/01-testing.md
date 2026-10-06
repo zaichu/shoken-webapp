@@ -4,7 +4,7 @@
 
 - 本番データをテストに使用しない
 - 日本語テストデータ（銘柄名など）を適切に使用
-- テストの置き場所は `frontend/README.md` の決まりに従う(E2E は `frontend/e2e/<機能>/`、データは `frontend/e2e/fixtures/`)
+- テストとテストデータの置き場所は `frontend/README.md`(フロント)と `backend/CLAUDE.md`(バックエンド)の決まりに従う
 - ローカルでフロントエンドとバックエンドを同時に使う検証は、**必ず DB → バックエンド → フロントエンドの順で起動**する
 
 ## 何をテストするか
@@ -16,7 +16,7 @@
 
 ## 手元の確認と CI の分担
 
-- 手元の確認は `cargo fmt`・`cargo clippy`(-D warnings)・触ったクレートの `cargo test`・`npm --prefix frontend run check:css` まで。Cargo には `env RUSTC_WRAPPER=sccache` を付ける
+- 手元の確認は `cargo fmt`・`cargo clippy`(-D warnings)・触ったクレートの `cargo test`・`npm --prefix frontend run check:css` まで(API 契約を変えたときは `bash scripts/check-openapi.sh` も)。Cargo には `env RUSTC_WRAPPER=sccache` を付ける
 - E2E は手元で全件を回さず、CI の分割実行に任せる。CI で落ちたら、落ちた spec だけ手元で直して確かめる(`env LEPTOS_E2E_PORT=<ほかと重ならない番号>` を付ける)
 - PR を出したら CI の完了を待たずに終えてよい。CI の待ちとマージは統合担当が行う
 - 変更前後の画面の画像は、Issue で求められたときだけ撮る。撮影用の spec はコミットしない
