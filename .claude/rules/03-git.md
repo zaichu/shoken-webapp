@@ -61,8 +61,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - PR は作業ブランチから `main` へ作成する
 - PR マージ前に、実装した本人以外のレビューを通す（手順は `agent-delegation` skill の「受け取ったとき」）
 - タイトルと説明は日本語で、変更内容とテスト結果を明記する
+- 説明には対応する Issue を書く(PR gate が紐づけを見ている)。Issue を完了させる PR は `Closes #<番号>`、一部だけの PR は `Refs #<番号>` か `Part of #<番号>`。やらなかったことは理由とともに書く
+- main と衝突したら `git fetch origin` してから `git merge origin/main` で解消し、通常の push をする(rebase・force push はしない)
+- レビューで差し戻すのは実害のあるもの(不具合・データの誤り/消失・セキュリティ・受け入れ条件の未達・CI 失敗)だけ。テストの強さ・コメント・命名などの低の指摘は、理由を返信して解決済みにすればよい
 - マージ方式は `Squash and merge` を標準とする
-- マージ後は `main` を更新して作業ブランチを削除する
+- マージ後は `main` を更新して作業ブランチを削除する。Squash and merge や自動マージでは `--delete-branch` が効かずに残ることがあるので、リモート・手元のブランチと worktree が消えたことを確かめる(worktree はビルド生成物で1つ十数GBになる)
+- 調べ物で repo ルートのブランチやコミットを切り替えたら、終わったら `main` に戻す
 
 ## 標準フロー
 
