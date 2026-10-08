@@ -19,6 +19,21 @@ pub struct GoogleOAuthClient {
     client_id: String,
     client_secret: String,
     redirect_uri: String,
+    token_url: String,
+    tokeninfo_url: String,
+}
+
+impl GoogleOAuthClient {
+    /// dev/検証用に Google エンドポイントを差し替える。
+    /// vars でのみ注入する想定で、未設定時は本番エンドポイントのままにする
+    pub fn override_endpoints(&mut self, token_url: Option<String>, tokeninfo_url: Option<String>) {
+        if let Some(url) = token_url {
+            self.token_url = url;
+        }
+        if let Some(url) = tokeninfo_url {
+            self.tokeninfo_url = url;
+        }
+    }
 }
 
 pub fn create_oauth_client(
@@ -33,6 +48,8 @@ pub fn create_oauth_client(
         client_id: client_id.to_string(),
         client_secret: client_secret.to_string(),
         redirect_uri,
+        token_url: GOOGLE_TOKEN_URL.to_string(),
+        tokeninfo_url: GOOGLE_TOKENINFO_URL.to_string(),
     })
 }
 
@@ -84,7 +101,7 @@ async fn exchange_code_for_id_token(
         .with_headers(headers)
         .with_body(Some(JsValue::from_str(&body)));
 
-    let request = Request::new_with_init(GOOGLE_TOKEN_URL, &init)
+    let request = Request::new_with_init(&client.token_url, &init)
         .map_err(|_| UpstreamError::OAuth("Googleトークン交換エラー"))?;
     // axum ハンドラは Future: Send が必要なため、JsFuture 系の待ち合わせは SendFuture で包む
     let fetch = Fetch::Request(request);
@@ -105,8 +122,11 @@ async fn exchange_code_for_id_token(
 }
 
 /// tokeninfo エンドポイントで ID トークンを検証しクレームを返す
-async fn fetch_tokeninfo_claims(id_token: &str) -> Result<serde_json::Value, ApiError> {
-    let url = format!("{GOOGLE_TOKENINFO_URL}?id_token={}", url_encode(id_token));
+async fn fetch_tokeninfo_claims(
+    client: &GoogleOAuthClient,
+    id_token: &str,
+) -> Result<serde_json::Value, ApiError> {
+    let url = format!("{}?id_token={}", client.tokeninfo_url, url_encode(id_token));
     let parsed_url = url::Url::parse(&url).map_err(ConfigError::UrlParse)?;
     let fetch = Fetch::Url(parsed_url);
     let mut response = worker::send::SendFuture::new(fetch.send())
@@ -128,7 +148,7 @@ pub async fn verify_code_with_google(
     nonce: &str,
 ) -> Result<GoogleUserInfo, ApiError> {
     let id_token = exchange_code_for_id_token(oauth_client, &code, &pkce_verifier).await?;
-    let claims = fetch_tokeninfo_claims(&id_token).await?;
+    let claims = fetch_tokeninfo_claims(oauth_client, &id_token).await?;
     let now_unix = (worker::js_sys::Date::now() / 1000.0) as i64;
     validate_tokeninfo_claims(&claims, &oauth_client.client_id, nonce, now_unix)
 }

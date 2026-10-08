@@ -102,10 +102,17 @@ fn build_state(env: &Env) -> Result<AppState> {
         secrets.google_client_id.as_deref(),
         secrets.google_client_secret.as_deref(),
     ) {
-        (Some(client_id), Some(client_secret)) => Some(
-            auth::create_oauth_client(client_id, client_secret, &config.backend_url)
-                .map_err(|e| Error::RustError(e.to_string()))?,
-        ),
+        (Some(client_id), Some(client_secret)) => {
+            let mut client =
+                auth::create_oauth_client(client_id, client_secret, &config.backend_url)
+                    .map_err(|e| Error::RustError(e.to_string()))?;
+            // dev/検証でモックへ差し替えるための vars。未設定なら Google 本番のまま
+            client.override_endpoints(
+                env.var("GOOGLE_TOKEN_URL").ok().map(|v| v.to_string()),
+                env.var("GOOGLE_TOKENINFO_URL").ok().map(|v| v.to_string()),
+            );
+            Some(client)
+        }
         _ => None,
     };
     Ok(AppState {

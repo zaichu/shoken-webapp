@@ -59,7 +59,7 @@ worker-build:
 .PHONY: worker-dev
 worker-dev:
 	@echo "🚀 wrangler dev でローカル起動します..."
-	npx wrangler dev
+	npx wrangler dev --env dev
 
 # テスト関連
 .PHONY: test
