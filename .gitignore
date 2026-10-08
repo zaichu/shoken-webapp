@@ -18,6 +18,7 @@ output/
 scripts/__pycache__/
 backend/build/
 backend/.wrangler/
+backend/.dev.vars
 backend/tarpaulin-report.json
 mutants.out/
 mutants.out.old/

@@ -3,9 +3,9 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use oauth2::url::ParseError;
 use std::sync::OnceLock;
 use thiserror::Error;
+use url::ParseError;
 
 use crate::config::RuntimeEnv;
 
@@ -33,8 +33,12 @@ pub enum CsvError {
 /// 上流サービス(J-Quants / Google OAuth)との通信エラー
 #[derive(Error, Debug)]
 pub enum UpstreamError {
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("上流サービスへの接続に失敗しました: {0}")]
     Transport(#[source] reqwest::Error),
+    #[cfg(target_arch = "wasm32")]
+    #[error("上流サービスへの接続に失敗しました: {0}")]
+    Transport(#[source] worker::Error),
     #[error("上流サービスがステータス {status} を返しました: {body}")]
     Http { status: u16, body: String },
     #[error("上流サービスのレート制限に達しました")]
