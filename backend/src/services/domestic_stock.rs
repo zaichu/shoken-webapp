@@ -179,8 +179,17 @@ impl Search for DomesticStockDomain {
             FacetOrder::Desc,
         );
 
+        #[cfg(not(target_arch = "wasm32"))]
         let (accounts, securities, years, year_months) =
             tokio::try_join!(accounts_fut, securities_fut, years_fut, year_months_fut)?;
+        #[cfg(target_arch = "wasm32")]
+        let (accounts, securities, years, year_months) = futures_util::future::try_join4(
+            accounts_fut,
+            securities_fut,
+            years_fut,
+            year_months_fut,
+        )
+        .await?;
 
         Ok(SearchFacets {
             products: None,

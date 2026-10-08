@@ -162,8 +162,13 @@ impl Search for MutualfundDomain {
             FacetOrder::Desc,
         );
 
+        #[cfg(not(target_arch = "wasm32"))]
         let (accounts, funds, years, year_months) =
             tokio::try_join!(accounts_fut, funds_fut, years_fut, year_months_fut)?;
+        #[cfg(target_arch = "wasm32")]
+        let (accounts, funds, years, year_months) =
+            futures_util::future::try_join4(accounts_fut, funds_fut, years_fut, year_months_fut)
+                .await?;
 
         Ok(SearchFacets {
             products: None,

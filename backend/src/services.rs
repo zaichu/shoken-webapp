@@ -1,16 +1,10 @@
-#[cfg(not(target_arch = "wasm32"))]
 pub mod asset_balance;
 pub mod auth;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod csv;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod dividend;
 pub mod dividend_cache;
 pub mod domain;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod domestic_stock;
 pub mod jquants;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod mutualfund;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod stock;

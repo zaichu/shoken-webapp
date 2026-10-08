@@ -130,6 +130,11 @@ impl Config {
         if let Some(url) = get("BACKEND_URL") {
             config.backend_url = url;
         }
+        if let Some(v) = get("USER_ROW_LIMIT")
+            && let Ok(n) = v.parse()
+        {
+            config.user_row_limit = RowLimit::new(n);
+        }
         if let Some(origins) = get("CORS_ORIGINS") {
             let parsed = parse_cors_origins(&origins);
             if !parsed.is_empty() {
