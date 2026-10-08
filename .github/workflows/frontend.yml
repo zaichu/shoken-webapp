@@ -35,6 +35,7 @@ jobs:
               - "docs/openapi.json"
               - ".github/workflows/frontend.yml"
               - ".github/workflows/deploy-frontend.yml"
+              - ".github/workflows/deploy-cloudflare-pages.yml"
               - ".github/actions/rust-cache/**"
               - ".github/actions/setup-playwright/**"
               - "!**/*.md"
@@ -142,6 +143,14 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
         with:
           name: vercel-dist
+          path: frontend/dist-release
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload Cloudflare dist artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: cloudflare-dist
           path: frontend/dist-release
           retention-days: 1
           if-no-files-found: error
@@ -283,6 +292,22 @@ jobs:
       && (github.event_name == 'workflow_dispatch'
         || (github.event_name == 'push' && needs.changes.outputs.frontend == 'true'))
     uses: ./.github/workflows/deploy-frontend.yml
+    with:
+      use_prebuilt_dist: true
+    secrets: inherit
+
+  deploy-cloudflare:
+    name: Deploy to Cloudflare Pages
+    needs: [changes, ci]
+    # callee が pull-requests: write を要求するため caller でも許可が必要
+    permissions:
+      contents: read
+      pull-requests: write
+    if: >-
+      github.ref == 'refs/heads/main'
+      && (github.event_name == 'workflow_dispatch'
+        || (github.event_name == 'push' && needs.changes.outputs.frontend == 'true'))
+    uses: ./.github/workflows/deploy-cloudflare-pages.yml
     with:
       use_prebuilt_dist: true
     secrets: inherit
