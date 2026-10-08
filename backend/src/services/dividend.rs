@@ -1,3 +1,4 @@
+use crate::db::{Bind, Db, DbError, QueryBuilder};
 use crate::errors::ApiError;
 use crate::models::common::{BulkCreateResponse, FacetOption, SearchFacets};
 use crate::models::csv_import::CsvRowError;
@@ -22,8 +23,6 @@ use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
 use shared::value::UserId;
-use sqlx::postgres::PgQueryResult;
-use sqlx::{PgPool, Postgres, QueryBuilder};
 
 /// 配当金ドメイン
 pub struct DividendDomain;
@@ -33,10 +32,13 @@ impl Domain for DividendDomain {
     const TABLE: &'static str = "dividends";
     const WRITE_MODE: WriteMode = WriteMode::Append;
 
-    async fn delete_rows(pool: &PgPool, user_id: UserId) -> Result<PgQueryResult, sqlx::Error> {
-        sqlx::query!("DELETE FROM dividends WHERE user_id = $1", user_id.get())
-            .execute(pool)
-            .await
+    async fn delete_rows(pool: &Db, user_id: UserId) -> Result<u64, DbError> {
+        crate::db::query(
+            "DELETE FROM dividends WHERE user_id = $1",
+            vec![Bind::from(user_id)],
+        )
+        .execute(pool)
+        .await
     }
 }
 
@@ -49,7 +51,7 @@ impl CsvImport for DividendDomain {
     }
 
     async fn bulk_create(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         items: &[Self::Row],
         limit: RowLimit,
@@ -103,7 +105,7 @@ impl Search for DividendDomain {
         created_at, updated_at";
     const ORDER_BY: &'static str = " ORDER BY settlement_date DESC, id DESC";
 
-    fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &DividendFilter) {
+    fn push_filters(qb: &mut QueryBuilder, user_id: UserId, filter: &DividendFilter) {
         push_search_filters(
             qb,
             user_id,
@@ -120,11 +122,11 @@ impl Search for DividendDomain {
     }
 
     async fn fetch_summary(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &DividendFilter,
     ) -> Result<DividendSummary, ApiError> {
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        let mut qb = QueryBuilder::new(
             "SELECT COALESCE(SUM(dividends_before_tax), 0) AS total_dividends_before_tax, \
              COALESCE(SUM(taxes), 0) AS total_taxes, \
              COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received \
@@ -138,7 +140,7 @@ impl Search for DividendDomain {
     }
 
     async fn fetch_facets(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &DividendFilter,
     ) -> Result<SearchFacets, ApiError> {
@@ -182,7 +184,7 @@ impl Search for DividendDomain {
 }
 
 async fn fetch_group_facets(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     filter: &DividendFilter,
     group_field: GroupField,
@@ -200,7 +202,7 @@ async fn fetch_group_facets(
 
 /// 銘柄コードごとに最新の銘柄名を label として件数付きで返す
 async fn fetch_security_facets(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     filter: &DividendFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
@@ -215,7 +217,7 @@ async fn fetch_security_facets(
 
 /// 配当金を一括追加（重複はスキップ）
 pub async fn bulk_create(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     items: &[CreateDividendRequest],
     limit: RowLimit,
@@ -228,10 +230,13 @@ pub async fn bulk_create(
     let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
-    let products: Vec<&str> = items.iter().map(|i| i.product.as_str()).collect();
-    let accounts: Vec<&str> = items.iter().map(|i| i.account.as_str()).collect();
-    let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
-    let security_names: Vec<&str> = items.iter().map(|i| i.security_name.as_str()).collect();
+    let products: Vec<String> = items.iter().map(|i| i.product.clone()).collect();
+    let accounts: Vec<String> = items
+        .iter()
+        .map(|i| i.account.as_str().to_owned())
+        .collect();
+    let security_codes: Vec<String> = items.iter().map(|i| i.security_code.clone()).collect();
+    let security_names: Vec<String> = items.iter().map(|i| i.security_name.clone()).collect();
     let unit_prices: Vec<Decimal> = items.iter().map(|i| i.unit_price).collect();
     let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();
     let dividends_before_taxes: Vec<Decimal> =
@@ -243,9 +248,9 @@ pub async fn bulk_create(
 
     lock_user_domain::<DividendDomain>(&mut tx, user_id).await?;
 
-    ensure_user_row_limit_with::<DividendDomain, _>(&mut *tx, user_id, items.len(), limit).await?;
+    ensure_user_row_limit_with::<DividendDomain, _>(&mut tx, user_id, items.len(), limit).await?;
 
-    let result = sqlx::query!(
+    let result = crate::db::query(
         r#"
         INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
                                security_name, unit_price, shares, dividends_before_tax,
@@ -258,23 +263,25 @@ pub async fn bulk_create(
         ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax)
         DO NOTHING
         "#,
-        &user_ids as &[UserId],
-        &settlement_dates,
-        &products as &[&str],
-        &accounts as &[&str],
-        &security_codes as &[&str],
-        &security_names as &[&str],
-        &unit_prices,
-        &shares,
-        &dividends_before_taxes,
-        &taxes,
-        &net_amounts
+        vec![
+            Bind::from(user_ids),
+            Bind::from(settlement_dates),
+            Bind::from(products),
+            Bind::from(accounts),
+            Bind::from(security_codes),
+            Bind::from(security_names),
+            Bind::decimal_vec(unit_prices),
+            Bind::decimal_vec(shares),
+            Bind::decimal_vec(dividends_before_taxes),
+            Bind::decimal_vec(taxes),
+            Bind::decimal_vec(net_amounts),
+        ],
     )
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     tx.commit().await?;
-    timer.finish_from_result(&result)
+    timer.finish_from_affected(result)
 }
 
 fn transform_dividend_rows(table: &CsvTable) -> (Vec<CreateDividendRequest>, Vec<CsvRowError>) {
@@ -472,10 +479,9 @@ mod tests {
         params.search.q = Some("AA BB".to_string());
         let filter = DividendFilter::try_from(params).expect("q のみなら検証を通過する");
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dividends");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM dividends");
         DividendDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         // token ごとに 1 つの AND (...) ブロックが生成され、ブロック内は4カラムの OR になる
         assert_eq!(sql.matches(" AND (").count(), 2);
@@ -493,10 +499,9 @@ mod tests {
         };
         let filter = DividendFilter::try_from(params).expect("フィルタのみなら検証を通過する");
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dividends");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM dividends");
         DividendDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert!(sql.contains("AND product = "));
         assert!(sql.contains("AND account = "));

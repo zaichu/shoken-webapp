@@ -1,3 +1,4 @@
+use crate::db::{Bind, Db, DbError, QueryBuilder};
 use crate::errors::ApiError;
 use crate::models::common::{BulkCreateResponse, FacetOption, SearchFacets};
 use crate::models::csv_import::CsvRowError;
@@ -22,8 +23,6 @@ use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::tax::compute_taxes;
 use shared::value::UserId;
-use sqlx::postgres::PgQueryResult;
-use sqlx::{PgPool, Postgres, QueryBuilder};
 
 /// 投資信託ドメイン
 pub struct MutualfundDomain;
@@ -33,10 +32,13 @@ impl Domain for MutualfundDomain {
     const TABLE: &'static str = "mutualfunds";
     const WRITE_MODE: WriteMode = WriteMode::Append;
 
-    async fn delete_rows(pool: &PgPool, user_id: UserId) -> Result<PgQueryResult, sqlx::Error> {
-        sqlx::query!("DELETE FROM mutualfunds WHERE user_id = $1", user_id.get())
-            .execute(pool)
-            .await
+    async fn delete_rows(pool: &Db, user_id: UserId) -> Result<u64, DbError> {
+        crate::db::query(
+            "DELETE FROM mutualfunds WHERE user_id = $1",
+            vec![Bind::from(user_id)],
+        )
+        .execute(pool)
+        .await
     }
 }
 
@@ -49,7 +51,7 @@ impl CsvImport for MutualfundDomain {
     }
 
     async fn bulk_create(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         items: &[Self::Row],
         limit: RowLimit,
@@ -102,7 +104,7 @@ impl Search for MutualfundDomain {
         realized_profit_and_loss_after_tax, created_at, updated_at";
     const ORDER_BY: &'static str = " ORDER BY trade_date DESC, id DESC";
 
-    fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &MutualfundFilter) {
+    fn push_filters(qb: &mut QueryBuilder, user_id: UserId, filter: &MutualfundFilter) {
         push_search_filters(
             qb,
             user_id,
@@ -119,11 +121,11 @@ impl Search for MutualfundDomain {
 
     /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
     async fn fetch_summary(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &MutualfundFilter,
     ) -> Result<MutualfundSummary, ApiError> {
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        let mut qb = QueryBuilder::new(
             "SELECT COALESCE(SUM(realized_profit_and_loss), 0) AS total_realized_profit_and_loss, \
              COALESCE(SUM(taxes), 0) AS total_taxes, \
              COALESCE(SUM(realized_profit_and_loss_after_tax), 0) AS total_realized_profit_and_loss_after_tax \
@@ -137,7 +139,7 @@ impl Search for MutualfundDomain {
     }
 
     async fn fetch_facets(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &MutualfundFilter,
     ) -> Result<SearchFacets, ApiError> {
@@ -175,7 +177,7 @@ impl Search for MutualfundDomain {
 }
 
 async fn fetch_group_facets(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     filter: &MutualfundFilter,
     group_field: GroupField,
@@ -193,7 +195,7 @@ async fn fetch_group_facets(
 
 /// 投資信託を一括追加（重複はスキップ）
 pub async fn bulk_create(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     items: &[CreateMutualfundRequest],
     limit: RowLimit,
@@ -207,9 +209,12 @@ pub async fn bulk_create(
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
-    let fund_names: Vec<&str> = items.iter().map(|i| i.fund_name.as_str()).collect();
-    let dividends: Vec<Option<&str>> = items.iter().map(|i| i.dividends.as_deref()).collect();
-    let accounts: Vec<&str> = items.iter().map(|i| i.account.as_str()).collect();
+    let fund_names: Vec<String> = items.iter().map(|i| i.fund_name.clone()).collect();
+    let dividends: Vec<Option<String>> = items.iter().map(|i| i.dividends.clone()).collect();
+    let accounts: Vec<String> = items
+        .iter()
+        .map(|i| i.account.as_str().to_owned())
+        .collect();
     let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();
     let exchange_rates: Vec<Decimal> = items.iter().map(|i| i.exchange_rate).collect();
     let cancellation_unit_prices: Vec<Decimal> = items
@@ -233,10 +238,9 @@ pub async fn bulk_create(
 
     lock_user_domain::<MutualfundDomain>(&mut tx, user_id).await?;
 
-    ensure_user_row_limit_with::<MutualfundDomain, _>(&mut *tx, user_id, items.len(), limit)
-        .await?;
+    ensure_user_row_limit_with::<MutualfundDomain, _>(&mut tx, user_id, items.len(), limit).await?;
 
-    let result = sqlx::query!(
+    let result = crate::db::query(
         r#"
         INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends,
                                  account, shares, exchange_rate, cancellation_unit_price_yen,
@@ -250,26 +254,28 @@ pub async fn bulk_create(
         ON CONFLICT (user_id, trade_date, fund_name, shares, cancellation_amount_yen)
         DO NOTHING
         "#,
-        &user_ids as &[UserId],
-        &trade_dates,
-        &settlement_dates,
-        &fund_names as &[&str],
-        &dividends as &[Option<&str>],
-        &accounts as &[&str],
-        &shares,
-        &exchange_rates,
-        &cancellation_unit_prices,
-        &cancellation_amounts,
-        &avg_acquisition_prices,
-        &realized_pls,
-        &taxes,
-        &realized_pls_after_tax
+        vec![
+            Bind::from(user_ids),
+            Bind::from(trade_dates),
+            Bind::from(settlement_dates),
+            Bind::from(fund_names),
+            Bind::from(dividends),
+            Bind::from(accounts),
+            Bind::decimal_vec(shares),
+            Bind::decimal_vec(exchange_rates),
+            Bind::decimal_vec(cancellation_unit_prices),
+            Bind::decimal_vec(cancellation_amounts),
+            Bind::decimal_vec(avg_acquisition_prices),
+            Bind::decimal_vec(realized_pls),
+            Bind::decimal_vec(taxes),
+            Bind::decimal_vec(realized_pls_after_tax),
+        ],
     )
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     tx.commit().await?;
-    timer.finish_from_result(&result)
+    timer.finish_from_affected(result)
 }
 
 fn transform_mutualfund_rows(table: &CsvTable) -> (Vec<CreateMutualfundRequest>, Vec<CsvRowError>) {
@@ -428,10 +434,9 @@ mod tests {
         params.search.q = Some("AA BB".to_string());
         let filter = MutualfundFilter::try_from(params).expect("q のみなら検証を通過する");
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM mutualfunds");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM mutualfunds");
         MutualfundDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         // token ごとに 1 つの AND (...) ブロックが生成され、ブロック内は3カラムの OR になる
         assert_eq!(sql.matches(" AND (").count(), 2);
@@ -447,10 +452,9 @@ mod tests {
         };
         let filter = MutualfundFilter::try_from(params).expect("フィルタのみなら検証を通過する");
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM mutualfunds");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM mutualfunds");
         MutualfundDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert!(sql.contains("AND account = "));
         assert!(sql.contains("AND fund_name = "));

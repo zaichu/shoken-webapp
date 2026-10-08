@@ -1,7 +1,7 @@
 //! 意味のある値を包む newtype。
-//! serde の wire 形と DB 表現はいずれも内側の型のまま（serde transparent / sqlx transparent）。
+//! serde の wire 形と DB 表現はいずれも内側の型のまま（serde transparent / postgres transparent）。
 //! 不正な値は `TryFrom` / `serde(try_from)`（JSON 入力）または CSV 変換時の `try_from` で拒否する。
-//! sqlx のデコード（DB → モデル）は検証しない。既存行に対する後方互換のため透過的に包むだけ。
+//! DB からのデコード（行 → モデル）は検証しない。既存行に対する後方互換のため透過的に包むだけ。
 
 use crate::domain::Uuid;
 use crate::tax::SPECIFIC_ACCOUNT_KEYWORD;
@@ -25,7 +25,11 @@ impl std::error::Error for InvalidSecurityCode {}
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String")]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type), sqlx(transparent))]
+#[cfg_attr(
+    feature = "postgres",
+    derive(postgres_types::ToSql, postgres_types::FromSql),
+    postgres(transparent)
+)]
 pub struct SecurityCode(String);
 
 impl SecurityCode {
@@ -125,7 +129,11 @@ impl std::error::Error for InvalidAccount {}
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String")]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type), sqlx(transparent))]
+#[cfg_attr(
+    feature = "postgres",
+    derive(postgres_types::ToSql, postgres_types::FromSql),
+    postgres(transparent)
+)]
 pub struct Account(String);
 
 impl Account {
@@ -199,7 +207,11 @@ impl FromStr for Account {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type), sqlx(transparent))]
+#[cfg_attr(
+    feature = "postgres",
+    derive(postgres_types::ToSql, postgres_types::FromSql),
+    postgres(transparent)
+)]
 pub struct RecordId(Uuid);
 
 impl RecordId {
@@ -236,7 +248,11 @@ impl fmt::Display for RecordId {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type), sqlx(transparent))]
+#[cfg_attr(
+    feature = "postgres",
+    derive(postgres_types::ToSql, postgres_types::FromSql),
+    postgres(transparent)
+)]
 pub struct UserId(Uuid);
 
 #[cfg(feature = "typed")]

@@ -11,29 +11,30 @@ use {
     chrono::NaiveDate,
     reqwest::Client,
     serde_json::Value,
-    sqlx::{Pool, Postgres},
     std::sync::Arc,
     tower::ServiceExt,
 };
 
 const BODY_LIMIT: usize = 1024 * 1024;
 
-async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
+async fn setup_test_db() -> (crate::db::Db, impl Drop) {
     let (pool, node) = crate::test_db::start_test_pool().await;
 
-    sqlx::query(
+    crate::db::query(
         r#"INSERT INTO stock (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
+        vec![
+            crate::db::Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
+            crate::db::Bind::from("1234"),
+            crate::db::Bind::from("テスト株式会社"),
+            crate::db::Bind::from("プライム"),
+            crate::db::Bind::from(Some("123".to_string())),
+            crate::db::Bind::from(Some("情報・通信業".to_string())),
+            crate::db::Bind::from(Some("12".to_string())),
+            crate::db::Bind::from(Some("情報通信".to_string())),
+            crate::db::Bind::from(Some("10".to_string())),
+            crate::db::Bind::from(Some("大型株".to_string())),
+        ],
     )
-    .bind(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap())
-    .bind("1234")
-    .bind("テスト株式会社")
-    .bind("プライム")
-    .bind(Option::<String>::Some("123".to_string()))
-    .bind(Option::<String>::Some("情報・通信業".to_string()))
-    .bind(Option::<String>::Some("12".to_string()))
-    .bind(Option::<String>::Some("情報通信".to_string()))
-    .bind(Option::<String>::Some("10".to_string()))
-    .bind(Option::<String>::Some("大型株".to_string()))
     .execute(&pool)
     .await
     .expect("テストデータ投入失敗");
@@ -41,7 +42,7 @@ async fn setup_test_db() -> (Pool<Postgres>, impl Drop) {
     (pool, node)
 }
 
-fn setup_test_app(pool: &Pool<Postgres>) -> Router {
+fn setup_test_app(pool: &crate::db::Db) -> Router {
     Router::new()
         .route("/api/v1/stocks", get(search))
         .with_state(crate::AppState {

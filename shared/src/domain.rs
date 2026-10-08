@@ -1,5 +1,5 @@
 // `typed` feature 有効時は正規型、無効時は wire 上の文字列型になる。serde の wire 形は同一で、
-// utoipa/sqlx の derive が型名をそのまま見るため、フィールド宣言は共通のまま型の実体だけを切り替える。
+// utoipa の derive が型名をそのまま見るため、フィールド宣言は共通のまま型の実体だけを切り替える。
 // user_id は backend 専用（wire に出ない）なので typed 時のみ存在させる。
 #[cfg(feature = "typed")]
 pub use chrono::{DateTime, NaiveDate, Utc};
@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 /// 国内株式取引モデル（DB + APIレスポンス兼用）
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct DomesticStock {
     #[cfg_attr(feature = "utoipa", schema(value_type = Uuid))]
     pub id: RecordId,
@@ -66,7 +65,6 @@ pub struct DomesticStock {
 /// 日次集計した結果を合計する。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct DomesticStockSummary {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_realized_profit_and_loss: Decimal,
@@ -79,7 +77,6 @@ pub struct DomesticStockSummary {
 /// 配当金モデル（DB + APIレスポンス兼用）
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Dividend {
     #[cfg_attr(feature = "utoipa", schema(value_type = Uuid))]
     pub id: RecordId,
@@ -117,7 +114,6 @@ pub struct Dividend {
 /// 配当金 検索条件全体の集計
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct DividendSummary {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_dividends_before_tax: Decimal,
@@ -130,7 +126,6 @@ pub struct DividendSummary {
 /// 投資信託モデル（DB + APIレスポンス兼用）
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Mutualfund {
     #[cfg_attr(feature = "utoipa", schema(value_type = Uuid))]
     pub id: RecordId,
@@ -173,7 +168,6 @@ pub struct Mutualfund {
 /// 投資信託 検索条件全体の集計
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct MutualfundSummary {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_realized_profit_and_loss: Decimal,
@@ -186,7 +180,6 @@ pub struct MutualfundSummary {
 /// 保有銘柄モデル（DB + APIレスポンス兼用）
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct AssetBalance {
     #[cfg_attr(feature = "utoipa", schema(value_type = Uuid))]
     pub id: RecordId,
@@ -224,7 +217,6 @@ pub struct AssetBalance {
 /// profit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct AssetBalanceSummary {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_market_value: Decimal,

@@ -1,15 +1,15 @@
+use crate::db::{Bind, Db};
 use crate::errors::ApiError;
 use crate::models::market_data::financial_statement::FinancialStatementsQuery;
 use crate::services::jquants::JQuantsClient;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
-use sqlx::PgPool;
 
 use super::logic::extract_dividend;
 
 /// JQuants API から取得してキャッシュを更新する
 pub async fn fetch_and_cache(
-    pool: &PgPool,
+    pool: &Db,
     jquants_client: &JQuantsClient,
     code: &SecurityCode,
 ) -> Result<DividendCacheStatus, ApiError> {
@@ -23,7 +23,7 @@ pub async fn fetch_and_cache(
 
     let (dividend_per_share, status) = extract_dividend(&response.data);
 
-    sqlx::query!(
+    crate::db::query(
         r#"
         INSERT INTO dividend_per_share_cache
             (security_code, dividend_per_share, status, fetched_at, stale_at, provider, updated_at)
@@ -37,9 +37,11 @@ pub async fn fetch_and_cache(
                 error_message      = NULL,
                 updated_at         = NOW()
         "#,
-        code.as_str(),
-        dividend_per_share,
-        status as DividendCacheStatus
+        vec![
+            Bind::from(code.as_str()),
+            Bind::from(dividend_per_share),
+            Bind::from(status),
+        ],
     )
     .execute(pool)
     .await?;
@@ -50,14 +52,14 @@ pub async fn fetch_and_cache(
 /// 429 レートリミット発生時のエラーを cooldown 付きでキャッシュに記録する
 /// stale_at を future に設定することで cooldown 中の即時再取得を防ぐ
 pub async fn update_cache_error_with_cooldown(
-    pool: &PgPool,
+    pool: &Db,
     code: &SecurityCode,
     error_msg: &str,
     cooldown_secs: i32,
 ) -> Result<(), ApiError> {
     let truncated = truncate_error_message(error_msg);
 
-    sqlx::query!(
+    crate::db::query(
         r#"
         INSERT INTO dividend_per_share_cache
             (security_code, dividend_per_share, status, error_message, stale_at, provider, updated_at)
@@ -68,9 +70,11 @@ pub async fn update_cache_error_with_cooldown(
                 stale_at      = NOW() + $3::int4 * INTERVAL '1 second',
                 updated_at    = NOW()
         "#,
-        code.as_str(),
-        truncated,
-        cooldown_secs
+        vec![
+            Bind::from(code.as_str()),
+            Bind::from(truncated),
+            Bind::from(cooldown_secs),
+        ],
     )
     .execute(pool)
     .await?;
@@ -89,13 +93,13 @@ fn truncate_error_message(msg: &str) -> &str {
 
 /// エラー情報をキャッシュに記録する
 pub async fn update_cache_error(
-    pool: &PgPool,
+    pool: &Db,
     code: &SecurityCode,
     error_msg: &str,
 ) -> Result<(), ApiError> {
     let truncated = truncate_error_message(error_msg);
 
-    sqlx::query!(
+    crate::db::query(
         r#"
         INSERT INTO dividend_per_share_cache
             (security_code, dividend_per_share, status, error_message, stale_at, provider, updated_at)
@@ -106,8 +110,7 @@ pub async fn update_cache_error(
                 stale_at      = NULL,
                 updated_at    = NOW()
         "#,
-        code.as_str(),
-        truncated
+        vec![Bind::from(code.as_str()), Bind::from(truncated)],
     )
     .execute(pool)
     .await?;

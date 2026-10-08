@@ -3,9 +3,8 @@ pub mod facets;
 pub mod search;
 pub mod search_filters;
 
+use crate::db::{Db, DbError};
 use shared::value::UserId;
-use sqlx::PgPool;
-use sqlx::postgres::PgQueryResult;
 use std::future::Future;
 
 /// 書き込みで既存行に追記するか、利用者の行を全件置き換えるか
@@ -22,9 +21,6 @@ pub trait Domain: Send + Sync + 'static {
     const TABLE: &'static str;
     const WRITE_MODE: WriteMode;
 
-    // sqlx::query! のコンパイル時検証を保つため、SQL リテラルはドメインごとに書く
-    fn delete_rows(
-        pool: &PgPool,
-        user_id: UserId,
-    ) -> impl Future<Output = Result<PgQueryResult, sqlx::Error>> + Send;
+    fn delete_rows(pool: &Db, user_id: UserId)
+    -> impl Future<Output = Result<u64, DbError>> + Send;
 }

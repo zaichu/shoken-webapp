@@ -8,6 +8,47 @@ use validator::{Validate, ValidationErrors};
 
 pub use shared::domain::{DomesticStock, DomesticStockSummary};
 
+impl crate::db::FromRow for DomesticStock {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            user_id: row.try_get("user_id")?,
+            trade_date: row.try_get("trade_date")?,
+            settlement_date: row.try_get("settlement_date")?,
+            security_code: row.try_get("security_code")?,
+            security_name: row.try_get("security_name")?,
+            account: row.try_get("account")?,
+            shares: row.try_get::<_, crate::db::Numeric>("shares")?.0,
+            asked_price: row.try_get::<_, crate::db::Numeric>("asked_price")?.0,
+            proceeds: row.try_get::<_, crate::db::Numeric>("proceeds")?.0,
+            purchase_price: row.try_get::<_, crate::db::Numeric>("purchase_price")?.0,
+            realized_profit_and_loss: row
+                .try_get::<_, crate::db::Numeric>("realized_profit_and_loss")?
+                .0,
+            taxes: row.try_get::<_, crate::db::Numeric>("taxes")?.0,
+            realized_profit_and_loss_after_tax: row
+                .try_get::<_, crate::db::Numeric>("realized_profit_and_loss_after_tax")?
+                .0,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
+}
+
+impl crate::db::FromRow for DomesticStockSummary {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            total_realized_profit_and_loss: row
+                .try_get::<_, crate::db::Numeric>("total_realized_profit_and_loss")?
+                .0,
+            total_taxes: row.try_get::<_, crate::db::Numeric>("total_taxes")?.0,
+            total_realized_profit_and_loss_after_tax: row
+                .try_get::<_, crate::db::Numeric>("total_realized_profit_and_loss_after_tax")?
+                .0,
+        })
+    }
+}
+
 /// 国内株式取引一覧の検索クエリパラメータ（共通 `SearchQueryParams` + 国内株式固有の絞り込み）
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
 pub struct DomesticStockSearchQueryParams {

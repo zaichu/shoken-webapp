@@ -8,6 +8,45 @@ use validator::{Validate, ValidationErrors, ValidationErrorsKind};
 
 pub use shared::domain::{AssetBalance, AssetBalanceSummary};
 
+impl crate::db::FromRow for AssetBalance {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            user_id: row.try_get("user_id")?,
+            security_code: row.try_get("security_code")?,
+            security_name: row.try_get("security_name")?,
+            shares: row.try_get::<_, crate::db::Numeric>("shares")?.0,
+            executing_shares: row.try_get::<_, crate::db::Numeric>("executing_shares")?.0,
+            average_purchase_price: row
+                .try_get::<_, crate::db::Numeric>("average_purchase_price")?
+                .0,
+            total_purchase_amount: row
+                .try_get::<_, crate::db::Numeric>("total_purchase_amount")?
+                .0,
+            current_price: row.try_get::<_, crate::db::Numeric>("current_price")?.0,
+            daily_change: row.try_get::<_, crate::db::Numeric>("daily_change")?.0,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
+}
+
+impl crate::db::FromRow for AssetBalanceSummary {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            total_market_value: row
+                .try_get::<_, crate::db::Numeric>("total_market_value")?
+                .0,
+            total_purchase_amount: row
+                .try_get::<_, crate::db::Numeric>("total_purchase_amount")?
+                .0,
+            total_daily_change: row
+                .try_get::<_, crate::db::Numeric>("total_daily_change")?
+                .0,
+        })
+    }
+}
+
 /// 保有銘柄作成リクエスト
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateAssetBalanceRequest {

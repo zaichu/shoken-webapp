@@ -3,5 +3,12 @@ main = "build/index.js"
 compatibility_date = "2026-10-08"
 workers_dev = true
 
+# id は実デプロイ前に `wrangler hyperdrive create` で発行した値に置き換える。
+# `wrangler dev` では localConnectionString へ直接接続する
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "00000000000000000000000000000000"
+localConnectionString = "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
+
 [build]
 command = "worker-build --release"

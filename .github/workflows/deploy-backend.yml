@@ -83,11 +83,11 @@ jobs:
 
       - name: Lint (clippy)
         if: steps.gate.outputs.backend == 'true'
-        run: env SQLX_OFFLINE=true cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Run tests
         if: steps.gate.outputs.backend == 'true'
-        run: SQLX_OFFLINE=true cargo test
+        run: cargo test
 
       - name: Check shared crate
         if: steps.gate.outputs.backend == 'true'
