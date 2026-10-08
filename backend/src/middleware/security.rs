@@ -87,7 +87,8 @@ pub async fn validate_origin(
     match origin {
         Some(ref o)
             if allowed_origins.iter().any(|a| a == o)
-                || crate::config::cors::is_vercel_preview_origin(o) =>
+                || crate::config::cors::is_vercel_preview_origin(o)
+                || crate::config::cors::is_pages_preview_origin(o) =>
         {
             // 許可されたオリジン → 通過
             next.run(request).await
@@ -109,6 +110,7 @@ pub async fn validate_origin(
                     if extract_origin(r).is_some_and(|o| {
                         allowed_origins.iter().any(|a| a == o)
                             || crate::config::cors::is_vercel_preview_origin(o)
+                            || crate::config::cors::is_pages_preview_origin(o)
                     }) =>
                 {
                     // 許可済みオリジンの Referer → 通過
@@ -261,6 +263,35 @@ mod tests {
                     "referer",
                     "https://shoken-webapp-abc-zaichus-projects.vercel.app/p",
                 )][..],
+                StatusCode::OK,
+            ),
+            // Cloudflare Pages preview origins
+            (
+                &[("origin", "https://abc123.shoken-webapp.pages.dev")][..],
+                StatusCode::OK,
+            ),
+            (
+                &[("origin", "https://main.shoken-webapp.pages.dev")][..],
+                StatusCode::OK,
+            ),
+            (
+                &[("origin", "https://feature-branch.shoken-webapp.pages.dev")][..],
+                StatusCode::OK,
+            ),
+            (
+                &[("origin", "https://shoken-webapp.pages.dev")][..],
+                StatusCode::FORBIDDEN,
+            ),
+            (
+                &[("origin", "https://evil.shoken-webapp.pages.dev.evil.com")][..],
+                StatusCode::FORBIDDEN,
+            ),
+            (
+                &[("referer", "https://abc123.shoken-webapp.pages.dev/path")][..],
+                StatusCode::OK,
+            ),
+            (
+                &[("referer", "https://main.shoken-webapp.pages.dev/path")][..],
                 StatusCode::OK,
             ),
         ] {
