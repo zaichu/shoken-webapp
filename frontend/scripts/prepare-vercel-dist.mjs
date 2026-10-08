@@ -6,6 +6,7 @@
 // E2E では '' を渡して同一オリジンに戻し、モック外の通信が本番に出ないようにする)。
 // session-probe.js は内容ハッシュ付きの名前に差し替える
 // (固定名のままだと vercel.json の immutable キャッシュでデプロイ後も古いプローブが使われる)。
+// _headers と _redirects を dist 直下に生成して Cloudflare Pages 相当の配信動作を再現する。
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -60,3 +61,40 @@ writeFileSync(
   )
 );
 console.log(`externalized init script -> ${initName}`);
+
+function sourceToCloudflarePattern(source) {
+  if (source === '/(.*)') return '*';
+  if (source === '/:name.wasm') return '*.wasm';
+  if (source === '/:name.js') return '*.js';
+  if (source === '/:name.css') return '*.css';
+  return source;
+}
+
+function generateCloudflareConfigFiles(distDir) {
+  const vercelPath = join(__dirname, '..', 'vercel.json');
+  const vercel = JSON.parse(readFileSync(vercelPath, 'utf8'));
+
+  // _headers の生成
+  const headerRules = (vercel.headers ?? []).map((rule) => {
+    const pattern = sourceToCloudflarePattern(rule.source);
+    const headerLines = rule.headers.map((h) => `  ${h.key}: ${h.value}`).join('\n');
+    return `/*\n${headerLines}\n*/`;
+  });
+
+  // _redirects の生成 (rewrites から)
+  const redirectRules = (vercel.rewrites ?? []).map((rule) => {
+    if (rule.source === '/(.*)' && rule.destination === '/index.html') {
+      return '/* /index.html 200';
+    }
+    return null;
+  }).filter(Boolean);
+
+  const headersContent = ['# Headers from vercel.json', ...headerRules, ''].join('\n') + '\n';
+  const redirectsContent = ['# Redirects from vercel.json', ...redirectRules, ''].join('\n') + '\n';
+
+  writeFileSync(join(distDir, '_headers'), headersContent);
+  writeFileSync(join(distDir, '_redirects'), redirectsContent);
+  console.log('generated _headers and _redirects for Cloudflare Pages');
+}
+
+generateCloudflareConfigFiles(dist);
