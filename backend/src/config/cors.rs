@@ -26,6 +26,9 @@ pub fn build_cors_layer(cors_origins: &[String]) -> CorsLayer {
                 if is_vercel_preview_origin(origin.to_str().unwrap_or_default()) {
                     return true;
                 }
+                if is_pages_preview_origin(origin.to_str().unwrap_or_default()) {
+                    return true;
+                }
                 cors_origins.iter().any(|allowed_origin| {
                     match allowed_origin.parse::<HeaderValue>() {
                         Ok(header_value) => origin.eq(&header_value),
@@ -60,6 +63,22 @@ pub(crate) fn is_vercel_preview_origin(origin: &str) -> bool {
     project.starts_with("shoken-webapp") && !project.contains(['.', ':', '/'])
 }
 
+/// Cloudflare Pages プレビューは `<hash>.<project>.pages.dev` (ハッシュ URL) と
+/// `<branch>.<project>.pages.dev` (ブランチ エイリアス) の 2 形式。
+/// `<project>` は `shoken-webapp` で固定。ホスト境界を厳密に検証し、偽装サブドメインを排除する。
+pub fn is_pages_preview_origin(origin: &str) -> bool {
+    let Some(host) = origin.strip_prefix("https://") else {
+        return false;
+    };
+    const SUFFIX: &str = ".shoken-webapp.pages.dev";
+    let Some(prefix) = host.strip_suffix(SUFFIX) else {
+        return false;
+    };
+    // prefix が空でないこと（本番ドメイン shoken-webapp.pages.dev は除外）
+    // かつドット・コロン・スラッシュを含まないこと（サブドメイン偽装防止）
+    !prefix.is_empty() && !prefix.contains(['.', ':', '/'])
+}
+
 pub fn is_localhost_origin(origin: &str) -> bool {
     let origin = origin.trim();
     let origin = origin
@@ -83,7 +102,8 @@ pub fn is_localhost_origin(origin: &str) -> bool {
 mod tests {
     use {
         super::{
-            build_cors_layer, is_localhost_origin, is_vercel_preview_origin, parse_cors_origins,
+            build_cors_layer, is_localhost_origin, is_pages_preview_origin,
+            is_vercel_preview_origin, parse_cors_origins,
         },
         crate::state::AppState,
         axum::{
@@ -199,6 +219,39 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_is_pages_preview_origin() {
+        for (origin, expected) in [
+            // Hash-based preview URLs
+            ("https://abc123.shoken-webapp.pages.dev", true),
+            ("https://xyz789.shoken-webapp.pages.dev", true),
+            // Branch alias preview URLs
+            ("https://main.shoken-webapp.pages.dev", true),
+            ("https://feature-branch.shoken-webapp.pages.dev", true),
+            ("https://fix-123.shoken-webapp.pages.dev", true),
+            // Production domain (not a preview)
+            ("https://shoken-webapp.pages.dev", false),
+            // Other projects
+            ("https://abc123.other-project.pages.dev", false),
+            ("https://main.other-project.pages.dev", false),
+            // Subdomain spoofing attempts
+            ("https://evil.shoken-webapp.pages.dev.evil.com", false),
+            ("https://shoken-webapp.pages.dev.evil.com", false),
+            // HTTP not allowed
+            ("http://abc123.shoken-webapp.pages.dev", false),
+            // Invalid characters in prefix
+            ("https://abc.def.shoken-webapp.pages.dev", false),
+            ("https://abc:def.shoken-webapp.pages.dev", false),
+            ("https://abc/def.shoken-webapp.pages.dev", false),
+        ] {
+            assert_eq!(
+                is_pages_preview_origin(origin),
+                expected,
+                "unexpected classification: {origin}"
+            );
+        }
+    }
+
     #[tokio::test]
     async fn test_cors_predicate_with_invalid_configured_origin() {
         let app = build_test_app(&["https://frontend.example.com\n".to_string()]);
@@ -215,6 +268,79 @@ mod tests {
             .await
             .unwrap();
 
+        assert!(response.status().is_success());
+        assert!(
+            response
+                .headers()
+                .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_predicate_pages_preview_origins() {
+        let app = build_test_app(&[]);
+
+        // Hash-based preview
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::OPTIONS)
+                    .uri("/health")
+                    .header("origin", "https://abc123.shoken-webapp.pages.dev")
+                    .header("access-control-request-method", "GET")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+        assert_eq!(
+            response
+                .headers()
+                .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+                .and_then(|v| v.to_str().ok()),
+            Some("https://abc123.shoken-webapp.pages.dev")
+        );
+
+        // Branch alias preview
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::OPTIONS)
+                    .uri("/health")
+                    .header("origin", "https://main.shoken-webapp.pages.dev")
+                    .header("access-control-request-method", "GET")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+        assert_eq!(
+            response
+                .headers()
+                .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+                .and_then(|v| v.to_str().ok()),
+            Some("https://main.shoken-webapp.pages.dev")
+        );
+
+        // Production domain (not a preview) should be rejected
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::OPTIONS)
+                    .uri("/health")
+                    .header("origin", "https://shoken-webapp.pages.dev")
+                    .header("access-control-request-method", "GET")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert!(response.status().is_success());
         assert!(
             response
