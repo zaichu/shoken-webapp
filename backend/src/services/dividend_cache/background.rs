@@ -1,5 +1,7 @@
 use crate::db::Db;
-use crate::errors::{ApiError, UpstreamError};
+use crate::errors::ApiError;
+#[cfg(test)]
+use crate::errors::UpstreamError;
 use crate::services::jquants::JQuantsClient;
 use futures::stream::{FuturesUnordered, StreamExt};
 use shared::dividend_per_share::DividendCacheStatus;
@@ -11,11 +13,7 @@ use std::sync::{
 
 use super::acquire_rate_slot;
 use super::persistence::{fetch_and_cache, update_cache_error, update_cache_error_with_cooldown};
-
-/// 429 レートリミットエラーの場合に background refresh を打ち切るべきか判定する
-pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
-    matches!(e, ApiError::Upstream(UpstreamError::RateLimited))
-}
+use super::should_abort_on_error;
 
 /// DB レート制御が 12秒間隔を保証するため、5 は同時に予約/待機させる上限であり、
 /// 外部 API の実呼び出し間隔は acquire_rate_slot が制御する

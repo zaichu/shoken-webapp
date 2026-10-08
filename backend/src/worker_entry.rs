@@ -1,6 +1,12 @@
 use std::sync::Arc;
 
-use axum::{Router, http::StatusCode, http::header, middleware, routing::get};
+use axum::{
+    Router,
+    http::StatusCode,
+    http::header,
+    middleware,
+    routing::{get, post},
+};
 use tower_http::{
     limit::RequestBodyLimitLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -12,7 +18,7 @@ use crate::{
     config::{self, Config},
     handlers,
     middleware::{add_security_headers, binding_rate_limit, validate_origin},
-    services::auth,
+    services::{auth, dividend_cache, jquants::JQuantsClient},
     state::{AppState, Secrets},
 };
 
@@ -53,6 +59,15 @@ fn router(state: AppState, env: &Env) -> Router {
         rate_limiter(env, "RATE_LIMIT_AUTH"),
     );
 
+    // 配当キャッシュ: エンキュー側。stale/pending 銘柄の消化は scheduled イベントが担当
+    let data_routes = with_rate_limit(
+        Router::new().route(
+            "/api/v1/dividend-per-share-estimates",
+            post(handlers::v1::dividend_per_share::batch),
+        ),
+        rate_limiter(env, "RATE_LIMIT_DATA"),
+    );
+
     let ready_db = state.pool.clone();
     let probe_routes = Router::new()
         .route("/health", get(|| async { "OK" }))
@@ -77,6 +92,7 @@ fn router(state: AppState, env: &Env) -> Router {
         );
 
     auth_routes
+        .merge(data_routes)
         .merge(probe_routes)
         .layer(middleware::from_fn(move |req, next| {
             let origins = allowed_origins.clone();
@@ -115,11 +131,21 @@ fn build_state(env: &Env) -> Result<AppState> {
         }
         _ => None,
     };
+    // dev/検証でモックへ差し替えるための vars。未設定なら J-Quants 本番のまま
+    let jquants_client =
+        secrets
+            .jquants_api_key
+            .clone()
+            .map(|key| match env.var("JQUANTS_BASE_URL") {
+                Ok(url) => JQuantsClient::with_base_url(key, url.to_string()),
+                Err(_) => JQuantsClient::new(key),
+            });
     Ok(AppState {
         pool: crate::db::Db::from_hyperdrive(&hyperdrive),
         secrets,
         config,
         google_oauth,
+        jquants_client,
     })
 }
 
@@ -131,4 +157,26 @@ async fn fetch(
 ) -> Result<axum::http::Response<axum::body::Body>> {
     let state = build_state(&env)?;
     Ok(router(state, &env).call(req).await?)
+}
+
+/// 毎分 cron: 配当キャッシュの stale/pending 銘柄を消化する。
+/// 1 回あたりの上限と 12 秒間隔スロットは drain_refresh_queue 内で制御する
+#[event(scheduled)]
+async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
+    if let Err(e) = drain_dividend_cache(&env).await {
+        console_error!("配当キャッシュ消化エラー: {e}");
+    }
+}
+
+async fn drain_dividend_cache(env: &Env) -> Result<()> {
+    let state = build_state(env)?;
+    let Some(client) = state.jquants_client.as_ref() else {
+        console_log!("JQUANTS_API_KEY 未設定のため配当キャッシュ消化をスキップ");
+        return Ok(());
+    };
+    let processed = dividend_cache::drain_refresh_queue(&state.pool, client)
+        .await
+        .map_err(|e| Error::RustError(e.to_string()))?;
+    console_log!("配当キャッシュ消化: {} 件処理", processed);
+    Ok(())
 }

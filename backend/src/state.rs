@@ -12,7 +12,6 @@ pub struct Secrets {
     /// DB 接続情報。Workers 側は Hyperdrive バインディングが保持するため wasm では持たない
     #[cfg(not(target_arch = "wasm32"))]
     pub database_url: String,
-    #[cfg(not(target_arch = "wasm32"))]
     pub jquants_api_key: Option<String>,
     pub google_client_id: Option<String>,
     pub google_client_secret: Option<String>,
@@ -58,6 +57,7 @@ impl Secrets {
             })
         };
         Ok(Self {
+            jquants_api_key: get(env, "JQUANTS_API_KEY"),
             google_client_id: Some(required("GOOGLE_CLIENT_ID")?),
             google_client_secret: Some(required("GOOGLE_CLIENT_SECRET")?),
             frontend_url: get(env, "FRONTEND_URL")
@@ -84,6 +84,9 @@ pub struct AppState {
     pub config: Arc<Config>,
     /// 起動時に構築した Google OAuth クライアント（認証情報が揃わない場合は None）
     pub google_oauth: Option<GoogleOAuthClient>,
+    /// Workers 側の J-Quants クライアント（JQUANTS_API_KEY 未設定なら None）
+    #[cfg(target_arch = "wasm32")]
+    pub jquants_client: Option<crate::services::jquants::JQuantsClient>,
 }
 #[cfg(test)]
 mod tests {

@@ -13,14 +13,22 @@ pub async fn batch(
     _auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<DividendPerShareBatchRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let api_key = state.secrets.jquants_api_key.as_deref();
-
+    // native は reqwest クライアントとスレッドプール spawn によるバックグラウンド更新。
+    // Workers は isolate 単位で spawn できないため pending 行を積み、cron が消化する
+    #[cfg(not(target_arch = "wasm32"))]
     let items = dividend_cache_service::get_batch(
         &state.pool,
         &state.client,
-        api_key,
+        state.secrets.jquants_api_key.as_deref(),
         &data.security_codes,
         &state.dividend_cache.running,
+    )
+    .await?;
+    #[cfg(target_arch = "wasm32")]
+    let items = dividend_cache_service::get_batch(
+        &state.pool,
+        state.jquants_client.as_ref(),
+        &data.security_codes,
     )
     .await?;
 
