@@ -144,15 +144,19 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         id: deploy
+        shell: bash
         run: |
+          set -o pipefail
           if [[ "${{ steps.target.outputs.environment }}" == "production" ]]; then
-            # 本番デプロイ: project name を指定
             url="$(wrangler pages deploy dist --project-name=shoken-webapp --commit-dirty=true 2>&1 | grep -oE 'https://[^ ]+\.pages\.dev' | tail -n1)"
           else
-            # プレビューデプロイ: ブランチ名を指定
             branch="${GITHUB_REF##refs/heads/}"
             branch="${branch//\//-}"
             url="$(wrangler pages deploy dist --project-name=shoken-webapp --branch="${branch}" --commit-dirty=true 2>&1 | grep -oE 'https://[^ ]+\.pages\.dev' | tail -n1)"
+          fi
+          if [[ -z "${url}" ]]; then
+            echo "::error::Cloudflare Pages deployment failed (no URL returned)"
+            exit 1
           fi
           echo "url=${url}" >> "$GITHUB_OUTPUT"
           echo "Deployed (${{ steps.target.outputs.environment }}): ${url}" >> "$GITHUB_STEP_SUMMARY"
