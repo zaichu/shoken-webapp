@@ -11,7 +11,6 @@ use openidconnect::{
 };
 use sha2::{Digest, Sha256};
 use shared::value::UserId;
-use sqlx::PgPool;
 use std::{
     fmt,
     str::FromStr,
@@ -20,6 +19,7 @@ use std::{
 };
 use tokio::sync::Mutex;
 
+use crate::db::{Bind, Db, DbError, Tx};
 use crate::errors::{ApiError, ConfigError, UpstreamError};
 use crate::models::user::{GoogleUserInfo, User};
 
@@ -243,7 +243,7 @@ async fn exchange_google_code(
 
 /// Google OAuth コードをトークンに交換し、ユーザーを upsert してセッショントークンを返す
 pub async fn authenticate_with_google_code(
-    pool: &PgPool,
+    pool: &Db,
     oauth_client: &GoogleOAuthClient,
     code: String,
     pkce_verifier: String,
@@ -272,9 +272,9 @@ pub async fn authenticate_with_google_code(
 // tests/db_integration.rs からの検証用に公開しているため docs には出さない
 #[doc(hidden)]
 pub async fn upsert_user_and_rotate_session(
-    pool: &PgPool,
+    pool: &Db,
     user_info: &GoogleUserInfo,
-) -> Result<SessionToken, sqlx::Error> {
+) -> Result<SessionToken, DbError> {
     let mut tx = pool.begin().await?;
     let user = upsert_user_in_tx(&mut tx, user_info).await?;
     let session_token = rotate_session_in_tx(&mut tx, user.id).await?;
@@ -284,33 +284,32 @@ pub async fn upsert_user_and_rotate_session(
 }
 
 pub async fn select_user_by_session(
-    pool: &PgPool,
+    pool: &Db,
     token: SessionToken,
-) -> Result<Option<User>, sqlx::Error> {
-    sqlx::query_as!(
-        User,
+) -> Result<Option<User>, DbError> {
+    crate::db::query_as::<User>(
         r#"
-        SELECT u.id AS "id: _", u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
+        SELECT u.id, u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
         FROM users u
         INNER JOIN sessions s ON u.id = s.user_id
         WHERE s.token_hash = $1 AND s.expires_at > NOW()
         "#,
-        token.hash()
+        vec![Bind::Bytes(token.hash())],
     )
     .fetch_optional(pool)
     .await
 }
 
 pub async fn select_user_id_by_session(
-    pool: &PgPool,
+    pool: &Db,
     token: SessionToken,
-) -> Result<Option<UserId>, sqlx::Error> {
-    sqlx::query_scalar!(
+) -> Result<Option<UserId>, DbError> {
+    crate::db::query_scalar::<UserId>(
         r#"
-        SELECT user_id AS "user_id: UserId" FROM sessions
+        SELECT user_id FROM sessions
         WHERE token_hash = $1 AND expires_at > NOW()
         "#,
-        token.hash()
+        vec![Bind::Bytes(token.hash())],
     )
     .fetch_optional(pool)
     .await
@@ -318,12 +317,9 @@ pub async fn select_user_id_by_session(
 
 /// 旧セッションと期限切れセッションの削除、新セッションの発行を1文でアトミックに行う。
 /// データ変更CTEは外部から参照されなくても必ず実行されるため、DELETE が省略されることはない。
-async fn rotate_session_in_tx(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    user_id: UserId,
-) -> Result<SessionToken, sqlx::Error> {
+async fn rotate_session_in_tx(tx: &mut Tx, user_id: UserId) -> Result<SessionToken, DbError> {
     let token = SessionToken::new();
-    sqlx::query!(
+    crate::db::query(
         r#"
         WITH expired AS (
             SELECT id FROM sessions WHERE expires_at <= NOW() FOR UPDATE SKIP LOCKED
@@ -334,21 +330,16 @@ async fn rotate_session_in_tx(
         INSERT INTO sessions (user_id, token_hash)
         VALUES ($1, $2)
         "#,
-        user_id.get(),
-        token.hash()
+        vec![Bind::from(user_id), Bind::Bytes(token.hash())],
     )
-    .execute(&mut **tx)
+    .execute(&mut *tx)
     .await?;
 
     Ok(token)
 }
 
-async fn upsert_user_in_tx(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    user_info: &GoogleUserInfo,
-) -> Result<User, sqlx::Error> {
-    sqlx::query_as!(
-        User,
+async fn upsert_user_in_tx(tx: &mut Tx, user_info: &GoogleUserInfo) -> Result<User, DbError> {
+    crate::db::query_as::<User>(
         r#"
         INSERT INTO users (google_id, email, name, picture_url)
         VALUES ($1, $2, $3, $4)
@@ -357,28 +348,33 @@ async fn upsert_user_in_tx(
             name = EXCLUDED.name,
             picture_url = EXCLUDED.picture_url,
             updated_at = NOW()
-        RETURNING id AS "id: _", google_id, email, name, picture_url, created_at, updated_at
+        RETURNING id, google_id, email, name, picture_url, created_at, updated_at
         "#,
-        user_info.sub,
-        user_info.email,
-        user_info.name,
-        user_info.picture
+        vec![
+            Bind::from(user_info.sub.as_str()),
+            Bind::from(user_info.email.as_str()),
+            Bind::from(user_info.name.as_deref()),
+            Bind::from(user_info.picture.as_deref()),
+        ],
     )
-    .fetch_one(&mut **tx)
+    .fetch_one(&mut *tx)
     .await
 }
 
-pub async fn delete_session(pool: &PgPool, token: SessionToken) -> Result<(), sqlx::Error> {
-    sqlx::query!("DELETE FROM sessions WHERE token_hash = $1", token.hash())
-        .execute(pool)
-        .await?;
+pub async fn delete_session(pool: &Db, token: SessionToken) -> Result<(), DbError> {
+    crate::db::query(
+        "DELETE FROM sessions WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
 
 /// ユーザーを削除（CASCADE により関連データも削除）
-pub async fn delete_account(pool: &PgPool, user_id: UserId) -> Result<(), sqlx::Error> {
-    sqlx::query!("DELETE FROM users WHERE id = $1", user_id.get())
+pub async fn delete_account(pool: &Db, user_id: UserId) -> Result<(), DbError> {
+    crate::db::query("DELETE FROM users WHERE id = $1", vec![Bind::from(user_id)])
         .execute(pool)
         .await?;
 
@@ -821,12 +817,14 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         }
     }
 
-    async fn session_count(pool: &PgPool, user_id: UserId) -> i64 {
-        sqlx::query_scalar("SELECT COUNT(*) FROM sessions WHERE user_id = $1")
-            .bind(user_id)
-            .fetch_one(pool)
-            .await
-            .expect("セッション件数取得失敗")
+    async fn session_count(pool: &Db, user_id: UserId) -> i64 {
+        crate::db::query_scalar::<i64>(
+            "SELECT COUNT(*) FROM sessions WHERE user_id = $1",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(pool)
+        .await
+        .expect("セッション件数取得失敗")
     }
 
     #[tokio::test]

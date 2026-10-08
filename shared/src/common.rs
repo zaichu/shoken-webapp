@@ -124,7 +124,6 @@ pub trait SearchParamsAccessor {
 /// 検索候補の共通表現。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct FacetOption {
     pub value: String,
     pub label: String,

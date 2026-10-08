@@ -8,6 +8,16 @@ pub use shared::common::{
     SearchFacets, SearchParamsAccessor, SearchQueryParams,
 };
 
+impl crate::db::FromRow for FacetOption {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            value: row.try_get("value")?,
+            label: row.try_get("label")?,
+            count: row.try_get("count")?,
+        })
+    }
+}
+
 /// `validator` derive の length rule 相当を手実装するヘルパー。
 /// `String` / `Option<String>` / `Vec<T>` など `ValidateLength` 実装型に共通で使う。
 pub(crate) fn validate_length_field<T>(

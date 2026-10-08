@@ -1,9 +1,9 @@
+use crate::db::Db;
 use crate::errors::ApiError;
 use crate::models::common::{MessageResponse, PaginatedSearchResponse, SearchFacets};
 use crate::services::domain::search::{Search, search};
 use axum::{http::StatusCode, response::Json};
 use shared::value::UserId;
-use sqlx::PgPool;
 
 pub fn ok_message(message: &str) -> (StatusCode, Json<MessageResponse>) {
     (
@@ -15,7 +15,7 @@ pub fn ok_message(message: &str) -> (StatusCode, Json<MessageResponse>) {
 }
 
 pub async fn handle_search<D: Search>(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     params: D::Params,
 ) -> Result<

@@ -5,7 +5,7 @@ use axum::{
 use backend::services::csv::import::CsvImport;
 use backend::{
     config::Config,
-    db::{connect_pool_lazy, run_migrations, wait_for_pool_with_retry},
+    db::{self, Bind, Db, connect_pool_lazy, run_migrations, wait_for_pool_with_retry},
     models::asset_balance::{AssetBalanceSearchQueryParams, CreateAssetBalanceRequest},
     models::common::{PaginationParams, SearchQueryParams},
     models::dividend::{CreateDividendRequest, DividendSearchQueryParams},
@@ -56,7 +56,6 @@ use reqwest::Client;
 use rust_decimal_macros::dec;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::{SecurityCode, UserId};
-use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::{env, sync::Arc, sync::atomic::AtomicBool, time::Duration};
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
@@ -93,16 +92,17 @@ impl Drop for EnvGuard {
     }
 }
 
-async fn connect_with_retry(database_url: &str) -> PgPool {
+async fn connect_with_retry(database_url: &str) -> Db {
+    let pool = connect_pool_lazy(database_url, 4).expect("Failed to build pool");
     let mut last_error = None;
     for _ in 0..20 {
         let attempt = timeout(
             Duration::from_secs(2),
-            PgPoolOptions::new().connect(database_url),
+            db::query("SELECT 1", vec![]).execute(&pool),
         )
         .await;
         match attempt {
-            Ok(Ok(pool)) => return pool,
+            Ok(Ok(_)) => return pool,
             Ok(Err(err)) => last_error = Some(err),
             Err(_) => {}
         }
@@ -127,7 +127,7 @@ async fn db_integration_with_docker_and_migrations() {
         .await
         .expect("Failed to run migrations");
 
-    sqlx::query(
+    db::query(
         r#"
         INSERT INTO stock
           (date, code, name, market_category, industry_code_33, industry_category_33,
@@ -135,17 +135,19 @@ async fn db_integration_with_docker_and_migrations() {
         VALUES
           ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         "#,
+        vec![
+            Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
+            Bind::from("1234"),
+            Bind::from("テスト株式会社"),
+            Bind::from("プライム"),
+            Bind::from(Some("123".to_string())),
+            Bind::from(Some("情報・通信業".to_string())),
+            Bind::from(Some("12".to_string())),
+            Bind::from(Some("情報通信".to_string())),
+            Bind::from(Some("10".to_string())),
+            Bind::from(Some("大型株".to_string())),
+        ],
     )
-    .bind(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap())
-    .bind("1234")
-    .bind("テスト株式会社")
-    .bind("プライム")
-    .bind(Option::<String>::Some("123".to_string()))
-    .bind(Option::<String>::Some("情報・通信業".to_string()))
-    .bind(Option::<String>::Some("12".to_string()))
-    .bind(Option::<String>::Some("情報通信".to_string()))
-    .bind(Option::<String>::Some("10".to_string()))
-    .bind(Option::<String>::Some("大型株".to_string()))
     .execute(&pool)
     .await
     .expect("Failed to insert test stock");
@@ -300,7 +302,7 @@ fn make_asset_balance_csv() -> &'static str {
 }
 
 /// Docker が必要なテスト用の Postgres コンテナ起動ヘルパー
-async fn start_test_pool() -> (PgPool, impl Drop) {
+async fn start_test_pool() -> (Db, impl Drop) {
     let node = Postgres::default().start().await.unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
@@ -309,15 +311,19 @@ async fn start_test_pool() -> (PgPool, impl Drop) {
     (pool, node)
 }
 
-async fn create_test_user(pool: &PgPool) -> UserId {
+async fn create_test_user(pool: &Db) -> UserId {
     let user_id = UserId::from(Uuid::new_v4());
-    sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
-        .bind(user_id)
-        .bind(format!("test_google_{user_id}"))
-        .bind(format!("test_{user_id}@example.com"))
-        .execute(pool)
-        .await
-        .expect("failed to insert test user");
+    db::query(
+        "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(user_id),
+            Bind::from(format!("test_google_{user_id}")),
+            Bind::from(format!("test_{user_id}@example.com")),
+        ],
+    )
+    .execute(pool)
+    .await
+    .expect("failed to insert test user");
     user_id
 }
 
@@ -1003,12 +1009,11 @@ async fn auth_session_upsert_rotate_and_delete() {
     assert_eq!(updated.email, "updated@example.com");
 
     // 期限切れセッションはユーザー解決しない
-    let updated = sqlx::query("UPDATE sessions SET expires_at = NOW() - INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
-        .bind(session2.to_string())
+    let updated = db::query("UPDATE sessions SET expires_at = NOW() - INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
+        vec![Bind::from(session2.to_string())])
         .execute(&pool)
         .await
-        .unwrap()
-        .rows_affected();
+        .unwrap();
     assert_eq!(updated, 1, "期限変更が対象行を更新すること");
     assert!(
         auth_svc::select_user_id_by_session(&pool, session2)
@@ -1024,12 +1029,11 @@ async fn auth_session_upsert_rotate_and_delete() {
     );
 
     // delete_session で明示失効
-    let updated = sqlx::query("UPDATE sessions SET expires_at = NOW() + INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))")
-        .bind(session2.to_string())
+    let updated = db::query("UPDATE sessions SET expires_at = NOW() + INTERVAL '1 hour' WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
+        vec![Bind::from(session2.to_string())])
         .execute(&pool)
         .await
-        .unwrap()
-        .rows_affected();
+        .unwrap();
     assert_eq!(updated, 1, "期限復帰が対象行を更新すること");
     auth_svc::delete_session(&pool, session2)
         .await
@@ -1055,11 +1059,13 @@ async fn auth_session_upsert_rotate_and_delete() {
             .unwrap()
             .is_none()
     );
-    let remaining: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM users WHERE id = $1")
-        .bind(user.id)
-        .fetch_optional(&pool)
-        .await
-        .unwrap();
+    let remaining: Option<(Uuid,)> = db::query_as(
+        "SELECT id FROM users WHERE id = $1",
+        vec![Bind::from(user.id)],
+    )
+    .fetch_optional(&pool)
+    .await
+    .unwrap();
     assert!(remaining.is_none());
 }
 
@@ -1071,12 +1077,13 @@ async fn session_token_hash_rolling_deploy_compat() {
     let user_id = create_test_user(&pool).await;
 
     let legacy: SessionToken = Uuid::new_v4().to_string().parse().unwrap();
-    sqlx::query("INSERT INTO sessions (user_id, token_hash) VALUES ($2, sha256(convert_to($1::text, 'UTF8')))")
-        .bind(legacy.to_string())
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .expect("移行済みセッションの挿入");
+    db::query(
+        "INSERT INTO sessions (user_id, token_hash) VALUES ($2, sha256(convert_to($1::text, 'UTF8')))",
+        vec![Bind::from(legacy.to_string()), Bind::from(user_id)],
+    )
+    .execute(&pool)
+    .await
+    .expect("移行済みセッションの挿入");
     assert_eq!(
         auth_svc::select_user_id_by_session(&pool, legacy)
             .await
@@ -1088,12 +1095,13 @@ async fn session_token_hash_rolling_deploy_compat() {
     // 旧版は id にもトークンを書く
     let old_version_issued = Uuid::new_v4();
     let old_version_issued_token: SessionToken = old_version_issued.to_string().parse().unwrap();
-    sqlx::query("INSERT INTO sessions (id, user_id, token_hash) VALUES ($1, $2, sha256(convert_to($1::text, 'UTF8')))")
-        .bind(old_version_issued)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .expect("旧版発行セッションの挿入");
+    db::query(
+        "INSERT INTO sessions (id, user_id, token_hash) VALUES ($1, $2, sha256(convert_to($1::uuid::text, 'UTF8')))",
+        vec![Bind::from(old_version_issued), Bind::from(user_id)],
+    )
+    .execute(&pool)
+    .await
+    .expect("旧版発行セッションの挿入");
     assert_eq!(
         auth_svc::select_user_id_by_session(&pool, old_version_issued_token)
             .await
@@ -1105,29 +1113,29 @@ async fn session_token_hash_rolling_deploy_compat() {
     // rotate は期限切れの行を掃除する。他トランザクションがロック中の行はスキップして待たない
     let other_user = create_test_user(&pool).await;
     let expired_row = Uuid::new_v4();
-    sqlx::query(
-        "INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES ($1, $2, sha256(convert_to($1::text, 'UTF8')), NOW() - INTERVAL '1 hour')",
+    db::query(
+        "INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES ($1, $2, sha256(convert_to($1::uuid::text, 'UTF8')), NOW() - INTERVAL '1 hour')",
+        vec![Bind::from(expired_row), Bind::from(other_user)],
     )
-    .bind(expired_row)
-    .bind(other_user)
     .execute(&pool)
     .await
     .expect("期限切れセッション挿入");
     let locked_expired = Uuid::new_v4();
-    sqlx::query(
-        "INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES ($1, $2, sha256(convert_to($1::text, 'UTF8')), NOW() - INTERVAL '1 hour')",
+    db::query(
+        "INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES ($1, $2, sha256(convert_to($1::uuid::text, 'UTF8')), NOW() - INTERVAL '1 hour')",
+        vec![Bind::from(locked_expired), Bind::from(other_user)],
     )
-    .bind(locked_expired)
-    .bind(other_user)
     .execute(&pool)
     .await
     .expect("ロック対象の期限切れセッション挿入");
     let mut lock_tx = pool.begin().await.expect("ロック用トランザクション");
-    sqlx::query("SELECT id FROM sessions WHERE id = $1 FOR UPDATE")
-        .bind(locked_expired)
-        .fetch_one(&mut *lock_tx)
-        .await
-        .expect("期限切れ行のロック");
+    db::query_as::<(Uuid,)>(
+        "SELECT id FROM sessions WHERE id = $1 FOR UPDATE",
+        vec![Bind::from(locked_expired)],
+    )
+    .fetch_one(&mut lock_tx)
+    .await
+    .expect("期限切れ行のロック");
 
     let info = GoogleUserInfo {
         sub: format!("test_google_{user_id}"),
@@ -1161,20 +1169,24 @@ async fn session_token_hash_rolling_deploy_compat() {
         "rotate で旧版発行セッションも失効すること"
     );
     // 期限切れ行は掃除されるが、ロック中の行はスキップされる
-    let expired_row_left: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM sessions WHERE id = $1")
-        .bind(expired_row)
-        .fetch_optional(&pool)
-        .await
-        .expect("期限切れ行の確認");
+    let expired_row_left: Option<(Uuid,)> = db::query_as(
+        "SELECT id FROM sessions WHERE id = $1",
+        vec![Bind::from(expired_row)],
+    )
+    .fetch_optional(&pool)
+    .await
+    .expect("期限切れ行の確認");
     assert!(
         expired_row_left.is_none(),
         "他ユーザーの期限切れ行が rotate で削除されること"
     );
-    let locked_row_left: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM sessions WHERE id = $1")
-        .bind(locked_expired)
-        .fetch_optional(&pool)
-        .await
-        .expect("ロック中の期限切れ行の確認");
+    let locked_row_left: Option<(Uuid,)> = db::query_as(
+        "SELECT id FROM sessions WHERE id = $1",
+        vec![Bind::from(locked_expired)],
+    )
+    .fetch_optional(&pool)
+    .await
+    .expect("ロック中の期限切れ行の確認");
     assert!(
         locked_row_left.is_some(),
         "ロック中の期限切れ行は削除をスキップされること"
@@ -1182,10 +1194,10 @@ async fn session_token_hash_rolling_deploy_compat() {
     lock_tx.rollback().await.expect("ロック解除");
 
     // 新版は id にトークンを書かず、旧版の照合クエリでも解決できる
-    let row: Option<(Uuid,)> = sqlx::query_as(
+    let row: Option<(Uuid,)> = db::query_as(
         "SELECT id FROM sessions WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
+        vec![Bind::from(new_session.to_string())],
     )
-    .bind(new_session.to_string())
     .fetch_optional(&pool)
     .await
     .expect("新版発行行の取得");
@@ -1195,10 +1207,10 @@ async fn session_token_hash_rolling_deploy_compat() {
         new_session.to_string(),
         "id にトークンを保持しないこと"
     );
-    let old_version_view: Option<(UserId,)> = sqlx::query_as(
-        "SELECT user_id FROM sessions WHERE (token_hash = sha256(convert_to($1::text, 'UTF8')) OR (token_hash IS NULL AND id = $1::uuid)) AND expires_at > NOW()",
+    let old_version_view: Option<(UserId,)> = db::query_as(
+        "SELECT user_id FROM sessions WHERE (token_hash = sha256(convert_to($1::text, 'UTF8')) OR (token_hash IS NULL AND id = $1::text::uuid)) AND expires_at > NOW()",
+        vec![Bind::from(new_session.to_string())],
     )
-    .bind(new_session.to_string())
     .fetch_optional(&pool)
     .await
     .expect("旧版の照合クエリ");
@@ -1209,12 +1221,13 @@ async fn session_token_hash_rolling_deploy_compat() {
     );
 
     assert!(
-        sqlx::query("INSERT INTO sessions (id, user_id) VALUES ($1, $2)")
-            .bind(Uuid::new_v4())
-            .bind(user_id)
-            .execute(&pool)
-            .await
-            .is_err(),
+        db::query(
+            "INSERT INTO sessions (id, user_id) VALUES ($1, $2)",
+            vec![Bind::from(Uuid::new_v4()), Bind::from(user_id)],
+        )
+        .execute(&pool)
+        .await
+        .is_err(),
         "token_hash の無いセッションは作れないこと"
     );
     auth_svc::delete_session(&pool, new_session)
@@ -1241,10 +1254,10 @@ async fn account_delete_confirmation_http_lifecycle() {
     let session_token = auth_svc::upsert_user_and_rotate_session(&pool, &info)
         .await
         .expect("セッション発行");
-    let user_id: Option<(Uuid,)> = sqlx::query_as(
+    let user_id: Option<(Uuid,)> = db::query_as(
         "SELECT user_id FROM sessions WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
+        vec![Bind::from(session_token.to_string())],
     )
-    .bind(session_token.to_string())
     .fetch_optional(&pool)
     .await
     .unwrap();
@@ -1324,19 +1337,21 @@ async fn account_delete_confirmation_http_lifecycle() {
         assert!(cleared, "{name} が削除応答で失効すること: {cookies:?}");
     }
 
-    let remaining_session: Option<(Uuid,)> = sqlx::query_as(
+    let remaining_session: Option<(Uuid,)> = db::query_as(
         "SELECT id FROM sessions WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
+        vec![Bind::from(session_token.to_string())],
     )
-    .bind(session_token.to_string())
     .fetch_optional(&pool)
     .await
     .unwrap();
     assert!(remaining_session.is_none());
-    let remaining_user: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM users WHERE id = $1")
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await
-        .unwrap();
+    let remaining_user: Option<(Uuid,)> = db::query_as(
+        "SELECT id FROM users WHERE id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_optional(&pool)
+    .await
+    .unwrap();
     assert!(remaining_user.is_none());
     let response = app
         .oneshot(
@@ -1612,8 +1627,9 @@ async fn dividend_cache_persistence_and_rate_slot() {
             .await
             .unwrap();
     assert!(!items[0].is_stale);
-    let row: (String,) = sqlx::query_as(
+    let row: (String,) = db::query_as(
         "SELECT error_message FROM dividend_per_share_cache WHERE security_code = '1234'",
+        vec![],
     )
     .fetch_one(&pool)
     .await
@@ -1623,9 +1639,10 @@ async fn dividend_cache_persistence_and_rate_slot() {
     dividend_cache::acquire_rate_slot(&pool)
         .await
         .expect("スロット予約");
-    let row: (chrono::DateTime<Utc>,) = sqlx::query_as(
+    let row: (chrono::DateTime<Utc>,) = db::query_as(
         "SELECT next_available_at FROM market_data_provider_rate_control \
          WHERE provider = 'jquants'",
+        vec![],
     )
     .fetch_one(&pool)
     .await

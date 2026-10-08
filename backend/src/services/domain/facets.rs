@@ -1,6 +1,6 @@
+use crate::db::{Db, QueryBuilder};
 use crate::errors::ApiError;
 use crate::models::common::FacetOption;
-use sqlx::{PgPool, Postgres, QueryBuilder};
 
 /// fetch_group_facets の GROUP BY 結果に対する ORDER BY 方向（呼び出し側が渡す固定値のみ）
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,9 +53,9 @@ fn build_group_facets_query(
     table: &'static str,
     group_expr: &'static str,
     order: FacetOrder,
-    push_filters: impl FnOnce(&mut QueryBuilder<Postgres>),
-) -> QueryBuilder<Postgres> {
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
+    push_filters: impl FnOnce(&mut QueryBuilder),
+) -> QueryBuilder {
+    let mut qb = QueryBuilder::new(format!(
         "SELECT {group_expr} AS value, {group_expr} AS label, COUNT(*) AS count FROM {table}"
     ));
     push_filters(&mut qb);
@@ -69,11 +69,11 @@ fn build_group_facets_query(
 /// group_expr の値ごとに件数を集計して FacetOption を返す共通ヘルパー。
 /// table / group_expr / order は呼び出し側が定義する固定値のみを渡すこと。
 pub async fn fetch_group_facets(
-    pool: &PgPool,
+    pool: &Db,
     table: &'static str,
     group_expr: &'static str,
     order: FacetOrder,
-    push_filters: impl FnOnce(&mut QueryBuilder<Postgres>),
+    push_filters: impl FnOnce(&mut QueryBuilder),
 ) -> Result<Vec<FacetOption>, ApiError> {
     let mut qb = build_group_facets_query(table, group_expr, order, push_filters);
     Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
@@ -85,9 +85,9 @@ pub async fn fetch_group_facets(
 fn build_security_facets_query(
     table: &'static str,
     label_order: &'static str,
-    push_filters: impl FnOnce(&mut QueryBuilder<Postgres>),
-) -> QueryBuilder<Postgres> {
-    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
+    push_filters: impl FnOnce(&mut QueryBuilder),
+) -> QueryBuilder {
+    let mut qb = QueryBuilder::new(format!(
         "SELECT security_code AS value, \
          (ARRAY_AGG(security_name ORDER BY {label_order}))[1] AS label, \
          COUNT(*) AS count \
@@ -102,10 +102,10 @@ fn build_security_facets_query(
 /// FacetOption を返す共通ヘルパー。
 /// table / label_order は呼び出し側が定義する固定値のみを渡すこと。
 pub async fn fetch_security_facets(
-    pool: &PgPool,
+    pool: &Db,
     table: &'static str,
     label_order: &'static str,
-    push_filters: impl FnOnce(&mut QueryBuilder<Postgres>),
+    push_filters: impl FnOnce(&mut QueryBuilder),
 ) -> Result<Vec<FacetOption>, ApiError> {
     let mut qb = build_security_facets_query(table, label_order, push_filters);
     Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
@@ -145,7 +145,6 @@ mod tests {
             qb.push(" WHERE user_id = ").push_bind(Uuid::nil());
         });
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert!(sql.starts_with(
             "SELECT product AS value, product AS label, COUNT(*) AS count FROM dividends"
@@ -158,7 +157,6 @@ mod tests {
     fn test_build_group_facets_query_desc_order_and_no_filters() {
         let qb = build_group_facets_query("mutualfunds", "account", FacetOrder::Desc, |_| {});
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert!(sql.starts_with(
             "SELECT account AS value, account AS label, COUNT(*) AS count FROM mutualfunds"
@@ -172,7 +170,6 @@ mod tests {
             qb.push(" WHERE user_id = ").push_bind(Uuid::nil());
         });
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert!(sql.starts_with(
             "SELECT security_code AS value, \
@@ -187,7 +184,6 @@ mod tests {
     fn test_build_security_facets_query_with_no_filters() {
         let qb = build_security_facets_query("asset_balances", "id", |_| {});
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert!(sql.starts_with(
             "SELECT security_code AS value, \

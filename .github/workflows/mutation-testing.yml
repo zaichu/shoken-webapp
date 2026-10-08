@@ -111,8 +111,6 @@ jobs:
       - name: Run cargo-mutants on PR diff
         if: steps.list.outputs.count != '0'
         run: cargo mutants -j 4 --in-diff mutants.diff
-        env:
-          SQLX_OFFLINE: "true"
 
       - name: Upload mutants.out
         if: always()
@@ -170,8 +168,6 @@ jobs:
           set -e
           if [ "$code" -eq 2 ] || [ "$code" -eq 3 ]; then exit 0; fi
           exit "$code"
-        env:
-          SQLX_OFFLINE: "true"
 
       - name: Summarize mutants.out
         if: always()

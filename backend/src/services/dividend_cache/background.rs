@@ -1,9 +1,9 @@
+use crate::db::Db;
 use crate::errors::{ApiError, UpstreamError};
 use crate::services::jquants::JQuantsClient;
 use futures::stream::{FuturesUnordered, StreamExt};
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
-use sqlx::PgPool;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
@@ -33,7 +33,7 @@ enum RefreshOutcome {
 
 /// バックグラウンドで未取得/TTL切れ銘柄を並列更新する（最大 MAX_CONCURRENT_REFRESHES 件同時、1分5回レート制御）
 pub fn spawn_background_refresh(
-    pool: PgPool,
+    pool: Db,
     jquants_client: JQuantsClient,
     codes: Vec<SecurityCode>,
     running: Arc<AtomicBool>,

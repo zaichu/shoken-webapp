@@ -4,6 +4,7 @@ mod logic;
 #[doc(hidden)]
 pub mod persistence;
 
+use crate::db::{Bind, Db};
 use crate::errors::ApiError;
 use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
 use crate::services::jquants::JQuantsClient;
@@ -11,7 +12,6 @@ use chrono::Utc;
 use reqwest::Client;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
-use sqlx::PgPool;
 use std::sync::{Arc, atomic::AtomicBool};
 use tokio::time::Duration;
 
@@ -25,7 +25,7 @@ const JQUANTS_PROVIDER: &str = "jquants";
 
 /// キャッシュをバッチ取得し、未取得/TTL切れ銘柄のバックグラウンド更新をキック
 pub async fn get_batch(
-    pool: &PgPool,
+    pool: &Db,
     client: &Client,
     api_key: Option<&str>,
     codes: &[SecurityCode],
@@ -36,15 +36,14 @@ pub async fn get_batch(
     }
 
     // DB からキャッシュを一括取得（ANY がDB側で重複を除く）
-    let cached = sqlx::query_as!(
-        DividendCache,
+    let cached = crate::db::query_as::<DividendCache>(
         r#"
-        SELECT security_code AS "security_code: _", dividend_per_share, status AS "status: _",
+        SELECT security_code, dividend_per_share, status,
                fetched_at, stale_at, provider, created_at, updated_at
         FROM dividend_per_share_cache
         WHERE security_code = ANY($1)
         "#,
-        codes as &[SecurityCode]
+        vec![Bind::Custom(Box::new(codes.to_vec()))],
     )
     .fetch_all(pool)
     .await?;
@@ -109,9 +108,9 @@ fn build_batch_items<'a>(
 
 /// DBレート制御テーブルを使って次の実行スロットを予約し、必要なら待機する
 /// 1リクエスト = 12秒間隔（60秒 / 5回）を全インスタンスで原子的に保証
-pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
+pub async fn acquire_rate_slot(pool: &Db) -> Result<(), ApiError> {
     // UPSERT でスロットを予約し、前のスロット開始時刻を返す
-    let slot_time = sqlx::query_scalar!(
+    let slot_time = crate::db::query_scalar::<Option<chrono::DateTime<Utc>>>(
         r#"
         INSERT INTO market_data_provider_rate_control (provider, next_available_at)
             VALUES ($1, NOW() + INTERVAL '12 seconds')
@@ -121,7 +120,7 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
         RETURNING
             GREATEST(next_available_at - INTERVAL '12 seconds', NOW() - INTERVAL '1 second')
         "#,
-        JQUANTS_PROVIDER
+        vec![Bind::from(JQUANTS_PROVIDER)],
     )
     .fetch_one(pool)
     .await?;
@@ -142,8 +141,8 @@ pub async fn acquire_rate_slot(pool: &PgPool) -> Result<(), ApiError> {
 
 /// 429 発生時に market_data_provider_rate_control.next_available_at を少なくとも cooldown 分先へ延ばす
 /// 既存の future 値がある場合は後退させず、GREATEST で大きい方を維持する
-async fn push_rate_control_cooldown(pool: &PgPool) -> Result<(), ApiError> {
-    sqlx::query!(
+async fn push_rate_control_cooldown(pool: &Db) -> Result<(), ApiError> {
+    crate::db::query(
         r#"
         INSERT INTO market_data_provider_rate_control (provider, next_available_at)
             VALUES ($1, NOW() + $2::int4 * INTERVAL '1 second')
@@ -151,8 +150,10 @@ async fn push_rate_control_cooldown(pool: &PgPool) -> Result<(), ApiError> {
             SET next_available_at =
                 GREATEST(market_data_provider_rate_control.next_available_at, NOW() + $2::int4 * INTERVAL '1 second')
         "#,
-        JQUANTS_PROVIDER,
-        RATE_LIMIT_COOLDOWN_SECS
+        vec![
+            Bind::from(JQUANTS_PROVIDER),
+            Bind::from(RATE_LIMIT_COOLDOWN_SECS),
+        ],
     )
     .execute(pool)
     .await?;

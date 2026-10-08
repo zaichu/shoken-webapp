@@ -18,11 +18,6 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(
-    feature = "sqlx",
-    derive(sqlx::Type),
-    sqlx(type_name = "varchar", rename_all = "lowercase")
-)]
 pub enum DividendCacheStatus {
     Ok,
     Zero,
@@ -44,6 +39,49 @@ impl DividendCacheStatus {
 impl fmt::Display for DividendCacheStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+// DB 上は VARCHAR(20) の小文字文字列。透過 newtype では表せないため手実装
+#[cfg(feature = "postgres")]
+mod pg_impls {
+    use super::DividendCacheStatus;
+    use postgres_types::{FromSql, IsNull, ToSql, Type, to_sql_checked};
+    use std::error::Error;
+
+    impl ToSql for DividendCacheStatus {
+        fn to_sql(
+            &self,
+            ty: &Type,
+            out: &mut bytes::BytesMut,
+        ) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
+            ToSql::to_sql(&self.as_str(), ty, out)
+        }
+
+        fn accepts(ty: &Type) -> bool {
+            <&str as ToSql>::accepts(ty)
+        }
+
+        to_sql_checked!();
+    }
+
+    impl<'a> FromSql<'a> for DividendCacheStatus {
+        fn from_sql(
+            ty: &Type,
+            raw: &'a [u8],
+        ) -> Result<DividendCacheStatus, Box<dyn Error + Sync + Send>> {
+            match <&str as FromSql>::from_sql(ty, raw)? {
+                "ok" => Ok(DividendCacheStatus::Ok),
+                "zero" => Ok(DividendCacheStatus::Zero),
+                "error" => Ok(DividendCacheStatus::Error),
+                "pending" => Ok(DividendCacheStatus::Pending),
+                other => Err(format!("不明な dividend cache status: {other}").into()),
+            }
+        }
+
+        fn accepts(ty: &Type) -> bool {
+            <&str as FromSql>::accepts(ty)
+        }
     }
 }
 

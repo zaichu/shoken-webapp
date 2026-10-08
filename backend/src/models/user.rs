@@ -1,11 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use shared::value::UserId;
-use sqlx::FromRow;
 use utoipa::ToSchema;
 
 /// データベースのユーザーモデル
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: UserId,
     pub google_id: String,
@@ -14,6 +13,20 @@ pub struct User {
     pub picture_url: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl crate::db::FromRow for User {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            google_id: row.try_get("google_id")?,
+            email: row.try_get("email")?,
+            name: row.try_get("name")?,
+            picture_url: row.try_get("picture_url")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
 }
 
 /// APIレスポンス用のユーザー情報

@@ -1,3 +1,4 @@
+use crate::db::{Bind, Db, DbError, QueryBuilder};
 use crate::errors::ApiError;
 use crate::models::asset_balance::{
     AssetBalance, AssetBalanceSearchQueryParams, AssetBalanceSummary, CreateAssetBalanceRequest,
@@ -21,8 +22,6 @@ use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
 use shared::value::{SecurityCode, UserId};
-use sqlx::postgres::PgQueryResult;
-use sqlx::{PgPool, Postgres, QueryBuilder};
 
 /// 資産残高（保有銘柄）ドメイン
 pub struct AssetBalanceDomain;
@@ -32,10 +31,10 @@ impl Domain for AssetBalanceDomain {
     const TABLE: &'static str = "asset_balances";
     const WRITE_MODE: WriteMode = WriteMode::Replace;
 
-    async fn delete_rows(pool: &PgPool, user_id: UserId) -> Result<PgQueryResult, sqlx::Error> {
-        sqlx::query!(
+    async fn delete_rows(pool: &Db, user_id: UserId) -> Result<u64, DbError> {
+        crate::db::query(
             "DELETE FROM asset_balances WHERE user_id = $1",
-            user_id.get()
+            vec![Bind::from(user_id)],
         )
         .execute(pool)
         .await
@@ -51,7 +50,7 @@ impl CsvImport for AssetBalanceDomain {
     }
 
     async fn bulk_create(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         items: &[Self::Row],
         limit: RowLimit,
@@ -99,7 +98,7 @@ impl Search for AssetBalanceDomain {
     const ORDER_BY: &'static str = " ORDER BY security_code ASC, id ASC";
 
     /// asset_balances には snapshot 日付がないため、date axis は渡さない（`None`）。
-    fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &AssetBalanceFilter) {
+    fn push_filters(qb: &mut QueryBuilder, user_id: UserId, filter: &AssetBalanceFilter) {
         push_search_filters(
             qb,
             user_id,
@@ -115,11 +114,11 @@ impl Search for AssetBalanceDomain {
 
     /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
     async fn fetch_summary(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &AssetBalanceFilter,
     ) -> Result<AssetBalanceSummary, ApiError> {
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        let mut qb = QueryBuilder::new(
             "SELECT COALESCE(SUM(market_value), 0) AS total_market_value, \
              COALESCE(SUM(total_purchase_amount), 0) AS total_purchase_amount, \
              COALESCE(SUM(daily_change), 0) AS total_daily_change \
@@ -133,7 +132,7 @@ impl Search for AssetBalanceDomain {
     }
 
     async fn fetch_facets(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &AssetBalanceFilter,
     ) -> Result<SearchFacets, ApiError> {
@@ -155,7 +154,7 @@ impl Search for AssetBalanceDomain {
 
 /// 保有銘柄を一括登録（既存データを全削除してから挿入）
 pub async fn bulk_create(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     items: &[CreateAssetBalanceRequest],
     limit: RowLimit,
@@ -164,8 +163,11 @@ pub async fn bulk_create(
     let timer = BulkTimer::new(AssetBalanceDomain::NAME, total);
 
     let user_ids = user_ids_for_bulk_insert(user_id, total);
-    let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
-    let security_names: Vec<&str> = items.iter().map(|i| i.security_name.as_str()).collect();
+    let security_codes: Vec<String> = items
+        .iter()
+        .map(|i| i.security_code.as_str().to_owned())
+        .collect();
+    let security_names: Vec<String> = items.iter().map(|i| i.security_name.clone()).collect();
     let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();
     let executing_shares: Vec<Decimal> = items.iter().map(|i| i.executing_shares).collect();
     let average_purchase_prices: Vec<Decimal> =
@@ -181,17 +183,17 @@ pub async fn bulk_create(
 
     lock_user_domain::<AssetBalanceDomain>(&mut tx, user_id).await?;
 
-    ensure_user_row_limit_with::<AssetBalanceDomain, _>(&mut *tx, user_id, total, limit).await?;
+    ensure_user_row_limit_with::<AssetBalanceDomain, _>(&mut tx, user_id, total, limit).await?;
 
-    sqlx::query!(
+    crate::db::query(
         "DELETE FROM asset_balances WHERE user_id = $1",
-        user_id.get()
+        vec![Bind::from(user_id)],
     )
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     if !items.is_empty() {
-        sqlx::query!(
+        crate::db::query(
             r#"
             INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
                                         average_purchase_price, total_purchase_amount, current_price,
@@ -201,19 +203,21 @@ pub async fn bulk_create(
                 $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[]
             )
             "#,
-            &user_ids as &[UserId],
-            &security_codes as &[&str],
-            &security_names as &[&str],
-            &shares,
-            &executing_shares,
-            &average_purchase_prices,
-            &total_purchase_amounts,
-            &current_prices,
-            &daily_changes,
-            &market_values,
-            &profit_loss_rates
+            vec![
+                Bind::from(user_ids),
+                Bind::from(security_codes),
+                Bind::from(security_names),
+                Bind::decimal_vec(shares),
+                Bind::decimal_vec(executing_shares),
+                Bind::decimal_vec(average_purchase_prices),
+                Bind::decimal_vec(total_purchase_amounts),
+                Bind::decimal_vec(current_prices),
+                Bind::decimal_vec(daily_changes),
+                Bind::decimal_vec(market_values),
+                Bind::decimal_vec(profit_loss_rates),
+            ],
         )
-        .execute(&mut *tx)
+        .execute(&mut tx)
         .await?;
     }
 
@@ -525,10 +529,9 @@ mod tests {
         params.search.q = Some("AA BB".to_string());
         let filter = AssetBalanceFilter::try_from(params).unwrap();
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM asset_balances");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM asset_balances");
         AssetBalanceDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         // token ごとに 1 つの AND (...) ブロックが生成され、ブロック内は2カラムの OR になる
         assert_eq!(sql.matches(" AND (").count(), 2);
@@ -542,10 +545,9 @@ mod tests {
         };
         let filter = AssetBalanceFilter::try_from(params).unwrap();
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM asset_balances");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM asset_balances");
         AssetBalanceDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert!(sql.contains("AND security_code = "));
         assert!(sql.contains("AND security_name = "));

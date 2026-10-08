@@ -1,3 +1,4 @@
+use crate::db::Db;
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
@@ -5,7 +6,6 @@ use crate::services::csv::pipeline::{CsvParserConfig, CsvTable, parse_csv_with_c
 use crate::services::csv::util::{CsvRowView, RowNumber};
 use crate::services::domain::bulk::RowLimit;
 use shared::value::UserId;
-use sqlx::PgPool;
 use std::future::Future;
 
 pub fn validate_csv_rows<T, F>(table: &CsvTable, transform_row: F) -> (Vec<T>, Vec<CsvRowError>)
@@ -95,7 +95,7 @@ pub trait CsvImport: Send + Sync + 'static {
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>);
 
     fn bulk_create(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         items: &[Self::Row],
         limit: RowLimit,
@@ -108,7 +108,7 @@ pub trait CsvImport: Send + Sync + 'static {
 
     /// CSV バイト列をパースして DB に一括登録する
     fn upload_csv(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         bytes: &[u8],
         user_row_limit: RowLimit,

@@ -70,31 +70,26 @@ test:
 .PHONY: test-ignored
 test-ignored:
 	@echo "🧪 Docker が必要な ignored 統合テストを実行します..."
-	SQLX_OFFLINE=true $(CARGO) test --test db_integration -- --ignored
-	SQLX_OFFLINE=true $(CARGO) test --lib -- --ignored --skip real_api --skip timing_csv_util
+	$(CARGO) test --test db_integration -- --ignored
+	$(CARGO) test --lib -- --ignored --skip real_api --skip timing_csv_util
 
 # データベース関連
 .PHONY: migrate
 migrate:
 	@echo "📦 データベースマイグレーションを実行します..."
-	$(CARGO) sqlx migrate run
+	$(CARGO) run --bin migrate
 
 .PHONY: migrate-local
 migrate-local:
 	@echo "📦 ローカルDocker DBにマイグレーションを実行します..."
-	DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) sqlx migrate run
+	env DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) run --bin migrate
 
 .PHONY: repair-and-migrate-local
 repair-and-migrate-local:
 	@echo "🔧 ローカルDocker DB の migration 履歴を現行 baseline に切り替えます..."
 	@echo "  (version=11 未達の場合はエラーで停止します)"
 	docker compose -f docker-compose.yml exec -T postgres psql -U user -d shoken_db -v ON_ERROR_STOP=1 < scripts/repair-migrations.sql
-	DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) sqlx migrate run
-
-.PHONY: sqlx-prepare
-sqlx-prepare:
-	@echo "📦 SQLxクエリキャッシュを準備します..."
-	$(CARGO) sqlx prepare
+	env DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) run --bin migrate
 
 # Docker関連
 .PHONY: docker-build
@@ -146,7 +141,6 @@ help:
 	@echo "  migrate       : データベースマイグレーションを実行します"
 	@echo "  migrate-local           : ローカルDocker DBにマイグレーションを実行します"
 	@echo "  repair-and-migrate-local: 既存 migration 履歴 → 現行 baseline への一回限り切り替え"
-	@echo "  sqlx-prepare            : SQLxクエリキャッシュを準備します"
 	@echo "  docker-build  : Dockerイメージをビルドします"
 	@echo "  db-up         : PostgreSQL を Docker で起動します"
 	@echo "  db-down       : PostgreSQL を停止します"

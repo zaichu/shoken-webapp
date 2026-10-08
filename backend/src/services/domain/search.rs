@@ -1,11 +1,10 @@
 use super::Domain;
 use super::search_filters::fetch_if_included;
+use crate::db::{Db, FromRow, QueryBuilder};
 use crate::errors::ApiError;
 use crate::models::common::{PaginatedSearchResponse, SearchFacets, SearchParamsAccessor};
 use serde::Serialize;
 use shared::value::UserId;
-use sqlx::postgres::PgRow;
-use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 use std::future::Future;
 use tracing::info;
 
@@ -13,13 +12,13 @@ use tracing::info;
 /// ドメインごとに持つのは SELECT 列・ORDER BY・フィルタ条件・summary/facets の取得だけ
 pub trait Search: Domain {
     /// 一覧に返す行の型
-    type Data: for<'r> FromRow<'r, PgRow> + Serialize + Send + Unpin + 'static;
+    type Data: FromRow + Serialize + Send + 'static;
     /// ハンドラーが受け取るクエリパラメータの型
     type Params: SearchParamsAccessor;
     /// Params を所有したまま検証・変換した検索条件
     type Filter: TryFrom<Self::Params, Error = ApiError>;
     /// 検索条件全体の集計の型
-    type Summary: for<'r> FromRow<'r, PgRow> + Serialize + Send + 'static;
+    type Summary: FromRow + Serialize + Send + 'static;
 
     /// SELECT 句に並べる列一覧（固定文字列）
     const COLUMNS: &'static str;
@@ -27,16 +26,16 @@ pub trait Search: Domain {
     const ORDER_BY: &'static str;
 
     /// count/data/summary/facets 共通の WHERE 句を積む
-    fn push_filters(qb: &mut QueryBuilder<Postgres>, user_id: UserId, filter: &Self::Filter);
+    fn push_filters(qb: &mut QueryBuilder, user_id: UserId, filter: &Self::Filter);
 
     fn fetch_summary(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &Self::Filter,
     ) -> impl Future<Output = Result<Self::Summary, ApiError>> + Send;
 
     fn fetch_facets(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &Self::Filter,
     ) -> impl Future<Output = Result<SearchFacets, ApiError>> + Send;
@@ -45,7 +44,7 @@ pub trait Search: Domain {
 /// 4ドメイン共通の検索制御フロー。
 /// count/data/summary/facets は相互に依存しないため並行実行する
 pub async fn search<D: Search>(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     params: D::Params,
 ) -> Result<PaginatedSearchResponse<D::Data, D::Summary, SearchFacets>, ApiError> {
@@ -62,16 +61,14 @@ pub async fn search<D: Search>(
     let summary_fut = fetch_if_included(include_summary, D::fetch_summary(pool, user_id, &filter));
     let facets_fut = fetch_if_included(include_facets, D::fetch_facets(pool, user_id, &filter));
 
-    let mut count_qb: QueryBuilder<Postgres> =
-        QueryBuilder::new(format!("SELECT COUNT(*) FROM {}", D::TABLE));
+    let mut count_qb = QueryBuilder::new(format!("SELECT COUNT(*) FROM {}", D::TABLE));
     D::push_filters(&mut count_qb, user_id, &filter);
     let count_fut = async move {
         let total: i64 = count_qb.build_query_scalar().fetch_one(pool).await?;
         Ok::<_, ApiError>(total)
     };
 
-    let mut data_qb: QueryBuilder<Postgres> =
-        QueryBuilder::new(format!("SELECT {} FROM {}", D::COLUMNS, D::TABLE));
+    let mut data_qb = QueryBuilder::new(format!("SELECT {} FROM {}", D::COLUMNS, D::TABLE));
     D::push_filters(&mut data_qb, user_id, &filter);
     data_qb.push(D::ORDER_BY);
     data_qb.push(" LIMIT ").push_bind(per_page);

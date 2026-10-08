@@ -8,6 +8,45 @@ use validator::{Validate, ValidationErrors};
 
 pub use shared::domain::{Dividend, DividendSummary};
 
+impl crate::db::FromRow for Dividend {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            user_id: row.try_get("user_id")?,
+            settlement_date: row.try_get("settlement_date")?,
+            product: row.try_get("product")?,
+            account: row.try_get("account")?,
+            security_code: row.try_get("security_code")?,
+            security_name: row.try_get("security_name")?,
+            unit_price: row.try_get::<_, crate::db::Numeric>("unit_price")?.0,
+            shares: row.try_get::<_, crate::db::Numeric>("shares")?.0,
+            dividends_before_tax: row
+                .try_get::<_, crate::db::Numeric>("dividends_before_tax")?
+                .0,
+            taxes: row.try_get::<_, crate::db::Numeric>("taxes")?.0,
+            net_amount_received: row
+                .try_get::<_, crate::db::Numeric>("net_amount_received")?
+                .0,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
+}
+
+impl crate::db::FromRow for DividendSummary {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            total_dividends_before_tax: row
+                .try_get::<_, crate::db::Numeric>("total_dividends_before_tax")?
+                .0,
+            total_taxes: row.try_get::<_, crate::db::Numeric>("total_taxes")?.0,
+            total_net_amount_received: row
+                .try_get::<_, crate::db::Numeric>("total_net_amount_received")?
+                .0,
+        })
+    }
+}
+
 /// 配当金一覧の検索クエリパラメータ（共通 `SearchQueryParams` + 配当金固有の絞り込み）
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
 pub struct DividendSearchQueryParams {

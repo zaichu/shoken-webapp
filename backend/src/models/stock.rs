@@ -2,11 +2,10 @@ use crate::models::common::validate_length_field;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use shared::value::SecurityCode;
-use sqlx::FromRow;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors};
 
-#[derive(Serialize, Deserialize, FromRow, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct Stock {
     pub date: NaiveDate,
     #[schema(value_type = String)]
@@ -19,6 +18,23 @@ pub struct Stock {
     pub industry_category_17: Option<String>,
     pub size_code: Option<String>,
     pub size_category: Option<String>,
+}
+
+impl crate::db::FromRow for Stock {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            date: row.try_get("date")?,
+            code: row.try_get("code")?,
+            name: row.try_get("name")?,
+            market_category: row.try_get("market_category")?,
+            industry_code_33: row.try_get("industry_code_33")?,
+            industry_category_33: row.try_get("industry_category_33")?,
+            industry_code_17: row.try_get("industry_code_17")?,
+            industry_category_17: row.try_get("industry_category_17")?,
+            size_code: row.try_get("size_code")?,
+            size_category: row.try_get("size_category")?,
+        })
+    }
 }
 
 impl Validate for Stock {

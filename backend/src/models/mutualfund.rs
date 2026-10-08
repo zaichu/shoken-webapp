@@ -8,6 +8,54 @@ use validator::{Validate, ValidationErrors};
 
 pub use shared::domain::{Mutualfund, MutualfundSummary};
 
+impl crate::db::FromRow for Mutualfund {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            user_id: row.try_get("user_id")?,
+            trade_date: row.try_get("trade_date")?,
+            settlement_date: row.try_get("settlement_date")?,
+            fund_name: row.try_get("fund_name")?,
+            dividends: row.try_get("dividends")?,
+            account: row.try_get("account")?,
+            shares: row.try_get::<_, crate::db::Numeric>("shares")?.0,
+            exchange_rate: row.try_get::<_, crate::db::Numeric>("exchange_rate")?.0,
+            cancellation_unit_price_yen: row
+                .try_get::<_, crate::db::Numeric>("cancellation_unit_price_yen")?
+                .0,
+            cancellation_amount_yen: row
+                .try_get::<_, crate::db::Numeric>("cancellation_amount_yen")?
+                .0,
+            average_acquisition_price_yen: row
+                .try_get::<_, crate::db::Numeric>("average_acquisition_price_yen")?
+                .0,
+            realized_profit_and_loss: row
+                .try_get::<_, crate::db::Numeric>("realized_profit_and_loss")?
+                .0,
+            taxes: row.try_get::<_, crate::db::Numeric>("taxes")?.0,
+            realized_profit_and_loss_after_tax: row
+                .try_get::<_, crate::db::Numeric>("realized_profit_and_loss_after_tax")?
+                .0,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
+}
+
+impl crate::db::FromRow for MutualfundSummary {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            total_realized_profit_and_loss: row
+                .try_get::<_, crate::db::Numeric>("total_realized_profit_and_loss")?
+                .0,
+            total_taxes: row.try_get::<_, crate::db::Numeric>("total_taxes")?.0,
+            total_realized_profit_and_loss_after_tax: row
+                .try_get::<_, crate::db::Numeric>("total_realized_profit_and_loss_after_tax")?
+                .0,
+        })
+    }
+}
+
 /// 投資信託作成リクエスト
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateMutualfundRequest {

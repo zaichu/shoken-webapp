@@ -1,15 +1,14 @@
 use crate::config::Config;
-use crate::db::connect_pool_lazy;
+use crate::db::{Db, connect_pool_lazy};
 use crate::services;
 use crate::state::{AppState, DividendCacheState, Secrets};
 use reqwest::Client;
-use sqlx::PgPool;
 use std::sync::Arc;
 
 pub fn build_startup_state(
     secrets: Arc<Secrets>,
     config: &Config,
-) -> Result<(PgPool, AppState), String> {
+) -> Result<(Db, AppState), String> {
     crate::errors::init_runtime_env(config.runtime_env);
     // URL 検証のみ行い、実接続は background startup task で行う。
     let pool = connect_pool_lazy(&secrets.database_url, config.database_max_connections)?;

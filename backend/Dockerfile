@@ -16,13 +16,11 @@ RUN cargo build --release && rm -rf src
 # 実際のソースコードをコピー
 COPY backend/src ./src
 COPY backend/migrations ./migrations
-COPY backend/.sqlx ./.sqlx
 
 # 依存関係のビルドキャッシュを無効化しないために、全 Rust ソースのタイムスタンプを更新
 RUN find src -name "*.rs" -exec touch {} +
 
-# 本番ビルド（DB接続なしで .sqlx のクエリキャッシュを使ってマクロを検証する）
-ENV SQLX_OFFLINE=true
+# 本番ビルド
 RUN cargo build --release
 
 # 実行ステージ

@@ -89,7 +89,7 @@ pub enum ApiError {
     #[error("{0}")]
     Upstream(#[from] UpstreamError),
     #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(#[from] crate::db::DbError),
     #[error("{0}")]
     Config(#[from] ConfigError),
     #[error("Internal error: {0}")]
@@ -106,16 +106,17 @@ impl ApiError {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
             Self::Upstream(e) => e.status(),
-            Self::Database(e) => match e {
-                sqlx::Error::RowNotFound => StatusCode::NOT_FOUND,
-                sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
+            Self::Database(e) => {
+                if matches!(e, crate::db::DbError::RowNotFound) {
+                    StatusCode::NOT_FOUND
+                } else if e.is_unique_violation() {
                     StatusCode::CONFLICT
-                }
-                sqlx::Error::Database(db_err) if db_err.is_foreign_key_violation() => {
+                } else if e.is_foreign_key_violation() {
                     StatusCode::BAD_REQUEST
+                } else {
+                    StatusCode::INTERNAL_SERVER_ERROR
                 }
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
+            }
         }
     }
 
@@ -129,14 +130,17 @@ impl ApiError {
             Self::Unauthorized(_) => "UNAUTHORIZED",
             Self::OAuth(_) => "OAUTH_ERROR",
             Self::Upstream(e) => e.code(),
-            Self::Database(e) => match e {
-                sqlx::Error::RowNotFound => "NOT_FOUND",
-                sqlx::Error::Database(db_err) if db_err.is_unique_violation() => "DUPLICATE_ENTRY",
-                sqlx::Error::Database(db_err) if db_err.is_foreign_key_violation() => {
+            Self::Database(e) => {
+                if matches!(e, crate::db::DbError::RowNotFound) {
+                    "NOT_FOUND"
+                } else if e.is_unique_violation() {
+                    "DUPLICATE_ENTRY"
+                } else if e.is_foreign_key_violation() {
                     "FOREIGN_KEY_VIOLATION"
+                } else {
+                    "DATABASE_ERROR"
                 }
-                _ => "DATABASE_ERROR",
-            },
+            }
             Self::Config(_) => "CONFIGURATION_ERROR",
             Self::Internal(_) => "INTERNAL_ERROR",
         }
@@ -156,16 +160,17 @@ impl ApiError {
                 }
                 _ => "外部サービスとの通信に失敗しました".to_string(),
             },
-            Self::Database(e) => match e {
-                sqlx::Error::RowNotFound => "Resource not found".to_string(),
-                sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
+            Self::Database(e) => {
+                if matches!(e, crate::db::DbError::RowNotFound) {
+                    "Resource not found".to_string()
+                } else if e.is_unique_violation() {
                     "Duplicate entry".to_string()
-                }
-                sqlx::Error::Database(db_err) if db_err.is_foreign_key_violation() => {
+                } else if e.is_foreign_key_violation() {
                     "Foreign key constraint violation".to_string()
+                } else {
+                    "Database error occurred".to_string()
                 }
-                _ => "Database error occurred".to_string(),
-            },
+            }
             Self::Config(_) => "Configuration error".to_string(),
             Self::Internal(_) => "Internal server error".to_string(),
         }
@@ -262,7 +267,7 @@ impl IntoResponse for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use {super::*, axum::http::StatusCode, sqlx::Error as SqlxError};
+    use {super::*, crate::db::DbError, crate::db::SqlState, axum::http::StatusCode};
 
     fn check(error: ApiError, expected_status: StatusCode, expected_code: &str) {
         assert_eq!(error.status(), expected_status);
@@ -290,12 +295,12 @@ mod tests {
                 "CSV_ERROR",
             ),
             (
-                ApiError::Database(SqlxError::RowNotFound),
+                ApiError::Database(DbError::RowNotFound),
                 StatusCode::NOT_FOUND,
                 "NOT_FOUND",
             ),
             (
-                ApiError::Database(SqlxError::ColumnNotFound("test_column".to_string())),
+                ApiError::Database(DbError::Other("test_column".to_string())),
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "DATABASE_ERROR",
             ),
@@ -387,76 +392,29 @@ mod tests {
         );
     }
 
-    // ErrorKind は Clone/Copy を持たないため、kind() で都度インスタンスを返す
-    #[derive(Clone, Copy)]
-    enum MockKind {
-        Unique,
-        ForeignKey,
-        Other,
-    }
-
-    struct MockDbError {
-        message: &'static str,
-        kind: MockKind,
-    }
-
-    impl std::fmt::Display for MockDbError {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.write_str(self.message)
-        }
-    }
-
-    impl std::fmt::Debug for MockDbError {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.write_str(self.message)
-        }
-    }
-
-    impl std::error::Error for MockDbError {}
-
-    impl sqlx::error::DatabaseError for MockDbError {
-        fn message(&self) -> &str {
-            self.message
-        }
-
-        fn kind(&self) -> sqlx::error::ErrorKind {
-            match self.kind {
-                MockKind::Unique => sqlx::error::ErrorKind::UniqueViolation,
-                MockKind::ForeignKey => sqlx::error::ErrorKind::ForeignKeyViolation,
-                MockKind::Other => sqlx::error::ErrorKind::Other,
-            }
-        }
-
-        fn as_error(&self) -> &(dyn std::error::Error + Send + Sync + 'static) {
-            self
-        }
-
-        fn as_error_mut(&mut self) -> &mut (dyn std::error::Error + Send + Sync + 'static) {
-            self
-        }
-
-        fn into_error(self: Box<Self>) -> Box<dyn std::error::Error + Send + Sync + 'static> {
-            self
-        }
-    }
-
     #[test]
     fn test_database_error_kind_maps_to_status_and_code() {
-        for (kind, expected) in [
-            (MockKind::Unique, (StatusCode::CONFLICT, "DUPLICATE_ENTRY")),
+        for (db_error, expected) in [
             (
-                MockKind::ForeignKey,
+                DbError::State {
+                    state: SqlState::UNIQUE_VIOLATION,
+                    message: "db error".to_string(),
+                },
+                (StatusCode::CONFLICT, "DUPLICATE_ENTRY"),
+            ),
+            (
+                DbError::State {
+                    state: SqlState::FOREIGN_KEY_VIOLATION,
+                    message: "db error".to_string(),
+                },
                 (StatusCode::BAD_REQUEST, "FOREIGN_KEY_VIOLATION"),
             ),
             (
-                MockKind::Other,
+                DbError::Other("db error".to_string()),
                 (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR"),
             ),
         ] {
-            let error = ApiError::Database(SqlxError::Database(Box::new(MockDbError {
-                message: "db error",
-                kind,
-            })));
+            let error = ApiError::Database(db_error);
             assert_eq!((error.status(), error.code()), (expected.0, expected.1));
         }
     }

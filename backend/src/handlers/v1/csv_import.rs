@@ -1,3 +1,4 @@
+use crate::db::Db;
 use crate::errors::{ApiError, CsvError};
 use crate::handlers::common::ok_message;
 use crate::models::common::MessageResponse;
@@ -39,7 +40,7 @@ pub async fn handle_preview_csv<D: CsvImport>(
 }
 
 pub async fn handle_delete_all<D: Domain>(
-    pool: &sqlx::PgPool,
+    pool: &Db,
     user_id: UserId,
     message: &str,
 ) -> Result<(StatusCode, Json<MessageResponse>), ApiError> {
@@ -49,7 +50,7 @@ pub async fn handle_delete_all<D: Domain>(
 
 /// 戻り値を具体型にすることで、呼び出し元の借用（`&state.pool`）が戻り値に漏れ出さないようにする。
 pub async fn handle_import_csv<D: CsvImport>(
-    pool: &sqlx::PgPool,
+    pool: &Db,
     user_id: UserId,
     multipart: Multipart,
     user_row_limit: RowLimit,
@@ -75,7 +76,6 @@ mod tests {
         routing::post,
     };
     use serde::de::DeserializeOwned;
-    use sqlx::postgres::PgPoolOptions;
     use tower::ServiceExt;
 
     const BODY_LIMIT: usize = 1024 * 1024;
@@ -112,7 +112,7 @@ mod tests {
         }
 
         async fn bulk_create(
-            _pool: &sqlx::PgPool,
+            _pool: &Db,
             user_id: UserId,
             items: &[Self::Row],
             limit: RowLimit,
@@ -168,9 +168,7 @@ mod tests {
     }
 
     fn upload_app() -> Router {
-        let pool = PgPoolOptions::new()
-            .max_connections(1)
-            .connect_lazy("postgresql://user:password@localhost/test_db")
+        let pool = crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
             .unwrap();
 
         Router::new()
@@ -179,7 +177,7 @@ mod tests {
     }
 
     async fn upload_endpoint(
-        State(pool): State<sqlx::PgPool>,
+        State(pool): State<Db>,
         multipart: Multipart,
     ) -> Result<impl IntoResponse, ApiError> {
         handle_import_csv::<TestCsvImport>(

@@ -1,3 +1,4 @@
+use crate::db::{Bind, Db, DbError, QueryBuilder};
 use crate::errors::ApiError;
 use crate::models::common::{BulkCreateResponse, FacetOption, SearchFacets};
 use crate::models::csv_import::CsvRowError;
@@ -23,8 +24,6 @@ use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
 use shared::tax::{SPECIFIC_ACCOUNT_KEYWORD, TAX_RATE, compute_taxes};
 use shared::value::UserId;
-use sqlx::postgres::PgQueryResult;
-use sqlx::{PgPool, Postgres, QueryBuilder};
 
 /// 国内株式ドメイン
 pub struct DomesticStockDomain;
@@ -34,10 +33,10 @@ impl Domain for DomesticStockDomain {
     const TABLE: &'static str = "domestic_stocks";
     const WRITE_MODE: WriteMode = WriteMode::Append;
 
-    async fn delete_rows(pool: &PgPool, user_id: UserId) -> Result<PgQueryResult, sqlx::Error> {
-        sqlx::query!(
+    async fn delete_rows(pool: &Db, user_id: UserId) -> Result<u64, DbError> {
+        crate::db::query(
             "DELETE FROM domestic_stocks WHERE user_id = $1",
-            user_id.get()
+            vec![Bind::from(user_id)],
         )
         .execute(pool)
         .await
@@ -53,7 +52,7 @@ impl CsvImport for DomesticStockDomain {
     }
 
     async fn bulk_create(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         items: &[Self::Row],
         limit: RowLimit,
@@ -106,11 +105,7 @@ impl Search for DomesticStockDomain {
         updated_at";
     const ORDER_BY: &'static str = " ORDER BY trade_date DESC, id DESC";
 
-    fn push_filters(
-        qb: &mut QueryBuilder<Postgres>,
-        user_id: UserId,
-        filter: &DomesticStockFilter,
-    ) {
+    fn push_filters(qb: &mut QueryBuilder, user_id: UserId, filter: &DomesticStockFilter) {
         push_search_filters(
             qb,
             user_id,
@@ -131,11 +126,11 @@ impl Search for DomesticStockDomain {
     /// 特定口座合計がプラスの時だけ `floor(合計 * 税率)` を日次税額として計算したうえで、
     /// 日次結果を合計する。キーワードと税率は shared::tax の正準定数を使う。
     async fn fetch_summary(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &DomesticStockFilter,
     ) -> Result<DomesticStockSummary, ApiError> {
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        let mut qb = QueryBuilder::new(
             "WITH filtered AS (SELECT trade_date, account, realized_profit_and_loss FROM domestic_stocks",
         );
         Self::push_filters(&mut qb, user_id, filter);
@@ -162,7 +157,7 @@ impl Search for DomesticStockDomain {
     }
 
     async fn fetch_facets(
-        pool: &PgPool,
+        pool: &Db,
         user_id: UserId,
         filter: &DomesticStockFilter,
     ) -> Result<SearchFacets, ApiError> {
@@ -199,7 +194,7 @@ impl Search for DomesticStockDomain {
 }
 
 async fn fetch_group_facets(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     filter: &DomesticStockFilter,
     group_field: GroupField,
@@ -217,7 +212,7 @@ async fn fetch_group_facets(
 
 /// 銘柄コードごとに最新の銘柄名を label として件数付きで返す
 async fn fetch_security_facets(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     filter: &DomesticStockFilter,
 ) -> Result<Vec<FacetOption>, ApiError> {
@@ -243,7 +238,7 @@ async fn fetch_security_facets(
 ///   batch_index <= existing_count でスキップされる。
 ///   この挙動を避けるには外部キー（取引ID等）による識別が別途必要。
 pub async fn bulk_create(
-    pool: &PgPool,
+    pool: &Db,
     user_id: UserId,
     items: &[CreateDomesticStockRequest],
     limit: RowLimit,
@@ -257,9 +252,15 @@ pub async fn bulk_create(
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
-    let security_codes: Vec<&str> = items.iter().map(|i| i.security_code.as_str()).collect();
-    let security_names: Vec<&str> = items.iter().map(|i| i.security_name.as_str()).collect();
-    let accounts: Vec<&str> = items.iter().map(|i| i.account.as_str()).collect();
+    let security_codes: Vec<String> = items
+        .iter()
+        .map(|i| i.security_code.as_str().to_owned())
+        .collect();
+    let security_names: Vec<String> = items.iter().map(|i| i.security_name.clone()).collect();
+    let accounts: Vec<String> = items
+        .iter()
+        .map(|i| i.account.as_str().to_owned())
+        .collect();
     let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();
     let asked_prices: Vec<Decimal> = items.iter().map(|i| i.asked_price).collect();
     let proceeds: Vec<Decimal> = items.iter().map(|i| i.proceeds).collect();
@@ -275,14 +276,14 @@ pub async fn bulk_create(
 
     lock_user_domain::<DomesticStockDomain>(&mut tx, user_id).await?;
 
-    ensure_user_row_limit_with::<DomesticStockDomain, _>(&mut *tx, user_id, items.len(), limit)
+    ensure_user_row_limit_with::<DomesticStockDomain, _>(&mut tx, user_id, items.len(), limit)
         .await?;
 
     // content_hash は PostgreSQL md5 関数で算出（migration backfill と同一実装）
     // batch_occurrence_index はバッチ内での content_hash 別の連番（WITH ORDINALITY で入力順保持）
     // db_counts は既存 DB の (user_id, content_hash) 単位の件数（他ユーザーに引っ張られない）
     // batch_occurrence_index > existing_count の行のみ挿入し、ON CONFLICT で冪等性を保証
-    let result = sqlx::query!(
+    let result = crate::db::query(
         r#"
         WITH batch_data AS (
             SELECT
@@ -336,26 +337,29 @@ pub async fn bulk_create(
         WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
         ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
         "#,
-        &user_ids as &[UserId],
-        &trade_dates,
-        &settlement_dates,
-        &security_codes as &[&str],
-        &security_names as &[&str],
-        &accounts as &[&str],
-        &shares,
-        &asked_prices,
-        &proceeds,
-        &purchase_prices,
-        &realized_pls,
-        &taxes,
-        &realized_pls_after_tax,
-        user_id.get() // $14: スカラーのユーザーID（db_counts WHERE 句用）
+        vec![
+            Bind::from(user_ids),
+            Bind::from(trade_dates),
+            Bind::from(settlement_dates),
+            Bind::from(security_codes),
+            Bind::from(security_names),
+            Bind::from(accounts),
+            Bind::decimal_vec(shares),
+            Bind::decimal_vec(asked_prices),
+            Bind::decimal_vec(proceeds),
+            Bind::decimal_vec(purchase_prices),
+            Bind::decimal_vec(realized_pls),
+            Bind::decimal_vec(taxes),
+            Bind::decimal_vec(realized_pls_after_tax),
+            // $14: スカラーのユーザーID（db_counts WHERE 句用）
+            Bind::from(user_id),
+        ],
     )
-    .execute(&mut *tx)
+    .execute(&mut tx)
     .await?;
 
     tx.commit().await?;
-    timer.finish_from_result(&result)
+    timer.finish_from_affected(result)
 }
 
 fn transform_domestic_stock_rows(
@@ -518,13 +522,17 @@ mod tests {
         let (pool, _node) = crate::test_db::start_test_pool().await;
 
         let user_id = UserId::from(Uuid::new_v4());
-        sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
-            .bind(user_id)
-            .bind(format!("test_google_{user_id}"))
-            .bind(format!("test_{user_id}@example.com"))
-            .execute(&pool)
-            .await
-            .unwrap();
+        crate::db::query(
+            "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+            vec![
+                Bind::from(user_id),
+                Bind::from(format!("test_google_{user_id}")),
+                Bind::from(format!("test_{user_id}@example.com")),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
         let items = vec![make_test_item(); 5];
 
@@ -620,10 +628,9 @@ mod tests {
         params.search.q = Some("AA BB".to_string());
         let filter = DomesticStockFilter::try_from(params).expect("q のみなら検証を通過する");
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
         DomesticStockDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         // token ごとに 1 つの AND (...) ブロックが生成され、ブロック内は3カラムの OR になる
         assert_eq!(sql.matches(" AND (").count(), 2);
@@ -639,10 +646,9 @@ mod tests {
         };
         let filter = DomesticStockFilter::try_from(params).expect("フィルタのみなら検証を通過する");
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
         DomesticStockDomain::push_filters(&mut qb, UserId::default(), &filter);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert!(sql.contains("AND account = "));
         assert!(sql.contains("AND security_code = "));
@@ -677,13 +683,17 @@ mod tests {
         let (pool, _node) = crate::test_db::start_test_pool().await;
 
         let user_id = UserId::from(Uuid::new_v4());
-        sqlx::query("INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)")
-            .bind(user_id)
-            .bind(format!("test_google_{user_id}"))
-            .bind(format!("test_{user_id}@example.com"))
-            .execute(&pool)
-            .await
-            .unwrap();
+        crate::db::query(
+            "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+            vec![
+                Bind::from(user_id),
+                Bind::from(format!("test_google_{user_id}")),
+                Bind::from(format!("test_{user_id}@example.com")),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
         let day1 = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
         let day2 = NaiveDate::from_ymd_opt(2026, 2, 11).unwrap();

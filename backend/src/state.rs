@@ -1,8 +1,8 @@
 use reqwest::Client;
-use sqlx::PgPool;
 use std::sync::{Arc, atomic::AtomicBool};
 
 use crate::config::Config;
+use crate::db::Db;
 use crate::services::auth::GoogleOAuthClient;
 
 /// 環境変数から取得するシークレット情報
@@ -43,7 +43,7 @@ pub struct DividendCacheState {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub pool: PgPool,
+    pub pool: Db,
     pub secrets: Arc<Secrets>,
     pub client: Client,
     /// 配当キャッシュのバックグラウンド更新状態（多重起動防止）

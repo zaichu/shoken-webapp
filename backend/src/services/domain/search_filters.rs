@@ -1,8 +1,8 @@
+use crate::db::QueryBuilder;
 use crate::errors::ApiError;
 use crate::models::common::SearchQueryParams;
 use chrono::NaiveDate;
 use shared::value::UserId;
-use sqlx::{Postgres, QueryBuilder};
 use std::future::Future;
 
 pub fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
@@ -88,7 +88,7 @@ impl DateAxisFilter {
 
 /// date_column（呼び出し側が渡す固定文字列のみ）を使って date 条件を WHERE 句へ push する
 pub fn push_date_axis_filters(
-    qb: &mut QueryBuilder<Postgres>,
+    qb: &mut QueryBuilder,
     date_column: &'static str,
     filter: &DateAxisFilter,
 ) {
@@ -120,7 +120,7 @@ pub fn tokens_from_query(q: Option<&str>) -> Vec<String> {
 /// token ごとに columns（呼び出し側が渡す固定文字列配列のみ）への ILIKE OR 条件を
 /// `AND (col1 ILIKE $n ESCAPE '\' OR col2 ILIKE $n+1 ESCAPE '\' ...)` として push する
 pub fn push_token_ilike_filters(
-    qb: &mut QueryBuilder<Postgres>,
+    qb: &mut QueryBuilder,
     tokens: &[String],
     columns: &[&'static str],
 ) {
@@ -150,7 +150,7 @@ pub fn push_token_ilike_filters(
 /// - `exact_match_fields`: `(column, value)` の並び。呼び出し側が対象カラムを固定 `&'static str` で指定する
 /// - `token_columns`: フリーワード検索（ILIKE OR）の対象カラム
 pub fn push_search_filters(
-    qb: &mut QueryBuilder<Postgres>,
+    qb: &mut QueryBuilder,
     user_id: UserId,
     date_axis: Option<(&'static str, &DateAxisFilter)>,
     exact_match_fields: &[(&'static str, &Option<String>)],
@@ -192,9 +192,9 @@ mod tests {
         parse_year_month_range, push_date_axis_filters, push_token_ilike_filters,
         tokens_from_query, year_to_range,
     };
+    use crate::db::QueryBuilder;
     use crate::errors::ApiError;
     use chrono::NaiveDate;
-    use sqlx::{Postgres, QueryBuilder};
 
     #[test]
     fn test_year_to_range_produces_year_boundaries() {
@@ -273,10 +273,9 @@ mod tests {
             )),
         };
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM dummy");
         push_date_axis_filters(&mut qb, "settlement_date", &filter);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert_eq!(sql.matches("settlement_date = ").count(), 1);
         assert_eq!(sql.matches("settlement_date >= ").count(), 3);
@@ -286,18 +285,17 @@ mod tests {
 
     #[test]
     fn test_push_date_axis_filters_pushes_nothing_when_all_none() {
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM dummy");
         push_date_axis_filters(&mut qb, "settlement_date", &DateAxisFilter::default());
-        assert_eq!(qb.sql().as_str(), "SELECT 1 FROM dummy");
+        assert_eq!(qb.sql(), "SELECT 1 FROM dummy");
     }
 
     #[test]
     fn test_push_token_ilike_filters_combines_columns_as_or_per_token() {
         let tokens = vec!["AA".to_string(), "BB".to_string()];
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM dummy");
         push_token_ilike_filters(&mut qb, &tokens, &["product", "account"]);
         let sql = qb.sql();
-        let sql = sql.as_str();
 
         assert_eq!(sql.matches(" AND (").count(), 2);
         assert_eq!(sql.matches("product ILIKE").count(), 2);
@@ -312,9 +310,9 @@ mod tests {
     #[test]
     fn test_push_token_ilike_filters_pushes_nothing_when_columns_empty() {
         let tokens = vec!["AA".to_string()];
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM dummy");
+        let mut qb = QueryBuilder::new("SELECT 1 FROM dummy");
         push_token_ilike_filters(&mut qb, &tokens, &[]);
-        assert_eq!(qb.sql().as_str(), "SELECT 1 FROM dummy");
+        assert_eq!(qb.sql(), "SELECT 1 FROM dummy");
     }
 
     #[tokio::test]

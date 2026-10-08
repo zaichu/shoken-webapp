@@ -1,9 +1,8 @@
 use super::{Domain, WriteMode};
+use crate::db::{Bind, Db, Executor, QueryBuilder, Tx};
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use shared::value::UserId;
-use sqlx::postgres::PgQueryResult;
-use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use std::fmt;
 use std::time::Instant;
 use tracing::info;
@@ -68,13 +67,10 @@ impl BulkTimer {
         BulkCreateResponse { inserted, skipped }
     }
 
-    /// PgQueryResult から rows_affected を取り出して finish する。
+    /// rows_affected を usize に変換して finish する。
     /// u64 → usize の変換が失敗した場合は ApiError を返す。
-    pub fn finish_from_result(
-        self,
-        result: &PgQueryResult,
-    ) -> Result<BulkCreateResponse, ApiError> {
-        let inserted = usize::try_from(result.rows_affected()).map_err(|_| {
+    pub fn finish_from_affected(self, rows_affected: u64) -> Result<BulkCreateResponse, ApiError> {
+        let inserted = usize::try_from(rows_affected).map_err(|_| {
             ApiError::Internal("bulk insert の rows_affected が usize に収まりません")
         })?;
         Ok(self.finish(inserted))
@@ -103,9 +99,9 @@ fn exceeds_user_row_limit(
 
 /// 書き込み前に、利用者ごとの保存行数が上限を超えないことを確認する。
 /// 追記型は既存行数との合算、置換型は追加分のみで上限を判定する。
-/// `executor` には `&PgPool` または `&mut Transaction`(同一 tx 内で直列化する場合)を渡す。
+/// `executor` には `&Db` または `&mut Tx`(同一 tx 内で直列化する場合)を渡す。
 /// 上限値は引数で渡す(プロセス全体の環境変数に依存させない)
-pub async fn ensure_user_row_limit_with<'e, D, E>(
+pub async fn ensure_user_row_limit_with<D, E>(
     executor: E,
     user_id: UserId,
     additional: usize,
@@ -113,12 +109,12 @@ pub async fn ensure_user_row_limit_with<'e, D, E>(
 ) -> Result<(), ApiError>
 where
     D: Domain,
-    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+    E: Executor,
 {
     let existing = match D::WRITE_MODE {
         WriteMode::Replace => None,
         WriteMode::Append => {
-            let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT COUNT(*) FROM ");
+            let mut qb = QueryBuilder::new("SELECT COUNT(*) FROM ");
             qb.push(D::TABLE)
                 .push(" WHERE user_id = ")
                 .push_bind(user_id);
@@ -135,25 +131,24 @@ where
     Ok(())
 }
 
-/// 利用者とドメインの単位で advisory lock を取り、同じ利用者の並行した一括登録を直列化する
-/// (行数上限の同時突破と、置換型での A∪B の混入を防ぐ)
-pub async fn lock_user_domain<D: Domain>(
-    tx: &mut Transaction<'_, Postgres>,
-    user_id: UserId,
-) -> Result<(), ApiError> {
-    sqlx::query!(
-        "SELECT pg_advisory_xact_lock(hashtext($1::text))",
-        format!("{user_id}:{}", D::TABLE)
+/// 同じ利用者の並行した一括登録を直列化する
+/// (行数上限の同時突破と、置換型での A∪B の混入を防ぐ)。
+/// Hyperdrive は advisory lock をサポートしないため、users 行の
+/// `FOR UPDATE` ロックで代替する（同一 tx 内で直列化される点は同じ）
+pub async fn lock_user_domain<D: Domain>(tx: &mut Tx, user_id: UserId) -> Result<(), ApiError> {
+    crate::db::query(
+        "SELECT id FROM users WHERE id = $1 FOR UPDATE",
+        vec![Bind::from(user_id)],
     )
-    .execute(&mut **tx)
+    .fetch_scalar_optional::<uuid::Uuid, _>(&mut *tx)
     .await?;
     Ok(())
 }
 
 /// ユーザーに紐づく全レコードを削除する共通実装
-pub async fn delete_all<D: Domain>(pool: &PgPool, user_id: UserId) -> Result<u64, ApiError> {
+pub async fn delete_all<D: Domain>(pool: &Db, user_id: UserId) -> Result<u64, ApiError> {
     info!("[{}.delete_all] リクエスト受信", D::NAME);
-    let deleted = D::delete_rows(pool, user_id).await?.rows_affected();
+    let deleted = D::delete_rows(pool, user_id).await?;
     info!("[{}.delete_all] 完了: {}件削除", D::NAME, deleted);
     Ok(deleted)
 }

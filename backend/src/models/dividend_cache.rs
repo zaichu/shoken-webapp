@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use shared::{dividend_per_share::DividendCacheStatus, value::SecurityCode};
-use sqlx::FromRow;
 
 pub use shared::dividend_per_share::{
     DividendPerShareBatchRequest, DividendPerShareBatchResponse, DividendPerShareItem,
@@ -19,7 +18,7 @@ pub use shared::dividend_per_share::{
 /// | zero    | NULL / past | true     | Yes     | stale（再取得待ち）          |
 /// | error   | NULL        | true     | Yes     | 即再取得対象                 |
 /// | error   | future      | false    | No      | 429 cooldown 中は再取得しない |
-#[derive(Debug, Clone, Serialize, FromRow)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DividendCache {
     pub security_code: SecurityCode,
     pub dividend_per_share: Option<f64>,
@@ -31,4 +30,19 @@ pub struct DividendCache {
     pub provider: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl crate::db::FromRow for DividendCache {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            security_code: row.try_get("security_code")?,
+            dividend_per_share: row.try_get("dividend_per_share")?,
+            status: row.try_get("status")?,
+            fetched_at: row.try_get("fetched_at")?,
+            stale_at: row.try_get("stale_at")?,
+            provider: row.try_get("provider")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
 }
