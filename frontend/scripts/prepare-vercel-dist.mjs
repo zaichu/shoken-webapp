@@ -78,7 +78,7 @@ function generateCloudflareConfigFiles(distDir) {
   const headerRules = (vercel.headers ?? []).map((rule) => {
     const pattern = sourceToCloudflarePattern(rule.source);
     const headerLines = rule.headers.map((h) => `  ${h.key}: ${h.value}`).join('\n');
-    return `${pattern}\n${headerLines}\n*/`;
+    return `${pattern}\n${headerLines}`;
   });
 
   // _redirects の生成 (rewrites から)
