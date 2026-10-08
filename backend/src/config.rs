@@ -1,3 +1,4 @@
+#[cfg(not(target_arch = "wasm32"))]
 use std::env;
 
 use crate::services::domain::bulk::RowLimit;
@@ -64,6 +65,7 @@ impl Default for Config {
 }
 
 impl Config {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_env() -> Self {
         let mut config = Config::default();
 
@@ -101,6 +103,38 @@ impl Config {
         }
         if let Some(v) = parse_rps("DATA_RATE_LIMIT_RPS") {
             config.data_rate_limit_rps = v;
+        }
+
+        if config.is_production() {
+            config
+                .cors_origins
+                .retain(|origin| !is_localhost_origin(origin));
+        }
+
+        config
+    }
+
+    /// Workers 側の設定解決。値は `wrangler.toml` の [vars] / `.dev.vars` から取る。
+    /// レート制限の上限値は [[ratelimits]] バインディング側が持つため、
+    /// ここでは *_rate_limit_rps を解決しない
+    #[cfg(target_arch = "wasm32")]
+    pub fn from_worker_env(env: &worker::Env) -> Self {
+        let get = |name: &str| env.var(name).ok().map(|v| v.to_string());
+        let mut config = Config::default();
+
+        config.runtime_env =
+            RuntimeEnv::resolve(get("RUST_ENV").as_deref(), get("APP_ENV").as_deref());
+        config.secure_cookie =
+            config.is_production() || get("SECURE_COOKIE").is_some_and(|v| v == "true" || v == "1");
+
+        if let Some(url) = get("BACKEND_URL") {
+            config.backend_url = url;
+        }
+        if let Some(origins) = get("CORS_ORIGINS") {
+            let parsed = parse_cors_origins(&origins);
+            if !parsed.is_empty() {
+                config.cors_origins = parsed;
+            }
         }
 
         if config.is_production() {

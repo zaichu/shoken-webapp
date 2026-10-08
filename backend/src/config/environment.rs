@@ -1,3 +1,4 @@
+#[cfg(not(target_arch = "wasm32"))]
 use std::env;
 
 /// 開発用として明示設定しうる環境名。
@@ -18,13 +19,20 @@ pub enum RuntimeEnv {
 
 impl RuntimeEnv {
     /// 環境変数から解決する。起動時に一度だけ呼ぶ
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_env() -> Self {
+        Self::resolve(
+            env::var("RUST_ENV").ok().as_deref(),
+            env::var("APP_ENV").ok().as_deref(),
+        )
+    }
+
+    /// RUST_ENV / APP_ENV の値から解決する。両変数の解決先が異なる
+    /// (std::env / worker::Env) ため、値だけを受け取る共通入口として切り出す
+    pub fn resolve(rust_env: Option<&str>, app_env: Option<&str>) -> Self {
         let mut any_set = false;
-        for value in [env::var("RUST_ENV"), env::var("APP_ENV")]
-            .into_iter()
-            .flatten()
-        {
-            if !DEVELOPMENT_ENV_VALUES.contains(&value.as_str()) {
+        for value in [rust_env, app_env].into_iter().flatten() {
+            if !DEVELOPMENT_ENV_VALUES.contains(&value) {
                 return Self::Production;
             }
             any_set = true;

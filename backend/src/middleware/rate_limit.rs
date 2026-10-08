@@ -6,6 +6,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 
 use crate::errors::simple_error_response;
@@ -20,6 +21,7 @@ fn rate_limit_error() -> Response {
 
 /// IP 単位のレート制限インスタンスを生成する（auth など DoS 対策に使用）
 /// rps = 0 の場合は制限なし（None）を返す
+#[cfg(not(target_arch = "wasm32"))]
 pub fn build_keyed_rate_limiter(
     rps: u32,
 ) -> Option<Arc<DefaultKeyedRateLimiter<std::net::IpAddr>>> {
@@ -34,6 +36,7 @@ pub fn build_keyed_rate_limiter(
 /// `fly-client-ip` が存在しない場合（ローカル開発など）は 0.0.0.0 を返す。
 /// これにより「プロキシ未経由の不明リクエスト」は共有バケットに入るため、
 /// バイパス攻撃には使えない。
+#[cfg(not(target_arch = "wasm32"))]
 fn extract_client_ip(req: &Request<Body>) -> std::net::IpAddr {
     req.headers()
         .get("fly-client-ip")
@@ -43,6 +46,7 @@ fn extract_client_ip(req: &Request<Body>) -> std::net::IpAddr {
 }
 
 /// IP 単位レート制限ミドルウェア。制限超過時は 429 を返す
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn keyed_rate_limit(
     limiter: Arc<DefaultKeyedRateLimiter<std::net::IpAddr>>,
     req: Request<Body>,
@@ -54,6 +58,45 @@ pub async fn keyed_rate_limit(
     }
     next.run(req).await
 }
+
+/// 指定ヘッダの値をレート制限キーとして取り出す。
+/// 欠落・読み取り不可・空値は `fallback` にまとめる（0.0.0.0 の共有バケットと同じ意味）。
+/// `X-Forwarded-For` 系はクライアントが偽装できるため対象にしない
+#[cfg(any(target_arch = "wasm32", test))]
+fn client_ip_key_from_header(
+    headers: &axum::http::HeaderMap,
+    header_name: &str,
+    fallback: &str,
+) -> String {
+    headers
+        .get(header_name)
+        .and_then(|v| v.to_str().ok())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+/// Cloudflare の `[[ratelimits]]` バインディングによるレート制限ミドルウェア。
+/// キーは `cf-connecting-ip`（Cloudflare がクライアント IP を正規化して付与するため
+/// クライアントによる偽装はできない）。`limit()` の呼び出し自体が失敗した場合は
+/// 通過させる（バインディング障害で全リクエストを止めない fail-open）
+#[cfg(target_arch = "wasm32")]
+pub async fn binding_rate_limit(
+    limiter: Arc<worker::RateLimiter>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    let key = client_ip_key_from_header(req.headers(), "cf-connecting-ip", "unknown");
+    match limiter.limit(key).await {
+        Ok(outcome) if outcome.success => next.run(req).await,
+        Ok(_) => rate_limit_error(),
+        Err(e) => {
+            worker::console_warn!("ratelimits binding error (fail-open): {e}");
+            next.run(req).await
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use {
@@ -64,6 +107,7 @@ mod tests {
     fn test_route() -> Router {
         Router::new().route("/test", post(|| async { "ok" }))
     }
+    #[cfg(not(target_arch = "wasm32"))]
     fn keyed_app(limiter: Arc<DefaultKeyedRateLimiter<std::net::IpAddr>>) -> Router {
         test_route().layer(middleware::from_fn(move |req, next| {
             let limiter = limiter.clone();
@@ -87,6 +131,7 @@ mod tests {
             expected
         );
     }
+    #[cfg(not(target_arch = "wasm32"))]
     #[tokio::test]
     async fn test_rate_limiters() {
         assert_eq!(
@@ -100,5 +145,34 @@ mod tests {
         assert_status(router.clone(), Some("1.2.3.4"), StatusCode::OK).await;
         assert_status(router.clone(), Some("5.6.7.8"), StatusCode::OK).await;
         assert_status(router, Some("1.2.3.4"), StatusCode::TOO_MANY_REQUESTS).await;
+    }
+
+    #[test]
+    fn test_client_ip_key_from_header() {
+        let mut headers = axum::http::HeaderMap::new();
+        // 値があればそのままキーになる（前後空白は除去）
+        headers.insert("cf-connecting-ip", " 203.0.113.10 ".parse().unwrap());
+        assert_eq!(
+            client_ip_key_from_header(&headers, "cf-connecting-ip", "unknown"),
+            "203.0.113.10"
+        );
+        // 欠落・空値はフォールバックの共有バケットに入る
+        assert_eq!(
+            client_ip_key_from_header(&axum::http::HeaderMap::new(), "cf-connecting-ip", "unknown"),
+            "unknown"
+        );
+        let mut empty = axum::http::HeaderMap::new();
+        empty.insert("cf-connecting-ip", "".parse().unwrap());
+        assert_eq!(
+            client_ip_key_from_header(&empty, "cf-connecting-ip", "unknown"),
+            "unknown"
+        );
+        // x-forwarded-for は信頼しない（指定ヘッダ以外は読まない）
+        let mut spoof = axum::http::HeaderMap::new();
+        spoof.insert("x-forwarded-for", "198.51.100.77".parse().unwrap());
+        assert_eq!(
+            client_ip_key_from_header(&spoof, "cf-connecting-ip", "unknown"),
+            "unknown"
+        );
     }
 }

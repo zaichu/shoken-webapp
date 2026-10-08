@@ -4,13 +4,20 @@ use axum::{
     routing::{delete, get, post},
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod asset_balances;
 pub mod auth;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod csv_import;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod dividend_per_share;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod dividends;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod domestic_stocks;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod mutual_funds;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod stocks;
 
 /// 認証系 v1 ルート（auth_limiter 対象）
@@ -33,6 +40,7 @@ pub fn auth_routes() -> Router<AppState> {
 }
 
 /// データ系 v1 ルート(data_limiter 対象)
+#[cfg(not(target_arch = "wasm32"))]
 pub fn data_routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -76,11 +84,13 @@ pub fn data_routes() -> Router<AppState> {
 }
 
 /// 銘柄検索 v1 ルート（stock_search_limiter 対象、未認証）
+#[cfg(not(target_arch = "wasm32"))]
 pub fn stock_search_routes() -> Router<AppState> {
     Router::new().route("/api/v1/stocks", get(stocks::search))
 }
 
 /// CSV アップロード系 v1 ルート（csv_limiter 対象）
+#[cfg(not(target_arch = "wasm32"))]
 pub fn csv_upload_routes() -> Router<AppState> {
     Router::new()
         .route("/api/v1/dividend-imports", post(dividends::import))

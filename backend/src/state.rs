@@ -1,3 +1,4 @@
+#[cfg(not(target_arch = "wasm32"))]
 use reqwest::Client;
 use std::sync::{Arc, atomic::AtomicBool};
 
@@ -8,7 +9,10 @@ use crate::services::auth::GoogleOAuthClient;
 /// 環境変数から取得するシークレット情報
 #[derive(Clone, Debug)]
 pub struct Secrets {
+    /// DB 接続情報。Workers 側は Hyperdrive バインディングが保持するため wasm では持たない
+    #[cfg(not(target_arch = "wasm32"))]
     pub database_url: String,
+    #[cfg(not(target_arch = "wasm32"))]
     pub jquants_api_key: Option<String>,
     pub google_client_id: Option<String>,
     pub google_client_secret: Option<String>,
@@ -16,6 +20,7 @@ pub struct Secrets {
 }
 
 impl Secrets {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_env() -> Result<Self, String> {
         Ok(Self {
             database_url: std::env::var("DATABASE_URL").map_err(|_| {
@@ -34,6 +39,31 @@ impl Secrets {
                 .unwrap_or_else(|_| "http://localhost:8081".to_string()),
         })
     }
+
+    /// Workers 側のシークレット解決。`wrangler secret` / `.dev.vars` の値は
+    /// `env.secret()` で、[vars] の値は `env.var()` で取れる
+    #[cfg(target_arch = "wasm32")]
+    pub fn from_worker_env(env: &worker::Env) -> Result<Self, String> {
+        fn get(env: &worker::Env, name: &str) -> Option<String> {
+            env.secret(name)
+                .ok()
+                .map(|v| v.to_string())
+                .or_else(|| env.var(name).ok().map(|v| v.to_string()))
+        }
+        let required = |name: &str| {
+            get(env, name).ok_or_else(|| {
+                format!(
+                    "{name} が設定されていません（wrangler secret / .dev.vars を確認してください）"
+                )
+            })
+        };
+        Ok(Self {
+            google_client_id: Some(required("GOOGLE_CLIENT_ID")?),
+            google_client_secret: Some(required("GOOGLE_CLIENT_SECRET")?),
+            frontend_url: get(env, "FRONTEND_URL")
+                .unwrap_or_else(|| "http://localhost:8081".to_string()),
+        })
+    }
 }
 
 #[derive(Clone, Default)]
@@ -45,8 +75,10 @@ pub struct DividendCacheState {
 pub struct AppState {
     pub pool: Db,
     pub secrets: Arc<Secrets>,
+    #[cfg(not(target_arch = "wasm32"))]
     pub client: Client,
     /// 配当キャッシュのバックグラウンド更新状態（多重起動防止）
+    #[cfg(not(target_arch = "wasm32"))]
     pub dividend_cache: DividendCacheState,
     /// 起動時に解決した実行設定
     pub config: Arc<Config>,

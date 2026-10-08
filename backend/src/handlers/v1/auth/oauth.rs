@@ -9,8 +9,6 @@ use axum_extra::extract::{
     CookieJar,
     cookie::{Cookie, SameSite},
 };
-use oauth2::{CsrfToken, PkceCodeChallenge, Scope};
-use openidconnect::Nonce;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -97,32 +95,23 @@ pub async fn google_auth(
 ) -> Result<(CookieJar, Redirect), ApiError> {
     let client = google_oauth_client(&state)?;
 
-    let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
-    let nonce = Nonce::new_random();
-    let (auth_url, csrf_token) = client
-        .authorize_url(CsrfToken::new_random)
-        .add_scope(Scope::new("openid".to_string()))
-        .add_scope(Scope::new("email".to_string()))
-        .add_scope(Scope::new("profile".to_string()))
-        .set_pkce_challenge(pkce_challenge)
-        .add_extra_param("nonce", nonce.secret())
-        .url();
+    let flow = auth_service::begin_google_auth(client);
 
     let is_secure = state.config.secure_cookie;
     let jar = jar
-        .add(build_state_cookie(csrf_token.secret(), is_secure))
+        .add(build_state_cookie(&flow.state, is_secure))
         .add(build_oauth_cookie(
             auth_service::OAUTH_PKCE_VERIFIER_COOKIE_NAME,
-            pkce_verifier.secret(),
+            &flow.pkce_verifier,
             is_secure,
         ))
         .add(build_oauth_cookie(
             auth_service::OAUTH_NONCE_COOKIE_NAME,
-            nonce.secret(),
+            &flow.nonce,
             is_secure,
         ));
 
-    Ok((jar, Redirect::to(auth_url.as_str())))
+    Ok((jar, Redirect::to(flow.authorize_url.as_str())))
 }
 
 pub async fn google_callback(
@@ -168,7 +157,7 @@ pub async fn google_callback(
         client,
         query.code,
         pkce_verifier,
-        Nonce::new(nonce),
+        &nonce,
     )
     .await?;
 
