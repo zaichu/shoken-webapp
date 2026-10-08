@@ -419,18 +419,20 @@ impl Db {
                     .get()
                     .await
                     .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                obj.batch_execute("BEGIN").await.map_err(DbError::Pg)?;
+                let guard = TxGuard::new(TxConn::Native(obj));
+                guard.conn().batch_execute("BEGIN").await?;
                 Ok(Tx {
-                    conn: Some(TxConn::Native(obj)),
+                    conn: Some(guard.disarm()),
                     done: false,
                 })
             }
             #[cfg(target_arch = "wasm32")]
             DbInner::Worker(db) => {
                 let client = db.fresh_client().await?;
-                client.batch_execute("BEGIN").await.map_err(DbError::Pg)?;
+                let guard = TxGuard::new(TxConn::Wasm(client));
+                guard.conn().batch_execute("BEGIN").await?;
                 Ok(Tx {
-                    conn: Some(TxConn::Wasm(client)),
+                    conn: Some(guard.disarm()),
                     done: false,
                 })
             }
@@ -564,6 +566,61 @@ impl TxConn {
             TxConn::Wasm(client) => client.batch_execute(sql).await.map_err(DbError::Pg),
         }
     }
+
+    /// 開いたかもしれないトランザクションを ROLLBACK で確実に閉じてから
+    /// 接続を手放す（native はプール返却、wasm は drop）。spawn できない
+    /// 場合は接続をプールから切り離して破棄し、サーバー側でロールバックさせる
+    fn rollback_and_release(self) {
+        match self {
+            #[cfg(not(target_arch = "wasm32"))]
+            TxConn::Native(obj) => {
+                if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                    handle.spawn(async move {
+                        let _ = obj.batch_execute("ROLLBACK").await;
+                        drop(obj);
+                    });
+                } else {
+                    drop(deadpool_postgres::Object::take(obj));
+                }
+            }
+            #[cfg(target_arch = "wasm32")]
+            TxConn::Wasm(client) => {
+                wasm_bindgen_futures::spawn_local(async move {
+                    let _ = client.batch_execute("ROLLBACK").await;
+                    drop(client);
+                });
+            }
+        }
+    }
+}
+
+/// BEGIN/COMMIT/ROLLBACK の await 中に呼び出し Future がキャンセルされると、
+/// 開いたトランザクションを残した接続がそのままプールへ戻り、次の借用者の
+/// クエリが他人のトランザクション内で実行される。完了確認まで接続を握って
+/// おくガード。Drop 時は ROLLBACK を送ってから接続を手放す
+struct TxGuard(Option<TxConn>);
+
+impl TxGuard {
+    fn new(conn: TxConn) -> Self {
+        TxGuard(Some(conn))
+    }
+
+    fn conn(&self) -> &TxConn {
+        self.0.as_ref().expect("トランザクションの接続がありません")
+    }
+
+    /// トランザクション状態が確定した接続を取り出してガードを解除する
+    fn disarm(mut self) -> TxConn {
+        self.0.take().expect("トランザクションの接続がありません")
+    }
+}
+
+impl Drop for TxGuard {
+    fn drop(&mut self) {
+        if let Some(conn) = self.0.take() {
+            conn.rollback_and_release();
+        }
+    }
 }
 
 impl Tx {
@@ -572,8 +629,10 @@ impl Tx {
             .conn
             .take()
             .expect("トランザクションの接続がありません");
-        conn.batch_execute("COMMIT").await?;
         self.done = true;
+        let guard = TxGuard::new(conn);
+        guard.conn().batch_execute("COMMIT").await?;
+        drop(guard.disarm());
         Ok(())
     }
 
@@ -583,8 +642,10 @@ impl Tx {
             .conn
             .take()
             .expect("トランザクションの接続がありません");
-        conn.batch_execute("ROLLBACK").await?;
         self.done = true;
+        let guard = TxGuard::new(conn);
+        guard.conn().batch_execute("ROLLBACK").await?;
+        drop(guard.disarm());
         Ok(())
     }
 }
@@ -596,27 +657,8 @@ impl Drop for Tx {
         }
         // commit なしで drop された = ロールバック要。
         // 接続をプールへ戻す前に ROLLBACK を送る（送れない環境では接続ごと破棄される）
-        let Some(conn) = self.conn.take() else {
-            return;
-        };
-        match conn {
-            #[cfg(not(target_arch = "wasm32"))]
-            TxConn::Native(obj) => {
-                if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                    handle.spawn(async move {
-                        let _ = obj.batch_execute("ROLLBACK").await;
-                        drop(obj);
-                    });
-                }
-                // spawn できない場合は Object が drop され接続は破棄される
-            }
-            #[cfg(target_arch = "wasm32")]
-            TxConn::Wasm(client) => {
-                wasm_bindgen_futures::spawn_local(async move {
-                    let _ = client.batch_execute("ROLLBACK").await;
-                    drop(client);
-                });
-            }
+        if let Some(conn) = self.conn.take() {
+            conn.rollback_and_release();
         }
     }
 }
