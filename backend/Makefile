@@ -51,6 +51,16 @@ check:
 	@echo "🔍 コンパイルチェックを実行します..."
 	$(CARGO) check
 
+.PHONY: worker-build
+worker-build:
+	@echo "🔨 Cloudflare Workers 向けに wasm ビルドします..."
+	worker-build --release
+
+.PHONY: worker-dev
+worker-dev:
+	@echo "🚀 wrangler dev でローカル起動します..."
+	npx wrangler dev
+
 # テスト関連
 .PHONY: test
 test:
