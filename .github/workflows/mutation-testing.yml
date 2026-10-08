@@ -110,10 +110,12 @@ jobs:
 
       - name: Run cargo-mutants on PR diff
         if: steps.list.outputs.count != '0'
-        # 各クレートは単独 workspace のため、/tmp へのコピーでは ../shared を解決できず
-        # ベースビルドが失敗する。コピー先の隣に shared への symlink を張る
+        # 各クレートは単独 workspace のため、/tmp へのコピーでは ../shared と
+        # ../../docs(openapi.json の include_str)を解決できずベースビルドが失敗する。
+        # コピー先の隣に symlink を張る
         run: |
           ln -sfn "$(realpath ../shared)" /tmp/shared
+          ln -sfn "$(realpath ../docs)" /tmp/docs
           cargo mutants -j 4 --in-diff mutants.diff
 
       - name: Upload mutants.out
@@ -167,8 +169,9 @@ jobs:
       - name: Run cargo-mutants shard
         run: |
           set +e
-          # diff ジョブと同じく ../shared パス依存対策の symlink を張る
+          # diff ジョブと同じく ../shared と ../../docs パス依存対策の symlink を張る
           ln -sfn "$(realpath ../shared)" /tmp/shared
+          ln -sfn "$(realpath ../docs)" /tmp/docs
           cargo mutants -j 4 --shard ${{ matrix.shard }}/4
           code=$?
           set -e
