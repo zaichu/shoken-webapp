@@ -5,7 +5,9 @@ use crate::services::domain::bulk::RowLimit;
 pub mod cors;
 pub mod environment;
 
-pub use cors::{build_cors_layer, is_localhost_origin, parse_cors_origins};
+pub use cors::{
+    build_cors_layer, is_localhost_origin, is_pages_preview_origin, parse_cors_origins,
+};
 pub use environment::RuntimeEnv;
 
 /// `USER_ROW_LIMIT` 未設定時の既定値（ユーザー1人あたりの登録行数上限）
@@ -40,6 +42,7 @@ impl Default for Config {
         Self {
             cors_origins: vec![
                 "https://shoken-webapp.vercel.app".to_string(),
+                "https://shoken-webapp.pages.dev".to_string(),
                 "http://localhost:8081".to_string(),
                 "http://127.0.0.1:8081".to_string(),
                 "http://[::1]:8081".to_string(),
