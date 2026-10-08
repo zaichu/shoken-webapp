@@ -9,8 +9,8 @@ COPY backend/Cargo.toml backend/Cargo.lock ./
 COPY rust-toolchain.toml /app/rust-toolchain.toml
 COPY shared /app/shared
 
-# ダミーのsrc/main.rsを作成して依存関係をキャッシュ
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+# ダミーのsrc/main.rsとsrc/lib.rsを作成して依存関係をキャッシュ
+RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "" > src/lib.rs
 RUN cargo build --release && rm -rf src
 
 # 実際のソースコードをコピー

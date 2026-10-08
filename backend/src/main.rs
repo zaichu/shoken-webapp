@@ -1,17 +1,28 @@
+#[cfg(not(target_arch = "wasm32"))]
 use backend::config::Config;
+#[cfg(not(target_arch = "wasm32"))]
 use backend::db::{run_migrations, wait_for_pool_with_retry};
+#[cfg(not(target_arch = "wasm32"))]
 use backend::logging;
+#[cfg(not(target_arch = "wasm32"))]
 use backend::routes::app_router;
+#[cfg(not(target_arch = "wasm32"))]
 use backend::startup::build_startup_state;
+#[cfg(not(target_arch = "wasm32"))]
 use backend::state::Secrets;
+#[cfg(not(target_arch = "wasm32"))]
 use dotenvy::dotenv;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpListener;
 
+#[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() {
     dotenv().ok();
@@ -106,3 +117,7 @@ async fn main() {
         .await
         .expect("サーバーの起動に失敗しました");
 }
+
+// worker-build の wasm ビルドでは bin も対象になるため、ネイティブ専用コードを cfg で閉じて空の main を置く
+#[cfg(target_arch = "wasm32")]
+fn main() {}
