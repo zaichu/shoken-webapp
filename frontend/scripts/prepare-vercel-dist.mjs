@@ -63,22 +63,22 @@ writeFileSync(
 console.log(`externalized init script -> ${initName}`);
 
 function sourceToCloudflarePattern(source) {
-  if (source === '/(.*)') return '*';
-  if (source === '/:name.wasm') return '*.wasm';
-  if (source === '/:name.js') return '*.js';
-  if (source === '/:name.css') return '*.css';
+  if (source === '/(.*)') return '/*';
+  if (source === '/:name.wasm') return '/*.wasm';
+  if (source === '/:name.js') return '/*.js';
+  if (source === '/:name.css') return '/*.css';
   return source;
 }
 
 function generateCloudflareConfigFiles(distDir) {
-  const vercelPath = join(__dirname, '..', 'vercel.json');
+  const vercelPath = join(import.meta.dirname, '..', 'vercel.json');
   const vercel = JSON.parse(readFileSync(vercelPath, 'utf8'));
 
   // _headers の生成
   const headerRules = (vercel.headers ?? []).map((rule) => {
     const pattern = sourceToCloudflarePattern(rule.source);
     const headerLines = rule.headers.map((h) => `  ${h.key}: ${h.value}`).join('\n');
-    return `/*\n${headerLines}\n*/`;
+    return `${pattern}\n${headerLines}\n*/`;
   });
 
   // _redirects の生成 (rewrites から)
