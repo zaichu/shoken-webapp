@@ -7,7 +7,7 @@
 - フロントは Leptos CSR を Trunk でビルドした静的ファイル一式。サーバ側の処理は無い
   (API は Fly.io 上の Rust/Axum バックエンド `https://shoken-backend.fly.dev` が担う)。
 - 配信は Vercel。本番 URL は `https://shoken-webapp.vercel.app`
-  (既定値は `backend/src/config.rs:41`、本番値は Fly secrets の `FRONTEND_URL`。`docs/runbook.md:80` 参照)。
+  (CORS 許可 origin の既定値は `backend/src/config.rs:41`、本番値は Fly secrets の `FRONTEND_URL`。`docs/runbook.md:80` 参照)。
 - `frontend/vercel.json` が配信の振る舞いを決めている:
   - rewrite `/(.*)` → `/index.html` (SPA フォールバック)。
   - 全体に CSP・`Cache-Control: public, max-age=0, must-revalidate`・`nosniff`・`DENY`・
@@ -133,16 +133,22 @@
 
 1. Cloudflare に Direct Upload プロジェクトを作り、`*.pages.dev` を取得する (ダッシュボード操作)。
 2. CI に Pages デプロイワークフローを足す (Vercel 並行)。最初はプレビューのみに出す。
-3. backend の `CORS_ORIGINS` に新 origin を追加し (旧は残す)、Pages プレビューでログイン一巡を確認する。
-4. `FRONTEND_URL` を新 URL に切り替える (Fly secrets + backend 再デプロイ)。
-5. 本番配信を Pages で確認後、Vercel 本番を無効化する (削除はしない。
+3. backend の `CORS_ORIGINS` に Pages 本番 origin を追加 (旧は残す)、
+   Pages プレビューで表示と未ログイン時の API 疎通を確認する。
+4. Pages 本番ブランチへデプロイし、本番 URL で表示とログインを確認する。
+5. `FRONTEND_URL` を Pages 本番 URL に切り替える (Fly secrets + backend 再デプロイ)。
+6. 本番配信を Pages で確認後、Vercel 本番を止める (削除はしない。
    `LEPTOS_PRODUCTION_ENABLED` を落とすかダッシュボードで停止し、切り戻しに備える)。
-6. 1〜2 週間問題がなければ Vercel プロジェクトを削除し、関連 secrets
+   `LEPTOS_PRODUCTION_ENABLED` を落とすのは以降のデプロイ先をプレビューに変えるだけで、
+   既存の本番デプロイは配信され続ける。旧 URL の利用者は古いビルドを使い続け、
+   CORS にも旧 origin が残るため手順 7 まで動き続ける。
+7. 1〜2 週間問題がなければ Vercel プロジェクトを削除し、関連 secrets
    (`VERCEL_TOKEN`・`VERCEL_ORG_ID`・`VERCEL_PROJECT_ID`) を整理する。
    backend 既定 origin の `vercel.app` と `is_vercel_preview_origin` を撤去する。
 
 切り戻し手順: `FRONTEND_URL` と `CORS_ORIGINS` を旧に戻して backend を再デプロイし、
-Vercel に再デプロイする (Vercel プロジェクトは手順 6 まで残すことが前提)。
+`LEPTOS_PRODUCTION_ENABLED` を `true` に戻して Vercel に再デプロイする
+(Vercel プロジェクトは手順 7 まで残すことが前提)。
 
 ## 6. 無料枠に収まる根拠
 
@@ -167,10 +173,10 @@ Vercel に再デプロイする (Vercel プロジェクトは手順 6 まで残�
 
 1. `_headers`・`_redirects` 生成 (prepare スクリプトの拡張と設定ファイル切替え) + 配信 E2E の拡充。
    受け入れ: `serve-dist.mjs` 相当のローカル配信でヘッダー・SPA フォールバックを確認。
-2. CI の Pages デプロイ (プレビューのみ、PR コメント投稿)。Vercel 経路は残す。
-   受け入れ: PR で Pages プレビュー URL が投稿され、表示・ログイン一巡が通る。
-3. backend の CORS・preview 述語の Pages 対応。
+2. backend の CORS・preview 述語の Pages 対応。Vercel の origin と述語は残す。
    受け入れ: 新旧両 origin で preflight が通ることの単体テスト。
+3. CI の Pages デプロイ (プレビュー+本番、PR コメント投稿)。Vercel 経路は残す。
+   受け入れ: PR で Pages プレビュー URL が投稿され、表示・ログイン一巡が通る。
 4. 本番切替 + Vercel 無効化 + docs 更新 (`runbook.md`・`architecture.md`・deploy skill)。
    切り戻し手順の記録を含む。Vercel 削除は別 PR にし、様子見期間を空ける。
 
