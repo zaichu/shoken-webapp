@@ -9,7 +9,6 @@ pub mod asset_balances;
 pub mod auth;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod csv_import;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod dividend_per_share;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod dividends;

@@ -36,6 +36,11 @@ name = "RATE_LIMIT_DATA"
 namespace_id = "1004"
 simple = { limit = 100, period = 10 }
 
+# 毎分実行し、配当キャッシュの stale/pending 銘柄を消化する。
+# named env はトップレベルの triggers を継承しないため env.dev にも定義する
+[triggers]
+crons = ["* * * * *"]
+
 [build]
 command = "worker-build --release"
 
@@ -72,3 +77,6 @@ simple = { limit = 100, period = 10 }
 name = "RATE_LIMIT_DATA"
 namespace_id = "1004"
 simple = { limit = 100, period = 10 }
+
+[env.dev.triggers]
+crons = ["* * * * *"]

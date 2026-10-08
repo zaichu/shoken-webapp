@@ -1654,6 +1654,176 @@ async fn dividend_cache_persistence_and_rate_slot() {
     );
 }
 
+/// Workers 側の cron 消化経路(drain_refresh_queue)が native でも正しく動くこと。
+/// pending / error(無cooldown) は消化対象、429 cooldown 中(未来の stale_at)は対象外
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn dividend_cache_drain_refresh_queue() {
+    use backend::services::jquants::JQuantsClient;
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path, query_param},
+    };
+
+    let (pool, _node) = start_test_pool().await;
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/v2/fins/summary"))
+        .and(query_param("code", "7203"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{"DiscDate": "2024-05-10", "Code": "7203", "DocType": "FY",
+                      "NxFDivAnn": "", "FDivAnn": "45.25", "DivAnn": "40.00"}]
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/v2/fins/summary"))
+        .and(query_param("code", "8306"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{"DiscDate": "2024-05-10", "Code": "8306", "DocType": "FY",
+                      "NxFDivAnn": "", "FDivAnn": "", "DivAnn": ""}]
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    // 9107 は cooldown 中のため J-Quants に問い合わせない
+    Mock::given(method("GET"))
+        .and(path("/v2/fins/summary"))
+        .and(query_param("code", "9107"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("should not be called"))
+        .expect(0)
+        .mount(&server)
+        .await;
+
+    let client = JQuantsClient::with_base_url(
+        Client::new(),
+        "test-api-key".to_string(),
+        format!("{}/v2/fins/summary", server.uri()),
+    );
+
+    // pending 行(Workers 側 get_batch のエンキュー相当)と即時再取得対象の error 行を積む
+    for code in ["7203", "8306"] {
+        db::query(
+            "INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
+             VALUES ($1, 'pending', 'jquants', NOW())",
+            vec![Bind::from(code)],
+        )
+        .execute(&pool)
+        .await
+        .expect("pending 行の投入");
+    }
+    // 8306 はエラー行に戻して「error + stale_at NULL = 即時再取得対象」の経路を確認
+    dividend_cache::persistence::update_cache_error(
+        &pool,
+        &"8306".parse::<SecurityCode>().unwrap(),
+        "previous fetch failed",
+    )
+    .await
+    .expect("error 行の更新");
+    // 429 cooldown 中の error 行は消化対象外
+    dividend_cache::persistence::update_cache_error_with_cooldown(
+        &pool,
+        &"9107".parse::<SecurityCode>().unwrap(),
+        "429",
+        3600,
+    )
+    .await
+    .expect("cooldown 行の投入");
+
+    let processed = dividend_cache::drain_refresh_queue(&pool, &client)
+        .await
+        .expect("drain 失敗");
+    assert_eq!(processed, 2, "cooldown 中の銘柄を除く 2 件を消化する");
+
+    let row: (String, Option<f64>) = db::query_as(
+        "SELECT status, dividend_per_share FROM dividend_per_share_cache
+         WHERE security_code = '7203'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(row.0, "ok");
+    assert_eq!(row.1, Some(45.25));
+    let row: (Option<chrono::DateTime<Utc>>,) = db::query_as(
+        "SELECT stale_at FROM dividend_per_share_cache WHERE security_code = '7203'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(
+        row.0.unwrap() > Utc::now(),
+        "消化後は stale_at が未来になる"
+    );
+
+    let row: (String, Option<f64>) = db::query_as(
+        "SELECT status, dividend_per_share FROM dividend_per_share_cache
+         WHERE security_code = '8306'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(row.0, "zero", "配当情報なしは zero 扱い");
+    assert_eq!(row.1, Some(0.0));
+
+    let row: (String, Option<String>) = db::query_as(
+        "SELECT status, error_message FROM dividend_per_share_cache
+         WHERE security_code = '9107'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(row.0, "error");
+    assert_eq!(row.1.as_deref(), Some("429"));
+
+    // 429 中断と cooldown 設定の確認（モックが 429 を返すコード）
+    Mock::given(method("GET"))
+        .and(path("/v2/fins/summary"))
+        .and(query_param("code", "9999"))
+        .respond_with(ResponseTemplate::new(429).set_body_string("rate limited"))
+        .expect(1)
+        .mount(&server)
+        .await;
+    db::query(
+        "INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
+         VALUES ('9999', 'pending', 'jquants', NOW())",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    // cooldown 済みの rate control 行が残っていると drain 自体が待機するためリセット
+    db::query(
+        "DELETE FROM market_data_provider_rate_control WHERE provider = 'jquants'",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    dividend_cache::drain_refresh_queue(&pool, &client)
+        .await
+        .expect("drain 失敗");
+    let row: (String, Option<chrono::DateTime<Utc>>) = db::query_as(
+        "SELECT status, stale_at FROM dividend_per_share_cache
+         WHERE security_code = '9999'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(row.0, "error");
+    assert!(
+        row.1.unwrap() > Utc::now(),
+        "429 後は cooldown の未来 stale_at"
+    );
+}
+
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn user_row_limit_rejects_over_limit_inserts() {

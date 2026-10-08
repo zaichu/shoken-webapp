@@ -1,3 +1,6 @@
+// tokio::spawn ベースのバックグラウンド更新は isolate にスレッドを持てない wasm では
+// コンパイルしない。wasm 側は get_batch が pending 行を積み、cron が消化する
+#[cfg(not(target_arch = "wasm32"))]
 mod background;
 mod logic;
 // tests/db_integration.rs からの検証用に公開しているため docs には出さない
@@ -5,17 +8,20 @@ mod logic;
 pub mod persistence;
 
 use crate::db::{Bind, Db};
-use crate::errors::ApiError;
+use crate::errors::{ApiError, UpstreamError};
 use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
 use crate::services::jquants::JQuantsClient;
 use chrono::Utc;
+#[cfg(not(target_arch = "wasm32"))]
 use reqwest::Client;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::{Arc, atomic::AtomicBool};
-use tokio::time::Duration;
+use std::time::Duration;
 
 use logic::compute_is_stale;
+use persistence::{fetch_and_cache, update_cache_error, update_cache_error_with_cooldown};
 
 /// 429 発生時の全インスタンス共有 cooldown 期間（秒）
 const RATE_LIMIT_COOLDOWN_SECS: i32 = 60;
@@ -23,7 +29,17 @@ const RATE_LIMIT_COOLDOWN_SECS: i32 = 60;
 /// market_data_provider_rate_control.provider の J-Quants 用キー
 const JQUANTS_PROVIDER: &str = "jquants";
 
+/// scheduled イベント1回の実行で消化する銘柄数の上限。
+/// 12秒間隔スロットで最大約4銘柄/分（設計 §8-4）。残りは次回の cron に委ねる
+const MAX_DRAIN_CODES_PER_RUN: i64 = 4;
+
+/// 429 レートリミットエラーの場合に消化を打ち切るべきか判定する
+pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
+    matches!(e, ApiError::Upstream(UpstreamError::RateLimited))
+}
+
 /// キャッシュをバッチ取得し、未取得/TTL切れ銘柄のバックグラウンド更新をキック
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn get_batch(
     pool: &Db,
     client: &Client,
@@ -31,8 +47,72 @@ pub async fn get_batch(
     codes: &[SecurityCode],
     background_task_running: &Arc<AtomicBool>,
 ) -> Result<Vec<DividendPerShareItem>, ApiError> {
+    let (items, refresh_codes) = fetch_cached_items(pool, codes).await?;
+
+    // バックグラウンド更新をキック（多重起動防止）
+    if !refresh_codes.is_empty() {
+        if let Some(key) = api_key {
+            let jquants_client = JQuantsClient::new(client.clone(), key.to_string());
+            background::spawn_background_refresh(
+                pool.clone(),
+                jquants_client,
+                refresh_codes,
+                Arc::clone(background_task_running),
+            );
+        } else {
+            tracing::warn!("JQUANTS_API_KEY が未設定のためバックグラウンド更新をスキップ");
+        }
+    }
+
+    Ok(items)
+}
+
+/// Workers 版: isolate 内で spawn できないため、未取得/TTL切れ銘柄を pending 行として
+/// DB に積み、scheduled イベント（毎分 cron）が drain_refresh_queue で消化する
+#[cfg(target_arch = "wasm32")]
+pub async fn get_batch(
+    pool: &Db,
+    jquants_client: Option<&JQuantsClient>,
+    codes: &[SecurityCode],
+) -> Result<Vec<DividendPerShareItem>, ApiError> {
+    let (items, refresh_codes) = fetch_cached_items(pool, codes).await?;
+
+    if !refresh_codes.is_empty() {
+        if jquants_client.is_some() {
+            enqueue_refresh(pool, &refresh_codes).await?;
+        } else {
+            tracing::warn!("JQUANTS_API_KEY が未設定のため更新キュー投入をスキップ");
+        }
+    }
+
+    Ok(items)
+}
+
+/// 未取得銘柄を pending 行として積む。
+/// 既存行は stale_at / cooldown 経過で cron の選定条件を満たすため、そのままにする
+/// （status が pending の間は compute_is_stale=false で再投入も起きない）
+#[cfg(target_arch = "wasm32")]
+async fn enqueue_refresh(pool: &Db, codes: &[SecurityCode]) -> Result<(), ApiError> {
+    crate::db::query(
+        r#"
+        INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
+        SELECT code, 'pending', 'jquants', NOW()
+        FROM unnest($1::varchar[]) AS code
+        ON CONFLICT (security_code) DO NOTHING
+        "#,
+        vec![Bind::from(codes.to_vec())],
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn fetch_cached_items(
+    pool: &Db,
+    codes: &[SecurityCode],
+) -> Result<(Vec<DividendPerShareItem>, Vec<SecurityCode>), ApiError> {
     if codes.is_empty() {
-        return Ok(vec![]);
+        return Ok((vec![], vec![]));
     }
 
     // DB からキャッシュを一括取得（ANY がDB側で重複を除く）
@@ -55,24 +135,74 @@ pub async fn get_batch(
         .map(|c| (c.security_code.as_str(), c))
         .collect();
 
-    let (items, refresh_codes) = build_batch_items(codes, &cache_map, now);
+    Ok(build_batch_items(codes, &cache_map, now))
+}
 
-    // バックグラウンド更新をキック（多重起動防止）
-    if !refresh_codes.is_empty() {
-        if let Some(key) = api_key {
-            let jquants_client = JQuantsClient::new(client.clone(), key.to_string());
-            background::spawn_background_refresh(
-                pool.clone(),
-                jquants_client,
-                refresh_codes,
-                Arc::clone(background_task_running),
-            );
-        } else {
-            tracing::warn!("JQUANTS_API_KEY が未設定のためバックグラウンド更新をスキップ");
+/// scheduled イベントから stale/pending 銘柄を消化する。
+/// レート制御は market_data_provider_rate_control で全インスタンス共有されるため、
+/// Fly.io 側のバックグラウンド更新と並走しても 12 秒間隔は破られない。
+/// 中断規則は background refresh と同じ（429→cooldown+中断、スロット失敗→中断）。
+/// 戻り値は今回の実行で実際に取得を試みた件数（ログ・テスト用）
+pub async fn drain_refresh_queue(
+    pool: &Db,
+    jquants_client: &JQuantsClient,
+) -> Result<usize, ApiError> {
+    // status='pending' は stale_at が NULL、error(無cooldown) も NULL で拾われる。
+    // 429 cooldown 中（error + 未来の stale_at）は対象外
+    let codes: Vec<SecurityCode> = crate::db::query(
+        r#"
+        SELECT security_code FROM dividend_per_share_cache
+        WHERE status = 'pending' OR stale_at IS NULL OR stale_at < NOW()
+        ORDER BY stale_at ASC NULLS FIRST, updated_at ASC
+        LIMIT $1
+        "#,
+        vec![Bind::from(MAX_DRAIN_CODES_PER_RUN)],
+    )
+    .fetch_all::<(SecurityCode,), _>(pool)
+    .await?
+    .into_iter()
+    .map(|(code,)| code)
+    .collect();
+
+    let mut processed = 0;
+    for code in codes {
+        if let Err(e) = acquire_rate_slot(pool).await {
+            tracing::error!("レート制御スロット取得エラー: {}", e);
+            break;
+        }
+        match fetch_and_cache(pool, jquants_client, &code).await {
+            Ok(status) => {
+                processed += 1;
+                tracing::info!("配当キャッシュ更新完了: code={}, status={}", code, status);
+            }
+            Err(e) if should_abort_on_error(&e) => {
+                tracing::warn!(
+                    "配当キャッシュ更新: レートリミット超過 code={}, 消化を中断",
+                    code
+                );
+                if let Err(err) = update_cache_error_with_cooldown(
+                    pool,
+                    &code,
+                    &e.to_string(),
+                    RATE_LIMIT_COOLDOWN_SECS,
+                )
+                .await
+                {
+                    tracing::error!("配当キャッシュ エラー記録失敗: code={}, err={}", code, err);
+                }
+                if let Err(err) = push_rate_control_cooldown(pool).await {
+                    tracing::error!("レートリミット cooldown 設定失敗: err={}", err);
+                }
+                break;
+            }
+            Err(e) => {
+                processed += 1;
+                tracing::error!("配当キャッシュ更新エラー: code={}, err={}", code, e);
+                let _ = update_cache_error(pool, &code, &e.to_string()).await;
+            }
         }
     }
-
-    Ok(items)
+    Ok(processed)
 }
 
 #[allow(clippy::needless_lifetimes)]
@@ -131,12 +261,20 @@ pub async fn acquire_rate_slot(pool: &Db) -> Result<(), ApiError> {
             let wait_ms = (slot_time - now).num_milliseconds().max(0) as u64;
             if wait_ms > 0 {
                 tracing::debug!("レート制御: {}ms 待機", wait_ms);
-                tokio::time::sleep(Duration::from_millis(wait_ms)).await;
+                sleep_millis(wait_ms).await;
             }
         }
     }
 
     Ok(())
+}
+
+/// native は tokio タイマー、wasm は worker::Delay（ランタイム提供のタイマー）で待機する
+async fn sleep_millis(ms: u64) {
+    #[cfg(not(target_arch = "wasm32"))]
+    tokio::time::sleep(Duration::from_millis(ms)).await;
+    #[cfg(target_arch = "wasm32")]
+    worker::Delay::from(Duration::from_millis(ms)).await;
 }
 
 /// 429 発生時に market_data_provider_rate_control.next_available_at を少なくとも cooldown 分先へ延ばす
