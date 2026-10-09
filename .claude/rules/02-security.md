@@ -11,11 +11,11 @@
 - 個人情報（メールアドレス等）
 - 本番環境の接続情報
 
-秘密情報はローカルの `.env`（git 管理外）と Fly.io Secrets / GitHub Secrets で管理する。
+秘密情報はローカルの `.env`（git 管理外）と Cloudflare Workers の secrets / GitHub Secrets で管理する。
 
 ## HTTPS と本番判定
 
-- 本番環境では必ずHTTPS（Fly.io は `force_https`、Vercel は自動で HTTPS）
+- 本番環境では必ずHTTPS（Cloudflare Pages / Workers は自動で HTTPS）
 - 本番かどうかの判定は `RUST_ENV` / `APP_ENV` の値だけで行う（fail-safe）。
   開発用の値（`local` / `dev` / `development` / `test`）がすべてに明示設定されたときだけ非本番。
   未設定・不明値は本番扱いなので、ローカル起動では `APP_ENV=development` を設定する
@@ -37,7 +37,7 @@
 
 - 新しい外部公開エンドポイントには、既存の keyed IP limiter（auth / stock_search / csv / data のいずれか）への所属を検討する
 - ユーザーあたりの保存行数上限（`USER_ROW_LIMIT`）を超える追加は拒否する
-- クライアント IP は `fly-client-ip` を使い、`X-Forwarded-For` を信用しない
+- クライアント IP は `cf-connecting-ip` を使い、`X-Forwarded-For` を信用しない
 
 ## ログ出力
 
@@ -58,7 +58,7 @@
 
 - `uses:` は 40 桁のコミット SHA で固定する
 - `pull_request_target` では PR のコードを checkout しない
-- デプロイ用 secrets（`FLY_API_TOKEN` / `VERCEL_*`）を PR のジョブに渡さない
+- デプロイ用 secrets（`CLOUDFLARE_API_TOKEN` など）を PR のジョブに渡さない
 
 ## 受け入れたリスク
 

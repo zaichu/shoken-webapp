@@ -23,9 +23,6 @@ pub fn build_cors_layer(cors_origins: &[String]) -> CorsLayer {
     CorsLayer::new()
         .allow_origin(tower_http::cors::AllowOrigin::predicate(
             move |origin, _| {
-                if is_vercel_preview_origin(origin.to_str().unwrap_or_default()) {
-                    return true;
-                }
                 if is_pages_preview_origin(origin.to_str().unwrap_or_default()) {
                     return true;
                 }
@@ -49,18 +46,6 @@ pub fn parse_cors_origins(raw: &str) -> Vec<String> {
         .filter(|origin| !origin.is_empty())
         .map(|origin| origin.to_string())
         .collect()
-}
-
-// Vercel プレビューは `<project>-<hash>-<team>.vercel.app` 形式で、チームスラッグは自チームの
-// デプロイにしか発行されない。前方のドット混入(別ドメイン偽装)も排除して厳密に一致させる
-pub(crate) fn is_vercel_preview_origin(origin: &str) -> bool {
-    let Some(host) = origin.strip_prefix("https://") else {
-        return false;
-    };
-    let Some(project) = host.strip_suffix("-zaichus-projects.vercel.app") else {
-        return false;
-    };
-    project.starts_with("shoken-webapp") && !project.contains(['.', ':', '/'])
 }
 
 /// Cloudflare Pages プレビューは `<hash>.<project>.pages.dev` (ハッシュ URL) と
@@ -102,8 +87,7 @@ pub fn is_localhost_origin(origin: &str) -> bool {
 mod tests {
     use {
         super::{
-            build_cors_layer, is_localhost_origin, is_pages_preview_origin,
-            is_vercel_preview_origin, parse_cors_origins,
+            build_cors_layer, is_localhost_origin, is_pages_preview_origin, parse_cors_origins,
         },
         crate::state::AppState,
         axum::{
@@ -182,40 +166,6 @@ mod tests {
             ),
         ] {
             assert_eq!(parse_cors_origins(input), strings(expected));
-        }
-    }
-
-    #[test]
-    fn test_is_vercel_preview_origin() {
-        for (origin, expected) in [
-            (
-                "https://shoken-webapp-abc123-zaichus-projects.vercel.app",
-                true,
-            ),
-            (
-                "https://shoken-webapp-git-main-zaichus-projects.vercel.app",
-                true,
-            ),
-            // チーム外の同名プロジェクトや偽装サフィックスは拒否する
-            ("https://shoken-webapp-abc123-otherteam.vercel.app", false),
-            ("https://other-app-abc-zaichus-projects.vercel.app", false),
-            ("https://notzaichus-projects.vercel.app", false),
-            ("https://zaichus-projects.vercel.app.evil.com", false),
-            (
-                "https://shoken-webapp.evil-zaichus-projects.vercel.app",
-                false,
-            ),
-            (
-                "http://shoken-webapp-abc-zaichus-projects.vercel.app",
-                false,
-            ),
-            ("https://shoken-webapp.vercel.app", false),
-        ] {
-            assert_eq!(
-                is_vercel_preview_origin(origin),
-                expected,
-                "unexpected classification: {origin}"
-            );
         }
     }
 

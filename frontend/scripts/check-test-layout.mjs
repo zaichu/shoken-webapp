@@ -41,7 +41,7 @@ export function checkTestLayout(root) {
       }
     }
   });
-  for (const oldPath of ['e2e/migrated', 'e2e/__fixtures__', 'e2e-vercel']) {
+  for (const oldPath of ['e2e/migrated', 'e2e/__fixtures__']) {
     const path = join(root, oldPath);
     if (existsSync(path) && readdirSync(path).length > 0) {
       violations.push(`${oldPath}: 旧配置を使わない`);

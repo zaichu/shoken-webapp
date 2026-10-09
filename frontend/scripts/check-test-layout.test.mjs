@@ -24,7 +24,7 @@ test('単一ファイルと分割テスト、機能別E2Eは併存できる', (t
     'src/features/receipts/tests/suite.rs',
     'src/features/receipts/tests/csv.rs',
     'e2e/receipts/desktop-layout.spec.ts',
-    'e2e/deploy/vercel-config.spec.ts',
+    'e2e/deploy/deploy-config.spec.ts',
     'e2e/support/test.ts',
     'e2e/fixtures/receipts-print.ts',
   ]);
@@ -38,7 +38,6 @@ for (const [name, files, message] of [
   ['Issue接頭辞の番号名', ['e2e/receipts/issue-1163-layout.spec.ts'], /Issue番号/],
   ['番号だけの名前', ['e2e/receipts/1163-layout.spec.ts'], /Issue番号/],
   ['旧migrated配置', ['e2e/migrated/flow.spec.ts'], /migrated/],
-  ['旧Vercel配置', ['e2e-vercel/vercel-config.spec.ts'], /e2e-vercel/],
   ['撮影専用spec', ['e2e/receipts/screenshots.spec.ts'], /撮影/],
   ['補助配下のspec', ['e2e/support/idle.spec.ts'], /support/],
   ['深すぎる配置', ['e2e/receipts/mobile/flow.spec.ts'], /機能/],

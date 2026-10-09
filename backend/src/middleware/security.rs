@@ -87,7 +87,6 @@ pub async fn validate_origin(
     match origin {
         Some(ref o)
             if allowed_origins.iter().any(|a| a == o)
-                || crate::config::cors::is_vercel_preview_origin(o)
                 || crate::config::cors::is_pages_preview_origin(o) =>
         {
             // 許可されたオリジン → 通過
@@ -109,7 +108,6 @@ pub async fn validate_origin(
                 Some(ref r)
                     if extract_origin(r).is_some_and(|o| {
                         allowed_origins.iter().any(|a| a == o)
-                            || crate::config::cors::is_vercel_preview_origin(o)
                             || crate::config::cors::is_pages_preview_origin(o)
                     }) =>
                 {
@@ -145,7 +143,7 @@ mod tests {
 
     fn test_app(strict_origin_check: bool) -> Router {
         let allowed_origins = Arc::new(vec![
-            "https://shoken-webapp.vercel.app".to_string(),
+            "https://shoken-webapp.pages.dev".to_string(),
             "http://localhost:8080".to_string(),
             "http://127.0.0.1:8080".to_string(),
             "http://[::1]:8080".to_string(),
@@ -188,12 +186,12 @@ mod tests {
                 Some("http://localhost:8080"),
             ),
             (
-                "https://shoken-webapp.vercel.app",
-                Some("https://shoken-webapp.vercel.app"),
+                "https://shoken-webapp.pages.dev",
+                Some("https://shoken-webapp.pages.dev"),
             ),
             (
-                "https://shoken-webapp.vercel.app.evil.com/steal",
-                Some("https://shoken-webapp.vercel.app.evil.com"),
+                "https://shoken-webapp.pages.dev.evil.com/steal",
+                Some("https://shoken-webapp.pages.dev.evil.com"),
             ),
             (
                 "http://localhost:8080?view=1",
@@ -240,29 +238,11 @@ mod tests {
                 StatusCode::FORBIDDEN,
             ),
             (
-                &[("referer", "https://shoken-webapp.vercel.app.evil.com/steal")][..],
+                &[("referer", "https://shoken-webapp.pages.dev.evil.com/steal")][..],
                 StatusCode::FORBIDDEN,
             ),
             (
-                &[("origin", "https://shoken-webapp.vercel.app")][..],
-                StatusCode::OK,
-            ),
-            (
-                &[(
-                    "origin",
-                    "https://shoken-webapp-abc-zaichus-projects.vercel.app",
-                )][..],
-                StatusCode::OK,
-            ),
-            (
-                &[("origin", "https://shoken-webapp-abc-otherteam.vercel.app")][..],
-                StatusCode::FORBIDDEN,
-            ),
-            (
-                &[(
-                    "referer",
-                    "https://shoken-webapp-abc-zaichus-projects.vercel.app/p",
-                )][..],
+                &[("origin", "https://shoken-webapp.pages.dev")][..],
                 StatusCode::OK,
             ),
             // Cloudflare Pages preview origins
@@ -278,8 +258,9 @@ mod tests {
                 &[("origin", "https://feature-branch.shoken-webapp.pages.dev")][..],
                 StatusCode::OK,
             ),
+            // 別プロジェクトの Pages preview は許可しない
             (
-                &[("origin", "https://shoken-webapp.pages.dev")][..],
+                &[("origin", "https://main.other-project.pages.dev")][..],
                 StatusCode::FORBIDDEN,
             ),
             (

@@ -740,7 +740,8 @@ use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use url::Url;
 
-// 起動時 DB 接続の retry パラメータ。fly.toml の grace_period と整合すること
+// 起動時 DB 接続の retry パラメータ。DB が応答しない状態でプロセスが起動待ちに
+// 留まり続けないよう、待機時間に上限を設ける
 // 最大待機 = MAX_ATTEMPTS * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS-1) * RETRY_DELAY_SECS = 2*15 + 1*3 = 33s < 40s
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) const MAX_ATTEMPTS: u32 = 2;
@@ -1014,22 +1015,21 @@ mod tests {
         );
     }
 
-    /// Fly v196 起動直後に観測された ~10-15 秒の接続遅延をカバーできることを保証する。
-    /// CONNECT_TIMEOUT_SECS が短すぎると attempt=1 で recoverable WARN が出る（v196 実測: attempt=1 max_attempts=3）。
+    /// Neon の起床・接続遅延（実測 ~10-15 秒）をカバーできることを保証する。
+    /// CONNECT_TIMEOUT_SECS が短すぎると最初の attempt が recoverable WARN になる。
     /// 上限は下の retry budget のコンパイル時検査が担う。
     const _: () = assert!(
         CONNECT_TIMEOUT_SECS >= 15,
-        "CONNECT_TIMEOUT_SECS は Fly v196 実測遅延（~10-15s）をカバーするため 15 以上が必要"
+        "CONNECT_TIMEOUT_SECS は DB の実測接続遅延（~10-15s）をカバーするため 15 以上が必要"
     );
 
-    /// 最大待機時間が fly.toml の grace_period を超えないことを保証する。
-    /// grace_period を変更した場合はこの定数も更新すること。
+    /// 起動時の DB 接続待ちの上限をコンパイル時に検査する。
     /// 最大待機 = MAX_ATTEMPTS * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS-1) * RETRY_DELAY_SECS = 2*15 + 1*3 = 33s < 40s
-    const GRACE_PERIOD_SECS: u64 = 40; // fly.toml [[http_service.checks]] grace_period と同期
+    const STARTUP_BUDGET_SECS: u64 = 40;
     const MAX_WAIT_SECS: u64 =
         MAX_ATTEMPTS as u64 * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS as u64 - 1) * RETRY_DELAY_SECS;
     const _: () = assert!(
-        MAX_WAIT_SECS < GRACE_PERIOD_SECS,
-        "最大待機時間が grace_period を超える"
+        MAX_WAIT_SECS < STARTUP_BUDGET_SECS,
+        "起動時の DB 接続待ちが上限を超える"
     );
 }

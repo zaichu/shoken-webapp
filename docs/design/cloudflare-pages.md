@@ -102,6 +102,10 @@
   現在 `backend-origin.cjs` が `vercel.json` 読み取りを前提にしているため、
   読み取り元を新設定ファイル (名称は実装 PR で決める) に切り替える。
   CSP の `connect-src` が backend origin の正本である決まりは維持する。
+
+  → 実装結果: artifact は `cloudflare-dist`、生成スクリプトは
+  `prepare-dist.mjs`、配信設定の正本は `frontend/_headers`・`frontend/_redirects`
+  (`backend-origin.cjs` は `_headers` を読む) に決着した。
 - 独自ドメイン/URL の変更と backend への影響: 今回カスタムドメインは付けない
   (URL は `*.pages.dev` に変わるだけ。将来付ける場合は CNAME で `pages.dev` に向ける。
   Pages は Cloudflare ゾーン外のドメインにも対応する)。
@@ -146,9 +150,15 @@
    (`VERCEL_TOKEN`・`VERCEL_ORG_ID`・`VERCEL_PROJECT_ID`) を整理する。
    backend 既定 origin の `vercel.app` と `is_vercel_preview_origin` を撤去する。
 
+   → 実施済み (#1231)。Vercel プロジェクト・`deploy-frontend.yml`・`vercel.json`・
+   関連スクリプト・`is_vercel_preview_origin`・既定 origin の `vercel.app` を撤去した。
+
 切り戻し手順: `FRONTEND_URL` と `CORS_ORIGINS` を旧に戻して backend を再デプロイし、
 `LEPTOS_PRODUCTION_ENABLED` を `true` に戻して Vercel に再デプロイする
 (Vercel プロジェクトは手順 7 まで残すことが前提)。
+
+  → 手順 7 実施後は Vercel プロジェクトが無いため、この切り戻しは使えない。
+  復旧が必要な場合は Vercel プロジェクト再作成からになる。
 
 ## 6. 無料枠に収まる根拠
 
@@ -178,7 +188,8 @@
 3. CI の Pages デプロイ (プレビュー+本番、PR コメント投稿)。Vercel 経路は残す。
    受け入れ: PR で Pages プレビュー URL が投稿され、表示・ログイン一巡が通る。
 4. 本番切替 + Vercel 無効化 + docs 更新 (`runbook.md`・`architecture.md`・deploy skill)。
-   切り戻し手順の記録を含む。Vercel 削除は別 PR にし、様子見期間を空ける。
+   切り戻し手順の記録を含む。Vercel 削除は別 PR にし、様子見期間を空ける
+   (→ #1231 で撤去済み)。
 
 各 PR は Issue #1209 に `Refs` で紐づけ、本番切替の完了をもって Issue を閉じる。
 

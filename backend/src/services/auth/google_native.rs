@@ -499,13 +499,13 @@ jFdlNnWmQn907d0UZvjZ6tAIt52ONB+xgyv/FkqX/KzCKxPtxnFW
         let client = create_oauth_client(
             "client-id",
             "client-secret",
-            "https://shoken-backend.fly.dev",
+            "https://shoken-backend.zaitomo41.workers.dev",
         )
         .unwrap();
         let (auth_url, _csrf) = client.authorize_url(oauth2::CsrfToken::new_random).url();
         let url_str = auth_url.to_string();
         assert!(
-            url_str.contains("redirect_uri=https%3A%2F%2Fshoken-backend.fly.dev%2Fapi%2Fv1%2Foauth%2Fgoogle%2Fcallback"),
+            url_str.contains("redirect_uri=https%3A%2F%2Fshoken-backend.zaitomo41.workers.dev%2Fapi%2Fv1%2Foauth%2Fgoogle%2Fcallback"),
             "redirect_uri が /api/v1/oauth/google/callback でない: {url_str}"
         );
     }

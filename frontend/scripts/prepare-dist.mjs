@@ -5,8 +5,7 @@
 // あわせて shoken-api-origin の meta に backend の URL を埋める(第2引数で差し替え可能。
 // E2E では '' を渡して同一オリジンに戻し、モック外の通信が本番に出ないようにする)。
 // session-probe.js は内容ハッシュ付きの名前に差し替える
-// (固定名のままだと vercel.json の immutable キャッシュでデプロイ後も古いプローブが使われる)。
-// _headers と _redirects を dist 直下に生成して Cloudflare Pages 相当の配信動作を再現する。
+// (固定名のままだと _headers の immutable キャッシュでデプロイ後も古いプローブが使われる)。
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -61,53 +60,3 @@ writeFileSync(
   )
 );
 console.log(`externalized init script -> ${initName}`);
-
-function sourceToCloudflarePattern(source) {
-  if (source === '/(.*)') return '/*';
-  // `/:name.ext` は Pages の :placeholder (単一セグメントのみ一致) と同じ意味になるため
-  // そのまま使う。`/*.ext` のような splat は / をまたいで /snippets/** にも効いてしまう
-  return source;
-}
-
-function generateCloudflareConfigFiles(distDir) {
-  const vercelPath = join(import.meta.dirname, '..', 'vercel.json');
-  const vercel = JSON.parse(readFileSync(vercelPath, 'utf8'));
-
-  // _headers の生成
-  // 複数ルールに一致したリクエストは全ルールのヘッダーを継承し、同名ヘッダーは
-  // カンマ連結される(Vercel のように後勝ちで上書きにならない)。/* 由来の同名
-  // ヘッダーを個別ルールが付け直す場合は、先に ! で継承分を外す
-  const pervasiveNames = new Set(
-    (vercel.headers ?? [])
-      .filter((rule) => sourceToCloudflarePattern(rule.source) === '/*')
-      .flatMap((rule) => rule.headers.map((h) => h.key))
-  );
-  const headerRules = (vercel.headers ?? []).map((rule) => {
-    const pattern = sourceToCloudflarePattern(rule.source);
-    const headerLines = rule.headers
-      .flatMap((h) =>
-        pattern !== '/*' && pervasiveNames.has(h.key)
-          ? [`  ! ${h.key}`, `  ${h.key}: ${h.value}`]
-          : [`  ${h.key}: ${h.value}`]
-      )
-      .join('\n');
-    return `${pattern}\n${headerLines}`;
-  });
-
-  // _redirects の生成 (rewrites から)
-  const redirectRules = (vercel.rewrites ?? []).map((rule) => {
-    if (rule.source === '/(.*)' && rule.destination === '/index.html') {
-      return '/* /index.html 200';
-    }
-    return null;
-  }).filter(Boolean);
-
-  const headersContent = ['# Headers from vercel.json', ...headerRules, ''].join('\n') + '\n';
-  const redirectsContent = ['# Redirects from vercel.json', ...redirectRules, ''].join('\n') + '\n';
-
-  writeFileSync(join(distDir, '_headers'), headersContent);
-  writeFileSync(join(distDir, '_redirects'), redirectsContent);
-  console.log('generated _headers and _redirects for Cloudflare Pages');
-}
-
-generateCloudflareConfigFiles(dist);

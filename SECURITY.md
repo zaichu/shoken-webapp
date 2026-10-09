@@ -26,15 +26,15 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 
 ### 対象範囲
 
-- バックエンド API（Rust / Axum、Fly.io で運用）
-- フロントエンド（Leptos / Rust・WebAssembly、Vercel で配信）
+- バックエンド API（Rust / Axum、Cloudflare Workers で運用）
+- フロントエンド（Leptos / Rust・WebAssembly、Cloudflare Pages で配信）
 - 認証・セッション管理（Google OAuth 2.0、Cookie セッション）
 - CSV インポート処理
 
 ### 対象外
 
 - 開発環境限定の設定ミス
-- 第三者サービス（Fly.io・Vercel・Neon・J-Quants API）側の脆弱性
+- 第三者サービス（Cloudflare・Neon・J-Quants API）側の脆弱性
 
 ## サポートバージョン
 
@@ -44,8 +44,8 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 
 ### 構成
 
-- フロントエンド: Leptos（CSR）/ WebAssembly。Vercel で配信
-- バックエンド: Rust / Axum。Fly.io で運用。DB は PostgreSQL（Neon）
+- フロントエンド: Leptos（CSR）/ WebAssembly。Cloudflare Pages で配信
+- バックエンド: Rust / Axum。Cloudflare Workers で運用。DB は PostgreSQL（Neon）
 - 認証: Google OAuth 2.0 + セッション Cookie
 - API 契約の正本は `docs/openapi.json`
 
@@ -55,7 +55,7 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 - Google の ID トークンは JWKS による署名検証（RS256）と iss・aud・exp の検証を行う
 - ログイン後のリダイレクト先は設定値 `FRONTEND_URL` に固定し、オープンリダイレクトを防ぐ
 - セッション Cookie は `HttpOnly`・`Path=/`・`Max-Age=7日` で、DB 側の `expires_at` でも期限を管理する
-- 本番では `Secure` + `SameSite=None`（Vercel と Fly.io のクロスサイト構成で必要）。ローカル開発では `SameSite=Lax`
+- 本番では `Secure` + `SameSite=None`（Pages と Workers のクロスサイト構成で必要）。ローカル開発では `SameSite=Lax`
 - 本番判定は fail-safe: `RUST_ENV` / `APP_ENV` に設定された値が**すべて**開発用の値（`local` / `dev` / `development` / `test`）のときだけ非本番とする。未設定・不明値・本番値との混在はすべて本番扱い。本番では `SECURE_COOKIE` の値に関わらず Cookie は `Secure`
 - 状態を変える GET リクエストは置かない
 
@@ -64,11 +64,11 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 - POST / PUT / DELETE は `Origin` ヘッダーを許可一覧と完全一致で照合する。`Origin` が無い場合は `Referer` のオリジン部分を完全一致で照合する
 - 本番相当の環境では `Origin` と `Referer` の両方が無い変更系リクエストを拒否する
 - CORS は許可一覧との完全一致でのみ credentials を許可し、本番では localhost オリジンを除外する
-- デフォルトの許可一覧は `https://shoken-webapp.vercel.app` とローカル開発用のみ
+- デフォルトの許可一覧は `https://shoken-webapp.pages.dev` とローカル開発用のみ
 
 ### レート制限・リソース上限
 
-- クライアント IP は `fly-client-ip` のみを信用し、`X-Forwarded-For` は使わない
+- クライアント IP は `cf-connecting-ip` のみを信用し、`X-Forwarded-For` は使わない
 - IP 単位のレート制限（既定値・環境変数で変更可）:
   - 認証系ルート: 10 req/s（`AUTH_RATE_LIMIT_RPS`）
   - 銘柄検索: 10 req/s（`STOCK_SEARCH_RATE_LIMIT_RPS`）
@@ -81,7 +81,7 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 ### セキュリティヘッダー
 
 - バックエンドの全レスポンスに `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy: strict-origin-when-cross-origin`、`Content-Security-Policy: default-src 'none'` を付与し、本番では HSTS を追加する
-- フロントエンド（Vercel）の CSP: `default-src 'self'`、`script-src 'self' 'wasm-unsafe-eval'`（`unsafe-inline` / `unsafe-eval` なし）、`style-src 'self'`、`connect-src 'self' <backend オリジン>`、`object-src 'none'`、`base-uri 'self'`、`form-action 'self'`、`frame-ancestors 'none'`
+- フロントエンド（Cloudflare Pages）の CSP: `default-src 'self'`、`script-src 'self' 'wasm-unsafe-eval'`（`unsafe-inline` / `unsafe-eval` なし）、`style-src 'self'`、`connect-src 'self' <backend オリジン>`、`object-src 'none'`、`base-uri 'self'`、`form-action 'self'`、`frame-ancestors 'none'`
 - フロントエンドは localStorage に認証情報を保存しない
 
 ### ログ・エラー応答
@@ -92,7 +92,7 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 
 ### 機密情報・CI
 
-- 秘密情報はローカルの `.env`（git 管理外）と Fly.io Secrets / GitHub Secrets で管理し、リポジトリにコミットしない
+- 秘密情報はローカルの `.env`（git 管理外）と Cloudflare Workers の secrets / GitHub Secrets で管理し、リポジトリにコミットしない
 - GitHub Actions の `uses:` は 40 桁のコミット SHA で固定する
 - `pull_request_target` は PR gate と Dependabot 自動マージの 2 ワークフローに限定し、どちらも PR のコードを checkout しない
 

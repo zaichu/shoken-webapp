@@ -237,7 +237,7 @@ mod tests {
         let make_req = || {
             let mut b = Request::builder().method(method.clone()).uri(uri);
             if let Some(ip) = ip {
-                b = b.header("fly-client-ip", ip);
+                b = b.header("cf-connecting-ip", ip);
             }
             b.body(Body::empty()).unwrap()
         };
@@ -389,7 +389,7 @@ mod tests {
             Request::builder()
                 .method(Method::POST)
                 .uri("/api/v1/domestic-stock-import-validations")
-                .header("fly-client-ip", "1.2.3.4")
+                .header("cf-connecting-ip", "1.2.3.4")
                 .body(Body::empty())
                 .unwrap(),
         )

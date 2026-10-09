@@ -29,12 +29,8 @@ cd shoken-webapp
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
 | フロントエンド | Cloudflare Pages（`https://shoken-webapp.pages.dev`） | Frontend CI（`frontend.yml`）成功後に `deploy-cloudflare-pages.yml` が呼び出されて自動デプロイ（frontend/shared 変更時）。手動反映は main での `deploy-cloudflare-pages.yml` workflow_dispatch |
-| フロントエンド（プレビュー） | Cloudflare Pages preview / Vercel preview | PR 作成・更新時に `deploy-cloudflare-pages.yml` と `deploy-frontend.yml` がそれぞれ独立ビルド・配信（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功は待たない。URL は PR コメントに投稿される |
-| フロントエンド（旧環境） | Vercel（`https://shoken-webapp.vercel.app`） | `deploy-frontend.yml`（`LEPTOS_PRODUCTION_ENABLED=true` のとき本番、それ以外は preview）。切り戻し用に残置し、様子見後に削除予定（[設計メモ](design/cloudflare-pages.md) 手順 7） |
+| フロントエンド（プレビュー） | Cloudflare Pages preview | PR 作成・更新時に `deploy-cloudflare-pages.yml` が独立ビルド・配信（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功は待たない。URL は PR コメントに投稿される |
 | バックエンド | Cloudflare Workers（`https://shoken-backend.zaitomo41.workers.dev`） | main push（`deploy-cloudflare-worker.yml`） |
-| バックエンド（旧環境） | Fly.io（`https://shoken-backend.fly.dev`） | main push（`deploy-backend.yml`）。切り戻し用に残置し、様子見後に machine 停止・削除予定（[設計メモ](design/cloudflare-workers-backend.md) 手順 8・9） |
-
-`fly.toml` はリポジトリルートに置く(Docker build context が `shared/` を含むルートのため)。
 
 ### 手動デプロイ（緊急時）
 
@@ -42,29 +38,15 @@ cd shoken-webapp
 # バックエンド（Cloudflare Workers。secrets/vars の注入を含むため CI 経路を使う）
 gh workflow run deploy-cloudflare-worker.yml
 
-# バックエンド（旧: Fly.io）
-(cd backend && make deploy)
-
 # フロントエンド（Cloudflare Pages。main で workflow_dispatch）
 gh workflow run deploy-cloudflare-pages.yml --ref main
-
-# フロントエンド旧環境（Vercel CLI。リポジトリルートで実行）
-vercel pull --yes --environment=production
-vercel build --prod
-vercel deploy --prebuilt --prod
 ```
 
 ## ヘルスチェック
 
 ```bash
-# バックエンド（本番: Cloudflare Workers）
+# バックエンド（Cloudflare Workers）
 curl https://shoken-backend.zaitomo41.workers.dev/health
-
-# バックエンド（旧: Fly.io。切り戻し用に稼働中）
-curl https://shoken-backend.fly.dev/health
-
-# ログ確認（Fly.io）
-fly logs --app shoken-backend
 
 # ログ確認（Cloudflare Workers。wrangler の認証が必要）
 (cd backend && wrangler tail)
@@ -85,38 +67,12 @@ fly logs --app shoken-backend
 
 ## 環境変数（本番）
 
-Fly.io Secrets で管理（旧構成・切り戻し用に残す）:
-
-```bash
-fly secrets set DATABASE_URL="postgresql://..."
-fly secrets set GOOGLE_CLIENT_ID="..."
-fly secrets set GOOGLE_CLIENT_SECRET="..."
-fly secrets set FRONTEND_URL="https://shoken-webapp.pages.dev"
-fly secrets set CORS_ORIGINS="https://shoken-webapp.vercel.app,https://shoken-webapp.pages.dev"
-fly secrets set BACKEND_URL="https://shoken-backend.fly.dev"
-```
-
 Cloudflare Workers 側の vars/secrets は `deploy-cloudflare-worker.yml` が GitHub
 secrets/vars から注入する（`wrangler secret put` と `wrangler deploy --var`）。
 `FRONTEND_URL` はリポジトリ variable で上書きでき、未設定時の既定は
 `https://shoken-webapp.pages.dev`。CORS の許可 origin は `CORS_ORIGINS` var 未設定時に
-コード既定値（`backend/src/config.rs`）が使われ、本番では `shoken-webapp.pages.dev` と
-`shoken-webapp.vercel.app` を許可する。
-
-## 切り戻し（フロントを Vercel 本番へ戻す）
-
-Vercel プロジェクトは移行の様子見期間が終わるまで削除しない前提（[設計メモ](design/cloudflare-pages.md) 手順 7）。
-
-```bash
-# backend のリダイレクト先を旧 URL に戻す（secrets 更新で backend は自動再起動する）
-fly secrets set FRONTEND_URL="https://shoken-webapp.vercel.app"
-
-# Vercel への本番デプロイを再有効化して再デプロイ
-gh variable set LEPTOS_PRODUCTION_ENABLED --body "true"
-gh workflow run deploy-frontend.yml --ref main
-```
-
-`CORS_ORIGINS` は旧 origin を残したままにしてあるため戻す必要はない。
+コード既定値（`backend/src/config.rs`）が使われ、本番では `shoken-webapp.pages.dev` を
+許可する。
 
 ## Google Cloud OAuth 設定
 
@@ -125,37 +81,23 @@ Google Cloud Console で以下の **Authorized redirect URIs** を登録する:
 | 環境 | URI |
 |---|---|
 | 本番（Cloudflare Workers） | `https://shoken-backend.zaitomo41.workers.dev/api/v1/oauth/google/callback` |
-| 旧本番（Fly.io。切り戻し用に登録したまま残す） | `https://shoken-backend.fly.dev/api/v1/oauth/google/callback` |
 | ローカル | `http://localhost:3001/api/v1/oauth/google/callback` |
 
-> **注意**: 旧 `https://shoken-backend.fly.dev/auth/google/callback` は現行 API では使用しない。
+> **注意**: 旧環境の `https://shoken-backend.fly.dev/...` は現行 API では使用しない。
 > Google Cloud Console に登録している場合は削除する。
 
-## バックエンド接続先の切り替え（Workers ⇄ Fly.io）
+## バックエンド接続先の切り替え
 
-frontend が参照する本番 API の正本は `frontend/vercel.json` の CSP `connect-src` です。
-`frontend/scripts/prepare-vercel-dist.mjs` がそこから `index.html` の `shoken-api-origin`
-meta と Pages 配信用の `_headers` を生成するため、接続先の変更は `connect-src` の
+frontend が参照する本番 API の正本は `frontend/_headers` の CSP `connect-src` です。
+`frontend/scripts/prepare-dist.mjs` がそこから `index.html` の `shoken-api-origin`
+meta へ反映するため、接続先の変更は `connect-src` の
 1 箇所だけを直して main にマージすれば Pages 本番へ反映されます。
 
 現在の接続先: `https://shoken-backend.zaitomo41.workers.dev`（#1210 段階7）
 
-### Fly.io への切り戻し
-
-Fly.io の machine は撤去していないため、frontend の接続先を戻すだけで復帰できます。
-
-1. `frontend/vercel.json` の CSP `connect-src` を `https://shoken-backend.fly.dev` に戻す
-   （この切り替え PR の revert でも同じ）
-2. main にマージする。`deploy-cloudflare-pages.yml` が Pages 本番へ反映する
-3. 反映を確認する: `curl -s https://shoken-webapp.pages.dev/` の `shoken-api-origin` meta と
-   `Content-Security-Policy` の `connect-src` が `https://shoken-backend.fly.dev` を指すこと
-4. Fly 側の `FRONTEND_URL` / `CORS_ORIGINS` が `https://shoken-webapp.pages.dev` を
-   許可・指向しているか不明な場合は、`fly secrets set` で再投入して `fly deploy` する
-   （secret の値は読み出せないため、怪しければ再設定する）。Google OAuth の承認済み
-   リダイレクト URI は Fly.io 側も登録したままにしてあるため追加作業は不要
-
-Worker 側の `FRONTEND_URL` / `CORS_ORIGINS` は `pages.dev` を指したままでよい
-（どちらの backend を指すかを持っているのは frontend 側だけ）。
+反映確認: `curl -s https://shoken-webapp.pages.dev/` の `shoken-api-origin` meta と
+`Content-Security-Policy` の `connect-src` が `https://shoken-backend.zaitomo41.workers.dev`
+を指すこと。
 
 ## セキュリティインシデント対応
 
@@ -207,7 +149,7 @@ git fetch origin --prune
 毎週月曜日に Dependabot PR が作成されます。Dependabot の PR は Issue の紐づけを免除されますが、未解決コメントは通常どおり PR gate の対象です。
 
 - **パッチ・マイナー更新**: `dependabot-auto-merge.yml` が `gh pr merge --auto --squash` を設定し、CI が green になれば自動マージされます
-- **自動マージ後のデプロイ**: `GITHUB_TOKEN` によるマージでは push イベントが発火しないため、main への push CI / デプロイは走りません。frontend/shared 変更を含むマージでは `dependabot-auto-merge.yml` がマージ完了後に Frontend CI を自動 dispatch します（デプロイは CI 成功後に CI 側から呼び出されます）。backend の依存がマージされたら `gh workflow run deploy-backend.yml` で手動デプロイしてください
+- **自動マージ後のデプロイ**: `GITHUB_TOKEN` によるマージでは push イベントが発火しないため、main への push CI / デプロイは走りません。frontend/shared 変更を含むマージでは `dependabot-auto-merge.yml` がマージ完了後に Frontend CI を自動 dispatch します（デプロイは CI 成功後に CI 側から呼び出されます）。backend の依存がマージされたら `gh workflow run deploy-cloudflare-worker.yml` で手動デプロイしてください
 - **メジャー更新**: 自動マージしません。エージェントが破壊的変更を確認して対応します
 - **セキュリティ更新**: `priority: P1` として扱い、優先して対応します
 - **CI が red の PR**: 失敗原因を調査して対応方針を決定（修正 / 保留 / close）

@@ -2,7 +2,7 @@
 /dist
 /dist-e2e
 /dist-release
-/dist-vercel
+/dist-deploy
 /node_modules
 /style/output.css
 /test-results

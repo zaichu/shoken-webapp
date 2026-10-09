@@ -4,11 +4,10 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build:vercel": "env -u NO_COLOR VERCEL_DIST_DIR=dist-vercel bash scripts/vercel-build.sh",
     "check:css": "bash scripts/check-css-tokens.sh",
     "check:test-layout": "node scripts/check-test-layout.mjs",
     "test:test-layout": "node --test scripts/check-test-layout.test.mjs",
-    "e2e:vercel": "env -u NO_COLOR playwright test --config playwright.vercel.config.ts"
+    "e2e:deploy": "env -u NO_COLOR playwright test --config playwright.deploy.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

@@ -42,7 +42,6 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             cors_origins: vec![
-                "https://shoken-webapp.vercel.app".to_string(),
                 "https://shoken-webapp.pages.dev".to_string(),
                 "http://localhost:8081".to_string(),
                 "http://127.0.0.1:8081".to_string(),
@@ -237,7 +236,7 @@ mod tests {
                 config.csv_rate_limit_rps,
                 config
                     .cors_origins
-                    .contains(&"https://shoken-webapp.vercel.app".to_string()),
+                    .contains(&"https://shoken-webapp.pages.dev".to_string()),
                 config
                     .cors_origins
                     .contains(&"http://localhost:8081".to_string())
@@ -393,12 +392,12 @@ mod tests {
             let _app_env = EnvGuard::set("APP_ENV", Some("production"));
             let _cors_origins = EnvGuard::set(
                 "CORS_ORIGINS",
-                Some("https://shoken-webapp.vercel.app,http://localhost:8080"),
+                Some("https://shoken-webapp.pages.dev,http://localhost:8080"),
             );
             let app = build_test_app(&Config::from_env());
             assert_eq!(
-                allowed_origin(&preflight(app.clone(), "https://shoken-webapp.vercel.app").await),
-                Some("https://shoken-webapp.vercel.app")
+                allowed_origin(&preflight(app.clone(), "https://shoken-webapp.pages.dev").await),
+                Some("https://shoken-webapp.pages.dev")
             );
             assert_eq!(
                 allowed_origin(&preflight(app, "http://localhost:8080").await),

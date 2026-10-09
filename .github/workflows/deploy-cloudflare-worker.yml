@@ -1,7 +1,7 @@
 name: Cloudflare Worker Deploy
 
 # 設計: docs/design/cloudflare-workers-backend.md 5節 (1・2・4・5) / 8節 段階6。
-# main push(バックエンド系パス)と手動起動で動く。Fly の deploy 経路 (deploy-backend.yml) は残す。
+# main push(バックエンド系パス)と手動起動で動く。PR 時の検証は backend.yml が担当する。
 on:
   push:
     branches: [main]
@@ -52,7 +52,7 @@ jobs:
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # push でも deploy-backend.yml と同じ事前検証を通してからデプロイする
+  # push でも backend.yml と同じ事前検証を通してからデプロイする
   verify:
     name: Test & Build
     runs-on: ubuntu-latest

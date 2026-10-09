@@ -35,7 +35,7 @@ export default defineConfig({
   ],
   webServer: {
     command: prebuiltDist
-      ? `node scripts/prepare-vercel-dist.mjs ${prebuiltDist} '' && node scripts/serve-dist.mjs ${prebuiltDist} ${port}`
+      ? `node scripts/prepare-dist.mjs ${prebuiltDist} '' && node scripts/serve-dist.mjs ${prebuiltDist} ${port}`
       // テスト成果物や spec の変更で再ビルドが走ると dist 差し替えでページ読み込みが落ちるので、watch はアプリの入力だけに絞る
       : `trunk serve --port ${port} --dist ${distDir} --no-autoreload --enable-cooldown --watch src --watch index.html --watch style/input.css --watch Trunk.toml --watch Cargo.toml --watch Cargo.lock`,
     url: baseURL,

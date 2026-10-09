@@ -52,7 +52,7 @@ ON table_name(user_id, some_column);
 
 ## マイグレーション実行
 
-本番（Fly.io）ではアプリ起動時に `run_migrations` が自動実行する。ローカルでは：
+本番（Cloudflare Workers）では `deploy-cloudflare-worker.yml` がデプロイ時に `cargo run --bin migrate` で Neon へ直接適用する。ローカルでは：
 ```bash
 sqlx migrate run
 ```

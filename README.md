@@ -11,8 +11,8 @@
 
 ## 構成
 
-- `frontend/`: Leptos、Trunk、Tailwind CSS、Playwright。Vercel に配信
-- `backend/`: Axum、SQLx、PostgreSQL。Fly.io に配信
+- `frontend/`: Leptos、Trunk、Tailwind CSS、Playwright。Cloudflare Pages に配信
+- `backend/`: Axum、SQLx、PostgreSQL。Cloudflare Workers に配信
 - `docs/openapi.json`: API 契約
 - `.github/workflows/`: CI とデプロイ
 
@@ -41,7 +41,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 trunk build --release
 npx playwright test --config playwright.leptos.config.ts
-npx playwright test --config playwright.vercel.config.ts
+npx playwright test --config playwright.deploy.config.ts
 ```
 
 ```bash
