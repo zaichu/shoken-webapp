@@ -5,7 +5,6 @@ Secrets*.toml
 .env
 .env.local
 .env.*.local
-.vercel/
 frontend/.auth/
 .playwright-mcp
 CLAUDE.local.md

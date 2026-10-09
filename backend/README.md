@@ -8,7 +8,7 @@
 - **データベース**: PostgreSQL
 - **ORM**: SQLx
 - **認証**: Google OAuth 2.0
-- **デプロイ**: Fly.io
+- **デプロイ**: Cloudflare Workers
 
 ## 機能
 
@@ -95,9 +95,6 @@ make db-up
 
 # PostgreSQL を停止
 make db-down
-
-# Fly.ioへデプロイ
-make deploy
 ```
 
 ### Docker で PostgreSQL を起動する
@@ -152,24 +149,20 @@ make migrate-local
 make sqlx-prepare
 ```
 
-CI は `cargo fmt --check`、`SQLX_OFFLINE=true cargo clippy --all-targets -- -D warnings`、`SQLX_OFFLINE=true cargo test`、Docker イメージビルドを実行します。
+CI は `cargo fmt --check`、`SQLX_OFFLINE=true cargo clippy --all-targets -- -D warnings`、`SQLX_OFFLINE=true cargo test`、Worker ビルド（`worker-build --release`）を実行します。
 `cargo sqlx prepare --check` はローカルDBの起動とマイグレーション適用が必要なためCIには入れていません。
 `query!` 追加・変更時は `make sqlx-prepare` の結果を必ずコミットします。
-`backend/Dockerfile` は本番ビルドを `SQLX_OFFLINE=true` かつ `.sqlx/` を build context にコピーして実行するため、DB接続なしでビルドできます。
 
 ## デプロイ
 
-Fly.ioへのデプロイ:
+Cloudflare Workers へのデプロイは `main` へのマージで自動実行されます（`deploy-cloudflare-worker.yml`）。手動反映とログ確認:
 
 ```bash
-# デプロイ
-make deploy
+# デプロイ（secrets/vars の注入を含むため CI 経路を使う）
+gh workflow run deploy-cloudflare-worker.yml
 
-# ステータス確認
-make status
-
-# ログ確認
-make logs
+# ログ確認（wrangler の認証が必要）
+wrangler tail
 ```
 
 ## ディレクトリ構成
@@ -193,8 +186,8 @@ backend/
 │   └── state.rs         # アプリケーション状態
 ├── migrations/          # SQLxマイグレーション
 ├── Cargo.toml
-├── Dockerfile           # ビルドコンテキストはリポジトリルート（../shared を参照するため）
-└── Makefile             # fly.toml はリポジトリルートに配置
+├── wrangler.toml        # Cloudflare Workers の設定（Hyperdrive/ratelimits/cron）
+└── Makefile
 ```
 
 ### 層の役割と依存の向き

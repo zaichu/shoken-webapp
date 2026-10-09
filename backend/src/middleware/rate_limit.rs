@@ -31,15 +31,15 @@ pub fn build_keyed_rate_limiter(
 
 /// クライアント IP を取得する
 ///
-/// Fly.io は `fly-client-ip` を必ずセットし、クライアントによる偽装を防ぐ。
-/// `X-Forwarded-For` はクライアントが任意の値を送れるため信頼しない。
-/// `fly-client-ip` が存在しない場合（ローカル開発など）は 0.0.0.0 を返す。
+/// `cf-connecting-ip` は Cloudflare がクライアント IP を正規化して付与するため、
+/// クライアントによる偽装はできない。`X-Forwarded-For` は任意の値を送れるため信頼しない。
+/// ローカル開発などヘッダが存在しない場合は 0.0.0.0 を返す。
 /// これにより「プロキシ未経由の不明リクエスト」は共有バケットに入るため、
 /// バイパス攻撃には使えない。
 #[cfg(not(target_arch = "wasm32"))]
 fn extract_client_ip(req: &Request<Body>) -> std::net::IpAddr {
     req.headers()
-        .get("fly-client-ip")
+        .get("cf-connecting-ip")
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.parse().ok())
         .unwrap_or(std::net::IpAddr::from([0, 0, 0, 0]))
@@ -119,7 +119,7 @@ mod tests {
             .method(axum::http::Method::POST)
             .uri("/test");
         match ip {
-            Some(ip) => req.header("fly-client-ip", ip),
+            Some(ip) => req.header("cf-connecting-ip", ip),
             None => req,
         }
         .body(Body::empty())

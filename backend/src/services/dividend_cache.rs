@@ -140,7 +140,7 @@ async fn fetch_cached_items(
 
 /// scheduled イベントから stale/pending 銘柄を消化する。
 /// レート制御は market_data_provider_rate_control で全インスタンス共有されるため、
-/// Fly.io 側のバックグラウンド更新と並走しても 12 秒間隔は破られない。
+/// 他経路のバックグラウンド更新と並走しても 12 秒間隔は破られない。
 /// 中断規則は background refresh と同じ（429→cooldown+中断、スロット失敗→中断）。
 /// 戻り値は今回の実行で実際に取得を試みた件数（ログ・テスト用）
 pub async fn drain_refresh_queue(

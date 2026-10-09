@@ -2,7 +2,6 @@
 
 # 変数
 CARGO := cargo
-FLY := fly
 
 # デフォルトターゲット
 .PHONY: all
@@ -13,21 +12,6 @@ all: check run
 run:
 	@echo "🚀 ローカルでサーバーを起動します..."
 	env APP_ENV="$${APP_ENV:-development}" $(CARGO) run --bin backend
-
-.PHONY: deploy
-deploy:
-	@echo "🚀 Fly.ioにデプロイします..."
-	$(FLY) deploy ..
-
-.PHONY: status
-status:
-	@echo "📊 Fly.ioサービスのステータスを確認します..."
-	$(FLY) status -a shoken-backend
-
-.PHONY: logs
-logs:
-	@echo "📜 アプリケーションログを表示します..."
-	$(FLY) logs -a shoken-backend
 
 # ビルド関連
 .PHONY: build
@@ -92,11 +76,6 @@ repair-and-migrate-local:
 	env DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) run --bin migrate
 
 # Docker関連
-.PHONY: docker-build
-docker-build:
-	@echo "🐳 Dockerイメージをビルドします..."
-	docker build -f Dockerfile -t shoken-backend ..
-
 .PHONY: db-up
 db-up:
 	@echo "🐳 PostgreSQL を Docker で起動します..."
@@ -129,9 +108,6 @@ help:
 	@echo "利用可能なターゲット:"
 	@echo "  all           : デフォルトターゲット、チェックして実行します"
 	@echo "  run           : ローカルでサーバーを起動します"
-	@echo "  deploy        : Fly.ioにデプロイします"
-	@echo "  status        : Fly.ioサービスのステータスを確認します"
-	@echo "  logs          : アプリケーションログを表示します"
 	@echo "  build         : バックエンドをビルドします"
 	@echo "  build-release : リリースビルドを作成します"
 	@echo "  build-log     : バックエンドをビルドし、結果をbuild.logに保存します"
@@ -141,7 +117,6 @@ help:
 	@echo "  migrate       : データベースマイグレーションを実行します"
 	@echo "  migrate-local           : ローカルDocker DBにマイグレーションを実行します"
 	@echo "  repair-and-migrate-local: 既存 migration 履歴 → 現行 baseline への一回限り切り替え"
-	@echo "  docker-build  : Dockerイメージをビルドします"
 	@echo "  db-up         : PostgreSQL を Docker で起動します"
 	@echo "  db-down       : PostgreSQL を停止します"
 	@echo "  db-reset      : PostgreSQL を初期化します（ボリューム削除 → 再起動 → migrate）"

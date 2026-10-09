@@ -5,7 +5,7 @@
 - **Rust**: 最新 stable
 - **Axum**: 0.8.x (Webフレームワーク)
 - **SQLx**: 0.8.x (型安全DBアクセス)
-- **Fly.io**: デプロイプラットフォーム
+- **Cloudflare Workers**: デプロイプラットフォーム
 - **Neon**: PostgreSQL データベース
 - **Tokio**: 非同期ランタイム
 - **OAuth2**: Google認証
@@ -88,7 +88,7 @@ impl IntoResponse for AppError {
 - `oauth2` クレート
 - セッション管理は `handlers/` 内で実装
 
-## Fly.io デプロイ
+## Cloudflare Workers デプロイ
 
 ### ローカル開発
 
@@ -98,31 +98,16 @@ make run  # cargo run（環境変数は .env から読み込み）
 
 ### デプロイ
 
+`main` へのマージで `deploy-cloudflare-worker.yml` が自動デプロイする。手動反映は:
+
 ```bash
-make deploy  # fly deploy
-make status  # fly status
-make logs    # fly logs
+gh workflow run deploy-cloudflare-worker.yml
 ```
 
 ### 環境変数管理
 
 - `.env` - ローカル開発用（gitignore対象）
-- Fly.io Secrets で本番環境の環境変数を管理
-
-```bash
-# Fly.io に環境変数を設定
-fly secrets set DATABASE_URL="postgres://..."
-fly secrets set GOOGLE_CLIENT_ID="..."
-fly secrets set GOOGLE_CLIENT_SECRET="..."
-fly secrets set FRONTEND_URL="https://..."
-fly secrets set BACKEND_URL="https://..."
-```
-
-### Docker ビルド
-
-```bash
-make docker-build  # docker build -t shoken-backend .
-```
+- 本番の secrets/vars は `deploy-cloudflare-worker.yml` が GitHub secrets/vars から `wrangler secret put` / `wrangler deploy --var` で注入する
 
 ## バリデーション
 
@@ -218,5 +203,5 @@ make test  # cargo test
 ### CORS・機密情報
 
 - CORS は許可 origin を明示し、必要時のみ credentials を許可する
-- `.env` はローカル専用とし、本番環境は Fly.io Secrets で管理する
+- `.env` はローカル専用とし、本番環境は Cloudflare Workers の secrets/vars で管理する
 - トークン、個人情報、接続情報をログに出力しない

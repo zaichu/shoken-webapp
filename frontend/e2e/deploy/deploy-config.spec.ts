@@ -3,7 +3,7 @@ import { get } from 'node:http';
 import { loadBackendOrigin } from '../../scripts/backend-origin.cjs';
 
 const BACKEND_ORIGIN: string = loadBackendOrigin();
-const SERVE_PORT = Number(process.env.VERCEL_E2E_PORT ?? '8190');
+const SERVE_PORT = Number(process.env.DEPLOY_E2E_PORT ?? '8190');
 
 // URL パーサがデコード前にドットセグメントを潰すため、生のパスで送る必要がある
 function rawGet(path: string): Promise<{ status: number; type: string }> {
@@ -75,7 +75,7 @@ test('CSP 下で wasm が起動して画面が描画され、API が埋め込み
   });
   page.on('pageerror', (err) => cspViolations.push(String(err)));
 
-  // API 接続先が index.html の shoken-api-origin meta(vercel.json の CSP 由来)に
+  // API 接続先が index.html の shoken-api-origin meta(_headers の CSP 由来)に
   // 埋め込まれていることを、実ネットワークへ出さずに確認する
   let apiRequestUrl = '';
   await page.route(`${BACKEND_ORIGIN}/**`, (route) => {

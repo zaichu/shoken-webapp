@@ -140,7 +140,7 @@ jobs:
       - name: Prepare Cloudflare delivery bundle
         if: inputs.use_prebuilt_dist != true
         run: |
-          node scripts/prepare-vercel-dist.mjs dist
+          node scripts/prepare-dist.mjs dist
 
       # 未作成だと deploy が code 8000007 で失敗するため、無ければ作る(既存なら警告だけで続行)
       - name: Ensure Cloudflare Pages project exists

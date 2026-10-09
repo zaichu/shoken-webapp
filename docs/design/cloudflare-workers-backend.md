@@ -88,7 +88,7 @@ https://developers.cloudflare.com/workers/platform/limits/ (ともに確認日 2
 tokio-postgres + Hyperdrive で Neon を使い続ける構成:
 
 ```
-Browser → frontend (Vercel/Pages) → https://<worker>.workers.dev
+Browser → frontend (Pages) → https://<worker>.workers.dev
                                       ├── #[event(fetch)] → axum Router (現行 routes を流用)
                                       │      ├── tower 系ミドルウェア (CORS/Origin/body limit/security headers)
                                       │      ├── ratelimits バインディング ×4 (cf-connecting-ip)
@@ -219,9 +219,16 @@ Browser → frontend (Vercel/Pages) → https://<worker>.workers.dev
 9. 問題なければ Fly アプリ削除、`fly.toml`/`deploy-backend.yml` の Fly 経路、`FLY_API_TOKEN`
    を撤去。
 
+   → 実施済み (#1231)。Fly アプリ `shoken-backend` を削除し、`fly.toml`・
+   Fly デプロイ経路・`backend/Dockerfile`・`fly-client-ip` 参照を撤去した
+   (backend の CI 部分は `backend.yml` に移管)。`FLY_API_TOKEN` 等の GitHub
+   secrets の削除はユーザーが行う。
+
 切り戻し: 手順 8 までなら、frontend の backend-origin を `fly.dev` に戻して再デプロイする
 (Fly machine は手順 8 まで生きている)。手順 9 後は Fly アプリ再作成 + `fly deploy` +
 secrets 再投入が必要。
+
+  → 手順 9 実施済みのため、Fly.io への切り戻し経路は存在しない。
 
 ## 6. 無料枠に収まる根拠
 
@@ -282,7 +289,8 @@ secrets 再投入が必要。
    (10ms 判定の結論を Issue に記録)。
 6. **デプロイ CI + 切替**: deploy ワークフロー、migration ジョブ、frontend origin 切替、
    `runbook.md`/`architecture.md`/deploy skill 更新、切り戻し手順書。
-7. **Fly 撤去** (様子見後・別 PR): `fly.toml`/`FLY_API_TOKEN`/deploy 経路削除。
+7. **Fly 撤去** (様子見後・別 PR): `fly.toml`/`FLY_API_TOKEN`/deploy 経路削除
+   (→ #1231 で実施)。
 
 各 PR は Issue #1210 に `Refs` で紐づけ、本番切替完了をもって Issue を閉じる。
 

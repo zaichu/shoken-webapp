@@ -116,7 +116,7 @@ async fn connect_with_retry(database_url: &str) -> Db {
 #[ignore = "requires Docker to run Postgres container"]
 async fn db_integration_with_docker_and_migrations() {
     let _app_env = EnvGuard::set("APP_ENV", Some("production"));
-    let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.vercel.app"));
+    let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.pages.dev"));
 
     let node = Postgres::default().start().await.unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
@@ -189,7 +189,7 @@ async fn db_integration_with_docker_and_migrations() {
     let req = Request::builder()
         .method(Method::OPTIONS)
         .uri("/health")
-        .header("origin", "https://shoken-webapp.vercel.app")
+        .header("origin", "https://shoken-webapp.pages.dev")
         .header("access-control-request-method", "GET")
         .body(Body::empty())
         .unwrap();
@@ -198,7 +198,7 @@ async fn db_integration_with_docker_and_migrations() {
         .headers()
         .get(ACCESS_CONTROL_ALLOW_ORIGIN)
         .and_then(|value| value.to_str().ok());
-    assert_eq!(allowed_origin, Some("https://shoken-webapp.vercel.app"));
+    assert_eq!(allowed_origin, Some("https://shoken-webapp.pages.dev"));
 }
 
 /// テスト用の CreateAssetBalanceRequest を生成するヘルパー

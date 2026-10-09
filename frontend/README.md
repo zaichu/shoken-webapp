@@ -26,10 +26,10 @@ cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings
 cargo clippy --all-targets -- -D warnings
 cargo test
 npx playwright test --config playwright.leptos.config.ts
-npx playwright test --config playwright.vercel.config.ts
+npx playwright test --config playwright.deploy.config.ts
 ```
 
-`playwright.leptos.config.ts` は `e2e/<機能>/` のブラウザテストを、`playwright.vercel.config.ts` は `e2e/deploy/` の配信設定テストを実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。既定では `trunk serve` でソースから配信しますが、`LEPTOS_E2E_DIST_DIR=<dir>` を指定するとビルド済みの dist(CI がアーティファクトで受け渡す trunk build 成果物)を `serve-dist.mjs` で配信します。配信前に `prepare-vercel-dist.mjs` を空の API origin で実行するため、モックに当たらない API 呼び出しは同一オリジンに留まり外部へ出ません。
+`playwright.leptos.config.ts` は `e2e/<機能>/` のブラウザテストを、`playwright.deploy.config.ts` は `e2e/deploy/` の配信設定テストを実行します。E2E は `LEPTOS_E2E_PORT` でポートを指定できます。複数の worktree で並行実行するときは別々のポートを使ってください。既定では `trunk serve` でソースから配信しますが、`LEPTOS_E2E_DIST_DIR=<dir>` を指定するとビルド済みの dist(CI がアーティファクトで受け渡す trunk build 成果物)を `serve-dist.mjs` で配信します。配信前に `prepare-dist.mjs` を空の API origin で実行するため、モックに当たらない API 呼び出しは同一オリジンに留まり外部へ出ません。
 
 ### CI と同じ環境で E2E を回す
 
@@ -87,7 +87,7 @@ src/
 
 - 単体テストは `<モジュール>/tests.rs` に置く(`#[cfg(test)] mod tests;`)。分割するときは `tests/suite.rs` を入口にして親から `#[path = "<モジュール>/tests/suite.rs"] mod tests;` で読み、子は `#[path = "<名前>.rs"] mod <名前>;` で宣言する。同じ階層に `tests.rs` と `tests/` を並べない
 - Rust の共有テスト補助・データ生成は `src/testing/<機能>.rs` に置く。データファイルは `frontend/tests/fixtures/` に置き、`concat!(env!("CARGO_MANIFEST_DIR"), ...)` で読む
-- E2E は `e2e/<機能>/<内容>.spec.ts` に置く。補助は `e2e/support/`、データは `e2e/fixtures/`。Issue 番号で命名せず、`migrated/` や `e2e-vercel/` は使わない
+- E2E は `e2e/<機能>/<内容>.spec.ts` に置く。補助は `e2e/support/`、データは `e2e/fixtures/`。Issue 番号で命名せず、`migrated/` は使わない
 - 撮影専用 spec は Git 管理外の `.local-e2e/` に置き、通常の Playwright 設定や CI の対象にしない
 - `npm run check:test-layout` で配置を検査する。検査スクリプトのテストは `npm run test:test-layout`。どちらも CI で実行する
 
@@ -173,6 +173,6 @@ GitHub Actions の `deploy-cloudflare-pages.yml` が Wrangler で Cloudflare Pag
 - `deploy-cloudflare-pages.yml` 自体の `workflow_dispatch` は main 限定の独立ビルド経路です。Frontend CI の成功待ちや成果物の再利用は行いません。
 - PR では同ワークフローが `pull_request` で起動し、独立してビルド・preview 配信（`<branch>.shoken-webapp.pages.dev`）し、URL を PR コメントに投稿します（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功を待たず、CI が失敗しても preview が配信される場合があります。
 
-旧環境 Vercel（`deploy-frontend.yml`）は切り戻し用に残置しています（本番反映は `LEPTOS_PRODUCTION_ENABLED=true` が必要。`VERCEL_TOKEN`・`VERCEL_ORG_ID`・`VERCEL_PROJECT_ID` は残置期間中も必要）。配信設定の正本は `vercel.json` で、`prepare-vercel-dist.mjs` が `_headers`・`_redirects` を生成して Pages でも同じ振る舞いを再現します。
+配信設定の正本は `_headers`・`_redirects` で、`prepare-dist.mjs` が `_headers` から `index.html` の `shoken-api-origin` meta などを生成します。
 
 現行のセキュリティルールを守って PR preview に CI 成果物を再利用するには、権限のある後段ワークフローと run・PR・成果物の照合が必要になるため、二重ビルドのまま維持します（[#1185](https://github.com/zaichu/shoken-webapp/issues/1185)）。Frontend CI の PR ジョブへデプロイ用 secrets を追加する変更や、既存の権限・セキュリティルールの変更は行いません。

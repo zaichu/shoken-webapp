@@ -161,7 +161,7 @@ pub async fn google_callback(
     )
     .await?;
 
-    // クロスオリジン（フロントエンド: Vercel, バックエンド: Fly.io）で
+    // クロスオリジン（フロントエンド: Cloudflare Pages, バックエンド: Cloudflare Workers）で
     // Cookieを送受信するには SameSite=None + Secure が必要
     let cookie = build_session_cookie(session_token, is_secure);
     let jar = jar.add(cookie);

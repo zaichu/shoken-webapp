@@ -34,7 +34,6 @@ jobs:
               - "rust-toolchain.toml"
               - "docs/openapi.json"
               - ".github/workflows/frontend.yml"
-              - ".github/workflows/deploy-frontend.yml"
               - ".github/workflows/deploy-cloudflare-pages.yml"
               - ".github/actions/rust-cache/**"
               - ".github/actions/setup-playwright/**"
@@ -124,26 +123,18 @@ jobs:
                 done
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # 本番 origin を埋めるのは vercel 配信検証用だけにする。E2E 用は API origin が
+      # 本番 origin を埋めるのは配信検証・Pages デプロイ用だけにする。E2E 用は API origin が
       # 空のまま(trunk serve と同じ同一オリジン)の dist を渡し、モック外の通信を外に出さない
-      - name: Prepare Vercel delivery bundle
+      - name: Prepare delivery bundle
         run: |
           cp -r dist-e2e dist-release
-          node scripts/prepare-vercel-dist.mjs dist-release
+          node scripts/prepare-dist.mjs dist-release
 
       - name: Upload E2E dist artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
         with:
           name: e2e-dist
           path: frontend/dist-e2e
-          retention-days: 1
-          if-no-files-found: error
-
-      - name: Upload Vercel dist artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 https://github.com/actions/upload-artifact/releases/tag/v7
-        with:
-          name: vercel-dist
-          path: frontend/dist-release
           retention-days: 1
           if-no-files-found: error
 
@@ -212,8 +203,8 @@ jobs:
       - name: Run E2E tests
         run: env -u NO_COLOR npx playwright test --config playwright.leptos.config.ts --shard=${{ matrix.shard }}/3
 
-  e2e-vercel:
-    name: E2E (Vercel delivery)
+  e2e-deploy:
+    name: E2E (delivery)
     needs: [changes, build]
     if: needs.build.result == 'success'
     runs-on: ubuntu-latest
@@ -221,7 +212,7 @@ jobs:
       run:
         working-directory: frontend
     env:
-      VERCEL_DIST_DIR: dist-release
+      DEPLOY_DIST_DIR: dist-release
 
     steps:
       - name: Checkout repository
@@ -237,21 +228,21 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Download Vercel dist artifact
+      - name: Download Cloudflare dist artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 https://github.com/actions/download-artifact/releases/tag/v8.0.1
         with:
-          name: vercel-dist
+          name: cloudflare-dist
           path: frontend/dist-release
 
       - name: Setup Playwright environment
         uses: ./.github/actions/setup-playwright
 
-      - name: Run Vercel delivery E2E tests
-        run: env -u NO_COLOR npx playwright test --config playwright.vercel.config.ts
+      - name: Run delivery E2E tests
+        run: env -u NO_COLOR npx playwright test --config playwright.deploy.config.ts
 
   ci:
     name: Check, build, and E2E
-    needs: [changes, build, e2e, e2e-vercel]
+    needs: [changes, build, e2e, e2e-deploy]
     if: always()
     runs-on: ubuntu-latest
 
@@ -262,7 +253,7 @@ jobs:
           FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
           BUILD_RESULT: ${{ needs.build.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
-          E2E_VERCEL_RESULT: ${{ needs['e2e-vercel'].result }}
+          E2E_DEPLOY_RESULT: ${{ needs['e2e-deploy'].result }}
         run: |
           ok=true
           report() {
@@ -273,29 +264,13 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$FRONTEND_CHANGED" = "true" ]; then
             report build "$BUILD_RESULT"
             report e2e "$E2E_RESULT"
-            report e2e-vercel "$E2E_VERCEL_RESULT"
+            report e2e-deploy "$E2E_DEPLOY_RESULT"
           fi
           $ok || { echo "::error::required jobs did not succeed"; exit 1; }
 
-  # デプロイはこの CI の成果物(vercel-dist)をそのまま使う。ビルドの重複を避けるため
-  # 別系統ではなく同一 run 内の呼び出しにする。PR プレビューは deploy-frontend.yml の
+  # デプロイはこの CI の成果物(cloudflare-dist)をそのまま使う。ビルドの重複を避けるため
+  # 別系統ではなく同一 run 内の呼び出しにする。PR プレビューは deploy-cloudflare-pages.yml の
   # pull_request トリガーが担当し、この run にはデプロイ用 secrets を載せない
-  deploy:
-    name: Deploy to Vercel
-    needs: [changes, ci]
-    # callee が pull-requests: write を要求するため caller でも許可が必要
-    permissions:
-      contents: read
-      pull-requests: write
-    if: >-
-      github.ref == 'refs/heads/main'
-      && (github.event_name == 'workflow_dispatch'
-        || (github.event_name == 'push' && needs.changes.outputs.frontend == 'true'))
-    uses: ./.github/workflows/deploy-frontend.yml
-    with:
-      use_prebuilt_dist: true
-    secrets: inherit
-
   deploy-cloudflare:
     name: Deploy to Cloudflare Pages
     needs: [changes, ci]
