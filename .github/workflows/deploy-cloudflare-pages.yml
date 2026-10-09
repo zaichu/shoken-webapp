@@ -142,6 +142,18 @@ jobs:
         run: |
           node scripts/prepare-vercel-dist.mjs dist
 
+      # 未作成だと deploy が code 8000007 で失敗するため、無ければ作る(既存なら警告だけで続行)
+      - name: Ensure Cloudflare Pages project exists
+        shell: bash
+        run: |
+          log_file="${RUNNER_TEMP}/wrangler-project-create.log"
+          if wrangler pages project create shoken-webapp --production-branch=main > "${log_file}" 2>&1; then
+            cat "${log_file}"
+          else
+            cat "${log_file}"
+            echo "::warning::Pages プロジェクトの作成に失敗しました。既存の場合は deploy に進みます"
+          fi
+
       - name: Deploy to Cloudflare Pages
         id: deploy
         shell: bash
