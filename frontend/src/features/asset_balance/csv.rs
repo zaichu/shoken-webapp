@@ -1,5 +1,5 @@
 use crate::api::dto::{AssetBalance, CsvPreviewResponse};
-use crate::support::csv_flow::CsvPreview;
+use crate::support::csv_flow::{CsvChunking, CsvPreview};
 use crate::support::row::Row;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -7,6 +7,14 @@ use serde::Deserialize;
 pub const LIST_PATH: &str = "/api/v1/asset-balances";
 pub const PREVIEW_PATH: &str = "/api/v1/asset-balance-import-validations";
 pub const IMPORT_PATH: &str = "/api/v1/asset-balance-imports";
+
+// asset_balance は skip_header_rows=6(証券会社の前置き)+ヘッダ行。
+// WriteMode::Replace のため import を分割すると後続チャンクが前の行を消すので、
+// preview だけ分割し import は単一リクエストのままにする
+pub const CSV_CHUNKING: CsvChunking = CsvChunking {
+    header_lines: 7,
+    import_chunked: false,
+};
 
 // プレビュー行は backend が CreateAssetBalanceRequest をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]

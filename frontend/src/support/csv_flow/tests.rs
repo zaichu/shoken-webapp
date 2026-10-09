@@ -269,3 +269,59 @@ fn notice_texts_format_counts_and_row_errors() {
     assert_eq!(clean.skipped_text(), None);
     assert_eq!(clean.error_count_text(), None);
 }
+
+#[test]
+fn record_ranges_splits_on_newlines() {
+    let bytes = b"a,b\n1,2\n3,4\n";
+    assert_eq!(record_ranges(bytes), vec![(0, 4), (4, 8), (8, 12)]);
+    // 末尾に改行がなくても最終レコードを含める
+    let bytes = b"a,b\n1,2";
+    assert_eq!(record_ranges(bytes), vec![(0, 4), (4, 7)]);
+}
+
+#[test]
+fn record_ranges_ignores_newlines_inside_quotes() {
+    let bytes = b"a,b\n\"x\ny\",2\n3,4\n";
+    let ranges = record_ranges(bytes);
+    assert_eq!(ranges, vec![(0, 4), (4, 12), (12, 16)]);
+    assert_eq!(&bytes[4..12], b"\"x\ny\",2\n");
+}
+
+#[test]
+fn record_ranges_handles_escaped_quotes_and_crlf() {
+    // "" はエスケープなので引用符状態を抜けない
+    let bytes = b"a,b\n\"x\"\"y\",2\r\n3,4\r\n";
+    let ranges = record_ranges(bytes);
+    assert_eq!(ranges, vec![(0, 4), (4, 14), (14, 19)]);
+}
+
+#[test]
+fn record_ranges_does_not_start_quote_mid_field() {
+    // フィールド途中の引用符は引用符として扱わない(csv crate と同じ解釈)
+    let bytes = b"a,b\nx\"y\nz\",2\n3,4\n";
+    let ranges = record_ranges(bytes);
+    assert_eq!(ranges.len(), 4);
+}
+
+#[test]
+fn chunk_record_groups_keeps_identical_records_together() {
+    // max_rows=2 の境界を跨ぐ同一行(a,b)は同じチャンクに引き込む
+    let bytes = b"a\nb\na\nc\n";
+    let ranges = record_ranges(bytes);
+    let groups = chunk_record_groups(bytes, &ranges, 2);
+    // "a" が index 0 と 2 にある → 先頭チャンクは 3 レコードまで伸びる
+    let lens: Vec<usize> = groups.iter().map(|g| g.len()).collect();
+    assert_eq!(lens, vec![3, 1]);
+    // 後続チャンクには同一バイト列の残りがいない
+    let second = &bytes[groups[1][0].0..groups[1][0].1];
+    assert_eq!(second, b"c\n");
+}
+
+#[test]
+fn chunk_record_groups_without_duplicates_is_plain_chunks() {
+    let bytes = b"a\nb\nc\nd\ne\n";
+    let ranges = record_ranges(bytes);
+    let groups = chunk_record_groups(bytes, &ranges, 2);
+    let lens: Vec<usize> = groups.iter().map(|g| g.len()).collect();
+    assert_eq!(lens, vec![2, 2, 1]);
+}
