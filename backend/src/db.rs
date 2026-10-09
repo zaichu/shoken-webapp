@@ -15,7 +15,7 @@ pub use numeric::Numeric;
 pub use tokio_postgres::Row;
 pub use tokio_postgres::error::SqlState;
 
-use postgres_types::{FromSql, ToSql};
+use postgres_types::{FromSql, ToSql, Type};
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -102,8 +102,42 @@ pub trait Executor {
     fn batch_execute<'a>(&'a self, sql: &'a str) -> DbFuture<'a, Result<(), DbError>>;
 }
 
-fn param_refs(params: &[Bind]) -> Vec<&(dyn ToSql + Sync)> {
-    params.iter().map(|p| p as &(dyn ToSql + Sync)).collect()
+/// `query_typed`/`execute_typed` に渡す「値 + 宣言型」のペア列。
+/// Hyperdrive（caching 無効）では `query()`/`execute()` の untyped prepare が
+/// 1接続2回目の呼び出しで接続を desync/Closed にするため、型を明示して
+/// Parse+Bind+Execute を1往復に固める typed 経路を native/wasm 共通で使う
+fn typed_params(params: &[Bind]) -> Vec<(&(dyn ToSql + Sync), Type)> {
+    params
+        .iter()
+        .map(|p| (p as &(dyn ToSql + Sync), p.declared_type()))
+        .collect()
+}
+
+/// ログ識別用に SQL を1行・先頭のみに整形する。SQL は静的リテラルで値は
+/// `$n` バインド経由のため、クエリ本文の出力は秘密値を含まない
+fn query_tag(sql: &str) -> String {
+    sql.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(80)
+        .collect()
+}
+
+/// DB 実行失敗を、どのクエリがなぜ失敗したか分かる形で残す（sqlstate・サーバー
+/// メッセージ・クエリ識別タグ）。wasm は tracing subscriber を持たないため console へ
+fn db_err(op: &'static str, sql: &str, e: tokio_postgres::Error) -> DbError {
+    let e = DbError::Pg(e);
+    let sqlstate = e
+        .sql_state()
+        .map(|s| s.code().to_string())
+        .unwrap_or_else(|| "-".to_string());
+    let tag = query_tag(sql);
+    #[cfg(target_arch = "wasm32")]
+    worker::console_error!("DB {op} 失敗 sqlstate={sqlstate} sql=`{tag}`: {e}");
+    #[cfg(not(target_arch = "wasm32"))]
+    tracing::error!(sqlstate, sql = tag, error = %e, "DB {op} 失敗");
+    e
 }
 
 /// `Row` → モデル変換。`sqlx::FromRow` 相当を手書き impl で提供する
@@ -454,17 +488,17 @@ impl Executor for Db {
                         .get()
                         .await
                         .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                    obj.query(sql, &param_refs(params))
+                    obj.query_typed(sql, &typed_params(params))
                         .await
-                        .map_err(DbError::Pg)
+                        .map_err(|e| db_err("query", sql, e))
                 }
                 #[cfg(target_arch = "wasm32")]
                 DbInner::Worker(db) => {
                     let client = db.client().await?;
                     client
-                        .query(sql, &param_refs(params))
+                        .query_typed(sql, &typed_params(params))
                         .await
-                        .map_err(DbError::Pg)
+                        .map_err(|e| db_err("query", sql, e))
                 }
             }
         })
@@ -483,17 +517,17 @@ impl Executor for Db {
                         .get()
                         .await
                         .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                    obj.execute(sql, &param_refs(params))
+                    obj.execute_typed(sql, &typed_params(params))
                         .await
-                        .map_err(DbError::Pg)
+                        .map_err(|e| db_err("execute", sql, e))
                 }
                 #[cfg(target_arch = "wasm32")]
                 DbInner::Worker(db) => {
                     let client = db.client().await?;
                     client
-                        .execute(sql, &param_refs(params))
+                        .execute_typed(sql, &typed_params(params))
                         .await
-                        .map_err(DbError::Pg)
+                        .map_err(|e| db_err("execute", sql, e))
                 }
             }
         })
@@ -508,12 +542,17 @@ impl Executor for Db {
                         .get()
                         .await
                         .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                    obj.batch_execute(sql).await.map_err(DbError::Pg)
+                    obj.batch_execute(sql)
+                        .await
+                        .map_err(|e| db_err("batch", sql, e))
                 }
                 #[cfg(target_arch = "wasm32")]
                 DbInner::Worker(db) => {
                     let client = db.client().await?;
-                    client.batch_execute(sql).await.map_err(DbError::Pg)
+                    client
+                        .batch_execute(sql)
+                        .await
+                        .map_err(|e| db_err("batch", sql, e))
                 }
             }
         })
@@ -561,9 +600,15 @@ impl TxConn {
     async fn batch_execute(&self, sql: &str) -> Result<(), DbError> {
         match self {
             #[cfg(not(target_arch = "wasm32"))]
-            TxConn::Native(obj) => obj.batch_execute(sql).await.map_err(DbError::Pg),
+            TxConn::Native(obj) => obj
+                .batch_execute(sql)
+                .await
+                .map_err(|e| db_err("batch", sql, e)),
             #[cfg(target_arch = "wasm32")]
-            TxConn::Wasm(client) => client.batch_execute(sql).await.map_err(DbError::Pg),
+            TxConn::Wasm(client) => client
+                .batch_execute(sql)
+                .await
+                .map_err(|e| db_err("batch", sql, e)),
         }
     }
 
@@ -576,7 +621,9 @@ impl TxConn {
             TxConn::Native(obj) => {
                 if let Ok(handle) = tokio::runtime::Handle::try_current() {
                     handle.spawn(async move {
-                        let _ = obj.batch_execute("ROLLBACK").await;
+                        if let Err(e) = obj.batch_execute("ROLLBACK").await {
+                            tracing::error!(error = %e, "DB ロールバック失敗");
+                        }
                         drop(obj);
                     });
                 } else {
@@ -586,7 +633,9 @@ impl TxConn {
             #[cfg(target_arch = "wasm32")]
             TxConn::Wasm(client) => {
                 wasm_bindgen_futures::spawn_local(async move {
-                    let _ = client.batch_execute("ROLLBACK").await;
+                    if let Err(e) = client.batch_execute("ROLLBACK").await {
+                        worker::console_error!("DB ロールバック失敗: {e}");
+                    }
                     drop(client);
                 });
             }
@@ -679,14 +728,14 @@ macro_rules! impl_executor_for_tx {
                     {
                         #[cfg(not(target_arch = "wasm32"))]
                         TxConn::Native(obj) => obj
-                            .query(sql, &param_refs(params))
+                            .query_typed(sql, &typed_params(params))
                             .await
-                            .map_err(DbError::Pg),
+                            .map_err(|e| db_err("query", sql, e)),
                         #[cfg(target_arch = "wasm32")]
                         TxConn::Wasm(client) => client
-                            .query(sql, &param_refs(params))
+                            .query_typed(sql, &typed_params(params))
                             .await
-                            .map_err(DbError::Pg),
+                            .map_err(|e| db_err("query", sql, e)),
                     }
                 })
             }
@@ -704,14 +753,14 @@ macro_rules! impl_executor_for_tx {
                     {
                         #[cfg(not(target_arch = "wasm32"))]
                         TxConn::Native(obj) => obj
-                            .execute(sql, &param_refs(params))
+                            .execute_typed(sql, &typed_params(params))
                             .await
-                            .map_err(DbError::Pg),
+                            .map_err(|e| db_err("execute", sql, e)),
                         #[cfg(target_arch = "wasm32")]
                         TxConn::Wasm(client) => client
-                            .execute(sql, &param_refs(params))
+                            .execute_typed(sql, &typed_params(params))
                             .await
-                            .map_err(DbError::Pg),
+                            .map_err(|e| db_err("execute", sql, e)),
                     }
                 })
             }

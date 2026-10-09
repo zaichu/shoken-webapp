@@ -84,7 +84,7 @@ async fn fetch_cached_items(
         FROM dividend_per_share_cache
         WHERE security_code = ANY($1)
         "#,
-        vec![Bind::Custom(Box::new(codes.to_vec()))],
+        vec![Bind::from(codes.to_vec())],
     )
     .fetch_all(pool)
     .await?;
