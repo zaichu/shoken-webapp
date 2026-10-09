@@ -28,11 +28,11 @@ cd shoken-webapp
 
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
-| フロントエンド | Cloudflare Pages | Frontend CI（`frontend.yml`）成功後に `deploy-cloudflare-pages.yml` が呼び出されて自動デプロイ（frontend/shared 変更時） |
-| フロントエンド（プレビュー） | Cloudflare Pages / Vercel preview | PR 作成・更新時に `deploy-cloudflare-pages.yml` / `deploy-frontend.yml` が独立ビルド・配信（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功は待たない。URL は PR コメントに投稿される |
-| フロントエンド（旧本番） | Vercel | `LEPTOS_PRODUCTION_ENABLED=false` の間、`deploy-frontend.yml` は preview としてのみデプロイする |
-| バックエンド | Cloudflare Workers | main push（`deploy-cloudflare-worker.yml`） |
-| バックエンド（旧・切り戻し用に稼働中） | Fly.io | main push（`deploy-backend.yml`） |
+| フロントエンド | Cloudflare Pages（`https://shoken-webapp.pages.dev`） | Frontend CI（`frontend.yml`）成功後に `deploy-cloudflare-pages.yml` が呼び出されて自動デプロイ（frontend/shared 変更時）。手動反映は main での `deploy-cloudflare-pages.yml` workflow_dispatch |
+| フロントエンド（プレビュー） | Cloudflare Pages preview / Vercel preview | PR 作成・更新時に `deploy-cloudflare-pages.yml` と `deploy-frontend.yml` がそれぞれ独立ビルド・配信（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功は待たない。URL は PR コメントに投稿される |
+| フロントエンド（旧環境） | Vercel（`https://shoken-webapp.vercel.app`） | `deploy-frontend.yml`（`LEPTOS_PRODUCTION_ENABLED=true` のとき本番、それ以外は preview）。切り戻し用に残置し、様子見後に削除予定（[設計メモ](design/cloudflare-pages.md) 手順 7） |
+| バックエンド | Cloudflare Workers（`https://shoken-backend.zaitomo41.workers.dev`） | main push（`deploy-cloudflare-worker.yml`） |
+| バックエンド（旧環境） | Fly.io（`https://shoken-backend.fly.dev`） | main push（`deploy-backend.yml`）。切り戻し用に残置し、様子見後に machine 停止・削除予定（[設計メモ](design/cloudflare-workers-backend.md) 手順 8・9） |
 
 `fly.toml` はリポジトリルートに置く(Docker build context が `shared/` を含むルートのため)。
 
@@ -45,10 +45,10 @@ gh workflow run deploy-cloudflare-worker.yml
 # バックエンド（旧: Fly.io）
 (cd backend && make deploy)
 
-# フロントエンド（Cloudflare Pages）
-gh workflow run deploy-cloudflare-pages.yml
+# フロントエンド（Cloudflare Pages。main で workflow_dispatch）
+gh workflow run deploy-cloudflare-pages.yml --ref main
 
-# フロントエンド（旧: Vercel CLI。リポジトリルートで実行）
+# フロントエンド旧環境（Vercel CLI。リポジトリルートで実行）
 vercel pull --yes --environment=production
 vercel build --prod
 vercel deploy --prebuilt --prod
@@ -92,6 +92,7 @@ fly secrets set DATABASE_URL="postgresql://..."
 fly secrets set GOOGLE_CLIENT_ID="..."
 fly secrets set GOOGLE_CLIENT_SECRET="..."
 fly secrets set FRONTEND_URL="https://shoken-webapp.pages.dev"
+fly secrets set CORS_ORIGINS="https://shoken-webapp.vercel.app,https://shoken-webapp.pages.dev"
 fly secrets set BACKEND_URL="https://shoken-backend.fly.dev"
 ```
 
@@ -101,6 +102,21 @@ secrets/vars から注入する（`wrangler secret put` と `wrangler deploy --v
 `https://shoken-webapp.pages.dev`。CORS の許可 origin は `CORS_ORIGINS` var 未設定時に
 コード既定値（`backend/src/config.rs`）が使われ、本番では `shoken-webapp.pages.dev` と
 `shoken-webapp.vercel.app` を許可する。
+
+## 切り戻し（フロントを Vercel 本番へ戻す）
+
+Vercel プロジェクトは移行の様子見期間が終わるまで削除しない前提（[設計メモ](design/cloudflare-pages.md) 手順 7）。
+
+```bash
+# backend のリダイレクト先を旧 URL に戻す（secrets 更新で backend は自動再起動する）
+fly secrets set FRONTEND_URL="https://shoken-webapp.vercel.app"
+
+# Vercel への本番デプロイを再有効化して再デプロイ
+gh variable set LEPTOS_PRODUCTION_ENABLED --body "true"
+gh workflow run deploy-frontend.yml --ref main
+```
+
+`CORS_ORIGINS` は旧 origin を残したままにしてあるため戻す必要はない。
 
 ## Google Cloud OAuth 設定
 

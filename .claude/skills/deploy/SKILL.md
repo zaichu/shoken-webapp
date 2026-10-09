@@ -1,7 +1,7 @@
 ---
 name: deploy
 description: |
-  Fly.io (backend) と Vercel (frontend) へのデプロイ。
+  Fly.io (backend) と Cloudflare Pages (frontend) へのデプロイ。
   Use when: デプロイ、本番反映、fly deploy を依頼された時。
 ---
 
@@ -10,7 +10,8 @@ description: |
 ## 重要: 本番デプロイの経路
 
 - backend: `main` へのマージ(`backend/**`・`shared/**` 変更)で `deploy-backend.yml` が自動デプロイ
-- frontend: PR や `main` への push では自動デプロイしない(Vercel の Git 連携ビルドは `frontend/vercel.json` の ignoreCommand で常にスキップ)。本番反映は `main` に対する `deploy-frontend.yml` の workflow_dispatch か、Vercel CLI の手動実行のみ
+- frontend: 本番は Cloudflare Pages (`https://shoken-webapp.pages.dev`)。`main` への frontend/shared 変更 push で `frontend.yml` 成功後に `deploy-cloudflare-pages.yml` が自動デプロイ。手動反映は `main` に対する同ワークフローの workflow_dispatch
+- 旧環境 Vercel (`https://shoken-webapp.vercel.app`) は切り戻し用に残置(削除しない)。`deploy-frontend.yml` は `LEPTOS_PRODUCTION_ENABLED=true` のときのみ本番へ出る
 
 ブランチ運用の基準は `.claude/rules/03-git.md` を参照する。
 
@@ -35,14 +36,22 @@ flyctl logs -a shoken-backend
 flyctl status -a shoken-backend
 ```
 
-## フロントエンド (Vercel)
+## フロントエンド (Cloudflare Pages)
 
-### 本番デプロイ(手動のみ)
+### 本番デプロイ
 
-PR や `main` への push では自動デプロイされない。本番反映は次のいずれか:
+- 自動: `main` への frontend/shared 変更 push → `frontend.yml` 成功後に `deploy-cloudflare-pages.yml` が検証済みの `cloudflare-dist` 成果物をそのままデプロイ(二重ビルドしない)
+- 手動: `deploy-cloudflare-pages.yml` を `main` ブランチで workflow_dispatch 実行(独立ビルド経路)
+- PR では同ワークフローが `pull_request` で起動し、preview を `<branch>.shoken-webapp.pages.dev` に配信して URL を PR コメントに投稿(投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ)
 
-- `deploy-frontend.yml` を `main` ブランチで workflow_dispatch 実行(`LEPTOS_PRODUCTION_ENABLED=true` のとき production、それ以外は preview)
-- リポジトリのルートで Vercel CLI を実行する(Vercel の Root Directory はルートからの相対で解決される):
+配信設定の正本は `frontend/vercel.json`。`prepare-vercel-dist.mjs` が `_headers`・`_redirects` を生成し、Pages は dist 直下のそれらを読む。Vercel の Git 連携ビルドは `frontend/vercel.json` の ignoreCommand で常にスキップされる。
+
+### フロントエンド旧環境 (Vercel、切り戻し用に残置)
+
+本番反映は `LEPTOS_PRODUCTION_ENABLED=true` のときだけ。再開する場合:
+
+- `deploy-frontend.yml` を `main` ブランチで workflow_dispatch 実行(production)
+- またはリポジトリのルートで Vercel CLI を実行する:
 
 ```bash
 vercel pull --yes --environment=production
@@ -56,7 +65,7 @@ vercel deploy --prebuilt --prod
 2. ローカルでテスト（cargo test, playwright）
 3. 作業ブランチ -> `main` の PR を作成してマージ
 4. backend は自動デプロイ実行（手動操作不要）
-5. frontend の本番反映が必要な場合は `deploy-frontend.yml` の workflow_dispatch か Vercel CLI で手動デプロイ
+5. frontend も main へのマージで自動デプロイ(frontend/shared 変更時)。手動反映は `deploy-cloudflare-pages.yml` の workflow_dispatch
 6. 本番で動作確認
 
 ## デプロイ前チェックリスト
@@ -74,5 +83,8 @@ flyctl releases list -a shoken-backend
 flyctl deploy -a shoken-backend --image <previous-image>
 ```
 
-### Vercel
+### Cloudflare Pages → Vercel への切り戻し
+手順は `docs/runbook.md` の「切り戻し（フロントを Vercel 本番へ戻す）」を正本とする。
+
+### Vercel (旧環境内での戻し)
 Vercel ダッシュボードから以前のデプロイを選択して再デプロイ
