@@ -10,7 +10,7 @@ BACKEND_PORT="${BACKEND_PORT:-}"
 if [[ -z "${BACKEND_PORT}" && "${BACKEND_URL:-}" =~ :([0-9]+)(/|$) ]]; then
   BACKEND_PORT="${BASH_REMATCH[1]}"
 fi
-BACKEND_PORT="${BACKEND_PORT:-3001}"
+BACKEND_PORT="${BACKEND_PORT:-8787}"
 if [[ "${BACKEND_PORT}" =~ ^[0-9]+$ ]]; then BACKEND_PORT=$((10#${BACKEND_PORT})); fi
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
 FRONTEND_PORT="${FRONTEND_PORT:-}"
@@ -31,7 +31,6 @@ if [[ "${FRONTEND_URL}" =~ :([0-9]+)(/|$) ]] && [[ "$((10#${BASH_REMATCH[1]}))" 
   exit 2
 fi
 
-DATABASE_URL="${DATABASE_URL:-postgresql://user:password@localhost:5432/shoken_db}"
 CORS_ORIGINS="${CORS_ORIGINS:-http://localhost:${FRONTEND_PORT},${FRONTEND_URL}}"
 
 # PID/ログファイルはチェックアウトとポートごとに分ける。同じ /tmp 既定を複数
@@ -120,24 +119,25 @@ for i in $(seq 1 120); do
   fi
 done
 
-echo "2/3 Starting backend..."
+echo "2/3 Starting backend (wrangler dev)..."
 (
   cd "${BACKEND_DIR}"
   # make 経由だと台帳に残る PID が make になり実サーバーを止められない。
-  # cargo run は Unix では同じ PID のままバイナリへ exec される。
-  DATABASE_URL="${DATABASE_URL}" \
-    APP_ENV="${APP_ENV:-development}" \
-    BACKEND_URL="${BACKEND_URL}" \
-    FRONTEND_URL="${FRONTEND_URL}" \
-    CORS_ORIGINS="${CORS_ORIGINS}" \
-    PORT="${BACKEND_PORT}" \
-    exec cargo run --bin backend >"${BACKEND_LOG}" 2>&1
+  # exec でシェルプロセスごと置き換え、台帳 PID が実サーバーを指すようにする。
+  # 設定値は .dev.vars / wrangler.toml [env.dev.vars] が正本。--var はその上書き。
+  exec npx wrangler dev --env dev \
+    --port "${BACKEND_PORT}" \
+    --var "BACKEND_URL:${BACKEND_URL}" \
+    --var "FRONTEND_URL:${FRONTEND_URL}" \
+    --var "CORS_ORIGINS:${CORS_ORIGINS}" \
+    >"${BACKEND_LOG}" 2>&1
 ) &
 BACK_PID=$!
 write_pid_file "${BACKEND_PID_FILE}" "${BACK_PID}"
 
-# /health はプロセスの生存確認だけなので、DB・マイグレーション完了を表す /ready を待つ
-if ! wait_for_http_ok "${BACKEND_URL}/ready" "Backend" 120 0.5; then
+# /health はプロセスの生存確認だけなので、DB・マイグレーション完了を表す /ready を待つ。
+# 初回は worker-build --release が走るため待ち時間を長めに取る
+if ! wait_for_http_ok "${BACKEND_URL}/ready" "Backend" 360 1; then
   tail -n 80 "${BACKEND_LOG}" >&2 || true
   cleanup
   exit 1
@@ -145,11 +145,11 @@ fi
 
 echo "3/3 Starting frontend..."
 TRUNK_CONFIG="${FRONTEND_DIR}/Trunk.toml"
-# trunk の proxy backend は Trunk.toml に 3001 固定なので、BACKEND_URL 上書き時は
+# trunk の proxy backend は Trunk.toml に 8787 固定なので、BACKEND_URL 上書き時は
 # proxy だけ差し替えた一時設定で serve する(--proxy-backend 追加は上書きでなく二重登録になる)
-if [[ "${BACKEND_URL}" != "http://127.0.0.1:3001" ]]; then
+if [[ "${BACKEND_URL}" != "http://127.0.0.1:8787" ]]; then
   TRUNK_TMP_CONFIG="$(mktemp "${FRONTEND_DIR}/Trunk.local.XXXXXX.toml")"
-  sed 's|backend = "http://127\.0\.0\.1:3001/api/"|backend = "'"${BACKEND_URL%/}"'/api/"|' \
+  sed 's|backend = "http://127\.0\.0\.1:8787/api/"|backend = "'"${BACKEND_URL%/}"'/api/"|' \
     "${FRONTEND_DIR}/Trunk.toml" > "${TRUNK_TMP_CONFIG}"
   TRUNK_CONFIG="${TRUNK_TMP_CONFIG}"
 fi

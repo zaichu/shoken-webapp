@@ -1,7 +1,3 @@
-// tokio::spawn ベースのバックグラウンド更新は isolate にスレッドを持てない wasm では
-// コンパイルしない。wasm 側は get_batch が pending 行を積み、cron が消化する
-#[cfg(not(target_arch = "wasm32"))]
-mod background;
 mod logic;
 // tests/db_integration.rs からの検証用に公開しているため docs には出さない
 #[doc(hidden)]
@@ -12,12 +8,8 @@ use crate::errors::{ApiError, UpstreamError};
 use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
 use crate::services::jquants::JQuantsClient;
 use chrono::Utc;
-#[cfg(not(target_arch = "wasm32"))]
-use reqwest::Client;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::{Arc, atomic::AtomicBool};
 use std::time::Duration;
 
 use logic::compute_is_stale;
@@ -38,38 +30,8 @@ pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
     matches!(e, ApiError::Upstream(UpstreamError::RateLimited))
 }
 
-/// キャッシュをバッチ取得し、未取得/TTL切れ銘柄のバックグラウンド更新をキック
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn get_batch(
-    pool: &Db,
-    client: &Client,
-    api_key: Option<&str>,
-    codes: &[SecurityCode],
-    background_task_running: &Arc<AtomicBool>,
-) -> Result<Vec<DividendPerShareItem>, ApiError> {
-    let (items, refresh_codes) = fetch_cached_items(pool, codes).await?;
-
-    // バックグラウンド更新をキック（多重起動防止）
-    if !refresh_codes.is_empty() {
-        if let Some(key) = api_key {
-            let jquants_client = JQuantsClient::new(client.clone(), key.to_string());
-            background::spawn_background_refresh(
-                pool.clone(),
-                jquants_client,
-                refresh_codes,
-                Arc::clone(background_task_running),
-            );
-        } else {
-            tracing::warn!("JQUANTS_API_KEY が未設定のためバックグラウンド更新をスキップ");
-        }
-    }
-
-    Ok(items)
-}
-
-/// Workers 版: isolate 内で spawn できないため、未取得/TTL切れ銘柄を pending 行として
-/// DB に積み、scheduled イベント（毎分 cron）が drain_refresh_queue で消化する
-#[cfg(target_arch = "wasm32")]
+/// キャッシュをバッチ取得し、未取得/TTL切れ銘柄を pending 行として DB に積む。
+/// scheduled イベント（毎分 cron）が drain_refresh_queue で消化する
 pub async fn get_batch(
     pool: &Db,
     jquants_client: Option<&JQuantsClient>,
@@ -91,7 +53,6 @@ pub async fn get_batch(
 /// 未取得銘柄を pending 行として積む。
 /// 既存行は stale_at / cooldown 経過で cron の選定条件を満たすため、そのままにする
 /// （status が pending の間は compute_is_stale=false で再投入も起きない）
-#[cfg(target_arch = "wasm32")]
 async fn enqueue_refresh(pool: &Db, codes: &[SecurityCode]) -> Result<(), ApiError> {
     crate::db::query(
         r#"
@@ -140,8 +101,7 @@ async fn fetch_cached_items(
 
 /// scheduled イベントから stale/pending 銘柄を消化する。
 /// レート制御は market_data_provider_rate_control で全インスタンス共有されるため、
-/// 他経路のバックグラウンド更新と並走しても 12 秒間隔は破られない。
-/// 中断規則は background refresh と同じ（429→cooldown+中断、スロット失敗→中断）。
+/// isolate が並走しても 12 秒間隔は破られない（429→cooldown+中断、スロット失敗→中断）。
 /// 戻り値は今回の実行で実際に取得を試みた件数（ログ・テスト用）
 pub async fn drain_refresh_queue(
     pool: &Db,
@@ -269,7 +229,7 @@ pub async fn acquire_rate_slot(pool: &Db) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// native は tokio タイマー、wasm は worker::Delay（ランタイム提供のタイマー）で待機する
+/// ホストは tokio タイマー、wasm は worker::Delay（ランタイム提供のタイマー）で待機する
 async fn sleep_millis(ms: u64) {
     #[cfg(not(target_arch = "wasm32"))]
     tokio::time::sleep(Duration::from_millis(ms)).await;

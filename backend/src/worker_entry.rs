@@ -19,7 +19,7 @@ use crate::{
 // ドメインハンドラーの wasm 移植が済むまでは、チェックイン済みの契約ファイルをそのまま返す
 const OPENAPI_JSON: &str = include_str!("../../docs/openapi.json");
 
-/// リクエストボディの上限サイズ（native の REQUEST_BODY_LIMIT と同値）
+/// リクエストボディの上限サイズ（CSV インポートのペイロードを見込んで 10MB）
 const REQUEST_BODY_LIMIT: usize = 10 * 1024 * 1024;
 
 /// `[[ratelimits]]` バインディングを取り出す。未設定（ローカル dev 等）なら None で制限なし

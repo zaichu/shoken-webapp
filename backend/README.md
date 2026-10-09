@@ -4,9 +4,8 @@
 
 ## 技術スタック
 
-- **フレームワーク**: Axum 0.8
-- **データベース**: PostgreSQL
-- **ORM**: SQLx
+- **フレームワーク**: Axum 0.8（Cloudflare Workers 上で `worker` クレート経由で動作）
+- **データベース**: PostgreSQL（本番は Hyperdrive、ローカルは wrangler dev の localConnectionString 経由。ドライバは tokio-postgres）
 - **認証**: Google OAuth 2.0
 - **デプロイ**: Cloudflare Workers
 
@@ -32,59 +31,46 @@ API 契約の正本は [`../docs/openapi.json`](../docs/openapi.json) です。
 
 ### 環境変数
 
-バックエンドは `backend/.env` の環境変数を読み込みます。
+実行環境は Cloudflare Workers のみで、設定の正本は `wrangler.toml`（vars/bindings）です。
+
+- ローカル開発: `wrangler dev --env dev` が `[env.dev.vars]`（`APP_ENV`/`BACKEND_URL`/`FRONTEND_URL`）と
+  `[env.dev.hyperdrive]` の `localConnectionString` を読みます
+- シークレット: `backend/.dev.vars`（gitignore 済み）に置きます。雛形は `.dev.vars.example`
 
 ```bash
-# 必須
-DATABASE_URL=postgresql://user:pass@host/db
-FRONTEND_URL=http://localhost:8081
+cp .dev.vars.example .dev.vars
+# GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / JQUANTS_API_KEY を埋める
+```
 
-# Google OAuth（認証機能を使う場合）
-GOOGLE_CLIENT_ID=your-client-id
-GOOGLE_CLIENT_SECRET=your-client-secret
+vars で上書きできる主な値:
 
-# J-Quants API（決算サマリー取得に必要）
-JQUANTS_API_KEY=your-api-key
-
-# オプション
-PORT=3001                          # デフォルト: 3001
-BACKEND_URL=https://example.com    # バックエンド自身のURL（OAuth リダイレクト等に使用）
-CORS_ORIGINS=http://localhost:8081 # 許可するフロントエンドのオリジン
-
-# 環境判定（fail-safe）
-# RUST_ENV / APP_ENV の設定値がすべて開発用の値
-# （local / dev / development / test）のときだけ非本番扱い。
-# 未設定・不明値・本番値との混在はすべて本番扱いになる。
-# ローカル開発では APP_ENV=development を設定すること（.env.example に同梱済み）
-APP_ENV=development
+```bash
+BACKEND_URL=http://localhost:8787    # バックエンド自身のURL（OAuth リダイレクト等に使用）
+FRONTEND_URL=http://localhost:8081   # フロントエンドのURL
+CORS_ORIGINS=http://localhost:8081   # 許可するフロントエンドのオリジン
+APP_ENV=development                  # 未設定・不明値・本番値との混在はすべて本番扱い（fail-safe）
 # SECURE_COOKIE=true                # 非本番で Secure Cookie を有効化する場合のみ。本番では値に関わらず Secure
 ```
 
-`.env` ファイルの準備（既存があればそのまま使用）:
-
-```bash
-if [ -f .env ]; then
-  echo ".env already exists. reuse it."
-elif [ -f .env.example ]; then
-  cp .env.example .env
-else
-  echo ".env.example not found. create .env manually."
-fi
-```
+`backend/.env` は `cargo run --bin migrate`（ホスト側マイグレーション）だけが
+dotenvy で読む `DATABASE_URL` 用です（`.env.example` 参照）。
 
 ### コマンド
 
 ```bash
-# ローカル開発サーバー起動
+# ローカル開発サーバー起動（wrangler dev、http://localhost:8787）
 make run
 
-# テスト実行
+# Workers 向け wasm ビルド
+make worker-build
+
+# テスト実行（ホスト側。ユニットテストとツール検証）
 make test
 
 # コンパイルチェック
 make check
 
-# マイグレーション実行
+# マイグレーション実行（DATABASE_URL 経由で直接接続）
 make migrate
 
 # ローカルDocker DBにマイグレーション
@@ -104,11 +90,8 @@ cd backend
 make db-up
 ```
 
-`.env` の `DATABASE_URL` は以下を想定しています。
-
-```bash
-DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db
-```
+`wrangler dev` は `wrangler.toml` の `localConnectionString` でこの DB に接続します
+（既定: `postgres://user:password@127.0.0.1:5432/shoken_db?sslmode=disable`）。
 
 ## データベーススキーマ
 
@@ -123,35 +106,11 @@ DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db
 ```bash
 # マイグレーション実行
 make migrate-local
-
-# SQLxクエリキャッシュ準備（オフラインビルド用）
-cargo sqlx prepare
 ```
 
-### SQLx query! 運用方針
-
-固定SQLは `sqlx::query!` / `sqlx::query_as!` を優先し、コンパイル時検証できる形に寄せます。
-対象は SQL 文字列と戻り値の形が固定できる処理です。
-
-- 対象: `delete_all_for_user` のような固定テーブルへの `DELETE`
-- 対象: 条件と戻り列が固定された単純な `SELECT COUNT(*)`
-- 対象: 認証・銘柄検索・配当キャッシュ・advisory lock と、各ドメインの固定 `UNNEST` による一括登録
-- 非対象: ドメイン共通の件数取得・検索・集計・facet は、テーブル・列・条件・並び順を `QueryBuilder` で組み立てるため
-- 非対象: テストデータの投入・確認 SQL は実 DB テスト用であり、本番クエリのオフラインキャッシュには含めない
-
-`backend/.sqlx/` はリポジトリ管理します。
-理由は、CI とローカル検証を `SQLX_OFFLINE=true` で実行し、DB接続なしでも `query!` のメタデータ整合性を検証できるようにするためです。
-`query!` を追加・変更した場合は、ローカルDBに最新マイグレーションを適用した上で次を実行します。
-
-```bash
-make db-up
-make migrate-local
-make sqlx-prepare
-```
-
-CI は `cargo fmt --check`、`SQLX_OFFLINE=true cargo clippy --all-targets -- -D warnings`、`SQLX_OFFLINE=true cargo test`、Worker ビルド（`worker-build --release`）を実行します。
-`cargo sqlx prepare --check` はローカルDBの起動とマイグレーション適用が必要なためCIには入れていません。
-`query!` 追加・変更時は `make sqlx-prepare` の結果を必ずコミットします。
+クエリは `tokio-postgres` の生 SQL で書きます（Workers 実行時は Hyperdrive 経由）。
+CI は `cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`、`cargo test`、
+Worker ビルド（`worker-build --release`）を実行します。
 
 ## デプロイ
 
@@ -170,7 +129,7 @@ wrangler tail
 ```
 backend/
 ├── src/
-│   ├── main.rs          # エントリーポイント
+│   ├── worker_entry.rs  # Workers エントリーポイント（fetch/scheduled イベント）
 │   ├── config.rs        # 設定
 │   ├── errors.rs        # エラーハンドリング
 │   ├── extractors/      # Axumエクストラクター
@@ -184,7 +143,7 @@ backend/
 │   │   ├── jquants.rs   # J-Quants の通信
 │   │   └── jquants/     # J-Quants の応答型
 │   └── state.rs         # アプリケーション状態
-├── migrations/          # SQLxマイグレーション
+├── migrations/          # DB マイグレーション（`cargo run --bin migrate` で適用）
 ├── Cargo.toml
 ├── wrangler.toml        # Cloudflare Workers の設定（Hyperdrive/ratelimits/cron）
 └── Makefile

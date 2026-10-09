@@ -12,7 +12,7 @@
 ## 構成
 
 - `frontend/`: Leptos、Trunk、Tailwind CSS、Playwright。Cloudflare Pages に配信
-- `backend/`: Axum、SQLx、PostgreSQL。Cloudflare Workers に配信
+- `backend/`: Axum、tokio-postgres、PostgreSQL。Cloudflare Workers に配信
 - `docs/openapi.json`: API 契約
 - `.github/workflows/`: CI とデプロイ
 
@@ -24,12 +24,12 @@ Rust（版はルートの `rust-toolchain.toml` を参照）、`wasm32-unknown-u
 cd frontend
 npm ci
 cd ../backend
-cp .env.example .env
+cp .dev.vars.example .dev.vars
 cd ..
 ./scripts/start-local.sh
 ```
 
-`start-local.sh` は DB → backend → Leptos の順に起動します。フロントエンドは `http://127.0.0.1:8081`、バックエンドは `http://127.0.0.1:3001` です。停止には `./scripts/stop-local.sh` を使います。
+`start-local.sh` は DB → backend（wrangler dev）→ Leptos の順に起動します。フロントエンドは `http://127.0.0.1:8081`、バックエンドは `http://127.0.0.1:8787` です。停止には `./scripts/stop-local.sh` を使います。
 
 ## 検証
 
@@ -47,8 +47,9 @@ npx playwright test --config playwright.deploy.config.ts
 ```bash
 cd backend
 cargo fmt --check
-env SQLX_OFFLINE=true cargo clippy -- -D warnings
-env SQLX_OFFLINE=true cargo test
+cargo clippy --all-targets -- -D warnings
+cargo test
+worker-build --release
 ```
 
 詳細は [Leptos の README](frontend/README.md) と [テストガイド](docs/testing.md) を参照してください。

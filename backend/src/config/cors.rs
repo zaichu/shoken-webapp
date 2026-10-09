@@ -89,15 +89,12 @@ mod tests {
         super::{
             build_cors_layer, is_localhost_origin, is_pages_preview_origin, parse_cors_origins,
         },
-        crate::state::AppState,
         axum::{
             Router,
             body::Body,
             http::{Method, Request, header::ACCESS_CONTROL_ALLOW_ORIGIN},
             routing::get,
         },
-        reqwest::Client,
-        std::sync::Arc,
         tower::ServiceExt,
     };
 
@@ -106,28 +103,9 @@ mod tests {
     }
 
     fn build_test_app(cors_origins: &[String]) -> Router {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = crate::db::connect_pool_lazy(database_url, 1)
-            .expect("Failed to create connection pool");
-        let secrets = Arc::new(crate::state::Secrets {
-            database_url: database_url.to_string(),
-            jquants_api_key: None,
-            google_client_id: None,
-            google_client_secret: None,
-            frontend_url: "http://localhost:8080".to_string(),
-        });
-
         Router::new()
             .route("/health", get(|| async { "OK" }))
             .layer(build_cors_layer(cors_origins))
-            .with_state(AppState {
-                pool,
-                secrets,
-                client: Client::new(),
-                dividend_cache: crate::state::DividendCacheState::default(),
-                config: Arc::new(crate::config::Config::default()),
-                google_oauth: None,
-            })
     }
 
     #[test]

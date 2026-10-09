@@ -9,7 +9,6 @@ use {
         routing::get,
     },
     chrono::NaiveDate,
-    reqwest::Client,
     serde_json::Value,
     std::sync::Arc,
     tower::ServiceExt,
@@ -48,16 +47,14 @@ fn setup_test_app(pool: &crate::db::Db) -> Router {
         .with_state(crate::AppState {
             pool: pool.clone(),
             secrets: Arc::new(Secrets {
-                database_url: "postgresql://postgres:postgres@localhost/postgres".to_string(),
                 jquants_api_key: None,
                 google_client_id: None,
                 google_client_secret: None,
                 frontend_url: "http://localhost:8080".to_string(),
             }),
-            client: Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
             config: Arc::new(crate::config::Config::default()),
             google_oauth: None,
+            jquants_client: None,
         })
 }
 
