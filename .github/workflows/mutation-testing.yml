@@ -78,7 +78,7 @@ jobs:
       fail-fast: false
       matrix:
         crate: ${{ fromJSON(needs.changes.outputs.crates) }}
-        shard: [1, 2, 3, 4]
+        shard: [0, 1, 2, 3]
     defaults:
       run:
         working-directory: ${{ matrix.crate }}
