@@ -52,9 +52,47 @@ jobs:
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # push でも deploy-backend.yml と同じ事前検証を通してからデプロイする
+  verify:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          cache: false
+          target: wasm32-unknown-unknown
+
+      - name: Cache Cargo
+        uses: ./.github/actions/rust-cache
+        with:
+          workspaces: backend -> target
+          shared-key: deploy-cloudflare-worker
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Lint (clippy)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Install worker-build
+        run: cargo install --locked --version 0.8.7 worker-build
+
+      - name: Build Worker bundle (wasm32)
+        run: worker-build --release
+
   deploy:
     name: Deploy to Cloudflare Workers
-    needs: [cloudflare-secrets]
+    needs: [cloudflare-secrets, verify]
     if: >-
       needs.cloudflare-secrets.outputs.available == 'true'
       && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
@@ -98,7 +136,7 @@ jobs:
           node-version: 22
 
       - name: Install worker-build
-        run: cargo install --locked worker-build
+        run: cargo install --locked --version 0.8.7 worker-build
 
       - name: Install wrangler
         run: npm install -g wrangler@4.149.0
@@ -152,27 +190,30 @@ jobs:
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" | jq -r '.result.subdomain // empty' || true)"
           echo "subdomain=${subdomain}" >> "$GITHUB_OUTPUT"
 
+      # サブドメインが未作成(初回デプロイ)なら一度デプロイして作成させ、API で再取得する
+      - name: Bootstrap workers.dev subdomain
+        id: bootstrap
+        if: steps.subdomain.outputs.subdomain == ''
+        run: |
+          set -euo pipefail
+          wrangler deploy
+          subdomain="$(curl -sf \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" | jq -r '.result.subdomain // empty')"
+          [[ -n "${subdomain}" ]] || { echo "::error::workers.dev サブドメインを解決できませんでした"; exit 1; }
+          echo "subdomain=${subdomain}" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Cloudflare Workers
         id: deploy
         run: |
-          set -o pipefail
+          set -euo pipefail
+          subdomain="${{ steps.subdomain.outputs.subdomain }}${{ steps.bootstrap.outputs.subdomain }}"
+          worker_url="https://${WORKER_NAME}.${subdomain}.workers.dev"
           frontend_url="${FRONTEND_URL:-https://shoken-webapp.pages.dev}"
-          if [[ -n "${{ steps.subdomain.outputs.subdomain }}" ]]; then
-            worker_url="https://${WORKER_NAME}.${{ steps.subdomain.outputs.subdomain }}.workers.dev"
-            wrangler deploy \
-              --var "APP_ENV:production" \
-              --var "BACKEND_URL:${worker_url}" \
-              --var "FRONTEND_URL:${frontend_url}" 2>&1 | tee "${RUNNER_TEMP}/wrangler-deploy.log"
-          else
-            # サブドメインが未作成(初回デプロイ)なら、一度デプロイして URL を得てから vars 付きで再デプロイ
-            wrangler deploy 2>&1 | tee "${RUNNER_TEMP}/wrangler-deploy.log"
-            worker_url="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' "${RUNNER_TEMP}/wrangler-deploy.log" | head -n1)"
-            [[ -n "${worker_url}" ]] || { echo "::error::Worker の URL を解決できませんでした"; exit 1; }
-            wrangler deploy \
-              --var "APP_ENV:production" \
-              --var "BACKEND_URL:${worker_url}" \
-              --var "FRONTEND_URL:${frontend_url}" 2>&1 | tee -a "${RUNNER_TEMP}/wrangler-deploy.log"
-          fi
+          wrangler deploy \
+            --var "APP_ENV:production" \
+            --var "BACKEND_URL:${worker_url}" \
+            --var "FRONTEND_URL:${frontend_url}"
           echo "url=${worker_url}" >> "$GITHUB_OUTPUT"
           {
             echo "Worker URL: ${worker_url}"
@@ -190,6 +231,9 @@ jobs:
           code() { curl -s -o /dev/null -w '%{http_code}' "$1"; }
           [[ "$(code "${url}/health")" == "200" ]] || { echo "::error::/health が 200 でない"; exit 1; }
           [[ "$(code "${url}/ready")" == "200" ]] || { echo "::error::/ready が 200 でない"; exit 1; }
-          curl -sf "${url}/api-docs/openapi.json" | grep -q '"openapi"' || { echo "::error::openapi.json が不正"; exit 1; }
+          # grep -q の早期終了で curl が SIGPIPE(exit 23) になるため、本文は最後まで受け取ってから検査する
+          curl -sf -o "${RUNNER_TEMP}/openapi.json" "${url}/api-docs/openapi.json" \
+            && grep -q '"openapi"' "${RUNNER_TEMP}/openapi.json" \
+            || { echo "::error::openapi.json が不正"; exit 1; }
           [[ "$(code "${url}/api/v1/session")" == "401" ]] || { echo "::error::未ログイン API が 401 でない"; exit 1; }
           echo "smoke check 通過: /health /ready openapi.json 401"
