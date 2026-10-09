@@ -1,12 +1,6 @@
 use std::sync::Arc;
 
-use axum::{
-    Router,
-    http::StatusCode,
-    http::header,
-    middleware,
-    routing::{get, post},
-};
+use axum::{Router, http::StatusCode, http::header, middleware, routing::get};
 use tower_http::{
     limit::RequestBodyLimitLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -59,13 +53,21 @@ fn router(state: AppState, env: &Env) -> Router {
         rate_limiter(env, "RATE_LIMIT_AUTH"),
     );
 
-    // 配当キャッシュ: エンキュー側。stale/pending 銘柄の消化は scheduled イベントが担当
+    // 配当キャッシュのエンキューも data_routes 内の dividend-per-share-estimates が担う。
+    // stale/pending 銘柄の消化は scheduled イベントが担当
     let data_routes = with_rate_limit(
-        Router::new().route(
-            "/api/v1/dividend-per-share-estimates",
-            post(handlers::v1::dividend_per_share::batch),
-        ),
+        handlers::v1::data_routes(),
         rate_limiter(env, "RATE_LIMIT_DATA"),
+    );
+
+    let csv_routes = with_rate_limit(
+        handlers::v1::csv_upload_routes(),
+        rate_limiter(env, "RATE_LIMIT_CSV"),
+    );
+
+    let stock_search_routes = with_rate_limit(
+        handlers::v1::stock_search_routes(),
+        rate_limiter(env, "RATE_LIMIT_STOCK_SEARCH"),
     );
 
     let ready_db = state.pool.clone();
@@ -93,6 +95,8 @@ fn router(state: AppState, env: &Env) -> Router {
 
     auth_routes
         .merge(data_routes)
+        .merge(csv_routes)
+        .merge(stock_search_routes)
         .merge(probe_routes)
         .layer(middleware::from_fn(move |req, next| {
             let origins = allowed_origins.clone();

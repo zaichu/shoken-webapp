@@ -4,6 +4,7 @@ use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use shared::value::UserId;
 use std::fmt;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 use tracing::info;
 
@@ -28,9 +29,13 @@ impl fmt::Display for RowLimit {
 }
 
 /// bulk_create の開始ログ・完了ログ・処理時間計測をまとめた補助構造体
+/// wasm では Instant が未対応のため epoch ミリ秒で保持する
 pub struct BulkTimer {
     domain: &'static str,
+    #[cfg(not(target_arch = "wasm32"))]
     start: Instant,
+    #[cfg(target_arch = "wasm32")]
+    start_ms: u64,
     total: usize,
 }
 
@@ -39,7 +44,10 @@ impl BulkTimer {
         info!("[{}.bulk_create] リクエスト受信: {}件", domain, total);
         Self {
             domain,
+            #[cfg(not(target_arch = "wasm32"))]
             start: Instant::now(),
+            #[cfg(target_arch = "wasm32")]
+            start_ms: worker::Date::now().as_millis(),
             total,
         }
     }
@@ -59,7 +67,12 @@ impl BulkTimer {
 
     pub fn finish(self, inserted: usize) -> BulkCreateResponse {
         let skipped = self.total - inserted;
+        #[cfg(not(target_arch = "wasm32"))]
         let elapsed_ms = self.start.elapsed().as_secs_f64() * 1000.0;
+        #[cfg(target_arch = "wasm32")]
+        let elapsed_ms = worker::Date::now()
+            .as_millis()
+            .saturating_sub(self.start_ms) as f64;
         info!(
             "[{}.bulk_create] 完了: inserted={}, skipped={}, 処理時間={:.2}ms",
             self.domain, inserted, skipped, elapsed_ms
