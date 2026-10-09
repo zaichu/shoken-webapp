@@ -1,0 +1,239 @@
+name: Cloudflare Worker Deploy
+
+# 設計: docs/design/cloudflare-workers-backend.md 5節 (1・2・4・5) / 8節 段階6。
+# main push(バックエンド系パス)と手動起動で動く。Fly の deploy 経路 (deploy-backend.yml) は残す。
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'shared/**'
+      - 'rust-toolchain.toml'
+      - 'docs/openapi.json'
+      - '.github/workflows/deploy-cloudflare-worker.yml'
+      - '.github/actions/rust-cache/**'
+      - '!**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-worker-deploy
+  cancel-in-progress: false
+
+jobs:
+  cloudflare-secrets:
+    name: Check Cloudflare secrets
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+    steps:
+      - name: Check secrets presence
+        id: check
+        run: |
+          missing=""
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID DATABASE_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
+            if [[ -z "${!name}" ]]; then
+              missing="${missing} ${name}"
+            fi
+          done
+          if [[ -n "${missing}" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::シークレットが未登録です(${missing# })。デプロイをスキップします"
+            echo "シークレットが未登録です(\`${missing# }\`)。デプロイはスキップされました(失敗ではありません)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # push でも deploy-backend.yml と同じ事前検証を通してからデプロイする
+  verify:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          cache: false
+          target: wasm32-unknown-unknown
+
+      - name: Cache Cargo
+        uses: ./.github/actions/rust-cache
+        with:
+          workspaces: backend -> target
+          shared-key: deploy-cloudflare-worker
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Lint (clippy)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Install worker-build
+        run: cargo install --locked --version 0.8.7 worker-build
+
+      - name: Build Worker bundle (wasm32)
+        run: worker-build --release
+
+  deploy:
+    name: Deploy to Cloudflare Workers
+    needs: [cloudflare-secrets, verify]
+    if: >-
+      needs.cloudflare-secrets.outputs.available == 'true'
+      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+        shell: bash
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
+      # ログイン完了後のリダイレクト先。repo variable FRONTEND_URL が無ければ Pages を使う
+      FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+      HYPERDRIVE_NAME: shoken-backend-db
+      WORKER_NAME: shoken-backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          cache: false
+          target: wasm32-unknown-unknown
+
+      - name: Cache Cargo
+        uses: ./.github/actions/rust-cache
+        with:
+          workspaces: backend -> target
+          shared-key: deploy-cloudflare-worker
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0 https://github.com/actions/setup-node/releases/tag/v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install worker-build
+        run: cargo install --locked --version 0.8.7 worker-build
+
+      - name: Install wrangler
+        run: npm install -g wrangler@4.149.0
+
+      # 手順1: Hyperdrive が無ければ --caching-disabled で作成(DATABASE_URL から)。
+      # キャッシュは書き込みに連動して無効化されないため、read-after-write が必要な本アプリでは切る
+      - name: Ensure Hyperdrive config exists
+        id: hyperdrive
+        run: |
+          set -euo pipefail
+          config_id="$(wrangler hyperdrive list 2>/dev/null \
+            | grep -F "${HYPERDRIVE_NAME}" | grep -oE '[0-9a-f]{32}' | head -n1 || true)"
+          if [[ -z "${config_id}" ]]; then
+            echo "Hyperdrive ${HYPERDRIVE_NAME} を作成します"
+            out="$(wrangler hyperdrive create "${HYPERDRIVE_NAME}" \
+              --connection-string "${DATABASE_URL}" --caching-disabled)"
+            echo "${out}"
+            config_id="$(echo "${out}" | grep -oE '[0-9a-f]{32}' | head -n1)"
+          fi
+          [[ -n "${config_id}" ]] || { echo "::error::Hyperdrive の id を解決できませんでした"; exit 1; }
+          # ワークスペースのチェックアウト上だけ反映する(値はコミットしない)
+          sed -i "0,/^id = \"[0-9a-f]*\"$/s//id = \"${config_id}\"/" wrangler.toml
+          grep -n 'id =' wrangler.toml | head -2
+          echo "id=${config_id}" >> "$GITHUB_OUTPUT"
+          echo "hyperdrive_id=${config_id}" >> "$GITHUB_OUTPUT"
+
+      # 手順4: Neon へ直接接続してマイグレーション(backend の migrate bin = _sqlx_migrations 互換ランナー)
+      - name: Run database migrations
+        run: cargo run --bin migrate
+
+      # 手順5: Worker secrets / vars。実値は GitHub secrets から注入しログに出さない
+      - name: Set Worker secrets
+        run: |
+          set -euo pipefail
+          for name in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET JQUANTS_API_KEY; do
+            if [[ -n "${!name:-}" ]]; then
+              printf %s "${!name}" | wrangler secret put "${name}" >/dev/null
+              echo "${name} を設定しました"
+            else
+              echo "::warning::${name} が未設定のためスキップします"
+            fi
+          done
+
+      # *.workers.dev のサブドメインを API で取り、BACKEND_URL を先に確定する
+      - name: Resolve workers.dev subdomain
+        id: subdomain
+        run: |
+          set -euo pipefail
+          subdomain="$(curl -sf \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" | jq -r '.result.subdomain // empty' || true)"
+          echo "subdomain=${subdomain}" >> "$GITHUB_OUTPUT"
+
+      # サブドメインが未作成(初回デプロイ)なら一度デプロイして作成させ、API で再取得する
+      - name: Bootstrap workers.dev subdomain
+        id: bootstrap
+        if: steps.subdomain.outputs.subdomain == ''
+        run: |
+          set -euo pipefail
+          wrangler deploy
+          subdomain="$(curl -sf \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" | jq -r '.result.subdomain // empty')"
+          [[ -n "${subdomain}" ]] || { echo "::error::workers.dev サブドメインを解決できませんでした"; exit 1; }
+          echo "subdomain=${subdomain}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Cloudflare Workers
+        id: deploy
+        run: |
+          set -euo pipefail
+          subdomain="${{ steps.subdomain.outputs.subdomain }}${{ steps.bootstrap.outputs.subdomain }}"
+          worker_url="https://${WORKER_NAME}.${subdomain}.workers.dev"
+          frontend_url="${FRONTEND_URL:-https://shoken-webapp.pages.dev}"
+          wrangler deploy \
+            --var "APP_ENV:production" \
+            --var "BACKEND_URL:${worker_url}" \
+            --var "FRONTEND_URL:${frontend_url}"
+          echo "url=${worker_url}" >> "$GITHUB_OUTPUT"
+          {
+            echo "Worker URL: ${worker_url}"
+            echo "OAuth callback: ${worker_url}/api/v1/oauth/google/callback"
+            echo "FRONTEND_URL: ${frontend_url}"
+            echo "Hyperdrive: ${HYPERDRIVE_NAME} (${{ steps.hyperdrive.outputs.id }})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # 手順6 相当のスモーク。401 は未ログイン API が認証ガードに掛かることの確認
+      - name: Smoke check
+        if: steps.deploy.outputs.url != ''
+        run: |
+          set -euo pipefail
+          url="${{ steps.deploy.outputs.url }}"
+          code() { curl -s -o /dev/null -w '%{http_code}' "$1"; }
+          [[ "$(code "${url}/health")" == "200" ]] || { echo "::error::/health が 200 でない"; exit 1; }
+          [[ "$(code "${url}/ready")" == "200" ]] || { echo "::error::/ready が 200 でない"; exit 1; }
+          # grep -q の早期終了で curl が SIGPIPE(exit 23) になるため、本文は最後まで受け取ってから検査する
+          curl -sf -o "${RUNNER_TEMP}/openapi.json" "${url}/api-docs/openapi.json" \
+            && grep -q '"openapi"' "${RUNNER_TEMP}/openapi.json" \
+            || { echo "::error::openapi.json が不正"; exit 1; }
+          [[ "$(code "${url}/api/v1/session")" == "401" ]] || { echo "::error::未ログイン API が 401 でない"; exit 1; }
+          echo "smoke check 通過: /health /ready openapi.json 401"
