@@ -147,15 +147,19 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          log_file="${RUNNER_TEMP}/wrangler-deploy.log"
           if [[ "${{ steps.target.outputs.environment }}" == "production" ]]; then
-            url="$(wrangler pages deploy dist --project-name=shoken-webapp --commit-dirty=true 2>&1 | grep -oE 'https://[^ ]+\.pages\.dev' | tail -n1)"
+            wrangler pages deploy dist --project-name=shoken-webapp --commit-dirty=true > "${log_file}" 2>&1
           else
             branch="${GITHUB_REF##refs/heads/}"
             branch="${branch//\//-}"
-            url="$(wrangler pages deploy dist --project-name=shoken-webapp --branch="${branch}" --commit-dirty=true 2>&1 | grep -oE 'https://[^ ]+\.pages\.dev' | tail -n1)"
+            wrangler pages deploy dist --project-name=shoken-webapp --branch="${branch}" --commit-dirty=true > "${log_file}" 2>&1
           fi
-          if [[ -z "${url}" ]]; then
-            echo "::error::Cloudflare Pages deployment failed (no URL returned)"
+          deploy_exit=$?
+          cat "${log_file}"
+          url="$(grep -oE 'https://[^ ]+\.pages\.dev' "${log_file}" | tail -n1)"
+          if [[ ${deploy_exit} -ne 0 ]] || [[ -z "${url}" ]]; then
+            echo "::error::Cloudflare Pages deployment failed (exit ${deploy_exit}, no URL returned)"
             exit 1
           fi
           echo "url=${url}" >> "$GITHUB_OUTPUT"
