@@ -32,7 +32,7 @@ description: |
 ### 1) Baseline
 
 - `cd backend && cargo test` を実行して現状を固定する
-- 大きめの移動をする場合は、まず `backend/src/routes.rs` のルートと、エラーレスポンス形式を把握する
+- 大きめの移動をする場合は、まず `backend/src/worker_entry.rs` のルートと、エラーレスポンス形式を把握する
 - 以降の作業は「ビルドが通る状態」を保ちながら進める
 
 ### 2) Plan
@@ -41,7 +41,7 @@ description: |
 - HTTP層: `backend/src/handlers/*`
 - ドメイン/外部API: `backend/src/services/*`
 - モデル/DTO: `backend/src/models/*`
-- 横断: `backend/src/errors.rs`, `backend/src/extractors/*`, `backend/src/middleware.rs`, `backend/src/routes.rs`, `backend/src/state.rs`
+- 横断: `backend/src/errors.rs`, `backend/src/extractors/*`, `backend/src/middleware.rs`, `backend/src/worker_entry.rs`, `backend/src/state.rs`
 - 「移動 -> コンパイル -> 置換 -> コンパイル」のように、戻しやすい順序にする
 
 ### 3) Execute
@@ -66,8 +66,7 @@ description: |
 
 ### Routes
 
-- ルート登録は `backend/src/routes.rs` に集約する
-- `app_router` は各 `*_routes()` を `merge` して構成する
+- ルート登録は `backend/src/worker_entry.rs` に集約する（Workers 経路のみ。ホスト側の常駐サーバーは存在しない）
 - パス変更はフロントエンド互換性に直結するため、要求がない限り変更しない
 
 ### Error Contract
@@ -95,7 +94,7 @@ description: |
 ### Extract DB Logic From Handler
 
 - 1つの handler から 1つのクエリ単位で service 関数に切り出す
-- 引数は `&PgPool` と必要な値（`user_id`, payload 等）を取る
+- 引数は `&Db` と必要な値（`user_id`, payload 等）を取る
 - エラー変換は「どの層で ApiError に寄せるか」を決めて統一する
 
 ### Introduce ValidatedJson

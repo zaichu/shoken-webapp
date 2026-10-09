@@ -3,11 +3,10 @@
 ## 技術スタック
 
 - **Rust**: 最新 stable
-- **Axum**: 0.8.x (Webフレームワーク)
-- **SQLx**: 0.8.x (型安全DBアクセス)
-- **Cloudflare Workers**: デプロイプラットフォーム
+- **Axum**: 0.8.x (Webフレームワーク。Cloudflare Workers 上で `worker` クレート経由で動作)
+- **tokio-postgres**: DB アクセス（本番は Hyperdrive 経由）
+- **Cloudflare Workers**: 唯一のデプロイ・実行プラットフォーム
 - **Neon**: PostgreSQL データベース
-- **Tokio**: 非同期ランタイム
 - **OAuth2**: Google認証
 
 ## ディレクトリ構成
@@ -16,54 +15,33 @@
 
 ```
 backend/src/
-├── handlers/     # ドメイン別ハンドラー
-├── models/       # データモデル・バリデーション
-├── extractors/   # カスタム Axum エクストラクター
-├── services/     # ビジネスロジック
-├── middleware/   # CORS・CSRF などのミドルウェア
-├── config/       # 環境ごとの設定
-├── bin/          # 補助バイナリ
-├── main.rs       # エントリーポイント
-├── lib.rs        # モジュール定義
-├── routes.rs     # ルーティング定義
-├── state.rs      # AppState (DB/secrets/クライアント)
-├── db.rs         # コネクションプール・マイグレーション
-├── openapi.rs    # utoipa の OpenAPI 定義
-├── logging.rs    # ロギング初期化
-├── errors.rs     # 統一エラーハンドリング
-└── test_env.rs   # テスト用の環境変数セットアップ
+├── handlers/       # ドメイン別ハンドラー
+├── models/         # データモデル・バリデーション
+├── extractors/     # カスタム Axum エクストラクター
+├── services/       # ビジネスロジック
+├── middleware/     # CORS・レート制限などのミドルウェア
+├── config/         # 環境ごとの設定
+├── bin/            # 補助バイナリ（migrate / generate_openapi。ホスト実行専用）
+├── worker_entry.rs # Workers エントリーポイント（fetch/scheduled イベントとルーティング）
+├── lib.rs          # モジュール定義
+├── state.rs        # AppState (DB/secrets/クライアント)
+├── db.rs           # DB アクセス層（wasm は Hyperdrive、ホストは migrate/テスト用直接接続）
+├── openapi.rs      # utoipa の OpenAPI 定義
+└── errors.rs       # 統一エラーハンドリング
 ```
 
-## SQLx
+## DB アクセスとマイグレーション
 
-### コンパイル時クエリ検証
-
-SQLx はコンパイル時にSQLクエリを検証:
-
-```rust
-let user = sqlx::query_as!(
-    User,
-    "SELECT * FROM users WHERE id = $1",
-    user_id
-)
-.fetch_one(&pool)
-.await?;
-```
-
-### マイグレーション
+クエリは `tokio-postgres` の生 SQL で書く。Worker では Hyperdrive binding 経由、
+ホスト側（migrate bin・DB 統合テスト）は `DATABASE_URL` で直接接続する。
 
 ```bash
-# マイグレーション作成
-sqlx migrate add <name>
-
-# マイグレーション実行
-sqlx migrate run
-
-# オフラインモード用準備
-make sqlx-prepare
+# マイグレーション実行（ホスト側で直接接続）
+make migrate        # DATABASE_URL 環境変数または backend/.env を参照
+make migrate-local  # ローカル Docker DB 向け
 ```
 
-マイグレーションファイルは `migrations/` に配置。
+マイグレーションファイルは `migrations/` に配置。運用は `migrations/README.md` を参照。
 
 ## エラーハンドリング
 
@@ -93,7 +71,7 @@ impl IntoResponse for AppError {
 ### ローカル開発
 
 ```bash
-make run  # cargo run（環境変数は .env から読み込み）
+make run  # wrangler dev --env dev（http://localhost:8787、secrets は backend/.dev.vars）
 ```
 
 ### デプロイ
@@ -106,7 +84,9 @@ gh workflow run deploy-cloudflare-worker.yml
 
 ### 環境変数管理
 
-- `.env` - ローカル開発用（gitignore対象）
+- `wrangler.toml` の vars/bindings - 設定の正本（ローカルは `[env.dev.*]`）
+- `.dev.vars` - ローカル開発用シークレット（gitignore対象、雛形は `.dev.vars.example`）
+- `.env` - `cargo run --bin migrate` が読む `DATABASE_URL` 専用（gitignore対象）
 - 本番の secrets/vars は `deploy-cloudflare-worker.yml` が GitHub secrets/vars から `wrangler secret put` / `wrangler deploy --var` で注入する
 
 ## バリデーション
@@ -150,7 +130,7 @@ make test  # cargo test
 
 ### モック
 
-- `wiremock` によるHTTPモックと `testcontainers` による実DBテストを使用する
+- `testcontainers` による実DBテストを使用する（外部 HTTP 呼び出しは Worker 専用のため HTTP モックは置かない）
 
 ### 方針
 
@@ -161,8 +141,8 @@ make test  # cargo test
 
 ## HTTP クライアント
 
-- `reqwest` を使用
-- 外部API (J-Quants等) との通信
+- Workers ランタイムの Fetch API（`worker::Fetch`）を使用
+- 外部API (J-Quants、Google OAuth トークン交換等) との通信は wasm ターゲット専用の実装に置く
 
 ## コーディング規約
 
@@ -179,11 +159,11 @@ make test  # cargo test
 ### 非同期
 
 - `async/await` を使用
-- `tokio::spawn` でバックグラウンドタスク
+- Workers isolate では `tokio::spawn` は使えない。バックグラウンド相当は `ctx.wait_until` か `[triggers]` の scheduled イベントで実現する
 
 ### ログ
 
-- `tracing` クレートを使用
+- `tracing` クレート（worker では tracing-wasm 経由）と `worker::console_log!` を使用
 - 適切なログレベルを設定
 
 ## セキュリティ
@@ -203,5 +183,5 @@ make test  # cargo test
 ### CORS・機密情報
 
 - CORS は許可 origin を明示し、必要時のみ credentials を許可する
-- `.env` はローカル専用とし、本番環境は Cloudflare Workers の secrets/vars で管理する
+- `.dev.vars`・`.env` はローカル専用とし、本番環境は Cloudflare Workers の secrets/vars で管理する
 - トークン、個人情報、接続情報をログに出力しない

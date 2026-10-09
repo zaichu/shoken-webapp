@@ -187,7 +187,7 @@ Authorized redirect URI は API バージョン付きのコールバックを登
 | 環境 | URI |
 |------|-----|
 | 本番 | `https://shoken-backend.zaitomo41.workers.dev/api/v1/oauth/google/callback` |
-| ローカル | `http://localhost:3001/api/v1/oauth/google/callback` |
+| ローカル | `http://localhost:8787/api/v1/oauth/google/callback` |
 
 旧 `/auth/google/callback` は現行 API では使用しない。旧 URI を案内したり、互換ルートとして復活させたりしない。
 

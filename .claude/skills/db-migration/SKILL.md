@@ -54,7 +54,7 @@ ON table_name(user_id, some_column);
 
 本番（Cloudflare Workers）では `deploy-cloudflare-worker.yml` がデプロイ時に `cargo run --bin migrate` で Neon へ直接適用する。ローカルでは：
 ```bash
-sqlx migrate run
+cd backend && make migrate-local
 ```
 
 ## 注意事項

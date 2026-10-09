@@ -4,19 +4,19 @@ Refactor 時に「どこに何を置くか」を迷わないための、backend 
 
 ## Entry Points
 
-- `backend/src/main.rs`
-- 環境変数読み込み、tracing 初期化、DB 接続+マイグレーション、`AppState` 作成、`routes::app_router` でルーティング構築、起動
-
-- `backend/src/routes.rs`
-- ルート登録の集約。`app_router` が各 `*_routes()` を `merge` して構成する
+- `backend/src/worker_entry.rs`
+- Cloudflare Workers の fetch/scheduled イベントハンドラ。`worker::Env` から設定を解決し、`AppState` 作成とルーティングを行う
 
 - `backend/src/lib.rs`
 - re-export の集約（他 crate やテストから参照されることがある）
 
+- `backend/src/bin/*`（ホスト実行専用）
+- `migrate`: DB マイグレーション適用、`generate_openapi`: `docs/openapi.json` 生成
+
 ## Cross-Cutting
 
 - `backend/src/state.rs`
-- `AppState { pool, secrets, client }` と `Secrets`
+- `AppState { pool, secrets, ... }` と `Secrets`。`pool` は `Db`（wasm は Hyperdrive、ホストは直接接続）
 
 - `backend/src/errors.rs`
 - `ApiError` と JSON エラー契約
@@ -26,10 +26,10 @@ Refactor 時に「どこに何を置くか」を迷わないための、backend 
 - `validate_origin` など
 
 - `backend/src/config.rs`
-- サーバー設定、CORS、`BACKEND_URL` 等
+- Worker vars 由来の設定、CORS、`BACKEND_URL` 等
 
 - `backend/src/db.rs`
-- DB 接続とマイグレーション関連
+- DB アクセス層（wasm は Hyperdrive、ホストは migrate/テスト用の直接接続）
 
 ## Feature Modules
 
@@ -56,7 +56,7 @@ Refactor 時に「どこに何を置くか」を迷わないための、backend 
 
 ## Current Routes (Reference)
 
-`backend/src/routes.rs` で定義されている主な公開パス。旧 API ルートは削除済みで、外部 API は原則 `/api/v1` 配下に集約する。
+`backend/src/worker_entry.rs` で定義されている主な公開パス。旧 API ルートは削除済みで、外部 API は原則 `/api/v1` 配下に集約する。
 
 - `/health`, `/ready`
 - `/api/v1/session`
@@ -67,7 +67,6 @@ Refactor 時に「どこに何を置くか」を迷わないための、backend 
 - `/api/v1/domestic-stock-transactions`, `/api/v1/domestic-stock-import-validations`, `/api/v1/domestic-stock-imports`
 - `/api/v1/mutual-fund-transactions`, `/api/v1/mutual-fund-import-validations`, `/api/v1/mutual-fund-imports`
 - `/api/v1/asset-balances`, `/api/v1/asset-balance-import-validations`, `/api/v1/asset-balance-imports`
-- `/api/v1/financial-statements`
 
 ## Invariants To Preserve (Unless Requested)
 

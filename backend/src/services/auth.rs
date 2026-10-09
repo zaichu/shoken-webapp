@@ -1,5 +1,3 @@
-#[cfg(not(target_arch = "wasm32"))]
-mod google_native;
 #[cfg(target_arch = "wasm32")]
 mod google_worker;
 
@@ -14,14 +12,7 @@ use crate::db::{Bind, Db, DbError, Tx};
 use crate::errors::ApiError;
 use crate::models::user::{GoogleUserInfo, User};
 
-#[cfg(not(target_arch = "wasm32"))]
-use google_native as google_impl;
-#[cfg(target_arch = "wasm32")]
-use google_worker as google_impl;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use google_impl::init_oauth_http_client;
-pub use google_impl::{GoogleOAuthClient, create_oauth_client};
+pub use google_common::{GoogleOAuthClient, create_oauth_client};
 
 /// セッション Cookie の値。内部は UUID v4。
 /// Cookie の文字列表現と DB の `token_hash`(BYTEA) はいずれも
@@ -74,14 +65,13 @@ pub struct GoogleAuthFlow {
     pub pkce_verifier: String,
 }
 
-/// Google 認可 URL と state/nonce/PKCE を生成する。
-/// 生成方法の実装はターゲット依存（native は oauth2 クレート、wasm は手組み）
+/// Google 認可 URL と state/nonce/PKCE を生成する
 pub fn begin_google_auth(client: &GoogleOAuthClient) -> GoogleAuthFlow {
-    google_impl::begin_auth(client)
+    google_common::begin_auth(client)
 }
 
 /// Google OAuth コードを検証し、ユーザーを upsert してセッショントークンを返す。
-/// 検証方式はターゲット依存（native は JWKS + 署名検証、wasm は tokeninfo エンドポイント）
+/// ID トークン検証は tokeninfo エンドポイントに委譲する
 pub async fn authenticate_with_google_code(
     pool: &Db,
     oauth_client: &GoogleOAuthClient,
@@ -89,9 +79,32 @@ pub async fn authenticate_with_google_code(
     pkce_verifier: String,
     nonce: &str,
 ) -> Result<SessionToken, ApiError> {
-    let user_info =
-        google_impl::verify_code_with_google(oauth_client, code, pkce_verifier, nonce).await?;
+    let user_info = verify_code_with_google(oauth_client, &code, &pkce_verifier, nonce).await?;
     Ok(upsert_user_and_rotate_session(pool, &user_info).await?)
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn verify_code_with_google(
+    oauth_client: &GoogleOAuthClient,
+    code: &str,
+    pkce_verifier: &str,
+    nonce: &str,
+) -> Result<GoogleUserInfo, ApiError> {
+    google_worker::verify_code_with_google(oauth_client, code, pkce_verifier, nonce).await
+}
+
+// openapi.json はホストで生成されるためコールバックハンドラ経由で本関数もホストで
+// コンパイルされる必要がある。Google への問い合わせ経路は Worker にしか存在しない
+#[cfg(not(target_arch = "wasm32"))]
+async fn verify_code_with_google(
+    _oauth_client: &GoogleOAuthClient,
+    _code: &str,
+    _pkce_verifier: &str,
+    _nonce: &str,
+) -> Result<GoogleUserInfo, ApiError> {
+    Err(ApiError::Internal(
+        "Google OAuth のコード検証は Workers 環境でのみ利用できます",
+    ))
 }
 
 /// Googleユーザー情報をupsertし、旧セッションを失効させた上で新セッションを発行する。

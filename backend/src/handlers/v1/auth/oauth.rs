@@ -191,13 +191,12 @@ mod tests {
         CookieJar,
         cookie::{Cookie, SameSite},
     };
-    use {reqwest::Client, serde::de::DeserializeOwned, std::sync::Arc, tower::ServiceExt};
+    use {serde::de::DeserializeOwned, std::sync::Arc, tower::ServiceExt};
     const BODY_LIMIT: usize = 1024 * 1024;
     fn make_test_state() -> AppState {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = connect_pool_lazy(database_url, 1).expect("pool");
+        let pool =
+            connect_pool_lazy("postgresql://user:password@localhost/test_db", 1).expect("pool");
         let secrets = Arc::new(Secrets {
-            database_url: database_url.to_string(),
             jquants_api_key: None,
             google_client_id: None,
             google_client_secret: None,
@@ -206,10 +205,9 @@ mod tests {
         AppState {
             pool,
             secrets,
-            client: Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
             config: Arc::new(crate::config::Config::default()),
             google_oauth: None,
+            jquants_client: None,
         }
     }
     fn test_app() -> Router {
@@ -303,7 +301,7 @@ mod tests {
             crate::services::auth::create_oauth_client(
                 "test-client-id",
                 "test-client-secret",
-                "http://localhost:3001",
+                "http://localhost:8787",
             )
             .unwrap(),
         );

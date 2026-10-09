@@ -5,13 +5,11 @@ CARGO := cargo
 
 # デフォルトターゲット
 .PHONY: all
-all: check run
+all: check worker-build
 
 # 基本ターゲット
 .PHONY: run
-run:
-	@echo "🚀 ローカルでサーバーを起動します..."
-	env APP_ENV="$${APP_ENV:-development}" $(CARGO) run --bin backend
+run: worker-dev
 
 # ビルド関連
 .PHONY: build
@@ -106,8 +104,10 @@ help:
 	@echo "shoken-webapp バックエンド Makefile"
 	@echo ""
 	@echo "利用可能なターゲット:"
-	@echo "  all           : デフォルトターゲット、チェックして実行します"
-	@echo "  run           : ローカルでサーバーを起動します"
+	@echo "  all           : デフォルトターゲット、check と wasm ビルドを実行します"
+	@echo "  run           : wrangler dev でローカル起動します(worker-dev のエイリアス)"
+	@echo "  worker-dev    : wrangler dev でローカル起動します"
+	@echo "  worker-build  : Cloudflare Workers 向けに wasm ビルドします"
 	@echo "  build         : バックエンドをビルドします"
 	@echo "  build-release : リリースビルドを作成します"
 	@echo "  build-log     : バックエンドをビルドし、結果をbuild.logに保存します"

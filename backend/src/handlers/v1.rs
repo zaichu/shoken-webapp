@@ -109,21 +109,19 @@ mod tests {
     };
 
     fn make_test_state() -> AppState {
-        let database_url = "postgresql://user:password@localhost/test_db";
-        let pool = crate::db::connect_pool_lazy(database_url, 1).expect("pool");
+        let pool = crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
+            .expect("pool");
         AppState {
             pool,
             secrets: Arc::new(Secrets {
-                database_url: database_url.to_string(),
                 jquants_api_key: None,
                 google_client_id: None,
                 google_client_secret: None,
                 frontend_url: "http://localhost:8080".to_string(),
             }),
-            client: reqwest::Client::new(),
-            dividend_cache: crate::state::DividendCacheState::default(),
             config: Arc::new(crate::config::Config::default()),
             google_oauth: None,
+            jquants_client: None,
         }
     }
 

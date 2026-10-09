@@ -1,0 +1,5 @@
+# wrangler dev が読むローカルシークレット(backend/.dev.vars にコピーして使う。gitignore 済み)
+# 非シークレットな設定値は wrangler.toml の [env.dev.vars] が正本
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+JQUANTS_API_KEY=your-jquants-api-key

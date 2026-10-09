@@ -53,9 +53,9 @@ command() {
 if [[ "$*" == *"lstart="* ]]; then
   printf '%s\n' 'Mon Oct  5 12:00:00 2026'
 elif [[ "$*" == *"comm="* ]]; then
-  if [[ " $* " == *" 42 "* ]]; then printf '%s\n' "${FRONT_NAME:-trunk}"; else printf '%s\n' "${BACK_NAME:-backend}"; fi
+  if [[ " $* " == *" 42 "* ]]; then printf '%s\n' "${FRONT_NAME:-trunk}"; else printf '%s\n' "${BACK_NAME:-node}"; fi
 else
-  if [[ " $* " == *" 42 "* ]]; then printf '%s\n' "${FRONT_COMMAND:-trunk serve --port 8081}"; else printf '%s\n' "${BACK_COMMAND:-target/debug/backend}"; fi
+  if [[ " $* " == *" 42 "* ]]; then printf '%s\n' "${FRONT_COMMAND:-trunk serve --port 8081}"; else printf '%s\n' "${BACK_COMMAND:-npx wrangler dev --env dev --port 8787}"; fi
 fi
 "#);
         sandbox.tool(
@@ -97,9 +97,9 @@ exit "${CURL_STATUS:-22}"
         sandbox.tool("docker", "exit 0\n");
         sandbox.tool("make", "exit 0\n");
         sandbox.tool(
-            "cargo",
+            "npx",
             r#"
-printf 'args=%s PORT=%s BACKEND_URL=%s\n' "$*" "${PORT:-}" "${BACKEND_URL:-}" >> "${MOCK_DIR}/cargo-env"
+printf 'args=%s\n' "$*" >> "${MOCK_DIR}/wrangler-args"
 for _ in $(seq 1 1000000); do
   [[ -f "${MOCK_DIR}/trunk-done" ]] && break
 done
@@ -356,7 +356,7 @@ fn scanner_fallback_and_each_successful_scanner_keep_owned_pids() {
 fn backend_fallback_rejects_foreign_worktrees_and_make_wrappers() {
     for (name, value) in [
         ("BACK_CWD", "/other-worktree/backend"),
-        ("BACK_NAME", "make"),
+        ("BACK_COMMAND", "make -C backend worker-dev"),
     ] {
         let sandbox = Sandbox::new();
         fs::write(sandbox.root.join("alive-43"), "").unwrap();
@@ -372,14 +372,14 @@ fn backend_fallback_rejects_foreign_worktrees_and_make_wrappers() {
 }
 
 #[test]
-fn cargo_run_owner_can_be_stopped_during_compilation() {
+fn wrangler_dev_owner_can_be_stopped_before_ready() {
     let sandbox = Sandbox::new();
     sandbox.ledger("backend.pid", 43);
     let output = sandbox.run(
         "stop-local.sh",
         &[
-            ("BACK_NAME", "cargo"),
-            ("BACK_COMMAND", "cargo run --bin backend"),
+            ("BACK_NAME", "node"),
+            ("BACK_COMMAND", "npx wrangler dev --env dev --port 4010"),
         ],
     );
     assert_success(&output);
@@ -424,11 +424,12 @@ fn start_uses_one_backend_port_for_listener_url_proxy_and_pid() {
     remove_tmp_files_containing(&base);
     assert_success(&output);
 
-    let cargo = sandbox.text("cargo-env");
-    assert!(cargo.contains("PORT=4010"), "{cargo}");
+    let wrangler = sandbox.text("wrangler-args");
+    assert!(wrangler.contains("dev --env dev"), "{wrangler}");
+    assert!(wrangler.contains("--port 4010"), "{wrangler}");
     assert!(
-        cargo.contains("BACKEND_URL=http://127.0.0.1:4010"),
-        "{cargo}"
+        wrangler.contains("BACKEND_URL:http://127.0.0.1:4010"),
+        "{wrangler}"
     );
 
     let calls = sandbox.text("curl-calls");
@@ -479,11 +480,11 @@ fn start_preserves_explicit_url_port_and_log_overrides() {
     remove_tmp_files_containing(&base);
     assert_success(&output);
 
-    let cargo = sandbox.text("cargo-env");
-    assert!(cargo.contains("PORT=7777"), "{cargo}");
+    let wrangler = sandbox.text("wrangler-args");
+    assert!(wrangler.contains("--port 7777"), "{wrangler}");
     assert!(
-        cargo.contains("BACKEND_URL=http://example.test:7777"),
-        "{cargo}"
+        wrangler.contains("BACKEND_URL:http://example.test:7777"),
+        "{wrangler}"
     );
     assert!(log.exists());
 
@@ -526,7 +527,7 @@ fn start_derives_frontend_port_from_url() {
 }
 
 #[test]
-fn start_defaults_keep_stock_trunk_config_and_3001() {
+fn start_defaults_keep_stock_trunk_config_and_8787() {
     let sandbox = Sandbox::new();
     let base = sandbox
         .root
@@ -538,10 +539,10 @@ fn start_defaults_keep_stock_trunk_config_and_3001() {
     remove_tmp_files_containing(&base);
     assert_success(&output);
 
-    let cargo = sandbox.text("cargo-env");
-    assert!(cargo.contains("PORT=3001"), "{cargo}");
+    let wrangler = sandbox.text("wrangler-args");
+    assert!(wrangler.contains("--port 8787"), "{wrangler}");
     let calls = sandbox.text("curl-calls");
-    assert!(calls.contains("http://127.0.0.1:3001/ready"), "{calls}");
+    assert!(calls.contains("http://127.0.0.1:8787/ready"), "{calls}");
 
     let args = sandbox.text("trunk-args");
     assert!(args.contains("Trunk.toml"), "{args}");

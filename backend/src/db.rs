@@ -1,5 +1,5 @@
-//! PostgreSQL アクセス層。native は deadpool-postgres、wasm (Workers) は
-//! Hyperdrive 経由の tokio-postgres を内部に持ち、サービス層は同一の API を使う。
+//! PostgreSQL アクセス層。ホスト（migrate bin・DB 統合テスト）は deadpool-postgres、
+//! wasm (Workers) は Hyperdrive 経由の tokio-postgres を内部に持ち、サービス層は同一の API を使う。
 
 mod bind;
 mod builder;
@@ -295,7 +295,7 @@ where
     }
 }
 
-/// コネクションプール（native）/ 共有クライアント（wasm）のハンドル。
+/// コネクションプール（ホスト）/ 共有クライアント（wasm）のハンドル。
 /// `Clone` は内部ハンドルの共有のみ
 #[derive(Clone)]
 pub struct Db {
@@ -613,7 +613,7 @@ impl TxConn {
     }
 
     /// 開いたかもしれないトランザクションを ROLLBACK で確実に閉じてから
-    /// 接続を手放す（native はプール返却、wasm は drop）。spawn できない
+    /// 接続を手放す（ホストはプール返却、wasm は drop）。spawn できない
     /// 場合は接続をプールから切り離して破棄し、サーバー側でロールバックさせる
     fn rollback_and_release(self) {
         match self {
@@ -782,85 +782,8 @@ impl_executor_for_tx!(Tx);
 impl_executor_for_tx!(&Tx);
 impl_executor_for_tx!(&mut Tx);
 
-// ---- native 起動時の接続リトライ（Fly の grace_period と整合させる） ----
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use url::Url;
-
-// 起動時 DB 接続の retry パラメータ。DB が応答しない状態でプロセスが起動待ちに
-// 留まり続けないよう、待機時間に上限を設ける
-// 最大待機 = MAX_ATTEMPTS * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS-1) * RETRY_DELAY_SECS = 2*15 + 1*3 = 33s < 40s
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) const MAX_ATTEMPTS: u32 = 2;
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) const CONNECT_TIMEOUT_SECS: u64 = 15;
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) const RETRY_DELAY_SECS: u64 = 3;
-
-// Wait for an already-created pool to establish a startup connection with bounded retry.
-// The pool is not recreated, so runtime state and migrations share the same handle.
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn wait_for_pool_with_retry(pool: &Db) -> Result<(), String> {
-    let connect_timeout = Duration::from_secs(CONNECT_TIMEOUT_SECS);
-    let retry_delay = Duration::from_secs(RETRY_DELAY_SECS);
-
-    for attempt in 1..=MAX_ATTEMPTS {
-        let DbInner::Pool(inner_pool) = &*pool.inner;
-        match tokio::time::timeout(connect_timeout, inner_pool.get()).await {
-            Ok(Ok(connection)) => {
-                drop(connection);
-                return Ok(());
-            }
-            Ok(Err(e)) if is_transient_error(&e) => {
-                tracing::warn!(
-                    attempt,
-                    max_attempts = MAX_ATTEMPTS,
-                    "DB接続の一時的なエラー、リトライします"
-                );
-            }
-            Ok(Err(_)) => {
-                return Err("データベース接続の設定が不正です".to_string());
-            }
-            Err(_) => {
-                tracing::warn!(
-                    attempt,
-                    max_attempts = MAX_ATTEMPTS,
-                    "DB接続がタイムアウト、リトライします"
-                );
-            }
-        }
-
-        if attempt < MAX_ATTEMPTS {
-            tokio::time::sleep(retry_delay).await;
-        }
-    }
-
-    Err("データベースへの接続に失敗しました（リトライ上限超過）".to_string())
-}
-
-/// 一時的な接続失敗（タイムアウト・I/O）かどうか。認証失敗や DB 不存在など
-/// 設定系のエラーはリトライしても治らないため対象外とする
-#[cfg(not(target_arch = "wasm32"))]
-fn is_transient_error(e: &deadpool_postgres::PoolError) -> bool {
-    match e {
-        deadpool_postgres::PoolError::Timeout(_) => true,
-        deadpool_postgres::PoolError::Backend(e) => {
-            let mut source: &dyn std::error::Error = e;
-            loop {
-                if source.is::<std::io::Error>() {
-                    return true;
-                }
-                match source.source() {
-                    Some(s) => source = s,
-                    None => return false,
-                }
-            }
-        }
-        _ => false,
-    }
-}
 
 /// `tokio_postgres::Config` へ渡す前に `channel_binding` query parameter を除去する。
 /// `channel_binding` がない場合は入力文字列をそのまま返す。
@@ -1063,22 +986,4 @@ mod tests {
             "エラーに URL 値を含めない: {err}"
         );
     }
-
-    /// Neon の起床・接続遅延（実測 ~10-15 秒）をカバーできることを保証する。
-    /// CONNECT_TIMEOUT_SECS が短すぎると最初の attempt が recoverable WARN になる。
-    /// 上限は下の retry budget のコンパイル時検査が担う。
-    const _: () = assert!(
-        CONNECT_TIMEOUT_SECS >= 15,
-        "CONNECT_TIMEOUT_SECS は DB の実測接続遅延（~10-15s）をカバーするため 15 以上が必要"
-    );
-
-    /// 起動時の DB 接続待ちの上限をコンパイル時に検査する。
-    /// 最大待機 = MAX_ATTEMPTS * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS-1) * RETRY_DELAY_SECS = 2*15 + 1*3 = 33s < 40s
-    const STARTUP_BUDGET_SECS: u64 = 40;
-    const MAX_WAIT_SECS: u64 =
-        MAX_ATTEMPTS as u64 * CONNECT_TIMEOUT_SECS + (MAX_ATTEMPTS as u64 - 1) * RETRY_DELAY_SECS;
-    const _: () = assert!(
-        MAX_WAIT_SECS < STARTUP_BUDGET_SECS,
-        "起動時の DB 接続待ちが上限を超える"
-    );
 }

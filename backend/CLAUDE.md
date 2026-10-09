@@ -13,12 +13,12 @@
 
 ## コマンド
 
-- `make run` - ローカル起動
+- `make run` - ローカル起動（wrangler dev）
 - `make check` - コンパイルチェック
 - `make test` - テスト実行
-- `make build` - ビルド
+- `make worker-build` - Workers 向け wasm ビルド
 
 ## 補足
 
-- Axum + SQLx の型安全性を優先する
+- Axum + tokio-postgres。実行環境は Cloudflare Workers のみ（ホスト側常駐サーバーは存在しない）
 - 認証・Cookie・CORS を含む backend 固有ルールは `./.claude/rules/00-backend.md` を厳守する

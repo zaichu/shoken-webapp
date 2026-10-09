@@ -33,9 +33,6 @@ pub enum CsvError {
 /// 上流サービス(J-Quants / Google OAuth)との通信エラー
 #[derive(Error, Debug)]
 pub enum UpstreamError {
-    #[cfg(not(target_arch = "wasm32"))]
-    #[error("上流サービスへの接続に失敗しました: {0}")]
-    Transport(#[source] reqwest::Error),
     #[cfg(target_arch = "wasm32")]
     #[error("上流サービスへの接続に失敗しました: {0}")]
     Transport(#[source] worker::Error),

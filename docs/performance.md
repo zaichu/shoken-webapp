@@ -22,7 +22,7 @@ CSV import 系処理のボトルネックを把握するための計測手順を
 計測対象ドメイン: `dividend` / `domestic_stock` / `mutualfund` / `asset_balance`
 
 ローカルで計測する手順:
-1. `cd backend && make run`（環境変数は `.env` を参照）
+1. `cd backend && make run`（wrangler dev。secrets は `.dev.vars` を参照）
 2. フロントエンドから CSV をアップロードする、または `curl` で直接 POST する
 3. バックエンドのログで `処理時間=` を確認する
 
@@ -48,7 +48,7 @@ cargo test --lib -- timing_csv_util --ignored --nocapture
 | `decode_bytes` (Shift-JIS フォールバック) | 1,000 行 × 10 回 | 0.44ms | UTF-8 の約 5.5 倍 |
 | `parse_number` | 50,000 回 | 11.61ms | 0.23µs/回 |
 | `parse_date` | 30,000 回 | 36.71ms | 1.22µs/回 |
-| DB INSERT（bulk_create） | 100 件 | ～20ms | BulkTimer ログより（参考値）。手順: `cd backend && make run` 後に dividend CSV（100件）を POST し、ログの `[dividend.bulk_create] 完了:` 行で確認 |
+| DB INSERT（bulk_create） | 100 件 | ～20ms | BulkTimer ログより（参考値）。手順: `cd backend && make run`（wrangler dev）後に dividend CSV（100件）を POST し、ログの `[dividend.bulk_create] 完了:` 行で確認 |
 
 > 実測値は `cargo test --lib -- timing_csv_util --ignored --nocapture` で確認すること。
 
