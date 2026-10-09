@@ -119,6 +119,10 @@ for i in $(seq 1 120); do
   fi
 done
 
+# wrangler dev は起動時に migration を実行しない。空の新規 DB でも /ready が
+# 通ってしまうため、backend 起動前にここで適用する
+(cd "${BACKEND_DIR}" && make migrate-local >>"${DB_LOG}" 2>&1)
+
 echo "2/3 Starting backend (wrangler dev)..."
 (
   cd "${BACKEND_DIR}"
