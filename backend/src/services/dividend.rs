@@ -164,6 +164,7 @@ impl Search for DividendDomain {
             FacetOrder::Desc,
         );
 
+        #[cfg(not(target_arch = "wasm32"))]
         let (products, accounts, securities, years, year_months) = tokio::try_join!(
             products_fut,
             accounts_fut,
@@ -171,6 +172,15 @@ impl Search for DividendDomain {
             years_fut,
             year_months_fut
         )?;
+        #[cfg(target_arch = "wasm32")]
+        let (products, accounts, securities, years, year_months) = futures_util::future::try_join5(
+            products_fut,
+            accounts_fut,
+            securities_fut,
+            years_fut,
+            year_months_fut,
+        )
+        .await?;
 
         Ok(SearchFacets {
             products: Some(products),
