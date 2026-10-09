@@ -28,19 +28,27 @@ cd shoken-webapp
 
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
-| フロントエンド | Vercel | Frontend CI（`frontend.yml`）成功後に `deploy-frontend.yml` が呼び出されて自動デプロイ（frontend/shared 変更時） |
-| フロントエンド（プレビュー） | Vercel preview | PR 作成・更新時に `deploy-frontend.yml` が独立ビルド・配信（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功は待たない。URL は PR コメントに投稿される |
-| バックエンド | Fly.io | main push（`deploy-backend.yml`） |
+| フロントエンド | Cloudflare Pages | Frontend CI（`frontend.yml`）成功後に `deploy-cloudflare-pages.yml` が呼び出されて自動デプロイ（frontend/shared 変更時） |
+| フロントエンド（プレビュー） | Cloudflare Pages / Vercel preview | PR 作成・更新時に `deploy-cloudflare-pages.yml` / `deploy-frontend.yml` が独立ビルド・配信（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功は待たない。URL は PR コメントに投稿される |
+| フロントエンド（旧本番） | Vercel | `LEPTOS_PRODUCTION_ENABLED=false` の間、`deploy-frontend.yml` は preview としてのみデプロイする |
+| バックエンド | Cloudflare Workers | main push（`deploy-cloudflare-worker.yml`） |
+| バックエンド（旧・切り戻し用に稼働中） | Fly.io | main push（`deploy-backend.yml`） |
 
 `fly.toml` はリポジトリルートに置く(Docker build context が `shared/` を含むルートのため)。
 
 ### 手動デプロイ（緊急時）
 
 ```bash
-# バックエンド
+# バックエンド（Cloudflare Workers。secrets/vars の注入を含むため CI 経路を使う）
+gh workflow run deploy-cloudflare-worker.yml
+
+# バックエンド（旧: Fly.io）
 (cd backend && make deploy)
 
-# フロントエンド（Vercel CLI。リポジトリルートで実行）
+# フロントエンド（Cloudflare Pages）
+gh workflow run deploy-cloudflare-pages.yml
+
+# フロントエンド（旧: Vercel CLI。リポジトリルートで実行）
 vercel pull --yes --environment=production
 vercel build --prod
 vercel deploy --prebuilt --prod
@@ -49,11 +57,17 @@ vercel deploy --prebuilt --prod
 ## ヘルスチェック
 
 ```bash
-# バックエンド
+# バックエンド（本番: Cloudflare Workers）
+curl https://shoken-backend.zaitomo41.workers.dev/health
+
+# バックエンド（旧: Fly.io。切り戻し用に稼働中）
 curl https://shoken-backend.fly.dev/health
 
-# ログ確認
+# ログ確認（Fly.io）
 fly logs --app shoken-backend
+
+# ログ確認（Cloudflare Workers。wrangler の認証が必要）
+(cd backend && wrangler tail)
 ```
 
 ## データベースマイグレーション
@@ -71,15 +85,22 @@ fly logs --app shoken-backend
 
 ## 環境変数（本番）
 
-Fly.io Secrets で管理:
+Fly.io Secrets で管理（旧構成・切り戻し用に残す）:
 
 ```bash
 fly secrets set DATABASE_URL="postgresql://..."
 fly secrets set GOOGLE_CLIENT_ID="..."
 fly secrets set GOOGLE_CLIENT_SECRET="..."
-fly secrets set FRONTEND_URL="https://shoken-webapp.vercel.app"
+fly secrets set FRONTEND_URL="https://shoken-webapp.pages.dev"
 fly secrets set BACKEND_URL="https://shoken-backend.fly.dev"
 ```
+
+Cloudflare Workers 側の vars/secrets は `deploy-cloudflare-worker.yml` が GitHub
+secrets/vars から注入する（`wrangler secret put` と `wrangler deploy --var`）。
+`FRONTEND_URL` はリポジトリ variable で上書きでき、未設定時の既定は
+`https://shoken-webapp.pages.dev`。CORS の許可 origin は `CORS_ORIGINS` var 未設定時に
+コード既定値（`backend/src/config.rs`）が使われ、本番では `shoken-webapp.pages.dev` と
+`shoken-webapp.vercel.app` を許可する。
 
 ## Google Cloud OAuth 設定
 
@@ -87,11 +108,38 @@ Google Cloud Console で以下の **Authorized redirect URIs** を登録する:
 
 | 環境 | URI |
 |---|---|
-| 本番 | `https://shoken-backend.fly.dev/api/v1/oauth/google/callback` |
+| 本番（Cloudflare Workers） | `https://shoken-backend.zaitomo41.workers.dev/api/v1/oauth/google/callback` |
+| 旧本番（Fly.io。切り戻し用に登録したまま残す） | `https://shoken-backend.fly.dev/api/v1/oauth/google/callback` |
 | ローカル | `http://localhost:3001/api/v1/oauth/google/callback` |
 
 > **注意**: 旧 `https://shoken-backend.fly.dev/auth/google/callback` は現行 API では使用しない。
 > Google Cloud Console に登録している場合は削除する。
+
+## バックエンド接続先の切り替え（Workers ⇄ Fly.io）
+
+frontend が参照する本番 API の正本は `frontend/vercel.json` の CSP `connect-src` です。
+`frontend/scripts/prepare-vercel-dist.mjs` がそこから `index.html` の `shoken-api-origin`
+meta と Pages 配信用の `_headers` を生成するため、接続先の変更は `connect-src` の
+1 箇所だけを直して main にマージすれば Pages 本番へ反映されます。
+
+現在の接続先: `https://shoken-backend.zaitomo41.workers.dev`（#1210 段階7）
+
+### Fly.io への切り戻し
+
+Fly.io の machine は撤去していないため、frontend の接続先を戻すだけで復帰できます。
+
+1. `frontend/vercel.json` の CSP `connect-src` を `https://shoken-backend.fly.dev` に戻す
+   （この切り替え PR の revert でも同じ）
+2. main にマージする。`deploy-cloudflare-pages.yml` が Pages 本番へ反映する
+3. 反映を確認する: `curl -s https://shoken-webapp.pages.dev/` の `shoken-api-origin` meta と
+   `Content-Security-Policy` の `connect-src` が `https://shoken-backend.fly.dev` を指すこと
+4. Fly 側の `FRONTEND_URL` / `CORS_ORIGINS` が `https://shoken-webapp.pages.dev` を
+   許可・指向しているか不明な場合は、`fly secrets set` で再投入して `fly deploy` する
+   （secret の値は読み出せないため、怪しければ再設定する）。Google OAuth の承認済み
+   リダイレクト URI は Fly.io 側も登録したままにしてあるため追加作業は不要
+
+Worker 側の `FRONTEND_URL` / `CORS_ORIGINS` は `pages.dev` を指したままでよい
+（どちらの backend を指すかを持っているのは frontend 側だけ）。
 
 ## セキュリティインシデント対応
 
