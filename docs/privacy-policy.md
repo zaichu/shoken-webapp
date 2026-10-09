@@ -54,7 +54,8 @@ Google アカウントでログインする際、Google が提供する以下の
 |---|---|---|
 | Google OAuth 2.0 | 認証 | https://policies.google.com/privacy |
 | Fly.io | バックエンドホスティング | https://fly.io/legal/privacy-policy/ |
-| Vercel | フロントエンドホスティング | https://vercel.com/legal/privacy-policy |
+| Cloudflare Pages | フロントエンドホスティング | https://www.cloudflare.com/privacypolicy/ |
+| Vercel | フロントエンドホスティング（移行期間中の予備） | https://vercel.com/legal/privacy-policy |
 | J-Quants API | 日本株情報取得 | https://jpx-jquants.com/support/privacy/ |
 
 ## 6. Cookie の利用

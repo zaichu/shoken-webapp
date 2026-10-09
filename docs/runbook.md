@@ -28,8 +28,9 @@ cd shoken-webapp
 
 | サービス | デプロイ先 | トリガー |
 |---|---|---|
-| フロントエンド | Vercel | Frontend CI（`frontend.yml`）成功後に `deploy-frontend.yml` が呼び出されて自動デプロイ（frontend/shared 変更時） |
-| フロントエンド（プレビュー） | Vercel preview | PR 作成・更新時に `deploy-frontend.yml` が独立ビルド・配信（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功は待たない。URL は PR コメントに投稿される |
+| フロントエンド | Cloudflare Pages（`https://shoken-webapp.pages.dev`） | Frontend CI（`frontend.yml`）成功後に `deploy-cloudflare-pages.yml` が呼び出されて自動デプロイ（frontend/shared 変更時）。手動反映は main での `deploy-cloudflare-pages.yml` workflow_dispatch |
+| フロントエンド（プレビュー） | Cloudflare Pages preview / Vercel preview | PR 作成・更新時に `deploy-cloudflare-pages.yml` と `deploy-frontend.yml` がそれぞれ独立ビルド・配信（投稿者が OWNER/MEMBER/COLLABORATOR の場合のみ）。Frontend CI の成功は待たない。URL は PR コメントに投稿される |
+| フロントエンド（旧環境） | Vercel（`https://shoken-webapp.vercel.app`） | `deploy-frontend.yml`（`LEPTOS_PRODUCTION_ENABLED=true` のとき本番、それ以外は preview）。切り戻し用に残置し、様子見後に削除予定（[設計メモ](design/cloudflare-pages.md) 手順 7） |
 | バックエンド | Fly.io | main push（`deploy-backend.yml`） |
 
 `fly.toml` はリポジトリルートに置く(Docker build context が `shared/` を含むルートのため)。
@@ -40,7 +41,10 @@ cd shoken-webapp
 # バックエンド
 (cd backend && make deploy)
 
-# フロントエンド（Vercel CLI。リポジトリルートで実行）
+# フロントエンド（Cloudflare Pages。main で workflow_dispatch）
+gh workflow run deploy-cloudflare-pages.yml --ref main
+
+# フロントエンド旧環境（Vercel CLI。リポジトリルートで実行）
 vercel pull --yes --environment=production
 vercel build --prod
 vercel deploy --prebuilt --prod
@@ -77,9 +81,25 @@ Fly.io Secrets で管理:
 fly secrets set DATABASE_URL="postgresql://..."
 fly secrets set GOOGLE_CLIENT_ID="..."
 fly secrets set GOOGLE_CLIENT_SECRET="..."
-fly secrets set FRONTEND_URL="https://shoken-webapp.vercel.app"
+fly secrets set FRONTEND_URL="https://shoken-webapp.pages.dev"
+fly secrets set CORS_ORIGINS="https://shoken-webapp.vercel.app,https://shoken-webapp.pages.dev"
 fly secrets set BACKEND_URL="https://shoken-backend.fly.dev"
 ```
+
+## 切り戻し（フロントを Vercel 本番へ戻す）
+
+Vercel プロジェクトは移行の様子見期間が終わるまで削除しない前提（[設計メモ](design/cloudflare-pages.md) 手順 7）。
+
+```bash
+# backend のリダイレクト先を旧 URL に戻す（secrets 更新で backend は自動再起動する）
+fly secrets set FRONTEND_URL="https://shoken-webapp.vercel.app"
+
+# Vercel への本番デプロイを再有効化して再デプロイ
+gh variable set LEPTOS_PRODUCTION_ENABLED --body "true"
+gh workflow run deploy-frontend.yml --ref main
+```
+
+`CORS_ORIGINS` は旧 origin を残したままにしてあるため戻す必要はない。
 
 ## Google Cloud OAuth 設定
 
