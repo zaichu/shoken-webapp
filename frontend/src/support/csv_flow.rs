@@ -344,6 +344,8 @@ pub async fn preview_csv(
 ) -> Result<CsvPreviewResponse, ApiError> {
     let chunks = split_file_chunks(file, chunking.header_lines, CSV_CHUNK_ROWS).await?;
     let client = ApiClient::default_client();
+    // backend の拡張子ガードと E2E モックの filename ルックアップが実名を使うため維持する
+    let filename = file.name();
     let mut merged = CsvPreviewResponse {
         total_rows: 0,
         valid_rows: 0,
@@ -352,7 +354,7 @@ pub async fn preview_csv(
     };
     for chunk in chunks {
         let mut response: CsvPreviewResponse = client
-            .post_multipart(path, &chunk_form_data(&chunk, "upload.csv")?)
+            .post_multipart(path, &chunk_form_data(&chunk, &filename)?)
             .await?;
         // backend の行番号は「ヘッダ・空行・除外行を除いた処理対象レコードの連番」なので、
         // チャンク内番号に直前までの処理対象数(total_rows)を足すと単発送信と一致する
@@ -382,6 +384,7 @@ pub async fn upload_csv(
     }
     let chunks = split_file_chunks(file, chunking.header_lines, CSV_CHUNK_ROWS).await?;
     let client = ApiClient::default_client();
+    let filename = file.name();
     let mut merged = CsvUploadResponse {
         inserted: 0,
         skipped: 0,
@@ -390,7 +393,7 @@ pub async fn upload_csv(
     let mut offset = 0usize;
     for chunk in chunks {
         let mut response: CsvUploadResponse = client
-            .post_multipart(path, &chunk_form_data(&chunk, "upload.csv")?)
+            .post_multipart(path, &chunk_form_data(&chunk, &filename)?)
             .await?;
         for error in &mut response.errors {
             error.row += offset;
