@@ -212,4 +212,48 @@ mod tests {
             assert!(request(101).validate().is_err());
         }
     }
+
+    #[cfg(feature = "postgres")]
+    mod pg_codec {
+        use super::DividendCacheStatus;
+        use postgres_types::{FromSql, IsNull, ToSql, Type};
+
+        fn encode(status: DividendCacheStatus) -> (IsNull, Vec<u8>) {
+            let mut buf = bytes::BytesMut::new();
+            let is_null = ToSql::to_sql(&status, &Type::VARCHAR, &mut buf).expect("encode");
+            (is_null, buf.to_vec())
+        }
+
+        #[test]
+        fn status_roundtrips_through_varchar() {
+            for status in [
+                DividendCacheStatus::Ok,
+                DividendCacheStatus::Zero,
+                DividendCacheStatus::Error,
+                DividendCacheStatus::Pending,
+            ] {
+                let (is_null, buf) = encode(status);
+                assert!(matches!(is_null, IsNull::No));
+                assert_eq!(
+                    DividendCacheStatus::from_sql(&Type::VARCHAR, &buf).expect("decode"),
+                    status
+                );
+            }
+        }
+
+        #[test]
+        fn unknown_status_is_rejected() {
+            assert!(DividendCacheStatus::from_sql(&Type::VARCHAR, b"bogus").is_err());
+        }
+
+        #[test]
+        fn codec_accepts_text_but_not_int() {
+            assert!(<DividendCacheStatus as ToSql>::accepts(&Type::VARCHAR));
+            assert!(<DividendCacheStatus as ToSql>::accepts(&Type::TEXT));
+            assert!(!<DividendCacheStatus as ToSql>::accepts(&Type::INT4));
+            assert!(<DividendCacheStatus as FromSql>::accepts(&Type::VARCHAR));
+            assert!(<DividendCacheStatus as FromSql>::accepts(&Type::TEXT));
+            assert!(!<DividendCacheStatus as FromSql>::accepts(&Type::INT4));
+        }
+    }
 }
