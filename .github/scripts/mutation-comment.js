@@ -17,7 +17,7 @@ function readLines(file) {
     .filter(Boolean);
 }
 
-// download-artifact の出力は mutants-<crate>-diff/missed.txt の形になる。
+// download-artifact の出力は mutants-<crate>-<shard>-diff/missed.txt の形になる。
 // missed.txt の行は PR のソース由来の文字列なので、データとして扱い実行しない。
 // required のとき、dir 自体が読めない・対象 artifact が0件・必須ファイル欠落は
 // すべてエラーにする(0 件と誤報して古い警告を消さないため)
@@ -32,20 +32,26 @@ function collectResults(artifactsDir, { required = true } = {}) {
       `cannot read artifacts dir ${artifactsDir}: ${error.message}`
     );
   }
+  // 集約用: crate ごとに missed / timeout をマージ
+  const byCrate = new Map();
   for (const entry of entries) {
-    const match = /^mutants-(.+)-diff$/.exec(entry.name);
+    const match = /^mutants-(.+)-\d+-diff$/.exec(entry.name);
     if (!entry.isDirectory() || !match) continue;
+    const crate = match[1];
     const dir = path.join(artifactsDir, entry.name);
-    results.push({
-      crate: match[1],
-      missed: readLines(path.join(dir, 'missed.txt')),
-      timeouts: readLines(path.join(dir, 'timeout.txt')).length,
-    });
+    const missed = readLines(path.join(dir, 'missed.txt'));
+    const timeouts = readLines(path.join(dir, 'timeout.txt')).length;
+    if (!byCrate.has(crate)) {
+      byCrate.set(crate, { crate, missed: [], timeouts: 0 });
+    }
+    const agg = byCrate.get(crate);
+    agg.missed.push(...missed);
+    agg.timeouts += timeouts;
   }
-  if (required && results.length === 0) {
-    throw new Error(`no mutants-*-diff artifacts found in ${artifactsDir}`);
+  if (required && byCrate.size === 0) {
+    throw new Error(`no mutants-*-*-diff artifacts found in ${artifactsDir}`);
   }
-  return results.sort((a, b) => a.crate.localeCompare(b.crate));
+  return Array.from(byCrate.values()).sort((a, b) => a.crate.localeCompare(b.crate));
 }
 
 function truncate(text) {
@@ -83,7 +89,7 @@ function buildBody({ results, runUrl }) {
   }
   lines.push(
     '',
-    '全件は artifact `mutants-<crate>-diff` の `mutants.out/missed.txt`・`timeout.txt` を参照してください。'
+    '全件は artifact `mutants-<crate>-<shard>-diff` の `missed.txt`・`timeout.txt` を参照してください。'
   );
   if (runUrl) lines.push(`実行: ${runUrl}`);
   return lines.join('\n');

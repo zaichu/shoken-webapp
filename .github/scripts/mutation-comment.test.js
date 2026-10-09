@@ -80,10 +80,12 @@ function ctx({ fork = false } = {}) {
 
 test('collectResults はクレートごとの missed/timeout を集約する', (t) => {
   const dir = writeArtifacts(t, {
-    'mutants-backend-diff/missed.txt': 'src/a.rs:1: x\n\nsrc/b.rs:2: y\n',
-    'mutants-backend-diff/timeout.txt': 'src/c.rs:3: z\n',
-    'mutants-frontend-diff/missed.txt': 'src/d.rs:4: w\n',
-    'mutants-frontend-diff/timeout.txt': '',
+    'mutants-backend-1-diff/missed.txt': 'src/a.rs:1: x\n\nsrc/b.rs:2: y\n',
+    'mutants-backend-1-diff/timeout.txt': 'src/c.rs:3: z\n',
+    'mutants-backend-2-diff/missed.txt': 'src/e.rs:5: extra\n',
+    'mutants-backend-2-diff/timeout.txt': '',
+    'mutants-frontend-1-diff/missed.txt': 'src/d.rs:4: w\n',
+    'mutants-frontend-1-diff/timeout.txt': '',
     // 対象外の artifact 名や mutants.out 自体は無視する
     'other-artifact/missed.txt': 'src/ignore.rs:1: nope\n',
     'mutants-out/missed.txt': 'src/ignore2.rs:1: nope\n',
@@ -94,7 +96,7 @@ test('collectResults はクレートごとの missed/timeout を集約する', (
     ['backend', 'frontend']
   );
   const backend = results.find((r) => r.crate === 'backend');
-  assert.equal(backend.missed.length, 2);
+  assert.equal(backend.missed.length, 3);
   assert.equal(backend.timeouts, 1);
   const frontend = results.find((r) => r.crate === 'frontend');
   assert.equal(frontend.missed.length, 1);
@@ -105,7 +107,7 @@ test('collectResults は required ならディレクトリ欠落・ファイル�
   assert.throws(() => mod.collectResults('/nonexistent/dir'));
 
   const missingFiles = writeArtifacts(t, {
-    'mutants-backend-diff/outcomes.json': '{}',
+    'mutants-backend-1-diff/outcomes.json': '{}',
   });
   assert.throws(() => mod.collectResults(missingFiles));
 
@@ -147,8 +149,8 @@ test('buildBody は missed 0 件では場所を出さない', () => {
 
 test('missed があり既存コメントがなければ新規作成する', async (t) => {
   const dir = writeArtifacts(t, {
-    'mutants-backend-diff/missed.txt': 'src/a.rs:1: replace foo\n',
-    'mutants-backend-diff/timeout.txt': '',
+    'mutants-backend-1-diff/missed.txt': 'src/a.rs:1: replace foo\n',
+    'mutants-backend-1-diff/timeout.txt': '',
   });
   useArtifactsDir(t, dir);
   const { github, calls } = makeGithub();
@@ -162,8 +164,8 @@ test('missed があり既存コメントがなければ新規作成する', asyn
 
 test('既存 marker コメントは新規作成せず更新する', async (t) => {
   const dir = writeArtifacts(t, {
-    'mutants-backend-diff/missed.txt': 'src/a.rs:1: replace foo\n',
-    'mutants-backend-diff/timeout.txt': '',
+    'mutants-backend-1-diff/missed.txt': 'src/a.rs:1: replace foo\n',
+    'mutants-backend-1-diff/timeout.txt': '',
   });
   useArtifactsDir(t, dir);
   const { github, calls } = makeGithub({
@@ -180,8 +182,8 @@ test('既存 marker コメントは新規作成せず更新する', async (t) =>
 
 test('missed が 0 件になった再実行では既存コメントを解消済みに更新する', async (t) => {
   const dir = writeArtifacts(t, {
-    'mutants-backend-diff/missed.txt': '',
-    'mutants-backend-diff/timeout.txt': '',
+    'mutants-backend-1-diff/missed.txt': '',
+    'mutants-backend-1-diff/timeout.txt': '',
   });
   useArtifactsDir(t, dir);
   const { github, calls } = makeGithub({
@@ -223,8 +225,8 @@ test('diff skipped なら artifact なしを正常な空として扱う', async 
 
 test('missed 0 件で既存コメントもなければ書き込まない', async (t) => {
   const dir = writeArtifacts(t, {
-    'mutants-backend-diff/missed.txt': '',
-    'mutants-backend-diff/timeout.txt': '',
+    'mutants-backend-1-diff/missed.txt': '',
+    'mutants-backend-1-diff/timeout.txt': '',
   });
   useArtifactsDir(t, dir);
   const { github, calls } = makeGithub();
@@ -236,8 +238,8 @@ test('missed 0 件で既存コメントもなければ書き込まない', async
 
 test('fork PR での書き込み失敗は warning で終えてジョブを失敗させない', async (t) => {
   const dir = writeArtifacts(t, {
-    'mutants-backend-diff/missed.txt': 'src/a.rs:1: x\n',
-    'mutants-backend-diff/timeout.txt': '',
+    'mutants-backend-1-diff/missed.txt': 'src/a.rs:1: x\n',
+    'mutants-backend-1-diff/timeout.txt': '',
   });
   useArtifactsDir(t, dir);
   const { github } = makeGithub({ writeError: new Error('Resource not accessible') });
@@ -248,8 +250,8 @@ test('fork PR での書き込み失敗は warning で終えてジョブを失敗
 
 test('同一リポジトリ PR での通知失敗は握り潰さず再 throw する', async (t) => {
   const dir = writeArtifacts(t, {
-    'mutants-backend-diff/missed.txt': 'src/a.rs:1: x\n',
-    'mutants-backend-diff/timeout.txt': '',
+    'mutants-backend-1-diff/missed.txt': 'src/a.rs:1: x\n',
+    'mutants-backend-1-diff/timeout.txt': '',
   });
   useArtifactsDir(t, dir);
   const { github } = makeGithub({ writeError: new Error('boom') });
