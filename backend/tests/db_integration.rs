@@ -1,18 +1,20 @@
 use axum::{
     body::{Body, to_bytes},
     http::{Method, Request, StatusCode, header::ACCESS_CONTROL_ALLOW_ORIGIN},
+    middleware,
+    routing::get,
 };
 use backend::services::csv::import::CsvImport;
 use backend::{
-    config::Config,
-    db::{self, Bind, Db, connect_pool_lazy, run_migrations, wait_for_pool_with_retry},
+    config::{self, Config},
+    db::{self, Bind, Db, connect_pool_lazy, run_migrations},
+    middleware::validate_origin,
     models::asset_balance::{AssetBalanceSearchQueryParams, CreateAssetBalanceRequest},
     models::common::{PaginationParams, SearchQueryParams},
     models::dividend::{CreateDividendRequest, DividendSearchQueryParams},
     models::domestic_stock::{CreateDomesticStockRequest, DomesticStockSearchQueryParams},
     models::mutualfund::{CreateMutualfundRequest, MutualfundSearchQueryParams},
     models::user::GoogleUserInfo,
-    routes::app_router,
     services::asset_balance as asset_balance_svc,
     services::auth::{self as auth_svc, SessionToken},
     services::dividend as dividend_svc,
@@ -20,6 +22,7 @@ use backend::{
     services::domain::bulk::{self, RowLimit},
     services::domain::search::search as domain_search,
     services::domestic_stock as domestic_stock_svc,
+    services::jquants::JQuantsClient,
     services::mutualfund as mutualfund_svc,
     state::{AppState, Secrets},
 };
@@ -52,45 +55,15 @@ fn dividend_search_params_with_pagination(
     }
 }
 use chrono::{NaiveDate, Utc};
-use reqwest::Client;
 use rust_decimal_macros::dec;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::{SecurityCode, UserId};
-use std::{env, sync::Arc, sync::atomic::AtomicBool, time::Duration};
+use std::{sync::Arc, time::Duration};
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, timeout};
 use tower::ServiceExt;
 use uuid::Uuid;
-
-struct EnvGuard {
-    key: &'static str,
-    previous: Option<String>,
-}
-
-impl EnvGuard {
-    fn set(key: &'static str, value: Option<&str>) -> Self {
-        let previous = env::var(key).ok();
-        match value {
-            // FIXME: Audit that the environment access only happens in single-threaded code.
-            Some(value) => unsafe { env::set_var(key, value) },
-            // FIXME: Audit that the environment access only happens in single-threaded code.
-            None => unsafe { env::remove_var(key) },
-        }
-        Self { key, previous }
-    }
-}
-
-impl Drop for EnvGuard {
-    fn drop(&mut self) {
-        match &self.previous {
-            // FIXME: Audit that the environment access only happens in single-threaded code.
-            Some(value) => unsafe { env::set_var(self.key, value) },
-            // FIXME: Audit that the environment access only happens in single-threaded code.
-            None => unsafe { env::remove_var(self.key) },
-        }
-    }
-}
 
 async fn connect_with_retry(database_url: &str) -> Db {
     let pool = connect_pool_lazy(database_url, 4).expect("Failed to build pool");
@@ -115,9 +88,6 @@ async fn connect_with_retry(database_url: &str) -> Db {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn db_integration_with_docker_and_migrations() {
-    let _app_env = EnvGuard::set("APP_ENV", Some("production"));
-    let _cors_origins = EnvGuard::set("CORS_ORIGINS", Some("https://shoken-webapp.pages.dev"));
-
     let node = Postgres::default().start().await.unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
@@ -153,26 +123,33 @@ async fn db_integration_with_docker_and_migrations() {
     .expect("Failed to insert test stock");
 
     let secrets = Arc::new(Secrets {
-        database_url: database_url.clone(),
         jquants_api_key: None,
         google_client_id: None,
         google_client_secret: None,
         frontend_url: "http://localhost:8080".to_string(),
     });
-    let client = Client::new();
     let state = AppState {
         pool,
         secrets,
-        client,
-        dividend_cache: backend::state::DividendCacheState::default(),
-        config: Arc::new(Config::from_env()),
+        config: Arc::new(Config {
+            cors_origins: vec!["https://shoken-webapp.pages.dev".to_string()],
+            ..Config::default()
+        }),
         google_oauth: None,
+        jquants_client: None,
     };
 
-    let app = app_router(
-        state,
-        &std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
-    );
+    // worker_entry と同じレイヤ順（origin 検証 → CORS）を再現する
+    let allowed_origins = Arc::new(state.config.cors_origins.clone());
+    let strict_origin_check = state.config.is_production();
+    let app = backend::handlers::v1::stock_search_routes()
+        .route("/health", get(|| async { "OK" }))
+        .layer(middleware::from_fn(move |req, next| {
+            let origins = allowed_origins.clone();
+            async move { validate_origin(origins, strict_origin_check, req, next).await }
+        }))
+        .layer(config::build_cors_layer(&state.config.cors_origins))
+        .with_state(state);
 
     let req = Request::builder()
         .method(Method::GET)
@@ -1266,16 +1243,14 @@ async fn account_delete_confirmation_http_lifecycle() {
     let state = AppState {
         pool: pool.clone(),
         secrets: Arc::new(Secrets {
-            database_url: String::new(),
             jquants_api_key: None,
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
         }),
-        client: Client::new(),
-        dividend_cache: backend::state::DividendCacheState::default(),
         config: Arc::new(Config::default()),
         google_oauth: None,
+        jquants_client: None,
     };
     let app = backend::handlers::v1::auth_routes().with_state(state);
 
@@ -1571,11 +1546,9 @@ async fn search_facets_group_by_domain_fields() {
 #[ignore = "requires Docker to run Postgres container"]
 async fn dividend_cache_persistence_and_rate_slot() {
     let (pool, _node) = start_test_pool().await;
-    let client = Client::new();
-    let running = Arc::new(AtomicBool::new(false));
 
     assert!(
-        dividend_cache::get_batch(&pool, &client, None, &[], &running)
+        dividend_cache::get_batch(&pool, None, &[])
             .await
             .unwrap()
             .is_empty()
@@ -1588,10 +1561,9 @@ async fn dividend_cache_persistence_and_rate_slot() {
     )
     .await
     .expect("エラー記録");
-    let items =
-        dividend_cache::get_batch(&pool, &client, None, &["1234".parse().unwrap()], &running)
-            .await
-            .unwrap();
+    let items = dividend_cache::get_batch(&pool, None, &["1234".parse().unwrap()])
+        .await
+        .unwrap();
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].security_code.as_str(), "1234");
     assert_eq!(items[0].status, DividendCacheStatus::Error);
@@ -1606,10 +1578,9 @@ async fn dividend_cache_persistence_and_rate_slot() {
     )
     .await
     .expect("cooldown 付きエラー記録");
-    let items =
-        dividend_cache::get_batch(&pool, &client, None, &["5678".parse().unwrap()], &running)
-            .await
-            .unwrap();
+    let items = dividend_cache::get_batch(&pool, None, &["5678".parse().unwrap()])
+        .await
+        .unwrap();
     assert_eq!(items[0].status, DividendCacheStatus::Error);
     assert!(!items[0].is_stale, "cooldown 中は再取得対象外");
 
@@ -1622,10 +1593,9 @@ async fn dividend_cache_persistence_and_rate_slot() {
     )
     .await
     .expect("既存行の上書き");
-    let items =
-        dividend_cache::get_batch(&pool, &client, None, &["1234".parse().unwrap()], &running)
-            .await
-            .unwrap();
+    let items = dividend_cache::get_batch(&pool, None, &["1234".parse().unwrap()])
+        .await
+        .unwrap();
     assert!(!items[0].is_stale);
     let row: (String,) = db::query_as(
         "SELECT error_message FROM dividend_per_share_cache WHERE security_code = '1234'",
@@ -1654,56 +1624,17 @@ async fn dividend_cache_persistence_and_rate_slot() {
     );
 }
 
-/// Workers 側の cron 消化経路(drain_refresh_queue)が native でも正しく動くこと。
-/// pending / error(無cooldown) は消化対象、429 cooldown 中(未来の stale_at)は対象外
+/// drain_refresh_queue の消化対象選定(pending / error(無cooldown) は対象、
+/// 429 cooldown 中(未来の stale_at)は対象外)と、取得失敗時の error 記録を検証する。
+/// J-Quants への実取得経路は Worker 側にしかないため、ホスト側の取得は必ず失敗し、
+/// 選定済み行が error として記録されることまでを確認する
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn dividend_cache_drain_refresh_queue() {
-    use backend::services::jquants::JQuantsClient;
-    use wiremock::{
-        Mock, MockServer, ResponseTemplate,
-        matchers::{method, path, query_param},
-    };
-
     let (pool, _node) = start_test_pool().await;
-    let server = MockServer::start().await;
+    let client = JQuantsClient::new("test-api-key".to_string());
 
-    Mock::given(method("GET"))
-        .and(path("/v2/fins/summary"))
-        .and(query_param("code", "7203"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "data": [{"DiscDate": "2024-05-10", "Code": "7203", "DocType": "FY",
-                      "NxFDivAnn": "", "FDivAnn": "45.25", "DivAnn": "40.00"}]
-        })))
-        .expect(1)
-        .mount(&server)
-        .await;
-    Mock::given(method("GET"))
-        .and(path("/v2/fins/summary"))
-        .and(query_param("code", "8306"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "data": [{"DiscDate": "2024-05-10", "Code": "8306", "DocType": "FY",
-                      "NxFDivAnn": "", "FDivAnn": "", "DivAnn": ""}]
-        })))
-        .expect(1)
-        .mount(&server)
-        .await;
-    // 9107 は cooldown 中のため J-Quants に問い合わせない
-    Mock::given(method("GET"))
-        .and(path("/v2/fins/summary"))
-        .and(query_param("code", "9107"))
-        .respond_with(ResponseTemplate::new(200).set_body_string("should not be called"))
-        .expect(0)
-        .mount(&server)
-        .await;
-
-    let client = JQuantsClient::with_base_url(
-        Client::new(),
-        "test-api-key".to_string(),
-        format!("{}/v2/fins/summary", server.uri()),
-    );
-
-    // pending 行(Workers 側 get_batch のエンキュー相当)と即時再取得対象の error 行を積む
+    // pending 行(get_batch のエンキュー相当)と即時再取得対象の error 行を積む
     for code in ["7203", "8306"] {
         db::query(
             "INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
@@ -1737,39 +1668,19 @@ async fn dividend_cache_drain_refresh_queue() {
         .expect("drain 失敗");
     assert_eq!(processed, 2, "cooldown 中の銘柄を除く 2 件を消化する");
 
-    let row: (String, Option<f64>) = db::query_as(
-        "SELECT status, dividend_per_share FROM dividend_per_share_cache
-         WHERE security_code = '7203'",
-        vec![],
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(row.0, "ok");
-    assert_eq!(row.1, Some(45.25));
-    let row: (Option<chrono::DateTime<Utc>>,) = db::query_as(
-        "SELECT stale_at FROM dividend_per_share_cache WHERE security_code = '7203'",
-        vec![],
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert!(
-        row.0.unwrap() > Utc::now(),
-        "消化後は stale_at が未来になる"
-    );
+    // 選定された行は fetch 失敗により error として記録される
+    for code in ["7203", "8306"] {
+        let row: (String,) = db::query_as(
+            "SELECT status FROM dividend_per_share_cache WHERE security_code = $1",
+            vec![Bind::from(code)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(row.0, "error", "{code} は失敗記録される");
+    }
 
-    let row: (String, Option<f64>) = db::query_as(
-        "SELECT status, dividend_per_share FROM dividend_per_share_cache
-         WHERE security_code = '8306'",
-        vec![],
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(row.0, "zero", "配当情報なしは zero 扱い");
-    assert_eq!(row.1, Some(0.0));
-
+    // cooldown 中の行は消化されず、記録内容も変わらない
     let row: (String, Option<String>) = db::query_as(
         "SELECT status, error_message FROM dividend_per_share_cache
          WHERE security_code = '9107'",
@@ -1780,48 +1691,6 @@ async fn dividend_cache_drain_refresh_queue() {
     .unwrap();
     assert_eq!(row.0, "error");
     assert_eq!(row.1.as_deref(), Some("429"));
-
-    // 429 中断と cooldown 設定の確認（モックが 429 を返すコード）
-    Mock::given(method("GET"))
-        .and(path("/v2/fins/summary"))
-        .and(query_param("code", "9999"))
-        .respond_with(ResponseTemplate::new(429).set_body_string("rate limited"))
-        .expect(1)
-        .mount(&server)
-        .await;
-    db::query(
-        "INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
-         VALUES ('9999', 'pending', 'jquants', NOW())",
-        vec![],
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    // cooldown 済みの rate control 行が残っていると drain 自体が待機するためリセット
-    db::query(
-        "DELETE FROM market_data_provider_rate_control WHERE provider = 'jquants'",
-        vec![],
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-
-    dividend_cache::drain_refresh_queue(&pool, &client)
-        .await
-        .expect("drain 失敗");
-    let row: (String, Option<chrono::DateTime<Utc>>) = db::query_as(
-        "SELECT status, stale_at FROM dividend_per_share_cache
-         WHERE security_code = '9999'",
-        vec![],
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(row.0, "error");
-    assert!(
-        row.1.unwrap() > Utc::now(),
-        "429 後は cooldown の未来 stale_at"
-    );
 }
 
 #[tokio::test]
@@ -1934,20 +1803,4 @@ async fn bulk_create_respects_user_row_limit() {
     dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(100))
         .await
         .expect("上限内なら成功");
-}
-
-#[tokio::test]
-#[ignore = "requires Docker to run Postgres container"]
-async fn wait_for_pool_with_retry_succeeds_and_fails() {
-    let (pool, _node) = start_test_pool().await;
-    wait_for_pool_with_retry(&pool)
-        .await
-        .expect("稼働中の pool では成功");
-
-    let dead = connect_pool_lazy("postgres://postgres:postgres@127.0.0.1:1/postgres", 1)
-        .expect("lazy pool 構築");
-    let err = wait_for_pool_with_retry(&dead)
-        .await
-        .expect_err("接続不能な DB はリトライ上限で Err");
-    assert!(err.contains("接続に失敗"), "期待しないエラー: {err}");
 }

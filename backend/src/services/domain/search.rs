@@ -78,10 +78,6 @@ pub async fn search<D: Search>(
         Ok::<_, ApiError>(data)
     };
 
-    #[cfg(not(target_arch = "wasm32"))]
-    let (total, data, summary, facets) =
-        tokio::try_join!(count_fut, data_fut, summary_fut, facets_fut)?;
-    #[cfg(target_arch = "wasm32")]
     let (total, data, summary, facets) =
         futures_util::future::try_join4(count_fut, data_fut, summary_fut, facets_fut).await?;
 

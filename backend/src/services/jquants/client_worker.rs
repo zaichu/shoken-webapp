@@ -2,32 +2,11 @@
 
 use worker::{Fetch, Headers, Method, Request, RequestInit};
 
-use super::response::FinSummaryResponse;
+use super::{FinSummaryResponse, JQuantsClient};
 use crate::errors::{ApiError, UpstreamError};
 use crate::models::market_data::financial_statement::FinancialStatementsQuery;
 
-const FIN_SUMMARY_URL: &str = "https://api.jquants.com/v2/fins/summary";
-
-#[derive(Clone)]
-pub struct JQuantsClient {
-    api_key: String,
-    base_url: String,
-}
-
 impl JQuantsClient {
-    pub fn new(api_key: String) -> Self {
-        Self {
-            api_key,
-            base_url: FIN_SUMMARY_URL.to_string(),
-        }
-    }
-
-    /// dev/検証用にエンドポイントを差し替える。
-    /// vars でのみ注入する想定で、未設定時は本番エンドポイントのままにする
-    pub fn with_base_url(api_key: String, base_url: String) -> Self {
-        Self { api_key, base_url }
-    }
-
     pub async fn get_fin_summary(
         &self,
         params: FinancialStatementsQuery,

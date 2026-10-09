@@ -92,7 +92,7 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 
 ### 機密情報・CI
 
-- 秘密情報はローカルの `.env`（git 管理外）と Cloudflare Workers の secrets / GitHub Secrets で管理し、リポジトリにコミットしない
+- 秘密情報はローカルの `.dev.vars` / `.env`（git 管理外）と Cloudflare Workers の secrets / GitHub Secrets で管理し、リポジトリにコミットしない
 - GitHub Actions の `uses:` は 40 桁のコミット SHA で固定する
 - `pull_request_target` は PR gate と Dependabot 自動マージの 2 ワークフローに限定し、どちらも PR のコードを checkout しない
 

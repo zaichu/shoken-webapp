@@ -1,11 +1,72 @@
 //! Google OAuth のターゲット共通ロジック。
-//! 乱数生成・PKCE・認可 URL 構築・tokeninfo クレーム検証をここに置き、
-//! HTTP 経路のみがターゲット別実装（google_native / google_worker）を持つ。
+//! 乱数生成・PKCE・認可 URL 構築・tokeninfo クレーム検証・クライアント設定をここに置き、
+//! HTTP 経路のみが Worker 側実装（google_worker）を持つ。
 
 use sha2::{Digest, Sha256};
 
-use crate::errors::ApiError;
+use crate::errors::{ApiError, ConfigError};
 use crate::models::user::GoogleUserInfo;
+
+/// Google OAuth クライアント設定（認可 URL・トークン交換に必要な値だけを持つ）
+#[derive(Clone, Debug)]
+pub struct GoogleOAuthClient {
+    pub(crate) client_id: String,
+    // トークン交換で使うのは Worker 側実装のみ
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    pub(crate) client_secret: String,
+    pub(crate) redirect_uri: String,
+    pub(crate) token_url: String,
+    pub(crate) tokeninfo_url: String,
+}
+
+impl GoogleOAuthClient {
+    /// dev/検証用に Google エンドポイントを差し替える。
+    /// vars でのみ注入する想定で、未設定時は本番エンドポイントのままにする
+    pub fn override_endpoints(&mut self, token_url: Option<String>, tokeninfo_url: Option<String>) {
+        if let Some(url) = token_url {
+            self.token_url = url;
+        }
+        if let Some(url) = tokeninfo_url {
+            self.tokeninfo_url = url;
+        }
+    }
+}
+
+pub fn create_oauth_client(
+    client_id: &str,
+    client_secret: &str,
+    backend_url: &str,
+) -> Result<GoogleOAuthClient, ApiError> {
+    let redirect_uri = format!("{backend_url}/api/v1/oauth/google/callback");
+    // backend_url が URL として壊れていると認可 URL も壊れるため構築時に検証する
+    url::Url::parse(&redirect_uri).map_err(ConfigError::UrlParse)?;
+    Ok(GoogleOAuthClient {
+        client_id: client_id.to_string(),
+        client_secret: client_secret.to_string(),
+        redirect_uri,
+        token_url: GOOGLE_TOKEN_URL.to_string(),
+        tokeninfo_url: GOOGLE_TOKENINFO_URL.to_string(),
+    })
+}
+
+/// Google 認可フローの開始一式（認可 URL・state・nonce・PKCE verifier）
+pub fn begin_auth(client: &GoogleOAuthClient) -> super::GoogleAuthFlow {
+    let (pkce_verifier, pkce_challenge) = new_pkce_pair();
+    let state = new_oauth_random();
+    let nonce = new_oauth_random();
+    super::GoogleAuthFlow {
+        authorize_url: build_authorize_url(
+            &client.client_id,
+            &client.redirect_uri,
+            &state,
+            &nonce,
+            &pkce_challenge,
+        ),
+        state,
+        nonce,
+        pkce_verifier,
+    }
+}
 
 pub const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 pub const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
@@ -71,7 +132,7 @@ pub fn new_pkce_pair() -> (String, String) {
 }
 
 /// Google 認可エンドポイントへのリダイレクト URL を組み立てる。
-/// scope は native 側と同じ `openid email profile`、nonce は extra param
+/// scope は `openid email profile`、nonce は extra param
 pub fn build_authorize_url(
     client_id: &str,
     redirect_uri: &str,
@@ -109,7 +170,7 @@ fn json_i64(value: &serde_json::Value, field: &str) -> Option<i64> {
 /// Google tokeninfo レスポンスのクレームを検証してユーザー情報を取り出す。
 ///
 /// tokeninfo エンドポイントが署名検証を肩代わりするため、ここでは
-/// iss / aud / exp / nonce / email・sub の存在を確認する（native 側の検証と対応）。
+/// iss / aud / exp / nonce / email・sub の存在を確認する。
 /// `now_unix` は検証時刻（UNIX 秒）を外から渡し、時計依存を排除する
 pub fn validate_tokeninfo_claims(
     claims: &serde_json::Value,

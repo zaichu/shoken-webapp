@@ -22,7 +22,7 @@ Usage:
 
 Stops the local dev stack used by ./scripts/start-local.sh:
 - Frontend dev server (default: port 8081)
-- Backend server (default: port 3001)
+- Backend server via wrangler dev (default: port 8787)
 - Local PostgreSQL via docker compose (unless --keep-db)
 
 You can override ports via env vars:
@@ -128,7 +128,9 @@ file_pid_valid() {
   if [[ "${cwd}" != "${BACKEND_DIR}" ]]; then
     return 1
   fi
-  if [[ "${name}" == "backend" ]] || [[ "${name}" == "cargo" && "${cmd}" =~ (^|[[:space:]])run[[:space:]]+--bin[[:space:]]+backend([[:space:]]|$) ]]; then
+  # wrangler dev は npx(node)が wrangler/workerd 子プロセスを起こすため、
+  # comm ではなくコマンドライン中の wrangler / workerd で識別する
+  if [[ "${cmd}" == *wrangler* ]] || [[ "${name}" == "workerd" ]]; then
     return 0
   fi
   return 1
@@ -320,7 +322,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 BACKEND_PORT="${BACKEND_PORT:-$(extract_port_from_url "${BACKEND_URL}")}"
-BACKEND_PORT="${BACKEND_PORT:-3001}"
+BACKEND_PORT="${BACKEND_PORT:-8787}"
 if [[ "${BACKEND_PORT}" =~ ^[0-9]+$ ]]; then BACKEND_PORT=$((10#${BACKEND_PORT})); fi
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
 

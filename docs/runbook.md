@@ -7,8 +7,8 @@
 git clone https://github.com/zaichu/shoken-webapp.git
 cd shoken-webapp
 
-# 2. 環境変数を設定
-(cd backend && cp .env.example .env)  # DATABASE_URL 等を設定
+# 2. シークレットを設定（OAuth/J-Quants を使う場合）
+(cd backend && cp .dev.vars.example .dev.vars)
 (cd frontend && npm ci)
 
 # 3. 一括起動（推奨）
@@ -17,7 +17,7 @@ cd shoken-webapp
 
 起動後のアクセス先:
 - フロントエンド: http://127.0.0.1:8081
-- バックエンド: http://127.0.0.1:3001
+- バックエンド: http://127.0.0.1:8787（wrangler dev）
 - DB: `postgresql://user:password@localhost:5432/shoken_db`
 
 停止: `./scripts/stop-local.sh`
@@ -58,11 +58,8 @@ curl https://shoken-backend.zaitomo41.workers.dev/health
 # マイグレーション作成
 (cd backend && sqlx migrate add <migration_name>)
 
-# マイグレーション実行（起動時に自動実行）
-(cd backend && make run)
-
-# オフラインモード用 sqlx-data 更新
-(cd backend && make sqlx-prepare)
+# マイグレーション実行（ローカル Docker DB へ）
+(cd backend && make migrate-local)
 ```
 
 ## 環境変数（本番）
@@ -81,7 +78,7 @@ Google Cloud Console で以下の **Authorized redirect URIs** を登録する:
 | 環境 | URI |
 |---|---|
 | 本番（Cloudflare Workers） | `https://shoken-backend.zaitomo41.workers.dev/api/v1/oauth/google/callback` |
-| ローカル | `http://localhost:3001/api/v1/oauth/google/callback` |
+| ローカル | `http://localhost:8787/api/v1/oauth/google/callback` |
 
 > **注意**: 旧環境の `https://shoken-backend.fly.dev/...` は現行 API では使用しない。
 > Google Cloud Console に登録している場合は削除する。

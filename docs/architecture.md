@@ -50,12 +50,12 @@ shoken-webapp/
 │   │   ├── models/        # データモデル・バリデーション
 │   │   ├── extractors/    # カスタム Axum エクストラクター
 │   │   ├── middleware/    # rate_limit / security / origin 検証
-│   │   ├── config/        # 環境変数読み込み
-│   │   ├── routes.rs      # ルーティング定義
+│   │   ├── config/        # 環境設定（wrangler.toml vars 由来）
+│   │   ├── worker_entry.rs # Workers エントリーポイント（fetch/scheduled・ルーティング）
 │   │   ├── openapi.rs     # OpenAPI スキーマ生成（bin/generate_openapi.rs）
-│   │   ├── db.rs          # DB pool・起動時の migration 実行
+│   │   ├── db.rs          # DB アクセス層（wasm は Hyperdrive、ホストは migrate/テスト用直接接続）
 │   │   ├── errors.rs      # 統一エラーハンドリング
-│   │   └── state.rs       # AppState (DB pool / secrets / HTTP client)
+│   │   └── state.rs       # AppState (DB pool / secrets)
 │   ├── migrations/        # DB スキーマの正本（追記のみ。テーブル構成はここを参照）
 │   └── scripts/           # repair-migrations.sql などの運用スクリプト
 ├── shared/                # frontend/backend 共有の wire 型クレート
@@ -72,11 +72,11 @@ shoken-webapp/
 - **HTTP 境界**: `handlers/` と `extractors/` で完結させ、Axum 型はここから外に
   漏らさない。ハンドラーは「入力パース → service 呼び出し → エラーマップ」だけ。
 - **サービス境界**: `services::<domain>` の関数がドメインの業務ルール・
-  バリデーション・SQLx クエリを所有する。ハンドラー間でロジックを共有したい
-  場合は HTTP ではなく service 関数を経由する。
-- **永続化境界**: SQLx クエリは service モジュール内に置く。Repository trait
+  バリデーション・DB クエリ（tokio-postgres 生 SQL）を所有する。ハンドラー間で
+  ロジックを共有したい場合は HTTP ではなく service 関数を経由する。
+- **永続化境界**: DB クエリは service モジュール内に置く。Repository trait
   は作らない。テストは実 DB（ローカル PostgreSQL）に対して書く。
-- **共有状態**: `AppState`（DB pool / secrets / HTTP client）で配線する。DI
+- **共有状態**: `AppState`（DB pool / secrets / Worker 由来のクライアント）で配線する。DI
   container は導入しない。
 
 ### Frontend（Leptos）
@@ -89,7 +89,7 @@ shoken-webapp/
 
 - 全面ヘキサゴナル / 全面クリーンアーキテクチャ（ports & adapters の重複コスト
   に見合うサイズではない）
-- 集約ごとの Repository trait（SQLx 直書きの方が変更が早い）
+- 集約ごとの Repository trait（tokio-postgres 直書きの方が変更が早い）
 - DI container（`AppState` と関数引数で十分）
 - backend の `domain / application / infrastructure` 三層分割
 
