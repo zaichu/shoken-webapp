@@ -44,9 +44,10 @@ for i in range(n):
     day = 1 + (i % 28)
     name = names[i % len(names)]
     code = str(7000 + (i % 500))
+    # 重複スキップを踏まないよう行ごとに一意の金額にする
     lines.append(
         f'"2025/03/{day:02d}","国内株式","特定・一般","{code}","{name}","円",'
-        f'"1,000.50","100","10,050","2,040","8,010"'
+        f'"{1000 + i}","100","{10050 + i}","{2040 + i}","{8010 + i}"'
     )
 data = "\n".join(lines) + "\n"
 with open(path, "wb") as f:

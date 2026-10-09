@@ -4,8 +4,14 @@ use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
 use crate::features::receipts::csv::{CsvPreviewRow, to_preview};
 use crate::features::receipts::{ReceiptTabData, ReceiptsTab, TabState};
 use crate::session::Generation;
-use crate::support::csv_flow::CsvTabState;
+use crate::support::csv_flow::{CsvChunking, CsvTabState};
 use leptos::prelude::*;
+
+// backend の各 receipts 系 CsvParserConfig は skip_header_rows=0(先頭行がヘッダ)
+const CSV_CHUNKING: CsvChunking = CsvChunking {
+    header_lines: 1,
+    import_chunked: true,
+};
 
 impl ReceiptsStore {
     pub fn csv_state(&self, tab: ReceiptsTab) -> CsvTabState<CsvPreviewRow> {
@@ -56,7 +62,9 @@ impl ReceiptsStore {
         });
         let store = *self;
         leptos::task::spawn_local(async move {
-            let result = crate::support::csv_flow::preview_csv(tab.preview_path(), &file).await;
+            let result =
+                crate::support::csv_flow::preview_csv(tab.preview_path(), &file, CSV_CHUNKING)
+                    .await;
             store.apply_preview_result(generation, tab, result);
         });
     }
@@ -67,7 +75,8 @@ impl ReceiptsStore {
         };
         let store = *self;
         leptos::task::spawn_local(async move {
-            let result = crate::support::csv_flow::upload_csv(tab.import_path(), &file).await;
+            let result =
+                crate::support::csv_flow::upload_csv(tab.import_path(), &file, CSV_CHUNKING).await;
             if store.apply_upload_result(generation, tab, result) {
                 store.fetch.dispatch((generation, tab));
             }

@@ -112,7 +112,9 @@ impl AssetBalanceCsvStore {
         self.csv_file.set(Some((generation, file.clone())));
         let store = *self;
         leptos::task::spawn_local(async move {
-            let result = crate::support::csv_flow::preview_csv(csv::PREVIEW_PATH, &file).await;
+            let result =
+                crate::support::csv_flow::preview_csv(csv::PREVIEW_PATH, &file, csv::CSV_CHUNKING)
+                    .await;
             if let Some(codes) = store.apply_preview_result(generation, result)
                 && !codes.is_empty()
             {
@@ -150,7 +152,9 @@ impl AssetBalanceCsvStore {
         };
         let store = *self;
         leptos::task::spawn_local(async move {
-            let result = crate::support::csv_flow::upload_csv(csv::IMPORT_PATH, &file).await;
+            let result =
+                crate::support::csv_flow::upload_csv(csv::IMPORT_PATH, &file, csv::CSV_CHUNKING)
+                    .await;
             if store.apply_upload_result(generation, result) {
                 load_asset_balances(
                     store.session,
