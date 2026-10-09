@@ -64,9 +64,8 @@ console.log(`externalized init script -> ${initName}`);
 
 function sourceToCloudflarePattern(source) {
   if (source === '/(.*)') return '/*';
-  if (source === '/:name.wasm') return '/*.wasm';
-  if (source === '/:name.js') return '/*.js';
-  if (source === '/:name.css') return '/*.css';
+  // `/:name.ext` は Pages の :placeholder (単一セグメントのみ一致) と同じ意味になるため
+  // そのまま使う。`/*.ext` のような splat は / をまたいで /snippets/** にも効いてしまう
   return source;
 }
 
@@ -75,9 +74,23 @@ function generateCloudflareConfigFiles(distDir) {
   const vercel = JSON.parse(readFileSync(vercelPath, 'utf8'));
 
   // _headers の生成
+  // 複数ルールに一致したリクエストは全ルールのヘッダーを継承し、同名ヘッダーは
+  // カンマ連結される(Vercel のように後勝ちで上書きにならない)。/* 由来の同名
+  // ヘッダーを個別ルールが付け直す場合は、先に ! で継承分を外す
+  const pervasiveNames = new Set(
+    (vercel.headers ?? [])
+      .filter((rule) => sourceToCloudflarePattern(rule.source) === '/*')
+      .flatMap((rule) => rule.headers.map((h) => h.key))
+  );
   const headerRules = (vercel.headers ?? []).map((rule) => {
     const pattern = sourceToCloudflarePattern(rule.source);
-    const headerLines = rule.headers.map((h) => `  ${h.key}: ${h.value}`).join('\n');
+    const headerLines = rule.headers
+      .flatMap((h) =>
+        pattern !== '/*' && pervasiveNames.has(h.key)
+          ? [`  ! ${h.key}`, `  ${h.key}: ${h.value}`]
+          : [`  ${h.key}: ${h.value}`]
+      )
+      .join('\n');
     return `${pattern}\n${headerLines}`;
   });
 

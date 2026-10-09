@@ -181,3 +181,25 @@
    切り戻し手順の記録を含む。Vercel 削除は別 PR にし、様子見期間を空ける。
 
 各 PR は Issue #1209 に `Refs` で紐づけ、本番切替の完了をもって Issue を閉じる。
+
+## 9. 本番切替時の実測 (2026-10-09)
+
+`https://shoken-webapp.pages.dev` に `curl -I` で確認した結果:
+
+- `Access-Control-Allow-Origin: *` は Pages だけでなく Vercel 側のレスポンスにも付いていた
+  (4.1 の「Vercel は付けていない」は誤り)。両者で同じ挙動のため Detach は不要と判断した。
+- `_headers` では、複数ルールに一致したリクエストは全ルールのヘッダーを継承し、
+  同名ヘッダーはカンマ連結される (Vercel の後勝ち上書きとは違う)。`/*` の
+  `Cache-Control: max-age=0` とアセットルールの immutable が
+  `public, max-age=0, must-revalidate, public, max-age=31536000, immutable` に連結される
+  ことを確認した。`! <name>` の Detach は同一ルール内で外してから付け直せる
+  (workers-sdk#1979) ので、個別ルールで `! Cache-Control` → `Cache-Control: ... immutable`
+  とする形に修正した。
+- `/*.js` のような splat パターンは `/` をまたぐため `/snippets/**/*.js` にも immutable が
+  効いてしまう (snippets のファイル名は内容ハッシュではない)。`/:name.js`
+  プレースホルダ (パス内で単一セグメントのみ一致) にすれば Vercel の `/:name.js` と
+  同じ適用範囲になるため、変換側で splat ではなくプレースホルダを使う形に直した。
+- wasm の `Content-Type: application/wasm` は `/:name.wasm` ルールどおりに付いた。
+- `CORS_ORIGINS` は Fly secrets 未設定で `Config::default()` の既定値
+  (`vercel.app`・`pages.dev` 両方) が使われていた。切替時に
+  `vercel.app,pages.dev` を明示設定し、`FRONTEND_URL` を `pages.dev` に切り替えた。
