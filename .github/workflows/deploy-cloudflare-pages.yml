@@ -142,20 +142,36 @@ jobs:
         run: |
           node scripts/prepare-vercel-dist.mjs dist
 
+      # 未作成だと deploy が code 8000007 で失敗するため、無ければ作る(既存なら警告だけで続行)
+      - name: Ensure Cloudflare Pages project exists
+        shell: bash
+        run: |
+          log_file="${RUNNER_TEMP}/wrangler-project-create.log"
+          if wrangler pages project create shoken-webapp --production-branch=main > "${log_file}" 2>&1; then
+            cat "${log_file}"
+          else
+            cat "${log_file}"
+            echo "::warning::Pages プロジェクトの作成に失敗しました。既存の場合は deploy に進みます"
+          fi
+
       - name: Deploy to Cloudflare Pages
         id: deploy
         shell: bash
         run: |
           set -o pipefail
+          log_file="${RUNNER_TEMP}/wrangler-deploy.log"
+          deploy_exit=0
           if [[ "${{ steps.target.outputs.environment }}" == "production" ]]; then
-            url="$(wrangler pages deploy dist --project-name=shoken-webapp --commit-dirty=true 2>&1 | grep -oE 'https://[^ ]+\.pages\.dev' | tail -n1)"
+            wrangler pages deploy dist --project-name=shoken-webapp --commit-dirty=true > "${log_file}" 2>&1 || deploy_exit=$?
           else
             branch="${GITHUB_REF##refs/heads/}"
             branch="${branch//\//-}"
-            url="$(wrangler pages deploy dist --project-name=shoken-webapp --branch="${branch}" --commit-dirty=true 2>&1 | grep -oE 'https://[^ ]+\.pages\.dev' | tail -n1)"
+            wrangler pages deploy dist --project-name=shoken-webapp --branch="${branch}" --commit-dirty=true > "${log_file}" 2>&1 || deploy_exit=$?
           fi
-          if [[ -z "${url}" ]]; then
-            echo "::error::Cloudflare Pages deployment failed (no URL returned)"
+          cat "${log_file}"
+          url="$(grep -oE 'https://[^ ]+\.pages\.dev' "${log_file}" | tail -n1)"
+          if [[ ${deploy_exit} -ne 0 ]] || [[ -z "${url}" ]]; then
+            echo "::error::Cloudflare Pages deployment failed (exit ${deploy_exit}, no URL returned)"
             exit 1
           fi
           echo "url=${url}" >> "$GITHUB_OUTPUT"
