@@ -46,6 +46,52 @@ impl GroupField {
     }
 }
 
+/// SearchFacets のどのスロットに結果を入れるか
+#[derive(Clone, Copy, Debug)]
+pub enum FacetSlot {
+    Products,
+    Accounts,
+    Securities,
+    Funds,
+    Years,
+    YearMonths,
+}
+
+/// facet の取得方法
+#[derive(Clone, Copy, Debug)]
+pub enum FacetKind {
+    /// group_expr ごとの件数集計（GroupField::as_sql_expr を GROUP BY する）
+    Group {
+        field: GroupField,
+        order: FacetOrder,
+    },
+    /// security_code ごとの集計。label は label_order 先頭行の security_name
+    Security { label_order: &'static str },
+}
+
+/// `Search::FACETS` に書く facet 1件分の指定
+#[derive(Clone, Copy, Debug)]
+pub struct FacetSpec {
+    pub slot: FacetSlot,
+    pub kind: FacetKind,
+}
+
+impl FacetSpec {
+    pub const fn group(slot: FacetSlot, field: GroupField, order: FacetOrder) -> Self {
+        Self {
+            slot,
+            kind: FacetKind::Group { field, order },
+        }
+    }
+
+    pub const fn security(slot: FacetSlot, label_order: &'static str) -> Self {
+        Self {
+            slot,
+            kind: FacetKind::Security { label_order },
+        }
+    }
+}
+
 /// table / group_expr（呼び出し側が渡す固定の &'static str のみ）を使って
 /// `SELECT ... GROUP BY ... ORDER BY ...` の QueryBuilder を組み立てる。
 /// push_filters は WHERE 句（user_id を含む検索条件）を積むクロージャ。

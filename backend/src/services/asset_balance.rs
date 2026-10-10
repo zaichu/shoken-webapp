@@ -1,9 +1,9 @@
-use crate::db::{Bind, Db, DbError, QueryBuilder};
+use crate::db::{Bind, Db};
 use crate::errors::ApiError;
 use crate::models::asset_balance::{
     AssetBalance, AssetBalanceSearchQueryParams, AssetBalanceSummary, CreateAssetBalanceRequest,
 };
-use crate::models::common::{BulkCreateResponse, SearchFacets};
+use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
 use crate::services::csv::import::{CsvImport, validate_csv_rows};
 #[cfg(test)]
@@ -12,12 +12,10 @@ use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
     CsvCells, CsvRowView, RowNumber, check_max_chars, parse_number, parse_optional_string,
 };
-use crate::services::domain::bulk::{
-    BulkTimer, RowLimit, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert,
-};
-use crate::services::domain::facets;
+use crate::services::domain::bulk::{RowLimit, bulk_replace, user_ids_for_bulk_insert};
+use crate::services::domain::facets::{FacetSlot, FacetSpec};
 use crate::services::domain::search::Search;
-use crate::services::domain::search_filters::{push_search_filters, tokens_from_query};
+use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
@@ -30,23 +28,18 @@ impl Domain for AssetBalanceDomain {
     const NAME: &'static str = "asset_balance";
     const TABLE: &'static str = "asset_balances";
     const WRITE_MODE: WriteMode = WriteMode::Replace;
-
-    async fn delete_rows(pool: &Db, user_id: UserId) -> Result<u64, DbError> {
-        crate::db::query(
-            "DELETE FROM asset_balances WHERE user_id = $1",
-            vec![Bind::from(user_id)],
-        )
-        .execute(pool)
-        .await
-    }
 }
 
 impl CsvImport for AssetBalanceDomain {
     type Row = CreateAssetBalanceRequest;
-    const CSV_CONFIG: CsvParserConfig = ASSET_BALANCE_CSV_CONFIG;
+    const CSV_CONFIG: CsvParserConfig = CsvParserConfig {
+        skip_header_rows: 6,
+        exclude_row_fn: Some(is_account_summary_row),
+    };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        transform_asset_balance_rows(table)
+        let (items, errors) = validate_csv_rows(table, transform_asset_balance_row);
+        (items.into_iter().flatten().collect(), errors)
     }
 
     async fn bulk_create(
@@ -59,96 +52,44 @@ impl CsvImport for AssetBalanceDomain {
     }
 }
 
-const ASSET_BALANCE_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
-    skip_header_rows: 6,
-    exclude_row_fn: Some(is_account_summary_row),
-};
-
-/// 保有銘柄検索条件を SQL 条件へ変換した中間表現
-///
-/// asset_balances には snapshot 日付がないため、date 系の条件は扱わない。
-#[derive(Debug)]
-pub struct AssetBalanceFilter {
-    tokens: Vec<String>,
-    security_code: Option<String>,
-    security_name: Option<String>,
-}
-
-impl TryFrom<AssetBalanceSearchQueryParams> for AssetBalanceFilter {
-    type Error = ApiError;
-
-    fn try_from(params: AssetBalanceSearchQueryParams) -> Result<Self, ApiError> {
-        Ok(Self {
-            tokens: tokens_from_query(params.search.q.as_deref()),
-            security_code: params.security_code,
-            security_name: params.security_name,
-        })
-    }
-}
+const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(market_value), 0) AS total_market_value, \
+     COALESCE(SUM(total_purchase_amount), 0) AS total_purchase_amount, \
+     COALESCE(SUM(daily_change), 0) AS total_daily_change \
+     FROM asset_balances";
 
 impl Search for AssetBalanceDomain {
     type Data = AssetBalance;
     type Params = AssetBalanceSearchQueryParams;
-    type Filter = AssetBalanceFilter;
     type Summary = AssetBalanceSummary;
 
     const COLUMNS: &'static str = "id, user_id, security_code, security_name, shares, \
         executing_shares, average_purchase_price, total_purchase_amount, current_price, \
         daily_change, created_at, updated_at";
     const ORDER_BY: &'static str = " ORDER BY security_code ASC, id ASC";
+    /// asset_balances には snapshot 日付がないため、date 系パラメータは解釈しない
+    const DATE_COLUMN: Option<&'static str> = None;
+    const FILTER_FIELDS: &'static [FilterField] =
+        &[FilterField::SecurityCode, FilterField::SecurityName];
+    const FACETS: &'static [FacetSpec] = &[FacetSpec::security(FacetSlot::Securities, "id")];
 
-    /// asset_balances には snapshot 日付がないため、date axis は渡さない（`None`）。
-    fn push_filters(qb: &mut QueryBuilder, user_id: UserId, filter: &AssetBalanceFilter) {
-        push_search_filters(
-            qb,
-            user_id,
-            None,
-            &[
-                ("security_code", &filter.security_code),
-                ("security_name", &filter.security_name),
-            ],
-            &filter.tokens,
-            &["security_code", "security_name"],
-        );
+    fn filter_value(params: &AssetBalanceSearchQueryParams, field: FilterField) -> &Option<String> {
+        match field {
+            FilterField::SecurityCode => &params.security_code,
+            FilterField::SecurityName => &params.security_name,
+            _ => &NO_FIELD,
+        }
     }
 
     /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
     async fn fetch_summary(
         pool: &Db,
         user_id: UserId,
-        filter: &AssetBalanceFilter,
+        filter: &SearchFilter,
     ) -> Result<AssetBalanceSummary, ApiError> {
-        let mut qb = QueryBuilder::new(
-            "SELECT COALESCE(SUM(market_value), 0) AS total_market_value, \
-             COALESCE(SUM(total_purchase_amount), 0) AS total_purchase_amount, \
-             COALESCE(SUM(daily_change), 0) AS total_daily_change \
-             FROM asset_balances",
-        );
-        Self::push_filters(&mut qb, user_id, filter);
-        Ok(qb
+        Ok(Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<AssetBalanceSummary>()
             .fetch_one(pool)
             .await?)
-    }
-
-    async fn fetch_facets(
-        pool: &Db,
-        user_id: UserId,
-        filter: &AssetBalanceFilter,
-    ) -> Result<SearchFacets, ApiError> {
-        let securities = facets::fetch_security_facets(pool, Self::TABLE, "id", |qb| {
-            Self::push_filters(qb, user_id, filter);
-        })
-        .await?;
-
-        Ok(SearchFacets {
-            products: None,
-            accounts: None,
-            securities: Some(securities),
-            funds: None,
-            years: None,
-            year_months: None,
-        })
     }
 }
 
@@ -159,10 +100,7 @@ pub async fn bulk_create(
     items: &[CreateAssetBalanceRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let total = items.len();
-    let timer = BulkTimer::new(AssetBalanceDomain::NAME, total);
-
-    let user_ids = user_ids_for_bulk_insert(user_id, total);
+    let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let security_codes: Vec<String> = items
         .iter()
         .map(|i| i.security_code.as_str().to_owned())
@@ -179,20 +117,11 @@ pub async fn bulk_create(
     let market_values: Vec<Decimal> = items.iter().map(|i| i.market_value).collect();
     let profit_loss_rates: Vec<Decimal> = items.iter().map(|i| i.profit_loss_rate).collect();
 
-    let mut tx = pool.begin().await?;
-
-    lock_user_domain::<AssetBalanceDomain>(&mut tx, user_id).await?;
-
-    ensure_user_row_limit_with::<AssetBalanceDomain, _>(&mut tx, user_id, total, limit).await?;
-
-    crate::db::query(
-        "DELETE FROM asset_balances WHERE user_id = $1",
-        vec![Bind::from(user_id)],
-    )
-    .execute(&mut tx)
-    .await?;
-
-    if !items.is_empty() {
+    bulk_replace::<AssetBalanceDomain>(
+        pool,
+        user_id,
+        items.len(),
+        limit,
         crate::db::query(
             r#"
             INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
@@ -216,21 +145,9 @@ pub async fn bulk_create(
                 Bind::decimal_vec(market_values),
                 Bind::decimal_vec(profit_loss_rates),
             ],
-        )
-        .execute(&mut tx)
-        .await?;
-    }
-
-    tx.commit().await?;
-
-    Ok(timer.finish(total))
-}
-
-fn transform_asset_balance_rows(
-    table: &CsvTable,
-) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
-    let (items, errors) = validate_csv_rows(table, transform_asset_balance_row);
-    (items.into_iter().flatten().collect(), errors)
+        ),
+    )
+    .await
 }
 
 /// 保有銘柄 CSV に混ざる「特定口座合計」などの口座集計行を除外する
@@ -307,10 +224,10 @@ fn transform_asset_balance_row(
             .unwrap_or(Decimal::ZERO),
     }))
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::common::SearchParamsAccessor;
     use crate::services::csv::import::CsvImport;
     use rust_decimal_macros::dec;
 
@@ -344,7 +261,7 @@ mod tests {
         )
         .unwrap();
 
-        transform_asset_balance_rows(&table)
+        AssetBalanceDomain::transform_rows(&table)
     }
 
     fn make_asset_balance_csv(rows: &[&str]) -> String {
@@ -478,10 +395,10 @@ mod tests {
         ] {
             let table = parse_csv_with_config(
                 make_asset_balance_csv(rows).as_bytes(),
-                &ASSET_BALANCE_CSV_CONFIG,
+                &AssetBalanceDomain::CSV_CONFIG,
             )
             .unwrap();
-            let (items, errors) = transform_asset_balance_rows(&table);
+            let (items, errors) = AssetBalanceDomain::transform_rows(&table);
 
             assert!(errors.is_empty(), "unexpected errors: {errors:?}");
             assert_eq!(
@@ -509,47 +426,5 @@ mod tests {
         assert!(!is_summary("9999", "口座合計を含む名称"));
         assert!(!is_summary("", "普通株式"));
         assert!(!is_summary("7203", "トヨタ自動車"));
-    }
-
-    #[test]
-    fn test_asset_balance_search_query_params_delegate_include_flags() {
-        let mut params = AssetBalanceSearchQueryParams::default();
-        assert!(!params.should_include_summary());
-        assert!(!params.should_include_facets());
-
-        params.search.include_summary = Some(true);
-        params.search.include_facets = Some(true);
-        assert!(params.should_include_summary());
-        assert!(params.should_include_facets());
-    }
-
-    #[test]
-    fn test_push_filters_combines_q_tokens_and_domain_fields() {
-        let mut params = AssetBalanceSearchQueryParams::default();
-        params.search.q = Some("AA BB".to_string());
-        let filter = AssetBalanceFilter::try_from(params).unwrap();
-
-        let mut qb = QueryBuilder::new("SELECT 1 FROM asset_balances");
-        AssetBalanceDomain::push_filters(&mut qb, UserId::default(), &filter);
-        let sql = qb.sql();
-
-        // token ごとに 1 つの AND (...) ブロックが生成され、ブロック内は2カラムの OR になる
-        assert_eq!(sql.matches(" AND (").count(), 2);
-        assert_eq!(sql.matches("security_code ILIKE").count(), 2);
-        assert_eq!(sql.matches("security_name ILIKE").count(), 2);
-
-        let params = AssetBalanceSearchQueryParams {
-            security_code: Some("1234".to_string()),
-            security_name: Some("テスト株式会社".to_string()),
-            ..Default::default()
-        };
-        let filter = AssetBalanceFilter::try_from(params).unwrap();
-
-        let mut qb = QueryBuilder::new("SELECT 1 FROM asset_balances");
-        AssetBalanceDomain::push_filters(&mut qb, UserId::default(), &filter);
-        let sql = qb.sql();
-
-        assert!(sql.contains("AND security_code = "));
-        assert!(sql.contains("AND security_name = "));
     }
 }

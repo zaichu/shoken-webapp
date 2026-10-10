@@ -1,6 +1,6 @@
-use crate::db::{Bind, Db, DbError, QueryBuilder};
+use crate::db::{Bind, Db};
 use crate::errors::ApiError;
-use crate::models::common::{BulkCreateResponse, FacetOption, SearchFacets};
+use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
 use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
@@ -11,14 +11,10 @@ use crate::services::csv::util::{
     CsvRowView, RowNumber, check_max_chars, parse_optional_string, parse_required_account,
     parse_required_date, parse_required_number, parse_required_string,
 };
-use crate::services::domain::bulk::{
-    BulkTimer, RowLimit, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert,
-};
-use crate::services::domain::facets::{self, FacetOrder, GroupField};
+use crate::services::domain::bulk::{RowLimit, bulk_insert, user_ids_for_bulk_insert};
+use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
 use crate::services::domain::search::Search;
-use crate::services::domain::search_filters::{
-    DateAxisFilter, push_search_filters, tokens_from_query,
-};
+use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
@@ -31,23 +27,17 @@ impl Domain for DividendDomain {
     const NAME: &'static str = "dividend";
     const TABLE: &'static str = "dividends";
     const WRITE_MODE: WriteMode = WriteMode::Append;
-
-    async fn delete_rows(pool: &Db, user_id: UserId) -> Result<u64, DbError> {
-        crate::db::query(
-            "DELETE FROM dividends WHERE user_id = $1",
-            vec![Bind::from(user_id)],
-        )
-        .execute(pool)
-        .await
-    }
 }
 
 impl CsvImport for DividendDomain {
     type Row = CreateDividendRequest;
-    const CSV_CONFIG: CsvParserConfig = DIVIDEND_CSV_CONFIG;
+    const CSV_CONFIG: CsvParserConfig = CsvParserConfig {
+        skip_header_rows: 0,
+        exclude_row_fn: None,
+    };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        transform_dividend_rows(table)
+        validate_csv_rows(table, transform_dividend_row)
     }
 
     async fn bulk_create(
@@ -60,160 +50,63 @@ impl CsvImport for DividendDomain {
     }
 }
 
-const DIVIDEND_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
-    skip_header_rows: 0,
-    exclude_row_fn: None,
-};
-
-/// 配当金検索条件を SQL 条件へ変換した中間表現
-#[derive(Debug)]
-pub struct DividendFilter {
-    date_axis: DateAxisFilter,
-    tokens: Vec<String>,
-    product: Option<String>,
-    account: Option<String>,
-    security_code: Option<String>,
-    security_name: Option<String>,
-}
-
-impl TryFrom<DividendSearchQueryParams> for DividendFilter {
-    type Error = ApiError;
-
-    fn try_from(params: DividendSearchQueryParams) -> Result<Self, ApiError> {
-        let date_axis = DateAxisFilter::from_search_params(&params.search)?;
-        let tokens = tokens_from_query(params.search.q.as_deref());
-
-        Ok(Self {
-            date_axis,
-            tokens,
-            product: params.product,
-            account: params.account,
-            security_code: params.security_code,
-            security_name: params.security_name,
-        })
-    }
-}
+const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(dividends_before_tax), 0) AS total_dividends_before_tax, \
+     COALESCE(SUM(taxes), 0) AS total_taxes, \
+     COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received \
+     FROM dividends";
 
 impl Search for DividendDomain {
     type Data = Dividend;
     type Params = DividendSearchQueryParams;
-    type Filter = DividendFilter;
     type Summary = DividendSummary;
 
     const COLUMNS: &'static str = "id, user_id, settlement_date, product, account, security_code, \
         security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received, \
         created_at, updated_at";
     const ORDER_BY: &'static str = " ORDER BY settlement_date DESC, id DESC";
+    const DATE_COLUMN: Option<&'static str> = Some("settlement_date");
+    const FILTER_FIELDS: &'static [FilterField] = &[
+        FilterField::Product,
+        FilterField::Account,
+        FilterField::SecurityCode,
+        FilterField::SecurityName,
+    ];
+    const FACETS: &'static [FacetSpec] = &[
+        FacetSpec::group(FacetSlot::Products, GroupField::Product, FacetOrder::Asc),
+        FacetSpec::group(FacetSlot::Accounts, GroupField::Account, FacetOrder::Asc),
+        FacetSpec::security(FacetSlot::Securities, "settlement_date DESC, id DESC"),
+        FacetSpec::group(
+            FacetSlot::Years,
+            GroupField::SettlementDateYear,
+            FacetOrder::Desc,
+        ),
+        FacetSpec::group(
+            FacetSlot::YearMonths,
+            GroupField::SettlementDateYearMonth,
+            FacetOrder::Desc,
+        ),
+    ];
 
-    fn push_filters(qb: &mut QueryBuilder, user_id: UserId, filter: &DividendFilter) {
-        push_search_filters(
-            qb,
-            user_id,
-            Some(("settlement_date", &filter.date_axis)),
-            &[
-                ("product", &filter.product),
-                ("account", &filter.account),
-                ("security_code", &filter.security_code),
-                ("security_name", &filter.security_name),
-            ],
-            &filter.tokens,
-            &["product", "account", "security_code", "security_name"],
-        );
+    fn filter_value(params: &DividendSearchQueryParams, field: FilterField) -> &Option<String> {
+        match field {
+            FilterField::Product => &params.product,
+            FilterField::Account => &params.account,
+            FilterField::SecurityCode => &params.security_code,
+            FilterField::SecurityName => &params.security_name,
+            _ => &NO_FIELD,
+        }
     }
 
     async fn fetch_summary(
         pool: &Db,
         user_id: UserId,
-        filter: &DividendFilter,
+        filter: &SearchFilter,
     ) -> Result<DividendSummary, ApiError> {
-        let mut qb = QueryBuilder::new(
-            "SELECT COALESCE(SUM(dividends_before_tax), 0) AS total_dividends_before_tax, \
-             COALESCE(SUM(taxes), 0) AS total_taxes, \
-             COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received \
-             FROM dividends",
-        );
-        Self::push_filters(&mut qb, user_id, filter);
-        Ok(qb
+        Ok(Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<DividendSummary>()
             .fetch_one(pool)
             .await?)
     }
-
-    async fn fetch_facets(
-        pool: &Db,
-        user_id: UserId,
-        filter: &DividendFilter,
-    ) -> Result<SearchFacets, ApiError> {
-        let products_fut =
-            fetch_group_facets(pool, user_id, filter, GroupField::Product, FacetOrder::Asc);
-        let accounts_fut =
-            fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
-        let securities_fut = fetch_security_facets(pool, user_id, filter);
-        let years_fut = fetch_group_facets(
-            pool,
-            user_id,
-            filter,
-            GroupField::SettlementDateYear,
-            FacetOrder::Desc,
-        );
-        let year_months_fut = fetch_group_facets(
-            pool,
-            user_id,
-            filter,
-            GroupField::SettlementDateYearMonth,
-            FacetOrder::Desc,
-        );
-
-        let (products, accounts, securities, years, year_months) = futures_util::future::try_join5(
-            products_fut,
-            accounts_fut,
-            securities_fut,
-            years_fut,
-            year_months_fut,
-        )
-        .await?;
-
-        Ok(SearchFacets {
-            products: Some(products),
-            accounts: Some(accounts),
-            securities: Some(securities),
-            funds: None,
-            years: Some(years),
-            year_months: Some(year_months),
-        })
-    }
-}
-
-async fn fetch_group_facets(
-    pool: &Db,
-    user_id: UserId,
-    filter: &DividendFilter,
-    group_field: GroupField,
-    order: FacetOrder,
-) -> Result<Vec<FacetOption>, ApiError> {
-    facets::fetch_group_facets(
-        pool,
-        DividendDomain::TABLE,
-        group_field.as_sql_expr(),
-        order,
-        |qb| DividendDomain::push_filters(qb, user_id, filter),
-    )
-    .await
-}
-
-/// 銘柄コードごとに最新の銘柄名を label として件数付きで返す
-async fn fetch_security_facets(
-    pool: &Db,
-    user_id: UserId,
-    filter: &DividendFilter,
-) -> Result<Vec<FacetOption>, ApiError> {
-    facets::fetch_security_facets(
-        pool,
-        DividendDomain::TABLE,
-        "settlement_date DESC, id DESC",
-        |qb| DividendDomain::push_filters(qb, user_id, filter),
-    )
-    .await
 }
 
 /// 配当金を一括追加（重複はスキップ）
@@ -223,11 +116,6 @@ pub async fn bulk_create(
     items: &[CreateDividendRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let timer = match BulkTimer::new_with_guard(DividendDomain::NAME, items) {
-        Ok(t) => t,
-        Err(empty) => return Ok(empty),
-    };
-
     let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
@@ -245,48 +133,40 @@ pub async fn bulk_create(
     let taxes: Vec<Decimal> = items.iter().map(|i| i.taxes).collect();
     let net_amounts: Vec<Decimal> = items.iter().map(|i| i.net_amount_received).collect();
 
-    let mut tx = pool.begin().await?;
-
-    lock_user_domain::<DividendDomain>(&mut tx, user_id).await?;
-
-    ensure_user_row_limit_with::<DividendDomain, _>(&mut tx, user_id, items.len(), limit).await?;
-
-    let result = crate::db::query(
-        r#"
-        INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
-                               security_name, unit_price, shares, dividends_before_tax,
-                               taxes, net_amount_received)
-        SELECT * FROM UNNEST(
-            $1::uuid[], $2::date[], $3::text[], $4::text[], $5::text[],
-            $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
-            $10::numeric[], $11::numeric[]
-        )
-        ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax)
-        DO NOTHING
-        "#,
-        vec![
-            Bind::from(user_ids),
-            Bind::from(settlement_dates),
-            Bind::from(products),
-            Bind::from(accounts),
-            Bind::from(security_codes),
-            Bind::from(security_names),
-            Bind::decimal_vec(unit_prices),
-            Bind::decimal_vec(shares),
-            Bind::decimal_vec(dividends_before_taxes),
-            Bind::decimal_vec(taxes),
-            Bind::decimal_vec(net_amounts),
-        ],
+    bulk_insert::<DividendDomain, _>(
+        pool,
+        user_id,
+        items,
+        limit,
+        crate::db::query(
+            r#"
+            INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
+                                   security_name, unit_price, shares, dividends_before_tax,
+                                   taxes, net_amount_received)
+            SELECT * FROM UNNEST(
+                $1::uuid[], $2::date[], $3::text[], $4::text[], $5::text[],
+                $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
+                $10::numeric[], $11::numeric[]
+            )
+            ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax)
+            DO NOTHING
+            "#,
+            vec![
+                Bind::from(user_ids),
+                Bind::from(settlement_dates),
+                Bind::from(products),
+                Bind::from(accounts),
+                Bind::from(security_codes),
+                Bind::from(security_names),
+                Bind::decimal_vec(unit_prices),
+                Bind::decimal_vec(shares),
+                Bind::decimal_vec(dividends_before_taxes),
+                Bind::decimal_vec(taxes),
+                Bind::decimal_vec(net_amounts),
+            ],
+        ),
     )
-    .execute(&mut tx)
-    .await?;
-
-    tx.commit().await?;
-    timer.finish_from_affected(result)
-}
-
-fn transform_dividend_rows(table: &CsvTable) -> (Vec<CreateDividendRequest>, Vec<CsvRowError>) {
-    validate_csv_rows(table, transform_dividend_row)
+    .await
 }
 
 fn transform_dividend_row(
@@ -329,10 +209,8 @@ fn transform_dividend_row(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::common::SearchParamsAccessor;
     use crate::models::csv_import::CsvPreviewResponse;
     use crate::services::csv::import::CsvImport;
-    use chrono::NaiveDate;
 
     const HEADER: &str = "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]";
 
@@ -397,116 +275,5 @@ mod tests {
                 (1, 0, true)
             );
         }
-    }
-
-    #[test]
-    fn test_dividend_filter_from_params() {
-        let mut params = DividendSearchQueryParams::default();
-        assert!(!params.should_include_summary());
-        assert!(!params.should_include_facets());
-
-        params.search.include_summary = Some(true);
-        params.search.include_facets = Some(true);
-        assert!(params.should_include_summary());
-        assert!(params.should_include_facets());
-
-        let mut params = DividendSearchQueryParams::default();
-        params.search.date = Some("2026-01-15".to_string());
-        params.search.date_from = Some("2026-01-01".to_string());
-        params.search.date_to = Some("2026-12-31".to_string());
-        params.search.year = Some(2026);
-        params.search.year_month = Some("2026-06".to_string());
-
-        let filter =
-            DividendFilter::try_from(params).expect("正しい日付フォーマットは検証を通過する");
-
-        assert_eq!(
-            filter.date_axis.date_eq,
-            NaiveDate::from_ymd_opt(2026, 1, 15)
-        );
-        assert_eq!(
-            filter.date_axis.date_from,
-            NaiveDate::from_ymd_opt(2026, 1, 1)
-        );
-        assert_eq!(
-            filter.date_axis.date_to,
-            NaiveDate::from_ymd_opt(2026, 12, 31)
-        );
-        assert_eq!(
-            filter.date_axis.year_range,
-            Some((
-                NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-                NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()
-            ))
-        );
-        assert_eq!(
-            filter.date_axis.year_month_range,
-            Some((
-                NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
-                NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()
-            ))
-        );
-
-        type Apply = fn(&mut DividendSearchQueryParams);
-        let cases: [(&str, Apply); 5] = [
-            ("date", |p| p.search.date = Some("2026/01/15".to_string())),
-            ("date_from", |p| {
-                p.search.date_from = Some("20260101".to_string())
-            }),
-            ("date_to", |p| {
-                p.search.date_to = Some("not-a-date".to_string())
-            }),
-            ("year", |p| p.search.year = Some(i32::MIN)),
-            ("year_month", |p| {
-                p.search.year_month = Some("2026-13".to_string())
-            }),
-        ];
-
-        for (field, apply) in cases {
-            let mut params = DividendSearchQueryParams::default();
-            apply(&mut params);
-            let err = DividendFilter::try_from(params)
-                .expect_err(&format!("{field} は不正値で ValidationError になるべき"));
-            assert!(
-                matches!(err, ApiError::Validation(_)),
-                "field={field} の失敗が ValidationError ではない"
-            );
-        }
-    }
-
-    #[test]
-    fn test_push_filters_combines_q_tokens_and_domain_fields() {
-        let mut params = DividendSearchQueryParams::default();
-        params.search.q = Some("AA BB".to_string());
-        let filter = DividendFilter::try_from(params).expect("q のみなら検証を通過する");
-
-        let mut qb = QueryBuilder::new("SELECT 1 FROM dividends");
-        DividendDomain::push_filters(&mut qb, UserId::default(), &filter);
-        let sql = qb.sql();
-
-        // token ごとに 1 つの AND (...) ブロックが生成され、ブロック内は4カラムの OR になる
-        assert_eq!(sql.matches(" AND (").count(), 2);
-        assert_eq!(sql.matches("product ILIKE").count(), 2);
-        assert_eq!(sql.matches("account ILIKE").count(), 2);
-        assert_eq!(sql.matches("security_code ILIKE").count(), 2);
-        assert_eq!(sql.matches("security_name ILIKE").count(), 2);
-
-        let params = DividendSearchQueryParams {
-            product: Some("国内株式".to_string()),
-            account: Some("特定".to_string()),
-            security_code: Some("1234".to_string()),
-            security_name: Some("テスト株式会社".to_string()),
-            ..Default::default()
-        };
-        let filter = DividendFilter::try_from(params).expect("フィルタのみなら検証を通過する");
-
-        let mut qb = QueryBuilder::new("SELECT 1 FROM dividends");
-        DividendDomain::push_filters(&mut qb, UserId::default(), &filter);
-        let sql = qb.sql();
-
-        assert!(sql.contains("AND product = "));
-        assert!(sql.contains("AND account = "));
-        assert!(sql.contains("AND security_code = "));
-        assert!(sql.contains("AND security_name = "));
     }
 }

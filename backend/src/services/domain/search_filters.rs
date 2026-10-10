@@ -86,6 +86,55 @@ impl DateAxisFilter {
     }
 }
 
+/// 検索条件に使えるドメイン固有フィールド。SQL カラム名と1対1で対応する
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FilterField {
+    Product,
+    Account,
+    SecurityCode,
+    SecurityName,
+    FundName,
+    Dividends,
+}
+
+impl FilterField {
+    pub const COUNT: usize = 6;
+
+    /// 対応する SQL カラム名（固定文字列）
+    pub fn column(self) -> &'static str {
+        match self {
+            Self::Product => "product",
+            Self::Account => "account",
+            Self::SecurityCode => "security_code",
+            Self::SecurityName => "security_name",
+            Self::FundName => "fund_name",
+            Self::Dividends => "dividends",
+        }
+    }
+}
+
+/// ドメインに存在しないフィールドを指す共有の None（`Search::filter_value` 用）
+pub(crate) static NO_FIELD: Option<String> = None;
+
+/// 4ドメイン共通の検索条件中間表現。
+/// 使うフィールドはドメインが `Search::FILTER_FIELDS` で宣言する
+#[derive(Debug)]
+pub struct SearchFilter {
+    /// date 系条件（日付軸を持たないドメインでは常に既定値＝条件なし）
+    pub date_axis: DateAxisFilter,
+    /// フリーワードをスペース分割した token 列
+    pub tokens: Vec<String>,
+    /// FilterField ごとの完全一致条件
+    pub(crate) values: [Option<String>; FilterField::COUNT],
+}
+
+impl SearchFilter {
+    /// フィールドの完全一致条件（対象外フィールドは None）
+    pub fn value(&self, field: FilterField) -> &Option<String> {
+        &self.values[field as usize]
+    }
+}
+
 /// date_column（呼び出し側が渡す固定文字列のみ）を使って date 条件を WHERE 句へ push する
 pub fn push_date_axis_filters(
     qb: &mut QueryBuilder,
@@ -360,6 +409,261 @@ mod tests {
             }
         }
         Some(recovered)
+    }
+
+    mod domain_specs {
+        use crate::db::QueryBuilder;
+        use crate::errors::ApiError;
+        use crate::models::asset_balance::AssetBalanceSearchQueryParams;
+        use crate::models::common::SearchQueryParams;
+        use crate::models::dividend::DividendSearchQueryParams;
+        use crate::models::domestic_stock::DomesticStockSearchQueryParams;
+        use crate::models::mutualfund::MutualfundSearchQueryParams;
+        use crate::services::asset_balance::AssetBalanceDomain;
+        use crate::services::dividend::DividendDomain;
+        use crate::services::domain::search::Search;
+        use crate::services::domestic_stock::DomesticStockDomain;
+        use crate::services::mutualfund::MutualfundDomain;
+        use shared::value::UserId;
+
+        fn filter_sql<D: Search>(params: &D::Params) -> String {
+            let filter = D::make_filter(params).expect("正常な params はフィルタ化できる");
+            let mut qb = QueryBuilder::new(format!("SELECT 1 FROM {}", D::TABLE));
+            D::push_filters(&mut qb, UserId::default(), &filter);
+            qb.sql().to_string()
+        }
+
+        fn search_with_q(q: &str) -> SearchQueryParams {
+            SearchQueryParams {
+                q: Some(q.to_string()),
+                ..Default::default()
+            }
+        }
+
+        /// q の token 数分だけ `AND (col ILIKE ... OR ...)` ブロックが出ることを全ドメインで確認
+        #[test]
+        fn test_push_filters_expands_q_tokens_over_domain_fields() {
+            let cases: [(String, &[&str]); 4] = [
+                (
+                    filter_sql::<DividendDomain>(&DividendSearchQueryParams {
+                        search: search_with_q("AA BB"),
+                        ..Default::default()
+                    }),
+                    &["product", "account", "security_code", "security_name"],
+                ),
+                (
+                    filter_sql::<DomesticStockDomain>(&DomesticStockSearchQueryParams {
+                        search: search_with_q("AA BB"),
+                        ..Default::default()
+                    }),
+                    &["account", "security_code", "security_name"],
+                ),
+                (
+                    filter_sql::<MutualfundDomain>(&MutualfundSearchQueryParams {
+                        search: search_with_q("AA BB"),
+                        ..Default::default()
+                    }),
+                    &["account", "fund_name", "dividends"],
+                ),
+                (
+                    filter_sql::<AssetBalanceDomain>(&AssetBalanceSearchQueryParams {
+                        search: search_with_q("AA BB"),
+                        ..Default::default()
+                    }),
+                    &["security_code", "security_name"],
+                ),
+            ];
+
+            for (sql, columns) in cases {
+                assert_eq!(sql.matches(" AND (").count(), 2, "sql={sql}");
+                for column in columns {
+                    assert_eq!(
+                        sql.matches(&format!("{column} ILIKE")).count(),
+                        2,
+                        "column={column} sql={sql}"
+                    );
+                }
+            }
+        }
+
+        /// ドメイン固有フィールドが `AND <col> =` の完全一致条件になることを全ドメインで確認
+        #[test]
+        fn test_push_filters_emits_exact_match_for_domain_fields() {
+            let cases: [(String, &[&str]); 4] = [
+                (
+                    filter_sql::<DividendDomain>(&DividendSearchQueryParams {
+                        product: Some("国内株式".to_string()),
+                        account: Some("特定".to_string()),
+                        security_code: Some("1234".to_string()),
+                        security_name: Some("テスト株式会社".to_string()),
+                        ..Default::default()
+                    }),
+                    &["product", "account", "security_code", "security_name"],
+                ),
+                (
+                    filter_sql::<DomesticStockDomain>(&DomesticStockSearchQueryParams {
+                        account: Some("特定".to_string()),
+                        security_code: Some("1234".to_string()),
+                        security_name: Some("テスト株式会社".to_string()),
+                        ..Default::default()
+                    }),
+                    &["account", "security_code", "security_name"],
+                ),
+                (
+                    filter_sql::<MutualfundDomain>(&MutualfundSearchQueryParams {
+                        account: Some("特定".to_string()),
+                        fund_name: Some("eMAXIS Slim".to_string()),
+                        dividends: Some("再投資型".to_string()),
+                        ..Default::default()
+                    }),
+                    &["account", "fund_name", "dividends"],
+                ),
+                (
+                    filter_sql::<AssetBalanceDomain>(&AssetBalanceSearchQueryParams {
+                        security_code: Some("1234".to_string()),
+                        security_name: Some("テスト株式会社".to_string()),
+                        ..Default::default()
+                    }),
+                    &["security_code", "security_name"],
+                ),
+            ];
+
+            for (sql, columns) in cases {
+                for column in columns {
+                    assert!(
+                        sql.contains(&format!("AND {column} = ")),
+                        "column={column} sql={sql}"
+                    );
+                }
+            }
+        }
+
+        /// date 系パラメータが DATE_COLUMN への条件になること（日付軸を持つ3ドメイン）
+        #[test]
+        fn test_push_filters_applies_date_params_to_date_column() {
+            let search = SearchQueryParams {
+                date: Some("2026-01-15".to_string()),
+                year: Some(2026),
+                year_month: Some("2026-06".to_string()),
+                ..Default::default()
+            };
+
+            let cases: [(String, &str); 3] = [
+                (
+                    filter_sql::<DividendDomain>(&DividendSearchQueryParams {
+                        search: search.clone(),
+                        ..Default::default()
+                    }),
+                    "settlement_date",
+                ),
+                (
+                    filter_sql::<DomesticStockDomain>(&DomesticStockSearchQueryParams {
+                        search: search.clone(),
+                        ..Default::default()
+                    }),
+                    "trade_date",
+                ),
+                (
+                    filter_sql::<MutualfundDomain>(&MutualfundSearchQueryParams {
+                        search,
+                        ..Default::default()
+                    }),
+                    "trade_date",
+                ),
+            ];
+
+            for (sql, column) in cases {
+                assert_eq!(sql.matches(&format!("{column} = ")).count(), 1, "sql={sql}");
+                assert_eq!(
+                    sql.matches(&format!("{column} >= ")).count(),
+                    2,
+                    "sql={sql}"
+                );
+                assert_eq!(sql.matches(&format!("{column} < ")).count(), 2, "sql={sql}");
+            }
+        }
+
+        /// 不正な date 系パラメータが ValidationError になること（日付軸を持つドメインのみ）
+        #[test]
+        fn test_make_filter_rejects_invalid_date_params() {
+            let cases: [(&'static str, SearchQueryParams); 5] = [
+                (
+                    "date",
+                    SearchQueryParams {
+                        date: Some("2026/01/15".to_string()),
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "date_from",
+                    SearchQueryParams {
+                        date_from: Some("20260101".to_string()),
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "date_to",
+                    SearchQueryParams {
+                        date_to: Some("not-a-date".to_string()),
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "year",
+                    SearchQueryParams {
+                        year: Some(i32::MIN),
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "year_month",
+                    SearchQueryParams {
+                        year_month: Some("2026-13".to_string()),
+                        ..Default::default()
+                    },
+                ),
+            ];
+
+            for (field, search) in cases {
+                let err = DividendDomain::make_filter(&DividendSearchQueryParams {
+                    search: search.clone(),
+                    ..Default::default()
+                })
+                .expect_err("不正値は ValidationError になるべき");
+                assert!(matches!(err, ApiError::Validation(_)), "field={field}");
+                let err = DomesticStockDomain::make_filter(&DomesticStockSearchQueryParams {
+                    search: search.clone(),
+                    ..Default::default()
+                })
+                .expect_err("不正値は ValidationError になるべき");
+                assert!(matches!(err, ApiError::Validation(_)), "field={field}");
+                let err = MutualfundDomain::make_filter(&MutualfundSearchQueryParams {
+                    search,
+                    ..Default::default()
+                })
+                .expect_err("不正値は ValidationError になるべき");
+                assert!(matches!(err, ApiError::Validation(_)), "field={field}");
+            }
+        }
+
+        /// asset_balances は snapshot 日付を持たず date 系パラメータを解釈・検証しない
+        /// （不正な値でもエラーにならず WHERE にも現れない）
+        #[test]
+        fn test_asset_balance_ignores_date_params() {
+            let sql = filter_sql::<AssetBalanceDomain>(&AssetBalanceSearchQueryParams {
+                search: SearchQueryParams {
+                    date: Some("not-a-date".to_string()),
+                    year: Some(i32::MIN),
+                    year_month: Some("invalid".to_string()),
+                    ..Default::default()
+                },
+                security_code: Some("1234".to_string()),
+                ..Default::default()
+            });
+
+            assert!(!sql.contains("date"), "date 条件が出てはいけない: {sql}");
+            assert!(sql.contains("AND security_code = "));
+        }
     }
 
     proptest::proptest! {
