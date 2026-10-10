@@ -78,9 +78,14 @@ let jar = jar
     .remove(clear_oauth_cookie(OAUTH_PKCE_VERIFIER_COOKIE_NAME, is_secure))
     .remove(clear_oauth_cookie(OAUTH_NONCE_COOKIE_NAME, is_secure));
 
+// Option を Unauthorized に変換してから渡す
+let pkce_verifier = pkce_verifier
+    .ok_or_else(|| ApiError::Unauthorized("OAuth の PKCE verifier が見つかりません"))?;
+let nonce = nonce.ok_or_else(|| ApiError::Unauthorized("OAuth nonce が見つかりません"))?;
+
 // トークン交換 + tokeninfo で nonce/aud/exp 検証 + セッション発行
 let session_token = auth_service::authenticate_with_google_code(
-    &state.pool, client, query.code, pkce_verifier?, &nonce?,
+    &state.pool, client, query.code, pkce_verifier, &nonce,
 ).await?;
 let jar = jar.add(build_session_cookie(session_token, is_secure));
 ```
