@@ -12,7 +12,7 @@ use crate::{
     config::{self, Config},
     handlers,
     middleware::{add_security_headers, binding_rate_limit, validate_origin},
-    services::{auth, dividend_cache, jquants::JQuantsClient},
+    services::{auth, dividend_cache, jquants::JQuantsClient, stock_price},
     state::{AppState, Secrets},
 };
 
@@ -163,13 +163,31 @@ async fn fetch(
     Ok(router(state, &env).call(req).await?)
 }
 
-/// 毎分 cron: 配当キャッシュの stale/pending 銘柄を消化する。
-/// 1 回あたりの上限と 12 秒間隔スロットは drain_refresh_queue 内で制御する
+/// 現在値を更新する日次 cron（UTC 07:00 = JST 16:00、東証の引け後）。wrangler.toml と対応させる
+const STOCK_PRICE_CRON: &str = "0 7 * * *";
+
 #[event(scheduled)]
-async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
-    if let Err(e) = drain_dividend_cache(&env).await {
-        console_error!("配当キャッシュ消化エラー: {e}");
+async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
+    let result = match event.cron().as_str() {
+        STOCK_PRICE_CRON => refresh_stock_prices(&env).await,
+        // 毎分 cron: 配当キャッシュの stale/pending 銘柄を消化する
+        _ => drain_dividend_cache(&env).await,
+    };
+    if let Err(e) = result {
+        console_error!("scheduled イベントエラー (cron={}): {e}", event.cron());
     }
+}
+
+/// 保有銘柄の現在値を Yahoo chart API から取得して更新する。
+/// dev/検証用に vars の YAHOO_CHART_BASE_URL でモックへ差し替えられる
+async fn refresh_stock_prices(env: &Env) -> Result<()> {
+    let state = build_state(env)?;
+    let base_url = env.var("YAHOO_CHART_BASE_URL").ok().map(|v| v.to_string());
+    let updated = stock_price::refresh_stock_prices(&state.pool, base_url)
+        .await
+        .map_err(|e| Error::RustError(e.to_string()))?;
+    console_log!("現在値更新: {} 銘柄を取得", updated);
+    Ok(())
 }
 
 async fn drain_dividend_cache(env: &Env) -> Result<()> {

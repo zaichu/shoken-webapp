@@ -12,6 +12,7 @@ fn row(code: &str) -> AssetBalance {
         total_purchase_amount: dec!(250000),
         current_price: dec!(2600),
         daily_change: dec!(50),
+        price_as_of: Some("2024-01-16".to_string()),
         created_at: String::new(),
         updated_at: String::new(),
     }

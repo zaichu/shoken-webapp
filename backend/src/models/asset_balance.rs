@@ -25,6 +25,7 @@ impl crate::db::FromRow for AssetBalance {
                 .0,
             current_price: row.try_get::<_, crate::db::Numeric>("current_price")?.0,
             daily_change: row.try_get::<_, crate::db::Numeric>("daily_change")?.0,
+            price_as_of: row.try_get("price_as_of")?,
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
         })

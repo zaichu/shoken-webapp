@@ -202,6 +202,8 @@ pub struct AssetBalance {
     pub current_price: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub daily_change: Decimal,
+    /// 現在値の基準日（JST）。CSV 取込値・cron 自動取得値のどちらが入っているかの判定に使う
+    pub price_as_of: Option<NaiveDate>,
     #[cfg(feature = "typed")]
     pub created_at: DateTime<Utc>,
     #[cfg(not(feature = "typed"))]

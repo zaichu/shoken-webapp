@@ -1806,6 +1806,14 @@
             "type": "string",
             "format": "uuid"
           },
+          "price_as_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "現在値の基準日（JST）。CSV 取込値・cron 自動取得値のどちらが入っているかの判定に使う"
+          },
           "security_code": {
             "type": "string"
           },
@@ -2530,6 +2538,14 @@
                 "id": {
                   "type": "string",
                   "format": "uuid"
+                },
+                "price_as_of": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date",
+                  "description": "現在値の基準日（JST）。CSV 取込値・cron 自動取得値のどちらが入っているかの判定に使う"
                 },
                 "security_code": {
                   "type": "string"

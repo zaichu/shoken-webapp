@@ -64,7 +64,7 @@ impl Search for AssetBalanceDomain {
 
     const COLUMNS: &'static str = "id, user_id, security_code, security_name, shares, \
         executing_shares, average_purchase_price, total_purchase_amount, current_price, \
-        daily_change, created_at, updated_at";
+        daily_change, price_as_of, created_at, updated_at";
     const ORDER_BY: &'static str = " ORDER BY security_code ASC, id ASC";
     /// asset_balances には snapshot 日付がないため、date 系パラメータは解釈しない
     const DATE_COLUMN: Option<&'static str> = None;
@@ -126,8 +126,8 @@ pub async fn bulk_create(
             r#"
             INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
                                         average_purchase_price, total_purchase_amount, current_price,
-                                        daily_change, market_value, profit_loss_rate)
-            SELECT * FROM UNNEST(
+                                        daily_change, market_value, profit_loss_rate, price_as_of)
+            SELECT *, (NOW() AT TIME ZONE 'Asia/Tokyo')::date FROM UNNEST(
                 $1::uuid[], $2::text[], $3::text[], $4::numeric[], $5::numeric[],
                 $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[]
             )

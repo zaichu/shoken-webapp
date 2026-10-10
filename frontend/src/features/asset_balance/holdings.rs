@@ -11,6 +11,8 @@ pub(crate) struct HoldingView {
     pub(crate) average_price: f64,
     pub(crate) purchase: f64,
     pub(crate) current_price: f64,
+    /// 現在値の基準日（"YYYY-MM-DD"）。CSV プレビュー行は None
+    pub(crate) price_as_of: Option<String>,
 }
 
 pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {
@@ -26,6 +28,7 @@ pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {
         average_price: dec_to_f64(&row.average_purchase_price()),
         purchase: dec_to_f64(&row.total_purchase_amount()),
         current_price: dec_to_f64(&row.current_price()),
+        price_as_of: row.price_as_of().map(str::to_string),
     }
 }
 

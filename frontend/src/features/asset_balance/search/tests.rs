@@ -60,6 +60,7 @@ fn balance(row: &Row) -> AssetBalance {
         total_purchase_amount: Decimal::ZERO,
         current_price: Decimal::ZERO,
         daily_change: Decimal::ZERO,
+        price_as_of: None,
         created_at: String::new(),
         updated_at: String::new(),
     }

@@ -48,6 +48,8 @@ pub(crate) trait AssetBalanceRowData {
     fn average_purchase_price(&self) -> Decimal;
     fn total_purchase_amount(&self) -> Decimal;
     fn current_price(&self) -> Decimal;
+    /// 現在値の基準日。CSV プレビュー行には無い
+    fn price_as_of(&self) -> Option<&str>;
 }
 
 impl AssetBalanceRowData for AssetBalance {
@@ -69,6 +71,9 @@ impl AssetBalanceRowData for AssetBalance {
     fn current_price(&self) -> Decimal {
         self.current_price
     }
+    fn price_as_of(&self) -> Option<&str> {
+        self.price_as_of.as_deref()
+    }
 }
 
 impl AssetBalanceRowData for AssetBalanceCsvRow {
@@ -89,6 +94,9 @@ impl AssetBalanceRowData for AssetBalanceCsvRow {
     }
     fn current_price(&self) -> Decimal {
         self.current_price
+    }
+    fn price_as_of(&self) -> Option<&str> {
+        None
     }
 }
 
@@ -119,6 +127,9 @@ impl AssetBalanceRowData for AssetBalanceRow {
     }
     fn current_price(&self) -> Decimal {
         self.inner().current_price()
+    }
+    fn price_as_of(&self) -> Option<&str> {
+        self.inner().price_as_of()
     }
 }
 

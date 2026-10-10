@@ -37,9 +37,10 @@ namespace_id = "1004"
 simple = { limit = 100, period = 10 }
 
 # 毎分実行し、配当キャッシュの stale/pending 銘柄を消化する。
+# もう1本は UTC 07:00（JST 16:00・東証引け後）に保有銘柄の現在値を更新する。
 # named env はトップレベルの triggers を継承しないため env.dev にも定義する
 [triggers]
-crons = ["* * * * *"]
+crons = ["* * * * *", "0 7 * * *"]
 
 [build]
 command = "worker-build --release"
@@ -79,4 +80,4 @@ namespace_id = "1004"
 simple = { limit = 100, period = 10 }
 
 [env.dev.triggers]
-crons = ["* * * * *"]
+crons = ["* * * * *", "0 7 * * *"]

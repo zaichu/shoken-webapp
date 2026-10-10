@@ -24,6 +24,7 @@ use backend::{
     services::domestic_stock as domestic_stock_svc,
     services::jquants::JQuantsClient,
     services::mutualfund as mutualfund_svc,
+    services::stock_price::{self, ClosePrice},
     state::{AppState, Secrets},
 };
 
@@ -647,6 +648,72 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
     assert!(codes.contains(&"2002"), "2002 が存在しない");
     assert!(codes.contains(&"2003"), "2003 が存在しない");
     assert!(!codes.contains(&"1001"), "1001 が残存している（削除漏れ）");
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_price_apply_close_price_keeps_newer_row() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_id,
+        &[make_asset_item("1301")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("bulk_create 失敗");
+
+    let code: SecurityCode = "1301".parse().unwrap();
+
+    // CSV 取込日より古い基準日の取得値は反映しない（日付の新しいほうを残す）
+    let stale = ClosePrice {
+        close: dec!(900),
+        as_of: NaiveDate::from_ymd_opt(2000, 1, 1).unwrap(),
+        prev_close: Some(dec!(890)),
+    };
+    let updated = stock_price::apply_close_price(&pool, &code, &stale)
+        .await
+        .expect("apply(stale) 失敗");
+    assert_eq!(updated, 0);
+
+    // 基準日を過去に戻し、新しい取得値が current_price/market_value/daily_change に反映されることを確認
+    db::query(
+        "UPDATE asset_balances SET price_as_of = $1 WHERE user_id = $2",
+        vec![
+            Bind::from(NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()),
+            Bind::from(user_id),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .expect("price_as_of 更新失敗");
+
+    let fresh = ClosePrice {
+        close: dec!(2500.5),
+        as_of: NaiveDate::from_ymd_opt(2020, 1, 2).unwrap(),
+        prev_close: Some(dec!(2400)),
+    };
+    let updated = stock_price::apply_close_price(&pool, &code, &fresh)
+        .await
+        .expect("apply(fresh) 失敗");
+    assert_eq!(updated, 1);
+
+    let row = domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_id,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("list 失敗")
+    .data
+    .into_iter()
+    .next()
+    .expect("1件のはず");
+    assert_eq!(row.current_price, dec!(2500.5));
+    // market_value = shares * current_price、daily_change = close - prev_close
+    assert_eq!(row.daily_change, dec!(100.5));
+    assert_eq!(row.price_as_of, NaiveDate::from_ymd_opt(2020, 1, 2));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
