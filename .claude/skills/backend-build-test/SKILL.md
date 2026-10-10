@@ -70,6 +70,6 @@ pub field: Type,
 - `&self` vs `self` の確認
 - ライフタイム注釈の追加
 
-### sqlx コンパイルエラー
-- マイグレーション実行済みか確認
+### DB 接続・クエリエラー
+- マイグレーション実行済みか確認（`make migrate-local`）
 - DATABASE_URL が正しいか確認

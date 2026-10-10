@@ -4,12 +4,12 @@
 --   - 現行 0001〜0011 を適用済みの DB
 --
 -- このスクリプトは schema/data を変更しない。
--- `_sqlx_migrations` だけを空にし、次の `cargo sqlx migrate run` で
+-- `_sqlx_migrations` だけを空にし、次の `cargo run --bin migrate` で
 -- `0001_initial_schema.sql` を applied として記録できる状態にする。
 --
 -- 実行前に DB backup を取得すること。
 -- 実行後:
---   cd backend && cargo sqlx migrate run
+--   cd backend && cargo run --bin migrate
 
 \set ON_ERROR_STOP on
 

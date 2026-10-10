@@ -48,23 +48,23 @@ make migrate-local  # ローカル Docker DB 向け
 `errors.rs` で統一エラー型を定義:
 
 ```rust
-pub enum AppError {
+pub enum ApiError {
     NotFound,
-    BadRequest(String),
-    Internal(String),
+    Validation(String),
+    Internal(&'static str),
     // ...
 }
 
-impl IntoResponse for AppError {
+impl IntoResponse for ApiError {
     // Axum レスポンスへ変換
 }
 ```
 
 ## 認証
 
-- Google OAuth2 を使用
-- `oauth2` クレート
-- セッション管理は `handlers/` 内で実装
+- Google OAuth2 を使用。`oauth2`/`openidconnect` クレートは wasm 非対応のため不採用
+- 実装は `services/auth/`（`google_common.rs`: 認可 URL・PKCE・クレーム検証、`google_worker.rs`: `worker::Fetch` でトークン交換 + tokeninfo 検証）
+- セッション管理は `services/auth.rs`（DB）と `handlers/v1/auth.rs`（Cookie）で実装
 
 ## Cloudflare Workers デプロイ
 

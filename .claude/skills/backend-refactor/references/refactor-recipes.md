@@ -8,16 +8,16 @@ backend のリファクタで頻出の「安全な進め方」まとめ。
 
 手順:
 
-1. handler 内の SQLx 部分を最小単位で選ぶ（まず 1 クエリ）
+1. handler 内の DB クエリ部分を最小単位で選ぶ（まず 1 クエリ）
 2. `backend/src/services/<domain>.rs` に関数を作る
 3. handler から service を呼ぶように置き換える
 4. `cargo test`（最低でも `cargo check`）で都度確認する
 
 関数シグネチャ指針:
 
-- `pool: &PgPool` を受け取る
-- 認証が必要な場合は `user_id: Uuid` を明示的に渡す
-- `Result<T, sqlx::Error>` にして handler 側で `ApiError` に寄せるか、service 側で `ApiError` を返すかを決めて統一する
+- `pool: &Db`（`crate::db::Db`）を受け取る
+- 認証が必要な場合は `user_id: UserId`（`shared::value::UserId`）を明示的に渡す
+- service 側は `Result<T, ApiError>` で返し、`crate::db::DbError` は `?` で `ApiError::Database` に変換されるのに任せる
 
 ## Recipe: request のバリデーションを追加する
 

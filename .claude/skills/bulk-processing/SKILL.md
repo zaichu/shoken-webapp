@@ -26,95 +26,89 @@ description: |
 ### 1. UNNEST による一括挿入（推奨）
 
 1回のクエリで全件挿入。ループより圧倒的に高速。
+ユーザー行ロック・行数上限チェック・空配列ガード・計測ログは
+`services/domain/bulk.rs` の `bulk_insert`（追記型）/ `bulk_replace`（置換型）が持つため、
+ドメイン側はカラム配列の組み立てと UNNEST の INSERT クエリだけを書く。
 
 ```rust
+// services/your_domain.rs（実例: services/dividend.rs）
+use crate::db::{Bind, Db};
+use crate::services::domain::bulk::{bulk_insert, user_ids_for_bulk_insert, RowLimit};
+
 pub async fn bulk_create(
-    State(state): State<AppState>,
-    auth_user: AuthenticatedUser,
-    ValidatedJson(data): ValidatedJson<BulkCreateRequest>,
-) -> Result<impl IntoResponse, ApiError> {
-    let total = data.items.len();
-    let start = Instant::now();
+    pool: &Db,
+    user_id: UserId,
+    items: &[CreateRequest],
+    limit: RowLimit,
+) -> Result<BulkCreateResponse, ApiError> {
+    let user_ids = user_ids_for_bulk_insert(user_id, items.len());
+    let field1s: Vec<String> = items.iter().map(|i| i.field1.clone()).collect();
+    let field2s: Vec<Decimal> = items.iter().map(|i| i.field2).collect();
 
-    if data.items.is_empty() {
-        return Ok((StatusCode::CREATED, Json(BulkCreateResponse {
-            inserted: 0,
-            skipped: 0,
-        })));
-    }
-
-    let user_id = auth_user.id();
-
-    // 各フィールドを配列に変換
-    let user_ids: Vec<uuid::Uuid> = vec![user_id; total];
-    let field1s: Vec<&str> = data.items.iter().map(|i| i.field1.as_str()).collect();
-    let field2s: Vec<f64> = data.items.iter().map(|i| i.field2).collect();
-
-    // UNNEST でバルク INSERT（重複スキップ）
-    let result = sqlx::query(
-        r#"
-        INSERT INTO your_table (user_id, field1, field2)
-        SELECT * FROM UNNEST($1::uuid[], $2::text[], $3::float8[])
-        ON CONFLICT (user_id, field1) DO NOTHING
-        "#,
+    bulk_insert::<YourDomain, _>(
+        pool,
+        user_id,
+        items,
+        limit,
+        crate::db::query(
+            r#"
+            INSERT INTO your_table (user_id, field1, field2)
+            SELECT * FROM UNNEST($1::uuid[], $2::text[], $3::numeric[])
+            ON CONFLICT (user_id, field1) DO NOTHING
+            "#,
+            vec![
+                Bind::from(user_ids),
+                Bind::from(field1s),
+                Bind::decimal_vec(field2s),
+            ],
+        ),
     )
-    .bind(&user_ids)
-    .bind(&field1s)
-    .bind(&field2s)
-    .execute(&state.pool)
-    .await?;
-
-    let inserted = result.rows_affected() as usize;
-    let skipped = total - inserted;
-    let elapsed = start.elapsed();
-
-    tracing::info!(
-        "[bulk_create] 完了: inserted={}, skipped={}, 処理時間={:.2}ms",
-        inserted, skipped, elapsed.as_secs_f64() * 1000.0
-    );
-
-    Ok((StatusCode::CREATED, Json(BulkCreateResponse { inserted, skipped })))
+    .await
 }
 ```
 
 ### 2. UPSERT（既存データを更新）
 
-保有銘柄のように、同じキーで値を更新したい場合。
+同じキーで値を更新したい場合（実例: `services/auth.rs` のユーザー upsert、
+`services/dividend_cache.rs`）。
 
 ```rust
-let result = sqlx::query(
+let affected = crate::db::query(
     r#"
-    INSERT INTO asset_balances (user_id, security_code, shares, current_price)
-    SELECT * FROM UNNEST($1::uuid[], $2::text[], $3::float8[], $4::float8[])
+    INSERT INTO your_table (user_id, security_code, shares, current_price)
+    SELECT * FROM UNNEST($1::uuid[], $2::varchar[], $3::numeric[], $4::numeric[])
     ON CONFLICT (user_id, security_code)
     DO UPDATE SET
         shares = EXCLUDED.shares,
         current_price = EXCLUDED.current_price,
         updated_at = NOW()
     "#,
+    vec![
+        Bind::from(user_ids),
+        Bind::from(security_codes),
+        Bind::decimal_vec(shares),
+        Bind::decimal_vec(current_prices),
+    ],
 )
-.bind(&user_ids)
-.bind(&security_codes)
-.bind(&shares)
-.bind(&current_prices)
-.execute(&state.pool)
+.execute(pool)
 .await?;
 
 // UPSERT では skipped は常に 0（更新も rows_affected に含まれる）
-let inserted = result.rows_affected() as usize;
 ```
 
 ## PostgreSQL 型マッピング（UNNEST 用）
 
-| Rust 型 | PostgreSQL キャスト |
-|---------|---------------------|
-| `Vec<uuid::Uuid>` | `$1::uuid[]` |
-| `Vec<&str>` / `Vec<String>` | `$1::text[]` |
-| `Vec<f64>` | `$1::float8[]` |
-| `Vec<i32>` | `$1::int4[]` |
-| `Vec<i64>` | `$1::int8[]` |
-| `Vec<NaiveDate>` | `$1::date[]` |
-| `Vec<bool>` | `$1::bool[]` |
+バインドは `Vec<Bind>` で渡し、配列は宣言型つきの `Bind::custom` に変換される。
+`From<Vec<T>>` impl があるのは下記だけ（`db/bind.rs`）。それ以外の配列型は
+`Bind::custom(Type::<…>_ARRAY, vec)` で包むか `From` impl を追加する。
+
+| `Bind::from` の対象 | PostgreSQL キャスト |
+|---------------------|---------------------|
+| `Vec<UserId>` | `$n::uuid[]` |
+| `Vec<String>` / `Vec<Option<String>>` | `$n::text[]` |
+| `Vec<SecurityCode>` | `$n::varchar[]` |
+| `Vec<NaiveDate>` | `$n::date[]` |
+| `Vec<Decimal>` → `Bind::decimal_vec` | `$n::numeric[]` |
 
 ## チェックリスト
 
@@ -140,16 +134,12 @@ let inserted = result.rows_affected() as usize;
 ```rust
 // NG: N回のクエリ発行で遅い
 for item in payload.items {
-    sqlx::query("INSERT INTO ...")
-        .bind(...)
-        .execute(&pool)
-        .await?;
+    crate::db::query("INSERT INTO ...", vec![...]).execute(pool).await?;
 }
 
 // OK: 1回のクエリで全件挿入
-sqlx::query("INSERT INTO ... SELECT * FROM UNNEST(...)")
-    .bind(&all_values)
-    .execute(&pool)
+crate::db::query("INSERT INTO ... SELECT * FROM UNNEST(...)", vec![...])
+    .execute(pool)
     .await?;
 ```
 
@@ -166,27 +156,23 @@ ON CONFLICT (date, code) DO NOTHING
 ### 3. rows_affected の解釈ミス
 
 ```rust
-// UPSERT の場合、UPDATE も rows_affected に含まれる
+// UPSERT の場合、UPDATE も rows_affected（execute の戻り値）に含まれる
 // → skipped = total - inserted は意味がない
 
 // 正しい解釈
-let upserted = result.rows_affected() as usize;  // INSERT + UPDATE の合計
+let upserted = query.execute(pool).await?;  // INSERT + UPDATE の合計 (u64)
 let skipped = 0;  // UPSERT では常に 0
 ```
 
 ### 4. 空配列チェック漏れ
 
 ```rust
-// NG: 空配列で UNNEST するとエラー
-let result = sqlx::query("INSERT INTO ... SELECT * FROM UNNEST($1::uuid[])")
-    .bind(&vec![] as &Vec<uuid::Uuid>)  // 空配列
-    .execute(&pool)
+// NG: 空配列で UNNEST する経路を自前で組むとエラーになり得る
+crate::db::query("INSERT INTO ... SELECT * FROM UNNEST($1::uuid[])", vec![...])
+    .execute(pool)
     .await?;
 
-// OK: 事前にチェック
-if data.items.is_empty() {
-    return Ok(Json(BulkCreateResponse { inserted: 0, skipped: 0 }));
-}
+// OK: bulk_insert のガード（BulkTimer::new_with_guard）が空なら DB に触れず即時応答する
 ```
 
 ## パフォーマンス目安
@@ -216,5 +202,8 @@ pub struct BulkCreateResponse {
 
 ## 参考ファイル
 
-- `backend/src/handlers/dividend.rs` - 重複スキップパターン
-- `backend/src/handlers/asset_balance.rs` - UPSERT パターン
+- `backend/src/services/domain/bulk.rs` - `bulk_insert` / `bulk_replace` の共通骨格
+- `backend/src/services/dividend.rs` - 追記型（ON CONFLICT DO NOTHING）実例
+- `backend/src/services/asset_balance.rs` - 置換型実例
+- `backend/src/services/auth.rs` - UPSERT（ON CONFLICT DO UPDATE）実例
+- `backend/src/db/bind.rs` - `Bind` / 配列バインドの宣言型対応
