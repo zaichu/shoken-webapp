@@ -33,24 +33,27 @@ fn google_oauth_client(state: &AppState) -> Result<&GoogleOAuthClient, ApiError>
     })
 }
 
-fn build_oauth_cookie(name: &'static str, value: &str, secure: bool) -> Cookie<'static> {
-    Cookie::build((name, value.to_string()))
+fn auth_cookie(
+    name: &'static str,
+    value: String,
+    max_age: time::Duration,
+    secure: bool,
+) -> Cookie<'static> {
+    Cookie::build((name, value))
         .path("/")
         .http_only(true)
         .secure(secure)
         .same_site(same_site(secure))
-        .max_age(time::Duration::minutes(10))
+        .max_age(max_age)
         .build()
 }
 
-fn clear_oauth_cookie(name: &'static str, secure: bool) -> Cookie<'static> {
-    Cookie::build((name, ""))
-        .path("/")
-        .http_only(true)
-        .secure(secure)
-        .same_site(same_site(secure))
-        .max_age(time::Duration::seconds(0))
-        .build()
+fn build_oauth_cookie(name: &'static str, value: &str, secure: bool) -> Cookie<'static> {
+    auth_cookie(name, value.to_string(), time::Duration::minutes(10), secure)
+}
+
+fn clear_cookie(name: &'static str, secure: bool) -> Cookie<'static> {
+    auth_cookie(name, String::new(), time::Duration::seconds(0), secure)
 }
 
 pub fn build_state_cookie(state: &str, secure: bool) -> Cookie<'static> {
@@ -58,27 +61,20 @@ pub fn build_state_cookie(state: &str, secure: bool) -> Cookie<'static> {
 }
 
 pub fn clear_state_cookie(secure: bool) -> Cookie<'static> {
-    clear_oauth_cookie(auth_service::OAUTH_STATE_COOKIE_NAME, secure)
+    clear_cookie(auth_service::OAUTH_STATE_COOKIE_NAME, secure)
 }
 
 pub fn build_session_cookie(token: SessionToken, secure: bool) -> Cookie<'static> {
-    Cookie::build((auth_service::SESSION_COOKIE_NAME, token.to_string()))
-        .path("/")
-        .http_only(true)
-        .secure(secure)
-        .same_site(same_site(secure))
-        .max_age(time::Duration::days(7))
-        .build()
+    auth_cookie(
+        auth_service::SESSION_COOKIE_NAME,
+        token.to_string(),
+        time::Duration::days(7),
+        secure,
+    )
 }
 
 pub fn clear_session_cookie(secure: bool) -> Cookie<'static> {
-    Cookie::build((auth_service::SESSION_COOKIE_NAME, ""))
-        .path("/")
-        .http_only(true)
-        .secure(secure)
-        .same_site(same_site(secure))
-        .max_age(time::Duration::seconds(0))
-        .build()
+    clear_cookie(auth_service::SESSION_COOKIE_NAME, secure)
 }
 
 pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<SessionToken, ApiError> {
@@ -137,11 +133,11 @@ pub async fn google_callback(
         .map(|c| c.value().to_string());
     let jar = jar
         .remove(clear_state_cookie(is_secure))
-        .remove(clear_oauth_cookie(
+        .remove(clear_cookie(
             auth_service::OAUTH_PKCE_VERIFIER_COOKIE_NAME,
             is_secure,
         ))
-        .remove(clear_oauth_cookie(
+        .remove(clear_cookie(
             auth_service::OAUTH_NONCE_COOKIE_NAME,
             is_secure,
         ));

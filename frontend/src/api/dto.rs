@@ -14,14 +14,11 @@ pub use shared::domain::{
 pub type MutualfundSummary = DomesticStockSummary;
 
 #[cfg(test)]
-pub type DomesticStockListResponse =
-    PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>;
-pub type DividendListResponse = PaginatedSearchResponse<Dividend, DividendSummary, SearchFacets>;
+pub type DomesticStockListResponse = PaginatedSearchResponse<DomesticStock, DomesticStockSummary>;
+pub type DividendListResponse = PaginatedSearchResponse<Dividend, DividendSummary>;
 #[cfg(test)]
-pub type MutualfundListResponse =
-    PaginatedSearchResponse<Mutualfund, MutualfundSummary, SearchFacets>;
-pub type AssetBalanceListResponse =
-    PaginatedSearchResponse<AssetBalance, AssetBalanceSummary, SearchFacets>;
+pub type MutualfundListResponse = PaginatedSearchResponse<Mutualfund, MutualfundSummary>;
+pub type AssetBalanceListResponse = PaginatedSearchResponse<AssetBalance, AssetBalanceSummary>;
 
 #[cfg(test)]
 mod tests;

@@ -43,7 +43,7 @@ pub trait Search: Domain {
     fn make_filter(params: &Self::Params) -> Result<SearchFilter, ApiError> {
         let search = params.search_params();
         let date_axis = match Self::DATE_COLUMN {
-            Some(_) => DateAxisFilter::from_search_params(search)?,
+            Some(_) => DateAxisFilter::try_from(search)?,
             None => DateAxisFilter::default(),
         };
         let mut values: [Option<String>; FilterField::COUNT] = std::array::from_fn(|_| None);
@@ -149,7 +149,7 @@ pub async fn search<D: Search>(
     pool: &Db,
     user_id: UserId,
     params: D::Params,
-) -> Result<PaginatedSearchResponse<D::Data, D::Summary, SearchFacets>, ApiError> {
+) -> Result<PaginatedSearchResponse<D::Data, D::Summary>, ApiError> {
     info!("[{}.search] リクエスト受信", D::NAME);
 
     let page = params.page();

@@ -58,6 +58,18 @@ fn resolve<'a>(
     schemas: &'a serde_json::Map<String, serde_json::Value>,
     schema: &'a serde_json::Value,
 ) -> &'a serde_json::Value {
+    // oneOf/anyOf は nullable 等のラッパーなので、実体側のバリアントを辿る
+    if let Some(variants) = schema
+        .get("oneOf")
+        .or_else(|| schema.get("anyOf"))
+        .and_then(serde_json::Value::as_array)
+    {
+        let inner = variants
+            .iter()
+            .find(|v| v["type"] != "null")
+            .unwrap_or(&variants[0]);
+        return resolve(schemas, inner);
+    }
     match schema.get("$ref").and_then(serde_json::Value::as_str) {
         Some(reference) => {
             let name = reference
@@ -174,25 +186,25 @@ const TABLE: &[(&str, Roundtrip)] = &[
     ("DomesticStock", roundtrip::<DomesticStock>),
     ("DomesticStockSummary", roundtrip::<DomesticStockSummary>),
     (
-        "PaginatedSearchResponse_DomesticStock_DomesticStockSummary_SearchFacets",
+        "PaginatedSearchResponse_DomesticStock_DomesticStockSummary",
         roundtrip::<DomesticStockListResponse>,
     ),
     ("Dividend", roundtrip::<Dividend>),
     ("DividendSummary", roundtrip::<DividendSummary>),
     (
-        "PaginatedSearchResponse_Dividend_DividendSummary_SearchFacets",
+        "PaginatedSearchResponse_Dividend_DividendSummary",
         roundtrip::<DividendListResponse>,
     ),
     ("Mutualfund", roundtrip::<Mutualfund>),
     ("MutualfundSummary", roundtrip::<MutualfundSummary>),
     (
-        "PaginatedSearchResponse_Mutualfund_MutualfundSummary_SearchFacets",
+        "PaginatedSearchResponse_Mutualfund_MutualfundSummary",
         roundtrip::<MutualfundListResponse>,
     ),
     ("AssetBalance", roundtrip::<AssetBalance>),
     ("AssetBalanceSummary", roundtrip::<AssetBalanceSummary>),
     (
-        "PaginatedSearchResponse_AssetBalance_AssetBalanceSummary_SearchFacets",
+        "PaginatedSearchResponse_AssetBalance_AssetBalanceSummary",
         roundtrip::<AssetBalanceListResponse>,
     ),
     ("UserResponse", roundtrip::<SessionUser>),
@@ -215,22 +227,22 @@ fn contract_matches_openapi() {
     }
     for (wrapper, item, summary) in [
         (
-            "PaginatedSearchResponse_DomesticStock_DomesticStockSummary_SearchFacets",
+            "PaginatedSearchResponse_DomesticStock_DomesticStockSummary",
             "DomesticStock",
             "DomesticStockSummary",
         ),
         (
-            "PaginatedSearchResponse_Dividend_DividendSummary_SearchFacets",
+            "PaginatedSearchResponse_Dividend_DividendSummary",
             "Dividend",
             "DividendSummary",
         ),
         (
-            "PaginatedSearchResponse_Mutualfund_MutualfundSummary_SearchFacets",
+            "PaginatedSearchResponse_Mutualfund_MutualfundSummary",
             "Mutualfund",
             "MutualfundSummary",
         ),
         (
-            "PaginatedSearchResponse_AssetBalance_AssetBalanceSummary_SearchFacets",
+            "PaginatedSearchResponse_AssetBalance_AssetBalanceSummary",
             "AssetBalance",
             "AssetBalanceSummary",
         ),

@@ -49,13 +49,14 @@ pub async fn fetch_and_cache(
     Ok(status)
 }
 
-/// 429 レートリミット発生時のエラーを cooldown 付きでキャッシュに記録する
-/// stale_at を future に設定することで cooldown 中の即時再取得を防ぐ
-pub async fn update_cache_error_with_cooldown(
+/// エラー情報をキャッシュに記録する。
+/// cooldown_secs を指定した場合は stale_at をその秒数だけ未来に設定し、
+/// cooldown 中の即時再取得を防ぐ（None のとき stale_at は NULL になる）
+pub async fn update_cache_error(
     pool: &Db,
     code: &SecurityCode,
     error_msg: &str,
-    cooldown_secs: i32,
+    cooldown_secs: Option<i32>,
 ) -> Result<(), ApiError> {
     let truncated = truncate_error_message(error_msg);
 
@@ -89,33 +90,6 @@ fn truncate_error_message(msg: &str) -> &str {
     }
     let end = msg.char_indices().nth(200).map_or(msg.len(), |(i, _)| i);
     &msg[..end]
-}
-
-/// エラー情報をキャッシュに記録する
-pub async fn update_cache_error(
-    pool: &Db,
-    code: &SecurityCode,
-    error_msg: &str,
-) -> Result<(), ApiError> {
-    let truncated = truncate_error_message(error_msg);
-
-    crate::db::query(
-        r#"
-        INSERT INTO dividend_per_share_cache
-            (security_code, dividend_per_share, status, error_message, stale_at, provider, updated_at)
-        VALUES ($1, NULL, 'error', $2, NULL, 'jquants', NOW())
-        ON CONFLICT (security_code) DO UPDATE
-            SET status        = 'error',
-                error_message = EXCLUDED.error_message,
-                stale_at      = NULL,
-                updated_at    = NOW()
-        "#,
-        vec![Bind::from(code.as_str()), Bind::from(truncated)],
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
 }
 
 #[cfg(test)]
