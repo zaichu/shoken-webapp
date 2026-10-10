@@ -14,7 +14,6 @@ use crate::ui::card::{Card, CardVariant};
 use crate::ui::state::Skeleton;
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::future::Future;
 
@@ -282,31 +281,16 @@ fn has_current_summary<T>(slot: &Option<(Generation, Option<T>)>, generation: Ge
 }
 
 #[derive(Clone, Copy)]
-struct HomeOverviewData {
+pub(crate) struct HomeOverviewData {
     asset: SummarySlot<AssetBalanceSummary>,
     dividend: SummarySlot<DividendSummary>,
     fetch_state: RwSignal<HashMap<(Generation, SummaryKind), SummaryFetch>>,
 }
 
-thread_local! {
-    // ページ遷移でビューを作り直しても取得済みの集計を失わないよう、アプリ寿命のオーナーに作る。
-    // Owner::new() は現オーナーの子として登録されページと一緒に破棄されるため、AppOwner の子を使う
-    static OVERVIEW: RefCell<Option<(Owner, HomeOverviewData)>> = const { RefCell::new(None) };
-}
-
+// ページ遷移でビューを作り直しても取得済みの集計を失わないよう、App コンテキストのスロットに保持する
 fn use_home_overview(session: SessionStore) -> HomeOverviewData {
-    let app_owner = use_context::<crate::app::AppOwner>()
-        .map(|app| app.0)
-        .unwrap_or_default();
-    OVERVIEW.with(|cell| {
-        if let Some((_, data)) = cell.borrow().as_ref() {
-            return *data;
-        }
-        let owner = app_owner.child();
-        let data = owner.with(|| build_home_overview(session));
-        *cell.borrow_mut() = Some((owner, data));
-        data
-    })
+    let states = use_context::<crate::app::PageStates>().unwrap_or_default();
+    crate::app::page_state(states.home_overview, || build_home_overview(session))
 }
 
 fn build_home_overview(session: SessionStore) -> HomeOverviewData {

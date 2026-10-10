@@ -736,11 +736,6 @@ fn csv_source_store() -> crate::features::receipts::ReceiptsStore {
 
     let active_tab = RwSignal::new(ReceiptsTab::Dividend);
     let visited = RwSignal::new(HashSet::from([ReceiptsTab::Dividend]));
-    let cache = RwSignal::new(HashMap::new());
-    let csv = RwSignal::new(HashMap::new());
-    let csv_files = RwSignal::new(HashMap::new());
-    let refresh_error = RwSignal::new(HashMap::new());
-    let fetch_rev = RwSignal::new(HashMap::new());
 
     let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
         let _generation = *generation;
@@ -759,12 +754,8 @@ fn csv_source_store() -> crate::features::receipts::ReceiptsStore {
         utility_rail_open: RwSignal::new(true),
         expanded_epoch: RwSignal::new(None),
         visited,
-        cache,
+        tabs: RwSignal::new(HashMap::new()),
         fetch,
-        csv,
-        csv_files,
-        refresh_error,
-        fetch_rev,
     }
 }
 
@@ -826,7 +817,7 @@ fn receipt_csv_source_db_count_returns_zero_when_no_data() {
 #[test]
 fn receipt_csv_source_delete_disabled_reflects_state() {
     use super::panel::ReceiptCsvSource;
-    use crate::support::csv_flow::CsvTabState;
+    use crate::support::csv_flow::CsvTabMeta;
     use crate::ui::csv_section::CsvSource;
     use leptos::prelude::*;
 
@@ -837,16 +828,16 @@ fn receipt_csv_source_delete_disabled_reflects_state() {
             tab: ReceiptsTab::Dividend,
         };
 
-        let idle_state = CsvTabState::default();
+        let idle_state = CsvTabMeta::default();
         assert!(!source.delete_disabled(&idle_state), "idle -> not disabled");
 
-        let saving_state = CsvTabState {
+        let saving_state = CsvTabMeta {
             saving: true,
             ..Default::default()
         };
         assert!(source.delete_disabled(&saving_state), "saving -> disabled");
 
-        let deleting_state = CsvTabState {
+        let deleting_state = CsvTabMeta {
             deleting: true,
             ..Default::default()
         };

@@ -1,6 +1,6 @@
 use crate::features::receipts::view::search_card::ReceiptsSearchCard;
-use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState, csv::CsvPreviewRow};
-use crate::support::csv_flow::CsvTabState;
+use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
+use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::collapsible_search_card::is_narrow_viewport;
 use crate::ui::csv_section::{CsvSection, CsvSource};
@@ -14,8 +14,6 @@ pub(crate) struct ReceiptCsvSource {
 }
 
 impl CsvSource for ReceiptCsvSource {
-    type Row = CsvPreviewRow;
-
     fn input_id(&self) -> &'static str {
         self.tab.csv_input_id()
     }
@@ -36,8 +34,8 @@ impl CsvSource for ReceiptCsvSource {
         "sm:rounded-t-xl"
     }
 
-    fn csv_state(&self) -> CsvTabState<CsvPreviewRow> {
-        self.store.csv_state(self.tab)
+    fn csv_meta(&self) -> CsvTabMeta {
+        self.store.csv_meta(self.tab)
     }
 
     fn is_authenticated(&self) -> bool {
@@ -52,8 +50,8 @@ impl CsvSource for ReceiptCsvSource {
         self.store.count(self.tab)
     }
 
-    fn delete_disabled(&self, state: &CsvTabState<CsvPreviewRow>) -> bool {
-        state.saving || state.deleting || self.store.any_tab_fetching()
+    fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
+        meta.saving || meta.deleting || self.store.any_tab_fetching()
     }
 
     fn select_file(&self, file: web_sys::File) {
@@ -115,7 +113,7 @@ pub(crate) fn ReceiptsPanel(store: ReceiptsStore) -> impl IntoView {
                 let tab = active_tab.get();
                 // タブごとのCSV状態に合わせ、保存結果があれば開いて始める
                 let csv_expanded =
-                    RwSignal::new(csv_store.csv_state(tab).import_result.is_some());
+                    RwSignal::new(csv_store.csv_meta(tab).import_result.is_some());
                 let csv_body_id = format!("{}-body", tab.csv_input_id());
                 view! {
                     // スマホでは検索・集計・CSVを1行のツールバーから開閉する

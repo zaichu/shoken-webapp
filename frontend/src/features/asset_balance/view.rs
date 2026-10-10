@@ -24,10 +24,9 @@ use crate::ui::workspace_shell::{WorkspaceShell, workspace_panel_default_open};
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
 use panel::AssetBalancePanel;
-use std::cell::RefCell;
 
 #[derive(Clone, Copy)]
-struct AssetBalanceState {
+pub(crate) struct AssetBalanceState {
     balances: RwSignal<BalanceSlot>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
@@ -39,25 +38,10 @@ struct AssetBalanceState {
     panel_open: RwSignal<bool>,
 }
 
-thread_local! {
-    // ページ遷移でビューを作り直しても一覧・検索・取得中状態を失わないよう、アプリ寿命のオーナーに作る。
-    // Owner::new() は現オーナーの子として登録されページと一緒に破棄されるため、AppOwner の子を使う
-    static PAGE_STATE: RefCell<Option<(Owner, AssetBalanceState)>> = const { RefCell::new(None) };
-}
-
+// ページ遷移でビューを作り直しても一覧・検索・取得中状態を失わないよう、App コンテキストのスロットに保持する
 fn use_asset_balance_state(session: SessionStore) -> AssetBalanceState {
-    let app_owner = use_context::<crate::app::AppOwner>()
-        .map(|app| app.0)
-        .unwrap_or_default();
-    PAGE_STATE.with(|cell| {
-        if let Some((_, state)) = cell.borrow().as_ref() {
-            return *state;
-        }
-        let owner = app_owner.child();
-        let state = owner.with(|| build_asset_balance_state(session));
-        *cell.borrow_mut() = Some((owner, state));
-        state
-    })
+    let states = use_context::<crate::app::PageStates>().unwrap_or_default();
+    crate::app::page_state(states.asset_balance, || build_asset_balance_state(session))
 }
 
 fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
@@ -215,7 +199,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     {move || {
                         data_ops
                             .with(|ops| ops.refresh_error.clone())
-                            .or_else(|| csv_store.csv_state().error)
+                            .or_else(|| csv_store.csv_meta().error)
                             .map(|message| {
                                 view! {
                                     <div class="no-print">
@@ -230,7 +214,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     }}
                     {move || {
                         let generation = render_session.generation.get();
-                        let state = view_csv.csv_state();
+                        let state = view_csv.csv_meta();
                         let list_error = balances.with(|slot| match slot {
                             Some((cached, Err(message))) if *cached == generation => {
                                 Some(message.clone())
@@ -294,12 +278,12 @@ pub fn AssetBalancePage() -> impl IntoView {
                     }}
             </WorkspaceShell>
             {move || {
-                if !modal_csv.csv_state().show_delete_confirm {
+                if !modal_csv.csv_meta().show_delete_confirm {
                     return ().into_any();
                 }
                 let count = modal_csv.db_count();
                 let deleting_csv = modal_csv;
-                let deleting = Memo::new(move |_| deleting_csv.csv_state().deleting);
+                let deleting = Memo::new(move |_| deleting_csv.csv_meta().deleting);
                 let confirm = modal_csv;
                 let cancel = modal_csv;
                 view! {

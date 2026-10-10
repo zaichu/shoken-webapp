@@ -1,11 +1,8 @@
-use crate::features::asset_balance::csv::AssetBalanceCsvRow;
 use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
-use crate::support::csv_flow::CsvTabState;
+use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::csv_section::CsvSource;
 
 impl CsvSource for AssetBalanceCsvStore {
-    type Row = AssetBalanceCsvRow;
-
     fn input_id(&self) -> &'static str {
         "csv-file-input-assetbalance"
     }
@@ -30,8 +27,8 @@ impl CsvSource for AssetBalanceCsvStore {
         "sm:border-b sm:border-ink/10"
     }
 
-    fn csv_state(&self) -> CsvTabState<AssetBalanceCsvRow> {
-        AssetBalanceCsvStore::csv_state(self)
+    fn csv_meta(&self) -> CsvTabMeta {
+        AssetBalanceCsvStore::csv_meta(self)
     }
 
     fn is_authenticated(&self) -> bool {
@@ -42,16 +39,16 @@ impl CsvSource for AssetBalanceCsvStore {
         self.csv_input_disabled()
     }
 
-    fn save_disabled(&self, state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
-        state.busy() || !state.has_preview_rows()
+    fn save_disabled(&self, meta: &CsvTabMeta) -> bool {
+        meta.busy() || !meta.has_preview_rows()
     }
 
     fn db_count(&self) -> usize {
         AssetBalanceCsvStore::db_count(self)
     }
 
-    fn delete_disabled(&self, state: &CsvTabState<AssetBalanceCsvRow>) -> bool {
-        state.saving || state.deleting || self.list_loading()
+    fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
+        meta.saving || meta.deleting || self.list_loading()
     }
 
     fn select_file(&self, file: web_sys::File) {

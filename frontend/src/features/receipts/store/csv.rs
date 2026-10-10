@@ -1,10 +1,10 @@
-use super::{ReceiptsStore, bump_fetch_rev};
+use super::ReceiptsStore;
 use crate::api::ApiError;
 use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
 use crate::features::receipts::csv::{CsvPreviewRow, to_preview};
 use crate::features::receipts::{ReceiptTabData, ReceiptsTab, TabState};
 use crate::session::Generation;
-use crate::support::csv_flow::{CsvChunking, CsvTabState};
+use crate::support::csv_flow::{CsvChunking, CsvTabMeta, CsvTabState};
 use leptos::prelude::*;
 
 // backend の各 receipts 系 CsvParserConfig は skip_header_rows=0(先頭行がヘッダ)
@@ -16,12 +16,29 @@ const CSV_CHUNKING: CsvChunking = CsvChunking {
 impl ReceiptsStore {
     pub fn csv_state(&self, tab: ReceiptsTab) -> CsvTabState<CsvPreviewRow> {
         let generation = self.session.generation.get();
-        self.csv
-            .with(|map| map.get(&(generation, tab)).cloned().unwrap_or_default())
+        self.tabs.with(|map| {
+            map.get(&(generation, tab))
+                .map(|entry| entry.csv.clone())
+                .unwrap_or_default()
+        })
+    }
+
+    // 共通 CSV UI が読むのはメタ情報だけ。プレビュー行の複製を避ける
+    pub fn csv_meta(&self, tab: ReceiptsTab) -> CsvTabMeta {
+        let generation = self.session.generation.get();
+        self.tabs.with(|map| {
+            map.get(&(generation, tab))
+                .map(|entry| entry.csv.meta())
+                .unwrap_or_default()
+        })
     }
 
     pub fn csv_busy(&self, tab: ReceiptsTab) -> bool {
-        self.csv_state(tab).busy()
+        let generation = self.session.generation.get();
+        self.tabs.with(|map| {
+            map.get(&(generation, tab))
+                .is_some_and(|entry| entry.csv.busy())
+        })
     }
 
     // ファイル入力を押せない間は空状態 CTA 経由の選択も効かないので、両者は同じ条件にする
@@ -33,7 +50,11 @@ impl ReceiptsStore {
     }
 
     pub fn has_csv_preview(&self, tab: ReceiptsTab) -> bool {
-        self.csv_state(tab).has_preview_rows()
+        let generation = self.session.generation.get();
+        self.tabs.with(|map| {
+            map.get(&(generation, tab))
+                .is_some_and(|entry| entry.csv.has_preview_rows())
+        })
     }
 
     fn update_csv_state(
@@ -42,8 +63,8 @@ impl ReceiptsStore {
         tab: ReceiptsTab,
         update: impl FnOnce(&mut CsvTabState<CsvPreviewRow>),
     ) {
-        self.csv
-            .update(|map| update(map.entry((generation, tab)).or_default()));
+        self.tabs
+            .update(|map| update(&mut map.entry((generation, tab)).or_default().csv));
     }
 
     pub fn select_file(&self, tab: ReceiptsTab, file: web_sys::File) {
@@ -57,8 +78,8 @@ impl ReceiptsStore {
         if !started {
             return;
         }
-        self.csv_files.update(|map| {
-            map.insert((generation, tab), file.clone());
+        self.tabs.update(|map| {
+            map.entry((generation, tab)).or_default().csv_file = Some(file.clone());
         });
         let store = *self;
         leptos::task::spawn_local(async move {
@@ -86,8 +107,8 @@ impl ReceiptsStore {
     pub(crate) fn try_begin_save(&self, tab: ReceiptsTab) -> Option<(Generation, web_sys::File)> {
         let generation = self.current_generation()?;
         let file = self
-            .csv_files
-            .with_untracked(|map| map.get(&(generation, tab)).cloned())?;
+            .tabs
+            .with_untracked(|map| map.get(&(generation, tab)).and_then(|e| e.csv_file.clone()))?;
         let mut started = false;
         self.update_csv_state(generation, tab, |state| {
             started = state.begin_save();
@@ -153,11 +174,10 @@ impl ReceiptsStore {
         }
         match result {
             Ok(response) => {
-                self.update_csv_state(generation, tab, |state| {
-                    state.finish_save(Ok(response));
-                });
-                self.csv_files.update(|map| {
-                    map.remove(&(generation, tab));
+                self.tabs.update(|map| {
+                    let entry = map.entry((generation, tab)).or_default();
+                    entry.csv.finish_save(Ok(response));
+                    entry.csv_file = None;
                 });
                 self.refresh_tab_list(generation, tab)
             }
@@ -182,24 +202,20 @@ impl ReceiptsStore {
         }
         match result {
             Ok(()) => {
-                self.update_csv_state(generation, tab, |state| {
-                    state.finish_delete(Ok(()));
-                });
-                // 削除前に出た裏再取得の遅れ応答が消した行を復活させないよう取得を失効させる
-                self.fetch_rev
-                    .update(|map| bump_fetch_rev(map, generation, tab));
-                // 空になった一覧の上に直前の再取得エラーが残るのを防ぐ
-                self.refresh_error.update(|map| {
-                    map.remove(&(generation, tab));
-                });
-                // 未取得タブに空の Ready を作ると以後の再取得が抑止されるため、キャッシュ済みの時だけ上書き
-                self.cache.update(|map| {
-                    if let Some(entry) = map.get_mut(&(generation, tab)) {
-                        *entry = TabState::Ready(ReceiptTabData {
+                self.tabs.update(|map| {
+                    let entry = map.entry((generation, tab)).or_default();
+                    entry.csv.finish_delete(Ok(()));
+                    // 削除前に出た裏再取得の遅れ応答が消した行を復活させないよう取得を失効させる
+                    entry.fetch_rev += 1;
+                    // 空になった一覧の上に直前の再取得エラーが残るのを防ぐ
+                    entry.refresh_error = None;
+                    // 未取得タブに空の Ready を作ると以後の再取得が抑止されるため、キャッシュ済みの時だけ上書き
+                    if entry.list.is_some() {
+                        entry.list = Some(TabState::Ready(ReceiptTabData {
                             rows: Vec::new(),
                             summary: None,
                             truncated: false,
-                        });
+                        }));
                     }
                 });
             }

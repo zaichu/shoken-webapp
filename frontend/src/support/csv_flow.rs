@@ -146,6 +146,56 @@ impl<R> CsvTabState<R> {
         }
     }
 
+    pub fn meta(&self) -> CsvTabMeta {
+        CsvTabMeta {
+            file_name: self.file_name.clone(),
+            preview: self.preview.as_ref().map(|preview| CsvPreviewMeta {
+                valid_rows: preview.valid_rows,
+                errors: preview.errors.clone(),
+                has_rows: !preview.rows.is_empty(),
+            }),
+            import_result: self.import_result.clone(),
+            error: self.error.clone(),
+            previewing: self.previewing,
+            saving: self.saving,
+            deleting: self.deleting,
+            show_delete_confirm: self.show_delete_confirm,
+        }
+    }
+}
+
+// プレビュー行を含まない CSV 状態の投影。
+// 共通 UI(CsvSection)の Memo が読むのはこれだけにして、評価ごとの全行複製を避ける
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CsvTabMeta {
+    pub file_name: Option<String>,
+    pub preview: Option<CsvPreviewMeta>,
+    pub import_result: Option<CsvUploadResponse>,
+    pub error: Option<String>,
+    pub previewing: bool,
+    pub saving: bool,
+    pub deleting: bool,
+    pub show_delete_confirm: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CsvPreviewMeta {
+    pub valid_rows: usize,
+    pub errors: Vec<CsvRowError>,
+    pub has_rows: bool,
+}
+
+impl CsvTabMeta {
+    pub fn busy(&self) -> bool {
+        self.previewing || self.saving || self.deleting
+    }
+
+    pub fn has_preview_rows(&self) -> bool {
+        self.preview
+            .as_ref()
+            .is_some_and(|preview| preview.has_rows)
+    }
+
     pub fn save_label(&self, action: &str) -> String {
         if self.saving {
             "保存中...".to_string()

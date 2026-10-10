@@ -1,9 +1,7 @@
 use crate::api::ApiError;
 use crate::features::receipts::csv::CsvPreviewRow;
 use crate::features::receipts::filter::ReceiptSearch;
-use crate::features::receipts::store::{
-    has_stale_generation, mark_tab_for_refresh, prune_stale_generation, tab_settled,
-};
+use crate::features::receipts::store::{TabCacheEntry, mark_tab_for_refresh, tab_settled};
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvPreview;
@@ -26,6 +24,13 @@ fn test_store(
     cache: HashMap<(Generation, ReceiptsTab), TabState>,
     csv: HashMap<(Generation, ReceiptsTab), CsvTabState<CsvPreviewRow>>,
 ) -> ReceiptsStore {
+    let mut tabs: HashMap<(Generation, ReceiptsTab), TabCacheEntry> = HashMap::new();
+    for (key, list) in cache {
+        tabs.entry(key).or_default().list = Some(list);
+    }
+    for (key, csv) in csv {
+        tabs.entry(key).or_default().csv = csv;
+    }
     ReceiptsStore {
         session: *session,
         active_tab: RwSignal::new(ReceiptsTab::Dividend),
@@ -35,12 +40,8 @@ fn test_store(
         utility_rail_open: RwSignal::new(true),
         expanded_epoch: RwSignal::new(None),
         visited: RwSignal::new(HashSet::new()),
-        cache: RwSignal::new(cache),
+        tabs: RwSignal::new(tabs),
         fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
-        csv: RwSignal::new(csv),
-        csv_files: RwSignal::new(HashMap::new()),
-        refresh_error: RwSignal::new(HashMap::new()),
-        fetch_rev: RwSignal::new(HashMap::new()),
     }
 }
 
@@ -151,8 +152,8 @@ fn upload_success_does_not_fetch_uncached_tab() {
 
         assert!(
             store
-                .cache
-                .with_untracked(|map| !map.contains_key(&(generation, tab)))
+                .tabs
+                .with_untracked(|map| map.get(&(generation, tab)).is_none_or(|e| e.list.is_none()))
         );
     });
 }
@@ -225,8 +226,8 @@ fn preview_result_applies_only_in_current_generation() {
         assert_eq!(preview.rows.len(), 2);
 
         // プレビュー失敗は通知せず解析中だけ解除する
-        store.csv.update(|map| {
-            map.entry((generation, tab)).or_default().previewing = true;
+        store.tabs.update(|map| {
+            map.entry((generation, tab)).or_default().csv.previewing = true;
         });
         store.apply_preview_result(generation, tab, Err(ApiError::http(400)));
         let state = store.csv_state(tab);
@@ -306,8 +307,8 @@ fn delete_success_without_cached_list_creates_nothing() {
 
         assert!(
             store
-                .cache
-                .with_untracked(|map| !map.contains_key(&(generation, tab)))
+                .tabs
+                .with_untracked(|map| map.get(&(generation, tab)).is_none_or(|e| e.list.is_none()))
         );
     });
 }
@@ -350,15 +351,15 @@ fn stale_generation_results_are_dropped() {
         store.apply_delete_result(generation, tab, Ok(()));
 
         let stale = store
-            .csv
-            .with_untracked(|map| map.get(&(generation, tab)).cloned())
+            .tabs
+            .with_untracked(|map| map.get(&(generation, tab)).map(|e| e.csv.clone()))
             .unwrap_or_default();
         assert!(stale.previewing && stale.saving && stale.deleting);
         assert!(stale.preview.is_none() && stale.import_result.is_none());
         assert!(matches!(
             store
-                .cache
-                .with_untracked(|map| map.get(&(generation, tab)).cloned()),
+                .tabs
+                .with_untracked(|map| map.get(&(generation, tab)).and_then(|e| e.list.clone())),
             Some(TabState::Loading)
         ));
     });
@@ -418,8 +419,8 @@ fn save_csv_requires_selected_file_and_idle_state() {
         assert!(store.try_begin_save(tab).is_none(), "ファイル未選択");
         assert!(!store.csv_state(tab).saving);
 
-        store.csv.update(|map| {
-            map.entry((generation, tab)).or_default().previewing = true;
+        store.tabs.update(|map| {
+            map.entry((generation, tab)).or_default().csv.previewing = true;
         });
         assert!(store.try_begin_save(tab).is_none());
     });
@@ -451,38 +452,37 @@ fn refresh_tab_list_marks_cached_tab_loading_only() {
             TabState::Loading
         ));
         assert!(!store.refresh_tab_list(generation, ReceiptsTab::MutualFund));
-        assert!(
-            store
-                .cache
-                .with_untracked(|map| !map.contains_key(&(generation, ReceiptsTab::MutualFund)))
-        );
+        assert!(store.tabs.with_untracked(|map| {
+            map.get(&(generation, ReceiptsTab::MutualFund))
+                .is_none_or(|e| e.list.is_none())
+        }));
     });
 }
 
 #[test]
 fn mark_tab_for_refresh_marks_only_existing_entry() {
-    let mut map = HashMap::new();
+    let mut map: HashMap<(Generation, ReceiptsTab), TabCacheEntry> = HashMap::new();
     assert!(!mark_tab_for_refresh(
         &mut map,
         Generation::new(0),
         ReceiptsTab::Dividend
     ));
 
-    map.insert(
-        (Generation::new(0), ReceiptsTab::Dividend),
-        TabState::Ready(ReceiptTabData {
-            rows: Vec::new(),
-            summary: None,
-            truncated: false,
-        }),
-    );
+    map.entry((Generation::new(0), ReceiptsTab::Dividend))
+        .or_default()
+        .list = Some(TabState::Ready(ReceiptTabData {
+        rows: Vec::new(),
+        summary: None,
+        truncated: false,
+    }));
     assert!(mark_tab_for_refresh(
         &mut map,
         Generation::new(0),
         ReceiptsTab::Dividend
     ));
     assert!(matches!(
-        map.get(&(Generation::new(0), ReceiptsTab::Dividend)),
+        map.get(&(Generation::new(0), ReceiptsTab::Dividend))
+            .and_then(|e| e.list.as_ref()),
         Some(TabState::Loading)
     ));
     assert!(!mark_tab_for_refresh(
@@ -490,6 +490,14 @@ fn mark_tab_for_refresh_marks_only_existing_entry() {
         Generation::new(1),
         ReceiptsTab::Dividend
     ));
+    assert!(!mark_tab_for_refresh(
+        &mut map,
+        Generation::new(0),
+        ReceiptsTab::MutualFund
+    ));
+    // CSV 側の操作だけで作られたエントリ(一覧未取得)も再取得対象にしない
+    map.entry((Generation::new(0), ReceiptsTab::MutualFund))
+        .or_default();
     assert!(!mark_tab_for_refresh(
         &mut map,
         Generation::new(0),
@@ -669,23 +677,22 @@ fn tab_settled_only_for_ready_or_failed() {
         let store = test_store(&session, HashMap::new(), HashMap::new());
         let tab = ReceiptsTab::Dividend;
         assert!(!tab_settled(&store, Generation::new(0), tab));
-        store.cache.update(|map| {
-            map.insert((Generation::new(0), tab), TabState::Loading);
+        store.tabs.update(|map| {
+            map.entry((Generation::new(0), tab)).or_default().list = Some(TabState::Loading);
         });
         assert!(!tab_settled(&store, Generation::new(0), tab));
-        store.cache.update(|map| {
-            map.insert((Generation::new(0), tab), TabState::Failed("x".to_string()));
+        store.tabs.update(|map| {
+            map.entry((Generation::new(0), tab)).or_default().list =
+                Some(TabState::Failed("x".to_string()));
         });
         assert!(tab_settled(&store, Generation::new(0), tab));
-        store.cache.update(|map| {
-            map.insert(
-                (Generation::new(0), tab),
-                TabState::Ready(ReceiptTabData {
+        store.tabs.update(|map| {
+            map.entry((Generation::new(0), tab)).or_default().list =
+                Some(TabState::Ready(ReceiptTabData {
                     rows: Vec::new(),
                     summary: None,
                     truncated: false,
-                }),
-            );
+                }));
         });
         assert!(tab_settled(&store, Generation::new(0), tab));
     });
@@ -721,17 +728,12 @@ fn ensure_prunes_only_stale_generation_entries() {
 
         assert!(
             store
-                .cache
+                .tabs
                 .with_untracked(|map| map.contains_key(&(generation, tab)))
         );
         assert!(
             !store
-                .cache
-                .with_untracked(|map| map.keys().any(|(cached, _)| *cached == stale))
-        );
-        assert!(
-            !store
-                .csv
+                .tabs
                 .with_untracked(|map| map.keys().any(|(cached, _)| *cached == stale))
         );
     });
@@ -773,37 +775,15 @@ fn ensure_prunes_csv_state_when_only_csv_has_stale_entries() {
 
         assert!(
             store
-                .csv
+                .tabs
                 .with_untracked(|map| map.contains_key(&(generation, tab)))
         );
         assert!(
             !store
-                .csv
+                .tabs
                 .with_untracked(|map| map.keys().any(|(cached, _)| *cached == stale))
         );
     });
-}
-
-#[test]
-fn stale_generation_helpers_detect_and_remove_foreign_generations() {
-    let mut map = HashMap::from([
-        ((Generation::new(0), ReceiptsTab::Dividend), 1),
-        ((Generation::new(1), ReceiptsTab::Dividend), 2),
-        ((Generation::new(1), ReceiptsTab::DomesticStock), 3),
-    ]);
-    assert!(has_stale_generation(&map, Generation::new(1)));
-    assert!(has_stale_generation(&map, Generation::new(0)));
-    prune_stale_generation(&mut map, Generation::new(1));
-    assert_eq!(map.len(), 2);
-    assert!(map.contains_key(&(Generation::new(1), ReceiptsTab::Dividend)));
-    assert!(map.contains_key(&(Generation::new(1), ReceiptsTab::DomesticStock)));
-    assert!(!has_stale_generation(&map, Generation::new(1)));
-    assert!(has_stale_generation(&map, Generation::new(0)));
-
-    let mut current_only = HashMap::from([((Generation::new(1), ReceiptsTab::MutualFund), 4)]);
-    assert!(!has_stale_generation(&current_only, Generation::new(1)));
-    prune_stale_generation(&mut current_only, Generation::new(1));
-    assert_eq!(current_only.len(), 1);
 }
 
 #[test]
@@ -831,12 +811,7 @@ fn ensure_keeps_entries_when_nothing_is_stale() {
 
         assert!(
             store
-                .cache
-                .with_untracked(|map| map.contains_key(&(generation, tab)))
-        );
-        assert!(
-            store
-                .csv
+                .tabs
                 .with_untracked(|map| map.contains_key(&(generation, tab)))
         );
     });

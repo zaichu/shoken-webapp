@@ -1,14 +1,14 @@
 use super::chart::ChartList;
 use super::summary::{ChartItem, PortfolioSummary};
 use crate::api::dto::AssetBalanceSummary;
-use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
+use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::chart_plan;
 use crate::features::asset_balance::store::csv::csv_status_text;
 use crate::features::asset_balance::store::{FilteredPortfolio, filtered_portfolio};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
-use crate::support::csv_flow::CsvTabState;
+use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::csv_preview::CsvPreviewBanner;
@@ -19,7 +19,7 @@ use leptos::prelude::*;
 
 #[component]
 pub(crate) fn AssetBalanceMainContent(
-    state: CsvTabState<AssetBalanceCsvRow>,
+    state: CsvTabMeta,
     rows: Vec<AssetBalanceRow>,
     summary: Option<AssetBalanceSummary>,
     has_csv_file: bool,

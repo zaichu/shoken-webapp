@@ -67,8 +67,8 @@ pub fn ReceiptsPage() -> impl IntoView {
                 if busy.auth_loading()
                     || busy.any_tab_fetching()
                     || ReceiptsTab::ALL.iter().any(|tab| {
-                        let state = busy.csv_state(*tab);
-                        state.saving || state.deleting
+                        let meta = busy.csv_meta(*tab);
+                        meta.saving || meta.deleting
                     }) {
                     "true"
                 } else {
@@ -145,12 +145,12 @@ pub fn ReceiptsPage() -> impl IntoView {
             </div>
             {move || {
                 let tab = modal_store.active_tab.get();
-                if !modal_store.csv_state(tab).show_delete_confirm {
+                if !modal_store.csv_meta(tab).show_delete_confirm {
                     return ().into_any();
                 }
                 let count = modal_store.count(tab);
                 let deleting_store = modal_store;
-                let deleting = Memo::new(move |_| deleting_store.csv_state(tab).deleting);
+                let deleting = Memo::new(move |_| deleting_store.csv_meta(tab).deleting);
                 let confirm = modal_store;
                 let cancel = modal_store;
                 view! {
