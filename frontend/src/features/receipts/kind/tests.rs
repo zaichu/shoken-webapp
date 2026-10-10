@@ -11,10 +11,7 @@ fn tab_columns_and_card_fields_match_row_cells() {
     for tab in ReceiptsTab::ALL {
         let row = ReceiptRow::Preview(tab.parse_csv_row(serde_json::Value::Null));
         let count = row.cells().len();
-        assert_eq!(tab.headers().len(), count, "{tab:?}");
-        assert_eq!(tab.column_widths().len(), count, "{tab:?}");
-        assert_eq!(tab.column_tiers().len(), count, "{tab:?}");
-        assert_eq!(tab.column_aligns().len(), count, "{tab:?}");
+        assert_eq!(tab.columns().len(), count, "{tab:?}");
         let fields = tab.card_fields();
         for field in [fields.name, fields.date, fields.account] {
             assert!(field < count, "{tab:?}: {field}");

@@ -29,7 +29,7 @@ pub(crate) fn displayed_tiers(
             if promoted == Some(column) {
                 ColumnTier::Core
             } else {
-                tab.column_tiers()[column]
+                tab.columns()[column].tier
             }
         })
         .collect()
@@ -63,7 +63,7 @@ pub(crate) fn ReceiptTable(
     query: String,
     expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
-    let headers: &[&'static str] = tab.headers();
+    let columns = tab.columns();
     let groups: Vec<TableGroup> = tab.table_groups(&rows, &all_rows, &query);
     let order = column_order(tab, &rows, &query);
     let promoted = promoted_column(tab, &rows, &query);
@@ -83,7 +83,7 @@ pub(crate) fn ReceiptTable(
             let cards: Vec<CardRowData> = group
                 .rows
                 .iter()
-                .map(|(_, _, cells)| card_row_data(tab, cells, headers, &order, fields, full_date))
+                .map(|(_, _, cells)| card_row_data(tab, cells, &order, fields, full_date))
                 .collect();
             (
                 group_index,
@@ -95,20 +95,13 @@ pub(crate) fn ReceiptTable(
             )
         })
         .collect();
-    let headers: Vec<_> = order.iter().map(|i| headers[*i]).collect();
-    let widths: Vec<_> = order.iter().map(|i| tab.column_widths()[*i]).collect();
+    let headers: Vec<_> = order.iter().map(|i| columns[*i].header).collect();
+    let widths: Vec<_> = order.iter().map(|i| columns[*i].width).collect();
     let tiers = displayed_tiers(tab, &order, promoted);
     let cell_classes: Vec<String> = order
         .iter()
         .zip(tiers.iter())
-        .map(|(i, tier)| {
-            let align = match tab.column_aligns()[*i] {
-                "center" => "text-center",
-                "right" => "text-right tabular-nums",
-                _ => "text-left",
-            };
-            format!("{align}{}", tier.class())
-        })
+        .map(|(i, tier)| format!("{}{}", columns[*i].align.class(), tier.class()))
         .collect();
     // 帯(画面幅)ごとに1本だけ出す(input.css の .receipt-span-* と対になる)
     let span_masks: [(&'static str, ColumnTier); 5] = [
@@ -299,7 +292,8 @@ pub(crate) fn ReceiptTable(
                                                                         ReceiptCell::Text(value) => {
                                                                             let negative = is_profit_label(
                                                                                 tab,
-                                                                                tab.headers()[order[col_index]],
+                                                                                columns[order[col_index]]
+                                                                                    .header,
                                                                             ) && is_negative_text(&value);
                                                                             let title = value.clone();
                                                                             view! {

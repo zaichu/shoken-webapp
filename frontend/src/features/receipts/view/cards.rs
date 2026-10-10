@@ -100,12 +100,12 @@ pub(crate) fn card_detail_value(
 pub(crate) fn card_row_data(
     tab: ReceiptsTab,
     cells: &[ReceiptCell],
-    headers: &[&'static str],
     order: &[usize],
     fields: CardFields,
     // 見出しが年月でない(銘柄名や口座で絞った)グループでは年を落とすと日付が分からなくなる
     full_date: bool,
 ) -> CardRowData {
+    let columns = tab.columns();
     let text = |index: usize| {
         cells
             .get(index)
@@ -114,7 +114,7 @@ pub(crate) fn card_row_data(
     };
     let header_fields = [fields.name, fields.date, fields.account];
     CardRowData {
-        name: card_detail_value(tab, headers[fields.name], fields.name, cells),
+        name: card_detail_value(tab, columns[fields.name].header, fields.name, cells),
         date: {
             let date = text(fields.date);
             if full_date {
@@ -128,8 +128,8 @@ pub(crate) fn card_row_data(
             .iter()
             .filter(|index| !header_fields.contains(index))
             .map(|&i| CardDetail {
-                label: headers[i].to_string(),
-                value: card_detail_value(tab, headers[i], i, cells),
+                label: columns[i].header.to_string(),
+                value: card_detail_value(tab, columns[i].header, i, cells),
             })
             .collect(),
     }

@@ -257,12 +257,12 @@ fn card_fields_point_at_expected_columns() {
     ];
     for (tab, expected) in cases {
         let fields = tab.card_fields();
-        let headers = tab.headers();
+        let columns = tab.columns();
         assert_eq!(
             (
-                headers[fields.name],
-                headers[fields.date],
-                headers[fields.account]
+                columns[fields.name].header,
+                columns[fields.date].header,
+                columns[fields.account].header
             ),
             expected
         );
@@ -285,25 +285,29 @@ fn card_fields_point_at_expected_columns() {
 
 #[test]
 fn table_column_widths_match_headers_and_follow_column_order() {
-    for tab in ReceiptsTab::ALL {
-        assert_eq!(
-            tab.headers().len(),
-            tab.column_widths().len(),
-            "{tab:?}: 列幅の数がヘッダー数と一致しない"
-        );
-    }
     let rows = domestic();
     let order = column_order(ReceiptsTab::DomesticStock, &rows, "特定");
-    let headers = ReceiptsTab::DomesticStock.headers();
-    let widths = ReceiptsTab::DomesticStock.column_widths();
-    let displayed: Vec<(&str, &str)> = order.iter().map(|&i| (headers[i], widths[i])).collect();
+    let columns = ReceiptsTab::DomesticStock.columns();
+    let displayed: Vec<(&str, &str)> = order
+        .iter()
+        .map(|&i| (columns[i].header, columns[i].width))
+        .collect();
     let fields = ReceiptsTab::DomesticStock.card_fields();
-    assert_eq!(displayed[0], (headers[fields.date], widths[fields.date]));
+    assert_eq!(
+        displayed[0],
+        (columns[fields.date].header, columns[fields.date].width)
+    );
     assert_eq!(
         displayed[2],
-        (headers[fields.account], widths[fields.account])
+        (
+            columns[fields.account].header,
+            columns[fields.account].width
+        )
     );
-    assert_eq!(displayed[3], (headers[fields.name], widths[fields.name]));
+    assert_eq!(
+        displayed[3],
+        (columns[fields.name].header, columns[fields.name].width)
+    );
 }
 
 // 「表示項目は極力削らない」方針: 数量はできるだけ早い帯から出す。
@@ -312,17 +316,17 @@ fn table_column_widths_match_headers_and_follow_column_order() {
 #[test]
 fn quantity_column_tiers_match_width_budget() {
     let index_of = |tab: ReceiptsTab| {
-        tab.headers()
+        tab.columns()
             .iter()
-            .position(|header| *header == "数量")
+            .position(|column| column.header == "数量")
             .expect("数量列がある")
     };
     assert_eq!(
-        ReceiptsTab::Dividend.column_tiers()[index_of(ReceiptsTab::Dividend)],
+        ReceiptsTab::Dividend.columns()[index_of(ReceiptsTab::Dividend)].tier,
         ColumnTier::Md
     );
     for tab in [ReceiptsTab::DomesticStock, ReceiptsTab::MutualFund] {
-        assert_eq!(tab.column_tiers()[index_of(tab)], ColumnTier::Wide);
+        assert_eq!(tab.columns()[index_of(tab)].tier, ColumnTier::Wide);
     }
 }
 
@@ -389,7 +393,6 @@ fn card_row_data_maps_card_fields() {
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
-        ReceiptsTab::Dividend.headers(),
         &order,
         ReceiptsTab::Dividend.card_fields(),
         false,
@@ -425,7 +428,6 @@ fn card_date_keeps_year_when_group_is_not_year_month() {
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
-        ReceiptsTab::Dividend.headers(),
         &order,
         ReceiptsTab::Dividend.card_fields(),
         true,
@@ -444,7 +446,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
-    card_row_data(tab, &cells, tab.headers(), &order, tab.card_fields(), false)
+    card_row_data(tab, &cells, &order, tab.card_fields(), false)
 }
 
 #[test]
@@ -517,7 +519,6 @@ fn card_details_link_security_code_and_copy_name() {
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
-        ReceiptsTab::Dividend.headers(),
         &order,
         ReceiptsTab::Dividend.card_fields(),
         false,
@@ -545,7 +546,6 @@ fn card_details_link_security_code_and_copy_name() {
     let card = card_row_data(
         ReceiptsTab::MutualFund,
         &cells,
-        ReceiptsTab::MutualFund.headers(),
         &order,
         ReceiptsTab::MutualFund.card_fields(),
         false,
@@ -700,7 +700,6 @@ fn card_row_data_details_follow_column_reorder() {
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
-        ReceiptsTab::Dividend.headers(),
         &order,
         ReceiptsTab::Dividend.card_fields(),
         false,
