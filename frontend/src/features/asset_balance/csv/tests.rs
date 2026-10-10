@@ -99,6 +99,7 @@ fn asset_balance_row_saved_delegates_current_price() {
         total_purchase_amount: dec!(250000),
         current_price: dec!(2600),
         daily_change: dec!(50),
+        price_as_of: Some("2024-01-16".to_string()),
         created_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
@@ -153,6 +154,7 @@ fn asset_balance_saved_row_current_price_field() {
         total_purchase_amount: dec!(250000),
         current_price: dec!(2900),
         daily_change: dec!(50),
+        price_as_of: Some("2024-01-16".to_string()),
         created_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };

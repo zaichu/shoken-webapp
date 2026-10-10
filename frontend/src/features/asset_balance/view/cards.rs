@@ -137,7 +137,7 @@ pub(crate) fn HoldingCard(
 
 #[component]
 fn MobileStat(
-    label: &'static str,
+    #[prop(into)] label: String,
     #[prop(into)] value: String,
     #[prop(optional)] numeric: bool,
 ) -> impl IntoView {
@@ -162,6 +162,11 @@ pub(crate) fn HoldingMobileCard(
     let detail_id = format!("portfolio-item-detail-{}", item.view.code);
     let purchase_display = format_currency(item.view.purchase);
     let current_price_display = format_currency(item.view.current_price);
+    // 基準日があれば「YYYY/M/D時点」、CSV プレビュー行など基準日が無いときは取込時点の表記
+    let current_price_label = item.view.price_as_of.as_ref().map_or_else(
+        || "現在値（CSV取込時点）".to_string(),
+        |date| format!("現在値（{}時点）", date.replace('-', "/")),
+    );
     let composition = item.percentage.map_or("—".to_string(), |percentage| {
         format_fixed_percent(percentage, 1)
     });
@@ -216,7 +221,7 @@ pub(crate) fn HoldingMobileCard(
                                 <dl class="space-y-1.5 text-xs text-text-muted">
                                     <MobileStat label="取得単価" numeric=true value=format_currency(item.view.average_price) />
                                     <MobileStat label="数量" numeric=true value=format!("{}株", format_number_value(item.view.shares)) />
-                                    <MobileStat label="現在値（CSV取込時点）" numeric=true value=current_price_display.clone() />
+                                    <MobileStat label=current_price_label.clone() numeric=true value=current_price_display.clone() />
                                     <MobileStat label="取得額構成比" numeric=true value=composition.clone() />
                                     <MobileStat label="予想年間配当" value=format_dividend_annual(&dividend) />
                                     <MobileStat label="1株配当" value=format_dividend_per_share(&dividend) />

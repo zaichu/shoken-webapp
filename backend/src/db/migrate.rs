@@ -76,6 +76,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0016_reroll_plain_session_id",
         include_str!("../../migrations/0016_reroll_plain_session_id.sql"),
     ),
+    (
+        "0017_asset_balances_price_as_of",
+        include_str!("../../migrations/0017_asset_balances_price_as_of.sql"),
+    ),
 ];
 
 struct Migration {

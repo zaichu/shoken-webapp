@@ -226,7 +226,7 @@ pub async fn acquire_rate_slot(pool: &Db) -> Result<(), ApiError> {
 }
 
 /// ホストは tokio タイマー、wasm は worker::Delay（ランタイム提供のタイマー）で待機する
-async fn sleep_millis(ms: u64) {
+pub(crate) async fn sleep_millis(ms: u64) {
     #[cfg(not(target_arch = "wasm32"))]
     tokio::time::sleep(Duration::from_millis(ms)).await;
     #[cfg(target_arch = "wasm32")]
