@@ -8,6 +8,11 @@ description: |
 
 # OAuth/認証 実装ガイド
 
+`oauth2`/`openidconnect` クレートは wasm 非対応のため使わない。現行実装は
+`services/auth/google_common.rs`（認可 URL・state/nonce・PKCE・tokeninfo クレーム検証）と
+`services/auth/google_worker.rs`（`worker::Fetch` でトークン交換・tokeninfo 検証）、
+Cookie・リダイレクトは `handlers/v1/auth/oauth.rs`。
+
 ## 目的
 
 - OAuth 2.0 フロー（Google）を安全に実装する
@@ -26,58 +31,63 @@ description: |
 
 ### 1. 認証開始（`/api/v1/oauth/google/authorize`）
 
+`begin_google_auth` が認可 URL・state・nonce・PKCE verifier を一式生成する。
+OAuth クライアントは起動時に `create_oauth_client` で構築して `state.google_oauth` に保持する。
+
 ```rust
 pub async fn google_auth(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<(CookieJar, Redirect), ApiError> {
-    let client = create_oauth_client(&state)?;
+    let client = google_oauth_client(&state)?;
 
-    // CSRF トークンを生成
-    let (auth_url, csrf_token) = client
-        .authorize_url(CsrfToken::new_random)
-        .add_scope(Scope::new("openid".to_string()))
-        .add_scope(Scope::new("email".to_string()))
-        .add_scope(Scope::new("profile".to_string()))
-        .url();
+    let flow = auth_service::begin_google_auth(client);
 
-    // state を Cookie に保存（短い有効期限）
-    let is_secure = config::is_secure_cookie();
-    let state_cookie = Cookie::build(("oauth_state", csrf_token.secret().to_string()))
-        .path("/")
-        .http_only(true)
-        .secure(is_secure)
-        .same_site(if is_secure { SameSite::None } else { SameSite::Lax })
-        .max_age(time::Duration::minutes(10))
-        .build();
+    // state / PKCE verifier / nonce を短命（10分）Cookie に保存
+    let is_secure = state.config.secure_cookie;
+    let jar = jar
+        .add(build_state_cookie(&flow.state, is_secure))
+        .add(build_oauth_cookie(OAUTH_PKCE_VERIFIER_COOKIE_NAME, &flow.pkce_verifier, is_secure))
+        .add(build_oauth_cookie(OAUTH_NONCE_COOKIE_NAME, &flow.nonce, is_secure));
 
-    Ok((jar.add(state_cookie), Redirect::to(auth_url.as_str())))
+    Ok((jar, Redirect::to(flow.authorize_url.as_str())))
 }
 ```
 
 ### 2. コールバック（`/api/v1/oauth/google/callback`）
 
+state を照合し、oauth 系 Cookie を削除してから `authenticate_with_google_code` で
+コード検証・ユーザー upsert・セッション発行まで行う（`handlers/v1/auth/oauth.rs`）。
+
 ```rust
-pub async fn google_callback(
-    State(state): State<AppState>,
-    Query(query): Query<AuthCallbackQuery>,
-    jar: CookieJar,
-) -> Result<Response, ApiError> {
-    // CSRF トークンを検証（必須）
-    let stored_state = jar
-        .get("oauth_state")
-        .map(|c| c.value().to_string())
-        .ok_or_else(|| ApiError::Unauthorized("OAuth state が見つかりません".to_string()))?;
-
-    if query.state != stored_state {
-        return Err(ApiError::Unauthorized("OAuth state が一致しません".to_string()));
-    }
-
-    // state Cookie を削除
-    let jar = jar.remove(Cookie::build(("oauth_state", "")).path("/").build());
-
-    // トークン交換、ユーザー情報取得、セッション作成...
+// CSRF トークンを検証（必須）
+let stored_state = jar
+    .get(OAUTH_STATE_COOKIE_NAME)
+    .map(|c| c.value().to_string())
+    .ok_or_else(|| ApiError::Unauthorized("OAuth state が見つかりません"))?;
+if query.state != stored_state {
+    return Err(ApiError::Unauthorized("OAuth state が一致しません"));
 }
+
+// state / pkce_verifier / nonce の Cookie を取得して削除
+let is_secure = state.config.secure_cookie;
+let pkce_verifier = jar.get(OAUTH_PKCE_VERIFIER_COOKIE_NAME).map(|c| c.value().to_string());
+let nonce = jar.get(OAUTH_NONCE_COOKIE_NAME).map(|c| c.value().to_string());
+let jar = jar
+    .remove(clear_state_cookie(is_secure))
+    .remove(clear_oauth_cookie(OAUTH_PKCE_VERIFIER_COOKIE_NAME, is_secure))
+    .remove(clear_oauth_cookie(OAUTH_NONCE_COOKIE_NAME, is_secure));
+
+// Option を Unauthorized に変換してから渡す
+let pkce_verifier = pkce_verifier
+    .ok_or_else(|| ApiError::Unauthorized("OAuth の PKCE verifier が見つかりません"))?;
+let nonce = nonce.ok_or_else(|| ApiError::Unauthorized("OAuth nonce が見つかりません"))?;
+
+// トークン交換 + tokeninfo で nonce/aud/exp 検証 + セッション発行
+let session_token = auth_service::authenticate_with_google_code(
+    &state.pool, client, query.code, pkce_verifier, &nonce,
+).await?;
+let jar = jar.add(build_session_cookie(session_token, is_secure));
 ```
 
 ## Cookie 設定
@@ -85,11 +95,11 @@ pub async fn google_callback(
 ### 環境判定
 
 ```rust
-// config::is_secure_cookie() を使う（独自の環境判定を実装しない）
-// 本番判定は fail-safe: RUST_ENV / APP_ENV の設定値がすべて開発用の値
-// （local / dev / development / test）のときだけ非本番。
-// 未設定・不明値は本番扱い。本番では SECURE_COOKIE の値に関わらず true。
-let is_secure = config::is_secure_cookie();
+// state.config.secure_cookie を使う（独自の環境判定を実装しない）
+// 値は起動時に Config へ解決済み: RUST_ENV / APP_ENV がすべて開発用の値
+// （local / dev / development / test）のときだけ非本番。未設定・不明値は
+// fail-safe で本番扱い。本番では SECURE_COOKIE の値に関わらず true。
+let is_secure = state.config.secure_cookie;
 ```
 
 ### Cookie 属性
@@ -104,21 +114,22 @@ let is_secure = config::is_secure_cookie();
 ## チェックリスト
 
 ### 認証開始時
-- [ ] CSRF トークン（state）を生成している
-- [ ] state を Cookie に保存している
+- [ ] state・nonce・PKCE verifier を生成している（`begin_google_auth`）
+- [ ] state・nonce・PKCE verifier を Cookie に保存している
 - [ ] Cookie の有効期限は短い（10分程度）
 
 ### コールバック時
 - [ ] state パラメータを受け取っている（Option ではなく必須）
 - [ ] Cookie の state と照合している
-- [ ] 検証後に state Cookie を削除している
+- [ ] 検証後に state / pkce_verifier / nonce の Cookie をすべて削除している
+- [ ] ID トークンの nonce を Cookie の nonce と照合している
 - [ ] セッションを DB に保存している
 
 ### Cookie 設定
 - [ ] `HttpOnly` が true
 - [ ] 本番環境で `Secure` が true
 - [ ] 本番環境で `SameSite=None`（クロスオリジン時）
-- [ ] `config::is_secure_cookie()` を使用（独自の環境判定や `BACKEND_URL` 依存の判定を実装しない）
+- [ ] `state.config.secure_cookie` を使用（独自の環境判定や `BACKEND_URL` 依存の判定を実装しない）
 
 ### セッション管理
 - [ ] セッション ID は UUID（推測困難）
@@ -152,8 +163,8 @@ let is_secure = std::env::var("BACKEND_URL")
     .map(|url| url.starts_with("https://"))
     .unwrap_or(false);
 
-// OK: config::is_secure_cookie()（fail-safe: 未設定・不明値は本番扱い）
-let is_secure = config::is_secure_cookie();
+// OK: state.config.secure_cookie（fail-safe: 未設定・不明値は本番扱い）
+let is_secure = state.config.secure_cookie;
 ```
 
 ### 3. state Cookie を削除し忘れ
@@ -165,8 +176,8 @@ if query.state != stored_state {
 }
 // この後、state Cookie を削除していない
 
-// OK: 検証後に削除
-let jar = jar.remove(Cookie::build(("oauth_state", "")).path("/").build());
+// OK: 検証後に削除（pkce_verifier / nonce も同様に削除する）
+let jar = jar.remove(clear_state_cookie(is_secure));
 ```
 
 ## 環境変数
@@ -193,6 +204,9 @@ Authorized redirect URI は API バージョン付きのコールバックを登
 
 ## 参考ファイル
 
-- `backend/src/handlers/v1/auth/oauth.rs` - 認証ハンドラー
+- `backend/src/handlers/v1/auth/oauth.rs` - 認証ハンドラー・Cookie ヘルパー
+- `backend/src/handlers/v1/auth.rs` - セッション取得・削除
+- `backend/src/services/auth.rs` - `begin_google_auth` / `authenticate_with_google_code` / セッション DB 操作
+- `backend/src/services/auth/google_common.rs` / `google_worker.rs` - 認可 URL・PKCE・トークン交換・tokeninfo 検証
 - `backend/src/extractors/auth.rs` - AuthenticatedUser エクストラクター
-- `backend/src/config/environment.rs` - `is_production_env` / `is_secure_cookie`（fail-safe 本番判定）
+- `backend/src/config.rs`（`Config::secure_cookie`）と `backend/src/config/environment.rs`（`RuntimeEnv`。fail-safe 本番判定）

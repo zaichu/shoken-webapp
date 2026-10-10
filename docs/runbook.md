@@ -55,12 +55,13 @@ curl https://shoken-backend.zaitomo41.workers.dev/health
 ## データベースマイグレーション
 
 ```bash
-# マイグレーション作成
-(cd backend && sqlx migrate add <migration_name>)
-
 # マイグレーション実行（ローカル Docker DB へ）
 (cd backend && make migrate-local)
 ```
+
+新規マイグレーションは `backend/migrations/NNNN_<name>.sql`（次番号）を作り、
+`backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` で登録する。
+詳細は `backend/migrations/README.md`。
 
 ## 環境変数（本番）
 

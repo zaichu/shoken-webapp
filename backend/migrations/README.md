@@ -1,6 +1,10 @@
 # backend/migrations
 
-SQLx migration ファイルの置き場所と運用メモ。
+migration ファイルの置き場所と運用メモ。
+ファイル形式と `_sqlx_migrations` テーブルは sqlx 互換だが、実行は自前ランナー
+（`backend/src/bin/migrate.rs` = `backend/src/db/migrate.rs` の `run_migrations`）で行う。
+新規ファイルを `MIGRATION_FILES`（`backend/src/db/migrate.rs`）に `include_str!` で
+登録しないと適用されない。
 
 ## 現行方針
 
@@ -44,13 +48,13 @@ SQLx は `_sqlx_migrations` に migration の version と checksum を保存す�
 
 - `deploy-cloudflare-worker.yml` の deploy ジョブが `cargo run --bin migrate`（`backend/src/bin/migrate.rs` = `_sqlx_migrations` 互換ランナー）を Neon へ直接実行してから `wrangler deploy` する
 - Worker のリクエストパスに migration は置けない（起動という概念がないため）
-- 手動 `cargo sqlx migrate run` が必要なのは、新規 DB・ローカル DB・既存 DB の baseline 切り替え（下記）のみ
+- 手動 `cargo run --bin migrate` が必要なのは、新規 DB・ローカル DB・既存 DB の baseline 切り替え（下記）のみ
 
 ## 新規 DB
 
 ```bash
 cd backend
-cargo sqlx migrate run
+cargo run --bin migrate
 ```
 
 ## 既存 DB の baseline 切り替え
@@ -65,7 +69,7 @@ cargo sqlx migrate run
 ```bash
 psql "$DATABASE_URL" -f backend/scripts/repair-migrations.sql
 cd backend
-cargo sqlx migrate run
+cargo run --bin migrate
 ```
 
 ローカル Docker DB では以下でもよい。
@@ -78,7 +82,8 @@ make repair-and-migrate-local
 ## 新しい schema 変更を入れる場合
 
 適用済みの migration ファイルは編集しない。
-`0017_<description>.sql` のように次番号の新規 migration を追加する。
+`0017_<description>.sql` のように次番号の新規 migration を追加し、
+`backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` エントリを足す。
 再ベースライン化する場合だけ、baseline を作り直し、repair script と README を同じ PR で更新する。
 
 ## 検証

@@ -25,7 +25,7 @@
 
 - セッション Cookie は `HttpOnly`・`Path=/`・`Max-Age=7日`
 - 本番では `Secure` + `SameSite=None`、ローカルでは `SameSite=Lax`
-- Cookie 属性の判定は `config::is_secure_cookie()` を経由し、独自の環境判定を実装しない
+- Cookie 属性の判定は起動時に解決済みの `state.config.secure_cookie`（`Config::secure_cookie`）を使い、独自の環境判定を実装しない
 
 ## CSRF / CORS
 

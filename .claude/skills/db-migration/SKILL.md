@@ -18,6 +18,8 @@ NNNN_<説明>.sql
 例: 0004_create_dividends.sql
 ```
 
+新規ファイルは `backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` で登録する（登録しないと適用されない）。
+
 ## 新規テーブル作成テンプレート
 
 ```sql

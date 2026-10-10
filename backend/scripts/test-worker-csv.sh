@@ -8,29 +8,17 @@ set -euo pipefail
 
 BACKEND_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$BACKEND_DIR"
+source scripts/test-worker-common.sh
 
-WORKER_PORT="${WORKER_PORT:-8787}"
 ROWS="${ROWS:-500}"
 TMP="$(mktemp -d)"
 WRANGLER_LOG="$TMP/wrangler.log"
 JAR="$TMP/cookies.txt"
 BODY="$TMP/body.json"
 CSV_FILE="$TMP/dividends.csv"
-WRANGLER_PID=""
-COMPOSE_FILE="$BACKEND_DIR/docker-compose.yml"
 
-cleanup() {
-  # setsid で新セッション化しているため、プロセスグループごと(workerd まで)止める
-  [[ -n "$WRANGLER_PID" ]] && kill -- -"$WRANGLER_PID" 2>/dev/null || true
-}
+cleanup() { stop_wrangler; }
 trap cleanup EXIT
-
-fail() { echo "FAIL: $*" >&2; exit 1; }
-
-psql() {
-  docker compose -f "$COMPOSE_FILE" exec -T postgres \
-    psql -tA -U user -d shoken_db -c "$1"
-}
 
 # Shift_JIS の配当 CSV(入金日,商品,口座,銘柄コード,銘柄,受取通貨,…)を生成。
 # 全角固有文字(ＵＦＪ・㈱)が Shift_JIS 経路で正しく復元されるかを同時に検証する
@@ -55,22 +43,11 @@ with open(path, "wb") as f:
     f.write(data.encode("cp932"))
 PYEOF
 
-setsid npx wrangler dev --env dev --port "$WORKER_PORT" >"$WRANGLER_LOG" 2>&1 &
-WRANGLER_PID=$!
-
-echo "wrangler dev 起動待ち..."
-for _ in $(seq 1 180); do
-  if curl -sf "http://127.0.0.1:$WORKER_PORT/health" >/dev/null 2>&1; then break; fi
-  sleep 1
-done
-curl -sf "http://127.0.0.1:$WORKER_PORT/health" >/dev/null \
-  || { cat "$WRANGLER_LOG" >&2; fail "Worker が起動しませんでした"; }
+start_wrangler
+wait_for_worker || fail "Worker が起動しませんでした"
 
 # 0. セッションを直接投入(トークンは Cookie の UUID、DB には SHA-256 ハッシュ)
-read -r USER_ID TOKEN HASH < <(python3 -c '
-import hashlib, uuid
-u, t = str(uuid.uuid4()), str(uuid.uuid4())
-print(u, t, hashlib.sha256(t.encode()).hexdigest())')
+read -r USER_ID TOKEN HASH < <(generate_test_session)
 psql "DELETE FROM dividends" >/dev/null
 psql "DELETE FROM users WHERE google_id='csv-test'" >/dev/null
 psql "INSERT INTO users (id, google_id, email) VALUES ('$USER_ID', 'csv-test', 'csv-test@example.com')" >/dev/null
