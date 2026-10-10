@@ -13,7 +13,7 @@ use shared::value::SecurityCode;
 use std::time::Duration;
 
 use logic::compute_is_stale;
-use persistence::{fetch_and_cache, update_cache_error, update_cache_error_with_cooldown};
+use persistence::{fetch_and_cache, update_cache_error};
 
 /// 429 発生時の全インスタンス共有 cooldown 期間（秒）
 const RATE_LIMIT_COOLDOWN_SECS: i32 = 60;
@@ -140,13 +140,9 @@ pub async fn drain_refresh_queue(
                     "配当キャッシュ更新: レートリミット超過 code={}, 消化を中断",
                     code
                 );
-                if let Err(err) = update_cache_error_with_cooldown(
-                    pool,
-                    &code,
-                    &e.to_string(),
-                    RATE_LIMIT_COOLDOWN_SECS,
-                )
-                .await
+                if let Err(err) =
+                    update_cache_error(pool, &code, &e.to_string(), Some(RATE_LIMIT_COOLDOWN_SECS))
+                        .await
                 {
                     tracing::error!("配当キャッシュ エラー記録失敗: code={}, err={}", code, err);
                 }
@@ -158,7 +154,7 @@ pub async fn drain_refresh_queue(
             Err(e) => {
                 processed += 1;
                 tracing::error!("配当キャッシュ更新エラー: code={}, err={}", code, e);
-                let _ = update_cache_error(pool, &code, &e.to_string()).await;
+                let _ = update_cache_error(pool, &code, &e.to_string(), None).await;
             }
         }
     }

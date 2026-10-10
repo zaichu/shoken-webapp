@@ -2,7 +2,7 @@ use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::auth::AuthenticatedUser,
     models::{
-        common::{MessageResponse, PaginatedSearchResponse, SearchFacets},
+        common::{MessageResponse, PaginatedSearchResponse},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
         domestic_stock::{DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary},
     },
@@ -35,7 +35,7 @@ use axum::{
         ("include_facets" = Option<bool>, Query, description = "検索候補 facets を含めるか"),
     ),
     responses(
-        (status = 200, description = "国内株式取引の一覧を返す", body = PaginatedSearchResponse<DomesticStock, DomesticStockSummary, SearchFacets>),
+        (status = 200, description = "国内株式取引の一覧を返す", body = PaginatedSearchResponse<DomesticStock, DomesticStockSummary>),
         (status = 400, description = "検索パラメータが不正", body = ErrorResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
         (status = 429, description = "レート制限を超過", body = ErrorResponse),

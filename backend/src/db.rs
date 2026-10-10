@@ -457,7 +457,6 @@ impl Db {
                 guard.conn().batch_execute("BEGIN").await?;
                 Ok(Tx {
                     conn: Some(guard.disarm()),
-                    done: false,
                 })
             }
             #[cfg(target_arch = "wasm32")]
@@ -467,7 +466,6 @@ impl Db {
                 guard.conn().batch_execute("BEGIN").await?;
                 Ok(Tx {
                     conn: Some(guard.disarm()),
-                    done: false,
                 })
             }
         }
@@ -586,7 +584,6 @@ impl Executor for &Db {
 /// commit せず drop された場合は非同期で ROLLBACK を送る
 pub struct Tx {
     conn: Option<TxConn>,
-    done: bool,
 }
 
 enum TxConn {
@@ -678,7 +675,6 @@ impl Tx {
             .conn
             .take()
             .expect("トランザクションの接続がありません");
-        self.done = true;
         let guard = TxGuard::new(conn);
         guard.conn().batch_execute("COMMIT").await?;
         drop(guard.disarm());
@@ -691,7 +687,6 @@ impl Tx {
             .conn
             .take()
             .expect("トランザクションの接続がありません");
-        self.done = true;
         let guard = TxGuard::new(conn);
         guard.conn().batch_execute("ROLLBACK").await?;
         drop(guard.disarm());
@@ -701,10 +696,7 @@ impl Tx {
 
 impl Drop for Tx {
     fn drop(&mut self) {
-        if self.done {
-            return;
-        }
-        // commit なしで drop された = ロールバック要。
+        // 接続が残っている = commit/rollback 未完了で drop された = ロールバック要。
         // 接続をプールへ戻す前に ROLLBACK を送る（送れない環境では接続ごと破棄される）
         if let Some(conn) = self.conn.take() {
             conn.rollback_and_release();

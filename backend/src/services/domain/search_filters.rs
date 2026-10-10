@@ -52,8 +52,10 @@ pub struct DateAxisFilter {
     pub year_month_range: Option<(NaiveDate, NaiveDate)>,
 }
 
-impl DateAxisFilter {
-    pub fn from_search_params(search: &SearchQueryParams) -> Result<Self, ApiError> {
+impl TryFrom<&SearchQueryParams> for DateAxisFilter {
+    type Error = ApiError;
+
+    fn try_from(search: &SearchQueryParams) -> Result<Self, Self::Error> {
         let date_eq = search
             .date
             .as_deref()

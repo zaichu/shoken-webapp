@@ -1,12 +1,12 @@
 use crate::api::ApiError;
-use crate::api::dto::{PaginatedSearchResponse, SearchFacets};
+use crate::api::dto::PaginatedSearchResponse;
 use crate::features::receipts::truncated_list_warning;
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, collect_list_pages};
 use crate::testing::block_on;
 use std::cell::Cell;
 use std::future::{Ready, ready};
 
-type Page = PaginatedSearchResponse<usize, (), SearchFacets>;
+type Page = PaginatedSearchResponse<usize, ()>;
 
 fn page(data: Vec<usize>, total: i64, summary: Option<()>) -> Page {
     PaginatedSearchResponse {

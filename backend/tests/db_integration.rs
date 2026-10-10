@@ -1558,6 +1558,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
         &pool,
         &"1234".parse::<SecurityCode>().unwrap(),
         "fetch failed",
+        None,
     )
     .await
     .expect("エラー記録");
@@ -1570,11 +1571,11 @@ async fn dividend_cache_persistence_and_rate_slot() {
     assert_eq!(items[0].dividend_per_share, None);
     assert!(items[0].is_stale, "error 記録は即時再取得対象");
 
-    dividend_cache::persistence::update_cache_error_with_cooldown(
+    dividend_cache::persistence::update_cache_error(
         &pool,
         &"5678".parse::<SecurityCode>().unwrap(),
         "429",
-        3600,
+        Some(3600),
     )
     .await
     .expect("cooldown 付きエラー記録");
@@ -1585,11 +1586,11 @@ async fn dividend_cache_persistence_and_rate_slot() {
     assert!(!items[0].is_stale, "cooldown 中は再取得対象外");
 
     // 既存行への upsert: stale_at が cooldown で未来に更新される
-    dividend_cache::persistence::update_cache_error_with_cooldown(
+    dividend_cache::persistence::update_cache_error(
         &pool,
         &"1234".parse::<SecurityCode>().unwrap(),
         "429",
-        3600,
+        Some(3600),
     )
     .await
     .expect("既存行の上書き");
@@ -1650,15 +1651,16 @@ async fn dividend_cache_drain_refresh_queue() {
         &pool,
         &"8306".parse::<SecurityCode>().unwrap(),
         "previous fetch failed",
+        None,
     )
     .await
     .expect("error 行の更新");
     // 429 cooldown 中の error 行は消化対象外
-    dividend_cache::persistence::update_cache_error_with_cooldown(
+    dividend_cache::persistence::update_cache_error(
         &pool,
         &"9107".parse::<SecurityCode>().unwrap(),
         "429",
-        3600,
+        Some(3600),
     )
     .await
     .expect("cooldown 行の投入");

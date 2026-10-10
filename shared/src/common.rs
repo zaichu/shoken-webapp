@@ -152,7 +152,7 @@ pub struct SearchFacets {
 /// 検索・集計付きページネーションレスポンス。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-pub struct PaginatedSearchResponse<T, Summary, Facets> {
+pub struct PaginatedSearchResponse<T, Summary> {
     pub data: Vec<T>,
     pub total: i64,
     pub page: i64,
@@ -160,7 +160,7 @@ pub struct PaginatedSearchResponse<T, Summary, Facets> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<Summary>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub facets: Option<Facets>,
+    pub facets: Option<SearchFacets>,
 }
 
 /// 一括作成レスポンス（全ドメイン共通）
@@ -376,15 +376,14 @@ mod tests {
 
     #[test]
     fn paginated_search_response_omits_optional_sections_when_absent() {
-        let response: PaginatedSearchResponse<Row, Summary, SearchFacets> =
-            PaginatedSearchResponse {
-                data: vec![Row { id: 1 }],
-                total: 1,
-                page: 1,
-                per_page: 200,
-                summary: None,
-                facets: None,
-            };
+        let response: PaginatedSearchResponse<Row, Summary> = PaginatedSearchResponse {
+            data: vec![Row { id: 1 }],
+            total: 1,
+            page: 1,
+            per_page: 200,
+            summary: None,
+            facets: None,
+        };
 
         let json =
             serde_json::to_value(response).expect("PaginatedSearchResponse should serialize");

@@ -51,10 +51,7 @@ pub async fn fetch_all_pages<E: ListEndpoint>() -> Result<ListPage<E::Row, E::Su
                 query.push(("include_facets", include_aggregates));
             }
             client
-                .get_json::<PaginatedSearchResponse<E::Row, E::Summary, SearchFacets>>(
-                    E::PATH,
-                    &query,
-                )
+                .get_json::<PaginatedSearchResponse<E::Row, E::Summary>>(E::PATH, &query)
                 .await
         }
     })
@@ -70,7 +67,7 @@ pub(crate) async fn collect_list_pages<T, S, Fut>(
     fetch_page: impl Fn(usize) -> Fut,
 ) -> Result<ListPage<T, S>, ApiError>
 where
-    Fut: Future<Output = Result<PaginatedSearchResponse<T, S, SearchFacets>, ApiError>>,
+    Fut: Future<Output = Result<PaginatedSearchResponse<T, S>, ApiError>>,
 {
     let mut rows = Vec::new();
     let mut total = None;

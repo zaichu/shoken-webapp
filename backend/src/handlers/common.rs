@@ -1,6 +1,6 @@
 use crate::db::Db;
 use crate::errors::ApiError;
-use crate::models::common::{MessageResponse, PaginatedSearchResponse, SearchFacets};
+use crate::models::common::{MessageResponse, PaginatedSearchResponse};
 use crate::services::domain::search::{Search, search};
 use axum::{http::StatusCode, response::Json};
 use shared::value::UserId;
@@ -21,7 +21,7 @@ pub async fn handle_search<D: Search>(
 ) -> Result<
     (
         StatusCode,
-        Json<PaginatedSearchResponse<D::Data, D::Summary, SearchFacets>>,
+        Json<PaginatedSearchResponse<D::Data, D::Summary>>,
     ),
     ApiError,
 > {

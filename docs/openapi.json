@@ -304,7 +304,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedSearchResponse_AssetBalance_AssetBalanceSummary_SearchFacets"
+                  "$ref": "#/components/schemas/PaginatedSearchResponse_AssetBalance_AssetBalanceSummary"
                 }
               }
             }
@@ -787,7 +787,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedSearchResponse_Dividend_DividendSummary_SearchFacets"
+                  "$ref": "#/components/schemas/PaginatedSearchResponse_Dividend_DividendSummary"
                 }
               }
             }
@@ -1131,7 +1131,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedSearchResponse_DomesticStock_DomesticStockSummary_SearchFacets"
+                  "$ref": "#/components/schemas/PaginatedSearchResponse_DomesticStock_DomesticStockSummary"
                 }
               }
             }
@@ -1475,7 +1475,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedSearchResponse_Mutualfund_MutualfundSummary_SearchFacets"
+                  "$ref": "#/components/schemas/PaginatedSearchResponse_Mutualfund_MutualfundSummary"
                 }
               }
             }
@@ -2478,7 +2478,7 @@
           }
         }
       },
-      "PaginatedSearchResponse_AssetBalance_AssetBalanceSummary_SearchFacets": {
+      "PaginatedSearchResponse_AssetBalance_AssetBalanceSummary": {
         "type": "object",
         "description": "検索・集計付きページネーションレスポンス。",
         "required": [
@@ -2553,64 +2553,14 @@
             }
           },
           "facets": {
-            "type": "object",
-            "description": "検索候補レスポンスの共通枠。",
-            "properties": {
-              "accounts": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchFacets"
               },
-              "funds": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "products": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "securities": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "year_months": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "years": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
+              {
+                "type": "null"
               }
-            }
+            ]
           },
           "page": {
             "type": "integer",
@@ -2649,7 +2599,7 @@
           }
         }
       },
-      "PaginatedSearchResponse_Dividend_DividendSummary_SearchFacets": {
+      "PaginatedSearchResponse_Dividend_DividendSummary": {
         "type": "object",
         "description": "検索・集計付きページネーションレスポンス。",
         "required": [
@@ -2732,64 +2682,14 @@
             }
           },
           "facets": {
-            "type": "object",
-            "description": "検索候補レスポンスの共通枠。",
-            "properties": {
-              "accounts": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchFacets"
               },
-              "funds": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "products": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "securities": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "year_months": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "years": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
+              {
+                "type": "null"
               }
-            }
+            ]
           },
           "page": {
             "type": "integer",
@@ -2828,7 +2728,7 @@
           }
         }
       },
-      "PaginatedSearchResponse_DomesticStock_DomesticStockSummary_SearchFacets": {
+      "PaginatedSearchResponse_DomesticStock_DomesticStockSummary": {
         "type": "object",
         "description": "検索・集計付きページネーションレスポンス。",
         "required": [
@@ -2922,64 +2822,14 @@
             }
           },
           "facets": {
-            "type": "object",
-            "description": "検索候補レスポンスの共通枠。",
-            "properties": {
-              "accounts": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchFacets"
               },
-              "funds": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "products": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "securities": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "year_months": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "years": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
+              {
+                "type": "null"
               }
-            }
+            ]
           },
           "page": {
             "type": "integer",
@@ -3018,7 +2868,7 @@
           }
         }
       },
-      "PaginatedSearchResponse_Mutualfund_MutualfundSummary_SearchFacets": {
+      "PaginatedSearchResponse_Mutualfund_MutualfundSummary": {
         "type": "object",
         "description": "検索・集計付きページネーションレスポンス。",
         "required": [
@@ -3119,64 +2969,14 @@
             }
           },
           "facets": {
-            "type": "object",
-            "description": "検索候補レスポンスの共通枠。",
-            "properties": {
-              "accounts": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchFacets"
               },
-              "funds": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "products": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "securities": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "year_months": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
-              },
-              "years": {
-                "type": [
-                  "array",
-                  "null"
-                ],
-                "items": {
-                  "$ref": "#/components/schemas/FacetOption"
-                }
+              {
+                "type": "null"
               }
-            }
+            ]
           },
           "page": {
             "type": "integer",

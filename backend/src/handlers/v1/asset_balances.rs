@@ -6,7 +6,7 @@ use crate::{
             AssetBalance, AssetBalanceSearchQueryParams, AssetBalanceSummary,
             BulkCreateAssetBalanceRequest,
         },
-        common::{BulkCreateResponse, MessageResponse, PaginatedSearchResponse, SearchFacets},
+        common::{BulkCreateResponse, MessageResponse, PaginatedSearchResponse},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
     },
     services::{asset_balance as asset_balance_service, asset_balance::AssetBalanceDomain},
@@ -33,7 +33,7 @@ use axum::{
         ("include_facets" = Option<bool>, Query, description = "検索候補 facets を含めるか"),
     ),
     responses(
-        (status = 200, description = "保有銘柄の一覧を返す", body = PaginatedSearchResponse<AssetBalance, AssetBalanceSummary, SearchFacets>),
+        (status = 200, description = "保有銘柄の一覧を返す", body = PaginatedSearchResponse<AssetBalance, AssetBalanceSummary>),
         (status = 400, description = "検索パラメータが不正", body = ErrorResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
         (status = 429, description = "レート制限を超過", body = ErrorResponse),

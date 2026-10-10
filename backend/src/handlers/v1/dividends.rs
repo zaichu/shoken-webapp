@@ -2,7 +2,7 @@ use crate::{
     errors::{ApiError, ErrorResponse},
     extractors::{auth::AuthenticatedUser, validated_json::ValidatedJson},
     models::{
-        common::{MessageResponse, PaginatedSearchResponse, SearchFacets},
+        common::{MessageResponse, PaginatedSearchResponse},
         csv_import::{CsvPreviewResponse, CsvUploadForm, CsvUploadResponse},
         dividend::{Dividend, DividendSearchQueryParams, DividendSummary},
         dividend_cache::{DividendPerShareBatchRequest, DividendPerShareBatchResponse},
@@ -37,7 +37,7 @@ use axum::{
         ("include_facets" = Option<bool>, Query, description = "検索候補 facets を含めるか"),
     ),
     responses(
-        (status = 200, description = "配当金の一覧を返す", body = PaginatedSearchResponse<Dividend, DividendSummary, SearchFacets>),
+        (status = 200, description = "配当金の一覧を返す", body = PaginatedSearchResponse<Dividend, DividendSummary>),
         (status = 400, description = "検索パラメータが不正", body = ErrorResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
         (status = 429, description = "レート制限を超過", body = ErrorResponse),
