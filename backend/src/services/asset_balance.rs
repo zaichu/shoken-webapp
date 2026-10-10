@@ -10,7 +10,7 @@ use crate::services::csv::import::{CsvImport, validate_csv_rows};
 use crate::services::csv::pipeline::parse_csv_with_config;
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
-    CsvCells, CsvRowView, RowNumber, check_max_chars, parse_number, parse_optional_string,
+    CsvRowView, RowNumber, check_max_chars, parse_number, parse_optional_string,
 };
 use crate::services::domain::bulk::{RowLimit, bulk_replace, user_ids_for_bulk_insert};
 use crate::services::domain::facets::{FacetSlot, FacetSpec};

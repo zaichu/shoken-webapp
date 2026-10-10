@@ -985,20 +985,6 @@ impl ReceiptsTab {
         }
     }
 
-    pub(crate) fn parse_csv_row(self, value: serde_json::Value) -> CsvPreviewRow {
-        match self {
-            Self::Dividend => {
-                CsvPreviewRow::Dividend(serde_json::from_value(value).unwrap_or_default())
-            }
-            Self::DomesticStock => {
-                CsvPreviewRow::DomesticStock(serde_json::from_value(value).unwrap_or_default())
-            }
-            Self::MutualFund => {
-                CsvPreviewRow::MutualFund(serde_json::from_value(value).unwrap_or_default())
-            }
-        }
-    }
-
     pub(crate) async fn fetch_list(self) -> Result<ReceiptTabData, ApiError> {
         match self {
             // MutualfundSummary は DomesticStockSummary の別名なので

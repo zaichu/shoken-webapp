@@ -1,36 +1,31 @@
 use super::*;
-use crate::api::dto::CsvRowError;
 use crate::features::receipts::ReceiptRow;
 use crate::support::row::Row;
 use rust_decimal_macros::dec;
 
-fn preview_response(rows: Vec<serde_json::Value>) -> CsvPreviewResponse {
-    CsvPreviewResponse {
-        total_rows: 2,
-        valid_rows: 1,
-        errors: vec![CsvRowError {
-            row: 2,
-            message: "入金日の形式が不正です".to_string(),
-        }],
-        rows,
-    }
-}
-
 #[test]
-fn preview_response_maps_to_typed_rows_per_tab() {
-    let dividend = preview_response(vec![serde_json::json!({
-        "settlement_date": "2024-03-01",
-        "product": "特定口座",
-        "account": "SBI証券",
-        "security_code": "7203",
-        "security_name": "トヨタ自動車",
-        "unit_price": 30.0,
-        "shares": 100,
-        "dividends_before_tax": 3000,
-        "taxes": 609,
-        "net_amount_received": 2391
-    })]);
-    let preview = to_preview(ReceiptsTab::Dividend, dividend);
+fn preview_response_deserializes_wire_rows_per_tab() {
+    // backend は Create*Request を直列化して rows に入れる。
+    // ワイヤー形そのままの JSON がタブ固有の行型に落ちることを固定する
+    let dividend: CsvPreviewResponse<DividendCsvRow> = serde_json::from_value(serde_json::json!({
+        "total_rows": 2,
+        "valid_rows": 1,
+        "errors": [{"row": 2, "message": "入金日の形式が不正です"}],
+        "rows": [{
+            "settlement_date": "2024-03-01",
+            "product": "特定口座",
+            "account": "SBI証券",
+            "security_code": "7203",
+            "security_name": "トヨタ自動車",
+            "unit_price": 30.0,
+            "shares": 100,
+            "dividends_before_tax": 3000,
+            "taxes": 609,
+            "net_amount_received": 2391
+        }]
+    }))
+    .expect("dividend preview");
+    let preview = wrap_rows(dividend, CsvPreviewRow::Dividend);
     assert_eq!((preview.total_rows, preview.valid_rows), (2, 1));
     assert_eq!(preview.errors.len(), 1);
     let CsvPreviewRow::Dividend(row) = &preview.rows[0] else {
@@ -40,43 +35,57 @@ fn preview_response_maps_to_typed_rows_per_tab() {
     assert_eq!(row.unit_price, dec!(30.0));
     assert_eq!(row.shares, dec!(100));
 
-    let domestic = preview_response(vec![serde_json::json!({
-        "trade_date": "2024-01-15",
-        "settlement_date": "2024-01-17",
-        "security_code": "1301",
-        "security_name": "極洋",
-        "account": "特定",
-        "shares": 100,
-        "asked_price": 1500.5,
-        "proceeds": 150050,
-        "purchase_price": 1400.25,
-        "realized_profit_and_loss": 10000.1,
-        "taxes": 2031.5,
-        "realized_profit_and_loss_after_tax": 7968.6
-    })]);
-    let preview = to_preview(ReceiptsTab::DomesticStock, domestic);
+    let domestic: CsvPreviewResponse<DomesticStockCsvRow> =
+        serde_json::from_value(serde_json::json!({
+            "total_rows": 1,
+            "valid_rows": 1,
+            "errors": [],
+            "rows": [{
+                "trade_date": "2024-01-15",
+                "settlement_date": "2024-01-17",
+                "security_code": "1301",
+                "security_name": "極洋",
+                "account": "特定",
+                "shares": 100,
+                "asked_price": 1500.5,
+                "proceeds": 150050,
+                "purchase_price": 1400.25,
+                "realized_profit_and_loss": 10000.1,
+                "taxes": 2031.5,
+                "realized_profit_and_loss_after_tax": 7968.6
+            }]
+        }))
+        .expect("domestic stock preview");
+    let preview = wrap_rows(domestic, CsvPreviewRow::DomesticStock);
     let CsvPreviewRow::DomesticStock(row) = &preview.rows[0] else {
         panic!("domestic stock row expected")
     };
     assert_eq!(row.security_code, "1301");
     assert_eq!(row.proceeds, dec!(150050));
 
-    let mutualfund = preview_response(vec![serde_json::json!({
-        "trade_date": "2024-01-15",
-        "settlement_date": "2024-01-17",
-        "fund_name": "eMAXIS Slim 全世界株式",
-        "dividends": "再投資型",
-        "account": "楽天証券",
-        "shares": 10000,
-        "exchange_rate": 150.25,
-        "cancellation_unit_price_yen": 12345,
-        "cancellation_amount_yen": 120000,
-        "average_acquisition_price_yen": 11000.5,
-        "realized_profit_and_loss": 12000,
-        "taxes": 2437,
-        "realized_profit_and_loss_after_tax": 9563
-    })]);
-    let preview = to_preview(ReceiptsTab::MutualFund, mutualfund);
+    let mutualfund: CsvPreviewResponse<MutualfundCsvRow> =
+        serde_json::from_value(serde_json::json!({
+            "total_rows": 1,
+            "valid_rows": 1,
+            "errors": [],
+            "rows": [{
+                "trade_date": "2024-01-15",
+                "settlement_date": "2024-01-17",
+                "fund_name": "eMAXIS Slim 全世界株式",
+                "dividends": "再投資型",
+                "account": "楽天証券",
+                "shares": 10000,
+                "exchange_rate": 150.25,
+                "cancellation_unit_price_yen": 12345,
+                "cancellation_amount_yen": 120000,
+                "average_acquisition_price_yen": 11000.5,
+                "realized_profit_and_loss": 12000,
+                "taxes": 2437,
+                "realized_profit_and_loss_after_tax": 9563
+            }]
+        }))
+        .expect("mutualfund preview");
+    let preview = wrap_rows(mutualfund, CsvPreviewRow::MutualFund);
     let CsvPreviewRow::MutualFund(row) = &preview.rows[0] else {
         panic!("mutualfund row expected")
     };
@@ -86,18 +95,15 @@ fn preview_response_maps_to_typed_rows_per_tab() {
 }
 
 #[test]
-fn preview_row_with_missing_fields_falls_back_to_defaults() {
-    let response = preview_response(vec![
-        serde_json::Value::Null,
-        serde_json::json!({"security_name": "トヨタ自動車"}),
-    ]);
-    let preview = to_preview(ReceiptsTab::Dividend, response);
-    assert_eq!(preview.rows.len(), 2);
-    let CsvPreviewRow::Dividend(row) = &preview.rows[1] else {
-        panic!("dividend row expected")
-    };
+fn preview_row_with_missing_fields_uses_defaults() {
+    // フィールド欠落は serde(default) で穴埋めする。行自体がオブジェクトでない場合は
+    // レスポンス全体がパースエラーになる
+    let row: DividendCsvRow =
+        serde_json::from_value(serde_json::json!({"security_name": "トヨタ自動車"}))
+            .expect("lenient row");
     assert_eq!(row.security_name, "トヨタ自動車");
     assert_eq!(row.unit_price, dec!(0));
+    assert!(serde_json::from_value::<DividendCsvRow>(serde_json::Value::Null).is_err());
 }
 
 #[test]
@@ -204,50 +210,20 @@ proptest::proptest! {
     }
 
     #[test]
-    fn prop_to_preview_preserves_row_count(
-        rows in proptest::collection::vec(proptest::bool::ANY, 0..8usize),
-    ) {
-        // bool はどの行型にもデシリアライズできずデフォルト行になる
-        let row_count = rows.len();
+    fn prop_wrap_rows_preserves_row_count(row_count in 0..8usize) {
         let response = CsvPreviewResponse {
             total_rows: row_count,
             valid_rows: 0,
             errors: vec![],
-            rows: rows.into_iter().map(serde_json::Value::Bool).collect(),
+            rows: vec![DividendCsvRow::default(); row_count],
         };
-        for tab in [
-            ReceiptsTab::Dividend,
-            ReceiptsTab::DomesticStock,
-            ReceiptsTab::MutualFund,
-        ] {
-            let preview = to_preview(tab, response.clone());
-            proptest::prop_assert_eq!(preview.rows.len(), row_count);
-            match tab {
-                ReceiptsTab::Dividend => {
-                    for row in &preview.rows {
-                        proptest::prop_assert_eq!(
-                            row,
-                            &CsvPreviewRow::Dividend(DividendCsvRow::default())
-                        );
-                    }
-                }
-                ReceiptsTab::DomesticStock => {
-                    for row in &preview.rows {
-                        proptest::prop_assert_eq!(
-                            row,
-                            &CsvPreviewRow::DomesticStock(DomesticStockCsvRow::default())
-                        );
-                    }
-                }
-                ReceiptsTab::MutualFund => {
-                    for row in &preview.rows {
-                        proptest::prop_assert_eq!(
-                            row,
-                            &CsvPreviewRow::MutualFund(MutualfundCsvRow::default())
-                        );
-                    }
-                }
-            }
+        let preview = wrap_rows(response, CsvPreviewRow::Dividend);
+        proptest::prop_assert_eq!(preview.rows.len(), row_count);
+        for row in &preview.rows {
+            proptest::prop_assert_eq!(
+                row,
+                &CsvPreviewRow::Dividend(DividendCsvRow::default())
+            );
         }
     }
 }

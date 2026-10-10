@@ -8,7 +8,7 @@ use crate::models::mutualfund::{
 use crate::services::csv::import::{CsvImport, validate_csv_rows};
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
-    CsvCells, CsvRowView, RowNumber, check_max_chars, parse_required_account, parse_required_date,
+    CsvRowView, RowNumber, check_max_chars, parse_required_account, parse_required_date,
     parse_required_number, parse_required_string,
 };
 use crate::services::domain::bulk::{RowLimit, bulk_insert, user_ids_for_bulk_insert};
@@ -249,7 +249,7 @@ mod tests {
         );
         let preview = MutualfundDomain::preview_csv(csv.as_bytes()).unwrap();
         assert_eq!(
-            (preview.valid_rows, preview.rows[0]["dividends"].is_null()),
+            (preview.valid_rows, preview.rows[0].dividends.is_none()),
             (1, true)
         );
     }

@@ -235,14 +235,13 @@ impl AssetBalanceCsvStore {
     pub(crate) fn apply_preview_result(
         &self,
         generation: Generation,
-        result: Result<CsvPreviewResponse, ApiError>,
+        result: Result<CsvPreviewResponse<AssetBalanceCsvRow>, ApiError>,
     ) -> Option<Vec<String>> {
         if !self.session.is_current(generation) {
             return None;
         }
         match result {
-            Ok(response) => {
-                let preview = csv::to_preview(response);
+            Ok(preview) => {
                 let codes = unique_sorted_codes(
                     &preview
                         .rows

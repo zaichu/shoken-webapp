@@ -6,10 +6,18 @@ use crate::features::receipts::kind::{
 };
 use rust_decimal::Decimal;
 
+fn default_preview_row(tab: ReceiptsTab) -> CsvPreviewRow {
+    match tab {
+        ReceiptsTab::Dividend => CsvPreviewRow::Dividend(DividendCsvRow::default()),
+        ReceiptsTab::DomesticStock => CsvPreviewRow::DomesticStock(DomesticStockCsvRow::default()),
+        ReceiptsTab::MutualFund => CsvPreviewRow::MutualFund(MutualfundCsvRow::default()),
+    }
+}
+
 #[test]
 fn tab_columns_and_card_fields_match_row_cells() {
     for tab in ReceiptsTab::ALL {
-        let row = ReceiptRow::Preview(tab.parse_csv_row(serde_json::Value::Null));
+        let row = ReceiptRow::Preview(default_preview_row(tab));
         let count = row.cells().len();
         assert_eq!(tab.columns().len(), count, "{tab:?}");
         let fields = tab.card_fields();
@@ -50,23 +58,28 @@ fn tab_filters_keep_distinct_amount_and_category_rules() {
 }
 
 #[test]
-fn invalid_csv_rows_keep_tab_specific_defaults() {
+fn csv_preview_rows_default_missing_fields_and_fail_on_malformed_rows() {
+    // 欠落フィールドは serde(default) で穴埋めする
+    assert_eq!(
+        serde_json::from_value::<DividendCsvRow>(serde_json::json!({})).unwrap(),
+        DividendCsvRow::default()
+    );
+    assert_eq!(
+        serde_json::from_value::<DomesticStockCsvRow>(serde_json::json!({})).unwrap(),
+        DomesticStockCsvRow::default()
+    );
+    assert_eq!(
+        serde_json::from_value::<MutualfundCsvRow>(serde_json::json!({})).unwrap(),
+        MutualfundCsvRow::default()
+    );
+    // null や型の合わない行はパース失敗になり、デフォルト行に化けない
     for value in [
         serde_json::Value::Null,
         serde_json::json!({"shares": "invalid"}),
     ] {
-        assert_eq!(
-            ReceiptsTab::Dividend.parse_csv_row(value.clone()),
-            CsvPreviewRow::Dividend(DividendCsvRow::default())
-        );
-        assert_eq!(
-            ReceiptsTab::DomesticStock.parse_csv_row(value.clone()),
-            CsvPreviewRow::DomesticStock(DomesticStockCsvRow::default())
-        );
-        assert_eq!(
-            ReceiptsTab::MutualFund.parse_csv_row(value),
-            CsvPreviewRow::MutualFund(MutualfundCsvRow::default())
-        );
+        assert!(serde_json::from_value::<DividendCsvRow>(value.clone()).is_err());
+        assert!(serde_json::from_value::<DomesticStockCsvRow>(value.clone()).is_err());
+        assert!(serde_json::from_value::<MutualfundCsvRow>(value).is_err());
     }
 }
 

@@ -4,7 +4,6 @@ use crate::features::receipts::filter::ReceiptSearch;
 use crate::features::receipts::store::{TabCacheEntry, mark_tab_for_refresh, tab_settled};
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
-use crate::support::csv_flow::CsvPreview;
 use crate::support::csv_flow::CsvTabState;
 use crate::support::row::Row;
 use leptos::prelude::*;
@@ -214,8 +213,8 @@ fn preview_result_applies_only_in_current_generation() {
             valid_rows: 2,
             errors: vec![],
             rows: vec![
-                serde_json::json!({"security_name": "トヨタ自動車", "shares": 100}),
-                serde_json::json!({"security_name": "三菱UFJ", "shares": 200}),
+                CsvPreviewRow::Dividend(Default::default()),
+                CsvPreviewRow::Dividend(Default::default()),
             ],
         };
         store.apply_preview_result(generation, tab, Ok(response));
@@ -344,7 +343,7 @@ fn stale_generation_results_are_dropped() {
                 total_rows: 1,
                 valid_rows: 1,
                 errors: vec![],
-                rows: vec![serde_json::json!({})],
+                rows: vec![CsvPreviewRow::Dividend(Default::default())],
             }),
         );
         assert!(!store.apply_upload_result(generation, tab, Ok(upload_response(1))));
@@ -644,7 +643,7 @@ fn has_csv_preview_requires_non_empty_preview_rows() {
                 (
                     (generation, tab),
                     CsvTabState {
-                        preview: Some(CsvPreview {
+                        preview: Some(crate::api::dto::CsvPreviewResponse {
                             rows: vec![crate::features::receipts::csv::CsvPreviewRow::Dividend(
                                 crate::features::receipts::csv::DividendCsvRow::default(),
                             )],
@@ -656,7 +655,7 @@ fn has_csv_preview_requires_non_empty_preview_rows() {
                 (
                     (generation, ReceiptsTab::DomesticStock),
                     CsvTabState {
-                        preview: Some(CsvPreview::default()),
+                        preview: Some(crate::api::dto::CsvPreviewResponse::default()),
                         ..Default::default()
                     },
                 ),
@@ -834,7 +833,7 @@ fn display_rows_for_prefers_preview_only_when_rows_exist() {
                 (
                     (generation, tab),
                     CsvTabState {
-                        preview: Some(CsvPreview {
+                        preview: Some(crate::api::dto::CsvPreviewResponse {
                             rows: vec![preview_row.clone()],
                             ..Default::default()
                         }),
@@ -844,7 +843,7 @@ fn display_rows_for_prefers_preview_only_when_rows_exist() {
                 (
                     (generation, ReceiptsTab::DomesticStock),
                     CsvTabState {
-                        preview: Some(CsvPreview::default()),
+                        preview: Some(crate::api::dto::CsvPreviewResponse::default()),
                         ..Default::default()
                     },
                 ),

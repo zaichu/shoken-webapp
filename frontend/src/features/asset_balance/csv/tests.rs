@@ -1,35 +1,31 @@
 use super::*;
-use crate::api::dto::{CsvPreviewResponse, CsvRowError};
+use crate::api::dto::CsvPreviewResponse;
 use crate::support::row::Row;
 use rust_decimal_macros::dec;
 
-fn preview_response(rows: Vec<serde_json::Value>) -> CsvPreviewResponse {
-    CsvPreviewResponse {
-        total_rows: 2,
-        valid_rows: 1,
-        errors: vec![CsvRowError {
-            row: 2,
-            message: "保有数量［株］の形式が不正です".to_string(),
-        }],
-        rows,
-    }
-}
-
 #[test]
-fn preview_response_maps_to_asset_balance_rows() {
-    let response = preview_response(vec![serde_json::json!({
-        "security_code": "7203",
-        "security_name": "トヨタ自動車",
-        "shares": 100,
-        "executing_shares": 0,
-        "average_purchase_price": 2500,
-        "total_purchase_amount": 250000,
-        "current_price": 2600,
-        "daily_change": 50,
-        "market_value": 260000,
-        "profit_loss_rate": 4.0
-    })]);
-    let preview = to_preview(response);
+fn preview_response_deserializes_wire_rows() {
+    // backend は CreateAssetBalanceRequest を直列化して rows に入れる。
+    // ワイヤー形そのままの JSON が CsvPreviewResponse<AssetBalanceCsvRow> に落ちることを固定する
+    let preview: CsvPreviewResponse<AssetBalanceCsvRow> =
+        serde_json::from_value(serde_json::json!({
+            "total_rows": 2,
+            "valid_rows": 1,
+            "errors": [{"row": 2, "message": "保有数量［株］の形式が不正です"}],
+            "rows": [{
+                "security_code": "7203",
+                "security_name": "トヨタ自動車",
+                "shares": 100,
+                "executing_shares": 0,
+                "average_purchase_price": 2500,
+                "total_purchase_amount": 250000,
+                "current_price": 2600,
+                "daily_change": 50,
+                "market_value": 260000,
+                "profit_loss_rate": 4.0
+            }]
+        }))
+        .expect("preview response");
     assert_eq!((preview.total_rows, preview.valid_rows), (2, 1));
     assert_eq!(preview.errors.len(), 1);
     let row = &preview.rows[0];
@@ -43,16 +39,15 @@ fn preview_response_maps_to_asset_balance_rows() {
 }
 
 #[test]
-fn preview_row_with_missing_fields_falls_back() {
-    let response = preview_response(vec![
-        serde_json::Value::Null,
-        serde_json::json!({"security_name": "ソニーグループ"}),
-    ]);
-    let preview = to_preview(response);
-    assert_eq!(preview.rows.len(), 2);
-    assert_eq!(preview.rows[0], AssetBalanceCsvRow::default());
-    assert_eq!(preview.rows[1].security_name, "ソニーグループ");
-    assert_eq!(preview.rows[1].shares, dec!(0));
+fn preview_row_with_missing_fields_uses_defaults() {
+    // フィールド欠落は serde(default) で穴埋めする。行自体が null など
+    // オブジェクトでない場合はレスポンス全体がパースエラーになる
+    let row: AssetBalanceCsvRow =
+        serde_json::from_value(serde_json::json!({"security_name": "ソニーグループ"}))
+            .expect("lenient row");
+    assert_eq!(row.security_name, "ソニーグループ");
+    assert_eq!(row.shares, dec!(0));
+    assert!(serde_json::from_value::<AssetBalanceCsvRow>(serde_json::Value::Null).is_err());
 }
 
 #[test]

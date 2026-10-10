@@ -26,20 +26,12 @@ where
     (items, errors)
 }
 
-pub fn build_preview_response<T>(items: &[T], errors: Vec<CsvRowError>) -> CsvPreviewResponse
-where
-    T: serde::Serialize,
-{
-    let rows = items
-        .iter()
-        .map(|item| serde_json::to_value(item).unwrap_or(serde_json::Value::Null))
-        .collect();
-
+pub fn build_preview_response<T>(items: Vec<T>, errors: Vec<CsvRowError>) -> CsvPreviewResponse<T> {
     CsvPreviewResponse {
         total_rows: items.len() + errors.len(),
         valid_rows: items.len(),
         errors,
-        rows,
+        rows: items,
     }
 }
 
@@ -60,14 +52,13 @@ pub fn build_csv_preview<T, F>(
     bytes: &[u8],
     config: &CsvParserConfig,
     transform_rows: F,
-) -> Result<CsvPreviewResponse, ApiError>
+) -> Result<CsvPreviewResponse<T>, ApiError>
 where
-    T: serde::Serialize,
     F: FnOnce(&CsvTable) -> (Vec<T>, Vec<CsvRowError>),
 {
     let table = parse_csv_with_config(bytes, config)?;
     let (items, errors) = transform_rows(&table);
-    Ok(build_preview_response(&items, errors))
+    Ok(build_preview_response(items, errors))
 }
 
 /// CSV bytes をパース → 行 transform → bulk_create → upload response 化を共通化する
@@ -102,7 +93,7 @@ pub trait CsvImport: Send + Sync + 'static {
     ) -> impl Future<Output = Result<BulkCreateResponse, ApiError>> + Send;
 
     /// CSV バイト列をパースして DB 書き込みなしのプレビューを返す
-    fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse, ApiError> {
+    fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse<Self::Row>, ApiError> {
         build_csv_preview(bytes, &Self::CSV_CONFIG, Self::transform_rows)
     }
 
@@ -128,7 +119,6 @@ pub trait CsvImport: Send + Sync + 'static {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::csv::util::CsvCells;
 
     fn strings(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| (*value).to_string()).collect()
@@ -295,7 +285,7 @@ mod tests {
             row: 3,
             message: "error".to_string(),
         }];
-        let response = build_preview_response(&items, errors);
+        let response = build_preview_response(items, errors);
         assert_eq!(
             (
                 response.total_rows,
@@ -307,8 +297,7 @@ mod tests {
         );
         assert_eq!(response.errors[0].row, 3);
 
-        let empty: Vec<String> = vec![];
-        let response = build_preview_response(&empty, vec![]);
+        let response = build_preview_response(Vec::<String>::new(), vec![]);
         assert_eq!((response.total_rows, response.valid_rows), (0, 0));
     }
 
