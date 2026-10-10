@@ -29,7 +29,7 @@ pub(crate) fn ReceiptMainColumn(store: ReceiptsStore, tab: ReceiptsTab) -> impl 
         // 裏再取得・CSV の失敗は一覧を消さずに知らせる。パネルが畳まれても見えるよう表の上に出す
         {move || {
             let Some(message) = alert_store
-                .csv_state(tab)
+                .csv_meta(tab)
                 .error
                 .or_else(|| alert_store.refresh_error(tab))
             else {

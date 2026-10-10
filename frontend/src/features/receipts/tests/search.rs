@@ -22,19 +22,16 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
             utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::new()),
-            cache: RwSignal::new(HashMap::from([(
+            tabs: RwSignal::new(HashMap::from([(
                 (Generation::new(0), ReceiptsTab::Dividend),
                 TabState::Ready(ReceiptTabData {
                     rows: dividends(),
                     summary: None,
                     truncated: false,
-                }),
+                })
+                .into(),
             )])),
             fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
-            csv: RwSignal::new(HashMap::new()),
-            csv_files: RwSignal::new(HashMap::new()),
-            refresh_error: RwSignal::new(HashMap::new()),
-            fetch_rev: RwSignal::new(HashMap::new()),
         };
         assert_eq!(
             leptos::prelude::untrack(|| {

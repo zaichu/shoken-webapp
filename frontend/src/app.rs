@@ -1,8 +1,8 @@
-use crate::features::asset_balance::AssetBalancePage;
-use crate::features::home::HomePage;
+use crate::features::asset_balance::{AssetBalancePage, AssetBalanceState};
+use crate::features::home::{HomeOverviewData, HomePage};
 use crate::features::login::LoginPage;
 use crate::features::not_found::NotFoundPage;
-use crate::features::receipts::ReceiptsPage;
+use crate::features::receipts::{ReceiptsPage, ReceiptsStore};
 use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
 use crate::ui::site::{SiteFooter, SiteHeader};
@@ -120,6 +120,46 @@ fn focus_main(window: &web_sys::Window) {
 #[derive(Clone)]
 pub(crate) struct AppOwner(pub Owner);
 
+// ページごとの遅延状態スロット。ページ遷移でビューが作り直されても取得済みデータを
+// 失わないよう、各ページは初回利用時に自分のスロットへ構築結果を置く。
+// Owner は Send ではないため LocalStorage のシグナルを使う
+#[derive(Clone)]
+pub(crate) struct PageStates {
+    // テストでは use_receipts_data が都度新しいストアを返すため、このスロットは読まれない
+    #[cfg_attr(test, allow(dead_code))]
+    pub(crate) receipts: RwSignal<Option<(Owner, ReceiptsStore)>, LocalStorage>,
+    pub(crate) asset_balance: RwSignal<Option<(Owner, AssetBalanceState)>, LocalStorage>,
+    pub(crate) home_overview: RwSignal<Option<(Owner, HomeOverviewData)>, LocalStorage>,
+}
+
+impl Default for PageStates {
+    fn default() -> Self {
+        Self {
+            receipts: RwSignal::new_local(None),
+            asset_balance: RwSignal::new_local(None),
+            home_overview: RwSignal::new_local(None),
+        }
+    }
+}
+
+// 空のスロットを AppOwner の子オーナーで構築して保持する共通手順。
+// Owner::new() は現オーナーの子として登録されページと一緒に破棄されるため、AppOwner の子を使う
+pub(crate) fn page_state<T: Copy + 'static>(
+    slot: RwSignal<Option<(Owner, T)>, LocalStorage>,
+    build: impl FnOnce() -> T,
+) -> T {
+    if let Some((_, state)) = slot.get_untracked() {
+        return state;
+    }
+    let owner = use_context::<AppOwner>()
+        .map(|app| app.0)
+        .unwrap_or_default()
+        .child();
+    let state = owner.with(build);
+    slot.set(Some((owner, state)));
+    state
+}
+
 fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
     let Some(window) = web_sys::window() else {
         return;
@@ -142,6 +182,7 @@ pub fn App() -> impl IntoView {
     let path = RwSignal::new(current_location());
     provide_context(CurrentPath(path));
     provide_context(AppOwner(Owner::current().unwrap_or_default()));
+    provide_context(PageStates::default());
     let route = Memo::new(move |_| route_for_path(pathname_of(&path.get())));
 
     // 同一オリジンのリンクをクリック遷移に変え、wasm とセッション確認のやり直しを省く

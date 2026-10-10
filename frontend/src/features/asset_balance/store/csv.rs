@@ -8,7 +8,7 @@ use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalance
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::{DividendMaps, unique_sorted_codes};
 use crate::session::{Generation, SessionStore};
-use crate::support::csv_flow::CsvTabState;
+use crate::support::csv_flow::{CsvTabMeta, CsvTabState};
 use crate::support::row::Row;
 use leptos::prelude::*;
 
@@ -51,8 +51,21 @@ impl AssetBalanceCsvStore {
         })
     }
 
+    // 共通 CSV UI が読むのはメタ情報だけ。プレビュー行の複製を避ける
+    pub(crate) fn csv_meta(&self) -> CsvTabMeta {
+        let generation = self.session.generation.get();
+        self.csv.with(|slot| match slot {
+            Some((cached, state)) if *cached == generation => state.meta(),
+            _ => CsvTabMeta::default(),
+        })
+    }
+
     pub(crate) fn csv_busy(&self) -> bool {
-        self.csv_state().busy()
+        let generation = self.session.generation.get();
+        self.csv.with(|slot| match slot {
+            Some((cached, state)) if *cached == generation => state.busy(),
+            _ => false,
+        })
     }
 
     // ファイル入力を押せない間は空状態 CTA 経由の選択も効かないので、両者は同じ条件にする
@@ -311,7 +324,7 @@ pub(crate) fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<A
         .unwrap_or_default()
 }
 
-pub(crate) fn csv_status_text(state: &CsvTabState<AssetBalanceCsvRow>) -> Option<&'static str> {
+pub(crate) fn csv_status_text(state: &CsvTabMeta) -> Option<&'static str> {
     if state.saving {
         Some("データを保存しています...")
     } else if state.deleting {

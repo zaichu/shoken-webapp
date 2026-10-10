@@ -365,10 +365,10 @@ fn csv_status_text_follows_busy_flags() {
             "deleting" => state.deleting = true,
             _ => state.previewing = true,
         }
-        assert_eq!(csv_status_text(&state), Some(expected));
+        assert_eq!(csv_status_text(&state.meta()), Some(expected));
     }
     let state = CsvTabState::<AssetBalanceCsvRow>::default();
-    assert_eq!(csv_status_text(&state), None);
+    assert_eq!(csv_status_text(&state.meta()), None);
 }
 
 #[test]
