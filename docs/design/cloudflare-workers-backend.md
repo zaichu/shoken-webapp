@@ -2,6 +2,10 @@
 
 対象 Issue: #1210。実装は含まない。結論と根拠だけを書く。
 
+> 移行は完了済み（#1231 で Fly 経路を撤去。切り戻し経路は存在しない）。
+> 本文は移行当時の検討記録で、Fly.io・sqlx・`oauth2` クレートなど旧構成の記述が残る。
+> 現行構成・運用は `docs/architecture.md` と `docs/runbook.md` を参照。
+
 ## 1. 今の構成
 
 - Rust/Axum 0.8.9 の単一バイナリ (`backend/`)。`tokio::main` + `TcpListener` + `axum::serve` で起動
