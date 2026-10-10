@@ -8,8 +8,8 @@ set -euo pipefail
 
 BACKEND_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$BACKEND_DIR"
+source scripts/test-worker-common.sh
 
-WORKER_PORT="${WORKER_PORT:-8787}"
 MOCK_PORT="${MOCK_PORT:-8788}"
 TMP="$(mktemp -d)"
 JAR="$TMP/cookies.txt"
@@ -18,33 +18,21 @@ CLAIMS="$TMP/claims.json"
 MOCK_LOG="$TMP/mock.log"
 WRANGLER_LOG="$TMP/wrangler.log"
 MOCK_PID=""
-WRANGLER_PID=""
 
 cleanup() {
   [[ -n "$MOCK_PID" ]] && kill "$MOCK_PID" 2>/dev/null || true
-  [[ -n "$WRANGLER_PID" ]] && kill "$WRANGLER_PID" 2>/dev/null || true
+  stop_wrangler
 }
 trap cleanup EXIT
-
-fail() { echo "FAIL: $*" >&2; exit 1; }
 
 CLIENT_ID="$(grep -oP '^GOOGLE_CLIENT_ID=\K.*' .dev.vars | tr -d '"')" \
   || fail ".dev.vars に GOOGLE_CLIENT_ID がありません"
 python3 scripts/mock_google_oauth.py "$MOCK_PORT" "$CLAIMS" "$MOCK_LOG" &
 MOCK_PID=$!
-npx wrangler dev --env dev --port "$WORKER_PORT" \
+start_wrangler \
   --var "GOOGLE_TOKEN_URL:http://127.0.0.1:$MOCK_PORT/token" \
-  --var "GOOGLE_TOKENINFO_URL:http://127.0.0.1:$MOCK_PORT/tokeninfo" \
-  >"$WRANGLER_LOG" 2>&1 &
-WRANGLER_PID=$!
-
-echo "wrangler dev 起動待ち..."
-for _ in $(seq 1 180); do
-  if curl -sf "http://127.0.0.1:$WORKER_PORT/health" >/dev/null 2>&1; then break; fi
-  sleep 1
-done
-curl -sf "http://127.0.0.1:$WORKER_PORT/health" >/dev/null \
-  || fail "Worker が起動しませんでした: $WRANGLER_LOG を参照"
+  --var "GOOGLE_TOKENINFO_URL:http://127.0.0.1:$MOCK_PORT/tokeninfo"
+wait_for_worker || fail "Worker が起動しませんでした"
 
 # 1. authorize: 303 + state/nonce/PKCE Cookie が返ること
 STATUS=$(curl -s -c "$JAR" -o /dev/null -w "%{http_code}" \

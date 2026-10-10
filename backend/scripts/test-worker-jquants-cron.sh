@@ -9,8 +9,8 @@ set -euo pipefail
 
 BACKEND_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$BACKEND_DIR"
+source scripts/test-worker-common.sh
 
-WORKER_PORT="${WORKER_PORT:-8787}"
 MOCK_PORT="${MOCK_PORT:-8789}"
 TMP="$(mktemp -d)"
 MOCK_LOG="$TMP/mock.log"
@@ -18,44 +18,20 @@ WRANGLER_LOG="$TMP/wrangler.log"
 JAR="$TMP/cookies.txt"
 BODY="$TMP/body.json"
 MOCK_PID=""
-WRANGLER_PID=""
-COMPOSE_FILE="$BACKEND_DIR/docker-compose.yml"
 
 cleanup() {
   [[ -n "$MOCK_PID" ]] && kill "$MOCK_PID" 2>/dev/null || true
-  # setsid で新セッション化しているため、プロセスグループごと(workerd まで)止める
-  [[ -n "$WRANGLER_PID" ]] && kill -- -"$WRANGLER_PID" 2>/dev/null || true
+  stop_wrangler
 }
 trap cleanup EXIT
 
-fail() { echo "FAIL: $*" >&2; exit 1; }
-
-psql() {
-  docker compose -f "$COMPOSE_FILE" exec -T postgres \
-    psql -tA -U user -d shoken_db -c "$1"
-}
-
 python3 scripts/mock_jquants.py "$MOCK_PORT" "$MOCK_LOG" &
 MOCK_PID=$!
-setsid npx wrangler dev --env dev --port "$WORKER_PORT" \
-  --var "JQUANTS_BASE_URL:http://127.0.0.1:$MOCK_PORT/v2/fins/summary" \
-  >"$WRANGLER_LOG" 2>&1 &
-WRANGLER_PID=$!
+start_wrangler --var "JQUANTS_BASE_URL:http://127.0.0.1:$MOCK_PORT/v2/fins/summary"
+wait_for_worker || fail "Worker が起動しませんでした"
 
-echo "wrangler dev 起動待ち..."
-for _ in $(seq 1 180); do
-  if curl -sf "http://127.0.0.1:$WORKER_PORT/health" >/dev/null 2>&1; then break; fi
-  sleep 1
-done
-curl -sf "http://127.0.0.1:$WORKER_PORT/health" >/dev/null \
-  || { cat "$WRANGLER_LOG" >&2; fail "Worker が起動しませんでした"; }
-
-# 0. セッションを直接投入(認証済みリクエスト用)。トークンは Cookie の UUID、
-#    DB には SHA-256(正準形文字列)を入れる(services/auth.rs と同じ)
-read -r USER_ID TOKEN HASH < <(python3 -c '
-import hashlib, uuid
-u, t = str(uuid.uuid4()), str(uuid.uuid4())
-print(u, t, hashlib.sha256(t.encode()).hexdigest())')
+# 0. セッションを直接投入(認証済みリクエスト用)
+read -r USER_ID TOKEN HASH < <(generate_test_session)
 psql "DELETE FROM dividend_per_share_cache WHERE security_code IN ('7203','9999')" >/dev/null
 # 再実行冪等化: テストユーザーを消すとセッションは ON DELETE CASCADE で連鎖削除される
 psql "DELETE FROM users WHERE google_id='cron-test'" >/dev/null
