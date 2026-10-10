@@ -187,7 +187,7 @@ fn save_success_clears_file_and_preview_and_requests_reload() {
         );
         store.update_csv(generation, |state| {
             state.file_name = Some("asset.csv".to_string());
-            state.preview = Some(crate::support::csv_flow::CsvPreview {
+            state.preview = Some(crate::api::dto::CsvPreviewResponse {
                 valid_rows: 1,
                 rows: vec![AssetBalanceCsvRow::default()],
                 ..Default::default()
@@ -222,7 +222,7 @@ fn save_error_keeps_preview_and_sets_message() {
         );
         store.update_csv(generation, |state| {
             state.file_name = Some("asset.csv".to_string());
-            state.preview = Some(crate::support::csv_flow::CsvPreview::default());
+            state.preview = Some(crate::api::dto::CsvPreviewResponse::default());
             state.saving = true;
         });
 
@@ -240,7 +240,7 @@ fn save_requires_preview_rows() {
     let state = CsvTabState::<AssetBalanceCsvRow>::default();
     assert!(!state.has_preview_rows());
     let empty = CsvTabState::<AssetBalanceCsvRow> {
-        preview: Some(crate::support::csv_flow::CsvPreview::default()),
+        preview: Some(crate::api::dto::CsvPreviewResponse::default()),
         ..Default::default()
     };
     assert!(
@@ -248,7 +248,7 @@ fn save_requires_preview_rows() {
         "有効行0件のプレビューでは保存しない"
     );
     let ready = CsvTabState::<AssetBalanceCsvRow> {
-        preview: Some(crate::support::csv_flow::CsvPreview {
+        preview: Some(crate::api::dto::CsvPreviewResponse {
             rows: vec![AssetBalanceCsvRow::default()],
             ..Default::default()
         }),

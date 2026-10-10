@@ -306,11 +306,14 @@ mod tests {
     const MISSING_NAME_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
     const INVALID_PNL_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"";
 
-    fn preview_with_header(header: &str, row: &str) -> CsvPreviewResponse {
+    fn preview_with_header(
+        header: &str,
+        row: &str,
+    ) -> CsvPreviewResponse<CreateDomesticStockRequest> {
         DomesticStockDomain::preview_csv(format!("{header}\n{row}").as_bytes()).unwrap()
     }
 
-    fn assert_preview_ok(row: &str) -> CsvPreviewResponse {
+    fn assert_preview_ok(row: &str) -> CsvPreviewResponse<CreateDomesticStockRequest> {
         let preview = preview_with_header(HEADER, row);
 
         assert_eq!(
@@ -348,18 +351,18 @@ mod tests {
     #[test]
     fn test_preview_csv() {
         assert_eq!(
-            assert_preview_ok(BASIC_ROW).rows[0]["security_name"],
+            assert_preview_ok(BASIC_ROW).rows[0].security_name,
             "ＥＮＥＯＳホールディングス"
         );
 
         let preview = assert_preview_ok(NISA_ROW);
         assert_eq!(
             (
-                preview.rows[0]["security_name"].as_str(),
-                preview.rows[0]["taxes"].as_f64(),
-                preview.rows[0]["realized_profit_and_loss_after_tax"].as_f64(),
+                preview.rows[0].security_name.as_str(),
+                preview.rows[0].taxes,
+                preview.rows[0].realized_profit_and_loss_after_tax,
             ),
-            (Some("KDDI"), Some(0.0), Some(9100.0))
+            ("KDDI", dec!(0), dec!(9100))
         );
 
         for (header, row, expected_message) in [
@@ -379,7 +382,7 @@ mod tests {
     fn test_preview_csv_security_code_whitespace_and_symbols() {
         // 前後の空白は trim してから検証する
         let preview = assert_preview_ok(&BASIC_ROW.replace("\"5020\"", "\" 7203 \""));
-        assert_eq!(preview.rows[0]["security_code"], "7203");
+        assert_eq!(preview.rows[0].security_code.as_str(), "7203");
 
         // 記号入りの銘柄コードは行エラー(newtype 化後の仕様)
         assert_preview_error(

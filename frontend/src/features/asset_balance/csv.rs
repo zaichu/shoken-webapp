@@ -1,5 +1,5 @@
-use crate::api::dto::{AssetBalance, CsvPreviewResponse};
-use crate::support::csv_flow::{CsvChunking, CsvPreview};
+use crate::api::dto::AssetBalance;
+use crate::support::csv_flow::CsvChunking;
 use crate::support::row::Row;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -120,12 +120,6 @@ impl AssetBalanceRowData for AssetBalanceRow {
     fn current_price(&self) -> Decimal {
         self.inner().current_price()
     }
-}
-
-pub fn to_preview(response: CsvPreviewResponse) -> CsvPreview<AssetBalanceCsvRow> {
-    CsvPreview::from_response(response, |row| {
-        serde_json::from_value(row).unwrap_or_default()
-    })
 }
 
 #[cfg(test)]

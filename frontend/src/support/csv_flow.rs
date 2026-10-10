@@ -2,42 +2,9 @@ use crate::api::dto::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::api::{ApiClient, ApiError};
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct CsvPreview<R> {
-    pub total_rows: usize,
-    pub valid_rows: usize,
-    pub errors: Vec<CsvRowError>,
-    pub rows: Vec<R>,
-}
-
-impl<R> Default for CsvPreview<R> {
-    fn default() -> Self {
-        Self {
-            total_rows: 0,
-            valid_rows: 0,
-            errors: Vec::new(),
-            rows: Vec::new(),
-        }
-    }
-}
-
-impl<R> CsvPreview<R> {
-    pub fn from_response(
-        response: CsvPreviewResponse,
-        parse: impl Fn(serde_json::Value) -> R,
-    ) -> Self {
-        Self {
-            total_rows: response.total_rows,
-            valid_rows: response.valid_rows,
-            errors: response.errors,
-            rows: response.rows.into_iter().map(parse).collect(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct CsvTabState<R> {
     pub file_name: Option<String>,
-    pub preview: Option<CsvPreview<R>>,
+    pub preview: Option<CsvPreviewResponse<R>>,
     pub import_result: Option<CsvUploadResponse>,
     pub error: Option<String>,
     pub previewing: bool,
@@ -85,7 +52,7 @@ impl<R> CsvTabState<R> {
     }
 
     // プレビュー失敗は画面に出さない(ファイル選択は残し preview のみ未設定)
-    pub fn finish_preview(&mut self, preview: Option<CsvPreview<R>>) {
+    pub fn finish_preview(&mut self, preview: Option<CsvPreviewResponse<R>>) {
         self.previewing = false;
         if let Some(preview) = preview {
             self.preview = Some(preview);
@@ -387,23 +354,18 @@ async fn split_file_chunks(
         .collect()
 }
 
-pub async fn preview_csv(
+pub async fn preview_csv<R: serde::de::DeserializeOwned>(
     path: &str,
     file: &web_sys::File,
     chunking: CsvChunking,
-) -> Result<CsvPreviewResponse, ApiError> {
+) -> Result<CsvPreviewResponse<R>, ApiError> {
     let chunks = split_file_chunks(file, chunking.header_lines, CSV_CHUNK_ROWS).await?;
     let client = ApiClient::default_client();
     // backend の拡張子ガードと E2E モックの filename ルックアップが実名を使うため維持する
     let filename = file.name();
-    let mut merged = CsvPreviewResponse {
-        total_rows: 0,
-        valid_rows: 0,
-        errors: Vec::new(),
-        rows: Vec::new(),
-    };
+    let mut merged = CsvPreviewResponse::<R>::default();
     for chunk in chunks {
-        let mut response: CsvPreviewResponse = client
+        let mut response: CsvPreviewResponse<R> = client
             .post_multipart(path, &chunk_form_data(&chunk, &filename)?)
             .await?;
         // backend の行番号は「ヘッダ・空行・除外行を除いた処理対象レコードの連番」なので、

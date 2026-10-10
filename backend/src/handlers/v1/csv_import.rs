@@ -67,7 +67,6 @@ mod tests {
     use crate::models::csv_import::CsvRowError;
     use crate::services::csv::import::validate_csv_rows;
     use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
-    use crate::services::csv::util::CsvCells;
     use axum::{
         Router,
         body::{Body, to_bytes},

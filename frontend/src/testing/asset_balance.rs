@@ -2,6 +2,7 @@ use crate::api::dto::{
     AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, CsvPreviewResponse,
     CsvUploadResponse, SessionUser,
 };
+use crate::features::asset_balance::AssetBalanceCsvRow;
 use crate::features::asset_balance::{
     AssetBalanceCsvStore, AssetBalanceLookupStore, BalanceSlot, DataOps,
 };
@@ -77,7 +78,9 @@ pub(crate) fn csv_upload_response(inserted: usize) -> CsvUploadResponse {
     }
 }
 
-pub(crate) fn csv_preview_response(rows: Vec<serde_json::Value>) -> CsvPreviewResponse {
+pub(crate) fn csv_preview_response(
+    rows: Vec<AssetBalanceCsvRow>,
+) -> CsvPreviewResponse<AssetBalanceCsvRow> {
     CsvPreviewResponse {
         total_rows: 1,
         valid_rows: 1,
@@ -86,12 +89,12 @@ pub(crate) fn csv_preview_response(rows: Vec<serde_json::Value>) -> CsvPreviewRe
     }
 }
 
-pub(crate) fn csv_preview_row(code: &str) -> serde_json::Value {
-    serde_json::json!({
-        "security_code": code,
-        "security_name": "銘柄",
-        "shares": 100,
-        "average_purchase_price": 2500,
-        "market_value": 260000
-    })
+pub(crate) fn csv_preview_row(code: &str) -> AssetBalanceCsvRow {
+    AssetBalanceCsvRow {
+        security_code: code.to_string(),
+        security_name: "銘柄".to_string(),
+        shares: rust_decimal_macros::dec!(100),
+        average_purchase_price: rust_decimal_macros::dec!(2500),
+        ..Default::default()
+    }
 }

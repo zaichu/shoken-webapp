@@ -19,9 +19,10 @@ pub struct CsvRowError {
 }
 
 /// CSV プレビューのレスポンス（DB 書き込みなし）
+// rows を利用側の行型で受け取れるよう R にした。OpenAPI 上は従来通り object 配列
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-pub struct CsvPreviewResponse {
+pub struct CsvPreviewResponse<R = serde_json::Value> {
     /// CSVの総行数（ヘッダー除く）
     pub total_rows: usize,
     /// パース成功行数
@@ -30,7 +31,18 @@ pub struct CsvPreviewResponse {
     pub errors: Vec<CsvRowError>,
     /// パース成功行のデータ（保存前プレビュー用）
     #[cfg_attr(feature = "utoipa", schema(value_type = Vec<Object>))]
-    pub rows: Vec<serde_json::Value>,
+    pub rows: Vec<R>,
+}
+
+impl<R> Default for CsvPreviewResponse<R> {
+    fn default() -> Self {
+        Self {
+            total_rows: 0,
+            valid_rows: 0,
+            errors: Vec::new(),
+            rows: Vec::new(),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -83,7 +83,7 @@ fn loaded(rows: Vec<AssetBalance>, truncated: bool) -> LoadedAssetBalances {
 fn preview_state() -> CsvTabState<AssetBalanceCsvRow> {
     CsvTabState {
         file_name: Some("asset.csv".to_string()),
-        preview: Some(crate::support::csv_flow::CsvPreview {
+        preview: Some(crate::api::dto::CsvPreviewResponse {
             total_rows: 1,
             valid_rows: 1,
             errors: vec![],

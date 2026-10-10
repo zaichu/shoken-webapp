@@ -214,7 +214,7 @@ mod tests {
 
     const HEADER: &str = "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]";
 
-    fn preview_from_lines(lines: &[&str]) -> CsvPreviewResponse {
+    fn preview_from_lines(lines: &[&str]) -> CsvPreviewResponse<CreateDividendRequest> {
         DividendDomain::preview_csv(lines.join("\n").as_bytes()).unwrap()
     }
 
@@ -247,10 +247,10 @@ mod tests {
         assert_eq!(
             (
                 preview.valid_rows,
-                preview.rows[0]["security_code"].as_str(),
-                preview.rows[0]["security_name"].as_str(),
+                preview.rows[0].security_code.as_str(),
+                preview.rows[0].security_name.as_str(),
             ),
-            (1, Some(""), Some("KDDI"))
+            (1, "", "KDDI")
         );
 
         for (header, row, expected_message) in [

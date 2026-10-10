@@ -110,11 +110,6 @@ impl HeaderIndex {
     }
 }
 
-/// 行から列名でセル値を参照する（列が存在しない場合は空文字）
-pub trait CsvCells {
-    fn cell(&self, name: &str) -> &str;
-}
-
 /// StringRecord と共有索引を組み合わせた1行ビュー。
 /// セル値は複製せず参照で返す（空白トリムは従来の HashMap 行と同じ結果になるようここで行う）
 #[derive(Clone, Copy)]
@@ -128,24 +123,23 @@ impl<'a> CsvRowView<'a> {
         Self { record, index }
     }
 
-    /// 行の全セル値（トリム済み）を返す
-    pub fn values(&self) -> impl Iterator<Item = &'a str> + '_ {
-        self.record.iter().map(str::trim)
-    }
-}
-
-impl CsvCells for CsvRowView<'_> {
-    fn cell(&self, name: &str) -> &str {
+    /// 列名でセル値を参照する（列が存在しない場合は空文字）
+    pub fn cell(&self, name: &str) -> &'a str {
         self.index
             .get(name)
             .and_then(|i| self.record.get(i))
             .map(str::trim)
             .unwrap_or("")
     }
+
+    /// 行の全セル値（トリム済み）を返す
+    pub fn values(&self) -> impl Iterator<Item = &'a str> + '_ {
+        self.record.iter().map(str::trim)
+    }
 }
 
 /// オプション文字列フィールドを取得（空の場合は空文字列）
-pub fn parse_optional_string<R: CsvCells>(row: &R, col: &str) -> String {
+pub fn parse_optional_string(row: &CsvRowView<'_>, col: &str) -> String {
     row.cell(col).to_string()
 }
 
@@ -154,8 +148,8 @@ fn missing_required(col: &str) -> String {
 }
 
 /// 必須文字列フィールドを取得（空の場合はエラー）
-pub fn parse_required_string<R: CsvCells>(
-    row: &R,
+pub fn parse_required_string(
+    row: &CsvRowView<'_>,
     col: &str,
     row_num: RowNumber,
 ) -> Result<String, CsvRowError> {
@@ -193,8 +187,8 @@ pub fn check_max_chars(
 }
 
 /// 必須口座フィールドを取得
-pub fn parse_required_account<R: CsvCells>(
-    row: &R,
+pub fn parse_required_account(
+    row: &CsvRowView<'_>,
     col: &str,
     row_num: RowNumber,
 ) -> Result<Account, CsvRowError> {
@@ -202,8 +196,8 @@ pub fn parse_required_account<R: CsvCells>(
 }
 
 /// 必須銘柄コードフィールドを取得
-pub fn parse_required_security_code<R: CsvCells>(
-    row: &R,
+pub fn parse_required_security_code(
+    row: &CsvRowView<'_>,
     col: &str,
     row_num: RowNumber,
 ) -> Result<SecurityCode, CsvRowError> {
@@ -211,8 +205,8 @@ pub fn parse_required_security_code<R: CsvCells>(
 }
 
 /// 必須数値フィールドを取得（空またはパース失敗でエラー）
-pub fn parse_required_number<R: CsvCells>(
-    row: &R,
+pub fn parse_required_number(
+    row: &CsvRowView<'_>,
     col: &str,
     row_num: RowNumber,
 ) -> Result<Decimal, CsvRowError> {
@@ -224,8 +218,8 @@ pub fn parse_required_number<R: CsvCells>(
 }
 
 /// 必須日付フィールドを取得（パース失敗でエラー）
-pub fn parse_required_date<R: CsvCells>(
-    row: &R,
+pub fn parse_required_date(
+    row: &CsvRowView<'_>,
     col: &str,
     row_num: RowNumber,
 ) -> Result<NaiveDate, CsvRowError> {

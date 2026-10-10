@@ -15,6 +15,8 @@ pub(crate) use model::{calculate_valuation_from_decimal, to_fixed};
 pub(crate) use view::{AssetBalancePage, AssetBalanceState};
 
 #[cfg(test)]
+pub(crate) use csv::AssetBalanceCsvRow;
+#[cfg(test)]
 pub(crate) use lookup::AssetBalanceLookupStore;
 #[cfg(test)]
 pub(crate) use store::csv::AssetBalanceCsvStore;

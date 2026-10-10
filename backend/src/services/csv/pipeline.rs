@@ -80,7 +80,6 @@ fn is_all_empty_record(record: &csv::StringRecord) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::csv::util::CsvCells;
 
     const BASIC_CONFIG: CsvParserConfig = CsvParserConfig {
         skip_header_rows: 0,

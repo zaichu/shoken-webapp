@@ -5,7 +5,7 @@ fn save_label_preserves_action_count_and_busy_priority() {
     for action in ["全件置換で保存", "追加で保存"] {
         let mut state = CsvTabState::<String>::default();
         assert_eq!(state.meta().save_label(action), action);
-        state.preview = Some(CsvPreview {
+        state.preview = Some(CsvPreviewResponse {
             valid_rows: 3,
             ..Default::default()
         });
@@ -61,9 +61,9 @@ fn fail_preview_clears_busy_and_keeps_file() {
 fn has_preview_rows_requires_non_empty_rows() {
     let mut state = CsvTabState::<String>::default();
     assert!(!state.has_preview_rows());
-    state.preview = Some(CsvPreview::default());
+    state.preview = Some(CsvPreviewResponse::default());
     assert!(!state.has_preview_rows(), "有効行0件のプレビューは扱わない");
-    state.preview = Some(CsvPreview {
+    state.preview = Some(CsvPreviewResponse {
         rows: vec!["row".to_string()],
         ..Default::default()
     });
@@ -119,7 +119,7 @@ fn delete_label_preserves_count_and_busy_state() {
 #[test]
 fn select_file_resets_preview_result_and_error() {
     let mut state = CsvTabState::<String> {
-        preview: Some(CsvPreview::default()),
+        preview: Some(CsvPreviewResponse::default()),
         import_result: Some(CsvUploadResponse {
             inserted: 1,
             skipped: 0,
@@ -162,7 +162,7 @@ fn busy_state_blocks_begin_operations() {
 fn save_success_clears_preview_and_sets_result() {
     let mut state = CsvTabState::<String> {
         file_name: Some("a.csv".to_string()),
-        preview: Some(CsvPreview::default()),
+        preview: Some(CsvPreviewResponse::default()),
         saving: true,
         ..Default::default()
     };
@@ -184,7 +184,7 @@ fn save_success_clears_preview_and_sets_result() {
 fn save_error_keeps_file_and_sets_message() {
     let mut state = CsvTabState::<String> {
         file_name: Some("a.csv".to_string()),
-        preview: Some(CsvPreview::default()),
+        preview: Some(CsvPreviewResponse::default()),
         saving: true,
         ..Default::default()
     };
