@@ -1,6 +1,6 @@
-use crate::db::{Bind, Db, DbError, QueryBuilder};
+use crate::db::{Bind, Db};
 use crate::errors::ApiError;
-use crate::models::common::{BulkCreateResponse, FacetOption, SearchFacets};
+use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
 use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
@@ -11,14 +11,10 @@ use crate::services::csv::util::{
     CsvRowView, RowNumber, check_max_chars, parse_required_account, parse_required_date,
     parse_required_number, parse_required_security_code, parse_required_string,
 };
-use crate::services::domain::bulk::{
-    BulkTimer, RowLimit, ensure_user_row_limit_with, lock_user_domain, user_ids_for_bulk_insert,
-};
-use crate::services::domain::facets::{self, FacetOrder, GroupField};
+use crate::services::domain::bulk::{RowLimit, bulk_insert, user_ids_for_bulk_insert};
+use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
 use crate::services::domain::search::Search;
-use crate::services::domain::search_filters::{
-    DateAxisFilter, push_search_filters, tokens_from_query,
-};
+use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
@@ -32,23 +28,17 @@ impl Domain for DomesticStockDomain {
     const NAME: &'static str = "domestic_stock";
     const TABLE: &'static str = "domestic_stocks";
     const WRITE_MODE: WriteMode = WriteMode::Append;
-
-    async fn delete_rows(pool: &Db, user_id: UserId) -> Result<u64, DbError> {
-        crate::db::query(
-            "DELETE FROM domestic_stocks WHERE user_id = $1",
-            vec![Bind::from(user_id)],
-        )
-        .execute(pool)
-        .await
-    }
 }
 
 impl CsvImport for DomesticStockDomain {
     type Row = CreateDomesticStockRequest;
-    const CSV_CONFIG: CsvParserConfig = DOMESTIC_STOCK_CSV_CONFIG;
+    const CSV_CONFIG: CsvParserConfig = CsvParserConfig {
+        skip_header_rows: 0,
+        exclude_row_fn: None,
+    };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        transform_domestic_stock_rows(table)
+        validate_csv_rows(table, transform_domestic_stock_row)
     }
 
     async fn bulk_create(
@@ -61,42 +51,9 @@ impl CsvImport for DomesticStockDomain {
     }
 }
 
-const DOMESTIC_STOCK_CSV_CONFIG: CsvParserConfig = CsvParserConfig {
-    skip_header_rows: 0,
-    exclude_row_fn: None,
-};
-
-/// 国内株式検索条件を SQL 条件へ変換した中間表現
-#[derive(Debug)]
-pub struct DomesticStockFilter {
-    date_axis: DateAxisFilter,
-    tokens: Vec<String>,
-    account: Option<String>,
-    security_code: Option<String>,
-    security_name: Option<String>,
-}
-
-impl TryFrom<DomesticStockSearchQueryParams> for DomesticStockFilter {
-    type Error = ApiError;
-
-    fn try_from(params: DomesticStockSearchQueryParams) -> Result<Self, ApiError> {
-        let date_axis = DateAxisFilter::from_search_params(&params.search)?;
-        let tokens = tokens_from_query(params.search.q.as_deref());
-
-        Ok(Self {
-            date_axis,
-            tokens,
-            account: params.account,
-            security_code: params.security_code,
-            security_name: params.security_name,
-        })
-    }
-}
-
 impl Search for DomesticStockDomain {
     type Data = DomesticStock;
     type Params = DomesticStockSearchQueryParams;
-    type Filter = DomesticStockFilter;
     type Summary = DomesticStockSummary;
 
     const COLUMNS: &'static str = "id, user_id, trade_date, settlement_date, security_code, \
@@ -104,20 +61,37 @@ impl Search for DomesticStockDomain {
         realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax, created_at, \
         updated_at";
     const ORDER_BY: &'static str = " ORDER BY trade_date DESC, id DESC";
+    const DATE_COLUMN: Option<&'static str> = Some("trade_date");
+    const FILTER_FIELDS: &'static [FilterField] = &[
+        FilterField::Account,
+        FilterField::SecurityCode,
+        FilterField::SecurityName,
+    ];
+    const FACETS: &'static [FacetSpec] = &[
+        FacetSpec::group(FacetSlot::Accounts, GroupField::Account, FacetOrder::Asc),
+        FacetSpec::security(FacetSlot::Securities, "trade_date DESC, id DESC"),
+        FacetSpec::group(
+            FacetSlot::Years,
+            GroupField::TradeDateYear,
+            FacetOrder::Desc,
+        ),
+        FacetSpec::group(
+            FacetSlot::YearMonths,
+            GroupField::TradeDateYearMonth,
+            FacetOrder::Desc,
+        ),
+    ];
 
-    fn push_filters(qb: &mut QueryBuilder, user_id: UserId, filter: &DomesticStockFilter) {
-        push_search_filters(
-            qb,
-            user_id,
-            Some(("trade_date", &filter.date_axis)),
-            &[
-                ("account", &filter.account),
-                ("security_code", &filter.security_code),
-                ("security_name", &filter.security_name),
-            ],
-            &filter.tokens,
-            &["account", "security_code", "security_name"],
-        );
+    fn filter_value(
+        params: &DomesticStockSearchQueryParams,
+        field: FilterField,
+    ) -> &Option<String> {
+        match field {
+            FilterField::Account => &params.account,
+            FilterField::SecurityCode => &params.security_code,
+            FilterField::SecurityName => &params.security_name,
+            _ => &NO_FIELD,
+        }
     }
 
     /// 検索条件全体の summary を算出する。
@@ -128,12 +102,13 @@ impl Search for DomesticStockDomain {
     async fn fetch_summary(
         pool: &Db,
         user_id: UserId,
-        filter: &DomesticStockFilter,
+        filter: &SearchFilter,
     ) -> Result<DomesticStockSummary, ApiError> {
-        let mut qb = QueryBuilder::new(
+        let mut qb = Self::filtered_query(
             "WITH filtered AS (SELECT trade_date, account, realized_profit_and_loss FROM domestic_stocks",
+            user_id,
+            filter,
         );
-        Self::push_filters(&mut qb, user_id, filter);
         qb.push("), daily AS (SELECT trade_date, COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION(")
             .push_bind(SPECIFIC_ACCOUNT_KEYWORD)
             .push(" IN account) > 0), 0) AS specific_total, COALESCE(SUM(realized_profit_and_loss) FILTER (WHERE POSITION(")
@@ -155,79 +130,6 @@ impl Search for DomesticStockDomain {
             .fetch_one(pool)
             .await?)
     }
-
-    async fn fetch_facets(
-        pool: &Db,
-        user_id: UserId,
-        filter: &DomesticStockFilter,
-    ) -> Result<SearchFacets, ApiError> {
-        let accounts_fut =
-            fetch_group_facets(pool, user_id, filter, GroupField::Account, FacetOrder::Asc);
-        let securities_fut = fetch_security_facets(pool, user_id, filter);
-        let years_fut = fetch_group_facets(
-            pool,
-            user_id,
-            filter,
-            GroupField::TradeDateYear,
-            FacetOrder::Desc,
-        );
-        let year_months_fut = fetch_group_facets(
-            pool,
-            user_id,
-            filter,
-            GroupField::TradeDateYearMonth,
-            FacetOrder::Desc,
-        );
-
-        let (accounts, securities, years, year_months) = futures_util::future::try_join4(
-            accounts_fut,
-            securities_fut,
-            years_fut,
-            year_months_fut,
-        )
-        .await?;
-
-        Ok(SearchFacets {
-            products: None,
-            accounts: Some(accounts),
-            securities: Some(securities),
-            funds: None,
-            years: Some(years),
-            year_months: Some(year_months),
-        })
-    }
-}
-
-async fn fetch_group_facets(
-    pool: &Db,
-    user_id: UserId,
-    filter: &DomesticStockFilter,
-    group_field: GroupField,
-    order: FacetOrder,
-) -> Result<Vec<FacetOption>, ApiError> {
-    facets::fetch_group_facets(
-        pool,
-        DomesticStockDomain::TABLE,
-        group_field.as_sql_expr(),
-        order,
-        |qb| DomesticStockDomain::push_filters(qb, user_id, filter),
-    )
-    .await
-}
-
-/// 銘柄コードごとに最新の銘柄名を label として件数付きで返す
-async fn fetch_security_facets(
-    pool: &Db,
-    user_id: UserId,
-    filter: &DomesticStockFilter,
-) -> Result<Vec<FacetOption>, ApiError> {
-    facets::fetch_security_facets(
-        pool,
-        DomesticStockDomain::TABLE,
-        "trade_date DESC, id DESC",
-        |qb| DomesticStockDomain::push_filters(qb, user_id, filter),
-    )
-    .await
 }
 
 /// 国内株式取引を一括追加（全件挿入）
@@ -248,11 +150,6 @@ pub async fn bulk_create(
     items: &[CreateDomesticStockRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let timer = match BulkTimer::new_with_guard(DomesticStockDomain::NAME, items) {
-        Ok(t) => t,
-        Err(empty) => return Ok(empty),
-    };
-
     let user_ids = user_ids_for_bulk_insert(user_id, items.len());
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
@@ -277,100 +174,89 @@ pub async fn bulk_create(
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
 
-    let mut tx = pool.begin().await?;
-
-    lock_user_domain::<DomesticStockDomain>(&mut tx, user_id).await?;
-
-    ensure_user_row_limit_with::<DomesticStockDomain, _>(&mut tx, user_id, items.len(), limit)
-        .await?;
-
     // content_hash は PostgreSQL md5 関数で算出（migration backfill と同一実装）
     // batch_occurrence_index はバッチ内での content_hash 別の連番（WITH ORDINALITY で入力順保持）
     // db_counts は既存 DB の (user_id, content_hash) 単位の件数（他ユーザーに引っ張られない）
     // batch_occurrence_index > existing_count の行のみ挿入し、ON CONFLICT で冪等性を保証
-    let result = crate::db::query(
-        r#"
-        WITH batch_data AS (
+    bulk_insert::<DomesticStockDomain, _>(
+        pool,
+        user_id,
+        items,
+        limit,
+        crate::db::query(
+            r#"
+            WITH batch_data AS (
+                SELECT
+                    user_id, trade_date, settlement_date, security_code,
+                    security_name, account, shares, asked_price, proceeds,
+                    purchase_price, realized_profit_and_loss, taxes,
+                    realized_profit_and_loss_after_tax,
+                    ordinality,
+                    md5(
+                        trade_date::text || '|' || settlement_date::text || '|' ||
+                        security_code || '|' || security_name || '|' || account || '|' ||
+                        shares::text || '|' || asked_price::text || '|' || proceeds::text || '|' ||
+                        purchase_price::text || '|' || realized_profit_and_loss::text || '|' ||
+                        taxes::text || '|' || realized_profit_and_loss_after_tax::text
+                    ) AS content_hash
+                FROM UNNEST(
+                    $1::uuid[], $2::date[], $3::date[], $4::text[],
+                    $5::text[], $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
+                    $10::numeric[], $11::numeric[], $12::numeric[], $13::numeric[]
+                ) WITH ORDINALITY AS t(user_id, trade_date, settlement_date, security_code,
+                       security_name, account, shares, asked_price, proceeds,
+                       purchase_price, realized_profit_and_loss, taxes,
+                       realized_profit_and_loss_after_tax, ordinality)
+            ),
+            batch_indexed AS (
+                SELECT *,
+                    ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
+                        AS batch_occurrence_index
+                FROM batch_data
+            ),
+            db_counts AS (
+                SELECT content_hash, COUNT(*)::int4 AS existing_count
+                FROM domestic_stocks
+                WHERE user_id = $14::uuid
+                GROUP BY content_hash
+            )
+            INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code,
+                                         security_name, account, shares, asked_price, proceeds,
+                                         purchase_price, realized_profit_and_loss, taxes,
+                                         realized_profit_and_loss_after_tax,
+                                         content_hash, occurrence_index)
             SELECT
-                user_id, trade_date, settlement_date, security_code,
-                security_name, account, shares, asked_price, proceeds,
-                purchase_price, realized_profit_and_loss, taxes,
-                realized_profit_and_loss_after_tax,
-                ordinality,
-                md5(
-                    trade_date::text || '|' || settlement_date::text || '|' ||
-                    security_code || '|' || security_name || '|' || account || '|' ||
-                    shares::text || '|' || asked_price::text || '|' || proceeds::text || '|' ||
-                    purchase_price::text || '|' || realized_profit_and_loss::text || '|' ||
-                    taxes::text || '|' || realized_profit_and_loss_after_tax::text
-                ) AS content_hash
-            FROM UNNEST(
-                $1::uuid[], $2::date[], $3::date[], $4::text[],
-                $5::text[], $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
-                $10::numeric[], $11::numeric[], $12::numeric[], $13::numeric[]
-            ) WITH ORDINALITY AS t(user_id, trade_date, settlement_date, security_code,
-                   security_name, account, shares, asked_price, proceeds,
-                   purchase_price, realized_profit_and_loss, taxes,
-                   realized_profit_and_loss_after_tax, ordinality)
+                b.user_id, b.trade_date, b.settlement_date, b.security_code,
+                b.security_name, b.account, b.shares, b.asked_price, b.proceeds,
+                b.purchase_price, b.realized_profit_and_loss, b.taxes,
+                b.realized_profit_and_loss_after_tax,
+                b.content_hash,
+                b.batch_occurrence_index
+            FROM batch_indexed b
+            LEFT JOIN db_counts d ON b.content_hash = d.content_hash
+            WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
+            ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
+            "#,
+            vec![
+                Bind::from(user_ids),
+                Bind::from(trade_dates),
+                Bind::from(settlement_dates),
+                Bind::from(security_codes),
+                Bind::from(security_names),
+                Bind::from(accounts),
+                Bind::decimal_vec(shares),
+                Bind::decimal_vec(asked_prices),
+                Bind::decimal_vec(proceeds),
+                Bind::decimal_vec(purchase_prices),
+                Bind::decimal_vec(realized_pls),
+                Bind::decimal_vec(taxes),
+                Bind::decimal_vec(realized_pls_after_tax),
+                // $14: スカラーのユーザーID（db_counts WHERE 句用）
+                Bind::from(user_id),
+            ],
         ),
-        batch_indexed AS (
-            SELECT *,
-                ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
-                    AS batch_occurrence_index
-            FROM batch_data
-        ),
-        db_counts AS (
-            SELECT content_hash, COUNT(*)::int4 AS existing_count
-            FROM domestic_stocks
-            WHERE user_id = $14::uuid
-            GROUP BY content_hash
-        )
-        INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code,
-                                     security_name, account, shares, asked_price, proceeds,
-                                     purchase_price, realized_profit_and_loss, taxes,
-                                     realized_profit_and_loss_after_tax,
-                                     content_hash, occurrence_index)
-        SELECT
-            b.user_id, b.trade_date, b.settlement_date, b.security_code,
-            b.security_name, b.account, b.shares, b.asked_price, b.proceeds,
-            b.purchase_price, b.realized_profit_and_loss, b.taxes,
-            b.realized_profit_and_loss_after_tax,
-            b.content_hash,
-            b.batch_occurrence_index
-        FROM batch_indexed b
-        LEFT JOIN db_counts d ON b.content_hash = d.content_hash
-        WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
-        ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
-        "#,
-        vec![
-            Bind::from(user_ids),
-            Bind::from(trade_dates),
-            Bind::from(settlement_dates),
-            Bind::from(security_codes),
-            Bind::from(security_names),
-            Bind::from(accounts),
-            Bind::decimal_vec(shares),
-            Bind::decimal_vec(asked_prices),
-            Bind::decimal_vec(proceeds),
-            Bind::decimal_vec(purchase_prices),
-            Bind::decimal_vec(realized_pls),
-            Bind::decimal_vec(taxes),
-            Bind::decimal_vec(realized_pls_after_tax),
-            // $14: スカラーのユーザーID（db_counts WHERE 句用）
-            Bind::from(user_id),
-        ],
     )
-    .execute(&mut tx)
-    .await?;
-
-    tx.commit().await?;
-    timer.finish_from_affected(result)
-}
-
-fn transform_domestic_stock_rows(
-    table: &CsvTable,
-) -> (Vec<CreateDomesticStockRequest>, Vec<CsvRowError>) {
-    validate_csv_rows(table, transform_domestic_stock_row)
+    .await
 }
 
 fn transform_domestic_stock_row(
@@ -406,7 +292,6 @@ fn transform_domestic_stock_row(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::common::SearchParamsAccessor;
     use crate::models::csv_import::CsvPreviewResponse;
     use crate::services::csv::import::CsvImport;
     use crate::services::domain::search::search;
@@ -550,114 +435,6 @@ mod tests {
             .await
             .unwrap();
         assert_eq!((second.inserted, second.skipped), (0, 5));
-    }
-
-    #[test]
-    fn test_domestic_stock_filter_from_params() {
-        let mut params = DomesticStockSearchQueryParams::default();
-        assert!(!params.should_include_summary());
-        assert!(!params.should_include_facets());
-
-        params.search.include_summary = Some(true);
-        params.search.include_facets = Some(true);
-        assert!(params.should_include_summary());
-        assert!(params.should_include_facets());
-
-        let mut params = DomesticStockSearchQueryParams::default();
-        params.search.date = Some("2026-01-15".to_string());
-        params.search.date_from = Some("2026-01-01".to_string());
-        params.search.date_to = Some("2026-12-31".to_string());
-        params.search.year = Some(2026);
-        params.search.year_month = Some("2026-06".to_string());
-
-        let filter =
-            DomesticStockFilter::try_from(params).expect("正しい日付フォーマットは検証を通過する");
-
-        assert_eq!(
-            filter.date_axis.date_eq,
-            NaiveDate::from_ymd_opt(2026, 1, 15)
-        );
-        assert_eq!(
-            filter.date_axis.date_from,
-            NaiveDate::from_ymd_opt(2026, 1, 1)
-        );
-        assert_eq!(
-            filter.date_axis.date_to,
-            NaiveDate::from_ymd_opt(2026, 12, 31)
-        );
-        assert_eq!(
-            filter.date_axis.year_range,
-            Some((
-                NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-                NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()
-            ))
-        );
-        assert_eq!(
-            filter.date_axis.year_month_range,
-            Some((
-                NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
-                NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()
-            ))
-        );
-
-        type Apply = fn(&mut DomesticStockSearchQueryParams);
-        let cases: [(&str, Apply); 5] = [
-            ("date", |p| p.search.date = Some("2026/01/15".to_string())),
-            ("date_from", |p| {
-                p.search.date_from = Some("20260101".to_string())
-            }),
-            ("date_to", |p| {
-                p.search.date_to = Some("not-a-date".to_string())
-            }),
-            ("year", |p| p.search.year = Some(i32::MIN)),
-            ("year_month", |p| {
-                p.search.year_month = Some("2026-13".to_string())
-            }),
-        ];
-
-        for (field, apply) in cases {
-            let mut params = DomesticStockSearchQueryParams::default();
-            apply(&mut params);
-            let err = DomesticStockFilter::try_from(params)
-                .expect_err(&format!("{field} は不正値で ValidationError になるべき"));
-            assert!(
-                matches!(err, ApiError::Validation(_)),
-                "field={field} の失敗が ValidationError ではない"
-            );
-        }
-    }
-
-    #[test]
-    fn test_push_filters_combines_q_tokens_and_domain_fields() {
-        let mut params = DomesticStockSearchQueryParams::default();
-        params.search.q = Some("AA BB".to_string());
-        let filter = DomesticStockFilter::try_from(params).expect("q のみなら検証を通過する");
-
-        let mut qb = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
-        DomesticStockDomain::push_filters(&mut qb, UserId::default(), &filter);
-        let sql = qb.sql();
-
-        // token ごとに 1 つの AND (...) ブロックが生成され、ブロック内は3カラムの OR になる
-        assert_eq!(sql.matches(" AND (").count(), 2);
-        assert_eq!(sql.matches("account ILIKE").count(), 2);
-        assert_eq!(sql.matches("security_code ILIKE").count(), 2);
-        assert_eq!(sql.matches("security_name ILIKE").count(), 2);
-
-        let params = DomesticStockSearchQueryParams {
-            account: Some("特定".to_string()),
-            security_code: Some("1234".to_string()),
-            security_name: Some("テスト株式会社".to_string()),
-            ..Default::default()
-        };
-        let filter = DomesticStockFilter::try_from(params).expect("フィルタのみなら検証を通過する");
-
-        let mut qb = QueryBuilder::new("SELECT 1 FROM domestic_stocks");
-        DomesticStockDomain::push_filters(&mut qb, UserId::default(), &filter);
-        let sql = qb.sql();
-
-        assert!(sql.contains("AND account = "));
-        assert!(sql.contains("AND security_code = "));
-        assert!(sql.contains("AND security_name = "));
     }
 
     fn make_summary_item(

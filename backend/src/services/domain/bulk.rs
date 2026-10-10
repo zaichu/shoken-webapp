@@ -1,5 +1,5 @@
 use super::{Domain, WriteMode};
-use crate::db::{Bind, Db, Executor, QueryBuilder, Tx};
+use crate::db::{Bind, Db, Executor, Query, QueryBuilder, Tx};
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use shared::value::UserId;
@@ -156,6 +156,59 @@ pub async fn lock_user_domain<D: Domain>(tx: &mut Tx, user_id: UserId) -> Result
     .fetch_scalar_optional::<uuid::Uuid, _>(&mut *tx)
     .await?;
     Ok(())
+}
+
+/// 一括登録用のトランザクションを開始し、利用者ロックと行数上限チェックまで済ませて返す
+async fn begin_bulk_write<D: Domain>(
+    pool: &Db,
+    user_id: UserId,
+    additional: usize,
+    limit: RowLimit,
+) -> Result<Tx, ApiError> {
+    let mut tx = pool.begin().await?;
+    lock_user_domain::<D>(&mut tx, user_id).await?;
+    ensure_user_row_limit_with::<D, _>(&mut tx, user_id, additional, limit).await?;
+    Ok(tx)
+}
+
+/// 追記型ドメインの一括登録共通骨格（空なら DB に触れず即時応答）。
+/// ドメイン側は UNNEST の INSERT クエリ（バインド済み）だけを渡す
+pub async fn bulk_insert<D: Domain, T>(
+    pool: &Db,
+    user_id: UserId,
+    items: &[T],
+    limit: RowLimit,
+    insert: Query,
+) -> Result<BulkCreateResponse, ApiError> {
+    let timer = match BulkTimer::new_with_guard(D::NAME, items) {
+        Ok(timer) => timer,
+        Err(empty) => return Ok(empty),
+    };
+    let mut tx = begin_bulk_write::<D>(pool, user_id, items.len(), limit).await?;
+    let affected = insert.execute(&mut tx).await?;
+    tx.commit().await?;
+    timer.finish_from_affected(affected)
+}
+
+/// 置換型ドメインの一括登録共通骨格。既存行を全削除してから INSERT する
+/// （空なら削除のみ）。ドメイン側は INSERT クエリ（バインド済み）だけを渡す
+pub async fn bulk_replace<D: Domain>(
+    pool: &Db,
+    user_id: UserId,
+    total: usize,
+    limit: RowLimit,
+    insert: Query,
+) -> Result<BulkCreateResponse, ApiError> {
+    let timer = BulkTimer::new(D::NAME, total);
+    let mut tx = begin_bulk_write::<D>(pool, user_id, total, limit).await?;
+    super::delete_rows_query::<D>(user_id)
+        .execute(&mut tx)
+        .await?;
+    if total > 0 {
+        insert.execute(&mut tx).await?;
+    }
+    tx.commit().await?;
+    Ok(timer.finish(total))
 }
 
 /// ユーザーに紐づく全レコードを削除する共通実装
