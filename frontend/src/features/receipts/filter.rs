@@ -283,7 +283,7 @@ pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptRow]) -> SearchCategor
 }
 
 pub fn column_order(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Vec<usize> {
-    let base: Vec<_> = (0..tab.headers().len()).collect();
+    let base: Vec<_> = (0..tab.columns().len()).collect();
     reorder_columns_by_search(&base, rows, query, tab.reorder_rules(), tab.reorder_fixed())
 }
 

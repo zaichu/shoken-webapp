@@ -72,60 +72,165 @@ impl Row<ReceiptItem, CsvPreviewRow> {
 }
 
 /// 明細行(保存済み・CSV プレビュー)に共通の表示・検索・集計アクセサ。
-/// タブ種別ごとの差は `ReceiptKind` 側で扱うため、ここでは全タブ共通の形だけを提供する。
+/// 各型は `view` で商品ごとの値に展開し、表示規則は `RowView` 側に集約する。
 pub(crate) trait ReceiptRowData {
-    fn date(&self) -> &str;
-    fn code(&self) -> &str;
-    fn name(&self) -> &str;
-    fn account(&self) -> &str;
+    fn view(&self) -> RowView<'_>;
+
+    fn date(&self) -> &str {
+        self.view().date()
+    }
+    fn code(&self) -> &str {
+        self.view().code()
+    }
+    fn name(&self) -> &str {
+        self.view().name()
+    }
+    fn account(&self) -> &str {
+        self.view().account()
+    }
     fn product(&self) -> &str {
-        ""
+        self.view().product()
     }
     fn is_specific(&self) -> bool {
-        self.account().contains(SPECIFIC_ACCOUNT_KEYWORD)
+        self.view().is_specific()
     }
-    fn cells(&self) -> Vec<ReceiptCell>;
+    fn cells(&self) -> Vec<ReceiptCell> {
+        self.view().cells()
+    }
     // カードの開閉状態を引き継ぐ照合は表示丸め前の値で行う。
     // 数量 1.001 と 1.002 はともに「1.00」と出るが別行として区別する。
-    fn raw_key(&self) -> String;
+    fn raw_key(&self) -> String {
+        self.view().raw_key()
+    }
     /// 検索用の金額フィールド。`ReceiptKind::search_amounts` の列番号に対応する。
-    fn search_amount(&self, index: usize) -> Decimal;
+    fn search_amount(&self, index: usize) -> Decimal {
+        self.view().search_amount(index)
+    }
     /// グループ・ヘッダー集計用の金額 3 つ組。(対象金額, 税額, 税引後)
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal);
+    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
+        self.view().summary_amounts()
+    }
     /// 国内株式の日次集計で特定口座・NISA 等に分けて使う実現損益。
     fn realized_pnl(&self) -> Decimal {
-        Decimal::ZERO
+        self.view().realized_pnl()
     }
 }
 
-impl ReceiptRowData for Dividend {
-    fn date(&self) -> &str {
-        &self.settlement_date
+/// 保存済み・CSV 行どちらからも同じ形で取り出せる商品ごとの値。
+/// 文字列は行からの借用で、金額はフィールドのコピー。
+pub(crate) enum RowView<'a> {
+    Dividend(DividendView<'a>),
+    DomesticStock(DomesticStockView<'a>),
+    MutualFund(MutualfundView<'a>),
+}
+
+impl<'a> RowView<'a> {
+    fn date(&self) -> &'a str {
+        match self {
+            Self::Dividend(row) => row.date,
+            Self::DomesticStock(row) => row.date,
+            Self::MutualFund(row) => row.date,
+        }
     }
-    fn code(&self) -> &str {
-        &self.security_code
+
+    fn code(&self) -> &'a str {
+        match self {
+            Self::Dividend(row) => row.code,
+            Self::DomesticStock(row) => row.code,
+            Self::MutualFund(_) => "",
+        }
     }
-    fn name(&self) -> &str {
-        &self.security_name
+
+    fn name(&self) -> &'a str {
+        match self {
+            Self::Dividend(row) => row.name,
+            Self::DomesticStock(row) => row.name,
+            Self::MutualFund(row) => row.name,
+        }
     }
-    fn account(&self) -> &str {
-        self.account.as_str()
+
+    fn account(&self) -> &'a str {
+        match self {
+            Self::Dividend(row) => row.account,
+            Self::DomesticStock(row) => row.account,
+            Self::MutualFund(row) => row.account,
+        }
     }
-    fn product(&self) -> &str {
-        &self.product
+
+    fn product(&self) -> &'a str {
+        match self {
+            Self::Dividend(row) => row.product,
+            _ => "",
+        }
     }
+
     fn is_specific(&self) -> bool {
-        self.account.is_specific()
+        self.account().contains(SPECIFIC_ACCOUNT_KEYWORD)
     }
+
+    fn cells(&self) -> Vec<ReceiptCell> {
+        match self {
+            Self::Dividend(row) => row.cells(),
+            Self::DomesticStock(row) => row.cells(),
+            Self::MutualFund(row) => row.cells(),
+        }
+    }
+
+    fn raw_key(&self) -> String {
+        match self {
+            Self::Dividend(row) => row.raw_key(),
+            Self::DomesticStock(row) => row.raw_key(),
+            Self::MutualFund(row) => row.raw_key(),
+        }
+    }
+
+    fn search_amount(&self, index: usize) -> Decimal {
+        match self {
+            Self::Dividend(row) => row.search_amount(index),
+            Self::DomesticStock(row) => row.search_amount(index),
+            Self::MutualFund(_) => Decimal::ZERO,
+        }
+    }
+
+    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
+        match self {
+            Self::Dividend(row) => row.summary_amounts(),
+            Self::DomesticStock(row) => row.summary_amounts(),
+            Self::MutualFund(row) => row.summary_amounts(),
+        }
+    }
+
+    fn realized_pnl(&self) -> Decimal {
+        match self {
+            Self::DomesticStock(row) => row.realized_profit_and_loss,
+            _ => Decimal::ZERO,
+        }
+    }
+}
+
+pub(crate) struct DividendView<'a> {
+    date: &'a str,
+    product: &'a str,
+    account: &'a str,
+    code: &'a str,
+    name: &'a str,
+    unit_price: Decimal,
+    shares: Decimal,
+    dividends_before_tax: Decimal,
+    taxes: Decimal,
+    net_amount_received: Decimal,
+}
+
+impl DividendView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
-            ReceiptCell::Text(format_date(&self.settlement_date)),
-            ReceiptCell::Text(self.product.clone()),
+            ReceiptCell::Text(format_date(self.date)),
+            ReceiptCell::Text(self.product.to_string()),
             ReceiptCell::Text(self.account.to_string()),
-            ReceiptCell::SecurityCode(self.security_code.clone()),
+            ReceiptCell::SecurityCode(self.code.to_string()),
             ReceiptCell::InstrumentName {
-                name: normalize_display_name(&self.security_name),
-                code: Some(self.security_code.clone()),
+                name: normalize_display_name(self.name),
+                code: Some(self.code.to_string()),
             },
             ReceiptCell::Text(format_currency(self.unit_price)),
             ReceiptCell::Text(format_number(self.shares, 2)),
@@ -134,13 +239,14 @@ impl ReceiptRowData for Dividend {
             ReceiptCell::Text(format_currency(self.net_amount_received)),
         ]
     }
+
     fn raw_key(&self) -> String {
         [
-            self.settlement_date.clone(),
-            self.product.clone(),
+            self.date.to_string(),
+            self.product.to_string(),
             self.account.to_string(),
-            self.security_code.clone(),
-            self.security_name.clone(),
+            self.code.to_string(),
+            self.name.to_string(),
             self.unit_price.to_string(),
             self.shares.to_string(),
             self.dividends_before_tax.to_string(),
@@ -149,6 +255,7 @@ impl ReceiptRowData for Dividend {
         ]
         .join("\u{1f}")
     }
+
     fn search_amount(&self, index: usize) -> Decimal {
         match index {
             0 => self.unit_price,
@@ -158,6 +265,7 @@ impl ReceiptRowData for Dividend {
             _ => self.net_amount_received,
         }
     }
+
     fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
         (
             self.dividends_before_tax,
@@ -167,228 +275,66 @@ impl ReceiptRowData for Dividend {
     }
 }
 
-impl ReceiptRowData for DomesticStock {
-    fn date(&self) -> &str {
-        &self.trade_date
-    }
-    fn code(&self) -> &str {
-        self.security_code.as_str()
-    }
-    fn name(&self) -> &str {
-        &self.security_name
-    }
-    fn account(&self) -> &str {
-        self.account.as_str()
-    }
-    fn is_specific(&self) -> bool {
-        self.account.is_specific()
-    }
-    fn cells(&self) -> Vec<ReceiptCell> {
-        vec![
-            ReceiptCell::Text(format_date(&self.trade_date)),
-            ReceiptCell::SecurityCode(self.security_code.to_string()),
-            ReceiptCell::InstrumentName {
-                name: normalize_display_name(&self.security_name),
-                code: Some(self.security_code.to_string()),
-            },
-            ReceiptCell::Text(self.account.to_string()),
-            ReceiptCell::Text(format_number(self.shares, 2)),
-            ReceiptCell::Text(format_currency(self.asked_price)),
-            ReceiptCell::Text(format_currency(self.proceeds)),
-            ReceiptCell::Text(format_currency(self.purchase_price)),
-            ReceiptCell::Text(format_currency(self.realized_profit_and_loss)),
-            ReceiptCell::Text(format_currency(self.taxes)),
-            ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),
-        ]
-    }
-    fn raw_key(&self) -> String {
-        [
-            self.trade_date.clone(),
-            self.security_code.to_string(),
-            self.security_name.clone(),
-            self.account.to_string(),
-            self.shares.to_string(),
-            self.asked_price.to_string(),
-            self.proceeds.to_string(),
-            self.purchase_price.to_string(),
-            self.realized_profit_and_loss.to_string(),
-            self.taxes.to_string(),
-            self.realized_profit_and_loss_after_tax.to_string(),
-        ]
-        .join("\u{1f}")
-    }
-    fn search_amount(&self, index: usize) -> Decimal {
-        match index {
-            0 => self.shares,
-            1 => self.asked_price,
-            2 => self.proceeds,
-            3 => self.purchase_price,
-            _ => self.realized_profit_and_loss,
-        }
-    }
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
-        (
-            self.realized_profit_and_loss,
-            self.taxes,
-            self.realized_profit_and_loss_after_tax,
-        )
-    }
-    fn realized_pnl(&self) -> Decimal {
-        self.realized_profit_and_loss
-    }
-}
-
-impl ReceiptRowData for Mutualfund {
-    fn date(&self) -> &str {
-        &self.trade_date
-    }
-    fn code(&self) -> &str {
-        ""
-    }
-    fn name(&self) -> &str {
-        &self.fund_name
-    }
-    fn account(&self) -> &str {
-        self.account.as_str()
-    }
-    fn is_specific(&self) -> bool {
-        self.account.is_specific()
-    }
-    fn cells(&self) -> Vec<ReceiptCell> {
-        vec![
-            ReceiptCell::Text(format_date(&self.trade_date)),
-            ReceiptCell::InstrumentName {
-                name: normalize_display_name(&self.fund_name),
-                code: None,
-            },
-            ReceiptCell::Text(self.account.to_string()),
-            ReceiptCell::Text(format_number(self.shares, 2)),
-            ReceiptCell::Text(format_currency(self.cancellation_unit_price_yen)),
-            ReceiptCell::Text(format_currency(self.cancellation_amount_yen)),
-            ReceiptCell::Text(format_currency(self.average_acquisition_price_yen)),
-            ReceiptCell::Text(format_currency(self.realized_profit_and_loss)),
-            ReceiptCell::Text(format_currency(self.taxes)),
-            ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),
-        ]
-    }
-    fn raw_key(&self) -> String {
-        [
-            self.trade_date.clone(),
-            self.fund_name.clone(),
-            self.account.to_string(),
-            self.shares.to_string(),
-            self.exchange_rate.to_string(),
-            self.cancellation_unit_price_yen.to_string(),
-            self.cancellation_amount_yen.to_string(),
-            self.average_acquisition_price_yen.to_string(),
-            self.realized_profit_and_loss.to_string(),
-            self.taxes.to_string(),
-            self.realized_profit_and_loss_after_tax.to_string(),
-        ]
-        .join("\u{1f}")
-    }
-    fn search_amount(&self, _index: usize) -> Decimal {
-        Decimal::ZERO
-    }
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
-        (
-            self.realized_profit_and_loss,
-            self.taxes,
-            self.realized_profit_and_loss_after_tax,
-        )
+impl ReceiptRowData for Dividend {
+    fn view(&self) -> RowView<'_> {
+        RowView::Dividend(DividendView {
+            date: &self.settlement_date,
+            product: &self.product,
+            account: self.account.as_str(),
+            code: &self.security_code,
+            name: &self.security_name,
+            unit_price: self.unit_price,
+            shares: self.shares,
+            dividends_before_tax: self.dividends_before_tax,
+            taxes: self.taxes,
+            net_amount_received: self.net_amount_received,
+        })
     }
 }
 
 // プレビュー行は backend の検証を通った Create*Request 相当のため、
 // 口座・銘柄コードは文字列のまま保持する(保存済み行と表示・検索の規則は同じ)。
 impl ReceiptRowData for DividendCsvRow {
-    fn date(&self) -> &str {
-        &self.settlement_date
-    }
-    fn code(&self) -> &str {
-        &self.security_code
-    }
-    fn name(&self) -> &str {
-        &self.security_name
-    }
-    fn account(&self) -> &str {
-        &self.account
-    }
-    fn product(&self) -> &str {
-        &self.product
-    }
-    fn cells(&self) -> Vec<ReceiptCell> {
-        vec![
-            ReceiptCell::Text(format_date(&self.settlement_date)),
-            ReceiptCell::Text(self.product.clone()),
-            ReceiptCell::Text(self.account.clone()),
-            ReceiptCell::SecurityCode(self.security_code.clone()),
-            ReceiptCell::InstrumentName {
-                name: normalize_display_name(&self.security_name),
-                code: Some(self.security_code.clone()),
-            },
-            ReceiptCell::Text(format_currency(self.unit_price)),
-            ReceiptCell::Text(format_number(self.shares, 2)),
-            ReceiptCell::Text(format_currency(self.dividends_before_tax)),
-            ReceiptCell::Text(format_currency(self.taxes)),
-            ReceiptCell::Text(format_currency(self.net_amount_received)),
-        ]
-    }
-    fn raw_key(&self) -> String {
-        [
-            self.settlement_date.clone(),
-            self.product.clone(),
-            self.account.clone(),
-            self.security_code.clone(),
-            self.security_name.clone(),
-            self.unit_price.to_string(),
-            self.shares.to_string(),
-            self.dividends_before_tax.to_string(),
-            self.taxes.to_string(),
-            self.net_amount_received.to_string(),
-        ]
-        .join("\u{1f}")
-    }
-    fn search_amount(&self, index: usize) -> Decimal {
-        match index {
-            0 => self.unit_price,
-            1 => self.shares,
-            2 => self.dividends_before_tax,
-            3 => self.taxes,
-            _ => self.net_amount_received,
-        }
-    }
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
-        (
-            self.dividends_before_tax,
-            self.taxes,
-            self.net_amount_received,
-        )
+    fn view(&self) -> RowView<'_> {
+        RowView::Dividend(DividendView {
+            date: &self.settlement_date,
+            product: &self.product,
+            account: &self.account,
+            code: &self.security_code,
+            name: &self.security_name,
+            unit_price: self.unit_price,
+            shares: self.shares,
+            dividends_before_tax: self.dividends_before_tax,
+            taxes: self.taxes,
+            net_amount_received: self.net_amount_received,
+        })
     }
 }
 
-impl ReceiptRowData for DomesticStockCsvRow {
-    fn date(&self) -> &str {
-        &self.trade_date
-    }
-    fn code(&self) -> &str {
-        &self.security_code
-    }
-    fn name(&self) -> &str {
-        &self.security_name
-    }
-    fn account(&self) -> &str {
-        &self.account
-    }
+pub(crate) struct DomesticStockView<'a> {
+    date: &'a str,
+    code: &'a str,
+    name: &'a str,
+    account: &'a str,
+    shares: Decimal,
+    asked_price: Decimal,
+    proceeds: Decimal,
+    purchase_price: Decimal,
+    realized_profit_and_loss: Decimal,
+    taxes: Decimal,
+    realized_profit_and_loss_after_tax: Decimal,
+}
+
+impl DomesticStockView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
-            ReceiptCell::Text(format_date(&self.trade_date)),
-            ReceiptCell::SecurityCode(self.security_code.clone()),
+            ReceiptCell::Text(format_date(self.date)),
+            ReceiptCell::SecurityCode(self.code.to_string()),
             ReceiptCell::InstrumentName {
-                name: normalize_display_name(&self.security_name),
-                code: Some(self.security_code.clone()),
+                name: normalize_display_name(self.name),
+                code: Some(self.code.to_string()),
             },
-            ReceiptCell::Text(self.account.clone()),
+            ReceiptCell::Text(self.account.to_string()),
             ReceiptCell::Text(format_number(self.shares, 2)),
             ReceiptCell::Text(format_currency(self.asked_price)),
             ReceiptCell::Text(format_currency(self.proceeds)),
@@ -398,12 +344,13 @@ impl ReceiptRowData for DomesticStockCsvRow {
             ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),
         ]
     }
+
     fn raw_key(&self) -> String {
         [
-            self.trade_date.clone(),
-            self.security_code.clone(),
-            self.security_name.clone(),
-            self.account.clone(),
+            self.date.to_string(),
+            self.code.to_string(),
+            self.name.to_string(),
+            self.account.to_string(),
             self.shares.to_string(),
             self.asked_price.to_string(),
             self.proceeds.to_string(),
@@ -414,6 +361,7 @@ impl ReceiptRowData for DomesticStockCsvRow {
         ]
         .join("\u{1f}")
     }
+
     fn search_amount(&self, index: usize) -> Decimal {
         match index {
             0 => self.shares,
@@ -423,6 +371,7 @@ impl ReceiptRowData for DomesticStockCsvRow {
             _ => self.realized_profit_and_loss,
         }
     }
+
     fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
         (
             self.realized_profit_and_loss,
@@ -430,32 +379,67 @@ impl ReceiptRowData for DomesticStockCsvRow {
             self.realized_profit_and_loss_after_tax,
         )
     }
-    fn realized_pnl(&self) -> Decimal {
-        self.realized_profit_and_loss
+}
+
+impl ReceiptRowData for DomesticStock {
+    fn view(&self) -> RowView<'_> {
+        RowView::DomesticStock(DomesticStockView {
+            date: &self.trade_date,
+            code: self.security_code.as_str(),
+            name: &self.security_name,
+            account: self.account.as_str(),
+            shares: self.shares,
+            asked_price: self.asked_price,
+            proceeds: self.proceeds,
+            purchase_price: self.purchase_price,
+            realized_profit_and_loss: self.realized_profit_and_loss,
+            taxes: self.taxes,
+            realized_profit_and_loss_after_tax: self.realized_profit_and_loss_after_tax,
+        })
     }
 }
 
-impl ReceiptRowData for MutualfundCsvRow {
-    fn date(&self) -> &str {
-        &self.trade_date
+impl ReceiptRowData for DomesticStockCsvRow {
+    fn view(&self) -> RowView<'_> {
+        RowView::DomesticStock(DomesticStockView {
+            date: &self.trade_date,
+            code: &self.security_code,
+            name: &self.security_name,
+            account: &self.account,
+            shares: self.shares,
+            asked_price: self.asked_price,
+            proceeds: self.proceeds,
+            purchase_price: self.purchase_price,
+            realized_profit_and_loss: self.realized_profit_and_loss,
+            taxes: self.taxes,
+            realized_profit_and_loss_after_tax: self.realized_profit_and_loss_after_tax,
+        })
     }
-    fn code(&self) -> &str {
-        ""
-    }
-    fn name(&self) -> &str {
-        &self.fund_name
-    }
-    fn account(&self) -> &str {
-        &self.account
-    }
+}
+
+pub(crate) struct MutualfundView<'a> {
+    date: &'a str,
+    name: &'a str,
+    account: &'a str,
+    shares: Decimal,
+    exchange_rate: Decimal,
+    cancellation_unit_price_yen: Decimal,
+    cancellation_amount_yen: Decimal,
+    average_acquisition_price_yen: Decimal,
+    realized_profit_and_loss: Decimal,
+    taxes: Decimal,
+    realized_profit_and_loss_after_tax: Decimal,
+}
+
+impl MutualfundView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
-            ReceiptCell::Text(format_date(&self.trade_date)),
+            ReceiptCell::Text(format_date(self.date)),
             ReceiptCell::InstrumentName {
-                name: normalize_display_name(&self.fund_name),
+                name: normalize_display_name(self.name),
                 code: None,
             },
-            ReceiptCell::Text(self.account.clone()),
+            ReceiptCell::Text(self.account.to_string()),
             ReceiptCell::Text(format_number(self.shares, 2)),
             ReceiptCell::Text(format_currency(self.cancellation_unit_price_yen)),
             ReceiptCell::Text(format_currency(self.cancellation_amount_yen)),
@@ -465,11 +449,12 @@ impl ReceiptRowData for MutualfundCsvRow {
             ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),
         ]
     }
+
     fn raw_key(&self) -> String {
         [
-            self.trade_date.clone(),
-            self.fund_name.clone(),
-            self.account.clone(),
+            self.date.to_string(),
+            self.name.to_string(),
+            self.account.to_string(),
             self.shares.to_string(),
             self.exchange_rate.to_string(),
             self.cancellation_unit_price_yen.to_string(),
@@ -481,9 +466,7 @@ impl ReceiptRowData for MutualfundCsvRow {
         ]
         .join("\u{1f}")
     }
-    fn search_amount(&self, _index: usize) -> Decimal {
-        Decimal::ZERO
-    }
+
     fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
         (
             self.realized_profit_and_loss,
@@ -493,140 +476,68 @@ impl ReceiptRowData for MutualfundCsvRow {
     }
 }
 
-impl CsvPreviewRow {
-    fn inner(&self) -> &dyn ReceiptRowData {
-        match self {
-            Self::Dividend(row) => row,
-            Self::DomesticStock(row) => row,
-            Self::MutualFund(row) => row,
-        }
+impl ReceiptRowData for Mutualfund {
+    fn view(&self) -> RowView<'_> {
+        RowView::MutualFund(MutualfundView {
+            date: &self.trade_date,
+            name: &self.fund_name,
+            account: self.account.as_str(),
+            shares: self.shares,
+            exchange_rate: self.exchange_rate,
+            cancellation_unit_price_yen: self.cancellation_unit_price_yen,
+            cancellation_amount_yen: self.cancellation_amount_yen,
+            average_acquisition_price_yen: self.average_acquisition_price_yen,
+            realized_profit_and_loss: self.realized_profit_and_loss,
+            taxes: self.taxes,
+            realized_profit_and_loss_after_tax: self.realized_profit_and_loss_after_tax,
+        })
+    }
+}
+
+impl ReceiptRowData for MutualfundCsvRow {
+    fn view(&self) -> RowView<'_> {
+        RowView::MutualFund(MutualfundView {
+            date: &self.trade_date,
+            name: &self.fund_name,
+            account: &self.account,
+            shares: self.shares,
+            exchange_rate: self.exchange_rate,
+            cancellation_unit_price_yen: self.cancellation_unit_price_yen,
+            cancellation_amount_yen: self.cancellation_amount_yen,
+            average_acquisition_price_yen: self.average_acquisition_price_yen,
+            realized_profit_and_loss: self.realized_profit_and_loss,
+            taxes: self.taxes,
+            realized_profit_and_loss_after_tax: self.realized_profit_and_loss_after_tax,
+        })
     }
 }
 
 impl ReceiptRowData for CsvPreviewRow {
-    fn date(&self) -> &str {
-        self.inner().date()
-    }
-    fn code(&self) -> &str {
-        self.inner().code()
-    }
-    fn name(&self) -> &str {
-        self.inner().name()
-    }
-    fn account(&self) -> &str {
-        self.inner().account()
-    }
-    fn product(&self) -> &str {
-        self.inner().product()
-    }
-    fn is_specific(&self) -> bool {
-        self.inner().is_specific()
-    }
-    fn cells(&self) -> Vec<ReceiptCell> {
-        self.inner().cells()
-    }
-    fn raw_key(&self) -> String {
-        self.inner().raw_key()
-    }
-    fn search_amount(&self, index: usize) -> Decimal {
-        self.inner().search_amount(index)
-    }
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
-        self.inner().summary_amounts()
-    }
-    fn realized_pnl(&self) -> Decimal {
-        self.inner().realized_pnl()
-    }
-}
-
-impl ReceiptItem {
-    fn inner(&self) -> &dyn ReceiptRowData {
+    fn view(&self) -> RowView<'_> {
         match self {
-            Self::Dividend(row) => row,
-            Self::DomesticStock(row) => row,
-            Self::MutualFund(row) => row,
+            Self::Dividend(row) => row.view(),
+            Self::DomesticStock(row) => row.view(),
+            Self::MutualFund(row) => row.view(),
         }
     }
 }
 
 impl ReceiptRowData for ReceiptItem {
-    fn date(&self) -> &str {
-        self.inner().date()
-    }
-    fn code(&self) -> &str {
-        self.inner().code()
-    }
-    fn name(&self) -> &str {
-        self.inner().name()
-    }
-    fn account(&self) -> &str {
-        self.inner().account()
-    }
-    fn product(&self) -> &str {
-        self.inner().product()
-    }
-    fn is_specific(&self) -> bool {
-        self.inner().is_specific()
-    }
-    fn cells(&self) -> Vec<ReceiptCell> {
-        self.inner().cells()
-    }
-    fn raw_key(&self) -> String {
-        self.inner().raw_key()
-    }
-    fn search_amount(&self, index: usize) -> Decimal {
-        self.inner().search_amount(index)
-    }
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
-        self.inner().summary_amounts()
-    }
-    fn realized_pnl(&self) -> Decimal {
-        self.inner().realized_pnl()
-    }
-}
-
-impl<S: ReceiptRowData, P: ReceiptRowData> Row<S, P> {
-    fn inner(&self) -> &dyn ReceiptRowData {
+    fn view(&self) -> RowView<'_> {
         match self {
-            Self::Saved(row) => row,
-            Self::Preview(row) => row,
+            Self::Dividend(row) => row.view(),
+            Self::DomesticStock(row) => row.view(),
+            Self::MutualFund(row) => row.view(),
         }
     }
 }
 
 impl<S: ReceiptRowData, P: ReceiptRowData> ReceiptRowData for Row<S, P> {
-    fn date(&self) -> &str {
-        self.inner().date()
-    }
-    fn code(&self) -> &str {
-        self.inner().code()
-    }
-    fn name(&self) -> &str {
-        self.inner().name()
-    }
-    fn account(&self) -> &str {
-        self.inner().account()
-    }
-    fn product(&self) -> &str {
-        self.inner().product()
-    }
-    fn is_specific(&self) -> bool {
-        self.inner().is_specific()
-    }
-    fn cells(&self) -> Vec<ReceiptCell> {
-        self.inner().cells()
-    }
-    fn raw_key(&self) -> String {
-        self.inner().raw_key()
-    }
-    fn search_amount(&self, index: usize) -> Decimal {
-        self.inner().search_amount(index)
-    }
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
-        self.inner().summary_amounts()
-    }
-    fn realized_pnl(&self) -> Decimal {
-        self.inner().realized_pnl()
+    fn view(&self) -> RowView<'_> {
+        match self {
+            Self::Saved(row) => row.view(),
+            Self::Preview(row) => row.view(),
+        }
     }
 }
 
@@ -652,6 +563,41 @@ impl ColumnTier {
             ColumnTier::Wider => " receipt-tier-wider",
         }
     }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum ColumnAlign {
+    Left,
+    Center,
+    Right,
+}
+
+impl ColumnAlign {
+    pub(crate) fn class(self) -> &'static str {
+        match self {
+            ColumnAlign::Left => "text-left",
+            ColumnAlign::Center => "text-center",
+            ColumnAlign::Right => "text-right tabular-nums",
+        }
+    }
+}
+
+/// モバイルカードの見出し(銘柄名・日付・口座)に使う列の役割
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CardRole {
+    None,
+    Name,
+    Date,
+    Account,
+}
+
+/// 1列分の表示属性。列の追加・並び替えはこの組で編集する
+pub(crate) struct ColumnSpec {
+    pub(crate) header: &'static str,
+    pub(crate) width: &'static str,
+    pub(crate) tier: ColumnTier,
+    pub(crate) align: ColumnAlign,
+    pub(crate) card_role: CardRole,
 }
 
 #[derive(Clone, Copy)]
@@ -925,24 +871,22 @@ impl ReceiptsTab {
         self.kind().import_path
     }
 
-    pub(crate) fn headers(self) -> &'static [&'static str] {
-        self.kind().headers
-    }
-
-    pub(crate) fn column_widths(self) -> &'static [&'static str] {
-        self.kind().column_widths
-    }
-
-    pub(crate) fn column_tiers(self) -> &'static [ColumnTier] {
-        self.kind().column_tiers
-    }
-
-    pub(crate) fn column_aligns(self) -> &'static [&'static str] {
-        self.kind().column_aligns
+    pub(crate) fn columns(self) -> &'static [ColumnSpec] {
+        self.kind().columns
     }
 
     pub(crate) fn card_fields(self) -> CardFields {
-        self.kind().card_fields
+        let find = |role| {
+            self.columns()
+                .iter()
+                .position(|column| column.card_role == role)
+                .expect("カード見出しの列が設定に存在する")
+        };
+        CardFields {
+            name: find(CardRole::Name),
+            date: find(CardRole::Date),
+            account: find(CardRole::Account),
+        }
     }
 
     pub(crate) fn summary_labels(self) -> [&'static str; 3] {
@@ -1057,30 +1001,27 @@ impl ReceiptsTab {
 
     pub(crate) async fn fetch_list(self) -> Result<ReceiptTabData, ApiError> {
         match self {
-            Self::Dividend => {
-                load_tab::<Dividend>(ReceiptItem::Dividend, ReceiptSummary::Dividend).await
-            }
-            Self::DomesticStock => {
-                load_tab::<DomesticStock>(ReceiptItem::DomesticStock, ReceiptSummary::DomesticStock)
-                    .await
-            }
-            Self::MutualFund => {
-                load_tab::<Mutualfund>(ReceiptItem::MutualFund, ReceiptSummary::MutualFund).await
-            }
+            // MutualfundSummary は DomesticStockSummary の別名なので
+            // Into ではバリアントを選べず、集計側だけコンストラクタを渡す
+            Self::Dividend => load_tab::<Dividend>(ReceiptSummary::Dividend).await,
+            Self::DomesticStock => load_tab::<DomesticStock>(ReceiptSummary::DomesticStock).await,
+            Self::MutualFund => load_tab::<Mutualfund>(ReceiptSummary::MutualFund).await,
         }
     }
 }
 
 async fn load_tab<E: ListEndpoint>(
-    wrap_row: fn(E::Row) -> ReceiptItem,
     wrap_summary: fn(E::Summary) -> ReceiptSummary,
-) -> Result<ReceiptTabData, ApiError> {
+) -> Result<ReceiptTabData, ApiError>
+where
+    E::Row: Into<ReceiptItem>,
+{
     let page = fetch_all_pages::<E>().await?;
     Ok(ReceiptTabData {
         rows: page
             .rows
             .into_iter()
-            .map(wrap_row)
+            .map(Into::into)
             .map(Row::Saved)
             .collect(),
         summary: page.summary.map(wrap_summary),

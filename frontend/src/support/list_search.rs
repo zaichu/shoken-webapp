@@ -49,6 +49,19 @@ fn is_js_line_terminator(c: char) -> bool {
     matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}')
 }
 
+/// 先頭が空白に当たるまでを1トークンとして切り出す
+fn unquoted_token(query: &str, start: usize) -> (String, usize) {
+    let mut end = start;
+    while end < query.len() {
+        let c = query[end..].chars().next().unwrap();
+        if is_js_whitespace(c) {
+            break;
+        }
+        end += c.len_utf8();
+    }
+    (query[start..end].to_string(), end)
+}
+
 fn parse_quoted_token(query: &str, mut index: usize) -> Option<(String, usize)> {
     let mut token = String::new();
 
@@ -117,27 +130,10 @@ pub fn parse_search_tokens(query: &str) -> Vec<String> {
         let start = index;
         let current = query[index..].chars().next().unwrap();
         let (raw_token, next_index) = if current == '"' {
-            parse_quoted_token(query, index + current.len_utf8()).unwrap_or_else(|| {
-                let mut end = start;
-                while end < query.len() {
-                    let c = query[end..].chars().next().unwrap();
-                    if is_js_whitespace(c) {
-                        break;
-                    }
-                    end += c.len_utf8();
-                }
-                (query[start..end].to_string(), end)
-            })
+            parse_quoted_token(query, index + current.len_utf8())
+                .unwrap_or_else(|| unquoted_token(query, start))
         } else {
-            let mut end = start;
-            while end < query.len() {
-                let c = query[end..].chars().next().unwrap();
-                if is_js_whitespace(c) {
-                    break;
-                }
-                end += c.len_utf8();
-            }
-            (query[start..end].to_string(), end)
+            unquoted_token(query, start)
         };
         index = next_index;
 

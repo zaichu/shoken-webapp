@@ -72,6 +72,24 @@ pub enum ReceiptSummary {
     MutualFund(crate::api::dto::MutualfundSummary),
 }
 
+impl From<crate::api::dto::Dividend> for ReceiptItem {
+    fn from(row: crate::api::dto::Dividend) -> Self {
+        Self::Dividend(row)
+    }
+}
+
+impl From<crate::api::dto::DomesticStock> for ReceiptItem {
+    fn from(row: crate::api::dto::DomesticStock) -> Self {
+        Self::DomesticStock(row)
+    }
+}
+
+impl From<crate::api::dto::Mutualfund> for ReceiptItem {
+    fn from(row: crate::api::dto::Mutualfund) -> Self {
+        Self::MutualFund(row)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReceiptTabData {
     pub rows: Vec<ReceiptRow>,
