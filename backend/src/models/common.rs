@@ -1,8 +1,6 @@
 use std::borrow::Cow;
 use validator::{ValidateLength, ValidationError, ValidationErrors};
 
-// PaginationParams は現状の公開パスから直接参照されないが、公開面として揃える
-#[allow(unused_imports)]
 pub use shared::common::{
     BulkCreateResponse, FacetOption, MessageResponse, PaginatedSearchResponse, PaginationParams,
     SearchFacets, SearchParamsAccessor, SearchQueryParams,

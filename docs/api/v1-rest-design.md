@@ -37,7 +37,8 @@ Resource-specific HTTP adapters live under `backend/src/handlers/v1/`:
 - `domestic_stocks.rs`
 - `mutual_funds.rs`
 - `asset_balances.rs`
-- `market_data.rs`
+- `csv_import.rs`
+- `dividend_per_share.rs`
 
 Function names inside resource modules should not repeat the version prefix.
 Use `handlers::v1::auth::get_session`, not `handlers::v1::v1_get_session`.
@@ -60,7 +61,9 @@ The list endpoints for dividends, domestic stock transactions, mutual fund trans
 - `per_page`: defaults to `200`, clamped to `1..1000`.
 - Responses use the pagination envelope `data`, `total`, `page`, and `per_page`; searchable list endpoints may also include optional `summary` and `facets`.
 
-## Proposed Routes
+## Routes
+
+API 契約の正本は `docs/openapi.json`（`GET /api-docs/openapi.json` で配信）。本表は構成の俯瞰用。
 
 ### Probes
 
@@ -68,6 +71,7 @@ The list endpoints for dividends, domestic stock transactions, mutual fund trans
 |---|---|---|
 | GET | `/health` | Liveness check |
 | GET | `/ready` | Startup readiness check |
+| GET | `/api-docs/openapi.json` | OpenAPI schema |
 
 ### Session And Account
 
@@ -124,12 +128,6 @@ The list endpoints for dividends, domestic stock transactions, mutual fund trans
 | POST | `/api/v1/asset-balance-import-validations` | Validate asset balance CSV |
 | POST | `/api/v1/asset-balance-imports` | Import asset balance CSV |
 
-### Market Data
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/v1/financial-statements?code=7203` | Get financial statement summary |
-
 ## Legacy Route Migration History
 
 旧ルートは v1 移行完了後に削除済み。以下は移行履歴（参照用）。
@@ -160,6 +158,6 @@ The list endpoints for dividends, domestic stock transactions, mutual fund trans
 | `DELETE /asset-balances` | `DELETE /api/v1/asset-balances` |
 | `POST /asset-balances/csv/preview` | `POST /api/v1/asset-balance-import-validations` |
 | `POST /asset-balances/csv` | `POST /api/v1/asset-balance-imports` |
-| `GET /jquants/fins/summary` | `GET /api/v1/financial-statements` |
+| `GET /jquants/fins/summary` | 削除(#829。未使用のため撤去) |
 | `POST /dividends/per-share/batch` | `POST /api/v1/dividend-per-share-estimates` |
 
