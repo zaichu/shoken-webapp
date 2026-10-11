@@ -42,14 +42,6 @@ const API_SUMMARY = {
   total_daily_change: 0,
 };
 
-const FACETS = {
-  securities: [
-    { value: '7203', label: 'トヨタ自動車', count: 1 },
-    { value: '6758', label: 'ソニーグループ', count: 1 },
-  ],
-};
-
-
 async function setupAssetBalanceMocks(page: Page) {
   await page.route(/\/api\/v1\/session$/, (route) =>
     route.fulfill(json(MOCK_USER)),
@@ -66,7 +58,6 @@ async function setupAssetBalanceMocks(page: Page) {
         page: 1,
         per_page: 1000,
         summary: API_SUMMARY,
-        facets: FACETS,
       }),
     );
   });
@@ -87,13 +78,13 @@ test('絞り込み中のKPIはAPIのsummaryではなく表示行の合計にな�
   // API summary の評価額はサマリーに使われない(評価額表示自体がない)
   await expect(kpi).not.toContainText('¥987,654,321');
 
-  await page.getByLabel('銘柄').selectOption('6758');
+  await page.getByTestId('asset-search-input').fill('ソニー');
 
-  await expect(page.getByText('絞り込み中: 1/2件')).toBeVisible();
+  await expect(page.getByTestId('asset-search-count')).toContainText('1 / 2');
   await expect(kpi).toContainText('¥150,000');
   await expect(kpi).not.toContainText('¥123,456,789');
 
-  await page.getByRole('button', { name: '検索条件をクリア' }).click();
+  await page.getByTestId('asset-search-clear').click();
 
   await expect(kpi).toContainText('¥123,456,789');
 });

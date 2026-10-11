@@ -1,7 +1,7 @@
 pub(super) mod csv;
 
 use super::holdings::{HoldingView, holding_view};
-use crate::api::dto::{AssetBalance, AssetBalanceSummary, SearchFacets};
+use crate::api::dto::{AssetBalance, AssetBalanceSummary};
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::{AssetBalanceLookupStore, fetch_single_asset_balance};
@@ -13,6 +13,7 @@ use crate::features::dividend_per_share::{
 };
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
+use crate::support::list_search::is_js_whitespace;
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fetch_all_pages};
 use crate::support::row::Row;
 use leptos::prelude::*;
@@ -24,17 +25,15 @@ pub(crate) struct LoadedAssetBalances {
     // API の total。実際に取得できた行数(rows.len)とは一致しないことがある
     pub(crate) total: usize,
     pub(crate) summary: Option<AssetBalanceSummary>,
-    pub(crate) facets: Option<SearchFacets>,
     pub(crate) truncated: bool,
 }
 
-/// 資産残高一覧のエンドポイント。検索候補に使う facets も取るため INCLUDE_FACETS を立てる。
+/// 資産残高一覧のエンドポイント。
 impl ListEndpoint for AssetBalance {
     type Row = AssetBalance;
     type Summary = AssetBalanceSummary;
 
     const PATH: &'static str = super::csv::LIST_PATH;
-    const INCLUDE_FACETS: bool = true;
 }
 
 async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
@@ -43,7 +42,6 @@ async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
         total: page.total.unwrap_or(page.rows.len()),
         rows: page.rows,
         summary: page.summary,
-        facets: page.facets,
         truncated: page.truncated,
     })
 }
@@ -121,8 +119,9 @@ pub(crate) fn effective_summary(
     query: &str,
     has_csv_file: bool,
 ) -> Option<AssetBalanceSummary> {
-    // 検索中は絞り込み前、CSV プレビュー中は取込前の全体集計のままなので API の summary は使わない
-    if query.is_empty() && !has_csv_file {
+    // 検索中は絞り込み前、CSV プレビュー中は取込前の全体集計のままなので API の summary は使わない。
+    // 空白だけの入力は絞り込み側と同じく「絞り込みなし」と揃える
+    if query.trim_matches(is_js_whitespace).is_empty() && !has_csv_file {
         summary
     } else {
         None

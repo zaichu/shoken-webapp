@@ -3,7 +3,7 @@ use super::{
     poll_dividend_maps, truncated_list_warning,
 };
 use crate::api::ApiError;
-use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse, SearchFacets};
+use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse};
 use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::{DividendMaps, unique_sorted_codes};
@@ -300,7 +300,6 @@ impl AssetBalanceCsvStore {
                         rows: Vec::new(),
                         total: 0,
                         summary: None,
-                        facets: None,
                         truncated: false,
                     }),
                 )));
@@ -338,7 +337,6 @@ pub(crate) fn csv_status_text(state: &CsvTabMeta) -> Option<&'static str> {
 pub(crate) struct ResolvedAssetBalance {
     pub(crate) rows: Vec<AssetBalanceRow>,
     pub(crate) summary: Option<AssetBalanceSummary>,
-    pub(crate) facets: Option<SearchFacets>,
     pub(crate) warning: Option<String>,
     pub(crate) has_csv_file: bool,
 }
@@ -354,7 +352,6 @@ pub(crate) fn resolve_asset_balance(
         Err(_) => Some(ResolvedAssetBalance {
             rows: csv_preview_rows(state),
             summary: None,
-            facets: None,
             warning: None,
             has_csv_file,
         }),
@@ -365,7 +362,6 @@ pub(crate) fn resolve_asset_balance(
                 loaded.rows.iter().cloned().map(Row::Saved).collect()
             },
             summary: loaded.summary.clone(),
-            facets: loaded.facets.clone(),
             warning: (!has_csv_file && loaded.truncated).then(truncated_list_warning),
             has_csv_file,
         }),

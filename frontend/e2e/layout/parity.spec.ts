@@ -227,22 +227,10 @@ async function mockReceiptFetchErrors(page: Page) {
 }
 
 async function gotoFilteredEmptyAssetBalance(page: Page) {
-  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
-    route.fulfill(
-      json({
-        ...paginated(ASSET_BALANCES),
-        facets: {
-          securities: [
-            ...STOCKS.map(([value, label]) => ({ value, label, count: 1 })),
-            { value: '9999', label: '架空銘柄', count: 1 },
-          ],
-        },
-      }),
-    ),
-  );
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
-  await page.locator('#securities-search').selectOption('9999');
+  // どの銘柄にも一致しない文字列で 0 件にする
+  await page.getByTestId('asset-search-input').fill('9999');
   await expect(
     page.getByRole('button', { name: '絞り込みを解除' }),
   ).toBeVisible();
@@ -376,13 +364,13 @@ test('資産管理の検索とCSV操作に390pxでもアクセスできる', asy
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
-  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
+  // 検索はメイン領域にあるのでドロワーを開かなくても届く
+  await expect(page.getByTestId('asset-search-input')).toBeEditable();
+  // 狭い帯ではパネルが畳んで始まるので、CSV 操作はドロワーを開ける
   await openAssetUtilityPanel(page);
   const rail = page.getByTestId('assetbalance-utility-rail');
   await expect(rail.getByTestId('assetbalance-csv-toggle')).toBeVisible();
-  await expect(rail.getByTestId('search-card-compact')).toBeVisible();
   await expect(rail.getByTestId('asset-review-prompt-card')).toBeVisible();
-  await expect(page.locator('#securities-search')).toBeVisible();
 });
 
 test('取引明細 390px はカード表示でページはみ出しなし', async ({ page }) => {

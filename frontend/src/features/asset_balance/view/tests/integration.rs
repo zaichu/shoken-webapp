@@ -1,5 +1,5 @@
 use crate::api::ApiError;
-use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SearchFacets};
+use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRowData};
 use crate::features::asset_balance::store::csv::resolve_asset_balance;
 use crate::features::asset_balance::store::{
@@ -69,14 +69,6 @@ fn loaded(rows: Vec<AssetBalance>, truncated: bool) -> LoadedAssetBalances {
             total_market_value: rust_decimal_macros::dec!(260000),
             total_daily_change: rust_decimal_macros::dec!(0),
         }),
-        facets: Some(SearchFacets {
-            securities: Some(vec![crate::api::dto::FacetOption {
-                value: "7203".to_string(),
-                label: "トヨタ自動車".to_string(),
-                count: Some(1),
-            }]),
-            ..Default::default()
-        }),
         truncated,
     }
 }
@@ -119,7 +111,6 @@ fn resolve_ready_uses_db_rows_and_carries_aggregates() {
     };
     assert_eq!(resolved.rows.len(), 2);
     assert!(resolved.summary.is_some());
-    assert!(resolved.facets.is_some());
     assert_eq!(resolved.warning, Some(truncated_list_warning()));
     assert!(!resolved.has_csv_file);
 }
@@ -161,6 +152,5 @@ fn resolve_list_error_falls_back_to_preview_rows() {
     assert!(resolved.rows[0].is_preview());
     assert_eq!(resolved.rows[0].security_code(), "9999");
     assert!(resolved.summary.is_none());
-    assert!(resolved.facets.is_none());
     assert!(resolved.warning.is_none());
 }

@@ -11,8 +11,6 @@ pub enum ChipVariant {
     Filter,
     /// 期間の切り替えセグメント(aria-pressed)
     Segment,
-    /// 枠付きの解除チップ
-    Pill,
 }
 
 impl ChipVariant {
@@ -24,7 +22,6 @@ impl ChipVariant {
             Self::Segment => {
                 "flex-1 rounded bg-ink px-2 py-1 text-xs font-semibold text-text-inverse"
             }
-            Self::Pill => "filter-chip",
         }
     }
 
@@ -36,7 +33,6 @@ impl ChipVariant {
             Self::Segment => {
                 "flex-1 rounded bg-surface-raised px-2 py-1 text-xs font-semibold text-text-muted"
             }
-            Self::Pill => "filter-chip",
         }
     }
 

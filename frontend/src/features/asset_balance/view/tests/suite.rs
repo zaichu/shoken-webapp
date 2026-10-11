@@ -191,6 +191,8 @@ fn api_summary_is_ignored_while_searching() {
     assert_eq!(effective_summary(summary(), "7203", false), None);
     assert_eq!(effective_summary(summary(), "", true), None);
     assert_eq!(effective_summary(None, "", false), None);
+    // 空白だけの入力は絞り込み側と揃えて「絞り込みなし」とし、API summary を残す
+    assert_eq!(effective_summary(summary(), "  　 ", false), summary());
 }
 
 #[test]
@@ -212,7 +214,6 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
                 total_purchase_amount: rust_decimal_macros::dec!(888888),
                 total_daily_change: rust_decimal_macros::dec!(0),
             }),
-            facets: None,
             truncated: false,
         };
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -403,7 +404,6 @@ fn dividend_maps_apply_only_to_current_generation() {
                 rows: vec![],
                 total: 0,
                 summary: None,
-                facets: None,
                 truncated: false,
             }),
         )));
@@ -426,7 +426,6 @@ fn dividend_update_does_not_notify_balance_view() {
                 rows: vec![],
                 total: 0,
                 summary: None,
-                facets: None,
                 truncated: false,
             }),
         )));

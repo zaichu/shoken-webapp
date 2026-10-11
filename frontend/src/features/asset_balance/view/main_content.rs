@@ -1,4 +1,5 @@
 use super::chart::ChartList;
+use super::search_bar::AssetBalanceSearchBar;
 use super::summary::{ChartItem, PortfolioSummary};
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
@@ -40,13 +41,32 @@ pub(crate) fn AssetBalanceMainContent(
     let total_count = rows.len();
     let status = csv_status_text(&state);
     let preview_active = state.has_preview_rows();
+    // 絞り込みはこの signal の1か所だけ。表示上限の適用より前に全取得行へかかる
+    let filtered = RwSignal::new(filtered_portfolio(
+        &rows,
+        summary.clone(),
+        &search_query.get_untracked(),
+        lookup,
+        generation,
+        has_csv_file,
+    ));
+    Effect::new(move |_| {
+        filtered.set(filtered_portfolio(
+            &rows,
+            summary.clone(),
+            &search_query.get(),
+            lookup,
+            generation,
+            has_csv_file,
+        ));
+    });
+    let no_rows = move || total_count == 0;
     view! {
         {status.map(|text| view! { <LoadingStrip text=text.to_string() /> })}
         {move || {
-            let query = search_query.get();
-            if rows.is_empty() && query.is_empty() {
+            no_rows().then(|| {
                 show_all.set(false);
-                return view! {
+                view! {
                     <Card variant=CardVariant::Soft class="mb-3">
                         <div>
                             <EmptyState
@@ -70,38 +90,24 @@ pub(crate) fn AssetBalanceMainContent(
                         </div>
                     </Card>
                 }
-                    .into_any();
-            }
-            let FilteredPortfolio { views, summary } = filtered_portfolio(
-                &rows,
-                summary.clone(),
-                &query,
-                lookup,
-                generation,
-                has_csv_file,
-            );
-            let chart_values: Vec<f64> = views.iter().map(|view| view.purchase).collect();
-            let plan = chart_plan(&chart_values);
-            let chart_items: Vec<ChartItem> = plan
-                .order
-                .iter()
-                .zip(&plan.percentages)
-                .map(|(&index, &percentage)| ChartItem {
-                    view: views[index].clone(),
-                    percentage,
-                })
-                .collect();
+            })
+        }}
+        {(preview_active && !no_rows()).then(|| {
             view! {
-                {preview_active.then(|| {
-                    view! {
-                        <CsvPreviewBanner description="一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
-                    }
-                })}
-                <section id="assetbalance-list">
+                <CsvPreviewBanner description="一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
+            }
+        })}
+        // 入力欄は query 変更で作り直されるブロックの外に置く(再生成でフォーカスが落ちるため)
+        <section id="assetbalance-list" hidden=no_rows>
+            {move || {
+                let FilteredPortfolio { views, summary } = filtered.get();
+                // query の変更は必ず Effect 経由で filtered の再通知を起こすので、ここでは追跡しない
+                let is_filtered = !search_query.get_untracked().is_empty();
+                view! {
                     <PortfolioSummary
                         views=views
                         total_count=total_count
-                        is_filtered=!query.is_empty()
+                        is_filtered=is_filtered
                         on_clear_filter=move || {
                             search_query.set(String::new())
                         }
@@ -109,17 +115,35 @@ pub(crate) fn AssetBalanceMainContent(
                         dividends=dividends
                         show_all=show_all
                     />
-                    {(!chart_items.is_empty()).then(|| {
-                        view! {
-                            <div data-testid="portfolio-pie-chart">
-                                <ChartList items=chart_items dividends=dividends show_all=show_all />
-                            </div>
-                        }
-                    })}
-                </section>
-            }
-                .into_any()
-        }}
+                }
+            }}
+            <AssetBalanceSearchBar
+                query=search_query
+                filtered_count=Signal::derive(move || filtered.with(|f| f.views.len()))
+                total_count=total_count
+            />
+            {move || {
+                let FilteredPortfolio { views, .. } = filtered.get();
+                let chart_values: Vec<f64> = views.iter().map(|view| view.purchase).collect();
+                let plan = chart_plan(&chart_values);
+                let chart_items: Vec<ChartItem> = plan
+                    .order
+                    .iter()
+                    .zip(&plan.percentages)
+                    .map(|(&index, &percentage)| ChartItem {
+                        view: views[index].clone(),
+                        percentage,
+                    })
+                    .collect();
+                (!chart_items.is_empty()).then(|| {
+                    view! {
+                        <div data-testid="portfolio-pie-chart">
+                            <ChartList items=chart_items dividends=dividends show_all=show_all />
+                        </div>
+                    }
+                })
+            }}
+        </section>
     }
     .into_any()
 }
