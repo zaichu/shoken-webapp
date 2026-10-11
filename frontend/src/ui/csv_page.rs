@@ -170,7 +170,16 @@ pub fn CsvManagePage<S: CsvSource>(
                 <section class="border-t border-border-subtle pt-4">
                     <h2 class="text-sm font-bold text-text">"データ削除"</h2>
                     <p class="mt-1 text-sm text-text-soft">
-                        {move || format!("保存済みデータ: {}件", db_count.get())}
+                        {move || {
+                            // 未取得・取得失敗を 0件 と見せると空と誤認するため、確定まで件数を出さない
+                            if source.delete_count_ready() {
+                                format!("保存済みデータ: {}件", db_count.get())
+                            } else if source.delete_count_error().is_some() {
+                                "保存済みデータ: 取得できませんでした".to_string()
+                            } else {
+                                "保存済みデータ: 取得中...".to_string()
+                            }
+                        }}
                     </p>
                     <div class="mt-3">
                         <LinkButton

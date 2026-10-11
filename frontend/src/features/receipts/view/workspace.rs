@@ -9,6 +9,7 @@ use leptos::prelude::*;
 pub(crate) fn empty_tab_data() -> ReceiptTabData {
     ReceiptTabData {
         rows: Vec::new(),
+        total: None,
         summary: None,
         truncated: false,
     }

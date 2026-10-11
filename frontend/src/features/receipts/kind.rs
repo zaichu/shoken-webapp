@@ -1007,6 +1007,7 @@ where
 {
     let page = fetch_all_pages::<E>().await?;
     Ok(ReceiptTabData {
+        total: page.total,
         rows: page
             .rows
             .into_iter()

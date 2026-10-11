@@ -7,7 +7,7 @@ use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::store::csv::{
     AssetBalanceCsvStore, csv_preview_rows, resolve_asset_balance,
 };
-use crate::features::asset_balance::store::filtered_portfolio;
+use crate::features::asset_balance::store::{filtered_portfolio, load_asset_balances};
 use crate::session::{SessionStore, use_session};
 use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::button::{Button, ButtonVariant};
@@ -110,6 +110,18 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
 pub fn AssetBalanceCsvDeletePage() -> impl IntoView {
     let session = use_session();
     let state = use_asset_balance_state(session);
+    // 削除件数をこのページに入った時点の保存済み値で確定するため、キャッシュを捨てて取り直す
+    if session.user.get_untracked().is_some() {
+        load_asset_balances(
+            session,
+            session.generation.get_untracked(),
+            state.balances,
+            state.dividends,
+            state.lookup,
+            state.csv.csv,
+            state.data_ops,
+        );
+    }
     view! {
         <CsvDeletePage
             source=state.csv

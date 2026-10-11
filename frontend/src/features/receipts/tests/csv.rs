@@ -5,6 +5,7 @@ use crate::features::receipts::store::{TabCacheEntry, mark_tab_for_refresh, tab_
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
+use crate::testing::receipts::dividends;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -49,6 +50,89 @@ fn upload_response(inserted: usize) -> crate::api::dto::CsvUploadResponse {
         skipped: 0,
         errors: vec![],
     }
+}
+
+#[test]
+fn count_uses_api_total_over_loaded_rows() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let tab = ReceiptsTab::Dividend;
+        let ready = |rows: Vec<ReceiptRow>, total| {
+            TabState::Ready(ReceiptTabData {
+                rows,
+                total,
+                summary: None,
+                truncated: false,
+            })
+        };
+        let store = test_store(
+            &session,
+            HashMap::from([((generation, tab), ready(Vec::new(), Some(100_001)))]),
+            HashMap::new(),
+        );
+
+        // 取得上限で行が欠けても削除確認は保存済み全件数を示す
+        assert_eq!(store.count(tab), 100_001);
+
+        let rows = dividends();
+        let loaded = rows.len();
+        store.tabs.set(HashMap::from([(
+            (generation, tab),
+            ready(rows, None).into(),
+        )]));
+        assert_eq!(
+            store.count(tab),
+            loaded,
+            "API total が無いときだけ読み込み済み行数に戻る"
+        );
+    });
+}
+
+#[test]
+fn refresh_for_delete_refetches_only_settled_tab() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let calls = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let record = std::rc::Rc::clone(&calls);
+        let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
+            record.borrow_mut().push((*generation, *tab));
+            async {}
+        });
+        let mut store = test_store(
+            &session,
+            HashMap::from([(
+                (generation, ReceiptsTab::Dividend),
+                TabState::Ready(ReceiptTabData {
+                    rows: Vec::new(),
+                    total: None,
+                    summary: None,
+                    truncated: false,
+                }),
+            )]),
+            HashMap::new(),
+        );
+        store.fetch = fetch;
+
+        store.refresh_for_delete(ReceiptsTab::Dividend);
+        assert_eq!(
+            calls.borrow().as_slice(),
+            &[(generation, ReceiptsTab::Dividend)]
+        );
+
+        calls.borrow_mut().clear();
+        // Ready を Loading に戻した直後は進行中の取得に任せて重複 dispatch しない
+        store.refresh_for_delete(ReceiptsTab::Dividend);
+        assert!(calls.borrow().is_empty());
+        // 未取得タブは取り直さない
+        store.refresh_for_delete(ReceiptsTab::DomesticStock);
+        assert!(calls.borrow().is_empty());
+    });
 }
 
 #[test]
@@ -106,6 +190,7 @@ fn upload_success_sets_result_and_refreshes_cached_list() {
                 (generation, tab),
                 TabState::Ready(ReceiptTabData {
                     rows: Vec::new(),
+                    total: None,
                     summary: None,
                     truncated: false,
                 }),
@@ -265,6 +350,7 @@ fn delete_success_empties_cached_list_and_clears_result() {
                         }))
                         .expect("dividend"),
                     ))],
+                    total: None,
                     summary: None,
                     truncated: false,
                 }),
@@ -434,6 +520,7 @@ fn refresh_tab_list_marks_cached_tab_loading_only() {
                 (generation, ReceiptsTab::Dividend),
                 TabState::Ready(ReceiptTabData {
                     rows: Vec::new(),
+                    total: None,
                     summary: None,
                     truncated: false,
                 }),
@@ -467,6 +554,7 @@ fn mark_tab_for_refresh_marks_only_existing_entry() {
         .or_default()
         .list = Some(TabState::Ready(ReceiptTabData {
         rows: Vec::new(),
+        total: None,
         summary: None,
         truncated: false,
     }));
@@ -689,6 +777,7 @@ fn tab_settled_only_for_ready_or_failed() {
             map.entry((Generation::new(0), tab)).or_default().list =
                 Some(TabState::Ready(ReceiptTabData {
                     rows: Vec::new(),
+                    total: None,
                     summary: None,
                     truncated: false,
                 }));
@@ -714,6 +803,7 @@ fn ensure_prunes_only_stale_generation_entries() {
                     (generation, tab),
                     TabState::Ready(ReceiptTabData {
                         rows: Vec::new(),
+                        total: None,
                         summary: None,
                         truncated: false,
                     }),
@@ -754,6 +844,7 @@ fn ensure_prunes_csv_state_when_only_csv_has_stale_entries() {
                 (generation, tab),
                 TabState::Ready(ReceiptTabData {
                     rows: Vec::new(),
+                    total: None,
                     summary: None,
                     truncated: false,
                 }),
@@ -832,6 +923,7 @@ fn utility_display_rows_returns_rows_only_for_ready_tab() {
                     (generation, tab),
                     TabState::Ready(ReceiptTabData {
                         rows: saved.clone(),
+                        total: None,
                         summary: None,
                         truncated: false,
                     }),

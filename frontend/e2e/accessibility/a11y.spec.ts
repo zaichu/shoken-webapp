@@ -574,8 +574,13 @@ test('フォーカスが見えてスキップリンクが使える', async ({ pa
   const skipBox = await skip.boundingBox();
   expect(skipBox).not.toBeNull();
   expect(skipBox!.height).toBeGreaterThan(24);
+  const csvLink = page.getByRole('link', { name: 'CSV管理' });
+  await page.keyboard.press('Tab');
+  await expect(csvLink).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(csvLink).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(skip).toBeFocused();
 

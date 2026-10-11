@@ -261,11 +261,38 @@ pub(crate) fn load_asset_balances(
                         }
                     });
                 }
-                if !codes.is_empty() && !preview_active {
+                // ポーリング結果はマップ全体を置き換えるため、プレビュー中は
+                // プレビュー銘柄も混ぜて取り直し、片方の配当が欠けないようにする
+                let poll_codes = if preview_active {
+                    let preview_codes = csv.with_untracked(|slot| match slot {
+                        Some((cached, state)) if *cached == generation => state
+                            .preview
+                            .as_ref()
+                            .map(|preview| {
+                                preview
+                                    .rows
+                                    .iter()
+                                    .map(|row| row.security_code.to_string())
+                                    .collect::<Vec<_>>()
+                            })
+                            .unwrap_or_default(),
+                        _ => Vec::new(),
+                    });
+                    unique_sorted_codes(
+                        &codes
+                            .iter()
+                            .cloned()
+                            .chain(preview_codes)
+                            .collect::<Vec<_>>(),
+                    )
+                } else {
+                    codes
+                };
+                if !poll_codes.is_empty() {
                     data_ops.update(DataOps::next_poll_rev);
                     let poll_rev = data_ops.with_untracked(|ops| ops.poll_rev);
                     leptos::task::spawn_local(poll_dividend_maps(
-                        session, generation, codes, balances, dividends, data_ops, poll_rev,
+                        session, generation, poll_codes, balances, dividends, data_ops, poll_rev,
                     ));
                 }
             }

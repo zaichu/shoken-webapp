@@ -72,10 +72,11 @@ impl ReceiptsStore {
         })
     }
 
+    // 削除確認などの保存済み件数用。取得上限で行が欠けても API の total を優先する
     pub fn count(&self, tab: ReceiptsTab) -> usize {
         let generation = self.session.generation.get();
         self.tabs.with(|map| match tab_list(map, generation, tab) {
-            Some(TabState::Ready(data)) => data.rows.len(),
+            Some(TabState::Ready(data)) => data.total.unwrap_or(data.rows.len()),
             _ => 0,
         })
     }
@@ -208,6 +209,17 @@ impl ReceiptsStore {
         };
         if self.refresh_tab_list(generation, tab) {
             self.fetch.dispatch((generation, tab));
+        }
+    }
+
+    // 削除確認の件数を表示時点の保存済み全件数で確定させるため、既取得タブだけ取り直す。
+    // 未取得・取得中なら進行中の初回取得がそのまま最新になるので重ねて取らない
+    pub(crate) fn refresh_for_delete(&self, tab: ReceiptsTab) {
+        let Some(generation) = self.current_generation() else {
+            return;
+        };
+        if tab_settled(self, generation, tab) {
+            self.reload(tab);
         }
     }
 

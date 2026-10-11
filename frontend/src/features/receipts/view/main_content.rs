@@ -119,6 +119,7 @@ pub(crate) fn ReceiptsMainContent(
                 tab,
                 &ReceiptTabData {
                     rows: rows.clone(),
+                    total: None,
                     summary: summary.clone(),
                     truncated: false,
                 },

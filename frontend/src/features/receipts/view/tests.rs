@@ -57,6 +57,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
     for (tab, rows, summary, query, expected) in cases {
         let mut data = ReceiptTabData {
             rows: rows.clone(),
+            total: None,
             summary: Some(summary),
             truncated: false,
         };
@@ -94,6 +95,7 @@ fn header_tones_mark_negative_profit_only() {
     let tones = |profit: Decimal, taxes: Decimal, after_tax: Decimal| {
         let data = ReceiptTabData {
             rows: vec![],
+            total: None,
             summary: Some(ReceiptSummary::DomesticStock(DomesticStockSummary {
                 total_realized_profit_and_loss: profit,
                 total_taxes: taxes,

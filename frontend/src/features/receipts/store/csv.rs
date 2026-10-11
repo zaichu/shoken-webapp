@@ -203,6 +203,7 @@ impl ReceiptsStore {
                     if entry.list.is_some() {
                         entry.list = Some(TabState::Ready(ReceiptTabData {
                             rows: Vec::new(),
+                            total: Some(0),
                             summary: None,
                             truncated: false,
                         }));

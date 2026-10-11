@@ -705,9 +705,10 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
     await expect(page.getByRole('button', { name: '2件 全件置換で保存' })).toBeEnabled();
     await expect(page.getByText('2件 全件置換で保存されます')).toBeVisible();
-    // プレビュー行がページ内の表に出る
-    await expect(page.getByRole('cell', { name: 'ＩＮＰＥＸ' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: '任天堂' })).toBeVisible();
+    // プレビュー行がページ内に出る(資産管理は保有カード表示)
+    const preview = page.getByTestId('csv-preview');
+    await expect(preview.getByText('ＩＮＰＥＸ').first()).toBeVisible();
+    await expect(preview.getByText('任天堂').first()).toBeVisible();
 
     await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');
@@ -718,7 +719,9 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
     await expect(page.getByRole('button', { name: '3件 全件置換で保存' })).toBeEnabled();
-    await expect(page.getByRole('cell', { name: '三菱ＵＦＪフィナンシャルＧ' })).toBeVisible();
+    await expect(
+      page.getByTestId('csv-preview').getByText('三菱ＵＦＪフィナンシャルＧ').first(),
+    ).toBeVisible();
 
     await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
     await expect(notice).toContainText('3件反映');
@@ -761,8 +764,9 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
     await expect(page.getByRole('button', { name: '1件 全件置換で保存' })).toBeEnabled();
-    await expect(page.getByRole('cell', { name: 'ＩＮＰＥＸ' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: '任天堂' })).toHaveCount(0);
+    const preview = page.getByTestId('csv-preview');
+    await expect(preview.getByText('ＩＮＰＥＸ').first()).toBeVisible();
+    await expect(preview.getByText('任天堂')).toHaveCount(0);
 
     await page.getByRole('button', { name: '1件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');

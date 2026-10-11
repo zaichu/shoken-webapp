@@ -111,6 +111,8 @@ impl From<crate::api::dto::Mutualfund> for ReceiptItem {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReceiptTabData {
     pub rows: Vec<ReceiptRow>,
+    // API の total。取得上限で行が欠けても削除件数は保存済み全件数を示すため rows.len とは別に持つ
+    pub total: Option<usize>,
     pub summary: Option<ReceiptSummary>,
     pub truncated: bool,
 }

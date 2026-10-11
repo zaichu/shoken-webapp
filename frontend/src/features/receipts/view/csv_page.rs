@@ -91,9 +91,11 @@ fn kind_tab() -> ReceiptsTab {
 }
 
 // 世代リセットが起きると ensure の対象が配当へ差し替わるので、
-// 世代を確定させてから対象タブの一覧を未取得なら取得する
+// 世代を確定させてから対象タブの一覧を未取得なら取得する。
+// ?kind= 直リンクでは一覧側の選択タブも URL の種別に同期し、「一覧に戻る」が同じタブを開く
 fn ensure_kind(store: ReceiptsStore, tab: ReceiptsTab) {
     store.ensure(tab);
+    store.active_tab.set(tab);
     store.ensure(tab);
 }
 
@@ -120,6 +122,8 @@ pub fn ReceiptsCsvDeletePage() -> impl IntoView {
     let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
     let tab = kind_tab();
     ensure_kind(store, tab);
+    // 削除対象の件数をこのページに入った時点で取り直す(別タブ等で増えた分も含める)
+    store.refresh_for_delete(tab);
     let source = ReceiptCsvSource { store, tab };
     let csv_href = format!("/receipts/csv?kind={}", tab.kind_param());
     view! {

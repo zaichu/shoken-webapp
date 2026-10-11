@@ -419,6 +419,67 @@ fn csv_input_disabled_blocks_unauth_busy_and_loading() {
 }
 
 #[test]
+fn saved_count_ready_waits_for_inflight_refresh() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let loaded = LoadedAssetBalances {
+            rows: vec![balance_row(7203)],
+            total: 1,
+            summary: None,
+            truncated: false,
+        };
+        let balances = RwSignal::new(Some((generation, Ok(loaded))));
+        let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+
+        assert!(store.saved_count_ready());
+        store.data_ops.update(DataOps::begin_list_fetch);
+        assert!(
+            !store.saved_count_ready(),
+            "取り直し中はキャッシュの古い件数を未確定として扱う"
+        );
+    });
+}
+
+#[test]
+fn discard_csv_invalidates_preview_dividend_poll() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let loaded = LoadedAssetBalances {
+            rows: vec![balance_row(7203)],
+            total: 1,
+            summary: None,
+            truncated: false,
+        };
+        let balances = RwSignal::new(Some((generation, Ok(loaded))));
+        let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+        let poll_rev = store.data_ops.with_untracked(|ops| ops.poll_rev);
+
+        store.update_csv(generation, |state| {
+            state.file_name = Some("a.csv".to_string());
+        });
+        store.discard_csv();
+
+        assert!(
+            store.data_ops.with_untracked(|ops| ops.poll_rev > poll_rev),
+            "破棄するとプレビュー銘柄向けのポーリング結果を失効させる"
+        );
+        assert!(store.csv_state().file_name.is_none());
+
+        // 何も選んでいない破棄呼び出しは余計な取り直しを起こさない
+        let poll_rev = store.data_ops.with_untracked(|ops| ops.poll_rev);
+        store.discard_csv();
+        assert_eq!(store.data_ops.with_untracked(|ops| ops.poll_rev), poll_rev);
+    });
+}
+
+#[test]
 fn db_count_ignores_stale_generation_balances() {
     let owner = Owner::new();
     owner.with(|| {

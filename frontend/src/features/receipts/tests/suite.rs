@@ -120,6 +120,7 @@ fn revisit_refetches_only_visited_settled_tabs() {
         });
         let ready = TabState::Ready(ReceiptTabData {
             rows: Vec::new(),
+            total: None,
             summary: None,
             truncated: false,
         });
@@ -201,6 +202,7 @@ fn revisit_skips_unauthenticated_and_unvisited() {
         let ready = || {
             TabCacheEntry::from(TabState::Ready(ReceiptTabData {
                 rows: Vec::new(),
+                total: None,
                 summary: None,
                 truncated: false,
             }))
@@ -226,6 +228,7 @@ fn settle_tab_result_keeps_ready_on_refresh_failure() {
             true,
             Ok(ReceiptTabData {
                 rows: Vec::new(),
+                total: None,
                 summary: None,
                 truncated: false,
             })
@@ -277,6 +280,7 @@ fn revisit_does_not_dispatch_while_fetch_pending() {
         let ready = || {
             TabCacheEntry::from(TabState::Ready(ReceiptTabData {
                 rows: Vec::new(),
+                total: None,
                 summary: None,
                 truncated: false,
             }))
