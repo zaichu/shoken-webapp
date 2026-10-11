@@ -107,7 +107,7 @@ pub fn SiteHeader() -> impl IntoView {
                     }>
                         <a
                             href="/"
-                            attr:aria-label="証券Web"
+                            aria-label="証券Web"
                             class=move || {
                                 format!(
                                     "group inline-flex items-center gap-3 rounded-md text-text-inverse transition-colors hover:text-accent-softer max-sm:min-h-11 max-sm:min-w-11 max-sm:justify-center{}",
