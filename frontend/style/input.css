@@ -289,7 +289,7 @@
   }
 
   .header-logo {
-    @apply flex h-11 w-11 items-center justify-center rounded-md border border-text-inverse/15 bg-surface text-2xl font-black text-ink shadow-edge-brand max-sm:h-10 max-sm:w-10;
+    @apply h-11 w-11 rounded-md shadow-edge-brand max-sm:h-10 max-sm:w-10;
   }
 
   .header-brand {
@@ -667,7 +667,6 @@
   .ws-header-inner .header-logo {
     width: 2.75rem;
     height: 2.75rem;
-    font-size: 1.2rem;
   }
 }
 

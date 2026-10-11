@@ -10,7 +10,7 @@ pub fn LoginPage() -> impl IntoView {
     view! {
         <div class="mx-auto flex min-h-[50vh] w-full max-w-md flex-col items-center justify-center py-12">
             <div class="mb-6 flex flex-col items-center text-center">
-                <span class="header-logo" aria-hidden="true">"証"</span>
+                <img src="/icons/icon.svg" alt="" class="header-logo" />
                 <p class="mt-3 text-xl font-black leading-tight tracking-normal text-ink">
                     "証券Web"
                 </p>

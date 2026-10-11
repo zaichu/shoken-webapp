@@ -115,9 +115,7 @@ pub fn SiteHeader() -> impl IntoView {
                             }
                             aria-current=move || home_active().then_some("page")
                         >
-                            <span class="header-logo">
-                                "証"
-                            </span>
+                            <img src="/icons/icon.svg" alt="" class="header-logo" />
                             // スマホではサービス名を隠し、ロゴ・ナビ・ユーザーを1行に収める
                             <span class="header-brand max-sm:hidden">
                                 "証券Web"
