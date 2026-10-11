@@ -190,21 +190,21 @@ test('カードは開閉せず見出しと全項目を最初から表示する',
   await expect(card.locator('[aria-expanded]')).toHaveCount(0);
   await expect(card.getByRole('button')).toHaveCount(1);
 
-  // 見出しは銘柄名・日付・口座(先頭は入金日順で日本電信電話)
+  // 見出しは銘柄コード・銘柄名・日付・口座(先頭は入金日順で日本電信電話)
   await expect(
     card.getByRole('button', { name: '日本電信電話(9432) をコピー' }),
   ).toBeVisible();
-  await expect(card.getByText('03/15', { exact: true })).toBeVisible();
+  await expect(card.getByText('2024/03/15', { exact: true })).toBeVisible();
   await expect(card.getByText('楽天証券', { exact: true })).toBeVisible();
 
-  // 見出しと重複しない残り全項目を、表の列順で2列の格子に出す
+  // 見出し・タブで分かる項目を除く残り全項目を、表の列順で1項目1行に出す
   const grid = card.locator('dl');
-  const labels = ['商品', '銘柄コード', '単価', '数量', '配当金', '税額', '税引後'];
+  const labels = ['1株配当', '数量', '配当金', '税額', '税引後'];
   await expect(grid.locator('dt')).toHaveCount(labels.length);
   for (const label of labels) {
     await expect(grid.locator('dt', { hasText: label })).toBeVisible();
   }
-  for (const label of ['入金日', '口座', '銘柄名']) {
+  for (const label of ['商品', '銘柄コード', '入金日', '口座', '銘柄名']) {
     await expect(grid.locator('dt', { hasText: label })).toHaveCount(0);
   }
 
@@ -331,11 +331,10 @@ test('国内株式タブでも全項目が見え、銘柄リンクとコピー�
     .first();
   await expect(card.locator('[aria-expanded]')).toHaveCount(0);
 
-  // 見出し(約定日・銘柄名・口座)以外の全項目を列順で出す
+  // 見出し(銘柄コード・約定日・銘柄名・口座)以外の全項目を列順で出す
   const grid = card.locator('dl');
-  await expect(grid.locator('dt')).toHaveCount(8);
+  await expect(grid.locator('dt')).toHaveCount(7);
   for (const label of [
-    '銘柄コード',
     '数量',
     '売却単価',
     '売却額',
@@ -412,7 +411,7 @@ test('検索条件を変えても集計カードの開閉状態は保たれ、�
   // 行カードは開閉しないため絞り込み後も全項目が見えている
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.locator('dl')).toBeVisible();
-  await expect(card.locator('dt')).toHaveCount(7);
+  await expect(card.locator('dt')).toHaveCount(5);
   await expect(
     cardList.getByRole('button', { name: /1件 税引後 ¥1,594/ }),
   ).toHaveAttribute('aria-expanded', 'false');

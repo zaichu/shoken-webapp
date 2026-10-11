@@ -241,19 +241,20 @@ fn negative_text_detection_matches_formatted_values() {
 }
 
 #[test]
-fn short_date_strips_year_only_for_iso_formatted() {
-    assert_eq!(short_date("2024/03/01"), "03/01");
-    assert_eq!(short_date("-"), "-");
-    assert_eq!(short_date("ＮＴＴ"), "ＮＴＴ");
-    assert_eq!(short_date("03/01"), "03/01");
-}
-
-#[test]
 fn card_fields_point_at_expected_columns() {
     let cases = [
-        (ReceiptsTab::Dividend, ("銘柄名", "入金日", "口座")),
-        (ReceiptsTab::DomesticStock, ("銘柄名", "約定日", "口座")),
-        (ReceiptsTab::MutualFund, ("ファンド名", "約定日", "口座")),
+        (
+            ReceiptsTab::Dividend,
+            ("銘柄名", "入金日", "口座", Some("銘柄コード")),
+        ),
+        (
+            ReceiptsTab::DomesticStock,
+            ("銘柄名", "約定日", "口座", Some("銘柄コード")),
+        ),
+        (
+            ReceiptsTab::MutualFund,
+            ("ファンド名", "約定日", "口座", None),
+        ),
     ];
     for (tab, expected) in cases {
         let fields = tab.card_fields();
@@ -262,7 +263,8 @@ fn card_fields_point_at_expected_columns() {
             (
                 columns[fields.name].header,
                 columns[fields.date].header,
-                columns[fields.account].header
+                columns[fields.account].header,
+                fields.code.map(|index| columns[index].header)
             ),
             expected
         );
@@ -395,44 +397,27 @@ fn card_row_data_maps_card_fields() {
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
-        false,
     );
     assert!(matches!(
         &card.name,
         CardDetailValue::CopyName { display, .. } if display == "日本電信電話"
     ));
-    assert_eq!(card.date, "06/21");
+    assert_eq!(card.code.as_deref(), Some("9432"));
+    assert_eq!(card.date, "2024/06/21");
     assert_eq!(card.account, "特定");
-    // 見出し(銘柄名・入金日・口座)と重複させず、残り7列を表の列順で入れる
-    assert_eq!(card.details.len(), 7);
-    assert_eq!(card.details[0].label, "商品");
-    assert!(
-        card.details
-            .iter()
-            .all(|detail| !["入金日", "口座", "銘柄名"].contains(&detail.label.as_str()))
-    );
+    // 見出し(銘柄コード・銘柄名・入金日・口座)とタブで分かる商品を除き、残り5列を表の列順で入れる
+    assert_eq!(card.details.len(), 5);
+    assert_eq!(card.details[0].label, "1株配当");
+    assert!(card.details.iter().all(|detail| {
+        !["商品", "銘柄コード", "銘柄名", "入金日", "口座"].contains(&detail.label.as_str())
+    }));
     assert!(card.details.iter().all(|detail| match &detail.value {
         CardDetailValue::Text { text, negative } => {
             *negative
                 == (is_profit_label(ReceiptsTab::Dividend, &detail.label) && is_negative_text(text))
         }
-        CardDetailValue::SecurityCode(_) | CardDetailValue::CopyName { .. } => true,
+        CardDetailValue::CopyName { .. } => true,
     }));
-}
-
-#[test]
-fn card_date_keeps_year_when_group_is_not_year_month() {
-    let rows = dividends();
-    let cells = rows[0].cells();
-    let order = column_order(ReceiptsTab::Dividend, &rows, "");
-    let card = card_row_data(
-        ReceiptsTab::Dividend,
-        &cells,
-        &order,
-        ReceiptsTab::Dividend.card_fields(),
-        true,
-    );
-    assert_eq!(card.date, "2024/06/21");
 }
 
 fn detail_negative(card: &CardRowData, label: &str) -> bool {
@@ -446,7 +431,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
-    card_row_data(tab, &cells, &order, tab.card_fields(), false)
+    card_row_data(tab, &cells, &order, tab.card_fields())
 }
 
 #[test]
@@ -512,7 +497,7 @@ fn negative_labeled_value_requires_profit_label_and_negative_text() {
 }
 
 #[test]
-fn card_details_link_security_code_and_copy_name() {
+fn card_header_carries_code_badge_value_and_copy_name() {
     let rows = dividends();
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
@@ -521,13 +506,15 @@ fn card_details_link_security_code_and_copy_name() {
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
-        false,
     );
-    assert!(card.details.iter().any(|detail| matches!(
-        &detail.value,
-        CardDetailValue::SecurityCode(raw) if raw == "9432"
-    )));
-    // 銘柄名は見出し側でコピーできるため格子には入れない
+    // 銘柄コードは見出しのバッジに出すため明細には入れない
+    assert_eq!(card.code.as_deref(), Some("9432"));
+    assert!(
+        card.details
+            .iter()
+            .all(|detail| detail.label != "銘柄コード")
+    );
+    // 銘柄名は見出し側でコピーできるため明細には入れない
     assert!(matches!(
         &card.name,
         CardDetailValue::CopyName { display, copy }
@@ -548,14 +535,8 @@ fn card_details_link_security_code_and_copy_name() {
         &cells,
         &order,
         ReceiptsTab::MutualFund.card_fields(),
-        false,
     );
-    assert!(
-        !card
-            .details
-            .iter()
-            .any(|detail| matches!(&detail.value, CardDetailValue::SecurityCode(_)))
-    );
+    assert_eq!(card.code, None);
     assert!(matches!(
         &card.name,
         CardDetailValue::CopyName { display, copy } if display == copy
@@ -702,10 +683,9 @@ fn card_row_data_details_follow_column_reorder() {
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
-        false,
     );
-    // 口座は前に出ても見出し側の項目なので格子には入らない
-    assert_eq!(card.details[0].label, "商品");
+    // 口座は前に出ても見出し側の項目なので明細には入らない
+    assert_eq!(card.details[0].label, "1株配当");
     assert!(card.details.iter().all(|detail| detail.label != "口座"));
     assert!(matches!(
         &card.name,

@@ -11,6 +11,7 @@ use crate::ui::badge::CodeBadge;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
+use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
 
 #[component]
@@ -136,23 +137,6 @@ pub(crate) fn HoldingCard(
 }
 
 #[component]
-fn MobileStat(
-    #[prop(into)] label: String,
-    #[prop(into)] value: String,
-    #[prop(optional)] numeric: bool,
-) -> impl IntoView {
-    view! {
-        <div class="flex items-center justify-between gap-2">
-            <dt class="shrink-0 font-medium text-text-subtle">{label}</dt>
-            <dd class=format!(
-                "truncate font-semibold text-text{}",
-                if numeric { " tabular-nums" } else { "" },
-            )>{value}</dd>
-        </div>
-    }
-}
-
-#[component]
 pub(crate) fn HoldingMobileCard(
     item: ChartItem,
     index: usize,
@@ -214,18 +198,41 @@ pub(crate) fn HoldingMobileCard(
                     item.view.average_price,
                     &dividends.get(),
                 );
+                // コンポーネントの children は FnOnce で move 捕捉されるため、
+                // 反応的に呼ばれるこの中で使う値は呼び出しごとに作り直す
+                let average_price = format_currency(item.view.average_price);
+                let shares = format!("{}株", format_number_value(item.view.shares));
+                let current_price = current_price_display.clone();
+                let composition_text = composition.clone();
+                let dividend_annual = format_dividend_annual(&dividend);
+                let dividend_per_share = format_dividend_per_share(&dividend);
+                let dividend_yield = format_dividend_yield(&dividend);
                 open.get()
                     .then(|| {
                         view! {
                             <div id=detail_id.clone() class="border-t border-ink/10 px-3.5 py-3">
-                                <dl class="space-y-1.5 text-xs text-text-muted">
-                                    <MobileStat label="取得単価" numeric=true value=format_currency(item.view.average_price) />
-                                    <MobileStat label="数量" numeric=true value=format!("{}株", format_number_value(item.view.shares)) />
-                                    <MobileStat label=current_price_label.clone() numeric=true value=current_price_display.clone() />
-                                    <MobileStat label="取得額構成比" numeric=true value=composition.clone() />
-                                    <MobileStat label="予想年間配当" value=format_dividend_annual(&dividend) />
-                                    <MobileStat label="1株配当" value=format_dividend_per_share(&dividend) />
-                                    <MobileStat label="取得額基準利回り" value=format_dividend_yield(&dividend) />
+                                <dl class="space-y-1.5">
+                                    <StatRow label="取得単価" numeric=true>
+                                        {average_price}
+                                    </StatRow>
+                                    <StatRow label="数量" numeric=true>
+                                        {shares}
+                                    </StatRow>
+                                    <StatRow label=current_price_label.clone() numeric=true>
+                                        {current_price}
+                                    </StatRow>
+                                    <StatRow label="取得額構成比" numeric=true>
+                                        {composition_text}
+                                    </StatRow>
+                                    <StatRow label="予想年間配当">
+                                        {dividend_annual}
+                                    </StatRow>
+                                    <StatRow label="1株配当">
+                                        {dividend_per_share}
+                                    </StatRow>
+                                    <StatRow label="取得額基準利回り">
+                                        {dividend_yield}
+                                    </StatRow>
                                 </dl>
                                 <p class="mt-2.5 border-t border-border-faint pt-2.5 text-xs">
                                     <SecurityCodeLink
