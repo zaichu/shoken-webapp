@@ -1,16 +1,18 @@
 use super::palette::holding_bar_class;
-use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::format::{
-    dec_to_f64, format_currency, format_fixed_percent, format_percentage_value,
+    format_currency, format_fixed_percent, format_percentage_value, format_signed_valuation_amount,
+    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
 };
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{
-    KpiHolding, calculate_portfolio_kpi, total_purchase_amount,
+    KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, total_purchase_amount,
 };
-use crate::features::asset_balance::portfolio::{chart_display, chart_plan};
+use crate::features::asset_balance::portfolio::chart_display;
+use crate::features::asset_balance::store::FilteredPortfolio;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
 
@@ -24,14 +26,18 @@ pub(crate) struct ChartItem {
 fn Kpi(
     label: &'static str,
     #[prop(into)] text: Signal<String>,
-    #[prop(optional)] note: &'static str,
+    #[prop(into, optional)] note: Signal<String>,
+    #[prop(into, optional)] negative: Signal<bool>,
 ) -> impl IntoView {
     view! {
         <div class="kpi">
             <dt>{label}</dt>
             <dd class="kpi-value">
-                <Amount block=true text=text class="kpi-amount" />
-                {(!note.is_empty()).then(|| view! { <small>{note}</small> })}
+                <Amount block=true text=text class="kpi-amount" negative=negative />
+                {move || {
+                    let note = note.get();
+                    (!note.is_empty()).then(|| view! { <small>{note}</small> })
+                }}
             </dd>
         </div>
     }
@@ -39,14 +45,15 @@ fn Kpi(
 
 #[component]
 pub(crate) fn PortfolioSummary(
-    views: Vec<HoldingView>,
+    filtered: FilteredPortfolio,
     total_count: usize,
     is_filtered: bool,
     on_clear_filter: impl Fn() + Send + Sync + 'static,
-    summary: Option<AssetBalanceSummary>,
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
+    preview: bool,
 ) -> impl IntoView {
+    let FilteredPortfolio { views, all_views } = filtered;
     if views.is_empty() {
         show_all.set(false);
         return view! {
@@ -66,7 +73,8 @@ pub(crate) fn PortfolioSummary(
         }
         .into_any();
     }
-    let kpi_holdings: Vec<KpiHolding> = views
+    // 合計は絞り込み前の全保有分から求める(検索中も全保有分のまま)
+    let kpi_holdings: Vec<KpiHolding> = all_views
         .iter()
         .map(|view| KpiHolding {
             security_code: view.code.clone(),
@@ -74,44 +82,119 @@ pub(crate) fn PortfolioSummary(
             total_purchase_amount: view.purchase,
         })
         .collect();
-    let summary_total = summary
-        .as_ref()
-        .map(|summary| dec_to_f64(&summary.total_purchase_amount));
-    let total_purchase_amount = total_purchase_amount(&kpi_holdings, summary_total);
-    let kpi = Memo::new(move |_| {
-        calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share, summary_total)
-    });
+    let valuation_inputs: Vec<ValuationInput> =
+        all_views.iter().map(ValuationInput::from).collect();
+    let total_purchase = format_currency(total_purchase_amount(&kpi_holdings));
+    let kpi =
+        Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
+    let valuation = portfolio_valuation(&valuation_inputs);
 
-    let display_count = views.len();
-    let chart_values: Vec<f64> = views.iter().map(|view| view.purchase).collect();
-    let plan = chart_plan(&chart_values);
-    let chart_items: Vec<ChartItem> = plan
-        .order
-        .iter()
-        .zip(&plan.percentages)
-        .map(|(&index, &percentage)| ChartItem {
-            view: views[index].clone(),
-            percentage,
+    let market_text = format_valuation_amount(valuation.market_value);
+    let mut market_note = if preview {
+        "CSV取込時点の価格で計算".to_string()
+    } else {
+        "現在値の基準日は銘柄ごとに異なります".to_string()
+    };
+    if valuation.has_unpriced {
+        market_note.push_str("・価格なし銘柄を除く");
+    }
+    let pnl_text = format_signed_valuation_amount(valuation.profit_loss.amount);
+    let pnl_note = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
+    let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
+
+    let total_annual_dividends = Signal::derive(move || {
+        kpi.with(|kpi| {
+            kpi.total_annual_dividends
+                .map_or("—".to_string(), format_currency)
         })
-        .collect();
+    });
+    let dividend_yield = Signal::derive(move || {
+        kpi.with(|kpi| {
+            kpi.dividend_yield
+                .map_or("—".to_string(), format_percentage_value)
+        })
+    });
+    let display_count = views.len();
+    let display_count_str = move || {
+        if is_filtered {
+            format!("{display_count} / {total_count}")
+        } else {
+            display_count.to_string()
+        }
+    };
+
+    view! {
+        <section id="assetbalance-summary" class="sum-card mb-3" data-testid="asset-portfolio-summary">
+            <header class="sum-header">
+                <strong>"集計情報"</strong>
+                {preview.then(|| {
+                    view! {
+                        <span class="rounded border border-border-subtle px-1 py-0.5 text-xs font-medium text-text-subtle">
+                            "CSVプレビュー"
+                        </span>
+                    }
+                })}
+            </header>
+            <div data-testid="portfolio-kpi-strip">
+            <dl class="kpis" data-testid="portfolio-kpi-grid">
+                <Kpi label="評価額合計" text=market_text note=market_note />
+                <Kpi label="含み損益" text=pnl_text note=pnl_note negative=pnl_negative />
+                <Kpi label="年間配当参考額" text=total_annual_dividends />
+                <Kpi
+                    label="取得額基準利回り"
+                    text=dividend_yield
+                    note="年間配当参考額 ÷ 合計取得総額".to_string()
+                />
+                <Kpi label="合計取得総額" text=total_purchase />
+                <div class="kpi">
+                    <dt>"保有銘柄数"</dt>
+                    <dd class="kpi-value kpi-count">
+                        <span class="tabular-nums">{display_count_str}</span>
+                        <span class="kpi-unit">"銘柄"</span>
+                    </dd>
+                </div>
+            </dl>
+            </div>
+        </section>
+    }
+        .into_any()
+}
+
+/// 取得額構成比の帯グラフと凡例。一覧の後ろに置き、初期は折りたたむ。
+#[component]
+pub(crate) fn PortfolioComposition(
+    items: Vec<ChartItem>,
+    open: RwSignal<bool>,
+    show_all: RwSignal<bool>,
+) -> impl IntoView {
     // 帯・凡例は構成比を持つ行だけ。取得額0の行はカードには出すが帯には置かない
-    let composition_items: Vec<ChartItem> = chart_items
+    let composition_items: Vec<ChartItem> = items
         .iter()
         .filter(|item| item.percentage.is_some())
         .cloned()
         .collect();
+    if composition_items.is_empty() {
+        return ().into_any();
+    }
     let composition_percentages: Vec<Option<f64>> = composition_items
         .iter()
         .map(|item| item.percentage)
         .collect();
     let composition_total = composition_items.len();
-    let has_composition = composition_items
-        .iter()
-        .any(|item| item.percentage.is_some());
-    let composition = has_composition.then(move || {
-        view! {
-            <div class="sum-comp" data-testid="portfolio-composition">
-                <p class="sum-comp-title">"構成比"</p>
+    view! {
+        <section class="sum-card mt-3" data-testid="portfolio-composition">
+            <DisclosureToggle
+                style=DisclosureStyle::HeaderFlat
+                expanded=Signal::derive(move || open.get())
+                controls="assetbalance-composition-body".to_string()
+                testid="portfolio-composition-toggle"
+                hint=true
+                on_toggle=move || open.update(|value| *value = !*value)
+            >
+                <strong>"取得額構成比"</strong>
+            </DisclosureToggle>
+            <div id="assetbalance-composition-body" hidden=move || !open.get()>
+                <div class="mt-2.5">
                 {move || {
                     let display = chart_display(
                         composition_total,
@@ -185,52 +268,9 @@ pub(crate) fn PortfolioSummary(
                         </ul>
                     }
                 }}
-            </div>
-        }
-        .into_any()
-    });
-
-    let total_annual_dividends = Signal::derive(move || {
-        kpi.with(|kpi| {
-            kpi.total_annual_dividends
-                .map_or("—".to_string(), format_currency)
-        })
-    });
-    let dividend_yield = Signal::derive(move || {
-        kpi.with(|kpi| {
-            kpi.dividend_yield
-                .map_or("—".to_string(), format_percentage_value)
-        })
-    });
-    let display_count_str = move || {
-        if is_filtered {
-            format!("{display_count} / {total_count}")
-        } else {
-            display_count.to_string()
-        }
-    };
-
-    view! {
-        <section id="assetbalance-summary" class="sum-card mb-3" data-testid="asset-portfolio-summary">
-            <header class="sum-header">
-                <strong>"集計情報"</strong>
-            </header>
-            <div data-testid="portfolio-kpi-strip">
-            <dl class="kpis" data-testid="portfolio-kpi-grid">
-                <Kpi label="合計取得総額" text=format_currency(total_purchase_amount) />
-                <Kpi label="年間配当金額" text=total_annual_dividends />
-                <Kpi label="配当利回り（年間）" text=dividend_yield note="年間配当金額 ÷ 合計取得総額" />
-                <div class="kpi">
-                    <dt>"保有銘柄数"</dt>
-                    <dd class="kpi-value kpi-count">
-                        <span class="tabular-nums">{display_count_str}</span>
-                        <span class="kpi-unit">"銘柄"</span>
-                    </dd>
                 </div>
-            </dl>
             </div>
-            {composition}
         </section>
     }
-        .into_any()
+    .into_any()
 }

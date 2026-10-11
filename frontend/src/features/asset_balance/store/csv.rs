@@ -3,7 +3,7 @@ use super::{
     poll_dividend_maps, truncated_list_warning,
 };
 use crate::api::ApiError;
-use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse};
+use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
 use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::{DividendMaps, unique_sorted_codes};
@@ -299,7 +299,6 @@ impl AssetBalanceCsvStore {
                     Ok(LoadedAssetBalances {
                         rows: Vec::new(),
                         total: 0,
-                        summary: None,
                         truncated: false,
                     }),
                 )));
@@ -336,7 +335,6 @@ pub(crate) fn csv_status_text(state: &CsvTabMeta) -> Option<&'static str> {
 
 pub(crate) struct ResolvedAssetBalance {
     pub(crate) rows: Vec<AssetBalanceRow>,
-    pub(crate) summary: Option<AssetBalanceSummary>,
     pub(crate) warning: Option<String>,
     pub(crate) has_csv_file: bool,
 }
@@ -351,7 +349,6 @@ pub(crate) fn resolve_asset_balance(
     match result {
         Err(_) => Some(ResolvedAssetBalance {
             rows: csv_preview_rows(state),
-            summary: None,
             warning: None,
             has_csv_file,
         }),
@@ -361,7 +358,6 @@ pub(crate) fn resolve_asset_balance(
             } else {
                 loaded.rows.iter().cloned().map(Row::Saved).collect()
             },
-            summary: loaded.summary.clone(),
             warning: (!has_csv_file && loaded.truncated).then(truncated_list_warning),
             has_csv_file,
         }),

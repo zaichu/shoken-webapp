@@ -1,5 +1,5 @@
 use crate::api::ApiError;
-use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
+use crate::api::dto::{AssetBalance, AssetBalanceListResponse};
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRowData};
 use crate::features::asset_balance::store::csv::resolve_asset_balance;
 use crate::features::asset_balance::store::{
@@ -64,11 +64,6 @@ fn loaded(rows: Vec<AssetBalance>, truncated: bool) -> LoadedAssetBalances {
     LoadedAssetBalances {
         total: rows.len(),
         rows,
-        summary: Some(AssetBalanceSummary {
-            total_purchase_amount: rust_decimal_macros::dec!(250000),
-            total_market_value: rust_decimal_macros::dec!(260000),
-            total_daily_change: rust_decimal_macros::dec!(0),
-        }),
         truncated,
     }
 }
@@ -100,7 +95,7 @@ fn resolve_loading_for_missing_or_stale_slot() {
 }
 
 #[test]
-fn resolve_ready_uses_db_rows_and_carries_aggregates() {
+fn resolve_ready_uses_db_rows_and_warns_truncation() {
     let state = CsvTabState::default();
     let slot: BalanceSlot = Some((
         Generation::new(7),
@@ -110,7 +105,6 @@ fn resolve_ready_uses_db_rows_and_carries_aggregates() {
         panic!("expected ready");
     };
     assert_eq!(resolved.rows.len(), 2);
-    assert!(resolved.summary.is_some());
     assert_eq!(resolved.warning, Some(truncated_list_warning()));
     assert!(!resolved.has_csv_file);
 }
@@ -138,7 +132,6 @@ fn resolve_csv_preview_replaces_rows_and_drops_warning() {
     assert_eq!(resolved.rows[0].security_code(), "9999");
     assert!(resolved.warning.is_none());
     assert!(resolved.has_csv_file);
-    assert!(resolved.summary.is_some());
 }
 
 #[test]
@@ -151,6 +144,5 @@ fn resolve_list_error_falls_back_to_preview_rows() {
     assert_eq!(resolved.rows.len(), 1);
     assert!(resolved.rows[0].is_preview());
     assert_eq!(resolved.rows[0].security_code(), "9999");
-    assert!(resolved.summary.is_none());
     assert!(resolved.warning.is_none());
 }

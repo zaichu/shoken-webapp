@@ -77,6 +77,11 @@ test('構成比の帯グラフと凡例は上位20銘柄+その他にまとま�
 
   const composition = page.getByTestId('portfolio-composition');
   await expect(composition).toBeVisible();
+  // 構成比は初期折りたたみ。開いてから中身を見る
+  const toggle = page.getByTestId('portfolio-composition-toggle');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
   const segments = composition.locator('div[aria-hidden="true"] > div');
   await expect(segments).toHaveCount(21);
@@ -183,6 +188,7 @@ test('取得額が0の銘柄も保有カードに残り、帯と凡例からは�
   await expect(page.getByText('構成比 —')).toHaveCount(1);
 
   const composition = page.getByTestId('portfolio-composition');
+  await page.getByTestId('portfolio-composition-toggle').click();
   await expect(
     composition.locator('div[aria-hidden="true"] > div'),
   ).toHaveCount(1);
@@ -204,6 +210,7 @@ test('0円銘柄を含む21+1件ではカード一覧と帯・凡例の「その
   await page.goto('/assetbalance');
 
   const composition = page.getByTestId('portfolio-composition');
+  await page.getByTestId('portfolio-composition-toggle').click();
   const legend = composition.locator('ul > li');
   await expect(legend).toHaveCount(21);
   await expect(legend.nth(20)).toContainText('その他 1銘柄');

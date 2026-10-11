@@ -799,6 +799,11 @@
   min-width: 0;
 }
 
+/* 金額は途中で折り返さない(dd の overflow-wrap:anywhere 対策) */
+.kpi-amount {
+  white-space: nowrap;
+}
+
 .kpi-count {
   display: flex;
   align-items: baseline;

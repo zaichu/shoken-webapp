@@ -1,7 +1,6 @@
 use super::chart::ChartList;
 use super::search_bar::AssetBalanceSearchBar;
-use super::summary::{ChartItem, PortfolioSummary};
-use crate::api::dto::AssetBalanceSummary;
+use super::summary::{ChartItem, PortfolioComposition, PortfolioSummary};
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::chart_plan;
@@ -22,12 +21,12 @@ use leptos::prelude::*;
 pub(crate) fn AssetBalanceMainContent(
     state: CsvTabMeta,
     rows: Vec<AssetBalanceRow>,
-    summary: Option<AssetBalanceSummary>,
     has_csv_file: bool,
     csv_input_disabled: Memo<bool>,
     search_query: RwSignal<String>,
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
+    composition_open: RwSignal<bool>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> impl IntoView {
@@ -44,7 +43,6 @@ pub(crate) fn AssetBalanceMainContent(
     // 絞り込みはこの signal の1か所だけ。表示上限の適用より前に全取得行へかかる
     let filtered = RwSignal::new(filtered_portfolio(
         &rows,
-        summary.clone(),
         &search_query.get_untracked(),
         lookup,
         generation,
@@ -53,7 +51,6 @@ pub(crate) fn AssetBalanceMainContent(
     Effect::new(move |_| {
         filtered.set(filtered_portfolio(
             &rows,
-            summary.clone(),
             &search_query.get(),
             lookup,
             generation,
@@ -100,20 +97,19 @@ pub(crate) fn AssetBalanceMainContent(
         // 入力欄は query 変更で作り直されるブロックの外に置く(再生成でフォーカスが落ちるため)
         <section id="assetbalance-list" hidden=no_rows>
             {move || {
-                let FilteredPortfolio { views, summary } = filtered.get();
                 // query の変更は必ず Effect 経由で filtered の再通知を起こすので、ここでは追跡しない
                 let is_filtered = !search_query.get_untracked().is_empty();
                 view! {
                     <PortfolioSummary
-                        views=views
+                        filtered=filtered.get()
                         total_count=total_count
                         is_filtered=is_filtered
                         on_clear_filter=move || {
                             search_query.set(String::new())
                         }
-                        summary=summary
                         dividends=dividends
                         show_all=show_all
+                        preview=has_csv_file
                     />
                 }
             }}
@@ -135,13 +131,22 @@ pub(crate) fn AssetBalanceMainContent(
                         percentage,
                     })
                     .collect();
-                (!chart_items.is_empty()).then(|| {
-                    view! {
-                        <div data-testid="portfolio-pie-chart">
-                            <ChartList items=chart_items dividends=dividends show_all=show_all />
-                        </div>
-                    }
-                })
+                let list_items = chart_items.clone();
+                view! {
+                    {(!chart_items.is_empty()).then(|| {
+                        view! {
+                            <div data-testid="portfolio-pie-chart">
+                                <ChartList items=list_items dividends=dividends show_all=show_all />
+                            </div>
+                        }
+                    })}
+                    // 取得額構成比は一覧の後ろに置き、初期は折りたたむ
+                    <PortfolioComposition
+                        items=chart_items
+                        open=composition_open
+                        show_all=show_all
+                    />
+                }
             }}
         </section>
     }

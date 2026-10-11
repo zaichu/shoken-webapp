@@ -1,4 +1,4 @@
-use crate::features::asset_balance::model::{format_abs_number, to_fixed};
+use crate::features::asset_balance::model::{ValuationResult, format_abs_number, to_fixed};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use shared::format::{
@@ -97,5 +97,35 @@ pub(crate) fn format_valuation_rate(rate: Option<f64>, decimals: u32) -> String 
         Some(value) if value.is_nan() => "—".to_string(),
         Some(value) => format_fixed_percent(value, decimals),
         None => "—".to_string(),
+    }
+}
+
+/// 損益用の金額。プラスにも「+」を付け、色だけに頼らず符号で正負を示す。
+pub(crate) fn format_signed_valuation_amount(amount: Option<f64>) -> String {
+    match amount {
+        Some(value) if value.is_finite() && round_to_yen(value) > 0.0 => {
+            format!("+{}", format_valuation_amount(amount))
+        }
+        _ => format_valuation_amount(amount),
+    }
+}
+
+/// 損益用の率。プラスにも「+」を付け、色だけに頼らず符号で正負を示す。
+pub(crate) fn format_signed_valuation_rate(rate: Option<f64>, decimals: u32) -> String {
+    match rate {
+        Some(value) if value > 0.0 => format!("+{}", format_valuation_rate(rate, decimals)),
+        _ => format_valuation_rate(rate, decimals),
+    }
+}
+
+/// 「+¥12,345（+4.5%）」のように額と率をまとめた含み損益。算出不能は「—」。
+pub(crate) fn format_profit_loss(result: &ValuationResult) -> String {
+    match result.amount {
+        None => "—".to_string(),
+        Some(_) => format!(
+            "{}（{}）",
+            format_signed_valuation_amount(result.amount),
+            format_signed_valuation_rate(result.rate, 1)
+        ),
     }
 }
