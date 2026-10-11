@@ -40,6 +40,8 @@ const API_SUMMARY = {
   total_purchase_amount: 123456789,
   total_market_value: 987654321,
   total_daily_change: 0,
+  priced_purchase_amount: 123456789,
+  priced_market_value: 987654321,
 };
 
 async function setupAssetBalanceMocks(page: Page) {
@@ -67,24 +69,32 @@ async function setupAssetBalanceMocks(page: Page) {
   );
 }
 
-test('絞り込み中のKPIはAPIのsummaryではなく表示行の合計になる', async ({ page }) => {
+test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計のまま', async ({
+  page,
+}) => {
   await setupAssetBalanceMocks(page);
 
   await page.goto('/assetbalance');
 
   const kpi = page.getByTestId('portfolio-kpi-strip');
 
-  await expect(kpi).toContainText('¥123,456,789');
-  // API summary の評価額はサマリーに使われない(評価額表示自体がない)
+  // 取得済みの行から評価額合計・含み損益・合計取得総額を計算する(API summary は使わない)
+  await expect(kpi).toContainText('¥400,000');
+  await expect(kpi).toContainText('¥420,000');
+  await expect(kpi).toContainText('+¥20,000');
+  await expect(kpi).toContainText('+5.0%');
+  await expect(kpi).not.toContainText('¥123,456,789');
   await expect(kpi).not.toContainText('¥987,654,321');
 
   await page.getByTestId('asset-search-input').fill('ソニー');
 
   await expect(page.getByTestId('asset-search-count')).toContainText('1 / 2');
-  await expect(kpi).toContainText('¥150,000');
-  await expect(kpi).not.toContainText('¥123,456,789');
+  // 絞り込み中も合計は全保有分のまま
+  await expect(kpi).toContainText('¥400,000');
+  await expect(kpi).toContainText('¥420,000');
+  await expect(kpi).toContainText('+¥20,000');
 
   await page.getByTestId('asset-search-clear').click();
 
-  await expect(kpi).toContainText('¥123,456,789');
+  await expect(kpi).toContainText('¥400,000');
 });

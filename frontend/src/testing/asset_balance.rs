@@ -52,6 +52,8 @@ pub(crate) fn balance_page(
             total_market_value: rust_decimal_macros::dec!(0),
             total_purchase_amount,
             total_daily_change: rust_decimal_macros::dec!(0),
+            priced_market_value: rust_decimal_macros::dec!(0),
+            priced_purchase_amount: total_purchase_amount,
         }),
         facets: None,
     }

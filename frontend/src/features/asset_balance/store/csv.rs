@@ -336,8 +336,9 @@ pub(crate) fn csv_status_text(state: &CsvTabMeta) -> Option<&'static str> {
 
 pub(crate) struct ResolvedAssetBalance {
     pub(crate) rows: Vec<AssetBalanceRow>,
-    pub(crate) summary: Option<AssetBalanceSummary>,
     pub(crate) warning: Option<String>,
+    /// 取得上限超過で行が欠けるときの API 集計。行が揃う通常時と CSV プレビュー中は None
+    pub(crate) fallback_totals: Option<AssetBalanceSummary>,
     pub(crate) has_csv_file: bool,
 }
 
@@ -351,8 +352,8 @@ pub(crate) fn resolve_asset_balance(
     match result {
         Err(_) => Some(ResolvedAssetBalance {
             rows: csv_preview_rows(state),
-            summary: None,
             warning: None,
+            fallback_totals: None,
             has_csv_file,
         }),
         Ok(loaded) => Some(ResolvedAssetBalance {
@@ -361,8 +362,12 @@ pub(crate) fn resolve_asset_balance(
             } else {
                 loaded.rows.iter().cloned().map(Row::Saved).collect()
             },
-            summary: loaded.summary.clone(),
             warning: (!has_csv_file && loaded.truncated).then(truncated_list_warning),
+            fallback_totals: if !has_csv_file && loaded.truncated {
+                loaded.summary.clone()
+            } else {
+                None
+            },
             has_csv_file,
         }),
     }

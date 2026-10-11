@@ -64,11 +64,7 @@ fn loaded(rows: Vec<AssetBalance>, truncated: bool) -> LoadedAssetBalances {
     LoadedAssetBalances {
         total: rows.len(),
         rows,
-        summary: Some(AssetBalanceSummary {
-            total_purchase_amount: rust_decimal_macros::dec!(250000),
-            total_market_value: rust_decimal_macros::dec!(260000),
-            total_daily_change: rust_decimal_macros::dec!(0),
-        }),
+        summary: None,
         truncated,
     }
 }
@@ -100,7 +96,7 @@ fn resolve_loading_for_missing_or_stale_slot() {
 }
 
 #[test]
-fn resolve_ready_uses_db_rows_and_carries_aggregates() {
+fn resolve_ready_uses_db_rows_and_warns_truncation() {
     let state = CsvTabState::default();
     let slot: BalanceSlot = Some((
         Generation::new(7),
@@ -110,7 +106,6 @@ fn resolve_ready_uses_db_rows_and_carries_aggregates() {
         panic!("expected ready");
     };
     assert_eq!(resolved.rows.len(), 2);
-    assert!(resolved.summary.is_some());
     assert_eq!(resolved.warning, Some(truncated_list_warning()));
     assert!(!resolved.has_csv_file);
 }
@@ -138,7 +133,54 @@ fn resolve_csv_preview_replaces_rows_and_drops_warning() {
     assert_eq!(resolved.rows[0].security_code(), "9999");
     assert!(resolved.warning.is_none());
     assert!(resolved.has_csv_file);
-    assert!(resolved.summary.is_some());
+}
+
+#[test]
+fn resolve_truncated_uses_summary_as_fallback_totals() {
+    let state = CsvTabState::default();
+    let summary = AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(700000),
+        total_purchase_amount: rust_decimal_macros::dec!(500000),
+        total_daily_change: rust_decimal_macros::dec!(0),
+        priced_market_value: rust_decimal_macros::dec!(700000),
+        priced_purchase_amount: rust_decimal_macros::dec!(500000),
+    };
+    let mut loaded_balances = loaded(vec![balance(1)], true);
+    loaded_balances.summary = Some(summary.clone());
+    let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));
+    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot, &state) else {
+        panic!("expected ready");
+    };
+    assert_eq!(resolved.fallback_totals, Some(summary));
+}
+
+#[test]
+fn resolve_full_rows_and_preview_skip_fallback_totals() {
+    // 行が揃う場合は個別カードとの一致を優先して行から計算するため fallback は使わない
+    let mut loaded_balances = loaded(vec![balance(1)], false);
+    loaded_balances.summary = Some(AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(700000),
+        total_purchase_amount: rust_decimal_macros::dec!(500000),
+        total_daily_change: rust_decimal_macros::dec!(0),
+        priced_market_value: rust_decimal_macros::dec!(700000),
+        priced_purchase_amount: rust_decimal_macros::dec!(500000),
+    });
+    let state = CsvTabState::default();
+    let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));
+    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot, &state) else {
+        panic!("expected ready");
+    };
+    assert!(resolved.fallback_totals.is_none());
+
+    // CSV プレビュー中は API 集計がプレビュー行を反映しないため使わない
+    let state = preview_state();
+    let mut loaded_balances = loaded(vec![balance(1)], true);
+    loaded_balances.summary = Some(AssetBalanceSummary::default());
+    let slot: BalanceSlot = Some((Generation::new(3), Ok(loaded_balances)));
+    let Some(resolved) = resolve_asset_balance(Generation::new(3), &slot, &state) else {
+        panic!("expected ready");
+    };
+    assert!(resolved.fallback_totals.is_none());
 }
 
 #[test]
@@ -151,6 +193,5 @@ fn resolve_list_error_falls_back_to_preview_rows() {
     assert_eq!(resolved.rows.len(), 1);
     assert!(resolved.rows[0].is_preview());
     assert_eq!(resolved.rows[0].security_code(), "9999");
-    assert!(resolved.summary.is_none());
     assert!(resolved.warning.is_none());
 }

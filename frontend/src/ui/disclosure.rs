@@ -66,7 +66,7 @@ impl DisclosureStyle {
             Self::Rail => "rail-toggle",
             Self::GroupCard => "group-card-trigger",
             Self::HeaderFlat => {
-                "flex w-full items-start justify-between gap-3 border-b border-ink/10 pb-2.5 text-left"
+                "flex w-full items-start justify-between gap-3 border-b border-ink/10 pb-2.5 text-left max-sm:min-h-11 max-sm:items-center"
             }
             Self::AssetCard => "block min-h-11 w-full px-3.5 py-4 text-left",
             Self::SearchCard => {

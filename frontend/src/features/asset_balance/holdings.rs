@@ -1,6 +1,6 @@
 use super::format::{dec_to_f64, format_currency, format_percentage_value};
 use crate::features::asset_balance::csv::AssetBalanceRowData;
-use crate::features::asset_balance::model::normalize_display_name;
+use crate::features::asset_balance::model::{ValuationInput, normalize_display_name};
 use crate::features::dividend_per_share::DividendMaps;
 
 #[derive(Clone, Debug)]
@@ -13,6 +13,16 @@ pub(crate) struct HoldingView {
     pub(crate) current_price: f64,
     /// 現在値の基準日（"YYYY-MM-DD"）。CSV プレビュー行は None
     pub(crate) price_as_of: Option<String>,
+}
+
+impl From<&HoldingView> for ValuationInput {
+    fn from(view: &HoldingView) -> Self {
+        ValuationInput {
+            current_price: view.current_price,
+            shares: view.shares,
+            total_purchase_amount: view.purchase,
+        }
+    }
 }
 
 pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {

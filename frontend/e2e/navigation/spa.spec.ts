@@ -79,6 +79,8 @@ async function setupApiMocks(page: Page, counts: ApiCounts, authed = true) {
             total_purchase_amount: 250000,
             total_market_value: 260000,
             total_daily_change: 50,
+            priced_purchase_amount: 250000,
+            priced_market_value: 260000,
           },
           facets: { securities: [{ value: '7203', label: 'トヨタ自動車', count: 1 }] },
         }),

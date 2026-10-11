@@ -3,14 +3,13 @@ mod integration;
 
 use super::summary::{PortfolioSummary, PortfolioSummaryProps};
 use crate::api::ApiError;
-use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::format::*;
 use crate::features::asset_balance::holdings::*;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::{
-    KpiHolding, calculate_portfolio_kpi, format_number_value, normalize_display_name,
-    normalize_security_code, total_purchase_amount,
+    KpiHolding, ValuationInput, calculate_portfolio_kpi, format_number_value,
+    normalize_display_name, normalize_security_code, portfolio_valuation, total_purchase_amount,
 };
 use crate::features::asset_balance::portfolio::chart_display;
 use crate::features::asset_balance::store::*;
@@ -19,7 +18,6 @@ use crate::session::{Generation, SessionStore};
 use crate::support::row::Row;
 use crate::testing::asset_balance::*;
 use leptos::prelude::*;
-use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 #[test]
@@ -179,27 +177,9 @@ fn number_and_currency_formatters_match_intl_cases() {
 }
 
 #[test]
-fn api_summary_is_ignored_while_searching() {
-    let summary = || {
-        Some(AssetBalanceSummary {
-            total_market_value: Decimal::from(260_000),
-            total_purchase_amount: Decimal::from(250_000),
-            total_daily_change: Decimal::ZERO,
-        })
-    };
-    assert_eq!(effective_summary(summary(), "", false), summary());
-    assert_eq!(effective_summary(summary(), "7203", false), None);
-    assert_eq!(effective_summary(summary(), "", true), None);
-    assert_eq!(effective_summary(None, "", false), None);
-    // 空白だけの入力は絞り込み側と揃えて「絞り込みなし」とし、API summary を残す
-    assert_eq!(effective_summary(summary(), "  　 ", false), summary());
-}
-
-#[test]
-fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
+fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
     let owner = Owner::new();
     owner.with(|| {
-        // 行合計と一致しない API summary を使い、画面の金額が表示中の行から来ることを確認する
         let mut toyota = balance_row(7203);
         toyota.security_name = "トヨタ自動車".to_string();
         toyota.total_purchase_amount = rust_decimal_macros::dec!(100000);
@@ -209,11 +189,7 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         let loaded = LoadedAssetBalances {
             total: 2,
             rows: vec![toyota, sony],
-            summary: Some(AssetBalanceSummary {
-                total_market_value: rust_decimal_macros::dec!(999999),
-                total_purchase_amount: rust_decimal_macros::dec!(888888),
-                total_daily_change: rust_decimal_macros::dec!(0),
-            }),
+            summary: None,
             truncated: false,
         };
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -221,21 +197,15 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
         let saved_rows: Vec<AssetBalanceRow> =
             loaded.rows.iter().cloned().map(Row::Saved).collect();
 
-        let filtered = filtered_portfolio(
-            &saved_rows,
-            loaded.summary.clone(),
-            "7203",
-            lookup,
-            Generation::new(1),
-            false,
-        );
+        let filtered = filtered_portfolio(&saved_rows, "7203", lookup, Generation::new(1), false);
         assert_eq!(filtered.views.len(), 1);
         assert_eq!(filtered.views[0].code, "7203");
-        assert!(filtered.summary.is_none());
+        // 集計は絞り込み前の全保有分を使う
+        assert_eq!(filtered.all_views.len(), 2);
 
         // PortfolioSummary と同じ手順で画面に出る金額を計算する
         let kpi_holdings: Vec<KpiHolding> = filtered
-            .views
+            .all_views
             .iter()
             .map(|view| KpiHolding {
                 security_code: view.code.clone(),
@@ -243,42 +213,30 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
                 total_purchase_amount: view.purchase,
             })
             .collect();
-        let summary_total = filtered
-            .summary
-            .as_ref()
-            .map(|summary| dec_to_f64(&summary.total_purchase_amount));
-        let total_purchase = total_purchase_amount(&kpi_holdings, summary_total);
+        let total_purchase = total_purchase_amount(&kpi_holdings);
         let dividends = RwSignal::new(DividendMaps {
             per_share: HashMap::from([("7203".to_string(), 50.0)]),
             status: HashMap::new(),
         });
-        let kpi = Memo::new(move |_| {
-            calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share, summary_total)
-        });
+        let kpi =
+            Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
 
-        assert_eq!(format_currency(total_purchase), "¥100,000");
+        // 検索中も合計取得総額・含み損益は全保有分のまま
+        assert_eq!(format_currency(total_purchase), "¥300,000");
         kpi.with(|kpi| {
-            assert_eq!(kpi.total_purchase_amount, 100000.0);
+            assert_eq!(kpi.total_purchase_amount, 300000.0);
             assert_eq!(kpi.total_annual_dividends, Some(5000.0));
-            assert_eq!(kpi.dividend_yield, Some(5.0));
-            assert_eq!(kpi.holdings_count, 1);
+            assert_eq!(kpi.dividend_yield, Some(5000.0 / 300000.0 * 100.0));
+            assert_eq!(kpi.holdings_count, 2);
         });
-
-        let unfiltered = filtered_portfolio(
-            &saved_rows,
-            loaded.summary.clone(),
-            "",
-            lookup,
-            Generation::new(1),
-            false,
+        let valuation = portfolio_valuation(
+            &filtered
+                .all_views
+                .iter()
+                .map(ValuationInput::from)
+                .collect::<Vec<_>>(),
         );
-        assert_eq!(unfiltered.views.len(), 2);
-        assert_eq!(
-            unfiltered
-                .summary
-                .map(|summary| summary.total_purchase_amount),
-            Some(rust_decimal_macros::dec!(888888))
-        );
+        assert_eq!(valuation.market_value, Some(520000.0));
 
         let mut first = balance_row(7203);
         first.security_name = "Decimal 検証対象 A".to_string();
@@ -292,16 +250,14 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
             decimal_rows.iter().cloned().map(Row::Saved).collect();
         let decimal_filtered = filtered_portfolio(
             &decimal_saved,
-            loaded.summary,
             "検証対象",
             lookup,
             Generation::new(2),
             false,
         );
         assert_eq!(decimal_filtered.views.len(), 2);
-        assert!(decimal_filtered.summary.is_none());
         let decimal_holdings: Vec<KpiHolding> = decimal_filtered
-            .views
+            .all_views
             .iter()
             .map(|view| KpiHolding {
                 security_code: view.code.clone(),
@@ -309,7 +265,7 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
                 total_purchase_amount: view.purchase,
             })
             .collect();
-        let decimal_total = total_purchase_amount(&decimal_holdings, None);
+        let decimal_total = total_purchase_amount(&decimal_holdings);
         assert_eq!(format_currency(decimal_total), "¥3,000.2");
     });
 }
@@ -335,7 +291,7 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
         let rows = vec![AssetBalanceRow::Preview(preview)];
 
         // has_csv_file=false(= lookup 置き換えが有効な条件)でも Preview の値が保たれる
-        let filtered = filtered_portfolio(&rows, None, "", lookup, Generation::new(1), false);
+        let filtered = filtered_portfolio(&rows, "", lookup, Generation::new(1), false);
         assert_eq!(filtered.views.len(), 1);
         assert_eq!(filtered.views[0].code, "7203");
         assert_eq!(filtered.views[0].name, "CSVトヨタ");
@@ -353,13 +309,17 @@ fn show_all_resets_only_when_summary_has_no_rows() {
         let summary_view = |views: Vec<HoldingView>| {
             PortfolioSummary(
                 PortfolioSummaryProps::builder()
-                    .views(views)
+                    .filtered(FilteredPortfolio {
+                        all_views: views.clone(),
+                        views,
+                    })
+                    .fallback_totals(None)
                     .total_count(21)
                     .is_filtered(true)
                     .on_clear_filter(|| {})
-                    .summary(None)
                     .dividends(dividends)
                     .show_all(show_all)
+                    .preview(false)
                     .build(),
             )
         };

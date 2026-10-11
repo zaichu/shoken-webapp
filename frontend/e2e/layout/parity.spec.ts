@@ -294,19 +294,18 @@ test('口座検索で絞り込んでも表が収まり該当データが残る',
   await expectNoPageOverflow(page, 1440);
 });
 
-test('資産管理に評価額・評価損益は表示しない', async ({ page }) => {
+test('資産管理に評価額と含み損益を表示する', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
   const main = page.getByTestId('assetbalance-main-stage');
   const summary = main.getByTestId('asset-portfolio-summary');
   await expect(summary).toBeVisible();
-  await expect(summary).not.toContainText('評価額');
-  await expect(summary).not.toContainText('評価損益');
-  await expect(page.getByTestId('portfolio-holding-card').first()).toBeVisible();
-  await expect(main).not.toContainText('評価額');
-  await expect(main).not.toContainText('評価損益');
-  await expect(main.locator('[data-negative="true"]')).toHaveCount(0);
+  await expect(summary).toContainText('評価額合計');
+  await expect(summary).toContainText('含み損益');
+  const card = page.getByTestId('portfolio-holding-card').first();
+  await expect(card).toBeVisible();
+  await expect(card.getByText('評価額', { exact: true })).toBeVisible();
 });
 
 for (const width of [1440, 390]) {

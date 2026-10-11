@@ -52,9 +52,15 @@ impl CsvImport for AssetBalanceDomain {
     }
 }
 
+// priced_* は価格あり(current_price > 0)行だけの集計。
+// 含み損益の分子・分母から価格なし行を外し、frontend の個別カード計算と同じ対象行にする
 const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(market_value), 0) AS total_market_value, \
      COALESCE(SUM(total_purchase_amount), 0) AS total_purchase_amount, \
-     COALESCE(SUM(daily_change), 0) AS total_daily_change \
+     COALESCE(SUM(daily_change), 0) AS total_daily_change, \
+     COALESCE(SUM(CASE WHEN current_price > 0 THEN current_price * shares ELSE 0 END), 0) \
+     AS priced_market_value, \
+     COALESCE(SUM(CASE WHEN current_price > 0 THEN total_purchase_amount ELSE 0 END), 0) \
+     AS priced_purchase_amount \
      FROM asset_balances";
 
 impl Search for AssetBalanceDomain {

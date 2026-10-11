@@ -13,7 +13,6 @@ use crate::features::dividend_per_share::{
 };
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
-use crate::support::list_search::is_js_whitespace;
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fetch_all_pages};
 use crate::support::row::Row;
 use leptos::prelude::*;
@@ -24,6 +23,7 @@ pub(crate) struct LoadedAssetBalances {
     pub(crate) rows: Vec<AssetBalance>,
     // API の total。実際に取得できた行数(rows.len)とは一致しないことがある
     pub(crate) total: usize,
+    // 取得上限超過で行が欠けるときの合計フォールバック用。行が揃う通常時は使わない
     pub(crate) summary: Option<AssetBalanceSummary>,
     pub(crate) truncated: bool,
 }
@@ -114,58 +114,41 @@ pub(crate) async fn poll_dividend_maps(
     }
 }
 
-pub(crate) fn effective_summary(
-    summary: Option<AssetBalanceSummary>,
-    query: &str,
-    has_csv_file: bool,
-) -> Option<AssetBalanceSummary> {
-    // 検索中は絞り込み前、CSV プレビュー中は取込前の全体集計のままなので API の summary は使わない。
-    // 空白だけの入力は絞り込み側と同じく「絞り込みなし」と揃える
-    if query.trim_matches(is_js_whitespace).is_empty() && !has_csv_file {
-        summary
-    } else {
-        None
-    }
-}
-
 #[derive(Clone, Debug)]
 pub(crate) struct FilteredPortfolio {
+    /// 絞り込み後の行。カード一覧・構成比・件数表示に使う
     pub(crate) views: Vec<HoldingView>,
-    pub(crate) summary: Option<AssetBalanceSummary>,
+    /// 絞り込み前の全行。合計はここから求め、検索中も全保有分を維持する
+    pub(crate) all_views: Vec<HoldingView>,
 }
 
 pub(crate) fn filtered_portfolio(
     rows: &[AssetBalanceRow],
-    summary: Option<AssetBalanceSummary>,
     query: &str,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
     has_csv_file: bool,
 ) -> FilteredPortfolio {
-    let views = filter_asset_balances(rows, query)
-        .into_iter()
-        .map(|row| {
-            // プレビュー行は CSV の値をそのまま見せるため lookup で DB 行に置き換えない
-            match row {
-                Row::Preview(_) => holding_view(row),
-                Row::Saved(saved) => {
-                    let resolved = if has_csv_file {
-                        saved.clone()
-                    } else {
-                        lookup
-                            .with(|store| {
-                                store.get(generation, saved.security_code.as_str()).cloned()
-                            })
-                            .unwrap_or_else(|| saved.clone())
-                    };
-                    holding_view(&resolved)
-                }
-            }
-        })
-        .collect();
+    // プレビュー行は CSV の値をそのまま見せるため lookup で DB 行に置き換えない
+    let resolve_view = |row: &AssetBalanceRow| match row {
+        Row::Preview(_) => holding_view(row),
+        Row::Saved(saved) => {
+            let resolved = if has_csv_file {
+                saved.clone()
+            } else {
+                lookup
+                    .with(|store| store.get(generation, saved.security_code.as_str()).cloned())
+                    .unwrap_or_else(|| saved.clone())
+            };
+            holding_view(&resolved)
+        }
+    };
     FilteredPortfolio {
-        views,
-        summary: effective_summary(summary, query, has_csv_file),
+        views: filter_asset_balances(rows, query)
+            .into_iter()
+            .map(resolve_view)
+            .collect(),
+        all_views: rows.iter().map(resolve_view).collect(),
     }
 }
 

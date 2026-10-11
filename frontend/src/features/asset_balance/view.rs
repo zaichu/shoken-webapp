@@ -33,6 +33,8 @@ pub(crate) struct AssetBalanceState {
     search_query: RwSignal<String>,
     // ページ側に持ち上げた show_all はアンマウントで破棄されないため、グラフを描かない分岐では false に戻す
     show_all: RwSignal<bool>,
+    // 取得額構成比の開閉もページ側に持ち、一覧の再描画で状態が消えないようにする
+    composition_open: RwSignal<bool>,
     data_ops: RwSignal<DataOps>,
     csv: AssetBalanceCsvStore,
     panel_open: RwSignal<bool>,
@@ -51,6 +53,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let search_query = RwSignal::new(String::new());
     let reset_query = search_query;
     let show_all = RwSignal::new(false);
+    let composition_open = RwSignal::new(false);
     let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
     let csv_store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
     let csv_slot = csv_store.csv;
@@ -63,6 +66,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
             data_ops.update(DataOps::reset);
             reset_query.set(String::new());
             show_all.set(false);
+            composition_open.set(false);
             return;
         }
         lookup.update(|store| store.clear_if_stale(generation));
@@ -79,6 +83,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
         lookup,
         search_query,
         show_all,
+        composition_open,
         data_ops,
         csv: csv_store,
         panel_open: RwSignal::new(workspace_panel_default_open()),
@@ -97,6 +102,7 @@ pub fn AssetBalancePage() -> impl IntoView {
     let lookup = state.lookup;
     let search_query = state.search_query;
     let show_all = state.show_all;
+    let composition_open = state.composition_open;
     let data_ops = state.data_ops;
     let csv_store = state.csv;
     let busy_csv = csv_store;
@@ -231,12 +237,13 @@ pub fn AssetBalancePage() -> impl IntoView {
                                                 <AssetBalanceMainContent
                                                     state=state
                                                     rows=resolved.rows
-                                                    summary=resolved.summary
+                                                    fallback_totals=resolved.fallback_totals
                                                     has_csv_file=resolved.has_csv_file
                                                     csv_input_disabled=csv_input_disabled
                                                     search_query=search_query
                                                     dividends=dividends
                                                     show_all=show_all
+                                                    composition_open=composition_open
                                                     lookup=lookup
                                                     generation=generation
                                                 />
@@ -257,12 +264,13 @@ pub fn AssetBalancePage() -> impl IntoView {
                                     <AssetBalanceMainContent
                                         state=state
                                         rows=resolved.rows
-                                        summary=resolved.summary
+                                        fallback_totals=resolved.fallback_totals
                                         has_csv_file=resolved.has_csv_file
                                         csv_input_disabled=csv_input_disabled
                                         search_query=search_query
                                         dividends=dividends
                                         show_all=show_all
+                                        composition_open=composition_open
                                         lookup=lookup
                                         generation=generation
                                     />

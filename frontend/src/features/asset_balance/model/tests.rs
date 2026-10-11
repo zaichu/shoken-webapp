@@ -30,29 +30,6 @@ fn to_finite_amount(value: &Value) -> Option<f64> {
     }
 }
 
-fn f64_to_decimal_exact(value: f64) -> Option<Decimal> {
-    Decimal::from_str_exact(&value.to_string()).ok()
-}
-
-fn calculate_valuation(market_value: Option<f64>, purchase_amount: Option<f64>) -> ValuationResult {
-    let (Some(market), Some(purchase)) = (market_value, purchase_amount) else {
-        return ValuationResult {
-            amount: None,
-            rate: None,
-        };
-    };
-    let (amount, rate) = valuation_parts(
-        f64_to_decimal_exact(market),
-        f64_to_decimal_exact(purchase),
-        market,
-        purchase,
-    );
-    ValuationResult {
-        amount: Some(amount),
-        rate,
-    }
-}
-
 /// 構成比（%）。`formatters.ts` の `calculatePercentage(value, total, 2)` に対応する。
 /// 共通 fixture の契約用。画面表示の構成比は PieChart 準拠の `chart_percentages` を使う。
 fn calculate_composition_percentage(value: f64, total: f64) -> f64 {
@@ -220,7 +197,7 @@ fn shared_kpi_cases_match() {
             .iter()
             .map(|(code, value)| (code.clone(), value.as_f64().expect("dividend per share")))
             .collect();
-        let kpi = calculate_portfolio_kpi(&holdings, &dividends, None);
+        let kpi = calculate_portfolio_kpi(&holdings, &dividends);
         assert_optional_amount(
             Some(kpi.total_purchase_amount),
             &case.expected.total_purchase_amount,
@@ -280,22 +257,147 @@ fn calculate_valuation_rate_overflow_does_not_panic() {
 }
 
 #[test]
-fn kpi_summary_override_matches_component_cases() {
-    let without_summary = calculate_portfolio_kpi(&kpi_holdings(), &full_dividends(), None);
-    assert_eq!(without_summary.total_purchase_amount, 850000.0);
-    assert_eq!(without_summary.total_annual_dividends, Some(17000.0));
-    assert_optional_rate(without_summary.dividend_yield, &json!(2.0), "kpi", "yield");
+fn kpi_totals_match_component_cases() {
+    let kpi = calculate_portfolio_kpi(&kpi_holdings(), &full_dividends());
+    assert_eq!(kpi.total_purchase_amount, 850000.0);
+    assert_eq!(kpi.total_annual_dividends, Some(17000.0));
+    assert_optional_rate(kpi.dividend_yield, &json!(2.0), "kpi", "yield");
+    assert_eq!(kpi.holdings_count, 2);
+}
 
-    let with_summary = calculate_portfolio_kpi(&kpi_holdings(), &full_dividends(), Some(1234567.0));
-    assert_eq!(with_summary.total_purchase_amount, 1234567.0);
-    assert_eq!(with_summary.total_annual_dividends, Some(17000.0));
+fn priced(shares: f64, current_price: f64, purchase: f64) -> ValuationInput {
+    ValuationInput {
+        current_price,
+        shares,
+        total_purchase_amount: purchase,
+    }
+}
+
+#[test]
+fn holding_valuation_gives_market_value_and_profit_loss() {
+    let valuation = holding_valuation(&priced(100.0, 2600.0, 250000.0));
+    assert_eq!(valuation.market_value, Some(260000.0));
+    assert_eq!(valuation.profit_loss.amount, Some(10000.0));
+    assert_optional_rate(valuation.profit_loss.rate, &json!(4.0), "holding", "rate");
+}
+
+#[test]
+fn holding_valuation_without_price_is_unpriced_not_loss() {
+    for current_price in [0.0, -1.0, f64::NAN] {
+        let valuation = holding_valuation(&priced(100.0, current_price, 250000.0));
+        assert_eq!(valuation.market_value, None, "price={current_price}");
+        assert_eq!(valuation.profit_loss.amount, None, "price={current_price}");
+        assert_eq!(valuation.profit_loss.rate, None, "price={current_price}");
+    }
+}
+
+#[test]
+fn holding_valuation_zero_purchase_has_amount_but_no_rate() {
+    let valuation = holding_valuation(&priced(100.0, 2600.0, 0.0));
+    assert_eq!(valuation.profit_loss.amount, Some(260000.0));
+    assert_eq!(valuation.profit_loss.rate, None);
+}
+
+#[test]
+fn portfolio_valuation_excludes_unpriced_holdings() {
+    let holdings = [
+        priced(100.0, 2600.0, 250000.0),
+        priced(50.0, 5200.0, 600000.0),
+        priced(10.0, 0.0, 80000.0),
+    ];
+    let valuation = portfolio_valuation(&holdings);
+    assert_eq!(valuation.market_value, Some(520000.0));
+    assert_eq!(valuation.profit_loss.amount, Some(-330000.0));
     assert_optional_rate(
-        with_summary.dividend_yield,
-        &json!(1.3770010052107338),
-        "kpi",
-        "yield",
+        valuation.profit_loss.rate,
+        &json!(-38.8235294117647),
+        "portfolio",
+        "rate",
     );
-    assert_eq!(with_summary.holdings_count, 2);
+    assert!(valuation.has_unpriced);
+}
+
+#[test]
+fn portfolio_valuation_all_unpriced_returns_none() {
+    let valuation = portfolio_valuation(&[priced(10.0, 0.0, 80000.0)]);
+    assert_eq!(valuation.market_value, None);
+    assert_eq!(valuation.profit_loss.amount, None);
+    assert_eq!(valuation.profit_loss.rate, None);
+    assert!(valuation.has_unpriced);
+
+    let empty = portfolio_valuation(&[]);
+    assert_eq!(empty.market_value, None);
+    assert!(!empty.has_unpriced);
+}
+
+#[test]
+fn summary_valuation_computes_totals_from_api_summary() {
+    let summary = AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(1184900),
+        total_purchase_amount: rust_decimal_macros::dec!(500000),
+        total_daily_change: rust_decimal_macros::dec!(0),
+        priced_market_value: rust_decimal_macros::dec!(1184900),
+        priced_purchase_amount: rust_decimal_macros::dec!(500000),
+    };
+    let valuation = summary_valuation(&summary);
+    assert_eq!(valuation.market_value, Some(1184900.0));
+    assert_eq!(valuation.profit_loss.amount, Some(684900.0));
+    assert_optional_rate(
+        valuation.profit_loss.rate,
+        &json!(136.98),
+        "summary",
+        "rate",
+    );
+    assert!(!valuation.has_unpriced);
+}
+
+#[test]
+fn summary_valuation_excludes_unpriced_purchase() {
+    // 価格あり行: 評価額 ¥1,000 / 取得額 ¥500、価格なし行: 取得額 ¥700。
+    // 価格なし行の取得額を分母に入れると -¥200 と誤表示されるため、含み益 +¥500 が正しい
+    let summary = AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(1000),
+        total_purchase_amount: rust_decimal_macros::dec!(1200),
+        total_daily_change: rust_decimal_macros::dec!(0),
+        priced_market_value: rust_decimal_macros::dec!(1000),
+        priced_purchase_amount: rust_decimal_macros::dec!(500),
+    };
+    let valuation = summary_valuation(&summary);
+    assert_eq!(valuation.market_value, Some(1000.0));
+    assert_eq!(valuation.profit_loss.amount, Some(500.0));
+    assert_optional_rate(valuation.profit_loss.rate, &json!(100.0), "summary", "rate");
+    assert!(valuation.has_unpriced);
+}
+
+#[test]
+fn summary_valuation_zero_market_is_unavailable() {
+    // 価格あり行がないとき合計は算出不能(価格なしの損と誤表示しない)
+    let summary = AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(0),
+        total_purchase_amount: rust_decimal_macros::dec!(500000),
+        total_daily_change: rust_decimal_macros::dec!(0),
+        priced_market_value: rust_decimal_macros::dec!(0),
+        priced_purchase_amount: rust_decimal_macros::dec!(0),
+    };
+    let valuation = summary_valuation(&summary);
+    assert_eq!(valuation.market_value, None);
+    assert_eq!(valuation.profit_loss.amount, None);
+    assert_eq!(valuation.profit_loss.rate, None);
+    assert!(valuation.has_unpriced);
+}
+
+#[test]
+fn summary_valuation_zero_purchase_has_amount_but_no_rate() {
+    let summary = AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(100000),
+        total_purchase_amount: rust_decimal_macros::dec!(0),
+        total_daily_change: rust_decimal_macros::dec!(0),
+        priced_market_value: rust_decimal_macros::dec!(100000),
+        priced_purchase_amount: rust_decimal_macros::dec!(0),
+    };
+    let valuation = summary_valuation(&summary);
+    assert_eq!(valuation.profit_loss.amount, Some(100000.0));
+    assert_eq!(valuation.profit_loss.rate, None);
 }
 
 #[test]
@@ -589,7 +691,7 @@ proptest::proptest! {
                 total_purchase_amount,
             })
             .collect();
-        let kpi = calculate_portfolio_kpi(&holdings, &HashMap::new(), None);
+        let kpi = calculate_portfolio_kpi(&holdings, &HashMap::new());
         proptest::prop_assert_eq!(kpi.holdings_count, holdings.len());
         proptest::prop_assert_eq!(kpi.total_annual_dividends, None);
         proptest::prop_assert_eq!(kpi.dividend_yield, None);
