@@ -107,6 +107,7 @@ pub fn SiteHeader() -> impl IntoView {
                     }>
                         <a
                             href="/"
+                            aria-label="証券Web"
                             class=move || {
                                 format!(
                                     "group inline-flex items-center gap-3 rounded-md text-text-inverse transition-colors hover:text-accent-softer max-sm:min-h-11 max-sm:min-w-11 max-sm:justify-center{}",
@@ -115,9 +116,7 @@ pub fn SiteHeader() -> impl IntoView {
                             }
                             aria-current=move || home_active().then_some("page")
                         >
-                            <span class="header-logo">
-                                "証"
-                            </span>
+                            <img src="/icons/icon.svg" alt="" class="header-logo" />
                             // スマホではサービス名を隠し、ロゴ・ナビ・ユーザーを1行に収める
                             <span class="header-brand max-sm:hidden">
                                 "証券Web"

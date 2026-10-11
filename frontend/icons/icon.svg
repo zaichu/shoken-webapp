@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#1e3560"/>
+  <!-- 絵を maskable 安全域(中央80%円)の内側に収めるための余白 -->
+  <g transform="translate(256 256) scale(0.95) translate(-256 -256)">
+    <g fill="#d99e22">
+      <rect x="106" y="250" width="88" height="42" rx="14"/>
+      <rect x="106" y="296" width="88" height="42" rx="14"/>
+      <rect x="106" y="342" width="88" height="42" rx="14"/>
+      <rect x="212" y="204" width="88" height="42" rx="14"/>
+      <rect x="212" y="250" width="88" height="42" rx="14"/>
+      <rect x="212" y="296" width="88" height="42" rx="14"/>
+      <rect x="212" y="342" width="88" height="42" rx="14"/>
+      <rect x="318" y="158" width="88" height="42" rx="14"/>
+      <rect x="318" y="204" width="88" height="42" rx="14"/>
+      <rect x="318" y="250" width="88" height="42" rx="14"/>
+      <rect x="318" y="296" width="88" height="42" rx="14"/>
+      <rect x="318" y="342" width="88" height="42" rx="14"/>
+    </g>
+    <g fill="#f6c945">
+      <rect x="106" y="250" width="88" height="20" rx="10"/>
+      <rect x="106" y="296" width="88" height="20" rx="10"/>
+      <rect x="106" y="342" width="88" height="20" rx="10"/>
+      <rect x="212" y="204" width="88" height="20" rx="10"/>
+      <rect x="212" y="250" width="88" height="20" rx="10"/>
+      <rect x="212" y="296" width="88" height="20" rx="10"/>
+      <rect x="212" y="342" width="88" height="20" rx="10"/>
+      <rect x="318" y="158" width="88" height="20" rx="10"/>
+      <rect x="318" y="204" width="88" height="20" rx="10"/>
+      <rect x="318" y="250" width="88" height="20" rx="10"/>
+      <rect x="318" y="296" width="88" height="20" rx="10"/>
+      <rect x="318" y="342" width="88" height="20" rx="10"/>
+    </g>
+    <g stroke="#f6c945" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M338 146 L370 114"/>
+      <path d="M344 114 H370 V140"/>
+    </g>
+  </g>
+</svg>
