@@ -165,6 +165,10 @@ src/
 - `損益` は `評価損益`(ホーム・資産管理の未実現損益)などの複合語でのみ使う。取引明細の実現損益は `実現損益` と表記する
 - 配当タブの `税引後` は受取額であり損益ではないため、負数でも赤色にしない
 
+## アイコン
+
+`icons/icon.svg` が正本で、各 PNG(`favicon-*.png`・`apple-touch-icon.png`・`icon-*.png`)は `node scripts/render-icons.mjs` で再生成します(Playwright の chromium を使用、`npm ci` 済みが前提)。
+
 ## デプロイ
 
 GitHub Actions の `deploy-cloudflare-pages.yml` が Wrangler で Cloudflare Pages に配信します（本番 `https://shoken-webapp.pages.dev`）。`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID` が必要です。
