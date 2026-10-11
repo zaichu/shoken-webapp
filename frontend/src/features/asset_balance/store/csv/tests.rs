@@ -440,6 +440,16 @@ fn saved_count_ready_waits_for_inflight_refresh() {
             !store.saved_count_ready(),
             "取り直し中はキャッシュの古い件数を未確定として扱う"
         );
+
+        // 取り直しが失敗しても古い件数を確定扱いに戻さない
+        store
+            .data_ops
+            .update(|ops| ops.end_list_fetch(ops.list_rev));
+        store
+            .data_ops
+            .update(|ops| ops.refresh_error = Some("error".to_string()));
+        assert!(!store.saved_count_ready());
+        assert_eq!(store.saved_count_error().as_deref(), Some("error"));
     });
 }
 

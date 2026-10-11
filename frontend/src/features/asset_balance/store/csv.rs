@@ -87,21 +87,24 @@ impl AssetBalanceCsvStore {
     }
 
     // 削除ページで保存済み全件数を確かめてから実行するため、件数が確定しているかを返す。
-    // 一覧の取り直し中は古い件数を未確定として扱う
+    // 一覧の取り直し中・取り直し失敗時は古い件数を未確定として扱う
     pub(crate) fn saved_count_ready(&self) -> bool {
         let generation = self.session.generation.get();
-        !self.data_ops.with(|ops| ops.list_fetch_in_flight())
+        let fetch_unresolved = self
+            .data_ops
+            .with(|ops| ops.list_fetch_in_flight() || ops.refresh_error.is_some());
+        !fetch_unresolved
             && self
                 .balances
                 .with(|slot| matches!(slot, Some((cached, Ok(_))) if *cached == generation))
     }
 
-    // 件数が確定できない理由(一覧取得失敗)を削除ページに出す
+    // 件数が確定できない理由(一覧取得・取り直しの失敗)を削除ページに出す
     pub(crate) fn saved_count_error(&self) -> Option<String> {
         let generation = self.session.generation.get();
         self.balances.with(|slot| match slot {
             Some((cached, Err(message))) if *cached == generation => Some(message.clone()),
-            _ => None,
+            _ => self.data_ops.with(|ops| ops.refresh_error.clone()),
         })
     }
 

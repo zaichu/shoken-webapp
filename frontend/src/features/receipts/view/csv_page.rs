@@ -48,13 +48,15 @@ impl CsvSource for ReceiptCsvSource {
     }
 
     fn delete_count_ready(&self) -> bool {
+        // 裏再取得の失敗は一覧を Ready のまま残すため、失敗が残る間は古い件数を未確定として扱う
         matches!(self.store.tab_state(self.tab), TabState::Ready(_))
+            && self.store.refresh_error(self.tab).is_none()
     }
 
     fn delete_count_error(&self) -> Option<String> {
         match self.store.tab_state(self.tab) {
             TabState::Failed(message) => Some(message),
-            _ => None,
+            _ => self.store.refresh_error(self.tab),
         }
     }
 
