@@ -58,6 +58,8 @@ async function setupAssetBalanceMocks(
           total_purchase_amount: totalPurchase,
           total_market_value: totalPurchase,
           total_daily_change: 0,
+          priced_purchase_amount: totalPurchase,
+          priced_market_value: totalPurchase,
         },
       }),
     );

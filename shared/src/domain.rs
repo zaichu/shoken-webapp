@@ -217,6 +217,8 @@ pub struct AssetBalance {
 /// 保有銘柄 検索条件全体の集計
 ///
 /// profit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。
+/// priced_* は価格あり(current_price > 0)行だけの集計で、含み損益の分子・分母に使う。
+/// 価格なし行を含めないため total_* とは分母が違う。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct AssetBalanceSummary {
@@ -226,6 +228,12 @@ pub struct AssetBalanceSummary {
     pub total_purchase_amount: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_daily_change: Decimal,
+    #[serde(default)]
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub priced_market_value: Decimal,
+    #[serde(default)]
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub priced_purchase_amount: Decimal,
 }
 
 #[cfg(test)]

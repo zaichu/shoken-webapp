@@ -44,6 +44,12 @@ impl crate::db::FromRow for AssetBalanceSummary {
             total_daily_change: row
                 .try_get::<_, crate::db::Numeric>("total_daily_change")?
                 .0,
+            priced_market_value: row
+                .try_get::<_, crate::db::Numeric>("priced_market_value")?
+                .0,
+            priced_purchase_amount: row
+                .try_get::<_, crate::db::Numeric>("priced_purchase_amount")?
+                .0,
         })
     }
 }

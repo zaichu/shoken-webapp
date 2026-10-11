@@ -1836,13 +1836,21 @@
       },
       "AssetBalanceSummary": {
         "type": "object",
-        "description": "保有銘柄 検索条件全体の集計\n\nprofit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。",
+        "description": "保有銘柄 検索条件全体の集計\n\nprofit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。\npriced_* は価格あり(current_price > 0)行だけの集計で、含み損益の分子・分母に使う。\n価格なし行を含めないため total_* とは分母が違う。",
         "required": [
           "total_market_value",
           "total_purchase_amount",
           "total_daily_change"
         ],
         "properties": {
+          "priced_market_value": {
+            "type": "number",
+            "format": "double"
+          },
+          "priced_purchase_amount": {
+            "type": "number",
+            "format": "double"
+          },
           "total_daily_change": {
             "type": "number",
             "format": "double"
@@ -2588,13 +2596,21 @@
           },
           "summary": {
             "type": "object",
-            "description": "保有銘柄 検索条件全体の集計\n\nprofit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。",
+            "description": "保有銘柄 検索条件全体の集計\n\nprofit_loss_rate は銘柄ごとの比率のため単純合算せず、summary には含めない。\npriced_* は価格あり(current_price > 0)行だけの集計で、含み損益の分子・分母に使う。\n価格なし行を含めないため total_* とは分母が違う。",
             "required": [
               "total_market_value",
               "total_purchase_amount",
               "total_daily_change"
             ],
             "properties": {
+              "priced_market_value": {
+                "type": "number",
+                "format": "double"
+              },
+              "priced_purchase_amount": {
+                "type": "number",
+                "format": "double"
+              },
               "total_daily_change": {
                 "type": "number",
                 "format": "double"

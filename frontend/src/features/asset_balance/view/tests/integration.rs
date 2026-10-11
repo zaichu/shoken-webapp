@@ -142,6 +142,8 @@ fn resolve_truncated_uses_summary_as_fallback_totals() {
         total_market_value: rust_decimal_macros::dec!(700000),
         total_purchase_amount: rust_decimal_macros::dec!(500000),
         total_daily_change: rust_decimal_macros::dec!(0),
+        priced_market_value: rust_decimal_macros::dec!(700000),
+        priced_purchase_amount: rust_decimal_macros::dec!(500000),
     };
     let mut loaded_balances = loaded(vec![balance(1)], true);
     loaded_balances.summary = Some(summary.clone());
@@ -160,6 +162,8 @@ fn resolve_full_rows_and_preview_skip_fallback_totals() {
         total_market_value: rust_decimal_macros::dec!(700000),
         total_purchase_amount: rust_decimal_macros::dec!(500000),
         total_daily_change: rust_decimal_macros::dec!(0),
+        priced_market_value: rust_decimal_macros::dec!(700000),
+        priced_purchase_amount: rust_decimal_macros::dec!(500000),
     });
     let state = CsvTabState::default();
     let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));

@@ -242,15 +242,17 @@ pub fn portfolio_valuation(holdings: &[ValuationInput]) -> PortfolioValuation {
 }
 
 /// 一覧の取得上限で行が欠けるときのフォールバック。API 集計値から評価額・含み損益を出す。
-/// `total_market_value` は価格不明行を 0 として合計されるため、0 以下は算出不能(None)にする。
-/// `has_unpriced` は取得済み行側の判定結果を引き継ぐ。
-pub fn summary_valuation(summary: &AssetBalanceSummary, has_unpriced: bool) -> PortfolioValuation {
-    let market = summary.total_market_value.to_f64().unwrap_or(0.0);
+/// `priced_*` は価格あり行だけの集計で個別カードと同じ対象行になる。
+/// `priced_purchase_amount < total_purchase_amount` なら価格なし行がいるとみなす。
+pub fn summary_valuation(summary: &AssetBalanceSummary) -> PortfolioValuation {
+    let market = summary.priced_market_value.to_f64().unwrap_or(0.0);
     let market_value = (market > 0.0).then_some(market);
+    let priced_purchase = summary.priced_purchase_amount.to_f64().unwrap_or(0.0);
+    let total_purchase = summary.total_purchase_amount.to_f64().unwrap_or(0.0);
     PortfolioValuation {
         market_value,
-        profit_loss: calculate_valuation(market_value, summary.total_purchase_amount.to_f64()),
-        has_unpriced,
+        profit_loss: calculate_valuation(market_value, Some(priced_purchase)),
+        has_unpriced: priced_purchase < total_purchase,
     }
 }
 

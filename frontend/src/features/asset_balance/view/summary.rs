@@ -99,7 +99,7 @@ pub(crate) fn PortfolioSummary(
     // 取得上限超過で行が欠けるときだけ API 集計で合計を補う(個別カードと一致させるため通常時は行から計算)
     let valuation = fallback_totals
         .as_ref()
-        .map(|summary| summary_valuation(summary, row_valuation.has_unpriced))
+        .map(summary_valuation)
         .unwrap_or(row_valuation);
     let total_purchase = fallback_totals
         .as_ref()

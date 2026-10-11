@@ -40,6 +40,8 @@ const API_SUMMARY = {
   total_purchase_amount: 123456789,
   total_market_value: 987654321,
   total_daily_change: 0,
+  priced_purchase_amount: 123456789,
+  priced_market_value: 987654321,
 };
 
 async function setupAssetBalanceMocks(page: Page) {
