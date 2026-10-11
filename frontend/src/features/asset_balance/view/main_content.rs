@@ -1,6 +1,7 @@
 use super::chart::ChartList;
 use super::search_bar::AssetBalanceSearchBar;
 use super::summary::{ChartItem, PortfolioComposition, PortfolioSummary};
+use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::chart_plan;
@@ -21,6 +22,7 @@ use leptos::prelude::*;
 pub(crate) fn AssetBalanceMainContent(
     state: CsvTabMeta,
     rows: Vec<AssetBalanceRow>,
+    fallback_totals: Option<AssetBalanceSummary>,
     has_csv_file: bool,
     csv_input_disabled: Memo<bool>,
     search_query: RwSignal<String>,
@@ -102,6 +104,7 @@ pub(crate) fn AssetBalanceMainContent(
                 view! {
                     <PortfolioSummary
                         filtered=filtered.get()
+                        fallback_totals=fallback_totals.clone()
                         total_count=total_count
                         is_filtered=is_filtered
                         on_clear_filter=move || {

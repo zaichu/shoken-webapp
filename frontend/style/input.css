@@ -799,9 +799,11 @@
   min-width: 0;
 }
 
-/* 金額は途中で折り返さない(dd の overflow-wrap:anywhere 対策) */
+/* 金額は途中で折り返さない(dd の overflow-wrap:anywhere 対策)。列からはみ出るほど長いときは末尾を省略する */
 .kpi-amount {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kpi-count {

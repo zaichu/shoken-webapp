@@ -3,7 +3,7 @@ use super::{
     poll_dividend_maps, truncated_list_warning,
 };
 use crate::api::ApiError;
-use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
+use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse};
 use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::{DividendMaps, unique_sorted_codes};
@@ -299,6 +299,7 @@ impl AssetBalanceCsvStore {
                     Ok(LoadedAssetBalances {
                         rows: Vec::new(),
                         total: 0,
+                        summary: None,
                         truncated: false,
                     }),
                 )));
@@ -336,6 +337,8 @@ pub(crate) fn csv_status_text(state: &CsvTabMeta) -> Option<&'static str> {
 pub(crate) struct ResolvedAssetBalance {
     pub(crate) rows: Vec<AssetBalanceRow>,
     pub(crate) warning: Option<String>,
+    /// 取得上限超過で行が欠けるときの API 集計。行が揃う通常時と CSV プレビュー中は None
+    pub(crate) fallback_totals: Option<AssetBalanceSummary>,
     pub(crate) has_csv_file: bool,
 }
 
@@ -350,6 +353,7 @@ pub(crate) fn resolve_asset_balance(
         Err(_) => Some(ResolvedAssetBalance {
             rows: csv_preview_rows(state),
             warning: None,
+            fallback_totals: None,
             has_csv_file,
         }),
         Ok(loaded) => Some(ResolvedAssetBalance {
@@ -359,6 +363,11 @@ pub(crate) fn resolve_asset_balance(
                 loaded.rows.iter().cloned().map(Row::Saved).collect()
             },
             warning: (!has_csv_file && loaded.truncated).then(truncated_list_warning),
+            fallback_totals: if !has_csv_file && loaded.truncated {
+                loaded.summary.clone()
+            } else {
+                None
+            },
             has_csv_file,
         }),
     }

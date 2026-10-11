@@ -237,6 +237,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                                 <AssetBalanceMainContent
                                                     state=state
                                                     rows=resolved.rows
+                                                    fallback_totals=resolved.fallback_totals
                                                     has_csv_file=resolved.has_csv_file
                                                     csv_input_disabled=csv_input_disabled
                                                     search_query=search_query
@@ -263,6 +264,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                     <AssetBalanceMainContent
                                         state=state
                                         rows=resolved.rows
+                                        fallback_totals=resolved.fallback_totals
                                         has_csv_file=resolved.has_csv_file
                                         csv_input_disabled=csv_input_disabled
                                         search_query=search_query

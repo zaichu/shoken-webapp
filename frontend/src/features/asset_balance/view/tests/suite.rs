@@ -189,6 +189,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         let loaded = LoadedAssetBalances {
             total: 2,
             rows: vec![toyota, sony],
+            summary: None,
             truncated: false,
         };
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -312,6 +313,7 @@ fn show_all_resets_only_when_summary_has_no_rows() {
                         all_views: views.clone(),
                         views,
                     })
+                    .fallback_totals(None)
                     .total_count(21)
                     .is_filtered(true)
                     .on_clear_filter(|| {})
@@ -361,6 +363,7 @@ fn dividend_maps_apply_only_to_current_generation() {
             Ok(LoadedAssetBalances {
                 rows: vec![],
                 total: 0,
+                summary: None,
                 truncated: false,
             }),
         )));
@@ -382,6 +385,7 @@ fn dividend_update_does_not_notify_balance_view() {
             Ok(LoadedAssetBalances {
                 rows: vec![],
                 total: 0,
+                summary: None,
                 truncated: false,
             }),
         )));

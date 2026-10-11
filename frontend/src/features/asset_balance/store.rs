@@ -23,6 +23,8 @@ pub(crate) struct LoadedAssetBalances {
     pub(crate) rows: Vec<AssetBalance>,
     // API の total。実際に取得できた行数(rows.len)とは一致しないことがある
     pub(crate) total: usize,
+    // 取得上限超過で行が欠けるときの合計フォールバック用。行が揃う通常時は使わない
+    pub(crate) summary: Option<AssetBalanceSummary>,
     pub(crate) truncated: bool,
 }
 
@@ -39,6 +41,7 @@ async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
     Ok(LoadedAssetBalances {
         total: page.total.unwrap_or(page.rows.len()),
         rows: page.rows,
+        summary: page.summary,
         truncated: page.truncated,
     })
 }

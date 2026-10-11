@@ -1,5 +1,5 @@
 use crate::api::ApiError;
-use crate::api::dto::{AssetBalance, AssetBalanceListResponse};
+use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRowData};
 use crate::features::asset_balance::store::csv::resolve_asset_balance;
 use crate::features::asset_balance::store::{
@@ -64,6 +64,7 @@ fn loaded(rows: Vec<AssetBalance>, truncated: bool) -> LoadedAssetBalances {
     LoadedAssetBalances {
         total: rows.len(),
         rows,
+        summary: None,
         truncated,
     }
 }
@@ -132,6 +133,50 @@ fn resolve_csv_preview_replaces_rows_and_drops_warning() {
     assert_eq!(resolved.rows[0].security_code(), "9999");
     assert!(resolved.warning.is_none());
     assert!(resolved.has_csv_file);
+}
+
+#[test]
+fn resolve_truncated_uses_summary_as_fallback_totals() {
+    let state = CsvTabState::default();
+    let summary = AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(700000),
+        total_purchase_amount: rust_decimal_macros::dec!(500000),
+        total_daily_change: rust_decimal_macros::dec!(0),
+    };
+    let mut loaded_balances = loaded(vec![balance(1)], true);
+    loaded_balances.summary = Some(summary.clone());
+    let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));
+    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot, &state) else {
+        panic!("expected ready");
+    };
+    assert_eq!(resolved.fallback_totals, Some(summary));
+}
+
+#[test]
+fn resolve_full_rows_and_preview_skip_fallback_totals() {
+    // 行が揃う場合は個別カードとの一致を優先して行から計算するため fallback は使わない
+    let mut loaded_balances = loaded(vec![balance(1)], false);
+    loaded_balances.summary = Some(AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(700000),
+        total_purchase_amount: rust_decimal_macros::dec!(500000),
+        total_daily_change: rust_decimal_macros::dec!(0),
+    });
+    let state = CsvTabState::default();
+    let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));
+    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot, &state) else {
+        panic!("expected ready");
+    };
+    assert!(resolved.fallback_totals.is_none());
+
+    // CSV プレビュー中は API 集計がプレビュー行を反映しないため使わない
+    let state = preview_state();
+    let mut loaded_balances = loaded(vec![balance(1)], true);
+    loaded_balances.summary = Some(AssetBalanceSummary::default());
+    let slot: BalanceSlot = Some((Generation::new(3), Ok(loaded_balances)));
+    let Some(resolved) = resolve_asset_balance(Generation::new(3), &slot, &state) else {
+        panic!("expected ready");
+    };
+    assert!(resolved.fallback_totals.is_none());
 }
 
 #[test]

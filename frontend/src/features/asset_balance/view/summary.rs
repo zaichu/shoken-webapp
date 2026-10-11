@@ -1,11 +1,14 @@
 use super::palette::holding_bar_class;
+use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::format::{
-    format_currency, format_fixed_percent, format_percentage_value, format_signed_valuation_amount,
-    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
+    dec_to_f64, format_currency, format_fixed_percent, format_percentage_value,
+    format_signed_valuation_amount, format_signed_valuation_rate, format_valuation_amount,
+    is_negative_valuation,
 };
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{
-    KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, total_purchase_amount,
+    KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
+    total_purchase_amount,
 };
 use crate::features::asset_balance::portfolio::chart_display;
 use crate::features::asset_balance::store::FilteredPortfolio;
@@ -46,6 +49,7 @@ fn Kpi(
 #[component]
 pub(crate) fn PortfolioSummary(
     filtered: FilteredPortfolio,
+    fallback_totals: Option<AssetBalanceSummary>,
     total_count: usize,
     is_filtered: bool,
     on_clear_filter: impl Fn() + Send + Sync + 'static,
@@ -53,9 +57,13 @@ pub(crate) fn PortfolioSummary(
     show_all: RwSignal<bool>,
     preview: bool,
 ) -> impl IntoView {
+    let on_clear_filter = std::sync::Arc::new(on_clear_filter);
     let FilteredPortfolio { views, all_views } = filtered;
-    if views.is_empty() {
+    let views_empty = views.is_empty();
+    if views_empty {
         show_all.set(false);
+    }
+    if all_views.is_empty() {
         return view! {
             <div class="sum-card mb-3">
                 <div class="sum-card-body">
@@ -64,7 +72,10 @@ pub(crate) fn PortfolioSummary(
                         description="検索条件を変更するか、絞り込みを解除してください。"
                     />
                     <div class="mt-3 text-center">
-                        <Button variant=ButtonVariant::Ghost on_click=move |_| on_clear_filter()>
+                        <Button
+                            variant=ButtonVariant::Ghost
+                            on_click=move |_| on_clear_filter()
+                        >
                             "絞り込みを解除"
                         </Button>
                     </div>
@@ -84,10 +95,18 @@ pub(crate) fn PortfolioSummary(
         .collect();
     let valuation_inputs: Vec<ValuationInput> =
         all_views.iter().map(ValuationInput::from).collect();
-    let total_purchase = format_currency(total_purchase_amount(&kpi_holdings));
+    let row_valuation = portfolio_valuation(&valuation_inputs);
+    // 取得上限超過で行が欠けるときだけ API 集計で合計を補う(個別カードと一致させるため通常時は行から計算)
+    let valuation = fallback_totals
+        .as_ref()
+        .map(|summary| summary_valuation(summary, row_valuation.has_unpriced))
+        .unwrap_or(row_valuation);
+    let total_purchase = fallback_totals
+        .as_ref()
+        .map(|summary| format_currency(dec_to_f64(&summary.total_purchase_amount)))
+        .unwrap_or_else(|| format_currency(total_purchase_amount(&kpi_holdings)));
     let kpi =
         Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
-    let valuation = portfolio_valuation(&valuation_inputs);
 
     let market_text = format_valuation_amount(valuation.market_value);
     let mut market_note = if preview {
@@ -139,11 +158,11 @@ pub(crate) fn PortfolioSummary(
             <dl class="kpis" data-testid="portfolio-kpi-grid">
                 <Kpi label="評価額合計" text=market_text note=market_note />
                 <Kpi label="含み損益" text=pnl_text note=pnl_note negative=pnl_negative />
-                <Kpi label="年間配当参考額" text=total_annual_dividends />
+                <Kpi label="年間配当金額" text=total_annual_dividends />
                 <Kpi
-                    label="取得額基準利回り"
+                    label="配当利回り（年間）"
                     text=dividend_yield
-                    note="年間配当参考額 ÷ 合計取得総額".to_string()
+                    note="年間配当金額 ÷ 合計取得総額".to_string()
                 />
                 <Kpi label="合計取得総額" text=total_purchase />
                 <div class="kpi">
@@ -155,6 +174,24 @@ pub(crate) fn PortfolioSummary(
                 </div>
             </dl>
             </div>
+            {views_empty.then(move || {
+                view! {
+                    <div class="sum-card-body">
+                        <EmptyState
+                            title="該当する銘柄がありません"
+                            description="検索条件を変更するか、絞り込みを解除してください。"
+                        />
+                        <div class="mt-3 text-center">
+                            <Button
+                                variant=ButtonVariant::Ghost
+                                on_click=move |_| on_clear_filter()
+                            >
+                                "絞り込みを解除"
+                            </Button>
+                        </div>
+                    </div>
+                }
+            })}
         </section>
     }
         .into_any()

@@ -64,6 +64,7 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
             Ok(LoadedAssetBalances {
                 rows: vec![balance_row(6758)],
                 total: 1,
+                summary: None,
                 truncated: false,
             }),
         )));
@@ -80,6 +81,7 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
             LoadedAssetBalances {
                 rows: vec![new_row],
                 total: 1,
+                summary: None,
                 truncated: false,
             },
             balances,
@@ -121,6 +123,7 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
             LoadedAssetBalances {
                 rows: vec![replaced],
                 total: 1,
+                summary: None,
                 truncated: false,
             },
             balances,
@@ -160,6 +163,7 @@ fn apply_loaded_keeps_dividends_while_preview_active() {
             LoadedAssetBalances {
                 rows: vec![balance_row(7203)],
                 total: 1,
+                summary: None,
                 truncated: false,
             },
             balances,
@@ -190,6 +194,7 @@ fn list_error_keeps_cached_rows_and_reports_refresh_error() {
             Ok(LoadedAssetBalances {
                 rows: vec![balance_row(7203)],
                 total: 1,
+                summary: None,
                 truncated: false,
             }),
         )));
@@ -285,6 +290,7 @@ fn list_loading_counts_inflight_fetch() {
             Ok(LoadedAssetBalances {
                 rows: vec![balance_row(7203)],
                 total: 1,
+                summary: None,
                 truncated: false,
             }),
         )));
@@ -431,6 +437,7 @@ fn has_current_balances_only_matches_same_generation() {
         Ok(LoadedAssetBalances {
             rows: vec![balance_row(7203)],
             total: 1,
+            summary: None,
             truncated: false,
         }),
     ));

@@ -331,6 +331,52 @@ fn portfolio_valuation_all_unpriced_returns_none() {
 }
 
 #[test]
+fn summary_valuation_computes_totals_from_api_summary() {
+    let summary = AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(1184900),
+        total_purchase_amount: rust_decimal_macros::dec!(500000),
+        total_daily_change: rust_decimal_macros::dec!(0),
+    };
+    let valuation = summary_valuation(&summary, false);
+    assert_eq!(valuation.market_value, Some(1184900.0));
+    assert_eq!(valuation.profit_loss.amount, Some(684900.0));
+    assert_optional_rate(
+        valuation.profit_loss.rate,
+        &json!(136.98),
+        "summary",
+        "rate",
+    );
+    assert!(!valuation.has_unpriced);
+}
+
+#[test]
+fn summary_valuation_zero_market_is_unavailable() {
+    // 価格不明行は集計で 0 に潰れるため、合計 0 は「価格なし」と同じく算出不能にする
+    let summary = AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(0),
+        total_purchase_amount: rust_decimal_macros::dec!(500000),
+        total_daily_change: rust_decimal_macros::dec!(0),
+    };
+    let valuation = summary_valuation(&summary, true);
+    assert_eq!(valuation.market_value, None);
+    assert_eq!(valuation.profit_loss.amount, None);
+    assert_eq!(valuation.profit_loss.rate, None);
+    assert!(valuation.has_unpriced);
+}
+
+#[test]
+fn summary_valuation_zero_purchase_has_amount_but_no_rate() {
+    let summary = AssetBalanceSummary {
+        total_market_value: rust_decimal_macros::dec!(100000),
+        total_purchase_amount: rust_decimal_macros::dec!(0),
+        total_daily_change: rust_decimal_macros::dec!(0),
+    };
+    let valuation = summary_valuation(&summary, false);
+    assert_eq!(valuation.profit_loss.amount, Some(100000.0));
+    assert_eq!(valuation.profit_loss.rate, None);
+}
+
+#[test]
 fn to_fixed_matches_js_boundary_cases() {
     assert_eq!(to_fixed(0.125, 2), 0.13);
     assert_eq!(to_fixed(2.675, 2), 2.67);

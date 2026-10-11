@@ -1,5 +1,6 @@
 //! 資産管理の一覧・構成比・KPI と、ホームの評価損益表示の純粋ロジック。
 
+use crate::api::dto::AssetBalanceSummary;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use std::collections::HashMap;
@@ -236,6 +237,19 @@ pub fn portfolio_valuation(holdings: &[ValuationInput]) -> PortfolioValuation {
     PortfolioValuation {
         market_value,
         profit_loss: calculate_valuation(market_value, Some(priced_purchase)),
+        has_unpriced,
+    }
+}
+
+/// 一覧の取得上限で行が欠けるときのフォールバック。API 集計値から評価額・含み損益を出す。
+/// `total_market_value` は価格不明行を 0 として合計されるため、0 以下は算出不能(None)にする。
+/// `has_unpriced` は取得済み行側の判定結果を引き継ぐ。
+pub fn summary_valuation(summary: &AssetBalanceSummary, has_unpriced: bool) -> PortfolioValuation {
+    let market = summary.total_market_value.to_f64().unwrap_or(0.0);
+    let market_value = (market > 0.0).then_some(market);
+    PortfolioValuation {
+        market_value,
+        profit_loss: calculate_valuation(market_value, summary.total_purchase_amount.to_f64()),
         has_unpriced,
     }
 }
