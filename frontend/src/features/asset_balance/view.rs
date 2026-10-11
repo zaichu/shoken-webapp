@@ -4,7 +4,7 @@ mod csv_section;
 mod main_content;
 mod palette;
 mod panel;
-mod search_card;
+mod search_bar;
 mod summary;
 
 #[cfg(test)]
@@ -174,7 +174,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 main_testid="assetbalance-main-stage"
                 panel_id=Signal::derive(|| "assetbalance-utility-panel".to_string())
                 toggle_testid="asset-utility-toggle"
-                panel_label="取り込み・検索"
+                panel_label="データ管理"
                 collapsible=true
                 panel_open=Signal::derive(move || panel_open.get())
                 on_toggle=Callback::new(move |_| panel_open.update(|open| *open = !*open))
@@ -182,13 +182,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                 panel=view! {
                     <AssetBalancePanel
                         view_csv=view_csv
-                        search_query=search_query
                         rows=move || {
                             resolved_view().map(|r| r.rows).unwrap_or_default()
-                        }
-                        facets=move || resolved_view().and_then(|r| r.facets)
-                        has_csv_file=move || {
-                            resolved_view().map(|r| r.has_csv_file).unwrap_or(false)
                         }
                         warning=move || resolved_view().and_then(|r| r.warning)
                     />

@@ -173,16 +173,26 @@ pub fn LinkButton(
 #[component]
 pub fn IconButton(
     #[prop(into)] aria_label: Signal<String>,
+    #[prop(into, optional)] class: Signal<String>,
     #[prop(into, optional)] disabled: Option<Signal<bool>>,
+    #[prop(optional)] testid: Option<&'static str>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
 ) -> impl IntoView {
     view! {
         <button
             type="button"
-            class="modal-close-button"
+            class=move || {
+                let class = class.get();
+                if class.is_empty() {
+                    "modal-close-button".to_string()
+                } else {
+                    class
+                }
+            }
             aria-label=move || aria_label.get()
             disabled=move || disabled.is_some_and(|disabled| disabled.get())
+            data-testid=testid
             on:click=on_click
         >
             {children()}

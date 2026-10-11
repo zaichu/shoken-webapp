@@ -1,6 +1,6 @@
 use super::*;
 use crate::api::ApiError;
-use crate::api::dto::{AssetBalanceListResponse, SearchFacets};
+use crate::api::dto::AssetBalanceListResponse;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::store::DataOps;
 use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
@@ -12,27 +12,13 @@ use crate::testing::block_on;
 use std::collections::HashMap;
 use std::future::{Ready, ready};
 
-fn first_page_with_facets() -> AssetBalanceListResponse {
-    let mut first = balance_page(0..1000, 2300, Some(rust_decimal_macros::dec!(10)));
-    first.facets = Some(SearchFacets {
-        securities: Some(vec![crate::api::dto::FacetOption {
-            value: "7203".to_string(),
-            label: "トヨタ自動車".to_string(),
-            count: None,
-        }]),
-        ..SearchFacets::default()
-    });
-    first
-}
-
 #[test]
 fn list_pages_join_all_pages_in_order() {
-    let mut second = balance_page(1000..2000, 2300, Some(rust_decimal_macros::dec!(20)));
-    second.facets = Some(SearchFacets::default());
+    let second = balance_page(1000..2000, 2300, Some(rust_decimal_macros::dec!(20)));
     let third = balance_page(2000..2300, 2300, None);
     let fetch = move |page_no: usize| -> Ready<Result<AssetBalanceListResponse, ApiError>> {
         ready(Ok(match page_no {
-            1 => first_page_with_facets(),
+            1 => balance_page(0..1000, 2300, Some(rust_decimal_macros::dec!(10))),
             2 => second.clone(),
             _ => third.clone(),
         }))
@@ -44,16 +30,10 @@ fn list_pages_join_all_pages_in_order() {
     assert_eq!(page.total, Some(2300));
     assert_eq!(page.rows[0].id.as_str(), "id-0");
     assert_eq!(page.rows[2299].id.as_str(), "id-2299");
-    // summary・facets は1ページ目のものだけを採用し、以降のページのものは捨てる
+    // summary は1ページ目のものだけを採用する
     assert_eq!(
         page.summary.map(|summary| summary.total_purchase_amount),
         Some(rust_decimal_macros::dec!(10))
-    );
-    assert_eq!(
-        page.facets
-            .and_then(|facets| facets.securities)
-            .map(|securities| securities.len()),
-        Some(1)
     );
 }
 
@@ -85,7 +65,6 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
                 rows: vec![balance_row(6758)],
                 total: 1,
                 summary: None,
-                facets: None,
                 truncated: false,
             }),
         )));
@@ -103,7 +82,6 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
                 rows: vec![new_row],
                 total: 1,
                 summary: None,
-                facets: None,
                 truncated: false,
             },
             balances,
@@ -146,7 +124,6 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
                 rows: vec![replaced],
                 total: 1,
                 summary: None,
-                facets: None,
                 truncated: false,
             },
             balances,
@@ -187,7 +164,6 @@ fn apply_loaded_keeps_dividends_while_preview_active() {
                 rows: vec![balance_row(7203)],
                 total: 1,
                 summary: None,
-                facets: None,
                 truncated: false,
             },
             balances,
@@ -219,7 +195,6 @@ fn list_error_keeps_cached_rows_and_reports_refresh_error() {
                 rows: vec![balance_row(7203)],
                 total: 1,
                 summary: None,
-                facets: None,
                 truncated: false,
             }),
         )));
@@ -316,7 +291,6 @@ fn list_loading_counts_inflight_fetch() {
                 rows: vec![balance_row(7203)],
                 total: 1,
                 summary: None,
-                facets: None,
                 truncated: false,
             }),
         )));
@@ -464,7 +438,6 @@ fn has_current_balances_only_matches_same_generation() {
             rows: vec![balance_row(7203)],
             total: 1,
             summary: None,
-            facets: None,
             truncated: false,
         }),
     ));

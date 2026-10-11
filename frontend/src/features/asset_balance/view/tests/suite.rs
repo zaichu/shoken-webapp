@@ -212,7 +212,6 @@ fn filtered_portfolio_shows_filtered_row_totals_while_searching() {
                 total_purchase_amount: rust_decimal_macros::dec!(888888),
                 total_daily_change: rust_decimal_macros::dec!(0),
             }),
-            facets: None,
             truncated: false,
         };
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -403,7 +402,6 @@ fn dividend_maps_apply_only_to_current_generation() {
                 rows: vec![],
                 total: 0,
                 summary: None,
-                facets: None,
                 truncated: false,
             }),
         )));
@@ -426,7 +424,6 @@ fn dividend_update_does_not_notify_balance_view() {
                 rows: vec![],
                 total: 0,
                 summary: None,
-                facets: None,
                 truncated: false,
             }),
         )));

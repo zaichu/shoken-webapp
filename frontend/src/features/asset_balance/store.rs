@@ -1,7 +1,7 @@
 pub(super) mod csv;
 
 use super::holdings::{HoldingView, holding_view};
-use crate::api::dto::{AssetBalance, AssetBalanceSummary, SearchFacets};
+use crate::api::dto::{AssetBalance, AssetBalanceSummary};
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::{AssetBalanceLookupStore, fetch_single_asset_balance};
@@ -24,17 +24,15 @@ pub(crate) struct LoadedAssetBalances {
     // API の total。実際に取得できた行数(rows.len)とは一致しないことがある
     pub(crate) total: usize,
     pub(crate) summary: Option<AssetBalanceSummary>,
-    pub(crate) facets: Option<SearchFacets>,
     pub(crate) truncated: bool,
 }
 
-/// 資産残高一覧のエンドポイント。検索候補に使う facets も取るため INCLUDE_FACETS を立てる。
+/// 資産残高一覧のエンドポイント。
 impl ListEndpoint for AssetBalance {
     type Row = AssetBalance;
     type Summary = AssetBalanceSummary;
 
     const PATH: &'static str = super::csv::LIST_PATH;
-    const INCLUDE_FACETS: bool = true;
 }
 
 async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
@@ -43,7 +41,6 @@ async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
         total: page.total.unwrap_or(page.rows.len()),
         rows: page.rows,
         summary: page.summary,
-        facets: page.facets,
         truncated: page.truncated,
     })
 }

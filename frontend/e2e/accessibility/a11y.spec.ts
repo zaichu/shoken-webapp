@@ -456,21 +456,10 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
     await page.goto('/assetbalance');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
-    // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
-    const assetPanelToggle = page.getByTestId('asset-utility-toggle');
-    if ((await assetPanelToggle.getAttribute('aria-expanded')) !== 'true') {
-      await assetPanelToggle.click();
-    }
-    await expect(assetPanelToggle).toHaveAttribute('aria-expanded', 'true');
-    // 検索カードは行がある時だけ描画される。空・取得失敗だと header が無くスキャンが黙って飛ばされる
-    const assetHeader = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible').first();
-    await expect(assetHeader).toBeVisible({ timeout: 10000 });
-    if ((await assetHeader.getAttribute('aria-expanded')) === 'false') {
-      await assetHeader.click();
-      await page.waitForTimeout(300);
-    }
-    await expect(assetHeader).toHaveAttribute('aria-expanded', 'true');
-    await scanAxe(page, `資産フィルター展開(${name})`);
+    // 資産管理の検索入力はメイン領域に常時表示。行がある時だけ描画されるので
+    // 空・取得失敗だと入力欄が無くスキャンが黙って飛ばされる
+    await expect(page.getByTestId('asset-search-input')).toBeVisible({ timeout: 10000 });
+    await scanAxe(page, `資産フィルター(${name})`);
   }
   await page.setViewportSize(PC);
 });

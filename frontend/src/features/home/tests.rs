@@ -10,13 +10,7 @@ fn summary_endpoints_share_the_list_paths() {
     );
     assert_eq!(<Dividend as ListEndpoint>::PATH, "/api/v1/dividends");
     assert_eq!(<AssetBalance as ListEndpoint>::MAX_PAGES, LIST_MAX_PAGES);
-    assert_eq!(
-        (
-            <AssetBalance as ListEndpoint>::PER_PAGE,
-            <AssetBalance as ListEndpoint>::INCLUDE_FACETS
-        ),
-        (LIST_PER_PAGE, true)
-    );
+    assert_eq!(<AssetBalance as ListEndpoint>::PER_PAGE, LIST_PER_PAGE);
 }
 
 #[test]

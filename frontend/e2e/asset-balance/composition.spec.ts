@@ -59,13 +59,6 @@ async function setupAssetBalanceMocks(
           total_market_value: totalPurchase,
           total_daily_change: 0,
         },
-        facets: {
-          securities: holdings.map((h) => ({
-            value: h.security_code,
-            label: h.security_name,
-            count: 1,
-          })),
-        },
       }),
     );
   });

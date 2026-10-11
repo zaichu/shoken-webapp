@@ -2,7 +2,7 @@ use std::future::Future;
 
 use serde::de::DeserializeOwned;
 
-use crate::api::dto::{PaginatedSearchResponse, SearchFacets};
+use crate::api::dto::PaginatedSearchResponse;
 use crate::api::{ApiClient, ApiError};
 
 /// 一覧エンドポイントの取得上限。API の total が実データより大きい等の
@@ -19,16 +19,14 @@ pub trait ListEndpoint {
     const PATH: &'static str;
     const PER_PAGE: usize = LIST_PER_PAGE;
     const MAX_PAGES: usize = LIST_MAX_PAGES;
-    const INCLUDE_FACETS: bool = false;
 }
 
-/// `fetch_all_pages` の返却。summary・facets は先頭ページのものを採用する。
+/// `fetch_all_pages` の返却。summary は先頭ページのものを採用する。
 pub struct ListPage<T, S> {
     pub rows: Vec<T>,
     /// API の total。実際に取得できた行数(rows.len)とは一致しないことがある
     pub total: Option<usize>,
     pub summary: Option<S>,
-    pub facets: Option<SearchFacets>,
     pub truncated: bool,
 }
 
@@ -40,16 +38,13 @@ pub async fn fetch_all_pages<E: ListEndpoint>() -> Result<ListPage<E::Row, E::Su
         async move {
             let page = page_no.to_string();
             let per_page = E::PER_PAGE.to_string();
-            // summary・facets はどのページも同じ全体集計を返すため、1ページ目だけ取る
-            let include_aggregates = if page_no == 1 { "true" } else { "false" };
-            let mut query = vec![
+            // summary はどのページも同じ全体集計を返すため、1ページ目だけ取る
+            let include_summary = if page_no == 1 { "true" } else { "false" };
+            let query = vec![
                 ("page", page.as_str()),
                 ("per_page", per_page.as_str()),
-                ("include_summary", include_aggregates),
+                ("include_summary", include_summary),
             ];
-            if E::INCLUDE_FACETS {
-                query.push(("include_facets", include_aggregates));
-            }
             client
                 .get_json::<PaginatedSearchResponse<E::Row, E::Summary>>(E::PATH, &query)
                 .await
@@ -72,13 +67,11 @@ where
     let mut rows = Vec::new();
     let mut total = None;
     let mut summary = None;
-    let mut facets = None;
     let mut page_no = 1;
     loop {
         let page = fetch_page(page_no).await?;
         if page_no == 1 {
             summary = page.summary;
-            facets = page.facets;
         }
         let last_len = page.data.len();
         rows.extend(page.data);
@@ -95,7 +88,6 @@ where
                 truncated: page_no >= max_pages && has_more,
                 rows,
                 summary,
-                facets,
             });
         }
         page_no += 1;

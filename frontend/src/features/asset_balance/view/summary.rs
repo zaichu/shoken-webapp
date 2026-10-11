@@ -10,9 +10,7 @@ use crate::features::asset_balance::model::{
 use crate::features::asset_balance::portfolio::{chart_display, chart_plan};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
-use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonVariant};
-use crate::ui::choice::{Chip, ChipVariant};
 use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
 
@@ -216,16 +214,6 @@ pub(crate) fn PortfolioSummary(
         <section id="assetbalance-summary" class="sum-card mb-3" data-testid="asset-portfolio-summary">
             <header class="sum-header">
                 <strong>"集計情報"</strong>
-                {is_filtered.then(|| view! {
-                    <div class="sum-header-badges">
-                        <Badge variant=BadgeVariant::Info>
-                            {format!("絞り込み中: {display_count}/{total_count}件")}
-                        </Badge>
-                        <Chip variant=ChipVariant::Pill on_click=move |_| on_clear_filter()>
-                            "解除"
-                        </Chip>
-                    </div>
-                })}
             </header>
             <div data-testid="portfolio-kpi-strip">
             <dl class="kpis" data-testid="portfolio-kpi-grid">

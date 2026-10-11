@@ -39,13 +39,6 @@ const SONY = {
   profit_loss_rate: -4.17,
 };
 
-const FACETS = {
-  securities: [
-    { value: '7203', label: 'トヨタ自動車', count: 1 },
-    { value: '6758', label: 'ソニーグループ', count: 1 },
-  ],
-};
-
 const EXPECTED_PROMPT = `あなたは日本株の公開情報を整理する調査サポーターです。
 以下の保有銘柄データをもとに、保有株の構成レビュー（ポートフォリオ総評の下書き）を作成してください。
 
@@ -114,7 +107,6 @@ async function setupAssetBalanceMocks(page: Page, rows: unknown[] = [TOYOTA, SON
         total: rows.length,
         page: 1,
         per_page: 1000,
-        facets: FACETS,
       }),
     );
   });
@@ -150,7 +142,7 @@ test('1920px では見直し促進カードがレール内に表示され、ク�
   });
   await expect(button).toBeEnabled();
 
-  // レール内の順序は CSV → 検索 → 見直し促進カード
+  // レール内の順序は CSV → 見直し促進カード
   const order = await rail
     .locator('.ws-panel-body > div')
     .first()

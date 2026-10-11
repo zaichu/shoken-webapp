@@ -1,5 +1,5 @@
-use super::{asset_balance_search_options, filter_asset_balances};
-use crate::api::dto::{AssetBalance, SearchFacets};
+use super::filter_asset_balances;
+use crate::api::dto::AssetBalance;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::support::row::Row as ListRow;
 use rust_decimal::Decimal;
@@ -20,25 +20,9 @@ struct FilterCase {
     expected_ids: Vec<String>,
 }
 
-#[derive(Deserialize, PartialEq, Debug)]
-struct ExpectedOption {
-    value: String,
-    label: String,
-}
-
-#[derive(Deserialize)]
-struct SuggestCase {
-    name: String,
-    data: Vec<Row>,
-    facets: Option<SearchFacets>,
-    has_csv_file: bool,
-    expected: Vec<ExpectedOption>,
-}
-
 #[derive(Deserialize)]
 struct Fixture {
     filter_cases: Vec<FilterCase>,
-    suggest_cases: Vec<SuggestCase>,
 }
 
 fn fixture() -> Fixture {
@@ -93,24 +77,6 @@ fn shared_filter_cases_match() {
             .map(|row| row_id(row))
             .collect();
         assert_eq!(actual, case.expected_ids, "{}", case.name);
-    }
-}
-
-#[test]
-fn shared_suggest_cases_match() {
-    let fixture = fixture();
-    assert_eq!(fixture.suggest_cases.len(), 4);
-    for case in &fixture.suggest_cases {
-        let data = balances(&case.data);
-        let actual = asset_balance_search_options(&data, case.facets.as_ref(), case.has_csv_file);
-        let actual: Vec<ExpectedOption> = actual
-            .into_iter()
-            .map(|option| ExpectedOption {
-                value: option.value,
-                label: option.label,
-            })
-            .collect();
-        assert_eq!(actual, case.expected, "{}", case.name);
     }
 }
 

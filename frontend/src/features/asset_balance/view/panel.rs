@@ -1,7 +1,5 @@
-use super::search_card::AssetBalanceSearchCard;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
-use crate::features::asset_balance::search::asset_balance_search_options;
 use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::csv_section::CsvSection;
@@ -19,19 +17,12 @@ enum ReviewCopyStatus {
 #[component]
 pub(crate) fn AssetBalancePanel(
     view_csv: AssetBalanceCsvStore,
-    search_query: RwSignal<String>,
     rows: impl Fn() -> Vec<AssetBalanceRow> + 'static + Send + Sync + Clone,
-    facets: impl Fn() -> Option<crate::api::dto::SearchFacets> + 'static + Send + Sync,
-    has_csv_file: impl Fn() -> bool + 'static + Send + Sync,
     warning: impl Fn() -> Option<String> + 'static + Send + Sync,
 ) -> impl IntoView {
-    let rows_clone = rows.clone();
-    let options = Memo::new(move |_| {
-        asset_balance_search_options(&rows_clone(), facets().as_ref(), has_csv_file())
-    });
     let review_rows = rows.clone();
 
-    // パネル本体の直接の子は CSV → 検索 → 見直し促進カードの順で並べる
+    // パネル本体の直接の子は CSV → 見直し促進カードの順で並べる
     view! {
         <div>
             <CsvSection source=view_csv />
@@ -44,7 +35,6 @@ pub(crate) fn AssetBalancePanel(
                     }
                 })
             }}
-            <AssetBalanceSearchCard query=search_query options=options />
             {move || {
                 let has_rows = !review_rows().is_empty();
                 has_rows.then(|| view! {

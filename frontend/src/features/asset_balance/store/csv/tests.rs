@@ -295,7 +295,6 @@ fn delete_success_clears_result_and_empties_cached_list() {
                 rows: vec![balance_row(7203)],
                 total: 1,
                 summary: None,
-                facets: None,
                 truncated: false,
             }),
         )));
@@ -381,7 +380,6 @@ fn csv_store_accessors_reflect_session_and_slots() {
             total: 3,
             rows: vec![balance_row(7203)],
             summary: None,
-            facets: None,
             truncated: false,
         };
         let balances = RwSignal::new(Some((generation, Ok(loaded))));
@@ -410,7 +408,6 @@ fn csv_input_disabled_blocks_unauth_busy_and_loading() {
             rows: vec![],
             total: 0,
             summary: None,
-            facets: None,
             truncated: false,
         };
         let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((generation, Ok(loaded))));
@@ -450,7 +447,6 @@ fn db_count_ignores_stale_generation_balances() {
             total: 5,
             rows: vec![],
             summary: None,
-            facets: None,
             truncated: false,
         };
         let balances = RwSignal::new(Some((stale, Ok(loaded))));

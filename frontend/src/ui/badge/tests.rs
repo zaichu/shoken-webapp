@@ -5,7 +5,6 @@ fn badge_variant_classes_are_distinguishable() {
     let variants = [
         BadgeVariant::Accent,
         BadgeVariant::AccentFlat,
-        BadgeVariant::Info,
         BadgeVariant::Positive,
     ];
     let classes: Vec<&str> = variants.iter().map(|variant| variant.class()).collect();

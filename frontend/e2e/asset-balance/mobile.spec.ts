@@ -49,15 +49,6 @@ const NTT = {
   daily_change: 1,
 };
 
-const FACETS = {
-  securities: [
-    { value: '7203', label: 'トヨタ自動車', count: 1 },
-    { value: '6758', label: 'ソニーグループ', count: 1 },
-    { value: '9432', label: '日本電信電話', count: 1 },
-  ],
-};
-
-
 async function setupAssetBalanceMocks(page: Page) {
   await page.route(/\/api\/v1\/session$/, (route) =>
     route.fulfill(json(MOCK_USER)),
@@ -74,7 +65,6 @@ async function setupAssetBalanceMocks(page: Page) {
         total: data.length,
         page: 1,
         per_page: 1000,
-        facets: FACETS,
       }),
     );
   });
@@ -93,7 +83,7 @@ test.beforeEach(async ({ page }) => {
   await setupAssetBalanceMocks(page);
 });
 
-test('390px ではパネルが畳んで始まり、ドロワーでCSV・検索を操作できる', async ({
+test('390px ではパネルが畳んで始まり、検索はドロワーを開かず入力できる', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -110,16 +100,19 @@ test('390px ではパネルが畳んで始まり、ドロワーでCSV・検索�
   expect(railBox).not.toBeNull();
   expect(mainBox).not.toBeNull();
   expect(railBox!.y).toBeLessThan(mainBox!.y);
-  await expect(page.locator('#securities-search')).toBeHidden();
+  // 検索はメイン領域にあるため、ドロワーを開かなくても入力できる
+  const searchInput = page.getByTestId('asset-search-input');
+  await expect(searchInput).toBeVisible();
+  await expect(searchInput).toBeEditable();
 
-  // ハンドルで開くとドロワーが被さり、CSV → 検索 → プロンプトの順に並ぶ
+  // ハンドルで開くとドロワーが被さり、CSV → プロンプトの順に並ぶ
   const mainBoxBefore = mainBox!;
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
   const railInner = rail.locator('.ws-panel-body > div').first();
   const railSections = railInner.locator('> *');
-  expect(await railSections.count()).toBeGreaterThanOrEqual(3);
+  expect(await railSections.count()).toBeGreaterThanOrEqual(2);
   await expect(
     railSections.first().getByTestId('assetbalance-csv-toggle'),
   ).toBeVisible();
@@ -128,7 +121,7 @@ test('390px ではパネルが畳んで始まり、ドロワーでCSV・検索�
       .map((child) => (child as HTMLElement).dataset?.testid ?? '')
       .filter((id) => id.length > 0),
   );
-  expect(railOrder).toEqual(['search-card', 'asset-review-prompt-card']);
+  expect(railOrder).toEqual(['asset-review-prompt-card']);
 
   // ドロワーは被さるだけで一覧を押し下げない(開くとバー分だけ上に詰まる)
   const mainBoxAfter = (await main.boundingBox())!;
@@ -148,7 +141,7 @@ test('390px ではパネルが畳んで始まり、ドロワーでCSV・検索�
   await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
   await expect(firstCard).toBeVisible();
   await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
-  await expect(page.locator('#securities-search')).toBeVisible();
+  await expect(searchInput).toBeVisible();
 
   const csvToggle = page.getByTestId('assetbalance-csv-toggle');
   const region = page.getByRole('region', { name: 'CSV取り込み・削除' });
@@ -169,10 +162,10 @@ test('390px ではパネルが畳んで始まり、ドロワーでCSV・検索�
   await expect(csvToggle).toHaveAttribute('aria-expanded', 'false');
   await expect(region).toBeHidden();
 
-  // Esc でドロワーを閉じるとバーが戻る
+  // Esc でドロワーを閉じても検索入力はメイン領域に残る
   await page.keyboard.press('Escape');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.locator('#securities-search')).toBeHidden();
+  await expect(searchInput).toBeVisible();
   const mainBoxClosed = (await main.boundingBox())!;
   expect(mainBoxClosed.y).toBeCloseTo(mainBoxBefore.y, 0);
 });
@@ -193,35 +186,13 @@ test('保有カードの詳細は見出しを繰り返さず、銘柄情報へ�
   await expect(card.getByText('評価損益', { exact: true })).toHaveCount(0);
 });
 
-test('一覧に無い銘柄を選ぶとフィルタ済み空状態と解除ボタンが出る', async ({
+test('一覧に無い文字列を入れるとフィルタ済み空状態と解除ボタンが出る', async ({
   page,
 }) => {
-  await page.unroute(/\/api\/v1\/asset-balances(?:\?.*)?$/);
-  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
-    if (route.request().method() !== 'GET') {
-      return route.abort();
-    }
-    return route.fulfill(
-      json({
-        data: [TOYOTA, SONY, NTT],
-        total: 3,
-        page: 1,
-        per_page: 1000,
-        facets: {
-          securities: [...FACETS.securities, { value: '9999', label: '架空銘柄', count: 1 }],
-        },
-      }),
-    );
-  });
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAssetBalance(page);
 
-  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
-  const emptyPanelToggle = page.getByTestId('asset-utility-toggle');
-  await emptyPanelToggle.click();
-  await expect(emptyPanelToggle).toHaveAttribute('aria-expanded', 'true');
-
-  await page.locator('#securities-search').selectOption('9999');
+  await page.getByTestId('asset-search-input').fill('9999');
   const heading = page.getByRole('heading', { name: '該当する銘柄がありません' });
   await expect(heading).toBeVisible();
   await expect(
@@ -283,7 +254,7 @@ test('1920px では左パネルと一覧の2カラムになる', async ({ page }
   expect(railBox!.x).toBeCloseTo(0, 0);
   expect(railBox!.x + railBox!.width).toBeLessThanOrEqual(mainBox!.x + 1);
 
-  await expect(rail.getByTestId('search-card')).toBeVisible();
+  await expect(page.getByTestId('asset-search-input')).toBeVisible();
   await expect(page.getByTestId('assetbalance-csv-toggle')).toBeHidden();
   await expect(
     page.getByRole('region', { name: 'CSV取り込み・削除' }),
