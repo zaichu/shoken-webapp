@@ -13,6 +13,7 @@ use crate::features::dividend_per_share::{
 };
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
+use crate::support::list_search::is_js_whitespace;
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fetch_all_pages};
 use crate::support::row::Row;
 use leptos::prelude::*;
@@ -118,8 +119,9 @@ pub(crate) fn effective_summary(
     query: &str,
     has_csv_file: bool,
 ) -> Option<AssetBalanceSummary> {
-    // 検索中は絞り込み前、CSV プレビュー中は取込前の全体集計のままなので API の summary は使わない
-    if query.is_empty() && !has_csv_file {
+    // 検索中は絞り込み前、CSV プレビュー中は取込前の全体集計のままなので API の summary は使わない。
+    // 空白だけの入力は絞り込み側と同じく「絞り込みなし」と揃える
+    if query.trim_matches(is_js_whitespace).is_empty() && !has_csv_file {
         summary
     } else {
         None

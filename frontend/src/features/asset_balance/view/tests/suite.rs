@@ -191,6 +191,8 @@ fn api_summary_is_ignored_while_searching() {
     assert_eq!(effective_summary(summary(), "7203", false), None);
     assert_eq!(effective_summary(summary(), "", true), None);
     assert_eq!(effective_summary(None, "", false), None);
+    // 空白だけの入力は絞り込み側と揃えて「絞り込みなし」とし、API summary を残す
+    assert_eq!(effective_summary(summary(), "  　 ", false), summary());
 }
 
 #[test]
