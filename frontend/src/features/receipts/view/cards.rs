@@ -1,11 +1,12 @@
-use crate::features::receipts::kind::CardFields;
+use crate::features::receipts::kind::{CardFields, CardRole};
 use crate::features::receipts::{ReceiptCell, ReceiptsTab};
-use crate::support::list_search::is_searchable_code;
 use crate::ui::amount::Amount;
+use crate::ui::badge::CodeBadge;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
-use crate::ui::security_link::copy_to_clipboard;
+use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
+use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
 use std::collections::HashSet;
 
@@ -35,17 +36,8 @@ pub(crate) fn is_negative_labeled_value(tab: ReceiptsTab, label: &str, value: &s
     is_profit_label(tab, label) && is_negative_text(value)
 }
 
-// グループ見出しに年月があるため、カード先頭の日付は年を落として MM/DD にする
-pub(crate) fn short_date(formatted: &str) -> &str {
-    match formatted.split_once('/') {
-        Some((year, rest)) if year.len() == 4 && year.bytes().all(|b| b.is_ascii_digit()) => rest,
-        _ => formatted,
-    }
-}
-
 pub(crate) enum CardDetailValue {
     Text { text: String, negative: bool },
-    SecurityCode(String),
     CopyName { display: String, copy: String },
 }
 
@@ -56,6 +48,7 @@ pub(crate) struct CardDetail {
 
 pub(crate) struct CardRowData {
     pub(crate) name: CardDetailValue,
+    pub(crate) code: Option<String>,
     pub(crate) date: String,
     pub(crate) account: String,
     pub(crate) details: Vec<CardDetail>,
@@ -68,7 +61,6 @@ pub(crate) fn card_detail_value(
     cells: &[ReceiptCell],
 ) -> CardDetailValue {
     match cells.get(index) {
-        Some(ReceiptCell::SecurityCode(raw)) => CardDetailValue::SecurityCode(raw.clone()),
         Some(ReceiptCell::InstrumentName { name, code }) => {
             let trimmed = name.trim();
             let display = if trimmed.is_empty() {
@@ -96,14 +88,13 @@ pub(crate) fn card_detail_value(
     }
 }
 
-// 見出しの銘柄名・日付・口座とは重複させず、残りの列を表の列順で全部出す
+// 見出し(銘柄コード・銘柄名・日付・口座)を除き、
+// 役割のない列を表の列順で全部出す
 pub(crate) fn card_row_data(
     tab: ReceiptsTab,
     cells: &[ReceiptCell],
     order: &[usize],
     fields: CardFields,
-    // 見出しが年月でない(銘柄名や口座で絞った)グループでは年を落とすと日付が分からなくなる
-    full_date: bool,
 ) -> CardRowData {
     let columns = tab.columns();
     let text = |index: usize| {
@@ -112,21 +103,17 @@ pub(crate) fn card_row_data(
             .map(|cell| cell.text().to_string())
             .unwrap_or_default()
     };
-    let header_fields = [fields.name, fields.date, fields.account];
     CardRowData {
         name: card_detail_value(tab, columns[fields.name].header, fields.name, cells),
-        date: {
-            let date = text(fields.date);
-            if full_date {
-                date
-            } else {
-                short_date(&date).to_string()
-            }
-        },
+        // コード列を持つタブでは空コードも欠損値として見出しに出す
+        code: fields
+            .code
+            .map(|index| crate::features::receipts::model::normalize_security_code(&text(index))),
+        date: text(fields.date),
         account: text(fields.account),
         details: order
             .iter()
-            .filter(|index| !header_fields.contains(index))
+            .filter(|&&i| columns[i].card_role == CardRole::None)
             .map(|&i| CardDetail {
                 label: columns[i].header.to_string(),
                 value: card_detail_value(tab, columns[i].header, i, cells),
@@ -144,29 +131,6 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
             .into_any(),
             Some(text.clone()),
         ),
-        CardDetailValue::SecurityCode(raw) => {
-            let code = crate::features::receipts::model::normalize_security_code(raw);
-            if code.is_empty() {
-                (view! { <span>"—"</span> }.into_any(), None)
-            } else if !is_searchable_code(&code) {
-                (view! { <span>{code}</span> }.into_any(), None)
-            } else {
-                let href = format!("/search?code={code}");
-                (
-                    view! {
-                        <a
-                            href=href
-                            class="security-code-link inline-flex min-h-11 min-w-11 items-center justify-end font-bold"
-                            data-search=code.clone()
-                        >
-                            {code.clone()}
-                        </a>
-                    }
-                    .into_any(),
-                    None,
-                )
-            }
-        }
         CardDetailValue::CopyName { display, copy } => {
             let copy_text = copy.clone();
             let aria_label = format!("{copy} をコピー");
@@ -209,40 +173,47 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
 fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
     let CardRowData {
         name,
+        code,
         date,
         account,
         details,
     } = card;
     let (name_view, name_title) = card_detail_view(&name);
     view! {
-        <Card variant=CardVariant::Item testid="receipt-card">
+        <Card variant=CardVariant::Item class="border-l-4 border-l-accent" testid="receipt-card">
             <div class="flex min-w-0 flex-col gap-1.5 px-3 py-3">
-                <div
-                    class="min-w-0 break-words text-base font-semibold text-ink"
-                    title=name_title
-                >
-                    {name_view}
+                <div class="flex min-w-0 items-center gap-2">
+                    {code.map(|code| {
+                        view! {
+                            <CodeBadge flush=true testid="receipt-card-code">
+                                <SecurityCodeLink
+                                    value=code
+                                    class="min-h-11 min-w-11 items-center justify-center font-semibold no-underline hover:underline".to_string()
+                                />
+                            </CodeBadge>
+                        }
+                    })}
+                    <div
+                        class="min-w-0 break-words text-base font-semibold text-ink"
+                        title=name_title
+                    >
+                        {name_view}
+                    </div>
                 </div>
                 <div class="flex items-center gap-2 text-xs text-text-muted">
                     <span class="shrink-0">{date}</span>
                     <span class="min-w-0 flex-1 break-words">{account}</span>
                 </div>
             </div>
-            <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border-strong px-3 py-2.5">
+            <dl class="space-y-1.5 border-t border-ink/10 px-3 py-2.5">
                 {details
                     .iter()
                     .map(|detail| {
-                        let (content, title) = card_detail_view(&detail.value);
+                        let (content, _) = card_detail_view(&detail.value);
                         view! {
-                            <div class="min-w-0">
-                                <dt class="text-xs text-text-muted">{detail.label.clone()}</dt>
-                                <dd
-                                    class="min-w-0 break-words text-right text-sm font-semibold text-text"
-                                    title=title
-                                >
-                                    {content}
-                                </dd>
-                            </div>
+                            <StatRow label=detail.label.clone() numeric=true>
+                                {content}
+                            </StatRow>
                         }
                     })
                     .collect_view()}
@@ -346,29 +317,20 @@ pub(crate) fn MobileCardGroup(
                             .get()
                             .then(|| {
                                 view! {
-                                    <dl>
+                                    <dl class="space-y-1.5">
                                         {summary
                                             .iter()
                                             .map(|(label, value)| {
                                                 let negative =
                                                     is_negative_labeled_value(tab, label, value);
-                                                let value_class = if negative {
-                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-negative"
-                                                } else {
-                                                    "min-w-0 break-words text-right text-sm font-semibold tabular-nums text-text"
-                                                };
+                                                let text = value.clone();
                                                 view! {
-                                                    <div class="flex items-start justify-between gap-3 border-b border-border-faint py-1.5 last:border-b-0">
-                                                        <dt class="shrink-0 pt-0.5 text-xs text-text-muted">
-                                                            {*label}
-                                                        </dt>
-                                                        <dd
-                                                            class=value_class
-                                                            data-negative=negative.then_some("true")
-                                                        >
-                                                            {value.clone()}
-                                                        </dd>
-                                                    </div>
+                                                    <StatRow
+                                                        label=label.to_string()
+                                                        numeric=true
+                                                    >
+                                                        <Amount text=text negative=negative />
+                                                    </StatRow>
                                                 }
                                             })
                                             .collect_view()}

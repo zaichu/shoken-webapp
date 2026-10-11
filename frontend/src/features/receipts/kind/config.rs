@@ -78,7 +78,13 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
                 ColumnAlign::Left,
                 CardRole::Account,
             ),
-            col("銘柄コード", "10em", ColumnTier::Wide, ColumnAlign::Center),
+            card_col(
+                "銘柄コード",
+                "10em",
+                ColumnTier::Wide,
+                ColumnAlign::Center,
+                CardRole::Code,
+            ),
             card_col(
                 "銘柄名",
                 "",
@@ -86,7 +92,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
                 ColumnAlign::Left,
                 CardRole::Name,
             ),
-            col("単価", "10em", ColumnTier::Wider, ColumnAlign::Right),
+            col("1株配当", "10em", ColumnTier::Wider, ColumnAlign::Right),
             col("数量", "7em", ColumnTier::Md, ColumnAlign::Right),
             col("配当金", "10em", ColumnTier::Core, ColumnAlign::Right),
             col("税額", "10em", ColumnTier::Core, ColumnAlign::Right),
@@ -136,7 +142,13 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
                 ColumnAlign::Left,
                 CardRole::Date,
             ),
-            col("銘柄コード", "10em", ColumnTier::Wide, ColumnAlign::Center),
+            card_col(
+                "銘柄コード",
+                "10em",
+                ColumnTier::Wide,
+                ColumnAlign::Center,
+                CardRole::Code,
+            ),
             card_col(
                 "銘柄名",
                 "",

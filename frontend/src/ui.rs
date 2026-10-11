@@ -12,6 +12,7 @@ pub(crate) mod disclosure;
 pub(crate) mod empty_state;
 pub(crate) mod security_link;
 pub(crate) mod site;
+pub(crate) mod stat_row;
 pub(crate) mod state;
 pub(crate) mod tabs;
 pub(crate) mod workspace_shell;

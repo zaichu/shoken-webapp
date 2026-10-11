@@ -582,13 +582,15 @@ impl ColumnAlign {
     }
 }
 
-/// モバイルカードの見出し(銘柄名・日付・口座)に使う列の役割
+/// モバイルカードでの列の役割。None が本文の明細行、
+/// Name・Date・Account・Code は見出し
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CardRole {
     None,
     Name,
     Date,
     Account,
+    Code,
 }
 
 /// 1列分の表示属性。列の追加・並び替えはこの組で編集する
@@ -605,6 +607,7 @@ pub(crate) struct CardFields {
     pub(crate) name: usize,
     pub(crate) date: usize,
     pub(crate) account: usize,
+    pub(crate) code: Option<usize>,
 }
 
 /// 表の1グループ。保存行は id、プレビュー行は None の行識別子を持つ。
@@ -880,12 +883,12 @@ impl ReceiptsTab {
             self.columns()
                 .iter()
                 .position(|column| column.card_role == role)
-                .expect("カード見出しの列が設定に存在する")
         };
         CardFields {
-            name: find(CardRole::Name),
-            date: find(CardRole::Date),
-            account: find(CardRole::Account),
+            name: find(CardRole::Name).expect("カード見出しの列が設定に存在する"),
+            date: find(CardRole::Date).expect("カード見出しの列が設定に存在する"),
+            account: find(CardRole::Account).expect("カード見出しの列が設定に存在する"),
+            code: find(CardRole::Code),
         }
     }
 

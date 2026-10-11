@@ -145,7 +145,7 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
     await expect(
       card.getByRole('button', { name: 'トヨタ自動車(7203) をコピー' }),
     ).toBeVisible();
-    await expect(card.locator('dl').locator('dt')).toHaveCount(7);
+    await expect(card.locator('dl').locator('dt')).toHaveCount(6);
     await expect(card.locator('dl').getByText('¥2,391')).toBeVisible();
   }
 });
@@ -285,15 +285,15 @@ test('マイナスの損益は符号を保ち負値として区別される', as
   await expect(proceeds).toBeVisible();
 });
 
-test('見出しが年月でないグループではカードの日付を年付きで出す', async ({ page }) => {
+test('カードの日付は常に年付きで出す', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
   const cardList = page.getByTestId('receipt-card-list');
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card).toBeVisible();
-  // 年月見出し(2024年3月)では年は見出し側にあり MM/DD で足りる
-  await expect(card.getByText('03/01', { exact: true })).toBeVisible();
+  // 日付の書き方は資産管理に合わせて常に YYYY/MM/DD にそろえる
+  await expect(card.getByText('2024/03/01', { exact: true })).toBeVisible();
   await expect(cardList.getByText('1件', { exact: true })).toBeVisible();
 
   // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
