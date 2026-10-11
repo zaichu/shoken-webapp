@@ -1,6 +1,7 @@
 use crate::session::use_session;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
+use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 
@@ -8,7 +9,8 @@ use leptos::prelude::*;
 pub fn LoginPage() -> impl IntoView {
     let session = use_session();
     view! {
-        <div class="mx-auto flex min-h-[50vh] w-full max-w-md flex-col items-center justify-center py-12">
+        <PageFrame title="ログイン">
+        <div class="mx-auto flex min-h-[50vh] w-full max-w-md flex-1 flex-col items-center justify-center py-12">
             <div class="mb-6 flex flex-col items-center text-center">
                 <img src="/icons/icon.svg" alt="" class="header-logo" />
                 <p class="mt-3 text-xl font-black leading-tight tracking-normal text-ink">
@@ -41,7 +43,6 @@ pub fn LoginPage() -> impl IntoView {
                 view! {
                     <Card variant=CardVariant::Login>
                         <div class="space-y-6 p-6 text-center">
-                            <h2 class="text-xl font-semibold">"ログイン"</h2>
                             <p class="text-sm text-text-quiet">
                                 "Googleアカウントでログインしてください"
                             </p>
@@ -55,6 +56,7 @@ pub fn LoginPage() -> impl IntoView {
                     .into_any()
             }}
         </div>
+        </PageFrame>
     }
 }
 

@@ -4,6 +4,7 @@ use crate::ui::badge::CodeBadge;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, Spinner, SpinnerSize};
 use crate::ui::workspace_shell::WorkspaceShell;
 use leptos::prelude::*;
@@ -59,7 +60,7 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
     };
 
     view! {
-        <h1 class="sr-only">"銘柄検索"</h1>
+        <PageFrame title="銘柄検索" full_bleed=true>
         <WorkspaceShell
             workspace_testid="search-workspace"
             rail_testid="search-utility-rail"
@@ -113,6 +114,7 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
                 }
             }}
         </WorkspaceShell>
+        </PageFrame>
     }
 }
 

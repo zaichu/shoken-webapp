@@ -1,5 +1,6 @@
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::page_frame::PageFrame;
 use leptos::prelude::*;
 
 const RELATED_LINKS: &[(&str, &str)] = &[
@@ -11,9 +12,9 @@ const RELATED_LINKS: &[(&str, &str)] = &[
 #[component]
 pub fn NotFoundPage() -> impl IntoView {
     view! {
-        <div class="min-h-[50vh] flex items-center justify-center">
+        <PageFrame title="ページが見つかりません">
+        <div class="min-h-[50vh] flex flex-1 items-center justify-center">
             <EmptyState
-                as_h1=true
                 title="404 - ページが見つかりません"
                 description="お探しのページは存在しないか、移動した可能性があります。"
                 icon=EmptyStateIcon::Warning
@@ -39,5 +40,6 @@ pub fn NotFoundPage() -> impl IntoView {
                 </div>
             </EmptyState>
         </div>
+        </PageFrame>
     }
 }

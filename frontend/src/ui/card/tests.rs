@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn section_tag_is_only_collapsible() {
-    let cases: [(CardVariant, bool); 15] = [
+    let cases: [(CardVariant, bool); 14] = [
         (CardVariant::Panel, false),
         (CardVariant::Login, false),
         (CardVariant::Table, false),
@@ -16,7 +16,6 @@ fn section_tag_is_only_collapsible() {
         (CardVariant::Sunken, false),
         (CardVariant::Strip, false),
         (CardVariant::DashedCompact, false),
-        (CardVariant::Tile, false),
         (CardVariant::GroupLabel, false),
     ];
     for (variant, expected) in cases {
@@ -40,7 +39,6 @@ fn card_variant_classes_are_distinguishable() {
         CardVariant::Sunken,
         CardVariant::Strip,
         CardVariant::DashedCompact,
-        CardVariant::Tile,
         CardVariant::GroupLabel,
     ];
     let classes: Vec<String> = variants.iter().map(|variant| variant.class()).collect();

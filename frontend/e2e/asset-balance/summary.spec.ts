@@ -78,8 +78,7 @@ test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計の�
 
   const kpi = page.getByTestId('portfolio-kpi-strip');
 
-  // 取得済みの行から評価額合計・含み損益・合計取得総額を計算する(API summary は使わない)
-  await expect(kpi).toContainText('¥400,000');
+  // 取得済みの行から評価額合計・含み損益を計算する(API summary は使わない)
   await expect(kpi).toContainText('¥420,000');
   await expect(kpi).toContainText('+¥20,000');
   await expect(kpi).toContainText('+5.0%');
@@ -90,11 +89,10 @@ test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計の�
 
   await expect(page.getByTestId('asset-search-count')).toContainText('1 / 2');
   // 絞り込み中も合計は全保有分のまま
-  await expect(kpi).toContainText('¥400,000');
   await expect(kpi).toContainText('¥420,000');
   await expect(kpi).toContainText('+¥20,000');
 
   await page.getByTestId('asset-search-clear').click();
 
-  await expect(kpi).toContainText('¥400,000');
+  await expect(kpi).toContainText('¥420,000');
 });

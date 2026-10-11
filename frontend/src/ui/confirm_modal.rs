@@ -1,4 +1,4 @@
-use crate::ui::button::{Button, ButtonSize, ButtonVariant, IconButton};
+use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -107,13 +107,13 @@ pub fn ConfirmDeleteModal(
                         <h5 id="confirm-delete-title" class="text-negative font-semibold">
                             {title}
                         </h5>
-                        <IconButton
-                            aria_label="閉じる".to_string()
+                        <Button
+                            variant=ButtonVariant::Secondary(ButtonSize::Xs)
                             disabled=move || loading.get()
                             on_click=move |_| close_cancel()
                         >
-                            <span aria-hidden="true">"✕"</span>
-                        </IconButton>
+                            "閉じる"
+                        </Button>
                     </div>
                     <div id="confirm-delete-desc" class="px-4 py-4 text-base text-text-deep">
                         <p>{description}</p>

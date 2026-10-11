@@ -218,7 +218,7 @@ test('資産管理データが2件あるときサマリーと検索入力が表�
   await gotoAssetBalancePage(page);
 
   await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-  await expect(page.getByText('合計取得総額', { exact: true })).toBeVisible();
+  await expect(page.getByText('評価額合計', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /全件削除 \(2件\)/ })).toBeVisible();
   await expect(page.getByTestId('asset-search-input')).toBeVisible();
 });

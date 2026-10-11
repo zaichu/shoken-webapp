@@ -314,8 +314,6 @@ fn show_all_resets_only_when_summary_has_no_rows() {
                         views,
                     })
                     .fallback_totals(None)
-                    .total_count(21)
-                    .is_filtered(true)
                     .on_clear_filter(|| {})
                     .dividends(dividends)
                     .show_all(show_all)

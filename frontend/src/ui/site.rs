@@ -8,10 +8,11 @@ use leptos::html;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-const NAV_LINKS: &[(&str, &str)] = &[
-    ("/search", "銘柄検索"),
+const NAV_ITEMS: &[(&str, &str)] = &[
+    ("/", "ホーム"),
     ("/assetbalance", "資産管理"),
     ("/receipts", "取引明細"),
+    ("/search", "銘柄検索"),
 ];
 
 const FOOTER_LINKS: &[(&str, &str)] = &[
@@ -29,174 +30,114 @@ const FOOTER_LINKS: &[(&str, &str)] = &[
     ),
 ];
 
-const NAV_LINK_BASE: &str = "rounded px-3.5 py-2 text-sm font-bold transition-[background-color,color,box-shadow] max-sm:inline-flex max-sm:min-h-11 max-sm:min-w-11 max-sm:shrink-0 max-sm:items-center max-sm:justify-center max-sm:whitespace-nowrap max-sm:px-2 max-sm:text-xs max-sm:leading-5";
-const NAV_LINK_ACTIVE: &str = "bg-surface text-ink shadow-edge-accent";
-const NAV_LINK_INACTIVE: &str =
-    "text-text-inverse-muted hover:bg-surface/10 hover:text-text-inverse";
-
 fn is_nav_active(path: &str, to: &str) -> bool {
     let path = pathname_of(path);
+    if to == "/" {
+        return path == "/";
+    }
     path == to || path.starts_with(&format!("{to}/"))
 }
 
-pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
-    if let Some(name) = name.filter(|name| !name.is_empty()) {
-        let parts: Vec<&str> = name.split_whitespace().collect();
-        if parts.len() >= 2 {
-            let first = parts[0].chars().next().unwrap_or_default();
-            let last = parts[parts.len() - 1].chars().next().unwrap_or_default();
-            return format!("{first}{last}").to_uppercase();
-        }
-        return name.chars().take(2).collect::<String>().to_uppercase();
-    }
-    if let Some(email) = email.filter(|email| !email.is_empty()) {
-        return email.chars().take(2).collect::<String>().to_uppercase();
-    }
-    "U".to_string()
+fn current_path() -> RwSignal<String> {
+    // App 配下では SPA 遷移の path を使い、単独で描くテスト等では現在の URL にフォールバック
+    use_context::<CurrentPath>()
+        .map(|current| current.0)
+        .unwrap_or_else(|| RwSignal::new(current_location()))
 }
 
+/// 文字付きの下部ナビ。主要4ページへ1タップで移動できる
 #[component]
-pub fn SiteHeader() -> impl IntoView {
+pub fn BottomNav() -> impl IntoView {
+    let path = current_path();
+    view! {
+        <nav class="app-bottom-nav no-print" aria-label="主要ナビゲーション">
+            {NAV_ITEMS
+                .iter()
+                .map(|(to, label)| {
+                    let to = *to;
+                    let active = move || is_nav_active(&path.get(), to);
+                    view! {
+                        <a
+                            href=to
+                            class="bottom-nav-link"
+                            aria-current=move || active().then_some("page")
+                        >
+                            {*label}
+                        </a>
+                    }
+                })
+                .collect_view()}
+        </nav>
+    }
+}
+
+/// 削除確認の開閉をページをまたいで共有する。メニューはページ枠内で遷移ごとに
+/// 作り直されるため、結果表示中にアンマウントされないようダイアログはシェルが持つ
+#[derive(Clone, Copy)]
+pub(crate) struct AccountDeleteConfirm(pub(crate) RwSignal<bool>);
+
+/// ページ枠の右上に置くアカウント導線(ログイン/メニュー)。アカウント削除の確認だけを扱う
+#[component]
+pub fn AccountMenu() -> impl IntoView {
     let session = use_session();
-    // App 配下では SPA 遷移の path を使い、単独で描くテスト等では現在の URL にフォールバック
-    let path = use_context::<CurrentPath>()
-        .map(|current| current.0)
-        .unwrap_or_else(|| RwSignal::new(current_location()));
-    let delete_confirm_open = RwSignal::new(false);
+    let path = current_path();
+    let delete_confirm_open = use_context::<AccountDeleteConfirm>()
+        .map(|confirm| confirm.0)
+        .unwrap_or_else(|| RwSignal::new(false));
+    let on_login_page = move || pathname_of(&path.get()) == "/login";
+    view! {
+        <div class="flex shrink-0 items-center gap-3">
+            {move || {
+                if !session.loaded.get() {
+                    view! {
+                        <span class="text-sm font-semibold text-text-muted">"読み込み中..."</span>
+                    }
+                        .into_any()
+                } else if let Some(user) = session.user.get() {
+                    view! {
+                        <UserMenu
+                            user=user
+                            session=session
+                            delete_confirm_open=delete_confirm_open
+                        />
+                    }
+                        .into_any()
+                } else if on_login_page() {
+                    ().into_any()
+                } else {
+                    view! {
+                        <Button
+                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                            on_click=move |_| session.login()
+                        >
+                            "ログイン"
+                        </Button>
+                    }
+                        .into_any()
+                }
+            }}
+        </div>
+    }
+}
+
+/// 削除確認ダイアログ本体。ログイン画面への遷移でメニューが消えても結果表示を残すため、
+/// App がシェル直下に1つだけ描く
+#[component]
+pub fn AccountDeleteDialog() -> impl IntoView {
+    let Some(delete_confirm_open) = use_context::<AccountDeleteConfirm>().map(|confirm| confirm.0)
+    else {
+        return ().into_any();
+    };
+    let session = use_session();
     let delete_error = RwSignal::new(Option::<String>::None);
     let deleting = RwSignal::new(false);
     let deleting_memo = Memo::new(move |_| deleting.get());
-    // ナビにホーム項目は置かず、ロゴがホームへのリンクを担う
-    let home_active = move || pathname_of(&path.get()) == "/";
-    let on_login_page = move || pathname_of(&path.get()) == "/login";
     Effect::new(move |_| {
         if delete_confirm_open.get() {
             delete_error.set(None);
         }
     });
-    // ワークスペース系ページでは MS Learn 型3カラムに合わせた全幅バーにする
-    let is_workspace = move || {
-        matches!(
-            path.get().split(['?', '#']).next().unwrap_or_default(),
-            "/receipts" | "/assetbalance" | "/search"
-        )
-    };
-    view! {
-        <header class="site-header no-print">
-            <div class=move || {
-                if is_workspace() {
-                    "w-full px-4 sm:px-6 ws-header-inner py-3".to_string()
-                } else {
-                    "mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 py-3".to_string()
-                }
-            }>
-                <div class=move || {
-                    if is_workspace() {
-                        "ws-header-flow flex flex-row items-center gap-2 max-sm:gap-1.5 lg:gap-3"
-                            .to_string()
-                    } else {
-                        "flex flex-row items-center gap-2 max-sm:gap-1.5 lg:gap-3".to_string()
-                    }
-                }>
-                    <div class=move || {
-                        if is_workspace() {
-                            "ws-header-brand flex items-center justify-between gap-4".to_string()
-                        } else {
-                            "flex items-center justify-between gap-4".to_string()
-                        }
-                    }>
-                        <a
-                            href="/"
-                            aria-label="証券Web"
-                            class=move || {
-                                format!(
-                                    "group inline-flex items-center gap-3 rounded-md text-text-inverse transition-colors hover:text-accent-softer max-sm:min-h-11 max-sm:min-w-11 max-sm:justify-center{}",
-                                    if home_active() { " shadow-edge-accent" } else { "" }
-                                )
-                            }
-                            aria-current=move || home_active().then_some("page")
-                        >
-                            <img src="/icons/icon.svg" alt="" class="header-logo" />
-                            // スマホではサービス名を隠し、ロゴ・ナビ・ユーザーを1行に収める
-                            <span class="header-brand max-sm:hidden">
-                                "証券Web"
-                            </span>
-                        </a>
-                    </div>
-                    <nav
-                        class=move || {
-                            if is_workspace() {
-                                "header-nav ws-header-nav".to_string()
-                            } else {
-                                "header-nav".to_string()
-                            }
-                        }
-                        aria-label="主要ナビゲーション"
-                    >
-                        {NAV_LINKS
-                            .iter()
-                            .map(|(to, label)| {
-                                let to = *to;
-                                let active = move || is_nav_active(&path.get(), to);
-                                view! {
-                                    <a href=to
-                                        class=move || {
-                                            format!(
-                                                "{NAV_LINK_BASE} {}",
-                                                if active() { NAV_LINK_ACTIVE } else { NAV_LINK_INACTIVE }
-                                            )
-                                        }
-                                        aria-current=move || active().then_some("page")
-                                    >
-                                        {*label}
-                                    </a>
-                                }
-                            })
-                            .collect_view()}
-                    </nav>
-                    <div class=move || {
-                        if is_workspace() {
-                            "ws-header-user ml-auto flex shrink-0 items-center gap-3 max-sm:gap-1.5"
-                                .to_string()
-                        } else {
-                            "ml-auto flex shrink-0 items-center gap-3 max-sm:gap-1.5".to_string()
-                        }
-                    }>
-                        {move || {
-                            if !session.loaded.get() {
-                                view! {
-                                    <span class="text-sm font-semibold text-text-inverse/70">
-                                        "読み込み中..."
-                                    </span>
-                                }
-                                    .into_any()
-                            } else if let Some(user) = session.user.get() {
-                                view! {
-                                    <UserMenu
-                                        user=user
-                                        session=session
-                                        delete_confirm_open=delete_confirm_open
-                                    />
-                                }
-                                    .into_any()
-                            } else if on_login_page() {
-                                ().into_any()
-                            } else {
-                                view! {
-                                    <Button
-                                        variant=ButtonVariant::Header(ButtonSize::Sm)
-                                        on_click=move |_| session.login()
-                                    >
-                                        "ログイン"
-                                    </Button>
-                                }
-                                    .into_any()
-                            }
-                        }}
-                    </div>
-                </div>
-            </div>
-        </header>
+    let content = view! {
         {move || {
             if !delete_confirm_open.get() {
                 return ().into_any();
@@ -226,7 +167,24 @@ pub fn SiteHeader() -> impl IntoView {
             }
                 .into_any()
         }}
+    };
+    content.into_any()
+}
+
+pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
+    if let Some(name) = name.filter(|name| !name.is_empty()) {
+        let parts: Vec<&str> = name.split_whitespace().collect();
+        if parts.len() >= 2 {
+            let first = parts[0].chars().next().unwrap_or_default();
+            let last = parts[parts.len() - 1].chars().next().unwrap_or_default();
+            return format!("{first}{last}").to_uppercase();
+        }
+        return name.chars().take(2).collect::<String>().to_uppercase();
     }
+    if let Some(email) = email.filter(|email| !email.is_empty()) {
+        return email.chars().take(2).collect::<String>().to_uppercase();
+    }
+    "U".to_string()
 }
 
 #[component]
@@ -286,7 +244,7 @@ fn UserMenu(
                         <img
                             src=url
                             alt=alt
-                            class="h-9 w-9 rounded-md border border-text-inverse/20 bg-night-soft object-cover max-sm:hidden"
+                            class="h-9 w-9 rounded-md border border-ink/15 bg-surface-raised object-cover max-sm:hidden"
                             on:error=move |_| image_error.set(true)
                         />
                     }
@@ -306,12 +264,12 @@ fn UserMenu(
                         .into_any()
                 }
             }}
-            <span class="max-w-64 truncate text-sm font-semibold text-text-inverse/85 max-sm:hidden">
+            <span class="max-w-64 truncate text-sm font-semibold text-text-soft max-sm:hidden">
                 {display_name}
             </span>
             <div class="relative" node_ref=menu_container>
                 <Button
-                    variant=ButtonVariant::Header(ButtonSize::Sm)
+                    variant=ButtonVariant::Secondary(ButtonSize::Sm)
                     attr:aria-haspopup="menu"
                     aria_expanded=move || menu_open.get()
                     attr:aria-controls="user-menu"
@@ -322,7 +280,7 @@ fn UserMenu(
                 <Show when=move || menu_open.get()>
                     <ul
                         id="user-menu"
-                        class="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg border border-ink/10 bg-surface text-text-deep shadow-2xl"
+                        class="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-lg border border-ink/10 bg-surface text-text-deep shadow-2xl"
                         role="menu"
                         aria-label="ユーザーメニュー"
                     >
@@ -374,7 +332,7 @@ fn UserMenu(
 pub fn SiteFooter() -> impl IntoView {
     view! {
         <footer class="mt-auto border-t border-border-subtle bg-surface py-4">
-            <div class="mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-text-subtle">
+            <div class="page-gutter flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-text-subtle">
                 {FOOTER_LINKS
                     .iter()
                     .map(|(label, href)| {

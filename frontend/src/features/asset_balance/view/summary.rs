@@ -1,22 +1,20 @@
 use super::palette::holding_bar_class;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::format::{
-    dec_to_f64, format_currency, format_fixed_percent, format_percentage_value,
-    format_signed_valuation_amount, format_signed_valuation_rate, format_valuation_amount,
-    is_negative_valuation,
+    format_currency, format_fixed_percent, format_percentage_value, format_signed_valuation_amount,
+    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
 };
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
-    total_purchase_amount,
 };
 use crate::features::asset_balance::portfolio::chart_display;
 use crate::features::asset_balance::store::FilteredPortfolio;
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::empty_state::EmptyState;
+use crate::ui::summary_strip::{SummaryItem, SummaryStrip};
 use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -26,32 +24,9 @@ pub(crate) struct ChartItem {
 }
 
 #[component]
-fn Kpi(
-    label: &'static str,
-    #[prop(into)] text: Signal<String>,
-    #[prop(into, optional)] note: Signal<String>,
-    #[prop(into, optional)] negative: Signal<bool>,
-) -> impl IntoView {
-    view! {
-        <div class="kpi">
-            <dt>{label}</dt>
-            <dd class="kpi-value">
-                <Amount block=true text=text class="kpi-amount" negative=negative />
-                {move || {
-                    let note = note.get();
-                    (!note.is_empty()).then(|| view! { <small>{note}</small> })
-                }}
-            </dd>
-        </div>
-    }
-}
-
-#[component]
 pub(crate) fn PortfolioSummary(
     filtered: FilteredPortfolio,
     fallback_totals: Option<AssetBalanceSummary>,
-    total_count: usize,
-    is_filtered: bool,
     on_clear_filter: impl Fn() + Send + Sync + 'static,
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
@@ -101,10 +76,6 @@ pub(crate) fn PortfolioSummary(
         .as_ref()
         .map(summary_valuation)
         .unwrap_or(row_valuation);
-    let total_purchase = fallback_totals
-        .as_ref()
-        .map(|summary| format_currency(dec_to_f64(&summary.total_purchase_amount)))
-        .unwrap_or_else(|| format_currency(total_purchase_amount(&kpi_holdings)));
     let kpi =
         Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
 
@@ -121,80 +92,64 @@ pub(crate) fn PortfolioSummary(
     let pnl_note = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
     let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
 
-    let total_annual_dividends = Signal::derive(move || {
-        kpi.with(|kpi| {
-            kpi.total_annual_dividends
-                .map_or("—".to_string(), format_currency)
-        })
+    let items = Signal::derive(move || {
+        let kpi = kpi.get();
+        vec![
+            SummaryItem::new("評価額合計", Some(market_text.clone())),
+            SummaryItem {
+                label: "含み損益",
+                value: Some(pnl_text.clone()),
+                note: Some(pnl_note.clone()),
+                negative: pnl_negative,
+            },
+            SummaryItem::new(
+                "年間配当参考額",
+                Some(
+                    kpi.total_annual_dividends
+                        .map_or("—".to_string(), format_currency),
+                ),
+            ),
+            SummaryItem::new(
+                "取得額基準利回り",
+                Some(
+                    kpi.dividend_yield
+                        .map_or("—".to_string(), format_percentage_value),
+                ),
+            ),
+        ]
     });
-    let dividend_yield = Signal::derive(move || {
-        kpi.with(|kpi| {
-            kpi.dividend_yield
-                .map_or("—".to_string(), format_percentage_value)
-        })
-    });
-    let display_count = views.len();
-    let display_count_str = move || {
-        if is_filtered {
-            format!("{display_count} / {total_count}")
-        } else {
-            display_count.to_string()
-        }
-    };
 
     view! {
-        <section id="assetbalance-summary" class="sum-card mb-3" data-testid="asset-portfolio-summary">
-            <header class="sum-header">
-                <strong>"集計情報"</strong>
-                {preview.then(|| {
-                    view! {
-                        <span class="rounded border border-border-subtle px-1 py-0.5 text-xs font-medium text-text-subtle">
-                            "CSVプレビュー"
-                        </span>
-                    }
-                })}
-            </header>
+        <section id="assetbalance-summary" class="mb-3" data-testid="asset-portfolio-summary">
             <div data-testid="portfolio-kpi-strip">
-            <dl class="kpis" data-testid="portfolio-kpi-grid">
-                <Kpi label="評価額合計" text=market_text note=market_note />
-                <Kpi label="含み損益" text=pnl_text note=pnl_note negative=pnl_negative />
-                <Kpi label="年間配当金額" text=total_annual_dividends />
-                <Kpi
-                    label="配当利回り（年間）"
-                    text=dividend_yield
-                    note="年間配当金額 ÷ 合計取得総額".to_string()
-                />
-                <Kpi label="合計取得総額" text=total_purchase />
-                <div class="kpi">
-                    <dt>"保有銘柄数"</dt>
-                    <dd class="kpi-value kpi-count">
-                        <span class="tabular-nums">{display_count_str}</span>
-                        <span class="kpi-unit">"銘柄"</span>
-                    </dd>
+                <div data-testid="portfolio-kpi-grid">
+                    <SummaryStrip items=items />
                 </div>
-            </dl>
+                <p class="mt-1 text-xs font-medium text-text-muted">{market_note}</p>
             </div>
             {views_empty.then(move || {
                 view! {
-                    <div class="sum-card-body">
-                        <EmptyState
-                            title="該当する銘柄がありません"
-                            description="検索条件を変更するか、絞り込みを解除してください。"
-                        />
-                        <div class="mt-3 text-center">
-                            <Button
-                                variant=ButtonVariant::Ghost
-                                on_click=move |_| on_clear_filter()
-                            >
-                                "絞り込みを解除"
-                            </Button>
+                    <div class="sum-card mt-3">
+                        <div class="sum-card-body">
+                            <EmptyState
+                                title="該当する銘柄がありません"
+                                description="検索条件を変更するか、絞り込みを解除してください。"
+                            />
+                            <div class="mt-3 text-center">
+                                <Button
+                                    variant=ButtonVariant::Ghost
+                                    on_click=move |_| on_clear_filter()
+                                >
+                                    "絞り込みを解除"
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 }
             })}
         </section>
     }
-        .into_any()
+    .into_any()
 }
 
 /// 取得額構成比の帯グラフと凡例。一覧の後ろに置き、初期は折りたたむ。

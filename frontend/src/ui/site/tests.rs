@@ -1,41 +1,31 @@
 use super::*;
 
 #[test]
-fn initials_from_two_word_name() {
-    assert_eq!(get_initials(Some("John Doe"), None), "JD");
-    assert_eq!(get_initials(Some("田中 太郎"), None), "田太");
+fn nav_items_cover_main_pages_with_labels() {
+    let labels: Vec<&str> = NAV_ITEMS.iter().map(|(_, label)| *label).collect();
+    assert_eq!(labels, ["ホーム", "資産管理", "取引明細", "銘柄検索"]);
 }
 
 #[test]
-fn initials_from_single_word_name() {
-    assert_eq!(get_initials(Some("Taro"), None), "TA");
-    assert_eq!(get_initials(Some("taro"), None), "TA");
-    assert_eq!(get_initials(Some("田中太郎"), None), "田中");
+fn nav_active_matches_root_only_exactly() {
+    assert!(is_nav_active("/", "/"));
+    assert!(!is_nav_active("/assetbalance", "/"));
 }
 
 #[test]
-fn initials_from_email() {
-    assert_eq!(get_initials(None, Some("test@example.com")), "TE");
-    assert_eq!(get_initials(Some(""), Some("test@example.com")), "TE");
-}
-
-#[test]
-fn initials_default_when_unset() {
-    assert_eq!(get_initials(None, None), "U");
-    assert_eq!(get_initials(None, Some("")), "U");
-}
-
-#[test]
-fn nav_active_matches_path_or_prefix() {
-    assert!(is_nav_active("/receipts", "/receipts"));
-    assert!(is_nav_active("/receipts/2024", "/receipts"));
-    assert!(is_nav_active("/receipts?tab=domesticstock", "/receipts"));
-    assert!(!is_nav_active("/receipt", "/receipts"));
-    assert!(!is_nav_active("/", "/receipts"));
-    assert!(is_nav_active(
-        "/receipts/2024?tab=dividend#summary",
-        "/receipts"
-    ));
+fn nav_active_covers_sub_paths() {
+    assert!(is_nav_active("/assetbalance", "/assetbalance"));
+    assert!(is_nav_active("/assetbalance/composition", "/assetbalance"));
+    assert!(is_nav_active("/receipts?kind=stock", "/receipts"));
+    assert!(!is_nav_active("/receipts", "/assetbalance"));
     assert!(!is_nav_active("/receipts-other?tab=dividend", "/receipts"));
     assert!(!is_nav_active("/search?next=/receipts", "/receipts"));
+}
+
+#[test]
+fn initials_prefers_first_and_last_name_part() {
+    assert_eq!(get_initials(Some("Taro Yamada"), None), "TY");
+    assert_eq!(get_initials(Some("zaichu"), None), "ZA");
+    assert_eq!(get_initials(None, Some("user@example.com")), "US");
+    assert_eq!(get_initials(None, None), "U");
 }

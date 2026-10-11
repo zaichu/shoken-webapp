@@ -84,7 +84,7 @@ test('CSP 下で wasm が起動して画面が描画され、API が埋め込み
   });
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: '証券Web' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ホーム' })).toBeVisible();
 
   await expect
     .poll(() => apiRequestUrl, { message: 'session API が埋め込み先へ向かない' })
