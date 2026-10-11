@@ -1,5 +1,4 @@
 use super::chart::ChartList;
-use super::search_bar::AssetBalanceSearchBar;
 use super::summary::{ChartItem, PortfolioComposition, PortfolioSummary};
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
@@ -26,6 +25,7 @@ pub(crate) fn AssetBalanceMainContent(
     has_csv_file: bool,
     csv_input_disabled: Memo<bool>,
     search_query: RwSignal<String>,
+    search_count: RwSignal<(usize, usize)>,
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
     composition_open: RwSignal<bool>,
@@ -43,21 +43,19 @@ pub(crate) fn AssetBalanceMainContent(
     let status = csv_status_text(&state);
     let preview_active = state.has_preview_rows();
     // 絞り込みはこの signal の1か所だけ。表示上限の適用より前に全取得行へかかる
-    let filtered = RwSignal::new(filtered_portfolio(
+    let initial = filtered_portfolio(
         &rows,
         &search_query.get_untracked(),
         lookup,
         generation,
         has_csv_file,
-    ));
+    );
+    search_count.set((initial.views.len(), total_count));
+    let filtered = RwSignal::new(initial);
     Effect::new(move |_| {
-        filtered.set(filtered_portfolio(
-            &rows,
-            &search_query.get(),
-            lookup,
-            generation,
-            has_csv_file,
-        ));
+        let next = filtered_portfolio(&rows, &search_query.get(), lookup, generation, has_csv_file);
+        search_count.set((next.views.len(), total_count));
+        filtered.set(next);
     });
     let no_rows = move || total_count == 0;
     view! {
@@ -100,13 +98,10 @@ pub(crate) fn AssetBalanceMainContent(
         <section id="assetbalance-list" hidden=no_rows>
             {move || {
                 // query の変更は必ず Effect 経由で filtered の再通知を起こすので、ここでは追跡しない
-                let is_filtered = !search_query.get_untracked().is_empty();
                 view! {
                     <PortfolioSummary
                         filtered=filtered.get()
                         fallback_totals=fallback_totals.clone()
-                        total_count=total_count
-                        is_filtered=is_filtered
                         on_clear_filter=move || {
                             search_query.set(String::new())
                         }
@@ -116,11 +111,6 @@ pub(crate) fn AssetBalanceMainContent(
                     />
                 }
             }}
-            <AssetBalanceSearchBar
-                query=search_query
-                filtered_count=Signal::derive(move || filtered.with(|f| f.views.len()))
-                total_count=total_count
-            />
             {move || {
                 let FilteredPortfolio { views, .. } = filtered.get();
                 let chart_values: Vec<f64> = views.iter().map(|view| view.purchase).collect();

@@ -9,9 +9,9 @@ use crate::features::asset_balance::{
 };
 use crate::session::{Generation, SessionStore, use_session};
 use crate::support::pagination::ListEndpoint;
-use crate::ui::amount::Amount;
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::state::Skeleton;
+use crate::ui::page_frame::PageFrame;
+use crate::ui::summary_strip::{SummaryItem, SummaryStrip};
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
 use std::collections::HashMap;
@@ -64,17 +64,9 @@ const STATUS_ITEMS: &[StatusItem] = &[
 #[component]
 pub fn HomePage() -> impl IntoView {
     view! {
-        <div class="space-y-7">
-            <div>
-                <h1 class="text-3xl font-black leading-tight tracking-normal text-ink sm:text-4xl">
-                    "証券Web"
-                </h1>
-                <p class="mt-2 max-w-2xl text-sm font-medium text-text-muted">
-                    "資産、配当、取引明細をひとつの作業面で確認します。"
-                </p>
-            </div>
-
-            <HomeOverview />
+        <PageFrame title="ホーム">
+            <div class="space-y-7 py-2">
+                <HomeOverview />
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {STATUS_ITEMS
@@ -135,8 +127,8 @@ pub fn HomePage() -> impl IntoView {
                     })
                     .collect_view()}
             </div>
-
-        </div>
+            </div>
+        </PageFrame>
     }
 }
 
@@ -430,7 +422,7 @@ fn OverviewTiles(
                 summary.total_purchase_amount,
             )
         });
-    let (profit_class, profit_negative) =
+    let (_profit_class, profit_negative) =
         valuation_tone(valuation.as_ref().and_then(|valuation| valuation.amount));
     let profit_rate = valuation.as_ref().map(|valuation| match valuation.rate {
         Some(rate) => format_valuation_rate(Some(rate), 1),
@@ -440,61 +432,23 @@ fn OverviewTiles(
     let dividend = dividend
         .flatten()
         .map(|summary| format_currency_decimal(summary.total_net_amount_received));
-    view! {
-        <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <OverviewTile label="評価額" value=market busy=asset_busy />
-            <OverviewTile
-                label="評価損益"
-                value=profit
-                busy=asset_busy
-                value_class=profit_class
-                negative=profit_negative
-                note=profit_rate
-            />
-            <OverviewTile label="今年の税引後配当金" value=dividend busy=dividend_busy />
-        </div>
-    }
-}
-
-#[component]
-fn OverviewTile(
-    label: &'static str,
-    value: Option<String>,
-    busy: bool,
-    #[prop(default = "text-ink")] value_class: &'static str,
-    #[prop(default = None)] negative: Option<&'static str>,
-    #[prop(default = None)] note: Option<String>,
-) -> impl IntoView {
-    view! {
-        <Card variant=CardVariant::Tile>
-            <p class="text-sm font-medium text-text-muted">{label}</p>
-            {if busy {
-                view! { <Skeleton class="mt-2 h-7 w-32" /> }.into_any()
-            } else {
-                view! {
-                    <p
-                        class=format!(
-                            "mt-1 flex flex-wrap items-baseline gap-x-2 text-2xl font-black tabular-nums {value_class}",
-                        )
-                        data-negative=negative
-                    >
-                        <Amount
-                            class="break-all"
-                            text=value.unwrap_or_else(|| "—".to_string())
-                            negative=negative.is_some()
-                        />
-                        {note
-                            .map(|note| {
-                                view! {
-                                    <span class="whitespace-nowrap text-sm font-bold">{format!("（{note}）")}</span>
-                                }
-                            })}
-                    </p>
-                }
-                    .into_any()
-            }}
-        </Card>
-    }
+    let items = vec![
+        SummaryItem::new(
+            "評価額",
+            (!asset_busy).then(|| market.unwrap_or_else(|| "—".to_string())),
+        ),
+        SummaryItem {
+            label: "評価損益",
+            value: (!asset_busy).then(|| profit.unwrap_or_else(|| "—".to_string())),
+            note: (!asset_busy).then(|| profit_rate.unwrap_or_else(|| "—".to_string())),
+            negative: profit_negative.is_some(),
+        },
+        SummaryItem::new(
+            "今年の税引後配当金",
+            (!dividend_busy).then(|| dividend.unwrap_or_else(|| "—".to_string())),
+        ),
+    ];
+    view! { <SummaryStrip items=items /> }
 }
 
 #[cfg(test)]

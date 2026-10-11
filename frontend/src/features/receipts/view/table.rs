@@ -9,12 +9,8 @@ use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::badge::CodeBadge;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::security_link::{CopyableInstrumentName, SecurityCodeLink};
-use leptos::ev;
 use leptos::prelude::*;
-use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, HashSet};
-use wasm_bindgen::JsCast;
-use wasm_bindgen::closure::Closure;
+use std::collections::HashSet;
 
 // 検索で前に出した列は、狭い画面でも隠さない
 pub(crate) fn displayed_tiers(
@@ -32,26 +28,6 @@ pub(crate) fn displayed_tiers(
             }
         })
         .collect()
-}
-
-// Closure は Send/Sync でないためシグナルや on_cleanup の捕捉に置けず、
-// マウント中だけ生存させたいので thread_local で管理する
-type HeaderHeightObserver = (
-    web_sys::ResizeObserver,
-    Closure<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>,
-);
-thread_local! {
-    static HEADER_HEIGHT_OBSERVERS: RefCell<HashMap<usize, HeaderHeightObserver>> =
-        RefCell::new(HashMap::new());
-    static HEADER_HEIGHT_OBSERVER_NEXT_ID: Cell<usize> = const { Cell::new(0) };
-}
-
-fn site_header() -> Option<web_sys::Element> {
-    web_sys::window()?
-        .document()?
-        .query_selector(".site-header")
-        .ok()
-        .flatten()
 }
 
 #[component]
@@ -116,58 +92,13 @@ pub(crate) fn ReceiptTable(
             (class, visible.saturating_sub(labels.len()))
         })
         .collect();
-    // サイトのヘッダーも sticky なので、表の見出し行はその直下で止める
-    let header_offset = RwSignal::new(Option::<f64>::None);
-    let measure_header = move || {
-        let height = site_header().map_or(0.0, |header| header.get_bounding_client_rect().height());
-        header_offset.set(Some(height));
-    };
-    let on_window_resize = window_event_listener(ev::resize, move |_| measure_header());
-    let observer_key = site_header().and_then(|header| {
-        let callback = Closure::<dyn FnMut(Vec<web_sys::ResizeObserverEntry>)>::new(move |_| {
-            measure_header();
-        });
-        web_sys::ResizeObserver::new(callback.as_ref().unchecked_ref())
-            .ok()
-            .map(|observer| {
-                observer.observe(&header);
-                let key = HEADER_HEIGHT_OBSERVER_NEXT_ID.with(|next| {
-                    let key = next.get();
-                    next.set(key + 1);
-                    key
-                });
-                HEADER_HEIGHT_OBSERVERS.with(|observers| {
-                    observers.borrow_mut().insert(key, (observer, callback));
-                });
-                key
-            })
-    });
-    measure_header();
-    on_cleanup(move || {
-        on_window_resize.remove();
-        if let Some(key) = observer_key {
-            HEADER_HEIGHT_OBSERVERS.with(|observers| {
-                if let Some((observer, _callback)) = observers.borrow_mut().remove(&key) {
-                    observer.disconnect();
-                }
-            });
-        }
-    });
     view! {
         <Card variant=CardVariant::Table testid="receipt-card">
             <div class="p-0" data-testid="receipt-card-body">
                 <div class="hidden sm:block">
                     <div class="table-frame">
                         <table class="receipt-table">
-                            <thead
-                                class="sticky z-10 bg-surface-raised text-text print:static"
-                                style:top=move || {
-                                    header_offset
-                                        .get()
-                                        .map(|height| format!("{height}px"))
-                                        .unwrap_or_default()
-                                }
-                            >
+                            <thead class="sticky top-0 z-10 bg-surface-raised text-text print:static">
                                 <tr class="bg-surface-sunken">
                                     {headers
                                         .iter()

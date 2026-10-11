@@ -16,8 +16,6 @@ pub enum ButtonVariant {
     DangerSolid(ButtonSize),
     /// 文字だけの静かな危険操作(格下げした削除導線)
     DangerGhost,
-    /// サイトヘッダーの反転ボタン(ログイン・メニュー)
-    Header(ButtonSize),
     /// 文字だけの静かな操作(絞り込みの解除など)
     Ghost,
     /// 一覧の開閉(収益グラフの全表示など)
@@ -78,10 +76,6 @@ impl ButtonVariant {
             Self::DangerGhost => {
                 "inline-flex w-full items-center justify-center rounded-md px-3 py-2 text-sm font-semibold text-negative transition-colors hover:bg-negative-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-negative/50 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11".to_string()
             }
-            Self::Header(size) => sized(
-                "no-print border border-text-inverse/70 text-text-inverse hover:bg-surface hover:text-ink",
-                size,
-            ),
             Self::Ghost => "text-sm text-text-deep hover:underline".to_string(),
             Self::Quiet => "chart-toggle-button".to_string(),
             Self::Prompt => "review-prompt-button".to_string(),
@@ -167,37 +161,6 @@ pub fn LinkButton(
 ) -> impl IntoView {
     let classes = move || button_classes(variant, &class.get());
     view! { <a href=href class=classes>{children()}</a> }
-}
-
-/// アイコンのみのボタン
-#[component]
-pub fn IconButton(
-    #[prop(into)] aria_label: Signal<String>,
-    #[prop(into, optional)] class: Signal<String>,
-    #[prop(into, optional)] disabled: Option<Signal<bool>>,
-    #[prop(optional)] testid: Option<&'static str>,
-    on_click: impl Fn(ev::MouseEvent) + 'static,
-    children: Children,
-) -> impl IntoView {
-    view! {
-        <button
-            type="button"
-            class=move || {
-                let class = class.get();
-                if class.is_empty() {
-                    "modal-close-button".to_string()
-                } else {
-                    class
-                }
-            }
-            aria-label=move || aria_label.get()
-            disabled=move || disabled.is_some_and(|disabled| disabled.get())
-            data-testid=testid
-            on:click=on_click
-        >
-            {children()}
-        </button>
-    }
 }
 
 #[cfg(test)]

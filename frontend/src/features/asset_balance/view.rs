@@ -4,7 +4,6 @@ mod csv_section;
 mod main_content;
 mod palette;
 mod panel;
-mod search_bar;
 mod summary;
 
 #[cfg(test)]
@@ -19,6 +18,8 @@ use crate::features::asset_balance::store::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
+use crate::ui::list_action_bar::ListActionBar;
+use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use crate::ui::workspace_shell::{WorkspaceShell, workspace_panel_default_open};
 use leptos::prelude::*;
@@ -31,6 +32,8 @@ pub(crate) struct AssetBalanceState {
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     search_query: RwSignal<String>,
+    // 操作帯の「N / M件」表示用。一覧側で絞り込むたびに書き直す
+    search_count: RwSignal<(usize, usize)>,
     // ページ側に持ち上げた show_all はアンマウントで破棄されないため、グラフを描かない分岐では false に戻す
     show_all: RwSignal<bool>,
     // 取得額構成比の開閉もページ側に持ち、一覧の再描画で状態が消えないようにする
@@ -52,6 +55,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
     let search_query = RwSignal::new(String::new());
     let reset_query = search_query;
+    let search_count = RwSignal::new((0usize, 0usize));
     let show_all = RwSignal::new(false);
     let composition_open = RwSignal::new(false);
     let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
@@ -65,6 +69,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
             dividends.set(DividendMaps::default());
             data_ops.update(DataOps::reset);
             reset_query.set(String::new());
+            search_count.set((0, 0));
             show_all.set(false);
             composition_open.set(false);
             return;
@@ -82,6 +87,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
         dividends,
         lookup,
         search_query,
+        search_count,
         show_all,
         composition_open,
         data_ops,
@@ -119,6 +125,34 @@ pub fn AssetBalancePage() -> impl IntoView {
         let state = rail_csv.csv_state();
         balances.with(|slot| resolve_asset_balance(generation, slot, &state))
     };
+    let search_count = state.search_count;
+    // 一覧が空のときは絞り込みの対象がないので操作帯自体を出さない
+    let action_bar = view! {
+        {move || {
+            resolved_view()
+                .is_some_and(|view| !view.rows.is_empty())
+                .then(|| {
+                    view! {
+                        <ListActionBar
+                            query=search_query
+                            placeholder="銘柄名・コードで絞り込み"
+                            count_text=Signal::derive(move || {
+                                if search_query.get().is_empty() {
+                                    String::new()
+                                } else {
+                                    let (filtered, total) = search_count.get();
+                                    format!("検索結果 {filtered} / {total}件")
+                                }
+                            })
+                            input_testid="asset-search-input"
+                            clear_testid="asset-search-clear"
+                            count_testid="asset-search-count"
+                        />
+                    }
+                })
+        }}
+    }
+    .into_any();
     // 再訪では表示済みの一覧を消さず裏で取り直す(初回・未キャッシュは Effect が担う)
     // 前の取得が残っている往復では要求を重ねない
     if session.user.get_untracked().is_some()
@@ -154,9 +188,9 @@ pub fn AssetBalancePage() -> impl IntoView {
         );
     };
     view! {
-        <h1 class="sr-only">"資産管理"</h1>
+        <PageFrame title="資産管理" full_bleed=true action_bar=action_bar>
         <div
-            class="mt-2"
+            class="mt-2 flex flex-1 flex-col"
             aria-busy=move || {
                 if !busy_session.loaded.get()
                     || busy_csv.csv_busy()
@@ -241,6 +275,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                                     has_csv_file=resolved.has_csv_file
                                                     csv_input_disabled=csv_input_disabled
                                                     search_query=search_query
+                                                    search_count=search_count
                                                     dividends=dividends
                                                     show_all=show_all
                                                     composition_open=composition_open
@@ -268,6 +303,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                                         has_csv_file=resolved.has_csv_file
                                         csv_input_disabled=csv_input_disabled
                                         search_query=search_query
+                                        search_count=search_count
                                         dividends=dividends
                                         show_all=show_all
                                         composition_open=composition_open
@@ -303,5 +339,6 @@ pub fn AssetBalancePage() -> impl IntoView {
                     .into_any()
             }}
         </div>
+        </PageFrame>
     }
 }

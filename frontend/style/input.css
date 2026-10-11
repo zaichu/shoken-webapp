@@ -244,10 +244,6 @@
     @apply inline-flex w-full items-center justify-center gap-2 rounded-md border border-night px-4 py-2 text-sm font-semibold text-text-deep transition-colors hover:bg-night hover:text-text-inverse;
   }
 
-  .modal-close-button {
-    @apply rounded text-close hover:text-close-hover focus:outline-none focus:ring-2 focus:ring-text-deep/50 disabled:cursor-not-allowed disabled:opacity-60;
-  }
-
   .search-submit {
     @apply inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-ink bg-ink px-5 text-sm font-bold text-text-inverse shadow-edge-lit transition-[background-color,border-color,color,box-shadow,transform] hover:bg-ink-hover active:bg-ink focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
   }
@@ -280,28 +276,87 @@
     @apply inline-flex min-h-6 items-center text-info underline-offset-2 hover:text-info-strong hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-info-focus;
   }
 
-  .site-header {
-    @apply sticky top-0 z-40 border-b border-ink/10 bg-night/95 text-text-inverse shadow-header backdrop-blur;
-  }
-
   .header-logo {
     @apply h-11 w-11 rounded-md shadow-edge-brand max-sm:h-10 max-sm:w-10;
   }
 
-  .header-brand {
-    @apply text-xl font-black leading-tight tracking-normal;
-  }
-
-  .header-nav {
-    @apply flex flex-wrap items-center gap-1 rounded-md border border-text-inverse/10 bg-text-inverse/5 p-1 max-sm:min-w-0 max-sm:flex-1 max-sm:flex-nowrap max-sm:overflow-x-auto;
-  }
-
   .header-avatar {
-    @apply flex h-9 w-9 items-center justify-center rounded-md border border-text-inverse/20 bg-night-soft text-sm font-black text-text-inverse max-sm:hidden;
+    @apply flex h-9 w-9 items-center justify-center rounded-md border border-ink/15 bg-surface-raised text-sm font-black text-text-deep max-sm:hidden;
   }
 
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-2 focus:outline-text-deep;
+  }
+
+  /* シェルは画面一杯に張り、本文(main)だけがスクロールする。
+     下部ナビ・操作帯はスクロール領域の外で常設し、本文の最後の行を覆わない */
+  .app-shell {
+    @apply flex flex-col bg-surface-sunken text-ink;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .app-scroll {
+    @apply flex min-h-0 flex-1 flex-col overflow-y-auto;
+  }
+
+  /* 共通ページ枠の内側の余白。ワークスペースの内容列(ws-main)と同じ段階にそろえる */
+  .page-gutter {
+    @apply mx-auto w-full;
+    max-width: 96rem;
+    padding-inline: clamp(1rem, 3.5vw, 3rem);
+  }
+
+  .page-frame {
+    @apply flex min-h-full flex-col;
+  }
+
+  .page-frame-head {
+    @apply border-b border-ink/10 bg-surface py-2;
+  }
+
+  .page-frame-title {
+    @apply text-lg font-black leading-tight tracking-normal text-ink;
+  }
+
+  .page-back-link {
+    @apply inline-flex min-h-11 items-center text-sm font-semibold text-info underline underline-offset-2 hover:text-info-deep;
+  }
+
+  /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く */
+  .page-action-bar {
+    @apply sticky bottom-0 z-10 mt-auto border-t border-ink/10 bg-surface;
+  }
+
+  .list-action-bar {
+    @apply flex flex-col gap-1.5 py-2;
+  }
+
+  .list-action-bar-conditions {
+    @apply flex flex-wrap items-center gap-1.5;
+  }
+
+  .app-bottom-nav {
+    @apply flex border-t border-ink/10 bg-surface;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .bottom-nav-link {
+    @apply flex min-h-12 flex-1 items-center justify-center px-1 text-center text-xs font-bold leading-tight text-text-muted transition-colors hover:bg-surface-raised hover:text-text-deep focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink sm:text-sm;
+  }
+
+  .bottom-nav-link[aria-current] {
+    @apply text-accent-text;
+    box-shadow: inset 0 2px 0 var(--color-accent-strong);
+  }
+
+  .summary-strip {
+    @apply grid gap-x-6 gap-y-1;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
+
+  .summary-strip-item {
+    @apply min-w-0 py-1;
   }
 
   .receipts-tab-list {
@@ -328,10 +383,6 @@
   .asset-search-input {
     /* iPhone Safari は 16px 未満の入力欄でフォーカス時に自動ズームするため常に 16px */
     @apply block h-11 w-full min-w-0 flex-1 appearance-none rounded-md border-0 bg-surface px-3 py-2 text-base font-medium text-ink shadow-none placeholder:text-text-faint focus:outline-none;
-  }
-
-  .asset-search-clear {
-    @apply flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md text-xl leading-none text-text-subtle transition-colors hover:bg-surface-raised hover:text-text focus-visible:outline-2 focus-visible:outline-ink;
   }
 
   .asset-search-count {
@@ -517,9 +568,8 @@
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   position: sticky;
-  /* sticky ヘッダー(約3.75rem)の下に張り付くよう下げる */
-  top: 4rem;
-  max-height: calc(100vh - 4.25rem);
+  top: 0.5rem;
+  max-height: calc(100dvh - 7rem);
   overflow-y: auto;
 }
 
@@ -644,38 +694,13 @@
   }
 }
 
-@media (min-width: 64rem) {
-  .ws-header-inner {
-    display: grid;
-    grid-template-columns: 18rem minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    max-width: none;
-    margin-inline: 0;
-    padding: 0.5rem 0.75rem 0.5rem 0;
+@media print {
+  .app-shell {
+    height: auto;
   }
 
-  .ws-header-flow {
-    display: contents;
-  }
-
-  .ws-header-brand {
-    padding-left: 0.5rem;
-  }
-
-  .ws-header-nav {
-    justify-self: start;
-    margin-inline: clamp(1rem, 3.5vw, 3rem);
-  }
-
-  .ws-header-user {
-    justify-self: end;
-  }
-
-  .ws-header-inner .header-logo {
-    width: 2.75rem;
-    height: 2.75rem;
+  .app-scroll {
+    overflow: visible;
   }
 }
 

@@ -5,7 +5,7 @@ use crate::features::not_found::NotFoundPage;
 use crate::features::receipts::{ReceiptsPage, ReceiptsStore};
 use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
-use crate::ui::site::{SiteFooter, SiteHeader};
+use crate::ui::site::{BottomNav, SiteFooter};
 use crate::ui::state::Loading;
 use leptos::ev;
 use leptos::prelude::*;
@@ -33,7 +33,12 @@ enum Route {
     Home,
     Search,
     Receipts,
+    ReceiptsConditions,
+    ReceiptsCsv,
     AssetBalance,
+    AssetBalanceComposition,
+    AssetBalanceHolding,
+    AssetBalanceCsv,
     Login,
     NotFound,
 }
@@ -44,15 +49,20 @@ impl Route {
             Route::Home => "ホーム",
             Route::Search => "銘柄検索",
             Route::Receipts => "取引明細",
+            Route::ReceiptsConditions => "検索条件",
+            Route::ReceiptsCsv | Route::AssetBalanceCsv => "CSV管理",
             Route::AssetBalance => "資産管理",
+            Route::AssetBalanceComposition => "構成比",
+            Route::AssetBalanceHolding => "保有銘柄詳細",
             Route::Login => "ログイン",
             Route::NotFound => "ページが見つかりません",
         }
     }
+}
 
-    fn protected(&self) -> bool {
-        matches!(self, Route::Receipts | Route::AssetBalance)
-    }
+fn holding_id(path: &str) -> Option<&str> {
+    let id = path.strip_prefix("/assetbalance/holdings/")?;
+    (!id.is_empty() && !id.contains('/')).then_some(id)
 }
 
 fn route_for_path(path: &str) -> Route {
@@ -60,11 +70,24 @@ fn route_for_path(path: &str) -> Route {
         "/" => Route::Home,
         "/search" => Route::Search,
         "/receipts" => Route::Receipts,
+        "/receipts/conditions" => Route::ReceiptsConditions,
+        "/receipts/csv" => Route::ReceiptsCsv,
         "/assetbalance" => Route::AssetBalance,
+        "/assetbalance/composition" => Route::AssetBalanceComposition,
+        "/assetbalance/csv" => Route::AssetBalanceCsv,
+        path if holding_id(path).is_some() => Route::AssetBalanceHolding,
         "/login" => Route::Login,
         "/404" => Route::NotFound,
         _ => Route::NotFound,
     }
+}
+
+// 取引明細・資産管理配下は未ログインで開けない(新設ルートもプレフィックスで保護する)
+fn protected_path(path: &str) -> bool {
+    let path = pathname_of(path);
+    matches!(path, "/receipts" | "/assetbalance")
+        || path.starts_with("/receipts/")
+        || path.starts_with("/assetbalance/")
 }
 
 pub(crate) fn pathname_of(path: &str) -> &str {
@@ -103,6 +126,17 @@ fn hash_only_change(from: &str, to: &str) -> bool {
 
 fn strip_hash(path: &str) -> &str {
     path.split('#').next().unwrap_or(path)
+}
+
+// 本文は main がスクロールする。ページ遷移ではそのコンテナを先頭に戻す
+fn scroll_top(window: &web_sys::Window) {
+    if let Some(main) = window
+        .document()
+        .and_then(|document| document.get_element_by_id("main-content"))
+    {
+        main.set_scroll_top(0);
+    }
+    window.scroll_to_with_x_and_y(0.0, 0.0);
 }
 
 // SPA 遷移でフォーカスが取り残されないよう main に移す(tabindex=-1 で Tab 順には入らない)
@@ -173,7 +207,7 @@ fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
         let _ = result;
     }
     path.set(strip_hash(to).to_string());
-    window.scroll_to_with_x_and_y(0.0, 0.0);
+    scroll_top(&window);
     focus_main(&window);
 }
 
@@ -213,7 +247,7 @@ pub fn App() -> impl IntoView {
         ev.prevent_default();
         if to == path.get_untracked() {
             if let Some(window) = web_sys::window() {
-                window.scroll_to_with_x_and_y(0.0, 0.0);
+                scroll_top(&window);
             }
             return;
         }
@@ -229,7 +263,7 @@ pub fn App() -> impl IntoView {
         }
         path.set(next);
         if let Some(window) = web_sys::window() {
-            window.scroll_to_with_x_and_y(0.0, 0.0);
+            scroll_top(&window);
             // 戻る/進むでも遷移元のフォーカスがアンマウントされて取り残されないようにする
             focus_main(&window);
         }
@@ -254,34 +288,25 @@ pub fn App() -> impl IntoView {
             return;
         }
         let authed = session.user.get().is_some();
-        let route = route.get();
-        if route.protected() && !authed {
+        let current = path.get();
+        if protected_path(&current) && !authed {
             navigate(path, "/login", true);
-        } else if route == Route::Login && authed {
+        } else if route.get() == Route::Login && authed {
             navigate(path, "/", true);
         }
     });
     view! {
-        <div class="min-h-screen flex flex-col bg-surface-sunken text-ink">
+        <div class="app-shell">
             <a
                 href="#main-content"
                 class="skip-link"
             >
                 "メインコンテンツへスキップ"
             </a>
-            <SiteHeader />
             <main
                 id="main-content"
                 tabindex="-1"
-                class=move || {
-                    if matches!(route.get(), Route::Receipts | Route::AssetBalance | Route::Search) {
-                        // ワークスペース系は全幅グリッド(左パネル x=0 密着)のため中央コンテナを外す
-                        "w-full flex flex-1 flex-col py-5".to_string()
-                    } else {
-                        "mx-auto w-full max-w-wide px-4 sm:px-6 lg:px-8 print:px-2 flex flex-1 flex-col py-5"
-                            .to_string()
-                    }
-                }
+                class="app-scroll"
             >
                 {move || {
                     // ?code= などクエリだけの遷移でも再マウントさせるためパス全体を追跡する
@@ -289,21 +314,23 @@ pub fn App() -> impl IntoView {
                     if !session.loaded.get() {
                         return view! { <Loading /> }.into_any();
                     }
-                    let route = route.get();
-                    if route.protected() && session.user.get().is_none() {
+                    if protected_path(&path.get()) && session.user.get().is_none() {
                         return view! { <Loading /> }.into_any();
                     }
-                    match route {
+                    match route.get() {
                         Route::Home => view! { <HomePage /> }.into_any(),
                         Route::Search => view! { <StockSearchPage /> }.into_any(),
                         Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
                         Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
                         Route::Login => view! { <LoginPage /> }.into_any(),
-                        Route::NotFound => view! { <NotFoundPage /> }.into_any(),
+                        // 設計済みルートは認証・タイトル・ナビ活性の土台だけ先に用意し、
+                        // ページ本体は #1268-#1270 で実装する
+                        _ => view! { <NotFoundPage /> }.into_any(),
                     }
                 }}
+                <SiteFooter />
             </main>
-            <SiteFooter />
+            <BottomNav />
         </div>
     }
 }

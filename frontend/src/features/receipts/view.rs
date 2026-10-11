@@ -13,6 +13,7 @@ use crate::features::receipts::{ReceiptRow, ReceiptsTab, TabState, use_receipts_
 use crate::session::use_session;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
+use crate::ui::page_frame::PageFrame;
 use crate::ui::workspace_shell::WorkspaceShell;
 use leptos::prelude::*;
 use main_content::display_rows_for;
@@ -60,9 +61,9 @@ pub fn ReceiptsPage() -> impl IntoView {
     Effect::new(move |_| scroll_tab_into_view(tabs.active_tab.get()));
 
     view! {
-        <h1 class="sr-only">"取引明細"</h1>
+        <PageFrame title="取引明細" full_bleed=true>
         <div
-            class="mt-0"
+            class="mt-0 flex flex-1 flex-col"
             aria-busy=move || {
                 if busy.auth_loading()
                     || busy.any_tab_fetching()
@@ -167,6 +168,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     .into_any()
             }}
         </div>
+        </PageFrame>
     }
 }
 

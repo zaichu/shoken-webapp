@@ -31,8 +31,6 @@ pub enum CardVariant {
     Strip,
     /// 破線の小さい箱(保有内訳の「その他」)
     DashedCompact,
-    /// ホームの概要タイル
-    Tile,
     /// グループのラベル行(開閉なし)
     GroupLabel,
 }
@@ -59,7 +57,6 @@ impl CardVariant {
             Self::DashedCompact => {
                 "rounded-lg border border-dashed border-border-strong bg-surface-sunken p-3"
             }
-            Self::Tile => "rounded-xl border border-ink/10 bg-surface px-4 py-4 shadow-sm",
             Self::GroupLabel => "flex min-h-11 items-center rounded-lg bg-surface-raised px-3 py-2",
         };
         class.to_string()

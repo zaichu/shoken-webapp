@@ -13,23 +13,60 @@ fn route_for_known_and_unknown_paths() {
 }
 
 #[test]
-fn route_titles_and_protection() {
+fn route_for_designed_sub_paths() {
+    assert_eq!(
+        route_for_path("/receipts/conditions"),
+        Route::ReceiptsConditions
+    );
+    assert_eq!(route_for_path("/receipts/csv"), Route::ReceiptsCsv);
+    assert_eq!(
+        route_for_path("/assetbalance/composition"),
+        Route::AssetBalanceComposition
+    );
+    assert_eq!(
+        route_for_path("/assetbalance/holdings/abc-123"),
+        Route::AssetBalanceHolding
+    );
+    assert_eq!(route_for_path("/assetbalance/csv"), Route::AssetBalanceCsv);
+    assert_eq!(route_for_path("/assetbalance/holdings/"), Route::NotFound);
+    assert_eq!(
+        route_for_path("/assetbalance/holdings/a/b"),
+        Route::NotFound
+    );
+    assert_eq!(
+        route_for_path("/receipts/conditions/extra"),
+        Route::NotFound
+    );
+}
+
+#[test]
+fn designed_routes_have_titles() {
     for route in [
-        Route::Home,
-        Route::Search,
-        Route::Receipts,
-        Route::AssetBalance,
-        Route::Login,
-        Route::NotFound,
+        Route::ReceiptsConditions,
+        Route::ReceiptsCsv,
+        Route::AssetBalanceComposition,
+        Route::AssetBalanceHolding,
+        Route::AssetBalanceCsv,
     ] {
         assert!(!route.title().is_empty());
     }
-    assert!(!Route::Home.protected());
-    assert!(!Route::Search.protected());
-    assert!(Route::Receipts.protected());
-    assert!(Route::AssetBalance.protected());
-    assert!(!Route::Login.protected());
-    assert!(!Route::NotFound.protected());
+}
+
+#[test]
+fn protected_path_covers_feature_sub_paths() {
+    assert!(protected_path("/receipts"));
+    assert!(protected_path("/receipts?kind=stock"));
+    assert!(protected_path("/receipts/conditions"));
+    assert!(protected_path("/receipts/csv"));
+    assert!(protected_path("/assetbalance"));
+    assert!(protected_path("/assetbalance/composition"));
+    assert!(protected_path("/assetbalance/holdings/x"));
+    assert!(protected_path("/assetbalance/csv"));
+    assert!(!protected_path("/"));
+    assert!(!protected_path("/search"));
+    assert!(!protected_path("/search?code=7203"));
+    assert!(!protected_path("/login"));
+    assert!(!protected_path("/receipts-fake"));
 }
 
 #[test]
