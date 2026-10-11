@@ -127,19 +127,14 @@ pub(crate) fn filtered_portfolio(
     query: &str,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
-    has_csv_file: bool,
 ) -> FilteredPortfolio {
     // プレビュー行は CSV の値をそのまま見せるため lookup で DB 行に置き換えない
     let resolve_view = |row: &AssetBalanceRow| match row {
         Row::Preview(_) => holding_view(row),
         Row::Saved(saved) => {
-            let resolved = if has_csv_file {
-                saved.clone()
-            } else {
-                lookup
-                    .with(|store| store.get(generation, saved.security_code.as_str()).cloned())
-                    .unwrap_or_else(|| saved.clone())
-            };
+            let resolved = lookup
+                .with(|store| store.get(generation, saved.security_code.as_str()).cloned())
+                .unwrap_or_else(|| saved.clone());
             holding_view(&resolved)
         }
     };

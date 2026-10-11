@@ -86,6 +86,22 @@ impl AssetBalanceCsvStore {
         })
     }
 
+    // 削除ページで保存済み全件数を確かめてから実行するため、件数が確定しているかを返す
+    pub(crate) fn saved_count_ready(&self) -> bool {
+        let generation = self.session.generation.get();
+        self.balances
+            .with(|slot| matches!(slot, Some((cached, Ok(_))) if *cached == generation))
+    }
+
+    // 件数が確定できない理由(一覧取得失敗)を削除ページに出す
+    pub(crate) fn saved_count_error(&self) -> Option<String> {
+        let generation = self.session.generation.get();
+        self.balances.with(|slot| match slot {
+            Some((cached, Err(message))) if *cached == generation => Some(message.clone()),
+            _ => None,
+        })
+    }
+
     pub(crate) fn list_loading(&self) -> bool {
         let generation = self.session.generation.get();
         self.session.user.get().is_some()
@@ -195,15 +211,22 @@ impl AssetBalanceCsvStore {
         started.then_some((generation, file))
     }
 
-    pub(crate) fn open_delete_confirm(&self) {
-        if let Some(generation) = self.current_generation() {
-            self.update_csv(generation, |state| state.open_delete_confirm());
+    pub(crate) fn discard_csv(&self) {
+        let Some(generation) = self.current_generation() else {
+            return;
+        };
+        let mut discarded = false;
+        self.update_csv(generation, |state| {
+            discarded = state.discard();
+        });
+        if discarded {
+            self.csv_file.set(None);
         }
     }
 
-    pub(crate) fn close_delete_confirm(&self) {
+    pub(crate) fn open_delete_confirm(&self) {
         if let Some(generation) = self.current_generation() {
-            self.update_csv(generation, |state| state.close_delete_confirm());
+            self.update_csv(generation, |state| state.open_delete_confirm());
         }
     }
 
@@ -322,53 +345,32 @@ pub(crate) fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<A
         .unwrap_or_default()
 }
 
-pub(crate) fn csv_status_text(state: &CsvTabMeta) -> Option<&'static str> {
-    if state.saving {
-        Some("データを保存しています...")
-    } else if state.deleting {
-        Some("データを削除しています...")
-    } else if state.previewing {
-        Some("CSVファイルを解析しています...")
-    } else {
-        None
-    }
-}
-
 pub(crate) struct ResolvedAssetBalance {
     pub(crate) rows: Vec<AssetBalanceRow>,
     pub(crate) warning: Option<String>,
-    /// 取得上限超過で行が欠けるときの API 集計。行が揃う通常時と CSV プレビュー中は None
+    /// 取得上限超過で行が欠けるときの API 集計。行が揃う通常時は None
     pub(crate) fallback_totals: Option<AssetBalanceSummary>,
-    pub(crate) has_csv_file: bool,
 }
 
 pub(crate) fn resolve_asset_balance(
     generation: Generation,
     slot: &BalanceSlot,
-    state: &CsvTabState<AssetBalanceCsvRow>,
 ) -> Option<ResolvedAssetBalance> {
     let (_, result) = slot.as_ref().filter(|(cached, _)| *cached == generation)?;
-    let has_csv_file = state.file_name.is_some();
     match result {
         Err(_) => Some(ResolvedAssetBalance {
-            rows: csv_preview_rows(state),
+            rows: Vec::new(),
             warning: None,
             fallback_totals: None,
-            has_csv_file,
         }),
         Ok(loaded) => Some(ResolvedAssetBalance {
-            rows: if has_csv_file {
-                csv_preview_rows(state)
-            } else {
-                loaded.rows.iter().cloned().map(Row::Saved).collect()
-            },
-            warning: (!has_csv_file && loaded.truncated).then(truncated_list_warning),
-            fallback_totals: if !has_csv_file && loaded.truncated {
+            rows: loaded.rows.iter().cloned().map(Row::Saved).collect(),
+            warning: loaded.truncated.then(truncated_list_warning),
+            fallback_totals: if loaded.truncated {
                 loaded.summary.clone()
             } else {
                 None
             },
-            has_csv_file,
         }),
     }
 }

@@ -3,15 +3,12 @@ import { expect, test } from '../support/test';
 import * as path from 'path';
 
 /**
- * 取引明細 CSV 取込・削除の E2E。
+ * 取引明細・資産管理の CSV 管理ページ E2E。
  * API はモックし、fixture CSV を使う。
  */
 
 function fixtureDir(): string {
-  return path.resolve(
-    test.info().project.testDir,
-    'fixtures/csv',
-  );
+  return path.resolve(test.info().project.testDir, 'fixtures/csv');
 }
 
 const USER = {
@@ -244,6 +241,7 @@ const MUTUALFUND_ADDITIONAL = [SP500_ADDITIONAL, SP500_ADDITIONAL, ORKAN];
 const MUTUALFUND_ADDITIONAL_INSERTED = [SP500_ADDITIONAL, ORKAN];
 
 type TabKey = 'dividend' | 'domesticstock' | 'mutualfund';
+type KindParam = 'dividend' | 'stock' | 'fund';
 
 interface TabFixture {
   listPath: RegExp;
@@ -384,6 +382,7 @@ async function setupMocks(page: Page, db: Record<TabKey, unknown[]>) {
 
 interface Scenario {
   tab: TabKey;
+  kind: KindParam;
   label: string;
   baseFile: string;
   additionalFile: string;
@@ -394,6 +393,7 @@ interface Scenario {
 const SCENARIOS: Scenario[] = [
   {
     tab: 'dividend',
+    kind: 'dividend',
     label: '配当金',
     baseFile: 'dividend-base.csv',
     additionalFile: 'dividend-additional.csv',
@@ -402,6 +402,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     tab: 'domesticstock',
+    kind: 'stock',
     label: '国内株式',
     baseFile: 'domesticstock-base.csv',
     additionalFile: 'domesticstock-additional.csv',
@@ -410,6 +411,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     tab: 'mutualfund',
+    kind: 'fund',
     label: '投資信託',
     baseFile: 'mutualfund-base.csv',
     additionalFile: 'mutualfund-additional.csv',
@@ -427,15 +429,22 @@ test.describe('取引明細 CSV 取込・削除', () => {
         mutualfund: [],
       };
       const deleteCounts = await setupMocks(page, db);
-      await page.goto('/receipts');
 
+      // 一覧から CSV 管理ページへ移動する
+      await page.goto('/receipts');
       if (scenario.tab !== 'dividend') {
         await page.getByRole('tab', { name: scenario.label }).click();
       }
+      await page.getByRole('link', { name: 'CSV管理' }).click();
+      await expect(page).toHaveURL(`/receipts/csv?kind=${scenario.kind}`);
+
       const fileInput = page.getByTestId('csv-file-input');
       await expect(fileInput).toBeAttached();
-      // DB が空の間は全件削除ボタンを出さない
-      await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
+      const deleteLink = page.getByRole('link', {
+        name: '保存済みデータを削除する画面へ',
+      });
+      await expect(deleteLink).toBeVisible();
+      await expect(page.getByText('保存済みデータ: 0件')).toBeVisible();
 
       const fixture = TAB_FIXTURES[scenario.tab].files;
       const base = fixture[scenario.baseFile];
@@ -447,24 +456,15 @@ test.describe('取引明細 CSV 取込・削除', () => {
       // 取得中・保存中は input が disabled で change イベントが捨てられるため、有効化を待ってから投入する
       await expect(fileInput).toBeEnabled();
       await fileInput.setInputFiles(path.join(fixtureDir(), scenario.baseFile));
-      await expect(
-        page.getByText(`${base.previewRows.length}件 追加で保存されます`),
-      ).toBeVisible();
+      await expect(page.getByText(`${base.previewRows.length}件 追加で保存されます`)).toBeVisible();
       await expect(page.getByRole('cell', { name: scenario.baseName })).toBeVisible();
-      await page
-        .getByRole('button', { name: `${base.previewRows.length}件 追加で保存` })
-        .click();
+      await page.getByRole('button', { name: `${base.previewRows.length}件 追加で保存` }).click();
       const notice = page.getByTestId('csv-save-result-notice');
       await expect(notice).toContainText(`${baseCount}件反映`);
-      await expect(
-        page.getByRole('button', { name: `全件削除 (${baseCount}件)` }),
-      ).toBeVisible();
-      await expect(page.getByRole('cell', { name: scenario.baseName })).toBeVisible();
+      await expect(page.getByText(`保存済みデータ: ${baseCount}件`)).toBeVisible();
 
       await expect(fileInput).toBeEnabled();
-      await fileInput.setInputFiles(
-        path.join(fixtureDir(), scenario.additionalFile),
-      );
+      await fileInput.setInputFiles(path.join(fixtureDir(), scenario.additionalFile));
       await expect(
         page.getByText(`${additional.previewRows.length}件 追加で保存されます`),
       ).toBeVisible();
@@ -475,31 +475,30 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await expect(notice).toContainText(
         `${additional.previewRows.length - additionalCount}件スキップ`,
       );
-      await expect(
-        page.getByRole('button', { name: `全件削除 (${totalCount}件)` }),
-      ).toBeVisible();
-      await expect(page.getByRole('cell', { name: scenario.additionalName })).toBeVisible();
 
-      await page.getByRole('button', { name: /全件削除/ }).click();
-      const dialog = page.getByRole('dialog');
-      await expect(dialog).toContainText('この操作は取り消せません');
-      await expect(dialog).toContainText(`${totalCount}件`);
-      // 確認モーダルを開いただけでは DELETE を送らない
+      // 削除は専用ページで行う。確認は削除ページにだけある
+      await deleteLink.click();
+      await expect(page).toHaveURL(`/receipts/csv/delete?kind=${scenario.kind}`);
+      await expect(page.getByTestId('csv-delete-page')).toContainText(
+        'この操作は取り消せません',
+      );
+      await expect(page.getByTestId('csv-delete-count')).toContainText(
+        `${totalCount}件`,
+      );
+
+      // 削除ページを開いただけでは DELETE を送らない
       expect(deleteCounts[scenario.tab]).toBe(0);
-      await page.keyboard.press('Escape');
-      await expect(dialog).toHaveCount(0);
-      await expect(
-        page.getByRole('button', { name: `全件削除 (${totalCount}件)` }),
-      ).toBeVisible();
+      await page.getByRole('link', { name: 'CSV管理に戻る' }).click();
+      await expect(page).toHaveURL(`/receipts/csv?kind=${scenario.kind}`);
       expect(deleteCounts[scenario.tab]).toBe(0);
 
-      await page.getByRole('button', { name: /全件削除/ }).click();
+      await deleteLink.click();
       await page.getByRole('button', { name: '削除する' }).click();
-      await expect(page.getByText('データがありません')).toBeVisible();
-      await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
       // 確定時に DELETE が1回だけ送られる
       expect(deleteCounts[scenario.tab]).toBe(1);
-      await expect(notice).toHaveCount(0);
+      await expect(page.getByTestId('csv-delete-done')).toContainText('削除しました');
+      await page.getByRole('link', { name: '一覧に戻る' }).click();
+      await expect(page.getByText('データがありません')).toBeVisible();
     });
   }
 
@@ -522,22 +521,16 @@ test.describe('取引明細 CSV 取込・削除', () => {
         }),
       }),
     );
-    await page.goto('/receipts');
+    await page.goto('/receipts/csv?kind=dividend');
 
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
-    const saveCount =
-      TAB_FIXTURES.dividend.files['dividend-base.csv'].previewRows.length;
-    await page
-      .getByRole('button', { name: `${saveCount}件 追加で保存` })
-      .click();
+    const saveCount = TAB_FIXTURES.dividend.files['dividend-base.csv'].previewRows.length;
+    await page.getByRole('button', { name: `${saveCount}件 追加で保存` }).click();
 
-    const alert = page
-      .getByTestId('receipt-main-stage')
-      .getByRole('alert');
-    await expect(alert).toHaveText(
-      /^エラー:\s*CSVファイル（\.csv）のみアップロードできます$/,
+    await expect(page.getByRole('alert')).toContainText(
+      'CSVファイル（.csv）のみアップロードできます',
     );
   });
 });
@@ -691,82 +684,60 @@ test.describe('資産管理 CSV 取込・削除', () => {
     return api;
   }
 
-  const card = (page: Page, name: string) =>
-    page.locator('[data-testid="portfolio-card-identity"]', { hasText: name });
-
   test('base2件の取込後にupdated3件で全件置換し全件削除する', async ({ page }) => {
     const api = await setupAssetApi(page);
 
+    // 一覧から CSV 管理ページへ移動する
     await page.goto('/assetbalance');
+    await expect(page.getByText('資産管理データがありません')).toBeVisible();
+    await page.getByRole('link', { name: 'CSV管理' }).click();
+    await expect(page).toHaveURL('/assetbalance/csv');
+
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeAttached();
-    // DB が空の間は全件削除ボタンを出さない
-    await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
-    await expect(page.getByText('資産管理データがありません')).toBeVisible();
+    const deleteLink = page.getByRole('link', {
+      name: '保存済みデータを削除する画面へ',
+    });
+    await expect(deleteLink).toBeVisible();
+    await expect(page.getByText('保存済みデータ: 0件')).toBeVisible();
 
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
-    await expect(
-      page.getByRole('button', { name: '2件 全件置換で保存' }),
-    ).toBeEnabled();
-    // プレビュー中は帯と件数通知が出る。通知は保存ボタンの直上に置く
-    await expect(page.getByTestId('csv-preview-banner')).toBeVisible();
-    const previewNotice = page.getByTestId('csv-preview-notice');
-    await expect(previewNotice).toContainText('2件 全件置換で保存されます');
-    const noticeBox = await previewNotice.boundingBox();
-    const saveBox = await page
-      .getByRole('button', { name: '2件 全件置換で保存' })
-      .boundingBox();
-    expect(noticeBox!.y).toBeLessThan(saveBox!.y);
-    // プレビュー行が一覧に出る
-    await expect(card(page, 'INPEX')).toBeVisible();
-    await expect(card(page, '任天堂')).toBeVisible();
+    await expect(page.getByRole('button', { name: '2件 全件置換で保存' })).toBeEnabled();
+    await expect(page.getByText('2件 全件置換で保存されます')).toBeVisible();
+    // プレビュー行がページ内の表に出る
+    await expect(page.getByRole('cell', { name: 'ＩＮＰＥＸ' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: '任天堂' })).toBeVisible();
 
     await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');
     await expect(notice).toContainText('2件反映');
     await expect(notice).toContainText('全件置換');
-    await expect(
-      page.getByRole('button', { name: '全件削除 (2件)' }),
-    ).toBeVisible();
+    await expect(page.getByText('保存済みデータ: 2件')).toBeVisible();
 
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
-    await expect(
-      page.getByRole('button', { name: '3件 全件置換で保存' }),
-    ).toBeEnabled();
-    await expect(card(page, '三菱UFJフィナンシャルG')).toBeVisible();
+    await expect(page.getByRole('button', { name: '3件 全件置換で保存' })).toBeEnabled();
+    await expect(page.getByRole('cell', { name: '三菱ＵＦＪフィナンシャルＧ' })).toBeVisible();
 
     await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
     await expect(notice).toContainText('3件反映');
-    await expect(
-      page.getByRole('button', { name: '全件削除 (3件)' }),
-    ).toBeVisible();
-    // 追加ではなく置換なので base にだけあった行は消える
-    await expect(card(page, '任天堂')).toHaveCount(0);
-    await expect(card(page, 'KDDI')).toBeVisible();
 
-    await page.getByRole('button', { name: /全件削除/ }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText('資産管理データの全件削除');
-    await expect(dialog).toContainText('この操作は取り消せません');
-    await expect(dialog).toContainText('3件');
-    // 確認モーダルを開いただけでは DELETE を送らない
-    expect(api.deleteCount).toBe(0);
-    await page.keyboard.press('Escape');
-    await expect(dialog).toHaveCount(0);
-    await expect(
-      page.getByRole('button', { name: '全件削除 (3件)' }),
-    ).toBeVisible();
+    // 削除は専用ページで行う
+    await deleteLink.click();
+    await expect(page).toHaveURL('/assetbalance/csv/delete');
+    await expect(page.getByTestId('csv-delete-page')).toContainText(
+      'この操作は取り消せません',
+    );
+    await expect(page.getByTestId('csv-delete-count')).toContainText('3件');
     expect(api.deleteCount).toBe(0);
 
-    await page.getByRole('button', { name: /全件削除/ }).click();
     await page.getByRole('button', { name: '削除する' }).click();
-    await expect(page.getByText('資産管理データがありません')).toBeVisible();
-    await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
     // 確定時に DELETE が1回だけ送られる
     expect(api.deleteCount).toBe(1);
-    await expect(notice).toHaveCount(0);
+    await expect(page.getByTestId('csv-delete-done')).toContainText('削除しました');
+    await page.getByRole('link', { name: '一覧に戻る' }).click();
+    await expect(page.getByText('資産管理データがありません')).toBeVisible();
   });
 
   test('不正行を含むCSVは有効件数で保存しスキップとエラー件数を表示する', async ({ page }) => {
@@ -785,15 +756,13 @@ test.describe('資産管理 CSV 取込・削除', () => {
       savedRows: () => [ASSET_INPEX],
     });
 
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance/csv');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
-    await expect(
-      page.getByRole('button', { name: '1件 全件置換で保存' }),
-    ).toBeEnabled();
-    await expect(card(page, 'INPEX')).toBeVisible();
-    await expect(card(page, '任天堂')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '1件 全件置換で保存' })).toBeEnabled();
+    await expect(page.getByRole('cell', { name: 'ＩＮＰＥＸ' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: '任天堂' })).toHaveCount(0);
 
     await page.getByRole('button', { name: '1件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');
@@ -801,90 +770,6 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(notice).toContainText('2件スキップ');
     await expect(notice).toContainText('2件エラー');
     await expect(notice).toContainText('2行目: 銘柄コードが不正です');
-    await expect(
-      page.getByRole('button', { name: '全件削除 (1件)' }),
-    ).toBeVisible();
-    await expect(card(page, 'INPEX')).toBeVisible();
-    await expect(card(page, '任天堂')).toHaveCount(0);
+    await expect(page.getByText('保存済みデータ: 1件')).toBeVisible();
   });
-
-  test('モバイル幅ではCSV操作を折りたたむ', async ({ page }) => {
-    await setupAssetApi(page);
-    await page.setViewportSize({ width: 375, height: 800 });
-    await page.goto('/assetbalance');
-
-    // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
-    const panelToggle = page.getByTestId('asset-utility-toggle');
-    await panelToggle.click();
-    await expect(panelToggle).toHaveAttribute('aria-expanded', 'true');
-
-    const toggle = page.getByTestId('assetbalance-csv-toggle');
-    const body = page.locator('#assetbalance-csv-body');
-    await expect(toggle).toBeVisible();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(body).toBeHidden();
-
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(body).toBeVisible();
-    await expect(page.getByTestId('csv-file-input')).toBeAttached();
-
-    await toggle.click();
-    await expect(body).toBeHidden();
-
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(toggle).toBeHidden();
-    await expect(body).toBeVisible();
-  });
-});
-
-test('一覧取得が失敗したタブでも CSV プレビューの行が表示される', async ({ page }) => {
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(USER),
-    }),
-  );
-  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
-    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }),
-  );
-  for (const path of [
-    /\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/,
-    /\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/,
-  ]) {
-    await page.route(path, (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: [], total: 0, page: 1, per_page: 0 }),
-      }),
-    );
-  }
-  await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        total_rows: 1,
-        valid_rows: 1,
-        errors: [],
-        rows: [TOYOTA],
-      }),
-    }),
-  );
-
-  await page.goto('/receipts');
-  await expect(page.getByRole('alert').first()).toContainText('認証が必要です');
-
-  const fileInput = page.getByTestId('csv-file-input');
-  await expect(fileInput).toBeEnabled();
-  await fileInput.setInputFiles(
-    path.join(fixtureDir(), 'dividend-base.csv'),
-  );
-
-  await expect(page.getByText('1件 追加で保存されます')).toBeVisible();
-  await expect(
-    page.getByRole('cell', { name: 'トヨタ自動車' }),
-  ).toBeVisible();
 });

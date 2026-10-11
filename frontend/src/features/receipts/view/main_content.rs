@@ -5,35 +5,13 @@ use crate::features::receipts::dividend_info::{
 };
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::kind::dividend_totals;
-use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsStore, ReceiptsTab};
+use crate::features::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab};
 use crate::session::use_session;
-use crate::support::row::Row;
-use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::csv_preview::CsvPreviewBanner;
-use crate::ui::csv_section::click_csv_input;
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use leptos::ev;
 use leptos::prelude::*;
-
-pub(crate) fn display_rows_for(
-    store: ReceiptsStore,
-    tab: ReceiptsTab,
-    rows: Vec<ReceiptRow>,
-) -> Vec<ReceiptRow> {
-    match store.csv_state(tab).preview {
-        Some(preview) if !preview.rows.is_empty() => {
-            preview.rows.into_iter().map(Row::Preview).collect()
-        }
-        _ => rows,
-    }
-}
-
-fn preview_banner() -> impl IntoView {
-    view! {
-        <CsvPreviewBanner description="表と集計は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
-    }
-}
 
 #[component]
 pub(crate) fn ReceiptsMainContent(
@@ -43,15 +21,8 @@ pub(crate) fn ReceiptsMainContent(
 ) -> impl IntoView {
     let search = store.search;
     let summary = data.summary.clone();
-    let display_store = store;
-    let display_rows = Memo::new(move |_| display_rows_for(display_store, tab, data.rows.clone()));
-    let preview_store = store;
-    let preview_active = Memo::new(move |_| preview_store.has_csv_preview(tab));
-    let csv_store = store;
-    // CTA は隠しファイル入力を押すだけなので、入力が disabled の間はこちらも止める
-    let csv_input_disabled = Memo::new(move |_| csv_store.csv_input_disabled(tab));
-    let filtered =
-        Memo::new(move |_| filter_receipts(tab, &display_rows.get(), &search.get().query));
+    let display_rows = data.rows.clone();
+    let filtered = Memo::new(move |_| filter_receipts(tab, &display_rows, &search.get().query));
     // 配当タブの銘柄コード検索時に DividendInfo を出すための取得状態。
     // フィルタ結果・クエリ・セッション変化に追随して対象コードを更新する。
     let session = use_session();
@@ -88,9 +59,10 @@ pub(crate) fn ReceiptsMainContent(
             on_focus.remove();
         });
     }
+    let csv_href = Signal::stored(format!("/receipts/csv?kind={}", tab.kind_param()));
     view! {
         {move || {
-            let display = display_rows.get();
+            let display = data.rows.clone();
             if display.is_empty() {
                 return view! {
                     <Card variant=CardVariant::Shell testid="receipt-card">
@@ -101,14 +73,12 @@ pub(crate) fn ReceiptsMainContent(
                                 icon=EmptyStateIcon::Tray
                             >
                                 <div class="mt-4">
-                                    <Button
+                                    <LinkButton
                                         variant=ButtonVariant::Primary(ButtonSize::Md)
-                                        disabled=move || csv_input_disabled.get()
-                                        aria_disabled=move || csv_input_disabled.get()
-                                        on_click=move |_| click_csv_input(tab.csv_input_id())
+                                        href=csv_href.get()
                                     >
                                         "CSVを取り込む"
-                                    </Button>
+                                    </LinkButton>
                                 </div>
                             </EmptyState>
                         </div>
@@ -125,14 +95,12 @@ pub(crate) fn ReceiptsMainContent(
             {
                 let totals = dividend_totals(&rows);
                 return view! {
-                    {preview_active.get().then(preview_banner)}
                     <section id="receipts-summary">
                         <DividendSummarySection
                             store=info
                             totals=totals
                             expanded=summary_expanded
                             mobile_expanded=store.mobile_summary_expanded
-                            preview=preview_active.get()
                         />
                     </section>
                     <section id="receipts-list">
@@ -155,13 +123,10 @@ pub(crate) fn ReceiptsMainContent(
                     truncated: false,
                 },
                 &query,
-                preview_active.get(),
             );
-            let preview = preview_active.get();
             view! {
-                {preview.then(preview_banner)}
                 <section id="receipts-summary">
-                    <SummaryStrip items=header expanded=store.mobile_summary_expanded preview=preview />
+                    <SummaryStrip items=header expanded=store.mobile_summary_expanded />
                 </section>
                 <section id="receipts-list">
                     <ReceiptTable

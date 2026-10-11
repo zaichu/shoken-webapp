@@ -1,14 +1,15 @@
 mod cards;
 mod chart;
-mod csv_section;
+mod csv_page;
 mod main_content;
 mod palette;
-mod panel;
 mod summary;
 
 #[cfg(test)]
 #[path = "view/tests/suite.rs"]
 mod tests;
+
+pub use csv_page::{AssetBalanceCsvDeletePage, AssetBalanceCsvPage};
 
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::store::csv::{AssetBalanceCsvStore, resolve_asset_balance};
@@ -17,14 +18,11 @@ use crate::features::asset_balance::store::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
-use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::list_action_bar::ListActionBar;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
-use crate::ui::workspace_shell::{WorkspaceShell, workspace_panel_default_open};
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
-use panel::AssetBalancePanel;
 
 #[derive(Clone, Copy)]
 pub(crate) struct AssetBalanceState {
@@ -40,7 +38,6 @@ pub(crate) struct AssetBalanceState {
     composition_open: RwSignal<bool>,
     data_ops: RwSignal<DataOps>,
     csv: AssetBalanceCsvStore,
-    panel_open: RwSignal<bool>,
 }
 
 // ページ遷移でビューを作り直しても一覧・検索・取得中状態を失わないよう、App コンテキストのスロットに保持する
@@ -92,7 +89,6 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
         composition_open,
         data_ops,
         csv: csv_store,
-        panel_open: RwSignal::new(workspace_panel_default_open()),
     }
 }
 
@@ -110,20 +106,11 @@ pub fn AssetBalancePage() -> impl IntoView {
     let show_all = state.show_all;
     let composition_open = state.composition_open;
     let data_ops = state.data_ops;
-    let csv_store = state.csv;
-    let busy_csv = csv_store;
-    let view_csv = csv_store;
-    let modal_csv = csv_store;
-    let rail_csv = csv_store;
     let busy_ops = data_ops;
-    let csv_slot = csv_store.csv;
-    let disabled_csv = csv_store;
-    let panel_open = state.panel_open;
-    let csv_input_disabled = Memo::new(move |_| disabled_csv.csv_input_disabled());
+    let csv_slot = state.csv.csv;
     let resolved_view = move || {
         let generation = rail_session.generation.get();
-        let state = rail_csv.csv_state();
-        balances.with(|slot| resolve_asset_balance(generation, slot, &state))
+        balances.with(|slot| resolve_asset_balance(generation, slot))
     };
     let search_count = state.search_count;
     // 一覧が空のときは絞り込みの対象がないので操作帯自体を出さない
@@ -187,13 +174,19 @@ pub fn AssetBalancePage() -> impl IntoView {
             data_ops,
         );
     };
+    let csv_link: Children = Box::new(move || {
+        view! {
+            <a class="page-back-link" href="/assetbalance/csv">"CSV管理"</a>
+        }
+        .into_any()
+    });
     view! {
-        <PageFrame title="資産管理" full_bleed=true action_bar=action_bar>
+        <PageFrame title="資産管理" full_bleed=true action_bar=action_bar links=csv_link>
         <div
             class="mt-2 flex flex-1 flex-col"
+            data-testid="assetbalance-workspace"
             aria-busy=move || {
                 if !busy_session.loaded.get()
-                    || busy_csv.csv_busy()
                     || busy_ops.with(|ops| !ops.inflight.is_empty())
                     || (busy_session.user.get().is_some()
                         && balances
@@ -208,33 +201,11 @@ pub fn AssetBalancePage() -> impl IntoView {
                 }
             }
         >
-            <WorkspaceShell
-                workspace_testid="assetbalance-workspace"
-                rail_testid="assetbalance-utility-rail"
-                main_testid="assetbalance-main-stage"
-                panel_id=Signal::derive(|| "assetbalance-utility-panel".to_string())
-                toggle_testid="asset-utility-toggle"
-                panel_label="データ管理"
-                collapsible=true
-                panel_open=Signal::derive(move || panel_open.get())
-                on_toggle=Callback::new(move |_| panel_open.update(|open| *open = !*open))
-                on_close=Callback::new(move |_| panel_open.set(false))
-                panel=view! {
-                    <AssetBalancePanel
-                        view_csv=view_csv
-                        rows=move || {
-                            resolved_view().map(|r| r.rows).unwrap_or_default()
-                        }
-                        warning=move || resolved_view().and_then(|r| r.warning)
-                    />
-                }
-                    .into_any()
-            >
-                    // パネル(ドロワー)が閉じていても見えるよう、CSV/再取得の失敗はメイン列に出す
+            <div class="page-gutter flex flex-1 flex-col gap-3" data-testid="assetbalance-main-stage">
+                    // 再取得の失敗は一覧を消さずに知らせる
                     {move || {
                         data_ops
                             .with(|ops| ops.refresh_error.clone())
-                            .or_else(|| csv_store.csv_meta().error)
                             .map(|message| {
                                 view! {
                                     <div class="no-print">
@@ -248,8 +219,20 @@ pub fn AssetBalancePage() -> impl IntoView {
                             })
                     }}
                     {move || {
+                        resolved_view().and_then(|view| view.warning).map(|message| {
+                            view! {
+                                <div class="no-print">
+                                    <Alert variant=AlertVariant::Warning>
+                                        <strong>"注意:"</strong>
+                                        " "
+                                        <span data-testid="truncated-list-warning">{message}</span>
+                                    </Alert>
+                                </div>
+                            }
+                        })
+                    }}
+                    {move || {
                         let generation = render_session.generation.get();
-                        let state = view_csv.csv_meta();
                         let list_error = balances.with(|slot| match slot {
                             Some((cached, Err(message))) if *cached == generation => {
                                 Some(message.clone())
@@ -263,45 +246,18 @@ pub fn AssetBalancePage() -> impl IntoView {
                                 view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
                                     .into_any()
                             }
-                            (Some(resolved), Some(message)) => {
-                                let preview = (state.previewing || !resolved.rows.is_empty())
-                                    .then(|| {
-                                        view! {
-                                            <div class="mt-4">
-                                                <AssetBalanceMainContent
-                                                    state=state
-                                                    rows=resolved.rows
-                                                    fallback_totals=resolved.fallback_totals
-                                                    has_csv_file=resolved.has_csv_file
-                                                    csv_input_disabled=csv_input_disabled
-                                                    search_query=search_query
-                                                    search_count=search_count
-                                                    dividends=dividends
-                                                    show_all=show_all
-                                                    composition_open=composition_open
-                                                    lookup=lookup
-                                                    generation=generation
-                                                />
-                                            </div>
-                                        }
-                                    });
-                                if preview.is_none() {
-                                    show_all.set(false);
-                                }
+                            (Some(_), Some(message)) => {
+                                show_all.set(false);
                                 view! {
                                     <ListLoadError message=message on_retry=reload />
-                                    {preview}
                                 }
                                     .into_any()
                             }
                             (Some(resolved), None) => {
                                 view! {
                                     <AssetBalanceMainContent
-                                        state=state
                                         rows=resolved.rows
                                         fallback_totals=resolved.fallback_totals
-                                        has_csv_file=resolved.has_csv_file
-                                        csv_input_disabled=csv_input_disabled
                                         search_query=search_query
                                         search_count=search_count
                                         dividends=dividends
@@ -315,29 +271,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                             }
                         }
                     }}
-            </WorkspaceShell>
-            {move || {
-                if !modal_csv.csv_meta().show_delete_confirm {
-                    return ().into_any();
-                }
-                let count = modal_csv.db_count();
-                let deleting_csv = modal_csv;
-                let deleting = Memo::new(move |_| deleting_csv.csv_meta().deleting);
-                let confirm = modal_csv;
-                let cancel = modal_csv;
-                view! {
-                    <ConfirmDeleteModal
-                        title="資産管理データの全件削除".to_string()
-                        description="保存された資産管理データをすべて削除します。".to_string()
-                        item_count=count
-                        confirm_label="削除する"
-                        loading=deleting
-                        on_confirm=move || confirm.confirm_delete_all()
-                        on_cancel=move || cancel.close_delete_confirm()
-                    />
-                }
-                    .into_any()
-            }}
+            </div>
         </div>
         </PageFrame>
     }

@@ -86,12 +86,19 @@ impl<R> CsvTabState<R> {
         }
     }
 
-    pub fn open_delete_confirm(&mut self) {
-        self.show_delete_confirm = true;
+    // 未保存のプレビューだけを捨てる。処理中は破棄しない(整合が壊れるため)
+    pub fn discard(&mut self) -> bool {
+        if self.busy() {
+            return false;
+        }
+        self.file_name = None;
+        self.preview = None;
+        self.error = None;
+        true
     }
 
-    pub fn close_delete_confirm(&mut self) {
-        self.show_delete_confirm = false;
+    pub fn open_delete_confirm(&mut self) {
+        self.show_delete_confirm = true;
     }
 
     // 誤起動しないよう確認表示中だけ開始する
@@ -176,11 +183,11 @@ impl CsvTabMeta {
         }
     }
 
-    pub fn delete_label(&self, db_count: usize) -> String {
+    pub fn delete_label(&self) -> &'static str {
         if self.deleting {
-            "削除中...".to_string()
+            "削除中..."
         } else {
-            format!("全件削除 ({db_count}件)")
+            "削除する"
         }
     }
 }

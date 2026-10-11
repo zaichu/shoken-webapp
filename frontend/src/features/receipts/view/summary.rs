@@ -1,6 +1,5 @@
 use crate::features::receipts::{ReceiptTabData, ReceiptsTab, select_header_summary};
 use crate::ui::amount::Amount;
-use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::StatTone;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -18,18 +17,12 @@ pub(crate) fn header_summary(
     tab: ReceiptsTab,
     data: &ReceiptTabData,
     query: &str,
-    has_preview: bool,
 ) -> Vec<(&'static str, Decimal, StatTone)> {
     let api = data
         .summary
         .as_ref()
         .and_then(|s| tab.api_summary_triple(s));
-    let values = select_header_summary(
-        api.as_ref(),
-        has_preview,
-        query,
-        tab.client_summary_triple(&data.rows),
-    );
+    let values = select_header_summary(api.as_ref(), query, tab.client_summary_triple(&data.rows));
     tab.header_items()
         .into_iter()
         .enumerate()
@@ -55,13 +48,8 @@ pub(crate) fn kpi_value_color(tone: StatTone) -> &'static str {
 pub(crate) fn SummaryStrip(
     items: Vec<(&'static str, Decimal, StatTone)>,
     expanded: RwSignal<bool>,
-    #[prop(optional)] preview: bool,
 ) -> impl IntoView {
-    let title = if preview {
-        "集計情報(プレビュー)"
-    } else {
-        "集計情報"
-    };
+    let title = "集計情報";
     let mobile_expanded = expanded;
     let mobile_body_id = "receipt-summary-mobile-body";
     let mobile_items = items.clone();
@@ -80,9 +68,6 @@ pub(crate) fn SummaryStrip(
             >
                 <header class="sum-header">
                     <strong>{title}</strong>
-                    {preview.then(|| view! {
-                        <Badge variant=BadgeVariant::AccentFlat>"プレビュー"</Badge>
-                    })}
                 </header>
                 <div class="hidden sm:block" data-testid="receipt-summary-desktop">
                 <dl class="kpis" data-testid="kpi-grid">

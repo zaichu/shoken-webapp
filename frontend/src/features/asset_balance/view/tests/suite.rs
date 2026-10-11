@@ -197,7 +197,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         let saved_rows: Vec<AssetBalanceRow> =
             loaded.rows.iter().cloned().map(Row::Saved).collect();
 
-        let filtered = filtered_portfolio(&saved_rows, "7203", lookup, Generation::new(1), false);
+        let filtered = filtered_portfolio(&saved_rows, "7203", lookup, Generation::new(1));
         assert_eq!(filtered.views.len(), 1);
         assert_eq!(filtered.views[0].code, "7203");
         // 集計は絞り込み前の全保有分を使う
@@ -248,13 +248,8 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         lookup.update(|store| store.seed(Generation::new(2), &decimal_rows));
         let decimal_saved: Vec<AssetBalanceRow> =
             decimal_rows.iter().cloned().map(Row::Saved).collect();
-        let decimal_filtered = filtered_portfolio(
-            &decimal_saved,
-            "検証対象",
-            lookup,
-            Generation::new(2),
-            false,
-        );
+        let decimal_filtered =
+            filtered_portfolio(&decimal_saved, "検証対象", lookup, Generation::new(2));
         assert_eq!(decimal_filtered.views.len(), 2);
         let decimal_holdings: Vec<KpiHolding> = decimal_filtered
             .all_views
@@ -290,8 +285,8 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
         };
         let rows = vec![AssetBalanceRow::Preview(preview)];
 
-        // has_csv_file=false(= lookup 置き換えが有効な条件)でも Preview の値が保たれる
-        let filtered = filtered_portfolio(&rows, "", lookup, Generation::new(1), false);
+        // Preview 行は lookup で置き換えず CSV の値をそのまま見せる
+        let filtered = filtered_portfolio(&rows, "", lookup, Generation::new(1));
         assert_eq!(filtered.views.len(), 1);
         assert_eq!(filtered.views[0].code, "7203");
         assert_eq!(filtered.views[0].name, "CSVトヨタ");
@@ -317,7 +312,6 @@ fn show_all_resets_only_when_summary_has_no_rows() {
                     .on_clear_filter(|| {})
                     .dividends(dividends)
                     .show_all(show_all)
-                    .preview(false)
                     .build(),
             )
         };

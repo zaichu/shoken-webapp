@@ -1,12 +1,10 @@
 use crate::api::ApiError;
 use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
-use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRowData};
 use crate::features::asset_balance::store::csv::resolve_asset_balance;
 use crate::features::asset_balance::store::{
     BalanceSlot, LoadedAssetBalances, truncated_list_warning,
 };
 use crate::session::Generation;
-use crate::support::csv_flow::CsvTabState;
 use crate::support::pagination::{LIST_PER_PAGE, collect_list_pages};
 use crate::testing::block_on;
 use std::future::{Ready, ready};
@@ -69,75 +67,39 @@ fn loaded(rows: Vec<AssetBalance>, truncated: bool) -> LoadedAssetBalances {
     }
 }
 
-fn preview_state() -> CsvTabState<AssetBalanceCsvRow> {
-    CsvTabState {
-        file_name: Some("asset.csv".to_string()),
-        preview: Some(crate::api::dto::CsvPreviewResponse {
-            total_rows: 1,
-            valid_rows: 1,
-            errors: vec![],
-            rows: vec![AssetBalanceCsvRow {
-                security_code: "9999".to_string(),
-                ..Default::default()
-            }],
-        }),
-        ..Default::default()
-    }
-}
-
 #[test]
 fn resolve_loading_for_missing_or_stale_slot() {
-    let state = CsvTabState::default();
     let empty: BalanceSlot = None;
-    assert!(resolve_asset_balance(Generation::new(1), &empty, &state).is_none());
+    assert!(resolve_asset_balance(Generation::new(1), &empty).is_none());
 
     let stale: BalanceSlot = Some((Generation::new(1), Ok(loaded(vec![balance(1)], false))));
-    assert!(resolve_asset_balance(Generation::new(2), &stale, &state).is_none());
+    assert!(resolve_asset_balance(Generation::new(2), &stale).is_none());
 }
 
 #[test]
 fn resolve_ready_uses_db_rows_and_warns_truncation() {
-    let state = CsvTabState::default();
     let slot: BalanceSlot = Some((
         Generation::new(7),
         Ok(loaded(vec![balance(1), balance(2)], true)),
     ));
-    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot, &state) else {
+    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot) else {
         panic!("expected ready");
     };
     assert_eq!(resolved.rows.len(), 2);
     assert_eq!(resolved.warning, Some(truncated_list_warning()));
-    assert!(!resolved.has_csv_file);
 }
 
 #[test]
 fn resolve_without_truncation_has_no_warning() {
-    let state = CsvTabState::default();
     let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded(vec![balance(1)], false))));
-    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot, &state) else {
+    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot) else {
         panic!("expected ready");
     };
     assert!(resolved.warning.is_none());
-}
-
-#[test]
-fn resolve_csv_preview_replaces_rows_and_drops_warning() {
-    let state = preview_state();
-    let slot: BalanceSlot = Some((Generation::new(3), Ok(loaded(vec![balance(1)], true))));
-    let Some(resolved) = resolve_asset_balance(Generation::new(3), &slot, &state) else {
-        panic!("expected ready");
-    };
-    assert_eq!(resolved.rows.len(), 1);
-    assert!(resolved.rows[0].is_preview());
-    assert!(resolved.rows[0].saved().is_none());
-    assert_eq!(resolved.rows[0].security_code(), "9999");
-    assert!(resolved.warning.is_none());
-    assert!(resolved.has_csv_file);
 }
 
 #[test]
 fn resolve_truncated_uses_summary_as_fallback_totals() {
-    let state = CsvTabState::default();
     let summary = AssetBalanceSummary {
         total_market_value: rust_decimal_macros::dec!(700000),
         total_purchase_amount: rust_decimal_macros::dec!(500000),
@@ -148,14 +110,14 @@ fn resolve_truncated_uses_summary_as_fallback_totals() {
     let mut loaded_balances = loaded(vec![balance(1)], true);
     loaded_balances.summary = Some(summary.clone());
     let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));
-    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot, &state) else {
+    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot) else {
         panic!("expected ready");
     };
     assert_eq!(resolved.fallback_totals, Some(summary));
 }
 
 #[test]
-fn resolve_full_rows_and_preview_skip_fallback_totals() {
+fn resolve_full_rows_skips_fallback_totals() {
     // 行が揃う場合は個別カードとの一致を優先して行から計算するため fallback は使わない
     let mut loaded_balances = loaded(vec![balance(1)], false);
     loaded_balances.summary = Some(AssetBalanceSummary {
@@ -165,33 +127,19 @@ fn resolve_full_rows_and_preview_skip_fallback_totals() {
         priced_market_value: rust_decimal_macros::dec!(700000),
         priced_purchase_amount: rust_decimal_macros::dec!(500000),
     });
-    let state = CsvTabState::default();
     let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));
-    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot, &state) else {
-        panic!("expected ready");
-    };
-    assert!(resolved.fallback_totals.is_none());
-
-    // CSV プレビュー中は API 集計がプレビュー行を反映しないため使わない
-    let state = preview_state();
-    let mut loaded_balances = loaded(vec![balance(1)], true);
-    loaded_balances.summary = Some(AssetBalanceSummary::default());
-    let slot: BalanceSlot = Some((Generation::new(3), Ok(loaded_balances)));
-    let Some(resolved) = resolve_asset_balance(Generation::new(3), &slot, &state) else {
+    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot) else {
         panic!("expected ready");
     };
     assert!(resolved.fallback_totals.is_none());
 }
 
 #[test]
-fn resolve_list_error_falls_back_to_preview_rows() {
-    let state = preview_state();
+fn resolve_list_error_returns_no_rows() {
     let slot: BalanceSlot = Some((Generation::new(5), Err("取得失敗".to_string())));
-    let Some(resolved) = resolve_asset_balance(Generation::new(5), &slot, &state) else {
+    let Some(resolved) = resolve_asset_balance(Generation::new(5), &slot) else {
         panic!("expected ready");
     };
-    assert_eq!(resolved.rows.len(), 1);
-    assert!(resolved.rows[0].is_preview());
-    assert_eq!(resolved.rows[0].security_code(), "9999");
+    assert!(resolved.rows.is_empty());
     assert!(resolved.warning.is_none());
 }

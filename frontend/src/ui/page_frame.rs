@@ -9,9 +9,9 @@ pub fn PageFrame(
     #[prop(into)]
     title: String,
     /// 戻る文字リンク("[資産管理に戻る]" など)。href とラベルはセットで指定する
-    #[prop(optional)]
-    back_href: Option<&'static str>,
-    #[prop(optional)] back_label: Option<&'static str>,
+    #[prop(into, optional)]
+    back_href: Option<String>,
+    #[prop(into, optional)] back_label: Option<String>,
     /// ページ名の右に置く低頻度操作への文字リンク([CSV管理] など)
     #[prop(optional)]
     links: Option<Children>,

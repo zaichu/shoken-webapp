@@ -61,7 +61,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
             truncated: false,
         };
         assert_eq!(
-            header_summary(tab, &data, "", false)
+            header_summary(tab, &data, "")
                 .iter()
                 .map(|v| v.1)
                 .collect::<Vec<_>>(),
@@ -69,23 +69,23 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
         );
         data.rows = filter_receipts(tab, &rows, query);
         assert_eq!(
-            header_summary(tab, &data, query, false)
+            header_summary(tab, &data, query)
                 .iter()
                 .map(|v| v.1)
                 .collect::<Vec<_>>(),
             expected
         );
         data.rows = filter_receipts(tab, &rows, "　");
-        assert_ne!(header_summary(tab, &data, "　", false)[0].1, dec!(9999));
+        assert_ne!(header_summary(tab, &data, "　")[0].1, dec!(9999));
         data.rows = filter_receipts(tab, &rows, "該当なし");
         assert_eq!(
-            header_summary(tab, &data, "該当なし", false)
+            header_summary(tab, &data, "該当なし")
                 .iter()
                 .map(|v| v.1)
                 .collect::<Vec<_>>(),
             [Decimal::ZERO; 3]
         );
-        assert_eq!(header_summary(tab, &data, "", false)[0].1, dec!(9999));
+        assert_eq!(header_summary(tab, &data, "")[0].1, dec!(9999));
     }
 }
 
@@ -101,7 +101,7 @@ fn header_tones_mark_negative_profit_only() {
             })),
             truncated: false,
         };
-        header_summary(ReceiptsTab::DomesticStock, &data, "", false)
+        header_summary(ReceiptsTab::DomesticStock, &data, "")
             .iter()
             .map(|v| v.2)
             .collect::<Vec<_>>()
@@ -760,8 +760,8 @@ fn csv_source_store() -> crate::features::receipts::ReceiptsStore {
 
 #[test]
 fn receipt_csv_source_constants_match_expected_values() {
-    use super::panel::ReceiptCsvSource;
-    use crate::ui::csv_section::CsvSource;
+    use super::csv_page::ReceiptCsvSource;
+    use crate::ui::csv_page::CsvSource;
     use leptos::prelude::*;
 
     let owner = Owner::new();
@@ -771,17 +771,16 @@ fn receipt_csv_source_constants_match_expected_values() {
             let source = ReceiptCsvSource { store, tab };
             assert_eq!(source.input_id(), tab.csv_input_id());
             assert_eq!(source.save_action(), "追加で保存");
+            assert_eq!(source.save_mode_label(), "追加");
             assert_eq!(source.mode_label(), "追加保存");
-            assert_eq!(source.toggle_testid(), "receipt-csv-toggle");
-            assert_eq!(source.section_class(), "sm:rounded-t-xl");
         }
     });
 }
 
 #[test]
 fn receipt_csv_source_input_disabled_reflects_store_state() {
-    use super::panel::ReceiptCsvSource;
-    use crate::ui::csv_section::CsvSource;
+    use super::csv_page::ReceiptCsvSource;
+    use crate::ui::csv_page::CsvSource;
     use leptos::prelude::*;
 
     let owner = Owner::new();
@@ -799,8 +798,8 @@ fn receipt_csv_source_input_disabled_reflects_store_state() {
 
 #[test]
 fn receipt_csv_source_db_count_returns_zero_when_no_data() {
-    use super::panel::ReceiptCsvSource;
-    use crate::ui::csv_section::CsvSource;
+    use super::csv_page::ReceiptCsvSource;
+    use crate::ui::csv_page::CsvSource;
     use leptos::prelude::*;
 
     let owner = Owner::new();
@@ -815,9 +814,9 @@ fn receipt_csv_source_db_count_returns_zero_when_no_data() {
 
 #[test]
 fn receipt_csv_source_delete_disabled_reflects_state() {
-    use super::panel::ReceiptCsvSource;
+    use super::csv_page::ReceiptCsvSource;
     use crate::support::csv_flow::CsvTabMeta;
-    use crate::ui::csv_section::CsvSource;
+    use crate::ui::csv_page::CsvSource;
     use leptos::prelude::*;
 
     let owner = Owner::new();

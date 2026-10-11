@@ -108,15 +108,15 @@ test('配当金タブにデータがないとき EmptyState が表示される',
   ).toBeVisible();
   // 絞り込み対象がないので検索オプションは出さない
   await expect(page.getByTestId('search-card')).toHaveCount(0);
-  // EmptyState の CTA からファイル選択を開ける
-  const cta = page.getByRole('button', { name: 'CSVを取り込む' });
-  await expect(cta).toBeEnabled();
-  const chooserPromise = page.waitForEvent('filechooser');
+  // EmptyState の CTA から CSV 管理ページに進める
+  const cta = page.getByRole('link', { name: 'CSVを取り込む' });
+  await expect(cta).toBeVisible();
   await cta.click();
-  await chooserPromise;
+  await expect(page).toHaveURL('/receipts/csv?kind=dividend');
+  await expect(page.getByTestId('csv-file-input')).toBeAttached();
 });
 
-test('別タブの一覧取得中は空状態の CSV 取り込み CTA が無効になる', async ({ page }) => {
+test('別タブの一覧取得中は CSV ページのファイル選択が無効になる', async ({ page }) => {
   await setupAuthMocks(page, { dividends: [] });
   // 国内株式タブの応答を保留して any_tab_fetching を維持する
   const pending: Route[] = [];
@@ -125,11 +125,11 @@ test('別タブの一覧取得中は空状態の CSV 取り込み CTA が無効�
     pending.push(route);
   });
 
-  await page.goto('/receipts');
+  await page.goto('/receipts/csv?kind=dividend');
 
-  const cta = page.getByRole('button', { name: 'CSVを取り込む' });
-  await expect(cta).toBeVisible();
-  await expect(cta).toBeDisabled();
+  const fileInput = page.getByTestId('csv-file-input');
+  await expect(fileInput).toBeAttached();
+  await expect(fileInput).toBeDisabled();
 
   for (const route of pending) {
     await route.fulfill({
@@ -138,6 +138,7 @@ test('別タブの一覧取得中は空状態の CSV 取り込み CTA が無効�
       body: JSON.stringify(paginated([])),
     });
   }
+  await expect(fileInput).toBeEnabled();
 });
 
 test('スマホ幅で空状態 CTA からプレビューして保存ボタンまで見える', async ({ page }) => {
@@ -172,17 +173,15 @@ test('スマホ幅で空状態 CTA からプレビューして保存ボタンま
   await page.goto('/receipts');
   await expect(receiptLoadingSection(page)).toBeHidden();
 
-  const cta = page.getByRole('button', { name: 'CSVを取り込む' });
-  await expect(cta).toBeEnabled();
-  const chooserPromise = page.waitForEvent('filechooser');
+  const cta = page.getByRole('link', { name: 'CSVを取り込む' });
+  await expect(cta).toBeVisible();
   await cta.click();
-  const chooser = await chooserPromise;
-  await chooser.setFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
+  await expect(page).toHaveURL('/receipts/csv?kind=dividend');
 
-  // 取り込み結果はパネルに出る。狭い帯ではドロワーを開けて確認する
-  const panelToggle = page.getByTestId('receipt-utility-toggle');
-  await panelToggle.click();
-  await expect(panelToggle).toHaveAttribute('aria-expanded', 'true');
+  // 取り込み結果は CSV 管理ページに出る
+  const fileInput = page.getByTestId('csv-file-input');
+  await expect(fileInput).toBeEnabled();
+  await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
   await expect(page.getByTestId('csv-preview-notice')).toBeVisible();
   await expect(page.getByRole('button', { name: /追加で保存/ })).toBeVisible();
 });

@@ -117,22 +117,16 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
       }),
     }),
   );
-  await page.goto('/receipts');
+  await page.goto('/receipts/csv?kind=dividend');
 
-  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
-  const panelToggle = page.getByTestId('receipt-utility-toggle');
-  await panelToggle.click();
-  await expect(panelToggle).toHaveAttribute('aria-expanded', 'true');
-
-  await page.getByTestId('receipt-csv-toggle').click();
-  await page
-    .getByTestId('csv-file-input')
-    .setInputFiles(
-      path.resolve(
-        test.info().project.testDir,
-        'fixtures/csv/dividend-base.csv',
-      ),
-    );
+  const fileInput = page.getByTestId('csv-file-input');
+  await expect(fileInput).toBeEnabled();
+  await fileInput.setInputFiles(
+    path.resolve(
+      test.info().project.testDir,
+      'fixtures/csv/dividend-base.csv',
+    ),
+  );
 
   const cardList = page.getByTestId('receipt-card-list');
   const cards = cardList.getByTestId('receipt-card');

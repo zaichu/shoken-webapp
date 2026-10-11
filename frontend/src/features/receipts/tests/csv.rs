@@ -5,7 +5,6 @@ use crate::features::receipts::store::{TabCacheEntry, mark_tab_for_refresh, tab_
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
-use crate::support::row::Row;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -365,7 +364,7 @@ fn stale_generation_results_are_dropped() {
 }
 
 #[test]
-fn delete_confirm_opens_closes_and_guards_double_confirm() {
+fn delete_confirm_opens_and_guards_double_confirm() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
@@ -375,10 +374,7 @@ fn delete_confirm_opens_closes_and_guards_double_confirm() {
 
         store.open_delete_confirm(tab);
         assert!(store.csv_state(tab).show_delete_confirm);
-        store.close_delete_confirm(tab);
-        assert!(!store.csv_state(tab).show_delete_confirm);
 
-        store.open_delete_confirm(tab);
         assert!(store.try_begin_delete(tab).is_some());
         let state = store.csv_state(tab);
         assert!(!state.show_delete_confirm);
@@ -629,7 +625,7 @@ fn store_accessors_reflect_auth_and_tab_state() {
 }
 
 #[test]
-fn has_csv_preview_requires_non_empty_preview_rows() {
+fn csv_state_has_preview_rows_only_when_non_empty() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
@@ -662,9 +658,13 @@ fn has_csv_preview_requires_non_empty_preview_rows() {
             ]),
         );
 
-        assert!(store.has_csv_preview(tab));
-        assert!(!store.has_csv_preview(ReceiptsTab::DomesticStock));
-        assert!(!store.has_csv_preview(ReceiptsTab::MutualFund));
+        assert!(store.csv_state(tab).has_preview_rows());
+        assert!(
+            !store
+                .csv_state(ReceiptsTab::DomesticStock)
+                .has_preview_rows()
+        );
+        assert!(!store.csv_state(ReceiptsTab::MutualFund).has_preview_rows());
     });
 }
 
@@ -812,57 +812,6 @@ fn ensure_keeps_entries_when_nothing_is_stale() {
             store
                 .tabs
                 .with_untracked(|map| map.contains_key(&(generation, tab)))
-        );
-    });
-}
-
-#[test]
-fn display_rows_for_prefers_preview_only_when_rows_exist() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::Dividend;
-        let preview_row =
-            CsvPreviewRow::Dividend(crate::features::receipts::csv::DividendCsvRow::default());
-        let store = test_store(
-            &session,
-            HashMap::new(),
-            HashMap::from([
-                (
-                    (generation, tab),
-                    CsvTabState {
-                        preview: Some(crate::api::dto::CsvPreviewResponse {
-                            rows: vec![preview_row.clone()],
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    },
-                ),
-                (
-                    (generation, ReceiptsTab::DomesticStock),
-                    CsvTabState {
-                        preview: Some(crate::api::dto::CsvPreviewResponse::default()),
-                        ..Default::default()
-                    },
-                ),
-            ]),
-        );
-        let saved = crate::testing::receipts::dividends();
-        let display_rows_for = crate::features::receipts::view::main_content::display_rows_for;
-
-        assert_eq!(
-            display_rows_for(store, tab, saved.clone()),
-            vec![Row::Preview(preview_row)]
-        );
-        assert_eq!(
-            display_rows_for(store, ReceiptsTab::DomesticStock, saved.clone()),
-            saved
-        );
-        assert_eq!(
-            display_rows_for(store, ReceiptsTab::MutualFund, saved.clone()),
-            saved
         );
     });
 }

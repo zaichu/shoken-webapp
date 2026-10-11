@@ -352,25 +352,6 @@ fn delete_success_without_cached_list_sets_empty() {
 }
 
 #[test]
-fn csv_status_text_follows_busy_flags() {
-    for (field, expected) in [
-        ("saving", "データを保存しています..."),
-        ("deleting", "データを削除しています..."),
-        ("previewing", "CSVファイルを解析しています..."),
-    ] {
-        let mut state = CsvTabState::<AssetBalanceCsvRow>::default();
-        match field {
-            "saving" => state.saving = true,
-            "deleting" => state.deleting = true,
-            _ => state.previewing = true,
-        }
-        assert_eq!(csv_status_text(&state.meta()), Some(expected));
-    }
-    let state = CsvTabState::<AssetBalanceCsvRow>::default();
-    assert_eq!(csv_status_text(&state.meta()), None);
-}
-
-#[test]
 fn csv_store_accessors_reflect_session_and_slots() {
     let owner = Owner::new();
     owner.with(|| {
@@ -471,10 +452,7 @@ fn delete_confirm_flow_updates_csv_state() {
 
         store.open_delete_confirm();
         assert!(store.csv_state().show_delete_confirm);
-        store.close_delete_confirm();
-        assert!(!store.csv_state().show_delete_confirm);
 
-        store.open_delete_confirm();
         store.confirm_delete_all();
         assert!(store.csv_state().deleting);
     });

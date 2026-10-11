@@ -1,4 +1,5 @@
 mod cards;
+mod csv_page;
 pub(crate) mod main_content;
 mod panel;
 mod pickers;
@@ -8,15 +9,15 @@ mod table;
 mod tabs;
 mod workspace;
 
+pub use csv_page::{ReceiptsCsvDeletePage, ReceiptsCsvPage};
+
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::{ReceiptRow, ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::badge::{Badge, BadgeVariant};
-use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::workspace_shell::WorkspaceShell;
 use leptos::prelude::*;
-use main_content::display_rows_for;
 use panel::ReceiptsPanel;
 use tabs::{ReceiptsTabButton, TabPanel, scroll_tab_into_view};
 use workspace::utility_rail_id;
@@ -30,7 +31,6 @@ pub fn ReceiptsPage() -> impl IntoView {
     store.revisit();
     let busy = store;
     let panels_store = store;
-    let modal_store = store;
     // 他タブの取得進捗で workspace 全体を再生成するとパネル開閉などのローカル状態が
     // 巻き戻るため、分岐条件だけを memo 化して再生成を実際の切替時に限定する
     let workspace_store = store;
@@ -60,17 +60,21 @@ pub fn ReceiptsPage() -> impl IntoView {
     // クリックとキー操作の両経路をカバーするため select_tab ではなく active_tab の変化に追従する
     Effect::new(move |_| scroll_tab_into_view(tabs.active_tab.get()));
 
+    let csv_href = Signal::derive(move || {
+        format!("/receipts/csv?kind={}", store.active_tab.get().kind_param())
+    });
+    let csv_link: Children = Box::new(move || {
+        view! {
+            <a class="page-back-link" href=move || csv_href.get()>"CSV管理"</a>
+        }
+        .into_any()
+    });
     view! {
-        <PageFrame title="取引明細" full_bleed=true>
+        <PageFrame title="取引明細" full_bleed=true links=csv_link>
         <div
             class="mt-0 flex flex-1 flex-col"
             aria-busy=move || {
-                if busy.auth_loading()
-                    || busy.any_tab_fetching()
-                    || ReceiptsTab::ALL.iter().any(|tab| {
-                        let meta = busy.csv_meta(*tab);
-                        meta.saving || meta.deleting
-                    }) {
+                if busy.auth_loading() || busy.any_tab_fetching() {
                     "true"
                 } else {
                     "false"
@@ -144,29 +148,6 @@ pub fn ReceiptsPage() -> impl IntoView {
                     }}
                 </WorkspaceShell>
             </div>
-            {move || {
-                let tab = modal_store.active_tab.get();
-                if !modal_store.csv_meta(tab).show_delete_confirm {
-                    return ().into_any();
-                }
-                let count = modal_store.count(tab);
-                let deleting_store = modal_store;
-                let deleting = Memo::new(move |_| deleting_store.csv_meta(tab).deleting);
-                let confirm = modal_store;
-                let cancel = modal_store;
-                view! {
-                    <ConfirmDeleteModal
-                        title=format!("{}データの全件削除", tab.label())
-                        description=format!("【{}】のデータをすべて削除します。", tab.label())
-                        item_count=count
-                        confirm_label="削除する"
-                        loading=deleting
-                        on_confirm=move || confirm.confirm_delete_all(tab)
-                        on_cancel=move || cancel.close_delete_confirm(tab)
-                    />
-                }
-                    .into_any()
-            }}
         </div>
         </PageFrame>
     }
@@ -180,7 +161,7 @@ pub(crate) fn utility_display_rows(
     tab: ReceiptsTab,
 ) -> Vec<ReceiptRow> {
     match store.tab_state(tab) {
-        TabState::Ready(data) => display_rows_for(store, tab, data.rows),
+        TabState::Ready(data) => data.rows,
         _ => Vec::new(),
     }
 }

@@ -15,21 +15,6 @@ pub(crate) fn should_show_preview_notice(
     authenticated && has_file && !previewing
 }
 
-// 未保存データで描画中であることを、行の見た目が登録済みと同じでも分かるように帯で示す。
-// 読み上げはレールのプレビュー通知(role="status")が担うため、帯自体は見た目だけにする
-#[component]
-pub fn CsvPreviewBanner(description: &'static str) -> impl IntoView {
-    view! {
-        <div
-            data-testid="csv-preview-banner"
-            class="mb-3 rounded-lg border border-accent-border-strong bg-accent-soft px-4 py-2.5 text-sm text-accent-text"
-        >
-            <span class="font-bold">"プレビュー中(未保存)"</span>
-            <span class="ml-2">{description}</span>
-        </div>
-    }
-}
-
 #[component]
 pub fn CsvPreviewNotice(text: String, errors: Vec<CsvRowError>) -> impl IntoView {
     let error_count = errors.len();

@@ -30,7 +30,6 @@ pub(crate) fn PortfolioSummary(
     on_clear_filter: impl Fn() + Send + Sync + 'static,
     dividends: RwSignal<DividendMaps>,
     show_all: RwSignal<bool>,
-    preview: bool,
 ) -> impl IntoView {
     let on_clear_filter = std::sync::Arc::new(on_clear_filter);
     let FilteredPortfolio { views, all_views } = filtered;
@@ -80,11 +79,7 @@ pub(crate) fn PortfolioSummary(
         Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
 
     let market_text = format_valuation_amount(valuation.market_value);
-    let mut market_note = if preview {
-        "CSV取込時点の価格で計算".to_string()
-    } else {
-        "現在値の基準日は銘柄ごとに異なります".to_string()
-    };
+    let mut market_note = "現在値の基準日は銘柄ごとに異なります".to_string();
     if valuation.has_unpriced {
         market_note.push_str("・価格なし銘柄を除く");
     }

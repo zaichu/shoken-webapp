@@ -1,4 +1,3 @@
-use super::main_content::display_rows_for;
 use super::pickers::{DatePeriod, SearchDropdown, ToggleCategory};
 use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey, search_categories};
 use crate::features::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab};
@@ -13,8 +12,7 @@ pub(crate) fn ReceiptsSearchCard(
     expanded: RwSignal<bool>,
 ) -> impl IntoView {
     let search = store.search;
-    let display_store = store;
-    let display_rows = Memo::new(move |_| display_rows_for(display_store, tab, data.rows.clone()));
+    let display_rows = Memo::new(move |_| data.rows.clone());
     let categories = Memo::new(move |_| search_categories(tab, &display_rows.get()));
     let securities = Memo::new(move |_| categories.with(|c| c.securities.clone()));
     let products = Memo::new(move |_| categories.with(|c| c.products.clone()));

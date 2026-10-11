@@ -318,13 +318,8 @@ pub(crate) fn DividendSummarySection(
     totals: DividendTotals,
     expanded: RwSignal<bool>,
     mobile_expanded: RwSignal<bool>,
-    #[prop(optional)] preview: bool,
 ) -> impl IntoView {
-    let title = if preview {
-        "集計情報(プレビュー)"
-    } else {
-        "集計情報"
-    };
+    let title = "集計情報";
     let totals_mobile = totals.clone();
     view! {
         <Card variant=CardVariant::Collapsible testid="receipt-summary-strip" class=Signal::derive(move || {

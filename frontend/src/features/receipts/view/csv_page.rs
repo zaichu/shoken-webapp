@@ -1,0 +1,161 @@
+use super::table::ReceiptTable;
+use crate::features::receipts::{
+    ReceiptRow, ReceiptsStore, ReceiptsTab, TabState, use_receipts_data,
+};
+use crate::session::use_session;
+use crate::support::csv_flow::CsvTabMeta;
+use crate::support::row::Row;
+use crate::ui::csv_page::{CsvDeletePage, CsvManagePage, CsvSource};
+use leptos::prelude::*;
+
+#[derive(Clone, Copy)]
+pub(crate) struct ReceiptCsvSource {
+    pub(crate) store: ReceiptsStore,
+    pub(crate) tab: ReceiptsTab,
+}
+
+impl CsvSource for ReceiptCsvSource {
+    fn input_id(&self) -> &'static str {
+        self.tab.csv_input_id()
+    }
+
+    fn save_action(&self) -> &'static str {
+        "追加で保存"
+    }
+
+    fn save_mode_label(&self) -> &'static str {
+        "追加"
+    }
+
+    fn mode_label(&self) -> &'static str {
+        "追加保存"
+    }
+
+    fn csv_meta(&self) -> CsvTabMeta {
+        self.store.csv_meta(self.tab)
+    }
+
+    fn is_authenticated(&self) -> bool {
+        self.store.is_authenticated()
+    }
+
+    fn input_disabled(&self) -> bool {
+        self.store.csv_input_disabled(self.tab)
+    }
+
+    fn db_count(&self) -> usize {
+        self.store.count(self.tab)
+    }
+
+    fn delete_count_ready(&self) -> bool {
+        matches!(self.store.tab_state(self.tab), TabState::Ready(_))
+    }
+
+    fn delete_count_error(&self) -> Option<String> {
+        match self.store.tab_state(self.tab) {
+            TabState::Failed(message) => Some(message),
+            _ => None,
+        }
+    }
+
+    fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
+        meta.saving || meta.deleting || self.store.any_tab_fetching()
+    }
+
+    fn select_file(&self, file: web_sys::File) {
+        self.store.select_file(self.tab, file)
+    }
+
+    fn save_csv(&self) {
+        self.store.save_csv(self.tab)
+    }
+
+    fn discard_csv(&self) {
+        self.store.discard_csv(self.tab)
+    }
+
+    fn open_delete_confirm(&self) {
+        self.store.open_delete_confirm(self.tab)
+    }
+
+    fn confirm_delete_all(&self) {
+        self.store.confirm_delete_all(self.tab)
+    }
+}
+
+// ?kind= はページの再マウントでしか変わらないため、マウント時に1回だけ読む
+fn kind_tab() -> ReceiptsTab {
+    ReceiptsTab::from_kind_param(
+        crate::app::query_param(&crate::app::current_location(), "kind").as_deref(),
+    )
+}
+
+// 世代リセットが起きると ensure の対象が配当へ差し替わるので、
+// 世代を確定させてから対象タブの一覧を未取得なら取得する
+fn ensure_kind(store: ReceiptsStore, tab: ReceiptsTab) {
+    store.ensure(tab);
+    store.ensure(tab);
+}
+
+#[component]
+pub fn ReceiptsCsvPage() -> impl IntoView {
+    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    let tab = kind_tab();
+    ensure_kind(store, tab);
+    let source = ReceiptCsvSource { store, tab };
+    let delete_href = format!("/receipts/csv/delete?kind={}", tab.kind_param());
+    view! {
+        <CsvManagePage
+            source=source
+            subject=tab.label()
+            back_href="/receipts"
+            delete_href=delete_href
+            preview=view! { <ReceiptsCsvPreview store=store tab=tab /> }.into_any()
+        />
+    }
+}
+
+#[component]
+pub fn ReceiptsCsvDeletePage() -> impl IntoView {
+    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    let tab = kind_tab();
+    ensure_kind(store, tab);
+    let source = ReceiptCsvSource { store, tab };
+    let csv_href = format!("/receipts/csv?kind={}", tab.kind_param());
+    view! {
+        <CsvDeletePage
+            source=source
+            subject=tab.label()
+            csv_href=csv_href
+            list_href="/receipts"
+        />
+    }
+}
+
+#[component]
+fn ReceiptsCsvPreview(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+    move || {
+        let preview = store.csv_state(tab).preview?;
+        if preview.rows.is_empty() {
+            return None;
+        }
+        let rows: Vec<ReceiptRow> = preview.rows.into_iter().map(Row::Preview).collect();
+        Some(view! {
+            <section data-testid="csv-preview">
+                <h2 class="text-sm font-bold text-text">"プレビュー"</h2>
+                <p class="mt-1 text-xs text-text-soft">
+                    "表は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
+                </p>
+                <div class="mt-2">
+                    <ReceiptTable
+                        tab=tab
+                        rows=rows.clone()
+                        all_rows=rows
+                        query="".to_string()
+                        expanded_ids=store.expanded
+                    />
+                </div>
+            </section>
+        })
+    }
+}

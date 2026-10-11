@@ -116,22 +116,21 @@ async function setupAssetBalanceMocks(page: Page, rows: unknown[] = [TOYOTA, SON
   );
 }
 
-async function gotoAssetBalance(page: Page) {
-  await page.goto('/assetbalance');
-  await expect(page.getByTestId('assetbalance-utility-rail')).toBeVisible();
+// 見直し促進カードは資産 CSV 管理ページに置く
+async function gotoAssetCsvPage(page: Page) {
+  await page.goto('/assetbalance/csv');
+  await expect(page.getByTestId('csv-file-input')).toBeAttached();
 }
 
-test('1920px では見直し促進カードがレール内に表示され、クリップボードへ見直し用のプロンプトをコピーする', async ({
+test('CSV管理ページに見直し促進カードが表示され、クリップボードへ見直し用のプロンプトをコピーする', async ({
   page,
 }) => {
   await stubClipboard(page);
   await setupAssetBalanceMocks(page);
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await gotoAssetBalance(page);
-  await expect(page.getByTestId('portfolio-pie-chart')).toBeVisible();
+  await gotoAssetCsvPage(page);
 
-  const rail = page.getByTestId('assetbalance-utility-rail');
-  const card = rail.getByTestId('asset-review-prompt-card');
+  const card = page.getByTestId('asset-review-prompt-card');
   await expect(card).toBeVisible();
   await expect(
     card.getByText('AI総評プロンプト', { exact: true }),
@@ -141,17 +140,6 @@ test('1920px では見直し促進カードがレール内に表示され、ク�
     name: 'AI総評プロンプトをコピー',
   });
   await expect(button).toBeEnabled();
-
-  // レール内の順序は CSV → 見直し促進カード
-  const order = await rail
-    .locator('.ws-panel-body > div')
-    .first()
-    .evaluate((el) =>
-      Array.from(el.children)
-        .map((child) => (child as HTMLElement).dataset?.testid ?? '')
-        .filter((id) => id.length > 0),
-    );
-  expect(order[order.length - 1]).toBe('asset-review-prompt-card');
 
   await button.click();
   await expect(
@@ -170,31 +158,16 @@ test('1920px では見直し促進カードがレール内に表示され、ク�
   ).toBeVisible({ timeout: 6_000 });
 });
 
-test('390px でも見直し促進カードはドロワー内の末尾セクションになる', async ({
+test('390px でも見直し促進カードがCSVページに表示される', async ({
   page,
 }) => {
   await stubClipboard(page);
   await setupAssetBalanceMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await gotoAssetBalance(page);
-  await expect(page.getByTestId('portfolio-holding-card').first()).toBeVisible();
+  await gotoAssetCsvPage(page);
 
-  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
-  const panelToggle = page.getByTestId('asset-utility-toggle');
-  await panelToggle.click();
-  await expect(panelToggle).toHaveAttribute('aria-expanded', 'true');
-
-  const rail = page.getByTestId('assetbalance-utility-rail');
-  const outerCard = rail.locator('.ws-panel-body > div').first();
-  const card = rail.getByTestId('asset-review-prompt-card');
+  const card = page.getByTestId('asset-review-prompt-card');
   await expect(card).toBeVisible();
-
-  const order = await outerCard.evaluate((el) =>
-    Array.from(el.children)
-      .map((child) => (child as HTMLElement).dataset?.testid ?? '')
-      .filter((id) => id.length > 0),
-  );
-  expect(order[order.length - 1]).toBe('asset-review-prompt-card');
 
   const button = card.getByRole('button', {
     name: 'AI総評プロンプトをコピー',
@@ -211,8 +184,7 @@ test('連続してコピーしても後のクリックの表示が先のタイ�
   await stubClipboard(page);
   await setupAssetBalanceMocks(page);
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await gotoAssetBalance(page);
-  await expect(page.getByTestId('portfolio-pie-chart')).toBeVisible();
+  await gotoAssetCsvPage(page);
 
   const card = page.getByTestId('asset-review-prompt-card');
   const button = card.getByRole('button');
@@ -235,8 +207,7 @@ test('クリップボードへの書き込みが拒否されたとき失敗表�
   await stubClipboard(page, 'reject');
   await setupAssetBalanceMocks(page);
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await gotoAssetBalance(page);
-  await expect(page.getByTestId('portfolio-pie-chart')).toBeVisible();
+  await gotoAssetCsvPage(page);
 
   const card = page.getByTestId('asset-review-prompt-card');
   await card
@@ -261,8 +232,7 @@ test('Clipboard API がない環境では失敗表示になる', async ({ page }
   await stubClipboard(page, 'missing');
   await setupAssetBalanceMocks(page);
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await gotoAssetBalance(page);
-  await expect(page.getByTestId('portfolio-pie-chart')).toBeVisible();
+  await gotoAssetCsvPage(page);
 
   const card = page.getByTestId('asset-review-prompt-card');
   await card
@@ -273,12 +243,14 @@ test('Clipboard API がない環境では失敗表示になる', async ({ page }
   ).toBeVisible();
 });
 
-test('保有データが0件のときAI総評プロンプトは出さない', async ({ page }) => {
+test('保有データが0件のときAI総評プロンプトのコピーは無効になる', async ({ page }) => {
   await stubClipboard(page);
   await setupAssetBalanceMocks(page, []);
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await gotoAssetBalance(page);
-  await expect(page.getByText('資産管理データがありません')).toBeVisible();
+  await gotoAssetCsvPage(page);
 
-  await expect(page.getByTestId('asset-review-prompt-card')).toHaveCount(0);
+  const card = page.getByTestId('asset-review-prompt-card');
+  await expect(
+    card.getByRole('button', { name: 'AI総評プロンプトをコピー' }),
+  ).toBeDisabled();
 });

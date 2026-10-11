@@ -43,14 +43,6 @@ impl ReceiptsStore {
             || self.any_tab_fetching()
     }
 
-    pub fn has_csv_preview(&self, tab: ReceiptsTab) -> bool {
-        let generation = self.session.generation.get();
-        self.tabs.with(|map| {
-            map.get(&(generation, tab))
-                .is_some_and(|entry| entry.csv.has_preview_rows())
-        })
-    }
-
     fn update_csv_state(
         &self,
         generation: Generation,
@@ -108,15 +100,21 @@ impl ReceiptsStore {
         started.then_some((generation, file))
     }
 
+    pub fn discard_csv(&self, tab: ReceiptsTab) {
+        let Some(generation) = self.current_generation() else {
+            return;
+        };
+        self.tabs.update(|map| {
+            let entry = map.entry((generation, tab)).or_default();
+            if entry.csv.discard() {
+                entry.csv_file = None;
+            }
+        });
+    }
+
     pub fn open_delete_confirm(&self, tab: ReceiptsTab) {
         if let Some(generation) = self.current_generation() {
             self.update_csv_state(generation, tab, |state| state.open_delete_confirm());
-        }
-    }
-
-    pub fn close_delete_confirm(&self, tab: ReceiptsTab) {
-        if let Some(generation) = self.current_generation() {
-            self.update_csv_state(generation, tab, |state| state.close_delete_confirm());
         }
     }
 

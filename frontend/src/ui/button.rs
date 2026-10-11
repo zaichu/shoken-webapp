@@ -14,8 +14,6 @@ pub enum ButtonVariant {
     SecondarySoft(ButtonSize),
     /// 赤塗りの危険確定ボタン(確認モーダル)
     DangerSolid(ButtonSize),
-    /// 文字だけの静かな危険操作(格下げした削除導線)
-    DangerGhost,
     /// 文字だけの静かな操作(絞り込みの解除など)
     Ghost,
     /// 一覧の開閉(収益グラフの全表示など)
@@ -44,8 +42,6 @@ pub enum ButtonSize {
     Sm,
     /// 標準
     Md,
-    /// レールに縦積みする全幅
-    Fill,
 }
 
 const BASE: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
@@ -73,9 +69,6 @@ impl ButtonVariant {
                 "border border-negative bg-negative text-text-inverse shadow-sm hover:border-negative-strong hover:bg-negative-strong",
                 size,
             ),
-            Self::DangerGhost => {
-                "inline-flex w-full items-center justify-center rounded-md px-3 py-2 text-sm font-semibold text-negative transition-colors hover:bg-negative-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-negative/50 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11".to_string()
-            }
             Self::Ghost => "text-sm text-text-deep hover:underline".to_string(),
             Self::Quiet => "chart-toggle-button".to_string(),
             Self::Prompt => "review-prompt-button".to_string(),
@@ -103,7 +96,6 @@ impl ButtonSize {
             Self::Xs => "px-2 py-1 text-xs max-sm:min-h-11",
             Self::Sm => "px-3 py-1.5 text-sm max-sm:min-h-11",
             Self::Md => "px-4 py-2 text-sm max-sm:min-h-11",
-            Self::Fill => "h-11 w-full px-3 text-sm max-sm:min-h-11",
         }
     }
 }
@@ -156,7 +148,7 @@ pub fn Button(
 pub fn LinkButton(
     variant: ButtonVariant,
     #[prop(into, optional)] class: Signal<String>,
-    href: &'static str,
+    #[prop(into)] href: String,
     children: Children,
 ) -> impl IntoView {
     let classes = move || button_classes(variant, &class.get());

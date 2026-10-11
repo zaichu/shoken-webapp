@@ -6,7 +6,7 @@ mod model;
 mod store;
 mod view;
 
-pub use view::ReceiptsPage;
+pub use view::{ReceiptsCsvDeletePage, ReceiptsCsvPage, ReceiptsPage};
 
 use rust_decimal::Decimal;
 use shared::format::format_number;
@@ -27,6 +27,24 @@ impl ReceiptsTab {
         ReceiptsTab::DomesticStock,
         ReceiptsTab::MutualFund,
     ];
+
+    /// `/receipts/csv?kind=…` の種別値
+    pub fn kind_param(self) -> &'static str {
+        match self {
+            Self::Dividend => "dividend",
+            Self::DomesticStock => "stock",
+            Self::MutualFund => "fund",
+        }
+    }
+
+    /// `?kind=` の値を種別に戻す。未知・未指定は配当金に倒す
+    pub fn from_kind_param(value: Option<&str>) -> Self {
+        match value {
+            Some("stock") => Self::DomesticStock,
+            Some("fund") => Self::MutualFund,
+            _ => Self::Dividend,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -99,11 +117,10 @@ pub struct ReceiptTabData {
 
 pub fn select_header_summary<T: Clone>(
     api_summary: Option<&T>,
-    has_preview: bool,
     search_query: &str,
     client_summary: T,
 ) -> T {
-    if let Some(summary) = api_summary.filter(|_| !has_preview && search_query.is_empty()) {
+    if let Some(summary) = api_summary.filter(|_| search_query.is_empty()) {
         summary.clone()
     } else {
         client_summary

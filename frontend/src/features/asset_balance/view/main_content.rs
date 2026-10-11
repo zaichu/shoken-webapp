@@ -4,26 +4,18 @@ use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::chart_plan;
-use crate::features::asset_balance::store::csv::csv_status_text;
 use crate::features::asset_balance::store::{FilteredPortfolio, filtered_portfolio};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
-use crate::support::csv_flow::CsvTabMeta;
-use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::csv_preview::CsvPreviewBanner;
-use crate::ui::csv_section::click_csv_input;
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
-use crate::ui::state::LoadingStrip;
 use leptos::prelude::*;
 
 #[component]
 pub(crate) fn AssetBalanceMainContent(
-    state: CsvTabMeta,
     rows: Vec<AssetBalanceRow>,
     fallback_totals: Option<AssetBalanceSummary>,
-    has_csv_file: bool,
-    csv_input_disabled: Memo<bool>,
     search_query: RwSignal<String>,
     search_count: RwSignal<(usize, usize)>,
     dividends: RwSignal<DividendMaps>,
@@ -32,34 +24,18 @@ pub(crate) fn AssetBalanceMainContent(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> impl IntoView {
-    if state.previewing {
-        show_all.set(false);
-        return view! {
-            <LoadingStrip text="CSVファイルを解析しています...".to_string() />
-        }
-        .into_any();
-    }
     let total_count = rows.len();
-    let status = csv_status_text(&state);
-    let preview_active = state.has_preview_rows();
     // 絞り込みはこの signal の1か所だけ。表示上限の適用より前に全取得行へかかる
-    let initial = filtered_portfolio(
-        &rows,
-        &search_query.get_untracked(),
-        lookup,
-        generation,
-        has_csv_file,
-    );
+    let initial = filtered_portfolio(&rows, &search_query.get_untracked(), lookup, generation);
     search_count.set((initial.views.len(), total_count));
     let filtered = RwSignal::new(initial);
     Effect::new(move |_| {
-        let next = filtered_portfolio(&rows, &search_query.get(), lookup, generation, has_csv_file);
+        let next = filtered_portfolio(&rows, &search_query.get(), lookup, generation);
         search_count.set((next.views.len(), total_count));
         filtered.set(next);
     });
     let no_rows = move || total_count == 0;
     view! {
-        {status.map(|text| view! { <LoadingStrip text=text.to_string() /> })}
         {move || {
             no_rows().then(|| {
                 show_all.set(false);
@@ -72,16 +48,12 @@ pub(crate) fn AssetBalanceMainContent(
                                 icon=EmptyStateIcon::Tray
                             >
                                 <div class="mt-4">
-                                    <Button
+                                    <LinkButton
                                         variant=ButtonVariant::Primary(ButtonSize::Md)
-                                        disabled=move || csv_input_disabled.get()
-                                        aria_disabled=move || csv_input_disabled.get()
-                                        on_click=move |_| {
-                                            click_csv_input("csv-file-input-assetbalance")
-                                        }
+                                        href="/assetbalance/csv"
                                     >
                                         "CSVを取り込む"
-                                    </Button>
+                                    </LinkButton>
                                 </div>
                             </EmptyState>
                         </div>
@@ -89,11 +61,6 @@ pub(crate) fn AssetBalanceMainContent(
                 }
             })
         }}
-        {(preview_active && !no_rows()).then(|| {
-            view! {
-                <CsvPreviewBanner description="一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。" />
-            }
-        })}
         // 入力欄は query 変更で作り直されるブロックの外に置く(再生成でフォーカスが落ちるため)
         <section id="assetbalance-list" hidden=no_rows>
             {move || {
@@ -107,7 +74,6 @@ pub(crate) fn AssetBalanceMainContent(
                         }
                         dividends=dividends
                         show_all=show_all
-                        preview=has_csv_file
                     />
                 }
             }}

@@ -260,7 +260,7 @@ test('矢印キーとHome/Endでタブを移動しフォーカスも追従する
   await expect(dividend).toHaveAttribute('aria-selected', 'true');
 });
 
-test('検索・集計・CSVは同じツールバーからキーボードで開閉できる', async ({ page }) => {
+test('検索・集計は同じツールバーからキーボードで開閉できる', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
   await openPanelDrawer(page);
@@ -268,8 +268,7 @@ test('検索・集計・CSVは同じツールバーからキーボードで開�
   await expect(toolbar).toBeVisible();
   const search = toolbar.getByTestId('receipt-search-toggle');
   const summary = toolbar.getByTestId('receipt-summary-compact-toggle');
-  const csv = toolbar.getByTestId('receipt-csv-toggle');
-  const buttons = [search, summary, csv];
+  const buttons = [search, summary];
   for (const button of buttons) {
     await expect(button).toHaveAttribute('aria-expanded', 'false');
     const id = await button.getAttribute('aria-controls');
@@ -282,7 +281,6 @@ test('検索・集計・CSVは同じツールバーからキーボードで開�
   );
   await expect(page.locator('#search-options-body')).toBeHidden();
   await expect(page.getByRole('region', { name: '集計情報', exact: true })).toBeHidden();
-  await expect(page.getByRole('region', { name: 'CSV取り込み・削除' })).toBeHidden();
   for (const button of buttons) {
     for (let step = 0; step < 50 && !(await button.evaluate((el) => el === document.activeElement)); step++) {
       await page.keyboard.press('Tab');
@@ -420,24 +418,24 @@ test('検索条件を変えても集計カードの開閉状態は保たれ、�
   await expect(summaryToggle).toHaveAttribute('aria-expanded', 'true');
 });
 
-test('CSV操作レールはスマホ幅で折り畳み開閉できる', async ({ page }) => {
+test('CSV管理ページは一覧のリンクから開き戻れる', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
-  await openPanelDrawer(page);
+  // CSV の操作は一覧のレールではなく専用ページに移った
+  await expect(page.getByTestId('csv-file-input')).toHaveCount(0);
 
-  const toggle = page.getByTestId('receipt-csv-toggle');
-  const region = page.getByRole('region', { name: 'CSV取り込み・削除' });
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(region).toBeHidden();
+  await page.getByRole('link', { name: 'CSV管理' }).click();
+  await expect(page).toHaveURL('/receipts/csv?kind=dividend');
+  const fileInput = page.getByTestId('csv-file-input');
+  await expect(fileInput).toBeAttached();
 
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(region).toBeVisible();
-  await expect(page.getByTestId('csv-file-input')).toBeAttached();
+  // 種別の切替は kind クエリで行う
+  await page.goto('/receipts/csv?kind=stock');
+  await expect(page.getByText('対象: 国内株式')).toBeVisible();
 
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(region).toBeHidden();
+  await page.getByRole('link', { name: '一覧に戻る' }).click();
+  await expect(page).toHaveURL('/receipts');
+  await expect(page.getByTestId('receipt-card-list')).toBeVisible();
 });
 
 test('640px境界でカードとテーブルが切り替わる', async ({ page }) => {
@@ -452,7 +450,7 @@ test('640px境界でカードとテーブルが切り替わる', async ({ page }
   await expect(page.getByTestId('receipt-card-list')).toBeHidden();
 });
 
-test('全件削除は確認モーダル経由で実行される', async ({ page }) => {
+test('全件削除は専用ページで確認して実行される', async ({ page }) => {
   let rows: unknown[] = [...DIVIDENDS];
   let deleteCount = 0;
   await page.route(/\/api\/v1\//, (route) =>
@@ -485,22 +483,25 @@ test('全件削除は確認モーダル経由で実行される', async ({ page 
       body: JSON.stringify(paginated(rows)),
     });
   });
-  await page.goto('/receipts');
+  await page.goto('/receipts/csv?kind=dividend');
 
-  await openPanelDrawer(page);
-  await page.getByTestId('receipt-csv-toggle').click();
-  await page.getByRole('button', { name: /全件削除/ }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText('この操作は取り消せません');
-  await expect(dialog).toContainText('3件');
+  // 削除ページを開いただけでは DELETE を送らない
+  await page.getByRole('link', { name: '保存済みデータを削除する画面へ' }).click();
+  await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
+  await expect(page.getByTestId('csv-delete-page')).toContainText(
+    'この操作は取り消せません',
+  );
+  await expect(page.getByTestId('csv-delete-count')).toContainText('3件');
   expect(deleteCount).toBe(0);
 
-  await dialog.getByRole('button', { name: '削除する' }).click();
-  await expect(page.getByText('データがありません')).toBeVisible();
+  await page.getByRole('button', { name: '削除する' }).click();
   expect(deleteCount).toBe(1);
+  await expect(page.getByTestId('csv-delete-done')).toContainText('削除しました');
+  await page.getByRole('link', { name: '一覧に戻る' }).click();
+  await expect(page.getByText('データがありません')).toBeVisible();
 });
 
-test('CSV取込の保存結果は一覧再取得後もレールが開いて見える', async ({ page }) => {
+test('CSV取込の保存結果は一覧再取得後もCSVページに見える', async ({ page }) => {
   const imported = { ...DIVIDENDS[0], id: '00000000-0000-0000-0000-000000000009' };
   const rows: unknown[] = [...DIVIDENDS];
   await page.route(/\/api\/v1\//, (route) =>
@@ -544,11 +545,8 @@ test('CSV取込の保存結果は一覧再取得後もレールが開いて見�
       body: JSON.stringify({ inserted: 1, skipped: 0, errors: [] }),
     });
   });
-  await page.goto('/receipts');
+  await page.goto('/receipts/csv?kind=dividend');
 
-  await openPanelDrawer(page);
-  const toggle = page.getByTestId('receipt-csv-toggle');
-  await toggle.click();
   const fileInput = page.getByTestId('csv-file-input');
   // バックグラウンドの他タブ取得中は input が disabled で、change イベントが捨てられる。
   // setInputFiles は enabled を待たないので、先に有効化を待つ
@@ -564,5 +562,4 @@ test('CSV取込の保存結果は一覧再取得後もレールが開いて見�
   const notice = page.getByTestId('csv-save-result-notice');
   await expect(notice).toBeVisible();
   await expect(notice).toContainText('1件反映');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 });
