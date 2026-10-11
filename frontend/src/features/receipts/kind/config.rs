@@ -70,13 +70,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
                 ColumnAlign::Left,
                 CardRole::Date,
             ),
-            card_col(
-                "商品",
-                "7.5em",
-                ColumnTier::Wider,
-                ColumnAlign::Left,
-                CardRole::Hidden,
-            ),
+            col("商品", "7.5em", ColumnTier::Wider, ColumnAlign::Left),
             card_col(
                 "口座",
                 "7.5em",

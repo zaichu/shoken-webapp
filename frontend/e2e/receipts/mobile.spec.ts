@@ -197,16 +197,18 @@ test('カードは開閉せず見出しと全項目を最初から表示する',
   await expect(card.getByText('2024/03/15', { exact: true })).toBeVisible();
   await expect(card.getByText('楽天証券', { exact: true })).toBeVisible();
 
-  // 見出し・タブで分かる項目を除く残り全項目を、表の列順で1項目1行に出す
+  // 見出しを除く残り全項目を、表の列順で1項目1行に出す
   const grid = card.locator('dl');
-  const labels = ['1株配当', '数量', '配当金', '税額', '税引後'];
+  const labels = ['商品', '1株配当', '数量', '配当金', '税額', '税引後'];
   await expect(grid.locator('dt')).toHaveCount(labels.length);
   for (const label of labels) {
     await expect(grid.locator('dt', { hasText: label })).toBeVisible();
   }
-  for (const label of ['商品', '銘柄コード', '入金日', '口座', '銘柄名']) {
+  for (const label of ['銘柄コード', '入金日', '口座', '銘柄名']) {
     await expect(grid.locator('dt', { hasText: label })).toHaveCount(0);
   }
+  // 商品は行ごとの値なのでカード本文に出す
+  await expect(grid.getByText('特定口座', { exact: true })).toBeVisible();
 
   await expect(grid.getByText('¥1,594', { exact: true })).toBeVisible();
   const clipped = await grid
@@ -411,7 +413,7 @@ test('検索条件を変えても集計カードの開閉状態は保たれ、�
   // 行カードは開閉しないため絞り込み後も全項目が見えている
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.locator('dl')).toBeVisible();
-  await expect(card.locator('dt')).toHaveCount(5);
+  await expect(card.locator('dt')).toHaveCount(6);
   await expect(
     cardList.getByRole('button', { name: /1件 税引後 ¥1,594/ }),
   ).toHaveAttribute('aria-expanded', 'false');

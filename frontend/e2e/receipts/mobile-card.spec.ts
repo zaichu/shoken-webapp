@@ -145,7 +145,7 @@ test('CSVプレビューで表示内容が同じ行でもカードは個別に�
     await expect(
       card.getByRole('button', { name: 'トヨタ自動車(7203) をコピー' }),
     ).toBeVisible();
-    await expect(card.locator('dl').locator('dt')).toHaveCount(5);
+    await expect(card.locator('dl').locator('dt')).toHaveCount(6);
     await expect(card.locator('dl').getByText('¥2,391')).toBeVisible();
   }
 });

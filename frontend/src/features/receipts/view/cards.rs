@@ -88,7 +88,7 @@ pub(crate) fn card_detail_value(
     }
 }
 
-// 見出し(銘柄コード・銘柄名・日付・口座)とタブで分かる列は除き、
+// 見出し(銘柄コード・銘柄名・日付・口座)を除き、
 // 役割のない列を表の列順で全部出す
 pub(crate) fn card_row_data(
     tab: ReceiptsTab,
@@ -105,10 +105,10 @@ pub(crate) fn card_row_data(
     };
     CardRowData {
         name: card_detail_value(tab, columns[fields.name].header, fields.name, cells),
-        code: fields.code.and_then(|index| {
-            let code = crate::features::receipts::model::normalize_security_code(&text(index));
-            (!code.is_empty()).then_some(code)
-        }),
+        // コード列を持つタブでは空コードも欠損値として見出しに出す
+        code: fields
+            .code
+            .map(|index| crate::features::receipts::model::normalize_security_code(&text(index))),
         date: text(fields.date),
         account: text(fields.account),
         details: order
@@ -188,7 +188,7 @@ fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
                             <CodeBadge flush=true testid="receipt-card-code">
                                 <SecurityCodeLink
                                     value=code
-                                    class="font-semibold no-underline hover:underline".to_string()
+                                    class="min-h-11 min-w-11 items-center justify-center font-semibold no-underline hover:underline".to_string()
                                 />
                             </CodeBadge>
                         }

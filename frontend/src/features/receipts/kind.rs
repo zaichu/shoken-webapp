@@ -583,7 +583,7 @@ impl ColumnAlign {
 }
 
 /// モバイルカードでの列の役割。None が本文の明細行、
-/// Name・Date・Account・Code は見出し、Hidden はタブで分かるためカードに出さない
+/// Name・Date・Account・Code は見出し
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CardRole {
     None,
@@ -591,7 +591,6 @@ pub(crate) enum CardRole {
     Date,
     Account,
     Code,
-    Hidden,
 }
 
 /// 1列分の表示属性。列の追加・並び替えはこの組で編集する

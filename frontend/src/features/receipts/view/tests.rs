@@ -405,11 +405,11 @@ fn card_row_data_maps_card_fields() {
     assert_eq!(card.code.as_deref(), Some("9432"));
     assert_eq!(card.date, "2024/06/21");
     assert_eq!(card.account, "特定");
-    // 見出し(銘柄コード・銘柄名・入金日・口座)とタブで分かる商品を除き、残り5列を表の列順で入れる
-    assert_eq!(card.details.len(), 5);
-    assert_eq!(card.details[0].label, "1株配当");
+    // 見出し(銘柄コード・銘柄名・入金日・口座)を除き、商品を含む残り6列を表の列順で入れる
+    assert_eq!(card.details.len(), 6);
+    assert_eq!(card.details[0].label, "商品");
     assert!(card.details.iter().all(|detail| {
-        !["商品", "銘柄コード", "銘柄名", "入金日", "口座"].contains(&detail.label.as_str())
+        !["銘柄コード", "銘柄名", "入金日", "口座"].contains(&detail.label.as_str())
     }));
     assert!(card.details.iter().all(|detail| match &detail.value {
         CardDetailValue::Text { text, negative } => {
@@ -541,6 +541,25 @@ fn card_header_carries_code_badge_value_and_copy_name() {
         &card.name,
         CardDetailValue::CopyName { display, copy } if display == copy
     ));
+
+    // コード列を持つタブで空コードは欠損値としてバッジに残す
+    let row: crate::api::dto::Dividend = serde_json::from_value(serde_json::json!({
+        "id": "no-code", "settlement_date": "2024-06-21", "product": "投資信託",
+        "account": "特定", "security_code": "", "security_name": "コードなし銘柄",
+        "unit_price": 5, "shares": 100, "dividends_before_tax": 500, "taxes": 100,
+        "net_amount_received": 400, "created_at": "", "updated_at": ""
+    }))
+    .unwrap();
+    let rows = vec![Saved(ReceiptItem::Dividend(row))];
+    let cells = rows[0].cells();
+    let order = column_order(ReceiptsTab::Dividend, &rows, "");
+    let card = card_row_data(
+        ReceiptsTab::Dividend,
+        &cells,
+        &order,
+        ReceiptsTab::Dividend.card_fields(),
+    );
+    assert_eq!(card.code.as_deref(), Some(""));
 }
 
 #[test]
@@ -685,7 +704,7 @@ fn card_row_data_details_follow_column_reorder() {
         ReceiptsTab::Dividend.card_fields(),
     );
     // 口座は前に出ても見出し側の項目なので明細には入らない
-    assert_eq!(card.details[0].label, "1株配当");
+    assert_eq!(card.details[0].label, "商品");
     assert!(card.details.iter().all(|detail| detail.label != "口座"));
     assert!(matches!(
         &card.name,
