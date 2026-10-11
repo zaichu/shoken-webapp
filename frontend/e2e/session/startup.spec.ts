@@ -145,7 +145,7 @@ test('セッション確認が遅いときは読み込み表示のまま待つ',
 
   await page.goto('/');
   await expect(
-    page.getByRole('banner').getByText('読み込み中...'),
+    page.locator('#main-content').getByText('読み込み中...'),
   ).toBeVisible();
   release();
   await expect(page.getByText(ALICE.name)).toBeVisible();

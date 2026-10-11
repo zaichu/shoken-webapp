@@ -152,13 +152,11 @@ test('デスクトップで開いたパネルがモバイル幅での再訪時�
   await expect(page.getByTestId('search-card')).toBeHidden();
 });
 
-test('取引明細の見出しはsr-onlyのh1だけ', async ({ page }) => {
+test('取引明細の見出しはページ枠のh1に1つだけ', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/receipts');
   await expect(page.getByRole('table')).toBeVisible();
   const h1 = page.getByRole('heading', { level: 1, name: '取引明細' });
   await expect(h1).toHaveCount(1);
-  await expect(h1).toHaveClass(/sr-only/);
-  const box = (await h1.boundingBox())!;
-  expect(box.height).toBeLessThanOrEqual(2);
+  await expect(h1).toBeVisible();
 });

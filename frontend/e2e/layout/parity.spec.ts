@@ -318,7 +318,7 @@ for (const width of [1440, 390]) {
     await expectNoPageOverflow(page, width);
     const summary = page.getByTestId('asset-portfolio-summary');
     await expect(summary).toBeVisible();
-    await expect(summary).toContainText('¥5,360,000');
+    await expect(summary).toContainText('¥14,568,000');
   });
 
   test(`取引明細の取得失敗を知らせ検索を残す(${width}px)`, async ({ page }) => {

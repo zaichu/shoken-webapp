@@ -71,21 +71,20 @@ pub fn BottomNav() -> impl IntoView {
     }
 }
 
+/// 削除確認の開閉をページをまたいで共有する。メニューはページ枠内で遷移ごとに
+/// 作り直されるため、結果表示中にアンマウントされないようダイアログはシェルが持つ
+#[derive(Clone, Copy)]
+pub(crate) struct AccountDeleteConfirm(pub(crate) RwSignal<bool>);
+
 /// ページ枠の右上に置くアカウント導線(ログイン/メニュー)。アカウント削除の確認だけを扱う
 #[component]
 pub fn AccountMenu() -> impl IntoView {
     let session = use_session();
     let path = current_path();
-    let delete_confirm_open = RwSignal::new(false);
-    let delete_error = RwSignal::new(Option::<String>::None);
-    let deleting = RwSignal::new(false);
-    let deleting_memo = Memo::new(move |_| deleting.get());
+    let delete_confirm_open = use_context::<AccountDeleteConfirm>()
+        .map(|confirm| confirm.0)
+        .unwrap_or_else(|| RwSignal::new(false));
     let on_login_page = move || pathname_of(&path.get()) == "/login";
-    Effect::new(move |_| {
-        if delete_confirm_open.get() {
-            delete_error.set(None);
-        }
-    });
     view! {
         <div class="flex shrink-0 items-center gap-3">
             {move || {
@@ -118,6 +117,27 @@ pub fn AccountMenu() -> impl IntoView {
                 }
             }}
         </div>
+    }
+}
+
+/// 削除確認ダイアログ本体。ログイン画面への遷移でメニューが消えても結果表示を残すため、
+/// App がシェル直下に1つだけ描く
+#[component]
+pub fn AccountDeleteDialog() -> impl IntoView {
+    let Some(delete_confirm_open) = use_context::<AccountDeleteConfirm>().map(|confirm| confirm.0)
+    else {
+        return ().into_any();
+    };
+    let session = use_session();
+    let delete_error = RwSignal::new(Option::<String>::None);
+    let deleting = RwSignal::new(false);
+    let deleting_memo = Memo::new(move |_| deleting.get());
+    Effect::new(move |_| {
+        if delete_confirm_open.get() {
+            delete_error.set(None);
+        }
+    });
+    let content = view! {
         {move || {
             if !delete_confirm_open.get() {
                 return ().into_any();
@@ -147,7 +167,8 @@ pub fn AccountMenu() -> impl IntoView {
             }
                 .into_any()
         }}
-    }
+    };
+    content.into_any()
 }
 
 pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {

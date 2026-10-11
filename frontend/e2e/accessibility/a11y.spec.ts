@@ -579,7 +579,7 @@ test('フォーカスが見えてスキップリンクが使える', async ({ pa
   expect(skipBox).not.toBeNull();
   expect(skipBox!.height).toBeGreaterThan(24);
   await page.keyboard.press('Tab');
-  await expect(page.locator('header a[href="/"]').first()).toBeFocused();
+  await expect(page.getByRole('button', { name: 'メニュー' })).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(skip).toBeFocused();
 

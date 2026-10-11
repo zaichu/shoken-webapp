@@ -5,7 +5,7 @@ use crate::features::not_found::NotFoundPage;
 use crate::features::receipts::{ReceiptsPage, ReceiptsStore};
 use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
-use crate::ui::site::{BottomNav, SiteFooter};
+use crate::ui::site::{AccountDeleteConfirm, AccountDeleteDialog, BottomNav, SiteFooter};
 use crate::ui::state::Loading;
 use leptos::ev;
 use leptos::prelude::*;
@@ -217,6 +217,7 @@ pub fn App() -> impl IntoView {
     provide_context(CurrentPath(path));
     provide_context(AppOwner(Owner::current().unwrap_or_default()));
     provide_context(PageStates::default());
+    provide_context(AccountDeleteConfirm(RwSignal::new(false)));
     let route = Memo::new(move |_| route_for_path(pathname_of(&path.get())));
 
     // 同一オリジンのリンクをクリック遷移に変え、wasm とセッション確認のやり直しを省く
@@ -331,6 +332,7 @@ pub fn App() -> impl IntoView {
                 <SiteFooter />
             </main>
             <BottomNav />
+            <AccountDeleteDialog />
         </div>
     }
 }
