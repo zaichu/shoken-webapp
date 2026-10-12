@@ -2,6 +2,7 @@ mod action_bar;
 mod cards;
 mod csv_page;
 pub(crate) mod main_content;
+#[allow(dead_code)]
 mod pickers;
 mod summary;
 mod table;
