@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey};
 use crate::support::list_search::SearchOption;
 use crate::ui::choice::{Chip, ChipVariant, FieldTrigger, OptionButton, Select};

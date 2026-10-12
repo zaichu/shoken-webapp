@@ -9,11 +9,16 @@ mod tabs;
 
 pub use action_bar::{ReceiptsActionBar, ReceiptsPcSearchBar};
 pub use csv_page::{ReceiptsCsvDeletePage, ReceiptsCsvPage};
-pub use main_content::{ReceiptsMainContent, utility_display_rows};
-pub use pickers::next_year_option_index;
+pub use main_content::ReceiptsMainContent;
 pub use summary::SummaryStrip;
 pub use table::ReceiptTable;
 pub use tabs::{ReceiptsTabButton, TabPanel};
+
+#[cfg(test)]
+pub use main_content::utility_display_rows;
+
+#[cfg(test)]
+pub use pickers::next_year_option_index;
 
 use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
