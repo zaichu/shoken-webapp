@@ -7,7 +7,7 @@ fn PcHeader(links: Option<Children>) -> impl IntoView {
     view! {
         <header class="pc-header no-print hidden lg:flex">
             <div class="page-gutter flex items-center gap-8 h-14">
-                <a href="/" class="flex items-center gap-2 text-decoration-none" aria-label="証券Web トップ">
+                <a href="/" class="flex items-center gap-2 no-underline" aria-label="証券Web トップ">
                     <div class="header-logo" aria-hidden="true">
                         <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                             <rect x="1" y="1" width="24" height="24" rx="6" fill="#0F2A4A"/>

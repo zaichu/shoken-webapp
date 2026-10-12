@@ -500,7 +500,7 @@
   }
 
   .receipt-compact-row a {
-    @apply block p-4 text-decoration-none text-inherit;
+    @apply block p-4 no-underline text-inherit;
   }
 
   .receipt-compact-main {
@@ -619,11 +619,11 @@
   }
 
   .page-secondary-link {
-    @apply inline-flex h-9 items-center px-4 text-sm font-medium text-text-soft border border-border-strong bg-surface rounded-lg text-decoration-none hover:bg-surface-sunken hover:text-text-deep transition-colors;
+    @apply inline-flex h-9 items-center px-4 text-sm font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors;
   }
 
   .page-secondary-link-sm {
-    @apply inline-flex h-8 items-center px-3 text-xs font-medium text-text-soft border border-border-strong bg-surface rounded-lg text-decoration-none hover:bg-surface-sunken hover:text-text-deep transition-colors;
+    @apply inline-flex h-8 items-center px-3 text-xs font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors;
   }
 
   /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く */
