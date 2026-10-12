@@ -205,7 +205,7 @@ test('マイナスの損益は符号と色を保ち、税引後だけが負に�
     card.locator('.receipt-compact-net span[data-negative="true"]'),
   ).toHaveCount(1);
   // 売却額は損益ではないので負の装飾を付けない
-  await expect(card.locator('.receipt-compact-primary')).toContainText('¥50,000');
+  await expect(card.locator('.receipt-compact-primary')).toContainText('¥55,000');
   await expect(
     card.locator('.receipt-compact-primary span[data-negative]'),
   ).toHaveCount(0);

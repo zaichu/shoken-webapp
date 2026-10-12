@@ -217,7 +217,13 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         details,
     } = card;
     let labels = tab.summary_labels();
-    let (primary_value, primary_negative) = compact_value(&details, labels[0]);
+    // 2行目の主表示は税引後と対になる取引総額(損益ではないので負の装飾を付けない)
+    let (primary_label, primary_detail) = match tab {
+        ReceiptsTab::Dividend => ("配当", "配当金"),
+        ReceiptsTab::DomesticStock => ("売却額", "売却額"),
+        ReceiptsTab::MutualFund => ("解約額", "解約額"),
+    };
+    let (primary_value, primary_negative) = compact_value(&details, primary_detail);
     let (net_value, net_negative) = compact_value(&details, labels[2]);
     let (quantity, _) = compact_value(&details, "数量");
     // 投資信託の数量は口数
@@ -225,11 +231,6 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         "口"
     } else {
         "株"
-    };
-    let primary_label = if tab == ReceiptsTab::Dividend {
-        "配当"
-    } else {
-        labels[0]
     };
     let name = compact_name(name);
 
