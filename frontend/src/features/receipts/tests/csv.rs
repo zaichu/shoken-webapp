@@ -906,39 +906,3 @@ fn ensure_keeps_entries_when_nothing_is_stale() {
         );
     });
 }
-
-#[test]
-fn utility_display_rows_returns_rows_only_for_ready_tab() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::Dividend;
-        let saved = crate::testing::receipts::dividends();
-        let store = test_store(
-            &session,
-            HashMap::from([
-                (
-                    (generation, tab),
-                    TabState::Ready(ReceiptTabData {
-                        rows: saved.clone(),
-                        total: None,
-                        summary: None,
-                        truncated: false,
-                    }),
-                ),
-                (
-                    (generation, ReceiptsTab::DomesticStock),
-                    TabState::Failed("取得失敗".to_string()),
-                ),
-            ]),
-            HashMap::new(),
-        );
-        let utility_display_rows = crate::features::receipts::view::utility_display_rows;
-
-        assert_eq!(utility_display_rows(store, tab), saved);
-        assert!(utility_display_rows(store, ReceiptsTab::DomesticStock).is_empty());
-        assert!(utility_display_rows(store, ReceiptsTab::MutualFund).is_empty());
-    });
-}

@@ -1,16 +1,12 @@
 use super::TAB_IDS;
-use super::workspace::ReceiptMainColumn;
+use crate::features::receipts::filter::filter_receipts;
+use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant, Loading};
-use crate::ui::tabs::TabButton;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-const TAB_COUNT_BASE: &str = "inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums";
-const TAB_COUNT_ACTIVE: &str = "border border-text-inverse/20 bg-surface text-ink";
-const TAB_COUNT_INACTIVE: &str = "border border-border-subtle bg-surface text-text-soft";
-
-pub(crate) fn next_tab_index(current: usize, key: &str) -> Option<usize> {
+pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
     let count = TAB_IDS.len();
     match key {
         "ArrowRight" => Some((current + 1) % count),
@@ -33,35 +29,25 @@ fn focus_tab(index: usize) {
     }
 }
 
-pub(crate) fn scroll_tab_into_view(tab: ReceiptsTab) {
-    let Some(element) = web_sys::window()
-        .and_then(|window| window.document())
-        .and_then(|document| document.get_element_by_id(&format!("tab-{}", TAB_IDS[tab as usize])))
-    else {
-        return;
-    };
-    let options = web_sys::ScrollIntoViewOptions::new();
-    options.set_block(web_sys::ScrollLogicalPosition::Nearest);
-    options.set_inline(web_sys::ScrollLogicalPosition::Nearest);
-    element.scroll_into_view_with_scroll_into_view_options(&options);
-}
-
 #[component]
-pub(crate) fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
     let label = tab.label();
     let selected = store;
     let keyed = store;
     let clicked = store;
-    let counted = store;
     let counted_store = store;
     view! {
-        <TabButton
+        <button
+            type="button"
+            role="tab"
             id=format!("tab-{slug}")
-            controls=format!("tabpanel-{slug}")
-            selected=Signal::derive(move || selected.active_tab.get() == tab)
-            on_select=move || clicked.select_tab(tab)
-            on_keydown=move |event| {
+            aria-controls=format!("tabpanel-{slug}")
+            aria-selected=move || (selected.active_tab.get() == tab).to_string()
+            tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
+            class="receipts-tab"
+            on:click=move |_| clicked.select_tab(tab)
+            on:keydown=move |event| {
                 let current = ReceiptsTab::ALL
                     .iter()
                     .position(|item| *item == keyed.active_tab.get_untracked())
@@ -76,28 +62,22 @@ pub(crate) fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl 
             {label}
             <span
                 data-testid={format!("tab-count-{slug}")}
-                class=move || {
-                    format!(
-                        "{TAB_COUNT_BASE} {}",
-                        if counted.active_tab.get() == tab {
-                            TAB_COUNT_ACTIVE
-                        } else {
-                            TAB_COUNT_INACTIVE
-                        }
-                    )
-                }
+                class="receipts-tab-count"
             >
                 {move || match counted_store.tab_state(tab) {
-                    TabState::Ready(data) => data.rows.len().to_string(),
+                    TabState::Ready(data) => {
+                        let query = counted_store.search.with(|s| s.query.clone());
+                        filter_receipts(tab, &data.rows, &query).len().to_string()
+                    }
                     TabState::Loading | TabState::Failed(_) => "—".to_string(),
                 }}
             </span>
-        </TabButton>
+        </button>
     }
 }
 
 #[component]
-pub(crate) fn TabPanel(
+pub fn TabPanel(
     store: ReceiptsStore,
     tab: ReceiptsTab,
     #[prop(optional)] loading: bool,
@@ -123,7 +103,7 @@ pub(crate) fn TabPanel(
                 if !store.is_authenticated() {
                     return view! { <Loading /> }.into_any();
                 }
-                view! { <ReceiptMainColumn store=store tab=tab /> }.into_any()
+                view! { <ReceiptsMainContent store=store tab=tab /> }.into_any()
             }}
         </div>
     }

@@ -103,11 +103,7 @@ test('配当金タブにデータがないとき EmptyState が表示される',
   await page.goto('/receipts');
   await expect(receiptLoadingSection(page)).toBeHidden();
 
-  await expect(
-    page.getByTestId('receipts-workspace').getByText('データがありません'),
-  ).toBeVisible();
-  // 絞り込み対象がないので検索オプションは出さない
-  await expect(page.getByTestId('search-card')).toHaveCount(0);
+  await expect(page.getByTestId('receipts-workspace').getByText('データがありません')).toBeVisible();
   // EmptyState の CTA から CSV 管理ページに進める
   const cta = page.getByRole('link', { name: 'CSVを取り込む' });
   await expect(cta).toBeVisible();

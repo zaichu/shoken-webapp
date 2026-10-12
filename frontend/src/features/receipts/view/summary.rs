@@ -5,7 +5,7 @@ use leptos::prelude::*;
 use rust_decimal::Decimal;
 use shared::format::format_currency;
 
-fn profit_tone(value: Decimal) -> StatTone {
+pub fn profit_tone(value: Decimal) -> StatTone {
     if value < Decimal::ZERO {
         StatTone::Loss
     } else {
@@ -13,7 +13,7 @@ fn profit_tone(value: Decimal) -> StatTone {
     }
 }
 
-pub(crate) fn header_summary(
+pub fn header_summary(
     tab: ReceiptsTab,
     data: &ReceiptTabData,
     query: &str,
@@ -37,7 +37,7 @@ pub(crate) fn header_summary(
         .collect()
 }
 
-pub(crate) fn kpi_value_color(tone: StatTone) -> &'static str {
+pub fn kpi_value_color(tone: StatTone) -> &'static str {
     match tone {
         StatTone::Loss => "text-negative",
         StatTone::Neutral => "text-text",
@@ -45,79 +45,44 @@ pub(crate) fn kpi_value_color(tone: StatTone) -> &'static str {
 }
 
 #[component]
-pub(crate) fn SummaryStrip(
+pub fn SummaryStrip(
     items: Vec<(&'static str, Decimal, StatTone)>,
     expanded: RwSignal<bool>,
 ) -> impl IntoView {
-    let title = "集計情報";
-    let mobile_expanded = expanded;
-    let mobile_body_id = "receipt-summary-mobile-body";
-    let mobile_items = items.clone();
+    let _ = expanded;
     view! {
-            <section
-                data-testid="receipt-summary-strip"
-                role="region"
-                aria-label=title
-                class=move || {
-                    if mobile_expanded.get() {
-                        "sum-card mb-3".to_string()
-                    } else {
-                        "sum-card mb-3 max-sm:hidden".to_string()
-                    }
-                }
-            >
-                <header class="sum-header">
-                    <strong>{title}</strong>
-                </header>
-                <div class="hidden sm:block" data-testid="receipt-summary-desktop">
-                <dl class="kpis" data-testid="kpi-grid">
-                    {items
-                        .into_iter()
-                        .map(|(label, value, tone)| {
-                            let negative = matches!(tone, StatTone::Loss);
-                            view! {
-                                <div class="kpi">
-                                    <dt>{label}</dt>
-                                    <dd class="kpi-value">
-                                        <Amount
-                                            text=format_currency(value)
-                                            class=format!("kpi-amount {}", kpi_value_color(tone))
-                                            negative=negative
-                                        />
-                                    </dd>
-                                </div>
-                            }
-                        })
-                        .collect_view()}
-                </dl>
-                </div>
-                <div
-                    id=mobile_body_id
-                    class="sm:hidden sum-mobile"
-                    hidden=move || !mobile_expanded.get()
-                >
-                    {move || mobile_expanded.get().then(|| view! {
-                        <div class="flex flex-col gap-2">
-                            {mobile_items
-                                .clone()
-                                .into_iter()
-    .map(|(label, value, tone)| {
-                                    let negative = matches!(tone, StatTone::Loss);
-                                    view! {
-                                        <div class="flex items-baseline justify-between gap-3">
-                                            <span class="text-sm text-text-muted">{label}</span>
-                                            <Amount
-                                                text=format_currency(value)
-                                                class=format!("text-base font-bold {}", kpi_value_color(tone))
-                                                negative=negative
-                                            />
-                                        </div>
-                                    }
-                                })
-                                .collect_view()}
-                        </div>
-                    })}
-                </div>
-            </section>
-        }
+        <section
+            data-testid="receipt-summary-strip"
+            role="region"
+            aria-label="集計"
+            class="receipt-summary"
+        >
+            <dl class="receipt-summary-grid" data-testid="kpi-grid">
+                {items
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value, tone))| {
+                        let negative = matches!(tone, StatTone::Loss);
+                        let item_class = if index == 2 {
+                            "receipt-summary-item receipt-summary-item-primary"
+                        } else {
+                            "receipt-summary-item"
+                        };
+                        view! {
+                            <div class=item_class>
+                                <dt>{label}</dt>
+                                <dd>
+                                    <Amount
+                                        text=format_currency(value)
+                                        class=format!("receipt-summary-amount {}", kpi_value_color(tone))
+                                        negative=negative
+                                    />
+                                </dd>
+                            </div>
+                        }
+                    })
+                    .collect_view()}
+            </dl>
+        </section>
+    }
 }

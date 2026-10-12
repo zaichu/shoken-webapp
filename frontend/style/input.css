@@ -3,10 +3,12 @@
 @source "../src/**/*.rs";
 
 @theme {
-  --color-page: #f6f7f4;
+  --color-page: #f4f5f7;
   --color-surface: var(--color-white);
-  --color-surface-sunken: var(--color-slate-50);
-  --color-surface-raised: var(--color-slate-100);
+  --color-surface-sunken: #f9fafb;
+  --color-surface-raised: #f8f9fb;
+  --color-segment: #e9ebef;
+  --color-row-group: #fbfbfc;
   --color-fill: var(--color-slate-200);
   --color-fill-strong: var(--color-slate-400);
   --color-scrollbar-track: #e5e7eb;
@@ -17,16 +19,16 @@
   --color-night-soft: var(--color-slate-700);
   --color-scrim: var(--color-black);
 
-  --color-ink: var(--color-slate-950);
-  --color-ink-hover: var(--color-slate-800);
-  --color-text: var(--color-slate-800);
+  --color-ink: #0f172a;
+  --color-ink-hover: #1e293b;
+  --color-text: #111827;
   --color-text-deep: #111827;
-  --color-text-strong: var(--color-slate-900);
-  --color-text-soft: var(--color-slate-700);
-  --color-text-muted: var(--color-slate-600);
-  --color-text-subtle: var(--color-slate-500);
-  --color-text-quiet: #64748b;
-  --color-text-faint: var(--color-slate-400);
+  --color-text-strong: #111827;
+  --color-text-soft: #4b5563;
+  --color-text-muted: #6b7280;
+  --color-text-subtle: #6b7280;
+  --color-text-quiet: #6b7280;
+  --color-text-faint: #9ca3af;
   --color-text-inverse: var(--color-white);
   --color-text-inverse-muted: var(--color-slate-300);
 
@@ -35,43 +37,42 @@
   --color-icon: var(--color-gray-400);
   --color-icon-hover: var(--color-gray-600);
 
-  --color-border: rgba(15, 23, 42, 0.12);
-  --color-border-faint: var(--color-slate-100);
-  --color-border-subtle: var(--color-slate-200);
-  --color-border-strong: var(--color-slate-300);
-  --color-border-xstrong: var(--color-slate-400);
-  --color-border-bold: var(--color-slate-500);
+  --color-border: #e5e7eb;
+  --color-border-faint: #f0f1f3;
+  --color-border-subtle: #e5e7eb;
+  --color-border-strong: #d1d5db;
+  --color-border-xstrong: #9ca3af;
+  --color-border-bold: #6b7280;
 
-  /* 置換前の描画色を維持するため hex で固定している */
-  --color-negative: #b91c1c;
-  --color-negative-vivid: var(--color-red-700);
-  --color-negative-strong: var(--color-red-800);
-  --color-negative-soft: var(--color-red-50);
-  --color-negative-border: var(--color-red-200);
+  --color-negative: #c0362c;
+  --color-negative-vivid: #c0362c;
+  --color-negative-strong: #9f2d25;
+  --color-negative-soft: #fdf2f2;
+  --color-negative-border: #f1c7c3;
 
-  --color-positive: var(--color-emerald-700);
-  --color-positive-strong: var(--color-emerald-600);
-  --color-positive-soft: var(--color-emerald-50);
-  --color-positive-softer: var(--color-emerald-100);
-  --color-positive-border: var(--color-emerald-200);
+  --color-positive: #0b7a4b;
+  --color-positive-strong: #0b7a4b;
+  --color-positive-soft: #effaf5;
+  --color-positive-softer: #dcf5e9;
+  --color-positive-border: #b9e7d1;
 
-  --color-accent: #c08403;
-  --color-accent-bright: var(--color-amber-500);
-  --color-accent-ring: var(--color-amber-400);
-  --color-accent-strong: var(--color-amber-600);
-  --color-accent-text: var(--color-amber-900);
-  --color-accent-text-soft: var(--color-amber-800);
-  --color-accent-soft: var(--color-amber-50);
-  --color-accent-softer: var(--color-amber-100);
-  --color-accent-border: var(--color-amber-200);
-  --color-accent-border-strong: var(--color-amber-300);
+  --color-accent: #1d4ed8;
+  --color-accent-bright: #1d4ed8;
+  --color-accent-ring: #1d4ed8;
+  --color-accent-strong: #1d4ed8;
+  --color-accent-text: #1d4ed8;
+  --color-accent-text-soft: #1d4ed8;
+  --color-accent-soft: #eff4ff;
+  --color-accent-softer: #e5edff;
+  --color-accent-border: #a9bff4;
+  --color-accent-border-strong: #7396ea;
 
-  --color-info: var(--color-blue-700);
-  --color-info-strong: var(--color-blue-900);
-  --color-info-deep: var(--color-blue-800);
-  --color-info-soft: var(--color-blue-50);
-  --color-info-border: var(--color-blue-200);
-  --color-info-focus: var(--color-blue-500);
+  --color-info: #1d4ed8;
+  --color-info-strong: #1e3a8a;
+  --color-info-deep: #1e3a8a;
+  --color-info-soft: #eff4ff;
+  --color-info-border: #a9bff4;
+  --color-info-focus: #1d4ed8;
 
   /* 保有銘柄の識別色。隣り合う並びで色相が離れるよう配列し、
      マイナス損益と区別がつくよう赤系は入れない */
@@ -112,7 +113,7 @@
 
   --container-wide: 1680px;
 
-  --font-sans: 'BIZ UDPGothic', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+  --font-sans: 'Noto Sans JP', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
 }
 
 @layer base {
@@ -122,14 +123,9 @@
 
   body {
     font-family: var(--font-sans);
-    line-height: 1.6;
+    line-height: 1.5;
     color: var(--color-text-deep);
     background-color: var(--color-page);
-    background-image:
-      linear-gradient(color-mix(in srgb, var(--color-night) 3.5%, transparent) 1px, transparent 1px),
-      linear-gradient(90deg, color-mix(in srgb, var(--color-night) 2.5%, transparent) 1px, transparent 1px),
-      linear-gradient(180deg, #f9faf7 0%, #eef2f3 100%);
-    background-size: 44px 44px, 44px 44px, 100% 100%;
     font-feature-settings: "palt" 1;
   }
 
@@ -284,6 +280,310 @@
     @apply flex h-9 w-9 items-center justify-center rounded-md border border-ink/15 bg-surface-raised text-sm font-black text-text-deep max-sm:hidden;
   }
 
+  .pc-header {
+    @apply border-b border-ink/10 bg-surface sticky top-0 z-40;
+  }
+
+  .pc-nav-link {
+    @apply flex h-14 items-center px-3.5 text-sm text-text-soft no-underline transition-colors hover:bg-surface-sunken hover:text-text-deep;
+  }
+
+  .pc-nav-link[aria-current] {
+    @apply font-bold text-ink;
+    box-shadow: inset 0 -2px 0 var(--color-accent-strong);
+  }
+
+  /* 取引明細の本文列。スマホは全幅のまま、PC だけページ枠の余白と最大幅を持つ */
+  .receipts-gutter {
+    @apply mx-auto w-full;
+  }
+
+  @media (width >= 64rem) {
+    .receipts-gutter {
+      max-width: 96rem;
+      padding-inline: clamp(1rem, 3.5vw, 3rem);
+    }
+  }
+
+  .receipts-tab-list {
+    @apply flex gap-0.5 bg-segment p-[3px] rounded-lg max-w-full;
+  }
+
+  @media (width < 40rem) {
+    .receipts-tab-list {
+      @apply grid grid-cols-3;
+    }
+  }
+
+  .receipts-tab {
+    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-transparent px-3 text-sm font-medium text-text-soft transition-colors hover:text-text-deep lg:min-h-8 lg:px-4;
+  }
+
+  .receipts-tab[aria-selected="true"] {
+    @apply bg-surface text-ink font-bold shadow-[0_1px_2px_rgba(15,23,42,.08)];
+  }
+
+  .receipts-tab-count {
+    @apply text-[11px] font-medium tabular-nums text-text-muted;
+  }
+
+  .receipt-filter-chip {
+    @apply inline-flex min-h-8 items-center rounded-full border border-border-strong bg-surface px-3 text-[13px] text-text no-underline transition-colors hover:bg-surface-sunken;
+  }
+
+  .receipt-filter-chip[aria-pressed="true"] {
+    @apply border-accent bg-accent-soft text-accent;
+  }
+
+  .active-condition-chip {
+    @apply inline-flex min-h-8 items-center gap-1 rounded-full border border-accent bg-accent-soft px-2.5 text-xs font-medium text-accent;
+  }
+
+  .pc-search-bar {
+    @apply flex flex-wrap items-center gap-2.5 gap-y-2.5 mb-4 px-3.5 py-2.5 bg-surface border border-border rounded-lg;
+  }
+
+  .pc-search-bar label {
+    @apply flex-1 min-w-[260px] h-9;
+  }
+
+  .pc-search-bar .search-input-frame {
+    @apply h-full w-full;
+  }
+
+  .pc-search-bar .search-input-frame svg {
+    @apply h-4 w-4;
+  }
+
+  .pc-search-bar .search-input {
+    @apply h-full;
+  }
+
+  .pc-search-bar select {
+    @apply h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm;
+  }
+
+  /* Shared receipt summary (PC & mobile) */
+  .receipt-summary {
+    @apply bg-surface border border-border rounded-lg;
+  }
+
+  .receipt-summary-grid {
+    @apply grid grid-cols-3 gap-0;
+  }
+
+  .receipt-summary-item {
+    @apply px-4.5 py-3 border-r border-border-faint;
+  }
+
+  .receipt-summary-item:last-child {
+    @apply border-r-0;
+  }
+
+  .receipt-summary-item dt {
+    @apply text-xs text-text-muted font-medium;
+  }
+
+  .receipt-summary-item dd {
+    @apply mt-1;
+  }
+
+  .receipt-summary-amount {
+    @apply text-xl font-bold tabular-nums;
+  }
+
+  .receipt-summary-item-primary .receipt-summary-amount {
+    @apply text-text;
+  }
+
+  /* Mobile receipt summary */
+  @media (width < 64rem) {
+    .receipt-summary {
+      @apply bg-surface-raised border-0 border-t border-b border-border rounded-none px-4 py-3;
+    }
+
+    .receipt-summary-grid {
+      @apply grid grid-cols-3 gap-2;
+    }
+
+    .receipt-summary-item {
+      @apply p-0 border-0;
+    }
+
+    .receipt-summary-item dt {
+      @apply text-[11px] text-text-muted;
+    }
+
+    .receipt-summary-item dd {
+      @apply mt-0.5;
+    }
+
+    .receipt-summary-amount {
+      @apply text-sm font-medium tabular-nums;
+    }
+
+    .receipt-summary-item-primary .receipt-summary-amount {
+      @apply text-lg font-bold;
+    }
+  }
+
+  /* PC Receipts Table (compact mobile desktop view) */
+  /* スマホは枠で囲まず全幅の行+区切り線、PC だけカード的面で囲う */
+  .receipt-list-surface {
+    @apply overflow-hidden bg-surface lg:rounded-lg lg:border lg:border-border;
+  }
+
+  .receipts-table-frame {
+    @apply overflow-x-auto;
+  }
+
+  .receipts-table {
+    @apply w-full table-fixed border-collapse text-sm;
+  }
+
+  .receipts-table thead {
+    @apply bg-surface-sunken;
+  }
+
+  .receipts-table th {
+    @apply text-left px-3.5 py-2 font-medium text-xs text-text-soft bg-surface-sunken;
+  }
+
+  .receipts-table tbody tr {
+    @apply border-t border-border-faint;
+  }
+
+  .receipts-table tbody tr:hover {
+    @apply bg-surface-sunken;
+  }
+
+  .receipts-table td {
+    @apply px-3.5 py-2 text-text break-words;
+  }
+
+  .receipts-table td.text-right {
+    @apply text-right;
+  }
+
+  .receipts-table-group {
+    @apply bg-row-group;
+  }
+
+  .receipts-table-group td {
+    @apply text-text-soft text-xs;
+  }
+
+  .receipts-table-group td:first-child {
+    @apply font-bold;
+  }
+
+  .receipts-table-group td.text-right {
+    @apply font-medium;
+  }
+
+  .receipt-instrument-cell .receipts-table-code {
+    @apply inline-block text-xs text-text-muted mr-2;
+  }
+
+  /* Mobile Compact Receipts List */
+  .receipt-compact-list {
+    @apply list-none m-0 p-0;
+  }
+
+  .receipt-compact-row {
+    @apply border-b border-border-faint;
+  }
+
+  .receipt-compact-main {
+    @apply flex items-baseline justify-between gap-2 px-4 pt-2 text-sm;
+  }
+
+  .receipt-compact-name-cell {
+    @apply relative min-w-0 flex-1 font-medium;
+  }
+
+  /* sizer が行の高さを確保し、ボタンはその上に被せて押せる範囲を下へ広げる */
+  .receipt-compact-name-sizer {
+    @apply invisible break-words;
+  }
+
+  .receipt-compact-row .receipt-compact-name {
+    @apply absolute inset-x-0 top-0 -bottom-6 min-w-0 items-start font-medium;
+  }
+
+  .receipt-compact-row .receipt-compact-name > span {
+    @apply min-w-0 break-words;
+  }
+
+  .receipt-compact-name-static {
+    @apply min-w-0 break-words;
+  }
+
+  .receipt-compact-net {
+    @apply shrink-0 font-bold tabular-nums;
+  }
+
+  .receipt-compact-meta {
+    @apply relative z-10 flex items-baseline justify-between gap-2 px-4 pb-2 text-xs text-text-muted;
+  }
+
+  .receipt-compact-facts {
+    @apply min-w-0 flex-1 break-words;
+  }
+
+  /* 行の高さは変えず、押せる範囲だけ 44px に広げる */
+  .receipt-compact-code {
+    @apply -my-3.5 min-h-11 min-w-11 justify-center font-normal text-text-muted no-underline;
+  }
+
+  .receipt-compact-primary {
+    @apply shrink-0 whitespace-nowrap;
+  }
+
+  /* 行の高さは変えず、押せる範囲だけ 44px に広げる */
+  .receipt-compact-toggle {
+    @apply -my-3.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center self-center text-text-muted;
+  }
+
+  .receipt-compact-details {
+    @apply px-4 pb-2;
+  }
+
+  .receipt-compact-group {
+    @apply flex items-center justify-between gap-2 px-4 py-2 bg-row-group border-b border-border-faint;
+  }
+
+  .receipt-compact-group > span:first-child {
+    @apply font-bold text-xs text-text-soft;
+  }
+
+  .receipt-compact-group > span:last-child {
+    @apply text-xs text-text-soft;
+  }
+
+  /* スマホの下部帯はスクロール領域の流れの中で、下部ナビの直前に置く */
+  .receipts-mobile-bottom-section {
+    @apply mt-auto shrink-0 border-t border-border bg-surface;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .receipts-mobile-bottom-section .page-gutter {
+    @apply py-2;
+  }
+
+  /* Conditions page action buttons */
+  .conditions-actions {
+    @apply flex gap-2 p-4 bg-surface border-t border-border;
+  }
+
+  .conditions-clear-btn {
+    @apply border-accent text-accent hover:bg-accent-soft hover:border-accent;
+  }
+
+  .conditions-apply-btn {
+    @apply bg-accent border-accent text-text-inverse hover:bg-accent-strong hover:border-accent-strong;
+  }
+
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-2 focus:outline-text-deep;
   }
@@ -312,7 +612,7 @@
   }
 
   .page-frame-head {
-    @apply border-b border-ink/10 bg-surface py-2;
+    @apply border-b border-ink/10 bg-surface py-2 lg:border-b-0 lg:bg-transparent;
   }
 
   .page-frame-title {
@@ -321,6 +621,15 @@
 
   .page-back-link {
     @apply inline-flex min-h-11 items-center text-sm font-semibold text-info underline underline-offset-2 hover:text-info-deep;
+  }
+
+  /* ページ名の右の低頻度リンク。スマホはタップ領域 44px を確保する */
+  .page-secondary-link {
+    @apply inline-flex min-h-11 items-center px-4 text-sm font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors lg:min-h-9;
+  }
+
+  .page-secondary-link-sm {
+    @apply inline-flex min-h-11 items-center px-3 text-xs font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors lg:min-h-8;
   }
 
   /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く */
@@ -334,6 +643,12 @@
 
   .list-action-bar-conditions {
     @apply flex flex-wrap items-center gap-1.5;
+  }
+
+  /* モバイル用アクションバー: 画面下部に固定、PCでは非表示 */
+  .action-bar-mobile {
+    @apply fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-ink/10 shadow-elevation-2;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   .app-bottom-nav {
@@ -357,10 +672,6 @@
 
   .summary-strip-item {
     @apply min-w-0 py-1;
-  }
-
-  .receipts-tab-list {
-    @apply inline-flex flex-wrap gap-1.5 rounded-xl border border-ink/10 bg-surface/70 p-1 shadow-sm max-w-full max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto;
   }
 
   .copyable-name {
@@ -415,15 +726,16 @@
   overflow-wrap: anywhere;
 }
 
-.receipt-instrument-cell .copyable-name {
+/* 旧型の段別表では銘柄名を折り返して2行に収める */
+.receipt-table .receipt-instrument-cell .copyable-name {
   @apply flex w-fit max-w-full min-w-0 items-start;
 }
 
-.receipt-instrument-cell .copyable-name > span {
+.receipt-table .receipt-instrument-cell .copyable-name > span {
   @apply min-w-0 whitespace-normal break-words line-clamp-2;
 }
 
-.receipt-instrument-cell .copy-icon {
+.receipt-table .receipt-instrument-cell .copy-icon {
   @apply mt-0.5 shrink-0;
 }
 
@@ -534,6 +846,24 @@
 
   .receipt-table td:not(.text-right) {
     overflow-wrap: anywhere;
+  }
+
+  /* 狭い幅で印刷するときも compact 表を出す */
+  .receipts-table-frame {
+    overflow: visible;
+  }
+
+  .receipts-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: auto;
+    font-size: 9px;
+    line-height: 1.25;
+  }
+
+  .receipts-table th,
+  .receipts-table td {
+    padding: 2px !important;
   }
 
   .ws-sidegrid {

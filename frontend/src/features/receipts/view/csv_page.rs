@@ -161,6 +161,7 @@ fn ReceiptsCsvPreview(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                         all_rows=rows
                         query="".to_string()
                         expanded_ids=store.expanded
+                        compact_mobile=true
                     />
                 </div>
             </section>

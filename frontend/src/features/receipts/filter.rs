@@ -63,10 +63,20 @@ pub enum DateSegment {
 }
 
 impl DateSegment {
+    #[allow(dead_code)]
     pub fn label(self) -> &'static str {
         match self {
             Self::Year => "年",
-            Self::Month => "月",
+            Self::Month => "年月",
+            Self::Date => "日",
+            Self::Range => "範囲",
+        }
+    }
+
+    pub fn value(self) -> &'static str {
+        match self {
+            Self::Year => "年",
+            Self::Month => "年月",
             Self::Date => "日",
             Self::Range => "範囲",
         }
@@ -82,6 +92,7 @@ pub struct DateInputs {
     pub range_end: String,
 }
 
+#[allow(dead_code)]
 pub fn build_range_query(start: &str, end: &str) -> String {
     if start.is_empty() && end.is_empty() {
         String::new()
@@ -129,6 +140,9 @@ pub struct ReceiptSearch {
     pub selected_queries: SelectedQueries,
     pub date_segment: DateSegment,
     pub date_inputs: DateInputs,
+    /// 期間なしで絞り込む「すべて」の状態。date_segment には最後に使った種別を残し、
+    /// 「すべて」と「年」のどちらを選んだかを一意に保つ
+    pub date_all: bool,
 }
 
 impl Default for ReceiptSearch {
@@ -144,6 +158,7 @@ impl ReceiptSearch {
             selected_queries: SelectedQueries::default(),
             date_segment: initial_date_segment(has_years),
             date_inputs: DateInputs::default(),
+            date_all: true,
         }
     }
 
@@ -166,6 +181,7 @@ impl ReceiptSearch {
     }
 
     pub fn change_date_segment(&mut self, segment: DateSegment) {
+        self.date_all = false;
         if self.date_segment == segment {
             return;
         }
@@ -176,25 +192,37 @@ impl ReceiptSearch {
     }
 
     pub fn select_year(&mut self, value: String) {
+        self.date_all = false;
         self.date_inputs.year_value = value.clone();
-        self.set_date_query(value);
+        // 年月ピッカーでは選択中の月を保ったまま年だけ差し替える。
+        // 年未選択なら月だけでは期間を作れないので日付条件は空にする
+        let month = self.date_inputs.month_value.clone();
+        if self.date_segment == DateSegment::Month && !value.is_empty() && !month.is_empty() {
+            self.set_date_query(format!("{value}-{month}"));
+        } else {
+            self.set_date_query(value);
+        }
     }
 
+    #[allow(dead_code)]
     pub fn set_month(&mut self, value: String) {
         self.date_inputs.month_value = value.clone();
         self.set_date_query(value);
     }
 
+    #[allow(dead_code)]
     pub fn set_date(&mut self, value: String) {
         self.date_inputs.date_value = value.clone();
         self.set_date_query(value);
     }
 
+    #[allow(dead_code)]
     pub fn set_range_start(&mut self, value: String) {
         self.date_inputs.range_start = value;
         self.update_range_query();
     }
 
+    #[allow(dead_code)]
     pub fn set_range_end(&mut self, value: String) {
         self.date_inputs.range_end = value;
         self.update_range_query();
@@ -204,18 +232,35 @@ impl ReceiptSearch {
         *self = Self::new(has_years);
     }
 
-    fn set_date_query(&mut self, value: String) {
+    pub fn clear_key(&mut self, key: SearchKey, has_years: bool) {
+        self.selected_queries.set(key, String::new());
+        if key == SearchKey::Date {
+            self.date_segment = initial_date_segment(has_years);
+            self.date_inputs = DateInputs::default();
+            self.date_all = true;
+        }
+        self.rebuild_query();
+    }
+
+    pub fn set_securities_query(&mut self, query: String) {
+        self.selected_queries.set(SearchKey::Securities, query);
+        self.rebuild_query();
+    }
+
+    pub fn set_date_query(&mut self, value: String) {
+        self.date_all = false;
         self.selected_queries.date = value;
         self.rebuild_query();
     }
 
-    fn update_range_query(&mut self) {
+    pub fn update_range_query(&mut self) {
+        self.date_all = false;
         self.selected_queries.date =
             build_range_query(&self.date_inputs.range_start, &self.date_inputs.range_end);
         self.rebuild_query();
     }
 
-    fn rebuild_query(&mut self) {
+    pub(crate) fn rebuild_query(&mut self) {
         self.query = build_combined_query(&self.selected_queries);
     }
 }
@@ -288,6 +333,7 @@ pub fn column_order(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Vec<u
 }
 
 /// 検索に一致して前に出す列。column_order と同じ規則で最初に一致したもの
+/// 検索で前に出した列は狭い画面でも隠さないため Core 扱いにする
 pub fn promoted_column(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Option<usize> {
     if query.is_empty() {
         return None;

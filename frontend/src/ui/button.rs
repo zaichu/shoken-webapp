@@ -149,10 +149,25 @@ pub fn LinkButton(
     variant: ButtonVariant,
     #[prop(into, optional)] class: Signal<String>,
     #[prop(into)] href: String,
+    /// 遷移前に実行する処理(下書きの適用など)。SPA 遷移の横取りより先に走る
+    #[prop(optional)]
+    on_click: Option<Callback<()>>,
     children: Children,
 ) -> impl IntoView {
     let classes = move || button_classes(variant, &class.get());
-    view! { <a href=href class=classes>{children()}</a> }
+    view! {
+        <a
+            href=href
+            class=classes
+            on:click=move |_| {
+                if let Some(on_click) = on_click {
+                    on_click.run(());
+                }
+            }
+        >
+            {children()}
+        </a>
+    }
 }
 
 #[cfg(test)]

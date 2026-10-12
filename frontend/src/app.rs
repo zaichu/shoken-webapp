@@ -5,7 +5,7 @@ use crate::features::home::{HomeOverviewData, HomePage};
 use crate::features::login::LoginPage;
 use crate::features::not_found::NotFoundPage;
 use crate::features::receipts::{
-    ReceiptsCsvDeletePage, ReceiptsCsvPage, ReceiptsPage, ReceiptsStore,
+    ReceiptsConditionsPage, ReceiptsCsvDeletePage, ReceiptsCsvPage, ReceiptsPage, ReceiptsStore,
 };
 use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
@@ -316,6 +316,22 @@ pub fn App() -> impl IntoView {
             navigate(path, "/", true);
         }
     });
+    let show_bottom_nav = move || {
+        matches!(
+            route.get(),
+            Route::Home
+                | Route::Search
+                | Route::Receipts
+                | Route::ReceiptsConditions
+                | Route::ReceiptsCsv
+                | Route::ReceiptsCsvDelete
+                | Route::AssetBalance
+                | Route::AssetBalanceComposition
+                | Route::AssetBalanceHolding
+                | Route::AssetBalanceCsv
+                | Route::AssetBalanceCsvDelete
+        )
+    };
     view! {
         <div class="app-shell">
             <a
@@ -342,6 +358,7 @@ pub fn App() -> impl IntoView {
                         Route::Home => view! { <HomePage /> }.into_any(),
                         Route::Search => view! { <StockSearchPage /> }.into_any(),
                         Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
+                        Route::ReceiptsConditions => view! { <ReceiptsConditionsPage /> }.into_any(),
                         Route::ReceiptsCsv => view! { <ReceiptsCsvPage /> }.into_any(),
                         Route::ReceiptsCsvDelete => view! { <ReceiptsCsvDeletePage /> }.into_any(),
                         Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
@@ -357,7 +374,7 @@ pub fn App() -> impl IntoView {
                 }}
                 <SiteFooter />
             </main>
-            <BottomNav />
+            {move || show_bottom_nav().then(|| view! { <BottomNav class="lg:hidden" /> })}
             <AccountDeleteDialog />
         </div>
     }

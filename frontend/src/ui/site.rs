@@ -8,7 +8,7 @@ use leptos::html;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-const NAV_ITEMS: &[(&str, &str)] = &[
+pub const NAV_ITEMS: &[(&str, &str)] = &[
     ("/", "ホーム"),
     ("/assetbalance", "資産管理"),
     ("/receipts", "取引明細"),
@@ -45,12 +45,34 @@ fn current_path() -> RwSignal<String> {
         .unwrap_or_else(|| RwSignal::new(current_location()))
 }
 
+/// ナビのリンク。現在ページを指すものだけ aria-current を付ける
+#[component]
+pub fn NavLink(
+    #[prop(into)] to: String,
+    #[prop(into)] label: String,
+    class: &'static str,
+) -> impl IntoView {
+    let path = current_path();
+    let href = to.clone();
+    view! {
+        <a
+            href=href
+            class=class
+            aria-current=move || is_nav_active(&path.get(), &to).then_some("page")
+        >
+            {label}
+        </a>
+    }
+}
+
 /// 文字付きの下部ナビ。主要4ページへ1タップで移動できる
 #[component]
-pub fn BottomNav() -> impl IntoView {
+pub fn BottomNav(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
     let path = current_path();
+    let base_class = "app-bottom-nav no-print";
+    let class = move || format!("{} {}", base_class, class.clone().unwrap_or_default());
     view! {
-        <nav class="app-bottom-nav no-print" aria-label="主要ナビゲーション">
+        <nav class=class aria-label="主要ナビゲーション">
             {NAV_ITEMS
                 .iter()
                 .map(|(to, label)| {
@@ -78,7 +100,11 @@ pub(crate) struct AccountDeleteConfirm(pub(crate) RwSignal<bool>);
 
 /// ページ枠の右上に置くアカウント導線(ログイン/メニュー)。アカウント削除の確認だけを扱う
 #[component]
-pub fn AccountMenu() -> impl IntoView {
+pub fn AccountMenu(
+    /// 表示名を出さない(2箇所に描画するときの DOM 重複を避ける)
+    #[prop(optional)]
+    hide_name: bool,
+) -> impl IntoView {
     let session = use_session();
     let path = current_path();
     let delete_confirm_open = use_context::<AccountDeleteConfirm>()
@@ -99,6 +125,7 @@ pub fn AccountMenu() -> impl IntoView {
                             user=user
                             session=session
                             delete_confirm_open=delete_confirm_open
+                            hide_name=hide_name
                         />
                     }
                         .into_any()
@@ -171,6 +198,7 @@ pub fn AccountDeleteDialog() -> impl IntoView {
     content.into_any()
 }
 
+#[allow(dead_code)]
 pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
     if let Some(name) = name.filter(|name| !name.is_empty()) {
         let parts: Vec<&str> = name.split_whitespace().collect();
@@ -192,9 +220,9 @@ fn UserMenu(
     user: SessionUser,
     session: SessionStore,
     delete_confirm_open: RwSignal<bool>,
+    #[prop(optional)] hide_name: bool,
 ) -> impl IntoView {
     let menu_open = RwSignal::new(false);
-    let image_error = RwSignal::new(false);
     let menu_container = NodeRef::<html::Div>::new();
 
     let on_mouse_down = window_event_listener(ev::mousedown, move |ev| {
@@ -232,50 +260,27 @@ fn UserMenu(
         .clone()
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| "ユーザー".to_string());
-    let initials = get_initials(user.name.as_deref(), Some(user.email.as_str()));
-    let picture_url = user.picture_url.filter(|url| !url.is_empty());
+    let menu_label = format!("{aria_name}のアカウントメニュー");
 
     view! {
-        <div class="flex flex-wrap items-center gap-3">
-            {move || match picture_url.clone() {
-                Some(url) if !image_error.get() => {
-                    let alt = aria_name.clone();
-                    view! {
-                        <img
-                            src=url
-                            alt=alt
-                            class="h-9 w-9 rounded-md border border-ink/15 bg-surface-raised object-cover max-sm:hidden"
-                            on:error=move |_| image_error.set(true)
-                        />
-                    }
-                        .into_any()
+        <div class="flex items-center gap-3">
+            {(!hide_name).then(|| {
+                view! {
+                    <span class="hidden max-w-64 truncate text-sm font-semibold text-text-soft lg:inline">
+                        {display_name}
+                    </span>
                 }
-                _ => {
-                    let label = aria_name.clone();
-                    let initials = initials.clone();
-                    view! {
-                        <div
-                            class="header-avatar"
-                            aria-label=label
-                        >
-                            {initials}
-                        </div>
-                    }
-                        .into_any()
-                }
-            }}
-            <span class="max-w-64 truncate text-sm font-semibold text-text-soft max-sm:hidden">
-                {display_name}
-            </span>
+            })}
             <div class="relative" node_ref=menu_container>
                 <Button
                     variant=ButtonVariant::Secondary(ButtonSize::Sm)
                     attr:aria-haspopup="menu"
+                    aria_label=menu_label
                     aria_expanded=move || menu_open.get()
                     attr:aria-controls="user-menu"
                     on_click=move |_| menu_open.update(|open| *open = !*open)
                 >
-                    "メニュー"
+                    "アカウント"
                 </Button>
                 <Show when=move || menu_open.get()>
                     <ul

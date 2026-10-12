@@ -1,12 +1,8 @@
 use super::cards::*;
-use super::pickers::*;
 use super::summary::*;
 use super::tabs::*;
-use super::workspace::utility_rail_id;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
-use crate::features::receipts::filter::{
-    DateSegment, ReceiptSearch, column_order, filter_receipts,
-};
+use crate::features::receipts::filter::{column_order, filter_receipts};
 use crate::features::receipts::kind::{ColumnTier, group_label, is_date_group_key};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
@@ -186,30 +182,6 @@ fn hyphenated_instrument_names_are_not_formatted_as_dates() {
     assert_eq!(group_label("Alpha-Fund-A"), "Alpha-Fund-A");
 }
 #[test]
-fn next_year_option_index_cycles_between_first_and_last() {
-    assert_eq!(next_year_option_index(Some(0), 3, "ArrowDown"), Some(1));
-    assert_eq!(next_year_option_index(Some(2), 3, "ArrowDown"), Some(0));
-    assert_eq!(next_year_option_index(Some(2), 3, "ArrowRight"), Some(0));
-    assert_eq!(next_year_option_index(Some(0), 3, "ArrowUp"), Some(2));
-    assert_eq!(next_year_option_index(Some(1), 3, "ArrowUp"), Some(0));
-    assert_eq!(next_year_option_index(Some(0), 3, "ArrowLeft"), Some(2));
-}
-#[test]
-fn next_year_option_index_home_end_and_no_focused_option() {
-    assert_eq!(next_year_option_index(Some(2), 3, "Home"), Some(0));
-    assert_eq!(next_year_option_index(Some(0), 3, "End"), Some(2));
-    assert_eq!(next_year_option_index(None, 3, "ArrowDown"), Some(0));
-    assert_eq!(next_year_option_index(None, 3, "ArrowUp"), Some(2));
-}
-#[test]
-fn next_year_option_index_returns_none_without_options_or_for_other_keys() {
-    assert_eq!(next_year_option_index(Some(0), 0, "ArrowDown"), None);
-    assert_eq!(next_year_option_index(None, 0, "End"), None);
-    assert_eq!(next_year_option_index(Some(0), 3, "Enter"), None);
-    assert_eq!(next_year_option_index(Some(0), 3, "Escape"), None);
-}
-
-#[test]
 fn next_tab_index_cycles_through_tabs() {
     assert_eq!(next_tab_index(0, "ArrowRight"), Some(1));
     assert_eq!(next_tab_index(2, "ArrowRight"), Some(0));
@@ -369,26 +341,6 @@ fn column_tier_declares_core_as_narrowest_then_widening() {
 // パネルは常時マウントし、トグルも取得状態にかかわらず出す。
 // 開閉では表の列幅を変えないため、表示強制の分岐は持たない
 
-// 開閉トグルの aria-controls が指す aside の id。空や重複だと ARIA の参照が効かない
-#[test]
-fn utility_rail_ids_are_non_empty_and_unique_per_tab() {
-    let ids: Vec<String> = ReceiptsTab::ALL
-        .iter()
-        .map(|tab| utility_rail_id(*tab))
-        .collect();
-    for id in &ids {
-        assert!(!id.trim().is_empty(), "id が空だと参照先が無い");
-        assert!(
-            !id.contains(char::is_whitespace),
-            "{id} は id として使えない"
-        );
-    }
-    let mut unique = ids.clone();
-    unique.sort();
-    unique.dedup();
-    assert_eq!(unique.len(), ReceiptsTab::ALL.len());
-}
-
 #[test]
 fn card_row_data_maps_card_fields() {
     let rows = dividends();
@@ -396,6 +348,7 @@ fn card_row_data_maps_card_fields() {
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -433,7 +386,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
-    card_row_data(tab, &cells, &order, tab.card_fields())
+    card_row_data(tab, "test".to_string(), &cells, &order, tab.card_fields())
 }
 
 #[test]
@@ -505,6 +458,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -534,6 +488,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     let order = column_order(ReceiptsTab::MutualFund, &rows, "");
     let card = card_row_data(
         ReceiptsTab::MutualFund,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::MutualFund.card_fields(),
@@ -557,6 +512,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -575,33 +531,6 @@ fn table_groups_carry_group_key_and_row_ids() {
         .flat_map(|group| group.rows.iter().map(|(id, _, _)| id.as_deref()))
         .collect();
     assert_eq!(ids, [Some("new"), Some("other"), Some("old")]);
-}
-
-#[test]
-fn date_input_helpers_follow_field_and_value() {
-    let mut state = ReceiptSearch::new(true);
-    state.date_inputs.month_value = "2026-06".into();
-    state.date_inputs.range_start = "2026-06-01".into();
-    assert_eq!(date_input_value(&state, DateInputField::Month), "2026-06");
-    assert_eq!(
-        date_input_value(&state, DateInputField::RangeStart),
-        "2026-06-01"
-    );
-    assert_eq!(date_input_type(DateInputField::Month), "month");
-    assert_eq!(date_input_type(DateInputField::Date), "date");
-    assert_eq!(date_input_type(DateInputField::RangeEnd), "date");
-    assert_eq!(format_date_input_label("", "年月"), "年月");
-    assert_eq!(format_date_input_label("2026-06-01", "x"), "2026/06/01");
-}
-
-#[test]
-fn visible_date_segment_falls_back_to_month_without_years() {
-    let mut state = ReceiptSearch::new(false);
-    state.date_segment = DateSegment::Year;
-    assert_eq!(visible_date_segment(&state, false), DateSegment::Month);
-    assert_eq!(visible_date_segment(&state, true), DateSegment::Year);
-    state.date_segment = DateSegment::Date;
-    assert_eq!(visible_date_segment(&state, false), DateSegment::Date);
 }
 
 #[test]
@@ -701,6 +630,7 @@ fn card_row_data_details_follow_column_reorder() {
     let cells = rows[0].cells();
     let card = card_row_data(
         ReceiptsTab::Dividend,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),

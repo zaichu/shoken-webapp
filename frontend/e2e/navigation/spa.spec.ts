@@ -98,9 +98,12 @@ async function setupApiMocks(page: Page, counts: ApiCounts, authed = true) {
 }
 
 function nav(page: Page, name: string) {
+  // PC はヘッダーのナビ、スマホは下部ナビ。幅に応じて_visible_ 側を辿る
   return page
-    .getByRole('navigation', { name: '主要ナビゲーション' })
-    .getByRole('link', { name, exact: true });
+    .getByRole('navigation', { name: /メインナビゲーション|主要ナビゲーション/ })
+    .filter({ visible: true })
+    .getByRole('link', { name, exact: true })
+    .first();
 }
 
 async function marker(page: Page) {

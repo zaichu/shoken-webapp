@@ -21,7 +21,11 @@ fn dividend_filter_uses_exact_fields_and_all_amount_fields() {
             "{query}"
         );
     }
-    assert!(filter_receipts(ReceiptsTab::Dividend, &rows, "943").is_empty());
+    assert_eq!(
+        filter_receipts(ReceiptsTab::Dividend, &rows, "943"),
+        rows[..2],
+        "943"
+    );
 }
 #[test]
 fn domestic_filter_matches_trade_date_and_amount_fields() {
@@ -43,12 +47,17 @@ fn domestic_filter_matches_trade_date_and_amount_fields() {
             "{query}"
         );
     }
-    for query in ["2024-03-05", "888", "112", "トヨタ"] {
+    for query in ["2024-03-05", "888", "112"] {
         assert!(
             filter_receipts(ReceiptsTab::DomesticStock, &rows, query).is_empty(),
             "{query}"
         );
     }
+    assert_eq!(
+        filter_receipts(ReceiptsTab::DomesticStock, &rows, "トヨタ"),
+        rows,
+        "トヨタ"
+    );
 }
 #[test]
 fn mutual_fund_filter_is_exact_and_has_no_amount_search() {
@@ -65,12 +74,16 @@ fn mutual_fund_filter_is_exact_and_has_no_amount_search() {
             "{query}"
         );
     }
-    for query in ["Alpha", "900", "2024-03-05"] {
-        assert!(
-            filter_receipts(ReceiptsTab::MutualFund, &rows, query).is_empty(),
-            "{query}"
-        );
-    }
+    let query = "2024-03-05";
+    assert!(
+        filter_receipts(ReceiptsTab::MutualFund, &rows, query).is_empty(),
+        "{query}"
+    );
+    assert_eq!(
+        filter_receipts(ReceiptsTab::MutualFund, &rows, "Alpha"),
+        rows,
+        "Alpha"
+    );
 }
 #[test]
 fn full_width_names_match_half_width_query() {
@@ -306,12 +319,58 @@ fn default_search_state_is_default() {
 }
 
 #[test]
+fn date_all_separates_no_period_from_the_year_segment() {
+    let mut state = ReceiptSearch::new(true);
+    assert!(state.date_all, "初期状態は期間なしで絞り込まない");
+
+    // 既定のセグメントが年のまま「年」を選んでも「すべて」と区別できる
+    state.change_date_segment(DateSegment::Year);
+    assert!(!state.date_all);
+
+    state.clear_key(SearchKey::Date, true);
+    assert!(state.date_all);
+    assert_eq!(state.date_segment, DateSegment::Year);
+    assert!(state.query.is_empty());
+
+    state.select_year("2026".into());
+    assert!(!state.date_all);
+    assert_eq!(state.query, "2026");
+}
+
+#[test]
 fn set_date_updates_input_query_and_selected() {
     let mut state = ReceiptSearch::new(true);
     state.set_date("2026-06-15".into());
     assert_eq!(state.date_inputs.date_value, "2026-06-15");
     assert_eq!(state.selected_queries.date, "2026-06-15");
     assert_eq!(state.query, "2026-06-15");
+}
+
+#[test]
+fn month_segment_keeps_selected_month_when_year_changes() {
+    let mut state = ReceiptSearch::new(true);
+    state.change_date_segment(DateSegment::Month);
+    state.select_year("2023".into());
+    state.set_month("2023-06".into());
+    state.date_inputs.month_value = "06".to_string();
+    assert_eq!(state.query, "2023-06");
+
+    state.select_year("2024".into());
+    assert_eq!(state.query, "2024-06");
+    assert_eq!(state.date_inputs.month_value, "06");
+
+    // 年を外すと月だけでは期間を作れないので日付条件は空になる
+    state.select_year(String::new());
+    assert_eq!(state.query, "");
+    assert_eq!(state.date_inputs.month_value, "06");
+}
+
+#[test]
+fn year_segment_ignores_leftover_month_input() {
+    let mut state = ReceiptSearch::new(true);
+    state.date_inputs.month_value = "06".to_string();
+    state.select_year("2024".into());
+    assert_eq!(state.query, "2024");
 }
 
 #[test]

@@ -928,7 +928,7 @@ impl ReceiptsTab {
         let kind = self.kind();
         FilterConfig {
             string_fields: Some(kind.string_fields.to_vec()),
-            partial_string_fields: None,
+            partial_string_fields: Some(vec![ReceiptRow::code, ReceiptRow::name]),
             date_field: Some(ReceiptRow::date),
             year_search: true,
             year_month_search: true,

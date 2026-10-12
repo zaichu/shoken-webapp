@@ -58,6 +58,8 @@ pub enum DisclosureStyle {
     AssetCard,
     /// 検索オプションの見出し
     SearchCard,
+    /// 行の右端の山形(明細行の詳細)
+    RowToggle,
 }
 
 impl DisclosureStyle {
@@ -72,6 +74,7 @@ impl DisclosureStyle {
             Self::SearchCard => {
                 "flex w-full min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-11"
             }
+            Self::RowToggle => "receipt-compact-toggle",
         }
     }
 }
