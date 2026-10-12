@@ -3,9 +3,7 @@ use super::next_year_option_index;
 use super::summary::*;
 use super::tabs::*;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
-use crate::features::receipts::filter::{
-    DateSegment, ReceiptSearch, column_order, filter_receipts,
-};
+use crate::features::receipts::filter::{column_order, filter_receipts};
 use crate::features::receipts::kind::{ColumnTier, group_label, is_date_group_key};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,

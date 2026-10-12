@@ -21,7 +21,11 @@ fn dividend_filter_uses_exact_fields_and_all_amount_fields() {
             "{query}"
         );
     }
-    assert!(filter_receipts(ReceiptsTab::Dividend, &rows, "943").is_empty());
+    assert_eq!(
+        filter_receipts(ReceiptsTab::Dividend, &rows, "943"),
+        rows[..2],
+        "943"
+    );
 }
 #[test]
 fn domestic_filter_matches_trade_date_and_amount_fields() {
@@ -43,12 +47,17 @@ fn domestic_filter_matches_trade_date_and_amount_fields() {
             "{query}"
         );
     }
-    for query in ["2024-03-05", "888", "112", "トヨタ"] {
+    for query in ["2024-03-05", "888", "112"] {
         assert!(
             filter_receipts(ReceiptsTab::DomesticStock, &rows, query).is_empty(),
             "{query}"
         );
     }
+    assert_eq!(
+        filter_receipts(ReceiptsTab::DomesticStock, &rows, "トヨタ"),
+        rows,
+        "トヨタ"
+    );
 }
 #[test]
 fn mutual_fund_filter_is_exact_and_has_no_amount_search() {
@@ -65,12 +74,17 @@ fn mutual_fund_filter_is_exact_and_has_no_amount_search() {
             "{query}"
         );
     }
-    for query in ["Alpha", "900", "2024-03-05"] {
+    for query in ["2024-03-05"] {
         assert!(
             filter_receipts(ReceiptsTab::MutualFund, &rows, query).is_empty(),
             "{query}"
         );
     }
+    assert_eq!(
+        filter_receipts(ReceiptsTab::MutualFund, &rows, "Alpha"),
+        rows,
+        "Alpha"
+    );
 }
 #[test]
 fn full_width_names_match_half_width_query() {

@@ -62,7 +62,7 @@ pub fn ReceiptsPage() -> impl IntoView {
     view! {
         <PageFrame title="取引明細" links=csv_link action_bar=action_bar()>
             <div class="flex flex-1 flex-col min-h-0" data-testid="receipts-page">
-                <div class="sm:block hidden">
+                <div class="block sm:hidden">
                     <nav class="no-print mb-3" aria-label="種別">
                         <div
                             class="receipts-tab-list"
@@ -93,6 +93,10 @@ pub fn ReceiptsPage() -> impl IntoView {
                 </div>
 
                 <div class="hidden sm:block pc-receipts">
+                    <div class="page-gutter flex items-center justify-between mb-4">
+                        <h1 class="text-lg font-bold text-ink">"取引明細"</h1>
+                        <a class="page-back-link" href=move || csv_href.get()>"CSV管理"</a>
+                    </div>
                     <nav class="no-print mb-4" aria-label="種別">
                         <div
                             class="receipts-tab-list"

@@ -1,4 +1,6 @@
-use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey, search_categories};
+use crate::features::receipts::filter::{
+    DateSegment, ReceiptSearch, SearchKey, build_combined_query, search_categories,
+};
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use leptos::prelude::*;
 
@@ -139,14 +141,19 @@ pub fn ReceiptsPcSearchBar(
                                     on:change=move |ev| {
                                         let val = event_target_value(&ev);
                                         search.update(|s| {
-                                            s.change_date_segment(match val.as_str() {
-                                                "すべて" => DateSegment::Year,
-                                                "年" => DateSegment::Year,
-                                                "年月" => DateSegment::Month,
-                                                "日" => DateSegment::Date,
-                                                "範囲" => DateSegment::Range,
-                                                _ => DateSegment::Year,
-                                            })
+                                            match val.as_str() {
+                                                "すべて" => {
+                                                    s.selected_queries.date.clear();
+                                                    s.date_segment = DateSegment::Year;
+                                                    s.date_inputs = Default::default();
+                                                    s.query = build_combined_query(&s.selected_queries);
+                                                }
+                                                "年" => s.change_date_segment(DateSegment::Year),
+                                                "年月" => s.change_date_segment(DateSegment::Month),
+                                                "日" => s.change_date_segment(DateSegment::Date),
+                                                "範囲" => s.change_date_segment(DateSegment::Range),
+                                                _ => {}
+                                            }
                                         });
                                     }
                                 >
@@ -155,20 +162,101 @@ pub fn ReceiptsPcSearchBar(
                                     }).collect_view()}
                                 </select>
     {move || {
-                    has_years().then(|| {
-                        view! {
-                            <select
-                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
-                                on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
-                            >
-                                {years.get().iter().map(|y| {
-                                    view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
-                                }).collect_view()}
-                            </select>
-                        }
-                    })
-                }}
+                            let segment = period_value.get();
+                            match segment {
+                                "年" => {
+                                    has_years().then(|| {
+                                        view! {
+                                            <select
+                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
+                                                on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
+                                            >
+                                                {years.get().iter().map(|y| {
+                                                    view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
+                                                }).collect_view()}
+                                            </select>
+                                        }.into_any()
+                                    })
+                                }
+                                "年月" => {
+                                    has_years().then(|| {
+                                        view! {
+                                            <div class="flex items-center gap-1">
+                                                <select
+                                                    class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                    prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
+                                                    on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
+                                                >
+                                                    {years.get().iter().map(|y| {
+                                                        view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
+                                                    }).collect_view()}
+                                                </select>
+                                                <select
+                                                    class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                    prop:value=move || search.with(|s| s.date_inputs.month_value.clone())
+                                                    on:change=move |ev| {
+                                                        let month = event_target_value(&ev);
+                                                        search.update(|s| {
+                                                            s.date_inputs.month_value = month.clone();
+                                                            let year = s.date_inputs.year_value.clone();
+                                                            if !year.is_empty() {
+                                                                s.set_date_query(format!("{}-{}", year, month));
+                                                            }
+                                                        });
+                                                    }
+                                                >
+                                                    {(1..=12).map(|m| {
+                                                        let m_str = format!("{:02}", m);
+                                                        let m_label = format!("{}月", m);
+                                                        view! { <option value={m_str.clone()}>{m_label}</option> }
+                                                    }).collect_view()}
+                                                </select>
+                                            </div>
+                                        }.into_any()
+                                    })
+                                }
+                                "日" => {
+                                    Some(view! {
+                                        <input
+                                            type="date"
+                                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                            prop:value=move || search.with(|s| s.date_inputs.date_value.clone())
+                                            on:input=move |ev| search.update(|s| {
+                                                s.date_inputs.date_value = event_target_value(&ev);
+                                                s.set_date_query(event_target_value(&ev));
+                                            })
+                                        />
+                                    }.into_any())
+                                }
+                                "範囲" => {
+                                    Some(view! {
+                                        <div class="flex items-center gap-1">
+                                            <input
+                                                type="date"
+                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                prop:value=move || search.with(|s| s.date_inputs.range_start.clone())
+                                                on:input=move |ev| search.update(|s| {
+                                                    s.date_inputs.range_start = event_target_value(&ev);
+                                                    s.update_range_query();
+                                                })
+                                            />
+                                            <span class="text-text-muted">"〜"</span>
+                                            <input
+                                                type="date"
+                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                prop:value=move || search.with(|s| s.date_inputs.range_end.clone())
+                                                on:input=move |ev| search.update(|s| {
+                                                    s.date_inputs.range_end = event_target_value(&ev);
+                                                    s.update_range_query();
+                                                })
+                                            />
+                                        </div>
+                                    }.into_any())
+                                }
+                                _ => None,
+                            }
+                        }}
                             </div>
                         }
                     })

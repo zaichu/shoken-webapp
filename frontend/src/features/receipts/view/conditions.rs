@@ -10,7 +10,7 @@ fn ConditionSection(
     search: RwSignal<ReceiptSearch>,
     key: SearchKey,
     label: &'static str,
-    options: Vec<crate::support::list_search::SearchOption>,
+    options: Memo<Vec<crate::support::list_search::SearchOption>>,
     on_select: impl Fn(String) + Copy + 'static + Send,
     on_clear: impl Fn(MouseEvent) + Copy + 'static + Send,
 ) -> impl IntoView {
@@ -38,7 +38,7 @@ fn ConditionSection(
                 }}
             </div>
             <div class="flex flex-wrap gap-1.5">
-                {options.iter().map(|opt| {
+                {move || options.get().iter().map(|opt| {
                     let opt_value = opt.value.clone();
                     let opt_label = opt.label.clone();
                     let opt_value_for_selected = opt_value.clone();
@@ -127,11 +127,13 @@ fn DateSegmentSelector(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 
 #[component]
 fn YearPicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
+    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    let active_tab = store.active_tab;
+
     let years = Memo::new(move |_| {
-        let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
-        let display_rows = store.tab_state(ReceiptsTab::Dividend);
+        let display_rows = store.tab_state(active_tab.get());
         if let TabState::Ready(data) = display_rows {
-            search_categories(ReceiptsTab::Dividend, &data.rows).years
+            search_categories(active_tab.get(), &data.rows).years
         } else {
             Vec::new()
         }
@@ -191,7 +193,10 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                         on:click=move |_| {
                             search.update(|s| {
                                 s.date_inputs.month_value = m_value.clone();
-                                s.set_date_query(m_value.clone());
+                                let year = s.date_inputs.year_value.clone();
+                                if !year.is_empty() {
+                                    s.set_date_query(format!("{}-{}", year, m_value));
+                                }
                             });
                         }
                     >
@@ -279,6 +284,7 @@ pub fn ReceiptsConditionsPage() -> impl IntoView {
     let years = Memo::new(move |_| categories.with(|c| c.years.clone()));
     let products = Memo::new(move |_| categories.with(|c| c.products.clone()));
     let accounts = Memo::new(move |_| categories.with(|c| c.accounts.clone()));
+    let securities = Memo::new(move |_| categories.with(|c| c.securities.clone()));
     let has_years = move || !years.get().is_empty();
 
     view! {
@@ -299,7 +305,7 @@ pub fn ReceiptsConditionsPage() -> impl IntoView {
                     search=search
                     key=SearchKey::Securities
                     label="銘柄"
-                    options=categories.with(|c| c.securities.clone())
+                    options=securities
                     on_select=move |v| search.update(|s| s.select_quick(SearchKey::Securities, v))
                     on_clear=move |_| search.update(|s| s.clear_key(SearchKey::Securities, has_years()))
                 />
@@ -317,7 +323,7 @@ pub fn ReceiptsConditionsPage() -> impl IntoView {
                     search=search
                     key=SearchKey::Products
                     label="商品"
-                    options=products.get()
+                    options=products
                     on_select=move |v| search.update(|s| s.select_quick(SearchKey::Products, v))
                     on_clear=move |_| search.update(|s| s.clear_key(SearchKey::Products, has_years()))
                 />
@@ -326,7 +332,7 @@ pub fn ReceiptsConditionsPage() -> impl IntoView {
                     search=search
                     key=SearchKey::Accounts
                     label="口座"
-                    options=accounts.get()
+                    options=accounts
                     on_select=move |v| search.update(|s| s.select_quick(SearchKey::Accounts, v))
                     on_clear=move |_| search.update(|s| s.clear_key(SearchKey::Accounts, has_years()))
                 />
