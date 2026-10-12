@@ -161,8 +161,12 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(facts).toContainText('楽天証券');
   await expect(facts).toContainText('200株');
   await expect(card.locator('.receipt-compact-primary')).toContainText('配当 ¥2,000');
-  // 見出しはコード・銘柄名・日付・口座だけなので開閉トリガーは無い
-  await expect(card.locator('[aria-expanded]')).toHaveCount(0);
+  // 行を押すと残りの項目(税額など)が開く
+  const toggle = card.locator('.receipt-compact-toggle');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(card.locator('.receipt-compact-details')).toContainText('税額');
 });
 
 test('グループ見出しは件数と小計を常に表示する', async ({ page }) => {

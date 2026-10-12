@@ -107,14 +107,15 @@ test('期間と条件は同時に併用でき、「すべて」で期間だけ�
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
 });
 
-test('変更せず戻るで条件を保持して一覧に戻れる', async ({ page }) => {
+test('変更せず戻るは下書きを捨てて一覧に戻れる', async ({ page }) => {
   await gotoConditions(page);
 
   await page.getByRole('button', { name: 'SBI証券', exact: true }).click();
   await page.getByRole('link', { name: '変更せず戻る' }).click();
 
   await expect(page).toHaveURL('/receipts');
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  // SBI証券の選択は適用されないので2件のまま
+  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
 });
 
 test('不明パスは /404 に置き換わる', async ({ page }) => {

@@ -336,7 +336,9 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 #[component]
 pub fn ReceiptsConditionsPage() -> impl IntoView {
     let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
-    let search = store.search;
+    // 変更は「適用して戻る」まで下書き。一覧の search に直接書かない
+    let search = RwSignal::new(store.search.get_untracked());
+    let committed = store.search;
     let active_tab = store.active_tab;
 
     let display_rows = Memo::new(move |_| match store.tab_state(active_tab.get()) {
@@ -362,6 +364,7 @@ pub fn ReceiptsConditionsPage() -> impl IntoView {
                 variant=ButtonVariant::Primary(ButtonSize::Md)
                 class="flex-1 conditions-apply-btn"
                 href="/receipts"
+                on_click=Callback::new(move |_| committed.set(search.get_untracked()))
             >
                 "適用して戻る"
             </LinkButton>

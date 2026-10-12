@@ -57,7 +57,7 @@ pub fn ReceiptTable(
             let cards: Vec<CardRowData> = group
                 .rows
                 .iter()
-                .map(|(_, _, cells)| card_row_data(tab, cells, &order, fields))
+                .map(|(_, raw, cells)| card_row_data(tab, raw.clone(), cells, &order, fields))
                 .collect();
             (
                 group_index,
@@ -169,15 +169,16 @@ pub fn ReceiptTable(
     } else {
         "table-card"
     };
+    // 印刷は幅に関係なく表を出し、行リストは出さない
     let desktop_class = if compact_mobile {
-        "hidden lg:block"
+        "hidden lg:block print:block"
     } else {
-        "hidden sm:block"
+        "hidden sm:block print:block"
     };
     let mobile_class = if compact_mobile {
-        "lg:hidden"
+        "lg:hidden print:hidden"
     } else {
-        "sm:hidden"
+        "sm:hidden print:hidden"
     };
     let table_frame_class = if compact_mobile {
         "receipts-table-frame overflow-x-auto"
@@ -375,7 +376,7 @@ pub fn ReceiptTable(
                             <div>
                                 {card_groups
                                     .into_iter()
-                                    .map(|(_, _, label, count, summary, cards)| {
+                                    .map(|(group_index, _, label, count, summary, cards)| {
                                         view! {
                                             <CompactReceiptGroup
                                                 tab=tab
@@ -383,6 +384,8 @@ pub fn ReceiptTable(
                                                 count=count
                                                 summary=summary
                                                 cards=cards
+                                                id_prefix=format!("receipt-{slug}-group-{group_index}")
+                                                expanded_ids=expanded_ids
                                             />
                                         }
                                     })

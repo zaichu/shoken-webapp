@@ -194,7 +194,14 @@ impl ReceiptSearch {
     pub fn select_year(&mut self, value: String) {
         self.date_all = false;
         self.date_inputs.year_value = value.clone();
-        self.set_date_query(value);
+        // 年月ピッカーでは選択中の月を保ったまま年だけ差し替える。
+        // 年未選択なら月だけでは期間を作れないので日付条件は空にする
+        let month = self.date_inputs.month_value.clone();
+        if self.date_segment == DateSegment::Month && !value.is_empty() && !month.is_empty() {
+            self.set_date_query(format!("{value}-{month}"));
+        } else {
+            self.set_date_query(value);
+        }
     }
 
     #[allow(dead_code)]

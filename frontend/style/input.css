@@ -540,6 +540,15 @@
     @apply shrink-0 whitespace-nowrap;
   }
 
+  /* 行の高さは変えず、押せる範囲だけ 44px に広げる */
+  .receipt-compact-toggle {
+    @apply -my-3.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center self-center text-text-muted;
+  }
+
+  .receipt-compact-details {
+    @apply px-4 pb-2;
+  }
+
   .receipt-compact-group {
     @apply flex items-center justify-between gap-2 px-4 py-2 bg-row-group border-b border-border-faint;
   }
@@ -837,6 +846,24 @@
 
   .receipt-table td:not(.text-right) {
     overflow-wrap: anywhere;
+  }
+
+  /* 狭い幅で印刷するときも compact 表を出す */
+  .receipts-table-frame {
+    overflow: visible;
+  }
+
+  .receipts-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: auto;
+    font-size: 9px;
+    line-height: 1.25;
+  }
+
+  .receipts-table th,
+  .receipts-table td {
+    padding: 2px !important;
   }
 
   .ws-sidegrid {

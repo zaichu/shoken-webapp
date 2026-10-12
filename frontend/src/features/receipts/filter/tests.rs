@@ -347,6 +347,33 @@ fn set_date_updates_input_query_and_selected() {
 }
 
 #[test]
+fn month_segment_keeps_selected_month_when_year_changes() {
+    let mut state = ReceiptSearch::new(true);
+    state.change_date_segment(DateSegment::Month);
+    state.select_year("2023".into());
+    state.set_month("2023-06".into());
+    state.date_inputs.month_value = "06".to_string();
+    assert_eq!(state.query, "2023-06");
+
+    state.select_year("2024".into());
+    assert_eq!(state.query, "2024-06");
+    assert_eq!(state.date_inputs.month_value, "06");
+
+    // 年を外すと月だけでは期間を作れないので日付条件は空になる
+    state.select_year(String::new());
+    assert_eq!(state.query, "");
+    assert_eq!(state.date_inputs.month_value, "06");
+}
+
+#[test]
+fn year_segment_ignores_leftover_month_input() {
+    let mut state = ReceiptSearch::new(true);
+    state.date_inputs.month_value = "06".to_string();
+    state.select_year("2024".into());
+    assert_eq!(state.query, "2024");
+}
+
+#[test]
 fn tab_column_rules_use_whole_query_not_tokens() {
     assert_eq!(
         column_order(ReceiptsTab::Dividend, &dividends(), "特定"),

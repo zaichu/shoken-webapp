@@ -131,7 +131,9 @@ test('CSVプレビューで内容が同じ行も明細行ごとに1件ずつ出�
 
   for (const index of [0, 1]) {
     const card = cards.nth(index);
-    await expect(card.locator('[aria-expanded]')).toHaveCount(0);
+    await expect(
+      card.locator('.receipt-compact-toggle'),
+    ).toHaveAttribute('aria-expanded', 'false');
     await expect(
       card.getByRole('button', { name: 'トヨタ自動車(7203) をコピー' }),
     ).toBeVisible();

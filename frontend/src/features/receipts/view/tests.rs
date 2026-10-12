@@ -348,6 +348,7 @@ fn card_row_data_maps_card_fields() {
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -385,7 +386,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
-    card_row_data(tab, &cells, &order, tab.card_fields())
+    card_row_data(tab, "test".to_string(), &cells, &order, tab.card_fields())
 }
 
 #[test]
@@ -457,6 +458,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -486,6 +488,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     let order = column_order(ReceiptsTab::MutualFund, &rows, "");
     let card = card_row_data(
         ReceiptsTab::MutualFund,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::MutualFund.card_fields(),
@@ -509,6 +512,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -626,6 +630,7 @@ fn card_row_data_details_follow_column_reorder() {
     let cells = rows[0].cells();
     let card = card_row_data(
         ReceiptsTab::Dividend,
+        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
