@@ -56,6 +56,8 @@ impl CsvSource for ReceiptCsvSource {
     fn delete_count_error(&self) -> Option<String> {
         match self.store.tab_state(self.tab) {
             TabState::Failed(message) => Some(message),
+            // 取り直し中は前回の失敗ではなく取得中として扱う
+            TabState::Loading => None,
             _ => self.store.refresh_error(self.tab),
         }
     }
@@ -94,11 +96,11 @@ fn kind_tab() -> ReceiptsTab {
 
 // 世代リセットが起きると ensure の対象が配当へ差し替わるので、
 // 世代を確定させてから対象タブの一覧を未取得なら取得する。
-// ?kind= 直リンクでは一覧側の選択タブも URL の種別に同期し、「一覧に戻る」が同じタブを開く
-fn ensure_kind(store: ReceiptsStore, tab: ReceiptsTab) {
+// ?kind= 直リンクでは一覧側の選択タブも URL の種別に同期し、「一覧に戻る」が同じタブを開く。
+// active_tab を直接変えると検索語が前のタブから残るため、通常のタブ切替と同じリセットを通す
+pub(crate) fn ensure_kind(store: ReceiptsStore, tab: ReceiptsTab) {
     store.ensure(tab);
-    store.active_tab.set(tab);
-    store.ensure(tab);
+    store.select_tab(tab);
 }
 
 #[component]

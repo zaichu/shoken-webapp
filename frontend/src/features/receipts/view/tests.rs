@@ -847,3 +847,93 @@ fn receipt_csv_source_delete_disabled_reflects_state() {
         );
     });
 }
+
+#[test]
+fn receipt_csv_source_delete_count_error_masks_stale_error_while_loading() {
+    use super::csv_page::ReceiptCsvSource;
+    use crate::features::receipts::{ReceiptTabData, TabState};
+    use crate::ui::csv_page::CsvSource;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let store = csv_source_store();
+        let tab = ReceiptsTab::Dividend;
+        let source = ReceiptCsvSource { store, tab };
+        let generation = store.session.generation.get_untracked();
+
+        // 前回の裏再取得が失敗し、削除ページで始めた取り直しが進行中
+        store.tabs.update(|map| {
+            let entry = map.entry((generation, tab)).or_default();
+            entry.list = Some(TabState::Loading);
+            entry.refresh_error = Some("前回の失敗".to_string());
+        });
+        assert_eq!(
+            source.delete_count_error(),
+            None,
+            "取り直し中は古い失敗を出さず取得中として扱う"
+        );
+        assert!(!source.delete_count_ready());
+
+        // 取り直しが完了しても失敗が残るなら未確定としてエラーを出す
+        store.tabs.update(|map| {
+            let entry = map.entry((generation, tab)).or_default();
+            entry.list = Some(TabState::Ready(ReceiptTabData {
+                rows: vec![],
+                total: Some(1),
+                summary: None,
+                truncated: false,
+            }));
+        });
+        assert_eq!(source.delete_count_error().as_deref(), Some("前回の失敗"));
+        assert!(!source.delete_count_ready());
+
+        // 初回取得の失敗は Failed としてそのまま出す
+        store.tabs.update(|map| {
+            let entry = map.entry((generation, tab)).or_default();
+            entry.list = Some(TabState::Failed("取得失敗".to_string()));
+            entry.refresh_error = None;
+        });
+        assert_eq!(source.delete_count_error().as_deref(), Some("取得失敗"));
+    });
+}
+
+#[test]
+fn ensure_kind_resets_search_state_like_tab_switch() {
+    use super::csv_page::ensure_kind;
+    use crate::features::receipts::TabState;
+    use crate::features::receipts::filter::ReceiptSearch;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let store = csv_source_store();
+        // 世代リセットの検索クリアを通さず、タブ切替のリセットだけを見る
+        let generation = store.session.generation.get_untracked();
+        store.expanded_epoch.set(Some(generation));
+        // 対象タブを取得済みにして ensure の fetch dispatch を起こさない
+        store.tabs.update(|map| {
+            map.entry((generation, ReceiptsTab::DomesticStock))
+                .or_default()
+                .list = Some(TabState::Ready(ReceiptTabData {
+                rows: vec![],
+                total: Some(0),
+                summary: None,
+                truncated: false,
+            }));
+        });
+        store.search.set(ReceiptSearch {
+            query: "7203".to_string(),
+            ..Default::default()
+        });
+        store.expanded.update(|set| {
+            set.insert("g0".to_string());
+        });
+
+        ensure_kind(store, ReceiptsTab::DomesticStock);
+
+        assert_eq!(store.active_tab.get_untracked(), ReceiptsTab::DomesticStock);
+        assert_eq!(store.search.get_untracked().query, "");
+        assert!(store.expanded.with_untracked(|set| set.is_empty()));
+    });
+}
