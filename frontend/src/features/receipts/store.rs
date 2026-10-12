@@ -98,11 +98,13 @@ impl ReceiptsStore {
         !self.session.loaded.get()
     }
 
+    #[allow(dead_code)]
     pub fn toggle_utility_rail(&self) {
         self.utility_rail_open.update(|open| *open = !*open);
     }
 
     /// 開いたままなら絞り込みはレール内で確認できるので、表の上への件数バッジは畳んだときだけ出す
+    #[allow(dead_code)]
     pub fn utility_filter_badge_visible(&self) -> bool {
         !self.utility_rail_open.get() && !self.search.get().is_default()
     }

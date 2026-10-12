@@ -9,6 +9,7 @@ use crate::session::use_session;
 use leptos::ev;
 use leptos::prelude::*;
 
+#[allow(dead_code)]
 pub fn utility_display_rows(
     store: ReceiptsStore,
     tab: ReceiptsTab,

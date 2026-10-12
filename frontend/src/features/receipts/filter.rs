@@ -63,6 +63,7 @@ pub enum DateSegment {
 }
 
 impl DateSegment {
+    #[allow(dead_code)]
     pub fn label(self) -> &'static str {
         match self {
             Self::Year => "年",
@@ -91,6 +92,7 @@ pub struct DateInputs {
     pub range_end: String,
 }
 
+#[allow(dead_code)]
 pub fn build_range_query(start: &str, end: &str) -> String {
     if start.is_empty() && end.is_empty() {
         String::new()
@@ -189,21 +191,25 @@ impl ReceiptSearch {
         self.set_date_query(value);
     }
 
+    #[allow(dead_code)]
     pub fn set_month(&mut self, value: String) {
         self.date_inputs.month_value = value.clone();
         self.set_date_query(value);
     }
 
+    #[allow(dead_code)]
     pub fn set_date(&mut self, value: String) {
         self.date_inputs.date_value = value.clone();
         self.set_date_query(value);
     }
 
+    #[allow(dead_code)]
     pub fn set_range_start(&mut self, value: String) {
         self.date_inputs.range_start = value;
         self.update_range_query();
     }
 
+    #[allow(dead_code)]
     pub fn set_range_end(&mut self, value: String) {
         self.date_inputs.range_end = value;
         self.update_range_query();
@@ -218,6 +224,7 @@ impl ReceiptSearch {
         self.rebuild_query();
     }
 
+    #[allow(dead_code)]
     fn update_range_query(&mut self) {
         self.selected_queries.date =
             build_range_query(&self.date_inputs.range_start, &self.date_inputs.range_end);
