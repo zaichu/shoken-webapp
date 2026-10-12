@@ -134,7 +134,10 @@ pub fn AssetHoldingsTable(
                                     <td>
                                         {match href {
                                             Some(href) => view! {
-                                                <a href=href class="no-underline hover:underline">
+                                                <a
+                                                    href=href
+                                                    class="inline-flex min-h-6 items-center no-underline hover:underline"
+                                                >
                                                     {name_cell}
                                                 </a>
                                             }

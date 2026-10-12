@@ -136,23 +136,16 @@ pub(crate) fn PortfolioSummary(
                         </dd>
                     </div>
                     <div class="asset-summary-item">
-                        <div class="flex items-end justify-between gap-2">
-                            <div>
-                                <dt>"取得額基準利回り"</dt>
-                                <dd>
-                                    <Amount
-                                        text=yield_text
-                                        class="asset-summary-amount-sm".to_string()
-                                    />
-                                </dd>
-                            </div>
+                        <dt>"取得額基準利回り"</dt>
+                        <dd class="flex items-end justify-between gap-2">
+                            <Amount text=yield_text class="asset-summary-amount-sm".to_string() />
                             <a
                                 href="/assetbalance/composition"
-                                class="-my-2 -mr-2 mb-0.5 inline-flex min-h-11 shrink-0 items-center px-2 text-xs text-info no-underline hover:underline lg:hidden"
+                                class="-my-2 -mr-2 inline-flex min-h-11 shrink-0 items-center px-2 text-xs text-info no-underline hover:underline lg:hidden"
                             >
                                 "構成比 ›"
                             </a>
-                        </div>
+                        </dd>
                     </div>
                 </dl>
                 <p class="mt-1 text-xs font-medium text-text-muted lg:hidden">{market_note}</p>

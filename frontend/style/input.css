@@ -764,7 +764,7 @@
   }
 
   .asset-sort-chip {
-    @apply inline-flex min-h-8 items-center rounded-full border border-border-strong bg-surface px-3 text-sm text-text;
+    @apply inline-flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-3 text-sm text-text;
   }
 
   .asset-sort-chip[aria-pressed="true"] {
@@ -840,7 +840,7 @@
   }
 
   .asset-th-sort {
-    @apply p-0 text-xs font-medium text-text-soft;
+    @apply min-h-6 p-0 text-xs font-medium text-text-soft;
   }
 
   .asset-th-sort[aria-pressed="true"] {
