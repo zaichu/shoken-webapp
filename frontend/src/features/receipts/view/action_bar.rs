@@ -97,67 +97,6 @@ pub fn ReceiptsMobileBottomSection(
 }
 
 #[component]
-#[allow(dead_code)]
-pub fn ReceiptsActionBar(store: ReceiptsStore, active_tab: RwSignal<ReceiptsTab>) -> impl IntoView {
-    let search = store.search;
-    let tab = active_tab;
-
-    let display_rows = Memo::new(move |_| match store.tab_state(tab.get()) {
-        TabState::Ready(data) => data.rows.clone(),
-        _ => Vec::new(),
-    });
-
-    let categories = Memo::new(move |_| search_categories(tab.get(), &display_rows.get()));
-    let has_active_search = Signal::derive(move || !search.with(|s| s.is_default()));
-    let years = Memo::new(move |_| categories.with(|c| c.years.clone()));
-    let has_years = move || !years.get().is_empty();
-
-    view! {
-        <div class="lg:hidden no-print action-bar-mobile">
-            <div class="flex flex-col gap-2 py-2">
-                {move || {
-                    has_active_search.get().then(|| {
-                        view! {
-                            <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="適用中の検索条件">
-                                <span class="text-xs font-semibold text-text-muted">"条件"</span>
-                                <ActiveConditionBadge search=search key=SearchKey::Date label="期間" on_clear=move || search.update(|s| s.clear_key(SearchKey::Date, has_years())) />
-                                <ActiveConditionBadge search=search key=SearchKey::Products label="商品" on_clear=move || search.update(|s| s.clear_key(SearchKey::Products, has_years())) />
-                                <ActiveConditionBadge search=search key=SearchKey::Accounts label="口座" on_clear=move || search.update(|s| s.clear_key(SearchKey::Accounts, has_years())) />
-                                <button
-                                    type="button"
-                                    class="text-xs font-semibold text-info hover:text-info-deep"
-                                    on:click=move |_| search.update(|s| s.clear(has_years()))
-                                >
-                                    "全解除"
-                                </button>
-                            </div>
-                        }
-                    })
-                }}
-                <div class="flex items-center gap-2">
-                    <label class="flex-1 search-input-frame">
-                        <svg aria-hidden="true" class="h-5 w-5 shrink-0 mx-2 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="M20 20l-3.5-3.5"></path>
-                        </svg>
-                        <input
-                            type="search"
-                            class="search-input"
-                            placeholder="銘柄名・コード"
-                            prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
-                            on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
-                        />
-                    </label>
-                    <a href="/receipts/conditions" class="page-secondary-link shrink-0">
-                        "検索条件"
-                    </a>
-                </div>
-            </div>
-        </div>
-    }
-}
-
-#[component]
 pub fn ReceiptsPcSearchBar(
     store: ReceiptsStore,
     active_tab: RwSignal<ReceiptsTab>,
