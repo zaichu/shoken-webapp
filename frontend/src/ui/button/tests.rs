@@ -5,7 +5,7 @@ fn button_classes_preserves_variant_and_extra_input() {
     for variant in [
         ButtonVariant::Primary(ButtonSize::Md),
         ButtonVariant::Secondary(ButtonSize::Xs),
-        ButtonVariant::DangerSolid(ButtonSize::Fill),
+        ButtonVariant::DangerSolid(ButtonSize::Sm),
         ButtonVariant::Quiet,
         ButtonVariant::CopyName,
     ] {

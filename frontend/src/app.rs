@@ -1,8 +1,12 @@
-use crate::features::asset_balance::{AssetBalancePage, AssetBalanceState};
+use crate::features::asset_balance::{
+    AssetBalanceCsvDeletePage, AssetBalanceCsvPage, AssetBalancePage, AssetBalanceState,
+};
 use crate::features::home::{HomeOverviewData, HomePage};
 use crate::features::login::LoginPage;
 use crate::features::not_found::NotFoundPage;
-use crate::features::receipts::{ReceiptsPage, ReceiptsStore};
+use crate::features::receipts::{
+    ReceiptsCsvDeletePage, ReceiptsCsvPage, ReceiptsPage, ReceiptsStore,
+};
 use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
 use crate::ui::site::{AccountDeleteConfirm, AccountDeleteDialog, BottomNav, SiteFooter};
@@ -28,6 +32,17 @@ pub(crate) fn current_location() -> String {
 #[derive(Clone, Copy)]
 pub(crate) struct CurrentPath(pub RwSignal<String>);
 
+// ?kind= のような単一クエリを pathname + search 形式の文字列から取る。
+// 同じキーの複数指定は先勝ち、パーセントデコードはしない(種別値はASCIIのみ)
+pub(crate) fn query_param(location: &str, key: &str) -> Option<String> {
+    let query = location.split_once('?')?.1.split('#').next()?;
+    query
+        .split('&')
+        .filter_map(|pair| pair.split_once('='))
+        .find(|(name, _)| *name == key)
+        .map(|(_, value)| value.to_string())
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Route {
     Home,
@@ -35,10 +50,12 @@ enum Route {
     Receipts,
     ReceiptsConditions,
     ReceiptsCsv,
+    ReceiptsCsvDelete,
     AssetBalance,
     AssetBalanceComposition,
     AssetBalanceHolding,
     AssetBalanceCsv,
+    AssetBalanceCsvDelete,
     Login,
     NotFound,
 }
@@ -51,6 +68,7 @@ impl Route {
             Route::Receipts => "取引明細",
             Route::ReceiptsConditions => "検索条件",
             Route::ReceiptsCsv | Route::AssetBalanceCsv => "CSV管理",
+            Route::ReceiptsCsvDelete | Route::AssetBalanceCsvDelete => "データ削除",
             Route::AssetBalance => "資産管理",
             Route::AssetBalanceComposition => "構成比",
             Route::AssetBalanceHolding => "保有銘柄詳細",
@@ -72,9 +90,11 @@ fn route_for_path(path: &str) -> Route {
         "/receipts" => Route::Receipts,
         "/receipts/conditions" => Route::ReceiptsConditions,
         "/receipts/csv" => Route::ReceiptsCsv,
+        "/receipts/csv/delete" => Route::ReceiptsCsvDelete,
         "/assetbalance" => Route::AssetBalance,
         "/assetbalance/composition" => Route::AssetBalanceComposition,
         "/assetbalance/csv" => Route::AssetBalanceCsv,
+        "/assetbalance/csv/delete" => Route::AssetBalanceCsvDelete,
         path if holding_id(path).is_some() => Route::AssetBalanceHolding,
         "/login" => Route::Login,
         "/404" => Route::NotFound,
@@ -322,10 +342,16 @@ pub fn App() -> impl IntoView {
                         Route::Home => view! { <HomePage /> }.into_any(),
                         Route::Search => view! { <StockSearchPage /> }.into_any(),
                         Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
+                        Route::ReceiptsCsv => view! { <ReceiptsCsvPage /> }.into_any(),
+                        Route::ReceiptsCsvDelete => view! { <ReceiptsCsvDeletePage /> }.into_any(),
                         Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
+                        Route::AssetBalanceCsv => view! { <AssetBalanceCsvPage /> }.into_any(),
+                        Route::AssetBalanceCsvDelete => {
+                            view! { <AssetBalanceCsvDeletePage /> }.into_any()
+                        }
                         Route::Login => view! { <LoginPage /> }.into_any(),
                         // 設計済みルートは認証・タイトル・ナビ活性の土台だけ先に用意し、
-                        // ページ本体は #1268-#1270 で実装する
+                        // ページ本体は #1269-#1270 で実装する
                         _ => view! { <NotFoundPage /> }.into_any(),
                     }
                 }}

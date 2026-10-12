@@ -57,11 +57,12 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
     for (tab, rows, summary, query, expected) in cases {
         let mut data = ReceiptTabData {
             rows: rows.clone(),
+            total: None,
             summary: Some(summary),
             truncated: false,
         };
         assert_eq!(
-            header_summary(tab, &data, "", false)
+            header_summary(tab, &data, "")
                 .iter()
                 .map(|v| v.1)
                 .collect::<Vec<_>>(),
@@ -69,23 +70,23 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
         );
         data.rows = filter_receipts(tab, &rows, query);
         assert_eq!(
-            header_summary(tab, &data, query, false)
+            header_summary(tab, &data, query)
                 .iter()
                 .map(|v| v.1)
                 .collect::<Vec<_>>(),
             expected
         );
         data.rows = filter_receipts(tab, &rows, "　");
-        assert_ne!(header_summary(tab, &data, "　", false)[0].1, dec!(9999));
+        assert_ne!(header_summary(tab, &data, "　")[0].1, dec!(9999));
         data.rows = filter_receipts(tab, &rows, "該当なし");
         assert_eq!(
-            header_summary(tab, &data, "該当なし", false)
+            header_summary(tab, &data, "該当なし")
                 .iter()
                 .map(|v| v.1)
                 .collect::<Vec<_>>(),
             [Decimal::ZERO; 3]
         );
-        assert_eq!(header_summary(tab, &data, "", false)[0].1, dec!(9999));
+        assert_eq!(header_summary(tab, &data, "")[0].1, dec!(9999));
     }
 }
 
@@ -94,6 +95,7 @@ fn header_tones_mark_negative_profit_only() {
     let tones = |profit: Decimal, taxes: Decimal, after_tax: Decimal| {
         let data = ReceiptTabData {
             rows: vec![],
+            total: None,
             summary: Some(ReceiptSummary::DomesticStock(DomesticStockSummary {
                 total_realized_profit_and_loss: profit,
                 total_taxes: taxes,
@@ -101,7 +103,7 @@ fn header_tones_mark_negative_profit_only() {
             })),
             truncated: false,
         };
-        header_summary(ReceiptsTab::DomesticStock, &data, "", false)
+        header_summary(ReceiptsTab::DomesticStock, &data, "")
             .iter()
             .map(|v| v.2)
             .collect::<Vec<_>>()
@@ -760,8 +762,8 @@ fn csv_source_store() -> crate::features::receipts::ReceiptsStore {
 
 #[test]
 fn receipt_csv_source_constants_match_expected_values() {
-    use super::panel::ReceiptCsvSource;
-    use crate::ui::csv_section::CsvSource;
+    use super::csv_page::ReceiptCsvSource;
+    use crate::ui::csv_page::CsvSource;
     use leptos::prelude::*;
 
     let owner = Owner::new();
@@ -771,17 +773,16 @@ fn receipt_csv_source_constants_match_expected_values() {
             let source = ReceiptCsvSource { store, tab };
             assert_eq!(source.input_id(), tab.csv_input_id());
             assert_eq!(source.save_action(), "追加で保存");
+            assert_eq!(source.save_mode_label(), "追加");
             assert_eq!(source.mode_label(), "追加保存");
-            assert_eq!(source.toggle_testid(), "receipt-csv-toggle");
-            assert_eq!(source.section_class(), "sm:rounded-t-xl");
         }
     });
 }
 
 #[test]
 fn receipt_csv_source_input_disabled_reflects_store_state() {
-    use super::panel::ReceiptCsvSource;
-    use crate::ui::csv_section::CsvSource;
+    use super::csv_page::ReceiptCsvSource;
+    use crate::ui::csv_page::CsvSource;
     use leptos::prelude::*;
 
     let owner = Owner::new();
@@ -799,8 +800,8 @@ fn receipt_csv_source_input_disabled_reflects_store_state() {
 
 #[test]
 fn receipt_csv_source_db_count_returns_zero_when_no_data() {
-    use super::panel::ReceiptCsvSource;
-    use crate::ui::csv_section::CsvSource;
+    use super::csv_page::ReceiptCsvSource;
+    use crate::ui::csv_page::CsvSource;
     use leptos::prelude::*;
 
     let owner = Owner::new();
@@ -815,9 +816,9 @@ fn receipt_csv_source_db_count_returns_zero_when_no_data() {
 
 #[test]
 fn receipt_csv_source_delete_disabled_reflects_state() {
-    use super::panel::ReceiptCsvSource;
+    use super::csv_page::ReceiptCsvSource;
     use crate::support::csv_flow::CsvTabMeta;
-    use crate::ui::csv_section::CsvSource;
+    use crate::ui::csv_page::CsvSource;
     use leptos::prelude::*;
 
     let owner = Owner::new();
@@ -844,5 +845,95 @@ fn receipt_csv_source_delete_disabled_reflects_state() {
             source.delete_disabled(&deleting_state),
             "deleting -> disabled"
         );
+    });
+}
+
+#[test]
+fn receipt_csv_source_delete_count_error_masks_stale_error_while_loading() {
+    use super::csv_page::ReceiptCsvSource;
+    use crate::features::receipts::{ReceiptTabData, TabState};
+    use crate::ui::csv_page::CsvSource;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let store = csv_source_store();
+        let tab = ReceiptsTab::Dividend;
+        let source = ReceiptCsvSource { store, tab };
+        let generation = store.session.generation.get_untracked();
+
+        // 前回の裏再取得が失敗し、削除ページで始めた取り直しが進行中
+        store.tabs.update(|map| {
+            let entry = map.entry((generation, tab)).or_default();
+            entry.list = Some(TabState::Loading);
+            entry.refresh_error = Some("前回の失敗".to_string());
+        });
+        assert_eq!(
+            source.delete_count_error(),
+            None,
+            "取り直し中は古い失敗を出さず取得中として扱う"
+        );
+        assert!(!source.delete_count_ready());
+
+        // 取り直しが完了しても失敗が残るなら未確定としてエラーを出す
+        store.tabs.update(|map| {
+            let entry = map.entry((generation, tab)).or_default();
+            entry.list = Some(TabState::Ready(ReceiptTabData {
+                rows: vec![],
+                total: Some(1),
+                summary: None,
+                truncated: false,
+            }));
+        });
+        assert_eq!(source.delete_count_error().as_deref(), Some("前回の失敗"));
+        assert!(!source.delete_count_ready());
+
+        // 初回取得の失敗は Failed としてそのまま出す
+        store.tabs.update(|map| {
+            let entry = map.entry((generation, tab)).or_default();
+            entry.list = Some(TabState::Failed("取得失敗".to_string()));
+            entry.refresh_error = None;
+        });
+        assert_eq!(source.delete_count_error().as_deref(), Some("取得失敗"));
+    });
+}
+
+#[test]
+fn ensure_kind_resets_search_state_like_tab_switch() {
+    use super::csv_page::ensure_kind;
+    use crate::features::receipts::TabState;
+    use crate::features::receipts::filter::ReceiptSearch;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let store = csv_source_store();
+        // 世代リセットの検索クリアを通さず、タブ切替のリセットだけを見る
+        let generation = store.session.generation.get_untracked();
+        store.expanded_epoch.set(Some(generation));
+        // 対象タブを取得済みにして ensure の fetch dispatch を起こさない
+        store.tabs.update(|map| {
+            map.entry((generation, ReceiptsTab::DomesticStock))
+                .or_default()
+                .list = Some(TabState::Ready(ReceiptTabData {
+                rows: vec![],
+                total: Some(0),
+                summary: None,
+                truncated: false,
+            }));
+        });
+        store.search.set(ReceiptSearch {
+            query: "7203".to_string(),
+            ..Default::default()
+        });
+        store.expanded.update(|set| {
+            set.insert("g0".to_string());
+        });
+
+        ensure_kind(store, ReceiptsTab::DomesticStock);
+
+        assert_eq!(store.active_tab.get_untracked(), ReceiptsTab::DomesticStock);
+        assert_eq!(store.search.get_untracked().query, "");
+        assert!(store.expanded.with_untracked(|set| set.is_empty()));
     });
 }

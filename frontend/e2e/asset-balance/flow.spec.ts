@@ -186,7 +186,7 @@ test('資産管理データがないとき EmptyState が表示される', async
 test('CSV プレビュー完了後に保存ボタンが活性化する', async ({ page }) => {
   const mocks = await setupAssetBalanceMocks(page);
 
-  await gotoAssetBalancePage(page);
+  await page.goto('/assetbalance/csv');
   await selectCsvFile(page);
 
   await expect.poll(mocks.getPreviewRequestCount).toBe(1);
@@ -199,14 +199,17 @@ test('CSV プレビュー完了後に保存ボタンが活性化する', async (
 test('保存後に一覧が再取得されて銘柄データが表示される', async ({ page }) => {
   const mocks = await setupAssetBalanceMocks(page);
 
-  await gotoAssetBalancePage(page);
+  await page.goto('/assetbalance/csv');
   await selectCsvFile(page);
 
   await page.getByRole('button', { name: '1件 全件置換で保存' }).click();
 
   await expect.poll(mocks.getUploadRequestCount).toBe(1);
   await expect.poll(mocks.getListRequestCount).toBeGreaterThanOrEqual(2);
-  await expect(page.getByRole('button', { name: /全件削除 \(1件\)/ })).toBeVisible();
+  await expect(page.getByTestId('csv-save-result-notice')).toContainText('1件反映');
+  await expect(page.getByText('保存済みデータ: 1件')).toBeVisible();
+  // 一覧に戻ると保存した銘柄が見える
+  await page.getByRole('link', { name: '一覧に戻る' }).click();
   await expect(
     page.getByTestId('portfolio-pie-chart').getByText('トヨタ自動車').and(page.locator(':visible')),
   ).toBeVisible();
@@ -219,7 +222,8 @@ test('資産管理データが2件あるときサマリーと検索入力が表�
 
   await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
   await expect(page.getByText('評価額合計', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: /全件削除 \(2件\)/ })).toBeVisible();
+  // 全件削除は一覧には置かず CSV 管理ページへ誘導する
+  await expect(page.getByRole('link', { name: 'CSV管理' })).toBeVisible();
   await expect(page.getByTestId('asset-search-input')).toBeVisible();
 });
 
@@ -246,17 +250,25 @@ test('銘柄名の一部で絞り込み解除できる', async ({ page }) => {
   await expect(chart.getByText('トヨタ自動車').and(visible)).toBeVisible();
 });
 
-test('全件削除で EmptyState に戻る', async ({ page }) => {
+test('全件削除は専用ページで確認して EmptyState に戻る', async ({ page }) => {
   const mocks = await setupAssetBalanceMocks(page, { initialAssetBalances: [MOCK_ASSET] });
 
   await gotoAssetBalancePage(page);
+  await page.getByRole('link', { name: 'CSV管理' }).click();
+  await expect(page).toHaveURL('/assetbalance/csv');
 
-  await page.getByRole('button', { name: /全件削除 \(1件\)/ }).click();
-  await expect(page.getByText('資産管理データの全件削除')).toBeVisible();
+  await page.getByRole('link', { name: '保存済みデータを削除する画面へ' }).click();
+  await expect(page).toHaveURL('/assetbalance/csv/delete');
+  await expect(page.getByTestId('csv-delete-page')).toContainText(
+    'この操作は取り消せません',
+  );
+  await expect(page.getByTestId('csv-delete-count')).toContainText('1件');
+  expect(mocks.getDeleteRequestCount()).toBe(0);
 
   await page.getByRole('button', { name: '削除する' }).click();
 
   await expect.poll(mocks.getDeleteRequestCount).toBe(1);
+  await expect(page.getByTestId('csv-delete-done')).toContainText('削除しました');
+  await page.getByRole('link', { name: '一覧に戻る' }).click();
   await expect(page.getByText('資産管理データがありません')).toBeVisible();
-  await expect(page.getByRole('button', { name: /全件削除/ })).not.toBeVisible();
 });

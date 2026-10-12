@@ -170,16 +170,6 @@ async function openReceiptUtilityRail(page: Page) {
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
-// 資産管理も狭い帯ではパネルが畳んで始まるので、パネル内の UI に触れる前に開く
-async function openAssetUtilityPanel(page: Page) {
-  const toggle = page.getByTestId('asset-utility-toggle');
-  await expect(toggle).toBeVisible();
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
-    await toggle.click();
-  }
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-}
-
 async function selectReceiptTab(page: Page, tab: ReceiptTab) {
   const button = page.getByRole('tab', { name: tab.name });
   await button.click();
@@ -359,17 +349,19 @@ test('資産管理で該当銘柄がないとき絞り込みを解除できる',
   await expectAssetDataLoaded(page);
 });
 
-test('資産管理の検索とCSV操作に390pxでもアクセスできる', async ({ page }) => {
+test('資産管理の検索とCSV管理ページに390pxでもアクセスできる', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
   // 検索はメイン領域にあるのでドロワーを開かなくても届く
   await expect(page.getByTestId('asset-search-input')).toBeEditable();
-  // 狭い帯ではパネルが畳んで始まるので、CSV 操作はドロワーを開ける
-  await openAssetUtilityPanel(page);
-  const rail = page.getByTestId('assetbalance-utility-rail');
-  await expect(rail.getByTestId('assetbalance-csv-toggle')).toBeVisible();
-  await expect(rail.getByTestId('asset-review-prompt-card')).toBeVisible();
+  // CSV 操作は専用ページに置く
+  await page.getByRole('link', { name: 'CSV管理' }).click();
+  await expect(page).toHaveURL('/assetbalance/csv');
+  await expect(page.getByTestId('csv-file-input')).toBeAttached();
+  await expect(page.getByTestId('asset-review-prompt-card')).toBeVisible();
+  await page.getByRole('link', { name: '一覧に戻る' }).click();
+  await expect(page).toHaveURL('/assetbalance');
 });
 
 test('取引明細 390px はカード表示でページはみ出しなし', async ({ page }) => {

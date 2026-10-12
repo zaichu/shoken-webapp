@@ -183,20 +183,11 @@ test('390px ではモバイル表示を維持する(カード表示・ドロワ�
   await searchToggle.click();
   await expect(searchToggle).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('search-card-compact')).toBeVisible();
-  const csvToggle = page.getByTestId('receipt-csv-toggle');
-  await expect(csvToggle).toBeVisible();
 
   // ドロワーは被さるだけで表(メイン列)を押し下げない(開くとバー分だけ上に詰まる)
   const mainBoxAfter = (await main.boundingBox())!;
   expect(mainBoxAfter.y).toBeLessThanOrEqual(mainBoxBefore.y + 1);
   expect(mainBoxAfter.x).toBeCloseTo(mainBoxBefore.x, 0);
-
-  // CSV帯の開閉もドロワー内でできる
-  await expect(csvToggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByRole('region', { name: 'CSV取り込み・削除' })).toBeHidden();
-  await csvToggle.click();
-  await expect(csvToggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByRole('region', { name: 'CSV取り込み・削除' })).toBeVisible();
 
   // Esc でドロワーを閉じるとバーが戻る
   await page.keyboard.press('Escape');
@@ -261,12 +252,12 @@ test('データの有無にかかわらずレールは開いた状態で始ま�
   await expect(page.getByText('データがありません')).toBeVisible();
 
   const toggle = page.getByTestId('receipt-utility-toggle');
-  // 0 件でも開いた状態で始まる(CSV 取り込みにすぐ触れる)。
-  // 0 件のタブには検索カードが出ない
+  // 0 件でも開いた状態で始まる。0 件のタブには検索カードが出ない
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('search-card')).toHaveCount(0);
+  // CSV 取り込みは専用ページへ誘導する
   await expect(
-    page.getByTestId('receipt-utility-rail').getByRole('button', { name: /ファイルを選択/ }),
+    page.getByRole('link', { name: 'CSVを取り込む' }),
   ).toBeVisible();
 
   // データのある国内株式へ切り替えても開いたまま残る
@@ -278,7 +269,7 @@ test('データの有無にかかわらずレールは開いた状態で始ま�
   await expect(page.getByTestId('search-card')).toBeVisible();
 });
 
-test('取得失敗のタブではレールが開き、CSV 取り込みと検索に届く', async ({ page }) => {
+test('取得失敗のタブではレールが開き検索に届く', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
     route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
@@ -293,7 +284,7 @@ test('取得失敗のタブではレールが開き、CSV 取り込みと検索�
   await toggle.click();
   await expect(page.getByTestId('search-card')).toBeHidden();
 
-  // 取得失敗のタブでも開閉トグルは残るので、CSV 取り込み・検索に届く。
+  // 取得失敗のタブでも開閉トグルは残るので検索に届く。
   // ユーザーの開閉状態は変えず、パネルは畳んだまま開ける
   await page.getByRole('tab', { name: '国内株式' }).click();
   await expect(page.getByTestId('list-load-error')).toBeVisible();
@@ -301,12 +292,9 @@ test('取得失敗のタブではレールが開き、CSV 取り込みと検索�
   await expect(rail.getByTestId('search-card')).toBeHidden();
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  const fileInput = rail.getByTestId('csv-file-input');
-  await expect(fileInput).toBeEnabled();
   await expect(rail.getByTestId('search-card')).toBeVisible();
 
-  // 失敗タブで CSV プレビューが出ると main stage も描画されるが、
-  // 表示で強制 open のレールと食い違う開閉トグルは出さない
+  // 一覧取得が失敗していても CSV 管理ページではファイル選択に届く
   await page.route(/\/api\/v1\/domestic-stock-import-validations$/, (route) =>
     route.fulfill({
       status: 200,
@@ -334,13 +322,21 @@ test('取得失敗のタブではレールが開き、CSV 取り込みと検索�
       }),
     }),
   );
+  await page.getByRole('link', { name: 'CSV管理' }).click();
+  await expect(page).toHaveURL('/receipts/csv?kind=stock');
+  const fileInput = page.getByTestId('csv-file-input');
+  await expect(fileInput).toBeEnabled();
   await fileInput.setInputFiles(csvFixture('domesticstock-base.csv'));
   await expect(page.getByText('1件 追加で保存されます')).toBeVisible();
-  await expect(page.getByTestId('csv-preview-banner')).toBeVisible();
-  // 失敗タブでも開閉トグルは残り、パネル操作と矛盾しない
-  await expect(page.getByTestId('receipt-utility-toggle')).toBeVisible();
 
-  // 戻ると失敗タブで開いた状態が残る。トグルで畳める
+  // 一覧に戻ると失敗タブで開いた状態が残る
+  await page.getByRole('link', { name: '一覧に戻る' }).click();
+  await expect(page).toHaveURL('/receipts');
+  await expect(page.getByTestId('list-load-error')).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(rail.getByTestId('search-card')).toBeVisible();
+
+  // 配当金タブでも開いたまま残り、トグルで畳める
   await page.getByRole('tab', { name: '配当金' }).click();
   await expect(page.getByRole('table')).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -789,8 +785,6 @@ test('1920px では左パネル・中央列の2カラムになる', async ({ pag
   expect(railBox!.x + railBox!.width).toBeLessThanOrEqual(mainBox!.x + 1);
 
   await expect(rail.getByTestId('search-card')).toBeVisible();
-  await expect(rail.getByRole('region', { name: 'CSV取り込み・削除' })).toBeVisible();
-  await expect(page.getByTestId('receipt-csv-toggle')).toBeHidden();
   await expect(main.getByTestId('receipt-summary-strip')).toBeVisible();
   await expect(main.getByRole('table')).toBeVisible();
 
@@ -822,13 +816,9 @@ test('1920px では左パネル・中央列の2カラムになる', async ({ pag
   expect(printWrap.scrollHeight).toBeLessThanOrEqual(printWrap.height + 1);
   await page.emulateMedia({ media: 'screen' });
 
-  // 全件削除はレール内のボタン(全幅の赤枠ではない)
-  const deleteButton = rail.getByRole('button', { name: /全件削除/ });
-  await expect(deleteButton).toBeVisible();
-  const deleteBox = await deleteButton.boundingBox();
-  expect(deleteBox).not.toBeNull();
-  expect(deleteBox!.width).toBeLessThanOrEqual(railBox!.width);
-  await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(1);
+  // 全件削除は一覧には置かず、CSV 管理ページへのリンクだけを出す
+  await expect(page.getByRole('button', { name: /全件削除/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'CSV管理' })).toBeVisible();
 });
 
 test('A4の印字可能領域に全タブの右端の列を収めて印刷できる', async ({ page }) => {

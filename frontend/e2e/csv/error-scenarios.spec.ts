@@ -102,7 +102,7 @@ test('CSV プレビューで行エラーが返ったとき warning Alert に一�
     }),
   );
 
-  await page.goto('/receipts');
+  await page.goto('/receipts/csv?kind=dividend');
 
   // 初回取得中は input が disabled で change を捨てるため、有効化を待ってから投入する
   const fileInput = page.locator('[data-testid="csv-file-input"]');

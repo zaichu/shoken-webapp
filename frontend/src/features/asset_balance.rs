@@ -12,7 +12,9 @@ mod view;
 pub(crate) use format::{format_valuation_amount, format_valuation_rate, valuation_tone};
 pub(crate) use lookup::{fetch_single_asset_balance, find_by_code};
 pub(crate) use model::{calculate_valuation_from_decimal, to_fixed};
-pub(crate) use view::{AssetBalancePage, AssetBalanceState};
+pub(crate) use view::{
+    AssetBalanceCsvDeletePage, AssetBalanceCsvPage, AssetBalancePage, AssetBalanceState,
+};
 
 #[cfg(test)]
 pub(crate) use csv::AssetBalanceCsvRow;

@@ -363,7 +363,7 @@ test('取引明細の取得失敗と読み込み中に moderate 以上の WCAG �
   );
 });
 
-test('CSVプレビューと確認モーダルに moderate 以上の WCAG 違反がない', async ({
+test('CSVプレビューと削除ページに moderate 以上の WCAG 違反がない', async ({
   page,
 }) => {
   await mockSession(page);
@@ -374,9 +374,8 @@ test('CSVプレビューと確認モーダルに moderate 以上の WCAG 違反�
   );
   for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
     await page.setViewportSize(size);
-    await page.goto('/receipts');
+    await page.goto('/receipts/csv?kind=dividend');
     await page.waitForLoadState('networkidle');
-    await openReceiptRail(page);
     const fileInput = page.locator('[data-testid="csv-file-input"]');
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
@@ -384,22 +383,13 @@ test('CSVプレビューと確認モーダルに moderate 以上の WCAG 違反�
       page.locator('[role="status"][aria-live="polite"]').first(),
     ).toContainText('追加で保存されます', { timeout: 10000 });
     await scanAxe(page, `CSVプレビュー(${name})`);
-    const railToggle = page.locator('[data-testid="receipt-csv-toggle"]');
-    if ((await railToggle.count()) > 0 && (await railToggle.isVisible())) {
-      const delVisible = await page
-        .getByRole('button', { name: /全件削除/ })
-        .first()
-        .isVisible()
-        .catch(() => false);
-      if (!delVisible) {
-        await railToggle.click();
-      }
-    }
-    await page.getByRole('button', { name: /全件削除/ }).first().click();
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
-    await scanAxe(page, `確認モーダル(${name})`);
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    // 確認は削除専用ページに置く
+    await page
+      .getByRole('link', { name: '保存済みデータを削除する画面へ' })
+      .click();
+    await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
+    await expect(page.getByTestId('csv-delete-page')).toBeVisible();
+    await scanAxe(page, `削除ページ(${name})`);
   }
   await page.setViewportSize(PC);
 });
@@ -424,7 +414,7 @@ test('CSVプレビューの行エラー表示に moderate 以上の WCAG 違反�
     ),
   );
   await scanBothViewports(page, 'CSVプレビュー(行エラー)', async () => {
-    await page.goto('/receipts');
+    await page.goto('/receipts/csv?kind=dividend');
     await page.waitForLoadState('networkidle');
     const fileInput = page.locator('[data-testid="csv-file-input"]');
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
@@ -533,6 +523,9 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await page.keyboard.press('Space');
   await expect(header).toHaveAttribute('aria-expanded', before);
 
+  // CSV 操作は専用ページに移った。ファイル選択と削除導線を Tab で辿る
+  await page.goto('/receipts/csv?kind=dividend');
+  await page.waitForLoadState('networkidle');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   await expect(fileInput).toBeEnabled({ timeout: 10000 });
   await tabTo(page, fileInput);
@@ -555,13 +548,16 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
     page.locator('[role="status"][aria-live="polite"]').first(),
   ).toContainText('追加で保存されます', { timeout: 10000 });
 
-  const deleteButton = page.getByRole('button', { name: /全件削除/ }).first();
+  const deleteLink = page.getByRole('link', {
+    name: '保存済みデータを削除する画面へ',
+  });
+  await tabTo(page, deleteLink);
+  await expect(deleteLink).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
+  const deleteButton = page.getByRole('button', { name: '削除する' });
   await tabTo(page, deleteButton);
   await expect(deleteButton).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('フォーカスが見えてスキップリンクが使える', async ({ page }) => {
@@ -578,8 +574,13 @@ test('フォーカスが見えてスキップリンクが使える', async ({ pa
   const skipBox = await skip.boundingBox();
   expect(skipBox).not.toBeNull();
   expect(skipBox!.height).toBeGreaterThan(24);
+  const csvLink = page.getByRole('link', { name: 'CSV管理' });
+  await page.keyboard.press('Tab');
+  await expect(csvLink).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(csvLink).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(skip).toBeFocused();
 
@@ -771,9 +772,8 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
   let upload: unknown = { inserted: 1, skipped: 0, errors: [] };
   await page.route(ROUTES.dividendUpload, (route) => route.fulfill(json(upload)));
   await page.setViewportSize(PC);
-  await page.goto('/receipts');
+  await page.goto('/receipts/csv?kind=dividend');
   await page.waitForLoadState('networkidle');
-  await openReceiptRail(page);
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   const preview = page.locator('[role="status"][aria-live="polite"]').first();
 

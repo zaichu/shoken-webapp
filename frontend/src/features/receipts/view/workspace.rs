@@ -9,6 +9,7 @@ use leptos::prelude::*;
 pub(crate) fn empty_tab_data() -> ReceiptTabData {
     ReceiptTabData {
         rows: Vec::new(),
+        total: None,
         summary: None,
         truncated: false,
     }
@@ -26,13 +27,9 @@ pub(crate) fn ReceiptMainColumn(store: ReceiptsStore, tab: ReceiptsTab) -> impl 
     let alert_store = store;
     let panel_state = Memo::new(move |_| store.tab_state(tab));
     view! {
-        // 裏再取得・CSV の失敗は一覧を消さずに知らせる。パネルが畳まれても見えるよう表の上に出す
+        // 裏再取得の失敗は一覧を消さずに知らせる。パネルが畳まれても見えるよう表の上に出す
         {move || {
-            let Some(message) = alert_store
-                .csv_meta(tab)
-                .error
-                .or_else(|| alert_store.refresh_error(tab))
-            else {
+            let Some(message) = alert_store.refresh_error(tab) else {
                 return ().into_any();
             };
             view! {
@@ -76,20 +73,8 @@ pub(crate) fn ReceiptMainColumn(store: ReceiptsStore, tab: ReceiptsTab) -> impl 
             }
             TabState::Failed(message) => {
                 let retry_store = main_store;
-                let preview = main_store.has_csv_preview(tab).then(|| {
-                    view! {
-                        <div class="mt-4">
-                            <ReceiptsMainContent
-                                store=main_store
-                                tab=tab
-                                data=empty_tab_data()
-                            />
-                        </div>
-                    }
-                });
                 view! {
                     <ListLoadError message=message on_retry=move || retry_store.reload(tab) />
-                    {preview}
                 }
                     .into_any()
             }

@@ -104,16 +104,13 @@ fn csv_errors_use_api_error_messages() {
 }
 
 #[test]
-fn delete_label_preserves_count_and_busy_state() {
+fn delete_label_reflects_deleting_flag() {
     let mut state = CsvTabState::<String>::default();
-    let ready = state.meta().delete_label(5);
-    assert!(ready.contains("(5件)"));
+    assert_eq!(state.meta().delete_label(), "削除する");
     state.deleting = true;
-    let deleting = state.meta().delete_label(5);
-    assert_ne!(deleting, ready);
-    assert_eq!(state.meta().delete_label(9), deleting);
+    assert_eq!(state.meta().delete_label(), "削除中...");
     state.deleting = false;
-    assert_eq!(state.meta().delete_label(5), ready);
+    assert_eq!(state.meta().delete_label(), "削除する");
 }
 
 #[test]
@@ -207,10 +204,6 @@ fn delete_confirm_state_transitions() {
     };
     state.open_delete_confirm();
     assert!(state.show_delete_confirm);
-    state.close_delete_confirm();
-    assert!(!state.show_delete_confirm);
-
-    state.open_delete_confirm();
     assert!(state.begin_delete());
     assert!(!state.show_delete_confirm);
     assert!(state.deleting);

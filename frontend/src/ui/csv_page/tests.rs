@@ -1,4 +1,5 @@
 use super::*;
+use crate::api::dto::CsvRowError;
 
 #[test]
 fn save_result_heading_splits_success_partial_and_full_failure() {

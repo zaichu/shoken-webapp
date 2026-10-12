@@ -26,6 +26,7 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
                 (Generation::new(0), ReceiptsTab::Dividend),
                 TabState::Ready(ReceiptTabData {
                     rows: dividends(),
+                    total: None,
                     summary: None,
                     truncated: false,
                 })

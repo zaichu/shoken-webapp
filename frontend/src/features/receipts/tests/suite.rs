@@ -48,28 +48,21 @@ fn unauthorized_error_uses_401_message() {
 }
 
 #[test]
-fn header_summary_uses_api_value_without_preview_or_search() {
-    assert_eq!(
-        select_header_summary(Some(&"api"), false, "", "client"),
-        "api"
-    );
+fn header_summary_uses_api_value_without_search() {
+    assert_eq!(select_header_summary(Some(&"api"), "", "client"), "api");
 }
 
 #[test]
 fn header_summary_uses_client_value_during_search() {
     assert_eq!(
-        select_header_summary(Some(&"api"), false, "7203", "client"),
+        select_header_summary(Some(&"api"), "7203", "client"),
         "client"
     );
 }
 
 #[test]
-fn header_summary_uses_client_value_during_preview_or_without_api_summary() {
-    assert_eq!(
-        select_header_summary(Some(&"api"), true, "", "client"),
-        "client"
-    );
-    assert_eq!(select_header_summary(None, false, "", "client"), "client");
+fn header_summary_uses_client_value_without_api_summary() {
+    assert_eq!(select_header_summary(None, "", "client"), "client");
 }
 
 #[test]
@@ -127,6 +120,7 @@ fn revisit_refetches_only_visited_settled_tabs() {
         });
         let ready = TabState::Ready(ReceiptTabData {
             rows: Vec::new(),
+            total: None,
             summary: None,
             truncated: false,
         });
@@ -208,6 +202,7 @@ fn revisit_skips_unauthenticated_and_unvisited() {
         let ready = || {
             TabCacheEntry::from(TabState::Ready(ReceiptTabData {
                 rows: Vec::new(),
+                total: None,
                 summary: None,
                 truncated: false,
             }))
@@ -233,6 +228,7 @@ fn settle_tab_result_keeps_ready_on_refresh_failure() {
             true,
             Ok(ReceiptTabData {
                 rows: Vec::new(),
+                total: None,
                 summary: None,
                 truncated: false,
             })
@@ -284,6 +280,7 @@ fn revisit_does_not_dispatch_while_fetch_pending() {
         let ready = || {
             TabCacheEntry::from(TabState::Ready(ReceiptTabData {
                 rows: Vec::new(),
+                total: None,
                 summary: None,
                 truncated: false,
             }))
