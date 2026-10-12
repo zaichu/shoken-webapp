@@ -74,12 +74,11 @@ fn mutual_fund_filter_is_exact_and_has_no_amount_search() {
             "{query}"
         );
     }
-    for query in ["2024-03-05"] {
-        assert!(
-            filter_receipts(ReceiptsTab::MutualFund, &rows, query).is_empty(),
-            "{query}"
-        );
-    }
+    let query = "2024-03-05";
+    assert!(
+        filter_receipts(ReceiptsTab::MutualFund, &rows, query).is_empty(),
+        "{query}"
+    );
     assert_eq!(
         filter_receipts(ReceiptsTab::MutualFund, &rows, "Alpha"),
         rows,
