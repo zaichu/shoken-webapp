@@ -181,6 +181,7 @@ pub fn ReceiptsPcSearchBar(
                             </select>
     {move || {
                         let segment = current_segment.get();
+                        #[allow(unreachable_patterns)]
                         match segment {
                             DateSegment::Year => {
                                 has_years().then(|| {
