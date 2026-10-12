@@ -28,6 +28,7 @@ fn focus_tab(index: usize) {
     }
 }
 
+#[allow(dead_code)]
 pub fn scroll_tab_into_view(tab: ReceiptsTab) {
     let Some(element) = web_sys::window()
         .and_then(|window| window.document())
