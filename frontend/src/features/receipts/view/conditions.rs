@@ -3,6 +3,7 @@ use crate::features::receipts::filter::{
 };
 use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
+use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::page_frame::PageFrame;
 use leptos::ev::MouseEvent;
 use leptos::prelude::*;
@@ -346,32 +347,30 @@ pub fn ReceiptsConditionsPage() -> impl IntoView {
     let years = Memo::new(move |_| categories.with(|c| c.years.clone()));
     let products = Memo::new(move |_| categories.with(|c| c.products.clone()));
     let accounts = Memo::new(move |_| categories.with(|c| c.accounts.clone()));
-    let securities = Memo::new(move |_| categories.with(|c| c.securities.clone()));
     let has_years = move || !years.get().is_empty();
+    let action_bar = view! {
+        <div class="conditions-actions">
+            <Button
+                variant=ButtonVariant::Secondary(ButtonSize::Md)
+                class="flex-1 conditions-clear-btn"
+                on_click=move |_| search.update(|s| s.clear(has_years()))
+            >
+                "条件を解除"
+            </Button>
+            <LinkButton
+                variant=ButtonVariant::Primary(ButtonSize::Md)
+                class="flex-1 conditions-apply-btn"
+                href="/receipts"
+            >
+                "適用して戻る"
+            </LinkButton>
+        </div>
+    }
+    .into_any();
 
     view! {
-        <PageFrame title="検索条件">
-            <div class="page-gutter flex flex-col gap-4 py-4 max-w-2xl">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-bold text-ink">"検索条件"</h2>
-                    <button
-                        type="button"
-                        class="text-sm text-info underline hover:text-info-deep"
-                        on:click=move |_| search.update(|s| s.clear(has_years()))
-                    >
-                        "すべてクリア"
-                    </button>
-                </div>
-
-                <ConditionSection
-                    search=search
-                    key=SearchKey::Securities
-                    label="銘柄"
-                    options=securities
-                    on_select=move |v| search.update(|s| s.select_quick(SearchKey::Securities, v))
-                    on_clear=move |_| search.update(|s| s.clear_key(SearchKey::Securities, has_years()))
-                />
-
+        <PageFrame title="検索条件" full_bleed=true action_bar=action_bar>
+            <div class="conditions-page page-gutter">
                 {move || {
                     let categories = categories.get();
                     if categories.dates {
@@ -398,15 +397,6 @@ pub fn ReceiptsConditionsPage() -> impl IntoView {
                     on_select=move |v| search.update(|s| s.select_quick(SearchKey::Accounts, v))
                     on_clear=move |_| search.update(|s| s.clear_key(SearchKey::Accounts, has_years()))
                 />
-
-                <div class="pt-4 border-t border-border">
-                    <a
-                        href="/receipts"
-                        class="inline-flex items-center justify-center w-full h-11 text-sm font-semibold text-text-inverse rounded-md border border-ink bg-ink hover:bg-ink-hover transition-colors"
-                    >
-                        "取引明細に戻る"
-                    </a>
-                </div>
             </div>
         </PageFrame>
     }

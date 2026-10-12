@@ -3,10 +3,12 @@
 @source "../src/**/*.rs";
 
 @theme {
-  --color-page: #f6f7f4;
+  --color-page: #f4f5f7;
   --color-surface: var(--color-white);
-  --color-surface-sunken: var(--color-slate-50);
-  --color-surface-raised: var(--color-slate-100);
+  --color-surface-sunken: #f9fafb;
+  --color-surface-raised: #f8f9fb;
+  --color-segment: #e9ebef;
+  --color-row-group: #fbfbfc;
   --color-fill: var(--color-slate-200);
   --color-fill-strong: var(--color-slate-400);
   --color-scrollbar-track: #e5e7eb;
@@ -17,16 +19,16 @@
   --color-night-soft: var(--color-slate-700);
   --color-scrim: var(--color-black);
 
-  --color-ink: var(--color-slate-950);
-  --color-ink-hover: var(--color-slate-800);
-  --color-text: var(--color-slate-800);
+  --color-ink: #0f172a;
+  --color-ink-hover: #1e293b;
+  --color-text: #111827;
   --color-text-deep: #111827;
-  --color-text-strong: var(--color-slate-900);
-  --color-text-soft: var(--color-slate-700);
-  --color-text-muted: var(--color-slate-600);
-  --color-text-subtle: var(--color-slate-500);
-  --color-text-quiet: #64748b;
-  --color-text-faint: var(--color-slate-400);
+  --color-text-strong: #111827;
+  --color-text-soft: #4b5563;
+  --color-text-muted: #6b7280;
+  --color-text-subtle: #6b7280;
+  --color-text-quiet: #6b7280;
+  --color-text-faint: #9ca3af;
   --color-text-inverse: var(--color-white);
   --color-text-inverse-muted: var(--color-slate-300);
 
@@ -35,43 +37,42 @@
   --color-icon: var(--color-gray-400);
   --color-icon-hover: var(--color-gray-600);
 
-  --color-border: rgba(15, 23, 42, 0.12);
-  --color-border-faint: var(--color-slate-100);
-  --color-border-subtle: var(--color-slate-200);
-  --color-border-strong: var(--color-slate-300);
-  --color-border-xstrong: var(--color-slate-400);
-  --color-border-bold: var(--color-slate-500);
+  --color-border: #e5e7eb;
+  --color-border-faint: #f0f1f3;
+  --color-border-subtle: #e5e7eb;
+  --color-border-strong: #d1d5db;
+  --color-border-xstrong: #9ca3af;
+  --color-border-bold: #6b7280;
 
-  /* 置換前の描画色を維持するため hex で固定している */
-  --color-negative: #b91c1c;
-  --color-negative-vivid: var(--color-red-700);
-  --color-negative-strong: var(--color-red-800);
-  --color-negative-soft: var(--color-red-50);
-  --color-negative-border: var(--color-red-200);
+  --color-negative: #c0362c;
+  --color-negative-vivid: #c0362c;
+  --color-negative-strong: #9f2d25;
+  --color-negative-soft: #fdf2f2;
+  --color-negative-border: #f1c7c3;
 
-  --color-positive: var(--color-emerald-700);
-  --color-positive-strong: var(--color-emerald-600);
-  --color-positive-soft: var(--color-emerald-50);
-  --color-positive-softer: var(--color-emerald-100);
-  --color-positive-border: var(--color-emerald-200);
+  --color-positive: #0b7a4b;
+  --color-positive-strong: #0b7a4b;
+  --color-positive-soft: #effaf5;
+  --color-positive-softer: #dcf5e9;
+  --color-positive-border: #b9e7d1;
 
-  --color-accent: #c08403;
-  --color-accent-bright: var(--color-amber-500);
-  --color-accent-ring: var(--color-amber-400);
-  --color-accent-strong: var(--color-amber-600);
-  --color-accent-text: var(--color-amber-900);
-  --color-accent-text-soft: var(--color-amber-800);
-  --color-accent-soft: var(--color-amber-50);
-  --color-accent-softer: var(--color-amber-100);
-  --color-accent-border: var(--color-amber-200);
-  --color-accent-border-strong: var(--color-amber-300);
+  --color-accent: #1d4ed8;
+  --color-accent-bright: #1d4ed8;
+  --color-accent-ring: #1d4ed8;
+  --color-accent-strong: #1d4ed8;
+  --color-accent-text: #1d4ed8;
+  --color-accent-text-soft: #1d4ed8;
+  --color-accent-soft: #eff4ff;
+  --color-accent-softer: #e5edff;
+  --color-accent-border: #a9bff4;
+  --color-accent-border-strong: #7396ea;
 
-  --color-info: var(--color-blue-700);
-  --color-info-strong: var(--color-blue-900);
-  --color-info-deep: var(--color-blue-800);
-  --color-info-soft: var(--color-blue-50);
-  --color-info-border: var(--color-blue-200);
-  --color-info-focus: var(--color-blue-500);
+  --color-info: #1d4ed8;
+  --color-info-strong: #1e3a8a;
+  --color-info-deep: #1e3a8a;
+  --color-info-soft: #eff4ff;
+  --color-info-border: #a9bff4;
+  --color-info-focus: #1d4ed8;
 
   /* 保有銘柄の識別色。隣り合う並びで色相が離れるよう配列し、
      マイナス損益と区別がつくよう赤系は入れない */
@@ -112,7 +113,7 @@
 
   --container-wide: 1680px;
 
-  --font-sans: 'BIZ UDPGothic', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+  --font-sans: 'Noto Sans JP', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
 }
 
 @layer base {
@@ -122,14 +123,9 @@
 
   body {
     font-family: var(--font-sans);
-    line-height: 1.6;
+    line-height: 1.5;
     color: var(--color-text-deep);
     background-color: var(--color-page);
-    background-image:
-      linear-gradient(color-mix(in srgb, var(--color-night) 3.5%, transparent) 1px, transparent 1px),
-      linear-gradient(90deg, color-mix(in srgb, var(--color-night) 2.5%, transparent) 1px, transparent 1px),
-      linear-gradient(180deg, #f9faf7 0%, #eef2f3 100%);
-    background-size: 44px 44px, 44px 44px, 100% 100%;
     font-feature-settings: "palt" 1;
   }
 
@@ -294,39 +290,115 @@
   }
 
   .pc-receipts .receipts-tab-list {
-    @apply inline-flex gap-2 bg-surface-sunken p-2 rounded-lg;
+    @apply inline-flex gap-0.5 bg-segment p-[3px] rounded-lg;
   }
 
   .pc-receipts .receipts-tab-list button[role="tab"] {
-    @apply h-8 px-4 rounded-md bg-transparent text-sm font-medium text-text-soft hover:bg-surface hover:text-ink transition-colors;
+    @apply h-8 px-4 rounded-md bg-transparent text-sm font-medium text-text-soft transition-colors;
   }
 
   .pc-receipts .receipts-tab-list button[role="tab"][aria-selected="true"] {
-    @apply bg-surface text-ink shadow-sm;
+    @apply bg-surface text-ink shadow-[0_1px_2px_rgba(15,23,42,.08)];
   }
 
   .pc-receipts .pc-search-bar {
-    @apply flex flex-wrap items-center gap-3 mb-4 p-4 bg-surface border border-ink/10 rounded-lg;
+    @apply flex flex-wrap items-center gap-2.5 gap-y-2.5 mb-4 px-3.5 py-2.5 bg-surface border border-border rounded-lg;
   }
 
   .pc-receipts .pc-search-bar label {
-    @apply flex-1 min-w-[260px];
+    @apply flex-1 min-w-[260px] h-9;
   }
 
   .pc-receipts .pc-search-bar .search-input-frame {
-    @apply w-full;
+    @apply h-full w-full;
+  }
+
+  .pc-receipts .pc-search-bar .search-input-frame svg {
+    @apply h-4 w-4;
+  }
+
+  .pc-receipts .pc-search-bar .search-input {
+    @apply h-full;
+  }
+
+  .pc-receipts .pc-search-bar select {
+    @apply h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm;
   }
 
   .pc-receipts .pc-summary {
-    @apply grid grid-cols-3 gap-0 mb-4;
+    @apply bg-surface border border-border rounded-lg grid grid-cols-3 gap-0 mb-4;
   }
 
   .pc-receipts .pc-summary > div {
-    @apply p-4 border-r border-ink/10;
+    @apply p-4 border-r border-border-faint;
   }
 
   .pc-receipts .pc-summary > div:last-child {
     @apply border-r-0;
+  }
+
+  /* Shared receipt summary (PC & mobile) */
+  .receipt-summary {
+    @apply bg-surface border border-border rounded-lg;
+  }
+
+  .receipt-summary-grid {
+    @apply grid grid-cols-3 gap-0;
+  }
+
+  .receipt-summary-item {
+    @apply px-4.5 py-3 border-r border-border-faint;
+  }
+
+  .receipt-summary-item:last-child {
+    @apply border-r-0;
+  }
+
+  .receipt-summary-item dt {
+    @apply text-xs text-text-muted font-medium;
+  }
+
+  .receipt-summary-item dd {
+    @apply mt-1;
+  }
+
+  .receipt-summary-amount {
+    @apply text-xl font-bold tabular-nums;
+  }
+
+  .receipt-summary-item-primary .receipt-summary-amount {
+    @apply text-text;
+  }
+
+  /* Mobile receipt summary */
+  @media (width < 64rem) {
+    .receipt-summary {
+      @apply bg-surface-raised border-0 border-t border-b border-border rounded-none px-4 py-3;
+    }
+
+    .receipt-summary-grid {
+      @apply grid grid-cols-3 gap-2;
+    }
+
+    .receipt-summary-item {
+      @apply p-0 border-0;
+    }
+
+    .receipt-summary-item dt {
+      @apply text-[11px] text-text-muted;
+    }
+
+    .receipt-summary-item dd {
+      @apply mt-0.5;
+    }
+
+    .receipt-summary-amount {
+      @apply text-sm font-medium tabular-nums;
+    }
+
+    .receipt-summary-item-primary .receipt-summary-amount {
+      @apply text-lg font-bold;
+    }
   }
 
   .pc-receipts .pc-table {
@@ -359,6 +431,152 @@
 
   .pc-receipts .pc-table .month-total {
     @apply text-sm text-text-muted;
+  }
+
+  /* PC Receipts Table (compact mobile desktop view) */
+  .receipt-list-surface {
+    @apply bg-surface border border-border rounded-lg overflow-hidden;
+  }
+
+  .receipts-table-frame {
+    @apply overflow-x-auto;
+  }
+
+  .receipts-table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .receipts-table thead {
+    @apply bg-surface-sunken;
+  }
+
+  .receipts-table th {
+    @apply text-left px-3.5 py-2 font-medium text-xs text-text-soft bg-surface-sunken;
+  }
+
+  .receipts-table tbody tr {
+    @apply border-t border-border-faint;
+  }
+
+  .receipts-table tbody tr:hover {
+    @apply bg-surface-sunken;
+  }
+
+  .receipts-table td {
+    @apply px-3.5 py-2 text-text;
+  }
+
+  .receipts-table td.text-right {
+    @apply text-right;
+  }
+
+  .receipts-table-group {
+    @apply bg-row-group;
+  }
+
+  .receipts-table-group td {
+    @apply text-text-soft text-xs;
+  }
+
+  .receipts-table-group td:first-child {
+    @apply font-bold;
+  }
+
+  .receipts-table-group td.text-right {
+    @apply font-medium;
+  }
+
+  .receipt-instrument-cell .receipts-table-code {
+    @apply inline-block text-xs text-text-muted mr-2;
+  }
+
+  /* Mobile Compact Receipts List */
+  .receipt-compact-list {
+    @apply list-none m-0 p-0;
+  }
+
+  .receipt-compact-row {
+    @apply border-b border-border-faint;
+  }
+
+  .receipt-compact-row a {
+    @apply block p-4 text-decoration-none text-inherit;
+  }
+
+  .receipt-compact-main {
+    @apply flex justify-between gap-2;
+  }
+
+  .receipt-compact-main > div {
+    @apply min-w-0 flex-1;
+  }
+
+  .receipt-compact-net {
+    @apply shrink-0 font-bold tabular-nums;
+  }
+
+  .receipt-compact-meta {
+    @apply flex justify-between gap-2 text-xs text-text-muted mt-1;
+  }
+
+  .receipt-compact-facts {
+    @apply flex items-center gap-1 flex-1 min-w-0;
+  }
+
+  .receipt-compact-facts span {
+    @apply truncate;
+  }
+
+  .receipt-compact-code {
+    @apply text-text-muted no-underline;
+  }
+
+  .receipt-compact-primary {
+    @apply shrink-0 whitespace-nowrap;
+  }
+
+  .receipt-compact-group {
+    @apply flex items-center justify-between gap-2 px-4 py-2 bg-row-group border-b border-border-faint;
+  }
+
+  .receipt-compact-group > span:first-child {
+    @apply font-bold text-xs text-text-soft;
+  }
+
+  .receipt-compact-group > span:last-child {
+    @apply text-xs text-text-soft;
+  }
+
+  .receipt-compact-name {
+    @apply font-medium truncate;
+  }
+
+  .receipts-mobile-bottom-section {
+    @apply fixed bottom-0 left-0 right-0 z-40;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .receipts-mobile-bottom-section .page-gutter {
+    @apply pb-2;
+  }
+
+  @media (width >= 64rem) {
+    .receipts-mobile-bottom-section {
+      @apply hidden;
+    }
+  }
+
+  /* Conditions page action buttons */
+  .conditions-actions {
+    @apply flex gap-2 p-4 bg-surface border-t border-border;
+  }
+
+  .conditions-clear-btn {
+    @apply border-accent text-accent hover:bg-accent-soft hover:border-accent;
+  }
+
+  .conditions-apply-btn {
+    @apply bg-accent border-accent text-text-inverse hover:bg-accent-strong hover:border-accent-strong;
   }
 
   .skip-link {
@@ -398,6 +616,14 @@
 
   .page-back-link {
     @apply inline-flex min-h-11 items-center text-sm font-semibold text-info underline underline-offset-2 hover:text-info-deep;
+  }
+
+  .page-secondary-link {
+    @apply inline-flex h-9 items-center px-4 text-sm font-medium text-text-soft border border-border-strong bg-surface rounded-lg text-decoration-none hover:bg-surface-sunken hover:text-text-deep transition-colors;
+  }
+
+  .page-secondary-link-sm {
+    @apply inline-flex h-8 items-center px-3 text-xs font-medium text-text-soft border border-border-strong bg-surface rounded-lg text-decoration-none hover:bg-surface-sunken hover:text-text-deep transition-colors;
   }
 
   /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く */
@@ -443,7 +669,7 @@
   }
 
   .receipts-tab-list {
-    @apply inline-flex gap-2 rounded-lg bg-surface-sunken p-1.5 max-w-full;
+    @apply inline-flex gap-0.5 bg-segment p-[3px] rounded-lg max-w-full;
   }
 
   @media (width < 40rem) {

@@ -58,17 +58,8 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
             id=format!("tab-{slug}")
             aria-controls=format!("tabpanel-{slug}")
             aria-selected=move || selected.active_tab.get() == tab
-            class=move || {
-                let is_selected = counted.active_tab.get() == tab;
-                format!(
-                    "h-8 sm:h-7 min-w-0 rounded-md font-inherit text-sm font-semibold transition-all {}",
-                    if is_selected {
-                        "bg-surface text-ink shadow-[0_1px_2px_rgba(15,23,42,.08)]"
-                    } else {
-                        "bg-transparent text-text-soft hover:bg-surface-sunken"
-                    }
-                )
-            }
+            class="receipts-tab"
+            data-selected=move || (counted.active_tab.get() == tab).then_some("true")
             on:click=move |_| clicked.select_tab(tab)
             on:keydown=move |event| {
                 let current = ReceiptsTab::ALL
@@ -85,17 +76,7 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
             {label}
             <span
                 data-testid={format!("tab-count-{slug}")}
-                class=move || {
-                    let is_selected = counted.active_tab.get() == tab;
-                    format!(
-                        "ml-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0 text-[11px] font-semibold tabular-nums {}",
-                        if is_selected {
-                            "text-text-muted"
-                        } else {
-                            "text-text-faint"
-                        }
-                    )
-                }
+                class="receipts-tab-count"
             >
                 {move || match counted_store.tab_state(tab) {
                     TabState::Ready(data) => data.rows.len().to_string(),

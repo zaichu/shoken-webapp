@@ -9,7 +9,7 @@ mod summary;
 mod table;
 mod tabs;
 
-pub use action_bar::{ReceiptsActionBar, ReceiptsPcSearchBar};
+pub use action_bar::{ReceiptsMobileBottomSection, ReceiptsPcSearchBar};
 pub use conditions::ReceiptsConditionsPage;
 pub use csv_page::{ReceiptsCsvDeletePage, ReceiptsCsvPage};
 pub use main_content::ReceiptsMainContent;
@@ -45,31 +45,20 @@ pub fn ReceiptsPage() -> impl IntoView {
         Signal::derive(move || format!("/receipts/csv?kind={}", active_tab.get().kind_param()));
     let mobile_csv_link: Children = Box::new(move || {
         view! {
-            <a class="page-back-link" href=move || csv_href.get()>"CSV管理"</a>
-        }
-        .into_any()
-    });
-    let pc_csv_link: Children = Box::new(move || {
-        view! {
-            <a class="page-back-link" href=move || csv_href.get()>"CSV管理"</a>
-        }
-        .into_any()
-    });
-
-    let action_bar = Box::new(move || {
-        let store = store;
-        let active_tab = active_tab;
-        view! {
-            <ReceiptsActionBar store=store active_tab=active_tab />
+            <a class="page-secondary-link-sm" href=move || csv_href.get()>"CSV管理"</a>
         }
         .into_any()
     });
 
     view! {
-        <PageFrame title="取引明細" mobile_links=mobile_csv_link pc_links=pc_csv_link action_bar=action_bar()>
+        <PageFrame
+            title="取引明細"
+            mobile_links=mobile_csv_link
+            full_bleed=true
+        >
             <div class="flex flex-1 flex-col min-h-0" data-testid="receipts-page">
-                <div class="block lg:hidden">
-                    <nav class="no-print mb-3" aria-label="種別">
+                <div class="flex flex-1 flex-col min-h-0 lg:hidden">
+                    <nav class="no-print mx-4 mb-2" aria-label="種別">
                         <div
                             class="receipts-tab-list"
                             role="tablist"
@@ -84,7 +73,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                         </div>
                     </nav>
 
-                    <div class="flex-1 min-h-0 overflow-y-auto" data-testid="receipts-tabpanels">
+                    <div class="flex-1 min-h-0 overflow-y-auto pb-28" data-testid="receipts-tabpanels">
                         {move || {
                             let loading = tabs_loading.get();
                             ReceiptsTab::ALL
@@ -96,27 +85,29 @@ pub fn ReceiptsPage() -> impl IntoView {
                                 .collect_view()
                         }}
                     </div>
+
+                    <ReceiptsMobileBottomSection store=store active_tab=active_tab />
                 </div>
 
-                <div class="hidden lg:block pc-receipts">
-                    <div class="page-gutter flex items-center justify-between mb-4">
-                        <h1 class="text-lg font-bold text-ink">"取引明細"</h1>
-                        <a class="page-back-link" href=move || csv_href.get()>"CSV管理"</a>
+                <div class="pc-receipts page-gutter hidden lg:flex lg:flex-col">
+                    <div class="flex items-center gap-4">
+                        <h1 class="text-xl font-bold text-ink">"取引明細"</h1>
+                        <nav class="no-print" aria-label="種別">
+                            <div
+                                class="receipts-tab-list"
+                                role="tablist"
+                            >
+                                {ReceiptsTab::ALL
+                                    .iter()
+                                    .copied()
+                                    .map(|tab| {
+                                        view! { <ReceiptsTabButton store=store tab=tab /> }
+                                    })
+                                    .collect_view()}
+                            </div>
+                        </nav>
+                        <a class="page-secondary-link ml-auto" href=move || csv_href.get()>"CSV管理"</a>
                     </div>
-                    <nav class="no-print mb-4" aria-label="種別">
-                        <div
-                            class="receipts-tab-list"
-                            role="tablist"
-                        >
-                            {ReceiptsTab::ALL
-                                .iter()
-                                .copied()
-                                .map(|tab| {
-                                    view! { <ReceiptsTabButton store=store tab=tab /> }
-                                })
-                                .collect_view()}
-                        </div>
-                    </nav>
 
                     <ReceiptsPcSearchBar store=store active_tab=active_tab />
 

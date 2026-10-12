@@ -374,7 +374,7 @@ pub fn App() -> impl IntoView {
                 }}
                 <SiteFooter />
             </main>
-            {move || show_bottom_nav().then(|| view! { <BottomNav /> })}
+            {move || show_bottom_nav().then(|| view! { <BottomNav class="lg:hidden" /> })}
             <AccountDeleteDialog />
         </div>
     }

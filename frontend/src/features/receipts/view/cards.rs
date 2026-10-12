@@ -36,16 +36,19 @@ pub(crate) fn is_negative_labeled_value(tab: ReceiptsTab, label: &str, value: &s
     is_profit_label(tab, label) && is_negative_text(value)
 }
 
+#[derive(Clone)]
 pub(crate) enum CardDetailValue {
     Text { text: String, negative: bool },
     CopyName { display: String, copy: String },
 }
 
+#[derive(Clone)]
 pub(crate) struct CardDetail {
     pub(crate) label: String,
     pub(crate) value: CardDetailValue,
 }
 
+#[derive(Clone)]
 pub(crate) struct CardRowData {
     pub(crate) name: CardDetailValue,
     pub(crate) code: Option<String>,
@@ -166,6 +169,129 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
                 None,
             )
         }
+    }
+}
+
+fn compact_value(details: &[CardDetail], label: &str) -> (String, bool) {
+    details
+        .iter()
+        .find(|detail| detail.label == label)
+        .map(|detail| match &detail.value {
+            CardDetailValue::Text { text, negative } => (text.clone(), *negative),
+            CardDetailValue::CopyName { display, .. } => (display.clone(), false),
+        })
+        .unwrap_or_default()
+}
+
+fn compact_name(value: CardDetailValue) -> AnyView {
+    match value {
+        CardDetailValue::CopyName { display, copy } => {
+            let aria_label = format!("{copy} をコピー");
+            view! {
+                <Button
+                    variant=ButtonVariant::CopyName
+                    class="receipt-compact-name"
+                    aria_label=aria_label
+                    on_click=move |_| copy_to_clipboard(copy.clone())
+                >
+                    <span>{display}</span>
+                </Button>
+            }
+            .into_any()
+        }
+        CardDetailValue::Text { text, .. } => {
+            view! { <span class="receipt-compact-name">{text}</span> }.into_any()
+        }
+    }
+}
+
+#[component]
+fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
+    let CardRowData {
+        name,
+        code,
+        date,
+        account,
+        details,
+    } = card;
+    let labels = tab.summary_labels();
+    let (primary_value, primary_negative) = compact_value(&details, labels[0]);
+    let (net_value, net_negative) = compact_value(&details, labels[2]);
+    let (quantity, _) = compact_value(&details, "数量");
+    let primary_label = if tab == ReceiptsTab::Dividend {
+        "配当"
+    } else {
+        labels[0]
+    };
+    let name = compact_name(name);
+
+    view! {
+        <li class="receipt-compact-row" data-testid="receipt-card">
+            <div class="receipt-compact-main">
+                <div class="min-w-0 flex-1">{name}</div>
+                <Amount
+                    text=net_value
+                    negative=net_negative
+                    class="receipt-compact-net"
+                />
+            </div>
+            <div class="receipt-compact-meta">
+                <div class="receipt-compact-facts">
+                    <span>{date}</span>
+                    {code.map(|code| view! {
+                        <>
+                            <span aria-hidden="true">"·"</span>
+                            <SecurityCodeLink value=code class="receipt-compact-code".to_string() />
+                        </>
+                    })}
+                    <span aria-hidden="true">"·"</span>
+                    <span class="truncate">{account}</span>
+                    {(!quantity.is_empty()).then(|| view! {
+                        <>
+                            <span aria-hidden="true">"·"</span>
+                            <span class="shrink-0">{quantity}</span>
+                        </>
+                    })}
+                </div>
+                <span class="receipt-compact-primary">
+                    {primary_label}
+                    " "
+                    <Amount text=primary_value negative=primary_negative />
+                </span>
+            </div>
+        </li>
+    }
+}
+
+#[component]
+pub(crate) fn CompactReceiptGroup(
+    tab: ReceiptsTab,
+    label: String,
+    count: usize,
+    summary: Vec<(&'static str, String)>,
+    cards: Vec<CardRowData>,
+) -> impl IntoView {
+    let (summary_label, summary_value) = summary.last().cloned().unwrap_or_default();
+    let summary_negative = is_negative_labeled_value(tab, summary_label, &summary_value);
+    view! {
+        <section data-testid="receipt-card-group">
+            <div class="receipt-compact-group">
+                <span class="font-bold">{format!("{label} · {count}件")}</span>
+                {(!summary_value.is_empty()).then(|| view! {
+                    <span>
+                        {summary_label}
+                        " "
+                        <Amount text=summary_value negative=summary_negative />
+                    </span>
+                })}
+            </div>
+            <ul class="receipt-compact-list">
+                {cards
+                    .into_iter()
+                    .map(|card| view! { <CompactReceiptRow tab=tab card=card /> })
+                    .collect_view()}
+            </ul>
+        </section>
     }
 }
 

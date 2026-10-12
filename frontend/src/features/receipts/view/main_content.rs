@@ -166,6 +166,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                                 all_rows=display_rows.get()
                                 query=search.with(|s| s.query.clone())
                                 expanded_ids=store.expanded
+                                compact_mobile=true
                             />
                         </section>
                     </div>
@@ -185,6 +186,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                                 all_rows=display_rows.get()
                                 query=search.with(|s| s.query.clone())
                                 expanded_ids=store.expanded
+                                compact_mobile=true
                             />
                         </section>
                     </div>

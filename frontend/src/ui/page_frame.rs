@@ -11,14 +11,12 @@ fn PcHeader(links: Option<Children>) -> impl IntoView {
                     <div class="header-logo" aria-hidden="true">
                         <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                             <rect x="1" y="1" width="24" height="24" rx="6" fill="#0F2A4A"/>
-                            <g transform="translate(11, 20)">
-                                <rect x="-2" y="-6" width="4" height="6" rx="1" fill="#F2B33D"/>
-                                <rect x="-2" y="-10" width="4" height="10" rx="1" fill="#F2B33D"/>
-                                <rect x="-2" y="-14" width="4" height="14" rx="1" fill="#F2B33D"/>
-                            </g>
+                            <rect x="6" y="14" width="4" height="6" rx="1" fill="#F2B33D"/>
+                            <rect x="11" y="10" width="4" height="10" rx="1" fill="#F2B33D"/>
+                            <rect x="16" y="6" width="4" height="14" rx="1" fill="#F2B33D"/>
                         </svg>
                     </div>
-                    <span class="text-lg font-black text-ink hidden sm:inline">証券Web</span>
+                    <span class="text-base font-bold text-ink">証券Web</span>
                 </a>
                 <nav class="flex gap-1 h-14" aria-label="メインナビゲーション">
                     {NAV_ITEMS.iter().map(|(to, label)| {
@@ -27,10 +25,7 @@ fn PcHeader(links: Option<Children>) -> impl IntoView {
                         view! {
                             <a
                                 href=to
-                                class="flex items-center px-3.5 py-2 text-sm font-medium transition-colors
-                                    hover:bg-surface-sunken hover:text-ink
-                                    data-[aria-current=page]:font-black data-[aria-current=page]:text-ink
-                                    data-[aria-current=page]:shadow-[inset_0_-2px_0_#c08403]"
+                                class="pc-nav-link"
                                 aria-current=move || {
                                     let path = leptos::web_sys::window()
                                         .and_then(|w| w.location().pathname().ok())
@@ -59,11 +54,9 @@ fn PcHeader(links: Option<Children>) -> impl IntoView {
 fn MobileHeader(title: String, links: Option<Children>) -> impl IntoView {
     view! {
         <header class="page-frame-head lg:hidden">
-            <div class="page-gutter flex flex-wrap items-center justify-between gap-x-4 gap-y-1 h-12">
-                <div class="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h1 class="page-frame-title">{title}</h1>
-                    {links.map(|links| links())}
-                </div>
+            <div class="page-gutter flex items-center justify-between gap-4 h-12">
+                <h1 class="page-frame-title">{title}</h1>
+                {links.map(|links| links())}
             </div>
         </header>
     }
@@ -90,6 +83,7 @@ pub fn PageFrame(
     /// 画面下部に常設する操作帯(検索欄・適用・保存など)
     #[prop(optional)]
     action_bar: Option<AnyView>,
+    #[prop(optional)] action_bar_mobile_only: bool,
     /// true のとき本文の余白を各部品に任せる(ワークスペース系ページ)
     #[prop(optional)]
     full_bleed: bool,
@@ -113,13 +107,18 @@ pub fn PageFrame(
                     }
                 })}
             {if full_bleed {
-                view! { <div class="flex flex-1 flex-col">{body}</div> }.into_any()
+                view! { <div class="flex min-h-0 flex-1 flex-col">{body}</div> }.into_any()
             } else {
                 view! { <div class="page-gutter flex flex-1 flex-col py-4">{body}</div> }.into_any()
             }}
             {action_bar.map(|bar| {
+                let class = if action_bar_mobile_only {
+                    "page-action-bar no-print lg:hidden"
+                } else {
+                    "page-action-bar no-print"
+                };
                 view! {
-                    <div class="page-action-bar no-print">
+                    <div class=class>
                         <div class="page-gutter">{bar}</div>
                     </div>
                 }
