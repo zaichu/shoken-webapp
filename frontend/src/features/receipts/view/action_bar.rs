@@ -111,7 +111,15 @@ pub fn ReceiptsPcSearchBar(
     let has_products = move || !products.get().is_empty();
     let has_accounts = move || !accounts.get().is_empty();
 
-    let period_value = Memo::new(move |_| search.with(|s| s.date_segment.value()));
+    let period_value = Memo::new(move |_| {
+        search.with(|s| {
+            if s.date_segment == DateSegment::Year && s.selected_queries.date.is_empty() {
+                "すべて".to_string()
+            } else {
+                s.date_segment.value().to_string()
+            }
+        })
+    });
     let period_options = ["すべて", "年", "年月", "日", "範囲"];
 
     view! {
@@ -163,7 +171,7 @@ pub fn ReceiptsPcSearchBar(
                                 </select>
     {move || {
                             let segment = period_value.get();
-                            match segment {
+                            match segment.as_str() {
                                 "年" => {
                                     has_years().then(|| {
                                         view! {

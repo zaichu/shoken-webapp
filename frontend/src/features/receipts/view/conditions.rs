@@ -1,4 +1,6 @@
-use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey, search_categories};
+use crate::features::receipts::filter::{
+    DateSegment, ReceiptSearch, SearchKey, build_combined_query, search_categories,
+};
 use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::page_frame::PageFrame;
@@ -76,7 +78,13 @@ fn DateSegmentSelector(search: RwSignal<ReceiptSearch>) -> impl IntoView {
             <div class="flex flex-wrap gap-1.5 mt-2">
                 {segment_options.iter().map(|opt| {
                     let opt = *opt;
-                    let is_selected = move || segment.get().value() == opt;
+                    let is_selected = move || {
+                        let seg = segment.get();
+                        match opt {
+                            "すべて" => seg == DateSegment::Year && seg.value() == "年" && search.with(|s| s.selected_queries.date.is_empty()),
+                            _ => seg.value() == opt,
+                        }
+                    };
                     view! {
                         <button
                             type="button"
@@ -90,7 +98,12 @@ fn DateSegmentSelector(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                             )
                             on:click=move |_| search.update(|s| {
                                 match opt {
-                                    "すべて" => s.change_date_segment(DateSegment::Year),
+                                    "すべて" => {
+                                        s.selected_queries.date.clear();
+                                        s.date_segment = DateSegment::Year;
+                                        s.date_inputs = Default::default();
+                                        s.query = build_combined_query(&s.selected_queries);
+                                    }
                                     "年" => s.change_date_segment(DateSegment::Year),
                                     "年月" => s.change_date_segment(DateSegment::Month),
                                     "日" => s.change_date_segment(DateSegment::Date),
@@ -141,28 +154,36 @@ fn YearPicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 
     view! {
         <div class="mt-2 flex flex-wrap gap-1.5">
-            {move || years.get().iter().map(|y| {
-                let y_value = y.value.clone();
-                let y_label = y.label.clone();
-                let y_value_for_selected = y_value.clone();
-                let selected = Memo::new(move |_| search.with(|s| s.date_inputs.year_value.clone() == y_value_for_selected));
-                view! {
-                    <button
-                        type="button"
-                        class=move || format!(
-                            "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
-                            if selected.get() {
-                                "bg-info-soft border border-info-border text-info"
-                            } else {
-                                "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
-                            }
-                        )
-                        on:click=move |_| search.update(|s| s.select_year(y_value.clone()))
-                    >
-                        {y_label}
-                    </button>
+            {move || {
+                let years = years.get();
+                if years.is_empty() {
+                    return view! { <span class="text-sm text-text-muted">"該当する年がありません"</span> }.into_any();
                 }
-            }).collect_view()}
+                view! {
+                    {years.iter().map(|y| {
+                        let y_value = y.value.clone();
+                        let y_label = y.label.clone();
+                        let y_value_for_selected = y_value.clone();
+                        let selected = Memo::new(move |_| search.with(|s| s.date_inputs.year_value.clone() == y_value_for_selected));
+                        view! {
+                            <button
+                                type="button"
+                                class=move || format!(
+                                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
+                                    if selected.get() {
+                                        "bg-info-soft border border-info-border text-info"
+                                    } else {
+                                        "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
+                                    }
+                                )
+                                on:click=move |_| search.update(|s| s.select_year(y_value.clone()))
+                            >
+                                {y_label}
+                            </button>
+                        }
+                    }).collect_view()}
+                }.into_any()
+            }}
         </div>
     }
 }
@@ -231,6 +252,7 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                             prop:value=move || selected_year.get()
                             on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
                         >
+                            <option value="">"年を選択"</option>
                             {years.iter().map(|y| {
                                 view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
                             }).collect_view()}
