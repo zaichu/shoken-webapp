@@ -63,11 +63,10 @@ pub enum DateSegment {
 }
 
 impl DateSegment {
-    #[allow(dead_code)]
     pub fn label(self) -> &'static str {
         match self {
             Self::Year => "年",
-            Self::Month => "月",
+            Self::Month => "年月",
             Self::Date => "日",
             Self::Range => "範囲",
         }
@@ -76,7 +75,7 @@ impl DateSegment {
     pub fn value(self) -> &'static str {
         match self {
             Self::Year => "年",
-            Self::Month => "月",
+            Self::Month => "年月",
             Self::Date => "日",
             Self::Range => "範囲",
         }
@@ -219,13 +218,26 @@ impl ReceiptSearch {
         *self = Self::new(has_years);
     }
 
-    fn set_date_query(&mut self, value: String) {
+    pub fn clear_key(&mut self, key: SearchKey, has_years: bool) {
+        self.selected_queries.set(key, String::new());
+        if key == SearchKey::Date {
+            self.date_segment = initial_date_segment(has_years);
+            self.date_inputs = DateInputs::default();
+        }
+        self.rebuild_query();
+    }
+
+    pub fn set_securities_query(&mut self, query: String) {
+        self.selected_queries.set(SearchKey::Securities, query);
+        self.rebuild_query();
+    }
+
+    pub fn set_date_query(&mut self, value: String) {
         self.selected_queries.date = value;
         self.rebuild_query();
     }
 
-    #[allow(dead_code)]
-    fn update_range_query(&mut self) {
+    pub fn update_range_query(&mut self) {
         self.selected_queries.date =
             build_range_query(&self.date_inputs.range_start, &self.date_inputs.range_end);
         self.rebuild_query();
@@ -304,6 +316,7 @@ pub fn column_order(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Vec<u
 }
 
 /// 検索に一致して前に出す列。column_order と同じ規則で最初に一致したもの
+/// 検索で前に出した列は狭い画面でも隠さないため Core 扱いにする
 pub fn promoted_column(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Option<usize> {
     if query.is_empty() {
         return None;

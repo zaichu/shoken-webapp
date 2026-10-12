@@ -41,7 +41,6 @@ pub fn ReceiptsActionBar(store: ReceiptsStore, active_tab: RwSignal<ReceiptsTab>
     let has_active_search = Signal::derive(move || !search.with(|s| s.is_default()));
     let years = Memo::new(move |_| categories.with(|c| c.years.clone()));
     let has_years = move || !years.get().is_empty();
-    let _has_dates = move || categories.with(|c| c.dates);
 
     view! {
         <div class="sm:hidden no-print action-bar-mobile">
@@ -51,9 +50,9 @@ pub fn ReceiptsActionBar(store: ReceiptsStore, active_tab: RwSignal<ReceiptsTab>
                         view! {
                             <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="適用中の検索条件">
                                 <span class="text-xs font-semibold text-text-muted">"条件"</span>
-                                <ActiveConditionBadge search=search key=SearchKey::Date label="期間" on_clear=move || search.update(|s| s.clear(has_years())) />
-                                <ActiveConditionBadge search=search key=SearchKey::Products label="商品" on_clear=move || search.update(|s| s.clear(has_years())) />
-                                <ActiveConditionBadge search=search key=SearchKey::Accounts label="口座" on_clear=move || search.update(|s| s.clear(has_years())) />
+                                <ActiveConditionBadge search=search key=SearchKey::Date label="期間" on_clear=move || search.update(|s| s.clear_key(SearchKey::Date, has_years())) />
+                                <ActiveConditionBadge search=search key=SearchKey::Products label="商品" on_clear=move || search.update(|s| s.clear_key(SearchKey::Products, has_years())) />
+                                <ActiveConditionBadge search=search key=SearchKey::Accounts label="口座" on_clear=move || search.update(|s| s.clear_key(SearchKey::Accounts, has_years())) />
                                 <button
                                     type="button"
                                     class="text-xs font-semibold text-info underline underline-offset-1 hover:text-info-deep"
@@ -75,8 +74,8 @@ pub fn ReceiptsActionBar(store: ReceiptsStore, active_tab: RwSignal<ReceiptsTab>
                             type="search"
                             class="search-input"
                             placeholder="銘柄名・コード"
-                            prop:value=move || search.with(|s| s.query.clone())
-                            on:input=move |ev| search.update(|s| s.query = event_target_value(&ev))
+                            prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
+                            on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
                         />
                     </label>
                     <a href="/receipts/conditions" class="shrink-0 h-11 px-4 text-sm font-semibold text-text-soft border border-border-strong rounded-lg hover:bg-surface-raised hover:text-text-deep transition-colors">
@@ -110,7 +109,6 @@ pub fn ReceiptsPcSearchBar(
     let has_products = move || !products.get().is_empty();
     let has_accounts = move || !accounts.get().is_empty();
 
-    let _year_picker_open = RwSignal::new(false);
     let period_value = Memo::new(move |_| search.with(|s| s.date_segment.value()));
     let period_options = ["すべて", "年", "年月", "日", "範囲"];
 
@@ -125,8 +123,8 @@ pub fn ReceiptsPcSearchBar(
                         type="search"
                         class="search-input"
                         placeholder="銘柄名・コード"
-                        prop:value=move || search.with(|s| s.query.clone())
-                        on:input=move |ev| search.update(|s| s.query = event_target_value(&ev))
+                        prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
+                        on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
                     />
                 </label>
 
@@ -142,8 +140,9 @@ pub fn ReceiptsPcSearchBar(
                                         let val = event_target_value(&ev);
                                         search.update(|s| {
                                             s.change_date_segment(match val.as_str() {
+                                                "すべて" => DateSegment::Year,
                                                 "年" => DateSegment::Year,
-                                                "月" => DateSegment::Month,
+                                                "年月" => DateSegment::Month,
                                                 "日" => DateSegment::Date,
                                                 "範囲" => DateSegment::Range,
                                                 _ => DateSegment::Year,
@@ -184,9 +183,8 @@ pub fn ReceiptsPcSearchBar(
                                     {products.get().iter().map(|p| {
                                         let p_value = p.value.clone();
                                         let p_label = p.label.clone();
-                                        let p_value_for_selected = p_value.clone();
                                         let p_value_for_click = p_value.clone();
-                                        let selected = search.with(move |s| s.selected_queries.get(SearchKey::Products) == p_value_for_selected);
+                                        let selected = search.with(move |s| s.selected_queries.get(SearchKey::Products) == p_value);
                                         view! {
                                             <button
                                                 type="button"
@@ -198,7 +196,7 @@ pub fn ReceiptsPcSearchBar(
                                                         "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
                                                     }
                                                 )
-                                                aria_pressed=selected
+                                                attr:aria-pressed=selected
                                                 on:click=move |_| search.update(|s| s.select_quick(SearchKey::Products, p_value_for_click.clone()))
                                             >
                                                 {p_label}
@@ -220,9 +218,8 @@ pub fn ReceiptsPcSearchBar(
                                     {accounts.get().iter().map(|a| {
                                         let a_value = a.value.clone();
                                         let a_label = a.label.clone();
-                                        let a_value_for_selected = a_value.clone();
                                         let a_value_for_click = a_value.clone();
-                                        let selected = search.with(move |s| s.selected_queries.get(SearchKey::Accounts) == a_value_for_selected);
+                                        let selected = search.with(move |s| s.selected_queries.get(SearchKey::Accounts) == a_value);
                                         view! {
                                             <button
                                                 type="button"
@@ -234,7 +231,7 @@ pub fn ReceiptsPcSearchBar(
                                                         "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
                                                     }
                                                 )
-                                                aria_pressed=selected
+                                                attr:aria-pressed=selected
                                                 on:click=move |_| search.update(|s| s.select_quick(SearchKey::Accounts, a_value_for_click.clone()))
                                             >
                                                 {a_label}

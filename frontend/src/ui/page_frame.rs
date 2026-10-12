@@ -5,7 +5,7 @@ use leptos::prelude::*;
 #[component]
 fn PcHeader() -> impl IntoView {
     view! {
-        <header class="pc-header no-print">
+        <header class="pc-header no-print hidden sm:flex">
             <div class="page-gutter flex items-center gap-8 h-14">
                 <a href="/" class="flex items-center gap-2 text-decoration-none" aria-label="証券Web トップ">
                     <div class="header-logo" aria-hidden="true">
@@ -57,7 +57,7 @@ fn PcHeader() -> impl IntoView {
 #[component]
 fn MobileHeader(title: String, links: Option<Children>) -> impl IntoView {
     view! {
-        <header class="page-frame-head">
+        <header class="page-frame-head sm:hidden">
             <div class="page-gutter flex flex-wrap items-center justify-between gap-x-4 gap-y-1 h-12">
                 <div class="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
                     <h1 class="page-frame-title">{title}</h1>
@@ -70,6 +70,7 @@ fn MobileHeader(title: String, links: Option<Children>) -> impl IntoView {
 
 /// 全ページ共通の型(見出し・戻る・本文・下部操作帯)。下部ナビは App が描く。
 /// 操作帯はスクロール下端に張り付く sticky で、スクロール末尾では本文の後ろに付く。
+/// PC/モバイルのヘッダーは CSS メディアクエリで切り替える
 #[component]
 pub fn PageFrame(
     /// ページ名(h1)
@@ -88,19 +89,14 @@ pub fn PageFrame(
     /// true のとき本文の余白を各部品に任せる(ワークスペース系ページ)
     #[prop(optional)]
     full_bleed: bool,
-    /// PC 用レイアウトを使うか(ロゴ・グローバルナビ・アカウントメニューのヘッダー)
-    #[prop(optional)]
-    pc_layout: bool,
     children: Children,
 ) -> impl IntoView {
     let body = children();
+
     view! {
         <div class="page-frame">
-            {if pc_layout {
-                view! { <PcHeader /> }.into_any()
-            } else {
-                view! { <MobileHeader title=title links=links /> }.into_any()
-            }}
+            <PcHeader />
+            <MobileHeader title=title links=links />
             {back_href
                 .zip(back_label)
                 .map(|(href, label)| {

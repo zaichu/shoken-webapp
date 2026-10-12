@@ -1,14 +1,15 @@
 mod action_bar;
 mod cards;
+mod conditions;
 mod csv_page;
 pub(crate) mod main_content;
-#[allow(dead_code)]
 mod pickers;
 mod summary;
 mod table;
 mod tabs;
 
 pub use action_bar::{ReceiptsActionBar, ReceiptsPcSearchBar};
+pub use conditions::ReceiptsConditionsPage;
 pub use csv_page::{ReceiptsCsvDeletePage, ReceiptsCsvPage};
 pub use main_content::ReceiptsMainContent;
 pub use summary::SummaryStrip;
@@ -31,6 +32,7 @@ pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
     let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    // 再訪ではストアのキャッシュがそのまま出るので、鮮度だけ裏で更新する
     store.revisit();
 
     let active_tab = store.active_tab;
@@ -47,7 +49,6 @@ pub fn ReceiptsPage() -> impl IntoView {
         .into_any()
     });
 
-    // モバイル用: 下部操作帯(適用中の条件・検索欄・検索条件リンク)
     let action_bar = Box::new(move || {
         let store = store;
         let active_tab = active_tab;
@@ -58,9 +59,8 @@ pub fn ReceiptsPage() -> impl IntoView {
     });
 
     view! {
-        <PageFrame title="取引明細" pc_layout=true links=csv_link action_bar=action_bar()>
+        <PageFrame title="取引明細" links=csv_link action_bar=action_bar()>
             <div class="flex flex-1 flex-col min-h-0" data-testid="receipts-page">
-                {/* モバイル用コンテンツ */}
                 <div class="sm:block hidden">
                     <nav class="no-print mb-3" aria-label="種別">
                         <div
@@ -91,7 +91,6 @@ pub fn ReceiptsPage() -> impl IntoView {
                     </div>
                 </div>
 
-                {/* PC 用コンテンツ */}
                 <div class="hidden sm:block pc-receipts">
                     <nav class="no-print mb-4" aria-label="種別">
                         <div

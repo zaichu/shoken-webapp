@@ -6,7 +6,7 @@ mod model;
 mod store;
 mod view;
 
-pub use view::{ReceiptsCsvDeletePage, ReceiptsCsvPage, ReceiptsPage};
+pub use view::{ReceiptsConditionsPage, ReceiptsCsvDeletePage, ReceiptsCsvPage, ReceiptsPage};
 
 use rust_decimal::Decimal;
 use shared::format::format_number;
