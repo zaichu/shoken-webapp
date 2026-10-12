@@ -173,6 +173,7 @@ pub fn AccountDeleteDialog() -> impl IntoView {
     content.into_any()
 }
 
+#[allow(dead_code)]
 pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
     if let Some(name) = name.filter(|name| !name.is_empty()) {
         let parts: Vec<&str> = name.split_whitespace().collect();

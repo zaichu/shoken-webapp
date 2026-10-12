@@ -97,7 +97,11 @@ pub fn ReceiptsMobileBottomSection(
 }
 
 #[component]
-pub fn ReceiptsActionBar(store: ReceiptsStore, active_tab: RwSignal<ReceiptsTab>) -> impl IntoView {
+#[allow(dead_code)]
+pub fn ReceiptsActionBar(
+    _store: ReceiptsStore,
+    _active_tab: RwSignal<ReceiptsTab>,
+) -> impl IntoView {
     let search = store.search;
     let tab = active_tab;
 
