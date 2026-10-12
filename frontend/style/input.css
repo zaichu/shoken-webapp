@@ -273,7 +273,7 @@
 
   @media (width >= 64rem) {
     .content-gutter {
-      max-width: 96rem;
+      max-width: 75rem;
       padding-inline: clamp(1rem, 3.5vw, 3rem);
     }
   }
@@ -401,13 +401,11 @@
   }
 
   /* PC Receipts Table (compact mobile desktop view) */
-  /* スマホは枠で囲まず全幅の行+区切り線、PC だけカード的面で囲う */
+  /* スマホは枠で囲まず全幅の行+区切り線、PC だけカード的面で囲う。
+     overflow-clip はスクロールコンテナを作らないため、中の見出しの sticky が
+     main のスクロールに追従する */
   .receipt-list-surface {
-    @apply overflow-hidden bg-surface lg:rounded-lg lg:border lg:border-border;
-  }
-
-  .receipts-table-frame {
-    @apply overflow-x-auto;
+    @apply overflow-clip bg-surface lg:rounded-lg lg:border lg:border-border;
   }
 
   .receipts-table {
@@ -416,6 +414,11 @@
 
   .receipts-table thead {
     @apply bg-surface-sunken;
+  }
+
+  /* 見出しは上部ヘッダー(h-14)の下に固定する。小計行・明細行はその下を流れる */
+  .receipts-table thead th {
+    @apply sticky top-14 z-10;
   }
 
   .receipts-table th {
@@ -573,15 +576,18 @@
     @apply flex min-h-0 flex-1 flex-col overflow-y-auto;
   }
 
-  /* 共通ページ枠の内側の余白。ワークスペースの内容列(ws-main)と同じ段階にそろえる */
+  /* 共通ページ枠の内側の余白。上部ヘッダーと同じ枠で本文を中央寄せする(最大幅 1200px) */
   .page-gutter {
     @apply mx-auto w-full;
-    max-width: 96rem;
+    max-width: 75rem;
     padding-inline: clamp(1rem, 3.5vw, 3rem);
   }
 
+  /* lg 以上では shrink を許さない。縮むと main(画面高)に合わせて頁枠が打ち切られ、
+     sticky な上部ヘッダーや表見出しの固定範囲が失われる。
+     スマホは縮んで内側スクロール+下部帯固定のまま変えない */
   .page-frame {
-    @apply flex min-h-full flex-col;
+    @apply flex min-h-full flex-col lg:shrink-0;
   }
 
   .page-frame-head {
@@ -748,7 +754,9 @@
   }
 
   .asset-list-surface {
-    @apply overflow-hidden bg-surface lg:rounded-lg lg:border lg:border-border;
+    /* overflow-clip はスクロールコンテナを作らないため、中の見出しの sticky が
+       main のスクロールに追従する */
+    @apply overflow-clip bg-surface lg:rounded-lg lg:border lg:border-border;
   }
 
   .asset-pc-toolbar {
@@ -799,16 +807,17 @@
     @apply bg-surface-sunken;
   }
 
-  .asset-table-frame {
-    @apply overflow-x-auto;
-  }
-
   .asset-table {
     @apply w-full border-collapse text-sm;
   }
 
   .asset-table thead {
     @apply bg-surface-sunken;
+  }
+
+  /* 見出しは上部ヘッダー(h-14)の下に固定する */
+  .asset-table thead th {
+    @apply sticky top-14 z-10;
   }
 
   .asset-table th {
@@ -825,6 +834,13 @@
 
   .asset-table td {
     @apply whitespace-nowrap px-3.5 py-2.5 text-text;
+  }
+
+  /* 銘柄列だけ折り返しを許す。横スクロール枠を作らないため、長い名前でも
+     表がページ幅からはみ出さないようにする */
+  .asset-table tbody td:first-child {
+    @apply whitespace-normal;
+    overflow-wrap: anywhere;
   }
 
   .asset-table td.text-right {
@@ -865,16 +881,17 @@
   overflow-wrap: anywhere;
 }
 
-/* 旧型の段別表では銘柄名を折り返して2行に収める */
-.receipt-table .receipt-instrument-cell .copyable-name {
+/* 旧型の段別表・PC の compact 表で銘柄名を折り返して2行に収める。
+   コードと名前は flex の1行にまとめ、名前だけが折り返す */
+.receipt-instrument-cell .copyable-name {
   @apply flex w-fit max-w-full min-w-0 items-start;
 }
 
-.receipt-table .receipt-instrument-cell .copyable-name > span {
+.receipt-instrument-cell .copyable-name > span {
   @apply min-w-0 whitespace-normal break-words line-clamp-2;
 }
 
-.receipt-table .receipt-instrument-cell .copy-icon {
+.receipt-instrument-cell .copy-icon {
   @apply mt-0.5 shrink-0;
 }
 
@@ -988,10 +1005,6 @@
   }
 
   /* 狭い幅で印刷するときも compact 表を出す */
-  .receipts-table-frame {
-    overflow: visible;
-  }
-
   .receipts-table {
     width: 100%;
     max-width: 100%;

@@ -88,7 +88,9 @@ pub fn PageFrame(
                     }
                 })}
             {if full_bleed {
-                view! { <div class="flex min-h-0 flex-1 flex-col">{body}</div> }.into_any()
+                // lg 以上では高さを内容に任せる。basis 0 のままだとページ枠が画面高で
+                // 打ち切られ、sticky な上部ヘッダー・表見出しの固定範囲が失われる
+                view! { <div class="flex min-h-0 flex-1 flex-col lg:flex-none">{body}</div> }.into_any()
             } else {
                 view! { <div class="page-gutter flex flex-1 flex-col py-4">{body}</div> }.into_any()
             }}
