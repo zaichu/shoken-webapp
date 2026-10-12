@@ -495,11 +495,28 @@
   }
 
   .receipt-compact-main {
-    @apply flex justify-between gap-2 px-4 pt-2;
+    @apply flex items-baseline justify-between gap-2 px-4 pt-2 text-sm;
   }
 
-  .receipt-compact-main > div {
-    @apply min-w-0 flex-1;
+  .receipt-compact-name-cell {
+    @apply relative min-w-0 flex-1 font-medium;
+  }
+
+  /* sizer が行の高さを確保し、ボタンはその上に被せて押せる範囲を下へ広げる */
+  .receipt-compact-name-sizer {
+    @apply invisible break-words;
+  }
+
+  .receipt-compact-row .receipt-compact-name {
+    @apply absolute inset-x-0 top-0 -bottom-6 min-w-0 items-start font-medium;
+  }
+
+  .receipt-compact-row .receipt-compact-name > span {
+    @apply min-w-0 break-words;
+  }
+
+  .receipt-compact-name-static {
+    @apply min-w-0 break-words;
   }
 
   .receipt-compact-net {
@@ -507,19 +524,16 @@
   }
 
   .receipt-compact-meta {
-    @apply flex justify-between gap-2 px-4 pb-2 text-xs text-text-muted;
+    @apply relative z-10 flex items-baseline justify-between gap-2 px-4 pb-2 text-xs text-text-muted;
   }
 
   .receipt-compact-facts {
-    @apply flex min-w-0 flex-1 items-center gap-1.5;
+    @apply min-w-0 flex-1 break-words;
   }
 
-  .receipt-compact-facts > * {
-    @apply truncate;
-  }
-
+  /* 行の高さは変えず、押せる範囲だけ 44px に広げる */
   .receipt-compact-code {
-    @apply font-normal text-text-muted no-underline;
+    @apply -my-3.5 min-h-11 min-w-11 justify-center font-normal text-text-muted no-underline;
   }
 
   .receipt-compact-primary {
@@ -536,10 +550,6 @@
 
   .receipt-compact-group > span:last-child {
     @apply text-xs text-text-soft;
-  }
-
-  .receipt-compact-row .receipt-compact-name {
-    @apply min-h-11 font-medium;
   }
 
   /* スマホの下部帯はスクロール領域の流れの中で、下部ナビの直前に置く */

@@ -116,8 +116,10 @@ fn DateSegmentSelector(
                 }).collect_view()}
             </div>
             {move || {
-                let seg = segment.get();
-                match seg {
+                if search.with(|s| s.date_all) {
+                    return ().into_any();
+                }
+                match segment.get() {
                     DateSegment::Year => view! {
                         <YearPicker search=search years=years />
                     }.into_any(),
@@ -230,6 +232,7 @@ fn MonthPicker(
                     <div class="flex items-center gap-1">
                         <select
                             class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                            aria-label="年"
                             prop:value=move || selected_year.get()
                             on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
                         >
@@ -240,6 +243,7 @@ fn MonthPicker(
                         </select>
                         <select
                             class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                            aria-label="月"
                             prop:value=move || selected_month.get()
                             on:change=move |ev| {
                                 let month = event_target_value(&ev);
@@ -274,6 +278,7 @@ fn DatePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
             <input
                 type="date"
                 class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm max-w-xs"
+                aria-label="日付"
                 prop:value=move || selected_date.get()
                 on:input=move |ev| {
                     search.update(|s| {
@@ -298,6 +303,7 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                 <input
                     type="date"
                     class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full"
+                    aria-label="開始日"
                     prop:value=move || range_start.get()
                     on:input=move |ev| {
                         search.update(|s| {
@@ -313,6 +319,7 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                 <input
                     type="date"
                     class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full"
+                    aria-label="終了日"
                     prop:value=move || range_end.get()
                     on:input=move |ev| {
                         search.update(|s| {

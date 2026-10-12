@@ -187,7 +187,9 @@ fn compact_name(value: CardDetailValue) -> AnyView {
     match value {
         CardDetailValue::CopyName { display, copy } => {
             let aria_label = format!("{copy} をコピー");
+            let sizer = display.clone();
             view! {
+                <span class="receipt-compact-name-sizer" aria-hidden="true">{sizer}</span>
                 <Button
                     variant=ButtonVariant::CopyName
                     class="receipt-compact-name"
@@ -200,7 +202,7 @@ fn compact_name(value: CardDetailValue) -> AnyView {
             .into_any()
         }
         CardDetailValue::Text { text, .. } => {
-            view! { <span class="receipt-compact-name">{text}</span> }.into_any()
+            view! { <span class="receipt-compact-name-static">{text}</span> }.into_any()
         }
     }
 }
@@ -218,6 +220,12 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     let (primary_value, primary_negative) = compact_value(&details, labels[0]);
     let (net_value, net_negative) = compact_value(&details, labels[2]);
     let (quantity, _) = compact_value(&details, "数量");
+    // 投資信託の数量は口数
+    let quantity_unit = if tab == ReceiptsTab::MutualFund {
+        "口"
+    } else {
+        "株"
+    };
     let primary_label = if tab == ReceiptsTab::Dividend {
         "配当"
     } else {
@@ -228,7 +236,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     view! {
         <li class="receipt-compact-row" data-testid="receipt-card">
             <div class="receipt-compact-main">
-                <div class="min-w-0 flex-1">{name}</div>
+                <div class="receipt-compact-name-cell">{name}</div>
                 <Amount
                     text=net_value
                     negative=net_negative
@@ -240,16 +248,16 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                     <span>{date}</span>
                     {code.map(|code| view! {
                         <>
-                            <span aria-hidden="true">"·"</span>
+                            <span aria-hidden="true">" · "</span>
                             <SecurityCodeLink value=code class="receipt-compact-code".to_string() />
                         </>
                     })}
-                    <span aria-hidden="true">"·"</span>
+                    <span aria-hidden="true">" · "</span>
                     <span>{account}</span>
                     {(!quantity.is_empty()).then(|| view! {
                         <>
-                            <span aria-hidden="true">"·"</span>
-                            <span class="shrink-0">{format!("{quantity}株")}</span>
+                            <span aria-hidden="true">" · "</span>
+                            <span>{format!("{quantity}{quantity_unit}")}</span>
                         </>
                     })}
                 </div>

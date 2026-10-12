@@ -42,7 +42,7 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
             role="tab"
             id=format!("tab-{slug}")
             aria-controls=format!("tabpanel-{slug}")
-            attr:aria-selected=move || selected.active_tab.get() == tab
+            attr:aria-selected=move || (selected.active_tab.get() == tab).to_string()
             tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
             class="receipts-tab"
             on:click=move |_| clicked.select_tab(tab)

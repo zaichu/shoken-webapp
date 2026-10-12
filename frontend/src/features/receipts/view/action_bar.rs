@@ -80,6 +80,7 @@ pub fn ReceiptsMobileBottomSection(
                                 type="search"
                                 class="search-input"
                                 placeholder="銘柄名・コード"
+                                aria-label="銘柄名・コード"
                                 prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
                                 on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
                             />
@@ -139,6 +140,7 @@ pub fn ReceiptsPcSearchBar(
                     type="search"
                     class="search-input"
                     placeholder="銘柄名・コード"
+                    aria-label="銘柄名・コード"
                     prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
                     on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
                 />
@@ -151,6 +153,7 @@ pub fn ReceiptsPcSearchBar(
                             <span class="text-xs text-text-muted">"期間"</span>
                             <select
                                 class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                aria-label="期間"
                                 prop:value=move || period_value.get().to_string()
                                 on:change=move |ev| {
                                     let val = event_target_value(&ev);
@@ -173,101 +176,109 @@ pub fn ReceiptsPcSearchBar(
                                 }).collect_view()}
                             </select>
                             {move || {
-                        let segment = current_segment.get();
-                        match segment {
-                            DateSegment::Year => {
-                                has_years().then(|| {
-                                    view! {
-                                        <select
-                                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                            prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
-                                            on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
-                                        >
-                                            <option value="">"年を選択"</option>
-                                            {years.get().iter().map(|y| {
-                                                view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
-                                            }).collect_view()}
-                                        </select>
-                                    }.into_any()
-                                })
-                            }
-                            DateSegment::Month => {
-                                has_years().then(|| {
-                                    view! {
-                                        <div class="flex items-center gap-1">
-                                            <select
-                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
-                                                on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
-                                            >
-                                                {years.get().iter().map(|y| {
-                                                    view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
-                                                }).collect_view()}
-                                            </select>
-                                            <select
-                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                prop:value=move || search.with(|s| s.date_inputs.month_value.clone())
-                                                on:change=move |ev| {
-                                                    let month = event_target_value(&ev);
-                                                    search.update(|s| {
-                                                        s.date_inputs.month_value = month.clone();
-                                                        let year = s.date_inputs.year_value.clone();
-                                                        if !year.is_empty() {
-                                                            s.set_date_query(format!("{}-{}", year, month));
+                                if search.with(|s| s.date_all) {
+                                    return ().into_any();
+                                }
+                                match current_segment.get() {
+                                    DateSegment::Year => {
+                                        has_years().then(|| {
+                                            view! {
+                                                <select
+                                                    class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                    aria-label="年"
+                                                    prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
+                                                    on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
+                                                >
+                                                    <option value="">"年を選択"</option>
+                                                    {years.get().iter().map(|y| {
+                                                        view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
+                                                    }).collect_view()}
+                                                </select>
+                                            }.into_any()
+                                        }).into_any()
+                                    }
+                                    DateSegment::Month => {
+                                        has_years().then(|| {
+                                            view! {
+                                                <div class="flex items-center gap-1">
+                                                    <select
+                                                        class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                        aria-label="年"
+                                                        prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
+                                                        on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
+                                                    >
+                                                        {years.get().iter().map(|y| {
+                                                            view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
+                                                        }).collect_view()}
+                                                    </select>
+                                                    <select
+                                                        class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                        aria-label="月"
+                                                        prop:value=move || search.with(|s| s.date_inputs.month_value.clone())
+                                                        on:change=move |ev| {
+                                                            let month = event_target_value(&ev);
+                                                            search.update(|s| {
+                                                                s.date_inputs.month_value = month.clone();
+                                                                let year = s.date_inputs.year_value.clone();
+                                                                if !year.is_empty() {
+                                                                    s.set_date_query(format!("{}-{}", year, month));
+                                                                }
+                                                            });
                                                         }
-                                                    });
-                                                }
-                                            >
-                                                {(1..=12).map(|m| {
-                                                    let m_str = format!("{:02}", m);
-                                                    let m_label = format!("{}月", m);
-                                                    view! { <option value={m_str.clone()}>{m_label}</option> }
-                                                }).collect_view()}
-                                            </select>
-                                        </div>
-                                    }.into_any()
-                                })
-                            }
-                            DateSegment::Date => {
-                                Some(view! {
-                                    <input
-                                        type="date"
-                                        class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                        prop:value=move || search.with(|s| s.date_inputs.date_value.clone())
-                                        on:input=move |ev| search.update(|s| {
-                                            s.date_inputs.date_value = event_target_value(&ev);
-                                            s.set_date_query(event_target_value(&ev));
-                                        })
-                                    />
-                                }.into_any())
-                            }
-                            DateSegment::Range => {
-                                Some(view! {
-                                    <div class="flex items-center gap-1">
-                                        <input
-                                            type="date"
-                                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                            prop:value=move || search.with(|s| s.date_inputs.range_start.clone())
-                                            on:input=move |ev| search.update(|s| {
-                                                s.date_inputs.range_start = event_target_value(&ev);
-                                                s.update_range_query();
-                                            })
-                                        />
-                                        <span class="text-text-muted">"〜"</span>
-                                        <input
-                                            type="date"
-                                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                            prop:value=move || search.with(|s| s.date_inputs.range_end.clone())
-                                            on:input=move |ev| search.update(|s| {
-                                                s.date_inputs.range_end = event_target_value(&ev);
-                                                s.update_range_query();
-                                            })
-                                        />
-                                    </div>
-                                }.into_any())
-                            }
-                        }
-                    }}
+                                                    >
+                                                        {(1..=12).map(|m| {
+                                                            let m_str = format!("{:02}", m);
+                                                            let m_label = format!("{}月", m);
+                                                            view! { <option value={m_str.clone()}>{m_label}</option> }
+                                                        }).collect_view()}
+                                                    </select>
+                                                </div>
+                                            }.into_any()
+                                        }).into_any()
+                                    }
+                                    DateSegment::Date => {
+                                        view! {
+                                            <input
+                                                type="date"
+                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                aria-label="日付"
+                                                prop:value=move || search.with(|s| s.date_inputs.date_value.clone())
+                                                on:input=move |ev| search.update(|s| {
+                                                    s.date_inputs.date_value = event_target_value(&ev);
+                                                    s.set_date_query(event_target_value(&ev));
+                                                })
+                                            />
+                                        }.into_any()
+                                    }
+                                    DateSegment::Range => {
+                                        view! {
+                                            <div class="flex items-center gap-1">
+                                                <input
+                                                    type="date"
+                                                    class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                    aria-label="開始日"
+                                                    prop:value=move || search.with(|s| s.date_inputs.range_start.clone())
+                                                    on:input=move |ev| search.update(|s| {
+                                                        s.date_inputs.range_start = event_target_value(&ev);
+                                                        s.update_range_query();
+                                                    })
+                                                />
+                                                <span class="text-text-muted">"〜"</span>
+                                                <input
+                                                    type="date"
+                                                    class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                    aria-label="終了日"
+                                                    prop:value=move || search.with(|s| s.date_inputs.range_end.clone())
+                                                    on:input=move |ev| search.update(|s| {
+                                                        s.date_inputs.range_end = event_target_value(&ev);
+                                                        s.update_range_query();
+                                                    })
+                                                />
+                                            </div>
+                                        }.into_any()
+                                    }
+                                }
+                            }}
                         </div>
                     }
                 })
