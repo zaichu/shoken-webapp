@@ -63,6 +63,7 @@ pub enum DateSegment {
 }
 
 impl DateSegment {
+    #[allow(dead_code)]
     pub fn label(self) -> &'static str {
         match self {
             Self::Year => "年",
