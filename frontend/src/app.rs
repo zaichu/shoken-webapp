@@ -316,6 +316,16 @@ pub fn App() -> impl IntoView {
             navigate(path, "/", true);
         }
     });
+    let show_bottom_nav = move || {
+        matches!(
+            route.get(),
+            Route::Home
+                | Route::Search
+                | Route::AssetBalance
+                | Route::AssetBalanceComposition
+                | Route::AssetBalanceHolding
+        )
+    };
     view! {
         <div class="app-shell">
             <a
@@ -357,7 +367,7 @@ pub fn App() -> impl IntoView {
                 }}
                 <SiteFooter />
             </main>
-            <BottomNav />
+            {move || show_bottom_nav().then(|| view! { <BottomNav /> })}
             <AccountDeleteDialog />
         </div>
     }

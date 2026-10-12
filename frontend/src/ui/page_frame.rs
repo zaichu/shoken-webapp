@@ -1,5 +1,72 @@
-use crate::ui::site::AccountMenu;
+use crate::ui::site::{AccountMenu, NAV_ITEMS};
 use leptos::prelude::*;
+
+/// PC 用ヘッダー: ロゴ・グローバルナビ・アカウントメニュー
+#[component]
+fn PcHeader() -> impl IntoView {
+    view! {
+        <header class="pc-header no-print">
+            <div class="page-gutter flex items-center gap-8 h-14">
+                <a href="/" class="flex items-center gap-2 text-decoration-none" aria-label="証券Web トップ">
+                    <div class="header-logo" aria-hidden="true">
+                        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <rect x="1" y="1" width="24" height="24" rx="6" fill="#0F2A4A"/>
+                            <g transform="translate(11, 20)">
+                                <rect x="-2" y="-6" width="4" height="6" rx="1" fill="#F2B33D"/>
+                                <rect x="-2" y="-10" width="4" height="10" rx="1" fill="#F2B33D"/>
+                                <rect x="-2" y="-14" width="4" height="14" rx="1" fill="#F2B33D"/>
+                            </g>
+                        </svg>
+                    </div>
+                    <span class="text-lg font-black text-ink hidden sm:inline">証券Web</span>
+                </a>
+                <nav class="flex gap-1 h-14" aria-label="メインナビゲーション">
+                    {NAV_ITEMS.iter().map(|(to, label)| {
+                        let to = *to;
+                        let label = *label;
+                        view! {
+                            <a
+                                href=to
+                                class="flex items-center px-3.5 py-2 text-sm font-medium transition-colors
+                                    hover:bg-surface-sunken hover:text-ink
+                                    data-[aria-current=page]:font-black data-[aria-current=page]:text-ink
+                                    data-[aria-current=page]:shadow-[inset_0_-2px_0_#c08403]"
+                                aria-current=move || {
+                                    let path = leptos::web_sys::window()
+                                        .and_then(|w| w.location().pathname().ok())
+                                        .unwrap_or_default();
+                                    let path = path.split(['?', '#']).next().unwrap_or(&path);
+                                    if to == "/" { path == "/" } else { path == to || path.starts_with(&format!("{to}/")) }
+                                        .then_some("page")
+                                }
+                            >
+                                {label}
+                            </a>
+                        }
+                    }).collect_view()}
+                </nav>
+                <div class="ml-auto flex items-center gap-2">
+                    <AccountMenu />
+                </div>
+            </div>
+        </header>
+    }
+}
+
+/// モバイル用ヘッダー: ページタイトル・右側リンクのみ
+#[component]
+fn MobileHeader(title: String, links: Option<Children>) -> impl IntoView {
+    view! {
+        <header class="page-frame-head">
+            <div class="page-gutter flex flex-wrap items-center justify-between gap-x-4 gap-y-1 h-12">
+                <div class="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <h1 class="page-frame-title">{title}</h1>
+                    {links.map(|links| links())}
+                </div>
+            </div>
+        </header>
+    }
+}
 
 /// 全ページ共通の型(見出し・戻る・本文・下部操作帯)。下部ナビは App が描く。
 /// 操作帯はスクロール下端に張り付く sticky で、スクロール末尾では本文の後ろに付く。
@@ -21,20 +88,19 @@ pub fn PageFrame(
     /// true のとき本文の余白を各部品に任せる(ワークスペース系ページ)
     #[prop(optional)]
     full_bleed: bool,
+    /// PC 用レイアウトを使うか(ロゴ・グローバルナビ・アカウントメニューのヘッダー)
+    #[prop(optional)]
+    pc_layout: bool,
     children: Children,
 ) -> impl IntoView {
     let body = children();
     view! {
         <div class="page-frame">
-            <header class="page-frame-head">
-                <div class="page-gutter flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                    <div class="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <h1 class="page-frame-title">{title}</h1>
-                        {links.map(|links| links())}
-                    </div>
-                    <AccountMenu />
-                </div>
-            </header>
+            {if pc_layout {
+                view! { <PcHeader /> }.into_any()
+            } else {
+                view! { <MobileHeader title=title links=links /> }.into_any()
+            }}
             {back_href
                 .zip(back_label)
                 .map(|(href, label)| {

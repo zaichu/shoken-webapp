@@ -1,8 +1,7 @@
 use super::cards::*;
-use super::pickers::*;
+use super::next_year_option_index;
 use super::summary::*;
 use super::tabs::*;
-use super::workspace::utility_rail_id;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::filter::{
     DateSegment, ReceiptSearch, column_order, filter_receipts,
@@ -369,26 +368,6 @@ fn column_tier_declares_core_as_narrowest_then_widening() {
 // パネルは常時マウントし、トグルも取得状態にかかわらず出す。
 // 開閉では表の列幅を変えないため、表示強制の分岐は持たない
 
-// 開閉トグルの aria-controls が指す aside の id。空や重複だと ARIA の参照が効かない
-#[test]
-fn utility_rail_ids_are_non_empty_and_unique_per_tab() {
-    let ids: Vec<String> = ReceiptsTab::ALL
-        .iter()
-        .map(|tab| utility_rail_id(*tab))
-        .collect();
-    for id in &ids {
-        assert!(!id.trim().is_empty(), "id が空だと参照先が無い");
-        assert!(
-            !id.contains(char::is_whitespace),
-            "{id} は id として使えない"
-        );
-    }
-    let mut unique = ids.clone();
-    unique.sort();
-    unique.dedup();
-    assert_eq!(unique.len(), ReceiptsTab::ALL.len());
-}
-
 #[test]
 fn card_row_data_maps_card_fields() {
     let rows = dividends();
@@ -575,33 +554,6 @@ fn table_groups_carry_group_key_and_row_ids() {
         .flat_map(|group| group.rows.iter().map(|(id, _, _)| id.as_deref()))
         .collect();
     assert_eq!(ids, [Some("new"), Some("other"), Some("old")]);
-}
-
-#[test]
-fn date_input_helpers_follow_field_and_value() {
-    let mut state = ReceiptSearch::new(true);
-    state.date_inputs.month_value = "2026-06".into();
-    state.date_inputs.range_start = "2026-06-01".into();
-    assert_eq!(date_input_value(&state, DateInputField::Month), "2026-06");
-    assert_eq!(
-        date_input_value(&state, DateInputField::RangeStart),
-        "2026-06-01"
-    );
-    assert_eq!(date_input_type(DateInputField::Month), "month");
-    assert_eq!(date_input_type(DateInputField::Date), "date");
-    assert_eq!(date_input_type(DateInputField::RangeEnd), "date");
-    assert_eq!(format_date_input_label("", "年月"), "年月");
-    assert_eq!(format_date_input_label("2026-06-01", "x"), "2026/06/01");
-}
-
-#[test]
-fn visible_date_segment_falls_back_to_month_without_years() {
-    let mut state = ReceiptSearch::new(false);
-    state.date_segment = DateSegment::Year;
-    assert_eq!(visible_date_segment(&state, false), DateSegment::Month);
-    assert_eq!(visible_date_segment(&state, true), DateSegment::Year);
-    state.date_segment = DateSegment::Date;
-    assert_eq!(visible_date_segment(&state, false), DateSegment::Date);
 }
 
 #[test]

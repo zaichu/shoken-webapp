@@ -7,13 +7,11 @@ use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::kind::TableGroup;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::badge::CodeBadge;
-use crate::ui::card::{Card, CardVariant};
 use crate::ui::security_link::{CopyableInstrumentName, SecurityCodeLink};
 use leptos::prelude::*;
 use std::collections::HashSet;
 
-// 検索で前に出した列は、狭い画面でも隠さない
-pub(crate) fn displayed_tiers(
+pub fn displayed_tiers(
     tab: ReceiptsTab,
     order: &[usize],
     promoted: Option<usize>,
@@ -31,7 +29,7 @@ pub(crate) fn displayed_tiers(
 }
 
 #[component]
-pub(crate) fn ReceiptTable(
+pub fn ReceiptTable(
     tab: ReceiptsTab,
     rows: Vec<ReceiptRow>,
     all_rows: Vec<ReceiptRow>,
@@ -77,7 +75,6 @@ pub(crate) fn ReceiptTable(
         .zip(tiers.iter())
         .map(|(i, tier)| format!("{}{}", columns[*i].align.class(), tier.class()))
         .collect();
-    // 帯(画面幅)ごとに1本だけ出す(input.css の .receipt-span-* と対になる)
     let span_masks: [(&'static str, ColumnTier); 5] = [
         (" receipt-span-sm", ColumnTier::Core),
         (" receipt-span-mid", ColumnTier::Md),
@@ -93,12 +90,12 @@ pub(crate) fn ReceiptTable(
         })
         .collect();
     view! {
-        <Card variant=CardVariant::Table testid="receipt-card">
-            <div class="p-0" data-testid="receipt-card-body">
+        <div class="table-card" data-testid="receipt-table-card">
+            <div class="p-0" data-testid="receipt-table-body">
                 <div class="hidden sm:block">
-                    <div class="table-frame">
+                    <div class="table-frame overflow-x-auto">
                         <table class="receipt-table">
-                            <thead class="sticky top-0 z-10 bg-surface-raised text-text print:static">
+                            <thead class="sticky top-0 z-10 bg-surface text-text print:static">
                                 <tr class="bg-surface-sunken">
                                     {headers
                                         .iter()
@@ -109,7 +106,7 @@ pub(crate) fn ReceiptTable(
                                             view! {
                                                 <th
                                                     class=format!(
-                                                        "text-center font-black text-text{}",
+                                                        "text-left font-semibold text-text{}",
                                                         tier.class(),
                                                     )
                                                     scope="col"
@@ -144,7 +141,7 @@ pub(crate) fn ReceiptTable(
                                                             <td
                                                                 colspan=*span + if group.summary.is_empty() { labels.len() } else { 0 }
                                                                 class=format!(
-                                                                    "whitespace-normal bg-surface-raised text-text-soft font-semibold border-l-2 border-border-xstrong{top}{class}"
+                                                                    "whitespace-normal bg-surface-raised text-text-soft font-semibold border-l-4 border-accent{top}{class}"
                                                                 )
                                                             >
                                                                 <span class="text-sm font-medium">{group.label.clone()}</span>
@@ -182,7 +179,7 @@ pub(crate) fn ReceiptTable(
                                                 .map(|(_, _, cells)| {
                                                     let cells: Vec<_> = order.iter().map(|i| cells[*i].clone()).collect();
                                                     view! {
-                                                        <tr>
+                                                        <tr class="hover:bg-surface-sunken">
                                                             {cells
                                                                 .into_iter()
                                                                 .enumerate()
@@ -239,19 +236,19 @@ pub(crate) fn ReceiptTable(
                                                                     }
                                                                 })
                                                                 .collect_view()}
-                                                    </tr>
-                                                }
-                                            })
-                                            .collect_view()}
-                                    }
-                                })
-                                .collect_view()}
-                        </tbody>
-                    </table>
+                                                        </tr>
+                                                    }
+                                                })
+                                                .collect_view()}
+                                        }
+                                    })
+                                    .collect_view()}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
                 <div class="sm:hidden" data-testid="receipt-card-list">
-                    <div class="space-y-4">
+                    <div class="space-y-3 p-2">
                         {card_groups
                             .into_iter()
                             .map(|(group_index, key, label, count, summary, cards)| {
@@ -272,6 +269,6 @@ pub(crate) fn ReceiptTable(
                     </div>
                 </div>
             </div>
-        </Card>
+        </div>
     }
 }

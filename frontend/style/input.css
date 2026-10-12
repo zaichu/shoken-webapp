@@ -284,6 +284,83 @@
     @apply flex h-9 w-9 items-center justify-center rounded-md border border-ink/15 bg-surface-raised text-sm font-black text-text-deep max-sm:hidden;
   }
 
+  .pc-header {
+    @apply border-b border-ink/10 bg-surface sticky top-0 z-40;
+  }
+
+  /* PC 用取引明細ページのスタイル */
+  .pc-receipts {
+    @apply pt-4;
+  }
+
+  .pc-receipts .receipts-tab-list {
+    @apply inline-flex gap-2 bg-surface-sunken p-2 rounded-lg;
+  }
+
+  .pc-receipts .receipts-tab-list button[role="tab"] {
+    @apply h-8 px-4 rounded-md bg-transparent text-sm font-medium text-text-soft hover:bg-surface hover:text-ink transition-colors;
+  }
+
+  .pc-receipts .receipts-tab-list button[role="tab"][aria-selected="true"] {
+    @apply bg-surface text-ink shadow-sm;
+  }
+
+  .pc-receipts .pc-search-bar {
+    @apply flex flex-wrap items-center gap-3 mb-4 p-4 bg-surface border border-ink/10 rounded-lg;
+  }
+
+  .pc-receipts .pc-search-bar label {
+    @apply flex-1 min-w-[260px];
+  }
+
+  .pc-receipts .pc-search-bar .search-input-frame {
+    @apply w-full;
+  }
+
+  .pc-receipts .pc-summary {
+    @apply grid grid-cols-3 gap-0 mb-4;
+  }
+
+  .pc-receipts .pc-summary > div {
+    @apply p-4 border-r border-ink/10;
+  }
+
+  .pc-receipts .pc-summary > div:last-child {
+    @apply border-r-0;
+  }
+
+  .pc-receipts .pc-table {
+    @apply bg-surface border border-ink/10 rounded-lg overflow-hidden;
+  }
+
+  .pc-receipts .pc-table table {
+    @apply w-full border-collapse;
+  }
+
+  .pc-receipts .pc-table th {
+    @apply bg-surface-sunken text-left px-4 py-3 text-sm font-semibold text-text-muted border-b border-ink/10;
+  }
+
+  .pc-receipts .pc-table td {
+    @apply px-4 py-3 border-b border-ink/10 text-text;
+  }
+
+  .pc-receipts .pc-table tbody tr:hover {
+    @apply bg-surface-sunken;
+  }
+
+  .pc-receipts .pc-table .group-header {
+    @apply bg-surface-raised font-semibold text-text-soft;
+  }
+
+  .pc-receipts .pc-table .group-summary {
+    @apply bg-surface-raised text-right font-semibold text-text;
+  }
+
+  .pc-receipts .pc-table .month-total {
+    @apply text-sm text-text-muted;
+  }
+
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-2 focus:outline-text-deep;
   }
@@ -336,6 +413,12 @@
     @apply flex flex-wrap items-center gap-1.5;
   }
 
+  /* モバイル用アクションバー: 画面下部に固定、PCでは非表示 */
+  .action-bar-mobile {
+    @apply fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-ink/10 shadow-elevation-2;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   .app-bottom-nav {
     @apply flex border-t border-ink/10 bg-surface;
     padding-bottom: env(safe-area-inset-bottom);
@@ -360,7 +443,13 @@
   }
 
   .receipts-tab-list {
-    @apply inline-flex flex-wrap gap-1.5 rounded-xl border border-ink/10 bg-surface/70 p-1 shadow-sm max-w-full max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto;
+    @apply inline-flex gap-2 rounded-lg bg-surface-sunken p-1.5 max-w-full;
+  }
+
+  @media (width < 40rem) {
+    .receipts-tab-list {
+      @apply grid grid-cols-3;
+    }
   }
 
   .copyable-name {

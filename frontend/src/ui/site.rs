@@ -8,7 +8,7 @@ use leptos::html;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-const NAV_ITEMS: &[(&str, &str)] = &[
+pub const NAV_ITEMS: &[(&str, &str)] = &[
     ("/", "ホーム"),
     ("/assetbalance", "資産管理"),
     ("/receipts", "取引明細"),

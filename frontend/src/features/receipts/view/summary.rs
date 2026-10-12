@@ -5,7 +5,7 @@ use leptos::prelude::*;
 use rust_decimal::Decimal;
 use shared::format::format_currency;
 
-fn profit_tone(value: Decimal) -> StatTone {
+pub fn profit_tone(value: Decimal) -> StatTone {
     if value < Decimal::ZERO {
         StatTone::Loss
     } else {
@@ -13,7 +13,7 @@ fn profit_tone(value: Decimal) -> StatTone {
     }
 }
 
-pub(crate) fn header_summary(
+pub fn header_summary(
     tab: ReceiptsTab,
     data: &ReceiptTabData,
     query: &str,
@@ -37,7 +37,7 @@ pub(crate) fn header_summary(
         .collect()
 }
 
-pub(crate) fn kpi_value_color(tone: StatTone) -> &'static str {
+pub fn kpi_value_color(tone: StatTone) -> &'static str {
     match tone {
         StatTone::Loss => "text-negative",
         StatTone::Neutral => "text-text",
@@ -45,7 +45,7 @@ pub(crate) fn kpi_value_color(tone: StatTone) -> &'static str {
 }
 
 #[component]
-pub(crate) fn SummaryStrip(
+pub fn SummaryStrip(
     items: Vec<(&'static str, Decimal, StatTone)>,
     expanded: RwSignal<bool>,
 ) -> impl IntoView {

@@ -71,6 +71,15 @@ impl DateSegment {
             Self::Range => "範囲",
         }
     }
+
+    pub fn value(self) -> &'static str {
+        match self {
+            Self::Year => "年",
+            Self::Month => "月",
+            Self::Date => "日",
+            Self::Range => "範囲",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

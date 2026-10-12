@@ -181,7 +181,7 @@ fn CalendarDateButton(
     }
 }
 
-pub(crate) fn next_year_option_index(
+pub fn next_year_option_index(
     current: Option<usize>,
     option_count: usize,
     key: &str,
