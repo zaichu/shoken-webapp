@@ -89,14 +89,14 @@ fn DateSegmentSelector(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                                 }
                             )
                             on:click=move |_| search.update(|s| {
-                                s.change_date_segment(match opt {
-                                    "すべて" => DateSegment::Year,
-                                    "年" => DateSegment::Year,
-                                    "年月" => DateSegment::Month,
-                                    "日" => DateSegment::Date,
-                                    "範囲" => DateSegment::Range,
-                                    _ => DateSegment::Year,
-                                })
+                                match opt {
+                                    "すべて" => s.change_date_segment(DateSegment::Year),
+                                    "年" => s.change_date_segment(DateSegment::Year),
+                                    "年月" => s.change_date_segment(DateSegment::Month),
+                                    "日" => s.change_date_segment(DateSegment::Date),
+                                    "範囲" => s.change_date_segment(DateSegment::Range),
+                                    _ => {}
+                                }
                             })
                         >
                             {opt}
@@ -169,41 +169,95 @@ fn YearPicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 
 #[component]
 fn MonthPicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
+    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    let active_tab = store.active_tab;
+
+    let years = Memo::new(move |_| {
+        let display_rows = store.tab_state(active_tab.get());
+        if let TabState::Ready(data) = display_rows {
+            search_categories(active_tab.get(), &data.rows).years
+        } else {
+            Vec::new()
+        }
+    });
     let months = (1..=12).map(|m| format!("{:02}", m)).collect::<Vec<_>>();
     let selected_month = Memo::new(move |_| search.with(|s| s.date_inputs.month_value.clone()));
+    let selected_year = Memo::new(move |_| search.with(|s| s.date_inputs.year_value.clone()));
 
     view! {
         <div class="mt-2 flex flex-wrap gap-1.5">
-            {months.iter().map(|m| {
-                let m_value = m.clone();
-                let m_label = format!("{}月", m_value.parse::<u32>().unwrap_or(0));
-                let m_value_for_selected = m_value.clone();
-                let is_selected = move || selected_month.get() == m_value_for_selected;
-                view! {
-                    <button
-                        type="button"
-                        class=move || format!(
-                            "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
-                            if is_selected() {
-                                "bg-info-soft border border-info-border text-info"
-                            } else {
-                                "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
-                            }
-                        )
-                        on:click=move |_| {
-                            search.update(|s| {
-                                s.date_inputs.month_value = m_value.clone();
-                                let year = s.date_inputs.year_value.clone();
-                                if !year.is_empty() {
-                                    s.set_date_query(format!("{}-{}", year, m_value));
+            {move || {
+                let years = years.get();
+                if years.is_empty() {
+                    return view! {
+                        <div class="flex flex-wrap gap-1.5">
+                            {months.iter().map(|m| {
+                                let m_value = m.clone();
+                                let m_label = format!("{}月", m_value.parse::<u32>().unwrap_or(0));
+                                let m_value_for_selected = m_value.clone();
+                                let is_selected = move || selected_month.get() == m_value_for_selected;
+                                view! {
+                                    <button
+                                        type="button"
+                                        class=move || format!(
+                                            "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
+                                            if is_selected() {
+                                                "bg-info-soft border border-info-border text-info"
+                                            } else {
+                                                "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
+                                            }
+                                        )
+                                        on:click=move |_| {
+                                            search.update(|s| {
+                                                s.date_inputs.month_value = m_value.clone();
+                                                let year = s.date_inputs.year_value.clone();
+                                                if !year.is_empty() {
+                                                    s.set_date_query(format!("{}-{}", year, m_value));
+                                                }
+                                            });
+                                        }
+                                    >
+                                        {m_label}
+                                    </button>
                                 }
-                            });
-                        }
-                    >
-                        {m_label}
-                    </button>
+                            }).collect_view()}
+                        </div>
+                    }.into_any();
                 }
-            }).collect_view()}
+                view! {
+                    <div class="flex items-center gap-1">
+                        <select
+                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                            prop:value=move || selected_year.get()
+                            on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
+                        >
+                            {years.iter().map(|y| {
+                                view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
+                            }).collect_view()}
+                        </select>
+                        <select
+                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                            prop:value=move || selected_month.get()
+                            on:change=move |ev| {
+                                let month = event_target_value(&ev);
+                                search.update(|s| {
+                                    s.date_inputs.month_value = month.clone();
+                                    let year = s.date_inputs.year_value.clone();
+                                    if !year.is_empty() {
+                                        s.set_date_query(format!("{}-{}", year, month));
+                                    }
+                                });
+                            }
+                        >
+                            {(1..=12).map(|m| {
+                                let m_str = format!("{:02}", m);
+                                let m_label = format!("{}月", m);
+                                view! { <option value={m_str.clone()}>{m_label}</option> }
+                            }).collect_view()}
+                        </select>
+                    </div>
+                }.into_any()
+            }}
         </div>
     }
 }
