@@ -107,6 +107,11 @@ impl AssetBalanceRow {
             Self::Preview(row) => row,
         }
     }
+
+    /// 詳細ページのパスに使う保存済みレコード ID。CSV プレビュー行には無い
+    pub(crate) fn saved_id(&self) -> Option<String> {
+        self.saved().map(|row| row.id.to_string())
+    }
 }
 
 impl AssetBalanceRowData for AssetBalanceRow {

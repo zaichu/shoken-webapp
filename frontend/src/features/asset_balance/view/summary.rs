@@ -3,10 +3,12 @@ use crate::features::asset_balance::format::{
     format_currency, format_percentage_value, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
 };
+use crate::features::asset_balance::holdings::holding_view;
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
 };
 use crate::features::asset_balance::store::FilteredPortfolio;
+use crate::features::asset_balance::store::csv::ResolvedAssetBalance;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
@@ -19,6 +21,23 @@ pub(crate) fn market_note(has_unpriced: bool) -> String {
         note.push_str("・価格なし銘柄を除く");
     }
     note
+}
+
+/// PC ヘッダー横の件数・注記。取得上限超過で行が欠けるときは API 集計側の件数・
+/// 価格なし判定を使い、集計欄と食い違わないようにする
+pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
+    let (count, has_unpriced) = match &view.fallback_totals {
+        Some(summary) => (view.total, summary_valuation(summary).has_unpriced),
+        None => {
+            let inputs: Vec<ValuationInput> = view
+                .rows
+                .iter()
+                .map(|row| ValuationInput::from(&holding_view(row)))
+                .collect();
+            (view.rows.len(), portfolio_valuation(&inputs).has_unpriced)
+        }
+    };
+    format!("{count}銘柄 · {}", market_note(has_unpriced))
 }
 
 #[component]

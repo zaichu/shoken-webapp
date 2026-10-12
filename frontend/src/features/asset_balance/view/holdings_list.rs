@@ -36,56 +36,69 @@ pub fn HoldingsList(
                     let dividend_annual = format_dividend_annual(&dividend);
                     let dividend_yield = format_dividend_yield(&dividend);
                     let shares_text = format!("{}株", format_number_value(view.shares));
+                    let inner = view! {
+                        <>
+                            <div class="flex items-baseline justify-between gap-2">
+                                <span class="min-w-0 truncate font-medium text-text">
+                                    {view.name.clone()}
+                                </span>
+                                <span class="shrink-0 font-bold tabular-nums text-text">
+                                    {market_text}
+                                </span>
+                            </div>
+                            <div class="mt-0.5 flex items-baseline justify-between gap-2 text-sm">
+                                <span class="shrink-0 text-text-muted">
+                                    {view.code.clone()}
+                                    " · "
+                                    {shares_text}
+                                </span>
+                                <span
+                                    class="flex shrink-0 items-baseline gap-2"
+                                    data-negative=pnl_negative.then_some("true")
+                                >
+                                    <Amount
+                                        class="tabular-nums"
+                                        text=pnl_text
+                                        negative=pnl_negative
+                                    />
+                                    <span class="tabular-nums">
+                                        {pnl_rate_text}
+                                    </span>
+                                </span>
+                            </div>
+                            {show_dividend
+                                .then(|| {
+                                    view! {
+                                        <div class="mt-0.5 flex items-baseline justify-between gap-2 text-sm">
+                                            <span class="text-text-muted">
+                                                "配当 "
+                                                {dividend_annual}
+                                            </span>
+                                            <span class="text-text-muted tabular-nums">
+                                                "利回り "
+                                                {dividend_yield}
+                                            </span>
+                                        </div>
+                                    }
+                                })}
+                        </>
+                    };
+                    // 詳細は保存済みレコードの ID で開く。CSV プレビュー行はリンクにしない
                     view! {
                         <li class="asset-compact-row" data-testid="asset-compact-row">
-                            <a
-                                href=format!("/assetbalance/holdings/{}", view.code)
-                                class="asset-compact-link"
-                            >
-                                <div class="flex items-baseline justify-between gap-2">
-                                    <span class="min-w-0 truncate font-medium text-text">
-                                        {view.name.clone()}
-                                    </span>
-                                    <span class="shrink-0 font-bold tabular-nums text-text">
-                                        {market_text}
-                                    </span>
-                                </div>
-                                <div class="mt-0.5 flex items-baseline justify-between gap-2 text-sm">
-                                    <span class="shrink-0 text-text-muted">
-                                        {view.code.clone()}
-                                        " · "
-                                        {shares_text}
-                                    </span>
-                                    <span
-                                        class="flex shrink-0 items-baseline gap-2"
-                                        data-negative=pnl_negative.then_some("true")
+                            {match &view.id {
+                                Some(id) => view! {
+                                    <a
+                                        href=format!("/assetbalance/holdings/{id}")
+                                        class="asset-compact-link"
                                     >
-                                        <Amount
-                                            class="tabular-nums"
-                                            text=pnl_text
-                                            negative=pnl_negative
-                                        />
-                                        <span class="tabular-nums">
-                                            {pnl_rate_text}
-                                        </span>
-                                    </span>
-                                </div>
-                                {show_dividend
-                                    .then(|| {
-                                        view! {
-                                            <div class="mt-0.5 flex items-baseline justify-between gap-2 text-sm">
-                                                <span class="text-text-muted">
-                                                    "配当 "
-                                                    {dividend_annual}
-                                                </span>
-                                                <span class="text-text-muted tabular-nums">
-                                                    "利回り "
-                                                    {dividend_yield}
-                                                </span>
-                                            </div>
-                                        }
-                                    })}
-                            </a>
+                                        {inner}
+                                    </a>
+                                }
+                                    .into_any(),
+                                None => view! { <div class="asset-compact-link">{inner}</div> }
+                                    .into_any(),
+                            }}
                         </li>
                     }
                 })

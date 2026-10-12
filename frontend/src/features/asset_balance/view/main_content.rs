@@ -41,6 +41,8 @@ pub(crate) fn AssetBalanceMainContent(
     fallback_totals: Option<crate::api::dto::AssetBalanceSummary>,
     search_query: RwSignal<String>,
     search_count: RwSignal<(usize, usize)>,
+    sort_key: RwSignal<SortKey>,
+    sort_order: RwSignal<SortOrder>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
@@ -54,8 +56,6 @@ pub(crate) fn AssetBalanceMainContent(
         search_count.set((next.views.len(), total_count));
         filtered.set(next);
     });
-    let sort_key = RwSignal::new(SortKey::MarketValue);
-    let sort_order = RwSignal::new(SortOrder::Desc);
     let no_rows = move || total_count == 0;
     view! {
         {move || {

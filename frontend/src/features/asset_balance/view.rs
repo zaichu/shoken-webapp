@@ -15,9 +15,8 @@ pub use composition_page::AssetBalanceCompositionPage;
 pub use csv_page::{AssetBalanceCsvDeletePage, AssetBalanceCsvPage};
 pub use holding_detail_page::AssetBalanceHoldingPage;
 
-use crate::features::asset_balance::holdings::holding_view;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
-use crate::features::asset_balance::model::{ValuationInput, portfolio_valuation};
+use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{AssetBalanceCsvStore, resolve_asset_balance};
 use crate::features::asset_balance::store::{
     BalanceSlot, DataOps, has_current_balances, load_asset_balances,
@@ -37,6 +36,8 @@ pub(crate) struct AssetBalanceState {
     lookup: RwSignal<AssetBalanceLookupStore>,
     search_query: RwSignal<String>,
     search_count: RwSignal<(usize, usize)>,
+    sort_key: RwSignal<SortKey>,
+    sort_order: RwSignal<SortOrder>,
     data_ops: RwSignal<DataOps>,
     csv: AssetBalanceCsvStore,
 }
@@ -53,6 +54,8 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let search_query = RwSignal::new(String::new());
     let reset_query = search_query;
     let search_count = RwSignal::new((0usize, 0usize));
+    let sort_key = RwSignal::new(SortKey::MarketValue);
+    let sort_order = RwSignal::new(SortOrder::Desc);
     let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
     let csv_store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
     let csv_slot = csv_store.csv;
@@ -81,6 +84,8 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
         lookup,
         search_query,
         search_count,
+        sort_key,
+        sort_order,
         data_ops,
         csv: csv_store,
     }
@@ -163,18 +168,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             data_ops,
         );
     };
-    let pc_subtitle = move || {
-        resolved_view().map(|view| {
-            let inputs: Vec<ValuationInput> = view
-                .rows
-                .iter()
-                .map(|row| ValuationInput::from(&holding_view(row)))
-                .collect();
-            let count = view.rows.len();
-            let note = summary::market_note(portfolio_valuation(&inputs).has_unpriced);
-            format!("{count}銘柄 · {note}")
-        })
-    };
+    let pc_subtitle = move || resolved_view().map(|view| summary::list_subtitle(&view));
     let title_row: Children = Box::new(move || {
         view! {
             <span class="hidden self-center text-sm font-normal text-text-muted lg:inline">
@@ -269,6 +263,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                                         fallback_totals=resolved.fallback_totals
                                         search_query=search_query
                                         search_count=search_count
+                                        sort_key=state.sort_key
+                                        sort_order=state.sort_order
                                         dividends=dividends
                                         lookup=lookup
                                         generation=generation

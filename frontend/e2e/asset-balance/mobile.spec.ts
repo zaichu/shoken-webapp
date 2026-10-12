@@ -131,7 +131,7 @@ test('保有行は銘柄詳細ページへのリンクになっている', async
   await expect(row).toContainText('¥260,000');
   await expect(row).toContainText('+¥10,000');
   await row.getByRole('link').first().click();
-  await expect(page).toHaveURL('/assetbalance/holdings/7203');
+  await expect(page).toHaveURL('/assetbalance/holdings/asset-balance-1');
   await expect(page.getByRole('heading', { name: 'トヨタ自動車' })).toBeVisible();
 });
 

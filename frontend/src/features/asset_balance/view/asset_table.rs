@@ -117,16 +117,30 @@ pub fn AssetHoldingsTable(
                             );
                             let dividend_annual = format_dividend_annual(&dividend);
                             let dividend_yield = format_dividend_yield(&dividend);
-                            let href = format!("/assetbalance/holdings/{}", view.code);
+                            let href = view
+                                .id
+                                .clone()
+                                .map(|id| format!("/assetbalance/holdings/{id}"));
+                            let name_cell = view! {
+                                <>
+                                    <span class="mr-2 text-xs text-text-muted tabular-nums">
+                                        {view.code.clone()}
+                                    </span>
+                                    {view.name.clone()}
+                                </>
+                            };
                             view! {
                                 <tr>
                                     <td>
-                                        <a href=href class="no-underline hover:underline">
-                                            <span class="mr-2 text-xs text-text-muted tabular-nums">
-                                                {view.code.clone()}
-                                            </span>
-                                            {view.name.clone()}
-                                        </a>
+                                        {match href {
+                                            Some(href) => view! {
+                                                <a href=href class="no-underline hover:underline">
+                                                    {name_cell}
+                                                </a>
+                                            }
+                                                .into_any(),
+                                            None => name_cell.into_any(),
+                                        }}
                                     </td>
                                     <td class="text-right tabular-nums">
                                         {format!("{}株", format_number_value(view.shares))}

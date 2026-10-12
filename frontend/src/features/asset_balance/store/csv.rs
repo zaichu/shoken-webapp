@@ -382,6 +382,8 @@ pub(crate) fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<A
 
 pub(crate) struct ResolvedAssetBalance {
     pub(crate) rows: Vec<AssetBalanceRow>,
+    /// API が返した総件数。行が欠ける(truncated)とき rows.len とは一致しない
+    pub(crate) total: usize,
     pub(crate) warning: Option<String>,
     /// 取得上限超過で行が欠けるときの API 集計。行が揃う通常時は None
     pub(crate) fallback_totals: Option<AssetBalanceSummary>,
@@ -395,11 +397,13 @@ pub(crate) fn resolve_asset_balance(
     match result {
         Err(_) => Some(ResolvedAssetBalance {
             rows: Vec::new(),
+            total: 0,
             warning: None,
             fallback_totals: None,
         }),
         Ok(loaded) => Some(ResolvedAssetBalance {
             rows: loaded.rows.iter().cloned().map(Row::Saved).collect(),
+            total: loaded.total,
             warning: loaded.truncated.then(truncated_list_warning),
             fallback_totals: if loaded.truncated {
                 loaded.summary.clone()

@@ -1,5 +1,4 @@
 use super::use_asset_balance_state;
-use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::format::{
     format_currency, format_signed_valuation_amount, format_signed_valuation_rate,
     format_valuation_amount, is_negative_valuation,
@@ -14,7 +13,7 @@ use crate::session::use_session;
 use crate::ui::amount::Amount;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
-use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
+use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 
 #[component]
@@ -43,6 +42,21 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
             crate::features::asset_balance::store::csv::resolve_asset_balance(generation, slot)
         })
     };
+    let reload = move || {
+        if session.user.get_untracked().is_none() {
+            return;
+        }
+        balances.set(None);
+        crate::features::asset_balance::store::load_asset_balances(
+            session,
+            session.generation.get_untracked(),
+            balances,
+            dividends,
+            lookup,
+            csv_slot,
+            data_ops,
+        );
+    };
     view! {
         <PageFrame
             title="保有銘柄詳細"
@@ -51,13 +65,39 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
         >
             <div class="page-gutter flex flex-1 flex-col py-4">
                 {move || {
+                    data_ops
+                        .with(|ops| ops.refresh_error.clone())
+                        .map(|message| {
+                            view! {
+                                <div class="no-print mb-3">
+                                    <Alert variant=AlertVariant::Danger>
+                                        <strong>"エラー:"</strong>
+                                        " "
+                                        {message}
+                                    </Alert>
+                                </div>
+                            }
+                        })
+                }}
+                {move || {
+                    let generation = session.generation.get();
+                    let list_error = balances.with(|slot| match slot {
+                        Some((cached, Err(message))) if *cached == generation => {
+                            Some(message.clone())
+                        }
+                        _ => None,
+                    });
                     let view = resolved();
+                    if let Some(message) = list_error {
+                        return view! { <ListLoadError message=message on_retry=reload /> }
+                            .into_any();
+                    }
                     match view {
                         None => view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any(),
                         Some(view) => {
                             let rows = view.rows;
                             let found = rows.iter().find(|row| {
-                                row.security_code() == id.as_str()
+                                row.saved_id().is_some_and(|saved| saved == id)
                             });
                             match found {
                                 None => {

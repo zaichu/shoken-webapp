@@ -79,7 +79,7 @@ test('構成比詳細は直接 URL で開け、基準と対象を示して取得
 
   await expect(page.getByText('対象: 保存済みの保有全体')).toBeVisible();
   await expect(page.getByText('基準(取得総額):')).toBeVisible();
-  await expect(page.getByText('¥72,090,000')).toBeVisible();
+  await expect(page.getByText('¥72,110,000')).toBeVisible();
 
   const items = page.getByTestId('asset-composition-list').getByRole('listitem');
   await expect(items).toHaveCount(22);

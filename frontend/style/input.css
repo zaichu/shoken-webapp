@@ -791,6 +791,14 @@
     @apply bg-surface-sunken;
   }
 
+  .asset-comp-link {
+    @apply block px-4 py-3 no-underline;
+  }
+
+  a.asset-comp-link:hover {
+    @apply bg-surface-sunken;
+  }
+
   .asset-table-frame {
     @apply overflow-x-auto;
   }
