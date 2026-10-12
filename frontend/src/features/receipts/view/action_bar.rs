@@ -45,7 +45,7 @@ pub fn ReceiptsActionBar(store: ReceiptsStore, active_tab: RwSignal<ReceiptsTab>
     let has_years = move || !years.get().is_empty();
 
     view! {
-        <div class="sm:hidden no-print action-bar-mobile">
+        <div class="lg:hidden no-print action-bar-mobile">
             <div class="page-gutter flex flex-col gap-2 py-2">
                 {move || {
                     has_active_search.get().then(|| {
@@ -113,68 +113,100 @@ pub fn ReceiptsPcSearchBar(
 
     let period_value = Memo::new(move |_| {
         search.with(|s| {
-            if s.date_segment == DateSegment::Year && s.selected_queries.date.is_empty() {
+            if s.date_segment == DateSegment::Year
+                && s.selected_queries.date.is_empty()
+                && s.date_inputs.year_value.is_empty()
+            {
                 "すべて".to_string()
             } else {
                 s.date_segment.value().to_string()
             }
         })
     });
+    let current_segment = Memo::new(move |_| search.with(|s| s.date_segment));
     let period_options = ["すべて", "年", "年月", "日", "範囲"];
 
     view! {
-            <div class="pc-search-bar no-print" role="search" aria-label="取引明細の検索">
-                <label class="flex-1 min-w-[260px] search-input-frame">
-                    <svg aria-hidden="true" class="h-5 w-5 shrink-0 mx-2 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="7"></circle>
-                        <path d="M20 20l-3.5-3.5"></path>
-                    </svg>
-                    <input
-                        type="search"
-                        class="search-input"
-                        placeholder="銘柄名・コード"
-                        prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
-                        on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
-                    />
-                </label>
+        <div class="pc-search-bar no-print" role="search" aria-label="取引明細の検索">
+            <label class="flex-1 min-w-[260px] search-input-frame">
+                <svg aria-hidden="true" class="h-5 w-5 shrink-0 mx-2 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="M20 20l-3.5-3.5"></path>
+                </svg>
+                <input
+                    type="search"
+                    class="search-input"
+                    placeholder="銘柄名・コード"
+                    prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
+                    on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
+                />
+            </label>
 
-                {move || {
-                    has_dates().then(|| {
-                        view! {
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm text-text-muted">"期間"</span>
-                                <select
-                                    class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                    prop:value=move || period_value.get().to_string()
-                                    on:change=move |ev| {
-                                        let val = event_target_value(&ev);
-                                        search.update(|s| {
-                                            match val.as_str() {
-                                                "すべて" => {
-                                                    s.selected_queries.date.clear();
-                                                    s.date_segment = DateSegment::Year;
-                                                    s.date_inputs = Default::default();
-                                                    s.query = build_combined_query(&s.selected_queries);
-                                                }
-                                                "年" => s.change_date_segment(DateSegment::Year),
-                                                "年月" => s.change_date_segment(DateSegment::Month),
-                                                "日" => s.change_date_segment(DateSegment::Date),
-                                                "範囲" => s.change_date_segment(DateSegment::Range),
-                                                _ => {}
+            {move || {
+                has_dates().then(|| {
+                    view! {
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-text-muted">"期間"</span>
+                            <select
+                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                prop:value=move || period_value.get().to_string()
+                                on:change=move |ev| {
+                                    let val = event_target_value(&ev);
+                                    search.update(|s| {
+                                        match val.as_str() {
+                                            "すべて" => {
+                                                s.selected_queries.date.clear();
+                                                s.date_segment = DateSegment::Year;
+                                                s.date_inputs = Default::default();
+                                                s.query = build_combined_query(&s.selected_queries);
                                             }
-                                        });
-                                    }
-                                >
-                                    {period_options.iter().map(|opt| {
-                                        view! { <option value=*opt>{*opt}</option> }
-                                    }).collect_view()}
-                                </select>
+                                            "年" => {
+                                                s.date_segment = DateSegment::Year;
+                                                if s.date_inputs.year_value.is_empty() {
+                                                    s.date_inputs.year_value = "__selecting__".to_string();
+                                                }
+                                                s.rebuild_query();
+                                            }
+                                            "年月" => s.change_date_segment(DateSegment::Month),
+                                            "日" => s.change_date_segment(DateSegment::Date),
+                                            "範囲" => s.change_date_segment(DateSegment::Range),
+                                            _ => {}
+                                        }
+                                    });
+                                }
+                            >
+                                {period_options.iter().map(|opt| {
+                                    view! { <option value=*opt>{*opt}</option> }
+                                }).collect_view()}
+                            </select>
     {move || {
-                            let segment = period_value.get();
-                            match segment.as_str() {
-                                "年" => {
-                                    has_years().then(|| {
-                                        view! {
+                        let segment = current_segment.get();
+                        match segment {
+                            DateSegment::Year => {
+                                has_years().then(|| {
+                                    view! {
+                                        <select
+                                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                            prop:value=move || {
+                                                let yv = search.with(|s| s.date_inputs.year_value.clone());
+                                                if yv == "__selecting__" { String::new() } else { yv }
+                                            }
+                                            on:change=move |ev| {
+                                                let year = event_target_value(&ev);
+                                                search.update(|s| s.select_year(year));
+                                            }
+                                        >
+                                            {years.get().iter().map(|y| {
+                                                view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
+                                            }).collect_view()}
+                                        </select>
+                                    }.into_any()
+                                })
+                            }
+                            DateSegment::Month => {
+                                has_years().then(|| {
+                                    view! {
+                                        <div class="flex items-center gap-1">
                                             <select
                                                 class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
                                                 prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
@@ -184,169 +216,153 @@ pub fn ReceiptsPcSearchBar(
                                                     view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
                                                 }).collect_view()}
                                             </select>
-                                        }.into_any()
-                                    })
-                                }
-                                "年月" => {
-                                    has_years().then(|| {
-                                        view! {
-                                            <div class="flex items-center gap-1">
-                                                <select
-                                                    class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                    prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
-                                                    on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
-                                                >
-                                                    {years.get().iter().map(|y| {
-                                                        view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
-                                                    }).collect_view()}
-                                                </select>
-                                                <select
-                                                    class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                    prop:value=move || search.with(|s| s.date_inputs.month_value.clone())
-                                                    on:change=move |ev| {
-                                                        let month = event_target_value(&ev);
-                                                        search.update(|s| {
-                                                            s.date_inputs.month_value = month.clone();
-                                                            let year = s.date_inputs.year_value.clone();
-                                                            if !year.is_empty() {
-                                                                s.set_date_query(format!("{}-{}", year, month));
-                                                            }
-                                                        });
-                                                    }
-                                                >
-                                                    {(1..=12).map(|m| {
-                                                        let m_str = format!("{:02}", m);
-                                                        let m_label = format!("{}月", m);
-                                                        view! { <option value={m_str.clone()}>{m_label}</option> }
-                                                    }).collect_view()}
-                                                </select>
-                                            </div>
-                                        }.into_any()
-                                    })
-                                }
-                                "日" => {
-                                    Some(view! {
+                                            <select
+                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                                prop:value=move || search.with(|s| s.date_inputs.month_value.clone())
+                                                on:change=move |ev| {
+                                                    let month = event_target_value(&ev);
+                                                    search.update(|s| {
+                                                        s.date_inputs.month_value = month.clone();
+                                                        let year = s.date_inputs.year_value.clone();
+                                                        if !year.is_empty() {
+                                                            s.set_date_query(format!("{}-{}", year, month));
+                                                        }
+                                                    });
+                                                }
+                                            >
+                                                {(1..=12).map(|m| {
+                                                    let m_str = format!("{:02}", m);
+                                                    let m_label = format!("{}月", m);
+                                                    view! { <option value={m_str.clone()}>{m_label}</option> }
+                                                }).collect_view()}
+                                            </select>
+                                        </div>
+                                    }.into_any()
+                                })
+                            }
+                            DateSegment::Date => {
+                                Some(view! {
+                                    <input
+                                        type="date"
+                                        class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                        prop:value=move || search.with(|s| s.date_inputs.date_value.clone())
+                                        on:input=move |ev| search.update(|s| {
+                                            s.date_inputs.date_value = event_target_value(&ev);
+                                            s.set_date_query(event_target_value(&ev));
+                                        })
+                                    />
+                                }.into_any())
+                            }
+                            DateSegment::Range => {
+                                Some(view! {
+                                    <div class="flex items-center gap-1">
                                         <input
                                             type="date"
                                             class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                            prop:value=move || search.with(|s| s.date_inputs.date_value.clone())
+                                            prop:value=move || search.with(|s| s.date_inputs.range_start.clone())
                                             on:input=move |ev| search.update(|s| {
-                                                s.date_inputs.date_value = event_target_value(&ev);
-                                                s.set_date_query(event_target_value(&ev));
+                                                s.date_inputs.range_start = event_target_value(&ev);
+                                                s.update_range_query();
                                             })
                                         />
-                                    }.into_any())
-                                }
-                                "範囲" => {
-                                    Some(view! {
-                                        <div class="flex items-center gap-1">
-                                            <input
-                                                type="date"
-                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                prop:value=move || search.with(|s| s.date_inputs.range_start.clone())
-                                                on:input=move |ev| search.update(|s| {
-                                                    s.date_inputs.range_start = event_target_value(&ev);
-                                                    s.update_range_query();
-                                                })
-                                            />
-                                            <span class="text-text-muted">"〜"</span>
-                                            <input
-                                                type="date"
-                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                prop:value=move || search.with(|s| s.date_inputs.range_end.clone())
-                                                on:input=move |ev| search.update(|s| {
-                                                    s.date_inputs.range_end = event_target_value(&ev);
-                                                    s.update_range_query();
-                                                })
-                                            />
-                                        </div>
-                                    }.into_any())
-                                }
-                                _ => None,
+                                        <span class="text-text-muted">"〜"</span>
+                                        <input
+                                            type="date"
+                                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                                            prop:value=move || search.with(|s| s.date_inputs.range_end.clone())
+                                            on:input=move |ev| search.update(|s| {
+                                                s.date_inputs.range_end = event_target_value(&ev);
+                                                s.update_range_query();
+                                            })
+                                        />
+                                    </div>
+                                }.into_any())
                             }
-                        }}
-                            </div>
+                            _ => None,
                         }
-                    })
-                }}
+                    }}
+                        </div>
+                    }
+                })
+            }}
 
-                {move || {
-                    has_products().then(|| {
-                        view! {
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm text-text-muted">"商品"</span>
-                                <div class="flex gap-1">
-                                    {products.get().iter().map(|p| {
-                                        let p_value = p.value.clone();
-                                        let p_label = p.label.clone();
-                                        let p_value_for_click = p_value.clone();
-                                        let selected = search.with(move |s| s.selected_queries.get(SearchKey::Products) == p_value);
-                                        view! {
-                                            <button
-                                                type="button"
-                                                class=move || format!(
-                                                    "h-8 px-3 rounded-full text-sm font-medium transition-colors {}",
-                                                    if selected {
-                                                        "bg-info-soft border border-info-border text-info"
-                                                    } else {
-                                                        "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
-                                                    }
-                                                )
-                                                attr:aria-pressed=selected
-                                                on:click=move |_| search.update(|s| s.select_quick(SearchKey::Products, p_value_for_click.clone()))
-                                            >
-                                                {p_label}
-                                            </button>
-                                        }
-                                    }).collect_view()}
-                                </div>
+            {move || {
+                has_products().then(|| {
+                    view! {
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-text-muted">"商品"</span>
+                            <div class="flex gap-1">
+                                {products.get().iter().map(|p| {
+                                    let p_value = p.value.clone();
+                                    let p_label = p.label.clone();
+                                    let p_value_for_click = p_value.clone();
+                                    let selected = search.with(move |s| s.selected_queries.get(SearchKey::Products) == p_value);
+                                    view! {
+                                        <button
+                                            type="button"
+                                            class=move || format!(
+                                                "h-8 px-3 rounded-full text-sm font-medium transition-colors {}",
+                                                if selected {
+                                                    "bg-info-soft border border-info-border text-info"
+                                                } else {
+                                                    "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
+                                                }
+                                            )
+                                            attr:aria-pressed=selected
+                                            on:click=move |_| search.update(|s| s.select_quick(SearchKey::Products, p_value_for_click.clone()))
+                                        >
+                                            {p_label}
+                                        </button>
+                                    }
+                                }).collect_view()}
                             </div>
-                        }
-                    })
-                }}
+                        </div>
+                    }
+                })
+            }}
 
-                {move || {
-                    has_accounts().then(|| {
-                        view! {
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm text-text-muted">"口座"</span>
-                                <div class="flex gap-1">
-                                    {accounts.get().iter().map(|a| {
-                                        let a_value = a.value.clone();
-                                        let a_label = a.label.clone();
-                                        let a_value_for_click = a_value.clone();
-                                        let selected = search.with(move |s| s.selected_queries.get(SearchKey::Accounts) == a_value);
-                                        view! {
-                                            <button
-                                                type="button"
-                                                class=move || format!(
-                                                    "h-8 px-3 rounded-full text-sm font-medium transition-colors {}",
-                                                    if selected {
-                                                        "bg-info-soft border border-info-border text-info"
-                                                    } else {
-                                                        "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
-                                                    }
-                                                )
-                                                attr:aria-pressed=selected
-                                                on:click=move |_| search.update(|s| s.select_quick(SearchKey::Accounts, a_value_for_click.clone()))
-                                            >
-                                                {a_label}
-                                            </button>
-                                        }
-                                    }).collect_view()}
-                                </div>
+            {move || {
+                has_accounts().then(|| {
+                    view! {
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-text-muted">"口座"</span>
+                            <div class="flex gap-1">
+                                {accounts.get().iter().map(|a| {
+                                    let a_value = a.value.clone();
+                                    let a_label = a.label.clone();
+                                    let a_value_for_click = a_value.clone();
+                                    let selected = search.with(move |s| s.selected_queries.get(SearchKey::Accounts) == a_value);
+                                    view! {
+                                        <button
+                                            type="button"
+                                            class=move || format!(
+                                                "h-8 px-3 rounded-full text-sm font-medium transition-colors {}",
+                                                if selected {
+                                                    "bg-info-soft border border-info-border text-info"
+                                                } else {
+                                                    "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
+                                                }
+                                            )
+                                            attr:aria-pressed=selected
+                                            on:click=move |_| search.update(|s| s.select_quick(SearchKey::Accounts, a_value_for_click.clone()))
+                                        >
+                                            {a_label}
+                                        </button>
+                                    }
+                                }).collect_view()}
                             </div>
-                        }
-                    })
-                }}
+                        </div>
+                    }
+                })
+            }}
 
-                <button
-                    type="button"
-                    class="ml-auto h-8 px-3 text-sm font-semibold text-info hover:underline"
-                    on:click=move |_| search.update(|s| s.clear(has_years()))
-                >
-                    "条件をクリア"
-                </button>
-            </div>
-        }
+            <button
+                type="button"
+                class="ml-auto h-8 px-3 text-sm font-semibold text-info hover:underline"
+                on:click=move |_| search.update(|s| s.clear(has_years()))
+            >
+                "条件をクリア"
+            </button>
+        </div>
+    }
 }

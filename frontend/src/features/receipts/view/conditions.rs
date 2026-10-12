@@ -68,7 +68,10 @@ fn ConditionSection(
 }
 
 #[component]
-fn DateSegmentSelector(search: RwSignal<ReceiptSearch>) -> impl IntoView {
+fn DateSegmentSelector(
+    search: RwSignal<ReceiptSearch>,
+    years: Memo<Vec<crate::support::list_search::SearchOption>>,
+) -> impl IntoView {
     let segment = Memo::new(move |_| search.with(|s| s.date_segment));
     let segment_options = ["すべて", "年", "年月", "日", "範囲"];
 
@@ -121,10 +124,10 @@ fn DateSegmentSelector(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                 let seg = segment.get();
                 match seg {
                     DateSegment::Year => view! {
-                        <YearPicker search=search />
+                        <YearPicker search=search years=years />
                     }.into_any(),
                     DateSegment::Month => view! {
-                        <MonthPicker search=search />
+                        <MonthPicker search=search years=years />
                     }.into_any(),
                     DateSegment::Date => view! {
                         <DatePicker search=search />
@@ -139,19 +142,10 @@ fn DateSegmentSelector(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 }
 
 #[component]
-fn YearPicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
-    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
-    let active_tab = store.active_tab;
-
-    let years = Memo::new(move |_| {
-        let display_rows = store.tab_state(active_tab.get());
-        if let TabState::Ready(data) = display_rows {
-            search_categories(active_tab.get(), &data.rows).years
-        } else {
-            Vec::new()
-        }
-    });
-
+fn YearPicker(
+    search: RwSignal<ReceiptSearch>,
+    years: Memo<Vec<crate::support::list_search::SearchOption>>,
+) -> impl IntoView {
     view! {
         <div class="mt-2 flex flex-wrap gap-1.5">
             {move || {
@@ -189,18 +183,10 @@ fn YearPicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 }
 
 #[component]
-fn MonthPicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
-    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
-    let active_tab = store.active_tab;
-
-    let years = Memo::new(move |_| {
-        let display_rows = store.tab_state(active_tab.get());
-        if let TabState::Ready(data) = display_rows {
-            search_categories(active_tab.get(), &data.rows).years
-        } else {
-            Vec::new()
-        }
-    });
+fn MonthPicker(
+    search: RwSignal<ReceiptSearch>,
+    years: Memo<Vec<crate::support::list_search::SearchOption>>,
+) -> impl IntoView {
     let months = (1..=12).map(|m| format!("{:02}", m)).collect::<Vec<_>>();
     let selected_month = Memo::new(move |_| search.with(|s| s.date_inputs.month_value.clone()));
     let selected_year = Memo::new(move |_| search.with(|s| s.date_inputs.year_value.clone()));
@@ -389,7 +375,7 @@ pub fn ReceiptsConditionsPage() -> impl IntoView {
                 {move || {
                     let categories = categories.get();
                     if categories.dates {
-                        view! { <DateSegmentSelector search=search /> }.into_any()
+                        view! { <DateSegmentSelector search=search years=years /> }.into_any()
                     } else {
                         ().into_any()
                     }

@@ -3,9 +3,9 @@ use leptos::prelude::*;
 
 /// PC 用ヘッダー: ロゴ・グローバルナビ・アカウントメニュー
 #[component]
-fn PcHeader() -> impl IntoView {
+fn PcHeader(links: Option<Children>) -> impl IntoView {
     view! {
-        <header class="pc-header no-print hidden sm:flex">
+        <header class="pc-header no-print hidden lg:flex">
             <div class="page-gutter flex items-center gap-8 h-14">
                 <a href="/" class="flex items-center gap-2 text-decoration-none" aria-label="証券Web トップ">
                     <div class="header-logo" aria-hidden="true">
@@ -46,6 +46,7 @@ fn PcHeader() -> impl IntoView {
                     }).collect_view()}
                 </nav>
                 <div class="ml-auto flex items-center gap-2">
+                    {links.map(|links| links())}
                     <AccountMenu />
                 </div>
             </div>
@@ -57,7 +58,7 @@ fn PcHeader() -> impl IntoView {
 #[component]
 fn MobileHeader(title: String, links: Option<Children>) -> impl IntoView {
     view! {
-        <header class="page-frame-head sm:hidden">
+        <header class="page-frame-head lg:hidden">
             <div class="page-gutter flex flex-wrap items-center justify-between gap-x-4 gap-y-1 h-12">
                 <div class="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
                     <h1 class="page-frame-title">{title}</h1>
@@ -80,9 +81,12 @@ pub fn PageFrame(
     #[prop(into, optional)]
     back_href: Option<String>,
     #[prop(into, optional)] back_label: Option<String>,
-    /// ページ名の右に置く低頻度操作への文字リンク([CSV管理] など)
+    /// ページ名の右に置く低頻度操作への文字リンク([CSV管理] など) - モバイル用
     #[prop(optional)]
-    links: Option<Children>,
+    mobile_links: Option<Children>,
+    /// ページ名の右に置く低頻度操作への文字リンク([CSV管理] など) - PC用
+    #[prop(optional)]
+    pc_links: Option<Children>,
     /// 画面下部に常設する操作帯(検索欄・適用・保存など)
     #[prop(optional)]
     action_bar: Option<AnyView>,
@@ -95,8 +99,8 @@ pub fn PageFrame(
 
     view! {
         <div class="page-frame">
-            <PcHeader />
-            <MobileHeader title=title links=links />
+            <PcHeader links=pc_links />
+            <MobileHeader title=title links=mobile_links />
             {back_href
                 .zip(back_label)
                 .map(|(href, label)| {

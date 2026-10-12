@@ -174,14 +174,20 @@ pub fn AssetBalancePage() -> impl IntoView {
             data_ops,
         );
     };
-    let csv_link: Children = Box::new(move || {
+    let mobile_csv_link: Children = Box::new(move || {
+        view! {
+            <a class="page-back-link" href="/assetbalance/csv">"CSV管理"</a>
+        }
+        .into_any()
+    });
+    let pc_csv_link: Children = Box::new(move || {
         view! {
             <a class="page-back-link" href="/assetbalance/csv">"CSV管理"</a>
         }
         .into_any()
     });
     view! {
-        <PageFrame title="資産管理" full_bleed=true action_bar=action_bar links=csv_link>
+        <PageFrame title="資産管理" full_bleed=true action_bar=action_bar mobile_links=mobile_csv_link pc_links=pc_csv_link>
         <div
             class="mt-2 flex flex-1 flex-col"
             data-testid="assetbalance-workspace"

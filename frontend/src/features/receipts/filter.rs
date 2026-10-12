@@ -244,7 +244,7 @@ impl ReceiptSearch {
         self.rebuild_query();
     }
 
-    fn rebuild_query(&mut self) {
+    pub(crate) fn rebuild_query(&mut self) {
         self.query = build_combined_query(&self.selected_queries);
     }
 }
