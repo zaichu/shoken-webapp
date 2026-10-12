@@ -45,10 +45,11 @@ fn compact_width(header: &str) -> &'static str {
 }
 
 // PC の表は lg 以上でしか出ないため、段は「常時」と「xl から」の2つにまとめる。
-// 口座と売買の内訳金額は xl まで隠し、lg でも銘柄列の幅を確保する
+// 口座は lg でも出す(この幅ではモバイル行も出ないため口座が見えなくなる)。
+// 売買の内訳金額は xl まで隠し、lg でも銘柄列の幅を確保する
 fn compact_tier(header: &str) -> ColumnTier {
     match header {
-        "口座" | "売却額" | "解約額" | "取得価額" => ColumnTier::Wide,
+        "売却額" | "解約額" | "取得価額" => ColumnTier::Wide,
         _ => ColumnTier::Core,
     }
 }
