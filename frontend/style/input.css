@@ -428,8 +428,9 @@
   }
 
   /* PC Receipts Table (compact mobile desktop view) */
+  /* スマホは枠で囲まず全幅の行+区切り線、PC だけカード的面で囲う */
   .receipt-list-surface {
-    @apply bg-surface border border-border rounded-lg overflow-hidden;
+    @apply overflow-hidden bg-surface lg:rounded-lg lg:border lg:border-border;
   }
 
   .receipts-table-frame {
