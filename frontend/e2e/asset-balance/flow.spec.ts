@@ -211,7 +211,7 @@ test('保存後に一覧が再取得されて銘柄データが表示される',
   // 一覧に戻ると保存した銘柄が見える
   await page.getByRole('link', { name: '一覧に戻る' }).click();
   await expect(
-    page.getByTestId('portfolio-pie-chart').getByText('トヨタ自動車').and(page.locator(':visible')),
+    page.getByTestId('asset-holdings-table').getByText('トヨタ自動車'),
   ).toBeVisible();
 });
 
@@ -224,7 +224,7 @@ test('資産管理データが2件あるときサマリーと検索入力が表�
   await expect(page.getByText('評価額合計', { exact: true })).toBeVisible();
   // 全件削除は一覧には置かず CSV 管理ページへ誘導する
   await expect(page.getByRole('link', { name: 'CSV管理' })).toBeVisible();
-  await expect(page.getByTestId('asset-search-input')).toBeVisible();
+  await expect(page.getByTestId('asset-search-input-pc')).toBeVisible();
 });
 
 test('銘柄名の一部で絞り込み解除できる', async ({ page }) => {
@@ -232,22 +232,21 @@ test('銘柄名の一部で絞り込み解除できる', async ({ page }) => {
 
   await gotoAssetBalancePage(page);
 
-  const chart = page.getByTestId('portfolio-pie-chart');
-  const visible = page.locator(':visible');
+  const list = page.getByTestId('asset-holdings-table');
 
-  await expect(chart.getByText('トヨタ自動車').and(visible)).toBeVisible();
-  await expect(chart.getByText('ソニーグループ').and(visible)).toBeVisible();
+  await expect(list.getByText('トヨタ自動車')).toBeVisible();
+  await expect(list.getByText('ソニーグループ')).toBeVisible();
 
-  await page.getByTestId('asset-search-input').fill('ソニー');
+  await page.getByTestId('asset-search-input-pc').fill('ソニー');
 
-  await expect(page.getByTestId('asset-search-count')).toContainText('1 / 2');
-  await expect(chart.getByText('ソニーグループ').and(visible)).toBeVisible();
-  await expect(chart.getByText('トヨタ自動車').and(visible)).not.toBeVisible();
+  await expect(page.getByTestId('asset-search-count-pc')).toContainText('1 / 2');
+  await expect(list.getByText('ソニーグループ')).toBeVisible();
+  await expect(list.getByText('トヨタ自動車')).not.toBeVisible();
 
-  await page.getByTestId('asset-search-clear').click();
+  await page.getByTestId('asset-search-clear-pc').click();
 
-  await expect(page.getByTestId('asset-search-count')).not.toBeVisible();
-  await expect(chart.getByText('トヨタ自動車').and(visible)).toBeVisible();
+  await expect(page.getByTestId('asset-search-count-pc')).not.toBeVisible();
+  await expect(list.getByText('トヨタ自動車')).toBeVisible();
 });
 
 test('全件削除は専用ページで確認して EmptyState に戻る', async ({ page }) => {

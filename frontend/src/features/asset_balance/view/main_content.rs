@@ -1,14 +1,39 @@
+use super::asset_table::AssetHoldingsTable;
 use super::holdings_list::HoldingsList;
 use super::sort_controls::SortControls;
 use super::summary::PortfolioSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
-use crate::features::asset_balance::holdings::holding_dividend;
+use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
-use crate::features::asset_balance::portfolio::{SortKey, SortOrder, sort_holdings};
+use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder, sort_holdings};
 use crate::features::asset_balance::store::{FilteredPortfolio, filtered_portfolio};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
+use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
+
+fn sorted_views(
+    views: &[HoldingView],
+    dividends: &DividendMaps,
+    key: SortKey,
+    order: SortOrder,
+) -> Vec<usize> {
+    let dividends_vec: Vec<_> = views
+        .iter()
+        .map(|view| holding_dividend(&view.code, view.shares, view.average_price, dividends))
+        .collect();
+    let inputs: Vec<_> = views
+        .iter()
+        .zip(dividends_vec.iter())
+        .map(|(view, dividend)| SortInput {
+            code: view.code.as_str(),
+            valuation: view.into(),
+            dividend,
+        })
+        .collect();
+    sort_holdings(inputs, key, order)
+}
 
 #[component]
 pub(crate) fn AssetBalanceMainContent(
@@ -36,7 +61,7 @@ pub(crate) fn AssetBalanceMainContent(
         {move || {
             no_rows().then(|| {
                 view! {
-                    <div class="rounded-lg border border-border bg-surface p-6">
+                    <div class="asset-panel-padded mx-4 lg:mx-0">
                         <div class="text-center">
                             <p class="font-medium text-text">"資産管理データがありません"</p>
                             <p class="mt-1 text-sm text-text-muted">
@@ -66,38 +91,117 @@ pub(crate) fn AssetBalanceMainContent(
                     />
                 }
             }}
-            <div class="rounded-lg border border-border bg-surface">
-                <div class="border-b border-border p-3">
-                    <SortControls sort_key=sort_key sort_order=sort_order />
+            <div class="asset-list-surface">
+                <div class="asset-pc-toolbar no-print" role="search" aria-label="保有銘柄の検索">
+                    <div class="search-input-frame w-80">
+                        <svg aria-hidden="true" class="mx-2 h-4 w-4 shrink-0 self-center text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-3.5-3.5"></path>
+                        </svg>
+                        <input
+                            type="search"
+                            class="search-input"
+                            placeholder="銘柄名・コードで絞り込み"
+                            aria-label="銘柄名・コードで絞り込み"
+                            autocomplete="off"
+                            data-testid="asset-search-input-pc"
+                            enterkeyhint="search"
+                            prop:value=move || search_query.get()
+                            // IME 変換中の確定前の文字では絞り込まない。確定は compositionend で受ける
+                            on:input=move |ev| {
+                                if ev.unchecked_ref::<web_sys::InputEvent>().is_composing() {
+                                    return;
+                                }
+                                search_query.set(event_target_value(&ev));
+                            }
+                            on:compositionend=move |ev| {
+                                search_query.set(event_target_value(&ev))
+                            }
+                        />
+                        {move || {
+                            (!search_query.get().is_empty()).then(|| {
+                                view! {
+                                    <Button
+                                        variant=ButtonVariant::SecondarySoft(ButtonSize::Xs)
+                                        class="shrink-0 self-center".to_string()
+                                        aria_label="検索を解除".to_string()
+                                        testid="asset-search-clear-pc"
+                                        on_click=move |_| search_query.set(String::new())
+                                    >
+                                        "消去"
+                                    </Button>
+                                }
+                            })
+                        }}
+                    </div>
+                    {move || {
+                        if search_query.get().is_empty() {
+                            view! {
+                                <span class="shrink-0 text-xs text-text-muted">
+                                    "列名を押すと並べ替え"
+                                </span>
+                            }
+                            .into_any()
+                        } else {
+                            let (filtered, total) = search_count.get();
+                            view! {
+                                <span
+                                    class="shrink-0 text-xs text-text-muted"
+                                    data-testid="asset-search-count-pc"
+                                >
+                                    {format!("検索結果 {filtered} / {total}件")}
+                                </span>
+                            }
+                            .into_any()
+                        }
+                    }}
                 </div>
-                {move || {
-                    let FilteredPortfolio { views, .. } = filtered.get();
-                    let dividends_map = dividends.get();
-                    let dividends_vec: Vec<_> = views
-                        .iter()
-                        .map(|view| holding_dividend(
-                            &view.code,
-                            view.shares,
-                            view.average_price,
-                            &dividends_map,
-                        ))
-                        .collect();
-                    let inputs: Vec<_> = views
-                        .iter()
-                        .zip(dividends_vec.iter())
-                        .map(|(view, dividend)| super::super::portfolio::SortInput {
-                            code: view.code.as_str(),
-                            valuation: view.into(),
-                            dividend,
-                        })
-                        .collect();
-                    let order = sort_holdings(inputs, sort_key.get(), sort_order.get());
-                    let sorted: Vec<_> = order
-                        .into_iter()
-                        .map(|index| views[index].clone())
-                        .collect();
-                    view! { <HoldingsList views=sorted dividends=dividends /> }
-                }}
+                <SortControls sort_key=sort_key sort_order=sort_order />
+                <div class="hidden lg:block print:block">
+                    {move || {
+                        let FilteredPortfolio { views, .. } = filtered.get();
+                        let order = sorted_views(
+                            &views,
+                            &dividends.get(),
+                            sort_key.get(),
+                            sort_order.get(),
+                        );
+                        let sorted: Vec<_> = order
+                            .into_iter()
+                            .map(|index| views[index].clone())
+                            .collect();
+                        view! {
+                            <AssetHoldingsTable
+                                views=sorted
+                                dividends=dividends
+                                sort_key=sort_key
+                                sort_order=sort_order
+                            />
+                        }
+                    }}
+                </div>
+                <div class="lg:hidden print:hidden">
+                    {move || {
+                        let FilteredPortfolio { views, .. } = filtered.get();
+                        let key = sort_key.get();
+                        let order = sorted_views(&views, &dividends.get(), key, sort_order.get());
+                        let sorted: Vec<_> = order
+                            .into_iter()
+                            .map(|index| views[index].clone())
+                            .collect();
+                        let show_dividend = matches!(
+                            key,
+                            SortKey::Dividend | SortKey::Yield
+                        );
+                        view! {
+                            <HoldingsList
+                                views=sorted
+                                dividends=dividends
+                                show_dividend=show_dividend
+                            />
+                        }
+                    }}
+                </div>
             </div>
         </section>
     }

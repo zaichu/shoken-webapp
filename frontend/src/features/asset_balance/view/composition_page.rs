@@ -53,7 +53,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                         None => view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any(),
                         Some(view) if view.rows.is_empty() => {
                             view! {
-                                <div class="rounded-lg border border-border bg-surface p-6">
+                                <div class="asset-panel-padded">
                                     <p class="text-center text-text-muted">
                                         "データがありません"
                                     </p>
@@ -78,7 +78,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                 })
                                 .collect();
                             view! {
-                                <div class="rounded-lg border border-border bg-surface">
+                                <div class="asset-panel">
                                     <div class="border-b border-border p-4">
                                         <p class="text-sm text-text-muted">
                                             "対象: 保存済みの保有全体"
@@ -90,7 +90,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                             </strong>
                                         </p>
                                     </div>
-                                    {if total_purchase == 0.0 {
+                                    {if total_purchase <= 0.0 {
                                         view! {
                                             <div class="p-6 text-center text-text-muted">
                                                 "算出不可"
@@ -99,7 +99,10 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                             .into_any()
                                     } else {
                                         view! {
-                                            <ul class="divide-y divide-border-faint">
+                                            <ul
+                                                class="divide-y divide-border-faint"
+                                                data-testid="asset-composition-list"
+                                            >
                                                 {items
                                                     .into_iter()
                                                     .map(|item| {

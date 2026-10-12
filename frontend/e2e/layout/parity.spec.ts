@@ -217,7 +217,7 @@ async function gotoFilteredEmptyAssetBalance(page: Page) {
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
   // どの銘柄にも一致しない文字列で 0 件にする
-  await page.getByTestId('asset-search-input').fill('9999');
+  await page.getByTestId('asset-search-input-pc').fill('9999');
   await expect(
     page.getByRole('button', { name: '絞り込みを解除' }),
   ).toBeVisible();
@@ -273,9 +273,11 @@ test('資産管理に評価額と含み損益を表示する', async ({ page }) 
   await expect(summary).toBeVisible();
   await expect(summary).toContainText('評価額合計');
   await expect(summary).toContainText('含み損益');
-  const card = page.getByTestId('portfolio-holding-card').first();
-  await expect(card).toBeVisible();
-  await expect(card.getByText('評価額', { exact: true })).toBeVisible();
+  const row = page.getByTestId('asset-compact-row').first();
+  await expect(row).toBeVisible();
+  // 行には評価額と符号付きの含み損益が出る
+  await expect(row).toContainText('¥');
+  await expect(row).toContainText(/[+-]¥/);
 });
 
 for (const width of [1440, 390]) {
@@ -324,7 +326,7 @@ test('検索の取得失敗を通知する', async ({ page }) => {
 test('資産管理で該当銘柄がないとき絞り込みを解除できる', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoFilteredEmptyAssetBalance(page);
-  await expect(page.getByTestId('portfolio-card-identity')).toHaveCount(0);
+  await expect(page.getByTestId('asset-compact-row')).toHaveCount(0);
   await page.getByRole('button', { name: '絞り込みを解除' }).click();
   await expectAssetDataLoaded(page);
 });

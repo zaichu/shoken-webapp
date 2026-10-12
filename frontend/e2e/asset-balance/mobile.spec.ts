@@ -76,7 +76,7 @@ async function setupAssetBalanceMocks(page: Page) {
 
 async function gotoAssetBalance(page: Page) {
   await page.goto('/assetbalance');
-  await expect(page.getByTestId('portfolio-pie-chart')).toBeVisible();
+  await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -92,25 +92,25 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
   // CSV 操作は専用ページに移ったため、一覧にはドロワーがない
   await expect(page.getByTestId('asset-utility-toggle')).toHaveCount(0);
   const main = page.getByTestId('assetbalance-main-stage');
-  // 検索はメイン領域にある
+  // 検索は画面下部の操作帯にある
   const searchInput = page.getByTestId('asset-search-input');
   await expect(searchInput).toBeVisible();
   await expect(searchInput).toBeEditable();
 
   // main 内は集計情報 → 保有内訳
   const summary = page.getByTestId('asset-portfolio-summary');
-  const firstCard = page.getByTestId('portfolio-holding-card').first();
+  const firstRow = page.getByTestId('asset-compact-row').first();
   const summaryBox = await summary.boundingBox();
-  const cardBox = await firstCard.boundingBox();
+  const rowBox = await firstRow.boundingBox();
   expect(summaryBox).not.toBeNull();
-  expect(cardBox).not.toBeNull();
-  expect(summaryBox!.y).toBeLessThan(cardBox!.y);
+  expect(rowBox).not.toBeNull();
+  expect(summaryBox!.y).toBeLessThan(rowBox!.y);
 
   await expect(summary).toBeVisible();
   await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
-  await expect(firstCard).toBeVisible();
-  await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
-  await expect(searchInput).toBeVisible();
+  await expect(firstRow).toBeVisible();
+  // モバイルはコンパクト行、PC 表は出さない
+  await expect(page.getByTestId('asset-holdings-table')).toBeHidden();
 
   // CSV 管理ページにはヘッダーのリンクから入り、AI プロンプトもそこにある
   await page.getByRole('link', { name: 'CSV管理' }).click();
@@ -122,22 +122,17 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
   await expect(main).toBeVisible();
 });
 
-test('保有カードの詳細は見出しを繰り返さず、銘柄情報への文全体がリンクになる', async ({ page }) => {
+test('保有行は銘柄詳細ページへのリンクになっている', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAssetBalance(page);
-  const card = page.getByTestId('portfolio-holding-card').first();
-  // 閉じた面には評価額と含み損益が出る
-  await expect(card.getByText('評価額', { exact: true })).toHaveCount(1);
-  await expect(card.getByText('+¥10,000（+4.0%）')).toHaveCount(1);
-  await card.getByRole('button').click();
-  await expect(card.locator('dt').filter({ hasText: /^銘柄名$/ })).toHaveCount(0);
-  await expect(card.locator('dt').filter({ hasText: /^評価額$/ })).toHaveCount(0);
-  await expect(card.locator('dt').filter({ hasText: /^取得総額$/ })).toHaveCount(1);
-  await expect(card.getByText('トヨタ自動車', { exact: true })).toHaveCount(1);
-  await expect(card.getByText('¥250,000', { exact: true })).toHaveCount(1);
-  const link = card.getByRole('link', { name: /7203.*の銘柄情報を見る/ });
-  await expect(link).toBeVisible();
-  await expect(link).toHaveAttribute('href', '/search?code=7203');
+  const row = page.getByTestId('asset-compact-row').first();
+  // 行には評価額と含み損益(符号付き)が出る
+  await expect(row).toContainText('トヨタ自動車');
+  await expect(row).toContainText('¥260,000');
+  await expect(row).toContainText('+¥10,000');
+  await row.getByRole('link').first().click();
+  await expect(page).toHaveURL('/assetbalance/holdings/7203');
+  await expect(page.getByRole('heading', { name: 'トヨタ自動車' })).toBeVisible();
 });
 
 test('一覧に無い文字列を入れるとフィルタ済み空状態と解除ボタンが出る', async ({
@@ -154,21 +149,21 @@ test('一覧に無い文字列を入れるとフィルタ済み空状態と解�
   ).toBeVisible();
 });
 
-test('639px ではモバイル表示、640px でPC表示に切り替わる', async ({ page }) => {
-  await page.setViewportSize({ width: 639, height: 844 });
+test('1023px ではモバイル表示、1024px でPC表示に切り替わる', async ({ page }) => {
+  await page.setViewportSize({ width: 1023, height: 844 });
   await gotoAssetBalance(page);
 
   await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
   await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
-  await expect(page.getByTestId('portfolio-holding-card').first()).toBeVisible();
-  await expect(page.getByTestId('portfolio-card-identity').first()).toBeHidden();
+  await expect(page.getByTestId('asset-compact-row').first()).toBeVisible();
+  await expect(page.getByTestId('asset-holdings-table')).toBeHidden();
 
-  await page.setViewportSize({ width: 640, height: 844 });
+  await page.setViewportSize({ width: 1024, height: 844 });
 
   await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
   await expect(page.getByTestId('portfolio-kpi-grid')).toBeVisible();
-  await expect(page.getByTestId('portfolio-holding-card').first()).toBeHidden();
-  await expect(page.getByTestId('portfolio-card-identity').first()).toBeVisible();
+  await expect(page.getByTestId('asset-compact-row').first()).toBeHidden();
+  await expect(page.getByTestId('asset-holdings-table')).toBeVisible();
 });
 
 test('1920px でも一覧は1カラムでページをはみ出さない', async ({ page }) => {
@@ -179,7 +174,7 @@ test('1920px でも一覧は1カラムでページをはみ出さない', async 
   await expect(page.getByTestId('assetbalance-utility-rail')).toHaveCount(0);
   const main = page.getByTestId('assetbalance-main-stage');
   await expect(main).toBeVisible();
-  await expect(page.getByTestId('asset-search-input')).toBeVisible();
+  await expect(page.getByTestId('asset-search-input-pc')).toBeVisible();
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(1920);
 });

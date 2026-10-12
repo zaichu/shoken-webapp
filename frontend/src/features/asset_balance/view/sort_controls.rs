@@ -1,5 +1,5 @@
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
-use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
 
 const SORT_KEYS: &[(SortKey, &str)] = &[
@@ -13,7 +13,7 @@ const SORT_KEYS: &[(SortKey, &str)] = &[
 pub fn SortControls(sort_key: RwSignal<SortKey>, sort_order: RwSignal<SortOrder>) -> impl IntoView {
     view! {
         <div
-            class="flex flex-wrap items-center gap-1.5"
+            class="asset-sort-bar"
             role="group"
             aria-label="並べ替え"
             data-testid="asset-sort-controls"
@@ -26,15 +26,8 @@ pub fn SortControls(sort_key: RwSignal<SortKey>, sort_order: RwSignal<SortOrder>
                     let active = move || sort_key.get() == key;
                     view! {
                         <Button
-                            variant=ButtonVariant::SecondarySoft(ButtonSize::Sm)
-                            class=move || {
-                                if active() {
-                                    "border-accent bg-accent/10 text-accent"
-                                } else {
-                                    ""
-                                }
-                            }
-                            attr:aria-pressed=move || active().then_some("true")
+                            variant=ButtonVariant::AssetSortChip
+                            aria_pressed=Signal::derive(move || active().to_string())
                             on_click=move |_| sort_key.set(key)
                         >
                             {label}
@@ -43,8 +36,7 @@ pub fn SortControls(sort_key: RwSignal<SortKey>, sort_order: RwSignal<SortOrder>
                 })
                 .collect_view()}
             <Button
-                variant=ButtonVariant::Ghost
-                class="ml-auto"
+                variant=ButtonVariant::AssetSortDirection
                 on_click=move |_| {
                     sort_order.update(|order| {
                         *order = match *order {

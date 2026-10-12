@@ -3,7 +3,7 @@ use crate::features::asset_balance::format::{
     is_negative_valuation,
 };
 use crate::features::asset_balance::holdings::{
-    format_dividend_annual, format_dividend_yield, holding_dividend, HoldingView,
+    HoldingView, format_dividend_annual, format_dividend_yield, holding_dividend,
 };
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
@@ -12,9 +12,13 @@ use crate::ui::amount::Amount;
 use leptos::prelude::*;
 
 #[component]
-pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) -> impl IntoView {
+pub fn HoldingsList(
+    views: Vec<HoldingView>,
+    dividends: RwSignal<DividendMaps>,
+    #[prop(optional)] show_dividend: bool,
+) -> impl IntoView {
     view! {
-        <ul class="divide-y divide-border-faint" data-testid="asset-holdings-list">
+        <ul class="asset-compact-list" data-testid="asset-holdings-list">
             {views
                 .into_iter()
                 .map(|view| {
@@ -33,10 +37,10 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                     let dividend_yield = format_dividend_yield(&dividend);
                     let shares_text = format!("{}株", format_number_value(view.shares));
                     view! {
-                        <li>
+                        <li class="asset-compact-row" data-testid="asset-compact-row">
                             <a
                                 href=format!("/assetbalance/holdings/{}", view.code)
-                                class="block px-4 py-3 no-underline hover:bg-surface-raised"
+                                class="asset-compact-link"
                             >
                                 <div class="flex items-baseline justify-between gap-2">
                                     <span class="min-w-0 truncate font-medium text-text">
@@ -52,27 +56,35 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                                         " · "
                                         {shares_text}
                                     </span>
-                                    <span class="flex shrink-0 items-baseline gap-2">
+                                    <span
+                                        class="flex shrink-0 items-baseline gap-2"
+                                        data-negative=pnl_negative.then_some("true")
+                                    >
                                         <Amount
                                             class="tabular-nums"
                                             text=pnl_text
                                             negative=pnl_negative
                                         />
-                                        <span class="text-text-muted tabular-nums">
+                                        <span class="tabular-nums">
                                             {pnl_rate_text}
                                         </span>
                                     </span>
                                 </div>
-                                <div class="mt-0.5 flex items-baseline justify-between gap-2 text-sm">
-                                    <span class="text-text-muted">
-                                        "配当 "
-                                        {dividend_annual}
-                                    </span>
-                                    <span class="text-text-muted tabular-nums">
-                                        "利回り "
-                                        {dividend_yield}
-                                    </span>
-                                </div>
+                                {show_dividend
+                                    .then(|| {
+                                        view! {
+                                            <div class="mt-0.5 flex items-baseline justify-between gap-2 text-sm">
+                                                <span class="text-text-muted">
+                                                    "配当 "
+                                                    {dividend_annual}
+                                                </span>
+                                                <span class="text-text-muted tabular-nums">
+                                                    "利回り "
+                                                    {dividend_yield}
+                                                </span>
+                                            </div>
+                                        }
+                                    })}
                             </a>
                         </li>
                     }

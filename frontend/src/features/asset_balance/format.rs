@@ -1,4 +1,4 @@
-use crate::features::asset_balance::model::{ValuationResult, format_abs_number, to_fixed};
+use crate::features::asset_balance::model::{format_abs_number, to_fixed};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use shared::format::{
@@ -115,17 +115,5 @@ pub(crate) fn format_signed_valuation_rate(rate: Option<f64>, decimals: u32) -> 
     match rate {
         Some(value) if value > 0.0 => format!("+{}", format_valuation_rate(rate, decimals)),
         _ => format_valuation_rate(rate, decimals),
-    }
-}
-
-/// 「+¥12,345（+4.5%）」のように額と率をまとめた含み損益。算出不能は「—」。
-pub(crate) fn format_profit_loss(result: &ValuationResult) -> String {
-    match result.amount {
-        None => "—".to_string(),
-        Some(_) => format!(
-            "{}（{}）",
-            format_signed_valuation_amount(result.amount),
-            format_signed_valuation_rate(result.rate, 1)
-        ),
     }
 }

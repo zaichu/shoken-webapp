@@ -158,7 +158,7 @@ fn AssetCsvPreview(state: AssetBalanceState, session: SessionStore) -> impl Into
                     "一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
                 </p>
                 <div class="mt-2">
-                    <super::holdings_list::HoldingsList views=views dividends=state.dividends />
+                    <super::holdings_list::HoldingsList views=views dividends=state.dividends show_dividend=true />
                 </div>
             </section>
         })

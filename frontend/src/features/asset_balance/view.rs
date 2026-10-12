@@ -1,3 +1,4 @@
+mod asset_table;
 mod composition_page;
 mod csv_page;
 mod holding_detail_page;
@@ -14,7 +15,9 @@ pub use composition_page::AssetBalanceCompositionPage;
 pub use csv_page::{AssetBalanceCsvDeletePage, AssetBalanceCsvPage};
 pub use holding_detail_page::AssetBalanceHoldingPage;
 
+use crate::features::asset_balance::holdings::holding_view;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
+use crate::features::asset_balance::model::{ValuationInput, portfolio_valuation};
 use crate::features::asset_balance::store::csv::{AssetBalanceCsvStore, resolve_asset_balance};
 use crate::features::asset_balance::store::{
     BalanceSlot, DataOps, has_current_balances, load_asset_balances,
@@ -160,14 +163,37 @@ pub fn AssetBalancePage() -> impl IntoView {
             data_ops,
         );
     };
+    let pc_subtitle = move || {
+        resolved_view().map(|view| {
+            let inputs: Vec<ValuationInput> = view
+                .rows
+                .iter()
+                .map(|row| ValuationInput::from(&holding_view(row)))
+                .collect();
+            let count = view.rows.len();
+            let note = summary::market_note(portfolio_valuation(&inputs).has_unpriced);
+            format!("{count}銘柄 · {note}")
+        })
+    };
+    let title_row: Children = Box::new(move || {
+        view! {
+            <span class="hidden self-center text-sm font-normal text-text-muted lg:inline">
+                {move || pc_subtitle().unwrap_or_default()}
+            </span>
+        }
+        .into_any()
+    });
     let csv_link: Children = Box::new(move || {
         view! {
-            <a class="page-back-link" href="/assetbalance/csv">"CSV管理"</a>
+            <span class="flex items-center gap-2">
+                <a class="page-secondary-link-sm hidden lg:inline-flex" href="/assetbalance/composition">"構成比を見る"</a>
+                <a class="page-secondary-link-sm" href="/assetbalance/csv">"CSV管理"</a>
+            </span>
         }
         .into_any()
     });
     view! {
-        <PageFrame title="資産管理" full_bleed=true action_bar=action_bar links=csv_link>
+        <PageFrame title="資産管理" full_bleed=true title_row=title_row action_bar=action_bar action_bar_mobile_only=true links=csv_link>
         <div
             class="mt-2 flex flex-1 flex-col"
             data-testid="assetbalance-workspace"
@@ -187,13 +213,13 @@ pub fn AssetBalancePage() -> impl IntoView {
                 }
             }
         >
-            <div class="page-gutter flex flex-1 flex-col gap-3" data-testid="assetbalance-main-stage">
+            <div class="content-gutter flex flex-1 flex-col gap-0 lg:gap-3.5" data-testid="assetbalance-main-stage">
                     {move || {
                         data_ops
                             .with(|ops| ops.refresh_error.clone())
                             .map(|message| {
                                 view! {
-                                    <div class="no-print">
+                                    <div class="no-print px-4 lg:px-0">
                                         <Alert variant=AlertVariant::Danger>
                                             <strong>"エラー:"</strong>
                                             " "
@@ -206,7 +232,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     {move || {
                         resolved_view().and_then(|view| view.warning).map(|message| {
                             view! {
-                                <div class="no-print">
+                                <div class="no-print px-4 lg:px-0">
                                     <Alert variant=AlertVariant::Warning>
                                         <strong>"注意:"</strong>
                                         " "

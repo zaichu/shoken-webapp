@@ -7,7 +7,9 @@ use crate::features::asset_balance::format::{
 use crate::features::asset_balance::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
 };
-use crate::features::asset_balance::model::{ValuationInput, format_number_value, holding_valuation};
+use crate::features::asset_balance::model::{
+    ValuationInput, format_number_value, holding_valuation,
+};
 use crate::session::use_session;
 use crate::ui::amount::Amount;
 use crate::ui::page_frame::PageFrame;
@@ -60,7 +62,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                             match found {
                                 None => {
                                     view! {
-                                        <div class="rounded-lg border border-border bg-surface p-6">
+                                        <div class="asset-panel-padded">
                                             <p class="text-center text-text-muted">
                                                 "銘柄が見つかりません"
                                             </p>
@@ -90,7 +92,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                     let current_price_text = format_currency(holding_view.current_price);
                                     let price_as_of = holding_view.price_as_of.clone();
                                     view! {
-                                        <div class="rounded-lg border border-border bg-surface">
+                                        <div class="asset-panel">
                                             <div class="border-b border-border p-4">
                                                 <h2 class="text-lg font-bold text-text">
                                                     {holding_view.name.clone()}

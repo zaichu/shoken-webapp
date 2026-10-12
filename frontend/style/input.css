@@ -74,29 +74,6 @@
   --color-info-border: #a9bff4;
   --color-info-focus: #1d4ed8;
 
-  /* 保有銘柄の識別色。隣り合う並びで色相が離れるよう配列し、
-     マイナス損益と区別がつくよう赤系は入れない */
-  --color-holding-1: var(--color-blue-600);
-  --color-holding-2: var(--color-amber-600);
-  --color-holding-3: var(--color-teal-600);
-  --color-holding-4: var(--color-violet-600);
-  --color-holding-5: var(--color-lime-600);
-  --color-holding-6: var(--color-slate-500);
-  --color-holding-7: var(--color-indigo-600);
-  --color-holding-8: var(--color-orange-600);
-  --color-holding-9: var(--color-cyan-600);
-  --color-holding-10: var(--color-fuchsia-600);
-  --color-holding-11: var(--color-emerald-600);
-  --color-holding-12: var(--color-sky-600);
-  --color-holding-13: var(--color-purple-600);
-  --color-holding-14: var(--color-yellow-700);
-  --color-holding-15: var(--color-stone-500);
-  --color-holding-16: var(--color-green-600);
-  --color-holding-17: var(--color-cyan-700);
-  --color-holding-18: var(--color-indigo-500);
-  --color-holding-19: var(--color-orange-700);
-  --color-holding-20: var(--color-violet-500);
-
   --shadow-elevation-1: 0 12px 34px -30px rgba(15, 23, 42, 0.85);
   --shadow-elevation-2: 0 16px 44px -36px rgba(15, 23, 42, 0.9);
   --shadow-card: 0 14px 38px -32px rgba(15, 23, 42, 0.85);
@@ -228,10 +205,6 @@
     @apply inline-flex w-full items-center justify-center truncate rounded-md border border-border-strong px-3 py-1.5 text-sm font-bold text-text-soft transition-[background-color,border-color,color,box-shadow,transform] hover:border-border-bold hover:bg-surface-sunken focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11;
   }
 
-  .chart-toggle-button {
-    @apply mt-3 w-full rounded-md border border-border-strong bg-surface py-2 text-sm font-medium text-text-muted transition-colors hover:bg-surface-sunken;
-  }
-
   .group-card-trigger {
     @apply flex min-h-11 w-full items-center gap-2 bg-surface-raised px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
   }
@@ -293,13 +266,13 @@
     box-shadow: inset 0 -2px 0 var(--color-accent-strong);
   }
 
-  /* 取引明細の本文列。スマホは全幅のまま、PC だけページ枠の余白と最大幅を持つ */
-  .receipts-gutter {
+  /* 一覧ページの本文列。スマホは全幅のまま、PC だけページ枠の余白と最大幅を持つ */
+  .content-gutter {
     @apply mx-auto w-full;
   }
 
   @media (width >= 64rem) {
-    .receipts-gutter {
+    .content-gutter {
       max-width: 96rem;
       padding-inline: clamp(1rem, 3.5vw, 3rem);
     }
@@ -708,6 +681,164 @@
     @apply relative w-full rounded-lg border border-ink/10 bg-surface;
   }
 
+  .asset-summary {
+    @apply border border-border bg-surface rounded-lg;
+  }
+
+  .asset-summary-grid {
+    @apply grid grid-cols-4 gap-0;
+  }
+
+  .asset-summary-item {
+    @apply px-4.5 py-3.5 border-r border-border-faint;
+  }
+
+  .asset-summary-item:last-child {
+    @apply border-r-0;
+  }
+
+  .asset-summary-item dt {
+    @apply text-xs text-text-muted font-medium;
+  }
+
+  .asset-summary-item dd {
+    @apply mt-0.5;
+  }
+
+  .asset-summary-amount {
+    @apply text-xl font-bold tabular-nums;
+  }
+
+  .asset-summary-amount-sm {
+    @apply text-xl font-bold tabular-nums;
+  }
+
+  .asset-summary-note {
+    @apply text-sm font-medium;
+  }
+
+  @media (width < 64rem) {
+    .asset-summary {
+      @apply rounded-none border-0 border-b border-border bg-surface-raised px-4 py-2.5;
+    }
+
+    .asset-summary-grid {
+      @apply grid-cols-2 gap-x-3 gap-y-1.5;
+    }
+
+    .asset-summary-item {
+      @apply p-0 border-0;
+    }
+
+    .asset-summary-item dt {
+      @apply text-[11px] text-text-muted;
+    }
+
+    .asset-summary-amount {
+      @apply text-lg font-bold tabular-nums;
+    }
+
+    .asset-summary-amount-sm {
+      @apply text-base font-medium tabular-nums;
+    }
+
+    .asset-summary-note {
+      @apply text-xs font-medium;
+    }
+  }
+
+  .asset-list-surface {
+    @apply overflow-hidden bg-surface lg:rounded-lg lg:border lg:border-border;
+  }
+
+  .asset-pc-toolbar {
+    @apply hidden lg:flex items-center gap-3 px-3.5 py-2.5 border-b border-border;
+  }
+
+  .asset-pc-toolbar .search-input {
+    @apply h-7;
+  }
+
+  .asset-sort-bar {
+    @apply flex items-center gap-1.5 px-4 py-2 border-b border-border lg:hidden;
+  }
+
+  .asset-sort-chip {
+    @apply inline-flex min-h-8 items-center rounded-full border border-border-strong bg-surface px-3 text-sm text-text;
+  }
+
+  .asset-sort-chip[aria-pressed="true"] {
+    @apply border-accent bg-accent-soft text-accent font-bold;
+  }
+
+  .asset-sort-order {
+    @apply ml-auto shrink-0 text-sm text-text-soft min-h-11 min-w-11 px-1;
+  }
+
+  .asset-compact-list {
+    @apply list-none m-0 p-0;
+  }
+
+  .asset-compact-row {
+    @apply border-b border-border-faint;
+  }
+
+  .asset-compact-link {
+    @apply block px-4 py-2 no-underline;
+  }
+
+  .asset-compact-link:hover {
+    @apply bg-surface-sunken;
+  }
+
+  .asset-table-frame {
+    @apply overflow-x-auto;
+  }
+
+  .asset-table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .asset-table thead {
+    @apply bg-surface-sunken;
+  }
+
+  .asset-table th {
+    @apply whitespace-nowrap text-left px-3.5 py-2.5 font-medium text-xs text-text-soft bg-surface-sunken;
+  }
+
+  .asset-table tbody tr {
+    @apply border-t border-border-faint;
+  }
+
+  .asset-table tbody tr:hover {
+    @apply bg-surface-sunken;
+  }
+
+  .asset-table td {
+    @apply whitespace-nowrap px-3.5 py-2.5 text-text;
+  }
+
+  .asset-table td.text-right {
+    @apply text-right;
+  }
+
+  .asset-panel {
+    @apply bg-surface border border-border rounded-lg;
+  }
+
+  .asset-panel-padded {
+    @apply bg-surface border border-border rounded-lg p-6;
+  }
+
+  .asset-th-sort {
+    @apply p-0 text-xs font-medium text-text-soft;
+  }
+
+  .asset-th-sort[aria-pressed="true"] {
+    @apply font-bold text-accent;
+  }
+
 }
 
 /* セル側の utility(whitespace-normal・border-*)を子孫セレクタが上書きしていた関係を
@@ -1065,195 +1196,4 @@
   padding: .3rem .6rem;
 }
 
-/* サマリーカード (sum-card) */
-.sum-card {
-  background: rgba(255, 255, 255, .95);
-  border: 1px solid var(--color-border);
-  border-left: .3rem solid var(--color-accent);
-  border-radius: .8rem;
-  padding: .5rem .9rem .55rem;
-  box-shadow: 0 16px 44px -36px rgba(15, 23, 42, .9);
-}
 
-.sum-header {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  flex-wrap: nowrap;
-  min-height: 1.5rem;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: .3rem;
-}
-
-.sum-header strong {
-  font-size: .9rem;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-}
-
-.sum-header strong::before {
-  content: "";
-  display: inline-block;
-  width: .3rem;
-  height: .95rem;
-  border-radius: .15rem;
-  background: var(--color-accent);
-  margin-right: .5rem;
-}
-
-.sum-header-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: .5rem;
-  margin-left: auto;
-}
-
-.kpis {
-  display: grid;
-  gap: .2rem 0;
-  margin-top: .4rem;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: .6rem;
-  padding: .4rem 0;
-}
-
-.kpi {
-  min-width: 0;
-  padding: 0 .9rem;
-}
-
-.kpi + .kpi {
-  border-left: 1px solid var(--color-border);
-}
-
-.kpi dt {
-  font-size: .7rem;
-  color: var(--color-text-muted);
-  font-weight: 700;
-  margin: 0;
-  letter-spacing: .02em;
-}
-
-.kpi dd {
-  margin: 0;
-  font-size: clamp(1rem, 1.4vw, 1.25rem);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-  line-height: 1.25;
-}
-
-.kpi-value {
-  display: flex;
-  flex-direction: column;
-  gap: .1rem;
-  min-width: 0;
-}
-
-/* 金額は途中で折り返さない(dd の overflow-wrap:anywhere 対策)。列からはみ出るほど長いときは末尾を省略する */
-.kpi-amount {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.kpi-count {
-  display: flex;
-  align-items: baseline;
-  gap: .25rem;
-}
-
-.kpi-unit {
-  font-size: .78rem;
-  font-weight: 400;
-  color: var(--color-text-subtle);
-}
-
-.kpi small {
-  display: block;
-  font-size: .68rem;
-  color: var(--color-text-subtle);
-  font-weight: 400;
-  margin-top: .1rem;
-}
-
-/* 構成比 */
-.sum-comp {
-  margin-top: .5rem;
-  border-top: 1px solid var(--color-border);
-  padding-top: .5rem;
-}
-
-.sum-comp-title {
-  font-size: .72rem;
-  color: var(--color-text-muted);
-  font-weight: 700;
-  margin: 0 0 .4rem;
-}
-
-.sum-comp-bar {
-  display: flex;
-  height: .75rem;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--color-fill);
-}
-
-.sum-comp-segment {
-  flex: none;
-  transition: width .3s ease;
-}
-
-.sum-comp-others {
-  background: var(--color-fill-strong);
-}
-
-.sum-comp-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .35rem 1rem;
-  list-style: none;
-  margin: .45rem 0 0;
-  padding: 0;
-  font-size: .75rem;
-}
-
-.sum-comp-legend-item {
-  display: flex;
-  align-items: center;
-  gap: .35rem;
-}
-
-.sum-comp-legend-dot {
-  width: .65rem;
-  height: .65rem;
-  border-radius: .2rem;
-  flex: none;
-}
-
-.sum-comp-legend-dot-others {
-  background: var(--color-fill-strong);
-}
-
-.sum-comp-legend-name {
-  color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sum-comp-legend-pct {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-subtle);
-  white-space: nowrap;
-}
-
-/* モバイル用サマリー */
-.sum-mobile {
-  padding-top: .5rem;
-  border-top: 1px solid var(--color-border);
-}
