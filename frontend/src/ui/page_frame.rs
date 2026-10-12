@@ -71,7 +71,7 @@ pub fn PageFrame(
                     <div class="order-2 ml-auto flex shrink-0 items-center gap-3 lg:order-3">
                         {links.map(|links| links())}
                         <div class="lg:hidden">
-                            <AccountMenu />
+                            <AccountMenu hide_name=true />
                         </div>
                     </div>
                 </div>

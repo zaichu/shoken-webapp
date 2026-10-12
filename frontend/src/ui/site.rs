@@ -100,7 +100,11 @@ pub(crate) struct AccountDeleteConfirm(pub(crate) RwSignal<bool>);
 
 /// ページ枠の右上に置くアカウント導線(ログイン/メニュー)。アカウント削除の確認だけを扱う
 #[component]
-pub fn AccountMenu() -> impl IntoView {
+pub fn AccountMenu(
+    /// 表示名を出さない(2箇所に描画するときの DOM 重複を避ける)
+    #[prop(optional)]
+    hide_name: bool,
+) -> impl IntoView {
     let session = use_session();
     let path = current_path();
     let delete_confirm_open = use_context::<AccountDeleteConfirm>()
@@ -121,6 +125,7 @@ pub fn AccountMenu() -> impl IntoView {
                             user=user
                             session=session
                             delete_confirm_open=delete_confirm_open
+                            hide_name=hide_name
                         />
                     }
                         .into_any()
@@ -215,6 +220,7 @@ fn UserMenu(
     user: SessionUser,
     session: SessionStore,
     delete_confirm_open: RwSignal<bool>,
+    #[prop(optional)] hide_name: bool,
 ) -> impl IntoView {
     let menu_open = RwSignal::new(false);
     let menu_container = NodeRef::<html::Div>::new();
@@ -258,9 +264,13 @@ fn UserMenu(
 
     view! {
         <div class="flex items-center gap-3">
-            <span class="hidden max-w-64 truncate text-sm font-semibold text-text-soft lg:inline">
-                {display_name}
-            </span>
+            {(!hide_name).then(|| {
+                view! {
+                    <span class="hidden max-w-64 truncate text-sm font-semibold text-text-soft lg:inline">
+                        {display_name}
+                    </span>
+                }
+            })}
             <div class="relative" node_ref=menu_container>
                 <Button
                     variant=ButtonVariant::Secondary(ButtonSize::Sm)
