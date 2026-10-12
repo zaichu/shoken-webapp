@@ -160,6 +160,13 @@ async function expectAssetDataLoaded(page: Page) {
   ).toBeVisible();
 }
 
+// スマホ下部の常設検索欄。PC の検索バーは同名の入力を持つので scoped で取る
+function mobileSearch(page: Page) {
+  return page
+    .getByRole('search', { name: '検索', exact: true })
+    .getByPlaceholder('銘柄名・コード');
+}
+
 async function selectReceiptTab(page: Page, tab: ReceiptTab) {
   const button = page.getByRole('tab', { name: tab.name });
   await button.click();
@@ -225,7 +232,7 @@ async function expectReceiptsErrorLayout(page: Page, width: number) {
   await expect(main.getByTestId('receipt-card')).toHaveCount(0);
   // 検索は常に画面下手前にあるのでどの幅でも残る
   if (width < 1024) {
-    await expect(page.getByPlaceholder('銘柄名・コード')).toBeVisible();
+    await expect(mobileSearch(page)).toBeVisible();
   }
 }
 

@@ -129,7 +129,6 @@ pub fn select_header_summary<T: Clone>(
     }
 }
 
-#[allow(dead_code)]
 pub fn truncated_list_warning() -> String {
     format!(
         "一覧は最大{}件まで表示しています。検索条件を絞り込んでください。",

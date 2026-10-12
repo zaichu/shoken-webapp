@@ -143,7 +143,9 @@ test('390px では2行の行表示になり表とPCの検索バーは隠れる',
   await expect(page.getByRole('table')).toBeHidden();
   await expect(page.getByRole('search', { name: '取引明細の検索' })).toBeHidden();
   // 検索欄は一覧の下、下部ナビの上に常設する
-  await expect(page.getByPlaceholder('銘柄名・コード')).toBeVisible();
+  await expect(
+    page.getByRole('search', { name: '検索', exact: true }).getByPlaceholder('銘柄名・コード'),
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: '検索条件' })).toBeVisible();
   await expect(page.locator('.app-bottom-nav')).toBeVisible();
   await expectNoPageOverflow(page, 390);

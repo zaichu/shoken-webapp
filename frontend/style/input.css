@@ -537,7 +537,7 @@
     @apply text-xs text-text-soft;
   }
 
-  .receipt-compact-name {
+  .receipt-compact-row .receipt-compact-name {
     @apply min-h-11 font-medium;
   }
 

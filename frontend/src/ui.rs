@@ -18,6 +18,4 @@ pub(crate) mod stat_row;
 pub(crate) mod state;
 pub(crate) mod summary_strip;
 #[allow(dead_code)]
-pub(crate) mod tabs;
-#[allow(dead_code)]
 pub(crate) mod workspace_shell;

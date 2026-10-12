@@ -133,6 +133,13 @@ async function mockApi(page: Page) {
   );
 }
 
+// スマホ下部の常設検索欄。PC の検索バーは同名の入力を持つので scoped で取る
+function mobileSearch(page: Page) {
+  return page
+    .getByRole('search', { name: '検索', exact: true })
+    .getByPlaceholder('銘柄名・コード');
+}
+
 test('スマホ幅では明細が2行の行表示になりテーブルは隠れる', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
@@ -249,7 +256,7 @@ test('検索欄で銘柄コードで絞り込んでも残る行は同じ書式',
   await page.goto('/receipts');
 
   const cardList = page.getByTestId('receipt-card-list');
-  await page.getByPlaceholder('銘柄名・コード').fill('9432');
+  await mobileSearch(page).fill('9432');
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
 
@@ -264,7 +271,7 @@ test('下部ナビは検索欄より下にありリンクで遷移できる', as
 
   const nav = page.locator('.app-bottom-nav');
   await expect(nav).toBeVisible();
-  const search = page.getByPlaceholder('銘柄名・コード');
+  const search = mobileSearch(page);
   const navBox = (await nav.boundingBox())!;
   const searchBox = (await search.boundingBox())!;
   expect(navBox.y).toBeGreaterThanOrEqual(searchBox.y);
