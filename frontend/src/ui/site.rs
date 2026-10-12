@@ -224,6 +224,11 @@ fn UserMenu(
         on_key_down.remove();
     });
 
+    let display_name = user
+        .name
+        .clone()
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| user.email.clone());
     let aria_name = user
         .name
         .clone()
@@ -232,7 +237,10 @@ fn UserMenu(
     let menu_label = format!("{aria_name}のアカウントメニュー");
 
     view! {
-        <div>
+        <div class="flex items-center gap-3">
+            <span class="hidden max-w-64 truncate text-sm font-semibold text-text-soft lg:inline">
+                {display_name}
+            </span>
             <div class="relative" node_ref=menu_container>
                 <Button
                     variant=ButtonVariant::Secondary(ButtonSize::Sm)

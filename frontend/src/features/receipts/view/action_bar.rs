@@ -1,6 +1,4 @@
-use crate::features::receipts::filter::{
-    DateSegment, ReceiptSearch, SearchKey, build_combined_query, search_categories,
-};
+use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey, search_categories};
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use leptos::prelude::*;
 
@@ -52,7 +50,7 @@ pub fn ReceiptsMobileBottomSection(
     view! {
         <div class="receipts-mobile-bottom-section no-print lg:hidden" role="search" aria-label="検索">
             <div class="page-gutter">
-                <div class="flex flex-col gap-2 py-2 border-t border-border bg-surface">
+                <div class="flex flex-col gap-2">
                     {move || {
                         has_active_search.get().then(|| {
                             view! {
@@ -120,10 +118,7 @@ pub fn ReceiptsPcSearchBar(
 
     let period_value = Memo::new(move |_| {
         search.with(|s| {
-            if s.date_segment == DateSegment::Year
-                && s.selected_queries.date.is_empty()
-                && s.date_inputs.year_value.is_empty()
-            {
+            if s.date_all {
                 "すべて".to_string()
             } else {
                 s.date_segment.value().to_string()
@@ -159,26 +154,17 @@ pub fn ReceiptsPcSearchBar(
                                 prop:value=move || period_value.get().to_string()
                                 on:change=move |ev| {
                                     let val = event_target_value(&ev);
-                                    search.update(|s| {
-                                        match val.as_str() {
-                                            "すべて" => {
-                                                s.selected_queries.date.clear();
-                                                s.date_segment = DateSegment::Year;
-                                                s.date_inputs = Default::default();
-                                                s.query = build_combined_query(&s.selected_queries);
-                                            }
-                                            "年" => {
-                                                s.date_segment = DateSegment::Year;
-                                                if s.date_inputs.year_value.is_empty() {
-                                                    s.date_inputs.year_value = "__selecting__".to_string();
-                                                }
-                                                s.rebuild_query();
-                                            }
-                                            "年月" => s.change_date_segment(DateSegment::Month),
-                                            "日" => s.change_date_segment(DateSegment::Date),
-                                            "範囲" => s.change_date_segment(DateSegment::Range),
-                                            _ => {}
+                                    search.update(|s| match val.as_str() {
+                                        "すべて" => s.clear_key(SearchKey::Date, has_years()),
+                                        "年" | "年月" | "日" | "範囲" => {
+                                            s.change_date_segment(match val.as_str() {
+                                                "年" => DateSegment::Year,
+                                                "年月" => DateSegment::Month,
+                                                "日" => DateSegment::Date,
+                                                _ => DateSegment::Range,
+                                            })
                                         }
+                                        _ => {}
                                     });
                                 }
                             >
@@ -188,22 +174,16 @@ pub fn ReceiptsPcSearchBar(
                             </select>
                             {move || {
                         let segment = current_segment.get();
-                        #[allow(unreachable_patterns)]
                         match segment {
                             DateSegment::Year => {
-                                (has_years() && period_value.get() != "すべて").then(|| {
+                                has_years().then(|| {
                                     view! {
                                         <select
                                             class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                            prop:value=move || {
-                                                let yv = search.with(|s| s.date_inputs.year_value.clone());
-                                                if yv == "__selecting__" { String::new() } else { yv }
-                                            }
-                                            on:change=move |ev| {
-                                                let year = event_target_value(&ev);
-                                                search.update(|s| s.select_year(year));
-                                            }
+                                            prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
+                                            on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
                                         >
+                                            <option value="">"年を選択"</option>
                                             {years.get().iter().map(|y| {
                                                 view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
                                             }).collect_view()}
@@ -286,7 +266,6 @@ pub fn ReceiptsPcSearchBar(
                                     </div>
                                 }.into_any())
                             }
-                            _ => None,
                         }
                     }}
                         </div>

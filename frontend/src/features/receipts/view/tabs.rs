@@ -28,20 +28,6 @@ fn focus_tab(index: usize) {
     }
 }
 
-#[allow(dead_code)]
-pub fn scroll_tab_into_view(tab: ReceiptsTab) {
-    let Some(element) = web_sys::window()
-        .and_then(|window| window.document())
-        .and_then(|document| document.get_element_by_id(&format!("tab-{}", TAB_IDS[tab as usize])))
-    else {
-        return;
-    };
-    let options = web_sys::ScrollIntoViewOptions::new();
-    options.set_block(web_sys::ScrollLogicalPosition::Nearest);
-    options.set_inline(web_sys::ScrollLogicalPosition::Nearest);
-    element.scroll_into_view_with_scroll_into_view_options(&options);
-}
-
 #[component]
 pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
@@ -49,7 +35,6 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
     let selected = store;
     let keyed = store;
     let clicked = store;
-    let counted = store;
     let counted_store = store;
     view! {
         <button
@@ -57,9 +42,9 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
             role="tab"
             id=format!("tab-{slug}")
             aria-controls=format!("tabpanel-{slug}")
-            aria-selected=move || selected.active_tab.get() == tab
+            attr:aria-selected=move || selected.active_tab.get() == tab
+            tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
             class="receipts-tab"
-            data-selected=move || (counted.active_tab.get() == tab).then_some("true")
             on:click=move |_| clicked.select_tab(tab)
             on:keydown=move |event| {
                 let current = ReceiptsTab::ALL

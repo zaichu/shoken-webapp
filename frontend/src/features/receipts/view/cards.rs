@@ -245,11 +245,11 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                         </>
                     })}
                     <span aria-hidden="true">"·"</span>
-                    <span class="truncate">{account}</span>
+                    <span>{account}</span>
                     {(!quantity.is_empty()).then(|| view! {
                         <>
                             <span aria-hidden="true">"·"</span>
-                            <span class="shrink-0">{quantity}</span>
+                            <span class="shrink-0">{format!("{quantity}株")}</span>
                         </>
                     })}
                 </div>

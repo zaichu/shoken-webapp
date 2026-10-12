@@ -284,57 +284,87 @@
     @apply border-b border-ink/10 bg-surface sticky top-0 z-40;
   }
 
+  .pc-nav-link {
+    @apply flex h-14 items-center px-3.5 text-sm text-text-soft no-underline transition-colors hover:bg-surface-sunken hover:text-text-deep;
+  }
+
+  .pc-nav-link[aria-current] {
+    @apply font-bold text-ink;
+    box-shadow: inset 0 -2px 0 var(--color-accent-strong);
+  }
+
   /* PC 用取引明細ページのスタイル */
   .pc-receipts {
     @apply pt-4;
   }
 
-  .pc-receipts .receipts-tab-list {
-    @apply inline-flex gap-0.5 bg-segment p-[3px] rounded-lg;
+  /* 取引明細の本文列。スマホは全幅のまま、PC だけページ枠の余白と最大幅を持つ */
+  .receipts-gutter {
+    @apply mx-auto w-full max-w-[96rem];
   }
 
-  .pc-receipts .receipts-tab-list button[role="tab"] {
-    @apply h-8 px-4 rounded-md bg-transparent text-sm font-medium text-text-soft transition-colors;
+  @media (width >= 64rem) {
+    .receipts-gutter {
+      @apply px-[clamp(1rem,3.5vw,3rem)];
+    }
   }
 
-  .pc-receipts .receipts-tab-list button[role="tab"][aria-selected="true"] {
-    @apply bg-surface text-ink shadow-[0_1px_2px_rgba(15,23,42,.08)];
+  .receipts-tab-list {
+    @apply flex gap-0.5 bg-segment p-[3px] rounded-lg max-w-full;
   }
 
-  .pc-receipts .pc-search-bar {
+  @media (width < 40rem) {
+    .receipts-tab-list {
+      @apply grid grid-cols-3;
+    }
+  }
+
+  .receipts-tab {
+    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-transparent px-3 text-sm font-medium text-text-soft transition-colors hover:text-text-deep lg:min-h-8 lg:px-4;
+  }
+
+  .receipts-tab[aria-selected="true"] {
+    @apply bg-surface text-ink font-bold shadow-[0_1px_2px_rgba(15,23,42,.08)];
+  }
+
+  .receipts-tab-count {
+    @apply text-[11px] font-medium tabular-nums text-text-muted;
+  }
+
+  .receipt-filter-chip {
+    @apply inline-flex min-h-8 items-center rounded-full border border-border-strong bg-surface px-3 text-[13px] text-text no-underline transition-colors hover:bg-surface-sunken;
+  }
+
+  .receipt-filter-chip[aria-pressed="true"] {
+    @apply border-accent bg-accent-soft text-accent;
+  }
+
+  .active-condition-chip {
+    @apply inline-flex min-h-8 items-center gap-1 rounded-full border border-accent bg-accent-soft px-2.5 text-xs font-medium text-accent;
+  }
+
+  .pc-search-bar {
     @apply flex flex-wrap items-center gap-2.5 gap-y-2.5 mb-4 px-3.5 py-2.5 bg-surface border border-border rounded-lg;
   }
 
-  .pc-receipts .pc-search-bar label {
+  .pc-search-bar label {
     @apply flex-1 min-w-[260px] h-9;
   }
 
-  .pc-receipts .pc-search-bar .search-input-frame {
+  .pc-search-bar .search-input-frame {
     @apply h-full w-full;
   }
 
-  .pc-receipts .pc-search-bar .search-input-frame svg {
+  .pc-search-bar .search-input-frame svg {
     @apply h-4 w-4;
   }
 
-  .pc-receipts .pc-search-bar .search-input {
+  .pc-search-bar .search-input {
     @apply h-full;
   }
 
-  .pc-receipts .pc-search-bar select {
+  .pc-search-bar select {
     @apply h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm;
-  }
-
-  .pc-receipts .pc-summary {
-    @apply bg-surface border border-border rounded-lg grid grid-cols-3 gap-0 mb-4;
-  }
-
-  .pc-receipts .pc-summary > div {
-    @apply p-4 border-r border-border-faint;
-  }
-
-  .pc-receipts .pc-summary > div:last-child {
-    @apply border-r-0;
   }
 
   /* Shared receipt summary (PC & mobile) */
@@ -399,38 +429,6 @@
     .receipt-summary-item-primary .receipt-summary-amount {
       @apply text-lg font-bold;
     }
-  }
-
-  .pc-receipts .pc-table {
-    @apply bg-surface border border-ink/10 rounded-lg overflow-hidden;
-  }
-
-  .pc-receipts .pc-table table {
-    @apply w-full border-collapse;
-  }
-
-  .pc-receipts .pc-table th {
-    @apply bg-surface-sunken text-left px-4 py-3 text-sm font-semibold text-text-muted border-b border-ink/10;
-  }
-
-  .pc-receipts .pc-table td {
-    @apply px-4 py-3 border-b border-ink/10 text-text;
-  }
-
-  .pc-receipts .pc-table tbody tr:hover {
-    @apply bg-surface-sunken;
-  }
-
-  .pc-receipts .pc-table .group-header {
-    @apply bg-surface-raised font-semibold text-text-soft;
-  }
-
-  .pc-receipts .pc-table .group-summary {
-    @apply bg-surface-raised text-right font-semibold text-text;
-  }
-
-  .pc-receipts .pc-table .month-total {
-    @apply text-sm text-text-muted;
   }
 
   /* PC Receipts Table (compact mobile desktop view) */
@@ -499,12 +497,8 @@
     @apply border-b border-border-faint;
   }
 
-  .receipt-compact-row a {
-    @apply block p-4 no-underline text-inherit;
-  }
-
   .receipt-compact-main {
-    @apply flex justify-between gap-2;
+    @apply flex justify-between gap-2 px-4 pt-2;
   }
 
   .receipt-compact-main > div {
@@ -516,19 +510,19 @@
   }
 
   .receipt-compact-meta {
-    @apply flex justify-between gap-2 text-xs text-text-muted mt-1;
+    @apply flex justify-between gap-2 px-4 pb-2 text-xs text-text-muted;
   }
 
   .receipt-compact-facts {
-    @apply flex items-center gap-1 flex-1 min-w-0;
+    @apply flex min-w-0 flex-1 items-center gap-1.5;
   }
 
-  .receipt-compact-facts span {
+  .receipt-compact-facts > * {
     @apply truncate;
   }
 
   .receipt-compact-code {
-    @apply text-text-muted no-underline;
+    @apply font-normal text-text-muted no-underline;
   }
 
   .receipt-compact-primary {
@@ -548,22 +542,17 @@
   }
 
   .receipt-compact-name {
-    @apply font-medium truncate;
+    @apply min-h-11 font-medium;
   }
 
+  /* スマホの下部帯はスクロール領域の流れの中で、下部ナビの直前に置く */
   .receipts-mobile-bottom-section {
-    @apply fixed bottom-0 left-0 right-0 z-40;
+    @apply mt-auto shrink-0 border-t border-border bg-surface;
     padding-bottom: env(safe-area-inset-bottom);
   }
 
   .receipts-mobile-bottom-section .page-gutter {
-    @apply pb-2;
-  }
-
-  @media (width >= 64rem) {
-    .receipts-mobile-bottom-section {
-      @apply hidden;
-    }
+    @apply py-2;
   }
 
   /* Conditions page action buttons */
@@ -607,7 +596,7 @@
   }
 
   .page-frame-head {
-    @apply border-b border-ink/10 bg-surface py-2;
+    @apply border-b border-ink/10 bg-surface py-2 lg:border-b-0 lg:bg-transparent;
   }
 
   .page-frame-title {
@@ -618,12 +607,13 @@
     @apply inline-flex min-h-11 items-center text-sm font-semibold text-info underline underline-offset-2 hover:text-info-deep;
   }
 
+  /* ページ名の右の低頻度リンク。スマホはタップ領域 44px を確保する */
   .page-secondary-link {
-    @apply inline-flex h-9 items-center px-4 text-sm font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors;
+    @apply inline-flex min-h-11 items-center px-4 text-sm font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors lg:min-h-9;
   }
 
   .page-secondary-link-sm {
-    @apply inline-flex h-8 items-center px-3 text-xs font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors;
+    @apply inline-flex min-h-11 items-center px-3 text-xs font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors lg:min-h-8;
   }
 
   /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く */
@@ -730,15 +720,16 @@
   overflow-wrap: anywhere;
 }
 
-.receipt-instrument-cell .copyable-name {
+/* 旧型の段別表では銘柄名を折り返して2行に収める */
+.receipt-table .receipt-instrument-cell .copyable-name {
   @apply flex w-fit max-w-full min-w-0 items-start;
 }
 
-.receipt-instrument-cell .copyable-name > span {
+.receipt-table .receipt-instrument-cell .copyable-name > span {
   @apply min-w-0 whitespace-normal break-words line-clamp-2;
 }
 
-.receipt-instrument-cell .copy-icon {
+.receipt-table .receipt-instrument-cell .copy-icon {
   @apply mt-0.5 shrink-0;
 }
 

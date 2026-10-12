@@ -140,6 +140,9 @@ pub struct ReceiptSearch {
     pub selected_queries: SelectedQueries,
     pub date_segment: DateSegment,
     pub date_inputs: DateInputs,
+    /// 期間なしで絞り込む「すべて」の状態。date_segment には最後に使った種別を残し、
+    /// 「すべて」と「年」のどちらを選んだかを一意に保つ
+    pub date_all: bool,
 }
 
 impl Default for ReceiptSearch {
@@ -155,6 +158,7 @@ impl ReceiptSearch {
             selected_queries: SelectedQueries::default(),
             date_segment: initial_date_segment(has_years),
             date_inputs: DateInputs::default(),
+            date_all: true,
         }
     }
 
@@ -177,6 +181,7 @@ impl ReceiptSearch {
     }
 
     pub fn change_date_segment(&mut self, segment: DateSegment) {
+        self.date_all = false;
         if self.date_segment == segment {
             return;
         }
@@ -187,6 +192,7 @@ impl ReceiptSearch {
     }
 
     pub fn select_year(&mut self, value: String) {
+        self.date_all = false;
         self.date_inputs.year_value = value.clone();
         self.set_date_query(value);
     }
@@ -224,6 +230,7 @@ impl ReceiptSearch {
         if key == SearchKey::Date {
             self.date_segment = initial_date_segment(has_years);
             self.date_inputs = DateInputs::default();
+            self.date_all = true;
         }
         self.rebuild_query();
     }
@@ -234,11 +241,13 @@ impl ReceiptSearch {
     }
 
     pub fn set_date_query(&mut self, value: String) {
+        self.date_all = false;
         self.selected_queries.date = value;
         self.rebuild_query();
     }
 
     pub fn update_range_query(&mut self) {
+        self.date_all = false;
         self.selected_queries.date =
             build_range_query(&self.date_inputs.range_start, &self.date_inputs.range_end);
         self.rebuild_query();

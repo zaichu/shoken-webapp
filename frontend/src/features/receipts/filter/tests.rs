@@ -319,6 +319,25 @@ fn default_search_state_is_default() {
 }
 
 #[test]
+fn date_all_separates_no_period_from_the_year_segment() {
+    let mut state = ReceiptSearch::new(true);
+    assert!(state.date_all, "初期状態は期間なしで絞り込まない");
+
+    // 既定のセグメントが年のまま「年」を選んでも「すべて」と区別できる
+    state.change_date_segment(DateSegment::Year);
+    assert!(!state.date_all);
+
+    state.clear_key(SearchKey::Date, true);
+    assert!(state.date_all);
+    assert_eq!(state.date_segment, DateSegment::Year);
+    assert!(state.query.is_empty());
+
+    state.select_year("2026".into());
+    assert!(!state.date_all);
+    assert_eq!(state.query, "2026");
+}
+
+#[test]
 fn set_date_updates_input_query_and_selected() {
     let mut state = ReceiptSearch::new(true);
     state.set_date("2026-06-15".into());

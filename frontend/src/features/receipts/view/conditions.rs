@@ -1,6 +1,4 @@
-use crate::features::receipts::filter::{
-    DateSegment, ReceiptSearch, SearchKey, build_combined_query, search_categories,
-};
+use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey, search_categories};
 use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
@@ -72,6 +70,7 @@ fn ConditionSection(
 fn DateSegmentSelector(
     search: RwSignal<ReceiptSearch>,
     years: Memo<Vec<crate::support::list_search::SearchOption>>,
+    has_years: impl Fn() -> bool + Copy + Send + 'static,
 ) -> impl IntoView {
     let segment = Memo::new(move |_| search.with(|s| s.date_segment));
     let segment_options = ["すべて", "年", "年月", "日", "範囲"];
@@ -84,10 +83,10 @@ fn DateSegmentSelector(
                     let opt = *opt;
                     let is_selected = move || {
                         let seg = segment.get();
-                        match opt {
-                            "すべて" => seg == DateSegment::Year && seg.value() == "年" && search.with(|s| s.selected_queries.date.is_empty()),
-                            _ => seg.value() == opt,
+                        if search.with(|s| s.date_all) {
+                            return opt == "すべて";
                         }
+                        seg.value() == opt
                     };
                     view! {
                         <button
@@ -102,12 +101,7 @@ fn DateSegmentSelector(
                             )
                             on:click=move |_| search.update(|s| {
                                 match opt {
-                                    "すべて" => {
-                                        s.selected_queries.date.clear();
-                                        s.date_segment = DateSegment::Year;
-                                        s.date_inputs = Default::default();
-                                        s.query = build_combined_query(&s.selected_queries);
-                                    }
+                                    "すべて" => s.clear_key(SearchKey::Date, has_years()),
                                     "年" => s.change_date_segment(DateSegment::Year),
                                     "年月" => s.change_date_segment(DateSegment::Month),
                                     "日" => s.change_date_segment(DateSegment::Date),
@@ -369,12 +363,21 @@ pub fn ReceiptsConditionsPage() -> impl IntoView {
     .into_any();
 
     view! {
-        <PageFrame title="検索条件" full_bleed=true action_bar=action_bar>
+        <PageFrame
+            title="検索条件"
+            back_href="/receipts"
+            back_label="変更せず戻る"
+            full_bleed=true
+            action_bar=action_bar
+        >
             <div class="conditions-page page-gutter">
                 {move || {
                     let categories = categories.get();
                     if categories.dates {
-                        view! { <DateSegmentSelector search=search years=years /> }.into_any()
+                        view! {
+                            <DateSegmentSelector search=search years=years has_years=has_years />
+                        }
+                        .into_any()
                     } else {
                         ().into_any()
                     }

@@ -4,9 +4,6 @@ pub(crate) mod badge;
 pub(crate) mod button;
 #[allow(dead_code)]
 pub(crate) mod card;
-pub(crate) mod choice;
-#[allow(dead_code)]
-pub(crate) mod collapsible_search_card;
 pub(crate) mod confirm_modal;
 pub(crate) mod csv_page;
 pub(crate) mod csv_preview;
@@ -22,4 +19,5 @@ pub(crate) mod state;
 pub(crate) mod summary_strip;
 #[allow(dead_code)]
 pub(crate) mod tabs;
+#[allow(dead_code)]
 pub(crate) mod workspace_shell;

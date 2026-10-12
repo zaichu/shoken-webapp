@@ -3,8 +3,6 @@ mod cards;
 mod conditions;
 mod csv_page;
 pub(crate) mod main_content;
-#[allow(dead_code)]
-mod pickers;
 mod summary;
 mod table;
 mod tabs;
@@ -16,12 +14,6 @@ pub use main_content::ReceiptsMainContent;
 pub use summary::SummaryStrip;
 pub use table::ReceiptTable;
 pub use tabs::{ReceiptsTabButton, TabPanel};
-
-#[cfg(test)]
-pub use main_content::utility_display_rows;
-
-#[cfg(test)]
-pub use pickers::next_year_option_index;
 
 use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
@@ -43,87 +35,63 @@ pub fn ReceiptsPage() -> impl IntoView {
 
     let csv_href =
         Signal::derive(move || format!("/receipts/csv?kind={}", active_tab.get().kind_param()));
-    let mobile_csv_link: Children = Box::new(move || {
+    let csv_link: Children = Box::new(move || {
         view! {
             <a class="page-secondary-link-sm" href=move || csv_href.get()>"CSV管理"</a>
         }
         .into_any()
     });
+    // スマホはヘッダーの下、PC は見出しの横に置く
+    let tabs: Children = Box::new(move || {
+        view! {
+            <nav class="no-print" aria-label="種別">
+                <div class="receipts-tab-list" role="tablist">
+                    {ReceiptsTab::ALL
+                        .iter()
+                        .copied()
+                        .map(|tab| {
+                            view! { <ReceiptsTabButton store=store tab=tab /> }
+                        })
+                        .collect_view()}
+                </div>
+            </nav>
+        }
+        .into_any()
+    });
 
     view! {
-        <PageFrame
-            title="取引明細"
-            mobile_links=mobile_csv_link
-            full_bleed=true
-        >
-            <div class="flex flex-1 flex-col min-h-0" data-testid="receipts-page">
-                <div class="flex flex-1 flex-col min-h-0 lg:hidden">
-                    <nav class="no-print mx-4 mb-2" aria-label="種別">
-                        <div
-                            class="receipts-tab-list"
-                            role="tablist"
-                        >
-                            {ReceiptsTab::ALL
-                                .iter()
-                                .copied()
-                                .map(|tab| {
-                                    view! { <ReceiptsTabButton store=store tab=tab /> }
-                                })
-                                .collect_view()}
-                        </div>
-                    </nav>
-
-                    <div class="flex-1 min-h-0 overflow-y-auto pb-28" data-testid="receipts-tabpanels">
-                        {move || {
-                            let loading = tabs_loading.get();
-                            ReceiptsTab::ALL
-                                .iter()
-                                .copied()
-                                .map(|tab| {
-                                    view! { <TabPanel store=store tab=tab loading=loading /> }
-                                })
-                                .collect_view()
-                        }}
-                    </div>
-
-                    <ReceiptsMobileBottomSection store=store active_tab=active_tab />
-                </div>
-
-                <div class="pc-receipts page-gutter hidden lg:flex lg:flex-col">
-                    <div class="flex items-center gap-4">
-                        <h1 class="text-xl font-bold text-ink">"取引明細"</h1>
-                        <nav class="no-print" aria-label="種別">
-                            <div
-                                class="receipts-tab-list"
-                                role="tablist"
-                            >
-                                {ReceiptsTab::ALL
-                                    .iter()
-                                    .copied()
-                                    .map(|tab| {
-                                        view! { <ReceiptsTabButton store=store tab=tab /> }
-                                    })
-                                    .collect_view()}
-                            </div>
-                        </nav>
-                        <a class="page-secondary-link ml-auto" href=move || csv_href.get()>"CSV管理"</a>
-                    </div>
-
+        <PageFrame title="取引明細" links=csv_link title_row=tabs full_bleed=true>
+            <div
+                class="flex flex-1 flex-col min-h-0"
+                aria-busy=move || {
+                    if store.auth_loading() || store.any_tab_fetching() {
+                        "true"
+                    } else {
+                        "false"
+                    }
+                }
+            >
+                <div class="receipts-gutter hidden shrink-0 py-4 lg:block">
                     <ReceiptsPcSearchBar store=store active_tab=active_tab />
-
-                    <div class="flex-1 min-h-0 overflow-y-auto" data-testid="receipts-tabpanels-pc">
-                        {move || {
-                            let loading = tabs_loading.get();
-                            ReceiptsTab::ALL
-                                .iter()
-                                .copied()
-                                .map(|tab| {
-                                    view! { <TabPanel store=store tab=tab loading=loading /> }
-                                })
-                                .collect_view()
-                        }}
-                    </div>
                 </div>
+
+                <div
+                    class="receipts-gutter flex-1 min-h-0 overflow-y-auto"
+                    data-testid="receipts-workspace"
+                >
+                    {move || {
+                        let loading = tabs_loading.get();
+                        ReceiptsTab::ALL
+                            .iter()
+                            .copied()
+                            .map(|tab| {
+                                view! { <TabPanel store=store tab=tab loading=loading /> }
+                            })
+                            .collect_view()
+                    }}
+                </div>
+
+                <ReceiptsMobileBottomSection store=store active_tab=active_tab />
             </div>
         </PageFrame>
     }

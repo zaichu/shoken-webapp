@@ -4,25 +4,18 @@ use crate::features::receipts::dividend_info::{
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::kind::dividend_totals;
 use crate::features::receipts::view::{ReceiptTable, SummaryStrip};
-use crate::features::receipts::{ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState};
+use crate::features::receipts::{
+    ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState, truncated_list_warning,
+};
 use crate::session::use_session;
+use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
+use crate::ui::card::{Card, CardVariant};
+use crate::ui::state::{Alert, AlertVariant, ListLoadError};
 use leptos::ev;
 use leptos::prelude::*;
 
-#[allow(dead_code)]
-pub fn utility_display_rows(
-    store: ReceiptsStore,
-    tab: ReceiptsTab,
-) -> Vec<crate::features::receipts::ReceiptRow> {
-    match store.tab_state(tab) {
-        TabState::Ready(data) => data.rows,
-        _ => Vec::new(),
-    }
-}
-
 #[component]
 pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
-    let _tab_state = store.tab_state(tab);
     let search = store.search;
     let summary_expanded = RwSignal::new(true);
 
@@ -49,6 +42,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
             info.set_code(generation, authenticated, &code);
         });
 
+        // 別タブで更新された保有数を取り込むため、タブ復帰時に再取得する
         let refresh = move || {
             if web_sys::window()
                 .and_then(|window| window.document())
@@ -133,22 +127,51 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
     });
 
     view! {
+        // 裏再取得の失敗は一覧を消さずに知らせる
         {move || {
-            if !matches!(store.tab_state(tab), TabState::Ready(_)) {
-                view! { <div class="flex items-center justify-center h-64" data-testid="receipt-loading">"読み込み中..."</div> }.into_any()
-            } else if is_empty.get() {
+            let Some(message) = store.refresh_error(tab) else {
+                return ().into_any();
+            };
+            view! {
+                <Alert variant=AlertVariant::Danger>
+                    <strong>"エラー:"</strong>
+                    " "
+                    {message}
+                </Alert>
+            }
+                .into_any()
+        }}
+        // 件数上限の警告は表の上に出す
+        {move || match store.tab_state(tab) {
+            TabState::Ready(data) if data.truncated => {
+                view! { <Alert variant=AlertVariant::Warning>{truncated_list_warning()}</Alert> }
+                    .into_any()
+            }
+            _ => ().into_any(),
+        }}
+        {move || match store.tab_state(tab) {
+            TabState::Failed(message) => {
+                let retry_store = store;
                 view! {
-                    <div class="flex flex-col items-center justify-center py-12 px-4 text-center" data-testid="receipt-empty">
-                        <p class="text-text-muted mb-4">{tab.empty_hint()}</p>
-                        <a
+                    <ListLoadError message=message on_retry=move || retry_store.reload(tab) />
+                }
+                    .into_any()
+            }
+            TabState::Ready(_) if is_empty.get() => {
+                view! {
+                    <Card variant=CardVariant::Soft class="p-6" testid="receipt-empty">
+                        <p class="mb-4 text-center text-text-muted">{tab.empty_hint()}</p>
+                        <LinkButton
+                            variant=ButtonVariant::Primary(ButtonSize::Md)
                             href=csv_href.get()
-                            class="inline-flex min-h-11 items-center justify-center px-5 text-sm font-bold text-text-inverse rounded-md border border-ink bg-ink hover:bg-ink-hover transition-colors"
                         >
                             "CSVを取り込む"
-                        </a>
-                    </div>
-                }.into_any()
-            } else if show_dividend_info.get() {
+                        </LinkButton>
+                    </Card>
+                }
+                    .into_any()
+            }
+            TabState::Ready(_) if show_dividend_info.get() => {
                 view! {
                     <div class="flex flex-col gap-3">
                         <section id="receipts-summary">
@@ -170,8 +193,10 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                             />
                         </section>
                     </div>
-                }.into_any()
-            } else {
+                }
+                    .into_any()
+            }
+            TabState::Ready(_) => {
                 view! {
                     <div class="flex flex-col gap-3">
                         <section id="receipts-summary">
@@ -190,8 +215,10 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                             />
                         </section>
                     </div>
-                }.into_any()
+                }
+                    .into_any()
             }
+            TabState::Loading => view! { <div class="py-12 text-center text-sm text-text-muted" data-testid="receipt-loading">"読み込み中..."</div> }.into_any(),
         }}
     }
 }
