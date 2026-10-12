@@ -1,26 +1,43 @@
-use super::palette::holding_bar_class;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::format::{
-    format_currency, format_fixed_percent, format_percentage_value, format_signed_valuation_amount,
+    format_currency, format_percentage_value, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
 };
-use crate::features::asset_balance::holdings::HoldingView;
+use crate::features::asset_balance::holdings::holding_view;
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
 };
-use crate::features::asset_balance::portfolio::chart_display;
 use crate::features::asset_balance::store::FilteredPortfolio;
+use crate::features::asset_balance::store::csv::ResolvedAssetBalance;
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
-use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::empty_state::EmptyState;
-use crate::ui::summary_strip::{SummaryItem, SummaryStrip};
 use leptos::prelude::*;
 
-#[derive(Clone, Debug)]
-pub(crate) struct ChartItem {
-    pub(crate) view: HoldingView,
-    pub(crate) percentage: Option<f64>,
+pub(crate) fn market_note(has_unpriced: bool) -> String {
+    let mut note = "現在値の基準日は銘柄ごとに異なります".to_string();
+    if has_unpriced {
+        note.push_str("・価格なし銘柄を除く");
+    }
+    note
+}
+
+/// PC ヘッダー横の件数・注記。取得上限超過で行が欠けるときは API 集計側の件数・
+/// 価格なし判定を使い、集計欄と食い違わないようにする
+pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
+    let (count, has_unpriced) = match &view.fallback_totals {
+        Some(summary) => (view.total, summary_valuation(summary).has_unpriced),
+        None => {
+            let inputs: Vec<ValuationInput> = view
+                .rows
+                .iter()
+                .map(|row| ValuationInput::from(&holding_view(row)))
+                .collect();
+            (view.rows.len(), portfolio_valuation(&inputs).has_unpriced)
+        }
+    };
+    format!("{count}銘柄 · {}", market_note(has_unpriced))
 }
 
 #[component]
@@ -29,18 +46,14 @@ pub(crate) fn PortfolioSummary(
     fallback_totals: Option<AssetBalanceSummary>,
     on_clear_filter: impl Fn() + Send + Sync + 'static,
     dividends: RwSignal<DividendMaps>,
-    show_all: RwSignal<bool>,
 ) -> impl IntoView {
     let on_clear_filter = std::sync::Arc::new(on_clear_filter);
     let FilteredPortfolio { views, all_views } = filtered;
     let views_empty = views.is_empty();
-    if views_empty {
-        show_all.set(false);
-    }
     if all_views.is_empty() {
         return view! {
-            <div class="sum-card mb-3">
-                <div class="sum-card-body">
+            <div class="asset-panel-padded mx-4 lg:mx-0">
+                <div class="text-center">
                     <EmptyState
                         title="該当する銘柄がありません"
                         description="検索条件を変更するか、絞り込みを解除してください。"
@@ -58,7 +71,6 @@ pub(crate) fn PortfolioSummary(
         }
         .into_any();
     }
-    // 合計は絞り込み前の全保有分から求める(検索中も全保有分のまま)
     let kpi_holdings: Vec<KpiHolding> = all_views
         .iter()
         .map(|view| KpiHolding {
@@ -70,7 +82,6 @@ pub(crate) fn PortfolioSummary(
     let valuation_inputs: Vec<ValuationInput> =
         all_views.iter().map(ValuationInput::from).collect();
     let row_valuation = portfolio_valuation(&valuation_inputs);
-    // 取得上限超過で行が欠けるときだけ API 集計で合計を補う(個別カードと一致させるため通常時は行から計算)
     let valuation = fallback_totals
         .as_ref()
         .map(summary_valuation)
@@ -79,53 +90,70 @@ pub(crate) fn PortfolioSummary(
         Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
 
     let market_text = format_valuation_amount(valuation.market_value);
-    let mut market_note = "現在値の基準日は銘柄ごとに異なります".to_string();
-    if valuation.has_unpriced {
-        market_note.push_str("・価格なし銘柄を除く");
-    }
+    let market_note = market_note(valuation.has_unpriced);
     let pnl_text = format_signed_valuation_amount(valuation.profit_loss.amount);
     let pnl_note = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
     let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
-
-    let items = Signal::derive(move || {
-        let kpi = kpi.get();
-        vec![
-            SummaryItem::new("評価額合計", Some(market_text.clone())),
-            SummaryItem {
-                label: "含み損益",
-                value: Some(pnl_text.clone()),
-                note: Some(pnl_note.clone()),
-                negative: pnl_negative,
-            },
-            SummaryItem::new(
-                "年間配当参考額",
-                Some(
-                    kpi.total_annual_dividends
-                        .map_or("—".to_string(), format_currency),
-                ),
-            ),
-            SummaryItem::new(
-                "取得額基準利回り",
-                Some(
-                    kpi.dividend_yield
-                        .map_or("—".to_string(), format_percentage_value),
-                ),
-            ),
-        ]
+    let dividend_text = Signal::derive(move || {
+        kpi.get()
+            .total_annual_dividends
+            .map_or("—".to_string(), format_currency)
+    });
+    let yield_text = Signal::derive(move || {
+        kpi.get()
+            .dividend_yield
+            .map_or("—".to_string(), format_percentage_value)
     });
 
     view! {
-        <section id="assetbalance-summary" class="mb-3" data-testid="asset-portfolio-summary">
-            <div data-testid="portfolio-kpi-strip">
-                <div data-testid="portfolio-kpi-grid">
-                    <SummaryStrip items=items />
-                </div>
-                <p class="mt-1 text-xs font-medium text-text-muted">{market_note}</p>
+        <section id="assetbalance-summary" class="lg:mb-3.5" data-testid="asset-portfolio-summary">
+            <div class="asset-summary" data-testid="portfolio-kpi-strip">
+                <dl class="asset-summary-grid" data-testid="portfolio-kpi-grid">
+                    <div class="asset-summary-item">
+                        <dt>"評価額合計"</dt>
+                        <dd>
+                            <Amount text=market_text class="asset-summary-amount".to_string() />
+                        </dd>
+                    </div>
+                    <div class="asset-summary-item">
+                        <dt>"含み損益"</dt>
+                        <dd
+                            class="flex flex-wrap items-baseline gap-x-1.5"
+                            data-negative=pnl_negative.then_some("true")
+                        >
+                            <Amount
+                                text=pnl_text
+                                negative=pnl_negative
+                                class="asset-summary-amount".to_string()
+                            />
+                            <span class="asset-summary-note">{format!("（{pnl_note}）")}</span>
+                        </dd>
+                    </div>
+                    <div class="asset-summary-item">
+                        <dt>"年間配当参考額"</dt>
+                        <dd>
+                            <Amount text=dividend_text class="asset-summary-amount-sm".to_string() />
+                        </dd>
+                    </div>
+                    <div class="asset-summary-item">
+                        <dt>"取得額基準利回り"</dt>
+                        <dd class="flex items-end justify-between gap-2">
+                            <Amount text=yield_text class="asset-summary-amount-sm".to_string() />
+                            <a
+                                href="/assetbalance/composition"
+                                class="-my-2 -mr-2 inline-flex min-h-11 shrink-0 items-center px-2 text-xs text-info no-underline hover:underline lg:hidden"
+                            >
+                                "構成比 ›"
+                            </a>
+                        </dd>
+                    </div>
+                </dl>
+                <p class="mt-1 text-xs font-medium text-text-muted lg:hidden">{market_note}</p>
             </div>
             {views_empty.then(move || {
                 view! {
-                    <div class="sum-card mt-3">
-                        <div class="sum-card-body">
+                    <div class="asset-panel-padded mx-4 mt-3 lg:mx-0">
+                        <div class="text-center">
                             <EmptyState
                                 title="該当する銘柄がありません"
                                 description="検索条件を変更するか、絞り込みを解除してください。"
@@ -142,121 +170,6 @@ pub(crate) fn PortfolioSummary(
                     </div>
                 }
             })}
-        </section>
-    }
-    .into_any()
-}
-
-/// 取得額構成比の帯グラフと凡例。一覧の後ろに置き、初期は折りたたむ。
-#[component]
-pub(crate) fn PortfolioComposition(
-    items: Vec<ChartItem>,
-    open: RwSignal<bool>,
-    show_all: RwSignal<bool>,
-) -> impl IntoView {
-    // 帯・凡例は構成比を持つ行だけ。取得額0の行はカードには出すが帯には置かない
-    let composition_items: Vec<ChartItem> = items
-        .iter()
-        .filter(|item| item.percentage.is_some())
-        .cloned()
-        .collect();
-    if composition_items.is_empty() {
-        return ().into_any();
-    }
-    let composition_percentages: Vec<Option<f64>> = composition_items
-        .iter()
-        .map(|item| item.percentage)
-        .collect();
-    let composition_total = composition_items.len();
-    view! {
-        <section class="sum-card mt-3" data-testid="portfolio-composition">
-            <DisclosureToggle
-                style=DisclosureStyle::HeaderFlat
-                expanded=Signal::derive(move || open.get())
-                controls="assetbalance-composition-body".to_string()
-                testid="portfolio-composition-toggle"
-                hint=true
-                on_toggle=move || open.update(|value| *value = !*value)
-            >
-                <strong>"取得額構成比"</strong>
-            </DisclosureToggle>
-            <div id="assetbalance-composition-body" hidden=move || !open.get()>
-                <div class="mt-2.5">
-                {move || {
-                    let display = chart_display(
-                        composition_total,
-                        &composition_percentages,
-                        show_all.get(),
-                    );
-                    view! {
-                        <div
-                            class="sum-comp-bar"
-                            aria-hidden="true"
-                        >
-                            {composition_items
-                                .iter()
-                                .take(display.visible_count)
-                                .enumerate()
-                                .filter_map(|(index, item)| {
-                                    item.percentage.map(|percentage| {
-                                        view! {
-                                            <div
-                                                class=format!("sum-comp-segment {}", holding_bar_class(index))
-                                                style=format!("width: {}%", percentage.min(100.0))
-                                            />
-                                        }
-                                    })
-                                })
-                                .collect_view()}
-                            {display.others.as_ref().map(|others| {
-                                view! {
-                                    <div
-                                        class="sum-comp-segment sum-comp-others"
-                                        style=format!("width: {}%", others.percentage.min(100.0))
-                                    />
-                                }
-                            })}
-                        </div>
-                        <ul class="sum-comp-legend">
-                            {composition_items
-                                .iter()
-                                .take(display.visible_count)
-                                .enumerate()
-                                .map(|(index, item)| {
-                                    view! {
-                                        <li class="sum-comp-legend-item">
-                                            <span
-                                                class=format!("sum-comp-legend-dot {}", holding_bar_class(index))
-                                                aria-hidden="true"
-                                            />
-                                            <span class="sum-comp-legend-name">{item.view.name.clone()}</span>
-                                            <span class="sum-comp-legend-pct">
-                                                {item.percentage.map_or("—".to_string(), |percentage| {
-                                                    format_fixed_percent(percentage, 1)
-                                                })}
-                                            </span>
-                                        </li>
-                                    }
-                                })
-                                .collect_view()}
-                            {display.others.as_ref().map(|others| {
-                                view! {
-                                    <li class="sum-comp-legend-item">
-                                        <span class="sum-comp-legend-dot sum-comp-legend-dot-others" aria-hidden="true" />
-                                        <span class="sum-comp-legend-name">
-                                            {format!("その他 {}銘柄", others.count)}
-                                        </span>
-                                        <span class="sum-comp-legend-pct">
-                                            {format_fixed_percent(others.percentage, 1)}
-                                        </span>
-                                    </li>
-                                }
-                            })}
-                        </ul>
-                    }
-                }}
-                </div>
-            </div>
         </section>
     }
     .into_any()

@@ -85,14 +85,14 @@ test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計の�
   await expect(kpi).not.toContainText('¥123,456,789');
   await expect(kpi).not.toContainText('¥987,654,321');
 
-  await page.getByTestId('asset-search-input').fill('ソニー');
+  await page.getByTestId('asset-search-input-pc').fill('ソニー');
 
-  await expect(page.getByTestId('asset-search-count')).toContainText('1 / 2');
+  await expect(page.getByTestId('asset-search-count-pc')).toContainText('1 / 2');
   // 絞り込み中も合計は全保有分のまま
   await expect(kpi).toContainText('¥420,000');
   await expect(kpi).toContainText('+¥20,000');
 
-  await page.getByTestId('asset-search-clear').click();
+  await page.getByTestId('asset-search-clear-pc').click();
 
   await expect(kpi).toContainText('¥420,000');
 });

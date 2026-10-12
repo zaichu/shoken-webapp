@@ -129,14 +129,19 @@ pub(crate) fn filtered_portfolio(
     generation: Generation,
 ) -> FilteredPortfolio {
     // プレビュー行は CSV の値をそのまま見せるため lookup で DB 行に置き換えない
-    let resolve_view = |row: &AssetBalanceRow| match row {
-        Row::Preview(_) => holding_view(row),
-        Row::Saved(saved) => {
-            let resolved = lookup
-                .with(|store| store.get(generation, saved.security_code.as_str()).cloned())
-                .unwrap_or_else(|| saved.clone());
-            holding_view(&resolved)
-        }
+    let resolve_view = |row: &AssetBalanceRow| {
+        let mut view = match row {
+            Row::Preview(_) => holding_view(row),
+            Row::Saved(saved) => {
+                let resolved = lookup
+                    .with(|store| store.get(generation, saved.security_code.as_str()).cloned())
+                    .unwrap_or_else(|| saved.clone());
+                holding_view(&resolved)
+            }
+        };
+        // 詳細は保存済み行のレコード ID で開く。lookup の代替行の id ではなく外側の行の id を使う
+        view.id = row.saved_id();
+        view
     };
     FilteredPortfolio {
         views: filter_asset_balances(rows, query)

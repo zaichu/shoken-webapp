@@ -16,8 +16,6 @@ pub enum ButtonVariant {
     DangerSolid(ButtonSize),
     /// 文字だけの静かな操作(絞り込みの解除など)
     Ghost,
-    /// 一覧の開閉(収益グラフの全表示など)
-    Quiet,
     /// AI プロンプトのコピーなど細い枠の全幅ボタン
     Prompt,
     /// ログイン画面の輪郭ボタン
@@ -32,6 +30,12 @@ pub enum ButtonVariant {
     MenuItemDanger,
     /// 銘柄名のコピー(文字そのものがボタン)
     CopyName,
+    /// 資産管理の並び替えチップ(選択状態は aria_pressed と合わせる)
+    AssetSortChip,
+    /// 資産管理の並び替え順トグル(「高い順 ↓」)
+    AssetSortDirection,
+    /// 資産管理テーブルの並び替え列見出し
+    AssetSortColumn,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,7 +74,6 @@ impl ButtonVariant {
                 size,
             ),
             Self::Ghost => "text-sm text-text-deep hover:underline".to_string(),
-            Self::Quiet => "chart-toggle-button".to_string(),
             Self::Prompt => "review-prompt-button".to_string(),
             Self::Login => "login-button".to_string(),
             Self::SearchSubmit => "search-submit".to_string(),
@@ -86,6 +89,9 @@ impl ButtonVariant {
                     .to_string()
             }
             Self::CopyName => "copyable-name".to_string(),
+            Self::AssetSortChip => "asset-sort-chip".to_string(),
+            Self::AssetSortDirection => "asset-sort-order".to_string(),
+            Self::AssetSortColumn => "asset-th-sort".to_string(),
         }
     }
 }
@@ -121,6 +127,7 @@ pub fn Button(
     #[prop(into, optional)] aria_hidden: Option<Signal<bool>>,
     #[prop(into, optional)] tabindex: Option<Signal<&'static str>>,
     #[prop(into, optional)] aria_expanded: Option<Signal<bool>>,
+    #[prop(into, optional)] aria_pressed: Option<Signal<String>>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
 ) -> impl IntoView {
@@ -134,6 +141,7 @@ pub fn Button(
             aria-hidden=aria_hidden.map(|hidden| move || hidden.get().to_string())
             aria-disabled=aria_disabled.map(|value| move || value.get().to_string())
             aria-expanded=aria_expanded.map(|expanded| move || expanded.get().to_string())
+            aria-pressed=aria_pressed.map(|pressed| move || pressed.get())
             tabindex=tabindex.map(|index| move || index.get())
             data-testid=testid
             on:click=on_click

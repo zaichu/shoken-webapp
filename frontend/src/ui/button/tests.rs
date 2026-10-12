@@ -6,7 +6,6 @@ fn button_classes_preserves_variant_and_extra_input() {
         ButtonVariant::Primary(ButtonSize::Md),
         ButtonVariant::Secondary(ButtonSize::Xs),
         ButtonVariant::DangerSolid(ButtonSize::Sm),
-        ButtonVariant::Quiet,
         ButtonVariant::CopyName,
     ] {
         let base = button_classes(variant, "");

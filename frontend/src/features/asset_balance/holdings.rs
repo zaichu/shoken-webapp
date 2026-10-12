@@ -5,6 +5,8 @@ use crate::features::dividend_per_share::DividendMaps;
 
 #[derive(Clone, Debug)]
 pub(crate) struct HoldingView {
+    /// 保存済みレコードの ID。詳細ページのパスに使う。CSV プレビュー行は None
+    pub(crate) id: Option<String>,
     pub(crate) code: String,
     pub(crate) name: String,
     pub(crate) shares: f64,
@@ -32,6 +34,7 @@ pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {
         row.security_name()
     };
     HoldingView {
+        id: None,
         code: row.security_code().to_string(),
         name: normalize_display_name(name_source),
         shares: dec_to_f64(&row.shares()),

@@ -3,6 +3,7 @@ mod integration;
 
 use super::summary::{PortfolioSummary, PortfolioSummaryProps};
 use crate::api::ApiError;
+use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::format::*;
 use crate::features::asset_balance::holdings::*;
@@ -11,7 +12,7 @@ use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, format_number_value,
     normalize_display_name, normalize_security_code, portfolio_valuation, total_purchase_amount,
 };
-use crate::features::asset_balance::portfolio::chart_display;
+use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, resolve_asset_balance};
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
@@ -295,45 +296,22 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
 }
 
 #[test]
-fn show_all_resets_only_when_summary_has_no_rows() {
+fn summary_renders_with_empty_views() {
     let owner = Owner::new();
     owner.with(|| {
         let dividends = RwSignal::new(DividendMaps::default());
-        let show_all = RwSignal::new(true);
-        let views: Vec<HoldingView> = (0..21).map(|id| holding_view(&balance_row(id))).collect();
-        let summary_view = |views: Vec<HoldingView>| {
-            PortfolioSummary(
-                PortfolioSummaryProps::builder()
-                    .filtered(FilteredPortfolio {
-                        all_views: views.clone(),
-                        views,
-                    })
-                    .fallback_totals(None)
-                    .on_clear_filter(|| {})
-                    .dividends(dividends)
-                    .show_all(show_all)
-                    .build(),
-            )
-        };
-
-        let _ = summary_view(views.clone());
-        assert!(show_all.get_untracked());
-
-        let _ = summary_view(Vec::new());
-        assert!(!show_all.get_untracked());
-
-        show_all.set(true);
-        // 取得額0でも行がある限りサマリーと保有カードは描くので show_all は維持される
-        let mut zero = balance_row(9999);
-        zero.total_purchase_amount = rust_decimal_macros::dec!(0);
-        let _ = summary_view(vec![holding_view(&zero)]);
-        assert!(show_all.get_untracked());
-
-        let _ = summary_view(views);
-        assert!(show_all.get_untracked());
-        let display = chart_display(21, &[Some(100.0 / 21.0); 21], show_all.get_untracked());
-        assert_eq!(display.visible_count, 21);
-        assert!(display.toggle_label.is_some());
+        let views: Vec<HoldingView> = Vec::new();
+        let _ = PortfolioSummary(
+            PortfolioSummaryProps::builder()
+                .filtered(FilteredPortfolio {
+                    all_views: views.clone(),
+                    views,
+                })
+                .fallback_totals(None)
+                .on_clear_filter(|| {})
+                .dividends(dividends)
+                .build(),
+        );
     });
 }
 
@@ -423,6 +401,118 @@ fn negative_valuation_is_decided_by_rounded_amount() {
     assert_eq!(format_valuation_amount(Some(-0.5)), "-¥1");
     assert_eq!(valuation_tone(Some(-0.5)).1, Some("true"));
     assert_eq!(valuation_tone(Some(-0.4)).1, None);
+}
+
+#[test]
+fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
+    let owner = Owner::new();
+    owner.with(|| {
+        // lookup が同じ銘柄コードの別レコードを返しても、詳細リンクの ID は
+        // 一覧に並んだ保存済み行のものを使う
+        let saved = balance_row(7203);
+        let mut other_record = balance_row(7203);
+        other_record.id = "other-record".to_string().into();
+        other_record.security_name = "差し替わり行".to_string();
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&other_record)));
+
+        let saved_id = saved.id.to_string();
+        let rows = vec![
+            AssetBalanceRow::Saved(saved),
+            AssetBalanceRow::Preview(AssetBalanceCsvRow::default()),
+        ];
+        let filtered = filtered_portfolio(&rows, "", lookup, Generation::new(1));
+
+        assert_eq!(filtered.views[0].id, Some(saved_id));
+        assert_eq!(
+            filtered.views[0].name, "差し替わり行",
+            "表示値は lookup の行を使う"
+        );
+        assert_eq!(filtered.views[1].id, None, "プレビュー行はリンクしない");
+    });
+}
+
+#[test]
+fn resolve_asset_balance_carries_api_total() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let generation = Generation::new(1);
+        let loaded = LoadedAssetBalances {
+            rows: vec![balance_row(7203)],
+            total: 150000,
+            summary: None,
+            truncated: true,
+        };
+        let slot = Some((generation, Ok(loaded)));
+        let resolved = resolve_asset_balance(generation, &slot).expect("resolved");
+        assert_eq!(
+            resolved.total, 150000,
+            "行が欠けるときも API の総件数を保持する"
+        );
+    });
+}
+
+#[test]
+fn composition_basis_matches_abs_sum_percentages() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        let mut positive = balance_row(7203);
+        positive.total_purchase_amount = rust_decimal_macros::dec!(100);
+        let mut negative = balance_row(6758);
+        negative.total_purchase_amount = rust_decimal_macros::dec!(-50);
+        let rows: Vec<AssetBalanceRow> = vec![positive, negative]
+            .into_iter()
+            .map(Row::Saved)
+            .collect();
+        let views = filtered_portfolio(&rows, "", lookup, Generation::new(1)).views;
+
+        let basis = super::composition_page::composition_basis(&views);
+        assert_eq!(basis, 150.0, "母数は絶対値合計");
+        assert!(basis > 0.0, "符号付き合計が0以下でも算出不可にしない");
+    });
+}
+
+#[test]
+fn list_subtitle_uses_api_totals_when_truncated() {
+    let owner = Owner::new();
+    owner.with(|| {
+        // 読み込み済み行は価格あり1件だけだが、API 集計は価格なし行を含む
+        let resolved = ResolvedAssetBalance {
+            rows: vec![Row::Saved(balance_row(7203))],
+            total: 150000,
+            warning: None,
+            fallback_totals: Some(AssetBalanceSummary {
+                total_market_value: rust_decimal_macros::dec!(260000),
+                total_purchase_amount: rust_decimal_macros::dec!(100),
+                total_daily_change: rust_decimal_macros::dec!(0),
+                priced_market_value: rust_decimal_macros::dec!(260000),
+                priced_purchase_amount: rust_decimal_macros::dec!(60),
+            }),
+        };
+        let subtitle = super::summary::list_subtitle(&resolved);
+        assert!(
+            subtitle.starts_with("150000銘柄"),
+            "件数は読み込み済み行数ではなく API の総件数: {subtitle}"
+        );
+        assert!(
+            subtitle.contains("価格なし銘柄"),
+            "行外の価格なし銘柄も注記に出る: {subtitle}"
+        );
+
+        // 通常時は行から件数と価格なし判定を出す
+        let mut unpriced = balance_row(6758);
+        unpriced.current_price = rust_decimal_macros::dec!(0);
+        let resolved = ResolvedAssetBalance {
+            rows: vec![Row::Saved(balance_row(7203)), Row::Saved(unpriced)],
+            total: 2,
+            warning: None,
+            fallback_totals: None,
+        };
+        let subtitle = super::summary::list_subtitle(&resolved);
+        assert!(subtitle.starts_with("2銘柄"));
+        assert!(subtitle.contains("価格なし銘柄"));
+    });
 }
 
 #[test]

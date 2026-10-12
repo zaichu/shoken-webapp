@@ -1,5 +1,6 @@
 use crate::features::asset_balance::{
-    AssetBalanceCsvDeletePage, AssetBalanceCsvPage, AssetBalancePage, AssetBalanceState,
+    AssetBalanceCompositionPage, AssetBalanceCsvDeletePage, AssetBalanceCsvPage,
+    AssetBalanceHoldingPage, AssetBalancePage, AssetBalanceState,
 };
 use crate::features::home::{HomeOverviewData, HomePage};
 use crate::features::login::LoginPage;
@@ -362,13 +363,18 @@ pub fn App() -> impl IntoView {
                         Route::ReceiptsCsv => view! { <ReceiptsCsvPage /> }.into_any(),
                         Route::ReceiptsCsvDelete => view! { <ReceiptsCsvDeletePage /> }.into_any(),
                         Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
+                        Route::AssetBalanceComposition => {
+                            view! { <AssetBalanceCompositionPage /> }.into_any()
+                        }
+                        Route::AssetBalanceHolding => {
+                            let id = holding_id(&path.get()).unwrap_or_default().to_string();
+                            view! { <AssetBalanceHoldingPage id=id /> }.into_any()
+                        }
                         Route::AssetBalanceCsv => view! { <AssetBalanceCsvPage /> }.into_any(),
                         Route::AssetBalanceCsvDelete => {
                             view! { <AssetBalanceCsvDeletePage /> }.into_any()
                         }
                         Route::Login => view! { <LoginPage /> }.into_any(),
-                        // 設計済みルートは認証・タイトル・ナビ活性の土台だけ先に用意し、
-                        // ページ本体は #1269-#1270 で実装する
                         _ => view! { <NotFoundPage /> }.into_any(),
                     }
                 }}

@@ -1,8 +1,5 @@
-use super::chart::ChartList;
-use super::summary::ChartItem;
 use super::{AssetBalanceState, use_asset_balance_state};
 use crate::features::asset_balance::csv::AssetBalanceRow;
-use crate::features::asset_balance::portfolio::chart_plan;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::store::csv::{
     AssetBalanceCsvStore, csv_preview_rows, resolve_asset_balance,
@@ -146,7 +143,6 @@ fn review_rows(state: AssetBalanceState, session: SessionStore) -> Vec<AssetBala
 
 #[component]
 fn AssetCsvPreview(state: AssetBalanceState, session: SessionStore) -> impl IntoView {
-    let show_all = RwSignal::new(false);
     move || {
         let csv_state = state.csv.csv_state();
         let rows = csv_preview_rows(&csv_state);
@@ -155,16 +151,6 @@ fn AssetCsvPreview(state: AssetBalanceState, session: SessionStore) -> impl Into
         }
         let filtered = filtered_portfolio(&rows, "", state.lookup, session.generation.get());
         let views = filtered.views;
-        let plan = chart_plan(&views.iter().map(|view| view.purchase).collect::<Vec<_>>());
-        let items: Vec<ChartItem> = plan
-            .order
-            .iter()
-            .zip(&plan.percentages)
-            .map(|(&index, &percentage)| ChartItem {
-                view: views[index].clone(),
-                percentage,
-            })
-            .collect();
         Some(view! {
             <section data-testid="csv-preview">
                 <h2 class="text-sm font-bold text-text">"プレビュー"</h2>
@@ -172,7 +158,7 @@ fn AssetCsvPreview(state: AssetBalanceState, session: SessionStore) -> impl Into
                     "一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
                 </p>
                 <div class="mt-2">
-                    <ChartList items=items dividends=state.dividends show_all=show_all />
+                    <super::holdings_list::HoldingsList views=views dividends=state.dividends show_dividend=true />
                 </div>
             </section>
         })
