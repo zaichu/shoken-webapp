@@ -237,11 +237,9 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         <li class="receipt-compact-row" data-testid="receipt-card">
             <div class="receipt-compact-main">
                 <div class="receipt-compact-name-cell">{name}</div>
-                <Amount
-                    text=net_value
-                    negative=net_negative
-                    class="receipt-compact-net"
-                />
+                <span class="receipt-compact-net">
+                    <Amount text=net_value negative=net_negative />
+                </span>
             </div>
             <div class="receipt-compact-meta">
                 <div class="receipt-compact-facts">

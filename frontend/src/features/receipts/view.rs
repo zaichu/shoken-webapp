@@ -71,7 +71,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     }
                 }
             >
-                <div class="receipts-gutter hidden shrink-0 py-4 lg:block">
+                <div class="receipts-gutter no-print hidden shrink-0 py-4 lg:block">
                     <ReceiptsPcSearchBar store=store active_tab=active_tab />
                 </div>
 

@@ -301,7 +301,7 @@ pub fn ReceiptsPcSearchBar(
                                             type="button"
                                             class="receipt-filter-chip"
                                             data-selected=move || selected.get().then_some("true")
-                                            attr:aria-pressed=move || selected.get().to_string()
+                                            aria-pressed=move || selected.get().to_string()
                                             on:click=move |_| search.update(|s| s.select_quick(SearchKey::Products, p_value_for_click.clone()))
                                         >
                                             {p_label}
@@ -331,7 +331,7 @@ pub fn ReceiptsPcSearchBar(
                                             type="button"
                                             class="receipt-filter-chip"
                                             data-selected=move || selected.get().then_some("true")
-                                            attr:aria-pressed=move || selected.get().to_string()
+                                            aria-pressed=move || selected.get().to_string()
                                             on:click=move |_| search.update(|s| s.select_quick(SearchKey::Accounts, a_value_for_click.clone()))
                                         >
                                             {a_label}

@@ -78,7 +78,9 @@ test('検索条件ページから商品と口座を選んで一覧と件数に�
 
   await expect(page).toHaveURL('/receipts');
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
-  await expect(page.getByText('トヨタ自動車')).toBeVisible();
+  await expect(
+    page.getByTestId('receipt-card-list').getByText('トヨタ自動車').filter({ visible: true }),
+  ).toBeVisible();
   await expect(page.getByText('日本電信電話')).toHaveCount(0);
 });
 
@@ -91,7 +93,9 @@ test('期間と条件は同時に併用でき、「すべて」で期間だけ�
   await page.getByRole('link', { name: '適用して戻る' }).click();
 
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
-  await expect(page.getByText('トヨタ自動車')).toBeVisible();
+  await expect(
+    page.getByTestId('receipt-card-list').getByText('トヨタ自動車').filter({ visible: true }),
+  ).toBeVisible();
 
   // 適用中の条件チップから個別に解除できる
   const conditions = page.getByRole('group', { name: '適用中の検索条件' });
@@ -99,7 +103,8 @@ test('期間と条件は同時に併用でき、「すべて」で期間だけ�
   await expect(conditions).toContainText('SBI証券');
 
   await page.getByRole('button', { name: /期間 .* を解除/ }).click();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('0');
+  // 口座の条件は残るので SBI証券の1件だけが絞り込まれたままになる
+  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
 });
 
 test('変更せず戻るで条件を保持して一覧に戻れる', async ({ page }) => {

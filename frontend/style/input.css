@@ -438,7 +438,7 @@
   }
 
   .receipts-table {
-    @apply w-full border-collapse text-sm;
+    @apply w-full table-fixed border-collapse text-sm;
   }
 
   .receipts-table thead {
@@ -458,7 +458,7 @@
   }
 
   .receipts-table td {
-    @apply px-3.5 py-2 text-text;
+    @apply px-3.5 py-2 text-text break-words;
   }
 
   .receipts-table td.text-right {

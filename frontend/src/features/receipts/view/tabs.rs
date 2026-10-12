@@ -1,4 +1,5 @@
 use super::TAB_IDS;
+use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant, Loading};
@@ -42,7 +43,7 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
             role="tab"
             id=format!("tab-{slug}")
             aria-controls=format!("tabpanel-{slug}")
-            attr:aria-selected=move || (selected.active_tab.get() == tab).to_string()
+            aria-selected=move || (selected.active_tab.get() == tab).to_string()
             tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
             class="receipts-tab"
             on:click=move |_| clicked.select_tab(tab)
@@ -64,7 +65,10 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
                 class="receipts-tab-count"
             >
                 {move || match counted_store.tab_state(tab) {
-                    TabState::Ready(data) => data.rows.len().to_string(),
+                    TabState::Ready(data) => {
+                        let query = counted_store.search.with(|s| s.query.clone());
+                        filter_receipts(tab, &data.rows, &query).len().to_string()
+                    }
                     TabState::Loading | TabState::Failed(_) => "—".to_string(),
                 }}
             </span>

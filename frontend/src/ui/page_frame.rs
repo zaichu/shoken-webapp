@@ -62,7 +62,7 @@ pub fn PageFrame(
     view! {
         <div class="page-frame">
             <PcHeader />
-            <header class="page-frame-head">
+            <header class="page-frame-head no-print">
                 <div class="page-gutter flex flex-wrap items-center gap-x-4 gap-y-1">
                     <h1 class="page-frame-title order-1 shrink-0">{title}</h1>
                     <div class="order-3 w-full min-w-0 lg:order-2 lg:w-auto">

@@ -151,15 +151,16 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(cardList.getByTestId('receipt-card-group')).toHaveCount(2);
 
   // 1行目は銘柄名と税引後、2行目は日付・コード・口座・数量を並べる
+  // 先頭は入金日順で日本電信電話
   const card = cardList.getByTestId('receipt-card').first();
-  await expect(card.getByRole('button', { name: /トヨタ自動車\(7203\) をコピー/ })).toBeVisible();
-  await expect(card.locator('.receipt-compact-net')).toHaveText('¥2,391');
+  await expect(card.getByRole('button', { name: /日本電信電話\(9432\) をコピー/ })).toBeVisible();
+  await expect(card.locator('.receipt-compact-net')).toHaveText('¥1,594');
   const facts = card.locator('.receipt-compact-facts');
-  await expect(facts).toContainText('2024/03/01');
-  await expect(facts).toContainText('7203');
-  await expect(facts).toContainText('SBI証券');
-  await expect(facts).toContainText('100株');
-  await expect(card.locator('.receipt-compact-primary')).toContainText('配当 ¥3,000');
+  await expect(facts).toContainText('2024/03/15');
+  await expect(facts).toContainText('9432');
+  await expect(facts).toContainText('楽天証券');
+  await expect(facts).toContainText('200株');
+  await expect(card.locator('.receipt-compact-primary')).toContainText('配当 ¥2,000');
   // 見出しはコード・銘柄名・日付・口座だけなので開閉トリガーは無い
   await expect(card.locator('[aria-expanded]')).toHaveCount(0);
 });
