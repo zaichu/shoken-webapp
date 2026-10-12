@@ -1,15 +1,18 @@
-mod cards;
-mod chart;
+mod composition_page;
 mod csv_page;
+mod holding_detail_page;
+mod holdings_list;
 mod main_content;
-mod palette;
+mod sort_controls;
 mod summary;
 
 #[cfg(test)]
 #[path = "view/tests/suite.rs"]
 mod tests;
 
+pub use composition_page::AssetBalanceCompositionPage;
 pub use csv_page::{AssetBalanceCsvDeletePage, AssetBalanceCsvPage};
+pub use holding_detail_page::AssetBalanceHoldingPage;
 
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::store::csv::{AssetBalanceCsvStore, resolve_asset_balance};
@@ -30,17 +33,11 @@ pub(crate) struct AssetBalanceState {
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     search_query: RwSignal<String>,
-    // 操作帯の「N / M件」表示用。一覧側で絞り込むたびに書き直す
     search_count: RwSignal<(usize, usize)>,
-    // ページ側に持ち上げた show_all はアンマウントで破棄されないため、グラフを描かない分岐では false に戻す
-    show_all: RwSignal<bool>,
-    // 取得額構成比の開閉もページ側に持ち、一覧の再描画で状態が消えないようにする
-    composition_open: RwSignal<bool>,
     data_ops: RwSignal<DataOps>,
     csv: AssetBalanceCsvStore,
 }
 
-// ページ遷移でビューを作り直しても一覧・検索・取得中状態を失わないよう、App コンテキストのスロットに保持する
 fn use_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let states = use_context::<crate::app::PageStates>().unwrap_or_default();
     crate::app::page_state(states.asset_balance, || build_asset_balance_state(session))
@@ -53,8 +50,6 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let search_query = RwSignal::new(String::new());
     let reset_query = search_query;
     let search_count = RwSignal::new((0usize, 0usize));
-    let show_all = RwSignal::new(false);
-    let composition_open = RwSignal::new(false);
     let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
     let csv_store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
     let csv_slot = csv_store.csv;
@@ -67,8 +62,6 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
             data_ops.update(DataOps::reset);
             reset_query.set(String::new());
             search_count.set((0, 0));
-            show_all.set(false);
-            composition_open.set(false);
             return;
         }
         lookup.update(|store| store.clear_if_stale(generation));
@@ -85,8 +78,6 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
         lookup,
         search_query,
         search_count,
-        show_all,
-        composition_open,
         data_ops,
         csv: csv_store,
     }
@@ -103,8 +94,6 @@ pub fn AssetBalancePage() -> impl IntoView {
     let dividends = state.dividends;
     let lookup = state.lookup;
     let search_query = state.search_query;
-    let show_all = state.show_all;
-    let composition_open = state.composition_open;
     let data_ops = state.data_ops;
     let busy_ops = data_ops;
     let csv_slot = state.csv.csv;
@@ -113,7 +102,6 @@ pub fn AssetBalancePage() -> impl IntoView {
         balances.with(|slot| resolve_asset_balance(generation, slot))
     };
     let search_count = state.search_count;
-    // 一覧が空のときは絞り込みの対象がないので操作帯自体を出さない
     let action_bar = view! {
         {move || {
             resolved_view()
@@ -140,8 +128,6 @@ pub fn AssetBalancePage() -> impl IntoView {
         }}
     }
     .into_any();
-    // 再訪では表示済みの一覧を消さず裏で取り直す(初回・未キャッシュは Effect が担う)
-    // 前の取得が残っている往復では要求を重ねない
     if session.user.get_untracked().is_some()
         && has_current_balances(
             &balances.get_untracked(),
@@ -202,7 +188,6 @@ pub fn AssetBalancePage() -> impl IntoView {
             }
         >
             <div class="page-gutter flex flex-1 flex-col gap-3" data-testid="assetbalance-main-stage">
-                    // 再取得の失敗は一覧を消さずに知らせる
                     {move || {
                         data_ops
                             .with(|ops| ops.refresh_error.clone())
@@ -242,12 +227,10 @@ pub fn AssetBalancePage() -> impl IntoView {
                         let resolved = resolved_view();
                         match (resolved, list_error) {
                             (None, _) => {
-                                show_all.set(false);
                                 view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
                                     .into_any()
                             }
                             (Some(_), Some(message)) => {
-                                show_all.set(false);
                                 view! {
                                     <ListLoadError message=message on_retry=reload />
                                 }
@@ -261,8 +244,6 @@ pub fn AssetBalancePage() -> impl IntoView {
                                         search_query=search_query
                                         search_count=search_count
                                         dividends=dividends
-                                        show_all=show_all
-                                        composition_open=composition_open
                                         lookup=lookup
                                         generation=generation
                                     />

@@ -1,10 +1,100 @@
 //! 資産管理の構成比チャートの並びと表示計画の純粋ロジック。
 
-use crate::features::asset_balance::model::chart_percentages;
+use crate::features::asset_balance::holdings::HoldingDividend;
+use crate::features::asset_balance::model::{ValuationInput, chart_percentages, holding_valuation};
+use crate::features::dividend_per_share::DividendMaps;
 use std::cmp::Ordering;
 
 /// デフォルト表示件数。
 pub const TOP_ITEMS: usize = 20;
+
+/// 並べ替えの指標。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SortKey {
+    MarketValue,
+    ProfitLoss,
+    Dividend,
+    Yield,
+}
+
+/// 並べ替えの方向。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SortOrder {
+    Desc,
+    Asc,
+}
+
+/// 並べ替えの入力1件。
+#[derive(Clone)]
+pub struct SortInput<'a> {
+    pub code: &'a str,
+    pub valuation: ValuationInput,
+    pub dividend: &'a HoldingDividend,
+}
+
+/// 並べ替えの比較値。算出不能は `None`。
+fn sort_value(input: &SortInput<'_>, key: SortKey) -> Option<f64> {
+    match key {
+        SortKey::MarketValue => holding_valuation(&input.valuation).market_value,
+        SortKey::ProfitLoss => holding_valuation(&input.valuation).profit_loss.amount,
+        SortKey::Dividend => input.dividend.annual,
+        SortKey::Yield => input.dividend.yield_value,
+    }
+}
+
+/// 並べ替えの方向に従って比較する。
+/// 算出不能値は昇降どちらでも末尾。同値はコード順。
+fn compare_sort(a: &SortInput<'_>, b: &SortInput<'_>, key: SortKey, order: SortOrder) -> Ordering {
+    let (a_value, b_value) = (sort_value(a, key), sort_value(b, key));
+    let ordering = match (a_value, b_value) {
+        (Some(a), Some(b)) => b.total_cmp(&a),
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Greater,
+        (Some(_), None) => Ordering::Less,
+    };
+    let ordering = match order {
+        SortOrder::Desc => ordering,
+        SortOrder::Asc => ordering.reverse(),
+    };
+    if ordering == Ordering::Equal {
+        a.code.cmp(b.code)
+    } else {
+        ordering
+    }
+}
+
+/// 保有銘柄を並べ替える。検索後の全対象を並べてから件数制限する。
+pub fn sort_holdings<'a, I>(inputs: I, key: SortKey, order: SortOrder) -> Vec<usize>
+where
+    I: IntoIterator<Item = SortInput<'a>>,
+{
+    let mut indexed: Vec<(usize, SortInput<'_>)> = inputs.into_iter().enumerate().collect();
+    indexed.sort_by(|(a_index, a), (b_index, b)| {
+        let ordering = compare_sort(a, b, key, order);
+        if ordering == Ordering::Equal {
+            a_index.cmp(b_index)
+        } else {
+            ordering
+        }
+    });
+    indexed.into_iter().map(|(index, _)| index).collect()
+}
+
+/// 配当の取得状態を表示用にまとめる。
+pub fn dividend_status_summary(dividends: &DividendMaps) -> (usize, usize, usize) {
+    let mut pending = 0;
+    let mut error = 0;
+    let mut zero = 0;
+    for status in dividends.status.values() {
+        match status.as_str() {
+            "pending" => pending += 1,
+            "error" => error += 1,
+            "zero" => zero += 1,
+            _ => {}
+        }
+    }
+    (pending, error, zero)
+}
 
 /// チャートの並び結果。`order` は表示順に並んだ全入力のインデックス、
 /// `percentages` は同じ並びの未丸め構成比(取得額0・分母0で算出不可は `None`)。

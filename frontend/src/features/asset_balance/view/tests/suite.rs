@@ -11,7 +11,6 @@ use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, format_number_value,
     normalize_display_name, normalize_security_code, portfolio_valuation, total_purchase_amount,
 };
-use crate::features::asset_balance::portfolio::chart_display;
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
@@ -295,45 +294,22 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
 }
 
 #[test]
-fn show_all_resets_only_when_summary_has_no_rows() {
+fn summary_renders_with_empty_views() {
     let owner = Owner::new();
     owner.with(|| {
         let dividends = RwSignal::new(DividendMaps::default());
-        let show_all = RwSignal::new(true);
-        let views: Vec<HoldingView> = (0..21).map(|id| holding_view(&balance_row(id))).collect();
-        let summary_view = |views: Vec<HoldingView>| {
-            PortfolioSummary(
-                PortfolioSummaryProps::builder()
-                    .filtered(FilteredPortfolio {
-                        all_views: views.clone(),
-                        views,
-                    })
-                    .fallback_totals(None)
-                    .on_clear_filter(|| {})
-                    .dividends(dividends)
-                    .show_all(show_all)
-                    .build(),
-            )
-        };
-
-        let _ = summary_view(views.clone());
-        assert!(show_all.get_untracked());
-
-        let _ = summary_view(Vec::new());
-        assert!(!show_all.get_untracked());
-
-        show_all.set(true);
-        // 取得額0でも行がある限りサマリーと保有カードは描くので show_all は維持される
-        let mut zero = balance_row(9999);
-        zero.total_purchase_amount = rust_decimal_macros::dec!(0);
-        let _ = summary_view(vec![holding_view(&zero)]);
-        assert!(show_all.get_untracked());
-
-        let _ = summary_view(views);
-        assert!(show_all.get_untracked());
-        let display = chart_display(21, &[Some(100.0 / 21.0); 21], show_all.get_untracked());
-        assert_eq!(display.visible_count, 21);
-        assert!(display.toggle_label.is_some());
+        let views: Vec<HoldingView> = Vec::new();
+        let _ = PortfolioSummary(
+            PortfolioSummaryProps::builder()
+                .filtered(FilteredPortfolio {
+                    all_views: views.clone(),
+                    views,
+                })
+                .fallback_totals(None)
+                .on_clear_filter(|| {})
+                .dividends(dividends)
+                .build(),
+        );
     });
 }
 
