@@ -24,8 +24,7 @@ ALLOWED_SRC=(
   'min-w-\[260px\]'  # PC 検索バーの最小幅
   'shadow-\[0_1px_2px_rgba\(15,23,42,\.08\)\]'  # タブ選択時の微弱シャドウ
   'text-\[11px\]'   # タブ件数バッジの極小フォント
-  'data-\[aria-current=page\]'  # ナビのアクティブ判定用属性セレクタ
-  'shadow-\[inset_0_-2px_0_#c08403\]'  # ナビ活性時の下線アクセント
+  'text-\[13px\]'   # 検索バーのチップ(デザイン指定)
   'p-\[3px\]'       # タブリストの内側余白(デザイン指定)
 )
 # input.css の @layer components 内ではレイアウトの任意値を許す(レール付き 2 カラムの grid template 等)。

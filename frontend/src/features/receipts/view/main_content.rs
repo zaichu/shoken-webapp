@@ -9,7 +9,7 @@ use crate::features::receipts::{
 };
 use crate::session::use_session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
-use crate::ui::card::{Card, CardVariant};
+use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError};
 use leptos::ev;
 use leptos::prelude::*;
@@ -159,15 +159,18 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
             }
             TabState::Ready(_) if is_empty.get() => {
                 view! {
-                    <Card variant=CardVariant::Soft class="p-6" testid="receipt-empty">
-                        <p class="mb-4 text-center text-text-muted">{tab.empty_hint()}</p>
+                    <EmptyState
+                        title="データがありません"
+                        description=tab.empty_hint()
+                        icon=EmptyStateIcon::Tray
+                    >
                         <LinkButton
                             variant=ButtonVariant::Primary(ButtonSize::Md)
                             href=csv_href.get()
                         >
                             "CSVを取り込む"
                         </LinkButton>
-                    </Card>
+                    </EmptyState>
                 }
                     .into_any()
             }

@@ -91,17 +91,6 @@ async function liveRegionTexts(page: Page): Promise<string[]> {
   );
 }
 
-// データがあるとパネルは畳んだ状態で始まるので、パネル内の UI に触れる前に開く。
-// トグルはタブのデータ到着(Ready)まで描画されないため、出現を待ってから押す
-async function openReceiptRail(page: Page) {
-  const toggle = page.getByTestId('receipt-utility-toggle');
-  await toggle.waitFor({ state: 'visible', timeout: 10000 });
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
-    await toggle.click();
-  }
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-}
-
 async function mockSession(page: Page, user: unknown = MOCK_USER, status = 200) {
   await page.route(ROUTES.authMe, (route) =>
     route.fulfill(json(user, status)),
@@ -425,7 +414,7 @@ test('CSVプレビューの行エラー表示に moderate 以上の WCAG 違反�
   });
 });
 
-test('フィルター展開時に moderate 以上の WCAG 違反がない', async ({ page }) => {
+test('検索条件の選択中状態に moderate 以上の WCAG 違反がない', async ({ page }) => {
   await mockSession(page);
   await mockEmptyLists(page);
   await mockReceiptsData(page);
@@ -435,14 +424,17 @@ test('フィルター展開時に moderate 以上の WCAG 違反がない', asyn
     await page.goto('/receipts');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
-    await openReceiptRail(page);
-    const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible').first();
-    if ((await header.getAttribute('aria-expanded')) === 'false') {
-      await header.click();
-      await page.waitForTimeout(300);
-    }
-    await expect(header).toHaveAttribute('aria-expanded', 'true');
-    await scanAxe(page, `フィルター展開(${name})`);
+    await expect(page.getByRole('search')).toBeVisible({ timeout: 10000 });
+    await scanAxe(page, `取引明細の検索(${name})`);
+    await page.goto('/receipts/conditions');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(400);
+    // 選択項目はデータ到着まで出ないので、選択ゲージがある時にだけスキャンする
+    await expect(page.getByRole('button', { name: 'SBI証券', exact: true })).toBeVisible({
+      timeout: 10000,
+    });
+    await page.getByRole('button', { name: 'SBI証券', exact: true }).click();
+    await scanAxe(page, `検索条件(${name})`);
     await page.goto('/assetbalance');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
@@ -494,7 +486,6 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await page.setViewportSize(PC);
   await page.goto('/receipts');
   await page.waitForLoadState('networkidle');
-  await openReceiptRail(page);
 
   const dividendTab = page.locator('button[role="tab"][id="tab-dividend"]');
   const domesticTab = page.locator('button[role="tab"][id="tab-domesticstock"]');
@@ -511,17 +502,10 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await page.keyboard.press('Space');
   await expect(dividendTab).toHaveAttribute('aria-selected', 'true');
 
-  const header = page.locator('[data-testid="search-card-header"]:visible, [data-testid="receipt-search-toggle"]:visible').first();
-  await tabTo(page, header);
-  await expect(header).toBeFocused();
-  const before = await header.getAttribute('aria-expanded');
-  await page.keyboard.press('Enter');
-  await expect(header).toHaveAttribute(
-    'aria-expanded',
-    before === 'true' ? 'false' : 'true',
-  );
-  await page.keyboard.press('Space');
-  await expect(header).toHaveAttribute('aria-expanded', before);
+  // 一覧の直上の検索欄と条件の解除は Tab で辿れる
+  const search = page.getByRole('search', { name: '取引明細の検索' }).getByRole('searchbox');
+  await tabTo(page, search);
+  await expect(search).toBeFocused();
 
   // CSV 操作は専用ページに移った。ファイル選択と削除導線を Tab で辿る
   await page.goto('/receipts/csv?kind=dividend');
@@ -574,15 +558,13 @@ test('フォーカスが見えてスキップリンクが使える', async ({ pa
   const skipBox = await skip.boundingBox();
   expect(skipBox).not.toBeNull();
   expect(skipBox!.height).toBeGreaterThan(24);
+  // 順序は スキップ → ロゴ → グローバルナビ → アカウント → ページ見出しの横のリンク
   const csvLink = page.getByRole('link', { name: 'CSV管理' });
-  await page.keyboard.press('Tab');
+  await tabTo(page, page.getByRole('link', { name: '証券Web トップ' }));
+  await tabTo(page, page.getByRole('link', { name: '取引明細' }));
+  await tabTo(page, page.getByRole('button', { name: 'メニュー' }));
+  await tabTo(page, csvLink);
   await expect(csvLink).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'メニュー' })).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  await expect(csvLink).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  await expect(skip).toBeFocused();
 
   await page.click('button[role="tab"][id="tab-dividend"]');
   await page.keyboard.press('Tab');

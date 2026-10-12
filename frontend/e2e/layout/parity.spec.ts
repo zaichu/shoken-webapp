@@ -160,16 +160,6 @@ async function expectAssetDataLoaded(page: Page) {
   ).toBeVisible();
 }
 
-// データがあるとパネルは畳んだ状態で始まるので、パネル内の UI に触れる前に開く
-async function openReceiptUtilityRail(page: Page) {
-  const toggle = page.getByTestId('receipt-utility-toggle');
-  await expect(toggle).toBeVisible();
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
-    await toggle.click();
-  }
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-}
-
 async function selectReceiptTab(page: Page, tab: ReceiptTab) {
   const button = page.getByRole('tab', { name: tab.name });
   await button.click();
@@ -227,32 +217,16 @@ async function gotoFilteredEmptyAssetBalance(page: Page) {
 }
 
 async function expectReceiptsErrorLayout(page: Page, width: number) {
-  const rail = page.getByTestId('receipt-utility-rail');
-  const main = page.getByTestId('receipt-main-stage');
+  const main = page.getByTestId('receipts-workspace');
   const alert = main.getByRole('alert');
   await expect(alert).toBeVisible();
   await expect(alert).not.toBeEmpty();
   await expect(page.getByRole('alert')).toHaveCount(1);
-  // 狭い帯ではパネルが畳んで始まるので、先にドロワーを開ける
-  if (width < 1024) {
-    await openReceiptUtilityRail(page);
-  }
-  const searchCard = rail.getByTestId('search-card-compact');
-  if (width < 640) {
-    const toggle = rail.getByTestId('receipt-search-toggle');
-    await expect(toggle).toBeVisible();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(searchCard).toBeHidden();
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(searchCard).toBeVisible();
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(searchCard).toBeHidden();
-  } else {
-    await expect(searchCard).toBeVisible();
-  }
   await expect(main.getByTestId('receipt-card')).toHaveCount(0);
+  // 検索は常に画面下手前にあるのでどの幅でも残る
+  if (width < 1024) {
+    await expect(page.getByPlaceholder('銘柄名・コード')).toBeVisible();
+  }
 }
 
 test.beforeEach(async ({ context }) => {
@@ -275,8 +249,7 @@ test('口座検索で絞り込んでも表が収まり該当データが残る',
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/receipts');
   await selectReceiptTab(page, TABS[1]);
-  await openReceiptUtilityRail(page);
-  await page.getByTestId('search-card').getByRole('button', { name: '特定口座', exact: true }).click();
+  await page.getByRole('button', { name: '特定口座', exact: true }).click();
   const table = page.getByRole('table');
   await expect(table).toContainText('特定口座');
   await expect(table).not.toContainText('NISA口座');

@@ -293,19 +293,15 @@
     box-shadow: inset 0 -2px 0 var(--color-accent-strong);
   }
 
-  /* PC 用取引明細ページのスタイル */
-  .pc-receipts {
-    @apply pt-4;
-  }
-
   /* 取引明細の本文列。スマホは全幅のまま、PC だけページ枠の余白と最大幅を持つ */
   .receipts-gutter {
-    @apply mx-auto w-full max-w-[96rem];
+    @apply mx-auto w-full;
   }
 
   @media (width >= 64rem) {
     .receipts-gutter {
-      @apply px-[clamp(1rem,3.5vw,3rem)];
+      max-width: 96rem;
+      padding-inline: clamp(1rem, 3.5vw, 3rem);
     }
   }
 
@@ -656,16 +652,6 @@
 
   .summary-strip-item {
     @apply min-w-0 py-1;
-  }
-
-  .receipts-tab-list {
-    @apply inline-flex gap-0.5 bg-segment p-[3px] rounded-lg max-w-full;
-  }
-
-  @media (width < 40rem) {
-    .receipts-tab-list {
-      @apply grid grid-cols-3;
-    }
   }
 
   .copyable-name {
