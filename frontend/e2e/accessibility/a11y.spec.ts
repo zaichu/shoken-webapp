@@ -566,7 +566,8 @@ test('フォーカスが見えてスキップリンクが使える', async ({ pa
   await tabTo(page, csvLink);
   await expect(csvLink).toBeFocused();
 
-  await page.click('button[role="tab"][id="tab-dividend"]');
+  // キーボードでタブへ移動した次の要素にもフォーカス表示が出る
+  await tabTo(page, page.locator('button[role="tab"][id="tab-dividend"]'));
   await page.keyboard.press('Tab');
   const outline = await page.evaluate(() => {
     const el = document.activeElement;

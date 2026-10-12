@@ -1,4 +1,4 @@
-use crate::ui::site::{AccountMenu, NAV_ITEMS};
+use crate::ui::site::{AccountMenu, NAV_ITEMS, NavLink};
 use leptos::prelude::*;
 
 /// PC 用ヘッダー: ロゴ・グローバルナビ・アカウントメニュー
@@ -20,24 +20,7 @@ fn PcHeader() -> impl IntoView {
                 </a>
                 <nav class="flex gap-1 h-14" aria-label="メインナビゲーション">
                     {NAV_ITEMS.iter().map(|(to, label)| {
-                        let to = *to;
-                        let label = *label;
-                        view! {
-                            <a
-                                href=to
-                                class="pc-nav-link"
-                                aria-current=move || {
-                                    let path = leptos::web_sys::window()
-                                        .and_then(|w| w.location().pathname().ok())
-                                        .unwrap_or_default();
-                                    let path = path.split(['?', '#']).next().unwrap_or(&path);
-                                    if to == "/" { path == "/" } else { path == to || path.starts_with(&format!("{to}/")) }
-                                        .then_some("page")
-                                }
-                            >
-                                {label}
-                            </a>
-                        }
+                        view! { <NavLink to=*to label=*label class="pc-nav-link" /> }
                     }).collect_view()}
                 </nav>
                 <div class="ml-auto flex items-center gap-2">
@@ -80,7 +63,7 @@ pub fn PageFrame(
         <div class="page-frame">
             <PcHeader />
             <header class="page-frame-head">
-                <div class="page-gutter flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
+                <div class="page-gutter flex flex-wrap items-center gap-x-4 gap-y-1">
                     <h1 class="page-frame-title order-1 shrink-0">{title}</h1>
                     <div class="order-3 w-full min-w-0 lg:order-2 lg:w-auto">
                         {title_row.map(|row| row())}

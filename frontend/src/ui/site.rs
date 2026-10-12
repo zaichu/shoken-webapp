@@ -45,6 +45,26 @@ fn current_path() -> RwSignal<String> {
         .unwrap_or_else(|| RwSignal::new(current_location()))
 }
 
+/// ナビのリンク。現在ページを指すものだけ aria-current を付ける
+#[component]
+pub fn NavLink(
+    #[prop(into)] to: String,
+    #[prop(into)] label: String,
+    class: &'static str,
+) -> impl IntoView {
+    let path = current_path();
+    let href = to.clone();
+    view! {
+        <a
+            href=href
+            class=class
+            aria-current=move || is_nav_active(&path.get(), &to).then_some("page")
+        >
+            {label}
+        </a>
+    }
+}
+
 /// 文字付きの下部ナビ。主要4ページへ1タップで移動できる
 #[component]
 pub fn BottomNav(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
