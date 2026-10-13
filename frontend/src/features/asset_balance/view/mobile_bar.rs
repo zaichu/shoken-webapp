@@ -14,10 +14,14 @@ pub fn AssetMobileActionBar(
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
-    let search_open = RwSignal::new(false);
+    // 検索語はページ側の状態として画面遷移や他の入力欄をまたいで残るので、
+    // 絞り込み中は必ず検索欄を開く(閉じたまま一覧だけが減る状態を作らない)
+    let search_requested = RwSignal::new(false);
+    let search_open = Signal::derive(move || search_requested.get() || !query.get().is_empty());
     let input_ref = NodeRef::<html::Input>::new();
+    // フォーカスは利用者が開いたときだけ。検索語による自動表示では奪わない
     Effect::new(move |_| {
-        if search_open.get()
+        if search_requested.get()
             && let Some(input) = input_ref.get()
         {
             let _ = input.focus();
@@ -71,7 +75,11 @@ pub fn AssetMobileActionBar(
                                                 class="shrink-0 self-center".to_string()
                                                 aria_label="検索を解除".to_string()
                                                 testid="asset-search-clear"
-                                                on_click=move |_| query.set(String::new())
+                                                on_click=move |_| {
+                                                    // 消しても欄は開いたままにし、続けて次の語を入れられるようにする
+                                                    search_requested.set(true);
+                                                    query.set(String::new())
+                                                }
                                             >
                                                 "消去"
                                             </Button>
@@ -102,7 +110,16 @@ pub fn AssetMobileActionBar(
                     aria_expanded=Signal::derive(move || search_open.get())
                     aria_controls="asset-mobile-search"
                     testid="asset-filter-toggle"
-                    on_click=move |_| search_open.update(|open| *open = !*open)
+                    on_click=move |_| {
+                        if search_open.get() {
+                            // 閉じる=絞り込み解除。検索語を残すと絞り込み中なのに
+                            // 検索欄も件数も見えない状態になるため消す
+                            search_requested.set(false);
+                            query.set(String::new());
+                        } else {
+                            search_requested.set(true);
+                        }
+                    }
                 >
                     <svg
                         class="h-4 w-4"

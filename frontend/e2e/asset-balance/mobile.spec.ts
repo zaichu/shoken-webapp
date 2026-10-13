@@ -152,6 +152,11 @@ test('一覧に無い文字列を入れるとフィルタ済み空状態と解�
   await expect(
     page.getByRole('button', { name: '絞り込みを解除' }),
   ).toBeVisible();
+
+  // 閉じると絞り込みも解除され一覧が戻る(閉じたまま絞り込みだけ残さない)
+  await page.getByTestId('asset-filter-toggle').click();
+  await expect(page.getByTestId('asset-search-input')).toHaveCount(0);
+  await expect(page.getByTestId('asset-compact-row').first()).toBeVisible();
 });
 
 test('1023px ではモバイル表示、1024px でPC表示に切り替わる', async ({ page }) => {
