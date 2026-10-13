@@ -84,36 +84,10 @@ pub fn CsvManagePage<S: CsvSource>(
             None
         }
     });
-    let save_label = Memo::new(move |_| source.csv_meta().save_label(source.save_action()));
-    let save_disabled = Memo::new(move |_| {
-        let meta = source.csv_meta();
-        !source.is_authenticated() || meta.file_name.is_none() || source.save_disabled(&meta)
-    });
-    let discard_disabled = Memo::new(move |_| {
-        let meta = source.csv_meta();
-        meta.file_name.is_none() || meta.busy()
-    });
-    let save = source;
-    let discard = source;
+    // スマホは下部の常設操作帯、PC は操作帯を出さず本文の末尾に同じボタンを置く
     let action_bar = view! {
         <div class="flex gap-2 py-2">
-            <Button
-                variant=ButtonVariant::Secondary(ButtonSize::Md)
-                disabled=move || discard_disabled.get()
-                aria_disabled=move || discard_disabled.get()
-                on_click=move |_| discard.discard_csv()
-            >
-                "プレビューを破棄"
-            </Button>
-            <Button
-                variant=ButtonVariant::Primary(ButtonSize::Md)
-                class="flex-1"
-                disabled=move || save_disabled.get()
-                aria_disabled=move || save_disabled.get()
-                on_click=move |_| save.save_csv()
-            >
-                {move || save_label.get()}
-            </Button>
+            <CsvActions source=source />
         </div>
     }
     .into_any();
@@ -124,6 +98,7 @@ pub fn CsvManagePage<S: CsvSource>(
             back_href=back_href
             back_label="一覧に戻る"
             action_bar=action_bar
+            action_bar_mobile_only=true
         >
             <div class="flex flex-col gap-4">
                 <p class="text-sm text-text-soft">
@@ -190,8 +165,46 @@ pub fn CsvManagePage<S: CsvSource>(
                         </LinkButton>
                     </div>
                 </section>
+                <div class="hidden gap-2 lg:flex">
+                    <CsvActions source=source />
+                </div>
             </div>
         </PageFrame>
+    }
+}
+
+/// プレビューの破棄と保存。スマホは下部操作帯、PC は本文末尾に同じボタンを出す
+#[component]
+fn CsvActions<S: CsvSource>(source: S) -> impl IntoView {
+    let save_label = Memo::new(move |_| source.csv_meta().save_label(source.save_action()));
+    let save_disabled = Memo::new(move |_| {
+        let meta = source.csv_meta();
+        !source.is_authenticated() || meta.file_name.is_none() || source.save_disabled(&meta)
+    });
+    let discard_disabled = Memo::new(move |_| {
+        let meta = source.csv_meta();
+        meta.file_name.is_none() || meta.busy()
+    });
+    let save = source;
+    let discard = source;
+    view! {
+        <Button
+            variant=ButtonVariant::Secondary(ButtonSize::Md)
+            disabled=move || discard_disabled.get()
+            aria_disabled=move || discard_disabled.get()
+            on_click=move |_| discard.discard_csv()
+        >
+            "プレビューを破棄"
+        </Button>
+        <Button
+            variant=ButtonVariant::Primary(ButtonSize::Md)
+            class="flex-1 lg:flex-none"
+            disabled=move || save_disabled.get()
+            aria_disabled=move || save_disabled.get()
+            on_click=move |_| save.save_csv()
+        >
+            {move || save_label.get()}
+        </Button>
     }
 }
 

@@ -31,14 +31,9 @@ exclude_re = [
     "focus_tab",
     "scroll_tab_into_view",
     "card_detail_view",
-    # window.innerWidth / matchMedia 境界。ネイティブテストでは window が無く
+    # window.innerWidth 境界。ネイティブテストでは window が無く
     # 単体テストから状態を観測できない
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: replace workspace_panel_default_open -> bool with",
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: replace is_compact_viewport -> bool with",
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: delete ! in is_compact_viewport",
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: replace (&&|==) with (\\|\\||!=) in WorkspaceShell",
-    # hidden 属性/DOM 境界。非 wasm の単体テストではレンダリング結果を観測できない
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: delete ! in WorkspaceShell",
+    "src/features/receipts/store\\.rs:\\d+:\\d+: replace utility_rail_default_open -> bool with",
     # web_sys::Element (ResizeObserver) 境界。ネイティブテストでは window/document が無いため
     # 単体テストから状態を観測できない
     "src/features/receipts/view/table\\.rs:\\d+:\\d+: replace site_header -> Option<web_sys::Element> with",

@@ -126,7 +126,7 @@ src/
 | --- | --- | --- |
 | `Button` / `IconButton`(`ui/button.rs`) | すべての `<button>` | 大きさを持つ variant は `Primary(ButtonSize)`・`Secondary(ButtonSize)`・`SecondarySoft(ButtonSize)`・`DangerSolid(ButtonSize)`・`Header(ButtonSize)`。それ以外は DangerGhost・Ghost・Quiet・Prompt・Login・SearchSubmit・Retry・MenuItem・MenuItemDanger・CopyName(size は持たない)。IconButton はモーダルの閉じるボタン(variant なし) |
 | `LinkButton`(同) | ボタンの見た目の遷移リンク(`<a>`) | ButtonVariant を共有 |
-| `Card`(`ui/card.rs`) | カード状の面 | Panel・Login・Table・Collapsible・Feature(href で `<a>`)・Shell・Soft・Item・Group・Holding・Sunken・Strip・DashedCompact・Tile・GroupLabel |
+| `Card`(`ui/card.rs`) | カード状の面 | Panel・Login・Table・Collapsible・Shell・Soft・Item・Group・Holding・Sunken・Strip・DashedCompact・GroupLabel |
 | `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | Rail・GroupCard・HeaderFlat・AssetCard・SearchCard。`hint=true` で末尾に「開く/閉じる」 |
 | `EmptyState`(`ui/empty_state.rs`) | データが空の画面 | `icon`・`as_h1`・children(次の行動)を持つ |
 | `Badge` / `CodeBadge`(`ui/badge.rs`) | 押せない小さなバッジ | Accent・AccentFlat・Info・Positive |
@@ -138,7 +138,6 @@ src/
 | `CsvSection`(`ui/csv_section.rs`) / `CsvActionRail`(`ui/csv_rail.rs`) | CSV の選択・保存・結果・削除欄 | CsvSource が状態と操作を渡し、配線とマークアップを共有する |
 | `CsvPreviewBanner` / `CsvPreviewNotice`(`ui/csv_preview.rs`) | 未保存のプレビュー・行エラーの通知 | 保存操作と有効行数に合わせた通知。variant なし |
 | `ConfirmDeleteModal`(`ui/confirm_modal.rs`) | 削除確認ダイアログ | フォーカスの閉じ込め、処理中の閉じ操作無効化。item_count は任意 |
-| `WorkspaceShell`(`ui/workspace_shell.rs`) | サイドパネルと本文の配置 | collapsible でドロワーと常時表示を切り替える |
 | `SecurityCodeLink` / `CopyableInstrumentName`(`ui/security_link.rs`) | 銘柄コードの遷移と銘柄名コピー | SecurityLinkVariant は Code・Details |
 | `SiteHeader` / `SiteFooter`(`ui/site.rs`) | サイト共通のナビゲーション・ユーザーメニュー・フッター | URL と SPA 遷移は app.rs が持つ |
 
