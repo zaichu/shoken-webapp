@@ -381,6 +381,7 @@
   .receipt-summary-grid {
     @apply grid items-center gap-x-3 px-4 pb-3 pt-1;
     grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
   }
 
   /* dl 直下の div は dt/dd しか入れられないため、副項目のまとまりは
@@ -439,6 +440,7 @@
 
     .receipt-summary-grid {
       grid-template-columns: 1.3fr 1fr 1fr;
+      grid-template-rows: auto;
       padding: 18px 8px;
     }
 
