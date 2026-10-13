@@ -1,7 +1,7 @@
 use crate::features::receipts::kind::{CardFields, CardRole};
 use crate::features::receipts::{ReceiptCell, ReceiptsTab};
 use crate::ui::amount::Amount;
-use crate::ui::badge::CodeBadge;
+use crate::ui::badge::{AccountBadge, CodeBadge};
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
@@ -304,7 +304,7 @@ fn CompactReceiptRow(
                         </>
                     })}
                     <span aria-hidden="true">" · "</span>
-                    <span>{account}</span>
+                    <AccountBadge label=account />
                     {(!quantity.is_empty()).then(|| view! {
                         <>
                             <span aria-hidden="true">" · "</span>

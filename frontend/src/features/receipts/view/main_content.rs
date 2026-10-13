@@ -3,7 +3,7 @@ use crate::features::receipts::dividend_info::{
 };
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::kind::dividend_totals;
-use crate::features::receipts::view::{ReceiptTable, SummaryStrip};
+use crate::features::receipts::view::{ReceiptTable, ReceiptsActiveBand, SummaryStrip};
 use crate::features::receipts::{
     ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState, truncated_list_warning,
 };
@@ -177,14 +177,17 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
             TabState::Ready(_) if show_dividend_info.get() => {
                 view! {
                     <div class="flex flex-col gap-3">
-                        <section id="receipts-summary">
-                            <DividendSummarySection
-                                store=dividend_info.unwrap()
-                                totals=dividend_totals_val.get().unwrap()
-                                expanded=summary_expanded
-                                mobile_expanded=store.mobile_summary_expanded
-                            />
-                        </section>
+                        <div class="receipts-sticky-top">
+                            <section id="receipts-summary">
+                                <DividendSummarySection
+                                    store=dividend_info.unwrap()
+                                    totals=dividend_totals_val.get().unwrap()
+                                    expanded=summary_expanded
+                                    mobile_expanded=store.mobile_summary_expanded
+                                />
+                            </section>
+                            <ReceiptsActiveBand store=store tab=tab />
+                        </div>
                         <section id="receipts-list">
                             <ReceiptTable
                                 tab=tab
@@ -202,11 +205,14 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
             TabState::Ready(_) => {
                 view! {
                     <div class="flex flex-col gap-3">
-                        <section id="receipts-summary">
-                            <Show when=move || header.get().is_some() fallback=|| ()>
-                                {move || header.get().map(|h| view! { <SummaryStrip items=h expanded=store.mobile_summary_expanded /> })}
-                            </Show>
-                        </section>
+                        <div class="receipts-sticky-top">
+                            <section id="receipts-summary">
+                                <Show when=move || header.get().is_some() fallback=|| ()>
+                                    {move || header.get().map(|h| view! { <SummaryStrip items=h expanded=store.mobile_summary_expanded /> })}
+                                </Show>
+                            </section>
+                            <ReceiptsActiveBand store=store tab=tab />
+                        </div>
                         <section id="receipts-list">
                             <ReceiptTable
                                 tab=tab

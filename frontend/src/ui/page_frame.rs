@@ -7,16 +7,16 @@ fn PcHeader() -> impl IntoView {
     view! {
         <header class="pc-header no-print hidden lg:flex">
             <div class="page-gutter flex items-center gap-8 h-14">
-                <a href="/" class="flex items-center gap-2 no-underline" aria-label="証券Web トップ">
+                <a href="/" class="flex items-center gap-2.5 no-underline" aria-label="証券Web トップ">
                     <div class="header-logo" aria-hidden="true">
-                        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                            <rect x="1" y="1" width="24" height="24" rx="6" fill="#0F2A4A"/>
-                            <rect x="6" y="14" width="4" height="6" rx="1" fill="#F2B33D"/>
-                            <rect x="11" y="10" width="4" height="10" rx="1" fill="#F2B33D"/>
-                            <rect x="16" y="6" width="4" height="14" rx="1" fill="#F2B33D"/>
+                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <rect width="28" height="28" rx="7" fill="#FFFFFF"/>
+                            <rect x="7" y="17" width="4" height="6" rx="1" fill="#F2B33D"/>
+                            <rect x="12" y="12" width="4" height="11" rx="1" fill="#F2B33D"/>
+                            <rect x="17" y="7" width="4" height="16" rx="1" fill="#F2B33D"/>
                         </svg>
                     </div>
-                    <span class="text-base font-bold text-ink">証券Web</span>
+                    <span class="text-base font-bold text-text-inverse">証券Web</span>
                 </a>
                 <nav class="flex gap-1 h-14" aria-label="メインナビゲーション">
                     {NAV_ITEMS.iter().map(|(to, label)| {
@@ -63,7 +63,7 @@ pub fn PageFrame(
         <div class="page-frame">
             <PcHeader />
             <header class="page-frame-head no-print">
-                <div class="page-gutter flex flex-wrap items-center gap-x-4 gap-y-1">
+                <div class="page-gutter flex flex-wrap items-center gap-x-4 gap-y-2">
                     <h1 class="page-frame-title order-1 shrink-0">{title}</h1>
                     <div class="order-3 w-full min-w-0 lg:order-2 lg:w-auto">
                         {title_row.map(|row| row())}

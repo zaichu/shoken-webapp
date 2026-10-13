@@ -6,10 +6,12 @@ use leptos::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ButtonVariant {
-    /// 黒塗りの主ボタン
+    /// 紺塗りの主ボタン
     Primary(ButtonSize),
     /// 枠線の副ボタン
     Secondary(ButtonSize),
+    /// 紺のヘッダー上の枠線ボタン(PC・スマホの上部帯)
+    Header(ButtonSize),
     /// 文字色を落とした副ボタン(絞り込みの解除など)
     SecondarySoft(ButtonSize),
     /// 赤塗りの危険確定ボタン(確認モーダル)
@@ -58,7 +60,11 @@ impl ButtonVariant {
     fn classes(self) -> String {
         match self {
             Self::Primary(size) => sized(
-                "border border-ink bg-ink text-text-inverse shadow-edge-lit hover:bg-ink-hover active:bg-ink",
+                "border border-brand bg-brand text-text-inverse shadow-edge-lit hover:bg-brand-deep active:bg-brand-deep",
+                size,
+            ),
+            Self::Header(size) => sized(
+                "border border-brand-border bg-transparent text-text-inverse hover:bg-brand-deep",
                 size,
             ),
             Self::Secondary(size) => sized(

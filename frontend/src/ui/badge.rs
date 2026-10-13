@@ -30,6 +30,17 @@ pub fn Badge(variant: BadgeVariant, children: Children) -> impl IntoView {
     view! { <span class=variant.class()>{children()}</span> }
 }
 
+/// 口座区分のバッジ。文字に NISA を含むものだけ琥珀配色にする
+#[component]
+pub fn AccountBadge(#[prop(into)] label: String) -> impl IntoView {
+    let class = if label.contains("NISA") {
+        "account-badge account-badge-nisa"
+    } else {
+        "account-badge"
+    };
+    view! { <span class=class>{label}</span> }
+}
+
 #[component]
 pub fn CodeBadge(
     #[prop(optional)] flush: bool,

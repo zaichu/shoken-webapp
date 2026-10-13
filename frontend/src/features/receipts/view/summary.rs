@@ -37,19 +37,15 @@ pub fn header_summary(
         .collect()
 }
 
-pub fn kpi_value_color(tone: StatTone) -> &'static str {
-    match tone {
-        StatTone::Loss => "text-negative",
-        StatTone::Neutral => "text-text",
-    }
-}
-
 #[component]
 pub fn SummaryStrip(
     items: Vec<(&'static str, Decimal, StatTone)>,
     expanded: RwSignal<bool>,
 ) -> impl IntoView {
     let _ = expanded;
+    // 見本では主値(税引後)を金の見出しで先頭に大きく出す。items の末尾が主値
+    let mut secondary = items;
+    let primary = secondary.pop();
     view! {
         <section
             data-testid="receipt-summary-strip"
@@ -58,30 +54,42 @@ pub fn SummaryStrip(
             class="receipt-summary"
         >
             <dl class="receipt-summary-grid" data-testid="kpi-grid">
-                {items
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value, tone))| {
+                {primary
+                    .map(|(label, value, tone)| {
                         let negative = matches!(tone, StatTone::Loss);
-                        let item_class = if index == 2 {
-                            "receipt-summary-item receipt-summary-item-primary"
-                        } else {
-                            "receipt-summary-item"
-                        };
                         view! {
-                            <div class=item_class>
+                            <div class="receipt-summary-item receipt-summary-item-primary">
                                 <dt>{label}</dt>
                                 <dd>
                                     <Amount
                                         text=format_currency(value)
-                                        class=format!("receipt-summary-amount {}", kpi_value_color(tone))
+                                        class="receipt-summary-primary-amount"
                                         negative=negative
                                     />
                                 </dd>
                             </div>
                         }
-                    })
-                    .collect_view()}
+                    })}
+                <div class="receipt-summary-secondary">
+                    {secondary
+                        .into_iter()
+                        .map(|(label, value, tone)| {
+                            let negative = matches!(tone, StatTone::Loss);
+                            view! {
+                                <div class="receipt-summary-item">
+                                    <dt>{label}</dt>
+                                    <dd>
+                                        <Amount
+                                            text=format_currency(value)
+                                            class="receipt-summary-amount"
+                                            negative=negative
+                                        />
+                                    </dd>
+                                </div>
+                            }
+                        })
+                        .collect_view()}
+                </div>
             </dl>
         </section>
     }

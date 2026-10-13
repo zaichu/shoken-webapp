@@ -50,7 +50,7 @@ fn ConditionSection(
                             class=move || format!(
                                 "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
                                 if is_selected() {
-                                    "bg-info-soft border border-info-border text-info"
+                                    "bg-surface border border-brand text-brand"
                                 } else {
                                     "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
                                 }
@@ -94,7 +94,7 @@ fn DateSegmentSelector(
                             class=move || format!(
                                 "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
                                 if is_selected() {
-                                    "bg-info-soft border border-info-border text-info"
+                                    "bg-surface border border-brand text-brand"
                                 } else {
                                     "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
                                 }
@@ -162,7 +162,7 @@ fn YearPicker(
                                 class=move || format!(
                                     "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
                                     if selected.get() {
-                                        "bg-info-soft border border-info-border text-info"
+                                        "bg-surface border border-brand text-brand"
                                     } else {
                                         "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
                                     }
@@ -206,7 +206,7 @@ fn MonthPicker(
                                         class=move || format!(
                                             "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
                                             if is_selected() {
-                                                "bg-info-soft border border-info-border text-info"
+                                                "bg-surface border border-brand text-brand"
                                             } else {
                                                 "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
                                             }
