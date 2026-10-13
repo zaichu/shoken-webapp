@@ -1,6 +1,7 @@
 use crate::features::asset_balance::format::{
-    format_currency, format_signed_valuation_amount, format_signed_valuation_rate,
-    format_valuation_amount, is_negative_valuation,
+    format_currency, format_price_date, format_signed_valuation_amount,
+    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
+    is_positive_valuation,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_yield, holding_dividend,
@@ -10,7 +11,6 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
 
@@ -65,7 +65,7 @@ fn SortHeader(
                 on_click=on_click
             >
                 {label}
-                {arrow}
+                <span class="asset-sort-arrow">{arrow}</span>
             </Button>
         </th>
     }
@@ -90,7 +90,7 @@ pub fn AssetHoldingsTable(
                         <SortHeader label="評価額" key=SortKey::MarketValue sort_key=sort_key sort_order=sort_order />
                         <SortHeader label="含み損益" key=SortKey::ProfitLoss sort_key=sort_key sort_order=sort_order />
                         <SortHeader label="年間配当" key=SortKey::Dividend sort_key=sort_key sort_order=sort_order />
-                        <SortHeader label="利回り" key=SortKey::Yield sort_key=sort_key sort_order=sort_order />
+                        <SortHeader label="取得額利回り" key=SortKey::Yield sort_key=sort_key sort_order=sort_order />
                     </tr>
                 </thead>
                 <tbody>
@@ -109,6 +109,15 @@ pub fn AssetHoldingsTable(
                             let pnl_negative = is_negative_valuation(
                                 valuation.profit_loss.amount,
                             );
+                            let (pnl_text_class, pnl_badge_class) = if pnl_negative {
+                                ("text-negative", "asset-badge asset-badge-loss")
+                            } else if is_positive_valuation(valuation.profit_loss.amount) {
+                                ("text-positive", "asset-badge asset-badge-gain")
+                            } else {
+                                ("text-text-soft", "asset-badge")
+                            };
+                            let price_date_text =
+                                view.price_as_of.as_deref().map(format_price_date);
                             let dividend = holding_dividend(
                                 &view.code,
                                 view.shares,
@@ -145,7 +154,7 @@ pub fn AssetHoldingsTable(
                                             None => name_cell.into_any(),
                                         }}
                                     </td>
-                                    <td class="text-right tabular-nums">
+                                    <td class="text-right tabular-nums text-text-soft">
                                         {format!("{}株", format_number_value(view.shares))}
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
@@ -153,19 +162,37 @@ pub fn AssetHoldingsTable(
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
                                         {format_currency(view.current_price)}
+                                        {price_date_text.map(|date| {
+                                            view! {
+                                                <div class="asset-price-date">{date}</div>
+                                            }
+                                        })
+                                    }
                                     </td>
-                                    <td class="text-right font-bold tabular-nums">{market_text}</td>
-                                    <td
-                                        class="text-right tabular-nums"
-                                        data-negative=pnl_negative.then_some("true")
-                                    >
-                                        <Amount text=pnl_text negative=pnl_negative />
-                                        <span class="ml-1 text-xs tabular-nums">
-                                            {pnl_rate_text}
-                                        </span>
+                                    <td class="text-right font-bold tabular-nums text-brand">{market_text}</td>
+                                    <td class="text-right tabular-nums">
+                                        {if valuation.profit_loss.amount.is_some() {
+                                            let rate_badge = valuation.profit_loss.rate.is_some().then(|| {
+                                                view! {
+                                                    " "
+                                                    <span class=pnl_badge_class>
+                                                        {pnl_rate_text.clone()}
+                                                    </span>
+                                                }
+                                            });
+                                            view! {
+                                                <span class=format!("font-bold tabular-nums {pnl_text_class}")>
+                                                    {pnl_text}
+                                                </span>
+                                                {rate_badge}
+                                            }
+                                                .into_any()
+                                        } else {
+                                            view! { "—" }.into_any()
+                                        }}
                                     </td>
                                     <td class="text-right tabular-nums">{dividend_annual}</td>
-                                    <td class="text-right tabular-nums">{dividend_yield}</td>
+                                    <td class="text-right tabular-nums text-brand">{dividend_yield}</td>
                                 </tr>
                             }
                         })

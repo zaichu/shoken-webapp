@@ -76,7 +76,7 @@ test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計の�
 
   await page.goto('/assetbalance');
 
-  const kpi = page.getByTestId('portfolio-kpi-strip');
+  const kpi = page.getByTestId('portfolio-kpi-grid');
 
   // 取得済みの行から評価額合計・含み損益を計算する(API summary は使わない)
   await expect(kpi).toContainText('¥420,000');

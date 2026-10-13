@@ -12,6 +12,7 @@ use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, format_number_value,
     normalize_display_name, normalize_security_code, portfolio_valuation, total_purchase_amount,
 };
+use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, resolve_asset_balance};
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
@@ -404,6 +405,64 @@ fn negative_valuation_is_decided_by_rounded_amount() {
 }
 
 #[test]
+fn positive_valuation_is_decided_by_rounded_amount() {
+    assert!(is_positive_valuation(Some(0.5)));
+    assert!(!is_positive_valuation(Some(0.4)));
+    assert!(!is_positive_valuation(Some(0.0)));
+    assert!(!is_positive_valuation(Some(-1.0)));
+    assert!(!is_positive_valuation(None));
+    assert!(!is_positive_valuation(Some(f64::NAN)));
+}
+
+#[test]
+fn price_date_range_picks_min_and_max_dates() {
+    assert_eq!(
+        price_date_range(["2025-10-10", "2025-10-08", ""].into_iter()),
+        Some(("10/08".to_string(), "10/10".to_string()))
+    );
+    assert_eq!(
+        price_date_range(["2025-10-10"].into_iter()),
+        Some(("10/10".to_string(), "10/10".to_string()))
+    );
+    assert_eq!(price_date_range(std::iter::empty()), None);
+    assert_eq!(format_price_date("2025-10-10"), "10/10");
+    // 想定外の形式はそのまま返す
+    assert_eq!(format_price_date("不明"), "不明");
+    assert_eq!(format_price_date("24-10-10"), "24-10-10");
+    assert_eq!(format_price_date("-10-10"), "-10-10");
+    assert_eq!(format_price_date("2025-"), "2025-");
+}
+
+#[test]
+fn sort_key_value_round_trips() {
+    for key in SortKey::ALL {
+        assert_eq!(SortKey::from_value(key.value()), Some(key));
+        assert!(!key.label().is_empty());
+    }
+    assert_eq!(SortKey::from_value("unknown"), None);
+}
+
+#[test]
+fn sort_labels_distinguish_each_option() {
+    // 同じラベルが並ぶとドロップダウンと順序ボタンで項目を区別できない
+    let labels: Vec<&str> = SortKey::ALL.iter().map(|key| key.label()).collect();
+    for (index, label) in labels.iter().enumerate() {
+        assert!(!labels[..index].contains(label), "{label}");
+    }
+    assert_ne!(SortOrder::Asc.label(), SortOrder::Desc.label());
+    assert!(!SortOrder::Asc.label().is_empty());
+    assert!(!SortOrder::Desc.label().is_empty());
+}
+
+#[test]
+fn mobile_search_stays_open_while_query_is_active() {
+    // 語が残っている間に欄を閉じられると、一覧が減る理由が見えなくなる
+    assert!(super::mobile_bar::mobile_search_open(false, "トヨタ"));
+    assert!(!super::mobile_bar::mobile_search_open(false, ""));
+    assert!(super::mobile_bar::mobile_search_open(true, ""));
+}
+
+#[test]
 fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
     let owner = Owner::new();
     owner.with(|| {
@@ -512,6 +571,44 @@ fn list_subtitle_uses_api_totals_when_truncated() {
         let subtitle = super::summary::list_subtitle(&resolved);
         assert!(subtitle.starts_with("2銘柄"));
         assert!(subtitle.contains("価格なし銘柄"));
+        // 価格あり行の基準日を MM/DD にして出す
+        assert!(subtitle.contains("01/16"), "{subtitle}");
+    });
+}
+
+#[test]
+fn list_subtitle_excludes_unpriced_rows_from_price_dates() {
+    let owner = Owner::new();
+    owner.with(|| {
+        // 価格が出ていない行の日付は「その時点の株価」と結びつかないので範囲に混ぜない
+        let mut unpriced = balance_row(6758);
+        unpriced.current_price = rust_decimal_macros::dec!(0);
+        unpriced.price_as_of = Some("2024-01-01".to_string());
+        let resolved = ResolvedAssetBalance {
+            rows: vec![Row::Saved(balance_row(7203)), Row::Saved(unpriced)],
+            total: 2,
+            warning: None,
+            fallback_totals: None,
+        };
+        let subtitle = super::summary::list_subtitle(&resolved);
+        assert!(subtitle.contains("01/16"), "{subtitle}");
+        assert!(!subtitle.contains("01/01"), "{subtitle}");
+    });
+}
+
+#[test]
+fn list_subtitle_shows_single_date_when_all_rows_share_as_of() {
+    let owner = Owner::new();
+    owner.with(|| {
+        // 基準日が揃っているときは範囲ではなく単一の日付を出す
+        let resolved = ResolvedAssetBalance {
+            rows: vec![Row::Saved(balance_row(7203)), Row::Saved(balance_row(6758))],
+            total: 2,
+            warning: None,
+            fallback_totals: None,
+        };
+        let subtitle = super::summary::list_subtitle(&resolved);
+        assert!(!subtitle.contains("〜"), "{subtitle}");
     });
 }
 

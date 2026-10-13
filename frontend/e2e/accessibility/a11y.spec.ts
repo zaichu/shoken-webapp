@@ -438,10 +438,13 @@ test('検索条件の選択中状態に moderate 以上の WCAG 違反がない'
     await page.goto('/assetbalance');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
-    // 資産管理の検索入力はメイン領域に常時表示。行がある時だけ描画されるので
+    // 資産管理の検索入力は行がある時だけ描画されるので
     // 空・取得失敗だと入力欄が無くスキャンが黙って飛ばされる。
-    // PC はツールバー内の入力、モバイルは下部操作帯の入力が見える
+    // PC はツールバー内の入力が常時表示、モバイルは下部操作帯の「絞り込み」で開く
     const searchTestid = name === 'PC' ? 'asset-search-input-pc' : 'asset-search-input';
+    if (name !== 'PC') {
+      await page.getByTestId('asset-filter-toggle').click();
+    }
     await expect(page.getByTestId(searchTestid)).toBeVisible({ timeout: 10000 });
     await scanAxe(page, `資産フィルター(${name})`);
   }

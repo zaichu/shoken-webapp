@@ -1,7 +1,9 @@
 use crate::api::dto::AssetBalanceSummary;
+use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::format::{
     format_currency, format_percentage_value, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
+    is_positive_valuation, price_date_range,
 };
 use crate::features::asset_balance::holdings::holding_view;
 use crate::features::asset_balance::model::{
@@ -14,16 +16,17 @@ use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
+use rust_decimal::Decimal;
 
-pub(crate) fn market_note(has_unpriced: bool) -> String {
-    let mut note = "現在値の基準日は銘柄ごとに異なります".to_string();
+fn unpriced_suffix(has_unpriced: bool) -> &'static str {
     if has_unpriced {
-        note.push_str("・価格なし銘柄を除く");
+        "・価格なし銘柄を除く"
+    } else {
+        ""
     }
-    note
 }
 
-/// PC ヘッダー横の件数・注記。取得上限超過で行が欠けるときは API 集計側の件数・
+/// PC ヘッダー横の件数・基準日注記。取得上限超過で行が欠けるときは API 集計側の件数・
 /// 価格なし判定を使い、集計欄と食い違わないようにする
 pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
     let (count, has_unpriced) = match &view.fallback_totals {
@@ -37,7 +40,17 @@ pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
             (view.rows.len(), portfolio_valuation(&inputs).has_unpriced)
         }
     };
-    format!("{count}銘柄 · {}", market_note(has_unpriced))
+    let dates = view
+        .rows
+        .iter()
+        .filter(|row| row.current_price() > Decimal::ZERO)
+        .filter_map(|row| row.price_as_of());
+    let date_text = match price_date_range(dates) {
+        Some((min, max)) if min == max => format!("株価 {min} 時点(銘柄ごとの最新終値)"),
+        Some((min, max)) => format!("株価 {min}〜{max} 時点(銘柄ごとの最新終値)"),
+        None => "株価の基準日は不明".to_string(),
+    };
+    format!("{count}銘柄 · {date_text}{}", unpriced_suffix(has_unpriced))
 }
 
 #[component]
@@ -90,10 +103,16 @@ pub(crate) fn PortfolioSummary(
         Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
 
     let market_text = format_valuation_amount(valuation.market_value);
-    let market_note = market_note(valuation.has_unpriced);
     let pnl_text = format_signed_valuation_amount(valuation.profit_loss.amount);
     let pnl_note = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
-    let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
+    let has_pnl_rate = valuation.profit_loss.rate.is_some();
+    let pnl_tone = if is_negative_valuation(valuation.profit_loss.amount) {
+        "asset-summary-loss"
+    } else if is_positive_valuation(valuation.profit_loss.amount) {
+        "asset-summary-gain"
+    } else {
+        ""
+    };
     let dividend_text = Signal::derive(move || {
         kpi.get()
             .total_annual_dividends
@@ -104,55 +123,92 @@ pub(crate) fn PortfolioSummary(
             .dividend_yield
             .map_or("—".to_string(), format_percentage_value)
     });
+    let asof_text = {
+        let dates = all_views
+            .iter()
+            .filter(|view| view.current_price > 0.0)
+            .filter_map(|view| view.price_as_of.as_deref());
+        let base = match price_date_range(dates) {
+            Some((min, max)) if min == max => format!("株価 {min} 時点(銘柄ごと)"),
+            Some((min, max)) => format!("株価 {min}〜{max} 時点(銘柄ごと)"),
+            None => "株価の基準日は不明".to_string(),
+        };
+        format!("{base}{}", unpriced_suffix(valuation.has_unpriced))
+    };
 
     view! {
-        <section id="assetbalance-summary" class="lg:mb-3.5" data-testid="asset-portfolio-summary">
-            <div class="asset-summary" data-testid="portfolio-kpi-strip">
-                <dl class="asset-summary-grid" data-testid="portfolio-kpi-grid">
-                    <div class="asset-summary-item">
-                        <dt>"評価額合計"</dt>
-                        <dd>
-                            <Amount text=market_text class="asset-summary-amount".to_string() />
-                        </dd>
-                    </div>
-                    <div class="asset-summary-item">
-                        <dt>"含み損益"</dt>
-                        <dd
-                            class="flex flex-wrap items-baseline gap-x-1.5"
-                            data-negative=pnl_negative.then_some("true")
-                        >
-                            <Amount
-                                text=pnl_text
-                                negative=pnl_negative
-                                class="asset-summary-amount".to_string()
-                            />
-                            <span class="asset-summary-note">{format!("（{pnl_note}）")}</span>
-                        </dd>
-                    </div>
-                    <div class="asset-summary-item">
-                        <dt>"年間配当参考額"</dt>
-                        <dd>
-                            <Amount text=dividend_text class="asset-summary-amount-sm".to_string() />
-                        </dd>
-                    </div>
-                    <div class="asset-summary-item">
-                        <dt>"取得額基準利回り"</dt>
-                        <dd class="flex items-end justify-between gap-2">
-                            <Amount text=yield_text class="asset-summary-amount-sm".to_string() />
-                            <a
-                                href="/assetbalance/composition"
-                                class="-my-2 -mr-2 inline-flex min-h-11 shrink-0 items-center px-2 text-xs text-info no-underline hover:underline lg:hidden"
-                            >
-                                "構成比 ›"
-                            </a>
-                        </dd>
-                    </div>
-                </dl>
-                <p class="mt-1 text-xs font-medium text-text-muted lg:hidden">{market_note}</p>
-            </div>
+        <section
+            id="assetbalance-summary"
+            class="asset-summary"
+            role="region"
+            aria-label="集計"
+            data-testid="asset-portfolio-summary"
+        >
+            <p class="asset-summary-asof lg:hidden">{asof_text}</p>
+            <dl class="asset-summary-grid" data-testid="portfolio-kpi-grid">
+                <div class="asset-summary-item asset-summary-item-primary">
+                    <dt>"評価額合計"</dt>
+                    <dd>
+                        <Amount text=market_text class="asset-summary-primary-amount".to_string() />
+                    </dd>
+                </div>
+                <div class="asset-summary-item asset-summary-item-pnl">
+                    <dt class="sr-only lg:not-sr-only">"含み損益"</dt>
+                    <dd>
+                        <Amount
+                            text=pnl_text
+                            class=format!("asset-summary-pnl-amount {pnl_tone}")
+                        />
+                        {has_pnl_rate.then(move || {
+                            view! {
+                                <span class=format!("asset-summary-pnl-note {pnl_tone}")>
+                                    {pnl_note}
+                                </span>
+                            }
+                        })}
+                    </dd>
+                </div>
+                <div class="asset-summary-item asset-summary-item-sub1">
+                    <dt>"年間配当(予想)"</dt>
+                    <dd>
+                        <Amount text=dividend_text class="asset-summary-sub-amount".to_string() />
+                    </dd>
+                </div>
+                <div class="asset-summary-item asset-summary-item-sub2">
+                    <dt>"取得額利回り"</dt>
+                    <dd>
+                        <Amount text=yield_text class="asset-summary-sub-amount".to_string() />
+                    </dd>
+                </div>
+            </dl>
+            <a href="/assetbalance/composition" class="asset-summary-comp lg:hidden">
+                "構成比 ›"
+            </a>
+            <details class="asset-summary-basis lg:hidden">
+                <summary>"計算基準"</summary>
+                <div class="asset-summary-basis-body">
+                    "評価額 = 現在値 × 株数(価格なし銘柄は除く。株価の日付は銘柄ごとに違う)"
+                    <br />
+                    "年間配当 = 1株配当 × 株数(会社予想。なければ直近の実績)"
+                    <br />
+                    "取得額利回り = 年間配当 ÷ 取得総額"
+                </div>
+            </details>
+            <details class="asset-basis-pc hidden lg:block">
+                <summary>"計算基準を見る"</summary>
+                <div class="asset-basis-pc-body">
+                    "評価額 = 現在値 × 株数(価格なし銘柄は除く。現在値は銘柄ごとの最新終値で、日付は銘柄ごとに違い、表の「現在値」の下に表示)"
+                    <br />
+                    "含み損益 = 評価額 − 取得総額、率 = 含み損益 ÷ 取得総額(価格あり銘柄の合計どうし)"
+                    <br />
+                    "年間配当 = 1株配当 × 株数(1株配当は会社予想。なければ直近の実績)"
+                    <br />
+                    "取得額利回り = 年間配当 ÷ 取得総額。合計は全銘柄の年間配当の合計 ÷ 取得総額の合計"
+                </div>
+            </details>
             {views_empty.then(move || {
                 view! {
-                    <div class="asset-panel-padded mx-4 mt-3 lg:mx-0">
+                    <div class="asset-panel-padded col-span-full mx-4 mt-3 lg:mx-0">
                         <div class="text-center">
                             <EmptyState
                                 title="該当する銘柄がありません"

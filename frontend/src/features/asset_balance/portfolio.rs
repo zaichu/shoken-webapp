@@ -13,11 +13,58 @@ pub enum SortKey {
     Yield,
 }
 
+impl SortKey {
+    /// 絞り込み行の選択肢
+    pub(crate) const ALL: [SortKey; 4] = [
+        SortKey::MarketValue,
+        SortKey::ProfitLoss,
+        SortKey::Dividend,
+        SortKey::Yield,
+    ];
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            SortKey::MarketValue => "評価額",
+            SortKey::ProfitLoss => "含み損益",
+            SortKey::Dividend => "年間配当",
+            SortKey::Yield => "取得額利回り",
+        }
+    }
+
+    pub(crate) fn value(self) -> &'static str {
+        match self {
+            SortKey::MarketValue => "market_value",
+            SortKey::ProfitLoss => "profit_loss",
+            SortKey::Dividend => "dividend",
+            SortKey::Yield => "yield",
+        }
+    }
+
+    pub(crate) fn from_value(value: &str) -> Option<Self> {
+        match value {
+            "market_value" => Some(SortKey::MarketValue),
+            "profit_loss" => Some(SortKey::ProfitLoss),
+            "dividend" => Some(SortKey::Dividend),
+            "yield" => Some(SortKey::Yield),
+            _ => None,
+        }
+    }
+}
+
 /// 並べ替えの方向。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SortOrder {
     Desc,
     Asc,
+}
+
+impl SortOrder {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            SortOrder::Desc => "高い順 ↓",
+            SortOrder::Asc => "低い順 ↑",
+        }
+    }
 }
 
 /// 並べ替えの入力1件。

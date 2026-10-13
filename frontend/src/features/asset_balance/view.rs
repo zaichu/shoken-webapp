@@ -4,7 +4,7 @@ mod csv_page;
 mod holding_detail_page;
 mod holdings_list;
 mod main_content;
-mod sort_controls;
+mod mobile_bar;
 mod summary;
 
 #[cfg(test)]
@@ -23,11 +23,11 @@ use crate::features::asset_balance::store::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
-use crate::ui::list_action_bar::ListActionBar;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
+use mobile_bar::AssetMobileActionBar;
 
 #[derive(Clone, Copy)]
 pub(crate) struct AssetBalanceState {
@@ -116,9 +116,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                 .is_some_and(|view| !view.rows.is_empty())
                 .then(|| {
                     view! {
-                        <ListActionBar
+                        <AssetMobileActionBar
                             query=search_query
-                            placeholder="銘柄名・コードで絞り込み"
                             count_text=Signal::derive(move || {
                                 if search_query.get().is_empty() {
                                     String::new()
@@ -127,9 +126,8 @@ pub fn AssetBalancePage() -> impl IntoView {
                                     format!("検索結果 {filtered} / {total}件")
                                 }
                             })
-                            input_testid="asset-search-input"
-                            clear_testid="asset-search-clear"
-                            count_testid="asset-search-count"
+                            sort_key=state.sort_key
+                            sort_order=state.sort_order
                         />
                     }
                 })
@@ -189,7 +187,7 @@ pub fn AssetBalancePage() -> impl IntoView {
     view! {
         <PageFrame title="資産管理" full_bleed=true title_row=title_row action_bar=action_bar action_bar_mobile_only=true links=csv_link>
         <div
-            class="mt-2 flex flex-1 flex-col lg:flex-none"
+            class="flex flex-1 flex-col lg:mt-2 lg:flex-none"
             data-testid="assetbalance-workspace"
             aria-busy=move || {
                 if !busy_session.loaded.get()

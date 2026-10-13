@@ -58,9 +58,10 @@ pub fn PageFrame(
     children: Children,
 ) -> impl IntoView {
     let body = children();
+    let has_action_bar = action_bar.is_some();
 
     view! {
-        <div class="page-frame">
+        <div class="page-frame" class:has-action-bar=has_action_bar>
             <PcHeader />
             <header class="page-frame-head no-print">
                 <div class="page-gutter flex flex-wrap items-center gap-x-4 gap-y-2">

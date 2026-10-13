@@ -32,12 +32,12 @@ pub enum ButtonVariant {
     MenuItemDanger,
     /// 銘柄名のコピー(文字そのものがボタン)
     CopyName,
-    /// 資産管理の並び替えチップ(選択状態は aria_pressed と合わせる)
-    AssetSortChip,
-    /// 資産管理の並び替え順トグル(「高い順 ↓」)
-    AssetSortDirection,
     /// 資産管理テーブルの並び替え列見出し
     AssetSortColumn,
+    /// 資産管理スマホ下部帯の絞り込みトグル
+    AssetMobileTool,
+    /// 資産管理スマホ下部帯の並び替え順トグル(「高い順 ↓」)
+    AssetMobileOrder,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -95,9 +95,9 @@ impl ButtonVariant {
                     .to_string()
             }
             Self::CopyName => "copyable-name".to_string(),
-            Self::AssetSortChip => "asset-sort-chip".to_string(),
-            Self::AssetSortDirection => "asset-sort-order".to_string(),
             Self::AssetSortColumn => "asset-th-sort".to_string(),
+            Self::AssetMobileTool => "asset-mobile-tool".to_string(),
+            Self::AssetMobileOrder => "asset-mobile-order".to_string(),
         }
     }
 }
@@ -134,6 +134,9 @@ pub fn Button(
     #[prop(into, optional)] tabindex: Option<Signal<&'static str>>,
     #[prop(into, optional)] aria_expanded: Option<Signal<bool>>,
     #[prop(into, optional)] aria_pressed: Option<Signal<String>>,
+    /// 開閉対象の要素 id(絞り込み欄の開閉ボタンなど)
+    #[prop(optional)]
+    aria_controls: Option<&'static str>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
 ) -> impl IntoView {
@@ -148,6 +151,7 @@ pub fn Button(
             aria-disabled=aria_disabled.map(|value| move || value.get().to_string())
             aria-expanded=aria_expanded.map(|expanded| move || expanded.get().to_string())
             aria-pressed=aria_pressed.map(|pressed| move || pressed.get())
+            aria-controls=aria_controls
             tabindex=tabindex.map(|index| move || index.get())
             data-testid=testid
             on:click=on_click
