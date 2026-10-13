@@ -867,3 +867,22 @@ fn ensure_kind_resets_search_state_like_tab_switch() {
         assert!(store.expanded.with_untracked(|set| set.is_empty()));
     });
 }
+
+#[test]
+fn condition_count_covers_structured_filters_only() {
+    use super::action_bar::condition_count;
+    use crate::features::receipts::filter::{ReceiptSearch, SearchKey};
+
+    let mut search = ReceiptSearch::new(false);
+    assert_eq!(condition_count(&search), 0);
+    // 銘柄名・コードの検索は一覧側の入力欄で扱うため、帯の件数には入れない
+    search.set_securities_query("NTT".to_string());
+    assert_eq!(condition_count(&search), 0);
+    search.select_quick(SearchKey::Products, "国内株式".to_string());
+    search.select_quick(SearchKey::Accounts, "特定".to_string());
+    assert_eq!(condition_count(&search), 2);
+    search.set_date_query("2024".to_string());
+    assert_eq!(condition_count(&search), 3);
+    search.clear_key(SearchKey::Accounts, false);
+    assert_eq!(condition_count(&search), 2);
+}

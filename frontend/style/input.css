@@ -3,12 +3,28 @@
 @source "../src/**/*.rs";
 
 @theme {
-  --color-page: #f4f5f7;
+  --color-page: #f3f5f8;
   --color-surface: var(--color-white);
   --color-surface-sunken: #f9fafb;
   --color-surface-raised: #f8f9fb;
   --color-segment: #e9ebef;
-  --color-row-group: #fbfbfc;
+  --color-row-group: #eef2f8;
+
+  /* v3 配色: ヘッダー・集計の帯・選択状態は紺、現在位置・強調は金 */
+  --color-brand: #0f2a4a;
+  --color-brand-deep: #0b1f38;
+  --color-brand-lift: #1b3f69;
+  --color-brand-border: #3b5675;
+  --color-brand-line: #2e4c70;
+  --color-brand-muted: #c9d3e1;
+  --color-gold: #f2b33d;
+  --color-border-link: #d5dce6;
+  --color-band: #fff8e6;
+  --color-band-border: #f5dfa6;
+  --color-warn-ink: #92400e;
+  --color-nisa-soft: #fef3c7;
+  --color-profit-bright: #6ee7a8;
+  --color-loss-bright: #f1a89d;
   --color-fill: var(--color-slate-200);
   --color-fill-strong: var(--color-slate-400);
   --color-scrollbar-track: #e5e7eb;
@@ -25,9 +41,9 @@
   --color-text-deep: #111827;
   --color-text-strong: #111827;
   --color-text-soft: #4b5563;
-  --color-text-muted: #6b7280;
-  --color-text-subtle: #6b7280;
-  --color-text-quiet: #6b7280;
+  --color-text-muted: #5f6b7a;
+  --color-text-subtle: #5f6b7a;
+  --color-text-quiet: #5f6b7a;
   --color-text-faint: #9ca3af;
   --color-text-inverse: var(--color-white);
   --color-text-inverse-muted: var(--color-slate-300);
@@ -47,12 +63,12 @@
   --color-negative: #c0362c;
   --color-negative-vivid: #c0362c;
   --color-negative-strong: #9f2d25;
-  --color-negative-soft: #fdf2f2;
+  --color-negative-soft: #fdecea;
   --color-negative-border: #f1c7c3;
 
   --color-positive: #0b7a4b;
   --color-positive-strong: #0b7a4b;
-  --color-positive-soft: #effaf5;
+  --color-positive-soft: #e7f6ee;
   --color-positive-softer: #dcf5e9;
   --color-positive-border: #b9e7d1;
 
@@ -80,7 +96,7 @@
   --shadow-card-hover: 0 18px 40px -32px rgba(15, 23, 42, 0.85);
   --shadow-header: 0 18px 44px -34px rgba(15, 23, 42, 0.95);
   --shadow-edge-lit: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --shadow-edge-accent: inset 0 -2px 0 #f59e0b;
+  --shadow-edge-accent: inset 0 3px 0 #f2b33d;
   --shadow-edge-brand: inset 0 -3px 0 rgba(192, 132, 3, 0.35);
 
   --radius-note: 1.35rem;
@@ -246,7 +262,7 @@
   }
 
   .header-logo {
-    @apply h-11 w-11 rounded-md shadow-edge-brand max-sm:h-10 max-sm:w-10;
+    @apply h-7 w-7;
   }
 
   .header-avatar {
@@ -254,16 +270,16 @@
   }
 
   .pc-header {
-    @apply border-b border-ink/10 bg-surface sticky top-0 z-40;
+    @apply sticky top-0 z-40 bg-brand text-text-inverse;
   }
 
   .pc-nav-link {
-    @apply flex h-14 items-center px-3.5 text-sm text-text-soft no-underline transition-colors hover:bg-surface-sunken hover:text-text-deep;
+    @apply flex h-14 items-center px-3.5 text-sm text-brand-muted no-underline transition-colors hover:text-text-inverse;
   }
 
   .pc-nav-link[aria-current] {
-    @apply font-bold text-ink;
-    box-shadow: inset 0 -2px 0 var(--color-accent-strong);
+    @apply font-bold text-text-inverse;
+    box-shadow: inset 0 -3px 0 var(--color-gold);
   }
 
   /* 一覧ページの本文列。スマホは全幅のまま、PC だけページ枠の余白と最大幅を持つ */
@@ -279,41 +295,62 @@
   }
 
   .receipts-tab-list {
-    @apply flex gap-0.5 bg-segment p-[3px] rounded-lg max-w-full;
-  }
-
-  @media (width < 40rem) {
-    .receipts-tab-list {
-      @apply grid grid-cols-3;
-    }
+    @apply grid grid-cols-3 gap-1.5 max-w-full lg:flex;
   }
 
   .receipts-tab {
-    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-transparent px-3 text-sm font-medium text-text-soft transition-colors hover:text-text-deep lg:min-h-8 lg:px-4;
+    /* 選択の色差が大きいため transition を付けると遷移途中が
+       コントラスト不足になる(a11y の計測が落ちる)ので付けない */
+    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-brand-border bg-transparent px-2 text-[13px] text-brand-muted lg:min-h-0 lg:px-3.5 lg:text-sm;
   }
 
   .receipts-tab[aria-selected="true"] {
-    @apply bg-surface text-ink font-bold shadow-[0_1px_2px_rgba(15,23,42,.08)];
+    @apply border-gold bg-gold font-bold text-brand;
+  }
+
+  @media (width >= 64rem) {
+    .receipts-tab {
+      @apply border-border-link bg-surface text-night-soft hover:text-text-deep;
+      height: 34px;
+    }
+
+    .receipts-tab[aria-selected="true"] {
+      @apply border-brand bg-brand text-text-inverse;
+    }
   }
 
   .receipts-tab-count {
-    @apply text-[11px] font-medium tabular-nums text-text-muted;
+    @apply text-[11px] font-medium tabular-nums;
+  }
+
+  @media (width >= 64rem) {
+    .receipts-tab-count {
+      @apply bg-row-group text-xs text-text-soft;
+      border-radius: 9px;
+      padding: 0 7px;
+      line-height: 18px;
+    }
+
+    .receipts-tab[aria-selected="true"] .receipts-tab-count {
+      @apply bg-gold font-bold text-brand;
+    }
   }
 
   .receipt-filter-chip {
-    @apply inline-flex min-h-8 items-center rounded-full border border-border-strong bg-surface px-3 text-[13px] text-text no-underline transition-colors hover:bg-surface-sunken;
+    @apply inline-flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-3 text-[13px] text-text no-underline transition-colors hover:bg-surface-sunken lg:min-h-8;
   }
 
   .receipt-filter-chip[aria-pressed="true"] {
-    @apply border-accent bg-accent-soft text-accent;
+    @apply border-brand bg-brand text-text-inverse;
   }
 
   .active-condition-chip {
-    @apply inline-flex min-h-8 items-center gap-1 rounded-full border border-accent bg-accent-soft px-2.5 text-xs font-medium text-accent;
+    @apply inline-flex min-h-11 items-center gap-1 rounded-full border border-brand bg-surface px-2.5 text-xs font-medium text-brand;
   }
 
   .pc-search-bar {
-    @apply flex flex-wrap items-center gap-2.5 gap-y-2.5 mb-4 px-3.5 py-2.5 bg-surface border border-border rounded-lg;
+    @apply flex flex-wrap items-center gap-2.5 gap-y-2.5 mb-4 px-3.5 py-2.5 bg-surface border border-border;
+    border-radius: 10px;
   }
 
   .pc-search-bar label {
@@ -336,67 +373,122 @@
     @apply h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm;
   }
 
-  /* Shared receipt summary (PC & mobile) */
+  /* 集計の帯(PC・スマホ共通): 紺地に金の見出し。主値(税引後)を先頭に置き、
+     スマホは残り2項目を右寄せの行に、PC は3列グリッドにする */
   .receipt-summary {
-    @apply bg-surface border border-border rounded-lg;
+    @apply bg-brand text-text-inverse;
+    border-radius: 0;
   }
 
   .receipt-summary-grid {
-    @apply grid grid-cols-3 gap-0;
+    @apply grid items-center gap-x-3 px-4 pb-3 pt-1;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
   }
 
-  .receipt-summary-item {
-    @apply px-4.5 py-3 border-r border-border-faint;
+  /* dl 直下の div は dt/dd しか入れられないため、副項目のまとまりは
+     中間の枠を作らず grid の配置だけで作る */
+  .receipt-summary-item-primary {
+    grid-row: 1 / -1;
   }
 
-  .receipt-summary-item:last-child {
-    @apply border-r-0;
+  .receipt-summary-item-secondary {
+    @apply justify-self-end text-right;
+    grid-column: 2;
+    line-height: 1.6;
   }
 
   .receipt-summary-item dt {
-    @apply text-xs text-text-muted font-medium;
+    @apply text-xs text-brand-muted;
   }
 
-  .receipt-summary-item dd {
-    @apply mt-1;
+  .receipt-summary-item-secondary dt,
+  .receipt-summary-item-secondary dd {
+    @apply inline text-xs;
+  }
+
+  .receipt-summary-item-secondary dd {
+    @apply ml-1;
+  }
+
+  .receipt-summary-item-primary dt {
+    @apply block text-[11px] font-bold text-gold;
+  }
+
+  .receipt-summary-item-primary dd {
+    @apply block;
+  }
+
+  .receipt-summary-primary-amount {
+    @apply text-2xl font-bold tabular-nums;
   }
 
   .receipt-summary-amount {
-    @apply text-xl font-bold tabular-nums;
+    @apply text-xs tabular-nums text-brand-muted;
   }
 
-  .receipt-summary-item-primary .receipt-summary-amount {
-    @apply text-text;
+  .receipt-summary-sub {
+    @apply hidden;
   }
 
-  /* Mobile receipt summary */
-  @media (width < 64rem) {
+  /* 紺地では --color-negative がコントラスト不足になるため、帯の負数は
+     汎用の data-negative ではなくこのクラスで明るい赤にする */
+  .receipt-summary-amount-loss {
+    color: var(--color-loss-bright);
+    font-weight: 500;
+  }
+
+  @media (width >= 64rem) {
     .receipt-summary {
-      @apply bg-surface-raised border-0 border-t border-b border-border rounded-none px-4 py-3;
+      border-radius: 10px;
+      background-image: linear-gradient(135deg, var(--color-brand), var(--color-brand-lift));
     }
 
     .receipt-summary-grid {
-      @apply grid grid-cols-3 gap-2;
+      grid-template-columns: 1.3fr 1fr 1fr;
+      grid-template-rows: auto;
+      padding: 18px 8px;
+    }
+
+    .receipt-summary-item-primary {
+      grid-row: auto;
     }
 
     .receipt-summary-item {
-      @apply p-0 border-0;
+      @apply border-r border-brand-line px-5 text-left;
+    }
+
+    .receipt-summary-item-secondary {
+      @apply justify-self-stretch;
+      grid-column: auto;
+    }
+
+    .receipt-summary-item:last-child {
+      @apply border-r-0;
     }
 
     .receipt-summary-item dt {
-      @apply text-[11px] text-text-muted;
+      @apply block;
     }
 
-    .receipt-summary-item dd {
-      @apply mt-0.5;
+    .receipt-summary-item-secondary dt {
+      @apply block text-xs;
+    }
+
+    .receipt-summary-item-secondary dd {
+      @apply ml-0 mt-1 block;
+    }
+
+    .receipt-summary-primary-amount {
+      @apply text-3xl;
     }
 
     .receipt-summary-amount {
-      @apply text-sm font-medium tabular-nums;
+      @apply text-2xl font-bold text-text-inverse;
     }
 
-    .receipt-summary-item-primary .receipt-summary-amount {
-      @apply text-lg font-bold;
+    .receipt-summary-sub {
+      @apply mt-0.5 block text-xs font-normal text-brand-muted;
     }
   }
 
@@ -422,7 +514,7 @@
   }
 
   .receipts-table th {
-    @apply text-left px-3.5 py-2 font-medium text-xs text-text-soft bg-surface-sunken;
+    @apply text-left px-3.5 py-2 font-bold text-xs text-text-soft bg-surface-sunken;
   }
 
   .receipts-table tbody tr {
@@ -441,20 +533,29 @@
     @apply text-right;
   }
 
+  /* クラスは tr ではなく各 td に付く */
   .receipts-table-group {
-    @apply bg-row-group;
+    @apply bg-row-group text-[13px] text-night-soft;
   }
 
-  .receipts-table-group td {
-    @apply text-text-soft text-xs;
+  /* グループ小計の見出しセルだけ左に金の線。colspan 切替で複製される
+     見出しセル全てに付け、表示中のものが線を引く */
+  .receipts-table-group-label {
+    @apply font-bold text-brand;
+    border-left: 3px solid var(--color-gold);
   }
 
-  .receipts-table-group td:first-child {
-    @apply font-bold;
+  .receipts-table-group-label > span:last-child {
+    @apply font-normal text-text-soft;
   }
 
-  .receipts-table-group td.text-right {
+  .receipts-table-group.text-right {
     @apply font-medium;
+  }
+
+  /* 小計の税引後は紺の太字 */
+  .receipts-table-group.font-bold {
+    @apply text-brand;
   }
 
   .receipt-instrument-cell .receipts-table-code {
@@ -496,7 +597,7 @@
   }
 
   .receipt-compact-net {
-    @apply shrink-0 font-bold tabular-nums;
+    @apply shrink-0 font-bold tabular-nums text-positive;
   }
 
   .receipt-compact-meta {
@@ -526,15 +627,45 @@
   }
 
   .receipt-compact-group {
-    @apply flex items-center justify-between gap-2 px-4 py-2 bg-row-group border-b border-border-faint;
+    @apply flex items-center justify-between gap-2 px-4 py-1.5 bg-row-group border-b border-border-faint;
+    border-left: 3px solid var(--color-gold);
   }
 
   .receipt-compact-group > span:first-child {
-    @apply font-bold text-xs text-text-soft;
+    @apply font-bold text-xs text-brand;
   }
 
   .receipt-compact-group > span:last-child {
-    @apply text-xs text-text-soft;
+    @apply text-xs text-brand;
+  }
+
+  /* 口座区分のバッジ。NISA 系は琥珀配色 */
+  .account-badge {
+    @apply inline-flex items-center rounded-lg bg-row-group px-1.5 py-0.5 text-xs text-night-soft;
+  }
+
+  .account-badge-nisa {
+    @apply bg-nisa-soft text-warn-ink;
+  }
+
+  /* 絞り込み中の条件を一覧の直上1か所にまとめる帯(スマホ) */
+  .receipts-active-band {
+    @apply flex flex-wrap items-center gap-1.5 border-b border-band-border bg-band px-4 py-2 text-xs;
+  }
+
+  .receipts-active-band-label {
+    @apply font-bold text-warn-ink;
+  }
+
+  .receipts-active-band-clear {
+    @apply ml-auto min-h-11 px-1.5 font-medium text-info hover:text-info-deep;
+  }
+
+  /* 集計と絞り込み帯はスクロール中も一覧の上に張り付く(スマホのみ) */
+  @media (width < 64rem) {
+    .receipts-sticky-top {
+      @apply sticky top-0 z-10 flex flex-col;
+    }
   }
 
   /* スマホの下部帯はスクロール領域の流れの中で、下部ナビの直前に置く */
@@ -547,17 +678,30 @@
     @apply py-2;
   }
 
+  .receipts-conditions-link {
+    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-brand bg-surface px-3 text-sm font-medium text-brand no-underline;
+  }
+
+  .receipts-conditions-count {
+    @apply inline-flex items-center justify-center bg-gold font-bold text-brand;
+    border-radius: 9px;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 18px;
+    min-width: 18px;
+  }
+
   /* Conditions page action buttons */
   .conditions-actions {
     @apply flex gap-2 p-4 bg-surface border-t border-border;
   }
 
   .conditions-clear-btn {
-    @apply border-accent text-accent hover:bg-accent-soft hover:border-accent;
+    @apply border-brand text-brand hover:bg-surface-sunken hover:border-brand;
   }
 
   .conditions-apply-btn {
-    @apply bg-accent border-accent text-text-inverse hover:bg-accent-strong hover:border-accent-strong;
+    @apply bg-brand border-brand text-text-inverse hover:bg-brand-deep hover:border-brand-deep;
   }
 
   .skip-link {
@@ -567,7 +711,7 @@
   /* シェルは画面一杯に張り、本文(main)だけがスクロールする。
      下部ナビ・操作帯はスクロール領域の外で常設し、本文の最後の行を覆わない */
   .app-shell {
-    @apply flex flex-col bg-surface-sunken text-ink;
+    @apply flex flex-col bg-page text-ink;
     height: 100vh;
     height: 100dvh;
   }
@@ -591,24 +735,28 @@
   }
 
   .page-frame-head {
-    @apply border-b border-ink/10 bg-surface py-2 lg:border-b-0 lg:bg-transparent;
+    @apply bg-brand pb-2.5 pt-2 lg:bg-transparent lg:py-3;
   }
 
   .page-frame-title {
-    @apply text-lg font-black leading-tight tracking-normal text-ink;
+    @apply font-bold leading-tight tracking-normal text-text-inverse lg:text-brand;
+    font-size: 17px;
+  }
+
+  @media (width >= 64rem) {
+    .page-frame-title {
+      font-size: 22px;
+    }
   }
 
   .page-back-link {
     @apply inline-flex min-h-11 items-center text-sm font-semibold text-info underline underline-offset-2 hover:text-info-deep;
   }
 
-  /* ページ名の右の低頻度リンク。スマホはタップ領域 44px を確保する */
-  .page-secondary-link {
-    @apply inline-flex min-h-11 items-center px-4 text-sm font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors lg:min-h-9;
-  }
-
+  /* ページ名の右の低頻度リンク。スマホは紺のヘッダー内で白抜き枠線、
+     タップ領域 44px を確保する */
   .page-secondary-link-sm {
-    @apply inline-flex min-h-11 items-center px-3 text-xs font-medium text-text-soft border border-border-strong bg-surface rounded-lg no-underline hover:bg-surface-sunken hover:text-text-deep transition-colors lg:min-h-8;
+    @apply inline-flex min-h-11 items-center rounded-md border border-brand-border bg-transparent px-3 text-[13px] text-text-inverse no-underline transition-colors hover:bg-brand-deep lg:min-h-8 lg:border-border-link lg:bg-surface lg:text-brand lg:hover:bg-surface-sunken;
   }
 
   /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く */
@@ -636,12 +784,12 @@
   }
 
   .bottom-nav-link {
-    @apply flex min-h-12 flex-1 items-center justify-center px-1 text-center text-xs font-bold leading-tight text-text-muted transition-colors hover:bg-surface-raised hover:text-text-deep focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink sm:text-sm;
+    @apply flex min-h-12 flex-1 items-center justify-center px-1 text-center text-xs font-medium leading-tight text-text-muted transition-colors hover:bg-surface-raised hover:text-text-deep focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink sm:text-sm;
   }
 
   .bottom-nav-link[aria-current] {
-    @apply text-accent-text;
-    box-shadow: inset 0 2px 0 var(--color-accent-strong);
+    @apply font-bold text-brand;
+    box-shadow: var(--shadow-edge-accent);
   }
 
   .summary-strip {

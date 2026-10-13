@@ -116,7 +116,7 @@ pub fn AccountMenu(
             {move || {
                 if !session.loaded.get() {
                     view! {
-                        <span class="text-sm font-semibold text-text-muted">"読み込み中..."</span>
+                        <span class="text-sm font-semibold text-brand-muted">"読み込み中..."</span>
                     }
                         .into_any()
                 } else if let Some(user) = session.user.get() {
@@ -134,7 +134,7 @@ pub fn AccountMenu(
                 } else {
                     view! {
                         <Button
-                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                            variant=ButtonVariant::Header(ButtonSize::Sm)
                             on_click=move |_| session.login()
                         >
                             "ログイン"
@@ -266,14 +266,14 @@ fn UserMenu(
         <div class="flex items-center gap-3">
             {(!hide_name).then(|| {
                 view! {
-                    <span class="hidden max-w-64 truncate text-sm font-semibold text-text-soft lg:inline">
+                    <span class="hidden max-w-64 truncate text-sm font-semibold text-brand-muted lg:inline">
                         {display_name}
                     </span>
                 }
             })}
             <div class="relative" node_ref=menu_container>
                 <Button
-                    variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                    variant=ButtonVariant::Header(ButtonSize::Sm)
                     attr:aria-haspopup="menu"
                     aria_label=menu_label
                     aria_expanded=move || menu_open.get()

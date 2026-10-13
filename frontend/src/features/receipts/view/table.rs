@@ -8,7 +8,7 @@ use crate::features::receipts::kind::ColumnSpec;
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::kind::TableGroup;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
-use crate::ui::badge::CodeBadge;
+use crate::ui::badge::{AccountBadge, CodeBadge};
 use crate::ui::security_link::{CopyableInstrumentName, SecurityCodeLink};
 use leptos::prelude::*;
 use std::collections::HashSet;
@@ -280,11 +280,16 @@ pub fn ReceiptTable(
                                                 {group_label_spans
                                                     .iter()
                                                     .map(|(class, span)| {
+                                                        let label_class = if compact_mobile {
+                                                            " receipts-table-group-label"
+                                                        } else {
+                                                            ""
+                                                        };
                                                         view! {
                                                             <td
                                                                 colspan=*span + if group.summary.is_empty() { labels.len() } else { 0 }
                                                                 class=format!(
-                                                                    "{group_class}{top}{class}"
+                                                                    "{group_class}{top}{class}{label_class}"
                                                                 )
                                                             >
                                                                 <span class="font-bold">{group.label.clone()}</span>
@@ -309,8 +314,8 @@ pub fn ReceiptTable(
                                                             <td
                                                                 class=format!(
                                                                     "{}{} text-right{top}",
-                                                                    if bold { " font-bold" } else { "" },
                                                                     if compact_mobile { "receipts-table-group" } else { "bg-surface-raised text-text font-semibold" },
+                                                                    if bold { " font-bold" } else { "" },
                                                                 )
                                                                 title=value.clone()
                                                                 data-negative=negative.then_some("true")
@@ -382,27 +387,42 @@ pub fn ReceiptTable(
                                                                             .into_any()
                                                                         }
                                                                         ReceiptCell::Text(value) => {
+                                                                            let header = columns[desktop_order[col_index]].header;
                                                                             let negative = is_profit_label(
                                                                                 tab,
-                                                                                columns[desktop_order[col_index]]
-                                                                                    .header,
+                                                                                header,
                                                                             ) && is_negative_text(&value);
-                                                                            // 見本では税引後を強調する
-                                                                            let bold = compact_mobile
-                                                                                && columns[desktop_order[col_index]]
-                                                                                    .header
-                                                                                    == "税引後";
+                                                                            // 見本では税引後を緑で強調する(負の値は赤を優先)
+                                                                            let is_net = compact_mobile && header == "税引後";
+                                                                            let emphasis = if is_net {
+                                                                                if negative {
+                                                                                    " font-bold"
+                                                                                } else {
+                                                                                    " font-bold text-positive"
+                                                                                }
+                                                                            } else if compact_mobile
+                                                                                && matches!(header, "入金日" | "約定日" | "数量" | "税額")
+                                                                            {
+                                                                                " text-text-soft"
+                                                                            } else {
+                                                                                ""
+                                                                            };
                                                                             let title = value.clone();
+                                                                            let content = if compact_mobile && header == "口座" {
+                                                                                view! { <AccountBadge label=value.clone() /> }
+                                                                                    .into_any()
+                                                                            } else {
+                                                                                value.clone().into_any()
+                                                                            };
                                                                             view! {
                                                                                 <td
                                                                                     class=format!(
-                                                                                        "{align}{}",
-                                                                                        if bold { " font-bold" } else { "" },
+                                                                                        "{align}{emphasis}",
                                                                                     )
                                                                                     title=title
                                                                                     data-negative=negative.then_some("true")
                                                                                 >
-                                                                                    {value}
+                                                                                    {content}
                                                                                 </td>
                                                                             }
                                                                             .into_any()

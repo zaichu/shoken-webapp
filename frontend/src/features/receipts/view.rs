@@ -7,7 +7,7 @@ mod summary;
 mod table;
 mod tabs;
 
-pub use action_bar::{ReceiptsMobileBottomSection, ReceiptsPcSearchBar};
+pub use action_bar::{ReceiptsActiveBand, ReceiptsMobileBottomSection, ReceiptsPcSearchBar};
 pub use conditions::ReceiptsConditionsPage;
 pub use csv_page::{ReceiptsCsvDeletePage, ReceiptsCsvPage};
 pub use main_content::ReceiptsMainContent;
@@ -91,7 +91,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     }}
                 </div>
 
-                <ReceiptsMobileBottomSection store=store active_tab=active_tab />
+                <ReceiptsMobileBottomSection store=store />
             </div>
         </PageFrame>
     }

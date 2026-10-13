@@ -21,7 +21,7 @@ fn ActiveConditionBadge(
                     aria-label=aria_label
                     on:click=move |_| on_clear()
                 >
-                    {v}
+                    {format!("{label}: {v}")}
                     <span aria-hidden="true">"✕"</span>
                 </button>
             }
@@ -29,66 +29,84 @@ fn ActiveConditionBadge(
     }
 }
 
-#[component]
-pub fn ReceiptsMobileBottomSection(
-    store: ReceiptsStore,
-    active_tab: RwSignal<ReceiptsTab>,
-) -> impl IntoView {
-    let search = store.search;
-    let tab = active_tab;
+// 銘柄名・コードの文字列検索は一覧側の入力欄で行うため、条件として数えるのは
+// 期間・商品・口座の3種類だけにする
+const CONDITION_KEYS: [SearchKey; 3] = [SearchKey::Date, SearchKey::Products, SearchKey::Accounts];
 
-    let display_rows = Memo::new(move |_| match store.tab_state(tab.get()) {
+pub(crate) fn condition_count(search: &ReceiptSearch) -> usize {
+    CONDITION_KEYS
+        .iter()
+        .filter(|key| !search.selected_queries.get(**key).is_empty())
+        .count()
+}
+
+/// 絞り込み中の条件を集計の帯の直下にまとめて出す(スマホ)
+#[component]
+pub fn ReceiptsActiveBand(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+    let search = store.search;
+
+    let display_rows = Memo::new(move |_| match store.tab_state(tab) {
         TabState::Ready(data) => data.rows.clone(),
         _ => Vec::new(),
     });
-
-    let categories = Memo::new(move |_| search_categories(tab.get(), &display_rows.get()));
-    let has_active_search = Signal::derive(move || !search.with(|s| s.is_default()));
+    let categories = Memo::new(move |_| search_categories(tab, &display_rows.get()));
     let years = Memo::new(move |_| categories.with(|c| c.years.clone()));
     let has_years = move || !years.get().is_empty();
+    let visible = Signal::derive(move || search.with(|s| condition_count(s) > 0));
+
+    view! {
+        <Show when=move || visible.get()>
+            <div class="receipts-active-band no-print lg:hidden" role="group" aria-label="適用中の検索条件">
+                <span class="receipts-active-band-label">"絞り込み中"</span>
+                <ActiveConditionBadge search=search key=SearchKey::Date label="期間" on_clear=move || search.update(|s| s.clear_key(SearchKey::Date, has_years())) />
+                <ActiveConditionBadge search=search key=SearchKey::Products label="商品" on_clear=move || search.update(|s| s.clear_key(SearchKey::Products, has_years())) />
+                <ActiveConditionBadge search=search key=SearchKey::Accounts label="口座" on_clear=move || search.update(|s| s.clear_key(SearchKey::Accounts, has_years())) />
+                <button
+                    type="button"
+                    class="receipts-active-band-clear"
+                    on:click=move |_| search.update(|s| s.clear(has_years()))
+                >
+                    "条件をクリア"
+                </button>
+            </div>
+        </Show>
+    }
+}
+
+#[component]
+pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
+    let search = store.search;
+
+    let active_count = Signal::derive(move || search.with(condition_count));
 
     view! {
         <div class="receipts-mobile-bottom-section no-print lg:hidden" role="search" aria-label="検索">
             <div class="page-gutter">
-                <div class="flex flex-col gap-2">
-                    {move || {
-                        has_active_search.get().then(|| {
-                            view! {
-                                <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="適用中の検索条件">
-                                    <span class="text-xs font-semibold text-text-muted">"条件"</span>
-                                    <ActiveConditionBadge search=search key=SearchKey::Date label="期間" on_clear=move || search.update(|s| s.clear_key(SearchKey::Date, has_years())) />
-                                    <ActiveConditionBadge search=search key=SearchKey::Products label="商品" on_clear=move || search.update(|s| s.clear_key(SearchKey::Products, has_years())) />
-                                    <ActiveConditionBadge search=search key=SearchKey::Accounts label="口座" on_clear=move || search.update(|s| s.clear_key(SearchKey::Accounts, has_years())) />
-                                    <button
-                                        type="button"
-                                        class="text-xs font-semibold text-info hover:text-info-deep"
-                                        on:click=move |_| search.update(|s| s.clear(has_years()))
-                                    >
-                                        "全解除"
-                                    </button>
-                                </div>
-                            }
-                        })
-                    }}
-                    <div class="flex items-center gap-2">
-                        <label class="flex-1 search-input-frame">
-                            <svg aria-hidden="true" class="h-5 w-5 shrink-0 mx-2 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="11" cy="11" r="7"></circle>
-                                <path d="M20 20l-3.5-3.5"></path>
-                            </svg>
-                            <input
-                                type="search"
-                                class="search-input"
-                                placeholder="銘柄名・コード"
-                                aria-label="銘柄名・コード"
-                                prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
-                                on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
-                            />
-                        </label>
-                        <a href="/receipts/conditions" class="page-secondary-link shrink-0">
-                            "検索条件"
-                        </a>
-                    </div>
+                <div class="flex items-center gap-2">
+                    <label class="flex-1 search-input-frame">
+                        <svg aria-hidden="true" class="h-5 w-5 shrink-0 mx-2 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-3.5-3.5"></path>
+                        </svg>
+                        <input
+                            type="search"
+                            class="search-input"
+                            placeholder="銘柄名・コード"
+                            aria-label="銘柄名・コード"
+                            prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
+                            on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
+                        />
+                    </label>
+                    <a href="/receipts/conditions" class="receipts-conditions-link shrink-0">
+                        "検索条件"
+                        {move || {
+                            (active_count.get() > 0).then(|| {
+                                view! {
+                                    <span class="receipts-conditions-count">{active_count.get()}</span>
+                                }
+                            })
+                        }}
+                    </a>
                 </div>
             </div>
         </div>
