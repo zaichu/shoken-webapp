@@ -187,7 +187,7 @@ pub fn AssetBalancePage() -> impl IntoView {
     view! {
         <PageFrame title="資産管理" full_bleed=true title_row=title_row action_bar=action_bar action_bar_mobile_only=true links=csv_link>
         <div
-            class="mt-2 flex flex-1 flex-col lg:flex-none"
+            class="flex flex-1 flex-col lg:mt-2 lg:flex-none"
             data-testid="assetbalance-workspace"
             aria-busy=move || {
                 if !busy_session.loaded.get()

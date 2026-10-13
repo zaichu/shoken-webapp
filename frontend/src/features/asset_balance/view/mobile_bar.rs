@@ -5,6 +5,12 @@ use leptos::html;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
+// 検索語はページ側の状態として画面遷移や他の入力欄をまたいで残るので、
+// 絞り込み中は必ず検索欄を開く(閉じたまま一覧だけが減る状態を作らない)
+pub(crate) fn mobile_search_open(requested: bool, query: &str) -> bool {
+    requested || !query.is_empty()
+}
+
 /// スマホ用の下部操作帯。絞り込みは押すと検索欄をその場で開き、
 /// 並べ替えは項目の選択と昇順/降順の切り替えを同じ段に置く
 #[component]
@@ -14,10 +20,9 @@ pub fn AssetMobileActionBar(
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
-    // 検索語はページ側の状態として画面遷移や他の入力欄をまたいで残るので、
-    // 絞り込み中は必ず検索欄を開く(閉じたまま一覧だけが減る状態を作らない)
     let search_requested = RwSignal::new(false);
-    let search_open = Signal::derive(move || search_requested.get() || !query.get().is_empty());
+    let search_open =
+        Signal::derive(move || mobile_search_open(search_requested.get(), &query.get()));
     let input_ref = NodeRef::<html::Input>::new();
     // フォーカスは利用者が開いたときだけ。検索語による自動表示では奪わない
     Effect::new(move |_| {

@@ -734,6 +734,13 @@
     @apply flex min-h-full flex-col lg:shrink-0;
   }
 
+  /* 下部操作帯を下端に張り付けるには、帯を含む頁枠が本文の高さまで伸びて
+     いる必要がある。スマホで枠が画面高に縮むと帯が本文と一緒に流れるので、
+     操作帯のある頁枠は幅に関わらず縮めない */
+  .page-frame.has-action-bar {
+    @apply shrink-0;
+  }
+
   .page-frame-head {
     @apply bg-brand pb-2.5 pt-2 lg:bg-transparent lg:py-3;
   }
@@ -759,7 +766,8 @@
     @apply inline-flex min-h-11 items-center rounded-md border border-brand-border bg-transparent px-3 text-[13px] text-text-inverse no-underline transition-colors hover:bg-brand-deep lg:min-h-8 lg:border-border-link lg:bg-surface lg:text-brand lg:hover:bg-surface-sunken;
   }
 
-  /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く */
+  /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く。
+     張り付く前提として、頁枠は has-action-bar で本文の高さまで伸ばしてある */
   .page-action-bar {
     @apply sticky bottom-0 z-10 mt-auto border-t border-ink/10 bg-surface;
   }
@@ -1051,15 +1059,15 @@
   }
 
   .asset-mobile-tool {
-    @apply inline-flex min-h-10 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 text-[13px] font-medium text-brand;
+    @apply inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 text-[13px] font-medium text-brand;
   }
 
   .asset-mobile-sort {
-    @apply flex min-h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-brand bg-brand px-3 text-[13px] font-bold text-text-inverse;
+    @apply flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-brand bg-brand px-3 text-[13px] font-bold text-text-inverse;
   }
 
   .asset-mobile-sort-select {
-    @apply min-w-0 flex-1 appearance-none bg-transparent outline-none;
+    @apply h-11 min-w-0 flex-1 appearance-none bg-transparent outline-none;
   }
 
   /* option のパネルは OS ネイティブ表示なので、紺のまま残さないよう背景を戻す */
@@ -1068,7 +1076,7 @@
   }
 
   .asset-mobile-order {
-    @apply inline-flex min-h-10 shrink-0 items-center rounded-lg border border-brand bg-surface px-3 text-[13px] font-bold text-brand;
+    @apply inline-flex min-h-11 shrink-0 items-center rounded-lg border border-brand bg-surface px-3 text-[13px] font-bold text-brand;
   }
 
   .asset-compact-list {
