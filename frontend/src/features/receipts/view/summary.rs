@@ -38,11 +38,7 @@ pub fn header_summary(
 }
 
 #[component]
-pub fn SummaryStrip(
-    items: Vec<(&'static str, Decimal, StatTone)>,
-    expanded: RwSignal<bool>,
-) -> impl IntoView {
-    let _ = expanded;
+pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoView {
     // 見本では主値(税引後)を金の見出しで先頭に大きく出す。items の末尾が主値
     let mut secondary = items;
     let primary = secondary.pop();

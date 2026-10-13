@@ -208,7 +208,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                         <div class="receipts-sticky-top">
                             <section id="receipts-summary">
                                 <Show when=move || header.get().is_some() fallback=|| ()>
-                                    {move || header.get().map(|h| view! { <SummaryStrip items=h expanded=store.mobile_summary_expanded /> })}
+                                    {move || header.get().map(|h| view! { <SummaryStrip items=h /> })}
                                 </Show>
                             </section>
                             <ReceiptsActiveBand store=store tab=tab />

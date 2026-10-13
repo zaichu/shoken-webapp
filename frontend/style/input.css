@@ -131,6 +131,12 @@
     font-weight: 500;
   }
 
+  /* !important はレイヤー順が逆転するため、集計帯の上書きは
+     components 側ではなくこの base 内に置く(後勝ち+詳細度で効く) */
+  .receipt-summary [data-negative="true"] {
+    color: var(--color-loss-bright) !important;
+  }
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -299,7 +305,9 @@
   }
 
   .receipts-tab {
-    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-brand-border bg-transparent px-2 text-[13px] text-brand-muted transition-colors lg:min-h-0 lg:px-3.5 lg:text-sm;
+    /* 選択の色差が大きいため transition を付けると遷移途中が
+       コントラスト不足になる(a11y の計測が落ちる)ので付けない */
+    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-brand-border bg-transparent px-2 text-[13px] text-brand-muted lg:min-h-0 lg:px-3.5 lg:text-sm;
   }
 
   .receipts-tab[aria-selected="true"] {
@@ -392,6 +400,7 @@
 
   .receipt-summary-item-secondary {
     @apply justify-self-end text-right;
+    grid-column: 2;
     line-height: 1.6;
   }
 
@@ -428,10 +437,6 @@
     @apply hidden;
   }
 
-  .receipt-summary [data-negative="true"] {
-    color: var(--color-loss-bright) !important;
-  }
-
   @media (width >= 64rem) {
     .receipt-summary {
       border-radius: 10px;
@@ -454,6 +459,7 @@
 
     .receipt-summary-item-secondary {
       @apply justify-self-stretch;
+      grid-column: auto;
     }
 
     .receipt-summary-item:last-child {
