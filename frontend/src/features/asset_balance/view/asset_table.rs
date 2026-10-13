@@ -79,7 +79,7 @@ pub fn AssetHoldingsTable(
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
     view! {
-        <div class="asset-table-frame" data-testid="asset-holdings-table">
+        <div data-testid="asset-holdings-table">
             <table class="asset-table">
                 <thead>
                     <tr>

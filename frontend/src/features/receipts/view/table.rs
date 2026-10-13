@@ -4,6 +4,7 @@ use super::cards::{
     is_profit_label,
 };
 use crate::features::receipts::filter::{column_order, promoted_column};
+use crate::features::receipts::kind::ColumnSpec;
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::kind::TableGroup;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
@@ -24,6 +25,47 @@ pub fn displayed_tiers(
                 ColumnTier::Core
             } else {
                 tab.columns()[column].tier
+            }
+        })
+        .collect()
+}
+
+// PC(lg+)の表の列幅。銘柄列は幅を固定せず残り全部を使い、日付・口座・数量・金額は
+// 内容に見合う幅で固定する(固定幅を超える金額は折り返して全桁を出す)
+fn compact_width(header: &str) -> &'static str {
+    match header {
+        "入金日" | "約定日" => "9em",
+        "口座" => "8em",
+        "数量" => "7.5em",
+        "配当金" | "税額" | "税引後" | "売却額" | "取得価額" | "実現損益" | "解約額" => {
+            "8em"
+        }
+        _ => "",
+    }
+}
+
+// PC の表は lg 以上でしか出ないため、段は「常時」と「xl から」の2つにまとめる。
+// 口座は lg でも出す(この幅ではモバイル行も出ないため口座が見えなくなる)。
+// 売買の内訳金額は xl まで隠し、lg でも銘柄列の幅を確保する
+fn compact_tier(header: &str) -> ColumnTier {
+    match header {
+        "売却額" | "解約額" | "取得価額" => ColumnTier::Wide,
+        _ => ColumnTier::Core,
+    }
+}
+
+fn compact_tiers(
+    order: &[usize],
+    promoted: Option<usize>,
+    columns: &[ColumnSpec],
+) -> Vec<ColumnTier> {
+    order
+        .iter()
+        .map(|&column| {
+            if promoted == Some(column) {
+                ColumnTier::Core
+            } else {
+                compact_tier(columns[column].header)
             }
         })
         .collect()
@@ -124,27 +166,21 @@ pub fn ReceiptTable(
         .iter()
         .map(|i| {
             if compact_mobile {
-                ""
+                compact_width(columns[*i].header)
             } else {
                 columns[*i].width
             }
         })
         .collect();
     let tiers = if compact_mobile {
-        vec![ColumnTier::Core; desktop_order.len()]
+        compact_tiers(&desktop_order, promoted, columns)
     } else {
         displayed_tiers(tab, &desktop_order, promoted)
     };
     let cell_classes: Vec<String> = desktop_order
         .iter()
         .zip(tiers.iter())
-        .map(|(i, tier)| {
-            if compact_mobile {
-                columns[*i].align.class().to_string()
-            } else {
-                format!("{}{}", columns[*i].align.class(), tier.class())
-            }
-        })
+        .map(|(i, tier)| format!("{}{}", columns[*i].align.class(), tier.class()))
         .collect();
     let span_masks: [(&'static str, ColumnTier); 5] = [
         (" receipt-span-sm", ColumnTier::Core),
@@ -153,17 +189,13 @@ pub fn ReceiptTable(
         (" receipt-span-xl", ColumnTier::Wide),
         (" receipt-span-all", ColumnTier::Wider),
     ];
-    let group_label_spans: Vec<(&'static str, usize)> = if compact_mobile {
-        vec![("", desktop_order.len().saturating_sub(labels.len()))]
-    } else {
-        span_masks
-            .into_iter()
-            .map(|(class, max)| {
-                let visible = tiers.iter().filter(|tier| **tier <= max).count();
-                (class, visible.saturating_sub(labels.len()))
-            })
-            .collect()
-    };
+    let group_label_spans: Vec<(&'static str, usize)> = span_masks
+        .into_iter()
+        .map(|(class, max)| {
+            let visible = tiers.iter().filter(|tier| **tier <= max).count();
+            (class, visible.saturating_sub(labels.len()))
+        })
+        .collect();
     let surface_class = if compact_mobile {
         "receipt-list-surface"
     } else {
@@ -181,7 +213,9 @@ pub fn ReceiptTable(
         "sm:hidden print:hidden"
     };
     let table_frame_class = if compact_mobile {
-        "receipts-table-frame overflow-x-auto"
+        // 横スクロール枠を作ると見出しの sticky が効かなくなるため、PC の表は
+        // table-fixed で幅に収める
+        ""
     } else {
         "table-frame overflow-x-auto"
     };
@@ -202,14 +236,17 @@ pub fn ReceiptTable(
                                         .iter()
                                         .zip(widths.iter())
                                         .zip(tiers.iter())
-                                        .map(|((header, width), tier)| {
+                                        .enumerate()
+                                        .map(|(col_index, ((header, width), tier))| {
                                             let width = (!width.is_empty()).then_some(*width);
+                                            let align = if compact_mobile {
+                                                columns[desktop_order[col_index]].align.class()
+                                            } else {
+                                                "text-left"
+                                            };
                                             view! {
                                                 <th
-                                                    class=format!(
-                                                        "text-left{}",
-                                                        if compact_mobile { "" } else { tier.class() },
-                                                    )
+                                                    class=format!("{align}{}", tier.class())
                                                     scope="col"
                                                     style:width=width
                                                     style:max-width=width
@@ -265,10 +302,14 @@ pub fn ReceiptTable(
                                                     .map(|(value, label)| {
                                                         let negative = is_profit_label(tab, label)
                                                             && is_negative_text(value);
+                                                        // 見本では小計の税引後も強調する
+                                                        let bold = compact_mobile
+                                                            && *label == "税引後";
                                                         view! {
                                                             <td
                                                                 class=format!(
-                                                                    "{} text-right{top}",
+                                                                    "{}{} text-right{top}",
+                                                                    if bold { " font-bold" } else { "" },
                                                                     if compact_mobile { "receipts-table-group" } else { "bg-surface-raised text-text font-semibold" },
                                                                 )
                                                                 title=value.clone()
@@ -312,31 +353,33 @@ pub fn ReceiptTable(
                                                                         },
                                                                         ReceiptCell::InstrumentName { name, code } => {
                                                                             let title = name.clone();
-                                                                            if compact_mobile {
-                                                                                let code = code.unwrap_or_default();
+                                                                            let code = code.unwrap_or_default();
+                                                                            let name_cell = view! {
+                                                                                <CopyableInstrumentName name=name code=code.clone() />
+                                                                            };
+                                                                            let body = if compact_mobile && !code.is_empty() {
                                                                                 view! {
-                                                                                    <td
-                                                                                        class=format!("{align} receipt-instrument-cell")
-                                                                                        title=title
-                                                                                    >
-                                                                                        {(!code.is_empty()).then(|| view! {
-                                                                                            <SecurityCodeLink value=code.clone() class="receipts-table-code".to_string() />
-                                                                                        })}
-                                                                                        <CopyableInstrumentName name=name code=code />
-                                                                                    </td>
+                                                                                    <div class="flex min-w-0 items-baseline">
+                                                                                        <SecurityCodeLink
+                                                                                            value=code.clone()
+                                                                                            class="receipts-table-code shrink-0".to_string()
+                                                                                        />
+                                                                                        {name_cell}
+                                                                                    </div>
                                                                                 }
-                                                                                .into_any()
+                                                                                    .into_any()
                                                                             } else {
-                                                                                view! {
-                                                                                    <td
-                                                                                        class=format!("{align} receipt-instrument-cell")
-                                                                                        title=title
-                                                                                    >
-                                                                                        <CopyableInstrumentName name=name code=code.unwrap_or_default() />
-                                                                                    </td>
-                                                                                }
-                                                                                .into_any()
+                                                                                name_cell.into_any()
+                                                                            };
+                                                                            view! {
+                                                                                <td
+                                                                                    class=format!("{align} receipt-instrument-cell")
+                                                                                    title=title
+                                                                                >
+                                                                                    {body}
+                                                                                </td>
                                                                             }
+                                                                            .into_any()
                                                                         }
                                                                         ReceiptCell::Text(value) => {
                                                                             let negative = is_profit_label(
@@ -344,10 +387,18 @@ pub fn ReceiptTable(
                                                                                 columns[desktop_order[col_index]]
                                                                                     .header,
                                                                             ) && is_negative_text(&value);
+                                                                            // 見本では税引後を強調する
+                                                                            let bold = compact_mobile
+                                                                                && columns[desktop_order[col_index]]
+                                                                                    .header
+                                                                                    == "税引後";
                                                                             let title = value.clone();
                                                                             view! {
                                                                                 <td
-                                                                                    class=align
+                                                                                    class=format!(
+                                                                                        "{align}{}",
+                                                                                        if bold { " font-bold" } else { "" },
+                                                                                    )
                                                                                     title=title
                                                                                     data-negative=negative.then_some("true")
                                                                                 >

@@ -62,7 +62,7 @@ pub fn ReceiptsPage() -> impl IntoView {
     view! {
         <PageFrame title="取引明細" links=csv_link title_row=tabs full_bleed=true>
             <div
-                class="flex flex-1 flex-col min-h-0"
+                class="flex flex-1 flex-col min-h-0 lg:flex-none"
                 aria-busy=move || {
                     if store.auth_loading() || store.any_tab_fetching() {
                         "true"
@@ -76,7 +76,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                 </div>
 
                 <div
-                    class="content-gutter flex-1 min-h-0 overflow-y-auto"
+                    class="content-gutter flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible"
                     data-testid="receipts-workspace"
                 >
                     {move || {
