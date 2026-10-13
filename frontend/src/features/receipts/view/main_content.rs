@@ -193,7 +193,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                                 tab=tab
                                 rows=filtered_rows.get()
                                 all_rows=display_rows.get()
-                                query=search.with(|s| s.query.clone())
+                                query=search.with(|s| s.selected_queries.securities.clone())
                                 expanded_ids=store.expanded
                                 compact_mobile=true
                             />
@@ -218,7 +218,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                                 tab=tab
                                 rows=filtered_rows.get()
                                 all_rows=display_rows.get()
-                                query=search.with(|s| s.query.clone())
+                                query=search.with(|s| s.selected_queries.securities.clone())
                                 expanded_ids=store.expanded
                                 compact_mobile=true
                             />

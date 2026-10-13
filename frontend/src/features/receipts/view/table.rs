@@ -314,8 +314,8 @@ pub fn ReceiptTable(
                                                             <td
                                                                 class=format!(
                                                                     "{}{} text-right{top}",
-                                                                    if bold { " font-bold" } else { "" },
                                                                     if compact_mobile { "receipts-table-group" } else { "bg-surface-raised text-text font-semibold" },
+                                                                    if bold { " font-bold" } else { "" },
                                                                 )
                                                                 title=value.clone()
                                                                 data-negative=negative.then_some("true")
