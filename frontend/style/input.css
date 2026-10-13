@@ -131,12 +131,6 @@
     font-weight: 500;
   }
 
-  /* !important はレイヤー順が逆転するため、集計帯の上書きは
-     components 側ではなくこの base 内に置く(後勝ち+詳細度で効く) */
-  .receipt-summary [data-negative="true"] {
-    color: var(--color-loss-bright) !important;
-  }
-
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -435,6 +429,13 @@
 
   .receipt-summary-sub {
     @apply hidden;
+  }
+
+  /* 紺地では --color-negative がコントラスト不足になるため、帯の負数は
+     汎用の data-negative ではなくこのクラスで明るい赤にする */
+  .receipt-summary-amount-loss {
+    color: var(--color-loss-bright);
+    font-weight: 500;
   }
 
   @media (width >= 64rem) {

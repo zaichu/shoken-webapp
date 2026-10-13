@@ -59,8 +59,11 @@ pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoV
                                 <dd>
                                     <Amount
                                         text=format_currency(value)
-                                        class="receipt-summary-primary-amount"
-                                        negative=negative
+                                        class=if negative {
+                                            "receipt-summary-primary-amount receipt-summary-amount-loss"
+                                        } else {
+                                            "receipt-summary-primary-amount"
+                                        }
                                     />
                                 </dd>
                             </div>
@@ -76,8 +79,11 @@ pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoV
                                 <dd>
                                     <Amount
                                         text=format_currency(value)
-                                        class="receipt-summary-amount"
-                                        negative=negative
+                                        class=if negative {
+                                            "receipt-summary-amount receipt-summary-amount-loss"
+                                        } else {
+                                            "receipt-summary-amount"
+                                        }
                                     />
                                 </dd>
                             </div>
