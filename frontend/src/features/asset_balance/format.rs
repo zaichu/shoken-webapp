@@ -68,6 +68,34 @@ pub(crate) fn is_negative_valuation(amount: Option<f64>) -> bool {
     amount.is_some_and(|value| round_to_yen(value) < 0.0)
 }
 
+pub(crate) fn is_positive_valuation(amount: Option<f64>) -> bool {
+    amount.is_some_and(|value| round_to_yen(value) > 0.0)
+}
+
+/// 現在値の基準日("YYYY-MM-DD")を "MM/DD" にする。想定外の形式はそのまま返す
+pub(crate) fn format_price_date(as_of: &str) -> String {
+    match as_of.split_once('-') {
+        Some((year, month_day)) if year.len() == 4 && !month_day.is_empty() => {
+            month_day.replace('-', "/")
+        }
+        _ => as_of.to_string(),
+    }
+}
+
+/// 保有銘柄の基準日の範囲(最小・最大の "MM/DD")。日付の無い銘柄は除く
+pub(crate) fn price_date_range<'a>(
+    dates: impl Iterator<Item = &'a str>,
+) -> Option<(String, String)> {
+    let mut min: Option<&str> = None;
+    let mut max: Option<&str> = None;
+    for date in dates.filter(|date| !date.is_empty()) {
+        min = Some(min.map_or(date, |m: &str| m.min(date)));
+        max = Some(max.map_or(date, |m: &str| m.max(date)));
+    }
+    min.zip(max)
+        .map(|(min, max)| (format_price_date(min), format_price_date(max)))
+}
+
 pub(crate) fn valuation_tone(amount: Option<f64>) -> (&'static str, Option<&'static str>) {
     if is_negative_valuation(amount) {
         ("text-negative", Some("true"))

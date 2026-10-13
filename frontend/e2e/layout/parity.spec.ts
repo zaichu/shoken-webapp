@@ -335,7 +335,8 @@ test('資産管理の検索とCSV管理ページに390pxでもアクセスでき
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
-  // 検索はメイン領域にあるのでドロワーを開かなくても届く
+  // 検索は下部操作帯の「絞り込み」で開くのでドロワーを開かなくても届く
+  await page.getByTestId('asset-filter-toggle').click();
   await expect(page.getByTestId('asset-search-input')).toBeEditable();
   // CSV 操作は専用ページに置く
   await page.getByRole('link', { name: 'CSV管理' }).click();

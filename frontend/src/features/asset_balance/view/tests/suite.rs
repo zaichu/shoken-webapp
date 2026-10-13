@@ -12,6 +12,7 @@ use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, format_number_value,
     normalize_display_name, normalize_security_code, portfolio_valuation, total_purchase_amount,
 };
+use crate::features::asset_balance::portfolio::SortKey;
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, resolve_asset_balance};
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
@@ -404,6 +405,41 @@ fn negative_valuation_is_decided_by_rounded_amount() {
 }
 
 #[test]
+fn positive_valuation_is_decided_by_rounded_amount() {
+    assert!(is_positive_valuation(Some(0.5)));
+    assert!(!is_positive_valuation(Some(0.4)));
+    assert!(!is_positive_valuation(Some(0.0)));
+    assert!(!is_positive_valuation(Some(-1.0)));
+    assert!(!is_positive_valuation(None));
+    assert!(!is_positive_valuation(Some(f64::NAN)));
+}
+
+#[test]
+fn price_date_range_picks_min_and_max_dates() {
+    assert_eq!(
+        price_date_range(["2025-10-10", "2025-10-08", ""].into_iter()),
+        Some(("10/08".to_string(), "10/10".to_string()))
+    );
+    assert_eq!(
+        price_date_range(["2025-10-10"].into_iter()),
+        Some(("10/10".to_string(), "10/10".to_string()))
+    );
+    assert_eq!(price_date_range(std::iter::empty()), None);
+    assert_eq!(format_price_date("2025-10-10"), "10/10");
+    // 想定外の形式はそのまま返す
+    assert_eq!(format_price_date("不明"), "不明");
+}
+
+#[test]
+fn sort_key_value_round_trips() {
+    for key in SortKey::ALL {
+        assert_eq!(SortKey::from_value(key.value()), Some(key));
+        assert!(!key.label().is_empty());
+    }
+    assert_eq!(SortKey::from_value("unknown"), None);
+}
+
+#[test]
 fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
     let owner = Owner::new();
     owner.with(|| {
@@ -512,6 +548,8 @@ fn list_subtitle_uses_api_totals_when_truncated() {
         let subtitle = super::summary::list_subtitle(&resolved);
         assert!(subtitle.starts_with("2銘柄"));
         assert!(subtitle.contains("価格なし銘柄"));
+        // 価格あり行の基準日を MM/DD にして出す
+        assert!(subtitle.contains("01/16"), "{subtitle}");
     });
 }
 

@@ -29,7 +29,13 @@ ALLOWED_SRC=(
 )
 # input.css の @layer components 内ではレイアウトの任意値を許す(レール付き 2 カラムの grid template 等)。
 # src 側の要素直書きは許可しない
-ALLOWED_CSS=("${ALLOWED_SRC[@]}" 'grid-cols-\[')
+ALLOWED_CSS=(
+  "${ALLOWED_SRC[@]}"
+  'grid-cols-\['
+  'text-\[22px\]'  # 資産管理の集計副項目(PC・デザイン見本指定)
+  'text-\[26px\]'  # 資産管理の集計主項目(スマホ・デザイン見本指定)
+  'text-\[15px\]'  # 資産管理の集計損益(スマホ・デザイン見本指定)
+)
 ALLOWED_MONO_CSS='print:(\[[^]]+\]:)?border-black$'
 
 fail=0

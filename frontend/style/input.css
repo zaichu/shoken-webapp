@@ -764,14 +764,6 @@
     @apply sticky bottom-0 z-10 mt-auto border-t border-ink/10 bg-surface;
   }
 
-  .list-action-bar {
-    @apply flex flex-col gap-1.5 py-2;
-  }
-
-  .list-action-bar-conditions {
-    @apply flex flex-wrap items-center gap-1.5;
-  }
-
   /* モバイル用アクションバー: 画面下部に固定、PCでは非表示 */
   .action-bar-mobile {
     @apply fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-ink/10 shadow-elevation-2;
@@ -835,16 +827,21 @@
     @apply relative w-full rounded-lg border border-ink/10 bg-surface;
   }
 
+  /* 集計の帯(PC・スマホ共通): 紺地に金の見出し。
+     PC は4列の紺グラデ面、スマホは帯自体が1つのグリッドになり、
+     dl・項目の枠を display:contents で解体して各 dt/dd を帯のセルに直接置く */
   .asset-summary {
-    @apply border border-border bg-surface rounded-lg;
+    @apply block;
   }
 
   .asset-summary-grid {
-    @apply grid grid-cols-4 gap-0;
+    @apply grid grid-cols-[1.3fr_1.2fr_1fr_1fr] rounded-lg bg-brand text-text-inverse;
+    background-image: linear-gradient(135deg, var(--color-brand), var(--color-brand-lift));
+    padding: 18px 8px;
   }
 
   .asset-summary-item {
-    @apply px-4.5 py-3.5 border-r border-border-faint;
+    @apply border-r border-brand-line px-5;
   }
 
   .asset-summary-item:last-child {
@@ -852,52 +849,181 @@
   }
 
   .asset-summary-item dt {
-    @apply text-xs text-text-muted font-medium;
+    @apply text-xs font-medium text-brand-muted;
+  }
+
+  .asset-summary-item-primary dt {
+    @apply font-bold text-gold;
   }
 
   .asset-summary-item dd {
-    @apply mt-0.5;
+    @apply mt-1.5;
   }
 
-  .asset-summary-amount {
-    @apply text-xl font-bold tabular-nums;
+  .asset-summary-primary-amount {
+    @apply text-3xl font-bold;
   }
 
-  .asset-summary-amount-sm {
-    @apply text-xl font-bold tabular-nums;
+  .asset-summary-pnl-amount {
+    @apply text-2xl font-bold;
   }
 
-  .asset-summary-note {
-    @apply text-sm font-medium;
+  .asset-summary-pnl-note {
+    @apply ml-1.5 text-sm font-bold;
+  }
+
+  .asset-summary-sub-amount {
+    @apply text-[22px] font-bold;
+  }
+
+  /* 紺地では --color-positive/-negative がコントラスト不足になるため明るい色を使う */
+  .asset-summary-gain {
+    color: var(--color-profit-bright);
+  }
+
+  .asset-summary-loss {
+    color: var(--color-loss-bright);
+  }
+
+  /* PC だけ出す計算基準。帯の下に置く */
+  .asset-basis-pc {
+    @apply mt-2 text-xs;
+  }
+
+  .asset-basis-pc > summary {
+    @apply inline-flex min-h-7 cursor-pointer items-center font-medium text-brand;
+  }
+
+  .asset-basis-pc-body {
+    @apply mt-1 rounded-lg border border-border bg-surface px-3.5 py-2.5 leading-relaxed text-text-soft;
+  }
+
+  .asset-price-date {
+    @apply mt-0.5 text-[11px] tabular-nums text-text-muted;
+  }
+
+  .asset-badge {
+    @apply inline-flex items-center whitespace-nowrap rounded-lg bg-surface-raised px-1.5 py-px text-xs tabular-nums text-text-soft;
+  }
+
+  .asset-badge-gain {
+    color: var(--color-positive);
+    background: var(--color-positive-soft);
+  }
+
+  .asset-badge-loss {
+    color: var(--color-negative);
+    background: var(--color-negative-soft);
   }
 
   @media (width < 64rem) {
     .asset-summary {
-      @apply rounded-none border-0 border-b border-border bg-surface-raised px-4 py-2.5;
+      @apply grid items-baseline gap-x-2 gap-y-0.5 bg-brand px-4 pb-3 pt-1 text-text-inverse;
+      /* 最終列は中身(株価注記・損益)より狭くなることがある。minmax(0,..) で潰せるようにし、
+         右寄せのまま左の空き列側へだけはみ出す(右端欠けを防ぐ) */
+      grid-template-columns: auto auto auto auto auto minmax(0, 1fr);
+      grid-template-areas:
+        "pdt pdt pdt pdt pdt asof"
+        "pdd pdd pdd pdd pdd pnldd"
+        "sdt1 sdd1 sdt2 sdd2 comp comp"
+        "basis basis basis basis basis basis";
     }
 
-    .asset-summary-grid {
-      @apply grid-cols-2 gap-x-3 gap-y-1.5;
-    }
-
+    .asset-summary-grid,
     .asset-summary-item {
-      @apply p-0 border-0;
+      display: contents;
     }
 
     .asset-summary-item dt {
-      @apply text-[11px] text-text-muted;
+      @apply font-medium;
     }
 
-    .asset-summary-amount {
-      @apply text-lg font-bold tabular-nums;
+    .asset-summary-item dd {
+      @apply mt-0;
     }
 
-    .asset-summary-amount-sm {
-      @apply text-base font-medium tabular-nums;
+    .asset-summary-item-primary dt {
+      grid-area: pdt;
     }
 
-    .asset-summary-note {
+    .asset-summary-item-primary dd {
+      grid-area: pdd;
+    }
+
+    /* 損益の見出しはスマホでは視覚的に出さない(マークアップ側で sr-only)。
+       帯は1行収まりが前提なので、各項目の途中では折り返さない */
+    .asset-summary-item-pnl dd {
+      @apply justify-self-end whitespace-nowrap;
+      grid-area: pnldd;
+    }
+
+    .asset-summary-item-sub1 dt {
+      @apply whitespace-nowrap;
+      grid-area: sdt1;
+    }
+
+    .asset-summary-item-sub1 dd {
+      @apply ml-1 whitespace-nowrap;
+      grid-area: sdd1;
+    }
+
+    .asset-summary-item-sub2 dt {
+      @apply whitespace-nowrap;
+      grid-area: sdt2;
+    }
+
+    .asset-summary-item-sub2 dd {
+      @apply ml-1 whitespace-nowrap;
+      grid-area: sdd2;
+    }
+
+    .asset-summary-item-sub2 dt::before {
+      content: " · ";
+    }
+
+    .asset-summary-primary-amount {
+      @apply text-[26px];
+    }
+
+    .asset-summary-pnl-amount {
+      @apply text-[15px];
+    }
+
+    .asset-summary-pnl-note {
+      @apply ml-1 text-[13px];
+    }
+
+    .asset-summary-sub-amount {
       @apply text-xs font-medium;
+    }
+
+    .asset-summary-item-sub1 dt,
+    .asset-summary-item-sub2 dt,
+    .asset-summary-sub-amount {
+      color: var(--color-brand-muted);
+    }
+
+    .asset-summary-asof {
+      @apply justify-self-end whitespace-nowrap text-[11px] text-brand-muted;
+      grid-area: asof;
+    }
+
+    .asset-summary-comp {
+      @apply inline-flex min-h-11 items-center justify-self-end text-[13px] font-bold text-gold no-underline;
+      grid-area: comp;
+    }
+
+    .asset-summary-basis {
+      @apply mt-1 text-xs text-brand-muted;
+      grid-area: basis;
+    }
+
+    .asset-summary-basis > summary {
+      @apply inline-flex min-h-11 cursor-pointer items-center font-medium text-text-inverse;
+    }
+
+    .asset-summary-basis-body {
+      @apply pb-1 leading-relaxed;
     }
   }
 
@@ -915,20 +1041,34 @@
     @apply h-7;
   }
 
-  .asset-sort-bar {
-    @apply flex items-center gap-1.5 px-4 py-2 border-b border-border lg:hidden;
+  /* スマホ下部の操作帯。絞り込みの開閉・並べ替え項目・昇順/降順を同じ段に置く */
+  .asset-mobile-bar {
+    @apply flex flex-col gap-2 py-2;
   }
 
-  .asset-sort-chip {
-    @apply inline-flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-3 text-sm text-text;
+  .asset-mobile-bar-row {
+    @apply flex items-center gap-2;
   }
 
-  .asset-sort-chip[aria-pressed="true"] {
-    @apply border-accent bg-accent-soft text-accent font-bold;
+  .asset-mobile-tool {
+    @apply inline-flex min-h-10 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 text-[13px] font-medium text-brand;
   }
 
-  .asset-sort-order {
-    @apply ml-auto shrink-0 text-sm text-text-soft min-h-11 min-w-11 px-1;
+  .asset-mobile-sort {
+    @apply flex min-h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-brand bg-brand px-3 text-[13px] font-bold text-text-inverse;
+  }
+
+  .asset-mobile-sort-select {
+    @apply min-w-0 flex-1 appearance-none bg-transparent outline-none;
+  }
+
+  /* option のパネルは OS ネイティブ表示なので、紺のまま残さないよう背景を戻す */
+  .asset-mobile-sort-select option {
+    @apply bg-surface text-text;
+  }
+
+  .asset-mobile-order {
+    @apply inline-flex min-h-10 shrink-0 items-center rounded-lg border border-brand bg-surface px-3 text-[13px] font-bold text-brand;
   }
 
   .asset-compact-list {
@@ -1008,7 +1148,11 @@
   }
 
   .asset-th-sort[aria-pressed="true"] {
-    @apply font-bold text-accent;
+    @apply font-bold text-brand;
+  }
+
+  .asset-sort-arrow {
+    @apply font-bold text-gold;
   }
 
 }

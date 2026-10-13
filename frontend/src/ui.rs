@@ -10,9 +10,9 @@ pub(crate) mod csv_preview;
 #[allow(dead_code)]
 pub(crate) mod disclosure;
 pub(crate) mod empty_state;
-pub(crate) mod list_action_bar;
 pub(crate) mod page_frame;
 pub(crate) mod security_link;
+pub(crate) mod select;
 pub(crate) mod site;
 pub(crate) mod stat_row;
 pub(crate) mod state;

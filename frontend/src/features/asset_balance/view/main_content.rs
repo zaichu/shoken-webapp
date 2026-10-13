@@ -1,6 +1,5 @@
 use super::asset_table::AssetHoldingsTable;
 use super::holdings_list::HoldingsList;
-use super::sort_controls::SortControls;
 use super::summary::PortfolioSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
@@ -156,7 +155,6 @@ pub(crate) fn AssetBalanceMainContent(
                         }
                     }}
                 </div>
-                <SortControls sort_key=sort_key sort_order=sort_order />
                 <div class="hidden lg:block print:block">
                     {move || {
                         let FilteredPortfolio { views, .. } = filtered.get();
