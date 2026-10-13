@@ -33,7 +33,7 @@ fn ActiveConditionBadge(
 // 期間・商品・口座の3種類だけにする
 const CONDITION_KEYS: [SearchKey; 3] = [SearchKey::Date, SearchKey::Products, SearchKey::Accounts];
 
-fn condition_count(search: &ReceiptSearch) -> usize {
+pub(crate) fn condition_count(search: &ReceiptSearch) -> usize {
     CONDITION_KEYS
         .iter()
         .filter(|key| !search.selected_queries.get(**key).is_empty())

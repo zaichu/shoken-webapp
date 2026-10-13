@@ -41,9 +41,9 @@
   --color-text-deep: #111827;
   --color-text-strong: #111827;
   --color-text-soft: #4b5563;
-  --color-text-muted: #6b7280;
-  --color-text-subtle: #6b7280;
-  --color-text-quiet: #6b7280;
+  --color-text-muted: #5f6b7a;
+  --color-text-subtle: #5f6b7a;
+  --color-text-quiet: #5f6b7a;
   --color-text-faint: #9ca3af;
   --color-text-inverse: var(--color-white);
   --color-text-inverse-muted: var(--color-slate-300);
@@ -299,7 +299,7 @@
   }
 
   .receipts-tab {
-    @apply flex min-h-8 items-center justify-center gap-1.5 rounded-full border border-brand-border bg-transparent px-2 text-[13px] text-brand-muted transition-colors lg:min-h-0 lg:px-3.5 lg:text-sm;
+    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-brand-border bg-transparent px-2 text-[13px] text-brand-muted transition-colors lg:min-h-0 lg:px-3.5 lg:text-sm;
   }
 
   .receipts-tab[aria-selected="true"] {
@@ -343,7 +343,7 @@
   }
 
   .active-condition-chip {
-    @apply inline-flex min-h-7 items-center gap-1 rounded-full border border-brand bg-surface px-2.5 text-xs font-medium text-brand;
+    @apply inline-flex min-h-11 items-center gap-1 rounded-full border border-brand bg-surface px-2.5 text-xs font-medium text-brand;
   }
 
   .pc-search-bar {
@@ -379,11 +379,18 @@
   }
 
   .receipt-summary-grid {
-    @apply flex items-center justify-between gap-3 px-4 pb-3 pt-1;
+    @apply grid items-center gap-x-3 px-4 pb-3 pt-1;
+    grid-template-columns: 1fr auto;
   }
 
-  .receipt-summary-secondary {
-    @apply flex flex-col text-right;
+  /* dl 直下の div は dt/dd しか入れられないため、副項目のまとまりは
+     中間の枠を作らず grid の配置だけで作る */
+  .receipt-summary-item-primary {
+    grid-row: 1 / -1;
+  }
+
+  .receipt-summary-item-secondary {
+    @apply justify-self-end text-right;
     line-height: 1.6;
   }
 
@@ -391,12 +398,12 @@
     @apply text-xs text-brand-muted;
   }
 
-  .receipt-summary-secondary .receipt-summary-item dt,
-  .receipt-summary-secondary .receipt-summary-item dd {
+  .receipt-summary-item-secondary dt,
+  .receipt-summary-item-secondary dd {
     @apply inline text-xs;
   }
 
-  .receipt-summary-secondary .receipt-summary-item dd {
+  .receipt-summary-item-secondary dd {
     @apply ml-1;
   }
 
@@ -431,18 +438,20 @@
     }
 
     .receipt-summary-grid {
-      display: grid;
       grid-template-columns: 1.3fr 1fr 1fr;
       padding: 18px 8px;
     }
 
-    .receipt-summary-secondary {
-      display: contents;
-      text-align: left;
+    .receipt-summary-item-primary {
+      grid-row: auto;
     }
 
     .receipt-summary-item {
       @apply border-r border-brand-line px-5 text-left;
+    }
+
+    .receipt-summary-item-secondary {
+      @apply justify-self-stretch;
     }
 
     .receipt-summary-item:last-child {
@@ -453,11 +462,11 @@
       @apply block;
     }
 
-    .receipt-summary-secondary .receipt-summary-item dt {
+    .receipt-summary-item-secondary dt {
       @apply block text-xs;
     }
 
-    .receipt-summary-secondary .receipt-summary-item dd {
+    .receipt-summary-item-secondary dd {
       @apply ml-0 mt-1 block;
     }
 
@@ -640,7 +649,7 @@
   }
 
   .receipts-active-band-clear {
-    @apply ml-auto min-h-7 px-1.5 font-medium text-info hover:text-info-deep;
+    @apply ml-auto min-h-11 px-1.5 font-medium text-info hover:text-info-deep;
   }
 
   /* 集計と絞り込み帯はスクロール中も一覧の上に張り付く(スマホのみ) */
@@ -661,7 +670,7 @@
   }
 
   .receipts-conditions-link {
-    @apply inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-brand bg-surface px-3 text-sm font-medium text-brand no-underline;
+    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-brand bg-surface px-3 text-sm font-medium text-brand no-underline;
   }
 
   .receipts-conditions-count {

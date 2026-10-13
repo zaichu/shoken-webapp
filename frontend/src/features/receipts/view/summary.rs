@@ -70,26 +70,24 @@ pub fn SummaryStrip(
                             </div>
                         }
                     })}
-                <div class="receipt-summary-secondary">
-                    {secondary
-                        .into_iter()
-                        .map(|(label, value, tone)| {
-                            let negative = matches!(tone, StatTone::Loss);
-                            view! {
-                                <div class="receipt-summary-item">
-                                    <dt>{label}</dt>
-                                    <dd>
-                                        <Amount
-                                            text=format_currency(value)
-                                            class="receipt-summary-amount"
-                                            negative=negative
-                                        />
-                                    </dd>
-                                </div>
-                            }
-                        })
-                        .collect_view()}
-                </div>
+                {secondary
+                    .into_iter()
+                    .map(|(label, value, tone)| {
+                        let negative = matches!(tone, StatTone::Loss);
+                        view! {
+                            <div class="receipt-summary-item receipt-summary-item-secondary">
+                                <dt>{label}</dt>
+                                <dd>
+                                    <Amount
+                                        text=format_currency(value)
+                                        class="receipt-summary-amount"
+                                        negative=negative
+                                    />
+                                </dd>
+                            </div>
+                        }
+                    })
+                    .collect_view()}
             </dl>
         </section>
     }
