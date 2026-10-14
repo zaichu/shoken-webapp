@@ -119,5 +119,6 @@ jobs:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
+      # braces(GHSA-vfj7-8cjw-p6xm)に修正版がなく、npm 依存はすべてビルド/テスト専用の devDependencies のため本番依存のみを対象にする。braces の修正版が出たら --omit=dev を外す
       - name: Run npm audit
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --omit=dev
