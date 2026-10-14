@@ -21,11 +21,15 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      # メジャー更新は自動マージしない(エージェントが対応する)
+      # メジャー更新は自動マージしない(エージェントが対応する)。
+      # github-actions も除外する。侵害された action の patch リリースが無承認で main に入ると、
+      # デプロイ系ワークフローの secrets が載ったジョブで実行されるため。
+      # package-ecosystem はブランチ名 dependabot/github_actions/... 由来なのでアンダースコア表記
       - name: Enable squash auto-merge for patch/minor updates
         if: >-
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor')
+          && steps.metadata.outputs.package-ecosystem != 'github_actions'
         run: gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -35,8 +39,9 @@ jobs:
       # (デプロイは CI 成功後に CI 側から呼び出される)
       - name: Dispatch CI and deploy after merge
         if: >-
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor')
+          && steps.metadata.outputs.package-ecosystem != 'github_actions'
         run: |
           pr_number="${{ github.event.pull_request.number }}"
           for i in $(seq 1 60); do
@@ -56,8 +61,9 @@ jobs:
       # auto-merge は PR に残存する設定なので、対象外への変更時(グループPRの再構成など)は明示的に解除する
       - name: Disable auto-merge for other updates
         if: >-
-          steps.metadata.outputs.update-type != 'version-update:semver-patch' &&
-          steps.metadata.outputs.update-type != 'version-update:semver-minor'
+          (steps.metadata.outputs.update-type != 'version-update:semver-patch' &&
+          steps.metadata.outputs.update-type != 'version-update:semver-minor')
+          || steps.metadata.outputs.package-ecosystem == 'github_actions'
         run: |
           pr="${{ github.event.pull_request.html_url }}"
           if [ "$(gh pr view "$pr" --json autoMergeRequest --jq '.autoMergeRequest != null')" = "true" ]; then

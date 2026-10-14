@@ -28,19 +28,21 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       available: ${{ steps.check.outputs.available }}
+    # 有無の確認だけなので値は env に置かず、式で真偽だけを受け取る
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      HAS_CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+      HAS_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+      HAS_DATABASE_URL: ${{ secrets.DATABASE_URL != '' }}
+      HAS_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID != '' }}
+      HAS_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET != '' }}
     steps:
       - name: Check secrets presence
         id: check
         run: |
           missing=""
           for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID DATABASE_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
-            if [[ -z "${!name}" ]]; then
+            flag="HAS_${name}"
+            if [[ "${!flag}" != "true" ]]; then
               missing="${missing} ${name}"
             fi
           done
