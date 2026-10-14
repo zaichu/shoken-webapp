@@ -17,8 +17,6 @@ use crate::services::domain::facets::{FacetSlot, FacetSpec};
 use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
-use crate::services::stock_price;
-use chrono::Utc;
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
 use shared::value::{SecurityCode, UserId};
@@ -125,21 +123,20 @@ pub async fn bulk_create(
     let market_values: Vec<Decimal> = items.iter().map(|i| i.market_value).collect();
     let profit_loss_rates: Vec<Decimal> = items.iter().map(|i| i.profit_loss_rate).collect();
 
-    // CSV の現在値に入り得る最新の終値の日を打つ。取り込み日のカレンダー日付で打つと
-    // 当日引け後の取り直し対象から漏れて、取り込み当日の終値が永久に取得されなくなる
-    let price_as_of = stock_price::latest_close_date_at(Utc::now());
-
     bulk_replace::<AssetBalanceDomain>(
         pool,
         user_id,
         items.len(),
         limit,
         crate::db::query(
+            // CSV の現在値は基準日を名乗れない（引け前に作った CSV を引け後に
+            // 取り込むと前営業日の値になる）ため price_as_of は NULL で打ち、
+            // 次の cron で確定済みの終値に取り直す対象にする
             r#"
             INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
                                         average_purchase_price, total_purchase_amount, current_price,
                                         daily_change, market_value, profit_loss_rate, price_as_of)
-            SELECT *, $12::date FROM UNNEST(
+            SELECT *, NULL::date FROM UNNEST(
                 $1::uuid[], $2::text[], $3::text[], $4::numeric[], $5::numeric[],
                 $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[]
             )
@@ -156,7 +153,6 @@ pub async fn bulk_create(
                 Bind::decimal_vec(daily_changes),
                 Bind::decimal_vec(market_values),
                 Bind::decimal_vec(profit_loss_rates),
-                Bind::from(price_as_of),
             ],
         ),
     )

@@ -7,7 +7,7 @@ use axum::{
 use backend::services::csv::import::CsvImport;
 use backend::{
     config::{self, Config},
-    db::{self, Bind, Db, connect_pool_lazy, run_migrations},
+    db::{self, Bind, Db, Executor, connect_pool_lazy, run_migrations},
     middleware::validate_origin,
     models::asset_balance::{AssetBalanceSearchQueryParams, CreateAssetBalanceRequest},
     models::common::{PaginationParams, SearchQueryParams},
@@ -60,6 +60,8 @@ use rust_decimal_macros::dec;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::{SecurityCode, UserId};
 use std::{sync::Arc, time::Duration};
+use testcontainers::ContainerAsync;
+use testcontainers::core::ExecCommand;
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, timeout};
@@ -669,18 +671,7 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
 
     let code: SecurityCode = "1301".parse().unwrap();
 
-    // CSV 取込日より古い基準日の取得値は反映しない（日付の新しいほうを残す）
-    let stale = ClosePrice {
-        close: dec!(900),
-        as_of: NaiveDate::from_ymd_opt(2000, 1, 1).unwrap(),
-        prev_close: Some(dec!(890)),
-    };
-    let updated = stock_price::apply_close_price(&pool, &code, &stale)
-        .await
-        .expect("apply(stale) 失敗");
-    assert_eq!(updated, 0);
-
-    // 基準日を過去に戻し、新しい取得値が current_price/market_value/daily_change に反映されることを確認
+    // 保存済みの基準日より古い取得値は反映しない（日付の新しいほうを残す）
     db::query(
         "UPDATE asset_balances SET price_as_of = $1 WHERE user_id = $2",
         vec![
@@ -692,6 +683,17 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
     .await
     .expect("price_as_of 更新失敗");
 
+    let stale = ClosePrice {
+        close: dec!(900),
+        as_of: NaiveDate::from_ymd_opt(2000, 1, 1).unwrap(),
+        prev_close: Some(dec!(890)),
+    };
+    let updated = stock_price::apply_close_price(&pool, &code, &stale)
+        .await
+        .expect("apply(stale) 失敗");
+    assert_eq!(updated, 0);
+
+    // 新しい基準日の取得値は current_price/market_value/daily_change に反映される
     let fresh = ClosePrice {
         close: dec!(2500.5),
         as_of: NaiveDate::from_ymd_opt(2020, 1, 2).unwrap(),
@@ -721,7 +723,7 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn asset_balance_bulk_create_stamps_latest_confirmed_close() {
+async fn asset_balance_bulk_create_marks_price_unconfirmed() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
     asset_balance_svc::bulk_create(
@@ -733,6 +735,8 @@ async fn asset_balance_bulk_create_stamps_latest_confirmed_close() {
     .await
     .expect("bulk_create 失敗");
 
+    // CSV の現在値は基準日を名乗れないため未確認(NULL)で打ち、
+    // cron の取り直し対象にする。確定日を打つと当日終値が取得されなくなる
     let stamped: Option<NaiveDate> = db::query_scalar(
         "SELECT price_as_of FROM asset_balances WHERE user_id = $1",
         vec![Bind::from(user_id)],
@@ -740,19 +744,21 @@ async fn asset_balance_bulk_create_stamps_latest_confirmed_close() {
     .fetch_one(&pool)
     .await
     .expect("price_as_of 取得失敗");
+    assert_eq!(stamped, None);
 
-    // 「取り込み日」ではなく取り込み時点で確定済みの最新の終値の日を打つ。
-    // 取り込み当日より新しい日付を名乗ると、当日の終値が cron の取り直し対象から外れる
-    let stamped = stamped.expect("price_as_of が打刻されている");
-    let latest = stock_price::latest_close_date_at(Utc::now());
-    assert!(
-        stamped <= latest,
-        "確定していない日付を名乗っている: {stamped} > {latest}"
-    );
-    assert!(
-        stamped > latest - chrono::Duration::days(7),
-        "打刻が古すぎる: {stamped}"
-    );
+    // price_as_of IS NULL は再取得対象。ホスト環境では fetch 自体は失敗するが、
+    // 対象に選ばれたことは問い合わせ時刻の記録で確認できる
+    stock_price::refresh_stock_prices(&pool, None)
+        .await
+        .expect("refresh 失敗");
+    let checked: Option<chrono::DateTime<Utc>> = db::query_scalar(
+        "SELECT price_checked_at FROM asset_balances WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("price_checked_at 取得失敗");
+    assert!(checked.is_some(), "取り込み銘柄が再取得対象になっていない");
 }
 
 #[tokio::test]
@@ -1976,4 +1982,202 @@ async fn bulk_create_respects_user_row_limit() {
     dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(100))
         .await
         .expect("上限内なら成功");
+}
+
+/// ベースライン(0000〜0009)にまとめる前の 17 ファイル。新旧で pg_dump が一致するかの
+/// 検証用に fixtures として残してある(migrate.rs からは参照されない)
+const LEGACY_MIGRATIONS: &[&str] = &[
+    include_str!("fixtures/legacy_migrations/0001_initial_schema.sql"),
+    include_str!("fixtures/legacy_migrations/0002_dividends_search_indexes.sql"),
+    include_str!("fixtures/legacy_migrations/0003_domestic_stocks_search_indexes.sql"),
+    include_str!("fixtures/legacy_migrations/0004_mutualfunds_search_indexes.sql"),
+    include_str!("fixtures/legacy_migrations/0005_asset_balances_search_indexes.sql"),
+    include_str!("fixtures/legacy_migrations/0006_free_text_search_trgm_indexes.sql"),
+    include_str!("fixtures/legacy_migrations/0007_drop_idx_dividends_user_id.sql"),
+    include_str!("fixtures/legacy_migrations/0008_drop_idx_domestic_stocks_user_id.sql"),
+    include_str!("fixtures/legacy_migrations/0009_drop_idx_mutualfunds_user_id.sql"),
+    include_str!("fixtures/legacy_migrations/0010_drop_idx_asset_balances_user_id.sql"),
+    include_str!("fixtures/legacy_migrations/0011_drop_idx_asset_balances_user_security_code.sql"),
+    include_str!("fixtures/legacy_migrations/0012_financial_statements_cache.sql"),
+    include_str!("fixtures/legacy_migrations/0013_drop_financial_statements_cache.sql"),
+    include_str!("fixtures/legacy_migrations/0014_hash_session_tokens.sql"),
+    include_str!("fixtures/legacy_migrations/0015_session_id_internal_key.sql"),
+    include_str!("fixtures/legacy_migrations/0016_reroll_plain_session_id.sql"),
+    include_str!("fixtures/legacy_migrations/0017_asset_balances_price_as_of.sql"),
+];
+
+/// migrate.rs が作る _sqlx_migrations と同じ定義。履歴の置き換えを確かめるため
+/// ランナーを介さず手動で履歴を作るのに使う
+const SQLX_MIGRATIONS_DDL: &str = "CREATE TABLE _sqlx_migrations (
+    version BIGINT PRIMARY KEY,
+    description TEXT NOT NULL,
+    installed_on TIMESTAMPTZ NOT NULL DEFAULT now(),
+    success BOOLEAN NOT NULL,
+    checksum BYTEA NOT NULL,
+    execution_time BIGINT NOT NULL
+)";
+
+async fn apply_legacy_migrations(pool: &Db) {
+    for sql in LEGACY_MIGRATIONS {
+        pool.batch_execute(sql)
+            .await
+            .expect("旧マイグレーションの適用に失敗");
+    }
+}
+
+/// 旧ランナーで version 1〜=max_version まで適用済みの状態を再現する
+async fn seed_migration_history(pool: &Db, max_version: i64) {
+    pool.batch_execute(SQLX_MIGRATIONS_DDL)
+        .await
+        .expect("履歴テーブルの作成に失敗");
+    for version in 1..=max_version {
+        db::query(
+            "INSERT INTO _sqlx_migrations
+                (version, description, success, checksum, execution_time)
+            VALUES ($1, 'legacy', true, '\\x00'::bytea, 0)",
+            vec![Bind::from(version)],
+        )
+        .execute(pool)
+        .await
+        .expect("履歴行の作成に失敗");
+    }
+}
+
+/// コンテナ内で `pg_dump --schema-only` を実行し、比較用に正規化する
+/// (環境依存のコメント・SET・所有者行を落とす)
+async fn pg_dump_schema(node: &ContainerAsync<Postgres>, db: &str) -> Vec<String> {
+    let mut result = node
+        .exec(ExecCommand::new([
+            "pg_dump",
+            "-U",
+            "postgres",
+            "-d",
+            db,
+            "--schema-only",
+        ]))
+        .await
+        .expect("pg_dump の exec に失敗");
+    let stdout = result
+        .stdout_to_vec()
+        .await
+        .expect("pg_dump 出力の読み取りに失敗");
+    assert_eq!(
+        result.exit_code().await.expect("終了コードの取得に失敗"),
+        Some(0)
+    );
+    String::from_utf8(stdout)
+        .expect("pg_dump 出力が UTF-8 ではありません")
+        .lines()
+        .map(str::trim)
+        .filter(|line| {
+            !line.is_empty()
+                && !line.starts_with("--")
+                && !line.starts_with('\\')
+                && !line.starts_with("SET ")
+                && !line.starts_with("SELECT pg_catalog.set_config")
+                && !line.contains(" OWNER TO ")
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+async fn create_database(pool: &Db, name: &str) {
+    pool.batch_execute(&format!("CREATE DATABASE {name}"))
+        .await
+        .expect("CREATE DATABASE に失敗");
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn squashed_schema_matches_legacy_migrations() {
+    let node = Postgres::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let base_url = format!("postgres://postgres:postgres@127.0.0.1:{port}");
+
+    let admin = connect_with_retry(&format!("{base_url}/postgres")).await;
+    create_database(&admin, "legacy_schema").await;
+    create_database(&admin, "squashed_schema").await;
+
+    let legacy = connect_with_retry(&format!("{base_url}/legacy_schema")).await;
+    apply_legacy_migrations(&legacy).await;
+    // 旧ランナー適用済みの DB には履歴テーブルもあるため、新旧で揃えてから比較する
+    seed_migration_history(&legacy, 17).await;
+    // ベースライン以後に追加された migration も含む最終 schema で比較するため、
+    // 旧系列 DB 側もランナーに通す（履歴はベースラインへ置き換わり追加分が適用される）
+    run_migrations(&legacy)
+        .await
+        .expect("旧系列 DB へのマイグレーション適用に失敗");
+
+    let squashed = connect_with_retry(&format!("{base_url}/squashed_schema")).await;
+    run_migrations(&squashed)
+        .await
+        .expect("ベースラインの適用に失敗");
+
+    assert_eq!(
+        pg_dump_schema(&node, "legacy_schema").await,
+        pg_dump_schema(&node, "squashed_schema").await,
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn legacy_history_is_rewritten_once_and_data_is_kept() {
+    let node = Postgres::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let base_url = format!("postgres://postgres:postgres@127.0.0.1:{port}");
+
+    let admin = connect_with_retry(&format!("{base_url}/postgres")).await;
+    create_database(&admin, "rewritten").await;
+
+    let pool = connect_with_retry(&format!("{base_url}/rewritten")).await;
+    apply_legacy_migrations(&pool).await;
+    seed_migration_history(&pool, 17).await;
+    let user_id = create_test_user(&pool).await;
+
+    run_migrations(&pool).await.expect("履歴の置き換えに失敗");
+
+    let versions = db::query(
+        "SELECT version FROM _sqlx_migrations ORDER BY version",
+        vec![],
+    )
+    .fetch_all::<(i64,), _>(&pool)
+    .await
+    .expect("履歴の取得に失敗");
+    let applied = versions.iter().map(|row| row.0).collect::<Vec<_>>();
+    // 旧履歴はベースライン 0〜9 の記録に置き換わり、ベースライン以後の
+    // 新規 migration はその後に適用される
+    assert_eq!(applied[..10], (0..=9).collect::<Vec<_>>()[..]);
+    assert!(applied[10..].iter().all(|v| *v > 9));
+    let user = db::query(
+        "SELECT id FROM users WHERE id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_optional::<(Uuid,), _>(&pool)
+    .await
+    .expect("ユーザー行の取得に失敗");
+    assert!(user.is_some(), "既存データが消えています");
+
+    // 置き換えは一度だけ。再実行しても履歴は増えない
+    run_migrations(&pool).await.expect("再実行に失敗");
+    let versions = db::query("SELECT version FROM _sqlx_migrations", vec![])
+        .fetch_all::<(i64,), _>(&pool)
+        .await
+        .expect("履歴の取得に失敗");
+    assert_eq!(versions.len(), applied.len());
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn partial_legacy_history_stops_migration() {
+    let node = Postgres::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+
+    let pool = connect_with_retry(&database_url).await;
+    seed_migration_history(&pool, 10).await;
+
+    let err = run_migrations(&pool)
+        .await
+        .expect_err("旧履歴が途中までの DB はエラーで止まるはず");
+    assert!(err.contains("揃っていません"), "unexpected error: {err}");
 }

@@ -223,10 +223,8 @@ fn latest_close_date(jst_now: NaiveDateTime) -> NaiveDate {
     date
 }
 
-/// UTC 時刻に対応する「最新の終値の日」。CSV 取り込みの price_as_of 打刻でも使う
-// asset_balance と tests/db_integration.rs から使うため docs には出さない
-#[doc(hidden)]
-pub fn latest_close_date_at(now: DateTime<Utc>) -> NaiveDate {
+/// UTC 時刻に対応する「最新の終値の日」
+fn latest_close_date_at(now: DateTime<Utc>) -> NaiveDate {
     latest_close_date((now + Duration::hours(9)).naive_utc())
 }
 
