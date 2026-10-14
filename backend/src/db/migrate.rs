@@ -11,13 +11,55 @@ use sha2::{Digest, Sha384};
 use std::collections::{BTreeSet, HashMap};
 use std::time::Instant;
 
-const MIGRATION_FILES: &[(&str, &str)] = &[(
-    "0001_schema",
-    include_str!("../../migrations/0001_schema.sql"),
-)];
+const MIGRATION_FILES: &[(&str, &str)] = &[
+    (
+        "0000_extensions",
+        include_str!("../../migrations/0000_extensions.sql"),
+    ),
+    (
+        "0001_users",
+        include_str!("../../migrations/0001_users.sql"),
+    ),
+    (
+        "0002_sessions",
+        include_str!("../../migrations/0002_sessions.sql"),
+    ),
+    (
+        "0003_dividends",
+        include_str!("../../migrations/0003_dividends.sql"),
+    ),
+    (
+        "0004_domestic_stocks",
+        include_str!("../../migrations/0004_domestic_stocks.sql"),
+    ),
+    (
+        "0005_mutualfunds",
+        include_str!("../../migrations/0005_mutualfunds.sql"),
+    ),
+    (
+        "0006_asset_balances",
+        include_str!("../../migrations/0006_asset_balances.sql"),
+    ),
+    (
+        "0007_stock",
+        include_str!("../../migrations/0007_stock.sql"),
+    ),
+    (
+        "0008_dividend_per_share_cache",
+        include_str!("../../migrations/0008_dividend_per_share_cache.sql"),
+    ),
+    (
+        "0009_market_data_provider_rate_control",
+        include_str!("../../migrations/0009_market_data_provider_rate_control.sql"),
+    ),
+];
+
+/// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に
+/// 「適用済み」として記録される。新しい migration は 0010 以降に採番する
+const BASELINE_MAX_VERSION: i64 = 9;
 
 /// 旧ファイル名で運用していた頃の最大バージョン。この時点のスキーマを
-/// `0001_schema.sql` にまとめたため、これより大きい version の履歴は作られない
+/// ベースライン 0000〜0009 にまとめたため、これより大きい version の旧履歴は存在しない
 const LEGACY_MAX_VERSION: i64 = 17;
 
 struct Migration {
@@ -162,21 +204,24 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
 }
 
 /// 旧バージョン(1〜LEGACY_MAX_VERSION)の履歴が残る DB の `_sqlx_migrations` を、
-/// 新 baseline 1 件の記録へ一度だけ置き換える。テーブル・データには触れない。
+/// ベースラインファイル群(0〜BASELINE_MAX_VERSION)の記録へ一度だけ置き換える。
+/// テーブル・データには触れない。
 /// 旧履歴が途中までしか無い DB は schema が現行と異なる可能性があるためエラーで止める
 async fn squash_legacy_history(
     client: &mut tokio_postgres::Client,
     applied: &mut HashMap<i64, Vec<u8>>,
     local: &[Migration],
 ) -> Result<(), String> {
-    let baseline = local
+    let baseline_v1 = local
         .iter()
         .find(|m| m.version == 1)
         .expect("baseline (version=1) の migration が必要です");
-    let has_legacy = applied.keys().any(|v| (2..=LEGACY_MAX_VERSION).contains(v))
-        || applied
-            .get(&1)
-            .is_some_and(|sum| *sum != checksum(baseline.sql));
+    // 旧運用の version=1 は 0001_initial_schema.sql だったため、その checksum と
+    // 新 0001_users.sql の差だけを見て判定する。version 2〜17 の存在では判定しない
+    // (新形式の追加 migration と番号が被り、履歴を誤って消すため)
+    let has_legacy = applied
+        .get(&1)
+        .is_some_and(|sum| *sum != checksum(baseline_v1.sql));
     if !has_legacy {
         return Ok(());
     }
@@ -192,7 +237,11 @@ async fn squash_legacy_history(
         ));
     }
 
-    let sum = checksum(baseline.sql);
+    let baseline: Vec<(&Migration, Vec<u8>)> = local
+        .iter()
+        .filter(|m| m.version <= BASELINE_MAX_VERSION)
+        .map(|m| (m, checksum(m.sql)))
+        .collect();
     let tx = client
         .transaction()
         .await
@@ -200,13 +249,17 @@ async fn squash_legacy_history(
     tx.execute("DELETE FROM _sqlx_migrations", &[])
         .await
         .map_err(|e| format!("旧マイグレーション履歴の削除に失敗: {e}"))?;
-    insert_migration_tx(&tx, baseline, &sum, 0).await?;
+    for (m, sum) in &baseline {
+        insert_migration_tx(&tx, m, sum, 0).await?;
+    }
     tx.commit()
         .await
         .map_err(|e| format!("コミットに失敗: {e}"))?;
-    tracing::info!("旧マイグレーション履歴(1〜{LEGACY_MAX_VERSION})を 1 件の記録に置き換えました");
+    tracing::info!(
+        "旧マイグレーション履歴(1〜{LEGACY_MAX_VERSION})をベースライン 0〜{BASELINE_MAX_VERSION} の記録に置き換えました"
+    );
     applied.clear();
-    applied.insert(baseline.version, sum);
+    applied.extend(baseline.into_iter().map(|(m, sum)| (m.version, sum)));
     Ok(())
 }
 

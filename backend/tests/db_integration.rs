@@ -1879,7 +1879,7 @@ async fn bulk_create_respects_user_row_limit() {
         .expect("上限内なら成功");
 }
 
-/// 0001_schema.sql にまとめる前の 17 ファイル。新旧で pg_dump が一致するかの
+/// ベースライン(0000〜0009)にまとめる前の 17 ファイル。新旧で pg_dump が一致するかの
 /// 検証用に fixtures として残してある(migrate.rs からは参照されない)
 const LEGACY_MIGRATIONS: &[&str] = &[
     include_str!("fixtures/legacy_migrations/0001_initial_schema.sql"),
@@ -2001,7 +2001,7 @@ async fn squashed_schema_matches_legacy_migrations() {
     let squashed = connect_with_retry(&format!("{base_url}/squashed_schema")).await;
     run_migrations(&squashed)
         .await
-        .expect("0001_schema.sql の適用に失敗");
+        .expect("ベースラインの適用に失敗");
 
     assert_eq!(
         pg_dump_schema(&node, "legacy_schema").await,
@@ -2026,13 +2026,16 @@ async fn legacy_history_is_rewritten_once_and_data_is_kept() {
 
     run_migrations(&pool).await.expect("履歴の置き換えに失敗");
 
-    let versions = db::query("SELECT version FROM _sqlx_migrations", vec![])
-        .fetch_all::<(i64,), _>(&pool)
-        .await
-        .expect("履歴の取得に失敗");
+    let versions = db::query(
+        "SELECT version FROM _sqlx_migrations ORDER BY version",
+        vec![],
+    )
+    .fetch_all::<(i64,), _>(&pool)
+    .await
+    .expect("履歴の取得に失敗");
     assert_eq!(
         versions.iter().map(|row| row.0).collect::<Vec<_>>(),
-        vec![1]
+        (0..=9).collect::<Vec<_>>()
     );
     let user = db::query(
         "SELECT id FROM users WHERE id = $1",
@@ -2049,7 +2052,7 @@ async fn legacy_history_is_rewritten_once_and_data_is_kept() {
         .fetch_all::<(i64,), _>(&pool)
         .await
         .expect("履歴の取得に失敗");
-    assert_eq!(versions.len(), 1);
+    assert_eq!(versions.len(), 10);
 }
 
 #[tokio::test]
