@@ -4,13 +4,13 @@ use crate::api::dto::{
 };
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::{
-    calculate_valuation_from_decimal, format_valuation_amount, format_valuation_rate,
-    valuation_tone,
+    calculate_valuation_from_decimal, format_signed_valuation_amount, format_signed_valuation_rate,
+    is_negative_valuation, is_positive_valuation,
 };
 use crate::session::{Generation, SessionStore, use_session};
 use crate::support::pagination::ListEndpoint;
+use crate::ui::amount::Amount;
 use crate::ui::page_frame::PageFrame;
-use crate::ui::summary_strip::{SummaryItem, SummaryStrip};
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
 use std::collections::HashMap;
@@ -19,8 +19,10 @@ use std::future::Future;
 #[component]
 pub fn HomePage() -> impl IntoView {
     view! {
-        <PageFrame title="ホーム">
-            <HomeOverview />
+        <PageFrame title="ホーム" full_bleed=true>
+            <div class="content-gutter flex flex-1 flex-col">
+                <HomeOverview />
+            </div>
         </PageFrame>
     }
 }
@@ -258,6 +260,8 @@ fn HomeOverview() -> impl IntoView {
     view! {
         <Show when=move || session.user.get().is_some()>
             <section
+                class="asset-summary asset-summary-3"
+                role="region"
                 aria-label="資産の概要"
                 aria-busy=move || {
                     let (asset, dividend) = snapshot();
@@ -269,7 +273,11 @@ fn HomeOverview() -> impl IntoView {
                     let (asset, dividend) = snapshot();
                     view! { <OverviewTiles asset=asset dividend=dividend /> }
                 }}
-                <p class="text-xs font-medium text-text-muted" role="status" aria-live="polite">
+                <p
+                    class="col-span-full text-xs font-medium text-brand-muted lg:text-text-muted"
+                    role="status"
+                    aria-live="polite"
+                >
                     {move || {
                         let (asset, dividend) = snapshot();
                         let refresh_failed = data.fetch_state.with(|map| {
@@ -301,9 +309,14 @@ fn OverviewTiles(
     let asset_busy = asset.is_none();
     let dividend_busy = dividend.is_none();
     let asset = asset.flatten();
-    let market = asset
-        .as_ref()
-        .map(|summary| format_currency_decimal(summary.total_market_value));
+    let market_text = if asset_busy {
+        "—".to_string()
+    } else {
+        asset
+            .as_ref()
+            .map(|summary| format_currency_decimal(summary.total_market_value))
+            .unwrap_or_else(|| "—".to_string())
+    };
     let valuation = asset
         .as_ref()
         .filter(|summary| {
@@ -315,33 +328,66 @@ fn OverviewTiles(
                 summary.total_purchase_amount,
             )
         });
-    let (_profit_class, profit_negative) =
-        valuation_tone(valuation.as_ref().and_then(|valuation| valuation.amount));
-    let profit_rate = valuation.as_ref().map(|valuation| match valuation.rate {
-        Some(rate) => format_valuation_rate(Some(rate), 1),
-        None => "算出不可".to_string(),
-    });
-    let profit = valuation.map(|valuation| format_valuation_amount(valuation.amount));
-    let dividend = dividend
-        .flatten()
-        .map(|summary| format_currency_decimal(summary.total_net_amount_received));
-    let items = vec![
-        SummaryItem::new(
-            "評価額",
-            (!asset_busy).then(|| market.unwrap_or_else(|| "—".to_string())),
-        ),
-        SummaryItem {
-            label: "評価損益",
-            value: (!asset_busy).then(|| profit.unwrap_or_else(|| "—".to_string())),
-            note: (!asset_busy).then(|| profit_rate.unwrap_or_else(|| "—".to_string())),
-            negative: profit_negative.is_some(),
-        },
-        SummaryItem::new(
-            "今年の税引後配当金",
-            (!dividend_busy).then(|| dividend.unwrap_or_else(|| "—".to_string())),
-        ),
-    ];
-    view! { <SummaryStrip items=items /> }
+    let pnl_amount = valuation.as_ref().and_then(|valuation| valuation.amount);
+    let pnl_tone = if is_negative_valuation(pnl_amount) {
+        "asset-summary-loss"
+    } else if is_positive_valuation(pnl_amount) {
+        "asset-summary-gain"
+    } else {
+        ""
+    };
+    let profit_text = if asset_busy {
+        "—".to_string()
+    } else {
+        valuation
+            .as_ref()
+            .map(|valuation| format_signed_valuation_amount(valuation.amount))
+            .unwrap_or_else(|| "—".to_string())
+    };
+    let profit_rate = valuation
+        .as_ref()
+        .and_then(|valuation| valuation.rate)
+        .map(|rate| format_signed_valuation_rate(Some(rate), 1));
+    let dividend_text = if dividend_busy {
+        "—".to_string()
+    } else {
+        dividend
+            .flatten()
+            .map(|summary| format_currency_decimal(summary.total_net_amount_received))
+            .unwrap_or_else(|| "—".to_string())
+    };
+    view! {
+        <dl class="asset-summary-grid">
+            <div class="asset-summary-item asset-summary-item-primary">
+                <dt>"評価額"</dt>
+                <dd>
+                    <Amount text=market_text class="asset-summary-primary-amount".to_string() />
+                </dd>
+            </div>
+            <div class="asset-summary-item asset-summary-item-pnl">
+                <dt class="sr-only lg:not-sr-only">"評価損益"</dt>
+                <dd>
+                    <Amount
+                        text=profit_text
+                        class=format!("asset-summary-pnl-amount {pnl_tone}")
+                    />
+                    {profit_rate.map(|rate| {
+                        view! {
+                            <span class=format!("asset-summary-pnl-note {pnl_tone}")>
+                                {rate}
+                            </span>
+                        }
+                    })}
+                </dd>
+            </div>
+            <div class="asset-summary-item asset-summary-item-sub1">
+                <dt>"今年の税引後配当金"</dt>
+                <dd>
+                    <Amount text=dividend_text class="asset-summary-sub-amount".to_string() />
+                </dd>
+            </div>
+        </dl>
+    }
 }
 
 #[cfg(test)]

@@ -784,15 +784,6 @@
     box-shadow: var(--shadow-edge-accent);
   }
 
-  .summary-strip {
-    @apply grid gap-x-6 gap-y-1;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  }
-
-  .summary-strip-item {
-    @apply min-w-0 py-1;
-  }
-
   .copyable-name {
     @apply inline-flex min-h-6 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-left text-inherit focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-info-focus;
   }
@@ -874,6 +865,12 @@
 
   .asset-summary-sub-amount {
     @apply text-[22px] font-bold;
+  }
+
+  /* 集計が3項目のページ(ホーム)用。4列のままだと末尾に空列が残る。
+     スマホは dl が display:contents で帯側の grid-template-areas に従うため影響しない */
+  .asset-summary-3 .asset-summary-grid {
+    grid-template-columns: 1.3fr 1.2fr 1fr;
   }
 
   /* 紺地では --color-positive/-negative がコントラスト不足になるため明るい色を使う */

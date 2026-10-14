@@ -133,7 +133,7 @@ src/
 | `Chip` / `Select` / `FieldTrigger` / `OptionButton`(`ui/choice.rs`) | 押せる選択部品とフォーム | Chip は Filter・Segment(aria-pressed)・Pill |
 | `TabButton`(`ui/tabs.rs`) | `role="tab"` のタブ | 見た目と roving tabindex は部品が持つ。矢印キー移動は呼び出し側の `on_keydown` が担う(例: ReceiptsTabButton) |
 | `Amount`(`ui/amount.rs`) | 金額・率の値 | `tabular-nums` と `[data-negative]` をまとめる。`block=true` で `<p>` として出す |
-| `Alert` / `Spinner` / `Loading` / `LoadingStrip` / `Skeleton` / `ListLoadError` / `ListSkeleton`(`ui/state.rs`) | 読み込み・失敗の状態表示 | Alert は Warning・Danger、SpinnerSize は Sm・Lg、ListSkeletonVariant は Cards・Table。ListLoadError は再読み込み操作を持つ |
+| `Alert` / `Spinner` / `Loading` / `LoadingStrip` / `ListLoadError` / `ListSkeleton`(`ui/state.rs`) | 読み込み・失敗の状態表示 | Alert は Warning・Danger、SpinnerSize は Sm・Lg、ListSkeletonVariant は Cards・Table。ListLoadError は再読み込み操作を持つ |
 | `CollapsibleSearchCard`(`ui/collapsible_search_card.rs`) | 検索欄の開閉と解除操作 | SearchCardLayout は Card・Toolbar |
 | `CsvSection`(`ui/csv_section.rs`) / `CsvActionRail`(`ui/csv_rail.rs`) | CSV の選択・保存・結果・削除欄 | CsvSource が状態と操作を渡し、配線とマークアップを共有する |
 | `CsvPreviewBanner` / `CsvPreviewNotice`(`ui/csv_preview.rs`) | 未保存のプレビュー・行エラーの通知 | 保存操作と有効行数に合わせた通知。variant なし |

@@ -96,16 +96,6 @@ pub fn LoadingStrip(#[prop(into)] text: Signal<String>) -> impl IntoView {
 }
 
 #[component]
-pub fn Skeleton(#[prop(into, optional)] class: Signal<String>) -> impl IntoView {
-    view! {
-        <div
-            class=move || format!("animate-pulse rounded bg-fill {}", class.get())
-            aria-hidden="true"
-        ></div>
-    }
-}
-
-#[component]
 pub fn ListLoadError(
     message: String,
     on_retry: impl Fn() + Send + Sync + 'static,
