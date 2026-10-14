@@ -44,6 +44,14 @@ simple = { limit = 100, period = 10 }
 # 現在値更新は一時的に5分間隔。確認後に #1303 で戻す
 crons = ["* * * * *", "*/5 * * * *"]
 
+# Workers Logs に console 出力を残す(cron の成否を本番で追うため)。
+# invocation logs は request URL(OAuth の code/state クエリを含む)を保存するため切る
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = false
+
 [build]
 command = "worker-build --release"
 

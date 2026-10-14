@@ -1,0 +1,81 @@
+name: Worker Tail
+
+# 本番 Worker のログを手動起動で tail し、scheduled イベントと error/warn の
+# 行だけを artifact に残す。fetch イベントの request URL はクエリ
+# (OAuth の code/state 等)を含み得るため artifact には出さない
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: 'tail を流す時間(分、1〜300)。正時の cron(UTC 07〜23時)をまたぐ長さで起動する'
+        required: true
+        default: 70
+        type: number
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-tail
+  cancel-in-progress: true
+
+jobs:
+  tail:
+    name: wrangler tail
+    runs-on: ubuntu-latest
+    # 式に算術演算は書けないため固定値。minutes の上限検証でこの値を超えないことを担保する
+    timeout-minutes: 315
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 https://github.com/actions/setup-node/releases/tag/v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install wrangler
+        run: npm install -g wrangler@4.149.0
+
+      - name: Tail worker logs
+        run: |
+          set -uo pipefail
+          m="${{ inputs.minutes }}"
+          [[ "$m" =~ ^[0-9]+$ ]] && (( m >= 1 && m <= 300 )) \
+            || { echo "::error::minutes は 1〜300 の整数で指定してください"; exit 1; }
+          mkdir -p tail-out
+          ec=0
+          timeout "${m}m" wrangler tail shoken-backend --format json \
+            > tail-out/raw.jsonl 2> tail-out/stderr.log || ec=$?
+          echo "wrangler tail 終了コード: ${ec} (124 = 指定時間の経過)"
+          sed -e 's/^/[stderr] /' tail-out/stderr.log
+          wc -l tail-out/raw.jsonl
+
+      # json 出力は1イベント1行。scheduled は全行残し、それ以外は error/warn の
+      # ログ行と例外だけに絞る。fromjson? で非 JSON 行は捨てる
+      - name: Filter scheduled/error lines
+        run: |
+          set -euo pipefail
+          jq -R 'fromjson? | objects |
+            if .event.cron != null then
+              {eventTimestamp, outcome, cron: .event.cron, logs, exceptions}
+            else
+              {eventTimestamp, outcome,
+               logs: [.logs[]? | select(.level == "error" or .level == "warn")],
+               exceptions: [.exceptions[]?]}
+              | select((.logs | length) + (.exceptions | length) > 0)
+            end' tail-out/raw.jsonl > tail-out/filtered.jsonl
+          wc -l tail-out/filtered.jsonl
+          {
+            echo "- tail 時間: ${{ inputs.minutes }}分"
+            echo "- 収集イベント数: $(wc -l < tail-out/filtered.jsonl)"
+            echo "- scheduled イベント数: $(grep -c '"cron"' tail-out/filtered.jsonl || true)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: worker-tail-${{ github.run_id }}
+          path: tail-out/filtered.jsonl
+          if-no-files-found: warn
+          retention-days: 14
