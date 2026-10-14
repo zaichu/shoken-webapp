@@ -1,10 +1,10 @@
-//! 保有銘柄の現在値を毎時 cron で自動更新する。
+//! 保有銘柄の現在値を cron で自動更新する。
 //! 取得元は `fetch_close_price` 1関数に集約し、別の取得元への差し替えは
 //! この関数だけを直せばよい形にする（Yahoo Finance chart API は非公式）。
 
 use crate::db::{Bind, Db};
 use crate::errors::{ApiError, UpstreamError};
-use chrono::{DateTime, NaiveDate, Timelike};
+use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use shared::value::SecurityCode;
@@ -76,9 +76,9 @@ struct Quote {
 }
 
 /// chart API のレスポンス文字列から終値・基準日・前日終値を取り出す。
-/// 日中バーを含まない日足（interval=1d）を想定し、null でない終値を持つ
-/// 最後のバーを採用する（引け後実行だが、実行タイミングがずれても直近の確定値になる）
-pub fn parse_chart_close(body: &str) -> Result<ClosePrice, ApiError> {
+/// 日中バーを含まない日足（interval=1d）を想定する。場中は当日バーに暫定値が
+/// 乗るため、max_as_of 以前の確定バーのうち null でない終値を持つ最後のバーを採用する
+pub fn parse_chart_close(body: &str, max_as_of: NaiveDate) -> Result<ClosePrice, ApiError> {
     let response: ChartResponse = serde_json::from_str(body).map_err(UpstreamError::Decode)?;
     if response.chart.error.is_some() {
         return Err(ApiError::Internal("chart API がエラーを返した"));
@@ -98,19 +98,21 @@ pub fn parse_chart_close(body: &str) -> Result<ClosePrice, ApiError> {
         .and_then(|quote| quote.close.as_deref())
         .ok_or_else(no_data)?;
 
-    let bars: Vec<(i64, f64)> = timestamps
+    let bars: Vec<(NaiveDate, f64)> = timestamps
         .iter()
         .zip(closes.iter())
-        .filter_map(|(ts, close)| close.map(|close| (*ts, close)))
+        .filter_map(|(ts, close)| {
+            let as_of = DateTime::from_timestamp(*ts, 0)
+                .map(|t| (t + chrono::Duration::hours(9)).date_naive())?;
+            close.map(|close| (as_of, close))
+        })
+        .filter(|(as_of, _)| *as_of <= max_as_of)
         .collect();
-    let (ts, close) = bars.last().ok_or_else(no_data)?;
-    let as_of = DateTime::from_timestamp(*ts, 0)
-        .map(|t| (t + chrono::Duration::hours(9)).date_naive())
-        .ok_or_else(no_data)?;
+    let (as_of, close) = bars.last().ok_or_else(no_data)?;
     let to_price = |v: f64| Decimal::from_f64_retain(v).map(|d| d.round_dp(2).normalize());
     Ok(ClosePrice {
         close: to_price(*close).ok_or_else(no_data)?,
-        as_of,
+        as_of: *as_of,
         prev_close: bars.iter().rev().nth(1).and_then(|(_, c)| to_price(*c)),
     })
 }
@@ -128,14 +130,22 @@ fn chart_status_error(status: u16, body: String) -> ApiError {
 /// Yahoo chart API から終値を取得する。ホスト側では実行経路がないためエラー固定
 /// （テストは parse_chart_close / apply_close_price を直接検証する）
 #[cfg(not(target_arch = "wasm32"))]
-async fn fetch_close_price(_base_url: &str, _code: &SecurityCode) -> Result<ClosePrice, ApiError> {
+async fn fetch_close_price(
+    _base_url: &str,
+    _code: &SecurityCode,
+    _max_as_of: NaiveDate,
+) -> Result<ClosePrice, ApiError> {
     Err(ApiError::Internal(
         "Yahoo Finance への接続は Workers 環境でのみ利用できます",
     ))
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn fetch_close_price(base_url: &str, code: &SecurityCode) -> Result<ClosePrice, ApiError> {
+async fn fetch_close_price(
+    base_url: &str,
+    code: &SecurityCode,
+    max_as_of: NaiveDate,
+) -> Result<ClosePrice, ApiError> {
     use worker::{Fetch, Headers, Method, Request, RequestInit};
 
     // 直近5営業日の日足。最後の確定バーが終値、その前が前日終値
@@ -163,7 +173,7 @@ async fn fetch_close_price(base_url: &str, code: &SecurityCode) -> Result<CloseP
     let body = worker::send::SendFuture::new(response.text())
         .await
         .map_err(UpstreamError::Transport)?;
-    parse_chart_close(&body)
+    parse_chart_close(&body, max_as_of)
 }
 
 /// 取得した終値を同じ銘柄を持つ全ユーザーの行へ適用する。
@@ -198,18 +208,36 @@ pub async fn apply_close_price(
     .map_err(ApiError::from)
 }
 
-/// cron から呼ばれる更新処理。保有銘柄を基準日の古い順に上限件数だけ処理する。
+/// 最新の終値が確定している基準日（JST 15:30 以降なら当日、それより前なら前日。
+/// 土日は直前の金曜に寄せる。祝日は扱わない）
+fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
+    let jst = now + chrono::Duration::hours(9);
+    let mut date = jst.date_naive();
+    if (jst.hour(), jst.minute()) < (15, 30) {
+        date -= chrono::Duration::days(1);
+    }
+    date - chrono::Duration::days(match date.weekday() {
+        Weekday::Sat => 1,
+        Weekday::Sun => 2,
+        _ => 0,
+    })
+}
+
+/// cron から呼ばれる更新処理。最新の終値の日より price_as_of が古い銘柄を
+/// 古い順に上限件数だけ処理する（全銘柄が最新なら取得しない）。
 /// 失敗した銘柄は前回値を残し、全件失敗時は取得元の変更を疑ってエラーログに出す。
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
+    let latest = latest_close_date(Utc::now());
     let codes: Vec<SecurityCode> = crate::db::query(
         r#"
         SELECT security_code FROM asset_balances
         GROUP BY security_code
+        HAVING BOOL_OR(price_as_of IS NULL) OR MIN(price_as_of) < $1
         ORDER BY MIN(price_as_of) ASC NULLS FIRST
-        LIMIT $1
+        LIMIT $2
         "#,
-        vec![Bind::from(MAX_CODES_PER_RUN)],
+        vec![Bind::from(latest), Bind::from(MAX_CODES_PER_RUN)],
     )
     .fetch_all::<(SecurityCode,), _>(pool)
     .await?
@@ -224,7 +252,7 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
         if i > 0 {
             crate::services::dividend_cache::sleep_millis(FETCH_GAP_MS).await;
         }
-        match fetch_close_price(&base_url, code).await {
+        match fetch_close_price(&base_url, code, latest).await {
             Ok(price) => {
                 fetched += 1;
                 match apply_close_price(pool, code, &price).await {
@@ -271,8 +299,7 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
     Ok(fetched)
 }
 
-/// 予定時刻（UTC エポックミリ秒）に現在値更新を実行するかを返す。
-/// 動作確認用に一時的に5分ごと。確認後に #1303 で引け後の毎時へ戻す
+/// 予定時刻（UTC エポックミリ秒）の分が5の倍数なら現在値更新を実行するかを返す
 pub fn should_refresh_at(scheduled_ms: f64) -> bool {
     DateTime::from_timestamp_millis(scheduled_ms as i64).is_some_and(|t| t.minute() % 5 == 0)
 }
@@ -301,14 +328,18 @@ mod tests {
     const T20240116: i64 = 1705363200;
     const T20240117: i64 = T20240116 + 86400;
     const T20240118: i64 = T20240116 + 86400 * 2;
+    const MAX: NaiveDate = NaiveDate::MAX;
 
     #[test]
     fn test_parse_chart_close_uses_last_non_null_close() {
-        let price = parse_chart_close(&chart_body(&[
-            (T20240116, Some(3000.0)),
-            (T20240117, Some(3100.5)),
-            (T20240118, Some(3200.25)),
-        ]))
+        let price = parse_chart_close(
+            &chart_body(&[
+                (T20240116, Some(3000.0)),
+                (T20240117, Some(3100.5)),
+                (T20240118, Some(3200.25)),
+            ]),
+            MAX,
+        )
         .expect("parse");
 
         assert_eq!(price.close, dec!(3200.25));
@@ -320,11 +351,32 @@ mod tests {
     #[test]
     fn test_parse_chart_close_skips_null_close_bars() {
         // 立会中など末尾バーの終値が null の場合、その前の確定バーを使う
-        let price = parse_chart_close(&chart_body(&[
-            (T20240116, Some(3000.0)),
-            (T20240117, Some(3100.5)),
-            (T20240118, None),
-        ]))
+        let price = parse_chart_close(
+            &chart_body(&[
+                (T20240116, Some(3000.0)),
+                (T20240117, Some(3100.5)),
+                (T20240118, None),
+            ]),
+            MAX,
+        )
+        .expect("parse");
+
+        assert_eq!(price.close, dec!(3100.5));
+        assert_eq!(price.as_of, NaiveDate::from_ymd_opt(2024, 1, 17).unwrap());
+        assert_eq!(price.prev_close, Some(dec!(3000.0)));
+    }
+
+    #[test]
+    fn test_parse_chart_close_ignores_bars_after_max_as_of() {
+        // 場中に当日の暫定バーが返ってきても、確定済み(max_as_of 以前)の最後のバーを採る
+        let price = parse_chart_close(
+            &chart_body(&[
+                (T20240116, Some(3000.0)),
+                (T20240117, Some(3100.5)),
+                (T20240118, Some(3200.25)),
+            ]),
+            NaiveDate::from_ymd_opt(2024, 1, 17).unwrap(),
+        )
         .expect("parse");
 
         assert_eq!(price.close, dec!(3100.5));
@@ -334,7 +386,8 @@ mod tests {
 
     #[test]
     fn test_parse_chart_close_single_bar_has_no_prev_close() {
-        let price = parse_chart_close(&chart_body(&[(T20240116, Some(3000.0))])).expect("parse");
+        let price =
+            parse_chart_close(&chart_body(&[(T20240116, Some(3000.0))]), MAX).expect("parse");
 
         assert_eq!(price.close, dec!(3000));
         assert_eq!(price.prev_close, None);
@@ -342,10 +395,13 @@ mod tests {
 
     #[test]
     fn test_parse_chart_close_rounds_float_error() {
-        let price = parse_chart_close(&chart_body(&[
-            (T20240117, Some(2896.4999961853027)),
-            (T20240118, Some(716.5999755859375)),
-        ]))
+        let price = parse_chart_close(
+            &chart_body(&[
+                (T20240117, Some(2896.4999961853027)),
+                (T20240118, Some(716.5999755859375)),
+            ]),
+            MAX,
+        )
         .expect("parse");
 
         assert_eq!(price.close, dec!(716.6));
@@ -356,14 +412,26 @@ mod tests {
     fn test_parse_chart_close_errors() {
         // チャート API 側のエラー応答
         assert!(
-            parse_chart_close(r#"{"chart":{"result":null,"error":{"code":"Not Found"}}}"#).is_err()
+            parse_chart_close(
+                r#"{"chart":{"result":null,"error":{"code":"Not Found"}}}"#,
+                MAX
+            )
+            .is_err()
         );
-        // result 空・timestamp 欠落・close 欠落・全バー null はいずれもエラー
-        assert!(parse_chart_close(r#"{"chart":{"result":[],"error":null}}"#).is_err());
-        assert!(parse_chart_close(&chart_body(&[])).is_err());
-        assert!(parse_chart_close(&chart_body(&[(T20240116, None)])).is_err());
+        // result 空・timestamp 欠落・close 欠落・全バー null・全バーが max_as_of より後
+        // はいずれもエラー
+        assert!(parse_chart_close(r#"{"chart":{"result":[],"error":null}}"#, MAX).is_err());
+        assert!(parse_chart_close(&chart_body(&[]), MAX).is_err());
+        assert!(parse_chart_close(&chart_body(&[(T20240116, None)]), MAX).is_err());
+        assert!(
+            parse_chart_close(
+                &chart_body(&[(T20240118, Some(3200.25))]),
+                NaiveDate::from_ymd_opt(2024, 1, 17).unwrap(),
+            )
+            .is_err()
+        );
         // JSON として不正
-        assert!(parse_chart_close("not json").is_err());
+        assert!(parse_chart_close("not json", MAX).is_err());
     }
 
     #[test]
@@ -390,6 +458,33 @@ mod tests {
             }
             other => panic!("expected Http error, got {other}"),
         }
+    }
+
+    #[test]
+    fn test_latest_close_date() {
+        // JST の日時を渡す（内部で UTC に直して評価する）
+        let jst = |y: i32, m: u32, d: u32, h: u32, mi: u32| {
+            let utc = NaiveDate::from_ymd_opt(y, m, d)
+                .unwrap()
+                .and_hms_opt(h, mi, 0)
+                .unwrap()
+                - chrono::Duration::hours(9);
+            latest_close_date(utc.and_utc())
+        };
+        let date = |y: i32, m: u32, d: u32| NaiveDate::from_ymd_opt(y, m, d).unwrap();
+
+        // 平日は JST 15:30 を境に前日/当日
+        assert_eq!(jst(2026, 10, 14, 15, 29), date(2026, 10, 13));
+        assert_eq!(jst(2026, 10, 14, 15, 30), date(2026, 10, 14));
+
+        // 土日は時刻に依らず直前の金曜
+        assert_eq!(jst(2026, 10, 17, 9, 0), date(2026, 10, 16));
+        assert_eq!(jst(2026, 10, 17, 16, 0), date(2026, 10, 16));
+        assert_eq!(jst(2026, 10, 18, 12, 0), date(2026, 10, 16));
+
+        // 月曜の朝は直前の金曜、引け後は当日
+        assert_eq!(jst(2026, 10, 19, 9, 0), date(2026, 10, 16));
+        assert_eq!(jst(2026, 10, 19, 15, 30), date(2026, 10, 19));
     }
 
     #[test]

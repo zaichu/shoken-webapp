@@ -123,6 +123,8 @@ pub async fn bulk_create(
     let market_values: Vec<Decimal> = items.iter().map(|i| i.market_value).collect();
     let profit_loss_rates: Vec<Decimal> = items.iter().map(|i| i.profit_loss_rate).collect();
 
+    // price_as_of(終値の基準日)は取込時点の現在値が確定終値か分からないため入れず、
+    // cron の取得で確定させる
     bulk_replace::<AssetBalanceDomain>(
         pool,
         user_id,
@@ -132,8 +134,8 @@ pub async fn bulk_create(
             r#"
             INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
                                         average_purchase_price, total_purchase_amount, current_price,
-                                        daily_change, market_value, profit_loss_rate, price_as_of)
-            SELECT *, (NOW() AT TIME ZONE 'Asia/Tokyo')::date FROM UNNEST(
+                                        daily_change, market_value, profit_loss_rate)
+            SELECT * FROM UNNEST(
                 $1::uuid[], $2::text[], $3::text[], $4::numeric[], $5::numeric[],
                 $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[]
             )
