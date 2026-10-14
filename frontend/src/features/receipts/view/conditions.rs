@@ -250,12 +250,15 @@ fn MonthPicker(
                                 search.update(|s| {
                                     s.date_inputs.month_value = month.clone();
                                     let year = s.date_inputs.year_value.clone();
-                                    if !year.is_empty() {
+                                    if year.is_empty() || month.is_empty() {
+                                        s.set_date_query(year);
+                                    } else {
                                         s.set_date_query(format!("{}-{}", year, month));
                                     }
                                 });
                             }
                         >
+                            <option value="">"月を選択"</option>
                             {(1..=12).map(|m| {
                                 let m_str = format!("{:02}", m);
                                 let m_label = format!("{}月", m);
@@ -274,11 +277,13 @@ fn DatePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     let selected_date = Memo::new(move |_| search.with(|s| s.date_inputs.date_value.clone()));
 
     view! {
-        <div class="mt-2">
+        <div class="mt-2 max-w-xs">
+            <label class="block text-xs text-text-muted mb-1">"日付"</label>
             <input
                 type="date"
-                class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm max-w-xs"
+                class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full"
                 aria-label="日付"
+                data-empty=move || selected_date.get().is_empty().then_some("true")
                 prop:value=move || selected_date.get()
                 on:input=move |ev| {
                     search.update(|s| {
@@ -304,6 +309,7 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                     type="date"
                     class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full"
                     aria-label="開始日"
+                    data-empty=move || range_start.get().is_empty().then_some("true")
                     prop:value=move || range_start.get()
                     on:input=move |ev| {
                         search.update(|s| {
@@ -320,6 +326,7 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                     type="date"
                     class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full"
                     aria-label="終了日"
+                    data-empty=move || range_end.get().is_empty().then_some("true")
                     prop:value=move || range_end.get()
                     on:input=move |ev| {
                         search.update(|s| {
