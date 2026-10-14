@@ -237,14 +237,6 @@
     @apply inline-flex items-center justify-between gap-1 whitespace-nowrap rounded-md border border-border-subtle bg-surface px-3 py-2 text-sm font-medium text-text-deep transition-colors hover:border-text-deep hover:bg-surface-sunken max-sm:min-h-11 max-sm:px-2 max-sm:text-xs;
   }
 
-  .feature-card {
-    @apply rounded-xl border border-ink/10 bg-surface/80 px-4 py-4 shadow-sm;
-  }
-
-  a.feature-card {
-    @apply transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-accent-bright hover:shadow-card-hover;
-  }
-
   .code-badge {
     @apply inline-flex shrink-0 items-center rounded-full bg-info-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-info;
   }
@@ -763,7 +755,7 @@
   /* ページ名の右の低頻度リンク。スマホは紺のヘッダー内で白抜き枠線、
      タップ領域 44px を確保する */
   .page-secondary-link-sm {
-    @apply inline-flex min-h-11 items-center rounded-md border border-brand-border bg-transparent px-3 text-[13px] text-text-inverse no-underline transition-colors hover:bg-brand-deep lg:min-h-8 lg:border-border-link lg:bg-surface lg:text-brand lg:hover:bg-surface-sunken;
+    @apply inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md border border-brand-border bg-transparent px-3 text-[13px] text-text-inverse no-underline transition-colors hover:bg-brand-deep lg:min-h-8 lg:border-border-link lg:bg-surface lg:text-brand lg:hover:bg-surface-sunken;
   }
 
   /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く。
@@ -790,15 +782,6 @@
   .bottom-nav-link[aria-current] {
     @apply font-bold text-brand;
     box-shadow: var(--shadow-edge-accent);
-  }
-
-  .summary-strip {
-    @apply grid gap-x-6 gap-y-1;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  }
-
-  .summary-strip-item {
-    @apply min-w-0 py-1;
   }
 
   .copyable-name {
@@ -882,6 +865,12 @@
 
   .asset-summary-sub-amount {
     @apply text-[22px] font-bold;
+  }
+
+  /* 集計が3項目のページ(ホーム)用。4列のままだと末尾に空列が残る。
+     スマホは dl が display:contents で帯側の grid-template-areas に従うため影響しない */
+  .asset-summary-3 .asset-summary-grid {
+    grid-template-columns: 1.3fr 1.2fr 1fr;
   }
 
   /* 紺地では --color-positive/-negative がコントラスト不足になるため明るい色を使う */
@@ -1317,163 +1306,11 @@
   .receipts-table td {
     padding: 2px !important;
   }
-
-  .ws-sidegrid {
-    display: block !important;
-  }
-
-  .ws-panel,
-  .ws-backdrop {
-    display: none !important;
-  }
 }
 
 /* utilities 層の指定に勝つよう層の外に置く */
 [hidden] {
   display: none !important;
-}
-
-.ws-sidegrid {
-  display: grid;
-  grid-template-columns: 18rem minmax(0, 1fr);
-  align-items: start;
-}
-
-.ws-backdrop {
-  display: none;
-}
-
-.ws-panel {
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - 12rem);
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
-  position: sticky;
-  top: 0.5rem;
-  max-height: calc(100dvh - 7rem);
-  overflow-y: auto;
-}
-
-.ws-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  min-height: 3rem;
-  padding: 0.5rem 0.9rem;
-  border: 0;
-  border-radius: 0.45rem;
-  background: none;
-  color: var(--color-text-muted);
-  font-weight: 800;
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.ws-toggle:hover {
-  color: var(--color-text);
-  background: var(--color-surface-raised);
-}
-
-.ws-toggle:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 2px;
-}
-
-.ws-sidegrid:not(.ws-closed) .ws-toggle-label {
-  display: none;
-}
-
-/* 折りたたみでは列幅(18rem)を保ったままパネル本体だけ細レール化する */
-.ws-sidegrid.ws-closed .ws-panel {
-  width: 3.25rem;
-  justify-self: start;
-}
-
-.ws-sidegrid.ws-closed .phead {
-  padding: 0;
-}
-
-.ws-sidegrid.ws-closed .ws-toggle {
-  writing-mode: vertical-rl;
-  justify-content: flex-start;
-  width: 100%;
-  min-height: 16rem;
-  padding: 0.9rem 0;
-  letter-spacing: 0.15em;
-  font-size: 1.05rem;
-  position: sticky;
-  top: 0.75rem;
-}
-
-.ws-panel-body {
-  min-width: 0;
-}
-
-.ws-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-  padding-inline: clamp(1rem, 3.5vw, 3rem);
-}
-
-.ws-main > * {
-  width: 100%;
-  max-width: 96rem;
-  margin-inline: auto;
-}
-
-@media (max-width: 63.999rem) {
-  .ws-sidegrid {
-    display: block;
-  }
-
-  .ws-panel {
-    position: static;
-    min-height: 0;
-    max-height: none;
-    border-right: 0;
-  }
-
-  .ws-sidegrid.ws-closed .ws-panel {
-    border-bottom: 1px solid var(--color-border);
-    width: auto;
-  }
-
-  .ws-sidegrid.ws-closed .ws-toggle {
-    writing-mode: horizontal-tb;
-    min-height: 3rem;
-    padding: 0.5rem 1.1rem;
-    letter-spacing: normal;
-  }
-
-  .ws-sidegrid:not(.ws-closed):not(.ws-static) .ws-panel {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: min(20rem, 88vw);
-    /* ヘッダー(z-40)と同じにして DOM 順で上にし、モーダル(z-50)よりは下げる */
-    z-index: 40;
-    border-right: 1px solid var(--color-border);
-    overflow-y: auto;
-  }
-
-  /* 折りたたみなしのパネルは狭い帯でも常時セクションとして上に積む */
-  .ws-sidegrid.ws-static .ws-panel {
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .ws-sidegrid:not(.ws-closed) .ws-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.38);
-    z-index: 40;
-  }
 }
 
 @media print {
@@ -1483,12 +1320,6 @@
 
   .app-scroll {
     overflow: visible;
-  }
-}
-
-@media print {
-  .ws-main {
-    padding-inline: 0;
   }
 }
 
@@ -1506,15 +1337,6 @@
 .asset-search-input::-webkit-search-decoration {
   -webkit-appearance: none;
   appearance: none;
-}
-
-/* パネルヘッダー */
-.phead {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: .4rem;
-  padding: .3rem .6rem;
 }
 
 

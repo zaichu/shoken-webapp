@@ -96,14 +96,6 @@ pub(crate) fn price_date_range<'a>(
         .map(|(min, max)| (format_price_date(min), format_price_date(max)))
 }
 
-pub(crate) fn valuation_tone(amount: Option<f64>) -> (&'static str, Option<&'static str>) {
-    if is_negative_valuation(amount) {
-        ("text-negative", Some("true"))
-    } else {
-        ("text-text", None)
-    }
-}
-
 pub(crate) fn format_valuation_amount(amount: Option<f64>) -> String {
     match amount {
         Some(value) if !value.is_finite() => "—".to_string(),

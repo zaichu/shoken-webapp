@@ -8,9 +8,23 @@ use crate::features::receipts::csv::CsvPreviewRow;
 use crate::features::receipts::filter::ReceiptSearch;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
-use crate::ui::workspace_shell::workspace_panel_default_open;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
+
+// 非 wasm(単体テスト)では window が無いため開いて始める
+fn utility_rail_default_open() -> bool {
+    #[cfg(target_arch = "wasm32")]
+    {
+        web_sys::window()
+            .and_then(|window| window.inner_width().ok())
+            .and_then(|value| value.as_f64())
+            .is_none_or(|width| width >= 1024.0)
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        true
+    }
+}
 
 // 一覧・CSV・裏再取得の状態は同じ世代×タブのキーで管理するため1エントリにまとめる。
 // list が None のエントリは CSV 操作だけが先行した未取得タブ
@@ -153,7 +167,7 @@ impl ReceiptsStore {
             self.expanded_epoch.set(Some(generation));
             self.expanded.update(|set| set.clear());
             self.mobile_summary_expanded.set(false);
-            self.utility_rail_open.set(workspace_panel_default_open());
+            self.utility_rail_open.set(utility_rail_default_open());
             // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
             self.search.set(ReceiptSearch::default());
             self.active_tab.set(ReceiptsTab::Dividend);

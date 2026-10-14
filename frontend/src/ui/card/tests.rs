@@ -2,12 +2,11 @@ use super::*;
 
 #[test]
 fn section_tag_is_only_collapsible() {
-    let cases: [(CardVariant, bool); 14] = [
+    let cases: [(CardVariant, bool); 13] = [
         (CardVariant::Panel, false),
         (CardVariant::Login, false),
         (CardVariant::Table, false),
         (CardVariant::Collapsible, true),
-        (CardVariant::Feature, false),
         (CardVariant::Shell, false),
         (CardVariant::Soft, false),
         (CardVariant::Item, false),
@@ -30,7 +29,6 @@ fn card_variant_classes_are_distinguishable() {
         CardVariant::Login,
         CardVariant::Table,
         CardVariant::Collapsible,
-        CardVariant::Feature,
         CardVariant::Shell,
         CardVariant::Soft,
         CardVariant::Item,
