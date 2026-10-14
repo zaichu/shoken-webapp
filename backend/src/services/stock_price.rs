@@ -107,14 +107,11 @@ pub fn parse_chart_close(body: &str) -> Result<ClosePrice, ApiError> {
     let as_of = DateTime::from_timestamp(*ts, 0)
         .map(|t| (t + chrono::Duration::hours(9)).date_naive())
         .ok_or_else(no_data)?;
+    let to_price = |v: f64| Decimal::from_f64_retain(v).map(|d| d.round_dp(2).normalize());
     Ok(ClosePrice {
-        close: Decimal::from_f64_retain(*close).ok_or_else(no_data)?,
+        close: to_price(*close).ok_or_else(no_data)?,
         as_of,
-        prev_close: bars
-            .iter()
-            .rev()
-            .nth(1)
-            .and_then(|(_, c)| Decimal::from_f64_retain(*c)),
+        prev_close: bars.iter().rev().nth(1).and_then(|(_, c)| to_price(*c)),
     })
 }
 
@@ -341,6 +338,18 @@ mod tests {
 
         assert_eq!(price.close, dec!(3000));
         assert_eq!(price.prev_close, None);
+    }
+
+    #[test]
+    fn test_parse_chart_close_rounds_float_error() {
+        let price = parse_chart_close(&chart_body(&[
+            (T20240117, Some(2896.4999961853027)),
+            (T20240118, Some(716.5999755859375)),
+        ]))
+        .expect("parse");
+
+        assert_eq!(price.close, dec!(716.6));
+        assert_eq!(price.prev_close, Some(dec!(2896.5)));
     }
 
     #[test]
