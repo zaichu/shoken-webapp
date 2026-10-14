@@ -223,6 +223,13 @@ fn latest_close_date(jst_now: NaiveDateTime) -> NaiveDate {
     date
 }
 
+/// UTC 時刻に対応する「最新の終値の日」。CSV 取り込みの price_as_of 打刻でも使う
+// asset_balance と tests/db_integration.rs から使うため docs には出さない
+#[doc(hidden)]
+pub fn latest_close_date_at(now: DateTime<Utc>) -> NaiveDate {
+    latest_close_date((now + Duration::hours(9)).naive_utc())
+}
+
 /// 問い合わせ時刻を残す。成否にかかわらず呼び、祝日や取得失敗で
 /// price_as_of が進まない銘柄を毎分取り直し続けないための目印にする
 async fn mark_price_checked(pool: &Db, code: &SecurityCode) -> Result<(), ApiError> {
@@ -241,7 +248,7 @@ async fn mark_price_checked(pool: &Db, code: &SecurityCode) -> Result<(), ApiErr
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let now = Utc::now();
-    let latest_close = latest_close_date((now + Duration::hours(9)).naive_utc());
+    let latest_close = latest_close_date_at(now);
     let recheck_after = now - Duration::hours(1);
     let codes: Vec<SecurityCode> = crate::db::query(
         r#"

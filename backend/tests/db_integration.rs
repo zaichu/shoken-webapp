@@ -721,6 +721,42 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+async fn asset_balance_bulk_create_stamps_latest_confirmed_close() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_id,
+        &[make_asset_item("6001")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("bulk_create 失敗");
+
+    let stamped: Option<NaiveDate> = db::query_scalar(
+        "SELECT price_as_of FROM asset_balances WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("price_as_of 取得失敗");
+
+    // 「取り込み日」ではなく取り込み時点で確定済みの最新の終値の日を打つ。
+    // 取り込み当日より新しい日付を名乗ると、当日の終値が cron の取り直し対象から外れる
+    let stamped = stamped.expect("price_as_of が打刻されている");
+    let latest = stock_price::latest_close_date_at(Utc::now());
+    assert!(
+        stamped <= latest,
+        "確定していない日付を名乗っている: {stamped} > {latest}"
+    );
+    assert!(
+        stamped > latest - chrono::Duration::days(7),
+        "打刻が古すぎる: {stamped}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
 async fn stock_price_refresh_marks_checked_at_for_stale_codes() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
