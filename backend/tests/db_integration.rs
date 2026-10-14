@@ -1618,9 +1618,10 @@ async fn search_facets_group_by_domain_fields() {
 #[ignore = "requires Docker to run Postgres container"]
 async fn dividend_cache_persistence_and_rate_slot() {
     let (pool, _node) = start_test_pool().await;
+    let user_id = UserId::from(Uuid::new_v4());
 
     assert!(
-        dividend_cache::get_batch(&pool, None, &[])
+        dividend_cache::get_batch(&pool, None, user_id, &[])
             .await
             .unwrap()
             .is_empty()
@@ -1634,7 +1635,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
     )
     .await
     .expect("エラー記録");
-    let items = dividend_cache::get_batch(&pool, None, &["1234".parse().unwrap()])
+    let items = dividend_cache::get_batch(&pool, None, user_id, &["1234".parse().unwrap()])
         .await
         .unwrap();
     assert_eq!(items.len(), 1);
@@ -1654,7 +1655,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
     )
     .await
     .expect("cooldown 付きエラー記録");
-    let items = dividend_cache::get_batch(&pool, None, &["5678".parse().unwrap()])
+    let items = dividend_cache::get_batch(&pool, None, user_id, &["5678".parse().unwrap()])
         .await
         .unwrap();
     assert_eq!(items[0].status, DividendCacheStatus::Error);
@@ -1669,7 +1670,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
     )
     .await
     .expect("既存行の上書き");
-    let items = dividend_cache::get_batch(&pool, None, &["1234".parse().unwrap()])
+    let items = dividend_cache::get_batch(&pool, None, user_id, &["1234".parse().unwrap()])
         .await
         .unwrap();
     assert!(!items[0].is_stale);
@@ -1786,6 +1787,62 @@ async fn dividend_cache_drain_refresh_queue() {
         .await
         .expect("2回目の drain 失敗");
     assert_eq!(processed, 0, "再試行間隔が経過するまで消化しない");
+}
+
+/// get_batch のエンキューは銘柄マスタにあるコードか、リクエストしたユーザーの
+/// 保有コードに限る(任意コードの無制限エンキューによるキュー汚染を防ぐため)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn dividend_cache_enqueue_skips_unknown_codes() {
+    let (pool, _node) = start_test_pool().await;
+    let client = JQuantsClient::new("test-api-key".to_string());
+    let user_id = create_test_user(&pool).await;
+
+    // マスタにあるコードと、マスタに無いがユーザーが保有するコードを用意
+    db::query(
+        "INSERT INTO stock (date, code, name, market_category)
+         VALUES (CURRENT_DATE, '7203', 'トヨタ自動車', 'プライム')",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("stock 投入");
+    db::query(
+        "INSERT INTO asset_balances
+           (user_id, security_code, security_name, shares,
+            average_purchase_price, total_purchase_amount)
+         VALUES ($1, '8306', '三菱UFJフィナンシャル・グループ', 100, 1500, 150000)",
+        vec![Bind::from(user_id)],
+    )
+    .execute(&pool)
+    .await
+    .expect("保有残高の投入");
+
+    dividend_cache::get_batch(
+        &pool,
+        Some(&client),
+        user_id,
+        &[
+            "7203".parse().unwrap(),
+            "8306".parse().unwrap(),
+            "9999".parse().unwrap(),
+        ],
+    )
+    .await
+    .expect("get_batch 失敗");
+
+    let rows: Vec<(String,)> = db::query_as(
+        "SELECT security_code FROM dividend_per_share_cache ORDER BY security_code",
+        vec![],
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        rows.iter().map(|r| r.0.as_str()).collect::<Vec<_>>(),
+        vec!["7203", "8306"],
+        "マスタ・保有のどちらにも無いコードは積まれない"
+    );
 }
 
 #[tokio::test]

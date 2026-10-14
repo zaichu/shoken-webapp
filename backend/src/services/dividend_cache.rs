@@ -9,7 +9,7 @@ use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
 use crate::services::jquants::JQuantsClient;
 use chrono::Utc;
 use shared::dividend_per_share::DividendCacheStatus;
-use shared::value::SecurityCode;
+use shared::value::{SecurityCode, UserId};
 use std::time::Duration;
 
 use logic::compute_is_stale;
@@ -38,13 +38,14 @@ pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
 pub async fn get_batch(
     pool: &Db,
     jquants_client: Option<&JQuantsClient>,
+    user_id: UserId,
     codes: &[SecurityCode],
 ) -> Result<Vec<DividendPerShareItem>, ApiError> {
     let (items, refresh_codes) = fetch_cached_items(pool, codes).await?;
 
     if !refresh_codes.is_empty() {
         if jquants_client.is_some() {
-            enqueue_refresh(pool, &refresh_codes).await?;
+            enqueue_refresh(pool, user_id, &refresh_codes).await?;
         } else {
             tracing::warn!("JQUANTS_API_KEY が未設定のため更新キュー投入をスキップ");
         }
@@ -53,18 +54,33 @@ pub async fn get_batch(
     Ok(items)
 }
 
-/// 未取得銘柄を pending 行として積む。
+/// 未取得銘柄を pending 行として積む。対象は銘柄マスタにあるコードか、
+/// リクエストしたユーザーが保有・取引したコードに限る
+/// （認証済みなら誰でも呼べる POST 経由で任意コードが無制限に積まれるのを防ぐ。
+/// マスタの網羅性だけに頼ると実在の保有銘柄を外し得るため、ユーザー自身の
+/// 保有・取引データも対象に含める）。
 /// 既存行は stale_at / cooldown 経過で cron の選定条件を満たすため、そのままにする
 /// （status が pending の間は compute_is_stale=false で再投入も起きない）
-async fn enqueue_refresh(pool: &Db, codes: &[SecurityCode]) -> Result<(), ApiError> {
+async fn enqueue_refresh(
+    pool: &Db,
+    user_id: UserId,
+    codes: &[SecurityCode],
+) -> Result<(), ApiError> {
     crate::db::query(
         r#"
         INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
-        SELECT code, 'pending', 'jquants', NOW()
-        FROM unnest($1::varchar[]) AS code
+        SELECT c.code, 'pending', 'jquants', NOW()
+        FROM unnest($1::varchar[]) AS c(code)
+        WHERE EXISTS (SELECT 1 FROM stock s WHERE s.code = c.code)
+           OR EXISTS (SELECT 1 FROM domestic_stocks ds
+                      WHERE ds.user_id = $2 AND ds.security_code = c.code)
+           OR EXISTS (SELECT 1 FROM asset_balances ab
+                      WHERE ab.user_id = $2 AND ab.security_code = c.code)
+           OR EXISTS (SELECT 1 FROM dividends dv
+                      WHERE dv.user_id = $2 AND dv.security_code = c.code)
         ON CONFLICT (security_code) DO NOTHING
         "#,
-        vec![Bind::from(codes.to_vec())],
+        vec![Bind::from(codes.to_vec()), Bind::from(user_id)],
     )
     .execute(pool)
     .await?;

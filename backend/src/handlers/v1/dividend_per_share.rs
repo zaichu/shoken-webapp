@@ -10,7 +10,7 @@ use axum::{Json, extract::State, response::IntoResponse};
 
 pub async fn batch(
     State(state): State<AppState>,
-    _auth_user: AuthenticatedUser,
+    auth_user: AuthenticatedUser,
     ValidatedJson(data): ValidatedJson<DividendPerShareBatchRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     // isolate 内で spawn できないため、未取得/TTL切れ銘柄は pending 行として積み、
@@ -18,6 +18,7 @@ pub async fn batch(
     let items = dividend_cache_service::get_batch(
         &state.pool,
         state.jquants_client.as_ref(),
+        auth_user.id(),
         &data.security_codes,
     )
     .await?;
