@@ -163,20 +163,16 @@ jobs:
           fi
 
       # concurrency の待機順は開始順と限らないため、古い実行が新しいコミットの
-      # プレビューを上書きしないよう deploy 直前に起点 SHA がまだ最新か確かめる
+      # プレビューを上書きしないよう deploy 直前に PR の head がまだ最新か確かめる。
+      # main 側は呼び出し元 Frontend CI の concurrency で直列化済みのため PR だけ見る
       - name: Check the triggering commit is still latest
         id: latest
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            latest="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
-            expected="${{ github.event.pull_request.head.sha }}"
-          else
-            latest="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${{ github.ref_name }}" --jq '.sha')"
-            expected="${{ github.sha }}"
-          fi
-          if [[ "${latest}" != "${expected}" ]]; then
+          latest="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
+          if [[ "${latest}" != "${{ github.event.pull_request.head.sha }}" ]]; then
             echo "stale=true" >> "$GITHUB_OUTPUT"
             echo "::notice::新しいコミットがあるためこの実行のデプロイをスキップします"
           fi
