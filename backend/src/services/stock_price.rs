@@ -1,10 +1,10 @@
-//! 保有銘柄の現在値を毎時 cron で自動更新する。
+//! 保有銘柄の現在値を cron で自動更新する。
 //! 取得元は `fetch_close_price` 1関数に集約し、別の取得元への差し替えは
 //! この関数だけを直せばよい形にする（Yahoo Finance chart API は非公式）。
 
 use crate::db::{Bind, Db};
 use crate::errors::{ApiError, UpstreamError};
-use chrono::{DateTime, NaiveDate, Timelike};
+use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use shared::value::SecurityCode;
@@ -198,18 +198,36 @@ pub async fn apply_close_price(
     .map_err(ApiError::from)
 }
 
-/// cron から呼ばれる更新処理。保有銘柄を基準日の古い順に上限件数だけ処理する。
+/// 最新の終値が確定している基準日（JST 15:30 以降なら当日、それより前なら前日。
+/// 土日は直前の金曜に寄せる。祝日は扱わない）
+fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
+    let jst = now + chrono::Duration::hours(9);
+    let mut date = jst.date_naive();
+    if (jst.hour(), jst.minute()) < (15, 30) {
+        date -= chrono::Duration::days(1);
+    }
+    date - chrono::Duration::days(match date.weekday() {
+        Weekday::Sat => 1,
+        Weekday::Sun => 2,
+        _ => 0,
+    })
+}
+
+/// cron から呼ばれる更新処理。最新の終値の日より price_as_of が古い銘柄を
+/// 古い順に上限件数だけ処理する（全銘柄が最新なら取得しない）。
 /// 失敗した銘柄は前回値を残し、全件失敗時は取得元の変更を疑ってエラーログに出す。
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
+    let latest = latest_close_date(Utc::now());
     let codes: Vec<SecurityCode> = crate::db::query(
         r#"
         SELECT security_code FROM asset_balances
         GROUP BY security_code
+        HAVING BOOL_OR(price_as_of IS NULL) OR MIN(price_as_of) < $1
         ORDER BY MIN(price_as_of) ASC NULLS FIRST
-        LIMIT $1
+        LIMIT $2
         "#,
-        vec![Bind::from(MAX_CODES_PER_RUN)],
+        vec![Bind::from(latest), Bind::from(MAX_CODES_PER_RUN)],
     )
     .fetch_all::<(SecurityCode,), _>(pool)
     .await?
@@ -271,8 +289,7 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
     Ok(fetched)
 }
 
-/// 予定時刻（UTC エポックミリ秒）に現在値更新を実行するかを返す。
-/// 動作確認用に一時的に5分ごと。確認後に #1303 で引け後の毎時へ戻す
+/// 予定時刻（UTC エポックミリ秒）の分が5の倍数なら現在値更新を実行するかを返す
 pub fn should_refresh_at(scheduled_ms: f64) -> bool {
     DateTime::from_timestamp_millis(scheduled_ms as i64).is_some_and(|t| t.minute() % 5 == 0)
 }
@@ -390,6 +407,33 @@ mod tests {
             }
             other => panic!("expected Http error, got {other}"),
         }
+    }
+
+    #[test]
+    fn test_latest_close_date() {
+        // JST の日時を渡す（内部で UTC に直して評価する）
+        let jst = |y: i32, m: u32, d: u32, h: u32, mi: u32| {
+            let utc = NaiveDate::from_ymd_opt(y, m, d)
+                .unwrap()
+                .and_hms_opt(h, mi, 0)
+                .unwrap()
+                - chrono::Duration::hours(9);
+            latest_close_date(utc.and_utc())
+        };
+        let date = |y: i32, m: u32, d: u32| NaiveDate::from_ymd_opt(y, m, d).unwrap();
+
+        // 平日は JST 15:30 を境に前日/当日
+        assert_eq!(jst(2026, 10, 14, 15, 29), date(2026, 10, 13));
+        assert_eq!(jst(2026, 10, 14, 15, 30), date(2026, 10, 14));
+
+        // 土日は時刻に依らず直前の金曜
+        assert_eq!(jst(2026, 10, 17, 9, 0), date(2026, 10, 16));
+        assert_eq!(jst(2026, 10, 17, 16, 0), date(2026, 10, 16));
+        assert_eq!(jst(2026, 10, 18, 12, 0), date(2026, 10, 16));
+
+        // 月曜の朝は直前の金曜、引け後は当日
+        assert_eq!(jst(2026, 10, 19, 9, 0), date(2026, 10, 16));
+        assert_eq!(jst(2026, 10, 19, 15, 30), date(2026, 10, 19));
     }
 
     #[test]
