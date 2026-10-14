@@ -365,6 +365,39 @@
     @apply h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm;
   }
 
+  /* 期間モードの入力領域。全スロットを同じグリッドマスに重ね、最も広い
+     範囲モードの幅を常時確保して後続項目の位置を固定する */
+  .pc-search-bar .pc-period-slots {
+    @apply grid items-center;
+  }
+
+  .pc-search-bar .pc-period-slot {
+    grid-area: 1 / 1;
+    @apply flex items-center gap-1;
+  }
+
+  .pc-search-bar .pc-period-slot:not([data-active="true"]) {
+    @apply invisible;
+  }
+
+  /* type=date は未入力だと「年/月/日 ()」のような形式表示が出る。入力中は
+     打った桁を見せる必要があるので、空かつ未フォーカスのときだけ文字を消す */
+  input[type="date"][data-empty="true"]:not(:focus) {
+    @apply text-transparent;
+  }
+
+  .pc-date-field {
+    @apply relative inline-flex items-center;
+  }
+
+  .pc-date-field-label {
+    @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted;
+  }
+
+  .pc-date-field:focus-within .pc-date-field-label {
+    @apply hidden;
+  }
+
   /* 集計の帯(PC・スマホ共通): 紺地に金の見出し。主値(税引後)を先頭に置き、
      スマホは残り2項目を右寄せの行に、PC は3列グリッドにする */
   .receipt-summary {

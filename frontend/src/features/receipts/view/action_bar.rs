@@ -113,6 +113,35 @@ pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
     }
 }
 
+/// type=date は未入力だとブラウザの形式表示(年/月/日 曜日など)が出るため、
+/// 空のあいだは欄の名前を重ねて出す
+#[component]
+fn PcDateInput(
+    label: &'static str,
+    value: Memo<String>,
+    on_input: impl Fn(String) + Copy + 'static + Send,
+) -> impl IntoView {
+    view! {
+        <span class="pc-date-field">
+            <input
+                type="date"
+                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                aria-label=label
+                data-empty=move || value.get().is_empty().then_some("true")
+                prop:value=move || value.get()
+                on:input=move |ev| on_input(event_target_value(&ev))
+            />
+            {move || {
+                value.get().is_empty().then(|| {
+                    view! {
+                        <span class="pc-date-field-label" aria-hidden="true">{label}</span>
+                    }
+                })
+            }}
+        </span>
+    }
+}
+
 #[component]
 pub fn ReceiptsPcSearchBar(
     store: ReceiptsStore,
@@ -145,6 +174,12 @@ pub fn ReceiptsPcSearchBar(
         })
     });
     let current_segment = Memo::new(move |_| search.with(|s| s.date_segment));
+    let date_value = Memo::new(move |_| search.with(|s| s.date_inputs.date_value.clone()));
+    let range_start = Memo::new(move |_| search.with(|s| s.date_inputs.range_start.clone()));
+    let range_end = Memo::new(move |_| search.with(|s| s.date_inputs.range_end.clone()));
+    let slot_active = move |segment: DateSegment| {
+        !search.with(|s| s.date_all) && current_segment.get() == segment
+    };
     let period_options = ["すべて", "年", "年月", "日", "範囲"];
 
     view! {
@@ -193,12 +228,11 @@ pub fn ReceiptsPcSearchBar(
                                     view! { <option value=*opt>{*opt}</option> }
                                 }).collect_view()}
                             </select>
-                            {move || {
-                                if search.with(|s| s.date_all) {
-                                    return ().into_any();
-                                }
-                                match current_segment.get() {
-                                    DateSegment::Year => {
+                            // モードごとに入力部の幅が違うと後続の商品・口座・クリアの位置が動くため、
+                            // 最も広い範囲モードの幅を重ねたスロットで全モード分確保する
+                            <div class="pc-period-slots">
+                                <div class="pc-period-slot" data-active=move || slot_active(DateSegment::Year).then_some("true")>
+                                    {move || {
                                         has_years().then(|| {
                                             view! {
                                                 <select
@@ -212,91 +246,83 @@ pub fn ReceiptsPcSearchBar(
                                                         view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
                                                     }).collect_view()}
                                                 </select>
-                                            }.into_any()
-                                        }).into_any()
-                                    }
-                                    DateSegment::Month => {
+                                            }
+                                        })
+                                    }}
+                                </div>
+                                <div class="pc-period-slot" data-active=move || slot_active(DateSegment::Month).then_some("true")>
+                                    {move || {
                                         has_years().then(|| {
                                             view! {
-                                                <div class="flex items-center gap-1">
-                                                    <select
-                                                        class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                        aria-label="年"
-                                                        prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
-                                                        on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
-                                                    >
-                                                        {years.get().iter().map(|y| {
-                                                            view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
-                                                        }).collect_view()}
-                                                    </select>
-                                                    <select
-                                                        class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                        aria-label="月"
-                                                        prop:value=move || search.with(|s| s.date_inputs.month_value.clone())
-                                                        on:change=move |ev| {
-                                                            let month = event_target_value(&ev);
-                                                            search.update(|s| {
-                                                                s.date_inputs.month_value = month.clone();
-                                                                let year = s.date_inputs.year_value.clone();
-                                                                if !year.is_empty() {
-                                                                    s.set_date_query(format!("{}-{}", year, month));
-                                                                }
-                                                            });
-                                                        }
-                                                    >
-                                                        {(1..=12).map(|m| {
-                                                            let m_str = format!("{:02}", m);
-                                                            let m_label = format!("{}月", m);
-                                                            view! { <option value={m_str.clone()}>{m_label}</option> }
-                                                        }).collect_view()}
-                                                    </select>
-                                                </div>
-                                            }.into_any()
-                                        }).into_any()
-                                    }
-                                    DateSegment::Date => {
-                                        view! {
-                                            <input
-                                                type="date"
-                                                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                aria-label="日付"
-                                                prop:value=move || search.with(|s| s.date_inputs.date_value.clone())
-                                                on:input=move |ev| search.update(|s| {
-                                                    s.date_inputs.date_value = event_target_value(&ev);
-                                                    s.set_date_query(event_target_value(&ev));
-                                                })
-                                            />
-                                        }.into_any()
-                                    }
-                                    DateSegment::Range => {
-                                        view! {
-                                            <div class="flex items-center gap-1">
-                                                <input
-                                                    type="date"
+                                                <select
                                                     class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                    aria-label="開始日"
-                                                    prop:value=move || search.with(|s| s.date_inputs.range_start.clone())
-                                                    on:input=move |ev| search.update(|s| {
-                                                        s.date_inputs.range_start = event_target_value(&ev);
-                                                        s.update_range_query();
-                                                    })
-                                                />
-                                                <span class="text-text-muted">"〜"</span>
-                                                <input
-                                                    type="date"
+                                                    aria-label="年"
+                                                    prop:value=move || search.with(|s| s.date_inputs.year_value.clone())
+                                                    on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
+                                                >
+                                                    <option value="">"年を選択"</option>
+                                                    {years.get().iter().map(|y| {
+                                                        view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
+                                                    }).collect_view()}
+                                                </select>
+                                                <select
                                                     class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
-                                                    aria-label="終了日"
-                                                    prop:value=move || search.with(|s| s.date_inputs.range_end.clone())
-                                                    on:input=move |ev| search.update(|s| {
-                                                        s.date_inputs.range_end = event_target_value(&ev);
-                                                        s.update_range_query();
-                                                    })
-                                                />
-                                            </div>
-                                        }.into_any()
-                                    }
-                                }
-                            }}
+                                                    aria-label="月"
+                                                    prop:value=move || search.with(|s| s.date_inputs.month_value.clone())
+                                                    on:change=move |ev| {
+                                                        let month = event_target_value(&ev);
+                                                        search.update(|s| {
+                                                            s.date_inputs.month_value = month.clone();
+                                                            let year = s.date_inputs.year_value.clone();
+                                                            if year.is_empty() || month.is_empty() {
+                                                                s.set_date_query(year);
+                                                            } else {
+                                                                s.set_date_query(format!("{}-{}", year, month));
+                                                            }
+                                                        });
+                                                    }
+                                                >
+                                                    <option value="">"月を選択"</option>
+                                                    {(1..=12).map(|m| {
+                                                        let m_str = format!("{:02}", m);
+                                                        let m_label = format!("{}月", m);
+                                                        view! { <option value={m_str.clone()}>{m_label}</option> }
+                                                    }).collect_view()}
+                                                </select>
+                                            }
+                                        })
+                                    }}
+                                </div>
+                                <div class="pc-period-slot" data-active=move || slot_active(DateSegment::Date).then_some("true")>
+                                    <PcDateInput
+                                        label="日付"
+                                        value=date_value
+                                        on_input=move |v| search.update(|s| {
+                                            s.date_inputs.date_value = v.clone();
+                                            s.set_date_query(v);
+                                        })
+                                    />
+                                </div>
+                                <div class="pc-period-slot" data-active=move || slot_active(DateSegment::Range).then_some("true")>
+                                    <PcDateInput
+                                        label="開始日"
+                                        value=range_start
+                                        on_input=move |v| search.update(|s| {
+                                            s.date_inputs.range_start = v;
+                                            s.update_range_query();
+                                        })
+                                    />
+                                    <span class="text-text-muted">"〜"</span>
+                                    <PcDateInput
+                                        label="終了日"
+                                        value=range_end
+                                        on_input=move |v| search.update(|s| {
+                                            s.date_inputs.range_end = v;
+                                            s.update_range_query();
+                                        })
+                                    />
+                                </div>
+                            </div>
                         </div>
                     }
                 })
