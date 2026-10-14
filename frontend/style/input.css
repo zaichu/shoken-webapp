@@ -646,6 +646,11 @@
     @apply inline-flex items-center rounded-lg bg-row-group px-1.5 py-0.5 text-xs text-night-soft;
   }
 
+  /* PC の表ではバッジを折り返さず1行で出す(列は内容に合わせて広がる) */
+  .receipts-table .account-badge {
+    @apply whitespace-nowrap;
+  }
+
   .account-badge-nisa {
     @apply bg-nisa-soft text-warn-ink;
   }
