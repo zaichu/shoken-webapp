@@ -34,10 +34,10 @@ const DIVIDENDS = Array.from({ length: 39 }, (_, i) => {
     security_code: code,
     security_name: name,
     unit_price: String(10 + i * 3),
-    shares: String(100 * ((i % 5) + 1)),
-    dividends_before_tax: String(3000 + i * 1234),
-    taxes: String(609 + i * 250),
-    net_amount_received: String(2391 + i * 984),
+    shares: String(1000000 + i * 111111),
+    dividends_before_tax: String(12345678 + i * 12345),
+    taxes: String(2345678 + i * 1234),
+    net_amount_received: String(9876543 + i * 5678),
     created_at: '2024-03-01T00:00:00Z',
     updated_at: '2024-03-01T00:00:00Z',
   };
@@ -201,4 +201,34 @@ test('A4の印字可能領域に全タブが収まり、操作バーは印刷に
     expect(metrics.lastCellRight).toBeLessThanOrEqual(metrics.mainContentRight + 1);
   }
   await page.emulateMedia({ media: 'screen' });
+});
+
+test('PCの数値列は折り返さず1行で表示され、表は枠に収まる', async ({ page }) => {
+  for (const width of [1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await gotoReceipts(page);
+
+    for (const tab of RECEIPT_TABS) {
+      await page.getByRole('tab', { name: tab.label }).click();
+      await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
+      const table = page.getByRole('table');
+      await expect(table).toBeVisible();
+
+      const fits = await table.evaluate((element) => {
+        const wrapper = element.parentElement!;
+        return wrapper.scrollWidth <= wrapper.clientWidth + 1;
+      });
+      expect(fits, `${tab.label} の表が枠に収まる`).toBe(true);
+
+      const hasWrappedNumberCell = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('td.text-right')).some((cell) => {
+          const rects = cell.getClientRects();
+          // 非表示列(display:none)は折り返し判定の対象外
+          return rects.length > 0 && rects.length !== 1;
+        });
+      });
+      expect(hasWrappedNumberCell, `${tab.label} の数値列が折り返していない`).toBe(false);
+      await expectNoPageOverflow(page, width);
+    }
+  }
 });
