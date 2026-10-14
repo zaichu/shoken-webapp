@@ -501,7 +501,7 @@
   }
 
   .receipts-table {
-    @apply w-full table-fixed border-collapse text-sm;
+    @apply w-full table-auto border-collapse text-sm;
   }
 
   .receipts-table thead {
@@ -531,6 +531,7 @@
 
   .receipts-table td.text-right {
     @apply text-right;
+    white-space: nowrap;
   }
 
   /* クラスは tr ではなく各 td に付く */
