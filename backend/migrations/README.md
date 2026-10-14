@@ -29,6 +29,8 @@ migration ファイルの置き場所と運用メモ。
 | 0014 | `0014_hash_session_tokens.sql` | sessions に token_hash を NULL 可で追加し既存行を backfill（段階的移行・平文は後続で除去） |
 | 0015 | `0015_session_id_internal_key.sql` | token_hash を NOT NULL にし、平文トークンと同じ値の sessions.id を振り直して内部キーにする（デプロイ中に旧版が発行した行は 0016 で振り直す） |
 | 0016 | `0016_reroll_plain_session_id.sql` | 0015 の適用後に旧版が発行し、id に平文トークンが残った sessions 行の id を振り直す |
+| 0017 | `0017_asset_balances_price_as_of.sql` | 現在値の基準日 `price_as_of` を asset_balances に追加（既存行は updated_at の JST 日付で backfill） |
+| 0018 | `0018_asset_balances_price_checked_at.sql` | 現在値の最終問い合わせ時刻 `price_checked_at` を asset_balances に追加 |
 
 ## 重要な注意
 

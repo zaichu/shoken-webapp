@@ -168,14 +168,12 @@ async fn fetch(
 
 // 同じ分の cron は1回にまとまって届くため振り分けない
 #[event(scheduled)]
-async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
+async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
     if let Err(e) = drain_dividend_cache(&env).await {
         console_error!("scheduled イベントエラー: 配当キャッシュ消化: {e}");
     }
-    if stock_price::should_refresh_at(event.schedule()) {
-        if let Err(e) = refresh_stock_prices(&env).await {
-            console_error!("scheduled イベントエラー: 現在値更新: {e}");
-        }
+    if let Err(e) = refresh_stock_prices(&env).await {
+        console_error!("scheduled イベントエラー: 現在値更新: {e}");
     }
 }
 

@@ -80,6 +80,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0017_asset_balances_price_as_of",
         include_str!("../../migrations/0017_asset_balances_price_as_of.sql"),
     ),
+    (
+        "0018_asset_balances_price_checked_at",
+        include_str!("../../migrations/0018_asset_balances_price_checked_at.sql"),
+    ),
 ];
 
 struct Migration {

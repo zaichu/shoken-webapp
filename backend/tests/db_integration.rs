@@ -719,6 +719,71 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
     assert_eq!(row.price_as_of, NaiveDate::from_ymd_opt(2020, 1, 2));
 }
 
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_price_refresh_marks_checked_at_for_stale_codes() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_id,
+        &[
+            make_asset_item("5001"), // 古い基準日・未チェック → 対象
+            make_asset_item("5002"), // 古い基準日・30分前にチェック済み → 1時間間隔の対象外
+            make_asset_item("5003"), // 基準日が最新 → 対象外
+            make_asset_item("5004"), // 古い基準日・2時間前にチェック済み → 対象
+        ],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("bulk_create 失敗");
+
+    let stale_as_of = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
+    let fresh_as_of = NaiveDate::from_ymd_opt(2099, 1, 1).unwrap();
+    let checked_30min_ago = Utc::now() - chrono::Duration::minutes(30);
+    let checked_2h_ago = Utc::now() - chrono::Duration::hours(2);
+    for (code, as_of, checked_at) in [
+        ("5001", stale_as_of, None),
+        ("5002", stale_as_of, Some(checked_30min_ago)),
+        ("5003", fresh_as_of, None),
+        ("5004", stale_as_of, Some(checked_2h_ago)),
+    ] {
+        db::query(
+            "UPDATE asset_balances SET price_as_of = $2, price_checked_at = $3 \
+             WHERE security_code = $1",
+            vec![Bind::from(code), Bind::from(as_of), Bind::opt(checked_at)],
+        )
+        .execute(&pool)
+        .await
+        .expect("seed 更新失敗");
+    }
+
+    // ホスト環境では Yahoo への fetch が常に失敗するが、対象の選別と
+    // 問い合わせ時刻の記録（成否にかかわらず更新）はそのまま検証できる
+    let fetched = stock_price::refresh_stock_prices(&pool, None)
+        .await
+        .expect("refresh 失敗");
+    assert_eq!(fetched, 0);
+
+    let rows: Vec<(String, Option<chrono::DateTime<Utc>>)> = db::query(
+        "SELECT security_code, price_checked_at FROM asset_balances \
+         WHERE user_id = $1 ORDER BY security_code",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("読み取り失敗");
+    let checked_at = |code: &str| rows.iter().find(|(c, _)| c == code).and_then(|(_, ts)| *ts);
+    let just_now = Utc::now() - chrono::Duration::minutes(5);
+
+    // 対象に選ばれた銘柄は問い合わせ時刻が記録される
+    assert!(checked_at("5001").is_some_and(|ts| ts > just_now));
+    assert!(checked_at("5004").is_some_and(|ts| ts > just_now));
+    // 直近チェック済み・基準日が最新の銘柄は記録が進まない（再問い合わせしていない）
+    assert!(checked_at("5002").is_some_and(|ts| ts < just_now));
+    assert_eq!(checked_at("5003"), None);
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "requires Docker to run Postgres container"]
 async fn asset_balance_bulk_create_concurrent_same_user_no_mix() {

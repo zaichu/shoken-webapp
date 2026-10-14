@@ -36,10 +36,9 @@ name = "RATE_LIMIT_DATA"
 namespace_id = "1004"
 simple = { limit = 100, period = 10 }
 
-# 毎分実行し、配当キャッシュの stale/pending 銘柄を消化する。
-# 同じ分に複数の cron が当たると1回にまとまって届くため1本に絞り、
-# 現在値更新の起動は scheduled ハンドラーが予定時刻から判定する
-# （一時的に5分ごと。#1303 で引け後の毎時に戻す）。
+# 毎分実行し、配当キャッシュの stale/pending 銘柄を消化し、
+# 最新の終値が入っていない保有銘柄の現在値を取り直す。
+# 同じ分に複数の cron が当たると1回にまとまって届くため1本に絞る。
 # named env はトップレベルの triggers を継承しないため env.dev にも定義する
 [triggers]
 crons = ["* * * * *"]
