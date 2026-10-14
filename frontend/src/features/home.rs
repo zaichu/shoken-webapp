@@ -4,129 +4,24 @@ use crate::api::dto::{
 };
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::{
-    calculate_valuation_from_decimal, format_valuation_amount, format_valuation_rate,
-    valuation_tone,
+    calculate_valuation_from_decimal, format_signed_valuation_amount, format_signed_valuation_rate,
+    is_negative_valuation, is_positive_valuation,
 };
 use crate::session::{Generation, SessionStore, use_session};
 use crate::support::pagination::ListEndpoint;
-use crate::ui::card::{Card, CardVariant};
+use crate::ui::amount::Amount;
 use crate::ui::page_frame::PageFrame;
-use crate::ui::summary_strip::{SummaryItem, SummaryStrip};
 use leptos::prelude::*;
 use shared::format::format_currency as format_currency_decimal;
 use std::collections::HashMap;
 use std::future::Future;
 
-struct StatusItem {
-    label: &'static str,
-    sub: &'static str,
-    description: &'static str,
-    to: Option<&'static str>,
-    icon_d: &'static str,
-    icon_class: &'static str,
-}
-
-const STATUS_ITEMS: &[StatusItem] = &[
-    StatusItem {
-        label: "銘柄検索",
-        sub: "検索",
-        description: "銘柄コードまたは銘柄名を入力して株式情報を検索できます。",
-        to: Some("/search"),
-        icon_d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
-        icon_class: "h-5 w-5 text-ink",
-    },
-    StatusItem {
-        label: "資産管理",
-        sub: "一覧確認",
-        description: "保有している銘柄の一覧と取得額の内訳を確認できます。",
-        to: Some("/assetbalance"),
-        icon_d: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
-        icon_class: "h-5 w-5 text-ink",
-    },
-    StatusItem {
-        label: "取引明細",
-        sub: "明細確認",
-        description: "配当金・国内株式・投資信託の取引明細を管理します。",
-        to: Some("/receipts"),
-        icon_d: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-        icon_class: "h-5 w-5 text-ink",
-    },
-    StatusItem {
-        label: "CSV取込",
-        sub: "CSV反映",
-        description: "各ページから取込可能",
-        to: None,
-        icon_d: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12",
-        icon_class: "h-5 w-5 text-ink",
-    },
-];
-
 #[component]
 pub fn HomePage() -> impl IntoView {
     view! {
-        <PageFrame title="ホーム">
-            <div class="space-y-7 py-2">
+        <PageFrame title="ホーム" full_bleed=true>
+            <div class="content-gutter flex flex-1 flex-col">
                 <HomeOverview />
-
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {STATUS_ITEMS
-                    .iter()
-                    .map(|item| {
-                        let StatusItem {
-                            label,
-                            sub,
-                            description,
-                            to,
-                            icon_d,
-                            icon_class,
-                        } = item;
-                        let inner = view! {
-                            <div class="flex items-start justify-between gap-3">
-                                <span class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-ink/10 bg-surface shadow-sm">
-                                    <svg
-                                        class={*icon_class}
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        aria-hidden="true"
-                                        focusable="false"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="1.8"
-                                            d={*icon_d}
-                                        />
-                                    </svg>
-                                </span>
-                                <span class="text-xs font-bold text-text-muted">
-                                    {*sub}
-                                </span>
-                            </div>
-                            <p class="mt-4 text-base font-black text-ink">{*label}</p>
-                            <p class="mt-1 text-xs font-medium text-text-muted">{*description}</p>
-                        };
-                        match to {
-                            Some(to) => {
-                                view! {
-                                    <Card variant=CardVariant::Feature class="group" href=(*to).to_string()>
-                                        {inner}
-                                    </Card>
-                                }
-                                    .into_any()
-                            }
-                            None => {
-                                view! {
-                                    <Card variant=CardVariant::Feature>
-                                        {inner}
-                                    </Card>
-                                }
-                                    .into_any()
-                            }
-                        }
-                    })
-                    .collect_view()}
-            </div>
             </div>
         </PageFrame>
     }
@@ -365,6 +260,8 @@ fn HomeOverview() -> impl IntoView {
     view! {
         <Show when=move || session.user.get().is_some()>
             <section
+                class="asset-summary asset-summary-3"
+                role="region"
                 aria-label="資産の概要"
                 aria-busy=move || {
                     let (asset, dividend) = snapshot();
@@ -376,7 +273,11 @@ fn HomeOverview() -> impl IntoView {
                     let (asset, dividend) = snapshot();
                     view! { <OverviewTiles asset=asset dividend=dividend /> }
                 }}
-                <p class="text-xs font-medium text-text-muted" role="status" aria-live="polite">
+                <p
+                    class="col-span-full text-xs font-medium text-brand-muted lg:text-text-muted"
+                    role="status"
+                    aria-live="polite"
+                >
                     {move || {
                         let (asset, dividend) = snapshot();
                         let refresh_failed = data.fetch_state.with(|map| {
@@ -408,9 +309,14 @@ fn OverviewTiles(
     let asset_busy = asset.is_none();
     let dividend_busy = dividend.is_none();
     let asset = asset.flatten();
-    let market = asset
-        .as_ref()
-        .map(|summary| format_currency_decimal(summary.total_market_value));
+    let market_text = if asset_busy {
+        "—".to_string()
+    } else {
+        asset
+            .as_ref()
+            .map(|summary| format_currency_decimal(summary.total_market_value))
+            .unwrap_or_else(|| "—".to_string())
+    };
     let valuation = asset
         .as_ref()
         .filter(|summary| {
@@ -422,33 +328,66 @@ fn OverviewTiles(
                 summary.total_purchase_amount,
             )
         });
-    let (_profit_class, profit_negative) =
-        valuation_tone(valuation.as_ref().and_then(|valuation| valuation.amount));
-    let profit_rate = valuation.as_ref().map(|valuation| match valuation.rate {
-        Some(rate) => format_valuation_rate(Some(rate), 1),
-        None => "算出不可".to_string(),
-    });
-    let profit = valuation.map(|valuation| format_valuation_amount(valuation.amount));
-    let dividend = dividend
-        .flatten()
-        .map(|summary| format_currency_decimal(summary.total_net_amount_received));
-    let items = vec![
-        SummaryItem::new(
-            "評価額",
-            (!asset_busy).then(|| market.unwrap_or_else(|| "—".to_string())),
-        ),
-        SummaryItem {
-            label: "評価損益",
-            value: (!asset_busy).then(|| profit.unwrap_or_else(|| "—".to_string())),
-            note: (!asset_busy).then(|| profit_rate.unwrap_or_else(|| "—".to_string())),
-            negative: profit_negative.is_some(),
-        },
-        SummaryItem::new(
-            "今年の税引後配当金",
-            (!dividend_busy).then(|| dividend.unwrap_or_else(|| "—".to_string())),
-        ),
-    ];
-    view! { <SummaryStrip items=items /> }
+    let pnl_amount = valuation.as_ref().and_then(|valuation| valuation.amount);
+    let pnl_tone = if is_negative_valuation(pnl_amount) {
+        "asset-summary-loss"
+    } else if is_positive_valuation(pnl_amount) {
+        "asset-summary-gain"
+    } else {
+        ""
+    };
+    let profit_text = if asset_busy {
+        "—".to_string()
+    } else {
+        valuation
+            .as_ref()
+            .map(|valuation| format_signed_valuation_amount(valuation.amount))
+            .unwrap_or_else(|| "—".to_string())
+    };
+    let profit_rate = valuation
+        .as_ref()
+        .and_then(|valuation| valuation.rate)
+        .map(|rate| format_signed_valuation_rate(Some(rate), 1));
+    let dividend_text = if dividend_busy {
+        "—".to_string()
+    } else {
+        dividend
+            .flatten()
+            .map(|summary| format_currency_decimal(summary.total_net_amount_received))
+            .unwrap_or_else(|| "—".to_string())
+    };
+    view! {
+        <dl class="asset-summary-grid">
+            <div class="asset-summary-item asset-summary-item-primary">
+                <dt>"評価額"</dt>
+                <dd>
+                    <Amount text=market_text class="asset-summary-primary-amount".to_string() />
+                </dd>
+            </div>
+            <div class="asset-summary-item asset-summary-item-pnl">
+                <dt class="sr-only lg:not-sr-only">"評価損益"</dt>
+                <dd>
+                    <Amount
+                        text=profit_text
+                        class=format!("asset-summary-pnl-amount {pnl_tone}")
+                    />
+                    {profit_rate.map(|rate| {
+                        view! {
+                            <span class=format!("asset-summary-pnl-note {pnl_tone}")>
+                                {rate}
+                            </span>
+                        }
+                    })}
+                </dd>
+            </div>
+            <div class="asset-summary-item asset-summary-item-sub1">
+                <dt>"今年の税引後配当金"</dt>
+                <dd>
+                    <Amount text=dividend_text class="asset-summary-sub-amount".to_string() />
+                </dd>
+            </div>
+        </dl>
+    }
 }
 
 #[cfg(test)]

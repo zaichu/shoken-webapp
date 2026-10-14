@@ -52,34 +52,33 @@ test('検索ページの初期表示で検索フォームが表示される', as
   await expect(page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' })).toBeVisible();
 });
 
-test('検索フォームはワークスペースの左パネル内にある', async ({ page }) => {
+test('PC では検索フォームが本文の上部に1つだけ表示される', async ({ page }) => {
   await setupAuthMocks(page);
   await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.goto('/search');
   await page.waitForLoadState('networkidle');
 
-  const rail = page.getByTestId('search-utility-rail');
+  // PC は下部操作帯を出さないため、見える検索領域は本文直上の1つだけ
+  const search = page.getByRole('search', { name: '銘柄検索' });
+  await expect(search).toHaveCount(1);
   await expect(
-    rail.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }),
+    search.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }),
   ).toBeVisible();
-  // 検索はフォームが主操作なので折りたたみ機構を持たない
-  await expect(page.getByTestId('search-utility-toggle')).toHaveCount(0);
 });
 
-test('モバイルでも検索フォームが畳まれず見える', async ({ page }) => {
+test('モバイルでも検索フォームが見える', async ({ page }) => {
   await setupAuthMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto('/search');
   await page.waitForLoadState('networkidle');
 
+  const search = page.getByRole('search', { name: '銘柄検索' });
+  await expect(search).toHaveCount(1);
   await expect(
-    page.getByTestId('search-utility-rail').getByRole('textbox', {
-      name: '銘柄コードまたは銘柄名',
-    }),
+    search.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }),
   ).toBeVisible();
-  await expect(page.getByTestId('search-utility-toggle')).toHaveCount(0);
 });
 
 test('検索フォームに文字を入力できる', async ({ page }) => {

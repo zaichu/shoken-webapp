@@ -31,14 +31,10 @@ exclude_re = [
     "focus_tab",
     "scroll_tab_into_view",
     "card_detail_view",
-    # window.innerWidth / matchMedia 境界。ネイティブテストでは window が無く
+    # window.innerWidth 境界。ネイティブテストでは window が無く
     # 単体テストから状態を観測できない
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: replace workspace_panel_default_open -> bool with",
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: replace is_compact_viewport -> bool with",
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: delete ! in is_compact_viewport",
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: replace (&&|==) with (\\|\\||!=) in WorkspaceShell",
-    # hidden 属性/DOM 境界。非 wasm の単体テストではレンダリング結果を観測できない
-    "src/ui/workspace_shell\\.rs:\\d+:\\d+: delete ! in WorkspaceShell",
+    "src/features/receipts/store\\.rs:\\d+:\\d+: replace utility_rail_default_open -> bool with",
+    "in utility_rail_default_open$",
     # web_sys::Element (ResizeObserver) 境界。ネイティブテストでは window/document が無いため
     # 単体テストから状態を観測できない
     "src/features/receipts/view/table\\.rs:\\d+:\\d+: replace site_header -> Option<web_sys::Element> with",
@@ -48,7 +44,7 @@ exclude_re = [
     # ストアへの委譲のみで状態観測が間接的なものは除外
     "src/features/receipts/view/panel\\.rs:\\d+:\\d+: replace <impl CsvSource for ReceiptCsvSource>::(csv_state|is_authenticated|input_disabled|db_count|open_delete_confirm) ",
     # コンポーネント(view 描画)内部の条件・算術。E2E 領域(末尾が関数名の記述に限定)
-    "in (App|StockSearchPage|AssetBalancePage|AssetBalanceCsvSection|AssetBalanceRailExtras|PortfolioSummary|HoldingCard|AssetReviewPromptCard|DividendInfo|YearPicker|DatePeriod|ReceiptsPage|ReceiptsCsvSection|ReceiptsSearchCard|ReceiptsMainContent|ReceiptTable|UserMenu|SecurityCodeLink|CsvSaveResultNotice|DividendSummarySection|AssetBadge|KpiGrid|SummaryStrip|CalendarDateButton|CsvActionRail|SiteHeader|SiteFooter|Loading|Alert|Spinner|EmptyState|HomePage|LoginPage|NotFoundPage|AssetBalancePortfolioPage|AssetBalanceChart|HomeOverview|DividendInfoStore::poll_dividend|DividendInfoStore::set_code|DividendInfoStore::refresh_balance|ReceiptsPanel)$",
+    "in (App|StockSearchPage|AssetBalancePage|AssetBalanceCsvSection|AssetBalanceRailExtras|PortfolioSummary|HoldingCard|AssetReviewPromptCard|DividendInfo|YearPicker|DatePeriod|ReceiptsPage|ReceiptsCsvSection|ReceiptsSearchCard|ReceiptsMainContent|ReceiptTable|UserMenu|SecurityCodeLink|CsvSaveResultNotice|DividendSummarySection|AssetBadge|KpiGrid|SummaryStrip|CalendarDateButton|CsvActionRail|SiteHeader|SiteFooter|Loading|Alert|Spinner|EmptyState|HomePage|LoginPage|NotFoundPage|AssetBalancePortfolioPage|AssetBalanceChart|HomeOverview|DividendInfoStore::poll_dividend|DividendInfoStore::set_code|DividendInfoStore::refresh_balance|ReceiptsPanel|CsvActions)$",
     # HTTP 通信・web_sys::AbortController/FormData 前提
     # fetch_pages / fetch_dividend_batch は executor 注入でテスト可能なため除外しない
     "fetch_stock",

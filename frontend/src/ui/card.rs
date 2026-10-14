@@ -13,8 +13,6 @@ pub enum CardVariant {
     Table,
     /// 開閉つきの帯(section 要素で出す)
     Collapsible,
-    /// ホームのリンクカード(a 要素で出す)
-    Feature,
     /// 白く浮いた外枠(空の状態の包み)
     Shell,
     /// 薄い外枠(資産管理の空状態)
@@ -42,7 +40,6 @@ impl CardVariant {
             Self::Login => "login-card",
             Self::Table => "table-card",
             Self::Collapsible => "collapsible-card",
-            Self::Feature => "feature-card",
             Self::Shell => {
                 "overflow-hidden rounded-xl border border-ink/10 bg-surface/95 shadow-elevation-2"
             }
