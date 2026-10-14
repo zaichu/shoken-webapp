@@ -23,6 +23,21 @@ const MAX_CODES_PER_RUN: i64 = 15;
 /// 銘柄間の待ち時間。非公式 API への負荷を抑えるために少し間を空ける
 const FETCH_GAP_MS: u64 = 500;
 
+/// wasm は tracing subscriber を持たないため、Worker 上では console 系へ出す
+#[cfg(target_arch = "wasm32")]
+macro_rules! svc_log {
+    (info, $($t:tt)*) => { worker::console_log!($($t)*) };
+    (warn, $($t:tt)*) => { worker::console_warn!($($t)*) };
+    (error, $($t:tt)*) => { worker::console_error!($($t)*) };
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! svc_log {
+    (info, $($t:tt)*) => { tracing::info!($($t)*) };
+    (warn, $($t:tt)*) => { tracing::warn!($($t)*) };
+    (error, $($t:tt)*) => { tracing::error!($($t)*) };
+}
+
 /// Yahoo chart API から取り出した終値
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClosePrice {
@@ -144,7 +159,7 @@ async fn fetch_close_price(base_url: &str, code: &SecurityCode) -> Result<CloseP
         let body = worker::send::SendFuture::new(response.text())
             .await
             .unwrap_or_default();
-        tracing::error!("Yahoo chart API エラー: status={}, code={}", status, code);
+        worker::console_error!("Yahoo chart API エラー: status={}, code={}", status, code);
         return Err(chart_status_error(status, body));
     }
 
@@ -207,6 +222,7 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
 
     let base_url = base_url.unwrap_or_else(|| CHART_BASE_URL.to_string());
     let mut fetched = 0;
+    let mut failed = 0;
     for (i, code) in codes.iter().enumerate() {
         if i > 0 {
             crate::services::dividend_cache::sleep_millis(FETCH_GAP_MS).await;
@@ -215,19 +231,23 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
             Ok(price) => {
                 fetched += 1;
                 match apply_close_price(pool, code, &price).await {
-                    Ok(rows) => {
-                        tracing::info!(
-                            "現在値更新: code={}, as_of={}, rows={}",
-                            code,
-                            price.as_of,
-                            rows
-                        )
+                    Ok(rows) => svc_log!(
+                        info,
+                        "現在値更新: code={}, as_of={}, rows={}",
+                        code,
+                        price.as_of,
+                        rows
+                    ),
+                    Err(e) => {
+                        failed += 1;
+                        svc_log!(error, "現在値の反映に失敗: code={}, err={}", code, e)
                     }
-                    Err(e) => tracing::error!("現在値の反映に失敗: code={}, err={}", code, e),
                 }
             }
             Err(e) => {
-                tracing::warn!(
+                failed += 1;
+                svc_log!(
+                    warn,
                     "現在値の取得に失敗（前回値を維持）: code={}, err={}",
                     code,
                     e
@@ -236,9 +256,18 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
         }
     }
 
+    // 件数の内訳を残し、cron が動いたか・どの段階で失敗したかを判別できるようにする
+    svc_log!(
+        info,
+        "現在値更新の結果: 対象={}件, 成功={}件, 失敗={}件",
+        codes.len(),
+        codes.len() - failed,
+        failed
+    );
     if !codes.is_empty() && fetched == 0 {
         // 全銘柄が失敗 = 個別障害ではなく取得元の応答・エンドポイント変更を疑う
-        tracing::error!(
+        svc_log!(
+            error,
             "現在値の自動取得が全銘柄失敗。取得元（Yahoo chart API）の変更の可能性あり"
         );
     }
