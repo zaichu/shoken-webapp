@@ -163,8 +163,8 @@ async fn fetch(
     Ok(router(state, &env).call(req).await?)
 }
 
-/// 現在値を更新する日次 cron（UTC 07:00 = JST 16:00、東証の引け後）。wrangler.toml と対応させる
-const STOCK_PRICE_CRON: &str = "0 7 * * *";
+/// 現在値を更新する cron（UTC 07〜23時の毎時 = JST 16:00〜翌08:00）。wrangler.toml と対応させる
+const STOCK_PRICE_CRON: &str = "0 7-23 * * *";
 
 #[event(scheduled)]
 async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
