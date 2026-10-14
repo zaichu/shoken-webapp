@@ -8,47 +8,30 @@ migration ファイルの置き場所と運用メモ。
 
 ## 現行方針
 
-`backend/migrations` は追記のみで運用する。適用済みの migration ファイルは変更・削除しない。
-新規 DB には全 migration が番号順に適用され、現在の schema になる。
+現在の schema は `0001_schema.sql` 1本で表す。旧 `0001〜0017` を順に全適用した
+結果と同じ schema を作る baseline で、旧17本を適用した DB の `pg_dump --schema-only`
+出力から所有者・権限・SET・コメント行を除いて生成した(手書きではない)。
+`pg_dump --schema-only` に含まれない初期行(`market_data_provider_rate_control`)は
+末尾に追記してある。
 
-| No. | ファイル | 内容 |
-|-----|---------|------|
-| 0001 | `0001_initial_schema.sql` | 拡張、全テーブル、全 index、初期 seed を作成 |
-| 0002 | `0002_dividends_search_indexes.sql` | 配当金検索（product/account/security_code/security_name の絞り込み、settlement_date/id 順の一覧取得）向け index を追加 |
-| 0003 | `0003_domestic_stocks_search_indexes.sql` | 国内株式検索（account/security_code/security_name の絞り込み、trade_date/id 順の一覧取得）向け index を追加 |
-| 0004 | `0004_mutualfunds_search_indexes.sql` | 投資信託検索（account/fund_name/dividends の絞り込み、trade_date/id 順の一覧取得）向け index を追加 |
-| 0005 | `0005_asset_balances_search_indexes.sql` | 保有銘柄検索（security_code/security_name の絞り込み、security_code/id 順の一覧取得）向け index を追加 |
-| 0006 | `0006_free_text_search_trgm_indexes.sql` | dividends/domestic_stocks/mutualfunds のフリーワード検索向け GIN trgm index を追加 |
-| 0007 | `0007_drop_idx_dividends_user_id.sql` | 複合 index で代替できる dividends の user_id 単独 index を削除 |
-| 0008 | `0008_drop_idx_domestic_stocks_user_id.sql` | 複合 index で代替できる domestic_stocks の user_id 単独 index を削除 |
-| 0009 | `0009_drop_idx_mutualfunds_user_id.sql` | 複合 index で代替できる mutualfunds の user_id 単独 index を削除 |
-| 0010 | `0010_drop_idx_asset_balances_user_id.sql` | 複合 index で代替できる asset_balances の user_id 単独 index を削除 |
-| 0011 | `0011_drop_idx_asset_balances_user_security_code.sql` | 複合 index で代替できる asset_balances の (user_id, security_code) index を削除 |
-| 0012 | `0012_financial_statements_cache.sql` | 決算サマリー取得結果の DB バック TTL キャッシュテーブルを追加 |
-| 0013 | `0013_drop_financial_statements_cache.sql` | financial-statements 廃止に伴い 0012 のキャッシュテーブルを削除 |
-| 0014 | `0014_hash_session_tokens.sql` | sessions に token_hash を NULL 可で追加し既存行を backfill（段階的移行・平文は後続で除去） |
-| 0015 | `0015_session_id_internal_key.sql` | token_hash を NOT NULL にし、平文トークンと同じ値の sessions.id を振り直して内部キーにする（デプロイ中に旧版が発行した行は 0016 で振り直す） |
-| 0016 | `0016_reroll_plain_session_id.sql` | 0015 の適用後に旧版が発行し、id に平文トークンが残った sessions 行の id を振り直す |
+新旧の schema が一致することは `backend/tests/db_integration.rs` の
+`squashed_schema_matches_legacy_migrations` が pg_dump を比較して確認する。
+旧17本は比較用に `backend/tests/fixtures/legacy_migrations/` に保持している。
 
-## 重要な注意
+## _sqlx_migrations 履歴の扱い
 
-全環境の baseline 切り替え完了を確認できるまでは、修復スクリプトと `make repair-and-migrate-local` を保持する。
-
-SQLx は `_sqlx_migrations` に migration の version と checksum を保存する。
-そのため、既存 DB に古い `0001〜0011` を適用済みの状態で、この baseline をそのまま `migrate run` すると checksum 不一致で失敗する。
-
-既存 DB をこの baseline に切り替える場合は、先に `backend/scripts/repair-migrations.sql` を実行して migration 履歴だけを空にする。
-この repair script は schema/data を変更しない。`CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` / `ON CONFLICT DO NOTHING` により、次の `migrate run` で baseline を安全に applied として記録する。
-
-本番 DB では、必ずバックアップ取得後に手動で実行する。アプリ起動時に勝手に repair はしない。
+旧バージョン(1〜17)が適用済みの DB で migrate を実行すると、`_sqlx_migrations`
+の内容を version=1 の1件の記録に置き換える(一度だけ。テーブル・データには触れない)。
+旧履歴が 1〜17 の途中までしか無い DB は schema が現行と異なる可能性があるため
+エラーで停止する。
 
 ## デプロイ時（Cloudflare Workers）の動作：自動適用
 
 デプロイ時の migration 適用は自動。手動実行は不要。
 
-- `deploy-cloudflare-worker.yml` の deploy ジョブが `cargo run --bin migrate`（`backend/src/bin/migrate.rs` = `_sqlx_migrations` 互換ランナー）を Neon へ直接実行してから `wrangler deploy` する
+- `deploy-cloudflare-worker.yml` の deploy ジョブが `cargo run --bin migrate`（`backend/src/bin/migrate.rs`）を Neon へ直接実行してから `wrangler deploy` する
 - Worker のリクエストパスに migration は置けない（起動という概念がないため）
-- 手動 `cargo run --bin migrate` が必要なのは、新規 DB・ローカル DB・既存 DB の baseline 切り替え（下記）のみ
+- 手動 `cargo run --bin migrate` が必要なのは新規 DB・ローカル DB のみ
 
 ## 新規 DB
 
@@ -57,34 +40,23 @@ cd backend
 cargo run --bin migrate
 ```
 
-## 既存 DB の baseline 切り替え
-
-前提:
-- 現行 `0001〜0011` を全て適用済み
-- schema はアプリが期待する最終状態になっている
-- 事前に DB backup を取得済み
-
-手順:
-
-```bash
-psql "$DATABASE_URL" -f backend/scripts/repair-migrations.sql
-cd backend
-cargo run --bin migrate
-```
-
-ローカル Docker DB では以下でもよい。
-
-```bash
-cd backend
-make repair-and-migrate-local
-```
-
 ## 新しい schema 変更を入れる場合
 
-適用済みの migration ファイルは編集しない。
-`0017_<description>.sql` のように次番号の新規 migration を追加し、
+baseline(0001)は適用済み環境があるため編集しない。
+`0002_<description>.sql` のように次番号の新規 migration を追加し、
 `backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` エントリを足す。
-再ベースライン化する場合だけ、baseline を作り直し、repair script と README を同じ PR で更新する。
+
+## baseline の再生成(0001_schema.sql を張り直す場合)
+
+旧系列を順に適用した DB に対して `pg_dump --schema-only` を取り、
+SET・`SELECT pg_catalog.set_config`・コメント・`OWNER TO`・権限行を除いて整形する。
+`--schema-only` にはデータが含まれないため、必要な初期行 INSERT は別途末尾に追記する。
+
+```bash
+cd backend && make db-up   # ローカル PostgreSQL (docker-compose)
+psql "$DATABASE_URL" -f tests/fixtures/legacy_migrations/0001_initial_schema.sql  # 〜0017まで順に
+pg_dump --schema-only "$DATABASE_URL"
+```
 
 ## 検証
 
@@ -92,5 +64,5 @@ make repair-and-migrate-local
 cd backend && cargo fmt --check
 cd backend && cargo clippy --all-targets -- -D warnings
 cd backend && cargo test
-cd backend && cargo test db_integration_with_docker_and_migrations -- --ignored --nocapture
+cd backend && cargo test --test db_integration -- --ignored --nocapture
 ```
