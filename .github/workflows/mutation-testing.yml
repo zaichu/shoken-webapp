@@ -164,7 +164,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
+      pull-requests: write
     steps:
       # pull_request では checkout 既定の merge ref を読むので、導入PRで追加した
       # スクリプトも使える。fork PR の GITHUB_TOKEN は read-only・secret なしに
