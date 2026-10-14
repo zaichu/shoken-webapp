@@ -112,7 +112,10 @@ mod tests {
                 let origins = allowed_origins.clone();
                 async move { validate_origin(origins, strict_origin_check, req, next).await }
             }))
-            .layer(build_cors_layer(&config.cors_origins))
+            .layer(build_cors_layer(
+                &config.cors_origins,
+                !config.is_production(),
+            ))
             .layer(middleware::from_fn(move |req, next| {
                 add_security_headers(secure_cookie, req, next)
             }))
@@ -161,7 +164,7 @@ mod tests {
                 .cors_origins
                 .contains(&"http://localhost:8081".to_string())
         );
-        let _cors_layer = build_cors_layer(&config.cors_origins);
+        let _cors_layer = build_cors_layer(&config.cors_origins, !config.is_production());
         let config = Config {
             cors_origins: vec!["http://example.com".to_string()],
             ..Config::default()
@@ -199,6 +202,51 @@ mod tests {
                 assert_eq!(allowed_origin(&response), None);
             }
         }
+    }
+
+    #[tokio::test]
+    async fn test_cors_rejects_pages_preview_in_production() {
+        let mut config = Config {
+            runtime_env: RuntimeEnv::Production,
+            ..Config::default()
+        };
+        config
+            .cors_origins
+            .retain(|origin| !is_localhost_origin(origin));
+        let app = build_test_app(&config);
+        for origin in [
+            "https://abc123.shoken-webapp.pages.dev",
+            "https://main.shoken-webapp.pages.dev",
+        ] {
+            assert_eq!(
+                allowed_origin(&preflight(app.clone(), origin).await),
+                None,
+                "本番ではプレビューオリジンへ ACAO を返さないべき: {origin}"
+            );
+            assert_eq!(
+                post_with_origin(app.clone(), origin).await.status(),
+                StatusCode::FORBIDDEN,
+                "本番ではプレビューオリジンの状態変更を拒否すべき: {origin}"
+            );
+        }
+
+        let config = Config {
+            runtime_env: RuntimeEnv::Development,
+            secure_cookie: false,
+            ..Config::default()
+        };
+        let app = build_test_app(&config);
+        assert_eq!(
+            allowed_origin(&preflight(app.clone(), "https://abc123.shoken-webapp.pages.dev").await),
+            Some("https://abc123.shoken-webapp.pages.dev"),
+            "非本番の検証用バックエンドではプレビューを許可すべき"
+        );
+        assert_ne!(
+            post_with_origin(app, "https://abc123.shoken-webapp.pages.dev")
+                .await
+                .status(),
+            StatusCode::FORBIDDEN
+        );
     }
 
     #[tokio::test]
