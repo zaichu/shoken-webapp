@@ -31,14 +31,14 @@ pub fn displayed_tiers(
 }
 
 // PC(lg+)の表の列幅。銘柄列は幅を固定せず残り全部を使い、日付・口座・数量・金額は
-// 内容に見合う幅で固定する(固定幅を超える金額は折り返して全桁を出す)
+// 内容に見合う幅で固定する(数値列は折り返さず 1 行で出す)
 fn compact_width(header: &str) -> &'static str {
     match header {
-        "入金日" | "約定日" => "9em",
-        "口座" => "8em",
-        "数量" => "7.5em",
+        "入金日" | "約定日" => "8em",
+        "口座" => "6em",
+        "数量" => "9em",
         "配当金" | "税額" | "税引後" | "売却額" | "取得価額" | "実現損益" | "解約額" => {
-            "8em"
+            "10em"
         }
         _ => "",
     }
@@ -213,8 +213,7 @@ pub fn ReceiptTable(
         "sm:hidden print:hidden"
     };
     let table_frame_class = if compact_mobile {
-        // 横スクロール枠を作ると見出しの sticky が効かなくなるため、PC の表は
-        // table-fixed で幅に収める
+        // PC の表は table-auto で内容に応じて広がり、数値列は折り返さない
         ""
     } else {
         "table-frame overflow-x-auto"

@@ -493,7 +493,7 @@
   }
 
   .receipts-table {
-    @apply w-full table-fixed border-collapse text-sm;
+    @apply w-full table-auto border-collapse text-sm;
   }
 
   .receipts-table thead {
@@ -523,6 +523,16 @@
 
   .receipts-table td.text-right {
     @apply text-right;
+    white-space: nowrap;
+  }
+
+  /* PC の compact 表: 銘柄列が数値列に押しつぶされないように最低幅を確保する。
+     名前が長いときは table-auto で列の最小幅が名前の全長になる nowrap は使えず、
+     層の外の line-clamp-2(2行で末尾省略)に任せる */
+  @media screen {
+    .receipts-table td.receipt-instrument-cell {
+      min-width: 10em;
+    }
   }
 
   /* クラスは tr ではなく各 td に付く */

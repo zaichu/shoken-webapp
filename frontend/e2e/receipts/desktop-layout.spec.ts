@@ -34,10 +34,10 @@ const DIVIDENDS = Array.from({ length: 39 }, (_, i) => {
     security_code: code,
     security_name: name,
     unit_price: String(10 + i * 3),
-    shares: String(100 * ((i % 5) + 1)),
-    dividends_before_tax: String(3000 + i * 1234),
-    taxes: String(609 + i * 250),
-    net_amount_received: String(2391 + i * 984),
+    shares: String(1000000 + i * 111111),
+    dividends_before_tax: String(12345678 + i * 12345),
+    taxes: String(2345678 + i * 1234),
+    net_amount_received: String(9876543 + i * 5678),
     created_at: '2024-03-01T00:00:00Z',
     updated_at: '2024-03-01T00:00:00Z',
   };
@@ -201,4 +201,85 @@ test('A4の印字可能領域に全タブが収まり、操作バーは印刷に
     expect(metrics.lastCellRight).toBeLessThanOrEqual(metrics.mainContentRight + 1);
   }
   await page.emulateMedia({ media: 'screen' });
+});
+
+test('PCの数値列は折り返さず1行で表示され、表は枠に収まる', async ({ page }) => {
+  for (const width of [1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await gotoReceipts(page);
+
+    for (const tab of RECEIPT_TABS) {
+      await page.getByRole('tab', { name: tab.label }).click();
+      await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
+      const table = page.getByRole('table');
+      await expect(table).toBeVisible();
+
+      const fits = await table.evaluate((element) => {
+        const wrapper = element.parentElement!;
+        return wrapper.scrollWidth <= wrapper.clientWidth + 1;
+      });
+      expect(fits, `${tab.label} の表が枠に収まる`).toBe(true);
+
+      const hasWrappedNumberCell = await page.evaluate(() => {
+        // td は box なので自身の getClientRects() は行数に関わらず 1 つ。
+        // 中身を Range で囲んで行数を数え、さらに computed style で
+        // white-space: nowrap が効いていることを確かめる (CSS の退行検出)。
+        const visible = (element: Element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && (element.textContent ?? '').trim().length > 0;
+        };
+        const numericCells = Array.from(document.querySelectorAll('td.text-right')).filter(visible);
+        return numericCells.some((cell) => {
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          const lineCount = Array.from(range.getClientRects()).filter((rect) => rect.height > 0).length;
+          if (lineCount > 1) return true;
+          return getComputedStyle(cell).whiteSpace !== 'nowrap';
+        });
+      });
+      expect(hasWrappedNumberCell, `${tab.label} の数値列が折り返していない`).toBe(false);
+      await expectNoPageOverflow(page, width);
+    }
+  }
+});
+
+test('長い銘柄名でも表が枠に収まり右端の税引後列まで見える', async ({ page }) => {
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(
+      json(
+        paginated(
+          MUTUAL_FUNDS.map((row, index) =>
+            index === 1 ? { ...row, fund_name: LONG_FUND_NAME } : row,
+          ),
+        ),
+      ),
+    ),
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await gotoReceipts(page);
+
+  await page.getByRole('tab', { name: '投資信託' }).click();
+  await expect(page.getByTestId('tab-count-mutualfund')).toHaveText(
+    String(MUTUAL_FUNDS.length),
+  );
+  const table = page.getByRole('table');
+  await expect(table).toBeVisible();
+  await expect(table).toContainText(LONG_FUND_NAME);
+
+  // overflow-clip の枠内に右端セルまで収まるかを幾何で確かめる
+  // (scrollWidth だけだと clip ではみ出した分を見落としうる)
+  const metrics = await table.evaluate((element) => {
+    const wrapper = element.parentElement!;
+    const surface = element.closest('.receipt-list-surface')!;
+    const lastCell = element.querySelector('tbody tr:last-child td:last-child');
+    return {
+      tableFits: wrapper.scrollWidth <= wrapper.clientWidth + 1,
+      lastCellRight: lastCell?.getBoundingClientRect().right ?? 0,
+      surfaceRight: surface.getBoundingClientRect().right,
+    };
+  });
+  expect(metrics.tableFits, '表が枠に収まる').toBe(true);
+  expect(metrics.lastCellRight, '右端の税引後列が枠内に見える').toBeLessThanOrEqual(
+    metrics.surfaceRight + 1,
+  );
 });
