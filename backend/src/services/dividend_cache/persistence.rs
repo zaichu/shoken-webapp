@@ -50,13 +50,13 @@ pub async fn fetch_and_cache(
 }
 
 /// エラー情報をキャッシュに記録する。
-/// cooldown_secs を指定した場合は stale_at をその秒数だけ未来に設定し、
-/// cooldown 中の即時再取得を防ぐ（None のとき stale_at は NULL になる）
+/// stale_at を cooldown_secs だけ未来に設定し、再取得は間隔経過後に限る
+/// （NULL だと drain が毎分拾い続けるため、失敗行は必ず間隔を持たせる）
 pub async fn update_cache_error(
     pool: &Db,
     code: &SecurityCode,
     error_msg: &str,
-    cooldown_secs: Option<i32>,
+    cooldown_secs: i32,
 ) -> Result<(), ApiError> {
     let truncated = truncate_error_message(error_msg);
 
