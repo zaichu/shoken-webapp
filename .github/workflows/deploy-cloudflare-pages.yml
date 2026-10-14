@@ -162,8 +162,28 @@ jobs:
             echo "environment=preview" >> "$GITHUB_OUTPUT"
           fi
 
+      # concurrency の待機順は開始順と限らないため、古い実行が新しいコミットの
+      # プレビューを上書きしないよう deploy 直前に起点 SHA がまだ最新か確かめる
+      - name: Check the triggering commit is still latest
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            latest="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
+            expected="${{ github.event.pull_request.head.sha }}"
+          else
+            latest="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${{ github.ref_name }}" --jq '.sha')"
+            expected="${{ github.sha }}"
+          fi
+          if [[ "${latest}" != "${expected}" ]]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::新しいコミットがあるためこの実行のデプロイをスキップします"
+          fi
+
       # 未作成だと deploy が code 8000007 で失敗するため、無ければ作る(既存なら警告だけで続行)
       - name: Ensure Cloudflare Pages project exists
+        if: steps.latest.outputs.stale != 'true'
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -179,6 +199,7 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         id: deploy
+        if: steps.latest.outputs.stale != 'true'
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -218,5 +239,6 @@ jobs:
           if [[ -n "${existing}" ]]; then
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="${body}" > /dev/null
           else
-            gh pr comment "${{ github.event.pull_request.number }}" --body "${body}"
+            # deploy ジョブは checkout しないため、gh が git remote からリポジトリを解決できず -R が要る
+            gh pr comment "${{ github.event.pull_request.number }}" -R "${GITHUB_REPOSITORY}" --body "${body}"
           fi
