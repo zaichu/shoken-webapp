@@ -1,4 +1,4 @@
-//! 保有銘柄の現在値を日次 cron で自動更新する。
+//! 保有銘柄の現在値を毎時 cron で自動更新する。
 //! 取得元は `fetch_close_price` 1関数に集約し、別の取得元への差し替えは
 //! この関数だけを直せばよい形にする（Yahoo Finance chart API は非公式）。
 
@@ -16,8 +16,8 @@ const CHART_BASE_URL: &str = "https://query2.finance.yahoo.com/v8/finance/chart"
 #[cfg(any(target_arch = "wasm32", test))]
 const CHART_REQUEST_HEADERS: &[(&str, &str)] = &[("User-Agent", "Mozilla/5.0")];
 
-/// 日次 cron 1回で処理する銘柄数の上限。無料枠の CPU 時間に収まるよう絞る。
-/// 残りは翌日の cron に委ねる（古い price_as_of から優先して処理するため循環する）
+/// cron 1回で処理する銘柄数の上限。無料枠の CPU 時間に収まるよう絞る。
+/// 残りは次回の cron に委ねる（古い price_as_of から優先して処理するため循環する）
 const MAX_CODES_PER_RUN: i64 = 15;
 
 /// 銘柄間の待ち時間。非公式 API への負荷を抑えるために少し間を空ける
@@ -186,7 +186,7 @@ pub async fn apply_close_price(
     .map_err(ApiError::from)
 }
 
-/// 日次 cron から呼ばれる更新処理。保有銘柄を基準日の古い順に上限件数だけ処理する。
+/// cron から呼ばれる更新処理。保有銘柄を基準日の古い順に上限件数だけ処理する。
 /// 失敗した銘柄は前回値を残し、全件失敗時は取得元の変更を疑ってエラーログに出す。
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
