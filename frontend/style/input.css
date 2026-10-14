@@ -526,27 +526,12 @@
     white-space: nowrap;
   }
 
-  /* PC の compact 表: 銘柄列が数値列に押しつぶされないように最低幅を確保し、
-     余分な名前は画面表示では1行の末尾で省略する(印刷時は従来どおり折り返す) */
+  /* PC の compact 表: 銘柄列が数値列に押しつぶされないように最低幅を確保する。
+     名前が長いときは table-auto で列の最小幅が名前の全長になる nowrap は使えず、
+     層の外の line-clamp-2(2行で末尾省略)に任せる */
   @media screen {
     .receipts-table td.receipt-instrument-cell {
       min-width: 10em;
-    }
-
-    .receipts-table .receipt-instrument-cell .copyable-name {
-      @apply min-w-0 max-w-full items-center;
-    }
-
-    .receipts-table .receipt-instrument-cell .copyable-name > span {
-      min-width: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: inline-block;
-      max-width: 100%;
-      -webkit-line-clamp: unset;
-      -webkit-box-orient: horizontal;
-      overflow-wrap: normal;
     }
   }
 

@@ -242,3 +242,44 @@ test('PCの数値列は折り返さず1行で表示され、表は枠に収ま�
     }
   }
 });
+
+test('長い銘柄名でも表が枠に収まり右端の税引後列まで見える', async ({ page }) => {
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill(
+      json(
+        paginated(
+          MUTUAL_FUNDS.map((row, index) =>
+            index === 1 ? { ...row, fund_name: LONG_FUND_NAME } : row,
+          ),
+        ),
+      ),
+    ),
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await gotoReceipts(page);
+
+  await page.getByRole('tab', { name: '投資信託' }).click();
+  await expect(page.getByTestId('tab-count-mutualfund')).toHaveText(
+    String(MUTUAL_FUNDS.length),
+  );
+  const table = page.getByRole('table');
+  await expect(table).toBeVisible();
+  await expect(table).toContainText(LONG_FUND_NAME);
+
+  // overflow-clip の枠内に右端セルまで収まるかを幾何で確かめる
+  // (scrollWidth だけだと clip ではみ出した分を見落としうる)
+  const metrics = await table.evaluate((element) => {
+    const wrapper = element.parentElement!;
+    const surface = element.closest('.receipt-list-surface')!;
+    const lastCell = element.querySelector('tbody tr:last-child td:last-child');
+    return {
+      tableFits: wrapper.scrollWidth <= wrapper.clientWidth + 1,
+      lastCellRight: lastCell?.getBoundingClientRect().right ?? 0,
+      surfaceRight: surface.getBoundingClientRect().right,
+    };
+  });
+  expect(metrics.tableFits, '表が枠に収まる').toBe(true);
+  expect(metrics.lastCellRight, '右端の税引後列が枠内に見える').toBeLessThanOrEqual(
+    metrics.surfaceRight + 1,
+  );
+});
