@@ -149,7 +149,10 @@ async fn db_integration_with_docker_and_migrations() {
             let origins = allowed_origins.clone();
             async move { validate_origin(origins, strict_origin_check, req, next).await }
         }))
-        .layer(config::build_cors_layer(&state.config.cors_origins))
+        .layer(config::build_cors_layer(
+            &state.config.cors_origins,
+            !state.config.is_production(),
+        ))
         .with_state(state);
 
     let req = Request::builder()

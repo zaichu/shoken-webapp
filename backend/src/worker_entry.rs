@@ -103,7 +103,10 @@ fn router(state: AppState, env: &Env) -> Router {
             async move { validate_origin(origins, strict_origin_check, req, next).await }
         }))
         .layer(RequestBodyLimitLayer::new(REQUEST_BODY_LIMIT))
-        .layer(config::build_cors_layer(&config.cors_origins))
+        .layer(config::build_cors_layer(
+            &config.cors_origins,
+            !config.is_production(),
+        ))
         .layer(PropagateRequestIdLayer::x_request_id())
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
         // セキュリティヘッダーは最外層: 403/413 を含む全レスポンスに付与する

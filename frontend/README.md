@@ -178,4 +178,6 @@ GitHub Actions の `deploy-cloudflare-pages.yml` が Wrangler で Cloudflare Pag
 
 配信設定の正本は `_headers`・`_redirects` で、`prepare-dist.mjs` が `_headers` から `index.html` の `shoken-api-origin` meta などを生成します。
 
+本番 API は preview オリジンからのリクエストを拒否するため、preview 配信は見た目の確認専用です（ログイン・データ取得は動きません）。API 込みの確認はローカル起動（`scripts/start-local.sh`）で行います。
+
 現行のセキュリティルールを守って PR preview に CI 成果物を再利用するには、権限のある後段ワークフローと run・PR・成果物の照合が必要になるため、二重ビルドのまま維持します（[#1185](https://github.com/zaichu/shoken-webapp/issues/1185)）。Frontend CI の PR ジョブへデプロイ用 secrets を追加する変更や、既存の権限・セキュリティルールの変更は行いません。

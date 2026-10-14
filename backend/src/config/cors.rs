@@ -2,7 +2,10 @@ use axum::http::{HeaderValue, Method};
 use std::time::Duration;
 use tower_http::cors::CorsLayer;
 
-pub fn build_cors_layer(cors_origins: &[String]) -> CorsLayer {
+/// `allow_preview_origins` は Pages プレビュー (`*.shoken-webapp.pages.dev`) の
+/// オリジンを許可するか。プレビュー経由の資格情報付きリクエストに本番セッションが
+/// 乗るため、本番では false にする(非本番の検証用バックエンド向けの緩和)
+pub fn build_cors_layer(cors_origins: &[String], allow_preview_origins: bool) -> CorsLayer {
     let allowed_headers = vec![
         axum::http::header::CONTENT_TYPE,
         axum::http::header::ACCEPT,
@@ -23,7 +26,9 @@ pub fn build_cors_layer(cors_origins: &[String]) -> CorsLayer {
     CorsLayer::new()
         .allow_origin(tower_http::cors::AllowOrigin::predicate(
             move |origin, _| {
-                if is_pages_preview_origin(origin.to_str().unwrap_or_default()) {
+                if allow_preview_origins
+                    && is_pages_preview_origin(origin.to_str().unwrap_or_default())
+                {
                     return true;
                 }
                 cors_origins.iter().any(|allowed_origin| {
@@ -102,10 +107,10 @@ mod tests {
         origins.iter().map(|origin| (*origin).to_string()).collect()
     }
 
-    fn build_test_app(cors_origins: &[String]) -> Router {
+    fn build_test_app(cors_origins: &[String], allow_preview_origins: bool) -> Router {
         Router::new()
             .route("/health", get(|| async { "OK" }))
-            .layer(build_cors_layer(cors_origins))
+            .layer(build_cors_layer(cors_origins, allow_preview_origins))
     }
 
     #[test]
@@ -182,7 +187,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_predicate_with_invalid_configured_origin() {
-        let app = build_test_app(&["https://frontend.example.com\n".to_string()]);
+        let app = build_test_app(&["https://frontend.example.com\n".to_string()], false);
         let response = app
             .oneshot(
                 Request::builder()
@@ -206,8 +211,39 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cors_predicate_pages_preview_origins() {
-        let app = build_test_app(&[]);
+    async fn test_cors_rejects_pages_preview_origins_in_production() {
+        let app = build_test_app(&[], false);
+        for origin in [
+            "https://abc123.shoken-webapp.pages.dev",
+            "https://main.shoken-webapp.pages.dev",
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::OPTIONS)
+                        .uri("/health")
+                        .header("origin", origin)
+                        .header("access-control-request-method", "GET")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert!(response.status().is_success());
+            assert!(
+                response
+                    .headers()
+                    .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+                    .is_none(),
+                "本番ではプレビューオリジンへ ACAO を返さないべき: {origin}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cors_allows_pages_preview_origins_outside_production() {
+        let app = build_test_app(&[], true);
 
         // Hash-based preview
         let response = app
