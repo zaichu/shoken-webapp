@@ -1630,7 +1630,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
         &pool,
         &"1234".parse::<SecurityCode>().unwrap(),
         "fetch failed",
-        None,
+        0,
     )
     .await
     .expect("エラー記録");
@@ -1641,13 +1641,16 @@ async fn dividend_cache_persistence_and_rate_slot() {
     assert_eq!(items[0].security_code.as_str(), "1234");
     assert_eq!(items[0].status, DividendCacheStatus::Error);
     assert_eq!(items[0].dividend_per_share, None);
-    assert!(items[0].is_stale, "error 記録は即時再取得対象");
+    assert!(
+        items[0].is_stale,
+        "再試行間隔を経過した error 記録は再取得対象"
+    );
 
     dividend_cache::persistence::update_cache_error(
         &pool,
         &"5678".parse::<SecurityCode>().unwrap(),
         "429",
-        Some(3600),
+        3600,
     )
     .await
     .expect("cooldown 付きエラー記録");
@@ -1662,7 +1665,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
         &pool,
         &"1234".parse::<SecurityCode>().unwrap(),
         "429",
-        Some(3600),
+        3600,
     )
     .await
     .expect("既存行の上書き");
@@ -1697,8 +1700,8 @@ async fn dividend_cache_persistence_and_rate_slot() {
     );
 }
 
-/// drain_refresh_queue の消化対象選定(pending / error(無cooldown) は対象、
-/// 429 cooldown 中(未来の stale_at)は対象外)と、取得失敗時の error 記録を検証する。
+/// drain_refresh_queue の消化対象選定(pending / 再試行間隔経過済みの error は対象、
+/// 間隔内(未来の stale_at)は対象外)と、取得失敗時の error 記録を検証する。
 /// J-Quants への実取得経路は Worker 側にしかないため、ホスト側の取得は必ず失敗し、
 /// 選定済み行が error として記録されることまでを確認する
 #[tokio::test]
@@ -1718,12 +1721,12 @@ async fn dividend_cache_drain_refresh_queue() {
         .await
         .expect("pending 行の投入");
     }
-    // 8306 はエラー行に戻して「error + stale_at NULL = 即時再取得対象」の経路を確認
+    // 8306 は再試行間隔 0 のエラー行に戻して「stale_at 経過済み = 即時再取得対象」の経路を確認
     dividend_cache::persistence::update_cache_error(
         &pool,
         &"8306".parse::<SecurityCode>().unwrap(),
         "previous fetch failed",
-        None,
+        0,
     )
     .await
     .expect("error 行の更新");
@@ -1732,7 +1735,7 @@ async fn dividend_cache_drain_refresh_queue() {
         &pool,
         &"9107".parse::<SecurityCode>().unwrap(),
         "429",
-        Some(3600),
+        3600,
     )
     .await
     .expect("cooldown 行の投入");
@@ -1765,6 +1768,63 @@ async fn dividend_cache_drain_refresh_queue() {
     .unwrap();
     assert_eq!(row.0, "error");
     assert_eq!(row.1.as_deref(), Some("429"));
+
+    // 失敗した行は再試行間隔分だけ stale_at が未来になり、即時には再消化されない
+    let row: (chrono::DateTime<Utc>,) = db::query_as(
+        "SELECT stale_at FROM dividend_per_share_cache WHERE security_code = '7203'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(
+        row.0 > Utc::now() + chrono::Duration::hours(23),
+        "失敗行の stale_at は再試行間隔の先: {:?}",
+        row.0
+    );
+    let processed = dividend_cache::drain_refresh_queue(&pool, &client)
+        .await
+        .expect("2回目の drain 失敗");
+    assert_eq!(processed, 0, "再試行間隔が経過するまで消化しない");
+}
+
+/// get_batch のエンキューは銘柄マスタにあるコードだけを pending 行として積む
+/// (任意コードの無制限エンキューでキューと J-Quants クォータを消費させないため)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn dividend_cache_enqueue_skips_unknown_codes() {
+    let (pool, _node) = start_test_pool().await;
+    let client = JQuantsClient::new("test-api-key".to_string());
+
+    db::query(
+        "INSERT INTO stock (date, code, name, market_category)
+         VALUES (CURRENT_DATE, '7203', 'トヨタ自動車', 'プライム')",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("stock 投入");
+
+    dividend_cache::get_batch(
+        &pool,
+        Some(&client),
+        &["7203".parse().unwrap(), "9999".parse().unwrap()],
+    )
+    .await
+    .expect("get_batch 失敗");
+
+    let rows: Vec<(String,)> = db::query_as(
+        "SELECT security_code FROM dividend_per_share_cache ORDER BY security_code",
+        vec![],
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        rows.iter().map(|r| r.0.as_str()).collect::<Vec<_>>(),
+        vec!["7203"],
+        "銘柄マスタにあるコードだけが pending 行になる"
+    );
 }
 
 #[tokio::test]

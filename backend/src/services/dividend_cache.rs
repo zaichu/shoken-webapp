@@ -25,6 +25,9 @@ const JQUANTS_PROVIDER: &str = "jquants";
 /// 12秒間隔スロットで最大約4銘柄/分（設計 §8-4）。残りは次回の cron に委ねる
 const MAX_DRAIN_CODES_PER_RUN: i64 = 4;
 
+/// 429 以外で取得に失敗した行の再試行間隔(秒)。毎分の永久再試行を止めるため1日置きにする
+const ERROR_RETRY_INTERVAL_SECS: i32 = 24 * 60 * 60;
+
 /// 429 レートリミットエラーの場合に消化を打ち切るべきか判定する
 pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
     matches!(e, ApiError::Upstream(UpstreamError::RateLimited))
@@ -50,15 +53,17 @@ pub async fn get_batch(
     Ok(items)
 }
 
-/// 未取得銘柄を pending 行として積む。
+/// 未取得銘柄を pending 行として積む。銘柄マスタに無いコードは積まない
+/// （認証済みなら誰でも呼べる POST 経由で任意コードが無制限に積まれるのを防ぐ）。
 /// 既存行は stale_at / cooldown 経過で cron の選定条件を満たすため、そのままにする
 /// （status が pending の間は compute_is_stale=false で再投入も起きない）
 async fn enqueue_refresh(pool: &Db, codes: &[SecurityCode]) -> Result<(), ApiError> {
     crate::db::query(
         r#"
         INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
-        SELECT code, 'pending', 'jquants', NOW()
-        FROM unnest($1::varchar[]) AS code
+        SELECT c.code, 'pending', 'jquants', NOW()
+        FROM unnest($1::varchar[]) AS c(code)
+        WHERE EXISTS (SELECT 1 FROM stock s WHERE s.code = c.code)
         ON CONFLICT (security_code) DO NOTHING
         "#,
         vec![Bind::from(codes.to_vec())],
@@ -107,8 +112,8 @@ pub async fn drain_refresh_queue(
     pool: &Db,
     jquants_client: &JQuantsClient,
 ) -> Result<usize, ApiError> {
-    // status='pending' は stale_at が NULL、error(無cooldown) も NULL で拾われる。
-    // 429 cooldown 中（error + 未来の stale_at）は対象外
+    // stale_at が NULL の行は pending だけ。error 行は再試行間隔(429 cooldown
+    // または ERROR_RETRY_INTERVAL_SECS)が stale_at に入るため、経過するまで対象外
     let codes: Vec<SecurityCode> = crate::db::query(
         r#"
         SELECT security_code FROM dividend_per_share_cache
@@ -141,8 +146,7 @@ pub async fn drain_refresh_queue(
                     code
                 );
                 if let Err(err) =
-                    update_cache_error(pool, &code, &e.to_string(), Some(RATE_LIMIT_COOLDOWN_SECS))
-                        .await
+                    update_cache_error(pool, &code, &e.to_string(), RATE_LIMIT_COOLDOWN_SECS).await
                 {
                     tracing::error!("配当キャッシュ エラー記録失敗: code={}, err={}", code, err);
                 }
@@ -154,7 +158,8 @@ pub async fn drain_refresh_queue(
             Err(e) => {
                 processed += 1;
                 tracing::error!("配当キャッシュ更新エラー: code={}, err={}", code, e);
-                let _ = update_cache_error(pool, &code, &e.to_string(), None).await;
+                let _ = update_cache_error(pool, &code, &e.to_string(), ERROR_RETRY_INTERVAL_SECS)
+                    .await;
             }
         }
     }
