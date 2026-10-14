@@ -4,7 +4,7 @@
 
 use crate::db::{Bind, Db};
 use crate::errors::{ApiError, UpstreamError};
-use chrono::{DateTime, NaiveDate};
+use chrono::{DateTime, NaiveDate, Timelike};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use shared::value::SecurityCode;
@@ -274,6 +274,12 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
     Ok(fetched)
 }
 
+/// 予定時刻（UTC エポックミリ秒）に現在値更新を実行するかを返す。
+/// 動作確認用に一時的に5分ごと。確認後に #1303 で引け後の毎時へ戻す
+pub fn should_refresh_at(scheduled_ms: f64) -> bool {
+    DateTime::from_timestamp_millis(scheduled_ms as i64).is_some_and(|t| t.minute() % 5 == 0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -375,5 +381,25 @@ mod tests {
             }
             other => panic!("expected Http error, got {other}"),
         }
+    }
+
+    #[test]
+    fn test_should_refresh_at_runs_every_five_minutes() {
+        let ms = |h: u32, m: u32, s: u32| {
+            NaiveDate::from_ymd_opt(2026, 10, 14)
+                .unwrap()
+                .and_hms_opt(h, m, s)
+                .unwrap()
+                .and_utc()
+                .timestamp_millis() as f64
+        };
+        assert!(should_refresh_at(ms(0, 0, 0)));
+        assert!(should_refresh_at(ms(15, 5, 0)));
+        assert!(should_refresh_at(ms(23, 55, 0)));
+        assert!(!should_refresh_at(ms(0, 1, 0)));
+        assert!(!should_refresh_at(ms(12, 59, 0)));
+        // 予定時刻の秒・ミリ秒がずれていても分で判定する
+        assert!(!should_refresh_at(ms(10, 4, 59)));
+        assert!(should_refresh_at(ms(10, 5, 30)));
     }
 }

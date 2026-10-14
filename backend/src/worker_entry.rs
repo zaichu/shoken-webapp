@@ -163,18 +163,16 @@ async fn fetch(
     Ok(router(state, &env).call(req).await?)
 }
 
-/// 現在値を更新する cron。wrangler.toml と対応させる。一時的に5分間隔。確認後に #1303 で戻す
-const STOCK_PRICE_CRON: &str = "*/5 * * * *";
-
+// 同じ分の cron は1回にまとまって届くため振り分けない
 #[event(scheduled)]
 async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
-    let result = match event.cron().as_str() {
-        STOCK_PRICE_CRON => refresh_stock_prices(&env).await,
-        // 毎分 cron: 配当キャッシュの stale/pending 銘柄を消化する
-        _ => drain_dividend_cache(&env).await,
-    };
-    if let Err(e) = result {
-        console_error!("scheduled イベントエラー (cron={}): {e}", event.cron());
+    if let Err(e) = drain_dividend_cache(&env).await {
+        console_error!("scheduled イベントエラー: 配当キャッシュ消化: {e}");
+    }
+    if stock_price::should_refresh_at(event.schedule()) {
+        if let Err(e) = refresh_stock_prices(&env).await {
+            console_error!("scheduled イベントエラー: 現在値更新: {e}");
+        }
     }
 }
 
