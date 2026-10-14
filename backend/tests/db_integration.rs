@@ -1618,10 +1618,9 @@ async fn search_facets_group_by_domain_fields() {
 #[ignore = "requires Docker to run Postgres container"]
 async fn dividend_cache_persistence_and_rate_slot() {
     let (pool, _node) = start_test_pool().await;
-    let user_id = UserId::from(Uuid::new_v4());
 
     assert!(
-        dividend_cache::get_batch(&pool, None, user_id, &[])
+        dividend_cache::get_batch(&pool, None, &[])
             .await
             .unwrap()
             .is_empty()
@@ -1635,7 +1634,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
     )
     .await
     .expect("エラー記録");
-    let items = dividend_cache::get_batch(&pool, None, user_id, &["1234".parse().unwrap()])
+    let items = dividend_cache::get_batch(&pool, None, &["1234".parse().unwrap()])
         .await
         .unwrap();
     assert_eq!(items.len(), 1);
@@ -1655,7 +1654,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
     )
     .await
     .expect("cooldown 付きエラー記録");
-    let items = dividend_cache::get_batch(&pool, None, user_id, &["5678".parse().unwrap()])
+    let items = dividend_cache::get_batch(&pool, None, &["5678".parse().unwrap()])
         .await
         .unwrap();
     assert_eq!(items[0].status, DividendCacheStatus::Error);
@@ -1670,7 +1669,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
     )
     .await
     .expect("既存行の上書き");
-    let items = dividend_cache::get_batch(&pool, None, user_id, &["1234".parse().unwrap()])
+    let items = dividend_cache::get_batch(&pool, None, &["1234".parse().unwrap()])
         .await
         .unwrap();
     assert!(!items[0].is_stale);
@@ -1789,8 +1788,9 @@ async fn dividend_cache_drain_refresh_queue() {
     assert_eq!(processed, 0, "再試行間隔が経過するまで消化しない");
 }
 
-/// get_batch のエンキューは銘柄マスタにあるコードか、リクエストしたユーザーの
-/// 保有コードに限る(任意コードの無制限エンキューによるキュー汚染を防ぐため)
+/// get_batch のエンキューは銘柄マスタにあるコードに限る
+/// (任意コードの無制限エンキューによるキュー汚染を防ぐため。
+/// ユーザー保有データは形式のみ検証で任意コードを書けるため照合には使えない)
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn dividend_cache_enqueue_skips_unknown_codes() {
@@ -1798,7 +1798,7 @@ async fn dividend_cache_enqueue_skips_unknown_codes() {
     let client = JQuantsClient::new("test-api-key".to_string());
     let user_id = create_test_user(&pool).await;
 
-    // マスタにあるコードと、マスタに無いがユーザーが保有するコードを用意
+    // マスタにあるコードを用意。マスタにもユーザー保有データにも無いコードは対象外
     db::query(
         "INSERT INTO stock (date, code, name, market_category)
          VALUES (CURRENT_DATE, '7203', 'トヨタ自動車', 'プライム')",
@@ -1821,7 +1821,6 @@ async fn dividend_cache_enqueue_skips_unknown_codes() {
     dividend_cache::get_batch(
         &pool,
         Some(&client),
-        user_id,
         &[
             "7203".parse().unwrap(),
             "8306".parse().unwrap(),
@@ -1840,8 +1839,8 @@ async fn dividend_cache_enqueue_skips_unknown_codes() {
     .unwrap();
     assert_eq!(
         rows.iter().map(|r| r.0.as_str()).collect::<Vec<_>>(),
-        vec!["7203", "8306"],
-        "マスタ・保有のどちらにも無いコードは積まれない"
+        vec!["7203"],
+        "保有データにあってもマスタに無いコードは積まれない"
     );
 }
 
