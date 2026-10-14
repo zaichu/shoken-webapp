@@ -12,6 +12,10 @@ use shared::value::SecurityCode;
 /// Yahoo Finance chart API（非公式）。`<code>.T` は東証銘柄。
 const CHART_BASE_URL: &str = "https://query2.finance.yahoo.com/v8/finance/chart";
 
+/// User-Agent を付けない要求は Yahoo 側が 429 で拒否するため、ブラウザ相当の値を送る
+#[cfg(any(target_arch = "wasm32", test))]
+const CHART_REQUEST_HEADERS: &[(&str, &str)] = &[("User-Agent", "Mozilla/5.0")];
+
 /// 日次 cron 1回で処理する銘柄数の上限。無料枠の CPU 時間に収まるよう絞る。
 /// 残りは翌日の cron に委ねる（古い price_as_of から優先して処理するため循環する）
 const MAX_CODES_PER_RUN: i64 = 15;
@@ -99,6 +103,16 @@ pub fn parse_chart_close(body: &str) -> Result<ClosePrice, ApiError> {
     })
 }
 
+/// 2xx 以外の応答をエラーに写す。429 はレート制限として区別する
+#[cfg(any(target_arch = "wasm32", test))]
+fn chart_status_error(status: u16, body: String) -> ApiError {
+    if status == 429 {
+        UpstreamError::RateLimited.into()
+    } else {
+        UpstreamError::Http { status, body }.into()
+    }
+}
+
 /// Yahoo chart API から終値を取得する。ホスト側では実行経路がないためエラー固定
 /// （テストは parse_chart_close / apply_close_price を直接検証する）
 #[cfg(not(target_arch = "wasm32"))]
@@ -110,12 +124,16 @@ async fn fetch_close_price(_base_url: &str, _code: &SecurityCode) -> Result<Clos
 
 #[cfg(target_arch = "wasm32")]
 async fn fetch_close_price(base_url: &str, code: &SecurityCode) -> Result<ClosePrice, ApiError> {
-    use worker::{Fetch, Method, Request, RequestInit};
+    use worker::{Fetch, Headers, Method, Request, RequestInit};
 
     // 直近5営業日の日足。最後の確定バーが終値、その前が前日終値
     let url = format!("{base_url}/{}.T?range=5d&interval=1d", code.as_str());
+    let headers = Headers::new();
+    for &(name, value) in CHART_REQUEST_HEADERS {
+        headers.set(name, value).map_err(UpstreamError::Transport)?;
+    }
     let mut init = RequestInit::new();
-    init.with_method(Method::Get);
+    init.with_method(Method::Get).with_headers(headers);
     let request = Request::new_with_init(&url, &init).map_err(UpstreamError::Transport)?;
     let mut response = worker::send::SendFuture::new(Fetch::Request(request).send())
         .await
@@ -127,10 +145,7 @@ async fn fetch_close_price(base_url: &str, code: &SecurityCode) -> Result<CloseP
             .await
             .unwrap_or_default();
         tracing::error!("Yahoo chart API エラー: status={}, code={}", status, code);
-        if status == 429 {
-            return Err(UpstreamError::RateLimited.into());
-        }
-        return Err(UpstreamError::Http { status, body }.into());
+        return Err(chart_status_error(status, body));
     }
 
     let body = worker::send::SendFuture::new(response.text())
@@ -305,5 +320,31 @@ mod tests {
         assert!(parse_chart_close(&chart_body(&[(T20240116, None)])).is_err());
         // JSON として不正
         assert!(parse_chart_close("not json").is_err());
+    }
+
+    #[test]
+    fn test_chart_request_headers_send_user_agent() {
+        let user_agent = CHART_REQUEST_HEADERS
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("user-agent"))
+            .map(|(_, value)| *value);
+
+        assert!(user_agent.is_some_and(|value| !value.is_empty()));
+    }
+
+    #[test]
+    fn test_chart_status_error_classifies_429_as_rate_limited() {
+        assert!(matches!(
+            chart_status_error(429, "ignored".to_string()),
+            ApiError::Upstream(UpstreamError::RateLimited)
+        ));
+
+        match chart_status_error(503, "bad".to_string()) {
+            ApiError::Upstream(UpstreamError::Http { status, body }) => {
+                assert_eq!(status, 503);
+                assert_eq!(body, "bad");
+            }
+            other => panic!("expected Http error, got {other}"),
+        }
     }
 }
