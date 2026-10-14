@@ -53,17 +53,15 @@ pub async fn get_batch(
     Ok(items)
 }
 
-/// 未取得銘柄を pending 行として積む。銘柄マスタに無いコードは積まない
-/// （認証済みなら誰でも呼べる POST 経由で任意コードが無制限に積まれるのを防ぐ）。
+/// 未取得銘柄を pending 行として積む。
 /// 既存行は stale_at / cooldown 経過で cron の選定条件を満たすため、そのままにする
 /// （status が pending の間は compute_is_stale=false で再投入も起きない）
 async fn enqueue_refresh(pool: &Db, codes: &[SecurityCode]) -> Result<(), ApiError> {
     crate::db::query(
         r#"
         INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
-        SELECT c.code, 'pending', 'jquants', NOW()
-        FROM unnest($1::varchar[]) AS c(code)
-        WHERE EXISTS (SELECT 1 FROM stock s WHERE s.code = c.code)
+        SELECT code, 'pending', 'jquants', NOW()
+        FROM unnest($1::varchar[]) AS code
         ON CONFLICT (security_code) DO NOTHING
         "#,
         vec![Bind::from(codes.to_vec())],
@@ -112,8 +110,9 @@ pub async fn drain_refresh_queue(
     pool: &Db,
     jquants_client: &JQuantsClient,
 ) -> Result<usize, ApiError> {
-    // stale_at が NULL の行は pending だけ。error 行は再試行間隔(429 cooldown
-    // または ERROR_RETRY_INTERVAL_SECS)が stale_at に入るため、経過するまで対象外
+    // error 行は再試行間隔(429 cooldown または ERROR_RETRY_INTERVAL_SECS)が
+    // stale_at に入り、経過するまで対象外。旧実装が残した error+NULL 行は
+    // stale_at IS NULL で一度だけ拾われ、失敗記録の更新で間隔が付く
     let codes: Vec<SecurityCode> = crate::db::query(
         r#"
         SELECT security_code FROM dividend_per_share_cache
