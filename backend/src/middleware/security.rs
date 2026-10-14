@@ -63,7 +63,9 @@ fn csrf_error() -> Response {
 /// POST/PUT/DELETE リクエストに対して Origin ヘッダーを検証し、
 /// 許可されたオリジンからのリクエストのみ通過させる。
 /// allowed_origins は Config::cors_origins と一致させる。
-/// `strict_origin_check`（本番相当か）はルータ構築時に解決済みの値を渡す
+/// `strict_origin_check`（本番相当か）はルータ構築時に解決済みの値を渡す。
+/// Pages プレビューオリジンの許可は非本番のみとし、本番では build_cors_layer と
+/// 同じく許可一覧の完全一致だけを通す(プレビューに本番セッションを乗せないため)
 pub async fn validate_origin(
     allowed_origins: Arc<Vec<String>>,
     strict_origin_check: bool,
@@ -87,7 +89,7 @@ pub async fn validate_origin(
     match origin {
         Some(ref o)
             if allowed_origins.iter().any(|a| a == o)
-                || crate::config::cors::is_pages_preview_origin(o) =>
+                || (!strict_origin_check && crate::config::cors::is_pages_preview_origin(o)) =>
         {
             // 許可されたオリジン → 通過
             next.run(request).await
@@ -108,7 +110,8 @@ pub async fn validate_origin(
                 Some(ref r)
                     if extract_origin(r).is_some_and(|o| {
                         allowed_origins.iter().any(|a| a == o)
-                            || crate::config::cors::is_pages_preview_origin(o)
+                            || (!strict_origin_check
+                                && crate::config::cors::is_pages_preview_origin(o))
                     }) =>
                 {
                     // 許可済みオリジンの Referer → 通過
@@ -298,6 +301,32 @@ mod tests {
             )
             .await,
             StatusCode::FORBIDDEN
+        );
+    }
+
+    #[tokio::test]
+    async fn test_validate_origin_rejects_pages_preview_in_production() {
+        for &headers in &[
+            &[("origin", "https://abc123.shoken-webapp.pages.dev")][..],
+            &[("origin", "https://main.shoken-webapp.pages.dev")][..],
+            &[("origin", "https://feature-branch.shoken-webapp.pages.dev")][..],
+            &[("referer", "https://abc123.shoken-webapp.pages.dev/path")][..],
+        ] {
+            assert_eq!(
+                oneshot_status(test_app(true), Method::POST, headers).await,
+                StatusCode::FORBIDDEN,
+                "本番ではプレビューオリジンの状態変更を拒否すべき: {headers:?}"
+            );
+        }
+        // 非本番(検証用バックエンド)では引き続き許可する
+        assert_eq!(
+            oneshot_status(
+                test_app(false),
+                Method::POST,
+                &[("origin", "https://abc123.shoken-webapp.pages.dev")],
+            )
+            .await,
+            StatusCode::OK
         );
     }
 
