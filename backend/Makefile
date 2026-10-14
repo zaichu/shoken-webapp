@@ -66,13 +66,6 @@ migrate-local:
 	@echo "📦 ローカルDocker DBにマイグレーションを実行します..."
 	env DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) run --bin migrate
 
-.PHONY: repair-and-migrate-local
-repair-and-migrate-local:
-	@echo "🔧 ローカルDocker DB の migration 履歴を現行 baseline に切り替えます..."
-	@echo "  (version=11 未達の場合はエラーで停止します)"
-	docker compose -f docker-compose.yml exec -T postgres psql -U user -d shoken_db -v ON_ERROR_STOP=1 < scripts/repair-migrations.sql
-	env DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) run --bin migrate
-
 # Docker関連
 .PHONY: db-up
 db-up:
@@ -116,7 +109,6 @@ help:
 	@echo "  test-ignored  : Docker が必要な ignored 統合テストを実行します"
 	@echo "  migrate       : データベースマイグレーションを実行します"
 	@echo "  migrate-local           : ローカルDocker DBにマイグレーションを実行します"
-	@echo "  repair-and-migrate-local: 既存 migration 履歴 → 現行 baseline への一回限り切り替え"
 	@echo "  db-up         : PostgreSQL を Docker で起動します"
 	@echo "  db-down       : PostgreSQL を停止します"
 	@echo "  db-reset      : PostgreSQL を初期化します（ボリューム削除 → 再起動 → migrate）"

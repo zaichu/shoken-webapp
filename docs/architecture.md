@@ -56,8 +56,8 @@ shoken-webapp/
 │   │   ├── db.rs          # DB アクセス層（wasm は Hyperdrive、ホストは migrate/テスト用直接接続）
 │   │   ├── errors.rs      # 統一エラーハンドリング
 │   │   └── state.rs       # AppState (DB pool / secrets)
-│   ├── migrations/        # DB スキーマの正本（追記のみ。テーブル構成はここを参照）
-│   └── scripts/           # repair-migrations.sql などの運用スクリプト
+│   ├── migrations/        # DB スキーマの正本（ベースライン以降は追記のみ。テーブル構成はここを参照）
+│   └── scripts/           # ローカル検証用の運用スクリプト
 ├── shared/                # frontend/backend 共有の wire 型クレート
 ├── docs/                  # 設計・運用ドキュメント
 └── .github/               # CI/CD ワークフロー / Dependabot 設定
