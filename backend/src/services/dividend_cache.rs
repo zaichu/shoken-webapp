@@ -53,10 +53,10 @@ pub async fn get_batch(
     Ok(items)
 }
 
-/// 未取得銘柄を pending 行として積む。対象は銘柄マスタにあるコードに限る
-/// （認証済みなら誰でも呼べる POST 経由で任意コードが無制限に積まれるのを防ぐ。
-/// ユーザーの保有・取引テーブルは形式のみ検証で任意コードを書き込めるため、
-/// 実在の証拠には使えず照合には含めない）。
+/// 未取得銘柄を pending 行として積む。銘柄の実在はここでは判定しない
+/// （銘柄マスタは網羅性を保証できず、保有・取引テーブルは形式のみ検証で
+/// ユーザーが任意コードを書き込めるため、どちらも実在の証拠にならない。
+/// 未知コードの浪費は失敗行の再試行間隔で抑える）。
 /// 既存行は stale_at / cooldown 経過で cron の選定条件を満たすため、そのままにする
 /// （status が pending の間は compute_is_stale=false で再投入も起きない）
 async fn enqueue_refresh(pool: &Db, codes: &[SecurityCode]) -> Result<(), ApiError> {
@@ -65,7 +65,6 @@ async fn enqueue_refresh(pool: &Db, codes: &[SecurityCode]) -> Result<(), ApiErr
         INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
         SELECT c.code, 'pending', 'jquants', NOW()
         FROM unnest($1::varchar[]) AS c(code)
-        WHERE EXISTS (SELECT 1 FROM stock s WHERE s.code = c.code)
         ON CONFLICT (security_code) DO NOTHING
         "#,
         vec![Bind::from(codes.to_vec())],

@@ -1788,62 +1788,6 @@ async fn dividend_cache_drain_refresh_queue() {
     assert_eq!(processed, 0, "再試行間隔が経過するまで消化しない");
 }
 
-/// get_batch のエンキューは銘柄マスタにあるコードに限る
-/// (任意コードの無制限エンキューによるキュー汚染を防ぐため。
-/// ユーザー保有データは形式のみ検証で任意コードを書けるため照合には使えない)
-#[tokio::test]
-#[ignore = "requires Docker to run Postgres container"]
-async fn dividend_cache_enqueue_skips_unknown_codes() {
-    let (pool, _node) = start_test_pool().await;
-    let client = JQuantsClient::new("test-api-key".to_string());
-    let user_id = create_test_user(&pool).await;
-
-    // マスタにあるコードを用意。マスタにもユーザー保有データにも無いコードは対象外
-    db::query(
-        "INSERT INTO stock (date, code, name, market_category)
-         VALUES (CURRENT_DATE, '7203', 'トヨタ自動車', 'プライム')",
-        vec![],
-    )
-    .execute(&pool)
-    .await
-    .expect("stock 投入");
-    db::query(
-        "INSERT INTO asset_balances
-           (user_id, security_code, security_name, shares,
-            average_purchase_price, total_purchase_amount)
-         VALUES ($1, '8306', '三菱UFJフィナンシャル・グループ', 100, 1500, 150000)",
-        vec![Bind::from(user_id)],
-    )
-    .execute(&pool)
-    .await
-    .expect("保有残高の投入");
-
-    dividend_cache::get_batch(
-        &pool,
-        Some(&client),
-        &[
-            "7203".parse().unwrap(),
-            "8306".parse().unwrap(),
-            "9999".parse().unwrap(),
-        ],
-    )
-    .await
-    .expect("get_batch 失敗");
-
-    let rows: Vec<(String,)> = db::query_as(
-        "SELECT security_code FROM dividend_per_share_cache ORDER BY security_code",
-        vec![],
-    )
-    .fetch_all(&pool)
-    .await
-    .unwrap();
-    assert_eq!(
-        rows.iter().map(|r| r.0.as_str()).collect::<Vec<_>>(),
-        vec!["7203"],
-        "保有データにあってもマスタに無いコードは積まれない"
-    );
-}
-
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn user_row_limit_rejects_over_limit_inserts() {
