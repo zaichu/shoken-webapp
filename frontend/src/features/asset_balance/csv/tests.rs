@@ -16,7 +16,6 @@ fn preview_response_deserializes_wire_rows() {
                 "security_code": "7203",
                 "security_name": "トヨタ自動車",
                 "shares": 100,
-                "executing_shares": 0,
                 "average_purchase_price": 2500,
                 "total_purchase_amount": 250000,
                 "current_price": 2600,
@@ -32,7 +31,6 @@ fn preview_response_deserializes_wire_rows() {
     assert_eq!(row.security_code, "7203");
     assert_eq!(row.security_name, "トヨタ自動車");
     assert_eq!(row.shares, dec!(100));
-    assert_eq!(row.executing_shares, dec!(0));
     assert_eq!(row.average_purchase_price, dec!(2500));
     assert_eq!(row.total_purchase_amount, dec!(250000));
     assert_eq!(row.current_price, dec!(2600));
@@ -94,7 +92,6 @@ fn asset_balance_row_saved_delegates_current_price() {
         security_code: "7203".parse().unwrap(),
         security_name: "トヨタ自動車".to_string(),
         shares: dec!(100),
-        executing_shares: dec!(0),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
         current_price: dec!(2600),
@@ -116,7 +113,6 @@ fn asset_balance_row_preview_delegates_current_price() {
         security_code: "7203".to_string(),
         security_name: "トヨタ自動車".to_string(),
         shares: dec!(100),
-        executing_shares: dec!(0),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
         current_price: dec!(2700),
@@ -131,7 +127,6 @@ fn asset_balance_csv_row_current_price_field() {
         security_code: "7203".to_string(),
         security_name: "トヨタ自動車".to_string(),
         shares: dec!(100),
-        executing_shares: dec!(0),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
         current_price: dec!(2800),
@@ -149,7 +144,6 @@ fn asset_balance_saved_row_current_price_field() {
         security_code: "7203".parse().unwrap(),
         security_name: "トヨタ自動車".to_string(),
         shares: dec!(100),
-        executing_shares: dec!(0),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
         current_price: dec!(2900),

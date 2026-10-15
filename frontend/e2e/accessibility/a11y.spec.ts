@@ -62,7 +62,6 @@ const ASSET_ROW = {
   security_code: '7203',
   security_name: 'トヨタ自動車',
   shares: 100,
-  executing_shares: 0,
   average_purchase_price: 2500,
   total_purchase_amount: 250000,
   current_price: 2600,

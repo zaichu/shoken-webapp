@@ -193,8 +193,6 @@ pub struct AssetBalance {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub shares: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
-    pub executing_shares: Decimal,
-    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub average_purchase_price: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_purchase_amount: Decimal,
