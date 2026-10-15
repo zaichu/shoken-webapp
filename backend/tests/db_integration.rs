@@ -2504,10 +2504,11 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
     // 最新済みの基準日は latest_close_date(now) 以上である必要があるため JST 当日
     let fresh_as_of = (Utc::now() + chrono::Duration::hours(9)).date_naive();
 
+    // 個人 CSV 価格は共有行を作らないため、確定済みの共有価格は直接 INSERT で置く
     for code in &bad_codes[..14] {
         db::query(
-            "UPDATE security_prices SET price_as_of = $2, updated_at = $3 \
-             WHERE security_code = $1",
+            "INSERT INTO security_prices (security_code, current_price, price_as_of, updated_at) \
+             VALUES ($1, 1100, $2, $3)",
             vec![
                 Bind::from(code.as_str()),
                 Bind::from(stale_as_of),
@@ -2518,17 +2519,10 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
         .await
         .expect("失敗銘柄の seed に失敗");
     }
-    // 15件目の失敗銘柄は共有行なし(未取得)で置く
+    // 15件目の失敗銘柄は共有行を作らず未取得(行なし)のままにする
     db::query(
-        "DELETE FROM security_prices WHERE security_code = $1",
-        vec![Bind::from(bad_codes[14].as_str())],
-    )
-    .execute(&pool)
-    .await
-    .expect("未取得銘柄の seed に失敗");
-    db::query(
-        "UPDATE security_prices SET price_as_of = $2, updated_at = $3 \
-         WHERE security_code = $1",
+        "INSERT INTO security_prices (security_code, current_price, price_as_of, updated_at) \
+         VALUES ($1, 1100, $2, $3)",
         vec![
             Bind::from(GOOD),
             Bind::from(NaiveDate::from_ymd_opt(2020, 6, 1).unwrap()),
@@ -2539,8 +2533,8 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
     .await
     .expect("正常銘柄の seed に失敗");
     db::query(
-        "UPDATE security_prices SET price_as_of = $2, updated_at = $3 \
-         WHERE security_code = $1",
+        "INSERT INTO security_prices (security_code, current_price, price_as_of, updated_at) \
+         VALUES ($1, 1100, $2, $3)",
         vec![
             Bind::from(FRESH),
             Bind::from(fresh_as_of),
@@ -2587,4 +2581,133 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
     // 最新価格の銘柄は再取得抑止が維持され、試行時刻も動かない
     let (_, fresh_updated) = price_row(&pool, FRESH).await.expect("行があるはず");
     assert_eq!(fresh_updated, fresh_mark, "最新済み銘柄は対象外のまま");
+}
+
+/// 新しい基準日で前日終値が取れないとき、旧基準日の前日比を引き継がない(#1339)。
+/// 「不明」は現 API 契約(daily_change: 数値)内で 0 とし、一覧行と集計を一致させる。
+/// 同一基準日の再取得は同じ日の前日比として旧値を維持し、
+/// 古い基準日での上書きは従来どおり拒否する
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_id,
+        &[make_asset_item("7203")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("bulk_create 失敗");
+
+    let code: SecurityCode = "7203".parse().unwrap();
+    let as_of = |d| NaiveDate::from_ymd_opt(2020, 1, d).unwrap();
+
+    // 1/14 終値100・前日比+10(=100-90)が確定済み
+    stock_price::apply_close_price(
+        &pool,
+        &code,
+        &ClosePrice {
+            close: dec!(100),
+            as_of: as_of(14),
+            prev_close: Some(dec!(90)),
+        },
+    )
+    .await
+    .expect("apply 失敗");
+
+    // 1/15 は終値120のみ取得(前日終値不明)。旧基準日の +10 を残してはいけない
+    let updated = stock_price::apply_close_price(
+        &pool,
+        &code,
+        &ClosePrice {
+            close: dec!(120),
+            as_of: as_of(15),
+            prev_close: None,
+        },
+    )
+    .await
+    .expect("apply 失敗");
+    assert_eq!(updated, 1);
+
+    let mut params = default_asset_balance_search_params();
+    params.search.include_summary = Some(true);
+    let res = domain_search::<asset_balance_svc::AssetBalanceDomain>(&pool, user_id, params)
+        .await
+        .expect("list 失敗");
+    let row = res.data.iter().find(|r| r.security_code.as_str() == "7203");
+    let row = row.expect("7203 が一覧にあるはず");
+    assert_eq!(row.current_price, dec!(120));
+    assert_eq!(row.price_as_of, Some(as_of(15)));
+    assert_eq!(
+        row.daily_change,
+        dec!(0),
+        "新しい基準日で前日終値不明なら前日比は不明(0)にする"
+    );
+    assert_eq!(
+        res.summary.expect("summary 必須").total_daily_change,
+        row.daily_change * row.shares,
+        "一覧と集計の前日比は一致する"
+    );
+
+    // 同一基準日の再取得で前日終値が取れれば前日比が入る
+    let updated = stock_price::apply_close_price(
+        &pool,
+        &code,
+        &ClosePrice {
+            close: dec!(120),
+            as_of: as_of(15),
+            prev_close: Some(dec!(110)),
+        },
+    )
+    .await
+    .expect("apply 失敗");
+    assert_eq!(updated, 1);
+
+    // 同一基準日の再取得で前日終値が不明でも、同じ日の前日比は維持する
+    let updated = stock_price::apply_close_price(
+        &pool,
+        &code,
+        &ClosePrice {
+            close: dec!(130),
+            as_of: as_of(15),
+            prev_close: None,
+        },
+    )
+    .await
+    .expect("apply 失敗");
+    assert_eq!(updated, 1);
+    let (stored_as_of, daily_change) = db::query(
+        "SELECT price_as_of, daily_change FROM security_prices WHERE security_code = $1",
+        vec![Bind::from("7203")],
+    )
+    .fetch_one::<(NaiveDate, db::Numeric), _>(&pool)
+    .await
+    .expect("共有価格の取得に失敗");
+    assert_eq!(stored_as_of, as_of(15));
+    assert_eq!(daily_change.0, dec!(10), "同一基準日の前日比は維持する");
+
+    // 古い基準日の取得値では上書きしない(前回値を維持)
+    let updated = stock_price::apply_close_price(
+        &pool,
+        &code,
+        &ClosePrice {
+            close: dec!(999),
+            as_of: as_of(14),
+            prev_close: Some(dec!(900)),
+        },
+    )
+    .await
+    .expect("apply 失敗");
+    assert_eq!(updated, 0);
+    let (stored_as_of, daily_change) = db::query(
+        "SELECT price_as_of, daily_change FROM security_prices WHERE security_code = $1",
+        vec![Bind::from("7203")],
+    )
+    .fetch_one::<(NaiveDate, db::Numeric), _>(&pool)
+    .await
+    .expect("共有価格の取得に失敗");
+    assert_eq!(stored_as_of, as_of(15));
+    assert_eq!(daily_change.0, dec!(10));
 }
