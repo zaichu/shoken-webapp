@@ -160,7 +160,7 @@ pub async fn bulk_create(
                 $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
                 $10::numeric[], $11::numeric[], $12::numeric[], $13::numeric[], $14::numeric[]
             )
-            ON CONFLICT (user_id, trade_date, fund_name, shares, cancellation_amount_yen)
+            ON CONFLICT (user_id, trade_date, fund_name, shares, cancellation_amount_yen, account)
             DO NOTHING
             "#,
             vec![

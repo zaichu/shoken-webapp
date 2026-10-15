@@ -56,6 +56,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0010_clear_price_as_of_on_residual_prices",
         include_str!("../../migrations/0010_clear_price_as_of_on_residual_prices.sql"),
     ),
+    (
+        "0011_dedupe_keys_include_account",
+        include_str!("../../migrations/0011_dedupe_keys_include_account.sql"),
+    ),
 ];
 
 /// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に

@@ -881,6 +881,46 @@ async fn dividend_bulk_create_skips_duplicates() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+async fn dividend_csv_keeps_same_detail_in_different_accounts() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    // 同一入金日・同一銘柄・同一数量・同一額で、口座または商品だけ違う明細は別データ
+    let csv = concat!(
+        "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"\n",
+        "\"2025/12/09\",\"国内株式\",\"NISA\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"\n",
+        "\"2025/12/09\",\"投資信託\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\""
+    );
+
+    let first = dividend_svc::DividendDomain::upload_csv(
+        &pool,
+        user_id,
+        csv.as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("dividend upload_csv failed");
+    assert_eq!(first.inserted, 3);
+    assert_eq!(first.skipped, 0);
+    assert!(first.errors.is_empty());
+
+    // 同じ CSV の再取込では増えない
+    let second = dividend_svc::DividendDomain::upload_csv(
+        &pool,
+        user_id,
+        csv.as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("dividend re-upload_csv failed");
+    assert_eq!(second.inserted, 0);
+    assert_eq!(second.skipped, 3);
+    assert!(second.errors.is_empty());
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
 async fn domestic_stock_bulk_create_and_list() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
@@ -1002,6 +1042,45 @@ async fn mutualfund_bulk_create_skips_duplicates() {
         .expect("second mutualfund bulk_create failed");
     assert_eq!(second.inserted, 0);
     assert_eq!(second.skipped, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn mutualfund_csv_keeps_same_trade_in_different_accounts() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    // 同一約定日・同一ファンド・同一数量・同一解約額で、口座だけ違う明細は別データ
+    let csv = concat!(
+        "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n",
+        "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\"\n",
+        "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"NISA\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\""
+    );
+
+    let first = mutualfund_svc::MutualfundDomain::upload_csv(
+        &pool,
+        user_id,
+        csv.as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("mutualfund upload_csv failed");
+    assert_eq!(first.inserted, 2);
+    assert_eq!(first.skipped, 0);
+    assert!(first.errors.is_empty());
+
+    // 同じ CSV の再取込では増えない
+    let second = mutualfund_svc::MutualfundDomain::upload_csv(
+        &pool,
+        user_id,
+        csv.as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("mutualfund re-upload_csv failed");
+    assert_eq!(second.inserted, 0);
+    assert_eq!(second.skipped, 2);
+    assert!(second.errors.is_empty());
 }
 
 #[tokio::test]
@@ -2017,8 +2096,12 @@ async fn squashed_schema_matches_legacy_migrations() {
 
     let legacy = connect_with_retry(&format!("{base_url}/legacy_schema")).await;
     apply_legacy_migrations(&legacy).await;
-    // 旧ランナー適用済みの DB には履歴テーブルもあるため、新旧で揃えてから比較する
+    // 旧ランナー適用済みの DB は履歴テーブルを 1〜17 で再現してから migrate を通し、
+    // ベースライン以降の migration も載せた最終スキーマ同士で比較する(実運用と同じ経路)
     seed_migration_history(&legacy, 17).await;
+    run_migrations(&legacy)
+        .await
+        .expect("旧スキーマ側の migrate に失敗");
 
     let squashed = connect_with_retry(&format!("{base_url}/squashed_schema")).await;
     run_migrations(&squashed)
@@ -2048,6 +2131,7 @@ async fn legacy_history_is_rewritten_once_and_data_is_kept() {
 
     run_migrations(&pool).await.expect("履歴の置き換えに失敗");
 
+    // ベースライン 0〜9 の記録に置き換わり、それ以降の migration も適用される
     let versions = db::query(
         "SELECT version FROM _sqlx_migrations ORDER BY version",
         vec![],
@@ -2057,7 +2141,7 @@ async fn legacy_history_is_rewritten_once_and_data_is_kept() {
     .expect("履歴の取得に失敗");
     assert_eq!(
         versions.iter().map(|row| row.0).collect::<Vec<_>>(),
-        (0..=9).collect::<Vec<_>>()
+        (0..=11).collect::<Vec<_>>()
     );
     let user = db::query(
         "SELECT id FROM users WHERE id = $1",
@@ -2074,7 +2158,7 @@ async fn legacy_history_is_rewritten_once_and_data_is_kept() {
         .fetch_all::<(i64,), _>(&pool)
         .await
         .expect("履歴の取得に失敗");
-    assert_eq!(versions.len(), 10);
+    assert_eq!(versions.len(), 12);
 }
 
 #[tokio::test]
@@ -2091,6 +2175,100 @@ async fn partial_legacy_history_stops_migration() {
         .await
         .expect_err("旧履歴が途中までの DB はエラーで止まるはず");
     assert!(err.contains("揃っていません"), "unexpected error: {err}");
+}
+
+/// 旧スキーマ(旧17本相当)に明細行が残る DB へ migrate を通しても一意キーの
+/// 置き換えが失敗せず既存行が残ることを確かめる。新キーは旧キーの列をすべて
+/// 含むため、旧キーで一意だった行は新キーでも必ず一意になる
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn widened_dedupe_keys_migration_keeps_existing_rows() {
+    let node = Postgres::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&database_url).await;
+    apply_legacy_migrations(&pool).await;
+    seed_migration_history(&pool, 17).await;
+    let user_id = create_test_user(&pool).await;
+
+    // 旧スキーマには新しい一意キーが無いため、サービス層を通さず直接行を積む。
+    // 配当行は make_dividend_item("8591") とキー列を揃えておき、移行後の
+    // bulk_create が口座違いだけを見て別行として入るか確かめられるようにする
+    db::query(
+        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
+                                security_name, unit_price, shares, dividends_before_tax,
+                                taxes, net_amount_received)
+         VALUES ($1, $2, '国内株式', '特定', '8591', '銘柄_8591',
+                 100, 100, 1000, 203, 797)",
+        vec![
+            Bind::from(user_id),
+            Bind::from(NaiveDate::from_ymd_opt(2024, 3, 25).unwrap()),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .expect("既存配当行の投入に失敗");
+    db::query(
+        "INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends,
+                                  account, shares, exchange_rate, cancellation_unit_price_yen,
+                                  cancellation_amount_yen, average_acquisition_price_yen,
+                                  realized_profit_and_loss, taxes,
+                                  realized_profit_and_loss_after_tax)
+         VALUES ($1, $2, $3, 'eMAXIS Slim 米国株式(S&P500)', '再投資型', '特定', 1000, 1,
+                 12000, 12000000, 10000, 615849, 0, 615849)",
+        vec![
+            Bind::from(user_id),
+            Bind::from(NaiveDate::from_ymd_opt(2022, 10, 28).unwrap()),
+            Bind::from(NaiveDate::from_ymd_opt(2022, 11, 2).unwrap()),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .expect("既存投信行の投入に失敗");
+
+    run_migrations(&pool)
+        .await
+        .expect("既存データのある DB の migrate に失敗");
+
+    for (table, index) in [
+        ("dividends", "idx_dividends_unique"),
+        ("mutualfunds", "idx_mutualfunds_unique"),
+    ] {
+        let count = db::query(
+            format!("SELECT COUNT(*) FROM {table} WHERE user_id = $1"),
+            vec![Bind::from(user_id)],
+        )
+        .fetch_scalar::<i64, _>(&pool)
+        .await
+        .expect("行数の取得に失敗");
+        assert_eq!(count, 1, "{table} の既存行が消えています");
+
+        let indexdef = db::query(
+            format!("SELECT pg_get_indexdef('public.{index}'::regclass)"),
+            vec![],
+        )
+        .fetch_scalar::<String, _>(&pool)
+        .await
+        .expect("index 定義の取得に失敗");
+        assert!(
+            indexdef.contains("account"),
+            "{index} が account を含んでいません: {indexdef}"
+        );
+    }
+
+    // 移行後の一意キーでは口座だけ違う行を重複と判定しない
+    let nisa = dividend_svc::bulk_create(
+        &pool,
+        user_id,
+        &[CreateDividendRequest {
+            account: "NISA".parse().unwrap(),
+            ..make_dividend_item("8591")
+        }],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("口座違いの配当 bulk_create に失敗");
+    assert_eq!(nisa.inserted, 1);
 }
 
 async fn insert_price_row(
