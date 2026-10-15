@@ -2204,7 +2204,7 @@ async fn asset_balance_rows(pool: &Db, user_id: UserId) -> Vec<(String, String)>
 /// (銘柄コード, 価格内容) の一覧。共有価格が巻き込まれていないかの比較用
 async fn security_price_rows(pool: &Db) -> Vec<(String, String)> {
     db::query(
-        "SELECT security_code, current_price::text || '/' || daily_change::text \
+        "SELECT security_code, current_price::text || '/' || COALESCE(prev_close::text, '-') \
          || '/' || COALESCE(price_as_of::text, '-') \
          FROM security_prices ORDER BY security_code",
         vec![],
@@ -2447,10 +2447,34 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
     assert_eq!(fresh_updated, fresh_mark, "最新済み銘柄は対象外のまま");
 }
 
-/// 新しい基準日で前日終値が取れないとき、旧基準日の前日比を引き継がない(#1339)。
-/// 「不明」は現 API 契約(daily_change: 数値)内で 0 とし、一覧行と集計を一致させる。
-/// 同一基準日の再取得は同じ日の前日比として旧値を維持し、
-/// 古い基準日での上書きは従来どおり拒否する
+/// 一覧の (現在値, 前日比) を返す。集計の前日比合計が行と一致することもあわせて確かめる
+async fn listed_price_and_change(
+    pool: &Db,
+    user_id: UserId,
+) -> (rust_decimal::Decimal, rust_decimal::Decimal) {
+    let mut params = default_asset_balance_search_params();
+    params.search.include_summary = Some(true);
+    let res = domain_search::<asset_balance_svc::AssetBalanceDomain>(pool, user_id, params)
+        .await
+        .expect("list 失敗");
+    let row = res
+        .data
+        .iter()
+        .find(|r| r.security_code.as_str() == "7203")
+        .expect("7203 が一覧にあるはず");
+    let summary = res.summary.expect("summary 必須");
+    assert_eq!(
+        summary.total_daily_change,
+        row.daily_change * row.shares,
+        "一覧と集計の前日比は一致する"
+    );
+    (row.current_price, row.daily_change)
+}
+
+/// 新しい基準日で前日終値が取れないとき、前日比は不明(0)になる(#1339/#1344)。
+/// security_prices は前日終値(市場の事実)を保存し、前日比は読み取り時に
+/// current_price - prev_close で導出する。同一基準日で終値だけが変わった再取得
+/// でも前日比は現在値と食い違わず、古い基準日での上書きは従来どおり拒否する
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
@@ -2468,7 +2492,7 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     let code: SecurityCode = "7203".parse().unwrap();
     let as_of = |d| NaiveDate::from_ymd_opt(2020, 1, d).unwrap();
 
-    // 1/14 終値100・前日比+10(=100-90)が確定済み
+    // 1/14 終値100・前日終値90 が確定済み
     stock_price::apply_close_price(
         &pool,
         &code,
@@ -2481,7 +2505,7 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     .await
     .expect("apply 失敗");
 
-    // 1/15 は終値120のみ取得(前日終値不明)。旧基準日の +10 を残してはいけない
+    // 1/15 は終値120のみ取得(前日終値不明)。前日比は不明(0)
     let updated = stock_price::apply_close_price(
         &pool,
         &code,
@@ -2494,28 +2518,13 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     .await
     .expect("apply 失敗");
     assert_eq!(updated, 1);
-
-    let mut params = default_asset_balance_search_params();
-    params.search.include_summary = Some(true);
-    let res = domain_search::<asset_balance_svc::AssetBalanceDomain>(&pool, user_id, params)
-        .await
-        .expect("list 失敗");
-    let row = res.data.iter().find(|r| r.security_code.as_str() == "7203");
-    let row = row.expect("7203 が一覧にあるはず");
-    assert_eq!(row.current_price, dec!(120));
-    assert_eq!(row.price_as_of, Some(as_of(15)));
     assert_eq!(
-        row.daily_change,
-        dec!(0),
+        listed_price_and_change(&pool, user_id).await,
+        (dec!(120), dec!(0)),
         "新しい基準日で前日終値不明なら前日比は不明(0)にする"
     );
-    assert_eq!(
-        res.summary.expect("summary 必須").total_daily_change,
-        row.daily_change * row.shares,
-        "一覧と集計の前日比は一致する"
-    );
 
-    // 同一基準日の再取得で前日終値が取れれば前日比が入る
+    // 同一基準日の再取得で前日終値が取れれば保存され、前日比に反映される
     let updated = stock_price::apply_close_price(
         &pool,
         &code,
@@ -2528,8 +2537,10 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     .await
     .expect("apply 失敗");
     assert_eq!(updated, 1);
+    assert_eq!(listed_price_and_change(&pool, user_id).await.1, dec!(10));
 
-    // 同一基準日の再取得で前日終値が不明でも、同じ日の前日比は維持する
+    // 同一基準日で終値だけ変わった再取得(前日終値不明)は、既知の前日終値を
+    // 維持したまま前日比を現在値から導出する: 130 - 110 = 20
     let updated = stock_price::apply_close_price(
         &pool,
         &code,
@@ -2542,15 +2553,24 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     .await
     .expect("apply 失敗");
     assert_eq!(updated, 1);
-    let (stored_as_of, daily_change) = db::query(
-        "SELECT price_as_of, daily_change FROM security_prices WHERE security_code = $1",
+    let (stored_as_of, prev_close) = db::query(
+        "SELECT price_as_of, prev_close FROM security_prices WHERE security_code = $1",
         vec![Bind::from("7203")],
     )
-    .fetch_one::<(NaiveDate, db::Numeric), _>(&pool)
+    .fetch_one::<(NaiveDate, Option<db::Numeric>), _>(&pool)
     .await
     .expect("共有価格の取得に失敗");
     assert_eq!(stored_as_of, as_of(15));
-    assert_eq!(daily_change.0, dec!(10), "同一基準日の前日比は維持する");
+    assert_eq!(
+        prev_close.expect("前日終値は維持する").0,
+        dec!(110),
+        "同一基準日で前日終値不明の取得は既知の値を維持する"
+    );
+    assert_eq!(
+        listed_price_and_change(&pool, user_id).await,
+        (dec!(130), dec!(20)),
+        "同一基準日で現在値が変われば前日比は current_price - prev_close で再計算される"
+    );
 
     // 古い基準日の取得値では上書きしない(前回値を維持)
     let updated = stock_price::apply_close_price(
@@ -2565,13 +2585,13 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     .await
     .expect("apply 失敗");
     assert_eq!(updated, 0);
-    let (stored_as_of, daily_change) = db::query(
-        "SELECT price_as_of, daily_change FROM security_prices WHERE security_code = $1",
+    let (stored_as_of, prev_close) = db::query(
+        "SELECT price_as_of, prev_close FROM security_prices WHERE security_code = $1",
         vec![Bind::from("7203")],
     )
-    .fetch_one::<(NaiveDate, db::Numeric), _>(&pool)
+    .fetch_one::<(NaiveDate, Option<db::Numeric>), _>(&pool)
     .await
     .expect("共有価格の取得に失敗");
     assert_eq!(stored_as_of, as_of(15));
-    assert_eq!(daily_change.0, dec!(10));
+    assert_eq!(prev_close.expect("前日終値は維持する").0, dec!(110));
 }
