@@ -122,17 +122,11 @@ pub async fn bulk_create(
         items.iter().map(|i| i.average_purchase_price).collect();
     let total_purchase_amounts: Vec<Decimal> =
         items.iter().map(|i| i.total_purchase_amount).collect();
-    let seed_codes: Vec<String> = items
-        .iter()
-        .map(|i| i.security_code.as_str().to_owned())
-        .collect();
-    let seed_prices: Vec<Decimal> = items.iter().map(|i| i.current_price).collect();
-    let seed_changes: Vec<Decimal> = items.iter().map(|i| i.daily_change).collect();
+    // 個人 CSV の現在値・前日比は旧列へ保存する。共有 security_prices 側の確定値は
+    // ビューで優先採用されるため、CSV 再取込では共有行に触れない
+    let current_prices: Vec<Decimal> = items.iter().map(|i| i.current_price).collect();
+    let daily_changes: Vec<Decimal> = items.iter().map(|i| i.daily_change).collect();
 
-    // CSV の現在値は共有テーブルへ未確認(price_as_of なし)の値として入れる。
-    // 確定済み(price_as_of あり)の行は取得済みの終値を守るため上書きしない。
-    // asset_balances の価格列は削除予定の旧列で、参照側は共有テーブルに切り替わった
-    // ため書き込まない。評価額・損益率も 数量×現在値 から出る値なので保存しない
     bulk_replace::<AssetBalanceDomain>(
         pool,
         user_id,
@@ -140,24 +134,12 @@ pub async fn bulk_create(
         limit,
         crate::db::query(
             r#"
-            WITH seed AS (
-                INSERT INTO security_prices (security_code, current_price, daily_change)
-                SELECT DISTINCT ON (code) code, price, change
-                FROM UNNEST($8::text[], $9::numeric[], $10::numeric[])
-                    WITH ORDINALITY AS t(code, price, change, ord)
-                ORDER BY code, ord
-                ON CONFLICT (security_code) DO UPDATE SET
-                    current_price = EXCLUDED.current_price,
-                    daily_change  = EXCLUDED.daily_change,
-                    updated_at    = NOW()
-                WHERE security_prices.price_as_of IS NULL
-                RETURNING security_code
-            )
             INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
-                                        average_purchase_price, total_purchase_amount)
+                                        average_purchase_price, total_purchase_amount,
+                                        current_price, daily_change)
             SELECT * FROM UNNEST(
                 $1::uuid[], $2::text[], $3::text[], $4::numeric[], $5::numeric[],
-                $6::numeric[], $7::numeric[]
+                $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[]
             )
             "#,
             vec![
@@ -168,9 +150,8 @@ pub async fn bulk_create(
                 Bind::decimal_vec(executing_shares),
                 Bind::decimal_vec(average_purchase_prices),
                 Bind::decimal_vec(total_purchase_amounts),
-                Bind::from(seed_codes),
-                Bind::decimal_vec(seed_prices),
-                Bind::decimal_vec(seed_changes),
+                Bind::decimal_vec(current_prices),
+                Bind::decimal_vec(daily_changes),
             ],
         ),
     )
