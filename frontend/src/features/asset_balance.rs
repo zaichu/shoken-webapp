@@ -10,8 +10,8 @@ mod store;
 mod view;
 
 pub(crate) use format::{
-    format_signed_valuation_amount, format_signed_valuation_rate, is_negative_valuation,
-    is_positive_valuation,
+    dec_to_f64, format_signed_valuation_amount, format_signed_valuation_rate,
+    format_valuation_amount, is_negative_valuation, is_positive_valuation,
 };
 pub(crate) use lookup::{fetch_single_asset_balance, find_by_code};
 pub(crate) use model::{calculate_valuation_from_decimal, to_fixed};

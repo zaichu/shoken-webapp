@@ -1,6 +1,7 @@
 use super::*;
 use crate::api::dto::{AssetBalance, Dividend};
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint};
+use rust_decimal_macros::dec;
 
 #[test]
 fn summary_endpoints_share_the_list_paths() {
@@ -123,4 +124,17 @@ fn settle_summary_keeps_displayed_value_on_refresh_error() {
         settle_summary(&current, generation, Ok(None)),
         Some((generation, None))
     );
+}
+
+#[test]
+fn overview_amounts_display_decimal_totals_in_yen() {
+    // 丸め前の浮動小数点を含む集計値も、資産管理と同じ円単位で出す
+    assert_eq!(
+        overview_amount_text(Some(dec!(15116919.990234375))),
+        "¥15,116,920"
+    );
+    assert_eq!(overview_amount_text(Some(dec!(63000.5))), "¥63,001");
+    assert_eq!(overview_amount_text(Some(dec!(-1234.4))), "-¥1,234");
+    assert_eq!(overview_amount_text(Some(dec!(0))), "¥0");
+    assert_eq!(overview_amount_text(None), "—");
 }
