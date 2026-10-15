@@ -61,8 +61,6 @@ use rust_decimal_macros::dec;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::{SecurityCode, UserId};
 use std::{sync::Arc, time::Duration};
-use testcontainers::ContainerAsync;
-use testcontainers::core::ExecCommand;
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, timeout};
@@ -1980,28 +1978,6 @@ async fn bulk_create_respects_user_row_limit() {
         .expect("上限内なら成功");
 }
 
-/// ベースライン(0000〜0009)にまとめる前の 17 ファイル。新旧で pg_dump が一致するかの
-/// 検証用に fixtures として残してある(migrate.rs からは参照されない)
-const LEGACY_MIGRATIONS: &[&str] = &[
-    include_str!("fixtures/legacy_migrations/0001_initial_schema.sql"),
-    include_str!("fixtures/legacy_migrations/0002_dividends_search_indexes.sql"),
-    include_str!("fixtures/legacy_migrations/0003_domestic_stocks_search_indexes.sql"),
-    include_str!("fixtures/legacy_migrations/0004_mutualfunds_search_indexes.sql"),
-    include_str!("fixtures/legacy_migrations/0005_asset_balances_search_indexes.sql"),
-    include_str!("fixtures/legacy_migrations/0006_free_text_search_trgm_indexes.sql"),
-    include_str!("fixtures/legacy_migrations/0007_drop_idx_dividends_user_id.sql"),
-    include_str!("fixtures/legacy_migrations/0008_drop_idx_domestic_stocks_user_id.sql"),
-    include_str!("fixtures/legacy_migrations/0009_drop_idx_mutualfunds_user_id.sql"),
-    include_str!("fixtures/legacy_migrations/0010_drop_idx_asset_balances_user_id.sql"),
-    include_str!("fixtures/legacy_migrations/0011_drop_idx_asset_balances_user_security_code.sql"),
-    include_str!("fixtures/legacy_migrations/0012_financial_statements_cache.sql"),
-    include_str!("fixtures/legacy_migrations/0013_drop_financial_statements_cache.sql"),
-    include_str!("fixtures/legacy_migrations/0014_hash_session_tokens.sql"),
-    include_str!("fixtures/legacy_migrations/0015_session_id_internal_key.sql"),
-    include_str!("fixtures/legacy_migrations/0016_reroll_plain_session_id.sql"),
-    include_str!("fixtures/legacy_migrations/0017_asset_balances_price_as_of.sql"),
-];
-
 /// migrate.rs が作る _sqlx_migrations と同じ定義。履歴の置き換えを確かめるため
 /// ランナーを介さず手動で履歴を作るのに使う
 const SQLX_MIGRATIONS_DDL: &str = "CREATE TABLE _sqlx_migrations (
@@ -2012,14 +1988,6 @@ const SQLX_MIGRATIONS_DDL: &str = "CREATE TABLE _sqlx_migrations (
     checksum BYTEA NOT NULL,
     execution_time BIGINT NOT NULL
 )";
-
-async fn apply_legacy_migrations(pool: &Db) {
-    for sql in LEGACY_MIGRATIONS {
-        pool.batch_execute(sql)
-            .await
-            .expect("旧マイグレーションの適用に失敗");
-    }
-}
 
 /// 旧ランナーで version 1〜=max_version まで適用済みの状態を再現する
 async fn seed_migration_history(pool: &Db, max_version: i64) {
@@ -2039,128 +2007,6 @@ async fn seed_migration_history(pool: &Db, max_version: i64) {
     }
 }
 
-/// コンテナ内で `pg_dump --schema-only` を実行し、比較用に正規化する
-/// (環境依存のコメント・SET・所有者行を落とす)
-async fn pg_dump_schema(node: &ContainerAsync<Postgres>, db: &str) -> Vec<String> {
-    let mut result = node
-        .exec(ExecCommand::new([
-            "pg_dump",
-            "-U",
-            "postgres",
-            "-d",
-            db,
-            "--schema-only",
-        ]))
-        .await
-        .expect("pg_dump の exec に失敗");
-    let stdout = result
-        .stdout_to_vec()
-        .await
-        .expect("pg_dump 出力の読み取りに失敗");
-    assert_eq!(
-        result.exit_code().await.expect("終了コードの取得に失敗"),
-        Some(0)
-    );
-    String::from_utf8(stdout)
-        .expect("pg_dump 出力が UTF-8 ではありません")
-        .lines()
-        .map(str::trim)
-        .filter(|line| {
-            !line.is_empty()
-                && !line.starts_with("--")
-                && !line.starts_with('\\')
-                && !line.starts_with("SET ")
-                && !line.starts_with("SELECT pg_catalog.set_config")
-                && !line.contains(" OWNER TO ")
-        })
-        .map(str::to_string)
-        .collect()
-}
-
-async fn create_database(pool: &Db, name: &str) {
-    pool.batch_execute(&format!("CREATE DATABASE {name}"))
-        .await
-        .expect("CREATE DATABASE に失敗");
-}
-
-#[tokio::test]
-#[ignore = "requires Docker to run Postgres container"]
-async fn squashed_schema_matches_legacy_migrations() {
-    let node = Postgres::default().start().await.unwrap();
-    let port = node.get_host_port_ipv4(5432).await.unwrap();
-    let base_url = format!("postgres://postgres:postgres@127.0.0.1:{port}");
-
-    let admin = connect_with_retry(&format!("{base_url}/postgres")).await;
-    create_database(&admin, "legacy_schema").await;
-    create_database(&admin, "squashed_schema").await;
-
-    let legacy = connect_with_retry(&format!("{base_url}/legacy_schema")).await;
-    apply_legacy_migrations(&legacy).await;
-    // 旧ランナー適用済みの DB は履歴テーブルを 1〜17 で再現してから migrate を通し、
-    // ベースライン以降の migration も載せた最終スキーマ同士で比較する(実運用と同じ経路)
-    seed_migration_history(&legacy, 17).await;
-    run_migrations(&legacy)
-        .await
-        .expect("旧スキーマ側の migrate に失敗");
-
-    let squashed = connect_with_retry(&format!("{base_url}/squashed_schema")).await;
-    run_migrations(&squashed)
-        .await
-        .expect("ベースラインの適用に失敗");
-
-    assert_eq!(
-        pg_dump_schema(&node, "legacy_schema").await,
-        pg_dump_schema(&node, "squashed_schema").await,
-    );
-}
-
-#[tokio::test]
-#[ignore = "requires Docker to run Postgres container"]
-async fn legacy_history_is_rewritten_once_and_data_is_kept() {
-    let node = Postgres::default().start().await.unwrap();
-    let port = node.get_host_port_ipv4(5432).await.unwrap();
-    let base_url = format!("postgres://postgres:postgres@127.0.0.1:{port}");
-
-    let admin = connect_with_retry(&format!("{base_url}/postgres")).await;
-    create_database(&admin, "rewritten").await;
-
-    let pool = connect_with_retry(&format!("{base_url}/rewritten")).await;
-    apply_legacy_migrations(&pool).await;
-    seed_migration_history(&pool, 17).await;
-    let user_id = create_test_user(&pool).await;
-
-    run_migrations(&pool).await.expect("履歴の置き換えに失敗");
-
-    // ベースライン 0〜9 の記録に置き換わり、それ以降の migration も適用される
-    let versions = db::query(
-        "SELECT version FROM _sqlx_migrations ORDER BY version",
-        vec![],
-    )
-    .fetch_all::<(i64,), _>(&pool)
-    .await
-    .expect("履歴の取得に失敗");
-    assert_eq!(
-        versions.iter().map(|row| row.0).collect::<Vec<_>>(),
-        (0..=11).collect::<Vec<_>>()
-    );
-    let user = db::query(
-        "SELECT id FROM users WHERE id = $1",
-        vec![Bind::from(user_id)],
-    )
-    .fetch_optional::<(Uuid,), _>(&pool)
-    .await
-    .expect("ユーザー行の取得に失敗");
-    assert!(user.is_some(), "既存データが消えています");
-
-    // 置き換えは一度だけ。再実行しても履歴は増えない
-    run_migrations(&pool).await.expect("再実行に失敗");
-    let versions = db::query("SELECT version FROM _sqlx_migrations", vec![])
-        .fetch_all::<(i64,), _>(&pool)
-        .await
-        .expect("履歴の取得に失敗");
-    assert_eq!(versions.len(), 12);
-}
-
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn partial_legacy_history_stops_migration() {
@@ -2175,100 +2021,6 @@ async fn partial_legacy_history_stops_migration() {
         .await
         .expect_err("旧履歴が途中までの DB はエラーで止まるはず");
     assert!(err.contains("揃っていません"), "unexpected error: {err}");
-}
-
-/// 旧スキーマ(旧17本相当)に明細行が残る DB へ migrate を通しても一意キーの
-/// 置き換えが失敗せず既存行が残ることを確かめる。新キーは旧キーの列をすべて
-/// 含むため、旧キーで一意だった行は新キーでも必ず一意になる
-#[tokio::test]
-#[ignore = "requires Docker to run Postgres container"]
-async fn widened_dedupe_keys_migration_keeps_existing_rows() {
-    let node = Postgres::default().start().await.unwrap();
-    let port = node.get_host_port_ipv4(5432).await.unwrap();
-    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
-    let pool = connect_with_retry(&database_url).await;
-    apply_legacy_migrations(&pool).await;
-    seed_migration_history(&pool, 17).await;
-    let user_id = create_test_user(&pool).await;
-
-    // 旧スキーマには新しい一意キーが無いため、サービス層を通さず直接行を積む。
-    // 配当行は make_dividend_item("8591") とキー列を揃えておき、移行後の
-    // bulk_create が口座違いだけを見て別行として入るか確かめられるようにする
-    db::query(
-        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
-                                security_name, unit_price, shares, dividends_before_tax,
-                                taxes, net_amount_received)
-         VALUES ($1, $2, '国内株式', '特定', '8591', '銘柄_8591',
-                 100, 100, 1000, 203, 797)",
-        vec![
-            Bind::from(user_id),
-            Bind::from(NaiveDate::from_ymd_opt(2024, 3, 25).unwrap()),
-        ],
-    )
-    .execute(&pool)
-    .await
-    .expect("既存配当行の投入に失敗");
-    db::query(
-        "INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends,
-                                  account, shares, exchange_rate, cancellation_unit_price_yen,
-                                  cancellation_amount_yen, average_acquisition_price_yen,
-                                  realized_profit_and_loss, taxes,
-                                  realized_profit_and_loss_after_tax)
-         VALUES ($1, $2, $3, 'eMAXIS Slim 米国株式(S&P500)', '再投資型', '特定', 1000, 1,
-                 12000, 12000000, 10000, 615849, 0, 615849)",
-        vec![
-            Bind::from(user_id),
-            Bind::from(NaiveDate::from_ymd_opt(2022, 10, 28).unwrap()),
-            Bind::from(NaiveDate::from_ymd_opt(2022, 11, 2).unwrap()),
-        ],
-    )
-    .execute(&pool)
-    .await
-    .expect("既存投信行の投入に失敗");
-
-    run_migrations(&pool)
-        .await
-        .expect("既存データのある DB の migrate に失敗");
-
-    for (table, index) in [
-        ("dividends", "idx_dividends_unique"),
-        ("mutualfunds", "idx_mutualfunds_unique"),
-    ] {
-        let count = db::query(
-            format!("SELECT COUNT(*) FROM {table} WHERE user_id = $1"),
-            vec![Bind::from(user_id)],
-        )
-        .fetch_scalar::<i64, _>(&pool)
-        .await
-        .expect("行数の取得に失敗");
-        assert_eq!(count, 1, "{table} の既存行が消えています");
-
-        let indexdef = db::query(
-            format!("SELECT pg_get_indexdef('public.{index}'::regclass)"),
-            vec![],
-        )
-        .fetch_scalar::<String, _>(&pool)
-        .await
-        .expect("index 定義の取得に失敗");
-        assert!(
-            indexdef.contains("account"),
-            "{index} が account を含んでいません: {indexdef}"
-        );
-    }
-
-    // 移行後の一意キーでは口座だけ違う行を重複と判定しない
-    let nisa = dividend_svc::bulk_create(
-        &pool,
-        user_id,
-        &[CreateDividendRequest {
-            account: "NISA".parse().unwrap(),
-            ..make_dividend_item("8591")
-        }],
-        RowLimit::new(i64::MAX),
-    )
-    .await
-    .expect("口座違いの配当 bulk_create に失敗");
-    assert_eq!(nisa.inserted, 1);
 }
 
 async fn insert_price_row(

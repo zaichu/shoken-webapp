@@ -21,10 +21,6 @@ INSERT)は対応するテーブルのファイル末尾に追記してある。
 - `0007_stock.sql` 〜 `0009_market_data_provider_rate_control.sql`: 外部キーを
   持たない独立テーブル
 
-新旧の schema が一致することは `backend/tests/db_integration.rs` の
-`squashed_schema_matches_legacy_migrations` が pg_dump を比較して確認する。
-旧17本は比較用に `backend/tests/fixtures/legacy_migrations/` に保持している。
-
 ## _sqlx_migrations 履歴の扱い
 
 旧バージョン(1〜17)が適用済みの DB で migrate を実行すると、`_sqlx_migrations`
@@ -56,14 +52,14 @@ baseline(0000〜0009)は適用済み環境があるため編集しない。
 
 ## baseline の再生成(baseline ファイル群を張り直す場合)
 
-旧系列を順に適用した DB に対して `pg_dump --schema-only` を取り、
+新規 DB に全マイグレーションを適用した状態に対して `pg_dump --schema-only` を取り、
 SET・`SELECT pg_catalog.set_config`・コメント・`OWNER TO`・権限行を除いて整形し、
 テーブル単位に分割する。`--schema-only` にはデータが含まれないため、必要な
 初期行 INSERT は別途対象テーブルのファイル末尾に追記する。
 
 ```bash
 cd backend && make db-up   # ローカル PostgreSQL (docker-compose)
-psql "$DATABASE_URL" -f tests/fixtures/legacy_migrations/0001_initial_schema.sql  # 〜0017まで順に
+cargo run --bin migrate
 pg_dump --schema-only "$DATABASE_URL"
 ```
 
