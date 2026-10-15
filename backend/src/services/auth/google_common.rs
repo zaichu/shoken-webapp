@@ -207,7 +207,6 @@ pub fn validate_tokeninfo_claims(
         sub: sub.to_string(),
         email: email.to_string(),
         name: get_str("name").map(str::to_string),
-        picture: get_str("picture").map(str::to_string),
     })
 }
 
@@ -293,10 +292,6 @@ mod tests {
         assert_eq!(info.sub, "test-subject");
         assert_eq!(info.email, "oidc@example.com");
         assert_eq!(info.name.as_deref(), Some("テスト利用者"));
-        assert_eq!(
-            info.picture.as_deref(),
-            Some("https://example.com/avatar.png")
-        );
         // iss の短縮形も許容
         let mut claims = valid_tokeninfo();
         claims["iss"] = serde_json::json!("accounts.google.com");
@@ -305,12 +300,11 @@ mod tests {
         let mut claims = valid_tokeninfo();
         claims["exp"] = serde_json::json!(NOW + 60);
         assert!(validate_tokeninfo_claims(&claims, CLIENT_ID, NONCE, NOW).is_ok());
-        // name/picture は任意
+        // name は任意
         let mut claims = valid_tokeninfo();
         claims.as_object_mut().unwrap().remove("name");
-        claims.as_object_mut().unwrap().remove("picture");
         let info = validate_tokeninfo_claims(&claims, CLIENT_ID, NONCE, NOW).unwrap();
-        assert!(info.name.is_none() && info.picture.is_none());
+        assert!(info.name.is_none());
     }
 
     #[test]

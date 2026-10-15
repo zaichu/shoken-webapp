@@ -446,5 +446,4 @@ fn other_endpoints_deserialize_numbers() {
     )
     .expect("session");
     assert_eq!(user.name.as_deref(), Some("テストユーザー"));
-    assert!(user.picture_url.is_none());
 }

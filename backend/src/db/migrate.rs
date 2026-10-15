@@ -84,6 +84,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0017_stock_master_code_pk",
         include_str!("../../migrations/0017_stock_master_code_pk.sql"),
     ),
+    (
+        "0018_users_drop_picture_url",
+        include_str!("../../migrations/0018_users_drop_picture_url.sql"),
+    ),
 ];
 
 /// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に
