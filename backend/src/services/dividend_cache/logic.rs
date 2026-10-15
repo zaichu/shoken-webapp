@@ -1,5 +1,6 @@
 use crate::services::jquants::FinSummaryData;
 use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use shared::dividend_per_share::DividendCacheStatus;
 
 /// キャッシュエントリの is_stale を判定する
@@ -16,7 +17,7 @@ pub fn compute_is_stale(
 
 /// 決算サマリーから1株配当を抽出する
 /// 優先順位: 来期予想(NxFDivAnn) > 今期予想(FDivAnn) > 実績(DivAnn)
-pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, DividendCacheStatus) {
+pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<Decimal>, DividendCacheStatus) {
     // 有効な配当値を持つ summary の中で開示日が最大のものを選ぶ
     // 同じ開示日の場合は入力順先勝ち（元の sort_by + 線形走査と同挙動）
     let best = data
@@ -32,17 +33,20 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, DividendCacheS
             .into_iter()
             .flatten()
             .filter(|s| !s.is_empty())
-            .find_map(|s| s.parse::<f64>().ok())
+            .find_map(|s| s.parse::<Decimal>().ok())
             .map(|v| (&summary.disclosed_date, v))
         })
-        .fold(None, |acc: Option<(&String, f64)>, (date, val)| match acc {
-            None => Some((date, val)),
-            Some((best_date, _)) if date > best_date => Some((date, val)),
-            Some(prev) => Some(prev),
-        });
+        .fold(
+            None,
+            |acc: Option<(&String, Decimal)>, (date, val)| match acc {
+                None => Some((date, val)),
+                Some((best_date, _)) if date > best_date => Some((date, val)),
+                Some(prev) => Some(prev),
+            },
+        );
 
     if let Some((_, val)) = best {
-        let status = if val > 0.0 {
+        let status = if val > Decimal::ZERO {
             DividendCacheStatus::Ok
         } else {
             DividendCacheStatus::Zero
@@ -51,13 +55,14 @@ pub fn extract_dividend(data: &[FinSummaryData]) -> (Option<f64>, DividendCacheS
     }
 
     // 配当情報が見つからない → ゼロ配当として扱う
-    (Some(0.0), DividendCacheStatus::Zero)
+    (Some(Decimal::ZERO), DividendCacheStatus::Zero)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::services::jquants::FinSummaryData;
+    use rust_decimal_macros::dec;
 
     fn make_summary(
         disc_date: &str,
@@ -81,12 +86,12 @@ mod tests {
         for (data, expected_value, expected_status) in [
             (
                 vec![make_summary("2024-01-01", Some("100.0"), None, None)],
-                Some(100.0),
+                Some(dec!(100.0)),
                 DividendCacheStatus::Ok,
             ),
             (
                 vec![make_summary("2024-01-01", Some("0.0"), None, None)],
-                Some(0.0),
+                Some(dec!(0.0)),
                 DividendCacheStatus::Zero,
             ),
             (
@@ -96,30 +101,30 @@ mod tests {
                     Some("100.0"),
                     Some("50.0"),
                 )],
-                Some(200.0),
+                Some(dec!(200.0)),
                 DividendCacheStatus::Ok,
             ),
             (
                 vec![make_summary("2024-01-01", None, None, Some("75.0"))],
-                Some(75.0),
+                Some(dec!(75.0)),
                 DividendCacheStatus::Ok,
             ),
             (
                 vec![make_summary("2024-01-01", Some(""), Some("100.0"), None)],
-                Some(100.0),
+                Some(dec!(100.0)),
                 DividendCacheStatus::Ok,
             ),
             (
                 vec![make_summary("2024-01-01", Some(""), Some(""), Some(""))],
-                Some(0.0),
+                Some(dec!(0.0)),
                 DividendCacheStatus::Zero,
             ),
             (
                 vec![make_summary("2024-01-01", Some("N/A"), Some("100.0"), None)],
-                Some(100.0),
+                Some(dec!(100.0)),
                 DividendCacheStatus::Ok,
             ),
-            (vec![], Some(0.0), DividendCacheStatus::Zero),
+            (vec![], Some(dec!(0.0)), DividendCacheStatus::Zero),
         ] {
             let (value, status) = extract_dividend(&data);
 
@@ -132,7 +137,7 @@ mod tests {
             make_summary("2024-01-01", None, None, Some("60.0")),
         ]);
 
-        assert_eq!(value, Some(60.0));
+        assert_eq!(value, Some(dec!(60.0)));
         assert_eq!(status, DividendCacheStatus::Ok);
     }
 
@@ -145,7 +150,7 @@ mod tests {
             make_summary("2024-01-01", None, None, Some("30.0")),
             make_summary("2024-01-01", None, None, Some("99.0")),
         ]);
-        assert_eq!(value, Some(30.0));
+        assert_eq!(value, Some(dec!(30.0)));
         assert_eq!(status, DividendCacheStatus::Ok);
     }
 
@@ -156,35 +161,35 @@ mod tests {
 
         // HTTP と同じデシリアライズ経路で、欠損値と優先順位を固定する。
         for (fields, expected, status) in [
-            (json!({}), 0.0, DividendCacheStatus::Zero),
+            (json!({}), dec!(0.0), DividendCacheStatus::Zero),
             (
                 json!({"NxFDivAnn": null, "FDivAnn": null, "DivAnn": null}),
-                0.0,
+                dec!(0.0),
                 DividendCacheStatus::Zero,
             ),
             (
                 json!({"NxFDivAnn": "12.345", "FDivAnn": "20", "DivAnn": "30"}),
-                12.345,
+                dec!(12.345),
                 DividendCacheStatus::Ok,
             ),
             (
                 json!({"NxFDivAnn": "", "FDivAnn": "N/A", "DivAnn": "30"}),
-                30.0,
+                dec!(30.0),
                 DividendCacheStatus::Ok,
             ),
             (
                 json!({"NxFDivAnn": "0", "FDivAnn": "20"}),
-                0.0,
+                dec!(0.0),
                 DividendCacheStatus::Zero,
             ),
             (
                 json!({"NxFDivAnn": "-2.5", "FDivAnn": "20"}),
-                -2.5,
+                dec!(-2.5),
                 DividendCacheStatus::Zero,
             ),
             (
                 json!({"NxFDivAnn": "bad", "FDivAnn": "20"}),
-                20.0,
+                dec!(20.0),
                 DividendCacheStatus::Ok,
             ),
         ] {
@@ -211,7 +216,7 @@ mod tests {
         ];
         assert_eq!(
             extract_dividend(&data),
-            (Some(42.5), DividendCacheStatus::Ok)
+            (Some(dec!(42.5)), DividendCacheStatus::Ok)
         );
     }
 

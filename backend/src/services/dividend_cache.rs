@@ -8,6 +8,7 @@ use crate::errors::{ApiError, UpstreamError};
 use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
 use crate::services::jquants::JQuantsClient;
 use chrono::Utc;
+use rust_decimal::prelude::ToPrimitive;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
 use std::time::Duration;
@@ -188,7 +189,9 @@ fn build_batch_items<'a>(
         }
         let item = DividendPerShareItem {
             security_code: code.clone(),
-            dividend_per_share: cached_entry.and_then(|c| c.dividend_per_share),
+            dividend_per_share: cached_entry
+                .and_then(|c| c.dividend_per_share)
+                .and_then(|d| d.to_f64()),
             status: cached_entry.map_or(DividendCacheStatus::Pending, |c| c.status),
             fetched_at: cached_entry.and_then(|c| c.fetched_at),
             is_stale: cached_entry.is_some_and(|_| is_stale),
@@ -273,7 +276,7 @@ mod tests {
     ) -> DividendCache {
         DividendCache {
             security_code: code.parse().unwrap(),
-            dividend_per_share: Some(30.0),
+            dividend_per_share: Some(rust_decimal_macros::dec!(30.0)),
             status,
             fetched_at: Some(Utc::now()),
             stale_at,

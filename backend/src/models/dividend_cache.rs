@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use serde::Serialize;
 use shared::{dividend_per_share::DividendCacheStatus, value::SecurityCode};
 
@@ -21,7 +22,7 @@ pub use shared::dividend_per_share::{
 #[derive(Debug, Clone, Serialize)]
 pub struct DividendCache {
     pub security_code: SecurityCode,
-    pub dividend_per_share: Option<f64>,
+    pub dividend_per_share: Option<Decimal>,
     /// ok: 有配当、zero: ゼロ配当、error: 取得失敗、pending: 未取得/更新待ち
     pub status: DividendCacheStatus,
     pub fetched_at: Option<DateTime<Utc>>,
@@ -36,7 +37,9 @@ impl crate::db::FromRow for DividendCache {
     fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
         Ok(Self {
             security_code: row.try_get("security_code")?,
-            dividend_per_share: row.try_get("dividend_per_share")?,
+            dividend_per_share: row
+                .try_get::<_, Option<crate::db::Numeric>>("dividend_per_share")?
+                .map(|n| n.0),
             status: row.try_get("status")?,
             fetched_at: row.try_get("fetched_at")?,
             stale_at: row.try_get("stale_at")?,
