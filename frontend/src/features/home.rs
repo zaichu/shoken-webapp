@@ -4,15 +4,16 @@ use crate::api::dto::{
 };
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::{
-    calculate_valuation_from_decimal, format_signed_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation, is_positive_valuation,
+    calculate_valuation_from_decimal, dec_to_f64, format_signed_valuation_amount,
+    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
+    is_positive_valuation,
 };
 use crate::session::{Generation, SessionStore, use_session};
 use crate::support::pagination::ListEndpoint;
 use crate::ui::amount::Amount;
 use crate::ui::page_frame::PageFrame;
 use leptos::prelude::*;
-use shared::format::format_currency as format_currency_decimal;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::future::Future;
 
@@ -301,6 +302,11 @@ fn HomeOverview() -> impl IntoView {
     }
 }
 
+// 集計値に残った浮動小数点の誤差を出さないよう、資産管理と同じ円単位の表示関数で出す
+fn overview_amount_text(value: Option<Decimal>) -> String {
+    format_valuation_amount(value.map(|value| dec_to_f64(&value)))
+}
+
 #[component]
 fn OverviewTiles(
     asset: Option<Option<AssetBalanceSummary>>,
@@ -312,10 +318,7 @@ fn OverviewTiles(
     let market_text = if asset_busy {
         "—".to_string()
     } else {
-        asset
-            .as_ref()
-            .map(|summary| format_currency_decimal(summary.total_market_value))
-            .unwrap_or_else(|| "—".to_string())
+        overview_amount_text(asset.as_ref().map(|summary| summary.total_market_value))
     };
     let valuation = asset
         .as_ref()
@@ -351,10 +354,11 @@ fn OverviewTiles(
     let dividend_text = if dividend_busy {
         "—".to_string()
     } else {
-        dividend
-            .flatten()
-            .map(|summary| format_currency_decimal(summary.total_net_amount_received))
-            .unwrap_or_else(|| "—".to_string())
+        overview_amount_text(
+            dividend
+                .flatten()
+                .map(|summary| summary.total_net_amount_received),
+        )
     };
     view! {
         <dl class="asset-summary-grid">
