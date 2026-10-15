@@ -12,11 +12,8 @@ pub struct Stock {
     pub code: SecurityCode,
     pub name: String,
     pub market_category: String,
-    pub industry_code_33: Option<String>,
     pub industry_category_33: Option<String>,
-    pub industry_code_17: Option<String>,
     pub industry_category_17: Option<String>,
-    pub size_code: Option<String>,
     pub size_category: Option<String>,
 }
 
@@ -27,11 +24,8 @@ impl crate::db::FromRow for Stock {
             code: row.try_get("code")?,
             name: row.try_get("name")?,
             market_category: row.try_get("market_category")?,
-            industry_code_33: row.try_get("industry_code_33")?,
             industry_category_33: row.try_get("industry_category_33")?,
-            industry_code_17: row.try_get("industry_code_17")?,
             industry_category_17: row.try_get("industry_category_17")?,
-            size_code: row.try_get("size_code")?,
             size_category: row.try_get("size_category")?,
         })
     }
@@ -50,24 +44,10 @@ impl Validate for Stock {
         );
         validate_length_field(
             &mut errors,
-            "industry_code_33",
-            &self.industry_code_33,
-            None,
-            Some(10),
-        );
-        validate_length_field(
-            &mut errors,
             "industry_category_33",
             &self.industry_category_33,
             None,
             Some(100),
-        );
-        validate_length_field(
-            &mut errors,
-            "industry_code_17",
-            &self.industry_code_17,
-            None,
-            Some(10),
         );
         validate_length_field(
             &mut errors,
@@ -76,7 +56,6 @@ impl Validate for Stock {
             None,
             Some(100),
         );
-        validate_length_field(&mut errors, "size_code", &self.size_code, None, Some(10));
         validate_length_field(
             &mut errors,
             "size_category",
@@ -100,11 +79,8 @@ mod tests {
             code: code.parse().expect("有効な銘柄コード"),
             name: name.to_string(),
             market_category: market_category.to_string(),
-            industry_code_33: Some("123".to_string()),
             industry_category_33: Some("情報・通信業".to_string()),
-            industry_code_17: Some("12".to_string()),
             industry_category_17: Some("情報通信".to_string()),
-            size_code: Some("10".to_string()),
             size_category: Some("大型株".to_string()),
         }
     }

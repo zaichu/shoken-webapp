@@ -24,6 +24,7 @@ use backend::{
     services::domestic_stock as domestic_stock_svc,
     services::jquants::JQuantsClient,
     services::mutualfund as mutualfund_svc,
+    services::stock_master,
     services::stock_price::{self, ClosePrice},
     state::{AppState, Secrets},
 };
@@ -101,21 +102,18 @@ async fn db_integration_with_docker_and_migrations() {
     db::query(
         r#"
         INSERT INTO stock
-          (date, code, name, market_category, industry_code_33, industry_category_33,
-           industry_code_17, industry_category_17, size_code, size_category)
+          (date, code, name, market_category, industry_category_33,
+           industry_category_17, size_category)
         VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          ($1, $2, $3, $4, $5, $6, $7)
         "#,
         vec![
             Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
             Bind::from("1234"),
             Bind::from("テスト株式会社"),
             Bind::from("プライム"),
-            Bind::from(Some("123".to_string())),
             Bind::from(Some("情報・通信業".to_string())),
-            Bind::from(Some("12".to_string())),
             Bind::from(Some("情報通信".to_string())),
-            Bind::from(Some("10".to_string())),
             Bind::from(Some("大型株".to_string())),
         ],
     )
@@ -180,6 +178,89 @@ async fn db_integration_with_docker_and_migrations() {
         .get(ACCESS_CONTROL_ALLOW_ORIGIN)
         .and_then(|value| value.to_str().ok());
     assert_eq!(allowed_origin, Some("https://shoken-webapp.pages.dev"));
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_master_replace_master_swaps_all_rows() {
+    let (pool, _node) = start_test_pool().await;
+
+    db::query(
+        "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
+        vec![
+            Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
+            Bind::from("9990"),
+            Bind::from("旧銘柄"),
+            Bind::from("スタンダード"),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .expect("Failed to seed stock");
+
+    let rows = vec![
+        stock_master::StockRow {
+            date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
+            code: "1301".to_string(),
+            name: "極洋".to_string(),
+            market_category: "プライム".to_string(),
+            industry_category_33: Some("水産・農林業".to_string()),
+            industry_category_17: Some("食品".to_string()),
+            size_category: Some("TOPIX Small 1".to_string()),
+        },
+        stock_master::StockRow {
+            date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
+            code: "7203".to_string(),
+            name: "トヨタ自動車".to_string(),
+            market_category: "プライム".to_string(),
+            industry_category_33: None,
+            industry_category_17: None,
+            size_category: None,
+        },
+    ];
+
+    let inserted = stock_master::replace_master(&pool, &rows)
+        .await
+        .expect("replace_master failed");
+    assert_eq!(inserted, 2);
+
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM stock", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 2, "1銘柄1行かつ旧行が全置換されているはず");
+
+    let name = db::query_scalar::<String>(
+        "SELECT name::text FROM stock WHERE code = $1",
+        vec![Bind::from("1301")],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(name, "極洋");
+    assert!(
+        db::query_scalar::<i64>("SELECT COUNT(*) FROM stock WHERE code = '9990'", vec![])
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            == 0,
+        "旧行が残っている"
+    );
+
+    // code は主キー: 同じ code の行は挿入できない
+    let err = db::query(
+        "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
+        vec![
+            Bind::from(NaiveDate::from_ymd_opt(2026, 10, 16).unwrap()),
+            Bind::from("1301"),
+            Bind::from("重複銘柄"),
+            Bind::from("プライム"),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .expect_err("code 重複の INSERT は失敗するはず");
+    assert!(err.is_unique_violation(), "期待するのは PK 違反: {err:?}");
 }
 
 /// テスト用の CreateAssetBalanceRequest を生成するヘルパー

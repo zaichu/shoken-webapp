@@ -20,17 +20,14 @@ async fn setup_test_db() -> (crate::db::Db, impl Drop) {
     let (pool, node) = crate::test_db::start_test_pool().await;
 
     crate::db::query(
-        r#"INSERT INTO stock (date, code, name, market_category, industry_code_33, industry_category_33, industry_code_17, industry_category_17, size_code, size_category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
+        r#"INSERT INTO stock (date, code, name, market_category, industry_category_33, industry_category_17, size_category) VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
         vec![
             crate::db::Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
             crate::db::Bind::from("1234"),
             crate::db::Bind::from("テスト株式会社"),
             crate::db::Bind::from("プライム"),
-            crate::db::Bind::from(Some("123".to_string())),
             crate::db::Bind::from(Some("情報・通信業".to_string())),
-            crate::db::Bind::from(Some("12".to_string())),
             crate::db::Bind::from(Some("情報通信".to_string())),
-            crate::db::Bind::from(Some("10".to_string())),
             crate::db::Bind::from(Some("大型株".to_string())),
         ],
     )

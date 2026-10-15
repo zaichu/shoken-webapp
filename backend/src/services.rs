@@ -8,4 +8,5 @@ pub mod domestic_stock;
 pub mod jquants;
 pub mod mutualfund;
 pub mod stock;
+pub mod stock_master;
 pub mod stock_price;

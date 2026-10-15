@@ -27,7 +27,9 @@ trap cleanup EXIT
 
 python3 scripts/mock_jquants.py "$MOCK_PORT" "$MOCK_LOG" &
 MOCK_PID=$!
-start_wrangler --var "JQUANTS_BASE_URL:http://127.0.0.1:$MOCK_PORT/v2/fins/summary"
+start_wrangler \
+  --var "JQUANTS_BASE_URL:http://127.0.0.1:$MOCK_PORT/v2/fins/summary" \
+  --var "JQUANTS_MASTER_BASE_URL:http://127.0.0.1:$MOCK_PORT/v2/equities/master"
 wait_for_worker || fail "Worker が起動しませんでした"
 
 # 0. セッションを直接投入(認証済みリクエスト用)
@@ -38,6 +40,9 @@ psql "DELETE FROM users WHERE google_id='cron-test'" >/dev/null
 psql "INSERT INTO users (id, google_id, email) VALUES ('$USER_ID', 'cron-test', 'cron-test@example.com')" >/dev/null
 psql "INSERT INTO sessions (user_id, token_hash) VALUES ('$USER_ID', decode('$HASH','hex'))" >/dev/null
 echo "0. テストユーザー+セッション投入: OK"
+
+# 0b. 銘柄マスタの初期投入経路(表が空なら週次ゲートに関わらず実行)を検証するため空にする
+psql "DELETE FROM stock" >/dev/null
 
 # 1. エンキュー経路: 認証済み POST で pending 行が積まれること
 STATUS=$(curl -s -b "$JAR" -c "$JAR" -o "$BODY" -w "%{http_code}" \
@@ -85,4 +90,17 @@ done
 [[ "$ROW" == "error|t" ]] || { cat "$WRANGLER_LOG" >&2; fail "9999 が 429->cooldown error にならない: $ROW"; }
 echo "3b. 429 -> error + cooldown 行: OK"
 
-echo "PASS: エンキュー->cron消化->cooldown が実 Worker 上で完走した"
+# 3c. 同じ scheduled 発火で銘柄マスタが equities/master から取り込まれること
+# (モックは3件返すが、末尾5の優先株は除外され普通株2件が入るはず)
+for _ in $(seq 1 30); do
+  ROW=$(psql "SELECT COUNT(*) FROM stock")
+  [[ "$ROW" == "2" ]] && break
+  sleep 1
+done
+[[ "$ROW" == "2" ]] || { cat "$WRANGLER_LOG" >&2; fail "stock の件数が想定外: $ROW"; }
+BAD=$(psql "SELECT code FROM stock WHERE code NOT IN ('1301','2593')")
+[[ -z "$BAD" ]] || fail "優先株・4桁衝突行が残っている: $BAD"
+grep -q "GET /v2/equities/master" "$MOCK_LOG" || fail "モックが equities/master を受けていない"
+echo "3c. equities/master -> stock 2件(末尾5除外): OK"
+
+echo "PASS: エンキュー->cron消化->cooldown + 銘柄マスタ取り込みが実 Worker 上で完走した"

@@ -2,7 +2,7 @@
 
 use worker::{Fetch, Headers, Method, Request, RequestInit};
 
-use super::{FinSummaryResponse, JQuantsClient};
+use super::{EquitiesMasterResponse, FinSummaryResponse, JQuantsClient};
 use crate::errors::{ApiError, UpstreamError};
 use crate::models::market_data::financial_statement::FinancialStatementsQuery;
 
@@ -22,7 +22,34 @@ impl JQuantsClient {
         }
 
         tracing::info!("JQuants API V2 リクエスト: code={}", params.code);
+        let response_text = self.fetch_text(url.as_str()).await?;
+        serde_json::from_str(&response_text).map_err(|e| {
+            tracing::error!(
+                "決算サマリーレスポンス解析エラー: {} - 本文: {}",
+                e,
+                response_text
+            );
+            UpstreamError::Decode(e).into()
+        })
+    }
 
+    /// 上場銘柄一覧を全件取得する。ページネーション・クエリパラメータは無い
+    pub async fn get_equities_master(&self) -> Result<EquitiesMasterResponse, ApiError> {
+        tracing::info!("JQuants API V2 リクエスト: equities/master");
+        let response_text = self.fetch_text(&self.master_url).await?;
+        serde_json::from_str(&response_text).map_err(|e| {
+            tracing::error!(
+                "上場銘柄一覧レスポンス解析エラー: {} - 本文: {}",
+                e,
+                response_text
+            );
+            UpstreamError::Decode(e).into()
+        })
+    }
+
+    /// x-api-key 付き GET を送り、2xx 本文を返す。429 は RateLimited、
+    /// その他の非 2xx は Http、通信失敗は Transport に写す
+    async fn fetch_text(&self, url: &str) -> Result<String, ApiError> {
         let headers = Headers::new();
         headers.set("x-api-key", &self.api_key).map_err(|e| {
             tracing::error!("JQuants リクエストヘッダ設定エラー: {}", e);
@@ -30,15 +57,14 @@ impl JQuantsClient {
         })?;
         let mut init = RequestInit::new();
         init.with_method(Method::Get).with_headers(headers);
-        let request =
-            Request::new_with_init(url.as_str(), &init).map_err(UpstreamError::Transport)?;
+        let request = Request::new_with_init(url, &init).map_err(UpstreamError::Transport)?;
 
         // axum ハンドラは Future: Send が必要なため、JsFuture 系の待ち合わせは SendFuture で包む
         let fetch = Fetch::Request(request);
         let mut response = worker::send::SendFuture::new(fetch.send())
             .await
             .map_err(|e| {
-                tracing::error!("決算サマリー取得ネットワークエラー: {}", e);
+                tracing::error!("JQuants API ネットワークエラー: {}", e);
                 UpstreamError::Transport(e)
             })?;
 
@@ -70,19 +96,7 @@ impl JQuantsClient {
                 tracing::error!("レスポンス本文取得エラー: {}", e);
                 UpstreamError::Transport(e)
             })?;
-
         tracing::debug!("JQuants API レスポンス本文: {}", response_text);
-
-        let fin_summary_response: FinSummaryResponse = serde_json::from_str(&response_text)
-            .map_err(|e| {
-                tracing::error!(
-                    "決算サマリーレスポンス解析エラー: {} - 本文: {}",
-                    e,
-                    response_text
-                );
-                UpstreamError::Decode(e)
-            })?;
-
-        Ok(fin_summary_response)
+        Ok(response_text)
     }
 }

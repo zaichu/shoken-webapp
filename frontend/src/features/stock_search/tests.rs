@@ -45,11 +45,8 @@ fn stock(code: &str) -> Stock {
         name: "テスト".to_string(),
         date: String::new(),
         market_category: String::new(),
-        industry_code_33: None,
         industry_category_33: None,
-        industry_code_17: None,
         industry_category_17: None,
-        size_code: None,
         size_category: None,
     }
 }
