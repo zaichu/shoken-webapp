@@ -740,7 +740,8 @@ async fn stock_price_applies_once_to_shared_row_and_visible_to_all_holders() {
             .expect("bulk_create 失敗");
     }
 
-    // CSV 取込時点の共有行は未確認(基準日なし)で、両者の CSV 値が入っている
+    // CSV 取込では共有 security_prices を seed しないため、確定値の適用前は共有行がない。
+    // 一覧・集計は個人 current_price に fallback して表示される
     let seeded: Option<(db::Numeric, Option<NaiveDate>)> = db::query_as(
         "SELECT current_price, price_as_of FROM security_prices WHERE security_code = '7203'",
         vec![],
@@ -748,9 +749,16 @@ async fn stock_price_applies_once_to_shared_row_and_visible_to_all_holders() {
     .fetch_optional(&pool)
     .await
     .expect("共有価格行の取得");
-    let (seeded_price, seeded_as_of) = seeded.expect("取込直後は共有行がある");
-    assert_eq!(seeded_price.0, dec!(1100));
-    assert_eq!(seeded_as_of, None, "CSV 取込値は未確認として入る");
+    assert!(seeded.is_none(), "CSV 取込時点では共有行を作らない");
+
+    for (user_id, _) in [(user_a, dec!(100)), (user_b, dec!(200))] {
+        let params = default_asset_balance_search_params();
+        let res = domain_search::<asset_balance_svc::AssetBalanceDomain>(&pool, user_id, params)
+            .await
+            .expect("list 失敗");
+        let row = res.data.into_iter().next().expect("1件のはず");
+        assert_eq!(row.current_price, dec!(1100), "個人CSV価格が使われる");
+    }
 
     let code: SecurityCode = "7203".parse().unwrap();
     let price = ClosePrice {
@@ -848,7 +856,7 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
     assert_eq!(seeded_row.current_price, dec!(1234.5));
     assert_eq!(seeded_row.price_as_of, None, "CSV 取込値は未確認");
 
-    // 未確認の共有行は次の CSV 取込(別利用者でも)の値で更新される
+    // 個人CSV価格は利用者ごとに独立し、別利用者の取込では変わらない
     let other_user = create_test_user(&pool).await;
     let mut other_import = make_asset_item("6758");
     other_import.current_price = dec!(2000);
@@ -868,7 +876,8 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
         .iter()
         .find(|r| r.security_code.as_str() == "6758")
         .expect("行がある");
-    assert_eq!(updated_row.current_price, dec!(2000));
+    // 個人CSV価格は利用者ごとに独立し、別利用者の取込では変わらない
+    assert_eq!(updated_row.current_price, dec!(1234.5));
     assert_eq!(updated_row.price_as_of, None);
 }
 
