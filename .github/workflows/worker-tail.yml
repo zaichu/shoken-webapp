@@ -51,12 +51,12 @@ jobs:
           sed -e 's/^/[stderr] /' tail-out/stderr.log
           wc -l tail-out/raw.jsonl
 
-      # json 出力は1イベント1行。scheduled は全行残し、それ以外は error/warn の
-      # ログ行と例外だけに絞る。fromjson? で非 JSON 行は捨てる
+      # json 出力は1イベントを複数行に整形した JSON 値の列。scheduled は
+      # 全イベント残し、それ以外は error/warn のログ行と例外だけに絞る
       - name: Filter scheduled/error lines
         run: |
           set -euo pipefail
-          jq -R 'fromjson? | objects |
+          jq -c 'objects |
             if .event.cron != null then
               {eventTimestamp, outcome, cron: .event.cron, logs, exceptions}
             else
