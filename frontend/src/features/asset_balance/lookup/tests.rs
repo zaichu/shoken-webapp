@@ -7,7 +7,6 @@ fn row(code: &str) -> AssetBalance {
         security_code: code.parse().unwrap(),
         security_name: "銘柄".to_string(),
         shares: dec!(100),
-        executing_shares: dec!(0),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
         current_price: dec!(2600),

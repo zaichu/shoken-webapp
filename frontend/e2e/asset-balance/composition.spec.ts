@@ -15,7 +15,6 @@ function holding(index: number, purchase: number) {
     security_code: `70${String(index).padStart(2, '0')}`,
     security_name: `銘柄${String(index).padStart(2, '0')}`,
     shares: 100,
-    executing_shares: 0,
     average_purchase_price: 100,
     total_purchase_amount: purchase,
     current_price: 100,

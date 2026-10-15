@@ -26,8 +26,6 @@ pub struct AssetBalanceCsvRow {
     #[serde(default)]
     pub shares: Decimal,
     #[serde(default)]
-    pub executing_shares: Decimal,
-    #[serde(default)]
     pub average_purchase_price: Decimal,
     #[serde(default)]
     pub total_purchase_amount: Decimal,

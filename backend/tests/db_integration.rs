@@ -56,7 +56,6 @@ fn dividend_search_params_with_pagination(
     }
 }
 use chrono::{NaiveDate, Utc};
-use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::{SecurityCode, UserId};
@@ -189,7 +188,6 @@ fn make_asset_item(code: &str) -> CreateAssetBalanceRequest {
         security_code: code.parse().unwrap(),
         security_name: format!("テスト銘柄{code}"),
         shares: dec!(100),
-        executing_shares: dec!(0),
         average_purchase_price: dec!(1000),
         total_purchase_amount: dec!(100000),
         current_price: dec!(1100),
@@ -2189,140 +2187,6 @@ async fn partial_legacy_history_stops_migration() {
         .await
         .expect_err("旧履歴が途中までの DB はエラーで止まるはず");
     assert!(err.contains("揃っていません"), "unexpected error: {err}");
-}
-
-async fn insert_price_row(
-    pool: &Db,
-    user_id: UserId,
-    code: &str,
-    current_price: Decimal,
-    daily_change: Decimal,
-    price_as_of: Option<NaiveDate>,
-) {
-    db::query(
-        r#"
-        INSERT INTO asset_balances
-            (user_id, security_code, security_name, shares,
-             average_purchase_price, total_purchase_amount,
-             current_price, daily_change, price_as_of)
-        VALUES ($1, $2, $3, 100, 1000, 100000, $4, $5, $6)
-        "#,
-        vec![
-            Bind::from(user_id),
-            Bind::from(code),
-            Bind::from(format!("テスト銘柄{code}")),
-            Bind::from(current_price),
-            Bind::from(daily_change),
-            Bind::opt(price_as_of),
-        ],
-    )
-    .execute(pool)
-    .await
-    .expect("asset_balances への投入に失敗");
-
-    // 保有行を直接 INSERT するフィクスチャでも、バックフィル後の状態に合わせて
-    // 共有テーブルへ同じ価格を入れておく
-    db::query(
-        r#"
-        INSERT INTO security_prices
-            (security_code, current_price, daily_change, price_as_of)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (security_code) DO UPDATE SET
-            current_price = EXCLUDED.current_price,
-            daily_change  = EXCLUDED.daily_change,
-            price_as_of   = EXCLUDED.price_as_of
-        "#,
-        vec![
-            Bind::from(code),
-            Bind::from(current_price),
-            Bind::from(daily_change),
-            Bind::opt(price_as_of),
-        ],
-    )
-    .execute(pool)
-    .await
-    .expect("security_prices への投入に失敗");
-}
-
-/// 丸め導入前に保存された残差つきの価格を持つ行だけ price_as_of が NULL に戻り、
-/// 次の cron 取得で取り直される対象になることを確かめる。
-/// start_test_pool は空テーブルに全マイグレーションを適用するため、
-/// データ投入後にマイグレーションファイルの UPDATE を直接流して検証する
-#[tokio::test]
-#[ignore = "requires Docker to run Postgres container"]
-async fn residual_price_rows_get_price_as_of_cleared() {
-    let (pool, _node) = start_test_pool().await;
-    let user_id = create_test_user(&pool).await;
-    let as_of = NaiveDate::from_ymd_opt(2026, 10, 14);
-
-    // 現在値・前日比のどちらかが小数第2位で割り切れない行は取り直し対象
-    insert_price_row(
-        &pool,
-        user_id,
-        "9831",
-        dec!(716.5999755859375),
-        dec!(16.5999755859375),
-        as_of,
-    )
-    .await;
-    insert_price_row(
-        &pool,
-        user_id,
-        "9501",
-        dec!(517.6),
-        dec!(2.5999755859375),
-        as_of,
-    )
-    .await;
-    // 正常な行は基準日を維持する
-    insert_price_row(&pool, user_id, "7203", dec!(2650), dec!(15), as_of).await;
-    insert_price_row(&pool, user_id, "6758", dec!(2500.5), dec!(100.5), as_of).await;
-    // すでに未確定の行はそのまま
-    insert_price_row(
-        &pool,
-        user_id,
-        "1301",
-        dec!(716.5999755859375),
-        dec!(0),
-        None,
-    )
-    .await;
-
-    pool.batch_execute(include_str!(
-        "../migrations/0010_clear_price_as_of_on_residual_prices.sql"
-    ))
-    .await
-    .expect("マイグレーションの実行に失敗");
-
-    let rows = db::query(
-        "SELECT security_code, price_as_of FROM asset_balances \
-         WHERE user_id = $1 ORDER BY security_code",
-        vec![Bind::from(user_id)],
-    )
-    .fetch_all::<(String, Option<NaiveDate>), _>(&pool)
-    .await
-    .expect("price_as_of の取得に失敗");
-    assert_eq!(
-        rows,
-        vec![
-            ("1301".to_string(), None),
-            ("6758".to_string(), as_of),
-            ("7203".to_string(), as_of),
-            ("9501".to_string(), None),
-            ("9831".to_string(), None),
-        ]
-    );
-
-    // 価格の値自体は更新しない(price_as_of だけを NULL に戻す)
-    let (residue_count,): (i64,) = db::query(
-        "SELECT COUNT(*) FROM asset_balances \
-         WHERE user_id = $1 AND current_price = 716.5999755859375::numeric",
-        vec![Bind::from(user_id)],
-    )
-    .fetch_one::<(i64,), _>(&pool)
-    .await
-    .expect("集計に失敗");
-    assert_eq!(residue_count, 2);
 }
 
 /// (銘柄コード, 数量) の一覧。置換ガードの前後比較用

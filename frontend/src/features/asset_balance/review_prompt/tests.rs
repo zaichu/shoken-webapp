@@ -14,7 +14,6 @@ fn make_asset(
         security_code: security_code.parse().unwrap(),
         security_name: security_name.to_string(),
         shares: Decimal::new(shares, 0),
-        executing_shares: Decimal::ZERO,
         average_purchase_price: Decimal::new(average_purchase_price, 0),
         total_purchase_amount: Decimal::ZERO,
         current_price: Decimal::ZERO,

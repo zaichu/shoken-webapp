@@ -98,7 +98,6 @@ const ASSET_BALANCES = Array.from({ length: 8 }, (_, i) => {
     security_code: code,
     security_name: name,
     shares: 100 * (i + 1),
-    executing_shares: 0,
     average_purchase_price: 2500 + i * 300,
     total_purchase_amount: 250000 + i * 120000,
     current_price: 2600 + i * 310,

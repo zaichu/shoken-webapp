@@ -90,7 +90,7 @@ impl Search for AssetBalanceDomain {
     type Summary = AssetBalanceSummary;
 
     const COLUMNS: &'static str = "id, user_id, security_code, security_name, shares, \
-        executing_shares, average_purchase_price, total_purchase_amount, current_price, \
+        average_purchase_price, total_purchase_amount, current_price, \
         daily_change, price_as_of, created_at, updated_at";
     /// 価格列は共有の security_prices から読むため JOIN 済みビューを使う
     const FROM: &'static str = "asset_balances_view";
@@ -136,12 +136,11 @@ pub async fn bulk_create(
         .collect();
     let security_names: Vec<String> = items.iter().map(|i| i.security_name.clone()).collect();
     let shares: Vec<Decimal> = items.iter().map(|i| i.shares).collect();
-    let executing_shares: Vec<Decimal> = items.iter().map(|i| i.executing_shares).collect();
     let average_purchase_prices: Vec<Decimal> =
         items.iter().map(|i| i.average_purchase_price).collect();
     let total_purchase_amounts: Vec<Decimal> =
         items.iter().map(|i| i.total_purchase_amount).collect();
-    // 個人 CSV の現在値・前日比は旧列へ保存する。共有 security_prices 側の確定値は
+    // 個人 CSV の現在値・前日比は csv_* 列へ保存する。共有 security_prices 側の確定値は
     // ビューで優先採用されるため、CSV 再取込では共有行に触れない
     let current_prices: Vec<Decimal> = items.iter().map(|i| i.current_price).collect();
     let daily_changes: Vec<Decimal> = items.iter().map(|i| i.daily_change).collect();
@@ -153,12 +152,12 @@ pub async fn bulk_create(
         limit,
         crate::db::query(
             r#"
-            INSERT INTO asset_balances (user_id, security_code, security_name, shares, executing_shares,
+            INSERT INTO asset_balances (user_id, security_code, security_name, shares,
                                         average_purchase_price, total_purchase_amount,
-                                        current_price, daily_change)
+                                        csv_current_price, csv_daily_change)
             SELECT * FROM UNNEST(
-                $1::uuid[], $2::text[], $3::text[], $4::numeric[], $5::numeric[],
-                $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[]
+                $1::uuid[], $2::text[], $3::text[], $4::numeric[],
+                $5::numeric[], $6::numeric[], $7::numeric[], $8::numeric[]
             )
             "#,
             vec![
@@ -166,7 +165,6 @@ pub async fn bulk_create(
                 Bind::from(security_codes),
                 Bind::from(security_names),
                 Bind::decimal_vec(shares),
-                Bind::decimal_vec(executing_shares),
                 Bind::decimal_vec(average_purchase_prices),
                 Bind::decimal_vec(total_purchase_amounts),
                 Bind::decimal_vec(current_prices),
@@ -189,7 +187,6 @@ fn is_account_summary_row(row: &CsvRowView<'_>) -> bool {
 ///
 /// 数値パース失敗は CsvRowError として返す。
 /// ただし以下の列は "-" / 空欄が仕様上ありうるため 0.0 フォールバックを維持する:
-///   - 執行中: 執行中の注文がなければ "-" または空欄
 ///   - 現在値（前日比）: 変動なし時は 0 または "-"
 ///   - 評価損益（%）: NISA 等で表示されない場合に "-"
 fn transform_asset_balance_row(
@@ -236,9 +233,6 @@ fn transform_asset_balance_row(
             row_num,
         )?,
         shares,
-        // 執行中は "-" / 空欄が仕様上ありうるため 0.0 フォールバック
-        executing_shares: parse_number(&parse_optional_string(row, "執行中［株］"))
-            .unwrap_or(Decimal::ZERO),
         average_purchase_price,
         total_purchase_amount,
         current_price,
@@ -258,15 +252,7 @@ mod tests {
     use crate::services::csv::import::CsvImport;
     use rust_decimal_macros::dec;
 
-    type ExpectedRow<'a> = (
-        &'a str,
-        Decimal,
-        Decimal,
-        Decimal,
-        Decimal,
-        Decimal,
-        Decimal,
-    );
+    type ExpectedRow<'a> = (&'a str, Decimal, Decimal, Decimal, Decimal, Decimal);
 
     const HEADER: &str = "銘柄コード,銘柄名,保有数量［株］,執行中［株］,平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
     const ASSET_BALANCE_CSV_HEADER: &str = "銘柄コード,銘柄名,保有数量［株］,執行中［株］,(内訳　通常数量[株]),(内訳　積立数量[株]),平均取得価額［円］,取得総額［円］,現在値［円］,現在値（前日比）［円］,時価評価額［円］,評価損益［％］";
@@ -316,7 +302,6 @@ mod tests {
             (
                 item.security_code.as_str(),
                 item.shares,
-                item.executing_shares,
                 item.average_purchase_price,
                 item.current_price,
                 item.daily_change,
@@ -342,7 +327,6 @@ mod tests {
                 (
                     "1234",
                     dec!(100),
-                    Decimal::ZERO,
                     dec!(1500),
                     dec!(1600),
                     dec!(10),
@@ -354,7 +338,6 @@ mod tests {
                 (
                     "5678",
                     dec!(50),
-                    Decimal::ZERO,
                     dec!(2000),
                     dec!(2100),
                     Decimal::ZERO,
@@ -367,7 +350,6 @@ mod tests {
                 (
                     "1234",
                     dec!(100),
-                    Decimal::ZERO,
                     dec!(1500),
                     dec!(1600),
                     dec!(10),

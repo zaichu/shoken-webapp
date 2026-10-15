@@ -16,7 +16,6 @@ impl crate::db::FromRow for AssetBalance {
             security_code: row.try_get("security_code")?,
             security_name: row.try_get("security_name")?,
             shares: row.try_get::<_, crate::db::Numeric>("shares")?.0,
-            executing_shares: row.try_get::<_, crate::db::Numeric>("executing_shares")?.0,
             average_purchase_price: row
                 .try_get::<_, crate::db::Numeric>("average_purchase_price")?
                 .0,
@@ -62,8 +61,6 @@ pub struct CreateAssetBalanceRequest {
     pub security_name: String,
     #[schema(value_type = f64)]
     pub shares: Decimal,
-    #[schema(value_type = f64)]
-    pub executing_shares: Decimal,
     #[schema(value_type = f64)]
     pub average_purchase_price: Decimal,
     #[schema(value_type = f64)]
@@ -176,7 +173,6 @@ mod tests {
             security_code: "1234".parse().expect("valid code"),
             security_name: "テスト株式会社".to_string(),
             shares: dec!(100),
-            executing_shares: dec!(0),
             average_purchase_price: dec!(1500),
             total_purchase_amount: dec!(150000),
             current_price: dec!(1600),

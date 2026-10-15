@@ -398,7 +398,6 @@ fn other_endpoints_deserialize_numbers() {
                 "security_code": "7974",
                 "security_name": "任天堂",
                 "shares": 100,
-                "executing_shares": 0,
                 "average_purchase_price": 5000.5,
                 "total_purchase_amount": 500050,
                 "current_price": 6000,

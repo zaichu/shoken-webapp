@@ -39,7 +39,6 @@ fn balance(row: &Row) -> AssetBalance {
         security_code: row.security_code.parse().unwrap(),
         security_name: row.security_name.clone(),
         shares: Decimal::ZERO,
-        executing_shares: Decimal::ZERO,
         average_purchase_price: Decimal::ZERO,
         total_purchase_amount: Decimal::ZERO,
         current_price: Decimal::ZERO,

@@ -179,7 +179,6 @@ fn investment_amount_is_price_times_shares() {
         security_code: "7203".parse().unwrap(),
         security_name: "銘柄".to_string(),
         shares: dec!(100),
-        executing_shares: dec!(0),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250_000),
         current_price: dec!(2600),
