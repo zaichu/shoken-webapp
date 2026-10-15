@@ -192,7 +192,13 @@ pub async fn apply_close_price(
         VALUES ($1, $2, COALESCE($3, 0), $4)
         ON CONFLICT (security_code) DO UPDATE SET
             current_price = EXCLUDED.current_price,
-            daily_change  = COALESCE($3, security_prices.daily_change),
+            -- 前日比は基準日ごとの値。新しい基準日で前日終値が不明なとき
+            -- 旧基準日の値を残すと結合が誤るため 0(不明)に戻す（#1339）
+            daily_change  = CASE
+                WHEN security_prices.price_as_of = EXCLUDED.price_as_of
+                    THEN COALESCE($3, security_prices.daily_change)
+                ELSE COALESCE($3, 0)
+            END,
             price_as_of   = EXCLUDED.price_as_of,
             updated_at    = NOW()
         WHERE security_prices.price_as_of IS NULL
