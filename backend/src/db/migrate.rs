@@ -52,6 +52,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0009_market_data_provider_rate_control",
         include_str!("../../migrations/0009_market_data_provider_rate_control.sql"),
     ),
+    (
+        "0010_clear_price_as_of_on_residual_prices",
+        include_str!("../../migrations/0010_clear_price_as_of_on_residual_prices.sql"),
+    ),
 ];
 
 /// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に
