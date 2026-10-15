@@ -73,8 +73,8 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         include_str!("../../migrations/0014_private_csv_prices.sql"),
     ),
     (
-        "0016_asset_balance_cleanup",
-        include_str!("../../migrations/0016_asset_balance_cleanup.sql"),
+        "0015_asset_balance_cleanup",
+        include_str!("../../migrations/0015_asset_balance_cleanup.sql"),
     ),
 ];
 
