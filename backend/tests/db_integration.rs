@@ -2442,3 +2442,140 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     .expect("dividends の件数取得に失敗");
     assert_eq!(dividend_count, 1);
 }
+
+/// (基準日, 試行時刻) の取得用ヘルパー。価格更新cronの選択・循環確認に使う
+async fn price_row(pool: &Db, code: &str) -> Option<(Option<NaiveDate>, chrono::DateTime<Utc>)> {
+    db::query(
+        "SELECT price_as_of, updated_at FROM security_prices WHERE security_code = $1",
+        vec![Bind::from(code)],
+    )
+    .fetch_optional(pool)
+    .await
+    .expect("security_prices の取得に失敗")
+}
+
+/// cron の価格更新が失敗銘柄で止まらず対象が循環することを確かめる(#1338)。
+/// 先頭15件(LIMIT 一杯)が取得失敗でも、次回以降は未取得の正常銘柄へ到達する。
+/// ホスト実行では fetch_close_price が必ず失敗するため、各銘柄へ「試行が
+/// 到達したか」は security_prices.updated_at(試行時刻)の前進で観測する。
+/// 最新価格(price_as_of が最新終値日)の銘柄は対象外のまま再取得抑止も維持する
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_price_refresh_cycles_past_failing_codes() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    // 失敗15件 + 正常1件 + 最新済み1件。失敗組は試行時刻が古く、正常銘柄は
+    // それより新しい(先頭15件に埋もれる配置)。基準日も同順にしておき、
+    // 修正前後で同じ15件が先に選ばれることを担保する
+    let bad_codes: Vec<String> = (0..15).map(|i| format!("90{i:02}")).collect();
+    const GOOD: &str = "9100";
+    const FRESH: &str = "9200";
+
+    let items: Vec<_> = bad_codes
+        .iter()
+        .map(|code| make_asset_item(code))
+        .chain([make_asset_item(GOOD), make_asset_item(FRESH)])
+        .collect();
+    asset_balance_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+        .await
+        .expect("seed bulk_create failed");
+
+    let stale_as_of = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
+    let ts = |y, m, d| {
+        NaiveDate::from_ymd_opt(y, m, d)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_utc()
+    };
+    let bad_mark = ts(2020, 1, 1);
+    let good_mark = ts(2020, 6, 1);
+    let fresh_mark = ts(2019, 1, 1);
+    // 最新済みの基準日は latest_close_date(now) 以上である必要があるため JST 当日
+    let fresh_as_of = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+
+    for code in &bad_codes[..14] {
+        db::query(
+            "UPDATE security_prices SET price_as_of = $2, updated_at = $3 \
+             WHERE security_code = $1",
+            vec![
+                Bind::from(code.as_str()),
+                Bind::from(stale_as_of),
+                Bind::from(bad_mark),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .expect("失敗銘柄の seed に失敗");
+    }
+    // 15件目の失敗銘柄は共有行なし(未取得)で置く
+    db::query(
+        "DELETE FROM security_prices WHERE security_code = $1",
+        vec![Bind::from(bad_codes[14].as_str())],
+    )
+    .execute(&pool)
+    .await
+    .expect("未取得銘柄の seed に失敗");
+    db::query(
+        "UPDATE security_prices SET price_as_of = $2, updated_at = $3 \
+         WHERE security_code = $1",
+        vec![
+            Bind::from(GOOD),
+            Bind::from(NaiveDate::from_ymd_opt(2020, 6, 1).unwrap()),
+            Bind::from(good_mark),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .expect("正常銘柄の seed に失敗");
+    db::query(
+        "UPDATE security_prices SET price_as_of = $2, updated_at = $3 \
+         WHERE security_code = $1",
+        vec![
+            Bind::from(FRESH),
+            Bind::from(fresh_as_of),
+            Bind::from(fresh_mark),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .expect("最新済み銘柄の seed に失敗");
+
+    // 1回目: 古い15件が選ばれ全て失敗する(ホストでは fetch が必ず失敗)
+    let fetched = stock_price::refresh_stock_prices(&pool, None)
+        .await
+        .expect("refresh 失敗");
+    assert_eq!(fetched, 0, "ホストでは全件失敗するはず");
+
+    // 失敗銘柄は前回値を残したまま試行時刻だけ進む(行なし銘柄は stub 行が作られる)
+    for code in &bad_codes[..14] {
+        let (as_of, updated_at) = price_row(&pool, code).await.expect("行があるはず");
+        assert_eq!(as_of, Some(stale_as_of), "{code}: 前回値の基準日を維持する");
+        assert!(updated_at > bad_mark, "{code}: 試行時刻が進んでいない");
+    }
+    let (as_of, updated_at) = price_row(&pool, &bad_codes[14])
+        .await
+        .expect("失敗後も未取得行として残るはず");
+    assert_eq!(as_of, None, "未取得のまま(基準日を偽装しない)");
+    assert!(updated_at > bad_mark, "未取得銘柄の試行時刻が進んでいない");
+
+    // 正常銘柄はまだ選ばれていない(LIMIT 15 の外側)
+    let (_, good_updated) = price_row(&pool, GOOD).await.expect("行があるはず");
+    assert_eq!(good_updated, good_mark, "1回目は正常銘柄に届かない");
+
+    // 2回目: 失敗組は試行時刻が新しくなり末尾へ回るため、正常銘柄に到達する
+    let fetched = stock_price::refresh_stock_prices(&pool, None)
+        .await
+        .expect("refresh 失敗");
+    assert_eq!(fetched, 0);
+    let (_, good_updated) = price_row(&pool, GOOD).await.expect("行があるはず");
+    assert!(
+        good_updated > good_mark,
+        "失敗銘柄に塞がれず正常銘柄の試行に到達するはず"
+    );
+
+    // 最新価格の銘柄は再取得抑止が維持され、試行時刻も動かない
+    let (_, fresh_updated) = price_row(&pool, FRESH).await.expect("行があるはず");
+    assert_eq!(fresh_updated, fresh_mark, "最新済み銘柄は対象外のまま");
+}
