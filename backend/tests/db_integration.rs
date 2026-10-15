@@ -715,9 +715,161 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
     .next()
     .expect("1件のはず");
     assert_eq!(row.current_price, dec!(2500.5));
-    // market_value = shares * current_price、daily_change = close - prev_close
+    // daily_change = close - prev_close、一覧には共有テーブルの値が出る
     assert_eq!(row.daily_change, dec!(100.5));
     assert_eq!(row.price_as_of, NaiveDate::from_ymd_opt(2020, 1, 2));
+}
+
+/// 同一銘柄を持つ2人の利用者で、確定値の反映は共有テーブル1行だけを更新し、
+/// 両方の一覧に同じ価格が出る
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_price_applies_once_to_shared_row_and_visible_to_all_holders() {
+    let (pool, _node) = start_test_pool().await;
+    let user_a = create_test_user(&pool).await;
+    let user_b = create_test_user(&pool).await;
+
+    let mut shares_b = make_asset_item("7203");
+    shares_b.shares = dec!(200);
+    for (user_id, items) in [
+        (user_a, vec![make_asset_item("7203")]),
+        (user_b, vec![shares_b]),
+    ] {
+        asset_balance_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+            .await
+            .expect("bulk_create 失敗");
+    }
+
+    // CSV 取込時点の共有行は未確認(基準日なし)で、両者の CSV 値が入っている
+    let seeded: Option<(db::Numeric, Option<NaiveDate>)> = db::query_as(
+        "SELECT current_price, price_as_of FROM security_prices WHERE security_code = '7203'",
+        vec![],
+    )
+    .fetch_optional(&pool)
+    .await
+    .expect("共有価格行の取得");
+    let (seeded_price, seeded_as_of) = seeded.expect("取込直後は共有行がある");
+    assert_eq!(seeded_price.0, dec!(1100));
+    assert_eq!(seeded_as_of, None, "CSV 取込値は未確認として入る");
+
+    let code: SecurityCode = "7203".parse().unwrap();
+    let price = ClosePrice {
+        close: dec!(2700),
+        as_of: NaiveDate::from_ymd_opt(2026, 10, 14).unwrap(),
+        prev_close: Some(dec!(2650)),
+    };
+    let updated = stock_price::apply_close_price(&pool, &code, &price)
+        .await
+        .expect("apply_close_price 失敗");
+    assert_eq!(updated, 1, "共有テーブルでは1銘柄1行だけ更新される");
+
+    for (user_id, shares) in [(user_a, dec!(100)), (user_b, dec!(200))] {
+        let mut params = default_asset_balance_search_params();
+        params.search.include_summary = Some(true);
+        let res = domain_search::<asset_balance_svc::AssetBalanceDomain>(&pool, user_id, params)
+            .await
+            .expect("list 失敗");
+        let row = res.data.into_iter().next().expect("1件のはず");
+        assert_eq!(row.current_price, dec!(2700));
+        assert_eq!(row.daily_change, dec!(50));
+        assert_eq!(row.price_as_of, NaiveDate::from_ymd_opt(2026, 10, 14));
+
+        // 前日比の合計・評価額は 共有価格×その利用者の数量 で計算される
+        let summary = res.summary.expect("summary 必須");
+        assert_eq!(summary.total_daily_change, dec!(50) * shares);
+        assert_eq!(summary.total_market_value, dec!(2700) * shares);
+    }
+}
+
+/// 確定値が入った銘柄は CSV 再取込で上書きされない。
+/// 未確認(price_as_of NULL)の共有行だけが CSV の値に更新される
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn asset_balance_csv_reimport_keeps_confirmed_price() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_id,
+        &[make_asset_item("7203")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("初回 bulk_create 失敗");
+
+    let code: SecurityCode = "7203".parse().unwrap();
+    let confirmed = ClosePrice {
+        close: dec!(2700),
+        as_of: NaiveDate::from_ymd_opt(2026, 10, 14).unwrap(),
+        prev_close: Some(dec!(2650)),
+    };
+    stock_price::apply_close_price(&pool, &code, &confirmed)
+        .await
+        .expect("確定値の適用");
+
+    // 別価格を載せた再取込でも確定値は残り、確定値のない銘柄だけ CSV 値が入る
+    let mut reimported = make_asset_item("7203");
+    reimported.current_price = dec!(9999);
+    reimported.daily_change = dec!(-999);
+    let mut fresh = make_asset_item("6758");
+    fresh.current_price = dec!(1234.5);
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_id,
+        &[reimported, fresh],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("再取込");
+
+    let rows = domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_id,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("list 失敗")
+    .data;
+    assert_eq!(rows.len(), 2);
+    let by_code = |code: &str| {
+        rows.iter()
+            .find(|r| r.security_code.as_str() == code)
+            .expect("行がある")
+    };
+    let confirmed_row = by_code("7203");
+    assert_eq!(confirmed_row.current_price, dec!(2700), "確定値は消えない");
+    assert_eq!(confirmed_row.daily_change, dec!(50));
+    assert_eq!(
+        confirmed_row.price_as_of,
+        NaiveDate::from_ymd_opt(2026, 10, 14)
+    );
+    let seeded_row = by_code("6758");
+    assert_eq!(seeded_row.current_price, dec!(1234.5));
+    assert_eq!(seeded_row.price_as_of, None, "CSV 取込値は未確認");
+
+    // 未確認の共有行は次の CSV 取込(別利用者でも)の値で更新される
+    let other_user = create_test_user(&pool).await;
+    let mut other_import = make_asset_item("6758");
+    other_import.current_price = dec!(2000);
+    asset_balance_svc::bulk_create(&pool, other_user, &[other_import], RowLimit::new(i64::MAX))
+        .await
+        .expect("別利用者の取込");
+
+    let rows = domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_id,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("list 失敗")
+    .data;
+    let updated_row = rows
+        .iter()
+        .find(|r| r.security_code.as_str() == "6758")
+        .expect("行がある");
+    assert_eq!(updated_row.current_price, dec!(2000));
+    assert_eq!(updated_row.price_as_of, None);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2051,6 +2203,29 @@ async fn insert_price_row(
     .execute(pool)
     .await
     .expect("asset_balances への投入に失敗");
+
+    // 保有行を直接 INSERT するフィクスチャでも、バックフィル後の状態に合わせて
+    // 共有テーブルへ同じ価格を入れておく
+    db::query(
+        r#"
+        INSERT INTO security_prices
+            (security_code, current_price, daily_change, price_as_of)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (security_code) DO UPDATE SET
+            current_price = EXCLUDED.current_price,
+            daily_change  = EXCLUDED.daily_change,
+            price_as_of   = EXCLUDED.price_as_of
+        "#,
+        vec![
+            Bind::from(code),
+            Bind::from(current_price),
+            Bind::from(daily_change),
+            Bind::opt(price_as_of),
+        ],
+    )
+    .execute(pool)
+    .await
+    .expect("security_prices への投入に失敗");
 }
 
 /// 丸め導入前に保存された残差つきの価格を持つ行だけ price_as_of が NULL に戻り、

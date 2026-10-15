@@ -26,6 +26,8 @@ pub trait Search: Domain {
 
     /// SELECT 句に並べる列一覧（固定文字列）
     const COLUMNS: &'static str;
+    /// 一覧データの読み取り元。JOIN 済みビューなど TABLE と違う名前で読む場合だけ上書きする
+    const FROM: &'static str = Self::TABLE;
     /// ORDER BY 句（先頭スペース込みの固定文字列）
     const ORDER_BY: &'static str;
     /// date 系パラメータを適用する日付カラム。
@@ -170,7 +172,7 @@ pub async fn search<D: Search>(
         Ok::<_, ApiError>(total)
     };
 
-    let mut data_qb = QueryBuilder::new(format!("SELECT {} FROM {}", D::COLUMNS, D::TABLE));
+    let mut data_qb = QueryBuilder::new(format!("SELECT {} FROM {}", D::COLUMNS, D::FROM));
     D::push_filters(&mut data_qb, user_id, &filter);
     data_qb.push(D::ORDER_BY);
     data_qb.push(" LIMIT ").push_bind(per_page);
