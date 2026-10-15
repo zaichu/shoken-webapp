@@ -236,6 +236,7 @@ mod tests {
             "name,amount\nfoo,1\n,2\nbar,3\n".as_bytes(),
             &PREVIEW_TEST_CONFIG,
             collect_names,
+            |_: &[String], _: &[CsvRowError]| Ok(()),
             |items| async move {
                 Ok(BulkCreateResponse {
                     inserted: items.len(),
@@ -260,6 +261,7 @@ mod tests {
             b"",
             &PREVIEW_TEST_CONFIG,
             collect_names,
+            |_: &[String], _: &[CsvRowError]| Ok(()),
             |_items: Vec<String>| {
                 bulk_invoked.set(true);
                 async {
@@ -275,6 +277,36 @@ mod tests {
         assert!(
             !bulk_invoked.get(),
             "bulk_create must not run when parse fails"
+        );
+    }
+
+    /// 保存前ガードが Err を返すと bulk_create には到達しない
+    /// （置換ドメインが部分取り込みで既存行を失わないための関門）
+    #[tokio::test]
+    async fn test_run_csv_upload_guard_rejects_before_bulk_create() {
+        let bulk_invoked = std::cell::Cell::new(false);
+        let result = run_csv_upload(
+            "name\nok\n".as_bytes(),
+            &PREVIEW_TEST_CONFIG,
+            collect_names,
+            |_: &[String], _: &[CsvRowError]| {
+                Err(ApiError::Validation("guard rejected".to_string()))
+            },
+            |_items: Vec<String>| {
+                bulk_invoked.set(true);
+                async {
+                    Ok(BulkCreateResponse {
+                        inserted: 0,
+                        skipped: 0,
+                    })
+                }
+            },
+        )
+        .await;
+        assert!(matches!(result, Err(ApiError::Validation(_))));
+        assert!(
+            !bulk_invoked.get(),
+            "guard が拒否した場合 bulk_create は呼ばれない"
         );
     }
 
