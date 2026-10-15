@@ -17,7 +17,6 @@ pub(crate) fn user(id: &str) -> SessionUser {
         id: id.to_string(),
         email: format!("{id}@example.com"),
         name: None,
-        picture_url: None,
     }
 }
 

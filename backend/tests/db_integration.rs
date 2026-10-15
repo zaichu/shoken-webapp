@@ -1375,7 +1375,6 @@ async fn auth_session_upsert_rotate_and_delete() {
         sub: "google-sub-0001".to_string(),
         email: "first@example.com".to_string(),
         name: Some("ユーザー".to_string()),
-        picture: Some("https://example.com/p.png".to_string()),
     };
 
     let token1 = auth_svc::upsert_user_and_rotate_session(&pool, &info)
@@ -1553,7 +1552,6 @@ async fn session_token_hash_rolling_deploy_compat() {
         sub: format!("test_google_{user_id}"),
         email: "rolling@example.com".to_string(),
         name: None,
-        picture: None,
     };
     // ロック中の他ユーザーの期限切れ行があってもログインは停滞しない
     let new_token = timeout(
@@ -1661,7 +1659,6 @@ async fn account_delete_confirmation_http_lifecycle() {
         sub: format!("google-sub-http-{}", Uuid::new_v4()),
         email: "http-lifecycle@example.com".to_string(),
         name: None,
-        picture: None,
     };
     let session_token = auth_svc::upsert_user_and_rotate_session(&pool, &info)
         .await

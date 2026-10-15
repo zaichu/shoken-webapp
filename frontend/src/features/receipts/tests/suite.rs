@@ -21,7 +21,6 @@ fn user(id: &str) -> crate::api::dto::SessionUser {
         id: id.to_string(),
         email: format!("{id}@example.com"),
         name: None,
-        picture_url: None,
     }
 }
 
