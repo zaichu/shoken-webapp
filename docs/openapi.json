@@ -3120,18 +3120,6 @@
               "null"
             ]
           },
-          "industry_code_17": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "industry_code_33": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "market_category": {
             "type": "string"
           },
@@ -3139,12 +3127,6 @@
             "type": "string"
           },
           "size_category": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "size_code": {
             "type": [
               "string",
               "null"

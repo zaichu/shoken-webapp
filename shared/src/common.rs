@@ -185,15 +185,9 @@ pub struct Stock {
     pub date: String,
     pub market_category: String,
     #[serde(default)]
-    pub industry_code_33: Option<String>,
-    #[serde(default)]
     pub industry_category_33: Option<String>,
     #[serde(default)]
-    pub industry_code_17: Option<String>,
-    #[serde(default)]
     pub industry_category_17: Option<String>,
-    #[serde(default)]
-    pub size_code: Option<String>,
     #[serde(default)]
     pub size_category: Option<String>,
 }
@@ -256,11 +250,11 @@ mod tests {
 
     #[test]
     fn stock_keeps_optional_fields_and_raw_wire_strings() {
-        let stock: Stock = serde_json::from_str(r#"{"code":"7203-1","name":"トヨタ自動車","date":"2024-03-01","market_category":"プライム","industry_code_33":"3050","industry_category_33":"輸送用機器"}"#).unwrap();
+        let stock: Stock = serde_json::from_str(r#"{"code":"7203-1","name":"トヨタ自動車","date":"2024-03-01","market_category":"プライム","industry_category_33":"輸送用機器"}"#).unwrap();
         assert_eq!(stock.code, "7203-1");
-        assert_eq!(stock.industry_code_33.as_deref(), Some("3050"));
-        assert!(stock.industry_code_17.is_none());
-        assert!(stock.size_code.is_none());
+        assert_eq!(stock.industry_category_33.as_deref(), Some("輸送用機器"));
+        assert!(stock.industry_category_17.is_none());
+        assert!(stock.size_category.is_none());
         let parsed: Stock = serde_json::from_value(serde_json::to_value(&stock).unwrap()).unwrap();
         assert_eq!(parsed, stock);
     }

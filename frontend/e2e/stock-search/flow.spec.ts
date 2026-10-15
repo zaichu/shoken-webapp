@@ -12,11 +12,8 @@ const MOCK_STOCK = {
   code: '7974',
   name: '任天堂',
   market_category: 'プライム',
-  industry_code_33: '37',
   industry_category_33: '情報・通信業',
-  industry_code_17: '10',
   industry_category_17: '情報通信・サービスその他',
-  size_code: '7',
   size_category: 'TOPIX Large70',
 };
 

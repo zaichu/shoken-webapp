@@ -80,6 +80,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0016_security_prices_prev_close",
         include_str!("../../migrations/0016_security_prices_prev_close.sql"),
     ),
+    (
+        "0017_stock_master_code_pk",
+        include_str!("../../migrations/0017_stock_master_code_pk.sql"),
+    ),
 ];
 
 /// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に

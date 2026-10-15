@@ -97,7 +97,8 @@ make db-up
 
 ### テーブル
 
-- `stock`: 銘柄情報
+- `stock`: 銘柄情報（1銘柄1行・`code` が主キー）。worker の cron が J-Quants
+  `equities/master` から週1回全置換する（`Code` は5桁のうち末尾 `0` の普通株のみ採用し、先頭4桁を `code` とする）
 - `users`: ユーザー情報（Google OAuth）
 - `sessions`: セッション管理
 

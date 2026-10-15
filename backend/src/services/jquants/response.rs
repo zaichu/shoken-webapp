@@ -40,6 +40,45 @@ pub struct FinSummaryData {
     pub next_year_forecast_dividend_per_share_annual: Option<String>,
 }
 
+/// 銘柄マスタ取り込みが使う上場銘柄一覧レスポンス（J-Quants API V2）。
+/// 1リクエストで全件返るためページネーション項目は持たない
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EquitiesMasterResponse {
+    pub data: Vec<EquitiesMasterData>,
+}
+
+/// stock テーブルへ写す項目だけ保持し、その他の上流フィールドは無視する
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EquitiesMasterData {
+    /// 基準日
+    #[serde(rename = "Date")]
+    pub date: String,
+
+    /// 銘柄コード（5桁。普通株は末尾 0）
+    #[serde(rename = "Code")]
+    pub code: String,
+
+    /// 会社名
+    #[serde(rename = "CoName")]
+    pub company_name: String,
+
+    /// 市場区分名
+    #[serde(rename = "MktNm")]
+    pub market_name: String,
+
+    /// 17業種名
+    #[serde(rename = "S17Nm", default)]
+    pub sector17_name: Option<String>,
+
+    /// 33業種名
+    #[serde(rename = "S33Nm", default)]
+    pub sector33_name: Option<String>,
+
+    /// 規模区分名
+    #[serde(rename = "ScaleCat", default)]
+    pub scale_category: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use {super::*, serde_json::json};

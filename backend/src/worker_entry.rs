@@ -12,7 +12,7 @@ use crate::{
     config::{self, Config},
     handlers,
     middleware::{add_security_headers, binding_rate_limit, validate_origin},
-    services::{auth, dividend_cache, jquants::JQuantsClient, stock_price},
+    services::{auth, dividend_cache, jquants, jquants::JQuantsClient, stock_master, stock_price},
     state::{AppState, Secrets},
 };
 
@@ -139,14 +139,18 @@ fn build_state(env: &Env) -> Result<AppState> {
         _ => None,
     };
     // dev/検証でモックへ差し替えるための vars。未設定なら J-Quants 本番のまま
-    let jquants_client =
-        secrets
-            .jquants_api_key
-            .clone()
-            .map(|key| match env.var("JQUANTS_BASE_URL") {
-                Ok(url) => JQuantsClient::with_base_url(key, url.to_string()),
-                Err(_) => JQuantsClient::new(key),
-            });
+    let jquants_client = secrets.jquants_api_key.clone().map(|key| {
+        let url_or = |name: &str, default: &str| {
+            env.var(name)
+                .map(|v| v.to_string())
+                .unwrap_or_else(|_| default.to_string())
+        };
+        JQuantsClient::with_urls(
+            key,
+            url_or("JQUANTS_BASE_URL", jquants::FIN_SUMMARY_URL),
+            url_or("JQUANTS_MASTER_BASE_URL", jquants::EQUITIES_MASTER_URL),
+        )
+    });
     Ok(AppState {
         pool: crate::db::Db::from_hyperdrive(&hyperdrive),
         secrets,
@@ -177,6 +181,9 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             console_error!("scheduled イベントエラー: 現在値更新: {e}");
         }
     }
+    if let Err(e) = refresh_stock_master(&env, event.schedule()).await {
+        console_error!("scheduled イベントエラー: 銘柄マスタ更新: {e}");
+    }
 }
 
 /// 保有銘柄の現在値を Yahoo chart API から取得して更新する。
@@ -188,6 +195,22 @@ async fn refresh_stock_prices(env: &Env) -> Result<()> {
         .await
         .map_err(|e| Error::RustError(e.to_string()))?;
     console_log!("現在値更新: {} 銘柄を取得", updated);
+    Ok(())
+}
+
+/// J-Quants 上場銘柄一覧から銘柄マスタ(stock)を全置換する。
+/// dev/検証用に vars の JQUANTS_MASTER_BASE_URL でモックへ差し替えられる
+async fn refresh_stock_master(env: &Env, scheduled_ms: f64) -> Result<()> {
+    let state = build_state(env)?;
+    let Some(client) = state.jquants_client.as_ref() else {
+        console_log!("JQUANTS_API_KEY 未設定のため銘柄マスタ更新をスキップ");
+        return Ok(());
+    };
+    match stock_master::maybe_refresh(&state.pool, client, scheduled_ms).await {
+        Ok(Some(count)) => console_log!("銘柄マスタ更新: {} 件を投入", count),
+        Ok(None) => {}
+        Err(e) => return Err(Error::RustError(e.to_string())),
+    }
     Ok(())
 }
 

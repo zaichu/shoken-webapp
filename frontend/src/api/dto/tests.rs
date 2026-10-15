@@ -433,13 +433,13 @@ fn other_endpoints_deserialize_numbers() {
             "code": "7974",
             "name": "任天堂",
             "market_category": "プライム",
-            "industry_code_33": "37",
             "industry_category_33": "情報・通信業"
         }"#,
     )
     .expect("stock");
     assert_eq!(stock.code, "7974");
-    assert!(stock.size_code.is_none());
+    assert_eq!(stock.industry_category_33.as_deref(), Some("情報・通信業"));
+    assert!(stock.size_category.is_none());
 
     let user: SessionUser = serde_json::from_str(
         r#"{"id": "00000000-0000-0000-0000-000000000002", "email": "test@example.com", "name": "テストユーザー"}"#,
