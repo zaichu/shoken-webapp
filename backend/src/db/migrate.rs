@@ -64,6 +64,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0012_dividend_numeric_and_drop_unused_indexes",
         include_str!("../../migrations/0012_dividend_numeric_and_drop_unused_indexes.sql"),
     ),
+    (
+        "0013_security_prices",
+        include_str!("../../migrations/0013_security_prices.sql"),
+    ),
 ];
 
 /// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に

@@ -176,8 +176,9 @@ async fn fetch_close_price(
     parse_chart_close(&body, max_as_of)
 }
 
-/// 取得した終値を同じ銘柄を持つ全ユーザーの行へ適用する。
-/// 保存済みの基準日より新しい取得日のときだけ更新し、日付の新しいほうを残す
+/// 取得した終値を共有の security_prices 行へ適用する(1銘柄1行)。
+/// 保存済みの基準日より新しい取得日のときだけ更新し、日付の新しいほうを残す。
+/// まだ行がない銘柄(マイグレーションとデプロイの隙間に取り込まれた保有など)は挿入する
 // tests/db_integration.rs からの検証用に公開しているため docs には出さない
 #[doc(hidden)]
 pub async fn apply_close_price(
@@ -187,14 +188,15 @@ pub async fn apply_close_price(
 ) -> Result<u64, ApiError> {
     crate::db::query(
         r#"
-        UPDATE asset_balances
-        SET current_price = $2,
-            daily_change  = COALESCE($3, daily_change),
-            market_value  = shares * $2,
-            price_as_of   = $4,
+        INSERT INTO security_prices (security_code, current_price, daily_change, price_as_of)
+        VALUES ($1, $2, COALESCE($3, 0), $4)
+        ON CONFLICT (security_code) DO UPDATE SET
+            current_price = EXCLUDED.current_price,
+            daily_change  = COALESCE($3, security_prices.daily_change),
+            price_as_of   = EXCLUDED.price_as_of,
             updated_at    = NOW()
-        WHERE security_code = $1
-          AND (price_as_of IS NULL OR price_as_of <= $4)
+        WHERE security_prices.price_as_of IS NULL
+           OR security_prices.price_as_of <= EXCLUDED.price_as_of
         "#,
         vec![
             Bind::from(code.as_str()),
@@ -223,18 +225,20 @@ fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
     })
 }
 
-/// cron から呼ばれる更新処理。最新の終値の日より price_as_of が古い銘柄を
-/// 古い順に上限件数だけ処理する（全銘柄が最新なら取得しない）。
+/// cron から呼ばれる更新処理。最新の終値の日より共有価格の price_as_of が
+/// 古い保有銘柄を、古い順に上限件数だけ処理する（全銘柄が最新なら取得しない）。
 /// 失敗した銘柄は前回値を残し、全件失敗時は取得元の変更を疑ってエラーログに出す。
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let latest = latest_close_date(Utc::now());
     let codes: Vec<SecurityCode> = crate::db::query(
         r#"
-        SELECT security_code FROM asset_balances
-        GROUP BY security_code
-        HAVING BOOL_OR(price_as_of IS NULL) OR MIN(price_as_of) < $1
-        ORDER BY MIN(price_as_of) ASC NULLS FIRST
+        SELECT ab.security_code
+        FROM asset_balances ab
+        LEFT JOIN security_prices sp ON sp.security_code = ab.security_code
+        GROUP BY ab.security_code
+        HAVING BOOL_OR(sp.price_as_of IS NULL) OR MIN(sp.price_as_of) < $1
+        ORDER BY MIN(sp.price_as_of) ASC NULLS FIRST
         LIMIT $2
         "#,
         vec![Bind::from(latest), Bind::from(MAX_CODES_PER_RUN)],
