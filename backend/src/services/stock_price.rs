@@ -188,26 +188,25 @@ pub async fn apply_close_price(
 ) -> Result<u64, ApiError> {
     crate::db::query(
         r#"
-        INSERT INTO security_prices (security_code, current_price, daily_change, price_as_of)
-        VALUES ($1, $2, COALESCE($3, 0), $4)
+        INSERT INTO security_prices (security_code, current_price, prev_close, price_as_of)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (security_code) DO UPDATE SET
             current_price = EXCLUDED.current_price,
-            -- 前日比は基準日ごとの値。新しい基準日で前日終値が不明なとき
-            -- 旧基準日の値を残すと結合が誤るため 0(不明)に戻す（#1339）
-            daily_change  = CASE
+            -- 前日終値は同一基準日なら既知の値を維持し、基準日が変われば取得値で置き換える
+            prev_close = CASE
                 WHEN security_prices.price_as_of = EXCLUDED.price_as_of
-                    THEN COALESCE($3, security_prices.daily_change)
-                ELSE COALESCE($3, 0)
+                    THEN COALESCE(EXCLUDED.prev_close, security_prices.prev_close)
+                ELSE EXCLUDED.prev_close
             END,
-            price_as_of   = EXCLUDED.price_as_of,
-            updated_at    = NOW()
+            price_as_of = EXCLUDED.price_as_of,
+            updated_at = NOW()
         WHERE security_prices.price_as_of IS NULL
            OR security_prices.price_as_of <= EXCLUDED.price_as_of
         "#,
         vec![
             Bind::from(code.as_str()),
             Bind::from(price.close),
-            Bind::opt(price.prev_close.map(|prev| price.close - prev)),
+            Bind::opt(price.prev_close),
             Bind::from(price.as_of),
         ],
     )
