@@ -50,6 +50,25 @@ impl CsvImport for AssetBalanceDomain {
     ) -> Result<BulkCreateResponse, ApiError> {
         bulk_create(pool, user_id, items, limit).await
     }
+
+    /// 全置換のため、エラー行や有効行0件のCSVは保存前に拒否する
+    /// （有効行だけで既存の残高・共有価格を置き換えてしまわないように）
+    fn ensure_importable(items: &[Self::Row], errors: &[CsvRowError]) -> Result<(), ApiError> {
+        if let Some(first) = errors.first() {
+            return Err(ApiError::Validation(format!(
+                "{}行目を含む{}件のエラーがあるため保有銘柄の取り込みを中止しました（既存のデータは変更されていません）",
+                first.row,
+                errors.len()
+            )));
+        }
+        if items.is_empty() {
+            return Err(ApiError::Validation(
+                "取り込める行がないため保有銘柄の取り込みを中止しました（既存のデータは変更されていません）"
+                    .to_string(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 // priced_* は価格あり(current_price > 0)行だけの集計。
@@ -277,6 +296,8 @@ mod tests {
     const NINTENDO_ROW: &str = "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
     const ACCOUNT_SUMMARY_ROW: &str =
         ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
+    const NINTENDO_BAD_SHARES_ROW: &str = "\"7974\",\"任天堂\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
+    const INPEX_BAD_PRICE_ROW: &str = "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"不明\",\"65.0\",\"737,000\",\"56.47\"";
 
     fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
         let table = parse_csv_with_config(
@@ -436,6 +457,48 @@ mod tests {
                 expected_codes
             );
         }
+    }
+
+    /// 置換型のため、エラー行・有効行0件のCSVは DB に触れる前に拒否する。
+    /// lazy pool のまま Validation が返れば、bulk_create(全削除+挿入)に
+    /// 到達していないことになる
+    #[tokio::test]
+    async fn test_upload_csv_rejects_invalid_or_empty_before_db() {
+        let pool = crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
+            .expect("lazy pool の構築に失敗");
+        let user_id = UserId::default();
+
+        for (label, csv) in [
+            (
+                "1行不正",
+                make_asset_balance_csv(&[INPEX_ROW, NINTENDO_BAD_SHARES_ROW]),
+            ),
+            (
+                "全行不正",
+                make_asset_balance_csv(&[NINTENDO_BAD_SHARES_ROW, INPEX_BAD_PRICE_ROW]),
+            ),
+            ("有効行0件", make_asset_balance_csv(&[ACCOUNT_SUMMARY_ROW])),
+            ("データ行なし", make_asset_balance_csv(&[])),
+        ] {
+            let err = AssetBalanceDomain::upload_csv(
+                &pool,
+                user_id,
+                csv.as_bytes(),
+                RowLimit::new(i64::MAX),
+            )
+            .await
+            .expect_err(label);
+            assert!(
+                matches!(err, ApiError::Validation(_)),
+                "{label}: expected Validation, got {err:?}"
+            );
+        }
+
+        // 空バイト列は従来通りパース段階の CSV エラー
+        let err = AssetBalanceDomain::upload_csv(&pool, user_id, b"", RowLimit::new(i64::MAX))
+            .await
+            .expect_err("空バイト列");
+        assert!(matches!(err, ApiError::Csv(_)), "got {err:?}");
     }
 
     #[test]
