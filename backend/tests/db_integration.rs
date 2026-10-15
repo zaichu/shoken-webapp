@@ -2315,3 +2315,130 @@ async fn residual_price_rows_get_price_as_of_cleared() {
     .expect("集計に失敗");
     assert_eq!(residue_count, 2);
 }
+
+/// (銘柄コード, 数量) の一覧。置換ガードの前後比較用
+async fn asset_balance_rows(pool: &Db, user_id: UserId) -> Vec<(String, String)> {
+    db::query(
+        "SELECT security_code, shares::text FROM asset_balances \
+         WHERE user_id = $1 ORDER BY security_code",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all::<(String, String), _>(pool)
+    .await
+    .expect("asset_balances の取得に失敗")
+}
+
+/// (銘柄コード, 価格内容) の一覧。共有価格が巻き込まれていないかの比較用
+async fn security_price_rows(pool: &Db) -> Vec<(String, String)> {
+    db::query(
+        "SELECT security_code, current_price::text || '/' || daily_change::text \
+         || '/' || COALESCE(price_as_of::text, '-') \
+         FROM security_prices ORDER BY security_code",
+        vec![],
+    )
+    .fetch_all::<(String, String), _>(pool)
+    .await
+    .expect("security_prices の取得に失敗")
+}
+
+/// 置換型の資産CSVは、行エラー・有効行0件のとき保存前に拒否され、
+/// 既存残高と共有価格が変わらないことを確かめる(#1336)。
+/// 追記型CSVの部分成功は従来通り維持する
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
+    use backend::services::asset_balance::AssetBalanceDomain;
+    use backend::services::dividend::DividendDomain;
+
+    const VALID_ROW_1301: &str = "\"1301\",\"極洋\",\"100\",\"0\",\"100\",\"0\",\"500\",\"50000\",\"600\",\"5\",\"60000\",\"20.0\"";
+    const VALID_ROW_1605: &str = "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2355\",\"471000\",\"3685\",\"65\",\"737000\",\"56.47\"";
+    const BAD_SHARES_ROW: &str = "\"7974\",\"任天堂\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
+    const BAD_PRICE_ROW: &str = "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"不明\",\"65.0\",\"737,000\",\"56.47\"";
+    const SUMMARY_ONLY_ROW: &str = ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
+
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    let seed = vec![make_asset_item("7203"), make_asset_item("7974")];
+    asset_balance_svc::bulk_create(&pool, user_id, &seed, RowLimit::new(i64::MAX))
+        .await
+        .expect("seed bulk_create failed");
+
+    // 正常CSVは従来通り全置換される
+    let ok = AssetBalanceDomain::upload_csv(
+        &pool,
+        user_id,
+        asset_balance_csv(&[VALID_ROW_1301, VALID_ROW_1605]).as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("正常CSVは取り込める");
+    assert_eq!((ok.inserted, ok.errors.is_empty()), (2, true));
+    assert_eq!(
+        asset_balance_rows(&pool, user_id).await,
+        vec![
+            ("1301".to_string(), "100".to_string()),
+            ("1605".to_string(), "200".to_string()),
+        ]
+    );
+
+    // 拒否ケースの比較基準になる状態へ戻す
+    asset_balance_svc::bulk_create(&pool, user_id, &seed, RowLimit::new(i64::MAX))
+        .await
+        .expect("re-seed bulk_create failed");
+    let balances_before = asset_balance_rows(&pool, user_id).await;
+    let prices_before = security_price_rows(&pool).await;
+
+    for (label, csv) in [
+        (
+            "1行不正",
+            asset_balance_csv(&[VALID_ROW_1301, BAD_SHARES_ROW]),
+        ),
+        (
+            "全行不正",
+            asset_balance_csv(&[BAD_SHARES_ROW, BAD_PRICE_ROW]),
+        ),
+        ("有効行0件", asset_balance_csv(&[SUMMARY_ONLY_ROW])),
+        ("データ行なし", asset_balance_csv(&[])),
+    ] {
+        let err =
+            AssetBalanceDomain::upload_csv(&pool, user_id, csv.as_bytes(), RowLimit::new(i64::MAX))
+                .await
+                .expect_err(label);
+        assert!(
+            matches!(err, backend::errors::ApiError::Validation(_)),
+            "{label}: {err:?}"
+        );
+        assert_eq!(
+            asset_balance_rows(&pool, user_id).await,
+            balances_before,
+            "{label}"
+        );
+        assert_eq!(security_price_rows(&pool).await, prices_before, "{label}");
+    }
+
+    // 追記型(配当)は行エラーがあっても有効行だけ取り込む従来仕様を維持する
+    let dividend_csv = concat!(
+        "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8592\",\"テスト配当\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"\n",
+        "\"N/A\",\"国内株式\",\"特定\",\"8593\",\"不正行\",\"円\",\"1\",\"1\",\"1\",\"1\",\"1\""
+    );
+    let res = DividendDomain::upload_csv(
+        &pool,
+        user_id,
+        dividend_csv.as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("追記型CSVは部分成功する");
+    assert_eq!((res.inserted, res.errors.len()), (1, 1));
+
+    let (dividend_count,): (i64,) = db::query(
+        "SELECT COUNT(*) FROM dividends WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one::<(i64,), _>(&pool)
+    .await
+    .expect("dividends の件数取得に失敗");
+    assert_eq!(dividend_count, 1);
+}

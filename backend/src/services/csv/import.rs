@@ -61,20 +61,23 @@ where
     Ok(build_preview_response(items, errors))
 }
 
-/// CSV bytes をパース → 行 transform → bulk_create → upload response 化を共通化する
-pub async fn run_csv_upload<T, F, BulkFn, BulkFut>(
+/// CSV bytes をパース → 行 transform → 保存前ガード → bulk_create → upload response 化を共通化する
+pub async fn run_csv_upload<T, F, G, BulkFn, BulkFut>(
     bytes: &[u8],
     config: &CsvParserConfig,
     transform_rows: F,
+    ensure_importable: G,
     bulk_create: BulkFn,
 ) -> Result<CsvUploadResponse, ApiError>
 where
     F: FnOnce(&CsvTable) -> (Vec<T>, Vec<CsvRowError>),
+    G: FnOnce(&[T], &[CsvRowError]) -> Result<(), ApiError>,
     BulkFn: FnOnce(Vec<T>) -> BulkFut,
     BulkFut: Future<Output = Result<BulkCreateResponse, ApiError>>,
 {
     let table = parse_csv_with_config(bytes, config)?;
     let (items, errors) = transform_rows(&table);
+    ensure_importable(&items, &errors)?;
     let result = bulk_create(items).await?;
     Ok(finish_csv_upload(&result, errors))
 }
@@ -91,6 +94,13 @@ pub trait CsvImport: Send + Sync + 'static {
         items: &[Self::Row],
         limit: RowLimit,
     ) -> impl Future<Output = Result<BulkCreateResponse, ApiError>> + Send;
+
+    /// DB 書き込み前の検証フック。Err を返すと bulk_create に到達せず中断する。
+    /// 全置換で部分取り込みを許さないドメインだけが override し、既定は何もしない
+    fn ensure_importable(items: &[Self::Row], errors: &[CsvRowError]) -> Result<(), ApiError> {
+        let _ = (items, errors);
+        Ok(())
+    }
 
     /// CSV バイト列をパースして DB 書き込みなしのプレビューを返す
     fn preview_csv(bytes: &[u8]) -> Result<CsvPreviewResponse<Self::Row>, ApiError> {
@@ -109,6 +119,7 @@ pub trait CsvImport: Send + Sync + 'static {
                 bytes,
                 &Self::CSV_CONFIG,
                 Self::transform_rows,
+                Self::ensure_importable,
                 |items| async move { Self::bulk_create(pool, user_id, &items, user_row_limit).await },
             )
             .await

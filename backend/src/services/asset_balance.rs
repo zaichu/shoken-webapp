@@ -50,6 +50,25 @@ impl CsvImport for AssetBalanceDomain {
     ) -> Result<BulkCreateResponse, ApiError> {
         bulk_create(pool, user_id, items, limit).await
     }
+
+    /// 全置換のため、エラー行や有効行0件のCSVは保存前に拒否する
+    /// （有効行だけで既存の残高・共有価格を置き換えてしまわないように）
+    fn ensure_importable(items: &[Self::Row], errors: &[CsvRowError]) -> Result<(), ApiError> {
+        if let Some(first) = errors.first() {
+            return Err(ApiError::Validation(format!(
+                "{}行目を含む{}件のエラーがあるため保有銘柄の取り込みを中止しました（既存のデータは変更されていません）",
+                first.row,
+                errors.len()
+            )));
+        }
+        if items.is_empty() {
+            return Err(ApiError::Validation(
+                "取り込める行がないため保有銘柄の取り込みを中止しました（既存のデータは変更されていません）"
+                    .to_string(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 // priced_* は価格あり(current_price > 0)行だけの集計。
@@ -277,10 +296,8 @@ mod tests {
     const NINTENDO_ROW: &str = "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
     const ACCOUNT_SUMMARY_ROW: &str =
         ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
-    const NINTENDO_BAD_SHARES_ROW: &str =
-        "\"7974\",\"任天堂\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
-    const INPEX_BAD_PRICE_ROW: &str =
-        "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"不明\",\"65.0\",\"737,000\",\"56.47\"";
+    const NINTENDO_BAD_SHARES_ROW: &str = "\"7974\",\"任天堂\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
+    const INPEX_BAD_PRICE_ROW: &str = "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"不明\",\"65.0\",\"737,000\",\"56.47\"";
 
     fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
         let table = parse_csv_with_config(
@@ -447,11 +464,8 @@ mod tests {
     /// 到達していないことになる
     #[tokio::test]
     async fn test_upload_csv_rejects_invalid_or_empty_before_db() {
-        let pool = crate::db::connect_pool_lazy(
-            "postgresql://user:password@localhost/test_db",
-            1,
-        )
-        .expect("lazy pool の構築に失敗");
+        let pool = crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
+            .expect("lazy pool の構築に失敗");
         let user_id = UserId::default();
 
         for (label, csv) in [
