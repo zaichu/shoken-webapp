@@ -17,7 +17,7 @@ const CHART_BASE_URL: &str = "https://query2.finance.yahoo.com/v8/finance/chart"
 const CHART_REQUEST_HEADERS: &[(&str, &str)] = &[("User-Agent", "Mozilla/5.0")];
 
 /// cron 1回で処理する銘柄数の上限。無料枠の CPU 時間に収まるよう絞る。
-/// 残りは次回の cron に委ねる（古い price_as_of から優先して処理するため循環する）
+/// 残りは次回の cron に委ねる（最終試行時刻が古い順に処理するため循環する）
 const MAX_CODES_PER_RUN: i64 = 15;
 
 /// 銘柄間の待ち時間。非公式 API への負荷を抑えるために少し間を空ける
@@ -226,7 +226,7 @@ fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
 }
 
 /// cron から呼ばれる更新処理。最新の終値の日より共有価格の price_as_of が
-/// 古い保有銘柄を、古い順に上限件数だけ処理する（全銘柄が最新なら取得しない）。
+/// 古い保有銘柄を、最終試行時刻の古い順に上限件数だけ処理する（全銘柄が最新なら取得しない）。
 /// 失敗した銘柄は前回値を残し、全件失敗時は取得元の変更を疑ってエラーログに出す。
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
@@ -238,7 +238,7 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
         LEFT JOIN security_prices sp ON sp.security_code = ab.security_code
         GROUP BY ab.security_code
         HAVING BOOL_OR(sp.price_as_of IS NULL) OR MIN(sp.price_as_of) < $1
-        ORDER BY MIN(sp.price_as_of) ASC NULLS FIRST
+        ORDER BY MIN(sp.updated_at) ASC NULLS FIRST
         LIMIT $2
         "#,
         vec![Bind::from(latest), Bind::from(MAX_CODES_PER_RUN)],
@@ -248,6 +248,27 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
     .into_iter()
     .map(|(code,)| code)
     .collect();
+
+    // 選んだ銘柄の試行時刻を先に進めておく。取得に失敗しても順位が末尾へ回るため、
+    // 連続して失敗する銘柄が後続の更新を永久に塞ぐことを防ぐ（#1338）。
+    // 未取得(行なし)の銘柄には基準日なしの行を作り、次回以降も対象のままにする
+    if !codes.is_empty() {
+        crate::db::query(
+            r#"
+            INSERT INTO security_prices (security_code, updated_at)
+            SELECT code, NOW() FROM UNNEST($1::text[]) AS t(code)
+            ON CONFLICT (security_code) DO UPDATE SET updated_at = NOW()
+            "#,
+            vec![Bind::from(
+                codes
+                    .iter()
+                    .map(|code| code.as_str().to_owned())
+                    .collect::<Vec<_>>(),
+            )],
+        )
+        .execute(pool)
+        .await?;
+    }
 
     let base_url = base_url.unwrap_or_else(|| CHART_BASE_URL.to_string());
     let mut fetched = 0;
