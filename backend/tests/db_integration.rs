@@ -1085,6 +1085,44 @@ async fn dividend_csv_keeps_same_detail_in_different_accounts() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+async fn dividend_csv_rejects_foreign_currency_rows() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    // 円限定の現仕様: 外貨行は行エラーとなり、円の行だけが保存される
+    let csv = concat!(
+        "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"\n",
+        "\"2025/12/09\",\"外国株式\",\"特定・一般\",\"AAPL\",\"アップル\",\"米ドル\",\"200.00\",\"10\",\"1000\",\"100\",\"900\""
+    );
+
+    let uploaded = dividend_svc::DividendDomain::upload_csv(
+        &pool,
+        user_id,
+        csv.as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("dividend upload_csv failed");
+    assert_eq!(uploaded.inserted, 1);
+    assert_eq!(uploaded.errors.len(), 1);
+    assert_eq!(uploaded.errors[0].row, 2);
+
+    let mut params = default_dividend_search_params();
+    params.search.include_summary = Some(true);
+    let res = domain_search::<dividend_svc::DividendDomain>(&pool, user_id, params)
+        .await
+        .expect("dividend list failed");
+    assert_eq!(res.data.len(), 1);
+    assert_eq!(res.data[0].security_code, "8591");
+
+    let summary = res.summary.expect("summary required");
+    assert_eq!(summary.total_dividends_before_tax, dec!(18752));
+    assert_eq!(summary.total_net_amount_received, dec!(14944));
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
 async fn domestic_stock_bulk_create_and_list() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;

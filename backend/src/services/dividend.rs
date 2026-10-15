@@ -173,6 +173,16 @@ fn transform_dividend_row(
     row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<CreateDividendRequest, CsvRowError> {
+    // 円限定の現仕様: 受取通貨が円以外の行は明示的な行エラーとして拒否する
+    // 「円」「日本円」など表記ゆれを許容するため contains で判定する
+    let received_currency = row.cell("受取通貨").trim();
+    if !received_currency.contains('円') {
+        return Err(CsvRowError {
+            row: row_num.get(),
+            message: format!("受取通貨: 円のみ取り込めます（{received_currency}）"),
+        });
+    }
+
     Ok(CreateDividendRequest {
         settlement_date: parse_required_date(row, "入金日", row_num)?,
         product: check_max_chars(
@@ -275,5 +285,50 @@ mod tests {
                 (1, 0, true)
             );
         }
+    }
+
+    #[test]
+    fn test_preview_csv_rejects_non_jpy_currency() {
+        for currency in ["円", "日本円"] {
+            let preview = preview_from_lines(&[
+                HEADER,
+                &format!(
+                    "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"{currency}\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\""
+                ),
+            ]);
+            assert_eq!((preview.valid_rows, preview.errors.len()), (1, 0));
+        }
+
+        let preview = preview_from_lines(&[
+            HEADER,
+            "\"2025/12/09\",\"外国株式\",\"特定・一般\",\"AAPL\",\"アップル\",\"米ドル\",\"200.00\",\"10\",\"1,000\",\"100\",\"900\"",
+        ]);
+        assert_eq!(
+            (
+                preview.total_rows,
+                preview.valid_rows,
+                preview.errors.len(),
+                preview.errors[0].row,
+                preview.errors[0].message.contains("米ドル"),
+            ),
+            (1, 0, 1, 1, true)
+        );
+
+        // 通貨混合では円の行だけが残り、外貨行は合計の対象に混ざらない
+        let preview = preview_from_lines(&[
+            HEADER,
+            "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"",
+            "\"2025/12/09\",\"外国株式\",\"特定・一般\",\"AAPL\",\"アップル\",\"米ドル\",\"200.00\",\"10\",\"1,000\",\"100\",\"900\"",
+        ]);
+        assert_eq!(
+            (
+                preview.total_rows,
+                preview.valid_rows,
+                preview.errors.len(),
+                preview.errors[0].row,
+            ),
+            (2, 1, 1, 2)
+        );
+        assert_eq!(preview.rows[0].security_code.as_str(), "8591");
     }
 }
