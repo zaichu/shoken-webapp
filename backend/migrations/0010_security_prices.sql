@@ -47,4 +47,3 @@ CREATE VIEW public.asset_balances_view AS
     ab.updated_at
    FROM (public.asset_balances ab
      LEFT JOIN public.security_prices sp ON (((sp.security_code)::text = (ab.security_code)::text)));
-
