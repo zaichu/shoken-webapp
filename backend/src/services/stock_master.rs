@@ -4,7 +4,7 @@
 use crate::db::{Bind, Db};
 use crate::errors::ApiError;
 use crate::services::jquants::{EquitiesMasterResponse, JQuantsClient};
-use chrono::{DateTime, Datelike, NaiveDate, Timelike, Weekday};
+use chrono::{DateTime, NaiveDate};
 use std::collections::HashSet;
 
 /// stock テーブルの1行分。J-Quants の5桁コードは先頭4桁へ縮約済み
@@ -103,23 +103,52 @@ pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiEr
     }
 }
 
-/// 予定時刻(UTC エポックミリ秒)が週次の更新時刻(日曜 20:00 UTC = 月曜 05:00 JST)なら true
-pub fn should_refresh_at(scheduled_ms: f64) -> bool {
-    DateTime::from_timestamp_millis(scheduled_ms as i64)
-        .is_some_and(|t| t.weekday() == Weekday::Sun && t.hour() == 20 && t.minute() == 0)
+/// 最後に成功した更新からの経過日数で更新要否を判定する純関数。
+/// `stock.date` は上流(J-Quants)の基準日で、成功のたびに進むため経過時間の代わりになる
+pub fn should_refresh(has_rows: bool, latest_date: Option<NaiveDate>, today: NaiveDate) -> bool {
+    if !has_rows {
+        // 空なら初期投入として実行
+        return true;
+    }
+    match latest_date {
+        None => true,
+        Some(latest) => today.signed_duration_since(latest).num_days() >= 7,
+    }
 }
 
-/// stock が空なら頻度に関わらず実行(初期投入)、行があれば週次時刻のみ実行する。
+/// stock テーブルの `MAX(date)` を取得する。空なら `None`。
+/// `stock.date` は J-Quants 基準日で、取得 SQL をここに集約する
+pub async fn latest_master_date(pool: &Db) -> Result<Option<NaiveDate>, ApiError> {
+    crate::db::query_scalar::<Option<NaiveDate>>("SELECT MAX(date) FROM stock", vec![])
+        .fetch_one(pool)
+        .await
+        .map_err(ApiError::from)
+}
+
+/// `scheduled_ms`(UTC エポックミリ秒)から UTC の日付を得る。
+/// `Utc::now()` には依存しない(テスト可能なように scheduled イベント時刻のみを使う)
+fn scheduled_date(scheduled_ms: f64) -> Option<NaiveDate> {
+    DateTime::from_timestamp_millis(scheduled_ms as i64).map(|t| t.date_naive())
+}
+
+/// stock が空なら実行(初期投入)。行があれば MAX(date) が scheduled 日付から 7日以上前
+/// のときだけ実行する(失敗後の再試行)。
 /// 戻り値は `Some(投入件数)`、スキップ時は `None`
 pub async fn maybe_refresh(
     pool: &Db,
     client: &JQuantsClient,
     scheduled_ms: f64,
 ) -> Result<Option<usize>, ApiError> {
-    let has_rows = crate::db::query_scalar::<bool>("SELECT EXISTS(SELECT 1 FROM stock)", vec![])
-        .fetch_one(pool)
-        .await?;
-    if has_rows && !should_refresh_at(scheduled_ms) {
+    // SELECT MAX(date) を1回だけ引いて has_rows と latest_date を両方得る
+    // (EXISTS と MAX の2クエリにしない)。SQL は latest_master_date に集約し、2箇所へ書かない
+    let latest_date = latest_master_date(pool).await?;
+    let has_rows = latest_date.is_some();
+
+    let today = match scheduled_date(scheduled_ms) {
+        Some(d) => d,
+        None => return Ok(None),
+    };
+    if !should_refresh(has_rows, latest_date, today) {
         return Ok(None);
     }
 
@@ -136,7 +165,6 @@ pub async fn maybe_refresh(
 mod tests {
     use super::*;
     use crate::services::jquants::EquitiesMasterData;
-    use chrono::NaiveTime;
 
     fn master_row(code: &str, name: &str) -> EquitiesMasterData {
         EquitiesMasterData {
@@ -210,20 +238,33 @@ mod tests {
     }
 
     #[test]
-    fn test_should_refresh_at_runs_weekly_sunday_20_utc() {
-        let ms = |y: i32, m: u32, d: u32, h: u32, mi: u32| {
-            NaiveDate::from_ymd_opt(y, m, d)
-                .unwrap()
-                .and_time(NaiveTime::from_hms_opt(h, mi, 0).unwrap())
-                .and_utc()
-                .timestamp_millis() as f64
-        };
-        // 2026-10-18 は日曜
-        assert!(should_refresh_at(ms(2026, 10, 18, 20, 0)));
-        assert!(!should_refresh_at(ms(2026, 10, 18, 20, 1)));
-        assert!(!should_refresh_at(ms(2026, 10, 18, 19, 0)));
-        // 2026-10-19 は月曜(JST の月曜朝でも UTC 基準で判定)
-        assert!(!should_refresh_at(ms(2026, 10, 19, 20, 0)));
-        assert!(!should_refresh_at(ms(2026, 10, 16, 20, 0)));
+    fn test_should_refresh_empty_runs() {
+        let today = NaiveDate::from_ymd_opt(2026, 10, 18).unwrap();
+        assert!(should_refresh(false, None, today));
+    }
+
+    #[test]
+    fn test_should_refresh_recent_skips() {
+        let today = NaiveDate::from_ymd_opt(2026, 10, 18).unwrap();
+        // 6日前: 実行しない
+        let latest = NaiveDate::from_ymd_opt(2026, 10, 12).unwrap();
+        assert!(!should_refresh(true, Some(latest), today));
+    }
+
+    #[test]
+    fn test_should_refresh_boundary() {
+        let today = NaiveDate::from_ymd_opt(2026, 10, 18).unwrap();
+        // 7日ちょうど: 実行する
+        let seven = NaiveDate::from_ymd_opt(2026, 10, 11).unwrap();
+        assert!(should_refresh(true, Some(seven), today));
+        // 8日: 実行する
+        let eight = NaiveDate::from_ymd_opt(2026, 10, 10).unwrap();
+        assert!(should_refresh(true, Some(eight), today));
+    }
+
+    #[test]
+    fn test_should_refresh_none_with_rows_runs() {
+        let today = NaiveDate::from_ymd_opt(2026, 10, 18).unwrap();
+        assert!(should_refresh(true, None, today));
     }
 }

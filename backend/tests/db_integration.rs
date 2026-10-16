@@ -263,6 +263,63 @@ async fn stock_master_replace_master_swaps_all_rows() {
     assert!(err.is_unique_violation(), "期待するのは PK 違反: {err:?}");
 }
 
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_master_latest_master_date_returns_none_then_some() {
+    let (pool, _node) = start_test_pool().await;
+
+    // 空の stock は None (= should_refresh が true になる前提)
+    assert_eq!(stock_master::latest_master_date(&pool).await.unwrap(), None);
+
+    // 1銘柄投入後は Some(date)
+    let one = vec![stock_master::StockRow {
+        date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
+        code: "1301".to_string(),
+        name: "極洋".to_string(),
+        market_category: "プライム".to_string(),
+        industry_category_33: None,
+        industry_category_17: None,
+        size_category: None,
+    }];
+    let inserted = stock_master::replace_master(&pool, &one)
+        .await
+        .expect("replace_master failed");
+    assert_eq!(inserted, 1);
+    assert_eq!(
+        stock_master::latest_master_date(&pool).await.unwrap(),
+        Some(NaiveDate::from_ymd_opt(2026, 10, 15).unwrap())
+    );
+
+    // 2銘柄投入後、MAX(date) が返る
+    let two = vec![
+        stock_master::StockRow {
+            date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
+            code: "1301".to_string(),
+            name: "極洋".to_string(),
+            market_category: "プライム".to_string(),
+            industry_category_33: None,
+            industry_category_17: None,
+            size_category: None,
+        },
+        stock_master::StockRow {
+            date: NaiveDate::from_ymd_opt(2026, 10, 16).unwrap(),
+            code: "7203".to_string(),
+            name: "トヨタ自動車".to_string(),
+            market_category: "プライム".to_string(),
+            industry_category_33: None,
+            industry_category_17: None,
+            size_category: None,
+        },
+    ];
+    stock_master::replace_master(&pool, &two)
+        .await
+        .expect("replace_master failed");
+    assert_eq!(
+        stock_master::latest_master_date(&pool).await.unwrap(),
+        Some(NaiveDate::from_ymd_opt(2026, 10, 16).unwrap())
+    );
+}
+
 /// テスト用の CreateAssetBalanceRequest を生成するヘルパー
 fn make_asset_item(code: &str) -> CreateAssetBalanceRequest {
     CreateAssetBalanceRequest {
