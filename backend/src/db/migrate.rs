@@ -53,50 +53,23 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         include_str!("../../migrations/0009_market_data_provider_rate_control.sql"),
     ),
     (
-        "0010_clear_price_as_of_on_residual_prices",
-        include_str!("../../migrations/0010_clear_price_as_of_on_residual_prices.sql"),
-    ),
-    (
-        "0011_dedupe_keys_include_account",
-        include_str!("../../migrations/0011_dedupe_keys_include_account.sql"),
-    ),
-    (
-        "0012_dividend_numeric_and_drop_unused_indexes",
-        include_str!("../../migrations/0012_dividend_numeric_and_drop_unused_indexes.sql"),
-    ),
-    (
-        "0013_security_prices",
-        include_str!("../../migrations/0013_security_prices.sql"),
-    ),
-    (
-        "0014_private_csv_prices",
-        include_str!("../../migrations/0014_private_csv_prices.sql"),
-    ),
-    (
-        "0015_asset_balance_cleanup",
-        include_str!("../../migrations/0015_asset_balance_cleanup.sql"),
-    ),
-    (
-        "0016_security_prices_prev_close",
-        include_str!("../../migrations/0016_security_prices_prev_close.sql"),
-    ),
-    (
-        "0017_stock_master_code_pk",
-        include_str!("../../migrations/0017_stock_master_code_pk.sql"),
-    ),
-    (
-        "0018_users_drop_picture_url",
-        include_str!("../../migrations/0018_users_drop_picture_url.sql"),
+        "0010_security_prices",
+        include_str!("../../migrations/0010_security_prices.sql"),
     ),
 ];
 
 /// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に
-/// 「適用済み」として記録される。新しい migration は 0010 以降に採番する
-const BASELINE_MAX_VERSION: i64 = 9;
+/// 「適用済み」として記録される。新しい migration は 0011 以降に採番する
+const BASELINE_MAX_VERSION: i64 = 10;
 
-/// 旧ファイル名で運用していた頃の最大バージョン。この時点のスキーマを
-/// ベースライン 0000〜0009 にまとめたため、これより大きい version の旧履歴は存在しない
+/// 旧ファイル名で運用していた頃の最大バージョン(旧運用履歴 1〜17)。
+/// そのままの schema は現行と異なるため rotate の許可対象にはせず、
+/// エラーメッセージでのみ参照する
 const LEGACY_MAX_VERSION: i64 = 17;
+
+/// 現行の baseline + 増分を全適用した状態(状態B: 履歴 0〜18)の最大バージョン。
+/// 状態Aと状態Bの schema は同じなので、両方の履歴を rotate の許可対象にする
+const INCREMENT_MAX_VERSION: i64 = 18;
 
 struct Migration {
     version: i64,
@@ -239,10 +212,11 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
     Ok(())
 }
 
-/// 旧バージョン(1〜LEGACY_MAX_VERSION)の履歴が残る DB の `_sqlx_migrations` を、
-/// ベースラインファイル群(0〜BASELINE_MAX_VERSION)の記録へ一度だけ置き換える。
-/// テーブル・データには触れない。
-/// 旧履歴が途中までしか無い DB は schema が現行と異なる可能性があるためエラーで止める
+/// 旧 baseline + 増分の履歴(0〜INCREMENT_MAX_VERSION)が残る DB の
+/// `_sqlx_migrations` を、ベースラインファイル群(0〜BASELINE_MAX_VERSION)の記録へ
+/// 一度だけ置き換える。テーブル・データには触れない。
+/// 旧運用履歴(1〜LEGACY_MAX_VERSION)の DB は schema が現行と異なる
+/// (security_prices / asset_balances_view が無い)ためエラーで止める
 async fn squash_legacy_history(
     client: &mut tokio_postgres::Client,
     applied: &mut HashMap<i64, Vec<u8>>,
@@ -253,7 +227,7 @@ async fn squash_legacy_history(
         .find(|m| m.version == 1)
         .expect("baseline (version=1) の migration が必要です");
     // 旧運用の version=1 は 0001_initial_schema.sql だったため、その checksum と
-    // 新 0001_users.sql の差だけを見て判定する。version 2〜17 の存在では判定しない
+    // 新 0001_users.sql の差だけを見て判定する。version 2 以降の存在では判定しない
     // (新形式の追加 migration と番号が被り、履歴を誤って消すため)
     let has_legacy = applied
         .get(&1)
@@ -263,13 +237,14 @@ async fn squash_legacy_history(
     }
 
     let applied_versions: BTreeSet<i64> = applied.keys().copied().collect();
-    let legacy_all: BTreeSet<i64> = (1..=LEGACY_MAX_VERSION).collect();
-    if applied_versions != legacy_all {
-        let missing: Vec<i64> = legacy_all.difference(&applied_versions).copied().collect();
-        let extra: Vec<i64> = applied_versions.difference(&legacy_all).copied().collect();
+    let linear_all: BTreeSet<i64> = (0..=INCREMENT_MAX_VERSION).collect();
+    if applied_versions != linear_all {
         return Err(format!(
-            "旧マイグレーション履歴(1〜{LEGACY_MAX_VERSION})が揃っていません\
-             (不足: {missing:?}, 範囲外: {extra:?})。schema が現行と異なる可能性があるため適用を中止しました"
+            "旧マイグレーション履歴(0〜{INCREMENT_MAX_VERSION})が揃っていません\
+             (現在: {applied_versions:?})。\
+             旧運用履歴(1〜{LEGACY_MAX_VERSION})の DB は schema が現行と異なるため適用できません。\
+             `make db-reset` で DB を作り直してください。\
+             schema が現行と異なる可能性があるため適用を中止しました"
         ));
     }
 
@@ -292,7 +267,7 @@ async fn squash_legacy_history(
         .await
         .map_err(|e| format!("コミットに失敗: {e}"))?;
     tracing::info!(
-        "旧マイグレーション履歴(1〜{LEGACY_MAX_VERSION})をベースライン 0〜{BASELINE_MAX_VERSION} の記録に置き換えました"
+        "旧マイグレーション履歴をベースライン 0〜{BASELINE_MAX_VERSION} の記録に置き換えました"
     );
     applied.clear();
     applied.extend(baseline.into_iter().map(|(m, sum)| (m.version, sum)));

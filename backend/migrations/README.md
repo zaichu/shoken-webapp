@@ -8,30 +8,38 @@ migration ファイルの置き場所と運用メモ。
 
 ## 現行方針
 
-現在の schema はテーブルごと1ファイルの baseline 群(`0000〜0009`)で表す。
-旧 `0001〜0017` を順に全適用した結果と同じ schema を作る baseline で、
-旧17本を適用した DB の `pg_dump --schema-only` 出力から所有者・権限・SET・
-コメント行を除き、テーブル単位に分割して生成した(手書きではない)。
-`pg_dump --schema-only` に含まれない初期行(`market_data_provider_rate_control` の
-INSERT)は対応するテーブルのファイル末尾に追記してある。
+現在の schema はテーブルごと1ファイルの baseline 群(`0000〜0010`)だけで表す。
+旧 `0001〜0017` と増分をすべて適用した結果(= 現行 schema)の
+`pg_dump --schema-only` 出力から所有者・権限・SET・コメント行を除き、
+テーブル単位に分割して生成した(手書きではない)(#1358)。
+`pg_dump --schema-only` に含まれない初期行
+(`market_data_provider_rate_control` / `security_prices` の INSERT)は
+対応するテーブルのファイル末尾に追記してある。
 
-baseline は「ある時点の履歴」なので、現状の schema は baseline と追記(`0010〜`)を
-合わせて読む。テーブルの意図・関係(なぜこの分割か、共有/個人の分け方)は
+テーブルの意図・関係(なぜこの分割か、共有/個人の分け方)は
 `docs/db-design.md` を参照。
 
 - `0000_extensions.sql`: 共通拡張(citext / pg_trgm / pgcrypto)
 - `0001_users.sql` 〜 `0006_asset_balances.sql`: 外部キーで参照される側
-  (`users`)から番号順。各テーブルの index・constraint は同じファイル内
-- `0007_stock.sql` 〜 `0009_market_data_provider_rate_control.sql`: 外部キーを
-  持たない独立テーブル
+  (`users`)から番号順
+- `0007_stock.sql` 〜 `0010_security_prices.sql`: 外部キーを持たない独立テーブル。
+  `0009` にレート制御の seed、`0010` に保有残高からの価格 backfill 用 INSERT と
+  `asset_balances_view`(`asset_balances` と `security_prices` の両方に依存するため
+  後に作られる側のファイルで定義)を持つ
 
 ## _sqlx_migrations 履歴の扱い
 
-旧バージョン(1〜17)が適用済みの DB で migrate を実行すると、`_sqlx_migrations`
-の内容をベースライン 0〜9 の記録に置き換える(一度だけ。テーブル・データには
-触れない)。旧履歴かどうかは version=1 の checksum が新 `0001_users.sql` と
-異なるかで判定する。旧履歴が 1〜17 の途中までしか無い DB は schema が現行と
-異なる可能性があるためエラーで停止する。
+baseline 張り直し前に migrate を動かしていた DB のうち、旧 baseline + 増分の
+履歴 `0〜18`(#1351 以降の DB)が残っているものは、migrate 実行時に baseline
+`0〜10` の記録へ置き換える(一度だけ。テーブル・データには触れない)。
+旧履歴かどうかは version=1 の checksum が現行 `0001_users.sql` と異なるかで
+判定する。
+
+旧運用履歴 `1〜17`(初回 baseline 化の前の DB)は**エラーで停止する**。
+この状態の DB には `security_prices` テーブルも `asset_balances_view` も無い
+(schema が現行と違う)ため、rotate では修復できない。`make db-reset` で
+DB を作り直す必要がある。途中までしか適用されていない履歴も同様にエラーで
+停止する。
 
 ## デプロイ時（Cloudflare Workers）の動作：自動適用
 
@@ -54,8 +62,8 @@ cargo run --bin migrate
 
 ## 新しい schema 変更を入れる場合
 
-baseline(0000〜0009)は適用済み環境があるため編集しない。
-`0010_<description>.sql` のように次番号の新規 migration を追加し、
+baseline(`0000〜0010`)は適用済み環境があるため編集しない。
+`0011_<description>.sql` のように次番号の新規 migration を追加し、
 `backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` エントリを足す。
 
 検出は正規表現ベースのため、SQL 文字列リテラルやコメントアウトした SQL の中で
@@ -107,6 +115,9 @@ PR に理由を書く。
 SET・`SELECT pg_catalog.set_config`・コメント・`OWNER TO`・権限行を除いて整形し、
 テーブル単位に分割する。`--schema-only` にはデータが含まれないため、必要な
 初期行 INSERT は別途対象テーブルのファイル末尾に追記する。
+
+(#1358 の張り直しもこの手順で行った。旧増分の内容は baseline に畳まれているため
+増分ファイルは削除する。)
 
 ```bash
 cd backend && make db-up   # ローカル PostgreSQL (docker-compose)

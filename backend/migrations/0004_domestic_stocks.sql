@@ -1,4 +1,4 @@
--- domestic_stocks テーブル(国内株式取引)。旧 0001〜0017 を全適用した結果と同じ schema を作るベースライン。
+-- domestic_stocks テーブル(国内株式の売買明細)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.domestic_stocks (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -21,24 +21,28 @@ CREATE TABLE public.domestic_stocks (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+
 ALTER TABLE ONLY public.domestic_stocks
     ADD CONSTRAINT domestic_stocks_pkey PRIMARY KEY (id);
 
-CREATE INDEX idx_domestic_stocks_account_trgm ON public.domestic_stocks USING gin (account public.gin_trgm_ops);
 
 CREATE UNIQUE INDEX idx_domestic_stocks_hash_occurrence ON public.domestic_stocks USING btree (user_id, content_hash, occurrence_index);
 
-CREATE INDEX idx_domestic_stocks_security_code_trgm ON public.domestic_stocks USING gin (security_code public.gin_trgm_ops);
 
 CREATE INDEX idx_domestic_stocks_security_name_trgm ON public.domestic_stocks USING gin (security_name public.gin_trgm_ops);
 
+
 CREATE INDEX idx_domestic_stocks_user_account ON public.domestic_stocks USING btree (user_id, account);
+
 
 CREATE INDEX idx_domestic_stocks_user_security_code ON public.domestic_stocks USING btree (user_id, security_code);
 
+
 CREATE INDEX idx_domestic_stocks_user_security_name ON public.domestic_stocks USING btree (user_id, security_name);
 
+
 CREATE INDEX idx_domestic_stocks_user_trade_date_id ON public.domestic_stocks USING btree (user_id, trade_date DESC, id DESC);
+
 
 ALTER TABLE ONLY public.domestic_stocks
     ADD CONSTRAINT domestic_stocks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;

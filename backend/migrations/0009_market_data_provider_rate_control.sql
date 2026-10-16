@@ -5,6 +5,7 @@ CREATE TABLE public.market_data_provider_rate_control (
     next_available_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+
 ALTER TABLE ONLY public.market_data_provider_rate_control
     ADD CONSTRAINT market_data_provider_rate_control_pkey PRIMARY KEY (provider);
 

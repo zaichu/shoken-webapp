@@ -2330,10 +2330,15 @@ const SQLX_MIGRATIONS_DDL: &str = "CREATE TABLE _sqlx_migrations (
 
 /// 旧ランナーで version 1〜=max_version まで適用済みの状態を再現する
 async fn seed_migration_history(pool: &Db, max_version: i64) {
+    seed_migration_history_range(pool, 1, max_version).await;
+}
+
+/// version from〜=to まで任意の checksum で適用済みの状態を再現する
+async fn seed_migration_history_range(pool: &Db, from: i64, to: i64) {
     pool.batch_execute(SQLX_MIGRATIONS_DDL)
         .await
         .expect("履歴テーブルの作成に失敗");
-    for version in 1..=max_version {
+    for version in from..=to {
         db::query(
             "INSERT INTO _sqlx_migrations
                 (version, description, success, checksum, execution_time)
@@ -2344,6 +2349,27 @@ async fn seed_migration_history(pool: &Db, max_version: i64) {
         .await
         .expect("履歴行の作成に失敗");
     }
+}
+
+/// _sqlx_migrations の適用済み version 一覧(昇順)
+async fn migration_versions(pool: &Db) -> Vec<i64> {
+    db::query(
+        "SELECT version FROM _sqlx_migrations ORDER BY version",
+        vec![],
+    )
+    .fetch_all::<(i64,), _>(pool)
+    .await
+    .expect("_sqlx_migrations の取得に失敗")
+    .into_iter()
+    .map(|(version,)| version)
+    .collect()
+}
+
+/// rotate 後に migrate を再実行しても no-op(履歴も schema も変わらない)ことを確かめる
+async fn assert_migrate_is_noop(pool: &Db) {
+    run_migrations(pool)
+        .await
+        .expect("rotate 後の再実行は成功するはず");
 }
 
 #[tokio::test]
@@ -2360,6 +2386,72 @@ async fn partial_legacy_history_stops_migration() {
         .await
         .expect_err("旧履歴が途中までの DB はエラーで止まるはず");
     assert!(err.contains("揃っていません"), "unexpected error: {err}");
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn partial_linear_history_stops_migration() {
+    let node = Postgres::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+
+    let pool = connect_with_retry(&database_url).await;
+    seed_migration_history_range(&pool, 0, 12).await;
+
+    let err = run_migrations(&pool)
+        .await
+        .expect_err("状態Bの途中までの DB はエラーで止まるはず");
+    assert!(err.contains("揃っていません"), "unexpected error: {err}");
+}
+
+/// 状態A(旧運用履歴 1〜17)の DB では migrate をエラーで停止する。
+/// この状態の DB には security_prices / asset_balances_view が無く schema が
+/// 現行と異なるため、rotate では修復できない
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn legacy_history_stops_migration() {
+    let node = Postgres::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+
+    let pool = connect_with_retry(&database_url).await;
+    seed_migration_history(&pool, 17).await;
+
+    let err = run_migrations(&pool)
+        .await
+        .expect_err("旧運用履歴 1〜17 の DB はエラーで止まるはず");
+    assert!(err.contains("揃っていません"), "unexpected error: {err}");
+    assert!(
+        err.contains("make db-reset"),
+        "対処法(db-reset)への言及があるはず: {err}"
+    );
+    // 履歴は置き換わらず残る
+    assert_eq!(
+        migration_versions(&pool).await,
+        (1..=17).collect::<Vec<_>>()
+    );
+}
+
+/// 状態B(旧 baseline + 増分の履歴 0〜18)の DB で migrate すると、履歴が新 baseline
+/// 0〜10 に置き換わる。version=1 の checksum はダミーでも判定できる
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn linear_history_rotates_to_new_baseline() {
+    let node = Postgres::default().start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+
+    let pool = connect_with_retry(&database_url).await;
+    seed_migration_history_range(&pool, 0, 18).await;
+
+    run_migrations(&pool)
+        .await
+        .expect("状態Bの DB は rotate できるはず");
+    assert_eq!(
+        migration_versions(&pool).await,
+        (0..=10).collect::<Vec<_>>()
+    );
+    assert_migrate_is_noop(&pool).await;
 }
 
 /// (銘柄コード, 数量) の一覧。置換ガードの前後比較用

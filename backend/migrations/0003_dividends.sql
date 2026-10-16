@@ -1,4 +1,4 @@
--- dividends テーブル(配当金)。旧 0001〜0017 を全適用した結果と同じ schema を作るベースライン。
+-- dividends テーブル(配当・分配金の受取明細)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.dividends (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -17,28 +17,31 @@ CREATE TABLE public.dividends (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+
 ALTER TABLE ONLY public.dividends
     ADD CONSTRAINT dividends_pkey PRIMARY KEY (id);
 
-CREATE INDEX idx_dividends_account_trgm ON public.dividends USING gin (account public.gin_trgm_ops);
-
-CREATE INDEX idx_dividends_product_trgm ON public.dividends USING gin (product public.gin_trgm_ops);
-
-CREATE INDEX idx_dividends_security_code_trgm ON public.dividends USING gin (security_code public.gin_trgm_ops);
 
 CREATE INDEX idx_dividends_security_name_trgm ON public.dividends USING gin (security_name public.gin_trgm_ops);
 
-CREATE UNIQUE INDEX idx_dividends_unique ON public.dividends USING btree (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax);
+
+CREATE UNIQUE INDEX idx_dividends_unique ON public.dividends USING btree (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax, product, account);
+
 
 CREATE INDEX idx_dividends_user_account ON public.dividends USING btree (user_id, account);
 
+
 CREATE INDEX idx_dividends_user_product ON public.dividends USING btree (user_id, product);
+
 
 CREATE INDEX idx_dividends_user_security_code ON public.dividends USING btree (user_id, security_code);
 
+
 CREATE INDEX idx_dividends_user_security_name ON public.dividends USING btree (user_id, security_name);
 
+
 CREATE INDEX idx_dividends_user_settlement_date_id ON public.dividends USING btree (user_id, settlement_date DESC, id DESC);
+
 
 ALTER TABLE ONLY public.dividends
     ADD CONSTRAINT dividends_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
