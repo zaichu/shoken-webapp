@@ -3,13 +3,9 @@
 const fs = require('node:fs');
 
 const PATTERNS = [
-  { id: 'DROP COLUMN', re: /\bDROP\s+COLUMN\b/i },
-  { id: 'RENAME COLUMN', re: /\bRENAME\s+COLUMN\b/i },
-  { id: 'ALTER COLUMN ... RENAME TO', re: /\bALTER\s+COLUMN\b[\s\S]*?\bRENAME\s+TO\b/is },
+  { id: 'destructive DROP', re: /\bDROP\s+(?!NOT\s+NULL\b|DEFAULT\b|USING\b)/i },
+  { id: 'RENAME', re: /\bRENAME\b/i },
   { id: 'ALTER COLUMN ... TYPE', re: /\bALTER\s+COLUMN\b[\s\S]*?\bTYPE\b/is },
-  { id: 'DROP TABLE', re: /\bDROP\s+TABLE\b/i },
-  { id: 'DROP INDEX', re: /\bDROP\s+INDEX\b/i },
-  { id: 'DROP CONSTRAINT', re: /\bDROP\s+CONSTRAINT\b/i },
 ];
 
 function hasContractMarker(content) {

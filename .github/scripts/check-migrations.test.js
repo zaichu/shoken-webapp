@@ -8,18 +8,36 @@ const mod = require('./check-migrations.js');
 test('detects DROP COLUMN', () => {
   const v = mod.findViolations('m.sql', 'ALTER TABLE t DROP COLUMN c;');
   assert.ok(v.length > 0);
-  assert.ok(v.includes('DROP COLUMN'));
+  assert.ok(v.includes('destructive DROP'));
+});
+
+test('detects DROP without COLUMN keyword', () => {
+  const v = mod.findViolations('m.sql', 'ALTER TABLE t DROP name;');
+  assert.ok(v.length > 0);
+  assert.ok(v.includes('destructive DROP'));
 });
 
 test('detects RENAME COLUMN', () => {
   const v = mod.findViolations('m.sql', 'ALTER TABLE t RENAME COLUMN a TO b;');
   assert.ok(v.length > 0);
-  assert.ok(v.includes('RENAME COLUMN') || v.includes('ALTER COLUMN ... RENAME TO'));
+  assert.ok(v.includes('RENAME'));
+});
+
+test('detects RENAME without COLUMN keyword', () => {
+  const v = mod.findViolations('m.sql', 'ALTER TABLE t RENAME name TO display;');
+  assert.ok(v.length > 0);
+  assert.ok(v.includes('RENAME'));
 });
 
 test('detects ALTER COLUMN ... RENAME TO', () => {
   const v = mod.findViolations('m.sql', 'ALTER TABLE t ALTER COLUMN a RENAME TO b;');
   assert.ok(v.length > 0);
+});
+
+test('detects RENAME TO (table rename)', () => {
+  const v = mod.findViolations('m.sql', 'ALTER TABLE t RENAME TO new_name;');
+  assert.ok(v.length > 0);
+  assert.ok(v.includes('RENAME'));
 });
 
 test('detects ALTER COLUMN ... TYPE', () => {
@@ -31,19 +49,33 @@ test('detects ALTER COLUMN ... TYPE', () => {
 test('detects DROP TABLE', () => {
   const v = mod.findViolations('m.sql', 'DROP TABLE t;');
   assert.ok(v.length > 0);
-  assert.ok(v.includes('DROP TABLE'));
+  assert.ok(v.includes('destructive DROP'));
 });
 
 test('detects DROP INDEX', () => {
   const v = mod.findViolations('m.sql', 'DROP INDEX idx;');
   assert.ok(v.length > 0);
-  assert.ok(v.includes('DROP INDEX'));
+  assert.ok(v.includes('destructive DROP'));
 });
 
 test('detects DROP CONSTRAINT', () => {
   const v = mod.findViolations('m.sql', 'ALTER TABLE t DROP CONSTRAINT c;');
   assert.ok(v.length > 0);
-  assert.ok(v.includes('DROP CONSTRAINT'));
+  assert.ok(v.includes('destructive DROP'));
+});
+
+test('DROP NOT NULL is safe', () => {
+  assert.equal(
+    mod.findViolations('m.sql', 'ALTER TABLE t ALTER COLUMN c DROP NOT NULL;').length,
+    0
+  );
+});
+
+test('DROP DEFAULT is safe', () => {
+  assert.equal(
+    mod.findViolations('m.sql', 'ALTER TABLE t ALTER COLUMN c DROP DEFAULT;').length,
+    0
+  );
 });
 
 test('contract marker suppresses violations', () => {
