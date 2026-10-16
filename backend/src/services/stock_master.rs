@@ -116,6 +116,15 @@ pub fn should_refresh(has_rows: bool, latest_date: Option<NaiveDate>, today: Nai
     }
 }
 
+/// stock テーブルの `MAX(date)` を取得する。空なら `None`。
+/// `stock.date` は J-Quants 基準日で、取得 SQL をここに集約する
+pub async fn latest_master_date(pool: &Db) -> Result<Option<NaiveDate>, ApiError> {
+    crate::db::query_scalar::<Option<NaiveDate>>("SELECT MAX(date) FROM stock", vec![])
+        .fetch_one(pool)
+        .await
+        .map_err(ApiError::from)
+}
+
 /// `scheduled_ms`(UTC エポックミリ秒)から UTC の日付を得る。
 /// `Utc::now()` には依存しない(テスト可能なように scheduled イベント時刻のみを使う)
 fn scheduled_date(scheduled_ms: f64) -> Option<NaiveDate> {
@@ -131,11 +140,8 @@ pub async fn maybe_refresh(
     scheduled_ms: f64,
 ) -> Result<Option<usize>, ApiError> {
     // SELECT MAX(date) を1回だけ引いて has_rows と latest_date を両方得る
-    // (EXISTS と MAX の2クエリにしない)
-    let latest_date: Option<NaiveDate> =
-        crate::db::query_scalar::<Option<NaiveDate>>("SELECT MAX(date) FROM stock", vec![])
-            .fetch_one(pool)
-            .await?;
+    // (EXISTS と MAX の2クエリにしない)。SQL は latest_master_date に集約し、2箇所へ書かない
+    let latest_date = latest_master_date(pool).await?;
     let has_rows = latest_date.is_some();
 
     let today = match scheduled_date(scheduled_ms) {
