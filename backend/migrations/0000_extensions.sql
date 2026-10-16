@@ -1,4 +1,4 @@
--- 共通拡張(citext / pg_trgm / pgcrypto)。现行 schema を1ファイルに畳んだベースライン。
+-- 共通拡張(citext / pg_trgm / pgcrypto)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 

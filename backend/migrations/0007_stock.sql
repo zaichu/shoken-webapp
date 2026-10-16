@@ -1,4 +1,4 @@
--- stock テーブル(銘柄マスタ)。现行 schema を1ファイルに畳んだベースライン。
+-- stock テーブル(銘柄マスタ)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.stock (
     date date NOT NULL,

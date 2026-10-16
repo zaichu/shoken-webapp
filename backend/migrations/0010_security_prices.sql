@@ -1,4 +1,4 @@
--- security_prices テーブル(銘柄ごとの共有株価)。现行 schema を1ファイルに畳んだベースライン。
+-- security_prices テーブル(銘柄ごとの共有株価)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.security_prices (
     security_code character varying(10) NOT NULL,
@@ -16,7 +16,7 @@ ALTER TABLE ONLY public.security_prices
 -- 基準日の新しい行を、全行が未確定の銘柄は最後に更新された行を採用する
 -- 0013 当時の asset_balances の列(current_price / daily_change / price_as_of)は
 -- 0015 で csv_current_price / csv_daily_change に変わり price_as_of は削除済みなので、
--- 现行の列名に合わせてSELECTする(新規DBでは asset_balances が空なので seed されない)
+-- 現行の列名に合わせてSELECTする(新規DBでは asset_balances が空なので seed されない)
 INSERT INTO public.security_prices (security_code, current_price, updated_at)
 SELECT DISTINCT ON (security_code)
     security_code, csv_current_price, updated_at

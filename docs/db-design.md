@@ -6,7 +6,7 @@
 `backend/migrations/README.md` にある。ここには「なぜこの形なのか」「テーブル同士が
 どう関係するか」だけを書く。列の定義は migrations を読むこと。
 
-> baseline ファイル群は现行 schema を1ファイルずつに畳んだもので、この文書の
+> baseline ファイル群は現行 schema を1ファイルずつに畳んだもので、この文書の
 > テーブル一覧・列の定義は migrations の各ファイルと一致する(#1358)。
 
 ## 設計原則

@@ -1,4 +1,4 @@
--- asset_balances テーブル(保有銘柄残高)。现行 schema を1ファイルに畳んだベースライン。
+-- asset_balances テーブル(保有銘柄残高)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.asset_balances (
     id uuid DEFAULT gen_random_uuid() NOT NULL,

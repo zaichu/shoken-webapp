@@ -1,4 +1,4 @@
--- sessions テーブル(ログインセッション)。现行 schema を1ファイルに畳んだベースライン。
+-- sessions テーブル(ログインセッション)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,

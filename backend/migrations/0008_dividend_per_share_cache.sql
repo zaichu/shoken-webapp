@@ -1,4 +1,4 @@
--- dividend_per_share_cache テーブル(1株配当のキャッシュ)。现行 schema を1ファイルに畳んだベースライン。
+-- dividend_per_share_cache テーブル(1株配当のキャッシュ)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.dividend_per_share_cache (
     security_code character varying(10) NOT NULL,

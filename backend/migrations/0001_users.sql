@@ -1,4 +1,4 @@
--- users テーブル(Google 認証ユーザー)。现行 schema を1ファイルに畳んだベースライン。
+-- users テーブル(Google 認証ユーザー)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.users (
     id uuid DEFAULT gen_random_uuid() NOT NULL,

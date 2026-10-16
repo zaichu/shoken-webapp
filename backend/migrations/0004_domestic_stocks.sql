@@ -1,4 +1,4 @@
--- domestic_stocks テーブル(国内株式の売買明細)。现行 schema を1ファイルに畳んだベースライン。
+-- domestic_stocks テーブル(国内株式の売買明細)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.domestic_stocks (
     id uuid DEFAULT gen_random_uuid() NOT NULL,

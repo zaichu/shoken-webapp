@@ -1,4 +1,4 @@
--- mutualfunds テーブル(投資信託の取引明細)。现行 schema を1ファイルに畳んだベースライン。
+-- mutualfunds テーブル(投資信託の取引明細)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.mutualfunds (
     id uuid DEFAULT gen_random_uuid() NOT NULL,

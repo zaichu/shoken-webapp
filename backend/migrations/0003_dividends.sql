@@ -1,4 +1,4 @@
--- dividends テーブル(配当・分配金の受取明細)。现行 schema を1ファイルに畳んだベースライン。
+-- dividends テーブル(配当・分配金の受取明細)。現行 schema を1ファイルに畳んだベースライン。
 
 CREATE TABLE public.dividends (
     id uuid DEFAULT gen_random_uuid() NOT NULL,

@@ -214,8 +214,8 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
 /// 旧運用履歴(状態A: 1〜LEGACY_MAX_VERSION)または旧 baseline+増分の履歴
 /// (状態B: 0〜INCREMENT_MAX_VERSION)が残る DB の `_sqlx_migrations` を、
 /// ベースラインファイル群(0〜BASELINE_MAX_VERSION)の記録へ一度だけ置き換える。
-/// テーブル・データには触れない。どちらの状態も schema は现行と同じ。
-/// それ以外の中途半端な履歴は schema が现行と異なる可能性があるためエラーで止める
+/// テーブル・データには触れない。どちらの状態も schema は現行と同じ。
+/// それ以外の中途半端な履歴は schema が現行と異なる可能性があるためエラーで止める
 async fn squash_legacy_history(
     client: &mut tokio_postgres::Client,
     applied: &mut HashMap<i64, Vec<u8>>,
