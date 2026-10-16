@@ -166,6 +166,11 @@ jobs:
           echo "hyperdrive_id=${config_id}" >> "$GITHUB_OUTPUT"
 
       # 手順4: Neon へ直接接続してマイグレーション(backend の migrate bin = _sqlx_migrations 互換ランナー)
+      # 注意: このステップ(migration)は deploy(Worker 配信)の前に実行され、実行中は旧 Worker が
+      # 本番で動き続ける。破壊的な migration(列の削除・改名)を同じ release のコード変更と一
+      # 緒に入れないこと。削除・改名は「その列を参照しなくなった Worker が本番に出た後の release」で行う
+      # (expand/contract を2リリースに分ける)。手順の詳細は backend/migrations/README.md の
+      # 「破壊的変更(列の削除・改名)は2リリースに分ける」を参照。
       - name: Run database migrations
         run: cargo run --bin migrate
 
