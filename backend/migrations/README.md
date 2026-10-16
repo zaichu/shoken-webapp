@@ -48,6 +48,10 @@ cd backend
 cargo run --bin migrate
 ```
 
+マイグレーションだけでは `stock` は空のままです。銘柄検索を動かすには
+`backend/README.md` の「新規 DB で `stock` を投入する」手順（Worker の
+`scheduled` 手動発火）を別途実行してください。
+
 ## 新しい schema 変更を入れる場合
 
 baseline(0000〜0009)は適用済み環境があるため編集しない。

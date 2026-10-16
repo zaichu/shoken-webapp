@@ -113,6 +113,42 @@ make migrate-local
 CI は `cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`、`cargo test`、
 Worker ビルド（`worker-build --release`）を実行します。
 
+### 新規 DB で `stock` を投入する（銘柄検索の初期化）
+
+新規 DB（`make migrate-local` 直後）では `stock` は空で、銘柄検索
+（`GET /api/v1/stocks?query=...`）は 404 を返します。
+`stock` は Worker の cron が J-Quants `equities/master` から全置換しますが、
+ローカルの `make run`（`wrangler dev`）では Cron Triggers が時刻一致で自動発火しないため、
+手動で `scheduled` を叩く必要があります。`JQUANTS_API_KEY` が必要です。
+
+前提:
+- PostgreSQL 起動・マイグレーション済み（`make db-up`、`make migrate-local`）
+- `backend/.dev.vars` に `JQUANTS_API_KEY`（と Google の値）を設定する
+  （`.dev.vars.example` をコピーして埋める。`backend/.env` は `make migrate` 用の
+   `DATABASE_URL` のみで、`make run` は読みません）
+
+手順:
+1. ターミナル A で開発サーバーを起動する:
+   ```bash
+   make run
+   ```
+2. 別ターミナル B で `scheduled` を手動発火する:
+   ```bash
+   curl -X POST "http://localhost:8787/cdn-cgi/local/scheduled?cron=*+*+*+*+*"
+   ```
+3. 取り込まれたことを確認する（数秒〜数十秒かかることがあります）:
+   ```bash
+   docker compose exec -T postgres psql -U user -d shoken_db -c "SELECT COUNT(*) FROM stock;"
+   ```
+   または銘柄検索が 200 を返すこと:
+   ```bash
+   curl "http://localhost:8787/api/v1/stocks?query=1301"
+   ```
+   （`1301` が存在しない場合は、投入済みのコードに置き換えて確認する）
+
+失敗時: `JQUANTS_API_KEY` 未設定なら Worker は更新をスキップし `stock` は空のまま
+（銘柄検索は 404）、上流が 0 件ならエラーを記録して `stock` は更新されません。
+
 ## デプロイ
 
 Cloudflare Workers へのデプロイは `main` へのマージで自動実行されます（`deploy-cloudflare-worker.yml`）。手動反映とログ確認:
