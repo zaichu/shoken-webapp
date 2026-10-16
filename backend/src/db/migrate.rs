@@ -62,8 +62,9 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
 /// 「適用済み」として記録される。新しい migration は 0011 以降に採番する
 const BASELINE_MAX_VERSION: i64 = 10;
 
-/// 旧ファイル名で運用していた頃の最大バージョン(状態A: 旧運用履歴 1〜17)。
-/// この時点のスキーマをベースラインにまとめたため、これより大きい version の旧履歴は存在しない
+/// 旧ファイル名で運用していた頃の最大バージョン(旧運用履歴 1〜17)。
+/// そのままの schema は現行と異なるため rotate の許可対象にはせず、
+/// エラーメッセージでのみ参照する
 const LEGACY_MAX_VERSION: i64 = 17;
 
 /// 現行の baseline + 増分を全適用した状態(状態B: 履歴 0〜18)の最大バージョン。
@@ -211,11 +212,11 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
     Ok(())
 }
 
-/// 旧運用履歴(状態A: 1〜LEGACY_MAX_VERSION)または旧 baseline+増分の履歴
-/// (状態B: 0〜INCREMENT_MAX_VERSION)が残る DB の `_sqlx_migrations` を、
-/// ベースラインファイル群(0〜BASELINE_MAX_VERSION)の記録へ一度だけ置き換える。
-/// テーブル・データには触れない。どちらの状態も schema は現行と同じ。
-/// それ以外の中途半端な履歴は schema が現行と異なる可能性があるためエラーで止める
+/// 旧 baseline + 増分の履歴(0〜INCREMENT_MAX_VERSION)が残る DB の
+/// `_sqlx_migrations` を、ベースラインファイル群(0〜BASELINE_MAX_VERSION)の記録へ
+/// 一度だけ置き換える。テーブル・データには触れない。
+/// 旧運用履歴(1〜LEGACY_MAX_VERSION)の DB は schema が現行と異なる
+/// (security_prices / asset_balances_view が無い)ためエラーで止める
 async fn squash_legacy_history(
     client: &mut tokio_postgres::Client,
     applied: &mut HashMap<i64, Vec<u8>>,
@@ -236,12 +237,13 @@ async fn squash_legacy_history(
     }
 
     let applied_versions: BTreeSet<i64> = applied.keys().copied().collect();
-    let legacy_all: BTreeSet<i64> = (1..=LEGACY_MAX_VERSION).collect();
     let linear_all: BTreeSet<i64> = (0..=INCREMENT_MAX_VERSION).collect();
-    if applied_versions != legacy_all && applied_versions != linear_all {
+    if applied_versions != linear_all {
         return Err(format!(
-            "旧マイグレーション履歴(1〜{LEGACY_MAX_VERSION} または 0〜{INCREMENT_MAX_VERSION})\
-             が揃っていません (現在: {applied_versions:?})。\
+            "旧マイグレーション履歴(0〜{INCREMENT_MAX_VERSION})が揃っていません\
+             (現在: {applied_versions:?})。\
+             旧運用履歴(1〜{LEGACY_MAX_VERSION})の DB は schema が現行と異なるため適用できません。\
+             `make db-reset` で DB を作り直してください。\
              schema が現行と異なる可能性があるため適用を中止しました"
         ));
     }

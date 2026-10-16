@@ -29,17 +29,17 @@ migration ファイルの置き場所と運用メモ。
 
 ## _sqlx_migrations 履歴の扱い
 
-baseline 張り直し前に migrate を動かしていた DB は、`_sqlx_migrations` に
-旧い履歴が残っている。ここ2つの状態を許容し、migrate 実行時に baseline
+baseline 張り直し前に migrate を動かしていた DB のうち、旧 baseline + 増分の
+履歴 `0〜18`(#1351 以降の DB)が残っているものは、migrate 実行時に baseline
 `0〜10` の記録へ置き換える(一度だけ。テーブル・データには触れない)。
-どちらの状態も schema は現行と同じ:
-
-- 状態A: 旧運用履歴 `1〜17`(初回 baseline 化の前の DB)
-- 状態B: 旧 baseline + 増分の履歴 `0〜18`(#1351 以降の DB)
-
 旧履歴かどうかは version=1 の checksum が現行 `0001_users.sql` と異なるかで
-判定する。どちらかの状態にも当てはまらない(途中までしか適用されていないなど)
-DB は schema が現行と異なる可能性があるためエラーで停止する。
+判定する。
+
+旧運用履歴 `1〜17`(初回 baseline 化の前の DB)は**エラーで停止する**。
+この状態の DB には `security_prices` テーブルも `asset_balances_view` も無い
+(schema が現行と違う)ため、rotate では修復できない。`make db-reset` で
+DB を作り直す必要がある。途中までしか適用されていない履歴も同様にエラーで
+停止する。
 
 ## デプロイ時（Cloudflare Workers）の動作：自動適用
 
