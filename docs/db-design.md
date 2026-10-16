@@ -84,3 +84,4 @@ dividend_per_share_cache.security_code ─┘
 - `docs/adr/0002-separate-stock-master-and-caches.md` — 3表を分ける決定と却下した案
 - `backend/migrations/README.md` — baseline と増分の運用、`_sqlx_migrations` の扱い
 - `docs/architecture.md` — 構成と境界
+- `backend/migrations/README.md` の「破壊的変更(列の削除・改名)は2リリースに分ける」 — 列の削除・改名をどのリリースで行うかの手順（#1355）

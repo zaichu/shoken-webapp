@@ -54,9 +54,46 @@ baseline(0000〜0009)は適用済み環境があるため編集しない。
 `0010_<description>.sql` のように次番号の新規 migration を追加し、
 `backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` エントリを足す。
 
-## baseline の再生成(baseline ファイル群を張り直す場合)
+## 破壊的変更(列の削除・改名)は2リリースに分ける
 
-新規 DB に全マイグレーションを適用した状態に対して `pg_dump --schema-only` を取り、
+列の削除・改名(破壊的変更)を含む schema 変更は、デプロイの仕組みと組み合わせて
+考えると単一のリリースでは安全に実施できない。
+
+**原則**
+
+- 追加(expand)は同じリリースでよい。
+- 削除・改名(contract)は「その列を参照しなくなった Worker が本番に出た後の
+  リリース」で行う。
+
+**理由**
+
+デプロイは `Run database migrations`(`cargo run --bin migrate`)を実行してから
+`wrangler deploy`(Worker 配信)を行う順序で動く。その間は旧 Worker が本番で動き
+続ける。破壊的な migration を同じリリースに入れると、この窓で旧 Worker が
+削除・改名された列を参照し、列不存在エラーになる。Worker の配信が失敗すると、
+その壊れた状態が続く。
+
+**手順(2リリース)**
+
+1. リリース1: コードから列の参照を外す(列は残す)。migration を入れるなら追加のみ。
+2. リリース2: 参照が本番から消えた後に、列の削除・改名の migration を入れる。
+
+**例外**
+
+誰も参照していない列、または新規 DB にしか存在しない列は即時でよい。その場合は
+PR に理由を書く。
+
+**実例**(#1355)
+
+- `0015_asset_balance_cleanup.sql`: `asset_balances` の `executing_shares` 削除、
+  `current_price` → `csv_current_price` 改名。
+- `0017_stock_master_code_pk.sql`: `stock` の `industry_code_33` / `industry_code_17` /
+  `size_code` 削除。
+
+詳細は `.github/workflows/deploy-cloudflare-worker.yml` の `Run database migrations`
+ステップのコメントを参照。
+
+## baseline の再生成(baseline ファイル群を張り直す場合)新規 DB に全マイグレーションを適用した状態に対して `pg_dump --schema-only` を取り、
 SET・`SELECT pg_catalog.set_config`・コメント・`OWNER TO`・権限行を除いて整形し、
 テーブル単位に分割する。`--schema-only` にはデータが含まれないため、必要な
 初期行 INSERT は別途対象テーブルのファイル末尾に追記する。
