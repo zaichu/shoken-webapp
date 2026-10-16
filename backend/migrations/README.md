@@ -93,7 +93,9 @@ PR に理由を書く。
 詳細は `.github/workflows/deploy-cloudflare-worker.yml` の `Run database migrations`
 ステップのコメントを参照。
 
-## baseline の再生成(baseline ファイル群を張り直す場合)新規 DB に全マイグレーションを適用した状態に対して `pg_dump --schema-only` を取り、
+## baseline の再生成(baseline ファイル群を張り直す場合)
+
+新規 DB に全マイグレーションを適用した状態に対して `pg_dump --schema-only` を取り、
 SET・`SELECT pg_catalog.set_config`・コメント・`OWNER TO`・権限行を除いて整形し、
 テーブル単位に分割する。`--schema-only` にはデータが含まれないため、必要な
 初期行 INSERT は別途対象テーブルのファイル末尾に追記する。
