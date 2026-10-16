@@ -113,3 +113,28 @@ jobs:
       - name: Build Worker bundle (wasm32)
         if: steps.gate.outputs.backend == 'true'
         run: worker-build --release
+
+  migration-guard:
+    name: Migration guard
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 0
+
+      - name: Check added migrations
+        run: |
+          set -euo pipefail
+          MERGE_BASE="$(git merge-base HEAD "origin/${{ github.base_ref }}")"
+          mapfile -t FILES < <(git diff --name-only --diff-filter=A "${MERGE_BASE}" -- backend/migrations)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No migration files added in this PR."
+            exit 0
+          fi
+          printf '%s\n' "${FILES[@]}"
+          node .github/scripts/check-migrations.js "${FILES[@]}"
+
