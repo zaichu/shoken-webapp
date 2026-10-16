@@ -15,6 +15,10 @@ migration ファイルの置き場所と運用メモ。
 `pg_dump --schema-only` に含まれない初期行(`market_data_provider_rate_control` の
 INSERT)は対応するテーブルのファイル末尾に追記してある。
 
+baseline は「ある時点の履歴」なので、現状の schema は baseline と追記(`0010〜`)を
+合わせて読む。テーブルの意図・関係(なぜこの分割か、共有/個人の分け方)は
+`docs/db-design.md` を参照。
+
 - `0000_extensions.sql`: 共通拡張(citext / pg_trgm / pgcrypto)
 - `0001_users.sql` 〜 `0006_asset_balances.sql`: 外部キーで参照される側
   (`users`)から番号順。各テーブルの index・constraint は同じファイル内

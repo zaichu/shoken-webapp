@@ -56,12 +56,15 @@ shoken-webapp/
 │   │   ├── db.rs          # DB アクセス層（wasm は Hyperdrive、ホストは migrate/テスト用直接接続）
 │   │   ├── errors.rs      # 統一エラーハンドリング
 │   │   └── state.rs       # AppState (DB pool / secrets)
-│   ├── migrations/        # DB スキーマの正本（ベースライン以降は追記のみ。テーブル構成はここを参照）
+│   ├── migrations/        # DB スキーマの定義の正本（ベースライン以降は追記のみ）
 │   └── scripts/           # ローカル検証用の運用スクリプト
 ├── shared/                # frontend/backend 共有の wire 型クレート
 ├── docs/                  # 設計・運用ドキュメント
 └── .github/               # CI/CD ワークフロー / Dependabot 設定
 ```
+
+DB のテーブル定義の正本は `backend/migrations/`（baseline `0000〜0009` ＋追記）。
+テーブルの意図・関係・共有/個人の分け方は `docs/db-design.md` を参照。
 
 ## 境界の置き方
 
