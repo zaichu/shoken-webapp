@@ -1538,6 +1538,7 @@ async fn auth_session_upsert_rotate_and_delete() {
 }
 
 /// id にもトークンを書く旧版と同時に動いても、双方が発行したセッションを互いに照合・失効できること。
+/// 旧版の照合クエリは現行のコードに存在しないため、その assert は省略。
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn session_token_hash_rolling_deploy_compat() {
@@ -1660,7 +1661,7 @@ async fn session_token_hash_rolling_deploy_compat() {
     );
     lock_tx.rollback().await.expect("ロック解除");
 
-    // 新版は id にトークンを書かず、旧版の照合クエリでも解決できる
+    // 新版は id にトークンを書かない
     let row: Option<(Uuid,)> = db::query_as(
         "SELECT id FROM sessions WHERE token_hash = sha256(convert_to($1::text, 'UTF8'))",
         vec![Bind::from(new_session.to_string())],
@@ -1674,19 +1675,6 @@ async fn session_token_hash_rolling_deploy_compat() {
         new_session.to_string(),
         "id にトークンを保持しないこと"
     );
-    let old_version_view: Option<(UserId,)> = db::query_as(
-        "SELECT user_id FROM sessions WHERE (token_hash = sha256(convert_to($1::text, 'UTF8')) OR (token_hash IS NULL AND id = $1::text::uuid)) AND expires_at > NOW()",
-        vec![Bind::from(new_session.to_string())],
-    )
-    .fetch_optional(&pool)
-    .await
-    .expect("旧版の照合クエリ");
-    assert_eq!(
-        old_version_view.map(|r| r.0),
-        Some(user_id),
-        "旧版が新版発行セッションを照合できること"
-    );
-
     assert!(
         db::query(
             "INSERT INTO sessions (id, user_id) VALUES ($1, $2)",
