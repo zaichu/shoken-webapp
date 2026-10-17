@@ -1,7 +1,7 @@
 name: Cloudflare Worker Deploy
 
 # 設計: docs/design/cloudflare-workers-backend.md 5節 (1・2・4・5) / 8節 段階6。
-# main push(バックエンド系パス)と手動起動で動く。PR 時の検証は backend.yml が担当する。
+# main push(バックエンド系パス)と手動起動で動く。検証は「PR = backend.yml」「main push = 本 workflow の verify job」に分ける。
 on:
   push:
     branches: [main]
@@ -10,6 +10,8 @@ on:
       - 'shared/**'
       - 'rust-toolchain.toml'
       - 'docs/openapi.json'
+      - 'scripts/check-openapi.sh'
+      - '.github/workflows/backend.yml'
       - '.github/workflows/deploy-cloudflare-worker.yml'
       - '.github/actions/rust-cache/**'
       - '!**/*.md'
@@ -85,6 +87,19 @@ jobs:
 
       - name: Run tests
         run: cargo test
+
+      # backend.yml と同じ検証を main push でも回す(shared crate と openapi.json 同期を含む)
+      - name: Check shared crate
+        run: |
+          cargo fmt --manifest-path ../shared/Cargo.toml --check
+          cargo clippy --manifest-path ../shared/Cargo.toml --all-features --all-targets -- -D warnings
+          cargo test --manifest-path ../shared/Cargo.toml --all-features
+          rustup target add wasm32-unknown-unknown
+          cargo check --manifest-path ../shared/Cargo.toml --target wasm32-unknown-unknown
+
+      - name: Check OpenAPI schema is up to date
+        working-directory: ${{ github.workspace }}
+        run: bash scripts/check-openapi.sh
 
       - name: Install worker-build
         run: cargo install --locked --version 0.8.7 worker-build

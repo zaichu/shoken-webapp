@@ -1,19 +1,9 @@
 name: Backend CI
 
+# main push での検証は deploy-cloudflare-worker.yml の verify job が担うため、ここでは main push を発火しない
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - 'shared/**'
-      - 'rust-toolchain.toml'
-      - 'docs/openapi.json'
-      - 'scripts/check-openapi.sh'
-      - '.github/workflows/backend.yml'
-      - '.github/actions/rust-cache/**'
-      - '!**/*.md'
   # GITHUB_TOKEN による dependabot の自動マージでは push イベントが発火しないため、手動検証用に残す
   workflow_dispatch:
 
