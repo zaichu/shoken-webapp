@@ -99,12 +99,7 @@ baseline(`0000〜0010`)は適用済み環境があるため編集しない。
 誰も参照していない列、または新規 DB にしか存在しない列は即時でよい。その場合は
 PR に理由を書く。
 
-**実例**(#1355)
-
-- `0015_asset_balance_cleanup.sql`: `asset_balances` の `executing_shares` 削除、
-  `current_price` → `csv_current_price` 改名。
-- `0017_stock_master_code_pk.sql`: `stock` の `industry_code_33` / `industry_code_17` /
-  `size_code` 削除。
+**実例**: [#1355](https://github.com/zaichu/shoken-webapp/pull/1355)
 
 詳細は `.github/workflows/deploy-cloudflare-worker.yml` の `Run database migrations`
 ステップのコメントを参照。
