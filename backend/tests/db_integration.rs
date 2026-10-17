@@ -1538,7 +1538,6 @@ async fn auth_session_upsert_rotate_and_delete() {
 }
 
 /// id にもトークンを書く旧版と同時に動いても、双方が発行したセッションを互いに照合・失効できること。
-/// 旧版の照合クエリは現行のコードに存在しないため、その assert は省略。
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn session_token_hash_rolling_deploy_compat() {
