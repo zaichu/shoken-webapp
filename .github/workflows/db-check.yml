@@ -1,0 +1,60 @@
+name: DB Check
+
+# 本番 DB の状態を手動起動で確認する。公開リポジトリで Actions のログは誰でも
+# 見えるため、SELECT するのは集計値・マイグレーション履歴・列名だけに絞る
+# (銘柄コード・銘柄名・金額・数量・メールアドレスは出さない)。
+# SQL はここに固定し入力値は埋め込まず、接続は読み取り専用に固定する
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-check
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Run aggregate queries
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # workflow_dispatch は任意ブランチから起動できるため main 以外では流さない
+    if: github.ref == 'refs/heads/main'
+    steps:
+      # DATABASE_URL は値がログ・サマリーに出ないよう、このステップの env にだけ渡す
+      - name: Run read-only queries
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PGOPTIONS: '-c default_transaction_read_only=on'
+        run: |
+          set -euo pipefail
+          [[ -n "${DATABASE_URL:-}" ]] || { echo "::error::secrets.DATABASE_URL が未設定です"; exit 1; }
+
+          q() {
+            psql "${DATABASE_URL}" --no-psqlrc -v ON_ERROR_STOP=1 -c "$1"
+          }
+
+          {
+            echo '### マイグレーション履歴(_sqlx_migrations)'
+            echo '```'
+            q "SELECT version, success FROM _sqlx_migrations ORDER BY version"
+            echo '```'
+            echo '### 銘柄マスタ(stock)'
+            echo '```'
+            q "SELECT count(*) AS total, count(DISTINCT code) AS distinct_codes, max(date) AS latest_date FROM stock"
+            echo '```'
+            echo '### 株価(security_prices)'
+            echo '```'
+            echo '-- 行数'
+            q "SELECT count(*) FROM security_prices"
+            echo '-- price_as_of ごとの件数'
+            q "SELECT price_as_of, count(*) AS cnt FROM security_prices GROUP BY price_as_of ORDER BY price_as_of"
+            echo '-- 小数第2位に丸まっていない行の件数'
+            q "SELECT count(*) FROM security_prices WHERE current_price <> round(current_price,2) OR prev_close <> round(prev_close,2)"
+            echo '```'
+            echo '### 列名(asset_balances / users)'
+            echo '```'
+            q "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('asset_balances', 'users') ORDER BY table_name, ordinal_position"
+            echo '```'
+          } | tee -a "${GITHUB_STEP_SUMMARY}"
