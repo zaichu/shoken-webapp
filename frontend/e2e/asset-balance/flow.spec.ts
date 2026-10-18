@@ -80,10 +80,12 @@ async function setupAssetBalanceMocks(
   {
     initialAssetBalances = [],
     previewRows = cloneAssetBalances(MOCK_PREVIEW.rows),
+    previewErrors = [] as { row: number; message: string }[],
     uploadedAssetBalances = cloneAssetBalances(MOCK_PREVIEW.rows),
   }: {
     initialAssetBalances?: typeof ASSET_BALANCES;
     previewRows?: typeof MOCK_PREVIEW.rows;
+    previewErrors?: { row: number; message: string }[];
     uploadedAssetBalances?: typeof MOCK_PREVIEW.rows;
   } = {},
 ): Promise<AssetBalanceMockController> {
@@ -123,6 +125,9 @@ async function setupAssetBalanceMocks(
     return route.fulfill(
       json({
         ...MOCK_PREVIEW,
+        total_rows: previewRows.length + previewErrors.length,
+        valid_rows: previewRows.length,
+        errors: previewErrors,
         rows: cloneAssetBalances(previewRows),
       }),
     );
@@ -192,6 +197,23 @@ test('CSV プレビュー完了後に保存ボタンが活性化する', async (
     'assetbalance-base.csv',
   );
   await expect(page.getByRole('button', { name: '1件 全件置換で保存' })).toBeEnabled();
+});
+
+test('エラーのあるCSVは全件置換で保存できない', async ({ page }) => {
+  const mocks = await setupAssetBalanceMocks(page, {
+    previewErrors: [{ row: 2, message: '株数が数値ではありません' }],
+  });
+
+  await page.goto('/assetbalance/csv');
+  await selectCsvFile(page);
+
+  // 全件置換はエラー行を含む CSV を backend が拒否するため、有効行だけの保存を約束しない
+  const notice = page.getByTestId('csv-preview-notice');
+  await expect(notice).toContainText('全件置換で保存できません');
+  await expect(
+    page.getByRole('button', { name: /全件置換で保存/ }).first(),
+  ).toBeDisabled();
+  expect(mocks.getUploadRequestCount()).toBe(0);
 });
 
 test('保存後に一覧が再取得されて銘柄データが表示される', async ({ page }) => {

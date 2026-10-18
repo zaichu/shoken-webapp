@@ -8,6 +8,19 @@ use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
 use leptos::prelude::*;
 
+// 検証前・検証失敗・全行エラー(有効行0)では保存を送らない。
+// 一部保存ができない方式(全件置換)は、エラー行を含む CSV を backend が拒否するため
+// 有効行があってもエラーが残る間は保存を止める
+pub(crate) fn save_disabled_by_preview(meta: &CsvTabMeta, errors_block_save: bool) -> bool {
+    meta.busy()
+        || !meta.has_preview_rows()
+        || (errors_block_save
+            && meta
+                .preview
+                .as_ref()
+                .is_some_and(|preview| !preview.errors.is_empty()))
+}
+
 /// CSV 管理・削除ページが要求するデータソース。
 /// 取引明細(種別付き)と資産残高が同じページ構成を共有するため、
 /// 状態取得と操作をトレイトで受け取る。状態は行データを含まない CsvTabMeta
@@ -23,9 +36,13 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     fn is_authenticated(&self) -> bool;
     // 未認証・取得中・CSV 処理中など、ファイル選択を受け付けられない状態の判定
     fn input_disabled(&self) -> bool;
+    /// エラー付きプレビューでは保存を止めるか(全件置換など一部保存ができない方式)
+    fn errors_block_save(&self) -> bool {
+        false
+    }
     // 検証前・検証失敗・全行エラー(有効行0)では保存を送らない
     fn save_disabled(&self, meta: &CsvTabMeta) -> bool {
-        meta.busy() || !meta.has_preview_rows()
+        save_disabled_by_preview(meta, self.errors_block_save())
     }
     /// ファイル選択の下に出す、想定するCSV形式の案内
     fn csv_format_hint(&self) -> &'static str;
@@ -139,6 +156,7 @@ pub fn CsvManagePage<S: CsvSource>(
                                 valid_rows=valid_rows
                                 save_action=source.save_action()
                                 errors=errors
+                                errors_block_save=source.errors_block_save()
                             />
                         }
                     })

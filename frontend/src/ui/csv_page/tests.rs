@@ -1,5 +1,32 @@
 use super::*;
 use crate::api::dto::CsvRowError;
+use crate::support::csv_flow::CsvPreviewMeta;
+
+#[test]
+fn save_disabled_by_preview_blocks_erroring_preview_only_for_all_or_nothing() {
+    let error = || CsvRowError {
+        row: 2,
+        message: "数量が数値ではありません".to_string(),
+    };
+    let meta = |errors: Vec<CsvRowError>, has_rows: bool| CsvTabMeta {
+        preview: Some(CsvPreviewMeta {
+            valid_rows: 1,
+            errors,
+            has_rows,
+        }),
+        ..Default::default()
+    };
+
+    // 追加保存は有効行があればエラー付きでも保存できる
+    assert!(!save_disabled_by_preview(&meta(vec![error()], true), false));
+    // 全件置換はエラー行を含む CSV を backend が拒否するため保存を止める
+    assert!(save_disabled_by_preview(&meta(vec![error()], true), true));
+    // エラーが無ければ全件置換でも保存できる
+    assert!(!save_disabled_by_preview(&meta(vec![], true), true));
+    // 検証前・有効行0はどちらの方式でも保存不可
+    assert!(save_disabled_by_preview(&meta(vec![], false), true));
+    assert!(save_disabled_by_preview(&CsvTabMeta::default(), false));
+}
 
 #[test]
 fn save_result_heading_splits_success_partial_and_full_failure() {

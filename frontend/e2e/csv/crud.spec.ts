@@ -739,7 +739,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(page.getByText('資産管理データがありません')).toBeVisible();
   });
 
-  test('不正行を含むCSVは有効件数で保存しスキップとエラー件数を表示する', async ({ page }) => {
+  test('不正行を含むCSVは修正するまで全件置換で保存できない', async ({ page }) => {
     const rowErrors = [
       { row: 2, message: '銘柄コードが不正です' },
       { row: 3, message: '株数が不正です' },
@@ -751,25 +751,22 @@ test.describe('資産管理 CSV 取込・削除', () => {
         errors: rowErrors,
         rows: [ASSET_INPEX],
       }),
-      importBody: () => ({ inserted: 1, skipped: 2, errors: rowErrors }),
-      savedRows: () => [ASSET_INPEX],
     });
 
     await page.goto('/assetbalance/csv');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
-    await expect(page.getByRole('button', { name: '1件 全件置換で保存' })).toBeEnabled();
+
+    // 全件置換はエラー行を含む CSV を backend が拒否するため、有効行だけの保存を約束しない
+    const notice = page.getByTestId('csv-preview-notice');
+    await expect(notice).toContainText('全件置換で保存できません');
+    await expect(notice).toContainText('2行目: 銘柄コードが不正です');
+    await expect(
+      page.getByRole('button', { name: /全件置換で保存/ }).first(),
+    ).toBeDisabled();
     const preview = page.getByTestId('csv-preview');
     await expect(preview.getByText('INPEX').first()).toBeVisible();
     await expect(preview.getByText('任天堂')).toHaveCount(0);
-
-    await page.getByRole('button', { name: '1件 全件置換で保存' }).click();
-    const notice = page.getByTestId('csv-save-result-notice');
-    await expect(notice).toContainText('1件反映');
-    await expect(notice).toContainText('2件スキップ');
-    await expect(notice).toContainText('2件エラー');
-    await expect(notice).toContainText('2行目: 銘柄コードが不正です');
-    await expect(page.getByText('保存済みデータ: 1件')).toBeVisible();
   });
 });

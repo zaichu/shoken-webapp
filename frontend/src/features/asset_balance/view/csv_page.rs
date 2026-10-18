@@ -41,6 +41,10 @@ impl CsvSource for AssetBalanceCsvStore {
         self.csv_input_disabled()
     }
 
+    fn errors_block_save(&self) -> bool {
+        true
+    }
+
     fn csv_format_hint(&self) -> &'static str {
         "対応形式: 資産残高CSV(見出し行の先頭は「銘柄コード」)"
     }
