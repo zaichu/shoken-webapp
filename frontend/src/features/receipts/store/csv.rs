@@ -101,18 +101,6 @@ impl ReceiptsStore {
         started.then_some((generation, file))
     }
 
-    pub fn discard_csv(&self, tab: ReceiptsTab) {
-        let Some(generation) = self.current_generation() else {
-            return;
-        };
-        self.tabs.update(|map| {
-            let entry = map.entry((generation, tab)).or_default();
-            if entry.csv.discard() {
-                entry.csv_file = None;
-            }
-        });
-    }
-
     pub fn open_delete_confirm(&self, tab: ReceiptsTab) {
         if let Some(generation) = self.current_generation() {
             self.update_csv_state(generation, tab, |state| state.open_delete_confirm());

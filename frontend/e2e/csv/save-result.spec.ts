@@ -129,7 +129,7 @@ async function selectCsvAndSave(page: Page, validRows: number) {
     page.getByText(`${validRows}件を追加で保存できます`),
   ).toBeVisible();
   await page
-    .getByRole('button', { name: `${validRows}件 追加で保存` })
+    .getByRole('button', { name: `${validRows}件を保存する` })
     .click();
 }
 
@@ -183,10 +183,7 @@ test.describe('取込結果のエラー詳細表示', () => {
     const notice = page.getByTestId('csv-save-result-notice');
 
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
-    await page
-      .getByRole('button', { name: /追加で保存/ })
-      .first()
-      .click();
+    await page.getByRole('button', { name: /保存する/ }).first().click();
     await expect(notice).toContainText('保存しました');
     const successIcon = await notice.locator('svg path').first().getAttribute('d');
     const successClass = await notice.getAttribute('class');
@@ -201,10 +198,7 @@ test.describe('取込結果のエラー詳細表示', () => {
       ],
     };
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
-    await page
-      .getByRole('button', { name: /追加で保存/ })
-      .first()
-      .click();
+    await page.getByRole('button', { name: /保存する/ }).first().click();
     await expect(notice).toContainText('保存できませんでした');
     const failureIcon = await notice.locator('svg path').first().getAttribute('d');
     const failureClass = await notice.getAttribute('class');

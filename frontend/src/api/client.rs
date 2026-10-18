@@ -1,8 +1,26 @@
 use gloo_timers::future::TimeoutFuture;
 use serde::{Serialize, de::DeserializeOwned};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::fmt;
 use std::rc::Rc;
+
+// リトライ待ちの観測先。リトライはこのモジュールの内部で完結するため、
+// UI(CSV 保存ボタンの「再試行中...」)はフック経由で受け取る
+thread_local! {
+    static RETRY_HOOK: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
+}
+
+pub fn set_retry_hook(hook: impl Fn() + 'static) {
+    RETRY_HOOK.with(|slot| *slot.borrow_mut() = Some(Rc::new(hook)));
+}
+
+fn notify_retry_wait() {
+    RETRY_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow().as_ref() {
+            hook();
+        }
+    });
+}
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const DEFAULT_MAX_RETRIES: u32 = 3;
@@ -292,6 +310,10 @@ impl ApiClient {
             match self.send_once(method, path, query, &body).await {
                 Ok(text) => return Ok(text),
                 Err(error) if attempt < self.max_retries && error.is_retryable() => {
+                    // 他の API 呼び出しの再送が CSV 保存中の表示に混入しないようにする
+                    if matches!(body, RequestBody::Form(_)) {
+                        notify_retry_wait();
+                    }
                     let delay = self
                         .retry_delay_ms
                         .saturating_mul(self.retry_multiplier.saturating_pow(attempt));

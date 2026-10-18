@@ -703,7 +703,8 @@ fn receipt_csv_source_constants_match_expected_values() {
             assert_eq!(source.input_id(), tab.csv_input_id());
             assert_eq!(source.save_action(), "追加で保存");
             assert_eq!(source.save_mode_label(), "追加");
-            assert_eq!(source.mode_label(), "追加保存");
+            assert_eq!(source.save_button_label(Some(3)), "3件を保存する");
+            assert_eq!(source.save_button_label(None), "保存する");
         }
     });
 }

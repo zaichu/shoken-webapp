@@ -1,33 +1,6 @@
 use super::*;
 
 #[test]
-fn save_label_preserves_action_count_and_busy_priority() {
-    for action in ["全件置換で保存", "追加で保存"] {
-        let mut state = CsvTabState::<String>::default();
-        assert_eq!(state.meta().save_label(action), action);
-        state.preview = Some(CsvPreviewResponse {
-            valid_rows: 3,
-            ..Default::default()
-        });
-        let ready = state.meta().save_label(action);
-        assert!(ready.starts_with("3件"));
-        assert!(ready.contains(action));
-        state.previewing = true;
-        let previewing = state.meta().save_label(action);
-        assert_ne!(previewing, ready);
-        state.saving = true;
-        let saving = state.meta().save_label(action);
-        assert_ne!(saving, previewing);
-        assert_ne!(saving, ready);
-        state.previewing = false;
-        state.preview = None;
-        assert_eq!(state.meta().save_label(action), saving);
-        state.saving = false;
-        assert_eq!(state.meta().save_label(action), action);
-    }
-}
-
-#[test]
 fn begin_save_and_begin_delete_are_busy_gated() {
     let mut state = CsvTabState::<String>::default();
     assert!(state.begin_save());

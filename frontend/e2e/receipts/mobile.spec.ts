@@ -355,7 +355,7 @@ test('全件削除は専用ページで確認して実行される', async ({ pa
   await page.goto('/receipts/csv?kind=dividend');
 
   // 削除ページを開いただけでは DELETE を送らない
-  await page.getByRole('link', { name: '保存済みデータを削除する画面へ' }).click();
+  await page.getByRole('link', { name: '保存済みデータを削除…' }).click();
   await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
   await expect(page.getByTestId('csv-delete-page')).toContainText(
     'この操作は取り消せません',
@@ -426,7 +426,7 @@ test('CSV取込の保存結果は一覧再取得後もCSVページに見える',
         'fixtures/csv/dividend-base.csv',
       ),
     );
-  await page.getByRole('button', { name: '1件 追加で保存' }).click();
+  await page.getByRole('button', { name: '1件を保存する' }).click();
 
   const notice = page.getByTestId('csv-save-result-notice');
   await expect(notice).toBeVisible();
