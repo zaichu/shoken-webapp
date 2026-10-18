@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 use thiserror::Error;
+use unicode_normalization::UnicodeNormalization;
 
 /// CSV の行番号（ヘッダー除く、1始まり）
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -88,10 +89,15 @@ pub fn parse_date(s: &str) -> Result<NaiveDate, CellError> {
 }
 
 /// ヘッダー名→列番号の共有索引。
-/// 行ごとに HashMap<String, String> を複製しないため、パース時に1つだけ構築して全行で共有する
+/// 行ごとに HashMap<String, String> を複製しないため、パース時に1つだけ構築して全行で共有する。
+/// 照合は NFKC 正規化して行う(証券会社CSVの新旧形式で全角/半角の括弧が違うため)
 #[derive(Debug, Default)]
 pub struct HeaderIndex {
     map: HashMap<String, usize>,
+}
+
+fn normalize_header(header: &str) -> String {
+    header.trim().nfkc().collect()
 }
 
 impl HeaderIndex {
@@ -100,13 +106,17 @@ impl HeaderIndex {
             map: headers
                 .into_iter()
                 .enumerate()
-                .map(|(i, header)| (header.trim().to_string(), i))
+                .map(|(i, header)| (normalize_header(header), i))
                 .collect(),
         }
     }
 
     fn get(&self, name: &str) -> Option<usize> {
-        self.map.get(name).copied()
+        // キーは正規化済み。検索側が正規形ならアロケーションなしで引ける
+        if let Some(index) = self.map.get(name) {
+            return Some(*index);
+        }
+        self.map.get(normalize_header(name).as_str()).copied()
     }
 }
 
@@ -135,6 +145,21 @@ impl<'a> CsvRowView<'a> {
     /// 行の全セル値（トリム済み）を返す
     pub fn values(&self) -> impl Iterator<Item = &'a str> + '_ {
         self.record.iter().map(str::trim)
+    }
+
+    /// 別名候補のうち実在する最初の列名を返す。どれも無ければ先頭の候補を返す
+    /// (必須列パースに渡すと欠落時のエラーメッセージが正名になる)
+    pub fn resolve_col<'n>(&self, names: &'n [&'n str]) -> &'n str {
+        names
+            .iter()
+            .copied()
+            .find(|name| self.index.get(name).is_some())
+            .unwrap_or(names[0])
+    }
+
+    /// 列が存在するか(空セルと列なしを区別する)
+    pub fn has_column(&self, name: &str) -> bool {
+        self.index.get(name).is_some()
     }
 }
 
@@ -215,6 +240,15 @@ pub fn parse_required_number(
         return Err(cell_error(row_num, missing_required(col)));
     }
     parse_number(raw).map_err(|e| cell_error(row_num, format!("{col}: {e}")))
+}
+
+/// 任意の数値フィールドを取得（列なし・空・"-" は 0、パース失敗はエラー）
+pub fn parse_optional_number(
+    row: &CsvRowView<'_>,
+    col: &str,
+    row_num: RowNumber,
+) -> Result<Decimal, CsvRowError> {
+    parse_number(row.cell(col)).map_err(|e| cell_error(row_num, format!("{col}: {e}")))
 }
 
 /// 必須日付フィールドを取得（パース失敗でエラー）
@@ -443,6 +477,43 @@ mod tests {
                 .row,
             3
         );
+    }
+
+    #[test]
+    fn test_header_index_matches_nfkc_equivalent_names() {
+        // 全角/半角の括弧が違う新旧の見出しを同一視する
+        let (record, index) = make_row(&[("金額（税引前）[円]", "100"), ("数量", "3")]);
+        let row = CsvRowView::new(&record, &index);
+        assert_eq!(row.cell("金額(税引前)[円]"), "100");
+        assert_eq!(row.cell("金額（税引前）[円]"), "100");
+        assert!(row.has_column("金額(税引前)[円]"));
+        assert!(!row.has_column("存在しない列"));
+    }
+
+    #[test]
+    fn test_resolve_col_picks_first_existing_alias() {
+        let (record, index) = make_row(&[("別名B", "v")]);
+        let row = CsvRowView::new(&record, &index);
+        assert_eq!(row.resolve_col(&["正名", "別名B", "別名C"]), "別名B");
+        // どれも無ければ先頭(欠落エラーの表示名)に倒す
+        assert_eq!(row.resolve_col(&["正名", "別名C"]), "正名");
+    }
+
+    #[test]
+    fn test_parse_optional_number_row() {
+        let (record, index) = make_row(&[("数値", "1,234"), ("空欄", ""), ("ハイフン", "-")]);
+        let row = CsvRowView::new(&record, &index);
+        assert_eq!(
+            parse_optional_number(&row, "数値", RowNumber::new(1)).unwrap(),
+            dec!(1234)
+        );
+        // 空・"-"・列なしは 0
+        for col in ["空欄", "ハイフン", "存在しない列"] {
+            assert_eq!(
+                parse_optional_number(&row, col, RowNumber::new(1)).unwrap(),
+                Decimal::ZERO
+            );
+        }
     }
 
     #[test]

@@ -94,6 +94,7 @@ mod tests {
         const CSV_CONFIG: CsvParserConfig = CsvParserConfig {
             skip_header_rows: 0,
             exclude_row_fn: None,
+            header_marker: None,
         };
 
         fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {

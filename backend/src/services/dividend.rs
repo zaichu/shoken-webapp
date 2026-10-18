@@ -8,8 +8,9 @@ use crate::models::dividend::{
 use crate::services::csv::import::{CsvImport, validate_csv_rows};
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{
-    CsvRowView, RowNumber, check_max_chars, parse_optional_string, parse_required_account,
-    parse_required_date, parse_required_number, parse_required_string,
+    CellError, CsvRowView, RowNumber, check_max_chars, parse_optional_number,
+    parse_optional_string, parse_required_account, parse_required_date, parse_required_number,
+    parse_required_string,
 };
 use crate::services::domain::bulk::{RowLimit, bulk_insert, user_ids_for_bulk_insert};
 use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
@@ -34,6 +35,8 @@ impl CsvImport for DividendDomain {
     const CSV_CONFIG: CsvParserConfig = CsvParserConfig {
         skip_header_rows: 0,
         exclude_row_fn: None,
+        // 証券会社の新形式は表題行が先頭に付くため、見出しは列名で検出する
+        header_marker: Some("入金日"),
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
@@ -169,6 +172,18 @@ pub async fn bulk_create(
     .await
 }
 
+// 証券会社CSVの新旧形式で表記が違う列の別名候補。先頭は欠落時エラーの正名
+const COL_DATE: &[&str] = &["入金日", "入金日(受渡日)"];
+const COL_SHARES: &[&str] = &["数量[株/口]", "数量[株/口/額面]"];
+const COL_BEFORE_TAX: &[&str] = &[
+    "配当・分配金合計（税引前）[円/現地通貨]",
+    "配当金・分配金・利金合計(税引前)[円/現地通貨]",
+];
+const COL_NET: &[&str] = &["受取金額[円/現地通貨]", "受取金額(税引後)[円/現地通貨]"];
+const COL_TAX_TOTAL: &str = "税額合計[円/現地通貨]";
+const COL_TAX_FOREIGN: &str = "外国税額[円]";
+const COL_TAX_DOMESTIC: &str = "国内税額合計[円]";
+
 fn transform_dividend_row(
     row: &CsvRowView<'_>,
     row_num: RowNumber,
@@ -176,6 +191,12 @@ fn transform_dividend_row(
     // 円限定の現仕様: 受取通貨が円以外の行は明示的な行エラーとして拒否する
     // 「円」「日本円」など表記ゆれを許容するため contains で判定する
     let received_currency = row.cell("受取通貨").trim();
+    if received_currency.is_empty() {
+        return Err(CsvRowError {
+            row: row_num.get(),
+            message: "受取通貨が空です".to_string(),
+        });
+    }
     if !received_currency.contains('円') {
         return Err(CsvRowError {
             row: row_num.get(),
@@ -184,7 +205,7 @@ fn transform_dividend_row(
     }
 
     Ok(CreateDividendRequest {
-        settlement_date: parse_required_date(row, "入金日", row_num)?,
+        settlement_date: parse_required_date(row, row.resolve_col(COL_DATE), row_num)?,
         product: check_max_chars(
             parse_required_string(row, "商品", row_num)?,
             "商品",
@@ -205,15 +226,27 @@ fn transform_dividend_row(
             row_num,
         )?,
         unit_price: parse_required_number(row, "単価[円/現地通貨]", row_num)?,
-        shares: parse_required_number(row, "数量[株/口]", row_num)?,
-        dividends_before_tax: parse_required_number(
-            row,
-            "配当・分配金合計（税引前）[円/現地通貨]",
-            row_num,
-        )?,
-        taxes: parse_required_number(row, "税額合計[円/現地通貨]", row_num)?,
-        net_amount_received: parse_required_number(row, "受取金額[円/現地通貨]", row_num)?,
+        shares: parse_required_number(row, row.resolve_col(COL_SHARES), row_num)?,
+        dividends_before_tax: parse_required_number(row, row.resolve_col(COL_BEFORE_TAX), row_num)?,
+        taxes: parse_taxes(row, row_num)?,
+        net_amount_received: parse_required_number(row, row.resolve_col(COL_NET), row_num)?,
     })
+}
+
+/// 税額。新形式では外国・国内の2列に分かれるため、税額合計が無いときは2列の和を取る
+/// (いずれの列も無いファイルは税額合計の必須列エラーとする)
+fn parse_taxes(row: &CsvRowView<'_>, row_num: RowNumber) -> Result<Decimal, CsvRowError> {
+    if row.has_column(COL_TAX_TOTAL) {
+        return parse_required_number(row, COL_TAX_TOTAL, row_num);
+    }
+    if !row.has_column(COL_TAX_FOREIGN) && !row.has_column(COL_TAX_DOMESTIC) {
+        return Err(CsvRowError {
+            row: row_num.get(),
+            message: CellError::MissingRequired(COL_TAX_TOTAL.to_string()).to_string(),
+        });
+    }
+    Ok(parse_optional_number(row, COL_TAX_FOREIGN, row_num)?
+        + parse_optional_number(row, COL_TAX_DOMESTIC, row_num)?)
 }
 
 #[cfg(test)]
@@ -330,5 +363,72 @@ mod tests {
             (2, 1, 1, 2)
         );
         assert_eq!(preview.rows[0].security_code.as_str(), "8591");
+    }
+
+    #[test]
+    fn test_preview_csv_new_format_fixture() {
+        // 表題行つき・列名変更・税額2列の新形式(Shift-JIS)。架空データの fixture
+        let preview = DividendDomain::preview_csv(include_bytes!(
+            "../../tests/fixtures/dividend-new-format.csv"
+        ))
+        .unwrap();
+        assert_eq!(
+            (
+                preview.total_rows,
+                preview.valid_rows,
+                preview.errors.is_empty()
+            ),
+            (5, 5, true)
+        );
+        let last = &preview.rows[4];
+        assert_eq!(last.security_code.as_str(), "1234");
+        // 税額は 外国税額500 + 国内税額2,031
+        assert_eq!(last.taxes, rust_decimal_macros::dec!(2531));
+        assert_eq!(last.net_amount_received, rust_decimal_macros::dec!(7469));
+    }
+
+    #[test]
+    fn test_preview_csv_title_line_before_old_header() {
+        // 表題行があっても旧列名のファイルは取り込める
+        let preview = preview_from_lines(&[
+            "配当金・分配金・利金一覧",
+            HEADER,
+            "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"",
+        ]);
+        assert_eq!(
+            (
+                preview.total_rows,
+                preview.valid_rows,
+                preview.errors.is_empty()
+            ),
+            (1, 1, true)
+        );
+    }
+
+    #[test]
+    fn test_preview_csv_without_header_fails_with_single_error() {
+        // 見出し行が見つからないときは行エラーではなくファイル全体で1件のエラー
+        let result = DividendDomain::preview_csv("商品,口座\n\"国内株式\",\"特定\"".as_bytes());
+        assert!(matches!(
+            result,
+            Err(ApiError::Csv(crate::errors::CsvError::HeaderNotFound(_)))
+        ));
+    }
+
+    #[test]
+    fn test_preview_csv_empty_currency_message() {
+        // 受取通貨が空のときは値を括弧に入れない専用メッセージにする
+        let preview = preview_from_lines(&[
+            HEADER,
+            "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"\",\"93.76\",\"200\",\"18,752\",\"3,808\",\"14,944\"",
+        ]);
+        assert_eq!(
+            (
+                preview.valid_rows,
+                preview.errors.len(),
+                preview.errors[0].message.as_str(),
+            ),
+            (0, 1, "受取通貨が空です")
+        );
     }
 }

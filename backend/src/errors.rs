@@ -20,6 +20,8 @@ pub enum CsvError {
     HeaderRead(String),
     #[error("CSV行の読み込みに失敗しました: {0}")]
     RowRead(String),
+    #[error("見出しの行が見つかりません(想定する列: {0})")]
+    HeaderNotFound(&'static str),
     #[error("マルチパートの読み込みに失敗しました: {0}")]
     MultipartRead(String),
     #[error("CSVファイル（.csv）のみアップロードできます")]
