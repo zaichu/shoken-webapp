@@ -369,25 +369,38 @@ async fn stock_master_refresh_runs_when_slot_is_due() {
     );
 }
 
-/// stock が空のときは枠(次回時刻が未来)に関わらず初期投入を実行する
+/// stock が空でも、失敗待ち・実行中の枠(未来の next_available_at)は待つ。
+/// 枠の行が無い初回は初期投入を実行する
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn stock_master_refresh_runs_when_stock_empty_even_if_slot_future() {
+async fn stock_master_refresh_empty_stock_waits_for_slot_but_runs_without_row() {
     let (pool, _node) = start_test_pool().await;
     let client = JQuantsClient::new("test-api-key".to_string());
+
+    // 失敗待ち・実行中の枠(未来)は、stock が空でも強制取得しない
     db::query(
         "INSERT INTO market_data_provider_rate_control (provider, next_available_at)
-         VALUES ('jquants-equities-master', NOW() + INTERVAL '7 days')",
+         VALUES ('jquants-equities-master', NOW() + INTERVAL '1 hour')",
         vec![],
     )
     .execute(&pool)
     .await
     .expect("枠の行の投入");
+    let skipped = stock_master::maybe_refresh(&pool, &client, scheduled_now_ms()).await;
+    assert_eq!(skipped.unwrap(), None, "失敗待ちの枠は空でも実行しない");
 
+    // 枠の行が無い初回は初期投入を試みる
+    db::query(
+        "DELETE FROM market_data_provider_rate_control WHERE provider = 'jquants-equities-master'",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("枠の行の削除");
     let result = stock_master::maybe_refresh(&pool, &client, scheduled_now_ms()).await;
     assert!(
         result.is_err(),
-        "stock が空なら枠の時刻に関わらず更新を試みるはず: {result:?}"
+        "枠の行が無ければ空でも初期投入を試みるはず: {result:?}"
     );
 }
 

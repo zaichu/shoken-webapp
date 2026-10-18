@@ -108,16 +108,10 @@ pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiEr
 
 /// 次に更新してよい時刻(`next_available_at`)と現在時刻から更新要否を判定する純関数。
 /// `stock.date`(上流の基準日)は無料プランでは常に約12週間遅れで経過時間の代わりに
-/// ならないため、こちらで記録する時刻で判定する。stock が空なら初期投入として
-/// `next_available_at` に関わらず実行する
-pub fn should_refresh(
-    has_rows: bool,
-    next_available_at: Option<DateTime<Utc>>,
-    now: DateTime<Utc>,
-) -> bool {
-    if !has_rows {
-        return true;
-    }
+/// ならないため、こちらで記録する時刻で判定する。枠の行が無い(None)は初回として
+/// 実行する。stock が空の初回投入もこの経路で起きる(更新は成功すれば必ず行を残すため、
+/// stock 空のまま枠が未来なのは失敗待ち・実行中だけで、待つのが正しい)
+pub fn should_refresh(next_available_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
     next_available_at.is_none_or(|at| at <= now)
 }
 
@@ -132,27 +126,19 @@ async fn refresh_gate_next_available_at(pool: &Db) -> Result<Option<DateTime<Utc
     .map_err(ApiError::from)
 }
 
-async fn stock_has_rows(pool: &Db) -> Result<bool, ApiError> {
-    crate::db::query_scalar::<bool>("SELECT EXISTS(SELECT 1 FROM stock)", vec![])
-        .fetch_one(pool)
-        .await
-        .map_err(ApiError::from)
-}
-
 /// 更新の実行権を原子的に取る。取れた(true)回だけ更新を実行するため、
-/// 同時に動いても1回だけになる。`force`(stock 空の初期投入)は
-/// `next_available_at` が未来でも取る
-async fn claim_refresh_slot(pool: &Db, force: bool) -> Result<bool, ApiError> {
+/// 同時に動いても1回だけになる。行が無ければ INSERT して初回として取る
+async fn claim_refresh_slot(pool: &Db) -> Result<bool, ApiError> {
     crate::db::query_scalar::<i32>(
         r#"
         INSERT INTO market_data_provider_rate_control (provider, next_available_at)
             VALUES ($1, NOW() + INTERVAL '7 days')
         ON CONFLICT (provider) DO UPDATE
             SET next_available_at = NOW() + INTERVAL '7 days'
-            WHERE market_data_provider_rate_control.next_available_at <= NOW() OR $2
+            WHERE market_data_provider_rate_control.next_available_at <= NOW()
         RETURNING 1
         "#,
-        vec![Bind::from(MASTER_PROVIDER), Bind::from(force)],
+        vec![Bind::from(MASTER_PROVIDER)],
     )
     .fetch_optional(pool)
     .await
@@ -180,7 +166,7 @@ fn scheduled_time(scheduled_ms: f64) -> Option<DateTime<Utc>> {
 }
 
 /// market_data_provider_rate_control の行(次に更新してよい時刻)で更新要否を判定し、
-/// 枠を取れた回だけ stock を全置換する。stock が空なら枠に関わらず初期投入する。
+/// 枠を取れた回だけ stock を全置換する。stock が空の初回は枠の行が無いため投入される。
 /// 失敗時は次回を1時間後に遅らせる。戻り値は `Some(投入件数)`、スキップ時は `None`
 pub async fn maybe_refresh(
     pool: &Db,
@@ -192,12 +178,11 @@ pub async fn maybe_refresh(
         None => return Ok(None),
     };
     let next_available_at = refresh_gate_next_available_at(pool).await?;
-    let has_rows = stock_has_rows(pool).await?;
-    if !should_refresh(has_rows, next_available_at, now) {
+    if !should_refresh(next_available_at, now) {
         return Ok(None);
     }
     // 判定の後に他インスタンスが枠を取っても、claim が false で打ち止まる
-    if !claim_refresh_slot(pool, !has_rows).await? {
+    if !claim_refresh_slot(pool).await? {
         return Ok(None);
     }
 
@@ -306,50 +291,28 @@ mod tests {
     }
 
     #[test]
-    fn test_should_refresh_empty_stock_runs() {
-        let now = fixed_now();
-        // stock が空なら初期投入として、枠の時刻に関わらず実行する
-        assert!(should_refresh(false, None, now));
-        assert!(should_refresh(
-            false,
-            Some(now + chrono::Duration::days(7)),
-            now
-        ));
-        assert!(should_refresh(
-            false,
-            Some(now - chrono::Duration::days(1)),
-            now
-        ));
-    }
-
-    #[test]
     fn test_should_refresh_no_gate_row_runs() {
-        // 枠の行が無い = 初回なので実行する
-        assert!(should_refresh(true, None, fixed_now()));
+        // 枠の行が無い = 初回(stock が空の初回投入を含む)なので実行する
+        assert!(should_refresh(None, fixed_now()));
     }
 
     #[test]
     fn test_should_refresh_future_slot_skips() {
         let now = fixed_now();
+        // 未来の枠は失敗待ち・実行中・直前の成功いずれかなので待つ
         assert!(!should_refresh(
-            true,
             Some(now + chrono::Duration::minutes(1)),
             now
         ));
-        assert!(!should_refresh(
-            true,
-            Some(now + chrono::Duration::days(7)),
-            now
-        ));
+        assert!(!should_refresh(Some(now + chrono::Duration::days(7)), now));
     }
 
     #[test]
     fn test_should_refresh_due_slot_runs() {
         let now = fixed_now();
         // ちょうど・過去は実行する
-        assert!(should_refresh(true, Some(now), now));
+        assert!(should_refresh(Some(now), now));
         assert!(should_refresh(
-            true,
             Some(now - chrono::Duration::seconds(1)),
             now
         ));
