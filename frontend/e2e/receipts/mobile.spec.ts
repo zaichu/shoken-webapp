@@ -319,7 +319,7 @@ test('1024px境界で2行の行表示と表が切り替わる', async ({ page })
   await expect(page.locator('.app-bottom-nav')).toBeHidden();
 });
 
-test('全件削除は専用ページで確認して実行される', async ({ page }) => {
+test('全件削除はカード内の「すべて削除…」ボタンから確認モーダルで行う', async ({ page }) => {
   let rows: unknown[] = [...DIVIDENDS];
   let deleteCount = 0;
   await page.route(/\/api\/v1\//, (route) =>
@@ -354,20 +354,35 @@ test('全件削除は専用ページで確認して実行される', async ({ pa
   });
   await page.goto('/receipts/csv?kind=dividend');
 
-  // 削除ページを開いただけでは DELETE を送らない
-  await page.getByRole('link', { name: '保存済みデータを削除する画面へ' }).click();
-  await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
-  await expect(page.getByTestId('csv-delete-page')).toContainText(
-    'この操作は取り消せません',
-  );
-  await expect(page.getByTestId('csv-delete-count')).toContainText('3件');
+  // カード内の「すべて削除…」ボタンをクリック
+  const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+  await expect(deleteButton).toBeVisible();
+  await deleteButton.click();
+
+  // 確認モーダルが表示される
+  const modal = page.getByRole('dialog');
+  await expect(modal).toBeVisible();
+  await expect(modal).toContainText('配当金を削除しますか?');
+  await expect(modal).toContainText('この操作は取り消せません');
+  await expect(modal).toContainText('3件');
+
+  // 初期フォーカスは「キャンセル」にある
+  const cancelButton = modal.getByRole('button', { name: 'キャンセル' });
+  await expect(cancelButton).toBeFocused();
+
+  // キャンセルでモーダルが閉じ、DELETE は送られない
+  await cancelButton.click();
+  await expect(modal).toBeHidden();
   expect(deleteCount).toBe(0);
 
-  await page.getByRole('button', { name: '削除する' }).click();
+  // 再度開いて確定する
+  await deleteButton.click();
+  await expect(modal).toBeVisible();
+  await modal.getByRole('button', { name: '3件を削除する' }).click();
   expect(deleteCount).toBe(1);
-  await expect(page.getByTestId('csv-delete-done')).toContainText('削除しました');
-  await page.getByRole('link', { name: '一覧に戻る' }).click();
-  await expect(page.getByText('データがありません')).toBeVisible();
+  await expect(modal).toBeHidden();
+  // CSV管理ページではカードが「0件」になる
+  await expect(page.getByTestId('saved-count')).toContainText('0件');
 });
 
 test('CSV取込の保存結果は一覧再取得後もCSVページに見える', async ({ page }) => {

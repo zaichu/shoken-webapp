@@ -55,16 +55,16 @@ pub fn ConfirmDeleteModal(
     title: String,
     description: String,
     #[prop(into, optional)] item_count: Option<usize>,
-    confirm_label: &'static str,
+    confirm_label: String,
     loading: Memo<bool>,
     #[prop(optional)] error: Option<RwSignal<Option<String>>>,
     on_confirm: impl Fn() + Clone + 'static,
     on_cancel: impl Fn() + Clone + 'static,
 ) -> impl IntoView {
-    let dialog_ref = NodeRef::<leptos::html::Div>::new();
+    let cancel_button_ref = NodeRef::<leptos::html::Button>::new();
     Effect::new(move |_| {
-        if let Some(dialog) = dialog_ref.get() {
-            let _ = dialog.focus();
+        if let Some(button) = cancel_button_ref.get() {
+            let _ = button.focus();
         }
     });
     // 削除要求が飛んでいる間に閉じると結果を追えなくなるため、閉じ操作は完了まで無効化する
@@ -79,7 +79,6 @@ pub fn ConfirmDeleteModal(
     let cancel = try_cancel.clone();
     view! {
         <div
-            node_ref=dialog_ref
             class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 p-4"
             on:click=move |_| overlay_cancel()
             on:keydown=move |event| {
@@ -168,6 +167,7 @@ pub fn ConfirmDeleteModal(
                             class="no-print"
                             disabled=move || loading.get()
                             on_click=move |_| cancel()
+                            node_ref=cancel_button_ref
                         >
                             "キャンセル"
                         </Button>

@@ -387,13 +387,16 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
       page.locator('[role="status"][aria-live="polite"]').first(),
     ).toContainText('追加で保存できます', { timeout: 10000 });
     await scanAxe(page, `CSVプレビュー(${name})`);
-    // 確認は削除専用ページに置く
-    await page
-      .getByRole('link', { name: '保存済みデータを削除する画面へ' })
-      .click();
-    await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
-    await expect(page.getByTestId('csv-delete-page')).toBeVisible();
-    await scanAxe(page, `削除ページ(${name})`);
+    // 確認はカード内の「すべて削除…」ボタンからモーダルで行う
+    const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+    await expect(deleteButton).toBeVisible();
+    await deleteButton.click();
+    const modal = page.getByRole('dialog');
+    await expect(modal).toBeVisible();
+    await scanAxe(page, `削除確認モーダル(${name})`);
+    // モーダルを閉じる
+    await modal.getByRole('button', { name: 'キャンセル' }).click();
+    await expect(modal).toBeHidden();
   }
   await page.setViewportSize(PC);
 });
@@ -554,16 +557,17 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
     page.locator('[role="status"][aria-live="polite"]').first(),
   ).toContainText('追加で保存できます', { timeout: 10000 });
 
-  const deleteLink = page.getByRole('link', {
-    name: '保存済みデータを削除する画面へ',
-  });
-  await tabTo(page, deleteLink);
-  await expect(deleteLink).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
-  const deleteButton = page.getByRole('button', { name: '削除する' });
+  // カード内の「すべて削除…」ボタンへのキーボード操作
+  const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
   await tabTo(page, deleteButton);
   await expect(deleteButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  // モーダルが開く
+  const modal = page.getByRole('dialog');
+  await expect(modal).toBeVisible();
+  // モーダル内の「キャンセル」ボタンにフォーカスが移る
+  const cancelButton = modal.getByRole('button', { name: 'キャンセル' });
+  await expect(cancelButton).toBeFocused();
 });
 
 test('フォーカスが見えてスキップリンクが使える', async ({ page }) => {
