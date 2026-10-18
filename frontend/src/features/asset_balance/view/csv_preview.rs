@@ -11,6 +11,54 @@ use rust_decimal::prelude::ToPrimitive;
 
 const MOBILE_PREVIEW_LIMIT: usize = 5;
 
+fn preview_row_data(
+    row: &AssetBalanceRow,
+) -> (
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+) {
+    let shares_f64 = row.shares().to_f64().unwrap_or(0.0);
+    let current_price_f64 = row.current_price().to_f64().unwrap_or(0.0);
+    let total_purchase_f64 = row.total_purchase_amount().to_f64().unwrap_or(0.0);
+    let valuation = holding_valuation(&ValuationInput {
+        current_price: current_price_f64,
+        shares: shares_f64,
+        total_purchase_amount: total_purchase_f64,
+    });
+    let market_text = format_valuation_amount(valuation.market_value);
+    let pnl_text = format_signed_valuation_amount(valuation.profit_loss.amount);
+    let pnl_rate_text = valuation
+        .profit_loss
+        .rate
+        .map(|v| format_signed_valuation_rate(Some(v), 1));
+    let pnl_negative = valuation.profit_loss.amount.is_some_and(|v| v < 0.0);
+    let pnl_positive = valuation.profit_loss.amount.is_some_and(|v| v > 0.0);
+    let pnl_class = if pnl_negative {
+        "text-negative".to_string()
+    } else if pnl_positive {
+        "text-positive".to_string()
+    } else {
+        "text-text-soft".to_string()
+    };
+    let security_name = row.security_name().to_string();
+    let security_code = row.security_code().to_string();
+    let shares_str = format!("{}株", format_number(row.shares()));
+    (
+        security_code,
+        security_name,
+        shares_str,
+        market_text,
+        pnl_class,
+        pnl_text,
+        pnl_rate_text,
+    )
+}
+
 #[component]
 pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
     let total = rows.len();
@@ -27,23 +75,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
 
     let render_rows = move |rows: Vec<AssetBalanceRow>| {
         rows.into_iter().map(|row| {
-            let shares_f64 = row.shares().to_f64().unwrap_or(0.0);
-            let current_price_f64 = row.current_price().to_f64().unwrap_or(0.0);
-            let total_purchase_f64 = row.total_purchase_amount().to_f64().unwrap_or(0.0);
-            let valuation = holding_valuation(&ValuationInput {
-                current_price: current_price_f64,
-                shares: shares_f64,
-                total_purchase_amount: total_purchase_f64,
-            });
-            let market_text = format_valuation_amount(valuation.market_value);
-            let pnl_text = format_signed_valuation_amount(valuation.profit_loss.amount);
-            let pnl_rate_text = valuation.profit_loss.rate.map(|v| format_signed_valuation_rate(Some(v), 1));
-            let pnl_negative = valuation.profit_loss.amount.is_some_and(|v| v < 0.0);
-            let pnl_positive = valuation.profit_loss.amount.is_some_and(|v| v > 0.0);
-            let pnl_class = if pnl_negative { "text-negative" } else if pnl_positive { "text-positive" } else { "text-text-soft" };
-            let security_name = row.security_name().to_string();
-            let security_code = row.security_code().to_string();
-            let shares_str = format!("{}株", format_number(row.shares()));
+            let (security_code, security_name, shares_str, market_text, pnl_class, pnl_text, pnl_rate_text) = preview_row_data(&row);
             view! {
                 <Card variant=CardVariant::Item class="p-3">
                     <div class="flex items-baseline justify-between gap-2">
@@ -72,8 +104,8 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                 // PC: テーブル表示
                 <div class="hidden lg:block overflow-x-auto">
                     <table class="receipts-table w-full">
-                        <thead>
-                            <tr class="bg-surface-raised text-text-soft font-semibold text-xs">
+                        <thead class="sticky top-0 z-10 bg-surface-raised">
+                            <tr class="text-text-soft font-semibold text-xs">
                                 <th class="px-3 py-2 text-left">"銘柄コード"</th>
                                 <th class="px-3 py-2 text-left">"銘柄名"</th>
                                 <th class="px-3 py-2 text-right">"保有数量"</th>
@@ -86,23 +118,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                         </thead>
                         <tbody>
                             {rows_for_pc.into_iter().map(|row| {
-                                let shares_f64 = row.shares().to_f64().unwrap_or(0.0);
-                                let current_price_f64 = row.current_price().to_f64().unwrap_or(0.0);
-                                let total_purchase_f64 = row.total_purchase_amount().to_f64().unwrap_or(0.0);
-                                let valuation = holding_valuation(&ValuationInput {
-                                    current_price: current_price_f64,
-                                    shares: shares_f64,
-                                    total_purchase_amount: total_purchase_f64,
-                                });
-                                let market_text = format_valuation_amount(valuation.market_value);
-                                let pnl_text = format_signed_valuation_amount(valuation.profit_loss.amount);
-                                let pnl_rate_text = valuation.profit_loss.rate.map(|v| format_signed_valuation_rate(Some(v), 1));
-                                let pnl_negative = valuation.profit_loss.amount.is_some_and(|v| v < 0.0);
-                                let pnl_positive = valuation.profit_loss.amount.is_some_and(|v| v > 0.0);
-                                let pnl_class = if pnl_negative { "text-negative" } else if pnl_positive { "text-positive" } else { "text-text-soft" };
-                                let security_code = row.security_code().to_string();
-                                let security_name = row.security_name().to_string();
-                                let shares_str = format!("{}株", format_number(row.shares()));
+                                let (security_code, security_name, shares_str, market_text, pnl_class, pnl_text, pnl_rate_text) = preview_row_data(&row);
                                 let avg_price_str = format!("¥{}", format_number(row.average_purchase_price()));
                                 let total_purchase_str = format!("¥{}", format_number(row.total_purchase_amount()));
                                 let current_price_str = format!("¥{}", format_number(row.current_price()));
@@ -190,14 +206,11 @@ mod tests {
         assert_eq!(format_number(dec!(1000000)), "1,000,000");
         assert_eq!(format_number(dec!(1234.56)), "1,234.56");
         assert_eq!(format_number(dec!(0)), "0");
-        // 境界: 桁数が3の倍数でカンマが付かない
         assert_eq!(format_number(dec!(100)), "100");
         assert_eq!(format_number(dec!(10000)), "10,000");
         assert_eq!(format_number(dec!(1000000)), "1,000,000");
-        // 小数点以下がある場合
         assert_eq!(format_number(dec!(1234.5)), "1,234.5");
         assert_eq!(format_number(dec!(0.123)), "0.123");
-        // 負数の場合
         assert_eq!(format_number(dec!(-1000)), "-1,000");
         assert_eq!(format_number(dec!(-1000000)), "-1,000,000");
         assert_eq!(format_number(dec!(-1234.56)), "-1,234.56");
@@ -206,15 +219,31 @@ mod tests {
     }
 
     #[test]
-    fn test_mobile_preview_limit_logic() {
-        // 5件以下なら has_more = false
+    fn test_mobile_preview_limit_boundary() {
+        // Boundary tests for the has_more logic: total > MOBILE_PREVIEW_LIMIT (5)
         assert!(!should_show_more(5));
         assert!(!should_show_more(4));
         assert!(!should_show_more(0));
-        // 6件以上なら has_more = true
         assert!(should_show_more(6));
         assert!(should_show_more(10));
         assert!(should_show_more(100));
+        // Direct boundary checks for mutation detection
+        assert_eq!(should_show_more(5), false);
+        assert_eq!(should_show_more(6), true);
+    }
+
+    #[test]
+    fn test_has_more_signal_boundary() {
+        // Test the exact logic used in the component's has_more Memo
+        // has_more = total > MOBILE_PREVIEW_LIMIT && !show_all
+        let total = 6;
+        let show_all = false;
+        assert!(total > MOBILE_PREVIEW_LIMIT && !show_all);
+        let show_all = true;
+        assert!(!(total > MOBILE_PREVIEW_LIMIT && !show_all));
+        let total = 5;
+        let show_all = false;
+        assert!(!(total > MOBILE_PREVIEW_LIMIT && !show_all));
     }
 
     fn should_show_more(total: usize) -> bool {
