@@ -27,10 +27,6 @@ impl CsvSource for ReceiptCsvSource {
         "追加"
     }
 
-    fn mode_label(&self) -> &'static str {
-        "追加保存"
-    }
-
     fn csv_meta(&self) -> CsvTabMeta {
         self.store.csv_meta(self.tab)
     }
@@ -86,10 +82,6 @@ impl CsvSource for ReceiptCsvSource {
 
     fn save_csv(&self) {
         self.store.save_csv(self.tab)
-    }
-
-    fn discard_csv(&self) {
-        self.store.discard_csv(self.tab)
     }
 
     fn open_delete_confirm(&self) {
@@ -169,14 +161,17 @@ fn ReceiptsCsvPreview(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
                     "表は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
                 </p>
                 <div class="mt-2">
-                    <ReceiptTable
-                        tab=tab
-                        rows=rows.clone()
-                        all_rows=rows
-                        query="".to_string()
-                        expanded_ids=store.expanded
-                        compact_mobile=true
-                    />
+                    // 全行をそのまま置くと保存ボタンが遠くなるため、枠内スクロールにする
+                    <div class="csv-preview-scroll mt-2 max-h-96 overflow-y-auto">
+                        <ReceiptTable
+                            tab=tab
+                            rows=rows.clone()
+                            all_rows=rows
+                            query="".to_string()
+                            expanded_ids=store.expanded
+                            compact_mobile=true
+                        />
+                    </div>
                 </div>
             </section>
         })

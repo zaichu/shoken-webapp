@@ -538,6 +538,12 @@
     @apply sticky top-14 z-10;
   }
 
+  /* CSV プレビューの枠内スクロールでは、頁ヘッダーではなく枠の上端に見出しを固定する */
+  .csv-preview-scroll .receipts-table thead th,
+  .csv-preview-scroll .asset-table thead th {
+    top: 0;
+  }
+
   .receipts-table th {
     @apply text-left px-3.5 py-2 font-bold text-xs text-text-soft bg-surface-sunken;
   }

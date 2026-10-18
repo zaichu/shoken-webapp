@@ -102,9 +102,7 @@ test('検証 API が失敗したときエラーが表示され保存が押せな
     timeout: 10000,
   });
   // 未検証のファイルは保存へ送らない
-  await expect(
-    page.getByRole('button', { name: /追加で保存/ }).first(),
-  ).toBeDisabled();
+  await expect(page.getByRole('button', { name: /保存する/ }).first()).toBeDisabled();
 });
 
 test('有効な行が0件のときは保存が押せない', async ({ page }) => {
@@ -134,7 +132,7 @@ test('有効な行が0件のときは保存が押せない', async ({ page }) =>
     page.locator('[data-testid="csv-preview-notice"]'),
   ).toContainText('取り込める行がありません', { timeout: 10000 });
   await expect(
-    page.getByRole('button', { name: /追加で保存/ }).first(),
+    page.getByRole('button', { name: /保存する/ }).first(),
   ).toBeDisabled();
 });
 

@@ -388,9 +388,7 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
     ).toContainText('追加で保存できます', { timeout: 10000 });
     await scanAxe(page, `CSVプレビュー(${name})`);
     // 確認は削除専用ページに置く
-    await page
-      .getByRole('link', { name: '保存済みデータを削除する画面へ' })
-      .click();
+    await page.getByRole('link', { name: '保存済みデータを削除…' }).click();
     await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
     await expect(page.getByTestId('csv-delete-page')).toBeVisible();
     await scanAxe(page, `削除ページ(${name})`);
@@ -555,7 +553,7 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   ).toContainText('追加で保存できます', { timeout: 10000 });
 
   const deleteLink = page.getByRole('link', {
-    name: '保存済みデータを削除する画面へ',
+    name: '保存済みデータを削除…',
   });
   await tabTo(page, deleteLink);
   await expect(deleteLink).toBeFocused();
@@ -794,7 +792,7 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
     await expect(preview).toContainText('追加で保存できます', { timeout: 10000 });
     const before = await liveRegionTexts(page);
-    await page.getByRole('button', { name: /追加で保存/ }).first().click();
+    await page.getByRole('button', { name: /保存する/ }).first().click();
     const notice = page.getByTestId('csv-save-result-notice');
     await expect(notice).toBeVisible({ timeout: 10000 });
     await expect(notice).toContainText(heading);
