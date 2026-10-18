@@ -514,7 +514,10 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
                     <p class="text-sm font-semibold text-text">{heading}</p>
                     <p class="mt-1 text-sm text-text-soft">{line}</p>
                     {has_errors.then(|| {
-                        let list = view! { <CsvRowErrorList errors=result.errors.clone() /> };
+                        let all_failed = result.inserted == 0 && result.skipped == 0;
+                        let list = view! {
+                            <CsvRowErrorList errors=result.errors.clone() all_failed=all_failed />
+                        };
                         if aggregated {
                             view! { <div class="mt-3 text-sm text-text-muted">{list}</div> }
                                 .into_any()

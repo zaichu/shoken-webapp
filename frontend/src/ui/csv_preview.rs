@@ -38,8 +38,10 @@ pub(crate) fn shared_message(errors: &[CsvRowError]) -> Option<String> {
 
 /// 行エラーの一覧。全行が同じ理由なら1回だけ表示して全行分は折りたたみに入れる
 /// (見出し不一致のような典型的な間違いでは全行が同じ文になるため)
+/// all_failed が false(一部行が有効・スキップ)なら見出し不一致の案内は出さない。
+/// 見出しが違えば全行落ちるため、有効行があるのに案内を出すと誤誘導になる
 #[component]
-pub fn CsvRowErrorList(errors: Vec<CsvRowError>) -> impl IntoView {
+pub fn CsvRowErrorList(errors: Vec<CsvRowError>, all_failed: bool) -> impl IntoView {
     if let Some(message) = shared_message(&errors) {
         let count = errors.len();
         let examples: Vec<_> = errors.iter().take(EXAMPLE_ERROR_ROWS).cloned().collect();
@@ -49,7 +51,9 @@ pub fn CsvRowErrorList(errors: Vec<CsvRowError>) -> impl IntoView {
                     <strong>{message}</strong>
                     {format!(" — {count}行が同じエラーです")}
                 </p>
-                <p class="mt-1">"見出しの行が想定と違う可能性があります"</p>
+                {all_failed.then(|| {
+                    view! { <p class="mt-1">"見出しの行が想定と違う可能性があります"</p> }
+                })}
                 <ul class="mt-2 space-y-1">
                     {examples
                         .iter()
@@ -88,7 +92,6 @@ pub fn CsvPreviewNotice(
     errors: Vec<CsvRowError>,
 ) -> impl IntoView {
     let text = preview_notice_text(valid_rows, errors.len(), save_action);
-    // 取り込める行が無いときだけ警告色にする(有効行がある通知は情報色のまま)
     let (section_class, icon_path) = if valid_rows == 0 {
         (
             "rounded-lg border border-band-border bg-band px-4 py-3 text-sm font-medium text-warn-ink shadow-sm",
@@ -126,7 +129,9 @@ pub fn CsvPreviewNotice(
                     <strong>{text}</strong>
                 </p>
             </div>
-            {(!errors.is_empty()).then(|| view! { <CsvRowErrorList errors=errors /> })}
+            {(!errors.is_empty()).then(|| {
+                view! { <CsvRowErrorList errors=errors all_failed=valid_rows == 0 /> }
+            })}
         </section>
     }
 }
