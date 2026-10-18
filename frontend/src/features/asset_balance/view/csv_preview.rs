@@ -170,5 +170,22 @@ mod tests {
         assert_eq!(format_number(dec!(1000000)), "1,000,000");
         assert_eq!(format_number(dec!(1234.56)), "1,234.56");
         assert_eq!(format_number(dec!(0)), "0");
+        // 境界: 桁数が3の倍数でカンマが付かない
+        assert_eq!(format_number(dec!(100)), "100");
+        assert_eq!(format_number(dec!(10000)), "10,000");
+        assert_eq!(format_number(dec!(1000000)), "1,000,000");
+        // 小数点以下がある場合
+        assert_eq!(format_number(dec!(1234.5)), "1,234.5");
+        assert_eq!(format_number(dec!(0.123)), "0.123");
+    }
+
+    #[test]
+    fn test_mobile_preview_limit_boundary() {
+        // MOBILE_PREVIEW_LIMIT = 5
+        // 5件以下なら has_more = false
+        // 6件以上なら has_more = true
+        let limit = super::MOBILE_PREVIEW_LIMIT;
+        assert_eq!(limit, 5);
+        // このテストは定数値の確認のみ（ロジックはコンポーネント内で動作）
     }
 }
