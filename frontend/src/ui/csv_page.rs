@@ -8,9 +8,7 @@ use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
 use leptos::prelude::*;
 
-// 検証前・検証失敗・全行エラー(有効行0)では保存を送らない。
-// 一部保存ができない方式(全件置換)は、エラー行を含む CSV を backend が拒否するため
-// 有効行があってもエラーが残る間は保存を止める
+// 全件置換ではエラー行を含む CSV を backend が拒否するため、有効行があっても保存を止める
 pub(crate) fn save_disabled_by_preview(meta: &CsvTabMeta, errors_block_save: bool) -> bool {
     meta.busy()
         || !meta.has_preview_rows()
