@@ -178,8 +178,10 @@ test('スマホ幅で空状態 CTA からプレビューして保存ボタンま
   const fileInput = page.getByTestId('csv-file-input');
   await expect(fileInput).toBeEnabled();
   await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
-  await expect(page.getByTestId('csv-preview-notice')).toBeVisible();
-  await expect(page.getByRole('button', { name: /追加で保存/ })).toBeVisible();
+  await expect(page.getByTestId('csv-action-bar')).toContainText(
+    '1件を追加で保存できます',
+  );
+  await expect(page.getByRole('button', { name: /保存する/ })).toBeVisible();
 });
 
 test('配当金データが1件あるとき行が表示される', async ({ page }) => {

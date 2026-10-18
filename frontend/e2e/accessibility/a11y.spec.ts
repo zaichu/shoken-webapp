@@ -557,8 +557,19 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
     page.locator('[role="status"][aria-live="polite"]').first(),
   ).toContainText('追加で保存できます', { timeout: 10000 });
 
+<<<<<<< HEAD
   // カード内の「すべて削除…」ボタンへのキーボード操作
   const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+=======
+  const deleteLink = page.getByRole('link', {
+    name: '保存済みデータを削除…',
+  });
+  await tabTo(page, deleteLink);
+  await expect(deleteLink).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
+  const deleteButton = page.getByRole('button', { name: '削除する' });
+>>>>>>> origin/main
   await tabTo(page, deleteButton);
   await expect(deleteButton).toBeFocused();
   await page.keyboard.press('Enter');
@@ -798,7 +809,7 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
     await expect(preview).toContainText('追加で保存できます', { timeout: 10000 });
     const before = await liveRegionTexts(page);
-    await page.getByRole('button', { name: /追加で保存/ }).first().click();
+    await page.getByRole('button', { name: /保存する/ }).first().click();
     const notice = page.getByTestId('csv-save-result-notice');
     await expect(notice).toBeVisible({ timeout: 10000 });
     await expect(notice).toContainText(heading);

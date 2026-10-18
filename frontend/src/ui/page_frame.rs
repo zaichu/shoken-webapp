@@ -52,6 +52,10 @@ pub fn PageFrame(
     #[prop(optional)]
     action_bar: Option<AnyView>,
     #[prop(optional)] action_bar_mobile_only: bool,
+    /// true のとき PC は操作帯を本文の先頭に置いて上部に張り付かせる
+    /// (スマホは下のまま。CSV 管理のように保存ボタンを常に届かせる頁用)
+    #[prop(optional)]
+    action_bar_pc_top: bool,
     /// true のとき本文の余白を各部品に任せる(ワークスペース系ページ)
     #[prop(optional)]
     full_bleed: bool,
@@ -101,10 +105,19 @@ pub fn PageFrame(
                 // 打ち切られ、sticky な上部ヘッダー・表見出しの固定範囲が失われる
                 view! { <div class="flex min-h-0 flex-1 flex-col lg:flex-none">{body}</div> }.into_any()
             } else {
-                view! { <div class="page-gutter flex flex-1 flex-col py-4">{body}</div> }.into_any()
+                let body_class = if action_bar_pc_top {
+                    // 操作帯は DOM の後ろにあるため、order を付けて PC だけ本文の前に出す
+                    "page-gutter flex flex-1 flex-col py-4 lg:order-2"
+                } else {
+                    "page-gutter flex flex-1 flex-col py-4"
+                };
+                view! { <div class=body_class>{body}</div> }.into_any()
             }}
             {action_bar.map(|bar| {
-                let class = if action_bar_mobile_only {
+                let class = if action_bar_pc_top {
+                    // 上部ヘッダー(h-14)の下に張り付かせる。mt-auto・下端張り付きは PC では解除する
+                    "page-action-bar no-print lg:order-1 lg:top-14 lg:bottom-auto lg:z-30 lg:mt-0 lg:border-b lg:border-t-0"
+                } else if action_bar_mobile_only {
                     "page-action-bar no-print lg:hidden"
                 } else {
                     "page-action-bar no-print"

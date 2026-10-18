@@ -83,17 +83,6 @@ impl<R> CsvTabState<R> {
         }
     }
 
-    // 未保存のプレビューだけを捨てる。処理中は破棄しない(整合が壊れるため)
-    pub fn discard(&mut self) -> bool {
-        if self.busy() {
-            return false;
-        }
-        self.file_name = None;
-        self.preview = None;
-        self.error = None;
-        true
-    }
-
     pub fn open_delete_confirm(&mut self) {
         self.show_delete_confirm = true;
     }
@@ -166,19 +155,6 @@ impl CsvTabMeta {
         self.preview
             .as_ref()
             .is_some_and(|preview| preview.has_rows)
-    }
-
-    pub fn save_label(&self, action: &str) -> String {
-        if self.saving {
-            "保存中...".to_string()
-        } else if self.previewing {
-            "解析中...".to_string()
-        } else {
-            self.preview.as_ref().map_or_else(
-                || action.to_string(),
-                |preview| format!("{}件 {}", preview.valid_rows, action),
-            )
-        }
     }
 
     pub fn delete_label(&self) -> &'static str {

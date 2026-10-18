@@ -25,8 +25,12 @@ impl CsvSource for AssetBalanceCsvStore {
         "全件置換"
     }
 
-    fn mode_label(&self) -> &'static str {
-        "全件置換"
+    // 追加保存と違い、置換の対象が全件だとボタン上でも分かるようにする
+    fn save_button_label(&self, valid_rows: Option<usize>) -> String {
+        match valid_rows {
+            Some(rows) => format!("{rows}件 全件置換で保存"),
+            None => "全件置換で保存".to_string(),
+        }
     }
 
     fn csv_meta(&self) -> CsvTabMeta {
@@ -79,10 +83,6 @@ impl CsvSource for AssetBalanceCsvStore {
 
     fn save_csv(&self) {
         AssetBalanceCsvStore::save_csv(self)
-    }
-
-    fn discard_csv(&self) {
-        AssetBalanceCsvStore::discard_csv(self)
     }
 
     fn open_delete_confirm(&self) {
@@ -155,7 +155,10 @@ fn AssetCsvPreview(state: AssetBalanceState, session: SessionStore) -> impl Into
                     "一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
                 </p>
                 <div class="mt-2">
-                    <super::holdings_list::HoldingsList views=views dividends=state.dividends show_dividend=true />
+                    // 全件をそのまま置くと保存ボタンが遠くなるため、枠内スクロールにする
+                    <div class="csv-preview-scroll mt-2 max-h-96 overflow-y-auto">
+                        <super::holdings_list::HoldingsList views=views dividends=state.dividends show_dividend=true />
+                    </div>
                 </div>
             </section>
         })
