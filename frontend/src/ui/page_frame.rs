@@ -55,13 +55,21 @@ pub fn PageFrame(
     /// true のとき本文の余白を各部品に任せる(ワークスペース系ページ)
     #[prop(optional)]
     full_bleed: bool,
+    /// true のときスマホでも頁枠を画面高まで縮める。本文が内側スクロールを
+    /// 持つ頁専用(縮めないとスクロール領域が確定しない)
+    #[prop(optional)]
+    mobile_inner_scroll: bool,
     children: Children,
 ) -> impl IntoView {
     let body = children();
     let has_action_bar = action_bar.is_some();
 
     view! {
-        <div class="page-frame" class:has-action-bar=has_action_bar>
+        <div
+            class="page-frame"
+            class:has-action-bar=has_action_bar
+            class:inner-scroll=mobile_inner_scroll
+        >
             <PcHeader />
             <header class="page-frame-head no-print">
                 <div class="page-gutter flex flex-wrap items-center gap-x-4 gap-y-2">

@@ -602,8 +602,10 @@
     @apply list-none m-0 p-0;
   }
 
+  /* 行内の重なり順(名前ボタン・meta)は行の中で完結させる。漏れると
+     スクロール中に sticky の集計帯より手前に描かれる */
   .receipt-compact-row {
-    @apply border-b border-border-faint;
+    @apply border-b border-border-faint isolate;
   }
 
   .receipt-compact-main {
@@ -767,11 +769,17 @@
     padding-inline: clamp(1rem, 3.5vw, 3rem);
   }
 
-  /* lg 以上では shrink を許さない。縮むと main(画面高)に合わせて頁枠が打ち切られ、
-     sticky な上部ヘッダーや表見出しの固定範囲が失われる。
-     スマホは縮んで内側スクロール+下部帯固定のまま変えない */
+  /* 頁枠を縮めると、縮まない本文が枠の下へはみ出して直後のフッターに重なる。
+     縮めてよいのは、スマホで本文が内側スクロールを持つ頁(内側スクロール+
+     下部帯固定)だけ。それ以外はどの幅でも縮めない */
   .page-frame {
-    @apply flex min-h-full flex-col lg:shrink-0;
+    @apply flex min-h-full flex-col shrink-0;
+  }
+
+  @media (width < 64rem) {
+    .page-frame.inner-scroll {
+      @apply shrink;
+    }
   }
 
   /* 下部操作帯を下端に張り付けるには、帯を含む頁枠が本文の高さまで伸びて

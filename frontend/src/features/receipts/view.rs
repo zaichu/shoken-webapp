@@ -60,7 +60,7 @@ pub fn ReceiptsPage() -> impl IntoView {
     });
 
     view! {
-        <PageFrame title="取引明細" links=csv_link title_row=tabs full_bleed=true>
+        <PageFrame title="取引明細" links=csv_link title_row=tabs full_bleed=true mobile_inner_scroll=true>
             <div
                 class="flex flex-1 flex-col min-h-0 lg:flex-none"
                 aria-busy=move || {
