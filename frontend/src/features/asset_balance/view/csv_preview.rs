@@ -83,7 +83,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                         <span class="shrink-0 font-bold tabular-nums text-brand">{market_text}</span>
                     </div>
                     <div class="mt-1 flex items-baseline justify-between gap-2 text-xs">
-                        <span class="shrink-0 text-text-muted">{security_code} &middot; {shares_str}</span>
+                        <span class="shrink-0 text-text-muted">{security_code} " · " {shares_str}</span>
                         <span class=format!("flex shrink-0 items-baseline {}", pnl_class)>
                             {pnl_text}
                             {pnl_rate_text.map(|rate| view! { " " <span class="asset-badge">{rate}</span> })}
