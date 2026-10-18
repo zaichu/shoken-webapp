@@ -369,7 +369,7 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
     await expect(
       page.locator('[role="status"][aria-live="polite"]').first(),
-    ).toContainText('追加で保存されます', { timeout: 10000 });
+    ).toContainText('追加で保存できます', { timeout: 10000 });
     await scanAxe(page, `CSVプレビュー(${name})`);
     // 確認は削除専用ページに置く
     await page
@@ -534,7 +534,7 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await chooser.setFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
   await expect(
     page.locator('[role="status"][aria-live="polite"]').first(),
-  ).toContainText('追加で保存されます', { timeout: 10000 });
+  ).toContainText('追加で保存できます', { timeout: 10000 });
 
   const deleteLink = page.getByRole('link', {
     name: '保存済みデータを削除する画面へ',
@@ -772,7 +772,7 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
     const heading = failure ? '保存できませんでした' : '保存しました';
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
-    await expect(preview).toContainText('追加で保存されます', { timeout: 10000 });
+    await expect(preview).toContainText('追加で保存できます', { timeout: 10000 });
     const before = await liveRegionTexts(page);
     await page.getByRole('button', { name: /追加で保存/ }).first().click();
     const notice = page.getByTestId('csv-save-result-notice');

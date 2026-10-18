@@ -51,6 +51,46 @@ fn save_result_heading_splits_success_partial_and_full_failure() {
 }
 
 #[test]
+fn save_result_tone_distinguishes_failure_from_success() {
+    let clean = CsvUploadResponse {
+        inserted: 1,
+        skipped: 0,
+        errors: vec![],
+    };
+    let partial = CsvUploadResponse {
+        inserted: 2,
+        skipped: 0,
+        errors: vec![CsvRowError {
+            row: 4,
+            message: "数量が数値ではありません".to_string(),
+        }],
+    };
+    let rejected = CsvUploadResponse {
+        inserted: 0,
+        skipped: 0,
+        errors: vec![CsvRowError {
+            row: 2,
+            message: "数量が数値ではありません".to_string(),
+        }],
+    };
+
+    let success = save_result_tone(&clean);
+    let partial_tone = save_result_tone(&partial);
+    let failure = save_result_tone(&rejected);
+    assert_ne!(success, partial_tone, "一部失敗は成功と区別できる");
+    assert_ne!(success, failure, "全失敗は成功と区別できる");
+    assert_ne!(partial_tone, failure, "一部失敗と全失敗も区別できる");
+
+    // スキップだけでエラーが無い結果は成功として扱う
+    let skipped_only = CsvUploadResponse {
+        inserted: 0,
+        skipped: 2,
+        errors: vec![],
+    };
+    assert_eq!(save_result_tone(&skipped_only), success);
+}
+
+#[test]
 fn save_result_line_joins_counts_and_mode() {
     let clean = CsvUploadResponse {
         inserted: 12,

@@ -828,6 +828,89 @@ fn receipt_csv_source_delete_count_error_masks_stale_error_while_loading() {
 }
 
 #[test]
+fn receipt_csv_source_save_disabled_requires_preview_rows() {
+    use super::csv_page::ReceiptCsvSource;
+    use crate::api::dto::CsvRowError;
+    use crate::support::csv_flow::CsvTabMeta;
+    use crate::ui::csv_page::CsvSource;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let source = ReceiptCsvSource {
+            store: csv_source_store(),
+            tab: ReceiptsTab::Dividend,
+        };
+
+        // ファイルを選んでも検証前・検証失敗(プレビュー無し)では保存できない
+        let selected = CsvTabMeta {
+            file_name: Some("a.csv".to_string()),
+            ..Default::default()
+        };
+        assert!(
+            source.save_disabled(&selected),
+            "プレビュー無し -> 押せない"
+        );
+
+        // 有効行が0件(全行エラー)のプレビューでも押せない
+        let all_error = CsvTabMeta {
+            file_name: Some("a.csv".to_string()),
+            preview: Some(crate::support::csv_flow::CsvPreviewMeta {
+                valid_rows: 0,
+                errors: vec![CsvRowError {
+                    row: 1,
+                    message: "x".to_string(),
+                }],
+                has_rows: false,
+            }),
+            ..Default::default()
+        };
+        assert!(source.save_disabled(&all_error), "有効行0件 -> 押せない");
+
+        // 有効行があるプレビューでは押せる。処理中は押せない
+        let ready = CsvTabMeta {
+            file_name: Some("a.csv".to_string()),
+            preview: Some(crate::support::csv_flow::CsvPreviewMeta {
+                valid_rows: 2,
+                errors: vec![],
+                has_rows: true,
+            }),
+            ..Default::default()
+        };
+        assert!(!source.save_disabled(&ready), "有効行あり -> 押せる");
+        let busy = CsvTabMeta {
+            saving: true,
+            ..ready
+        };
+        assert!(source.save_disabled(&busy), "保存中 -> 押せない");
+    });
+}
+
+#[test]
+fn receipt_csv_source_format_hint_names_expected_header() {
+    use super::csv_page::ReceiptCsvSource;
+    use crate::ui::csv_page::CsvSource;
+    use leptos::prelude::*;
+
+    let owner = Owner::new();
+    owner.with(|| {
+        let store = csv_source_store();
+        let hints: Vec<&str> = ReceiptsTab::ALL
+            .iter()
+            .map(|tab| ReceiptCsvSource { store, tab: *tab }.csv_format_hint())
+            .collect();
+        assert!(
+            hints.iter().all(|hint| hint.contains("見出し")),
+            "各タブが想定する列を案内する"
+        );
+        assert!(
+            hints.iter().all(|hint| hint.contains("CSV")),
+            "どのファイルか分かる名前を含む"
+        );
+    });
+}
+
+#[test]
 fn ensure_kind_resets_search_state_like_tab_switch() {
     use super::csv_page::ensure_kind;
     use crate::features::receipts::TabState;

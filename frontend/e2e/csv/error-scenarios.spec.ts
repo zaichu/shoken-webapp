@@ -83,6 +83,96 @@ test('資産管理一覧取得が 401 のときエラー Alert が表示され�
 // CSV 行レベルエラー
 // =====================================================================
 
+test('検証 API が失敗したときエラーが表示され保存が押せない', async ({ page }) => {
+  await setupCommonMocks(page);
+  await page.route(ROUTES.dividendsCsvPreview, (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'サーバーエラーが発生しました' }),
+    }),
+  );
+
+  await page.goto('/receipts/csv?kind=dividend');
+  const fileInput = page.locator('[data-testid="csv-file-input"]');
+  await expect(fileInput).toBeEnabled({ timeout: 10000 });
+  await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
+
+  await expect(page.getByRole('alert').filter({ hasText: /エラー/ })).toBeVisible({
+    timeout: 10000,
+  });
+  // 未検証のファイルは保存へ送らない
+  await expect(
+    page.getByRole('button', { name: /追加で保存/ }).first(),
+  ).toBeDisabled();
+});
+
+test('有効な行が0件のときは保存が押せない', async ({ page }) => {
+  await setupCommonMocks(page);
+  await page.route(ROUTES.dividendsCsvPreview, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_rows: 2,
+        valid_rows: 0,
+        errors: [
+          { row: 1, message: '受取金額が数値ではありません' },
+          { row: 2, message: '受取日の形式が不正です' },
+        ],
+        rows: [],
+      }),
+    }),
+  );
+
+  await page.goto('/receipts/csv?kind=dividend');
+  const fileInput = page.locator('[data-testid="csv-file-input"]');
+  await expect(fileInput).toBeEnabled({ timeout: 10000 });
+  await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
+
+  await expect(
+    page.locator('[data-testid="csv-preview-notice"]'),
+  ).toContainText('取り込める行がありません', { timeout: 10000 });
+  await expect(
+    page.getByRole('button', { name: /追加で保存/ }).first(),
+  ).toBeDisabled();
+});
+
+test('全行が同じエラーのときメッセージは1回だけ出て件数が分かる', async ({ page }) => {
+  await setupCommonMocks(page);
+  const message = '受取通貨: 円のみ取り込めます（）';
+  const errors = Array.from({ length: 8 }, (_, i) => ({
+    row: i + 1,
+    message,
+  }));
+  await page.route(ROUTES.dividendsCsvPreview, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_rows: errors.length,
+        valid_rows: 0,
+        errors,
+        rows: [],
+      }),
+    }),
+  );
+
+  await page.goto('/receipts/csv?kind=dividend');
+  const fileInput = page.locator('[data-testid="csv-file-input"]');
+  await expect(fileInput).toBeEnabled({ timeout: 10000 });
+  await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
+
+  const notice = page.locator('[data-testid="csv-preview-notice"]');
+  await expect(notice).toBeVisible({ timeout: 10000 });
+  // 同じ文言は行数分繰り返さず1回だけ出す
+  await expect(
+    notice.getByText('受取通貨: 円のみ取り込めます'),
+  ).toHaveCount(1);
+  await expect(notice).toContainText('8件エラー');
+  await expect(notice).toContainText('8行');
+});
+
 test('CSV プレビューで行エラーが返ったとき warning Alert に一覧表示される', async ({ page }) => {
   await setupCommonMocks(page);
   // プレビューAPI: 行エラーを含む正常レスポンス（HTTP 200）

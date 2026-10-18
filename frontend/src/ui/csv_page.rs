@@ -1,7 +1,9 @@
 use crate::api::dto::CsvUploadResponse;
-use crate::support::csv_flow::{CsvTabMeta, CsvUploadResponseExt, row_error_text};
+use crate::support::csv_flow::{CsvTabMeta, CsvUploadResponseExt};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
-use crate::ui::csv_preview::{CsvPreviewNotice, preview_notice_text, should_show_preview_notice};
+use crate::ui::csv_preview::{
+    CsvPreviewNotice, CsvRowErrorList, shared_message, should_show_preview_notice,
+};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
 use leptos::prelude::*;
@@ -21,9 +23,12 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     fn is_authenticated(&self) -> bool;
     // 未認証・取得中・CSV 処理中など、ファイル選択を受け付けられない状態の判定
     fn input_disabled(&self) -> bool;
+    // 検証前・検証失敗・全行エラー(有効行0)では保存を送らない
     fn save_disabled(&self, meta: &CsvTabMeta) -> bool {
-        meta.busy()
+        meta.busy() || !meta.has_preview_rows()
     }
+    /// ファイル選択の下に出す、想定するCSV形式の案内
+    fn csv_format_hint(&self) -> &'static str;
     /// 保存済み全件数。削除ページで対象件数を示すために使う
     fn db_count(&self) -> usize;
     /// 保存済み全件数が確定したか(一覧が未取得・取得失敗なら false で削除を止める)
@@ -74,12 +79,8 @@ pub fn CsvManagePage<S: CsvSource>(
             meta.file_name.is_some(),
             meta.previewing,
         ) {
-            meta.preview.map(|preview| {
-                (
-                    preview_notice_text(preview.valid_rows, source.save_action()),
-                    preview.errors,
-                )
-            })
+            meta.preview
+                .map(|preview| (preview.valid_rows, preview.errors))
         } else {
             None
         }
@@ -114,6 +115,7 @@ pub fn CsvManagePage<S: CsvSource>(
                     selected_file_name=selected_file_name
                     disabled=file_input_disabled
                 />
+                <p class="text-xs text-text-muted">{source.csv_format_hint()}</p>
                 {move || {
                     previewing.get().then(|| {
                         view! { <LoadingStrip text="CSVファイルを解析しています...".to_string() /> }
@@ -131,9 +133,15 @@ pub fn CsvManagePage<S: CsvSource>(
                     })
                 }}
                 {move || {
-                    preview_notice
-                        .get()
-                        .map(|(text, errors)| view! { <CsvPreviewNotice text=text errors=errors /> })
+                    preview_notice.get().map(|(valid_rows, errors)| {
+                        view! {
+                            <CsvPreviewNotice
+                                valid_rows=valid_rows
+                                save_action=source.save_action()
+                                errors=errors
+                            />
+                        }
+                    })
                 }}
                 {preview}
                 {move || {
@@ -436,19 +444,52 @@ pub(crate) fn save_result_line(result: &CsvUploadResponse, mode_label: &str) -> 
     .join("・")
 }
 
+// 成功・一部失敗・全失敗をアイコンと色で分ける(文言の違いだけでは区別しにくいため)
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum SaveResultTone {
+    Success,
+    Partial,
+    Failure,
+}
+
+pub(crate) fn save_result_tone(result: &CsvUploadResponse) -> SaveResultTone {
+    if result.errors.is_empty() {
+        SaveResultTone::Success
+    } else if result.inserted == 0 {
+        SaveResultTone::Failure
+    } else {
+        SaveResultTone::Partial
+    }
+}
+
+const SAVE_RESULT_STYLES: [(&str, &str, &str); 3] = [
+    (
+        "rounded-note border px-4 py-3.5 border-positive-border/80 bg-positive-soft/80",
+        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-positive-border text-positive-strong",
+        "M5.5 10.5l3 3 6-7",
+    ),
+    (
+        "rounded-note border px-4 py-3.5 border-accent-border/80 bg-accent-soft/80",
+        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-accent-border text-accent-strong",
+        "M10 5.5v5m0 3.5h.01",
+    ),
+    (
+        "rounded-note border px-4 py-3.5 border-negative-border/80 bg-negative-soft/80",
+        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-negative-border text-negative-strong",
+        "M5.5 5.5l9 9m0-9l-9 9",
+    ),
+];
+
 #[component]
 fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> impl IntoView {
     let has_errors = !result.errors.is_empty();
-    let section_class = if has_errors {
-        "rounded-note border px-4 py-3.5 border-accent-border/80 bg-accent-soft/80"
-    } else {
-        "rounded-note border px-4 py-3.5 border-positive-border/80 bg-positive-soft/80"
+    let aggregated = shared_message(&result.errors).is_some();
+    let index = match save_result_tone(&result) {
+        SaveResultTone::Success => 0,
+        SaveResultTone::Partial => 1,
+        SaveResultTone::Failure => 2,
     };
-    let icon_class = if has_errors {
-        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-accent-border text-accent-strong"
-    } else {
-        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface border-positive-border text-positive-strong"
-    };
+    let (section_class, icon_class, icon_path) = SAVE_RESULT_STYLES[index];
     let heading = save_result_heading(&result);
     let line = save_result_line(&result, mode_label);
     view! {
@@ -465,7 +506,7 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             stroke-width="1.8"
-                            d="M5.5 10.5l3 3 6-7"
+                            d=icon_path
                         />
                     </svg>
                 </span>
@@ -473,19 +514,20 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, mode_label: &'static str) -> i
                     <p class="text-sm font-semibold text-text">{heading}</p>
                     <p class="mt-1 text-sm text-text-soft">{line}</p>
                     {has_errors.then(|| {
-                        view! {
-                            <details class="mt-3 rounded-2xl border border-accent-border/80 bg-surface/80 px-3 py-2">
-                                <summary class="cursor-pointer text-sm font-medium text-text-soft">
-                                    "エラー詳細を表示"
-                                </summary>
-                                <ul class="mt-2 space-y-1 text-sm text-text-muted">
-                                    {result
-                                        .errors
-                                        .iter()
-                                        .map(|error| view! { <li>{row_error_text(error)}</li> })
-                                        .collect_view()}
-                                </ul>
-                            </details>
+                        let list = view! { <CsvRowErrorList errors=result.errors.clone() /> };
+                        if aggregated {
+                            view! { <div class="mt-3 text-sm text-text-muted">{list}</div> }
+                                .into_any()
+                        } else {
+                            view! {
+                                <details class="mt-3 rounded-2xl border border-accent-border/80 bg-surface/80 px-3 py-2">
+                                    <summary class="cursor-pointer text-sm font-medium text-text-soft">
+                                        "エラー詳細を表示"
+                                    </summary>
+                                    <div class="text-sm text-text-muted">{list}</div>
+                                </details>
+                            }
+                            .into_any()
                         }
                     })}
                 </div>

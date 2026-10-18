@@ -456,7 +456,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
       // 取得中・保存中は input が disabled で change イベントが捨てられるため、有効化を待ってから投入する
       await expect(fileInput).toBeEnabled();
       await fileInput.setInputFiles(path.join(fixtureDir(), scenario.baseFile));
-      await expect(page.getByText(`${base.previewRows.length}件 追加で保存されます`)).toBeVisible();
+      await expect(page.getByText(`${base.previewRows.length}件を追加で保存できます`)).toBeVisible();
       await expect(page.getByRole('cell', { name: scenario.baseName })).toBeVisible();
       await page.getByRole('button', { name: `${base.previewRows.length}件 追加で保存` }).click();
       const notice = page.getByTestId('csv-save-result-notice');
@@ -466,7 +466,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await expect(fileInput).toBeEnabled();
       await fileInput.setInputFiles(path.join(fixtureDir(), scenario.additionalFile));
       await expect(
-        page.getByText(`${additional.previewRows.length}件 追加で保存されます`),
+        page.getByText(`${additional.previewRows.length}件を追加で保存できます`),
       ).toBeVisible();
       await page
         .getByRole('button', { name: `${additional.previewRows.length}件 追加で保存` })
@@ -700,7 +700,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
     await expect(page.getByRole('button', { name: '2件 全件置換で保存' })).toBeEnabled();
-    await expect(page.getByText('2件 全件置換で保存されます')).toBeVisible();
+    await expect(page.getByText('2件を全件置換で保存できます')).toBeVisible();
     // プレビュー行がページ内に出る(資産管理は保有カード表示)
     const preview = page.getByTestId('csv-preview');
     await expect(preview.getByText('INPEX').first()).toBeVisible();

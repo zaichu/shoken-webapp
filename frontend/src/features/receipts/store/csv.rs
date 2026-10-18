@@ -148,9 +148,19 @@ impl ReceiptsStore {
         if !self.session.is_current(generation) {
             return;
         }
-        self.update_csv_state(generation, tab, |state| {
-            state.finish_preview(result.ok());
-        });
+        match result {
+            Ok(preview) => {
+                self.update_csv_state(generation, tab, |state| {
+                    state.finish_preview(preview);
+                });
+            }
+            Err(error) => {
+                let message = error.message();
+                self.update_csv_state(generation, tab, |state| {
+                    state.fail_preview(message);
+                });
+            }
+        }
     }
 
     // 一覧の再取得が必要になったら true を返す。fetch の起動(dispatch)は呼び出し側が行う

@@ -41,8 +41,8 @@ impl CsvSource for AssetBalanceCsvStore {
         self.csv_input_disabled()
     }
 
-    fn save_disabled(&self, meta: &CsvTabMeta) -> bool {
-        meta.busy() || !meta.has_preview_rows()
+    fn csv_format_hint(&self) -> &'static str {
+        "対応形式: 資産残高CSV(見出し行の先頭は「銘柄コード」)"
     }
 
     fn db_count(&self) -> usize {
