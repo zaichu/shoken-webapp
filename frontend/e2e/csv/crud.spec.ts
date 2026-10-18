@@ -710,9 +710,9 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
     await expect(page.getByRole('button', { name: '2件 全件置換で保存' })).toBeEnabled();
     await expect(page.getByText('2件を全件置換で保存できます')).toBeVisible();
-    // プレビュー行がページ内に出る(資産管理は保有カード表示)
+    // プレビュー行がページ内に出る(資産管理はテーブル表示)
     const preview = page.getByTestId('csv-preview');
-    await expect(preview.getByText('INPEX').first()).toBeVisible();
+    await expect(preview.getByText('ＩＮＰＥＸ').first()).toBeVisible();
     await expect(preview.getByText('任天堂').first()).toBeVisible();
 
     await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
@@ -726,7 +726,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
     await expect(page.getByRole('button', { name: '3件 全件置換で保存' })).toBeEnabled();
     await expect(
-      page.getByTestId('csv-preview').getByText('三菱UFJフィナンシャルG').first(),
+      page.getByTestId('csv-preview').getByText('三菱ＵＦＪフィナンシャルＧ').first(),
     ).toBeVisible();
 
     await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
@@ -794,7 +794,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
       page.getByRole('button', { name: /全件置換で保存/ }).first(),
     ).toBeDisabled();
     const preview = page.getByTestId('csv-preview');
-    await expect(preview.getByText('INPEX').first()).toBeVisible();
+    await expect(preview.getByText('ＩＮＰＥＸ').first()).toBeVisible();
     await expect(preview.getByText('任天堂')).toHaveCount(0);
   });
 });

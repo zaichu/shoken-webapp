@@ -101,21 +101,33 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
     let source = state.csv;
     let review_state = state;
     view! {
-        <CsvManagePage
-            source=source
-            subject="資産管理"
-            back_href="/assetbalance"
-            delete_href=String::new()
-            preview=view! { <AssetCsvPreview state=state session=session /> }.into_any()
-            extra=view! {
-                <AssetReviewPromptCard rows=move || review_rows(review_state, session) />
-            }
-            .into_any()
-        />
-    }
+            <CsvManagePage
+                source=source
+                subject="資産管理"
+                back_href="/assetbalance"
+    delete_href=String::new()
+                preview=view! { <AssetCsvPreview state=state session=session /> }.into_any()
+                extra=view! {
+                    <AssetReviewPromptCard rows=move || review_rows(review_state, session) />
+                }
+                .into_any()
+            />
+        }
 }
 
 /// 旧削除ページ URL へのアクセスを CSV 管理ページへリダイレクトする
+#[component]
+fn CsvPreviewWrapper(state: AssetBalanceState, _session: SessionStore) -> impl IntoView {
+    move || {
+        let csv_state = state.csv.csv_state();
+        let rows = csv_preview_rows(&csv_state);
+        if rows.is_empty() {
+            return None;
+        }
+        Some(view! { <AssetBalanceCsvPreview rows=rows /> })
+    }
+}
+
 #[component]
 pub fn AssetBalanceCsvDeletePage() -> impl IntoView {
     leptos::task::spawn_local(async move {
@@ -135,33 +147,6 @@ fn review_rows(state: AssetBalanceState, session: SessionStore) -> Vec<AssetBala
         resolve_asset_balance(session.generation.get(), &state.balances.get())
             .map(|resolved| resolved.rows)
             .unwrap_or_default()
-    }
-}
-
-#[component]
-fn AssetCsvPreview(state: AssetBalanceState, session: SessionStore) -> impl IntoView {
-    move || {
-        let csv_state = state.csv.csv_state();
-        let rows = csv_preview_rows(&csv_state);
-        if rows.is_empty() {
-            return None;
-        }
-        let filtered = filtered_portfolio(&rows, "", state.lookup, session.generation.get());
-        let views = filtered.views;
-        Some(view! {
-            <section data-testid="csv-preview">
-                <h2 class="text-sm font-bold text-text">"プレビュー"</h2>
-                <p class="mt-1 text-xs text-text-soft">
-                    "一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
-                </p>
-                <div class="mt-2">
-                    // 全件をそのまま置くと保存ボタンが遠くなるため、枠内スクロールにする
-                    <div class="csv-preview-scroll mt-2 max-h-96 overflow-y-auto">
-                        <super::holdings_list::HoldingsList views=views dividends=state.dividends show_dividend=true />
-                    </div>
-                </div>
-            </section>
-        })
     }
 }
 
