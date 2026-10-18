@@ -439,16 +439,18 @@ pub(crate) fn save_result_heading(result: &CsvUploadResponse) -> &'static str {
 
 // 件数はバッジの集合ではなく一文で伝える
 pub(crate) fn save_result_line(result: &CsvUploadResponse, mode_label: &str) -> String {
-    [
-        Some(result.inserted_text()),
-        Some(mode_label.to_string()),
-        result.skipped_text(),
-        result.error_count_text(),
-    ]
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>()
-    .join("・")
+    let mut parts = Vec::new();
+    parts.push(result.inserted_text());
+    if !mode_label.is_empty() {
+        parts.push(mode_label.to_string());
+    }
+    if let Some(s) = result.skipped_text() {
+        parts.push(s);
+    }
+    if let Some(s) = result.error_count_text() {
+        parts.push(s);
+    }
+    parts.join("・")
 }
 
 // 成功・一部失敗・全失敗をアイコンと色で分ける(文言の違いだけでは区別しにくいため)

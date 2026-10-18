@@ -28,6 +28,10 @@ impl CsvSource for ReceiptCsvSource {
         "追加"
     }
 
+    fn mode_label(&self) -> &'static str {
+        "追加保存"
+    }
+
     fn csv_meta(&self) -> CsvTabMeta {
         self.store.csv_meta(self.tab)
     }
@@ -101,6 +105,10 @@ impl CsvSource for ReceiptCsvSource {
 
     fn save_csv(&self) {
         self.store.save_csv(self.tab)
+    }
+
+    fn discard_csv(&self) {
+        self.store.discard_csv(self.tab)
     }
 
     fn open_delete_confirm(&self) {

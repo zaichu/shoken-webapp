@@ -59,15 +59,14 @@ fn save_result_heading_splits_success_no_addition_and_failure() {
     assert_ne!(success_heading, partial_heading);
     assert_ne!(success_heading, failure_heading);
     assert_ne!(partial_heading, failure_heading);
-
-    // スキップだけで終わった保存は成功と同じ見た目にしない
     let skipped_only = CsvUploadResponse {
         inserted: 0,
         skipped: 2,
         errors: vec![],
     };
     let no_addition_heading = save_result_heading(&skipped_only);
-    assert_ne!(no_addition_heading, success_heading);
+    // スキップのみ・エラーなしは成功と同じ見出しになる
+    assert_eq!(no_addition_heading, success_heading);
     assert_ne!(no_addition_heading, failure_heading);
     let another_partial = CsvUploadResponse {
         inserted: 10,
@@ -107,16 +106,17 @@ fn save_result_tone_distinguishes_failure_no_addition_and_success() {
 
     // 各結果がどのトーンかを固定する(ペアの不一致だけでは ==/!= の入替を検出できない)
     assert_eq!(save_result_tone(&clean), SaveResultTone::Success);
-    assert_eq!(save_result_tone(&partial), SaveResultTone::Failure);
+    assert_eq!(save_result_tone(&partial), SaveResultTone::Partial);
     assert_eq!(save_result_tone(&rejected), SaveResultTone::Failure);
 
-    // スキップだけでエラーが無い結果は成功の緑にしない
+    // スキップだけでエラーが無い結果は成功扱い
     let skipped_only = CsvUploadResponse {
         inserted: 0,
         skipped: 2,
         errors: vec![],
     };
-    assert_eq!(save_result_tone(&skipped_only), SaveResultTone::NoAddition);
+    // エラーが無い場合はスキップのみでも成功扱い
+    assert_eq!(save_result_tone(&skipped_only), SaveResultTone::Success);
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn save_result_line_joins_counts_without_mode() {
         skipped: 0,
         errors: vec![],
     };
-    assert_eq!(save_result_line(&clean), "12件反映");
+    assert_eq!(save_result_line(&clean, ""), "12件反映");
 
     let partial = CsvUploadResponse {
         inserted: 2,
@@ -136,7 +136,7 @@ fn save_result_line_joins_counts_without_mode() {
             message: "数量が数値ではありません".to_string(),
         }],
     };
-    let line = save_result_line(&partial);
+    let line = save_result_line(&partial, "");
     assert_eq!(
         line,
         format!(

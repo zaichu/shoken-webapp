@@ -557,19 +557,8 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
     page.locator('[role="status"][aria-live="polite"]').first(),
   ).toContainText('追加で保存できます', { timeout: 10000 });
 
-<<<<<<< HEAD
-  // カード内の「すべて削除…」ボタンへのキーボード操作
+// カード内の「すべて削除…」ボタンへのキーボード操作
   const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
-=======
-  const deleteLink = page.getByRole('link', {
-    name: '保存済みデータを削除…',
-  });
-  await tabTo(page, deleteLink);
-  await expect(deleteLink).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
-  const deleteButton = page.getByRole('button', { name: '削除する' });
->>>>>>> origin/main
   await tabTo(page, deleteButton);
   await expect(deleteButton).toBeFocused();
   await page.keyboard.press('Enter');

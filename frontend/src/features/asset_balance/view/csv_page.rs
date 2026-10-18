@@ -25,12 +25,8 @@ impl CsvSource for AssetBalanceCsvStore {
         "全件置換"
     }
 
-    // 追加保存と違い、置換の対象が全件だとボタン上でも分かるようにする
-    fn save_button_label(&self, valid_rows: Option<usize>) -> String {
-        match valid_rows {
-            Some(rows) => format!("{rows}件 全件置換で保存"),
-            None => "全件置換で保存".to_string(),
-        }
+    fn mode_label(&self) -> &'static str {
+        "全件置換"
     }
 
     fn csv_meta(&self) -> CsvTabMeta {
@@ -83,6 +79,10 @@ impl CsvSource for AssetBalanceCsvStore {
 
     fn save_csv(&self) {
         AssetBalanceCsvStore::save_csv(self)
+    }
+
+    fn discard_csv(&self) {
+        AssetBalanceCsvStore::discard_csv(self)
     }
 
     fn open_delete_confirm(&self) {
