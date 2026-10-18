@@ -312,9 +312,10 @@ fn CsvActionBar<S: CsvSource>(source: S, retrying: RwSignal<bool>) -> impl IntoV
                         />
                     };
                     view! {
-                        <div class="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border-strong bg-surface px-4 py-3 shadow-sm">
+                        // スマホではボタンが次の行に回り込み、ファイル名と状態は1行で読める幅を保つ
+                        <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border-strong bg-surface px-4 py-3 shadow-sm">
                             <CsvFileIcon />
-                            <div class="min-w-0 flex-1">
+                            <div class="min-w-0 flex-1 basis-56">
                                 <p id=format!("{input_id}-filename") class="truncate text-sm font-bold text-text">
                                     {file_name}
                                 </p>
