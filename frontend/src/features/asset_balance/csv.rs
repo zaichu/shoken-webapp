@@ -14,6 +14,7 @@ pub const IMPORT_PATH: &str = "/api/v1/asset-balance-imports";
 pub const CSV_CHUNKING: CsvChunking = CsvChunking {
     header_lines: 7,
     import_chunked: false,
+    header_marker: None,
 };
 
 // プレビュー行は backend が CreateAssetBalanceRequest をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る

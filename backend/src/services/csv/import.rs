@@ -161,6 +161,7 @@ mod tests {
     const KEY_CONFIG: CsvParserConfig = CsvParserConfig {
         skip_header_rows: 0,
         exclude_row_fn: None,
+        header_marker: None,
     };
 
     #[test]
@@ -197,6 +198,7 @@ mod tests {
     const PREVIEW_TEST_CONFIG: CsvParserConfig = CsvParserConfig {
         skip_header_rows: 0,
         exclude_row_fn: None,
+        header_marker: None,
     };
 
     fn collect_names(table: &CsvTable) -> (Vec<String>, Vec<CsvRowError>) {

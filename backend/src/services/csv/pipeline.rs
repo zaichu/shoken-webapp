@@ -21,7 +21,12 @@ impl CsvTable {
 pub struct CsvParserConfig {
     pub skip_header_rows: usize,
     pub exclude_row_fn: Option<fn(&CsvRowView<'_>) -> bool>,
+    /// 設定時は skip_header_rows より優先し、この文字で始まる列を持つ最初の行を見出しとする
+    pub header_marker: Option<&'static str>,
 }
+
+/// 見出し行の自動検出で走査する先頭からの行数
+const MAX_HEADER_SCAN_LINES: usize = 10;
 
 pub fn parse_csv_with_config(bytes: &[u8], config: &CsvParserConfig) -> Result<CsvTable, ApiError> {
     if bytes.is_empty() {
@@ -29,7 +34,13 @@ pub fn parse_csv_with_config(bytes: &[u8], config: &CsvParserConfig) -> Result<C
     }
 
     let content = decode_bytes(bytes);
-    let stripped = strip_header_rows(&content, config.skip_header_rows);
+    let stripped = match config.header_marker {
+        Some(marker) => match find_header_offset(&content, marker) {
+            Some(offset) => &content[offset..],
+            None => return Err(CsvError::HeaderNotFound(marker).into()),
+        },
+        None => strip_header_rows(&content, config.skip_header_rows),
+    };
     let mut reader = csv::ReaderBuilder::new()
         .flexible(true)
         .from_reader(stripped.as_bytes());
@@ -73,6 +84,28 @@ fn strip_header_rows(content: &str, skip_header_rows: usize) -> &str {
     &content[start..]
 }
 
+/// 先頭 MAX_HEADER_SCAN_LINES 行のうち、marker で始まる列を含む最初の行の開始位置を返す
+fn find_header_offset(content: &str, marker: &str) -> Option<usize> {
+    let mut offset = 0;
+    for line in content.split_inclusive('\n').take(MAX_HEADER_SCAN_LINES) {
+        if line_has_column_starting_with(line.trim_end(), marker) {
+            return Some(offset);
+        }
+        offset += line.len();
+    }
+    None
+}
+
+/// 1行を CSV レコードとして読み、marker で始まる列を含むかを返す
+fn line_has_column_starting_with(line: &str, marker: &str) -> bool {
+    let mut record = csv::StringRecord::new();
+    csv::ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(line.as_bytes())
+        .read_record(&mut record)
+        .is_ok_and(|read| read && record.iter().any(|field| field.trim().starts_with(marker)))
+}
+
 fn is_all_empty_record(record: &csv::StringRecord) -> bool {
     record.iter().all(|value| value.trim().is_empty())
 }
@@ -84,6 +117,7 @@ mod tests {
     const BASIC_CONFIG: CsvParserConfig = CsvParserConfig {
         skip_header_rows: 0,
         exclude_row_fn: None,
+        header_marker: None,
     };
 
     fn exclude_total_row(row: &CsvRowView<'_>) -> bool {
@@ -160,6 +194,56 @@ mod tests {
         assert_eq!(rows[0].cell("name"), "foo");
     }
 
+    #[test]
+    fn test_parse_csv_header_marker_detects_header_line() {
+        let config = CsvParserConfig {
+            header_marker: Some("入金日"),
+            ..BASIC_CONFIG
+        };
+        // 表題行つき: 見出しより前の行は読み飛ばす
+        let table = parse_csv_with_config(
+            "配当金・分配金・利金一覧\n入金日(受渡日),商品\n\"2025/03/31\",\"国内株式\"\n"
+                .as_bytes(),
+            &config,
+        )
+        .unwrap();
+        let rows = collect(&table);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].cell("入金日(受渡日)"), "2025/03/31");
+        assert_eq!(rows[0].cell("商品"), "国内株式");
+
+        // 先頭行が見出しの従来形式もそのまま読める
+        let table = parse_csv_with_config(
+            "入金日,商品\n\"2025/03/31\",\"国内株式\"\n".as_bytes(),
+            &config,
+        )
+        .unwrap();
+        assert_eq!(collect(&table).len(), 1);
+    }
+
+    #[test]
+    fn test_parse_csv_header_marker_not_found_is_single_error() {
+        let config = CsvParserConfig {
+            header_marker: Some("入金日"),
+            ..BASIC_CONFIG
+        };
+        // 見出しに相当する行が無いファイルは行ごとのエラーではなく1件のエラー
+        let result =
+            parse_csv_with_config("商品,口座\n\"国内株式\",\"特定\"\n".as_bytes(), &config);
+        assert!(matches!(
+            result,
+            Err(ApiError::Csv(CsvError::HeaderNotFound("入金日")))
+        ));
+
+        // 走査範囲(10行)を超えた位置にある見出しも見つからない扱い
+        let content = format!("{}入金日,商品\nx,y\n", "メモ\n".repeat(10));
+        let result = parse_csv_with_config(content.as_bytes(), &config);
+        assert!(matches!(
+            result,
+            Err(ApiError::Csv(CsvError::HeaderNotFound(_)))
+        ));
+    }
+
     proptest::proptest! {
         #[test]
         fn prop_parse_csv_with_config_matches_reference(
@@ -183,6 +267,7 @@ mod tests {
             let config = CsvParserConfig {
                 skip_header_rows,
                 exclude_row_fn: None,
+                header_marker: None,
             };
             let table = parse_csv_with_config(csv.as_bytes(), &config).unwrap();
 

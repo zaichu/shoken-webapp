@@ -35,6 +35,7 @@ impl CsvImport for AssetBalanceDomain {
     const CSV_CONFIG: CsvParserConfig = CsvParserConfig {
         skip_header_rows: 6,
         exclude_row_fn: Some(is_account_summary_row),
+        header_marker: None,
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
@@ -272,6 +273,7 @@ mod tests {
             &CsvParserConfig {
                 skip_header_rows: 0,
                 exclude_row_fn: None,
+                header_marker: None,
             },
         )
         .unwrap();

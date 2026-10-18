@@ -6,10 +6,23 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 
 // backend の各 receipts 系 CsvParserConfig は skip_header_rows=0(先頭行がヘッダ)
-pub const CSV_CHUNKING: CsvChunking = CsvChunking {
+const CSV_CHUNKING: CsvChunking = CsvChunking {
     header_lines: 1,
     import_chunked: true,
+    header_marker: None,
 };
+
+/// backend の配当CSVは表題行つき形式に対応するため見出しを自動検出する。
+/// 分割送信の前置行も同じ規則でファイルごとに求める
+pub fn chunking_for(tab: ReceiptsTab) -> CsvChunking {
+    CsvChunking {
+        header_marker: match tab {
+            ReceiptsTab::Dividend => Some("入金日"),
+            _ => None,
+        },
+        ..CSV_CHUNKING
+    }
+}
 
 // プレビュー行は backend が Create*Request をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る(銘柄コード・口座は未検証の生値)
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -124,7 +137,8 @@ pub async fn fetch_preview(
         wrap: fn(R) -> CsvPreviewRow,
     ) -> Result<CsvPreviewResponse<CsvPreviewRow>, ApiError> {
         let response: CsvPreviewResponse<R> =
-            crate::support::csv_flow::preview_csv(tab.preview_path(), file, CSV_CHUNKING).await?;
+            crate::support::csv_flow::preview_csv(tab.preview_path(), file, chunking_for(tab))
+                .await?;
         Ok(wrap_rows(response, wrap))
     }
     match tab {

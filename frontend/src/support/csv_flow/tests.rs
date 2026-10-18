@@ -318,3 +318,44 @@ fn chunk_record_groups_without_duplicates_is_plain_chunks() {
     let lens: Vec<usize> = groups.iter().map(|g| g.len()).collect();
     assert_eq!(lens, vec![2, 2, 1]);
 }
+
+#[test]
+fn detect_preamble_lines_finds_header_after_title() {
+    // 表題行つき新形式: 見出しは2レコード目なので前置行は2
+    let bytes = "配当金・分配金・利金一覧\n入金日(受渡日),商品\n2025/03/31,国内株式\n".as_bytes();
+    let ranges = record_ranges(bytes);
+    assert_eq!(detect_preamble_lines(bytes, &ranges, "入金日"), Some(2));
+
+    // 先頭が見出しの従来形式は前置行1
+    let bytes = "入金日,商品\n2025/03/31,国内株式\n".as_bytes();
+    let ranges = record_ranges(bytes);
+    assert_eq!(detect_preamble_lines(bytes, &ranges, "入金日"), Some(1));
+
+    // 見出しが無ければ None(backend がエラーを返す)
+    let bytes = "商品,口座\n国内株式,特定\n".as_bytes();
+    let ranges = record_ranges(bytes);
+    assert_eq!(detect_preamble_lines(bytes, &ranges, "入金日"), None);
+}
+
+#[test]
+fn detect_preamble_lines_parses_quoted_fields() {
+    // 引用符内のカンマは区切りにならず、引用符内のマーカー文字列は誤検出しない
+    let bytes = "\"配当金,入金日の一覧\"\n入金日,商品\n2025/03/31,国内株式\n".as_bytes();
+    let ranges = record_ranges(bytes);
+    assert_eq!(detect_preamble_lines(bytes, &ranges, "入金日"), Some(2));
+
+    // 引用符の内側の空白はフィールドの一部として trim してから判定する
+    let bytes = "タイトル\n\" 入金日\",商品\n2025/03/31,国内株式\n".as_bytes();
+    let ranges = record_ranges(bytes);
+    assert_eq!(detect_preamble_lines(bytes, &ranges, "入金日"), Some(2));
+}
+
+#[test]
+fn detect_preamble_lines_reads_shift_jis() {
+    // Shift-JIS の新形式でも見出しを検出できる
+    let (bytes, _, _) = encoding_rs::SHIFT_JIS
+        .encode("配当金・分配金・利金一覧\n入金日(受渡日),商品\n2025/03/31,国内株式\n");
+    let bytes = bytes.as_ref();
+    let ranges = record_ranges(bytes);
+    assert_eq!(detect_preamble_lines(bytes, &ranges, "入金日"), Some(2));
+}
