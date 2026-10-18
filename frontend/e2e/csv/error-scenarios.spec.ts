@@ -103,6 +103,8 @@ test('検証 API が失敗したときエラーが表示され保存が押せな
   });
   // 未検証のファイルは保存へ送らない
   await expect(page.getByRole('button', { name: /保存する/ }).first()).toBeDisabled();
+  // 検証に失敗したら選び直せる場所へフォーカスを戻す
+  await expect(fileInput).toBeFocused({ timeout: 10000 });
 });
 
 test('有効な行が0件のときは保存が押せない', async ({ page }) => {

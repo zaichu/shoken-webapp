@@ -118,27 +118,33 @@ pub fn CsvManagePage<S: CsvSource>(
         }
     });
 
-    // 選んだ直後に保存ボタンへフォーカスし、Enter でも保存できるようにする
+    // 選んだ直後のフォーカス先: 保存できるなら保存ボタン(Enter で保存)、
+    // そうでなければ選び直せるファイル入力へ戻す(失敗時にフォーカスが迷子にならないように)
+    fn focus_element(selector: &'static str) {
+        leptos::task::spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(0).await;
+            let element = web_sys::window()
+                .and_then(|window| window.document())
+                .and_then(|document| document.query_selector(selector).ok())
+                .flatten();
+            if let Some(element) = element {
+                let _ = element.unchecked_into::<web_sys::HtmlElement>().focus();
+            }
+        });
+    }
     let prev_previewing = RwSignal::new(false);
     Effect::new(move |_| {
         let previewing = previewing.get();
         let was = prev_previewing.get_untracked();
         prev_previewing.set(previewing);
-        if was && !previewing && source.csv_meta().preview.is_some() {
-            leptos::task::spawn_local(async move {
-                gloo_timers::future::TimeoutFuture::new(0).await;
-                let button = web_sys::window()
-                    .and_then(|window| window.document())
-                    .and_then(|document| {
-                        document
-                            .query_selector("[data-testid='csv-save-button']")
-                            .ok()
-                    })
-                    .flatten();
-                if let Some(button) = button {
-                    let _ = button.unchecked_into::<web_sys::HtmlElement>().focus();
-                }
-            });
+        if !was || previewing {
+            return;
+        }
+        let meta = source.csv_meta();
+        if meta.preview.is_some() && !source.save_disabled(&meta) {
+            focus_element("[data-testid='csv-save-button']");
+        } else {
+            focus_element("[data-testid='csv-file-input']");
         }
     });
 
@@ -339,7 +345,11 @@ fn CsvActionBar<S: CsvSource>(source: S, retrying: RwSignal<bool>) -> impl IntoV
                                 testid="csv-save-button"
                                 disabled=move || save_disabled.get()
                                 aria_disabled=move || save_disabled.get()
-                                on_click=move |_| source.save_csv()
+                                // 前回の保存以外で立った再試行フラグを、保存の開始時に必ず落とす
+                                on_click=move |_| {
+                                    retrying.set(false);
+                                    source.save_csv();
+                                }
                             >
                                 {move || save_label.get()}
                             </Button>
