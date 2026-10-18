@@ -237,7 +237,20 @@ test('CSV プレビューで行エラーが返ったとき warning Alert に一�
           { row: 2, message: '受取金額が数値ではありません' },
           { row: 3, message: '受取日の形式が不正です' },
         ],
-        rows: [],
+        rows: [
+          {
+            settlement_date: '2026-03-10',
+            product: '国内株式',
+            account: '特定・一般',
+            security_code: '8001',
+            security_name: 'サンプル銘柄',
+            unit_price: 100,
+            shares: 10,
+            dividends_before_tax: 1000,
+            taxes: 200,
+            net_amount_received: 800,
+          },
+        ],
       }),
     }),
   );

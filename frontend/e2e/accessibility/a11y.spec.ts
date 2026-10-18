@@ -55,6 +55,20 @@ const NEGATIVE_DOMESTIC_ROW = {
   updated_at: '2024-02-01T00:00:00Z',
 };
 
+// プレビュー応答の行。id・timestamps は付かず数値は number で返る(backend の wire 形式)
+const CSV_PREVIEW_ROW = {
+  settlement_date: '2024-03-01',
+  product: '特定口座',
+  account: 'SBI証券',
+  security_code: '7203',
+  security_name: 'トヨタ自動車',
+  unit_price: 30,
+  shares: 100,
+  dividends_before_tax: 3000,
+  taxes: 609,
+  net_amount_received: 2391,
+};
+
 const ASSET_ROW = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
@@ -358,7 +372,9 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
   await mockEmptyLists(page);
   await mockReceiptsData(page);
   await page.route(ROUTES.dividendPreview, (route) =>
-    route.fulfill(json({ total_rows: 1, valid_rows: 1, errors: [], rows: [] })),
+    route.fulfill(
+      json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
+    ),
   );
   for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
     await page.setViewportSize(size);
@@ -397,7 +413,7 @@ test('CSVプレビューの行エラー表示に moderate 以上の WCAG 違反�
           { row: 2, message: '受取金額が数値ではありません' },
           { row: 3, message: '受取日の形式が不正です' },
         ],
-        rows: [],
+        rows: [CSV_PREVIEW_ROW],
       }),
     ),
   );
@@ -485,7 +501,9 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await mockEmptyLists(page);
   await mockReceiptsData(page);
   await page.route(ROUTES.dividendPreview, (route) =>
-    route.fulfill(json({ total_rows: 1, valid_rows: 1, errors: [], rows: [] })),
+    route.fulfill(
+      json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
+    ),
   );
   await page.setViewportSize(PC);
   await page.goto('/receipts');
@@ -754,7 +772,9 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
   await mockSession(page);
   await mockEmptyLists(page);
   await page.route(ROUTES.dividendPreview, (route) =>
-    route.fulfill(json({ total_rows: 1, valid_rows: 1, errors: [], rows: [] })),
+    route.fulfill(
+      json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
+    ),
   );
   let upload: unknown = { inserted: 1, skipped: 0, errors: [] };
   await page.route(ROUTES.dividendUpload, (route) => route.fulfill(json(upload)));

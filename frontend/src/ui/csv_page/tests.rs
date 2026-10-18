@@ -74,12 +74,10 @@ fn save_result_tone_distinguishes_failure_from_success() {
         }],
     };
 
-    let success = save_result_tone(&clean);
-    let partial_tone = save_result_tone(&partial);
-    let failure = save_result_tone(&rejected);
-    assert_ne!(success, partial_tone, "一部失敗は成功と区別できる");
-    assert_ne!(success, failure, "全失敗は成功と区別できる");
-    assert_ne!(partial_tone, failure, "一部失敗と全失敗も区別できる");
+    // 各結果がどのトーンかを固定する(ペアの不一致だけでは ==/!= の入替を検出できない)
+    assert_eq!(save_result_tone(&clean), SaveResultTone::Success);
+    assert_eq!(save_result_tone(&partial), SaveResultTone::Partial);
+    assert_eq!(save_result_tone(&rejected), SaveResultTone::Failure);
 
     // スキップだけでエラーが無い結果は成功として扱う
     let skipped_only = CsvUploadResponse {
@@ -87,7 +85,7 @@ fn save_result_tone_distinguishes_failure_from_success() {
         skipped: 2,
         errors: vec![],
     };
-    assert_eq!(save_result_tone(&skipped_only), success);
+    assert_eq!(save_result_tone(&skipped_only), SaveResultTone::Success);
 }
 
 #[test]
