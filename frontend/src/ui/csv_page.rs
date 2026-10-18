@@ -23,6 +23,7 @@ pub(crate) fn save_disabled_by_preview(meta: &CsvTabMeta, errors_block_save: boo
 /// CSV 管理・削除ページが要求するデータソース。
 /// 取引明細(種別付き)と資産残高が同じページ構成を共有するため、
 /// 状態取得と操作をトレイトで受け取る。状態は行データを含まない CsvTabMeta
+#[allow(dead_code)]
 pub trait CsvSource: Copy + Send + Sync + 'static {
     fn input_id(&self) -> &'static str;
     /// 保存ボタンの方式込みラベル("追加で保存" / "全件置換で保存")
@@ -137,10 +138,10 @@ pub fn CsvManagePage<S: CsvSource>(
 
     // 削除エラーを CSV メタから同期
     Effect::new(move |_| {
-        if let Some(err) = meta_error.get() {
-            if source.csv_meta().deleting || source.csv_meta().show_delete_confirm {
-                delete_error.set(Some(err));
-            }
+        if let Some(err) = meta_error.get()
+            && (source.csv_meta().deleting || source.csv_meta().show_delete_confirm)
+        {
+            delete_error.set(Some(err));
         }
     });
 

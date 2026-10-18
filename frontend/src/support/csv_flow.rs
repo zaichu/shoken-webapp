@@ -156,6 +156,7 @@ pub struct CsvPreviewMeta {
     pub has_rows: bool,
 }
 
+#[allow(dead_code)]
 impl CsvTabMeta {
     pub fn busy(&self) -> bool {
         self.previewing || self.saving || self.deleting
