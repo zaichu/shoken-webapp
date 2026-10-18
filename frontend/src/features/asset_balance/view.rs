@@ -1,6 +1,7 @@
 mod asset_table;
 mod composition_page;
 mod csv_page;
+mod csv_preview;
 mod holding_detail_page;
 mod holdings_list;
 mod main_content;
@@ -13,6 +14,7 @@ mod tests;
 
 pub use composition_page::AssetBalanceCompositionPage;
 pub use csv_page::{AssetBalanceCsvDeletePage, AssetBalanceCsvPage};
+pub use csv_preview::AssetBalanceCsvPreview;
 pub use holding_detail_page::AssetBalanceHoldingPage;
 
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
