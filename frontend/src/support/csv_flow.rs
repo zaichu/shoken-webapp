@@ -244,6 +244,11 @@ pub struct CsvChunking {
     /// false のとき import は分割しない。
     /// 置換型ドメインは分割すると後続チャンクが前チャンクの行を消すため
     pub import_chunked: bool,
+    /// 設定時、先頭10レコード以内でこの文字で始まるフィールドを含む行までを
+    /// 前置行とする(backend の header_marker 見出し検出と同じ規則。
+    /// 表題行つき形式ではファイルごとに前置行数が変わるため)
+    /// 見つからなければ header_lines に倒す(backend が見出しなしエラーを返す)
+    pub header_marker: Option<&'static str>,
 }
 
 /// CSV バイト列をレコード境界(引用符内の改行を除く)で切る。
@@ -319,11 +324,33 @@ fn chunk_record_groups<'a>(
     groups
 }
 
+/// backend の decode_bytes と同じ判定(UTF-8 を試み、失敗時は Shift-JIS)
+fn decode_csv_bytes(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    encoding_rs::SHIFT_JIS.decode(bytes).0
+}
+
+/// 先頭10レコードのうち marker で始まるフィールドを含む最初のレコードまでを
+/// 前置行とし、その行数を返す。見つからなければ None
+fn detect_preamble_lines(bytes: &[u8], records: &[(usize, usize)], marker: &str) -> Option<usize> {
+    records
+        .iter()
+        .take(10)
+        .position(|(start, end)| {
+            decode_csv_bytes(&bytes[*start..*end])
+                .split(',')
+                .any(|field| field.trim().trim_matches('"').starts_with(marker))
+        })
+        .map(|index| index + 1)
+}
+
 /// ファイルを「前置行 + 最大 max_rows レコード」のチャンク Blob 列に切る。
 /// 小さいファイルはそのまま 1 要素で返す
 async fn split_file_chunks(
     file: &web_sys::File,
-    header_lines: usize,
+    chunking: CsvChunking,
     max_rows: usize,
 ) -> Result<Vec<web_sys::Blob>, ApiError> {
     let buf = wasm_bindgen_futures::JsFuture::from(file.array_buffer())
@@ -331,6 +358,10 @@ async fn split_file_chunks(
         .map_err(|_| ApiError::Network)?;
     let bytes = js_sys::Uint8Array::new(&buf).to_vec();
     let records = record_ranges(&bytes);
+    let header_lines = chunking
+        .header_marker
+        .and_then(|marker| detect_preamble_lines(&bytes, &records, marker))
+        .unwrap_or(chunking.header_lines);
     let header_records = records.len().min(header_lines);
     let data = &records[header_records..];
     if data.len() <= max_rows {
@@ -366,7 +397,7 @@ pub async fn preview_csv<R: serde::de::DeserializeOwned>(
     file: &web_sys::File,
     chunking: CsvChunking,
 ) -> Result<CsvPreviewResponse<R>, ApiError> {
-    let chunks = split_file_chunks(file, chunking.header_lines, CSV_CHUNK_ROWS).await?;
+    let chunks = split_file_chunks(file, chunking, CSV_CHUNK_ROWS).await?;
     let client = ApiClient::default_client();
     // backend の拡張子ガードと E2E モックの filename ルックアップが実名を使うため維持する
     let filename = file.name();
@@ -401,7 +432,7 @@ pub async fn upload_csv(
             .post_multipart(path, &csv_form_data(file)?)
             .await;
     }
-    let chunks = split_file_chunks(file, chunking.header_lines, CSV_CHUNK_ROWS).await?;
+    let chunks = split_file_chunks(file, chunking, CSV_CHUNK_ROWS).await?;
     let client = ApiClient::default_client();
     let filename = file.name();
     let mut merged = CsvUploadResponse {

@@ -1,7 +1,7 @@
 use super::ReceiptsStore;
 use crate::api::ApiError;
 use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
-use crate::features::receipts::csv::{CSV_CHUNKING, CsvPreviewRow, fetch_preview};
+use crate::features::receipts::csv::{CsvPreviewRow, chunking_for, fetch_preview};
 use crate::features::receipts::{ReceiptTabData, ReceiptsTab, TabState};
 use crate::session::Generation;
 use crate::support::csv_flow::{CsvTabMeta, CsvTabState};
@@ -81,7 +81,8 @@ impl ReceiptsStore {
         let store = *self;
         leptos::task::spawn_local(async move {
             let result =
-                crate::support::csv_flow::upload_csv(tab.import_path(), &file, CSV_CHUNKING).await;
+                crate::support::csv_flow::upload_csv(tab.import_path(), &file, chunking_for(tab))
+                    .await;
             if store.apply_upload_result(generation, tab, result) {
                 store.fetch.dispatch((generation, tab));
             }
