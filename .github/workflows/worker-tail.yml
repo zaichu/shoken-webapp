@@ -53,7 +53,7 @@ jobs:
 
       # json 出力は1イベントを複数行に整形した JSON 値の列。scheduled は
       # 全イベント残し、それ以外は error/warn のログ行と例外だけに絞る。
-      # 出力中の code=<数字> は保有銘柄を特定し得るため code=**** に潰す
+      # 出力中の code=<銘柄コード> は保有銘柄を特定し得るため code=**** に潰す
       - name: Filter scheduled/error lines
         run: |
           set -euo pipefail
@@ -66,7 +66,7 @@ jobs:
                exceptions: [.exceptions[]?]}
               | select((.logs | length) + (.exceptions | length) > 0)
             end
-            | walk(if type == "string" then gsub("code=[0-9]+"; "code=****") else . end)' tail-out/raw.jsonl > tail-out/filtered.jsonl
+            | walk(if type == "string" then gsub("code=[A-Za-z0-9.]+"; "code=****") else . end)' tail-out/raw.jsonl > tail-out/filtered.jsonl
           wc -l tail-out/filtered.jsonl
           {
             echo "- tail 時間: ${{ inputs.minutes }}分"
