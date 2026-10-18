@@ -263,17 +263,9 @@ async fn stock_master_replace_master_swaps_all_rows() {
     assert!(err.is_unique_violation(), "期待するのは PK 違反: {err:?}");
 }
 
-#[tokio::test]
-#[ignore = "requires Docker to run Postgres container"]
-async fn stock_master_latest_master_date_returns_none_then_some() {
-    let (pool, _node) = start_test_pool().await;
-
-    // 空の stock は None (= should_refresh が true になる前提)
-    assert_eq!(stock_master::latest_master_date(&pool).await.unwrap(), None);
-
-    // 1銘柄投入後は Some(date)
-    let one = vec![stock_master::StockRow {
-        date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
+async fn seed_stock_row(pool: &Db) {
+    let rows = vec![stock_master::StockRow {
+        date: Utc::now().date_naive() - chrono::Duration::days(3),
         code: "1301".to_string(),
         name: "極洋".to_string(),
         market_category: "プライム".to_string(),
@@ -281,42 +273,140 @@ async fn stock_master_latest_master_date_returns_none_then_some() {
         industry_category_17: None,
         size_category: None,
     }];
-    let inserted = stock_master::replace_master(&pool, &one)
+    stock_master::replace_master(pool, &rows)
         .await
-        .expect("replace_master failed");
-    assert_eq!(inserted, 1);
-    assert_eq!(
-        stock_master::latest_master_date(&pool).await.unwrap(),
-        Some(NaiveDate::from_ymd_opt(2026, 10, 15).unwrap())
+        .expect("seed stock");
+}
+
+/// 銘柄マスタ更新枠(market_data_provider_rate_control の provider='jquants-equities-master')
+/// の next_available_at。行が無ければ None
+async fn master_refresh_gate(pool: &Db) -> Option<chrono::DateTime<Utc>> {
+    db::query_scalar::<chrono::DateTime<Utc>>(
+        "SELECT next_available_at FROM market_data_provider_rate_control \
+         WHERE provider = 'jquants-equities-master'",
+        vec![],
+    )
+    .fetch_optional(pool)
+    .await
+    .unwrap()
+}
+
+fn scheduled_now_ms() -> f64 {
+    Utc::now().timestamp_millis() as f64
+}
+
+/// 受け入れ条件①: 枠の行が無い初回は、枠を取って更新を実行する。
+/// ホスト側テストでは J-Quants 呼び出し自体は必ず失敗するため、
+/// Err = 枠を取って更新を試みた、Ok(None) = 枠が取れずスキップ、を示す
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_master_refresh_runs_when_gate_row_missing() {
+    let (pool, _node) = start_test_pool().await;
+    seed_stock_row(&pool).await;
+    assert_eq!(master_refresh_gate(&pool).await, None);
+    let client = JQuantsClient::new("test-api-key".to_string());
+
+    let result = stock_master::maybe_refresh(&pool, &client, scheduled_now_ms()).await;
+    assert!(
+        result.is_err(),
+        "枠の行が無い初回は枠を取って更新を試みるはず(取得自体はホストでは失敗): {result:?}"
+    );
+    assert!(
+        master_refresh_gate(&pool).await.is_some(),
+        "枠の行が作られているはず"
+    );
+}
+
+/// 受け入れ条件②: 枠を取った直後の実行は、枠が取れず更新しない
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_master_refresh_skips_when_slot_taken_recently() {
+    let (pool, _node) = start_test_pool().await;
+    seed_stock_row(&pool).await;
+    let client = JQuantsClient::new("test-api-key".to_string());
+
+    // 1回目: 枠を取って更新を試みる(失敗しても再試行は1時間後に押される)
+    let first = stock_master::maybe_refresh(&pool, &client, scheduled_now_ms()).await;
+    assert!(
+        first.is_err(),
+        "1回目は枠を取って更新を試みるはず: {first:?}"
     );
 
-    // 2銘柄投入後、MAX(date) が返る
-    let two = vec![
-        stock_master::StockRow {
-            date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
-            code: "1301".to_string(),
-            name: "極洋".to_string(),
-            market_category: "プライム".to_string(),
-            industry_category_33: None,
-            industry_category_17: None,
-            size_category: None,
-        },
-        stock_master::StockRow {
-            date: NaiveDate::from_ymd_opt(2026, 10, 16).unwrap(),
-            code: "7203".to_string(),
-            name: "トヨタ自動車".to_string(),
-            market_category: "プライム".to_string(),
-            industry_category_33: None,
-            industry_category_17: None,
-            size_category: None,
-        },
-    ];
-    stock_master::replace_master(&pool, &two)
-        .await
-        .expect("replace_master failed");
+    // 直後の2回目: next_available_at が未来なので枠が取れず更新しない
+    let second = stock_master::maybe_refresh(&pool, &client, scheduled_now_ms()).await;
     assert_eq!(
-        stock_master::latest_master_date(&pool).await.unwrap(),
-        Some(NaiveDate::from_ymd_opt(2026, 10, 16).unwrap())
+        second.unwrap(),
+        None,
+        "直後の実行は枠が取れずスキップするはず"
+    );
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM stock", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 1, "stock の行は変わらないはず");
+}
+
+/// 受け入れ条件③: next_available_at が過去なら枠を取って更新を実行する
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_master_refresh_runs_when_slot_is_due() {
+    let (pool, _node) = start_test_pool().await;
+    seed_stock_row(&pool).await;
+    let client = JQuantsClient::new("test-api-key".to_string());
+    db::query(
+        "INSERT INTO market_data_provider_rate_control (provider, next_available_at)
+         VALUES ('jquants-equities-master', NOW() - INTERVAL '1 day')",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("枠の行の投入");
+
+    let result = stock_master::maybe_refresh(&pool, &client, scheduled_now_ms()).await;
+    assert!(
+        result.is_err(),
+        "過去の next_available_at は枠を取って更新を試みるはず: {result:?}"
+    );
+}
+
+/// stock が空のときは枠(次回時刻が未来)に関わらず初期投入を実行する
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_master_refresh_runs_when_stock_empty_even_if_slot_future() {
+    let (pool, _node) = start_test_pool().await;
+    let client = JQuantsClient::new("test-api-key".to_string());
+    db::query(
+        "INSERT INTO market_data_provider_rate_control (provider, next_available_at)
+         VALUES ('jquants-equities-master', NOW() + INTERVAL '7 days')",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("枠の行の投入");
+
+    let result = stock_master::maybe_refresh(&pool, &client, scheduled_now_ms()).await;
+    assert!(
+        result.is_err(),
+        "stock が空なら枠の時刻に関わらず更新を試みるはず: {result:?}"
+    );
+}
+
+/// 受け入れ条件④: 更新に失敗したら再試行は1時間後になる(毎分のやり直しをしない)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stock_master_refresh_postpones_slot_one_hour_on_failure() {
+    let (pool, _node) = start_test_pool().await;
+    seed_stock_row(&pool).await;
+    let client = JQuantsClient::new("test-api-key".to_string());
+
+    let result = stock_master::maybe_refresh(&pool, &client, scheduled_now_ms()).await;
+    assert!(result.is_err(), "ホストでは取得が失敗するはず: {result:?}");
+
+    let next = master_refresh_gate(&pool).await.expect("枠の行があるはず");
+    let now = Utc::now();
+    assert!(
+        next > now + chrono::Duration::minutes(55) && next < now + chrono::Duration::minutes(65),
+        "失敗後の再試行は1時間後になるはず: {next:?}"
     );
 }
 
