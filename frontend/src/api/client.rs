@@ -310,8 +310,7 @@ impl ApiClient {
             match self.send_once(method, path, query, &body).await {
                 Ok(text) => return Ok(text),
                 Err(error) if attempt < self.max_retries && error.is_retryable() => {
-                    // 再送待ちの通知は CSV のプレビュー・保存(multipart)だけに絞る。
-                    // 一覧などの GET の再送は保存中の表示と無関係なため対象にしない
+                    // 他の API 呼び出しの再送が CSV 保存中の表示に混入しないようにする
                     if matches!(body, RequestBody::Form(_)) {
                         notify_retry_wait();
                     }
