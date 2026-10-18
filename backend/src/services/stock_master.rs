@@ -4,8 +4,11 @@
 use crate::db::{Bind, Db};
 use crate::errors::ApiError;
 use crate::services::jquants::{EquitiesMasterResponse, JQuantsClient};
-use chrono::{DateTime, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
 use std::collections::HashSet;
+
+/// market_data_provider_rate_control.provider の銘柄マスタ更新用キー
+const MASTER_PROVIDER: &str = "jquants-equities-master";
 
 /// stock テーブルの1行分。J-Quants の5桁コードは先頭4桁へ縮約済み
 pub struct StockRow {
@@ -103,68 +106,112 @@ pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiEr
     }
 }
 
-/// 最後に成功した更新からの経過日数で更新要否を判定する純関数。
-/// `stock.date` は上流(J-Quants)の基準日で、成功のたびに進むため経過時間の代わりになる
-pub fn should_refresh(has_rows: bool, latest_date: Option<NaiveDate>, today: NaiveDate) -> bool {
-    if !has_rows {
-        // 空なら初期投入として実行
-        return true;
-    }
-    match latest_date {
-        None => true,
-        Some(latest) => today.signed_duration_since(latest).num_days() >= 7,
-    }
+/// 次に更新してよい時刻(`next_available_at`)と現在時刻から更新要否を判定する純関数。
+/// `stock.date`(上流の基準日)は無料プランでは常に約12週間遅れで経過時間の代わりに
+/// ならないため、こちらで記録する時刻で判定する。枠の行が無い(None)は初回として
+/// 実行する。stock が空の初回投入もこの経路で起きる(更新は成功すれば必ず行を残すため、
+/// stock 空のまま枠が未来なのは失敗待ち・実行中だけで、待つのが正しい)
+pub fn should_refresh(next_available_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+    next_available_at.is_none_or(|at| at <= now)
 }
 
-/// stock テーブルの `MAX(date)` を取得する。空なら `None`。
-/// `stock.date` は J-Quants 基準日で、取得 SQL をここに集約する
-pub async fn latest_master_date(pool: &Db) -> Result<Option<NaiveDate>, ApiError> {
-    crate::db::query_scalar::<Option<NaiveDate>>("SELECT MAX(date) FROM stock", vec![])
-        .fetch_one(pool)
-        .await
-        .map_err(ApiError::from)
+/// 更新枠の「次に更新してよい時刻」を読む。行が無ければ None(=初回)
+async fn refresh_gate_next_available_at(pool: &Db) -> Result<Option<DateTime<Utc>>, ApiError> {
+    crate::db::query_scalar::<DateTime<Utc>>(
+        "SELECT next_available_at FROM market_data_provider_rate_control WHERE provider = $1",
+        vec![Bind::from(MASTER_PROVIDER)],
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(ApiError::from)
 }
 
-/// `scheduled_ms`(UTC エポックミリ秒)から UTC の日付を得る。
+/// 更新の実行権を原子的に取る。取れた(true)回だけ更新を実行するため、
+/// 同時に動いても1回だけになる。行が無ければ INSERT して初回として取る
+async fn claim_refresh_slot(pool: &Db) -> Result<bool, ApiError> {
+    crate::db::query_scalar::<i32>(
+        r#"
+        INSERT INTO market_data_provider_rate_control (provider, next_available_at)
+            VALUES ($1, NOW() + INTERVAL '7 days')
+        ON CONFLICT (provider) DO UPDATE
+            SET next_available_at = NOW() + INTERVAL '7 days'
+            WHERE market_data_provider_rate_control.next_available_at <= NOW()
+        RETURNING 1
+        "#,
+        vec![Bind::from(MASTER_PROVIDER)],
+    )
+    .fetch_optional(pool)
+    .await
+    .map(|v| v.is_some())
+    .map_err(ApiError::from)
+}
+
+/// 更新失敗時の再試行を1時間後に遅らせる(毎分のやり直しを止める)
+async fn postpone_refresh_slot(pool: &Db) -> Result<(), ApiError> {
+    crate::db::query(
+        "UPDATE market_data_provider_rate_control
+         SET next_available_at = NOW() + INTERVAL '1 hour'
+         WHERE provider = $1",
+        vec![Bind::from(MASTER_PROVIDER)],
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// `scheduled_ms`(UTC エポックミリ秒)から UTC 時刻を得る。
 /// `Utc::now()` には依存しない(テスト可能なように scheduled イベント時刻のみを使う)
-fn scheduled_date(scheduled_ms: f64) -> Option<NaiveDate> {
-    DateTime::from_timestamp_millis(scheduled_ms as i64).map(|t| t.date_naive())
+fn scheduled_time(scheduled_ms: f64) -> Option<DateTime<Utc>> {
+    DateTime::from_timestamp_millis(scheduled_ms as i64)
 }
 
-/// stock が空なら実行(初期投入)。行があれば MAX(date) が scheduled 日付から 7日以上前
-/// のときだけ実行する(失敗後の再試行)。
-/// 戻り値は `Some(投入件数)`、スキップ時は `None`
+/// market_data_provider_rate_control の行(次に更新してよい時刻)で更新要否を判定し、
+/// 枠を取れた回だけ stock を全置換する。stock が空の初回は枠の行が無いため投入される。
+/// 失敗時は次回を1時間後に遅らせる。戻り値は `Some(投入件数)`、スキップ時は `None`
 pub async fn maybe_refresh(
     pool: &Db,
     client: &JQuantsClient,
     scheduled_ms: f64,
 ) -> Result<Option<usize>, ApiError> {
-    // SELECT MAX(date) を1回だけ引いて has_rows と latest_date を両方得る
-    // (EXISTS と MAX の2クエリにしない)。SQL は latest_master_date に集約し、2箇所へ書かない
-    let latest_date = latest_master_date(pool).await?;
-    let has_rows = latest_date.is_some();
-
-    let today = match scheduled_date(scheduled_ms) {
-        Some(d) => d,
+    let now = match scheduled_time(scheduled_ms) {
+        Some(t) => t,
         None => return Ok(None),
     };
-    if !should_refresh(has_rows, latest_date, today) {
+    let next_available_at = refresh_gate_next_available_at(pool).await?;
+    if !should_refresh(next_available_at, now) {
+        return Ok(None);
+    }
+    // 判定の後に他インスタンスが枠を取っても、claim が false で打ち止まる
+    if !claim_refresh_slot(pool).await? {
         return Ok(None);
     }
 
-    let response = client.get_equities_master().await?;
-    let rows = map_master(&response);
-    // 上流の応答が0件(契約変更・フィルタ全落ち)なら、マスタを空にしない
-    if rows.is_empty() {
-        return Err(ApiError::Internal("J-Quants 上場銘柄一覧が0件"));
+    let result = async {
+        let response = client.get_equities_master().await?;
+        let rows = map_master(&response);
+        // 上流の応答が0件(契約変更・フィルタ全落ち)なら、マスタを空にしない
+        if rows.is_empty() {
+            return Err(ApiError::Internal("J-Quants 上場銘柄一覧が0件"));
+        }
+        replace_master(pool, &rows).await
     }
-    Ok(Some(replace_master(pool, &rows).await?))
+    .await;
+    match result {
+        Ok(inserted) => Ok(Some(inserted)),
+        Err(e) => {
+            if let Err(pe) = postpone_refresh_slot(pool).await {
+                tracing::error!("銘柄マスタ更新の再試行時刻の記録に失敗: {pe}");
+            }
+            Err(e)
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::services::jquants::EquitiesMasterData;
+    use chrono::TimeZone;
 
     fn master_row(code: &str, name: &str) -> EquitiesMasterData {
         EquitiesMasterData {
@@ -237,34 +284,37 @@ mod tests {
         assert_eq!(r.size_category.as_deref(), Some("TOPIX Large70"));
     }
 
-    #[test]
-    fn test_should_refresh_empty_runs() {
-        let today = NaiveDate::from_ymd_opt(2026, 10, 18).unwrap();
-        assert!(should_refresh(false, None, today));
+    fn fixed_now() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 10, 18, 12, 0, 0)
+            .single()
+            .expect("固定時刻の生成に失敗")
     }
 
     #[test]
-    fn test_should_refresh_recent_skips() {
-        let today = NaiveDate::from_ymd_opt(2026, 10, 18).unwrap();
-        // 6日前: 実行しない
-        let latest = NaiveDate::from_ymd_opt(2026, 10, 12).unwrap();
-        assert!(!should_refresh(true, Some(latest), today));
+    fn test_should_refresh_no_gate_row_runs() {
+        // 枠の行が無い = 初回(stock が空の初回投入を含む)なので実行する
+        assert!(should_refresh(None, fixed_now()));
     }
 
     #[test]
-    fn test_should_refresh_boundary() {
-        let today = NaiveDate::from_ymd_opt(2026, 10, 18).unwrap();
-        // 7日ちょうど: 実行する
-        let seven = NaiveDate::from_ymd_opt(2026, 10, 11).unwrap();
-        assert!(should_refresh(true, Some(seven), today));
-        // 8日: 実行する
-        let eight = NaiveDate::from_ymd_opt(2026, 10, 10).unwrap();
-        assert!(should_refresh(true, Some(eight), today));
+    fn test_should_refresh_future_slot_skips() {
+        let now = fixed_now();
+        // 未来の枠は失敗待ち・実行中・直前の成功いずれかなので待つ
+        assert!(!should_refresh(
+            Some(now + chrono::Duration::minutes(1)),
+            now
+        ));
+        assert!(!should_refresh(Some(now + chrono::Duration::days(7)), now));
     }
 
     #[test]
-    fn test_should_refresh_none_with_rows_runs() {
-        let today = NaiveDate::from_ymd_opt(2026, 10, 18).unwrap();
-        assert!(should_refresh(true, None, today));
+    fn test_should_refresh_due_slot_runs() {
+        let now = fixed_now();
+        // ちょうど・過去は実行する
+        assert!(should_refresh(Some(now), now));
+        assert!(should_refresh(
+            Some(now - chrono::Duration::seconds(1)),
+            now
+        ));
     }
 }
