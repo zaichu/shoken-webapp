@@ -254,6 +254,36 @@ fn notice_texts_format_counts_and_row_errors() {
     assert_eq!(result.error_count_text().as_deref(), Some("1件エラー"));
     assert_eq!(row_error_text(&result.errors[0]), "5行目: 重複");
 
+    // 値の無い空の括弧は括弧ごと出さない。値が入った括弧は残す
+    for (raw, expected) in [
+        (
+            "受取通貨: 円のみ取り込めます（）",
+            "受取通貨: 円のみ取り込めます",
+        ),
+        (
+            "受取通貨: 円のみ取り込めます()",
+            "受取通貨: 円のみ取り込めます",
+        ),
+        (
+            "数量: 数値ではありません（abc）",
+            "数量: 数値ではありません（abc）",
+        ),
+        (
+            "数量: 数値ではありません(abc)",
+            "数量: 数値ではありません(abc)",
+        ),
+    ] {
+        let error = CsvRowError {
+            row: 1,
+            message: raw.to_string(),
+        };
+        assert_eq!(
+            row_error_text(&error),
+            format!("1行目: {expected}"),
+            "message={raw}"
+        );
+    }
+
     let clean = CsvUploadResponse {
         inserted: 2,
         skipped: 0,

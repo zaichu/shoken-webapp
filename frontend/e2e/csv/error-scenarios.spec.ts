@@ -83,6 +83,146 @@ test('資産管理一覧取得が 401 のときエラー Alert が表示され�
 // CSV 行レベルエラー
 // =====================================================================
 
+test('検証 API が失敗したときエラーが表示され保存が押せない', async ({ page }) => {
+  await setupCommonMocks(page);
+  await page.route(ROUTES.dividendsCsvPreview, (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'サーバーエラーが発生しました' }),
+    }),
+  );
+
+  await page.goto('/receipts/csv?kind=dividend');
+  const fileInput = page.locator('[data-testid="csv-file-input"]');
+  await expect(fileInput).toBeEnabled({ timeout: 10000 });
+  await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
+
+  await expect(page.getByRole('alert').filter({ hasText: /エラー/ })).toBeVisible({
+    timeout: 10000,
+  });
+  // 未検証のファイルは保存へ送らない
+  await expect(
+    page.getByRole('button', { name: /追加で保存/ }).first(),
+  ).toBeDisabled();
+});
+
+test('有効な行が0件のときは保存が押せない', async ({ page }) => {
+  await setupCommonMocks(page);
+  await page.route(ROUTES.dividendsCsvPreview, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_rows: 2,
+        valid_rows: 0,
+        errors: [
+          { row: 1, message: '受取金額が数値ではありません' },
+          { row: 2, message: '受取日の形式が不正です' },
+        ],
+        rows: [],
+      }),
+    }),
+  );
+
+  await page.goto('/receipts/csv?kind=dividend');
+  const fileInput = page.locator('[data-testid="csv-file-input"]');
+  await expect(fileInput).toBeEnabled({ timeout: 10000 });
+  await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
+
+  await expect(
+    page.locator('[data-testid="csv-preview-notice"]'),
+  ).toContainText('取り込める行がありません', { timeout: 10000 });
+  await expect(
+    page.getByRole('button', { name: /追加で保存/ }).first(),
+  ).toBeDisabled();
+});
+
+test('全行が同じエラーのときメッセージは1回だけ出て件数が分かる', async ({ page }) => {
+  await setupCommonMocks(page);
+  const message = '受取通貨: 円のみ取り込めます（）';
+  const errors = Array.from({ length: 8 }, (_, i) => ({
+    row: i + 1,
+    message,
+  }));
+  await page.route(ROUTES.dividendsCsvPreview, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_rows: errors.length,
+        valid_rows: 0,
+        errors,
+        rows: [],
+      }),
+    }),
+  );
+
+  await page.goto('/receipts/csv?kind=dividend');
+  const fileInput = page.locator('[data-testid="csv-file-input"]');
+  await expect(fileInput).toBeEnabled({ timeout: 10000 });
+  await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
+
+  const notice = page.locator('[data-testid="csv-preview-notice"]');
+  await expect(notice).toBeVisible({ timeout: 10000 });
+  // 同じ文言は行数分繰り返さず1回だけ出す
+  await expect(
+    notice.getByText('受取通貨: 円のみ取り込めます'),
+  ).toHaveCount(1);
+  await expect(notice).toContainText('8件エラー');
+  await expect(notice).toContainText('8行');
+  // 全行落ちのときは見出し不一致を疑う案内を出す
+  await expect(
+    notice.getByText('見出しの行が想定と違う可能性があります'),
+  ).toBeVisible();
+});
+
+test('有効行が残る同一エラーでは見出し不一致の案内を出さない', async ({ page }) => {
+  await setupCommonMocks(page);
+  const message = '数量: 数値ではありません';
+  const errors = Array.from({ length: 4 }, (_, i) => ({
+    row: i + 1,
+    message,
+  }));
+  await page.route(ROUTES.dividendsCsvPreview, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_rows: errors.length + 1,
+        valid_rows: 1,
+        errors,
+        rows: [
+          {
+            settlement_date: '2026-03-10',
+            product: '国内株式',
+            account: '特定・一般',
+            security_code: '8001',
+            security_name: 'サンプル銘柄',
+            unit_price: 100,
+            shares: 10,
+            dividends_before_tax: 1000,
+            taxes: 200,
+            net_amount_received: 800,
+          },
+        ],
+      }),
+    }),
+  );
+
+  await page.goto('/receipts/csv?kind=dividend');
+  const fileInput = page.locator('[data-testid="csv-file-input"]');
+  await expect(fileInput).toBeEnabled({ timeout: 10000 });
+  await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
+
+  const notice = page.locator('[data-testid="csv-preview-notice"]');
+  // 同一メッセージの集約自体は行うが、見出しの誤誘導はしない
+  await expect(notice).toContainText('4行が同じエラーです', { timeout: 10000 });
+  await expect(
+    notice.getByText('見出しの行が想定と違う可能性があります'),
+  ).toHaveCount(0);
+});
+
 test('CSV プレビューで行エラーが返ったとき warning Alert に一覧表示される', async ({ page }) => {
   await setupCommonMocks(page);
   // プレビューAPI: 行エラーを含む正常レスポンス（HTTP 200）
@@ -97,7 +237,20 @@ test('CSV プレビューで行エラーが返ったとき warning Alert に一�
           { row: 2, message: '受取金額が数値ではありません' },
           { row: 3, message: '受取日の形式が不正です' },
         ],
-        rows: [],
+        rows: [
+          {
+            settlement_date: '2026-03-10',
+            product: '国内株式',
+            account: '特定・一般',
+            security_code: '8001',
+            security_name: 'サンプル銘柄',
+            unit_price: 100,
+            shares: 10,
+            dividends_before_tax: 1000,
+            taxes: 200,
+            net_amount_received: 800,
+          },
+        ],
       }),
     }),
   );

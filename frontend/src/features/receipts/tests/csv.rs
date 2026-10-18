@@ -306,15 +306,50 @@ fn preview_result_applies_only_in_current_generation() {
         assert!(!state.previewing);
         let preview = state.preview.expect("preview set");
         assert_eq!(preview.rows.len(), 2);
+    });
+}
 
-        // プレビュー失敗は通知せず解析中だけ解除する
-        store.tabs.update(|map| {
-            map.entry((generation, tab)).or_default().csv.previewing = true;
-        });
-        store.apply_preview_result(generation, tab, Err(ApiError::http(400)));
+#[test]
+fn preview_failure_sets_error_keeps_file_and_leaves_no_preview() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let tab = ReceiptsTab::Dividend;
+        let store = test_store(
+            &session,
+            HashMap::new(),
+            HashMap::from([(
+                (generation, tab),
+                CsvTabState {
+                    file_name: Some("a.csv".to_string()),
+                    previewing: true,
+                    ..Default::default()
+                },
+            )]),
+        );
+
+        store.apply_preview_result(generation, tab, Err(ApiError::http(500)));
+
         let state = store.csv_state(tab);
         assert!(!state.previewing);
-        assert!(state.error.is_none());
+        assert_eq!(
+            state.error.as_deref(),
+            Some("サーバーエラーが発生しました"),
+            "検証の失敗は画面に出す"
+        );
+        assert_eq!(
+            state.file_name.as_deref(),
+            Some("a.csv"),
+            "選び直せるようファイル選択は残す"
+        );
+        assert!(state.preview.is_none());
+        let meta = store.csv_meta(tab);
+        assert!(
+            !meta.has_preview_rows(),
+            "検証できなかったファイルを保存へ送らない"
+        );
     });
 }
 

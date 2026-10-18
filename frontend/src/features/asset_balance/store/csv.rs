@@ -308,7 +308,7 @@ impl AssetBalanceCsvStore {
                         .collect::<Vec<_>>(),
                 );
                 self.update_csv(generation, |state| {
-                    state.finish_preview(Some(preview));
+                    state.finish_preview(preview);
                 });
                 Some(codes)
             }

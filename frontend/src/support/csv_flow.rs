@@ -51,12 +51,9 @@ impl<R> CsvTabState<R> {
         true
     }
 
-    // プレビュー失敗は画面に出さない(ファイル選択は残し preview のみ未設定)
-    pub fn finish_preview(&mut self, preview: Option<CsvPreviewResponse<R>>) {
+    pub fn finish_preview(&mut self, preview: CsvPreviewResponse<R>) {
         self.previewing = false;
-        if let Some(preview) = preview {
-            self.preview = Some(preview);
-        }
+        self.preview = Some(preview);
     }
 
     pub fn fail_preview(&mut self, message: String) {
@@ -213,8 +210,19 @@ impl CsvUploadResponseExt for CsvUploadResponse {
     }
 }
 
+// backend は値の無いエラーでも末尾に空の括弧を付けて返すことがある(例: 「…（）」)
+pub fn display_message(message: &str) -> &str {
+    let trimmed = message.trim_end();
+    for suffix in ["（）", "()"] {
+        if let Some(stripped) = trimmed.strip_suffix(suffix) {
+            return stripped.trim_end();
+        }
+    }
+    trimmed
+}
+
 pub fn row_error_text(error: &CsvRowError) -> String {
-    format!("{}行目: {}", error.row, error.message)
+    format!("{}行目: {}", error.row, display_message(&error.message))
 }
 
 fn csv_form_data(file: &web_sys::File) -> Result<web_sys::FormData, ApiError> {

@@ -126,7 +126,7 @@ async function selectCsvAndSave(page: Page, validRows: number) {
   await expect(fileInput).toBeAttached();
   await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
   await expect(
-    page.getByText(`${validRows}件 追加で保存されます`),
+    page.getByText(`${validRows}件を追加で保存できます`),
   ).toBeVisible();
   await page
     .getByRole('button', { name: `${validRows}件 追加で保存` })
@@ -166,6 +166,53 @@ test.describe('取込結果のエラー詳細表示', () => {
     await expect(items.nth(1)).toHaveText('4行目: 株数が不正です');
   });
 
+  test('失敗の保存結果はアイコンと色が成功と区別できる', async ({ page }) => {
+    let upload: object = { inserted: PREVIEW_ROWS.length, skipped: 0, errors: [] };
+    await setupMocks(page, {});
+    await page.route(/\/api\/v1\/dividend-imports$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(upload),
+      }),
+    );
+
+    await page.goto('/receipts/csv?kind=dividend');
+    const fileInput = page.getByTestId('csv-file-input');
+    await expect(fileInput).toBeEnabled();
+    const notice = page.getByTestId('csv-save-result-notice');
+
+    await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
+    await page
+      .getByRole('button', { name: /追加で保存/ })
+      .first()
+      .click();
+    await expect(notice).toContainText('保存しました');
+    const successIcon = await notice.locator('svg path').first().getAttribute('d');
+    const successClass = await notice.getAttribute('class');
+
+    // 失敗する取り込みで同じ画面をもう一度実行する
+    upload = {
+      inserted: 0,
+      skipped: 0,
+      errors: [
+        { row: 1, message: '受取日の形式が不正です' },
+        { row: 2, message: '数量が数値ではありません' },
+      ],
+    };
+    await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
+    await page
+      .getByRole('button', { name: /追加で保存/ })
+      .first()
+      .click();
+    await expect(notice).toContainText('保存できませんでした');
+    const failureIcon = await notice.locator('svg path').first().getAttribute('d');
+    const failureClass = await notice.getAttribute('class');
+
+    expect(failureIcon, '失敗でも成功と同じアイコン').not.toBe(successIcon);
+    expect(failureClass, '失敗でも成功と同じ配色').not.toBe(successClass);
+  });
+
   test('プレビューの行エラーは操作なしで表示される', async ({ page }) => {
     await setupMocks(page, { previewErrors: ROW_ERRORS });
     await page.goto('/receipts/csv?kind=dividend');
@@ -174,10 +221,10 @@ test.describe('取込結果のエラー詳細表示', () => {
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
 
     const previewAlert = page.locator('section[role="status"]', {
-      hasText: '追加で保存されます',
+      hasText: '追加で保存できます',
     });
     await expect(previewAlert).toContainText(
-      `${PREVIEW_ROWS.length}件 追加で保存されます`,
+      `${PREVIEW_ROWS.length}件を追加で保存できます`,
     );
     await expect(previewAlert).toContainText(`${ROW_ERRORS.length}件エラー`);
 

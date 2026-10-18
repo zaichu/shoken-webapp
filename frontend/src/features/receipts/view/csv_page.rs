@@ -43,6 +43,20 @@ impl CsvSource for ReceiptCsvSource {
         self.store.csv_input_disabled(self.tab)
     }
 
+    fn csv_format_hint(&self) -> &'static str {
+        match self.tab {
+            ReceiptsTab::Dividend => {
+                "対応形式: 「配当金・分配金・利金一覧」CSV(見出し行の先頭は「入金日」)"
+            }
+            ReceiptsTab::DomesticStock => {
+                "対応形式: 国内株式の取引履歴CSV(見出し行の先頭は「約定日」)"
+            }
+            ReceiptsTab::MutualFund => {
+                "対応形式: 投資信託の取引履歴CSV(見出し行の先頭は「約定日」)"
+            }
+        }
+    }
+
     fn db_count(&self) -> usize {
         self.store.count(self.tab)
     }

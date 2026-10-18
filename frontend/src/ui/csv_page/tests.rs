@@ -1,5 +1,32 @@
 use super::*;
 use crate::api::dto::CsvRowError;
+use crate::support::csv_flow::CsvPreviewMeta;
+
+#[test]
+fn save_disabled_by_preview_blocks_erroring_preview_only_for_all_or_nothing() {
+    let error = || CsvRowError {
+        row: 2,
+        message: "数量が数値ではありません".to_string(),
+    };
+    let meta = |errors: Vec<CsvRowError>, has_rows: bool| CsvTabMeta {
+        preview: Some(CsvPreviewMeta {
+            valid_rows: 1,
+            errors,
+            has_rows,
+        }),
+        ..Default::default()
+    };
+
+    // 追加保存は有効行があればエラー付きでも保存できる
+    assert!(!save_disabled_by_preview(&meta(vec![error()], true), false));
+    // 全件置換はエラー行を含む CSV を backend が拒否するため保存を止める
+    assert!(save_disabled_by_preview(&meta(vec![error()], true), true));
+    // エラーが無ければ全件置換でも保存できる
+    assert!(!save_disabled_by_preview(&meta(vec![], true), true));
+    // 検証前・有効行0はどちらの方式でも保存不可
+    assert!(save_disabled_by_preview(&meta(vec![], false), true));
+    assert!(save_disabled_by_preview(&CsvTabMeta::default(), false));
+}
 
 #[test]
 fn save_result_heading_splits_success_partial_and_full_failure() {
@@ -48,6 +75,44 @@ fn save_result_heading_splits_success_partial_and_full_failure() {
         ..rejected
     };
     assert_eq!(save_result_heading(&another_failure), failure_heading);
+}
+
+#[test]
+fn save_result_tone_distinguishes_failure_from_success() {
+    let clean = CsvUploadResponse {
+        inserted: 1,
+        skipped: 0,
+        errors: vec![],
+    };
+    let partial = CsvUploadResponse {
+        inserted: 2,
+        skipped: 0,
+        errors: vec![CsvRowError {
+            row: 4,
+            message: "数量が数値ではありません".to_string(),
+        }],
+    };
+    let rejected = CsvUploadResponse {
+        inserted: 0,
+        skipped: 0,
+        errors: vec![CsvRowError {
+            row: 2,
+            message: "数量が数値ではありません".to_string(),
+        }],
+    };
+
+    // 各結果がどのトーンかを固定する(ペアの不一致だけでは ==/!= の入替を検出できない)
+    assert_eq!(save_result_tone(&clean), SaveResultTone::Success);
+    assert_eq!(save_result_tone(&partial), SaveResultTone::Partial);
+    assert_eq!(save_result_tone(&rejected), SaveResultTone::Failure);
+
+    // スキップだけでエラーが無い結果は成功として扱う
+    let skipped_only = CsvUploadResponse {
+        inserted: 0,
+        skipped: 2,
+        errors: vec![],
+    };
+    assert_eq!(save_result_tone(&skipped_only), SaveResultTone::Success);
 }
 
 #[test]
