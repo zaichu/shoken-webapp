@@ -4,7 +4,8 @@ use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::store::csv::{
     AssetBalanceCsvStore, csv_preview_rows, resolve_asset_balance,
 };
-use crate::features::asset_balance::store::{filtered_portfolio, load_asset_balances};
+use crate::features::asset_balance::store::load_asset_balances;
+use crate::features::asset_balance::view::AssetBalanceCsvPreview;
 use crate::session::{SessionStore, use_session};
 use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::button::{Button, ButtonVariant};
@@ -98,12 +99,24 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
             subject="資産管理"
             back_href="/assetbalance"
             delete_href="/assetbalance/csv/delete"
-            preview=view! { <AssetCsvPreview state=state session=session /> }.into_any()
+            preview=view! { <CsvPreviewWrapper state=state _session=session /> }.into_any()
             extra=view! {
                 <AssetReviewPromptCard rows=move || review_rows(review_state, session) />
             }
             .into_any()
         />
+    }
+}
+
+#[component]
+fn CsvPreviewWrapper(state: AssetBalanceState, _session: SessionStore) -> impl IntoView {
+    move || {
+        let csv_state = state.csv.csv_state();
+        let rows = csv_preview_rows(&csv_state);
+        if rows.is_empty() {
+            return None;
+        }
+        Some(view! { <AssetBalanceCsvPreview rows=rows /> })
     }
 }
 
@@ -142,33 +155,6 @@ fn review_rows(state: AssetBalanceState, session: SessionStore) -> Vec<AssetBala
         resolve_asset_balance(session.generation.get(), &state.balances.get())
             .map(|resolved| resolved.rows)
             .unwrap_or_default()
-    }
-}
-
-#[component]
-fn AssetCsvPreview(state: AssetBalanceState, session: SessionStore) -> impl IntoView {
-    move || {
-        let csv_state = state.csv.csv_state();
-        let rows = csv_preview_rows(&csv_state);
-        if rows.is_empty() {
-            return None;
-        }
-        let filtered = filtered_portfolio(&rows, "", state.lookup, session.generation.get());
-        let views = filtered.views;
-        Some(view! {
-            <section data-testid="csv-preview">
-                <h2 class="text-sm font-bold text-text">"プレビュー"</h2>
-                <p class="mt-1 text-xs text-text-soft">
-                    "一覧は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
-                </p>
-                <div class="mt-2">
-                    // 全件をそのまま置くと保存ボタンが遠くなるため、枠内スクロールにする
-                    <div class="csv-preview-scroll mt-2 max-h-96 overflow-y-auto">
-                        <super::holdings_list::HoldingsList views=views dividends=state.dividends show_dividend=true />
-                    </div>
-                </div>
-            </section>
-        })
     }
 }
 
