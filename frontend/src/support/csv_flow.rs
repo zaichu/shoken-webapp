@@ -332,6 +332,51 @@ fn decode_csv_bytes(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
     encoding_rs::SHIFT_JIS.decode(bytes).0
 }
 
+/// backend の csv パーサーと同じ規則でレコードをフィールドに切る。
+/// 先頭が引用符のフィールドは閉じ引用符までが1フィールド("" はエスケープ)で
+/// 引用符内のカンマは区切りにしない。引用符は取り除いた内容を返す
+fn csv_fields(record: &str) -> Vec<String> {
+    let chars: Vec<char> = record.chars().collect();
+    let mut fields = Vec::new();
+    let mut i = 0;
+    while i <= chars.len() {
+        if i < chars.len() && chars[i] == '"' {
+            i += 1;
+            let mut field = String::new();
+            while i < chars.len() {
+                if chars[i] == '"' {
+                    if chars.get(i + 1) == Some(&'"') {
+                        field.push('"');
+                        i += 2;
+                    } else {
+                        i += 1;
+                        break;
+                    }
+                } else {
+                    field.push(chars[i]);
+                    i += 1;
+                }
+            }
+            while i < chars.len() && chars[i] != ',' {
+                field.push(chars[i]);
+                i += 1;
+            }
+            fields.push(field);
+        } else {
+            let start = i;
+            while i < chars.len() && chars[i] != ',' {
+                i += 1;
+            }
+            fields.push(chars[start..i].iter().collect());
+        }
+        if i >= chars.len() {
+            break;
+        }
+        i += 1;
+    }
+    fields
+}
+
 /// 先頭10レコードのうち marker で始まるフィールドを含む最初のレコードまでを
 /// 前置行とし、その行数を返す。見つからなければ None
 fn detect_preamble_lines(bytes: &[u8], records: &[(usize, usize)], marker: &str) -> Option<usize> {
@@ -339,9 +384,9 @@ fn detect_preamble_lines(bytes: &[u8], records: &[(usize, usize)], marker: &str)
         .iter()
         .take(10)
         .position(|(start, end)| {
-            decode_csv_bytes(&bytes[*start..*end])
-                .split(',')
-                .any(|field| field.trim().trim_matches('"').starts_with(marker))
+            csv_fields(decode_csv_bytes(&bytes[*start..*end]).as_ref())
+                .iter()
+                .any(|field| field.trim().starts_with(marker))
         })
         .map(|index| index + 1)
 }

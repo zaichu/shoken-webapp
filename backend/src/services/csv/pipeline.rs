@@ -21,8 +21,7 @@ impl CsvTable {
 pub struct CsvParserConfig {
     pub skip_header_rows: usize,
     pub exclude_row_fn: Option<fn(&CsvRowView<'_>) -> bool>,
-    /// 設定時、先頭 MAX_HEADER_SCAN_LINES 行以内でこの文字で始まる列を含む最初の行を
-    /// 見出しとし、それより前の行(表題など)を読み飛ばす。skip_header_rows より優先
+    /// 設定時は skip_header_rows より優先し、この文字で始まる列を持つ最初の行を見出しとする
     pub header_marker: Option<&'static str>,
 }
 
