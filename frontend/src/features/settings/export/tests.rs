@@ -202,6 +202,14 @@ fn csv_neutralizes_text_cells_that_look_like_formulas() {
     assert!(csv.contains("'=cmd|' /C calc'!A0"));
     let csv = asset_balances_csv(&[balance(json!({"security_name": "@x"}))]);
     assert!(csv.contains("'@x"));
+    // タブ・CR 始まりも表計算ソフトに取り込まれるため逃がす
+    let csv = dividends_csv(&[dividend(json!({"security_name": "\t=1+1"}))]);
+    assert!(csv.contains("'\t=1+1"));
+    let csv = dividends_csv(&[dividend(json!({"security_name": "\r=1+1"}))]);
+    assert!(csv.contains("'\r=1+1"));
+    // 通常の文字列はそのまま
+    let csv = dividends_csv(&[dividend(json!({}))]);
+    assert!(csv.contains(",架空自動車,"));
     // 数値の負値は数値として扱わせるため逃がさない
     let csv = transactions_csv(&[stock(json!({"realized_profit_and_loss": -12345}))], &[]);
     assert!(csv.contains(",-12345,"));
