@@ -255,7 +255,11 @@ test('口座検索で絞り込んでも表が収まり該当データが残る',
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/receipts');
   await selectReceiptTab(page, TABS[1]);
-  await page.getByRole('button', { name: '特定口座', exact: true }).click();
+  await page.getByRole('button', { name: '＋ 口座' }).click();
+  await page
+    .getByRole('dialog', { name: '口座を選ぶ' })
+    .getByRole('button', { name: '特定口座', exact: true })
+    .click();
   const table = page.getByRole('table');
   await expect(table).toContainText('特定口座');
   await expect(table).not.toContainText('NISA口座');

@@ -10,6 +10,7 @@ pub(crate) mod csv_preview;
 #[allow(dead_code)]
 pub(crate) mod disclosure;
 pub(crate) mod empty_state;
+pub(crate) mod focus;
 pub(crate) mod page_frame;
 pub(crate) mod security_link;
 pub(crate) mod segmented;

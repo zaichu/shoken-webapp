@@ -275,6 +275,27 @@ test('明細の銘柄コードリンクから検索結果へ遷移する', async
   await expect(page.getByText('架空自動車').first()).toBeVisible();
 });
 
+test('不明パスは /404 に置き換わる', async ({ page }) => {
+  const counts: ApiCounts = { session: 0, dividends: 0, assetBalances: 0 };
+  await setupApiMocks(page, counts);
+
+  await page.goto('/no-such-page');
+
+  await expect(page).toHaveURL(/\/404$/);
+  await expect(page.getByText('404 - ページが見つかりません')).toBeVisible();
+});
+
+test('旧検索条件ページの URL はクエリを引き継いで取引明細を開く', async ({ page }) => {
+  const counts: ApiCounts = { session: 0, dividends: 0, assetBalances: 0 };
+  await setupApiMocks(page, counts);
+
+  await page.goto('/receipts/conditions?kind=stock');
+
+  await expect(page).toHaveURL(/\/receipts\/conditions\?kind=stock$/);
+  await expect(page.getByRole('search', { name: '取引明細の検索' })).toBeVisible();
+  await expect(page.getByTestId('tab-count-dividend')).toBeVisible();
+});
+
 test('スキップリンクは同一ページ内の移動のまま余計な API を出さない', async ({ page }) => {
   const counts: ApiCounts = { session: 0, dividends: 0, assetBalances: 0 };
   await setupApiMocks(page, counts);

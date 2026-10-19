@@ -5,9 +5,7 @@ use crate::features::asset_balance::{
 use crate::features::home::{HomeOverviewData, HomePage};
 use crate::features::login::LoginPage;
 use crate::features::not_found::NotFoundPage;
-use crate::features::receipts::{
-    ReceiptsConditionsPage, ReceiptsCsvPage, ReceiptsPage, ReceiptsStore,
-};
+use crate::features::receipts::{ReceiptsCsvPage, ReceiptsPage, ReceiptsStore};
 use crate::features::settings::SettingsPage;
 use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
@@ -50,7 +48,6 @@ enum Route {
     Home,
     Search,
     Receipts,
-    ReceiptsConditions,
     ReceiptsCsv,
     AssetBalance,
     AssetBalanceComposition,
@@ -67,7 +64,6 @@ impl Route {
             Route::Home => "ホーム",
             Route::Search => "銘柄検索",
             Route::Receipts => "取引明細",
-            Route::ReceiptsConditions => "検索条件",
             Route::ReceiptsCsv | Route::AssetBalanceCsv => "CSV管理",
             Route::AssetBalance => "資産管理",
             Route::AssetBalanceComposition => "構成比",
@@ -89,7 +85,8 @@ fn route_for_path(path: &str) -> Route {
         "/" => Route::Home,
         "/search" => Route::Search,
         "/receipts" => Route::Receipts,
-        "/receipts/conditions" => Route::ReceiptsConditions,
+        // 旧検索条件ページの URL は取引明細を開く(ブックマーク・履歴からの到達を 404 にしない)
+        "/receipts/conditions" => Route::Receipts,
         // 旧削除ページの URL は取り込み画面と同じタブを開く(設定ページの「危険な操作」からも来る)
         "/receipts/csv" | "/receipts/csv/delete" => Route::ReceiptsCsv,
         "/assetbalance" => Route::AssetBalance,
@@ -364,7 +361,6 @@ pub fn App() -> impl IntoView {
             Route::Home
                 | Route::Search
                 | Route::Receipts
-                | Route::ReceiptsConditions
                 | Route::ReceiptsCsv
                 | Route::AssetBalance
                 | Route::AssetBalanceComposition
@@ -398,7 +394,6 @@ pub fn App() -> impl IntoView {
                         Route::Home => view! { <HomePage /> }.into_any(),
                         Route::Search => view! { <StockSearchPage /> }.into_any(),
                         Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
-                        Route::ReceiptsConditions => view! { <ReceiptsConditionsPage /> }.into_any(),
                         Route::ReceiptsCsv => view! { <ReceiptsCsvPage /> }.into_any(),
                         Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
                         Route::AssetBalanceComposition => {

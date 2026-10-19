@@ -3,7 +3,7 @@ use crate::features::receipts::dividend_info::{
 };
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::kind::dividend_totals;
-use crate::features::receipts::view::{ReceiptTable, ReceiptsActiveBand, SummaryStrip};
+use crate::features::receipts::view::{ReceiptTable, SummaryStrip};
 use crate::features::receipts::{
     ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState, truncated_list_warning,
 };
@@ -186,7 +186,6 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                                     mobile_expanded=store.mobile_summary_expanded
                                 />
                             </section>
-                            <ReceiptsActiveBand store=store tab=tab />
                         </div>
                         <section id="receipts-list">
                             <ReceiptTable
@@ -211,7 +210,6 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                                     {move || header.get().map(|h| view! { <SummaryStrip items=h /> })}
                                 </Show>
                             </section>
-                            <ReceiptsActiveBand store=store tab=tab />
                         </div>
                         <section id="receipts-list">
                             <ReceiptTable

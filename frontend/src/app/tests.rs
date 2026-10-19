@@ -14,11 +14,9 @@ fn route_for_known_and_unknown_paths() {
 
 #[test]
 fn route_for_designed_sub_paths() {
-    assert_eq!(
-        route_for_path("/receipts/conditions"),
-        Route::ReceiptsConditions
-    );
     assert_eq!(route_for_path("/receipts/csv"), Route::ReceiptsCsv);
+    // 旧検索条件ページの URL は取引明細を開く
+    assert_eq!(route_for_path("/receipts/conditions"), Route::Receipts);
     assert_eq!(
         route_for_path("/assetbalance/composition"),
         Route::AssetBalanceComposition
@@ -51,7 +49,6 @@ fn old_delete_paths_open_csv_pages() {
 #[test]
 fn designed_routes_have_titles() {
     for route in [
-        Route::ReceiptsConditions,
         Route::ReceiptsCsv,
         Route::AssetBalanceComposition,
         Route::AssetBalanceHolding,
@@ -65,7 +62,6 @@ fn designed_routes_have_titles() {
 fn protected_path_covers_feature_sub_paths() {
     assert!(protected_path("/receipts"));
     assert!(protected_path("/receipts?kind=stock"));
-    assert!(protected_path("/receipts/conditions"));
     assert!(protected_path("/receipts/csv"));
     assert!(protected_path("/assetbalance"));
     assert!(protected_path("/assetbalance/composition"));

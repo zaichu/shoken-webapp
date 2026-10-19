@@ -85,7 +85,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const width of [1024, 1280, 1440]) {
-  test(`取引明細は表と横1行の検索バーで、どのタブでも幅${width}pxに収まる`, async ({ page }) => {
+  test(`取引明細は表と検索欄で、どのタブでも幅${width}pxに収まる`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await gotoReceipts(page);
 
@@ -110,14 +110,16 @@ for (const width of [1024, 1280, 1440]) {
   });
 }
 
-test('PC の検索バーで口座を絞ると一覧・件数・集計が同じ対象になる', async ({ page }) => {
+test('PC の検索欄で口座を絞ると一覧・件数・集計が同じ対象になる', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await gotoReceipts(page);
 
-  const account = page.getByRole('button', { name: 'SBI証券', exact: true });
-  await expect(account).toHaveAttribute('aria-pressed', 'false');
-  await account.click();
-  await expect(account).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: '＋ 口座' }).click();
+  const dialog = page.getByRole('dialog', { name: '口座を選ぶ' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'SBI証券', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('button', { name: '口座 SBI証券 を解除' })).toBeVisible();
 
   const expected = DIVIDENDS.filter((row) => row.account === 'SBI証券').length;
   await expect(page.getByTestId('tab-count-dividend')).toHaveText(String(expected));
@@ -125,8 +127,8 @@ test('PC の検索バーで口座を絞ると一覧・件数・集計が同じ�
   await expect(table).toContainText('SBI証券');
   await expect(table).not.toContainText('楽天証券');
 
-  // 条件を解除すると件数と一覧が元に戻る
-  await page.getByRole('button', { name: '条件をクリア' }).click();
+  // すべてクリアで条件を外すと件数と一覧が元に戻る
+  await page.getByRole('button', { name: 'すべてクリア' }).click();
   await expect(page.getByTestId('tab-count-dividend')).toHaveText(
     String(DIVIDENDS.length),
   );
@@ -146,7 +148,8 @@ test('390px では2行の行表示になり表とPCの検索バーは隠れる',
   await expect(
     page.getByRole('search', { name: '検索', exact: true }).getByPlaceholder('銘柄名・コード'),
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: '検索条件' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '＋ 期間' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'すべてクリア' })).toBeVisible();
   await expect(page.locator('.app-bottom-nav')).toBeVisible();
   await expectNoPageOverflow(page, 390);
 });
