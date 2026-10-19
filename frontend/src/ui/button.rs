@@ -79,7 +79,8 @@ impl ButtonVariant {
                 size,
             ),
             Self::DangerSolid(size) => sized(
-                "border border-negative bg-negative text-text-inverse shadow-sm hover:border-negative-strong hover:bg-negative-strong",
+                // ink・negative 塗り面はダークで明転するため、上の文字は page 色にする(text-inverse は白固定)
+                "border border-negative bg-negative text-page shadow-sm hover:border-negative-strong hover:bg-negative-strong",
                 size,
             ),
             Self::Ghost => "text-sm text-text-deep hover:underline".to_string(),
@@ -87,7 +88,7 @@ impl ButtonVariant {
             Self::Login => "login-button".to_string(),
             Self::SearchSubmit => "search-submit".to_string(),
             Self::Retry => {
-                "inline-flex min-h-11 items-center justify-center rounded-md border border-ink bg-ink px-4 text-sm font-bold text-text-inverse transition-colors hover:bg-ink-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2".to_string()
+                "inline-flex min-h-11 items-center justify-center rounded-md border border-ink bg-ink px-4 text-sm font-bold text-page transition-colors hover:bg-ink-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2".to_string()
             }
             Self::MenuItem => {
                 "w-full px-3 py-2 text-left text-sm font-semibold hover:bg-surface-raised"

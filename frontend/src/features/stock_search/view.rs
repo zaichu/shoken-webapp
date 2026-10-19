@@ -219,7 +219,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
     view! {
         <div>
             <Card variant=CardVariant::Panel class="mb-4 overflow-hidden">
-                <div class="border-b border-ink/10 bg-ink px-5 py-4 text-text-inverse">
+                <div class="border-b border-ink/10 bg-ink px-5 py-4 text-page">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <h2 class="text-xl font-black leading-tight">{name}</h2>
                         <CodeBadge>{code_badge}</CodeBadge>

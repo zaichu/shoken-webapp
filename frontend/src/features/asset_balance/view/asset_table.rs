@@ -169,7 +169,7 @@ pub fn AssetHoldingsTable(
                                         })
                                     }
                                     </td>
-                                    <td class="text-right font-bold tabular-nums text-brand">{market_text}</td>
+                                    <td class="text-right font-bold tabular-nums text-brand-text">{market_text}</td>
                                     <td class="text-right tabular-nums">
                                         {if valuation.profit_loss.amount.is_some() {
                                             let rate_badge = valuation.profit_loss.rate.is_some().then(|| {
@@ -192,7 +192,7 @@ pub fn AssetHoldingsTable(
                                         }}
                                     </td>
                                     <td class="text-right tabular-nums">{dividend_annual}</td>
-                                    <td class="text-right tabular-nums text-brand">{dividend_yield}</td>
+                                    <td class="text-right tabular-nums text-brand-text">{dividend_yield}</td>
                                 </tr>
                             }
                         })

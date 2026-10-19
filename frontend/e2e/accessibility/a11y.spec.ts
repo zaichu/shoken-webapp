@@ -483,6 +483,24 @@ test('ログインと404に moderate 以上の WCAG 違反がない', async ({ p
   );
 });
 
+test('ダークテーマの主要画面に moderate 以上の WCAG 違反がない', async ({ page }) => {
+  await mockSession(page);
+  await mockEmptyLists(page);
+  await mockReceiptsData(page);
+  await mockAssetData(page);
+  await page.route(ROUTES.stock, (route) => route.fulfill(json(MOCK_STOCK)));
+  await page.addInitScript(() => {
+    localStorage.setItem('setting_theme', 'dark');
+  });
+  await scanBothViewports(page, 'ダーク(ホーム)', () => page.goto('/'));
+  await scanBothViewports(page, 'ダーク(銘柄検索)', () => page.goto('/search'));
+  await scanBothViewports(page, 'ダーク(取引明細)', () => page.goto('/receipts'));
+  await scanBothViewports(page, 'ダーク(資産管理)', () => page.goto('/assetbalance'), true, () =>
+    expect(page.getByTestId('asset-portfolio-summary')).toBeVisible({ timeout: 10000 }),
+  );
+  await scanBothViewports(page, 'ダーク(設定)', () => page.goto('/settings'));
+});
+
 // .focus() は tabindex=-1 や順序外にも当たるため、Tab キーだけで到達できることを固定する
 async function tabTo(page: Page, target: Locator, maxPresses = 250): Promise<void> {
   await expect(target).toBeVisible();

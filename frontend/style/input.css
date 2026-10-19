@@ -17,6 +17,8 @@
   --color-brand-border: #3b5675;
   --color-brand-line: #2e4c70;
   --color-brand-muted: #c9d3e1;
+  /* 面の上に置くブランド色の文字。ダークでは brand(紺塗りに使う)を残せないため別トークンにする */
+  --color-brand-text: var(--color-brand);
   --color-gold: #f2b33d;
   --color-border-link: #d5dce6;
   --color-band: #fff8e6;
@@ -149,6 +151,94 @@
   ::-webkit-scrollbar-thumb:hover {
     background: var(--color-scrollbar-thumb-hover);
   }
+
+  :root {
+    color-scheme: light;
+  }
+}
+
+/* ダークテーマ。html の data-theme 属性で切り替える(settings.rs の apply_theme)。
+   brand・gold・night は紺地(ヘッダー・集計帯・選択状態)のまま残し、面・文字・罫線と
+   negative/positive/accent/info/warn 系を反転させる。
+   ink は文字・罫線・フォーカス枠にも使うため明転させ、ink 塗り面の上の文字は
+   text-page(ページ色)に寄せて両テーマで成立させる。印刷はライトのまま使う */
+@media screen {
+  @layer base {
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+
+      --color-page: #0b1220;
+      --color-surface: #121b2c;
+      --color-surface-sunken: #0e1626;
+      --color-surface-raised: #1a2537;
+      --color-segment: #24314a;
+      --color-row-group: #1c2942;
+
+      --color-ink: #e4eaf4;
+      --color-ink-hover: #c9d4e6;
+      --color-text: #dfe6f2;
+      --color-text-deep: #f2f5fa;
+      --color-text-strong: #f2f5fa;
+      --color-text-soft: #c2cddf;
+      --color-text-muted: #9caac2;
+      --color-text-subtle: #9caac2;
+      --color-text-quiet: #9caac2;
+      --color-text-faint: #6d7c99;
+
+      --color-border: #26334d;
+      --color-border-faint: #1c2740;
+      --color-border-subtle: #26334d;
+      --color-border-strong: #3d4d70;
+      --color-border-xstrong: #5d6f96;
+      --color-border-bold: #8ba0c4;
+      --color-border-link: #33415f;
+
+      --color-fill: #26334d;
+      --color-fill-strong: #3d4d70;
+      --color-scrollbar-track: #1a2537;
+      --color-scrollbar-thumb: #33415f;
+      --color-scrollbar-thumb-hover: #4d5f85;
+
+      --color-night-soft: #cbd5e1;
+      --color-brand-text: #a3bde3;
+      --color-brand-border: #56719a;
+
+      --color-negative: #f0857a;
+      --color-negative-vivid: #f0857a;
+      --color-negative-strong: #f5a49b;
+      --color-negative-soft: #3a1d1c;
+      --color-negative-border: #6e3630;
+
+      --color-positive: #53d28a;
+      --color-positive-strong: #7ce8ab;
+      --color-positive-soft: #10301f;
+      --color-positive-softer: #0d2a1b;
+      --color-positive-border: #2c5c40;
+
+      --color-accent: #8fb3f7;
+      --color-accent-bright: #8fb3f7;
+      --color-accent-ring: #8fb3f7;
+      --color-accent-strong: #a9c4fa;
+      --color-accent-text: #a9c4fa;
+      --color-accent-text-soft: #a9c4fa;
+      --color-accent-soft: #16233f;
+      --color-accent-softer: #131e37;
+      --color-accent-border: #3c5586;
+      --color-accent-border-strong: #5d7ab5;
+
+      --color-info: #8fb3f7;
+      --color-info-strong: #a9c4fa;
+      --color-info-deep: #b9d0fb;
+      --color-info-soft: #16233f;
+      --color-info-border: #3c5586;
+      --color-info-focus: #a9c4fa;
+
+      --color-band: #292112;
+      --color-band-border: #6b5518;
+      --color-warn-ink: #f2c066;
+      --color-nisa-soft: #33260f;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -238,6 +328,13 @@
     @apply bg-brand font-bold text-text-inverse;
   }
 
+  /* ダークでは紺の選択色が面に溶けるため、明るい塗り+反転文字で選択状態を示す */
+  @media screen {
+    :root[data-theme="dark"] .segmented-option[aria-pressed="true"] {
+      @apply bg-accent text-page;
+    }
+  }
+
   .group-card-trigger {
     @apply flex min-h-11 w-full items-center gap-2 bg-surface-raised px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
   }
@@ -247,7 +344,8 @@
   }
 
   .search-submit {
-    @apply inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-ink bg-ink px-5 text-sm font-bold text-text-inverse shadow-edge-lit transition-[background-color,border-color,color,box-shadow,transform] hover:bg-ink-hover active:bg-ink focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+    /* ink はダークで明転するため、ink 塗り面の上の文字は text-inverse(白固定)ではなく page 色にする */
+    @apply inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-ink bg-ink px-5 text-sm font-bold text-page shadow-edge-lit transition-[background-color,border-color,color,box-shadow,transform] hover:bg-ink-hover active:bg-ink focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .stock-link-button {
@@ -354,7 +452,7 @@
   }
 
   .active-condition-chip {
-    @apply inline-flex min-h-11 items-center gap-1 rounded-full border border-brand bg-surface px-2.5 text-xs font-medium text-brand;
+    @apply inline-flex min-h-11 items-center gap-1 rounded-full border border-brand bg-surface px-2.5 text-xs font-medium text-brand-text;
   }
 
   .pc-search-bar {
@@ -599,7 +697,7 @@
   /* グループ小計の見出しセルだけ左に金の線。colspan 切替で複製される
      見出しセル全てに付け、表示中のものが線を引く */
   .receipts-table-group-label {
-    @apply font-bold text-brand;
+    @apply font-bold text-brand-text;
     border-left: 3px solid var(--color-gold);
   }
 
@@ -613,7 +711,7 @@
 
   /* 小計の税引後は紺の太字 */
   .receipts-table-group.font-bold {
-    @apply text-brand;
+    @apply text-brand-text;
   }
 
   .receipt-instrument-cell .receipts-table-code {
@@ -692,11 +790,11 @@
   }
 
   .receipt-compact-group > span:first-child {
-    @apply font-bold text-xs text-brand;
+    @apply font-bold text-xs text-brand-text;
   }
 
   .receipt-compact-group > span:last-child {
-    @apply text-xs text-brand;
+    @apply text-xs text-brand-text;
   }
 
   /* 口座区分のバッジ。NISA 系は琥珀配色 */
@@ -744,7 +842,7 @@
   }
 
   .receipts-conditions-link {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-brand bg-surface px-3 text-sm font-medium text-brand no-underline;
+    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-brand bg-surface px-3 text-sm font-medium text-brand-text no-underline;
   }
 
   .receipts-conditions-count {
@@ -762,7 +860,7 @@
   }
 
   .conditions-clear-btn {
-    @apply border-brand text-brand hover:bg-surface-sunken hover:border-brand;
+    @apply border-brand text-brand-text hover:bg-surface-sunken hover:border-brand;
   }
 
   .conditions-apply-btn {
@@ -817,7 +915,7 @@
   }
 
   .page-frame-title {
-    @apply font-bold leading-tight tracking-normal text-text-inverse lg:text-brand;
+    @apply font-bold leading-tight tracking-normal text-text-inverse lg:text-brand-text;
     font-size: 17px;
   }
 
@@ -834,7 +932,7 @@
   /* ページ名の右の低頻度リンク。スマホは紺のヘッダー内で白抜き枠線、
      タップ領域 44px を確保する */
   .page-secondary-link-sm {
-    @apply inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md border border-brand-border bg-transparent px-3 text-[13px] text-text-inverse no-underline transition-colors hover:bg-brand-deep lg:min-h-8 lg:border-border-link lg:bg-surface lg:text-brand lg:hover:bg-surface-sunken;
+    @apply inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md border border-brand-border bg-transparent px-3 text-[13px] text-text-inverse no-underline transition-colors hover:bg-brand-deep lg:min-h-8 lg:border-border-link lg:bg-surface lg:text-brand-text lg:hover:bg-surface-sunken;
   }
 
   /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く。
@@ -859,7 +957,7 @@
   }
 
   .bottom-nav-link[aria-current] {
-    @apply font-bold text-brand;
+    @apply font-bold text-brand-text;
     box-shadow: var(--shadow-edge-accent);
   }
 
@@ -967,7 +1065,7 @@
   }
 
   .asset-basis-pc > summary {
-    @apply inline-flex min-h-7 cursor-pointer items-center font-medium text-brand;
+    @apply inline-flex min-h-7 cursor-pointer items-center font-medium text-brand-text;
   }
 
   .asset-basis-pc-body {
@@ -1127,7 +1225,7 @@
   }
 
   .asset-mobile-tool {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 text-[13px] font-medium text-brand;
+    @apply inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 text-[13px] font-medium text-brand-text;
   }
 
   .asset-mobile-sort {
@@ -1144,7 +1242,7 @@
   }
 
   .asset-mobile-order {
-    @apply inline-flex min-h-11 shrink-0 items-center rounded-lg border border-brand bg-surface px-3 text-[13px] font-bold text-brand;
+    @apply inline-flex min-h-11 shrink-0 items-center rounded-lg border border-brand bg-surface px-3 text-[13px] font-bold text-brand-text;
   }
 
   .asset-compact-list {
@@ -1224,7 +1322,7 @@
   }
 
   .asset-th-sort[aria-pressed="true"] {
-    @apply font-bold text-brand;
+    @apply font-bold text-brand-text;
   }
 
   .asset-sort-arrow {

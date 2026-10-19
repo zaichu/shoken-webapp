@@ -4,8 +4,8 @@
 // 外部化して script-src 'self' で通せる形にする。
 // あわせて shoken-api-origin の meta に backend の URL を埋める(第2引数で差し替え可能。
 // E2E では '' を渡して同一オリジンに戻し、モック外の通信が本番に出ないようにする)。
-// session-probe.js は内容ハッシュ付きの名前に差し替える
-// (固定名のままだと _headers の immutable キャッシュでデプロイ後も古いプローブが使われる)。
+// session-probe.js・theme-init.js は内容ハッシュ付きの名前に差し替える
+// (固定名のままだと _headers の immutable キャッシュでデプロイ後も古い版が使われる)。
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -28,11 +28,19 @@ if (!metaRe.test(html)) {
 // 再実行(serve-dist 前の2度目)でも同じ値に置き直すだけで通る
 html = html.replace(metaRe, `<meta name="shoken-api-origin" content="${apiOrigin}" />`);
 
-const probeBody = readFileSync(join(dist, 'session-probe.js'));
-const probeHash = createHash('sha256').update(probeBody).digest('hex').slice(0, 8);
-const probeName = `session-probe.${probeHash}.js`;
-html = html.replace(/src="\/session-probe(?:\.[0-9a-f]+)?\.js"/, `src="/${probeName}"`);
-writeFileSync(join(dist, probeName), probeBody);
+// 固定名スクリプトを内容ハッシュ付きの名前に差し替える。再実行でも前回の
+// ハッシュ付き URL を拾い直せるよう、旧ハッシュの有無は問わず一致させる
+function hashRenameScript(html, dist, base) {
+  const body = readFileSync(join(dist, `${base}.js`));
+  const hash = createHash('sha256').update(body).digest('hex').slice(0, 8);
+  const name = `${base}.${hash}.js`;
+  html = html.replace(new RegExp(`src="/${base}(?:\\.[0-9a-f]+)?\\.js"`), `src="/${name}"`);
+  writeFileSync(join(dist, name), body);
+  return html;
+}
+
+html = hashRenameScript(html, dist, 'session-probe');
+html = hashRenameScript(html, dist, 'theme-init');
 writeFileSync(indexPath, html);
 
 if (html.includes('<script type="module" src="/init-')) {
