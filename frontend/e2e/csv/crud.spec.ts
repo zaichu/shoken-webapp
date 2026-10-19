@@ -513,6 +513,64 @@ test.describe('取引明細 CSV 取込・削除', () => {
     });
   }
 
+  test('削除が失敗したらモーダルにエラーを残し、再試行で削除できる', async ({ page }) => {
+    const rows = DIVIDEND_BASE.map(asDbRow);
+    let deleteCount = 0;
+    await page.route(/\/api\/v1\/session$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(USER),
+      }),
+    );
+    await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => {
+      if (route.request().method() === 'DELETE') {
+        deleteCount += 1;
+        if (deleteCount === 1) {
+          return route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: { message: '削除に失敗しました' } }),
+          });
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: '{}',
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: rows, total: rows.length, page: 1, per_page: rows.length }),
+      });
+    });
+
+    await page.goto('/receipts/csv?kind=dividend');
+    const savedCount = page.getByTestId('saved-count');
+    await expect(savedCount).toContainText('3件', { timeout: 10000 });
+
+    await page.getByRole('button', { name: 'すべて削除…' }).click();
+    const modal = page.getByRole('dialog');
+    await expect(modal).toBeVisible();
+    // 開いた時点で件数を取り直すため、確定は件数が確定してから押せる
+    const confirmButton = modal.getByRole('button', { name: '3件を削除する' });
+    await expect(confirmButton).toBeEnabled();
+    await confirmButton.click();
+
+    // 失敗: モーダルは開いたまま理由を出す
+    await expect(modal.getByRole('alert')).toContainText('削除に失敗しました', {
+      timeout: 10000,
+    });
+    expect(deleteCount).toBe(1);
+
+    // 同じモーダルから再試行できる
+    await confirmButton.click();
+    await expect(modal).toBeHidden();
+    expect(deleteCount).toBe(2);
+    await expect(savedCount).toContainText('0件');
+  });
+
   test('取込が400で失敗したときはサーバーの理由をそのまま表示する', async ({ page }) => {
     const db: Record<TabKey, unknown[]> = {
       dividend: [],

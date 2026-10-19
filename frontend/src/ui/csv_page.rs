@@ -136,21 +136,6 @@ pub fn CsvManagePage<S: CsvSource>(
             }
         });
     }
-    let prev_previewing = RwSignal::new(false);
-    Effect::new(move |_| {
-        let previewing = previewing.get();
-        let was = prev_previewing.get_untracked();
-        prev_previewing.set(previewing);
-        if !was || previewing {
-            return;
-        }
-        let meta = source.csv_meta();
-        if meta.preview.is_some() && !source.save_disabled(&meta) {
-            focus_element("[data-testid='csv-save-button']");
-        } else {
-            focus_element("[data-testid='csv-file-input']");
-        }
-    });
 
     let db_count = Memo::new(move |_| source.db_count());
     let delete_count_ready = Memo::new(move |_| source.delete_count_ready());
@@ -160,8 +145,31 @@ pub fn CsvManagePage<S: CsvSource>(
     let show_delete_confirm = RwSignal::new(false);
     let deleting = Memo::new(move |_| source.csv_meta().deleting);
     let delete_error = RwSignal::new(None::<String>);
+    // モーダル内のエラー表示。削除の失敗を最優先にし、削除していない間は件数取得の失敗も出す
+    let modal_error = Memo::new(move |_| {
+        if deleting.get() {
+            delete_error.get()
+        } else {
+            delete_error.get().or_else(|| delete_count_error.get())
+        }
+    });
+    // 開いた直後の件数は取り直しが終わるまで確定しない
+    let delete_confirm_ready = Memo::new(move |_| deleting.get() || delete_count_ready.get());
+
+    let delete_trigger_ref = NodeRef::<leptos::html::Button>::new();
+    let restore_trigger_focus = move || {
+        leptos::task::spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(0).await;
+            if let Some(button) = delete_trigger_ref.get() {
+                let _ = button.focus();
+            }
+        });
+    };
 
     let open_delete_confirm = move |_| {
+        // 開き直すたびに前回の失敗表示を消し、他タブ等での変化に備えて件数を取り直す
+        delete_error.set(None);
+        source.refresh_for_delete();
         source.open_delete_confirm();
         show_delete_confirm.set(true);
     };
@@ -169,6 +177,8 @@ pub fn CsvManagePage<S: CsvSource>(
     // S: Copy なのでクロージャに移動できる
     let confirm_source = source;
     let on_confirm_delete = move || {
+        // 削除の開始はストアの確認フラグが立っている間だけ許されるため、毎回立ててから送る
+        confirm_source.open_delete_confirm();
         confirm_source.confirm_delete_all();
     };
 
@@ -176,28 +186,44 @@ pub fn CsvManagePage<S: CsvSource>(
         if !deleting.get() {
             show_delete_confirm.set(false);
             delete_error.set(None);
+            restore_trigger_focus();
         }
     };
 
-    // 削除エラーを CSV メタから同期
-    Effect::new(move |_| {
-        if let Some(err) = meta_error.get()
-            && (source.csv_meta().deleting || source.csv_meta().show_delete_confirm)
-        {
-            delete_error.set(Some(err));
-        }
-    });
-
-    // 削除完了時にモーダルを閉じる(成功時: deleting が true から false に変化し、errorなし)
+    // 削除が終わったら失敗だけをモーダルに残す(成功ときだけ閉じる)
     let was_deleting = RwSignal::new(false);
     Effect::new(move |_| {
         let deleting_now = deleting.get();
         if deleting_now {
             was_deleting.set(true);
-        } else if was_deleting.get() && show_delete_confirm.get() && delete_error.get().is_none() {
-            was_deleting.set(false);
+            return;
+        }
+        if !was_deleting.get() || !show_delete_confirm.get() {
+            return;
+        }
+        was_deleting.set(false);
+        if let Some(err) = meta_error.get() {
+            delete_error.set(Some(err));
+        } else {
             show_delete_confirm.set(false);
             delete_error.set(None);
+        }
+    });
+
+    let prev_previewing = RwSignal::new(false);
+    Effect::new(move |_| {
+        let previewing = previewing.get();
+        let was = prev_previewing.get_untracked();
+        prev_previewing.set(previewing);
+        // モーダルが出ている間にフォーカスを動かすと閉じ込めを壊す
+        if !was || previewing || show_delete_confirm.get() {
+            return;
+        }
+        let meta = source.csv_meta();
+        if meta.preview.is_some() && !source.save_disabled(&meta) {
+            focus_element("[data-testid='csv-save-button']");
+        } else {
+            focus_element("[data-testid='csv-file-input']");
         }
     });
 
@@ -287,9 +313,11 @@ pub fn CsvManagePage<S: CsvSource>(
                             <Button
                                 variant=ButtonVariant::Secondary(ButtonSize::Md)
                                 class="text-negative border-negative border"
+                                node_ref=delete_trigger_ref
                                 disabled=move || {
                                     !delete_count_ready.get()
                                         || db_count.get() == 0
+                                        || source.csv_meta().busy()
                                         || source.delete_disabled(&source.csv_meta())
                                 }
                                 on_click=open_delete_confirm
@@ -334,7 +362,8 @@ pub fn CsvManagePage<S: CsvSource>(
                             item_count=count
                             confirm_label=confirm_label
                             loading=deleting
-                            error=delete_error
+                            confirm_ready=delete_confirm_ready
+                            error=modal_error
                             on_confirm=on_confirm_delete
                             on_cancel=on_cancel_delete
                         />

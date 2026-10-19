@@ -57,7 +57,10 @@ pub fn ConfirmDeleteModal(
     #[prop(into, optional)] item_count: Option<usize>,
     confirm_label: String,
     loading: Memo<bool>,
-    #[prop(optional)] error: Option<RwSignal<Option<String>>>,
+    /// 実行の前提(件数の確定など)が整っているか。未整列の間は実行を押せない
+    #[prop(optional)]
+    confirm_ready: Option<Memo<bool>>,
+    #[prop(into, optional)] error: Option<Signal<Option<String>>>,
     on_confirm: impl Fn() + Clone + 'static,
     on_cancel: impl Fn() + Clone + 'static,
 ) -> impl IntoView {
@@ -174,7 +177,10 @@ pub fn ConfirmDeleteModal(
                         <Button
                             variant=ButtonVariant::DangerSolid(ButtonSize::Md)
                             class="no-print"
-                            disabled=move || loading.get()
+                            disabled=move || {
+                                loading.get()
+                                    || confirm_ready.is_some_and(|ready| !ready.get())
+                            }
                             on_click=move |_| on_confirm()
                         >
                             {move || {
