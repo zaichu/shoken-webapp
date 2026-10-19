@@ -328,6 +328,14 @@
     @apply bg-brand font-bold text-text-inverse;
   }
 
+  /* ダークでは brand(紺)が面の暗さに溶けて選択状態が見分けられないため、
+     明るい塗り+反転文字でライトと同程度に目立たせる */
+  @media screen {
+    :root[data-theme="dark"] .segmented-option[aria-pressed="true"] {
+      @apply bg-accent text-page;
+    }
+  }
+
   .group-card-trigger {
     @apply flex min-h-11 w-full items-center gap-2 bg-surface-raised px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
   }
