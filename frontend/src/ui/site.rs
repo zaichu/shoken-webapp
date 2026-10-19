@@ -226,6 +226,8 @@ fn UserMenu(
     let menu_items_ref = NodeRef::<html::Ul>::new();
     let focused_index = RwSignal::new(-1);
     let trigger_ref = NodeRef::<html::Button>::new();
+    // メニュー開閉の世代番号。開くたびにインクリメントし、古い Effect のフォーカス試行を無効化する
+    let menu_generation = RwSignal::new(0u32);
 
     // メニュー項目（role="menuitem" を持つ要素）を収集するヘルパー関数
     let collect_menuitems = move |ul: &web_sys::HtmlUListElement| -> Vec<web_sys::HtmlElement> {
@@ -326,16 +328,21 @@ fn UserMenu(
 
     // メニューが開かれたときに先頭項目（設定）へフォーカスを移す
     // Show コンポーネントの遅延描画を待つため Effect で実行
+    // 世代番号を使って古い Effect のフォーカス試行を無効化
     Effect::new(move |_| {
         if menu_open.get() {
+            let current_gen = menu_generation.get();
             focused_index.set(0);
             // 次のマイクロタスクでフォーカスを試行（Show の描画完了を待つ）
             leptos::task::spawn_local(async move {
                 gloo_timers::future::TimeoutFuture::new(0).await;
-                if let Some(ul) = menu_items_ref.get() {
-                    let items = collect_menuitems(&ul);
-                    if !items.is_empty() {
-                        let _ = items[0].focus();
+                // この Effect の世代が最新でかつメニューがまだ開いている場合のみフォーカス
+                if menu_open.get_untracked() && menu_generation.get_untracked() == current_gen {
+                    if let Some(ul) = menu_items_ref.get_untracked() {
+                        let items = collect_menuitems(&ul);
+                        if !items.is_empty() {
+                            let _ = items[0].focus();
+                        }
                     }
                 }
             });
@@ -380,6 +387,9 @@ fn UserMenu(
                         menu_open.update(|open| *open = !*open);
                         if !menu_open.get() {
                             focused_index.set(-1);
+                        } else {
+                            // メニューを開くとき世代を進め、古い Effect を無効化
+                            menu_generation.update(|g| *g = g.wrapping_add(1));
                         }
                     }
                     node_ref=trigger_ref

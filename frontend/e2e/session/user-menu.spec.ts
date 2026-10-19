@@ -189,6 +189,12 @@ test('設定ページにアカウント・データ・危険な操作のセク�
   await expect(page.getByText('資産管理データを削除')).toBeVisible();
   await expect(page.getByText('アカウントを削除')).toBeVisible();
 
+  // 削除リンクの href に正しい kind パラメータが含まれることを確認
+  await expect(page.getByRole('link', { name: '削除…' }).first()).toHaveAttribute('href', '/receipts/csv/delete?kind=dividend');
+  await expect(page.getByRole('link', { name: '削除…' }).nth(1)).toHaveAttribute('href', '/receipts/csv/delete?kind=stock');
+  await expect(page.getByRole('link', { name: '削除…' }).nth(2)).toHaveAttribute('href', '/receipts/csv/delete?kind=fund');
+  await expect(page.getByRole('link', { name: '削除…' }).nth(3)).toHaveAttribute('href', '/assetbalance/csv/delete');
+
   // 表示・セキュリティセクションは段階2なので表示されない
   await expect(page.getByRole('heading', { name: '表示' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'セキュリティ' })).toHaveCount(0);
