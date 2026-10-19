@@ -302,22 +302,21 @@ fn UserMenu(
                         .filter_map(|li| li.query_selector("button").ok().flatten())
                         .filter_map(|btn| btn.dyn_into::<web_sys::HtmlElement>().ok())
                         .collect();
-                    if !buttons.is_empty() {
-                        if let Some(active) = web_sys::window()
+                    if !buttons.is_empty()
+                        && let Some(active) = web_sys::window()
                             .and_then(|w| w.document())
                             .and_then(|d| d.active_element())
                             .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok())
-                            && let Some(pos) = buttons.iter().position(|b| b.is_same_node(Some(&active)))
-                        {
-                            if ev.shift_key() && pos == 0 {
-                                ev.prevent_default();
-                                let _ = buttons.last().unwrap().focus();
-                                focused_index.set((buttons.len() - 1) as i32);
-                            } else if !ev.shift_key() && pos == buttons.len() - 1 {
-                                ev.prevent_default();
-                                let _ = buttons[0].focus();
-                                focused_index.set(0);
-                            }
+                        && let Some(pos) = buttons.iter().position(|b| b.is_same_node(Some(&active)))
+                    {
+                        if ev.shift_key() && pos == 0 {
+                            ev.prevent_default();
+                            let _ = buttons.last().unwrap().focus();
+                            focused_index.set((buttons.len() - 1) as i32);
+                        } else if !ev.shift_key() && pos == buttons.len() - 1 {
+                            ev.prevent_default();
+                            let _ = buttons[0].focus();
+                            focused_index.set(0);
                         }
                     }
                 }
