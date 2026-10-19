@@ -57,6 +57,8 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # checkout しないジョブのため、PR番号指定の gh にリポジトリを明示する
+          GH_REPO: ${{ github.repository }}
 
       # auto-merge は PR に残存する設定なので、対象外への変更時(グループPRの再構成など)は明示的に解除する
       - name: Disable auto-merge for other updates
