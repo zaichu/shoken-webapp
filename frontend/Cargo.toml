@@ -33,9 +33,13 @@ any_spawner = { version = "0.3", features = ["futures-executor"] }
 proptest = { version = "1.11.0", default-features = false, features = ["std", "bit-set"] }
 time = "0.3.51"
 
-# proptest → rand_core 由来の getrandom 0.3 に wasm_js feature を有効化する(feature は同一バージョンにしか届かないため 0.4 では不可)。backend 選択の cfg は .cargo/config.toml の rustflag。
+# proptest → rand_core 由来の getrandom に wasm_js feature を有効化する(feature は同一バージョンにしか届かないため 0.3 と 0.4 の両方が要る)。backend 選択の cfg は .cargo/config.toml の rustflag。
+# 同一テーブル内のキー重複は書けないため、同じ条件を語順違いで2テーブルに分けている
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dev-dependencies]
 getrandom = { version = "0.3", features = ["wasm_js"] }
+# proptest 1.12 以降は rand 0.10 経由で getrandom 0.4 が wasm32 の依存に入る
+[target.'cfg(all(target_os = "unknown", target_arch = "wasm32"))'.dev-dependencies]
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 
 [profile.release]
