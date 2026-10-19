@@ -179,6 +179,7 @@ pub fn CsvManagePage<S: CsvSource>(
     let on_confirm_delete = move || {
         // 削除の開始はストアの確認フラグが立っている間だけ許されるため、毎回立ててから送る
         confirm_source.open_delete_confirm();
+        delete_error.set(None);
         confirm_source.confirm_delete_all();
     };
 
