@@ -337,12 +337,13 @@ fn UserMenu(
             leptos::task::spawn_local(async move {
                 gloo_timers::future::TimeoutFuture::new(0).await;
                 // この Effect の世代が最新でかつメニューがまだ開いている場合のみフォーカス
-                if menu_open.get_untracked() && menu_generation.get_untracked() == current_gen {
-                    if let Some(ul) = menu_items_ref.get_untracked() {
-                        let items = collect_menuitems(&ul);
-                        if !items.is_empty() {
-                            let _ = items[0].focus();
-                        }
+                if menu_open.get_untracked()
+                    && menu_generation.get_untracked() == current_gen
+                    && let Some(ul) = menu_items_ref.get_untracked()
+                {
+                    let items = collect_menuitems(&ul);
+                    if !items.is_empty() {
+                        let _ = items[0].focus();
                     }
                 }
             });
