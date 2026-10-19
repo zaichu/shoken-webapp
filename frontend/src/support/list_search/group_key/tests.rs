@@ -103,8 +103,8 @@ fn security_data() -> Vec<TestItem> {
             date: String::new(),
         },
         TestItem {
-            code: "9984".to_string(),
-            name: "ソフトバンクグループ".to_string(),
+            code: "9915".to_string(),
+            name: "架空通信ホールディングス".to_string(),
             product: "".to_string(),
             date: String::new(),
         },
@@ -180,12 +180,12 @@ fn derive_security_code_no_match() {
 fn derive_security_code_spaces_around_colon() {
     assert_eq!(
         derive_security_code_from_query(
-            "  9984 ：ソフトバンクグループ",
+            "  9915 ：架空通信ホールディングス",
             &security_data(),
             code_getter,
             name_getter
         ),
-        "9984"
+        "9915"
     );
 }
 

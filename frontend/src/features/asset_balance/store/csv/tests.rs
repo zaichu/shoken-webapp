@@ -137,13 +137,13 @@ fn preview_success_collects_security_codes_and_failure_shows_error() {
             generation,
             Ok(csv_preview_response(vec![
                 csv_preview_row("9904"),
-                csv_preview_row("6758"),
+                csv_preview_row("9914"),
                 csv_preview_row("9904"),
             ])),
         );
         assert_eq!(
             codes,
-            Some(vec!["6758".to_string(), "9904".to_string()]),
+            Some(vec!["9904".to_string(), "9914".to_string()]),
             "プレビュー行の銘柄コードが配当取得の対象になる"
         );
         let state = store.csv_state();

@@ -18,7 +18,7 @@ const USER = {
 };
 
 // backend の一覧行と同じフィールド名。DB 行として登録時に id・タイムスタンプを付ける
-const KDDI = {
+const SYN_COMM = {
   settlement_date: '2025-12-08',
   product: '国内株式',
   account: '特定・一般',
@@ -30,7 +30,7 @@ const KDDI = {
   taxes: 3047,
   net_amount_received: 11953,
 };
-const NTT = {
+const SYN_TELECOM = {
   settlement_date: '2025-12-08',
   product: '国内株式',
   account: '特定・一般',
@@ -42,7 +42,7 @@ const NTT = {
   taxes: 2031,
   net_amount_received: 7969,
 };
-const TOYOTA = {
+const SYN_AUTO = {
   settlement_date: '2025-12-09',
   product: '国内株式',
   account: '特定・一般',
@@ -92,11 +92,11 @@ const DIVIDEND_BASE = [
     net_amount_received: 12748,
   },
 ];
-// 5行中 KDDI 2行は重複スキップ → 3件反映
-const DIVIDEND_ADDITIONAL = [KDDI, KDDI, KDDI, NTT, TOYOTA];
-const DIVIDEND_ADDITIONAL_INSERTED = [KDDI, NTT, TOYOTA];
+// 5行中 SYN_COMM 2行は重複スキップ → 3件反映
+const DIVIDEND_ADDITIONAL = [SYN_COMM, SYN_COMM, SYN_COMM, SYN_TELECOM, SYN_AUTO];
+const DIVIDEND_ADDITIONAL_INSERTED = [SYN_COMM, SYN_TELECOM, SYN_AUTO];
 
-const ENEOS = {
+const SYN_ENERGY = {
   trade_date: '2026-02-09',
   settlement_date: '2026-02-12',
   security_code: '9902',
@@ -110,7 +110,7 @@ const ENEOS = {
   taxes: 2031,
   realized_profit_and_loss_after_tax: 7969,
 };
-const TEPCO = {
+const SYN_POWER = {
   trade_date: '2026-01-15',
   settlement_date: '2026-01-18',
   security_code: '9912',
@@ -124,7 +124,7 @@ const TEPCO = {
   taxes: 0,
   realized_profit_and_loss_after_tax: -16000,
 };
-const MOL = {
+const SYN_SHIPPING = {
   trade_date: '2026-01-20',
   settlement_date: '2026-01-23',
   security_code: '9909',
@@ -138,7 +138,7 @@ const MOL = {
   taxes: 4063,
   realized_profit_and_loss_after_tax: 15937,
 };
-const KYUSHU_DEN = {
+const SYN_POWER_WEST = {
   trade_date: '2026-02-12',
   settlement_date: '2026-02-16',
   security_code: '9913',
@@ -152,7 +152,7 @@ const KYUSHU_DEN = {
   taxes: 2031,
   realized_profit_and_loss_after_tax: 7969,
 };
-const MITSUBISHI_DEN = {
+const SYN_ELECTRIC = {
   trade_date: '2026-02-18',
   settlement_date: '2026-02-21',
   security_code: '9903',
@@ -166,16 +166,16 @@ const MITSUBISHI_DEN = {
   taxes: 0,
   realized_profit_and_loss_after_tax: -15000,
 };
-const DOMESTIC_BASE = [ENEOS, TEPCO, MOL];
+const DOMESTIC_BASE = [SYN_ENERGY, SYN_POWER, SYN_SHIPPING];
 // 11行中、base 登録済みの架空海運 index=1 のみスキップ → 10件反映
 const DOMESTIC_ADDITIONAL = [
-  MOL, MOL, MOL, MOL, MOL, MOL, MOL, MOL, MOL, KYUSHU_DEN, MITSUBISHI_DEN,
+  SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_POWER_WEST, SYN_ELECTRIC,
 ];
 const DOMESTIC_ADDITIONAL_INSERTED = [
-  MOL, MOL, MOL, MOL, MOL, MOL, MOL, MOL, KYUSHU_DEN, MITSUBISHI_DEN,
+  SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_POWER_WEST, SYN_ELECTRIC,
 ];
 
-const SP500_BASE = {
+const SYN_US_EQUITY_BASE = {
   trade_date: '2022-10-28',
   settlement_date: '2022-11-02',
   fund_name: '架空インデックス 米国株式',
@@ -190,7 +190,7 @@ const SP500_BASE = {
   taxes: 125073,
   realized_profit_and_loss_after_tax: 490776,
 };
-const RAKUTEN_FUND = {
+const SYN_ALL_US_EQUITY = {
   trade_date: '2022-12-26',
   settlement_date: '2022-12-29',
   fund_name: '架空全米株式インデックス・ファンド',
@@ -205,7 +205,7 @@ const RAKUTEN_FUND = {
   taxes: 40630,
   realized_profit_and_loss_after_tax: 159370,
 };
-const SP500_ADDITIONAL = {
+const SYN_US_EQUITY_ADDITIONAL = {
   trade_date: '2026-01-08',
   settlement_date: '2026-01-14',
   fund_name: '架空インデックス 米国株式',
@@ -220,7 +220,7 @@ const SP500_ADDITIONAL = {
   taxes: 2614,
   realized_profit_and_loss_after_tax: 10254,
 };
-const ORKAN = {
+const SYN_GLOBAL_EQUITY = {
   trade_date: '2026-02-05',
   settlement_date: '2026-02-10',
   fund_name: '架空インデックス 全世界株式(オール・ワールド)',
@@ -235,10 +235,10 @@ const ORKAN = {
   taxes: 365670,
   realized_profit_and_loss_after_tax: 1434330,
 };
-const MUTUALFUND_BASE = [SP500_BASE, RAKUTEN_FUND];
+const MUTUALFUND_BASE = [SYN_US_EQUITY_BASE, SYN_ALL_US_EQUITY];
 // 3行中、ファイル内の S&P500 重複1行のみスキップ → 2件反映
-const MUTUALFUND_ADDITIONAL = [SP500_ADDITIONAL, SP500_ADDITIONAL, ORKAN];
-const MUTUALFUND_ADDITIONAL_INSERTED = [SP500_ADDITIONAL, ORKAN];
+const MUTUALFUND_ADDITIONAL = [SYN_US_EQUITY_ADDITIONAL, SYN_US_EQUITY_ADDITIONAL, SYN_GLOBAL_EQUITY];
+const MUTUALFUND_ADDITIONAL_INSERTED = [SYN_US_EQUITY_ADDITIONAL, SYN_GLOBAL_EQUITY];
 
 type TabKey = 'dividend' | 'domesticstock' | 'mutualfund';
 type KindParam = 'dividend' | 'stock' | 'fund';
@@ -537,7 +537,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
 
 // 資産管理はタブではなく独立ページで、追加ではなく全件置換になる
 // モック応答は fixture CSV の行と一致させる
-const ASSET_INPEX = {
+const ASSET_SYN_RESOURCE = {
   security_code: '9901',
   security_name: '架空資源開発',
   shares: 200,
@@ -548,7 +548,7 @@ const ASSET_INPEX = {
   market_value: 600000,
   profit_loss_rate: 50.00,
 };
-const ASSET_NINTENDO = {
+const ASSET_SYN_GAME = {
   security_code: '9905',
   security_name: '架空ゲーム',
   shares: 1000,
@@ -559,8 +559,8 @@ const ASSET_NINTENDO = {
   market_value: 7000000,
   profit_loss_rate: 40.00,
 };
-const ASSET_INPEX_UPDATED = {
-  ...ASSET_INPEX,
+const ASSET_SYN_RESOURCE_UPDATED = {
+  ...ASSET_SYN_RESOURCE,
   shares: 300,
   total_purchase_amount: 600000,
   market_value: 900000,
@@ -576,7 +576,7 @@ const ASSET_MUFJ = {
   market_value: 870000,
   profit_loss_rate: -3.33,
 };
-const ASSET_KDDI = {
+const ASSET_SYN_COMM = {
   security_code: '9911',
   security_name: '架空通信',
   shares: 600,
@@ -587,9 +587,9 @@ const ASSET_KDDI = {
   market_value: 1500000,
   profit_loss_rate: 25,
 };
-const ASSET_BASE = [ASSET_INPEX, ASSET_NINTENDO];
+const ASSET_BASE = [ASSET_SYN_RESOURCE, ASSET_SYN_GAME];
 // 置換の証明のため、base の架空ゲームを含まない別3件にする
-const ASSET_UPDATED = [ASSET_INPEX_UPDATED, ASSET_MUFJ, ASSET_KDDI];
+const ASSET_UPDATED = [ASSET_SYN_RESOURCE_UPDATED, ASSET_MUFJ, ASSET_SYN_COMM];
 const ASSET_FILES: Record<string, unknown[]> = {
   'assetbalance-base.csv': ASSET_BASE,
   'assetbalance-updated.csv': ASSET_UPDATED,
@@ -746,7 +746,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
         total_rows: 3,
         valid_rows: 1,
         errors: rowErrors,
-        rows: [ASSET_INPEX],
+        rows: [ASSET_SYN_RESOURCE],
       }),
     });
 

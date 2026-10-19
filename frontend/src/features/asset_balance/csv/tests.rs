@@ -41,9 +41,9 @@ fn preview_row_with_missing_fields_uses_defaults() {
     // フィールド欠落は serde(default) で穴埋めする。行自体が null など
     // オブジェクトでない場合はレスポンス全体がパースエラーになる
     let row: AssetBalanceCsvRow =
-        serde_json::from_value(serde_json::json!({"security_name": "ソニーグループ"}))
+        serde_json::from_value(serde_json::json!({"security_name": "架空エレクトロニクス"}))
             .expect("lenient row");
-    assert_eq!(row.security_name, "ソニーグループ");
+    assert_eq!(row.security_name, "架空エレクトロニクス");
     assert_eq!(row.shares, dec!(0));
     assert!(serde_json::from_value::<AssetBalanceCsvRow>(serde_json::Value::Null).is_err());
 }

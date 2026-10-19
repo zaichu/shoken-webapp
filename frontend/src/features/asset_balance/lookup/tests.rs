@@ -52,7 +52,7 @@ fn find_matches_normalized_codes() {
 fn store_seed_get_roundtrip() {
     let mut store = AssetBalanceLookupStore::new();
     assert!(store.get(Generation::new(1), "9904").is_none());
-    store.seed(Generation::new(1), &[row("9904"), row("6758")]);
+    store.seed(Generation::new(1), &[row("9904"), row("9914")]);
     assert_eq!(
         store
             .get(Generation::new(1), "9904")
@@ -78,16 +78,16 @@ fn store_isolated_by_generation() {
     let mut store = AssetBalanceLookupStore::new();
     store.seed(Generation::new(1), &[row("9904")]);
     assert!(store.get(Generation::new(2), "9904").is_none());
-    store.seed(Generation::new(2), &[row("6758")]);
+    store.seed(Generation::new(2), &[row("9914")]);
     assert!(store.get(Generation::new(1), "9904").is_none());
-    assert!(store.get(Generation::new(1), "6758").is_none());
+    assert!(store.get(Generation::new(1), "9914").is_none());
     assert_eq!(
         store
-            .get(Generation::new(2), "6758")
+            .get(Generation::new(2), "9914")
             .unwrap()
             .security_code
             .as_str(),
-        "6758"
+        "9914"
     );
     assert!(store.get(Generation::new(2), "9904").is_none());
 }
@@ -141,9 +141,9 @@ fn store_single_overwrites_entry() {
 #[test]
 fn store_single_on_new_generation_drops_all_old_entries() {
     let mut store = AssetBalanceLookupStore::new();
-    store.seed(Generation::new(1), &[row("9904"), row("6758")]);
+    store.seed(Generation::new(1), &[row("9904"), row("9914")]);
     store.store_single(Generation::new(2), "9907", vec![row("9907")]);
-    assert!(store.get(Generation::new(1), "6758").is_none());
+    assert!(store.get(Generation::new(1), "9914").is_none());
     assert_eq!(
         store
             .get(Generation::new(2), "9907")

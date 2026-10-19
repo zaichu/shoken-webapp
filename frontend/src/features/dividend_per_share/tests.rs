@@ -43,8 +43,8 @@ fn dividend_response_projection_keeps_partial_and_unknown_status_compatibility()
 #[test]
 fn unique_sorted_codes_dedupes() {
     assert_eq!(
-        unique_sorted_codes(&["6758".to_string(), "9904".to_string(), "6758".to_string()]),
-        vec!["6758".to_string(), "9904".to_string()]
+        unique_sorted_codes(&["9914".to_string(), "9904".to_string(), "9914".to_string()]),
+        vec!["9904".to_string(), "9914".to_string()]
     );
     assert!(unique_sorted_codes(&[]).is_empty());
 }
@@ -71,7 +71,7 @@ fn dividend_batch_maps_match_hook() {
     let batch = DividendBatchResponse {
         items: vec![
             estimate("9904", Some(50.0), "ok"),
-            estimate("6758", Some(0.0), "ok"),
+            estimate("9914", Some(0.0), "ok"),
             estimate("0001", None, "pending"),
             estimate("0002", None, "error"),
             estimate("0003", Some(10.0), "zero"),
@@ -81,7 +81,7 @@ fn dividend_batch_maps_match_hook() {
     let (maps, has_pending) = dividend_maps_from_batch(&batch);
     assert!(has_pending);
     assert_eq!(maps.per_share.get("9904"), Some(&50.0));
-    assert!(!maps.per_share.contains_key("6758"));
+    assert!(!maps.per_share.contains_key("9914"));
     assert!(!maps.per_share.contains_key("0003"));
     assert!(!maps.per_share.contains_key("0004"));
     assert_eq!(maps.status.get("0001").map(String::as_str), Some("pending"));
@@ -100,7 +100,7 @@ fn dividend_batch_maps_match_hook() {
 #[test]
 fn fetch_dividend_batch_forwards_codes_and_returns_response() {
     let captured = std::cell::RefCell::new(Vec::new());
-    let codes = vec!["6758".to_string(), "9904".to_string(), "6758".to_string()];
+    let codes = vec!["9914".to_string(), "9904".to_string(), "9914".to_string()];
     let result = block_on(fetch_dividend_batch(&codes, |request| {
         *captured.borrow_mut() = request
             .security_codes

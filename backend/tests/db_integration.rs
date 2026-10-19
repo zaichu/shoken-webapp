@@ -1066,7 +1066,7 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
     let mut reimported = make_asset_item("9904");
     reimported.current_price = dec!(9999);
     reimported.daily_change = dec!(-999);
-    let mut fresh = make_asset_item("6758");
+    let mut fresh = make_asset_item("9914");
     fresh.current_price = dec!(1234.5);
     asset_balance_svc::bulk_create(
         &pool,
@@ -1098,13 +1098,13 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
         confirmed_row.price_as_of,
         NaiveDate::from_ymd_opt(2026, 10, 14)
     );
-    let seeded_row = by_code("6758");
+    let seeded_row = by_code("9914");
     assert_eq!(seeded_row.current_price, dec!(1234.5));
     assert_eq!(seeded_row.price_as_of, None, "CSV 取込値は未確認");
 
     // 個人CSV価格は利用者ごとに独立し、別利用者の取込では変わらない
     let other_user = create_test_user(&pool).await;
-    let mut other_import = make_asset_item("6758");
+    let mut other_import = make_asset_item("9914");
     other_import.current_price = dec!(2000);
     asset_balance_svc::bulk_create(&pool, other_user, &[other_import], RowLimit::new(i64::MAX))
         .await
@@ -1120,7 +1120,7 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
     .data;
     let updated_row = rows
         .iter()
-        .find(|r| r.security_code.as_str() == "6758")
+        .find(|r| r.security_code.as_str() == "9914")
         .expect("行がある");
     // 個人CSV価格は利用者ごとに独立し、別利用者の取込では変わらない
     assert_eq!(updated_row.current_price, dec!(1234.5));
@@ -2329,7 +2329,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
 
     let domestic_items = vec![
         make_domestic_stock_item("6501"),
-        make_domestic_stock_item("6758"),
+        make_domestic_stock_item("9914"),
     ];
     domestic_stock_svc::bulk_create(&pool, user_id, &domestic_items, LIMIT)
         .await

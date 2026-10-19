@@ -174,7 +174,7 @@ fn SearchForm(
 
 fn empty_search_description(title: &str) -> &'static str {
     if title == "銘柄を検索" {
-        "銘柄コード（例：7203）または銘柄名を入力して検索してください。"
+        "銘柄コード（例：9917）または銘柄名を入力して検索してください。"
     } else {
         "銘柄コードまたは銘柄名を確認してください。"
     }
@@ -191,8 +191,8 @@ fn EmptySearch(title: &'static str) -> impl IntoView {
             icon=EmptyStateIcon::Search
         >
             <ul class="mt-4 space-y-1 text-sm font-medium text-text-muted">
-                <li>"4桁の銘柄コードで検索できます（例：7203, 9984）"</li>
-                <li>"会社名の一部でも検索できます（例：トヨタ）"</li>
+                <li>"4桁の銘柄コードで検索できます（例：9917, 9915）"</li>
+                <li>"会社名の一部でも検索できます（例：架空自動車）"</li>
                 <li>"検索結果から各種証券サイトへのリンクを確認できます"</li>
             </ul>
         </EmptyState>

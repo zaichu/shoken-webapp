@@ -21,7 +21,7 @@ const USER = {
   name: 'テストユーザー',
 };
 
-const KDDI = {
+const SYN_COMM = {
   settlement_date: '2025-12-08',
   product: '国内株式',
   account: '特定・一般',
@@ -33,7 +33,7 @@ const KDDI = {
   taxes: 3047,
   net_amount_received: 11953,
 };
-const NTT = {
+const SYN_TELECOM = {
   settlement_date: '2025-12-08',
   product: '国内株式',
   account: '特定・一般',
@@ -45,7 +45,7 @@ const NTT = {
   taxes: 2031,
   net_amount_received: 7969,
 };
-const PREVIEW_ROWS = [KDDI, NTT];
+const PREVIEW_ROWS = [SYN_COMM, SYN_TELECOM];
 
 const ROW_ERRORS = [
   { row: 2, message: '銘柄コードが不正です' },

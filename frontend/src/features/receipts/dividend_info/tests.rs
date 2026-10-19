@@ -38,7 +38,10 @@ fn init_test_executor() {
 
 #[test]
 fn search_security_code_gates_on_exact_code_or_name_match() {
-    let rows = vec![dividend("9904", "架空自動車"), dividend("6758", "ソニー")];
+    let rows = vec![
+        dividend("9904", "架空自動車"),
+        dividend("9914", "架空エレクトロニクス"),
+    ];
     assert_eq!(search_security_code(&rows, "9904"), "9904");
     assert_eq!(search_security_code(&rows, "架空自動車"), "9904");
     assert_eq!(search_security_code(&rows, "9904: 架空自動車"), "9904");
@@ -95,7 +98,7 @@ fn set_code_bumps_revisions_so_stale_requests_stay_inactive() {
         let first_poll = store.code_revision.get_untracked();
         let first_balance = store.balance_revision.get_untracked();
 
-        store.set_code(generation, true, "6758");
+        store.set_code(generation, true, "9914");
         store.set_code(generation, true, "9904");
         let latest_poll = store.code_revision.get_untracked();
         assert!(latest_poll > first_poll);
@@ -164,7 +167,7 @@ fn is_current_code_requires_matching_session_generation_and_code() {
         assert!(!store.is_current_code(generation, "9904"));
         store.current.set(Some((generation, "9904".to_string())));
         assert!(store.is_current_code(generation, "9904"));
-        assert!(!store.is_current_code(generation, "6758"));
+        assert!(!store.is_current_code(generation, "9914"));
         assert!(!store.is_current_code(generation.next(), "9904"));
         session.mark_unauthenticated();
         assert!(!store.is_current_code(generation, "9904"));

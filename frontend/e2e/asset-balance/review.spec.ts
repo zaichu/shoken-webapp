@@ -7,7 +7,7 @@ const MOCK_USER = {
   name: 'テストユーザー',
 };
 
-const TOYOTA = {
+const SYN_AUTO = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
@@ -22,12 +22,12 @@ const TOYOTA = {
   profit_loss_rate: 4.0,
 };
 
-const SONY = {
+const SYN_ELECTRONICS = {
   id: 'asset-balance-2',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '6758',
-  security_name: 'ソニーグループ',
+  security_code: '9914',
+  security_name: '架空エレクトロニクス',
   shares: 50,
   average_purchase_price: 12000,
   total_purchase_amount: 600000,
@@ -59,7 +59,7 @@ const EXPECTED_PROMPT = `あなたは日本株の公開情報を整理する調�
 【保有銘柄データ】
 銘柄コード | 銘柄名 | 保有株数 | 平均取得単価
 9904 | 架空自動車 | 100 | ¥2,500
-6758 | ソニーグループ | 50 | ¥12,000`;
+9914 | 架空エレクトロニクス | 50 | ¥12,000`;
 
 
 async function stubClipboard(
@@ -90,7 +90,7 @@ async function stubClipboard(
   }, mode);
 }
 
-async function setupAssetBalanceMocks(page: Page, rows: unknown[] = [TOYOTA, SONY]) {
+async function setupAssetBalanceMocks(page: Page, rows: unknown[] = [SYN_AUTO, SYN_ELECTRONICS]) {
   await page.route(/\/api\/v1\/session$/, (route) =>
     route.fulfill(json(MOCK_USER)),
   );

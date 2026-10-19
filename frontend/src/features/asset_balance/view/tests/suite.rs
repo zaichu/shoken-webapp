@@ -69,7 +69,7 @@ fn percentage_formatter_formats_values() {
 #[test]
 fn holding_dividend_matches_component_cases() {
     let maps = DividendMaps {
-        per_share: HashMap::from([("9904".to_string(), 50.0), ("6758".to_string(), 360.0)]),
+        per_share: HashMap::from([("9904".to_string(), 50.0), ("9914".to_string(), 360.0)]),
         status: HashMap::from([
             ("0001".to_string(), "pending".to_string()),
             ("0002".to_string(), "error".to_string()),
@@ -185,12 +185,12 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         let mut toyota = balance_row(9904);
         toyota.security_name = "架空自動車".to_string();
         toyota.total_purchase_amount = rust_decimal_macros::dec!(100000);
-        let mut sony = balance_row(6758);
-        sony.security_name = "ソニーグループ".to_string();
-        sony.total_purchase_amount = rust_decimal_macros::dec!(200000);
+        let mut syn_electronics = balance_row(9914);
+        syn_electronics.security_name = "架空エレクトロニクス".to_string();
+        syn_electronics.total_purchase_amount = rust_decimal_macros::dec!(200000);
         let loaded = LoadedAssetBalances {
             total: 2,
-            rows: vec![toyota, sony],
+            rows: vec![toyota, syn_electronics],
             summary: None,
             truncated: false,
         };
@@ -243,7 +243,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         let mut first = balance_row(9904);
         first.security_name = "Decimal 検証対象 A".to_string();
         first.total_purchase_amount = rust_decimal_macros::dec!(1000.05);
-        let mut second = balance_row(6758);
+        let mut second = balance_row(9914);
         second.security_name = "Decimal 検証対象 B".to_string();
         second.total_purchase_amount = rust_decimal_macros::dec!(2000.15);
         let decimal_rows = vec![first, second];
@@ -516,7 +516,7 @@ fn composition_basis_matches_abs_sum_percentages() {
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         let mut positive = balance_row(9904);
         positive.total_purchase_amount = rust_decimal_macros::dec!(100);
-        let mut negative = balance_row(6758);
+        let mut negative = balance_row(9914);
         negative.total_purchase_amount = rust_decimal_macros::dec!(-50);
         let rows: Vec<AssetBalanceRow> = vec![positive, negative]
             .into_iter()
@@ -558,7 +558,7 @@ fn list_subtitle_uses_api_totals_when_truncated() {
         );
 
         // 通常時は行から件数と価格なし判定を出す
-        let mut unpriced = balance_row(6758);
+        let mut unpriced = balance_row(9914);
         unpriced.current_price = rust_decimal_macros::dec!(0);
         let resolved = ResolvedAssetBalance {
             rows: vec![Row::Saved(balance_row(9904)), Row::Saved(unpriced)],
@@ -579,7 +579,7 @@ fn list_subtitle_excludes_unpriced_rows_from_price_dates() {
     let owner = Owner::new();
     owner.with(|| {
         // 価格が出ていない行の日付は「その時点の株価」と結びつかないので範囲に混ぜない
-        let mut unpriced = balance_row(6758);
+        let mut unpriced = balance_row(9914);
         unpriced.current_price = rust_decimal_macros::dec!(0);
         unpriced.price_as_of = Some("2024-01-01".to_string());
         let resolved = ResolvedAssetBalance {
@@ -600,7 +600,7 @@ fn list_subtitle_shows_single_date_when_all_rows_share_as_of() {
     owner.with(|| {
         // 基準日が揃っているときは範囲ではなく単一の日付を出す
         let resolved = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(9904)), Row::Saved(balance_row(6758))],
+            rows: vec![Row::Saved(balance_row(9904)), Row::Saved(balance_row(9914))],
             total: 2,
             warning: None,
             fallback_totals: None,

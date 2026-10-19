@@ -10,7 +10,7 @@ const MOCK_USER = {
   name: 'テストユーザー',
 };
 
-const NINTENDO = {
+const SYN_GAME = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
@@ -75,7 +75,7 @@ async function mockReceipts(page: Page) {
 
 test('保有銘柄詳細: 最下端でも本文がフッターに重ならない', async ({ page }) => {
   await mockBase(page);
-  await mockAssetBalances(page, [NINTENDO]);
+  await mockAssetBalances(page, [SYN_GAME]);
   await page.goto('/assetbalance/holdings/asset-balance-1');
   await expect(page.getByRole('heading', { name: '架空ゲーム株式会社' })).toBeVisible();
 

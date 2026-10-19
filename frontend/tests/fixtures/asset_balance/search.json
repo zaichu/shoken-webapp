@@ -9,21 +9,21 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
       "query": "",
       "expected_ids": [
         "auto",
-        "sony",
-        "softbank"
+        "syn_electronics",
+        "syn_comm_holdings"
       ]
     },
     {
@@ -35,21 +35,21 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
       "query": "   ",
       "expected_ids": [
         "auto",
-        "sony",
-        "softbank"
+        "syn_electronics",
+        "syn_comm_holdings"
       ]
     },
     {
@@ -61,14 +61,14 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
       "query": "9904",
@@ -85,14 +85,14 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
       "query": "990",
@@ -109,19 +109,19 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
-      "query": "ソニー",
+      "query": "エレクトロ",
       "expected_ids": [
-        "sony"
+        "syn_electronics"
       ]
     },
     {
@@ -133,20 +133,21 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
-      "query": "グループ",
+      "query": "架空",
       "expected_ids": [
-        "sony",
-        "softbank"
+        "auto",
+        "syn_electronics",
+        "syn_comm_holdings"
       ]
     },
     {
@@ -158,19 +159,19 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
-      "query": "9984 グループ",
+      "query": "9915 ホールディングス",
       "expected_ids": [
-        "softbank"
+        "syn_comm_holdings"
       ]
     },
     {
@@ -182,14 +183,14 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
       "query": "9904 グループ",
@@ -204,19 +205,19 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
-      "query": "\"ソフトバンクグループ\"",
+      "query": "\"架空通信ホールディングス\"",
       "expected_ids": [
-        "softbank"
+        "syn_comm_holdings"
       ]
     },
     {
@@ -228,19 +229,19 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
-      "query": "6758: ソニーグループ",
+      "query": "9914: 架空エレクトロニクス",
       "expected_ids": [
-        "sony"
+        "syn_electronics"
       ]
     },
     {
@@ -252,19 +253,19 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
-      "query": "6758： ソニーグループ",
+      "query": "9914： 架空エレクトロニクス",
       "expected_ids": [
-        "sony"
+        "syn_electronics"
       ]
     },
     {
@@ -276,14 +277,14 @@
           "security_name": "架空自動車"
         },
         {
-          "id": "sony",
-          "security_code": "6758",
-          "security_name": "ソニーグループ"
+          "id": "syn_electronics",
+          "security_code": "9914",
+          "security_name": "架空エレクトロニクス"
         },
         {
-          "id": "softbank",
-          "security_code": "9984",
-          "security_name": "ソフトバンクグループ"
+          "id": "syn_comm_holdings",
+          "security_code": "9915",
+          "security_name": "架空通信ホールディングス"
         }
       ],
       "query": "9999",

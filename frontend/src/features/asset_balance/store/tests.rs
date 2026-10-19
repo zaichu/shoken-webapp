@@ -62,18 +62,18 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
         let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
             generation,
             Ok(LoadedAssetBalances {
-                rows: vec![balance_row(6758)],
+                rows: vec![balance_row(9914)],
                 total: 1,
                 summary: None,
                 truncated: false,
             }),
         )));
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
-            per_share: HashMap::from([("6758".to_string(), 40.0)]),
+            per_share: HashMap::from([("9914".to_string(), 40.0)]),
             status: HashMap::new(),
         });
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        lookup.update(|store| store.seed(generation, &[balance_row(6758)]));
+        lookup.update(|store| store.seed(generation, &[balance_row(9914)]));
 
         let new_row = balance_row(9904);
         let (codes, missing) = apply_loaded_asset_balances(
@@ -114,7 +114,7 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        lookup.update(|store| store.seed(generation, &[balance_row(9904), balance_row(6758)]));
+        lookup.update(|store| store.seed(generation, &[balance_row(9904), balance_row(9914)]));
 
         let mut replaced = balance_row(9904);
         replaced.shares = rust_decimal_macros::dec!(200);
@@ -140,7 +140,7 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
             "同一世代の置換でも lookup の古い値を残さない"
         );
         assert!(
-            lookup.with_untracked(|store| store.get(generation, "6758").is_none()),
+            lookup.with_untracked(|store| store.get(generation, "9914").is_none()),
             "置換後に消えた銘柄の lookup も消す"
         );
     });

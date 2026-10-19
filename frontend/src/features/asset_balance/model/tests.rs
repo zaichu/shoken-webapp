@@ -233,7 +233,7 @@ fn kpi_holdings() -> Vec<KpiHolding> {
             total_purchase_amount: 250000.0,
         },
         KpiHolding {
-            security_code: "6758".to_string(),
+            security_code: "9914".to_string(),
             shares: 50.0,
             total_purchase_amount: 600000.0,
         },
@@ -241,7 +241,7 @@ fn kpi_holdings() -> Vec<KpiHolding> {
 }
 
 fn full_dividends() -> HashMap<String, f64> {
-    HashMap::from([("9904".to_string(), 50.0), ("6758".to_string(), 240.0)])
+    HashMap::from([("9904".to_string(), 50.0), ("9914".to_string(), 240.0)])
 }
 
 #[test]

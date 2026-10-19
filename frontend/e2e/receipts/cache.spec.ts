@@ -32,8 +32,8 @@ const DIVIDEND_A = {
 const DIVIDEND_B = {
   ...DIVIDEND_A,
   id: '00000000-0000-0000-0000-000000000003',
-  security_code: '6758',
-  security_name: 'ソニーグループ',
+  security_code: '9914',
+  security_name: '架空エレクトロニクス',
 };
 
 const DOMESTIC = {
@@ -289,7 +289,7 @@ test('ログアウトでDELETEが呼ばれて/loginへ遷移し、別ユーザ�
 
   session.responder = userSession(USER_B);
   await page.goto('/receipts');
-  await expect(page.getByRole('cell', { name: 'ソニーグループ' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空エレクトロニクス' })).toBeVisible();
   await expect(page.getByRole('cell', { name: '架空自動車' })).toBeHidden();
 
   expect(logs.dividends.count).toBe(2);
@@ -321,7 +321,7 @@ test('ログアウト後に旧データが残らない', async ({ page }) => {
 
   session.responder = userSession(USER_B);
   await page.goto('/receipts');
-  await expect(page.getByRole('cell', { name: 'ソニーグループ' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空エレクトロニクス' })).toBeVisible();
 
   expect(logs.dividends.count).toBe(2);
 });

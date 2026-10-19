@@ -7,7 +7,7 @@ const MOCK_USER = {
   name: 'テストユーザー',
 };
 
-const TOYOTA = {
+const SYN_AUTO = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
@@ -20,12 +20,12 @@ const TOYOTA = {
   daily_change: 50,
 };
 
-const SONY = {
+const SYN_ELECTRONICS = {
   id: 'asset-balance-2',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '6758',
-  security_name: 'ソニーグループ',
+  security_code: '9914',
+  security_name: '架空エレクトロニクス',
   shares: 50,
   average_purchase_price: 3000,
   total_purchase_amount: 150000,
@@ -33,7 +33,7 @@ const SONY = {
   daily_change: -20,
 };
 
-const NTT = {
+const SYN_TELECOM = {
   id: 'asset-balance-3',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
@@ -55,7 +55,7 @@ async function setupAssetBalanceMocks(page: Page) {
     if (route.request().method() !== 'GET') {
       return route.abort();
     }
-    const data = [TOYOTA, SONY, NTT];
+    const data = [SYN_AUTO, SYN_ELECTRONICS, SYN_TELECOM];
     return route.fulfill(
       json({
         data,
