@@ -12,8 +12,6 @@ pub enum ButtonVariant {
     Secondary(ButtonSize),
     /// 紺のヘッダー上の枠線ボタン(PC・スマホの上部帯)
     Header(ButtonSize),
-    /// 文字色を落とした副ボタン(絞り込みの解除など)
-    SecondarySoft(ButtonSize),
     /// 赤塗りの危険確定ボタン(確認モーダル)
     DangerSolid(ButtonSize),
     /// 文字だけの静かな操作(絞り込みの解除など)
@@ -35,10 +33,16 @@ pub enum ButtonVariant {
     CopyName,
     /// 資産管理テーブルの並び替え列見出し
     AssetSortColumn,
-    /// 資産管理スマホ下部帯の絞り込みトグル
-    AssetMobileTool,
-    /// 資産管理スマホ下部帯の並び替え順トグル(「高い順 ↓」)
+    /// 資産管理スマホ下部帯の並べ替え順トグル(「高い順 ↓」)
     AssetMobileOrder,
+    /// 検索条件の適用中チップ(「口座: 特定 ✕」)
+    ConditionChip,
+    /// 「条件を足す」ボタン(＋口座 など)
+    AddCondition,
+    /// 条件小窓の選択肢(aria-pressed で選択中を示す)
+    ConditionOption,
+    /// 検索条件の一括解除(「すべてクリア」)
+    SearchClear,
     /// 設定画面の少数択一(金額単位・自動ログアウト)。aria-pressed で選択中を示す
     Segmented,
 }
@@ -74,10 +78,6 @@ impl ButtonVariant {
                 "border border-border-strong bg-surface text-text hover:border-border-bold hover:bg-surface-sunken",
                 size,
             ),
-            Self::SecondarySoft(size) => sized(
-                "border border-border-strong bg-surface text-text-soft hover:border-border-bold hover:bg-surface-sunken",
-                size,
-            ),
             Self::DangerSolid(size) => sized(
                 // ink・negative 塗り面はダークで明転するため、上の文字は page 色にする(text-inverse は白固定)
                 "border border-negative bg-negative text-page shadow-sm hover:border-negative-strong hover:bg-negative-strong",
@@ -100,8 +100,11 @@ impl ButtonVariant {
             }
             Self::CopyName => "copyable-name".to_string(),
             Self::AssetSortColumn => "asset-th-sort".to_string(),
-            Self::AssetMobileTool => "asset-mobile-tool".to_string(),
             Self::AssetMobileOrder => "asset-mobile-order".to_string(),
+            Self::ConditionChip => "active-condition-chip".to_string(),
+            Self::AddCondition => "add-condition-button".to_string(),
+            Self::ConditionOption => "condition-option".to_string(),
+            Self::SearchClear => "receipts-search-clear".to_string(),
             Self::Segmented => "segmented-option".to_string(),
         }
     }

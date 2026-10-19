@@ -1218,6 +1218,295 @@
         ]
       }
     },
+    "/api/v1/fund-balance-import-validations": {
+      "post": {
+        "tags": [
+          "handlers::v1::fund_balances"
+        ],
+        "summary": "投資信託残高 CSV をバリデーション（v1）",
+        "operationId": "v1_fund_balance_validate_import",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvUploadForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "CSV のプレビューを返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CSV の形式が不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/fund-balance-imports": {
+      "post": {
+        "tags": [
+          "handlers::v1::fund_balances"
+        ],
+        "summary": "投資信託残高 CSV をインポート（v1）",
+        "operationId": "v1_fund_balance_import",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvUploadForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "CSV のインポートが完了しました",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CSV の形式が不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/fund-balances": {
+      "get": {
+        "tags": [
+          "handlers::v1::fund_balances"
+        ],
+        "summary": "投資信託残高一覧を取得（v1）",
+        "operationId": "v1_fund_balance_list",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "ページ番号（デフォルト: 1）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "1ページあたりの件数（デフォルト: 200、最大: 1000）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "フリーワード検索（ファンド名/口座区分の token AND 検索）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fund_name",
+            "in": "query",
+            "description": "ファンド名での絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "description": "口座区分での絞り込み",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include_summary",
+            "in": "query",
+            "description": "検索条件全体の集計を含めるか",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "include_facets",
+            "in": "query",
+            "description": "検索候補 facets を含めるか",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "投資信託残高の一覧を返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedSearchResponse_FundBalance_FundBalanceSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "検索パラメータが不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "handlers::v1::fund_balances"
+        ],
+        "summary": "投資信託残高を全削除（v1）",
+        "operationId": "v1_fund_balance_delete_all",
+        "responses": {
+          "200": {
+            "description": "全ての投資信託残高データを削除しました",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限を超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/mutual-fund-import-validations": {
       "post": {
         "tags": [
@@ -2362,6 +2651,129 @@
           }
         }
       },
+      "FundBalance": {
+        "type": "object",
+        "description": "投資信託の保有残高（DB + APIレスポンス兼用）。\n価格は外部取得せず CSV の基準価額・時価評価額を保持する",
+        "required": [
+          "id",
+          "fund_name",
+          "account",
+          "shares",
+          "average_purchase_price",
+          "total_purchase_amount",
+          "base_price",
+          "base_price_day_change",
+          "base_price_month_change",
+          "market_value",
+          "profit_loss",
+          "profit_loss_rate",
+          "total_return",
+          "price_as_of",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "average_purchase_price": {
+            "type": "number",
+            "format": "double",
+            "description": "平均取得価額[円]（1万口あたり）"
+          },
+          "base_price": {
+            "type": "number",
+            "format": "double",
+            "description": "基準価額[円]（1万口あたり）"
+          },
+          "base_price_day_change": {
+            "type": "number",
+            "format": "double",
+            "description": "基準価額(前日比)[円]。CSV が \"-\" のときは持たない"
+          },
+          "base_price_month_change": {
+            "type": "number",
+            "format": "double",
+            "description": "基準価額(前月比)[円]"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dividends_course": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "分配金コース（再投資型・受取型など）。CSV が \"-\" のときは持たない"
+          },
+          "fund_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "market_value": {
+            "type": "number",
+            "format": "double",
+            "description": "時価評価額[円]（CSV 値をそのまま保持）"
+          },
+          "price_as_of": {
+            "type": "string",
+            "format": "date",
+            "description": "基準価額の基準日（JST での CSV 取込日）"
+          },
+          "profit_loss": {
+            "type": "number",
+            "format": "double"
+          },
+          "profit_loss_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "shares": {
+            "type": "number",
+            "format": "double",
+            "description": "保有数量[口]"
+          },
+          "total_purchase_amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_return": {
+            "type": "number",
+            "format": "double"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FundBalanceSummary": {
+        "type": "object",
+        "description": "投資信託残高 検索条件全体の集計。\ntotal_daily_change は保有数量で重み付けした基準価額(前日比)の円換算合計\n（shares × 前日比 / 10000）。前日比を持たない行は 0 として扱う",
+        "required": [
+          "total_market_value",
+          "total_purchase_amount",
+          "total_daily_change"
+        ],
+        "properties": {
+          "total_daily_change": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_market_value": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_purchase_amount": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "MessageResponse": {
         "type": "object",
         "description": "メッセージレスポンス（削除・ログアウト等）",
@@ -2874,6 +3286,166 @@
                 "format": "double"
               },
               "total_taxes": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PaginatedSearchResponse_FundBalance_FundBalanceSummary": {
+        "type": "object",
+        "description": "検索・集計付きページネーションレスポンス。",
+        "required": [
+          "data",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "投資信託の保有残高（DB + APIレスポンス兼用）。\n価格は外部取得せず CSV の基準価額・時価評価額を保持する",
+              "required": [
+                "id",
+                "fund_name",
+                "account",
+                "shares",
+                "average_purchase_price",
+                "total_purchase_amount",
+                "base_price",
+                "base_price_day_change",
+                "base_price_month_change",
+                "market_value",
+                "profit_loss",
+                "profit_loss_rate",
+                "total_return",
+                "price_as_of",
+                "created_at",
+                "updated_at"
+              ],
+              "properties": {
+                "account": {
+                  "type": "string"
+                },
+                "average_purchase_price": {
+                  "type": "number",
+                  "format": "double",
+                  "description": "平均取得価額[円]（1万口あたり）"
+                },
+                "base_price": {
+                  "type": "number",
+                  "format": "double",
+                  "description": "基準価額[円]（1万口あたり）"
+                },
+                "base_price_day_change": {
+                  "type": "number",
+                  "format": "double",
+                  "description": "基準価額(前日比)[円]。CSV が \"-\" のときは持たない"
+                },
+                "base_price_month_change": {
+                  "type": "number",
+                  "format": "double",
+                  "description": "基準価額(前月比)[円]"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "dividends_course": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "分配金コース（再投資型・受取型など）。CSV が \"-\" のときは持たない"
+                },
+                "fund_name": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "market_value": {
+                  "type": "number",
+                  "format": "double",
+                  "description": "時価評価額[円]（CSV 値をそのまま保持）"
+                },
+                "price_as_of": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "基準価額の基準日（JST での CSV 取込日）"
+                },
+                "profit_loss": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "profit_loss_rate": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "shares": {
+                  "type": "number",
+                  "format": "double",
+                  "description": "保有数量[口]"
+                },
+                "total_purchase_amount": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "total_return": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "facets": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchFacets"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "summary": {
+            "type": "object",
+            "description": "投資信託残高 検索条件全体の集計。\ntotal_daily_change は保有数量で重み付けした基準価額(前日比)の円換算合計\n（shares × 前日比 / 10000）。前日比を持たない行は 0 として扱う",
+            "required": [
+              "total_market_value",
+              "total_purchase_amount",
+              "total_daily_change"
+            ],
+            "properties": {
+              "total_daily_change": {
+                "type": "number",
+                "format": "double"
+              },
+              "total_market_value": {
+                "type": "number",
+                "format": "double"
+              },
+              "total_purchase_amount": {
                 "type": "number",
                 "format": "double"
               }

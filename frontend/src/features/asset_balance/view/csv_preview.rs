@@ -165,6 +165,102 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
     }
 }
 
+#[component]
+pub fn FundBalanceCsvPreview(
+    rows: Vec<crate::features::asset_balance::fund::FundBalanceRow>,
+) -> impl IntoView {
+    use crate::features::asset_balance::fund::fund_view;
+    let total = rows.len();
+    let views: Vec<_> = rows.iter().map(fund_view).collect();
+    let views_for_pc = views.clone();
+    let show_all = RwSignal::new(false);
+    let mobile_views = Memo::new(move |_| {
+        if show_all.get() || total <= MOBILE_PREVIEW_LIMIT {
+            views.clone()
+        } else {
+            views[..MOBILE_PREVIEW_LIMIT].to_vec()
+        }
+    });
+    let has_more = Memo::new(move |_| total > MOBILE_PREVIEW_LIMIT && !show_all.get());
+    view! {
+        <section data-testid="csv-preview">
+            <h2 class="text-sm font-bold text-text">"プレビュー(投資信託)"</h2>
+            <p class="mt-1 text-xs text-text-soft">
+                "表は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
+            </p>
+            <div class="mt-2">
+                <div class="hidden lg:block">
+                    <div class="csv-preview-scroll max-h-96 overflow-y-auto">
+                        <table class="receipts-table w-full">
+                            <thead>
+                            <tr class="text-text-soft font-semibold text-xs">
+                                <th class="px-3 py-2 text-left">"ファンド名"</th>
+                                <th class="px-3 py-2 text-left">"口座"</th>
+                                <th class="px-3 py-2 text-right">"保有口数"</th>
+                                <th class="px-3 py-2 text-right">"基準価額"</th>
+                                <th class="px-3 py-2 text-right">"評価額"</th>
+                                <th class="px-3 py-2 text-right">"評価損益"</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {views_for_pc.into_iter().map(|view| {
+                                let shares_str = format!("{}口", crate::features::asset_balance::model::format_number_value(view.shares));
+                                let base_price_str = format!("¥{}", crate::features::asset_balance::model::format_number_value(view.base_price));
+                                let market_text = format_row_valuation_amount(Some(view.market_value));
+                                let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
+                                let pnl_class = if view.profit_loss < 0.0 { "text-negative" } else if view.profit_loss > 0.0 { "text-positive" } else { "text-text-soft" };
+                                view! {
+                                    <tr class="border-t border-border">
+                                        <td class="px-3 py-2 text-sm text-text">{view.name}</td>
+                                        <td class="px-3 py-2 text-sm text-text">{view.account}</td>
+                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{shares_str}</td>
+                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{base_price_str}</td>
+                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-brand-text">{market_text}</td>
+                                        <td class=format!("px-3 py-2 text-sm text-right tabular-nums {}", pnl_class)>{pnl_text}</td>
+                                    </tr>
+                                }
+                            }).collect_view()}
+                        </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="lg:hidden space-y-2">
+                    {move || mobile_views.get().into_iter().map(|view| {
+                        let market_text = format_row_valuation_amount(Some(view.market_value));
+                        let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
+                        let pnl_class = if view.profit_loss < 0.0 { "text-negative" } else if view.profit_loss > 0.0 { "text-positive" } else { "text-text-soft" };
+                        let shares_str = format!("{}口", crate::features::asset_balance::model::format_number_value(view.shares));
+                        view! {
+                            <Card variant=CardVariant::Item class="p-3">
+                                <div class="flex items-baseline justify-between gap-2">
+                                    <span class="min-w-0 truncate font-medium text-text">{view.name}</span>
+                                    <span class="shrink-0 font-bold tabular-nums text-brand-text">{market_text}</span>
+                                </div>
+                                <div class="mt-1 flex items-baseline justify-between gap-2 text-xs">
+                                    <span class="shrink-0 text-text-muted">{view.account} " · " {shares_str}</span>
+                                    <span class=format!("shrink-0 {}", pnl_class)>{pnl_text}</span>
+                                </div>
+                            </Card>
+                        }
+                    }).collect_view()}
+                    {move || has_more.get().then(|| {
+                        view! {
+                            <Button
+                                variant=ButtonVariant::Ghost
+                                class="block min-h-11 w-full text-center"
+                                testid="csv-preview-show-all"
+                                on_click=move |_| show_all.set(true)
+                            >
+                                {format!("残り{}件をすべて表示", total - MOBILE_PREVIEW_LIMIT)}
+                            </Button>
+                        }
+                    })}
+                </div>
+            </div>
+        </section>
+    }
+}
+
 fn format_number(value: Decimal) -> String {
     let s = value.to_string();
     let (sign, abs_s) = if let Some(stripped) = s.strip_prefix('-') {

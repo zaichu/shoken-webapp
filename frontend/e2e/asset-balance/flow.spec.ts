@@ -261,7 +261,7 @@ test('銘柄名の一部で絞り込み解除できる', async ({ page }) => {
 
   await page.getByTestId('asset-search-input-pc').fill('エレクトロ');
 
-  await expect(page.getByTestId('asset-search-count-pc')).toContainText('1 / 2');
+  await expect(page.getByTestId('asset-search-count-pc')).toContainText('1件 / 2件');
   await expect(list.getByText('架空エレクトロニクス')).toBeVisible();
   await expect(list.getByText('架空自動車')).not.toBeVisible();
 
@@ -278,15 +278,15 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/assetbalance/csv');
 
-  // カード内の「すべて削除…」ボタンをクリック
-  const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+  // 国内株式カード内の削除ボタンをクリック(投資信託のカードもあるので名前で区別する)
+  const deleteButton = page.getByRole('button', { name: '国内株式をすべて削除…' });
   await expect(deleteButton).toBeVisible();
   await deleteButton.click();
 
   // 確認モーダルが表示される
   const modal = page.getByRole('dialog');
   await expect(modal).toBeVisible();
-  await expect(modal).toContainText('資産管理を削除しますか?');
+  await expect(modal).toContainText('資産管理(国内株式)を削除しますか?');
   await expect(modal).toContainText('この操作は取り消せません');
   await expect(modal).toContainText('1件');
   expect(mocks.getDeleteRequestCount()).toBe(0);

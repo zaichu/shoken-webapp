@@ -234,6 +234,74 @@ pub struct AssetBalanceSummary {
     pub priced_purchase_amount: Decimal,
 }
 
+/// 投資信託の保有残高（DB + APIレスポンス兼用）。
+/// 価格は外部取得せず CSV の基準価額・時価評価額を保持する
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+pub struct FundBalance {
+    #[cfg_attr(feature = "utoipa", schema(value_type = Uuid))]
+    pub id: RecordId,
+    #[cfg(feature = "typed")]
+    #[serde(default, skip_serializing)]
+    pub user_id: UserId,
+    pub fund_name: String,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde(deserialize_with = "crate::value::unchecked::account")]
+    pub account: Account,
+    /// 分配金コース（再投資型・受取型など）。CSV が "-" のときは持たない
+    pub dividends_course: Option<String>,
+    /// 保有数量[口]
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub shares: Decimal,
+    /// 平均取得価額[円]（1万口あたり）
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub average_purchase_price: Decimal,
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub total_purchase_amount: Decimal,
+    /// 基準価額[円]（1万口あたり）
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub base_price: Decimal,
+    /// 基準価額(前日比)[円]。CSV が "-" のときは持たない
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub base_price_day_change: Option<Decimal>,
+    /// 基準価額(前月比)[円]
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub base_price_month_change: Option<Decimal>,
+    /// 時価評価額[円]（CSV 値をそのまま保持）
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub market_value: Decimal,
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub profit_loss: Decimal,
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub profit_loss_rate: Option<Decimal>,
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub total_return: Option<Decimal>,
+    /// 基準価額の基準日（JST での CSV 取込日）
+    pub price_as_of: NaiveDate,
+    #[cfg(feature = "typed")]
+    pub created_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub created_at: String,
+    #[cfg(feature = "typed")]
+    pub updated_at: DateTime<Utc>,
+    #[cfg(not(feature = "typed"))]
+    pub updated_at: String,
+}
+
+/// 投資信託残高 検索条件全体の集計。
+/// total_daily_change は保有数量で重み付けした基準価額(前日比)の円換算合計
+/// （shares × 前日比 / 10000）。前日比を持たない行は 0 として扱う
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+pub struct FundBalanceSummary {
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub total_market_value: Decimal,
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub total_purchase_amount: Decimal,
+    #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
+    pub total_daily_change: Decimal,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

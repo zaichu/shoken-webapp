@@ -10,6 +10,7 @@ pub mod csv_import;
 pub mod dividend_per_share;
 pub mod dividends;
 pub mod domestic_stocks;
+pub mod fund_balances;
 pub mod mutual_funds;
 pub mod stocks;
 
@@ -73,6 +74,14 @@ pub fn data_routes() -> Router<AppState> {
             "/api/v1/asset-balance-import-validations",
             post(asset_balances::validate_import),
         )
+        .route(
+            "/api/v1/fund-balances",
+            get(fund_balances::list).delete(fund_balances::delete_all),
+        )
+        .route(
+            "/api/v1/fund-balance-import-validations",
+            post(fund_balances::validate_import),
+        )
 }
 
 /// 銘柄検索 v1 ルート（stock_search_limiter 対象、未認証）
@@ -93,6 +102,7 @@ pub fn csv_upload_routes() -> Router<AppState> {
             "/api/v1/asset-balance-imports",
             post(asset_balances::import),
         )
+        .route("/api/v1/fund-balance-imports", post(fund_balances::import))
 }
 
 #[cfg(test)]

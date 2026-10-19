@@ -5,7 +5,10 @@ use crate::features::receipts::kind::group_label;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::focus::trap_focus;
+use crate::ui::search_controls::{
+    AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
+    SearchClearButton, SearchCount, SearchTag, SearchTextInput,
+};
 use leptos::prelude::*;
 
 // 銘柄名・コードの文字列検索は入力欄で行うため、条件として数えるのは
@@ -67,34 +70,9 @@ fn date_part_text(value: &str) -> String {
 }
 
 #[component]
-fn SearchTag(
-    label: &'static str,
-    value: Memo<String>,
-    on_clear: impl Fn() + Copy + 'static + Send,
-) -> impl IntoView {
-    move || {
-        let value = value.get();
-        (!value.is_empty()).then(|| {
-            let aria_label = format!("{label} {value} を解除");
-            view! {
-                <button
-                    type="button"
-                    class="active-condition-chip"
-                    aria-label=aria_label
-                    on:click=move |_| on_clear()
-                >
-                    {format!("{label}: {value}")}
-                    <span aria-hidden="true">"✕"</span>
-                </button>
-            }
-        })
-    }
-}
-
-#[component]
 fn ConditionTags(
     search: RwSignal<ReceiptSearch>,
-    has_years: impl Fn() -> bool + Copy + 'static + Send,
+    has_years: impl Fn() -> bool + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
     let date_value =
         Memo::new(move |_| date_tag_text(&search.with(|s| s.selected_queries.date.clone())));
@@ -122,20 +100,17 @@ fn ConditionTags(
 #[component]
 fn SecuritiesInput(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     view! {
-        <input
-            type="search"
-            class="receipts-search-input"
+        <SearchTextInput
             placeholder="銘柄名・コード"
-            aria-label="銘柄名・コード"
-            prop:value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
-            on:input=move |ev| search.update(|s| s.set_securities_query(event_target_value(&ev)))
+            value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
+            on_input=move |value| search.update(|s| s.set_securities_query(value))
         />
     }
 }
 
 /// 絞り込み中の件数と全件数。取得中は出さない
 #[component]
-fn SearchCount(store: ReceiptsStore, tab: RwSignal<ReceiptsTab>) -> impl IntoView {
+fn ReceiptSearchCount(store: ReceiptsStore, tab: RwSignal<ReceiptsTab>) -> impl IntoView {
     let count = Memo::new(move |_| match store.tab_state(tab.get()) {
         TabState::Ready(data) => {
             let query = store.search.with(|s| s.query.clone());
@@ -147,10 +122,7 @@ fn SearchCount(store: ReceiptsStore, tab: RwSignal<ReceiptsTab>) -> impl IntoVie
     move || {
         count.get().map(|(filtered, total)| {
             view! {
-                <span class="receipts-search-count">
-                    <b>{format!("{filtered}件")}</b>
-                    {format!(" / {total}件")}
-                </span>
+                <SearchCount filtered=move || filtered total=move || total />
             }
         })
     }
@@ -159,47 +131,39 @@ fn SearchCount(store: ReceiptsStore, tab: RwSignal<ReceiptsTab>) -> impl IntoVie
 #[component]
 fn ClearAllButton(
     search: RwSignal<ReceiptSearch>,
-    has_years: impl Fn() -> bool + Copy + 'static + Send,
+    has_years: impl Fn() -> bool + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
-    let nothing_to_clear = Signal::derive(move || {
+    let nothing_to_clear = move || {
         search.with(|s| condition_count(s) == 0 && s.selected_queries.securities.is_empty())
-    });
+    };
     view! {
-        <button
-            type="button"
-            class="receipts-search-clear"
-            disabled=move || nothing_to_clear.get()
-            on:click=move |_| search.update(|s| s.clear(has_years()))
-        >
-            "すべてクリア"
-        </button>
+        <SearchClearButton
+            disabled=nothing_to_clear
+            on_clear=move || search.update(|s| s.clear(has_years()))
+        />
     }
 }
 
 #[component]
-fn AddConditionButton(
+fn ReceiptAddConditionButton(
     kind: ConditionKind,
     open: RwSignal<Option<ConditionKind>>,
     node_ref: NodeRef<leptos::html::Button>,
 ) -> impl IntoView {
     let is_open = move || open.get() == Some(kind);
     view! {
-        <button
-            type="button"
-            class="add-condition-button"
-            aria-expanded=move || is_open().to_string()
+        <AddConditionButton
+            label=kind.label()
+            expanded=move || open.get() == Some(kind)
             node_ref=node_ref
-            on:click=move |_| {
+            on_click=move || {
                 if is_open() {
                     open.set(None);
                 } else {
                     open.set(Some(kind));
                 }
             }
-        >
-            "＋ "
-            {kind.label()}
-        </button>
+        />
     }
 }
 
@@ -213,18 +177,11 @@ fn ConditionPopover(
     years: Memo<Vec<SearchOption>>,
     products: Memo<Vec<SearchOption>>,
     accounts: Memo<Vec<SearchOption>>,
-    has_years: impl Fn() -> bool + Copy + 'static + Send,
+    has_years: impl Fn() -> bool + Copy + 'static + Send + Sync,
     /// 背景のクリック・Esc・確定のどれで閉じてもトリガーのボタンへフォーカスを戻す
-    on_close: impl Fn(ConditionKind) + Copy + 'static + Send,
+    on_close: impl Fn(ConditionKind) + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
     let draft = RwSignal::new(search.get_untracked());
-
-    let panel_ref = NodeRef::<leptos::html::Div>::new();
-    Effect::new(move |_| {
-        if let Some(panel) = panel_ref.get() {
-            let _ = panel.focus();
-        }
-    });
 
     let apply_period = move |_| {
         let draft = draft.get_untracked();
@@ -246,28 +203,22 @@ fn ConditionPopover(
         search.update(|s| s.select_quick(key, value));
         on_close(kind);
     };
+    // 口座・商品は単一選択。選んだらすぐ反映して小窓を閉じる
+    let selected_of = move |get: fn(&ReceiptSearch) -> String| {
+        Memo::new(move |_| {
+            let value = search.with(get);
+            if value.is_empty() {
+                Vec::new()
+            } else {
+                vec![value]
+            }
+        })
+    };
+    let selected_accounts = selected_of(|s| s.selected_queries.accounts.clone());
+    let selected_products = selected_of(|s| s.selected_queries.products.clone());
 
     view! {
-        <div class="condition-backdrop" on:click=move |_| on_close(kind) />
-        <div
-            class="condition-panel"
-            role="dialog"
-            aria-label=kind.title()
-            tabindex="-1"
-            node_ref=panel_ref
-            on:keydown=move |event| {
-                if event.key() == "Escape" {
-                    event.prevent_default();
-                    on_close(kind);
-                    return;
-                }
-                // 背景の面で下の操作を塞いでいる間は、Tab で下の要素へ出ないようにする
-                if event.key() == "Tab" {
-                    trap_focus(&event);
-                }
-            }
-        >
-            <p class="condition-panel-title">{kind.title()}</p>
+        <ConditionPanel title=kind.title() on_close=move || on_close(kind)>
             {match kind {
                 ConditionKind::Period => view! {
                     <PeriodDraftContent draft=draft years=years has_years=has_years />
@@ -279,23 +230,23 @@ fn ConditionPopover(
                 }
                     .into_any(),
                 ConditionKind::Account => view! {
-                    <OptionContent
+                    <ConditionOptionList
                         options=accounts
-                        selected=Memo::new(move |_| search.with(|s| s.selected_queries.accounts.clone()))
-                        on_select=move |value| select_option(SearchKey::Accounts, value)
+                        selected=selected_accounts
+                        on_toggle=move |value| select_option(SearchKey::Accounts, value)
                     />
                 }
                     .into_any(),
                 ConditionKind::Product => view! {
-                    <OptionContent
+                    <ConditionOptionList
                         options=products
-                        selected=Memo::new(move |_| search.with(|s| s.selected_queries.products.clone()))
-                        on_select=move |value| select_option(SearchKey::Products, value)
+                        selected=selected_products
+                        on_toggle=move |value| select_option(SearchKey::Products, value)
                     />
                 }
                     .into_any(),
             }}
-        </div>
+        </ConditionPanel>
     }
 }
 
@@ -303,7 +254,7 @@ fn ConditionPopover(
 fn PeriodDraftContent(
     draft: RwSignal<ReceiptSearch>,
     years: Memo<Vec<SearchOption>>,
-    has_years: impl Fn() -> bool + Copy + 'static + Send,
+    has_years: impl Fn() -> bool + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
     let segment = Memo::new(move |_| draft.with(|s| s.date_segment));
     let segment_options = ["すべて", "年", "年月", "日", "範囲"];
@@ -355,36 +306,6 @@ fn PeriodDraftContent(
                 DateSegment::Range => view! { <RangePicker search=draft /> }.into_any(),
             }
         }}
-    }
-}
-
-#[component]
-fn OptionContent(
-    options: Memo<Vec<SearchOption>>,
-    selected: Memo<String>,
-    on_select: impl Fn(String) + Copy + 'static + Send,
-) -> impl IntoView {
-    view! {
-        <div class="condition-option-list">
-            {move || {
-                options.get().iter().map(|opt| {
-                    let opt_value = opt.value.clone();
-                    let opt_label = opt.label.clone();
-                    let value_for_selected = opt_value.clone();
-                    let value_for_click = opt_value.clone();
-                    view! {
-                        <button
-                            type="button"
-                            class="condition-option"
-                            aria-pressed=move || (selected.get() == value_for_selected).to_string()
-                            on:click=move |_| on_select(value_for_click.clone())
-                        >
-                            {opt_label}
-                        </button>
-                    }
-                }).collect_view()
-            }}
-        </div>
     }
 }
 
@@ -644,34 +565,29 @@ pub fn ReceiptsPcSearchBar(
 
     view! {
         <div class="pc-search-area no-print" role="search" aria-label="取引明細の検索">
-            <div class="receipts-search-box">
-                <svg aria-hidden="true" class="h-4 w-4 shrink-0 mx-2 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="7"></circle>
-                    <path d="M20 20l-3.5-3.5"></path>
-                </svg>
+            <SearchBox>
                 <ConditionTags search=search has_years=has_years />
                 <SecuritiesInput search=search />
-                <SearchCount store=store tab=tab />
+                <ReceiptSearchCount store=store tab=tab />
                 <ClearAllButton search=search has_years=has_years />
-            </div>
-            <div class="add-condition-row">
-                <span class="add-condition-label">"条件を足す:"</span>
-                <AddConditionButton kind=ConditionKind::Period open=controls.open node_ref=controls.period_ref />
+            </SearchBox>
+            <AddConditionRow>
+                <ReceiptAddConditionButton kind=ConditionKind::Period open=controls.open node_ref=controls.period_ref />
                 {move || {
                     (!accounts.get().is_empty()).then(|| {
                         view! {
-                            <AddConditionButton kind=ConditionKind::Account open=controls.open node_ref=controls.account_ref />
+                            <ReceiptAddConditionButton kind=ConditionKind::Account open=controls.open node_ref=controls.account_ref />
                         }
                     })
                 }}
                 {move || {
                     (!products.get().is_empty()).then(|| {
                         view! {
-                            <AddConditionButton kind=ConditionKind::Product open=controls.open node_ref=controls.product_ref />
+                            <ReceiptAddConditionButton kind=ConditionKind::Product open=controls.open node_ref=controls.product_ref />
                         }
                     })
                 }}
-            </div>
+            </AddConditionRow>
             {move || {
                 controls.open.get().map(|kind| {
                     view! {
@@ -714,33 +630,29 @@ pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
         <div class="receipts-mobile-bottom-section no-print lg:hidden" role="search" aria-label="検索">
             <div class="page-gutter">
                 <div class="receipts-mobile-search">
-                    <div class="receipts-search-box">
-                        <svg aria-hidden="true" class="h-5 w-5 shrink-0 mx-2 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="M20 20l-3.5-3.5"></path>
-                        </svg>
+                    <SearchBox icon_size="h-5 w-5">
                         <ConditionTags search=search has_years=has_years />
                         <SecuritiesInput search=search />
-                    </div>
-                    <div class="add-condition-row">
-                        <AddConditionButton kind=ConditionKind::Period open=controls.open node_ref=controls.period_ref />
+                    </SearchBox>
+                    <AddConditionRow>
+                        <ReceiptAddConditionButton kind=ConditionKind::Period open=controls.open node_ref=controls.period_ref />
                         {move || {
                             (!accounts.get().is_empty()).then(|| {
                                 view! {
-                                    <AddConditionButton kind=ConditionKind::Account open=controls.open node_ref=controls.account_ref />
+                                    <ReceiptAddConditionButton kind=ConditionKind::Account open=controls.open node_ref=controls.account_ref />
                                 }
                             })
                         }}
                         {move || {
                             (!products.get().is_empty()).then(|| {
                                 view! {
-                                    <AddConditionButton kind=ConditionKind::Product open=controls.open node_ref=controls.product_ref />
+                                    <ReceiptAddConditionButton kind=ConditionKind::Product open=controls.open node_ref=controls.product_ref />
                                 }
                             })
                         }}
-                    </div>
+                    </AddConditionRow>
                     <div class="receipts-mobile-search-meta">
-                        <SearchCount store=store tab=tab />
+                        <ReceiptSearchCount store=store tab=tab />
                         <ClearAllButton search=search has_years=has_years />
                     </div>
                 </div>

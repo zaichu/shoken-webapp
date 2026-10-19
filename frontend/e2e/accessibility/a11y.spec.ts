@@ -455,11 +455,8 @@ test('取引明細の検索と条件を足す小窓に moderate 以上の WCAG �
     await page.waitForTimeout(400);
     // 資産管理の検索入力は行がある時だけ描画されるので
     // 空・取得失敗だと入力欄が無くスキャンが黙って飛ばされる。
-    // PC はツールバー内の入力が常時表示、モバイルは下部操作帯の「絞り込み」で開く
+    // PC ・モバイルとも一覧の上の入力欄が常時表示される
     const searchTestid = name === 'PC' ? 'asset-search-input-pc' : 'asset-search-input';
-    if (name !== 'PC') {
-      await page.getByTestId('asset-filter-toggle').click();
-    }
     await expect(page.getByTestId(searchTestid)).toBeVisible({ timeout: 10000 });
     await scanAxe(page, `資産フィルター(${name})`);
   }

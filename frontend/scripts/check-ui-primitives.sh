@@ -25,6 +25,7 @@ ALLOWED=(
   "src/features/receipts/view/action_bar.rs"  # 新規: 受信明細PC検索バーの部品化は別PRで対応
   "src/features/receipts/view/tabs.rs"         # 新規: タブボタンの部品化は別PRで対応
   "src/features/receipts/view/table.rs"        # 新規: テーブルカードの部品化は別PRで対応
+  "src/features/asset_balance/view/kind_tabs.rs" # 新規: role="tab"+aria-selected のタブ部品化は別PRで対応
 )
 
 fail=0

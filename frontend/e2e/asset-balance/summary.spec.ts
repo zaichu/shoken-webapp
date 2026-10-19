@@ -85,7 +85,7 @@ test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計の�
 
   await page.getByTestId('asset-search-input-pc').fill('エレクトロ');
 
-  await expect(page.getByTestId('asset-search-count-pc')).toContainText('1 / 2');
+  await expect(page.getByTestId('asset-search-count-pc')).toContainText('1件 / 2件');
   // 絞り込み中も合計は全保有分のまま
   await expect(kpi).toContainText('¥420,000');
   await expect(kpi).toContainText('+¥20,000');

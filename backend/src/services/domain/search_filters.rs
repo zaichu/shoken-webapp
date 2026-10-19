@@ -420,11 +420,13 @@ mod tests {
         use crate::models::common::SearchQueryParams;
         use crate::models::dividend::DividendSearchQueryParams;
         use crate::models::domestic_stock::DomesticStockSearchQueryParams;
+        use crate::models::fund_balance::FundBalanceSearchQueryParams;
         use crate::models::mutualfund::MutualfundSearchQueryParams;
         use crate::services::asset_balance::AssetBalanceDomain;
         use crate::services::dividend::DividendDomain;
         use crate::services::domain::search::Search;
         use crate::services::domestic_stock::DomesticStockDomain;
+        use crate::services::fund_balance::FundBalanceDomain;
         use crate::services::mutualfund::MutualfundDomain;
         use shared::value::UserId;
 
@@ -445,7 +447,7 @@ mod tests {
         /// q の token 数分だけ `AND (col ILIKE ... OR ...)` ブロックが出ることを全ドメインで確認
         #[test]
         fn test_push_filters_expands_q_tokens_over_domain_fields() {
-            let cases: [(String, &[&str]); 4] = [
+            let cases: [(String, &[&str]); 5] = [
                 (
                     filter_sql::<DividendDomain>(&DividendSearchQueryParams {
                         search: search_with_q("AA BB"),
@@ -474,6 +476,13 @@ mod tests {
                     }),
                     &["security_code", "security_name"],
                 ),
+                (
+                    filter_sql::<FundBalanceDomain>(&FundBalanceSearchQueryParams {
+                        search: search_with_q("AA BB"),
+                        ..Default::default()
+                    }),
+                    &["account", "fund_name"],
+                ),
             ];
 
             for (sql, columns) in cases {
@@ -491,7 +500,7 @@ mod tests {
         /// ドメイン固有フィールドが `AND <col> =` の完全一致条件になることを全ドメインで確認
         #[test]
         fn test_push_filters_emits_exact_match_for_domain_fields() {
-            let cases: [(String, &[&str]); 4] = [
+            let cases: [(String, &[&str]); 5] = [
                 (
                     filter_sql::<DividendDomain>(&DividendSearchQueryParams {
                         product: Some("国内株式".to_string()),
@@ -528,6 +537,14 @@ mod tests {
                     }),
                     &["security_code", "security_name"],
                 ),
+                (
+                    filter_sql::<FundBalanceDomain>(&FundBalanceSearchQueryParams {
+                        account: Some("特定".to_string()),
+                        fund_name: Some("架空インデックス".to_string()),
+                        ..Default::default()
+                    }),
+                    &["account", "fund_name"],
+                ),
             ];
 
             for (sql, columns) in cases {
@@ -538,6 +555,14 @@ mod tests {
                     );
                 }
             }
+        }
+
+        /// 一覧・集計の WHERE には常に user_id 条件が入り、他ユーザーの行を
+        /// 参照・削除できないことを全ドメインで固定する
+        #[test]
+        fn test_push_filters_always_scopes_to_user() {
+            let sql = filter_sql::<FundBalanceDomain>(&FundBalanceSearchQueryParams::default());
+            assert!(sql.contains("user_id = "), "sql={sql}");
         }
 
         /// date 系パラメータが DATE_COLUMN への条件になること（日付軸を持つ3ドメイン）

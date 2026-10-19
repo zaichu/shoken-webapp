@@ -5,12 +5,13 @@ use crate::features::asset_balance::format::{
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation, price_date_range,
 };
+use crate::features::asset_balance::fund::FundRowData;
 use crate::features::asset_balance::holdings::holding_view;
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
 };
 use crate::features::asset_balance::store::FilteredPortfolio;
-use crate::features::asset_balance::store::csv::ResolvedAssetBalance;
+use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
 use crate::ui::button::{Button, ButtonVariant};
@@ -29,6 +30,41 @@ fn unpriced_suffix(has_unpriced: bool) -> &'static str {
 /// PC ヘッダー横の件数・基準日注記。取得上限超過で行が欠けるときは API 集計側の件数・
 /// 価格なし判定を使い、集計欄と食い違わないようにする
 pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
+    let (count, has_unpriced, date_text) = stock_subtitle_parts(view);
+    format!("{count}銘柄 · {date_text}{}", unpriced_suffix(has_unpriced))
+}
+
+/// 投資信託タブの副題。CSV が持つ基準価額の時点を出す
+pub(crate) fn fund_subtitle(view: &ResolvedFundBalance) -> String {
+    format!("{}件 · {}", view.total, fund_date_text(view))
+}
+
+/// 「すべて」タブの副題。株と投信の合計件数と、それぞれの基準日を並べる
+pub(crate) fn merged_subtitle(
+    stock: Option<&ResolvedAssetBalance>,
+    fund: Option<&ResolvedFundBalance>,
+) -> Option<String> {
+    if stock.is_none() && fund.is_none() {
+        return None;
+    }
+    let count =
+        stock.map(|view| view.total).unwrap_or(0) + fund.map(|view| view.total).unwrap_or(0);
+    let mut parts = Vec::new();
+    if let Some(view) = stock.filter(|view| !view.rows.is_empty()) {
+        let (_, has_unpriced, date_text) = stock_subtitle_parts(view);
+        parts.push(format!("{date_text}{}", unpriced_suffix(has_unpriced)));
+    }
+    if let Some(view) = fund.filter(|view| !view.rows.is_empty()) {
+        parts.push(fund_date_text(view));
+    }
+    if parts.is_empty() {
+        Some(format!("{count}件"))
+    } else {
+        Some(format!("{count}件 · {}", parts.join(" · ")))
+    }
+}
+
+fn stock_subtitle_parts(view: &ResolvedAssetBalance) -> (usize, bool, String) {
     let (count, has_unpriced) = match &view.fallback_totals {
         Some(summary) => (view.total, summary_valuation(summary).has_unpriced),
         None => {
@@ -50,7 +86,21 @@ pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
         Some((min, max)) => format!("株価 {min}〜{max} 時点(銘柄ごとの最新終値)"),
         None => "株価の基準日は不明".to_string(),
     };
-    format!("{count}銘柄 · {date_text}{}", unpriced_suffix(has_unpriced))
+    (count, has_unpriced, date_text)
+}
+
+fn fund_date_text(view: &ResolvedFundBalance) -> String {
+    let dates: Vec<String> = view
+        .rows
+        .iter()
+        .filter_map(|row| row.price_as_of())
+        .collect();
+    let dates = dates.iter().map(String::as_str);
+    match price_date_range(dates) {
+        Some((min, max)) if min == max => format!("基準価額 {min} 時点"),
+        Some((min, max)) => format!("基準価額 {min}〜{max} 時点"),
+        None => "基準価額の基準日は不明".to_string(),
+    }
 }
 
 #[component]

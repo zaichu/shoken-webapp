@@ -1,5 +1,6 @@
 mod csv;
 mod format;
+mod fund;
 mod holdings;
 mod lookup;
 mod model;
@@ -20,7 +21,7 @@ pub(crate) use model::{
 pub(crate) use portfolio::{SortKey, SortOrder};
 pub(crate) use view::{
     AssetBalanceCompositionPage, AssetBalanceCsvPage, AssetBalanceHoldingPage, AssetBalancePage,
-    AssetBalanceState,
+    AssetBalanceState, AssetFundHoldingPage,
 };
 
 #[cfg(test)]
@@ -30,4 +31,4 @@ pub(crate) use lookup::AssetBalanceLookupStore;
 #[cfg(test)]
 pub(crate) use store::csv::AssetBalanceCsvStore;
 #[cfg(test)]
-pub(crate) use store::{BalanceSlot, DataOps};
+pub(crate) use store::{BalanceSlot, DataOps, FundSlot};

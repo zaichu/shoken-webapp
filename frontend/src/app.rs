@@ -1,6 +1,6 @@
 use crate::features::asset_balance::{
     AssetBalanceCompositionPage, AssetBalanceCsvPage, AssetBalanceHoldingPage, AssetBalancePage,
-    AssetBalanceState,
+    AssetBalanceState, AssetFundHoldingPage,
 };
 use crate::features::home::{HomeOverviewData, HomePage};
 use crate::features::login::LoginPage;
@@ -52,6 +52,7 @@ enum Route {
     AssetBalance,
     AssetBalanceComposition,
     AssetBalanceHolding,
+    AssetFundHolding,
     AssetBalanceCsv,
     Settings,
     Login,
@@ -68,6 +69,7 @@ impl Route {
             Route::AssetBalance => "資産管理",
             Route::AssetBalanceComposition => "構成比",
             Route::AssetBalanceHolding => "保有銘柄詳細",
+            Route::AssetFundHolding => "保有ファンド詳細",
             Route::Settings => "設定",
             Route::Login => "ログイン",
             Route::NotFound => "ページが見つかりません",
@@ -77,6 +79,11 @@ impl Route {
 
 fn holding_id(path: &str) -> Option<&str> {
     let id = path.strip_prefix("/assetbalance/holdings/")?;
+    (!id.is_empty() && !id.contains('/')).then_some(id)
+}
+
+fn fund_holding_id(path: &str) -> Option<&str> {
+    let id = path.strip_prefix("/assetbalance/funds/")?;
     (!id.is_empty() && !id.contains('/')).then_some(id)
 }
 
@@ -94,6 +101,7 @@ fn route_for_path(path: &str) -> Route {
         "/assetbalance/csv" | "/assetbalance/csv/delete" => Route::AssetBalanceCsv,
         "/settings" => Route::Settings,
         path if holding_id(path).is_some() => Route::AssetBalanceHolding,
+        path if fund_holding_id(path).is_some() => Route::AssetFundHolding,
         "/login" => Route::Login,
         "/404" => Route::NotFound,
         _ => Route::NotFound,
@@ -402,6 +410,11 @@ pub fn App() -> impl IntoView {
                         Route::AssetBalanceHolding => {
                             let id = holding_id(&path.get()).unwrap_or_default().to_string();
                             view! { <AssetBalanceHoldingPage id=id /> }.into_any()
+                        }
+                        Route::AssetFundHolding => {
+                            let id =
+                                fund_holding_id(&path.get()).unwrap_or_default().to_string();
+                            view! { <AssetFundHoldingPage id=id /> }.into_any()
                         }
                         Route::AssetBalanceCsv => view! { <AssetBalanceCsvPage /> }.into_any(),
                         Route::Settings => view! { <SettingsPage /> }.into_any(),

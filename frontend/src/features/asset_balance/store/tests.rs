@@ -450,6 +450,7 @@ fn has_current_balances_only_matches_same_generation() {
 fn data_ops_reset_clears_inflight_and_error() {
     let mut ops = DataOps {
         list_rev: 2,
+        fund_list_rev: 0,
         poll_rev: 3,
         inflight: std::collections::HashSet::from([2]),
         refresh_error: Some("x".to_string()),
@@ -471,8 +472,10 @@ fn csv_state_returns_none_when_no_user() {
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         let _csv: RwSignal<AssetCsvSlot> = RwSignal::new(None);
         let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+        let funds: RwSignal<FundSlot> = RwSignal::new(None);
 
-        let store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
+        let store =
+            AssetBalanceCsvStore::new(session, balances, funds, dividends, lookup, data_ops);
 
         assert_eq!(store.csv_state(), CsvTabState::default());
     });
@@ -489,8 +492,10 @@ fn csv_state_returns_value_when_user_exists() {
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         let _csv: RwSignal<AssetCsvSlot> = RwSignal::new(None);
         let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+        let funds: RwSignal<FundSlot> = RwSignal::new(None);
 
-        let store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
+        let store =
+            AssetBalanceCsvStore::new(session, balances, funds, dividends, lookup, data_ops);
 
         session.user.set(Some(user("alice")));
         store.update_csv(generation, |state| {
