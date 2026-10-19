@@ -137,6 +137,7 @@ pub fn Button(
     /// 開閉対象の要素 id(絞り込み欄の開閉ボタンなど)
     #[prop(optional)]
     aria_controls: Option<&'static str>,
+    #[prop(optional)] node_ref: NodeRef<leptos::html::Button>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
 ) -> impl IntoView {
@@ -155,6 +156,7 @@ pub fn Button(
             tabindex=tabindex.map(|index| move || index.get())
             data-testid=testid
             on:click=on_click
+            node_ref=node_ref
         >
             {children()}
         </button>

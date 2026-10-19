@@ -155,14 +155,6 @@ impl CsvTabMeta {
             .as_ref()
             .is_some_and(|preview| preview.has_rows)
     }
-
-    pub fn delete_label(&self) -> &'static str {
-        if self.deleting {
-            "削除中..."
-        } else {
-            "削除する"
-        }
-    }
 }
 
 // 共有クレートの型に固有メソッドを生やせないため、表示用文字列の組み立ては拡張トレイトで提供する

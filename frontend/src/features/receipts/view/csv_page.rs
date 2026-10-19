@@ -1,11 +1,12 @@
 use super::table::ReceiptTable;
+use crate::features::receipts::model::format_date;
 use crate::features::receipts::{
     ReceiptRow, ReceiptsStore, ReceiptsTab, TabState, use_receipts_data,
 };
 use crate::session::use_session;
 use crate::support::csv_flow::CsvTabMeta;
 use crate::support::row::Row;
-use crate::ui::csv_page::{CsvDeletePage, CsvManagePage, CsvSource};
+use crate::ui::csv_page::{CsvManagePage, CsvSource};
 use leptos::prelude::*;
 
 #[derive(Clone, Copy)]
@@ -72,6 +73,24 @@ impl CsvSource for ReceiptCsvSource {
         }
     }
 
+    fn date_range(&self) -> Option<(String, String)> {
+        if let TabState::Ready(data) = self.store.tab_state(self.tab) {
+            let dates: Vec<&str> = data.rows.iter().map(|row| row.date()).collect();
+            if dates.is_empty() {
+                return None;
+            }
+            let min = dates.iter().min()?;
+            let max = dates.iter().max()?;
+            Some((format_date(min), format_date(max)))
+        } else {
+            None
+        }
+    }
+
+    fn refresh_for_delete(&self) {
+        self.store.refresh_for_delete(self.tab);
+    }
+
     fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
         meta.saving || meta.deleting || self.store.any_tab_fetching()
     }
@@ -115,35 +134,28 @@ pub fn ReceiptsCsvPage() -> impl IntoView {
     let tab = kind_tab();
     ensure_kind(store, tab);
     let source = ReceiptCsvSource { store, tab };
-    let delete_href = format!("/receipts/csv/delete?kind={}", tab.kind_param());
     view! {
         <CsvManagePage
             source=source
             subject=tab.label()
             back_href="/receipts"
-            delete_href=delete_href
             preview=view! { <ReceiptsCsvPreview store=store tab=tab /> }.into_any()
         />
     }
 }
 
+/// 旧削除ページ URL へのアクセスを CSV 管理ページへリダイレクトする
 #[component]
 pub fn ReceiptsCsvDeletePage() -> impl IntoView {
-    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
     let tab = kind_tab();
-    ensure_kind(store, tab);
-    // 削除対象の件数をこのページに入った時点で取り直す(別タブ等で増えた分も含める)
-    store.refresh_for_delete(tab);
-    let source = ReceiptCsvSource { store, tab };
     let csv_href = format!("/receipts/csv?kind={}", tab.kind_param());
-    view! {
-        <CsvDeletePage
-            source=source
-            subject=tab.label()
-            csv_href=csv_href
-            list_href="/receipts"
-        />
-    }
+    leptos::task::spawn_local(async move {
+        // 次のマイクロタスクで遷移させ、レンダリングを挟まない
+        if let Some(window) = web_sys::window() {
+            window.location().set_href(&csv_href).ok();
+        }
+    });
+    view! { <div>"CSV管理ページへ移動します..."</div> }
 }
 
 #[component]

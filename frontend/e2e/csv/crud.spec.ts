@@ -440,10 +440,10 @@ test.describe('取引明細 CSV 取込・削除', () => {
 
       const fileInput = page.getByTestId('csv-file-input');
       await expect(fileInput).toBeAttached();
-      const deleteLink = page.getByRole('link', {
-        name: '保存済みデータを削除…',
-      });
-      await expect(deleteLink).toBeVisible();
+      // 新UI: カードに「保存済みの{subject}」と件数が表示される
+      await expect(page.getByText(`保存済みの${scenario.label}`)).toBeVisible();
+      // 初期状態では件数が「取得中...」または「0件」と表示される
+      await expect(page.getByTestId('saved-count')).toContainText(/取得中|0件/);
 
       const fixture = TAB_FIXTURES[scenario.tab].files;
       const base = fixture[scenario.baseFile];
@@ -462,6 +462,8 @@ test.describe('取引明細 CSV 取込・削除', () => {
         .click();
       const notice = page.getByTestId('csv-save-result-notice');
       await expect(notice).toContainText(`${baseCount}件反映`);
+      // 新UI: カードの件数が更新される
+      await expect(page.getByTestId('saved-count')).toContainText(`${baseCount}件`);
 
       await expect(fileInput).toBeEnabled();
       await fileInput.setInputFiles(path.join(fixtureDir(), scenario.additionalFile));
@@ -476,31 +478,98 @@ test.describe('取引明細 CSV 取込・削除', () => {
         `${additional.previewRows.length - additionalCount}件スキップ`,
       );
 
-      // 削除は専用ページで行う。確認は削除ページにだけある
-      await deleteLink.click();
-      await expect(page).toHaveURL(`/receipts/csv/delete?kind=${scenario.kind}`);
-      await expect(page.getByTestId('csv-delete-page')).toContainText(
-        'この操作は取り消せません',
-      );
-      await expect(page.getByTestId('csv-delete-count')).toContainText(
-        `${totalCount}件`,
-      );
+      // 削除はカード内の「すべて削除…」ボタンから確認モーダルで行う
+      const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+      await expect(deleteButton).toBeVisible();
+      await deleteButton.click();
 
-      // 削除ページを開いただけでは DELETE を送らない
-      expect(deleteCounts[scenario.tab]).toBe(0);
-      await page.getByRole('link', { name: 'CSV管理に戻る' }).click();
-      await expect(page).toHaveURL(`/receipts/csv?kind=${scenario.kind}`);
+      // 確認モーダルが表示される
+      const modal = page.getByRole('dialog');
+      await expect(modal).toBeVisible();
+      await expect(modal).toContainText(`${scenario.label}を削除しますか?`);
+      await expect(modal).toContainText('この操作は取り消せません');
+      await expect(modal).toContainText(`${totalCount}件`);
+
+      // 初期フォーカスは「キャンセル」にある
+      const cancelButton = modal.getByRole('button', { name: 'キャンセル' });
+      await expect(cancelButton).toBeFocused();
+
+      // キャンセルでモーダルが閉じ、DELETE は送られない
+      await cancelButton.click();
+      await expect(modal).toBeHidden();
       expect(deleteCounts[scenario.tab]).toBe(0);
 
-      await deleteLink.click();
-      await page.getByRole('button', { name: '削除する' }).click();
+      // 再度開いて確定する
+      await deleteButton.click();
+      await expect(modal).toBeVisible();
+      await modal.getByRole('button', { name: `${totalCount}件を削除する` }).click();
       // 確定時に DELETE が1回だけ送られる
       expect(deleteCounts[scenario.tab]).toBe(1);
-      await expect(page.getByTestId('csv-delete-done')).toContainText('削除しました');
-      await page.getByRole('link', { name: '一覧に戻る' }).click();
-      await expect(page.getByText('データがありません')).toBeVisible();
+      // 削除完了後、モーダルが閉じてカードが「0件」または「取得中...」になる
+      await expect(modal).toBeHidden();
+      await expect(page.getByTestId('saved-count')).toContainText(/0件|取得中/);
+      // CSV管理ページでは空状態ではなくカードの件数が更新される
+      await expect(page.getByTestId('saved-count')).toContainText('0件');
     });
   }
+
+  test('削除が失敗したらモーダルにエラーを残し、再試行で削除できる', async ({ page }) => {
+    const rows = DIVIDEND_BASE.map(asDbRow);
+    let deleteCount = 0;
+    await page.route(/\/api\/v1\/session$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(USER),
+      }),
+    );
+    await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => {
+      if (route.request().method() === 'DELETE') {
+        deleteCount += 1;
+        if (deleteCount === 1) {
+          return route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: { message: '削除に失敗しました' } }),
+          });
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: '{}',
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: rows, total: rows.length, page: 1, per_page: rows.length }),
+      });
+    });
+
+    await page.goto('/receipts/csv?kind=dividend');
+    const savedCount = page.getByTestId('saved-count');
+    await expect(savedCount).toContainText('3件', { timeout: 10000 });
+
+    await page.getByRole('button', { name: 'すべて削除…' }).click();
+    const modal = page.getByRole('dialog');
+    await expect(modal).toBeVisible();
+    // 開いた時点で件数を取り直すため、確定は件数が確定してから押せる
+    const confirmButton = modal.getByRole('button', { name: '3件を削除する' });
+    await expect(confirmButton).toBeEnabled();
+    await confirmButton.click();
+
+    // 失敗: モーダルは開いたまま理由を出す
+    await expect(modal.getByRole('alert')).toContainText('削除に失敗しました', {
+      timeout: 10000,
+    });
+    expect(deleteCount).toBe(1);
+
+    // 同じモーダルから再試行できる
+    await confirmButton.click();
+    await expect(modal).toBeHidden();
+    expect(deleteCount).toBe(2);
+    await expect(savedCount).toContainText('0件');
+  });
 
   test('取込が400で失敗したときはサーバーの理由をそのまま表示する', async ({ page }) => {
     const db: Record<TabKey, unknown[]> = {
@@ -691,10 +760,9 @@ test.describe('資産管理 CSV 取込・削除', () => {
 
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeAttached();
-    const deleteLink = page.getByRole('link', {
-      name: '保存済みデータを削除…',
-    });
-    await expect(deleteLink).toBeVisible();
+    // 新UI: カードに「保存済みの資産管理」と件数が表示される
+    await expect(page.getByText('保存済みの資産管理')).toBeVisible();
+    await expect(page.getByTestId('saved-count')).toContainText(/取得中|0件/);
 
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
@@ -708,6 +776,8 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');
     await expect(notice).toContainText('2件反映');
+    // 新UI: カードの件数が更新される
+    await expect(page.getByTestId('saved-count')).toContainText('2件');
 
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
@@ -718,22 +788,40 @@ test.describe('資産管理 CSV 取込・削除', () => {
 
     await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
     await expect(notice).toContainText('3件反映');
+    await expect(page.getByTestId('saved-count')).toContainText('3件');
 
-    // 削除は専用ページで行う
-    await deleteLink.click();
-    await expect(page).toHaveURL('/assetbalance/csv/delete');
-    await expect(page.getByTestId('csv-delete-page')).toContainText(
-      'この操作は取り消せません',
-    );
-    await expect(page.getByTestId('csv-delete-count')).toContainText('3件');
+    // 削除はカード内の「すべて削除…」ボタンから確認モーダルで行う
+    const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+    await expect(deleteButton).toBeVisible();
+    await deleteButton.click();
+
+    // 確認モーダルが表示される
+    const modal = page.getByRole('dialog');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText('資産管理を削除しますか?');
+    await expect(modal).toContainText('この操作は取り消せません');
+    await expect(modal).toContainText('3件');
+
+    // 初期フォーカスは「キャンセル」にある
+    const cancelButton = modal.getByRole('button', { name: 'キャンセル' });
+    await expect(cancelButton).toBeFocused();
+
+    // キャンセルでモーダルが閉じ、DELETE は送られない
+    await cancelButton.click();
+    await expect(modal).toBeHidden();
     expect(api.deleteCount).toBe(0);
 
-    await page.getByRole('button', { name: '削除する' }).click();
+    // 再度開いて確定する
+    await deleteButton.click();
+    await expect(modal).toBeVisible();
+    await modal.getByRole('button', { name: '3件を削除する' }).click();
     // 確定時に DELETE が1回だけ送られる
     expect(api.deleteCount).toBe(1);
-    await expect(page.getByTestId('csv-delete-done')).toContainText('削除しました');
-    await page.getByRole('link', { name: '一覧に戻る' }).click();
-    await expect(page.getByText('資産管理データがありません')).toBeVisible();
+    // 削除完了後、モーダルが閉じてカードが「0件」または「取得中...」になる
+    await expect(modal).toBeHidden();
+    await expect(page.getByTestId('saved-count')).toContainText(/0件|取得中/);
+    // CSV管理ページでは空状態ではなくカードの件数が更新される
+    await expect(page.getByTestId('saved-count')).toContainText('0件');
   });
 
   test('不正行を含むCSVは修正するまで全件置換で保存できない', async ({ page }) => {
