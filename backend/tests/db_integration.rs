@@ -2697,7 +2697,7 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
     // それより新しい(先頭15件に埋もれる配置)。基準日も同順にしておき、
     // 修正前後で同じ15件が先に選ばれることを担保する
     let bad_codes: Vec<String> = (0..15).map(|i| format!("90{i:02}")).collect();
-    const GOOD: &str = "10000";
+    const GOOD: &str = "9919";
     const FRESH: &str = "9200";
 
     let items: Vec<_> = bad_codes
