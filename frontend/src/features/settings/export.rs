@@ -121,11 +121,10 @@ fn csv_cell(text: &str) -> String {
     }
 }
 
-/// ユーザー由来の文字列用。`= + - @` 始まりは表計算ソフトで式として
-/// 実行されうるため `'` で逃がす。数値フィールドには使わない
+/// ユーザー由来の文字列は式実行を防ぐため `= + - @`・タブ・CR 始まりに `'` を付ける(数値は対象外)
 fn csv_text(text: &str) -> String {
     match text.chars().next() {
-        Some('=' | '+' | '-' | '@') => format!("'{text}"),
+        Some('=' | '+' | '-' | '@' | '\t' | '\r') => format!("'{text}"),
         _ => text.to_string(),
     }
 }
