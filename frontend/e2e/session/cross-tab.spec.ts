@@ -71,8 +71,8 @@ test('片方のタブでアカウント削除するともう片方も未認証�
   );
   const { pageA, pageB } = await openLoggedInPages(context);
 
-  await pageA.getByRole('button', { name: 'メニュー' }).click();
-  await pageA.getByRole('menuitem', { name: 'アカウント削除' }).click();
+  await pageA.goto('/settings');
+  await pageA.getByRole('button', { name: 'アカウントを削除' }).click();
   await pageA
     .getByRole('dialog', { name: 'アカウント削除の確認' })
     .getByRole('button', { name: '削除する' })
