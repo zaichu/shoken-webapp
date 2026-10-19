@@ -302,7 +302,8 @@ fn UserMenu(
                             .and_then(|d| d.active_element())
                             .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok());
                         if let Some(active) = active
-                            && let Some(pos) = items.iter().position(|b| b.is_same_node(Some(&active)))
+                            && let Some(pos) =
+                                items.iter().position(|b| b.is_same_node(Some(&active)))
                         {
                             if ev.shift_key() && pos == 0 {
                                 ev.prevent_default();
@@ -336,9 +337,15 @@ fn UserMenu(
             // 次のマイクロタスクでフォーカスを試行（Show の描画完了を待つ）
             leptos::task::spawn_local(async move {
                 gloo_timers::future::TimeoutFuture::new(0).await;
-                // この Effect の世代が最新でかつメニューがまだ開いている場合のみフォーカス
+                // 遅延描画の間に利用者が移動したフォーカスを奪わない
                 if menu_open.get_untracked()
                     && menu_generation.get_untracked() == current_gen
+                    && trigger_ref.get_untracked().is_some_and(|trigger| {
+                        web_sys::window()
+                            .and_then(|window| window.document())
+                            .and_then(|document| document.active_element())
+                            .is_some_and(|active| active.is_same_node(Some(&trigger)))
+                    })
                     && let Some(ul) = menu_items_ref.get_untracked()
                 {
                     let items = collect_menuitems(&ul);
