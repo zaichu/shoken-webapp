@@ -107,6 +107,7 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
         <CsvManagePage
             source=source
             subject="資産管理(国内株式)"
+            delete_button_label="国内株式をすべて削除…"
             back_href="/assetbalance"
             preview=view! { <CsvPreviewWrapper state=state _session=session /> }.into_any()
             extra=view! {
@@ -211,7 +212,7 @@ fn FundSavedCard(source: AssetBalanceCsvStore) -> impl IntoView {
                         }
                         on_click=open_confirm
                     >
-                        "すべて削除…"
+                        "投資信託をすべて削除…"
                     </Button>
                 </div>
                 {move || {

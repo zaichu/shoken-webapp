@@ -428,6 +428,41 @@
     }
   }
 
+  /* 保有種別タブ(資産管理)。取引明細のタブは濃い帯の上に置く配色なので、
+     明るい面の上でも読めるよう別クラスにする */
+  .asset-kind-tab {
+    /* 選択の色差が大きいため transition を付けると遷移途中が
+       コントラスト不足になる(a11y の計測が落ちる)ので付けない */
+    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border-link bg-surface px-2 text-[13px] text-night-soft hover:text-text-deep lg:min-h-0 lg:px-3.5 lg:text-sm;
+  }
+
+  .asset-kind-tab[aria-selected="true"] {
+    @apply border-brand bg-brand font-bold text-text-inverse;
+  }
+
+  @media (width >= 64rem) {
+    .asset-kind-tab {
+      height: 34px;
+    }
+  }
+
+  .asset-kind-tab-count {
+    @apply text-[11px] font-medium tabular-nums;
+  }
+
+  @media (width >= 64rem) {
+    .asset-kind-tab-count {
+      @apply bg-row-group text-xs text-text-soft;
+      border-radius: 9px;
+      padding: 0 7px;
+      line-height: 18px;
+    }
+
+    .asset-kind-tab[aria-selected="true"] .asset-kind-tab-count {
+      @apply bg-gold font-bold text-brand;
+    }
+  }
+
   .receipts-tab-count {
     @apply text-[11px] font-medium tabular-nums;
   }

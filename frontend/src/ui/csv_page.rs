@@ -94,6 +94,9 @@ pub fn CsvManagePage<S: CsvSource>(
     /// 保存済みカードの直下に置く追加の保存済みブロック(別種別の件数・削除など)
     #[prop(optional)]
     saved_extra: Option<AnyView>,
+    /// 削除ボタンの文言。同じページに別種別の削除ボタンがあるとき種類が分かる名前を渡す
+    #[prop(optional, into)]
+    delete_button_label: Option<String>,
 ) -> impl IntoView {
     let previewing = Memo::new(move |_| source.csv_meta().previewing);
     let saving = Memo::new(move |_| source.csv_meta().saving);
@@ -326,7 +329,7 @@ pub fn CsvManagePage<S: CsvSource>(
                                 }
                                 on_click=open_delete_confirm
                             >
-                                "すべて削除…"
+                                {delete_button_label.clone().unwrap_or_else(|| "すべて削除…".to_string())}
                             </Button>
                         </div>
                         {move || {

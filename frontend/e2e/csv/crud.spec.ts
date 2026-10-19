@@ -790,15 +790,15 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(notice).toContainText('3件反映');
     await expect(page.getByTestId('saved-count')).toContainText('3件');
 
-    // 削除はカード内の「すべて削除…」ボタンから確認モーダルで行う
-    const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+    // 削除はカード内の「国内株式をすべて削除…」ボタンから確認モーダルで行う
+    const deleteButton = page.getByRole('button', { name: '国内株式をすべて削除…' });
     await expect(deleteButton).toBeVisible();
     await deleteButton.click();
 
     // 確認モーダルが表示される
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible();
-    await expect(modal).toContainText('資産管理を削除しますか?');
+    await expect(modal).toContainText('資産管理(国内株式)を削除しますか?');
     await expect(modal).toContainText('この操作は取り消せません');
     await expect(modal).toContainText('3件');
 

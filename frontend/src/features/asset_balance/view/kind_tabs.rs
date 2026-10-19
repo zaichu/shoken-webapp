@@ -31,12 +31,12 @@ pub(crate) fn AssetKindTabs(
                             type="button"
                             role="tab"
                             aria-selected=move || selected().to_string()
-                            class="receipts-tab"
+                            class="asset-kind-tab"
                             data-testid=format!("asset-kind-tab-{}", item.value())
                             on:click=move |_| kind.set(item)
                         >
                             {item.label()}
-                            <span class="receipts-tab-count">{count(item)}</span>
+                            <span class="asset-kind-tab-count">{count(item)}</span>
                         </button>
                     }
                 })
