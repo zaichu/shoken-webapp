@@ -158,7 +158,6 @@ pub fn Button(
             data-testid=testid
             node_ref=node_ref
             on:click=on_click
-            node_ref=node_ref
         >
             {children()}
         </button>
