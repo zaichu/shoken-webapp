@@ -462,13 +462,14 @@ test('設定ページにアカウント・データ・危険な操作のセク�
 
   await expect(page.getByRole('heading', { name: '設定' })).toBeVisible();
 
-  // アカウントセクション
-  await expect(page.getByRole('heading', { name: 'アカウント' })).toBeVisible();
-  await expect(page.getByText('テストユーザー')).toBeVisible();
-  await expect(page.getByText('test@example.com')).toBeVisible();
-  await expect(page.getByText('Google でログイン中')).toBeVisible();
+  // アカウントセクション（ヘッダーのユーザーメニューと重複しないようセクション内に絞る）
+  const accountSection = page.locator('#account');
+  await expect(accountSection.getByRole('heading', { name: 'アカウント' })).toBeVisible();
+  await expect(accountSection.getByText('テストユーザー')).toBeVisible();
+  await expect(accountSection.getByText('test@example.com')).toBeVisible();
+  await expect(accountSection.getByText('Google でログイン中')).toBeVisible();
   // 登録日は現状 API から取得できないため非表示（段階2で対応予定）
-  await expect(page.getByText('登録日')).toHaveCount(0);
+  await expect(accountSection.getByText('登録日')).toHaveCount(0);
 
   // データセクション
   await expect(page.getByRole('heading', { name: 'データ' })).toBeVisible();
