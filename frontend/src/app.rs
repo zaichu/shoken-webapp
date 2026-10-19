@@ -85,6 +85,8 @@ fn route_for_path(path: &str) -> Route {
         "/" => Route::Home,
         "/search" => Route::Search,
         "/receipts" => Route::Receipts,
+        // 旧検索条件ページの URL は取引明細を開く(ブックマーク・履歴からの到達を 404 にしない)
+        "/receipts/conditions" => Route::Receipts,
         // 旧削除ページの URL は取り込み画面と同じタブを開く(設定ページの「危険な操作」からも来る)
         "/receipts/csv" | "/receipts/csv/delete" => Route::ReceiptsCsv,
         "/assetbalance" => Route::AssetBalance,

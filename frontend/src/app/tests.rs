@@ -15,6 +15,8 @@ fn route_for_known_and_unknown_paths() {
 #[test]
 fn route_for_designed_sub_paths() {
     assert_eq!(route_for_path("/receipts/csv"), Route::ReceiptsCsv);
+    // 旧検索条件ページの URL は取引明細を開く
+    assert_eq!(route_for_path("/receipts/conditions"), Route::Receipts);
     assert_eq!(
         route_for_path("/assetbalance/composition"),
         Route::AssetBalanceComposition
