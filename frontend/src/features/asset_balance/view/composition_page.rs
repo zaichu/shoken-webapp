@@ -1,5 +1,7 @@
 use super::use_asset_balance_state;
-use crate::features::asset_balance::format::{format_amount, format_fixed_percent};
+use crate::features::asset_balance::format::{
+    format_amount, format_currency, format_fixed_percent,
+};
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::portfolio::chart_plan;
 use crate::features::asset_balance::store::{filtered_portfolio, load_asset_balances};
@@ -171,7 +173,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                                                         {name}
                                                                     </span>
                                                                     <span class="shrink-0 tabular-nums text-text">
-                                                                        {format_amount(purchase)}
+                                                                        {format_currency(purchase)}
                                                                         " "
                                                                         <span class="text-text-muted">
                                                                             {percentage}

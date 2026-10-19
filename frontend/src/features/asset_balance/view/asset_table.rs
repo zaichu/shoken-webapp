@@ -1,6 +1,6 @@
 use crate::features::asset_balance::format::{
-    format_currency, format_price_date, format_signed_valuation_amount,
-    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
+    format_currency, format_price_date, format_row_valuation_amount,
+    format_signed_row_valuation_amount, format_signed_valuation_rate, is_negative_valuation,
     is_positive_valuation,
 };
 use crate::features::asset_balance::holdings::{
@@ -98,8 +98,8 @@ pub fn AssetHoldingsTable(
                         .into_iter()
                         .map(|view| {
                             let valuation = holding_valuation(&ValuationInput::from(&view));
-                            let market_text = format_valuation_amount(valuation.market_value);
-                            let pnl_text = format_signed_valuation_amount(
+                            let market_text = format_row_valuation_amount(valuation.market_value);
+                            let pnl_text = format_signed_row_valuation_amount(
                                 valuation.profit_loss.amount,
                             );
                             let pnl_rate_text = format_signed_valuation_rate(

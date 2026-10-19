@@ -128,6 +128,43 @@ fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
     assert_eq!(groups[0].rows.len(), 2);
     assert_eq!(groups[0].summary, ["¥1,000", "¥200", "¥800"]);
 }
+
+// 表示単位は合計欄(グループ小計)だけに使い、明細の行は1円単位のまま出す
+#[test]
+fn receipt_rows_stay_in_yen_while_group_summary_follows_the_unit() {
+    use crate::settings::{AmountUnit, amount_unit_signal};
+    use leptos::prelude::Set;
+    let unit = amount_unit_signal();
+    unit.set(AmountUnit::Man);
+    let texts = |rows: &[ReceiptRow]| {
+        rows[0]
+            .cells()
+            .into_iter()
+            .filter_map(|cell| match cell {
+                ReceiptCell::Text(text) => Some(text),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    let dividend_texts = texts(&dividends());
+    assert!(dividend_texts.iter().any(|text| text == "¥500"));
+    assert!(dividend_texts.iter().any(|text| text == "¥400"));
+    assert!(!dividend_texts.iter().any(|text| text.contains("万円")));
+    let domestic_texts = texts(&domestic());
+    assert!(domestic_texts.iter().any(|text| text == "¥200,000"));
+    assert!(!domestic_texts.iter().any(|text| text.contains("万円")));
+    let fund_texts = texts(&funds());
+    assert!(!fund_texts.iter().any(|text| text.contains("万円")));
+    // 合計欄は単位に従う
+    let rows = dividends();
+    let groups = ReceiptsTab::Dividend.table_groups(&rows, &rows, "");
+    assert!(
+        groups
+            .iter()
+            .any(|group| group.summary.iter().any(|text| text.ends_with("万円")))
+    );
+    unit.set(AmountUnit::Yen);
+}
 #[test]
 fn dividend_product_and_account_group_keys_follow_priority() {
     let rows = dividends();

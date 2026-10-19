@@ -187,7 +187,7 @@ fn SectionDisplay() -> impl IntoView {
                             }).collect_view()}
                         </Select>
                     </SettingRow>
-                    <SettingRow title="金額の表示単位" note="単価は円のまま表示します">
+                    <SettingRow title="金額の表示単位" note="合計の欄に使います。明細の行は円のまま表示します">
                         <Segmented
                             options=&[
                                 ("yen", "円"),

@@ -40,7 +40,8 @@ fn format_amount_beyond_decimal(value: f64) -> String {
     }
 }
 
-/// 設定の表示単位(円/千円/万円)を適用する金額。単価の表示には format_currency を使う
+/// 設定の表示単位(円/千円/万円)を適用する金額。集計(合計欄・サマリー)専用で、
+/// 明細の行には format_row_valuation_amount を使う
 pub(crate) fn format_amount(value: f64) -> String {
     f64_to_decimal(value).map_or_else(
         || format_amount_beyond_decimal(value),
@@ -119,20 +120,41 @@ pub(crate) fn price_date_range<'a>(
         .map(|(min, max)| (format_price_date(min), format_price_date(max)))
 }
 
-pub(crate) fn format_valuation_amount(amount: Option<f64>) -> String {
+fn format_valuation_with(
+    amount: Option<f64>,
+    format_yen: fn(Decimal) -> String,
+    format_beyond: fn(f64) -> String,
+) -> String {
     match amount {
         Some(value) if !value.is_finite() => "—".to_string(),
         Some(value) => f64_to_decimal(value)
             .map(|value| {
-                crate::settings::format_amount(
+                format_yen(
                     value
                         .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
                         .normalize(),
                 )
             })
-            .unwrap_or_else(|| format_amount_beyond_decimal(value)),
+            .unwrap_or_else(|| format_beyond(value)),
         None => "—".to_string(),
     }
+}
+
+pub(crate) fn format_valuation_amount(amount: Option<f64>) -> String {
+    format_valuation_with(
+        amount,
+        crate::settings::format_amount,
+        format_amount_beyond_decimal,
+    )
+}
+
+/// 明細の行用。表示単位を適用せず1円単位で出す
+pub(crate) fn format_row_valuation_amount(amount: Option<f64>) -> String {
+    format_valuation_with(
+        amount,
+        format_currency_decimal,
+        format_currency_beyond_decimal,
+    )
 }
 
 pub(crate) fn format_valuation_rate(rate: Option<f64>, decimals: u32) -> String {
@@ -143,14 +165,23 @@ pub(crate) fn format_valuation_rate(rate: Option<f64>, decimals: u32) -> String 
     }
 }
 
-/// 損益用の金額。プラスにも「+」を付け、色だけに頼らず符号で正負を示す。
-pub(crate) fn format_signed_valuation_amount(amount: Option<f64>) -> String {
+fn format_signed_with(amount: Option<f64>, format: fn(Option<f64>) -> String) -> String {
     match amount {
         Some(value) if value.is_finite() && round_to_yen(value) > 0.0 => {
-            format!("+{}", format_valuation_amount(amount))
+            format!("+{}", format(amount))
         }
-        _ => format_valuation_amount(amount),
+        _ => format(amount),
     }
+}
+
+/// 損益用の金額。プラスにも「+」を付け、色だけに頼らず符号で正負を示す。
+pub(crate) fn format_signed_valuation_amount(amount: Option<f64>) -> String {
+    format_signed_with(amount, format_valuation_amount)
+}
+
+/// 損益用の金額(明細の行用)。プラスにも「+」を付け、色だけに頼らず符号で正負を示す。
+pub(crate) fn format_signed_row_valuation_amount(amount: Option<f64>) -> String {
+    format_signed_with(amount, format_row_valuation_amount)
 }
 
 /// 損益用の率。プラスにも「+」を付け、色だけに頼らず符号で正負を示す。

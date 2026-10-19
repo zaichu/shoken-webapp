@@ -1,7 +1,7 @@
 use super::use_asset_balance_state;
 use crate::features::asset_balance::format::{
-    format_amount, format_currency, format_signed_valuation_amount, format_signed_valuation_rate,
-    format_valuation_amount, is_negative_valuation,
+    format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
+    format_signed_valuation_rate, is_negative_valuation,
 };
 use crate::features::asset_balance::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
@@ -113,8 +113,8 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                 Some(row) => {
                                     let holding_view = crate::features::asset_balance::holdings::holding_view(row);
                                     let valuation = holding_valuation(&ValuationInput::from(&holding_view));
-                                    let market_text = format_valuation_amount(valuation.market_value);
-                                    let pnl_text = format_signed_valuation_amount(valuation.profit_loss.amount);
+                                    let market_text = format_row_valuation_amount(valuation.market_value);
+                                    let pnl_text = format_signed_row_valuation_amount(valuation.profit_loss.amount);
                                     let pnl_rate_text = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
                                     let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
                                     let dividend = holding_dividend(
@@ -128,7 +128,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                     let dividend_yield = format_dividend_yield(&dividend);
                                     let shares_text = format!("{}株", format_number_value(holding_view.shares));
                                     let average_price_text = format_currency(holding_view.average_price);
-                                    let purchase_text = format_amount(holding_view.purchase);
+                                    let purchase_text = format_currency(holding_view.purchase);
                                     let current_price_text = format_currency(holding_view.current_price);
                                     let price_as_of = holding_view.price_as_of.clone();
                                     view! {

@@ -140,7 +140,7 @@ test('取引明細の初期タブ設定が /receipts の最初のタブに反映
   );
 });
 
-test('金額の表示単位設定が取引明細の金額表示に反映される', async ({ page }) => {
+test('金額の表示単位設定は合計欄だけに効き、明細の行は1円単位のまま出る', async ({ page }) => {
   await mockAuthorizedAuth(page);
   await mockReceiptLists(page);
   await page.addInitScript(() => {
@@ -148,10 +148,10 @@ test('金額の表示単位設定が取引明細の金額表示に反映され�
   });
   await page.goto('/receipts');
 
-  // 税引後 2391 円が千円表示になり、円表記の 2,391 は残らない。
-  // 単価(1株配当 30 円)は円のまま出る(非表示列でも DOM に残るため存在だけ見る)
-  await expect(page.getByRole('cell', { name: '2.4千円' }).first()).toBeVisible();
-  await expect(page.getByText('¥2,391')).toHaveCount(0);
+  // 合計欄(集計)は千円表示になり、明細の行は1円単位のまま。
+  // 単価(1株配当 30 円)も円のまま出る(非表示列でも DOM に残るため存在だけ見る)
+  await expect(page.getByText('2.4千円').first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '¥2,391' }).first()).toBeVisible();
   await expect(page.getByText('¥30').first()).toBeAttached();
 });
 

@@ -235,9 +235,10 @@ impl DividendView<'_> {
             },
             ReceiptCell::Text(format_currency(self.unit_price)),
             ReceiptCell::Text(format_number(self.shares, 2)),
-            ReceiptCell::Text(format_amount(self.dividends_before_tax)),
-            ReceiptCell::Text(format_amount(self.taxes)),
-            ReceiptCell::Text(format_amount(self.net_amount_received)),
+            // 明細の行は1円単位。表示単位は合計欄だけに使う
+            ReceiptCell::Text(format_currency(self.dividends_before_tax)),
+            ReceiptCell::Text(format_currency(self.taxes)),
+            ReceiptCell::Text(format_currency(self.net_amount_received)),
         ]
     }
 
@@ -338,11 +339,11 @@ impl DomesticStockView<'_> {
             ReceiptCell::Text(self.account.to_string()),
             ReceiptCell::Text(format_number(self.shares, 2)),
             ReceiptCell::Text(format_currency(self.asked_price)),
-            ReceiptCell::Text(format_amount(self.proceeds)),
-            ReceiptCell::Text(format_amount(self.purchase_price)),
-            ReceiptCell::Text(format_amount(self.realized_profit_and_loss)),
-            ReceiptCell::Text(format_amount(self.taxes)),
-            ReceiptCell::Text(format_amount(self.realized_profit_and_loss_after_tax)),
+            ReceiptCell::Text(format_currency(self.proceeds)),
+            ReceiptCell::Text(format_currency(self.purchase_price)),
+            ReceiptCell::Text(format_currency(self.realized_profit_and_loss)),
+            ReceiptCell::Text(format_currency(self.taxes)),
+            ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),
         ]
     }
 
@@ -443,11 +444,11 @@ impl MutualfundView<'_> {
             ReceiptCell::Text(self.account.to_string()),
             ReceiptCell::Text(format_number(self.shares, 2)),
             ReceiptCell::Text(format_currency(self.cancellation_unit_price_yen)),
-            ReceiptCell::Text(format_amount(self.cancellation_amount_yen)),
+            ReceiptCell::Text(format_currency(self.cancellation_amount_yen)),
             ReceiptCell::Text(format_currency(self.average_acquisition_price_yen)),
-            ReceiptCell::Text(format_amount(self.realized_profit_and_loss)),
-            ReceiptCell::Text(format_amount(self.taxes)),
-            ReceiptCell::Text(format_amount(self.realized_profit_and_loss_after_tax)),
+            ReceiptCell::Text(format_currency(self.realized_profit_and_loss)),
+            ReceiptCell::Text(format_currency(self.taxes)),
+            ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),
         ]
     }
 

@@ -1,6 +1,6 @@
 use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::features::asset_balance::format::{
-    format_signed_valuation_amount, format_signed_valuation_rate, format_valuation_amount,
+    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
 };
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::ui::button::{Button, ButtonVariant};
@@ -30,8 +30,8 @@ fn preview_row_data(
         shares: shares_f64,
         total_purchase_amount: total_purchase_f64,
     });
-    let market_text = format_valuation_amount(valuation.market_value);
-    let pnl_text = format_signed_valuation_amount(valuation.profit_loss.amount);
+    let market_text = format_row_valuation_amount(valuation.market_value);
+    let pnl_text = format_signed_row_valuation_amount(valuation.profit_loss.amount);
     let pnl_rate_text = valuation
         .profit_loss
         .rate
