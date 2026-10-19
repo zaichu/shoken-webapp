@@ -1,7 +1,7 @@
 pub(super) mod csv;
 
 use super::holdings::{HoldingView, holding_view};
-use crate::api::dto::{AssetBalance, AssetBalanceSummary};
+use crate::api::dto::{AssetBalance, AssetBalanceSummary, FundBalance, FundBalanceSummary};
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::{AssetBalanceLookupStore, fetch_single_asset_balance};
@@ -34,6 +34,72 @@ impl ListEndpoint for AssetBalance {
     type Summary = AssetBalanceSummary;
 
     const PATH: &'static str = super::csv::LIST_PATH;
+}
+
+/// 投資信託残高一覧のエンドポイント。
+impl ListEndpoint for FundBalance {
+    type Row = FundBalance;
+    type Summary = FundBalanceSummary;
+
+    const PATH: &'static str = super::fund::FUND_LIST_PATH;
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct LoadedFundBalances {
+    pub(crate) rows: Vec<FundBalance>,
+    pub(crate) total: usize,
+    pub(crate) summary: Option<FundBalanceSummary>,
+    pub(crate) truncated: bool,
+}
+
+async fn fetch_fund_balances() -> Result<LoadedFundBalances, ApiError> {
+    let page = fetch_all_pages::<FundBalance>().await?;
+    Ok(LoadedFundBalances {
+        total: page.total.unwrap_or(page.rows.len()),
+        rows: page.rows,
+        summary: page.summary,
+        truncated: page.truncated,
+    })
+}
+
+pub(crate) type FundSlot = Option<(Generation, Result<LoadedFundBalances, String>)>;
+
+// ファンドは株価・配当の外部取得がなく、一覧取得だけで表示まで完結する
+pub(crate) fn load_fund_balances(
+    session: SessionStore,
+    generation: Generation,
+    funds: RwSignal<FundSlot>,
+    data_ops: RwSignal<DataOps>,
+) {
+    data_ops.update(DataOps::begin_fund_fetch);
+    let rev = data_ops.with_untracked(|ops| ops.fund_list_rev);
+    leptos::task::spawn_local(async move {
+        match fetch_fund_balances().await {
+            Err(error) => {
+                data_ops.update(|ops| ops.end_fund_fetch(rev));
+                if session.is_current(generation)
+                    && data_ops.with_untracked(|ops| ops.is_current_fund_list(rev))
+                {
+                    let has_cached = funds.with_untracked(
+                        |slot| matches!(slot, Some((cached, Ok(_))) if *cached == generation),
+                    );
+                    if has_cached {
+                        data_ops.update(|ops| ops.refresh_error = Some(error.message()));
+                    } else {
+                        funds.set(Some((generation, Err(error.message()))));
+                    }
+                }
+            }
+            Ok(loaded) => {
+                data_ops.update(|ops| ops.end_fund_fetch(rev));
+                if session.is_current(generation)
+                    && data_ops.with_untracked(|ops| ops.is_current_fund_list(rev))
+                {
+                    funds.set(Some((generation, Ok(loaded))));
+                }
+            }
+        }
+    });
 }
 
 async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
@@ -155,6 +221,7 @@ pub(crate) fn filtered_portfolio(
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DataOps {
     pub(crate) list_rev: u64,
+    pub(crate) fund_list_rev: u64,
     pub(crate) poll_rev: u64,
     // 完了時に世代をまたいで減算されないよう、取得中の rev をそのまま持つ
     pub(crate) inflight: HashSet<u64>,
@@ -176,6 +243,20 @@ impl DataOps {
         self.list_rev == rev
     }
 
+    pub(crate) fn begin_fund_fetch(&mut self) {
+        self.fund_list_rev += 1;
+        self.inflight.insert(self.fund_list_rev);
+        self.refresh_error = None;
+    }
+
+    pub(crate) fn end_fund_fetch(&mut self, rev: u64) {
+        self.inflight.remove(&rev);
+    }
+
+    pub(crate) fn is_current_fund_list(&self, rev: u64) -> bool {
+        self.fund_list_rev == rev
+    }
+
     pub(crate) fn next_poll_rev(&mut self) {
         self.poll_rev += 1;
     }
@@ -190,6 +271,7 @@ impl DataOps {
 
     pub(crate) fn invalidate(&mut self) {
         self.list_rev += 1;
+        self.fund_list_rev += 1;
         self.poll_rev += 1;
     }
 

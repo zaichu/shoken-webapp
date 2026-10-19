@@ -91,6 +91,9 @@ pub fn CsvManagePage<S: CsvSource>(
     /// AI相談文コピーなど対象ごとの追加領域
     #[prop(optional)]
     extra: Option<AnyView>,
+    /// 保存済みカードの直下に置く追加の保存済みブロック(別種別の件数・削除など)
+    #[prop(optional)]
+    saved_extra: Option<AnyView>,
 ) -> impl IntoView {
     let previewing = Memo::new(move |_| source.csv_meta().previewing);
     let saving = Memo::new(move |_| source.csv_meta().saving);
@@ -347,6 +350,7 @@ pub fn CsvManagePage<S: CsvSource>(
                         }}
                     </div>
                 </section>
+                {saved_extra}
             </div>
 
             {move || {

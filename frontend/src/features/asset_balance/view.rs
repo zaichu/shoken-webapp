@@ -1,12 +1,18 @@
+mod all_list;
 mod asset_table;
 mod composition_page;
 mod csv_page;
 mod csv_preview;
+mod fund_detail_page;
+mod fund_table;
 mod holding_detail_page;
 mod holdings_list;
+mod kind_tabs;
 mod main_content;
-mod mobile_bar;
+mod search_bar;
+mod sort_bar;
 mod summary;
+mod summary_strip;
 
 #[cfg(test)]
 #[path = "view/tests/suite.rs"]
@@ -14,14 +20,18 @@ mod tests;
 
 pub use composition_page::AssetBalanceCompositionPage;
 pub use csv_page::AssetBalanceCsvPage;
-pub use csv_preview::AssetBalanceCsvPreview;
+pub use csv_preview::{AssetBalanceCsvPreview, FundBalanceCsvPreview};
+pub use fund_detail_page::AssetFundHoldingPage;
 pub use holding_detail_page::AssetBalanceHoldingPage;
 
+use crate::features::asset_balance::fund::{AssetKind, AssetSearch, FundSortKey};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
-use crate::features::asset_balance::store::csv::{AssetBalanceCsvStore, resolve_asset_balance};
+use crate::features::asset_balance::store::csv::{
+    AssetBalanceCsvStore, resolve_asset_balance, resolve_fund_balance,
+};
 use crate::features::asset_balance::store::{
-    BalanceSlot, DataOps, has_current_balances, load_asset_balances,
+    BalanceSlot, DataOps, FundSlot, has_current_balances, load_asset_balances, load_fund_balances,
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
@@ -29,17 +39,21 @@ use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
-use mobile_bar::AssetMobileActionBar;
+use sort_bar::AssetMobileSortBar;
 
 #[derive(Clone, Copy)]
 pub(crate) struct AssetBalanceState {
     balances: RwSignal<BalanceSlot>,
+    funds: RwSignal<FundSlot>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
-    search_query: RwSignal<String>,
+    search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
+    fund_sort_key: RwSignal<FundSortKey>,
+    fund_sort_order: RwSignal<SortOrder>,
+    kind: RwSignal<AssetKind>,
     data_ops: RwSignal<DataOps>,
     csv: AssetBalanceCsvStore,
 }
@@ -51,10 +65,11 @@ fn use_asset_balance_state(session: SessionStore) -> AssetBalanceState {
 
 fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+    let funds: RwSignal<FundSlot> = RwSignal::new(None);
     let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-    let search_query = RwSignal::new(String::new());
-    let reset_query = search_query;
+    let search = RwSignal::new(AssetSearch::default());
+    let reset_search = search;
     let search_count = RwSignal::new((0usize, 0usize));
     let sort_key = RwSignal::new(SortKey::MarketValue);
     let sort_order = RwSignal::new(SortOrder::Desc);
@@ -65,36 +80,47 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
         sort_key.set(sort.key);
         sort_order.set(sort.order);
     });
+    let fund_sort_key = RwSignal::new(FundSortKey::MarketValue);
+    let fund_sort_order = RwSignal::new(SortOrder::Desc);
+    let kind = RwSignal::new(AssetKind::Stock);
     let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
-    let csv_store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
+    let csv_store =
+        AssetBalanceCsvStore::new(session, balances, funds, dividends, lookup, data_ops);
     let csv_slot = csv_store.csv;
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
             lookup.update(|store| store.clear());
             balances.set(None);
+            funds.set(None);
             dividends.set(DividendMaps::default());
             data_ops.update(DataOps::reset);
-            reset_query.set(String::new());
+            reset_search.set(AssetSearch::default());
             search_count.set((0, 0));
             return;
         }
         lookup.update(|store| store.clear_if_stale(generation));
-        if has_current_balances(&balances.get_untracked(), generation) {
-            return;
+        if !has_current_balances(&balances.get_untracked(), generation) {
+            load_asset_balances(
+                session, generation, balances, dividends, lookup, csv_slot, data_ops,
+            );
         }
-        load_asset_balances(
-            session, generation, balances, dividends, lookup, csv_slot, data_ops,
-        );
+        if !matches!(funds.get_untracked(), Some((cached, _)) if cached == generation) {
+            load_fund_balances(session, generation, funds, data_ops);
+        }
     });
     AssetBalanceState {
         balances,
+        funds,
         dividends,
         lookup,
-        search_query,
+        search,
         search_count,
         sort_key,
         sort_order,
+        fund_sort_key,
+        fund_sort_order,
+        kind,
         data_ops,
         csv: csv_store,
     }
@@ -108,9 +134,10 @@ pub fn AssetBalancePage() -> impl IntoView {
     let rail_session = session;
     let state = use_asset_balance_state(session);
     let balances = state.balances;
+    let funds = state.funds;
     let dividends = state.dividends;
     let lookup = state.lookup;
-    let search_query = state.search_query;
+    let search = state.search;
     let data_ops = state.data_ops;
     let busy_ops = data_ops;
     let csv_slot = state.csv.csv;
@@ -118,28 +145,57 @@ pub fn AssetBalancePage() -> impl IntoView {
         let generation = rail_session.generation.get();
         balances.with(|slot| resolve_asset_balance(generation, slot))
     };
+    let resolved_fund_view = move || {
+        let generation = rail_session.generation.get();
+        funds.with(|slot| resolve_fund_balance(generation, slot))
+    };
     let search_count = state.search_count;
+    let sort_state = state;
     let action_bar = view! {
         {move || {
-            resolved_view()
-                .is_some_and(|view| !view.rows.is_empty())
-                .then(|| {
-                    view! {
-                        <AssetMobileActionBar
-                            query=search_query
-                            count_text=Signal::derive(move || {
-                                if search_query.get().is_empty() {
-                                    String::new()
-                                } else {
-                                    let (filtered, total) = search_count.get();
-                                    format!("検索結果 {filtered} / {total}件")
-                                }
-                            })
-                            sort_key=state.sort_key
-                            sort_order=state.sort_order
+            let (stock_rows, fund_rows) = (
+                resolved_view().map(|view| view.rows.len()).unwrap_or(0),
+                resolved_fund_view().map(|view| view.rows.len()).unwrap_or(0),
+            );
+            let has_rows = match sort_state.kind.get() {
+                AssetKind::Stock => stock_rows > 0,
+                AssetKind::Fund => fund_rows > 0,
+                AssetKind::All => stock_rows + fund_rows > 0,
+            };
+            has_rows.then(|| {
+                match sort_state.kind.get() {
+                    AssetKind::Stock => view! {
+                        <AssetMobileSortBar
+                            options=&SortKey::ALL
+                            key_label=|key: SortKey| key.label()
+                            key_value=|key: SortKey| key.value()
+                            sort_key=sort_state.sort_key
+                            sort_order=sort_state.sort_order
                         />
                     }
-                })
+                    .into_any(),
+                    AssetKind::Fund => view! {
+                        <AssetMobileSortBar
+                            options=&FundSortKey::ALL
+                            key_label=|key: FundSortKey| key.label()
+                            key_value=|key: FundSortKey| key.value()
+                            sort_key=sort_state.fund_sort_key
+                            sort_order=sort_state.fund_sort_order
+                        />
+                    }
+                    .into_any(),
+                    AssetKind::All => view! {
+                        <AssetMobileSortBar
+                            options=&FundSortKey::MERGED
+                            key_label=|key: FundSortKey| key.label()
+                            key_value=|key: FundSortKey| key.value()
+                            sort_key=sort_state.fund_sort_key
+                            sort_order=sort_state.fund_sort_order
+                        />
+                    }
+                    .into_any(),
+                }
+            })
         }}
     }
     .into_any();
@@ -159,6 +215,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             csv_slot,
             data_ops,
         );
+        load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
     }
     let reload = move || {
         if session.user.get_untracked().is_none() {
@@ -174,6 +231,8 @@ pub fn AssetBalancePage() -> impl IntoView {
             csv_slot,
             data_ops,
         );
+        funds.set(None);
+        load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
     };
     let pc_subtitle = move || resolved_view().map(|view| summary::list_subtitle(&view));
     let title_row: Children = Box::new(move || {
@@ -244,6 +303,19 @@ pub fn AssetBalancePage() -> impl IntoView {
                         })
                     }}
                     {move || {
+                        resolved_fund_view().and_then(|view| view.warning).map(|message| {
+                            view! {
+                                <div class="no-print px-4 lg:px-0">
+                                    <Alert variant=AlertVariant::Warning>
+                                        <strong>"注意:"</strong>
+                                        " "
+                                        <span data-testid="fund-truncated-list-warning">{message}</span>
+                                    </Alert>
+                                </div>
+                            }
+                        })
+                    }}
+                    {move || {
                         let generation = render_session.generation.get();
                         let list_error = balances.with(|slot| match slot {
                             Some((cached, Err(message))) if *cached == generation => {
@@ -252,26 +324,31 @@ pub fn AssetBalancePage() -> impl IntoView {
                             _ => None,
                         });
                         let resolved = resolved_view();
-                        match (resolved, list_error) {
-                            (None, _) => {
+                        let resolved_fund = resolved_fund_view();
+                        match (resolved, resolved_fund, list_error) {
+                            (None, _, _) | (_, None, _) => {
                                 view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
                                     .into_any()
                             }
-                            (Some(_), Some(message)) => {
+                            (Some(_), _, Some(message)) => {
                                 view! {
                                     <ListLoadError message=message on_retry=reload />
                                 }
                                     .into_any()
                             }
-                            (Some(resolved), None) => {
+                            (Some(resolved), Some(resolved_fund), None) => {
                                 view! {
                                     <AssetBalanceMainContent
-                                        rows=resolved.rows
+                                        stock_rows=resolved.rows
                                         fallback_totals=resolved.fallback_totals
-                                        search_query=search_query
+                                        fund_resolved=resolved_fund
+                                        search=search
                                         search_count=search_count
                                         sort_key=state.sort_key
                                         sort_order=state.sort_order
+                                        fund_sort_key=state.fund_sort_key
+                                        fund_sort_order=state.fund_sort_order
+                                        kind=state.kind
                                         dividends=dividends
                                         lookup=lookup
                                         generation=generation

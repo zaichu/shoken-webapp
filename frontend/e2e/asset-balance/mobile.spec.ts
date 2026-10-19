@@ -89,14 +89,12 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
   // CSV 操作は専用ページに移ったため、一覧にはドロワーがない
   await expect(page.getByTestId('asset-utility-toggle')).toHaveCount(0);
   const main = page.getByTestId('assetbalance-main-stage');
-  // 検索欄は画面下部の操作帯にある「絞り込み」を押すとその場で開く
+  // 検索欄は一覧の上に常時出す。並べ替えは画面下部の操作帯
   const searchInput = page.getByTestId('asset-search-input');
-  await expect(searchInput).toHaveCount(0);
-  await expect(page.getByTestId('asset-sort-select')).toBeVisible();
-  await expect(page.getByTestId('asset-sort-order-toggle')).toBeVisible();
-  await page.getByTestId('asset-filter-toggle').click();
   await expect(searchInput).toBeVisible();
   await expect(searchInput).toBeEditable();
+  await expect(page.getByTestId('asset-sort-select')).toBeVisible();
+  await expect(page.getByTestId('asset-sort-order-toggle')).toBeVisible();
 
   // main 内は集計情報 → 保有内訳
   const summary = page.getByTestId('asset-portfolio-summary');
@@ -142,17 +140,15 @@ test('一覧に無い文字列を入れるとフィルタ済み空状態と解�
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAssetBalance(page);
 
-  await page.getByTestId('asset-filter-toggle').click();
   await page.getByTestId('asset-search-input').fill('9999');
   const heading = page.getByRole('heading', { name: '該当する銘柄がありません' });
   await expect(heading).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: '絞り込みを解除' }),
-  ).toBeVisible();
+  const clearButton = page.getByRole('button', { name: '絞り込みを解除' });
+  await expect(clearButton).toBeVisible();
 
-  // 閉じると絞り込みも解除され一覧が戻る(閉じたまま絞り込みだけ残さない)
-  await page.getByTestId('asset-filter-toggle').click();
-  await expect(page.getByTestId('asset-search-input')).toHaveCount(0);
+  // 解除すると絞り込みも消えて一覧が戻る
+  await clearButton.click();
+  await expect(heading).toHaveCount(0);
   await expect(page.getByTestId('asset-compact-row').first()).toBeVisible();
 });
 

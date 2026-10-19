@@ -4,7 +4,7 @@ use crate::api::dto::{
 };
 use crate::features::asset_balance::AssetBalanceCsvRow;
 use crate::features::asset_balance::{
-    AssetBalanceCsvStore, AssetBalanceLookupStore, BalanceSlot, DataOps,
+    AssetBalanceCsvStore, AssetBalanceLookupStore, BalanceSlot, DataOps, FundSlot,
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::SessionStore;
@@ -65,6 +65,7 @@ pub(crate) fn csv_store(
     AssetBalanceCsvStore::new(
         *session,
         balances,
+        RwSignal::<FundSlot>::new(None),
         dividends,
         RwSignal::new(AssetBalanceLookupStore::new()),
         RwSignal::new(DataOps::default()),

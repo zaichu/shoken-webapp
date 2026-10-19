@@ -1,15 +1,18 @@
 use super::{AssetBalanceState, use_asset_balance_state};
 use crate::features::asset_balance::csv::AssetBalanceRow;
+use crate::features::asset_balance::fund::AssetKind;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::store::csv::{
-    AssetBalanceCsvStore, csv_preview_rows, resolve_asset_balance,
+    AssetBalanceCsvStore, csv_preview_rows, fund_csv_preview_rows, resolve_asset_balance,
 };
-use crate::features::asset_balance::view::AssetBalanceCsvPreview;
+use crate::features::asset_balance::view::{AssetBalanceCsvPreview, FundBalanceCsvPreview};
 use crate::session::{SessionStore, use_session};
 use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::csv_page::{CsvManagePage, CsvSource};
 use crate::ui::security_link::try_copy_to_clipboard;
+use crate::ui::state::{Alert, AlertVariant};
 use leptos::prelude::*;
 
 impl CsvSource for AssetBalanceCsvStore {
@@ -103,13 +106,14 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
     view! {
         <CsvManagePage
             source=source
-            subject="資産管理"
+            subject="資産管理(国内株式)"
             back_href="/assetbalance"
             preview=view! { <CsvPreviewWrapper state=state _session=session /> }.into_any()
             extra=view! {
                 <AssetReviewPromptCard rows=move || review_rows(review_state, session) />
             }
             .into_any()
+            saved_extra=view! { <FundSavedCard source=source /> }.into_any()
         />
     }
 }
@@ -117,12 +121,143 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
 #[component]
 fn CsvPreviewWrapper(state: AssetBalanceState, _session: SessionStore) -> impl IntoView {
     move || {
-        let csv_state = state.csv.csv_state();
-        let rows = csv_preview_rows(&csv_state);
-        if rows.is_empty() {
-            return None;
+        if state.csv.csv_kind.get() == AssetKind::Fund {
+            let rows = fund_csv_preview_rows(&state.csv.fund_csv_state());
+            return (!rows.is_empty())
+                .then(|| view! { <FundBalanceCsvPreview rows=rows /> }.into_any());
         }
-        Some(view! { <AssetBalanceCsvPreview rows=rows /> })
+        let rows = csv_preview_rows(&state.csv.csv_state());
+        (!rows.is_empty()).then(|| view! { <AssetBalanceCsvPreview rows=rows /> }.into_any())
+    }
+}
+
+/// 投資信託の保存済みデータカード。株式側と同じ構造で、削除は投資信託だけを対象にする
+#[component]
+fn FundSavedCard(source: AssetBalanceCsvStore) -> impl IntoView {
+    let db_count = Memo::new(move |_| source.fund_db_count());
+    let count_ready = Memo::new(move |_| source.fund_saved_count_ready());
+    let count_error = Memo::new(move |_| source.fund_saved_count_error());
+    let date_range = Memo::new(move |_| source.fund_date_range());
+    let show_confirm = RwSignal::new(false);
+    let delete_error = RwSignal::new(None::<String>);
+    let deleting = Memo::new(move |_| source.fund_csv_state().meta().deleting);
+    let modal_error = Signal::derive(move || delete_error.get().or_else(|| count_error.get()));
+    let open_confirm = move |_| {
+        delete_error.set(None);
+        source.refresh_fund_for_delete();
+        source.fund_open_delete_confirm();
+        show_confirm.set(true);
+    };
+    let on_confirm = move || {
+        delete_error.set(None);
+        source.fund_open_delete_confirm();
+        source.fund_confirm_delete_all();
+    };
+    let on_cancel = move || {
+        show_confirm.set(false);
+        delete_error.set(None);
+    };
+    // 削除要求が終わったときにモーダルを閉じ、失敗はエラー表示に回す
+    let was_deleting = RwSignal::new(false);
+    Effect::new(move |_| {
+        let now = deleting.get();
+        let was = was_deleting.get_untracked();
+        was_deleting.set(now);
+        if !was || now || !show_confirm.get() {
+            return;
+        }
+        match source.fund_csv_state().meta().error {
+            Some(err) => delete_error.set(Some(err)),
+            None => show_confirm.set(false),
+        }
+    });
+    view! {
+        <section>
+            <div class="bg-surface-sunken rounded-lg border border-border p-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <p class="text-xs text-text-soft">"保存済みの投資信託"</p>
+                        <div class="flex items-baseline gap-2 mt-0.5">
+                            <span class="text-2xl font-bold text-text" data-testid="fund-saved-count">
+                                {move || {
+                                    if count_ready.get() {
+                                        format!("{}件", db_count.get())
+                                    } else if count_error.get().is_some() {
+                                        "取得できませんでした".to_string()
+                                    } else {
+                                        "取得中...".to_string()
+                                    }
+                                }}
+                            </span>
+                            {move || {
+                                date_range.get().map(|(min, max)| {
+                                    view! {
+                                        <span class="text-sm font-medium text-text-muted ml-2">
+                                            {format!("{} 〜 {}", min, max)}
+                                        </span>
+                                    }
+                                })
+                            }}
+                        </div>
+                    </div>
+                    <Button
+                        variant=ButtonVariant::Secondary(crate::ui::button::ButtonSize::Md)
+                        class="text-negative border-negative border"
+                        disabled=move || {
+                            !count_ready.get()
+                                || db_count.get() == 0
+                                || source.csv_busy()
+                                || source.fund_csv_state().meta().busy()
+                        }
+                        on_click=open_confirm
+                    >
+                        "すべて削除…"
+                    </Button>
+                </div>
+                {move || {
+                    count_error.get().map(|message| {
+                        view! {
+                            <div class="mt-3">
+                                <Alert variant=AlertVariant::Danger>
+                                    <strong>"エラー:"</strong>
+                                    " "
+                                    {message}
+                                    <Button
+                                        variant=ButtonVariant::Ghost
+                                        class="ml-2 text-xs underline"
+                                        on_click=move |_| source.refresh_fund_for_delete()
+                                    >
+                                        "再読み込み"
+                                    </Button>
+                                </Alert>
+                            </div>
+                        }
+                    })
+                }}
+            </div>
+        </section>
+        {move || {
+            show_confirm.get().then(|| {
+                let count = db_count.get();
+                let range_text = date_range
+                    .get()
+                    .map(|(min, max)| format!("{} 〜 {} の", min, max))
+                    .unwrap_or_default();
+                view! {
+                    <ConfirmDeleteModal
+                        title="投資信託を削除しますか?".to_string()
+                        description=format!("{}データが、一覧と集計から消えます。", range_text)
+                        item_count=count
+                        confirm_label=format!("{}件を削除する", count)
+                        loading=deleting
+                        confirm_ready=Memo::new(move |_| deleting.get() || count_ready.get())
+                        error=modal_error
+                        on_confirm=on_confirm
+                        on_cancel=on_cancel
+                    />
+                }
+            })
+        }}
     }
 }
 

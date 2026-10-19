@@ -230,7 +230,7 @@ pub struct CsvChunking {
 /// CSV バイト列をレコード境界(引用符内の改行を除く)で切る。
 /// '"'/'\n' は Shift_JIS(CP932)・UTF-8 のマルチバイト内に出現しないため
 /// バイト走査だけで安全に分割できる
-fn record_ranges(bytes: &[u8]) -> Vec<(usize, usize)> {
+pub(crate) fn record_ranges(bytes: &[u8]) -> Vec<(usize, usize)> {
     let mut ranges = Vec::new();
     let mut start = 0;
     let mut in_quotes = false;
@@ -301,7 +301,7 @@ fn chunk_record_groups<'a>(
 }
 
 /// backend の decode_bytes と同じ判定(UTF-8 を試み、失敗時は Shift-JIS)
-fn decode_csv_bytes(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
+pub(crate) fn decode_csv_bytes(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
     if let Ok(text) = std::str::from_utf8(bytes) {
         return std::borrow::Cow::Borrowed(text);
     }
@@ -311,7 +311,7 @@ fn decode_csv_bytes(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
 /// backend の csv パーサーと同じ規則でレコードをフィールドに切る。
 /// 先頭が引用符のフィールドは閉じ引用符までが1フィールド("" はエスケープ)で
 /// 引用符内のカンマは区切りにしない。引用符は取り除いた内容を返す
-fn csv_fields(record: &str) -> Vec<String> {
+pub(crate) fn csv_fields(record: &str) -> Vec<String> {
     let chars: Vec<char> = record.chars().collect();
     let mut fields = Vec::new();
     let mut i = 0;
@@ -411,6 +411,19 @@ async fn split_file_chunks(
             web_sys::Blob::new_with_u8_array_sequence(&parts).map_err(|_| ApiError::Network)
         })
         .collect()
+}
+
+/// ファイルの先頭 max_bytes だけを読む(形式判別など、全体を読む前の peek 用)。
+/// ファイルが小さいときは全体を返す
+pub async fn read_file_head(file: &web_sys::File, max_bytes: usize) -> Result<Vec<u8>, ApiError> {
+    let end = file.size().min(max_bytes as f64);
+    let blob = file
+        .slice_with_f64_and_f64(0.0, end)
+        .map_err(|_| ApiError::Network)?;
+    let buf = wasm_bindgen_futures::JsFuture::from(blob.array_buffer())
+        .await
+        .map_err(|_| ApiError::Network)?;
+    Ok(js_sys::Uint8Array::new(&buf).to_vec())
 }
 
 pub async fn preview_csv<R: serde::de::DeserializeOwned>(

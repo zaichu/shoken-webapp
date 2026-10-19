@@ -1,16 +1,31 @@
+use super::all_list::{
+    AssetMergedList, AssetMergedTable, UnifiedRow, sort_unified, unified_from_fund,
+    unified_from_stock,
+};
 use super::asset_table::AssetHoldingsTable;
+use super::fund_table::{FundHoldingsList, FundHoldingsTable, FundPriceAsOfNote};
 use super::holdings_list::HoldingsList;
+use super::kind_tabs::AssetKindTabs;
+use super::search_bar::AssetSearchBar;
 use super::summary::PortfolioSummary;
+use super::summary_strip::AssetSummaryStrip;
+use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
+use crate::features::asset_balance::fund::{
+    AssetKind, AssetSearch, FundBalanceRow, FundSortKey, FundView, filter_fund_rows, fund_accounts,
+    fund_courses, fund_totals, fund_view, sort_fund_views,
+};
 use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
+use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder, sort_holdings};
+use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::asset_balance::store::{FilteredPortfolio, filtered_portfolio};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
-use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
 
 fn sorted_views(
     views: &[HoldingView],
@@ -35,10 +50,53 @@ fn sorted_views(
 }
 
 #[component]
-pub(crate) fn AssetBalanceMainContent(
+fn EmptyAssetPanel() -> impl IntoView {
+    view! {
+        <div class="asset-panel-padded mx-4 lg:mx-0">
+            <div class="text-center">
+                <p class="font-medium text-text">"資産管理データがありません"</p>
+                <p class="mt-1 text-sm text-text-muted">
+                    "CSVファイルをインポートするか、データを登録してください。"
+                </p>
+                <a
+                    href="/assetbalance/csv"
+                    class="mt-4 inline-flex items-center justify-center rounded-md border border-border-strong bg-surface px-4 py-2 text-sm font-bold text-text no-underline hover:border-border-bold hover:bg-surface-sunken"
+                >
+                    "CSVを取り込む"
+                </a>
+            </div>
+        </div>
+    }
+}
+
+/// 絞り込み0件(検索で全行が消えた)ときの表示
+#[component]
+fn EmptyFilteredPanel(
+    title: &'static str,
+    on_clear: impl Fn() + Copy + Send + 'static,
+) -> impl IntoView {
+    view! {
+        <div class="asset-panel-padded mx-4 mt-3 lg:mx-0">
+            <div class="text-center">
+                <EmptyState
+                    title=title
+                    description="検索条件を変更するか、絞り込みを解除してください。"
+                />
+                <div class="mt-3 text-center">
+                    <Button variant=ButtonVariant::Ghost on_click=move |_| on_clear()>
+                        "絞り込みを解除"
+                    </Button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+#[component]
+fn StockContent(
     rows: Vec<AssetBalanceRow>,
-    fallback_totals: Option<crate::api::dto::AssetBalanceSummary>,
-    search_query: RwSignal<String>,
+    fallback_totals: Option<AssetBalanceSummary>,
+    search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
@@ -47,131 +105,179 @@ pub(crate) fn AssetBalanceMainContent(
     generation: Generation,
 ) -> impl IntoView {
     let total_count = rows.len();
-    let initial = filtered_portfolio(&rows, &search_query.get_untracked(), lookup, generation);
+    let initial = filtered_portfolio(
+        &rows,
+        &search.with_untracked(|s| s.text.clone()),
+        lookup,
+        generation,
+    );
     search_count.set((initial.views.len(), total_count));
     let filtered = RwSignal::new(initial);
     Effect::new(move |_| {
-        let next = filtered_portfolio(&rows, &search_query.get(), lookup, generation);
+        let next = filtered_portfolio(&rows, &search.with(|s| s.text.clone()), lookup, generation);
         search_count.set((next.views.len(), total_count));
         filtered.set(next);
     });
-    let no_rows = move || total_count == 0;
+    let account_options = Memo::new(|_| Vec::<String>::new());
+    let course_options = Memo::new(|_| Vec::<String>::new());
     view! {
         {move || {
-            no_rows().then(|| {
+            view! {
+                <PortfolioSummary
+                    filtered=filtered.get()
+                    fallback_totals=fallback_totals.clone()
+                    on_clear_filter=move || {
+                        search.update(|s| *s = AssetSearch::default())
+                    }
+                    dividends=dividends
+                />
+            }
+        }}
+        <div class="asset-list-surface">
+            <AssetSearchBar
+                search=search
+                search_count=search_count
+                placeholder="銘柄名・コードで絞り込み"
+                show_conditions=false
+                account_options=account_options
+                course_options=course_options
+            />
+            <div class="hidden lg:block print:block">
+                {move || {
+                    let FilteredPortfolio { views, .. } = filtered.get();
+                    let order = sorted_views(
+                        &views,
+                        &dividends.get(),
+                        sort_key.get(),
+                        sort_order.get(),
+                    );
+                    let sorted: Vec<_> = order
+                        .into_iter()
+                        .map(|index| views[index].clone())
+                        .collect();
+                    view! {
+                        <AssetHoldingsTable
+                            views=sorted
+                            dividends=dividends
+                            sort_key=sort_key
+                            sort_order=sort_order
+                        />
+                    }
+                }}
+            </div>
+            <div class="lg:hidden print:hidden">
+                {move || {
+                    let FilteredPortfolio { views, .. } = filtered.get();
+                    let key = sort_key.get();
+                    let order = sorted_views(&views, &dividends.get(), key, sort_order.get());
+                    let sorted: Vec<_> = order
+                        .into_iter()
+                        .map(|index| views[index].clone())
+                        .collect();
+                    let show_dividend = matches!(key, SortKey::Dividend | SortKey::Yield);
+                    view! {
+                        <HoldingsList
+                            views=sorted
+                            dividends=dividends
+                            show_dividend=show_dividend
+                        />
+                    }
+                }}
+            </div>
+        </div>
+        {move || {
+            let FilteredPortfolio { views, all_views } = filtered.get();
+            (views.is_empty() && !all_views.is_empty()).then(|| {
                 view! {
-                    <div class="asset-panel-padded mx-4 lg:mx-0">
-                        <div class="text-center">
-                            <p class="font-medium text-text">"資産管理データがありません"</p>
-                            <p class="mt-1 text-sm text-text-muted">
-                                "CSVファイルをインポートするか、データを登録してください。"
-                            </p>
-                            <a
-                                href="/assetbalance/csv"
-                                class="mt-4 inline-flex items-center justify-center rounded-md border border-border-strong bg-surface px-4 py-2 text-sm font-bold text-text no-underline hover:border-border-bold hover:bg-surface-sunken"
-                            >
-                                "CSVを取り込む"
-                            </a>
-                        </div>
-                    </div>
+                    <EmptyFilteredPanel
+                        title="該当する銘柄がありません"
+                        on_clear=move || {
+                            search.update(|s| *s = AssetSearch::default())
+                        }
+                    />
                 }
             })
         }}
-        <section id="assetbalance-list" hidden=no_rows>
-            {move || {
-                view! {
-                    <PortfolioSummary
-                        filtered=filtered.get()
-                        fallback_totals=fallback_totals.clone()
-                        on_clear_filter=move || {
-                            search_query.set(String::new())
-                        }
-                        dividends=dividends
-                    />
-                }
-            }}
+    }
+    .into_any()
+}
+
+#[component]
+fn FundContent(
+    resolved: ResolvedFundBalance,
+    search: RwSignal<AssetSearch>,
+    search_count: RwSignal<(usize, usize)>,
+    sort_key: RwSignal<FundSortKey>,
+    sort_order: RwSignal<SortOrder>,
+) -> impl IntoView {
+    let total_count = resolved.rows.len();
+    let account_rows = resolved.rows.clone();
+    let account_options = Memo::new(move |_| fund_accounts(&account_rows));
+    let course_rows = resolved.rows.clone();
+    let course_options = Memo::new(move |_| fund_courses(&course_rows));
+    let rows_for_filter = resolved.rows.clone();
+    let initial = filtered_fund_views(&rows_for_filter, &search.get_untracked());
+    search_count.set((initial.len(), total_count));
+    let filtered = RwSignal::new(initial);
+    Effect::new(move |_| {
+        let next = filtered_fund_views(&rows_for_filter, &search.get());
+        search_count.set((next.len(), total_count));
+        filtered.set(next);
+    });
+    // 集計は絞り込み前の全行で求め、検索中も全保有分を維持する
+    let all_views: Vec<_> = resolved.rows.iter().map(fund_view).collect();
+    let totals = fund_totals(&all_views);
+    let fallback = resolved.fallback_totals.clone();
+    let (market, purchase, profit, daily) = match &fallback {
+        Some(summary) => (
+            crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
+            crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
+            crate::features::asset_balance::dec_to_f64(&summary.total_market_value)
+                - crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
+            Some(crate::features::asset_balance::dec_to_f64(
+                &summary.total_daily_change,
+            )),
+        ),
+        None => (
+            totals.market,
+            totals.purchase,
+            totals.profit,
+            totals.has_daily_change.then_some(totals.daily_change),
+        ),
+    };
+    let profit_rate = (purchase != 0.0).then_some(profit / purchase * 100.0);
+    let empty = total_count == 0;
+    view! {
+        {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
+        <section id="assetbalance-fund-list" hidden=empty>
+            <AssetSummaryStrip
+                label="投資信託"
+                market=market
+                purchase=purchase
+                profit=profit
+                daily_change=daily
+                profit_rate=profit_rate
+            />
             <div class="asset-list-surface">
-                <div class="asset-pc-toolbar no-print" role="search" aria-label="保有銘柄の検索">
-                    <div class="search-input-frame w-80">
-                        <svg aria-hidden="true" class="mx-2 h-4 w-4 shrink-0 self-center text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="M20 20l-3.5-3.5"></path>
-                        </svg>
-                        <input
-                            type="search"
-                            class="search-input"
-                            placeholder="銘柄名・コードで絞り込み"
-                            aria-label="銘柄名・コードで絞り込み"
-                            autocomplete="off"
-                            data-testid="asset-search-input-pc"
-                            enterkeyhint="search"
-                            prop:value=move || search_query.get()
-                            // IME 変換中の確定前の文字では絞り込まない。確定は compositionend で受ける
-                            on:input=move |ev| {
-                                if ev.unchecked_ref::<web_sys::InputEvent>().is_composing() {
-                                    return;
-                                }
-                                search_query.set(event_target_value(&ev));
-                            }
-                            on:compositionend=move |ev| {
-                                search_query.set(event_target_value(&ev))
-                            }
-                        />
-                        {move || {
-                            (!search_query.get().is_empty()).then(|| {
-                                view! {
-                                    <Button
-                                        variant=ButtonVariant::SecondarySoft(ButtonSize::Xs)
-                                        class="shrink-0 self-center".to_string()
-                                        aria_label="検索を解除".to_string()
-                                        testid="asset-search-clear-pc"
-                                        on_click=move |_| search_query.set(String::new())
-                                    >
-                                        "消去"
-                                    </Button>
-                                }
-                            })
-                        }}
-                    </div>
-                    {move || {
-                        if search_query.get().is_empty() {
-                            view! {
-                                <span class="shrink-0 text-xs text-text-muted">
-                                    "列名を押すと並べ替え"
-                                </span>
-                            }
-                            .into_any()
-                        } else {
-                            let (filtered, total) = search_count.get();
-                            view! {
-                                <span
-                                    class="shrink-0 text-xs text-text-muted"
-                                    data-testid="asset-search-count-pc"
-                                >
-                                    {format!("検索結果 {filtered} / {total}件")}
-                                </span>
-                            }
-                            .into_any()
-                        }
-                    }}
-                </div>
+                <AssetSearchBar
+                    search=search
+                    search_count=search_count
+                    placeholder="ファンド名で検索"
+                    show_conditions=true
+                    account_options=account_options
+                    course_options=course_options
+                />
                 <div class="hidden lg:block print:block">
                     {move || {
-                        let FilteredPortfolio { views, .. } = filtered.get();
-                        let order = sorted_views(
-                            &views,
-                            &dividends.get(),
-                            sort_key.get(),
-                            sort_order.get(),
-                        );
+                        let views = filtered.get();
+                        let order = sort_fund_views(&views, sort_key.get(), sort_order.get());
                         let sorted: Vec<_> = order
                             .into_iter()
                             .map(|index| views[index].clone())
                             .collect();
                         view! {
-                            <AssetHoldingsTable
+                            <FundHoldingsTable
                                 views=sorted
-                                dividends=dividends
                                 sort_key=sort_key
                                 sort_order=sort_order
                             />
@@ -180,28 +286,272 @@ pub(crate) fn AssetBalanceMainContent(
                 </div>
                 <div class="lg:hidden print:hidden">
                     {move || {
-                        let FilteredPortfolio { views, .. } = filtered.get();
-                        let key = sort_key.get();
-                        let order = sorted_views(&views, &dividends.get(), key, sort_order.get());
+                        let views = filtered.get();
+                        let order = sort_fund_views(&views, sort_key.get(), sort_order.get());
                         let sorted: Vec<_> = order
                             .into_iter()
                             .map(|index| views[index].clone())
                             .collect();
-                        let show_dividend = matches!(
-                            key,
-                            SortKey::Dividend | SortKey::Yield
-                        );
+                        view! { <FundHoldingsList views=sorted /> }
+                    }}
+                </div>
+            </div>
+            {move || {
+                let views = filtered.get();
+                view! { <FundPriceAsOfNote views=views /> }
+            }}
+            {move || {
+                (filtered.with(|views| views.is_empty()) && total_count > 0).then(|| {
+                    view! {
+                        <EmptyFilteredPanel
+                            title="該当するファンドがありません"
+                            on_clear=move || {
+                                search.update(|s| *s = AssetSearch::default())
+                            }
+                        />
+                    }
+                })
+            }}
+        </section>
+    }
+    .into_any()
+}
+
+fn filtered_fund_views(rows: &[FundBalanceRow], search: &AssetSearch) -> Vec<FundView> {
+    filter_fund_rows(rows, search)
+        .into_iter()
+        .map(fund_view)
+        .collect()
+}
+
+#[component]
+fn AllContent(
+    stock_rows: Vec<AssetBalanceRow>,
+    stock_fallback: Option<AssetBalanceSummary>,
+    fund_resolved: ResolvedFundBalance,
+    search: RwSignal<AssetSearch>,
+    search_count: RwSignal<(usize, usize)>,
+    sort_key: RwSignal<FundSortKey>,
+    sort_order: RwSignal<SortOrder>,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    generation: Generation,
+) -> impl IntoView {
+    let stock_total = stock_rows.len();
+    let fund_total = fund_resolved.rows.len();
+    let total_count = stock_total + fund_total;
+    let stock_rows_for_search = stock_rows.clone();
+    let fund_rows_for_search = fund_resolved.rows.clone();
+    let build_rows = move |search: &AssetSearch| -> Vec<UnifiedRow> {
+        // 株はコード・銘柄名、ファンドはファンド名・口座の部分一致にそろえる
+        let FilteredPortfolio { views, .. } =
+            filtered_portfolio(&stock_rows_for_search, &search.text, lookup, generation);
+        let fund_search = AssetSearch {
+            text: search.text.clone(),
+            ..Default::default()
+        };
+        let mut rows: Vec<UnifiedRow> = views.iter().map(unified_from_stock).collect();
+        rows.extend(
+            filter_fund_rows(&fund_rows_for_search, &fund_search)
+                .into_iter()
+                .map(fund_view)
+                .map(|view| unified_from_fund(&view)),
+        );
+        rows
+    };
+    let initial = build_rows(&search.get_untracked());
+    search_count.set((initial.len(), total_count));
+    let filtered = RwSignal::new(initial);
+    Effect::new(move |_| {
+        let next = build_rows(&search.get());
+        search_count.set((next.len(), total_count));
+        filtered.set(next);
+    });
+    // 集計は両種別を合算。株側は銘柄ごとの現在値評価を使う
+    let stock_inputs: Vec<ValuationInput> = filtered_portfolio(&stock_rows, "", lookup, generation)
+        .all_views
+        .iter()
+        .map(ValuationInput::from)
+        .collect();
+    let stock_valuation = crate::features::asset_balance::model::portfolio_valuation(&stock_inputs);
+    let stock_rows_purchase: f64 = stock_inputs.iter().map(|i| i.total_purchase_amount).sum();
+    let stock_market = stock_fallback
+        .as_ref()
+        .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_market_value))
+        .unwrap_or_else(|| stock_valuation.market_value.unwrap_or(0.0));
+    let stock_purchase = stock_fallback
+        .as_ref()
+        .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount))
+        .unwrap_or(stock_rows_purchase);
+    let stock_daily = stock_fallback
+        .as_ref()
+        .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change));
+    let fund_rows = fund_resolved.rows.clone();
+    let fund_views: Vec<_> = fund_rows.iter().map(fund_view).collect();
+    let fund_totals_value = fund_totals(&fund_views);
+    let (fund_market, fund_purchase, fund_profit, fund_daily) = match &fund_resolved.fallback_totals
+    {
+        Some(summary) => (
+            crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
+            crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
+            crate::features::asset_balance::dec_to_f64(&summary.total_market_value)
+                - crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
+            Some(crate::features::asset_balance::dec_to_f64(
+                &summary.total_daily_change,
+            )),
+        ),
+        None => (
+            fund_totals_value.market,
+            fund_totals_value.purchase,
+            fund_totals_value.profit,
+            fund_totals_value
+                .has_daily_change
+                .then_some(fund_totals_value.daily_change),
+        ),
+    };
+    let stock_profit = stock_market - stock_purchase;
+    let market = stock_market + fund_market;
+    let purchase = stock_purchase + fund_purchase;
+    let profit = stock_profit + fund_profit;
+    let daily = match (stock_daily, fund_daily) {
+        (Some(a), Some(b)) => Some(a + b),
+        (a, b) => a.or(b),
+    };
+    let profit_rate = (purchase != 0.0).then_some(profit / purchase * 100.0);
+    let empty = total_count == 0;
+    let account_options = Memo::new(|_| Vec::<String>::new());
+    let course_options = Memo::new(|_| Vec::<String>::new());
+    view! {
+        {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
+        <section id="assetbalance-all-list" hidden=empty>
+            <AssetSummaryStrip
+                label="すべて"
+                market=market
+                purchase=purchase
+                profit=profit
+                daily_change=daily
+                profit_rate=profit_rate
+            />
+            <div class="asset-list-surface">
+                <AssetSearchBar
+                    search=search
+                    search_count=search_count
+                    placeholder="銘柄・ファンド名で検索"
+                    show_conditions=false
+                    account_options=account_options
+                    course_options=course_options
+                />
+                <div class="hidden lg:block print:block">
+                    {move || {
+                        let rows = filtered.get();
                         view! {
-                            <HoldingsList
-                                views=sorted
-                                dividends=dividends
-                                show_dividend=show_dividend
+                            <AssetMergedTable
+                                rows=rows
+                                sort_key=sort_key
+                                sort_order=sort_order
                             />
                         }
                     }}
                 </div>
+                <div class="lg:hidden print:hidden">
+                    {move || {
+                        let rows = filtered.get();
+                        let order = sort_unified(&rows, sort_key.get(), sort_order.get());
+                        let sorted: Vec<_> = order
+                            .into_iter()
+                            .map(|index| rows[index].clone())
+                            .collect();
+                        view! { <AssetMergedList rows=sorted /> }
+                    }}
+                </div>
             </div>
+            {move || {
+                (filtered.with(|rows| rows.is_empty()) && total_count > 0).then(|| {
+                    view! {
+                        <EmptyFilteredPanel
+                            title="該当する明細がありません"
+                            on_clear=move || {
+                                search.update(|s| *s = AssetSearch::default())
+                            }
+                        />
+                    }
+                })
+            }}
         </section>
+    }
+    .into_any()
+}
+
+#[component]
+pub(crate) fn AssetBalanceMainContent(
+    stock_rows: Vec<AssetBalanceRow>,
+    fallback_totals: Option<AssetBalanceSummary>,
+    fund_resolved: ResolvedFundBalance,
+    search: RwSignal<AssetSearch>,
+    search_count: RwSignal<(usize, usize)>,
+    sort_key: RwSignal<SortKey>,
+    sort_order: RwSignal<SortOrder>,
+    fund_sort_key: RwSignal<FundSortKey>,
+    fund_sort_order: RwSignal<SortOrder>,
+    kind: RwSignal<AssetKind>,
+    dividends: RwSignal<DividendMaps>,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    generation: Generation,
+) -> impl IntoView {
+    let stock_count = stock_rows.len();
+    let fund_count = fund_resolved.total.max(fund_resolved.rows.len());
+    view! {
+        <AssetKindTabs
+            kind=kind
+            all_count=stock_count + fund_count
+            stock_count=stock_count
+            fund_count=fund_count
+        />
+        {move || match kind.get() {
+            AssetKind::Stock => {
+                view! {
+                    <StockContent
+                        rows=stock_rows.clone()
+                        fallback_totals=fallback_totals.clone()
+                        search=search
+                        search_count=search_count
+                        sort_key=sort_key
+                        sort_order=sort_order
+                        dividends=dividends
+                        lookup=lookup
+                        generation=generation
+                    />
+                }
+                    .into_any()
+            }
+            AssetKind::Fund => {
+                view! {
+                    <FundContent
+                        resolved=fund_resolved.clone()
+                        search=search
+                        search_count=search_count
+                        sort_key=fund_sort_key
+                        sort_order=fund_sort_order
+                    />
+                }
+                    .into_any()
+            }
+            AssetKind::All => {
+                view! {
+                    <AllContent
+                        stock_rows=stock_rows.clone()
+                        stock_fallback=fallback_totals.clone()
+                        fund_resolved=fund_resolved.clone()
+                        search=search
+                        search_count=search_count
+                        sort_key=fund_sort_key
+                        sort_order=fund_sort_order
+                        lookup=lookup
+                        generation=generation
+                    />
+                }
+                    .into_any()
+            }
+        }}
     }
     .into_any()
 }

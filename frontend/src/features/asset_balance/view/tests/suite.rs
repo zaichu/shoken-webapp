@@ -472,14 +472,6 @@ fn sort_labels_distinguish_each_option() {
 }
 
 #[test]
-fn mobile_search_stays_open_while_query_is_active() {
-    // 語が残っている間に欄を閉じられると、一覧が減る理由が見えなくなる
-    assert!(super::mobile_bar::mobile_search_open(false, "架空"));
-    assert!(!super::mobile_bar::mobile_search_open(false, ""));
-    assert!(super::mobile_bar::mobile_search_open(true, ""));
-}
-
-#[test]
 fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
     let owner = Owner::new();
     owner.with(|| {

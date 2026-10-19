@@ -5,7 +5,7 @@ pub use shared::common::{MessageResponse, PaginatedSearchResponse, SessionUser, 
 pub use shared::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 pub use shared::domain::{
     AssetBalance, AssetBalanceSummary, Dividend, DividendSummary, DomesticStock,
-    DomesticStockSummary, Mutualfund,
+    DomesticStockSummary, FundBalance, FundBalanceSummary, Mutualfund,
 };
 
 // wire 形が DomesticStockSummary と同一なので、serde の実装を wasm に増やさないよう使い回す
@@ -17,6 +17,7 @@ pub type DividendListResponse = PaginatedSearchResponse<Dividend, DividendSummar
 #[cfg(test)]
 pub type MutualfundListResponse = PaginatedSearchResponse<Mutualfund, MutualfundSummary>;
 pub type AssetBalanceListResponse = PaginatedSearchResponse<AssetBalance, AssetBalanceSummary>;
+pub type FundBalanceListResponse = PaginatedSearchResponse<FundBalance, FundBalanceSummary>;
 
 #[cfg(test)]
 mod tests;

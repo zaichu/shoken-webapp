@@ -1,6 +1,6 @@
 use crate::api::dto::{
     AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, Dividend, DividendListResponse,
-    DividendSummary,
+    DividendSummary, FundBalance, FundBalanceListResponse,
 };
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::{
@@ -31,14 +31,56 @@ pub fn HomePage() -> impl IntoView {
 // 外側の None は取得中、内側の None は取得失敗
 type SummarySlot<T> = RwSignal<Option<(Generation, Option<T>)>>;
 
+// ホームの評価額は国内株式と投資信託の合算。片方の取得失敗で全体を欠落させないよう
+// ファンド側の失敗は株式のみの集計にフォールバックする
 async fn fetch_asset_summary() -> Result<Option<AssetBalanceSummary>, ApiError> {
-    ApiClient::read_client()
+    let stock = ApiClient::read_client()
         .get_json::<AssetBalanceListResponse>(
             <AssetBalance as ListEndpoint>::PATH,
             &[("per_page", "1"), ("include_summary", "true")],
         )
         .await
-        .map(|response| response.summary)
+        .map(|response| response.summary)?;
+    let fund = ApiClient::read_client()
+        .get_json::<FundBalanceListResponse>(
+            <FundBalance as ListEndpoint>::PATH,
+            &[("per_page", "1"), ("include_summary", "true")],
+        )
+        .await
+        .ok()
+        .and_then(|response| response.summary);
+    match (stock, fund) {
+        (None, None) => Ok(None),
+        (stock, fund) => {
+            // ファンド側に priced_* の区別がないため、価格あり集計にはファンドは全件含める
+            let pick =
+                |v: Option<&AssetBalanceSummary>,
+                 f: &dyn Fn(&AssetBalanceSummary) -> rust_decimal::Decimal| {
+                    v.map(f).unwrap_or_default()
+                };
+            let fund_market = fund
+                .as_ref()
+                .map(|s| s.total_market_value)
+                .unwrap_or_default();
+            let fund_purchase = fund
+                .as_ref()
+                .map(|s| s.total_purchase_amount)
+                .unwrap_or_default();
+            let fund_daily = fund
+                .as_ref()
+                .map(|s| s.total_daily_change)
+                .unwrap_or_default();
+            Ok(Some(AssetBalanceSummary {
+                total_market_value: pick(stock.as_ref(), &|s| s.total_market_value) + fund_market,
+                total_purchase_amount: pick(stock.as_ref(), &|s| s.total_purchase_amount)
+                    + fund_purchase,
+                total_daily_change: pick(stock.as_ref(), &|s| s.total_daily_change) + fund_daily,
+                priced_market_value: pick(stock.as_ref(), &|s| s.priced_market_value) + fund_market,
+                priced_purchase_amount: pick(stock.as_ref(), &|s| s.priced_purchase_amount)
+                    + fund_purchase,
+            }))
+        }
+    }
 }
 
 async fn fetch_dividend_summary(year: u32) -> Result<Option<DividendSummary>, ApiError> {
