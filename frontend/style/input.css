@@ -443,74 +443,119 @@
     }
   }
 
-  .receipt-filter-chip {
-    @apply inline-flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-3 text-[13px] text-text no-underline transition-colors hover:bg-surface-sunken lg:min-h-8;
-  }
-
-  .receipt-filter-chip[aria-pressed="true"] {
-    @apply border-brand bg-brand text-text-inverse;
-  }
-
   .active-condition-chip {
     @apply inline-flex min-h-11 items-center gap-1 rounded-full border border-brand bg-surface px-2.5 text-xs font-medium text-brand-text;
   }
 
-  .pc-search-bar {
-    @apply flex flex-wrap items-center gap-2.5 gap-y-2.5 mb-4 px-3.5 py-2.5 bg-surface border border-border;
-    border-radius: 10px;
+  /* 検索欄(タグ入力型): 今の条件のタグ・銘柄入力・件数・すべてクリアを1つの面にまとめる */
+  .pc-search-area {
+    @apply relative mb-4;
   }
 
-  .pc-search-bar label {
-    @apply flex-1 min-w-[260px] h-9;
+  .receipts-search-box {
+    @apply flex flex-wrap items-center gap-1.5 rounded-lg border border-border-strong bg-surface p-1.5 focus-within:border-accent-strong focus-within:ring-2 focus-within:ring-accent-bright/20;
   }
 
-  .pc-search-bar .search-input-frame {
-    @apply h-full w-full;
+  .receipts-search-input {
+    /* iPhone Safari は 16px 未満の入力欄でフォーカス時に自動ズームする */
+    @apply block h-11 min-w-0 flex-1 rounded-md border-0 bg-surface px-2 text-base font-medium text-ink shadow-none placeholder:text-text-faint focus:outline-none sm:text-sm lg:h-9;
   }
 
-  .pc-search-bar .search-input-frame svg {
-    @apply h-4 w-4;
+  .receipts-search-count {
+    @apply shrink-0 whitespace-nowrap px-1 text-[13px] tabular-nums text-text-soft;
   }
 
-  .pc-search-bar .search-input {
-    @apply h-full;
+  .receipts-search-clear {
+    @apply inline-flex min-h-11 shrink-0 items-center px-1.5 text-[13px] font-medium text-info hover:text-info-deep disabled:text-text-faint lg:min-h-8;
   }
 
-  .pc-search-bar select {
-    @apply h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm;
+  /* 検索欄のすぐ下に常設する「条件を足す」。押すと小窓(PC)/シート(スマホ)を出す */
+  .add-condition-row {
+    @apply relative mt-2 flex flex-wrap items-center gap-1.5;
   }
 
-  /* 期間モードの入力領域。全スロットを同じグリッドマスに重ね、最も広い
-     範囲モードの幅を常時確保して後続項目の位置を固定する */
-  .pc-search-bar .pc-period-slots {
-    @apply grid items-center;
+  .add-condition-label {
+    @apply text-[13px] text-text-soft;
   }
 
-  .pc-search-bar .pc-period-slot {
-    grid-area: 1 / 1;
-    @apply flex items-center gap-1;
+  .add-condition-button {
+    @apply inline-flex min-h-11 items-center gap-0.5 rounded-lg border border-border-strong bg-surface px-3 text-[13px] font-medium text-text transition-colors hover:bg-surface-sunken;
   }
 
-  .pc-search-bar .pc-period-slot:not([data-active="true"]) {
-    @apply invisible;
+  @media (width < 64rem) {
+    .add-condition-row .add-condition-button {
+      @apply flex-1 justify-center;
+    }
+  }
+
+  /* 小窓(PC)と下から出るシート(スマホ)。構造は共通で、PC は検索欄の下に
+     絶対配置、スマホは画面下端に固定する。背景は PC では外側クリックを受ける
+     透明な面、スマホでは下地を暗くする幕 */
+  .condition-backdrop {
+    @apply fixed inset-0 z-40;
+  }
+
+  .condition-panel {
+    @apply absolute left-0 top-full z-50 mt-2 rounded-xl border border-border bg-surface p-4 shadow-elevation-2;
+    width: min(26rem, calc(100vw - 2rem));
+  }
+
+  .condition-panel-title {
+    @apply text-sm font-bold text-text;
+  }
+
+  .condition-panel-actions {
+    @apply mt-3 flex justify-end;
+  }
+
+  /* 期間の5種類(すべて/年/年月/日/範囲)の切り替え */
+  .condition-segment {
+    @apply mt-2 flex w-full overflow-clip rounded-lg border border-border-strong bg-surface;
+  }
+
+  .condition-segment-option {
+    @apply flex min-h-9 flex-1 items-center justify-center px-1 text-[13px] font-medium text-text-deep transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-sm:min-h-11;
+  }
+
+  .condition-segment-option + .condition-segment-option {
+    @apply border-l border-border-strong;
+  }
+
+  .condition-segment-option[aria-pressed="true"] {
+    @apply bg-brand font-bold text-text-inverse;
+  }
+
+  .condition-option-list {
+    @apply mt-2 flex max-h-72 flex-wrap gap-1.5 overflow-y-auto;
+  }
+
+  .condition-option {
+    @apply inline-flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-3 text-sm text-text transition-colors hover:bg-surface-sunken lg:min-h-9;
+  }
+
+  .condition-option[aria-pressed="true"] {
+    @apply border-brand bg-brand text-text-inverse;
+  }
+
+  @media (width < 64rem) {
+    .condition-backdrop {
+      @apply bg-scrim/50;
+    }
+
+    .condition-panel {
+      @apply fixed inset-x-0 bottom-0 top-auto mt-0 rounded-b-none rounded-t-2xl border-b-0 pt-3;
+      padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    }
+
+    .condition-panel-actions > button {
+      @apply min-h-11 w-full;
+    }
   }
 
   /* type=date は未入力だと「年/月/日 ()」のような形式表示が出る。入力中は
      打った桁を見せる必要があるので、空かつ未フォーカスのときだけ文字を消す */
   input[type="date"][data-empty="true"]:not(:focus) {
     @apply text-transparent;
-  }
-
-  .pc-date-field {
-    @apply relative inline-flex items-center;
-  }
-
-  .pc-date-field-label {
-    @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted;
-  }
-
-  .pc-date-field:focus-within .pc-date-field-label {
-    @apply hidden;
   }
 
   /* 集計の帯(PC・スマホ共通): 紺地に金の見出し。主値(税引後)を先頭に置き、
@@ -811,20 +856,7 @@
     @apply bg-nisa-soft text-warn-ink;
   }
 
-  /* 絞り込み中の条件を一覧の直上1か所にまとめる帯(スマホ) */
-  .receipts-active-band {
-    @apply flex flex-wrap items-center gap-1.5 border-b border-band-border bg-band px-4 py-2 text-xs;
-  }
-
-  .receipts-active-band-label {
-    @apply font-bold text-warn-ink;
-  }
-
-  .receipts-active-band-clear {
-    @apply ml-auto min-h-11 px-1.5 font-medium text-info hover:text-info-deep;
-  }
-
-  /* 集計と絞り込み帯はスクロール中も一覧の上に張り付く(スマホのみ) */
+  /* 集計の帯はスクロール中も一覧の上に張り付く(スマホのみ) */
   @media (width < 64rem) {
     .receipts-sticky-top {
       @apply sticky top-0 z-10 flex flex-col;
@@ -841,30 +873,12 @@
     @apply py-2;
   }
 
-  .receipts-conditions-link {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-brand bg-surface px-3 text-sm font-medium text-brand-text no-underline;
+  .receipts-mobile-search {
+    @apply flex flex-col gap-2;
   }
 
-  .receipts-conditions-count {
-    @apply inline-flex items-center justify-center bg-gold font-bold text-brand;
-    border-radius: 9px;
-    padding: 0 6px;
-    font-size: 12px;
-    line-height: 18px;
-    min-width: 18px;
-  }
-
-  /* Conditions page action buttons */
-  .conditions-actions {
-    @apply flex gap-2 p-4 bg-surface border-t border-border;
-  }
-
-  .conditions-clear-btn {
-    @apply border-brand text-brand-text hover:bg-surface-sunken hover:border-brand;
-  }
-
-  .conditions-apply-btn {
-    @apply bg-brand border-brand text-text-inverse hover:bg-brand-deep hover:border-brand-deep;
+  .receipts-mobile-search-meta {
+    @apply flex items-center justify-between gap-2;
   }
 
   .skip-link {

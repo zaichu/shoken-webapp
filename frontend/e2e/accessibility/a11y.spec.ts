@@ -432,7 +432,7 @@ test('CSVプレビューの行エラー表示に moderate 以上の WCAG 違反�
   });
 });
 
-test('検索条件の選択中状態に moderate 以上の WCAG 違反がない', async ({ page }) => {
+test('取引明細の検索と条件を足す小窓に moderate 以上の WCAG 違反がない', async ({ page }) => {
   await mockSession(page);
   await mockEmptyLists(page);
   await mockReceiptsData(page);
@@ -444,15 +444,12 @@ test('検索条件の選択中状態に moderate 以上の WCAG 違反がない'
     await page.waitForTimeout(400);
     await expect(page.getByRole('search')).toBeVisible({ timeout: 10000 });
     await scanAxe(page, `取引明細の検索(${name})`);
-    await page.goto('/receipts/conditions');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(400);
-    // 選択項目はデータ到着まで出ないので、選択ゲージがある時にだけスキャンする
-    await expect(page.getByRole('button', { name: 'SBI証券', exact: true })).toBeVisible({
+    // 条件を足すの小窓・シートを開いた状態もスキャンする
+    await page.getByRole('button', { name: '＋ 口座' }).click();
+    await expect(page.getByRole('dialog', { name: '口座を選ぶ' })).toBeVisible({
       timeout: 10000,
     });
-    await page.getByRole('button', { name: 'SBI証券', exact: true }).click();
-    await scanAxe(page, `検索条件(${name})`);
+    await scanAxe(page, `条件を足すの小窓(${name})`);
     await page.goto('/assetbalance');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
