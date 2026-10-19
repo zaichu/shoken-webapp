@@ -8,9 +8,35 @@ mod tests;
 use crate::api::ApiError;
 use crate::api::dto::{AssetBalance, Dividend, DomesticStock, Mutualfund};
 use crate::features::asset_balance::{ValuationInput, holding_valuation};
-use crate::support::pagination::fetch_all_pages;
+use crate::support::pagination::{ListPage, fetch_all_pages_with};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
+
+// 一覧表示のページ上限より大きく取り、保存上限の変更にも耐える。
+// これを超えるデータ量は truncated としてエラーにする
+const EXPORT_MAX_PAGES: usize = 1_000;
+
+/// エクスポートの失敗。API 由来はその案内文、件数超過は専用の文で出す
+#[derive(Debug)]
+pub(crate) enum ExportError {
+    Api(ApiError),
+    Truncated,
+}
+
+impl ExportError {
+    pub(crate) fn user_message(&self) -> String {
+        match self {
+            Self::Api(error) => error.user_message(),
+            Self::Truncated => "件数が上限を超えたため、全件を取得できませんでした".to_string(),
+        }
+    }
+}
+
+impl From<ApiError> for ExportError {
+    fn from(error: ApiError) -> Self {
+        Self::Api(error)
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum ExportKind {
@@ -43,16 +69,27 @@ impl ExportKind {
     }
 }
 
+// 取得上限に達したときは一部だけの CSV を成功扱いにしない
+fn rows_of<T, S>(result: ListPage<T, S>) -> Result<Vec<T>, ExportError> {
+    if result.truncated {
+        Err(ExportError::Truncated)
+    } else {
+        Ok(result.rows)
+    }
+}
+
 /// 一覧 API を全ページ取って CSV 化する。ファイル名の日付はローカル日付
-pub(crate) async fn fetch_csv(kind: ExportKind) -> Result<(String, String), ApiError> {
+pub(crate) async fn fetch_csv(kind: ExportKind) -> Result<(String, String), ExportError> {
     let content = match kind {
-        ExportKind::Dividend => dividends_csv(&fetch_all_pages::<Dividend>().await?.rows),
-        ExportKind::AssetBalance => {
-            asset_balances_csv(&fetch_all_pages::<AssetBalance>().await?.rows)
-        }
+        ExportKind::Dividend => dividends_csv(&rows_of(
+            fetch_all_pages_with::<Dividend>(EXPORT_MAX_PAGES).await?,
+        )?),
+        ExportKind::AssetBalance => asset_balances_csv(&rows_of(
+            fetch_all_pages_with::<AssetBalance>(EXPORT_MAX_PAGES).await?,
+        )?),
         ExportKind::Transaction => transactions_csv(
-            &fetch_all_pages::<DomesticStock>().await?.rows,
-            &fetch_all_pages::<Mutualfund>().await?.rows,
+            &rows_of(fetch_all_pages_with::<DomesticStock>(EXPORT_MAX_PAGES).await?)?,
+            &rows_of(fetch_all_pages_with::<Mutualfund>(EXPORT_MAX_PAGES).await?)?,
         ),
     };
     Ok((kind.filename(&today()), content))
@@ -81,6 +118,15 @@ fn csv_cell(text: &str) -> String {
         format!("\"{}\"", text.replace('"', "\"\""))
     } else {
         text.to_string()
+    }
+}
+
+/// ユーザー由来の文字列用。`= + - @` 始まりは表計算ソフトで式として
+/// 実行されうるため `'` で逃がす。数値フィールドには使わない
+fn csv_text(text: &str) -> String {
+    match text.chars().next() {
+        Some('=' | '+' | '-' | '@') => format!("'{text}"),
+        _ => text.to_string(),
     }
 }
 
@@ -137,10 +183,10 @@ fn dividends_csv(rows: &[Dividend]) -> String {
     for row in sorted {
         lines.push(csv_line(&[
             row.settlement_date.to_string(),
-            row.product.clone(),
-            row.account.as_str().to_string(),
-            row.security_code.clone(),
-            row.security_name.clone(),
+            csv_text(&row.product),
+            csv_text(row.account.as_str()),
+            csv_text(&row.security_code),
+            csv_text(&row.security_name),
             num(row.unit_price),
             num(row.shares),
             num(row.dividends_before_tax),
@@ -188,8 +234,8 @@ fn asset_balances_csv(rows: &[AssetBalance]) -> String {
         let row = &rows[index];
         let valuation = &valuations[index];
         lines.push(csv_line(&[
-            row.security_code.as_str().to_string(),
-            row.security_name.clone(),
+            csv_text(row.security_code.as_str()),
+            csv_text(&row.security_name),
             num(row.shares),
             num(row.average_purchase_price),
             num(row.total_purchase_amount),
@@ -214,9 +260,9 @@ fn transactions_csv(stocks: &[DomesticStock], funds: &[Mutualfund]) -> String {
             row.trade_date.to_string(),
             "国内株式",
             vec![
-                row.security_code.as_str().to_string(),
-                row.security_name.clone(),
-                row.account.as_str().to_string(),
+                csv_text(row.security_code.as_str()),
+                csv_text(&row.security_name),
+                csv_text(row.account.as_str()),
                 num(row.shares),
                 num(row.asked_price),
                 num(row.proceeds),
@@ -233,8 +279,8 @@ fn transactions_csv(stocks: &[DomesticStock], funds: &[Mutualfund]) -> String {
             "投資信託",
             vec![
                 String::new(),
-                row.fund_name.clone(),
-                row.account.as_str().to_string(),
+                csv_text(&row.fund_name),
+                csv_text(row.account.as_str()),
                 num(row.shares),
                 num(row.cancellation_unit_price_yen),
                 num(row.cancellation_amount_yen),

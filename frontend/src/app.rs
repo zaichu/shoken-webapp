@@ -317,15 +317,25 @@ pub fn App() -> impl IntoView {
     if let Some(fragment) = web_sys::window().and_then(|window| window.location().hash().ok()) {
         let fragment = fragment.trim_start_matches('#').to_string();
         if !fragment.is_empty() {
-            gloo_timers::callback::Timeout::new(0, move || {
-                if let Some(element) = web_sys::window()
-                    .and_then(|window| window.document())
-                    .and_then(|document| document.get_element_by_id(&fragment))
-                {
-                    element.scroll_into_view();
+            let done = std::cell::Cell::new(false);
+            Effect::new(move |_| {
+                // 認証読み込み前はセクション未描画で要素が見つからない。
+                // ログイン済みが確定してから1度だけ実行し、未認証のログイン遷移では実行しない
+                if done.get() || !session.loaded.get() || session.user.get().is_none() {
+                    return;
                 }
-            })
-            .forget();
+                done.set(true);
+                let fragment = fragment.clone();
+                gloo_timers::callback::Timeout::new(0, move || {
+                    if let Some(element) = web_sys::window()
+                        .and_then(|window| window.document())
+                        .and_then(|document| document.get_element_by_id(&fragment))
+                    {
+                        element.scroll_into_view();
+                    }
+                })
+                .forget();
+            });
         }
     }
     // route だけを見ると不明パス同士の遷移(NotFound→NotFound)で再発火しないため path を追跡する

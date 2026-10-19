@@ -196,6 +196,18 @@ fn csv_escapes_commas_quotes_and_newlines() {
 }
 
 #[test]
+fn csv_neutralizes_text_cells_that_look_like_formulas() {
+    // 銘柄名などの文字列が = + - @ 始まりだと表計算ソフトで式として実行されるため ' で逃がす
+    let csv = dividends_csv(&[dividend(json!({"security_name": "=cmd|' /C calc'!A0"}))]);
+    assert!(csv.contains("'=cmd|' /C calc'!A0"));
+    let csv = asset_balances_csv(&[balance(json!({"security_name": "@x"}))]);
+    assert!(csv.contains("'@x"));
+    // 数値の負値は数値として扱わせるため逃がさない
+    let csv = transactions_csv(&[stock(json!({"realized_profit_and_loss": -12345}))], &[]);
+    assert!(csv.contains(",-12345,"));
+}
+
+#[test]
 fn export_filenames_use_label_and_date() {
     assert_eq!(
         ExportKind::Dividend.filename("2026-01-02"),

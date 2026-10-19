@@ -32,8 +32,17 @@ pub struct ListPage<T, S> {
 
 /// 指定エンドポイントの一覧を全ページ取得する。
 pub async fn fetch_all_pages<E: ListEndpoint>() -> Result<ListPage<E::Row, E::Summary>, ApiError> {
+    fetch_all_pages_with::<E>(E::MAX_PAGES).await
+}
+
+/// ページ上限を指定した `fetch_all_pages`。
+/// CSV エクスポートなど全件を欲しい用途は既定より大きい上限を渡し、
+/// それでも足りなければ `truncated` で検出する。
+pub async fn fetch_all_pages_with<E: ListEndpoint>(
+    max_pages: usize,
+) -> Result<ListPage<E::Row, E::Summary>, ApiError> {
     let client = ApiClient::read_client();
-    collect_list_pages(E::PER_PAGE, E::MAX_PAGES, |page_no| {
+    collect_list_pages(E::PER_PAGE, max_pages, |page_no| {
         let client = client.clone();
         async move {
             let page = page_no.to_string();

@@ -494,7 +494,7 @@ test('設定ページにアカウント・表示・データ・セキュリテ�
   await expect(page.getByRole('link', { name: '投資信託データを削除' })).toHaveAttribute('href', '/receipts/csv/delete?kind=fund');
   await expect(page.getByRole('link', { name: '資産管理データを削除' })).toHaveAttribute('href', '/assetbalance/csv/delete');
 
-  // 段階2で追加した表示・セキュリティセクション
+  // 表示・セキュリティセクション
   await expect(page.getByRole('heading', { name: '表示' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'セキュリティ' })).toBeVisible();
 });

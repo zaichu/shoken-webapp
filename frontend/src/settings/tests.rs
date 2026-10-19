@@ -99,5 +99,7 @@ fn format_amount_follows_the_amount_unit_signal() {
     unit.set(AmountUnit::Man);
     assert_eq!(format_amount(dec!(123456)), "12.3万円");
     assert_eq!(format_amount(dec!(99)), "0万円");
+    // 小額の損失がゼロに丸まっても符号は残す
+    assert_eq!(format_amount(dec!(-99)), "-0.0万円");
     unit.set(AmountUnit::Yen);
 }

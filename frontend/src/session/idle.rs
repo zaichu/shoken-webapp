@@ -83,12 +83,19 @@ pub fn watch_idle_logout(session: SessionStore, minutes: RwSignal<u32>) {
     let timer: IdleTimer = Rc::new(RefCell::new(None));
 
     let timer_effect = Rc::clone(&timer);
+    let was_authed = std::cell::Cell::new(false);
     Effect::new(move |_| {
         // 設定が変わったら残り時間でタイマーを張り直す
         minutes.get();
         if session.user.get().is_some() {
+            // 期限切れの最終操作時刻が残ったまま再ログインすると即ログアウトするため、
+            // 認証の開始を新しい操作として記録し直す。設定変更では上書きしない
+            if !was_authed.replace(true) {
+                cross_tab::record_activity();
+            }
             arm_idle_timer(&timer_effect, session, minutes);
         } else {
+            was_authed.set(false);
             timer_effect.borrow_mut().take();
         }
     });

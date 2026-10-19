@@ -7,6 +7,7 @@ mod tests;
 
 use crate::features::asset_balance::{SortKey, SortOrder};
 use crate::features::receipts::ReceiptsTab;
+use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -182,11 +183,19 @@ pub(crate) fn current_amount_unit() -> AmountUnit {
 pub fn format_amount(value: Decimal) -> String {
     match amount_unit_signal().get() {
         AmountUnit::Yen => format_currency(value),
-        unit => format!(
-            "{}{}",
-            format_number(value / unit.divisor(), 1),
-            unit.label()
-        ),
+        unit => {
+            let scaled = value / unit.divisor();
+            // 小額の損失がゼロに丸まると format_number が符号を失うため、
+            // 丸め前の符号を -0.0 として残す
+            if scaled.is_sign_negative()
+                && !scaled.is_zero()
+                && format_number(scaled.abs(), 1) == "0"
+            {
+                format!("-0.0{}", unit.label())
+            } else {
+                format!("{}{}", format_number(scaled, 1), unit.label())
+            }
+        }
     }
 }
 
@@ -335,6 +344,52 @@ fn persist_on_change<T: Clone + Send + Sync + 'static>(
     });
 }
 
+// 他タブからの同期で同じ値を書き戻すと storage イベントが往復し続けるため、
+// 変化があるときだけシグナルを更新する
+fn set_if_different<T: Clone + PartialEq + Send + Sync + 'static>(signal: RwSignal<T>, value: T) {
+    if signal.get_untracked() != value {
+        signal.set(value);
+    }
+}
+
+/// 別タブで変えられた設定値をこのタブのシグナルにも反映する。
+/// 特に自動ログアウト時間は反映しないと旧値のタイマーが全タブをログアウトさせる
+fn watch_settings_sync(store: SettingsStore) {
+    window_event_listener(ev::storage, move |event| {
+        let (Some(key), Some(value)) = (event.key(), event.new_value()) else {
+            return;
+        };
+        match key.as_str() {
+            KEY_ASSET_SORT => {
+                if let Some(parsed) = AssetSort::parse(&value) {
+                    set_if_different(store.asset_sort, parsed);
+                }
+            }
+            KEY_RECEIPTS_TAB => {
+                if let Some(parsed) = parse_receipts_tab(&value) {
+                    set_if_different(store.receipts_initial_tab, parsed);
+                }
+            }
+            KEY_AMOUNT_UNIT => {
+                if let Some(parsed) = AmountUnit::from_value(&value) {
+                    set_if_different(store.amount_unit, parsed);
+                }
+            }
+            KEY_IDLE_MINUTES => {
+                if let Some(parsed) = parse_idle_minutes(&value) {
+                    set_if_different(store.idle_logout_minutes, parsed);
+                }
+            }
+            KEY_REVIEW_PROMPT => {
+                if let Some(parsed) = ReviewPromptPref::parse_json(&value) {
+                    set_if_different(store.review_prompt, parsed);
+                }
+            }
+            _ => {}
+        }
+    });
+}
+
 fn parse_receipts_tab(value: &str) -> Option<ReceiptsTab> {
     ReceiptsTab::ALL
         .iter()
@@ -384,6 +439,10 @@ pub fn provide_settings() -> SettingsStore {
     persist_on_change(store.review_prompt, KEY_REVIEW_PROMPT, |pref| {
         pref.to_json()
     });
+
+    if storage().is_some() {
+        watch_settings_sync(store);
+    }
 
     provide_context(store);
     store
