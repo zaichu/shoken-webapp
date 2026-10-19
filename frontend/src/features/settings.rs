@@ -26,8 +26,6 @@ pub fn SettingsPage() -> impl IntoView {
                             let id = *id;
                             let label = *label;
                             let is_active = move || {
-                                // 実際の実装ではアクティブなセクションを追跡する
-                                // ここでは URL ハッシュやステートを使った簡易的な方法とする
                                 true
                             };
                             view! {
@@ -77,9 +75,7 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| user.email.clone());
     let initials = get_initials(user.name.as_deref(), Some(&user.email));
-    // ログイン方式は Google OAuth のみなので固定表示
     let login_method_text = "Google でログイン中";
-    // 登録日は現状 API から取得できないため非表示（段階2で対応予定）
 
     view! {
         <section id="account" aria-labelledby="account-heading">
@@ -138,14 +134,42 @@ fn SectionDanger() -> impl IntoView {
                 <div class="space-y-3 border-t border-negative-border/50">
                     <div class="flex items-center justify-between py-3">
                         <div>
-                            <div class="font-medium text-negative">"取引明細データを削除"</div>
-                            <div class="text-xs text-text-muted">"配当金・国内株式・投資信託の取り込みデータ。アカウントは残ります。取り消せません"</div>
+                            <div class="font-medium text-negative">"取引明細：配当金を削除"</div>
+                            <div class="text-xs text-text-muted">"取り込んだ配当金データ。アカウントは残ります。取り消せません"</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            href="/receipts/csv/delete"
+                            href="/receipts/csv/delete?kind=dividend"
                             class="no-print text-negative border-negative-border hover:bg-negative/10"
-                            aria_label="取引明細データを削除"
+                            aria_label="配当金データを削除"
+                        >
+                            "削除…"
+                        </LinkButton>
+                    </div>
+                    <div class="flex items-center justify-between py-3">
+                        <div>
+                            <div class="font-medium text-negative">"取引明細：国内株式を削除"</div>
+                            <div class="text-xs text-text-muted">"取り込んだ国内株式売買データ。アカウントは残ります。取り消せません"</div>
+                        </div>
+                        <LinkButton
+                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                            href="/receipts/csv/delete?kind=stock"
+                            class="no-print text-negative border-negative-border hover:bg-negative/10"
+                            aria_label="国内株式データを削除"
+                        >
+                            "削除…"
+                        </LinkButton>
+                    </div>
+                    <div class="flex items-center justify-between py-3">
+                        <div>
+                            <div class="font-medium text-negative">"取引明細：投資信託を削除"</div>
+                            <div class="text-xs text-text-muted">"取り込んだ投資信託売買データ。アカウントは残ります。取り消せません"</div>
+                        </div>
+                        <LinkButton
+                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                            href="/receipts/csv/delete?kind=fund"
+                            class="no-print text-negative border-negative-border hover:bg-negative/10"
+                            aria_label="投資信託データを削除"
                         >
                             "削除…"
                         </LinkButton>

@@ -183,7 +183,9 @@ test('設定ページにアカウント・データ・危険な操作のセク�
 
   // 危険な操作セクション
   await expect(page.getByRole('heading', { name: '危険な操作' })).toBeVisible();
-  await expect(page.getByText('取引明細データを削除')).toBeVisible();
+  await expect(page.getByText('取引明細：配当金を削除')).toBeVisible();
+  await expect(page.getByText('取引明細：国内株式を削除')).toBeVisible();
+  await expect(page.getByText('取引明細：投資信託を削除')).toBeVisible();
   await expect(page.getByText('資産管理データを削除')).toBeVisible();
   await expect(page.getByText('アカウントを削除')).toBeVisible();
 
