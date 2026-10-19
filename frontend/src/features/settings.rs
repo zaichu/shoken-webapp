@@ -20,26 +20,16 @@ pub fn SettingsPage() -> impl IntoView {
     view! {
         <PageFrame title="設定">
             <div class="flex flex-col lg:flex-row gap-7">
-                <nav class="lg:w-48 shrink-0" aria-label="設定セクション">
+                <nav class="hidden lg:block lg:w-48 shrink-0" aria-label="設定セクション">
                     <ul class="flex flex-col gap-1" role="list">
                         {sections.iter().map(|(id, label)| {
                             let id = *id;
                             let label = *label;
-                            let is_active = move || {
-                                true
-                            };
                             view! {
                                 <li>
                                     <a
                                         href={format!("/settings#{}", id)}
-                                        class=move || {
-                                            let base = "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors no-underline";
-                                            if is_active() {
-                                                format!("{} bg-brand text-text-inverse", base)
-                                            } else {
-                                                format!("{} text-text-deep hover:bg-surface-raised", base)
-                                            }
-                                        }
+                                        class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-deep transition-colors no-underline hover:bg-surface-raised"
                                     >
                                         {label}
                                     </a>
@@ -85,9 +75,10 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
                     <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gold text-brand font-bold text-2xl">
                         {initials}
                     </span>
-                    <div>
-                        <div class="font-bold text-lg">{display_name}</div>
-                        <div class="text-sm text-text-muted">{user.email.clone()} / {login_method_text}</div>
+                    <div class="min-w-0">
+                        <div class="font-bold text-lg break-words">{display_name}</div>
+                        <div class="text-sm text-text-muted break-all">{user.email.clone()}</div>
+                        <div class="text-sm text-text-muted">{login_method_text}</div>
                     </div>
                 </div>
             </Card>
@@ -110,7 +101,7 @@ fn SectionData() -> impl IntoView {
                         <LinkButton
                             variant=ButtonVariant::Ghost
                             href="/receipts/csv"
-                            class="no-print"
+                            class="no-print shrink-0 whitespace-nowrap"
                         >
                             "CSV管理へ →"
                         </LinkButton>
@@ -140,7 +131,7 @@ fn SectionDanger() -> impl IntoView {
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             href="/receipts/csv/delete?kind=dividend"
-                            class="no-print text-negative border-negative-border hover:bg-negative/10"
+                            class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="配当金データを削除"
                         >
                             "削除…"
@@ -154,7 +145,7 @@ fn SectionDanger() -> impl IntoView {
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             href="/receipts/csv/delete?kind=stock"
-                            class="no-print text-negative border-negative-border hover:bg-negative/10"
+                            class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="国内株式データを削除"
                         >
                             "削除…"
@@ -168,7 +159,7 @@ fn SectionDanger() -> impl IntoView {
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             href="/receipts/csv/delete?kind=fund"
-                            class="no-print text-negative border-negative-border hover:bg-negative/10"
+                            class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="投資信託データを削除"
                         >
                             "削除…"
@@ -182,7 +173,7 @@ fn SectionDanger() -> impl IntoView {
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             href="/assetbalance/csv/delete"
-                            class="no-print text-negative border-negative-border hover:bg-negative/10"
+                            class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="資産管理データを削除"
                         >
                             "削除…"
@@ -195,7 +186,7 @@ fn SectionDanger() -> impl IntoView {
                         </div>
                         <Button
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            class="text-negative border-negative-border hover:bg-negative/10"
+                            class="shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             on_click=move |_| delete_confirm_open.set(true)
                             aria_label="アカウントを削除"
                         >
