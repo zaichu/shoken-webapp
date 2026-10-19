@@ -26,8 +26,8 @@ pub fn SettingsPage() -> impl IntoView {
                             let id = *id;
                             let label = *label;
                             let is_active = move || {
-                                // In a real implementation, this would track the active section
-                                // For now, we'll use a simple approach with URL hash or state
+                                // 実際の実装ではアクティブなセクションを追跡する
+                                // ここでは URL ハッシュやステートを使った簡易的な方法とする
                                 true
                             };
                             view! {
@@ -51,7 +51,7 @@ pub fn SettingsPage() -> impl IntoView {
                     </ul>
                 </nav>
 
-                <div class="flex-1 min-w-0 space-y-4" role="main">
+                <div class="flex-1 min-w-0 space-y-4">
                     {move || {
                         if let Some(user) = user() {
                             view! {
@@ -77,9 +77,9 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| user.email.clone());
     let initials = get_initials(user.name.as_deref(), Some(&user.email));
-    let login_method_text = login_method(&user.email);
-    // Registration date would come from backend in a real implementation
-    let registered_at = "2026/09/01";
+    // ログイン方式は Google OAuth のみなので固定表示
+    let login_method_text = "Google でログイン中";
+    // 登録日は現状 API から取得できないため非表示（段階2で対応予定）
 
     view! {
         <section id="account" aria-labelledby="account-heading">
@@ -92,19 +92,10 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
                     <div>
                         <div class="font-bold text-lg">{display_name}</div>
                         <div class="text-sm text-text-muted">{user.email.clone()} / {login_method_text}</div>
-                        <div class="text-xs text-text-muted mt-1">"登録日 " {registered_at}</div>
                     </div>
                 </div>
             </Card>
         </section>
-    }
-}
-
-fn login_method(email: &str) -> &'static str {
-    if email.ends_with("@gmail.com") || email.ends_with("@googlemail.com") {
-        "Google でログイン中"
-    } else {
-        "メールでログイン中"
     }
 }
 
@@ -147,14 +138,28 @@ fn SectionDanger() -> impl IntoView {
                 <div class="space-y-3 border-t border-negative-border/50">
                     <div class="flex items-center justify-between py-3">
                         <div>
-                            <div class="font-medium text-negative">"保存済みデータをすべて削除"</div>
-                            <div class="text-xs text-text-muted">"アカウントは残ります。取り消せません"</div>
+                            <div class="font-medium text-negative">"取引明細データを削除"</div>
+                            <div class="text-xs text-text-muted">"配当金・国内株式・投資信託の取り込みデータ。アカウントは残ります。取り消せません"</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             href="/receipts/csv/delete"
                             class="no-print text-negative border-negative-border hover:bg-negative/10"
-                            aria_label="保存済みデータを削除"
+                            aria_label="取引明細データを削除"
+                        >
+                            "削除…"
+                        </LinkButton>
+                    </div>
+                    <div class="flex items-center justify-between py-3">
+                        <div>
+                            <div class="font-medium text-negative">"資産管理データを削除"</div>
+                            <div class="text-xs text-text-muted">"保存済みの保有銘柄データ。アカウントは残ります。取り消せません"</div>
+                        </div>
+                        <LinkButton
+                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                            href="/assetbalance/csv/delete"
+                            class="no-print text-negative border-negative-border hover:bg-negative/10"
+                            aria_label="資産管理データを削除"
                         >
                             "削除…"
                         </LinkButton>

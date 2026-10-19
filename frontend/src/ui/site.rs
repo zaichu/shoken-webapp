@@ -230,7 +230,16 @@ fn UserMenu(
     let focused_index = RwSignal::new(-1);
     let trigger_ref = NodeRef::<html::Button>::new();
 
-    let on_mouse_down = window_event_listener(ev::mousedown, move |ev| {
+    // メニュー項目（role="menuitem" を持つ要素）を収集するヘルパー関数
+    let collect_menuitems = move |ul: &web_sys::HtmlUListElement| -> Vec<web_sys::HtmlElement> {
+        (0..ul.children().length())
+            .filter_map(|i| ul.children().item(i))
+            .filter_map(|li| li.query_selector("[role=\"menuitem\"]").ok().flatten())
+            .filter_map(|el| el.dyn_into::<web_sys::HtmlElement>().ok())
+            .collect()
+    };
+
+    let on_pointer_down = window_event_listener(ev::pointerdown, move |ev| {
         if !menu_open.get_untracked() {
             return;
         }
@@ -254,6 +263,7 @@ fn UserMenu(
         if !menu_open.get_untracked() {
             return;
         }
+
         match ev.key().as_str() {
             "Escape" => {
                 menu_open.set(false);
@@ -264,59 +274,46 @@ fn UserMenu(
             }
             "ArrowDown" => {
                 ev.prevent_default();
-                let items = menu_items_ref.get();
-                if let Some(ul) = items {
-                    let buttons: Vec<web_sys::HtmlElement> = (0..ul.children().length())
-                        .filter_map(|i| ul.children().item(i))
-                        .filter_map(|li| li.query_selector("button").ok().flatten())
-                        .filter_map(|btn| btn.dyn_into::<web_sys::HtmlElement>().ok())
-                        .collect();
-                    if !buttons.is_empty() {
-                        let next = (focused_index.get() + 1).min(buttons.len() as i32 - 1);
+                if let Some(ul) = menu_items_ref.get() {
+                    let items = collect_menuitems(&ul);
+                    if !items.is_empty() {
+                        let next = (focused_index.get() + 1).min(items.len() as i32 - 1);
                         focused_index.set(next);
-                        let _ = buttons[next as usize].focus();
+                        let _ = items[next as usize].focus();
                     }
                 }
             }
             "ArrowUp" => {
                 ev.prevent_default();
-                let items = menu_items_ref.get();
-                if let Some(ul) = items {
-                    let buttons: Vec<web_sys::HtmlElement> = (0..ul.children().length())
-                        .filter_map(|i| ul.children().item(i))
-                        .filter_map(|li| li.query_selector("button").ok().flatten())
-                        .filter_map(|btn| btn.dyn_into::<web_sys::HtmlElement>().ok())
-                        .collect();
-                    if !buttons.is_empty() {
+                if let Some(ul) = menu_items_ref.get() {
+                    let items = collect_menuitems(&ul);
+                    if !items.is_empty() {
                         let next = (focused_index.get() - 1).max(0);
                         focused_index.set(next);
-                        let _ = buttons[next as usize].focus();
+                        let _ = items[next as usize].focus();
                     }
                 }
             }
             "Tab" => {
-                let items = menu_items_ref.get();
-                if let Some(ul) = items {
-                    let buttons: Vec<web_sys::HtmlElement> = (0..ul.children().length())
-                        .filter_map(|i| ul.children().item(i))
-                        .filter_map(|li| li.query_selector("button").ok().flatten())
-                        .filter_map(|btn| btn.dyn_into::<web_sys::HtmlElement>().ok())
-                        .collect();
-                    if !buttons.is_empty()
-                        && let Some(active) = web_sys::window()
+                if let Some(ul) = menu_items_ref.get() {
+                    let items = collect_menuitems(&ul);
+                    if !items.is_empty() {
+                        let active = web_sys::window()
                             .and_then(|w| w.document())
                             .and_then(|d| d.active_element())
-                            .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok())
-                        && let Some(pos) = buttons.iter().position(|b| b.is_same_node(Some(&active)))
-                    {
-                        if ev.shift_key() && pos == 0 {
-                            ev.prevent_default();
-                            let _ = buttons.last().unwrap().focus();
-                            focused_index.set((buttons.len() - 1) as i32);
-                        } else if !ev.shift_key() && pos == buttons.len() - 1 {
-                            ev.prevent_default();
-                            let _ = buttons[0].focus();
-                            focused_index.set(0);
+                            .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok());
+                        if let Some(active) = active
+                            && let Some(pos) = items.iter().position(|b| b.is_same_node(Some(&active)))
+                        {
+                            if ev.shift_key() && pos == 0 {
+                                ev.prevent_default();
+                                let _ = items.last().unwrap().focus();
+                                focused_index.set((items.len() - 1) as i32);
+                            } else if !ev.shift_key() && pos == items.len() - 1 {
+                                ev.prevent_default();
+                                let _ = items[0].focus();
+                                focused_index.set(0);
+                            }
                         }
                     }
                 }
@@ -326,7 +323,7 @@ fn UserMenu(
     });
 
     on_cleanup(move || {
-        on_mouse_down.remove();
+        on_pointer_down.remove();
         on_key_down.remove();
     });
 
@@ -368,6 +365,13 @@ fn UserMenu(
                         menu_open.update(|open| *open = !*open);
                         if menu_open.get() {
                             focused_index.set(0);
+                            // Focus the first menuitem (settings) after the menu renders
+                            if let Some(ul) = menu_items_ref.get() {
+                                let items = collect_menuitems(&ul);
+                                if !items.is_empty() {
+                                    let _ = items[0].focus();
+                                }
+                            }
                         } else {
                             focused_index.set(-1);
                         }
@@ -401,6 +405,7 @@ fn UserMenu(
                                 href="/settings"
                                 class="flex min-h-11 items-center gap-3 px-3 py-2 text-sm font-semibold text-text-deep hover:bg-surface-raised no-underline"
                                 role="menuitem"
+                                tabindex="0"
                                 on:click=move |_| menu_open.set(false)
                             >
                                 <svg class="shrink-0 w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

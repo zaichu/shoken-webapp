@@ -145,6 +145,7 @@ test('設定ページの危険な操作からアカウント削除確認ダイ�
   });
   await page.goto('/settings');
 
+  // アカウント削除ボタンは aria-label "アカウントを削除" を持つ
   await page.getByRole('button', { name: 'アカウントを削除' }).click();
 
   const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
@@ -154,7 +155,7 @@ test('設定ページの危険な操作からアカウント削除確認ダイ�
   await expect(dialog).toHaveCount(0);
   expect(calls).toHaveLength(0);
 
-  await page.getByRole('button', { name: '削除…' }).first().click();
+  await page.getByRole('button', { name: 'アカウントを削除' }).click();
   await dialog.getByRole('button', { name: '削除する' }).click();
 
   await expect.poll(() => calls.join(',')).toBe('confirm,delete');
@@ -172,8 +173,9 @@ test('設定ページにアカウント・データ・危険な操作のセク�
   await expect(page.getByRole('heading', { name: 'アカウント' })).toBeVisible();
   await expect(page.getByText('テストユーザー')).toBeVisible();
   await expect(page.getByText('test@example.com')).toBeVisible();
-  await expect(page.getByText(/Google でログイン中|メールでログイン中/)).toBeVisible();
-  await expect(page.getByText('登録日')).toBeVisible();
+  await expect(page.getByText('Google でログイン中')).toBeVisible();
+  // 登録日は現状 API から取得できないため非表示（段階2で対応予定）
+  await expect(page.getByText('登録日')).toHaveCount(0);
 
   // データセクション
   await expect(page.getByRole('heading', { name: 'データ' })).toBeVisible();
@@ -181,7 +183,8 @@ test('設定ページにアカウント・データ・危険な操作のセク�
 
   // 危険な操作セクション
   await expect(page.getByRole('heading', { name: '危険な操作' })).toBeVisible();
-  await expect(page.getByText('保存済みデータをすべて削除')).toBeVisible();
+  await expect(page.getByText('取引明細データを削除')).toBeVisible();
+  await expect(page.getByText('資産管理データを削除')).toBeVisible();
   await expect(page.getByText('アカウントを削除')).toBeVisible();
 
   // 表示・セキュリティセクションは段階2なので表示されない
