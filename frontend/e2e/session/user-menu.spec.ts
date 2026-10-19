@@ -190,10 +190,11 @@ test('設定ページにアカウント・データ・危険な操作のセク�
   await expect(page.getByText('アカウントを削除')).toBeVisible();
 
   // 削除リンクの href に正しい kind パラメータが含まれることを確認
-  await expect(page.getByRole('link', { name: '削除…' }).first()).toHaveAttribute('href', '/receipts/csv/delete?kind=dividend');
-  await expect(page.getByRole('link', { name: '削除…' }).nth(1)).toHaveAttribute('href', '/receipts/csv/delete?kind=stock');
-  await expect(page.getByRole('link', { name: '削除…' }).nth(2)).toHaveAttribute('href', '/receipts/csv/delete?kind=fund');
-  await expect(page.getByRole('link', { name: '削除…' }).nth(3)).toHaveAttribute('href', '/assetbalance/csv/delete');
+  // aria-label で特定する（表示テキストは「削除…」だが aria-label は「配当金データを削除」等）
+  await expect(page.getByRole('link', { name: '配当金データを削除' })).toHaveAttribute('href', '/receipts/csv/delete?kind=dividend');
+  await expect(page.getByRole('link', { name: '国内株式データを削除' })).toHaveAttribute('href', '/receipts/csv/delete?kind=stock');
+  await expect(page.getByRole('link', { name: '投資信託データを削除' })).toHaveAttribute('href', '/receipts/csv/delete?kind=fund');
+  await expect(page.getByRole('link', { name: '資産管理データを削除' })).toHaveAttribute('href', '/assetbalance/csv/delete');
 
   // 表示・セキュリティセクションは段階2なので表示されない
   await expect(page.getByRole('heading', { name: '表示' })).toHaveCount(0);
