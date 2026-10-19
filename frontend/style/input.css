@@ -526,6 +526,14 @@
     @apply bg-brand font-bold text-text-inverse;
   }
 
+  /* ダークでは紺の選択色が面に溶けるため、segmented-option と同じ
+     明るい塗り+反転文字で選択状態を示す */
+  @media screen {
+    :root[data-theme="dark"] .condition-segment-option[aria-pressed="true"] {
+      @apply bg-accent text-page;
+    }
+  }
+
   .condition-option-list {
     @apply mt-2 flex max-h-72 flex-wrap gap-1.5 overflow-y-auto;
   }
@@ -544,7 +552,9 @@
     }
 
     .condition-panel {
-      @apply fixed inset-x-0 bottom-0 top-auto mt-0 rounded-b-none rounded-t-2xl border-b-0 pt-3;
+      @apply fixed inset-x-0 bottom-0 top-auto mt-0 rounded-b-none rounded-t-2xl border-b-0 border-t-border-strong pt-3;
+      /* 下地の明細との境目を残すため、シートの上端に上向きの影を付ける */
+      box-shadow: 0 -16px 40px -22px rgba(15, 23, 42, 0.55);
       padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
     }
 
