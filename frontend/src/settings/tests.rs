@@ -41,6 +41,15 @@ fn receipts_tab_parses_only_known_kinds() {
 }
 
 #[test]
+fn theme_accepts_only_known_values() {
+    for theme in [Theme::System, Theme::Light, Theme::Dark] {
+        assert_eq!(Theme::from_value(theme.value()), Some(theme));
+    }
+    assert_eq!(Theme::from_value("auto"), None);
+    assert_eq!(Theme::from_value(""), None);
+}
+
+#[test]
 fn review_prompt_pref_rejects_broken_json() {
     for raw in ["", "{", "[]", "\"text\"", "null", "42"] {
         assert_eq!(ReviewPromptPref::parse_json(raw), None, "raw={raw}");

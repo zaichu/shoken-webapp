@@ -1,7 +1,9 @@
 mod export;
 
 use crate::session::use_session;
-use crate::settings::{AmountUnit, AssetSort, IDLE_LOGOUT_CHOICES, PromptColumn, use_settings};
+use crate::settings::{
+    AmountUnit, AssetSort, IDLE_LOGOUT_CHOICES, PromptColumn, Theme, use_settings,
+};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::card::Card;
 use crate::ui::card::CardVariant;
@@ -122,6 +124,7 @@ fn SectionDisplay() -> impl IntoView {
     let asset_sort = settings.asset_sort;
     let initial_tab = settings.receipts_initial_tab;
     let amount_unit = settings.amount_unit;
+    let theme = settings.theme;
 
     view! {
         <section id="display" aria-labelledby="display-heading">
@@ -129,6 +132,19 @@ fn SectionDisplay() -> impl IntoView {
                 <h2 id="display-heading" class="text-lg font-bold">"表示"</h2>
                 <p class="text-xs text-text-muted mb-2">"この端末のブラウザに保存されます"</p>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
+                    <SettingRow title="テーマ" note="端末の設定に合わせることもできます">
+                        <Segmented
+                            options=&THEME_SEGMENTS
+                            value=Signal::derive(move || theme.get().value())
+                            aria_label="テーマ"
+                            testid="setting-theme"
+                            on_change=move |value| {
+                                if let Some(parsed) = Theme::from_value(&value) {
+                                    theme.set(parsed);
+                                }
+                            }
+                        />
+                    </SettingRow>
                     <SettingRow title="資産管理の並び順" note="開いたときの初期の並び">
                         <Select
                             value=Signal::derive(move || asset_sort.get().value())
@@ -373,6 +389,12 @@ fn SectionSecurity() -> impl IntoView {
 }
 
 const IDLE_SEGMENTS: [(&str, &str); 3] = [("15", "15分"), ("30", "30分"), ("60", "60分")];
+
+const THEME_SEGMENTS: [(&str, &str); 3] = [
+    ("system", "端末に合わせる"),
+    ("light", "ライト"),
+    ("dark", "ダーク"),
+];
 
 #[component]
 fn SectionDanger() -> impl IntoView {

@@ -48,7 +48,7 @@ pub fn HoldingsList(
                                 <span class="min-w-0 truncate font-medium text-text">
                                     {view.name.clone()}
                                 </span>
-                                <span class="shrink-0 font-bold tabular-nums text-brand">
+                                <span class="shrink-0 font-bold tabular-nums text-brand-text">
                                     {market_text}
                                 </span>
                             </div>

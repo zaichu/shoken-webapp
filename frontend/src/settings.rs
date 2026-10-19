@@ -12,12 +12,15 @@ use leptos::prelude::*;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use shared::format::{format_currency, format_number};
+use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 
 const KEY_ASSET_SORT: &str = "setting_asset_sort";
 const KEY_RECEIPTS_TAB: &str = "setting_receipts_initial_tab";
 const KEY_AMOUNT_UNIT: &str = "setting_amount_unit";
 const KEY_IDLE_MINUTES: &str = "setting_auto_logout_minutes";
 const KEY_REVIEW_PROMPT: &str = "setting_review_prompt";
+const KEY_THEME: &str = "setting_theme";
 
 // 非 wasm(単体テスト)では window が無いため常に None を返す
 fn storage() -> Option<web_sys::Storage> {
@@ -164,10 +167,40 @@ impl AmountUnit {
     }
 }
 
+/// 画面のテーマ。System は OS の表示設定(優先カラースキーム)に従う
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum Theme {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+impl Theme {
+    pub(crate) fn value(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::Light => "light",
+            Self::Dark => "dark",
+        }
+    }
+
+    pub(crate) fn from_value(value: &str) -> Option<Self> {
+        match value {
+            "system" => Some(Self::System),
+            "light" => Some(Self::Light),
+            "dark" => Some(Self::Dark),
+            _ => None,
+        }
+    }
+}
+
 thread_local! {
     // 金額書式はビューの深い場所(表のセル整形など)からも読む必要があるため、
     // コンポーネントツリーのコンテキストを経由せずアプリ内で共有する
     static AMOUNT_UNIT: RwSignal<AmountUnit> = RwSignal::new(AmountUnit::Yen);
+    // OS がダークを優先しているか。matchMedia の変更イベントで更新する
+    static SYSTEM_DARK: RwSignal<bool> = RwSignal::new(false);
 }
 
 pub(crate) fn amount_unit_signal() -> RwSignal<AmountUnit> {
@@ -318,6 +351,8 @@ pub struct SettingsStore {
     pub idle_logout_minutes: RwSignal<u32>,
     /// AI 総評プロンプトの書式
     pub review_prompt: RwSignal<ReviewPromptPref>,
+    /// 画面のテーマ
+    pub theme: RwSignal<Theme>,
 }
 
 impl SettingsStore {
@@ -329,6 +364,7 @@ impl SettingsStore {
             amount_unit: amount_unit_signal(),
             idle_logout_minutes: RwSignal::new(DEFAULT_IDLE_LOGOUT_MINUTES),
             review_prompt: RwSignal::new(ReviewPromptPref::default()),
+            theme: RwSignal::new(Theme::System),
         }
     }
 }
@@ -385,6 +421,11 @@ fn watch_settings_sync(store: SettingsStore) {
                     set_if_different(store.review_prompt, parsed);
                 }
             }
+            KEY_THEME => {
+                if let Some(parsed) = Theme::from_value(&value) {
+                    set_if_different(store.theme, parsed);
+                }
+            }
             _ => {}
         }
     });
@@ -395,6 +436,44 @@ fn parse_receipts_tab(value: &str) -> Option<ReceiptsTab> {
         .iter()
         .copied()
         .find(|tab| tab.kind_param() == value)
+}
+
+// OS のテーマ設定を追跡する。System 選択時にのみ参照される
+fn watch_system_theme() {
+    let Some(media) = web_sys::window().and_then(|window| {
+        window
+            .match_media("(prefers-color-scheme: dark)")
+            .ok()
+            .flatten()
+    }) else {
+        return;
+    };
+    SYSTEM_DARK.with(|dark| dark.set(media.matches()));
+    let callback = Closure::<dyn FnMut(web_sys::MediaQueryListEvent)>::new(
+        |event: web_sys::MediaQueryListEvent| {
+            SYSTEM_DARK.with(|dark| dark.set(event.matches()));
+        },
+    );
+    let _ = media.add_event_listener_with_callback("change", callback.as_ref().unchecked_ref());
+    // provide_settings はアプリ起動の1回だけなので、リスナーはアプリ寿命で生かす
+    callback.forget();
+}
+
+/// テーマを html の data-theme 属性に反映する。CSS はこの属性だけで値を切り替える
+fn apply_theme(theme: RwSignal<Theme>) {
+    Effect::new(move |_| {
+        let dark = match theme.get() {
+            Theme::Dark => true,
+            Theme::Light => false,
+            Theme::System => SYSTEM_DARK.with(|dark| dark.get()),
+        };
+        if let Some(element) = web_sys::window()
+            .and_then(|window| window.document())
+            .and_then(|document| document.document_element())
+        {
+            let _ = element.set_attribute("data-theme", if dark { "dark" } else { "light" });
+        }
+    });
 }
 
 /// localStorage から読み、コンテキストに載せる。変更は即座に書き戻す
@@ -425,6 +504,9 @@ pub fn provide_settings() -> SettingsStore {
         ReviewPromptPref::parse_json,
         ReviewPromptPref::default(),
     ));
+    store
+        .theme
+        .set(read_setting(KEY_THEME, Theme::from_value, Theme::System));
 
     persist_on_change(store.asset_sort, KEY_ASSET_SORT, |sort| sort.value());
     persist_on_change(store.receipts_initial_tab, KEY_RECEIPTS_TAB, |tab| {
@@ -439,10 +521,14 @@ pub fn provide_settings() -> SettingsStore {
     persist_on_change(store.review_prompt, KEY_REVIEW_PROMPT, |pref| {
         pref.to_json()
     });
+    persist_on_change(store.theme, KEY_THEME, |theme| theme.value().to_string());
 
     if storage().is_some() {
         watch_settings_sync(store);
     }
+    // OS 側のテーマ追跡は localStorage が使えない環境(プライベートモード等)でも行う
+    watch_system_theme();
+    apply_theme(store.theme);
 
     provide_context(store);
     store

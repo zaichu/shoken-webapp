@@ -63,12 +63,49 @@ test('表示設定を変えると localStorage に保存されリロード後も
   );
 });
 
+test('テーマ設定を変えると localStorage に保存され html の data-theme に反映される', async ({
+  page,
+}) => {
+  await mockAuthorizedAuth(page);
+  await page.goto('/settings');
+
+  await page.getByTestId('setting-theme').getByRole('button', { name: 'ダーク' }).click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('setting_theme')))
+    .toBe('dark');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  await page.reload();
+  const theme = page.getByTestId('setting-theme');
+  await expect(theme.getByRole('button', { name: 'ダーク' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(theme.getByRole('button', { name: 'ライト' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
+test('端末に合わせるテーマでは OS の配色設定に従う', async ({ page }) => {
+  await mockAuthorizedAuth(page);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/settings');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  // リロードせず OS 設定が変わったときも追従する
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
+
 test('localStorage の値が壊れているとき設定は既定値に戻る', async ({ page }) => {
   await mockAuthorizedAuth(page);
   await page.addInitScript(() => {
     localStorage.setItem('setting_amount_unit', 'invalid');
     localStorage.setItem('setting_auto_logout_minutes', '7');
     localStorage.setItem('setting_review_prompt', '{broken');
+    localStorage.setItem('setting_theme', 'sepia');
   });
   await page.goto('/settings');
 
@@ -79,6 +116,9 @@ test('localStorage の値が壊れているとき設定は既定値に戻る', a
   );
   await expect(
     page.getByTestId('setting-idle-minutes').getByRole('button', { name: '30分' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByTestId('setting-theme').getByRole('button', { name: '端末に合わせる' }),
   ).toHaveAttribute('aria-pressed', 'true');
 });
 
