@@ -1,7 +1,7 @@
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::format::{
-    format_currency, format_percentage_value, format_signed_valuation_amount,
+    format_amount, format_percentage_value, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation, price_date_range,
 };
@@ -116,7 +116,7 @@ pub(crate) fn PortfolioSummary(
     let dividend_text = Signal::derive(move || {
         kpi.get()
             .total_annual_dividends
-            .map_or("—".to_string(), format_currency)
+            .map_or("—".to_string(), format_amount)
     });
     let yield_text = Signal::derive(move || {
         kpi.get()

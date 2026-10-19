@@ -14,7 +14,10 @@ pub(crate) use format::{
     format_valuation_amount, is_negative_valuation, is_positive_valuation,
 };
 pub(crate) use lookup::{fetch_single_asset_balance, find_by_code};
-pub(crate) use model::{calculate_valuation_from_decimal, to_fixed};
+pub(crate) use model::{
+    ValuationInput, calculate_valuation_from_decimal, holding_valuation, to_fixed,
+};
+pub(crate) use portfolio::{SortKey, SortOrder};
 pub(crate) use view::{
     AssetBalanceCompositionPage, AssetBalanceCsvDeletePage, AssetBalanceCsvPage,
     AssetBalanceHoldingPage, AssetBalancePage, AssetBalanceState,

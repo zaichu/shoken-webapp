@@ -19,6 +19,7 @@ use crate::features::receipts::model::{create_year_month_key, format_date};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
+use crate::settings::format_amount;
 use crate::support::list_search::FilterConfig;
 use crate::support::list_search::group_key::{GroupKeyRule, create_group_key_fn};
 use crate::support::list_search::support::{ColumnReorderRule, group_and_summarize};
@@ -234,9 +235,9 @@ impl DividendView<'_> {
             },
             ReceiptCell::Text(format_currency(self.unit_price)),
             ReceiptCell::Text(format_number(self.shares, 2)),
-            ReceiptCell::Text(format_currency(self.dividends_before_tax)),
-            ReceiptCell::Text(format_currency(self.taxes)),
-            ReceiptCell::Text(format_currency(self.net_amount_received)),
+            ReceiptCell::Text(format_amount(self.dividends_before_tax)),
+            ReceiptCell::Text(format_amount(self.taxes)),
+            ReceiptCell::Text(format_amount(self.net_amount_received)),
         ]
     }
 
@@ -337,11 +338,11 @@ impl DomesticStockView<'_> {
             ReceiptCell::Text(self.account.to_string()),
             ReceiptCell::Text(format_number(self.shares, 2)),
             ReceiptCell::Text(format_currency(self.asked_price)),
-            ReceiptCell::Text(format_currency(self.proceeds)),
-            ReceiptCell::Text(format_currency(self.purchase_price)),
-            ReceiptCell::Text(format_currency(self.realized_profit_and_loss)),
-            ReceiptCell::Text(format_currency(self.taxes)),
-            ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),
+            ReceiptCell::Text(format_amount(self.proceeds)),
+            ReceiptCell::Text(format_amount(self.purchase_price)),
+            ReceiptCell::Text(format_amount(self.realized_profit_and_loss)),
+            ReceiptCell::Text(format_amount(self.taxes)),
+            ReceiptCell::Text(format_amount(self.realized_profit_and_loss_after_tax)),
         ]
     }
 
@@ -442,11 +443,11 @@ impl MutualfundView<'_> {
             ReceiptCell::Text(self.account.to_string()),
             ReceiptCell::Text(format_number(self.shares, 2)),
             ReceiptCell::Text(format_currency(self.cancellation_unit_price_yen)),
-            ReceiptCell::Text(format_currency(self.cancellation_amount_yen)),
+            ReceiptCell::Text(format_amount(self.cancellation_amount_yen)),
             ReceiptCell::Text(format_currency(self.average_acquisition_price_yen)),
-            ReceiptCell::Text(format_currency(self.realized_profit_and_loss)),
-            ReceiptCell::Text(format_currency(self.taxes)),
-            ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),
+            ReceiptCell::Text(format_amount(self.realized_profit_and_loss)),
+            ReceiptCell::Text(format_amount(self.taxes)),
+            ReceiptCell::Text(format_amount(self.realized_profit_and_loss_after_tax)),
         ]
     }
 
@@ -696,7 +697,7 @@ fn summarize_groups(sorted: &[ReceiptRow], key: impl Fn(&ReceiptRow) -> String) 
             summary: summary
                 .values
                 .iter()
-                .map(|value| format_currency(*value))
+                .map(|value| format_amount(*value))
                 .collect(),
             rows: group_rows,
         }
@@ -815,9 +816,9 @@ fn domestic_table_groups(rows: &[ReceiptRow]) -> Vec<TableGroup> {
                 .collect();
             let summary = if rows.len() > 1 {
                 vec![
-                    format_currency(day.total_realized_profit_and_loss),
-                    format_currency(day.total_taxes),
-                    format_currency(day.total_realized_profit_and_loss_after_tax),
+                    format_amount(day.total_realized_profit_and_loss),
+                    format_amount(day.total_taxes),
+                    format_amount(day.total_realized_profit_and_loss_after_tax),
                 ]
             } else {
                 vec![]

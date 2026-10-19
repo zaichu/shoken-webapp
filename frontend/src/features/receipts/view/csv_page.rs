@@ -130,7 +130,10 @@ pub(crate) fn ensure_kind(store: ReceiptsStore, tab: ReceiptsTab) {
 
 #[component]
 pub fn ReceiptsCsvPage() -> impl IntoView {
-    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    let store = use_receipts_data(
+        use_session(),
+        crate::settings::try_use_settings().receipts_initial_tab,
+    );
     let tab = kind_tab();
     ensure_kind(store, tab);
     let source = ReceiptCsvSource { store, tab };

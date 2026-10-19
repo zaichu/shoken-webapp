@@ -24,7 +24,10 @@ pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"
 
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
-    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    let store = use_receipts_data(
+        use_session(),
+        crate::settings::try_use_settings().receipts_initial_tab,
+    );
     // 再訪ではストアのキャッシュがそのまま出るので、鮮度だけ裏で更新する
     store.revisit();
 

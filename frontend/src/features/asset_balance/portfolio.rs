@@ -65,6 +65,22 @@ impl SortOrder {
             SortOrder::Asc => "低い順 ↑",
         }
     }
+
+    /// localStorage への保存値
+    pub(crate) fn value(self) -> &'static str {
+        match self {
+            SortOrder::Desc => "desc",
+            SortOrder::Asc => "asc",
+        }
+    }
+
+    pub(crate) fn from_value(value: &str) -> Option<Self> {
+        match value {
+            "desc" => Some(SortOrder::Desc),
+            "asc" => Some(SortOrder::Asc),
+            _ => None,
+        }
+    }
 }
 
 /// 並べ替えの入力1件。

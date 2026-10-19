@@ -212,10 +212,10 @@ impl Default for SessionStore {
     }
 }
 
-pub fn provide_session() -> SessionStore {
+pub fn provide_session(idle_minutes: RwSignal<u32>) -> SessionStore {
     let session = SessionStore::new();
     provide_context(session);
-    idle::watch_idle_logout(session);
+    idle::watch_idle_logout(session, idle_minutes);
     cross_tab::watch_logout_notifications(session);
     let startup = session;
     leptos::task::spawn_local(async move {
