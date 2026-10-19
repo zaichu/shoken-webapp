@@ -1,8 +1,13 @@
-//! 資産管理の絞り込み欄。取引明細と同じタグ入力+「条件を足す」の操作に揃える
+//! 資産管理の絞り込み欄。取引明細と同じタグ入力+「条件を足す」の操作に揃え、
+//! 部品は ui::search_controls を共有する
 
 use crate::features::asset_balance::fund::AssetSearch;
+use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::focus::trap_focus;
+use crate::ui::search_controls::{
+    AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
+    SearchClearButton, SearchCount, SearchTag, SearchTextInput,
+};
 use leptos::prelude::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -18,91 +23,91 @@ impl ConditionKind {
             ConditionKind::Course => "分配金コース",
         }
     }
-}
 
-#[component]
-fn SearchTag(
-    label: &'static str,
-    value: Memo<String>,
-    on_clear: impl Fn() + Copy + 'static + Send,
-) -> impl IntoView {
-    move || {
-        let value = value.get();
-        (!value.is_empty()).then(|| {
-            let aria_label = format!("{label} {value} を解除");
-            view! {
-                <Button
-                    variant=ButtonVariant::ConditionChip
-                    aria_label=aria_label
-                    on_click=move |_| on_clear()
-                >
-                    {format!("{label}: {value}")}
-                    <span aria-hidden="true">"✕"</span>
-                </Button>
-            }
-        })
+    fn title(self) -> &'static str {
+        match self {
+            ConditionKind::Account => "口座を選ぶ",
+            ConditionKind::Course => "分配金コースを選ぶ",
+        }
+    }
+
+    fn testid(self) -> &'static str {
+        match self {
+            ConditionKind::Account => "asset-condition-account",
+            ConditionKind::Course => "asset-condition-course",
+        }
     }
 }
 
-/// 「条件を足す」の小窓(PC)・下から出るシート(スマホ)。
-/// 口座・分配金コースは選んですぐ反映し、複数選択できる
-#[component]
-fn ConditionPopover(
-    kind: ConditionKind,
-    options: Memo<Vec<String>>,
-    selected: Memo<Vec<String>>,
-    on_toggle: impl Fn(String) + Copy + 'static + Send,
-    on_close: impl Fn() + Copy + 'static + Send,
-) -> impl IntoView {
-    let panel_ref = NodeRef::<leptos::html::Div>::new();
-    Effect::new(move |_| {
-        if let Some(panel) = panel_ref.get() {
-            let _ = panel.focus();
+/// 小窓の開閉状態と、閉じた後にフォーカスを戻すトリガーのボタン
+#[derive(Clone, Copy)]
+struct ConditionControls {
+    open: RwSignal<Option<ConditionKind>>,
+    account_ref: NodeRef<leptos::html::Button>,
+    course_ref: NodeRef<leptos::html::Button>,
+}
+
+impl ConditionControls {
+    fn new() -> Self {
+        Self {
+            open: RwSignal::new(None),
+            account_ref: NodeRef::new(),
+            course_ref: NodeRef::new(),
         }
+    }
+
+    fn toggle(&self, kind: ConditionKind) {
+        if self.open.get_untracked() == Some(kind) {
+            self.open.set(None);
+        } else {
+            self.open.set(Some(kind));
+        }
+    }
+
+    /// Esc・背景クリック・閉じるのどれで閉じても、トリガーのボタンへフォーカスを戻す
+    fn finish(&self, kind: ConditionKind) {
+        self.open.set(None);
+        let reference = match kind {
+            ConditionKind::Account => self.account_ref,
+            ConditionKind::Course => self.course_ref,
+        };
+        if let Some(button) = reference.get() {
+            let _ = button.focus();
+        }
+    }
+}
+
+/// 条件を足す小窓の中身。口座・分配金コースは複数選択でき、
+/// 選んだ状態はすぐ反映する(小窓は開いたまま)
+#[component]
+fn AssetConditionPopover(
+    kind: ConditionKind,
+    search: RwSignal<AssetSearch>,
+    options: Memo<Vec<SearchOption>>,
+    on_close: impl Fn() + Copy + 'static + Send + Sync,
+) -> impl IntoView {
+    let selected = Memo::new(move |_| {
+        search.with(|s| match kind {
+            ConditionKind::Account => s.accounts.clone(),
+            ConditionKind::Course => s.courses.clone(),
+        })
     });
-    view! {
-        <div class="condition-backdrop" on:click=move |_| on_close() />
-        <div
-            class="condition-panel"
-            role="dialog"
-            aria-label=kind.label()
-            tabindex="-1"
-            node_ref=panel_ref
-            on:keydown=move |event| {
-                if event.key() == "Escape" {
-                    event.prevent_default();
-                    on_close();
-                    return;
-                }
-                if event.key() == "Tab" {
-                    trap_focus(&event);
-                }
+    let toggle = move |value: String| {
+        search.update(|s| {
+            let list = match kind {
+                ConditionKind::Account => &mut s.accounts,
+                ConditionKind::Course => &mut s.courses,
+            };
+            if let Some(index) = list.iter().position(|item| *item == value) {
+                list.remove(index);
+            } else {
+                list.push(value);
             }
-        >
-            <p class="condition-panel-title">{kind.label()}</p>
-            <div class="condition-option-list">
-                {move || {
-                    options
-                        .get()
-                        .into_iter()
-                        .map(|option| {
-                            let pressed_value = option.clone();
-                            let click_value = option.clone();
-                            view! {
-                                <Button
-                                    variant=ButtonVariant::ConditionOption
-                                    aria_pressed=move || {
-                                        selected.get().contains(&pressed_value).to_string()
-                                    }
-                                    on_click=move |_| on_toggle(click_value.clone())
-                                >
-                                    {option.clone()}
-                                </Button>
-                            }
-                        })
-                        .collect_view()
-                }}
-            </div>
+        });
+    };
+    view! {
+        <ConditionPanel title=kind.title() on_close=on_close>
+            <ConditionOptionList options=options selected=selected on_toggle=toggle />
             <div class="condition-panel-actions">
                 <Button
                     variant=ButtonVariant::Secondary(ButtonSize::Md)
@@ -111,7 +116,7 @@ fn ConditionPopover(
                     "閉じる"
                 </Button>
             </div>
-        </div>
+        </ConditionPanel>
     }
 }
 
@@ -126,30 +131,44 @@ pub(crate) fn AssetSearchBar(
     account_options: Memo<Vec<String>>,
     course_options: Memo<Vec<String>>,
 ) -> impl IntoView {
-    let open = RwSignal::new(None::<ConditionKind>);
+    let controls = ConditionControls::new();
     let accounts_tag = Memo::new(move |_| search.with(|s| s.accounts.join("・")));
     let courses_tag = Memo::new(move |_| search.with(|s| s.courses.join("・")));
     let has_anything = Signal::derive(move || search.with(|s| !s.is_empty()));
-    let toggle = move |kind: ConditionKind, value: String| {
-        search.update(|s| {
-            let list = match kind {
-                ConditionKind::Account => &mut s.accounts,
-                ConditionKind::Course => &mut s.courses,
-            };
-            if let Some(index) = list.iter().position(|item| *item == value) {
-                list.remove(index);
-            } else {
-                list.push(value);
-            }
-        });
+    let on_clear_all = move || search.update(|s| *s = AssetSearch::default());
+    let input_value = move || search.with(|s| s.text.clone());
+    let on_input = move |value: String| search.update(|s| s.text = value);
+    let to_options = |options: Memo<Vec<String>>| {
+        Memo::new(move |_| {
+            options
+                .get()
+                .into_iter()
+                .map(|value| SearchOption {
+                    label: value.clone(),
+                    value,
+                })
+                .collect()
+        })
     };
-    let selected_accounts = Memo::new(move |_| search.with(|s| s.accounts.clone()));
-    let selected_courses = Memo::new(move |_| search.with(|s| s.courses.clone()));
+    let account_options = to_options(account_options);
+    let course_options = to_options(course_options);
+
+    let condition_button = move |kind: ConditionKind, node_ref: NodeRef<leptos::html::Button>| {
+        view! {
+            <AddConditionButton
+                label=kind.label()
+                expanded=move || controls.open.get() == Some(kind)
+                node_ref=node_ref
+                testid=kind.testid()
+                on_click=move || controls.toggle(kind)
+            />
+        }
+    };
 
     view! {
         <div class="no-print" role="search" aria-label="資産の絞り込み">
             // PC: タグ入力+件数+クリアを1つの箱に収める(取引明細と同じ構造)
-            <div class="receipts-search-box hidden lg:flex">
+            <SearchBox class="hidden lg:flex">
                 <SearchTag
                     label="口座"
                     value=accounts_tag
@@ -160,109 +179,61 @@ pub(crate) fn AssetSearchBar(
                     value=courses_tag
                     on_clear=move || search.update(|s| s.courses.clear())
                 />
-                <input
-                    type="search"
-                    class="receipts-search-input"
+                <SearchTextInput
                     placeholder=placeholder
-                    aria-label=placeholder
-                    autocomplete="off"
-                    data-testid="asset-search-input-pc"
-                    enterkeyhint="search"
-                    prop:value=move || search.with(|s| s.text.clone())
-                    on:input=move |ev| {
-                        search.update(|s| s.text = event_target_value(&ev));
-                    }
+                    testid="asset-search-input-pc"
+                    value=input_value
+                    on_input=on_input
                 />
                 {move || {
-                    let (filtered, total) = search_count.get();
                     has_anything.get().then(|| {
                         view! {
-                            <span
-                                class="receipts-search-count"
-                                data-testid="asset-search-count-pc"
-                            >
-                                {format!("{filtered} / {total}")}
-                            </span>
+                            <SearchCount
+                                filtered=move || search_count.get().0
+                                total=move || search_count.get().1
+                                testid="asset-search-count-pc"
+                            />
                         }
                     })
                 }}
-                <Button
-                    variant=ButtonVariant::SearchClear
-                    testid="asset-search-clear-pc"
+                <SearchClearButton
                     disabled=move || !has_anything.get()
-                    on_click=move |_| search.update(|s| *s = AssetSearch::default())
-                >
-                    "すべてクリア"
-                </Button>
-            </div>
-            // スマホ: 入力欄だけを一覧の上に常時出す
-            <div class="receipts-search-box lg:hidden">
-                <input
-                    type="search"
-                    class="receipts-search-input"
-                    placeholder=placeholder
-                    aria-label=placeholder
-                    autocomplete="off"
-                    data-testid="asset-search-input"
-                    enterkeyhint="search"
-                    prop:value=move || search.with(|s| s.text.clone())
-                    on:input=move |ev| {
-                        search.update(|s| s.text = event_target_value(&ev));
-                    }
+                    testid="asset-search-clear-pc"
+                    on_clear=on_clear_all
                 />
-            </div>
+            </SearchBox>
+            // スマホ: 入力欄だけを一覧の上に常時出す
+            <SearchBox class="lg:hidden">
+                <SearchTextInput
+                    placeholder=placeholder
+                    testid="asset-search-input"
+                    value=input_value
+                    on_input=on_input
+                />
+            </SearchBox>
             {show_conditions
                 .then(|| {
                     view! {
-                        <div class="add-condition-row">
-                            <span class="add-condition-label">"条件を足す:"</span>
-                            {[ConditionKind::Account, ConditionKind::Course]
-                                .into_iter()
-                                .map(|kind_item| {
-                                    let testid: &'static str = match kind_item {
-                                        ConditionKind::Account => "asset-condition-account",
-                                        ConditionKind::Course => "asset-condition-course",
-                                    };
-                                    view! {
-                                        <Button
-                                            variant=ButtonVariant::AddCondition
-                                            aria_expanded=move || {
-                                                open.get() == Some(kind_item)
-                                            }
-                                            testid=testid
-                                            on_click=move |_| {
-                                                if open.get() == Some(kind_item) {
-                                                    open.set(None);
-                                                } else {
-                                                    open.set(Some(kind_item));
-                                                }
-                                            }
-                                        >
-                                            "＋ " {kind_item.label()}
-                                        </Button>
-                                    }
-                                })
-                                .collect_view()}
-                            {move || {
-                                open.get().map(|kind_item| {
-                                    let (options, selected) = match kind_item {
-                                        ConditionKind::Account => {
-                                            (account_options, selected_accounts)
-                                        }
-                                        ConditionKind::Course => (course_options, selected_courses),
-                                    };
-                                    view! {
-                                        <ConditionPopover
-                                            kind=kind_item
-                                            options=options
-                                            selected=selected
-                                            on_toggle=move |value| toggle(kind_item, value)
-                                            on_close=move || open.set(None)
-                                        />
-                                    }
-                                })
-                            }}
-                        </div>
+                        <AddConditionRow>
+                            {condition_button(ConditionKind::Account, controls.account_ref)}
+                            {condition_button(ConditionKind::Course, controls.course_ref)}
+                        </AddConditionRow>
+                        {move || {
+                            controls.open.get().map(|kind| {
+                                let options = match kind {
+                                    ConditionKind::Account => account_options,
+                                    ConditionKind::Course => course_options,
+                                };
+                                view! {
+                                    <AssetConditionPopover
+                                        kind=kind
+                                        search=search
+                                        options=options
+                                        on_close=move || controls.finish(kind)
+                                    />
+                                }
+                            })
+                        }}
                     }
                 })}
         </div>

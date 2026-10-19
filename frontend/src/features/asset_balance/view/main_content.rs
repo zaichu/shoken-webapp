@@ -105,6 +105,7 @@ fn StockContent(
     generation: Generation,
 ) -> impl IntoView {
     let total_count = rows.len();
+    let empty = rows.is_empty();
     let initial = filtered_portfolio(
         &rows,
         &search.with_untracked(|s| s.text.clone()),
@@ -121,19 +122,22 @@ fn StockContent(
     let account_options = Memo::new(|_| Vec::<String>::new());
     let course_options = Memo::new(|_| Vec::<String>::new());
     view! {
+        {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
         {move || {
-            view! {
-                <PortfolioSummary
-                    filtered=filtered.get()
-                    fallback_totals=fallback_totals.clone()
-                    on_clear_filter=move || {
-                        search.update(|s| *s = AssetSearch::default())
-                    }
-                    dividends=dividends
-                />
-            }
+            (!empty).then(|| {
+                view! {
+                    <PortfolioSummary
+                        filtered=filtered.get()
+                        fallback_totals=fallback_totals.clone()
+                        on_clear_filter=move || {
+                            search.update(|s| *s = AssetSearch::default())
+                        }
+                        dividends=dividends
+                    />
+                }
+            })
         }}
-        <div class="asset-list-surface">
+        <div class="asset-list-surface" hidden=empty>
             <AssetSearchBar
                 search=search
                 search_count=search_count
@@ -185,19 +189,6 @@ fn StockContent(
                 }}
             </div>
         </div>
-        {move || {
-            let FilteredPortfolio { views, all_views } = filtered.get();
-            (views.is_empty() && !all_views.is_empty()).then(|| {
-                view! {
-                    <EmptyFilteredPanel
-                        title="該当する銘柄がありません"
-                        on_clear=move || {
-                            search.update(|s| *s = AssetSearch::default())
-                        }
-                    />
-                }
-            })
-        }}
     }
     .into_any()
 }
