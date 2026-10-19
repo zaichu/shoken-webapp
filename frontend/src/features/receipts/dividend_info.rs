@@ -8,6 +8,7 @@ use crate::features::dividend_per_share::{
 };
 use crate::features::receipts::model::DividendTotals;
 use crate::session::{Generation, SessionStore};
+use crate::settings::format_amount;
 use crate::support::list_search::group_key::derive_security_code_from_query;
 use crate::support::list_search::is_searchable_code;
 use crate::ui::badge::{Badge, BadgeVariant};
@@ -271,7 +272,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                 <Card variant=CardVariant::Sunken>
                     <p class="text-xs font-medium text-text-muted mb-1">"配当金額 (配当利回り)"</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
-                        {format_currency(totals.total_dividends_before_tax)}
+                        {format_amount(totals.total_dividends_before_tax)}
                         {move || {
                             let rate = gross_rate();
                             (rate > 0.0).then(|| {
@@ -287,13 +288,13 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                 <Card variant=CardVariant::Sunken>
                     <p class="text-xs font-medium text-text-muted mb-1">"税額"</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
-                        {format_currency(totals.total_taxes)}
+                        {format_amount(totals.total_taxes)}
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
                     <p class="text-xs font-medium text-text-muted mb-1">"税引後 (累積利回り)"</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
-                        {format_currency(totals.total_net_amount_received)}
+                        {format_amount(totals.total_net_amount_received)}
                         {move || {
                             let rate = net_rate();
                             (rate > 0.0).then(|| {

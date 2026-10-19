@@ -1,6 +1,6 @@
 # プライバシーポリシー
 
-最終更新日: 2026年9月26日
+最終更新日: 2026年10月19日
 
 ## 1. 事業者情報
 
@@ -56,9 +56,11 @@ Google アカウントでログインする際、Google が提供する以下の
 | Cloudflare Pages / Workers | フロントエンド・バックエンドホスティング | https://www.cloudflare.com/privacypolicy/ |
 | J-Quants API | 日本株情報取得 | https://jpx-jquants.com/support/privacy/ |
 
-## 6. Cookie の利用
+## 6. Cookie・ブラウザ内ストレージの利用
 
 本サービスが使用する Cookie については [Cookie ポリシー](cookie-policy.md) を参照してください。
+
+ブラウザ内ストレージ（localStorage）には、セッション管理のためのフラグ・タイムスタンプと、端末ごとの設定値（表示の並び順・初期タブ・金額の表示単位・自動ログアウト時間・AI 総評プロンプトの書式）のみを保存します。証券データ・認証情報・メールアドレスなどの個人情報はブラウザ内ストレージに保存しません。保存するキーの一覧は [Cookie ポリシー](cookie-policy.md) を参照してください。
 
 ## 7. データの保管・削除
 

@@ -233,7 +233,21 @@ fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
         let _ = result;
     }
     path.set(strip_hash(to).to_string());
-    scroll_top(&window);
+    if let Some(fragment) = to.split_once('#').map(|(_, fragment)| fragment.to_string()) {
+        // 遷移先の描画を待ってから該当セクションへ移る(アカウントメニューの「データをエクスポート」等)
+        let window = window.clone();
+        gloo_timers::callback::Timeout::new(0, move || {
+            if let Some(element) = window
+                .document()
+                .and_then(|document| document.get_element_by_id(&fragment))
+            {
+                element.scroll_into_view();
+            }
+        })
+        .forget();
+    } else {
+        scroll_top(&window);
+    }
     focus_main(&window);
 }
 
@@ -297,7 +311,23 @@ pub fn App() -> impl IntoView {
     });
     on_cleanup(move || drop(on_popstate));
 
-    let session = provide_session();
+    let settings = crate::settings::provide_settings();
+    let session = provide_session(settings.idle_logout_minutes);
+    // /settings#data などフラグメント付きで直接開いたときは描画後にそのセクションへ移る
+    if let Some(fragment) = web_sys::window().and_then(|window| window.location().hash().ok()) {
+        let fragment = fragment.trim_start_matches('#').to_string();
+        if !fragment.is_empty() {
+            gloo_timers::callback::Timeout::new(0, move || {
+                if let Some(element) = web_sys::window()
+                    .and_then(|window| window.document())
+                    .and_then(|document| document.get_element_by_id(&fragment))
+                {
+                    element.scroll_into_view();
+                }
+            })
+            .forget();
+        }
+    }
     // route だけを見ると不明パス同士の遷移(NotFound→NotFound)で再発火しないため path を追跡する
     Effect::new(move |_| {
         if route.get() == Route::NotFound && pathname_of(&path.get()) != "/404" {

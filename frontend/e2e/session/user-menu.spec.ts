@@ -33,6 +33,7 @@ test('メニューボタンでユーザーメニューが開閉し、aria-expand
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   await expect(menu).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: '設定' })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'データをエクスポート' })).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: 'ログアウト' })).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: 'アカウント削除' })).toHaveCount(0);
 
@@ -72,11 +73,14 @@ test('キーボード操作でメニュー項目を移動できる', async ({ pa
   // 開いたとき先頭項目（設定）にフォーカスがある
   await expect(page.getByRole('menuitem', { name: '設定' })).toBeFocused();
 
-  // ArrowDown でログアウトへ移動
+  // ArrowDown でデータをエクスポート → ログアウトの順に移動
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'データをエクスポート' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitem', { name: 'ログアウト' })).toBeFocused();
 
   // ArrowUp で設定に戻る
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
   await expect(page.getByRole('menuitem', { name: '設定' })).toBeFocused();
 
@@ -456,7 +460,7 @@ test('削除APIが401を返したときはダイアログが開いたままに�
   await expect(dialog.getByRole('alert')).toContainText('ログインが必要です');
 });
 
-test('設定ページにアカウント・データ・危険な操作のセクションが表示される', async ({ page }) => {
+test('設定ページにアカウント・表示・データ・セキュリティ・危険な操作のセクションが表示される', async ({ page }) => {
   await mockAuthorizedAuth(page);
   await page.goto('/settings');
 
@@ -490,7 +494,7 @@ test('設定ページにアカウント・データ・危険な操作のセク�
   await expect(page.getByRole('link', { name: '投資信託データを削除' })).toHaveAttribute('href', '/receipts/csv/delete?kind=fund');
   await expect(page.getByRole('link', { name: '資産管理データを削除' })).toHaveAttribute('href', '/assetbalance/csv/delete');
 
-  // 表示・セキュリティセクションは段階2なので表示されない
-  await expect(page.getByRole('heading', { name: '表示' })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'セキュリティ' })).toHaveCount(0);
+  // 段階2で追加した表示・セキュリティセクション
+  await expect(page.getByRole('heading', { name: '表示' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'セキュリティ' })).toBeVisible();
 });

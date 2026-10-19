@@ -12,6 +12,7 @@ pub(crate) mod disclosure;
 pub(crate) mod empty_state;
 pub(crate) mod page_frame;
 pub(crate) mod security_link;
+pub(crate) mod segmented;
 pub(crate) mod select;
 pub(crate) mod site;
 pub(crate) mod stat_row;

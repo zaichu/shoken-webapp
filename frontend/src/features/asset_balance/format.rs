@@ -25,6 +25,29 @@ fn format_currency_beyond_decimal(value: f64) -> String {
     }
 }
 
+// 表示単位(円/千円/万円)で割って1桁丸める。Decimal に収まらない値用
+fn format_amount_beyond_decimal(value: f64) -> String {
+    match crate::settings::current_amount_unit() {
+        crate::settings::AmountUnit::Yen => format_currency_beyond_decimal(value),
+        unit => {
+            let scaled = value / unit.divisor_f64();
+            match format_abs_number(to_fixed(scaled, 1)) {
+                Some(body) if scaled < 0.0 => format!("-{body}{}", unit.label()),
+                Some(body) => format!("{body}{}", unit.label()),
+                None => "—".to_string(),
+            }
+        }
+    }
+}
+
+/// 設定の表示単位(円/千円/万円)を適用する金額。単価の表示には format_currency を使う
+pub(crate) fn format_amount(value: f64) -> String {
+    f64_to_decimal(value).map_or_else(
+        || format_amount_beyond_decimal(value),
+        crate::settings::format_amount,
+    )
+}
+
 pub(crate) fn format_currency(value: f64) -> String {
     f64_to_decimal(value).map_or_else(
         || format_currency_beyond_decimal(value),
@@ -101,13 +124,13 @@ pub(crate) fn format_valuation_amount(amount: Option<f64>) -> String {
         Some(value) if !value.is_finite() => "—".to_string(),
         Some(value) => f64_to_decimal(value)
             .map(|value| {
-                format_currency_decimal(
+                crate::settings::format_amount(
                     value
                         .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
                         .normalize(),
                 )
             })
-            .unwrap_or_else(|| format_currency_beyond_decimal(value)),
+            .unwrap_or_else(|| format_amount_beyond_decimal(value)),
         None => "—".to_string(),
     }
 }

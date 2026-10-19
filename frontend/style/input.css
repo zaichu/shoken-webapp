@@ -221,6 +221,23 @@
     @apply inline-flex w-full items-center justify-center truncate rounded-md border border-border-strong px-3 py-1.5 text-sm font-bold text-text-soft transition-[background-color,border-color,color,box-shadow,transform] hover:border-border-bold hover:bg-surface-sunken focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11;
   }
 
+  /* 設定画面の少数択一(金額単位・自動ログアウト) */
+  .segmented {
+    @apply inline-flex overflow-clip rounded-lg border border-border-strong bg-surface;
+  }
+
+  .segmented-option {
+    @apply min-h-9 min-w-12 items-center justify-center px-4 py-1.5 text-sm font-medium text-text-deep transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-sm:min-h-11;
+  }
+
+  .segmented-option + .segmented-option {
+    @apply border-l border-border-strong;
+  }
+
+  .segmented-option[aria-pressed="true"] {
+    @apply bg-brand font-bold text-text-inverse;
+  }
+
   .group-card-trigger {
     @apply flex min-h-11 w-full items-center gap-2 bg-surface-raised px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
   }

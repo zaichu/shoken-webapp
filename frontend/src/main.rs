@@ -2,6 +2,7 @@ mod api;
 mod app;
 mod features;
 mod session;
+mod settings;
 mod support;
 #[cfg(test)]
 mod testing;

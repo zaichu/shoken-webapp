@@ -58,6 +58,13 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let search_count = RwSignal::new((0usize, 0usize));
     let sort_key = RwSignal::new(SortKey::MarketValue);
     let sort_order = RwSignal::new(SortOrder::Desc);
+    // 初期の並び順は設定から。設定が変わったら並び順に反映する(ユーザーの手動選択は設定変更まで保持)
+    let configured_sort = crate::settings::try_use_settings().asset_sort;
+    Effect::new(move |_| {
+        let sort = configured_sort.get();
+        sort_key.set(sort.key);
+        sort_order.set(sort.order);
+    });
     let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
     let csv_store = AssetBalanceCsvStore::new(session, balances, dividends, lookup, data_ops);
     let csv_slot = csv_store.csv;

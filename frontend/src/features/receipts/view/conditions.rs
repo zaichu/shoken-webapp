@@ -1,5 +1,5 @@
 use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey, search_categories};
-use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
+use crate::features::receipts::{TabState, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::page_frame::PageFrame;
@@ -342,7 +342,10 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 
 #[component]
 pub fn ReceiptsConditionsPage() -> impl IntoView {
-    let store = use_receipts_data(use_session(), ReceiptsTab::Dividend);
+    let store = use_receipts_data(
+        use_session(),
+        crate::settings::try_use_settings().receipts_initial_tab,
+    );
     // 変更は「適用して戻る」まで下書き。一覧の search に直接書かない
     let search = RwSignal::new(store.search.get_untracked());
     let committed = store.search;

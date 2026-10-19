@@ -1,5 +1,6 @@
 use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::features::asset_balance::model::format_number_value;
+use crate::settings::{PromptColumn, ReviewPromptPref};
 use rust_decimal::prelude::ToPrimitive;
 
 const PROMPT_BODY: &str = "あなたは日本株の公開情報を整理する調査サポーターです。
@@ -23,26 +24,53 @@ const PROMPT_BODY: &str = "あなたは日本株の公開情報を整理する�
 
 【保有銘柄データ】";
 
-const TABLE_HEADER: &str = "銘柄コード | 銘柄名 | 保有株数 | 平均取得単価";
+fn column_cell(row: &AssetBalanceRow, column: PromptColumn) -> String {
+    match column {
+        PromptColumn::Shares => format_number_value(row.shares().to_f64().unwrap_or(0.0)),
+        PromptColumn::AveragePrice => format!(
+            "¥{}",
+            format_number_value(row.average_purchase_price().to_f64().unwrap_or(0.0))
+        ),
+        PromptColumn::TotalPurchase => format!(
+            "¥{}",
+            format_number_value(row.total_purchase_amount().to_f64().unwrap_or(0.0))
+        ),
+        PromptColumn::CurrentPrice => format!(
+            "¥{}",
+            format_number_value(row.current_price().to_f64().unwrap_or(0.0))
+        ),
+        PromptColumn::Unknown => String::new(),
+    }
+}
 
-pub(crate) fn generate_asset_review_prompt(rows: &[AssetBalanceRow]) -> String {
+pub(crate) fn generate_asset_review_prompt(
+    rows: &[AssetBalanceRow],
+    pref: &ReviewPromptPref,
+) -> String {
+    let preamble = pref.preamble.trim();
+    let body = if preamble.is_empty() {
+        PROMPT_BODY.to_string()
+    } else {
+        format!("{preamble}\n\n{PROMPT_BODY}")
+    };
+    let header = ["銘柄コード", "銘柄名"]
+        .into_iter()
+        .chain(pref.columns.iter().map(|column| column.label()))
+        .collect::<Vec<_>>()
+        .join(" | ");
     let table_rows = rows
         .iter()
         .map(|row| {
-            [
+            let mut cells = vec![
                 row.security_code().to_string(),
                 row.security_name().to_string(),
-                format_number_value(row.shares().to_f64().unwrap_or(0.0)),
-                format!(
-                    "¥{}",
-                    format_number_value(row.average_purchase_price().to_f64().unwrap_or(0.0))
-                ),
-            ]
-            .join(" | ")
+            ];
+            cells.extend(pref.columns.iter().map(|column| column_cell(row, *column)));
+            cells.join(" | ")
         })
         .collect::<Vec<_>>()
         .join("\n");
-    format!("{PROMPT_BODY}\n{TABLE_HEADER}\n{table_rows}")
+    format!("{body}\n{header}\n{table_rows}")
 }
 
 #[cfg(test)]

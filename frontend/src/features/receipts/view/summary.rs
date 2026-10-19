@@ -1,9 +1,9 @@
 use crate::features::receipts::{ReceiptTabData, ReceiptsTab, select_header_summary};
+use crate::settings::format_amount;
 use crate::ui::amount::Amount;
 use crate::ui::card::StatTone;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
-use shared::format::format_currency;
 
 pub fn profit_tone(value: Decimal) -> StatTone {
     if value < Decimal::ZERO {
@@ -58,7 +58,7 @@ pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoV
                                 <dt>{label}</dt>
                                 <dd>
                                     <Amount
-                                        text=format_currency(value)
+                                        text=format_amount(value)
                                         class=if negative {
                                             "receipt-summary-primary-amount receipt-summary-amount-loss"
                                         } else {
@@ -78,7 +78,7 @@ pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoV
                                 <dt>{label}</dt>
                                 <dd>
                                     <Amount
-                                        text=format_currency(value)
+                                        text=format_amount(value)
                                         class=if negative {
                                             "receipt-summary-amount receipt-summary-amount-loss"
                                         } else {

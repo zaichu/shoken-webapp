@@ -173,10 +173,13 @@ fn AssetReviewPromptCard(
     };
     let on_click = move |_| {
         let rows = rows();
+        let pref = crate::settings::try_use_settings()
+            .review_prompt
+            .get_untracked();
         let generation = click_generation.get() + 1;
         click_generation.set(generation);
         leptos::task::spawn_local(async move {
-            let ok = try_copy_to_clipboard(generate_asset_review_prompt(&rows)).await;
+            let ok = try_copy_to_clipboard(generate_asset_review_prompt(&rows, &pref)).await;
             if click_generation.get() != generation {
                 return;
             }

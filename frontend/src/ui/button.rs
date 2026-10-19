@@ -39,6 +39,8 @@ pub enum ButtonVariant {
     AssetMobileTool,
     /// 資産管理スマホ下部帯の並び替え順トグル(「高い順 ↓」)
     AssetMobileOrder,
+    /// 設定画面の少数択一(金額単位・自動ログアウト)。aria-pressed で選択中を示す
+    Segmented,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -99,6 +101,7 @@ impl ButtonVariant {
             Self::AssetSortColumn => "asset-th-sort".to_string(),
             Self::AssetMobileTool => "asset-mobile-tool".to_string(),
             Self::AssetMobileOrder => "asset-mobile-order".to_string(),
+            Self::Segmented => "segmented-option".to_string(),
         }
     }
 }

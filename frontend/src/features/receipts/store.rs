@@ -170,9 +170,12 @@ impl ReceiptsStore {
             self.utility_rail_open.set(utility_rail_default_open());
             // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
             self.search.set(ReceiptSearch::default());
-            self.active_tab.set(ReceiptsTab::Dividend);
+            let initial = crate::settings::try_use_settings()
+                .receipts_initial_tab
+                .get_untracked();
+            self.active_tab.set(initial);
             self.visited.set(HashSet::new());
-            tab = ReceiptsTab::Dividend;
+            tab = initial;
         }
         let needs_prune = self
             .tabs
@@ -305,7 +308,10 @@ pub(crate) fn mark_tab_for_refresh(
     true
 }
 
-pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> ReceiptsStore {
+pub fn use_receipts_data(
+    session: SessionStore,
+    initial_tab: RwSignal<ReceiptsTab>,
+) -> ReceiptsStore {
     #[cfg(test)]
     {
         // テストでは呼び出しごとに新しいストアを返して session ごとの独立性を保つ
@@ -321,9 +327,12 @@ pub fn use_receipts_data(session: SessionStore, initial_tab: ReceiptsTab) -> Rec
     }
 }
 
-fn build_receipts_store(session: SessionStore, initial_tab: ReceiptsTab) -> ReceiptsStore {
-    let active_tab = RwSignal::new(initial_tab);
-    let visited = RwSignal::new(HashSet::from([initial_tab]));
+fn build_receipts_store(
+    session: SessionStore,
+    initial_tab: RwSignal<ReceiptsTab>,
+) -> ReceiptsStore {
+    let active_tab = RwSignal::new(initial_tab.get_untracked());
+    let visited = RwSignal::new(HashSet::from([active_tab.get_untracked()]));
     let tabs = RwSignal::new(HashMap::new());
 
     let fetch_session = session;
@@ -373,6 +382,14 @@ fn build_receipts_store(session: SessionStore, initial_tab: ReceiptsTab) -> Rece
         tabs,
         fetch,
     };
+
+    // 設定画面で初期タブが変わったらアクティブタブへ反映する(再訪時だけでなく即時)
+    Effect::new(move |_| {
+        let tab = initial_tab.get();
+        if active_tab.get_untracked() != tab {
+            active_tab.set(tab);
+        }
+    });
 
     Effect::new(move |_| {
         let user = session.user.get();
