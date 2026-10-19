@@ -97,6 +97,17 @@ test('PC: 口座の条件を足すとタグが出て一覧・件数・集計が�
   const table = page.getByRole('table');
   await expect(table).toContainText('架空自動車');
   await expect(table).not.toContainText('架空電信電話');
+
+  // 開き直すと選択中の選択肢が分かる(もう一度押すと外れる操作の対象)
+  await pcSearch(page).getByRole('button', { name: '＋ 口座' }).click();
+  const reopened = page.getByRole('dialog', { name: '口座を選ぶ' });
+  await expect(
+    reopened.getByRole('button', { name: 'SBI証券', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    reopened.getByRole('button', { name: '楽天証券', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Escape');
 });
 
 test('PC: タグの × で条件を外す', async ({ page }) => {
@@ -234,6 +245,26 @@ test('PC: 外側のクリックで小窓が閉じる', async ({ page }) => {
   // 背景の面(小窓の外)をクリックすると閉じる
   await page.locator('.condition-backdrop').click({ position: { x: 320, y: 10 } });
   await expect(page.getByRole('dialog', { name: '期間を選ぶ' })).toBeHidden();
+});
+
+test('PC: 小窓の中で Tab が周回し外の要素にフォーカスが出ない', async ({ page }) => {
+  await gotoReceipts(page, 1280, 800);
+
+  await pcSearch(page).getByRole('button', { name: '＋ 口座' }).click();
+  const dialog = page.getByRole('dialog', { name: '口座を選ぶ' });
+  await expect(dialog).toBeFocused();
+
+  for (let step = 0; step < 4; step += 1) {
+    await page.keyboard.press('Tab');
+    const outside = await page.evaluate(
+      () => document.activeElement?.closest('[role="dialog"]') === null,
+    );
+    expect(outside, 'フォーカスが小窓の外に出ない').toBe(false);
+  }
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(pcSearch(page).getByRole('button', { name: '＋ 口座' })).toBeFocused();
 });
 
 test('PC: 銘柄名の入力で絞り込める', async ({ page }) => {

@@ -457,8 +457,9 @@
   }
 
   .receipts-search-input {
-    /* iPhone Safari は 16px 未満の入力欄でフォーカス時に自動ズームする */
-    @apply block h-11 min-w-0 flex-1 rounded-md border-0 bg-surface px-2 text-base font-medium text-ink shadow-none placeholder:text-text-faint focus:outline-none sm:text-sm lg:h-9;
+    /* iPhone Safari は 16px 未満の入力欄でフォーカス時に自動ズームする。
+       下部操作帯は lg 未満で出続けるため、16px のまま lg まで保つ */
+    @apply block h-11 min-w-0 flex-1 rounded-md border-0 bg-surface px-2 text-base font-medium text-ink shadow-none placeholder:text-text-faint focus:outline-none lg:h-9 lg:text-sm;
   }
 
   .receipts-search-count {

@@ -5,6 +5,7 @@ use crate::features::receipts::kind::group_label;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::focus::trap_focus;
 use leptos::prelude::*;
 
 // 銘柄名・コードの文字列検索は入力欄で行うため、条件として数えるのは
@@ -213,10 +214,8 @@ fn ConditionPopover(
     products: Memo<Vec<SearchOption>>,
     accounts: Memo<Vec<SearchOption>>,
     has_years: impl Fn() -> bool + Copy + 'static + Send,
-    /// 背景のクリックで閉じる(フォーカスは動かさない)
-    on_cancel: impl Fn() + Copy + 'static + Send,
-    /// Esc・確定で閉じる。閉じた後でトリガーのボタンへフォーカスを戻す
-    on_finish: impl Fn(ConditionKind) + Copy + 'static + Send,
+    /// 背景のクリック・Esc・確定のどれで閉じてもトリガーのボタンへフォーカスを戻す
+    on_close: impl Fn(ConditionKind) + Copy + 'static + Send,
 ) -> impl IntoView {
     let draft = RwSignal::new(search.get_untracked());
 
@@ -240,16 +239,16 @@ fn ConditionPopover(
                 s.rebuild_query();
             }
         });
-        on_finish(kind);
+        on_close(kind);
     };
 
     let select_option = move |key: SearchKey, value: String| {
         search.update(|s| s.select_quick(key, value));
-        on_finish(kind);
+        on_close(kind);
     };
 
     view! {
-        <div class="condition-backdrop" on:click=move |_| on_cancel() />
+        <div class="condition-backdrop" on:click=move |_| on_close(kind) />
         <div
             class="condition-panel"
             role="dialog"
@@ -259,7 +258,12 @@ fn ConditionPopover(
             on:keydown=move |event| {
                 if event.key() == "Escape" {
                     event.prevent_default();
-                    on_finish(kind);
+                    on_close(kind);
+                    return;
+                }
+                // 背景の面で下の操作を塞いでいる間は、Tab で下の要素へ出ないようにする
+                if event.key() == "Tab" {
+                    trap_focus(&event);
                 }
             }
         >
@@ -275,11 +279,19 @@ fn ConditionPopover(
                 }
                     .into_any(),
                 ConditionKind::Account => view! {
-                    <OptionContent options=accounts on_select=move |value| select_option(SearchKey::Accounts, value) />
+                    <OptionContent
+                        options=accounts
+                        selected=Memo::new(move |_| search.with(|s| s.selected_queries.accounts.clone()))
+                        on_select=move |value| select_option(SearchKey::Accounts, value)
+                    />
                 }
                     .into_any(),
                 ConditionKind::Product => view! {
-                    <OptionContent options=products on_select=move |value| select_option(SearchKey::Products, value) />
+                    <OptionContent
+                        options=products
+                        selected=Memo::new(move |_| search.with(|s| s.selected_queries.products.clone()))
+                        on_select=move |value| select_option(SearchKey::Products, value)
+                    />
                 }
                     .into_any(),
             }}
@@ -349,6 +361,7 @@ fn PeriodDraftContent(
 #[component]
 fn OptionContent(
     options: Memo<Vec<SearchOption>>,
+    selected: Memo<String>,
     on_select: impl Fn(String) + Copy + 'static + Send,
 ) -> impl IntoView {
     view! {
@@ -357,11 +370,13 @@ fn OptionContent(
                 options.get().iter().map(|opt| {
                     let opt_value = opt.value.clone();
                     let opt_label = opt.label.clone();
+                    let value_for_selected = opt_value.clone();
                     let value_for_click = opt_value.clone();
                     view! {
                         <button
                             type="button"
                             class="condition-option"
+                            aria-pressed=move || (selected.get() == value_for_selected).to_string()
                             on:click=move |_| on_select(value_for_click.clone())
                         >
                             {opt_label}
@@ -392,7 +407,7 @@ fn YearPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -
                             <button
                                 type="button"
                                 class=move || format!(
-                                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
+                                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors max-sm:min-h-11 {}",
                                     if selected.get() {
                                         "bg-surface border border-brand text-brand-text"
                                     } else {
@@ -433,7 +448,7 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                                     <button
                                         type="button"
                                         class=move || format!(
-                                            "px-3 py-1.5 rounded-full text-sm font-medium transition-colors {}",
+                                            "px-3 py-1.5 rounded-full text-sm font-medium transition-colors max-sm:min-h-11 {}",
                                             if is_selected() {
                                                 "bg-surface border border-brand text-brand-text"
                                             } else {
@@ -460,7 +475,7 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                 view! {
                     <div class="flex items-center gap-1">
                         <select
-                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm max-sm:min-h-11"
                             aria-label="年"
                             prop:value=move || selected_year.get()
                             on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
@@ -471,7 +486,7 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                             }).collect_view()}
                         </select>
                         <select
-                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm"
+                            class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm max-sm:min-h-11"
                             aria-label="月"
                             prop:value=move || selected_month.get()
                             on:change=move |ev| {
@@ -510,7 +525,7 @@ fn DatePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
             <label class="block text-xs text-text-muted mb-1">"日付"</label>
             <input
                 type="date"
-                class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full"
+                class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full max-sm:min-h-11"
                 aria-label="日付"
                 data-empty=move || selected_date.get().is_empty().then_some("true")
                 prop:value=move || selected_date.get()
@@ -536,7 +551,7 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                 <label class="block text-xs text-text-muted mb-1">"開始日"</label>
                 <input
                     type="date"
-                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full"
+                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full max-sm:min-h-11"
                     aria-label="開始日"
                     data-empty=move || range_start.get().is_empty().then_some("true")
                     prop:value=move || range_start.get()
@@ -553,7 +568,7 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                 <label class="block text-xs text-text-muted mb-1">"終了日"</label>
                 <input
                     type="date"
-                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full"
+                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full max-sm:min-h-11"
                     aria-label="終了日"
                     data-empty=move || range_end.get().is_empty().then_some("true")
                     prop:value=move || range_end.get()
@@ -601,10 +616,6 @@ impl ConditionControls {
             let _ = button.focus();
         }
     }
-
-    fn cancel(&self) {
-        self.open.set(None);
-    }
 }
 
 /// PC の検索欄。タグ・銘柄入力・件数・すべてクリアを1つの面にまとめ、
@@ -629,8 +640,7 @@ pub fn ReceiptsPcSearchBar(
     let has_years = move || !years.get().is_empty();
 
     let controls = ConditionControls::new();
-    let on_finish = move |kind: ConditionKind| controls.finish(kind);
-    let on_cancel = move || controls.cancel();
+    let on_close = move |kind: ConditionKind| controls.finish(kind);
 
     view! {
         <div class="pc-search-area no-print" role="search" aria-label="取引明細の検索">
@@ -672,8 +682,7 @@ pub fn ReceiptsPcSearchBar(
                             products=products
                             accounts=accounts
                             has_years=has_years
-                            on_cancel=on_cancel
-                            on_finish=on_finish
+                            on_close=on_close
                         />
                     }
                 })
@@ -699,8 +708,7 @@ pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
     let has_years = move || !years.get().is_empty();
 
     let controls = ConditionControls::new();
-    let on_finish = move |kind: ConditionKind| controls.finish(kind);
-    let on_cancel = move || controls.cancel();
+    let on_close = move |kind: ConditionKind| controls.finish(kind);
 
     view! {
         <div class="receipts-mobile-bottom-section no-print lg:hidden" role="search" aria-label="検索">
@@ -747,8 +755,7 @@ pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
                             products=products
                             accounts=accounts
                             has_years=has_years
-                            on_cancel=on_cancel
-                            on_finish=on_finish
+                            on_close=on_close
                         />
                     }
                 })
