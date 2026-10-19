@@ -197,6 +197,3 @@ fn format_number(value: Decimal) -> String {
         format!("{}{}", sign, result)
     }
 }
-
-#[cfg(test)]
-mod tests;

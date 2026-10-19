@@ -4,7 +4,7 @@ use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::store::csv::{
     AssetBalanceCsvStore, csv_preview_rows, resolve_asset_balance,
 };
-use crate::features::asset_balance::store::filtered_portfolio;
+use crate::features::asset_balance::view::AssetBalanceCsvPreview;
 use crate::session::{SessionStore, use_session};
 use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::button::{Button, ButtonVariant};
@@ -106,7 +106,7 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
                 subject="資産管理"
                 back_href="/assetbalance"
     delete_href=String::new()
-                preview=view! { <AssetCsvPreview state=state session=session /> }.into_any()
+                preview=view! { <CsvPreviewWrapper state=state _session=session /> }.into_any()
                 extra=view! {
                     <AssetReviewPromptCard rows=move || review_rows(review_state, session) />
                 }
