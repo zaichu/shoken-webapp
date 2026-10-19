@@ -101,21 +101,20 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
     let source = state.csv;
     let review_state = state;
     view! {
-            <CsvManagePage
-                source=source
-                subject="資産管理"
-                back_href="/assetbalance"
-    delete_href=String::new()
-                preview=view! { <CsvPreviewWrapper state=state _session=session /> }.into_any()
-                extra=view! {
-                    <AssetReviewPromptCard rows=move || review_rows(review_state, session) />
-                }
-                .into_any()
-            />
-        }
+        <CsvManagePage
+            source=source
+            subject="資産管理"
+            back_href="/assetbalance"
+            delete_href=String::new()
+            preview=view! { <CsvPreviewWrapper state=state _session=session /> }.into_any()
+            extra=view! {
+                <AssetReviewPromptCard rows=move || review_rows(review_state, session) />
+            }
+            .into_any()
+        />
+    }
 }
 
-/// 旧削除ページ URL へのアクセスを CSV 管理ページへリダイレクトする
 #[component]
 fn CsvPreviewWrapper(state: AssetBalanceState, _session: SessionStore) -> impl IntoView {
     move || {
@@ -128,6 +127,7 @@ fn CsvPreviewWrapper(state: AssetBalanceState, _session: SessionStore) -> impl I
     }
 }
 
+/// 旧削除ページ URL へのアクセスを CSV 管理ページへリダイレクトする
 #[component]
 pub fn AssetBalanceCsvDeletePage() -> impl IntoView {
     leptos::task::spawn_local(async move {
