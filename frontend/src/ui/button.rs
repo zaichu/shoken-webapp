@@ -137,6 +137,7 @@ pub fn Button(
     /// 開閉対象の要素 id(絞り込み欄の開閉ボタンなど)
     #[prop(optional)]
     aria_controls: Option<&'static str>,
+    #[prop(optional)] node_ref: NodeRef<leptos::html::Button>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
 ) -> impl IntoView {
@@ -154,6 +155,7 @@ pub fn Button(
             aria-controls=aria_controls
             tabindex=tabindex.map(|index| move || index.get())
             data-testid=testid
+            node_ref=node_ref
             on:click=on_click
         >
             {children()}
@@ -170,6 +172,7 @@ pub fn LinkButton(
     /// 遷移前に実行する処理(下書きの適用など)。SPA 遷移の横取りより先に走る
     #[prop(optional)]
     on_click: Option<Callback<()>>,
+    #[prop(into, optional)] aria_label: Option<Signal<String>>,
     children: Children,
 ) -> impl IntoView {
     let classes = move || button_classes(variant, &class.get());
@@ -177,6 +180,7 @@ pub fn LinkButton(
         <a
             href=href
             class=classes
+            aria-label=move || aria_label.as_ref().map(|label| label.get())
             on:click=move |_| {
                 if let Some(on_click) = on_click {
                     on_click.run(());
