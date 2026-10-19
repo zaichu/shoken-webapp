@@ -234,7 +234,13 @@ pub fn AssetBalancePage() -> impl IntoView {
         funds.set(None);
         load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
     };
-    let pc_subtitle = move || resolved_view().map(|view| summary::list_subtitle(&view));
+    let pc_subtitle = move || match sort_state.kind.get() {
+        AssetKind::Stock => resolved_view().map(|view| summary::list_subtitle(&view)),
+        AssetKind::Fund => resolved_fund_view().map(|view| summary::fund_subtitle(&view)),
+        AssetKind::All => {
+            summary::merged_subtitle(resolved_view().as_ref(), resolved_fund_view().as_ref())
+        }
+    };
     let title_row: Children = Box::new(move || {
         view! {
             <span class="hidden self-center text-sm font-normal text-text-muted lg:inline">
