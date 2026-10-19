@@ -88,6 +88,7 @@ src/
 - 単体テストは `<モジュール>/tests.rs` に置く(`#[cfg(test)] mod tests;`)。分割するときは `tests/suite.rs` を入口にして親から `#[path = "<モジュール>/tests/suite.rs"] mod tests;` で読み、子は `#[path = "<名前>.rs"] mod <名前>;` で宣言する。同じ階層に `tests.rs` と `tests/` を並べない
 - Rust の共有テスト補助・データ生成は `src/testing/<機能>.rs` に置く。データファイルは `frontend/tests/fixtures/` に置き、`concat!(env!("CARGO_MANIFEST_DIR"), ...)` で読む
 - E2E は `e2e/<機能>/<内容>.spec.ts` に置く。補助は `e2e/support/`、データは `e2e/fixtures/`。Issue 番号で命名せず、`migrated/` は使わない
+- fixtures・単体テスト・E2E のデータは架空データだけにする(backend と docs のサンプルも同じ)。実保有データ(実在の銘柄と実際の数量・単価・合計)を写さず、銘柄コードは 9900 番台の架空番号、数量・金額は規則的な値にする
 - 撮影専用 spec は Git 管理外の `.local-e2e/` に置き、通常の Playwright 設定や CI の対象にしない
 - `npm run check:test-layout` で配置を検査する。検査スクリプトのテストは `npm run test:test-layout`。どちらも CI で実行する
 

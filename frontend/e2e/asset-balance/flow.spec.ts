@@ -22,8 +22,8 @@ const MOCK_ASSET = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   shares: 100,
   average_purchase_price: 2500,
   total_purchase_amount: 250000,
@@ -37,8 +37,8 @@ const SECOND_ASSET = {
   id: 'asset-balance-2',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '6758',
-  security_name: 'ソニーグループ',
+  security_code: '9914',
+  security_name: '架空エレクトロニクス',
   shares: 50,
   average_purchase_price: 3000,
   total_purchase_amount: 150000,
@@ -102,14 +102,14 @@ async function setupAssetBalanceMocks(
       json({
         items: [
           {
-            security_code: '7203',
+            security_code: '9904',
             dividend_per_share: 90,
             status: 'ok',
             fetched_at: '2026-01-01T00:00:00Z',
             is_stale: false,
           },
           {
-            security_code: '6758',
+            security_code: '9914',
             dividend_per_share: 70,
             status: 'ok',
             fetched_at: '2026-01-01T00:00:00Z',
@@ -233,7 +233,7 @@ test('保存後に一覧が再取得されて銘柄データが表示される',
   // 一覧に戻ると保存した銘柄が見える
   await page.getByRole('link', { name: '一覧に戻る' }).click();
   await expect(
-    page.getByTestId('asset-holdings-table').getByText('トヨタ自動車'),
+    page.getByTestId('asset-holdings-table').getByText('架空自動車'),
   ).toBeVisible();
 });
 
@@ -256,19 +256,19 @@ test('銘柄名の一部で絞り込み解除できる', async ({ page }) => {
 
   const list = page.getByTestId('asset-holdings-table');
 
-  await expect(list.getByText('トヨタ自動車')).toBeVisible();
-  await expect(list.getByText('ソニーグループ')).toBeVisible();
+  await expect(list.getByText('架空自動車')).toBeVisible();
+  await expect(list.getByText('架空エレクトロニクス')).toBeVisible();
 
-  await page.getByTestId('asset-search-input-pc').fill('ソニー');
+  await page.getByTestId('asset-search-input-pc').fill('エレクトロ');
 
   await expect(page.getByTestId('asset-search-count-pc')).toContainText('1 / 2');
-  await expect(list.getByText('ソニーグループ')).toBeVisible();
-  await expect(list.getByText('トヨタ自動車')).not.toBeVisible();
+  await expect(list.getByText('架空エレクトロニクス')).toBeVisible();
+  await expect(list.getByText('架空自動車')).not.toBeVisible();
 
   await page.getByTestId('asset-search-clear-pc').click();
 
   await expect(page.getByTestId('asset-search-count-pc')).not.toBeVisible();
-  await expect(list.getByText('トヨタ自動車')).toBeVisible();
+  await expect(list.getByText('架空自動車')).toBeVisible();
 });
 
 test('全件削除はカード内の「すべて削除…」ボタンから確認モーダルで行う', async ({ page }) => {

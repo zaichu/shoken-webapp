@@ -79,7 +79,7 @@ mod tests {
             total_rows: 2,
             valid_rows: 1,
             errors: vec![],
-            rows: vec![serde_json::json!({"code": "7203", "name": "トヨタ自動車"})],
+            rows: vec![serde_json::json!({"code": "9904", "name": "架空自動車"})],
         };
 
         let json = serde_json::to_value(&response).expect("serialize");

@@ -301,11 +301,11 @@ mod tests {
     use uuid::Uuid;
 
     const HEADER: &str = "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
-    const BASIC_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
-    const NISA_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9433\",\"K D D I\",\"NISA\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\"";
+    const BASIC_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9902\",\"架空エネルギーホールディングス\",\"特定\",\"-\",\"売付\",\"100\",\"1,500.0\",\"150,000\",\"1,400.00\",\"10,000\"";
+    const NISA_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9911\",\"A B C D\",\"NISA\",\"-\",\"売付\",\"100\",\"1500.0\",\"150000\",\"1400.00\",\"10000\"";
     const MISSING_NAME_HEADER: &str = "約定日,受渡日,銘柄コード,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
-    const MISSING_NAME_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"特定\",\"-\",\"売付\",\"100\",\"1,441.0\",\"144,100\",\"1,350.00\",\"9,100\"";
-    const INVALID_PNL_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"N/A\"";
+    const MISSING_NAME_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9902\",\"特定\",\"-\",\"売付\",\"100\",\"1,500.0\",\"150,000\",\"1,400.00\",\"10,000\"";
+    const INVALID_PNL_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9902\",\"架空エネルギー\",\"特定\",\"-\",\"売付\",\"100\",\"1500.0\",\"150000\",\"1400.00\",\"N/A\"";
 
     fn preview_with_header(
         header: &str,
@@ -353,7 +353,7 @@ mod tests {
     fn test_preview_csv() {
         assert_eq!(
             assert_preview_ok(BASIC_ROW).rows[0].security_name,
-            "ＥＮＥＯＳホールディングス"
+            "架空エネルギーホールディングス"
         );
 
         let preview = assert_preview_ok(NISA_ROW);
@@ -363,7 +363,7 @@ mod tests {
                 preview.rows[0].taxes,
                 preview.rows[0].realized_profit_and_loss_after_tax,
             ),
-            ("KDDI", dec!(0), dec!(9100))
+            ("ABCD", dec!(0), dec!(10000))
         );
 
         for (header, row, expected_message) in [
@@ -382,13 +382,13 @@ mod tests {
     #[test]
     fn test_preview_csv_security_code_whitespace_and_symbols() {
         // 前後の空白は trim してから検証する
-        let preview = assert_preview_ok(&BASIC_ROW.replace("\"5020\"", "\" 7203 \""));
-        assert_eq!(preview.rows[0].security_code.as_str(), "7203");
+        let preview = assert_preview_ok(&BASIC_ROW.replace("\"9902\"", "\" 9904 \""));
+        assert_eq!(preview.rows[0].security_code.as_str(), "9904");
 
         // 記号入りの銘柄コードは行エラー(newtype 化後の仕様)
         assert_preview_error(
             HEADER,
-            &BASIC_ROW.replace("\"5020\"", "\"7203-1\""),
+            &BASIC_ROW.replace("\"9902\"", "\"9904-1\""),
             "銘柄コード",
         );
     }
@@ -397,8 +397,8 @@ mod tests {
         CreateDomesticStockRequest {
             trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),
             settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(),
-            security_code: "9508".parse().unwrap(),
-            security_name: "九州電力".to_string(),
+            security_code: "9913".parse().unwrap(),
+            security_name: "架空電力西".to_string(),
             account: "特定".parse().unwrap(),
             shares: dec!(100),
             asked_price: dec!(1880),
@@ -487,10 +487,10 @@ mod tests {
         // day1: 特定口座 +10000 / +5000（合計 +15000、税額 floor(15000*0.20315)=3047）、NISA +2000（非課税）
         // day2: 特定口座 -3000（マイナスのため非課税）
         let items = vec![
-            make_summary_item(day1, "特定", "5020", dec!(10000)),
-            make_summary_item(day1, "特定", "5020", dec!(5000)),
-            make_summary_item(day1, "NISA", "9433", dec!(2000)),
-            make_summary_item(day2, "特定", "5020", dec!(-3000)),
+            make_summary_item(day1, "特定", "9902", dec!(10000)),
+            make_summary_item(day1, "特定", "9902", dec!(5000)),
+            make_summary_item(day1, "NISA", "9911", dec!(2000)),
+            make_summary_item(day2, "特定", "9902", dec!(-3000)),
         ];
         bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
             .await

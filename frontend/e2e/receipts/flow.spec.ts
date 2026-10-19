@@ -25,8 +25,8 @@ const DIVIDEND_RECORD = [
     settlement_date: '2024-03-01',
     product: '特定口座',
     account: 'SBI証券',
-    security_code: '7203',
-    security_name: 'トヨタ自動車',
+    security_code: '9904',
+    security_name: '架空自動車',
     unit_price: '30.0',
     shares: '100',
     dividends_before_tax: '3000',
@@ -153,13 +153,13 @@ test('スマホ幅で空状態 CTA からプレビューして保存ボタンま
             settlement_date: '2025-12-09',
             product: '国内株式',
             account: '特定・一般',
-            security_code: '8591',
-            security_name: 'オリックス',
-            unit_price: 93.76,
+            security_code: '9908',
+            security_name: '架空リース',
+            unit_price: 90.00,
             shares: 200,
-            dividends_before_tax: 18752,
-            taxes: 3808,
-            net_amount_received: 14944,
+            dividends_before_tax: 18000,
+            taxes: 3656,
+            net_amount_received: 14344,
           },
         ],
       }),
@@ -193,6 +193,6 @@ test('配当金データが1件あるとき行が表示される', async ({ page
   await expect(
     page
       .getByTestId('receipts-workspace')
-      .getByRole('cell', { name: 'トヨタ自動車' }),
+      .getByRole('cell', { name: '架空自動車' }),
   ).toBeVisible();
 });

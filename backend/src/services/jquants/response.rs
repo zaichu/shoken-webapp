@@ -84,7 +84,7 @@ mod tests {
     use {super::*, serde_json::json};
     #[test]
     fn test_fin_summary_required_fields_and_dividend_types() {
-        let row = json!({"DiscDate": "2024-05-10", "Code": "7203", "DocType": "FY"});
+        let row = json!({"DiscDate": "2024-05-10", "Code": "9904", "DocType": "FY"});
         for key in ["DiscDate", "Code", "DocType"] {
             let mut missing = row.clone();
             missing.as_object_mut().expect("オブジェクト").remove(key);
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_fin_summary_data_deserialize_v2_format() {
-        let fin_summary_data: FinSummaryData = serde_json::from_value(json!({"DiscDate":"2023-11-14","DiscTime":"15:00:00","Code":"72030","DiscNo":"20231114502171","DocType":"決算短信","CurPerType":"2Q","CurPerSt":"2023-04-01","CurPerEn":"2023-09-30","CurFYSt":"2023-04-01","CurFYEn":"2024-03-31","NxtFYSt":"2024-04-01","NxtFYEn":"2025-03-31","Sales":"18733067000000","OP":"1686297000000","NxFDivAnn":"50.00","FDivAnn":"45.00","DivAnn":"40.00"})).expect("有効なテスト用 JSON");
+        let fin_summary_data: FinSummaryData = serde_json::from_value(json!({"DiscDate":"2023-11-14","DiscTime":"15:00:00","Code":"99040","DiscNo":"20231114502171","DocType":"決算短信","CurPerType":"2Q","CurPerSt":"2023-04-01","CurPerEn":"2023-09-30","CurFYSt":"2023-04-01","CurFYEn":"2024-03-31","NxtFYSt":"2024-04-01","NxtFYEn":"2025-03-31","Sales":"18733067000000","OP":"1686297000000","NxFDivAnn":"50.00","FDivAnn":"45.00","DivAnn":"40.00"})).expect("有効なテスト用 JSON");
         assert_eq!(
             (
                 fin_summary_data.disclosed_date.as_str(),
@@ -122,20 +122,20 @@ mod tests {
             ),
             (
                 "2023-11-14",
-                "72030",
+                "99040",
                 Some("50.00"),
                 Some("45.00"),
                 Some("40.00")
             )
         );
-        let response: FinSummaryResponse = serde_json::from_value(json!({"data":[{"DiscDate":"2023-11-14","Code":"72030","DocType":"決算短信","CurPerType":"2Q","CurPerSt":"2023-04-01","CurPerEn":"2023-09-30","CurFYSt":"2023-04-01","CurFYEn":"2024-03-31"}]})).expect("有効なテスト用 JSON");
+        let response: FinSummaryResponse = serde_json::from_value(json!({"data":[{"DiscDate":"2023-11-14","Code":"99040","DocType":"決算短信","CurPerType":"2Q","CurPerSt":"2023-04-01","CurPerEn":"2023-09-30","CurFYSt":"2023-04-01","CurFYEn":"2024-03-31"}]})).expect("有効なテスト用 JSON");
         assert_eq!(
             (
                 response.data.len(),
                 response.data[0].disclosed_date.as_str(),
                 response.data[0].local_code.as_str()
             ),
-            (1, "2023-11-14", "72030")
+            (1, "2023-11-14", "99040")
         );
         assert!(
             serde_json::from_value::<FinSummaryResponse>(json!({"data":[]}))

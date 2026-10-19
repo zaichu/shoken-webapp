@@ -34,7 +34,7 @@ wait_for_worker || fail "Worker が起動しませんでした"
 
 # 0. セッションを直接投入(認証済みリクエスト用)
 read -r USER_ID TOKEN HASH < <(generate_test_session)
-psql "DELETE FROM dividend_per_share_cache WHERE security_code IN ('7203','9999')" >/dev/null
+psql "DELETE FROM dividend_per_share_cache WHERE security_code IN ('9904','9999')" >/dev/null
 # 再実行冪等化: テストユーザーを消すとセッションは ON DELETE CASCADE で連鎖削除される
 psql "DELETE FROM users WHERE google_id='cron-test'" >/dev/null
 psql "INSERT INTO users (id, google_id, email) VALUES ('$USER_ID', 'cron-test', 'cron-test@example.com')" >/dev/null
@@ -49,11 +49,11 @@ STATUS=$(curl -s -b "$JAR" -c "$JAR" -o "$BODY" -w "%{http_code}" \
   -X POST "http://127.0.0.1:$WORKER_PORT/api/v1/dividend-per-share-estimates" \
   -H "content-type: application/json" \
   -H "Cookie: session_token=$TOKEN" \
-  -d '{"security_codes":["7203"]}')
+  -d '{"security_codes":["9904"]}')
 [[ "$STATUS" == "200" ]] || { cat "$WRANGLER_LOG" >&2; fail "batch POST が $STATUS: $(cat "$BODY")"; }
 grep -q '"status":"pending"' "$BODY" || fail "レスポンスが pending でない: $(cat "$BODY")"
-ROW=$(psql "SELECT status FROM dividend_per_share_cache WHERE security_code='7203'")
-[[ "$ROW" == "pending" ]] || fail "7203 行が pending でない: $ROW"
+ROW=$(psql "SELECT status FROM dividend_per_share_cache WHERE security_code='9904'")
+[[ "$ROW" == "pending" ]] || fail "9904 行が pending でない: $ROW"
 echo "1. POST -> 200 + pending 行投入: OK"
 
 # 2. scheduled イベントを手動発火して消化を確認する(12秒スロットのため待ち得る)
@@ -62,15 +62,15 @@ curl -sf -X POST "http://127.0.0.1:$WORKER_PORT/cdn-cgi/local/scheduled?cron=*+*
 echo "2. scheduled 発火: OK(消化をポーリング)"
 
 for _ in $(seq 1 60); do
-  ROW=$(psql "SELECT status, dividend_per_share FROM dividend_per_share_cache WHERE security_code='7203'")
+  ROW=$(psql "SELECT status, dividend_per_share FROM dividend_per_share_cache WHERE security_code='9904'")
   [[ "$ROW" == ok* ]] && break
   sleep 1
 done
 STATUS_VAL="${ROW%%|*}"
 DPS_VAL="${ROW#*|}"
-[[ "$STATUS_VAL" == "ok" ]] || { cat "$WRANGLER_LOG" >&2; fail "7203 が消化されない: $ROW"; }
+[[ "$STATUS_VAL" == "ok" ]] || { cat "$WRANGLER_LOG" >&2; fail "9904 が消化されない: $ROW"; }
 [[ "$DPS_VAL" == "45.25" ]] || fail "dividend_per_share が想定外: $DPS_VAL"
-grep -q "GET /v2/fins/summary?code=7203" "$MOCK_LOG" || fail "モックが fins/summary を受けていない"
+grep -q "GET /v2/fins/summary?code=9904" "$MOCK_LOG" || fail "モックが fins/summary を受けていない"
 grep -q "api_key=test-jquants-key" "$MOCK_LOG" || fail "x-api-key が送られていない"
 echo "3. cron 消化 -> status=ok, dividend_per_share=45.25: OK"
 

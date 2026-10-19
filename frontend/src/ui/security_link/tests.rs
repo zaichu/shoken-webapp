@@ -3,14 +3,14 @@ use super::*;
 #[test]
 fn copy_text_formats_display_and_code() {
     assert_eq!(
-        instrument_copy_text("トヨタ自動車", Some("7203")),
-        "トヨタ自動車(7203)"
+        instrument_copy_text("架空自動車", Some("9904")),
+        "架空自動車(9904)"
     );
-    assert_eq!(instrument_copy_text("トヨタ自動車", None), "トヨタ自動車");
-    assert_eq!(instrument_copy_text("  ", Some("7203")), "—(7203)");
+    assert_eq!(instrument_copy_text("架空自動車", None), "架空自動車");
+    assert_eq!(instrument_copy_text("  ", Some("9904")), "—(9904)");
     assert_eq!(
-        instrument_copy_text("名", Some("7203: トヨタ自動車")),
-        "名(7203)"
+        instrument_copy_text("名", Some("9904: 架空自動車")),
+        "名(9904)"
     );
     assert_eq!(instrument_copy_text("名", Some("brk.b")), "名(BRK.B)");
     assert_eq!(instrument_copy_text("名", Some("  ")), "名");

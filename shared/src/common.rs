@@ -244,8 +244,8 @@ mod tests {
 
     #[test]
     fn stock_keeps_optional_fields_and_raw_wire_strings() {
-        let stock: Stock = serde_json::from_str(r#"{"code":"7203-1","name":"トヨタ自動車","date":"2024-03-01","market_category":"プライム","industry_category_33":"輸送用機器"}"#).unwrap();
-        assert_eq!(stock.code, "7203-1");
+        let stock: Stock = serde_json::from_str(r#"{"code":"9904-1","name":"架空自動車","date":"2024-03-01","market_category":"プライム","industry_category_33":"輸送用機器"}"#).unwrap();
+        assert_eq!(stock.code, "9904-1");
         assert_eq!(stock.industry_category_33.as_deref(), Some("輸送用機器"));
         assert!(stock.industry_category_17.is_none());
         assert!(stock.size_category.is_none());
@@ -307,7 +307,7 @@ mod tests {
                 page: Some(3),
                 per_page: Some(50),
             },
-            q: Some("NTT".to_string()),
+            q: Some("TELE".to_string()),
             date_from: Some("2026-01-01".to_string()),
             date_to: Some("2026-12-31".to_string()),
             year: Some(2026),

@@ -14,7 +14,7 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
             session: SessionStore::new(),
             active_tab: RwSignal::new(ReceiptsTab::Dividend),
             search: RwSignal::new(ReceiptSearch {
-                query: "9432".into(),
+                query: "9910".into(),
                 ..Default::default()
             }),
             expanded: RwSignal::new(HashSet::new()),
@@ -54,7 +54,7 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
         });
         store.mobile_summary_expanded.set(true);
         store.select_tab(ReceiptsTab::Dividend);
-        assert_eq!(store.search.get_untracked().query, "9432");
+        assert_eq!(store.search.get_untracked().query, "9910");
         assert!(store.expanded.with_untracked(|set| set.contains("g0")));
         assert!(store.mobile_summary_expanded.get_untracked());
         store.select_tab(ReceiptsTab::DomesticStock);

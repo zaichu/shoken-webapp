@@ -96,10 +96,10 @@
     {
       "name": "full_dividends",
       "holdings": [
-        { "security_code": "7203", "shares": 100, "total_purchase_amount": 250000 },
-        { "security_code": "6758", "shares": 50, "total_purchase_amount": 600000 }
+        { "security_code": "9904", "shares": 100, "total_purchase_amount": 250000 },
+        { "security_code": "9914", "shares": 50, "total_purchase_amount": 600000 }
       ],
-      "dividends_per_share": { "7203": 50, "6758": 240 },
+      "dividends_per_share": { "9904": 50, "9914": 240 },
       "expected": {
         "total_purchase_amount": 850000,
         "total_annual_dividends": 17000,
@@ -110,8 +110,8 @@
     {
       "name": "no_dividend_map",
       "holdings": [
-        { "security_code": "7203", "shares": 100, "total_purchase_amount": 250000 },
-        { "security_code": "6758", "shares": 50, "total_purchase_amount": 600000 }
+        { "security_code": "9904", "shares": 100, "total_purchase_amount": 250000 },
+        { "security_code": "9914", "shares": 50, "total_purchase_amount": 600000 }
       ],
       "dividends_per_share": {},
       "expected": {
@@ -124,10 +124,10 @@
     {
       "name": "partial_dividend_map",
       "holdings": [
-        { "security_code": "7203", "shares": 100, "total_purchase_amount": 250000 },
-        { "security_code": "6758", "shares": 50, "total_purchase_amount": 600000 }
+        { "security_code": "9904", "shares": 100, "total_purchase_amount": 250000 },
+        { "security_code": "9914", "shares": 50, "total_purchase_amount": 600000 }
       ],
-      "dividends_per_share": { "7203": 50 },
+      "dividends_per_share": { "9904": 50 },
       "expected": {
         "total_purchase_amount": 850000,
         "total_annual_dividends": 5000,
@@ -138,10 +138,10 @@
     {
       "name": "zero_per_share",
       "holdings": [
-        { "security_code": "7203", "shares": 100, "total_purchase_amount": 250000 },
-        { "security_code": "6758", "shares": 50, "total_purchase_amount": 600000 }
+        { "security_code": "9904", "shares": 100, "total_purchase_amount": 250000 },
+        { "security_code": "9914", "shares": 50, "total_purchase_amount": 600000 }
       ],
-      "dividends_per_share": { "7203": 0, "6758": 0 },
+      "dividends_per_share": { "9904": 0, "9914": 0 },
       "expected": {
         "total_purchase_amount": 850000,
         "total_annual_dividends": null,

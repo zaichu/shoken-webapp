@@ -8,8 +8,8 @@ export function domesticStocksFixture(userId: string) {
       user_id: userId,
       trade_date: '2024-03-01',
       settlement_date: '2024-03-04',
-      security_code: '8306',
-      security_name: '三菱UFJフィナンシャル・グループ',
+      security_code: '9907',
+      security_name: '架空フィナンシャル・グループ',
       account: '特定口座',
       shares: 123456,
       asked_price: 12345,
@@ -26,8 +26,8 @@ export function domesticStocksFixture(userId: string) {
       user_id: userId,
       trade_date: '2024-03-01',
       settlement_date: '2024-03-04',
-      security_code: '9984',
-      security_name: 'ソフトバンクグループ',
+      security_code: '9915',
+      security_name: '架空通信ホールディングス',
       account: 'NISA口座',
       shares: 9876543,
       asked_price: 1234567,
@@ -44,7 +44,7 @@ export function domesticStocksFixture(userId: string) {
 
 // 印刷で3行を超える長さのファンド名。印字時にクランプされないことを確かめる
 export const LONG_FUND_NAME =
-  'eMAXIS Slim 全世界株式（オール・カントリー）・楽天・バンガード・ファンド（全世界株式）長期積立専用アクティブ運用特別受益権（為替ヘッジなし）＜子ファンド組込型＞ニッセイ外国株式インデックスファンド＜購入・換金手数料なし＞シリーズ';
+  '架空インデックス 全世界株式（オール・ワールド）・架空・バンガード・ファンド（全世界株式）長期積立専用アクティブ運用特別受益権（為替ヘッジなし）＜子ファンド組込型＞架空外国株式インデックスファンド＜購入・換金手数料なし＞シリーズ';
 
 export function mutualFundsFixture(userId: string) {
   const created_at = '2024-03-01T00:00:00Z';
@@ -55,7 +55,7 @@ export function mutualFundsFixture(userId: string) {
       user_id: userId,
       trade_date: '2024-03-01',
       settlement_date: '2024-03-04',
-      fund_name: 'eMAXIS Slim 全世界株式（オール・カントリー）',
+      fund_name: '架空インデックス 全世界株式（オール・ワールド）',
       account: '特定口座',
       shares: '123456',
       exchange_rate: '1',
@@ -74,7 +74,7 @@ export function mutualFundsFixture(userId: string) {
       user_id: userId,
       trade_date: '2024-03-01',
       settlement_date: '2024-03-04',
-      fund_name: 'eMAXIS Slim 米国株式（S&P500）',
+      fund_name: '架空インデックス 米国株式',
       account: 'NISA口座',
       shares: '9876543',
       exchange_rate: '1',

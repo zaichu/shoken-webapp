@@ -18,38 +18,38 @@ const USER = {
 };
 
 // backend の一覧行と同じフィールド名。DB 行として登録時に id・タイムスタンプを付ける
-const KDDI = {
+const SYN_COMM = {
   settlement_date: '2025-12-08',
   product: '国内株式',
   account: '特定・一般',
-  security_code: '9433',
-  security_name: 'ＫＤＤＩ',
-  unit_price: 40,
-  shares: 600,
-  dividends_before_tax: 24000,
-  taxes: 4875,
-  net_amount_received: 19125,
+  security_code: '9911',
+  security_name: '架空通信',
+  unit_price: 30,
+  shares: 500,
+  dividends_before_tax: 15000,
+  taxes: 3047,
+  net_amount_received: 11953,
 };
-const NTT = {
+const SYN_TELECOM = {
   settlement_date: '2025-12-08',
   product: '国内株式',
   account: '特定・一般',
-  security_code: '9432',
-  security_name: '日本電信電話',
-  unit_price: 5,
-  shares: 2000,
+  security_code: '9910',
+  security_name: '架空電信電話',
+  unit_price: 4,
+  shares: 2500,
   dividends_before_tax: 10000,
   taxes: 2031,
   net_amount_received: 7969,
 };
-const TOYOTA = {
+const SYN_AUTO = {
   settlement_date: '2025-12-09',
   product: '国内株式',
   account: '特定・一般',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
-  unit_price: 120,
-  shares: 100,
+  security_code: '9904',
+  security_name: '架空自動車',
+  unit_price: 60,
+  shares: 200,
   dividends_before_tax: 12000,
   taxes: 2438,
   net_amount_received: 9562,
@@ -59,20 +59,20 @@ const DIVIDEND_BASE = [
     settlement_date: '2025-12-09',
     product: '国内株式',
     account: '特定・一般',
-    security_code: '8591',
-    security_name: 'オリックス',
-    unit_price: 93.76,
+    security_code: '9908',
+    security_name: '架空リース',
+    unit_price: 90.00,
     shares: 200,
-    dividends_before_tax: 18752,
-    taxes: 3808,
-    net_amount_received: 14944,
+    dividends_before_tax: 18000,
+    taxes: 3656,
+    net_amount_received: 14344,
   },
   {
     settlement_date: '2025-12-10',
     product: '国内株式',
     account: '特定・一般',
-    security_code: '8306',
-    security_name: '三菱ＵＦＪフィナンシャル・グループ',
+    security_code: '9907',
+    security_name: '架空フィナンシャル・グループ',
     unit_price: 50,
     shares: 300,
     dividends_before_tax: 15000,
@@ -83,8 +83,8 @@ const DIVIDEND_BASE = [
     settlement_date: '2025-09-26',
     product: '国内株式',
     account: '特定・一般',
-    security_code: '8035',
-    security_name: '東京エレクトロン',
+    security_code: '9906',
+    security_name: '架空エレクトロン',
     unit_price: 1600,
     shares: 10,
     dividends_before_tax: 16000,
@@ -92,29 +92,29 @@ const DIVIDEND_BASE = [
     net_amount_received: 12748,
   },
 ];
-// 5行中 KDDI 2行は重複スキップ → 3件反映
-const DIVIDEND_ADDITIONAL = [KDDI, KDDI, KDDI, NTT, TOYOTA];
-const DIVIDEND_ADDITIONAL_INSERTED = [KDDI, NTT, TOYOTA];
+// 5行中 SYN_COMM 2行は重複スキップ → 3件反映
+const DIVIDEND_ADDITIONAL = [SYN_COMM, SYN_COMM, SYN_COMM, SYN_TELECOM, SYN_AUTO];
+const DIVIDEND_ADDITIONAL_INSERTED = [SYN_COMM, SYN_TELECOM, SYN_AUTO];
 
-const ENEOS = {
+const SYN_ENERGY = {
   trade_date: '2026-02-09',
   settlement_date: '2026-02-12',
-  security_code: '5020',
-  security_name: 'ＥＮＥＯＳホールディングス',
+  security_code: '9902',
+  security_name: '架空エネルギーホールディングス',
   account: '特定',
   shares: 100,
-  asked_price: 1441,
-  proceeds: 144100,
-  purchase_price: 1350,
-  realized_profit_and_loss: 9100,
-  taxes: 1849,
-  realized_profit_and_loss_after_tax: 7251,
+  asked_price: 1500,
+  proceeds: 150000,
+  purchase_price: 1400,
+  realized_profit_and_loss: 10000,
+  taxes: 2031,
+  realized_profit_and_loss_after_tax: 7969,
 };
-const TEPCO = {
+const SYN_POWER = {
   trade_date: '2026-01-15',
   settlement_date: '2026-01-18',
-  security_code: '9501',
-  security_name: '東京電力ホールディングス',
+  security_code: '9912',
+  security_name: '架空電力ホールディングス',
   account: '特定',
   shares: 200,
   asked_price: 600,
@@ -124,11 +124,11 @@ const TEPCO = {
   taxes: 0,
   realized_profit_and_loss_after_tax: -16000,
 };
-const MOL = {
+const SYN_SHIPPING = {
   trade_date: '2026-01-20',
   settlement_date: '2026-01-23',
-  security_code: '9104',
-  security_name: '商船三井',
+  security_code: '9909',
+  security_name: '架空海運',
   account: '特定',
   shares: 50,
   asked_price: 5200,
@@ -138,25 +138,25 @@ const MOL = {
   taxes: 4063,
   realized_profit_and_loss_after_tax: 15937,
 };
-const KYUSHU_DEN = {
+const SYN_POWER_WEST = {
   trade_date: '2026-02-12',
   settlement_date: '2026-02-16',
-  security_code: '9508',
-  security_name: '九州電力',
+  security_code: '9913',
+  security_name: '架空電力西',
   account: '特定',
   shares: 100,
-  asked_price: 1880,
-  proceeds: 188000,
-  purchase_price: 1770,
-  realized_profit_and_loss: 11000,
-  taxes: 2235,
-  realized_profit_and_loss_after_tax: 8765,
+  asked_price: 2000,
+  proceeds: 200000,
+  purchase_price: 1900,
+  realized_profit_and_loss: 10000,
+  taxes: 2031,
+  realized_profit_and_loss_after_tax: 7969,
 };
-const MITSUBISHI_DEN = {
+const SYN_ELECTRIC = {
   trade_date: '2026-02-18',
   settlement_date: '2026-02-21',
-  security_code: '6503',
-  security_name: '三菱電機',
+  security_code: '9903',
+  security_name: '架空電機',
   account: '特定',
   shares: 150,
   asked_price: 2100,
@@ -166,34 +166,34 @@ const MITSUBISHI_DEN = {
   taxes: 0,
   realized_profit_and_loss_after_tax: -15000,
 };
-const DOMESTIC_BASE = [ENEOS, TEPCO, MOL];
-// 11行中、base 登録済みの商船三井 index=1 のみスキップ → 10件反映
+const DOMESTIC_BASE = [SYN_ENERGY, SYN_POWER, SYN_SHIPPING];
+// 11行中、base 登録済みの架空海運 index=1 のみスキップ → 10件反映
 const DOMESTIC_ADDITIONAL = [
-  MOL, MOL, MOL, MOL, MOL, MOL, MOL, MOL, MOL, KYUSHU_DEN, MITSUBISHI_DEN,
+  SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_POWER_WEST, SYN_ELECTRIC,
 ];
 const DOMESTIC_ADDITIONAL_INSERTED = [
-  MOL, MOL, MOL, MOL, MOL, MOL, MOL, MOL, KYUSHU_DEN, MITSUBISHI_DEN,
+  SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_SHIPPING, SYN_POWER_WEST, SYN_ELECTRIC,
 ];
 
-const SP500_BASE = {
+const SYN_US_EQUITY_BASE = {
   trade_date: '2022-10-28',
   settlement_date: '2022-11-02',
-  fund_name: 'eMAXIS Slim 米国株式(S&P500)',
+  fund_name: '架空インデックス 米国株式',
   dividends: '再投資型',
   account: '特定',
-  shares: 3721147,
+  shares: 3000000,
   exchange_rate: 0,
-  cancellation_unit_price_yen: 19661,
-  cancellation_amount_yen: 7316147,
-  average_acquisition_price_yen: 18005.2,
-  realized_profit_and_loss: 615849,
-  taxes: 125073,
-  realized_profit_and_loss_after_tax: 490776,
+  cancellation_unit_price_yen: 12000,
+  cancellation_amount_yen: 3600000,
+  average_acquisition_price_yen: 10000,
+  realized_profit_and_loss: 600000,
+  taxes: 121860,
+  realized_profit_and_loss_after_tax: 478140,
 };
-const RAKUTEN_FUND = {
+const SYN_ALL_US_EQUITY = {
   trade_date: '2022-12-26',
   settlement_date: '2022-12-29',
-  fund_name: '楽天・全米株式インデックス・ファンド',
+  fund_name: '架空全米株式インデックス・ファンド',
   dividends: '再投資型',
   account: '特定',
   shares: 500000,
@@ -202,28 +202,28 @@ const RAKUTEN_FUND = {
   cancellation_amount_yen: 7600000,
   average_acquisition_price_yen: 14800,
   realized_profit_and_loss: 200000,
-  taxes: 40630,
-  realized_profit_and_loss_after_tax: 159370,
+  taxes: 40620,
+  realized_profit_and_loss_after_tax: 159380,
 };
-const SP500_ADDITIONAL = {
+const SYN_US_EQUITY_ADDITIONAL = {
   trade_date: '2026-01-08',
   settlement_date: '2026-01-14',
-  fund_name: 'eMAXIS Slim 米国株式(S&P500)',
+  fund_name: '架空インデックス 米国株式',
   dividends: '再投資型',
   account: '特定',
-  shares: 739553,
+  shares: 700000,
   exchange_rate: 0,
-  cancellation_unit_price_yen: 39709,
-  cancellation_amount_yen: 2936691,
-  average_acquisition_price_yen: 39534.99,
-  realized_profit_and_loss: 12868,
-  taxes: 2614,
-  realized_profit_and_loss_after_tax: 10254,
+  cancellation_unit_price_yen: 30000,
+  cancellation_amount_yen: 2100000,
+  average_acquisition_price_yen: 29000,
+  realized_profit_and_loss: 70000,
+  taxes: 14217,
+  realized_profit_and_loss_after_tax: 55783,
 };
-const ORKAN = {
+const SYN_GLOBAL_EQUITY = {
   trade_date: '2026-02-05',
   settlement_date: '2026-02-10',
-  fund_name: 'eMAXIS Slim 全世界株式(オール・カントリー)',
+  fund_name: '架空インデックス 全世界株式(オール・ワールド)',
   dividends: '再投資型',
   account: '特定',
   shares: 1200000,
@@ -232,13 +232,13 @@ const ORKAN = {
   cancellation_amount_yen: 27000000,
   average_acquisition_price_yen: 21000,
   realized_profit_and_loss: 1800000,
-  taxes: 365670,
-  realized_profit_and_loss_after_tax: 1434330,
+  taxes: 365580,
+  realized_profit_and_loss_after_tax: 1434420,
 };
-const MUTUALFUND_BASE = [SP500_BASE, RAKUTEN_FUND];
+const MUTUALFUND_BASE = [SYN_US_EQUITY_BASE, SYN_ALL_US_EQUITY];
 // 3行中、ファイル内の S&P500 重複1行のみスキップ → 2件反映
-const MUTUALFUND_ADDITIONAL = [SP500_ADDITIONAL, SP500_ADDITIONAL, ORKAN];
-const MUTUALFUND_ADDITIONAL_INSERTED = [SP500_ADDITIONAL, ORKAN];
+const MUTUALFUND_ADDITIONAL = [SYN_US_EQUITY_ADDITIONAL, SYN_US_EQUITY_ADDITIONAL, SYN_GLOBAL_EQUITY];
+const MUTUALFUND_ADDITIONAL_INSERTED = [SYN_US_EQUITY_ADDITIONAL, SYN_GLOBAL_EQUITY];
 
 type TabKey = 'dividend' | 'domesticstock' | 'mutualfund';
 type KindParam = 'dividend' | 'stock' | 'fund';
@@ -397,8 +397,8 @@ const SCENARIOS: Scenario[] = [
     label: '配当金',
     baseFile: 'dividend-base.csv',
     additionalFile: 'dividend-additional.csv',
-    baseName: 'オリックス',
-    additionalName: 'トヨタ自動車',
+    baseName: '架空リース',
+    additionalName: '架空自動車',
   },
   {
     tab: 'domesticstock',
@@ -406,8 +406,8 @@ const SCENARIOS: Scenario[] = [
     label: '国内株式',
     baseFile: 'domesticstock-base.csv',
     additionalFile: 'domesticstock-additional.csv',
-    baseName: '商船三井',
-    additionalName: '九州電力',
+    baseName: '架空海運',
+    additionalName: '架空電力西',
   },
   {
     tab: 'mutualfund',
@@ -415,8 +415,8 @@ const SCENARIOS: Scenario[] = [
     label: '投資信託',
     baseFile: 'mutualfund-base.csv',
     additionalFile: 'mutualfund-additional.csv',
-    baseName: 'eMAXIS Slim 米国株式(S&P500)',
-    additionalName: 'eMAXIS Slim 全世界株式(オール・カントリー)',
+    baseName: '架空インデックス 米国株式',
+    additionalName: '架空インデックス 全世界株式(オール・ワールド)',
   },
 ];
 
@@ -606,59 +606,59 @@ test.describe('取引明細 CSV 取込・削除', () => {
 
 // 資産管理はタブではなく独立ページで、追加ではなく全件置換になる
 // モック応答は fixture CSV の行と一致させる
-const ASSET_INPEX = {
-  security_code: '1605',
-  security_name: 'ＩＮＰＥＸ',
+const ASSET_SYN_RESOURCE = {
+  security_code: '9901',
+  security_name: '架空資源開発',
   shares: 200,
-  average_purchase_price: 2355,
-  total_purchase_amount: 471000,
-  current_price: 3685,
-  daily_change: 65,
-  market_value: 737000,
-  profit_loss_rate: 56.47,
+  average_purchase_price: 2000,
+  total_purchase_amount: 400000,
+  current_price: 3000,
+  daily_change: 50,
+  market_value: 600000,
+  profit_loss_rate: 50.00,
 };
-const ASSET_NINTENDO = {
-  security_code: '7974',
-  security_name: '任天堂',
+const ASSET_SYN_GAME = {
+  security_code: '9905',
+  security_name: '架空ゲーム',
   shares: 1000,
-  average_purchase_price: 5997.6,
-  total_purchase_amount: 5997600,
-  current_price: 8737,
-  daily_change: 223,
-  market_value: 8737000,
-  profit_loss_rate: 45.67,
+  average_purchase_price: 5000,
+  total_purchase_amount: 5000000,
+  current_price: 7000,
+  daily_change: 100,
+  market_value: 7000000,
+  profit_loss_rate: 40.00,
 };
-const ASSET_INPEX_UPDATED = {
-  ...ASSET_INPEX,
+const ASSET_SYN_RESOURCE_UPDATED = {
+  ...ASSET_SYN_RESOURCE,
   shares: 300,
-  total_purchase_amount: 706500,
-  market_value: 1105500,
+  total_purchase_amount: 600000,
+  market_value: 900000,
 };
 const ASSET_MUFJ = {
-  security_code: '8306',
-  security_name: '三菱ＵＦＪフィナンシャルＧ',
+  security_code: '9907',
+  security_name: '架空フィナンシャルＧ',
   shares: 300,
-  average_purchase_price: 3015,
-  total_purchase_amount: 904500,
-  current_price: 2925,
-  daily_change: 94,
-  market_value: 877500,
-  profit_loss_rate: -2.98,
+  average_purchase_price: 3000,
+  total_purchase_amount: 900000,
+  current_price: 2900,
+  daily_change: 90,
+  market_value: 870000,
+  profit_loss_rate: -3.33,
 };
-const ASSET_KDDI = {
-  security_code: '9433',
-  security_name: 'ＫＤＤＩ',
+const ASSET_SYN_COMM = {
+  security_code: '9911',
+  security_name: '架空通信',
   shares: 600,
-  average_purchase_price: 2154,
-  total_purchase_amount: 1292400,
-  current_price: 2675.5,
+  average_purchase_price: 2000,
+  total_purchase_amount: 1200000,
+  current_price: 2500,
   daily_change: 20,
-  market_value: 1605300,
-  profit_loss_rate: 24.21,
+  market_value: 1500000,
+  profit_loss_rate: 25,
 };
-const ASSET_BASE = [ASSET_INPEX, ASSET_NINTENDO];
-// 置換の証明のため、base の任天堂を含まない別3件にする
-const ASSET_UPDATED = [ASSET_INPEX_UPDATED, ASSET_MUFJ, ASSET_KDDI];
+const ASSET_BASE = [ASSET_SYN_RESOURCE, ASSET_SYN_GAME];
+// 置換の証明のため、base の架空ゲームを含まない別3件にする
+const ASSET_UPDATED = [ASSET_SYN_RESOURCE_UPDATED, ASSET_MUFJ, ASSET_SYN_COMM];
 const ASSET_FILES: Record<string, unknown[]> = {
   'assetbalance-base.csv': ASSET_BASE,
   'assetbalance-updated.csv': ASSET_UPDATED,
@@ -770,8 +770,8 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(page.getByText('2件を全件置換で保存できます')).toBeVisible();
     // プレビュー行がページ内に出る(資産管理はテーブル表示)
     const preview = page.getByTestId('csv-preview');
-    await expect(preview.getByText('ＩＮＰＥＸ').first()).toBeVisible();
-    await expect(preview.getByText('任天堂').first()).toBeVisible();
+    await expect(preview.getByText('架空資源開発').first()).toBeVisible();
+    await expect(preview.getByText('架空ゲーム').first()).toBeVisible();
 
     await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');
@@ -783,7 +783,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
     await expect(page.getByRole('button', { name: '3件 全件置換で保存' })).toBeEnabled();
     await expect(
-      page.getByTestId('csv-preview').getByText('三菱ＵＦＪフィナンシャルＧ').first(),
+      page.getByTestId('csv-preview').getByText('架空フィナンシャルＧ').first(),
     ).toBeVisible();
 
     await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
@@ -834,7 +834,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
         total_rows: 3,
         valid_rows: 1,
         errors: rowErrors,
-        rows: [ASSET_INPEX],
+        rows: [ASSET_SYN_RESOURCE],
       }),
     });
 
@@ -851,7 +851,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
       page.getByRole('button', { name: /全件置換で保存/ }).first(),
     ).toBeDisabled();
     const preview = page.getByTestId('csv-preview');
-    await expect(preview.getByText('ＩＮＰＥＸ').first()).toBeVisible();
-    await expect(preview.getByText('任天堂')).toHaveCount(0);
+    await expect(preview.getByText('架空資源開発').first()).toBeVisible();
+    await expect(preview.getByText('架空ゲーム')).toHaveCount(0);
   });
 });

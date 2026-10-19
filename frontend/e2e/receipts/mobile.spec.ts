@@ -16,8 +16,8 @@ const DIVIDENDS = [
     settlement_date: '2024-03-01',
     product: '特定口座',
     account: 'SBI証券',
-    security_code: '7203',
-    security_name: 'トヨタ自動車',
+    security_code: '9904',
+    security_name: '架空自動車',
     unit_price: 30.0,
     shares: 100,
     dividends_before_tax: 3000,
@@ -31,8 +31,8 @@ const DIVIDENDS = [
     settlement_date: '2024-03-15',
     product: '特定口座',
     account: '楽天証券',
-    security_code: '9432',
-    security_name: '日本電信電話',
+    security_code: '9910',
+    security_name: '架空電信電話',
     unit_price: 10.0,
     shares: 200,
     dividends_before_tax: 2000,
@@ -46,8 +46,8 @@ const DIVIDENDS = [
     settlement_date: '2024-02-10',
     product: 'NISA口座',
     account: 'SBI証券',
-    security_code: '6758',
-    security_name: 'ソニーグループ',
+    security_code: '9914',
+    security_name: '架空エレクトロニクス',
     unit_price: 20.0,
     shares: 50,
     dividends_before_tax: 1000,
@@ -63,8 +63,8 @@ const DOMESTIC = {
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
   account: 'SBI証券',
-  security_code: '7974',
-  security_name: '任天堂',
+  security_code: '9905',
+  security_name: '架空ゲーム',
   shares: 10,
   asked_price: 5000,
   proceeds: 55000,
@@ -80,7 +80,7 @@ const FUND = {
   id: '00000000-0000-0000-0000-000000000005',
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
-  fund_name: 'eMAXIS Slim 米国株式(S&P500)',
+  fund_name: '架空インデックス 米国株式',
   account: 'NISA',
   shares: 1000,
   exchange_rate: 1,
@@ -151,13 +151,13 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(cardList.getByTestId('receipt-card-group')).toHaveCount(2);
 
   // 1行目は銘柄名と税引後、2行目は日付・コード・口座・数量を並べる
-  // 先頭は入金日順で日本電信電話
+  // 先頭は入金日順で架空電信電話
   const card = cardList.getByTestId('receipt-card').first();
-  await expect(card.getByRole('button', { name: /日本電信電話\(9432\) をコピー/ })).toBeVisible();
+  await expect(card.getByRole('button', { name: /架空電信電話\(9910\) をコピー/ })).toBeVisible();
   await expect(card.locator('.receipt-compact-net')).toHaveText('¥1,594');
   const facts = card.locator('.receipt-compact-facts');
   await expect(facts).toContainText('2024/03/15');
-  await expect(facts).toContainText('9432');
+  await expect(facts).toContainText('9910');
   await expect(facts).toContainText('楽天証券');
   await expect(facts).toContainText('200株');
   await expect(card.locator('.receipt-compact-primary')).toContainText('配当 ¥2,000');
@@ -230,12 +230,12 @@ test('国内株式タブでも銘柄リンクとコピーが使える', async ({
     .getByTestId('receipt-card-list')
     .getByTestId('receipt-card')
     .first();
-  await expect(card.getByRole('link', { name: '7974' })).toHaveAttribute(
+  await expect(card.getByRole('link', { name: '9905' })).toHaveAttribute(
     'href',
-    '/search?code=7974',
+    '/search?code=9905',
   );
   await expect(
-    card.getByRole('button', { name: '任天堂(7974) をコピー' }),
+    card.getByRole('button', { name: '架空ゲーム(9905) をコピー' }),
   ).toBeVisible();
   await expect(card.locator('.receipt-compact-facts')).toContainText('10株');
 });
@@ -251,7 +251,7 @@ test('投資信託タブでもファンド名をコピーできる', async ({ pa
     .first();
   await expect(
     card.getByRole('button', {
-      name: 'eMAXIS Slim 米国株式(S&P500) をコピー',
+      name: '架空インデックス 米国株式 をコピー',
     }),
   ).toBeVisible();
 });
@@ -261,12 +261,12 @@ test('検索欄で銘柄コードで絞り込んでも残る行は同じ書式',
   await page.goto('/receipts');
 
   const cardList = page.getByTestId('receipt-card-list');
-  await mobileSearch(page).fill('9432');
+  await mobileSearch(page).fill('9910');
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
 
   const card = cardList.getByTestId('receipt-card').first();
-  await expect(card.locator('.receipt-compact-facts')).toContainText('9432');
+  await expect(card.locator('.receipt-compact-facts')).toContainText('9910');
   await expect(card.locator('.receipt-compact-facts')).toContainText('楽天証券');
 });
 

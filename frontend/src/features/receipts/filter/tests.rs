@@ -7,8 +7,8 @@ use crate::testing::receipts::{dividends, domestic, funds};
 fn dividend_filter_uses_exact_fields_and_all_amount_fields() {
     let rows = dividends();
     for query in [
-        "9432 2024",
-        "日本電信電話",
+        "9910 2024",
+        "架空電信電話",
         "国内株式 特定 2024",
         "5 2024",
         "100 2024",
@@ -22,17 +22,17 @@ fn dividend_filter_uses_exact_fields_and_all_amount_fields() {
         );
     }
     assert_eq!(
-        filter_receipts(ReceiptsTab::Dividend, &rows, "943"),
+        filter_receipts(ReceiptsTab::Dividend, &rows, "991"),
         rows[..2],
-        "943"
+        "991"
     );
 }
 #[test]
 fn domestic_filter_matches_trade_date_and_amount_fields() {
     let rows = domestic();
     for query in [
-        "7203",
-        "トヨタ自動車",
+        "9904",
+        "架空自動車",
         "特定",
         "2024-03-01",
         "100",
@@ -54,9 +54,9 @@ fn domestic_filter_matches_trade_date_and_amount_fields() {
         );
     }
     assert_eq!(
-        filter_receipts(ReceiptsTab::DomesticStock, &rows, "トヨタ"),
+        filter_receipts(ReceiptsTab::DomesticStock, &rows, "架空"),
         rows,
-        "トヨタ"
+        "架空"
     );
 }
 #[test]
@@ -89,11 +89,11 @@ fn mutual_fund_filter_is_exact_and_has_no_amount_search() {
 fn full_width_names_match_half_width_query() {
     let rows = dividends();
     assert_eq!(
-        filter_receipts(ReceiptsTab::Dividend, &rows, "NTT"),
+        filter_receipts(ReceiptsTab::Dividend, &rows, "TELE"),
         rows[1..2]
     );
     assert_eq!(
-        filter_receipts(ReceiptsTab::Dividend, &rows, "ＮＴＴ"),
+        filter_receipts(ReceiptsTab::Dividend, &rows, "ＴＥＬＥ"),
         rows[1..2]
     );
 }
@@ -161,7 +161,7 @@ fn categories_use_latest_name_sorted_dates_and_tab_fields() {
             .iter()
             .map(|o| o.label.as_str())
             .collect::<Vec<_>>(),
-        ["7203: トヨタ自動車", "9432: NTT"]
+        ["9904: 架空自動車", "9910: TELE"]
     );
     assert_eq!(result.products[0].value, "国内株式");
     assert_eq!(
@@ -206,14 +206,14 @@ fn category_selections_quote_spaces_and_combine_with_year() {
 fn combined_query_uses_fixed_order_and_quotes_whitespace() {
     let queries = SelectedQueries {
         date: " 2026-06 ".into(),
-        securities: "9433: KDDI".into(),
+        securities: "9911: ABCD".into(),
         years: "2025".into(),
         products: "国内 株式".into(),
         accounts: "特定・一般".into(),
     };
     assert_eq!(
         build_combined_query(&queries),
-        "2026-06 \"9433: KDDI\" 2025 \"国内 株式\" 特定・一般"
+        "2026-06 \"9911: ABCD\" 2025 \"国内 株式\" 特定・一般"
     );
     assert_eq!(
         format_query_token("  Alpha \"Fund\"  "),
@@ -252,13 +252,13 @@ fn quick_buttons_toggle_and_date_condition_precedes_other_conditions() {
     let mut state = ReceiptSearch::new(true);
     assert_eq!(state.date_segment, DateSegment::Year);
 
-    state.select_quick(SearchKey::Securities, "9433".into());
+    state.select_quick(SearchKey::Securities, "9911".into());
     state.select_quick(SearchKey::Products, "国内株式".into());
     state.set_month("2026-06".into());
-    assert_eq!(state.query, "2026-06 9433 国内株式");
+    assert_eq!(state.query, "2026-06 9911 国内株式");
 
     state.select_quick(SearchKey::Products, "国内株式".into());
-    assert_eq!(state.query, "2026-06 9433");
+    assert_eq!(state.query, "2026-06 9911");
     assert!(state.selected_queries.products.is_empty());
 }
 

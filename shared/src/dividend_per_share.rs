@@ -154,18 +154,18 @@ mod tests {
 
     #[test]
     fn security_code_roundtrips_as_plain_string() {
-        let json = request_json(&["7203", "AAPL", "7203.T"]);
+        let json = request_json(&["9904", "AAPL", "9904.T"]);
         let request: DividendPerShareBatchRequest =
             serde_json::from_str(&json).expect("valid request");
         assert_eq!(request.security_codes.len(), 3);
-        assert_eq!(request.security_codes[0].as_str(), "7203");
+        assert_eq!(request.security_codes[0].as_str(), "9904");
         assert_eq!(serde_json::to_string(&request).unwrap(), json);
     }
 
     #[test]
     fn invalid_element_fails_deserialization() {
-        for bad in ["7203;DROP", "", "12345678901", "トヨタ", "7203 "] {
-            let json = request_json(&["7203", bad]);
+        for bad in ["9904;DROP", "", "12345678901", "架空", "9904 "] {
+            let json = request_json(&["9904", bad]);
             assert!(
                 serde_json::from_str::<DividendPerShareBatchRequest>(&json).is_err(),
                 "{bad:?} は拒否される"

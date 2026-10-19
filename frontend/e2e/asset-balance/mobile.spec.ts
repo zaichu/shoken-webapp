@@ -7,12 +7,12 @@ const MOCK_USER = {
   name: 'テストユーザー',
 };
 
-const TOYOTA = {
+const SYN_AUTO = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   shares: 100,
   average_purchase_price: 2500,
   total_purchase_amount: 250000,
@@ -20,12 +20,12 @@ const TOYOTA = {
   daily_change: 50,
 };
 
-const SONY = {
+const SYN_ELECTRONICS = {
   id: 'asset-balance-2',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '6758',
-  security_name: 'ソニーグループ',
+  security_code: '9914',
+  security_name: '架空エレクトロニクス',
   shares: 50,
   average_purchase_price: 3000,
   total_purchase_amount: 150000,
@@ -33,12 +33,12 @@ const SONY = {
   daily_change: -20,
 };
 
-const NTT = {
+const SYN_TELECOM = {
   id: 'asset-balance-3',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '9432',
-  security_name: '日本電信電話',
+  security_code: '9910',
+  security_name: '架空電信電話',
   shares: 200,
   average_purchase_price: 150,
   total_purchase_amount: 30000,
@@ -55,7 +55,7 @@ async function setupAssetBalanceMocks(page: Page) {
     if (route.request().method() !== 'GET') {
       return route.abort();
     }
-    const data = [TOYOTA, SONY, NTT];
+    const data = [SYN_AUTO, SYN_ELECTRONICS, SYN_TELECOM];
     return route.fulfill(
       json({
         data,
@@ -128,12 +128,12 @@ test('保有行は銘柄詳細ページへのリンクになっている', async
   await gotoAssetBalance(page);
   const row = page.getByTestId('asset-compact-row').first();
   // 行には評価額と含み損益(符号付き)が出る
-  await expect(row).toContainText('トヨタ自動車');
+  await expect(row).toContainText('架空自動車');
   await expect(row).toContainText('¥260,000');
   await expect(row).toContainText('+¥10,000');
   await row.getByRole('link').first().click();
   await expect(page).toHaveURL('/assetbalance/holdings/asset-balance-1');
-  await expect(page.getByRole('heading', { name: 'トヨタ自動車' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '架空自動車' })).toBeVisible();
 });
 
 test('一覧に無い文字列を入れるとフィルタ済み空状態と解除ボタンが出る', async ({

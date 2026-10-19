@@ -68,16 +68,16 @@ fn stock_data_and_error_message_follow_result_and_generation() {
 
         let ok = StockSearch {
             stock_code: RwSignal::new(String::new()),
-            search: search_with(Some(Ok(stock("7203")))),
+            search: search_with(Some(Ok(stock("9904")))),
             has_invalid_code_param: false,
             fetch_generation: RwSignal::new(generation),
             session,
         };
-        ok.search_by_code("7203".to_string());
-        assert_eq!(ok.stock_code.get_untracked(), "7203");
+        ok.search_by_code("9904".to_string());
+        assert_eq!(ok.stock_code.get_untracked(), "9904");
         assert_eq!(
             ok.stock_data().map(|stock| stock.code),
-            Some("7203".to_string())
+            Some("9904".to_string())
         );
         assert!(ok.error_message().is_none());
         ok.fetch_generation.set(generation.next());

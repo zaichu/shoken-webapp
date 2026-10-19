@@ -98,7 +98,7 @@ impl FromStr for SecurityCode {
 }
 
 /// レスポンスの JSON を読むときは、DB からのデコードと同じく検証せずに包む。
-/// 旧仕様で保存された値(例: `7203-1`)が1件あっても一覧全体を読めなくしないため
+/// 旧仕様で保存された値(例: `9904-1`)が1件あっても一覧全体を読めなくしないため
 pub mod unchecked {
     use super::{Account, SecurityCode};
     use serde::{Deserialize, Deserializer};
@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn security_code_accepts_ascii_alnum_and_dot() {
-        for valid in ["7203", "AAPL", "7203.T", "BRK.B", "1234567890", "a"] {
+        for valid in ["9904", "AAPL", "9904.T", "BRK.B", "1234567890", "a"] {
             assert!(SecurityCode::is_valid(valid), "{valid}");
             let code = SecurityCode::try_from(valid).unwrap();
             assert_eq!(code.as_str(), valid);
@@ -298,10 +298,10 @@ mod tests {
         for invalid in [
             "",
             "12345678901",
-            "トヨタ",
-            "7203 ",
-            "7203;DROP",
-            "7203-1",
+            "架空",
+            "9904 ",
+            "9904;DROP",
+            "9904-1",
             "720３",
         ] {
             assert!(!SecurityCode::is_valid(invalid), "{invalid}");

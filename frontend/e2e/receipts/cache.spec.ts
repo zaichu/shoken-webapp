@@ -18,8 +18,8 @@ const DIVIDEND_A = {
   settlement_date: '2024-03-01',
   product: '特定口座',
   account: 'SBI証券',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   unit_price: 30.0,
   shares: 100,
   dividends_before_tax: 3000,
@@ -32,8 +32,8 @@ const DIVIDEND_A = {
 const DIVIDEND_B = {
   ...DIVIDEND_A,
   id: '00000000-0000-0000-0000-000000000003',
-  security_code: '6758',
-  security_name: 'ソニーグループ',
+  security_code: '9914',
+  security_name: '架空エレクトロニクス',
 };
 
 const DOMESTIC = {
@@ -41,8 +41,8 @@ const DOMESTIC = {
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
   account: 'SBI証券',
-  security_code: '7974',
-  security_name: '任天堂',
+  security_code: '9905',
+  security_name: '架空ゲーム',
   shares: 10,
   asked_price: 5000,
   proceeds: 55000,
@@ -59,7 +59,7 @@ const FUND = {
   trade_date: '2024-01-15',
   settlement_date: '2024-01-17',
   account: '楽天証券',
-  fund_name: 'eMAXIS Slim 全世界株式',
+  fund_name: '架空インデックス 全世界株式',
   shares: 10000,
   exchange_rate: 150.0,
   cancellation_unit_price_yen: 12345,
@@ -162,7 +162,7 @@ test('選択中タブを優先取得し、完了後に非表示タブをバッ�
 
   await page.goto('/receipts');
 
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' })).toBeVisible();
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(page.getByTestId('tab-count-domesticstock')).toHaveText('1');
   await expect(page.getByTestId('tab-count-mutualfund')).toHaveText('1');
@@ -184,13 +184,13 @@ test('タブ切替で再フェッチが走らずキャッシュが使われる',
   await expect(page.getByTestId('tab-count-mutualfund')).toHaveText('1');
 
   await page.getByRole('tab', { name: /国内株式/ }).click();
-  await expect(page.getByRole('cell', { name: '任天堂' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空ゲーム' })).toBeVisible();
 
   await page.getByRole('tab', { name: /投資信託/ }).click();
-  await expect(page.getByRole('cell', { name: 'eMAXIS Slim 全世界株式' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空インデックス 全世界株式' })).toBeVisible();
 
   await page.getByRole('tab', { name: /配当金/ }).click();
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' })).toBeVisible();
 
   expect(logs.dividends.count).toBe(1);
   expect(logs.domestic.count).toBe(1);
@@ -277,7 +277,7 @@ test('ログアウトでDELETEが呼ばれて/loginへ遷移し、別ユーザ�
   session);
 
   await page.goto('/receipts');
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' })).toBeVisible();
 
   session.responder = unauthorizedSession();
   await logoutViaUserMenu(page);
@@ -289,8 +289,8 @@ test('ログアウトでDELETEが呼ばれて/loginへ遷移し、別ユーザ�
 
   session.responder = userSession(USER_B);
   await page.goto('/receipts');
-  await expect(page.getByRole('cell', { name: 'ソニーグループ' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' })).toBeHidden();
+  await expect(page.getByRole('cell', { name: '架空エレクトロニクス' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' })).toBeHidden();
 
   expect(logs.dividends.count).toBe(2);
 });
@@ -321,7 +321,7 @@ test('ログアウト後に旧データが残らない', async ({ page }) => {
 
   session.responder = userSession(USER_B);
   await page.goto('/receipts');
-  await expect(page.getByRole('cell', { name: 'ソニーグループ' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空エレクトロニクス' })).toBeVisible();
 
   expect(logs.dividends.count).toBe(2);
 });
@@ -332,7 +332,7 @@ test('同一ユーザーでログアウト→再ログインしても明細が�
   await setupMocks(page, logs, { dividends: () => 50, domestic: 50, funds: 50 }, () => [DIVIDEND_A], session);
 
   await page.goto('/receipts');
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' })).toBeVisible();
 
   session.responder = unauthorizedSession();
   await logoutViaUserMenu(page);
@@ -344,7 +344,7 @@ test('同一ユーザーでログアウト→再ログインしても明細が�
 
   session.responder = userSession(USER_A);
   await page.goto('/receipts');
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' })).toBeVisible();
 
   expect(logs.dividends.count).toBe(2);
 });
