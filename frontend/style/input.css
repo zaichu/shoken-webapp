@@ -328,8 +328,7 @@
     @apply bg-brand font-bold text-text-inverse;
   }
 
-  /* ダークでは brand(紺)が面の暗さに溶けて選択状態が見分けられないため、
-     明るい塗り+反転文字でライトと同程度に目立たせる */
+  /* ダークでは紺の選択色が面に溶けるため、明るい塗り+反転文字で選択状態を示す */
   @media screen {
     :root[data-theme="dark"] .segmented-option[aria-pressed="true"] {
       @apply bg-accent text-page;
