@@ -15,7 +15,7 @@ const STOCKS: Array<[string, string]> = [
   ['9915', '架空通信ホールディングス'],
   ['9905', '架空医薬品'],
   ['9911', '架空精密機器'],
-  ['8058', '架空商事'],
+  ['9918', '架空商事'],
 ];
 
 const DIVIDENDS = Array.from({ length: 18 }, (_, i) => {

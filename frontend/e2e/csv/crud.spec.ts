@@ -187,8 +187,8 @@ const SYN_US_EQUITY_BASE = {
   cancellation_amount_yen: 3600000,
   average_acquisition_price_yen: 10000,
   realized_profit_and_loss: 600000,
-  taxes: 125073,
-  realized_profit_and_loss_after_tax: 490776,
+  taxes: 121860,
+  realized_profit_and_loss_after_tax: 478140,
 };
 const SYN_ALL_US_EQUITY = {
   trade_date: '2022-12-26',
@@ -202,8 +202,8 @@ const SYN_ALL_US_EQUITY = {
   cancellation_amount_yen: 7600000,
   average_acquisition_price_yen: 14800,
   realized_profit_and_loss: 200000,
-  taxes: 40630,
-  realized_profit_and_loss_after_tax: 159370,
+  taxes: 40620,
+  realized_profit_and_loss_after_tax: 159380,
 };
 const SYN_US_EQUITY_ADDITIONAL = {
   trade_date: '2026-01-08',
@@ -217,13 +217,13 @@ const SYN_US_EQUITY_ADDITIONAL = {
   cancellation_amount_yen: 2100000,
   average_acquisition_price_yen: 29000,
   realized_profit_and_loss: 70000,
-  taxes: 2614,
-  realized_profit_and_loss_after_tax: 10254,
+  taxes: 14217,
+  realized_profit_and_loss_after_tax: 55783,
 };
 const SYN_GLOBAL_EQUITY = {
   trade_date: '2026-02-05',
   settlement_date: '2026-02-10',
-  fund_name: '架空インデックス 全世界株式(オール・ワールド)',
+  fund_name: '架空インデックス 全世界株式',
   dividends: '再投資型',
   account: '特定',
   shares: 1200000,
@@ -232,8 +232,8 @@ const SYN_GLOBAL_EQUITY = {
   cancellation_amount_yen: 27000000,
   average_acquisition_price_yen: 21000,
   realized_profit_and_loss: 1800000,
-  taxes: 365670,
-  realized_profit_and_loss_after_tax: 1434330,
+  taxes: 365580,
+  realized_profit_and_loss_after_tax: 1434420,
 };
 const MUTUALFUND_BASE = [SYN_US_EQUITY_BASE, SYN_ALL_US_EQUITY];
 // 3行中、ファイル内の S&P500 重複1行のみスキップ → 2件反映
@@ -713,7 +713,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
     await expect(page.getByRole('button', { name: '3件 全件置換で保存' })).toBeEnabled();
     await expect(
-      page.getByTestId('csv-preview').getByText('架空フィナンシャルG').first(),
+      page.getByTestId('csv-preview').getByText('架空フィナンシャルＧ').first(),
     ).toBeVisible();
 
     await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
