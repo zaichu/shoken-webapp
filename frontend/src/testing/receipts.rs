@@ -3,15 +3,15 @@ use crate::features::receipts::{ReceiptItem, ReceiptRow};
 use crate::support::row::Row::Saved;
 
 pub(crate) fn dividends() -> Vec<ReceiptRow> {
-    let base: Dividend = serde_json::from_value(serde_json::json!({"id":"old", "settlement_date":"2024-06-21", "product":"国内株式", "account":"特定", "security_code":"9432", "security_name":"日本電信電話", "unit_price":5, "shares":100, "dividends_before_tax":500, "taxes":100, "net_amount_received":400, "created_at":"", "updated_at":""})).unwrap();
+    let base: Dividend = serde_json::from_value(serde_json::json!({"id":"old", "settlement_date":"2024-06-21", "product":"国内株式", "account":"特定", "security_code":"9910", "security_name":"架空電信電話", "unit_price":5, "shares":100, "dividends_before_tax":500, "taxes":100, "net_amount_received":400, "created_at":"", "updated_at":""})).unwrap();
     let mut latest = base.clone();
     latest.id = "new".to_string().into();
     latest.settlement_date = "2026-06-01".into();
-    latest.security_name = "ＮＴＴ".into();
+    latest.security_name = "ＴＥＬＥ".into();
     let mut other = latest.clone();
     other.id = "other".to_string().into();
-    other.security_code = "7203".into();
-    other.security_name = "トヨタ自動車".into();
+    other.security_code = "9904".into();
+    other.security_name = "架空自動車".into();
     other.account = "NISA".parse().unwrap();
     vec![
         Saved(ReceiptItem::Dividend(base)),
@@ -20,7 +20,7 @@ pub(crate) fn dividends() -> Vec<ReceiptRow> {
     ]
 }
 pub(crate) fn domestic() -> Vec<ReceiptRow> {
-    let row: DomesticStock = serde_json::from_value(serde_json::json!({"id":"stock", "trade_date":"2024-03-01", "settlement_date":"2024-03-05", "security_code":"7203", "security_name":"トヨタ自動車", "account":"特定", "shares":100, "asked_price":2000, "proceeds":200000, "purchase_price":199000, "realized_profit_and_loss":1000, "taxes":888, "realized_profit_and_loss_after_tax":112, "created_at":"", "updated_at":""})).unwrap();
+    let row: DomesticStock = serde_json::from_value(serde_json::json!({"id":"stock", "trade_date":"2024-03-01", "settlement_date":"2024-03-05", "security_code":"9904", "security_name":"架空自動車", "account":"特定", "shares":100, "asked_price":2000, "proceeds":200000, "purchase_price":199000, "realized_profit_and_loss":1000, "taxes":888, "realized_profit_and_loss_after_tax":112, "created_at":"", "updated_at":""})).unwrap();
     vec![Saved(ReceiptItem::DomesticStock(row))]
 }
 pub(crate) fn funds() -> Vec<ReceiptRow> {

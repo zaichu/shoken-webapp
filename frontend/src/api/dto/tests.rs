@@ -6,10 +6,10 @@ use std::collections::BTreeSet;
 #[test]
 fn stock_and_session_are_shared_wire_types() {
     let stock: shared::common::Stock = serde_json::from_str::<Stock>(
-        r#"{"code":"7203","name":"トヨタ自動車","date":"2024-03-01","market_category":"プライム"}"#,
+        r#"{"code":"9904","name":"架空自動車","date":"2024-03-01","market_category":"プライム"}"#,
     )
     .expect("stock");
-    assert_eq!(stock.code, "7203");
+    assert_eq!(stock.code, "9904");
     let user: shared::common::SessionUser =
         serde_json::from_str::<SessionUser>(r#"{"id":"1","email":"test@example.com"}"#)
             .expect("session");
@@ -342,8 +342,8 @@ fn other_endpoints_deserialize_numbers() {
                 "settlement_date": "2024-03-01",
                 "product": "特定口座",
                 "account": "SBI証券",
-                "security_code": "7203",
-                "security_name": "トヨタ自動車",
+                "security_code": "9904",
+                "security_name": "架空自動車",
                 "unit_price": 30.0,
                 "shares": 100,
                 "dividends_before_tax": 3000,
@@ -368,7 +368,7 @@ fn other_endpoints_deserialize_numbers() {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "trade_date": "2024-01-15",
                 "settlement_date": "2024-01-17",
-                "fund_name": "eMAXIS Slim 全世界株式",
+                "fund_name": "架空インデックス 全世界株式",
                 "account": "楽天証券",
                 "shares": 10000,
                 "exchange_rate": 150.25,
@@ -395,8 +395,8 @@ fn other_endpoints_deserialize_numbers() {
         r#"{
             "data": [{
                 "id": "550e8400-e29b-41d4-a716-446655440000",
-                "security_code": "7974",
-                "security_name": "任天堂",
+                "security_code": "9905",
+                "security_name": "架空ゲーム",
                 "shares": 100,
                 "average_purchase_price": 5000.5,
                 "total_purchase_amount": 500050,
@@ -417,7 +417,7 @@ fn other_endpoints_deserialize_numbers() {
     )
     .expect("asset-balances");
     let balance = balances.data.first().expect("one row");
-    assert_eq!(balance.security_name, "任天堂");
+    assert_eq!(balance.security_name, "架空ゲーム");
     assert_eq!(
         balances
             .summary
@@ -430,14 +430,14 @@ fn other_endpoints_deserialize_numbers() {
     let stock: Stock = serde_json::from_str(
         r#"{
             "date": "2024-03-01",
-            "code": "7974",
-            "name": "任天堂",
+            "code": "9905",
+            "name": "架空ゲーム",
             "market_category": "プライム",
             "industry_category_33": "情報・通信業"
         }"#,
     )
     .expect("stock");
-    assert_eq!(stock.code, "7974");
+    assert_eq!(stock.code, "9905");
     assert_eq!(stock.industry_category_33.as_deref(), Some("情報・通信業"));
     assert!(stock.size_category.is_none());
 

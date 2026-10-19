@@ -191,7 +191,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_csv_handler() {
-        let content = "symbol,amount\n7203,100\n";
+        let content = "symbol,amount\n9917,100\n";
         let response = test_app()
             .oneshot(multipart_request("file", Some("positions.csv"), content))
             .await

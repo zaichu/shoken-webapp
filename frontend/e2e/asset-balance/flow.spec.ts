@@ -22,8 +22,8 @@ const MOCK_ASSET = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   shares: 100,
   average_purchase_price: 2500,
   total_purchase_amount: 250000,
@@ -37,8 +37,8 @@ const SECOND_ASSET = {
   id: 'asset-balance-2',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '6758',
-  security_name: 'ソニーグループ',
+  security_code: '9914',
+  security_name: '架空エレクトロニクス',
   shares: 50,
   average_purchase_price: 3000,
   total_purchase_amount: 150000,
@@ -102,14 +102,14 @@ async function setupAssetBalanceMocks(
       json({
         items: [
           {
-            security_code: '7203',
+            security_code: '9904',
             dividend_per_share: 90,
             status: 'ok',
             fetched_at: '2026-01-01T00:00:00Z',
             is_stale: false,
           },
           {
-            security_code: '6758',
+            security_code: '9914',
             dividend_per_share: 70,
             status: 'ok',
             fetched_at: '2026-01-01T00:00:00Z',
@@ -227,10 +227,13 @@ test('保存後に一覧が再取得されて銘柄データが表示される',
   await expect.poll(mocks.getUploadRequestCount).toBe(1);
   await expect.poll(mocks.getListRequestCount).toBeGreaterThanOrEqual(2);
   await expect(page.getByTestId('csv-save-result-notice')).toContainText('1件反映');
+  // 新UI: カードの件数が更新される
+  await expect(page.getByText('保存済みの資産管理')).toBeVisible();
+  await expect(page.getByTestId('saved-count')).toContainText('1件');
   // 一覧に戻ると保存した銘柄が見える
   await page.getByRole('link', { name: '一覧に戻る' }).click();
   await expect(
-    page.getByTestId('asset-holdings-table').getByText('トヨタ自動車'),
+    page.getByTestId('asset-holdings-table').getByText('架空自動車'),
   ).toBeVisible();
 });
 
@@ -253,40 +256,53 @@ test('銘柄名の一部で絞り込み解除できる', async ({ page }) => {
 
   const list = page.getByTestId('asset-holdings-table');
 
-  await expect(list.getByText('トヨタ自動車')).toBeVisible();
-  await expect(list.getByText('ソニーグループ')).toBeVisible();
+  await expect(list.getByText('架空自動車')).toBeVisible();
+  await expect(list.getByText('架空エレクトロニクス')).toBeVisible();
 
-  await page.getByTestId('asset-search-input-pc').fill('ソニー');
+  await page.getByTestId('asset-search-input-pc').fill('エレクトロ');
 
   await expect(page.getByTestId('asset-search-count-pc')).toContainText('1 / 2');
-  await expect(list.getByText('ソニーグループ')).toBeVisible();
-  await expect(list.getByText('トヨタ自動車')).not.toBeVisible();
+  await expect(list.getByText('架空エレクトロニクス')).toBeVisible();
+  await expect(list.getByText('架空自動車')).not.toBeVisible();
 
   await page.getByTestId('asset-search-clear-pc').click();
 
   await expect(page.getByTestId('asset-search-count-pc')).not.toBeVisible();
-  await expect(list.getByText('トヨタ自動車')).toBeVisible();
+  await expect(list.getByText('架空自動車')).toBeVisible();
 });
 
-test('全件削除は専用ページで確認して EmptyState に戻る', async ({ page }) => {
+test('全件削除はカード内の「すべて削除…」ボタンから確認モーダルで行う', async ({ page }) => {
   const mocks = await setupAssetBalanceMocks(page, { initialAssetBalances: [MOCK_ASSET] });
 
   await gotoAssetBalancePage(page);
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/assetbalance/csv');
 
-  await page.getByRole('link', { name: '保存済みデータを削除…' }).click();
-  await expect(page).toHaveURL('/assetbalance/csv/delete');
-  await expect(page.getByTestId('csv-delete-page')).toContainText(
-    'この操作は取り消せません',
-  );
-  await expect(page.getByTestId('csv-delete-count')).toContainText('1件');
+  // カード内の「すべて削除…」ボタンをクリック
+  const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+  await expect(deleteButton).toBeVisible();
+  await deleteButton.click();
+
+  // 確認モーダルが表示される
+  const modal = page.getByRole('dialog');
+  await expect(modal).toBeVisible();
+  await expect(modal).toContainText('資産管理を削除しますか?');
+  await expect(modal).toContainText('この操作は取り消せません');
+  await expect(modal).toContainText('1件');
   expect(mocks.getDeleteRequestCount()).toBe(0);
 
-  await page.getByRole('button', { name: '削除する' }).click();
+  // キャンセルでモーダルが閉じ、DELETE は送られない
+  await modal.getByRole('button', { name: 'キャンセル' }).click();
+  await expect(modal).toBeHidden();
+  expect(mocks.getDeleteRequestCount()).toBe(0);
+
+  // 再度開いて確定する
+  await deleteButton.click();
+  await expect(modal).toBeVisible();
+  await modal.getByRole('button', { name: '1件を削除する' }).click();
 
   await expect.poll(mocks.getDeleteRequestCount).toBe(1);
-  await expect(page.getByTestId('csv-delete-done')).toContainText('削除しました');
-  await page.getByRole('link', { name: '一覧に戻る' }).click();
-  await expect(page.getByText('資産管理データがありません')).toBeVisible();
+  await expect(modal).toBeHidden();
+  // CSV管理ページではカードが「0件」になる
+  await expect(page.getByTestId('saved-count')).toContainText('0件');
 });

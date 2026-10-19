@@ -1,6 +1,7 @@
 use crate::api::dto::CsvUploadResponse;
 use crate::support::csv_flow::{CsvTabMeta, CsvUploadResponseExt};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
+use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::csv_preview::{
     CsvPreviewNotice, CsvRowErrorList, preview_notice_text, shared_message,
     should_show_preview_notice,
@@ -60,6 +61,12 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     fn delete_count_error(&self) -> Option<String> {
         None
     }
+    /// 保存済みデータの日付範囲(最小・最大)。取得済み行から算出し、未取得なら None
+    fn date_range(&self) -> Option<(String, String)> {
+        None
+    }
+    /// 削除件数の再取得を要求する(件数取得失敗時の再読み込み用)
+    fn refresh_for_delete(&self) {}
     fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
         meta.saving || meta.deleting
     }
@@ -70,7 +77,7 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
 }
 
 /// CSV の選択→検証→保存までを1ページに置く管理画面。
-/// 操作バーは1か所だけで、削除への導線は保存の手前に来ない位置(ページ名の右)に置く
+/// 操作バーは1か所だけで、全件削除は保存済みデータのカードから確認モーダルで行う
 #[component]
 pub fn CsvManagePage<S: CsvSource>(
     source: S,
@@ -79,9 +86,6 @@ pub fn CsvManagePage<S: CsvSource>(
     subject: String,
     /// 一覧への戻り先
     back_href: &'static str,
-    /// 削除専用ページへの導線
-    #[prop(into)]
-    delete_href: String,
     /// 検証済みプレビュー行の描画。対象ごとの一覧部品を呼び出し側で組む
     preview: AnyView,
     /// AI相談文コピーなど対象ごとの追加領域
@@ -132,12 +136,88 @@ pub fn CsvManagePage<S: CsvSource>(
             }
         });
     }
+
+    let db_count = Memo::new(move |_| source.db_count());
+    let delete_count_ready = Memo::new(move |_| source.delete_count_ready());
+    let delete_count_error = Memo::new(move |_| source.delete_count_error());
+    let date_range = Memo::new(move |_| source.date_range());
+    // 削除確認モーダルの表示状態
+    let show_delete_confirm = RwSignal::new(false);
+    let deleting = Memo::new(move |_| source.csv_meta().deleting);
+    let delete_error = RwSignal::new(None::<String>);
+    // モーダル内のエラー表示。削除の失敗を最優先にし、削除していない間は件数取得の失敗も出す
+    let modal_error = Memo::new(move |_| {
+        if deleting.get() {
+            delete_error.get()
+        } else {
+            delete_error.get().or_else(|| delete_count_error.get())
+        }
+    });
+    // 開いた直後の件数は取り直しが終わるまで確定しない
+    let delete_confirm_ready = Memo::new(move |_| deleting.get() || delete_count_ready.get());
+
+    let delete_trigger_ref = NodeRef::<leptos::html::Button>::new();
+    let restore_trigger_focus = move || {
+        leptos::task::spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(0).await;
+            if let Some(button) = delete_trigger_ref.get() {
+                let _ = button.focus();
+            }
+        });
+    };
+
+    let open_delete_confirm = move |_| {
+        // 開き直すたびに前回の失敗表示を消し、他タブ等での変化に備えて件数を取り直す
+        delete_error.set(None);
+        source.refresh_for_delete();
+        source.open_delete_confirm();
+        show_delete_confirm.set(true);
+    };
+
+    // S: Copy なのでクロージャに移動できる
+    let confirm_source = source;
+    let on_confirm_delete = move || {
+        // 削除の開始はストアの確認フラグが立っている間だけ許されるため、毎回立ててから送る
+        confirm_source.open_delete_confirm();
+        delete_error.set(None);
+        confirm_source.confirm_delete_all();
+    };
+
+    let on_cancel_delete = move || {
+        if !deleting.get() {
+            show_delete_confirm.set(false);
+            delete_error.set(None);
+            restore_trigger_focus();
+        }
+    };
+
+    // 削除が終わったら失敗だけをモーダルに残す(成功ときだけ閉じる)
+    let was_deleting = RwSignal::new(false);
+    Effect::new(move |_| {
+        let deleting_now = deleting.get();
+        if deleting_now {
+            was_deleting.set(true);
+            return;
+        }
+        if !was_deleting.get() || !show_delete_confirm.get() {
+            return;
+        }
+        was_deleting.set(false);
+        if let Some(err) = meta_error.get() {
+            delete_error.set(Some(err));
+        } else {
+            show_delete_confirm.set(false);
+            delete_error.set(None);
+        }
+    });
+
     let prev_previewing = RwSignal::new(false);
     Effect::new(move |_| {
         let previewing = previewing.get();
         let was = prev_previewing.get_untracked();
         prev_previewing.set(previewing);
-        if !was || previewing {
+        // モーダルが出ている間にフォーカスを動かすと閉じ込めを壊す
+        if !was || previewing || show_delete_confirm.get() {
             return;
         }
         let meta = source.csv_meta();
@@ -148,18 +228,15 @@ pub fn CsvManagePage<S: CsvSource>(
         }
     });
 
-    let delete_link: Children = Box::new(move || {
-        let href = delete_href.clone();
-        view! { <a class="page-secondary-link-sm" href=href>"保存済みデータを削除…"</a> }.into_any()
-    });
     let action_bar = view! { <CsvActionBar source=source retrying=retrying /> }.into_any();
+    let subject_for_card = subject.clone();
+    let subject_for_modal = subject.clone();
 
     view! {
         <PageFrame
             title="CSV管理"
             back_href=back_href
             back_label="一覧に戻る"
-            links=delete_link
             action_bar=action_bar
             action_bar_pc_top=true
         >
@@ -206,7 +283,94 @@ pub fn CsvManagePage<S: CsvSource>(
                     })
                 }}
                 {extra}
+                <section class="border-t border-border-subtle pt-4">
+                    <div class="bg-surface-sunken rounded-lg border border-border p-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div>
+                                <p class="text-xs text-text-soft">"保存済みの" {subject_for_card}</p>
+                                <div class="flex items-baseline gap-2 mt-0.5">
+                                    <span class="text-2xl font-bold text-text" data-testid="saved-count">
+                                        {move || {
+                                            if delete_count_ready.get() {
+                                                format!("{}件", db_count.get())
+                                            } else if delete_count_error.get().is_some() {
+                                                "取得できませんでした".to_string()
+                                            } else {
+                                                "取得中...".to_string()
+                                            }
+                                        }}
+                                    </span>
+                                    {move || {
+                                        date_range.get().map(|(min, max)| {
+                                            view! {
+                                                <span class="text-sm font-medium text-text-muted ml-2">
+                                                    {format!("{} 〜 {}", min, max)}
+                                                </span>
+                                            }
+                                        })
+                                    }}
+                                </div>
+                            </div>
+                            <Button
+                                variant=ButtonVariant::Secondary(ButtonSize::Md)
+                                class="text-negative border-negative border"
+                                node_ref=delete_trigger_ref
+                                disabled=move || {
+                                    !delete_count_ready.get()
+                                        || db_count.get() == 0
+                                        || source.csv_meta().busy()
+                                        || source.delete_disabled(&source.csv_meta())
+                                }
+                                on_click=open_delete_confirm
+                            >
+                                "すべて削除…"
+                            </Button>
+                        </div>
+                        {move || {
+                            delete_count_error.get().map(|message| {
+                                view! {
+                                    <div class="mt-3">
+                                        <Alert variant=AlertVariant::Danger>
+                                            <strong>"エラー:"</strong>
+                                            " "
+                                            {message}
+                                            <button
+                                                class="ml-2 text-xs underline"
+                                                on:click=move |_| source.refresh_for_delete()
+                                            >
+                                                "再読み込み"
+                                            </button>
+                                        </Alert>
+                                    </div>
+                                }
+                            })
+                        }}
+                    </div>
+                </section>
             </div>
+
+            {move || {
+                show_delete_confirm.get().then(|| {
+                    let count = db_count.get();
+                    let range = date_range.get();
+                    let range_text = range.map(|(min, max)| format!("{} 〜 {} の", min, max)).unwrap_or_default();
+                    let description = format!("{}データが、一覧と集計から消えます。", range_text);
+                    let confirm_label = format!("{}件を削除する", count);
+                    view! {
+                        <ConfirmDeleteModal
+                            title=format!("{}を削除しますか?", subject_for_modal)
+                            description=description
+                            item_count=count
+                            confirm_label=confirm_label
+                            loading=deleting
+                            confirm_ready=delete_confirm_ready
+                            error=modal_error
+                            on_confirm=on_confirm_delete
+                            on_cancel=on_cancel_delete
+                        />
+                    }
+                })
+            }}
         </PageFrame>
     }
 }
@@ -407,131 +571,6 @@ fn CsvFileIcon() -> impl IntoView {
                 />
             </svg>
         </span>
-    }
-}
-
-/// 全件削除の専用ページ。遷移自体が確認導線で、対象と保存済み全件数を示してから実行する
-#[component]
-pub fn CsvDeletePage<S: CsvSource>(
-    source: S,
-    /// 「対象」欄に出す名前(配当金・資産管理 など)
-    #[prop(into)]
-    subject: String,
-    /// CSV管理ページへの戻り先(種別を保つため動的 href)
-    #[prop(into)]
-    csv_href: String,
-    /// 削除後に戻る一覧
-    list_href: &'static str,
-) -> impl IntoView {
-    // 実行を押したか。押下後に deleting が下りて error も無ければ完了とみなす
-    let attempted = RwSignal::new(false);
-    let count_ready = Memo::new(move |_| source.delete_count_ready());
-    let count = Memo::new(move |_| source.db_count());
-    let count_error = Memo::new(move |_| source.delete_count_error());
-    let deleting = Memo::new(move |_| source.csv_meta().deleting);
-    let meta_error = Memo::new(move |_| source.csv_meta().error);
-    let done = Memo::new(move |_| attempted.get() && !deleting.get() && meta_error.get().is_none());
-    let delete_disabled = Memo::new(move |_| {
-        let meta = source.csv_meta();
-        !source.delete_count_ready() || source.db_count() == 0 || source.delete_disabled(&meta)
-    });
-    let confirm = source;
-    let on_confirm = move |_| {
-        attempted.set(true);
-        // 削除開始は「確認表示中のみ」というストア制約に合わせ、専用ページへの遷移を確認として扱う
-        confirm.open_delete_confirm();
-        confirm.confirm_delete_all();
-    };
-    let warning = Signal::stored(format!("{subject}の保存済みデータをすべて削除します。"));
-
-    view! {
-        <PageFrame title="データ削除" back_href=csv_href back_label="CSV管理に戻る">
-            <div class="flex flex-col gap-4" data-testid="csv-delete-page">
-                <dl class="flex flex-col gap-1 text-sm">
-                    <div class="flex gap-2">
-                        <dt class="text-text-soft">"対象:"</dt>
-                        <dd class="font-semibold text-text">{subject}</dd>
-                    </div>
-                    <div class="flex gap-2" data-testid="csv-delete-count">
-                        <dt class="text-text-soft">"保存済みデータ:"</dt>
-                        <dd class="font-semibold text-text">
-                            {move || {
-                                if count_ready.get() {
-                                    format!("{}件", count.get())
-                                } else if count_error.get().is_some() {
-                                    "取得できませんでした".to_string()
-                                } else {
-                                    "取得中...".to_string()
-                                }
-                            }}
-                        </dd>
-                    </div>
-                </dl>
-                {move || {
-                    count_error.get().map(|message| {
-                        view! {
-                            <Alert variant=AlertVariant::Danger>
-                                <strong>"エラー:"</strong>
-                                " "
-                                {message}
-                            </Alert>
-                        }
-                    })
-                }}
-                {move || {
-                    meta_error.get().map(|message| {
-                        view! {
-                            <Alert variant=AlertVariant::Danger>
-                                <strong>"エラー:"</strong>
-                                " "
-                                {message}
-                            </Alert>
-                        }
-                    })
-                }}
-                {move || {
-                    if done.get() {
-                        view! {
-                            <div class="flex flex-col gap-4" data-testid="csv-delete-done">
-                                <section
-                                    class="rounded-note border px-4 py-3.5 border-positive-border/80 bg-positive-soft/80"
-                                    role="status"
-                                >
-                                    <p class="text-sm font-semibold text-text">"削除しました。"</p>
-                                </section>
-                                <div>
-                                    <LinkButton
-                                        variant=ButtonVariant::Primary(ButtonSize::Md)
-                                        href=list_href
-                                    >
-                                        "一覧に戻る"
-                                    </LinkButton>
-                                </div>
-                            </div>
-                        }
-                            .into_any()
-                    } else {
-                        view! {
-                            <Alert variant=AlertVariant::Warning>
-                                {warning.get()}
-                                "この操作は取り消せません。"
-                            </Alert>
-                            <div>
-                                <Button
-                                    variant=ButtonVariant::DangerSolid(ButtonSize::Md)
-                                    disabled=move || delete_disabled.get()
-                                    aria_disabled=move || delete_disabled.get()
-                                    on_click=on_confirm
-                                >
-                                    {move || source.csv_meta().delete_label()}
-                                </Button>
-                            </div>
-                        }
-                            .into_any()
-                    }
-                }}
-            </div>
-        </PageFrame>
     }
 }
 

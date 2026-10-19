@@ -98,7 +98,7 @@ fn stale_generation_csv_results_are_discarded() {
             store
                 .apply_preview_result(
                     generation,
-                    Ok(csv_preview_response(vec![csv_preview_row("7203")])),
+                    Ok(csv_preview_response(vec![csv_preview_row("9904")])),
                 )
                 .is_none()
         );
@@ -136,14 +136,14 @@ fn preview_success_collects_security_codes_and_failure_shows_error() {
         let codes = store.apply_preview_result(
             generation,
             Ok(csv_preview_response(vec![
-                csv_preview_row("7203"),
-                csv_preview_row("6758"),
-                csv_preview_row("7203"),
+                csv_preview_row("9904"),
+                csv_preview_row("9914"),
+                csv_preview_row("9904"),
             ])),
         );
         assert_eq!(
             codes,
-            Some(vec!["6758".to_string(), "7203".to_string()]),
+            Some(vec!["9904".to_string(), "9914".to_string()]),
             "プレビュー行の銘柄コードが配当取得の対象になる"
         );
         let state = store.csv_state();
@@ -292,14 +292,14 @@ fn delete_success_clears_result_and_empties_cached_list() {
         let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
             generation,
             Ok(LoadedAssetBalances {
-                rows: vec![balance_row(7203)],
+                rows: vec![balance_row(9904)],
                 total: 1,
                 summary: None,
                 truncated: false,
             }),
         )));
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
-            per_share: HashMap::from([("7203".to_string(), 50.0)]),
+            per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
         });
         let store = csv_store(&session, balances, dividends);
@@ -359,7 +359,7 @@ fn csv_store_accessors_reflect_session_and_slots() {
         let generation = session.generation.get_untracked();
         let loaded = LoadedAssetBalances {
             total: 3,
-            rows: vec![balance_row(7203)],
+            rows: vec![balance_row(9904)],
             summary: None,
             truncated: false,
         };
@@ -426,7 +426,7 @@ fn saved_count_ready_waits_for_inflight_refresh() {
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
         let loaded = LoadedAssetBalances {
-            rows: vec![balance_row(7203)],
+            rows: vec![balance_row(9904)],
             total: 1,
             summary: None,
             truncated: false,

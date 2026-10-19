@@ -514,7 +514,7 @@ mod tests {
                 (
                     filter_sql::<MutualfundDomain>(&MutualfundSearchQueryParams {
                         account: Some("特定".to_string()),
-                        fund_name: Some("eMAXIS Slim".to_string()),
+                        fund_name: Some("架空インデックス".to_string()),
                         dividends: Some("再投資型".to_string()),
                         ..Default::default()
                     }),

@@ -13,8 +13,8 @@ fn preview_response_deserializes_wire_rows() {
             "valid_rows": 1,
             "errors": [{"row": 2, "message": "保有数量［株］の形式が不正です"}],
             "rows": [{
-                "security_code": "7203",
-                "security_name": "トヨタ自動車",
+                "security_code": "9904",
+                "security_name": "架空自動車",
                 "shares": 100,
                 "average_purchase_price": 2500,
                 "total_purchase_amount": 250000,
@@ -28,8 +28,8 @@ fn preview_response_deserializes_wire_rows() {
     assert_eq!((preview.total_rows, preview.valid_rows), (2, 1));
     assert_eq!(preview.errors.len(), 1);
     let row = &preview.rows[0];
-    assert_eq!(row.security_code, "7203");
-    assert_eq!(row.security_name, "トヨタ自動車");
+    assert_eq!(row.security_code, "9904");
+    assert_eq!(row.security_name, "架空自動車");
     assert_eq!(row.shares, dec!(100));
     assert_eq!(row.average_purchase_price, dec!(2500));
     assert_eq!(row.total_purchase_amount, dec!(250000));
@@ -41,9 +41,9 @@ fn preview_row_with_missing_fields_uses_defaults() {
     // フィールド欠落は serde(default) で穴埋めする。行自体が null など
     // オブジェクトでない場合はレスポンス全体がパースエラーになる
     let row: AssetBalanceCsvRow =
-        serde_json::from_value(serde_json::json!({"security_name": "ソニーグループ"}))
+        serde_json::from_value(serde_json::json!({"security_name": "架空エレクトロニクス"}))
             .expect("lenient row");
-    assert_eq!(row.security_name, "ソニーグループ");
+    assert_eq!(row.security_name, "架空エレクトロニクス");
     assert_eq!(row.shares, dec!(0));
     assert!(serde_json::from_value::<AssetBalanceCsvRow>(serde_json::Value::Null).is_err());
 }
@@ -51,16 +51,16 @@ fn preview_row_with_missing_fields_uses_defaults() {
 #[test]
 fn preview_row_exposes_csv_fields_without_saved_identity() {
     let row = Row::Preview(AssetBalanceCsvRow {
-        security_code: "7203".to_string(),
-        security_name: "トヨタ自動車".to_string(),
+        security_code: "9904".to_string(),
+        security_name: "架空自動車".to_string(),
         shares: dec!(100),
         average_purchase_price: dec!(2500),
         ..Default::default()
     });
     assert!(row.is_preview());
     assert!(row.saved().is_none());
-    assert_eq!(row.security_code(), "7203");
-    assert_eq!(row.security_name(), "トヨタ自動車");
+    assert_eq!(row.security_code(), "9904");
+    assert_eq!(row.security_name(), "架空自動車");
     assert_eq!(row.shares(), dec!(100));
     assert_eq!(row.average_purchase_price(), dec!(2500));
 }
@@ -69,10 +69,10 @@ fn preview_row_exposes_csv_fields_without_saved_identity() {
 fn csv_row_shows_unparseable_security_code_verbatim() {
     // 検証に通らない銘柄コードも "0" へ差し替えず元の文字列を表示する
     let row = Row::Preview(AssetBalanceCsvRow {
-        security_code: "7203-1".to_string(),
+        security_code: "9904-1".to_string(),
         ..Default::default()
     });
-    assert_eq!(row.security_code(), "7203-1");
+    assert_eq!(row.security_code(), "9904-1");
 }
 
 #[test]
@@ -89,8 +89,8 @@ fn asset_balance_row_saved_delegates_current_price() {
 
     let balance = AssetBalance {
         id: "id1".to_string().into(),
-        security_code: "7203".parse().unwrap(),
-        security_name: "トヨタ自動車".to_string(),
+        security_code: "9904".parse().unwrap(),
+        security_name: "架空自動車".to_string(),
         shares: dec!(100),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
@@ -110,8 +110,8 @@ fn asset_balance_row_preview_delegates_current_price() {
     use crate::support::row::Row::Preview;
 
     let row: AssetBalanceRow = Preview(AssetBalanceCsvRow {
-        security_code: "7203".to_string(),
-        security_name: "トヨタ自動車".to_string(),
+        security_code: "9904".to_string(),
+        security_name: "架空自動車".to_string(),
         shares: dec!(100),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
@@ -124,8 +124,8 @@ fn asset_balance_row_preview_delegates_current_price() {
 #[test]
 fn asset_balance_csv_row_current_price_field() {
     let row = AssetBalanceCsvRow {
-        security_code: "7203".to_string(),
-        security_name: "トヨタ自動車".to_string(),
+        security_code: "9904".to_string(),
+        security_name: "架空自動車".to_string(),
         shares: dec!(100),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
@@ -141,8 +141,8 @@ fn asset_balance_saved_row_current_price_field() {
 
     let row = AssetBalance {
         id: "id1".to_string().into(),
-        security_code: "7203".parse().unwrap(),
-        security_name: "トヨタ自動車".to_string(),
+        security_code: "9904".parse().unwrap(),
+        security_name: "架空自動車".to_string(),
         shares: dec!(100),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),

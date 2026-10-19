@@ -594,9 +594,9 @@ fn date_helpers_format_output_and_reject_invalid_values() {
 fn parse_normalize_and_decimal_helpers_match_expected_cases() {
     assert_eq!(parse_number("1,234"), dec!(1234));
     assert_eq!(parse_number("invalid"), dec!(0));
-    assert_eq!(normalize_security_code(" 7974: 任天堂 "), "7974");
+    assert_eq!(normalize_security_code(" 9905: 架空ゲーム "), "9905");
     assert_eq!(normalize_security_code("brk.b"), "BRK.B");
-    assert_eq!(normalize_display_name("ＫＤＤＩ１２３"), "KDDI123");
+    assert_eq!(normalize_display_name("ＸＹＺ１２３"), "XYZ123");
     assert_eq!(normalize_display_name("日本株ABC123"), "日本株ABC123");
     assert_eq!(safe_add(dec!(0.1), dec!(0.2)), dec!(0.3));
     assert_eq!(safe_subtract(dec!(0.3), dec!(0.1)), dec!(0.2));

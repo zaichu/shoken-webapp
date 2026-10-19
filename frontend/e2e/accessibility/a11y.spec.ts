@@ -26,8 +26,8 @@ const DIVIDEND_ROW = {
   settlement_date: '2024-03-01',
   product: '特定口座',
   account: 'SBI証券',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   unit_price: '30.0',
   shares: '100',
   dividends_before_tax: '3000',
@@ -42,8 +42,8 @@ const NEGATIVE_DOMESTIC_ROW = {
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
   account: 'SBI証券',
-  security_code: '7974',
-  security_name: '任天堂',
+  security_code: '9905',
+  security_name: '架空ゲーム',
   shares: 10,
   asked_price: 5000,
   proceeds: 55000,
@@ -60,8 +60,8 @@ const CSV_PREVIEW_ROW = {
   settlement_date: '2024-03-01',
   product: '特定口座',
   account: 'SBI証券',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   unit_price: 30,
   shares: 100,
   dividends_before_tax: 3000,
@@ -73,8 +73,8 @@ const ASSET_ROW = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   shares: 100,
   average_purchase_price: 2500,
   total_purchase_amount: 250000,
@@ -86,8 +86,8 @@ const ASSET_ROW = {
 
 const MOCK_STOCK = {
   date: '2024-03-01',
-  code: '7974',
-  name: '任天堂',
+  code: '9905',
+  name: '架空ゲーム',
   market_category: 'プライム',
 };
 
@@ -138,7 +138,7 @@ async function mockAssetData(page: Page) {
       json({
         items: [
           {
-            security_code: '7203',
+            security_code: '9904',
             dividend_per_share: 90,
             status: 'ok',
             fetched_at: '2026-01-01T00:00:00Z',
@@ -245,9 +245,9 @@ test('銘柄検索に moderate 以上の WCAG 違反がない', async ({ page })
   await page.setViewportSize(PC);
   await page.goto('/search');
   await page.waitForLoadState('networkidle');
-  await page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }).fill('7974');
+  await page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }).fill('9905');
   await page.keyboard.press('Enter');
-  await expect(page.getByText('任天堂').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('架空ゲーム').first()).toBeVisible({ timeout: 10000 });
   await scanAxe(page, '銘柄検索(結果あり,PC)');
   await page.setViewportSize(MOBILE);
   await page.waitForTimeout(400);
@@ -387,11 +387,16 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
       page.locator('[role="status"][aria-live="polite"]').first(),
     ).toContainText('追加で保存できます', { timeout: 10000 });
     await scanAxe(page, `CSVプレビュー(${name})`);
-    // 確認は削除専用ページに置く
-    await page.getByRole('link', { name: '保存済みデータを削除…' }).click();
-    await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
-    await expect(page.getByTestId('csv-delete-page')).toBeVisible();
-    await scanAxe(page, `削除ページ(${name})`);
+    // 確認はカード内の「すべて削除…」ボタンからモーダルで行う
+    const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+    await expect(deleteButton).toBeVisible();
+    await deleteButton.click();
+    const modal = page.getByRole('dialog');
+    await expect(modal).toBeVisible();
+    await scanAxe(page, `削除確認モーダル(${name})`);
+    // モーダルを閉じる
+    await modal.getByRole('button', { name: 'キャンセル' }).click();
+    await expect(modal).toBeHidden();
   }
   await page.setViewportSize(PC);
 });
@@ -552,16 +557,17 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
     page.locator('[role="status"][aria-live="polite"]').first(),
   ).toContainText('追加で保存できます', { timeout: 10000 });
 
-  const deleteLink = page.getByRole('link', {
-    name: '保存済みデータを削除…',
-  });
-  await tabTo(page, deleteLink);
-  await expect(deleteLink).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
-  const deleteButton = page.getByRole('button', { name: '削除する' });
+  // カード内の「すべて削除…」ボタンへのキーボード操作
+  const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
   await tabTo(page, deleteButton);
   await expect(deleteButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  // モーダルが開く
+  const modal = page.getByRole('dialog');
+  await expect(modal).toBeVisible();
+  // モーダル内の「キャンセル」ボタンにフォーカスが移る
+  const cancelButton = modal.getByRole('button', { name: 'キャンセル' });
+  await expect(cancelButton).toBeFocused();
 });
 
 test('フォーカスが見えてスキップリンクが使える', async ({ page }) => {

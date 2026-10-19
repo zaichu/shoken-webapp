@@ -7,12 +7,12 @@ const MOCK_USER = {
   name: 'テストユーザー',
 };
 
-const TOYOTA = {
+const SYN_AUTO = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   shares: 100,
   average_purchase_price: 2500,
   total_purchase_amount: 250000,
@@ -20,12 +20,12 @@ const TOYOTA = {
   daily_change: 50,
 };
 
-const SONY = {
+const SYN_ELECTRONICS = {
   id: 'asset-balance-2',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '6758',
-  security_name: 'ソニーグループ',
+  security_code: '9914',
+  security_name: '架空エレクトロニクス',
   shares: 50,
   average_purchase_price: 3000,
   total_purchase_amount: 150000,
@@ -53,7 +53,7 @@ async function setupAssetBalanceMocks(page: Page) {
     }
     return route.fulfill(
       json({
-        data: [TOYOTA, SONY],
+        data: [SYN_AUTO, SYN_ELECTRONICS],
         total: 2,
         page: 1,
         per_page: 1000,
@@ -83,7 +83,7 @@ test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計の�
   await expect(kpi).not.toContainText('¥123,456,789');
   await expect(kpi).not.toContainText('¥987,654,321');
 
-  await page.getByTestId('asset-search-input-pc').fill('ソニー');
+  await page.getByTestId('asset-search-input-pc').fill('エレクトロ');
 
   await expect(page.getByTestId('asset-search-count-pc')).toContainText('1 / 2');
   // 絞り込み中も合計は全保有分のまま

@@ -16,8 +16,8 @@ const DIVIDENDS = [
     settlement_date: '2024-03-01',
     product: '特定口座',
     account: 'SBI証券',
-    security_code: '7203',
-    security_name: 'トヨタ自動車',
+    security_code: '9904',
+    security_name: '架空自動車',
     unit_price: 30.0,
     shares: 100,
     dividends_before_tax: 3000,
@@ -31,8 +31,8 @@ const DIVIDENDS = [
     settlement_date: '2024-03-15',
     product: '特定口座',
     account: '楽天証券',
-    security_code: '9432',
-    security_name: '日本電信電話',
+    security_code: '9910',
+    security_name: '架空電信電話',
     unit_price: 10.0,
     shares: 200,
     dividends_before_tax: 2000,
@@ -46,8 +46,8 @@ const DIVIDENDS = [
     settlement_date: '2024-02-10',
     product: 'NISA口座',
     account: 'SBI証券',
-    security_code: '6758',
-    security_name: 'ソニーグループ',
+    security_code: '9914',
+    security_name: '架空エレクトロニクス',
     unit_price: 20.0,
     shares: 50,
     dividends_before_tax: 1000,
@@ -63,8 +63,8 @@ const DOMESTIC = {
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
   account: 'SBI証券',
-  security_code: '7974',
-  security_name: '任天堂',
+  security_code: '9905',
+  security_name: '架空ゲーム',
   shares: 10,
   asked_price: 5000,
   proceeds: 55000,
@@ -80,7 +80,7 @@ const FUND = {
   id: '00000000-0000-0000-0000-000000000005',
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
-  fund_name: 'eMAXIS Slim 米国株式(S&P500)',
+  fund_name: '架空インデックス 米国株式',
   account: 'NISA',
   shares: 1000,
   exchange_rate: 1,
@@ -151,13 +151,13 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(cardList.getByTestId('receipt-card-group')).toHaveCount(2);
 
   // 1行目は銘柄名と税引後、2行目は日付・コード・口座・数量を並べる
-  // 先頭は入金日順で日本電信電話
+  // 先頭は入金日順で架空電信電話
   const card = cardList.getByTestId('receipt-card').first();
-  await expect(card.getByRole('button', { name: /日本電信電話\(9432\) をコピー/ })).toBeVisible();
+  await expect(card.getByRole('button', { name: /架空電信電話\(9910\) をコピー/ })).toBeVisible();
   await expect(card.locator('.receipt-compact-net')).toHaveText('¥1,594');
   const facts = card.locator('.receipt-compact-facts');
   await expect(facts).toContainText('2024/03/15');
-  await expect(facts).toContainText('9432');
+  await expect(facts).toContainText('9910');
   await expect(facts).toContainText('楽天証券');
   await expect(facts).toContainText('200株');
   await expect(card.locator('.receipt-compact-primary')).toContainText('配当 ¥2,000');
@@ -230,12 +230,12 @@ test('国内株式タブでも銘柄リンクとコピーが使える', async ({
     .getByTestId('receipt-card-list')
     .getByTestId('receipt-card')
     .first();
-  await expect(card.getByRole('link', { name: '7974' })).toHaveAttribute(
+  await expect(card.getByRole('link', { name: '9905' })).toHaveAttribute(
     'href',
-    '/search?code=7974',
+    '/search?code=9905',
   );
   await expect(
-    card.getByRole('button', { name: '任天堂(7974) をコピー' }),
+    card.getByRole('button', { name: '架空ゲーム(9905) をコピー' }),
   ).toBeVisible();
   await expect(card.locator('.receipt-compact-facts')).toContainText('10株');
 });
@@ -251,7 +251,7 @@ test('投資信託タブでもファンド名をコピーできる', async ({ pa
     .first();
   await expect(
     card.getByRole('button', {
-      name: 'eMAXIS Slim 米国株式(S&P500) をコピー',
+      name: '架空インデックス 米国株式 をコピー',
     }),
   ).toBeVisible();
 });
@@ -261,12 +261,12 @@ test('検索欄で銘柄コードで絞り込んでも残る行は同じ書式',
   await page.goto('/receipts');
 
   const cardList = page.getByTestId('receipt-card-list');
-  await mobileSearch(page).fill('9432');
+  await mobileSearch(page).fill('9910');
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
 
   const card = cardList.getByTestId('receipt-card').first();
-  await expect(card.locator('.receipt-compact-facts')).toContainText('9432');
+  await expect(card.locator('.receipt-compact-facts')).toContainText('9910');
   await expect(card.locator('.receipt-compact-facts')).toContainText('楽天証券');
 });
 
@@ -319,7 +319,7 @@ test('1024px境界で2行の行表示と表が切り替わる', async ({ page })
   await expect(page.locator('.app-bottom-nav')).toBeHidden();
 });
 
-test('全件削除は専用ページで確認して実行される', async ({ page }) => {
+test('全件削除はカード内の「すべて削除…」ボタンから確認モーダルで行う', async ({ page }) => {
   let rows: unknown[] = [...DIVIDENDS];
   let deleteCount = 0;
   await page.route(/\/api\/v1\//, (route) =>
@@ -354,20 +354,35 @@ test('全件削除は専用ページで確認して実行される', async ({ pa
   });
   await page.goto('/receipts/csv?kind=dividend');
 
-  // 削除ページを開いただけでは DELETE を送らない
-  await page.getByRole('link', { name: '保存済みデータを削除…' }).click();
-  await expect(page).toHaveURL('/receipts/csv/delete?kind=dividend');
-  await expect(page.getByTestId('csv-delete-page')).toContainText(
-    'この操作は取り消せません',
-  );
-  await expect(page.getByTestId('csv-delete-count')).toContainText('3件');
+  // カード内の「すべて削除…」ボタンをクリック
+  const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+  await expect(deleteButton).toBeVisible();
+  await deleteButton.click();
+
+  // 確認モーダルが表示される
+  const modal = page.getByRole('dialog');
+  await expect(modal).toBeVisible();
+  await expect(modal).toContainText('配当金を削除しますか?');
+  await expect(modal).toContainText('この操作は取り消せません');
+  await expect(modal).toContainText('3件');
+
+  // 初期フォーカスは「キャンセル」にある
+  const cancelButton = modal.getByRole('button', { name: 'キャンセル' });
+  await expect(cancelButton).toBeFocused();
+
+  // キャンセルでモーダルが閉じ、DELETE は送られない
+  await cancelButton.click();
+  await expect(modal).toBeHidden();
   expect(deleteCount).toBe(0);
 
-  await page.getByRole('button', { name: '削除する' }).click();
+  // 再度開いて確定する
+  await deleteButton.click();
+  await expect(modal).toBeVisible();
+  await modal.getByRole('button', { name: '3件を削除する' }).click();
   expect(deleteCount).toBe(1);
-  await expect(page.getByTestId('csv-delete-done')).toContainText('削除しました');
-  await page.getByRole('link', { name: '一覧に戻る' }).click();
-  await expect(page.getByText('データがありません')).toBeVisible();
+  await expect(modal).toBeHidden();
+  // CSV管理ページではカードが「0件」になる
+  await expect(page.getByTestId('saved-count')).toContainText('0件');
 });
 
 test('CSV取込の保存結果は一覧再取得後もCSVページに見える', async ({ page }) => {

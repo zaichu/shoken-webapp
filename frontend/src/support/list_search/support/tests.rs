@@ -88,8 +88,8 @@ fn search_options_deduplicate() {
 }
 fn renamed() -> Vec<Item> {
     vec![
-        item("9432", "日本電信電話", "2024-06-21"),
-        item("9432", "ＮＴＴ", "2026-06-01"),
+        item("9910", "架空電信電話", "2024-06-21"),
+        item("9910", "ＴＥＬＥ", "2026-06-01"),
         item("1234", "テスト", "2023-01-01"),
     ]
 }
@@ -99,7 +99,7 @@ fn latest_name_old_first() {
         options(&renamed(), true, true),
         vec![
             option("1234", "1234: テスト"),
-            option("9432", "9432: ＮＴＴ")
+            option("9910", "9910: ＴＥＬＥ")
         ]
     );
 }
@@ -111,7 +111,7 @@ fn latest_name_new_first() {
         options(&rows, true, true),
         vec![
             option("1234", "1234: テスト"),
-            option("9432", "9432: ＮＴＴ")
+            option("9910", "9910: ＴＥＬＥ")
         ]
     );
 }
@@ -119,25 +119,25 @@ fn latest_name_new_first() {
 fn latest_name_date_strings() {
     assert_eq!(
         options(&renamed()[..2], true, true),
-        vec![option("9432", "9432: ＮＴＴ")]
+        vec![option("9910", "9910: ＴＥＬＥ")]
     );
 }
 #[test]
 fn no_date_keeps_first_name() {
     assert_eq!(
         options(&renamed()[..2], true, false),
-        vec![option("9432", "9432: 日本電信電話")]
+        vec![option("9910", "9910: 架空電信電話")]
     );
 }
 #[test]
 fn same_date_keeps_first_label() {
     let rows = [
-        item("9432", "旧名", "2024-06-21"),
-        item("9432", "新名", "2024-06-21"),
+        item("9910", "旧名", "2024-06-21"),
+        item("9910", "新名", "2024-06-21"),
     ];
     assert_eq!(
         options(&rows, true, true),
-        vec![option("9432", "9432: 旧名")]
+        vec![option("9910", "9910: 旧名")]
     );
 }
 #[test]
@@ -146,7 +146,7 @@ fn invalid_initial_date_is_replaced() {
     rows[0].date = "not-a-date";
     assert_eq!(
         options(&rows[..2], true, true),
-        vec![option("9432", "9432: ＮＴＴ")]
+        vec![option("9910", "9910: ＴＥＬＥ")]
     );
 }
 #[test]

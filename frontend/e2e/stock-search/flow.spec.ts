@@ -9,8 +9,8 @@ const MOCK_USER = {
 
 const MOCK_STOCK = {
   date: '2024-03-01',
-  code: '7974',
-  name: '任天堂',
+  code: '9905',
+  name: '架空ゲーム',
   market_category: 'プライム',
   industry_category_33: '情報・通信業',
   industry_category_17: '情報通信・サービスその他',
@@ -85,9 +85,9 @@ test('検索フォームに文字を入力できる', async ({ page }) => {
   await page.waitForLoadState('networkidle');
 
   const searchInput = page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' });
-  await searchInput.fill('任天堂');
+  await searchInput.fill('架空ゲーム');
 
-  await expect(searchInput).toHaveValue('任天堂');
+  await expect(searchInput).toHaveValue('架空ゲーム');
 });
 
 test('検索の取得が失敗したとき再読み込みで再取得できる', async ({ page }) => {
@@ -116,14 +116,14 @@ test('検索の取得が失敗したとき再読み込みで再取得できる',
     });
   });
 
-  await page.goto('/search?code=7974');
+  await page.goto('/search?code=9905');
 
   const error = page.getByTestId('list-load-error');
   await expect(error).toBeVisible();
   await expect(error.getByRole('alert')).toContainText('エラー:');
 
   await page.getByRole('button', { name: '再読み込み' }).click();
-  await expect(page.getByText('任天堂')).toBeVisible();
+  await expect(page.getByText('架空ゲーム')).toBeVisible();
   expect(stockCalls).toBe(3);
 });
 
@@ -140,7 +140,7 @@ test('検索ボタンの読み込み属性がリクエストの開始と完了�
     });
   });
 
-  await page.goto('/search?code=7974');
+  await page.goto('/search?code=9905');
   const loading = page.getByRole('button', { name: '検索中' });
   await expect(loading).toBeDisabled();
   await expect(loading).toHaveAttribute('data-loading', 'true');

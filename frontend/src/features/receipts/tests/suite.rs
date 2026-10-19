@@ -54,7 +54,7 @@ fn header_summary_uses_api_value_without_search() {
 #[test]
 fn header_summary_uses_client_value_during_search() {
     assert_eq!(
-        select_header_summary(Some(&"api"), "7203", "client"),
+        select_header_summary(Some(&"api"), "9904", "client"),
         "client"
     );
 }
@@ -332,7 +332,7 @@ fn generation_change_resets_search_tab_and_visited() {
             session,
             active_tab: RwSignal::new(ReceiptsTab::MutualFund),
             search: RwSignal::new(ReceiptSearch {
-                query: "7203".to_string(),
+                query: "9904".to_string(),
                 ..Default::default()
             }),
             expanded: RwSignal::new(HashSet::new()),
@@ -527,7 +527,7 @@ fn utility_filter_badge_is_only_shown_while_collapsed_and_filtering() {
 
         assert!(!store.utility_filter_badge_visible());
         store.search.set(ReceiptSearch {
-            query: "7203".to_string(),
+            query: "9904".to_string(),
             ..Default::default()
         });
         assert!(!store.utility_filter_badge_visible());
@@ -546,8 +546,8 @@ fn dividend_cells_match_columns_and_formatting() {
         "settlement_date": "2024-03-01",
         "product": "特定口座",
         "account": "SBI証券",
-        "security_code": "7203",
-        "security_name": "トヨタ自動車",
+        "security_code": "9904",
+        "security_name": "架空自動車",
         "unit_price": 30.0,
         "shares": 100,
         "dividends_before_tax": 3000,
@@ -564,8 +564,8 @@ fn dividend_cells_match_columns_and_formatting() {
             "2024/03/01",
             "特定口座",
             "SBI証券",
-            "7203",
-            "トヨタ自動車",
+            "9904",
+            "架空自動車",
             "¥30",
             "100",
             "¥3,000",
@@ -573,12 +573,12 @@ fn dividend_cells_match_columns_and_formatting() {
             "¥2,391",
         ]
     );
-    assert_eq!(cells[3], ReceiptCell::SecurityCode("7203".to_string()));
+    assert_eq!(cells[3], ReceiptCell::SecurityCode("9904".to_string()));
     assert_eq!(
         cells[4],
         ReceiptCell::InstrumentName {
-            name: "トヨタ自動車".to_string(),
-            code: Some("7203".to_string()),
+            name: "架空自動車".to_string(),
+            code: Some("9904".to_string()),
         }
     );
 }

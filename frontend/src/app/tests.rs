@@ -64,7 +64,7 @@ fn protected_path_covers_feature_sub_paths() {
     assert!(protected_path("/assetbalance/csv"));
     assert!(!protected_path("/"));
     assert!(!protected_path("/search"));
-    assert!(!protected_path("/search?code=7203"));
+    assert!(!protected_path("/search?code=9904"));
     assert!(!protected_path("/login"));
     assert!(!protected_path("/receipts-fake"));
 }
@@ -73,8 +73,8 @@ fn protected_path_covers_feature_sub_paths() {
 fn spa_path_only_accepts_root_relative() {
     assert_eq!(spa_path("/receipts").as_deref(), Some("/receipts"));
     assert_eq!(
-        spa_path("/search?code=7203").as_deref(),
-        Some("/search?code=7203")
+        spa_path("/search?code=9904").as_deref(),
+        Some("/search?code=9904")
     );
     assert_eq!(spa_path("https://example.com/"), None);
     assert_eq!(spa_path("//example.com/"), None);
@@ -87,13 +87,13 @@ fn spa_path_only_accepts_root_relative() {
 #[test]
 fn pathname_of_strips_query_and_hash() {
     assert_eq!(pathname_of("/receipts?tab=domesticstock"), "/receipts");
-    assert_eq!(pathname_of("/search?code=7203#x"), "/search");
+    assert_eq!(pathname_of("/search?code=9904#x"), "/search");
     assert_eq!(pathname_of("/assetbalance"), "/assetbalance");
-    assert_eq!(pathname_of("/?code=7203#summary"), "/");
+    assert_eq!(pathname_of("/?code=9904#summary"), "/");
     assert_eq!(pathname_of("/login#session"), "/login");
     assert_eq!(pathname_of(""), "");
     assert_eq!(
-        route_for_path(pathname_of("/search?code=7203")),
+        route_for_path(pathname_of("/search?code=9904")),
         Route::Search
     );
 }
@@ -110,7 +110,7 @@ fn hash_only_change_detects_fragment_append() {
 #[test]
 fn strip_hash_keeps_query() {
     assert_eq!(strip_hash("/receipts#list"), "/receipts");
-    assert_eq!(strip_hash("/search?code=7203#x"), "/search?code=7203");
+    assert_eq!(strip_hash("/search?code=9904#x"), "/search?code=9904");
     assert_eq!(strip_hash("/receipts"), "/receipts");
 }
 

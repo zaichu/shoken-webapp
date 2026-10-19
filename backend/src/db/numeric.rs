@@ -219,8 +219,8 @@ mod tests {
         round_trip(dec!(0.00005), 5);
         round_trip(dec!(1.0005), 4);
         round_trip(dec!(123456789), 0);
-        round_trip(dec!(8737.0), 1);
-        round_trip(dec!(2355.00), 2);
+        round_trip(dec!(7000.0), 1);
+        round_trip(dec!(2000.00), 2);
         round_trip(Decimal::MAX, 0);
         round_trip(dec!(-9876543210.123456), 6);
         round_trip(dec!(6.67), 2);

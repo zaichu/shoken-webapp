@@ -77,16 +77,6 @@ fn csv_errors_use_api_error_messages() {
 }
 
 #[test]
-fn delete_label_reflects_deleting_flag() {
-    let mut state = CsvTabState::<String>::default();
-    assert_eq!(state.meta().delete_label(), "削除する");
-    state.deleting = true;
-    assert_eq!(state.meta().delete_label(), "削除中...");
-    state.deleting = false;
-    assert_eq!(state.meta().delete_label(), "削除する");
-}
-
-#[test]
 fn select_file_resets_preview_result_and_error() {
     let mut state = CsvTabState::<String> {
         preview: Some(CsvPreviewResponse::default()),

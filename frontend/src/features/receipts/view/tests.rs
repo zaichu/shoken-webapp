@@ -24,7 +24,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
                 total_taxes: dec!(9999),
                 total_net_amount_received: dec!(9999),
             }),
-            "9432 2024",
+            "9910 2024",
             [dec!(500), dec!(100), dec!(400)],
         ),
         (
@@ -35,7 +35,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
                 total_taxes: dec!(9999),
                 total_realized_profit_and_loss_after_tax: dec!(9999),
             }),
-            "7203",
+            "9904",
             [dec!(1000), dec!(203), dec!(797)],
         ),
         (
@@ -117,13 +117,13 @@ fn header_tones_mark_negative_profit_only() {
 #[test]
 fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
     let rows = dividends();
-    let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9432 2024");
-    let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, "9432 2024");
+    let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9910 2024");
+    let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, "9910 2024");
     assert_eq!(groups.len(), 1);
-    assert_eq!(groups[0].label, "NTT");
+    assert_eq!(groups[0].label, "TELE");
     assert_eq!(groups[0].summary, ["¥500", "¥100", "¥400"]);
-    let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9432");
-    let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, "9432");
+    let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9910");
+    let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, "9910");
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].rows.len(), 2);
     assert_eq!(groups[0].summary, ["¥1,000", "¥200", "¥800"]);
@@ -150,7 +150,7 @@ fn mutual_fund_name_groups_and_domestic_daily_groups() {
         "Alpha Fund A"
     );
     let rows = domestic();
-    let groups = ReceiptsTab::DomesticStock.table_groups(&rows, &rows, "7203");
+    let groups = ReceiptsTab::DomesticStock.table_groups(&rows, &rows, "9904");
     assert_eq!(groups[0].label, "2024年3月1日");
     assert!(groups[0].summary.is_empty());
 }
@@ -178,7 +178,10 @@ fn domestic_daily_summary_remains_for_multiple_rows_only() {
 }
 #[test]
 fn hyphenated_instrument_names_are_not_formatted_as_dates() {
-    assert_eq!(group_label("eMAXIS-Slim"), "eMAXIS-Slim");
+    assert_eq!(
+        group_label("架空インデックス-Slim"),
+        "架空インデックス-Slim"
+    );
     assert_eq!(group_label("Alpha-Fund-A"), "Alpha-Fund-A");
 }
 #[test]
@@ -205,7 +208,7 @@ fn negative_text_detection_matches_formatted_values() {
     assert!(!is_negative_text("¥ -0"));
     assert!(!is_negative_text("+3"));
     assert!(!is_negative_text(""));
-    assert!(!is_negative_text("ＮＴＴ"));
+    assert!(!is_negative_text("ＴＥＬＥ"));
     assert!(!is_negative_text("-"));
     assert!(!is_negative_text("12."));
     assert!(!is_negative_text("1.2.3"));
@@ -355,9 +358,9 @@ fn card_row_data_maps_card_fields() {
     );
     assert!(matches!(
         &card.name,
-        CardDetailValue::CopyName { display, .. } if display == "日本電信電話"
+        CardDetailValue::CopyName { display, .. } if display == "架空電信電話"
     ));
-    assert_eq!(card.code.as_deref(), Some("9432"));
+    assert_eq!(card.code.as_deref(), Some("9910"));
     assert_eq!(card.date, "2024/06/21");
     assert_eq!(card.account, "特定");
     // 見出し(銘柄コード・銘柄名・入金日・口座)を除き、商品を含む残り6列を表の列順で入れる
@@ -464,7 +467,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
         ReceiptsTab::Dividend.card_fields(),
     );
     // 銘柄コードは見出しのバッジに出すため明細には入れない
-    assert_eq!(card.code.as_deref(), Some("9432"));
+    assert_eq!(card.code.as_deref(), Some("9910"));
     assert!(
         card.details
             .iter()
@@ -474,7 +477,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     assert!(matches!(
         &card.name,
         CardDetailValue::CopyName { display, copy }
-            if display == "日本電信電話" && copy == "日本電信電話(9432)"
+            if display == "架空電信電話" && copy == "架空電信電話(9910)"
     ));
     assert!(
         !card
@@ -537,7 +540,7 @@ fn table_groups_carry_group_key_and_row_ids() {
 fn group_label_formats_iso_keys_only() {
     assert!(is_date_group_key("2026-06"));
     assert!(is_date_group_key("2024-03-05"));
-    assert!(!is_date_group_key("日本電信電話"));
+    assert!(!is_date_group_key("架空電信電話"));
     assert!(!is_date_group_key("SBI証券"));
     assert!(!is_date_group_key("2026-6"));
     assert_eq!(group_label("2026-06"), "2026年6月");
@@ -555,8 +558,8 @@ fn latest_name_uses_newest_settlement_per_code() {
     };
     same_date.security_name = "別名".into();
     rows.push(Saved(ReceiptItem::Dividend(same_date)));
-    let groups = ReceiptsTab::Dividend.table_groups(&rows, &rows, "9432");
-    assert_eq!(groups[0].label, "NTT");
+    let groups = ReceiptsTab::Dividend.table_groups(&rows, &rows, "9910");
+    assert_eq!(groups[0].label, "TELE");
 }
 
 #[test]
@@ -564,7 +567,7 @@ fn cells_normalize_full_width_security_names() {
     let rows = dividends();
     assert!(rows[1].cells().iter().any(|cell| matches!(
         cell,
-        ReceiptCell::InstrumentName { name, .. } if name == "NTT"
+        ReceiptCell::InstrumentName { name, .. } if name == "TELE"
     )));
 }
 
@@ -640,7 +643,7 @@ fn card_row_data_details_follow_column_reorder() {
     assert!(card.details.iter().all(|detail| detail.label != "口座"));
     assert!(matches!(
         &card.name,
-        CardDetailValue::CopyName { display, .. } if display == "日本電信電話"
+        CardDetailValue::CopyName { display, .. } if display == "架空電信電話"
     ));
     assert_eq!(card.account, "特定");
 }
@@ -936,7 +939,7 @@ fn ensure_kind_resets_search_state_like_tab_switch() {
             }));
         });
         store.search.set(ReceiptSearch {
-            query: "7203".to_string(),
+            query: "9904".to_string(),
             ..Default::default()
         });
         store.expanded.update(|set| {
@@ -959,7 +962,7 @@ fn condition_count_covers_structured_filters_only() {
     let mut search = ReceiptSearch::new(false);
     assert_eq!(condition_count(&search), 0);
     // 銘柄名・コードの検索は一覧側の入力欄で扱うため、帯の件数には入れない
-    search.set_securities_query("NTT".to_string());
+    search.set_securities_query("TELE".to_string());
     assert_eq!(condition_count(&search), 0);
     search.select_quick(SearchKey::Products, "国内株式".to_string());
     search.select_quick(SearchKey::Accounts, "特定".to_string());

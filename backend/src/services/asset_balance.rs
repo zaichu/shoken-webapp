@@ -260,12 +260,11 @@ mod tests {
 
     const TEST_ROW_1: &str = "1234,テスト株式会社,100,0,100,0,1500,150000,1600,10,160000,6.67";
     const TEST_ROW_2: &str = "5678,サンプル株式会社,200,0,200,0,1800,360000,1900,15,380000,5.56";
-    const INPEX_ROW: &str = "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"3,685.0\",\"65.0\",\"737,000\",\"56.47\"";
-    const NINTENDO_ROW: &str = "\"7974\",\"任天堂\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
-    const ACCOUNT_SUMMARY_ROW: &str =
-        ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
-    const NINTENDO_BAD_SHARES_ROW: &str = "\"7974\",\"任天堂\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
-    const INPEX_BAD_PRICE_ROW: &str = "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"不明\",\"65.0\",\"737,000\",\"56.47\"";
+    const SYN_RESOURCE_ROW: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2,000.00\",\"400,000\",\"3,000.0\",\"50.0\",\"600,000\",\"50.00\"";
+    const SYN_GAME_ROW: &str = "\"9905\",\"架空ゲーム\",\"1,000\",\"0\",\"1,000\",\"0\",\"5,000.00\",\"5,000,000\",\"7,000.0\",\"100.0\",\"7,000,000\",\"40.00\"";
+    const ACCOUNT_SUMMARY_ROW: &str = ",,,,,,特定口座合計,\"5,400,000\",,,\"7,600,000\",\"40.74\"";
+    const SYN_GAME_BAD_SHARES_ROW: &str = "\"9905\",\"架空ゲーム\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,000.00\",\"5,000,000\",\"7,000.0\",\"100.0\",\"7,000,000\",\"40.00\"";
+    const SYN_RESOURCE_BAD_PRICE_ROW: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2,000.00\",\"400,000\",\"不明\",\"50.0\",\"600,000\",\"50.00\"";
 
     fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
         let table = parse_csv_with_config(
@@ -283,10 +282,10 @@ mod tests {
 
     fn make_asset_balance_csv(rows: &[&str]) -> String {
         format!(
-            "■現在の評価額合計［円］,,\"9,474,000\"\n\
-             ■評価損益合計,前日比［円］,\"288,000\"\n\
+            "■現在の評価額合計［円］,,\"7,600,000\"\n\
+             ■評価損益合計,前日比［円］,\"150,000\"\n\
              ,前月比［円］,\"-120,000\"\n\
-             ,評価損益［円］,\"2,005,900\"\n\
+             ,評価損益［円］,\"2,200,000\"\n\
              ■特定口座\n\n\
              {ASSET_BALANCE_CSV_HEADER}\n{}",
             rows.join("\n")
@@ -368,7 +367,7 @@ mod tests {
             ("1234,テスト,100,-,1500,150000,N/A,0,160000,0", "現在値"),
             // 記号入りの銘柄コードは行エラー(newtype 化後の仕様)
             (
-                "7203-1,テスト,100,-,1500,150000,1600,10,160000,6.67",
+                "9904-1,テスト,100,-,1500,150000,1600,10,160000,6.67",
                 "銘柄コード",
             ),
         ] {
@@ -376,7 +375,8 @@ mod tests {
         }
 
         let preview = AssetBalanceDomain::preview_csv(
-            make_asset_balance_csv(&[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW]).as_bytes(),
+            make_asset_balance_csv(&[SYN_RESOURCE_ROW, SYN_GAME_ROW, ACCOUNT_SUMMARY_ROW])
+                .as_bytes(),
         )
         .unwrap();
         assert_eq!(
@@ -402,8 +402,8 @@ mod tests {
                 &["1234", "5678"][..],
             ),
             (
-                &[INPEX_ROW, NINTENDO_ROW, ACCOUNT_SUMMARY_ROW][..],
-                &["1605", "7974"][..],
+                &[SYN_RESOURCE_ROW, SYN_GAME_ROW, ACCOUNT_SUMMARY_ROW][..],
+                &["9901", "9905"][..],
             ),
         ] {
             let table = parse_csv_with_config(
@@ -436,11 +436,11 @@ mod tests {
         for (label, csv) in [
             (
                 "1行不正",
-                make_asset_balance_csv(&[INPEX_ROW, NINTENDO_BAD_SHARES_ROW]),
+                make_asset_balance_csv(&[SYN_RESOURCE_ROW, SYN_GAME_BAD_SHARES_ROW]),
             ),
             (
                 "全行不正",
-                make_asset_balance_csv(&[NINTENDO_BAD_SHARES_ROW, INPEX_BAD_PRICE_ROW]),
+                make_asset_balance_csv(&[SYN_GAME_BAD_SHARES_ROW, SYN_RESOURCE_BAD_PRICE_ROW]),
             ),
             ("有効行0件", make_asset_balance_csv(&[ACCOUNT_SUMMARY_ROW])),
             ("データ行なし", make_asset_balance_csv(&[])),
@@ -480,6 +480,6 @@ mod tests {
         // 「口座合計」を含む値があっても銘柄コードが入っていれば集計行ではない
         assert!(!is_summary("9999", "口座合計を含む名称"));
         assert!(!is_summary("", "普通株式"));
-        assert!(!is_summary("7203", "トヨタ自動車"));
+        assert!(!is_summary("9904", "架空自動車"));
     }
 }

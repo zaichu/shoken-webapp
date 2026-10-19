@@ -349,11 +349,11 @@ mod tests {
         assert_eq!(cells.cell("present"), "value");
         assert_eq!(cells.cell("missing"), "");
         for (input, expected) in [
-            ("K D D I", "KDDI"),
-            ("I N P E X", "INPEX"),
-            ("eMAXIS Slim 全世界株式", "eMAXIS Slim 全世界株式"),
-            ("任天堂", "任天堂"),
-            ("  KDDI  ", "KDDI"),
+            ("A B C D", "ABCD"),
+            ("E F G H I", "EFGHI"),
+            ("架空インデックス 全世界株式", "架空インデックス 全世界株式"),
+            ("架空ゲーム", "架空ゲーム"),
+            ("  ABCD  ", "ABCD"),
             ("", ""),
         ] {
             assert_eq!(normalize_security_name(input), expected);
@@ -422,13 +422,13 @@ mod tests {
     #[test]
     fn test_normalize_security_name() {
         // 通常の文字列は trim されて返る
-        assert_eq!(normalize_security_name("  任天堂  "), "任天堂");
+        assert_eq!(normalize_security_name("  架空ゲーム  "), "架空ゲーム");
         // 全角1文字ずつのスペース区切りは結合される
         assert_eq!(normalize_security_name("Ａ Ｂ Ｃ"), "ＡＢＣ");
         // 全角カナ1文字ずつのスペース区切りは結合される
-        assert_eq!(normalize_security_name("ト ヨ タ"), "トヨタ");
+        assert_eq!(normalize_security_name("カ ク ウ"), "カクウ");
         // 複数文字トークンが含まれる場合はそのまま
-        assert_eq!(normalize_security_name("トヨタ 自動車"), "トヨタ 自動車");
+        assert_eq!(normalize_security_name("架空 自動車"), "架空 自動車");
     }
 
     #[test]

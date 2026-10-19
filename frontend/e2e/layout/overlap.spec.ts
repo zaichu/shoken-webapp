@@ -10,15 +10,15 @@ const MOCK_USER = {
   name: 'テストユーザー',
 };
 
-const NINTENDO = {
+const SYN_GAME = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '7974',
-  security_name: '任天堂株式会社',
+  security_code: '9905',
+  security_name: '架空ゲーム株式会社',
   shares: 1000,
-  average_purchase_price: 5997.6,
-  total_purchase_amount: 5997600,
+  average_purchase_price: 5000,
+  total_purchase_amount: 5000000,
   current_price: 8458,
   daily_change: 30,
 };
@@ -75,9 +75,9 @@ async function mockReceipts(page: Page) {
 
 test('保有銘柄詳細: 最下端でも本文がフッターに重ならない', async ({ page }) => {
   await mockBase(page);
-  await mockAssetBalances(page, [NINTENDO]);
+  await mockAssetBalances(page, [SYN_GAME]);
   await page.goto('/assetbalance/holdings/asset-balance-1');
-  await expect(page.getByRole('heading', { name: '任天堂株式会社' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '架空ゲーム株式会社' })).toBeVisible();
 
   // 前提: 本文が画面より高いこと(低いと検査が空振りする)
   const tall = await page.evaluate(() => {
@@ -127,16 +127,16 @@ test('銘柄検索: 最下端でも本文がフッターに重ならない', asy
   await page.route(/\/api\/v1\/stocks(?:\?.*)?$/, (route) =>
     route.fulfill(
       json({
-        code: '7974',
-        name: '任天堂株式会社',
+        code: '9905',
+        name: '架空ゲーム株式会社',
         date: '2026-10-16',
         market_category: 'プライム',
         industry_category_33: '情報・通信業',
       }),
     ),
   );
-  await page.goto('/search?code=7974');
-  await expect(page.getByText('任天堂株式会社')).toBeVisible();
+  await page.goto('/search?code=9905');
+  await expect(page.getByText('架空ゲーム株式会社')).toBeVisible();
   await expectFooterBelowContent(page);
 });
 

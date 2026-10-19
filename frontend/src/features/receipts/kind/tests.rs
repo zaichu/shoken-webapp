@@ -151,8 +151,8 @@ fn dividend_csv_row_cells_not_empty() {
         settlement_date: "2024-06-15".to_string(),
         product: "NISA".to_string(),
         account: "特定".to_string(),
-        security_code: "9432".to_string(),
-        security_name: "NTT".to_string(),
+        security_code: "9910".to_string(),
+        security_name: "TELE".to_string(),
         unit_price: Decimal::new(15000, 2),
         shares: Decimal::new(100, 0),
         dividends_before_tax: Decimal::new(5000, 2),
@@ -170,8 +170,8 @@ fn csv_preview_row_delegates_all_accessors() {
         settlement_date: "2024-06-15".to_string(),
         product: "NISA".to_string(),
         account: "特定".to_string(),
-        security_code: "9432".to_string(),
-        security_name: "NTT".to_string(),
+        security_code: "9910".to_string(),
+        security_name: "TELE".to_string(),
         unit_price: Decimal::new(15000, 2),
         shares: Decimal::new(100, 0),
         dividends_before_tax: Decimal::new(5000, 2),
@@ -180,8 +180,8 @@ fn csv_preview_row_delegates_all_accessors() {
     });
 
     assert_eq!(row.date(), "2024-06-15");
-    assert_eq!(row.code(), "9432");
-    assert_eq!(row.name(), "NTT");
+    assert_eq!(row.code(), "9910");
+    assert_eq!(row.name(), "TELE");
     assert_eq!(row.account(), "特定");
     assert_eq!(row.product(), "NISA");
     assert!(row.is_specific());
@@ -200,8 +200,8 @@ fn csv_preview_row_domestic_stock_delegates_all_accessors() {
     let row = CsvPreviewRow::DomesticStock(DomesticStockCsvRow {
         trade_date: "2024-06-15".to_string(),
         settlement_date: "2024-06-15".to_string(),
-        security_code: "7203".to_string(),
-        security_name: "トヨタ".to_string(),
+        security_code: "9904".to_string(),
+        security_name: "架空".to_string(),
         account: "NISA".to_string(),
         shares: Decimal::new(100, 0),
         asked_price: Decimal::new(3000, 2),
@@ -213,8 +213,8 @@ fn csv_preview_row_domestic_stock_delegates_all_accessors() {
     });
 
     assert_eq!(row.date(), "2024-06-15");
-    assert_eq!(row.code(), "7203");
-    assert_eq!(row.name(), "トヨタ");
+    assert_eq!(row.code(), "9904");
+    assert_eq!(row.name(), "架空");
     assert_eq!(row.account(), "NISA");
     assert_eq!(row.product(), "");
     assert!(!row.is_specific());
@@ -270,8 +270,8 @@ fn receipt_item_delegates_all_accessors() {
             "settlement_date": "2024-06-15",
             "product": "NISA",
             "account": "特定",
-            "security_code": "9432",
-            "security_name": "NTT",
+            "security_code": "9910",
+            "security_name": "TELE",
             "unit_price": 150.00,
             "shares": 100,
             "dividends_before_tax": 50.00,
@@ -284,8 +284,8 @@ fn receipt_item_delegates_all_accessors() {
     );
 
     assert_eq!(item.date(), "2024-06-15");
-    assert_eq!(item.code(), "9432");
-    assert_eq!(item.name(), "NTT");
+    assert_eq!(item.code(), "9910");
+    assert_eq!(item.name(), "TELE");
     assert_eq!(item.account(), "特定");
     assert_eq!(item.product(), "NISA");
     assert!(item.is_specific());
@@ -306,8 +306,8 @@ fn receipt_row_saved_delegates_all_accessors() {
             "id": "id2",
             "trade_date": "2024-06-15",
             "settlement_date": "2024-06-15",
-            "security_code": "7203",
-            "security_name": "トヨタ",
+            "security_code": "9904",
+            "security_name": "架空",
             "account": "NISA",
             "shares": 100,
             "asked_price": 3000.00,
@@ -324,8 +324,8 @@ fn receipt_row_saved_delegates_all_accessors() {
     let row: ReceiptRow = Row::Saved(item);
 
     assert_eq!(row.date(), "2024-06-15");
-    assert_eq!(row.code(), "7203");
-    assert_eq!(row.name(), "トヨタ");
+    assert_eq!(row.code(), "9904");
+    assert_eq!(row.name(), "架空");
     assert_eq!(row.account(), "NISA");
     assert_eq!(row.product(), "");
     assert!(!row.is_specific());
@@ -346,8 +346,8 @@ fn receipt_row_preview_delegates_all_accessors() {
         settlement_date: "2024-06-15".to_string(),
         product: "NISA".to_string(),
         account: "特定".to_string(),
-        security_code: "9432".to_string(),
-        security_name: "NTT".to_string(),
+        security_code: "9910".to_string(),
+        security_name: "TELE".to_string(),
         unit_price: Decimal::new(15000, 2),
         shares: Decimal::new(100, 0),
         dividends_before_tax: Decimal::new(5000, 2),
@@ -356,8 +356,8 @@ fn receipt_row_preview_delegates_all_accessors() {
     }));
 
     assert_eq!(row.date(), "2024-06-15");
-    assert_eq!(row.code(), "9432");
-    assert_eq!(row.name(), "NTT");
+    assert_eq!(row.code(), "9910");
+    assert_eq!(row.name(), "TELE");
     assert_eq!(row.account(), "特定");
     assert_eq!(row.product(), "NISA");
     assert!(row.is_specific());
@@ -377,8 +377,8 @@ fn domestic_stock_csv_row_cells_not_empty() {
     let row = DomesticStockCsvRow {
         trade_date: "2024-06-15".to_string(),
         settlement_date: "2024-06-15".to_string(),
-        security_code: "9432".to_string(),
-        security_name: "NTT".to_string(),
+        security_code: "9910".to_string(),
+        security_name: "TELE".to_string(),
         account: "特定".to_string(),
         shares: Decimal::new(100, 0),
         asked_price: Decimal::new(15000, 2),
@@ -421,8 +421,8 @@ fn product_matches_returns_true_for_matching_product() {
         settlement_date: "2024-06-15".to_string(),
         product: "NISA".to_string(),
         account: "特定".to_string(),
-        security_code: "9432".to_string(),
-        security_name: "NTT".to_string(),
+        security_code: "9910".to_string(),
+        security_name: "TELE".to_string(),
         unit_price: Decimal::new(15000, 2),
         shares: Decimal::new(100, 0),
         dividends_before_tax: Decimal::new(5000, 2),

@@ -26,7 +26,7 @@ python3 - "$CSV_FILE" "$ROWS" <<'PYEOF'
 import sys
 path, n = sys.argv[1], int(sys.argv[2])
 header = "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]"
-names = ["三菱ＵＦＪフィナンシャル・グループ", "オリックス", "㈱テスト証券", "トヨタ自動車"]
+names = ["架空フィナンシャル・グループ", "架空リース", "㈱テスト証券", "架空自動車"]
 lines = [header]
 for i in range(n):
     day = 1 + (i % 28)
@@ -73,9 +73,9 @@ COUNT=$(psql "SELECT COUNT(*) FROM dividends WHERE user_id='$USER_ID'")
 [[ "$COUNT" == "$ROWS" ]] || fail "DB 行数が不一致: $COUNT != $ROWS"
 echo "2. import($ROWS 行) -> 201 + inserted=$ROWS + DB 一致: OK (${T_IMPORT}s)"
 
-# 3. Shift_JIS 固有文字の復元確認(ＵＦＪ・㈱が壊れていないこと)
-NAME=$(psql "SELECT security_name FROM dividends WHERE user_id='$USER_ID' AND security_name LIKE '%ＵＦＪ%' LIMIT 1")
-[[ "$NAME" == "三菱ＵＦＪフィナンシャル・グループ" ]] || fail "Shift_JIS デコード結果が不正: $NAME"
+# 3. Shift_JIS 固有文字の復元確認(全角カナ・㈱が壊れていないこと)
+NAME=$(psql "SELECT security_name FROM dividends WHERE user_id='$USER_ID' AND security_name LIKE '%架空フィナンシャル%' LIMIT 1")
+[[ "$NAME" == "架空フィナンシャル・グループ" ]] || fail "Shift_JIS デコード結果が不正: $NAME"
 NAME2=$(psql "SELECT security_name FROM dividends WHERE user_id='$USER_ID' AND security_name LIKE '㈱%' LIMIT 1")
 [[ "$NAME2" == "㈱テスト証券" ]] || fail "㈱ の復元に失敗: $NAME2"
 echo "3. Shift_JIS 固有文字(ＵＦＪ/㈱)の復元: OK"

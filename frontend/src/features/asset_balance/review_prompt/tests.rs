@@ -25,16 +25,16 @@ fn make_asset(
 }
 
 fn toyota() -> AssetBalanceRow {
-    make_asset("7203", "トヨタ自動車", 100, 2500)
+    make_asset("9904", "架空自動車", 100, 2500)
 }
 
-fn sony() -> AssetBalanceRow {
-    make_asset("6758", "ソニーグループ", 50, 12000)
+fn syn_electronics() -> AssetBalanceRow {
+    make_asset("9914", "架空エレクトロニクス", 50, 12000)
 }
 
 #[test]
 fn generate_asset_review_prompt_matches_fixture_exactly() {
-    let prompt = generate_asset_review_prompt(&[toyota(), sony()]);
+    let prompt = generate_asset_review_prompt(&[toyota(), syn_electronics()]);
     let expected = "あなたは日本株の公開情報を整理する調査サポーターです。
 以下の保有銘柄データをもとに、保有株の構成レビュー（ポートフォリオ総評の下書き）を作成してください。
 
@@ -56,26 +56,26 @@ fn generate_asset_review_prompt_matches_fixture_exactly() {
 
 【保有銘柄データ】
 銘柄コード | 銘柄名 | 保有株数 | 平均取得単価
-7203 | トヨタ自動車 | 100 | ¥2,500
-6758 | ソニーグループ | 50 | ¥12,000";
+9904 | 架空自動車 | 100 | ¥2,500
+9914 | 架空エレクトロニクス | 50 | ¥12,000";
     assert_eq!(prompt, expected);
 }
 
 #[test]
 fn generate_asset_review_prompt_includes_all_codes_and_names() {
-    let prompt = generate_asset_review_prompt(&[toyota(), sony()]);
-    assert!(prompt.contains("7203"));
-    assert!(prompt.contains("トヨタ自動車"));
-    assert!(prompt.contains("6758"));
-    assert!(prompt.contains("ソニーグループ"));
+    let prompt = generate_asset_review_prompt(&[toyota(), syn_electronics()]);
+    assert!(prompt.contains("9904"));
+    assert!(prompt.contains("架空自動車"));
+    assert!(prompt.contains("9914"));
+    assert!(prompt.contains("架空エレクトロニクス"));
 }
 
 #[test]
 fn generate_asset_review_prompt_keeps_input_order() {
-    let prompt = generate_asset_review_prompt(&[sony(), toyota()]);
-    let sony_pos = prompt.find("6758").unwrap();
-    let toyota_pos = prompt.find("7203").unwrap();
-    assert!(sony_pos < toyota_pos);
+    let prompt = generate_asset_review_prompt(&[syn_electronics(), toyota()]);
+    let syn_pos = prompt.find("9914").unwrap();
+    let toyota_pos = prompt.find("9904").unwrap();
+    assert!(syn_pos < toyota_pos);
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn generate_asset_review_prompt_formats_fractional_numbers() {
     asset.shares = Decimal::new(1005, 1);
     asset.average_purchase_price = Decimal::new(1234567, 2);
     let prompt = generate_asset_review_prompt(&[Row::Saved(asset)]);
-    assert!(prompt.contains("7203 | トヨタ自動車 | 100.5 | ¥12,345.67"));
+    assert!(prompt.contains("9904 | 架空自動車 | 100.5 | ¥12,345.67"));
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn generate_asset_review_prompt_empty_rows_does_not_panic() {
 
 #[test]
 fn generate_asset_review_prompt_excludes_aggregate_and_personal_fields() {
-    let prompt = generate_asset_review_prompt(&[toyota(), sony()]);
+    let prompt = generate_asset_review_prompt(&[toyota(), syn_electronics()]);
     assert!(!prompt.contains("集計:"));
     assert!(!prompt.contains("保有銘柄数"));
     assert!(!prompt.contains('@'));

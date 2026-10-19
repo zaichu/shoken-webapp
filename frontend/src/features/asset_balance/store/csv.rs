@@ -5,6 +5,7 @@ use super::{
 use crate::api::ApiError;
 use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse};
 use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
+use crate::features::asset_balance::format::format_price_date;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::{DividendMaps, unique_sorted_codes};
 use crate::session::{Generation, SessionStore};
@@ -115,6 +116,46 @@ impl AssetBalanceCsvStore {
                 || self
                     .balances
                     .with(|slot| !matches!(slot, Some((cached, _)) if *cached == generation)))
+    }
+
+    /// 保存済みデータの基準日範囲(最小・最大)。取得済み行から算出し、未取得なら None
+    pub(crate) fn date_range(&self) -> Option<(String, String)> {
+        let generation = self.session.generation.get();
+        self.balances.with(|slot| {
+            let Some((_cached, Ok(loaded))) =
+                slot.as_ref().filter(|(cached, _)| *cached == generation)
+            else {
+                return None;
+            };
+            let dates: Vec<&str> = loaded
+                .rows
+                .iter()
+                .filter_map(|row| row.price_as_of.as_deref())
+                .collect();
+            if dates.is_empty() {
+                return None;
+            }
+            let min = dates.iter().min()?;
+            let max = dates.iter().max()?;
+            Some((format_price_date(min), format_price_date(max)))
+        })
+    }
+
+    /// 削除件数の再取得を要求する(件数取得失敗時の再読み込み用)
+    pub(crate) fn refresh_for_delete(&self) {
+        let Some(generation) = self.current_generation() else {
+            return;
+        };
+        self.data_ops.update(|ops| ops.list_rev += 1);
+        crate::features::asset_balance::store::load_asset_balances(
+            self.session,
+            generation,
+            self.balances,
+            self.dividends,
+            self.lookup,
+            self.csv,
+            self.data_ops,
+        );
     }
 
     fn current_generation(&self) -> Option<Generation> {
