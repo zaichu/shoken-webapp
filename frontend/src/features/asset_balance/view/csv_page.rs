@@ -4,12 +4,11 @@ use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::store::csv::{
     AssetBalanceCsvStore, csv_preview_rows, resolve_asset_balance,
 };
-use crate::features::asset_balance::store::load_asset_balances;
 use crate::features::asset_balance::view::AssetBalanceCsvPreview;
 use crate::session::{SessionStore, use_session};
 use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::button::{Button, ButtonVariant};
-use crate::ui::csv_page::{CsvDeletePage, CsvManagePage, CsvSource};
+use crate::ui::csv_page::{CsvManagePage, CsvSource};
 use crate::ui::security_link::try_copy_to_clipboard;
 use leptos::prelude::*;
 
@@ -66,6 +65,14 @@ impl CsvSource for AssetBalanceCsvStore {
         self.saved_count_error()
     }
 
+    fn date_range(&self) -> Option<(String, String)> {
+        AssetBalanceCsvStore::date_range(self)
+    }
+
+    fn refresh_for_delete(&self) {
+        AssetBalanceCsvStore::refresh_for_delete(self)
+    }
+
     fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
         meta.saving || meta.deleting || self.list_loading()
     }
@@ -98,7 +105,6 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
             source=source
             subject="資産管理"
             back_href="/assetbalance"
-            delete_href="/assetbalance/csv/delete"
             preview=view! { <CsvPreviewWrapper state=state _session=session /> }.into_any()
             extra=view! {
                 <AssetReviewPromptCard rows=move || review_rows(review_state, session) />
@@ -120,30 +126,15 @@ fn CsvPreviewWrapper(state: AssetBalanceState, _session: SessionStore) -> impl I
     }
 }
 
+/// 旧削除ページ URL へのアクセスを CSV 管理ページへリダイレクトする
 #[component]
 pub fn AssetBalanceCsvDeletePage() -> impl IntoView {
-    let session = use_session();
-    let state = use_asset_balance_state(session);
-    // 削除件数をこのページに入った時点の保存済み値で確定するため、キャッシュを捨てて取り直す
-    if session.user.get_untracked().is_some() {
-        load_asset_balances(
-            session,
-            session.generation.get_untracked(),
-            state.balances,
-            state.dividends,
-            state.lookup,
-            state.csv.csv,
-            state.data_ops,
-        );
-    }
-    view! {
-        <CsvDeletePage
-            source=state.csv
-            subject="資産管理"
-            csv_href="/assetbalance/csv"
-            list_href="/assetbalance"
-        />
-    }
+    leptos::task::spawn_local(async move {
+        if let Some(window) = web_sys::window() {
+            window.location().set_href("/assetbalance/csv").ok();
+        }
+    });
+    view! { <div>"CSV管理ページへ移動します..."</div> }
 }
 
 // プロンプトは表示対象と一致させる: CSV選択中はプレビュー行、なければ保存済み一覧
