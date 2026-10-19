@@ -390,6 +390,25 @@ fn valuation_formatters_treat_nan_as_missing() {
     assert_eq!(format_valuation_rate(Some(f64::NAN), 1), "—");
 }
 
+// 表示単位は集計(サマリー)だけに使い、明細の行は1円単位のまま出す
+#[test]
+fn row_valuation_stays_in_yen_while_summary_follows_the_amount_unit() {
+    use crate::settings::{AmountUnit, amount_unit_signal};
+    let unit = amount_unit_signal();
+    unit.set(AmountUnit::Man);
+    assert_eq!(format_row_valuation_amount(Some(60000.0)), "¥60,000");
+    assert_eq!(format_row_valuation_amount(Some(400.0)), "¥400");
+    assert_eq!(format_row_valuation_amount(Some(-400.0)), "-¥400");
+    assert_eq!(format_row_valuation_amount(None), "—");
+    assert_eq!(format_row_valuation_amount(Some(f64::NAN)), "—");
+    assert_eq!(format_signed_row_valuation_amount(Some(400.0)), "+¥400");
+    assert_eq!(format_signed_row_valuation_amount(Some(-400.0)), "-¥400");
+    // 集計は単位に従う
+    assert_eq!(format_valuation_amount(Some(60000.0)), "6万円");
+    assert_eq!(format_signed_valuation_amount(Some(60000.0)), "+6万円");
+    unit.set(AmountUnit::Yen);
+}
+
 #[test]
 fn negative_valuation_is_decided_by_rounded_amount() {
     assert!(!is_negative_valuation(Some(-0.4)));

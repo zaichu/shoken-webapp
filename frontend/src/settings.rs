@@ -115,7 +115,8 @@ impl AssetSort {
     }
 }
 
-/// 金額の表示単位。単価(1株配当・取得単価・売却単価・現在値など)は常に円のまま
+/// 金額の表示単位。集計(合計欄・サマリー)にだけ適用し、明細の行と
+/// 単価(1株配当・取得単価・売却単価・現在値など)は常に円のまま
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum AmountUnit {
     #[default]
@@ -212,7 +213,8 @@ pub(crate) fn current_amount_unit() -> AmountUnit {
     amount_unit_signal().get_untracked()
 }
 
-/// 表示単位設定を反映した金額書式。円以外は単位で割って1桁丸め、単位のラベルを付ける
+/// 表示単位設定を反映した金額書式。集計(合計欄・サマリー)専用で、円以外は
+/// 単位で割って1桁丸め、単位のラベルを付ける。明細の行には format_currency を使う
 pub fn format_amount(value: Decimal) -> String {
     match amount_unit_signal().get() {
         AmountUnit::Yen => format_currency(value),
