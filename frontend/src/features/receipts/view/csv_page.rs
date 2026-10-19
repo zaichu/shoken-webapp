@@ -147,20 +147,6 @@ pub fn ReceiptsCsvPage() -> impl IntoView {
     }
 }
 
-/// 旧削除ページ URL へのアクセスを CSV 管理ページへリダイレクトする
-#[component]
-pub fn ReceiptsCsvDeletePage() -> impl IntoView {
-    let tab = kind_tab();
-    let csv_href = format!("/receipts/csv?kind={}", tab.kind_param());
-    leptos::task::spawn_local(async move {
-        // 次のマイクロタスクで遷移させ、レンダリングを挟まない
-        if let Some(window) = web_sys::window() {
-            window.location().set_href(&csv_href).ok();
-        }
-    });
-    view! { <div>"CSV管理ページへ移動します..."</div> }
-}
-
 #[component]
 fn ReceiptsCsvPreview(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     move || {

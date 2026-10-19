@@ -13,7 +13,7 @@ mod summary;
 mod tests;
 
 pub use composition_page::AssetBalanceCompositionPage;
-pub use csv_page::{AssetBalanceCsvDeletePage, AssetBalanceCsvPage};
+pub use csv_page::AssetBalanceCsvPage;
 pub use csv_preview::AssetBalanceCsvPreview;
 pub use holding_detail_page::AssetBalanceHoldingPage;
 

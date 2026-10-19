@@ -19,8 +19,8 @@ pub(crate) use model::{
 };
 pub(crate) use portfolio::{SortKey, SortOrder};
 pub(crate) use view::{
-    AssetBalanceCompositionPage, AssetBalanceCsvDeletePage, AssetBalanceCsvPage,
-    AssetBalanceHoldingPage, AssetBalancePage, AssetBalanceState,
+    AssetBalanceCompositionPage, AssetBalanceCsvPage, AssetBalanceHoldingPage, AssetBalancePage,
+    AssetBalanceState,
 };
 
 #[cfg(test)]

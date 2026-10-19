@@ -1,12 +1,12 @@
 use crate::features::asset_balance::{
-    AssetBalanceCompositionPage, AssetBalanceCsvDeletePage, AssetBalanceCsvPage,
-    AssetBalanceHoldingPage, AssetBalancePage, AssetBalanceState,
+    AssetBalanceCompositionPage, AssetBalanceCsvPage, AssetBalanceHoldingPage, AssetBalancePage,
+    AssetBalanceState,
 };
 use crate::features::home::{HomeOverviewData, HomePage};
 use crate::features::login::LoginPage;
 use crate::features::not_found::NotFoundPage;
 use crate::features::receipts::{
-    ReceiptsConditionsPage, ReceiptsCsvDeletePage, ReceiptsCsvPage, ReceiptsPage, ReceiptsStore,
+    ReceiptsConditionsPage, ReceiptsCsvPage, ReceiptsPage, ReceiptsStore,
 };
 use crate::features::settings::SettingsPage;
 use crate::features::stock_search::StockSearchPage;
@@ -52,12 +52,10 @@ enum Route {
     Receipts,
     ReceiptsConditions,
     ReceiptsCsv,
-    ReceiptsCsvDelete,
     AssetBalance,
     AssetBalanceComposition,
     AssetBalanceHolding,
     AssetBalanceCsv,
-    AssetBalanceCsvDelete,
     Settings,
     Login,
     NotFound,
@@ -71,7 +69,6 @@ impl Route {
             Route::Receipts => "取引明細",
             Route::ReceiptsConditions => "検索条件",
             Route::ReceiptsCsv | Route::AssetBalanceCsv => "CSV管理",
-            Route::ReceiptsCsvDelete | Route::AssetBalanceCsvDelete => "データ削除",
             Route::AssetBalance => "資産管理",
             Route::AssetBalanceComposition => "構成比",
             Route::AssetBalanceHolding => "保有銘柄詳細",
@@ -93,12 +90,11 @@ fn route_for_path(path: &str) -> Route {
         "/search" => Route::Search,
         "/receipts" => Route::Receipts,
         "/receipts/conditions" => Route::ReceiptsConditions,
-        "/receipts/csv" => Route::ReceiptsCsv,
-        "/receipts/csv/delete" => Route::ReceiptsCsvDelete,
+        // 旧削除ページの URL は取り込み画面と同じタブを開く(設定ページの「危険な操作」からも来る)
+        "/receipts/csv" | "/receipts/csv/delete" => Route::ReceiptsCsv,
         "/assetbalance" => Route::AssetBalance,
         "/assetbalance/composition" => Route::AssetBalanceComposition,
-        "/assetbalance/csv" => Route::AssetBalanceCsv,
-        "/assetbalance/csv/delete" => Route::AssetBalanceCsvDelete,
+        "/assetbalance/csv" | "/assetbalance/csv/delete" => Route::AssetBalanceCsv,
         "/settings" => Route::Settings,
         path if holding_id(path).is_some() => Route::AssetBalanceHolding,
         "/login" => Route::Login,
@@ -370,12 +366,10 @@ pub fn App() -> impl IntoView {
                 | Route::Receipts
                 | Route::ReceiptsConditions
                 | Route::ReceiptsCsv
-                | Route::ReceiptsCsvDelete
                 | Route::AssetBalance
                 | Route::AssetBalanceComposition
                 | Route::AssetBalanceHolding
                 | Route::AssetBalanceCsv
-                | Route::AssetBalanceCsvDelete
         )
     };
     view! {
@@ -406,7 +400,6 @@ pub fn App() -> impl IntoView {
                         Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
                         Route::ReceiptsConditions => view! { <ReceiptsConditionsPage /> }.into_any(),
                         Route::ReceiptsCsv => view! { <ReceiptsCsvPage /> }.into_any(),
-                        Route::ReceiptsCsvDelete => view! { <ReceiptsCsvDeletePage /> }.into_any(),
                         Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
                         Route::AssetBalanceComposition => {
                             view! { <AssetBalanceCompositionPage /> }.into_any()
@@ -416,9 +409,6 @@ pub fn App() -> impl IntoView {
                             view! { <AssetBalanceHoldingPage id=id /> }.into_any()
                         }
                         Route::AssetBalanceCsv => view! { <AssetBalanceCsvPage /> }.into_any(),
-                        Route::AssetBalanceCsvDelete => {
-                            view! { <AssetBalanceCsvDeletePage /> }.into_any()
-                        }
                         Route::Settings => view! { <SettingsPage /> }.into_any(),
                         Route::Login => view! { <LoginPage /> }.into_any(),
                         _ => view! { <NotFoundPage /> }.into_any(),

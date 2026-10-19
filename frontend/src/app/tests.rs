@@ -40,6 +40,15 @@ fn route_for_designed_sub_paths() {
 }
 
 #[test]
+fn old_delete_paths_open_csv_pages() {
+    assert_eq!(route_for_path("/receipts/csv/delete"), Route::ReceiptsCsv);
+    assert_eq!(
+        route_for_path("/assetbalance/csv/delete"),
+        Route::AssetBalanceCsv
+    );
+}
+
+#[test]
 fn designed_routes_have_titles() {
     for route in [
         Route::ReceiptsConditions,

@@ -9,7 +9,7 @@ mod tabs;
 
 pub use action_bar::{ReceiptsActiveBand, ReceiptsMobileBottomSection, ReceiptsPcSearchBar};
 pub use conditions::ReceiptsConditionsPage;
-pub use csv_page::{ReceiptsCsvDeletePage, ReceiptsCsvPage};
+pub use csv_page::ReceiptsCsvPage;
 pub use main_content::ReceiptsMainContent;
 pub use summary::SummaryStrip;
 pub use table::ReceiptTable;
