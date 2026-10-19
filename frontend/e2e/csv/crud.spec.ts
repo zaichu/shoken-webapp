@@ -223,7 +223,7 @@ const SYN_US_EQUITY_ADDITIONAL = {
 const SYN_GLOBAL_EQUITY = {
   trade_date: '2026-02-05',
   settlement_date: '2026-02-10',
-  fund_name: '架空インデックス 全世界株式',
+  fund_name: '架空インデックス 全世界株式(オール・ワールド)',
   dividends: '再投資型',
   account: '特定',
   shares: 1200000,
