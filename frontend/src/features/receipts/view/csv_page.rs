@@ -28,10 +28,6 @@ impl CsvSource for ReceiptCsvSource {
         "追加"
     }
 
-    fn mode_label(&self) -> &'static str {
-        "追加保存"
-    }
-
     fn csv_meta(&self) -> CsvTabMeta {
         self.store.csv_meta(self.tab)
     }
@@ -107,10 +103,6 @@ impl CsvSource for ReceiptCsvSource {
         self.store.save_csv(self.tab)
     }
 
-    fn discard_csv(&self) {
-        self.store.discard_csv(self.tab)
-    }
-
     fn open_delete_confirm(&self) {
         self.store.open_delete_confirm(self.tab)
     }
@@ -147,7 +139,6 @@ pub fn ReceiptsCsvPage() -> impl IntoView {
             source=source
             subject=tab.label()
             back_href="/receipts"
-            delete_href=String::new()
             preview=view! { <ReceiptsCsvPreview store=store tab=tab /> }.into_any()
         />
     }

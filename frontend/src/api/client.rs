@@ -10,7 +10,6 @@ thread_local! {
     static RETRY_HOOK: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
 }
 
-#[allow(dead_code)]
 pub fn set_retry_hook(hook: impl Fn() + 'static) {
     RETRY_HOOK.with(|slot| *slot.borrow_mut() = Some(Rc::new(hook)));
 }

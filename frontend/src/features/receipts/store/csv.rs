@@ -107,18 +107,6 @@ impl ReceiptsStore {
         }
     }
 
-    pub fn discard_csv(&self, tab: ReceiptsTab) {
-        let Some(generation) = self.current_generation() else {
-            return;
-        };
-        self.tabs.update(|map| {
-            let entry = map.entry((generation, tab)).or_default();
-            if entry.csv.discard() {
-                entry.csv_file = None;
-            }
-        });
-    }
-
     pub fn confirm_delete_all(&self, tab: ReceiptsTab) {
         let Some(generation) = self.try_begin_delete(tab) else {
             return;

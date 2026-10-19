@@ -25,8 +25,12 @@ impl CsvSource for AssetBalanceCsvStore {
         "全件置換"
     }
 
-    fn mode_label(&self) -> &'static str {
-        "全件置換"
+    // 追加保存と違い、置換の対象が全件だとボタン上でも分かるようにする
+    fn save_button_label(&self, valid_rows: Option<usize>) -> String {
+        match valid_rows {
+            Some(rows) => format!("{rows}件 全件置換で保存"),
+            None => "全件置換で保存".to_string(),
+        }
     }
 
     fn csv_meta(&self) -> CsvTabMeta {
@@ -81,10 +85,6 @@ impl CsvSource for AssetBalanceCsvStore {
         AssetBalanceCsvStore::save_csv(self)
     }
 
-    fn discard_csv(&self) {
-        AssetBalanceCsvStore::discard_csv(self)
-    }
-
     fn open_delete_confirm(&self) {
         AssetBalanceCsvStore::open_delete_confirm(self)
     }
@@ -105,7 +105,6 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
             source=source
             subject="資産管理"
             back_href="/assetbalance"
-            delete_href=String::new()
             preview=view! { <CsvPreviewWrapper state=state _session=session /> }.into_any()
             extra=view! {
                 <AssetReviewPromptCard rows=move || review_rows(review_state, session) />

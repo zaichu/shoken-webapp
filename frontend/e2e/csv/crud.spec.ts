@@ -458,7 +458,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await expect(page.getByText(`${base.previewRows.length}件を追加で保存できます`)).toBeVisible();
       await expect(page.getByRole('cell', { name: scenario.baseName })).toBeVisible();
       await page
-        .getByRole('button', { name: `${base.previewRows.length}件 追加で保存` })
+        .getByRole('button', { name: `${base.previewRows.length}件を保存する` })
         .click();
       const notice = page.getByTestId('csv-save-result-notice');
       await expect(notice).toContainText(`${baseCount}件反映`);
@@ -471,7 +471,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
         page.getByText(`${additional.previewRows.length}件を追加で保存できます`),
       ).toBeVisible();
       await page
-        .getByRole('button', { name: `${additional.previewRows.length}件 追加で保存` })
+        .getByRole('button', { name: `${additional.previewRows.length}件を保存する` })
         .click();
       await expect(notice).toContainText(`${additionalCount}件反映`);
       await expect(notice).toContainText(
@@ -538,7 +538,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
     const saveCount = TAB_FIXTURES.dividend.files['dividend-base.csv'].previewRows.length;
-    await page.getByRole('button', { name: `${saveCount}件 追加で保存` }).click();
+    await page.getByRole('button', { name: `${saveCount}件を保存する` }).click();
 
     await expect(page.getByRole('alert')).toContainText(
       'CSVファイル（.csv）のみアップロードできます',
@@ -718,7 +718,6 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
     const notice = page.getByTestId('csv-save-result-notice');
     await expect(notice).toContainText('2件反映');
-    await expect(notice).toContainText('全件置換');
     // 新UI: カードの件数が更新される
     await expect(page.getByTestId('saved-count')).toContainText('2件');
 

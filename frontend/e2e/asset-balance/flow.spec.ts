@@ -227,7 +227,7 @@ test('保存後に一覧が再取得されて銘柄データが表示される',
   await expect.poll(mocks.getUploadRequestCount).toBe(1);
   await expect.poll(mocks.getListRequestCount).toBeGreaterThanOrEqual(2);
   await expect(page.getByTestId('csv-save-result-notice')).toContainText('1件反映');
-// 新UI: カードの件数が更新される
+  // 新UI: カードの件数が更新される
   await expect(page.getByText('保存済みの資産管理')).toBeVisible();
   await expect(page.getByTestId('saved-count')).toContainText('1件');
   // 一覧に戻ると保存した銘柄が見える
