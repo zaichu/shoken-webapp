@@ -97,6 +97,8 @@
   --shadow-card: 0 14px 38px -32px rgba(15, 23, 42, 0.85);
   --shadow-card-hover: 0 18px 40px -32px rgba(15, 23, 42, 0.85);
   --shadow-header: 0 18px 44px -34px rgba(15, 23, 42, 0.95);
+  /* 下から出るシートの上端の影(下地の明細との境目用) */
+  --shadow-sheet-up: 0 -16px 40px -22px rgba(15, 23, 42, 0.55);
   --shadow-edge-lit: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --shadow-edge-accent: inset 0 3px 0 #f2b33d;
   --shadow-edge-brand: inset 0 -3px 0 rgba(192, 132, 3, 0.35);
@@ -552,9 +554,7 @@
     }
 
     .condition-panel {
-      @apply fixed inset-x-0 bottom-0 top-auto mt-0 rounded-b-none rounded-t-2xl border-b-0 border-t-border-strong pt-3;
-      /* 下地の明細との境目を残すため、シートの上端に上向きの影を付ける */
-      box-shadow: 0 -16px 40px -22px rgba(15, 23, 42, 0.55);
+      @apply fixed inset-x-0 bottom-0 top-auto mt-0 rounded-b-none rounded-t-2xl border-b-0 border-t-border-strong pt-3 shadow-sheet-up;
       padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
     }
 
