@@ -126,17 +126,6 @@ fn CsvPreviewWrapper(state: AssetBalanceState, _session: SessionStore) -> impl I
     }
 }
 
-/// 旧削除ページ URL へのアクセスを CSV 管理ページへリダイレクトする
-#[component]
-pub fn AssetBalanceCsvDeletePage() -> impl IntoView {
-    leptos::task::spawn_local(async move {
-        if let Some(window) = web_sys::window() {
-            window.location().set_href("/assetbalance/csv").ok();
-        }
-    });
-    view! { <div>"CSV管理ページへ移動します..."</div> }
-}
-
 // プロンプトは表示対象と一致させる: CSV選択中はプレビュー行、なければ保存済み一覧
 fn review_rows(state: AssetBalanceState, session: SessionStore) -> Vec<AssetBalanceRow> {
     let csv_state = state.csv.csv_state();
