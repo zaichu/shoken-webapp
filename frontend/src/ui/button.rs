@@ -29,6 +29,7 @@ pub enum ButtonVariant {
     /// メニュー項目(role="menuitem" と一緒に使う)
     MenuItem,
     /// メニューの危険な項目(role="menuitem" と一緒に使う)
+    #[allow(dead_code)]
     MenuItemDanger,
     /// 銘柄名のコピー(文字そのものがボタン)
     CopyName,
