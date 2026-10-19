@@ -13,6 +13,7 @@ use crate::{
             DividendPerShareBatchRequest, DividendPerShareBatchResponse, DividendPerShareItem,
         },
         domestic_stock::DomesticStock,
+        fund_balance::{FundBalance, FundBalanceSummary},
         mutualfund::Mutualfund,
         stock::Stock,
         user::UserResponse,
@@ -47,6 +48,10 @@ use crate::{
         handlers::v1::asset_balances::delete_all,
         handlers::v1::asset_balances::validate_import,
         handlers::v1::asset_balances::import,
+        handlers::v1::fund_balances::list,
+        handlers::v1::fund_balances::delete_all,
+        handlers::v1::fund_balances::validate_import,
+        handlers::v1::fund_balances::import,
     ),
     components(
         schemas(
@@ -54,6 +59,8 @@ use crate::{
             DomesticStock,
             Mutualfund,
             AssetBalance,
+            FundBalance,
+            FundBalanceSummary,
             BulkCreateAssetBalanceRequest,
             Stock,
             UserResponse,

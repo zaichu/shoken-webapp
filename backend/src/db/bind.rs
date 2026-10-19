@@ -272,6 +272,16 @@ impl Bind {
             v.into_iter().map(Numeric).collect::<Vec<Numeric>>(),
         )
     }
+
+    /// `Option<Decimal>` の配列バインド。値なし要素は NULL として挿入する
+    pub fn optional_decimal_vec(v: Vec<Option<Decimal>>) -> Self {
+        Bind::custom(
+            Type::NUMERIC_ARRAY,
+            v.into_iter()
+                .map(|v| v.map(Numeric))
+                .collect::<Vec<Option<Numeric>>>(),
+        )
+    }
 }
 
 impl<T: Into<Bind>> From<Option<T>> for Bind {
