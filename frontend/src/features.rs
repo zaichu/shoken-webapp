@@ -4,4 +4,5 @@ pub(crate) mod home;
 pub(crate) mod login;
 pub(crate) mod not_found;
 pub(crate) mod receipts;
+pub(crate) mod settings;
 pub(crate) mod stock_search;

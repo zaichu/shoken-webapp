@@ -8,6 +8,7 @@ use crate::features::not_found::NotFoundPage;
 use crate::features::receipts::{
     ReceiptsConditionsPage, ReceiptsCsvDeletePage, ReceiptsCsvPage, ReceiptsPage, ReceiptsStore,
 };
+use crate::features::settings::SettingsPage;
 use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
 use crate::ui::site::{AccountDeleteConfirm, AccountDeleteDialog, BottomNav, SiteFooter};
@@ -57,6 +58,7 @@ enum Route {
     AssetBalanceHolding,
     AssetBalanceCsv,
     AssetBalanceCsvDelete,
+    Settings,
     Login,
     NotFound,
 }
@@ -73,6 +75,7 @@ impl Route {
             Route::AssetBalance => "資産管理",
             Route::AssetBalanceComposition => "構成比",
             Route::AssetBalanceHolding => "保有銘柄詳細",
+            Route::Settings => "設定",
             Route::Login => "ログイン",
             Route::NotFound => "ページが見つかりません",
         }
@@ -96,6 +99,7 @@ fn route_for_path(path: &str) -> Route {
         "/assetbalance/composition" => Route::AssetBalanceComposition,
         "/assetbalance/csv" => Route::AssetBalanceCsv,
         "/assetbalance/csv/delete" => Route::AssetBalanceCsvDelete,
+        "/settings" => Route::Settings,
         path if holding_id(path).is_some() => Route::AssetBalanceHolding,
         "/login" => Route::Login,
         "/404" => Route::NotFound,
@@ -103,12 +107,13 @@ fn route_for_path(path: &str) -> Route {
     }
 }
 
-// 取引明細・資産管理配下は未ログインで開けない(新設ルートもプレフィックスで保護する)
+// 取引明細・資産管理・設定配下は未ログインで開けない(新設ルートもプレフィックスで保護する)
 fn protected_path(path: &str) -> bool {
     let path = pathname_of(path);
-    matches!(path, "/receipts" | "/assetbalance")
+    matches!(path, "/receipts" | "/assetbalance" | "/settings")
         || path.starts_with("/receipts/")
         || path.starts_with("/assetbalance/")
+        || path.starts_with("/settings/")
 }
 
 pub(crate) fn pathname_of(path: &str) -> &str {
@@ -374,6 +379,7 @@ pub fn App() -> impl IntoView {
                         Route::AssetBalanceCsvDelete => {
                             view! { <AssetBalanceCsvDeletePage /> }.into_any()
                         }
+                        Route::Settings => view! { <SettingsPage /> }.into_any(),
                         Route::Login => view! { <LoginPage /> }.into_any(),
                         _ => view! { <NotFoundPage /> }.into_any(),
                     }

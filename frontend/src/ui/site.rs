@@ -39,7 +39,6 @@ fn is_nav_active(path: &str, to: &str) -> bool {
 }
 
 fn current_path() -> RwSignal<String> {
-    // App 配下では SPA 遷移の path を使い、単独で描くテスト等では現在の URL にフォールバック
     use_context::<CurrentPath>()
         .map(|current| current.0)
         .unwrap_or_else(|| RwSignal::new(current_location()))
@@ -107,9 +106,6 @@ pub fn AccountMenu(
 ) -> impl IntoView {
     let session = use_session();
     let path = current_path();
-    let delete_confirm_open = use_context::<AccountDeleteConfirm>()
-        .map(|confirm| confirm.0)
-        .unwrap_or_else(|| RwSignal::new(false));
     let on_login_page = move || pathname_of(&path.get()) == "/login";
     view! {
         <div class="flex shrink-0 items-center gap-3">
@@ -124,7 +120,6 @@ pub fn AccountMenu(
                         <UserMenu
                             user=user
                             session=session
-                            delete_confirm_open=delete_confirm_open
                             hide_name=hide_name
                         />
                     }
@@ -215,17 +210,35 @@ pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
     "U".to_string()
 }
 
+fn login_method(_email: &str) -> &'static str {
+    // 現在は Google OAuth のみ対応
+    "Google でログイン中"
+}
+
 #[component]
 fn UserMenu(
     user: SessionUser,
     session: SessionStore,
-    delete_confirm_open: RwSignal<bool>,
     #[prop(optional)] hide_name: bool,
 ) -> impl IntoView {
     let menu_open = RwSignal::new(false);
     let menu_container = NodeRef::<html::Div>::new();
+    let menu_items_ref = NodeRef::<html::Ul>::new();
+    let focused_index = RwSignal::new(-1);
+    let trigger_ref = NodeRef::<html::Button>::new();
+    // メニュー開閉の世代番号。開くたびにインクリメントし、古い Effect のフォーカス試行を無効化する
+    let menu_generation = RwSignal::new(0u32);
 
-    let on_mouse_down = window_event_listener(ev::mousedown, move |ev| {
+    // メニュー項目（role="menuitem" を持つ要素）を収集するヘルパー関数
+    let collect_menuitems = move |ul: &web_sys::HtmlUListElement| -> Vec<web_sys::HtmlElement> {
+        (0..ul.children().length())
+            .filter_map(|i| ul.children().item(i))
+            .filter_map(|li| li.query_selector("[role=\"menuitem\"]").ok().flatten())
+            .filter_map(|el| el.dyn_into::<web_sys::HtmlElement>().ok())
+            .collect()
+    };
+
+    let on_pointer_down = window_event_listener(ev::pointerdown, move |ev| {
         if !menu_open.get_untracked() {
             return;
         }
@@ -238,39 +251,139 @@ fn UserMenu(
             .is_some_and(|(container, target)| container.contains(Some(&target)));
         if !inside {
             menu_open.set(false);
+            focused_index.set(-1);
+            if let Some(trigger) = trigger_ref.get() {
+                let _ = trigger.focus();
+            }
         }
     });
+
     let on_key_down = window_event_listener(ev::keydown, move |ev| {
-        if menu_open.get_untracked() && ev.key() == "Escape" {
-            menu_open.set(false);
+        if !menu_open.get_untracked() {
+            return;
+        }
+
+        match ev.key().as_str() {
+            "Escape" => {
+                menu_open.set(false);
+                focused_index.set(-1);
+                if let Some(trigger) = trigger_ref.get() {
+                    let _ = trigger.focus();
+                }
+            }
+            "ArrowDown" => {
+                ev.prevent_default();
+                if let Some(ul) = menu_items_ref.get() {
+                    let items = collect_menuitems(&ul);
+                    if !items.is_empty() {
+                        let next = (focused_index.get() + 1).min(items.len() as i32 - 1);
+                        focused_index.set(next);
+                        let _ = items[next as usize].focus();
+                    }
+                }
+            }
+            "ArrowUp" => {
+                ev.prevent_default();
+                if let Some(ul) = menu_items_ref.get() {
+                    let items = collect_menuitems(&ul);
+                    if !items.is_empty() {
+                        let next = (focused_index.get() - 1).max(0);
+                        focused_index.set(next);
+                        let _ = items[next as usize].focus();
+                    }
+                }
+            }
+            "Tab" => {
+                if let Some(ul) = menu_items_ref.get() {
+                    let items = collect_menuitems(&ul);
+                    if !items.is_empty() {
+                        let active = web_sys::window()
+                            .and_then(|w| w.document())
+                            .and_then(|d| d.active_element())
+                            .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok());
+                        if let Some(active) = active
+                            && let Some(pos) =
+                                items.iter().position(|b| b.is_same_node(Some(&active)))
+                        {
+                            if ev.shift_key() && pos == 0 {
+                                ev.prevent_default();
+                                let _ = items.last().unwrap().focus();
+                                focused_index.set((items.len() - 1) as i32);
+                            } else if !ev.shift_key() && pos == items.len() - 1 {
+                                ev.prevent_default();
+                                let _ = items[0].focus();
+                                focused_index.set(0);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
     });
+
     on_cleanup(move || {
-        on_mouse_down.remove();
+        on_pointer_down.remove();
         on_key_down.remove();
     });
 
-    let display_name = user
-        .name
-        .clone()
-        .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| user.email.clone());
-    let aria_name = user
-        .name
+    // メニューが開かれたときに先頭項目（設定）へフォーカスを移す
+    // Show コンポーネントの遅延描画を待つため Effect で実行
+    // 世代番号を使って古い Effect のフォーカス試行を無効化
+    Effect::new(move |_| {
+        if menu_open.get() {
+            let current_gen = menu_generation.get();
+            focused_index.set(0);
+            // 次のマイクロタスクでフォーカスを試行（Show の描画完了を待つ）
+            leptos::task::spawn_local(async move {
+                gloo_timers::future::TimeoutFuture::new(0).await;
+                // 遅延描画の間に利用者が移動したフォーカスを奪わない
+                if menu_open.get_untracked()
+                    && menu_generation.get_untracked() == current_gen
+                    && trigger_ref.get_untracked().is_some_and(|trigger| {
+                        web_sys::window()
+                            .and_then(|window| window.document())
+                            .and_then(|document| document.active_element())
+                            .is_some_and(|active| active.is_same_node(Some(&trigger)))
+                    })
+                    && let Some(ul) = menu_items_ref.get_untracked()
+                {
+                    let items = collect_menuitems(&ul);
+                    if !items.is_empty() {
+                        let _ = items[0].focus();
+                    }
+                }
+            });
+        }
+    });
+
+    let user_name = user.name.clone();
+    let user_email = user.email.clone();
+    let display_name = Memo::new({
+        let user_name = user_name.clone();
+        let user_email = user_email.clone();
+        move |_| {
+            user_name
+                .clone()
+                .filter(|name| !name.is_empty())
+                .unwrap_or_else(|| user_email.clone())
+        }
+    });
+    let aria_name = user_name
         .clone()
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| "ユーザー".to_string());
+    let initials = get_initials(user_name.as_deref(), Some(&user_email));
+    let login_method_text = login_method(&user_email);
     let menu_label = format!("{aria_name}のアカウントメニュー");
 
     view! {
         <div class="flex items-center gap-3">
-            {(!hide_name).then(|| {
-                view! {
-                    <span class="hidden max-w-64 truncate text-sm font-semibold text-brand-muted lg:inline">
-                        {display_name}
-                    </span>
-                }
-            })}
+            <Show when=move || !hide_name>
+                <span class="hidden max-w-64 truncate text-sm font-semibold text-brand-muted lg:inline">
+                    {display_name.get()}
+                </span>
+            </Show>
             <div class="relative" node_ref=menu_container>
                 <Button
                     variant=ButtonVariant::Header(ButtonSize::Sm)
@@ -278,22 +391,60 @@ fn UserMenu(
                     aria_label=menu_label
                     aria_expanded=move || menu_open.get()
                     attr:aria-controls="user-menu"
-                    on_click=move |_| menu_open.update(|open| *open = !*open)
+                    on_click=move |_| {
+                        menu_open.update(|open| *open = !*open);
+                        if !menu_open.get() {
+                            focused_index.set(-1);
+                        } else {
+                            // メニューを開くとき世代を進め、古い Effect を無効化
+                            menu_generation.update(|g| *g = g.wrapping_add(1));
+                        }
+                    }
+                    node_ref=trigger_ref
                 >
                     "アカウント"
                 </Button>
                 <Show when=move || menu_open.get()>
                     <ul
                         id="user-menu"
-                        class="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-lg border border-ink/10 bg-surface text-text-deep shadow-2xl"
+                        node_ref=menu_items_ref
+                        class="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-lg border border-ink/10 bg-surface text-text-deep shadow-2xl"
                         role="menu"
                         aria-label="ユーザーメニュー"
                     >
+                        <li role="none" class="p-3 border-b border-ink/10">
+                            <div class="flex items-center gap-3">
+                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold text-brand font-bold text-lg">
+                                    {initials.clone()}
+                                </span>
+                                <div class="min-w-0">
+                                    <div class="font-semibold text-sm truncate">{display_name.get()}</div>
+                                    <div class="text-xs text-text-muted truncate">{user_email.clone()}</div>
+                                    <div class="text-[11px] text-text-muted">{login_method_text}</div>
+                                </div>
+                            </div>
+                        </li>
+                        <li role="none">
+                            <a
+                                href="/settings"
+                                class="flex min-h-11 items-center gap-3 px-3 py-2 text-sm font-semibold text-text-deep hover:bg-surface-raised no-underline"
+                                role="menuitem"
+                                tabindex="0"
+                                on:click=move |_| menu_open.set(false)
+                            >
+                                <svg class="shrink-0 w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                                </svg>
+                                <span>設定</span>
+                            </a>
+                        </li>
                         <li role="none">
                             <Button
                                 variant=ButtonVariant::MenuItem
                                 attr:role="menuitem"
                                 testid="logout"
+                                class="w-full min-h-11 flex items-center gap-3"
                                 on_click=move |_| {
                                     menu_open.set(false);
                                     leptos::task::spawn_local(async move {
@@ -301,29 +452,12 @@ fn UserMenu(
                                     });
                                 }
                             >
-                                "ログアウト"
-                            </Button>
-                        </li>
-                        <li role="none">
-                            <hr class="border-border" />
-                        </li>
-                        <li
-                            role="none"
-                            class="px-3 py-2 text-xs font-bold text-text-quiet"
-                        >
-                            "危険な操作"
-                        </li>
-                        <li role="none">
-                            <Button
-                                variant=ButtonVariant::MenuItemDanger
-                                attr:role="menuitem"
-                                attr:aria-describedby="delete-warning"
-                                on_click=move |_| delete_confirm_open.set(true)
-                            >
-                                <span id="delete-warning" class="sr-only">
-                                    "警告: この操作は取り消せません"
-                                </span>
-                                "アカウント削除"
+                                <svg class="shrink-0 w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                                    <polyline points="16 17 21 12 16 7"/>
+                                    <line x1="21" y1="12" x2="9" y2="12"/>
+                                </svg>
+                                <span>ログアウト</span>
                             </Button>
                         </li>
                     </ul>

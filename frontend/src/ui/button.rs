@@ -29,6 +29,7 @@ pub enum ButtonVariant {
     /// メニュー項目(role="menuitem" と一緒に使う)
     MenuItem,
     /// メニューの危険な項目(role="menuitem" と一緒に使う)
+    #[allow(dead_code)]
     MenuItemDanger,
     /// 銘柄名のコピー(文字そのものがボタン)
     CopyName,
@@ -155,8 +156,8 @@ pub fn Button(
             aria-controls=aria_controls
             tabindex=tabindex.map(|index| move || index.get())
             data-testid=testid
-            on:click=on_click
             node_ref=node_ref
+            on:click=on_click
         >
             {children()}
         </button>
@@ -172,6 +173,7 @@ pub fn LinkButton(
     /// 遷移前に実行する処理(下書きの適用など)。SPA 遷移の横取りより先に走る
     #[prop(optional)]
     on_click: Option<Callback<()>>,
+    #[prop(into, optional)] aria_label: Option<Signal<String>>,
     children: Children,
 ) -> impl IntoView {
     let classes = move || button_classes(variant, &class.get());
@@ -179,6 +181,7 @@ pub fn LinkButton(
         <a
             href=href
             class=classes
+            aria-label=move || aria_label.as_ref().map(|label| label.get())
             on:click=move |_| {
                 if let Some(on_click) = on_click {
                     on_click.run(());
