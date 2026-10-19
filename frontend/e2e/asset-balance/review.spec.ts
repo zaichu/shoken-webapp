@@ -11,8 +11,8 @@ const TOYOTA = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   shares: 100,
   average_purchase_price: 2500,
   total_purchase_amount: 250000,
@@ -58,7 +58,7 @@ const EXPECTED_PROMPT = `あなたは日本株の公開情報を整理する調�
 
 【保有銘柄データ】
 銘柄コード | 銘柄名 | 保有株数 | 平均取得単価
-7203 | トヨタ自動車 | 100 | ¥2,500
+9904 | 架空自動車 | 100 | ¥2,500
 6758 | ソニーグループ | 50 | ¥12,000`;
 
 

@@ -38,19 +38,19 @@ fn init_test_executor() {
 
 #[test]
 fn search_security_code_gates_on_exact_code_or_name_match() {
-    let rows = vec![dividend("7203", "トヨタ自動車"), dividend("6758", "ソニー")];
-    assert_eq!(search_security_code(&rows, "7203"), "7203");
-    assert_eq!(search_security_code(&rows, "トヨタ自動車"), "7203");
-    assert_eq!(search_security_code(&rows, "7203: トヨタ自動車"), "7203");
-    assert_eq!(search_security_code(&rows, "トヨタ"), "");
+    let rows = vec![dividend("9904", "架空自動車"), dividend("6758", "ソニー")];
+    assert_eq!(search_security_code(&rows, "9904"), "9904");
+    assert_eq!(search_security_code(&rows, "架空自動車"), "9904");
+    assert_eq!(search_security_code(&rows, "9904: 架空自動車"), "9904");
+    assert_eq!(search_security_code(&rows, "架空"), "");
     assert_eq!(search_security_code(&rows, ""), "");
     assert_eq!(search_security_code(&rows, "9999"), "");
-    assert_eq!(search_security_code(&[], "7203"), "");
+    assert_eq!(search_security_code(&[], "9904"), "");
 }
 
 #[test]
 fn search_security_code_rejects_non_ascii_codes() {
-    let rows = vec![dividend("７２０３", "トヨタ自動車")];
+    let rows = vec![dividend("７２０３", "架空自動車")];
     assert_eq!(search_security_code(&rows, "７２０３"), "");
 }
 
@@ -62,20 +62,20 @@ fn set_code_dedupes_same_generation_code_and_clears_when_disabled() {
         let generation = session.generation.get_untracked();
         let store = DividendInfoStore::new(session);
 
-        store.set_code(generation, false, "7203");
+        store.set_code(generation, false, "9904");
         assert!(store.current.get_untracked().is_none());
 
         store.set_code(generation, true, "７２０３");
         assert!(store.current.get_untracked().is_none());
 
-        store.current.set(Some((generation, "7203".to_string())));
-        store.set_code(generation, true, " 7203 ");
+        store.current.set(Some((generation, "9904".to_string())));
+        store.set_code(generation, true, " 9904 ");
         assert_eq!(
             store.current.get_untracked(),
-            Some((generation, "7203".to_string()))
+            Some((generation, "9904".to_string()))
         );
 
-        store.set_code(generation, false, "7203");
+        store.set_code(generation, false, "9904");
         assert!(store.current.get_untracked().is_none());
         assert!(store.asset_balance.get_untracked().is_none());
         assert!(store.per_share.get_untracked().is_none());
@@ -91,19 +91,19 @@ fn set_code_bumps_revisions_so_stale_requests_stay_inactive() {
         let generation = session.generation.get_untracked();
         let store = DividendInfoStore::new(session);
 
-        store.set_code(generation, true, "7203");
+        store.set_code(generation, true, "9904");
         let first_poll = store.code_revision.get_untracked();
         let first_balance = store.balance_revision.get_untracked();
 
         store.set_code(generation, true, "6758");
-        store.set_code(generation, true, "7203");
+        store.set_code(generation, true, "9904");
         let latest_poll = store.code_revision.get_untracked();
         assert!(latest_poll > first_poll);
 
         // A→B→A と戻っても、先に投げたポーリング・保有数取得は再有効化しない
-        assert!(!store.is_poll_active(generation, first_poll, "7203"));
-        assert!(!store.is_balance_active(generation, first_balance, "7203"));
-        assert!(store.is_poll_active(generation, latest_poll, "7203"));
+        assert!(!store.is_poll_active(generation, first_poll, "9904"));
+        assert!(!store.is_balance_active(generation, first_balance, "9904"));
+        assert!(store.is_poll_active(generation, latest_poll, "9904"));
     });
 }
 
@@ -115,18 +115,18 @@ fn refresh_balance_supersedes_balance_fetch_and_keeps_poll_alive() {
         let session = authenticated_session();
         let generation = session.generation.get_untracked();
         let store = DividendInfoStore::new(session);
-        store.set_code(generation, true, "7203");
+        store.set_code(generation, true, "9904");
         let poll = store.code_revision.get_untracked();
         let balance = store.balance_revision.get_untracked();
 
         store.refresh_balance();
         assert_eq!(store.balance_revision.get_untracked(), balance + 1);
-        assert!(!store.is_balance_active(generation, balance, "7203"));
-        assert!(store.is_balance_active(generation, balance + 1, "7203"));
+        assert!(!store.is_balance_active(generation, balance, "9904"));
+        assert!(store.is_balance_active(generation, balance + 1, "9904"));
         assert_eq!(store.code_revision.get_untracked(), poll);
-        assert!(store.is_poll_active(generation, poll, "7203"));
+        assert!(store.is_poll_active(generation, poll, "9904"));
 
-        store.set_code(generation, false, "7203");
+        store.set_code(generation, false, "9904");
         let bumped = store.balance_revision.get_untracked();
         store.refresh_balance();
         assert_eq!(store.balance_revision.get_untracked(), bumped);
@@ -161,13 +161,13 @@ fn is_current_code_requires_matching_session_generation_and_code() {
         let generation = session.generation.get_untracked();
         let store = DividendInfoStore::new(session);
 
-        assert!(!store.is_current_code(generation, "7203"));
-        store.current.set(Some((generation, "7203".to_string())));
-        assert!(store.is_current_code(generation, "7203"));
+        assert!(!store.is_current_code(generation, "9904"));
+        store.current.set(Some((generation, "9904".to_string())));
+        assert!(store.is_current_code(generation, "9904"));
         assert!(!store.is_current_code(generation, "6758"));
-        assert!(!store.is_current_code(generation.next(), "7203"));
+        assert!(!store.is_current_code(generation.next(), "9904"));
         session.mark_unauthenticated();
-        assert!(!store.is_current_code(generation, "7203"));
+        assert!(!store.is_current_code(generation, "9904"));
     });
 }
 
@@ -175,7 +175,7 @@ fn is_current_code_requires_matching_session_generation_and_code() {
 fn investment_amount_is_price_times_shares() {
     let row = AssetBalance {
         id: "id".to_string().into(),
-        security_code: "7203".parse().unwrap(),
+        security_code: "9904".parse().unwrap(),
         security_name: "銘柄".to_string(),
         shares: dec!(100),
         average_purchase_price: dec!(2500),

@@ -110,7 +110,7 @@ fn sort_input(code: &str, market: f64, purchase: f64, annual: Option<f64>) -> So
 #[test]
 fn sort_holdings_orders_by_market_value_desc() {
     let inputs = vec![
-        sort_input("7203", 100.0, 80.0, Some(10.0)),
+        sort_input("9904", 100.0, 80.0, Some(10.0)),
         sort_input("6758", 200.0, 150.0, Some(20.0)),
         sort_input("9999", 50.0, 40.0, Some(5.0)),
     ];
@@ -121,7 +121,7 @@ fn sort_holdings_orders_by_market_value_desc() {
 #[test]
 fn sort_holdings_orders_by_profit_loss_asc() {
     let inputs = vec![
-        sort_input("7203", 100.0, 80.0, Some(10.0)),
+        sort_input("9904", 100.0, 80.0, Some(10.0)),
         sort_input("6758", 200.0, 150.0, Some(20.0)),
         sort_input("9999", 50.0, 40.0, Some(5.0)),
     ];
@@ -132,7 +132,7 @@ fn sort_holdings_orders_by_profit_loss_asc() {
 #[test]
 fn sort_holdings_orders_by_dividend_desc() {
     let inputs = vec![
-        sort_input("7203", 100.0, 80.0, Some(10.0)),
+        sort_input("9904", 100.0, 80.0, Some(10.0)),
         sort_input("6758", 200.0, 150.0, Some(20.0)),
         sort_input("9999", 50.0, 40.0, Some(5.0)),
     ];
@@ -143,19 +143,19 @@ fn sort_holdings_orders_by_dividend_desc() {
 #[test]
 fn sort_holdings_orders_by_yield_asc() {
     let inputs = vec![
-        sort_input("7203", 100.0, 80.0, Some(10.0)),
+        sort_input("9904", 100.0, 80.0, Some(10.0)),
         sort_input("6758", 200.0, 150.0, Some(20.0)),
         sort_input("9999", 50.0, 40.0, Some(5.0)),
     ];
     let order = sort_holdings(inputs, SortKey::Yield, SortOrder::Asc);
-    // 7203 と 9999 は利回り同値のためコード順
+    // 9904 と 9999 は利回り同値のためコード順
     assert_eq!(order, vec![0, 2, 1]);
 }
 
 #[test]
 fn sort_holdings_places_uncomputable_at_end_regardless_of_order() {
     let inputs = vec![
-        sort_input("7203", 100.0, 80.0, Some(10.0)),
+        sort_input("9904", 100.0, 80.0, Some(10.0)),
         sort_input("6758", 0.0, 150.0, Some(20.0)),
         sort_input("9999", 50.0, 40.0, Some(5.0)),
     ];
@@ -168,7 +168,7 @@ fn sort_holdings_places_uncomputable_at_end_regardless_of_order() {
 #[test]
 fn sort_holdings_breaks_ties_by_code() {
     let inputs = vec![
-        sort_input("7203", 100.0, 80.0, Some(10.0)),
+        sort_input("9904", 100.0, 80.0, Some(10.0)),
         sort_input("6758", 100.0, 80.0, Some(10.0)),
         sort_input("9999", 100.0, 80.0, Some(10.0)),
     ];
@@ -188,7 +188,7 @@ fn sort_holdings_allows_other_keys_while_dividend_pending() {
     pending.dividend = &*pending_dividend;
     let inputs = vec![
         pending,
-        sort_input("7203", 200.0, 150.0, Some(20.0)),
+        sort_input("9904", 200.0, 150.0, Some(20.0)),
         sort_input("9999", 50.0, 40.0, Some(5.0)),
     ];
     let order = sort_holdings(inputs, SortKey::MarketValue, SortOrder::Desc);

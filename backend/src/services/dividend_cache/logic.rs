@@ -194,7 +194,7 @@ mod tests {
             ),
         ] {
             let mut row = json!({
-                "DiscDate": "2024-05-10", "Code": "7203", "DocType": "FY",
+                "DiscDate": "2024-05-10", "Code": "9904", "DocType": "FY",
                 "Sales": "123456789", "UnknownField": {"nested": [1, 2]}
             });
             row.as_object_mut()

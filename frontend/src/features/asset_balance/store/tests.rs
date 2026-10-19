@@ -75,7 +75,7 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         lookup.update(|store| store.seed(generation, &[balance_row(6758)]));
 
-        let new_row = balance_row(7203);
+        let new_row = balance_row(9904);
         let (codes, missing) = apply_loaded_asset_balances(
             generation,
             LoadedAssetBalances {
@@ -96,9 +96,9 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
             .and_then(|result| result.ok())
             .expect("loaded");
         assert_eq!(loaded.rows.len(), 1);
-        assert_eq!(loaded.rows[0].id.as_str(), "id-7203");
+        assert_eq!(loaded.rows[0].id.as_str(), "id-9904");
         assert!(dividends.get_untracked().per_share.is_empty());
-        assert_eq!(codes, vec!["7203".to_string()]);
+        assert_eq!(codes, vec!["9904".to_string()]);
         assert!(
             missing.is_empty(),
             "一覧行を seed 済みなので個別再取得の対象はない"
@@ -114,9 +114,9 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        lookup.update(|store| store.seed(generation, &[balance_row(7203), balance_row(6758)]));
+        lookup.update(|store| store.seed(generation, &[balance_row(9904), balance_row(6758)]));
 
-        let mut replaced = balance_row(7203);
+        let mut replaced = balance_row(9904);
         replaced.shares = rust_decimal_macros::dec!(200);
         apply_loaded_asset_balances(
             generation,
@@ -133,7 +133,7 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
         );
 
         let shares =
-            lookup.with_untracked(|store| store.get(generation, "7203").map(|row| row.shares));
+            lookup.with_untracked(|store| store.get(generation, "9904").map(|row| row.shares));
         assert_eq!(
             shares,
             Some(rust_decimal_macros::dec!(200)),
@@ -153,7 +153,7 @@ fn apply_loaded_keeps_dividends_while_preview_active() {
         let generation = Generation::new(1);
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
-            per_share: HashMap::from([("7203".to_string(), 50.0)]),
+            per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
         });
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -161,7 +161,7 @@ fn apply_loaded_keeps_dividends_while_preview_active() {
         apply_loaded_asset_balances(
             generation,
             LoadedAssetBalances {
-                rows: vec![balance_row(7203)],
+                rows: vec![balance_row(9904)],
                 total: 1,
                 summary: None,
                 truncated: false,
@@ -173,7 +173,7 @@ fn apply_loaded_keeps_dividends_while_preview_active() {
         );
 
         assert_eq!(
-            dividends.get_untracked().per_share.get("7203"),
+            dividends.get_untracked().per_share.get("9904"),
             Some(&50.0),
             "プレビュー表示中の一覧適用ではプレビュー行の配当を消さない"
         );
@@ -192,7 +192,7 @@ fn list_error_keeps_cached_rows_and_reports_refresh_error() {
         let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
             generation,
             Ok(LoadedAssetBalances {
-                rows: vec![balance_row(7203)],
+                rows: vec![balance_row(9904)],
                 total: 1,
                 summary: None,
                 truncated: false,
@@ -288,7 +288,7 @@ fn list_loading_counts_inflight_fetch() {
         let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((
             generation,
             Ok(LoadedAssetBalances {
-                rows: vec![balance_row(7203)],
+                rows: vec![balance_row(9904)],
                 total: 1,
                 summary: None,
                 truncated: false,
@@ -410,7 +410,7 @@ fn begin_file_preview_stops_old_poll_and_clears_dividends() {
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
         let dividends = RwSignal::new(DividendMaps {
-            per_share: HashMap::from([("7203".to_string(), 50.0)]),
+            per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
         });
         let store = csv_store(&session, RwSignal::new(None), dividends);
@@ -435,7 +435,7 @@ fn has_current_balances_only_matches_same_generation() {
     let slot: BalanceSlot = Some((
         generation,
         Ok(LoadedAssetBalances {
-            rows: vec![balance_row(7203)],
+            rows: vec![balance_row(9904)],
             total: 1,
             summary: None,
             truncated: false,

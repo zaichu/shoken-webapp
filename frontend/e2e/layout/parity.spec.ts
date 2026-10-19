@@ -8,14 +8,14 @@ const MOCK_USER = {
 };
 
 const STOCKS: Array<[string, string]> = [
-  ['7203', 'トヨタ自動車'],
-  ['9432', '日本電信電話'],
+  ['9904', '架空自動車'],
+  ['9910', '架空電信電話'],
   ['6758', 'ソニーグループ'],
-  ['8306', '三菱UFJフィナンシャル・グループ'],
+  ['9907', '架空フィナンシャル・グループ'],
   ['9984', 'ソフトバンクグループ'],
   ['4502', '武田薬品工業'],
   ['6861', 'キーエンス'],
-  ['8058', '三菱商事'],
+  ['8058', '架空商事'],
 ];
 
 const DIVIDENDS = Array.from({ length: 18 }, (_, i) => {
@@ -72,7 +72,7 @@ const MUTUALFUNDS = Array.from({ length: 12 }, (_, i) => {
     settlement_date: `2024-${month}-${day}`,
     fund_name:
       i % 2 === 0
-        ? 'eMAXIS Slim 全世界株式（オール・カントリー）'
+        ? '架空インデックス 全世界株式（オール・ワールド）'
         : 'SBI・V・S&P500インデックス・ファンド',
     account: i % 2 === 0 ? '特定口座' : 'NISA口座',
     shares: 10000 + i * 1500,
@@ -153,7 +153,7 @@ async function expectAssetDataLoaded(page: Page) {
   await expect(
     page
       .getByTestId('assetbalance-main-stage')
-      .getByText('トヨタ自動車')
+      .getByText('架空自動車')
       .filter({ visible: true })
       .first(),
   ).toBeVisible();
@@ -317,7 +317,7 @@ for (const width of [1440, 390]) {
 
 test('検索の取得失敗を通知する', async ({ page }) => {
   await page.route(/\/api\/v1\/stocks(?:\?.*)?$/, (route) => route.fulfill(serverError()));
-  await page.goto('/search?code=7203');
+  await page.goto('/search?code=9904');
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByRole('alert')).not.toBeEmpty();
 });

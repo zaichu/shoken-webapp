@@ -4,9 +4,9 @@
       "name": "empty_query",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -21,7 +21,7 @@
       ],
       "query": "",
       "expected_ids": [
-        "toyota",
+        "auto",
         "sony",
         "softbank"
       ]
@@ -30,9 +30,9 @@
       "name": "blank_query",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -47,7 +47,7 @@
       ],
       "query": "   ",
       "expected_ids": [
-        "toyota",
+        "auto",
         "sony",
         "softbank"
       ]
@@ -56,9 +56,9 @@
       "name": "code_partial",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -71,18 +71,18 @@
           "security_name": "ソフトバンクグループ"
         }
       ],
-      "query": "7203",
+      "query": "9904",
       "expected_ids": [
-        "toyota"
+        "auto"
       ]
     },
     {
       "name": "code_substring",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -95,18 +95,18 @@
           "security_name": "ソフトバンクグループ"
         }
       ],
-      "query": "720",
+      "query": "990",
       "expected_ids": [
-        "toyota"
+        "auto"
       ]
     },
     {
       "name": "name_partial",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -128,9 +128,9 @@
       "name": "name_shared_word",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -153,9 +153,9 @@
       "name": "and_tokens",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -177,9 +177,9 @@
       "name": "and_tokens_no_match",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -192,16 +192,16 @@
           "security_name": "ソフトバンクグループ"
         }
       ],
-      "query": "7203 グループ",
+      "query": "9904 グループ",
       "expected_ids": []
     },
     {
       "name": "quoted_name",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -223,9 +223,9 @@
       "name": "label_half_width_colon",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -247,9 +247,9 @@
       "name": "label_full_width_colon",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -271,9 +271,9 @@
       "name": "no_match",
       "data": [
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         },
         {
           "id": "sony",
@@ -293,38 +293,38 @@
       "name": "full_width_name_matches_half_width_query",
       "data": [
         {
-          "id": "inpex",
-          "security_code": "1605",
-          "security_name": "ＩＮＰＥＸ"
+          "id": "res",
+          "security_code": "9901",
+          "security_name": "ＸＹＺ"
         },
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         }
       ],
-      "query": "INPEX",
+      "query": "XYZ",
       "expected_ids": [
-        "inpex"
+        "res"
       ]
     },
     {
       "name": "half_width_query_matches_full_width_name",
       "data": [
         {
-          "id": "kddi",
-          "security_code": "9433",
-          "security_name": "KDDI"
+          "id": "com",
+          "security_code": "9911",
+          "security_name": "XYZ"
         },
         {
-          "id": "toyota",
-          "security_code": "7203",
-          "security_name": "トヨタ自動車"
+          "id": "auto",
+          "security_code": "9904",
+          "security_name": "架空自動車"
         }
       ],
-      "query": "ｋｄｄｉ",
+      "query": "ｘｙｚ",
       "expected_ids": [
-        "kddi"
+        "com"
       ]
     }
   ]

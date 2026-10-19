@@ -69,14 +69,14 @@ fn percentage_formatter_formats_values() {
 #[test]
 fn holding_dividend_matches_component_cases() {
     let maps = DividendMaps {
-        per_share: HashMap::from([("7203".to_string(), 50.0), ("6758".to_string(), 360.0)]),
+        per_share: HashMap::from([("9904".to_string(), 50.0), ("6758".to_string(), 360.0)]),
         status: HashMap::from([
             ("0001".to_string(), "pending".to_string()),
             ("0002".to_string(), "error".to_string()),
             ("0003".to_string(), "zero".to_string()),
         ]),
     };
-    let with_data = holding_dividend("7203", 100.0, 2500.0, &maps);
+    let with_data = holding_dividend("9904", 100.0, 2500.0, &maps);
     assert_eq!(with_data.per_share, Some(50.0));
     assert_eq!(with_data.annual, Some(5000.0));
     assert_eq!(with_data.yield_value, Some(2.0));
@@ -98,7 +98,7 @@ fn holding_dividend_matches_component_cases() {
     assert_eq!(format_dividend_per_share(&zero), "¥0");
     assert_eq!(format_dividend_yield(&zero), "—");
 
-    let zero_price = holding_dividend("7203", 10.0, 0.0, &maps);
+    let zero_price = holding_dividend("9904", 10.0, 0.0, &maps);
     assert_eq!(zero_price.yield_value, None);
 
     let mut maps = maps;
@@ -126,9 +126,9 @@ fn holding_dividend_matches_component_cases() {
 
 #[test]
 fn security_name_normalization_cases() {
-    assert_eq!(normalize_display_name("ＫＤＤＩ"), "KDDI");
-    assert_eq!(normalize_display_name("トヨタ自動車"), "トヨタ自動車");
-    assert_eq!(normalize_security_code(" 7203: トヨタ自動車 "), "7203");
+    assert_eq!(normalize_display_name("ＸＹＺ"), "XYZ");
+    assert_eq!(normalize_display_name("架空自動車"), "架空自動車");
+    assert_eq!(normalize_security_code(" 9904: 架空自動車 "), "9904");
 }
 
 #[test]
@@ -182,8 +182,8 @@ fn number_and_currency_formatters_match_intl_cases() {
 fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
     let owner = Owner::new();
     owner.with(|| {
-        let mut toyota = balance_row(7203);
-        toyota.security_name = "トヨタ自動車".to_string();
+        let mut toyota = balance_row(9904);
+        toyota.security_name = "架空自動車".to_string();
         toyota.total_purchase_amount = rust_decimal_macros::dec!(100000);
         let mut sony = balance_row(6758);
         sony.security_name = "ソニーグループ".to_string();
@@ -199,9 +199,9 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         let saved_rows: Vec<AssetBalanceRow> =
             loaded.rows.iter().cloned().map(Row::Saved).collect();
 
-        let filtered = filtered_portfolio(&saved_rows, "7203", lookup, Generation::new(1));
+        let filtered = filtered_portfolio(&saved_rows, "9904", lookup, Generation::new(1));
         assert_eq!(filtered.views.len(), 1);
-        assert_eq!(filtered.views[0].code, "7203");
+        assert_eq!(filtered.views[0].code, "9904");
         // 集計は絞り込み前の全保有分を使う
         assert_eq!(filtered.all_views.len(), 2);
 
@@ -217,7 +217,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
             .collect();
         let total_purchase = total_purchase_amount(&kpi_holdings);
         let dividends = RwSignal::new(DividendMaps {
-            per_share: HashMap::from([("7203".to_string(), 50.0)]),
+            per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
         });
         let kpi =
@@ -240,7 +240,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         );
         assert_eq!(valuation.market_value, Some(520000.0));
 
-        let mut first = balance_row(7203);
+        let mut first = balance_row(9904);
         first.security_name = "Decimal 検証対象 A".to_string();
         first.total_purchase_amount = rust_decimal_macros::dec!(1000.05);
         let mut second = balance_row(6758);
@@ -273,15 +273,15 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
     owner.with(|| {
         // lookup に同じ銘柄コード・別金額の保存済み行を置く。
         // Row::Saved なら lookup で置き換わるが、Preview は CSV の値をそのまま見せる
-        let mut saved = balance_row(7203);
-        saved.security_name = "保存済みトヨタ".to_string();
+        let mut saved = balance_row(9904);
+        saved.security_name = "保存済み架空".to_string();
         saved.total_purchase_amount = rust_decimal_macros::dec!(999999);
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&saved)));
 
         let preview = AssetBalanceCsvRow {
-            security_code: "7203".to_string(),
-            security_name: "CSVトヨタ".to_string(),
+            security_code: "9904".to_string(),
+            security_name: "CSV架空".to_string(),
             total_purchase_amount: rust_decimal_macros::dec!(100),
             ..AssetBalanceCsvRow::default()
         };
@@ -290,8 +290,8 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
         // Preview 行は lookup で置き換えず CSV の値をそのまま見せる
         let filtered = filtered_portfolio(&rows, "", lookup, Generation::new(1));
         assert_eq!(filtered.views.len(), 1);
-        assert_eq!(filtered.views[0].code, "7203");
-        assert_eq!(filtered.views[0].name, "CSVトヨタ");
+        assert_eq!(filtered.views[0].code, "9904");
+        assert_eq!(filtered.views[0].name, "CSV架空");
         assert_eq!(filtered.views[0].purchase, 100.0);
     });
 }
@@ -323,7 +323,7 @@ fn dividend_maps_apply_only_to_current_generation() {
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
         let fresh = DividendMaps {
-            per_share: HashMap::from([("7203".to_string(), 50.0)]),
+            per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
         };
         apply_dividend_maps(&balances, &dividends, Generation::new(7), fresh.clone());
@@ -341,7 +341,7 @@ fn dividend_maps_apply_only_to_current_generation() {
         apply_dividend_maps(&balances, &dividends, Generation::new(8), fresh.clone());
         assert!(dividends.get_untracked().per_share.is_empty());
         apply_dividend_maps(&balances, &dividends, Generation::new(7), fresh);
-        assert_eq!(dividends.get_untracked().per_share.get("7203"), Some(&50.0));
+        assert_eq!(dividends.get_untracked().per_share.get("9904"), Some(&50.0));
     });
 }
 
@@ -373,14 +373,14 @@ fn dividend_update_does_not_notify_balance_view() {
             &dividends,
             Generation::new(7),
             DividendMaps {
-                per_share: HashMap::from([("7203".to_string(), 50.0)]),
+                per_share: HashMap::from([("9904".to_string(), 50.0)]),
                 status: HashMap::new(),
             },
         );
 
         assert!(balance_view.get());
         assert_eq!(runs.get_untracked(), 1);
-        assert_eq!(dividends.get_untracked().per_share.get("7203"), Some(&50.0));
+        assert_eq!(dividends.get_untracked().per_share.get("9904"), Some(&50.0));
     });
 }
 
@@ -455,7 +455,7 @@ fn sort_labels_distinguish_each_option() {
 #[test]
 fn mobile_search_stays_open_while_query_is_active() {
     // 語が残っている間に欄を閉じられると、一覧が減る理由が見えなくなる
-    assert!(super::mobile_bar::mobile_search_open(false, "トヨタ"));
+    assert!(super::mobile_bar::mobile_search_open(false, "架空"));
     assert!(!super::mobile_bar::mobile_search_open(false, ""));
     assert!(super::mobile_bar::mobile_search_open(true, ""));
 }
@@ -466,8 +466,8 @@ fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
     owner.with(|| {
         // lookup が同じ銘柄コードの別レコードを返しても、詳細リンクの ID は
         // 一覧に並んだ保存済み行のものを使う
-        let saved = balance_row(7203);
-        let mut other_record = balance_row(7203);
+        let saved = balance_row(9904);
+        let mut other_record = balance_row(9904);
         other_record.id = "other-record".to_string().into();
         other_record.security_name = "差し替わり行".to_string();
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
@@ -495,7 +495,7 @@ fn resolve_asset_balance_carries_api_total() {
     owner.with(|| {
         let generation = Generation::new(1);
         let loaded = LoadedAssetBalances {
-            rows: vec![balance_row(7203)],
+            rows: vec![balance_row(9904)],
             total: 150000,
             summary: None,
             truncated: true,
@@ -514,7 +514,7 @@ fn composition_basis_matches_abs_sum_percentages() {
     let owner = Owner::new();
     owner.with(|| {
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        let mut positive = balance_row(7203);
+        let mut positive = balance_row(9904);
         positive.total_purchase_amount = rust_decimal_macros::dec!(100);
         let mut negative = balance_row(6758);
         negative.total_purchase_amount = rust_decimal_macros::dec!(-50);
@@ -536,7 +536,7 @@ fn list_subtitle_uses_api_totals_when_truncated() {
     owner.with(|| {
         // 読み込み済み行は価格あり1件だけだが、API 集計は価格なし行を含む
         let resolved = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(7203))],
+            rows: vec![Row::Saved(balance_row(9904))],
             total: 150000,
             warning: None,
             fallback_totals: Some(AssetBalanceSummary {
@@ -561,7 +561,7 @@ fn list_subtitle_uses_api_totals_when_truncated() {
         let mut unpriced = balance_row(6758);
         unpriced.current_price = rust_decimal_macros::dec!(0);
         let resolved = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(7203)), Row::Saved(unpriced)],
+            rows: vec![Row::Saved(balance_row(9904)), Row::Saved(unpriced)],
             total: 2,
             warning: None,
             fallback_totals: None,
@@ -583,7 +583,7 @@ fn list_subtitle_excludes_unpriced_rows_from_price_dates() {
         unpriced.current_price = rust_decimal_macros::dec!(0);
         unpriced.price_as_of = Some("2024-01-01".to_string());
         let resolved = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(7203)), Row::Saved(unpriced)],
+            rows: vec![Row::Saved(balance_row(9904)), Row::Saved(unpriced)],
             total: 2,
             warning: None,
             fallback_totals: None,
@@ -600,7 +600,7 @@ fn list_subtitle_shows_single_date_when_all_rows_share_as_of() {
     owner.with(|| {
         // 基準日が揃っているときは範囲ではなく単一の日付を出す
         let resolved = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(7203)), Row::Saved(balance_row(6758))],
+            rows: vec![Row::Saved(balance_row(9904)), Row::Saved(balance_row(6758))],
             total: 2,
             warning: None,
             fallback_totals: None,

@@ -15,8 +15,8 @@ fn preview_response_deserializes_wire_rows_per_tab() {
             "settlement_date": "2024-03-01",
             "product": "特定口座",
             "account": "SBI証券",
-            "security_code": "7203",
-            "security_name": "トヨタ自動車",
+            "security_code": "9904",
+            "security_name": "架空自動車",
             "unit_price": 30.0,
             "shares": 100,
             "dividends_before_tax": 3000,
@@ -31,7 +31,7 @@ fn preview_response_deserializes_wire_rows_per_tab() {
     let CsvPreviewRow::Dividend(row) = &preview.rows[0] else {
         panic!("dividend row expected")
     };
-    assert_eq!(row.security_name, "トヨタ自動車");
+    assert_eq!(row.security_name, "架空自動車");
     assert_eq!(row.unit_price, dec!(30.0));
     assert_eq!(row.shares, dec!(100));
 
@@ -71,7 +71,7 @@ fn preview_response_deserializes_wire_rows_per_tab() {
             "rows": [{
                 "trade_date": "2024-01-15",
                 "settlement_date": "2024-01-17",
-                "fund_name": "eMAXIS Slim 全世界株式",
+                "fund_name": "架空インデックス 全世界株式",
                 "dividends": "再投資型",
                 "account": "楽天証券",
                 "shares": 10000,
@@ -89,7 +89,7 @@ fn preview_response_deserializes_wire_rows_per_tab() {
     let CsvPreviewRow::MutualFund(row) = &preview.rows[0] else {
         panic!("mutualfund row expected")
     };
-    assert_eq!(row.fund_name, "eMAXIS Slim 全世界株式");
+    assert_eq!(row.fund_name, "架空インデックス 全世界株式");
     assert_eq!(row.dividends.as_deref(), Some("再投資型"));
     assert_eq!(row.cancellation_amount_yen, dec!(120000));
 }
@@ -99,9 +99,9 @@ fn preview_row_with_missing_fields_uses_defaults() {
     // フィールド欠落は serde(default) で穴埋めする。行自体がオブジェクトでない場合は
     // レスポンス全体がパースエラーになる
     let row: DividendCsvRow =
-        serde_json::from_value(serde_json::json!({"security_name": "トヨタ自動車"}))
+        serde_json::from_value(serde_json::json!({"security_name": "架空自動車"}))
             .expect("lenient row");
-    assert_eq!(row.security_name, "トヨタ自動車");
+    assert_eq!(row.security_name, "架空自動車");
     assert_eq!(row.unit_price, dec!(0));
     assert!(serde_json::from_value::<DividendCsvRow>(serde_json::Value::Null).is_err());
 }
@@ -113,32 +113,32 @@ fn preview_rows_expose_row_accessors_without_saved_id() {
             Row::Preview(CsvPreviewRow::Dividend(DividendCsvRow {
                 settlement_date: "2024-03-01".to_string(),
                 product: "特定口座".to_string(),
-                security_name: "トヨタ自動車".to_string(),
+                security_name: "架空自動車".to_string(),
                 net_amount_received: dec!(2391),
                 ..Default::default()
             })),
             "2024-03-01",
-            "トヨタ自動車",
+            "架空自動車",
         ),
         (
             Row::Preview(CsvPreviewRow::DomesticStock(DomesticStockCsvRow {
                 trade_date: "2024-02-01".to_string(),
-                security_name: "任天堂".to_string(),
+                security_name: "架空ゲーム".to_string(),
                 realized_profit_and_loss_after_tax: dec!(3985),
                 ..Default::default()
             })),
             "2024-02-01",
-            "任天堂",
+            "架空ゲーム",
         ),
         (
             Row::Preview(CsvPreviewRow::MutualFund(MutualfundCsvRow {
                 trade_date: "2024-02-03".to_string(),
-                fund_name: "eMAXIS Slim 全世界株式".to_string(),
+                fund_name: "架空インデックス 全世界株式".to_string(),
                 dividends: None,
                 ..Default::default()
             })),
             "2024-02-03",
-            "eMAXIS Slim 全世界株式",
+            "架空インデックス 全世界株式",
         ),
     ];
     for (row, date, name) in cases {
@@ -154,11 +154,11 @@ fn preview_rows_expose_row_accessors_without_saved_id() {
 fn preview_rows_show_unparseable_code_and_account_verbatim() {
     // newtype の検証に通らない値も、"0" や "-" へ差し替えず元の文字列を表示する
     let row = Row::Preview(CsvPreviewRow::DomesticStock(DomesticStockCsvRow {
-        security_code: "7203-1".to_string(),
+        security_code: "9904-1".to_string(),
         account: String::new(),
         ..Default::default()
     }));
-    assert_eq!(row.code(), "7203-1");
+    assert_eq!(row.code(), "9904-1");
     assert_eq!(row.account(), "");
 }
 

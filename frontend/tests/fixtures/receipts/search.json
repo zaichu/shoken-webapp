@@ -1385,7 +1385,7 @@
         {
           "id": "full",
           "code": "1234",
-          "name": "ＮＴＴ",
+          "name": "ＴＥＬＥ",
           "category": "A",
           "date": "2023-01-15",
           "amount": 100
@@ -1393,13 +1393,13 @@
         {
           "id": "half",
           "code": "5678",
-          "name": "NTT",
+          "name": "TELE",
           "category": "B",
           "date": "2023-02-20",
           "amount": 200
         }
       ],
-      "query": "ＮＴＴ",
+      "query": "ＴＥＬＥ",
       "config": {
         "stringFields": [
           "name"

@@ -41,8 +41,8 @@ const RULES: &[GroupKeyRule<'static, TestItem>] = &[
 
 fn create_item() -> TestItem {
     TestItem {
-        code: "7203".to_string(),
-        name: "トヨタ自動車".to_string(),
+        code: "9904".to_string(),
+        name: "架空自動車".to_string(),
         product: "国内株式".to_string(),
         date: "2024-03-15".to_string(),
     }
@@ -56,14 +56,14 @@ fn empty_query_returns_date_key() {
 
 #[test]
 fn code_match_returns_name_group() {
-    let fn_ = create_group_key_fn("7203", date_key_fn, RULES);
-    assert_eq!(fn_(&create_item()), "トヨタ自動車");
+    let fn_ = create_group_key_fn("9904", date_key_fn, RULES);
+    assert_eq!(fn_(&create_item()), "架空自動車");
 }
 
 #[test]
 fn name_match_returns_name_group() {
-    let fn_ = create_group_key_fn("トヨタ自動車", date_key_fn, RULES);
-    assert_eq!(fn_(&create_item()), "トヨタ自動車");
+    let fn_ = create_group_key_fn("架空自動車", date_key_fn, RULES);
+    assert_eq!(fn_(&create_item()), "架空自動車");
 }
 
 #[test]
@@ -80,8 +80,8 @@ fn no_match_returns_date_key() {
 
 #[test]
 fn and_query_first_match_wins() {
-    let fn_ = create_group_key_fn("7203 国内株式", date_key_fn, RULES);
-    assert_eq!(fn_(&create_item()), "トヨタ自動車");
+    let fn_ = create_group_key_fn("9904 国内株式", date_key_fn, RULES);
+    assert_eq!(fn_(&create_item()), "架空自動車");
 }
 
 #[test]
@@ -90,15 +90,15 @@ fn partial_match_rule_works() {
         test: |item: &TestItem, t: &str| item.name.to_lowercase().contains(t),
         key_fn: &|item: &TestItem| item.name.clone(),
     }];
-    let fn_ = create_group_key_fn("トヨタ", date_key_fn, partial_rules);
-    assert_eq!(fn_(&create_item()), "トヨタ自動車");
+    let fn_ = create_group_key_fn("架空", date_key_fn, partial_rules);
+    assert_eq!(fn_(&create_item()), "架空自動車");
 }
 
 fn security_data() -> Vec<TestItem> {
     vec![
         TestItem {
-            code: "7203".to_string(),
-            name: "トヨタ自動車".to_string(),
+            code: "9904".to_string(),
+            name: "架空自動車".to_string(),
             product: "".to_string(),
             date: String::new(),
         },
@@ -130,12 +130,12 @@ fn derive_security_code_empty_query() {
 fn derive_security_code_half_width_colon() {
     assert_eq!(
         derive_security_code_from_query(
-            "7203: トヨタ自動車",
+            "9904: 架空自動車",
             &security_data(),
             code_getter,
             name_getter
         ),
-        "7203"
+        "9904"
     );
 }
 
@@ -143,35 +143,35 @@ fn derive_security_code_half_width_colon() {
 fn derive_security_code_full_width_colon() {
     assert_eq!(
         derive_security_code_from_query(
-            "7203：トヨタ自動車",
+            "9904：架空自動車",
             &security_data(),
             code_getter,
             name_getter
         ),
-        "7203"
+        "9904"
     );
 }
 
 #[test]
 fn derive_security_code_exact_code_match() {
     assert_eq!(
-        derive_security_code_from_query("7203", &security_data(), code_getter, name_getter),
-        "7203"
+        derive_security_code_from_query("9904", &security_data(), code_getter, name_getter),
+        "9904"
     );
 }
 
 #[test]
 fn derive_security_code_exact_name_match() {
     assert_eq!(
-        derive_security_code_from_query("トヨタ自動車", &security_data(), code_getter, name_getter),
-        "7203"
+        derive_security_code_from_query("架空自動車", &security_data(), code_getter, name_getter),
+        "9904"
     );
 }
 
 #[test]
 fn derive_security_code_no_match() {
     assert_eq!(
-        derive_security_code_from_query("任天堂", &security_data(), code_getter, name_getter),
+        derive_security_code_from_query("架空ゲーム", &security_data(), code_getter, name_getter),
         ""
     );
 }
@@ -220,12 +220,12 @@ fn derive_security_code_case_insensitive() {
 fn derive_security_code_treats_feff_as_whitespace() {
     assert_eq!(
         derive_security_code_from_query(
-            "\u{FEFF}7203\u{FEFF}:トヨタ自動車",
+            "\u{FEFF}9904\u{FEFF}:架空自動車",
             &security_data(),
             code_getter,
             name_getter
         ),
-        "7203"
+        "9904"
     );
 }
 
@@ -233,7 +233,7 @@ fn derive_security_code_treats_feff_as_whitespace() {
 fn derive_security_code_does_not_treat_u0085_as_whitespace() {
     assert_eq!(
         derive_security_code_from_query(
-            "\u{0085}7203:トヨタ自動車",
+            "\u{0085}9904:架空自動車",
             &security_data(),
             code_getter,
             name_getter

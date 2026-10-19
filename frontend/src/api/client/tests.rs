@@ -137,8 +137,8 @@ fn url_building() {
     let client = ApiClient::new(String::new(), 1, 0, 1, 1);
     assert_eq!(client.url("/api/v1/session", &[]), "/api/v1/session");
     assert_eq!(
-        client.url("/api/v1/stocks", &[("query", "7974")]),
-        "/api/v1/stocks?query=7974"
+        client.url("/api/v1/stocks", &[("query", "9905")]),
+        "/api/v1/stocks?query=9905"
     );
     let prefixed = ApiClient::new("https://example.test".to_string(), 1, 0, 1, 1);
     assert_eq!(

@@ -15,8 +15,8 @@ const DIVIDEND = {
   settlement_date: '2024-03-01',
   product: '特定口座',
   account: 'SBI証券',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   unit_price: 30.0,
   shares: 100,
   dividends_before_tax: 3000,
@@ -30,7 +30,7 @@ const FUND = {
   id: '00000000-0000-0000-0000-000000000005',
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
-  fund_name: 'eMAXIS Slim 全世界株式(オール・カントリー)',
+  fund_name: '架空インデックス 全世界株式(オール・ワールド)',
   account: 'NISA',
   shares: 1000,
   exchange_rate: 1,
@@ -49,8 +49,8 @@ const DOMESTIC = {
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
   account: 'SBI証券',
-  security_code: '7974',
-  security_name: '任天堂',
+  security_code: '9905',
+  security_name: '架空ゲーム',
   shares: 10,
   asked_price: 5000,
   proceeds: 55000,
@@ -135,7 +135,7 @@ test('CSVプレビューで内容が同じ行も明細行ごとに1件ずつ出�
       card.locator('.receipt-compact-toggle'),
     ).toHaveAttribute('aria-expanded', 'false');
     await expect(
-      card.getByRole('button', { name: 'トヨタ自動車(7203) をコピー' }),
+      card.getByRole('button', { name: '架空自動車(9904) をコピー' }),
     ).toBeVisible();
     await expect(card.locator('.receipt-compact-net')).toHaveText('¥2,391');
   }
@@ -154,7 +154,7 @@ test('行一覧はスマホ幅に収まり、長いファンド名は省略せ�
 
   await page.getByRole('tab', { name: /投資信託/ }).click();
   const name = cardList.getByRole('button', {
-    name: 'eMAXIS Slim 全世界株式(オール・カントリー) をコピー',
+    name: '架空インデックス 全世界株式(オール・ワールド) をコピー',
   });
   await expect(name).toBeVisible();
   const nameBox = await name.boundingBox();

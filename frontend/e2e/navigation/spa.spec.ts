@@ -15,8 +15,8 @@ const DIVIDEND = {
   settlement_date: '2024-03-01',
   product: '特定口座',
   account: 'SBI証券',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   unit_price: 30.0,
   shares: 100,
   dividends_before_tax: 3000,
@@ -30,8 +30,8 @@ const ASSET = {
   id: 'asset-balance-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  security_code: '7203',
-  security_name: 'トヨタ自動車',
+  security_code: '9904',
+  security_name: '架空自動車',
   shares: 100,
   average_purchase_price: 2500,
   total_purchase_amount: 250000,
@@ -43,8 +43,8 @@ const ASSET = {
 
 const STOCK = {
   date: '2024-03-01',
-  code: '7203',
-  name: 'トヨタ自動車',
+  code: '9904',
+  name: '架空自動車',
   market_category: 'プライム',
   industry_category_33: '輸送用機器',
   industry_category_17: '自動車・輸送機',
@@ -81,7 +81,7 @@ async function setupApiMocks(page: Page, counts: ApiCounts, authed = true) {
             priced_purchase_amount: 250000,
             priced_market_value: 260000,
           },
-          facets: { securities: [{ value: '7203', label: 'トヨタ自動車', count: 1 }] },
+          facets: { securities: [{ value: '9904', label: '架空自動車', count: 1 }] },
         }),
       ),
     );
@@ -124,7 +124,7 @@ test('ナビ遷移はページリロードせず session も再取得しない',
   await setMarker(page);
 
   await nav(page, '取引明細').click();
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
   await expect(page).toHaveURL(/\/receipts$/);
   await expect(page).toHaveTitle('取引明細 - 証券Web');
   // SPA 遷移後はフォーカスを main に移してキーボード操作の文脈を維持する
@@ -133,7 +133,7 @@ test('ナビ遷移はページリロードせず session も再取得しない',
 
   await nav(page, '資産管理').click();
   await expect(
-    page.getByTestId('assetbalance-main-stage').getByText('トヨタ自動車').first(),
+    page.getByTestId('assetbalance-main-stage').getByText('架空自動車').first(),
   ).toBeVisible();
   await expect(page).toHaveURL(/\/assetbalance$/);
   await expect(page).toHaveTitle('資産管理 - 証券Web');
@@ -153,7 +153,7 @@ test('アクティブなナビリンクの aria-current が遷移に追随する
 
   await page.goto('/');
   await nav(page, '取引明細').click();
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
 
   await expect(nav(page, '取引明細')).toHaveAttribute('aria-current', 'page');
   await expect(nav(page, '資産管理')).not.toHaveAttribute('aria-current');
@@ -176,21 +176,21 @@ test('再訪では表示済みデータを残したまま裏で取り直す', as
 
   await page.goto('/');
   await nav(page, '取引明細').click();
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
   expect(counts.dividends).toBe(1);
 
   await nav(page, '資産管理').click();
   await expect(
-    page.getByTestId('assetbalance-main-stage').getByText('トヨタ自動車').first(),
+    page.getByTestId('assetbalance-main-stage').getByText('架空自動車').first(),
   ).toBeVisible();
 
   const secondFetch = page.waitForRequest(/\/api\/v1\/dividends/);
   await nav(page, '取引明細').click();
   // 裏再取得の応答を待たずにキャッシュ済みの行が見えている(スケルトンに戻らない)
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
   await secondFetch;
   await expect.poll(() => counts.dividends).toBe(2);
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
 });
 
 test('裏再取得が失敗しても表示済みの行を残してエラーを知らせる', async ({ page }) => {
@@ -210,18 +210,18 @@ test('裏再取得が失敗しても表示済みの行を残してエラーを�
 
   await page.goto('/');
   await nav(page, '取引明細').click();
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
 
   await nav(page, '資産管理').click();
   await expect(
-    page.getByTestId('assetbalance-main-stage').getByText('トヨタ自動車').first(),
+    page.getByTestId('assetbalance-main-stage').getByText('架空自動車').first(),
   ).toBeVisible();
 
   const refresh = page.waitForResponse(/\/api\/v1\/dividends/);
   await nav(page, '取引明細').click();
   await refresh;
   // 失敗しても表示済みの行は消さず、エラーを alert で知らせる
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
   await expect(page.getByRole('alert')).toContainText('サーバーエラーが発生しました');
 });
 
@@ -232,7 +232,7 @@ test('ブラウザの戻る・進むでページが切り替わる', async ({ pa
   await page.goto('/');
   await setMarker(page);
   await nav(page, '取引明細').click();
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
@@ -241,7 +241,7 @@ test('ブラウザの戻る・進むでページが切り替わる', async ({ pa
 
   await page.goForward();
   await expect(page).toHaveURL(/\/receipts$/);
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
 });
 
 test('未ログインで保護ページに行くと /login に置き換え遷移する', async ({ page }) => {
@@ -267,12 +267,12 @@ test('明細の銘柄コードリンクから検索結果へ遷移する', async
   await setupApiMocks(page, counts);
 
   await page.goto('/receipts');
-  await expect(page.getByRole('cell', { name: 'トヨタ自動車' }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: '架空自動車' }).first()).toBeVisible();
 
-  await page.locator('a[href="/search?code=7203"]').first().click();
-  await expect(page).toHaveURL(/\/search\?code=7203$/);
+  await page.locator('a[href="/search?code=9904"]').first().click();
+  await expect(page).toHaveURL(/\/search\?code=9904$/);
   await expect(page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' })).toBeVisible();
-  await expect(page.getByText('トヨタ自動車').first()).toBeVisible();
+  await expect(page.getByText('架空自動車').first()).toBeVisible();
 });
 
 test('スキップリンクは同一ページ内の移動のまま余計な API を出さない', async ({ page }) => {

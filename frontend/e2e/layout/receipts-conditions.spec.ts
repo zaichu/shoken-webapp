@@ -13,8 +13,8 @@ const DIVIDENDS = [
     settlement_date: '2024-03-01',
     product: '特定口座',
     account: 'SBI証券',
-    security_code: '7203',
-    security_name: 'トヨタ自動車',
+    security_code: '9904',
+    security_name: '架空自動車',
     unit_price: 30.0,
     shares: 100,
     dividends_before_tax: 3000,
@@ -28,8 +28,8 @@ const DIVIDENDS = [
     settlement_date: '2023-06-01',
     product: 'NISA口座',
     account: '楽天証券',
-    security_code: '9432',
-    security_name: '日本電信電話',
+    security_code: '9910',
+    security_name: '架空電信電話',
     unit_price: 120.0,
     shares: 200,
     dividends_before_tax: 5000,
@@ -79,9 +79,9 @@ test('検索条件ページから商品と口座を選んで一覧と件数に�
   await expect(page).toHaveURL('/receipts');
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(
-    page.getByTestId('receipt-card-list').getByText('トヨタ自動車').filter({ visible: true }),
+    page.getByTestId('receipt-card-list').getByText('架空自動車').filter({ visible: true }),
   ).toBeVisible();
-  await expect(page.getByText('日本電信電話')).toHaveCount(0);
+  await expect(page.getByText('架空電信電話')).toHaveCount(0);
 });
 
 test('期間と条件は同時に併用でき、「すべて」で期間だけ解除できる', async ({ page }) => {
@@ -94,7 +94,7 @@ test('期間と条件は同時に併用でき、「すべて」で期間だけ�
 
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(
-    page.getByTestId('receipt-card-list').getByText('トヨタ自動車').filter({ visible: true }),
+    page.getByTestId('receipt-card-list').getByText('架空自動車').filter({ visible: true }),
   ).toBeVisible();
 
   // 適用中の条件チップから個別に解除できる

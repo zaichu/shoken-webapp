@@ -4,10 +4,10 @@ use crate::testing::block_on;
 #[test]
 fn fetch_dividend_batch_uses_shared_request_without_changing_wire_codes() {
     let codes = vec![
-        "7203".to_string(),
-        "7203".to_string(),
+        "9904".to_string(),
+        "9904".to_string(),
         "".to_string(),
-        "7203-1".to_string(),
+        "9904-1".to_string(),
     ];
     let result = block_on(fetch_dividend_batch(
         &codes,
@@ -26,9 +26,9 @@ fn fetch_dividend_batch_uses_shared_request_without_changing_wire_codes() {
 fn dividend_response_projection_keeps_partial_and_unknown_status_compatibility() {
     for value in [
         serde_json::json!({}),
-        serde_json::json!({"items":[{"security_code":"7203","status":"ok","dividend_per_share":50}]}),
-        serde_json::json!({"items":[{"security_code":"7203","status":"future","dividend_per_share":50,"is_stale":false}]}),
-        serde_json::json!({"items":[{"security_code":"7203","dividend_per_share":50,"is_stale":false}]}),
+        serde_json::json!({"items":[{"security_code":"9904","status":"ok","dividend_per_share":50}]}),
+        serde_json::json!({"items":[{"security_code":"9904","status":"future","dividend_per_share":50,"is_stale":false}]}),
+        serde_json::json!({"items":[{"security_code":"9904","dividend_per_share":50,"is_stale":false}]}),
     ] {
         assert!(serde_json::from_value::<DividendBatchResponse>(value.clone()).is_ok());
         assert!(
@@ -43,8 +43,8 @@ fn dividend_response_projection_keeps_partial_and_unknown_status_compatibility()
 #[test]
 fn unique_sorted_codes_dedupes() {
     assert_eq!(
-        unique_sorted_codes(&["6758".to_string(), "7203".to_string(), "6758".to_string()]),
-        vec!["6758".to_string(), "7203".to_string()]
+        unique_sorted_codes(&["6758".to_string(), "9904".to_string(), "6758".to_string()]),
+        vec!["6758".to_string(), "9904".to_string()]
     );
     assert!(unique_sorted_codes(&[]).is_empty());
 }
@@ -70,7 +70,7 @@ fn estimate(code: &str, per_share: Option<f64>, status: &str) -> DividendEstimat
 fn dividend_batch_maps_match_hook() {
     let batch = DividendBatchResponse {
         items: vec![
-            estimate("7203", Some(50.0), "ok"),
+            estimate("9904", Some(50.0), "ok"),
             estimate("6758", Some(0.0), "ok"),
             estimate("0001", None, "pending"),
             estimate("0002", None, "error"),
@@ -80,7 +80,7 @@ fn dividend_batch_maps_match_hook() {
     };
     let (maps, has_pending) = dividend_maps_from_batch(&batch);
     assert!(has_pending);
-    assert_eq!(maps.per_share.get("7203"), Some(&50.0));
+    assert_eq!(maps.per_share.get("9904"), Some(&50.0));
     assert!(!maps.per_share.contains_key("6758"));
     assert!(!maps.per_share.contains_key("0003"));
     assert!(!maps.per_share.contains_key("0004"));
@@ -89,7 +89,7 @@ fn dividend_batch_maps_match_hook() {
     assert_eq!(maps.status.get("0003").map(String::as_str), Some("zero"));
 
     let settled = DividendBatchResponse {
-        items: vec![estimate("7203", Some(50.0), "ok")],
+        items: vec![estimate("9904", Some(50.0), "ok")],
     };
     let (_, settled_pending) = dividend_maps_from_batch(&settled);
     assert!(!settled_pending);
@@ -100,7 +100,7 @@ fn dividend_batch_maps_match_hook() {
 #[test]
 fn fetch_dividend_batch_forwards_codes_and_returns_response() {
     let captured = std::cell::RefCell::new(Vec::new());
-    let codes = vec!["6758".to_string(), "7203".to_string(), "6758".to_string()];
+    let codes = vec!["6758".to_string(), "9904".to_string(), "6758".to_string()];
     let result = block_on(fetch_dividend_batch(&codes, |request| {
         *captured.borrow_mut() = request
             .security_codes
@@ -108,20 +108,20 @@ fn fetch_dividend_batch_forwards_codes_and_returns_response() {
             .map(String::from)
             .collect();
         std::future::ready(Ok(DividendBatchResponse {
-            items: vec![estimate("7203", Some(50.0), "ok")],
+            items: vec![estimate("9904", Some(50.0), "ok")],
         }))
     }));
 
     assert_eq!(*captured.borrow(), codes);
     let response = result.expect("モック応答をそのまま返すはず");
     assert_eq!(response.items.len(), 1);
-    assert_eq!(response.items[0].security_code, "7203");
+    assert_eq!(response.items[0].security_code, "9904");
     assert_eq!(response.items[0].dividend_per_share, Some(50.0));
 }
 
 #[test]
 fn fetch_dividend_batch_propagates_http_error() {
-    let result = block_on(fetch_dividend_batch(&["7203".to_string()], |_request| {
+    let result = block_on(fetch_dividend_batch(&["9904".to_string()], |_request| {
         std::future::ready(Err(ApiError::Parse))
     }));
     assert_eq!(result.unwrap_err(), ApiError::Parse);

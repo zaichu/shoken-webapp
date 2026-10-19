@@ -210,8 +210,8 @@ async fn stock_master_replace_master_swaps_all_rows() {
         },
         stock_master::StockRow {
             date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
-            code: "7203".to_string(),
-            name: "トヨタ自動車".to_string(),
+            code: "9904".to_string(),
+            name: "架空自動車".to_string(),
             market_category: "プライム".to_string(),
             industry_category_33: None,
             industry_category_17: None,
@@ -491,21 +491,21 @@ fn make_mutualfund_item(fund_name: &str) -> CreateMutualfundRequest {
 fn make_mutualfund_csv() -> &'static str {
     concat!(
         "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n",
-        "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\""
+        "\"2022/10/28\",\"2022/11/2\",\"架空インデックス 米国株式\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"600000\""
     )
 }
 
 fn make_dividend_csv() -> &'static str {
     concat!(
         "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
-        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8592\",\"テスト配当\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\""
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8592\",\"テスト配当\",\"円\",\"90.00\",\"200\",\"18000\",\"3656\",\"14344\""
     )
 }
 
 fn make_domestic_stock_csv() -> &'static str {
     concat!(
         "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]\n",
-        "\"2026/02/09\",\"2026/02/12\",\"5020\",\"ＥＮＥＯＳ\",\"特定\",\"-\",\"売付\",\"100\",\"1441.0\",\"144100\",\"1350.00\",\"9100\""
+        "\"2026/02/09\",\"2026/02/12\",\"9902\",\"架空エネルギー\",\"特定\",\"-\",\"売付\",\"100\",\"1500.0\",\"150000\",\"1400.00\",\"10000\""
     )
 }
 
@@ -525,7 +525,7 @@ fn asset_balance_csv(rows: &[&str]) -> String {
 
 fn make_asset_balance_csv() -> String {
     asset_balance_csv(&[
-        "\"7203\",\"トヨタ自動車\",\"100\",\"-\",\"100\",\"0\",\"2500\",\"250000\",\"2650\",\"15\",\"265000\",\"6.0\"",
+        "\"9904\",\"架空自動車\",\"100\",\"-\",\"100\",\"0\",\"2500\",\"250000\",\"2650\",\"15\",\"265000\",\"6.0\"",
     ])
 }
 
@@ -791,7 +791,7 @@ async fn service_coverage_all_domains() {
     assert_eq!(asset_balance_empty.inserted, 0);
     assert_eq!(asset_balance_empty.skipped, 0);
 
-    let asset_balance_items = vec![make_asset_item("1301"), make_asset_item("1605")];
+    let asset_balance_items = vec![make_asset_item("1301"), make_asset_item("9901")];
     let asset_balance_created = asset_balance_svc::bulk_create(
         &pool,
         user_id,
@@ -836,7 +836,7 @@ async fn service_coverage_all_domains() {
     .expect("asset_balance list failed")
     .data;
     assert_eq!(asset_balance_rows.len(), 1);
-    assert_eq!(asset_balance_rows[0].security_code.as_str(), "7203");
+    assert_eq!(asset_balance_rows[0].security_code.as_str(), "9904");
 
     assert_eq!(
         bulk::delete_all::<asset_balance_svc::AssetBalanceDomain>(&pool, user_id)
@@ -975,10 +975,10 @@ async fn stock_price_applies_once_to_shared_row_and_visible_to_all_holders() {
     let user_a = create_test_user(&pool).await;
     let user_b = create_test_user(&pool).await;
 
-    let mut shares_b = make_asset_item("7203");
+    let mut shares_b = make_asset_item("9904");
     shares_b.shares = dec!(200);
     for (user_id, items) in [
-        (user_a, vec![make_asset_item("7203")]),
+        (user_a, vec![make_asset_item("9904")]),
         (user_b, vec![shares_b]),
     ] {
         asset_balance_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
@@ -989,7 +989,7 @@ async fn stock_price_applies_once_to_shared_row_and_visible_to_all_holders() {
     // CSV 取込では共有 security_prices を seed しないため、確定値の適用前は共有行がない。
     // 一覧・集計は個人 current_price に fallback して表示される
     let seeded: Option<(db::Numeric, Option<NaiveDate>)> = db::query_as(
-        "SELECT current_price, price_as_of FROM security_prices WHERE security_code = '7203'",
+        "SELECT current_price, price_as_of FROM security_prices WHERE security_code = '9904'",
         vec![],
     )
     .fetch_optional(&pool)
@@ -1006,7 +1006,7 @@ async fn stock_price_applies_once_to_shared_row_and_visible_to_all_holders() {
         assert_eq!(row.current_price, dec!(1100), "個人CSV価格が使われる");
     }
 
-    let code: SecurityCode = "7203".parse().unwrap();
+    let code: SecurityCode = "9904".parse().unwrap();
     let price = ClosePrice {
         close: dec!(2700),
         as_of: NaiveDate::from_ymd_opt(2026, 10, 14).unwrap(),
@@ -1046,13 +1046,13 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
     asset_balance_svc::bulk_create(
         &pool,
         user_id,
-        &[make_asset_item("7203")],
+        &[make_asset_item("9904")],
         RowLimit::new(i64::MAX),
     )
     .await
     .expect("初回 bulk_create 失敗");
 
-    let code: SecurityCode = "7203".parse().unwrap();
+    let code: SecurityCode = "9904".parse().unwrap();
     let confirmed = ClosePrice {
         close: dec!(2700),
         as_of: NaiveDate::from_ymd_opt(2026, 10, 14).unwrap(),
@@ -1063,7 +1063,7 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
         .expect("確定値の適用");
 
     // 別価格を載せた再取込でも確定値は残り、確定値のない銘柄だけ CSV 値が入る
-    let mut reimported = make_asset_item("7203");
+    let mut reimported = make_asset_item("9904");
     reimported.current_price = dec!(9999);
     reimported.daily_change = dec!(-999);
     let mut fresh = make_asset_item("6758");
@@ -1091,7 +1091,7 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
             .find(|r| r.security_code.as_str() == code)
             .expect("行がある")
     };
-    let confirmed_row = by_code("7203");
+    let confirmed_row = by_code("9904");
     assert_eq!(confirmed_row.current_price, dec!(2700), "確定値は消えない");
     assert_eq!(confirmed_row.daily_change, dec!(50));
     assert_eq!(
@@ -1293,9 +1293,9 @@ async fn dividend_csv_keeps_same_detail_in_different_accounts() {
     // 同一入金日・同一銘柄・同一数量・同一額で、口座または商品だけ違う明細は別データ
     let csv = concat!(
         "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
-        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"\n",
-        "\"2025/12/09\",\"国内株式\",\"NISA\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"\n",
-        "\"2025/12/09\",\"投資信託\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\""
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"9908\",\"架空リース\",\"円\",\"90.00\",\"200\",\"18000\",\"3656\",\"14344\"\n",
+        "\"2025/12/09\",\"国内株式\",\"NISA\",\"9908\",\"架空リース\",\"円\",\"90.00\",\"200\",\"18000\",\"3656\",\"14344\"\n",
+        "\"2025/12/09\",\"投資信託\",\"特定・一般\",\"9908\",\"架空リース\",\"円\",\"90.00\",\"200\",\"18000\",\"3656\",\"14344\""
     );
 
     let first = dividend_svc::DividendDomain::upload_csv(
@@ -1333,7 +1333,7 @@ async fn dividend_csv_rejects_foreign_currency_rows() {
     // 円限定の現仕様: 外貨行は行エラーとなり、円の行だけが保存される
     let csv = concat!(
         "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
-        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8591\",\"オリックス\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"\n",
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"9908\",\"架空リース\",\"円\",\"90.00\",\"200\",\"18000\",\"3656\",\"14344\"\n",
         "\"2025/12/09\",\"外国株式\",\"特定・一般\",\"AAPL\",\"アップル\",\"米ドル\",\"200.00\",\"10\",\"1000\",\"100\",\"900\""
     );
 
@@ -1355,11 +1355,11 @@ async fn dividend_csv_rejects_foreign_currency_rows() {
         .await
         .expect("dividend list failed");
     assert_eq!(res.data.len(), 1);
-    assert_eq!(res.data[0].security_code, "8591");
+    assert_eq!(res.data[0].security_code, "9908");
 
     let summary = res.summary.expect("summary required");
-    assert_eq!(summary.total_dividends_before_tax, dec!(18752));
-    assert_eq!(summary.total_net_amount_received, dec!(14944));
+    assert_eq!(summary.total_dividends_before_tax, dec!(18000));
+    assert_eq!(summary.total_net_amount_received, dec!(14344));
 }
 
 #[tokio::test]
@@ -1496,8 +1496,8 @@ async fn mutualfund_csv_keeps_same_trade_in_different_accounts() {
     // 同一約定日・同一ファンド・同一数量・同一解約額で、口座だけ違う明細は別データ
     let csv = concat!(
         "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n",
-        "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\"\n",
-        "\"2022/10/28\",\"2022/11/2\",\"eMAXIS Slim 米国株式(S&P500)\",\"再投資型\",\"NISA\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"615849\""
+        "\"2022/10/28\",\"2022/11/2\",\"架空インデックス 米国株式\",\"再投資型\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"600000\"\n",
+        "\"2022/10/28\",\"2022/11/2\",\"架空インデックス 米国株式\",\"再投資型\",\"NISA\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"600000\""
     );
 
     let first = mutualfund_svc::MutualfundDomain::upload_csv(
@@ -2094,7 +2094,7 @@ async fn search_facets_group_by_domain_fields() {
         vec!["2024", "2023"]
     );
 
-    let asset_items = vec![make_asset_item("1301"), make_asset_item("1605")];
+    let asset_items = vec![make_asset_item("1301"), make_asset_item("9901")];
     asset_balance_svc::bulk_create(&pool, user_id, &asset_items, RowLimit::new(i64::MAX))
         .await
         .expect("asset_balance bulk_create");
@@ -2112,7 +2112,7 @@ async fn search_facets_group_by_domain_fields() {
             .iter()
             .map(|f| (f.value.as_str(), f.count))
             .collect::<Vec<_>>(),
-        vec![("1301", Some(1)), ("1605", Some(1))]
+        vec![("1301", Some(1)), ("9901", Some(1))]
     );
     assert!(facets.products.is_none());
     assert!(facets.accounts.is_none());
@@ -2218,7 +2218,7 @@ async fn dividend_cache_drain_refresh_queue() {
     let client = JQuantsClient::new("test-api-key".to_string());
 
     // pending 行(get_batch のエンキュー相当)と即時再取得対象の error 行を積む
-    for code in ["7203", "8306"] {
+    for code in ["9904", "9907"] {
         db::query(
             "INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
              VALUES ($1, 'pending', 'jquants', NOW())",
@@ -2228,10 +2228,10 @@ async fn dividend_cache_drain_refresh_queue() {
         .await
         .expect("pending 行の投入");
     }
-    // 8306 は再試行間隔 0 のエラー行に戻して「stale_at 経過済み = 即時再取得対象」の経路を確認
+    // 9907 は再試行間隔 0 のエラー行に戻して「stale_at 経過済み = 即時再取得対象」の経路を確認
     dividend_cache::persistence::update_cache_error(
         &pool,
-        &"8306".parse::<SecurityCode>().unwrap(),
+        &"9907".parse::<SecurityCode>().unwrap(),
         "previous fetch failed",
         0,
     )
@@ -2253,7 +2253,7 @@ async fn dividend_cache_drain_refresh_queue() {
     assert_eq!(processed, 2, "cooldown 中の銘柄を除く 2 件を消化する");
 
     // 選定された行は fetch 失敗により error として記録される
-    for code in ["7203", "8306"] {
+    for code in ["9904", "9907"] {
         let row: (String,) = db::query_as(
             "SELECT status FROM dividend_per_share_cache WHERE security_code = $1",
             vec![Bind::from(code)],
@@ -2278,7 +2278,7 @@ async fn dividend_cache_drain_refresh_queue() {
 
     // 失敗した行は再試行間隔分だけ stale_at が未来になり、即時には再消化されない
     let row: (chrono::DateTime<Utc>,) = db::query_as(
-        "SELECT stale_at FROM dividend_per_share_cache WHERE security_code = '7203'",
+        "SELECT stale_at FROM dividend_per_share_cache WHERE security_code = '9904'",
         vec![],
     )
     .fetch_one(&pool)
@@ -2368,7 +2368,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
     );
 
     // 置換型(asset_balances): 追加分のみで上限判定(既存行数を見ない)
-    let asset_items = vec![make_asset_item("1301"), make_asset_item("1605")];
+    let asset_items = vec![make_asset_item("1301"), make_asset_item("9901")];
     asset_balance_svc::bulk_create(&pool, user_id, &asset_items, LIMIT)
         .await
         .expect("asset_balances は置換のため上限内");
@@ -2579,15 +2579,15 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     use backend::services::dividend::DividendDomain;
 
     const VALID_ROW_1301: &str = "\"1301\",\"極洋\",\"100\",\"0\",\"100\",\"0\",\"500\",\"50000\",\"600\",\"5\",\"60000\",\"20.0\"";
-    const VALID_ROW_1605: &str = "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2355\",\"471000\",\"3685\",\"65\",\"737000\",\"56.47\"";
-    const BAD_SHARES_ROW: &str = "\"7974\",\"任天堂\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,997.60\",\"5,997,600\",\"8,737.0\",\"223.0\",\"8,737,000\",\"45.67\"";
-    const BAD_PRICE_ROW: &str = "\"1605\",\"ＩＮＰＥＸ\",\"200\",\"0\",\"200\",\"0\",\"2,355.00\",\"471,000\",\"不明\",\"65.0\",\"737,000\",\"56.47\"";
-    const SUMMARY_ONLY_ROW: &str = ",,,,,,特定口座合計,\"11,245,249\",,,\"14,517,240\",\"29.09\"";
+    const VALID_ROW_1605: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2000\",\"400000\",\"3000\",\"50\",\"600000\",\"50.00\"";
+    const BAD_SHARES_ROW: &str = "\"9905\",\"架空ゲーム\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,000.00\",\"5,000,000\",\"7,000.0\",\"100.0\",\"7,000,000\",\"40.00\"";
+    const BAD_PRICE_ROW: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2,000.00\",\"400,000\",\"不明\",\"50.0\",\"600,000\",\"50.00\"";
+    const SUMMARY_ONLY_ROW: &str = ",,,,,,特定口座合計,\"5,400,000\",,,\"7,600,000\",\"40.74\"";
 
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
 
-    let seed = vec![make_asset_item("7203"), make_asset_item("7974")];
+    let seed = vec![make_asset_item("9904"), make_asset_item("9905")];
     asset_balance_svc::bulk_create(&pool, user_id, &seed, RowLimit::new(i64::MAX))
         .await
         .expect("seed bulk_create failed");
@@ -2606,7 +2606,7 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
         asset_balance_rows(&pool, user_id).await,
         vec![
             ("1301".to_string(), "100".to_string()),
-            ("1605".to_string(), "200".to_string()),
+            ("9901".to_string(), "200".to_string()),
         ]
     );
 
@@ -2648,7 +2648,7 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     // 追記型(配当)は行エラーがあっても有効行だけ取り込む従来仕様を維持する
     let dividend_csv = concat!(
         "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
-        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8592\",\"テスト配当\",\"円\",\"93.76\",\"200\",\"18752\",\"3808\",\"14944\"\n",
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8592\",\"テスト配当\",\"円\",\"90.00\",\"200\",\"18000\",\"3656\",\"14344\"\n",
         "\"N/A\",\"国内株式\",\"特定\",\"8593\",\"不正行\",\"円\",\"1\",\"1\",\"1\",\"1\",\"1\""
     );
     let res = DividendDomain::upload_csv(
@@ -2697,7 +2697,7 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
     // それより新しい(先頭15件に埋もれる配置)。基準日も同順にしておき、
     // 修正前後で同じ15件が先に選ばれることを担保する
     let bad_codes: Vec<String> = (0..15).map(|i| format!("90{i:02}")).collect();
-    const GOOD: &str = "9100";
+    const GOOD: &str = "10000";
     const FRESH: &str = "9200";
 
     let items: Vec<_> = bad_codes
@@ -2815,8 +2815,8 @@ async fn listed_price_and_change(
     let row = res
         .data
         .iter()
-        .find(|r| r.security_code.as_str() == "7203")
-        .expect("7203 が一覧にあるはず");
+        .find(|r| r.security_code.as_str() == "9904")
+        .expect("9904 が一覧にあるはず");
     let summary = res.summary.expect("summary 必須");
     assert_eq!(
         summary.total_daily_change,
@@ -2838,13 +2838,13 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     asset_balance_svc::bulk_create(
         &pool,
         user_id,
-        &[make_asset_item("7203")],
+        &[make_asset_item("9904")],
         RowLimit::new(i64::MAX),
     )
     .await
     .expect("bulk_create 失敗");
 
-    let code: SecurityCode = "7203".parse().unwrap();
+    let code: SecurityCode = "9904".parse().unwrap();
     let as_of = |d| NaiveDate::from_ymd_opt(2020, 1, d).unwrap();
 
     // 1/14 終値100・前日終値90 が確定済み
@@ -2910,7 +2910,7 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     assert_eq!(updated, 1);
     let (stored_as_of, prev_close) = db::query(
         "SELECT price_as_of, prev_close FROM security_prices WHERE security_code = $1",
-        vec![Bind::from("7203")],
+        vec![Bind::from("9904")],
     )
     .fetch_one::<(NaiveDate, Option<db::Numeric>), _>(&pool)
     .await
@@ -2942,7 +2942,7 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     assert_eq!(updated, 0);
     let (stored_as_of, prev_close) = db::query(
         "SELECT price_as_of, prev_close FROM security_prices WHERE security_code = $1",
-        vec![Bind::from("7203")],
+        vec![Bind::from("9904")],
     )
     .fetch_one::<(NaiveDate, Option<db::Numeric>), _>(&pool)
     .await

@@ -88,7 +88,7 @@ API 契約の正本は `docs/openapi.json`（`GET /api-docs/openapi.json` で配
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/v1/stocks?query=7203` | Search stocks by code or name |
+| GET | `/api/v1/stocks?query=9904` | Search stocks by code or name |
 
 ### Dividends
 

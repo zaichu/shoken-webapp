@@ -95,10 +95,10 @@ fn check(case: &Case) {
 }
 #[test]
 fn searchable_code_accepts_ascii_alnum_and_dot() {
-    assert!(is_searchable_code("7203"));
+    assert!(is_searchable_code("9904"));
     assert!(is_searchable_code("BRK.B"));
     assert!(!is_searchable_code(""));
-    assert!(!is_searchable_code("7203: トヨタ"));
+    assert!(!is_searchable_code("9904: 架空"));
     assert!(!is_searchable_code("７２０３"));
     assert!(!is_searchable_code("A B"));
 }
@@ -468,8 +468,8 @@ fn iso_date_leap_year_rules() {
 #[test]
 fn label_token_with_empty_code_is_kept_verbatim() {
     assert_eq!(parse_search_tokens(":"), vec![":".to_string()]);
-    assert_eq!(parse_search_tokens("9432:"), vec!["9432".to_string()]);
-    assert_eq!(parse_search_tokens("9432："), vec!["9432".to_string()]);
+    assert_eq!(parse_search_tokens("9910:"), vec!["9910".to_string()]);
+    assert_eq!(parse_search_tokens("9910："), vec!["9910".to_string()]);
     // ラベル部に数字・小文字以外を含む場合はラベルとみなさずコロン付きのまま残す
     assert_eq!(parse_search_tokens("7-:"), vec!["7-:".to_string()]);
 }
@@ -477,8 +477,8 @@ fn label_token_with_empty_code_is_kept_verbatim() {
 #[test]
 fn parse_search_tokens_splits_unquoted_tokens() {
     assert_eq!(
-        parse_search_tokens("  9432  ＮＴＴ "),
-        vec!["9432".to_string(), "ntt".to_string()]
+        parse_search_tokens("  9910  ＴＥＬＥ "),
+        vec!["9910".to_string(), "tele".to_string()]
     );
 }
 

@@ -187,7 +187,7 @@ mod tests {
     #[tokio::test]
     async fn test_v1_stocks_search_allows_anonymous() {
         let router = stock_search_routes().with_state(make_test_state());
-        let status = check_status(router, Method::GET, "/api/v1/stocks?query=7203").await;
+        let status = check_status(router, Method::GET, "/api/v1/stocks?query=9904").await;
         assert_ne!(status, StatusCode::UNAUTHORIZED);
         assert_ne!(status, StatusCode::NOT_FOUND);
         assert_ne!(status, StatusCode::METHOD_NOT_ALLOWED);

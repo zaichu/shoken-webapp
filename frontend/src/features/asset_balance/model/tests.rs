@@ -228,7 +228,7 @@ fn shared_kpi_cases_match() {
 fn kpi_holdings() -> Vec<KpiHolding> {
     vec![
         KpiHolding {
-            security_code: "7203".to_string(),
+            security_code: "9904".to_string(),
             shares: 100.0,
             total_purchase_amount: 250000.0,
         },
@@ -241,7 +241,7 @@ fn kpi_holdings() -> Vec<KpiHolding> {
 }
 
 fn full_dividends() -> HashMap<String, f64> {
-    HashMap::from([("7203".to_string(), 50.0), ("6758".to_string(), 240.0)])
+    HashMap::from([("9904".to_string(), 50.0), ("6758".to_string(), 240.0)])
 }
 
 #[test]
@@ -510,13 +510,13 @@ fn missing_markers_are_not_parsed_as_amounts() {
 
 #[test]
 fn security_normalization_covers_code_and_name_cases() {
-    assert_eq!(normalize_security_code(" 7974: 任天堂 "), "7974");
-    assert_eq!(normalize_security_code("7203: トヨタ自動車"), "7203");
+    assert_eq!(normalize_security_code(" 9905: 架空ゲーム "), "9905");
+    assert_eq!(normalize_security_code("9904: 架空自動車"), "9904");
     assert_eq!(normalize_security_code("brk.b"), "BRK.B");
     assert_eq!(normalize_security_code("  "), "");
     assert_eq!(normalize_security_code(""), "");
-    assert_eq!(normalize_display_name("ＫＤＤＩ"), "KDDI");
-    assert_eq!(normalize_display_name("トヨタ自動車"), "トヨタ自動車");
+    assert_eq!(normalize_display_name("ＸＹＺ"), "XYZ");
+    assert_eq!(normalize_display_name("架空自動車"), "架空自動車");
 }
 
 proptest::proptest! {

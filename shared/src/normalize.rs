@@ -1,8 +1,8 @@
 /// 取込時の銘柄名正規化。
 ///
-/// "K D D I" のように各文字間にスペースが挿入される証券会社CSV向けに、
-/// すべてのトークンが1文字の場合はスペースを除去して結合する（"K D D I" → "KDDI"）。
-/// 複数文字のトークンが含まれる場合（"eMAXIS Slim 全世界株式"）は trim のみ。
+/// "A B C D" のように各文字間にスペースが挿入される証券会社CSV向けに、
+/// すべてのトークンが1文字の場合はスペースを除去して結合する（"A B C D" → "ABCD"）。
+/// 複数文字のトークンが含まれる場合（"架空インデックス 全世界株式"）は trim のみ。
 ///
 /// 一意制約と content_hash はこの規則で正規化された名前をキーにしている。
 /// 半角化などを追加する場合は既存行の名前・ハッシュを移行する必要がある。
@@ -29,7 +29,7 @@ pub fn normalize_display_name(name: &str) -> String {
 }
 
 /// 証券コード正規化。`:`・`：` 以降を捨て、空白をすべて除去して大文字化する
-/// （" 7974: 任天堂 " → "7974"、"brk.b" → "BRK.B"）。
+/// （" 9905: 架空ゲーム " → "9905"、"brk.b" → "BRK.B"）。
 pub fn normalize_security_code(value: &str) -> String {
     value
         .split([':', '：'])
@@ -47,12 +47,12 @@ mod tests {
     #[test]
     fn security_name_joins_single_character_tokens() {
         for (input, expected) in [
-            ("K D D I", "KDDI"),
-            ("I N P E X", "INPEX"),
-            ("ト ヨ タ", "トヨタ"),
+            ("A B C D", "ABCD"),
+            ("E F G H I", "EFGHI"),
+            ("カ ク ウ", "カクウ"),
             // 全角の1文字トークンも結合するが半角にはしない
             ("Ａ Ｂ Ｃ", "ＡＢＣ"),
-            ("Ｋ Ｄ Ｄ Ｉ", "ＫＤＤＩ"),
+            ("Ｘ Ｙ Ｚ Ｗ", "ＸＹＺＷ"),
         ] {
             assert_eq!(normalize_security_name(input), expected);
         }
@@ -61,12 +61,15 @@ mod tests {
     #[test]
     fn security_name_keeps_multi_character_tokens_after_trim() {
         for (input, expected) in [
-            ("eMAXIS Slim 全世界株式", "eMAXIS Slim 全世界株式"),
-            ("トヨタ 自動車", "トヨタ 自動車"),
-            ("任天堂", "任天堂"),
-            ("  KDDI  ", "KDDI"),
+            ("架空インデックス 全世界株式", "架空インデックス 全世界株式"),
+            ("架空 自動車", "架空 自動車"),
+            ("架空ゲーム", "架空ゲーム"),
+            ("  XYZ  ", "XYZ"),
             // 重複排除キーの互換のため全角はそのまま保持する
-            ("ＥＮＥＯＳホールディングス", "ＥＮＥＯＳホールディングス"),
+            (
+                "架空エネルギーホールディングス",
+                "架空エネルギーホールディングス",
+            ),
             ("", ""),
         ] {
             assert_eq!(normalize_security_name(input), expected);
@@ -75,7 +78,7 @@ mod tests {
 
     #[test]
     fn display_name_maps_fullwidth_alphanumerics_to_halfwidth() {
-        assert_eq!(normalize_display_name("ＫＤＤＩ１２３"), "KDDI123");
+        assert_eq!(normalize_display_name("ＸＹＺ１２３"), "XYZ123");
         assert_eq!(normalize_display_name("日本株ＡＢＣ１２３"), "日本株ABC123");
         assert_eq!(normalize_display_name("カＡタ"), "カAタ");
         // 表示用は変換のみ。trim・結合はしない
@@ -85,8 +88,8 @@ mod tests {
     #[test]
     fn security_code_takes_head_before_colon_and_uppercases() {
         for (input, expected) in [
-            (" 7974: 任天堂 ", "7974"),
-            ("7203: トヨタ自動車", "7203"),
+            (" 9905: 架空ゲーム ", "9905"),
+            ("9904: 架空自動車", "9904"),
             ("6758：ソニー", "6758"),
             ("brk.b", "BRK.B"),
             ("a b 1: x", "AB1"),

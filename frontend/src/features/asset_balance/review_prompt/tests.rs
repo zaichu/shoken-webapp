@@ -25,7 +25,7 @@ fn make_asset(
 }
 
 fn toyota() -> AssetBalanceRow {
-    make_asset("7203", "トヨタ自動車", 100, 2500)
+    make_asset("9904", "架空自動車", 100, 2500)
 }
 
 fn sony() -> AssetBalanceRow {
@@ -56,7 +56,7 @@ fn generate_asset_review_prompt_matches_fixture_exactly() {
 
 【保有銘柄データ】
 銘柄コード | 銘柄名 | 保有株数 | 平均取得単価
-7203 | トヨタ自動車 | 100 | ¥2,500
+9904 | 架空自動車 | 100 | ¥2,500
 6758 | ソニーグループ | 50 | ¥12,000";
     assert_eq!(prompt, expected);
 }
@@ -64,8 +64,8 @@ fn generate_asset_review_prompt_matches_fixture_exactly() {
 #[test]
 fn generate_asset_review_prompt_includes_all_codes_and_names() {
     let prompt = generate_asset_review_prompt(&[toyota(), sony()]);
-    assert!(prompt.contains("7203"));
-    assert!(prompt.contains("トヨタ自動車"));
+    assert!(prompt.contains("9904"));
+    assert!(prompt.contains("架空自動車"));
     assert!(prompt.contains("6758"));
     assert!(prompt.contains("ソニーグループ"));
 }
@@ -74,7 +74,7 @@ fn generate_asset_review_prompt_includes_all_codes_and_names() {
 fn generate_asset_review_prompt_keeps_input_order() {
     let prompt = generate_asset_review_prompt(&[sony(), toyota()]);
     let sony_pos = prompt.find("6758").unwrap();
-    let toyota_pos = prompt.find("7203").unwrap();
+    let toyota_pos = prompt.find("9904").unwrap();
     assert!(sony_pos < toyota_pos);
 }
 
@@ -86,7 +86,7 @@ fn generate_asset_review_prompt_formats_fractional_numbers() {
     asset.shares = Decimal::new(1005, 1);
     asset.average_purchase_price = Decimal::new(1234567, 2);
     let prompt = generate_asset_review_prompt(&[Row::Saved(asset)]);
-    assert!(prompt.contains("7203 | トヨタ自動車 | 100.5 | ¥12,345.67"));
+    assert!(prompt.contains("9904 | 架空自動車 | 100.5 | ¥12,345.67"));
 }
 
 #[test]
