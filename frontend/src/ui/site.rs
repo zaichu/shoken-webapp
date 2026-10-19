@@ -444,7 +444,7 @@ fn UserMenu(
                                 variant=ButtonVariant::MenuItem
                                 attr:role="menuitem"
                                 testid="logout"
-                                class="w-full min-h-11"
+                                class="w-full min-h-11 flex items-center gap-3"
                                 on_click=move |_| {
                                     menu_open.set(false);
                                     leptos::task::spawn_local(async move {
