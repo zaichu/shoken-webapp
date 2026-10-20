@@ -1278,7 +1278,7 @@
   }
 
   .home-card-link {
-    @apply ml-auto inline-flex items-center whitespace-nowrap text-xs font-medium text-accent-text hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+    @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-xs font-medium text-accent-text hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
   }
 
   /* チャートの凡例スウォッチ。色は呼び出し側が style の CSS 変数で渡す */

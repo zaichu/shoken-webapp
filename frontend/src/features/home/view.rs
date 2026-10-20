@@ -838,7 +838,7 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
     };
     view! {
         <li>
-            <a class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-surface-raised" href=holding.href>
+            <a class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-surface-raised max-sm:min-h-11" href=holding.href>
                 <span class="min-w-0 flex-1 truncate">{label}</span>
                 <span class=format!("shrink-0 tabular-nums font-bold {tone}")>
                     {format_signed_row_valuation_amount(Some(holding.profit_loss))}

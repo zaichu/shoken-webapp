@@ -59,6 +59,12 @@ interface ApiCounts {
   assetBalances: number;
 }
 
+// 明細一覧のリクエストかどうか。ホームの集計呼び出し(year 指定)と
+// 直近入金(page を付けず per_page だけで取る)は一覧件数のカウントに含めない
+function isReceiptsListRequest(url: URL) {
+  return url.searchParams.has('page') && !url.searchParams.has('year');
+}
+
 async function setupApiMocks(page: Page, counts: ApiCounts, authed = true) {
   await page.route('**/api/v1/**', (route) => route.fulfill(json(paginatedAll([]))));
   await page.route('**/api/v1/session', (route) => {
@@ -87,8 +93,7 @@ async function setupApiMocks(page: Page, counts: ApiCounts, authed = true) {
     );
   });
   await page.route('**/api/v1/dividends**', (route) => {
-    // ホームの集計呼び出し(year 指定)は一覧件数のカウントに含めない
-    if (!route.request().url().includes('year=')) {
+    if (isReceiptsListRequest(new URL(route.request().url()))) {
       counts.dividends += 1;
     }
     return route.fulfill(json(paginatedAll([DIVIDEND])));
@@ -165,7 +170,7 @@ test('再訪では表示済みデータを残したまま裏で取り直す', as
   // 2回目以降の配当一覧取得を遅らせ、裏取得中に既存表示が残ることを確かめる
   await page.unroute('**/api/v1/dividends**');
   await page.route('**/api/v1/dividends**', async (route) => {
-    if (!route.request().url().includes('year=')) {
+    if (isReceiptsListRequest(new URL(route.request().url()))) {
       counts.dividends += 1;
       if (counts.dividends > 1) {
         await new Promise((resolve) => setTimeout(resolve, 800));
@@ -199,7 +204,7 @@ test('裏再取得が失敗しても表示済みの行を残してエラーを�
   // 再訪時の裏再取得だけを失敗させる
   await page.unroute('**/api/v1/dividends**');
   await page.route('**/api/v1/dividends**', (route) => {
-    if (route.request().url().includes('year=')) {
+    if (!isReceiptsListRequest(new URL(route.request().url()))) {
       return route.fulfill(json(paginatedAll([DIVIDEND])));
     }
     counts.dividends += 1;
