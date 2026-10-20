@@ -55,47 +55,52 @@ pub(crate) fn AssetSummaryStrip(
             {(!note.is_empty()).then(|| {
                 view! { <p class="asset-summary-asof lg:hidden">{note}</p> }
             })}
-            <dl class="asset-summary-grid">
-                <div class="asset-summary-item asset-summary-item-primary">
-                    <dt>{format!("評価額({label})")}</dt>
-                    <dd>
-                        <Amount text=market_text class="asset-summary-primary-amount".to_string() />
-                    </dd>
-                </div>
-                <div class="asset-summary-item asset-summary-item-pnl">
-                    <dt class="sr-only lg:not-sr-only">"評価損益"</dt>
-                    <dd>
-                        <Amount
-                            text=profit_text
-                            class=format!("asset-summary-pnl-amount {profit_tone}")
-                        />
-                        {rate_text.map(|rate| {
-                            view! {
-                                <span class=format!("asset-summary-pnl-note {profit_tone}")>
-                                    {rate}
-                                </span>
-                            }
-                        })}
-                    </dd>
-                </div>
-                <div class="asset-summary-item asset-summary-item-sub2 asset-summary-item-daily">
-                    <dt>"前日比"</dt>
-                    <dd>
-                        <Amount
-                            text=daily_text
-                            class=format!("asset-summary-sub-amount {daily_tone}")
-                        />
-                    </dd>
-                </div>
-                <div class="asset-summary-tags">
+            <div class="asset-summary-grid">
+                <dl class="asset-summary-main">
+                    <div class="asset-summary-item asset-summary-item-primary">
+                        <dt>{format!("評価額({label})")}</dt>
+                        <dd>
+                            <Amount
+                                text=market_text
+                                class="asset-summary-primary-amount".to_string()
+                            />
+                        </dd>
+                    </div>
+                    <div class="asset-summary-item asset-summary-item-pnl">
+                        <dt class="sr-only lg:not-sr-only">"評価損益"</dt>
+                        <dd>
+                            <Amount
+                                text=profit_text
+                                class=format!("asset-summary-pnl-amount {profit_tone}")
+                            />
+                            {rate_text.map(|rate| {
+                                view! {
+                                    <span class=format!("asset-summary-pnl-note {profit_tone}")>
+                                        {rate}
+                                    </span>
+                                }
+                            })}
+                        </dd>
+                    </div>
+                    <div class="asset-summary-item asset-summary-item-sub2 asset-summary-item-daily">
+                        <dt>"前日比"</dt>
+                        <dd>
+                            <Amount
+                                text=daily_text
+                                class=format!("asset-summary-sub-amount {daily_tone}")
+                            />
+                        </dd>
+                    </div>
+                </dl>
+                <dl class="asset-summary-tags">
                     <div class="asset-summary-item asset-summary-item-sub1 asset-summary-item-tag">
                         <dt>"取得総額"</dt>
                         <dd>
                             <Amount text=purchase_text class="asset-summary-sub-amount".to_string() />
                         </dd>
                     </div>
-                </div>
-            </dl>
+                </dl>
+            </div>
         </section>
     }
 }

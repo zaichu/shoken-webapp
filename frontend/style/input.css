@@ -1126,9 +1126,12 @@
      項目の途中では折り返さない */
   @media (width >= 64rem) {
     .asset-summary-band .asset-summary-grid {
-      grid-template-columns: auto auto auto minmax(0, 1fr) auto;
-      grid-template-areas: "primary pnl daily gap tags";
-      align-items: end;
+      @apply flex items-end;
+      column-gap: 2.5rem;
+    }
+
+    .asset-summary-band .asset-summary-main {
+      @apply flex items-end;
       column-gap: 2.5rem;
     }
 
@@ -1136,21 +1139,8 @@
       @apply whitespace-nowrap border-r-0 px-0;
     }
 
-    .asset-summary-band .asset-summary-item-primary {
-      grid-area: primary;
-    }
-
-    .asset-summary-band .asset-summary-item-pnl {
-      grid-area: pnl;
-    }
-
-    .asset-summary-band .asset-summary-item-daily {
-      grid-area: daily;
-    }
-
     .asset-summary-band .asset-summary-tags {
-      @apply flex items-end gap-2 justify-self-end;
-      grid-area: tags;
+      @apply ml-auto flex items-end gap-2;
     }
 
     .asset-summary-band .asset-summary-item-tag {
@@ -1192,6 +1182,7 @@
     }
 
     .asset-summary-grid,
+    .asset-summary-main,
     .asset-summary-tags,
     .asset-summary-item {
       display: contents;

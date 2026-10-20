@@ -244,39 +244,44 @@ pub(crate) fn PortfolioSummary(
             data-testid="asset-portfolio-summary"
         >
             <p class="asset-summary-asof lg:hidden">{asof_text}</p>
-            <dl class="asset-summary-grid" data-testid="portfolio-kpi-grid">
-                <div class="asset-summary-item asset-summary-item-primary">
-                    <dt>"評価額合計"</dt>
-                    <dd>
-                        <Amount text=market_text class="asset-summary-primary-amount".to_string() />
-                    </dd>
-                </div>
-                <div class="asset-summary-item asset-summary-item-pnl">
-                    <dt class="sr-only lg:not-sr-only">"含み損益"</dt>
-                    <dd>
-                        <Amount
-                            text=pnl_text
-                            class=format!("asset-summary-pnl-amount {pnl_tone}")
-                        />
-                        {has_pnl_rate.then(move || {
-                            view! {
-                                <span class=format!("asset-summary-pnl-note {pnl_tone}")>
-                                    {pnl_note}
-                                </span>
-                            }
-                        })}
-                    </dd>
-                </div>
-                <div class="asset-summary-item asset-summary-item-sub3 asset-summary-item-daily">
-                    <dt>"前日比"</dt>
-                    <dd>
-                        <Amount
-                            text=daily_text
-                            class=format!("asset-summary-sub-amount {daily_tone}")
-                        />
-                    </dd>
-                </div>
-                <div class="asset-summary-tags">
+            <div class="asset-summary-grid" data-testid="portfolio-kpi-grid">
+                <dl class="asset-summary-main">
+                    <div class="asset-summary-item asset-summary-item-primary">
+                        <dt>"評価額合計"</dt>
+                        <dd>
+                            <Amount
+                                text=market_text
+                                class="asset-summary-primary-amount".to_string()
+                            />
+                        </dd>
+                    </div>
+                    <div class="asset-summary-item asset-summary-item-pnl">
+                        <dt class="sr-only lg:not-sr-only">"含み損益"</dt>
+                        <dd>
+                            <Amount
+                                text=pnl_text
+                                class=format!("asset-summary-pnl-amount {pnl_tone}")
+                            />
+                            {has_pnl_rate.then(move || {
+                                view! {
+                                    <span class=format!("asset-summary-pnl-note {pnl_tone}")>
+                                        {pnl_note}
+                                    </span>
+                                }
+                            })}
+                        </dd>
+                    </div>
+                    <div class="asset-summary-item asset-summary-item-sub3 asset-summary-item-daily">
+                        <dt>"前日比"</dt>
+                        <dd>
+                            <Amount
+                                text=daily_text
+                                class=format!("asset-summary-sub-amount {daily_tone}")
+                            />
+                        </dd>
+                    </div>
+                </dl>
+                <dl class="asset-summary-tags">
                     <div class="asset-summary-item asset-summary-item-sub1 asset-summary-item-tag">
                         <dt>"年間配当(予想)"</dt>
                         <dd>
@@ -289,8 +294,8 @@ pub(crate) fn PortfolioSummary(
                             <Amount text=yield_text class="asset-summary-sub-amount".to_string() />
                         </dd>
                     </div>
-                </div>
-            </dl>
+                </dl>
+            </div>
             <a href="/assetbalance/composition" class="asset-summary-comp lg:hidden">
                 "構成比 ›"
             </a>
