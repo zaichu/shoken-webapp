@@ -269,6 +269,7 @@ fn FundContent(
                 daily_change=daily
                 profit_rate=profit_rate
             />
+            {daily_note.map(band_note)}
             <div class="asset-list-surface">
                 <AssetSearchBar
                     search=search
@@ -307,11 +308,6 @@ fn FundContent(
                     }}
                 </div>
             </div>
-            {daily_note.clone().map(|note| {
-                view! {
-                    <p class="mt-1 px-4 text-xs text-text-muted lg:px-0">{note}</p>
-                }
-            })}
             {move || {
                 (filtered.with(|views| views.is_empty()) && total_count > 0).then(|| {
                     view! {
@@ -334,6 +330,13 @@ fn filtered_fund_views(rows: &[FundBalanceRow], search: &AssetSearch) -> Vec<Fun
         .into_iter()
         .map(fund_view)
         .collect()
+}
+
+/// 帯が表す数字の説明は数字のそばに置きたいので、帯の直下に置く
+fn band_note(note: String) -> impl IntoView {
+    view! {
+        <p class="mt-1 mb-2 px-4 text-xs text-text-muted lg:px-0">{note}</p>
+    }
 }
 
 #[component]
@@ -473,8 +476,8 @@ fn AllContent(
                 profit=profit
                 daily_change=daily
                 profit_rate=profit_rate
-                note=merged_note
             />
+            {(!merged_note.is_empty()).then(|| band_note(merged_note))}
             <div class="asset-list-surface">
                 <AssetSearchBar
                     search=search

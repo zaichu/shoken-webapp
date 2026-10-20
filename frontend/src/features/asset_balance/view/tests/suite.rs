@@ -888,8 +888,11 @@ fn fund_subtitle_shows_only_the_count() {
 fn merged_subtitle_has_no_day_change_aggregate() {
     let owner = Owner::new();
     owner.with(|| {
+        // 前日比なしの株行があっても、タイトルには前日比の説明を出さない
+        let mut stock_row = balance_row(9904);
+        stock_row.prev_close = None;
         let stock = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(9904))],
+            rows: vec![Row::Saved(stock_row)],
             total: 1,
             warning: None,
             fallback_totals: None,
@@ -906,8 +909,10 @@ fn merged_subtitle_has_no_day_change_aggregate() {
         let subtitle =
             super::summary::merged_subtitle(Some(&stock), Some(&fund)).expect("subtitle");
         assert!(subtitle.contains("3件"), "{subtitle}");
-        // 投信の前日比の集計はタイトルに出さない
-        assert!(!subtitle.contains("前日比が最新"), "{subtitle}");
+        // 株の基準日はタイトルに出す
+        assert!(subtitle.contains("01/16"), "{subtitle}");
+        // 前日比の集計も注記もタイトルに出さない
+        assert!(!subtitle.contains("前日比"), "{subtitle}");
         assert!(!subtitle.contains("更新待ち"), "{subtitle}");
     });
 }

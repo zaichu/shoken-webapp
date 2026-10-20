@@ -48,12 +48,10 @@ pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
     )
 }
 
-/// 投資信託タブの副題。件数だけ出す(前日比の説明は列の見出しと帯の注記に寄せる)
 pub(crate) fn fund_subtitle(view: &ResolvedFundBalance) -> String {
     format!("{}件", view.total)
 }
 
-/// 「すべて」タブの副題。株と投信の合計件数と、株の基準日を出す
 pub(crate) fn merged_subtitle(
     stock: Option<&ResolvedAssetBalance>,
     fund: Option<&ResolvedFundBalance>,
@@ -64,12 +62,8 @@ pub(crate) fn merged_subtitle(
     let count =
         stock.map(|view| view.total).unwrap_or(0) + fund.map(|view| view.total).unwrap_or(0);
     let stock_part = stock.filter(|view| !view.rows.is_empty()).map(|view| {
-        let (_, has_unpriced, has_missing_daily, date_text) = stock_subtitle_parts(view);
-        format!(
-            "{date_text}{}{}",
-            unpriced_suffix(has_unpriced),
-            missing_day_change_suffix(has_missing_daily)
-        )
+        let (_, has_unpriced, _, date_text) = stock_subtitle_parts(view);
+        format!("{date_text}{}", unpriced_suffix(has_unpriced))
     });
     Some(match stock_part {
         Some(text) => format!("{count}件 · {text}"),
