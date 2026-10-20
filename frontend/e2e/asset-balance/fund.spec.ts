@@ -198,7 +198,7 @@ test('投資信託タブでファンド一覧が表示され、検索と並べ�
   await expect(page.getByText('トータルリターン')).toBeVisible();
 });
 
-test('前日比は最新の基準価額の変動だけを出し、更新待ちは「—」と件数で示す', async ({
+test('前日比は最新の基準価額の変動だけを出し、タイトルには件数だけを出す', async ({
   page,
 }) => {
   await setupMocks(page);
@@ -220,10 +220,17 @@ test('前日比は最新の基準価額の変動だけを出し、更新待ち�
   await expect(pending).toContainText('更新待ち');
   await expect(pending).not.toContainText('-¥30');
 
-  // 見出しは「前日比が最新 A件 ・ 更新待ち B件」
-  await expect(
-    page.getByText(/2件 ・ 前日比が最新 1件 ・ 更新待ち 1件/),
-  ).toBeVisible();
+  // タイトルには件数だけを出す(前日比の集計は出さない)
+  const subtitle = page.getByTestId('asset-subtitle');
+  await expect(subtitle).toContainText('2件');
+  await expect(subtitle).not.toContainText('前日比');
+  await expect(page.getByText(/前日比が最新/)).toHaveCount(0);
+  await expect(page.getByText(/更新待ち \d件/)).toHaveCount(0);
+
+  // 「前日比」列の見出しに説明].(title と abbr でキーボードからも読める)
+  const header = table.getByRole('columnheader', { name: '前日比' });
+  await expect(header).toHaveAttribute('title', /最新の基準価額の日の前日比/);
+  await expect(header).toHaveAttribute('abbr', /最新の基準価額の日の前日比/);
 
   // 合計の前日比は最新の行だけの合計(更新待ちの -60円は入らない)
   await expect(
@@ -239,6 +246,12 @@ test('前日比は最新の基準価額の変動だけを出し、更新待ち�
   });
   await expect(mergedPending).toContainText('更新待ち');
   await expect(mergedPending).not.toContainText('-¥30');
+
+  // 「すべて」タブでもタイトルに前日比の集計を出さない
+  await expect(page.getByTestId('asset-subtitle')).not.toContainText('前日比が最新');
+  await expect(page.getByTestId('asset-subtitle')).not.toContainText('更新待ち');
+  await expect(page.getByText(/前日比が最新/)).toHaveCount(0);
+  await expect(page.getByText(/更新待ち \d件/)).toHaveCount(0);
 
   // 「すべて」タブでも投信の行は前日比の横に基準日を出さない
   const mergedLatest = merged.getByRole('row', { name: /架空バランスファンドA号/ });

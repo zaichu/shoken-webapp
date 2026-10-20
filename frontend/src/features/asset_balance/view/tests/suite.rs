@@ -6,6 +6,7 @@ use crate::api::ApiError;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::format::*;
+use crate::features::asset_balance::fund::FundBalanceRow;
 use crate::features::asset_balance::holdings::*;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::{
@@ -13,7 +14,9 @@ use crate::features::asset_balance::model::{
     normalize_display_name, normalize_security_code, portfolio_valuation, total_purchase_amount,
 };
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
-use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, resolve_asset_balance};
+use crate::features::asset_balance::store::csv::{
+    ResolvedAssetBalance, ResolvedFundBalance, resolve_asset_balance,
+};
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
@@ -800,52 +803,57 @@ fn unified_row_hides_day_change_and_marks_pending_for_stale_fund_nav() {
     assert!(row.day_change_title.unwrap().contains("更新待ち"));
 }
 
-#[test]
-fn fund_subtitle_counts_latest_and_pending_rows() {
-    use crate::features::asset_balance::fund::FundBalanceRow;
-    use crate::features::asset_balance::store::csv::ResolvedFundBalance;
+fn fund_saved_row(
+    name: &str,
+    source: &str,
+    latest: bool,
+    change: Option<i64>,
+    asof: &str,
+) -> FundBalanceRow {
+    FundBalanceRow::Saved(
+        serde_json::from_value(serde_json::json!({
+            "id": format!("fund-{name}"),
+            "fund_name": name,
+            "dividends_course": null,
+            "account": "特定",
+            "shares": 10000,
+            "average_purchase_price": 10000,
+            "total_purchase_amount": 1000,
+            "base_price": 11000,
+            "base_price_day_change": change,
+            "base_price_month_change": null,
+            "market_value": 1100,
+            "profit_loss": 100,
+            "profit_loss_rate": 10.0,
+            "total_return": null,
+            "price_as_of": asof,
+            "price_source": source,
+            "nav_is_latest": latest,
+            "expected_nav_date": null,
+            "created_at": "2026-10-17T00:00:00Z",
+            "updated_at": "2026-10-18T00:00:00Z",
+        }))
+        .unwrap(),
+    )
+}
 
-    let saved = |name: &str, source: &str, latest: bool, change: Option<i64>, asof: &str| {
-        FundBalanceRow::Saved(
-            serde_json::from_value(serde_json::json!({
-                "id": format!("fund-{name}"),
-                "fund_name": name,
-                "dividends_course": null,
-                "account": "特定",
-                "shares": 10000,
-                "average_purchase_price": 10000,
-                "total_purchase_amount": 1000,
-                "base_price": 11000,
-                "base_price_day_change": change,
-                "base_price_month_change": null,
-                "market_value": 1100,
-                "profit_loss": 100,
-                "profit_loss_rate": 10.0,
-                "total_return": null,
-                "price_as_of": asof,
-                "price_source": source,
-                "nav_is_latest": latest,
-                "expected_nav_date": null,
-                "created_at": "2026-10-17T00:00:00Z",
-                "updated_at": "2026-10-18T00:00:00Z",
-            }))
-            .unwrap(),
-        )
-    };
+#[test]
+fn fund_subtitle_shows_only_the_count() {
     let resolved = ResolvedFundBalance {
         rows: vec![
-            saved("A", "api", true, Some(100), "2026-10-17"),
-            saved("B", "csv", false, Some(50), "2026-10-10"),
-            saved("C", "api", true, None, "2026-10-17"),
+            fund_saved_row("A", "api", true, Some(100), "2026-10-17"),
+            fund_saved_row("B", "csv", false, Some(50), "2026-10-10"),
+            fund_saved_row("C", "api", true, None, "2026-10-17"),
         ],
         total: 3,
         warning: None,
         fallback_totals: None,
     };
     let subtitle = super::summary::fund_subtitle(&resolved);
-    assert!(subtitle.contains("3件"));
-    assert!(subtitle.contains("1件"), "{subtitle}");
-    assert!(subtitle.contains("更新待ち 1件"), "{subtitle}");
+    assert!(subtitle.contains("3件"), "{subtitle}");
+    // 前日比の集計はタイトルに出さない(列の見出しと帯の注記に寄せる)
+    assert!(!subtitle.contains("前日比"), "{subtitle}");
+    assert!(!subtitle.contains("更新待ち"), "{subtitle}");
 
     // 行が取り切れていないときは API 集計の件数を使う
     let truncated = ResolvedFundBalance {
@@ -861,18 +869,45 @@ fn fund_subtitle_counts_latest_and_pending_rows() {
         }),
     };
     let subtitle = super::summary::fund_subtitle(&truncated);
-    assert!(subtitle.contains("9件"));
-    assert!(subtitle.contains("最新 5件"), "{subtitle}");
-    assert!(subtitle.contains("更新待ち 4件"), "{subtitle}");
+    assert!(subtitle.contains("9件"), "{subtitle}");
+    assert!(!subtitle.contains("前日比"), "{subtitle}");
 
-    // すべて最新なら「更新待ち」を出さない
+    // すべて最新でもタイトルは件数だけ
     let all_latest = ResolvedFundBalance {
-        rows: vec![saved("A", "api", true, Some(100), "2026-10-17")],
+        rows: vec![fund_saved_row("A", "api", true, Some(100), "2026-10-17")],
         total: 1,
         warning: None,
         fallback_totals: None,
     };
     let subtitle = super::summary::fund_subtitle(&all_latest);
-    assert!(!subtitle.contains("更新待ち"), "{subtitle}");
-    assert!(subtitle.contains("すべて最新"), "{subtitle}");
+    assert!(subtitle.contains("1件"), "{subtitle}");
+    assert!(!subtitle.contains("前日比"), "{subtitle}");
+}
+
+#[test]
+fn merged_subtitle_has_no_day_change_aggregate() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let stock = ResolvedAssetBalance {
+            rows: vec![Row::Saved(balance_row(9904))],
+            total: 1,
+            warning: None,
+            fallback_totals: None,
+        };
+        let fund = ResolvedFundBalance {
+            rows: vec![
+                fund_saved_row("A", "api", true, Some(100), "2026-10-17"),
+                fund_saved_row("B", "csv", false, Some(50), "2026-10-10"),
+            ],
+            total: 2,
+            warning: None,
+            fallback_totals: None,
+        };
+        let subtitle =
+            super::summary::merged_subtitle(Some(&stock), Some(&fund)).expect("subtitle");
+        assert!(subtitle.contains("3件"), "{subtitle}");
+        // 投信の前日比の集計はタイトルに出さない
+        assert!(!subtitle.contains("前日比が最新"), "{subtitle}");
+        assert!(!subtitle.contains("更新待ち"), "{subtitle}");
+    });
 }

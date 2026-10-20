@@ -7,7 +7,7 @@ use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::kind_tabs::AssetKindTabs;
 use super::search_bar::AssetSearchBar;
-use super::summary::{PortfolioSummary, fund_nav_counts, stock_price_dates};
+use super::summary::{PortfolioSummary, fund_latest_nav_count, stock_price_dates};
 use super::summary_strip::AssetSummaryStrip;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
@@ -437,7 +437,7 @@ fn AllContent(
                 .then_some(fund_totals_value.daily_change),
         ),
     };
-    let (fund_latest_nav, _) = fund_nav_counts(&fund_resolved);
+    let fund_latest_nav = fund_latest_nav_count(&fund_resolved);
     let fund_note = if fund_latest_nav < fund_resolved.total && fund_resolved.total > 0 {
         format!(
             "投資信託の前日比は、最新の前日比が分かるファンドだけの合計({fund_latest_nav}件/{}件)",
