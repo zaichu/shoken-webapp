@@ -46,9 +46,22 @@ pub struct FundNav {
     pub base_date: NaiveDate,
 }
 
-/// 応答の数値は文字列・数値のどちらでも来うるため Value で受けて検証時に捌く
+/// 応答は result.status=200 かつ datasets 1件以上のときだけ値を持つ。
+/// 値は datasets の最初の要素に入り、数値は文字列・数値のどちらでも来うるため
+/// Value で受けて検証時に捌く
 #[derive(Deserialize)]
 struct MufgNavResponse {
+    result: Option<MufgResult>,
+    datasets: Option<Vec<MufgNavDataset>>,
+}
+
+#[derive(Deserialize)]
+struct MufgResult {
+    status: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct MufgNavDataset {
     nav: Option<serde_json::Value>,
     base_date: Option<serde_json::Value>,
     cmp_prev_day: Option<serde_json::Value>,
@@ -75,11 +88,21 @@ pub fn parse_mufg_nav(body: &str) -> Result<FundNav, ApiError> {
         |reason: &str| UpstreamError::Invalid(format!("投信情報APIの応答: {reason}")).into();
     let response: MufgNavResponse = serde_json::from_str(body).map_err(UpstreamError::Decode)?;
 
-    let nav = as_decimal(response.nav.as_ref()).ok_or_else(|| reject("nav が数値でない"))?;
+    let status = response.result.as_ref().and_then(|r| r.status);
+    if status != Some(200) {
+        return Err(reject(&format!("result.status が 200 でない: {status:?}")));
+    }
+    let dataset = response
+        .datasets
+        .as_deref()
+        .and_then(|d| d.first())
+        .ok_or_else(|| reject("datasets が無いか空"))?;
+
+    let nav = as_decimal(dataset.nav.as_ref()).ok_or_else(|| reject("nav が数値でない"))?;
     if nav <= Decimal::ZERO {
         return Err(reject("nav が 0 以下"));
     }
-    let date_str = response
+    let date_str = dataset
         .base_date
         .as_ref()
         .and_then(|v| match v {
@@ -90,9 +113,9 @@ pub fn parse_mufg_nav(body: &str) -> Result<FundNav, ApiError> {
         .ok_or_else(|| reject("base_date がない"))?;
     let base_date = NaiveDate::parse_from_str(&date_str, "%Y%m%d")
         .map_err(|_| reject("base_date が日付でない"))?;
-    let prev_day_change = as_decimal(response.cmp_prev_day.as_ref())
+    let prev_day_change = as_decimal(dataset.cmp_prev_day.as_ref())
         .ok_or_else(|| reject("cmp_prev_day が数値でない"))?;
-    let percentage_change = as_decimal(response.percentage_change.as_ref())
+    let percentage_change = as_decimal(dataset.percentage_change.as_ref())
         .ok_or_else(|| reject("percentage_change が数値でない"))?;
     if prev_day_change.signum() != percentage_change.signum() {
         return Err(reject("cmp_prev_day と percentage_change の符号が不一致"));
@@ -332,15 +355,19 @@ mod tests {
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
 
+    /// 実際の応答は { result: {status}, datasets: [ {nav,...} ] } の形
     fn nav_body(nav: &str, base_date: &str, cmp: &str, pct: &str) -> String {
         format!(
-            r#"{{"association_fund_cd":"03311187","fund_name":"テスト","base_date":"{base_date}","nav":"{nav}","cmp_prev_day":"{cmp}","percentage_change":"{pct}"}}"#
+            r#"{{"result":{{"status":200}},"datasets":[{{"association_fund_cd":"03311187","fund_name":"テスト","base_date":"{base_date}","nav":"{nav}","cmp_prev_day":"{cmp}","percentage_change":"{pct}"}}]}}"#
         )
     }
 
     #[test]
     fn test_parse_mufg_nav_valid_response() {
-        let nav = parse_mufg_nav(&nav_body("44943", "20261020", "369", "0.8280")).expect("parse");
+        let nav = parse_mufg_nav(include_str!(
+            "../../tests/fixtures/mufg_nav_latest_03311187.json"
+        ))
+        .expect("parse");
         assert_eq!(
             nav,
             FundNav {
@@ -352,9 +379,19 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_mufg_nav_not_found_is_rejected() {
+        // 対象外(status=404、datasets なし)は検証落ちとして扱い、前回値を維持する
+        assert!(
+            parse_mufg_nav(include_str!(
+                "../../tests/fixtures/mufg_nav_latest_29313233.json"
+            ))
+            .is_err()
+        );
+    }
+
+    #[test]
     fn test_parse_mufg_nav_accepts_numeric_fields() {
-        let body =
-            r#"{"nav":44943,"base_date":20261020,"cmp_prev_day":369,"percentage_change":0.828}"#;
+        let body = r#"{"result":{"status":200},"datasets":[{"nav":44943,"base_date":20261020,"cmp_prev_day":369,"percentage_change":0.828}]}"#;
         assert!(parse_mufg_nav(body).is_ok());
     }
 
@@ -391,6 +428,10 @@ mod tests {
         // JSON として不正・項目欠落
         assert!(parse_mufg_nav("not json").is_err());
         assert!(parse_mufg_nav("{}").is_err());
+        // エンベロープの不正: status が 200 でない、datasets が無い・空
+        assert!(parse_mufg_nav(r#"{"result":{"status":500},"datasets":[]}"#).is_err());
+        assert!(parse_mufg_nav(r#"{"result":{"status":200}}"#).is_err());
+        assert!(parse_mufg_nav(r#"{"result":{"status":200},"datasets":[]}"#).is_err());
     }
 
     #[test]

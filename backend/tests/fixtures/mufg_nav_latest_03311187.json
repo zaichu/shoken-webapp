@@ -1,0 +1,6 @@
+{
+  "result": {"status": 200, "retcount": 1, "errcd": null, "errmsg": null, "function": "外部公開用最新ファンド情報（指定ファンド）"},
+  "datasets": [
+    {"fund_cd": "253266", "isin_cd": "JP90C000GKC6", "association_fund_cd": "03311187", "base_date": "20261020", "fund_name": "ｅＭＡＸＩＳ Ｓｌｉｍ 米国株式（Ｓ＆Ｐ５００）", "nav": 44943, "cmp_prev_day": "369", "percentage_change": "0.83"}
+  ]
+}
