@@ -632,3 +632,76 @@ fn asset_balance_result_applies_within_the_same_generation() {
         assert!(session.is_current(generation));
     });
 }
+
+// 表の前日比は常に円マーク付き(+¥23 / -¥12)。なければ —
+#[test]
+fn day_change_row_amount_always_carries_yen_sign() {
+    assert_eq!(format_signed_row_valuation_amount(Some(23.0)), "+¥23");
+    assert_eq!(format_signed_row_valuation_amount(Some(-12.0)), "-¥12");
+    assert_eq!(format_signed_row_valuation_amount(Some(0.0)), "¥0");
+    assert_eq!(format_signed_row_valuation_amount(None), "—");
+}
+
+#[test]
+fn price_date_outliers_flags_only_rows_different_from_the_majority() {
+    let dates = vec![
+        Some("2026-10-19".to_string()),
+        Some("2026-10-15".to_string()),
+        Some("2026-10-19".to_string()),
+        None,
+    ];
+    assert_eq!(price_date_outliers(&dates), vec![false, true, false, false]);
+
+    // 全部同じ日付ならどの行にも日付を出さない
+    let same = vec![
+        Some("2026-10-19".to_string()),
+        Some("2026-10-19".to_string()),
+    ];
+    assert_eq!(price_date_outliers(&same), vec![false, false]);
+
+    // 全部バラバラなら新しい日付を代表にする
+    let mixed = vec![
+        Some("2026-10-15".to_string()),
+        Some("2026-10-19".to_string()),
+        Some("2026-10-17".to_string()),
+    ];
+    assert_eq!(price_date_outliers(&mixed), vec![true, false, true]);
+
+    // 日付の無い行は日付を出さない
+    let none: Vec<Option<String>> = vec![None, None];
+    assert_eq!(price_date_outliers(&none), vec![false, false]);
+}
+
+#[test]
+fn unified_row_carries_account_course_and_day_change_into_columns() {
+    let fund =
+        super::all_list::unified_from_fund(&crate::features::asset_balance::fund::FundView {
+            id: Some("fund-1".to_string()),
+            name: "ファンドA".to_string(),
+            account: "NISA成長投資枠".to_string(),
+            course: Some("再投資型".to_string()),
+            shares: 10000.0,
+            average_purchase_price: 10000.0,
+            purchase: 100000.0,
+            base_price: 11000.0,
+            base_price_day_change: Some(50.0),
+            base_price_month_change: None,
+            market_value: 110000.0,
+            profit_loss: 10000.0,
+            profit_loss_rate: Some(10.0),
+            total_return: None,
+            price_as_of: Some("2026-10-19".to_string()),
+        });
+    assert_eq!(fund.account.as_deref(), Some("NISA成長投資枠"));
+    assert_eq!(fund.course.as_deref(), Some("再投資型"));
+    assert_eq!(fund.day_change, Some(50.0));
+    assert_eq!(fund.price_as_of.as_deref(), Some("2026-10-19"));
+
+    // 国内株式は口座・分配金が無い(表では「—」)
+    let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)));
+    assert_eq!(stock.code.as_deref(), Some("9904"));
+    assert!(stock.account.is_none());
+    assert!(stock.course.is_none());
+    assert_eq!(stock.day_change, Some(50.0));
+    assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));
+}

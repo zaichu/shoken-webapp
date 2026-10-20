@@ -1,7 +1,7 @@
-use super::day_change::day_change_subline;
+use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, pnl_cells,
+    format_currency, format_row_valuation_amount, pnl_cells, price_date_outliers,
 };
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::model::format_number_value;
@@ -14,14 +14,23 @@ pub fn FundHoldingsTable(
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
+    let date_outliers = price_date_outliers(
+        &views
+            .iter()
+            .map(|view| view.price_as_of.clone())
+            .collect::<Vec<_>>(),
+    );
     view! {
         <div data-testid="asset-fund-table">
             <table class="asset-table">
                 <thead>
                     <tr>
                         <th scope="col">"ファンド"</th>
+                        <th scope="col">"口座"</th>
+                        <th scope="col">"分配金"</th>
                         {sort_header("保有口数", FundSortKey::Shares, sort_key, sort_order)}
                         {sort_header("基準価額", FundSortKey::BasePrice, sort_key, sort_order)}
+                        <th scope="col" class="text-right">"前日比"</th>
                         {sort_header("評価額", FundSortKey::MarketValue, sort_key, sort_order)}
                         {sort_header("評価損益", FundSortKey::ProfitLoss, sort_key, sort_order)}
                     </tr>
@@ -29,51 +38,44 @@ pub fn FundHoldingsTable(
                 <tbody>
                     {views
                         .into_iter()
-                        .map(|view| {
+                        .zip(date_outliers)
+                        .map(|(view, is_outlier)| {
                             let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
                                 pnl_cells(Some(view.profit_loss), view.profit_loss_rate);
-                            let day_change = view
-                                .base_price_day_change
-                                .map(|change| day_change_subline(Some(change)));
+                            let outlier_date = if is_outlier {
+                                view.price_as_of.clone()
+                            } else {
+                                None
+                            };
                             let href = view
                                 .id
                                 .clone()
                                 .map(|id| format!("/assetbalance/funds/{id}"));
-                            let name_cell = view! {
-                                <>
-                                    {view.name.clone()}
-                                    <div class="asset-price-date">
-                                        {view.account.clone()}
-                                            {view
-                                                .course
-                                                .clone()
-                                                .map(|course| format!(" ・ {course}"))
-                                                .unwrap_or_default()}
-                                    </div>
-                                </>
-                            };
                             view! {
                                 <tr>
-                                    <td>
+                                    <td title=view.name.clone()>
                                         {match href {
                                             Some(href) => view! {
-                                                <a
-                                                    href=href
-                                                    class="inline-flex min-h-6 items-center no-underline hover:underline"
-                                                >
-                                                    {name_cell}
+                                                <a href=href class="no-underline hover:underline">
+                                                    {view.name.clone()}
                                                 </a>
                                             }
                                                 .into_any(),
-                                            None => name_cell.into_any(),
+                                            None => view! { {view.name.clone()} }.into_any(),
                                         }}
+                                    </td>
+                                    <td class="text-text-soft">{view.account.clone()}</td>
+                                    <td class="text-text-soft">
+                                        {view.course.clone().unwrap_or_else(|| "—".to_string())}
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
                                         {format!("{}口", format_number_value(view.shares))}
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
                                         {format_currency(view.base_price)}
-                                        {day_change}
+                                    </td>
+                                    <td class="text-right tabular-nums">
+                                        {day_change_cell(view.base_price_day_change, outlier_date)}
                                     </td>
                                     <td class="text-right font-bold tabular-nums text-brand-text">
                                         {format_row_valuation_amount(Some(view.market_value))}

@@ -137,6 +137,32 @@ pub(crate) fn price_date_range<'a>(
         .map(|(min, max)| (format_price_date(min), format_price_date(max)))
 }
 
+/// 行ごとの基準日が他と違うかの判定。最多の日付を代表にし、違う行だけ true を返す
+/// (表では代表の日付を見出しに出すので、行には違うときだけ日付を足す)。
+/// 同数なら新しい日付を代表にし、日付の無い行は比較に含めない
+pub(crate) fn price_date_outliers(dates: &[Option<String>]) -> Vec<bool> {
+    let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for date in dates.iter().flatten() {
+        if !date.is_empty() {
+            *counts.entry(date.as_str()).or_default() += 1;
+        }
+    }
+    let representative = counts
+        .iter()
+        .max_by(|(date_a, count_a), (date_b, count_b)| {
+            count_a.cmp(count_b).then_with(|| date_a.cmp(date_b))
+        })
+        .map(|(date, _)| *date);
+    dates
+        .iter()
+        .map(|date| {
+            date.as_deref()
+                .filter(|date| !date.is_empty())
+                .is_some_and(|date| Some(date) != representative)
+        })
+        .collect()
+}
+
 fn format_valuation_with(
     amount: Option<f64>,
     format_yen: fn(Decimal) -> String,

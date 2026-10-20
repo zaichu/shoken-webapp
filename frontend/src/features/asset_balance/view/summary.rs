@@ -234,7 +234,7 @@ pub(crate) fn PortfolioSummary(
     view! {
         <section
             id="assetbalance-summary"
-            class="asset-summary asset-summary-5"
+            class="asset-summary asset-summary-5 asset-summary-band"
             role="region"
             aria-label="集計"
             data-testid="asset-portfolio-summary"
@@ -263,19 +263,7 @@ pub(crate) fn PortfolioSummary(
                         })}
                     </dd>
                 </div>
-                <div class="asset-summary-item asset-summary-item-sub1">
-                    <dt>"年間配当(予想)"</dt>
-                    <dd>
-                        <Amount text=dividend_text class="asset-summary-sub-amount".to_string() />
-                    </dd>
-                </div>
-                <div class="asset-summary-item asset-summary-item-sub2">
-                    <dt>"取得額利回り"</dt>
-                    <dd>
-                        <Amount text=yield_text class="asset-summary-sub-amount".to_string() />
-                    </dd>
-                </div>
-                <div class="asset-summary-item asset-summary-item-sub3">
+                <div class="asset-summary-item asset-summary-item-sub3 asset-summary-item-daily">
                     <dt>"前日比"</dt>
                     <dd>
                         <Amount
@@ -283,6 +271,20 @@ pub(crate) fn PortfolioSummary(
                             class=format!("asset-summary-sub-amount {daily_tone}")
                         />
                     </dd>
+                </div>
+                <div class="asset-summary-tags">
+                    <div class="asset-summary-item asset-summary-item-sub1 asset-summary-item-tag">
+                        <dt>"年間配当(予想)"</dt>
+                        <dd>
+                            <Amount text=dividend_text class="asset-summary-sub-amount".to_string() />
+                        </dd>
+                    </div>
+                    <div class="asset-summary-item asset-summary-item-sub2 asset-summary-item-tag">
+                        <dt>"取得額利回り"</dt>
+                        <dd>
+                            <Amount text=yield_text class="asset-summary-sub-amount".to_string() />
+                        </dd>
+                    </div>
                 </div>
             </dl>
             <a href="/assetbalance/composition" class="asset-summary-comp lg:hidden">
@@ -303,9 +305,9 @@ pub(crate) fn PortfolioSummary(
             <details class="asset-basis-pc hidden lg:block">
                 <summary>"計算基準を見る"</summary>
                 <div class="asset-basis-pc-body">
-                    "評価額 = 現在値 × 株数(価格なし銘柄は除く。現在値は銘柄ごとの最新終値で、日付は銘柄ごとに違い、表の「現在値」の下に表示)"
+                    "評価額 = 現在値 × 株数(価格なし銘柄は除く。現在値は銘柄ごとの最新終値で、日付は銘柄ごとに違い、他と違う行は表の「前日比」の横に表示)"
                     <br />
-                    "前日比 = (現在値 − 前日終値) × 株数の合計(前日終値なし銘柄は除く。1株あたりの前日比は表の「現在値」の下に表示)"
+                    "前日比 = (現在値 − 前日終値) × 株数の合計(前日終値なし銘柄は除く。1株あたりの前日比は表の「前日比」に表示)"
                     <br />
                     "含み損益 = 評価額 − 取得総額、率 = 含み損益 ÷ 取得総額(価格あり銘柄の合計どうし)"
                     <br />

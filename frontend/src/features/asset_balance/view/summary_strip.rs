@@ -47,7 +47,7 @@ pub(crate) fn AssetSummaryStrip(
     });
     view! {
         <section
-            class="asset-summary"
+            class="asset-summary asset-summary-band"
             role="region"
             aria-label="集計"
             data-testid="asset-summary-strip"
@@ -78,13 +78,7 @@ pub(crate) fn AssetSummaryStrip(
                         })}
                     </dd>
                 </div>
-                <div class="asset-summary-item asset-summary-item-sub1">
-                    <dt>"取得総額"</dt>
-                    <dd>
-                        <Amount text=purchase_text class="asset-summary-sub-amount".to_string() />
-                    </dd>
-                </div>
-                <div class="asset-summary-item asset-summary-item-sub2">
+                <div class="asset-summary-item asset-summary-item-sub2 asset-summary-item-daily">
                     <dt>"前日比"</dt>
                     <dd>
                         <Amount
@@ -92,6 +86,14 @@ pub(crate) fn AssetSummaryStrip(
                             class=format!("asset-summary-sub-amount {daily_tone}")
                         />
                     </dd>
+                </div>
+                <div class="asset-summary-tags">
+                    <div class="asset-summary-item asset-summary-item-sub1 asset-summary-item-tag">
+                        <dt>"取得総額"</dt>
+                        <dd>
+                            <Amount text=purchase_text class="asset-summary-sub-amount".to_string() />
+                        </dd>
+                    </div>
                 </div>
             </dl>
         </section>
