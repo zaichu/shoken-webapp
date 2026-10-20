@@ -1,7 +1,7 @@
 use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_price_date, format_row_valuation_amount, pnl_cells, price_date_outliers,
+    format_currency, format_row_valuation_amount, pnl_cells, price_date_outliers,
 };
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::model::format_number_value;
@@ -165,18 +165,5 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                 })
                 .collect_view()}
         </ul>
-    }
-}
-
-/// 表の下に出す基準価額の時点。見出しと同じ代表の基準日("YYYY-MM-DD")を受け取る
-#[component]
-pub fn FundPriceAsOfNote(date: Option<String>) -> impl IntoView {
-    let text = date.map(|date| format!("基準価額 {} 時点", format_price_date(&date)));
-    move || {
-        text.clone().map(|text| {
-            view! {
-                <p class="mt-1 px-4 text-xs text-text-muted lg:px-0">{text}</p>
-            }
-        })
     }
 }
