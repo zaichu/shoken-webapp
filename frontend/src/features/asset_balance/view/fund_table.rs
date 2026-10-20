@@ -1,4 +1,4 @@
-use super::day_change::{day_change_cell, pending_day_change_cell};
+use super::day_change::{DAY_CHANGE_COLUMN_NOTE, day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
     format_currency, format_row_valuation_amount, pnl_cells,
@@ -26,7 +26,14 @@ pub fn FundHoldingsTable(
                         <th scope="col">"分配金"</th>
                         {sort_header("保有口数", FundSortKey::Shares, sort_key, sort_order)}
                         {sort_header("基準価額", FundSortKey::BasePrice, sort_key, sort_order)}
-                        <th scope="col" class="text-right">"前日比"</th>
+                        <th
+                            scope="col"
+                            class="text-right"
+                            title=DAY_CHANGE_COLUMN_NOTE
+                            abbr=DAY_CHANGE_COLUMN_NOTE
+                        >
+                            "前日比"
+                        </th>
                         {sort_header("評価額", FundSortKey::MarketValue, sort_key, sort_order)}
                         {sort_header("評価損益", FundSortKey::ProfitLoss, sort_key, sort_order)}
                     </tr>

@@ -7,7 +7,7 @@ use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::kind_tabs::AssetKindTabs;
 use super::search_bar::{AssetSearchBar, ConditionKind};
-use super::summary::{PortfolioSummary, fund_nav_counts, stock_price_dates};
+use super::summary::{PortfolioSummary, fund_latest_nav_count, stock_price_dates};
 use super::summary_strip::AssetSummaryStrip;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
@@ -266,6 +266,7 @@ fn FundContent(
                 daily_change=daily
                 profit_rate=profit_rate
             />
+            {daily_note.map(band_note)}
             <div class="asset-list-surface">
                 <AssetSearchBar
                     search=search
@@ -304,11 +305,6 @@ fn FundContent(
                     }}
                 </div>
             </div>
-            {daily_note.clone().map(|note| {
-                view! {
-                    <p class="mt-1 px-4 text-xs text-text-muted lg:px-0">{note}</p>
-                }
-            })}
             {move || {
                 (filtered.with(|views| views.is_empty()) && total_count > 0).then(|| {
                     view! {
@@ -331,6 +327,13 @@ fn filtered_fund_views(rows: &[FundBalanceRow], search: &AssetSearch) -> Vec<Fun
         .into_iter()
         .map(fund_view)
         .collect()
+}
+
+/// 帯が表す数字の説明は数字のそばに置きたいので、帯の直下に置く
+fn band_note(note: String) -> impl IntoView {
+    view! {
+        <p class="mt-1 mb-2 px-4 text-xs text-text-muted lg:px-0">{note}</p>
+    }
 }
 
 #[component]
@@ -433,7 +436,7 @@ fn AllContent(
                 .then_some(fund_totals_value.daily_change),
         ),
     };
-    let (fund_latest_nav, _) = fund_nav_counts(&fund_resolved);
+    let fund_latest_nav = fund_latest_nav_count(&fund_resolved);
     let fund_note = if fund_latest_nav < fund_resolved.total && fund_resolved.total > 0 {
         format!(
             "投資信託の前日比は、最新の前日比が分かるファンドだけの合計({fund_latest_nav}件/{}件)",
@@ -469,8 +472,8 @@ fn AllContent(
                 profit=profit
                 daily_change=daily
                 profit_rate=profit_rate
-                note=merged_note
             />
+            {(!merged_note.is_empty()).then(|| band_note(merged_note))}
             <div class="asset-list-surface">
                 <AssetSearchBar
                     search=search

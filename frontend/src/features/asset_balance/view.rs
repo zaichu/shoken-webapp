@@ -245,7 +245,10 @@ pub fn AssetBalancePage() -> impl IntoView {
     };
     let title_row: Children = Box::new(move || {
         view! {
-            <span class="hidden self-center text-sm font-normal text-text-muted lg:inline">
+            <span
+                class="hidden self-center text-sm font-normal text-text-muted lg:inline"
+                data-testid="asset-subtitle"
+            >
                 {move || pc_subtitle().unwrap_or_default()}
             </span>
         }
