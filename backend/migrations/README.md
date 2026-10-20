@@ -66,6 +66,10 @@ baseline(`0000〜0010`)は適用済み環境があるため編集しない。
 `0011_<description>.sql` のように次番号の新規 migration を追加し、
 `backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` エントリを足す。
 
+構造の変更(DDL)と、行数の多い静的データ(seed)は別の migration ファイルに分ける。
+目安は seed が 50 行を超えるとき。seed 側も `MIGRATION_FILES` に登録する。
+適用済みの migration は書き換えない(今後の migration から適用)。
+
 検出は正規表現ベースのため、SQL 文字列リテラルやコメントアウトした SQL の中で
 誤検出があり得る。逆に検出漏れ(例: `DROP` 以外の手段で列を実質消す手口)もある。
 そういう場合には `-- contract:` 印(意図した縮退のとき)で回避できる。
