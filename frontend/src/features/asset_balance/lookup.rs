@@ -22,25 +22,31 @@ impl AssetBalanceLookupStore {
         }
         for row in rows {
             let code = normalize_security_code(row.security_code.as_str());
-            if !code.is_empty() {
-                self.entries
-                    .entry(code)
-                    .or_insert_with(|| vec![row.clone()]);
+            if code.is_empty() {
+                continue;
+            }
+            let entries = self.entries.entry(code).or_default();
+            // 同一銘柄コードでも口座違いの別行があり得るため、レコード ID で差し替える
+            match entries.iter_mut().find(|entry| entry.id == row.id) {
+                Some(entry) => *entry = row.clone(),
+                None => entries.push(row.clone()),
             }
         }
     }
 
-    pub fn get(&self, generation: Generation, code: &str) -> Option<&AssetBalance> {
+    /// 一覧の保存済み行と同じレコードを返す。
+    /// 同一銘柄コードの口座別行を混同しないよう id で照合する
+    pub fn get(&self, generation: Generation, row: &AssetBalance) -> Option<&AssetBalance> {
         if self.generation != Some(generation) {
             return None;
         }
-        let normalized = normalize_security_code(code);
+        let normalized = normalize_security_code(row.security_code.as_str());
         if normalized.is_empty() {
             return None;
         }
         self.entries
             .get(&normalized)
-            .and_then(|rows| find_by_code(rows, code))
+            .and_then(|rows| rows.iter().find(|entry| entry.id == row.id))
     }
 
     pub fn needs_fetch(&self, generation: Generation, code: &str, authenticated: bool) -> bool {
@@ -77,6 +83,7 @@ impl AssetBalanceLookupStore {
     }
 }
 
+/// コードだけで照合する用途(配当情報など口座を区別しないもの)向けの先頭行検索
 pub fn find_by_code<'a>(rows: &'a [AssetBalance], code: &str) -> Option<&'a AssetBalance> {
     let wanted = normalize_security_code(code);
     if wanted.is_empty() {

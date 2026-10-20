@@ -193,7 +193,7 @@ pub(crate) fn filtered_portfolio(
             Row::Preview(_) => holding_view(row),
             Row::Saved(saved) => {
                 let resolved = lookup
-                    .with(|store| store.get(generation, saved.security_code.as_str()).cloned())
+                    .with(|store| store.get(generation, saved).cloned())
                     .unwrap_or_else(|| saved.clone());
                 holding_view(&resolved)
             }

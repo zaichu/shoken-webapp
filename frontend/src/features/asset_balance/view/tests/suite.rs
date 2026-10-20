@@ -501,14 +501,13 @@ fn sort_labels_distinguish_each_option() {
 fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
     let owner = Owner::new();
     owner.with(|| {
-        // lookup が同じ銘柄コードの別レコードを返しても、詳細リンクの ID は
+        // lookup が同じレコード(id 一致)の新しい値を返しても、詳細リンクの ID は
         // 一覧に並んだ保存済み行のものを使う
         let saved = balance_row(9904);
-        let mut other_record = balance_row(9904);
-        other_record.id = "other-record".to_string().into();
-        other_record.security_name = "差し替わり行".to_string();
+        let mut refreshed = saved.clone();
+        refreshed.security_name = "差し替わり行".to_string();
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&other_record)));
+        lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&refreshed)));
 
         let saved_id = saved.id.to_string();
         let rows = vec![
@@ -524,6 +523,42 @@ fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
             "表示値は lookup の行を使う"
         );
         assert_eq!(filtered.views[1].id, None, "プレビュー行はリンクしない");
+    });
+}
+
+#[test]
+fn filtered_portfolio_resolves_same_code_rows_by_id() {
+    let owner = Owner::new();
+    owner.with(|| {
+        // 同一銘柄コードを口座別に持つと、各行は自分のレコードの値・口座を出す
+        let mut tokutei = balance_row(9904);
+        tokutei.id = "id-tokutei".to_string().into();
+        tokutei.account = Some("特定".parse().unwrap());
+        tokutei.shares = rust_decimal_macros::dec!(100);
+        let mut nisa = balance_row(9904);
+        nisa.id = "id-nisa".to_string().into();
+        nisa.account = Some("NISA".parse().unwrap());
+        nisa.shares = rust_decimal_macros::dec!(40);
+        nisa.total_purchase_amount = rust_decimal_macros::dec!(100000);
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        lookup.update(|store| store.seed(Generation::new(1), &[tokutei.clone(), nisa.clone()]));
+
+        // 一覧順が lookup の先頭と違っても各行の値が崩れないよう、逆順で渡す
+        let rows = vec![
+            AssetBalanceRow::Saved(nisa),
+            AssetBalanceRow::Saved(tokutei),
+        ];
+        let filtered =
+            filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1));
+
+        assert_eq!(filtered.views.len(), 2);
+        assert_eq!(filtered.views[0].id, Some("id-nisa".to_string()));
+        assert_eq!(filtered.views[0].account.as_deref(), Some("NISA"));
+        assert_eq!(filtered.views[0].shares, 40.0);
+        assert_eq!(filtered.views[0].purchase, 100000.0);
+        assert_eq!(filtered.views[1].id, Some("id-tokutei".to_string()));
+        assert_eq!(filtered.views[1].account.as_deref(), Some("特定"));
+        assert_eq!(filtered.views[1].shares, 100.0);
     });
 }
 
