@@ -16,3 +16,4 @@ let lit = '>'; // 文字リテラル中の > はタグ終端ではない
 let x = 1; // <div class="rounded-xl border bg-surface"> は行末コメント
 view! { <th style:width=w style:max-width=w>"style: はプロパティ指定なので可"</th> }
 view! { <DisclosureToggle style=DisclosureStyle::RowToggle /> }
+view! { <DisclosureToggle style = DisclosureStyle::RowToggle /> }
