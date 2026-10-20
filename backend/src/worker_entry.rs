@@ -12,7 +12,10 @@ use crate::{
     config::{self, Config},
     handlers,
     middleware::{add_security_headers, binding_rate_limit, validate_origin},
-    services::{auth, dividend_cache, jquants, jquants::JQuantsClient, stock_master, stock_price},
+    services::{
+        auth, dividend_cache, fund_price, jquants, jquants::JQuantsClient, stock_master,
+        stock_price,
+    },
     state::{AppState, Secrets},
 };
 
@@ -188,6 +191,11 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
     {
         console_error!("scheduled イベントエラー: 現在値更新: {e}");
     }
+    if fund_price::should_fund_refresh_at(event.schedule())
+        && let Err(e) = refresh_fund_prices(&env, &state).await
+    {
+        console_error!("scheduled イベントエラー: 基準価額更新: {e}");
+    }
     if let Err(e) = refresh_stock_master(&state, event.schedule()).await {
         console_error!("scheduled イベントエラー: 銘柄マスタ更新: {e}");
     }
@@ -201,6 +209,17 @@ async fn refresh_stock_prices(env: &Env, state: &AppState) -> Result<()> {
         .await
         .map_err(|e| Error::RustError(e.to_string()))?;
     console_log!("現在値更新: {} 銘柄を取得", updated);
+    Ok(())
+}
+
+/// 保有ファンドの基準価額を三菱UFJアセットの投信情報APIから取得して更新する。
+/// dev/検証用に vars の MUFG_API_BASE_URL でモックへ差し替えられる
+async fn refresh_fund_prices(env: &Env, state: &AppState) -> Result<()> {
+    let base_url = env.var("MUFG_API_BASE_URL").ok().map(|v| v.to_string());
+    let updated = fund_price::refresh_fund_prices(&state.pool, base_url)
+        .await
+        .map_err(|e| Error::RustError(e.to_string()))?;
+    console_log!("基準価額更新: {} コードを取得", updated);
     Ok(())
 }
 

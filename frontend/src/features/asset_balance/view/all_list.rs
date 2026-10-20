@@ -1,6 +1,6 @@
 //! 「すべて」タブ。国内株式と投資信託を同じ一覧に並べる
 
-use super::day_change::day_change_cell;
+use super::day_change::{day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{format_row_valuation_amount, pnl_cells};
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
@@ -22,6 +22,10 @@ pub(crate) struct UnifiedRow {
     pub price_as_of: Option<String>,
     /// 基準日がその種別の代表(見出しに出す日付)と違うか。構築側で立てる
     pub date_outlier: bool,
+    /// ファンドの「更新待ち」(前日比が最新の基準価額の日の変動でない)。株行は常に false
+    pub nav_pending: bool,
+    /// 前日比セルの title(出どころ・更新待ちの理由)。株行は None
+    pub day_change_title: Option<String>,
     pub market: Option<f64>,
     pub profit: Option<f64>,
     pub rate: Option<f64>,
@@ -40,6 +44,8 @@ pub(crate) fn unified_from_stock(view: &HoldingView) -> UnifiedRow {
         day_change: view.day_change,
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
+        nav_pending: false,
+        day_change_title: None,
         market: valuation.market_value,
         profit: valuation.profit_loss.amount,
         rate: valuation.profit_loss.rate,
@@ -62,9 +68,11 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
         code: None,
         account: Some(view.account.clone()),
         course: view.course.clone(),
-        day_change: view.base_price_day_change,
+        day_change: view.view_day_change(),
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
+        nav_pending: view.nav_pending(),
+        day_change_title: view.day_change_title(),
         market: Some(view.market_value),
         profit: Some(view.profit_loss),
         rate: view.profit_loss_rate,
@@ -181,8 +189,16 @@ pub fn AssetMergedTable(
                                         <td class="text-text-soft">
                                             {row.course.clone().unwrap_or_else(|| "—".to_string())}
                                         </td>
-                                        <td class="text-right tabular-nums">
-                                            {day_change_cell(row.day_change, outlier_date)}
+                                        <td
+                                            class="text-right tabular-nums"
+                                            title=row.day_change_title.clone()
+                                        >
+                                            {if row.nav_pending {
+                                                pending_day_change_cell().into_any()
+                                            } else {
+                                                day_change_cell(row.day_change, outlier_date)
+                                                    .into_any()
+                                            }}
                                         </td>
                                         <td class="text-right font-bold tabular-nums text-brand-text">
                                             {format_row_valuation_amount(row.market)}

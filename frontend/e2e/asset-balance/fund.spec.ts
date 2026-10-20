@@ -32,6 +32,9 @@ const FUND_ROWS = [
     profit_loss_rate: 10.0,
     total_return: 10000,
     price_as_of: '2026-01-01',
+    price_source: 'api',
+    nav_is_latest: true,
+    expected_nav_date: null,
   },
   {
     id: 'fund-2',
@@ -51,6 +54,9 @@ const FUND_ROWS = [
     profit_loss_rate: 3.16,
     total_return: 6000,
     price_as_of: '2026-01-01',
+    price_source: 'csv',
+    nav_is_latest: false,
+    expected_nav_date: '2026-01-05',
   },
 ];
 
@@ -190,6 +196,47 @@ test('投資信託タブでファンド一覧が表示され、検索と並べ�
     page.getByRole('heading', { name: '架空バランスファンドA号' }),
   ).toBeVisible();
   await expect(page.getByText('トータルリターン')).toBeVisible();
+});
+
+test('前日比は最新の基準価額の変動だけを出し、更新待ちは「—」と件数で示す', async ({
+  page,
+}) => {
+  await setupMocks(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/assetbalance');
+  await page.getByTestId('asset-kind-tab-fund').click();
+  const table = page.getByTestId('asset-fund-table');
+  await expect(table).toBeVisible();
+
+  // 共有値が最新の行は基準価額の前日比をそのまま出す(50円/1万口あたり)
+  const latest = table.getByRole('row', { name: /架空バランスファンドA号/ });
+  await expect(latest).toContainText('+¥50');
+  await expect(latest).not.toContainText('更新待ち');
+
+  // 更新待ちの行は古い日の前日比(-30円)を出さず「更新待ち」とだけ示す
+  const pending = table.getByRole('row', { name: /架空インデックスファンドB号/ });
+  await expect(pending).toContainText('更新待ち');
+  await expect(pending).not.toContainText('-¥30');
+
+  // 見出しは「前日比が最新 A件 ・ 更新待ち B件」
+  await expect(
+    page.getByText(/2件 ・ 前日比が最新 1件 ・ 更新待ち 1件/),
+  ).toBeVisible();
+
+  // 合計の前日比は最新の行だけの合計(更新待ちの -60円は入らない)
+  await expect(
+    page.getByText(/前日比は、最新の前日比が分かるファンドだけの合計/),
+  ).toBeVisible();
+
+  // 「すべて」タブでも更新待ちの行は前日比を出さない
+  await page.getByTestId('asset-kind-tab-all').click();
+  const merged = page.getByTestId('asset-merged-table');
+  await expect(merged).toBeVisible();
+  const mergedPending = merged.getByRole('row', {
+    name: /架空インデックスファンドB号/,
+  });
+  await expect(mergedPending).toContainText('更新待ち');
+  await expect(mergedPending).not.toContainText('-¥30');
 });
 
 test('投資信託CSVは見出しで判別されプレビューから全件置換で保存できる', async ({

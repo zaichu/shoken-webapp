@@ -2,7 +2,7 @@
 //! 行の読み出し・絞り込み・並べ替え・合計はここにまとめる
 
 use super::portfolio::SortOrder;
-use crate::api::dto::FundBalance;
+use crate::api::dto::{FundBalance, FundPriceSource};
 use crate::features::asset_balance::format::dec_to_f64;
 use crate::support::csv_flow::CsvChunking;
 use crate::support::row::Row;
@@ -127,6 +127,12 @@ pub(crate) trait FundRowData {
     fn profit_loss_rate(&self) -> Option<Decimal>;
     fn total_return(&self) -> Option<Decimal>;
     fn price_as_of(&self) -> Option<String>;
+    /// 基準価額まわりの値の出どころ(CSV か公式APIの共有値)
+    fn price_source(&self) -> FundPriceSource;
+    /// 前日比が「最新の基準価額の日の変動」として出せるか。false は「更新待ち」
+    fn is_nav_latest(&self) -> bool;
+    /// 「公表済みのはずの最新の基準価額の日」(更新待ちの説明文に使う)
+    fn expected_nav_date(&self) -> Option<String>;
 }
 
 impl FundRowData for FundBalance {
@@ -172,6 +178,15 @@ impl FundRowData for FundBalance {
     fn price_as_of(&self) -> Option<String> {
         Some(self.price_as_of.to_string())
     }
+    fn price_source(&self) -> FundPriceSource {
+        self.price_source
+    }
+    fn is_nav_latest(&self) -> bool {
+        self.nav_is_latest
+    }
+    fn expected_nav_date(&self) -> Option<String> {
+        self.expected_nav_date.clone()
+    }
 }
 
 impl FundRowData for FundBalanceCsvRow {
@@ -215,6 +230,16 @@ impl FundRowData for FundBalanceCsvRow {
         self.total_return
     }
     fn price_as_of(&self) -> Option<String> {
+        None
+    }
+    fn price_source(&self) -> FundPriceSource {
+        FundPriceSource::Csv
+    }
+    fn is_nav_latest(&self) -> bool {
+        // プレビューは取り込むファイルの値そのものなので「最新」として扱う
+        true
+    }
+    fn expected_nav_date(&self) -> Option<String> {
         None
     }
 }
@@ -276,6 +301,15 @@ impl FundRowData for FundBalanceRow {
     fn price_as_of(&self) -> Option<String> {
         self.inner().price_as_of()
     }
+    fn price_source(&self) -> FundPriceSource {
+        self.inner().price_source()
+    }
+    fn is_nav_latest(&self) -> bool {
+        self.inner().is_nav_latest()
+    }
+    fn expected_nav_date(&self) -> Option<String> {
+        self.inner().expected_nav_date()
+    }
 }
 
 /// 一覧・詳細に渡す1行分の表示用データ
@@ -296,6 +330,58 @@ pub(crate) struct FundView {
     pub profit_loss_rate: Option<f64>,
     pub total_return: Option<f64>,
     pub price_as_of: Option<String>,
+    pub price_source: FundPriceSource,
+    pub is_nav_latest: bool,
+    pub expected_nav_date: Option<String>,
+}
+
+impl FundView {
+    /// 「更新待ち」の行。前日比は最新の基準価額の日の変動でないため出さない
+    pub(crate) fn nav_pending(&self) -> bool {
+        !self.is_nav_latest
+    }
+
+    /// 表の「前日比」セルに出す値。更新待ちの行は古い日の前日比を見せない
+    pub(crate) fn view_day_change(&self) -> Option<f64> {
+        if self.is_nav_latest {
+            self.base_price_day_change
+        } else {
+            None
+        }
+    }
+
+    /// 前日比セルの title。出どころと日付を示し、「更新待ち」は理由を添える
+    pub(crate) fn day_change_title(&self) -> Option<String> {
+        let mmdd = |d: &str| {
+            let mut it = d.split('-');
+            match (it.next(), it.next(), it.next()) {
+                (Some(_y), Some(m), Some(d)) => {
+                    format!(
+                        "{}/{}",
+                        m.trim_start_matches('0'),
+                        d.trim_start_matches('0')
+                    )
+                }
+                _ => d.to_string(),
+            }
+        };
+        let as_of = self.price_as_of.as_deref().map(mmdd);
+        let source = match self.price_source {
+            FundPriceSource::Api => "自動更新",
+            FundPriceSource::Csv => "CSV 取り込み",
+        };
+        if self.is_nav_latest {
+            as_of.map(|d| format!("{source} {d} の前日比"))
+        } else {
+            let expected = self.expected_nav_date.as_deref().map(mmdd);
+            match (expected, as_of) {
+                (Some(e), Some(a)) => Some(format!(
+                    "更新待ち: 最新の基準価額の日は {e}、この値は{source} {a}"
+                )),
+                _ => Some("更新待ち".to_string()),
+            }
+        }
+    }
 }
 
 pub(crate) fn fund_view(row: &FundBalanceRow) -> FundView {
@@ -315,6 +401,9 @@ pub(crate) fn fund_view(row: &FundBalanceRow) -> FundView {
         profit_loss_rate: row.profit_loss_rate().as_ref().map(dec_to_f64),
         total_return: row.total_return().as_ref().map(dec_to_f64),
         price_as_of: row.price_as_of(),
+        price_source: row.price_source(),
+        is_nav_latest: row.is_nav_latest(),
+        expected_nav_date: row.expected_nav_date(),
     }
 }
 
@@ -460,7 +549,8 @@ pub(crate) fn sort_fund_views(
     indexed
 }
 
-/// 一覧の合計。daily_change は保有数量で重み付けした基準価額(前日比)の円換算
+/// 一覧の合計。daily_change は保有数量で重み付けした基準価額(前日比)の円換算。
+/// 「最新」の前日比を持つ行だけを足す(更新待ちの行は古い日の変動なので入れない)
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FundTotals {
     pub market: f64,
@@ -468,6 +558,10 @@ pub(crate) struct FundTotals {
     pub profit: f64,
     pub daily_change: f64,
     pub has_daily_change: bool,
+    /// 前日比の合計に入った(最新で前日比を持つ)ファンド数
+    pub latest_nav_count: usize,
+    /// 「更新待ち」のファンド数
+    pub pending_nav_count: usize,
 }
 
 pub(crate) fn fund_totals(views: &[FundView]) -> FundTotals {
@@ -476,9 +570,14 @@ pub(crate) fn fund_totals(views: &[FundView]) -> FundTotals {
         totals.market += view.market_value;
         totals.purchase += view.purchase;
         totals.profit += view.profit_loss;
+        if view.nav_pending() {
+            totals.pending_nav_count += 1;
+            continue;
+        }
         if let Some(change) = view.base_price_day_change {
             totals.daily_change += change * view.shares / 10_000.0;
             totals.has_daily_change = true;
+            totals.latest_nav_count += 1;
         }
     }
     totals

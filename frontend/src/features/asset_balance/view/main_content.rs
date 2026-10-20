@@ -3,11 +3,11 @@ use super::all_list::{
     unified_from_stock,
 };
 use super::asset_table::AssetHoldingsTable;
-use super::fund_table::{FundHoldingsList, FundHoldingsTable, FundPriceAsOfNote};
+use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::kind_tabs::AssetKindTabs;
 use super::search_bar::AssetSearchBar;
-use super::summary::{PortfolioSummary, fund_price_dates, stock_price_dates};
+use super::summary::{PortfolioSummary, fund_nav_counts, fund_price_dates, stock_price_dates};
 use super::summary_strip::AssetSummaryStrip;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
@@ -229,20 +229,23 @@ fn FundContent(
         let dates = fund_price_dates(&resolved.rows);
         price_date_representative(dates.iter().map(String::as_str)).map(str::to_string)
     };
-    let note_date_rep = date_rep.clone();
     // 集計は絞り込み前の全行で求め、検索中も全保有分を維持する
     let all_views: Vec<_> = resolved.rows.iter().map(fund_view).collect();
     let totals = fund_totals(&all_views);
     let fallback = resolved.fallback_totals.clone();
+    // 「最新」の前日比を持つ件数。0件なら合計の前日比は出さない(「—」)
+    let latest_nav_count = match &fallback {
+        Some(summary) => summary.latest_nav_count as usize,
+        None => totals.latest_nav_count,
+    };
     let (market, purchase, profit, daily) = match &fallback {
         Some(summary) => (
             crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
             crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
             crate::features::asset_balance::dec_to_f64(&summary.total_market_value)
                 - crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
-            Some(crate::features::asset_balance::dec_to_f64(
-                &summary.total_daily_change,
-            )),
+            (summary.latest_nav_count > 0)
+                .then(|| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change)),
         ),
         None => (
             totals.market,
@@ -252,6 +255,13 @@ fn FundContent(
         ),
     };
     let profit_rate = (purchase != 0.0).then_some(profit / purchase * 100.0);
+    // 前日比の合計に入らない行があるときだけ理由を出す
+    let daily_note = (latest_nav_count < resolved.total && resolved.total > 0).then(|| {
+        format!(
+            "前日比は、最新の前日比が分かるファンドだけの合計です({latest_nav_count}件/{}件)。更新待ちのファンドは、CSV を取り込むと出ます",
+            resolved.total
+        )
+    });
     let empty = total_count == 0;
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
@@ -303,7 +313,11 @@ fn FundContent(
                     }}
                 </div>
             </div>
-            {move || view! { <FundPriceAsOfNote date=note_date_rep.clone() /> }}
+            {daily_note.clone().map(|note| {
+                view! {
+                    <p class="mt-1 px-4 text-xs text-text-muted lg:px-0">{note}</p>
+                }
+            })}
             {move || {
                 (filtered.with(|views| views.is_empty()) && total_count > 0).then(|| {
                     view! {
@@ -424,9 +438,8 @@ fn AllContent(
             crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
             crate::features::asset_balance::dec_to_f64(&summary.total_market_value)
                 - crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
-            Some(crate::features::asset_balance::dec_to_f64(
-                &summary.total_daily_change,
-            )),
+            (summary.latest_nav_count > 0)
+                .then(|| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change)),
         ),
         None => (
             fund_totals_value.market,
@@ -437,6 +450,20 @@ fn AllContent(
                 .then_some(fund_totals_value.daily_change),
         ),
     };
+    let (fund_latest_nav, _) = fund_nav_counts(&fund_resolved);
+    let fund_note = if fund_latest_nav < fund_resolved.total && fund_resolved.total > 0 {
+        format!(
+            "投資信託の前日比は、最新の前日比が分かるファンドだけの合計({fund_latest_nav}件/{}件)",
+            fund_resolved.total
+        )
+    } else {
+        String::new()
+    };
+    let merged_note = [stock_missing_note, fund_note]
+        .into_iter()
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("・");
     let stock_profit = stock_market - stock_purchase;
     let market = stock_market + fund_market;
     let purchase = stock_purchase + fund_purchase;
@@ -459,7 +486,7 @@ fn AllContent(
                 profit=profit
                 daily_change=daily
                 profit_rate=profit_rate
-                note=stock_missing_note
+                note=merged_note
             />
             <div class="asset-list-surface">
                 <AssetSearchBar

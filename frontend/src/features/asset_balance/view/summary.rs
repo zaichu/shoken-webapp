@@ -6,7 +6,7 @@ use crate::features::asset_balance::format::{
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation, price_date_representative,
 };
-use crate::features::asset_balance::fund::{FundBalanceRow, FundRowData};
+use crate::features::asset_balance::fund::{FundBalanceRow, FundRowData, fund_totals, fund_view};
 use crate::features::asset_balance::holdings::{holding_view, stock_daily_change_total};
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
@@ -48,12 +48,14 @@ pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
     )
 }
 
-/// 投資信託タブの副題。CSV が持つ基準価額の時点を出す
+/// 投資信託タブの副題。前日比が「最新」で合計に入る件数と「更新待ち」の件数を出す
 pub(crate) fn fund_subtitle(view: &ResolvedFundBalance) -> String {
-    format!("{}件 · {}", view.total, fund_date_text(view))
+    let (latest, pending) = fund_nav_counts(view);
+    let freshness = fund_freshness_text(latest, pending);
+    format!("{}件 ・ {freshness}", view.total)
 }
 
-/// 「すべて」タブの副題。株と投信の合計件数と、それぞれの基準日を並べる
+/// 「すべて」タブの副題。株と投信の合計件数と、それぞれの基準日・前日比の状態を並べる
 pub(crate) fn merged_subtitle(
     stock: Option<&ResolvedAssetBalance>,
     fund: Option<&ResolvedFundBalance>,
@@ -73,12 +75,37 @@ pub(crate) fn merged_subtitle(
         ));
     }
     if let Some(view) = fund.filter(|view| !view.rows.is_empty()) {
-        parts.push(fund_date_text(view));
+        let (latest, pending) = fund_nav_counts(view);
+        parts.push(fund_freshness_text(latest, pending));
     }
     if parts.is_empty() {
         Some(format!("{count}件"))
     } else {
         Some(format!("{count}件 · {}", parts.join(" · ")))
+    }
+}
+
+/// 「前日比が最新」の件数(前日比を持ち合計に入る行)と「更新待ち」の件数。
+/// 行が取り切れていないときは API 集計を優先する
+pub(crate) fn fund_nav_counts(view: &ResolvedFundBalance) -> (usize, usize) {
+    match &view.fallback_totals {
+        Some(summary) => (
+            summary.latest_nav_count as usize,
+            summary.pending_nav_count as usize,
+        ),
+        None => {
+            let views: Vec<_> = view.rows.iter().map(fund_view).collect();
+            let totals = fund_totals(&views);
+            (totals.latest_nav_count, totals.pending_nav_count)
+        }
+    }
+}
+
+fn fund_freshness_text(latest: usize, pending: usize) -> String {
+    if pending == 0 {
+        "前日比はすべて最新".to_string()
+    } else {
+        format!("前日比が最新 {latest}件 ・ 更新待ち {pending}件")
     }
 }
 
@@ -120,14 +147,6 @@ fn stock_subtitle_parts(view: &ResolvedAssetBalance) -> (usize, bool, bool, Stri
         None => "株価の基準日は不明".to_string(),
     };
     (count, has_unpriced, has_missing_daily, date_text)
-}
-
-fn fund_date_text(view: &ResolvedFundBalance) -> String {
-    let dates = fund_price_dates(&view.rows);
-    match price_date_representative(dates.iter().map(String::as_str)) {
-        Some(date) => format!("基準価額 {} 時点", format_price_date(date)),
-        None => "基準価額の基準日は不明".to_string(),
-    }
 }
 
 #[component]

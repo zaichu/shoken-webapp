@@ -1,4 +1,5 @@
 use super::use_asset_balance_state;
+use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::format::{
     format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
     format_signed_valuation_rate, is_negative_valuation,
@@ -120,12 +121,15 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                         format_signed_valuation_rate(view.profit_loss_rate, 1);
                                     let pnl_negative =
                                         is_negative_valuation(Some(view.profit_loss));
-                                    let day_text = view
-                                        .base_price_day_change
-                                        .map(|value| {
-                                            format_signed_row_valuation_amount(Some(value))
-                                        })
-                                        .unwrap_or_else(|| "—".to_string());
+                                    let day_text = if view.nav_pending() {
+                                        "更新待ち".to_string()
+                                    } else {
+                                        view.base_price_day_change
+                                            .map(|value| {
+                                                format_signed_row_valuation_amount(Some(value))
+                                            })
+                                            .unwrap_or_else(|| "—".to_string())
+                                    };
                                     let month_text = view
                                         .base_price_month_change
                                         .map(|value| {
@@ -147,6 +151,10 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                     let asof_text = view
                                         .price_as_of
                                         .map_or("—".to_string(), |d| d.replace('-', "/"));
+                                    let asof_label = match view.price_source {
+                                        FundPriceSource::Api => "基準価額の基準日",
+                                        FundPriceSource::Csv => "CSV 取込日",
+                                    };
                                     view! {
                                         <div class="asset-panel">
                                             <div class="border-b border-border p-4">
@@ -161,7 +169,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                 {detail_row("基準価額", base_price_text)}
                                                 {detail_row("基準価額(前日比)", day_text)}
                                                 {detail_row("基準価額(前月比)", month_text)}
-                                                {detail_row("価格基準日", asof_text)}
+                                                {detail_row(asof_label, asof_text)}
                                                 {detail_row("保有口数", shares_text)}
                                                 {detail_row("平均取得価額", average_price_text)}
                                                 {detail_row("取得総額", purchase_text)}

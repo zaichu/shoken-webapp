@@ -2665,7 +2665,7 @@
       },
       "FundBalance": {
         "type": "object",
-        "description": "投資信託の保有残高（DB + APIレスポンス兼用）。\n価格は外部取得せず CSV の基準価額・時価評価額を保持する",
+        "description": "投資信託の保有残高（DB + APIレスポンス兼用）。\n基準価額まわりの値は CSV 取込値か三菱UFJ公式APIの共有値のどちらかでそろう\n(対応表にないファンド・API が使えないときは常に CSV 値)",
         "required": [
           "id",
           "fund_name",
@@ -2719,6 +2719,14 @@
             ],
             "description": "分配金コース（再投資型・受取型など）。CSV が \"-\" のときは持たない"
           },
+          "expected_nav_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "nav_is_latest の判定に使った「公表済みのはずの最新の基準価額の日」(JST)"
+          },
           "fund_name": {
             "type": "string"
           },
@@ -2731,10 +2739,18 @@
             "format": "double",
             "description": "時価評価額[円]（CSV 値をそのまま保持）"
           },
+          "nav_is_latest": {
+            "type": "boolean",
+            "description": "前日比が「最新の基準価額の日の変動」として出せるか。false は「更新待ち」\nで、前日比は画面に出さない"
+          },
           "price_as_of": {
             "type": "string",
             "format": "date",
-            "description": "基準価額の基準日（JST での CSV 取込日）"
+            "description": "出どころ側の日付。Api は共有値の基準日、Csv は JST での CSV 取込日"
+          },
+          "price_source": {
+            "$ref": "#/components/schemas/FundPriceSource",
+            "description": "基準価額まわりの値の出どころ"
           },
           "profit_loss": {
             "type": "number",
@@ -2765,13 +2781,23 @@
       },
       "FundBalanceSummary": {
         "type": "object",
-        "description": "投資信託残高 検索条件全体の集計。\ntotal_daily_change は保有数量で重み付けした基準価額(前日比)の円換算合計\n（shares × 前日比 / 10000）。前日比を持たない行は 0 として扱う",
+        "description": "投資信託残高 検索条件全体の集計。\ntotal_daily_change は保有数量で重み付けした基準価額(前日比)の円換算合計\n（shares × 前日比 / 10000）。「更新待ち」の行と前日比を持たない行は入れない",
         "required": [
           "total_market_value",
           "total_purchase_amount",
           "total_daily_change"
         ],
         "properties": {
+          "latest_nav_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "前日比の合計に入った(最新で前日比を持つ)ファンド数。0 のとき合計は「—」にする"
+          },
+          "pending_nav_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "「更新待ち」のファンド数"
+          },
           "total_daily_change": {
             "type": "number",
             "format": "double"
@@ -2785,6 +2811,14 @@
             "format": "double"
           }
         }
+      },
+      "FundPriceSource": {
+        "type": "string",
+        "description": "投資信託の基準価額まわりの値の出どころ。\nCsv = CSV 取込値、Api = 三菱UFJアセット公式APIの共有値。\n1行の基準価額・前日比・評価額・評価損益・損益率は必ずこの1つの出どころでそろう",
+        "enum": [
+          "csv",
+          "api"
+        ]
       },
       "MessageResponse": {
         "type": "object",
@@ -3335,7 +3369,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "description": "投資信託の保有残高（DB + APIレスポンス兼用）。\n価格は外部取得せず CSV の基準価額・時価評価額を保持する",
+              "description": "投資信託の保有残高（DB + APIレスポンス兼用）。\n基準価額まわりの値は CSV 取込値か三菱UFJ公式APIの共有値のどちらかでそろう\n(対応表にないファンド・API が使えないときは常に CSV 値)",
               "required": [
                 "id",
                 "fund_name",
@@ -3389,6 +3423,14 @@
                   ],
                   "description": "分配金コース（再投資型・受取型など）。CSV が \"-\" のときは持たない"
                 },
+                "expected_nav_date": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date",
+                  "description": "nav_is_latest の判定に使った「公表済みのはずの最新の基準価額の日」(JST)"
+                },
                 "fund_name": {
                   "type": "string"
                 },
@@ -3401,10 +3443,18 @@
                   "format": "double",
                   "description": "時価評価額[円]（CSV 値をそのまま保持）"
                 },
+                "nav_is_latest": {
+                  "type": "boolean",
+                  "description": "前日比が「最新の基準価額の日の変動」として出せるか。false は「更新待ち」\nで、前日比は画面に出さない"
+                },
                 "price_as_of": {
                   "type": "string",
                   "format": "date",
-                  "description": "基準価額の基準日（JST での CSV 取込日）"
+                  "description": "出どころ側の日付。Api は共有値の基準日、Csv は JST での CSV 取込日"
+                },
+                "price_source": {
+                  "$ref": "#/components/schemas/FundPriceSource",
+                  "description": "基準価額まわりの値の出どころ"
                 },
                 "profit_loss": {
                   "type": "number",
@@ -3454,13 +3504,23 @@
           },
           "summary": {
             "type": "object",
-            "description": "投資信託残高 検索条件全体の集計。\ntotal_daily_change は保有数量で重み付けした基準価額(前日比)の円換算合計\n（shares × 前日比 / 10000）。前日比を持たない行は 0 として扱う",
+            "description": "投資信託残高 検索条件全体の集計。\ntotal_daily_change は保有数量で重み付けした基準価額(前日比)の円換算合計\n（shares × 前日比 / 10000）。「更新待ち」の行と前日比を持たない行は入れない",
             "required": [
               "total_market_value",
               "total_purchase_amount",
               "total_daily_change"
             ],
             "properties": {
+              "latest_nav_count": {
+                "type": "integer",
+                "format": "int64",
+                "description": "前日比の合計に入った(最新で前日比を持つ)ファンド数。0 のとき合計は「—」にする"
+              },
+              "pending_nav_count": {
+                "type": "integer",
+                "format": "int64",
+                "description": "「更新待ち」のファンド数"
+              },
               "total_daily_change": {
                 "type": "number",
                 "format": "double"

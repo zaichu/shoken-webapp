@@ -13,6 +13,7 @@ use backend::{
     models::common::{PaginationParams, SearchQueryParams},
     models::dividend::{CreateDividendRequest, DividendSearchQueryParams},
     models::domestic_stock::{CreateDomesticStockRequest, DomesticStockSearchQueryParams},
+    models::fund_balance::{FundBalance, FundBalanceSearchQueryParams},
     models::mutualfund::{CreateMutualfundRequest, MutualfundSearchQueryParams},
     models::user::GoogleUserInfo,
     services::asset_balance as asset_balance_svc,
@@ -22,6 +23,8 @@ use backend::{
     services::domain::bulk::{self, RowLimit},
     services::domain::search::search as domain_search,
     services::domestic_stock as domestic_stock_svc,
+    services::fund_balance::FundBalanceDomain,
+    services::fund_price::{self, FundNav},
     services::jquants::JQuantsClient,
     services::mutualfund as mutualfund_svc,
     services::stock_master,
@@ -61,7 +64,7 @@ use rust_decimal_macros::dec;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::{SecurityCode, UserId};
 use std::{sync::Arc, time::Duration};
-use testcontainers::runners::AsyncRunner;
+use testcontainers::{ImageExt, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, timeout};
 use tower::ServiceExt;
@@ -90,7 +93,11 @@ async fn connect_with_retry(database_url: &str) -> Db {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn db_integration_with_docker_and_migrations() {
-    let node = Postgres::default().start().await.unwrap();
+    let node = Postgres::default()
+        .with_tag("16-alpine")
+        .start()
+        .await
+        .unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
@@ -531,7 +538,11 @@ fn make_asset_balance_csv() -> String {
 
 /// Docker が必要なテスト用の Postgres コンテナ起動ヘルパー
 async fn start_test_pool() -> (Db, impl Drop) {
-    let node = Postgres::default().start().await.unwrap();
+    let node = Postgres::default()
+        .with_tag("16-alpine")
+        .start()
+        .await
+        .unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
     let pool = connect_with_retry(&database_url).await;
@@ -2465,7 +2476,11 @@ async fn assert_migrate_is_noop(pool: &Db) {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn partial_legacy_history_stops_migration() {
-    let node = Postgres::default().start().await.unwrap();
+    let node = Postgres::default()
+        .with_tag("16-alpine")
+        .start()
+        .await
+        .unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
@@ -2481,7 +2496,11 @@ async fn partial_legacy_history_stops_migration() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn partial_linear_history_stops_migration() {
-    let node = Postgres::default().start().await.unwrap();
+    let node = Postgres::default()
+        .with_tag("16-alpine")
+        .start()
+        .await
+        .unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
@@ -2500,7 +2519,11 @@ async fn partial_linear_history_stops_migration() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn legacy_history_stops_migration() {
-    let node = Postgres::default().start().await.unwrap();
+    let node = Postgres::default()
+        .with_tag("16-alpine")
+        .start()
+        .await
+        .unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
@@ -2527,7 +2550,11 @@ async fn legacy_history_stops_migration() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn linear_history_rotates_to_new_baseline() {
-    let node = Postgres::default().start().await.unwrap();
+    let node = Postgres::default()
+        .with_tag("16-alpine")
+        .start()
+        .await
+        .unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
@@ -2949,4 +2976,507 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     .expect("共有価格の取得に失敗");
     assert_eq!(stored_as_of, as_of(15));
     assert_eq!(prev_close.expect("前日終値は維持する").0, dec!(110));
+}
+
+/// fund_balances に1行だけ足す。price_as_of(CSV 取込日)と created_at を固定できる
+/// ため、「更新待ち」や共有値の鮮度判定を実行時刻に依らず確かめられる
+#[allow(clippy::too_many_arguments)]
+async fn insert_fund_row(
+    pool: &Db,
+    user_id: UserId,
+    name: &str,
+    shares: rust_decimal::Decimal,
+    total_purchase_amount: rust_decimal::Decimal,
+    base_price: rust_decimal::Decimal,
+    day_change: Option<rust_decimal::Decimal>,
+    market_value: rust_decimal::Decimal,
+    profit_loss: rust_decimal::Decimal,
+    price_as_of: NaiveDate,
+    created_at: chrono::DateTime<Utc>,
+) {
+    db::query(
+        "INSERT INTO fund_balances (user_id, fund_name, account, dividends_course, shares, \
+         average_purchase_price, total_purchase_amount, base_price, base_price_day_change, \
+         market_value, profit_loss, profit_loss_rate, price_as_of, created_at) \
+         VALUES ($1, $2, '特定', '再投資型', $3, 10000, $4, $5, $6, $7, $8, 0, $9, $10)",
+        vec![
+            Bind::from(user_id),
+            Bind::from(name),
+            Bind::from(shares),
+            Bind::from(total_purchase_amount),
+            Bind::from(base_price),
+            Bind::opt(day_change),
+            Bind::from(market_value),
+            Bind::from(profit_loss),
+            Bind::from(price_as_of),
+            Bind::from(created_at),
+        ],
+    )
+    .execute(pool)
+    .await
+    .expect("fund_balances の seed に失敗");
+}
+
+async fn view_fund_row(pool: &Db, user_id: UserId) -> FundBalance {
+    db::query(
+        "SELECT * FROM fund_balances_view WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one::<FundBalance, _>(pool)
+    .await
+    .expect("fund_balances_view の取得に失敗")
+}
+
+async fn put_fund_price(pool: &Db, cd: &str, nav: &str, change: &str, as_of: NaiveDate) {
+    db::query(
+        "INSERT INTO fund_prices (association_fund_cd, nav, prev_day_change, price_as_of) \
+         VALUES ($1, $2::numeric, $3::numeric, $4) \
+         ON CONFLICT (association_fund_cd) DO UPDATE SET nav = EXCLUDED.nav, \
+         prev_day_change = EXCLUDED.prev_day_change, price_as_of = EXCLUDED.price_as_of",
+        vec![
+            Bind::from(cd),
+            Bind::from(nav),
+            Bind::from(change),
+            Bind::from(as_of),
+        ],
+    )
+    .execute(pool)
+    .await
+    .expect("fund_prices の seed に失敗");
+}
+
+/// ファンド名の照合正規化: 全角/半角・空白・括弧のゆれを吸収して一致する
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_name_normalize_unifies_width_space_and_paren() {
+    let (pool, _node) = start_test_pool().await;
+    async fn norm(pool: &Db, s: &str) -> String {
+        let (v,): (String,) = db::query("SELECT fund_name_normalize($1)", vec![Bind::from(s)])
+            .fetch_one(pool)
+            .await
+            .expect("normalize");
+        v
+    }
+    // 協会リスト名(全角)と CSV 名(半角)が同じ照合名になる
+    let listed = norm(&pool, "ｅＭＡＸＩＳ　Ｓｌｉｍ　米国株式（Ｓ＆Ｐ５００）").await;
+    for variant in [
+        "eMAXIS Slim 米国株式(S&P500)",
+        "ｅＭＡＸＩＳ Ｓｌｉｍ 米国株式（Ｓ＆Ｐ５００）",
+        "ｅＭＡＸＩＳ　Ｓｌｉｍ　米国株式　（Ｓ＆Ｐ５００）",
+        "emaxis slim 米国株式(s&p500)",
+        "eMAXIS Slim 米国株式（S&P500)",
+    ] {
+        assert_eq!(norm(&pool, variant).await, listed, "{variant}");
+    }
+}
+
+/// 共有値の基準日が CSV 取込日の3日前以降なら、基準価額まわりの値は
+/// 共有値でそろう。評価額・評価損益は口数から計算し直し、1円未満は切り捨てる
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_nav_view_uses_shared_values_within_three_days() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000001', $1",
+        vec![Bind::from("架空マップファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    insert_fund_row(
+        &pool,
+        user_id,
+        "架空マップファンド",
+        dec!(15000),
+        dec!(100000),
+        dec!(10000),
+        Some(dec!(5)),
+        dec!(150000),
+        dec!(50000),
+        today,
+        Utc::now(),
+    )
+    .await;
+    fund_price::apply_fund_nav(
+        &pool,
+        "90000001",
+        &FundNav {
+            nav: dec!(10001),
+            prev_day_change: dec!(-40),
+            base_date: today,
+        },
+    )
+    .await
+    .expect("apply 失敗");
+
+    let row = view_fund_row(&pool, user_id).await;
+    assert_eq!(row.price_source, shared::domain::FundPriceSource::Api);
+    assert_eq!(row.base_price, dec!(10001));
+    assert_eq!(row.base_price_day_change, Some(dec!(-40)));
+    // 15000 口 * 10001 / 10000 = 15001.5 → 1円未満切り捨て
+    assert_eq!(row.market_value, dec!(15001));
+    assert_eq!(row.profit_loss, dec!(15001) - dec!(100000));
+    assert_eq!(row.profit_loss_rate, Some(dec!(-84.9990)));
+    assert_eq!(row.price_as_of, today);
+}
+
+/// 共有値の基準日が CSV 取込日の3日より前なら CSV 値に戻す
+/// (API が止まっても CSV より古い値を採らない)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_nav_view_falls_back_to_csv_when_shared_is_stale() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000002', $1",
+        vec![Bind::from("架空古い共有ファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    insert_fund_row(
+        &pool,
+        user_id,
+        "架空古い共有ファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        Some(dec!(5)),
+        dec!(100000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+    put_fund_price(
+        &pool,
+        "90000002",
+        "11000",
+        "100",
+        today - chrono::Duration::days(4),
+    )
+    .await;
+
+    let row = view_fund_row(&pool, user_id).await;
+    assert_eq!(row.price_source, shared::domain::FundPriceSource::Csv);
+    assert_eq!(row.base_price, dec!(10000));
+    assert_eq!(row.base_price_day_change, Some(dec!(5)));
+    assert_eq!(row.market_value, dec!(100000));
+    assert_eq!(row.profit_loss, dec!(0));
+    assert_eq!(row.price_as_of, today);
+
+    // ちょうど3日前の共有値は採用する(境界値)
+    put_fund_price(
+        &pool,
+        "90000002",
+        "11000",
+        "100",
+        today - chrono::Duration::days(3),
+    )
+    .await;
+    let row = view_fund_row(&pool, user_id).await;
+    assert_eq!(row.price_source, shared::domain::FundPriceSource::Api);
+    assert_eq!(row.base_price, dec!(11000));
+}
+
+/// 対応表にないファンドは共有値があっても CSV 値のまま(出どころは混ぜない)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_nav_view_keeps_csv_for_unmapped_fund() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    insert_fund_row(
+        &pool,
+        user_id,
+        "対応表にないファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        Some(dec!(5)),
+        dec!(100000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+    put_fund_price(&pool, "90000099", "11000", "100", today).await;
+
+    let row = view_fund_row(&pool, user_id).await;
+    assert_eq!(row.price_source, shared::domain::FundPriceSource::Csv);
+    assert_eq!(row.base_price, dec!(10000));
+}
+
+/// 「更新待ち」の判定: 共有値は基準日が E 未満、CSV 値は取込時刻が E の
+/// 23:00 より前なら nav_is_latest = false。実行時刻に依らず時刻を固定して確かめる
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let e = fund_price::expected_nav_date(Utc::now());
+    let far_past = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
+    let far_past_ts = far_past.and_hms_opt(0, 0, 0).unwrap().and_utc();
+
+    db::query(
+        "INSERT INTO fund_codes (normalized_name, association_fund_cd, fund_name) VALUES \
+         (fund_name_normalize('最新APIファンド'), '90000011', '最新APIファンド'), \
+         (fund_name_normalize('待ちAPIファンド'), '90000012', '待ちAPIファンド')",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+
+    // 共有値: 基準日が E なら最新、E-1 なら更新待ち。
+    // 取込日を遠い過去にしておくと、E-1 の共有値でも3日ルールで必ず共有側になる
+    for (name, cd, as_of) in [
+        ("最新APIファンド", "90000011", e),
+        ("待ちAPIファンド", "90000012", e - chrono::Duration::days(1)),
+    ] {
+        insert_fund_row(
+            &pool,
+            user_id,
+            name,
+            dec!(10000),
+            dec!(100000),
+            dec!(10000),
+            Some(dec!(5)),
+            dec!(100000),
+            dec!(0),
+            far_past,
+            Utc::now(),
+        )
+        .await;
+        put_fund_price(&pool, cd, "11000", "100", as_of).await;
+    }
+    // CSV 値: 取込時刻が E の23:00以降なら最新、それより前なら更新待ち
+    insert_fund_row(
+        &pool,
+        user_id,
+        "最新CSVファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        Some(dec!(5)),
+        dec!(100000),
+        dec!(0),
+        NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+        Utc::now() + chrono::Duration::days(1),
+    )
+    .await;
+    insert_fund_row(
+        &pool,
+        user_id,
+        "待ちCSVファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        Some(dec!(5)),
+        dec!(100000),
+        dec!(0),
+        NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+        far_past_ts,
+    )
+    .await;
+
+    let rows: Vec<FundBalance> = db::query(
+        "SELECT * FROM fund_balances_view WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all::<FundBalance, _>(&pool)
+    .await
+    .expect("view の取得に失敗");
+    let is = |name: &str| {
+        let row = rows.iter().find(|r| r.fund_name == name).expect(name);
+        (row.price_source, row.nav_is_latest)
+    };
+    use shared::domain::FundPriceSource::*;
+    assert_eq!(is("最新APIファンド"), (Api, true));
+    assert_eq!(is("待ちAPIファンド"), (Api, false));
+    assert_eq!(is("最新CSVファンド"), (Csv, true));
+    assert_eq!(is("待ちCSVファンド"), (Csv, false));
+}
+
+/// summary は「最新」の行だけを前日比の合計に入れ、件数も返す
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_summary_sums_only_latest_rows() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let far_past_ts = NaiveDate::from_ymd_opt(2020, 1, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_utc();
+
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000021', $1",
+        vec![Bind::from("集計APIファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    // 最新(api・前日比あり): shares=20000, 前日比=10 → 20000*10/10000 = +20円
+    insert_fund_row(
+        &pool,
+        user_id,
+        "集計APIファンド",
+        dec!(20000),
+        dec!(200000),
+        dec!(10000),
+        Some(dec!(5)),
+        dec!(200000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+    put_fund_price(&pool, "90000021", "11000", "10", today).await;
+    // 更新待ち(csv・前日比あり): 合計には入らない
+    insert_fund_row(
+        &pool,
+        user_id,
+        "集計待ちファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        Some(dec!(99)),
+        dec!(100000),
+        dec!(0),
+        today,
+        far_past_ts,
+    )
+    .await;
+    // 最新(api・前日比なし): 合計に入らず件数にも数えない
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000022', $1",
+        vec![Bind::from("集計変動なしファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    insert_fund_row(
+        &pool,
+        user_id,
+        "集計変動なしファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        None,
+        dec!(100000),
+        dec!(0),
+        NaiveDate::from_ymd_opt(2020, 1, 1).unwrap(),
+        Utc::now(),
+    )
+    .await;
+    db::query(
+        "INSERT INTO fund_prices (association_fund_cd, nav, prev_day_change, price_as_of) \
+         VALUES ('90000022', 11000, NULL, $1)",
+        vec![Bind::from(today)],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_prices の seed に失敗");
+
+    let res = domain_search::<FundBalanceDomain>(
+        &pool,
+        user_id,
+        FundBalanceSearchQueryParams {
+            search: SearchQueryParams {
+                include_summary: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("search 失敗");
+    let summary = res.summary.expect("summary が返る");
+    assert_eq!(summary.total_daily_change, dec!(20));
+    assert_eq!(summary.latest_nav_count, 1);
+    assert_eq!(summary.pending_nav_count, 1);
+}
+
+/// 古い基準日の取得値では共有値を上書きしない(前回値を維持)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_nav_apply_keeps_newer_row() {
+    let (pool, _node) = start_test_pool().await;
+    let as_of = |d: u32| NaiveDate::from_ymd_opt(2026, 1, d).unwrap();
+
+    let updated = fund_price::apply_fund_nav(
+        &pool,
+        "90000031",
+        &FundNav {
+            nav: dec!(11000),
+            prev_day_change: dec!(100),
+            base_date: as_of(15),
+        },
+    )
+    .await
+    .expect("apply 失敗");
+    assert_eq!(updated, 1);
+
+    let updated = fund_price::apply_fund_nav(
+        &pool,
+        "90000031",
+        &FundNav {
+            nav: dec!(999),
+            prev_day_change: dec!(-1),
+            base_date: as_of(14),
+        },
+    )
+    .await
+    .expect("apply 失敗");
+    assert_eq!(updated, 0);
+    let (stored_as_of, nav): (NaiveDate, db::Numeric) = db::query(
+        "SELECT price_as_of, nav FROM fund_prices WHERE association_fund_cd = $1",
+        vec![Bind::from("90000031")],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("fund_prices の取得に失敗");
+    assert_eq!(stored_as_of, as_of(15));
+    assert_eq!(nav.0, dec!(11000));
+}
+
+/// SQL の fund_expected_nav_date と Rust 側 expected_nav_date が同じ規則で動くこと
+/// (表示判定は SQL、cron 側は Rust の2箇所にあるため分岐を揃える)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_expected_nav_date_matches_rust_mirror() {
+    let (pool, _node) = start_test_pool().await;
+    for ts in [
+        "2026-10-20T09:00:00+09:00",
+        "2026-10-20T22:59:00+09:00",
+        "2026-10-20T23:01:00+09:00",
+        "2026-10-23T23:01:00+09:00",
+        "2026-10-24T09:00:00+09:00",
+        "2026-10-25T23:30:00+09:00",
+        "2026-10-26T09:00:00+09:00",
+        "2026-10-26T23:01:00+09:00",
+    ] {
+        let now = chrono::DateTime::parse_from_rfc3339(ts)
+            .unwrap()
+            .with_timezone(&Utc);
+        let (sql_e,): (NaiveDate,) = db::query(
+            "SELECT fund_expected_nav_date($1::timestamptz)",
+            vec![Bind::from(now)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("fund_expected_nav_date");
+        assert_eq!(
+            sql_e,
+            fund_price::expected_nav_date(now),
+            "{ts} で SQL/Rust の E が不一致"
+        );
+    }
 }

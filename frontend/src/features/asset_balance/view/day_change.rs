@@ -27,3 +27,12 @@ pub(crate) fn day_change_cell(change: Option<f64>, date: Option<String>) -> impl
         })}
     }
 }
+
+/// 「更新待ち」の前日比セル。最新の基準価額の日の変動でない値を見せないため、
+/// 「—」と小さく理由を出す(理由の詳細はセルの title)
+pub(crate) fn pending_day_change_cell() -> impl IntoView {
+    view! {
+        <span class="font-bold tabular-nums whitespace-nowrap text-text-soft">"—"</span>
+        <span class="ml-1 whitespace-nowrap text-xs text-text-muted tabular-nums">"更新待ち"</span>
+    }
+}
