@@ -6,7 +6,7 @@ use crate::features::asset_balance::format::{
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation, price_date_representative,
 };
-use crate::features::asset_balance::fund::{FundBalanceRow, FundRowData, fund_totals, fund_view};
+use crate::features::asset_balance::fund::{fund_totals, fund_view};
 use crate::features::asset_balance::holdings::{holding_view, stock_daily_change_total};
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
@@ -116,11 +116,6 @@ pub(crate) fn stock_price_dates(rows: &[AssetBalanceRow]) -> Vec<&str> {
         .filter(|row| row.current_price() > Decimal::ZERO)
         .filter_map(|row| row.price_as_of())
         .collect()
-}
-
-/// 投資信託行の基準日一覧(見出しと表の日付出し分けで共通)
-pub(crate) fn fund_price_dates(rows: &[FundBalanceRow]) -> Vec<String> {
-    rows.iter().filter_map(|row| row.price_as_of()).collect()
 }
 
 fn stock_subtitle_parts(view: &ResolvedAssetBalance) -> (usize, bool, bool, String) {

@@ -739,6 +739,8 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
     assert_eq!(fund.course.as_deref(), Some("再投資型"));
     assert_eq!(fund.day_change, Some(50.0));
     assert_eq!(fund.price_as_of.as_deref(), Some("2026-10-19"));
+    // 投信の行は前日比の横に基準日を出さない(基準日は title にだけ入れる)
+    assert!(!fund.date_outlier);
 
     // 国内株式は口座・分配金が無い(表では「—」)
     let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)));

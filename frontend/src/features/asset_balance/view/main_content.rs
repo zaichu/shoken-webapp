@@ -7,7 +7,7 @@ use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::kind_tabs::AssetKindTabs;
 use super::search_bar::AssetSearchBar;
-use super::summary::{PortfolioSummary, fund_nav_counts, fund_price_dates, stock_price_dates};
+use super::summary::{PortfolioSummary, fund_nav_counts, stock_price_dates};
 use super::summary_strip::AssetSummaryStrip;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
@@ -224,11 +224,6 @@ fn FundContent(
         search_count.set((next.len(), total_count));
         filtered.set(next);
     });
-    // 見出しの基準日と同じ代表を表の日付出し分けにも使う(絞り込み前の全行で決める)
-    let date_rep = {
-        let dates = fund_price_dates(&resolved.rows);
-        price_date_representative(dates.iter().map(String::as_str)).map(str::to_string)
-    };
     // 集計は絞り込み前の全行で求め、検索中も全保有分を維持する
     let all_views: Vec<_> = resolved.rows.iter().map(fund_view).collect();
     let totals = fund_totals(&all_views);
@@ -294,7 +289,6 @@ fn FundContent(
                         view! {
                             <FundHoldingsTable
                                 views=sorted
-                                price_date_rep=date_rep.clone()
                                 sort_key=sort_key
                                 sort_order=sort_order
                             />
@@ -359,14 +353,11 @@ fn AllContent(
     let total_count = stock_total + fund_total;
     let stock_rows_for_search = stock_rows.clone();
     let fund_rows_for_search = fund_resolved.rows.clone();
-    // 見出しの基準日と同じ代表を種別ごとに決め、行の日付出し分けに使う(絞り込み前の全行)
+    // 株の見出しと同じ代表を行の日付出し分けに使う(絞り込み前の全行)。
+    // 投信の行は日付を出さない(基準日は title にだけ入れる)
     let stock_date_rep = {
         let dates = stock_price_dates(&stock_rows_for_search);
         price_date_representative(dates.into_iter()).map(str::to_string)
-    };
-    let fund_date_rep = {
-        let dates = fund_price_dates(&fund_rows_for_search);
-        price_date_representative(dates.iter().map(String::as_str)).map(str::to_string)
     };
     let build_rows = move |search: &AssetSearch| -> Vec<UnifiedRow> {
         // 株はコード・銘柄名、ファンドはファンド名・口座の部分一致にそろえる
@@ -381,15 +372,11 @@ fn AllContent(
             row.date_outlier =
                 price_date_is_outlier(row.price_as_of.as_deref(), stock_date_rep.as_deref());
         }
-        let mut fund_rows: Vec<UnifiedRow> = filter_fund_rows(&fund_rows_for_search, &fund_search)
+        let fund_rows: Vec<UnifiedRow> = filter_fund_rows(&fund_rows_for_search, &fund_search)
             .into_iter()
             .map(fund_view)
             .map(|view| unified_from_fund(&view))
             .collect();
-        for row in &mut fund_rows {
-            row.date_outlier =
-                price_date_is_outlier(row.price_as_of.as_deref(), fund_date_rep.as_deref());
-        }
         rows.extend(fund_rows);
         rows
     };

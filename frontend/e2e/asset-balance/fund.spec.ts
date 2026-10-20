@@ -31,7 +31,7 @@ const FUND_ROWS = [
     profit_loss: 10000,
     profit_loss_rate: 10.0,
     total_return: 10000,
-    price_as_of: '2026-01-01',
+    price_as_of: '2026-01-05',
     price_source: 'api',
     nav_is_latest: true,
     expected_nav_date: null,
@@ -208,10 +208,12 @@ test('前日比は最新の基準価額の変動だけを出し、更新待ち�
   const table = page.getByTestId('asset-fund-table');
   await expect(table).toBeVisible();
 
-  // 共有値が最新の行は基準価額の前日比をそのまま出す(50円/1万口あたり)
+  // 共有値が最新の行は基準価額の前日比をそのまま出す(50円/1万口あたり)。
+  // 基準日は前日比の欄に出さず title にだけ入れる(2行の基準日は違う日にしてある)
   const latest = table.getByRole('row', { name: /架空バランスファンドA号/ });
   await expect(latest).toContainText('+¥50');
   await expect(latest).not.toContainText('更新待ち');
+  await expect(latest).not.toContainText(/\(\d{1,2}\/\d{1,2}\)/);
 
   // 更新待ちの行は古い日の前日比(-30円)を出さず「更新待ち」とだけ示す
   const pending = table.getByRole('row', { name: /架空インデックスファンドB号/ });
@@ -237,6 +239,11 @@ test('前日比は最新の基準価額の変動だけを出し、更新待ち�
   });
   await expect(mergedPending).toContainText('更新待ち');
   await expect(mergedPending).not.toContainText('-¥30');
+
+  // 「すべて」タブでも投信の行は前日比の横に基準日を出さない
+  const mergedLatest = merged.getByRole('row', { name: /架空バランスファンドA号/ });
+  await expect(mergedLatest).toContainText('+¥50');
+  await expect(mergedLatest).not.toContainText(/\(\d{1,2}\/\d{1,2}\)/);
 });
 
 test('投資信託CSVは見出しで判別されプレビューから全件置換で保存できる', async ({
