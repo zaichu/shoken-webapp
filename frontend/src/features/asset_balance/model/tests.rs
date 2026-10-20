@@ -338,6 +338,7 @@ fn summary_valuation_computes_totals_from_api_summary() {
         total_daily_change: rust_decimal_macros::dec!(0),
         priced_market_value: rust_decimal_macros::dec!(1184900),
         priced_purchase_amount: rust_decimal_macros::dec!(500000),
+        has_missing_daily_change: false,
     };
     let valuation = summary_valuation(&summary);
     assert_eq!(valuation.market_value, Some(1184900.0));
@@ -361,6 +362,7 @@ fn summary_valuation_excludes_unpriced_purchase() {
         total_daily_change: rust_decimal_macros::dec!(0),
         priced_market_value: rust_decimal_macros::dec!(1000),
         priced_purchase_amount: rust_decimal_macros::dec!(500),
+        has_missing_daily_change: false,
     };
     let valuation = summary_valuation(&summary);
     assert_eq!(valuation.market_value, Some(1000.0));
@@ -378,6 +380,7 @@ fn summary_valuation_zero_market_is_unavailable() {
         total_daily_change: rust_decimal_macros::dec!(0),
         priced_market_value: rust_decimal_macros::dec!(0),
         priced_purchase_amount: rust_decimal_macros::dec!(0),
+        has_missing_daily_change: false,
     };
     let valuation = summary_valuation(&summary);
     assert_eq!(valuation.market_value, None);
@@ -394,6 +397,7 @@ fn summary_valuation_zero_purchase_has_amount_but_no_rate() {
         total_daily_change: rust_decimal_macros::dec!(0),
         priced_market_value: rust_decimal_macros::dec!(100000),
         priced_purchase_amount: rust_decimal_macros::dec!(0),
+        has_missing_daily_change: false,
     };
     let valuation = summary_valuation(&summary);
     assert_eq!(valuation.profit_loss.amount, Some(100000.0));

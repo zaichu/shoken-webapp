@@ -97,6 +97,7 @@ fn asset_balance_row_saved_delegates_current_price() {
         current_price: dec!(2600),
         daily_change: dec!(50),
         price_as_of: Some("2024-01-16".to_string()),
+        prev_close: Some(dec!(2550)),
         created_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
@@ -116,6 +117,7 @@ fn asset_balance_row_preview_delegates_current_price() {
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
         current_price: dec!(2700),
+        ..Default::default()
     });
 
     assert_eq!(row.current_price(), dec!(2700));
@@ -130,6 +132,7 @@ fn asset_balance_csv_row_current_price_field() {
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
         current_price: dec!(2800),
+        ..Default::default()
     };
 
     assert_eq!(row.current_price(), dec!(2800));
@@ -149,6 +152,7 @@ fn asset_balance_saved_row_current_price_field() {
         current_price: dec!(2900),
         daily_change: dec!(50),
         price_as_of: Some("2024-01-16".to_string()),
+        prev_close: Some(dec!(2850)),
         created_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };

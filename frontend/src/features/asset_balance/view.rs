@@ -3,6 +3,7 @@ mod asset_table;
 mod composition_page;
 mod csv_page;
 mod csv_preview;
+mod day_change;
 mod fund_detail_page;
 mod fund_table;
 mod holding_detail_page;

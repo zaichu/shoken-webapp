@@ -556,6 +556,7 @@ fn list_subtitle_uses_api_totals_when_truncated() {
                 total_daily_change: rust_decimal_macros::dec!(0),
                 priced_market_value: rust_decimal_macros::dec!(260000),
                 priced_purchase_amount: rust_decimal_macros::dec!(60),
+                has_missing_daily_change: false,
             }),
         };
         let subtitle = super::summary::list_subtitle(&resolved);

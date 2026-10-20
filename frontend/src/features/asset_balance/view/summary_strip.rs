@@ -18,6 +18,9 @@ pub(crate) fn AssetSummaryStrip(
     daily_change: Option<f64>,
     /// 取得総額が確定できない(truncated など)ときの評価損益率
     profit_rate: Option<f64>,
+    /// スマホの帯右上に出す注記(「前日比なし銘柄を除く」など)。空なら出さない
+    #[prop(optional, into)]
+    note: String,
 ) -> impl IntoView {
     let market_text = format_valuation_amount(Some(market));
     let profit_text = format_signed_valuation_amount(Some(profit));
@@ -49,6 +52,9 @@ pub(crate) fn AssetSummaryStrip(
             aria-label="集計"
             data-testid="asset-summary-strip"
         >
+            {(!note.is_empty()).then(|| {
+                view! { <p class="asset-summary-asof lg:hidden">{note}</p> }
+            })}
             <dl class="asset-summary-grid">
                 <div class="asset-summary-item asset-summary-item-primary">
                     <dt>{format!("評価額({label})")}</dt>

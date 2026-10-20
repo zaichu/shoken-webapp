@@ -1,3 +1,4 @@
+use super::day_change::day_change_subline;
 use crate::features::asset_balance::format::{
     format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
     format_signed_valuation_rate, is_negative_valuation, is_positive_valuation,
@@ -106,22 +107,9 @@ pub fn FundHoldingsTable(
                         .map(|view| {
                             let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
                                 fund_pnl_cells(&view);
-                            let day_change = view.base_price_day_change.map(|change| {
-                                let amount = change;
-                                let class = if is_negative_valuation(Some(amount)) {
-                                    "text-negative"
-                                } else if is_positive_valuation(Some(amount)) {
-                                    "text-positive"
-                                } else {
-                                    "text-text-soft"
-                                };
-                                let text = format_signed_row_valuation_amount(Some(amount));
-                                view! {
-                                    <div class=format!("asset-price-date {class}")>
-                                        {format!("前日比 {text}")}
-                                    </div>
-                                }
-                            });
+                            let day_change = view
+                                .base_price_day_change
+                                .map(|change| day_change_subline(Some(change)));
                             let href = view
                                 .id
                                 .clone()

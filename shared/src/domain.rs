@@ -202,6 +202,10 @@ pub struct AssetBalance {
     pub daily_change: Decimal,
     /// 現在値の基準日（JST）。CSV 取込値・cron 自動取得値のどちらが入っているかの判定に使う
     pub price_as_of: Option<NaiveDate>,
+    /// 前日終値。共有価格(security_prices)由来の行のみ持ち、
+    /// 上場直後・取得失敗で前日終値がない銘柄は null（行の前日比は「—」・合計から除外）
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<f64>))]
+    pub prev_close: Option<Decimal>,
     #[cfg(feature = "typed")]
     pub created_at: DateTime<Utc>,
     #[cfg(not(feature = "typed"))]
@@ -232,6 +236,10 @@ pub struct AssetBalanceSummary {
     #[serde(default)]
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub priced_purchase_amount: Decimal,
+    /// 前日終値がない(上場直後・取得失敗)保有銘柄があるか。
+    /// 前日比の合計から除いた行があるとき注記の表示に使う
+    #[serde(default)]
+    pub has_missing_daily_change: bool,
 }
 
 /// 投資信託の保有残高（DB + APIレスポンス兼用）。
