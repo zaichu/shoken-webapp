@@ -1261,6 +1261,47 @@
     }
   }
 
+  /* ホームの集計帯。スマホでは帯自体がカード面になるため角丸にする */
+  .home-summary {
+    @apply mt-3 max-lg:rounded-lg max-lg:overflow-clip;
+  }
+
+  /* ホームのカード列。配当カード側は明細ページから見返したとき面積を持たせる。
+     列を暗黙の auto に任せると最長の nowrap 行まで列が膨らむため、
+     1 列でも grid-cols-1(minmax(0,1fr))を明示してコンテナ幅に留める */
+  .home-card-row {
+    @apply mt-3 grid grid-cols-1 gap-3 lg:mt-4 lg:grid-cols-2 lg:gap-4;
+  }
+
+  .home-card-row-dividend {
+    @apply lg:grid-cols-[2fr_1fr];
+  }
+
+  .home-card-link {
+    @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-xs font-medium text-accent-text hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
+  }
+
+  /* チャートの凡例スウォッチ。色は呼び出し側が style の CSS 変数で渡す */
+  .home-swatch {
+    @apply inline-block h-2.5 w-2.5 shrink-0 rounded-sm;
+  }
+
+  .home-month-bar {
+    @apply block w-1.5 rounded-t-sm lg:w-3;
+  }
+
+  .home-donut {
+    @apply flex h-24 w-24 shrink-0 items-center justify-center rounded-full;
+  }
+
+  .home-donut-hole {
+    @apply flex h-3/5 w-3/5 items-center justify-center rounded-full bg-surface;
+  }
+
+  .home-stacked-bar {
+    @apply flex h-2.5 overflow-hidden rounded-full bg-row-group;
+  }
+
   .asset-list-surface {
     /* overflow-clip はスクロールコンテナを作らないため、中の見出しの sticky が
        main のスクロールに追従する */

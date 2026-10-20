@@ -162,19 +162,6 @@ pub fn calculate_valuation(market: Option<f64>, purchase: Option<f64>) -> Valuat
     }
 }
 
-pub fn calculate_valuation_from_decimal(market: Decimal, purchase: Decimal) -> ValuationResult {
-    let (amount, rate) = valuation_parts(
-        Some(market),
-        Some(purchase),
-        market.to_f64().unwrap_or(0.0),
-        purchase.to_f64().unwrap_or(0.0),
-    );
-    ValuationResult {
-        amount: Some(amount),
-        rate,
-    }
-}
-
 /// 評価額・含み損益の計算入力1件。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ValuationInput {
