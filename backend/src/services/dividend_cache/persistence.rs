@@ -1,7 +1,6 @@
 use crate::db::{Bind, Db};
 use crate::errors::ApiError;
-use crate::models::market_data::financial_statement::FinancialStatementsQuery;
-use crate::services::jquants::JQuantsClient;
+use crate::services::jquants::{FinancialStatementsQuery, JQuantsClient};
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
 

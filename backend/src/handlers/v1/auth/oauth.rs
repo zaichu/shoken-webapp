@@ -1,4 +1,4 @@
-use crate::errors::{ApiError, ConfigError};
+use crate::errors::{ApiError, ConfigError, ErrorResponse};
 use crate::services::auth::{self as auth_service, GoogleOAuthClient, SessionToken};
 use crate::state::AppState;
 use axum::{
@@ -85,13 +85,24 @@ pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<SessionToken, ApiError
         .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))
 }
 
+/// Google OAuth 認証を開始（v1）
+#[utoipa::path(
+    get,
+    path = "/api/v1/oauth/google/authorize",
+    operation_id = "v1_google_authorize",
+    tags = ["handlers::v1::auth"],
+    responses(
+        (status = 302, description = "Google OAuth 認証ページへリダイレクト"),
+        (status = 500, description = "サーバーエラー", body = ErrorResponse),
+    ),
+)]
 pub async fn google_auth(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<(CookieJar, Redirect), ApiError> {
     let client = google_oauth_client(&state)?;
 
-    let flow = auth_service::begin_google_auth(client);
+    let flow = auth_service::google_common::begin_auth(client);
 
     let is_secure = state.config.secure_cookie;
     let jar = jar
@@ -110,6 +121,22 @@ pub async fn google_auth(
     Ok((jar, Redirect::to(flow.authorize_url.as_str())))
 }
 
+/// Google OAuth コールバックを処理（v1）
+#[utoipa::path(
+    get,
+    path = "/api/v1/oauth/google/callback",
+    operation_id = "v1_google_callback",
+    tags = ["handlers::v1::auth"],
+    params(
+        ("code" = String, Query, description = "Google OAuth 認証コード"),
+        ("state" = String, Query, description = "OAuth CSRF state")
+    ),
+    responses(
+        (status = 302, description = "ログイン成功後にフロントエンドへリダイレクト"),
+        (status = 401, description = "OAuth の認証に失敗", body = ErrorResponse),
+        (status = 500, description = "サーバーエラー", body = ErrorResponse),
+    ),
+)]
 pub async fn google_callback(
     State(state): State<AppState>,
     Query(query): Query<AuthCallbackQuery>,

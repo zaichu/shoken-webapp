@@ -28,9 +28,12 @@ pub fn auth_routes() -> Router<AppState> {
         .route("/api/v1/account", delete(auth::delete_account))
         .route(
             "/api/v1/oauth/google/authorize",
-            get(auth::google_authorize),
+            get(auth::oauth::google_auth),
         )
-        .route("/api/v1/oauth/google/callback", get(auth::google_callback))
+        .route(
+            "/api/v1/oauth/google/callback",
+            get(auth::oauth::google_callback),
+        )
 }
 
 /// データ系 v1 ルート(data_limiter 対象)

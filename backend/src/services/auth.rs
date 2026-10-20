@@ -56,20 +56,6 @@ pub const OAUTH_STATE_COOKIE_NAME: &str = "oauth_state";
 pub const OAUTH_PKCE_VERIFIER_COOKIE_NAME: &str = "oauth_pkce_verifier";
 pub const OAUTH_NONCE_COOKIE_NAME: &str = "oauth_nonce";
 
-/// `/api/v1/oauth/google/authorize` が返す認可リダイレクト一式。
-/// state/nonce/PKCE verifier は Cookie に保存し、callback で検証する
-pub struct GoogleAuthFlow {
-    pub authorize_url: String,
-    pub state: String,
-    pub nonce: String,
-    pub pkce_verifier: String,
-}
-
-/// Google 認可 URL と state/nonce/PKCE を生成する
-pub fn begin_google_auth(client: &GoogleOAuthClient) -> GoogleAuthFlow {
-    google_common::begin_auth(client)
-}
-
 /// Google OAuth コードを検証し、ユーザーを upsert してセッショントークンを返す。
 /// ID トークン検証は tokeninfo エンドポイントに委譲する
 pub async fn authenticate_with_google_code(

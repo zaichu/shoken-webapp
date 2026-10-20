@@ -2,9 +2,8 @@
 
 use worker::{Fetch, Headers, Method, Request, RequestInit};
 
-use super::{EquitiesMasterResponse, FinSummaryResponse, JQuantsClient};
+use super::{EquitiesMasterResponse, FinSummaryResponse, FinancialStatementsQuery, JQuantsClient};
 use crate::errors::{ApiError, UpstreamError};
-use crate::models::market_data::financial_statement::FinancialStatementsQuery;
 
 impl JQuantsClient {
     pub async fn get_fin_summary(
