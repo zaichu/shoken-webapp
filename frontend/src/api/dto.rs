@@ -17,7 +17,6 @@ pub type DividendListResponse = PaginatedSearchResponse<Dividend, DividendSummar
 #[cfg(test)]
 pub type MutualfundListResponse = PaginatedSearchResponse<Mutualfund, MutualfundSummary>;
 pub type AssetBalanceListResponse = PaginatedSearchResponse<AssetBalance, AssetBalanceSummary>;
-pub type FundBalanceListResponse = PaginatedSearchResponse<FundBalance, FundBalanceSummary>;
 
 #[cfg(test)]
 mod tests;

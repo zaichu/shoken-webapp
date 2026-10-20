@@ -1,7 +1,6 @@
 use super::*;
 use crate::api::dto::{AssetBalance, Dividend};
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint};
-use rust_decimal_macros::dec;
 
 #[test]
 fn summary_endpoints_share_the_list_paths() {
@@ -33,27 +32,27 @@ fn summary_fetch_blocks_second_request_while_inflight() {
     let generation = Generation::new(1);
     let mut map = HashMap::new();
     assert_eq!(
-        begin_summary_fetch(&mut map, generation, SummaryKind::Asset),
+        begin_summary_fetch(&mut map, generation, SummaryKind::Assets),
         Some(1)
     );
     assert_eq!(
-        begin_summary_fetch(&mut map, generation, SummaryKind::Asset),
+        begin_summary_fetch(&mut map, generation, SummaryKind::Assets),
         None,
         "取得中の同じ集計を重ねて要求しない"
     );
     assert_eq!(
-        begin_summary_fetch(&mut map, generation, SummaryKind::Dividend),
+        begin_summary_fetch(&mut map, generation, SummaryKind::DividendsCurrent),
         Some(1),
         "別の集計は取得中でも取れる"
     );
     assert!(finish_summary_fetch(
         &mut map,
         generation,
-        SummaryKind::Asset,
+        SummaryKind::Assets,
         1
     ));
     assert_eq!(
-        begin_summary_fetch(&mut map, generation, SummaryKind::Asset),
+        begin_summary_fetch(&mut map, generation, SummaryKind::Assets),
         Some(2),
         "応答後は再取得できる"
     );
@@ -63,33 +62,33 @@ fn summary_fetch_blocks_second_request_while_inflight() {
 fn summary_fetch_drops_stale_response() {
     let generation = Generation::new(1);
     let mut map = HashMap::new();
-    let rev = begin_summary_fetch(&mut map, generation, SummaryKind::Asset).unwrap();
+    let rev = begin_summary_fetch(&mut map, generation, SummaryKind::Assets).unwrap();
     assert!(finish_summary_fetch(
         &mut map,
         generation,
-        SummaryKind::Asset,
+        SummaryKind::Assets,
         rev
     ));
-    let next = begin_summary_fetch(&mut map, generation, SummaryKind::Asset).unwrap();
+    let next = begin_summary_fetch(&mut map, generation, SummaryKind::Assets).unwrap();
     assert!(
-        !finish_summary_fetch(&mut map, generation, SummaryKind::Asset, rev),
+        !finish_summary_fetch(&mut map, generation, SummaryKind::Assets, rev),
         "古い応答は inflight を下ろさない"
     );
     assert!(
-        map.get(&(generation, SummaryKind::Asset))
+        map.get(&(generation, SummaryKind::Assets))
             .is_some_and(|entry| entry.inflight),
         "新しい取得はまだ取得中のまま"
     );
     assert!(finish_summary_fetch(
         &mut map,
         generation,
-        SummaryKind::Asset,
+        SummaryKind::Assets,
         next
     ));
     // 別世代のキーは同じ rev でも混ざらない
     let other = Generation::new(2);
     assert_eq!(
-        begin_summary_fetch(&mut map, other, SummaryKind::Asset),
+        begin_summary_fetch(&mut map, other, SummaryKind::Assets),
         Some(1)
     );
 }
@@ -127,14 +126,16 @@ fn settle_summary_keeps_displayed_value_on_refresh_error() {
 }
 
 #[test]
-fn overview_amounts_display_decimal_totals_in_yen() {
-    // 丸め前の浮動小数点を含む集計値も、資産管理と同じ円単位で出す
-    assert_eq!(
-        overview_amount_text(Some(dec!(15116919.990234375))),
-        "¥15,116,920"
-    );
-    assert_eq!(overview_amount_text(Some(dec!(63000.5))), "¥63,001");
-    assert_eq!(overview_amount_text(Some(dec!(-1234.4))), "-¥1,234");
-    assert_eq!(overview_amount_text(Some(dec!(0))), "¥0");
-    assert_eq!(overview_amount_text(None), "—");
+fn refresh_failed_ignores_other_generations() {
+    let generation = Generation::new(1);
+    let other = Generation::new(2);
+    let mut map = HashMap::new();
+    let failed = || SummaryFetch {
+        failed: true,
+        ..SummaryFetch::default()
+    };
+    map.insert((other, SummaryKind::Assets), failed());
+    assert!(!refresh_failed(&map, generation));
+    map.insert((generation, SummaryKind::Recent), failed());
+    assert!(refresh_failed(&map, generation));
 }
