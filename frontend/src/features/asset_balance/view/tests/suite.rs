@@ -731,11 +731,16 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
             profit_loss_rate: Some(10.0),
             total_return: None,
             price_as_of: Some("2026-10-19".to_string()),
+            price_source: crate::api::dto::FundPriceSource::Api,
+            is_nav_latest: true,
+            expected_nav_date: None,
         });
     assert_eq!(fund.account.as_deref(), Some("NISA成長投資枠"));
     assert_eq!(fund.course.as_deref(), Some("再投資型"));
     assert_eq!(fund.day_change, Some(50.0));
     assert_eq!(fund.price_as_of.as_deref(), Some("2026-10-19"));
+    // 投信の行は前日比の横に基準日を出さない(基準日は title にだけ入れる)
+    assert!(!fund.date_outlier);
 
     // 国内株式は口座・分配金が無い(表では「—」)
     let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)));
@@ -744,4 +749,127 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
     assert!(stock.course.is_none());
     assert_eq!(stock.day_change, Some(50.0));
     assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));
+}
+
+fn fund_view_nav(
+    name: &str,
+    price_source: crate::api::dto::FundPriceSource,
+    is_nav_latest: bool,
+    day_change: Option<f64>,
+    price_as_of: Option<String>,
+    expected_nav_date: Option<String>,
+) -> crate::features::asset_balance::fund::FundView {
+    crate::features::asset_balance::fund::FundView {
+        id: Some(format!("fund-{name}")),
+        name: name.to_string(),
+        account: "NISA".to_string(),
+        course: None,
+        shares: 10000.0,
+        average_purchase_price: 10000.0,
+        purchase: 100000.0,
+        base_price: 11000.0,
+        base_price_day_change: day_change,
+        base_price_month_change: None,
+        market_value: 110000.0,
+        profit_loss: 10000.0,
+        profit_loss_rate: Some(10.0),
+        total_return: None,
+        price_as_of,
+        price_source,
+        is_nav_latest,
+        expected_nav_date,
+    }
+}
+
+#[test]
+fn unified_row_hides_day_change_and_marks_pending_for_stale_fund_nav() {
+    let view = fund_view_nav(
+        "ファンドB",
+        crate::api::dto::FundPriceSource::Csv,
+        false,
+        Some(50.0),
+        Some("2026-10-10".to_string()),
+        Some("2026-10-17".to_string()),
+    );
+    let row = super::all_list::unified_from_fund(&view);
+    assert!(row.nav_pending);
+    assert_eq!(row.day_change, None);
+    assert!(row.day_change_title.unwrap().contains("更新待ち"));
+}
+
+#[test]
+fn fund_subtitle_counts_latest_and_pending_rows() {
+    use crate::features::asset_balance::fund::FundBalanceRow;
+    use crate::features::asset_balance::store::csv::ResolvedFundBalance;
+
+    let saved = |name: &str, source: &str, latest: bool, change: Option<i64>, asof: &str| {
+        FundBalanceRow::Saved(
+            serde_json::from_value(serde_json::json!({
+                "id": format!("fund-{name}"),
+                "fund_name": name,
+                "dividends_course": null,
+                "account": "特定",
+                "shares": 10000,
+                "average_purchase_price": 10000,
+                "total_purchase_amount": 1000,
+                "base_price": 11000,
+                "base_price_day_change": change,
+                "base_price_month_change": null,
+                "market_value": 1100,
+                "profit_loss": 100,
+                "profit_loss_rate": 10.0,
+                "total_return": null,
+                "price_as_of": asof,
+                "price_source": source,
+                "nav_is_latest": latest,
+                "expected_nav_date": null,
+                "created_at": "2026-10-17T00:00:00Z",
+                "updated_at": "2026-10-18T00:00:00Z",
+            }))
+            .unwrap(),
+        )
+    };
+    let resolved = ResolvedFundBalance {
+        rows: vec![
+            saved("A", "api", true, Some(100), "2026-10-17"),
+            saved("B", "csv", false, Some(50), "2026-10-10"),
+            saved("C", "api", true, None, "2026-10-17"),
+        ],
+        total: 3,
+        warning: None,
+        fallback_totals: None,
+    };
+    let subtitle = super::summary::fund_subtitle(&resolved);
+    assert!(subtitle.contains("3件"));
+    assert!(subtitle.contains("1件"), "{subtitle}");
+    assert!(subtitle.contains("更新待ち 1件"), "{subtitle}");
+
+    // 行が取り切れていないときは API 集計の件数を使う
+    let truncated = ResolvedFundBalance {
+        rows: resolved.rows.clone(),
+        total: 9,
+        warning: None,
+        fallback_totals: Some(crate::api::dto::FundBalanceSummary {
+            total_market_value: rust_decimal::Decimal::from(1),
+            total_purchase_amount: rust_decimal::Decimal::from(1),
+            total_daily_change: rust_decimal::Decimal::from(1),
+            latest_nav_count: 5,
+            pending_nav_count: 4,
+        }),
+    };
+    let subtitle = super::summary::fund_subtitle(&truncated);
+    assert!(subtitle.contains("9件"));
+    assert!(subtitle.contains("最新 5件"), "{subtitle}");
+    assert!(subtitle.contains("更新待ち 4件"), "{subtitle}");
+
+    // すべて最新なら「更新待ち」を出さない
+    let all_latest = ResolvedFundBalance {
+        rows: vec![saved("A", "api", true, Some(100), "2026-10-17")],
+        total: 1,
+        warning: None,
+        fallback_totals: None,
+    };
+    let subtitle = super::summary::fund_subtitle(&all_latest);
+    assert!(!subtitle.contains("更新待ち"), "{subtitle}");
+    assert!(subtitle.contains("すべて最新"), "{subtitle}");
 }

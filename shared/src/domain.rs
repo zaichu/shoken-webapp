@@ -242,8 +242,21 @@ pub struct AssetBalanceSummary {
     pub has_missing_daily_change: bool,
 }
 
+/// 投資信託の基準価額まわりの値の出どころ。
+/// Csv = CSV 取込値、Api = 三菱UFJアセット公式APIの共有値。
+/// 1行の基準価額・前日比・評価額・評価損益・損益率は必ずこの1つの出どころでそろう
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+pub enum FundPriceSource {
+    #[default]
+    Csv,
+    Api,
+}
+
 /// 投資信託の保有残高（DB + APIレスポンス兼用）。
-/// 価格は外部取得せず CSV の基準価額・時価評価額を保持する
+/// 基準価額まわりの値は CSV 取込値か三菱UFJ公式APIの共有値のどちらかでそろう
+/// (対応表にないファンド・API が使えないときは常に CSV 値)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct FundBalance {
@@ -284,8 +297,18 @@ pub struct FundBalance {
     pub profit_loss_rate: Option<Decimal>,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_return: Option<Decimal>,
-    /// 基準価額の基準日（JST での CSV 取込日）
+    /// 出どころ側の日付。Api は共有値の基準日、Csv は JST での CSV 取込日
     pub price_as_of: NaiveDate,
+    /// 基準価額まわりの値の出どころ
+    #[serde(default)]
+    pub price_source: FundPriceSource,
+    /// 前日比が「最新の基準価額の日の変動」として出せるか。false は「更新待ち」
+    /// で、前日比は画面に出さない
+    #[serde(default)]
+    pub nav_is_latest: bool,
+    /// nav_is_latest の判定に使った「公表済みのはずの最新の基準価額の日」(JST)
+    #[serde(default)]
+    pub expected_nav_date: Option<NaiveDate>,
     #[cfg(feature = "typed")]
     pub created_at: DateTime<Utc>,
     #[cfg(not(feature = "typed"))]
@@ -298,7 +321,7 @@ pub struct FundBalance {
 
 /// 投資信託残高 検索条件全体の集計。
 /// total_daily_change は保有数量で重み付けした基準価額(前日比)の円換算合計
-/// （shares × 前日比 / 10000）。前日比を持たない行は 0 として扱う
+/// （shares × 前日比 / 10000）。「更新待ち」の行と前日比を持たない行は入れない
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct FundBalanceSummary {
@@ -308,6 +331,12 @@ pub struct FundBalanceSummary {
     pub total_purchase_amount: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_daily_change: Decimal,
+    /// 前日比の合計に入った(最新で前日比を持つ)ファンド数。0 のとき合計は「—」にする
+    #[serde(default)]
+    pub latest_nav_count: i64,
+    /// 「更新待ち」のファンド数
+    #[serde(default)]
+    pub pending_nav_count: i64,
 }
 
 #[cfg(test)]

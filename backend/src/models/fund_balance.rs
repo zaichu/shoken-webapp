@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use shared::value::Account;
 use validator::{Validate, ValidationErrors};
 
+use shared::domain::FundPriceSource;
 pub use shared::domain::{FundBalance, FundBalanceSummary};
 
 impl crate::db::FromRow for FundBalance {
@@ -37,6 +38,12 @@ impl crate::db::FromRow for FundBalance {
                 .try_get::<_, Option<crate::db::Numeric>>("total_return")?
                 .map(|n| n.0),
             price_as_of: row.try_get("price_as_of")?,
+            price_source: match row.try_get::<_, String>("price_source")?.as_str() {
+                "api" => FundPriceSource::Api,
+                _ => FundPriceSource::Csv,
+            },
+            nav_is_latest: row.try_get("nav_is_latest")?,
+            expected_nav_date: row.try_get("expected_nav_date")?,
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
         })
@@ -55,6 +62,8 @@ impl crate::db::FromRow for FundBalanceSummary {
             total_daily_change: row
                 .try_get::<_, crate::db::Numeric>("total_daily_change")?
                 .0,
+            latest_nav_count: row.try_get("latest_nav_count")?,
+            pending_nav_count: row.try_get("pending_nav_count")?,
         })
     }
 }

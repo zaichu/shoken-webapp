@@ -1,7 +1,7 @@
-use super::day_change::day_change_cell;
+use super::day_change::{day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, pnl_cells, price_date_outliers,
+    format_currency, format_row_valuation_amount, pnl_cells,
 };
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::model::format_number_value;
@@ -11,18 +11,9 @@ use leptos::prelude::*;
 #[component]
 pub fn FundHoldingsTable(
     views: Vec<FundView>,
-    /// 見出しに出している代表の基準日("YYYY-MM-DD")。違う行だけ日付を出す
-    price_date_rep: Option<String>,
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
-    let date_outliers = price_date_outliers(
-        &views
-            .iter()
-            .map(|view| view.price_as_of.clone())
-            .collect::<Vec<_>>(),
-        price_date_rep.as_deref(),
-    );
     view! {
         <div data-testid="asset-fund-table">
             <table class="asset-table">
@@ -41,15 +32,9 @@ pub fn FundHoldingsTable(
                 <tbody>
                     {views
                         .into_iter()
-                        .zip(date_outliers)
-                        .map(|(view, is_outlier)| {
+                        .map(|view| {
                             let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
                                 pnl_cells(Some(view.profit_loss), view.profit_loss_rate);
-                            let outlier_date = if is_outlier {
-                                view.price_as_of.clone()
-                            } else {
-                                None
-                            };
                             let href = view
                                 .id
                                 .clone()
@@ -82,8 +67,16 @@ pub fn FundHoldingsTable(
                                     <td class="text-right tabular-nums text-text-soft">
                                         {format_currency(view.base_price)}
                                     </td>
-                                    <td class="text-right tabular-nums">
-                                        {day_change_cell(view.base_price_day_change, outlier_date)}
+                                    <td
+                                        class="text-right tabular-nums"
+                                        title=view.day_change_title()
+                                    >
+                                        {if view.nav_pending() {
+                                            pending_day_change_cell().into_any()
+                                        } else {
+                                            day_change_cell(view.view_day_change(), None)
+                                                .into_any()
+                                        }}
                                     </td>
                                     <td class="text-right font-bold tabular-nums text-brand-text">
                                         {format_row_valuation_amount(Some(view.market_value))}

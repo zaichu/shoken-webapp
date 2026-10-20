@@ -5,7 +5,7 @@ pub use shared::common::{MessageResponse, PaginatedSearchResponse, SessionUser, 
 pub use shared::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 pub use shared::domain::{
     AssetBalance, AssetBalanceSummary, Dividend, DividendSummary, DomesticStock,
-    DomesticStockSummary, FundBalance, FundBalanceSummary, Mutualfund,
+    DomesticStockSummary, FundBalance, FundBalanceSummary, FundPriceSource, Mutualfund,
 };
 
 // wire 形が DomesticStockSummary と同一なので、serde の実装を wasm に増やさないよう使い回す

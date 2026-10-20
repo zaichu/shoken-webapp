@@ -44,6 +44,9 @@ pub enum UpstreamError {
     RateLimited,
     #[error("上流サービスの応答を解析できませんでした: {0}")]
     Decode(#[source] serde_json::Error),
+    /// 解析は通るが内容が検証を通らない応答(異常値・項目の不整合)。理由をログに残す
+    #[error("上流サービスの応答が検証を通りませんでした: {0}")]
+    Invalid(String),
     /// 認証サービス呼び出しの失敗。詳細を露出しないため呼び出し名だけ持つ
     #[error("{0}")]
     OAuth(&'static str),

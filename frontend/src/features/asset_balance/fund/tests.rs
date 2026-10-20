@@ -156,3 +156,86 @@ fn fund_accounts_and_courses_dedup() {
     assert_eq!(fund_accounts(&rows), ["特定", "NISA"]);
     assert_eq!(fund_courses(&rows), ["受取型"]);
 }
+
+fn saved_fund(
+    name: &str,
+    price_source: &str,
+    nav_is_latest: bool,
+    day_change: Option<i64>,
+    price_as_of: &str,
+    expected_nav_date: Option<&str>,
+) -> FundBalanceRow {
+    FundBalanceRow::Saved(
+        serde_json::from_value(serde_json::json!({
+            "id": format!("fund-{name}"),
+            "fund_name": name,
+            "dividends_course": null,
+            "account": "特定",
+            "shares": 10000,
+            "average_purchase_price": 10000,
+            "total_purchase_amount": 1000,
+            "base_price": 11000,
+            "base_price_day_change": day_change,
+            "base_price_month_change": null,
+            "market_value": 1100,
+            "profit_loss": 100,
+            "profit_loss_rate": 10.0,
+            "total_return": null,
+            "price_as_of": price_as_of,
+            "price_source": price_source,
+            "nav_is_latest": nav_is_latest,
+            "expected_nav_date": expected_nav_date,
+            "created_at": "2026-10-17T00:00:00Z",
+            "updated_at": "2026-10-18T00:00:00Z",
+        }))
+        .unwrap(),
+    )
+}
+
+#[test]
+fn view_day_change_is_hidden_when_nav_is_pending() {
+    let row = saved_fund(
+        "A",
+        "csv",
+        false,
+        Some(50),
+        "2026-10-10",
+        Some("2026-10-17"),
+    );
+    let view = fund_view(&row);
+    assert!(view.nav_pending());
+    assert_eq!(view.view_day_change(), None);
+    let title = view.day_change_title().unwrap();
+    assert!(title.contains("更新待ち"));
+
+    let latest = saved_fund("B", "api", true, Some(50), "2026-10-17", None);
+    let view = fund_view(&latest);
+    assert!(!view.nav_pending());
+    assert_eq!(view.view_day_change(), Some(50.0));
+    let title = view.day_change_title().unwrap();
+    assert!(title.contains("自動更新"));
+    assert!(title.contains("10/17"));
+}
+
+#[test]
+fn totals_count_latest_and_pending_and_exclude_pending_change() {
+    let rows = [
+        saved_fund("A", "api", true, Some(100), "2026-10-17", None),
+        saved_fund(
+            "B",
+            "csv",
+            false,
+            Some(50),
+            "2026-10-10",
+            Some("2026-10-17"),
+        ),
+        saved_fund("C", "csv", false, None, "2026-10-10", None),
+    ];
+    let views: Vec<FundView> = rows.iter().map(fund_view).collect();
+    let totals = fund_totals(&views);
+    // 更新待ちの B・C は合計に入らない。100円 × 10000口 / 10000 = 100円
+    assert_eq!(totals.daily_change, 100.0);
+    assert_eq!(totals.latest_nav_count, 1);
+    assert_eq!(totals.pending_nav_count, 2);
+    assert!(totals.has_daily_change);
+}

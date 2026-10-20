@@ -73,23 +73,29 @@ impl CsvImport for FundBalanceDomain {
     }
 }
 
-// 評価額・評価損益は CSV の時価評価額・評価損益をそのまま合計する。
-// 前日比合計は基準価額(1万口あたり)の前日比を保有口数で重み付けして円換算する。
-// 前日比を持たない行は集計から外さず 0 として足し込む（行ごとの欠損で合計が過小にならないよう）
+// 評価額・評価損益はビューの値(共有値が採れた行は共有値で再計算済み)を合計する。
+// 前日比合計は「最新」の行だけを保有口数で重み付けして円換算する。
+// 更新待ち・前日比なしの行は合計に入れず、件数を latest_nav_count / pending_nav_count で返す
 const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(market_value), 0) AS total_market_value, \
      COALESCE(SUM(total_purchase_amount), 0) AS total_purchase_amount, \
-     COALESCE(SUM(shares * COALESCE(base_price_day_change, 0) / 10000), 0) AS total_daily_change \
-     FROM fund_balances";
+     COALESCE(SUM(shares * base_price_day_change / 10000) \
+         FILTER (WHERE nav_is_latest AND base_price_day_change IS NOT NULL), 0) \
+         AS total_daily_change, \
+     COUNT(*) FILTER (WHERE nav_is_latest AND base_price_day_change IS NOT NULL) \
+         AS latest_nav_count, \
+     COUNT(*) FILTER (WHERE NOT nav_is_latest) AS pending_nav_count \
+     FROM fund_balances_view";
 
 impl Search for FundBalanceDomain {
     type Data = FundBalance;
     type Params = FundBalanceSearchQueryParams;
     type Summary = FundBalanceSummary;
 
+    const FROM: &'static str = "fund_balances_view";
     const COLUMNS: &'static str = "id, user_id, fund_name, account, dividends_course, shares, \
         average_purchase_price, total_purchase_amount, base_price, base_price_day_change, \
         base_price_month_change, market_value, profit_loss, profit_loss_rate, total_return, \
-        price_as_of, created_at, updated_at";
+        price_as_of, price_source, nav_is_latest, expected_nav_date, created_at, updated_at";
     const ORDER_BY: &'static str = " ORDER BY fund_name ASC, account ASC, id ASC";
     const DATE_COLUMN: Option<&'static str> = None;
     const FILTER_FIELDS: &'static [FilterField] = &[FilterField::FundName, FilterField::Account];
