@@ -163,9 +163,11 @@ pub fn AssetMergedTable(
                                                 Some(href) => view! {
                                                     <a
                                                         href=href.clone()
-                                                        class="no-underline hover:underline"
+                                                        class="flex min-h-6 items-center no-underline hover:underline"
                                                     >
-                                                        {name_cell}
+                                                        <span class="min-w-0 truncate">
+                                                            {name_cell}
+                                                        </span>
                                                     </a>
                                                 }
                                                     .into_any(),

@@ -84,8 +84,13 @@ pub fn AssetHoldingsTable(
                                     <td title=view.name.clone()>
                                         {match href {
                                             Some(href) => view! {
-                                                <a href=href class="no-underline hover:underline">
-                                                    {name_cell}
+                                                <a
+                                                    href=href
+                                                    class="flex min-h-6 items-center no-underline hover:underline"
+                                                >
+                                                    <span class="min-w-0 truncate">
+                                                        {name_cell}
+                                                    </span>
                                                 </a>
                                             }
                                                 .into_any(),
