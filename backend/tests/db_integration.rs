@@ -914,6 +914,42 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+async fn asset_balance_same_code_in_different_accounts() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    // 同一銘柄を口座別(特定/NISA/口座なし)に持てる
+    let mut tokutei = make_asset_item("9904");
+    tokutei.account = Some("特定".parse().unwrap());
+    let mut nisa = make_asset_item("9904");
+    nisa.account = Some("NISA".parse().unwrap());
+    let items = vec![tokutei, nisa, make_asset_item("9904")];
+    asset_balance_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+        .await
+        .expect("口座別の同一銘柄は別行で登録できる");
+
+    let rows = domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_id,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("list 失敗")
+    .data;
+    let accounts: Vec<Option<String>> = rows
+        .iter()
+        .filter(|row| row.security_code.as_str() == "9904")
+        .map(|row| row.account.as_ref().map(|a| a.as_str().to_string()))
+        .collect();
+    let accounts: Vec<Option<&str>> = accounts.iter().map(|a| a.as_deref()).collect();
+    assert_eq!(accounts.len(), 3, "口座別の行が揃っていない: {accounts:?}");
+    for expected in [Some("特定"), Some("NISA"), None] {
+        assert!(accounts.contains(&expected), "{expected:?} がない");
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
 async fn stock_price_apply_close_price_keeps_newer_row() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;

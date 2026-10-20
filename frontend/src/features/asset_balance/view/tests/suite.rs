@@ -756,22 +756,22 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
             expected_nav_date: None,
         });
     assert_eq!(fund.account.as_deref(), Some("NISA成長投資枠"));
-    // 投資信託の行にコードは無い(表では空欄)。行メタの口座は表示名にそろえる
+    // 投資信託の行にコードは無い(表では空欄)。行メタはコース、口座は札で出す
     assert!(fund.code.is_none());
-    assert_eq!(fund.sub, "NISA成長 ・ 再投資型");
+    assert_eq!(fund.sub, "再投資型");
     assert_eq!(fund.course.as_deref(), Some("再投資型"));
     assert_eq!(fund.day_change, Some(50.0));
     assert_eq!(fund.price_as_of.as_deref(), Some("2026-10-19"));
     // 投信の行は前日比の横に基準日を出さない(基準日は title にだけ入れる)
     assert!(!fund.date_outlier);
 
-    // 国内株式は分配金が無い(表では「—」)。口座は行が持っていればそのまま出す
+    // 国内株式は分配金が無い(表では「—」)。口座は行が持っていれば札で出す
     let mut stock_row = balance_row(9904);
     stock_row.account = Some("特定".parse().unwrap());
     let stock = super::all_list::unified_from_stock(&holding_view(&stock_row));
     assert_eq!(stock.code.as_deref(), Some("9904"));
     assert_eq!(stock.account.as_deref(), Some("特定"));
-    assert_eq!(stock.sub, "9904 · 特定");
+    assert_eq!(stock.sub, "9904");
     assert!(stock.course.is_none());
     assert_eq!(stock.day_change, Some(50.0));
     assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));

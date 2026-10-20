@@ -13,7 +13,7 @@ use crate::services::csv::util::{
     CsvRowView, RowNumber, check_max_chars, parse_number, parse_optional_string,
 };
 use crate::services::domain::bulk::{RowLimit, bulk_replace, user_ids_for_bulk_insert};
-use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
+use crate::services::domain::facets::{FacetSlot, FacetSpec};
 use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
@@ -126,10 +126,9 @@ impl Search for AssetBalanceDomain {
         FilterField::SecurityName,
         FilterField::Account,
     ];
-    const FACETS: &'static [FacetSpec] = &[
-        FacetSpec::security(FacetSlot::Securities, "id"),
-        FacetSpec::group(FacetSlot::Accounts, GroupField::Account, FacetOrder::Asc),
-    ];
+    // 口座の group facet は追加しない。旧行は account が NULL で FacetOption
+    // (String 非NULL)に乗せられず、現状 facet を参照する画面もないため
+    const FACETS: &'static [FacetSpec] = &[FacetSpec::security(FacetSlot::Securities, "id")];
 
     fn filter_value(params: &AssetBalanceSearchQueryParams, field: FilterField) -> &Option<String> {
         match field {
@@ -226,13 +225,17 @@ enum RowKind {
     Holding,
     /// 「○○口座合計」の口座区切り行
     Separator,
-    /// 「■口座名」のセクション見出し、口座ごとに繰り返される列見出し
+    /// 「■口座名」のセクション見出し
+    Heading,
+    /// 口座ごとに繰り返される列見出し
     Structural,
 }
 
 fn classify_row(row: &CsvRowView<'_>) -> RowKind {
     let first = row.cell("銘柄コード");
-    if first.starts_with('■') || first == "銘柄コード" {
+    if first.starts_with('■') {
+        RowKind::Heading
+    } else if first == "銘柄コード" {
         RowKind::Structural
     } else if is_account_summary_row(row) {
         RowKind::Separator
@@ -252,34 +255,43 @@ fn separator_account_name(row: &CsvRowView<'_>) -> Option<Account> {
     Account::try_from(name).ok()
 }
 
+/// 「■○○口座」のセクション見出しから口座名を取り出す。口座見出し以外は None
+fn heading_account_name(row: &CsvRowView<'_>) -> Option<Account> {
+    let raw = row.cell("銘柄コード").strip_prefix('■')?.trim();
+    let name = raw.strip_suffix("口座")?.trim();
+    Account::try_from(name).ok()
+}
+
 /// 各行に口座を付ける。区切りが無い・区切りより前の行は口座を持たない(推測しない)
 ///
-/// 「口座合計」行は、実際の証券会社 CSV では口座ブロックの末尾(集計行)だが、
-/// 直後に保有行が続く場合はそれに続くブロックの区切りとして扱う
+/// 実際の証券会社 CSV は「■口座名」見出し → 列見出し → 保有行 → 「口座合計」集計行の
+/// ブロック構造なので、見出し・区切りのどちらが出てもその口座名を後続の保有行へ付ける。
+/// 末尾の「口座合計」だけは直前の未割当の保有行を閉じる集計行として扱う。直後に別の
+/// 口座ブロック(■見出し・区切り)や保有行が続く区切りは前後どちらの区切りか分からない
+/// ため、直前の行にはさかのぼって付けない
 fn assign_row_accounts(rows: &[CsvRowView<'_>]) -> Vec<Option<Account>> {
     let kinds: Vec<RowKind> = rows.iter().map(classify_row).collect();
     let mut accounts: Vec<Option<Account>> = vec![None; rows.len()];
-    for (index, kind) in kinds.iter().enumerate() {
-        if *kind != RowKind::Separator {
-            continue;
-        }
-        let Some(name) = separator_account_name(&rows[index]) else {
-            continue;
-        };
-        if kinds.get(index + 1) == Some(&RowKind::Holding) {
-            for i in index + 1..rows.len() {
-                if kinds[i] != RowKind::Holding {
-                    break;
+    let mut current: Option<Account> = None;
+    for (index, row) in rows.iter().enumerate() {
+        match kinds[index] {
+            RowKind::Heading => current = heading_account_name(row),
+            RowKind::Separator => {
+                let name = separator_account_name(row);
+                let trailing_summary =
+                    matches!(kinds.get(index + 1), None | Some(RowKind::Structural));
+                if trailing_summary && let Some(name) = &name {
+                    for i in (0..index).rev() {
+                        if kinds[i] != RowKind::Holding || accounts[i].is_some() {
+                            break;
+                        }
+                        accounts[i] = Some(name.clone());
+                    }
                 }
-                accounts[i].get_or_insert_with(|| name.clone());
+                current = name;
             }
-        } else {
-            for i in (0..index).rev() {
-                if kinds[i] != RowKind::Holding {
-                    break;
-                }
-                accounts[i].get_or_insert_with(|| name.clone());
-            }
+            RowKind::Structural => {}
+            RowKind::Holding => accounts[index] = current.clone(),
         }
     }
     accounts
@@ -608,15 +620,21 @@ mod tests {
             accounts_of(&[TEST_ROW_1, SEP_TOKUTEI, TEST_ROW_2]),
             [acc(None), acc(Some("特定"))]
         );
-        // 実際のCSV形式: 「口座合計」は口座ブロックの末尾(合計行)なので直前の保有に付く
+        // 実際のCSV形式: 「口座合計」がブロック末尾の集計行のときは直前の保有に付く
         assert_eq!(
             accounts_of(&[TEST_ROW_1, TEST_ROW_2, SEP_TOKUTEI]),
             [acc(Some("特定")), acc(Some("特定"))]
         );
-        // 実際のCSV形式・複数口座: 「■口座名」見出しと列見出しの繰り返しを挟んでも
-        // 各合計行が直前ブロックだけを締める
+        // 「■口座名」見出し: 見出しに続く保有に口座を付ける
+        assert_eq!(
+            accounts_of(&["■特定口座", HEADER, TEST_ROW_1, TEST_ROW_2]),
+            [acc(Some("特定")), acc(Some("特定"))]
+        );
+        // 実際のCSV形式・複数口座: 「■口座名」見出しごとに口座が切り替わる
         assert_eq!(
             accounts_of(&[
+                "■特定口座",
+                HEADER,
                 TEST_ROW_1,
                 SEP_TOKUTEI,
                 "■NISA口座",
@@ -625,6 +643,12 @@ mod tests {
                 SEP_NISA
             ]),
             [acc(Some("特定")), acc(Some("NISA"))]
+        );
+        // 区切りの直後に別の口座ブロック(■見出し)が続くときは、前後どちらの区切りか
+        // 分からないため直前の行には口座を付けない
+        assert_eq!(
+            accounts_of(&[TEST_ROW_1, SEP_TOKUTEI, "■NISA口座", HEADER, TEST_ROW_2]),
+            [acc(None), acc(Some("NISA"))]
         );
         // 「○○口座合計」以外の区切り名も取り出せる
         assert_eq!(

@@ -14,7 +14,7 @@ use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::format::{price_date_is_outlier, price_date_representative};
 use crate::features::asset_balance::fund::{
     AssetKind, AssetSearch, FundBalanceRow, FundSortKey, FundView, filter_fund_rows, fund_accounts,
-    fund_courses, fund_totals, fund_view, sort_fund_views,
+    fund_courses, fund_totals, fund_view, sort_fund_views, text_only_search,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, holding_dividend, stock_daily_change_total,
@@ -357,19 +357,17 @@ fn AllContent(
         price_date_representative(dates.into_iter()).map(str::to_string)
     };
     let build_rows = move |search: &AssetSearch| -> Vec<UnifiedRow> {
-        // 株はコード・銘柄名・口座、ファンドはファンド名・口座の部分一致にそろえる
+        // 「すべて」はテキストのみ。口座・コースの選択条件はタブごとに語彙が
+        // 違うためここでは使わない(テキストは株の口座・ファンド口座も部分一致する)
+        let text_search = text_only_search(search);
         let FilteredPortfolio { views, .. } =
-            filtered_portfolio(&stock_rows_for_search, search, lookup, generation);
-        let fund_search = AssetSearch {
-            text: search.text.clone(),
-            ..Default::default()
-        };
+            filtered_portfolio(&stock_rows_for_search, &text_search, lookup, generation);
         let mut rows: Vec<UnifiedRow> = views.iter().map(unified_from_stock).collect();
         for row in &mut rows {
             row.date_outlier =
                 price_date_is_outlier(row.price_as_of.as_deref(), stock_date_rep.as_deref());
         }
-        let fund_rows: Vec<UnifiedRow> = filter_fund_rows(&fund_rows_for_search, &fund_search)
+        let fund_rows: Vec<UnifiedRow> = filter_fund_rows(&fund_rows_for_search, &text_search)
             .into_iter()
             .map(fund_view)
             .map(|view| unified_from_fund(&view))
@@ -541,6 +539,17 @@ pub(crate) fn AssetBalanceMainContent(
 ) -> impl IntoView {
     let stock_count = stock_rows.len();
     let fund_count = fund_resolved.total.max(fund_resolved.rows.len());
+    // 口座・コースの選択肢はタブごとに語彙が違うため、切替時は選択条件だけ消す
+    // (テキストは全タブ共通で引き継ぐ)
+    let prev_kind = RwSignal::new(kind.get_untracked());
+    Effect::new(move |_| {
+        let next = kind.get();
+        if prev_kind.get_untracked() == next {
+            return;
+        }
+        prev_kind.set(next);
+        search.update(|s| *s = text_only_search(s));
+    });
     view! {
         <AssetKindTabs
             kind=kind

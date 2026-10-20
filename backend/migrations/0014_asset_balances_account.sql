@@ -4,6 +4,12 @@
 ALTER TABLE ONLY public.asset_balances
     ADD COLUMN account character varying(100);
 
+-- 同じ銘柄を口座別に持てるよう、一意キーを口座込みに変える。
+-- 口座なし(旧データ)同士の重複は NULLS NOT DISTINCT で従来どおり防ぐ
+DROP INDEX public.idx_asset_balances_user_security;
+CREATE UNIQUE INDEX idx_asset_balances_user_security
+    ON public.asset_balances USING btree (user_id, security_code, account) NULLS NOT DISTINCT;
+
 -- ビュー列の追加は末尾のみ許容されるため、account は prev_close の後ろに足す
 CREATE OR REPLACE VIEW public.asset_balances_view AS
  SELECT ab.id,

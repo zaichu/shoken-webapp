@@ -213,12 +213,15 @@ fn account_slices_group_funds_by_account() {
         fund("F1", "特定", 600_000, 10_000),
         fund("F2", "NISA", 200_000, 5_000),
         fund("F3", "特定", 200_000, -5_000),
+        fund("F4", "NISA成長投資枠", 100_000, 1_000),
     ];
     let slices = account_slices(&funds);
     // 特定は合算され 800,000。株式は口座を持たないため口座別には出ない
-    assert_eq!(slices.len(), 2);
+    assert_eq!(slices.len(), 3);
     assert_eq!(slices[0].label, "特定");
     assert_eq!(slices[0].amount, 800_000.0);
+    // 長い口座名は取引明細と同じ表示名に短縮してから合算する
+    assert_eq!(slices[2].label, "NISA成長");
     assert!(slices.iter().all(|s| s.label != "国内株式"));
     // ファンドが無ければ口座内訳は作らない
     assert!(account_slices(&[]).is_empty());

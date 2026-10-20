@@ -220,6 +220,10 @@ pub struct CsvChunking {
     /// false のとき import は分割しない。
     /// 置換型ドメインは分割すると後続チャンクが前チャンクの行を消すため
     pub import_chunked: bool,
+    /// false のとき preview も分割しない。
+    /// 区切り行で口座を判定する形式など、前の行の文脈に依存するドメインは
+    /// 分割すると 2 チャンク目以降の行で文脈が欠けるため
+    pub preview_chunked: bool,
     /// 設定時、先頭10レコード以内でこの文字で始まるフィールドを含む行までを
     /// 前置行とする(backend の header_marker 見出し検出と同じ規則。
     /// 表題行つき形式ではファイルごとに前置行数が変わるため)
@@ -431,6 +435,11 @@ pub async fn preview_csv<R: serde::de::DeserializeOwned>(
     file: &web_sys::File,
     chunking: CsvChunking,
 ) -> Result<CsvPreviewResponse<R>, ApiError> {
+    if !chunking.preview_chunked {
+        return ApiClient::default_client()
+            .post_multipart(path, &csv_form_data(file)?)
+            .await;
+    }
     let chunks = split_file_chunks(file, chunking, CSV_CHUNK_ROWS).await?;
     let client = ApiClient::default_client();
     // backend の拡張子ガードと E2E モックの filename ルックアップが実名を使うため維持する
