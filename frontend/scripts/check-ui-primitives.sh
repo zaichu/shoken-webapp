@@ -18,6 +18,11 @@ RAW_DISCLOSURE='aria-expanded'
 # 状態表示は ui/ の部品(Alert/ListLoadError/ListSkeleton/Skeleton 等)を使う。
 # role="alert"・animate-pulse は部品が持つ属性なので features/ では直書きしない
 STATE_MARKUP='role="alert"|animate-pulse'
+# DOM 要素の style 属性(attr:style= 経由も含む)は本番 CSP(style-src 'self')で
+# 無効になる。動的な値は style:<prop>=、静的な指定はクラスにする。
+# タグ名が小文字始まりの要素だけを違反にする。大文字始まりのタグはコンポーネントで
+# style= は HTML 属性ではなく prop(DisclosureStyle::X 等)なので値の形は問わない
+STYLE_ATTR='(^|[^[:alnum:]_:.-])style[[:space:]]*=|(^|[^[:alnum:]_])attr:style[[:space:]]*='
 
 # 許可リスト: "ファイルパス:行" 形式。部品で表せない正当な直書きだけを理由付きで列挙する
 # (カード相当の組み合わせはタグ単位で検出するため行番号を出さず、許可リストは適用できない)
@@ -67,8 +72,11 @@ check() {
 # タグ内の文字列と RSX 属性式の括弧を追跡し、属性値中の > を終端と誤認しない。
 # タグ外では Rust の文字列・raw string・文字リテラル・行末コメントを読み飛ばし、
 # それらに含まれるタグ風テキストを誤検知しない。
-extract_class_tags() {
-  awk '
+# 第1引数の ERE に一致したタグだけを出力する。
+extract_attr_tags() {
+  local filter="$1"
+  shift
+  awk -v filter="$filter" '
     # Rust の文字リテラル(例: ( の3文字、\n の4文字)なら終端位置を返す。
     # ライフタイム(a のように閉じクォートを持たない)は -1 を返す。
     function char_lit_end(text, i,    n1, n3) {
@@ -89,7 +97,7 @@ extract_class_tags() {
     }
 
     function finish_tag() {
-      if (tag ~ /class/) {
+      if (tag ~ filter) {
         print tag
       }
       in_tag = 0
@@ -197,7 +205,21 @@ check_card_like() {
         && grep -qE "$surface_pattern" <<<"$tag"; then
         hits+="${file}: $(printf '%.120s' "$tag")"$'\n'
       fi
-    done < <(extract_class_tags "$file")
+    done < <(extract_attr_tags 'class' "$file")
+  done
+  emit_check "$label" "${hits%$'\n'}"
+}
+
+# style 属性を持つタグのうち、タグ名が小文字始まり(DOM 要素)のものだけを違反にする
+check_inline_style() {
+  local label="$1" file tag hits=""
+  shift
+  for file in "$@"; do
+    while IFS= read -r tag; do
+      if grep -qE '^<[a-z]' <<<"$tag"; then
+        hits+="${file}: $(printf '%.120s' "$tag")"$'\n'
+      fi
+    done < <(extract_attr_tags "$STYLE_ATTR" "$file")
   done
   emit_check "$label" "${hits%$'\n'}"
 }
@@ -208,6 +230,7 @@ if [ "$#" -gt 0 ]; then
   check_card_like "カード相当のクラス組み合わせ(自己テスト)" "$@"
   check "開閉属性の直書き(自己テスト)" "$RAW_DISCLOSURE" strip "$@"
   check "状態表示の直書き(自己テスト)" "$STATE_MARKUP" "" "$@"
+  check_inline_style "インラインスタイル(自己テスト)" "$@"
   [ "$fail" -ne 0 ] && exit 1
   exit 0
 fi
@@ -217,6 +240,7 @@ check "部品クラスの直書き(src/features/**/*.rs)" "$PRIMITIVE_CLASS" "" 
 check_card_like "カード相当のクラス組み合わせ(src/features/**/*.rs)" "${FEATURE_FILES[@]}"
 check "開閉属性の直書き(src/features/**/*.rs)" "$RAW_DISCLOSURE" strip "${FEATURE_FILES[@]}"
 check "状態表示の直書き(src/features/**/*.rs)" "$STATE_MARKUP" "" "${FEATURE_FILES[@]}"
+check_inline_style "インラインスタイル(src/features/**/*.rs)" "${FEATURE_FILES[@]}"
 
 [ "$fail" -ne 0 ] && exit 1
 
@@ -233,7 +257,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'role="alert"' 'animate-pulse'; do
+for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'role="alert"' 'animate-pulse' 'style=format!' 'style="' 'style=bar_width' 'style = "width: 10%"' 'style=STYLE' 'attr:style="'; do
   if ! grep -Fq -- "$expected" <<<"$self_test_output"; then
     echo "ERROR: 基本部品検査の自己テストが $expected を検出しません" >&2
     exit 1

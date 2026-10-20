@@ -9,7 +9,7 @@ use crate::{
     state::AppState,
 };
 use axum::{
-    extract::{Query, State},
+    extract::State,
     http::StatusCode,
     response::{IntoResponse, Json},
 };
@@ -223,46 +223,6 @@ pub async fn create_account_deletion_confirmation(
             }),
         ),
     ))
-}
-
-/// Google OAuth 認証を開始（v1）
-#[utoipa::path(
-    get,
-    path = "/api/v1/oauth/google/authorize",
-    operation_id = "v1_google_authorize",
-    responses(
-        (status = 302, description = "Google OAuth 認証ページへリダイレクト"),
-        (status = 500, description = "サーバーエラー", body = ErrorResponse),
-    ),
-)]
-pub async fn google_authorize(
-    State(state): State<AppState>,
-    jar: CookieJar,
-) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::v1::auth::oauth::google_auth(State(state), jar).await
-}
-
-/// Google OAuth コールバックを処理（v1）
-#[utoipa::path(
-    get,
-    path = "/api/v1/oauth/google/callback",
-    operation_id = "v1_google_callback",
-    params(
-        ("code" = String, Query, description = "Google OAuth 認証コード"),
-        ("state" = String, Query, description = "OAuth CSRF state")
-    ),
-    responses(
-        (status = 302, description = "ログイン成功後にフロントエンドへリダイレクト"),
-        (status = 401, description = "OAuth の認証に失敗", body = ErrorResponse),
-        (status = 500, description = "サーバーエラー", body = ErrorResponse),
-    ),
-)]
-pub async fn google_callback(
-    State(state): State<AppState>,
-    Query(query): Query<crate::handlers::v1::auth::oauth::AuthCallbackQuery>,
-    jar: CookieJar,
-) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::v1::auth::oauth::google_callback(State(state), Query(query), jar).await
 }
 
 #[cfg(test)]

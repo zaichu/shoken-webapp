@@ -1,7 +1,6 @@
 //! SQL クエリのバインド値。実行には `query_typed`/`execute_typed` を使い、各値の
 //! Postgres 型を `declared_type()` で明示する（Hyperdrive では untyped prepare の
-//! 分割往復が接続を壊すため）。native/wasm で同一の宣言を使い、`Int` は宣言型に
-//! 合わせて encode する。
+//! 分割往復が接続を壊すため）。native/wasm で同一の宣言を使う。
 
 use crate::db::numeric::Numeric;
 use bytes::BytesMut;
@@ -15,16 +14,13 @@ use uuid::Uuid;
 #[derive(Debug)]
 pub enum Bind {
     Null,
-    Bool(bool),
     Int(i64),
-    Float(f64),
     Decimal(Decimal),
     Str(String),
     Bytes(Vec<u8>),
     Date(NaiveDate),
     Timestamp(DateTime<Utc>),
     Uuid(Uuid),
-    Json(serde_json::Value),
     /// variant から宣言型を決められない値（配列・newtype 等）を `ty` 付きで包む
     Custom {
         ty: Type,
@@ -51,23 +47,16 @@ impl Bind {
     pub(crate) fn declared_type(&self) -> Type {
         match self {
             Bind::Null => Type::UNKNOWN,
-            Bind::Bool(_) => Type::BOOL,
             Bind::Int(_) => Type::INT8,
-            Bind::Float(_) => Type::FLOAT8,
             Bind::Decimal(_) => Type::NUMERIC,
             Bind::Str(_) => Type::TEXT,
             Bind::Bytes(_) => Type::BYTEA,
             Bind::Date(_) => Type::DATE,
             Bind::Timestamp(_) => Type::TIMESTAMPTZ,
             Bind::Uuid(_) => Type::UUID,
-            Bind::Json(_) => Type::JSONB,
             Bind::Custom { ty, .. } => ty.clone(),
         }
     }
-}
-
-fn err(message: impl Into<String>) -> Box<dyn Error + Sync + Send> {
-    message.into().into()
 }
 
 impl ToSql for Bind {
@@ -78,56 +67,13 @@ impl ToSql for Bind {
     ) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
         match self {
             Bind::Null => Ok(IsNull::Yes),
-            Bind::Bool(v) => ToSql::to_sql(v, ty, out),
-            Bind::Int(v) => {
-                if *ty == Type::INT2 {
-                    ToSql::to_sql(
-                        &i16::try_from(*v).map_err(|_| err("Int が i16 範囲外"))?,
-                        ty,
-                        out,
-                    )
-                } else if *ty == Type::INT4 {
-                    ToSql::to_sql(
-                        &i32::try_from(*v).map_err(|_| err("Int が i32 範囲外"))?,
-                        ty,
-                        out,
-                    )
-                } else if *ty == Type::INT8 {
-                    ToSql::to_sql(v, ty, out)
-                } else if *ty == Type::OID {
-                    ToSql::to_sql(
-                        &u32::try_from(*v).map_err(|_| err("Int が u32 範囲外"))?,
-                        ty,
-                        out,
-                    )
-                } else if *ty == Type::FLOAT4 {
-                    ToSql::to_sql(&(*v as f32), ty, out)
-                } else if *ty == Type::FLOAT8 {
-                    ToSql::to_sql(&(*v as f64), ty, out)
-                } else if *ty == Type::NUMERIC {
-                    ToSql::to_sql(&Numeric(Decimal::from(*v)), ty, out)
-                } else {
-                    Err(err(format!("Int を {ty} として encode できない")))
-                }
-            }
-            Bind::Float(v) => {
-                if *ty == Type::FLOAT4 {
-                    ToSql::to_sql(&(*v as f32), ty, out)
-                } else if *ty == Type::NUMERIC {
-                    let d = Decimal::try_from(*v)
-                        .map_err(|_| err("Float を NUMERIC に変換できない"))?;
-                    ToSql::to_sql(&Numeric(d), ty, out)
-                } else {
-                    ToSql::to_sql(v, ty, out)
-                }
-            }
+            Bind::Int(v) => ToSql::to_sql(v, ty, out),
             Bind::Decimal(v) => ToSql::to_sql(&Numeric(*v), ty, out),
             Bind::Str(v) => ToSql::to_sql(v, ty, out),
             Bind::Bytes(v) => ToSql::to_sql(&v.as_slice(), ty, out),
             Bind::Date(v) => ToSql::to_sql(v, ty, out),
             Bind::Timestamp(v) => ToSql::to_sql(v, ty, out),
             Bind::Uuid(v) => ToSql::to_sql(v, ty, out),
-            Bind::Json(v) => ToSql::to_sql(v, ty, out),
             Bind::Custom { value, .. } => value.to_sql_checked(ty, out),
         }
     }
@@ -141,12 +87,6 @@ impl ToSql for Bind {
     to_sql_checked!();
 }
 
-impl From<bool> for Bind {
-    fn from(v: bool) -> Self {
-        Bind::Bool(v)
-    }
-}
-
 macro_rules! from_int {
     ($($t:ty),*) => {$(
         impl From<$t> for Bind {
@@ -156,25 +96,7 @@ macro_rules! from_int {
         }
     )*};
 }
-from_int!(i8, i16, i32, i64, u8, u16, u32);
-
-impl From<usize> for Bind {
-    fn from(v: usize) -> Self {
-        Bind::Int(i64::try_from(v).unwrap_or(i64::MAX))
-    }
-}
-
-impl From<f32> for Bind {
-    fn from(v: f32) -> Self {
-        Bind::Float(f64::from(v))
-    }
-}
-
-impl From<f64> for Bind {
-    fn from(v: f64) -> Self {
-        Bind::Float(v)
-    }
-}
+from_int!(i32, i64);
 
 impl From<Decimal> for Bind {
     fn from(v: Decimal) -> Self {
@@ -191,18 +113,6 @@ impl From<String> for Bind {
 impl From<&str> for Bind {
     fn from(v: &str) -> Self {
         Bind::Str(v.to_owned())
-    }
-}
-
-impl From<&String> for Bind {
-    fn from(v: &String) -> Self {
-        Bind::Str(v.clone())
-    }
-}
-
-impl From<&[u8]> for Bind {
-    fn from(v: &[u8]) -> Self {
-        Bind::Bytes(v.to_vec())
     }
 }
 
@@ -224,15 +134,8 @@ impl From<Uuid> for Bind {
     }
 }
 
-impl From<serde_json::Value> for Bind {
-    fn from(v: serde_json::Value) -> Self {
-        Bind::Json(v)
-    }
-}
-
 /// 配列は要素型に応じて宣言型が必要なため、使用する `Vec<T>` ごとに `From` を定義する。
 /// 宣言型は各 INSERT の `unnest($n::<type>[])` キャストおよび比較対象の列型と一致させる。
-/// `Vec<u8>` は `u8` が ToSql を持たないため対象外で、`Bind::Bytes` / `From<&[u8]>` を使う。
 impl From<Vec<shared::value::UserId>> for Bind {
     fn from(v: Vec<shared::value::UserId>) -> Self {
         Bind::custom(Type::UUID_ARRAY, v)
@@ -298,36 +201,6 @@ impl From<shared::value::UserId> for Bind {
     }
 }
 
-impl From<shared::value::RecordId> for Bind {
-    fn from(v: shared::value::RecordId) -> Self {
-        Bind::Uuid(v.get())
-    }
-}
-
-impl From<shared::value::SecurityCode> for Bind {
-    fn from(v: shared::value::SecurityCode) -> Self {
-        Bind::Str(v.as_str().to_owned())
-    }
-}
-
-impl From<&shared::value::SecurityCode> for Bind {
-    fn from(v: &shared::value::SecurityCode) -> Self {
-        Bind::Str(v.as_str().to_owned())
-    }
-}
-
-impl From<shared::value::Account> for Bind {
-    fn from(v: shared::value::Account) -> Self {
-        Bind::Str(v.as_str().to_owned())
-    }
-}
-
-impl From<&shared::value::Account> for Bind {
-    fn from(v: &shared::value::Account) -> Self {
-        Bind::Str(v.as_str().to_owned())
-    }
-}
-
 impl From<shared::dividend_per_share::DividendCacheStatus> for Bind {
     fn from(v: shared::dividend_per_share::DividendCacheStatus) -> Self {
         Bind::custom(Type::VARCHAR, v)
@@ -345,9 +218,7 @@ mod tests {
     #[test]
     fn declared_type_maps_each_variant() {
         assert_eq!(Bind::Null.declared_type(), Type::UNKNOWN);
-        assert_eq!(Bind::from(true).declared_type(), Type::BOOL);
         assert_eq!(Bind::from(1i64).declared_type(), Type::INT8);
-        assert_eq!(Bind::from(1.0f64).declared_type(), Type::FLOAT8);
         assert_eq!(Bind::from(Decimal::ONE).declared_type(), Type::NUMERIC);
         assert_eq!(Bind::from("x").declared_type(), Type::TEXT);
         assert_eq!(Bind::Bytes(vec![1]).declared_type(), Type::BYTEA);
@@ -357,10 +228,6 @@ mod tests {
         );
         assert_eq!(Bind::from(Utc::now()).declared_type(), Type::TIMESTAMPTZ);
         assert_eq!(Bind::from(Uuid::nil()).declared_type(), Type::UUID);
-        assert_eq!(
-            Bind::from(serde_json::json!({})).declared_type(),
-            Type::JSONB
-        );
     }
 
     /// 配列・newtype の宣言型は unnest のキャスト先や列型に合わせる。

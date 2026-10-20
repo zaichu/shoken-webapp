@@ -49,12 +49,21 @@ pub fn create_oauth_client(
     })
 }
 
+/// `/api/v1/oauth/google/authorize` が返す認可リダイレクト一式。
+/// state/nonce/PKCE verifier は Cookie に保存し、callback で検証する
+pub struct GoogleAuthFlow {
+    pub authorize_url: String,
+    pub state: String,
+    pub nonce: String,
+    pub pkce_verifier: String,
+}
+
 /// Google 認可フローの開始一式（認可 URL・state・nonce・PKCE verifier）
-pub fn begin_auth(client: &GoogleOAuthClient) -> super::GoogleAuthFlow {
+pub fn begin_auth(client: &GoogleOAuthClient) -> GoogleAuthFlow {
     let (pkce_verifier, pkce_challenge) = new_pkce_pair();
     let state = new_oauth_random();
     let nonce = new_oauth_random();
-    super::GoogleAuthFlow {
+    GoogleAuthFlow {
         authorize_url: build_authorize_url(
             &client.client_id,
             &client.redirect_uri,

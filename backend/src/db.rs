@@ -8,7 +8,7 @@ mod migrate;
 pub mod numeric;
 
 pub use bind::Bind;
-pub use builder::{QueryBuilder, Separated};
+pub use builder::QueryBuilder;
 #[cfg(not(target_arch = "wasm32"))]
 pub use migrate::run_migrations;
 pub use numeric::Numeric;
@@ -434,15 +434,6 @@ impl Db {
         }
     }
 
-    pub fn is_closed(&self) -> bool {
-        match &*self.inner {
-            #[cfg(not(target_arch = "wasm32"))]
-            DbInner::Pool(pool) => pool.is_closed(),
-            #[cfg(target_arch = "wasm32")]
-            DbInner::Worker(_) => false,
-        }
-    }
-
     /// トランザクションを開始する。`BEGIN` は batch_execute で送り、
     /// commit/rollback は `Tx` が担う
     pub async fn begin(&self) -> Result<Tx, DbError> {
@@ -770,7 +761,6 @@ macro_rules! impl_executor_for_tx {
     };
 }
 
-impl_executor_for_tx!(Tx);
 impl_executor_for_tx!(&Tx);
 impl_executor_for_tx!(&mut Tx);
 

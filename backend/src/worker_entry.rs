@@ -173,23 +173,29 @@ async fn fetch(
 // 同じ分の cron は1回にまとまって届くため振り分けない
 #[event(scheduled)]
 async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
-    if let Err(e) = drain_dividend_cache(&env).await {
+    let state = match build_state(&env) {
+        Ok(state) => state,
+        Err(e) => {
+            console_error!("scheduled イベントエラー: state 構築: {e}");
+            return;
+        }
+    };
+    if let Err(e) = drain_dividend_cache(&state).await {
         console_error!("scheduled イベントエラー: 配当キャッシュ消化: {e}");
     }
-    if stock_price::should_refresh_at(event.schedule()) {
-        if let Err(e) = refresh_stock_prices(&env).await {
-            console_error!("scheduled イベントエラー: 現在値更新: {e}");
-        }
+    if stock_price::should_refresh_at(event.schedule())
+        && let Err(e) = refresh_stock_prices(&env, &state).await
+    {
+        console_error!("scheduled イベントエラー: 現在値更新: {e}");
     }
-    if let Err(e) = refresh_stock_master(&env, event.schedule()).await {
+    if let Err(e) = refresh_stock_master(&state, event.schedule()).await {
         console_error!("scheduled イベントエラー: 銘柄マスタ更新: {e}");
     }
 }
 
 /// 保有銘柄の現在値を Yahoo chart API から取得して更新する。
 /// dev/検証用に vars の YAHOO_CHART_BASE_URL でモックへ差し替えられる
-async fn refresh_stock_prices(env: &Env) -> Result<()> {
-    let state = build_state(env)?;
+async fn refresh_stock_prices(env: &Env, state: &AppState) -> Result<()> {
     let base_url = env.var("YAHOO_CHART_BASE_URL").ok().map(|v| v.to_string());
     let updated = stock_price::refresh_stock_prices(&state.pool, base_url)
         .await
@@ -200,8 +206,7 @@ async fn refresh_stock_prices(env: &Env) -> Result<()> {
 
 /// J-Quants 上場銘柄一覧から銘柄マスタ(stock)を全置換する。
 /// dev/検証用に vars の JQUANTS_MASTER_BASE_URL でモックへ差し替えられる
-async fn refresh_stock_master(env: &Env, scheduled_ms: f64) -> Result<()> {
-    let state = build_state(env)?;
+async fn refresh_stock_master(state: &AppState, scheduled_ms: f64) -> Result<()> {
     let Some(client) = state.jquants_client.as_ref() else {
         console_log!("JQUANTS_API_KEY 未設定のため銘柄マスタ更新をスキップ");
         return Ok(());
@@ -214,8 +219,7 @@ async fn refresh_stock_master(env: &Env, scheduled_ms: f64) -> Result<()> {
     Ok(())
 }
 
-async fn drain_dividend_cache(env: &Env) -> Result<()> {
-    let state = build_state(env)?;
+async fn drain_dividend_cache(state: &AppState) -> Result<()> {
     let Some(client) = state.jquants_client.as_ref() else {
         console_log!("JQUANTS_API_KEY 未設定のため配当キャッシュ消化をスキップ");
         return Ok(());
