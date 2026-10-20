@@ -123,18 +123,40 @@ pub(crate) fn format_price_date(as_of: &str) -> String {
     }
 }
 
-/// 保有銘柄の基準日の範囲(最小・最大の "MM/DD")。日付の無い銘柄は除く
-pub(crate) fn price_date_range<'a>(
+/// 日付群の代表(最も多い日付。同数なら新しい方)。日付の無いものは比較に含めない。
+/// 見出しはこの日付を出し、表の行は違うときだけ日付を足すので、両者で同じ値を使う
+pub(crate) fn price_date_representative<'a>(
     dates: impl Iterator<Item = &'a str>,
-) -> Option<(String, String)> {
-    let mut min: Option<&str> = None;
-    let mut max: Option<&str> = None;
+) -> Option<&'a str> {
+    let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
     for date in dates.filter(|date| !date.is_empty()) {
-        min = Some(min.map_or(date, |m: &str| m.min(date)));
-        max = Some(max.map_or(date, |m: &str| m.max(date)));
+        *counts.entry(date).or_default() += 1;
     }
-    min.zip(max)
-        .map(|(min, max)| (format_price_date(min), format_price_date(max)))
+    counts
+        .into_iter()
+        .max_by(|(date_a, count_a), (date_b, count_b)| {
+            count_a.cmp(count_b).then_with(|| date_a.cmp(date_b))
+        })
+        .map(|(date, _)| date)
+}
+
+/// 行の基準日が代表と違うか。日付の無い行は false
+pub(crate) fn price_date_is_outlier(date: Option<&str>, representative: Option<&str>) -> bool {
+    date.filter(|date| !date.is_empty())
+        .is_some_and(|date| Some(date) != representative)
+}
+
+/// 各行の基準日が代表と違うかをまとめて返す。`representative` は
+/// `price_date_representative` を未絞り込みの行に掛けた値を渡す
+/// (見出しは絞り込み前の代表を出すので、行側もそれと同じ基準で比較する)
+pub(crate) fn price_date_outliers(
+    dates: &[Option<String>],
+    representative: Option<&str>,
+) -> Vec<bool> {
+    dates
+        .iter()
+        .map(|date| price_date_is_outlier(date.as_deref(), representative))
+        .collect()
 }
 
 fn format_valuation_with(

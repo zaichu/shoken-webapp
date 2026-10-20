@@ -432,16 +432,22 @@ fn positive_valuation_is_decided_by_rounded_amount() {
 }
 
 #[test]
-fn price_date_range_picks_min_and_max_dates() {
+fn price_date_representative_picks_the_most_common_date() {
+    // 最多の日付を代表にする。見出しはこの日付を出す
     assert_eq!(
-        price_date_range(["2025-10-10", "2025-10-08", ""].into_iter()),
-        Some(("10/08".to_string(), "10/10".to_string()))
+        price_date_representative(["2025-10-10", "2025-10-08", "2025-10-10", ""].into_iter()),
+        Some("2025-10-10")
+    );
+    // 同数なら新しい日付を代表にする
+    assert_eq!(
+        price_date_representative(["2025-10-08", "2025-10-10"].into_iter()),
+        Some("2025-10-10")
     );
     assert_eq!(
-        price_date_range(["2025-10-10"].into_iter()),
-        Some(("10/10".to_string(), "10/10".to_string()))
+        price_date_representative(["2025-10-10"].into_iter()),
+        Some("2025-10-10")
     );
-    assert_eq!(price_date_range(std::iter::empty()), None);
+    assert_eq!(price_date_representative(std::iter::empty()), None);
     assert_eq!(format_price_date("2025-10-10"), "10/10");
     // 想定外の形式はそのまま返す
     assert_eq!(format_price_date("不明"), "不明");
@@ -623,6 +629,29 @@ fn list_subtitle_shows_single_date_when_all_rows_share_as_of() {
 }
 
 #[test]
+fn list_subtitle_shows_the_representative_date_when_dates_differ() {
+    let owner = Owner::new();
+    owner.with(|| {
+        // 基準日が混在するときは、行の日付を省く基準と同じ「最多の日付」を見出しに出す
+        let mut older = balance_row(9914);
+        older.price_as_of = Some("2024-01-15".to_string());
+        let resolved = ResolvedAssetBalance {
+            rows: vec![
+                Row::Saved(balance_row(9904)),
+                Row::Saved(balance_row(9934)),
+                Row::Saved(older),
+            ],
+            total: 3,
+            warning: None,
+            fallback_totals: None,
+        };
+        let subtitle = super::summary::list_subtitle(&resolved);
+        assert!(subtitle.contains("株価 01/16 時点"), "{subtitle}");
+        assert!(!subtitle.contains("01/15"), "{subtitle}");
+    });
+}
+
+#[test]
 fn asset_balance_result_applies_within_the_same_generation() {
     let owner = Owner::new();
     owner.with(|| {
@@ -631,4 +660,88 @@ fn asset_balance_result_applies_within_the_same_generation() {
         let generation = session.generation.get_untracked();
         assert!(session.is_current(generation));
     });
+}
+
+// 表の前日比は常に円マーク付き(+¥23 / -¥12)。なければ —
+#[test]
+fn day_change_row_amount_always_carries_yen_sign() {
+    assert_eq!(format_signed_row_valuation_amount(Some(23.0)), "+¥23");
+    assert_eq!(format_signed_row_valuation_amount(Some(-12.0)), "-¥12");
+    assert_eq!(format_signed_row_valuation_amount(Some(0.0)), "¥0");
+    assert_eq!(format_signed_row_valuation_amount(None), "—");
+}
+
+#[test]
+fn price_date_outliers_flags_only_rows_different_from_the_representative() {
+    // 代表(見出しに出す日付)と違う行だけ true。代表は呼び出し側が決める
+    let representative = Some("2026-10-19");
+    let dates = vec![
+        Some("2026-10-19".to_string()),
+        Some("2026-10-15".to_string()),
+        Some("2026-10-19".to_string()),
+        None,
+    ];
+    assert_eq!(
+        price_date_outliers(&dates, representative),
+        vec![false, true, false, false]
+    );
+
+    // 全部同じ日付ならどの行にも日付を出さない
+    let same = vec![
+        Some("2026-10-19".to_string()),
+        Some("2026-10-19".to_string()),
+    ];
+    assert_eq!(
+        price_date_outliers(&same, representative),
+        vec![false, false]
+    );
+
+    // 絞り込みで代表の行が残らなくても、見出しの日付を基準に比較する
+    let filtered = vec![Some("2026-10-15".to_string())];
+    assert_eq!(price_date_outliers(&filtered, representative), vec![true]);
+
+    // 日付の無い行は日付を出さない
+    let none: Vec<Option<String>> = vec![None, None];
+    assert_eq!(
+        price_date_outliers(&none, representative),
+        vec![false, false]
+    );
+    assert_eq!(
+        price_date_outliers(&dates, None),
+        vec![true, true, true, false]
+    );
+}
+
+#[test]
+fn unified_row_carries_account_course_and_day_change_into_columns() {
+    let fund =
+        super::all_list::unified_from_fund(&crate::features::asset_balance::fund::FundView {
+            id: Some("fund-1".to_string()),
+            name: "ファンドA".to_string(),
+            account: "NISA成長投資枠".to_string(),
+            course: Some("再投資型".to_string()),
+            shares: 10000.0,
+            average_purchase_price: 10000.0,
+            purchase: 100000.0,
+            base_price: 11000.0,
+            base_price_day_change: Some(50.0),
+            base_price_month_change: None,
+            market_value: 110000.0,
+            profit_loss: 10000.0,
+            profit_loss_rate: Some(10.0),
+            total_return: None,
+            price_as_of: Some("2026-10-19".to_string()),
+        });
+    assert_eq!(fund.account.as_deref(), Some("NISA成長投資枠"));
+    assert_eq!(fund.course.as_deref(), Some("再投資型"));
+    assert_eq!(fund.day_change, Some(50.0));
+    assert_eq!(fund.price_as_of.as_deref(), Some("2026-10-19"));
+
+    // 国内株式は口座・分配金が無い(表では「—」)
+    let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)));
+    assert_eq!(stock.code.as_deref(), Some("9904"));
+    assert!(stock.account.is_none());
+    assert!(stock.course.is_none());
+    assert_eq!(stock.day_change, Some(50.0));
+    assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));
 }

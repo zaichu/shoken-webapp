@@ -1,7 +1,7 @@
-use super::day_change::day_change_subline;
+use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_price_date, format_row_valuation_amount, pnl_cells,
+    format_currency, format_row_valuation_amount, pnl_cells, price_date_outliers,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_yield, holding_dividend,
@@ -16,10 +16,19 @@ use leptos::prelude::*;
 #[component]
 pub fn AssetHoldingsTable(
     views: Vec<HoldingView>,
+    /// 見出しに出している代表の基準日("YYYY-MM-DD")。違う行だけ日付を出す
+    price_date_rep: Option<String>,
     dividends: RwSignal<DividendMaps>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
+    let date_outliers = price_date_outliers(
+        &views
+            .iter()
+            .map(|view| view.price_as_of.clone())
+            .collect::<Vec<_>>(),
+        price_date_rep.as_deref(),
+    );
     view! {
         <div data-testid="asset-holdings-table">
             <table class="asset-table">
@@ -29,6 +38,7 @@ pub fn AssetHoldingsTable(
                         <th scope="col" class="text-right">"数量"</th>
                         <th scope="col" class="text-right">"取得単価"</th>
                         <th scope="col" class="text-right">"現在値"</th>
+                        <th scope="col" class="text-right">"前日比"</th>
                         {sort_header("評価額", SortKey::MarketValue, sort_key, sort_order)}
                         {sort_header("含み損益", SortKey::ProfitLoss, sort_key, sort_order)}
                         {sort_header("年間配当", SortKey::Dividend, sort_key, sort_order)}
@@ -38,13 +48,12 @@ pub fn AssetHoldingsTable(
                 <tbody>
                     {views
                         .into_iter()
-                        .map(|view| {
+                        .zip(date_outliers)
+                        .map(|(view, is_outlier)| {
                             let valuation = holding_valuation(&ValuationInput::from(&view));
                             let market_text = format_row_valuation_amount(valuation.market_value);
                             let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
                                 pnl_cells(valuation.profit_loss.amount, valuation.profit_loss.rate);
-                            let price_date_text =
-                                view.price_as_of.as_deref().map(format_price_date);
                             let dividend = holding_dividend(
                                 &view.code,
                                 view.shares,
@@ -57,6 +66,11 @@ pub fn AssetHoldingsTable(
                                 .id
                                 .clone()
                                 .map(|id| format!("/assetbalance/holdings/{id}"));
+                            let outlier_date = if is_outlier {
+                                view.price_as_of.clone()
+                            } else {
+                                None
+                            };
                             let name_cell = view! {
                                 <>
                                     <span class="mr-2 text-xs text-text-muted tabular-nums">
@@ -67,14 +81,16 @@ pub fn AssetHoldingsTable(
                             };
                             view! {
                                 <tr>
-                                    <td>
+                                    <td title=view.name.clone()>
                                         {match href {
                                             Some(href) => view! {
                                                 <a
                                                     href=href
-                                                    class="inline-flex min-h-6 items-center no-underline hover:underline"
+                                                    class="flex min-h-6 items-center no-underline hover:underline"
                                                 >
-                                                    {name_cell}
+                                                    <span class="min-w-0 truncate">
+                                                        {name_cell}
+                                                    </span>
                                                 </a>
                                             }
                                                 .into_any(),
@@ -89,13 +105,9 @@ pub fn AssetHoldingsTable(
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
                                         {format_currency(view.current_price)}
-                                        {day_change_subline(view.day_change)}
-                                        {price_date_text.map(|date| {
-                                            view! {
-                                                <div class="asset-price-date">{date}</div>
-                                            }
-                                        })
-                                    }
+                                    </td>
+                                    <td class="text-right tabular-nums">
+                                        {day_change_cell(view.day_change, outlier_date)}
                                     </td>
                                     <td class="text-right font-bold tabular-nums text-brand-text">{market_text}</td>
                                     <td class="text-right tabular-nums">

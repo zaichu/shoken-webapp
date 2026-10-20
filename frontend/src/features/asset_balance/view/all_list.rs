@@ -1,5 +1,6 @@
 //! 「すべて」タブ。国内株式と投資信託を同じ一覧に並べる
 
+use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{format_row_valuation_amount, pnl_cells};
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
@@ -8,12 +9,19 @@ use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::SortOrder;
 use leptos::prelude::*;
 
-/// 株とファンドをまとめる一覧行
+/// 株とファンドをまとめる一覧行。sub はスマホの行メタ、残りは表の列
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct UnifiedRow {
     pub name: String,
     pub kind: &'static str,
     pub sub: String,
+    pub code: Option<String>,
+    pub account: Option<String>,
+    pub course: Option<String>,
+    pub day_change: Option<f64>,
+    pub price_as_of: Option<String>,
+    /// 基準日がその種別の代表(見出しに出す日付)と違うか。構築側で立てる
+    pub date_outlier: bool,
     pub market: Option<f64>,
     pub profit: Option<f64>,
     pub rate: Option<f64>,
@@ -26,6 +34,12 @@ pub(crate) fn unified_from_stock(view: &HoldingView) -> UnifiedRow {
         name: view.name.clone(),
         kind: "国内株式",
         sub: view.code.clone(),
+        code: Some(view.code.clone()),
+        account: None,
+        course: None,
+        day_change: view.day_change,
+        price_as_of: view.price_as_of.clone(),
+        date_outlier: false,
         market: valuation.market_value,
         profit: valuation.profit_loss.amount,
         rate: valuation.profit_loss.rate,
@@ -45,6 +59,12 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
         name: view.name.clone(),
         kind: "投資信託",
         sub,
+        code: None,
+        account: Some(view.account.clone()),
+        course: view.course.clone(),
+        day_change: view.base_price_day_change,
+        price_as_of: view.price_as_of.clone(),
+        date_outlier: false,
         market: Some(view.market_value),
         profit: Some(view.profit_loss),
         rate: view.profit_loss_rate,
@@ -102,6 +122,10 @@ pub fn AssetMergedTable(
                 <thead>
                     <tr>
                         <th scope="col">"銘柄・ファンド"</th>
+                        <th scope="col">"種別"</th>
+                        <th scope="col">"口座"</th>
+                        <th scope="col">"分配金"</th>
+                        <th scope="col" class="text-right">"前日比"</th>
                         {sort_header("評価額", FundSortKey::MarketValue, sort_key, sort_order)}
                         {sort_header("評価損益", FundSortKey::ProfitLoss, sort_key, sort_order)}
                     </tr>
@@ -115,29 +139,50 @@ pub fn AssetMergedTable(
                                 let row = &row;
                                 let (pnl_text, rate_text, pnl_text_class, pnl_badge_class) =
                                     pnl_cells(row.profit, row.rate);
+                                let outlier_date = if row.date_outlier {
+                                    row.price_as_of.clone()
+                                } else {
+                                    None
+                                };
                                 let name_cell = view! {
                                     <>
+                                        {row.code.clone().map(|code| {
+                                            view! {
+                                                <span class="mr-2 text-xs text-text-muted tabular-nums">
+                                                    {code}
+                                                </span>
+                                            }
+                                        })}
                                         {row.name.clone()}
-                                        <div class="asset-price-date">
-                                            {format!("{} ・ {}", row.kind, row.sub)}
-                                        </div>
                                     </>
                                 };
                                 view! {
                                     <tr>
-                                        <td>
+                                        <td title=row.name.clone()>
                                             {match &row.href {
                                                 Some(href) => view! {
                                                     <a
                                                         href=href.clone()
-                                                        class="inline-flex min-h-6 items-center no-underline hover:underline"
+                                                        class="flex min-h-6 items-center no-underline hover:underline"
                                                     >
-                                                        {name_cell}
+                                                        <span class="min-w-0 truncate">
+                                                            {name_cell}
+                                                        </span>
                                                     </a>
                                                 }
                                                     .into_any(),
                                                 None => name_cell.into_any(),
                                             }}
+                                        </td>
+                                        <td class="text-text-soft">{row.kind}</td>
+                                        <td class="text-text-soft">
+                                            {row.account.clone().unwrap_or_else(|| "—".to_string())}
+                                        </td>
+                                        <td class="text-text-soft">
+                                            {row.course.clone().unwrap_or_else(|| "—".to_string())}
+                                        </td>
+                                        <td class="text-right tabular-nums">
+                                            {day_change_cell(row.day_change, outlier_date)}
                                         </td>
                                         <td class="text-right font-bold tabular-nums text-brand-text">
                                             {format_row_valuation_amount(row.market)}
