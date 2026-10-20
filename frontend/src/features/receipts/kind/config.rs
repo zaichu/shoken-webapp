@@ -73,7 +73,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
                 "銘柄コード",
                 "10em",
                 ColumnTier::Wide,
-                ColumnAlign::Center,
+                ColumnAlign::Left,
                 CardRole::Code,
             ),
             card_col(
@@ -144,7 +144,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
                 "銘柄コード",
                 "10em",
                 ColumnTier::Wide,
-                ColumnAlign::Center,
+                ColumnAlign::Left,
                 CardRole::Code,
             ),
             card_col(

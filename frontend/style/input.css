@@ -729,7 +729,7 @@
   }
 
   .receipts-table th {
-    @apply text-left px-3.5 py-2 font-bold text-xs text-text-soft bg-surface-sunken;
+    @apply text-left px-2.5 py-2 font-bold text-xs text-text-soft bg-surface-sunken;
   }
 
   .receipts-table tbody tr {
@@ -741,21 +741,33 @@
   }
 
   .receipts-table td {
-    @apply px-3.5 py-2 text-text break-words;
+    @apply px-2.5 py-2 text-text break-words;
   }
 
   /* 数値列は左右の余白を詰めて同じ幅の中で名前列を広く取る */
   .receipts-table td.text-right {
-    @apply text-right px-1;
+    @apply text-right px-1.5;
     white-space: nowrap;
   }
 
-  /* PC の compact 表: 銘柄列が数値列に押しつぶされないように最低幅を確保する。
-     名前が長いときは table-auto で列の最小幅が名前の全長になる nowrap は使えず、
-     層の外の line-clamp-2(2行で末尾省略)に任せる */
+  /* 最終列の数字がカードの縁に触れないよう右側だけ余白を残す */
+  .receipts-table th:last-child,
+  .receipts-table td:last-child {
+    @apply pr-4;
+  }
+
+  /* PC の compact 表: 銘柄列が数値列に押しつぶされないように最低幅を確保し、
+     table-auto の配分で残り幅をすべて名前列が使う(width:100%)。
+     名前が長いときは nowrap は使えず、層の外の line-clamp-2(2行で末尾省略)に任せる。
+     見出しは nowrap にして「銘柄コード」などの語が行内で切れないようにする
+     (列が内容最小まで詰まっても見出しの語幅だけは残る)。印刷は従来どおり折り返す */
   @media screen {
+    .receipts-table th {
+      @apply whitespace-nowrap;
+    }
     .receipts-table td.receipt-instrument-cell {
       min-width: 10em;
+      width: 100%;
     }
   }
 
@@ -1442,7 +1454,13 @@
   }
 
   .asset-table td.text-right {
-    @apply text-right px-1;
+    @apply text-right px-2;
+  }
+
+  /* 最終列がカードの縁に触れないよう右側だけ余白を残す */
+  .asset-table th:last-child,
+  .asset-table td:last-child {
+    @apply pr-4;
   }
 
   .asset-panel {

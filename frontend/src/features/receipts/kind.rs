@@ -570,7 +570,6 @@ impl ColumnTier {
 #[derive(Clone, Copy)]
 pub(crate) enum ColumnAlign {
     Left,
-    Center,
     Right,
 }
 
@@ -578,7 +577,6 @@ impl ColumnAlign {
     pub(crate) fn class(self) -> &'static str {
         match self {
             ColumnAlign::Left => "text-left",
-            ColumnAlign::Center => "text-center",
             ColumnAlign::Right => "text-right tabular-nums",
         }
     }
