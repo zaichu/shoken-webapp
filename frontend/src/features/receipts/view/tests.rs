@@ -283,14 +283,14 @@ fn card_fields_point_at_expected_columns() {
             expected
         );
     }
-    assert!(matches!(
-        dividends()[0].cells()[3],
-        ReceiptCell::SecurityCode(_)
-    ));
-    assert!(matches!(
-        domestic()[0].cells()[1],
-        ReceiptCell::SecurityCode(_)
-    ));
+    for (cells, index) in [(dividends()[0].cells(), 1), (domestic()[0].cells(), 1)] {
+        assert!(matches!(cells[index], ReceiptCell::SecurityCode(_)));
+        // 銘柄コードのすぐ右が銘柄名
+        assert!(matches!(
+            cells[index + 1],
+            ReceiptCell::InstrumentName { .. }
+        ));
+    }
     assert!(
         !funds()[0]
             .cells()
@@ -666,7 +666,7 @@ fn card_row_data_details_follow_column_reorder() {
     let rows = dividends();
     let query = "特定";
     let order = column_order(ReceiptsTab::Dividend, &rows, query);
-    assert_eq!(order[1], 2);
+    assert_eq!(order[1], 3);
     let cells = rows[0].cells();
     let card = card_row_data(
         ReceiptsTab::Dividend,

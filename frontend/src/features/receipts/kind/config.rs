@@ -69,14 +69,6 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
                 ColumnAlign::Left,
                 CardRole::Date,
             ),
-            col("商品", "7.5em", ColumnTier::Wider, ColumnAlign::Left),
-            card_col(
-                "口座",
-                "7.5em",
-                ColumnTier::Wider,
-                ColumnAlign::Left,
-                CardRole::Account,
-            ),
             card_col(
                 "銘柄コード",
                 "10em",
@@ -91,6 +83,14 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
                 ColumnAlign::Left,
                 CardRole::Name,
             ),
+            card_col(
+                "口座",
+                "7.5em",
+                ColumnTier::Wider,
+                ColumnAlign::Left,
+                CardRole::Account,
+            ),
+            col("商品", "7.5em", ColumnTier::Wider, ColumnAlign::Left),
             col("1株配当", "10em", ColumnTier::Wider, ColumnAlign::Right),
             col("数量", "7em", ColumnTier::Md, ColumnAlign::Right),
             col("配当金", "10em", ColumnTier::Core, ColumnAlign::Right),
@@ -117,11 +117,11 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
         account_category: true,
         reorder_rules: &[
             ColumnReorderRule {
-                column_key: 1,
+                column_key: 4,
                 matches: product_matches,
             },
             ColumnReorderRule {
-                column_key: 2,
+                column_key: 3,
                 matches: account_matches,
             },
         ],

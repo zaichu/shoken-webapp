@@ -476,10 +476,10 @@ fn dividend_cells_match_columns_and_formatting() {
         cells.iter().map(ReceiptCell::text).collect::<Vec<_>>(),
         vec![
             "2024/03/01",
-            "特定口座",
-            "SBI証券",
             "9904",
             "架空自動車",
+            "SBI証券",
+            "特定口座",
             "¥30",
             "100",
             "¥3,000",
@@ -487,9 +487,9 @@ fn dividend_cells_match_columns_and_formatting() {
             "¥2,391",
         ]
     );
-    assert_eq!(cells[3], ReceiptCell::SecurityCode("9904".to_string()));
+    assert_eq!(cells[1], ReceiptCell::SecurityCode("9904".to_string()));
     assert_eq!(
-        cells[4],
+        cells[2],
         ReceiptCell::InstrumentName {
             name: "架空自動車".to_string(),
             code: Some("9904".to_string()),

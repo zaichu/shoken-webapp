@@ -135,10 +135,10 @@ fn promoted_column_matches_full_width_query() {
     let rows = dividends();
     assert_eq!(
         promoted_column(ReceiptsTab::Dividend, &rows, "ｎｉｓａ"),
-        Some(2)
+        Some(3)
     );
     let order = column_order(ReceiptsTab::Dividend, &rows, "ｎｉｓａ");
-    assert_eq!(&order[..2], &[0, 2]);
+    assert_eq!(&order[..2], &[0, 3]);
 }
 
 #[test]
@@ -382,7 +382,7 @@ fn year_segment_ignores_leftover_month_input() {
 fn tab_column_rules_use_whole_query_not_tokens() {
     assert_eq!(
         column_order(ReceiptsTab::Dividend, &dividends(), "特定"),
-        [0, 2, 1, 3, 4, 5, 6, 7, 8, 9]
+        [0, 3, 1, 2, 4, 5, 6, 7, 8, 9]
     );
     assert_eq!(
         column_order(ReceiptsTab::Dividend, &dividends(), "国内株式 特定"),

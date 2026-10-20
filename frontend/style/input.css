@@ -341,6 +341,11 @@
     @apply inline-flex min-h-6 items-center text-info underline-offset-2 hover:text-info-strong hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-info-focus;
   }
 
+  /* 表のコード列は桁揃えの薄い文字。リンクだが常時は色を付けない */
+  .table-code {
+    @apply text-text-soft tabular-nums;
+  }
+
   .header-logo {
     @apply h-7 w-7;
   }
@@ -739,8 +744,9 @@
     @apply px-3.5 py-2 text-text break-words;
   }
 
+  /* 数値列は左右の余白を詰めて同じ幅の中で名前列を広く取る */
   .receipts-table td.text-right {
-    @apply text-right;
+    @apply text-right px-1;
     white-space: nowrap;
   }
 
@@ -776,10 +782,6 @@
   /* 小計の税引後は紺の太字 */
   .receipts-table-group.font-bold {
     @apply text-brand-text;
-  }
-
-  .receipt-instrument-cell .receipts-table-code {
-    @apply inline-block text-xs text-text-muted mr-2;
   }
 
   /* Mobile Compact Receipts List */
@@ -1432,15 +1434,15 @@
     @apply whitespace-nowrap px-3.5 py-2.5 text-text;
   }
 
-  /* 表は1行1段。銘柄列だけは可変幅で、はみ出る名前は … で省略する
+  /* 表は1行1段。名前列だけは可変幅で、はみ出る名前は … で省略する
      (全文はセルの title)。他列は nowrap なので先に幅を取り、
-     上限を掛けた銘柄列が残り幅の中で省略する */
-  .asset-table tbody td:first-child {
-    @apply max-w-64 truncate;
+     残り幅をすべて名前列が使う(w-full は table-auto の配分で残りを取る) */
+  .asset-table td.asset-name-cell {
+    @apply w-full truncate;
   }
 
   .asset-table td.text-right {
-    @apply text-right;
+    @apply text-right px-1;
   }
 
   .asset-panel {

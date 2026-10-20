@@ -8,6 +8,7 @@ use crate::features::asset_balance::fund::fund_view;
 use crate::features::asset_balance::model::format_number_value;
 use crate::session::use_session;
 use crate::ui::amount::Amount;
+use crate::ui::badge::account_display_name;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
@@ -144,9 +145,12 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                         .unwrap_or_else(|| "—".to_string());
                                     let account_text = match &view.course {
                                         Some(course) => {
-                                            format!("{} ・ {course}", view.account)
+                                            format!(
+                                                "{} ・ {course}",
+                                                account_display_name(&view.account)
+                                            )
                                         }
-                                        None => view.account.clone(),
+                                        None => account_display_name(&view.account).to_string(),
                                     };
                                     let asof_text = view
                                         .price_as_of

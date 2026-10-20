@@ -736,6 +736,9 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
             expected_nav_date: None,
         });
     assert_eq!(fund.account.as_deref(), Some("NISA成長投資枠"));
+    // 投資信託の行にコードは無い(表では空欄)。行メタの口座は表示名にそろえる
+    assert!(fund.code.is_none());
+    assert_eq!(fund.sub, "NISA成長 ・ 再投資型");
     assert_eq!(fund.course.as_deref(), Some("再投資型"));
     assert_eq!(fund.day_change, Some(50.0));
     assert_eq!(fund.price_as_of.as_deref(), Some("2026-10-19"));

@@ -4,6 +4,7 @@ use crate::features::receipts::filter::{
 use crate::features::receipts::kind::group_label;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::support::list_search::SearchOption;
+use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
@@ -77,7 +78,12 @@ fn ConditionTags(
     let date_value =
         Memo::new(move |_| date_tag_text(&search.with(|s| s.selected_queries.date.clone())));
     let products_value = Memo::new(move |_| search.with(|s| s.selected_queries.products.clone()));
-    let accounts_value = Memo::new(move |_| search.with(|s| s.selected_queries.accounts.clone()));
+    // クエリの生値は空白を含むと引用符で囲まれるため、札と同じ表示名に直して出す
+    let accounts_value = Memo::new(move |_| {
+        search.with(|s| {
+            account_display_name(s.selected_queries.accounts.trim_matches('"')).to_string()
+        })
+    });
     view! {
         <SearchTag
             label="期間"

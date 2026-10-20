@@ -11,6 +11,7 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
 
 #[component]
@@ -34,6 +35,7 @@ pub fn AssetHoldingsTable(
             <table class="asset-table">
                 <thead>
                     <tr>
+                        <th scope="col">"コード"</th>
                         <th scope="col">"銘柄"</th>
                         <th scope="col" class="text-right">"数量"</th>
                         <th scope="col" class="text-right">"取得単価"</th>
@@ -71,31 +73,13 @@ pub fn AssetHoldingsTable(
                             } else {
                                 None
                             };
-                            let name_cell = view! {
-                                <>
-                                    <span class="mr-2 text-xs text-text-muted tabular-nums">
-                                        {view.code.clone()}
-                                    </span>
-                                    {view.name.clone()}
-                                </>
-                            };
                             view! {
                                 <tr>
-                                    <td title=view.name.clone()>
-                                        {match href {
-                                            Some(href) => view! {
-                                                <a
-                                                    href=href
-                                                    class="flex min-h-6 items-center no-underline hover:underline"
-                                                >
-                                                    <span class="min-w-0 truncate">
-                                                        {name_cell}
-                                                    </span>
-                                                </a>
-                                            }
-                                                .into_any(),
-                                            None => name_cell.into_any(),
-                                        }}
+                                    <td>
+                                        <TableSecurityCode code=view.code.clone() />
+                                    </td>
+                                    <td class="asset-name-cell" title=view.name.clone()>
+                                        <TableNameLink href=href name=view.name.clone() />
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
                                         {format!("{}株", format_number_value(view.shares))}

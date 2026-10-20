@@ -226,13 +226,13 @@ impl DividendView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
             ReceiptCell::Text(format_date(self.date)),
-            ReceiptCell::Text(self.product.to_string()),
-            ReceiptCell::Text(self.account.to_string()),
             ReceiptCell::SecurityCode(self.code.to_string()),
             ReceiptCell::InstrumentName {
                 name: normalize_display_name(self.name),
                 code: Some(self.code.to_string()),
             },
+            ReceiptCell::Text(self.account.to_string()),
+            ReceiptCell::Text(self.product.to_string()),
             ReceiptCell::Text(format_currency(self.unit_price)),
             ReceiptCell::Text(format_number(self.shares, 2)),
             // 明細の行は1円単位。表示単位は合計欄だけに使う
