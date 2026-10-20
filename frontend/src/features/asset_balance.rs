@@ -11,7 +11,7 @@ mod store;
 mod view;
 
 pub(crate) use format::{
-    dec_to_f64, format_currency, format_fixed_percent, format_signed_row_valuation_amount,
+    dec_to_f64, format_currency, format_signed_row_valuation_amount,
     format_signed_valuation_amount, format_signed_valuation_rate, format_valuation_amount,
     is_negative_valuation, is_positive_valuation,
 };

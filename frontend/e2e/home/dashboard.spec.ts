@@ -180,6 +180,26 @@ test('帯は3項目で株式と投信を合算し、カード群が埋まる', a
   await expect(composition).toContainText('国内株式');
   await expect(composition).toContainText('投資信託');
 
+  // グラフの棒・進捗・ドーナツ・凡例・口座別の帯は本番 CSP 下でも描画される
+  const monthBars = dividend.locator('.home-month-bar');
+  expect(
+    await monthBars.evaluateAll((els) =>
+      els.some((el) => el.getBoundingClientRect().height > 20),
+    ),
+  ).toBe(true);
+  const progress = dividend.locator('.bg-row-group > div');
+  expect((await progress.boundingBox())?.width).toBeGreaterThan(0);
+  await expect(composition.locator('.home-swatch').first()).toHaveCSS(
+    'background-color',
+    /^rgb\(/,
+  );
+  await expect(composition.locator('.home-donut')).toHaveCSS(
+    'background-image',
+    /conic-gradient/,
+  );
+  const accountBar = composition.locator('.home-stacked-bar > span').first();
+  expect((await accountBar.boundingBox())?.width).toBeGreaterThan(0);
+
   // 最近の配当入金: per_page=5 の要求なので 6 件用意しても 5 行
   await expect(page.getByTestId('home-recent-list').locator('li')).toHaveCount(5);
 
