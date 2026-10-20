@@ -1278,7 +1278,7 @@
     @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-xs font-medium text-accent-text hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
   }
 
-  /* チャートの凡例スウォッチ。色は呼び出し側が style の CSS 変数で渡す */
+  /* チャートの凡例スウォッチ。塗りは呼び出し側がクラスで渡す(style 属性は本番 CSP で止まる) */
   .home-swatch {
     @apply inline-block h-2.5 w-2.5 shrink-0 rounded-sm;
   }

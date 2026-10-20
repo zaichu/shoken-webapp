@@ -86,6 +86,9 @@ test('構成比詳細は直接 URL で開け、基準と対象を示して取得
   await expect(items.nth(0)).toContainText('97.1%');
   // 取得額が少ない順に末尾へ並ぶ。0・マイナスも一覧には残る
   await expect(items.nth(21)).toContainText('銘柄22');
+  // 構成比の棒は本番 CSP 下でも描画される
+  const bar = items.nth(0).locator('.bg-accent');
+  expect((await bar.boundingBox())?.width).toBeGreaterThan(100);
 
   // トップからの導線
   await page.goto('/assetbalance');

@@ -8,14 +8,8 @@ const { join } = require('node:path');
 // CSP の connect-src は 'self' の直後に本番 origin を1つだけ置く決まり。
 // 末尾スラッシュ・空白を含む値は埋め込み先とずれるため弾く
 function loadBackendOrigin() {
-  const headersPath = join(__dirname, '..', '_headers');
-  const csp = readFileSync(headersPath, 'utf8')
-    .split('\n')
-    .map((line) => line.trim())
-    .find((line) => line.startsWith('Content-Security-Policy:'))
-    ?.slice('Content-Security-Policy:'.length)
-    .trim();
-  const origin = csp?.match(/connect-src 'self' (\S+?);/)?.[1];
+  const csp = loadProductionCsp();
+  const origin = csp.match(/connect-src 'self' (\S+?);/)?.[1];
   if (!origin || !/^https:\/\/\S+$/.test(origin) || origin.endsWith('/')) {
     throw new Error(
       '_headers: CSP connect-src must contain exactly one https origin without a trailing slash',
@@ -24,7 +18,23 @@ function loadBackendOrigin() {
   return origin;
 }
 
-module.exports = { loadBackendOrigin };
+// _headers の Content-Security-Policy 値全体を返す。
+// E2E が本番と同じ CSP を document レスポンスに付けるために使う
+function loadProductionCsp() {
+  const headersPath = join(__dirname, '..', '_headers');
+  const csp = readFileSync(headersPath, 'utf8')
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.startsWith('Content-Security-Policy:'))
+    ?.slice('Content-Security-Policy:'.length)
+    .trim();
+  if (!csp) {
+    throw new Error('_headers: Content-Security-Policy not found');
+  }
+  return csp;
+}
+
+module.exports = { loadBackendOrigin, loadProductionCsp };
 
 if (require.main === module) {
   console.log(loadBackendOrigin());

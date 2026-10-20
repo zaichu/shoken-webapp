@@ -5,7 +5,7 @@ use super::model::{self, CompositionSlice};
 use super::store::{self, HomeOverviewData};
 use crate::api::dto::{AssetBalance, AssetBalanceSummary, FundBalance};
 use crate::features::asset_balance::{
-    LoadedAssetBalances, LoadedFundBalances, dec_to_f64, format_currency, format_fixed_percent,
+    LoadedAssetBalances, LoadedFundBalances, dec_to_f64, format_currency,
     format_signed_row_valuation_amount, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation, summary_valuation,
@@ -19,16 +19,16 @@ use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
 use leptos::prelude::*;
 
-// 内内訳チャートの塗り色。CSS 変数で渡し、テーマの明暗はトークン側の切替に任せる
-const CHART_COLORS: &[&str] = &[
-    "var(--color-brand-text)",
-    "var(--color-accent)",
-    "var(--color-gold)",
-    "var(--color-fill-strong)",
-    "var(--color-brand-muted)",
+// 内訳チャートの塗り色。ドーナツのグラデーションは CSS 変数、棒・凡例は同じ色の
+// クラスで渡す。本番 CSP(style-src 'self')は style 属性を止めるので、静的な色は
+// クラス・動的な大きさやグラデーションは style:<prop> で指定する
+const CHART_COLORS: &[(&str, &str)] = &[
+    ("var(--color-brand-text)", "bg-brand-text"),
+    ("var(--color-accent)", "bg-accent"),
+    ("var(--color-gold)", "bg-gold"),
+    ("var(--color-fill-strong)", "bg-fill-strong"),
+    ("var(--color-brand-muted)", "bg-brand-muted"),
 ];
-const CURRENT_BAR_COLOR: &str = "var(--color-brand-text)";
-const PREVIOUS_BAR_COLOR: &str = "var(--color-fill-strong)";
 
 #[component]
 pub fn HomePage() -> impl IntoView {
@@ -268,15 +268,8 @@ fn BandTiles(
                 |amount| format_valuation_amount(Some(amount)),
             )
     };
-    let yield_note = match (
-        estimates_pending,
-        maps,
-        kpi.as_ref().and_then(|k| k.dividend_yield),
-    ) {
-        (true, _, _) => None,
-        (false, None, _) => None,
-        (false, Some(_), Some(y)) => Some(format!("取得額に対して {}", format_fixed_percent(y, 1))),
-        (false, Some(maps), None) if model::has_pending_estimate(maps) => {
+    let estimate_note = match (maps, kpi.as_ref().and_then(|k| k.dividend_yield)) {
+        (Some(maps), None) if model::has_pending_estimate(maps) => {
             Some("予想を取得中です".to_string())
         }
         _ => None,
@@ -309,7 +302,7 @@ fn BandTiles(
                 <dt>"年間予想配当(税引前)"</dt>
                 <dd>
                     <Amount text=dividend_text class="asset-summary-sub-amount".to_string() />
-                    {yield_note.map(|note| {
+                    {estimate_note.map(|note| {
                         view! {
                             <span class="asset-summary-pnl-note text-brand-muted">
                                 {note}
@@ -473,8 +466,8 @@ fn DividendCardBody(
             {progress_pct.map(|pct| {
                 view! {
                     <div
-                        class="h-full rounded-full"
-                        style=format!("width: {}%; background: {}", pct.clamp(0.0, 100.0), CURRENT_BAR_COLOR)
+                        class="h-full rounded-full bg-brand-text"
+                        style:width=format!("{}%", pct.clamp(0.0, 100.0))
                     />
                 }
             })}
@@ -507,12 +500,12 @@ fn DividendCardBody(
                         >
                             <div class="flex h-28 w-full items-end justify-center gap-0.5">
                                 <span
-                                    class="home-month-bar"
-                                    style=format!("height: {prev}%; background: {PREVIOUS_BAR_COLOR}")
+                                    class="home-month-bar bg-fill-strong"
+                                    style:height=format!("{prev}%")
                                 />
                                 <span
-                                    class="home-month-bar"
-                                    style=format!("height: {cur}%; background: {CURRENT_BAR_COLOR}")
+                                    class="home-month-bar bg-brand-text"
+                                    style:height=format!("{cur}%")
                                 />
                             </div>
                             <span class="text-[11px] text-text-muted">{format!("{}月", pair.month)}</span>
@@ -523,27 +516,27 @@ fn DividendCardBody(
         </div>
         <div class="mt-2 flex justify-center gap-4 px-4 text-xs text-text-muted">
             <span class="flex items-center gap-1">
-                <span class="home-swatch" style=format!("background: {CURRENT_BAR_COLOR}")></span>
+                <span class="home-swatch bg-brand-text"></span>
                 {format!("{year}年")}
             </span>
             <span class="flex items-center gap-1">
-                <span class="home-swatch" style=format!("background: {PREVIOUS_BAR_COLOR}")></span>
+                <span class="home-swatch bg-fill-strong"></span>
                 {format!("{previous_year}年")}
             </span>
         </div>
     }
 }
 
-fn slice_style(slices: &[CompositionSlice], total: f64) -> (String, Vec<(String, f64)>) {
+fn slice_style(slices: &[CompositionSlice], total: f64) -> (String, Vec<(&'static str, f64)>) {
     let mut cursor = 0.0;
     let mut stops = Vec::new();
     let mut legend = Vec::new();
     for (index, slice) in slices.iter().enumerate() {
-        let color = CHART_COLORS[index % CHART_COLORS.len()];
+        let (color, class) = CHART_COLORS[index % CHART_COLORS.len()];
         let start = cursor;
         let end = cursor + slice.amount / total * 100.0;
         stops.push(format!("{color} {start:.2}% {end:.2}%"));
-        legend.push((color.to_string(), slice.amount / total * 100.0));
+        legend.push((class, slice.amount / total * 100.0));
         cursor = end;
     }
     (format!("conic-gradient({})", stops.join(",")), legend)
@@ -607,7 +600,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                             <div class="flex items-center gap-4 px-4 pt-3.5">
                                 <div
                                     class="home-donut"
-                                    style=format!("background: {donut}")
+                                    style:background=donut
                                     role="img"
                                     aria-label="商品別の資産内訳"
                                 >
@@ -619,10 +612,10 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                     {products
                                         .iter()
                                         .zip(legend.iter())
-                                        .map(|(slice, (color, pct))| {
+                                        .map(|(slice, (class, pct))| {
                                             view! {
                                                 <li class="flex items-center gap-1.5">
-                                                    <span class="home-swatch" style=format!("background: {color}")></span>
+                                                    <span class=format!("home-swatch {class}")></span>
                                                     <span class="truncate">{slice.label.clone()}</span>
                                                     <span class="tabular-nums text-text-muted">
                                                         {format!("{}%", pct.round() as i64)}
@@ -649,11 +642,11 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                         .enumerate()
                                         .map(|(index, slice)| {
                                             let width = slice.amount / account_total * 100.0;
-                                            let color = CHART_COLORS[index % CHART_COLORS.len()];
+                                            let (_, class) = CHART_COLORS[index % CHART_COLORS.len()];
                                             view! {
                                                 <span
-                                                    class="block h-full"
-                                                    style=format!("width: {width:.2}%; background: {color}")
+                                                    class=format!("block h-full {class}")
+                                                    style:width=format!("{width:.2}%")
                                                 />
                                             }
                                         })
@@ -664,11 +657,11 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                         .iter()
                                         .enumerate()
                                         .map(|(index, slice)| {
-                                            let color = CHART_COLORS[index % CHART_COLORS.len()];
+                                            let (_, class) = CHART_COLORS[index % CHART_COLORS.len()];
                                             let pct = slice.amount / account_total * 100.0;
                                             view! {
                                                 <li class="flex items-center gap-1">
-                                                    <span class="home-swatch" style=format!("background: {color}")></span>
+                                                    <span class=format!("home-swatch {class}")></span>
                                                     <span>{slice.label.clone()}</span>
                                                     <span class="tabular-nums text-text-muted">
                                                         {format!("{}%", pct.round() as i64)}

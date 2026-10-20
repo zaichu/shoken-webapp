@@ -18,6 +18,10 @@ RAW_DISCLOSURE='aria-expanded'
 # 状態表示は ui/ の部品(Alert/ListLoadError/ListSkeleton/Skeleton 等)を使う。
 # role="alert"・animate-pulse は部品が持つ属性なので features/ では直書きしない
 STATE_MARKUP='role="alert"|animate-pulse'
+# style 属性は本番 CSP(style-src 'self')で無効になる。動的な値は style:<prop>=、
+# 静的な指定はクラスにする。style=DisclosureStyle::X のようなコンポーネント prop は
+# 別物なので、値が format!・文字列リテラルの形だけを違反にする
+INLINE_STYLE='(^|[^[:alnum:]_:.-])style=(format!|")'
 
 # 許可リスト: "ファイルパス:行" 形式。部品で表せない正当な直書きだけを理由付きで列挙する
 # (カード相当の組み合わせはタグ単位で検出するため行番号を出さず、許可リストは適用できない)
@@ -208,6 +212,7 @@ if [ "$#" -gt 0 ]; then
   check_card_like "カード相当のクラス組み合わせ(自己テスト)" "$@"
   check "開閉属性の直書き(自己テスト)" "$RAW_DISCLOSURE" strip "$@"
   check "状態表示の直書き(自己テスト)" "$STATE_MARKUP" "" "$@"
+  check "インラインスタイル(自己テスト)" "$INLINE_STYLE" "" "$@"
   [ "$fail" -ne 0 ] && exit 1
   exit 0
 fi
@@ -217,6 +222,7 @@ check "部品クラスの直書き(src/features/**/*.rs)" "$PRIMITIVE_CLASS" "" 
 check_card_like "カード相当のクラス組み合わせ(src/features/**/*.rs)" "${FEATURE_FILES[@]}"
 check "開閉属性の直書き(src/features/**/*.rs)" "$RAW_DISCLOSURE" strip "${FEATURE_FILES[@]}"
 check "状態表示の直書き(src/features/**/*.rs)" "$STATE_MARKUP" "" "${FEATURE_FILES[@]}"
+check "インラインスタイル(src/features/**/*.rs)" "$INLINE_STYLE" "" "${FEATURE_FILES[@]}"
 
 [ "$fail" -ne 0 ] && exit 1
 
@@ -233,7 +239,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'role="alert"' 'animate-pulse'; do
+for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'role="alert"' 'animate-pulse' 'style=format!' 'style="'; do
   if ! grep -Fq -- "$expected" <<<"$self_test_output"; then
     echo "ERROR: 基本部品検査の自己テストが $expected を検出しません" >&2
     exit 1

@@ -186,7 +186,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                                                 <div class="mt-2 h-1.5 w-full rounded-full bg-surface-raised">
                                                                     <div
                                                                         class="h-full rounded-full bg-accent"
-                                                                        style=format!("width: {bar_width}")
+                                                                        style:width=bar_width
                                                                     />
                                                                 </div>
                                                             </>
