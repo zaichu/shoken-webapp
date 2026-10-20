@@ -25,3 +25,5 @@ view! { <div style=format!("width: {}%", p)>"動的な幅"</div> }
 view! { <div style="width: 10%">"静的な幅"</div> }
 view! { <div style=bar_width>"式の幅"</div> }
 view! { <div style = "width: 10%">"空白ありの幅"</div> }
+view! { <div style=STYLE>"大文字定数の幅"</div> }
+view! { <div attr:style="width: 10%">"attr: 経由の幅"</div> }
