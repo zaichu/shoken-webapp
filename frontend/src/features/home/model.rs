@@ -5,7 +5,7 @@ use crate::api::dto::{
 };
 use crate::features::asset_balance::{
     KpiHolding, PortfolioKpi, ValuationInput, calculate_portfolio_kpi, dec_to_f64,
-    holding_valuation, normalize_display_name,
+    format_valuation_amount, holding_valuation, normalize_display_name,
 };
 use crate::features::dividend_per_share::DividendMaps;
 use rust_decimal::Decimal;
@@ -254,6 +254,18 @@ pub(crate) fn build_dividend_card(
     }
 }
 
+/// 「残り」欄の表示文。受取が予想を超えたとき負の残りではなく
+/// 「予想を N 上回り」に書き分ける
+pub(crate) fn remaining_label(remaining: Option<f64>) -> String {
+    match remaining {
+        Some(value) if value < 0.0 => {
+            format!("予想を {} 上回り", format_valuation_amount(Some(-value)))
+        }
+        Some(value) => format!("残り {}", format_valuation_amount(Some(value))),
+        None => "残り —".to_string(),
+    }
+}
+
 /// 月別グラフの棒の高さ(%)。0 より大きい値は潰れないよう最小 3% にする
 pub(crate) fn bar_height(value: Decimal, max: Decimal) -> f64 {
     if value.is_zero() || max.is_zero() {
@@ -286,12 +298,8 @@ pub(crate) fn product_slices(stock_market: f64, fund_market: f64) -> Vec<Composi
 }
 
 /// 口座別の資産内訳(時価ベース)。保有株式の行は口座を持たないため、
-/// 株式は「国内株式」の1区分にまとめ、ファンドは口座ごとに分ける。
-/// ファンドが無いときは区分が1つしかなく内訳として意味をなさないので空を返す
-pub(crate) fn account_slices(stock_market: f64, funds: &[FundBalance]) -> Vec<CompositionSlice> {
-    if funds.is_empty() {
-        return Vec::new();
-    }
+/// 口座がわかる投資信託だけで構成する
+pub(crate) fn account_slices(funds: &[FundBalance]) -> Vec<CompositionSlice> {
     let mut by_account: Vec<(String, f64)> = Vec::new();
     for fund in funds {
         let account = fund.account.to_string();
@@ -305,12 +313,6 @@ pub(crate) fn account_slices(stock_market: f64, funds: &[FundBalance]) -> Vec<Co
         .into_iter()
         .map(|(label, amount)| CompositionSlice { label, amount })
         .collect();
-    if stock_market > 0.0 {
-        slices.push(CompositionSlice {
-            label: "国内株式".to_string(),
-            amount: stock_market,
-        });
-    }
     slices.retain(|slice| slice.amount > 0.0);
     slices.sort_by(|a, b| b.amount.total_cmp(&a.amount));
     slices

@@ -440,10 +440,7 @@ fn DividendCardBody(
     let progress_pct = model.progress.map(|p| p * 100.0);
     let progress_text =
         progress_pct.map_or_else(|| "—".to_string(), |p| format!("{}%", p.round() as i64));
-    let remaining_text = model
-        .remaining
-        .map(|v| format_valuation_amount(Some(v)))
-        .unwrap_or_else(|| "—".to_string());
+    let remaining_text = model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
     let previous_span = match model.previous_remaining {
         Some(remaining) if current_month < 12 => format!(
@@ -483,7 +480,7 @@ fn DividendCardBody(
             })}
         </div>
         <p class="px-4 pt-1.5 text-xs text-text-muted">
-            {format!("残り {remaining_text} {previous_span}・ 前年同期より {yoy_text}")}
+            {format!("{remaining_text} {previous_span}・ 前年同期より {yoy_text}")}
         </p>
         <div
             class="mt-3 flex items-end justify-between gap-1 px-4"
@@ -593,9 +590,8 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                 let stock_market = stock_market(&assets);
                 let fund_market = fund_market(&funds);
                 let products = model::product_slices(stock_market, fund_market);
-                let accounts = funds_of(&funds).map_or_else(Vec::new, |rows| {
-                    model::account_slices(stock_market, rows)
-                });
+                let accounts =
+                    funds_of(&funds).map_or_else(Vec::new, model::account_slices);
                 let product_total: f64 = products.iter().map(|s| s.amount).sum();
                 view! {
                     {if product_total <= 0.0 {
@@ -644,7 +640,9 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                         let account_total: f64 = accounts.iter().map(|s| s.amount).sum();
                         view! {
                             <div class="px-4 pt-4">
-                                <p class="text-xs font-medium text-text-muted">"口座別"</p>
+                                <p class="text-xs font-medium text-text-muted">
+                                    "口座別(投資信託)"
+                                </p>
                                 <div class="home-stacked-bar mt-1.5">
                                     {accounts
                                         .iter()

@@ -204,24 +204,20 @@ fn product_slices_sort_desc_and_drop_empty() {
 }
 
 #[test]
-fn account_slices_group_funds_and_lump_stocks() {
+fn account_slices_group_funds_by_account() {
     let funds = vec![
         fund("F1", "特定", 600_000, 10_000),
         fund("F2", "NISA", 200_000, 5_000),
         fund("F3", "特定", 200_000, -5_000),
     ];
-    let slices = account_slices(400_000.0, &funds);
-    // 特定は合算され 800,000、株式は「国内株式」1区分
-    assert_eq!(slices.len(), 3);
+    let slices = account_slices(&funds);
+    // 特定は合算され 800,000。株式は口座を持たないため口座別には出ない
+    assert_eq!(slices.len(), 2);
     assert_eq!(slices[0].label, "特定");
     assert_eq!(slices[0].amount, 800_000.0);
-    assert!(
-        slices
-            .iter()
-            .any(|s| s.label == "国内株式" && s.amount == 400_000.0)
-    );
+    assert!(slices.iter().all(|s| s.label != "国内株式"));
     // ファンドが無ければ口座内訳は作らない
-    assert!(account_slices(400_000.0, &[]).is_empty());
+    assert!(account_slices(&[]).is_empty());
 }
 
 #[test]
@@ -307,6 +303,14 @@ fn latest_import_label_picks_newest() {
         Some("2026/10/19".to_string())
     );
     assert_eq!(latest_import_label([].iter().copied()), None);
+}
+
+#[test]
+fn remaining_label_writes_overage_as_exceeding() {
+    // 受取が予想を超えたら負の残りではなく「上回り」に書き分ける
+    assert_eq!(remaining_label(Some(-17_500.0)), "予想を ¥17,500 上回り");
+    assert_eq!(remaining_label(Some(12_000.0)), "残り ¥12,000");
+    assert_eq!(remaining_label(None), "残り —");
 }
 
 #[test]
