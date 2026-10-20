@@ -3,7 +3,7 @@ use super::all_list::{
     unified_from_stock,
 };
 use super::asset_table::AssetHoldingsTable;
-use super::fund_table::{FundHoldingsList, FundHoldingsTable, FundPriceAsOfNote};
+use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::kind_tabs::AssetKindTabs;
 use super::search_bar::AssetSearchBar;
@@ -229,7 +229,6 @@ fn FundContent(
         let dates = fund_price_dates(&resolved.rows);
         price_date_representative(dates.iter().map(String::as_str)).map(str::to_string)
     };
-    let note_date_rep = date_rep.clone();
     // 集計は絞り込み前の全行で求め、検索中も全保有分を維持する
     let all_views: Vec<_> = resolved.rows.iter().map(fund_view).collect();
     let totals = fund_totals(&all_views);
@@ -303,7 +302,6 @@ fn FundContent(
                     }}
                 </div>
             </div>
-            {move || view! { <FundPriceAsOfNote date=note_date_rep.clone() /> }}
             {move || {
                 (filtered.with(|views| views.is_empty()) && total_count > 0).then(|| {
                     view! {

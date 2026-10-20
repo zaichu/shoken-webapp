@@ -109,6 +109,8 @@
   --text-cell: 0.75rem;
 
   --container-wide: 1680px;
+  /* 上部ヘッダーと本文の端をそろえる共通の本文幅(page-gutter / content-gutter) */
+  --container-page: 90rem;
 
   --font-sans: 'Noto Sans JP', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
 }
@@ -367,7 +369,7 @@
 
   @media (width >= 64rem) {
     .content-gutter {
-      max-width: 75rem;
+      max-width: var(--container-page);
       padding-inline: clamp(1rem, 3.5vw, 3rem);
     }
   }
@@ -914,10 +916,10 @@
     @apply flex min-h-0 flex-1 flex-col overflow-y-auto;
   }
 
-  /* 共通ページ枠の内側の余白。上部ヘッダーと同じ枠で本文を中央寄せする(最大幅 1200px) */
+  /* 共通ページ枠の内側の余白。上部ヘッダーと同じ枠で本文を中央寄せする(最大幅は --container-page) */
   .page-gutter {
     @apply mx-auto w-full;
-    max-width: 75rem;
+    max-width: var(--container-page);
     padding-inline: clamp(1rem, 3.5vw, 3rem);
   }
 
