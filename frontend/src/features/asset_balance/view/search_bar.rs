@@ -217,23 +217,23 @@ pub(crate) fn AssetSearchBar(
                         <AddConditionRow>
                             {condition_button(ConditionKind::Account, controls.account_ref)}
                             {condition_button(ConditionKind::Course, controls.course_ref)}
+                            {move || {
+                                controls.open.get().map(|kind| {
+                                    let options = match kind {
+                                        ConditionKind::Account => account_options,
+                                        ConditionKind::Course => course_options,
+                                    };
+                                    view! {
+                                        <AssetConditionPopover
+                                            kind=kind
+                                            search=search
+                                            options=options
+                                            on_close=move || controls.finish(kind)
+                                        />
+                                    }
+                                })
+                            }}
                         </AddConditionRow>
-                        {move || {
-                            controls.open.get().map(|kind| {
-                                let options = match kind {
-                                    ConditionKind::Account => account_options,
-                                    ConditionKind::Course => course_options,
-                                };
-                                view! {
-                                    <AssetConditionPopover
-                                        kind=kind
-                                        search=search
-                                        options=options
-                                        on_close=move || controls.finish(kind)
-                                    />
-                                }
-                            })
-                        }}
                     }
                 })}
         </div>

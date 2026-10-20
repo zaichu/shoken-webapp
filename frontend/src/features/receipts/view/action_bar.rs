@@ -587,22 +587,22 @@ pub fn ReceiptsPcSearchBar(
                         }
                     })
                 }}
+                {move || {
+                    controls.open.get().map(|kind| {
+                        view! {
+                            <ConditionPopover
+                                kind=kind
+                                search=search
+                                years=years
+                                products=products
+                                accounts=accounts
+                                has_years=has_years
+                                on_close=on_close
+                            />
+                        }
+                    })
+                }}
             </AddConditionRow>
-            {move || {
-                controls.open.get().map(|kind| {
-                    view! {
-                        <ConditionPopover
-                            kind=kind
-                            search=search
-                            years=years
-                            products=products
-                            accounts=accounts
-                            has_years=has_years
-                            on_close=on_close
-                        />
-                    }
-                })
-            }}
         </div>
     }
 }
@@ -650,6 +650,21 @@ pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
                                 }
                             })
                         }}
+                        {move || {
+                            controls.open.get().map(|kind| {
+                                view! {
+                                    <ConditionPopover
+                                        kind=kind
+                                        search=search
+                                        years=years
+                                        products=products
+                                        accounts=accounts
+                                        has_years=has_years
+                                        on_close=on_close
+                                    />
+                                }
+                            })
+                        }}
                     </AddConditionRow>
                     <div class="receipts-mobile-search-meta">
                         <ReceiptSearchCount store=store tab=tab />
@@ -657,21 +672,6 @@ pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
                     </div>
                 </div>
             </div>
-            {move || {
-                controls.open.get().map(|kind| {
-                    view! {
-                        <ConditionPopover
-                            kind=kind
-                            search=search
-                            years=years
-                            products=products
-                            accounts=accounts
-                            has_years=has_years
-                            on_close=on_close
-                        />
-                    }
-                })
-            }}
         </div>
     }
 }

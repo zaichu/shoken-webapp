@@ -97,6 +97,59 @@ async function setupMocks(page: Page) {
   });
 }
 
+test('PC: 「条件を足す」の小窓はどのボタンでもその行の直下に出る', async ({
+  page,
+}) => {
+  await setupMocks(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/assetbalance');
+  await page.getByTestId('asset-kind-tab-fund').click();
+  await expect(page.getByTestId('asset-fund-table')).toBeVisible();
+
+  for (const testid of ['asset-condition-account', 'asset-condition-course']) {
+    const trigger = page.getByTestId(testid);
+    await trigger.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    const button = await trigger.boundingBox();
+    const panel = await dialog.boundingBox();
+    expect(button).not.toBeNull();
+    expect(panel).not.toBeNull();
+    if (!button || !panel) {
+      return;
+    }
+    // ボタンのすぐ下に出る(Issue #1416: 画面左下に離れて出ていた)
+    expect(panel.y).toBeGreaterThanOrEqual(button.y + button.height - 1);
+    expect(panel.y - (button.y + button.height)).toBeLessThan(40);
+    // 横方向はボタンと重なる(直下に出ていること)
+    expect(panel.x).toBeLessThan(button.x + button.width);
+    expect(panel.x + panel.width).toBeGreaterThan(button.x);
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  }
+});
+
+test('スマホ: 「条件を足す」の小窓は下から出るシートのまま', async ({ page }) => {
+  await setupMocks(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/assetbalance');
+  await page.getByTestId('asset-kind-tab-fund').click();
+  await expect(page.getByTestId('asset-fund-list')).toBeVisible();
+
+  await page.getByTestId('asset-condition-account').click();
+  const sheet = page.getByRole('dialog', { name: '口座を選ぶ' });
+  await expect(sheet).toBeVisible();
+  const panel = await sheet.boundingBox();
+  expect(panel).not.toBeNull();
+  if (!panel) {
+    return;
+  }
+  // 画面下端に接するシートのまま(PC の小窓位置にはならない)
+  expect(panel.y + panel.height).toBeGreaterThanOrEqual(844 - 2);
+});
+
 test('投資信託タブでファンド一覧が表示され、検索と並べ替えが効く', async ({
   page,
 }) => {
