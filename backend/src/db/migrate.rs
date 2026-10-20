@@ -60,6 +60,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0011_fund_balances",
         include_str!("../../migrations/0011_fund_balances.sql"),
     ),
+    (
+        "0012_asset_balances_view_prev_close",
+        include_str!("../../migrations/0012_asset_balances_view_prev_close.sql"),
+    ),
 ];
 
 /// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に

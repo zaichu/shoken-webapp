@@ -1,3 +1,4 @@
+use super::day_change::day_change_subline;
 use crate::features::asset_balance::format::{
     format_currency, format_price_date, format_row_valuation_amount,
     format_signed_row_valuation_amount, format_signed_valuation_rate, is_negative_valuation,
@@ -162,6 +163,7 @@ pub fn AssetHoldingsTable(
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
                                         {format_currency(view.current_price)}
+                                        {day_change_subline(view.day_change)}
                                         {price_date_text.map(|date| {
                                             view! {
                                                 <div class="asset-price-date">{date}</div>

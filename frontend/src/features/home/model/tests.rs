@@ -13,6 +13,7 @@ fn stock(code: &str, name: &str, shares: i64, price: i64, purchase: i64) -> Asse
         "current_price": price,
         "daily_change": 0,
         "price_as_of": "2026-10-17",
+        "prev_close": price,
         "created_at": "",
         "updated_at": "2026-10-18T00:00:00Z"
     }))
@@ -73,6 +74,7 @@ fn merged_asset_summary_combines_stock_and_fund() {
         total_daily_change: dec!(10_000),
         priced_market_value: dec!(600_000),
         priced_purchase_amount: dec!(500_000),
+        has_missing_daily_change: false,
     };
     let fund = FundBalanceSummary {
         total_market_value: dec!(300_000),

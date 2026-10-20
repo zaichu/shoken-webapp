@@ -1,12 +1,12 @@
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::format::{
-    format_amount, format_percentage_value, format_signed_valuation_amount,
+    dec_to_f64, format_amount, format_percentage_value, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation, price_date_range,
 };
 use crate::features::asset_balance::fund::FundRowData;
-use crate::features::asset_balance::holdings::holding_view;
+use crate::features::asset_balance::holdings::{holding_view, stock_daily_change_total};
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
 };
@@ -27,11 +27,24 @@ fn unpriced_suffix(has_unpriced: bool) -> &'static str {
     }
 }
 
+/// 前日終値が取れない行を合計から除いたときの注記
+fn missing_day_change_suffix(has_missing: bool) -> &'static str {
+    if has_missing {
+        "・前日比なし銘柄を除く"
+    } else {
+        ""
+    }
+}
+
 /// PC ヘッダー横の件数・基準日注記。取得上限超過で行が欠けるときは API 集計側の件数・
 /// 価格なし判定を使い、集計欄と食い違わないようにする
 pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
-    let (count, has_unpriced, date_text) = stock_subtitle_parts(view);
-    format!("{count}銘柄 · {date_text}{}", unpriced_suffix(has_unpriced))
+    let (count, has_unpriced, has_missing_daily, date_text) = stock_subtitle_parts(view);
+    format!(
+        "{count}銘柄 · {date_text}{}{}",
+        unpriced_suffix(has_unpriced),
+        missing_day_change_suffix(has_missing_daily)
+    )
 }
 
 /// 投資信託タブの副題。CSV が持つ基準価額の時点を出す
@@ -51,8 +64,12 @@ pub(crate) fn merged_subtitle(
         stock.map(|view| view.total).unwrap_or(0) + fund.map(|view| view.total).unwrap_or(0);
     let mut parts = Vec::new();
     if let Some(view) = stock.filter(|view| !view.rows.is_empty()) {
-        let (_, has_unpriced, date_text) = stock_subtitle_parts(view);
-        parts.push(format!("{date_text}{}", unpriced_suffix(has_unpriced)));
+        let (_, has_unpriced, has_missing_daily, date_text) = stock_subtitle_parts(view);
+        parts.push(format!(
+            "{date_text}{}{}",
+            unpriced_suffix(has_unpriced),
+            missing_day_change_suffix(has_missing_daily)
+        ));
     }
     if let Some(view) = fund.filter(|view| !view.rows.is_empty()) {
         parts.push(fund_date_text(view));
@@ -64,16 +81,22 @@ pub(crate) fn merged_subtitle(
     }
 }
 
-fn stock_subtitle_parts(view: &ResolvedAssetBalance) -> (usize, bool, String) {
-    let (count, has_unpriced) = match &view.fallback_totals {
-        Some(summary) => (view.total, summary_valuation(summary).has_unpriced),
+fn stock_subtitle_parts(view: &ResolvedAssetBalance) -> (usize, bool, bool, String) {
+    let (count, has_unpriced, has_missing_daily) = match &view.fallback_totals {
+        Some(summary) => (
+            view.total,
+            summary_valuation(summary).has_unpriced,
+            summary.has_missing_daily_change,
+        ),
         None => {
-            let inputs: Vec<ValuationInput> = view
-                .rows
-                .iter()
-                .map(|row| ValuationInput::from(&holding_view(row)))
-                .collect();
-            (view.rows.len(), portfolio_valuation(&inputs).has_unpriced)
+            let views: Vec<_> = view.rows.iter().map(holding_view).collect();
+            let inputs: Vec<ValuationInput> = views.iter().map(ValuationInput::from).collect();
+            let has_missing = views.iter().any(|view| view.day_change.is_none());
+            (
+                view.rows.len(),
+                portfolio_valuation(&inputs).has_unpriced,
+                has_missing,
+            )
         }
     };
     let dates = view
@@ -86,7 +109,7 @@ fn stock_subtitle_parts(view: &ResolvedAssetBalance) -> (usize, bool, String) {
         Some((min, max)) => format!("株価 {min}〜{max} 時点(銘柄ごとの最新終値)"),
         None => "株価の基準日は不明".to_string(),
     };
-    (count, has_unpriced, date_text)
+    (count, has_unpriced, has_missing_daily, date_text)
 }
 
 fn fund_date_text(view: &ResolvedFundBalance) -> String {
@@ -149,6 +172,16 @@ pub(crate) fn PortfolioSummary(
         .as_ref()
         .map(summary_valuation)
         .unwrap_or(row_valuation);
+    // 前日比の合計は API 集計(全件)を優先し、無ければ見えている行から計算する。
+    // 前日終値なしの行は除く(全部なしなら「—」)
+    let daily_change = fallback_totals
+        .as_ref()
+        .map(|summary| dec_to_f64(&summary.total_daily_change))
+        .or_else(|| stock_daily_change_total(&all_views));
+    let has_missing_daily = fallback_totals
+        .as_ref()
+        .map(|summary| summary.has_missing_daily_change)
+        .unwrap_or_else(|| all_views.iter().any(|view| view.day_change.is_none()));
     let kpi =
         Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
 
@@ -173,6 +206,14 @@ pub(crate) fn PortfolioSummary(
             .dividend_yield
             .map_or("—".to_string(), format_percentage_value)
     });
+    let daily_text = format_signed_valuation_amount(daily_change);
+    let daily_tone = if is_negative_valuation(daily_change) {
+        "asset-summary-loss"
+    } else if is_positive_valuation(daily_change) {
+        "asset-summary-gain"
+    } else {
+        ""
+    };
     let asof_text = {
         let dates = all_views
             .iter()
@@ -183,13 +224,17 @@ pub(crate) fn PortfolioSummary(
             Some((min, max)) => format!("株価 {min}〜{max} 時点(銘柄ごと)"),
             None => "株価の基準日は不明".to_string(),
         };
-        format!("{base}{}", unpriced_suffix(valuation.has_unpriced))
+        format!(
+            "{base}{}{}",
+            unpriced_suffix(valuation.has_unpriced),
+            missing_day_change_suffix(has_missing_daily)
+        )
     };
 
     view! {
         <section
             id="assetbalance-summary"
-            class="asset-summary"
+            class="asset-summary asset-summary-5"
             role="region"
             aria-label="集計"
             data-testid="asset-portfolio-summary"
@@ -230,6 +275,15 @@ pub(crate) fn PortfolioSummary(
                         <Amount text=yield_text class="asset-summary-sub-amount".to_string() />
                     </dd>
                 </div>
+                <div class="asset-summary-item asset-summary-item-sub3">
+                    <dt>"前日比"</dt>
+                    <dd>
+                        <Amount
+                            text=daily_text
+                            class=format!("asset-summary-sub-amount {daily_tone}")
+                        />
+                    </dd>
+                </div>
             </dl>
             <a href="/assetbalance/composition" class="asset-summary-comp lg:hidden">
                 "構成比 ›"
@@ -238,6 +292,8 @@ pub(crate) fn PortfolioSummary(
                 <summary>"計算基準"</summary>
                 <div class="asset-summary-basis-body">
                     "評価額 = 現在値 × 株数(価格なし銘柄は除く。株価の日付は銘柄ごとに違う)"
+                    <br />
+                    "前日比 = (現在値 − 前日終値) × 株数の合計(前日終値なし銘柄は除く)"
                     <br />
                     "年間配当 = 1株配当 × 株数(会社予想。なければ直近の実績)"
                     <br />
@@ -248,6 +304,8 @@ pub(crate) fn PortfolioSummary(
                 <summary>"計算基準を見る"</summary>
                 <div class="asset-basis-pc-body">
                     "評価額 = 現在値 × 株数(価格なし銘柄は除く。現在値は銘柄ごとの最新終値で、日付は銘柄ごとに違い、表の「現在値」の下に表示)"
+                    <br />
+                    "前日比 = (現在値 − 前日終値) × 株数の合計(前日終値なし銘柄は除く。1株あたりの前日比は表の「現在値」の下に表示)"
                     <br />
                     "含み損益 = 評価額 − 取得総額、率 = 含み損益 ÷ 取得総額(価格あり銘柄の合計どうし)"
                     <br />

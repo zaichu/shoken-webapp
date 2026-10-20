@@ -30,6 +30,7 @@ pub(crate) fn merged_asset_summary(
         total_daily_change: pick(&|s| s.total_daily_change) + fund_daily,
         priced_market_value: pick(&|s| s.priced_market_value) + fund_market,
         priced_purchase_amount: pick(&|s| s.priced_purchase_amount) + fund_purchase,
+        has_missing_daily_change: stock.map(|s| s.has_missing_daily_change).unwrap_or(false),
     })
 }
 
@@ -40,7 +41,11 @@ pub(crate) fn stock_summary_from_rows(rows: &[AssetBalance]) -> AssetBalanceSumm
         let price = row.current_price;
         let shares = row.shares;
         summary.total_purchase_amount += row.total_purchase_amount;
-        summary.total_daily_change += row.daily_change;
+        if row.prev_close.is_some() || row.price_as_of.is_none() {
+            summary.total_daily_change += row.daily_change * shares;
+        } else {
+            summary.has_missing_daily_change = true;
+        }
         if price > Decimal::ZERO {
             summary.total_market_value += shares * price;
             summary.priced_market_value += shares * price;

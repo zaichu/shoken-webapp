@@ -44,6 +44,7 @@ fn balance(row: &Row) -> AssetBalance {
         current_price: Decimal::ZERO,
         daily_change: Decimal::ZERO,
         price_as_of: None,
+        prev_close: None,
         created_at: String::new(),
         updated_at: String::new(),
     }
