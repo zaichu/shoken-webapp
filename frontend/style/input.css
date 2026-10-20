@@ -526,15 +526,17 @@
     }
   }
 
-  /* 小窓(PC)と下から出るシート(スマホ)。構造は共通で、PC は検索欄の下に
-     絶対配置、スマホは画面下端に固定する。背景は PC では外側クリックを受ける
-     透明な面、スマホでは下地を暗くする幕 */
+  /* 小窓(PC)と下から出るシート(スマホ)。構造は共通で、どちらも fixed。
+     PC は JS が「条件を足す」行の座標を top/left に写してボタンの直下に出し、
+     スマホは画面下端に固定する。fixed は祖先の relative や overflow-clip な面に
+     左右されないため、どのページでも同じ位置に出る。背景は PC では外側
+     クリックを受ける透明な面、スマホでは下地を暗くする幕 */
   .condition-backdrop {
     @apply fixed inset-0 z-40;
   }
 
   .condition-panel {
-    @apply absolute left-0 top-full z-50 mt-2 rounded-xl border border-border bg-surface p-4 shadow-elevation-2;
+    @apply fixed z-50 mt-2 rounded-xl border border-border bg-surface p-4 shadow-elevation-2;
     width: min(26rem, calc(100vw - 2rem));
   }
 

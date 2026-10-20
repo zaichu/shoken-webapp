@@ -80,6 +80,34 @@ async function shiftTabTo(page: Page, name: string, maxSteps = 12) {
   throw new Error(`フォーカスが「${name}」に届かない`);
 }
 
+test('PC: 条件の小窓はどのボタンでもその行の直下に出る', async ({ page }) => {
+  await gotoReceipts(page, 1280, 800);
+
+  for (const name of ['＋ 期間', '＋ 口座', '＋ 商品']) {
+    const trigger = pcSearch(page).getByRole('button', { name });
+    await trigger.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    const button = await trigger.boundingBox();
+    const panel = await dialog.boundingBox();
+    expect(button).not.toBeNull();
+    expect(panel).not.toBeNull();
+    if (!button || !panel) {
+      return;
+    }
+    // ボタンのすぐ下に出る(画面の端や離れた位置ではない)
+    expect(panel.y).toBeGreaterThanOrEqual(button.y + button.height - 1);
+    expect(panel.y - (button.y + button.height)).toBeLessThan(40);
+    // 横方向はボタンと重なる(直下に出ていること)
+    expect(panel.x).toBeLessThan(button.x + button.width);
+    expect(panel.x + panel.width).toBeGreaterThan(button.x);
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  }
+});
+
 test('PC: 口座の条件を足すとタグが出て一覧・件数・集計が同じ対象に絞られる', async ({ page }) => {
   await gotoReceipts(page, 1280, 800);
 
