@@ -20,6 +20,7 @@ fn balance(id: usize) -> AssetBalance {
         current_price: rust_decimal_macros::dec!(2600),
         daily_change: rust_decimal_macros::dec!(50),
         price_as_of: Some("2024-01-16".to_string()),
+        prev_close: Some(rust_decimal_macros::dec!(2550)),
         created_at: String::new(),
         updated_at: String::new(),
     }
@@ -105,6 +106,7 @@ fn resolve_truncated_uses_summary_as_fallback_totals() {
         total_daily_change: rust_decimal_macros::dec!(0),
         priced_market_value: rust_decimal_macros::dec!(700000),
         priced_purchase_amount: rust_decimal_macros::dec!(500000),
+        has_missing_daily_change: false,
     };
     let mut loaded_balances = loaded(vec![balance(1)], true);
     loaded_balances.summary = Some(summary.clone());
@@ -125,6 +127,7 @@ fn resolve_full_rows_skips_fallback_totals() {
         total_daily_change: rust_decimal_macros::dec!(0),
         priced_market_value: rust_decimal_macros::dec!(700000),
         priced_purchase_amount: rust_decimal_macros::dec!(500000),
+        has_missing_daily_change: false,
     });
     let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));
     let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot) else {

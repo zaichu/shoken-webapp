@@ -1110,6 +1110,11 @@
     grid-template-columns: 1.3fr 1.2fr 1fr;
   }
 
+  /* 集計が5項目(資産管理の国内株式: 前日比を足す)用 */
+  .asset-summary-5 .asset-summary-grid {
+    grid-template-columns: 1.3fr 1.2fr 1fr 1fr 1fr;
+  }
+
   /* 紺地では --color-positive/-negative がコントラスト不足になるため明るい色を使う */
   .asset-summary-gain {
     color: var(--color-profit-bright);
@@ -1160,6 +1165,16 @@
         "pdt pdt pdt pdt pdt asof"
         "pdd pdd pdd pdd pdd pnldd"
         "sdt1 sdd1 sdt2 sdd2 comp comp"
+        "basis basis basis basis basis basis";
+    }
+
+    /* 5項目の集計帯。3つ目の補助項目は1行増やして左に並べる */
+    .asset-summary-5 {
+      grid-template-areas:
+        "pdt pdt pdt pdt pdt asof"
+        "pdd pdd pdd pdd pdd pnldd"
+        "sdt1 sdd1 sdt2 sdd2 comp comp"
+        "sdt3 sdd3 . . . ."
         "basis basis basis basis basis basis";
     }
 
@@ -1215,6 +1230,16 @@
       content: " · ";
     }
 
+    .asset-summary-item-sub3 dt {
+      @apply whitespace-nowrap;
+      grid-area: sdt3;
+    }
+
+    .asset-summary-item-sub3 dd {
+      @apply ml-1 whitespace-nowrap;
+      grid-area: sdd3;
+    }
+
     .asset-summary-primary-amount {
       @apply text-[26px];
     }
@@ -1233,6 +1258,7 @@
 
     .asset-summary-item-sub1 dt,
     .asset-summary-item-sub2 dt,
+    .asset-summary-item-sub3 dt,
     .asset-summary-sub-amount {
       color: var(--color-brand-muted);
     }

@@ -13,6 +13,8 @@ pub(crate) struct HoldingView {
     pub(crate) average_price: f64,
     pub(crate) purchase: f64,
     pub(crate) current_price: f64,
+    /// 1株あたりの前日比。前日終値がない銘柄は None
+    pub(crate) day_change: Option<f64>,
     /// 現在値の基準日（"YYYY-MM-DD"）。CSV プレビュー行は None
     pub(crate) price_as_of: Option<String>,
 }
@@ -41,8 +43,23 @@ pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {
         average_price: dec_to_f64(&row.average_purchase_price()),
         purchase: dec_to_f64(&row.total_purchase_amount()),
         current_price: dec_to_f64(&row.current_price()),
+        day_change: row.day_change().as_ref().map(dec_to_f64),
         price_as_of: row.price_as_of().map(str::to_string),
     }
+}
+
+/// 保有数で重み付けした前日比の合計(円)。前日比なしの行は除き、
+/// 対象が1行もないときは None
+pub(crate) fn stock_daily_change_total(views: &[HoldingView]) -> Option<f64> {
+    let mut total = 0.0;
+    let mut has = false;
+    for view in views {
+        if let Some(change) = view.day_change {
+            total += change * view.shares;
+            has = true;
+        }
+    }
+    has.then_some(total)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -118,3 +135,6 @@ pub(crate) fn format_dividend_annual(dividend: &HoldingDividend) -> String {
 pub(crate) fn format_dividend_yield(dividend: &HoldingDividend) -> String {
     format_dividend_value(dividend, dividend.yield_value, format_percentage_value)
 }
+
+#[cfg(test)]
+mod tests;

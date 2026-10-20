@@ -186,6 +186,7 @@ fn investment_amount_is_price_times_shares() {
         current_price: dec!(2600),
         daily_change: dec!(50),
         price_as_of: Some("2024-01-16".to_string()),
+        prev_close: Some(dec!(2550)),
         created_at: String::new(),
         updated_at: String::new(),
     };

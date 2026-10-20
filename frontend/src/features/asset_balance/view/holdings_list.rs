@@ -1,6 +1,6 @@
 use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation, is_positive_valuation,
+    format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
+    format_signed_valuation_rate, is_negative_valuation, is_positive_valuation,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_yield, holding_dividend,
@@ -42,6 +42,13 @@ pub fn HoldingsList(
                     let dividend_annual = format_dividend_annual(&dividend);
                     let dividend_yield = format_dividend_yield(&dividend);
                     let shares_text = format!("{}株", format_number_value(view.shares));
+                    let meta = format!(
+                        "{} · {} · 現在値 {} · 前日比 {}",
+                        view.code,
+                        shares_text,
+                        format_currency(view.current_price),
+                        format_signed_row_valuation_amount(view.day_change),
+                    );
                     let inner = view! {
                         <>
                             <div class="flex items-baseline justify-between gap-2">
@@ -53,10 +60,8 @@ pub fn HoldingsList(
                                 </span>
                             </div>
                             <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
-                                <span class="shrink-0 text-text-muted">
-                                    {view.code.clone()}
-                                    " · "
-                                    {shares_text}
+                                <span class="min-w-0 truncate text-text-muted">
+                                    {meta}
                                 </span>
                                 {if valuation.profit_loss.amount.is_some() {
                                     let rate_badge = valuation.profit_loss.rate.is_some().then(|| {

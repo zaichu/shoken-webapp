@@ -2090,6 +2090,14 @@
             "type": "string",
             "format": "uuid"
           },
+          "prev_close": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "前日終値。共有価格(security_prices)由来の行のみ持ち、\n上場直後・取得失敗で前日終値がない銘柄は null（行の前日比は「—」・合計から除外）"
+          },
           "price_as_of": {
             "type": [
               "string",
@@ -2127,6 +2135,10 @@
           "total_daily_change"
         ],
         "properties": {
+          "has_missing_daily_change": {
+            "type": "boolean",
+            "description": "前日終値がない(上場直後・取得失敗)保有銘柄があるか。\n前日比の合計から除いた行があるとき注記の表示に使う"
+          },
           "priced_market_value": {
             "type": "number",
             "format": "double"
@@ -2944,6 +2956,14 @@
                   "type": "string",
                   "format": "uuid"
                 },
+                "prev_close": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "format": "double",
+                  "description": "前日終値。共有価格(security_prices)由来の行のみ持ち、\n上場直後・取得失敗で前日終値がない銘柄は null（行の前日比は「—」・合計から除外）"
+                },
                 "price_as_of": {
                   "type": [
                     "string",
@@ -3000,6 +3020,10 @@
               "total_daily_change"
             ],
             "properties": {
+              "has_missing_daily_change": {
+                "type": "boolean",
+                "description": "前日終値がない(上場直後・取得失敗)保有銘柄があるか。\n前日比の合計から除いた行があるとき注記の表示に使う"
+              },
               "priced_market_value": {
                 "type": "number",
                 "format": "double"

@@ -15,7 +15,9 @@ use crate::features::asset_balance::fund::{
     AssetKind, AssetSearch, FundBalanceRow, FundSortKey, FundView, filter_fund_rows, fund_accounts,
     fund_courses, fund_totals, fund_view, sort_fund_views,
 };
-use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
+use crate::features::asset_balance::holdings::{
+    HoldingView, holding_dividend, stock_daily_change_total,
+};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder, sort_holdings};
@@ -358,11 +360,9 @@ fn AllContent(
         filtered.set(next);
     });
     // 集計は両種別を合算。株側は銘柄ごとの現在値評価を使う
-    let stock_inputs: Vec<ValuationInput> = filtered_portfolio(&stock_rows, "", lookup, generation)
-        .all_views
-        .iter()
-        .map(ValuationInput::from)
-        .collect();
+    let stock_all_views = filtered_portfolio(&stock_rows, "", lookup, generation).all_views;
+    let stock_inputs: Vec<ValuationInput> =
+        stock_all_views.iter().map(ValuationInput::from).collect();
     let stock_valuation = crate::features::asset_balance::model::portfolio_valuation(&stock_inputs);
     let stock_rows_purchase: f64 = stock_inputs.iter().map(|i| i.total_purchase_amount).sum();
     let stock_market = stock_fallback
@@ -375,7 +375,17 @@ fn AllContent(
         .unwrap_or(stock_rows_purchase);
     let stock_daily = stock_fallback
         .as_ref()
-        .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change));
+        .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change))
+        .or_else(|| stock_daily_change_total(&stock_all_views));
+    let has_missing_daily = stock_fallback
+        .as_ref()
+        .map(|summary| summary.has_missing_daily_change)
+        .unwrap_or_else(|| stock_all_views.iter().any(|view| view.day_change.is_none()));
+    let stock_missing_note = if has_missing_daily {
+        "前日比なし銘柄を除く".to_string()
+    } else {
+        String::new()
+    };
     let fund_rows = fund_resolved.rows.clone();
     let fund_views: Vec<_> = fund_rows.iter().map(fund_view).collect();
     let fund_totals_value = fund_totals(&fund_views);
@@ -421,6 +431,7 @@ fn AllContent(
                 profit=profit
                 daily_change=daily
                 profit_rate=profit_rate
+                note=stock_missing_note
             />
             <div class="asset-list-surface">
                 <AssetSearchBar

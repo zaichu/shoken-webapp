@@ -76,13 +76,17 @@ impl CsvImport for AssetBalanceDomain {
 // 含み損益の分子・分母から価格なし行を外し、frontend の個別カード計算と同じ対象行にする
 // 価格は security_prices 由来のため、評価額は shares × current_price、
 // 前日比の合計は保有数量で重み付けした daily_change × shares の合計
+// has_missing_daily_change は前日終値が取れない行(共有価格あり・prev_close なし)の有無。
+// 前日比は合計で 0 として扱われるため、合計自体は正しいが「除いた」注記の判定に使う
 const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(shares * current_price), 0) AS total_market_value, \
      COALESCE(SUM(total_purchase_amount), 0) AS total_purchase_amount, \
      COALESCE(SUM(daily_change * shares), 0) AS total_daily_change, \
      COALESCE(SUM(CASE WHEN current_price > 0 THEN current_price * shares ELSE 0 END), 0) \
      AS priced_market_value, \
      COALESCE(SUM(CASE WHEN current_price > 0 THEN total_purchase_amount ELSE 0 END), 0) \
-     AS priced_purchase_amount \
+     AS priced_purchase_amount, \
+     COALESCE(BOOL_OR(price_as_of IS NOT NULL AND prev_close IS NULL), false) \
+     AS has_missing_daily_change \
      FROM asset_balances_view";
 
 impl Search for AssetBalanceDomain {
@@ -92,7 +96,7 @@ impl Search for AssetBalanceDomain {
 
     const COLUMNS: &'static str = "id, user_id, security_code, security_name, shares, \
         average_purchase_price, total_purchase_amount, current_price, \
-        daily_change, price_as_of, created_at, updated_at";
+        daily_change, price_as_of, prev_close, created_at, updated_at";
     /// 価格列は共有の security_prices から読むため JOIN 済みビューを使う
     const FROM: &'static str = "asset_balances_view";
     const ORDER_BY: &'static str = " ORDER BY security_code ASC, id ASC";

@@ -32,6 +32,8 @@ pub struct AssetBalanceCsvRow {
     pub total_purchase_amount: Decimal,
     #[serde(default)]
     pub current_price: Decimal,
+    #[serde(default)]
+    pub daily_change: Option<Decimal>,
 }
 
 /// 一覧行と CSV プレビュー行を束ねる。プレビュー行は id・タイムスタンプを持たないため
@@ -47,6 +49,8 @@ pub(crate) trait AssetBalanceRowData {
     fn average_purchase_price(&self) -> Decimal;
     fn total_purchase_amount(&self) -> Decimal;
     fn current_price(&self) -> Decimal;
+    /// 1株あたりの前日比。前日終値がない(上場直後・取得失敗)銘柄は None
+    fn day_change(&self) -> Option<Decimal>;
     /// 現在値の基準日。CSV プレビュー行には無い
     fn price_as_of(&self) -> Option<&str>;
 }
@@ -69,6 +73,15 @@ impl AssetBalanceRowData for AssetBalance {
     }
     fn current_price(&self) -> Decimal {
         self.current_price
+    }
+    fn day_change(&self) -> Option<Decimal> {
+        // daily_change はビューで共有価格確定行を 0 に丸めるため、
+        // prev_close で「前日終値なし」を判定する。CSV 取込値の行はそのまま使う
+        if self.price_as_of.is_some() && self.prev_close.is_none() {
+            None
+        } else {
+            Some(self.daily_change)
+        }
     }
     fn price_as_of(&self) -> Option<&str> {
         self.price_as_of.as_deref()
@@ -93,6 +106,9 @@ impl AssetBalanceRowData for AssetBalanceCsvRow {
     }
     fn current_price(&self) -> Decimal {
         self.current_price
+    }
+    fn day_change(&self) -> Option<Decimal> {
+        self.daily_change
     }
     fn price_as_of(&self) -> Option<&str> {
         None
@@ -131,6 +147,9 @@ impl AssetBalanceRowData for AssetBalanceRow {
     }
     fn current_price(&self) -> Decimal {
         self.inner().current_price()
+    }
+    fn day_change(&self) -> Option<Decimal> {
+        self.inner().day_change()
     }
     fn price_as_of(&self) -> Option<&str> {
         self.inner().price_as_of()
