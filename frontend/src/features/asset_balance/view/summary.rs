@@ -48,14 +48,10 @@ pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
     )
 }
 
-/// 投資信託タブの副題。前日比が「最新」で合計に入る件数と「更新待ち」の件数を出す
 pub(crate) fn fund_subtitle(view: &ResolvedFundBalance) -> String {
-    let (latest, pending) = fund_nav_counts(view);
-    let freshness = fund_freshness_text(latest, pending);
-    format!("{}件 ・ {freshness}", view.total)
+    format!("{}件", view.total)
 }
 
-/// 「すべて」タブの副題。株と投信の合計件数と、それぞれの基準日・前日比の状態を並べる
 pub(crate) fn merged_subtitle(
     stock: Option<&ResolvedAssetBalance>,
     fund: Option<&ResolvedFundBalance>,
@@ -65,47 +61,25 @@ pub(crate) fn merged_subtitle(
     }
     let count =
         stock.map(|view| view.total).unwrap_or(0) + fund.map(|view| view.total).unwrap_or(0);
-    let mut parts = Vec::new();
-    if let Some(view) = stock.filter(|view| !view.rows.is_empty()) {
-        let (_, has_unpriced, has_missing_daily, date_text) = stock_subtitle_parts(view);
-        parts.push(format!(
-            "{date_text}{}{}",
-            unpriced_suffix(has_unpriced),
-            missing_day_change_suffix(has_missing_daily)
-        ));
-    }
-    if let Some(view) = fund.filter(|view| !view.rows.is_empty()) {
-        let (latest, pending) = fund_nav_counts(view);
-        parts.push(fund_freshness_text(latest, pending));
-    }
-    if parts.is_empty() {
-        Some(format!("{count}件"))
-    } else {
-        Some(format!("{count}件 · {}", parts.join(" · ")))
-    }
+    let stock_part = stock.filter(|view| !view.rows.is_empty()).map(|view| {
+        let (_, has_unpriced, _, date_text) = stock_subtitle_parts(view);
+        format!("{date_text}{}", unpriced_suffix(has_unpriced))
+    });
+    Some(match stock_part {
+        Some(text) => format!("{count}件 · {text}"),
+        None => format!("{count}件"),
+    })
 }
 
-/// 「前日比が最新」の件数(前日比を持ち合計に入る行)と「更新待ち」の件数。
+/// 「前日比が最新」の件数(前日比を持ち合計に入る行)。
 /// 行が取り切れていないときは API 集計を優先する
-pub(crate) fn fund_nav_counts(view: &ResolvedFundBalance) -> (usize, usize) {
+pub(crate) fn fund_latest_nav_count(view: &ResolvedFundBalance) -> usize {
     match &view.fallback_totals {
-        Some(summary) => (
-            summary.latest_nav_count as usize,
-            summary.pending_nav_count as usize,
-        ),
+        Some(summary) => summary.latest_nav_count as usize,
         None => {
             let views: Vec<_> = view.rows.iter().map(fund_view).collect();
-            let totals = fund_totals(&views);
-            (totals.latest_nav_count, totals.pending_nav_count)
+            fund_totals(&views).latest_nav_count
         }
-    }
-}
-
-fn fund_freshness_text(latest: usize, pending: usize) -> String {
-    if pending == 0 {
-        "前日比はすべて最新".to_string()
-    } else {
-        format!("前日比が最新 {latest}件 ・ 更新待ち {pending}件")
     }
 }
 

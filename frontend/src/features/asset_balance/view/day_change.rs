@@ -4,6 +4,10 @@ use crate::features::asset_balance::format::{
 };
 use leptos::prelude::*;
 
+/// 「前日比」列の見出しの説明。ホバーと支援技術から同じ内容を読み取れる
+pub(crate) const DAY_CHANGE_COLUMN_NOTE: &str =
+    "最新の基準価額の日の前日比がわかる行だけ出します。更新待ちの行は CSV を取り込むと出ます";
+
 /// 前日比の列セル。単位あたり(株は1株・投信は基準価額)の円マーク付き金額で、
 /// 前日終値がない行は「—」。基準日が他の行と違うときだけ横に日付を小さく出す
 pub(crate) fn day_change_cell(change: Option<f64>, date: Option<String>) -> impl IntoView {
