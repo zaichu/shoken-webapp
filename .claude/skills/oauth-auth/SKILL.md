@@ -31,7 +31,7 @@ Cookie・リダイレクトは `handlers/v1/auth/oauth.rs`。
 
 ### 1. 認証開始（`/api/v1/oauth/google/authorize`）
 
-`begin_google_auth` が認可 URL・state・nonce・PKCE verifier を一式生成する。
+`google_common::begin_auth` が認可 URL・state・nonce・PKCE verifier を一式生成する。
 OAuth クライアントは起動時に `create_oauth_client` で構築して `state.google_oauth` に保持する。
 
 ```rust
@@ -41,7 +41,7 @@ pub async fn google_auth(
 ) -> Result<(CookieJar, Redirect), ApiError> {
     let client = google_oauth_client(&state)?;
 
-    let flow = auth_service::begin_google_auth(client);
+    let flow = auth_service::google_common::begin_auth(client);
 
     // state / PKCE verifier / nonce を短命（10分）Cookie に保存
     let is_secure = state.config.secure_cookie;
@@ -114,7 +114,7 @@ let is_secure = state.config.secure_cookie;
 ## チェックリスト
 
 ### 認証開始時
-- [ ] state・nonce・PKCE verifier を生成している（`begin_google_auth`）
+- [ ] state・nonce・PKCE verifier を生成している（`google_common::begin_auth`）
 - [ ] state・nonce・PKCE verifier を Cookie に保存している
 - [ ] Cookie の有効期限は短い（10分程度）
 
@@ -206,7 +206,7 @@ Authorized redirect URI は API バージョン付きのコールバックを登
 
 - `backend/src/handlers/v1/auth/oauth.rs` - 認証ハンドラー・Cookie ヘルパー
 - `backend/src/handlers/v1/auth.rs` - セッション取得・削除
-- `backend/src/services/auth.rs` - `begin_google_auth` / `authenticate_with_google_code` / セッション DB 操作
-- `backend/src/services/auth/google_common.rs` / `google_worker.rs` - 認可 URL・PKCE・トークン交換・tokeninfo 検証
+- `backend/src/services/auth.rs` - `authenticate_with_google_code` / セッション DB 操作
+- `backend/src/services/auth/google_common.rs` / `google_worker.rs` - `begin_auth`・認可 URL・PKCE・トークン交換・tokeninfo 検証
 - `backend/src/extractors/auth.rs` - AuthenticatedUser エクストラクター
 - `backend/src/config.rs`（`Config::secure_cookie`）と `backend/src/config/environment.rs`（`RuntimeEnv`。fail-safe 本番判定）

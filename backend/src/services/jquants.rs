@@ -9,11 +9,17 @@ pub use response::{
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::errors::ApiError;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::models::market_data::financial_statement::FinancialStatementsQuery;
 
 pub(crate) const FIN_SUMMARY_URL: &str = "https://api.jquants.com/v2/fins/summary";
 pub(crate) const EQUITIES_MASTER_URL: &str = "https://api.jquants.com/v2/equities/master";
+
+/// 決算サマリー取得パラメータ
+#[derive(Debug)]
+pub struct FinancialStatementsQuery {
+    pub code: String,
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct JQuantsClient {
@@ -33,12 +39,6 @@ impl JQuantsClient {
             FIN_SUMMARY_URL.to_string(),
             EQUITIES_MASTER_URL.to_string(),
         )
-    }
-
-    /// dev/検証用にエンドポイントを差し替える。
-    /// vars でのみ注入する想定で、未設定時は本番エンドポイントのままにする
-    pub fn with_base_url(api_key: String, base_url: String) -> Self {
-        Self::with_urls(api_key, base_url, EQUITIES_MASTER_URL.to_string())
     }
 
     /// dev/検証用に fins/summary と equities/master の両エンドポイントを差し替える
