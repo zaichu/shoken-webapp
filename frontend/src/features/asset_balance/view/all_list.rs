@@ -7,6 +7,8 @@ use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::SortOrder;
+use crate::ui::badge::{AccountBadge, account_display_name};
+use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
 
 /// 株とファンドをまとめる一覧行。sub はスマホの行メタ、残りは表の列
@@ -57,9 +59,10 @@ pub(crate) fn unified_from_stock(view: &HoldingView) -> UnifiedRow {
 }
 
 pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
+    let account = account_display_name(&view.account);
     let sub = match &view.course {
-        Some(course) => format!("{} ・ {course}", view.account),
-        None => view.account.clone(),
+        Some(course) => format!("{account} ・ {course}"),
+        None => account.to_string(),
     };
     UnifiedRow {
         name: view.name.clone(),
@@ -129,6 +132,7 @@ pub fn AssetMergedTable(
             <table class="asset-table">
                 <thead>
                     <tr>
+                        <th scope="col">"コード"</th>
                         <th scope="col">"銘柄・ファンド"</th>
                         <th scope="col">"種別"</th>
                         <th scope="col">"口座"</th>
@@ -152,39 +156,29 @@ pub fn AssetMergedTable(
                                 } else {
                                     None
                                 };
-                                let name_cell = view! {
-                                    <>
-                                        {row.code.clone().map(|code| {
-                                            view! {
-                                                <span class="mr-2 text-xs text-text-muted tabular-nums">
-                                                    {code}
-                                                </span>
-                                            }
-                                        })}
-                                        {row.name.clone()}
-                                    </>
-                                };
                                 view! {
                                     <tr>
-                                        <td title=row.name.clone()>
-                                            {match &row.href {
-                                                Some(href) => view! {
-                                                    <a
-                                                        href=href.clone()
-                                                        class="flex min-h-6 items-center no-underline hover:underline"
-                                                    >
-                                                        <span class="min-w-0 truncate">
-                                                            {name_cell}
-                                                        </span>
-                                                    </a>
-                                                }
-                                                    .into_any(),
-                                                None => name_cell.into_any(),
-                                            }}
+                                        <td>
+                                            <TableSecurityCode
+                                                code=row.code.clone().unwrap_or_default()
+                                            />
+                                        </td>
+                                        <td class="asset-name-cell" title=row.name.clone()>
+                                            <TableNameLink
+                                                href=row.href.clone()
+                                                name=row.name.clone()
+                                            />
                                         </td>
                                         <td class="text-text-soft">{row.kind}</td>
-                                        <td class="text-text-soft">
-                                            {row.account.clone().unwrap_or_else(|| "—".to_string())}
+                                        <td>
+                                            {match &row.account {
+                                                Some(account) => view! {
+                                                    <AccountBadge label=account.clone() />
+                                                }
+                                                    .into_any(),
+                                                None => view! { <span class="text-text-soft">"—"</span> }
+                                                    .into_any(),
+                                            }}
                                         </td>
                                         <td class="text-text-soft">
                                             {row.course.clone().unwrap_or_else(|| "—".to_string())}

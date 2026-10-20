@@ -6,6 +6,8 @@ use crate::features::asset_balance::format::{
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::portfolio::SortOrder;
+use crate::ui::badge::{AccountBadge, account_display_name};
+use crate::ui::security_link::TableNameLink;
 use leptos::prelude::*;
 
 #[component]
@@ -41,23 +43,12 @@ pub fn FundHoldingsTable(
                                 .map(|id| format!("/assetbalance/funds/{id}"));
                             view! {
                                 <tr>
-                                    <td title=view.name.clone()>
-                                        {match href {
-                                            Some(href) => view! {
-                                                <a
-                                                    href=href
-                                                    class="flex min-h-6 items-center no-underline hover:underline"
-                                                >
-                                                    <span class="min-w-0 truncate">
-                                                        {view.name.clone()}
-                                                    </span>
-                                                </a>
-                                            }
-                                                .into_any(),
-                                            None => view! { {view.name.clone()} }.into_any(),
-                                        }}
+                                    <td class="asset-name-cell" title=view.name.clone()>
+                                        <TableNameLink href=href name=view.name.clone() />
                                     </td>
-                                    <td class="text-text-soft">{view.account.clone()}</td>
+                                    <td>
+                                        <AccountBadge label=view.account.clone() />
+                                    </td>
                                     <td class="text-text-soft">
                                         {view.course.clone().unwrap_or_else(|| "—".to_string())}
                                     </td>
@@ -111,7 +102,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                         pnl_cells(Some(view.profit_loss), view.profit_loss_rate);
                     let meta = format!(
                         "{} ・ {}口 ・ 基準価額 {}",
-                        view.account,
+                        account_display_name(&view.account),
                         format_number_value(view.shares),
                         format_currency(view.base_price),
                     );

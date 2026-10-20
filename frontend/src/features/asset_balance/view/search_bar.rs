@@ -3,6 +3,7 @@
 
 use crate::features::asset_balance::fund::AssetSearch;
 use crate::support::list_search::SearchOption;
+use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
@@ -132,26 +133,34 @@ pub(crate) fn AssetSearchBar(
     course_options: Memo<Vec<String>>,
 ) -> impl IntoView {
     let controls = ConditionControls::new();
-    let accounts_tag = Memo::new(move |_| search.with(|s| s.accounts.join("・")));
+    let accounts_tag = Memo::new(move |_| {
+        search.with(|s| {
+            s.accounts
+                .iter()
+                .map(|value| account_display_name(value))
+                .collect::<Vec<_>>()
+                .join("・")
+        })
+    });
     let courses_tag = Memo::new(move |_| search.with(|s| s.courses.join("・")));
     let has_anything = Signal::derive(move || search.with(|s| !s.is_empty()));
     let on_clear_all = move || search.update(|s| *s = AssetSearch::default());
     let input_value = move || search.with(|s| s.text.clone());
     let on_input = move |value: String| search.update(|s| s.text = value);
-    let to_options = |options: Memo<Vec<String>>| {
+    let to_options = |options: Memo<Vec<String>>, to_label: fn(&str) -> &str| {
         Memo::new(move |_| {
             options
                 .get()
                 .into_iter()
                 .map(|value| SearchOption {
-                    label: value.clone(),
+                    label: to_label(&value).to_string(),
                     value,
                 })
                 .collect()
         })
     };
-    let account_options = to_options(account_options);
-    let course_options = to_options(course_options);
+    let account_options = to_options(account_options, account_display_name);
+    let course_options = to_options(course_options, |value| value);
 
     let condition_button = move |kind: ConditionKind, node_ref: NodeRef<leptos::html::Button>| {
         view! {

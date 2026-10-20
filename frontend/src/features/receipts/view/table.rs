@@ -8,8 +8,8 @@ use crate::features::receipts::kind::ColumnSpec;
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::kind::TableGroup;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
-use crate::ui::badge::{AccountBadge, CodeBadge};
-use crate::ui::security_link::{CopyableInstrumentName, SecurityCodeLink};
+use crate::ui::badge::AccountBadge;
+use crate::ui::security_link::{CopyableInstrumentName, TableSecurityCode};
 use leptos::prelude::*;
 use std::collections::HashSet;
 
@@ -31,14 +31,15 @@ pub fn displayed_tiers(
 }
 
 // PC(lg+)の表の列幅。銘柄列は幅を固定せず残り全部を使い、日付・口座・数量・金額は
-// 内容に見合う幅で固定する(数値列は折り返さず 1 行で出す)
+// 内容に見合う最小幅で固定する(数値列は折り返さず 1 行で出す)
 fn compact_width(header: &str) -> &'static str {
     match header {
-        "入金日" | "約定日" => "8em",
-        "口座" => "6em",
-        "数量" => "9em",
+        "入金日" | "約定日" => "6.5em",
+        "銘柄コード" => "5.5em",
+        "口座" => "",
+        "数量" => "4em",
         "配当金" | "税額" | "税引後" | "売却額" | "取得価額" | "実現損益" | "解約額" => {
-            "10em"
+            "5.5em"
         }
         _ => "",
     }
@@ -119,11 +120,19 @@ pub fn ReceiptTable(
                 let visible = match tab {
                     ReceiptsTab::Dividend => matches!(
                         column.header,
-                        "入金日" | "口座" | "銘柄名" | "数量" | "配当金" | "税額" | "税引後"
+                        "入金日"
+                            | "銘柄コード"
+                            | "銘柄名"
+                            | "口座"
+                            | "数量"
+                            | "配当金"
+                            | "税額"
+                            | "税引後"
                     ),
                     ReceiptsTab::DomesticStock => matches!(
                         column.header,
                         "約定日"
+                            | "銘柄コード"
                             | "銘柄名"
                             | "口座"
                             | "数量"
@@ -152,16 +161,7 @@ pub fn ReceiptTable(
     } else {
         order.clone()
     };
-    let headers: Vec<_> = desktop_order
-        .iter()
-        .map(|i| {
-            if compact_mobile && matches!(columns[*i].header, "銘柄名" | "ファンド名") {
-                "銘柄"
-            } else {
-                columns[*i].header
-            }
-        })
-        .collect();
+    let headers: Vec<_> = desktop_order.iter().map(|i| columns[*i].header).collect();
     let widths: Vec<_> = desktop_order
         .iter()
         .map(|i| {
@@ -338,19 +338,11 @@ pub fn ReceiptTable(
                                                                 .map(|(col_index, cell)| {
                                                                     let align = cell_classes[col_index].clone();
                                                                     match cell {
-                                                                        ReceiptCell::SecurityCode(code) if code.trim().is_empty() => view! {
-                                                                            <td class=align>
-                                                                                <SecurityCodeLink value=code />
-                                                                            </td>
-                                                                        }
-                                                                        .into_any(),
                                                                         ReceiptCell::SecurityCode(code) => {
                                                                             let title = code.clone();
                                                                             view! {
                                                                                 <td class=align title=title>
-                                                                                    <CodeBadge class="py-0">
-                                                                                        <SecurityCodeLink value=code class="font-semibold".to_string() />
-                                                                                    </CodeBadge>
+                                                                                    <TableSecurityCode code=code />
                                                                                 </td>
                                                                             }
                                                                             .into_any()
@@ -358,29 +350,12 @@ pub fn ReceiptTable(
                                                                         ReceiptCell::InstrumentName { name, code } => {
                                                                             let title = name.clone();
                                                                             let code = code.unwrap_or_default();
-                                                                            let name_cell = view! {
-                                                                                <CopyableInstrumentName name=name code=code.clone() />
-                                                                            };
-                                                                            let body = if compact_mobile && !code.is_empty() {
-                                                                                view! {
-                                                                                    <div class="flex min-w-0 items-baseline">
-                                                                                        <SecurityCodeLink
-                                                                                            value=code.clone()
-                                                                                            class="receipts-table-code shrink-0".to_string()
-                                                                                        />
-                                                                                        {name_cell}
-                                                                                    </div>
-                                                                                }
-                                                                                    .into_any()
-                                                                            } else {
-                                                                                name_cell.into_any()
-                                                                            };
                                                                             view! {
                                                                                 <td
                                                                                     class=format!("{align} receipt-instrument-cell")
                                                                                     title=title
                                                                                 >
-                                                                                    {body}
+                                                                                    <CopyableInstrumentName name=name code=code />
                                                                                 </td>
                                                                             }
                                                                             .into_any()
@@ -407,7 +382,7 @@ pub fn ReceiptTable(
                                                                                 ""
                                                                             };
                                                                             let title = value.clone();
-                                                                            let content = if compact_mobile && header == "口座" {
+                                                                            let content = if header == "口座" {
                                                                                 view! { <AccountBadge label=value.clone() /> }
                                                                                     .into_any()
                                                                             } else {

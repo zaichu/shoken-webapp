@@ -70,6 +70,32 @@ pub(crate) fn SecurityCodeLink(
     view! { <a href=href class=classes data-search=code>{label}</a> }.into_any()
 }
 
+/// 表のコード列の中身。コードを持たない行(投資信託など)は空欄にする
+#[component]
+pub(crate) fn TableSecurityCode(#[prop(into)] code: String) -> impl IntoView {
+    let code = normalize_security_code(&code);
+    if code.is_empty() {
+        return ().into_any();
+    }
+    view! { <SecurityCodeLink value=code class="table-code font-normal".to_string() /> }.into_any()
+}
+
+/// 資産管理の表の名前列。リンクなしの行も同じ flex+min-w-0 の構造にして、
+/// table-auto の名前列が常に最小幅を持ち残り幅を取れるようにする
+#[component]
+pub(crate) fn TableNameLink(href: Option<String>, name: String) -> impl IntoView {
+    let inner = view! { <span class="min-w-0 truncate">{name}</span> };
+    match href {
+        Some(href) => view! {
+            <a href=href class="flex min-h-6 items-center no-underline hover:underline">
+                {inner}
+            </a>
+        }
+        .into_any(),
+        None => view! { <span class="flex min-h-6 items-center">{inner}</span> }.into_any(),
+    }
+}
+
 fn display_text(value: &str) -> String {
     let text = value.trim();
     if text.is_empty() {

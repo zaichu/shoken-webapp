@@ -22,9 +22,24 @@ pub fn Badge(variant: BadgeVariant, children: Children) -> impl IntoView {
     view! { <span class=variant.class()>{children()}</span> }
 }
 
+/// 口座区分の表示名。証券会社 CSV 由来の長い名称を短い札向けの表記に直す。
+/// 対応表にない文字列はそのまま返す
+pub fn account_display_name(value: &str) -> &str {
+    match value {
+        "特定口座" | "特定" => "特定",
+        "一般口座" | "一般" => "一般",
+        "NISA口座" | "新NISA" | "NISA" => "NISA",
+        "旧NISA" => "旧NISA",
+        "NISA成長投資枠" => "NISA成長",
+        "NISAつみたて投資枠" => "NISAつみたて",
+        _ => value,
+    }
+}
+
 /// 口座区分のバッジ。文字に NISA を含むものだけ琥珀配色にする
 #[component]
 pub fn AccountBadge(#[prop(into)] label: String) -> impl IntoView {
+    let label = account_display_name(&label).to_string();
     let class = if is_nisa_account(&label) {
         "account-badge account-badge-nisa"
     } else {

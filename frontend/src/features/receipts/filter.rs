@@ -3,6 +3,7 @@ use crate::support::list_search::support::{create_search_options, reorder_column
 use crate::support::list_search::{
     SearchOption, create_year_options, filter_by_config, get_unique_values, is_js_whitespace,
 };
+use crate::ui::badge::account_display_name;
 use shared::normalize::normalize_display_name;
 use std::collections::HashSet;
 
@@ -285,7 +286,13 @@ pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptRow]) -> SearchCategor
             vec![]
         },
         accounts: if tab.account_category() {
-            to_options(get_unique_values(&sorted, ReceiptRow::account))
+            get_unique_values(&sorted, ReceiptRow::account)
+                .into_iter()
+                .map(|value| SearchOption {
+                    label: account_display_name(&value).to_string(),
+                    value,
+                })
+                .collect()
         } else {
             vec![]
         },
