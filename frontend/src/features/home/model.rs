@@ -195,10 +195,10 @@ pub(crate) struct DividendCardModel {
     pub(crate) progress: Option<f64>,
     /// 残り = 予想 - 受取
     pub(crate) remaining: Option<f64>,
-    /// 前年の残り期間(今月より後の月)の入金
-    pub(crate) previous_remaining: Decimal,
-    /// 前年同期(1月〜今月)の入金との差 = 受取 - 前年同期
-    pub(crate) yoy_diff: Decimal,
+    /// 前年の残り期間(今月より後の月)の入金。前年の取得に失敗したときは None
+    pub(crate) previous_remaining: Option<Decimal>,
+    /// 前年同期(1月〜今月)の入金との差 = 受取 - 前年同期。前年の取得に失敗したときは None
+    pub(crate) yoy_diff: Option<Decimal>,
     /// 月別の(今年, 前年)入金額
     pub(crate) monthly: Vec<MonthlyDividends>,
 }
@@ -211,10 +211,14 @@ pub(crate) struct MonthlyDividends {
 
 pub(crate) fn build_dividend_card(
     current_rows: &[Dividend],
-    previous_rows: &[Dividend],
+    previous_rows: Option<&[Dividend]>,
     forecast_gross: Option<f64>,
     current_month: u32,
 ) -> DividendCardModel {
+    // 前年の取得に失敗(None)したときは前年系列を空に倒し、前年比較の数値は出さない。
+    // 失敗由来の 0 を実績として表示しないため
+    let previous_known = previous_rows.is_some();
+    let previous_rows = previous_rows.unwrap_or(&[]);
     let received: Decimal = current_rows.iter().map(|row| row.net_amount_received).sum();
     let rate = effective_tax_rate(current_rows, previous_rows).unwrap_or(TAX_RATE);
     let forecast_net = forecast_gross.map(|gross| gross * (1.0 - dec_to_f64(&rate)));
@@ -244,8 +248,8 @@ pub(crate) fn build_dividend_card(
         forecast_net,
         progress,
         remaining,
-        previous_remaining,
-        yoy_diff: received - previous_ytd,
+        previous_remaining: previous_known.then_some(previous_remaining),
+        yoy_diff: previous_known.then_some(received - previous_ytd),
         monthly,
     }
 }

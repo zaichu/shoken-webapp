@@ -387,8 +387,9 @@ fn DividendCard(data: HomeOverviewData) -> impl IntoView {
                         .into_any();
                 }
                 let current_rows = current.flatten().unwrap_or_default();
-                // 前年側の失敗はグラフの前年系列を 0 に倒して今年分は見せる
-                let previous_rows = previous.flatten().unwrap_or_default();
+                // 前年側の失敗はグラフの前年系列を 0 に倒して今年分は見せる。
+                // 前年比較の数値は model 側で None になり「—」表示になる
+                let previous_rows = previous.flatten();
                 let maps = estimates.as_ref().and_then(|slot| slot.as_ref());
                 let stocks = stocks_of(&assets).unwrap_or(&[]);
                 let forecast = maps.and_then(|maps| {
@@ -400,7 +401,7 @@ fn DividendCard(data: HomeOverviewData) -> impl IntoView {
                 let year = now.get_full_year();
                 let model = model::build_dividend_card(
                     &current_rows,
-                    &previous_rows,
+                    previous_rows.as_deref(),
                     forecast,
                     current_month,
                 );
@@ -443,19 +444,19 @@ fn DividendCardBody(
         .remaining
         .map(|v| format_valuation_amount(Some(v)))
         .unwrap_or_else(|| "—".to_string());
-    let previous_remaining = format_valuation_amount(Some(dec_to_f64(&model.previous_remaining)));
     let current_month = js_sys::Date::new_0().get_month() + 1;
-    let previous_span = if current_month >= 12 {
-        String::new()
-    } else {
-        format!(
+    let previous_span = match model.previous_remaining {
+        Some(remaining) if current_month < 12 => format!(
             "・ 前年の{}〜12月は {} 入金 ",
             current_month + 1,
-            previous_remaining
-        )
+            format_valuation_amount(Some(dec_to_f64(&remaining)))
+        ),
+        _ => String::new(),
     };
-    let yoy = model.yoy_diff;
-    let yoy_text = format_signed_valuation_amount(Some(dec_to_f64(&yoy)));
+    let yoy_text = model
+        .yoy_diff
+        .map(|diff| format_signed_valuation_amount(Some(dec_to_f64(&diff))))
+        .unwrap_or_else(|| "—".to_string());
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
             <span class="text-sm">
