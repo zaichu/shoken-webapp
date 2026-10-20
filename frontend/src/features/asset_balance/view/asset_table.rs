@@ -16,6 +16,8 @@ use leptos::prelude::*;
 #[component]
 pub fn AssetHoldingsTable(
     views: Vec<HoldingView>,
+    /// 見出しに出している代表の基準日("YYYY-MM-DD")。違う行だけ日付を出す
+    price_date_rep: Option<String>,
     dividends: RwSignal<DividendMaps>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
@@ -25,6 +27,7 @@ pub fn AssetHoldingsTable(
             .iter()
             .map(|view| view.price_as_of.clone())
             .collect::<Vec<_>>(),
+        price_date_rep.as_deref(),
     );
     view! {
         <div data-testid="asset-holdings-table">

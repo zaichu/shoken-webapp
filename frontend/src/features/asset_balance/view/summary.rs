@@ -1,11 +1,12 @@
 use crate::api::dto::AssetBalanceSummary;
-use crate::features::asset_balance::csv::AssetBalanceRowData;
+use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::features::asset_balance::format::{
-    dec_to_f64, format_amount, format_percentage_value, format_signed_valuation_amount,
+    dec_to_f64, format_amount, format_percentage_value, format_price_date,
+    format_signed_row_valuation_amount, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
-    is_positive_valuation, price_date_range,
+    is_positive_valuation, price_date_representative,
 };
-use crate::features::asset_balance::fund::FundRowData;
+use crate::features::asset_balance::fund::{FundBalanceRow, FundRowData};
 use crate::features::asset_balance::holdings::{holding_view, stock_daily_change_total};
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
@@ -81,6 +82,20 @@ pub(crate) fn merged_subtitle(
     }
 }
 
+/// 見出しの基準日と表の日付出し分けで共通に使う、価格あり行の基準日一覧
+/// (価格が出ていない行の日付は「その時点の株価」と結びつかないので除く)
+pub(crate) fn stock_price_dates(rows: &[AssetBalanceRow]) -> Vec<&str> {
+    rows.iter()
+        .filter(|row| row.current_price() > Decimal::ZERO)
+        .filter_map(|row| row.price_as_of())
+        .collect()
+}
+
+/// 投資信託行の基準日一覧(見出しと表の日付出し分けで共通)
+pub(crate) fn fund_price_dates(rows: &[FundBalanceRow]) -> Vec<String> {
+    rows.iter().filter_map(|row| row.price_as_of()).collect()
+}
+
 fn stock_subtitle_parts(view: &ResolvedAssetBalance) -> (usize, bool, bool, String) {
     let (count, has_unpriced, has_missing_daily) = match &view.fallback_totals {
         Some(summary) => (
@@ -99,29 +114,18 @@ fn stock_subtitle_parts(view: &ResolvedAssetBalance) -> (usize, bool, bool, Stri
             )
         }
     };
-    let dates = view
-        .rows
-        .iter()
-        .filter(|row| row.current_price() > Decimal::ZERO)
-        .filter_map(|row| row.price_as_of());
-    let date_text = match price_date_range(dates) {
-        Some((min, max)) if min == max => format!("株価 {min} 時点(銘柄ごとの最新終値)"),
-        Some((min, max)) => format!("株価 {min}〜{max} 時点(銘柄ごとの最新終値)"),
+    let dates = stock_price_dates(&view.rows);
+    let date_text = match price_date_representative(dates.iter().copied()) {
+        Some(date) => format!("株価 {} 時点(銘柄ごとの最新終値)", format_price_date(date)),
         None => "株価の基準日は不明".to_string(),
     };
     (count, has_unpriced, has_missing_daily, date_text)
 }
 
 fn fund_date_text(view: &ResolvedFundBalance) -> String {
-    let dates: Vec<String> = view
-        .rows
-        .iter()
-        .filter_map(|row| row.price_as_of())
-        .collect();
-    let dates = dates.iter().map(String::as_str);
-    match price_date_range(dates) {
-        Some((min, max)) if min == max => format!("基準価額 {min} 時点"),
-        Some((min, max)) => format!("基準価額 {min}〜{max} 時点"),
+    let dates = fund_price_dates(&view.rows);
+    match price_date_representative(dates.iter().map(String::as_str)) {
+        Some(date) => format!("基準価額 {} 時点", format_price_date(date)),
         None => "基準価額の基準日は不明".to_string(),
     }
 }
@@ -206,7 +210,8 @@ pub(crate) fn PortfolioSummary(
             .dividend_yield
             .map_or("—".to_string(), format_percentage_value)
     });
-    let daily_text = format_signed_valuation_amount(daily_change);
+    // 前日比は表・カードと同じく表示単位を適用せず必ず円マーク付きで出す
+    let daily_text = format_signed_row_valuation_amount(daily_change);
     let daily_tone = if is_negative_valuation(daily_change) {
         "asset-summary-loss"
     } else if is_positive_valuation(daily_change) {
@@ -219,9 +224,8 @@ pub(crate) fn PortfolioSummary(
             .iter()
             .filter(|view| view.current_price > 0.0)
             .filter_map(|view| view.price_as_of.as_deref());
-        let base = match price_date_range(dates) {
-            Some((min, max)) if min == max => format!("株価 {min} 時点(銘柄ごと)"),
-            Some((min, max)) => format!("株価 {min}〜{max} 時点(銘柄ごと)"),
+        let base = match price_date_representative(dates) {
+            Some(date) => format!("株価 {} 時点(銘柄ごと)", format_price_date(date)),
             None => "株価の基準日は不明".to_string(),
         };
         format!(

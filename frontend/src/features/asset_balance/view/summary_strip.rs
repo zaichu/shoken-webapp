@@ -1,6 +1,7 @@
 use crate::features::asset_balance::format::{
-    format_signed_valuation_amount, format_signed_valuation_rate, format_valuation_amount,
-    is_negative_valuation, is_positive_valuation,
+    format_signed_row_valuation_amount, format_signed_valuation_amount,
+    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
+    is_positive_valuation,
 };
 use crate::ui::amount::Amount;
 use leptos::prelude::*;
@@ -26,9 +27,8 @@ pub(crate) fn AssetSummaryStrip(
     let profit_text = format_signed_valuation_amount(Some(profit));
     let rate_text = profit_rate.map(|rate| format_signed_valuation_rate(Some(rate), 1));
     let purchase_text = format_valuation_amount(Some(purchase));
-    let daily_text = daily_change.map_or("—".to_string(), |value| {
-        format_signed_valuation_amount(Some(value))
-    });
+    // 前日比は表・カードと同じく表示単位を適用せず必ず円マーク付きで出す
+    let daily_text = format_signed_row_valuation_amount(daily_change);
     let profit_tone = if is_negative_valuation(Some(profit)) {
         "asset-summary-loss"
     } else if is_positive_valuation(Some(profit)) {

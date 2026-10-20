@@ -123,4 +123,8 @@ test('基準日が他の行と違う行だけ、前日比の横に日付を出�
   // 多数派と同じ日付の行は行内に日付を出さない
   const same = table.getByRole('row', { name: /架空自動車/ });
   await expect(same).not.toContainText('01/01');
+
+  // 見出しは行で日付を省く基準と同じ、多数派の日付だけを出す
+  await expect(page.locator('body')).toContainText('株価 01/01 時点');
+  await expect(page.locator('body')).not.toContainText('株価 12/30');
 });

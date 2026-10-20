@@ -432,16 +432,22 @@ fn positive_valuation_is_decided_by_rounded_amount() {
 }
 
 #[test]
-fn price_date_range_picks_min_and_max_dates() {
+fn price_date_representative_picks_the_most_common_date() {
+    // 最多の日付を代表にする。見出しはこの日付を出す
     assert_eq!(
-        price_date_range(["2025-10-10", "2025-10-08", ""].into_iter()),
-        Some(("10/08".to_string(), "10/10".to_string()))
+        price_date_representative(["2025-10-10", "2025-10-08", "2025-10-10", ""].into_iter()),
+        Some("2025-10-10")
+    );
+    // 同数なら新しい日付を代表にする
+    assert_eq!(
+        price_date_representative(["2025-10-08", "2025-10-10"].into_iter()),
+        Some("2025-10-10")
     );
     assert_eq!(
-        price_date_range(["2025-10-10"].into_iter()),
-        Some(("10/10".to_string(), "10/10".to_string()))
+        price_date_representative(["2025-10-10"].into_iter()),
+        Some("2025-10-10")
     );
-    assert_eq!(price_date_range(std::iter::empty()), None);
+    assert_eq!(price_date_representative(std::iter::empty()), None);
     assert_eq!(format_price_date("2025-10-10"), "10/10");
     // 想定外の形式はそのまま返す
     assert_eq!(format_price_date("不明"), "不明");
@@ -623,6 +629,29 @@ fn list_subtitle_shows_single_date_when_all_rows_share_as_of() {
 }
 
 #[test]
+fn list_subtitle_shows_the_representative_date_when_dates_differ() {
+    let owner = Owner::new();
+    owner.with(|| {
+        // 基準日が混在するときは、行の日付を省く基準と同じ「最多の日付」を見出しに出す
+        let mut older = balance_row(9914);
+        older.price_as_of = Some("2024-01-15".to_string());
+        let resolved = ResolvedAssetBalance {
+            rows: vec![
+                Row::Saved(balance_row(9904)),
+                Row::Saved(balance_row(9934)),
+                Row::Saved(older),
+            ],
+            total: 3,
+            warning: None,
+            fallback_totals: None,
+        };
+        let subtitle = super::summary::list_subtitle(&resolved);
+        assert!(subtitle.contains("株価 01/16 時点"), "{subtitle}");
+        assert!(!subtitle.contains("01/15"), "{subtitle}");
+    });
+}
+
+#[test]
 fn asset_balance_result_applies_within_the_same_generation() {
     let owner = Owner::new();
     owner.with(|| {
@@ -643,33 +672,44 @@ fn day_change_row_amount_always_carries_yen_sign() {
 }
 
 #[test]
-fn price_date_outliers_flags_only_rows_different_from_the_majority() {
+fn price_date_outliers_flags_only_rows_different_from_the_representative() {
+    // 代表(見出しに出す日付)と違う行だけ true。代表は呼び出し側が決める
+    let representative = Some("2026-10-19");
     let dates = vec![
         Some("2026-10-19".to_string()),
         Some("2026-10-15".to_string()),
         Some("2026-10-19".to_string()),
         None,
     ];
-    assert_eq!(price_date_outliers(&dates), vec![false, true, false, false]);
+    assert_eq!(
+        price_date_outliers(&dates, representative),
+        vec![false, true, false, false]
+    );
 
     // 全部同じ日付ならどの行にも日付を出さない
     let same = vec![
         Some("2026-10-19".to_string()),
         Some("2026-10-19".to_string()),
     ];
-    assert_eq!(price_date_outliers(&same), vec![false, false]);
+    assert_eq!(
+        price_date_outliers(&same, representative),
+        vec![false, false]
+    );
 
-    // 全部バラバラなら新しい日付を代表にする
-    let mixed = vec![
-        Some("2026-10-15".to_string()),
-        Some("2026-10-19".to_string()),
-        Some("2026-10-17".to_string()),
-    ];
-    assert_eq!(price_date_outliers(&mixed), vec![true, false, true]);
+    // 絞り込みで代表の行が残らなくても、見出しの日付を基準に比較する
+    let filtered = vec![Some("2026-10-15".to_string())];
+    assert_eq!(price_date_outliers(&filtered, representative), vec![true]);
 
     // 日付の無い行は日付を出さない
     let none: Vec<Option<String>> = vec![None, None];
-    assert_eq!(price_date_outliers(&none), vec![false, false]);
+    assert_eq!(
+        price_date_outliers(&none, representative),
+        vec![false, false]
+    );
+    assert_eq!(
+        price_date_outliers(&dates, None),
+        vec![true, true, true, false]
+    );
 }
 
 #[test]

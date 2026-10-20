@@ -1,7 +1,7 @@
 use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, pnl_cells, price_date_outliers,
+    format_currency, format_price_date, format_row_valuation_amount, pnl_cells, price_date_outliers,
 };
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::model::format_number_value;
@@ -11,6 +11,8 @@ use leptos::prelude::*;
 #[component]
 pub fn FundHoldingsTable(
     views: Vec<FundView>,
+    /// 見出しに出している代表の基準日("YYYY-MM-DD")。違う行だけ日付を出す
+    price_date_rep: Option<String>,
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
@@ -19,6 +21,7 @@ pub fn FundHoldingsTable(
             .iter()
             .map(|view| view.price_as_of.clone())
             .collect::<Vec<_>>(),
+        price_date_rep.as_deref(),
     );
     view! {
         <div data-testid="asset-fund-table">
@@ -160,22 +163,10 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
     }
 }
 
-/// 表の下に出す基準価額の時点
+/// 表の下に出す基準価額の時点。見出しと同じ代表の基準日("YYYY-MM-DD")を受け取る
 #[component]
-pub fn FundPriceAsOfNote(views: Vec<FundView>) -> impl IntoView {
-    let dates: Vec<String> = views
-        .iter()
-        .filter_map(|view| view.price_as_of.clone())
-        .collect();
-    let text =
-        crate::features::asset_balance::format::price_date_range(dates.iter().map(String::as_str))
-            .map(|(min, max)| {
-                if min == max {
-                    format!("基準価額 {min} 時点")
-                } else {
-                    format!("基準価額 {min} 〜 {max} 時点")
-                }
-            });
+pub fn FundPriceAsOfNote(date: Option<String>) -> impl IntoView {
+    let text = date.map(|date| format!("基準価額 {} 時点", format_price_date(&date)));
     move || {
         text.clone().map(|text| {
             view! {

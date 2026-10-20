@@ -2,9 +2,7 @@
 
 use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, pnl_cells, price_date_outliers,
-};
+use crate::features::asset_balance::format::{format_row_valuation_amount, pnl_cells};
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
@@ -22,6 +20,8 @@ pub(crate) struct UnifiedRow {
     pub course: Option<String>,
     pub day_change: Option<f64>,
     pub price_as_of: Option<String>,
+    /// 基準日がその種別の代表(見出しに出す日付)と違うか。構築側で立てる
+    pub date_outlier: bool,
     pub market: Option<f64>,
     pub profit: Option<f64>,
     pub rate: Option<f64>,
@@ -39,6 +39,7 @@ pub(crate) fn unified_from_stock(view: &HoldingView) -> UnifiedRow {
         course: None,
         day_change: view.day_change,
         price_as_of: view.price_as_of.clone(),
+        date_outlier: false,
         market: valuation.market_value,
         profit: valuation.profit_loss.amount,
         rate: valuation.profit_loss.rate,
@@ -63,6 +64,7 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
         course: view.course.clone(),
         day_change: view.base_price_day_change,
         price_as_of: view.price_as_of.clone(),
+        date_outlier: false,
         market: Some(view.market_value),
         profit: Some(view.profit_loss),
         rate: view.profit_loss_rate,
@@ -114,15 +116,6 @@ pub fn AssetMergedTable(
             .map(|index| rows[index].clone())
             .collect::<Vec<_>>()
     });
-    let date_outliers = Memo::new(move |_| {
-        let rows = sorted.get();
-        price_date_outliers(
-            &rows
-                .iter()
-                .map(|row| row.price_as_of.clone())
-                .collect::<Vec<_>>(),
-        )
-    });
     view! {
         <div data-testid="asset-merged-table">
             <table class="asset-table">
@@ -142,12 +135,11 @@ pub fn AssetMergedTable(
                         sorted
                             .get()
                             .into_iter()
-                            .zip(date_outliers.get())
-                            .map(|(row, is_outlier)| {
+                            .map(|row| {
                                 let row = &row;
                                 let (pnl_text, rate_text, pnl_text_class, pnl_badge_class) =
                                     pnl_cells(row.profit, row.rate);
-                                let outlier_date = if is_outlier {
+                                let outlier_date = if row.date_outlier {
                                     row.price_as_of.clone()
                                 } else {
                                     None
