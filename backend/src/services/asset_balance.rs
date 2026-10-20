@@ -5,7 +5,7 @@ use crate::models::asset_balance::{
 };
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
-use crate::services::csv::import::{CsvImport, validate_csv_rows};
+use crate::services::csv::import::CsvImport;
 #[cfg(test)]
 use crate::services::csv::pipeline::parse_csv_with_config;
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
@@ -13,13 +13,13 @@ use crate::services::csv::util::{
     CsvRowView, RowNumber, check_max_chars, parse_number, parse_optional_string,
 };
 use crate::services::domain::bulk::{RowLimit, bulk_replace, user_ids_for_bulk_insert};
-use crate::services::domain::facets::{FacetSlot, FacetSpec};
+use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
 use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
-use shared::value::{SecurityCode, UserId};
+use shared::value::{Account, SecurityCode, UserId};
 
 /// 資産残高（保有銘柄）ドメイン
 pub struct AssetBalanceDomain;
@@ -33,14 +33,33 @@ impl Domain for AssetBalanceDomain {
 impl CsvImport for AssetBalanceDomain {
     type Row = CreateAssetBalanceRequest;
     const CSV_CONFIG: CsvParserConfig = CsvParserConfig {
-        skip_header_rows: 6,
-        exclude_row_fn: Some(is_account_summary_row),
-        header_marker: None,
+        skip_header_rows: 0,
+        exclude_row_fn: None,
+        // 前置き行数は口座数で変わるため、「銘柄コード」で始まる見出し行を探す。
+        // 「■口座名」見出し・「口座合計」区切り・口座ごとの見出し繰り返しも
+        // 口座判定の材料になるため、パースでは除かず transform_rows で処理する
+        header_marker: Some("銘柄コード"),
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        let (items, errors) = validate_csv_rows(table, transform_asset_balance_row);
-        (items.into_iter().flatten().collect(), errors)
+        let rows: Vec<CsvRowView<'_>> = table.rows().collect();
+        let accounts = assign_row_accounts(&rows);
+        let mut items = Vec::new();
+        let mut errors = Vec::new();
+        for (index, (row, account)) in rows.iter().zip(&accounts).enumerate() {
+            if classify_row(row) != RowKind::Holding {
+                continue;
+            }
+            match transform_asset_balance_row(row, RowNumber::new(index + 1)) {
+                Ok(Some(item)) => items.push(CreateAssetBalanceRequest {
+                    account: account.clone(),
+                    ..item
+                }),
+                Ok(None) => {}
+                Err(error) => errors.push(error),
+            }
+        }
+        (items, errors)
     }
 
     async fn bulk_create(
@@ -94,7 +113,7 @@ impl Search for AssetBalanceDomain {
     type Params = AssetBalanceSearchQueryParams;
     type Summary = AssetBalanceSummary;
 
-    const COLUMNS: &'static str = "id, user_id, security_code, security_name, shares, \
+    const COLUMNS: &'static str = "id, user_id, security_code, security_name, account, shares, \
         average_purchase_price, total_purchase_amount, current_price, \
         daily_change, price_as_of, prev_close, created_at, updated_at";
     /// 価格列は共有の security_prices から読むため JOIN 済みビューを使う
@@ -102,14 +121,21 @@ impl Search for AssetBalanceDomain {
     const ORDER_BY: &'static str = " ORDER BY security_code ASC, id ASC";
     /// asset_balances には snapshot 日付がないため、date 系パラメータは解釈しない
     const DATE_COLUMN: Option<&'static str> = None;
-    const FILTER_FIELDS: &'static [FilterField] =
-        &[FilterField::SecurityCode, FilterField::SecurityName];
-    const FACETS: &'static [FacetSpec] = &[FacetSpec::security(FacetSlot::Securities, "id")];
+    const FILTER_FIELDS: &'static [FilterField] = &[
+        FilterField::SecurityCode,
+        FilterField::SecurityName,
+        FilterField::Account,
+    ];
+    const FACETS: &'static [FacetSpec] = &[
+        FacetSpec::security(FacetSlot::Securities, "id"),
+        FacetSpec::group(FacetSlot::Accounts, GroupField::Account, FacetOrder::Asc),
+    ];
 
     fn filter_value(params: &AssetBalanceSearchQueryParams, field: FilterField) -> &Option<String> {
         match field {
             FilterField::SecurityCode => &params.security_code,
             FilterField::SecurityName => &params.security_name,
+            FilterField::Account => &params.account,
             _ => &NO_FIELD,
         }
     }
@@ -149,6 +175,10 @@ pub async fn bulk_create(
     // ビューで優先採用されるため、CSV 再取込では共有行に触れない
     let current_prices: Vec<Decimal> = items.iter().map(|i| i.current_price).collect();
     let daily_changes: Vec<Decimal> = items.iter().map(|i| i.daily_change).collect();
+    let accounts: Vec<Option<String>> = items
+        .iter()
+        .map(|i| i.account.as_ref().map(|a| a.as_str().to_owned()))
+        .collect();
 
     bulk_replace::<AssetBalanceDomain>(
         pool,
@@ -159,10 +189,11 @@ pub async fn bulk_create(
             r#"
             INSERT INTO asset_balances (user_id, security_code, security_name, shares,
                                         average_purchase_price, total_purchase_amount,
-                                        csv_current_price, csv_daily_change)
+                                        csv_current_price, csv_daily_change, account)
             SELECT * FROM UNNEST(
                 $1::uuid[], $2::text[], $3::text[], $4::numeric[],
-                $5::numeric[], $6::numeric[], $7::numeric[], $8::numeric[]
+                $5::numeric[], $6::numeric[], $7::numeric[], $8::numeric[],
+                $9::text[]
             )
             "#,
             vec![
@@ -174,18 +205,84 @@ pub async fn bulk_create(
                 Bind::decimal_vec(total_purchase_amounts),
                 Bind::decimal_vec(current_prices),
                 Bind::decimal_vec(daily_changes),
+                Bind::from(accounts),
             ],
         ),
     )
     .await
 }
 
-/// 保有銘柄 CSV に混ざる「特定口座合計」などの口座集計行を除外する
+/// 保有銘柄 CSV に混ざる「特定口座合計」などの口座集計行かどうか
 ///
-/// 先頭フィールド（銘柄コード）が空の行かつ「口座合計」を含む行のみ除外する。
-/// 銘柄名に「口座合計」を含む銘柄を誤除外しないよう、先頭が空であることを条件とする。
+/// 先頭フィールド（銘柄コード）が空の行かつ「口座合計」を含む行のみ集計行とする。
+/// 銘柄名に「口座合計」を含む銘柄を誤判定しないよう、先頭が空であることを条件とする。
 fn is_account_summary_row(row: &CsvRowView<'_>) -> bool {
     row.cell("銘柄コード").trim().is_empty() && row.values().any(|value| value.contains("口座合計"))
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RowKind {
+    /// 保有行
+    Holding,
+    /// 「○○口座合計」の口座区切り行
+    Separator,
+    /// 「■口座名」のセクション見出し、口座ごとに繰り返される列見出し
+    Structural,
+}
+
+fn classify_row(row: &CsvRowView<'_>) -> RowKind {
+    let first = row.cell("銘柄コード");
+    if first.starts_with('■') || first == "銘柄コード" {
+        RowKind::Structural
+    } else if is_account_summary_row(row) {
+        RowKind::Separator
+    } else {
+        RowKind::Holding
+    }
+}
+
+/// 「○○口座合計」の区切り行から口座名を取り出す。名前が取れない区切りは None
+fn separator_account_name(row: &CsvRowView<'_>) -> Option<Account> {
+    let raw = row.values().find(|value| value.contains("口座合計"))?;
+    let name = raw
+        .strip_suffix("口座合計")
+        .or_else(|| raw.strip_suffix("合計"))
+        .unwrap_or(raw)
+        .trim();
+    Account::try_from(name).ok()
+}
+
+/// 各行に口座を付ける。区切りが無い・区切りより前の行は口座を持たない(推測しない)
+///
+/// 「口座合計」行は、実際の証券会社 CSV では口座ブロックの末尾(集計行)だが、
+/// 直後に保有行が続く場合はそれに続くブロックの区切りとして扱う
+fn assign_row_accounts(rows: &[CsvRowView<'_>]) -> Vec<Option<Account>> {
+    let kinds: Vec<RowKind> = rows.iter().map(classify_row).collect();
+    let mut accounts: Vec<Option<Account>> = vec![None; rows.len()];
+    for (index, kind) in kinds.iter().enumerate() {
+        if *kind != RowKind::Separator {
+            continue;
+        }
+        let Some(name) = separator_account_name(&rows[index]) else {
+            continue;
+        };
+        if kinds.get(index + 1) == Some(&RowKind::Holding) {
+            for i in index + 1..rows.len() {
+                if kinds[i] != RowKind::Holding {
+                    break;
+                }
+                accounts[i].get_or_insert_with(|| name.clone());
+            }
+        } else {
+            for i in (0..index).rev() {
+                if kinds[i] != RowKind::Holding {
+                    break;
+                }
+                accounts[i].get_or_insert_with(|| name.clone());
+            }
+        }
+    }
+    accounts
 }
 
 /// 保有銘柄 CSV の1行をパースして CreateAssetBalanceRequest に変換
@@ -231,6 +328,8 @@ fn transform_asset_balance_row(
     })?;
     Ok(Some(CreateAssetBalanceRequest {
         security_code,
+        // 口座は行単位では持たず、区切り行からの付与で transform_rows が上書きする
+        account: None,
         security_name: check_max_chars(
             normalize_security_name(&parse_optional_string(row, "銘柄名")),
             "銘柄名",
@@ -468,6 +567,77 @@ mod tests {
             .await
             .expect_err("空バイト列");
         assert!(matches!(err, ApiError::Csv(_)), "got {err:?}");
+    }
+
+    /// 口座区切りの有無・位置ごとに、行へ付く口座を確かめる(架空データのみ)
+    #[test]
+    fn test_assign_row_accounts() {
+        const SEP_TOKUTEI: &str = ",,,,,,特定口座合計,,,,,";
+        const SEP_NISA: &str = ",,,,,,NISA口座合計,,,,,";
+        const SEP_NISA_GROWTH: &str = ",,,,,,NISA成長投資枠口座合計,,,,,";
+
+        let acc = |s: Option<&str>| s.map(str::to_string);
+        let accounts_of = |lines: &[&str]| {
+            let table = parse_csv_with_config(
+                format!("{HEADER}\n{}", lines.join("\n")).as_bytes(),
+                &AssetBalanceDomain::CSV_CONFIG,
+            )
+            .unwrap();
+            let (items, errors) = AssetBalanceDomain::transform_rows(&table);
+            assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+            items
+                .iter()
+                .map(|item| item.account.as_ref().map(|a| a.as_str().to_string()))
+                .collect::<Vec<_>>()
+        };
+
+        // 区切りが1つ: 区切りに続く保有に口座を付ける
+        assert_eq!(
+            accounts_of(&[SEP_TOKUTEI, TEST_ROW_1, TEST_ROW_2]),
+            [acc(Some("特定")), acc(Some("特定"))]
+        );
+        // 区切りが複数: 各区切りに続く保有にそれぞれ付ける
+        assert_eq!(
+            accounts_of(&[SEP_TOKUTEI, TEST_ROW_1, SEP_NISA, TEST_ROW_2]),
+            [acc(Some("特定")), acc(Some("NISA"))]
+        );
+        // 区切りが無い: どの行にも口座を付けない
+        assert_eq!(accounts_of(&[TEST_ROW_1, TEST_ROW_2]), [None, None]);
+        // 区切りより前の行には口座を付けない
+        assert_eq!(
+            accounts_of(&[TEST_ROW_1, SEP_TOKUTEI, TEST_ROW_2]),
+            [acc(None), acc(Some("特定"))]
+        );
+        // 実際のCSV形式: 「口座合計」は口座ブロックの末尾(合計行)なので直前の保有に付く
+        assert_eq!(
+            accounts_of(&[TEST_ROW_1, TEST_ROW_2, SEP_TOKUTEI]),
+            [acc(Some("特定")), acc(Some("特定"))]
+        );
+        // 実際のCSV形式・複数口座: 「■口座名」見出しと列見出しの繰り返しを挟んでも
+        // 各合計行が直前ブロックだけを締める
+        assert_eq!(
+            accounts_of(&[
+                TEST_ROW_1,
+                SEP_TOKUTEI,
+                "■NISA口座",
+                HEADER,
+                TEST_ROW_2,
+                SEP_NISA
+            ]),
+            [acc(Some("特定")), acc(Some("NISA"))]
+        );
+        // 「○○口座合計」以外の区切り名も取り出せる
+        assert_eq!(
+            accounts_of(&[SEP_NISA_GROWTH, TEST_ROW_1]),
+            [acc(Some("NISA成長投資枠"))]
+        );
+        // 区切り行自体は取り込み行にならない
+        let table = parse_csv_with_config(
+            format!("{HEADER}\n{SEP_TOKUTEI}\n{TEST_ROW_1}\n").as_bytes(),
+            &AssetBalanceDomain::CSV_CONFIG,
+        )
+        .unwrap();
+        assert_eq!(AssetBalanceDomain::transform_rows(&table).0.len(), 1);
     }
 
     #[test]

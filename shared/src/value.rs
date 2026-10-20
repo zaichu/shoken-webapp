@@ -110,6 +110,10 @@ pub mod unchecked {
     pub fn account<'de, D: Deserializer<'de>>(d: D) -> Result<Account, D::Error> {
         String::deserialize(d).map(Account)
     }
+
+    pub fn optional_account<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Account>, D::Error> {
+        Option::<String>::deserialize(d).map(|value| value.map(Account))
+    }
 }
 
 /// 口座名の検証失敗（1〜100文字以外）

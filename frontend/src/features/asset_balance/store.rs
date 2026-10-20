@@ -183,7 +183,7 @@ pub(crate) struct FilteredPortfolio {
 
 pub(crate) fn filtered_portfolio(
     rows: &[AssetBalanceRow],
-    query: &str,
+    search: &crate::features::asset_balance::fund::AssetSearch,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> FilteredPortfolio {
@@ -203,7 +203,7 @@ pub(crate) fn filtered_portfolio(
         view
     };
     FilteredPortfolio {
-        views: filter_asset_balances(rows, query)
+        views: filter_asset_balances(rows, search)
             .into_iter()
             .map(resolve_view)
             .collect(),

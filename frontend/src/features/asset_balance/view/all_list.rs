@@ -36,12 +36,16 @@ pub(crate) struct UnifiedRow {
 
 pub(crate) fn unified_from_stock(view: &HoldingView) -> UnifiedRow {
     let valuation = holding_valuation(&ValuationInput::from(view));
+    let sub = match &view.account {
+        Some(account) => format!("{} · {}", view.code, account_display_name(account)),
+        None => view.code.clone(),
+    };
     UnifiedRow {
         name: view.name.clone(),
         kind: "国内株式",
-        sub: view.code.clone(),
+        sub,
         code: Some(view.code.clone()),
-        account: None,
+        account: view.account.clone(),
         course: None,
         day_change: view.day_change,
         price_as_of: view.price_as_of.clone(),

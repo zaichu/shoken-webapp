@@ -12,7 +12,7 @@ use crate::ui::search_controls::{
 use leptos::prelude::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum ConditionKind {
+pub(crate) enum ConditionKind {
     Account,
     Course,
 }
@@ -122,13 +122,13 @@ fn AssetConditionPopover(
 }
 
 /// 検索欄(タグ入力+条件を足す)。PC・スマホ共通。
-/// 条件ボタンは条件のある種別(投資信託)だけに出す
+/// 条件ボタンは `conditions` に挙げた条件だけ出す
 #[component]
 pub(crate) fn AssetSearchBar(
     search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
     placeholder: &'static str,
-    show_conditions: bool,
+    conditions: &'static [ConditionKind],
     account_options: Memo<Vec<String>>,
     course_options: Memo<Vec<String>>,
 ) -> impl IntoView {
@@ -220,12 +220,17 @@ pub(crate) fn AssetSearchBar(
                     on_input=on_input
                 />
             </SearchBox>
-            {show_conditions
+            {(!conditions.is_empty())
                 .then(|| {
                     view! {
                         <AddConditionRow>
-                            {condition_button(ConditionKind::Account, controls.account_ref)}
-                            {condition_button(ConditionKind::Course, controls.course_ref)}
+                            {conditions.iter().map(|kind| {
+                                let node_ref = match kind {
+                                    ConditionKind::Account => controls.account_ref,
+                                    ConditionKind::Course => controls.course_ref,
+                                };
+                                condition_button(*kind, node_ref)
+                            }).collect_view()}
                             {move || {
                                 controls.open.get().map(|kind| {
                                     let options = match kind {

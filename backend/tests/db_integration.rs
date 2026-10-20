@@ -435,6 +435,7 @@ fn make_asset_item(code: &str) -> CreateAssetBalanceRequest {
     CreateAssetBalanceRequest {
         security_code: code.parse().unwrap(),
         security_name: format!("テスト銘柄{code}"),
+        account: None,
         shares: dec!(100),
         average_purchase_price: dec!(1000),
         total_purchase_amount: dec!(100000),

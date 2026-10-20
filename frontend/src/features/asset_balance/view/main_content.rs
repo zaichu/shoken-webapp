@@ -6,7 +6,7 @@ use super::asset_table::AssetHoldingsTable;
 use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::kind_tabs::AssetKindTabs;
-use super::search_bar::AssetSearchBar;
+use super::search_bar::{AssetSearchBar, ConditionKind};
 use super::summary::{PortfolioSummary, fund_nav_counts, stock_price_dates};
 use super::summary_strip::AssetSummaryStrip;
 use crate::api::dto::AssetBalanceSummary;
@@ -22,6 +22,7 @@ use crate::features::asset_balance::holdings::{
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder, sort_holdings};
+use crate::features::asset_balance::search::stock_accounts;
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::asset_balance::store::{FilteredPortfolio, filtered_portfolio};
 use crate::features::dividend_per_share::DividendMaps;
@@ -109,12 +110,8 @@ fn StockContent(
 ) -> impl IntoView {
     let total_count = rows.len();
     let empty = rows.is_empty();
-    let initial = filtered_portfolio(
-        &rows,
-        &search.with_untracked(|s| s.text.clone()),
-        lookup,
-        generation,
-    );
+    let option_rows = rows.clone();
+    let initial = filtered_portfolio(&rows, &search.get_untracked(), lookup, generation);
     search_count.set((initial.views.len(), total_count));
     let filtered = RwSignal::new(initial);
     // 見出しの基準日と同じ代表を表の日付出し分けにも使う(絞り込み前の全行で決める)
@@ -123,11 +120,11 @@ fn StockContent(
         price_date_representative(dates.into_iter()).map(str::to_string)
     };
     Effect::new(move |_| {
-        let next = filtered_portfolio(&rows, &search.with(|s| s.text.clone()), lookup, generation);
+        let next = filtered_portfolio(&rows, &search.get(), lookup, generation);
         search_count.set((next.views.len(), total_count));
         filtered.set(next);
     });
-    let account_options = Memo::new(|_| Vec::<String>::new());
+    let account_options = Memo::new(move |_| stock_accounts(&option_rows));
     let course_options = Memo::new(|_| Vec::<String>::new());
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
@@ -149,8 +146,8 @@ fn StockContent(
             <AssetSearchBar
                 search=search
                 search_count=search_count
-                placeholder="銘柄名・コードで絞り込み"
-                show_conditions=false
+                placeholder="銘柄名・コード・口座で絞り込み"
+                conditions=&[ConditionKind::Account]
                 account_options=account_options
                 course_options=course_options
             />
@@ -274,7 +271,7 @@ fn FundContent(
                     search=search
                     search_count=search_count
                     placeholder="ファンド名で検索"
-                    show_conditions=true
+                    conditions=&[ConditionKind::Account, ConditionKind::Course]
                     account_options=account_options
                     course_options=course_options
                 />
@@ -360,9 +357,9 @@ fn AllContent(
         price_date_representative(dates.into_iter()).map(str::to_string)
     };
     let build_rows = move |search: &AssetSearch| -> Vec<UnifiedRow> {
-        // 株はコード・銘柄名、ファンドはファンド名・口座の部分一致にそろえる
+        // 株はコード・銘柄名・口座、ファンドはファンド名・口座の部分一致にそろえる
         let FilteredPortfolio { views, .. } =
-            filtered_portfolio(&stock_rows_for_search, &search.text, lookup, generation);
+            filtered_portfolio(&stock_rows_for_search, search, lookup, generation);
         let fund_search = AssetSearch {
             text: search.text.clone(),
             ..Default::default()
@@ -389,7 +386,8 @@ fn AllContent(
         filtered.set(next);
     });
     // 集計は両種別を合算。株側は銘柄ごとの現在値評価を使う
-    let stock_all_views = filtered_portfolio(&stock_rows, "", lookup, generation).all_views;
+    let stock_all_views =
+        filtered_portfolio(&stock_rows, &AssetSearch::default(), lookup, generation).all_views;
     let stock_inputs: Vec<ValuationInput> =
         stock_all_views.iter().map(ValuationInput::from).collect();
     let stock_valuation = crate::features::asset_balance::model::portfolio_valuation(&stock_inputs);
@@ -480,7 +478,7 @@ fn AllContent(
                     search=search
                     search_count=search_count
                     placeholder="銘柄・ファンド名で検索"
-                    show_conditions=false
+                    conditions=&[]
                     account_options=account_options
                     course_options=course_options
                 />

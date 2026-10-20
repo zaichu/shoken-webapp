@@ -6,6 +6,7 @@ fn row(code: &str) -> AssetBalance {
         id: format!("id-{code}").into(),
         security_code: code.parse().unwrap(),
         security_name: "銘柄".to_string(),
+        account: None,
         shares: dec!(100),
         average_purchase_price: dec!(2500),
         total_purchase_amount: dec!(250000),
