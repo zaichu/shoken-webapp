@@ -6,6 +6,8 @@ ALTER TABLE ONLY public.asset_balances
 
 -- 同じ銘柄を口座別に持てるよう、一意キーを口座込みに変える。
 -- 口座なし(旧データ)同士の重複は NULLS NOT DISTINCT で従来どおり防ぐ
+-- contract: 一意インデックスを意図して置き換える。旧 Worker は口座を
+-- 書かず、口座なし同士の一意性も維持されるため置換の窓は安全
 DROP INDEX public.idx_asset_balances_user_security;
 CREATE UNIQUE INDEX idx_asset_balances_user_security
     ON public.asset_balances USING btree (user_id, security_code, account) NULLS NOT DISTINCT;
