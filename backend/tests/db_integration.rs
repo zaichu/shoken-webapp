@@ -3114,6 +3114,7 @@ async fn fund_nav_view_uses_shared_values_within_three_days() {
 
     let row = view_fund_row(&pool, user_id).await;
     assert_eq!(row.price_source, shared::domain::FundPriceSource::Api);
+    assert!(row.nav_is_latest);
     assert_eq!(row.base_price, dec!(10001));
     assert_eq!(row.base_price_day_change, Some(dec!(-40)));
     // 15000 口 * 10001 / 10000 = 15001.5 → 1円未満切り捨て
@@ -3123,14 +3124,72 @@ async fn fund_nav_view_uses_shared_values_within_three_days() {
     assert_eq!(row.price_as_of, today);
 }
 
-/// 共有値の基準日が CSV 取込日の3日より前なら CSV 値に戻す
-/// (API が止まっても CSV より古い値を採らない)
+/// 新しい CSV があるのに古い共有値が残っているとき(共有値の基準日 < E だが
+/// CSV 基準日の3日前以降)、従来ルールだと共有値が選ばれてしまう。
+/// CSV の取込時刻が E の23:00以降なら CSV を優先する
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn fund_nav_view_falls_back_to_csv_when_shared_is_stale() {
+async fn fund_nav_view_prefers_fresh_csv_over_stale_shared() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let e = fund_price::expected_nav_date(Utc::now());
+
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000003', $1",
+        vec![Bind::from("架空CSV優先ファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    // E の23:00を過ぎてから取り込んだ CSV(中身は E の基準価額)。
+    // 従来ルールでは E-1 の共有値が「CSV 基準日の3日前以降」に入ってしまう
+    insert_fund_row(
+        &pool,
+        user_id,
+        "架空CSV優先ファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10500),
+        Some(dec!(5)),
+        dec!(105000),
+        dec!(5000),
+        e,
+        Utc::now(),
+    )
+    .await;
+    put_fund_price(
+        &pool,
+        "90000003",
+        "11000",
+        "100",
+        e - chrono::Duration::days(1),
+    )
+    .await;
+
+    let row = view_fund_row(&pool, user_id).await;
+    assert_eq!(row.price_source, shared::domain::FundPriceSource::Csv);
+    assert!(row.nav_is_latest);
+    assert_eq!(row.base_price, dec!(10500));
+    assert_eq!(row.base_price_day_change, Some(dec!(5)));
+    assert_eq!(row.market_value, dec!(105000));
+    assert_eq!(row.profit_loss, dec!(5000));
+    assert_eq!(row.price_as_of, e);
+}
+
+/// 共有値も CSV も古いときは従来ルールに戻す:
+/// 共有値の基準日が CSV 基準日の3日より前なら CSV 値、3日前以降なら共有値。
+/// どちらを選んでも nav_is_latest = false(更新待ち)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
     let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let far_past_ts = NaiveDate::from_ymd_opt(2020, 1, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_utc();
 
     db::query(
         "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000002', $1",
@@ -3150,7 +3209,7 @@ async fn fund_nav_view_falls_back_to_csv_when_shared_is_stale() {
         dec!(100000),
         dec!(0),
         today,
-        Utc::now(),
+        far_past_ts,
     )
     .await;
     put_fund_price(
@@ -3164,13 +3223,14 @@ async fn fund_nav_view_falls_back_to_csv_when_shared_is_stale() {
 
     let row = view_fund_row(&pool, user_id).await;
     assert_eq!(row.price_source, shared::domain::FundPriceSource::Csv);
+    assert!(!row.nav_is_latest);
     assert_eq!(row.base_price, dec!(10000));
     assert_eq!(row.base_price_day_change, Some(dec!(5)));
     assert_eq!(row.market_value, dec!(100000));
     assert_eq!(row.profit_loss, dec!(0));
     assert_eq!(row.price_as_of, today);
 
-    // ちょうど3日前の共有値は採用する(境界値)
+    // ちょうど3日前の共有値は採用する(境界値)が、更新待ちのまま
     put_fund_price(
         &pool,
         "90000002",
@@ -3181,6 +3241,7 @@ async fn fund_nav_view_falls_back_to_csv_when_shared_is_stale() {
     .await;
     let row = view_fund_row(&pool, user_id).await;
     assert_eq!(row.price_source, shared::domain::FundPriceSource::Api);
+    assert!(!row.nav_is_latest);
     assert_eq!(row.base_price, dec!(11000));
 }
 
@@ -3234,7 +3295,8 @@ async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
     .expect("fund_codes の seed に失敗");
 
     // 共有値: 基準日が E なら最新、E-1 なら更新待ち。
-    // 取込日を遠い過去にしておくと、E-1 の共有値でも3日ルールで必ず共有側になる
+    // CSV 側の基準日・取込時刻を遠い過去にしておくと、E-1 の共有値でも
+    // 3日ルールで必ず共有側になる
     for (name, cd, as_of) in [
         ("最新APIファンド", "90000011", e),
         ("待ちAPIファンド", "90000012", e - chrono::Duration::days(1)),
@@ -3250,7 +3312,7 @@ async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
             dec!(100000),
             dec!(0),
             far_past,
-            Utc::now(),
+            far_past_ts,
         )
         .await;
         put_fund_price(&pool, cd, "11000", "100", as_of).await;

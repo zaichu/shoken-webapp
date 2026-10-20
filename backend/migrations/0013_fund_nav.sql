@@ -283,12 +283,16 @@ ALTER TABLE ONLY public.fund_balances
     GENERATED ALWAYS AS (public.fund_name_normalize(fund_name)) STORED;
 
 -- 一覧・集計の読み取りビュー。基準価額まわりの値(基準価額・前日比・評価額・評価損益・損益率)は
--- 必ず1つの出どころでそろえる: 共有値の基準日が CSV 取込日の3日前以降なら共有値、
--- それより古ければ CSV(API が止まっても CSV より古い値を採らない)。
+-- 必ず1つの出どころでそろえる。出どころの判定は use_shared で1度だけ行い、次の順に決める:
+--   (1) 共有値が最新(基準日 >= E)なら共有値
+--   (2) そうでなく CSV が最新(取込時刻が E の23:00以降)なら CSV
+--   (3) どちらも古いときだけ、従来どおり「共有値の基準日が CSV 基準日の3日前以降なら共有値、
+--       それより古ければ CSV」(API が止まっていても新しい CSV を古い共有値で上書きしない)
 -- nav_is_latest は「前日比が最新の基準価額の日の変動か」の判定で、共有値は基準日が E 以上、
 -- CSV 値は取込時刻が E の23:00以降のときだけ true(それ以外は「更新待ち」)。
--- price_as_of は出どころ側の日付(共有値の基準日 か CSV 取込日)に差し替える
+-- price_as_of は出どころ側の日付(共有値の基準日 か CSV 基準日)に差し替える
 CREATE VIEW public.fund_balances_view AS
+WITH decided AS (
  SELECT fb.id,
     fb.user_id,
     fb.fund_name,
@@ -297,36 +301,60 @@ CREATE VIEW public.fund_balances_view AS
     fb.shares,
     fb.average_purchase_price,
     fb.total_purchase_amount,
-    CASE WHEN fp.price_as_of IS NOT NULL AND fp.price_as_of >= fb.price_as_of - 3
-         THEN fp.nav ELSE fb.base_price END AS base_price,
-    CASE WHEN fp.price_as_of IS NOT NULL AND fp.price_as_of >= fb.price_as_of - 3
-         THEN fp.prev_day_change ELSE fb.base_price_day_change END AS base_price_day_change,
+    fb.base_price,
+    fb.base_price_day_change,
     fb.base_price_month_change,
-    CASE WHEN fp.price_as_of IS NOT NULL AND fp.price_as_of >= fb.price_as_of - 3
-         THEN floor(fb.shares * fp.nav / 10000) ELSE fb.market_value END AS market_value,
-    CASE WHEN fp.price_as_of IS NOT NULL AND fp.price_as_of >= fb.price_as_of - 3
-         THEN floor(fb.shares * fp.nav / 10000) - fb.total_purchase_amount
-         ELSE fb.profit_loss END AS profit_loss,
-    CASE WHEN fp.price_as_of IS NOT NULL AND fp.price_as_of >= fb.price_as_of - 3
-         THEN CASE WHEN fb.total_purchase_amount > 0
-                   THEN round((floor(fb.shares * fp.nav / 10000) - fb.total_purchase_amount)
-                        / fb.total_purchase_amount * 100, 4)
-                   ELSE NULL::numeric END
-         ELSE fb.profit_loss_rate END AS profit_loss_rate,
+    fb.market_value,
+    fb.profit_loss,
+    fb.profit_loss_rate,
     fb.total_return,
-    CASE WHEN fp.price_as_of IS NOT NULL AND fp.price_as_of >= fb.price_as_of - 3
-         THEN fp.price_as_of ELSE fb.price_as_of END AS price_as_of,
+    fb.price_as_of,
     fb.created_at,
     fb.updated_at,
-    CASE WHEN fp.price_as_of IS NOT NULL AND fp.price_as_of >= fb.price_as_of - 3
-         THEN 'api'::text ELSE 'csv'::text END AS price_source,
-    CASE WHEN fp.price_as_of IS NOT NULL AND fp.price_as_of >= fb.price_as_of - 3
-         THEN fp.price_as_of >= public.fund_expected_nav_date(now())
-         ELSE fb.created_at >= (public.fund_expected_nav_date(now()) + time '23:00')
-              AT TIME ZONE 'Asia/Tokyo'
-    END AS nav_is_latest,
-    public.fund_expected_nav_date(now()) AS expected_nav_date
+    fp.nav AS shared_nav,
+    fp.prev_day_change AS shared_day_change,
+    fp.price_as_of AS shared_as_of,
+    public.fund_expected_nav_date(now()) AS expected_nav_date,
+    CASE WHEN fp.price_as_of >= public.fund_expected_nav_date(now()) THEN true
+         WHEN fb.created_at >= (public.fund_expected_nav_date(now()) + time '23:00')
+              AT TIME ZONE 'Asia/Tokyo' THEN false
+         ELSE fp.price_as_of IS NOT NULL AND fp.price_as_of >= fb.price_as_of - 3
+    END AS use_shared
    FROM (public.fund_balances fb
      LEFT JOIN public.fund_codes fc ON fc.normalized_name = fb.normalized_fund_name
      LEFT JOIN public.fund_prices fp
-        ON (fp.association_fund_cd)::text = (fc.association_fund_cd)::text);
+        ON (fp.association_fund_cd)::text = (fc.association_fund_cd)::text)
+)
+ SELECT d.id,
+    d.user_id,
+    d.fund_name,
+    d.account,
+    d.dividends_course,
+    d.shares,
+    d.average_purchase_price,
+    d.total_purchase_amount,
+    CASE WHEN d.use_shared THEN d.shared_nav ELSE d.base_price END AS base_price,
+    CASE WHEN d.use_shared THEN d.shared_day_change ELSE d.base_price_day_change
+         END AS base_price_day_change,
+    d.base_price_month_change,
+    CASE WHEN d.use_shared THEN floor(d.shares * d.shared_nav / 10000)
+         ELSE d.market_value END AS market_value,
+    CASE WHEN d.use_shared
+         THEN floor(d.shares * d.shared_nav / 10000) - d.total_purchase_amount
+         ELSE d.profit_loss END AS profit_loss,
+    CASE WHEN d.use_shared
+         THEN CASE WHEN d.total_purchase_amount > 0
+                   THEN round((floor(d.shares * d.shared_nav / 10000)
+                        - d.total_purchase_amount) / d.total_purchase_amount * 100, 4)
+                   ELSE NULL::numeric END
+         ELSE d.profit_loss_rate END AS profit_loss_rate,
+    d.total_return,
+    CASE WHEN d.use_shared THEN d.shared_as_of ELSE d.price_as_of END AS price_as_of,
+    d.created_at,
+    d.updated_at,
+    CASE WHEN d.use_shared THEN 'api'::text ELSE 'csv'::text END AS price_source,
+    CASE WHEN d.use_shared THEN d.shared_as_of >= d.expected_nav_date
+         ELSE d.created_at >= (d.expected_nav_date + time '23:00') AT TIME ZONE 'Asia/Tokyo'
+    END AS nav_is_latest,
+    d.expected_nav_date
+   FROM decided d;
