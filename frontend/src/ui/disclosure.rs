@@ -48,16 +48,10 @@ pub fn DisclosureHint(#[prop(into)] expanded: Signal<bool>) -> impl IntoView {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DisclosureStyle {
-    /// レールの開閉
-    Rail,
     /// グループ見出し
     GroupCard,
     /// 見出しの下線についた開閉(集計情報デスクトップ)
     HeaderFlat,
-    /// 保有カード(モバイル)
-    AssetCard,
-    /// 検索オプションの見出し
-    SearchCard,
     /// 行の右端の山形(明細行の詳細)
     RowToggle,
 }
@@ -65,14 +59,9 @@ pub enum DisclosureStyle {
 impl DisclosureStyle {
     fn class(self) -> &'static str {
         match self {
-            Self::Rail => "rail-toggle",
             Self::GroupCard => "group-card-trigger",
             Self::HeaderFlat => {
                 "flex w-full items-start justify-between gap-3 border-b border-ink/10 pb-2.5 text-left max-sm:min-h-11 max-sm:items-center"
-            }
-            Self::AssetCard => "block min-h-11 w-full px-3.5 py-4 text-left",
-            Self::SearchCard => {
-                "flex w-full min-w-0 items-center gap-2.5 text-left select-none cursor-pointer max-sm:min-h-11"
             }
             Self::RowToggle => "receipt-compact-toggle",
         }

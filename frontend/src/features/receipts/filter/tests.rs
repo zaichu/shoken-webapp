@@ -254,7 +254,8 @@ fn quick_buttons_toggle_and_date_condition_precedes_other_conditions() {
 
     state.select_quick(SearchKey::Securities, "9911".into());
     state.select_quick(SearchKey::Products, "国内株式".into());
-    state.set_month("2026-06".into());
+    state.date_inputs.month_value = "2026-06".into();
+    state.set_date_query("2026-06".into());
     assert_eq!(state.query, "2026-06 9911 国内株式");
 
     state.select_quick(SearchKey::Products, "国内株式".into());
@@ -280,9 +281,11 @@ fn changing_date_segment_only_clears_date_state() {
 fn range_inputs_and_clear_reset_search_state() {
     let mut state = ReceiptSearch::new(true);
     state.change_date_segment(DateSegment::Range);
-    state.set_range_start("2026-06-01".into());
+    state.date_inputs.range_start = "2026-06-01".into();
+    state.update_range_query();
     assert_eq!(state.query, "2026-06-01..");
-    state.set_range_end("2026-06-30".into());
+    state.date_inputs.range_end = "2026-06-30".into();
+    state.update_range_query();
     assert_eq!(state.query, "2026-06-01..2026-06-30");
 
     state.clear(false);
@@ -340,7 +343,8 @@ fn date_all_separates_no_period_from_the_year_segment() {
 #[test]
 fn set_date_updates_input_query_and_selected() {
     let mut state = ReceiptSearch::new(true);
-    state.set_date("2026-06-15".into());
+    state.date_inputs.date_value = "2026-06-15".into();
+    state.set_date_query("2026-06-15".into());
     assert_eq!(state.date_inputs.date_value, "2026-06-15");
     assert_eq!(state.selected_queries.date, "2026-06-15");
     assert_eq!(state.query, "2026-06-15");
@@ -351,7 +355,8 @@ fn month_segment_keeps_selected_month_when_year_changes() {
     let mut state = ReceiptSearch::new(true);
     state.change_date_segment(DateSegment::Month);
     state.select_year("2023".into());
-    state.set_month("2023-06".into());
+    state.date_inputs.month_value = "2023-06".into();
+    state.set_date_query("2023-06".into());
     state.date_inputs.month_value = "06".to_string();
     assert_eq!(state.query, "2023-06");
 

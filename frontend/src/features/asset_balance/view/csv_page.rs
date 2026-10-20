@@ -3,7 +3,7 @@ use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::fund::AssetKind;
 use crate::features::asset_balance::review_prompt::generate_asset_review_prompt;
 use crate::features::asset_balance::store::csv::{
-    AssetBalanceCsvStore, csv_preview_rows, fund_csv_preview_rows, resolve_asset_balance,
+    AssetBalanceCsvStore, csv_preview_rows, resolve_asset_balance,
 };
 use crate::features::asset_balance::view::{AssetBalanceCsvPreview, FundBalanceCsvPreview};
 use crate::session::{SessionStore, use_session};
@@ -123,7 +123,7 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
 fn CsvPreviewWrapper(state: AssetBalanceState, _session: SessionStore) -> impl IntoView {
     move || {
         if state.csv.csv_kind.get() == AssetKind::Fund {
-            let rows = fund_csv_preview_rows(&state.csv.fund_csv_state());
+            let rows = csv_preview_rows(&state.csv.fund_csv_state());
             return (!rows.is_empty())
                 .then(|| view! { <FundBalanceCsvPreview rows=rows /> }.into_any());
         }

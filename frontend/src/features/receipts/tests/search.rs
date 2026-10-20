@@ -19,7 +19,6 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
             }),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::new()),
             tabs: RwSignal::new(HashMap::from([(

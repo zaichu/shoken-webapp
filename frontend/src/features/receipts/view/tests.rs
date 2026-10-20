@@ -721,7 +721,6 @@ fn csv_source_store() -> crate::features::receipts::ReceiptsStore {
         search: RwSignal::new(ReceiptSearch::default()),
         expanded: RwSignal::new(HashSet::new()),
         mobile_summary_expanded: RwSignal::new(false),
-        utility_rail_open: RwSignal::new(true),
         expanded_epoch: RwSignal::new(None),
         visited,
         tabs: RwSignal::new(HashMap::new()),

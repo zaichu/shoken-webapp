@@ -1,87 +1,12 @@
 use super::day_change::day_change_subline;
+use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
-    format_signed_valuation_rate, is_negative_valuation, is_positive_valuation,
+    format_currency, format_row_valuation_amount, pnl_cells,
 };
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::portfolio::SortOrder;
-use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
-
-fn header_label(order: SortOrder, active: bool) -> String {
-    if !active {
-        return String::new();
-    }
-    match order {
-        SortOrder::Desc => " ▼".to_string(),
-        SortOrder::Asc => " ▲".to_string(),
-    }
-}
-
-#[component]
-fn FundSortHeader(
-    label: &'static str,
-    key: FundSortKey,
-    sort_key: RwSignal<FundSortKey>,
-    sort_order: RwSignal<SortOrder>,
-) -> impl IntoView {
-    let active = move || sort_key.get() == key;
-    let arrow = move || header_label(sort_order.get(), active());
-    let on_click = move |_| {
-        if sort_key.get_untracked() == key {
-            sort_order.update(|order| {
-                *order = match *order {
-                    SortOrder::Desc => SortOrder::Asc,
-                    SortOrder::Asc => SortOrder::Desc,
-                }
-            });
-        } else {
-            sort_key.set(key);
-            sort_order.set(SortOrder::Desc);
-        }
-    };
-    view! {
-        <th
-            scope="col"
-            class="text-right"
-            aria-sort=move || {
-                active().then(|| {
-                    match sort_order.get() {
-                        SortOrder::Desc => "descending",
-                        SortOrder::Asc => "ascending",
-                    }
-                })
-            }
-        >
-            <Button
-                variant=ButtonVariant::AssetSortColumn
-                aria_pressed=Signal::derive(move || active().to_string())
-                on_click=on_click
-            >
-                {label}
-                <span class="asset-sort-arrow">{arrow}</span>
-            </Button>
-        </th>
-    }
-}
-
-/// ファンド1行の損益セル(表・一覧で共用)
-pub(crate) fn fund_pnl_cells(view: &FundView) -> (String, String, &'static str, &'static str) {
-    let amount = view.profit_loss;
-    let rate = view.profit_loss_rate;
-    let pnl_text = format_signed_row_valuation_amount(Some(amount));
-    let pnl_rate_text = format_signed_valuation_rate(rate, 1);
-    let negative = is_negative_valuation(Some(amount));
-    let (text_class, badge_class) = if negative {
-        ("text-negative", "asset-badge asset-badge-loss")
-    } else if is_positive_valuation(Some(amount)) {
-        ("text-positive", "asset-badge asset-badge-gain")
-    } else {
-        ("text-text-soft", "asset-badge")
-    };
-    (pnl_text, pnl_rate_text, text_class, badge_class)
-}
 
 #[component]
 pub fn FundHoldingsTable(
@@ -95,10 +20,10 @@ pub fn FundHoldingsTable(
                 <thead>
                     <tr>
                         <th scope="col">"ファンド"</th>
-                        <FundSortHeader label="保有口数" key=FundSortKey::Shares sort_key=sort_key sort_order=sort_order />
-                        <FundSortHeader label="基準価額" key=FundSortKey::BasePrice sort_key=sort_key sort_order=sort_order />
-                        <FundSortHeader label="評価額" key=FundSortKey::MarketValue sort_key=sort_key sort_order=sort_order />
-                        <FundSortHeader label="評価損益" key=FundSortKey::ProfitLoss sort_key=sort_key sort_order=sort_order />
+                        {sort_header("保有口数", FundSortKey::Shares, sort_key, sort_order)}
+                        {sort_header("基準価額", FundSortKey::BasePrice, sort_key, sort_order)}
+                        {sort_header("評価額", FundSortKey::MarketValue, sort_key, sort_order)}
+                        {sort_header("評価損益", FundSortKey::ProfitLoss, sort_key, sort_order)}
                     </tr>
                 </thead>
                 <tbody>
@@ -106,7 +31,7 @@ pub fn FundHoldingsTable(
                         .into_iter()
                         .map(|view| {
                             let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
-                                fund_pnl_cells(&view);
+                                pnl_cells(Some(view.profit_loss), view.profit_loss_rate);
                             let day_change = view
                                 .base_price_day_change
                                 .map(|change| day_change_subline(Some(change)));
@@ -180,7 +105,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                 .into_iter()
                 .map(|view| {
                     let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
-                        fund_pnl_cells(&view);
+                        pnl_cells(Some(view.profit_loss), view.profit_loss_rate);
                     let meta = format!(
                         "{} ・ {}口 ・ 基準価額 {}",
                         view.account,

@@ -19,14 +19,17 @@ use leptos::prelude::*;
 use std::collections::HashSet;
 
 #[derive(Clone, Debug)]
-pub(crate) struct LoadedAssetBalances {
-    pub(crate) rows: Vec<AssetBalance>,
+pub(crate) struct LoadedRows<T, S> {
+    pub(crate) rows: Vec<T>,
     // API の total。実際に取得できた行数(rows.len)とは一致しないことがある
     pub(crate) total: usize,
     // 取得上限超過で行が欠けるときの合計フォールバック用。行が揃う通常時は使わない
-    pub(crate) summary: Option<AssetBalanceSummary>,
+    pub(crate) summary: Option<S>,
     pub(crate) truncated: bool,
 }
+
+pub(crate) type LoadedAssetBalances = LoadedRows<AssetBalance, AssetBalanceSummary>;
+pub(crate) type LoadedFundBalances = LoadedRows<FundBalance, FundBalanceSummary>;
 
 /// 資産残高一覧のエンドポイント。
 impl ListEndpoint for AssetBalance {
@@ -44,22 +47,18 @@ impl ListEndpoint for FundBalance {
     const PATH: &'static str = super::fund::FUND_LIST_PATH;
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct LoadedFundBalances {
-    pub(crate) rows: Vec<FundBalance>,
-    pub(crate) total: usize,
-    pub(crate) summary: Option<FundBalanceSummary>,
-    pub(crate) truncated: bool,
-}
-
-async fn fetch_fund_balances() -> Result<LoadedFundBalances, ApiError> {
-    let page = fetch_all_pages::<FundBalance>().await?;
-    Ok(LoadedFundBalances {
+async fn fetch_loaded<E: ListEndpoint>() -> Result<LoadedRows<E::Row, E::Summary>, ApiError> {
+    let page = fetch_all_pages::<E>().await?;
+    Ok(LoadedRows {
         total: page.total.unwrap_or(page.rows.len()),
         rows: page.rows,
         summary: page.summary,
         truncated: page.truncated,
     })
+}
+
+pub(crate) async fn fetch_fund_balances() -> Result<LoadedFundBalances, ApiError> {
+    fetch_loaded::<FundBalance>().await
 }
 
 pub(crate) type FundSlot = Option<(Generation, Result<LoadedFundBalances, String>)>;
@@ -102,14 +101,8 @@ pub(crate) fn load_fund_balances(
     });
 }
 
-async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
-    let page = fetch_all_pages::<AssetBalance>().await?;
-    Ok(LoadedAssetBalances {
-        total: page.total.unwrap_or(page.rows.len()),
-        rows: page.rows,
-        summary: page.summary,
-        truncated: page.truncated,
-    })
+pub(crate) async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiError> {
+    fetch_loaded::<AssetBalance>().await
 }
 
 pub(crate) fn truncated_list_warning() -> String {

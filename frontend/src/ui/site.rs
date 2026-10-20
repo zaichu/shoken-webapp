@@ -193,7 +193,6 @@ pub fn AccountDeleteDialog() -> impl IntoView {
     content.into_any()
 }
 
-#[allow(dead_code)]
 pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
     if let Some(name) = name.filter(|name| !name.is_empty()) {
         let parts: Vec<&str> = name.split_whitespace().collect();
@@ -210,10 +209,8 @@ pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
     "U".to_string()
 }
 
-fn login_method(_email: &str) -> &'static str {
-    // 現在は Google OAuth のみ対応
-    "Google でログイン中"
-}
+// 現在は Google OAuth のみ対応
+const LOGIN_METHOD_TEXT: &str = "Google でログイン中";
 
 #[component]
 fn UserMenu(
@@ -374,7 +371,7 @@ fn UserMenu(
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| "ユーザー".to_string());
     let initials = get_initials(user_name.as_deref(), Some(&user_email));
-    let login_method_text = login_method(&user_email);
+    let login_method_text = LOGIN_METHOD_TEXT;
     let menu_label = format!("{aria_name}のアカウントメニュー");
 
     view! {

@@ -3,11 +3,9 @@ use super::*;
 #[test]
 fn disclosure_styles_are_distinguishable() {
     let styles = [
-        DisclosureStyle::Rail,
         DisclosureStyle::GroupCard,
         DisclosureStyle::HeaderFlat,
-        DisclosureStyle::AssetCard,
-        DisclosureStyle::SearchCard,
+        DisclosureStyle::RowToggle,
     ];
     let classes: Vec<&str> = styles.iter().map(|style| style.class()).collect();
     for (i, class) in classes.iter().enumerate() {

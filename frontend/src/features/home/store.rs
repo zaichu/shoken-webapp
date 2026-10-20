@@ -1,17 +1,17 @@
 //! ホームダッシュボードのデータ取得。世代つきスロットに保持し、
 //! ページ遷移でビューを作り直しても取得済みの値を失わない。
 
-use crate::api::dto::{AssetBalance, Dividend, DividendListResponse, FundBalance};
+use crate::api::dto::{Dividend, DividendListResponse};
 use crate::api::{ApiClient, ApiError};
-use crate::features::asset_balance::{LoadedAssetBalances, LoadedFundBalances};
+use crate::features::asset_balance::{
+    LoadedAssetBalances, LoadedFundBalances, fetch_asset_balances, fetch_fund_balances,
+};
 use crate::features::dividend_per_share::{
     DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS, DividendMaps, dividend_maps_from_batch,
     dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch, unique_sorted_codes,
 };
 use crate::session::{Generation, SessionStore};
-use crate::support::pagination::{
-    LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, collect_list_pages, fetch_all_pages,
-};
+use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, collect_list_pages};
 use leptos::prelude::*;
 use std::collections::HashMap;
 use std::future::Future;
@@ -161,23 +161,11 @@ pub(crate) fn refresh_failed(
 }
 
 async fn fetch_stock_rows() -> Result<Option<LoadedAssetBalances>, ApiError> {
-    let page = fetch_all_pages::<AssetBalance>().await?;
-    Ok(Some(LoadedAssetBalances {
-        total: page.total.unwrap_or(page.rows.len()),
-        rows: page.rows,
-        summary: page.summary,
-        truncated: page.truncated,
-    }))
+    fetch_asset_balances().await.map(Some)
 }
 
 async fn fetch_fund_rows() -> Result<Option<LoadedFundBalances>, ApiError> {
-    let page = fetch_all_pages::<FundBalance>().await?;
-    Ok(Some(LoadedFundBalances {
-        total: page.total.unwrap_or(page.rows.len()),
-        rows: page.rows,
-        summary: page.summary,
-        truncated: page.truncated,
-    }))
+    fetch_fund_balances().await.map(Some)
 }
 
 /// 決済日が `year` の配当を全ページ取る。月別・前年同期・実効税率の材料にする

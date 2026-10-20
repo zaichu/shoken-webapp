@@ -12,6 +12,7 @@ mod kind_tabs;
 mod main_content;
 mod search_bar;
 mod sort_bar;
+mod sort_header;
 mod summary;
 mod summary_strip;
 

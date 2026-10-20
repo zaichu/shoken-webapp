@@ -1,6 +1,5 @@
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
-    format_signed_valuation_rate, is_negative_valuation, is_positive_valuation,
+    format_currency, format_row_valuation_amount, format_signed_row_valuation_amount, pnl_cells,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_yield, holding_dividend,
@@ -23,16 +22,8 @@ pub fn HoldingsList(
                 .map(|view| {
                     let valuation = holding_valuation(&ValuationInput::from(&view));
                     let market_text = format_row_valuation_amount(valuation.market_value);
-                    let pnl_text = format_signed_row_valuation_amount(valuation.profit_loss.amount);
-                    let pnl_rate_text = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
-                    let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
-                    let (pnl_text_class, pnl_badge_class) = if pnl_negative {
-                        ("text-negative", "asset-badge asset-badge-loss")
-                    } else if is_positive_valuation(valuation.profit_loss.amount) {
-                        ("text-positive", "asset-badge asset-badge-gain")
-                    } else {
-                        ("text-text-soft", "asset-badge")
-                    };
+                    let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
+                        pnl_cells(valuation.profit_loss.amount, valuation.profit_loss.rate);
                     let dividend = holding_dividend(
                         &view.code,
                         view.shares,

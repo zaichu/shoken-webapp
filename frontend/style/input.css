@@ -258,18 +258,8 @@
     @apply grid grid-cols-[1fr_6rem_6rem] items-center gap-3 max-sm:grid-cols-[1fr_5rem];
   }
 
-  .toolbar-search-card {
-    @apply px-4 py-4;
-  }
-
   .security-details-link {
     @apply inline-flex min-h-11 items-center text-info underline underline-offset-2 hover:text-info-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
-  }
-
-  @media (width < 40rem) {
-    .toolbar-search-card[data-expanded="false"] {
-      display: none;
-    }
   }
 
   .panel-card {
@@ -290,23 +280,6 @@
 
   .empty-state {
     @apply flex flex-col items-center justify-center rounded-xl border border-dashed border-border-strong bg-surface-sunken/70 px-4 py-8 text-center;
-  }
-
-  .rail-toggle {
-    @apply flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
-  }
-
-  /* スマホ幅のパネル内で検索・集計・CSVを1行に並べるツールバー */
-  .mobile-toolbar {
-    @apply flex items-stretch gap-1 border-b border-ink/10 bg-surface-sunken/60 px-2 py-1.5 sm:hidden;
-  }
-
-  .mobile-toolbar .rail-toggle {
-    @apply min-h-11 min-w-0 w-auto flex-1 items-center justify-center gap-1 rounded-lg px-2 text-sm font-semibold text-text-soft hover:bg-surface-raised;
-  }
-
-  .mobile-toolbar .rail-toggle[aria-expanded="true"] {
-    @apply bg-surface-raised text-ink;
   }
 
   .review-prompt-button {
@@ -360,10 +333,6 @@
 
   .code-badge-flush {
     @apply inline-flex shrink-0 items-center text-xs font-semibold tabular-nums text-info;
-  }
-
-  .filter-badge {
-    @apply mt-1 inline-flex whitespace-nowrap rounded-md border border-accent-border bg-accent-soft px-2 py-0.5 text-eyebrow font-bold text-accent-text-soft;
   }
 
   .security-code-link {

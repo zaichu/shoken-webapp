@@ -84,7 +84,6 @@ fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
                 search: RwSignal::new(ReceiptSearch::default()),
                 expanded: RwSignal::new(HashSet::new()),
                 mobile_summary_expanded: RwSignal::new(false),
-                utility_rail_open: RwSignal::new(true),
                 expanded_epoch: RwSignal::new(None),
                 visited: RwSignal::new(HashSet::from([tab])),
                 tabs,
@@ -129,7 +128,6 @@ fn revisit_refetches_only_visited_settled_tabs() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([
                 ReceiptsTab::Dividend,
@@ -186,7 +184,6 @@ fn revisit_skips_unauthenticated_and_unvisited() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([ReceiptsTab::Dividend])),
             tabs: RwSignal::new(HashMap::new()),
@@ -290,7 +287,6 @@ fn revisit_does_not_dispatch_while_fetch_pending() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([
                 ReceiptsTab::Dividend,
@@ -337,7 +333,6 @@ fn generation_change_resets_search_tab_and_visited() {
             }),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([
                 ReceiptsTab::Dividend,
@@ -405,7 +400,6 @@ fn expanded_state_is_cleared_on_generation_change() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             tabs: RwSignal::new(HashMap::new()),
@@ -417,7 +411,6 @@ fn expanded_state_is_cleared_on_generation_change() {
             set.insert("g0".to_string());
         });
         store.mobile_summary_expanded.set(true);
-        store.toggle_utility_rail();
 
         session.mark_unauthenticated();
         session.user.set(Some(user("bob")));
@@ -425,7 +418,6 @@ fn expanded_state_is_cleared_on_generation_change() {
 
         assert!(store.expanded.with_untracked(|set| set.is_empty()));
         assert!(!store.mobile_summary_expanded.get_untracked());
-        assert!(store.utility_rail_open.get_untracked());
     });
 }
 
@@ -443,7 +435,6 @@ fn expanded_state_survives_ensure_in_same_generation() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::from([tab])),
             tabs: RwSignal::new(HashMap::new()),
@@ -459,83 +450,6 @@ fn expanded_state_survives_ensure_in_same_generation() {
 
         assert!(store.expanded.with_untracked(|set| set.contains("g0")));
         assert!(store.mobile_summary_expanded.get_untracked());
-    });
-}
-
-// 開閉はデフォルト開きで始まり、タブ切替・再取得では変わらない。
-// 変えるのはユーザーのトグルと世代(ユーザー)切替のリセットだけ
-#[test]
-fn utility_rail_open_stays_until_toggle_or_generation_change() {
-    let _ = any_spawner::Executor::init_futures_executor();
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let tab = ReceiptsTab::Dividend;
-        let store = ReceiptsStore {
-            session,
-            active_tab: RwSignal::new(tab),
-            search: RwSignal::new(ReceiptSearch::default()),
-            expanded: RwSignal::new(HashSet::new()),
-            mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
-            expanded_epoch: RwSignal::new(None),
-            visited: RwSignal::new(HashSet::from([tab])),
-            tabs: RwSignal::new(HashMap::new()),
-            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
-        };
-
-        // データ有無・未取得にかかわらずデフォルト開きで始まる
-        store.ensure(ReceiptsTab::Dividend);
-        assert!(store.utility_rail_open.get_untracked());
-        store.select_tab(ReceiptsTab::DomesticStock);
-        assert!(store.utility_rail_open.get_untracked());
-
-        // トグルした開閉はタブ移動・再取得をまたいでそのまま残る
-        store.toggle_utility_rail();
-        assert!(!store.utility_rail_open.get_untracked());
-        store.select_tab(ReceiptsTab::MutualFund);
-        assert!(!store.utility_rail_open.get_untracked());
-        store.select_tab(ReceiptsTab::Dividend);
-        assert!(!store.utility_rail_open.get_untracked());
-        store.toggle_utility_rail();
-        assert!(store.utility_rail_open.get_untracked());
-    });
-}
-
-// 開いたままなら絞り込みはレール内で確認できるので、表の上の件数バッジは畳んだときだけ出す
-#[test]
-fn utility_filter_badge_is_only_shown_while_collapsed_and_filtering() {
-    let _ = any_spawner::Executor::init_futures_executor();
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let tab = ReceiptsTab::Dividend;
-        let store = ReceiptsStore {
-            session,
-            active_tab: RwSignal::new(tab),
-            search: RwSignal::new(ReceiptSearch::default()),
-            expanded: RwSignal::new(HashSet::new()),
-            mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
-            expanded_epoch: RwSignal::new(None),
-            visited: RwSignal::new(HashSet::from([tab])),
-            tabs: RwSignal::new(HashMap::new()),
-            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
-        };
-
-        assert!(!store.utility_filter_badge_visible());
-        store.search.set(ReceiptSearch {
-            query: "9904".to_string(),
-            ..Default::default()
-        });
-        assert!(!store.utility_filter_badge_visible());
-
-        store.toggle_utility_rail();
-        assert!(store.utility_filter_badge_visible());
-        store.toggle_utility_rail();
-        assert!(!store.utility_filter_badge_visible());
     });
 }
 
@@ -595,7 +509,6 @@ fn refresh_error_returns_entry_for_current_generation_only() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::new()),
             tabs: RwSignal::new(HashMap::new()),
@@ -633,7 +546,6 @@ fn csv_input_disabled_covers_unauth_busy_and_fetching() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::new()),
             tabs: RwSignal::new(HashMap::new()),
@@ -681,7 +593,6 @@ fn ensure_prunes_stale_generation_in_any_state_map() {
             search: RwSignal::new(ReceiptSearch::default()),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
-            utility_rail_open: RwSignal::new(true),
             expanded_epoch: RwSignal::new(None),
             visited: RwSignal::new(HashSet::new()),
             tabs: RwSignal::new(HashMap::new()),

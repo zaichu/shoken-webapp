@@ -9,26 +9,14 @@ pub enum CardVariant {
     Panel,
     /// ログイン画面のカード
     Login,
-    /// 明細表の外枠
-    Table,
     /// 開閉つきの帯(section 要素で出す)
     Collapsible,
-    /// 白く浮いた外枠(空の状態の包み)
-    Shell,
-    /// 薄い外枠(資産管理の空状態)
-    Soft,
     /// 明細カード(スマホの行カード)
     Item,
     /// グループの外枠(月ごとの明細)
     Group,
-    /// 保有カード(PC 一覧)
-    Holding,
     /// 内側のくぼんだ箱(配当情報の小枠)
     Sunken,
-    /// カード内の集計ストリップ(grid 等は class で)
-    Strip,
-    /// 破線の小さい箱(保有内訳の「その他」)
-    DashedCompact,
     /// グループのラベル行(開閉なし)
     GroupLabel,
 }
@@ -38,22 +26,10 @@ impl CardVariant {
         let class = match self {
             Self::Panel => "panel-card",
             Self::Login => "login-card",
-            Self::Table => "table-card",
             Self::Collapsible => "collapsible-card",
-            Self::Shell => {
-                "overflow-hidden rounded-xl border border-ink/10 bg-surface/95 shadow-elevation-2"
-            }
-            Self::Soft => {
-                "overflow-hidden rounded-xl border border-ink/10 bg-surface/90 shadow-card"
-            }
             Self::Item => "rounded-lg border border-border-strong bg-surface",
             Self::Group => "overflow-hidden rounded-lg border border-border-subtle",
-            Self::Holding => "rounded-lg border border-ink/10 bg-surface shadow-sm",
             Self::Sunken => "rounded-lg bg-surface-sunken px-4 py-3",
-            Self::Strip => "overflow-hidden rounded-md bg-surface-sunken",
-            Self::DashedCompact => {
-                "rounded-lg border border-dashed border-border-strong bg-surface-sunken p-3"
-            }
             Self::GroupLabel => "flex min-h-11 items-center rounded-lg bg-surface-raised px-3 py-2",
         };
         class.to_string()

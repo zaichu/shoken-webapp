@@ -35,7 +35,6 @@ fn test_store(
         search: RwSignal::new(ReceiptSearch::default()),
         expanded: RwSignal::new(HashSet::new()),
         mobile_summary_expanded: RwSignal::new(false),
-        utility_rail_open: RwSignal::new(true),
         expanded_epoch: RwSignal::new(None),
         visited: RwSignal::new(HashSet::new()),
         tabs: RwSignal::new(tabs),

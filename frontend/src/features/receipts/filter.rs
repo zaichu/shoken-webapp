@@ -45,6 +45,7 @@ impl SelectedQueries {
         }
     }
 
+    #[cfg(test)]
     fn is_empty(&self) -> bool {
         self.securities.is_empty()
             && self.years.is_empty()
@@ -63,16 +64,6 @@ pub enum DateSegment {
 }
 
 impl DateSegment {
-    #[allow(dead_code)]
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Year => "年",
-            Self::Month => "年月",
-            Self::Date => "日",
-            Self::Range => "範囲",
-        }
-    }
-
     pub fn value(self) -> &'static str {
         match self {
             Self::Year => "年",
@@ -92,7 +83,6 @@ pub struct DateInputs {
     pub range_end: String,
 }
 
-#[allow(dead_code)]
 pub fn build_range_query(start: &str, end: &str) -> String {
     if start.is_empty() && end.is_empty() {
         String::new()
@@ -162,6 +152,7 @@ impl ReceiptSearch {
         }
     }
 
+    #[cfg(test)]
     pub fn is_default(&self) -> bool {
         self.query.is_empty() && self.selected_queries.is_empty()
     }
@@ -202,30 +193,6 @@ impl ReceiptSearch {
         } else {
             self.set_date_query(value);
         }
-    }
-
-    #[allow(dead_code)]
-    pub fn set_month(&mut self, value: String) {
-        self.date_inputs.month_value = value.clone();
-        self.set_date_query(value);
-    }
-
-    #[allow(dead_code)]
-    pub fn set_date(&mut self, value: String) {
-        self.date_inputs.date_value = value.clone();
-        self.set_date_query(value);
-    }
-
-    #[allow(dead_code)]
-    pub fn set_range_start(&mut self, value: String) {
-        self.date_inputs.range_start = value;
-        self.update_range_query();
-    }
-
-    #[allow(dead_code)]
-    pub fn set_range_end(&mut self, value: String) {
-        self.date_inputs.range_end = value;
-        self.update_range_query();
     }
 
     pub fn clear(&mut self, has_years: bool) {

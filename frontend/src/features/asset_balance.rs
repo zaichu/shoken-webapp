@@ -21,7 +21,9 @@ pub(crate) use model::{
     normalize_display_name, summary_valuation, to_fixed,
 };
 pub(crate) use portfolio::{SortKey, SortOrder};
-pub(crate) use store::{LoadedAssetBalances, LoadedFundBalances};
+pub(crate) use store::{
+    LoadedAssetBalances, LoadedFundBalances, fetch_asset_balances, fetch_fund_balances,
+};
 pub(crate) use view::{
     AssetBalanceCompositionPage, AssetBalanceCsvPage, AssetBalanceHoldingPage, AssetBalancePage,
     AssetBalanceState, AssetFundHoldingPage,
