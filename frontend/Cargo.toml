@@ -42,6 +42,21 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 getrandom = { version = "0.4", features = ["wasm_js"] }
 
 
+# 開発ビルドはパニック時の行番号が読める範囲までデバッグ情報を残し、target を小さく保つ
+[profile.dev]
+debug = "line-tables-only"
+
+# 依存クレートの中まで追うことはないので、依存のデバッグ情報は持たない
+[profile.dev.package."*"]
+debug = false
+
+# テストビルドも同じ方針にする
+[profile.test]
+debug = "line-tables-only"
+
+[profile.test.package."*"]
+debug = false
+
 [profile.release]
 opt-level = "z"
 lto = true
