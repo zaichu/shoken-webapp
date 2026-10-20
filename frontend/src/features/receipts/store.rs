@@ -11,21 +11,6 @@ use crate::support::csv_flow::CsvTabState;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
-// 非 wasm(単体テスト)では window が無いため開いて始める
-fn utility_rail_default_open() -> bool {
-    #[cfg(target_arch = "wasm32")]
-    {
-        web_sys::window()
-            .and_then(|window| window.inner_width().ok())
-            .and_then(|value| value.as_f64())
-            .is_none_or(|width| width >= 1024.0)
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        true
-    }
-}
-
 // 一覧・CSV・裏再取得の状態は同じ世代×タブのキーで管理するため1エントリにまとめる。
 // list が None のエントリは CSV 操作だけが先行した未取得タブ
 #[derive(Default)]
@@ -56,9 +41,6 @@ pub struct ReceiptsStore {
     // 開閉状態は検索変更や一覧再描画でビューが作り直されても消えないようストア側に持つ
     pub expanded: RwSignal<HashSet<String>>,
     pub mobile_summary_expanded: RwSignal<bool>,
-    // Cookie ポリシーへの記載を避けるため localStorage には保存せず、
-    // セッション内だけの画面状態として持つ。開閉はユーザー操作だけが変える
-    pub utility_rail_open: RwSignal<bool>,
     // 再マウントなしのアカウント切替で前のユーザーの開閉状態を残さないためのセッション世代
     pub(crate) expanded_epoch: RwSignal<Option<Generation>>,
     pub(crate) visited: RwSignal<HashSet<ReceiptsTab>>,
@@ -112,17 +94,6 @@ impl ReceiptsStore {
         !self.session.loaded.get()
     }
 
-    #[allow(dead_code)]
-    pub fn toggle_utility_rail(&self) {
-        self.utility_rail_open.update(|open| *open = !*open);
-    }
-
-    /// 開いたままなら絞り込みはレール内で確認できるので、表の上への件数バッジは畳んだときだけ出す
-    #[allow(dead_code)]
-    pub fn utility_filter_badge_visible(&self) -> bool {
-        !self.utility_rail_open.get() && !self.search.get().is_default()
-    }
-
     pub fn select_tab(&self, tab: ReceiptsTab) {
         if self.active_tab.get_untracked() != tab {
             self.search.set(ReceiptSearch::default());
@@ -167,7 +138,6 @@ impl ReceiptsStore {
             self.expanded_epoch.set(Some(generation));
             self.expanded.update(|set| set.clear());
             self.mobile_summary_expanded.set(false);
-            self.utility_rail_open.set(utility_rail_default_open());
             // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
             self.search.set(ReceiptSearch::default());
             let initial = crate::settings::try_use_settings()
@@ -376,7 +346,6 @@ fn build_receipts_store(
         search: RwSignal::new(ReceiptSearch::default()),
         expanded: RwSignal::new(HashSet::new()),
         mobile_summary_expanded: RwSignal::new(false),
-        utility_rail_open: RwSignal::new(true),
         expanded_epoch: RwSignal::new(None),
         visited,
         tabs,

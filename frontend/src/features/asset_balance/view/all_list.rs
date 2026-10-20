@@ -1,14 +1,11 @@
 //! 「すべて」タブ。国内株式と投資信託を同じ一覧に並べる
 
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation, is_positive_valuation,
-};
+use super::sort_header::sort_header;
+use crate::features::asset_balance::format::{format_row_valuation_amount, pnl_cells};
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::SortOrder;
-use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
 
 /// 株とファンドをまとめる一覧行
@@ -88,74 +85,6 @@ pub(crate) fn sort_unified(rows: &[UnifiedRow], key: FundSortKey, order: SortOrd
 }
 
 #[component]
-fn MergedSortHeader(
-    label: &'static str,
-    key: FundSortKey,
-    sort_key: RwSignal<FundSortKey>,
-    sort_order: RwSignal<SortOrder>,
-) -> impl IntoView {
-    let active = move || sort_key.get() == key;
-    let arrow = move || {
-        if !active() {
-            return String::new();
-        }
-        match sort_order.get() {
-            SortOrder::Desc => " ▼".to_string(),
-            SortOrder::Asc => " ▲".to_string(),
-        }
-    };
-    let on_click = move |_| {
-        if sort_key.get_untracked() == key {
-            sort_order.update(|order| {
-                *order = match *order {
-                    SortOrder::Desc => SortOrder::Asc,
-                    SortOrder::Asc => SortOrder::Desc,
-                }
-            });
-        } else {
-            sort_key.set(key);
-            sort_order.set(SortOrder::Desc);
-        }
-    };
-    view! {
-        <th
-            scope="col"
-            class="text-right"
-            aria-sort=move || {
-                active().then(|| {
-                    match sort_order.get() {
-                        SortOrder::Desc => "descending",
-                        SortOrder::Asc => "ascending",
-                    }
-                })
-            }
-        >
-            <Button
-                variant=ButtonVariant::AssetSortColumn
-                aria_pressed=Signal::derive(move || active().to_string())
-                on_click=on_click
-            >
-                {label}
-                <span class="asset-sort-arrow">{arrow}</span>
-            </Button>
-        </th>
-    }
-}
-
-fn pnl_parts(row: &UnifiedRow) -> (String, String, &'static str, &'static str) {
-    let pnl_text = format_signed_row_valuation_amount(row.profit);
-    let rate_text = format_signed_valuation_rate(row.rate, 1);
-    let (text_class, badge_class) = if is_negative_valuation(row.profit) {
-        ("text-negative", "asset-badge asset-badge-loss")
-    } else if is_positive_valuation(row.profit) {
-        ("text-positive", "asset-badge asset-badge-gain")
-    } else {
-        ("text-text-soft", "asset-badge")
-    };
-    (pnl_text, rate_text, text_class, badge_class)
-}
-
-#[component]
 pub fn AssetMergedTable(
     rows: Vec<UnifiedRow>,
     sort_key: RwSignal<FundSortKey>,
@@ -173,8 +102,8 @@ pub fn AssetMergedTable(
                 <thead>
                     <tr>
                         <th scope="col">"銘柄・ファンド"</th>
-                        <MergedSortHeader label="評価額" key=FundSortKey::MarketValue sort_key=sort_key sort_order=sort_order />
-                        <MergedSortHeader label="評価損益" key=FundSortKey::ProfitLoss sort_key=sort_key sort_order=sort_order />
+                        {sort_header("評価額", FundSortKey::MarketValue, sort_key, sort_order)}
+                        {sort_header("評価損益", FundSortKey::ProfitLoss, sort_key, sort_order)}
                     </tr>
                 </thead>
                 <tbody>
@@ -185,7 +114,7 @@ pub fn AssetMergedTable(
                             .map(|row| {
                                 let row = &row;
                                 let (pnl_text, rate_text, pnl_text_class, pnl_badge_class) =
-                                    pnl_parts(row);
+                                    pnl_cells(row.profit, row.rate);
                                 let name_cell = view! {
                                     <>
                                         {row.name.clone()}
@@ -252,7 +181,8 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
             {rows
                 .into_iter()
                 .map(|row| {
-                    let (pnl_text, rate_text, pnl_text_class, pnl_badge_class) = pnl_parts(&row);
+                    let (pnl_text, rate_text, pnl_text_class, pnl_badge_class) =
+                        pnl_cells(row.profit, row.rate);
                     let inner = view! {
                         <>
                             <div class="flex items-baseline justify-between gap-2">

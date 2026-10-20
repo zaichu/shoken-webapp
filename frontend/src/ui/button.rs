@@ -26,9 +26,6 @@ pub enum ButtonVariant {
     Retry,
     /// メニュー項目(role="menuitem" と一緒に使う)
     MenuItem,
-    /// メニューの危険な項目(role="menuitem" と一緒に使う)
-    #[allow(dead_code)]
-    MenuItemDanger,
     /// 銘柄名のコピー(文字そのものがボタン)
     CopyName,
     /// 資産管理テーブルの並び替え列見出し
@@ -92,10 +89,6 @@ impl ButtonVariant {
             }
             Self::MenuItem => {
                 "w-full px-3 py-2 text-left text-sm font-semibold hover:bg-surface-raised"
-                    .to_string()
-            }
-            Self::MenuItemDanger => {
-                "w-full px-3 py-2 text-left text-sm font-bold text-negative hover:bg-negative/10"
                     .to_string()
             }
             Self::CopyName => "copyable-name".to_string(),

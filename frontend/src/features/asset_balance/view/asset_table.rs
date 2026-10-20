@@ -1,8 +1,7 @@
 use super::day_change::day_change_subline;
+use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_price_date, format_row_valuation_amount,
-    format_signed_row_valuation_amount, format_signed_valuation_rate, is_negative_valuation,
-    is_positive_valuation,
+    format_currency, format_price_date, format_row_valuation_amount, pnl_cells,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_yield, holding_dividend,
@@ -12,65 +11,7 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
-
-fn header_label(order: SortOrder, active: bool) -> String {
-    if !active {
-        return String::new();
-    }
-    match order {
-        SortOrder::Desc => " ▼".to_string(),
-        SortOrder::Asc => " ▲".to_string(),
-    }
-}
-
-#[component]
-fn SortHeader(
-    label: &'static str,
-    key: SortKey,
-    sort_key: RwSignal<SortKey>,
-    sort_order: RwSignal<SortOrder>,
-) -> impl IntoView {
-    let active = move || sort_key.get() == key;
-    let arrow = move || header_label(sort_order.get(), active());
-    let on_click = move |_| {
-        if sort_key.get_untracked() == key {
-            sort_order.update(|order| {
-                *order = match *order {
-                    SortOrder::Desc => SortOrder::Asc,
-                    SortOrder::Asc => SortOrder::Desc,
-                }
-            });
-        } else {
-            sort_key.set(key);
-            sort_order.set(SortOrder::Desc);
-        }
-    };
-    view! {
-        <th
-            scope="col"
-            class="text-right"
-            aria-sort=move || {
-                active().then(|| {
-                    match sort_order.get() {
-                        SortOrder::Desc => "descending",
-                        SortOrder::Asc => "ascending",
-                    }
-                })
-            }
-        >
-            <Button
-                variant=ButtonVariant::AssetSortColumn
-                aria_pressed=Signal::derive(move || active().to_string())
-                on_click=on_click
-            >
-                {label}
-                <span class="asset-sort-arrow">{arrow}</span>
-            </Button>
-        </th>
-    }
-}
 
 #[component]
 pub fn AssetHoldingsTable(
@@ -88,10 +29,10 @@ pub fn AssetHoldingsTable(
                         <th scope="col" class="text-right">"数量"</th>
                         <th scope="col" class="text-right">"取得単価"</th>
                         <th scope="col" class="text-right">"現在値"</th>
-                        <SortHeader label="評価額" key=SortKey::MarketValue sort_key=sort_key sort_order=sort_order />
-                        <SortHeader label="含み損益" key=SortKey::ProfitLoss sort_key=sort_key sort_order=sort_order />
-                        <SortHeader label="年間配当" key=SortKey::Dividend sort_key=sort_key sort_order=sort_order />
-                        <SortHeader label="取得額利回り" key=SortKey::Yield sort_key=sort_key sort_order=sort_order />
+                        {sort_header("評価額", SortKey::MarketValue, sort_key, sort_order)}
+                        {sort_header("含み損益", SortKey::ProfitLoss, sort_key, sort_order)}
+                        {sort_header("年間配当", SortKey::Dividend, sort_key, sort_order)}
+                        {sort_header("取得額利回り", SortKey::Yield, sort_key, sort_order)}
                     </tr>
                 </thead>
                 <tbody>
@@ -100,23 +41,8 @@ pub fn AssetHoldingsTable(
                         .map(|view| {
                             let valuation = holding_valuation(&ValuationInput::from(&view));
                             let market_text = format_row_valuation_amount(valuation.market_value);
-                            let pnl_text = format_signed_row_valuation_amount(
-                                valuation.profit_loss.amount,
-                            );
-                            let pnl_rate_text = format_signed_valuation_rate(
-                                valuation.profit_loss.rate,
-                                1,
-                            );
-                            let pnl_negative = is_negative_valuation(
-                                valuation.profit_loss.amount,
-                            );
-                            let (pnl_text_class, pnl_badge_class) = if pnl_negative {
-                                ("text-negative", "asset-badge asset-badge-loss")
-                            } else if is_positive_valuation(valuation.profit_loss.amount) {
-                                ("text-positive", "asset-badge asset-badge-gain")
-                            } else {
-                                ("text-text-soft", "asset-badge")
-                            };
+                            let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
+                                pnl_cells(valuation.profit_loss.amount, valuation.profit_loss.rate);
                             let price_date_text =
                                 view.price_as_of.as_deref().map(format_price_date);
                             let dividend = holding_dividend(

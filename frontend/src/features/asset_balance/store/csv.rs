@@ -1,6 +1,6 @@
 use super::{
     AssetCsvFileSlot, AssetCsvSlot, BalanceSlot, DataOps, FundSlot, LoadedAssetBalances,
-    LoadedFundBalances, load_asset_balances, load_fund_balances, poll_dividend_maps,
+    LoadedFundBalances, LoadedRows, load_asset_balances, load_fund_balances, poll_dividend_maps,
     truncated_list_warning,
 };
 use crate::api::ApiError;
@@ -35,7 +35,95 @@ pub(crate) struct AssetBalanceCsvStore {
 
 pub(crate) type FundCsvSlot = Option<(Generation, CsvTabState<FundBalanceCsvRow>)>;
 
+type LoadedSlotValue<T, S> = Option<(Generation, Result<LoadedRows<T, S>, String>)>;
+
+// 世代つきスロットから現世代の値だけを取り出す。古い世代は None として扱う
+fn slot_value<T>(slot: &Option<(Generation, T)>, generation: Generation) -> Option<&T> {
+    slot.as_ref()
+        .filter(|(cached, _)| *cached == generation)
+        .map(|(_, value)| value)
+}
+
+fn min_max_dates(dates: impl Iterator<Item = String>) -> Option<(String, String)> {
+    let dates: Vec<String> = dates.collect();
+    let min = dates.iter().min()?;
+    let max = dates.iter().max()?;
+    Some((format_price_date(min), format_price_date(max)))
+}
+
 impl AssetBalanceCsvStore {
+    fn with_slot<T: Send + Sync + 'static, R>(
+        &self,
+        slot: RwSignal<Option<(Generation, T)>>,
+        f: impl FnOnce(Option<&T>) -> R,
+    ) -> R {
+        let generation = self.session.generation.get();
+        slot.with(|slot| f(slot_value(slot, generation)))
+    }
+
+    fn update_slot<T: Send + Sync + 'static>(
+        &self,
+        slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
+        generation: Generation,
+        update: impl FnOnce(&mut CsvTabState<T>),
+    ) {
+        slot.update(|slot| {
+            if slot_value(slot, generation).is_none() {
+                *slot = Some((generation, CsvTabState::default()));
+            }
+            if let Some((_, state)) = slot {
+                update(state);
+            }
+        });
+    }
+
+    fn csv_tab_state<T: Clone + Default + Send + Sync + 'static>(
+        &self,
+        slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
+    ) -> CsvTabState<T> {
+        self.with_slot(slot, |slot| slot.cloned().unwrap_or_default())
+    }
+
+    fn csv_tab_meta<T: Send + Sync + 'static>(
+        &self,
+        slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
+    ) -> CsvTabMeta {
+        self.with_slot(slot, |slot| slot.map(CsvTabState::meta).unwrap_or_default())
+    }
+
+    fn loaded_total<T: Send + Sync + 'static, S: Send + Sync + 'static>(
+        &self,
+        slot: RwSignal<LoadedSlotValue<T, S>>,
+    ) -> usize {
+        self.with_slot(slot, |slot| {
+            slot.and_then(|result| result.as_ref().ok())
+                .map_or(0, |loaded| loaded.total)
+        })
+    }
+
+    // 削除ページで保存済み全件数を確かめてから実行するため、件数が確定しているかを返す。
+    // 一覧の取り直し中・取り直し失敗時は古い件数を未確定として扱う
+    fn loaded_ready<T: Send + Sync + 'static, S: Send + Sync + 'static>(
+        &self,
+        slot: RwSignal<LoadedSlotValue<T, S>>,
+    ) -> bool {
+        let fetch_unresolved = self
+            .data_ops
+            .with(|ops| ops.list_fetch_in_flight() || ops.refresh_error.is_some());
+        !fetch_unresolved && self.with_slot(slot, |slot| slot.is_some_and(|result| result.is_ok()))
+    }
+
+    // 件数が確定できない理由(一覧取得・取り直しの失敗)を削除ページに出す
+    fn loaded_error<T: Send + Sync + 'static, S: Send + Sync + 'static>(
+        &self,
+        slot: RwSignal<LoadedSlotValue<T, S>>,
+    ) -> Option<String> {
+        self.with_slot(slot, |slot| match slot {
+            Some(Err(message)) => Some(message.clone()),
+            _ => self.data_ops.with(|ops| ops.refresh_error.clone()),
+        })
+    }
+
     pub(crate) fn new(
         session: SessionStore,
         balances: RwSignal<BalanceSlot>,
@@ -59,54 +147,26 @@ impl AssetBalanceCsvStore {
     }
 
     pub(crate) fn csv_state(&self) -> CsvTabState<AssetBalanceCsvRow> {
-        let generation = self.session.generation.get();
-        self.csv.with(|slot| match slot {
-            Some((cached, state)) if *cached == generation => state.clone(),
-            _ => CsvTabState::default(),
-        })
+        self.csv_tab_state(self.csv)
     }
 
     pub(crate) fn fund_csv_state(&self) -> CsvTabState<FundBalanceCsvRow> {
-        let generation = self.session.generation.get();
-        self.csv_fund.with(|slot| match slot {
-            Some((cached, state)) if *cached == generation => state.clone(),
-            _ => CsvTabState::default(),
-        })
-    }
-
-    fn fund_csv_meta(&self) -> CsvTabMeta {
-        let generation = self.session.generation.get();
-        self.csv_fund.with(|slot| match slot {
-            Some((cached, state)) if *cached == generation => state.meta(),
-            _ => CsvTabMeta::default(),
-        })
+        self.csv_tab_state(self.csv_fund)
     }
 
     // 共通 CSV UI が読むのはメタ情報だけ。プレビュー行の複製を避ける。
     // 判別済みのファイルがある間はその種別の状態を返す
     pub(crate) fn csv_meta(&self) -> CsvTabMeta {
         if self.csv_kind.get() == AssetKind::Fund {
-            return self.fund_csv_meta();
+            self.csv_tab_meta(self.csv_fund)
+        } else {
+            self.csv_tab_meta(self.csv)
         }
-        let generation = self.session.generation.get();
-        self.csv.with(|slot| match slot {
-            Some((cached, state)) if *cached == generation => state.meta(),
-            _ => CsvTabMeta::default(),
-        })
     }
 
     // どちらかの取り込みが動いている間は新しい選択を受け付けない
     pub(crate) fn csv_busy(&self) -> bool {
-        let generation = self.session.generation.get();
-        let stock_busy = self.csv.with(|slot| match slot {
-            Some((cached, state)) if *cached == generation => state.busy(),
-            _ => false,
-        });
-        let fund_busy = self.csv_fund.with(|slot| match slot {
-            Some((cached, state)) if *cached == generation => state.busy(),
-            _ => false,
-        });
-        stock_busy || fund_busy
+        self.csv_state().busy() || self.fund_csv_state().busy()
     }
 
     // ファイル入力を押せない間は空状態 CTA 経由の選択も効かないので、両者は同じ条件にする
@@ -120,90 +180,44 @@ impl AssetBalanceCsvStore {
 
     // 削除件数はプレビューではなく DB 側の total を使う
     pub(crate) fn db_count(&self) -> usize {
-        let generation = self.session.generation.get();
-        self.balances.with(|slot| match slot {
-            Some((cached, Ok(loaded))) if *cached == generation => loaded.total,
-            _ => 0,
-        })
+        self.loaded_total(self.balances)
     }
 
-    // 削除ページで保存済み全件数を確かめてから実行するため、件数が確定しているかを返す。
-    // 一覧の取り直し中・取り直し失敗時は古い件数を未確定として扱う
     pub(crate) fn saved_count_ready(&self) -> bool {
-        let generation = self.session.generation.get();
-        let fetch_unresolved = self
-            .data_ops
-            .with(|ops| ops.list_fetch_in_flight() || ops.refresh_error.is_some());
-        !fetch_unresolved
-            && self
-                .balances
-                .with(|slot| matches!(slot, Some((cached, Ok(_))) if *cached == generation))
+        self.loaded_ready(self.balances)
     }
 
-    // 件数が確定できない理由(一覧取得・取り直しの失敗)を削除ページに出す
     pub(crate) fn saved_count_error(&self) -> Option<String> {
-        let generation = self.session.generation.get();
-        self.balances.with(|slot| match slot {
-            Some((cached, Err(message))) if *cached == generation => Some(message.clone()),
-            _ => self.data_ops.with(|ops| ops.refresh_error.clone()),
-        })
+        self.loaded_error(self.balances)
     }
 
     pub(crate) fn list_loading(&self) -> bool {
-        let generation = self.session.generation.get();
         self.session.user.get().is_some()
             && (self.data_ops.with(|ops| !ops.inflight.is_empty())
-                || self
-                    .balances
-                    .with(|slot| !matches!(slot, Some((cached, _)) if *cached == generation)))
+                || self.with_slot(self.balances, |slot| slot.is_none()))
     }
 
     // ---- 投資信託の保存済み件数(削除カード用) ----
 
     pub(crate) fn fund_db_count(&self) -> usize {
-        let generation = self.session.generation.get();
-        self.funds.with(|slot| match slot {
-            Some((cached, Ok(loaded))) if *cached == generation => loaded.total,
-            _ => 0,
-        })
+        self.loaded_total(self.funds)
     }
 
     pub(crate) fn fund_saved_count_ready(&self) -> bool {
-        let generation = self.session.generation.get();
-        let fetch_unresolved = self
-            .data_ops
-            .with(|ops| ops.list_fetch_in_flight() || ops.refresh_error.is_some());
-        !fetch_unresolved
-            && self
-                .funds
-                .with(|slot| matches!(slot, Some((cached, Ok(_))) if *cached == generation))
+        self.loaded_ready(self.funds)
     }
 
     pub(crate) fn fund_saved_count_error(&self) -> Option<String> {
-        let generation = self.session.generation.get();
-        self.funds.with(|slot| match slot {
-            Some((cached, Err(message))) if *cached == generation => Some(message.clone()),
-            _ => self.data_ops.with(|ops| ops.refresh_error.clone()),
-        })
+        self.loaded_error(self.funds)
     }
 
     /// 投資信託の基準日範囲(price_as_of)
     pub(crate) fn fund_date_range(&self) -> Option<(String, String)> {
-        let generation = self.session.generation.get();
-        self.funds.with(|slot| {
-            let Some((_cached, Ok(loaded))) =
-                slot.as_ref().filter(|(cached, _)| *cached == generation)
-            else {
-                return None;
-            };
-            let dates: Vec<String> = loaded
-                .rows
-                .iter()
-                .map(|row| row.price_as_of.to_string())
-                .collect();
-            let min = dates.iter().min()?.clone();
-            let max = dates.iter().max()?.clone();
-            Some((format_price_date(&min), format_price_date(&max)))
+        self.with_slot(self.funds, |slot| {
+            slot.and_then(|result| result.as_ref().ok())
+                .and_then(|loaded| {
+                    min_max_dates(loaded.rows.iter().map(|row| row.price_as_of.to_string()))
+                })
         })
     }
 
@@ -218,24 +232,16 @@ impl AssetBalanceCsvStore {
 
     /// 保存済みデータの基準日範囲(最小・最大)。取得済み行から算出し、未取得なら None
     pub(crate) fn date_range(&self) -> Option<(String, String)> {
-        let generation = self.session.generation.get();
-        self.balances.with(|slot| {
-            let Some((_cached, Ok(loaded))) =
-                slot.as_ref().filter(|(cached, _)| *cached == generation)
-            else {
-                return None;
-            };
-            let dates: Vec<&str> = loaded
-                .rows
-                .iter()
-                .filter_map(|row| row.price_as_of.as_deref())
-                .collect();
-            if dates.is_empty() {
-                return None;
-            }
-            let min = dates.iter().min()?;
-            let max = dates.iter().max()?;
-            Some((format_price_date(min), format_price_date(max)))
+        self.with_slot(self.balances, |slot| {
+            slot.and_then(|result| result.as_ref().ok())
+                .and_then(|loaded| {
+                    min_max_dates(
+                        loaded
+                            .rows
+                            .iter()
+                            .filter_map(|row| row.price_as_of.as_deref().map(str::to_string)),
+                    )
+                })
         })
     }
 
@@ -266,14 +272,7 @@ impl AssetBalanceCsvStore {
         generation: Generation,
         update: impl FnOnce(&mut CsvTabState<AssetBalanceCsvRow>),
     ) {
-        self.csv.update(|slot| {
-            if !matches!(slot, Some((cached, _)) if *cached == generation) {
-                *slot = Some((generation, CsvTabState::default()));
-            }
-            if let Some((_, state)) = slot {
-                update(state);
-            }
-        });
+        self.update_slot(self.csv, generation, update);
     }
 
     pub(crate) fn update_csv_fund(
@@ -281,14 +280,7 @@ impl AssetBalanceCsvStore {
         generation: Generation,
         update: impl FnOnce(&mut CsvTabState<FundBalanceCsvRow>),
     ) {
-        self.csv_fund.update(|slot| {
-            if !matches!(slot, Some((cached, _)) if *cached == generation) {
-                *slot = Some((generation, CsvTabState::default()));
-            }
-            if let Some((_, state)) = slot {
-                update(state);
-            }
-        });
+        self.update_slot(self.csv_fund, generation, update);
     }
 
     // 見出し行で国内株式/投資信託を判別し、対応する backend の検証・保存へ流す
@@ -410,39 +402,58 @@ impl AssetBalanceCsvStore {
     }
 
     fn try_begin_fund_save(&self) -> Option<(Generation, web_sys::File)> {
+        self.try_begin_save_in(self.csv_fund)
+    }
+
+    fn try_begin_save(&self) -> Option<(Generation, web_sys::File)> {
+        self.try_begin_save_in(self.csv)
+    }
+
+    fn try_begin_save_in<T: Send + Sync + 'static>(
+        &self,
+        slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
+    ) -> Option<(Generation, web_sys::File)> {
         let generation = self.current_generation()?;
         let file = self.csv_file.with_untracked(|slot| match slot {
             Some((cached, file)) if *cached == generation => Some(file.clone()),
             _ => None,
         })?;
         let mut started = false;
-        self.update_csv_fund(generation, |state| {
+        self.update_slot(slot, generation, |state| {
             started = state.has_preview_rows() && state.begin_save();
         });
         started.then_some((generation, file))
     }
 
-    pub(crate) fn apply_fund_preview_result(
+    fn apply_preview_in<T: Send + Sync + 'static, R>(
         &self,
+        slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
         generation: Generation,
-        result: Result<CsvPreviewResponse<FundBalanceCsvRow>, ApiError>,
-    ) {
+        result: Result<CsvPreviewResponse<T>, ApiError>,
+        map: impl FnOnce(&CsvPreviewResponse<T>) -> R,
+    ) -> Option<R> {
         if !self.session.is_current(generation) {
-            return;
+            return None;
         }
         match result {
-            Ok(preview) => self.update_csv_fund(generation, |state| {
-                state.finish_preview(preview);
-            }),
+            Ok(preview) => {
+                let value = map(&preview);
+                self.update_slot(slot, generation, |state| {
+                    state.finish_preview(preview);
+                });
+                Some(value)
+            }
             Err(error) => {
                 let message = error.message();
-                self.update_csv_fund(generation, |state| state.fail_preview(message));
+                self.update_slot(slot, generation, |state| state.fail_preview(message));
+                None
             }
         }
     }
 
-    pub(crate) fn apply_fund_upload_result(
+    fn apply_upload_in<T: Send + Sync + 'static>(
         &self,
+        slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
         generation: Generation,
         result: Result<CsvUploadResponse, ApiError>,
     ) -> bool {
@@ -451,7 +462,7 @@ impl AssetBalanceCsvStore {
         }
         match result {
             Ok(response) => {
-                self.update_csv_fund(generation, |state| {
+                self.update_slot(slot, generation, |state| {
                     state.finish_save(Ok(response));
                 });
                 self.csv_file.set(None);
@@ -459,12 +470,53 @@ impl AssetBalanceCsvStore {
             }
             Err(error) => {
                 let message = error.message();
-                self.update_csv_fund(generation, |state| {
+                self.update_slot(slot, generation, |state| {
                     state.finish_save(Err(message));
                 });
                 false
             }
         }
+    }
+
+    pub(crate) fn apply_fund_preview_result(
+        &self,
+        generation: Generation,
+        result: Result<CsvPreviewResponse<FundBalanceCsvRow>, ApiError>,
+    ) {
+        self.apply_preview_in(self.csv_fund, generation, result, |_| ());
+    }
+
+    // 失敗は取引明細と違って画面に出す
+    pub(crate) fn apply_preview_result(
+        &self,
+        generation: Generation,
+        result: Result<CsvPreviewResponse<AssetBalanceCsvRow>, ApiError>,
+    ) -> Option<Vec<String>> {
+        self.apply_preview_in(self.csv, generation, result, |preview| {
+            unique_sorted_codes(
+                &preview
+                    .rows
+                    .iter()
+                    .map(|row| row.security_code.clone())
+                    .collect::<Vec<_>>(),
+            )
+        })
+    }
+
+    pub(crate) fn apply_fund_upload_result(
+        &self,
+        generation: Generation,
+        result: Result<CsvUploadResponse, ApiError>,
+    ) -> bool {
+        self.apply_upload_in(self.csv_fund, generation, result)
+    }
+
+    pub(crate) fn apply_upload_result(
+        &self,
+        generation: Generation,
+        result: Result<CsvUploadResponse, ApiError>,
+    ) -> bool {
+        self.apply_upload_in(self.csv, generation, result)
     }
 
     // ---- 投資信託の全件削除(保存済みカードから呼ぶ) ----
@@ -490,15 +542,50 @@ impl AssetBalanceCsvStore {
     }
 
     fn try_begin_fund_delete(&self) -> Option<Generation> {
+        self.try_begin_delete_in(self.csv_fund, |ops| ops.fund_list_rev += 1)
+    }
+
+    fn try_begin_delete_in<T: Send + Sync + 'static>(
+        &self,
+        slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
+        bump_rev: impl FnOnce(&mut DataOps),
+    ) -> Option<Generation> {
         let generation = self.current_generation()?;
         let mut started = false;
-        self.update_csv_fund(generation, |state| {
+        self.update_slot(slot, generation, |state| {
             started = state.begin_delete();
         });
         if started {
-            self.data_ops.update(|ops| ops.fund_list_rev += 1);
+            // 先に走った一覧取得の遅れ結果が削除後の一覧を復活させないよう無効化する
+            self.data_ops.update(bump_rev);
         }
         started.then_some(generation)
+    }
+
+    fn apply_delete_in<T: Send + Sync + 'static>(
+        &self,
+        slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
+        generation: Generation,
+        result: Result<(), ApiError>,
+        on_deleted: impl FnOnce(&Self),
+    ) {
+        if !self.session.is_current(generation) {
+            return;
+        }
+        match result {
+            Ok(()) => {
+                self.update_slot(slot, generation, |state| state.finish_delete(Ok(())));
+                // 削除確定後に届く一覧取得・配当ポーリングの遅れ結果を捨てる
+                self.data_ops.update(DataOps::invalidate);
+                on_deleted(self);
+            }
+            Err(error) => {
+                let message = error.message();
+                self.update_slot(slot, generation, |state| {
+                    state.finish_delete(Err(message));
+                });
+            }
+        }
     }
 
     pub(crate) fn apply_fund_delete_result(
@@ -506,43 +593,17 @@ impl AssetBalanceCsvStore {
         generation: Generation,
         result: Result<(), ApiError>,
     ) {
-        if !self.session.is_current(generation) {
-            return;
-        }
-        match result {
-            Ok(()) => {
-                self.update_csv_fund(generation, |state| state.finish_delete(Ok(())));
-                self.data_ops.update(DataOps::invalidate);
-                self.funds.set(Some((
-                    generation,
-                    Ok(LoadedFundBalances {
-                        rows: Vec::new(),
-                        total: 0,
-                        summary: None,
-                        truncated: false,
-                    }),
-                )));
-            }
-            Err(error) => {
-                let message = error.message();
-                self.update_csv_fund(generation, |state| {
-                    state.finish_delete(Err(message));
-                });
-            }
-        }
-    }
-
-    fn try_begin_save(&self) -> Option<(Generation, web_sys::File)> {
-        let generation = self.current_generation()?;
-        let file = self.csv_file.with_untracked(|slot| match slot {
-            Some((cached, file)) if *cached == generation => Some(file.clone()),
-            _ => None,
-        })?;
-        let mut started = false;
-        self.update_csv(generation, |state| {
-            started = state.has_preview_rows() && state.begin_save();
+        self.apply_delete_in(self.csv_fund, generation, result, |store| {
+            store.funds.set(Some((
+                generation,
+                Ok(LoadedFundBalances {
+                    rows: Vec::new(),
+                    total: 0,
+                    summary: None,
+                    truncated: false,
+                }),
+            )));
         });
-        started.then_some((generation, file))
     }
 
     pub(crate) fn open_delete_confirm(&self) {
@@ -563,110 +624,28 @@ impl AssetBalanceCsvStore {
     }
 
     pub(crate) fn try_begin_delete(&self) -> Option<Generation> {
-        let generation = self.current_generation()?;
-        let mut started = false;
-        self.update_csv(generation, |state| {
-            started = state.begin_delete();
-        });
-        if started {
-            // 先に走った一覧取得の遅れ結果が削除後の一覧を復活させないよう無効化する
-            self.data_ops.update(|ops| ops.list_rev += 1);
-        }
-        started.then_some(generation)
-    }
-
-    // 失敗は取引明細と違って画面に出す
-    pub(crate) fn apply_preview_result(
-        &self,
-        generation: Generation,
-        result: Result<CsvPreviewResponse<AssetBalanceCsvRow>, ApiError>,
-    ) -> Option<Vec<String>> {
-        if !self.session.is_current(generation) {
-            return None;
-        }
-        match result {
-            Ok(preview) => {
-                let codes = unique_sorted_codes(
-                    &preview
-                        .rows
-                        .iter()
-                        .map(|row| row.security_code.clone())
-                        .collect::<Vec<_>>(),
-                );
-                self.update_csv(generation, |state| {
-                    state.finish_preview(preview);
-                });
-                Some(codes)
-            }
-            Err(error) => {
-                let message = error.message();
-                self.update_csv(generation, |state| state.fail_preview(message));
-                None
-            }
-        }
-    }
-
-    pub(crate) fn apply_upload_result(
-        &self,
-        generation: Generation,
-        result: Result<CsvUploadResponse, ApiError>,
-    ) -> bool {
-        if !self.session.is_current(generation) {
-            return false;
-        }
-        match result {
-            Ok(response) => {
-                self.update_csv(generation, |state| state.finish_save(Ok(response)));
-                self.csv_file.set(None);
-                true
-            }
-            Err(error) => {
-                let message = error.message();
-                self.update_csv(generation, |state| state.finish_save(Err(message)));
-                false
-            }
-        }
+        self.try_begin_delete_in(self.csv, |ops| ops.list_rev += 1)
     }
 
     pub(crate) fn apply_delete_result(&self, generation: Generation, result: Result<(), ApiError>) {
-        if !self.session.is_current(generation) {
-            return;
-        }
-        match result {
-            Ok(()) => {
-                self.update_csv(generation, |state| state.finish_delete(Ok(())));
-                // 削除確定後に届く一覧取得・配当ポーリングの遅れ結果を捨てる
-                self.data_ops.update(DataOps::invalidate);
-                // DELETE 成功後は DB が空なので、未取得でも空を確定して読み込み表示を残さない
-                self.balances.set(Some((
-                    generation,
-                    Ok(LoadedAssetBalances {
-                        rows: Vec::new(),
-                        total: 0,
-                        summary: None,
-                        truncated: false,
-                    }),
-                )));
-                self.dividends.set(DividendMaps::default());
-                self.lookup.update(|store| store.clear());
-            }
-            Err(error) => {
-                let message = error.message();
-                self.update_csv(generation, |state| state.finish_delete(Err(message)));
-            }
-        }
+        self.apply_delete_in(self.csv, generation, result, |store| {
+            // DELETE 成功後は DB が空なので、未取得でも空を確定して読み込み表示を残さない
+            store.balances.set(Some((
+                generation,
+                Ok(LoadedAssetBalances {
+                    rows: Vec::new(),
+                    total: 0,
+                    summary: None,
+                    truncated: false,
+                }),
+            )));
+            store.dividends.set(DividendMaps::default());
+            store.lookup.update(|store| store.clear());
+        });
     }
 }
 
-pub(crate) fn csv_preview_rows(state: &CsvTabState<AssetBalanceCsvRow>) -> Vec<AssetBalanceRow> {
-    state
-        .preview
-        .as_ref()
-        .map(|preview| preview.rows.iter().cloned().map(Row::Preview).collect())
-        .unwrap_or_default()
-}
-
-pub(crate) fn fund_csv_preview_rows(state: &CsvTabState<FundBalanceCsvRow>) -> Vec<FundBalanceRow> {
+pub(crate) fn csv_preview_rows<S, T: Clone>(state: &CsvTabState<T>) -> Vec<Row<S, T>> {
     state
         .preview
         .as_ref()
@@ -675,70 +654,56 @@ pub(crate) fn fund_csv_preview_rows(state: &CsvTabState<FundBalanceCsvRow>) -> V
 }
 
 #[derive(Clone)]
-pub(crate) struct ResolvedFundBalance {
-    pub(crate) rows: Vec<FundBalanceRow>,
+pub(crate) struct ResolvedRows<R, S> {
+    pub(crate) rows: Vec<R>,
+    /// API が返した総件数。行が欠ける(truncated)とき rows.len とは一致しない
     pub(crate) total: usize,
     pub(crate) warning: Option<String>,
-    pub(crate) fallback_totals: Option<crate::api::dto::FundBalanceSummary>,
+    /// 取得上限超過で行が欠けるときの API 集計。行が揃う通常時は None
+    pub(crate) fallback_totals: Option<S>,
+}
+
+pub(crate) type ResolvedFundBalance =
+    ResolvedRows<FundBalanceRow, crate::api::dto::FundBalanceSummary>;
+pub(crate) type ResolvedAssetBalance = ResolvedRows<AssetBalanceRow, AssetBalanceSummary>;
+
+fn resolve_balance<T: Clone, P, S: Clone>(
+    generation: Generation,
+    slot: &LoadedSlotValue<T, S>,
+) -> Option<ResolvedRows<Row<T, P>, S>> {
+    let result = slot_value(slot, generation)?;
+    Some(match result {
+        Err(_) => ResolvedRows {
+            rows: Vec::new(),
+            total: 0,
+            warning: None,
+            fallback_totals: None,
+        },
+        Ok(loaded) => ResolvedRows {
+            rows: loaded.rows.iter().cloned().map(Row::Saved).collect(),
+            total: loaded.total,
+            warning: loaded.truncated.then(truncated_list_warning),
+            fallback_totals: if loaded.truncated {
+                loaded.summary.clone()
+            } else {
+                None
+            },
+        },
+    })
 }
 
 pub(crate) fn resolve_fund_balance(
     generation: Generation,
     slot: &FundSlot,
 ) -> Option<ResolvedFundBalance> {
-    let (_, result) = slot.as_ref().filter(|(cached, _)| *cached == generation)?;
-    match result {
-        Err(_) => Some(ResolvedFundBalance {
-            rows: Vec::new(),
-            total: 0,
-            warning: None,
-            fallback_totals: None,
-        }),
-        Ok(loaded) => Some(ResolvedFundBalance {
-            rows: loaded.rows.iter().cloned().map(Row::Saved).collect(),
-            total: loaded.total,
-            warning: loaded.truncated.then(truncated_list_warning),
-            fallback_totals: if loaded.truncated {
-                loaded.summary.clone()
-            } else {
-                None
-            },
-        }),
-    }
-}
-
-pub(crate) struct ResolvedAssetBalance {
-    pub(crate) rows: Vec<AssetBalanceRow>,
-    /// API が返した総件数。行が欠ける(truncated)とき rows.len とは一致しない
-    pub(crate) total: usize,
-    pub(crate) warning: Option<String>,
-    /// 取得上限超過で行が欠けるときの API 集計。行が揃う通常時は None
-    pub(crate) fallback_totals: Option<AssetBalanceSummary>,
+    resolve_balance(generation, slot)
 }
 
 pub(crate) fn resolve_asset_balance(
     generation: Generation,
     slot: &BalanceSlot,
 ) -> Option<ResolvedAssetBalance> {
-    let (_, result) = slot.as_ref().filter(|(cached, _)| *cached == generation)?;
-    match result {
-        Err(_) => Some(ResolvedAssetBalance {
-            rows: Vec::new(),
-            total: 0,
-            warning: None,
-            fallback_totals: None,
-        }),
-        Ok(loaded) => Some(ResolvedAssetBalance {
-            rows: loaded.rows.iter().cloned().map(Row::Saved).collect(),
-            total: loaded.total,
-            warning: loaded.truncated.then(truncated_list_warning),
-            fallback_totals: if loaded.truncated {
-                loaded.summary.clone()
-            } else {
-                None
-            },
-        }),
-    }
+    resolve_balance(generation, slot)
 }
 
 #[cfg(test)]

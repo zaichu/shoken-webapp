@@ -2,19 +2,13 @@ use super::*;
 
 #[test]
 fn section_tag_is_only_collapsible() {
-    let cases: [(CardVariant, bool); 13] = [
+    let cases: [(CardVariant, bool); 7] = [
         (CardVariant::Panel, false),
         (CardVariant::Login, false),
-        (CardVariant::Table, false),
         (CardVariant::Collapsible, true),
-        (CardVariant::Shell, false),
-        (CardVariant::Soft, false),
         (CardVariant::Item, false),
         (CardVariant::Group, false),
-        (CardVariant::Holding, false),
         (CardVariant::Sunken, false),
-        (CardVariant::Strip, false),
-        (CardVariant::DashedCompact, false),
         (CardVariant::GroupLabel, false),
     ];
     for (variant, expected) in cases {
@@ -27,16 +21,10 @@ fn card_variant_classes_are_distinguishable() {
     let variants = [
         CardVariant::Panel,
         CardVariant::Login,
-        CardVariant::Table,
         CardVariant::Collapsible,
-        CardVariant::Shell,
-        CardVariant::Soft,
         CardVariant::Item,
         CardVariant::Group,
-        CardVariant::Holding,
         CardVariant::Sunken,
-        CardVariant::Strip,
-        CardVariant::DashedCompact,
         CardVariant::GroupLabel,
     ];
     let classes: Vec<String> = variants.iter().map(|variant| variant.class()).collect();

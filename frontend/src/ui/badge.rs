@@ -3,10 +3,6 @@ use leptos::prelude::*;
 /// 小さな状態バッジ(span)。押せるバッジは choice::Chip を使う。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BadgeVariant {
-    /// 絞り込み適用中
-    Accent,
-    /// プレビュー中の表示
-    AccentFlat,
     /// 保有銘柄の緑
     Positive,
 }
@@ -14,10 +10,6 @@ pub enum BadgeVariant {
 impl BadgeVariant {
     fn class(self) -> &'static str {
         match self {
-            Self::Accent => "filter-badge",
-            Self::AccentFlat => {
-                "shrink-0 rounded bg-accent-softer px-1.5 py-0.5 text-xs font-bold text-accent-text"
-            }
             Self::Positive => {
                 "inline-flex items-center rounded bg-positive-softer px-1.5 py-0.5 text-xs font-medium text-positive"
             }

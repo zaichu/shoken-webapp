@@ -895,7 +895,7 @@ impl ReceiptsTab {
     }
 
     pub(crate) fn summary_labels(self) -> [&'static str; 3] {
-        self.kind().summary_labels
+        self.kind().header_items.map(|(label, _)| label)
     }
 
     pub(crate) fn header_items(self) -> [(&'static str, bool); 3] {

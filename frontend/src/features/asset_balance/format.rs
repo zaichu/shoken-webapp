@@ -88,6 +88,23 @@ fn round_to_yen(value: f64) -> f64 {
     )
 }
 
+/// 損益セル共通の表示部品(金額・率・文字色・バッジ)
+pub(crate) fn pnl_cells(
+    amount: Option<f64>,
+    rate: Option<f64>,
+) -> (String, String, &'static str, &'static str) {
+    let text = format_signed_row_valuation_amount(amount);
+    let rate_text = format_signed_valuation_rate(rate, 1);
+    let (text_class, badge_class) = if is_negative_valuation(amount) {
+        ("text-negative", "asset-badge asset-badge-loss")
+    } else if is_positive_valuation(amount) {
+        ("text-positive", "asset-badge asset-badge-gain")
+    } else {
+        ("text-text-soft", "asset-badge")
+    };
+    (text, rate_text, text_class, badge_class)
+}
+
 pub(crate) fn is_negative_valuation(amount: Option<f64>) -> bool {
     amount.is_some_and(|value| round_to_yen(value) < 0.0)
 }
