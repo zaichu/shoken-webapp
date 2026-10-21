@@ -104,9 +104,12 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
   expect(noteBox).not.toBeNull();
   expect(basisBox).not.toBeNull();
   if (band && noteBox && basisBox) {
-    // 注記は帯の直下で、「計算基準を見る」より上に置く
+    // 注記は帯の直下にあり、「計算基準を見る」は注記と同じ行の右端に置く
     expect(noteBox.y).toBeGreaterThanOrEqual(band.y + band.height - 1);
-    expect(noteBox.y + noteBox.height).toBeLessThanOrEqual(basisBox.y + 1);
+    expect(basisBox.y).toBeGreaterThanOrEqual(band.y + band.height - 1);
+    expect(basisBox.y).toBeLessThanOrEqual(noteBox.y + noteBox.height);
+    expect(basisBox.y + basisBox.height).toBeGreaterThanOrEqual(noteBox.y);
+    expect(basisBox.x).toBeGreaterThan(noteBox.x);
   }
 
   // 「すべて」タブも件数だけ。株の注記は帯の直下に残る

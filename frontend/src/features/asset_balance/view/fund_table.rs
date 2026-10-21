@@ -1,7 +1,7 @@
 use super::day_change::{DAY_CHANGE_COLUMN_NOTE, day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, pnl_cells,
+    format_row_valuation_amount, format_unit_price, pnl_cells, unit_price_decimals,
 };
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::model::format_number_value;
@@ -16,6 +16,8 @@ pub fn FundHoldingsTable(
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
+    // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
+    let base_price_decimals = unit_price_decimals(views.iter().map(|view| view.base_price));
     view! {
         <div data-testid="asset-fund-table">
             <table class="asset-table">
@@ -63,7 +65,7 @@ pub fn FundHoldingsTable(
                                         {format!("{}口", format_number_value(view.shares))}
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        {format_currency(view.base_price)}
+                                        {format_unit_price(view.base_price, base_price_decimals)}
                                     </td>
                                     <td
                                         class="col-num"
@@ -100,6 +102,8 @@ pub fn FundHoldingsTable(
 /// スマホのファンド一覧。1行は「ファンド名 + 評価額」と「口座・口数・基準価額 + 損益」
 #[component]
 pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
+    // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
+    let base_price_decimals = unit_price_decimals(views.iter().map(|view| view.base_price));
     view! {
         <ul class="asset-compact-list" data-testid="asset-fund-list">
             {views
@@ -110,7 +114,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     let meta = format!(
                         "{}口 ・ 基準価額 {}",
                         format_number_value(view.shares),
-                        format_currency(view.base_price),
+                        format_unit_price(view.base_price, base_price_decimals),
                     );
                     let inner = view! {
                         <>

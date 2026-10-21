@@ -1,7 +1,8 @@
 use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, pnl_cells, price_date_outliers,
+    format_row_valuation_amount, format_unit_price, pnl_cells, price_date_outliers,
+    unit_price_decimals,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
@@ -32,6 +33,25 @@ pub fn AssetHoldingsTable(
             .collect::<Vec<_>>(),
         price_date_rep.as_deref(),
     );
+    // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
+    let average_price_decimals = unit_price_decimals(views.iter().map(|view| view.average_price));
+    let current_price_decimals = unit_price_decimals(views.iter().map(|view| view.current_price));
+    let row_dividends: Vec<_> = views
+        .iter()
+        .map(|view| {
+            holding_dividend(
+                &view.code,
+                view.shares,
+                view.average_price,
+                &dividends.get(),
+            )
+        })
+        .collect();
+    let dividend_decimals = unit_price_decimals(
+        row_dividends
+            .iter()
+            .filter_map(|dividend| dividend.per_share),
+    );
     view! {
         <div data-testid="asset-holdings-table">
             <table class="asset-table">
@@ -45,7 +65,7 @@ pub fn AssetHoldingsTable(
                         <th scope="col" class="col-num">"現在値"</th>
                         <th scope="col" class="col-num">"前日比"</th>
                         {sort_header("評価額", SortKey::MarketValue, sort_key, sort_order)}
-                        {sort_header("含み損益", SortKey::ProfitLoss, sort_key, sort_order)}
+                        {sort_header("評価損益", SortKey::ProfitLoss, sort_key, sort_order)}
                         <th scope="col" class="col-num">"1株配当"</th>
                         {sort_header("年間配当", SortKey::Dividend, sort_key, sort_order)}
                         {sort_header("取得額利回り", SortKey::Yield, sort_key, sort_order)}
@@ -55,19 +75,15 @@ pub fn AssetHoldingsTable(
                     {views
                         .into_iter()
                         .zip(date_outliers)
-                        .map(|(view, is_outlier)| {
+                        .zip(row_dividends)
+                        .map(|((view, is_outlier), dividend)| {
                             let valuation = holding_valuation(&ValuationInput::from(&view));
                             let market_text = format_row_valuation_amount(valuation.market_value);
                             let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
                                 pnl_cells(valuation.profit_loss.amount, valuation.profit_loss.rate);
-                            let dividend = holding_dividend(
-                                &view.code,
-                                view.shares,
-                                view.average_price,
-                                &dividends.get(),
-                            );
                             let dividend_annual = format_dividend_annual(&dividend);
-                            let dividend_per_share = format_dividend_per_share(&dividend);
+                            let dividend_per_share =
+                                format_dividend_per_share(&dividend, dividend_decimals);
                             let dividend_yield = format_dividend_yield(&dividend);
                             let href = view
                                 .id
@@ -83,7 +99,7 @@ pub fn AssetHoldingsTable(
                                     <td class="col-text">
                                         <TableSecurityCode code=view.code.clone() />
                                     </td>
-                                    <td class="asset-name-cell col-text" title=view.name.clone()>
+                                    <td class="asset-name-cell asset-name-cell-narrow col-text" title=view.name.clone()>
                                         <TableNameLink href=href name=view.name.clone() />
                                     </td>
                                     <td class="col-text">
@@ -98,10 +114,10 @@ pub fn AssetHoldingsTable(
                                         {format!("{}株", format_number_value(view.shares))}
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        {format_currency(view.average_price)}
+                                        {format_unit_price(view.average_price, average_price_decimals)}
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        {format_currency(view.current_price)}
+                                        {format_unit_price(view.current_price, current_price_decimals)}
                                     </td>
                                     <td class="col-num">
                                         {day_change_cell(view.day_change, outlier_date)}

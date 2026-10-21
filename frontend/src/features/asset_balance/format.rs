@@ -2,7 +2,7 @@ use crate::features::asset_balance::model::{format_abs_number, to_fixed};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use shared::format::{
-    format_currency as format_currency_decimal,
+    format_currency as format_currency_decimal, format_currency_with_options,
     format_percentage_value as format_percentage_value_decimal,
 };
 
@@ -54,6 +54,50 @@ pub(crate) fn format_currency(value: f64) -> String {
         || format_currency_beyond_decimal(value),
         format_currency_decimal,
     )
+}
+
+/// 1株・1口あたりの金額(取得単価・現在値・基準価額・1株配当)の小数桁の上限
+const UNIT_PRICE_DECIMALS_MAX: u32 = 2;
+
+/// 列の中の値の小数桁(最大2桁)。同じ列の中の桁をそろえるための値で、
+/// 整数円の値しかない列は0桁になる(不要な .00 を付けない)
+pub(crate) fn unit_price_decimals(values: impl Iterator<Item = f64>) -> u32 {
+    values
+        .filter_map(|value| decimal_places(&format_currency(value)))
+        .max()
+        .unwrap_or(0)
+        .min(UNIT_PRICE_DECIMALS_MAX)
+}
+
+fn decimal_places(text: &str) -> Option<u32> {
+    let (_, fraction) = text.split_once('.')?;
+    Some(fraction.len() as u32)
+}
+
+/// 1株・1口あたりの金額(取得単価・現在値・基準価額・1株配当)。
+/// 小数点以下は列ごとに決めた桁数(decimals)で固定する
+pub(crate) fn format_unit_price(value: f64, decimals: u32) -> String {
+    f64_to_decimal(value).map_or_else(
+        || format_unit_price_beyond_decimal(value, decimals),
+        |value| format_currency_with_options(value, "¥", decimals, decimals),
+    )
+}
+
+// Decimal に収まらない値でも小数桁をそろえて出す
+fn format_unit_price_beyond_decimal(value: f64, decimals: u32) -> String {
+    let rounded = to_fixed(value, decimals);
+    let Some(body) = format_abs_number(rounded) else {
+        return "—".to_string();
+    };
+    let (integer, fraction) = body
+        .split_once('.')
+        .map_or((body.as_str(), ""), |(i, f)| (i, f));
+    let fraction = format!("{fraction:0<width$}", width = decimals as usize);
+    if value < 0.0 {
+        format!("-¥{integer}.{fraction}")
+    } else {
+        format!("¥{integer}.{fraction}")
+    }
 }
 
 pub(crate) fn format_fixed_percent(value: f64, decimals: u32) -> String {

@@ -141,7 +141,7 @@ test('一覧に無い文字列を入れるとフィルタ済み空状態と解�
   await gotoAssetBalance(page);
 
   await page.getByTestId('asset-search-input').fill('9999');
-  const heading = page.getByRole('heading', { name: '該当する銘柄がありません' });
+  const heading = page.getByRole('heading', { name: '条件に合う保有がありません' });
   await expect(heading).toBeVisible();
   const clearButton = page.getByRole('button', { name: '絞り込みを解除' });
   await expect(clearButton).toBeVisible();

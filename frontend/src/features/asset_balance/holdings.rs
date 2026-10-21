@@ -1,4 +1,4 @@
-use super::format::{dec_to_f64, format_currency, format_percentage_value};
+use super::format::{dec_to_f64, format_currency, format_percentage_value, format_unit_price};
 use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::model::{ValuationInput, normalize_display_name};
 use crate::features::dividend_per_share::DividendMaps;
@@ -117,7 +117,7 @@ pub(crate) fn holding_dividend(
 fn format_dividend_value(
     dividend: &HoldingDividend,
     value: Option<f64>,
-    format: fn(f64) -> String,
+    format: impl Fn(f64) -> String,
 ) -> String {
     match dividend.status.as_deref() {
         Some("pending") => "取得中...".to_string(),
@@ -126,8 +126,11 @@ fn format_dividend_value(
     }
 }
 
-pub(crate) fn format_dividend_per_share(dividend: &HoldingDividend) -> String {
-    format_dividend_value(dividend, dividend.per_share, format_currency)
+/// 1株配当。列の中で小数桁がそろうよう decimals を渡す
+pub(crate) fn format_dividend_per_share(dividend: &HoldingDividend, decimals: u32) -> String {
+    format_dividend_value(dividend, dividend.per_share, |value| {
+        format_unit_price(value, decimals)
+    })
 }
 
 pub(crate) fn format_dividend_annual(dividend: &HoldingDividend) -> String {

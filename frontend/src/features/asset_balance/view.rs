@@ -14,7 +14,6 @@ mod search_bar;
 mod sort_bar;
 mod sort_header;
 mod summary;
-mod summary_strip;
 
 #[cfg(test)]
 #[path = "view/tests/suite.rs"]
