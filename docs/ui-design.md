@@ -16,6 +16,36 @@
 - 色は意味のあるもの(損益の正負・選択状態・警告/危険)だけ
 - スマホの主要操作は親指が届く画面下部に置く。タップ領域は 44px 以上、入力の文字は 16px 以上
 
+## 用語と書式(全画面の共通ルール)
+
+画面に出す用語・書式は1か所に定義し、全画面がそれを使う。画面ごとに同じ意味の文言や
+書式関数を書かない(|Issue #1467|)。
+
+### 用語は `frontend/src/ui/labels.rs`
+
+- 評価額・評価損益・前日比・取得総額・年間配当・取得額利回り・1株配当・口座・分配金コース・
+  税額・税引後・数量・実現損益など、画面のラベルは `labels.rs` の定数(`&'static str`)で定義する
+- 文言が画面ごとに違うときは「対象名を引数にした関数」にする
+  (`search_placeholder(対象名)` / `pick_title(対象名)` / `count(件数)` / `group_count(見出し, 件数)`)
+- 欠測表示は `MISSING`("—")、更新待ちの表示は `PENDING_UPDATE`("更新待ち")を使う
+- **新しい文言は用語集に足してから使う**。画面側に直接書かない
+
+### 書式は `frontend/src/ui/format.rs`
+
+- 金額(円マーク・桁区切り・符号)は `format_currency` / `format_row_valuation_amount`、
+  率は `format_fixed_percent` / `format_percentage_value`、数量は `format_number_value` を使う
+- 1株・1口あたりの金額(取得単価・現在値・基準価額・1株配当)は `format_unit_price` を使い、
+  列の中の桁は `unit_price_decimals` でそろえる(整数円の値しかない列は0桁)
+- 日付は `format_price_date`(基準日 "MM/DD") / `format_iso_date`("YYYY/MM/DD") /
+  `format_short_date`("M/D") を使い、基準日の注記は `labels::price_as_of`("10/21 時点")にする
+- 同じ意味の書式関数を作らない。作りたくなったら `format.rs` に足す
+
+### 検査
+
+- `labels.rs` の単体テストが、統一前の語(「含み損益」「評価額(投資信託)」「絞り込み」ほか)が
+  `frontend/src` の他のソースに現れないことを確かめる。新しい画面作るときは通ること
+- 検査は文言の完全一致ではなく、**定義の重複**を禁じるもの
+
 ## 共通の型
 
 ```text

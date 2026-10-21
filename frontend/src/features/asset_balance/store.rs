@@ -5,7 +5,6 @@ use crate::api::dto::{AssetBalance, AssetBalanceSummary, FundBalance, FundBalanc
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::lookup::{AssetBalanceLookupStore, fetch_single_asset_balance};
-use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::search::filter_asset_balances;
 use crate::features::dividend_per_share::{
     DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS, DividendMaps, dividend_maps_from_batch,
@@ -15,6 +14,7 @@ use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fetch_all_pages};
 use crate::support::row::Row;
+use crate::ui::format::format_number_value;
 use leptos::prelude::*;
 use std::collections::HashSet;
 

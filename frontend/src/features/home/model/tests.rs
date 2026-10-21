@@ -285,35 +285,6 @@ fn annual_forecast_uses_per_share_and_shares() {
 }
 
 #[test]
-fn jst_date_rolls_over_at_nine_am_boundary() {
-    // UTC の午前9時を境に JST の日付が1日進む
-    assert_eq!(jst_date("2026-10-17T15:00:00Z"), Some((2026, 10, 18)));
-    assert_eq!(jst_date("2026-10-17T14:59:59Z"), Some((2026, 10, 17)));
-    // 月末・年末の繰り上がり
-    assert_eq!(jst_date("2026-10-31T20:00:00Z"), Some((2026, 11, 1)));
-    assert_eq!(jst_date("2025-12-31T18:30:00Z"), Some((2026, 1, 1)));
-    // 日付だけなら時刻 0 扱いで繰り上がらない
-    assert_eq!(jst_date("2026-10-18"), Some((2026, 10, 18)));
-    assert_eq!(jst_date("not-a-date"), None);
-    assert_eq!(jst_date(""), None);
-}
-
-#[test]
-fn latest_import_label_picks_newest() {
-    let stamps = [
-        "2026-10-10T00:00:00Z",
-        "2026-10-18T14:00:00Z",
-        "2026-10-18T16:00:00Z", // JST では 10/19
-        "garbage",
-    ];
-    assert_eq!(
-        latest_import_label(stamps.iter().copied()),
-        Some("2026/10/19".to_string())
-    );
-    assert_eq!(latest_import_label([].iter().copied()), None);
-}
-
-#[test]
 fn remaining_label_writes_overage_as_exceeding() {
     // 受取が予想を超えたら負の残りではなく「上回り」に書き分ける
     assert_eq!(remaining_label(Some(-17_500.0)), "予想を ¥17,500 上回り");

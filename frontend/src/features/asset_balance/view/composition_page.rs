@@ -1,11 +1,11 @@
 use super::use_asset_balance_state;
-use crate::features::asset_balance::format::{
-    format_amount, format_currency, format_fixed_percent,
-};
+use crate::features::asset_balance::format::format_amount;
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::portfolio::chart_plan;
 use crate::features::asset_balance::store::{filtered_portfolio, load_asset_balances};
 use crate::session::use_session;
+use crate::ui::format::{format_currency, format_fixed_percent};
+use crate::ui::labels::TOTAL_ACQUISITION;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
@@ -138,7 +138,9 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                             "対象: 保存済みの保有全体"
                                         </p>
                                         <p class="mt-1 text-sm">
-                                            "基準(取得総額): "
+                                            "基準("
+                                            {TOTAL_ACQUISITION}
+                                            "): "
                                             <strong class="tabular-nums">
                                                 {format_amount(total_purchase)}
                                             </strong>

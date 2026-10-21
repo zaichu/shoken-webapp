@@ -5,10 +5,9 @@ use super::model::{self, CompositionSlice};
 use super::store::{self, HomeOverviewData};
 use crate::api::dto::{AssetBalance, AssetBalanceSummary, FundBalance};
 use crate::features::asset_balance::{
-    LoadedAssetBalances, LoadedFundBalances, dec_to_f64, format_currency,
-    format_signed_row_valuation_amount, format_signed_valuation_amount,
-    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
-    is_positive_valuation, summary_valuation,
+    LoadedAssetBalances, LoadedFundBalances, dec_to_f64, format_signed_row_valuation_amount,
+    format_signed_valuation_amount, format_signed_valuation_rate, format_valuation_amount,
+    is_negative_valuation, is_positive_valuation, summary_valuation,
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
@@ -16,6 +15,10 @@ use crate::ui::amount::Amount;
 use crate::ui::badge::{AccountBadge, account_display_name};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
+use crate::ui::format::{
+    format_currency, format_integer_percent, format_latest_import_date, format_short_date,
+};
+use crate::ui::labels::{ANNUAL_EXPECTED_DIVIDEND, MARKET_VALUE, MISSING, VALUATION_PROFIT_LOSS};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
 use leptos::prelude::*;
@@ -80,7 +83,7 @@ pub fn HomePage() -> impl IntoView {
         if let Some(loaded) = store::current_summary(data.funds, generation).flatten() {
             stamps.extend(loaded.rows.iter().map(|row| row.updated_at.clone()));
         }
-        model::latest_import_label(stamps.iter().map(String::as_str))
+        format_latest_import_date(stamps.iter().map(String::as_str))
     });
     let links: Children = Box::new(move || {
         view! {
@@ -257,7 +260,7 @@ fn BandTiles(
     loading: bool,
 ) -> impl IntoView {
     let market_text = if loading {
-        "—".to_string()
+        MISSING.to_string()
     } else {
         format_valuation_amount(
             merged
@@ -277,12 +280,12 @@ fn BandTiles(
         ""
     };
     let profit_text = if loading {
-        "—".to_string()
+        MISSING.to_string()
     } else {
         valuation
             .as_ref()
             .map(|valuation| format_signed_valuation_amount(valuation.profit_loss.amount))
-            .unwrap_or_else(|| "—".to_string())
+            .unwrap_or_else(|| MISSING.to_string())
     };
     let profit_rate = valuation
         .as_ref()
@@ -292,12 +295,12 @@ fn BandTiles(
     let maps = estimates.as_ref().and_then(|slot| slot.as_ref());
     let kpi = maps.map(|maps| model::annual_dividend_forecast(&stocks, maps));
     let dividend_text = if estimates_pending || maps.is_none() {
-        "—".to_string()
+        MISSING.to_string()
     } else {
         kpi.as_ref()
             .and_then(|kpi| kpi.total_annual_dividends)
             .map_or_else(
-                || "—".to_string(),
+                || MISSING.to_string(),
                 |amount| format_valuation_amount(Some(amount)),
             )
     };
@@ -310,13 +313,13 @@ fn BandTiles(
     view! {
         <dl class="asset-summary-grid">
             <div class="asset-summary-item asset-summary-item-primary">
-                <dt>"評価額"</dt>
+                <dt>{MARKET_VALUE}</dt>
                 <dd>
                     <Amount text=market_text class="asset-summary-primary-amount".to_string() />
                 </dd>
             </div>
             <div class="asset-summary-item asset-summary-item-pnl">
-                <dt class="sr-only lg:not-sr-only">"評価損益"</dt>
+                <dt class="sr-only lg:not-sr-only">{VALUATION_PROFIT_LOSS}</dt>
                 <dd>
                     <Amount
                         text=profit_text
@@ -332,7 +335,7 @@ fn BandTiles(
                 </dd>
             </div>
             <div class="asset-summary-item asset-summary-item-sub1">
-                <dt>"年間予想配当(税引前)"</dt>
+                <dt>{ANNUAL_EXPECTED_DIVIDEND}</dt>
                 <dd>
                     <Amount text=dividend_text class="asset-summary-sub-amount".to_string() />
                     {estimate_note.map(|note| {
@@ -375,13 +378,6 @@ fn CardError(#[prop(into)] message: String) -> impl IntoView {
         <div class="px-4 py-3">
             <Alert variant=AlertVariant::Warning>{message}</Alert>
         </div>
-    }
-}
-
-fn short_date(date: &str) -> String {
-    match model::jst_date(date) {
-        Some((_, m, d)) => format!("{m}/{d}"),
-        None => "—".to_string(),
     }
 }
 
@@ -462,10 +458,9 @@ fn DividendCardBody(
     let forecast = model
         .forecast_net
         .map(|v| format_valuation_amount(Some(v)))
-        .unwrap_or_else(|| "—".to_string());
+        .unwrap_or_else(|| MISSING.to_string());
     let progress_pct = model.progress.map(|p| p * 100.0);
-    let progress_text =
-        progress_pct.map_or_else(|| "—".to_string(), |p| format!("{}%", p.round() as i64));
+    let progress_text = progress_pct.map_or_else(|| MISSING.to_string(), format_integer_percent);
     let remaining_text = model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
     let previous_span = match model.previous_remaining {
@@ -479,7 +474,7 @@ fn DividendCardBody(
     let yoy_text = model
         .yoy_diff
         .map(|diff| format_signed_valuation_amount(Some(dec_to_f64(&diff))))
-        .unwrap_or_else(|| "—".to_string());
+        .unwrap_or_else(|| MISSING.to_string());
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
             <span class="text-sm">
@@ -729,7 +724,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                                     <span class=format!("home-swatch {class}")></span>
                                                     <span class="truncate text-text-soft">{slice.label.clone()}</span>
                                                     <span class="tabular-nums text-text-muted">
-                                                        {format!("{}%", pct.round() as i64)}
+                                                        {format_integer_percent(*pct)}
                                                     </span>
                                                 </li>
                                             }
@@ -775,7 +770,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                                     <span class=format!("home-swatch {class}")></span>
                                                     <AccountBadge label=slice.label.clone() />
                                                     <span class="tabular-nums text-text-muted">
-                                                        {format!("{}%", pct.round() as i64)}
+                                                        {format_integer_percent(pct)}
                                                     </span>
                                                 </li>
                                             }
@@ -822,14 +817,14 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                             .iter()
                             .map(|row| {
                                 let code = if row.security_code.is_empty() {
-                                    "—".to_string()
+                                    MISSING.to_string()
                                 } else {
                                     row.security_code.clone()
                                 };
                                 view! {
                                     <li class="home-dividend-row">
                                         <span class="home-dividend-date">
-                                            {short_date(&row.settlement_date)}
+                                            {format_short_date(&row.settlement_date)}
                                         </span>
                                         <span class="home-dividend-code">{code}</span>
                                         <span class="home-dividend-name" title=row.security_name.clone()>
@@ -953,7 +948,7 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
                     {holding
                         .rate
                         .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-                        .unwrap_or_else(|| "—".to_string())}
+                        .unwrap_or_else(|| MISSING.to_string())}
                 </span>
             </a>
         </li>

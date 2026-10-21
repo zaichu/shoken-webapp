@@ -1,4 +1,5 @@
 use super::*;
+use crate::ui::format::to_fixed;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -405,49 +406,6 @@ fn summary_valuation_zero_purchase_has_amount_but_no_rate() {
 }
 
 #[test]
-fn to_fixed_matches_js_boundary_cases() {
-    assert_eq!(to_fixed(0.125, 2), 0.13);
-    assert_eq!(to_fixed(2.675, 2), 2.67);
-    assert_eq!(to_fixed(1.005, 2), 1.0);
-    assert_eq!(to_fixed(201.0 / 20000.0 * 100.0, 2), 1.0);
-    assert_eq!(to_fixed(-0.125, 2), -0.13);
-    assert_eq!(to_fixed(-1.005, 2), -1.0);
-    assert_eq!(to_fixed(12.5, 0), 13.0);
-    assert_eq!(to_fixed(-12.5, 0), -13.0);
-    assert_eq!(to_fixed(0.1 + 0.2, 10), 0.3);
-    // 非正規化数は仮数部と指数を別分岐で取り出す
-    assert_eq!(to_fixed(f64::from_bits(1), 2), 0.0);
-    assert!(to_fixed(-f64::from_bits(1), 2).is_sign_negative());
-    // 仮数の最上位ビットが立つ値は暗黙の 1 ビット合成で値が変わる
-    assert_eq!(to_fixed(0.75, 0), 1.0);
-    assert_eq!(to_fixed(-0.75, 0), -1.0);
-    let negative_zero = to_fixed(-0.001, 2);
-    assert_eq!(negative_zero, 0.0);
-    assert!(negative_zero.is_sign_negative());
-    assert!(!to_fixed(-0.0, 2).is_sign_negative());
-}
-
-#[test]
-fn intl_fixed_matches_number_format_boundary_cases() {
-    // toFixed とは異なり、最短10進表記を10進の値として半分以上で切り上げる
-    assert_eq!(intl_fixed(1.005, 2), 1.01);
-    assert_eq!(intl_fixed(2.675, 2), 2.68);
-    assert_eq!(intl_fixed(-1.005, 2), -1.01);
-    assert_eq!(intl_fixed(-2.675, 2), -2.68);
-    assert_eq!(intl_fixed(0.995, 2), 1.0);
-    assert_eq!(intl_fixed(1.004, 2), 1.0);
-    assert_eq!(intl_fixed(0.125, 2), 0.13);
-    assert_eq!(intl_fixed(1.5, 2), 1.5);
-    assert_eq!(intl_fixed(100.0, 2), 100.0);
-    let negative_zero = intl_fixed(-0.001, 2);
-    assert_eq!(negative_zero, 0.0);
-    assert!(negative_zero.is_sign_negative());
-    // Decimal に載らない巨大値は to_fixed にフォールバックする
-    assert_eq!(intl_fixed(1e30, 2), 1e30);
-    assert_eq!(intl_fixed(f64::INFINITY, 2), f64::INFINITY);
-}
-
-#[test]
 fn safe_add_rounds_floating_point_noise() {
     assert_eq!(safe_add(0.1, 0.2), 0.3);
     assert_eq!(safe_add(10.0, 20.0), 30.0);
@@ -524,47 +482,6 @@ fn security_normalization_covers_code_and_name_cases() {
 }
 
 proptest::proptest! {
-    #[test]
-    fn prop_group_thousands_positions(digits in "[0-9]{1,15}") {
-        let grouped = group_thousands(&digits);
-        proptest::prop_assert_eq!(grouped.replace(',', ""), digits);
-        for (position, character) in grouped.chars().enumerate() {
-            if character == ',' {
-                proptest::prop_assert_eq!((grouped.len() - position) % 4, 0);
-            }
-        }
-    }
-
-    #[test]
-    fn prop_to_fixed_symmetric_and_quantized(
-        mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
-        divisor in 1u32..=6u32,
-        decimals in 0u32..=5u32,
-    ) {
-        let value = mantissa as f64 / 10f64.powi(divisor as i32);
-        let result = to_fixed(value, decimals);
-        proptest::prop_assert_eq!(to_fixed(-value, decimals), -result);
-        let unit = 10f64.powi(-(decimals as i32));
-        proptest::prop_assert!((result - value).abs() <= 0.51 * unit);
-        let scaled = result / unit;
-        proptest::prop_assert!(
-            (scaled - scaled.round()).abs() <= 1e-9 * scaled.abs() + 1e-9
-        );
-    }
-
-    #[test]
-    fn prop_intl_fixed_symmetric_and_quantized(
-        mantissa in -9_999_999_999_999i64..9_999_999_999_999i64,
-        divisor in 1u32..=6u32,
-        decimals in 0u32..=5u32,
-    ) {
-        let value = mantissa as f64 / 10f64.powi(divisor as i32);
-        let result = intl_fixed(value, decimals);
-        proptest::prop_assert_eq!(intl_fixed(-value, decimals), -result);
-        let unit = 10f64.powi(-(decimals as i32));
-        proptest::prop_assert!((result - value).abs() <= 0.6 * unit);
-    }
-
     #[test]
     fn prop_composition_percentages_sum_to_100(
         values in proptest::collection::vec(0.0001f64..1_000_000.0f64, 1..8usize),

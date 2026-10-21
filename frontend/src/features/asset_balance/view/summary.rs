@@ -1,8 +1,7 @@
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::features::asset_balance::format::{
-    dec_to_f64, format_amount, format_nav_updated_at, format_percentage_value, format_price_date,
-    format_signed_row_valuation_amount, format_signed_valuation_amount,
+    dec_to_f64, format_amount, format_signed_row_valuation_amount, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation, price_date_representative,
 };
@@ -16,6 +15,11 @@ use crate::features::asset_balance::model::{
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
+use crate::ui::format::{format_nav_updated_at, format_percentage_value};
+use crate::ui::labels::{
+    self, ACQUISITION_YIELD, ANNUAL_DIVIDEND_FORECAST, DAY_CHANGE, MARKET_VALUE_TOTAL,
+    TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
+};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use shared::domain::FundNavStatus;
@@ -40,11 +44,11 @@ fn missing_day_change_suffix(has_missing: bool) -> &'static str {
 /// PC ヘッダー横の件数。取得上限超過で行が欠けるときは API 集計側の件数を使い、
 /// 集計欄と食い違わないようにする。基準日と除外した行の説明は帯の直下の注記に出す
 pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
-    format!("{}件", view.total)
+    labels::count(view.total)
 }
 
 pub(crate) fn fund_subtitle(view: &ResolvedFundBalance) -> String {
-    format!("{}件", view.total)
+    labels::count(view.total)
 }
 
 pub(crate) fn merged_subtitle(
@@ -56,7 +60,7 @@ pub(crate) fn merged_subtitle(
     }
     let count =
         stock.map(|view| view.total).unwrap_or(0) + fund.map(|view| view.total).unwrap_or(0);
-    Some(format!("{count}件"))
+    Some(labels::count(count))
 }
 
 /// 「前日比が最新」の件数(前日比を持ち合計に入る行)。
@@ -131,7 +135,7 @@ pub(crate) fn stock_note(view: &ResolvedAssetBalance) -> String {
 
 fn stock_note_text(has_unpriced: bool, has_missing_daily: bool, dates: &[&str]) -> String {
     let base = match price_date_representative(dates.iter().copied()) {
-        Some(date) => format!("株価 {} 時点(銘柄ごとの最新終値)", format_price_date(date)),
+        Some(date) => format!("株価 {}(銘柄ごとの最新終値)", labels::price_as_of(date)),
         None => "株価の基準日は不明".to_string(),
     };
     format!(
@@ -191,13 +195,13 @@ pub(crate) fn stock_summary_values(
     };
     let tags = vec![
         SummaryTag {
-            label: "年間配当(予想)",
+            label: ANNUAL_DIVIDEND_FORECAST,
             value: kpi
                 .total_annual_dividends
                 .map_or("—".to_string(), format_amount),
         },
         SummaryTag {
-            label: "取得額利回り",
+            label: ACQUISITION_YIELD,
             value: kpi
                 .dividend_yield
                 .map_or("—".to_string(), format_percentage_value),
@@ -209,7 +213,7 @@ pub(crate) fn stock_summary_values(
 /// 投資信託・すべてのタブの補助の札(取得総額)
 pub(crate) fn purchase_summary_tag(purchase: f64) -> SummaryTag {
     SummaryTag {
-        label: "取得総額",
+        label: TOTAL_ACQUISITION,
         value: format_valuation_amount(Some(purchase)),
     }
 }
@@ -285,7 +289,7 @@ pub(crate) fn AssetSummaryBand(
             <div class="asset-summary-grid" data-testid="portfolio-kpi-grid">
                 <dl class="asset-summary-main">
                     <div class="asset-summary-item asset-summary-item-primary">
-                        <dt>"評価額合計"</dt>
+                        <dt>{MARKET_VALUE_TOTAL}</dt>
                         <dd>
                             <Amount
                                 text=market_text
@@ -294,7 +298,7 @@ pub(crate) fn AssetSummaryBand(
                         </dd>
                     </div>
                     <div class="asset-summary-item asset-summary-item-pnl">
-                        <dt class="sr-only lg:not-sr-only">"評価損益"</dt>
+                        <dt class="sr-only lg:not-sr-only">{VALUATION_PROFIT_LOSS}</dt>
                         <dd>
                             <Amount
                                 text=profit_text
@@ -310,7 +314,7 @@ pub(crate) fn AssetSummaryBand(
                         </dd>
                     </div>
                     <div class="asset-summary-item asset-summary-item-sub3 asset-summary-item-daily">
-                        <dt>"前日比"</dt>
+                        <dt>{DAY_CHANGE}</dt>
                         <dd>
                             <Amount
                                 text=daily_text

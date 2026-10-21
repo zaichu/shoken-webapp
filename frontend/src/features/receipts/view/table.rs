@@ -10,6 +10,7 @@ use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::kind::TableGroup;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::badge::AccountBadge;
+use crate::ui::labels::{self, AFTER_TAX};
 use crate::ui::security_link::{CopyableInstrumentName, TableSecurityCode};
 use leptos::prelude::*;
 use std::collections::HashSet;
@@ -267,7 +268,7 @@ pub fn ReceiptTable(
                                                             >
                                                                 <span class="font-bold">{group.label.clone()}</span>
                                                                 <span class="ml-2 font-normal">
-                                                                    {format!("· {count}件")}
+                                                                    {format!("· {}", labels::count(count))}
                                                                 </span>
                                                             </td>
                                                         }
@@ -282,7 +283,7 @@ pub fn ReceiptTable(
                                                             && is_negative_text(value);
                                                         // 見本では小計の税引後も強調する
                                                         let bold = compact_mobile
-                                                            && *label == "税引後";
+                                                            && *label == AFTER_TAX;
                                                         view! {
                                                             <td
                                                                 class=format!(

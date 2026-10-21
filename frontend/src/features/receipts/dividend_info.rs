@@ -1,7 +1,7 @@
 use super::ReceiptRow;
 use crate::api::ApiClient;
 use crate::api::dto::AssetBalance;
-use crate::features::asset_balance::{fetch_single_asset_balance, find_by_code, to_fixed};
+use crate::features::asset_balance::{fetch_single_asset_balance, find_by_code};
 use crate::features::dividend_per_share::{
     DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS, dividend_maps_from_batch,
     dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch,
@@ -14,6 +14,11 @@ use crate::support::list_search::is_searchable_code;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
+use crate::ui::format::format_percentage_value;
+use crate::ui::labels::{
+    AFTER_TAX_AND_YIELD, AVERAGE_PURCHASE_PRICE, DIVIDEND_AMOUNT_AND_YIELD, HOLDING_QUANTITY_CARD,
+    MISSING, PER_SHARE_DIVIDEND_CARD, TAX,
+};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
@@ -30,13 +35,6 @@ pub(crate) fn search_security_code(rows: &[ReceiptRow], query: &str) -> String {
     } else {
         String::new()
     }
-}
-
-fn format_percentage_value(value: f64) -> String {
-    if value.is_nan() {
-        return "—".to_string();
-    }
-    format!("{:.2}%", to_fixed(value, 2))
 }
 
 fn investment_amount(asset: &AssetBalance) -> f64 {
@@ -57,7 +55,7 @@ fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
     } else {
         per_share
             .and_then(|value| value.to_string().parse::<Decimal>().ok())
-            .map_or_else(|| "—".to_string(), format_currency)
+            .map_or_else(|| MISSING.to_string(), format_currency)
     }
 }
 
@@ -234,33 +232,33 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
 
     let average_price_text = move || {
         asset().map_or_else(
-            || "—".to_string(),
+            || MISSING.to_string(),
             |a| format_currency(a.average_purchase_price),
         )
     };
     let shares_text =
-        move || asset().map_or_else(|| "—".to_string(), |a| format_number(a.shares, 2));
+        move || asset().map_or_else(|| MISSING.to_string(), |a| format_number(a.shares, 2));
     let per_share_text = move || per_share_display(per_share(), loading());
 
     view! {
         <div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <StatCard
-                    label="平均取得価格"
+                    label=AVERAGE_PURCHASE_PRICE
                     title_hint=true
                     hint=Some(Signal::derive(move || asset().is_none().then_some(ASSET_BALANCE_HINT)))
                 >
                     {average_price_text}
                 </StatCard>
                 <StatCard
-                    label="保有数量(株)"
+                    label=HOLDING_QUANTITY_CARD
                     title_hint=true
                     hint=Some(Signal::derive(move || asset().is_none().then_some(ASSET_BALANCE_HINT)))
                 >
                     {shares_text}
                 </StatCard>
                 <StatCard
-                    label="一株配当"
+                    label=PER_SHARE_DIVIDEND_CARD
                     hint=Some(Signal::derive(move || {
                         (!loading() && per_share().is_none()).then_some(JQUANTS_HINT)
                     }))
@@ -270,7 +268,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-border-subtle">
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">"配当金額 (配当利回り)"</p>
+                    <p class="text-xs font-medium text-text-muted mb-1">{DIVIDEND_AMOUNT_AND_YIELD}</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_amount(totals.total_dividends_before_tax)}
                         {move || {
@@ -286,13 +284,13 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">"税額"</p>
+                    <p class="text-xs font-medium text-text-muted mb-1">{TAX}</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_amount(totals.total_taxes)}
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">"税引後 (累積利回り)"</p>
+                    <p class="text-xs font-medium text-text-muted mb-1">{AFTER_TAX_AND_YIELD}</p>
                     <p class="text-2xl font-bold tabular-nums text-ink">
                         {format_amount(totals.total_net_amount_received)}
                         {move || {

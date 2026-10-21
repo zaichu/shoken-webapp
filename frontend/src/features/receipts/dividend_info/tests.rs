@@ -147,16 +147,6 @@ fn per_share_display_uses_short_decimal_digits() {
 }
 
 #[test]
-fn percentage_value_formats_with_fixed_decimals() {
-    assert_eq!(format_percentage_value(2.0), "2.00%");
-    assert_eq!(format_percentage_value(0.9564), "0.96%");
-    assert_eq!(format_percentage_value(1.005), "1.00%");
-    assert_eq!(format_percentage_value(2.675), "2.67%");
-    assert_eq!(format_percentage_value(f64::INFINITY), "inf%");
-    assert_eq!(format_percentage_value(f64::NAN), "—");
-}
-
-#[test]
 fn is_current_code_requires_matching_session_generation_and_code() {
     let owner = Owner::new();
     owner.with(|| {

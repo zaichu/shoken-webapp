@@ -1,10 +1,11 @@
-//! 資産管理の絞り込み欄。取引明細と同じタグ入力+「条件を足す」の操作に揃え、
+//! 資産管理の検索欄。取引明細と同じタグ入力+「条件を足す」の操作に揃え、
 //! 部品は ui::search_controls を共有する
 
 use crate::features::asset_balance::fund::AssetSearch;
 use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::labels::{ACCOUNT, DISTRIBUTION_COURSE};
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
     SearchClearButton, SearchCount, SearchTag, SearchTextInput,
@@ -20,8 +21,8 @@ pub(crate) enum ConditionKind {
 impl ConditionKind {
     fn label(self) -> &'static str {
         match self {
-            ConditionKind::Account => "口座",
-            ConditionKind::Course => "分配金コース",
+            ConditionKind::Account => ACCOUNT,
+            ConditionKind::Course => DISTRIBUTION_COURSE,
         }
     }
 
@@ -127,7 +128,7 @@ fn AssetConditionPopover(
 pub(crate) fn AssetSearchBar(
     search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
-    placeholder: &'static str,
+    #[prop(into)] placeholder: String,
     conditions: &'static [ConditionKind],
     account_options: Memo<Vec<String>>,
     course_options: Memo<Vec<String>>,
@@ -161,6 +162,8 @@ pub(crate) fn AssetSearchBar(
     };
     let account_options = to_options(account_options, account_display_name);
     let course_options = to_options(course_options, |value| value);
+    let placeholder_pc = placeholder.clone();
+    let placeholder_mobile = placeholder.clone();
 
     let condition_button = move |kind: ConditionKind, node_ref: NodeRef<leptos::html::Button>| {
         view! {
@@ -175,21 +178,21 @@ pub(crate) fn AssetSearchBar(
     };
 
     view! {
-        <div class="no-print" role="search" aria-label="資産の絞り込み">
+        <div class="no-print" role="search" aria-label="資産の検索">
             // PC: タグ入力+件数+クリアを1つの箱に収める(取引明細と同じ構造)
             <SearchBox class="hidden lg:flex">
                 <SearchTag
-                    label="口座"
+                    label=ACCOUNT
                     value=accounts_tag
                     on_clear=move || search.update(|s| s.accounts.clear())
                 />
                 <SearchTag
-                    label="分配金コース"
+                    label=DISTRIBUTION_COURSE
                     value=courses_tag
                     on_clear=move || search.update(|s| s.courses.clear())
                 />
                 <SearchTextInput
-                    placeholder=placeholder
+                    placeholder=placeholder_pc
                     testid="asset-search-input-pc"
                     value=input_value
                     on_input=on_input
@@ -214,7 +217,7 @@ pub(crate) fn AssetSearchBar(
             // スマホ: 入力欄だけを一覧の上に常時出す
             <SearchBox class="lg:hidden">
                 <SearchTextInput
-                    placeholder=placeholder
+                    placeholder=placeholder_mobile
                     testid="asset-search-input"
                     value=input_value
                     on_input=on_input

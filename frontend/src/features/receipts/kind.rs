@@ -15,7 +15,7 @@ use crate::api::dto::{
 use crate::features::receipts::csv::{
     CsvPreviewRow, DividendCsvRow, DomesticStockCsvRow, MutualfundCsvRow,
 };
-use crate::features::receipts::model::{create_year_month_key, format_date};
+use crate::features::receipts::model::create_year_month_key;
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
@@ -25,6 +25,7 @@ use crate::support::list_search::group_key::{GroupKeyRule, create_group_key_fn};
 use crate::support::list_search::support::{ColumnReorderRule, group_and_summarize};
 use crate::support::pagination::{ListEndpoint, fetch_all_pages};
 use crate::support::row::Row;
+use crate::ui::format::format_iso_date;
 use shared::format::{format_currency, format_number};
 
 /// 取引明細の一覧行。保存済み(DB の行)と CSV プレビュー行を分けて持ち、
@@ -225,7 +226,7 @@ pub(crate) struct DividendView<'a> {
 impl DividendView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
-            ReceiptCell::Text(format_date(self.date)),
+            ReceiptCell::Text(format_iso_date(self.date)),
             ReceiptCell::SecurityCode(self.code.to_string()),
             ReceiptCell::InstrumentName {
                 name: normalize_display_name(self.name),
@@ -330,7 +331,7 @@ pub(crate) struct DomesticStockView<'a> {
 impl DomesticStockView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
-            ReceiptCell::Text(format_date(self.date)),
+            ReceiptCell::Text(format_iso_date(self.date)),
             ReceiptCell::SecurityCode(self.code.to_string()),
             ReceiptCell::InstrumentName {
                 name: normalize_display_name(self.name),
@@ -436,7 +437,7 @@ pub(crate) struct MutualfundView<'a> {
 impl MutualfundView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
-            ReceiptCell::Text(format_date(self.date)),
+            ReceiptCell::Text(format_iso_date(self.date)),
             ReceiptCell::InstrumentName {
                 name: normalize_display_name(self.name),
                 code: None,

@@ -197,7 +197,7 @@ async function gotoFilteredEmptyAssetBalance(page: Page) {
   // どの銘柄にも一致しない文字列で 0 件にする
   await page.getByTestId('asset-search-input-pc').fill('9999');
   await expect(
-    page.getByRole('button', { name: '絞り込みを解除' }),
+    page.getByRole('button', { name: '検索条件を解除' }),
   ).toBeVisible();
 }
 
@@ -309,7 +309,7 @@ test('資産管理で該当銘柄がないとき絞り込みを解除できる',
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoFilteredEmptyAssetBalance(page);
   await expect(page.getByTestId('asset-compact-row')).toHaveCount(0);
-  await page.getByRole('button', { name: '絞り込みを解除' }).click();
+  await page.getByRole('button', { name: '検索条件を解除' }).click();
   await expectAssetDataLoaded(page);
 });
 

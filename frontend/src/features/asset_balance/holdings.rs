@@ -1,7 +1,8 @@
-use super::format::{dec_to_f64, format_currency, format_percentage_value, format_unit_price};
+use super::format::dec_to_f64;
 use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::model::{ValuationInput, normalize_display_name};
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::format::{format_currency, format_percentage_value, format_unit_price};
 
 #[derive(Clone, Debug)]
 pub(crate) struct HoldingView {

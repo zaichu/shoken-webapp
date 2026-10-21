@@ -7,6 +7,7 @@ mod tests;
 
 use crate::features::asset_balance::{SortKey, SortOrder};
 use crate::features::receipts::ReceiptsTab;
+use crate::ui::labels::{ACQUISITION_AMOUNT_TOTAL, AVERAGE_UNIT_PRICE, CURRENT_PRICE, SHARES};
 use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -266,10 +267,10 @@ impl PromptColumn {
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            Self::Shares => "保有株数",
-            Self::AveragePrice => "平均取得単価",
-            Self::TotalPurchase => "取得額合計",
-            Self::CurrentPrice => "現在値",
+            Self::Shares => SHARES,
+            Self::AveragePrice => AVERAGE_UNIT_PRICE,
+            Self::TotalPurchase => ACQUISITION_AMOUNT_TOTAL,
+            Self::CurrentPrice => CURRENT_PRICE,
             Self::Unknown => "",
         }
     }

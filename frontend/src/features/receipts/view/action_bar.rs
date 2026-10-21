@@ -6,6 +6,7 @@ use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::labels::{self, ACCOUNT, PERIOD, PRODUCT};
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
     SearchClearButton, SearchCount, SearchTag, SearchTextInput,
@@ -34,18 +35,14 @@ enum ConditionKind {
 impl ConditionKind {
     fn label(self) -> &'static str {
         match self {
-            Self::Period => "期間",
-            Self::Account => "口座",
-            Self::Product => "商品",
+            Self::Period => PERIOD,
+            Self::Account => ACCOUNT,
+            Self::Product => PRODUCT,
         }
     }
 
-    fn title(self) -> &'static str {
-        match self {
-            Self::Period => "期間を選ぶ",
-            Self::Account => "口座を選ぶ",
-            Self::Product => "商品を選ぶ",
-        }
+    fn title(self) -> String {
+        labels::pick_title(self.label())
     }
 }
 
@@ -86,17 +83,17 @@ fn ConditionTags(
     });
     view! {
         <SearchTag
-            label="期間"
+            label=PERIOD
             value=date_value
             on_clear=move || search.update(|s| s.clear_key(SearchKey::Date, has_years()))
         />
         <SearchTag
-            label="商品"
+            label=PRODUCT
             value=products_value
             on_clear=move || search.update(|s| s.clear_key(SearchKey::Products, has_years()))
         />
         <SearchTag
-            label="口座"
+            label=ACCOUNT
             value=accounts_value
             on_clear=move || search.update(|s| s.clear_key(SearchKey::Accounts, has_years()))
         />
@@ -107,7 +104,7 @@ fn ConditionTags(
 fn SecuritiesInput(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     view! {
         <SearchTextInput
-            placeholder="銘柄名・コード"
+            placeholder=labels::search_placeholder("銘柄名・コード")
             value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
             on_input=move |value| search.update(|s| s.set_securities_query(value))
         />

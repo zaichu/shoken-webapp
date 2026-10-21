@@ -1,7 +1,8 @@
 use crate::features::asset_balance::format::{
-    format_price_date, format_signed_row_valuation_amount, is_negative_valuation,
-    is_positive_valuation,
+    format_signed_row_valuation_amount, is_negative_valuation, is_positive_valuation,
 };
+use crate::ui::format::format_price_date;
+use crate::ui::labels::{MISSING, PENDING_UPDATE};
 use leptos::prelude::*;
 
 /// 「前日比」列の見出しの説明。ホバーと支援技術から同じ内容を読み取れる
@@ -36,7 +37,9 @@ pub(crate) fn day_change_cell(change: Option<f64>, date: Option<String>) -> impl
 /// 「—」と小さく理由を出す(理由の詳細はセルの title)
 pub(crate) fn pending_day_change_cell() -> impl IntoView {
     view! {
-        <span class="font-bold tabular-nums whitespace-nowrap text-text-soft">"—"</span>
-        <span class="ml-1 whitespace-nowrap text-xs text-text-muted tabular-nums">"更新待ち"</span>
+        <span class="font-bold tabular-nums whitespace-nowrap text-text-soft">{MISSING}</span>
+        <span class="ml-1 whitespace-nowrap text-xs text-text-muted tabular-nums">
+            {PENDING_UPDATE}
+        </span>
     }
 }

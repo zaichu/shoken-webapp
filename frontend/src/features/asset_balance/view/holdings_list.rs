@@ -1,15 +1,17 @@
 use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_signed_row_valuation_amount, format_unit_price, pnl_cells,
-    unit_price_decimals,
+    format_row_valuation_amount, format_signed_row_valuation_amount, pnl_cells,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
     holding_dividend,
 };
-use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::AccountBadge;
+use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
+use crate::ui::labels::{
+    ACQUISITION_YIELD, CURRENT_PRICE, DAY_CHANGE, DIVIDEND, PER_SHARE_DIVIDEND,
+};
 use leptos::prelude::*;
 
 #[component]
@@ -52,9 +54,11 @@ pub fn HoldingsList(
                     let dividend_yield = format_dividend_yield(&dividend);
                     let shares_text = format!("{}株", format_number_value(view.shares));
                     let meta_tail = format!(
-                        " · {} · 現在値 {} · 前日比 {}",
+                        " · {} · {} {} · {} {}",
                         shares_text,
+                        CURRENT_PRICE,
                         format_unit_price(view.current_price, current_price_decimals),
+                        DAY_CHANGE,
                         format_signed_row_valuation_amount(view.day_change),
                     );
                     let inner = view! {
@@ -113,13 +117,17 @@ pub fn HoldingsList(
                                     view! {
                                         <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
                                             <span class="text-text-muted">
-                                                "配当 "
+                                                {DIVIDEND}
+                                                " "
                                                 {dividend_annual}
-                                                " · 1株 "
+                                                " · "
+                                                {PER_SHARE_DIVIDEND}
+                                                " "
                                                 {dividend_per_share}
                                             </span>
                                             <span class="text-text-muted tabular-nums">
-                                                "利回り "
+                                                {ACQUISITION_YIELD}
+                                                " "
                                                 {dividend_yield}
                                             </span>
                                         </div>

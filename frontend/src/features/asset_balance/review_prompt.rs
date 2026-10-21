@@ -1,6 +1,7 @@
 use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
-use crate::features::asset_balance::model::format_number_value;
 use crate::settings::{PromptColumn, ReviewPromptPref};
+use crate::ui::format::format_number_value;
+use crate::ui::labels::{SECURITY_CODE, SECURITY_NAME};
 use rust_decimal::prelude::ToPrimitive;
 
 const PROMPT_BODY: &str = "あなたは日本株の公開情報を整理する調査サポーターです。
@@ -10,7 +11,7 @@ const PROMPT_BODY: &str = "あなたは日本株の公開情報を整理する�
 - このプロンプトによる回答は金融商品取引業者・投資顧問としての助言ではなく、売買指示・目標株価・断定的推奨を行わないでください
 - 最新情報を確認できない場合は「確認不能」と明記し、提供された保有構成から分かる範囲だけで整理してください
 - 最新情報の取得・判断はユーザー自身が行う前提としてください
-- このアプリから渡す保有データだけで含み損益や時価評価を判断しないでください
+- このアプリから渡す保有データだけで評価損益や時価評価を判断しないでください
 - 確認できない情報は推測せず「不明」または「要確認」と明記してください
 - 銘柄コードが曖昧な場合は、市場・上場銘柄の確認から始めてください
 - 投資目的、投資期間、リスク許容度、流動性需要、税務状況、他の資産状況が不足しているため、個別判断が必要な場合は追加質問として列挙してください
@@ -53,7 +54,7 @@ pub(crate) fn generate_asset_review_prompt(
     } else {
         format!("{preamble}\n\n{PROMPT_BODY}")
     };
-    let header = ["銘柄コード", "銘柄名"]
+    let header = [SECURITY_CODE, SECURITY_NAME]
         .into_iter()
         .chain(pref.columns.iter().map(|column| column.label()))
         .collect::<Vec<_>>()
