@@ -53,7 +53,10 @@ pub(crate) fn sort_header<K: Copy + PartialEq + Send + Sync + 'static>(
             >
                 // 矢印は文字の左に置く。文字の右に置くと矢印の分だけ見出しが
                 // 列の値より左にずれて、見出しとデータが揃わない
-                <span class="asset-sort-arrow">{arrow}</span>
+                // 並べ替えの状態は th の aria-sort で伝えるので、矢印は読み上げない
+                <span class="asset-sort-arrow" aria_hidden="true">
+                    {arrow}
+                </span>
                 {label}
             </Button>
         </th>
