@@ -53,6 +53,14 @@ fn assign_chart_indices_is_independent_of_label_order() {
 }
 
 #[test]
+fn assign_chart_indices_keeps_color_when_other_unknowns_appear() {
+    // ほかの表外系列が増減しても、同じ名前には同じ番号が付く
+    let solo = assign_chart_indices(&["iDeCo"], account_chart_index);
+    let with_nisa = assign_chart_indices(&["NISA", "iDeCo"], account_chart_index);
+    assert_eq!(solo[0], with_nisa[1]);
+}
+
+#[test]
 fn assign_chart_indices_falls_back_deterministically_when_full() {
     // 5 枠すべて埋まった後の表外の名前は、名前だけで決まる番号に割る(毎回同じ)
     let labels = [

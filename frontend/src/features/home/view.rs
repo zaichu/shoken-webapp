@@ -52,9 +52,9 @@ fn account_chart_index(label: &str) -> Option<usize> {
     }
 }
 
-/// 対応表の固定色を先に確保し、表にない名前は空いている番号から順に割る。
-/// 表示は評価額順なので、表外の名前は名前順に配って並びに依存しないようにする。
-/// 空きが無いときは名前だけで決まる番号に割る
+/// 対応表の固定色を先に確保し、表にない名前は名前だけで決まる番号から割り当てる。
+/// 埋まっていたら順にずらすが、起点は名前で決まるので、ほかの系列の有無や
+/// 表示の並び(評価額順)で色が変わらない。ずらす先は名前順に処理して決定的にする
 fn assign_chart_indices(labels: &[&str], fixed: impl Fn(&str) -> Option<usize>) -> Vec<usize> {
     let n = CHART_COLORS.len();
     let mut used = std::collections::HashSet::new();
@@ -70,26 +70,19 @@ fn assign_chart_indices(labels: &[&str], fixed: impl Fn(&str) -> Option<usize>) 
         .collect();
     unknown.sort_unstable();
     let mut spare = std::collections::HashMap::new();
-    let mut next = 0;
     for label in unknown {
-        if used.len() == n {
-            break;
+        let mut index = label.bytes().map(usize::from).sum::<usize>() % n;
+        while used.len() < n && used.contains(&index) {
+            index = (index + 1) % n;
         }
-        while used.contains(&next) {
-            next += 1;
-        }
-        used.insert(next);
-        spare.insert(label, next);
-        next += 1;
+        used.insert(index);
+        spare.insert(label, index);
     }
     labels
         .iter()
         .map(|label| match fixed(label) {
             Some(i) => i % n,
-            None => spare
-                .get(label)
-                .copied()
-                .unwrap_or_else(|| label.bytes().map(usize::from).sum::<usize>() % n),
+            None => spare[label],
         })
         .collect()
 }
