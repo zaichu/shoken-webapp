@@ -211,7 +211,9 @@ pub async fn apply_fund_nav(
             nav = EXCLUDED.nav,
             prev_day_change = EXCLUDED.prev_day_change,
             price_as_of = EXCLUDED.price_as_of,
-            updated_at = NOW()
+            updated_at = NOW(),
+            fetch_error = NULL,
+            fetch_failed_at = NULL
         WHERE fund_prices.price_as_of IS NULL
            OR fund_prices.price_as_of <= EXCLUDED.price_as_of
         "#,
@@ -225,6 +227,67 @@ pub async fn apply_fund_nav(
     .execute(pool)
     .await
     .map_err(ApiError::from)
+}
+
+/// 取得失敗の理由と時刻を共有値の行に残す。直前の失敗理由を上書きする。
+/// 記録に失敗しても他のファンドの取得は止めない(ログに残すだけ)
+async fn record_fetch_failure(pool: &Db, association_fund_cd: &str, reason: &str) {
+    if let Err(e) = crate::db::query(
+        r#"
+        INSERT INTO fund_prices (association_fund_cd, updated_at, fetch_error, fetch_failed_at)
+        VALUES ($1, NOW(), $2, NOW())
+        ON CONFLICT (association_fund_cd) DO UPDATE SET
+            fetch_error = EXCLUDED.fetch_error,
+            fetch_failed_at = EXCLUDED.fetch_failed_at
+        "#,
+        vec![Bind::from(association_fund_cd), Bind::from(reason)],
+    )
+    .execute(pool)
+    .await
+    {
+        svc_log!(
+            error,
+            "基準価額の失敗記録に失敗: cd={}, err={}",
+            association_fund_cd,
+            e
+        )
+    }
+}
+
+/// 失敗記録を消す。取得できたとき・対象外のとき使う
+async fn clear_fetch_error(pool: &Db, association_fund_cd: &str) {
+    if let Err(e) = crate::db::query(
+        r#"
+        UPDATE fund_prices
+           SET fetch_error = NULL, fetch_failed_at = NULL
+         WHERE association_fund_cd = $1
+        "#,
+        vec![Bind::from(association_fund_cd)],
+    )
+    .execute(pool)
+    .await
+    {
+        svc_log!(
+            warn,
+            "基準価額の失敗記録の削除に失敗: cd={}, err={}",
+            association_fund_cd,
+            e
+        )
+    }
+}
+
+/// 失敗の理由。用户に見せる短い文に丸める。URL・応答本文・内部 Details は出さない
+fn short_failure_reason(error: &ApiError) -> String {
+    match error {
+        ApiError::Upstream(UpstreamError::Http { status, .. }) => format!("HTTP {status}"),
+        ApiError::Upstream(UpstreamError::RateLimited) => "レート制限".to_string(),
+        ApiError::Upstream(UpstreamError::Invalid(_)) => "検証エラー".to_string(),
+        ApiError::Upstream(UpstreamError::Decode(_)) => "応答の解析に失敗".to_string(),
+        #[cfg(target_arch = "wasm32")]
+        ApiError::Upstream(UpstreamError::Transport(_)) => "通信エラー".to_string(),
+        ApiError::Database(_) => "保存エラー".to_string(),
+        _ => "取得エラー".to_string(),
+    }
 }
 
 /// 「いま公表済みのはずの、直近の基準価額の日」(E)。JST 23:00 を過ぎた平日は当日、
@@ -312,25 +375,35 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
             Ok(Some(nav)) => {
                 fetched += 1;
                 match apply_fund_nav(pool, code, &nav).await {
-                    Ok(rows) => svc_log!(
-                        info,
-                        "基準価額更新: cd={}, base_date={}, rows={}",
-                        code,
-                        nav.base_date,
-                        rows
-                    ),
+                    Ok(rows) => {
+                        // 共有値が古く更新されなかったときだけ失敗記録が残りうるので消す
+                        if rows == 0 {
+                            clear_fetch_error(pool, code).await;
+                        }
+                        svc_log!(
+                            info,
+                            "基準価額更新: cd={}, base_date={}, rows={}",
+                            code,
+                            nav.base_date,
+                            rows
+                        );
+                    }
                     Err(e) => {
                         failed += 1;
+                        record_fetch_failure(pool, code, &short_failure_reason(&e)).await;
                         svc_log!(error, "基準価額の反映に失敗: cd={}, err={}", code, e)
                     }
                 }
             }
             Ok(None) => {
                 excluded += 1;
+                // 対象外のコードは取得失敗ではないので、直前の失敗記録を消す
+                clear_fetch_error(pool, code).await;
                 svc_log!(info, "投信情報APIの対象外(前回値を維持): cd={}", code)
             }
             Err(e) => {
                 failed += 1;
+                record_fetch_failure(pool, code, &short_failure_reason(&e)).await;
                 svc_log!(
                     warn,
                     "基準価額の取得に失敗（前回値を維持）: cd={}, err={}",
@@ -474,6 +547,44 @@ mod tests {
                 other => panic!("expected Http error, got {other}"),
             }
         }
+    }
+
+    #[test]
+    fn test_short_failure_reason_hides_details() {
+        // 画面に出すのは短い文だけ。応答本文・URL・内部 Details を含めない
+        let cases: [(ApiError, &str); 4] = [
+            (
+                ApiError::Upstream(UpstreamError::Http {
+                    status: 403,
+                    body: "https://example.invalid/secret".to_string(),
+                }),
+                "HTTP 403",
+            ),
+            (ApiError::Upstream(UpstreamError::RateLimited), "レート制限"),
+            (
+                ApiError::Upstream(UpstreamError::Invalid(
+                    "投信情報APIの応答: nav が 0 以下".to_string(),
+                )),
+                "検証エラー",
+            ),
+            (
+                ApiError::Upstream(UpstreamError::Decode(
+                    serde_json::from_str::<serde_json::Value>("bad").unwrap_err(),
+                )),
+                "応答の解析に失敗",
+            ),
+        ];
+        for (error, expected) in cases {
+            let reason = short_failure_reason(&error);
+            assert_eq!(reason, expected);
+            // 応答本文・URL・検証の内部 Details を含めない
+            assert!(!reason.contains("example.invalid"), "{reason}");
+            assert!(!reason.contains("nav が"), "{reason}");
+        }
+        // 想定外のエラーでも空や詳細の無い文言になる
+        let fallback = short_failure_reason(&ApiError::NotFound);
+        assert!(!fallback.is_empty());
+        assert!(!fallback.contains("Not found"));
     }
 
     #[test]

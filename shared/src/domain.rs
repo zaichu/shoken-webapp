@@ -326,6 +326,25 @@ pub struct FundBalance {
     pub updated_at: String,
 }
 
+/// 基準価額の自動更新(共有値の取得)の状態。
+/// 取得できた/できなかった件数と、直近の失敗の理由で3状態を区別する
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+pub struct FundNavStatus {
+    /// 最終更新の時刻(JST の "YYYY-MM-DD HH:MM")。まだ取得していないときは持たない
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    /// 共有値を取得できたファンド数
+    #[serde(default)]
+    pub fetched_count: i64,
+    /// 直近の取得で失敗したファンド数
+    #[serde(default)]
+    pub failed_count: i64,
+    /// 直近の失敗の理由(URL・応答本文・内部 Details を含まない短い文)
+    #[serde(default)]
+    pub failure_reason: Option<String>,
+}
+
 /// 投資信託残高 検索条件全体の集計。
 /// total_daily_change は保有数量で重み付けした基準価額(前日比)の円換算合計
 /// （shares × 前日比 / 10000）。「更新待ち」の行と前日比を持たない行は入れない
@@ -344,6 +363,9 @@ pub struct FundBalanceSummary {
     /// 「更新待ち」のファンド数
     #[serde(default)]
     pub pending_nav_count: i64,
+    /// 基準価額の自動更新の状態。検索条件には依らない(共有値の取得はユーザー全体で行う)
+    #[serde(default)]
+    pub nav_status: FundNavStatus,
 }
 
 #[cfg(test)]
