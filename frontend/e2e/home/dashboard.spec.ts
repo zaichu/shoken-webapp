@@ -187,7 +187,7 @@ test('帯は3項目で株式と投信を合算し、カード群が埋まる', a
       els.some((el) => el.getBoundingClientRect().height > 20),
     ),
   ).toBe(true);
-  const progress = dividend.locator('.bg-row-group > div');
+  const progress = dividend.locator('.home-progress > div');
   expect((await progress.boundingBox())?.width).toBeGreaterThan(0);
   await expect(composition.locator('.home-swatch').first()).toHaveCSS(
     'background-color',
