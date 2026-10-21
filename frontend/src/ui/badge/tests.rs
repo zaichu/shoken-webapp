@@ -62,9 +62,9 @@ fn account_badge_class_picks_kind_by_label() {
 
 #[test]
 fn joined_account_is_one_badge_with_the_general_color() {
-    // 連結された口座名も1つの口座区分なので、分割せず1つの札にする
-    assert_eq!(account_display_name("特定・一般"), "特定・一般");
+    // 連結された口座名も1つの口座区分なので、分割せず1つの札にする。
     // 単独の「特定」とは色が別になる
+    assert_eq!(account_display_name("特定・一般"), "特定・一般");
     assert_eq!(
         account_badge_class("特定・一般"),
         account_badge_class("一般")

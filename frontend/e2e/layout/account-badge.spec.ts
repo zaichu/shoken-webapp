@@ -77,6 +77,8 @@ test('同じ口座値は取引明細でもホームでも1つの札になり、�
   const receiptBadge = table.locator('.account-badge', { hasText: JOINED_ACCOUNT });
   await expect(receiptBadge).toHaveCount(1);
   await expect(receiptBadge).toHaveText(JOINED_ACCOUNT);
+  // 画面を移動すると札が消えるので、移動前に配色だけ控えておく
+  const receiptColors = await badgeColors(receiptBadge);
 
   await page.goto('/');
   const recentList = page.getByTestId('home-recent-list');
@@ -87,7 +89,7 @@ test('同じ口座値は取引明細でもホームでも1つの札になり、�
   await expect(homeBadge).toHaveText(JOINED_ACCOUNT);
 
   // どの画面でも同じ口座値は同じ配色で出る
-  expect(await badgeColors(homeBadge)).toBe(await badgeColors(receiptBadge));
+  expect(await badgeColors(homeBadge)).toBe(receiptColors);
 });
 
 test('取引明細のカード表示でも口座は1つの札になる', async ({ page }) => {
