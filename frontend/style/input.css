@@ -1427,7 +1427,10 @@
      最長の行に合わせる。行は subgrid で列位置だけを借りる */
   .home-dividend-list {
     @apply mt-1.5 grid divide-y divide-border-faint;
-    grid-template-columns: 2.5rem 3.25rem minmax(6rem, 1fr) max-content max-content;
+    /* 行の左右の余白(px-4 = 1rem)は subgrid では最初の列から差し引かれる。
+       日付の列は差し引かれた 1rem を足した幅(2.5rem + 1rem)にして、
+       「12/31」が余白つきで収まるようにする */
+    grid-template-columns: 3.5rem 3.25rem minmax(6rem, 1fr) max-content max-content;
     column-gap: 0.75rem;
   }
 
