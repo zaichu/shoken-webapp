@@ -148,9 +148,13 @@ type Column = {
   header: string;
   headerAlign: string;
   cellAlign: string | null;
+  /** 見出しの文字の左右位置 */
+  headerText: { left: number; right: number } | null;
+  /** データセルの内容の左右位置(余白を除いた部分) */
+  cellContent: { left: number; right: number } | null;
 };
 
-/** 見出しと、同じ列のデータの位置(計算した text-align)を比べる */
+/** 見出しの文字の位置と、同じ列のデータの位置を比べる */
 async function readColumns(table: Locator): Promise<Column[]> {
   return table.evaluate((el) => {
     const ths = Array.from(el.querySelectorAll('thead th')) as HTMLTableCellElement[];
@@ -163,12 +167,40 @@ async function readColumns(table: Locator): Promise<Column[]> {
     const cells = dataRow
       ? (Array.from(dataRow.children) as HTMLTableCellElement[])
       : [];
+    // 並べ替えの矢印は別の要素なので、文字は最後の本文ノードで取る
+    const textBox = (node: Element) => {
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      let last: Node | null = null;
+      let current: Node | null = null;
+      while ((current = walker.nextNode())) {
+        if ((current.textContent ?? '').trim().length > 0) {
+          last = current;
+        }
+      }
+      if (!last) {
+        return null;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(last);
+      const rect = range.getBoundingClientRect();
+      return { left: rect.left, right: rect.right };
+    };
     return ths.map((th, index) => {
       const cell = cells[index] ?? null;
+      const cellStyle = cell ? getComputedStyle(cell) : null;
+      const cellRect = cell?.getBoundingClientRect() ?? null;
       return {
         header: (th.textContent ?? '').trim(),
         headerAlign: getComputedStyle(th).textAlign,
-        cellAlign: cell ? getComputedStyle(cell).textAlign : null,
+        cellAlign: cell ? cellStyle!.textAlign : null,
+        headerText: textBox(th),
+        cellContent:
+          cellRect && cellStyle
+            ? {
+                left: cellRect.left + parseFloat(cellStyle.paddingLeft),
+                right: cellRect.right - parseFloat(cellStyle.paddingRight),
+              }
+            : null,
       };
     });
   });
@@ -187,19 +219,39 @@ async function expectHeaderFollowsCells(table: Locator, label: string) {
       column.headerAlign,
       `${label}: ${column.header} は中央に寄せない`,
     ).not.toBe('center');
+    expect(column.headerText, `${label}: ${column.header} に文字がある`).not.toBeNull();
+    expect(column.cellContent, `${label}: ${column.header} にデータがある`).not.toBeNull();
+    // 右そろえの列は文字の右端が、数据的右端と揃う
+    if (column.headerAlign === 'right') {
+      expect(
+        Math.abs(column.headerText!.right - column.cellContent!.right),
+        `${label}: ${column.header} の見出しの右端がデータと揃う`,
+      ).toBeLessThanOrEqual(2);
+    } else {
+      expect(
+        Math.abs(column.headerText!.left - column.cellContent!.left),
+        `${label}: ${column.header} の見出しの左端がデータと揃う`,
+      ).toBeLessThanOrEqual(2);
+    }
   }
 }
 
-/** 見出しの文字(ボタンの中身)の左右位置 */
+/** 見出しの文字(並べ替えの矢印を除く)の左右位置 */
 async function headerTextBox(header: Locator) {
   return header.evaluate((el) => {
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-    const node = walker.nextNode();
-    if (!node) {
+    let last: Node | null = null;
+    let current: Node | null = null;
+    while ((current = walker.nextNode())) {
+      if ((current.textContent ?? '').trim().length > 0) {
+        last = current;
+      }
+    }
+    if (!last) {
       return null;
     }
     const range = document.createRange();
-    range.selectNodeContents(node);
+    range.selectNodeContents(last);
     const rect = range.getBoundingClientRect();
     return { left: rect.left, right: rect.right };
   });

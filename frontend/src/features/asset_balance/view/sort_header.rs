@@ -51,8 +51,10 @@ pub(crate) fn sort_header<K: Copy + PartialEq + Send + Sync + 'static>(
                 aria_pressed=Signal::derive(move || active().to_string())
                 on_click=on_click
             >
-                {label}
+                // 矢印は文字の左に置く。文字の右に置くと矢印の分だけ見出しが
+                // 列の値より左にずれて、見出しとデータが揃わない
                 <span class="asset-sort-arrow">{arrow}</span>
+                {label}
             </Button>
         </th>
     }
