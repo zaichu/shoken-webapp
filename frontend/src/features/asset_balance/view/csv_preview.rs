@@ -3,6 +3,7 @@ use crate::features::asset_balance::format::{
     format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
 };
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
+use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use leptos::prelude::*;
@@ -16,6 +17,7 @@ fn preview_row_data(
 ) -> (
     String,
     String,
+    Option<String>,
     String,
     String,
     String,
@@ -47,10 +49,12 @@ fn preview_row_data(
     };
     let security_name = row.security_name().to_string();
     let security_code = row.security_code().to_string();
+    let account = row.account().map(str::to_string);
     let shares_str = format!("{}株", format_number(row.shares()));
     (
         security_code,
         security_name,
+        account,
         shares_str,
         market_text,
         pnl_class,
@@ -75,7 +79,10 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
 
     let render_rows = move |rows: Vec<AssetBalanceRow>| {
         rows.into_iter().map(|row| {
-            let (security_code, security_name, shares_str, market_text, pnl_class, pnl_text, pnl_rate_text) = preview_row_data(&row);
+            let (security_code, security_name, account, shares_str, market_text, pnl_class, pnl_text, pnl_rate_text) = preview_row_data(&row);
+            let account_text = account
+                .map(|value| format!(" · {}", account_display_name(&value)))
+                .unwrap_or_default();
             view! {
                 <Card variant=CardVariant::Item class="p-3">
                     <div class="flex items-baseline justify-between gap-2">
@@ -83,7 +90,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                         <span class="shrink-0 font-bold tabular-nums text-brand-text">{market_text}</span>
                     </div>
                     <div class="mt-1 flex items-baseline justify-between gap-2 text-xs">
-                        <span class="shrink-0 text-text-muted">{security_code} " · " {shares_str}</span>
+                        <span class="shrink-0 text-text-muted">{security_code} {account_text} " · " {shares_str}</span>
                         <span class=format!("flex shrink-0 items-baseline {}", pnl_class)>
                             {pnl_text}
                             {pnl_rate_text.map(|rate| view! { " " <span class="asset-badge">{rate}</span> })}
@@ -110,6 +117,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                             <tr class="text-text-soft font-semibold text-xs">
                                 <th class="px-3 py-2 text-left">"銘柄コード"</th>
                                 <th class="px-3 py-2 text-left">"銘柄名"</th>
+                                <th class="px-3 py-2 text-left">"口座"</th>
                                 <th class="px-3 py-2 text-right">"保有数量"</th>
                                 <th class="px-3 py-2 text-right">"平均取得価額"</th>
                                 <th class="px-3 py-2 text-right">"取得総額"</th>
@@ -120,7 +128,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                         </thead>
                         <tbody>
                             {rows_for_pc.into_iter().map(|row| {
-                                let (security_code, security_name, shares_str, market_text, pnl_class, pnl_text, pnl_rate_text) = preview_row_data(&row);
+                                let (security_code, security_name, account, shares_str, market_text, pnl_class, pnl_text, pnl_rate_text) = preview_row_data(&row);
                                 let avg_price_str = format!("¥{}", format_number(row.average_purchase_price()));
                                 let total_purchase_str = format!("¥{}", format_number(row.total_purchase_amount()));
                                 let current_price_str = format!("¥{}", format_number(row.current_price()));
@@ -128,6 +136,11 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                                     <tr class="border-t border-border">
                                         <td class="px-3 py-2 text-sm font-mono text-text">{security_code}</td>
                                         <td class="px-3 py-2 text-sm text-text">{security_name}</td>
+                                        <td class="px-3 py-2 text-sm text-text">
+                                            {account
+                                                .map(|value| account_display_name(&value).to_string())
+                                                .unwrap_or_else(|| "—".to_string())}
+                                        </td>
                                         <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{shares_str}</td>
                                         <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{avg_price_str}</td>
                                         <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{total_purchase_str}</td>

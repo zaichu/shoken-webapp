@@ -14,6 +14,7 @@ fn balance(id: usize) -> AssetBalance {
         id: format!("id-{id}").into(),
         security_code: format!("{id:04}").parse().unwrap(),
         security_name: "銘柄".to_string(),
+        account: None,
         shares: rust_decimal_macros::dec!(100),
         average_purchase_price: rust_decimal_macros::dec!(2500),
         total_purchase_amount: rust_decimal_macros::dec!(250000),

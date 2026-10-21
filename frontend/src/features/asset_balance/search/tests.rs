@@ -1,6 +1,7 @@
-use super::filter_asset_balances;
+use super::{filter_asset_balances, stock_accounts};
 use crate::api::dto::AssetBalance;
 use crate::features::asset_balance::csv::AssetBalanceRow;
+use crate::features::asset_balance::fund::AssetSearch;
 use crate::support::row::Row as ListRow;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -38,6 +39,7 @@ fn balance(row: &Row) -> AssetBalance {
         id: row.id.clone().into(),
         security_code: row.security_code.parse().unwrap(),
         security_name: row.security_name.clone(),
+        account: None,
         shares: Decimal::ZERO,
         average_purchase_price: Decimal::ZERO,
         total_purchase_amount: Decimal::ZERO,
@@ -72,7 +74,11 @@ fn shared_filter_cases_match() {
     assert_eq!(fixture.filter_cases.len(), 14);
     for case in &fixture.filter_cases {
         let data = balances(&case.data);
-        let actual: Vec<_> = filter_asset_balances(&data, &case.query)
+        let search = AssetSearch {
+            text: case.query.clone(),
+            ..Default::default()
+        };
+        let actual: Vec<_> = filter_asset_balances(&data, &search)
             .iter()
             .map(|row| row_id(row))
             .collect();
@@ -85,10 +91,56 @@ fn cleared_query_restores_all_rows() {
     let fixture = fixture();
     let case = &fixture.filter_cases[2];
     let data = balances(&case.data);
-    assert_eq!(filter_asset_balances(&data, &case.query).len(), 1);
-    let actual: Vec<_> = filter_asset_balances(&data, "")
+    let search = |text: &str| AssetSearch {
+        text: text.to_string(),
+        ..Default::default()
+    };
+    assert_eq!(filter_asset_balances(&data, &search(&case.query)).len(), 1);
+    let actual: Vec<_> = filter_asset_balances(&data, &search(""))
         .iter()
         .map(|row| row_id(row))
         .collect();
     assert_eq!(actual, case.expected_ids_all());
+}
+
+#[test]
+fn account_filter_and_options() {
+    let mut named = balance(&Row {
+        id: "with-account".to_string(),
+        security_code: "9904".to_string(),
+        security_name: "架空自動車".to_string(),
+    });
+    named.account = Some("特定".parse().unwrap());
+    let rows = vec![
+        ListRow::Saved(named),
+        ListRow::Saved(balance(&Row {
+            id: "no-account".to_string(),
+            security_code: "9901".to_string(),
+            security_name: "架空資源開発".to_string(),
+        })),
+    ];
+
+    assert_eq!(stock_accounts(&rows), ["特定".to_string()]);
+
+    // 口座を選んだときは口座なしの行は除く
+    let search = AssetSearch {
+        accounts: vec!["特定".to_string()],
+        ..Default::default()
+    };
+    let actual: Vec<_> = filter_asset_balances(&rows, &search)
+        .iter()
+        .map(|row| row_id(row))
+        .collect();
+    assert_eq!(actual, ["with-account"]);
+
+    // テキストは口座名でも部分一致する
+    let search = AssetSearch {
+        text: "特定".to_string(),
+        ..Default::default()
+    };
+    let actual: Vec<_> = filter_asset_balances(&rows, &search)
+        .iter()
+        .map(|row| row_id(row))
+        .collect();
+    assert_eq!(actual, ["with-account"]);
 }

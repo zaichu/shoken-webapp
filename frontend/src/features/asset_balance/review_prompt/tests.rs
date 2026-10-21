@@ -13,6 +13,7 @@ fn make_asset(
         id: format!("id-{security_code}").into(),
         security_code: security_code.parse().unwrap(),
         security_name: security_name.to_string(),
+        account: None,
         shares: Decimal::new(shares, 0),
         average_purchase_price: Decimal::new(average_purchase_price, 0),
         total_purchase_amount: Decimal::ZERO,

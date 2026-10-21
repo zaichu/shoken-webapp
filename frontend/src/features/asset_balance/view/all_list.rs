@@ -7,15 +7,16 @@ use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::SortOrder;
-use crate::ui::badge::{AccountBadge, account_display_name};
+use crate::ui::badge::AccountBadge;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
 
-/// 株とファンドをまとめる一覧行。sub はスマホの行メタ、残りは表の列
+/// 株とファンドをまとめる一覧行。sub はスマホの行メタ(コード・コース)、残りは表の列
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct UnifiedRow {
     pub name: String,
     pub kind: &'static str,
+    /// スマホの行メタ。口座は sub ではなく account から札で出す
     pub sub: String,
     pub code: Option<String>,
     pub account: Option<String>,
@@ -41,7 +42,7 @@ pub(crate) fn unified_from_stock(view: &HoldingView) -> UnifiedRow {
         kind: "国内株式",
         sub: view.code.clone(),
         code: Some(view.code.clone()),
-        account: None,
+        account: view.account.clone(),
         course: None,
         day_change: view.day_change,
         price_as_of: view.price_as_of.clone(),
@@ -59,15 +60,10 @@ pub(crate) fn unified_from_stock(view: &HoldingView) -> UnifiedRow {
 }
 
 pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
-    let account = account_display_name(&view.account);
-    let sub = match &view.course {
-        Some(course) => format!("{account} ・ {course}"),
-        None => account.to_string(),
-    };
     UnifiedRow {
         name: view.name.clone(),
         kind: "投資信託",
-        sub,
+        sub: view.course.clone().unwrap_or_default(),
         code: None,
         account: Some(view.account.clone()),
         course: view.course.clone(),
@@ -238,6 +234,11 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                 .map(|row| {
                     let (pnl_text, rate_text, pnl_text_class, pnl_badge_class) =
                         pnl_cells(row.profit, row.rate);
+                    let meta = if row.sub.is_empty() {
+                        row.kind.to_string()
+                    } else {
+                        format!("{} ・ {}", row.kind, row.sub)
+                    };
                     let inner = view! {
                         <>
                             <div class="flex items-baseline justify-between gap-2">
@@ -250,7 +251,16 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                             </div>
                             <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
                                 <span class="min-w-0 truncate text-text-muted">
-                                    {format!("{} ・ {}", row.kind, row.sub)}
+                                    {meta}
+                                    {row
+                                        .account
+                                        .clone()
+                                        .map(|account| {
+                                            view! {
+                                                " · "
+                                                <AccountBadge label=account />
+                                            }
+                                        })}
                                 </span>
                                 {if row.profit.is_some() {
                                     view! {

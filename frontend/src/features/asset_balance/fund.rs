@@ -18,6 +18,7 @@ pub const FUND_IMPORT_PATH: &str = "/api/v1/fund-balance-imports";
 pub const FUND_CSV_CHUNKING: CsvChunking = CsvChunking {
     header_lines: 6,
     import_chunked: false,
+    preview_chunked: true,
     header_marker: Some("投資信託種別"),
 };
 
@@ -418,6 +419,15 @@ pub(crate) struct AssetSearch {
 impl AssetSearch {
     pub(crate) fn is_empty(&self) -> bool {
         self.text.trim().is_empty() && self.accounts.is_empty() && self.courses.is_empty()
+    }
+}
+
+/// テキストだけの検索条件。口座・コースの選択肢はタブごとに語彙が違うため、
+/// 「すべて」の絞り込みやタブ切替の直後はテキストのみ引き継ぐ
+pub(crate) fn text_only_search(search: &AssetSearch) -> AssetSearch {
+    AssetSearch {
+        text: search.text.clone(),
+        ..Default::default()
     }
 }
 

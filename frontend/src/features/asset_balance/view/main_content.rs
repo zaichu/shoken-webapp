@@ -6,7 +6,7 @@ use super::asset_table::AssetHoldingsTable;
 use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::kind_tabs::AssetKindTabs;
-use super::search_bar::AssetSearchBar;
+use super::search_bar::{AssetSearchBar, ConditionKind};
 use super::summary::{PortfolioSummary, fund_latest_nav_count, stock_price_dates};
 use super::summary_strip::AssetSummaryStrip;
 use crate::api::dto::AssetBalanceSummary;
@@ -14,7 +14,7 @@ use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::format::{price_date_is_outlier, price_date_representative};
 use crate::features::asset_balance::fund::{
     AssetKind, AssetSearch, FundBalanceRow, FundSortKey, FundView, filter_fund_rows, fund_accounts,
-    fund_courses, fund_totals, fund_view, sort_fund_views,
+    fund_courses, fund_totals, fund_view, sort_fund_views, text_only_search,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, holding_dividend, stock_daily_change_total,
@@ -22,6 +22,7 @@ use crate::features::asset_balance::holdings::{
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder, sort_holdings};
+use crate::features::asset_balance::search::stock_accounts;
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::asset_balance::store::{FilteredPortfolio, filtered_portfolio};
 use crate::features::dividend_per_share::DividendMaps;
@@ -109,12 +110,8 @@ fn StockContent(
 ) -> impl IntoView {
     let total_count = rows.len();
     let empty = rows.is_empty();
-    let initial = filtered_portfolio(
-        &rows,
-        &search.with_untracked(|s| s.text.clone()),
-        lookup,
-        generation,
-    );
+    let option_rows = rows.clone();
+    let initial = filtered_portfolio(&rows, &search.get_untracked(), lookup, generation);
     search_count.set((initial.views.len(), total_count));
     let filtered = RwSignal::new(initial);
     // 見出しの基準日と同じ代表を表の日付出し分けにも使う(絞り込み前の全行で決める)
@@ -123,11 +120,11 @@ fn StockContent(
         price_date_representative(dates.into_iter()).map(str::to_string)
     };
     Effect::new(move |_| {
-        let next = filtered_portfolio(&rows, &search.with(|s| s.text.clone()), lookup, generation);
+        let next = filtered_portfolio(&rows, &search.get(), lookup, generation);
         search_count.set((next.views.len(), total_count));
         filtered.set(next);
     });
-    let account_options = Memo::new(|_| Vec::<String>::new());
+    let account_options = Memo::new(move |_| stock_accounts(&option_rows));
     let course_options = Memo::new(|_| Vec::<String>::new());
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
@@ -149,8 +146,8 @@ fn StockContent(
             <AssetSearchBar
                 search=search
                 search_count=search_count
-                placeholder="銘柄名・コードで絞り込み"
-                show_conditions=false
+                placeholder="銘柄名・コード・口座で絞り込み"
+                conditions=&[ConditionKind::Account]
                 account_options=account_options
                 course_options=course_options
             />
@@ -275,7 +272,7 @@ fn FundContent(
                     search=search
                     search_count=search_count
                     placeholder="ファンド名で検索"
-                    show_conditions=true
+                    conditions=&[ConditionKind::Account, ConditionKind::Course]
                     account_options=account_options
                     course_options=course_options
                 />
@@ -363,19 +360,17 @@ fn AllContent(
         price_date_representative(dates.into_iter()).map(str::to_string)
     };
     let build_rows = move |search: &AssetSearch| -> Vec<UnifiedRow> {
-        // 株はコード・銘柄名、ファンドはファンド名・口座の部分一致にそろえる
+        // 「すべて」はテキストのみ。口座・コースの選択条件はタブごとに語彙が
+        // 違うためここでは使わない(テキストは株の口座・ファンド口座も部分一致する)
+        let text_search = text_only_search(search);
         let FilteredPortfolio { views, .. } =
-            filtered_portfolio(&stock_rows_for_search, &search.text, lookup, generation);
-        let fund_search = AssetSearch {
-            text: search.text.clone(),
-            ..Default::default()
-        };
+            filtered_portfolio(&stock_rows_for_search, &text_search, lookup, generation);
         let mut rows: Vec<UnifiedRow> = views.iter().map(unified_from_stock).collect();
         for row in &mut rows {
             row.date_outlier =
                 price_date_is_outlier(row.price_as_of.as_deref(), stock_date_rep.as_deref());
         }
-        let fund_rows: Vec<UnifiedRow> = filter_fund_rows(&fund_rows_for_search, &fund_search)
+        let fund_rows: Vec<UnifiedRow> = filter_fund_rows(&fund_rows_for_search, &text_search)
             .into_iter()
             .map(fund_view)
             .map(|view| unified_from_fund(&view))
@@ -392,7 +387,8 @@ fn AllContent(
         filtered.set(next);
     });
     // 集計は両種別を合算。株側は銘柄ごとの現在値評価を使う
-    let stock_all_views = filtered_portfolio(&stock_rows, "", lookup, generation).all_views;
+    let stock_all_views =
+        filtered_portfolio(&stock_rows, &AssetSearch::default(), lookup, generation).all_views;
     let stock_inputs: Vec<ValuationInput> =
         stock_all_views.iter().map(ValuationInput::from).collect();
     let stock_valuation = crate::features::asset_balance::model::portfolio_valuation(&stock_inputs);
@@ -483,7 +479,7 @@ fn AllContent(
                     search=search
                     search_count=search_count
                     placeholder="銘柄・ファンド名で検索"
-                    show_conditions=false
+                    conditions=&[]
                     account_options=account_options
                     course_options=course_options
                 />
@@ -546,6 +542,17 @@ pub(crate) fn AssetBalanceMainContent(
 ) -> impl IntoView {
     let stock_count = stock_rows.len();
     let fund_count = fund_resolved.total.max(fund_resolved.rows.len());
+    // 口座・コースの選択肢はタブごとに語彙が違うため、切替時は選択条件だけ消す
+    // (テキストは全タブ共通で引き継ぐ)
+    let prev_kind = RwSignal::new(kind.get_untracked());
+    Effect::new(move |_| {
+        let next = kind.get();
+        if prev_kind.get_untracked() == next {
+            return;
+        }
+        prev_kind.set(next);
+        search.update(|s| *s = text_only_search(s));
+    });
     view! {
         <AssetKindTabs
             kind=kind

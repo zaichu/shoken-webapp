@@ -9,6 +9,8 @@ pub(crate) struct HoldingView {
     pub(crate) id: Option<String>,
     pub(crate) code: String,
     pub(crate) name: String,
+    /// 口座区分。CSV の区切りから取れなかった行・旧データは None
+    pub(crate) account: Option<String>,
     pub(crate) shares: f64,
     pub(crate) average_price: f64,
     pub(crate) purchase: f64,
@@ -39,6 +41,7 @@ pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {
         id: None,
         code: row.security_code().to_string(),
         name: normalize_display_name(name_source),
+        account: row.account().map(str::to_string),
         shares: dec_to_f64(&row.shares()),
         average_price: dec_to_f64(&row.average_purchase_price()),
         purchase: dec_to_f64(&row.total_purchase_amount()),
