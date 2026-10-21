@@ -19,6 +19,7 @@ use crate::{
         user::UserResponse,
     },
 };
+use shared::domain::FundNavStatus;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -61,6 +62,7 @@ use crate::{
             AssetBalance,
             FundBalance,
             FundBalanceSummary,
+            FundNavStatus,
             BulkCreateAssetBalanceRequest,
             Stock,
             UserResponse,

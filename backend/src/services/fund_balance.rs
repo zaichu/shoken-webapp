@@ -17,7 +17,9 @@ use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupFie
 use crate::services::domain::search::Search;
 use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+use shared::domain::FundNavStatus;
 use shared::normalize::normalize_security_name;
 use shared::value::{Account, UserId};
 
@@ -86,6 +88,72 @@ const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(market_value), 0) AS total_market
      COUNT(*) FILTER (WHERE NOT nav_is_latest) AS pending_nav_count \
      FROM fund_balances_view";
 
+// 基準価額の自動更新(共有値)の状態。保有ファンドのうち協会コードが引けるものだけを対象にする。
+// 共有値の取得はユーザー全体で行うため、検索条件には依存しない
+const NAV_STATUS_SQL: &str = "SELECT MAX(fp.updated_at) AS updated_at, \
+     COUNT(DISTINCT fc.association_fund_cd) \
+         FILTER (WHERE fp.nav IS NOT NULL AND fp.fetch_error IS NULL) AS fetched_count, \
+     COUNT(DISTINCT fc.association_fund_cd) \
+         FILTER (WHERE fp.fetch_error IS NOT NULL) AS failed_count \
+     FROM fund_balances fb \
+     JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name \
+     LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd \
+     WHERE fb.user_id = $1";
+
+// 直近の失敗理由。失敗した共有値のうち最後に失敗したものの理由を出す
+const NAV_FAILURE_REASON_SQL: &str = "SELECT fp.fetch_error \
+     FROM fund_prices fp \
+     JOIN fund_codes fc ON fc.association_fund_cd = fp.association_fund_cd \
+     JOIN fund_balances fb ON fb.normalized_fund_name = fc.normalized_name \
+     WHERE fb.user_id = $1 AND fp.fetch_error IS NOT NULL \
+     ORDER BY fp.fetch_failed_at DESC NULLS LAST \
+     LIMIT 1";
+
+/// 自動更新の状態の集計行
+struct NavStatusRow {
+    updated_at: Option<DateTime<Utc>>,
+    fetched_count: i64,
+    failed_count: i64,
+}
+
+impl crate::db::FromRow for NavStatusRow {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            updated_at: row.try_get("updated_at")?,
+            fetched_count: row.try_get("fetched_count")?,
+            failed_count: row.try_get("failed_count")?,
+        })
+    }
+}
+
+/// 基準価額の自動更新の状態を返す。取得できた/失敗した件数と、直近の失敗理由を出す
+async fn fetch_nav_status(pool: &Db, user_id: UserId) -> Result<FundNavStatus, ApiError> {
+    let row = crate::db::query(NAV_STATUS_SQL, vec![Bind::from(user_id)])
+        .fetch_one::<NavStatusRow, _>(pool)
+        .await?;
+    let failure_reason = if row.failed_count > 0 {
+        crate::db::query(NAV_FAILURE_REASON_SQL, vec![Bind::from(user_id)])
+            .fetch_optional::<(String,), _>(pool)
+            .await?
+            .map(|(reason,)| reason)
+    } else {
+        None
+    };
+    Ok(FundNavStatus {
+        updated_at: row.updated_at.map(jst_minute),
+        fetched_count: row.fetched_count,
+        failed_count: row.failed_count,
+        failure_reason,
+    })
+}
+
+/// 基準価額の自動更新の時刻(JST)を "YYYY-MM-DD HH:MM" にする
+fn jst_minute(value: DateTime<Utc>) -> String {
+    (value + chrono::Duration::hours(9))
+        .format("%Y-%m-%d %H:%M")
+        .to_string()
+}
+
 impl Search for FundBalanceDomain {
     type Data = FundBalance;
     type Params = FundBalanceSearchQueryParams;
@@ -118,10 +186,13 @@ impl Search for FundBalanceDomain {
         user_id: UserId,
         filter: &SearchFilter,
     ) -> Result<FundBalanceSummary, ApiError> {
-        Ok(Self::filtered_query(SUMMARY_SQL, user_id, filter)
+        let mut summary = Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<FundBalanceSummary>()
             .fetch_one(pool)
-            .await?)
+            .await?;
+        // 自動更新の状況は検索条件に依らないので別のクエリで取る
+        summary.nav_status = fetch_nav_status(pool, user_id).await?;
+        Ok(summary)
     }
 }
 
