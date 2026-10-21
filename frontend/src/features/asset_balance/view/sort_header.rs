@@ -3,6 +3,7 @@ use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
 
 /// ソート可能な列見出し。同じキーを再押下で昇降を切り替え、別キーは降順で始める
+/// 並べ替えは数値列にだけ使うので、見出しは数値列の種別クラス(.col-num)にする
 pub(crate) fn sort_header<K: Copy + PartialEq + Send + Sync + 'static>(
     label: &'static str,
     key: K,
@@ -15,8 +16,8 @@ pub(crate) fn sort_header<K: Copy + PartialEq + Send + Sync + 'static>(
             return String::new();
         }
         match sort_order.get() {
-            SortOrder::Desc => " ▼".to_string(),
-            SortOrder::Asc => " ▲".to_string(),
+            SortOrder::Desc => "▼".to_string(),
+            SortOrder::Asc => "▲".to_string(),
         }
     };
     let on_click = move |_| {
@@ -35,7 +36,7 @@ pub(crate) fn sort_header<K: Copy + PartialEq + Send + Sync + 'static>(
     view! {
         <th
             scope="col"
-            class="text-right"
+            class="col-num"
             aria-sort=move || {
                 active().then(|| {
                     match sort_order.get() {
@@ -50,8 +51,13 @@ pub(crate) fn sort_header<K: Copy + PartialEq + Send + Sync + 'static>(
                 aria_pressed=Signal::derive(move || active().to_string())
                 on_click=on_click
             >
+                // 矢印は文字の左に置く。文字の右に置くと矢印の分だけ見出しが
+                // 列の値より左にずれて、見出しとデータが揃わない
+                // 並べ替えの状態は th の aria-sort で伝えるので、矢印は読み上げない
+                <span class="asset-sort-arrow" aria_hidden="true">
+                    {arrow}
+                </span>
                 {label}
-                <span class="asset-sort-arrow">{arrow}</span>
             </Button>
         </th>
     }

@@ -37,16 +37,16 @@ pub fn AssetHoldingsTable(
             <table class="asset-table">
                 <thead>
                     <tr>
-                        <th scope="col">"コード"</th>
-                        <th scope="col">"銘柄"</th>
-                        <th scope="col">"口座"</th>
-                        <th scope="col" class="text-right">"数量"</th>
-                        <th scope="col" class="text-right">"取得単価"</th>
-                        <th scope="col" class="text-right">"現在値"</th>
-                        <th scope="col" class="text-right">"前日比"</th>
+                        <th scope="col" class="col-text">"コード"</th>
+                        <th scope="col" class="col-text">"銘柄"</th>
+                        <th scope="col" class="col-text">"口座"</th>
+                        <th scope="col" class="col-num">"数量"</th>
+                        <th scope="col" class="col-num">"取得単価"</th>
+                        <th scope="col" class="col-num">"現在値"</th>
+                        <th scope="col" class="col-num">"前日比"</th>
                         {sort_header("評価額", SortKey::MarketValue, sort_key, sort_order)}
                         {sort_header("含み損益", SortKey::ProfitLoss, sort_key, sort_order)}
-                        <th scope="col" class="text-right">"1株配当"</th>
+                        <th scope="col" class="col-num">"1株配当"</th>
                         {sort_header("年間配当", SortKey::Dividend, sort_key, sort_order)}
                         {sort_header("取得額利回り", SortKey::Yield, sort_key, sort_order)}
                     </tr>
@@ -80,13 +80,13 @@ pub fn AssetHoldingsTable(
                             };
                             view! {
                                 <tr>
-                                    <td>
+                                    <td class="col-text">
                                         <TableSecurityCode code=view.code.clone() />
                                     </td>
-                                    <td class="asset-name-cell" title=view.name.clone()>
+                                    <td class="asset-name-cell col-text" title=view.name.clone()>
                                         <TableNameLink href=href name=view.name.clone() />
                                     </td>
-                                    <td>
+                                    <td class="col-text">
                                         {view.account.clone().map_or_else(
                                             || view! { "—" }.into_any(),
                                             |account| {
@@ -94,20 +94,20 @@ pub fn AssetHoldingsTable(
                                             },
                                         )}
                                     </td>
-                                    <td class="text-right tabular-nums text-text-soft">
+                                    <td class="col-num text-text-soft">
                                         {format!("{}株", format_number_value(view.shares))}
                                     </td>
-                                    <td class="text-right tabular-nums text-text-soft">
+                                    <td class="col-num text-text-soft">
                                         {format_currency(view.average_price)}
                                     </td>
-                                    <td class="text-right tabular-nums text-text-soft">
+                                    <td class="col-num text-text-soft">
                                         {format_currency(view.current_price)}
                                     </td>
-                                    <td class="text-right tabular-nums">
+                                    <td class="col-num">
                                         {day_change_cell(view.day_change, outlier_date)}
                                     </td>
-                                    <td class="text-right font-bold tabular-nums text-text-deep">{market_text}</td>
-                                    <td class="text-right tabular-nums">
+                                    <td class="col-num font-bold text-text-deep">{market_text}</td>
+                                    <td class="col-num">
                                         {if valuation.profit_loss.amount.is_some() {
                                             let rate_badge = valuation.profit_loss.rate.is_some().then(|| {
                                                 view! {
@@ -128,9 +128,9 @@ pub fn AssetHoldingsTable(
                                             view! { "—" }.into_any()
                                         }}
                                     </td>
-                                    <td class="text-right tabular-nums">{dividend_per_share}</td>
-                                    <td class="text-right tabular-nums">{dividend_annual}</td>
-                                    <td class="text-right tabular-nums text-text-deep">{dividend_yield}</td>
+                                    <td class="col-num">{dividend_per_share}</td>
+                                    <td class="col-num">{dividend_annual}</td>
+                                    <td class="col-num text-text-deep">{dividend_yield}</td>
                                 </tr>
                             }
                         })
