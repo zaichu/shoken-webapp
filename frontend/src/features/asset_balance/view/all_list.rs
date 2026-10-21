@@ -194,7 +194,7 @@ pub fn AssetMergedTable(
                                                     .into_any()
                                             }}
                                         </td>
-                                        <td class="text-right font-bold tabular-nums text-brand-text">
+                                        <td class="text-right font-bold tabular-nums text-text-deep">
                                             {format_row_valuation_amount(row.market)}
                                         </td>
                                         <td class="text-right tabular-nums">
@@ -244,7 +244,7 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                                 <span class="min-w-0 truncate font-medium text-text">
                                     {row.name.clone()}
                                 </span>
-                                <span class="shrink-0 font-bold tabular-nums text-brand-text">
+                                <span class="shrink-0 font-bold tabular-nums text-text-deep">
                                     {format_row_valuation_amount(row.market)}
                                 </span>
                             </div>

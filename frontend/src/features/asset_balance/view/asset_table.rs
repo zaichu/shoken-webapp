@@ -93,7 +93,7 @@ pub fn AssetHoldingsTable(
                                     <td class="text-right tabular-nums">
                                         {day_change_cell(view.day_change, outlier_date)}
                                     </td>
-                                    <td class="text-right font-bold tabular-nums text-brand-text">{market_text}</td>
+                                    <td class="text-right font-bold tabular-nums text-text-deep">{market_text}</td>
                                     <td class="text-right tabular-nums">
                                         {if valuation.profit_loss.amount.is_some() {
                                             let rate_badge = valuation.profit_loss.rate.is_some().then(|| {
@@ -116,7 +116,7 @@ pub fn AssetHoldingsTable(
                                         }}
                                     </td>
                                     <td class="text-right tabular-nums">{dividend_annual}</td>
-                                    <td class="text-right tabular-nums text-brand-text">{dividend_yield}</td>
+                                    <td class="text-right tabular-nums text-text-deep">{dividend_yield}</td>
                                 </tr>
                             }
                         })

@@ -76,7 +76,7 @@ pub fn FundHoldingsTable(
                                                 .into_any()
                                         }}
                                     </td>
-                                    <td class="text-right font-bold tabular-nums text-brand-text">
+                                    <td class="text-right font-bold tabular-nums text-text-deep">
                                         {format_row_valuation_amount(Some(view.market_value))}
                                     </td>
                                     <td class="text-right tabular-nums">
@@ -119,7 +119,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                                 <span class="min-w-0 truncate font-medium text-text">
                                     {view.name.clone()}
                                 </span>
-                                <span class="shrink-0 font-bold tabular-nums text-brand-text">
+                                <span class="shrink-0 font-bold tabular-nums text-text-deep">
                                     {format_row_valuation_amount(Some(view.market_value))}
                                 </span>
                             </div>

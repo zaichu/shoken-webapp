@@ -336,7 +336,7 @@ fn YearPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -
                                 class=move || format!(
                                     "px-3 py-1.5 rounded-full text-sm font-medium transition-colors max-sm:min-h-11 {}",
                                     if selected.get() {
-                                        "bg-surface border border-brand text-brand-text"
+                                        "bg-surface border border-brand-text text-text-deep"
                                     } else {
                                         "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
                                     }
@@ -377,7 +377,7 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                                         class=move || format!(
                                             "px-3 py-1.5 rounded-full text-sm font-medium transition-colors max-sm:min-h-11 {}",
                                             if is_selected() {
-                                                "bg-surface border border-brand text-brand-text"
+                                                "bg-surface border border-brand-text text-text-deep"
                                             } else {
                                                 "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
                                             }

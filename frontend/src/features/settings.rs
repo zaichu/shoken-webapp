@@ -332,7 +332,7 @@ fn SectionData() -> impl IntoView {
                                                     <label class="flex items-center gap-1.5 text-sm">
                                                         <input
                                                             type="checkbox"
-                                                            class="h-4 w-4 accent-brand"
+                                                            class="h-4 w-4 accent-brand-text"
                                                             prop:checked=move || review_prompt.get().has_column(column)
                                                             on:change=move |ev| {
                                                                 let checked = event_target_checked(&ev);
