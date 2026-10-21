@@ -710,7 +710,7 @@
   }
 
   .receipts-table {
-    @apply w-full table-auto border-collapse text-sm;
+    @apply w-full table-fixed border-collapse text-sm;
   }
 
   .receipts-table thead {
@@ -757,7 +757,7 @@
   }
 
   /* PC の compact 表: 銘柄列が数値列に押しつぶされないように最低幅を確保し、
-     table-auto の配分で残り幅をすべて名前列が使う(width:100%)。
+     名前列・口座列に上限(30em/12em)を付けて余った幅を数値列へ配分する。
      名前が長いときは nowrap は使えず、層の外の line-clamp-2(2行で末尾省略)に任せる。
      見出しは nowrap にして「銘柄コード」などの語が行内で切れないようにする
      (列が内容最小まで詰まっても見出しの語幅だけは残る)。印刷は従来どおり折り返す */
@@ -767,9 +767,18 @@
     }
     .receipts-table td.receipt-instrument-cell {
       min-width: 10em;
+    }
+
+    /* 名前列・口座列に上限を付け、余った幅は数値列へ配分する
+       (table-fixed で列幅を固定し、残りは数値列が均等に取る) */
+    .receipts-table th.receipt-instrument-col,
+    .receipts-table td.receipt-instrument-cell {
       width: 30em;
-      max-width: 30em;
-      overflow: hidden;
+    }
+
+    .receipts-table th.receipt-account-col,
+    .receipts-table td.receipt-account-col {
+      width: 12em;
     }
   }
 

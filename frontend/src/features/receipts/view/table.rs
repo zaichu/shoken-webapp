@@ -4,6 +4,7 @@ use super::cards::{
     is_profit_label,
 };
 use crate::features::receipts::filter::{column_order, promoted_column};
+use crate::features::receipts::kind::CardRole;
 use crate::features::receipts::kind::ColumnSpec;
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::kind::TableGroup;
@@ -33,16 +34,10 @@ pub fn displayed_tiers(
 // PC(lg+)の表の列幅。銘柄列は幅を固定せず残り全部を使い、日付・口座・数量・金額は
 // 内容に見合う最小幅で固定する(数値列は折り返さず 1 行で出す)
 fn compact_width(header: &str) -> &'static str {
-    match header {
-        "入金日" | "約定日" => "6.5em",
-        "銘柄コード" => "5.5em",
-        "口座" => "",
-        "数量" => "4em",
-        "配当金" | "税額" | "税引後" | "売却額" | "取得価額" | "実現損益" | "解約額" => {
-            "5.5em"
-        }
-        _ => "",
-    }
+    // 列幅の上限は CSS 側で管理する。ここでは固定幅を指定しないことで、
+    // table-fixed で余った幅を数値列へ均等に配分させる
+    let _ = header;
+    ""
 }
 
 // PC の表は lg 以上でしか出ないため、段は「常時」と「xl から」の2つにまとめる。
@@ -243,9 +238,15 @@ pub fn ReceiptTable(
                                             } else {
                                                 "text-left"
                                             };
+                                            let col_role = columns[desktop_order[col_index]].card_role;
+                                            let extra_class = match col_role {
+                                                CardRole::Name => " receipt-instrument-col",
+                                                CardRole::Account => " receipt-account-col",
+                                                _ => "",
+                                            };
                                             view! {
                                                 <th
-                                                    class=format!("{align}{}", tier.class())
+                                                    class=format!("{align}{}{extra_class}", tier.class())
                                                     scope="col"
                                                     style:width=width
                                                     style:max-width=width
@@ -388,10 +389,15 @@ pub fn ReceiptTable(
                                                                             } else {
                                                                                 value.clone().into_any()
                                                                             };
+                                                                            let account_class = if header == "口座" {
+                                                                                " receipt-account-col"
+                                                                            } else {
+                                                                                ""
+                                                                            };
                                                                             view! {
                                                                                 <td
                                                                                     class=format!(
-                                                                                        "{align}{emphasis}",
+                                                                                        "{align}{emphasis}{account_class}",
                                                                                     )
                                                                                     title=title
                                                                                     data-negative=negative.then_some("true")
