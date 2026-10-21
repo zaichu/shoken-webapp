@@ -141,6 +141,7 @@ fn StockContent(
                         dividends=dividends
                     />
                     {(!stock_note.is_empty()).then(|| band_note(stock_note.clone()))}
+                    {stock_basis_details()}
                 }
             })
         }}
@@ -335,6 +336,26 @@ fn filtered_fund_views(rows: &[FundBalanceRow], search: &AssetSearch) -> Vec<Fun
 fn band_note(note: String) -> impl IntoView {
     view! {
         <p class="mt-1 mb-2 px-4 text-xs text-text-muted lg:px-0">{note}</p>
+    }
+}
+
+/// PC だけ出す計算基準。帯の直下の注記の次に置く(スマホは帯の中の details を使う)
+fn stock_basis_details() -> impl IntoView {
+    view! {
+        <details class="asset-basis-pc hidden lg:block">
+            <summary>"計算基準を見る"</summary>
+            <div class="asset-basis-pc-body">
+                "評価額 = 現在値 × 株数(価格なし銘柄は除く。現在値は銘柄ごとの最新終値で、日付は銘柄ごとに違い、他と違う行は表の「前日比」の横に表示)"
+                <br />
+                "前日比 = (現在値 − 前日終値) × 株数の合計(前日終値なし銘柄は除く。1株あたりの前日比は表の「前日比」に表示)"
+                <br />
+                "含み損益 = 評価額 − 取得総額、率 = 含み損益 ÷ 取得総額(価格あり銘柄の合計どうし)"
+                <br />
+                "年間配当 = 1株配当 × 株数(1株配当は会社予想。なければ直近の実績)"
+                <br />
+                "取得額利回り = 年間配当 ÷ 取得総額。合計は全銘柄の年間配当の合計 ÷ 取得総額の合計"
+            </div>
+        </details>
     }
 }
 
