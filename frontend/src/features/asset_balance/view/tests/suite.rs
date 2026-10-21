@@ -23,6 +23,7 @@ use crate::session::{Generation, SessionStore};
 use crate::support::row::Row;
 use crate::testing::asset_balance::*;
 use leptos::prelude::*;
+use shared::domain::FundNavStatus;
 use std::collections::HashMap;
 
 fn text_search(text: &str) -> AssetSearch {
@@ -621,6 +622,7 @@ fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
                 priced_purchase_amount: rust_decimal_macros::dec!(60),
                 has_missing_daily_change: false,
             }),
+            summary: None,
         };
         let subtitle = super::summary::list_subtitle(&resolved);
         assert!(
@@ -646,6 +648,7 @@ fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
             total: 2,
             warning: None,
             fallback_totals: None,
+            summary: None,
         };
         let subtitle = super::summary::list_subtitle(&resolved);
         assert!(subtitle.contains("2"), "{subtitle}");
@@ -670,6 +673,7 @@ fn stock_note_excludes_unpriced_rows_from_price_dates() {
             total: 2,
             warning: None,
             fallback_totals: None,
+            summary: None,
         };
         let note = super::summary::stock_note(&resolved);
         assert!(note.contains("01/16"), "{note}");
@@ -687,6 +691,7 @@ fn stock_note_shows_single_date_when_all_rows_share_as_of() {
             total: 2,
             warning: None,
             fallback_totals: None,
+            summary: None,
         };
         let note = super::summary::stock_note(&resolved);
         assert!(!note.contains("〜"), "{note}");
@@ -709,6 +714,7 @@ fn stock_note_shows_the_representative_date_when_dates_differ() {
             total: 3,
             warning: None,
             fallback_totals: None,
+            summary: None,
         };
         let note = super::summary::stock_note(&resolved);
         assert!(note.contains("株価 01/16 時点"), "{note}");
@@ -908,6 +914,68 @@ fn fund_saved_row(
 }
 
 #[test]
+fn fund_nav_note_distinguishes_fetched_failed_and_not_fetched_yet() {
+    // 取得できたとき: 最終更新の時刻と取得件数
+    let fetched = super::summary::fund_nav_note(&FundNavStatus {
+        updated_at: Some("2026-10-20 23:02".to_string()),
+        fetched_count: 30,
+        failed_count: 0,
+        failure_reason: None,
+    });
+    assert!(fetched.contains("10/20 23:02"), "{fetched}");
+    assert!(fetched.contains("30"), "{fetched}");
+    assert!(!fetched.contains("失敗"), "{fetched}");
+
+    // 取得できなかったとき: 失敗件数と理由を出す
+    let failed = super::summary::fund_nav_note(&FundNavStatus {
+        updated_at: Some("2026-10-20 23:02".to_string()),
+        fetched_count: 0,
+        failed_count: 2,
+        failure_reason: Some("HTTP 403".to_string()),
+    });
+    assert!(failed.contains("10/20 23:02"), "{failed}");
+    assert!(failed.contains("2"), "{failed}");
+    assert!(failed.contains("HTTP 403"), "{failed}");
+
+    // 一部だけ取得できたとき: 取得件数と失敗件数の両方を出す
+    let mixed = super::summary::fund_nav_note(&FundNavStatus {
+        updated_at: Some("2026-10-20 23:02".to_string()),
+        fetched_count: 28,
+        failed_count: 2,
+        failure_reason: Some("HTTP 403".to_string()),
+    });
+    assert!(mixed.contains("28"), "{mixed}");
+    assert!(mixed.contains("2"), "{mixed}");
+    assert!(mixed.contains("HTTP 403"), "{mixed}");
+
+    // まだ取得されていないとき: 件数を出さず未取得の文言だけを出す
+    let not_fetched = super::summary::fund_nav_note(&FundNavStatus::default());
+    assert!(not_fetched.contains("まだ"), "{not_fetched}");
+    assert!(!not_fetched.contains("件"), "{not_fetched}");
+}
+
+#[test]
+fn fund_nav_note_shows_three_states_differently() {
+    // 3状態はそれぞれ別の文言になる(取り違えても同じ表示にしない)
+    let fetched = super::summary::fund_nav_note(&FundNavStatus {
+        updated_at: Some("2026-10-20 23:02".to_string()),
+        fetched_count: 3,
+        failed_count: 0,
+        failure_reason: None,
+    });
+    let failed = super::summary::fund_nav_note(&FundNavStatus {
+        updated_at: Some("2026-10-20 23:02".to_string()),
+        fetched_count: 0,
+        failed_count: 3,
+        failure_reason: Some("HTTP 403".to_string()),
+    });
+    let not_fetched = super::summary::fund_nav_note(&FundNavStatus::default());
+    assert_ne!(fetched, failed);
+    assert_ne!(fetched, not_fetched);
+    assert_ne!(failed, not_fetched);
+}
+
+#[test]
 fn fund_subtitle_shows_only_the_count() {
     let resolved = ResolvedFundBalance {
         rows: vec![
@@ -918,6 +986,7 @@ fn fund_subtitle_shows_only_the_count() {
         total: 3,
         warning: None,
         fallback_totals: None,
+        summary: None,
     };
     let subtitle = super::summary::fund_subtitle(&resolved);
     assert!(subtitle.contains("3件"), "{subtitle}");
@@ -936,7 +1005,9 @@ fn fund_subtitle_shows_only_the_count() {
             total_daily_change: rust_decimal::Decimal::from(1),
             latest_nav_count: 5,
             pending_nav_count: 4,
+            nav_status: shared::domain::FundNavStatus::default(),
         }),
+        summary: None,
     };
     let subtitle = super::summary::fund_subtitle(&truncated);
     assert!(subtitle.contains("9件"), "{subtitle}");
@@ -948,6 +1019,7 @@ fn fund_subtitle_shows_only_the_count() {
         total: 1,
         warning: None,
         fallback_totals: None,
+        summary: None,
     };
     let subtitle = super::summary::fund_subtitle(&all_latest);
     assert!(subtitle.contains("1件"), "{subtitle}");
@@ -965,6 +1037,7 @@ fn merged_subtitle_shows_only_the_count() {
             total: 1,
             warning: None,
             fallback_totals: None,
+            summary: None,
         };
         let fund = ResolvedFundBalance {
             rows: vec![
@@ -974,6 +1047,7 @@ fn merged_subtitle_shows_only_the_count() {
             total: 2,
             warning: None,
             fallback_totals: None,
+            summary: None,
         };
         let subtitle =
             super::summary::merged_subtitle(Some(&stock), Some(&fund)).expect("subtitle");
