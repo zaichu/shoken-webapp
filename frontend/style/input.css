@@ -791,11 +791,11 @@
     @media (max-width: 1279px) {
       .receipts-table th.receipt-instrument-col,
       .receipts-table td.receipt-instrument-cell {
-        width: 24em;
+        width: 20em;
       }
       .receipts-table th.receipt-account-col,
       .receipts-table td.receipt-account-col {
-        width: 10em;
+        width: 8em;
       }
     }
   }
