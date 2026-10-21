@@ -92,6 +92,20 @@
   --color-info-border: #a9bff4;
   --color-info-focus: #1d4ed8;
 
+  /* 口座区分の札(特定・一般・NISA系・旧NISA)。bg/text/border の3つで1組 */
+  --color-badge-specific: #e8eef9;
+  --color-badge-specific-text: #33456b;
+  --color-badge-specific-border: #c0cee6;
+  --color-badge-general: #edeff3;
+  --color-badge-general-text: #4a5565;
+  --color-badge-general-border: #ccd3dc;
+  --color-badge-nisa: #fef3c7;
+  --color-badge-nisa-text: #92400e;
+  --color-badge-nisa-border: #ebdaa4;
+  --color-badge-old-nisa: #f0ede4;
+  --color-badge-old-nisa-text: #615642;
+  --color-badge-old-nisa-border: #d6ccb2;
+
   /* グラフの系列色は面・部品の色と別に持ち、商品・口座ごとに固定で割り当てる。
      前年の棒は系列ではなく比較の基準として落ち着いた色にする */
   --color-chart-1: var(--color-brand);
@@ -201,10 +215,11 @@
       --color-text: #dfe6f2;
       --color-text-deep: #f2f5fa;
       --color-text-strong: #f2f5fa;
-      --color-text-soft: #c2cddf;
-      --color-text-muted: #9caac2;
-      --color-text-subtle: #9caac2;
-      --color-text-quiet: #9caac2;
+      /* ダークの補助文字は地と同化しやすいので、段差は明るさではなく太さ・大きさで付ける */
+      --color-text-soft: #dfe6f2;
+      --color-text-muted: #c2cddf;
+      --color-text-subtle: #c2cddf;
+      --color-text-quiet: #c2cddf;
       --color-text-faint: #6d7c99;
 
       --color-border: #26334d;
@@ -268,6 +283,19 @@
       --color-band-border: #6b5518;
       --color-warn-ink: #f2c066;
       --color-nisa-soft: #33260f;
+
+      --color-badge-specific: #25324d;
+      --color-badge-specific-text: #d7e3f5;
+      --color-badge-specific-border: #4e648e;
+      --color-badge-general: #272d39;
+      --color-badge-general-text: #cfd5de;
+      --color-badge-general-border: #4d5668;
+      --color-badge-nisa: #33260f;
+      --color-badge-nisa-text: #f2c066;
+      --color-badge-nisa-border: #6b5518;
+      --color-badge-old-nisa: #2d2920;
+      --color-badge-old-nisa-text: #cec3a4;
+      --color-badge-old-nisa-border: #584f3a;
     }
   }
 }
@@ -934,9 +962,10 @@
     @apply text-xs text-text-deep;
   }
 
-  /* 口座区分のバッジ。NISA 系は琥珀配色 */
+  /* 口座区分の札。配色は --color-badge-* トークンで種類(特定・一般・NISA系・旧NISA)
+     ごとに決め、枠を付けてどの面の上でも地に溶けないようにする */
   .account-badge {
-    @apply inline-flex items-center rounded-lg bg-row-group px-1.5 py-0.5 text-xs text-night-soft;
+    @apply inline-flex items-center rounded-lg border border-badge-general-border bg-badge-general px-1.5 py-0.5 text-xs text-badge-general-text;
   }
 
   /* PC の表ではバッジを折り返さず1行で出す(列は内容に合わせて広がる) */
@@ -944,8 +973,16 @@
     @apply whitespace-nowrap;
   }
 
+  .account-badge-specific {
+    @apply border-badge-specific-border bg-badge-specific text-badge-specific-text;
+  }
+
   .account-badge-nisa {
-    @apply bg-nisa-soft text-warn-ink;
+    @apply border-badge-nisa-border bg-badge-nisa text-badge-nisa-text;
+  }
+
+  .account-badge-old-nisa {
+    @apply border-badge-old-nisa-border bg-badge-old-nisa text-badge-old-nisa-text;
   }
 
   /* 集計の帯はスクロール中も一覧の上に張り付く(スマホのみ) */
