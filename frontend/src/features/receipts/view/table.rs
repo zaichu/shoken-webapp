@@ -190,13 +190,13 @@ pub fn ReceiptTable(
         "sm:hidden print:hidden"
     };
     let table_frame_class = if compact_mobile {
-        // PC の表は table-fixed で列幅を固定し、余った幅を数値列へ配分する
+        // 列幅は table-auto に任せ、名前列・口座列の上限は CSS で指定する
         ""
     } else {
         "table-frame overflow-x-auto"
     };
     let table_class = if compact_mobile {
-        "receipts-table receipts-table-fixed"
+        "receipts-table"
     } else {
         "receipt-table"
     };

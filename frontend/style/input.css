@@ -739,12 +739,6 @@
     @apply w-full table-auto border-collapse text-sm;
   }
 
-  /* 取引明細の PC 表だけ固定レイアウトにする。CSV プレビューは従来の
-     table-auto を保つ */
-  .receipts-table.receipts-table-fixed {
-    table-layout: fixed;
-  }
-
   .receipts-table thead {
     @apply bg-surface-sunken;
   }
@@ -789,7 +783,8 @@
   }
 
   /* PC の compact 表: 銘柄列が数値列に押しつぶされないように最低幅を確保し、
-     名前列・口座列に上限(30em/12em)を付けて余った幅を数値列へ配分する。
+     名前列・口座列は内容に応じた幅(上限 30em/12em)に抑える。両列の上限で
+     余った幅が数値列へ回る(table-auto の配分に任せる)。
      名前が長いときは nowrap は使えず、層の外の line-clamp-2(2行で末尾省略)に任せる。
      見出しは nowrap にして「銘柄コード」などの語が行内で切れないようにする
      (列が内容最小まで詰まっても見出しの語幅だけは残る)。印刷は従来どおり折り返す */
@@ -801,8 +796,7 @@
       min-width: 10em;
     }
 
-    /* 名前列・口座列に上限を付け、余った幅は数値列へ配分する
-       (table-fixed で列幅を固定し、残りは数値列が均等に取る) */
+    /* 名前列・口座列に上限を付け、余った幅は数値列へ配分する */
     .receipts-table th.receipt-instrument-col,
     .receipts-table td.receipt-instrument-cell {
       width: 30em;
@@ -817,13 +811,9 @@
       overflow: hidden;
     }
 
-    /* 1024px 前後では数値列が狭くなりすぎるため、固定レイアウトを
-       自動レイアウトに戻し、数値セルを折り返して重なりを防ぐ
-       (スクロールコンテナを作ると見出しの sticky が崩れるため) */
+    /* 1024px 前後では数値列が狭くなりすぎるため、数値セルを折り返して
+       重なりを防ぐ(スクロールコンテナを作ると見出しの sticky が崩れる) */
     @media (max-width: 1279px) {
-      .receipts-table.receipts-table-fixed {
-        table-layout: auto;
-      }
       .receipts-table td.text-right {
         white-space: normal;
         overflow-wrap: anywhere;
