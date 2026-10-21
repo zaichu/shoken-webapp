@@ -132,15 +132,18 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
             false,
         );
 
-        let shares =
-            lookup.with_untracked(|store| store.get(generation, "9904").map(|row| row.shares));
+        let shares = lookup.with_untracked(|store| {
+            store
+                .get(generation, &balance_row(9904))
+                .map(|row| row.shares)
+        });
         assert_eq!(
             shares,
             Some(rust_decimal_macros::dec!(200)),
             "同一世代の置換でも lookup の古い値を残さない"
         );
         assert!(
-            lookup.with_untracked(|store| store.get(generation, "9914").is_none()),
+            lookup.with_untracked(|store| store.get(generation, &balance_row(9914)).is_none()),
             "置換後に消えた銘柄の lookup も消す"
         );
     });

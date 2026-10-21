@@ -1,7 +1,7 @@
 use crate::models::common::{SearchParamsAccessor, SearchQueryParams, validate_length_field};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use shared::value::SecurityCode;
+use shared::value::{Account, SecurityCode};
 use std::{borrow::Cow, collections::BTreeMap};
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors, ValidationErrorsKind};
@@ -15,6 +15,7 @@ impl crate::db::FromRow for AssetBalance {
             user_id: row.try_get("user_id")?,
             security_code: row.try_get("security_code")?,
             security_name: row.try_get("security_name")?,
+            account: row.try_get("account")?,
             shares: row.try_get::<_, crate::db::Numeric>("shares")?.0,
             average_purchase_price: row
                 .try_get::<_, crate::db::Numeric>("average_purchase_price")?
@@ -63,6 +64,9 @@ pub struct CreateAssetBalanceRequest {
     #[schema(value_type = String)]
     pub security_code: SecurityCode,
     pub security_name: String,
+    /// 口座区分。CSV の「口座合計」区切りが無い・区切りより前の行は null
+    #[schema(value_type = Option<String>)]
+    pub account: Option<Account>,
     #[schema(value_type = f64)]
     pub shares: Decimal,
     #[schema(value_type = f64)]
@@ -160,6 +164,8 @@ pub struct AssetBalanceSearchQueryParams {
     pub security_code: Option<String>,
     /// 銘柄名での絞り込み
     pub security_name: Option<String>,
+    /// 口座区分での絞り込み
+    pub account: Option<String>,
 }
 
 impl SearchParamsAccessor for AssetBalanceSearchQueryParams {
@@ -176,6 +182,7 @@ mod tests {
         CreateAssetBalanceRequest {
             security_code: "1234".parse().expect("valid code"),
             security_name: "テスト株式会社".to_string(),
+            account: None,
             shares: dec!(100),
             average_purchase_price: dec!(1500),
             total_purchase_amount: dec!(150000),

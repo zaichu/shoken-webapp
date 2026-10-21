@@ -11,6 +11,7 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::badge::AccountBadge;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
 
@@ -37,6 +38,7 @@ pub fn AssetHoldingsTable(
                     <tr>
                         <th scope="col">"コード"</th>
                         <th scope="col">"銘柄"</th>
+                        <th scope="col">"口座"</th>
                         <th scope="col" class="text-right">"数量"</th>
                         <th scope="col" class="text-right">"取得単価"</th>
                         <th scope="col" class="text-right">"現在値"</th>
@@ -80,6 +82,14 @@ pub fn AssetHoldingsTable(
                                     </td>
                                     <td class="asset-name-cell" title=view.name.clone()>
                                         <TableNameLink href=href name=view.name.clone() />
+                                    </td>
+                                    <td>
+                                        {view.account.clone().map_or_else(
+                                            || view! { "—" }.into_any(),
+                                            |account| {
+                                                view! { <AccountBadge label=account /> }.into_any()
+                                            },
+                                        )}
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
                                         {format!("{}株", format_number_value(view.shares))}

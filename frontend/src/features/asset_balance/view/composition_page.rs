@@ -112,7 +112,12 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                         }
                         Some(view) => {
                             let generation = session.generation.get();
-                            let filtered = filtered_portfolio(&view.rows, "", lookup, generation);
+                            let filtered = filtered_portfolio(
+                                &view.rows,
+                                &crate::features::asset_balance::fund::AssetSearch::default(),
+                                lookup,
+                                generation,
+                            );
                             let views = filtered.views;
                             let total_purchase = composition_basis(&views);
                             let chart_values: Vec<f64> = views.iter().map(|v| v.purchase).collect();

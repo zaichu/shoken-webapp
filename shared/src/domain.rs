@@ -190,6 +190,13 @@ pub struct AssetBalance {
     #[serde(deserialize_with = "crate::value::unchecked::security_code")]
     pub security_code: SecurityCode,
     pub security_name: String,
+    /// 口座区分。CSV の「口座合計」区切りが無い・区切りより前の行は持たない
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>))]
+    #[serde(
+        default,
+        deserialize_with = "crate::value::unchecked::optional_account"
+    )]
+    pub account: Option<Account>,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub shares: Decimal,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]

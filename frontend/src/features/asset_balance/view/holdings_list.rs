@@ -7,6 +7,7 @@ use crate::features::asset_balance::holdings::{
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::badge::AccountBadge;
 use leptos::prelude::*;
 
 #[component]
@@ -33,9 +34,8 @@ pub fn HoldingsList(
                     let dividend_annual = format_dividend_annual(&dividend);
                     let dividend_yield = format_dividend_yield(&dividend);
                     let shares_text = format!("{}株", format_number_value(view.shares));
-                    let meta = format!(
-                        "{} · {} · 現在値 {} · 前日比 {}",
-                        view.code,
+                    let meta_tail = format!(
+                        " · {} · 現在値 {} · 前日比 {}",
                         shares_text,
                         format_currency(view.current_price),
                         format_signed_row_valuation_amount(view.day_change),
@@ -52,7 +52,17 @@ pub fn HoldingsList(
                             </div>
                             <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
                                 <span class="min-w-0 truncate text-text-muted">
-                                    {meta}
+                                    {view.code.clone()}
+                                    {view
+                                        .account
+                                        .clone()
+                                        .map(|account| {
+                                            view! {
+                                                " · "
+                                                <AccountBadge label=account />
+                                            }
+                                        })}
+                                    {meta_tail}
                                 </span>
                                 {if valuation.profit_loss.amount.is_some() {
                                     let rate_badge = valuation.profit_loss.rate.is_some().then(|| {

@@ -9,6 +9,7 @@ use serde::Deserialize;
 const CSV_CHUNKING: CsvChunking = CsvChunking {
     header_lines: 1,
     import_chunked: true,
+    preview_chunked: true,
     header_marker: None,
 };
 

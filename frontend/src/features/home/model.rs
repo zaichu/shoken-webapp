@@ -8,6 +8,7 @@ use crate::features::asset_balance::{
     format_valuation_amount, holding_valuation, normalize_display_name,
 };
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::badge::account_display_name;
 use rust_decimal::Decimal;
 use shared::tax::TAX_RATE;
 
@@ -302,12 +303,12 @@ pub(crate) fn product_slices(stock_market: f64, fund_market: f64) -> Vec<Composi
     slices
 }
 
-/// 口座別の資産内訳(時価ベース)。保有株式の行は口座を持たないため、
-/// 口座がわかる投資信託だけで構成する
+/// 口座別の資産内訳(時価ベース)。国内株式の口座は商品別と口座別を混ぜない仕様のため
+/// 投資信託だけで構成する。ラベルは取引明細と同じ表示名対応表を通す
 pub(crate) fn account_slices(funds: &[FundBalance]) -> Vec<CompositionSlice> {
     let mut by_account: Vec<(String, f64)> = Vec::new();
     for fund in funds {
-        let account = fund.account.to_string();
+        let account = account_display_name(fund.account.as_ref()).to_string();
         let amount = dec_to_f64(&fund.market_value);
         match by_account.iter_mut().find(|(label, _)| *label == account) {
             Some((_, total)) => *total += amount,

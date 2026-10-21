@@ -2070,6 +2070,13 @@
           "updated_at"
         ],
         "properties": {
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "口座区分。CSV の「口座合計」区切りが無い・区切りより前の行は持たない"
+          },
           "average_purchase_price": {
             "type": "number",
             "format": "double"
@@ -2209,6 +2216,13 @@
           "profit_loss_rate"
         ],
         "properties": {
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "口座区分。CSV の「口座合計」区切りが無い・区切りより前の行は null"
+          },
           "average_purchase_price": {
             "type": "number",
             "format": "double"
@@ -2970,6 +2984,13 @@
                 "updated_at"
               ],
               "properties": {
+                "account": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "口座区分。CSV の「口座合計」区切りが無い・区切りより前の行は持たない"
+                },
                 "average_purchase_price": {
                   "type": "number",
                   "format": "double"

@@ -100,6 +100,20 @@ fn filter_by_accounts_and_courses() {
 }
 
 #[test]
+fn text_only_search_keeps_text_and_drops_conditions() {
+    // タブごとに語彙が違う口座・コース条件は持ち越さない
+    let search = AssetSearch {
+        text: "インデックス".to_string(),
+        accounts: vec!["特定".to_string()],
+        courses: vec!["再投資型".to_string()],
+    };
+    let text_only = text_only_search(&search);
+    assert_eq!(text_only.text, "インデックス");
+    assert!(text_only.accounts.is_empty());
+    assert!(text_only.courses.is_empty());
+}
+
+#[test]
 fn sort_by_market_value_desc_then_name() {
     let rows = rows();
     let views: Vec<FundView> = rows.iter().map(fund_view).collect();

@@ -8,13 +8,15 @@ pub const LIST_PATH: &str = "/api/v1/asset-balances";
 pub const PREVIEW_PATH: &str = "/api/v1/asset-balance-import-validations";
 pub const IMPORT_PATH: &str = "/api/v1/asset-balance-imports";
 
-// asset_balance は skip_header_rows=6(証券会社の前置き)+ヘッダ行。
-// WriteMode::Replace のため import を分割すると後続チャンクが前の行を消すので、
-// preview だけ分割し import は単一リクエストのままにする
+// asset_balance は証券会社の前置き行(口座数で行数が変わる)を挟んで「銘柄コード」の
+// 見出しが続く形式。WriteMode::Replace のため import を分割すると後続チャンクが
+// 前の行を消すので、import は単一リクエストのままにする。口座は区切り行の文脈に
+// 依存するため preview も分割しない
 pub const CSV_CHUNKING: CsvChunking = CsvChunking {
     header_lines: 7,
     import_chunked: false,
-    header_marker: None,
+    preview_chunked: false,
+    header_marker: Some("銘柄コード"),
 };
 
 // プレビュー行は backend が CreateAssetBalanceRequest をシリアライズしたもので id・タイムスタンプを持たないため、全フィールドを lenient に受け取る
@@ -24,6 +26,9 @@ pub struct AssetBalanceCsvRow {
     pub security_code: String,
     #[serde(default)]
     pub security_name: String,
+    /// 口座区分。CSV の「口座合計」区切りが無い・区切りより前の行は None
+    #[serde(default)]
+    pub account: Option<String>,
     #[serde(default)]
     pub shares: Decimal,
     #[serde(default)]
@@ -45,6 +50,8 @@ pub(crate) type AssetBalanceRow = Row<AssetBalance, AssetBalanceCsvRow>;
 pub(crate) trait AssetBalanceRowData {
     fn security_code(&self) -> &str;
     fn security_name(&self) -> &str;
+    /// 口座区分。CSV の区切りから取れなかった行・旧データは None
+    fn account(&self) -> Option<&str>;
     fn shares(&self) -> Decimal;
     fn average_purchase_price(&self) -> Decimal;
     fn total_purchase_amount(&self) -> Decimal;
@@ -61,6 +68,9 @@ impl AssetBalanceRowData for AssetBalance {
     }
     fn security_name(&self) -> &str {
         &self.security_name
+    }
+    fn account(&self) -> Option<&str> {
+        self.account.as_ref().map(|a| a.as_str())
     }
     fn shares(&self) -> Decimal {
         self.shares
@@ -94,6 +104,9 @@ impl AssetBalanceRowData for AssetBalanceCsvRow {
     }
     fn security_name(&self) -> &str {
         &self.security_name
+    }
+    fn account(&self) -> Option<&str> {
+        self.account.as_deref()
     }
     fn shares(&self) -> Decimal {
         self.shares
@@ -135,6 +148,9 @@ impl AssetBalanceRowData for AssetBalanceRow {
     }
     fn security_name(&self) -> &str {
         self.inner().security_name()
+    }
+    fn account(&self) -> Option<&str> {
+        self.inner().account()
     }
     fn shares(&self) -> Decimal {
         self.inner().shares()

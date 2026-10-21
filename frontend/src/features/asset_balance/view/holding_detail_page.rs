@@ -156,6 +156,16 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
+                                                    <dt class="text-text-muted">口座</dt>
+                                                    <dd class="text-text">
+                                                        {holding_view
+                                                            .account
+                                                            .as_deref()
+                                                            .map(crate::ui::badge::account_display_name)
+                                                            .unwrap_or("—")}
+                                                    </dd>
+                                                </div>
+                                                <div class="flex justify-between px-4 py-3">
                                                     <dt class="text-text-muted">数量</dt>
                                                     <dd class="tabular-nums text-text">{shares_text}</dd>
                                                 </div>

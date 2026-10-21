@@ -6,7 +6,7 @@ use crate::api::ApiError;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
 use crate::features::asset_balance::format::*;
-use crate::features::asset_balance::fund::FundBalanceRow;
+use crate::features::asset_balance::fund::{AssetSearch, FundBalanceRow};
 use crate::features::asset_balance::holdings::*;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::{
@@ -24,6 +24,13 @@ use crate::support::row::Row;
 use crate::testing::asset_balance::*;
 use leptos::prelude::*;
 use std::collections::HashMap;
+
+fn text_search(text: &str) -> AssetSearch {
+    AssetSearch {
+        text: text.to_string(),
+        ..Default::default()
+    }
+}
 
 #[test]
 fn stale_asset_balance_result_is_rejected_after_same_or_different_user_login() {
@@ -202,7 +209,12 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         let saved_rows: Vec<AssetBalanceRow> =
             loaded.rows.iter().cloned().map(Row::Saved).collect();
 
-        let filtered = filtered_portfolio(&saved_rows, "9904", lookup, Generation::new(1));
+        let filtered = filtered_portfolio(
+            &saved_rows,
+            &text_search("9904"),
+            lookup,
+            Generation::new(1),
+        );
         assert_eq!(filtered.views.len(), 1);
         assert_eq!(filtered.views[0].code, "9904");
         // 集計は絞り込み前の全保有分を使う
@@ -253,8 +265,12 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         lookup.update(|store| store.seed(Generation::new(2), &decimal_rows));
         let decimal_saved: Vec<AssetBalanceRow> =
             decimal_rows.iter().cloned().map(Row::Saved).collect();
-        let decimal_filtered =
-            filtered_portfolio(&decimal_saved, "検証対象", lookup, Generation::new(2));
+        let decimal_filtered = filtered_portfolio(
+            &decimal_saved,
+            &text_search("検証対象"),
+            lookup,
+            Generation::new(2),
+        );
         assert_eq!(decimal_filtered.views.len(), 2);
         let decimal_holdings: Vec<KpiHolding> = decimal_filtered
             .all_views
@@ -291,7 +307,8 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
         let rows = vec![AssetBalanceRow::Preview(preview)];
 
         // Preview 行は lookup で置き換えず CSV の値をそのまま見せる
-        let filtered = filtered_portfolio(&rows, "", lookup, Generation::new(1));
+        let filtered =
+            filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1));
         assert_eq!(filtered.views.len(), 1);
         assert_eq!(filtered.views[0].code, "9904");
         assert_eq!(filtered.views[0].name, "CSV架空");
@@ -484,21 +501,21 @@ fn sort_labels_distinguish_each_option() {
 fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
     let owner = Owner::new();
     owner.with(|| {
-        // lookup が同じ銘柄コードの別レコードを返しても、詳細リンクの ID は
+        // lookup が同じレコード(id 一致)の新しい値を返しても、詳細リンクの ID は
         // 一覧に並んだ保存済み行のものを使う
         let saved = balance_row(9904);
-        let mut other_record = balance_row(9904);
-        other_record.id = "other-record".to_string().into();
-        other_record.security_name = "差し替わり行".to_string();
+        let mut refreshed = saved.clone();
+        refreshed.security_name = "差し替わり行".to_string();
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&other_record)));
+        lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&refreshed)));
 
         let saved_id = saved.id.to_string();
         let rows = vec![
             AssetBalanceRow::Saved(saved),
             AssetBalanceRow::Preview(AssetBalanceCsvRow::default()),
         ];
-        let filtered = filtered_portfolio(&rows, "", lookup, Generation::new(1));
+        let filtered =
+            filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1));
 
         assert_eq!(filtered.views[0].id, Some(saved_id));
         assert_eq!(
@@ -506,6 +523,42 @@ fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
             "表示値は lookup の行を使う"
         );
         assert_eq!(filtered.views[1].id, None, "プレビュー行はリンクしない");
+    });
+}
+
+#[test]
+fn filtered_portfolio_resolves_same_code_rows_by_id() {
+    let owner = Owner::new();
+    owner.with(|| {
+        // 同一銘柄コードを口座別に持つと、各行は自分のレコードの値・口座を出す
+        let mut tokutei = balance_row(9904);
+        tokutei.id = "id-tokutei".to_string().into();
+        tokutei.account = Some("特定".parse().unwrap());
+        tokutei.shares = rust_decimal_macros::dec!(100);
+        let mut nisa = balance_row(9904);
+        nisa.id = "id-nisa".to_string().into();
+        nisa.account = Some("NISA".parse().unwrap());
+        nisa.shares = rust_decimal_macros::dec!(40);
+        nisa.total_purchase_amount = rust_decimal_macros::dec!(100000);
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        lookup.update(|store| store.seed(Generation::new(1), &[tokutei.clone(), nisa.clone()]));
+
+        // 一覧順が lookup の先頭と違っても各行の値が崩れないよう、逆順で渡す
+        let rows = vec![
+            AssetBalanceRow::Saved(nisa),
+            AssetBalanceRow::Saved(tokutei),
+        ];
+        let filtered =
+            filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1));
+
+        assert_eq!(filtered.views.len(), 2);
+        assert_eq!(filtered.views[0].id, Some("id-nisa".to_string()));
+        assert_eq!(filtered.views[0].account.as_deref(), Some("NISA"));
+        assert_eq!(filtered.views[0].shares, 40.0);
+        assert_eq!(filtered.views[0].purchase, 100000.0);
+        assert_eq!(filtered.views[1].id, Some("id-tokutei".to_string()));
+        assert_eq!(filtered.views[1].account.as_deref(), Some("特定"));
+        assert_eq!(filtered.views[1].shares, 100.0);
     });
 }
 
@@ -542,7 +595,8 @@ fn composition_basis_matches_abs_sum_percentages() {
             .into_iter()
             .map(Row::Saved)
             .collect();
-        let views = filtered_portfolio(&rows, "", lookup, Generation::new(1)).views;
+        let views =
+            filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1)).views;
 
         let basis = super::composition_page::composition_basis(&views);
         assert_eq!(basis, 150.0, "母数は絶対値合計");
@@ -739,22 +793,30 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
             expected_nav_date: None,
         });
     assert_eq!(fund.account.as_deref(), Some("NISA成長投資枠"));
-    // 投資信託の行にコードは無い(表では空欄)。行メタの口座は表示名にそろえる
+    // 投資信託の行にコードは無い(表では空欄)。行メタはコース、口座は札で出す
     assert!(fund.code.is_none());
-    assert_eq!(fund.sub, "NISA成長 ・ 再投資型");
+    assert_eq!(fund.sub, "再投資型");
     assert_eq!(fund.course.as_deref(), Some("再投資型"));
     assert_eq!(fund.day_change, Some(50.0));
     assert_eq!(fund.price_as_of.as_deref(), Some("2026-10-19"));
     // 投信の行は前日比の横に基準日を出さない(基準日は title にだけ入れる)
     assert!(!fund.date_outlier);
 
-    // 国内株式は口座・分配金が無い(表では「—」)
-    let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)));
+    // 国内株式は分配金が無い(表では「—」)。口座は行が持っていれば札で出す
+    let mut stock_row = balance_row(9904);
+    stock_row.account = Some("特定".parse().unwrap());
+    let stock = super::all_list::unified_from_stock(&holding_view(&stock_row));
     assert_eq!(stock.code.as_deref(), Some("9904"));
-    assert!(stock.account.is_none());
+    assert_eq!(stock.account.as_deref(), Some("特定"));
+    assert_eq!(stock.sub, "9904");
     assert!(stock.course.is_none());
     assert_eq!(stock.day_change, Some(50.0));
     assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));
+
+    // 口座を持たない行(旧データ)は表・行メタとも「—」相当
+    let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)));
+    assert!(stock.account.is_none());
+    assert_eq!(stock.sub, "9904");
 }
 
 fn fund_view_nav(
