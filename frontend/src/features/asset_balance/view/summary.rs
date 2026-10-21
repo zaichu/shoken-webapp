@@ -15,7 +15,7 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::amount::Amount;
+use crate::ui::summary::{SummaryItem, SummarySize, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use shared::domain::FundNavStatus;
@@ -261,18 +261,18 @@ pub(crate) fn AssetSummaryBand(
     // 前日比は表・カードと同じく表示単位を適用せず必ず円マーク付きで出す
     let daily_text = format_signed_row_valuation_amount(daily_change);
     let profit_tone = if is_negative_valuation(profit) {
-        "asset-summary-loss"
+        SummaryTone::Loss
     } else if is_positive_valuation(profit) {
-        "asset-summary-gain"
+        SummaryTone::Gain
     } else {
-        ""
+        SummaryTone::Neutral
     };
     let daily_tone = if is_negative_valuation(daily_change) {
-        "asset-summary-loss"
+        SummaryTone::Loss
     } else if is_positive_valuation(daily_change) {
-        "asset-summary-gain"
+        SummaryTone::Gain
     } else {
-        ""
+        SummaryTone::Neutral
     };
     view! {
         <section
@@ -283,74 +283,56 @@ pub(crate) fn AssetSummaryBand(
             data-testid="asset-portfolio-summary"
         >
             <div class="asset-summary-grid" data-testid="portfolio-kpi-grid">
-                <dl class="asset-summary-main">
-                    <div class="asset-summary-item asset-summary-item-primary">
-                        <dt>"評価額合計"</dt>
-                        <dd>
-                            <Amount
-                                text=market_text
-                                class="asset-summary-primary-amount".to_string()
-                            />
-                        </dd>
-                    </div>
-                    <div class="asset-summary-item asset-summary-item-pnl">
-                        <dt class="sr-only lg:not-sr-only">"評価損益"</dt>
-                        <dd>
-                            <Amount
-                                text=profit_text
-                                class=format!("asset-summary-pnl-amount {profit_tone}")
-                            />
-                            {rate_text.map(|rate| {
+                <dl class="asset-summary-group asset-summary-group-main">
+                    <SummaryItem
+                        label="評価額合計"
+                        value=market_text
+                        size=SummarySize::Primary
+                    />
+                    <SummaryItem
+                        label="評価損益"
+                        value=profit_text
+                        size=SummarySize::Secondary
+                        note=rate_text.unwrap_or_default()
+                        tone=profit_tone
+                        extra_class="asset-summary-item-pnl"
+                    />
+                </dl>
+                <div class="asset-summary-group asset-summary-group-sub">
+                    <dl class="asset-summary-items">
+                        <SummaryItem
+                            label="前日比"
+                            value=daily_text
+                            size=SummarySize::Secondary
+                            tone=daily_tone
+                            extra_class="asset-summary-item-daily"
+                        />
+                        {tags
+                            .into_iter()
+                            .take(2)
+                            .enumerate()
+                            .map(|(index, tag)| {
+                                let class = format!("asset-summary-item-tag{}", index + 1);
                                 view! {
-                                    <span class=format!("asset-summary-pnl-note {profit_tone}")>
-                                        {rate}
-                                    </span>
+                                    <SummaryItem
+                                        label=tag.label
+                                        value=tag.value
+                                        size=SummarySize::Secondary
+                                        extra_class=class
+                                    />
                                 }
-                            })}
-                        </dd>
-                    </div>
-                    <div class="asset-summary-item asset-summary-item-sub3 asset-summary-item-daily">
-                        <dt>"前日比"</dt>
-                        <dd>
-                            <Amount
-                                text=daily_text
-                                class=format!("asset-summary-sub-amount {daily_tone}")
-                            />
-                        </dd>
-                    </div>
-                </dl>
-                <dl class="asset-summary-tags">
-                    {tags
-                        .into_iter()
-                        .take(2)
-                        .enumerate()
-                        .map(|(index, tag)| {
-                            let class = format!(
-                                "asset-summary-item asset-summary-item-sub{} asset-summary-item-tag",
-                                index + 1
-                            );
-                            view! {
-                                <div class=class>
-                                    <dt>{tag.label}</dt>
-                                    <dd>
-                                        <Amount
-                                            text=tag.value
-                                            class="asset-summary-sub-amount".to_string()
-                                        />
-                                    </dd>
-                                </div>
-                            }
-                        })
-                        .collect_view()}
-                </dl>
+                            })
+                            .collect_view()}
+                    </dl>
+                    {composition_link.then(|| {
+                        view! {
+                            <a href="/assetbalance/composition" class="asset-summary-comp lg:hidden">
+                                "構成比 ›"
+                            </a>
+                        }
+                    })}
+                </div>
             </div>
-            {composition_link.then(|| {
-                view! {
-                    <a href="/assetbalance/composition" class="asset-summary-comp lg:hidden">
-                        "構成比 ›"
-                    </a>
-                }
-            })}
         </section>
     }
 }
