@@ -44,6 +44,15 @@ fn assign_chart_indices_keeps_fixed_slots_and_fills_free_ones() {
 }
 
 #[test]
+fn assign_chart_indices_is_independent_of_label_order() {
+    // 系列は評価額順に並ぶため、並びが変わっても同じ名前には同じ番号が付く必要がある
+    let a = assign_chart_indices(&["NISA", "iDeCo"], account_chart_index);
+    let b = assign_chart_indices(&["iDeCo", "NISA"], account_chart_index);
+    assert_eq!(a[0], b[1]);
+    assert_eq!(a[1], b[0]);
+}
+
+#[test]
 fn assign_chart_indices_falls_back_deterministically_when_full() {
     // 5 枠すべて埋まった後の表外の名前は、名前だけで決まる番号に割る(毎回同じ)
     let labels = [

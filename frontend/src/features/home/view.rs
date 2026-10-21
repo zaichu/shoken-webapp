@@ -53,7 +53,8 @@ fn account_chart_index(label: &str) -> Option<usize> {
 }
 
 /// 対応表の固定色を先に確保し、表にない名前は空いている番号から順に割る。
-/// 既知の系列と同じ色に見えてしまうのを防ぐため。空きが無いときは名前だけで決まる番号に割る
+/// 表示は評価額順なので、表外の名前は名前順に配って並びに依存しないようにする。
+/// 空きが無いときは名前だけで決まる番号に割る
 fn assign_chart_indices(labels: &[&str], fixed: impl Fn(&str) -> Option<usize>) -> Vec<usize> {
     let n = CHART_COLORS.len();
     let mut used = std::collections::HashSet::new();
@@ -62,21 +63,33 @@ fn assign_chart_indices(labels: &[&str], fixed: impl Fn(&str) -> Option<usize>) 
             used.insert(i % n);
         }
     }
-    let mut spare = 0;
+    let mut unknown: Vec<&str> = labels
+        .iter()
+        .copied()
+        .filter(|label| fixed(label).is_none())
+        .collect();
+    unknown.sort_unstable();
+    let mut spare = std::collections::HashMap::new();
+    let mut next = 0;
+    for label in unknown {
+        if used.len() == n {
+            break;
+        }
+        while used.contains(&next) {
+            next += 1;
+        }
+        used.insert(next);
+        spare.insert(label, next);
+        next += 1;
+    }
     labels
         .iter()
         .map(|label| match fixed(label) {
             Some(i) => i % n,
-            None if used.len() < n => {
-                while used.contains(&spare) {
-                    spare += 1;
-                }
-                used.insert(spare);
-                let index = spare;
-                spare += 1;
-                index
-            }
-            None => label.bytes().map(usize::from).sum::<usize>() % n,
+            None => spare
+                .get(label)
+                .copied()
+                .unwrap_or_else(|| label.bytes().map(usize::from).sum::<usize>() % n),
         })
         .collect()
 }
