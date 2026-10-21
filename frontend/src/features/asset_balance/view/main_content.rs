@@ -257,6 +257,11 @@ fn FundContent(
             resolved.total
         )
     });
+    // 基準価額の自動更新が動いたか。取得できた/できなかった/まだ取得されていないの3状態を出す
+    let nav_note = resolved
+        .summary
+        .as_ref()
+        .map(|summary| super::summary::fund_nav_note(&summary.nav_status));
     let empty = total_count == 0;
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
@@ -270,6 +275,7 @@ fn FundContent(
                 profit_rate=profit_rate
             />
             {daily_note.map(band_note)}
+            {nav_note.map(band_note)}
             <div class="asset-list-surface">
                 <AssetSearchBar
                     search=search

@@ -82,6 +82,7 @@ fn merged_asset_summary_combines_stock_and_fund() {
         total_daily_change: dec!(2_000),
         latest_nav_count: 1,
         pending_nav_count: 0,
+        nav_status: shared::domain::FundNavStatus::default(),
     };
     let merged = merged_asset_summary(Some(&stock), Some(&fund)).unwrap();
     assert_eq!(merged.total_market_value, dec!(1_300_000));

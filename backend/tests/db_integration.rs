@@ -3503,6 +3503,119 @@ async fn fund_summary_sums_only_latest_rows() {
     assert_eq!(summary.pending_nav_count, 1);
 }
 
+/// 自動更新の状況は、保有ファンドのうち協会コードが引けるものだけを対象にする。
+/// 取得できた/失敗した件数と、直近の失敗理由を出す
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_nav_status_counts_fetched_failed_and_pending() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+
+    // 取得できた(共有値があり失敗記録がない)
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000031', $1",
+        vec![Bind::from("状況取得済ファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    insert_fund_row(
+        &pool,
+        user_id,
+        "状況取得済ファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        Some(dec!(5)),
+        dec!(100000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+    put_fund_price(&pool, "90000031", "11000", "10", today).await;
+
+    // 取得に失敗した(共有値がなく失敗理由が残っている)
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000032', $1",
+        vec![Bind::from("状況失敗ファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    insert_fund_row(
+        &pool,
+        user_id,
+        "状況失敗ファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        None,
+        dec!(100000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+    db::query(
+        "INSERT INTO fund_prices (association_fund_cd, nav, fetch_error, fetch_failed_at) \
+         VALUES ('90000032', NULL, 'HTTP 403', NOW())",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_prices の seed に失敗");
+
+    // まだ取得されていない(共有値の行が無い)
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000033', $1",
+        vec![Bind::from("状況未取得ファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    insert_fund_row(
+        &pool,
+        user_id,
+        "状況未取得ファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        None,
+        dec!(100000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+
+    let res = domain_search::<FundBalanceDomain>(
+        &pool,
+        user_id,
+        FundBalanceSearchQueryParams {
+            search: SearchQueryParams {
+                include_summary: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("search 失敗");
+    let summary = res.summary.expect("summary が返る");
+    assert_eq!(summary.nav_status.fetched_count, 1);
+    assert_eq!(summary.nav_status.failed_count, 1);
+    assert_eq!(
+        summary.nav_status.failure_reason.as_deref(),
+        Some("HTTP 403")
+    );
+    // 最終更新の時刻は JST の "YYYY-MM-DD HH:MM"
+    let updated_at = summary.nav_status.updated_at.expect("更新時刻がある");
+    assert_eq!(updated_at.len(), 16, "{updated_at}");
+    assert!(updated_at.contains(':'), "{updated_at}");
+}
+
 /// 古い基準日の取得値では共有値を上書きしない(前回値を維持)
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]

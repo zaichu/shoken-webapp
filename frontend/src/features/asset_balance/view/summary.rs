@@ -1,7 +1,7 @@
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::features::asset_balance::format::{
-    dec_to_f64, format_amount, format_percentage_value, format_price_date,
+    dec_to_f64, format_amount, format_nav_updated_at, format_percentage_value, format_price_date,
     format_signed_row_valuation_amount, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation, price_date_representative,
@@ -19,6 +19,7 @@ use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
+use shared::domain::FundNavStatus;
 
 fn unpriced_suffix(has_unpriced: bool) -> &'static str {
     if has_unpriced {
@@ -69,6 +70,31 @@ pub(crate) fn fund_latest_nav_count(view: &ResolvedFundBalance) -> usize {
             fund_totals(&views).latest_nav_count
         }
     }
+}
+
+/// 基準価額の自動更新の状況。取得できた/失敗した件数と、まだ取得していないときの文言で
+/// 3状態を区別する。失敗の理由は API が丸めた短い文をそのまま使う
+pub(crate) fn fund_nav_note(status: &FundNavStatus) -> String {
+    let prefix = match status.updated_at.as_deref() {
+        Some(updated_at) => format!("基準価額の自動更新: {}", format_nav_updated_at(updated_at)),
+        None => "基準価額の自動更新".to_string(),
+    };
+    if status.failed_count > 0 {
+        let reason = status.failure_reason.as_deref().unwrap_or("理由不明");
+        let counts = if status.fetched_count > 0 {
+            format!(
+                "取得 {}件・失敗 {}件",
+                status.fetched_count, status.failed_count
+            )
+        } else {
+            format!("失敗 {}件", status.failed_count)
+        };
+        return format!("{prefix}({counts}: {reason})");
+    }
+    if status.fetched_count > 0 {
+        return format!("{prefix}(取得 {}件)", status.fetched_count);
+    }
+    "基準価額の自動更新: まだ取得されていません".to_string()
 }
 
 /// 見出しの基準日と表の日付出し分けで共通に使う、価格あり行の基準日一覧

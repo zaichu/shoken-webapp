@@ -64,6 +64,8 @@ impl crate::db::FromRow for FundBalanceSummary {
                 .0,
             latest_nav_count: row.try_get("latest_nav_count")?,
             pending_nav_count: row.try_get("pending_nav_count")?,
+            // 自動更新の状況は検索条件に依らないため、別のクエリで取得する
+            nav_status: shared::domain::FundNavStatus::default(),
         })
     }
 }

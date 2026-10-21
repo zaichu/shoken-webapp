@@ -123,6 +123,18 @@ pub(crate) fn format_price_date(as_of: &str) -> String {
     }
 }
 
+/// 基準価額の自動更新の時刻("YYYY-MM-DD HH:MM")を "MM/DD HH:MM" にする。
+/// 想定外の形式はそのまま返す
+pub(crate) fn format_nav_updated_at(updated_at: &str) -> String {
+    let Some((date, time)) = updated_at.split_once(' ') else {
+        return updated_at.to_string();
+    };
+    if date.len() != 10 || time.len() < 5 {
+        return updated_at.to_string();
+    }
+    format!("{} {}", format_price_date(date), &time[..5])
+}
+
 /// 日付群の代表(最も多い日付。同数なら新しい方)。日付の無いものは比較に含めない。
 /// 見出しはこの日付を出し、表の行は違うときだけ日付を足すので、両者で同じ値を使う
 pub(crate) fn price_date_representative<'a>(
