@@ -369,6 +369,7 @@ fn AllContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
+    dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> impl IntoView {
@@ -389,7 +390,11 @@ fn AllContent(
         let text_search = text_only_search(search);
         let FilteredPortfolio { views, .. } =
             filtered_portfolio(&stock_rows_for_search, &text_search, lookup, generation);
-        let mut rows: Vec<UnifiedRow> = views.iter().map(unified_from_stock).collect();
+        let dividend_maps = dividends.get();
+        let mut rows: Vec<UnifiedRow> = views
+            .iter()
+            .map(|view| unified_from_stock(view, &dividend_maps))
+            .collect();
         for row in &mut rows {
             row.date_outlier =
                 price_date_is_outlier(row.price_as_of.as_deref(), stock_date_rep.as_deref());
@@ -617,6 +622,7 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=fund_sort_key
                         sort_order=fund_sort_order
+                        dividends=dividends
                         lookup=lookup
                         generation=generation
                     />
