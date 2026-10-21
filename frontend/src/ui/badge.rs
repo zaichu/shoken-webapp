@@ -48,6 +48,16 @@ pub fn AccountBadge(#[prop(into)] label: String) -> impl IntoView {
     view! { <span class=class>{label}</span> }
 }
 
+/// CSV の口座を1口座ずつに分ける。証券会社の CSV は複数口座を「特定・一般」のように
+/// 中黒で連結するため、札を並べるときに分割する
+pub fn account_labels(value: &str) -> Vec<&str> {
+    value
+        .split('・')
+        .map(str::trim)
+        .filter(|label| !label.is_empty())
+        .collect()
+}
+
 fn is_nisa_account(label: &str) -> bool {
     label.contains("NISA")
 }

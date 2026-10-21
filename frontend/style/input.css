@@ -1374,6 +1374,117 @@
     @apply lg:grid-cols-[2fr_1fr];
   }
 
+  /* ホームの一覧。列は行をまたいで親の grid で共有し、口座の札・金額の幅を
+     最長の行に合わせる。行は subgrid で列位置だけを借りる */
+  .home-dividend-list {
+    @apply mt-1.5 grid divide-y divide-border-faint;
+    grid-template-columns: 2.5rem 3.25rem minmax(6rem, 1fr) max-content max-content;
+    column-gap: 0.75rem;
+  }
+
+  .home-dividend-row {
+    @apply grid items-center px-4 py-2 text-sm;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  .home-dividend-date,
+  .home-dividend-code {
+    @apply tabular-nums text-text-muted;
+  }
+
+  .home-dividend-name {
+    @apply min-w-0 truncate font-medium;
+  }
+
+  .home-dividend-account {
+    @apply flex flex-wrap items-center gap-1;
+  }
+
+  .home-dividend-amount {
+    @apply text-right tabular-nums font-bold text-positive;
+  }
+
+  /* 評価損益の一覧。金額の右端と損益率の列を全行でそろえる */
+  .home-pnl-row {
+    @apply grid items-center gap-x-3 px-4 py-2 text-sm;
+    grid-template-columns: minmax(0, 1fr) max-content 4.5rem;
+  }
+
+  .home-pnl-name {
+    @apply min-w-0 truncate font-medium;
+  }
+
+  .home-pnl-amount,
+  .home-pnl-rate {
+    @apply text-right tabular-nums;
+  }
+
+  .home-pnl-amount {
+    @apply font-bold;
+  }
+
+  .home-pnl-group {
+    @apply bg-surface-raised px-4 py-1 text-[11px] font-medium text-text-muted;
+  }
+
+  /* スマホは銘柄名を1段に置き、その下に日付・コード・口座と金額を寄せる */
+  @media (width < 64rem) {
+    .home-dividend-list {
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+    }
+
+    .home-dividend-row {
+      @apply gap-y-0.5;
+    }
+
+    .home-dividend-name {
+      grid-row: 1;
+      grid-column: 1 / -1;
+    }
+
+    .home-dividend-date {
+      grid-row: 2;
+      grid-column: 1;
+    }
+
+    .home-dividend-code {
+      grid-row: 2;
+      grid-column: 2;
+    }
+
+    .home-dividend-account {
+      grid-row: 2;
+      grid-column: 3;
+    }
+
+    .home-dividend-amount {
+      grid-row: 2;
+      grid-column: 4;
+    }
+
+    .home-pnl-row {
+      @apply gap-y-0.5;
+      grid-template-columns: minmax(0, 1fr) 4.5rem;
+    }
+
+    .home-pnl-name {
+      grid-row: 1;
+      grid-column: 1 / -1;
+    }
+
+    .home-pnl-amount {
+      @apply justify-self-end;
+      grid-row: 2;
+      grid-column: 1;
+    }
+
+    .home-pnl-rate {
+      grid-row: 2;
+      grid-column: 2;
+    }
+  }
+
   .home-card-link {
     @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-xs font-medium text-accent-text hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
   }

@@ -13,7 +13,7 @@ use crate::features::asset_balance::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::amount::Amount;
-use crate::ui::badge::account_display_name;
+use crate::ui::badge::{AccountBadge, account_display_name, account_labels};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::page_frame::PageFrame;
@@ -758,23 +758,33 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                         .into_any()
                 }
                 Some(Some(rows)) => view! {
-                    <ul class="mt-1.5 divide-y divide-border-faint" data-testid="home-recent-list">
+                    <ul class="home-dividend-list divide-y divide-border-faint" data-testid="home-recent-list">
                         {rows
                             .iter()
                             .map(|row| {
-                                let name = if row.security_code.is_empty() {
-                                    row.security_name.clone()
+                                let code = if row.security_code.is_empty() {
+                                    "—".to_string()
                                 } else {
-                                    format!("{} {}", row.security_code, row.security_name)
+                                    row.security_code.clone()
                                 };
                                 view! {
-                                    <li class="flex items-center gap-3 px-4 py-2 text-sm">
-                                        <span class="w-10 shrink-0 tabular-nums text-text-muted">
+                                    <li class="home-dividend-row">
+                                        <span class="home-dividend-date">
                                             {short_date(&row.settlement_date)}
                                         </span>
-                                        <span class="min-w-0 flex-1 truncate">{name}</span>
-                                        <span class="shrink-0 text-text-muted">{row.account.to_string()}</span>
-                                        <span class="shrink-0 tabular-nums font-bold text-positive">
+                                        <span class="home-dividend-code">{code}</span>
+                                        <span class="home-dividend-name" title=row.security_name.clone()>
+                                            {row.security_name.clone()}
+                                        </span>
+                                        <span class="home-dividend-account">
+                                            {account_labels(row.account.as_str())
+                                                .into_iter()
+                                                .map(|label| {
+                                                    view! { <AccountBadge label=label.to_string() /> }
+                                                })
+                                                .collect_view()}
+                                        </span>
+                                        <span class="home-dividend-amount">
                                             {format_currency(dec_to_f64(&row.net_amount_received))}
                                         </span>
                                     </li>
@@ -827,30 +837,23 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                 let holdings = model::holding_pnls(stocks, fund_rows);
                 let (gains, losses) = model::pnl_extremes(&holdings, 3, 2);
                 view! {
-                    <ul class="mt-1.5 divide-y divide-border-faint" data-testid="home-pnl-list">
+                    <ul
+                        class="mt-1.5 divide-y divide-border-faint"
+                        data-testid="home-pnl-list"
+                    >
                         {gains
                             .iter()
                             .map(|holding| view! { <PnlRow holding=holding.clone() /> })
                             .collect_view()}
+                        {(!losses.is_empty())
+                            .then(|| {
+                                view! { <li class="home-pnl-group">"含み損"</li> }
+                            })}
+                        {losses
+                            .iter()
+                            .map(|holding| view! { <PnlRow holding=holding.clone() /> })
+                            .collect_view()}
                     </ul>
-                    {if !losses.is_empty() {
-                        view! {
-                            <>
-                                <p class="border-t border-border-faint bg-surface-raised px-4 py-1 text-[11px] font-medium text-text-muted">
-                                    "含み損"
-                                </p>
-                                <ul class="divide-y divide-border-faint">
-                                    {losses
-                                        .iter()
-                                        .map(|holding| view! { <PnlRow holding=holding.clone() /> })
-                                        .collect_view()}
-                                </ul>
-                            </>
-                        }
-                            .into_any()
-                    } else {
-                        ().into_any()
-                    }}
                     {if gains.is_empty() && losses.is_empty() {
                         view! {
                             <p class="px-4 py-6 text-center text-sm text-text-muted">
@@ -881,14 +884,18 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
     } else {
         format!("{} {}", holding.code, holding.name)
     };
+    let title = label.clone();
     view! {
         <li>
-            <a class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-surface-raised max-sm:min-h-11" href=holding.href>
-                <span class="min-w-0 flex-1 truncate">{label}</span>
-                <span class=format!("shrink-0 tabular-nums font-bold {tone}")>
+            <a
+                class="home-pnl-row hover:bg-surface-raised max-sm:min-h-11"
+                href=holding.href
+            >
+                <span class="home-pnl-name" title=title>{label}</span>
+                <span class=format!("home-pnl-amount {tone}")>
                     {format_signed_row_valuation_amount(Some(holding.profit_loss))}
                 </span>
-                <span class=format!("w-16 shrink-0 text-right tabular-nums {tone}")>
+                <span class=format!("home-pnl-rate {tone}")>
                     {holding
                         .rate
                         .map(|rate| format_signed_valuation_rate(Some(rate), 1))
