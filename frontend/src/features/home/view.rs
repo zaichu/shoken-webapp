@@ -32,29 +32,53 @@ const CHART_COLORS: &[(&str, &str)] = &[
 ];
 
 /// 商品別ドーナツの系列番号。商品名に固定で対応させ、絞り込みや並び替えで色が変わらないようにする
-fn product_chart_index(label: &str) -> usize {
+fn product_chart_index(label: &str) -> Option<usize> {
     match label {
-        "国内株式" => 0,
-        "投資信託" => 1,
-        other => fallback_chart_index(other),
+        "国内株式" => Some(0),
+        "投資信託" => Some(1),
+        _ => None,
     }
 }
 
 /// 口座別の系列番号。口座名はバッジと同じ表示名に正規化してから対応表に当てる
-fn account_chart_index(label: &str) -> usize {
+fn account_chart_index(label: &str) -> Option<usize> {
     match account_display_name(label) {
-        "特定" => 0,
-        "NISA成長" => 1,
-        "旧NISA" => 2,
-        "NISAつみたて" => 3,
-        "一般" => 4,
-        other => fallback_chart_index(other),
+        "特定" => Some(0),
+        "NISA成長" => Some(1),
+        "旧NISA" => Some(2),
+        "NISAつみたて" => Some(3),
+        "一般" => Some(4),
+        _ => None,
     }
 }
 
-/// 対応表にない名前は名前だけで決まる番号に割る(同じ名前には常に同じ色)
-fn fallback_chart_index(label: &str) -> usize {
-    label.bytes().map(usize::from).sum::<usize>() % CHART_COLORS.len()
+/// 対応表の固定色を先に確保し、表にない名前は空いている番号から順に割る。
+/// 既知の系列と同じ色に見えてしまうのを防ぐため。空きが無いときは名前だけで決まる番号に割る
+fn assign_chart_indices(labels: &[&str], fixed: impl Fn(&str) -> Option<usize>) -> Vec<usize> {
+    let n = CHART_COLORS.len();
+    let mut used = std::collections::HashSet::new();
+    for label in labels {
+        if let Some(i) = fixed(label) {
+            used.insert(i % n);
+        }
+    }
+    let mut spare = 0;
+    labels
+        .iter()
+        .map(|label| match fixed(label) {
+            Some(i) => i % n,
+            None if used.len() < n => {
+                while used.contains(&spare) {
+                    spare += 1;
+                }
+                used.insert(spare);
+                let index = spare;
+                spare += 1;
+                index
+            }
+            None => label.bytes().map(usize::from).sum::<usize>() % n,
+        })
+        .collect()
 }
 
 #[component]
@@ -557,7 +581,7 @@ fn DividendCardBody(
 fn slice_style(
     slices: &[CompositionSlice],
     total: f64,
-    chart_index: impl Fn(&str) -> usize,
+    chart_index: impl Fn(&str) -> Option<usize>,
 ) -> (String, Vec<(&'static str, f64)>) {
     // 系列の境目は面の色の隙間にする。96px のドーナツでは両側 0.35% で計およそ 2px
     const HALF_GAP: f64 = 0.35;
@@ -567,9 +591,11 @@ fn slice_style(
     if gapped {
         stops.push(format!("var(--color-surface) 0% {HALF_GAP:.2}%"));
     }
+    let labels: Vec<&str> = slices.iter().map(|s| s.label.as_str()).collect();
+    let indices = assign_chart_indices(&labels, chart_index);
     let mut cursor = 0.0;
-    for slice in slices {
-        let (color, class) = CHART_COLORS[chart_index(&slice.label) % CHART_COLORS.len()];
+    for (slice, index) in slices.iter().zip(indices) {
+        let (color, class) = CHART_COLORS[index];
         let end = cursor + slice.amount / total * 100.0;
         if gapped {
             let start = cursor + HALF_GAP;
@@ -677,6 +703,10 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                     }}
                     {if !accounts.is_empty() {
                         let account_total: f64 = accounts.iter().map(|s| s.amount).sum();
+                        let account_labels: Vec<&str> =
+                            accounts.iter().map(|s| s.label.as_str()).collect();
+                        let account_indices =
+                            assign_chart_indices(&account_labels, account_chart_index);
                         view! {
                             <div class="px-4 pt-4">
                                 <p class="text-xs font-medium text-text-muted">
@@ -685,11 +715,10 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                 <div class="home-stacked-bar mt-1.5">
                                     {accounts
                                         .iter()
-                                        .map(|slice| {
+                                        .zip(account_indices.iter())
+                                        .map(|(slice, &index)| {
                                             let width = slice.amount / account_total * 100.0;
-                                            let (_, class) = CHART_COLORS
-                                                [account_chart_index(&slice.label)
-                                                    % CHART_COLORS.len()];
+                                            let (_, class) = CHART_COLORS[index];
                                             view! {
                                                 <span
                                                     class=format!("block h-full {class}")
@@ -702,10 +731,9 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                 <ul class="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
                                     {accounts
                                         .iter()
-                                        .map(|slice| {
-                                            let (_, class) = CHART_COLORS
-                                                [account_chart_index(&slice.label)
-                                                    % CHART_COLORS.len()];
+                                        .zip(account_indices.iter())
+                                        .map(|(slice, &index)| {
+                                            let (_, class) = CHART_COLORS[index];
                                             let pct = slice.amount / account_total * 100.0;
                                             view! {
                                                 <li class="flex items-center gap-1">
