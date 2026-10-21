@@ -276,7 +276,7 @@ async fn clear_fetch_error(pool: &Db, association_fund_cd: &str) {
     }
 }
 
-/// 失敗の理由。用户に見せる短い文に丸める。URL・応答本文・内部 Details は出さない
+/// 失敗の理由。ユーザーに見せる短い文に丸める。URL・応答本文・内部 Details は出さない
 fn short_failure_reason(error: &ApiError) -> String {
     match error {
         ApiError::Upstream(UpstreamError::Http { status, .. }) => format!("HTTP {status}"),
