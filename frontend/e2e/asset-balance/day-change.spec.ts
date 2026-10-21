@@ -89,9 +89,27 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
   const kpi = page.getByTestId('portfolio-kpi-grid');
   await expect(kpi).toContainText('前日比');
   await expect(kpi).toContainText('+¥5,000');
-  await expect(page.getByTestId('asset-portfolio-summary')).toContainText(
-    '前日比なし銘柄を除く',
-  );
+
+  // タイトル横は件数だけ。基準日と除いた行の説明は帯の直下の注記に出す
+  const subtitle = page.getByTestId('asset-subtitle');
+  await expect(subtitle).toContainText('2件');
+  await expect(subtitle).not.toContainText('時点');
+  const note = page.getByText(/株価 01\/01 時点/);
+  await expect(note).toBeVisible();
+  await expect(note).toContainText('前日比なし銘柄を除く');
+  const band = await page.getByTestId('asset-portfolio-summary').boundingBox();
+  const noteBox = await note.boundingBox();
+  expect(band).not.toBeNull();
+  expect(noteBox).not.toBeNull();
+  if (band && noteBox) {
+    expect(noteBox.y).toBeGreaterThan(band.y + band.height - 1);
+  }
+
+  // 「すべて」タブも件数だけ。株の注記は帯の直下に残る
+  await page.getByTestId('asset-kind-tab-all').click();
+  await expect(page.getByTestId('asset-subtitle')).toContainText('2件');
+  await expect(page.getByTestId('asset-subtitle')).not.toContainText('時点');
+  await expect(page.getByText(/株価 01\/01 時点/)).toBeVisible();
 });
 
 test('基準日が他の行と違う行だけ、前日比の横に日付を出す', async ({ page }) => {
@@ -125,6 +143,7 @@ test('基準日が他の行と違う行だけ、前日比の横に日付を出�
   await expect(same).not.toContainText('01/01');
 
   // 見出しは行で日付を省く基準と同じ、多数派の日付だけを出す
+  await expect(page.getByTestId('asset-subtitle')).not.toContainText('時点');
   await expect(page.locator('body')).toContainText('株価 01/01 時点');
   await expect(page.locator('body')).not.toContainText('株価 12/30');
 });

@@ -37,15 +37,10 @@ fn missing_day_change_suffix(has_missing: bool) -> &'static str {
     }
 }
 
-/// PC ヘッダー横の件数・基準日注記。取得上限超過で行が欠けるときは API 集計側の件数・
-/// 価格なし判定を使い、集計欄と食い違わないようにする
+/// PC ヘッダー横の件数。取得上限超過で行が欠けるときは API 集計側の件数を使い、
+/// 集計欄と食い違わないようにする。基準日と除外した行の説明は帯の直下の注記に出す
 pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
-    let (count, has_unpriced, has_missing_daily, date_text) = stock_subtitle_parts(view);
-    format!(
-        "{count}銘柄 · {date_text}{}{}",
-        unpriced_suffix(has_unpriced),
-        missing_day_change_suffix(has_missing_daily)
-    )
+    format!("{}件", view.total)
 }
 
 pub(crate) fn fund_subtitle(view: &ResolvedFundBalance) -> String {
@@ -61,14 +56,7 @@ pub(crate) fn merged_subtitle(
     }
     let count =
         stock.map(|view| view.total).unwrap_or(0) + fund.map(|view| view.total).unwrap_or(0);
-    let stock_part = stock.filter(|view| !view.rows.is_empty()).map(|view| {
-        let (_, has_unpriced, _, date_text) = stock_subtitle_parts(view);
-        format!("{date_text}{}", unpriced_suffix(has_unpriced))
-    });
-    Some(match stock_part {
-        Some(text) => format!("{count}件 · {text}"),
-        None => format!("{count}件"),
-    })
+    Some(format!("{count}件"))
 }
 
 /// 「前日比が最新」の件数(前日比を持ち合計に入る行)。
@@ -92,30 +80,40 @@ pub(crate) fn stock_price_dates(rows: &[AssetBalanceRow]) -> Vec<&str> {
         .collect()
 }
 
-fn stock_subtitle_parts(view: &ResolvedAssetBalance) -> (usize, bool, bool, String) {
-    let (count, has_unpriced, has_missing_daily) = match &view.fallback_totals {
+/// 帯の直下に出す、株価の基準日と合計から除いた行の付記。
+/// 基準日は数字の根拠なので、付記が無くても常に出す
+pub(crate) fn stock_note(view: &ResolvedAssetBalance) -> String {
+    if view.rows.is_empty() {
+        return String::new();
+    }
+    let (has_unpriced, has_missing_daily) = match &view.fallback_totals {
         Some(summary) => (
-            view.total,
             summary_valuation(summary).has_unpriced,
             summary.has_missing_daily_change,
         ),
         None => {
             let views: Vec<_> = view.rows.iter().map(holding_view).collect();
             let inputs: Vec<ValuationInput> = views.iter().map(ValuationInput::from).collect();
-            let has_missing = views.iter().any(|view| view.day_change.is_none());
             (
-                view.rows.len(),
                 portfolio_valuation(&inputs).has_unpriced,
-                has_missing,
+                views.iter().any(|view| view.day_change.is_none()),
             )
         }
     };
     let dates = stock_price_dates(&view.rows);
-    let date_text = match price_date_representative(dates.iter().copied()) {
+    stock_note_text(has_unpriced, has_missing_daily, &dates)
+}
+
+fn stock_note_text(has_unpriced: bool, has_missing_daily: bool, dates: &[&str]) -> String {
+    let base = match price_date_representative(dates.iter().copied()) {
         Some(date) => format!("株価 {} 時点(銘柄ごとの最新終値)", format_price_date(date)),
         None => "株価の基準日は不明".to_string(),
     };
-    (count, has_unpriced, has_missing_daily, date_text)
+    format!(
+        "{base}{}{}",
+        unpriced_suffix(has_unpriced),
+        missing_day_change_suffix(has_missing_daily)
+    )
 }
 
 #[component]
@@ -170,10 +168,6 @@ pub(crate) fn PortfolioSummary(
         .as_ref()
         .map(|summary| dec_to_f64(&summary.total_daily_change))
         .or_else(|| stock_daily_change_total(&all_views));
-    let has_missing_daily = fallback_totals
-        .as_ref()
-        .map(|summary| summary.has_missing_daily_change)
-        .unwrap_or_else(|| all_views.iter().any(|view| view.day_change.is_none()));
     let kpi =
         Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
 
@@ -207,21 +201,6 @@ pub(crate) fn PortfolioSummary(
     } else {
         ""
     };
-    let asof_text = {
-        let dates = all_views
-            .iter()
-            .filter(|view| view.current_price > 0.0)
-            .filter_map(|view| view.price_as_of.as_deref());
-        let base = match price_date_representative(dates) {
-            Some(date) => format!("株価 {} 時点(銘柄ごと)", format_price_date(date)),
-            None => "株価の基準日は不明".to_string(),
-        };
-        format!(
-            "{base}{}{}",
-            unpriced_suffix(valuation.has_unpriced),
-            missing_day_change_suffix(has_missing_daily)
-        )
-    };
 
     view! {
         <section
@@ -231,7 +210,6 @@ pub(crate) fn PortfolioSummary(
             aria-label="集計"
             data-testid="asset-portfolio-summary"
         >
-            <p class="asset-summary-asof lg:hidden">{asof_text}</p>
             <div class="asset-summary-grid" data-testid="portfolio-kpi-grid">
                 <dl class="asset-summary-main">
                     <div class="asset-summary-item asset-summary-item-primary">

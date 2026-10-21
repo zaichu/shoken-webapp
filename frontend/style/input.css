@@ -1203,11 +1203,11 @@
   @media (width < 64rem) {
     .asset-summary {
       @apply grid items-baseline gap-x-2 gap-y-0.5 bg-brand px-4 pb-3 pt-1 text-text-inverse;
-      /* 最終列は中身(株価注記・損益)より狭くなることがある。minmax(0,..) で潰せるようにし、
+      /* 最終列は中身(損益)より狭くなることがある。minmax(0,..) で潰せるようにし、
          右寄せのまま左の空き列側へだけはみ出す(右端欠けを防ぐ) */
       grid-template-columns: auto auto auto auto auto minmax(0, 1fr);
       grid-template-areas:
-        "pdt pdt pdt pdt pdt asof"
+        "pdt pdt pdt pdt pdt ."
         "pdd pdd pdd pdd pdd pnldd"
         "sdt1 sdd1 sdt2 sdd2 comp comp"
         "basis basis basis basis basis basis";
@@ -1216,7 +1216,7 @@
     /* 5項目の集計帯。3つ目の補助項目は1行増やして左に並べる */
     .asset-summary-5 {
       grid-template-areas:
-        "pdt pdt pdt pdt pdt asof"
+        "pdt pdt pdt pdt pdt ."
         "pdd pdd pdd pdd pdd pnldd"
         "sdt1 sdd1 sdt2 sdd2 comp comp"
         "sdt3 sdd3 . . . ."
@@ -1308,11 +1308,6 @@
     .asset-summary-item-sub3 dt,
     .asset-summary-sub-amount {
       color: var(--color-brand-muted);
-    }
-
-    .asset-summary-asof {
-      @apply justify-self-end whitespace-nowrap text-[11px] text-brand-muted;
-      grid-area: asof;
     }
 
     .asset-summary-comp {
