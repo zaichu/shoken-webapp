@@ -190,7 +190,6 @@ pub fn ReceiptTable(
         "sm:hidden print:hidden"
     };
     let table_frame_class = if compact_mobile {
-        // 列幅は table-auto に任せ、名前列・口座列の上限は CSS で指定する
         ""
     } else {
         "table-frame overflow-x-auto"
