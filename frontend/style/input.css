@@ -99,7 +99,8 @@
   --color-chart-3: var(--color-gold);
   --color-chart-4: var(--color-fill-strong);
   --color-chart-5: var(--color-brand-muted);
-  --color-chart-previous: var(--color-fill-strong);
+  /* 前年は系列ではなく比較の基準。ライトの面でも 3:1 を満たす中間色にする */
+  --color-chart-previous: #64748b;
 
   --shadow-elevation-1: 0 12px 34px -30px rgba(15, 23, 42, 0.85);
   --shadow-elevation-2: 0 16px 44px -36px rgba(15, 23, 42, 0.9);
@@ -116,6 +117,14 @@
 
   --text-eyebrow: 0.6875rem;
   --text-cell: 0.75rem;
+
+  /* 集計帯の金額の段階。主は1つだけ、副はすべて同じ大きさにする */
+  --text-summary-primary: 1.875rem;
+  --text-summary-secondary: 1.5rem;
+  --text-summary-note: 0.875rem;
+  --text-summary-primary-compact: 1.625rem;
+  --text-summary-secondary-compact: 0.9375rem;
+  --text-summary-note-compact: 0.8125rem;
 
   --container-wide: 1680px;
   /* 上部ヘッダーと本文の端をそろえる共通の本文幅(page-gutter / content-gutter) */
@@ -655,11 +664,11 @@
   }
 
   .receipt-summary-primary-amount {
-    @apply text-2xl font-bold tabular-nums;
+    @apply text-summary-primary-compact font-bold tabular-nums;
   }
 
   .receipt-summary-amount {
-    @apply text-xs tabular-nums text-brand-muted;
+    @apply text-summary-secondary-compact tabular-nums text-brand-muted;
   }
 
   .receipt-summary-sub {
@@ -715,11 +724,11 @@
     }
 
     .receipt-summary-primary-amount {
-      @apply text-3xl;
+      @apply text-summary-primary;
     }
 
     .receipt-summary-amount {
-      @apply text-2xl font-bold text-text-inverse;
+      @apply text-summary-secondary font-bold text-text-inverse;
     }
 
     .receipt-summary-sub {
@@ -1102,19 +1111,19 @@
   }
 
   .asset-summary-primary-amount {
-    @apply text-3xl font-bold;
+    @apply text-summary-primary font-bold;
   }
 
   .asset-summary-pnl-amount {
-    @apply text-2xl font-bold;
+    @apply text-summary-secondary font-bold;
   }
 
   .asset-summary-pnl-note {
-    @apply ml-1.5 text-sm font-bold;
+    @apply ml-1.5 text-summary-note font-bold;
   }
 
   .asset-summary-sub-amount {
-    @apply text-[22px] font-bold;
+    @apply text-summary-secondary font-bold;
   }
 
   /* 集計が3項目のページ(ホーム)用。4列のままだと末尾に空列が残る。
@@ -1193,10 +1202,6 @@
     .asset-summary-band .asset-summary-item-tag dt,
     .asset-summary-band .asset-summary-item-tag dd {
       @apply mt-0;
-    }
-
-    .asset-summary-band .asset-summary-item-tag .asset-summary-sub-amount {
-      @apply text-[15px];
     }
   }
 
@@ -1288,19 +1293,19 @@
     }
 
     .asset-summary-primary-amount {
-      @apply text-[26px];
+      @apply text-summary-primary-compact;
     }
 
     .asset-summary-pnl-amount {
-      @apply text-[15px];
+      @apply text-summary-secondary-compact;
     }
 
     .asset-summary-pnl-note {
-      @apply ml-1 text-[13px];
+      @apply ml-1 text-summary-note-compact;
     }
 
     .asset-summary-sub-amount {
-      @apply text-xs font-medium;
+      @apply text-summary-secondary-compact font-medium;
     }
 
     .asset-summary-item-sub1 dt,
@@ -1359,8 +1364,101 @@
     @apply inline-block h-2.5 w-2.5 shrink-0 rounded-sm;
   }
 
+  /* 月別配当の棒グラフ。棒は月の枠の 66%(2本+2px の隙間)、上端だけ 4px 丸める。
+     目盛りは 0・50・100% の3本で、最大値のラベルを上に置く */
+  .home-chart-max {
+    @apply text-right text-eyebrow tabular-nums text-text-muted;
+  }
+
+  .home-chart-plot {
+    @apply relative mt-1 h-32 max-sm:h-28;
+  }
+
+  .home-chart-grid {
+    @apply pointer-events-none absolute inset-0;
+  }
+
+  .home-chart-grid-line {
+    @apply absolute inset-x-0 border-t border-border;
+  }
+
+  .home-chart-grid-line[data-level="top"] {
+    top: 0;
+  }
+
+  .home-chart-grid-line[data-level="mid"] {
+    top: 50%;
+  }
+
+  .home-chart-grid-line[data-level="base"] {
+    bottom: 0;
+    border-color: var(--color-border-strong);
+  }
+
+  .home-chart-months {
+    @apply relative z-10 flex h-full items-end;
+  }
+
+  .home-chart-month {
+    @apply relative flex h-full min-w-0 flex-1 items-end justify-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  .home-chart-bars {
+    @apply flex h-full items-end justify-center gap-0.5;
+    width: 66%;
+  }
+
   .home-month-bar {
-    @apply block w-1.5 rounded-t-sm lg:w-3;
+    @apply block min-w-px flex-1 rounded-t;
+  }
+
+  .home-chart-month-labels {
+    @apply mt-1.5 flex;
+  }
+
+  .home-chart-month-label {
+    @apply block min-w-0 flex-1 text-center text-eyebrow text-text-muted;
+  }
+
+  .home-chart-month-label[data-current="true"] {
+    @apply font-bold text-text;
+  }
+
+  .home-chart-month-label[data-current="true"]::after {
+    @apply mx-auto mt-0.5 block h-1 w-1 rounded-full bg-chart-1;
+    content: "";
+  }
+
+  .home-chart-tip {
+    @apply pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max -translate-x-1/2 rounded-lg border border-border bg-surface px-2.5 py-2 text-xs text-text shadow-elevation-2;
+  }
+
+  .home-chart-tip dt {
+    @apply inline-block;
+  }
+
+  .home-chart-month:hover .home-chart-tip,
+  .home-chart-month:focus-visible .home-chart-tip {
+    @apply block;
+  }
+
+  .home-chart-month:first-child .home-chart-tip {
+    left: 0;
+    translate: none;
+  }
+
+  .home-chart-month:last-child .home-chart-tip {
+    right: 0;
+    left: auto;
+    translate: none;
+  }
+
+  .home-progress {
+    @apply mx-4 mt-1.5 h-2.5 overflow-hidden rounded bg-row-group;
+  }
+
+  .home-progress-fill {
+    @apply h-full rounded bg-chart-1;
   }
 
   .home-donut {
