@@ -605,7 +605,7 @@ fn composition_basis_matches_abs_sum_percentages() {
 }
 
 #[test]
-fn list_subtitle_uses_api_totals_when_truncated() {
+fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
     let owner = Owner::new();
     owner.with(|| {
         // 読み込み済み行は価格あり1件だけだが、API 集計は価格なし行を含む
@@ -624,12 +624,18 @@ fn list_subtitle_uses_api_totals_when_truncated() {
         };
         let subtitle = super::summary::list_subtitle(&resolved);
         assert!(
-            subtitle.starts_with("150000銘柄"),
+            subtitle.contains("150000"),
             "件数は読み込み済み行数ではなく API の総件数: {subtitle}"
         );
         assert!(
-            subtitle.contains("価格なし銘柄"),
-            "行外の価格なし銘柄も注記に出る: {subtitle}"
+            !subtitle.contains("時点"),
+            "基準日はタイトルに出さない: {subtitle}"
+        );
+
+        let note = super::summary::stock_note(&resolved);
+        assert!(
+            note.contains("価格なし銘柄"),
+            "行外の価格なし銘柄も注記に出る: {note}"
         );
 
         // 通常時は行から件数と価格なし判定を出す
@@ -642,15 +648,17 @@ fn list_subtitle_uses_api_totals_when_truncated() {
             fallback_totals: None,
         };
         let subtitle = super::summary::list_subtitle(&resolved);
-        assert!(subtitle.starts_with("2銘柄"));
-        assert!(subtitle.contains("価格なし銘柄"));
+        assert!(subtitle.contains("2"), "{subtitle}");
+        assert!(!subtitle.contains("時点"), "{subtitle}");
+        let note = super::summary::stock_note(&resolved);
+        assert!(note.contains("価格なし銘柄"), "{note}");
         // 価格あり行の基準日を MM/DD にして出す
-        assert!(subtitle.contains("01/16"), "{subtitle}");
+        assert!(note.contains("01/16"), "{note}");
     });
 }
 
 #[test]
-fn list_subtitle_excludes_unpriced_rows_from_price_dates() {
+fn stock_note_excludes_unpriced_rows_from_price_dates() {
     let owner = Owner::new();
     owner.with(|| {
         // 価格が出ていない行の日付は「その時点の株価」と結びつかないので範囲に混ぜない
@@ -663,14 +671,14 @@ fn list_subtitle_excludes_unpriced_rows_from_price_dates() {
             warning: None,
             fallback_totals: None,
         };
-        let subtitle = super::summary::list_subtitle(&resolved);
-        assert!(subtitle.contains("01/16"), "{subtitle}");
-        assert!(!subtitle.contains("01/01"), "{subtitle}");
+        let note = super::summary::stock_note(&resolved);
+        assert!(note.contains("01/16"), "{note}");
+        assert!(!note.contains("01/01"), "{note}");
     });
 }
 
 #[test]
-fn list_subtitle_shows_single_date_when_all_rows_share_as_of() {
+fn stock_note_shows_single_date_when_all_rows_share_as_of() {
     let owner = Owner::new();
     owner.with(|| {
         // 基準日が揃っているときは範囲ではなく単一の日付を出す
@@ -680,16 +688,16 @@ fn list_subtitle_shows_single_date_when_all_rows_share_as_of() {
             warning: None,
             fallback_totals: None,
         };
-        let subtitle = super::summary::list_subtitle(&resolved);
-        assert!(!subtitle.contains("〜"), "{subtitle}");
+        let note = super::summary::stock_note(&resolved);
+        assert!(!note.contains("〜"), "{note}");
     });
 }
 
 #[test]
-fn list_subtitle_shows_the_representative_date_when_dates_differ() {
+fn stock_note_shows_the_representative_date_when_dates_differ() {
     let owner = Owner::new();
     owner.with(|| {
-        // 基準日が混在するときは、行の日付を省く基準と同じ「最多の日付」を見出しに出す
+        // 基準日が混在するときは、行の日付を省く基準と同じ「最多の日付」を注記に出す
         let mut older = balance_row(9914);
         older.price_as_of = Some("2024-01-15".to_string());
         let resolved = ResolvedAssetBalance {
@@ -702,9 +710,9 @@ fn list_subtitle_shows_the_representative_date_when_dates_differ() {
             warning: None,
             fallback_totals: None,
         };
-        let subtitle = super::summary::list_subtitle(&resolved);
-        assert!(subtitle.contains("株価 01/16 時点"), "{subtitle}");
-        assert!(!subtitle.contains("01/15"), "{subtitle}");
+        let note = super::summary::stock_note(&resolved);
+        assert!(note.contains("株価 01/16 時点"), "{note}");
+        assert!(!note.contains("01/15"), "{note}");
     });
 }
 
@@ -947,10 +955,9 @@ fn fund_subtitle_shows_only_the_count() {
 }
 
 #[test]
-fn merged_subtitle_has_no_day_change_aggregate() {
+fn merged_subtitle_shows_only_the_count() {
     let owner = Owner::new();
     owner.with(|| {
-        // 前日比なしの株行があっても、タイトルには前日比の説明を出さない
         let mut stock_row = balance_row(9904);
         stock_row.prev_close = None;
         let stock = ResolvedAssetBalance {
@@ -970,9 +977,10 @@ fn merged_subtitle_has_no_day_change_aggregate() {
         };
         let subtitle =
             super::summary::merged_subtitle(Some(&stock), Some(&fund)).expect("subtitle");
-        assert!(subtitle.contains("3件"), "{subtitle}");
-        // 株の基準日はタイトルに出す
-        assert!(subtitle.contains("01/16"), "{subtitle}");
+        assert!(subtitle.contains("3"), "{subtitle}");
+        // 株の基準日は帯の直下の注記に出す
+        assert!(!subtitle.contains("時点"), "{subtitle}");
+        assert!(super::summary::stock_note(&stock).contains("01/16"));
         // 前日比の集計も注記もタイトルに出さない
         assert!(!subtitle.contains("前日比"), "{subtitle}");
         assert!(!subtitle.contains("更新待ち"), "{subtitle}");

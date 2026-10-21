@@ -100,6 +100,7 @@ fn EmptyFilteredPanel(
 fn StockContent(
     rows: Vec<AssetBalanceRow>,
     fallback_totals: Option<AssetBalanceSummary>,
+    stock_note: String,
     search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<SortKey>,
@@ -139,6 +140,8 @@ fn StockContent(
                         }
                         dividends=dividends
                     />
+                    {(!stock_note.is_empty()).then(|| band_note(stock_note.clone()))}
+                    {stock_basis_details()}
                 }
             })
         }}
@@ -336,10 +339,31 @@ fn band_note(note: String) -> impl IntoView {
     }
 }
 
+/// PC だけ出す計算基準。帯の直下の注記の次に置く(スマホは帯の中の details を使う)
+fn stock_basis_details() -> impl IntoView {
+    view! {
+        <details class="asset-basis-pc hidden lg:block">
+            <summary>"計算基準を見る"</summary>
+            <div class="asset-basis-pc-body">
+                "評価額 = 現在値 × 株数(価格なし銘柄は除く。現在値は銘柄ごとの最新終値で、日付は銘柄ごとに違い、他と違う行は表の「前日比」の横に表示)"
+                <br />
+                "前日比 = (現在値 − 前日終値) × 株数の合計(前日終値なし銘柄は除く。1株あたりの前日比は表の「前日比」に表示)"
+                <br />
+                "含み損益 = 評価額 − 取得総額、率 = 含み損益 ÷ 取得総額(価格あり銘柄の合計どうし)"
+                <br />
+                "年間配当 = 1株配当 × 株数(1株配当は会社予想。なければ直近の実績)"
+                <br />
+                "取得額利回り = 年間配当 ÷ 取得総額。合計は全銘柄の年間配当の合計 ÷ 取得総額の合計"
+            </div>
+        </details>
+    }
+}
+
 #[component]
 fn AllContent(
     stock_rows: Vec<AssetBalanceRow>,
     stock_fallback: Option<AssetBalanceSummary>,
+    stock_note: String,
     fund_resolved: ResolvedFundBalance,
     search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
@@ -405,15 +429,6 @@ fn AllContent(
         .as_ref()
         .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change))
         .or_else(|| stock_daily_change_total(&stock_all_views));
-    let has_missing_daily = stock_fallback
-        .as_ref()
-        .map(|summary| summary.has_missing_daily_change)
-        .unwrap_or_else(|| stock_all_views.iter().any(|view| view.day_change.is_none()));
-    let stock_missing_note = if has_missing_daily {
-        "前日比なし銘柄を除く".to_string()
-    } else {
-        String::new()
-    };
     let fund_rows = fund_resolved.rows.clone();
     let fund_views: Vec<_> = fund_rows.iter().map(fund_view).collect();
     let fund_totals_value = fund_totals(&fund_views);
@@ -445,7 +460,7 @@ fn AllContent(
     } else {
         String::new()
     };
-    let merged_note = [stock_missing_note, fund_note]
+    let merged_note = [stock_note, fund_note]
         .into_iter()
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
@@ -528,6 +543,7 @@ fn AllContent(
 pub(crate) fn AssetBalanceMainContent(
     stock_rows: Vec<AssetBalanceRow>,
     fallback_totals: Option<AssetBalanceSummary>,
+    stock_note: String,
     fund_resolved: ResolvedFundBalance,
     search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
@@ -566,6 +582,7 @@ pub(crate) fn AssetBalanceMainContent(
                     <StockContent
                         rows=stock_rows.clone()
                         fallback_totals=fallback_totals.clone()
+                        stock_note=stock_note.clone()
                         search=search
                         search_count=search_count
                         sort_key=sort_key
@@ -594,6 +611,7 @@ pub(crate) fn AssetBalanceMainContent(
                     <AllContent
                         stock_rows=stock_rows.clone()
                         stock_fallback=fallback_totals.clone()
+                        stock_note=stock_note.clone()
                         fund_resolved=fund_resolved.clone()
                         search=search
                         search_count=search_count

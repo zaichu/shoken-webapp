@@ -348,10 +348,12 @@ pub fn AssetBalancePage() -> impl IntoView {
                                     .into_any()
                             }
                             (Some(resolved), Some(resolved_fund), None) => {
+                                let stock_note = summary::stock_note(&resolved);
                                 view! {
                                     <AssetBalanceMainContent
                                         stock_rows=resolved.rows
                                         fallback_totals=resolved.fallback_totals
+                                        stock_note=stock_note
                                         fund_resolved=resolved_fund
                                         search=search
                                         search_count=search_count
