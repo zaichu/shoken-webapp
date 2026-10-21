@@ -39,17 +39,6 @@ fn account_display_name_keeps_unknown_labels() {
 }
 
 #[test]
-fn account_labels_split_joined_csv_accounts() {
-    assert_eq!(account_labels("特定"), vec!["特定"]);
-    assert_eq!(account_labels("特定・一般"), vec!["特定", "一般"]);
-    assert_eq!(
-        account_labels(" NISA成長投資枠 ・ 旧NISA "),
-        vec!["NISA成長投資枠", "旧NISA"]
-    );
-    assert_eq!(account_labels("・"), Vec::<&str>::new());
-}
-
-#[test]
 fn account_badge_class_picks_kind_by_label() {
     assert_eq!(
         account_badge_class("特定"),
@@ -69,4 +58,19 @@ fn account_badge_class_picks_kind_by_label() {
     for label in ["一般", "SBI証券", "nisa", ""] {
         assert_eq!(account_badge_class(label), "account-badge", "{label}");
     }
+}
+
+#[test]
+fn joined_account_is_one_badge_with_the_general_color() {
+    // 連結された口座名も1つの口座区分なので、分割せず1つの札にする
+    assert_eq!(account_display_name("特定・一般"), "特定・一般");
+    // 単独の「特定」とは色が別になる
+    assert_eq!(
+        account_badge_class("特定・一般"),
+        account_badge_class("一般")
+    );
+    assert_ne!(
+        account_badge_class("特定"),
+        account_badge_class("特定・一般")
+    );
 }

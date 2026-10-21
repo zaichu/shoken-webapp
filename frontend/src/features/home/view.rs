@@ -13,7 +13,7 @@ use crate::features::asset_balance::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::amount::Amount;
-use crate::ui::badge::{AccountBadge, account_display_name, account_labels};
+use crate::ui::badge::{AccountBadge, account_display_name};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::page_frame::PageFrame;
@@ -777,12 +777,7 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                                             {row.security_name.clone()}
                                         </span>
                                         <span class="home-dividend-account">
-                                            {account_labels(row.account.as_str())
-                                                .into_iter()
-                                                .map(|label| {
-                                                    view! { <AccountBadge label=label.to_string() /> }
-                                                })
-                                                .collect_view()}
+                                            <AccountBadge label=row.account.clone() />
                                         </span>
                                         <span class="home-dividend-amount">
                                             {format_currency(dec_to_f64(&row.net_amount_received))}
