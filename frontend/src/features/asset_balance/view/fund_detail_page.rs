@@ -2,7 +2,7 @@ use super::use_asset_balance_state;
 use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::format::{
     format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
-    format_signed_valuation_rate, is_negative_valuation,
+    format_signed_valuation_rate, format_unit_price, is_negative_valuation,
 };
 use crate::features::asset_balance::fund::fund_view;
 use crate::features::asset_balance::model::format_number_value;
@@ -111,9 +111,9 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                     let shares_text =
                                         format!("{}口", format_number_value(view.shares));
                                     let average_price_text =
-                                        format_currency(view.average_purchase_price);
+                                        format_unit_price(view.average_purchase_price);
                                     let purchase_text = format_currency(view.purchase);
-                                    let base_price_text = format_currency(view.base_price);
+                                    let base_price_text = format_unit_price(view.base_price);
                                     let market_text =
                                         format_row_valuation_amount(Some(view.market_value));
                                     let pnl_text =

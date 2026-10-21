@@ -1,7 +1,7 @@
 #[path = "integration.rs"]
 mod integration;
 
-use super::summary::{PortfolioSummary, PortfolioSummaryProps};
+use super::summary::{AssetSummaryBand, AssetSummaryBandProps};
 use crate::api::ApiError;
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
@@ -106,7 +106,7 @@ fn holding_dividend_matches_component_cases() {
     let zero = holding_dividend("0003", 10.0, 100.0, &maps);
     assert_eq!(zero.per_share, Some(0.0));
     assert_eq!(zero.annual, Some(0.0));
-    assert_eq!(format_dividend_per_share(&zero), "¥0");
+    assert_eq!(format_dividend_per_share(&zero), "¥0.00");
     assert_eq!(format_dividend_yield(&zero), "—");
 
     let zero_price = holding_dividend("9904", 10.0, 0.0, &maps);
@@ -318,23 +318,29 @@ fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
 }
 
 #[test]
-fn summary_renders_with_empty_views() {
+fn summary_band_renders_without_values() {
     let owner = Owner::new();
     owner.with(|| {
-        let dividends = RwSignal::new(DividendMaps::default());
-        let views: Vec<HoldingView> = Vec::new();
-        let _ = PortfolioSummary(
-            PortfolioSummaryProps::builder()
-                .filtered(FilteredPortfolio {
-                    all_views: views.clone(),
-                    views,
-                })
-                .fallback_totals(None)
-                .on_clear_filter(|| {})
-                .dividends(dividends)
+        let _ = AssetSummaryBand(
+            AssetSummaryBandProps::builder()
+                .market(None)
+                .profit(None)
+                .profit_rate(None)
+                .daily_change(None)
+                .tags(Vec::new())
+                .composition_link(false)
                 .build(),
         );
     });
+}
+
+#[test]
+fn unit_price_formatter_keeps_the_same_decimal_places() {
+    // 同じ列の値を同じ小数桁で出す(小数点の位置を縦にそろえる)
+    assert_eq!(format_unit_price(5997.6), "¥5,997.60");
+    assert_eq!(format_unit_price(187.36), "¥187.36");
+    assert_eq!(format_unit_price(162.0), "¥162.00");
+    assert_eq!(format_unit_price(0.0), "¥0.00");
 }
 
 #[test]

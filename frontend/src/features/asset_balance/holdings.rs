@@ -1,4 +1,4 @@
-use super::format::{dec_to_f64, format_currency, format_percentage_value};
+use super::format::{dec_to_f64, format_currency, format_percentage_value, format_unit_price};
 use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::model::{ValuationInput, normalize_display_name};
 use crate::features::dividend_per_share::DividendMaps;
@@ -127,7 +127,7 @@ fn format_dividend_value(
 }
 
 pub(crate) fn format_dividend_per_share(dividend: &HoldingDividend) -> String {
-    format_dividend_value(dividend, dividend.per_share, format_currency)
+    format_dividend_value(dividend, dividend.per_share, format_unit_price)
 }
 
 pub(crate) fn format_dividend_annual(dividend: &HoldingDividend) -> String {

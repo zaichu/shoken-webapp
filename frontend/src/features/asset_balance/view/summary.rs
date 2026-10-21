@@ -7,16 +7,15 @@ use crate::features::asset_balance::format::{
     is_positive_valuation, price_date_representative,
 };
 use crate::features::asset_balance::fund::{fund_totals, fund_view};
-use crate::features::asset_balance::holdings::{holding_view, stock_daily_change_total};
+use crate::features::asset_balance::holdings::{
+    HoldingView, holding_view, stock_daily_change_total,
+};
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
 };
-use crate::features::asset_balance::store::FilteredPortfolio;
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::Amount;
-use crate::ui::button::{Button, ButtonVariant};
-use crate::ui::empty_state::EmptyState;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use shared::domain::FundNavStatus;
@@ -142,37 +141,28 @@ fn stock_note_text(has_unpriced: bool, has_missing_daily: bool, dates: &[&str]) 
     )
 }
 
-#[component]
-pub(crate) fn PortfolioSummary(
-    filtered: FilteredPortfolio,
-    fallback_totals: Option<AssetBalanceSummary>,
-    on_clear_filter: impl Fn() + Send + Sync + 'static,
-    dividends: RwSignal<DividendMaps>,
-) -> impl IntoView {
-    let on_clear_filter = std::sync::Arc::new(on_clear_filter);
-    let FilteredPortfolio { views, all_views } = filtered;
-    let views_empty = views.is_empty();
-    if all_views.is_empty() {
-        return view! {
-            <div class="asset-panel-padded mx-4 lg:mx-0">
-                <div class="text-center">
-                    <EmptyState
-                        title="該当する銘柄がありません"
-                        description="検索条件を変更するか、絞り込みを解除してください。"
-                    />
-                    <div class="mt-3 text-center">
-                        <Button
-                            variant=ButtonVariant::Ghost
-                            on_click=move |_| on_clear_filter()
-                        >
-                            "絞り込みを解除"
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        }
-        .into_any();
-    }
+/// 集計帯の補助項目(右側に並べる札)
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SummaryTag {
+    pub label: &'static str,
+    pub value: String,
+}
+
+/// 集計帯の主要3項目(評価額・評価損益・前日比)
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct PortfolioSummaryValues {
+    pub market: Option<f64>,
+    pub profit: Option<f64>,
+    pub profit_rate: Option<f64>,
+    pub daily_change: Option<f64>,
+}
+
+/// 国内株式タブの集計値。合計は絞り込み前の全保有分から求める
+pub(crate) fn stock_summary_values(
+    all_views: &[HoldingView],
+    fallback_totals: Option<&AssetBalanceSummary>,
+    dividends: &DividendMaps,
+) -> (PortfolioSummaryValues, Vec<SummaryTag>) {
     let kpi_holdings: Vec<KpiHolding> = all_views
         .iter()
         .map(|view| KpiHolding {
@@ -185,41 +175,98 @@ pub(crate) fn PortfolioSummary(
         all_views.iter().map(ValuationInput::from).collect();
     let row_valuation = portfolio_valuation(&valuation_inputs);
     let valuation = fallback_totals
-        .as_ref()
         .map(summary_valuation)
         .unwrap_or(row_valuation);
-    // 前日比の合計は API 集計(全件)を優先し、無ければ見えている行から計算する。
+    // 前日比の合計は API 集計(全件)を優先し、無ければ全行から計算する。
     // 前日終値なしの行は除く(全部なしなら「—」)
     let daily_change = fallback_totals
-        .as_ref()
         .map(|summary| dec_to_f64(&summary.total_daily_change))
-        .or_else(|| stock_daily_change_total(&all_views));
-    let kpi =
-        Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
+        .or_else(|| stock_daily_change_total(all_views));
+    let kpi = calculate_portfolio_kpi(&kpi_holdings, &dividends.per_share);
+    let values = PortfolioSummaryValues {
+        market: valuation.market_value,
+        profit: valuation.profit_loss.amount,
+        profit_rate: valuation.profit_loss.rate,
+        daily_change,
+    };
+    let tags = vec![
+        SummaryTag {
+            label: "年間配当(予想)",
+            value: kpi
+                .total_annual_dividends
+                .map_or("—".to_string(), format_amount),
+        },
+        SummaryTag {
+            label: "取得額利回り",
+            value: kpi
+                .dividend_yield
+                .map_or("—".to_string(), format_percentage_value),
+        },
+    ];
+    (values, tags)
+}
 
-    let market_text = format_valuation_amount(valuation.market_value);
-    let pnl_text = format_signed_valuation_amount(valuation.profit_loss.amount);
-    let pnl_note = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
-    let has_pnl_rate = valuation.profit_loss.rate.is_some();
-    let pnl_tone = if is_negative_valuation(valuation.profit_loss.amount) {
+/// 投資信託・すべてのタブの補助の札(取得総額)
+pub(crate) fn purchase_summary_tag(purchase: f64) -> SummaryTag {
+    SummaryTag {
+        label: "取得総額",
+        value: format_valuation_amount(Some(purchase)),
+    }
+}
+
+/// 「計算基準を見る」の中身(国内株式)
+pub(crate) fn stock_basis_lines() -> Vec<String> {
+    vec![
+        "評価額 = 現在値 × 株数(価格なし銘柄は除く。現在値は銘柄ごとの最新終値で、日付は銘柄ごとに違い、他と違う行は表の「前日比」の横に表示)".to_string(),
+        "前日比 = (現在値 − 前日終値) × 株数の合計(前日終値なし銘柄は除く。1株あたりの前日比は表の「前日比」に表示)".to_string(),
+        "評価損益 = 評価額 − 取得総額、率 = 評価損益 ÷ 取得総額(価格あり銘柄の合計どうし)".to_string(),
+        "年間配当 = 1株配当 × 株数(1株配当は会社予想。なければ直近の実績)".to_string(),
+        "取得額利回り = 年間配当 ÷ 取得総額。合計は全銘柄の年間配当の合計 ÷ 取得総額の合計".to_string(),
+    ]
+}
+
+/// 「計算基準を見る」の中身(投資信託)
+pub(crate) fn fund_basis_lines() -> Vec<String> {
+    vec![
+        "評価額 = 基準価額 × 保有口数 ÷ 10000".to_string(),
+        "前日比 = 基準価額(前日比) × 保有口数 ÷ 10000 の合計(最新の基準価額の日が分かるファンドだけ。更新待ちのファンドは含まない)".to_string(),
+        "評価損益 = 評価額 − 取得総額、率 = 評価損益 ÷ 取得総額".to_string(),
+    ]
+}
+
+/// 「計算基準を見る」の中身(すべて)
+pub(crate) fn all_basis_lines() -> Vec<String> {
+    vec![
+        "評価額 = 国内株式は 現在値 × 株数、投資信託は 基準価額 × 保有口数 ÷ 10000 の合計".to_string(),
+        "前日比 = 国内株式は (現在値 − 前日終値) × 株数、投資信託は 基準価額(前日比) × 保有口数 ÷ 10000 の合計(更新待ちのファンドは含まない)".to_string(),
+        "評価損益 = 評価額 − 取得総額、率 = 評価損益 ÷ 取得総額".to_string(),
+    ]
+}
+
+/// 資産管理の集計帯。国内株式・投資信託・すべての3タブで同じ部品を使う
+#[component]
+pub(crate) fn AssetSummaryBand(
+    market: Option<f64>,
+    profit: Option<f64>,
+    profit_rate: Option<f64>,
+    /// 前日比の合計。行から求められないときは None
+    daily_change: Option<f64>,
+    tags: Vec<SummaryTag>,
+    /// 構成比ページへの入口(国内株式のみ)
+    composition_link: bool,
+) -> impl IntoView {
+    let market_text = format_valuation_amount(market);
+    let profit_text = format_signed_valuation_amount(profit);
+    let rate_text = profit_rate.map(|rate| format_signed_valuation_rate(Some(rate), 1));
+    // 前日比は表・カードと同じく表示単位を適用せず必ず円マーク付きで出す
+    let daily_text = format_signed_row_valuation_amount(daily_change);
+    let profit_tone = if is_negative_valuation(profit) {
         "asset-summary-loss"
-    } else if is_positive_valuation(valuation.profit_loss.amount) {
+    } else if is_positive_valuation(profit) {
         "asset-summary-gain"
     } else {
         ""
     };
-    let dividend_text = Signal::derive(move || {
-        kpi.get()
-            .total_annual_dividends
-            .map_or("—".to_string(), format_amount)
-    });
-    let yield_text = Signal::derive(move || {
-        kpi.get()
-            .dividend_yield
-            .map_or("—".to_string(), format_percentage_value)
-    });
-    // 前日比は表・カードと同じく表示単位を適用せず必ず円マーク付きで出す
-    let daily_text = format_signed_row_valuation_amount(daily_change);
     let daily_tone = if is_negative_valuation(daily_change) {
         "asset-summary-loss"
     } else if is_positive_valuation(daily_change) {
@@ -227,11 +274,10 @@ pub(crate) fn PortfolioSummary(
     } else {
         ""
     };
-
     view! {
         <section
             id="assetbalance-summary"
-            class="asset-summary asset-summary-5 asset-summary-band"
+            class="asset-summary asset-summary-band"
             role="region"
             aria-label="集計"
             data-testid="asset-portfolio-summary"
@@ -248,16 +294,16 @@ pub(crate) fn PortfolioSummary(
                         </dd>
                     </div>
                     <div class="asset-summary-item asset-summary-item-pnl">
-                        <dt class="sr-only lg:not-sr-only">"含み損益"</dt>
+                        <dt class="sr-only lg:not-sr-only">"評価損益"</dt>
                         <dd>
                             <Amount
-                                text=pnl_text
-                                class=format!("asset-summary-pnl-amount {pnl_tone}")
+                                text=profit_text
+                                class=format!("asset-summary-pnl-amount {profit_tone}")
                             />
-                            {has_pnl_rate.then(move || {
+                            {rate_text.map(|rate| {
                                 view! {
-                                    <span class=format!("asset-summary-pnl-note {pnl_tone}")>
-                                        {pnl_note}
+                                    <span class=format!("asset-summary-pnl-note {profit_tone}")>
+                                        {rate}
                                     </span>
                                 }
                             })}
@@ -274,56 +320,67 @@ pub(crate) fn PortfolioSummary(
                     </div>
                 </dl>
                 <dl class="asset-summary-tags">
-                    <div class="asset-summary-item asset-summary-item-sub1 asset-summary-item-tag">
-                        <dt>"年間配当(予想)"</dt>
-                        <dd>
-                            <Amount text=dividend_text class="asset-summary-sub-amount".to_string() />
-                        </dd>
-                    </div>
-                    <div class="asset-summary-item asset-summary-item-sub2 asset-summary-item-tag">
-                        <dt>"取得額利回り"</dt>
-                        <dd>
-                            <Amount text=yield_text class="asset-summary-sub-amount".to_string() />
-                        </dd>
-                    </div>
+                    {tags
+                        .into_iter()
+                        .take(2)
+                        .enumerate()
+                        .map(|(index, tag)| {
+                            let class = format!(
+                                "asset-summary-item asset-summary-item-sub{} asset-summary-item-tag",
+                                index + 1
+                            );
+                            view! {
+                                <div class=class>
+                                    <dt>{tag.label}</dt>
+                                    <dd>
+                                        <Amount
+                                            text=tag.value
+                                            class="asset-summary-sub-amount".to_string()
+                                        />
+                                    </dd>
+                                </div>
+                            }
+                        })
+                        .collect_view()}
                 </dl>
             </div>
-            <a href="/assetbalance/composition" class="asset-summary-comp lg:hidden">
-                "構成比 ›"
-            </a>
-            <details class="asset-summary-basis lg:hidden">
-                <summary>"計算基準"</summary>
-                <div class="asset-summary-basis-body">
-                    "評価額 = 現在値 × 株数(価格なし銘柄は除く。株価の日付は銘柄ごとに違う)"
-                    <br />
-                    "前日比 = (現在値 − 前日終値) × 株数の合計(前日終値なし銘柄は除く)"
-                    <br />
-                    "年間配当 = 1株配当 × 株数(会社予想。なければ直近の実績)"
-                    <br />
-                    "取得額利回り = 年間配当 ÷ 取得総額"
-                </div>
-            </details>
-            {views_empty.then(move || {
+            {composition_link.then(|| {
                 view! {
-                    <div class="asset-panel-padded col-span-full mx-4 mt-3 lg:mx-0">
-                        <div class="text-center">
-                            <EmptyState
-                                title="該当する銘柄がありません"
-                                description="検索条件を変更するか、絞り込みを解除してください。"
-                            />
-                            <div class="mt-3 text-center">
-                                <Button
-                                    variant=ButtonVariant::Ghost
-                                    on_click=move |_| on_clear_filter()
-                                >
-                                    "絞り込みを解除"
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
+                    <a href="/assetbalance/composition" class="asset-summary-comp lg:hidden">
+                        "構成比 ›"
+                    </a>
                 }
             })}
         </section>
     }
-    .into_any()
+}
+
+/// 帯の直下の注記行。注記の右端に「計算基準を見る」を置く
+#[component]
+pub(crate) fn AssetSummaryNote(
+    /// 注記の文。空のときは注記の欄を出さない
+    note: Vec<String>,
+    /// 「計算基準を見る」で出す説明
+    basis: Vec<String>,
+) -> impl IntoView {
+    view! {
+        <div class="asset-band-note-row">
+            <div class="asset-band-note">
+                {note
+                    .into_iter()
+                    .filter(|line| !line.is_empty())
+                    .map(|line| view! { <p>{line}</p> })
+                    .collect_view()}
+            </div>
+            <details class="asset-basis">
+                <summary>"計算基準を見る"</summary>
+                <div class="asset-basis-body">
+                    {basis
+                        .into_iter()
+                        .map(|line| view! { <p>{line}</p> })
+                        .collect_view()}
+                </div>
+            </details>
+        </div>
+    }
 }

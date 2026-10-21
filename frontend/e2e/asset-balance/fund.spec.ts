@@ -237,7 +237,7 @@ test('前日比は最新の基準価額の変動だけを出し、タイトル�
   await expect(note).toBeVisible();
 
   // 注記は帯の直下にあり、表の末尾までスクロールしなくても読める
-  const band = await page.getByTestId('asset-summary-strip').boundingBox();
+  const band = await page.getByTestId('asset-portfolio-summary').boundingBox();
   const noteBox = await note.boundingBox();
   const tableBox = await table.boundingBox();
   expect(band).not.toBeNull();

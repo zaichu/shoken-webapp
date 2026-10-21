@@ -1,7 +1,7 @@
 use super::use_asset_balance_state;
 use crate::features::asset_balance::format::{
     format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
-    format_signed_valuation_rate, is_negative_valuation,
+    format_signed_valuation_rate, format_unit_price, is_negative_valuation,
 };
 use crate::features::asset_balance::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
@@ -128,9 +128,9 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                     let dividend_annual = format_dividend_annual(&dividend);
                                     let dividend_yield = format_dividend_yield(&dividend);
                                     let shares_text = format!("{}株", format_number_value(holding_view.shares));
-                                    let average_price_text = format_currency(holding_view.average_price);
+                                    let average_price_text = format_unit_price(holding_view.average_price);
                                     let purchase_text = format_currency(holding_view.purchase);
-                                    let current_price_text = format_currency(holding_view.current_price);
+                                    let current_price_text = format_unit_price(holding_view.current_price);
                                     let price_as_of = holding_view.price_as_of.clone();
                                     view! {
                                         <div class="asset-panel">
@@ -186,7 +186,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                     <dd class="tabular-nums font-bold text-text">{market_text}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">含み損益</dt>
+                                                    <dt class="text-text-muted">評価損益</dt>
                                                     <dd>
                                                         <Amount
                                                             class="tabular-nums"

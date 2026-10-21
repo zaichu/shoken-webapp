@@ -1,5 +1,5 @@
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, format_signed_row_valuation_amount, pnl_cells,
+    format_row_valuation_amount, format_signed_row_valuation_amount, format_unit_price, pnl_cells,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
@@ -39,7 +39,7 @@ pub fn HoldingsList(
                     let meta_tail = format!(
                         " · {} · 現在値 {} · 前日比 {}",
                         shares_text,
-                        format_currency(view.current_price),
+                        format_unit_price(view.current_price),
                         format_signed_row_valuation_amount(view.day_change),
                     );
                     let inner = view! {

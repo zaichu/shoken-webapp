@@ -1193,11 +1193,6 @@
     grid-template-columns: 1.3fr 1.2fr 1fr;
   }
 
-  /* 集計が5項目(資産管理の国内株式: 前日比を足す)用 */
-  .asset-summary-5 .asset-summary-grid {
-    grid-template-columns: 1.3fr 1.2fr 1fr 1fr 1fr;
-  }
-
   /* 紺地では --color-positive/-negative がコントラスト不足になるため明るい色を使う */
   .asset-summary-gain {
     color: var(--color-profit-bright);
@@ -1207,17 +1202,30 @@
     color: var(--color-loss-bright);
   }
 
-  /* PC だけ出す計算基準。帯の下に置く */
-  .asset-basis-pc {
-    @apply mt-2 text-xs;
+  /* 帯の直下の注記行。注記の左、「計算基準を見る」の右に置く */
+  .asset-band-note-row {
+    @apply mt-1 mb-2 grid grid-cols-[1fr_auto] items-start gap-x-3 px-4 text-xs text-text-muted lg:px-0;
   }
 
-  .asset-basis-pc > summary {
-    @apply inline-flex min-h-7 cursor-pointer items-center font-medium text-text-deep;
+  .asset-band-note {
+    @apply min-w-0;
   }
 
-  .asset-basis-pc-body {
+  /* 計算基準は注記行と同じ段に置き、開いたときだけ下に本文を落とす */
+  .asset-basis {
+    display: contents;
+  }
+
+  .asset-basis > summary {
+    @apply inline-flex min-h-11 cursor-pointer items-start whitespace-nowrap text-text-deep lg:min-h-7;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .asset-basis-body {
     @apply mt-1 rounded-lg border border-border bg-surface px-3.5 py-2.5 leading-relaxed text-text-soft;
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .asset-badge {
@@ -1279,14 +1287,13 @@
         "basis basis basis basis basis basis";
     }
 
-    /* 5項目の集計帯。3つ目の補助項目は1行増やして左に並べる */
-    .asset-summary-5 {
+    /* 資産管理の集計帯。3タブで同じ並びにする(前日比は1行増やして左に並べる) */
+    .asset-summary-band {
       grid-template-areas:
         "pdt pdt pdt pdt pdt ."
         "pdd pdd pdd pdd pdd pnldd"
         "sdt1 sdd1 sdt2 sdd2 comp comp"
-        "sdt3 sdd3 . . . ."
-        "basis basis basis basis basis basis";
+        "sdt3 sdd3 . . . .";
     }
 
     .asset-summary-grid,
@@ -1379,19 +1386,6 @@
     .asset-summary-comp {
       @apply inline-flex min-h-11 items-center justify-self-end text-[13px] font-bold text-gold no-underline;
       grid-area: comp;
-    }
-
-    .asset-summary-basis {
-      @apply mt-1 text-xs text-brand-muted;
-      grid-area: basis;
-    }
-
-    .asset-summary-basis > summary {
-      @apply inline-flex min-h-11 cursor-pointer items-center font-medium text-text-inverse;
-    }
-
-    .asset-summary-basis-body {
-      @apply pb-1 leading-relaxed;
     }
   }
 

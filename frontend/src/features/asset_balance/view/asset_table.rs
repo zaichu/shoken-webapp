@@ -1,7 +1,7 @@
 use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, pnl_cells, price_date_outliers,
+    format_row_valuation_amount, format_unit_price, pnl_cells, price_date_outliers,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
@@ -45,7 +45,7 @@ pub fn AssetHoldingsTable(
                         <th scope="col" class="text-right">"現在値"</th>
                         <th scope="col" class="text-right">"前日比"</th>
                         {sort_header("評価額", SortKey::MarketValue, sort_key, sort_order)}
-                        {sort_header("含み損益", SortKey::ProfitLoss, sort_key, sort_order)}
+                        {sort_header("評価損益", SortKey::ProfitLoss, sort_key, sort_order)}
                         <th scope="col" class="text-right">"1株配当"</th>
                         {sort_header("年間配当", SortKey::Dividend, sort_key, sort_order)}
                         {sort_header("取得額利回り", SortKey::Yield, sort_key, sort_order)}
@@ -98,10 +98,10 @@ pub fn AssetHoldingsTable(
                                         {format!("{}株", format_number_value(view.shares))}
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
-                                        {format_currency(view.average_price)}
+                                        {format_unit_price(view.average_price)}
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
-                                        {format_currency(view.current_price)}
+                                        {format_unit_price(view.current_price)}
                                     </td>
                                     <td class="text-right tabular-nums">
                                         {day_change_cell(view.day_change, outlier_date)}

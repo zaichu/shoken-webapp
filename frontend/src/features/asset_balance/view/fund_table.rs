@@ -1,7 +1,7 @@
 use super::day_change::{DAY_CHANGE_COLUMN_NOTE, day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, pnl_cells,
+    format_row_valuation_amount, format_unit_price, pnl_cells,
 };
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::model::format_number_value;
@@ -63,7 +63,7 @@ pub fn FundHoldingsTable(
                                         {format!("{}口", format_number_value(view.shares))}
                                     </td>
                                     <td class="text-right tabular-nums text-text-soft">
-                                        {format_currency(view.base_price)}
+                                        {format_unit_price(view.base_price)}
                                     </td>
                                     <td
                                         class="text-right tabular-nums"
@@ -110,7 +110,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     let meta = format!(
                         "{}口 ・ 基準価額 {}",
                         format_number_value(view.shares),
-                        format_currency(view.base_price),
+                        format_unit_price(view.base_price),
                     );
                     let inner = view! {
                         <>

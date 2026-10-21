@@ -2,7 +2,7 @@ use crate::features::asset_balance::model::{format_abs_number, to_fixed};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use shared::format::{
-    format_currency as format_currency_decimal,
+    format_currency as format_currency_decimal, format_currency_with_options,
     format_percentage_value as format_percentage_value_decimal,
 };
 
@@ -54,6 +54,33 @@ pub(crate) fn format_currency(value: f64) -> String {
         || format_currency_beyond_decimal(value),
         format_currency_decimal,
     )
+}
+
+/// 1株・1口あたりの金額(取得単価・現在値・基準価額・1株配当)。
+/// 同じ列の中で小数桁がそろうよう、小数点以下を固定した桁数で出す
+pub(crate) fn format_unit_price(value: f64) -> String {
+    const DECIMALS: u32 = 2;
+    f64_to_decimal(value).map_or_else(
+        || format_unit_price_beyond_decimal(value),
+        |value| format_currency_with_options(value, "¥", DECIMALS, DECIMALS),
+    )
+}
+
+// Decimal に収まらない値でも小数桁をそろえて出す
+fn format_unit_price_beyond_decimal(value: f64) -> String {
+    let rounded = to_fixed(value, 2);
+    let Some(body) = format_abs_number(rounded) else {
+        return "—".to_string();
+    };
+    let (integer, fraction) = body
+        .split_once('.')
+        .map_or((body.as_str(), ""), |(i, f)| (i, f));
+    let fraction = format!("{fraction:0<2}");
+    if value < 0.0 {
+        format!("-¥{integer}.{fraction}")
+    } else {
+        format!("¥{integer}.{fraction}")
+    }
 }
 
 pub(crate) fn format_fixed_percent(value: f64, decimals: u32) -> String {

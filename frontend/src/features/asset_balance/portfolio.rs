@@ -25,7 +25,7 @@ impl SortKey {
     pub(crate) fn label(self) -> &'static str {
         match self {
             SortKey::MarketValue => "評価額",
-            SortKey::ProfitLoss => "含み損益",
+            SortKey::ProfitLoss => "評価損益",
             SortKey::Dividend => "年間配当",
             SortKey::Yield => "取得額利回り",
         }

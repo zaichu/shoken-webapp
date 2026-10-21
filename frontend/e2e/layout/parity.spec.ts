@@ -267,7 +267,7 @@ test('口座検索で絞り込んでも表が収まり該当データが残る',
   await expectNoPageOverflow(page, 1440);
 });
 
-test('資産管理に評価額と含み損益を表示する', async ({ page }) => {
+test('資産管理に評価額と評価損益を表示する', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
@@ -275,10 +275,10 @@ test('資産管理に評価額と含み損益を表示する', async ({ page }) 
   const summary = main.getByTestId('asset-portfolio-summary');
   await expect(summary).toBeVisible();
   await expect(summary).toContainText('評価額合計');
-  await expect(summary).toContainText('含み損益');
+  await expect(summary).toContainText('評価損益');
   const row = page.getByTestId('asset-compact-row').first();
   await expect(row).toBeVisible();
-  // 行には評価額と符号付きの含み損益が出る
+  // 行には評価額と符号付きの評価損益が出る
   await expect(row).toContainText('¥');
   await expect(row).toContainText(/[+-]¥/);
 });
