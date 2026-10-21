@@ -4,9 +4,12 @@ use super::day_change::{day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{format_row_valuation_amount, pnl_cells};
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
-use crate::features::asset_balance::holdings::HoldingView;
+use crate::features::asset_balance::holdings::{
+    HoldingDividend, HoldingView, format_dividend_per_share, holding_dividend,
+};
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::SortOrder;
+use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::AccountBadge;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
@@ -33,9 +36,11 @@ pub(crate) struct UnifiedRow {
     pub profit: Option<f64>,
     pub rate: Option<f64>,
     pub href: Option<String>,
+    /// 株式行の1株配当。投資信託の行は None
+    pub dividend: Option<HoldingDividend>,
 }
 
-pub(crate) fn unified_from_stock(view: &HoldingView) -> UnifiedRow {
+pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -> UnifiedRow {
     let valuation = holding_valuation(&ValuationInput::from(view));
     UnifiedRow {
         name: view.name.clone(),
@@ -56,6 +61,12 @@ pub(crate) fn unified_from_stock(view: &HoldingView) -> UnifiedRow {
             .id
             .clone()
             .map(|id| format!("/assetbalance/holdings/{id}")),
+        dividend: Some(holding_dividend(
+            &view.code,
+            view.shares,
+            view.average_price,
+            dividends,
+        )),
     }
 }
 
@@ -79,6 +90,7 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
             .id
             .clone()
             .map(|id| format!("/assetbalance/funds/{id}")),
+        dividend: None,
     }
 }
 
@@ -133,6 +145,7 @@ pub fn AssetMergedTable(
                         <th scope="col">"種別"</th>
                         <th scope="col">"口座"</th>
                         <th scope="col">"分配金"</th>
+                        <th scope="col" class="text-right">"1株配当"</th>
                         <th scope="col" class="text-right">"前日比"</th>
                         {sort_header("評価額", FundSortKey::MarketValue, sort_key, sort_order)}
                         {sort_header("評価損益", FundSortKey::ProfitLoss, sort_key, sort_order)}
@@ -178,6 +191,13 @@ pub fn AssetMergedTable(
                                         </td>
                                         <td class="text-text-soft">
                                             {row.course.clone().unwrap_or_else(|| "—".to_string())}
+                                        </td>
+                                        <td class="text-right tabular-nums">
+                                            {row
+                                                .dividend
+                                                .as_ref()
+                                                .map(format_dividend_per_share)
+                                                .unwrap_or_else(|| "—".to_string())}
                                         </td>
                                         <td
                                             class="text-right tabular-nums"
@@ -289,6 +309,16 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                                         .into_any()
                                 }}
                             </div>
+                            {row.dividend.as_ref().map(|dividend| {
+                                view! {
+                                    <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
+                                        <span class="text-text-muted tabular-nums">
+                                            "1株 "
+                                            {format_dividend_per_share(dividend)}
+                                        </span>
+                                    </div>
+                                }
+                            })}
                         </>
                     };
                     view! {

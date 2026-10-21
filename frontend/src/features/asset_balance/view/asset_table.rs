@@ -4,7 +4,8 @@ use crate::features::asset_balance::format::{
     format_currency, format_row_valuation_amount, pnl_cells, price_date_outliers,
 };
 use crate::features::asset_balance::holdings::{
-    HoldingView, format_dividend_annual, format_dividend_yield, holding_dividend,
+    HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
+    holding_dividend,
 };
 use crate::features::asset_balance::model::{
     ValuationInput, format_number_value, holding_valuation,
@@ -45,6 +46,7 @@ pub fn AssetHoldingsTable(
                         <th scope="col" class="text-right">"前日比"</th>
                         {sort_header("評価額", SortKey::MarketValue, sort_key, sort_order)}
                         {sort_header("含み損益", SortKey::ProfitLoss, sort_key, sort_order)}
+                        <th scope="col" class="text-right">"1株配当"</th>
                         {sort_header("年間配当", SortKey::Dividend, sort_key, sort_order)}
                         {sort_header("取得額利回り", SortKey::Yield, sort_key, sort_order)}
                     </tr>
@@ -65,6 +67,7 @@ pub fn AssetHoldingsTable(
                                 &dividends.get(),
                             );
                             let dividend_annual = format_dividend_annual(&dividend);
+                            let dividend_per_share = format_dividend_per_share(&dividend);
                             let dividend_yield = format_dividend_yield(&dividend);
                             let href = view
                                 .id
@@ -125,6 +128,7 @@ pub fn AssetHoldingsTable(
                                             view! { "—" }.into_any()
                                         }}
                                     </td>
+                                    <td class="text-right tabular-nums">{dividend_per_share}</td>
                                     <td class="text-right tabular-nums">{dividend_annual}</td>
                                     <td class="text-right tabular-nums text-text-deep">{dividend_yield}</td>
                                 </tr>
