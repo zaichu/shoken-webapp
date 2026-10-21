@@ -1,4 +1,6 @@
-use super::{account_chart_index, assign_chart_indices, product_chart_index};
+use super::{
+    CHART_COLOR_OTHER, CHART_COLORS, account_chart_index, chart_color, product_chart_index,
+};
 
 #[test]
 fn product_chart_index_is_fixed_per_label() {
@@ -27,34 +29,18 @@ fn account_chart_index_normalizes_csv_names() {
 }
 
 #[test]
-fn assign_chart_indices_keeps_fixed_slots() {
-    let indices = assign_chart_indices(&["特定", "iDeCo", "NISA成長"], account_chart_index);
-    assert_eq!(indices[0], 0);
-    assert_eq!(indices[2], 1);
-}
-
-#[test]
-fn assign_chart_indices_is_independent_of_label_order() {
-    // 系列は評価額順に並ぶため、並びが変わっても同じ名前には同じ番号が付く必要がある
-    let a = assign_chart_indices(&["NISA", "iDeCo"], account_chart_index);
-    let b = assign_chart_indices(&["iDeCo", "NISA"], account_chart_index);
-    assert_eq!(a[0], b[1]);
-    assert_eq!(a[1], b[0]);
-}
-
-#[test]
-fn assign_chart_indices_color_depends_only_on_name() {
-    // 表外の名前は、ほかの系列(対応表の固定枠・表外どちらも)が増減しても同じ番号が付く
-    let solo = assign_chart_indices(&["iDeCo"], account_chart_index);
-    let with_fixed = assign_chart_indices(&["旧NISA", "iDeCo"], account_chart_index);
-    let with_unknown = assign_chart_indices(&["NISA", "iDeCo"], account_chart_index);
-    assert_eq!(solo[0], with_fixed[1]);
-    assert_eq!(solo[0], with_unknown[1]);
-}
-
-#[test]
-fn assign_chart_indices_may_share_color_when_names_exceed_slots() {
-    // 色は5枠しかない。対応表外の名前が固定枠と同じ番号に割り当たるのは許容する
-    let indices = assign_chart_indices(&["一般", "NISA"], account_chart_index);
-    assert_eq!(indices[0], indices[1]);
+fn chart_color_uses_table_slot_or_single_other_color() {
+    // 対応表の名前は自分の固定色、表外は名前によらず同じ中立色
+    assert_eq!(
+        chart_color("国内株式", product_chart_index),
+        CHART_COLORS[0]
+    );
+    assert_eq!(chart_color("一般", account_chart_index), CHART_COLORS[4]);
+    for label in ["NISA", "iDeCo", "外国株式"] {
+        assert_eq!(
+            chart_color(label, account_chart_index),
+            CHART_COLOR_OTHER,
+            "{label}"
+        );
+    }
 }

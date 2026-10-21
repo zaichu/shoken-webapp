@@ -52,19 +52,15 @@ fn account_chart_index(label: &str) -> Option<usize> {
     }
 }
 
-/// 系列ごとの色番号を割る。対応表の名前は固定番号、表にない名前は名前だけで
-/// 決まる番号を使い、ほかの系列の有無や表示の並び(評価額順)で色が変わらない。
-/// 色は5枠しかなく対応表外の名前は無限にあるため、別の系列と同じ色に割り当たる
-/// ことはある(空きへずらすと、ほかの系列の増減で色が動いてしまう)
-fn assign_chart_indices(labels: &[&str], fixed: impl Fn(&str) -> Option<usize>) -> Vec<usize> {
-    let n = CHART_COLORS.len();
-    labels
-        .iter()
-        .map(|label| match fixed(label) {
-            Some(i) => i % n,
-            None => label.bytes().map(usize::from).sum::<usize>() % n,
-        })
-        .collect()
+/// 対応表にない系列の色。表外はすべて同じ中立色で、ほかの系列の増減や
+/// 表示の並び(評価額順)で色が変わらない。複数出ても同色で、凡例の名前で区別する
+const CHART_COLOR_OTHER: (&str, &str) = ("var(--color-text-muted)", "bg-text-muted");
+
+fn chart_color(label: &str, fixed: impl Fn(&str) -> Option<usize>) -> (&'static str, &'static str) {
+    match fixed(label) {
+        Some(i) => CHART_COLORS[i % CHART_COLORS.len()],
+        None => CHART_COLOR_OTHER,
+    }
 }
 
 #[component]
@@ -577,11 +573,9 @@ fn slice_style(
     if gapped {
         stops.push(format!("var(--color-surface) 0% {HALF_GAP:.2}%"));
     }
-    let labels: Vec<&str> = slices.iter().map(|s| s.label.as_str()).collect();
-    let indices = assign_chart_indices(&labels, chart_index);
     let mut cursor = 0.0;
-    for (slice, index) in slices.iter().zip(indices) {
-        let (color, class) = CHART_COLORS[index];
+    for slice in slices {
+        let (color, class) = chart_color(&slice.label, &chart_index);
         let end = cursor + slice.amount / total * 100.0;
         if gapped {
             let start = cursor + HALF_GAP;
@@ -689,10 +683,6 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                     }}
                     {if !accounts.is_empty() {
                         let account_total: f64 = accounts.iter().map(|s| s.amount).sum();
-                        let account_labels: Vec<&str> =
-                            accounts.iter().map(|s| s.label.as_str()).collect();
-                        let account_indices =
-                            assign_chart_indices(&account_labels, account_chart_index);
                         view! {
                             <div class="px-4 pt-4">
                                 <p class="text-xs font-medium text-text-muted">
@@ -701,10 +691,10 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                 <div class="home-stacked-bar mt-1.5">
                                     {accounts
                                         .iter()
-                                        .zip(account_indices.iter())
-                                        .map(|(slice, &index)| {
+                                        .map(|slice| {
                                             let width = slice.amount / account_total * 100.0;
-                                            let (_, class) = CHART_COLORS[index];
+                                            let class =
+                                                chart_color(&slice.label, account_chart_index).1;
                                             view! {
                                                 <span
                                                     class=format!("block h-full {class}")
@@ -717,9 +707,9 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                 <ul class="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
                                     {accounts
                                         .iter()
-                                        .zip(account_indices.iter())
-                                        .map(|(slice, &index)| {
-                                            let (_, class) = CHART_COLORS[index];
+                                        .map(|slice| {
+                                            let class =
+                                                chart_color(&slice.label, account_chart_index).1;
                                             let pct = slice.amount / account_total * 100.0;
                                             view! {
                                                 <li class="flex items-center gap-1">
