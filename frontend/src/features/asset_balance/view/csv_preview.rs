@@ -116,15 +116,15 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                         <table class="receipts-table w-full">
                             <thead>
                             <tr class="text-text-soft font-semibold text-xs">
-                                <th class="px-3 py-2 text-left">"銘柄コード"</th>
-                                <th class="px-3 py-2 text-left">"銘柄名"</th>
-                                <th class="px-3 py-2 text-left">"口座"</th>
-                                <th class="px-3 py-2 text-right">"保有数量"</th>
-                                <th class="px-3 py-2 text-right">"平均取得価額"</th>
-                                <th class="px-3 py-2 text-right">"取得総額"</th>
-                                <th class="px-3 py-2 text-right">"現在値"</th>
-                                <th class="px-3 py-2 text-right">"時価評価額"</th>
-                                <th class="px-3 py-2 text-right">"評価損益"</th>
+                                <th class="col-text">"銘柄コード"</th>
+                                <th class="col-text">"銘柄名"</th>
+                                <th class="col-text">"口座"</th>
+                                <th class="col-num">"保有数量"</th>
+                                <th class="col-num">"平均取得価額"</th>
+                                <th class="col-num">"取得総額"</th>
+                                <th class="col-num">"現在値"</th>
+                                <th class="col-num">"時価評価額"</th>
+                                <th class="col-num">"評価損益"</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -135,21 +135,21 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                                 let current_price_str = format!("¥{}", format_number(row.current_price()));
                                 view! {
                                     <tr class="border-t border-border">
-                                        <td class="px-3 py-2 text-sm font-mono text-text">{security_code}</td>
-                                        <td class="px-3 py-2 text-sm text-text">{security_name}</td>
-                                        <td class="px-3 py-2 text-sm text-text">
+                                        <td class="col-text font-mono">{security_code}</td>
+                                        <td class="col-text">{security_name}</td>
+                                        <td class="col-text">
                                             {account
                                                 .map(|value| {
                                                     view! { <AccountBadge label=value /> }.into_any()
                                                 })
                                                 .unwrap_or_else(|| "—".into_any())}
                                         </td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{shares_str}</td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{avg_price_str}</td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{total_purchase_str}</td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{current_price_str}</td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text-deep">{market_text}</td>
-                                        <td class=format!("px-3 py-2 text-sm text-right tabular-nums {}", pnl_class)>
+                                        <td class="col-num">{shares_str}</td>
+                                        <td class="col-num">{avg_price_str}</td>
+                                        <td class="col-num">{total_purchase_str}</td>
+                                        <td class="col-num">{current_price_str}</td>
+                                        <td class="col-num text-text-deep">{market_text}</td>
+                                        <td class=format!("col-num {}", pnl_class)>
                                             {pnl_text}
                                             {pnl_rate_text.map(|rate| view! { " " <span class="asset-badge">{rate}</span> })}
                                         </td>
@@ -210,12 +210,12 @@ pub fn FundBalanceCsvPreview(
                         <table class="receipts-table w-full">
                             <thead>
                             <tr class="text-text-soft font-semibold text-xs">
-                                <th class="px-3 py-2 text-left">"ファンド名"</th>
-                                <th class="px-3 py-2 text-left">"口座"</th>
-                                <th class="px-3 py-2 text-right">"保有口数"</th>
-                                <th class="px-3 py-2 text-right">"基準価額"</th>
-                                <th class="px-3 py-2 text-right">"評価額"</th>
-                                <th class="px-3 py-2 text-right">"評価損益"</th>
+                                <th class="col-text">"ファンド名"</th>
+                                <th class="col-text">"口座"</th>
+                                <th class="col-num">"保有口数"</th>
+                                <th class="col-num">"基準価額"</th>
+                                <th class="col-num">"評価額"</th>
+                                <th class="col-num">"評価損益"</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -227,8 +227,8 @@ pub fn FundBalanceCsvPreview(
                                 let pnl_class = if view.profit_loss < 0.0 { "text-negative" } else if view.profit_loss > 0.0 { "text-positive" } else { "text-text-soft" };
                                 view! {
                                     <tr class="border-t border-border">
-                                        <td class="px-3 py-2 text-sm text-text">{view.name}</td>
-                                        <td class="px-3 py-2 text-sm text-text">
+                                        <td class="col-text">{view.name}</td>
+                                        <td class="col-text">
                                             {if view.account.is_empty() {
                                                 "—".into_any()
                                             } else {
@@ -236,10 +236,10 @@ pub fn FundBalanceCsvPreview(
                                                     .into_any()
                                             }}
                                         </td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{shares_str}</td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{base_price_str}</td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text-deep">{market_text}</td>
-                                        <td class=format!("px-3 py-2 text-sm text-right tabular-nums {}", pnl_class)>{pnl_text}</td>
+                                        <td class="col-num">{shares_str}</td>
+                                        <td class="col-num">{base_price_str}</td>
+                                        <td class="col-num text-text-deep">{market_text}</td>
+                                        <td class=format!("col-num {}", pnl_class)>{pnl_text}</td>
                                     </tr>
                                 }
                             }).collect_view()}

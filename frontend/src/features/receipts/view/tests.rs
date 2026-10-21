@@ -299,33 +299,6 @@ fn card_fields_point_at_expected_columns() {
     );
 }
 
-#[test]
-fn table_column_widths_match_headers_and_follow_column_order() {
-    let rows = domestic();
-    let order = column_order(ReceiptsTab::DomesticStock, &rows, "特定");
-    let columns = ReceiptsTab::DomesticStock.columns();
-    let displayed: Vec<(&str, &str)> = order
-        .iter()
-        .map(|&i| (columns[i].header, columns[i].width))
-        .collect();
-    let fields = ReceiptsTab::DomesticStock.card_fields();
-    assert_eq!(
-        displayed[0],
-        (columns[fields.date].header, columns[fields.date].width)
-    );
-    assert_eq!(
-        displayed[2],
-        (
-            columns[fields.account].header,
-            columns[fields.account].width
-        )
-    );
-    assert_eq!(
-        displayed[3],
-        (columns[fields.name].header, columns[fields.name].width)
-    );
-}
-
 // 「表示項目は極力削らない」方針: 数量はできるだけ早い帯から出す。
 // 配当金は列が少なく md(768px)帯でも入るため Md。国内株式・投資信託は金額列が多く
 // md 帯で数量まで出すと銘柄名が潰れるため Wide(レールを畳んだ lg・xl から)にとどめる

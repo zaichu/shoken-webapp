@@ -23,14 +23,14 @@ pub fn FundHoldingsTable(
             <table class="asset-table">
                 <thead>
                     <tr>
-                        <th scope="col">"ファンド"</th>
-                        <th scope="col">"口座"</th>
-                        <th scope="col">"分配金"</th>
+                        <th scope="col" class="col-text">"ファンド"</th>
+                        <th scope="col" class="col-text">"口座"</th>
+                        <th scope="col" class="col-text">"分配金"</th>
                         {sort_header("保有口数", FundSortKey::Shares, sort_key, sort_order)}
                         {sort_header("基準価額", FundSortKey::BasePrice, sort_key, sort_order)}
                         <th
                             scope="col"
-                            class="text-right"
+                            class="col-num"
                             title=DAY_CHANGE_COLUMN_NOTE
                             abbr=DAY_CHANGE_COLUMN_NOTE
                         >
@@ -52,23 +52,23 @@ pub fn FundHoldingsTable(
                                 .map(|id| format!("/assetbalance/funds/{id}"));
                             view! {
                                 <tr>
-                                    <td class="asset-name-cell" title=view.name.clone()>
+                                    <td class="asset-name-cell col-text" title=view.name.clone()>
                                         <TableNameLink href=href name=view.name.clone() />
                                     </td>
-                                    <td>
+                                    <td class="col-text">
                                         <AccountBadge label=view.account.clone() />
                                     </td>
-                                    <td class="text-text-soft">
+                                    <td class="col-text text-text-soft">
                                         {view.course.clone().unwrap_or_else(|| "—".to_string())}
                                     </td>
-                                    <td class="text-right tabular-nums text-text-soft">
+                                    <td class="col-num text-text-soft">
                                         {format!("{}口", format_number_value(view.shares))}
                                     </td>
-                                    <td class="text-right tabular-nums text-text-soft">
+                                    <td class="col-num text-text-soft">
                                         {format_unit_price(view.base_price, base_price_decimals)}
                                     </td>
                                     <td
-                                        class="text-right tabular-nums"
+                                        class="col-num"
                                         title=view.day_change_title()
                                     >
                                         {if view.nav_pending() {
@@ -78,10 +78,10 @@ pub fn FundHoldingsTable(
                                                 .into_any()
                                         }}
                                     </td>
-                                    <td class="text-right font-bold tabular-nums text-text-deep">
+                                    <td class="col-num font-bold text-text-deep">
                                         {format_row_valuation_amount(Some(view.market_value))}
                                     </td>
-                                    <td class="text-right tabular-nums">
+                                    <td class="col-num">
                                         <span class=format!("font-bold tabular-nums {pnl_text_class}")>
                                             {pnl_text}
                                         </span>
