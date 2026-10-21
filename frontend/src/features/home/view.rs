@@ -495,11 +495,11 @@ fn DividendCardBody(
             </span>
             <span class="ml-auto text-sm font-bold tabular-nums">{progress_text}</span>
         </div>
-        <div class="mx-4 mt-1.5 h-2.5 overflow-hidden rounded-full bg-row-group">
+        <div class="home-progress">
             {progress_pct.map(|pct| {
                 view! {
                     <div
-                        class="h-full rounded-full bg-chart-1"
+                        class="home-progress-fill"
                         style:width=format!("{}%", pct.clamp(0.0, 100.0))
                     />
                 }
@@ -509,43 +509,102 @@ fn DividendCardBody(
             {format!("{remaining_text} {previous_span}・ 前年同期より {yoy_text}")}
         </p>
         <div
-            class="mt-3 flex items-end justify-between gap-1 px-4"
+            class="mt-3 px-4"
             role="group"
             aria-label=format!("月別の税引後配当({year}年と{previous_year}年)")
         >
-            {model
-                .monthly
-                .iter()
-                .map(|pair| {
-                    let cur = model::bar_height(pair.current, max);
-                    let prev = model::bar_height(pair.previous, max);
-                    view! {
-                        <div
-                            class="flex min-w-0 flex-1 flex-col items-center gap-1"
-                            aria-label=format!(
-                                "{}月: {}年 {} / {}年 {}",
-                                pair.month,
-                                year,
-                                format_currency(dec_to_f64(&pair.current)),
-                                previous_year,
-                                format_currency(dec_to_f64(&pair.previous))
-                            )
-                        >
-                            <div class="flex h-28 w-full items-end justify-center gap-0.5">
-                                <span
-                                    class="home-month-bar bg-chart-previous"
-                                    style:height=format!("{prev}%")
-                                />
-                                <span
-                                    class="home-month-bar bg-chart-1"
-                                    style:height=format!("{cur}%")
-                                />
-                            </div>
-                            <span class="text-[11px] text-text-muted">{format!("{}月", pair.month)}</span>
-                        </div>
-                    }
-                })
-                .collect_view()}
+            <p class="home-chart-max">{format_valuation_amount(Some(dec_to_f64(&max)))}</p>
+            <div class="home-chart-plot">
+                <div class="home-chart-grid" aria-hidden="true">
+                    <span class="home-chart-grid-line" data-level="top"></span>
+                    <span class="home-chart-grid-line" data-level="mid"></span>
+                    <span class="home-chart-grid-line" data-level="base"></span>
+                </div>
+                <div class="home-chart-months">
+                    {model
+                        .monthly
+                        .iter()
+                        .map(|pair| {
+                            let cur = model::bar_height(pair.current, max);
+                            let prev = model::bar_height(pair.previous, max);
+                            let cur_text = format_currency(dec_to_f64(&pair.current));
+                            let prev_text = format_currency(dec_to_f64(&pair.previous));
+                            let diff_text = format_signed_valuation_amount(Some(dec_to_f64(
+                                &(pair.current - pair.previous),
+                            )));
+                            let current_note = if pair.month == current_month {
+                                "(今月)"
+                            } else {
+                                ""
+                            };
+                            view! {
+                                <div
+                                    class="home-chart-month"
+                                    tabindex="0"
+                                    role="group"
+                                    aria-label=format!(
+                                        "{}月{}: {}年 {} / {}年 {} / 差 {}",
+                                        pair.month,
+                                        current_note,
+                                        year,
+                                        cur_text,
+                                        previous_year,
+                                        prev_text,
+                                        diff_text
+                                    )
+                                >
+                                    <div class="home-chart-bars">
+                                        <span
+                                            class="home-month-bar bg-chart-previous"
+                                            style:height=format!("{prev}%")
+                                        />
+                                        <span
+                                            class="home-month-bar bg-chart-1"
+                                            style:height=format!("{cur}%")
+                                        />
+                                    </div>
+                                    <div class="home-chart-tip" aria-hidden="true">
+                                        <p class="font-bold text-text">
+                                            {format!("{}月", pair.month)}
+                                        </p>
+                                        <dl class="mt-1 space-y-0.5">
+                                            <div class="flex items-center gap-1.5">
+                                                <dt class="home-swatch bg-chart-1"></dt>
+                                                <dd>{format!("{}年 {}", year, cur_text)}</dd>
+                                            </div>
+                                            <div class="flex items-center gap-1.5">
+                                                <dt class="home-swatch bg-chart-previous"></dt>
+                                                <dd>{format!("{}年 {}", previous_year, prev_text)}</dd>
+                                            </div>
+                                            <div class="flex items-center gap-1.5">
+                                                <dt class="text-text-muted">"差"</dt>
+                                                <dd class="tabular-nums">{diff_text.clone()}</dd>
+                                            </div>
+                                        </dl>
+                                    </div>
+                                </div>
+                            }
+                        })
+                        .collect_view()}
+                </div>
+            </div>
+            <div class="home-chart-month-labels" aria-hidden="true">
+                {model
+                    .monthly
+                    .iter()
+                    .map(|pair| {
+                        let current = pair.month == current_month;
+                        view! {
+                            <span
+                                class="home-chart-month-label"
+                                data-current=current.to_string()
+                            >
+                                {format!("{}月", pair.month)}
+                            </span>
+                        }
+                    })
+                    .collect_view()}
+            </div>
         </div>
         <div class="mt-2 flex justify-center gap-4 px-4 text-xs text-text-muted">
             <span class="flex items-center gap-1">
