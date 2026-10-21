@@ -574,10 +574,11 @@ pub(crate) enum ColumnAlign {
 }
 
 impl ColumnAlign {
+    /// 見出しとセルで同じクラスを使う。位置は CSS 側の列の種別クラスが決める
     pub(crate) fn class(self) -> &'static str {
         match self {
-            ColumnAlign::Left => "text-left",
-            ColumnAlign::Right => "text-right tabular-nums",
+            ColumnAlign::Left => "col-text",
+            ColumnAlign::Right => "col-num",
         }
     }
 }
@@ -596,8 +597,6 @@ pub(crate) enum CardRole {
 /// 1列分の表示属性。列の追加・並び替えはこの組で編集する
 pub(crate) struct ColumnSpec {
     pub(crate) header: &'static str,
-    #[allow(dead_code)]
-    pub(crate) width: &'static str,
     pub(crate) tier: ColumnTier,
     pub(crate) align: ColumnAlign,
     pub(crate) card_role: CardRole,
