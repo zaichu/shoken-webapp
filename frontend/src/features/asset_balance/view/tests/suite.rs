@@ -95,10 +95,10 @@ fn holding_dividend_matches_component_cases() {
 
     let missing = holding_dividend("9999", 10.0, 100.0, &maps);
     assert_eq!(missing.per_share, None);
-    assert_eq!(format_dividend_per_share(&missing), "—");
+    assert_eq!(format_dividend_per_share(&missing, 0), "—");
 
     let pending = holding_dividend("0001", 10.0, 100.0, &maps);
-    assert_eq!(format_dividend_per_share(&pending), "取得中...");
+    assert_eq!(format_dividend_per_share(&pending, 0), "取得中...");
 
     let error = holding_dividend("0002", 10.0, 100.0, &maps);
     assert_eq!(format_dividend_annual(&error), "取得失敗");
@@ -106,7 +106,7 @@ fn holding_dividend_matches_component_cases() {
     let zero = holding_dividend("0003", 10.0, 100.0, &maps);
     assert_eq!(zero.per_share, Some(0.0));
     assert_eq!(zero.annual, Some(0.0));
-    assert_eq!(format_dividend_per_share(&zero), "¥0.00");
+    assert_eq!(format_dividend_per_share(&zero, 0), "¥0");
     assert_eq!(format_dividend_yield(&zero), "—");
 
     let zero_price = holding_dividend("9904", 10.0, 0.0, &maps);
@@ -125,12 +125,12 @@ fn holding_dividend_matches_component_cases() {
         holding_dividend("0001", 10.0, 100.0, &maps),
         pending_with_value,
     ] {
-        assert_eq!(format_dividend_per_share(&pending), "取得中...");
+        assert_eq!(format_dividend_per_share(&pending, 0), "取得中...");
         assert_eq!(format_dividend_annual(&pending), "取得中...");
         assert_eq!(format_dividend_yield(&pending), "取得中...");
     }
     let error = holding_dividend("0002", 10.0, 100.0, &maps);
-    assert_eq!(format_dividend_per_share(&error), "取得失敗");
+    assert_eq!(format_dividend_per_share(&error, 0), "取得失敗");
     assert_eq!(format_dividend_annual(&error), "取得失敗");
     assert_eq!(format_dividend_yield(&error), "取得失敗");
 }
@@ -336,11 +336,14 @@ fn summary_band_renders_without_values() {
 
 #[test]
 fn unit_price_formatter_keeps_the_same_decimal_places() {
-    // 同じ列の値を同じ小数桁で出す(小数点の位置を縦にそろえる)
-    assert_eq!(format_unit_price(5997.6), "¥5,997.60");
-    assert_eq!(format_unit_price(187.36), "¥187.36");
-    assert_eq!(format_unit_price(162.0), "¥162.00");
-    assert_eq!(format_unit_price(0.0), "¥0.00");
+    // 列の中の小数桁をそろえる(整数円の値しかない列には .00 を付けない)
+    assert_eq!(unit_price_decimals([5997.6, 187.36].into_iter()), 2);
+    assert_eq!(unit_price_decimals([2500.0, 3000.0].into_iter()), 0);
+    assert_eq!(unit_price_decimals([5997.6, 2500.0].into_iter()), 1);
+    assert_eq!(format_unit_price(5997.6, 2), "¥5,997.60");
+    assert_eq!(format_unit_price(187.36, 2), "¥187.36");
+    assert_eq!(format_unit_price(162.0, 0), "¥162");
+    assert_eq!(format_unit_price(0.0, 0), "¥0");
 }
 
 #[test]

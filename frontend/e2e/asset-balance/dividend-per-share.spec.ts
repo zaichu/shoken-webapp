@@ -142,12 +142,12 @@ test('国内株式の表に1株配当の列があり、1株配当と年間配当
 
   // 取得できた銘柄は1株配当と年間配当(1株配当×数量)が出る
   const priced = table.getByRole('row', { name: /架空自動車/ });
-  await expect(priced.getByRole('cell').nth(perShareIndex)).toHaveText('¥90.00');
+  await expect(priced.getByRole('cell').nth(perShareIndex)).toHaveText('¥90');
   await expect(priced.getByRole('cell').nth(annualIndex)).toHaveText('¥9,000');
 
   // 無配は0円
   const zero = table.getByRole('row', { name: /架空食品工業/ });
-  await expect(zero.getByRole('cell').nth(perShareIndex)).toHaveText('¥0.00');
+  await expect(zero.getByRole('cell').nth(perShareIndex)).toHaveText('¥0');
 
   // 取得失敗と、応答に無い銘柄は数字を出さない
   const failed = table.getByRole('row', { name: /架空精密機器/ });
@@ -171,7 +171,7 @@ test('スマホの行は年間配当の隣に1株配当を出す', async ({ page
 
   // 配当で並べたときだけ行に配当を出す
   await page.getByTestId('asset-sort-select').selectOption('dividend');
-  await expect(row).toContainText('1株 ¥90.00');
+  await expect(row).toContainText('1株 ¥90');
   // 年間配当(1株配当×数量)も一緒に出る
   await expect(row).toContainText('¥9,000');
 });
@@ -187,5 +187,5 @@ test('「すべて」タブの株式行にも1株配当が出る', async ({ page
 
   const index = await columnIndex(table, '1株配当');
   const row = table.getByRole('row', { name: /架空自動車/ });
-  await expect(row.getByRole('cell').nth(index)).toHaveText('¥90.00');
+  await expect(row.getByRole('cell').nth(index)).toHaveText('¥90');
 });

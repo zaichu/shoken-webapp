@@ -1741,6 +1741,12 @@
     max-width: 30em;
   }
 
+  /* 列が多い表(国内株式)は名前列を狭めて、右の列まで枠に収める */
+  .asset-table td.asset-name-cell-narrow {
+    width: 18em;
+    max-width: 18em;
+  }
+
   .asset-table td.text-right {
     @apply text-right px-2;
   }

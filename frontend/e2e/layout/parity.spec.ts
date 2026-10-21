@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
+import { expectTableFit } from '../support/layout';
 import { expect, test, json, paginated } from '../support/test';
 
 const MOCK_USER = {
@@ -172,28 +173,6 @@ async function selectReceiptTab(page: Page, tab: ReceiptTab) {
   await expect(button).toHaveAttribute('aria-selected', 'true');
   // 件数バッジはタブ別フェッチの完了を意味する
   await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
-}
-
-async function expectTableFit(page: Page) {
-  const table = page.getByRole('table');
-  await expect(table).toBeVisible();
-  await expect(table.locator('tbody tr').last()).toBeVisible();
-  const metrics = await table.evaluate((element) => {
-    const wrapper = element.parentElement!;
-    const rect = element.getBoundingClientRect();
-    const wrapperRect = wrapper.getBoundingClientRect();
-    return {
-      left: rect.left,
-      right: rect.right,
-      wrapperLeft: wrapperRect.left,
-      wrapperRight: wrapperRect.right,
-      scrollWidth: wrapper.scrollWidth,
-      clientWidth: wrapper.clientWidth,
-    };
-  });
-  expect(metrics.left).toBeGreaterThanOrEqual(metrics.wrapperLeft - 1);
-  expect(metrics.right).toBeLessThanOrEqual(metrics.wrapperRight + 1);
-  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
 }
 
 async function expectNoPageOverflow(page: Page, width: number) {

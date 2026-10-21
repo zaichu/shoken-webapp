@@ -2,7 +2,9 @@
 
 use super::day_change::{day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
-use crate::features::asset_balance::format::{format_row_valuation_amount, pnl_cells};
+use crate::features::asset_balance::format::{
+    format_row_valuation_amount, pnl_cells, unit_price_decimals,
+};
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::holdings::{
     HoldingDividend, HoldingView, format_dividend_per_share, holding_dividend,
@@ -129,6 +131,11 @@ pub fn AssetMergedTable(
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
+    // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
+    let dividend_decimals = unit_price_decimals(
+        rows.iter()
+            .filter_map(|row| row.dividend.as_ref()?.per_share),
+    );
     let sorted = Memo::new(move |_| {
         sort_unified(&rows, sort_key.get(), sort_order.get())
             .into_iter()
@@ -196,7 +203,12 @@ pub fn AssetMergedTable(
                                             {row
                                                 .dividend
                                                 .as_ref()
-                                                .map(format_dividend_per_share)
+                                                .map(|dividend| {
+                                                    format_dividend_per_share(
+                                                        dividend,
+                                                        dividend_decimals,
+                                                    )
+                                                })
                                                 .unwrap_or_else(|| "—".to_string())}
                                         </td>
                                         <td
@@ -247,6 +259,11 @@ pub fn AssetMergedTable(
 
 #[component]
 pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
+    // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
+    let dividend_decimals = unit_price_decimals(
+        rows.iter()
+            .filter_map(|row| row.dividend.as_ref()?.per_share),
+    );
     view! {
         <ul class="asset-compact-list" data-testid="asset-merged-list">
             {rows
@@ -314,7 +331,10 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                                     <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
                                         <span class="text-text-muted tabular-nums">
                                             "1株 "
-                                            {format_dividend_per_share(dividend)}
+                                            {format_dividend_per_share(
+                                                dividend,
+                                                dividend_decimals,
+                                            )}
                                         </span>
                                     </div>
                                 }

@@ -25,3 +25,26 @@ export async function expectFooterBelowContent(page: Page) {
     `フッターの上端(${info!.footerTop.toFixed(1)})が本文の末尾(${info!.bodyBottom.toFixed(1)})より上にあり、本文と重なっている`,
   ).toBeGreaterThanOrEqual(info!.bodyBottom);
 }
+
+// 表が横にはみ出さずに枠に収まることを確かめる(右端の列が切れないこと)
+export async function expectTableFit(page: Page) {
+  const table = page.getByRole('table');
+  await expect(table).toBeVisible();
+  await expect(table.locator('tbody tr').last()).toBeVisible();
+  const metrics = await table.evaluate((element) => {
+    const wrapper = element.parentElement!;
+    const rect = element.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      wrapperLeft: wrapperRect.left,
+      wrapperRight: wrapperRect.right,
+      scrollWidth: wrapper.scrollWidth,
+      clientWidth: wrapper.clientWidth,
+    };
+  });
+  expect(metrics.left).toBeGreaterThanOrEqual(metrics.wrapperLeft - 1);
+  expect(metrics.right).toBeLessThanOrEqual(metrics.wrapperRight + 1);
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+}

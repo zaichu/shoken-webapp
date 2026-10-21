@@ -1,5 +1,6 @@
 use crate::features::asset_balance::format::{
     format_row_valuation_amount, format_signed_row_valuation_amount, format_unit_price, pnl_cells,
+    unit_price_decimals,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
@@ -17,29 +18,43 @@ pub fn HoldingsList(
     dividends: RwSignal<DividendMaps>,
     #[prop(optional)] show_dividend: bool,
 ) -> impl IntoView {
+    // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
+    let current_price_decimals = unit_price_decimals(views.iter().map(|view| view.current_price));
+    let row_dividends: Vec<_> = views
+        .iter()
+        .map(|view| {
+            holding_dividend(
+                &view.code,
+                view.shares,
+                view.average_price,
+                &dividends.get(),
+            )
+        })
+        .collect();
+    let dividend_decimals = unit_price_decimals(
+        row_dividends
+            .iter()
+            .filter_map(|dividend| dividend.per_share),
+    );
     view! {
         <ul class="asset-compact-list" data-testid="asset-holdings-list">
             {views
                 .into_iter()
-                .map(|view| {
+                .zip(row_dividends)
+                .map(|(view, dividend)| {
                     let valuation = holding_valuation(&ValuationInput::from(&view));
                     let market_text = format_row_valuation_amount(valuation.market_value);
                     let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
                         pnl_cells(valuation.profit_loss.amount, valuation.profit_loss.rate);
-                    let dividend = holding_dividend(
-                        &view.code,
-                        view.shares,
-                        view.average_price,
-                        &dividends.get(),
-                    );
                     let dividend_annual = format_dividend_annual(&dividend);
-                    let dividend_per_share = format_dividend_per_share(&dividend);
+                    let dividend_per_share =
+                        format_dividend_per_share(&dividend, dividend_decimals);
                     let dividend_yield = format_dividend_yield(&dividend);
                     let shares_text = format!("{}株", format_number_value(view.shares));
                     let meta_tail = format!(
                         " · {} · 現在値 {} · 前日比 {}",
                         shares_text,
-                        format_unit_price(view.current_price),
+                        format_unit_price(view.current_price, current_price_decimals),
                         format_signed_row_valuation_amount(view.day_change),
                     );
                     let inner = view! {
