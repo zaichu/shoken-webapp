@@ -767,7 +767,9 @@
     }
     .receipts-table td.receipt-instrument-cell {
       min-width: 10em;
-      width: 100%;
+      width: 30em;
+      max-width: 30em;
+      overflow: hidden;
     }
   }
 
@@ -1446,11 +1448,13 @@
     @apply whitespace-nowrap px-3.5 py-2.5 text-text;
   }
 
-  /* 表は1行1段。名前列だけは可変幅で、はみ出る名前は … で省略する
+  /* 表は1行1段。名前列は残り幅を使うが、広い画面で独占しないよう上限を付ける
      (全文はセルの title)。他列は nowrap なので先に幅を取り、
-     残り幅をすべて名前列が使う(w-full は table-auto の配分で残りを取る) */
+     残り幅は名前列が使うが 30em を上限としてそれ以上は広げない */
   .asset-table td.asset-name-cell {
-    @apply w-full truncate;
+    @apply truncate;
+    width: 30em;
+    max-width: 30em;
   }
 
   .asset-table td.text-right {
