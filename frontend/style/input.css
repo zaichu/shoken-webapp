@@ -710,7 +710,13 @@
   }
 
   .receipts-table {
-    @apply w-full table-fixed border-collapse text-sm;
+    @apply w-full table-auto border-collapse text-sm;
+  }
+
+  /* 取引明細の PC 表だけ固定レイアウトにする。CSV プレビューは従来の
+     table-auto を保つ */
+  .receipts-table.receipts-table-fixed {
+    table-layout: fixed;
   }
 
   .receipts-table thead {
@@ -779,6 +785,18 @@
     .receipts-table th.receipt-account-col,
     .receipts-table td.receipt-account-col {
       width: 12em;
+    }
+
+    /* 1024px 前後では数値列が狭くなりすぎないよう上限を少し縮める */
+    @media (max-width: 1279px) {
+      .receipts-table th.receipt-instrument-col,
+      .receipts-table td.receipt-instrument-cell {
+        width: 24em;
+      }
+      .receipts-table th.receipt-account-col,
+      .receipts-table td.receipt-account-col {
+        width: 10em;
+      }
     }
   }
 

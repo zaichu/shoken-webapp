@@ -31,15 +31,6 @@ pub fn displayed_tiers(
         .collect()
 }
 
-// PC(lg+)の表の列幅。銘柄列は幅を固定せず残り全部を使い、日付・口座・数量・金額は
-// 内容に見合う最小幅で固定する(数値列は折り返さず 1 行で出す)
-fn compact_width(header: &str) -> &'static str {
-    // 列幅の上限は CSS 側で管理する。ここでは固定幅を指定しないことで、
-    // table-fixed で余った幅を数値列へ均等に配分させる
-    let _ = header;
-    ""
-}
-
 // PC の表は lg 以上でしか出ないため、段は「常時」と「xl から」の2つにまとめる。
 // 口座は lg でも出す(この幅ではモバイル行も出ないため口座が見えなくなる)。
 // 売買の内訳金額は xl まで隠し、lg でも銘柄列の幅を確保する
@@ -157,16 +148,7 @@ pub fn ReceiptTable(
         order.clone()
     };
     let headers: Vec<_> = desktop_order.iter().map(|i| columns[*i].header).collect();
-    let widths: Vec<_> = desktop_order
-        .iter()
-        .map(|i| {
-            if compact_mobile {
-                compact_width(columns[*i].header)
-            } else {
-                columns[*i].width
-            }
-        })
-        .collect();
+    let widths: Vec<_> = desktop_order.iter().map(|_| "").collect();
     let tiers = if compact_mobile {
         compact_tiers(&desktop_order, promoted, columns)
     } else {
@@ -208,13 +190,13 @@ pub fn ReceiptTable(
         "sm:hidden print:hidden"
     };
     let table_frame_class = if compact_mobile {
-        // PC の表は table-auto で内容に応じて広がり、数値列は折り返さない
+        // PC の表は table-fixed で列幅を固定し、余った幅を数値列へ配分する
         ""
     } else {
         "table-frame overflow-x-auto"
     };
     let table_class = if compact_mobile {
-        "receipts-table"
+        "receipts-table receipts-table-fixed"
     } else {
         "receipt-table"
     };
