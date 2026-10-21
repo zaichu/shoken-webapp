@@ -92,6 +92,15 @@
   --color-info-border: #a9bff4;
   --color-info-focus: #1d4ed8;
 
+  /* グラフの系列色は面・部品の色と別に持ち、商品・口座ごとに固定で割り当てる。
+     前年の棒は系列ではなく比較の基準として落ち着いた色にする */
+  --color-chart-1: var(--color-brand);
+  --color-chart-2: var(--color-accent);
+  --color-chart-3: var(--color-gold);
+  --color-chart-4: var(--color-fill-strong);
+  --color-chart-5: var(--color-brand-muted);
+  --color-chart-previous: var(--color-fill-strong);
+
   --shadow-elevation-1: 0 12px 34px -30px rgba(15, 23, 42, 0.85);
   --shadow-elevation-2: 0 16px 44px -36px rgba(15, 23, 42, 0.9);
   --shadow-card: 0 14px 38px -32px rgba(15, 23, 42, 0.85);
@@ -204,6 +213,7 @@
       --color-scrollbar-thumb-hover: #4d5f85;
 
       --color-night-soft: #cbd5e1;
+      /* 紺の面の上に置くブランド色(選択中の枠線・チェックの印)。文字色としては使わない */
       --color-brand-text: #a3bde3;
       --color-brand-border: #56719a;
 
@@ -236,6 +246,14 @@
       --color-info-soft: #16233f;
       --color-info-border: #3c5586;
       --color-info-focus: #a9c4fa;
+
+      /* 暗い面の上で区別が付く検証済みの系列色。前年は比較の基準として落ち着いた色 */
+      --color-chart-1: #3987e5;
+      --color-chart-2: #d95926;
+      --color-chart-3: #199e70;
+      --color-chart-4: #c98500;
+      --color-chart-5: #d55181;
+      --color-chart-previous: #9fb0cf;
 
       --color-band: #292112;
       --color-band-border: #6b5518;
@@ -457,7 +475,7 @@
   }
 
   .active-condition-chip {
-    @apply inline-flex min-h-11 items-center gap-1 rounded-full border border-brand bg-surface px-2.5 text-xs font-medium text-brand-text;
+    @apply inline-flex min-h-11 items-center gap-1 rounded-full border border-brand-text bg-surface px-2.5 text-xs font-medium text-text-deep;
   }
 
   /* 検索欄(タグ入力型): 今の条件のタグ・銘柄入力・件数・すべてクリアを1つの面にまとめる */
@@ -559,6 +577,14 @@
 
   .condition-option[aria-pressed="true"] {
     @apply border-brand bg-brand text-text-inverse;
+  }
+
+  /* ダークでは紺の選択色が面に溶けるため、segmented-option と同じ
+     明るい塗り+反転文字で選択状態を示す */
+  @media screen {
+    :root[data-theme="dark"] .condition-option[aria-pressed="true"] {
+      @apply border-accent bg-accent text-page;
+    }
   }
 
   @media (width < 64rem) {
@@ -813,7 +839,7 @@
   /* グループ小計の見出しセルだけ左に金の線。colspan 切替で複製される
      見出しセル全てに付け、表示中のものが線を引く */
   .receipts-table-group-label {
-    @apply font-bold text-brand-text;
+    @apply font-bold text-text-deep;
     border-left: 3px solid var(--color-gold);
   }
 
@@ -825,9 +851,9 @@
     @apply font-medium;
   }
 
-  /* 小計の税引後は紺の太字 */
+  /* 小計の税引後は濃い太字 */
   .receipts-table-group.font-bold {
-    @apply text-brand-text;
+    @apply text-text-deep;
   }
 
   /* Mobile Compact Receipts List */
@@ -902,11 +928,11 @@
   }
 
   .receipt-compact-group > span:first-child {
-    @apply font-bold text-xs text-brand-text;
+    @apply font-bold text-xs text-text-deep;
   }
 
   .receipt-compact-group > span:last-child {
-    @apply text-xs text-brand-text;
+    @apply text-xs text-text-deep;
   }
 
   /* 口座区分のバッジ。NISA 系は琥珀配色 */
@@ -996,7 +1022,7 @@
   }
 
   .page-frame-title {
-    @apply font-bold leading-tight tracking-normal text-text-inverse lg:text-brand-text;
+    @apply font-bold leading-tight tracking-normal text-text-inverse lg:text-text-deep;
     font-size: 17px;
   }
 
@@ -1013,7 +1039,7 @@
   /* ページ名の右の低頻度リンク。スマホは紺のヘッダー内で白抜き枠線、
      タップ領域 44px を確保する */
   .page-secondary-link-sm {
-    @apply inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md border border-brand-border bg-transparent px-3 text-[13px] text-text-inverse no-underline transition-colors hover:bg-brand-deep lg:min-h-8 lg:border-border-link lg:bg-surface lg:text-brand-text lg:hover:bg-surface-sunken;
+    @apply inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md border border-brand-border bg-transparent px-3 text-[13px] text-text-inverse no-underline transition-colors hover:bg-brand-deep lg:min-h-8 lg:border-border-link lg:bg-surface lg:text-text-deep lg:hover:bg-surface-sunken;
   }
 
   /* 操作帯: スクロール末尾では本文の後ろに付き、途中ではスクロール下端に張り付く。
@@ -1038,7 +1064,7 @@
   }
 
   .bottom-nav-link[aria-current] {
-    @apply font-bold text-brand-text;
+    @apply font-bold text-text-deep;
     box-shadow: var(--shadow-edge-accent);
   }
 
@@ -1151,7 +1177,7 @@
   }
 
   .asset-basis-pc > summary {
-    @apply inline-flex min-h-7 cursor-pointer items-center font-medium text-brand-text;
+    @apply inline-flex min-h-7 cursor-pointer items-center font-medium text-text-deep;
   }
 
   .asset-basis-pc-body {
@@ -1379,8 +1405,9 @@
     @apply flex h-3/5 w-3/5 items-center justify-center rounded-full bg-surface;
   }
 
+  /* 系列の境目は面の色の隙間にする(gap の下を面と同じ色で透かす) */
   .home-stacked-bar {
-    @apply flex h-2.5 overflow-hidden rounded-full bg-row-group;
+    @apply flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-surface;
   }
 
   .asset-list-surface {
@@ -1407,7 +1434,7 @@
   }
 
   .asset-mobile-tool {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 text-[13px] font-medium text-brand-text;
+    @apply inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 text-[13px] font-medium text-text-deep;
   }
 
   .asset-mobile-sort {
@@ -1424,7 +1451,7 @@
   }
 
   .asset-mobile-order {
-    @apply inline-flex min-h-11 shrink-0 items-center rounded-lg border border-brand bg-surface px-3 text-[13px] font-bold text-brand-text;
+    @apply inline-flex min-h-11 shrink-0 items-center rounded-lg border border-brand-text bg-surface px-3 text-[13px] font-bold text-text-deep;
   }
 
   .asset-compact-list {
@@ -1512,7 +1539,7 @@
   }
 
   .asset-th-sort[aria-pressed="true"] {
-    @apply font-bold text-brand-text;
+    @apply font-bold text-text-deep;
   }
 
   .asset-sort-arrow {

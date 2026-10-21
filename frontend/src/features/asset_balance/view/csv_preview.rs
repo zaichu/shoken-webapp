@@ -87,7 +87,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                 <Card variant=CardVariant::Item class="p-3">
                     <div class="flex items-baseline justify-between gap-2">
                         <span class="min-w-0 truncate font-medium text-text">{security_name}</span>
-                        <span class="shrink-0 font-bold tabular-nums text-brand-text">{market_text}</span>
+                        <span class="shrink-0 font-bold tabular-nums text-text-deep">{market_text}</span>
                     </div>
                     <div class="mt-1 flex items-baseline justify-between gap-2 text-xs">
                         <span class="shrink-0 text-text-muted">{security_code} {account_text} " · " {shares_str}</span>
@@ -145,7 +145,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                                         <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{avg_price_str}</td>
                                         <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{total_purchase_str}</td>
                                         <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{current_price_str}</td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-brand-text">{market_text}</td>
+                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text-deep">{market_text}</td>
                                         <td class=format!("px-3 py-2 text-sm text-right tabular-nums {}", pnl_class)>
                                             {pnl_text}
                                             {pnl_rate_text.map(|rate| view! { " " <span class="asset-badge">{rate}</span> })}
@@ -228,7 +228,7 @@ pub fn FundBalanceCsvPreview(
                                         <td class="px-3 py-2 text-sm text-text">{view.account}</td>
                                         <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{shares_str}</td>
                                         <td class="px-3 py-2 text-sm text-right tabular-nums text-text">{base_price_str}</td>
-                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-brand-text">{market_text}</td>
+                                        <td class="px-3 py-2 text-sm text-right tabular-nums text-text-deep">{market_text}</td>
                                         <td class=format!("px-3 py-2 text-sm text-right tabular-nums {}", pnl_class)>{pnl_text}</td>
                                     </tr>
                                 }
@@ -247,7 +247,7 @@ pub fn FundBalanceCsvPreview(
                             <Card variant=CardVariant::Item class="p-3">
                                 <div class="flex items-baseline justify-between gap-2">
                                     <span class="min-w-0 truncate font-medium text-text">{view.name}</span>
-                                    <span class="shrink-0 font-bold tabular-nums text-brand-text">{market_text}</span>
+                                    <span class="shrink-0 font-bold tabular-nums text-text-deep">{market_text}</span>
                                 </div>
                                 <div class="mt-1 flex items-baseline justify-between gap-2 text-xs">
                                     <span class="shrink-0 text-text-muted">{view.account} " · " {shares_str}</span>

@@ -13,6 +13,7 @@ use crate::features::asset_balance::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::amount::Amount;
+use crate::ui::badge::account_display_name;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::page_frame::PageFrame;
@@ -23,12 +24,44 @@ use leptos::prelude::*;
 // クラスで渡す。本番 CSP(style-src 'self')は style 属性を止めるので、静的な色は
 // クラス・動的な大きさやグラデーションは style:<prop> で指定する
 const CHART_COLORS: &[(&str, &str)] = &[
-    ("var(--color-brand-text)", "bg-brand-text"),
-    ("var(--color-accent)", "bg-accent"),
-    ("var(--color-gold)", "bg-gold"),
-    ("var(--color-fill-strong)", "bg-fill-strong"),
-    ("var(--color-brand-muted)", "bg-brand-muted"),
+    ("var(--color-chart-1)", "bg-chart-1"),
+    ("var(--color-chart-2)", "bg-chart-2"),
+    ("var(--color-chart-3)", "bg-chart-3"),
+    ("var(--color-chart-4)", "bg-chart-4"),
+    ("var(--color-chart-5)", "bg-chart-5"),
 ];
+
+/// 商品別ドーナツの系列番号。商品名に固定で対応させ、絞り込みや並び替えで色が変わらないようにする
+fn product_chart_index(label: &str) -> Option<usize> {
+    match label {
+        "国内株式" => Some(0),
+        "投資信託" => Some(1),
+        _ => None,
+    }
+}
+
+/// 口座別の系列番号。口座名はバッジと同じ表示名に正規化してから対応表に当てる
+fn account_chart_index(label: &str) -> Option<usize> {
+    match account_display_name(label) {
+        "特定" => Some(0),
+        "NISA成長" => Some(1),
+        "旧NISA" => Some(2),
+        "NISAつみたて" => Some(3),
+        "一般" => Some(4),
+        _ => None,
+    }
+}
+
+/// 対応表にない系列の色。表外はすべて同じ中立色で、ほかの系列の増減や
+/// 表示の並び(評価額順)で色が変わらない。複数出ても同色で、凡例の名前で区別する
+const CHART_COLOR_OTHER: (&str, &str) = ("var(--color-text-muted)", "bg-text-muted");
+
+fn chart_color(label: &str, fixed: impl Fn(&str) -> Option<usize>) -> (&'static str, &'static str) {
+    match fixed(label) {
+        Some(i) => CHART_COLORS[i % CHART_COLORS.len()],
+        None => CHART_COLOR_OTHER,
+    }
+}
 
 #[component]
 pub fn HomePage() -> impl IntoView {
@@ -466,7 +499,7 @@ fn DividendCardBody(
             {progress_pct.map(|pct| {
                 view! {
                     <div
-                        class="h-full rounded-full bg-brand-text"
+                        class="h-full rounded-full bg-chart-1"
                         style:width=format!("{}%", pct.clamp(0.0, 100.0))
                     />
                 }
@@ -500,11 +533,11 @@ fn DividendCardBody(
                         >
                             <div class="flex h-28 w-full items-end justify-center gap-0.5">
                                 <span
-                                    class="home-month-bar bg-fill-strong"
+                                    class="home-month-bar bg-chart-previous"
                                     style:height=format!("{prev}%")
                                 />
                                 <span
-                                    class="home-month-bar bg-brand-text"
+                                    class="home-month-bar bg-chart-1"
                                     style:height=format!("{cur}%")
                                 />
                             </div>
@@ -516,26 +549,44 @@ fn DividendCardBody(
         </div>
         <div class="mt-2 flex justify-center gap-4 px-4 text-xs text-text-muted">
             <span class="flex items-center gap-1">
-                <span class="home-swatch bg-brand-text"></span>
+                <span class="home-swatch bg-chart-1"></span>
                 {format!("{year}年")}
             </span>
             <span class="flex items-center gap-1">
-                <span class="home-swatch bg-fill-strong"></span>
+                <span class="home-swatch bg-chart-previous"></span>
                 {format!("{previous_year}年")}
             </span>
         </div>
     }
 }
 
-fn slice_style(slices: &[CompositionSlice], total: f64) -> (String, Vec<(&'static str, f64)>) {
-    let mut cursor = 0.0;
+fn slice_style(
+    slices: &[CompositionSlice],
+    total: f64,
+    chart_index: impl Fn(&str) -> Option<usize>,
+) -> (String, Vec<(&'static str, f64)>) {
+    // 系列の境目は面の色の隙間にする。96px のドーナツでは両側 0.35% で計およそ 2px
+    const HALF_GAP: f64 = 0.35;
+    let gapped = slices.len() > 1;
     let mut stops = Vec::new();
     let mut legend = Vec::new();
-    for (index, slice) in slices.iter().enumerate() {
-        let (color, class) = CHART_COLORS[index % CHART_COLORS.len()];
-        let start = cursor;
+    if gapped {
+        stops.push(format!("var(--color-surface) 0% {HALF_GAP:.2}%"));
+    }
+    let mut cursor = 0.0;
+    for slice in slices {
+        let (color, class) = chart_color(&slice.label, &chart_index);
         let end = cursor + slice.amount / total * 100.0;
-        stops.push(format!("{color} {start:.2}% {end:.2}%"));
+        if gapped {
+            let start = cursor + HALF_GAP;
+            let color_end = end - HALF_GAP;
+            let gap_end = (end + HALF_GAP).min(100.0);
+            stops.push(format!(
+                "{color} {start:.2}% {color_end:.2}%, var(--color-surface) {color_end:.2}% {gap_end:.2}%"
+            ));
+        } else {
+            stops.push(format!("{color} {cursor:.2}% {end:.2}%"));
+        }
         legend.push((class, slice.amount / total * 100.0));
         cursor = end;
     }
@@ -595,7 +646,8 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                         }
                             .into_any()
                     } else {
-                        let (donut, legend) = slice_style(&products, product_total);
+                        let (donut, legend) =
+                            slice_style(&products, product_total, product_chart_index);
                         view! {
                             <div class="flex items-center gap-4 px-4 pt-3.5">
                                 <div
@@ -616,7 +668,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                             view! {
                                                 <li class="flex items-center gap-1.5">
                                                     <span class=format!("home-swatch {class}")></span>
-                                                    <span class="truncate">{slice.label.clone()}</span>
+                                                    <span class="truncate text-text-soft">{slice.label.clone()}</span>
                                                     <span class="tabular-nums text-text-muted">
                                                         {format!("{}%", pct.round() as i64)}
                                                     </span>
@@ -639,10 +691,10 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                 <div class="home-stacked-bar mt-1.5">
                                     {accounts
                                         .iter()
-                                        .enumerate()
-                                        .map(|(index, slice)| {
+                                        .map(|slice| {
                                             let width = slice.amount / account_total * 100.0;
-                                            let (_, class) = CHART_COLORS[index % CHART_COLORS.len()];
+                                            let class =
+                                                chart_color(&slice.label, account_chart_index).1;
                                             view! {
                                                 <span
                                                     class=format!("block h-full {class}")
@@ -655,14 +707,14 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                 <ul class="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
                                     {accounts
                                         .iter()
-                                        .enumerate()
-                                        .map(|(index, slice)| {
-                                            let (_, class) = CHART_COLORS[index % CHART_COLORS.len()];
+                                        .map(|slice| {
+                                            let class =
+                                                chart_color(&slice.label, account_chart_index).1;
                                             let pct = slice.amount / account_total * 100.0;
                                             view! {
                                                 <li class="flex items-center gap-1">
                                                     <span class=format!("home-swatch {class}")></span>
-                                                    <span>{slice.label.clone()}</span>
+                                                    <span class="text-text-soft">{slice.label.clone()}</span>
                                                     <span class="tabular-nums text-text-muted">
                                                         {format!("{}%", pct.round() as i64)}
                                                     </span>
@@ -846,3 +898,6 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
         </li>
     }
 }
+
+#[cfg(test)]
+mod tests;

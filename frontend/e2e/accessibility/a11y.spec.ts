@@ -11,6 +11,7 @@ const ROUTES = {
   domesticStocks: /\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/,
   mutualfunds: /\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/,
   assetBalances: /\/api\/v1\/asset-balances(?:\?.*)?$/,
+  fundBalances: /\/api\/v1\/fund-balances(?:\?.*)?$/,
   stock: /\/api\/v1\/stocks(?:\?.*)?$/,
   dividendPreview: /\/api\/v1\/dividend-import-validations$/,
   dividendUpload: /\/api\/v1\/dividend-imports$/,
@@ -84,6 +85,29 @@ const ASSET_ROW = {
   profit_loss_rate: 4.0,
 };
 
+const FUND_ROW = {
+  id: 'fund-balance-1',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  fund_name: '架空バランスファンド',
+  account: '特定',
+  dividends_course: '受取型',
+  shares: 10000,
+  average_purchase_price: 10000,
+  total_purchase_amount: 100000,
+  base_price: 11000,
+  base_price_day_change: 50,
+  base_price_month_change: null,
+  market_value: 110000,
+  profit_loss: 10000,
+  profit_loss_rate: 10.0,
+  total_return: 10000,
+  price_as_of: '2026-01-05',
+  price_source: 'api',
+  nav_is_latest: true,
+  expected_nav_date: null,
+};
+
 const MOCK_STOCK = {
   date: '2024-03-01',
   code: '9905',
@@ -132,6 +156,9 @@ async function mockReceiptsData(page: Page) {
 async function mockAssetData(page: Page) {
   await page.route(ROUTES.assetBalances, (route) =>
     route.fulfill(json(paginated([ASSET_ROW]))),
+  );
+  await page.route(ROUTES.fundBalances, (route) =>
+    route.fulfill(json(paginated([FUND_ROW]))),
   );
   await page.route(ROUTES.dividendPerShare, (route) =>
     route.fulfill(
@@ -493,6 +520,83 @@ test('ダークテーマの主要画面に moderate 以上の WCAG 違反がな�
     expect(page.getByTestId('asset-portfolio-summary')).toBeVisible({ timeout: 10000 }),
   );
   await scanBothViewports(page, 'ダーク(設定)', () => page.goto('/settings'));
+});
+
+// ダークでも全タブ・CSV 管理の文字色を color-contrast 含めて走査する
+test('ダークテーマの各タブとCSV管理に moderate 以上の WCAG 違反がない', async ({
+  page,
+}) => {
+  await mockSession(page);
+  await mockEmptyLists(page);
+  await mockReceiptsData(page);
+  await mockAssetData(page);
+  await page.route(ROUTES.dividendPreview, (route) =>
+    route.fulfill(
+      json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
+    ),
+  );
+  await page.addInitScript(() => {
+    localStorage.setItem('setting_theme', 'dark');
+  });
+  const receiptTabs = [
+    { label: '配当金', id: 'tab-dividend', visible: DIVIDEND_ROW.security_name },
+    { label: '国内株式', id: 'tab-domesticstock', visible: NEGATIVE_DOMESTIC_ROW.security_name },
+    { label: '投資信託', id: 'tab-mutualfund', visible: 'データがありません' },
+  ];
+  const assetTabs = [
+    {
+      label: 'すべて',
+      id: 'asset-kind-tab-all',
+      content: '[data-testid="asset-merged-table"]:visible, [data-testid="asset-merged-list"]:visible',
+    },
+    {
+      label: '国内株式',
+      id: 'asset-kind-tab-stock',
+      content: '[data-testid="asset-holdings-table"]:visible, [data-testid="asset-holdings-list"]:visible',
+    },
+    {
+      label: '投資信託',
+      id: 'asset-kind-tab-fund',
+      content: '[data-testid="asset-fund-table"]:visible, [data-testid="asset-fund-list"]:visible',
+    },
+  ];
+  for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
+    await page.setViewportSize(size);
+    await page.goto('/receipts');
+    await page.waitForLoadState('networkidle');
+    for (const tab of receiptTabs) {
+      await page.click(`button[role="tab"][id="${tab.id}"]`);
+      await expect(page.locator(`#${tab.id}`)).toHaveAttribute('aria-selected', 'true');
+      await expect(
+        page
+          .locator(`#tabpanel-${tab.id.replace('tab-', '')}`)
+          .getByText(tab.visible)
+          .filter({ visible: true })
+          .first(),
+      ).toBeVisible({ timeout: 10000 });
+      await scanAxe(page, `ダーク取引明細${tab.label}(${name})`);
+    }
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible({
+      timeout: 10000,
+    });
+    for (const tab of assetTabs) {
+      await page.getByTestId(tab.id).click();
+      await expect(page.locator(tab.content)).toBeVisible({ timeout: 10000 });
+      await scanAxe(page, `ダーク資産管理${tab.label}(${name})`);
+    }
+  }
+  await page.setViewportSize(PC);
+  await scanBothViewports(page, 'ダーク(CSV管理)', async () => {
+    await page.goto('/receipts/csv?kind=dividend');
+    await page.waitForLoadState('networkidle');
+    const fileInput = page.locator('[data-testid="csv-file-input"]');
+    await expect(fileInput).toBeEnabled({ timeout: 10000 });
+    await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
+    await expect(
+      page.locator('[role="status"][aria-live="polite"]').first(),
+    ).toContainText('追加で保存できます', { timeout: 10000 });
+  });
 });
 
 // .focus() は tabindex=-1 や順序外にも当たるため、Tab キーだけで到達できることを固定する
