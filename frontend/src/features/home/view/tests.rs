@@ -27,20 +27,10 @@ fn account_chart_index_normalizes_csv_names() {
 }
 
 #[test]
-fn assign_chart_indices_avoids_collision_with_fixed_slots() {
-    // 「NISA」は対応表にないが、同じ画面に出る「一般」と同じ色にならないようにする
-    let indices = assign_chart_indices(&["一般", "NISA"], account_chart_index);
-    assert_eq!(indices[0], 4);
-    assert_ne!(indices[1], 4);
-}
-
-#[test]
-fn assign_chart_indices_keeps_fixed_slots_and_fills_free_ones() {
+fn assign_chart_indices_keeps_fixed_slots() {
     let indices = assign_chart_indices(&["特定", "iDeCo", "NISA成長"], account_chart_index);
     assert_eq!(indices[0], 0);
     assert_eq!(indices[2], 1);
-    assert_ne!(indices[1], 0);
-    assert_ne!(indices[1], 1);
 }
 
 #[test]
@@ -53,26 +43,18 @@ fn assign_chart_indices_is_independent_of_label_order() {
 }
 
 #[test]
-fn assign_chart_indices_keeps_color_when_other_unknowns_appear() {
-    // ほかの表外系列が増減しても、同じ名前には同じ番号が付く
+fn assign_chart_indices_color_depends_only_on_name() {
+    // 表外の名前は、ほかの系列(対応表の固定枠・表外どちらも)が増減しても同じ番号が付く
     let solo = assign_chart_indices(&["iDeCo"], account_chart_index);
-    let with_nisa = assign_chart_indices(&["NISA", "iDeCo"], account_chart_index);
-    assert_eq!(solo[0], with_nisa[1]);
+    let with_fixed = assign_chart_indices(&["旧NISA", "iDeCo"], account_chart_index);
+    let with_unknown = assign_chart_indices(&["NISA", "iDeCo"], account_chart_index);
+    assert_eq!(solo[0], with_fixed[1]);
+    assert_eq!(solo[0], with_unknown[1]);
 }
 
 #[test]
-fn assign_chart_indices_falls_back_deterministically_when_full() {
-    // 5 枠すべて埋まった後の表外の名前は、名前だけで決まる番号に割る(毎回同じ)
-    let labels = [
-        "特定",
-        "NISA成長",
-        "旧NISA",
-        "NISAつみたて",
-        "一般",
-        "iDeCo",
-    ];
-    assert_eq!(
-        assign_chart_indices(&labels, account_chart_index),
-        assign_chart_indices(&labels, account_chart_index)
-    );
+fn assign_chart_indices_may_share_color_when_names_exceed_slots() {
+    // 色は5枠しかない。対応表外の名前が固定枠と同じ番号に割り当たるのは許容する
+    let indices = assign_chart_indices(&["一般", "NISA"], account_chart_index);
+    assert_eq!(indices[0], indices[1]);
 }
