@@ -2,7 +2,8 @@ use crate::features::asset_balance::format::{
     format_currency, format_row_valuation_amount, format_signed_row_valuation_amount, pnl_cells,
 };
 use crate::features::asset_balance::holdings::{
-    HoldingView, format_dividend_annual, format_dividend_yield, holding_dividend,
+    HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
+    holding_dividend,
 };
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
@@ -32,6 +33,7 @@ pub fn HoldingsList(
                         &dividends.get(),
                     );
                     let dividend_annual = format_dividend_annual(&dividend);
+                    let dividend_per_share = format_dividend_per_share(&dividend);
                     let dividend_yield = format_dividend_yield(&dividend);
                     let shares_text = format!("{}株", format_number_value(view.shares));
                     let meta_tail = format!(
@@ -98,6 +100,8 @@ pub fn HoldingsList(
                                             <span class="text-text-muted">
                                                 "配当 "
                                                 {dividend_annual}
+                                                " · 1株 "
+                                                {dividend_per_share}
                                             </span>
                                             <span class="text-text-muted tabular-nums">
                                                 "利回り "
