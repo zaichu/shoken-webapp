@@ -39,34 +39,45 @@ fn account_display_name_keeps_unknown_labels() {
 }
 
 #[test]
-fn account_labels_split_joined_csv_accounts() {
-    assert_eq!(account_labels("特定"), vec!["特定"]);
-    assert_eq!(account_labels("特定・一般"), vec!["特定", "一般"]);
-    assert_eq!(
-        account_labels(" NISA成長投資枠 ・ 旧NISA "),
-        vec!["NISA成長投資枠", "旧NISA"]
-    );
-    assert_eq!(account_labels("・"), Vec::<&str>::new());
+fn account_badge_color_distinguishes_kinds() {
+    let general = account_badge_class("一般");
+    let specific = account_badge_class("特定");
+    let nisa = account_badge_class("NISA");
+    let old_nisa = account_badge_class("旧NISA");
+
+    // 単独の口座名は種類ごとに色が変わる
+    for (left, right) in [
+        (specific, general),
+        (nisa, general),
+        (old_nisa, general),
+        (nisa, old_nisa),
+    ] {
+        assert_ne!(left, right);
+    }
+
+    // NISA 系は同じ種類として同じ色になる
+    for label in ["新NISA", "NISA成長", "NISAつみたて"] {
+        assert_eq!(account_badge_class(label), nisa, "{label}");
+    }
+
+    // 対応表にない口座名は一般と同じ中立色
+    for label in ["SBI証券", "nisa", ""] {
+        assert_eq!(account_badge_class(label), general, "{label}");
+    }
 }
 
 #[test]
-fn account_badge_class_picks_kind_by_label() {
+fn joined_account_is_one_badge_with_the_general_color() {
+    // 連結した口座名(「特定・一般」)は分割せず1つの札にする
+    assert_eq!(account_display_name("特定・一般"), "特定・一般");
+    // 単独の口座ではないので一般と同じ中立色
     assert_eq!(
+        account_badge_class("特定・一般"),
+        account_badge_class("一般")
+    );
+    // 単独の「特定」とは区別される
+    assert_ne!(
         account_badge_class("特定"),
-        "account-badge account-badge-specific"
+        account_badge_class("特定・一般")
     );
-    assert_eq!(
-        account_badge_class("旧NISA"),
-        "account-badge account-badge-old-nisa"
-    );
-    for label in ["NISA", "新NISA", "NISA成長", "NISAつみたて"] {
-        assert_eq!(
-            account_badge_class(label),
-            "account-badge account-badge-nisa",
-            "{label}"
-        );
-    }
-    for label in ["一般", "SBI証券", "nisa", ""] {
-        assert_eq!(account_badge_class(label), "account-badge", "{label}");
-    }
 }
