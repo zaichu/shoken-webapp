@@ -13,7 +13,7 @@ use crate::features::asset_balance::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::amount::Amount;
-use crate::ui::badge::account_display_name;
+use crate::ui::badge::{AccountBadge, account_display_name};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::page_frame::PageFrame;
@@ -714,7 +714,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                             view! {
                                                 <li class="flex items-center gap-1">
                                                     <span class=format!("home-swatch {class}")></span>
-                                                    <span class="text-text-soft">{slice.label.clone()}</span>
+                                                    <AccountBadge label=slice.label.clone() />
                                                     <span class="tabular-nums text-text-muted">
                                                         {format!("{}%", pct.round() as i64)}
                                                     </span>
@@ -773,7 +773,7 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                                             {short_date(&row.settlement_date)}
                                         </span>
                                         <span class="min-w-0 flex-1 truncate">{name}</span>
-                                        <span class="shrink-0 text-text-muted">{row.account.to_string()}</span>
+                                        <span class="shrink-0"><AccountBadge label=row.account.to_string() /></span>
                                         <span class="shrink-0 tabular-nums font-bold text-positive">
                                             {format_currency(dec_to_f64(&row.net_amount_received))}
                                         </span>

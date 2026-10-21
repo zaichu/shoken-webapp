@@ -11,6 +11,7 @@ use crate::features::asset_balance::model::{
 };
 use crate::session::use_session;
 use crate::ui::amount::Amount;
+use crate::ui::badge::AccountBadge;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
@@ -160,9 +161,12 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                     <dd class="text-text">
                                                         {holding_view
                                                             .account
-                                                            .as_deref()
-                                                            .map(crate::ui::badge::account_display_name)
-                                                            .unwrap_or("—")}
+                                                            .clone()
+                                                            .map(|value| {
+                                                                view! { <AccountBadge label=value /> }
+                                                                    .into_any()
+                                                            })
+                                                            .unwrap_or_else(|| "—".into_any())}
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">

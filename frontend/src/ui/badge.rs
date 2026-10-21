@@ -36,20 +36,22 @@ pub fn account_display_name(value: &str) -> &str {
     }
 }
 
-/// 口座区分のバッジ。文字に NISA を含むものだけ琥珀配色にする
+/// 口座区分のバッジ。配色は input.css の --color-badge-* トークンで決まる。
+/// 対応表にない口座名は一般と同じ中立色にする
 #[component]
 pub fn AccountBadge(#[prop(into)] label: String) -> impl IntoView {
     let label = account_display_name(&label).to_string();
-    let class = if is_nisa_account(&label) {
-        "account-badge account-badge-nisa"
-    } else {
-        "account-badge"
-    };
+    let class = account_badge_class(&label);
     view! { <span class=class>{label}</span> }
 }
 
-fn is_nisa_account(label: &str) -> bool {
-    label.contains("NISA")
+fn account_badge_class(label: &str) -> &'static str {
+    match label {
+        "特定" => "account-badge account-badge-specific",
+        "旧NISA" => "account-badge account-badge-old-nisa",
+        _ if label.contains("NISA") => "account-badge account-badge-nisa",
+        _ => "account-badge",
+    }
 }
 
 #[component]

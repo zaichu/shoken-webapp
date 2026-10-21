@@ -8,7 +8,7 @@ use crate::features::asset_balance::fund::fund_view;
 use crate::features::asset_balance::model::format_number_value;
 use crate::session::use_session;
 use crate::ui::amount::Amount;
-use crate::ui::badge::account_display_name;
+use crate::ui::badge::AccountBadge;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
@@ -143,15 +143,6 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                             format_signed_row_valuation_amount(Some(value))
                                         })
                                         .unwrap_or_else(|| "—".to_string());
-                                    let account_text = match &view.course {
-                                        Some(course) => {
-                                            format!(
-                                                "{} ・ {course}",
-                                                account_display_name(&view.account)
-                                            )
-                                        }
-                                        None => account_display_name(&view.account).to_string(),
-                                    };
                                     let asof_text = view
                                         .price_as_of
                                         .map_or("—".to_string(), |d| d.replace('-', "/"));
@@ -165,8 +156,12 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                 <h2 class="text-lg font-bold text-text">
                                                     {view.name.clone()}
                                                 </h2>
-                                                <p class="mt-1 text-sm text-text-muted">
-                                                    {account_text}
+                                                <p class="mt-1 flex items-center gap-1 text-sm text-text-muted">
+                                                    <AccountBadge label=view.account.clone() />
+                                                    {view
+                                                        .course
+                                                        .clone()
+                                                        .map(|course| format!("・ {course}"))}
                                                 </p>
                                             </div>
                                             <dl class="divide-y divide-border-faint">
