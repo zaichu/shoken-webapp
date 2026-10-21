@@ -811,7 +811,8 @@
   }
 
   /* PC の compact 表: 銘柄列が数値列に押しつぶされないように最低幅を確保し、
-     table-auto の配分で残り幅をすべて名前列が使う(width:100%)。
+     名前列・口座列は内容に応じた幅(上限 30em/12em)に抑える。両列の上限で
+     余った幅が数値列へ回る(table-auto の配分に任せる)。
      名前が長いときは nowrap は使えず、層の外の line-clamp-2(2行で末尾省略)に任せる。
      見出しは nowrap にして「銘柄コード」などの語が行内で切れないようにする
      (列が内容最小まで詰まっても見出しの語幅だけは残る)。印刷は従来どおり折り返す */
@@ -821,7 +822,30 @@
     }
     .receipts-table td.receipt-instrument-cell {
       min-width: 10em;
-      width: 100%;
+    }
+
+    /* 名前列・口座列に上限を付け、余った幅は数値列へ配分する */
+    .receipts-table th.receipt-instrument-col,
+    .receipts-table td.receipt-instrument-cell {
+      width: 30em;
+      max-width: 30em;
+      overflow: hidden;
+    }
+
+    .receipts-table th.receipt-account-col,
+    .receipts-table td.receipt-account-col {
+      width: 12em;
+      max-width: 12em;
+      overflow: hidden;
+    }
+
+    /* 1024px 前後では数値列が狭くなりすぎるため、数値セルを折り返して
+       重なりを防ぐ(スクロールコンテナを作ると見出しの sticky が崩れる) */
+    @media (max-width: 1279px) {
+      .receipts-table td.text-right {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
     }
   }
 
@@ -1621,11 +1645,13 @@
     @apply whitespace-nowrap px-3.5 py-2.5 text-text;
   }
 
-  /* 表は1行1段。名前列だけは可変幅で、はみ出る名前は … で省略する
+  /* 表は1行1段。名前列は残り幅を使うが、広い画面で独占しないよう上限を付ける
      (全文はセルの title)。他列は nowrap なので先に幅を取り、
-     残り幅をすべて名前列が使う(w-full は table-auto の配分で残りを取る) */
+     残り幅は名前列が使うが 30em を上限としてそれ以上は広げない */
   .asset-table td.asset-name-cell {
-    @apply w-full truncate;
+    @apply truncate;
+    width: 30em;
+    max-width: 30em;
   }
 
   .asset-table td.text-right {
