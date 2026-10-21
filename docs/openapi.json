@@ -2807,6 +2807,10 @@
             "format": "int64",
             "description": "前日比の合計に入った(最新で前日比を持つ)ファンド数。0 のとき合計は「—」にする"
           },
+          "nav_status": {
+            "$ref": "#/components/schemas/FundNavStatus",
+            "description": "基準価額の自動更新の状態。検索条件には依らない(共有値の取得はユーザー全体で行う)"
+          },
           "pending_nav_count": {
             "type": "integer",
             "format": "int64",
@@ -2823,6 +2827,36 @@
           "total_purchase_amount": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "FundNavStatus": {
+        "type": "object",
+        "description": "基準価額の自動更新(共有値の取得)の状態。\n取得できた/できなかった件数と、直近の失敗の理由で3状態を区別する",
+        "properties": {
+          "failed_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "直近の取得で失敗したファンド数"
+          },
+          "failure_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "直近の失敗の理由(URL・応答本文・内部 Details を含まない短い文)"
+          },
+          "fetched_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "共有値を取得できたファンド数"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "最終更新の時刻(JST の \"YYYY-MM-DD HH:MM\")。まだ取得していないときは持たない"
           }
         }
       },
@@ -3536,6 +3570,10 @@
                 "type": "integer",
                 "format": "int64",
                 "description": "前日比の合計に入った(最新で前日比を持つ)ファンド数。0 のとき合計は「—」にする"
+              },
+              "nav_status": {
+                "$ref": "#/components/schemas/FundNavStatus",
+                "description": "基準価額の自動更新の状態。検索条件には依らない(共有値の取得はユーザー全体で行う)"
               },
               "pending_nav_count": {
                 "type": "integer",
