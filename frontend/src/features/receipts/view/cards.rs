@@ -431,7 +431,7 @@ fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
                 </div>
                 <div class="flex items-center gap-2 text-xs text-text-muted">
                     <span class="shrink-0">{date}</span>
-                    <span class="min-w-0 flex-1 break-words">{account}</span>
+                    {(!account.is_empty()).then(|| view! { <AccountBadge label=account /> })}
                 </div>
             </div>
             <dl class="space-y-1.5 border-t border-ink/10 px-3 py-2.5">

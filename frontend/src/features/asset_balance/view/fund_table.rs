@@ -6,7 +6,7 @@ use crate::features::asset_balance::format::{
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::portfolio::SortOrder;
-use crate::ui::badge::{AccountBadge, account_display_name};
+use crate::ui::badge::AccountBadge;
 use crate::ui::security_link::TableNameLink;
 use leptos::prelude::*;
 
@@ -108,8 +108,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
                         pnl_cells(Some(view.profit_loss), view.profit_loss_rate);
                     let meta = format!(
-                        "{} ・ {}口 ・ 基準価額 {}",
-                        account_display_name(&view.account),
+                        "{}口 ・ 基準価額 {}",
                         format_number_value(view.shares),
                         format_currency(view.base_price),
                     );
@@ -124,7 +123,10 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                                 </span>
                             </div>
                             <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
-                                <span class="min-w-0 truncate text-text-muted">{meta}</span>
+                                <span class="min-w-0 truncate text-text-muted">
+                                    <AccountBadge label=view.account.clone() />
+                                    " ・ " {meta}
+                                </span>
                                 <span class="flex shrink-0 items-baseline">
                                     <span class=format!("font-bold tabular-nums {pnl_text_class}")>
                                         {pnl_text}

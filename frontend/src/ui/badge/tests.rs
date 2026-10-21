@@ -50,10 +50,23 @@ fn account_labels_split_joined_csv_accounts() {
 }
 
 #[test]
-fn nisa_account_is_detected_from_label() {
-    assert!(is_nisa_account("新NISA"));
-    assert!(is_nisa_account("旧NISA"));
-    assert!(!is_nisa_account("特定"));
-    assert!(!is_nisa_account("一般"));
-    assert!(!is_nisa_account("nisa"));
+fn account_badge_class_picks_kind_by_label() {
+    assert_eq!(
+        account_badge_class("特定"),
+        "account-badge account-badge-specific"
+    );
+    assert_eq!(
+        account_badge_class("旧NISA"),
+        "account-badge account-badge-old-nisa"
+    );
+    for label in ["NISA", "新NISA", "NISA成長", "NISAつみたて"] {
+        assert_eq!(
+            account_badge_class(label),
+            "account-badge account-badge-nisa",
+            "{label}"
+        );
+    }
+    for label in ["一般", "SBI証券", "nisa", ""] {
+        assert_eq!(account_badge_class(label), "account-badge", "{label}");
+    }
 }
