@@ -39,6 +39,17 @@ fn account_display_name_keeps_unknown_labels() {
 }
 
 #[test]
+fn account_labels_split_joined_csv_accounts() {
+    assert_eq!(account_labels("特定"), vec!["特定"]);
+    assert_eq!(account_labels("特定・一般"), vec!["特定", "一般"]);
+    assert_eq!(
+        account_labels(" NISA成長投資枠 ・ 旧NISA "),
+        vec!["NISA成長投資枠", "旧NISA"]
+    );
+    assert_eq!(account_labels("・"), Vec::<&str>::new());
+}
+
+#[test]
 fn nisa_account_is_detected_from_label() {
     assert!(is_nisa_account("新NISA"));
     assert!(is_nisa_account("旧NISA"));
