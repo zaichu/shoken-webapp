@@ -162,6 +162,7 @@ test.describe('資産管理のタブ', () => {
     await page.goto('/assetbalance');
 
     const placeholders: string[] = [];
+    const bandLabels: string[][] = [];
     const noteOffsets: number[] = [];
 
     for (const tab of ['stock', 'fund'] as const) {
@@ -169,9 +170,10 @@ test.describe('資産管理のタブ', () => {
       const band = page.getByTestId('asset-portfolio-summary');
       await expect(band).toBeVisible();
 
-      // 損益の用語は同じ(国内株式も「評価損益」)
-      await expect(band.getByText('評価損益')).toBeAttached();
-      await expect(page.getByText('含み損益')).toHaveCount(0);
+      // 帯の主要3項目(評価額・損益・前日比)が2タブで同じ
+      bandLabels.push(
+        await band.locator('.asset-summary-main dt').allTextContents(),
+      );
 
       // 検索欄の文言は同じ
       placeholders.push(
@@ -191,7 +193,8 @@ test.describe('資産管理のタブ', () => {
       noteOffsets.push(Math.round(basisBox.y - (bandBox.y + bandBox.height)));
     }
 
-    // タブを跨いで検索欄の文言・注記の位置がそろう
+    // タブを跨いで帯の主要項目・検索欄の文言・注記の位置がそろう
+    expect(bandLabels[0]).toEqual(bandLabels[1]);
     expect(placeholders[0]).toBe(placeholders[1]);
     expect(noteOffsets[0]).toBe(noteOffsets[1]);
   });
