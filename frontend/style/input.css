@@ -780,22 +780,25 @@
     .receipts-table th.receipt-instrument-col,
     .receipts-table td.receipt-instrument-cell {
       width: 30em;
+      max-width: 30em;
+      overflow: hidden;
     }
 
     .receipts-table th.receipt-account-col,
     .receipts-table td.receipt-account-col {
       width: 12em;
+      max-width: 12em;
+      overflow: hidden;
     }
 
-    /* 1024px 前後では数値列が狭くなりすぎないよう上限を少し縮める */
+    /* 1024px 前後では固定レイアウトだと数値列が狭くなりすぎるため、
+       自動レイアウトに戻して横スクロールで逃がす */
     @media (max-width: 1279px) {
-      .receipts-table th.receipt-instrument-col,
-      .receipts-table td.receipt-instrument-cell {
-        width: 20em;
+      .receipts-table.receipts-table-fixed {
+        table-layout: auto;
       }
-      .receipts-table th.receipt-account-col,
-      .receipts-table td.receipt-account-col {
-        width: 8em;
+      [data-testid="receipt-table-body"] {
+        overflow-x: auto;
       }
     }
   }
