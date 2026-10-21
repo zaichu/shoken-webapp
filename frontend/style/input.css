@@ -791,14 +791,16 @@
       overflow: hidden;
     }
 
-    /* 1024px 前後では固定レイアウトだと数値列が狭くなりすぎるため、
-       自動レイアウトに戻して横スクロールで逃がす */
+    /* 1024px 前後では数値列が狭くなりすぎるため、固定レイアウトを
+       自動レイアウトに戻し、数値セルを折り返して重なりを防ぐ
+       (スクロールコンテナを作ると見出しの sticky が崩れるため) */
     @media (max-width: 1279px) {
       .receipts-table.receipts-table-fixed {
         table-layout: auto;
       }
-      [data-testid="receipt-table-body"] {
-        overflow-x: auto;
+      .receipts-table td.text-right {
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
     }
   }
