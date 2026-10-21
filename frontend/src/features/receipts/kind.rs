@@ -596,6 +596,7 @@ pub(crate) enum CardRole {
 /// 1列分の表示属性。列の追加・並び替えはこの組で編集する
 pub(crate) struct ColumnSpec {
     pub(crate) header: &'static str,
+    #[allow(dead_code)]
     pub(crate) width: &'static str,
     pub(crate) tier: ColumnTier,
     pub(crate) align: ColumnAlign,
