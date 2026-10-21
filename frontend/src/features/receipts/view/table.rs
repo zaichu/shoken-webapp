@@ -148,7 +148,6 @@ pub fn ReceiptTable(
         order.clone()
     };
     let headers: Vec<_> = desktop_order.iter().map(|i| columns[*i].header).collect();
-    let widths: Vec<_> = desktop_order.iter().map(|_| "").collect();
     let tiers = if compact_mobile {
         compact_tiers(&desktop_order, promoted, columns)
     } else {
@@ -209,16 +208,11 @@ pub fn ReceiptTable(
                                 <tr>
                                     {headers
                                         .iter()
-                                        .zip(widths.iter())
                                         .zip(tiers.iter())
                                         .enumerate()
-                                        .map(|(col_index, ((header, width), tier))| {
-                                            let width = (!width.is_empty()).then_some(*width);
-                                            let align = if compact_mobile {
-                                                columns[desktop_order[col_index]].align.class()
-                                            } else {
-                                                "text-left"
-                                            };
+                                        .map(|(col_index, (header, tier))| {
+                                            let align =
+                                                columns[desktop_order[col_index]].align.class();
                                             let col_role = columns[desktop_order[col_index]].card_role;
                                             let extra_class = match col_role {
                                                 CardRole::Name => " receipt-instrument-col",
@@ -229,8 +223,6 @@ pub fn ReceiptTable(
                                                 <th
                                                     class=format!("{align}{}{extra_class}", tier.class())
                                                     scope="col"
-                                                    style:width=width
-                                                    style:max-width=width
                                                     title=*header
                                                 >
                                                     {*header}
@@ -270,7 +262,7 @@ pub fn ReceiptTable(
                                                             <td
                                                                 colspan=*span + if group.summary.is_empty() { labels.len() } else { 0 }
                                                                 class=format!(
-                                                                    "{group_class}{top}{class}{label_class}"
+                                                                    "col-text {group_class}{top}{class}{label_class}"
                                                                 )
                                                             >
                                                                 <span class="font-bold">{group.label.clone()}</span>
@@ -294,7 +286,7 @@ pub fn ReceiptTable(
                                                         view! {
                                                             <td
                                                                 class=format!(
-                                                                    "{}{} text-right{top}",
+                                                                    "col-num {}{}{top}",
                                                                     if compact_mobile { "receipts-table-group" } else { "bg-surface-raised text-text font-semibold" },
                                                                     if bold { " font-bold" } else { "" },
                                                                 )

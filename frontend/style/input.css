@@ -791,8 +791,21 @@
     top: 0;
   }
 
-  .receipts-table th {
-    @apply text-left px-2.5 py-2 font-bold text-xs text-text-soft bg-surface-sunken;
+  /* 全表の見出し。大きさ・太さ・色・余白・縦位置を全表でそろえる。
+     左右の余白は列の種別クラスが持ち、見出しとセルで同じ値になる */
+  .receipts-table th,
+  .asset-table th {
+    @apply py-2.5 align-middle text-xs font-semibold text-text-soft bg-surface-sunken;
+  }
+
+  /* 列の種別。th と td に同じクラスを付けると文字位置を1か所で決められる。
+     数値(金額・数量・率)=右で桁揃え、文字(名前・コード・口座)=左 */
+  .col-text {
+    @apply px-2.5 text-left;
+  }
+
+  .col-num {
+    @apply px-2 text-right tabular-nums;
   }
 
   .receipts-table tbody tr {
@@ -804,12 +817,11 @@
   }
 
   .receipts-table td {
-    @apply px-2.5 py-2 text-text break-words;
+    @apply py-2.5 text-text break-words;
   }
 
-  /* 数値列は左右の余白を詰めて同じ幅の中で名前列を広く取る */
-  .receipts-table td.text-right {
-    @apply text-right px-1.5;
+  /* 数値列は折り返さない(桁が崩れないよう) */
+  .receipts-table td.col-num {
     white-space: nowrap;
   }
 
@@ -851,7 +863,7 @@
     /* 1024px 前後では数値列が狭くなりすぎるため、数値セルを折り返して
        重なりを防ぐ(スクロールコンテナを作ると見出しの sticky が崩れる) */
     @media (max-width: 1279px) {
-      .receipts-table td.text-right {
+      .receipts-table td.col-num {
         white-space: normal;
         overflow-wrap: anywhere;
       }
@@ -874,7 +886,7 @@
     @apply font-normal text-text-soft;
   }
 
-  .receipts-table-group.text-right {
+  .receipts-table-group.col-num {
     @apply font-medium;
   }
 
@@ -1726,7 +1738,7 @@
   }
 
   .asset-table th {
-    @apply whitespace-nowrap text-left px-3.5 py-2.5 font-medium text-xs text-text-soft bg-surface-sunken;
+    @apply whitespace-nowrap;
   }
 
   .asset-table tbody tr {
@@ -1738,7 +1750,7 @@
   }
 
   .asset-table td {
-    @apply whitespace-nowrap px-3.5 py-2.5 text-text;
+    @apply whitespace-nowrap py-2.5 text-text;
   }
 
   /* 表は1行1段。名前列は残り幅を使うが、広い画面で独占しないよう上限を付ける
@@ -1748,10 +1760,6 @@
     @apply truncate;
     width: 30em;
     max-width: 30em;
-  }
-
-  .asset-table td.text-right {
-    @apply text-right px-2;
   }
 
   /* 最終列がカードの縁に触れないよう右側だけ余白を残す */
@@ -1769,15 +1777,21 @@
   }
 
   .asset-th-sort {
-    @apply min-h-6 p-0 text-xs font-medium text-text-soft;
+    @apply min-h-6 p-0;
+    text-align: inherit;
   }
 
   .asset-th-sort[aria-pressed="true"] {
     @apply font-bold text-text-deep;
   }
 
+  /* 並べ替えの矢印は幅を固定して常に確保する。矢印の有無で文字が動くと、
+     並べ替えのたびに見出しの文字がずれて列の境目が読めなくなる */
   .asset-sort-arrow {
     @apply font-bold text-gold;
+    display: inline-block;
+    width: 1.5em;
+    text-align: center;
   }
 
 }
@@ -1789,10 +1803,10 @@
 }
 
 /* 金額・数量セルは桁数に上限がない(NUMERIC)。固定幅を超える値は … で省略せず
-   折り返して全桁を出す(印刷では下の td.text-right nowrap が後勝ちする)。
-   列幅は下記 COLUMN_WIDTHS の em 指定と対で、桁数の多い金額は左右の余白を詰めて
+   折り返して全桁を出す(印刷では下の td.col-num nowrap が後勝ちする)。
+   列幅は CSS の幅指定と対で、桁数の多い金額は左右の余白を詰めて
    同じ固定幅の中で内容幅を広く取る */
-.receipt-table td.text-right {
+.receipt-table td.col-num {
   @apply px-1;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -1894,7 +1908,7 @@
     padding: 2px !important;
   }
 
-  .receipt-table td.text-right {
+  .receipt-table td.col-num {
     white-space: nowrap;
   }
 
@@ -1917,7 +1931,7 @@
     display: table-cell !important;
   }
 
-  .receipt-table td:not(.text-right) {
+  .receipt-table td:not(.col-num) {
     overflow-wrap: anywhere;
   }
 

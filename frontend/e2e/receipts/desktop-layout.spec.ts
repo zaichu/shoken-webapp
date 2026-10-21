@@ -231,7 +231,7 @@ test('PCの数値列は折り返さず1行で表示され、表は枠に収ま�
             const rect = element.getBoundingClientRect();
             return rect.width > 0 && rect.height > 0 && (element.textContent ?? '').trim().length > 0;
           };
-          const numericCells = Array.from(document.querySelectorAll('td.text-right')).filter(visible);
+          const numericCells = Array.from(document.querySelectorAll('td.col-num')).filter(visible);
           return numericCells.some((cell) => {
             const range = document.createRange();
             range.selectNodeContents(cell);

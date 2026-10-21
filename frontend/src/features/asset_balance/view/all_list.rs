@@ -140,13 +140,13 @@ pub fn AssetMergedTable(
             <table class="asset-table">
                 <thead>
                     <tr>
-                        <th scope="col">"コード"</th>
-                        <th scope="col">"銘柄・ファンド"</th>
-                        <th scope="col">"種別"</th>
-                        <th scope="col">"口座"</th>
-                        <th scope="col">"分配金"</th>
-                        <th scope="col" class="text-right">"1株配当"</th>
-                        <th scope="col" class="text-right">"前日比"</th>
+                        <th scope="col" class="col-text">"コード"</th>
+                        <th scope="col" class="col-text">"銘柄・ファンド"</th>
+                        <th scope="col" class="col-text">"種別"</th>
+                        <th scope="col" class="col-text">"口座"</th>
+                        <th scope="col" class="col-text">"分配金"</th>
+                        <th scope="col" class="col-num">"1株配当"</th>
+                        <th scope="col" class="col-num">"前日比"</th>
                         {sort_header("評価額", FundSortKey::MarketValue, sort_key, sort_order)}
                         {sort_header("評価損益", FundSortKey::ProfitLoss, sort_key, sort_order)}
                     </tr>
@@ -167,19 +167,19 @@ pub fn AssetMergedTable(
                                 };
                                 view! {
                                     <tr>
-                                        <td>
+                                        <td class="col-text">
                                             <TableSecurityCode
                                                 code=row.code.clone().unwrap_or_default()
                                             />
                                         </td>
-                                        <td class="asset-name-cell" title=row.name.clone()>
+                                        <td class="asset-name-cell col-text" title=row.name.clone()>
                                             <TableNameLink
                                                 href=row.href.clone()
                                                 name=row.name.clone()
                                             />
                                         </td>
-                                        <td class="text-text-soft">{row.kind}</td>
-                                        <td>
+                                        <td class="col-text text-text-soft">{row.kind}</td>
+                                        <td class="col-text">
                                             {match &row.account {
                                                 Some(account) => view! {
                                                     <AccountBadge label=account.clone() />
@@ -189,10 +189,10 @@ pub fn AssetMergedTable(
                                                     .into_any(),
                                             }}
                                         </td>
-                                        <td class="text-text-soft">
+                                        <td class="col-text text-text-soft">
                                             {row.course.clone().unwrap_or_else(|| "—".to_string())}
                                         </td>
-                                        <td class="text-right tabular-nums">
+                                        <td class="col-num">
                                             {row
                                                 .dividend
                                                 .as_ref()
@@ -200,7 +200,7 @@ pub fn AssetMergedTable(
                                                 .unwrap_or_else(|| "—".to_string())}
                                         </td>
                                         <td
-                                            class="text-right tabular-nums"
+                                            class="col-num"
                                             title=row.day_change_title.clone()
                                         >
                                             {if row.nav_pending {
@@ -210,10 +210,10 @@ pub fn AssetMergedTable(
                                                     .into_any()
                                             }}
                                         </td>
-                                        <td class="text-right font-bold tabular-nums text-text-deep">
+                                        <td class="col-num font-bold text-text-deep">
                                             {format_row_valuation_amount(row.market)}
                                         </td>
-                                        <td class="text-right tabular-nums">
+                                        <td class="col-num">
                                             {if row.profit.is_some() {
                                                 view! {
                                                     <span class=format!(
