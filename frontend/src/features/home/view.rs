@@ -714,7 +714,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                             view! {
                                                 <li class="flex items-center gap-1">
                                                     <span class=format!("home-swatch {class}")></span>
-                                                    <span class="text-text-soft">{slice.label.clone()}</span>
+                                                    <AccountBadge label=slice.label.clone() />
                                                     <span class="tabular-nums text-text-muted">
                                                         {format!("{}%", pct.round() as i64)}
                                                     </span>
