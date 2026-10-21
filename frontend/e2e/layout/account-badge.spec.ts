@@ -59,7 +59,7 @@ async function badgeColors(badge: Locator) {
   });
 }
 
-// 銘柄の行にある口座の札。1行に1つだけ出ることを確かめる
+// 1行の口座の札が1つだけ出ることと、その配色を見る
 async function badgeInRow(scope: Locator, securityName: string) {
   const row = scope.locator('tr, li').filter({ hasText: securityName }).first();
   const badge = row.locator('.account-badge');
