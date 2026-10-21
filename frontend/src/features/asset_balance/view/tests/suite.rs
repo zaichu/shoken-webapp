@@ -813,7 +813,8 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
     // 国内株式は分配金が無い(表では「—」)。口座は行が持っていれば札で出す
     let mut stock_row = balance_row(9904);
     stock_row.account = Some("特定".parse().unwrap());
-    let stock = super::all_list::unified_from_stock(&holding_view(&stock_row));
+    let stock =
+        super::all_list::unified_from_stock(&holding_view(&stock_row), &DividendMaps::default());
     assert_eq!(stock.code.as_deref(), Some("9904"));
     assert_eq!(stock.account.as_deref(), Some("特定"));
     assert_eq!(stock.sub, "9904");
@@ -822,9 +823,30 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
     assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));
 
     // 口座を持たない行(旧データ)は表・行メタとも「—」相当
-    let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)));
+    let stock = super::all_list::unified_from_stock(
+        &holding_view(&balance_row(9904)),
+        &DividendMaps::default(),
+    );
     assert!(stock.account.is_none());
     assert_eq!(stock.sub, "9904");
+
+    // 取得できない銘柄の1株配当は出さない
+    let dividend = stock.dividend.as_ref().expect("株式の行は1株配当を持つ");
+    assert_eq!(dividend.per_share, None);
+    assert_eq!(dividend.annual, None);
+
+    // 取得できた銘柄は1株配当と年間配当が整合する(年間配当 = 1株配当 × 数量)
+    let maps = DividendMaps {
+        per_share: HashMap::from([("9904".to_string(), 50.0)]),
+        status: HashMap::new(),
+    };
+    let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)), &maps);
+    let dividend = stock.dividend.as_ref().expect("株式の行は1株配当を持つ");
+    assert_eq!(dividend.per_share, Some(50.0));
+    assert_eq!(dividend.annual, Some(5000.0));
+
+    // 投資信託の行は1株配当を持たない
+    assert!(fund.dividend.is_none());
 }
 
 fn fund_view_nav(
