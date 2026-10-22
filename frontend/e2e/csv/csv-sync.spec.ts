@@ -205,8 +205,13 @@ function emitAllCsvs(page: Page) {
 }
 
 // 取り込み経路の API モック。import が来た種類の行を db に積み、一覧 API は db を返す。
-// assetSavedTotal を渡すと保有残高の保存済み件数をあらかじめ持つ状態にする(激減確認用)
-async function mockSyncApis(page: Page, options: { assetSavedTotal?: number } = {}) {
+// assetSavedTotal を渡すと保有残高の保存済み件数をあらかじめ持つ状態にする(激減確認用)。
+// heldPreview を渡すとその種類の preview 応答を gate が解くまで保留する(応答待ち中の
+// リセットを再現するため)
+async function mockSyncApis(
+  page: Page,
+  options: { assetSavedTotal?: number; heldPreview?: { kind: string; gate: Promise<void> } } = {},
+) {
   let seq = 0;
   const asDbRow = (row: Record<string, unknown>) => {
     seq += 1;
@@ -237,8 +242,11 @@ async function mockSyncApis(page: Page, options: { assetSavedTotal?: number } = 
       const data = db.get(fixture.kind) ?? [];
       return route.fulfill(json(paginated(data)));
     });
-    await page.route(fixture.previewPath, (route) => {
+    await page.route(fixture.previewPath, async (route) => {
       calls.preview.push(fixture.kind);
+      if (options.heldPreview?.kind === fixture.kind) {
+        await options.heldPreview.gate;
+      }
       return route.fulfill(json({ total_rows: 1, valid_rows: 1, errors: [], rows: [] }));
     });
     await page.route(fixture.importPath, (route) => {
@@ -331,6 +339,9 @@ test.describe('CSV 最新取得', () => {
     await expect(confirm).toContainText('件数が大きく減っています');
     expect(calls.import).toEqual([]);
 
+    // 確認待ちの間も実行中のままで、連打で二重に流せない
+    await expect(page.getByTestId('csv-sync-button')).toBeDisabled();
+
     await page.getByTestId('csv-sync-confirm-no').click();
     await expect(confirm).toHaveCount(0);
     await expect(page.getByTestId('csv-sync-kind-assetbalance')).toContainText(
@@ -357,6 +368,43 @@ test.describe('CSV 最新取得', () => {
       await expect(page.getByTestId(`csv-sync-kind-${kind}`)).toContainText('取り込んだ(1件');
     }
     expect(calls.import).toContain('assetbalance');
+  });
+
+  test('取り込み応答待ちにログアウトすると残りの取り込み POST は送らない', async ({ page }) => {
+    // ログアウト(DELETE)で以後は未認証に切り替わるセッション
+    let loggedIn = true;
+    await page.route(/\/api\/v1\/session$/, (route) => {
+      if (route.request().method() === 'DELETE') {
+        loggedIn = false;
+        return route.fulfill(json({ message: 'ok' }));
+      }
+      return route.fulfill(
+        loggedIn
+          ? json(USER)
+          : { status: 401, contentType: 'application/json', body: '{"message":"unauthorized"}' },
+      );
+    });
+    let releasePreview: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      releasePreview = resolve;
+    });
+    const calls = await mockSyncApis(page, { heldPreview: { kind: 'assetbalance', gate } });
+    await mockExtension(page);
+    await page.goto('/receipts/csv?kind=dividend');
+    await page.getByTestId('csv-sync-button').click();
+    await emitAllCsvs(page);
+
+    // 先頭の種類が preview 応答待ちの間にログアウトする
+    await expect.poll(() => calls.preview.includes('assetbalance')).toBe(true);
+    await page.getByRole('button', { name: /テストユーザーのアカウントメニュー/ }).click();
+    await page.getByRole('menuitem', { name: 'ログアウト' }).click();
+    // リセットされると進行表示ごと消える
+    await expect(page.getByTestId('csv-sync-status')).toHaveCount(0);
+
+    releasePreview();
+    // preview の応答が戻っても旧セッションの取り込みは送らない
+    await page.waitForTimeout(500);
+    expect(calls.import).toEqual([]);
   });
 
   test('安全装置で取り込めない CSV は理由を出して取り込まない', async ({ page }) => {

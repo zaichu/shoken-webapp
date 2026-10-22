@@ -66,7 +66,9 @@ fn result_marks_done_with_line_count_and_failures() {
             code: Some("file-access-disabled".to_string()),
         }],
     });
-    assert!(!state.running && state.finished);
+    assert!(state.finished);
+    // 取り込みが残る間は実行中を維持し、連打による重複送信を防ぐ
+    assert!(state.running);
     assert_eq!(
         state.kinds[CsvKind::AssetBalance.index()].1,
         KindStatus::Done { lines: 4 }
@@ -78,6 +80,17 @@ fn result_marks_done_with_line_count_and_failures() {
         }
     );
     assert!(state.needs_file_access_guide());
+}
+
+#[test]
+fn result_without_csvs_stops_running() {
+    let mut state = SyncState::initial();
+    state.apply(Event::Result {
+        csvs: vec![],
+        failures: vec![],
+    });
+    assert!(state.finished);
+    assert!(!state.running);
 }
 
 #[test]
@@ -113,13 +126,27 @@ fn result_csvs_are_marked_done_and_handled_to_import_task() {
             failures: vec![],
         });
         let state = store.state();
-        assert!(!state.running);
         assert!(state.finished);
+        // 取り込みタスクが残る間は実行中のまま(ボタン連打で二重に流さない)
+        assert!(state.running);
         // 本文は表示状態に載せず、取り込みタスクへ渡す(タスクは executor 待ちのままでよい)
         assert_eq!(
             state.kinds[CsvKind::Dividend.index()].1,
             KindStatus::Done { lines: 2 }
         );
+    });
+}
+
+#[test]
+fn finish_import_releases_running() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = leptos::prelude::Owner::new();
+    owner.with(|| {
+        let store = CsvSyncStore::new();
+        store.state.set(SyncState::initial());
+        store.finish_import();
+        // ページ未訪問なら再取得は何もせず、実行中だけ解除する
+        assert!(!store.state().running);
     });
 }
 
@@ -141,6 +168,7 @@ fn confirm_answer_no_skips_kind_and_clears_confirm() {
             saved_rows: 40,
             rest: vec![csv],
             epoch: store.epoch.get_untracked(),
+            generation: store.session.generation.get_untracked(),
         });
         let state = store.state();
         assert_eq!(
@@ -186,6 +214,7 @@ fn stale_epoch_confirm_is_ignored() {
             saved_rows: 10,
             rest: vec![],
             epoch: store.epoch.get_untracked() + 1,
+            generation: store.session.generation.get_untracked(),
         });
         let state = store.state();
         assert_eq!(state.import.confirm, None);
@@ -197,6 +226,34 @@ fn stale_epoch_confirm_is_ignored() {
         store.answer_confirm(false);
         assert_eq!(
             store.state().kinds[CsvKind::FundBalance.index()].1,
+            KindStatus::Waiting
+        );
+    });
+}
+
+#[test]
+fn stale_generation_confirm_is_ignored() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = leptos::prelude::Owner::new();
+    owner.with(|| {
+        let store = CsvSyncStore::new();
+        store.state.set(SyncState::initial());
+        // ユーザー切替(セッション世代が進んだ)前の実行から届いた確認は出さない
+        store.hold_confirm(import::PendingImport {
+            csv: ReceivedCsv {
+                kind: CsvKind::AssetBalance,
+                content: String::new(),
+                fetched_at: String::new(),
+            },
+            new_rows: 1,
+            saved_rows: 10,
+            rest: vec![],
+            epoch: store.epoch.get_untracked(),
+            generation: store.session.generation.get_untracked().next(),
+        });
+        assert_eq!(store.state().import.confirm, None);
+        assert_eq!(
+            store.state().kinds[CsvKind::AssetBalance.index()].1,
             KindStatus::Waiting
         );
     });

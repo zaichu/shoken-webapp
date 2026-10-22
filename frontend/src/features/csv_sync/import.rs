@@ -76,6 +76,8 @@ enum Outcome {
         new_rows: usize,
         saved_rows: usize,
     },
+    /// 応答待ちの間に実行・セッションが変わった。状態に何も書かず終わる
+    Stale,
 }
 
 /// 激減の確認待ち。回答あれば残りを続ける
@@ -86,21 +88,28 @@ pub(crate) struct PendingImport {
     pub(crate) saved_rows: usize,
     pub(crate) rest: Vec<ReceivedCsv>,
     pub(crate) epoch: u64,
+    pub(crate) generation: crate::session::Generation,
 }
 
 /// 受け取った全件を種類順に処理する。確認待ちになったら pending に残して止まる
 pub(crate) async fn process(
     store: CsvSyncStore,
     epoch: u64,
+    generation: crate::session::Generation,
     csvs: Vec<ReceivedCsv>,
     confirmed: Option<CsvKind>,
 ) {
     for (index, csv) in csvs.iter().enumerate() {
-        if store.epoch.get_untracked() != epoch {
+        if !store.alive(epoch, generation) {
             return;
         }
         store.set_kind(csv.kind, KindStatus::Importing);
-        match import_csv(csv, confirmed == Some(csv.kind)).await {
+        let outcome = import_csv(store, epoch, generation, csv, confirmed == Some(csv.kind)).await;
+        // 応答待ちの間に実行・セッションが変わっていれば旧側の結果は何も書かない
+        if !store.alive(epoch, generation) {
+            return;
+        }
+        match outcome {
             Outcome::Imported(result) => {
                 store.state.update(|state| {
                     state.set_kind(csv.kind, KindStatus::Imported { result });
@@ -123,19 +132,29 @@ pub(crate) async fn process(
                     saved_rows,
                     rest: csvs[index + 1..].to_vec(),
                     epoch,
+                    generation,
                 });
                 return;
             }
+            Outcome::Stale => return,
         }
     }
-    if store.epoch.get_untracked() == epoch {
+    if store.alive(epoch, generation) {
         store.finish_import();
     }
 }
 
 /// 安全装置 → 検証(preview) → 取り込み(import)。
-/// confirmed は激減確認「はい」のあとの再実行で、件数判定を飛ばす
-async fn import_csv(csv: &ReceivedCsv, confirmed: bool) -> Outcome {
+/// confirmed は激減確認「はい」のあとの再実行で、件数判定を飛ばす。
+/// 応答待ちの間に実行やセッションが切り替わると Stale を返し、変更系の
+/// upload は送らない(旧ユーザーの CSV が新しいセッションで投げられないように)
+async fn import_csv(
+    store: CsvSyncStore,
+    epoch: u64,
+    generation: crate::session::Generation,
+    csv: &ReceivedCsv,
+    confirmed: bool,
+) -> Outcome {
     if let Some(reason) = guard::inspect(csv.kind, &csv.content) {
         return Outcome::Skipped(reason);
     }
@@ -148,6 +167,9 @@ async fn import_csv(csv: &ReceivedCsv, confirmed: bool) -> Outcome {
             Ok(preview) => preview,
             Err(error) => return Outcome::Failed(error.message()),
         };
+    if !store.alive(epoch, generation) {
+        return Outcome::Stale;
+    }
     if preview.valid_rows == 0 {
         return Outcome::Skipped(SkipReason::NoValidRows);
     }
@@ -168,6 +190,9 @@ async fn import_csv(csv: &ReceivedCsv, confirmed: bool) -> Outcome {
             }
             Ok(_) => {}
             Err(_) => return Outcome::Skipped(SkipReason::CountUnknown),
+        }
+        if !store.alive(epoch, generation) {
+            return Outcome::Stale;
         }
     }
     match upload_csv(plan.import_path, &file, plan.chunking).await {

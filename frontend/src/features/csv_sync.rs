@@ -233,9 +233,10 @@ impl SyncState {
                 }
             },
             port::Event::Result { csvs, failures } => {
-                self.running = false;
                 self.finished = true;
                 self.login_wait = false;
+                // 取り込み・確認が残る間は実行中のままにして、連打で重複送信させない
+                self.running = !csvs.is_empty();
                 for csv in &csvs {
                     let lines =
                         crate::support::csv_flow::record_ranges(csv.content.as_bytes()).len();
@@ -353,10 +354,16 @@ impl CsvSyncStore {
         self.state.update(|state| state.set_kind(kind, status));
     }
 
+    /// この実行とセッションがまだ有効か。リセット・次の実行・ユーザー切替のあとに
+    /// 遅れて届いた旧タスクが状態を書き換えたり変更系リクエストを送らないようにする
+    fn alive(&self, epoch: u64, generation: crate::session::Generation) -> bool {
+        self.epoch.get_untracked() == epoch && self.session.is_current(generation)
+    }
+
     /// 激減の確認待ちにして取り込みを止める。回答は answer_confirm で受ける。
     /// 実行世代が変わったあとに遅れて届いた確認は捨てる(前の実行の残り物を出さない)
     fn hold_confirm(&self, pending: import::PendingImport) {
-        if pending.epoch != self.epoch.get_untracked() {
+        if !self.alive(pending.epoch, pending.generation) {
             return;
         }
         let kind = pending.csv.kind;
@@ -378,18 +385,19 @@ impl CsvSyncStore {
         let Some(pending) = self.pending.try_update(|slot| slot.take()).flatten() else {
             return;
         };
-        if pending.epoch != self.epoch.get_untracked() {
+        if !self.alive(pending.epoch, pending.generation) {
             return;
         }
         self.state.update(|state| state.import.confirm = None);
         let store = *self;
         let epoch = pending.epoch;
+        let generation = pending.generation;
         if yes {
             let mut csvs = vec![pending.csv];
             csvs.extend(pending.rest);
             let confirmed = csvs[0].kind;
             leptos::task::spawn_local(async move {
-                import::process(store, epoch, csvs, Some(confirmed)).await;
+                import::process(store, epoch, generation, csvs, Some(confirmed)).await;
             });
         } else {
             self.set_kind(
@@ -399,15 +407,16 @@ impl CsvSyncStore {
                 },
             );
             leptos::task::spawn_local(async move {
-                import::process(store, epoch, pending.rest, None).await;
+                import::process(store, epoch, generation, pending.rest, None).await;
             });
         }
     }
 
-    /// 全種類の処理が終わった。取り込めた種類の一覧を再取得する
+    /// 全種類の処理が終わった。取り込めた種類の一覧を再取得し、実行中を解除する
     fn finish_import(&self) {
         let imported = self.state.with(|state| state.import.imported.clone());
         self.refresh_lists(&imported);
+        self.state.update(|state| state.running = false);
     }
 
     /// 取り込めた種類の一覧を取り直す。ページ未訪問のスロットは未生成なので何もしない
@@ -456,9 +465,10 @@ impl CsvSyncStore {
             && !csvs.is_empty()
         {
             let epoch = self.epoch.get_untracked();
+            let generation = self.session.generation.get_untracked();
             let store = *self;
             leptos::task::spawn_local(async move {
-                import::process(store, epoch, csvs, None).await;
+                import::process(store, epoch, generation, csvs, None).await;
             });
         }
     }
