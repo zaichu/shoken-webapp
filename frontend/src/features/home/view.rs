@@ -11,7 +11,6 @@ use crate::features::asset_balance::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
-use crate::ui::amount::Amount;
 use crate::ui::badge::{AccountBadge, account_display_name};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
@@ -21,6 +20,7 @@ use crate::ui::format::{
 use crate::ui::labels::{ANNUAL_EXPECTED_DIVIDEND, MARKET_VALUE, MISSING, VALUATION_PROFIT_LOSS};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
+use crate::ui::summary::{SummaryItem, SummarySize, SummaryTone};
 use leptos::prelude::*;
 
 // 内訳チャートの塗り色。ドーナツのグラデーションは CSS 変数、棒・凡例は同じ色の
@@ -204,7 +204,7 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
     };
     view! {
         <section
-            class="asset-summary asset-summary-3 home-summary"
+            class="asset-summary home-summary"
             role="region"
             aria-label="資産の概要"
             aria-busy=move || {
@@ -273,11 +273,11 @@ fn BandTiles(
         .as_ref()
         .and_then(|valuation| valuation.profit_loss.amount);
     let pnl_tone = if is_negative_valuation(pnl_amount) {
-        "asset-summary-loss"
+        SummaryTone::Loss
     } else if is_positive_valuation(pnl_amount) {
-        "asset-summary-gain"
+        SummaryTone::Gain
     } else {
-        ""
+        SummaryTone::Neutral
     };
     let profit_text = if loading {
         MISSING.to_string()
@@ -311,43 +311,33 @@ fn BandTiles(
         _ => None,
     };
     view! {
-        <dl class="asset-summary-grid">
-            <div class="asset-summary-item asset-summary-item-primary">
-                <dt>{MARKET_VALUE}</dt>
-                <dd>
-                    <Amount text=market_text class="asset-summary-primary-amount".to_string() />
-                </dd>
-            </div>
-            <div class="asset-summary-item asset-summary-item-pnl">
-                <dt class="sr-only lg:not-sr-only">{VALUATION_PROFIT_LOSS}</dt>
-                <dd>
-                    <Amount
-                        text=profit_text
-                        class=format!("asset-summary-pnl-amount {pnl_tone}")
+        <div class="asset-summary-grid">
+            <dl class="asset-summary-group asset-summary-group-main">
+                <SummaryItem
+                    label=MARKET_VALUE
+                    value=market_text
+                    size=SummarySize::Primary
+                />
+                <SummaryItem
+                    label=VALUATION_PROFIT_LOSS
+                    value=profit_text
+                    size=SummarySize::Secondary
+                    note=profit_rate.unwrap_or_default()
+                    tone=pnl_tone
+                    extra_class="asset-summary-item-pnl"
+                />
+            </dl>
+            <div class="asset-summary-group asset-summary-group-sub">
+                <dl class="asset-summary-items">
+                    <SummaryItem
+                        label=ANNUAL_EXPECTED_DIVIDEND
+                        value=dividend_text
+                        size=SummarySize::Secondary
+                        status=estimate_note.unwrap_or_default()
                     />
-                    {profit_rate.map(|rate| {
-                        view! {
-                            <span class=format!("asset-summary-pnl-note {pnl_tone}")>
-                                {rate}
-                            </span>
-                        }
-                    })}
-                </dd>
+                </dl>
             </div>
-            <div class="asset-summary-item asset-summary-item-sub1">
-                <dt>{ANNUAL_EXPECTED_DIVIDEND}</dt>
-                <dd>
-                    <Amount text=dividend_text class="asset-summary-sub-amount".to_string() />
-                    {estimate_note.map(|note| {
-                        view! {
-                            <span class="asset-summary-pnl-note text-brand-muted">
-                                {note}
-                            </span>
-                        }
-                    })}
-                </dd>
-            </div>
-        </dl>
+        </div>
     }
 }
 

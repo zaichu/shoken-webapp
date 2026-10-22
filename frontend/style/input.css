@@ -135,10 +135,8 @@
   /* 集計帯の金額の段階。主は1つだけ、副はすべて同じ大きさにする */
   --text-summary-primary: 1.875rem;
   --text-summary-secondary: 1.5rem;
-  --text-summary-note: 0.875rem;
   --text-summary-primary-compact: 1.625rem;
   --text-summary-secondary-compact: 0.9375rem;
-  --text-summary-note-compact: 0.8125rem;
 
   --container-wide: 1680px;
   /* 上部ヘッダーと本文の端をそろえる共通の本文幅(page-gutter / content-gutter) */
@@ -645,69 +643,21 @@
     @apply text-transparent;
   }
 
-  /* 集計の帯(PC・スマホ共通): 紺地に金の見出し。主値(税引後)を先頭に置き、
-     スマホは残り2項目を右寄せの行に、PC は3列グリッドにする */
+  /* 集計の帯(PC・スマホ共通): 紺地。主値(税引後)を先頭に置き、スマホは
+     主値の段と副項目の段の2段、PC は3列グリッドにする */
   .receipt-summary {
     @apply bg-brand text-text-inverse;
     border-radius: 0;
   }
 
   .receipt-summary-grid {
-    @apply grid items-center gap-x-3 px-4 pb-3 pt-1;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
+    @apply flex flex-col gap-y-1 px-4 pb-3 pt-1;
   }
 
-  /* dl 直下の div は dt/dd しか入れられないため、副項目のまとまりは
-     中間の枠を作らず grid の配置だけで作る */
-  .receipt-summary-item-primary {
-    grid-row: 1 / -1;
-  }
-
-  .receipt-summary-item-secondary {
-    @apply justify-self-end text-right;
-    grid-column: 2;
-    line-height: 1.6;
-  }
-
-  .receipt-summary-item dt {
-    @apply text-xs text-brand-muted;
-  }
-
-  .receipt-summary-item-secondary dt,
-  .receipt-summary-item-secondary dd {
-    @apply inline text-xs;
-  }
-
-  .receipt-summary-item-secondary dd {
-    @apply ml-1;
-  }
-
-  .receipt-summary-item-primary dt {
-    @apply block text-[11px] font-bold text-gold;
-  }
-
-  .receipt-summary-item-primary dd {
-    @apply block;
-  }
-
-  .receipt-summary-primary-amount {
-    @apply text-summary-primary-compact font-bold tabular-nums;
-  }
-
-  .receipt-summary-amount {
-    @apply text-summary-secondary-compact tabular-nums text-brand-muted;
-  }
-
-  .receipt-summary-sub {
-    @apply hidden;
-  }
-
-  /* 紺地では --color-negative がコントラスト不足になるため、帯の負数は
-     汎用の data-negative ではなくこのクラスで明るい赤にする */
-  .receipt-summary-amount-loss {
-    color: var(--color-loss-bright);
-    font-weight: 500;
+  /* 帯の中の段。段はスマホでは積み、PC では1列に並べる */
+  .receipt-summary-group,
+  .receipt-summary-items {
+    @apply flex items-stretch gap-x-3;
   }
 
   @media (width >= 64rem) {
@@ -717,50 +667,21 @@
     }
 
     .receipt-summary-grid {
-      grid-template-columns: 1.3fr 1fr 1fr;
-      grid-template-rows: auto;
+      @apply grid grid-cols-[1.3fr_1fr_1fr] items-stretch;
       padding: 18px 8px;
     }
 
-    .receipt-summary-item-primary {
-      grid-row: auto;
+    .receipt-summary-group,
+    .receipt-summary-items {
+      display: contents;
     }
 
-    .receipt-summary-item {
-      @apply border-r border-brand-line px-5 text-left;
+    .receipt-summary .summary-item {
+      @apply border-r border-brand-line px-5;
     }
 
-    .receipt-summary-item-secondary {
-      @apply justify-self-stretch;
-      grid-column: auto;
-    }
-
-    .receipt-summary-item:last-child {
+    .receipt-summary-group-sub > .receipt-summary-items > .summary-item:last-child {
       @apply border-r-0;
-    }
-
-    .receipt-summary-item dt {
-      @apply block;
-    }
-
-    .receipt-summary-item-secondary dt {
-      @apply block text-xs;
-    }
-
-    .receipt-summary-item-secondary dd {
-      @apply ml-0 mt-1 block;
-    }
-
-    .receipt-summary-primary-amount {
-      @apply text-summary-primary;
-    }
-
-    .receipt-summary-amount {
-      @apply text-summary-secondary font-bold text-text-inverse;
-    }
-
-    .receipt-summary-sub {
-      @apply mt-0.5 block text-xs font-normal text-brand-muted;
     }
   }
 
@@ -1150,68 +1071,111 @@
     @apply relative w-full rounded-lg border border-ink/10 bg-surface;
   }
 
-  /* 集計の帯(PC・スマホ共通): 紺地に金の見出し。
-     PC は4列の紺グラデ面、スマホは帯自体が1つのグリッドになり、
-     dl・項目の枠を display:contents で解体して各 dt/dd を帯のセルに直接置く */
+  /* 集計の帯で使う共通の項目部品(資産管理・ホーム・取引明細で同じものを使う)。
+     項目はラベルを上、数字を下に置き、全項目のラベル行と数字の基準線をそろえる */
+  .summary-item {
+    @apply flex min-w-0 flex-col;
+  }
+
+  .summary-label {
+    @apply text-xs font-medium text-brand-muted;
+  }
+
+  /* 数字は下端をそろえるため行の高さを1に固定し、項目の底にそろえる */
+  .summary-value {
+    @apply mt-auto flex flex-wrap items-baseline gap-x-1.5 leading-none;
+  }
+
+  .summary-value-primary {
+    @apply text-summary-primary font-bold;
+  }
+
+  .summary-value-secondary {
+    @apply text-summary-secondary font-bold;
+  }
+
+  /* 補足(率)は数字と同じ大きさで、比重だけ落として横に出す */
+  .summary-note {
+    @apply font-normal;
+  }
+
+  /* 状況の補足(読み込み中など)は数字より小さくする */
+  .summary-status {
+    @apply text-xs font-normal text-brand-muted;
+  }
+
+  /* 紺地では --color-positive/-negative がコントラスト不足になるため明るい色を使う */
+  .summary-gain {
+    color: var(--color-profit-bright);
+  }
+
+  .summary-loss {
+    color: var(--color-loss-bright);
+  }
+
+  @media (width < 64rem) {
+    .summary-value-primary {
+      @apply text-summary-primary-compact;
+    }
+
+    .summary-value-secondary {
+      @apply text-summary-secondary-compact;
+    }
+
+    .summary-note {
+      @apply text-summary-secondary-compact;
+    }
+  }
+
+  /* 集計の帯(資産管理・ホーム) */
   .asset-summary {
     @apply block;
   }
 
   .asset-summary-grid {
-    @apply grid grid-cols-[1.3fr_1.2fr_1fr_1fr] rounded-lg bg-brand text-text-inverse;
-    background-image: linear-gradient(135deg, var(--color-brand), var(--color-brand-lift));
-    padding: 18px 8px;
+    @apply flex flex-col gap-y-1;
   }
 
-  .asset-summary-item {
-    @apply border-r border-brand-line px-5;
+  /* 帯の中の段。段はスマホでは積み、PC では1列に並べる */
+  .asset-summary-group,
+  .asset-summary-items {
+    @apply flex items-stretch gap-x-2;
   }
 
-  .asset-summary-item:last-child {
-    @apply border-r-0;
+  @media (width < 64rem) {
+    .asset-summary {
+      @apply bg-brand px-4 pb-3 pt-1 text-text-inverse;
+    }
+
+    /* 損益の数字は段の右端に寄せる */
+    .asset-summary-item-pnl {
+      @apply ml-auto;
+    }
+
+    .asset-summary-comp {
+      @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-[13px] font-bold text-gold no-underline;
+    }
   }
 
-  .asset-summary-item dt {
-    @apply text-xs font-medium text-brand-muted;
-  }
+  @media (width >= 64rem) {
+    .asset-summary-grid {
+      @apply grid grid-cols-[1.3fr_1.2fr_1fr] items-stretch rounded-lg bg-brand text-text-inverse;
+      background-image: linear-gradient(135deg, var(--color-brand), var(--color-brand-lift));
+      padding: 18px 8px;
+    }
 
-  .asset-summary-item-primary dt {
-    @apply font-bold text-gold;
-  }
+    .asset-summary-group,
+    .asset-summary-items {
+      display: contents;
+    }
 
-  .asset-summary-item dd {
-    @apply mt-1.5;
-  }
+    .asset-summary .summary-item {
+      @apply border-r border-brand-line px-5;
+    }
 
-  .asset-summary-primary-amount {
-    @apply text-summary-primary font-bold;
-  }
-
-  .asset-summary-pnl-amount {
-    @apply text-summary-secondary font-bold;
-  }
-
-  .asset-summary-pnl-note {
-    @apply ml-1.5 text-summary-note font-bold;
-  }
-
-  .asset-summary-sub-amount {
-    @apply text-summary-secondary font-bold;
-  }
-
-  /* 集計が3項目のページ(ホーム)用。4列のままだと末尾に空列が残る。
-     スマホは dl が display:contents で帯側の grid-template-areas に従うため影響しない */
-  .asset-summary-3 .asset-summary-grid {
-    grid-template-columns: 1.3fr 1.2fr 1fr;
-  }
-
-  /* 紺地では --color-positive/-negative がコントラスト不足になるため明るい色を使う */
-  .asset-summary-gain {
-    color: var(--color-profit-bright);
-  }
-
-  .asset-summary-loss {
-    color: var(--color-loss-bright);
+    .asset-summary-group-sub > .asset-summary-items > .summary-item:last-child {
+      @apply border-r-0;
+    }
   }
 
   /* 帯の直下の注記行。注記の左、「計算基準を見る」の右に置く */
@@ -1254,150 +1218,20 @@
     background: var(--color-negative-soft);
   }
 
-  /* 資産管理の集計帯(PC)。主要3項目を左に大きく並べ、補助項目は右に札として出す。
+  /* 資産管理の集計帯(PC)。主要項目を左に並べ、補助項目は右に寄せる。
      項目の途中では折り返さない */
   @media (width >= 64rem) {
     .asset-summary-band .asset-summary-grid {
-      @apply flex items-end;
+      @apply flex flex-row items-stretch;
       column-gap: 2.5rem;
     }
 
-    .asset-summary-band .asset-summary-main {
-      @apply flex items-end;
-      column-gap: 2.5rem;
-    }
-
-    .asset-summary-band .asset-summary-item {
+    .asset-summary-band .summary-item {
       @apply whitespace-nowrap border-r-0 px-0;
     }
 
-    .asset-summary-band .asset-summary-tags {
-      @apply ml-auto flex items-end gap-2;
-    }
-
-    .asset-summary-band .asset-summary-item-tag {
-      @apply flex items-center gap-1.5 rounded-lg px-3 py-1.5;
-      background: var(--color-brand-lift);
-    }
-
-    .asset-summary-band .asset-summary-item-tag dt,
-    .asset-summary-band .asset-summary-item-tag dd {
-      @apply mt-0;
-    }
-  }
-
-  @media (width < 64rem) {
-    .asset-summary {
-      @apply grid items-baseline gap-x-2 gap-y-0.5 bg-brand px-4 pb-3 pt-1 text-text-inverse;
-      /* 最終列は中身(損益)より狭くなることがある。minmax(0,..) で潰せるようにし、
-         右寄せのまま左の空き列側へだけはみ出す(右端欠けを防ぐ) */
-      grid-template-columns: auto auto auto auto auto minmax(0, 1fr);
-      grid-template-areas:
-        "pdt pdt pdt pdt pdt ."
-        "pdd pdd pdd pdd pdd pnldd"
-        "sdt1 sdd1 sdt2 sdd2 comp comp"
-        "basis basis basis basis basis basis";
-    }
-
-    /* 資産管理の集計帯。3タブで同じ並びにする(前日比は1行増やして左に並べる) */
-    .asset-summary-band {
-      grid-template-areas:
-        "pdt pdt pdt pdt pdt ."
-        "pdd pdd pdd pdd pdd pnldd"
-        "sdt1 sdd1 sdt2 sdd2 comp comp"
-        "sdt3 sdd3 . . . .";
-    }
-
-    .asset-summary-grid,
-    .asset-summary-main,
-    .asset-summary-tags,
-    .asset-summary-item {
-      display: contents;
-    }
-
-    .asset-summary-item dt {
-      @apply font-medium;
-    }
-
-    .asset-summary-item dd {
-      @apply mt-0;
-    }
-
-    .asset-summary-item-primary dt {
-      grid-area: pdt;
-    }
-
-    .asset-summary-item-primary dd {
-      grid-area: pdd;
-    }
-
-    /* 損益の見出しはスマホでは視覚的に出さない(マークアップ側で sr-only)。
-       帯は1行収まりが前提なので、各項目の途中では折り返さない */
-    .asset-summary-item-pnl dd {
-      @apply justify-self-end whitespace-nowrap;
-      grid-area: pnldd;
-    }
-
-    .asset-summary-item-sub1 dt {
-      @apply whitespace-nowrap;
-      grid-area: sdt1;
-    }
-
-    .asset-summary-item-sub1 dd {
-      @apply ml-1 whitespace-nowrap;
-      grid-area: sdd1;
-    }
-
-    .asset-summary-item-sub2 dt {
-      @apply whitespace-nowrap;
-      grid-area: sdt2;
-    }
-
-    .asset-summary-item-sub2 dd {
-      @apply ml-1 whitespace-nowrap;
-      grid-area: sdd2;
-    }
-
-    .asset-summary-item-sub2 dt::before {
-      content: " · ";
-    }
-
-    .asset-summary-item-sub3 dt {
-      @apply whitespace-nowrap;
-      grid-area: sdt3;
-    }
-
-    .asset-summary-item-sub3 dd {
-      @apply ml-1 whitespace-nowrap;
-      grid-area: sdd3;
-    }
-
-    .asset-summary-primary-amount {
-      @apply text-summary-primary-compact;
-    }
-
-    .asset-summary-pnl-amount {
-      @apply text-summary-secondary-compact;
-    }
-
-    .asset-summary-pnl-note {
-      @apply ml-1 text-summary-note-compact;
-    }
-
-    .asset-summary-sub-amount {
-      @apply text-summary-secondary-compact font-medium;
-    }
-
-    .asset-summary-item-sub1 dt,
-    .asset-summary-item-sub2 dt,
-    .asset-summary-item-sub3 dt,
-    .asset-summary-sub-amount {
-      color: var(--color-brand-muted);
-    }
-
-    .asset-summary-comp {
-      @apply inline-flex min-h-11 items-center justify-self-end text-[13px] font-bold text-gold no-underline;
-      grid-area: comp;
+    .asset-summary-band .asset-summary-item-tag1 {
+      @apply ml-auto;
     }
   }
 

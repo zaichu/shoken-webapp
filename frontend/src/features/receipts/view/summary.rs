@@ -1,7 +1,7 @@
 use crate::features::receipts::{ReceiptTabData, ReceiptsTab, select_header_summary};
 use crate::settings::format_amount;
-use crate::ui::amount::Amount;
 use crate::ui::card::StatTone;
+use crate::ui::summary::{SummaryItem, SummarySize, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
@@ -10,6 +10,14 @@ pub fn profit_tone(value: Decimal) -> StatTone {
         StatTone::Loss
     } else {
         StatTone::Neutral
+    }
+}
+
+/// 集計帯の数字の色
+fn summary_tone(tone: StatTone) -> SummaryTone {
+    match tone {
+        StatTone::Loss => SummaryTone::Loss,
+        StatTone::Neutral => SummaryTone::Neutral,
     }
 }
 
@@ -49,48 +57,37 @@ pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoV
             aria-label="集計"
             class="receipt-summary"
         >
-            <dl class="receipt-summary-grid" data-testid="kpi-grid">
-                {primary
-                    .map(|(label, value, tone)| {
-                        let negative = matches!(tone, StatTone::Loss);
+            <div class="receipt-summary-grid" data-testid="kpi-grid">
+                <dl class="receipt-summary-group receipt-summary-group-main">
+                    {primary.map(|(label, value, tone)| {
                         view! {
-                            <div class="receipt-summary-item receipt-summary-item-primary">
-                                <dt>{label}</dt>
-                                <dd>
-                                    <Amount
-                                        text=format_amount(value)
-                                        class=if negative {
-                                            "receipt-summary-primary-amount receipt-summary-amount-loss"
-                                        } else {
-                                            "receipt-summary-primary-amount"
-                                        }
-                                    />
-                                </dd>
-                            </div>
+                            <SummaryItem
+                                label=label
+                                value=format_amount(value)
+                                size=SummarySize::Primary
+                                tone=summary_tone(tone)
+                            />
                         }
                     })}
-                {secondary
-                    .into_iter()
-                    .map(|(label, value, tone)| {
-                        let negative = matches!(tone, StatTone::Loss);
-                        view! {
-                            <div class="receipt-summary-item receipt-summary-item-secondary">
-                                <dt>{label}</dt>
-                                <dd>
-                                    <Amount
-                                        text=format_amount(value)
-                                        class=if negative {
-                                            "receipt-summary-amount receipt-summary-amount-loss"
-                                        } else {
-                                            "receipt-summary-amount"
-                                        }
+                </dl>
+                <div class="receipt-summary-group receipt-summary-group-sub">
+                    <dl class="receipt-summary-items">
+                        {secondary
+                            .into_iter()
+                            .map(|(label, value, tone)| {
+                                view! {
+                                    <SummaryItem
+                                        label=label
+                                        value=format_amount(value)
+                                        size=SummarySize::Secondary
+                                        tone=summary_tone(tone)
                                     />
-                                </dd>
-                            </div>
-                        }
-                    })
-                    .collect_view()}
-            </dl>
+                                }
+                            })
+                            .collect_view()}
+                    </dl>
+                </div>
+            </div>
         </section>
     }
 }
