@@ -10,6 +10,8 @@ fn retryable_errors() {
     assert!(!ApiError::http(401).is_retryable());
     assert!(!ApiError::http(403).is_retryable());
     assert!(!ApiError::http(404).is_retryable());
+    // 呼び出し側の継続条件による中断はサーバーの応答ではないので再送しない
+    assert!(!ApiError::Cancelled.is_retryable());
     assert!(!ApiError::Parse.is_retryable());
 }
 
