@@ -249,6 +249,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             <span class="flex items-center gap-2">
                 <a class="page-secondary-link-sm hidden lg:inline-flex" href="/assetbalance/composition">"構成比を見る"</a>
                 <a class="page-secondary-link-sm" href="/assetbalance/csv">"CSV管理"</a>
+                <crate::features::csv_sync::CsvSyncButton />
             </span>
         }
         .into_any()
@@ -274,7 +275,10 @@ pub fn AssetBalancePage() -> impl IntoView {
                 }
             }
         >
-            <div class="content-gutter flex flex-1 flex-col gap-0" data-testid="assetbalance-main-stage">
+            <div class="content-gutter flex flex-1 flex-col gap-0 lg:gap-3.5" data-testid="assetbalance-main-stage">
+                    <div class="no-print px-4 lg:px-0">
+                        <crate::features::csv_sync::CsvSyncStatus />
+                    </div>
                     {move || {
                         data_ops
                             .with(|ops| ops.refresh_error.clone())

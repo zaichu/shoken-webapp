@@ -41,6 +41,7 @@ pub fn ReceiptsPage() -> impl IntoView {
     let csv_link: Children = Box::new(move || {
         view! {
             <a class="page-secondary-link-sm" href=move || csv_href.get()>"CSV管理"</a>
+            <crate::features::csv_sync::CsvSyncButton />
         }
         .into_any()
     });
@@ -86,6 +87,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     class="content-gutter flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible"
                     data-testid="receipts-workspace"
                 >
+                    <crate::features::csv_sync::CsvSyncStatus />
                     {move || {
                         let loading = tabs_loading.get();
                         ReceiptsTab::ALL

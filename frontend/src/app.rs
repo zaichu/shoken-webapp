@@ -314,6 +314,14 @@ pub fn App() -> impl IntoView {
 
     let settings = crate::settings::provide_settings();
     let session = provide_session(settings.idle_logout_minutes);
+    let csv_sync = crate::features::csv_sync::CsvSyncStore::new();
+    provide_context(csv_sync);
+    // 受け取った CSV は本人のデータのため、ログアウト・ユーザー切替で必ず捨てる
+    Effect::new(move |_| {
+        if session.user.get().is_none() {
+            csv_sync.reset();
+        }
+    });
     // /settings#data などフラグメント付きで直接開いたときは描画後にそのセクションへ移る
     if let Some(fragment) = web_sys::window().and_then(|window| window.location().hash().ok()) {
         let fragment = fragment.trim_start_matches('#').to_string();

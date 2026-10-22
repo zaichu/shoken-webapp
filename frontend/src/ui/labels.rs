@@ -164,6 +164,50 @@ pub const SEARCH_LOADING: &str = "検索中";
 pub const STOCK_SEARCH_TARGET: &str = "銘柄コードまたは銘柄名";
 /// 銘柄検索の実行ボタン(実行中でないときの名前)
 pub const STOCK_SEARCH_ACTION: &str = "銘柄を検索";
+/// 「CSV 最新取得」ボタン(拡張機能から最新の CSV を受け取る操作)
+pub const CSV_FETCH_LATEST: &str = "CSV 最新取得";
+/// CSV 最新取得の実行中表示
+pub const CSV_SYNC_RUNNING: &str = "取得中...";
+/// 種類ごとの進行がまだ始まっていない表示
+pub const CSV_SYNC_WAITING: &str = "待機中";
+/// CSV 最新取得の区画の説明
+pub const CSV_SYNC_PANEL_HINT: &str = "拡張機能を呼び出して、楽天証券の最新 CSV を受け取ります。";
+/// 拡張機能がログインを待っているときの案内
+pub const CSV_SYNC_LOGIN_WAIT: &str = "楽天証券のタブでログインしてください";
+/// 拡張機能との通信が切れたときのエラー
+pub const CSV_SYNC_DISCONNECTED: &str = "拡張機能との通信が切れました";
+/// 拡張機能が見つからないときの案内
+pub const CSV_SYNC_MISSING_TITLE: &str = "CSV 取得用の拡張機能が見つかりません";
+/// 拡張機能が見つからないときの説明
+pub const CSV_SYNC_MISSING_DESCRIPTION: &str = "最新の CSV を受け取るには拡張機能が必要です。";
+/// 拡張機能の導入リンク
+pub const CSV_SYNC_STORE_LINK: &str = "Chrome ウェブストアで拡張機能を導入する";
+/// 「ファイルの URL へのアクセス」が無効なときの見出し
+pub const CSV_SYNC_FILE_ACCESS_TITLE: &str = "ファイルの URL へのアクセスが許可されていません";
+/// 「ファイルの URL へのアクセス」が無効なときの手順
+pub const CSV_SYNC_FILE_ACCESS_STEPS: &[&str] = &[
+    "chrome://extensions/ を開く",
+    "「楽天証券 CSV ダウンロード拡張機能」の「詳細」を開く",
+    "「ファイルの URL へのアクセスを許可する」を ON にする",
+];
+/// 国内株式の保有残高(CSV 最新取得の種類名)
+pub const CSV_KIND_STOCK_BALANCE: &str = "国内株式の保有";
+/// 投資信託の保有残高(CSV 最新取得の種類名)
+pub const CSV_KIND_FUND_BALANCE: &str = "投資信託の保有";
+/// 国内株式の取引履歴(CSV 最新取得の種類名)
+pub const CSV_KIND_STOCK_TRADE: &str = "国内株式の取引";
+/// 投資信託の取引履歴(CSV 最新取得の種類名)
+pub const CSV_KIND_FUND_TRADE: &str = "投資信託の取引";
+
+/// 受け取った行数の書き方(「受け取った(12行)」)
+pub fn csv_received(lines: usize) -> String {
+    format!("受け取った({lines}行)")
+}
+
+/// 種類ごとの取得失敗の書き方
+pub fn csv_sync_failed(reason: &str) -> String {
+    format!("失敗: {reason}")
+}
 
 /// 統一前の語。画面の文言には使わない(括弧内は現在の用語)。
 /// `labels.rs` の単体テストが `frontend/src` の他のソースに現れないことを確かめる
