@@ -10,7 +10,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::AccountBadge;
 use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
 use crate::ui::labels::{
-    ACQUISITION_YIELD, CURRENT_PRICE, DAY_CHANGE, DIVIDEND, PER_SHARE_DIVIDEND,
+    ACQUISITION_YIELD_COMPACT, CURRENT_PRICE, DAY_CHANGE, DIVIDEND, PER_SHARE_DIVIDEND_COMPACT,
 };
 use leptos::prelude::*;
 
@@ -121,12 +121,12 @@ pub fn HoldingsList(
                                                 " "
                                                 {dividend_annual}
                                                 " · "
-                                                {PER_SHARE_DIVIDEND}
+                                                {PER_SHARE_DIVIDEND_COMPACT}
                                                 " "
                                                 {dividend_per_share}
                                             </span>
                                             <span class="text-text-muted tabular-nums">
-                                                {ACQUISITION_YIELD}
+                                                {ACQUISITION_YIELD_COMPACT}
                                                 " "
                                                 {dividend_yield}
                                             </span>

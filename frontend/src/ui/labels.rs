@@ -28,6 +28,10 @@ pub const ACQUISITION_YIELD: &str = "取得額利回り";
 pub const ACQUISITION_BASIS_YIELD: &str = "取得額基準利回り";
 /// 1株配当
 pub const PER_SHARE_DIVIDEND: &str = "1株配当";
+/// 1株配当(スマホの行の短い表記)
+pub const PER_SHARE_DIVIDEND_COMPACT: &str = "1株";
+/// 取得額利回り(スマホの行の短い表記)
+pub const ACQUISITION_YIELD_COMPACT: &str = "利回り";
 /// 一株配当(取引明細の配当情報カード)
 pub const PER_SHARE_DIVIDEND_CARD: &str = "一株配当";
 /// 平均取得価格(取引明細の配当情報カード)

@@ -14,7 +14,7 @@ use crate::ui::badge::AccountBadge;
 use crate::ui::format::unit_price_decimals;
 use crate::ui::labels::{
     ACCOUNT, CODE_COLUMN, DAY_CHANGE, DISTRIBUTION, DOMESTIC_STOCK, MARKET_VALUE, MUTUAL_FUND,
-    PER_SHARE_DIVIDEND, SECURITY_AND_FUND, VALUATION_PROFIT_LOSS,
+    PER_SHARE_DIVIDEND, PER_SHARE_DIVIDEND_COMPACT, SECURITY_AND_FUND, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
@@ -338,7 +338,8 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                                 view! {
                                     <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
                                         <span class="text-text-muted tabular-nums">
-                                            "1株 "
+                                            {PER_SHARE_DIVIDEND_COMPACT}
+                                            " "
                                             {format_dividend_per_share(
                                                 dividend,
                                                 dividend_decimals,
