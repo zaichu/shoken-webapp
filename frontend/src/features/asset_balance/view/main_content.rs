@@ -5,7 +5,6 @@ use super::all_list::{
 use super::asset_table::AssetHoldingsTable;
 use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
-use super::kind_tabs::AssetKindTabs;
 use super::search_bar::{AssetSearchBar, ConditionKind};
 use super::summary::{
     AssetSummaryBand, all_basis_lines, fund_basis_lines, fund_notes, purchase_summary_tag,
@@ -32,9 +31,7 @@ use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels::{self, CLEAR_SEARCH_CONDITIONS, NO_MATCH_DESCRIPTION, NO_MATCH_TITLE};
-use crate::ui::page_skeleton::{
-    FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary, SkeletonTabs,
-};
+use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use leptos::prelude::*;
 
 /// 絞り込みの件数。検索条件が無いときは注記に出さない
@@ -573,8 +570,6 @@ pub(crate) fn AssetBalanceMainContent(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> impl IntoView {
-    let stock_count = stock_rows.len();
-    let fund_count = fund_resolved.total.max(fund_resolved.rows.len());
     // 口座・コースの選択肢はタブごとに語彙が違うため、切替時は選択条件だけ消す
     // (テキストは全タブ共通で引き継ぐ)
     let prev_kind = RwSignal::new(kind.get_untracked());
@@ -587,14 +582,6 @@ pub(crate) fn AssetBalanceMainContent(
         search.update(|s| *s = text_only_search(s));
     });
     view! {
-        <SkeletonTabs>
-            <AssetKindTabs
-                kind=kind
-                all_count=stock_count + fund_count
-                stock_count=stock_count
-                fund_count=fund_count
-            />
-        </SkeletonTabs>
         {move || match kind.get() {
             AssetKind::Stock => {
                 view! {

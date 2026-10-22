@@ -37,7 +37,9 @@ use crate::features::asset_balance::store::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
 use crate::ui::page_frame::PageFrame;
+use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use kind_tabs::AssetKindTabs;
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
 use sort_bar::AssetMobileSortBar;
@@ -152,6 +154,13 @@ pub fn AssetBalancePage() -> impl IntoView {
     };
     let search_count = state.search_count;
     let sort_state = state;
+    // タブの件数表示用。AssetBalanceMainContent 側でも使うが、タブ行をページレベルで描くためここで算出
+    let stock_count = Signal::derive(move || resolved_view().map(|v| v.rows.len()).unwrap_or(0));
+    let fund_count = Signal::derive(move || {
+        resolved_fund_view()
+            .map(|v| v.total.max(v.rows.len()))
+            .unwrap_or(0)
+    });
     let action_bar = view! {
         {move || {
             let (stock_rows, fund_rows) = (
@@ -275,96 +284,108 @@ pub fn AssetBalancePage() -> impl IntoView {
                 }
             }
         >
-            <div class="content-gutter flex flex-1 flex-col gap-0 lg:gap-3.5" data-testid="assetbalance-main-stage">
-                    <div class="no-print px-4 lg:px-0">
-                        <crate::features::csv_sync::CsvSyncStatus />
-                    </div>
-                    {move || {
-                        data_ops
-                            .with(|ops| ops.refresh_error.clone())
-                            .map(|message| {
-                                view! {
-                                    <div class="no-print mb-3 px-4 lg:mb-0 lg:px-0">
-                                        <Alert variant=AlertVariant::Danger>
-                                            <strong>"エラー:"</strong>
-                                            " "
-                                            {message}
-                                        </Alert>
-                                    </div>
-                                }
-                            })
-                    }}
-                    {move || {
-                        resolved_view().and_then(|view| view.warning).map(|message| {
+            {/* タブ行: 固定上部 */}
+            <div class="content-gutter no-print">
+                <SkeletonTabs>
+                    <AssetKindTabs
+                        kind=state.kind
+                        all_count=stock_count.get() + fund_count.get()
+                        stock_count=stock_count.get()
+                        fund_count=fund_count.get()
+                    />
+                </SkeletonTabs>
+            </div>
+            {/* 本文: スクロール可能 */}
+            <div class="content-gutter flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible" data-testid="assetbalance-main-stage">
+                <div class="no-print px-4 lg:px-0">
+                    <crate::features::csv_sync::CsvSyncStatus />
+                </div>
+                {move || {
+                    data_ops
+                        .with(|ops| ops.refresh_error.clone())
+                        .map(|message| {
                             view! {
                                 <div class="no-print mb-3 px-4 lg:mb-0 lg:px-0">
-                                    <Alert variant=AlertVariant::Warning>
-                                        <strong>"注意:"</strong>
+                                    <Alert variant=AlertVariant::Danger>
+                                        <strong>"エラー:"</strong>
                                         " "
-                                        <span data-testid="truncated-list-warning">{message}</span>
+                                        {message}
                                     </Alert>
                                 </div>
                             }
                         })
-                    }}
-                    {move || {
-                        resolved_fund_view().and_then(|view| view.warning).map(|message| {
-                            view! {
-                                <div class="no-print mb-3 px-4 lg:mb-0 lg:px-0">
-                                    <Alert variant=AlertVariant::Warning>
-                                        <strong>"注意:"</strong>
-                                        " "
-                                        <span data-testid="fund-truncated-list-warning">{message}</span>
-                                    </Alert>
-                                </div>
-                            }
-                        })
-                    }}
-                    {move || {
-                        let generation = render_session.generation.get();
-                        let list_error = balances.with(|slot| match slot {
-                            Some((cached, Err(message))) if *cached == generation => {
-                                Some(message.clone())
-                            }
-                            _ => None,
-                        });
-                        let resolved = resolved_view();
-                        let resolved_fund = resolved_fund_view();
-                        match (resolved, resolved_fund, list_error) {
-                            (None, _, _) | (_, None, _) => {
-                                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
-                                    .into_any()
-                            }
-                            (Some(_), _, Some(message)) => {
-                                view! {
-                                    <ListLoadError message=message on_retry=reload />
-                                }
-                                    .into_any()
-                            }
-                            (Some(resolved), Some(resolved_fund), None) => {
-                                let stock_note = summary::stock_note(&resolved);
-                                view! {
-                                    <AssetBalanceMainContent
-                                        stock_rows=resolved.rows
-                                        fallback_totals=resolved.fallback_totals
-                                        stock_note=stock_note
-                                        fund_resolved=resolved_fund
-                                        search=search
-                                        search_count=search_count
-                                        sort_key=state.sort_key
-                                        sort_order=state.sort_order
-                                        fund_sort_key=state.fund_sort_key
-                                        fund_sort_order=state.fund_sort_order
-                                        kind=state.kind
-                                        dividends=dividends
-                                        lookup=lookup
-                                        generation=generation
-                                    />
-                                }
-                                    .into_any()
-                            }
+                }}
+                {move || {
+                    resolved_view().and_then(|view| view.warning).map(|message| {
+                        view! {
+                            <div class="no-print mb-3 px-4 lg:mb-0 lg:px-0">
+                                <Alert variant=AlertVariant::Warning>
+                                    <strong>"注意:"</strong>
+                                    " "
+                                    <span data-testid="truncated-list-warning">{message}</span>
+                                </Alert>
+                            </div>
                         }
-                    }}
+                    })
+                }}
+                {move || {
+                    resolved_fund_view().and_then(|view| view.warning).map(|message| {
+                        view! {
+                            <div class="no-print mb-3 px-4 lg:mb-0 lg:px-0">
+                                <Alert variant=AlertVariant::Warning>
+                                    <strong>"注意:"</strong>
+                                    " "
+                                    <span data-testid="fund-truncated-list-warning">{message}</span>
+                                </Alert>
+                            </div>
+                        }
+                    })
+                }}
+                {move || {
+                    let generation = render_session.generation.get();
+                    let list_error = balances.with(|slot| match slot {
+                        Some((cached, Err(message))) if *cached == generation => {
+                            Some(message.clone())
+                        }
+                        _ => None,
+                    });
+                    let resolved = resolved_view();
+                    let resolved_fund = resolved_fund_view();
+                    match (resolved, resolved_fund, list_error) {
+                        (None, _, _) | (_, None, _) => {
+                            view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
+                                .into_any()
+                        }
+                        (Some(_), _, Some(message)) => {
+                            view! {
+                                <ListLoadError message=message on_retry=reload />
+                            }
+                                .into_any()
+                        }
+                        (Some(resolved), Some(resolved_fund), None) => {
+                            let stock_note = summary::stock_note(&resolved);
+                            view! {
+                                <AssetBalanceMainContent
+                                    stock_rows=resolved.rows
+                                    fallback_totals=resolved.fallback_totals
+                                    stock_note=stock_note
+                                    fund_resolved=resolved_fund
+                                    search=search
+                                    search_count=search_count
+                                    sort_key=state.sort_key
+                                    sort_order=state.sort_order
+                                    fund_sort_key=state.fund_sort_key
+                                    fund_sort_order=state.fund_sort_order
+                                    kind=state.kind
+                                    dividends=dividends
+                                    lookup=lookup
+                                    generation=generation
+                                />
+                            }
+                                .into_any()
+                        }
+                    }
+                }}
             </div>
         </div>
         </PageFrame>
