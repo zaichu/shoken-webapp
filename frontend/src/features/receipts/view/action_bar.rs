@@ -113,12 +113,15 @@ fn SecuritiesInput(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 
 /// 絞り込み中の件数と全件数。取得中は出さない
 #[component]
-fn ReceiptSearchCount(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
-    let count = Memo::new(move |_| match store.tab_state(tab) {
+fn ReceiptSearchCount(
+    store: ReceiptsStore,
+    #[prop(into)] tab: Signal<ReceiptsTab>,
+) -> impl IntoView {
+    let count = Memo::new(move |_| match store.tab_state(tab.get()) {
         TabState::Ready(data) => {
             let query = store.search.with(|s| s.query.clone());
             let total = data.total.unwrap_or(data.rows.len());
-            Some((filter_receipts(tab, &data.rows, &query).len(), total))
+            Some((filter_receipts(tab.get(), &data.rows, &query).len(), total))
         }
         _ => None,
     });
@@ -547,17 +550,17 @@ impl ConditionControls {
 #[component]
 pub fn ReceiptsSearchBar(
     store: ReceiptsStore,
-    tab: ReceiptsTab,
+    #[prop(into)] tab: Signal<ReceiptsTab>,
     #[prop(optional, default = "h-4 w-4")] icon_size: &'static str,
 ) -> impl IntoView {
     let search = store.search;
 
-    let display_rows = Memo::new(move |_| match store.tab_state(tab) {
+    let display_rows = Memo::new(move |_| match store.tab_state(tab.get()) {
         TabState::Ready(data) => data.rows.clone(),
         _ => Vec::new(),
     });
 
-    let categories = Memo::new(move |_| search_categories(tab, &display_rows.get()));
+    let categories = Memo::new(move |_| search_categories(tab.get(), &display_rows.get()));
     let years = Memo::new(move |_| categories.with(|c| c.years.clone()));
     let products = Memo::new(move |_| categories.with(|c| c.products.clone()));
     let accounts = Memo::new(move |_| categories.with(|c| c.accounts.clone()));
@@ -620,7 +623,7 @@ pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
     view! {
         <div class="receipts-mobile-bottom-section no-print lg:hidden" role="search" aria-label="検索">
             <div class="page-gutter">
-                <ReceiptsSearchBar store=store tab=tab.get() icon_size="h-5 w-5" />
+                <ReceiptsSearchBar store=store tab=tab icon_size="h-5 w-5" />
             </div>
         </div>
     }

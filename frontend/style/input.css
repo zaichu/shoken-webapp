@@ -918,14 +918,6 @@
     @apply py-2;
   }
 
-  .receipts-mobile-search {
-    @apply flex flex-col gap-2;
-  }
-
-  .receipts-mobile-search-meta {
-    @apply flex items-center justify-between gap-2;
-  }
-
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-2 focus:outline-text-deep;
   }

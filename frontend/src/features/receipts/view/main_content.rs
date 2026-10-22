@@ -213,7 +213,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
         // 検索欄は帯と表の間に固定で置く(読み込み中や空でも操作できるようにする)
         <SkeletonSearch>
             <div class="hidden lg:block" role="search" aria-label="取引明細の検索">
-                <ReceiptsSearchBar store=store tab=tab />
+                <ReceiptsSearchBar store=store tab=Signal::stored(tab) />
             </div>
         </SkeletonSearch>
         {move || match store.tab_state(tab) {
