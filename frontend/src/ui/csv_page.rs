@@ -94,6 +94,9 @@ pub fn CsvManagePage<S: CsvSource>(
     /// 保存済みカードの直下に置く追加の保存済みブロック(別種別の件数・削除など)
     #[prop(optional)]
     saved_extra: Option<AnyView>,
+    /// 対象・保存方式の行より上に置く区画(CSV 最新取得など)
+    #[prop(optional)]
+    top_extra: Option<AnyView>,
     /// 削除ボタンの文言。同じページに別種別の削除ボタンがあるとき種類が分かる名前を渡す
     #[prop(optional, into)]
     delete_button_label: Option<String>,
@@ -247,6 +250,7 @@ pub fn CsvManagePage<S: CsvSource>(
             action_bar_pc_top=true
         >
             <div class="flex flex-col gap-4">
+                {top_extra}
                 <p class="text-sm text-text-soft">
                     "対象: " <strong class="text-text">{subject}</strong>
                     <span class="mx-2" aria-hidden="true">

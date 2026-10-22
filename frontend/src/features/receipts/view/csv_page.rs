@@ -143,6 +143,7 @@ pub fn ReceiptsCsvPage() -> impl IntoView {
             subject=tab.label()
             back_href="/receipts"
             preview=view! { <ReceiptsCsvPreview store=store tab=tab /> }.into_any()
+            top_extra=view! { <crate::features::csv_sync::CsvSyncPanel /> }.into_any()
         />
     }
 }
