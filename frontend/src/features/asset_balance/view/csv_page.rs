@@ -115,6 +115,7 @@ pub fn AssetBalanceCsvPage() -> impl IntoView {
             }
             .into_any()
             saved_extra=view! { <FundSavedCard source=source /> }.into_any()
+            top_extra=view! { <crate::features::csv_sync::CsvSyncPanel /> }.into_any()
         />
     }
 }
