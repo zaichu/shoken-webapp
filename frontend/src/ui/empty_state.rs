@@ -41,7 +41,9 @@ pub fn EmptyState(
     #[prop(optional)] icon: Option<EmptyStateIcon>,
     #[prop(optional)] as_h1: bool,
     #[prop(into, optional)] class: Signal<String>,
-    #[prop(optional)] testid: Option<&'static str>,
+    /// テストから空状態卡片を拾うための識別子
+    #[prop(optional, default = "empty-state")]
+    testid: &'static str,
     #[prop(optional)] children: Option<Children>,
 ) -> impl IntoView {
     view! {
@@ -54,7 +56,7 @@ pub fn EmptyState(
                     format!("empty-state {extra}")
                 }
             }
-            data-testid=move || testid.unwrap_or("empty-state")
+            data-testid=testid
         >
             {icon.map(|icon| {
                 view! {

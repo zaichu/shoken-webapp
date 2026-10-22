@@ -54,8 +54,8 @@ test('片方のタブでログアウトするともう片方も未認証にな�
 
   await logoutViaUserMenu(pageA);
 
-  await expect(pageA.getByRole('button', { name: 'ログイン' })).toBeVisible();
-  await expect(pageB.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(pageA.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
+  await expect(pageB.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
   await expect.poll(() => deleteCount).toBe(1);
   await pageA.waitForTimeout(500);
   expect(deleteCount).toBe(1);
@@ -78,8 +78,9 @@ test('片方のタブでアカウント削除するともう片方も未認証�
     .getByRole('button', { name: '削除する' })
     .click();
 
-  await expect(pageA.getByRole('button', { name: 'ログイン' })).toBeVisible();
-  await expect(pageB.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  // セッションを失ったタブは /login に誘導され、もう片方はホームの案内にログインの操作が出る
+  await expect(pageA.getByRole('button', { name: 'Googleでログイン' })).toBeVisible();
+  await expect(pageB.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
 });
 
 test('BroadcastChannelが無い環境ではstorageイベントでログアウトを共有する', async ({ context }) => {
@@ -94,8 +95,8 @@ test('BroadcastChannelが無い環境ではstorageイベントでログアウト
 
   await logoutViaUserMenu(pageA);
 
-  await expect(pageA.getByRole('button', { name: 'ログイン' })).toBeVisible();
-  await expect(pageB.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(pageA.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
+  await expect(pageB.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
   await expect.poll(() => deleteCount).toBe(1);
 });
 
@@ -137,8 +138,8 @@ test('片方のタブで操作を続けるともう片方もログアウトせ�
   // どのタブでも操作が止まって 30 分経つとログアウトし、両方が未認証になる
   await pageA.clock.fastForward(29 * MINUTE);
   await expect.poll(() => deleteCount).toBe(1);
-  await expect(pageB.getByRole('button', { name: 'ログイン' })).toBeVisible();
-  await expect(pageA.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(pageB.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
+  await expect(pageA.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
 });
 
 test('未認証のタブの操作は最終操作時刻に記録されず、認証済みタブのログアウトを延ばさない', async ({
@@ -159,7 +160,7 @@ test('未認証のタブの操作は最終操作時刻に記録されず、認�
   await pageA.goto('/');
   await pageB.goto('/');
   await expect(pageA.getByRole('button', { name: 'メニュー' })).toBeVisible();
-  await expect(pageB.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(pageB.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
 
   await pageA.clock.fastForward(29 * MINUTE);
   const activityBefore = await pageA.evaluate(
@@ -173,5 +174,5 @@ test('未認証のタブの操作は最終操作時刻に記録されず、認�
   ).toBe(activityBefore);
 
   await pageA.clock.fastForward(2 * MINUTE);
-  await expect(pageA.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(pageA.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
 });

@@ -122,6 +122,7 @@ pub fn SearchSubmitButton(
                 }
             }
             attr:data-loading=move || loading().then_some("true")
+            // 送信はフォームの submit が行う(ボタン自身では検索しない)
             on_click=move |_| {}
         >
             {move || {
