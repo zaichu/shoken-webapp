@@ -45,9 +45,9 @@ pub fn PageFrame(
     /// ページ名の右に置く低頻度操作への文字リンク([CSV管理] など)
     #[prop(optional)]
     links: Option<Children>,
-    /// ページ名の隣主要内容(取引明細の種別タブなど)。スマホではページ名の下に回り込む
+    /// ページ名の横に出す件数(「15件」)
     #[prop(optional)]
-    title_row: Option<Children>,
+    title_count: Option<Signal<String>>,
     /// 画面下部に常設する操作帯(検索欄・適用・保存など)
     #[prop(optional)]
     action_bar: Option<AnyView>,
@@ -78,9 +78,15 @@ pub fn PageFrame(
             <header class="page-frame-head no-print">
                 <div class="page-gutter flex flex-wrap items-center gap-x-4 gap-y-2">
                     <h1 class="page-frame-title order-1 shrink-0">{title}</h1>
-                    <div class="order-3 w-full min-w-0 lg:order-2 lg:w-auto">
-                        {title_row.map(|row| row())}
-                    </div>
+                    {move || {
+                        title_count.map(|count| {
+                            view! {
+                                <span class="page-frame-count" data-testid="page-title-count">
+                                    {count}
+                                </span>
+                            }
+                        })
+                    }}
                     <div class="order-2 ml-auto flex shrink-0 items-center gap-3 lg:order-3">
                         {links.map(|links| links())}
                         <div class="lg:hidden">

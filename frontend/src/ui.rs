@@ -12,6 +12,7 @@ pub(crate) mod format;
 pub(crate) mod labels;
 pub(crate) mod login_prompt;
 pub(crate) mod page_frame;
+pub(crate) mod page_skeleton;
 pub(crate) mod search_controls;
 pub(crate) mod security_link;
 pub(crate) mod segmented;

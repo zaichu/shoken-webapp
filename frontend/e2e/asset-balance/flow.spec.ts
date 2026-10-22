@@ -261,13 +261,15 @@ test('銘柄名の一部で絞り込み解除できる', async ({ page }) => {
 
   await page.getByTestId('asset-search-input-pc').fill('エレクトロ');
 
-  await expect(page.getByTestId('asset-search-count-pc')).toContainText('1件 / 2件');
+  await expect(page.getByTestId('asset-search-count')).toContainText('1件 / 2件');
+  await expect(page.getByTestId('page-filtering-count')).toBeVisible();
   await expect(list.getByText('架空エレクトロニクス')).toBeVisible();
   await expect(list.getByText('架空自動車')).not.toBeVisible();
 
-  await page.getByTestId('asset-search-clear-pc').click();
+  await page.getByTestId('asset-search-clear').click();
 
-  await expect(page.getByTestId('asset-search-count-pc')).not.toBeVisible();
+  await expect(page.getByTestId('asset-search-count')).toContainText('2件 / 2件');
+  await expect(page.getByTestId('page-filtering-count')).toHaveCount(0);
   await expect(list.getByText('架空自動車')).toBeVisible();
 });
 

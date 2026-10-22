@@ -55,10 +55,10 @@ pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoV
             data-testid="receipt-summary-strip"
             role="region"
             aria-label="集計"
-            class="receipt-summary"
+            class="summary-band"
         >
-            <div class="receipt-summary-grid" data-testid="kpi-grid">
-                <dl class="receipt-summary-group receipt-summary-group-main">
+            <div class="summary-band-grid" data-testid="kpi-grid">
+                <dl class="summary-band-group summary-band-group-main">
                     {primary.map(|(label, value, tone)| {
                         view! {
                             <SummaryItem
@@ -70,8 +70,8 @@ pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoV
                         }
                     })}
                 </dl>
-                <div class="receipt-summary-group receipt-summary-group-sub">
-                    <dl class="receipt-summary-items">
+                <div class="summary-band-group summary-band-group-sub">
+                    <dl class="summary-band-items">
                         {secondary
                             .into_iter()
                             .map(|(label, value, tone)| {

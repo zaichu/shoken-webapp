@@ -3,6 +3,7 @@ use crate::features::receipts::dividend_info::{
 };
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::kind::dividend_totals;
+use crate::features::receipts::view::ReceiptsSearchBar;
 use crate::features::receipts::view::{ReceiptTable, SummaryStrip};
 use crate::features::receipts::{
     ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState, truncated_list_warning,
@@ -10,6 +11,8 @@ use crate::features::receipts::{
 use crate::session::use_session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::labels;
+use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError};
 use leptos::ev;
 use leptos::prelude::*;
@@ -125,6 +128,22 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
             Vec::new()
         }
     });
+    // 絞り込み中の件数。検索条件が無いときは注記に出さない
+    let filtered_count = Signal::derive(move || {
+        let (filtered, total) = match store.tab_state(tab) {
+            TabState::Ready(data) => (
+                filtered_rows.get().len(),
+                data.total.unwrap_or(data.rows.len()),
+            ),
+            _ => (0, 0),
+        };
+        FilteredCount {
+            filtered,
+            total,
+            filtering: !search.with(|state| state.query.is_empty()),
+        }
+    });
+    let basis = vec![String::from(labels::SUMMARY_SAME_TARGET)];
 
     view! {
         // 裏再取得の失敗は一覧を消さずに知らせる
@@ -149,6 +168,48 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
             }
             _ => ().into_any(),
         }}
+        // 帯と注記。読み込み中や空のときは出さない
+        {move || {
+            let ready = matches!(store.tab_state(tab), TabState::Ready(_)) && !is_empty.get();
+            if !ready {
+                return ().into_any();
+            }
+            view! {
+                <div class="receipts-sticky-top">
+                    <SkeletonSummary>
+                        <section id="receipts-summary">
+                            {move || {
+                                // 銘柄を指定したときは配当情報のカードに置き換える
+                                if show_dividend_info.get() {
+                                    view! {
+                                        <DividendSummarySection
+                                            store=dividend_info.unwrap()
+                                            totals=dividend_totals_val.get().unwrap()
+                                            expanded=summary_expanded
+                                            mobile_expanded=store.mobile_summary_expanded
+                                        />
+                                    }
+                                        .into_any()
+                                } else {
+                                    header
+                                        .get()
+                                        .map(|items| view! { <SummaryStrip items=items /> })
+                                        .into_any()
+                                }
+                            }}
+                        </section>
+                    </SkeletonSummary>
+                </div>
+                <SkeletonNote notes=Vec::new() filtered=filtered_count basis=basis.clone() />
+            }
+                .into_any()
+        }}
+        // 検索欄は帯と表の間に固定で置く(読み込み中や空でも操作できるようにする)
+        <SkeletonSearch>
+            <div class="hidden lg:block" role="search" aria-label="取引明細の検索">
+                <ReceiptsSearchBar store=store tab=tab />
+            </div>
+        </SkeletonSearch>
         {move || match store.tab_state(tab) {
             TabState::Failed(message) => {
                 let retry_store = store;
@@ -174,54 +235,18 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                 }
                     .into_any()
             }
-            TabState::Ready(_) if show_dividend_info.get() => {
-                view! {
-                    <div class="flex flex-col gap-3">
-                        <div class="receipts-sticky-top">
-                            <section id="receipts-summary">
-                                <DividendSummarySection
-                                    store=dividend_info.unwrap()
-                                    totals=dividend_totals_val.get().unwrap()
-                                    expanded=summary_expanded
-                                    mobile_expanded=store.mobile_summary_expanded
-                                />
-                            </section>
-                        </div>
-                        <section id="receipts-list">
-                            <ReceiptTable
-                                tab=tab
-                                rows=filtered_rows.get()
-                                all_rows=display_rows.get()
-                                query=search.with(|s| s.selected_queries.securities.clone())
-                                expanded_ids=store.expanded
-                                compact_mobile=true
-                            />
-                        </section>
-                    </div>
-                }
-                    .into_any()
-            }
             TabState::Ready(_) => {
                 view! {
-                    <div class="flex flex-col gap-3">
-                        <div class="receipts-sticky-top">
-                            <section id="receipts-summary">
-                                <Show when=move || header.get().is_some() fallback=|| ()>
-                                    {move || header.get().map(|h| view! { <SummaryStrip items=h /> })}
-                                </Show>
-                            </section>
-                        </div>
-                        <section id="receipts-list">
-                            <ReceiptTable
-                                tab=tab
-                                rows=filtered_rows.get()
-                                all_rows=display_rows.get()
-                                query=search.with(|s| s.selected_queries.securities.clone())
-                                expanded_ids=store.expanded
-                                compact_mobile=true
-                            />
-                        </section>
-                    </div>
+                    <section id="receipts-list">
+                        <ReceiptTable
+                            tab=tab
+                            rows=filtered_rows.get()
+                            all_rows=display_rows.get()
+                            query=search.with(|s| s.selected_queries.securities.clone())
+                            expanded_ids=store.expanded
+                            compact_mobile=true
+                        />
+                    </section>
                 }
                     .into_any()
             }

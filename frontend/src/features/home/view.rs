@@ -215,7 +215,7 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
     };
     view! {
         <section
-            class="asset-summary home-summary"
+            class="summary-band home-summary"
             role="region"
             aria-label="資産の概要"
             aria-busy=move || {
@@ -322,8 +322,8 @@ fn BandTiles(
         _ => None,
     };
     view! {
-        <div class="asset-summary-grid">
-            <dl class="asset-summary-group asset-summary-group-main">
+        <div class="summary-band-grid">
+            <dl class="summary-band-group summary-band-group-main">
                 <SummaryItem
                     label=MARKET_VALUE
                     value=market_text
@@ -335,11 +335,11 @@ fn BandTiles(
                     size=SummarySize::Secondary
                     note=profit_rate.unwrap_or_default()
                     tone=pnl_tone
-                    extra_class="asset-summary-item-pnl"
+                    extra_class="summary-band-item-pnl"
                 />
             </dl>
-            <div class="asset-summary-group asset-summary-group-sub">
-                <dl class="asset-summary-items">
+            <div class="summary-band-group summary-band-group-sub">
+                <dl class="summary-band-items">
                     <SummaryItem
                         label=ANNUAL_EXPECTED_DIVIDEND
                         value=dividend_text

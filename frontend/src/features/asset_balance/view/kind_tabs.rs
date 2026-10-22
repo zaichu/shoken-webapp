@@ -17,7 +17,7 @@ pub(crate) fn AssetKindTabs(
     };
     view! {
         <div
-            class="receipts-tab-list no-print"
+            class="page-tab-list no-print"
             role="tablist"
             aria-label="保有の種類"
             data-testid="asset-kind-tabs"
@@ -31,12 +31,12 @@ pub(crate) fn AssetKindTabs(
                             type="button"
                             role="tab"
                             aria-selected=move || selected().to_string()
-                            class="asset-kind-tab"
+                            class="page-tab"
                             data-testid=format!("asset-kind-tab-{}", item.value())
                             on:click=move |_| kind.set(item)
                         >
                             {item.label()}
-                            <span class="asset-kind-tab-count">{count(item)}</span>
+                            <span class="page-tab-count">{count(item)}</span>
                         </button>
                     }
                 })

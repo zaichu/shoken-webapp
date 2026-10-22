@@ -7,8 +7,8 @@ use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels::{ACCOUNT, DISTRIBUTION_COURSE};
 use crate::ui::search_controls::{
-    AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
-    SearchClearButton, SearchCount, SearchTag, SearchTextInput,
+    AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, ConditionRowEnd,
+    SearchBox, SearchClearButton, SearchCount, SearchTag, SearchTextInput,
 };
 use leptos::prelude::*;
 
@@ -179,7 +179,7 @@ pub(crate) fn AssetSearchBar(
 
     view! {
         <div class="no-print" role="search" aria-label="資産の検索">
-            // PC: タグ入力+件数+クリアを1つの箱に収める(取引明細と同じ構造)
+            // PC: タグ入力+条件を足す+件数を1つの段にまとめる(取引明細と同じ構造)
             <SearchBox class="hidden lg:flex">
                 <SearchTag
                     label=ACCOUNT
@@ -197,22 +197,6 @@ pub(crate) fn AssetSearchBar(
                     value=input_value
                     on_input=on_input
                 />
-                {move || {
-                    has_anything.get().then(|| {
-                        view! {
-                            <SearchCount
-                                filtered=move || search_count.get().0
-                                total=move || search_count.get().1
-                                testid="asset-search-count-pc"
-                            />
-                        }
-                    })
-                }}
-                <SearchClearButton
-                    disabled=move || !has_anything.get()
-                    testid="asset-search-clear-pc"
-                    on_clear=on_clear_all
-                />
             </SearchBox>
             // スマホ: 入力欄だけを一覧の上に常時出す
             <SearchBox class="lg:hidden">
@@ -223,36 +207,43 @@ pub(crate) fn AssetSearchBar(
                     on_input=on_input
                 />
             </SearchBox>
-            {(!conditions.is_empty())
-                .then(|| {
-                    view! {
-                        <AddConditionRow>
-                            {conditions.iter().map(|kind| {
-                                let node_ref = match kind {
-                                    ConditionKind::Account => controls.account_ref,
-                                    ConditionKind::Course => controls.course_ref,
-                                };
-                                condition_button(*kind, node_ref)
-                            }).collect_view()}
-                            {move || {
-                                controls.open.get().map(|kind| {
-                                    let options = match kind {
-                                        ConditionKind::Account => account_options,
-                                        ConditionKind::Course => course_options,
-                                    };
-                                    view! {
-                                        <AssetConditionPopover
-                                            kind=kind
-                                            search=search
-                                            options=options
-                                            on_close=move || controls.finish(kind)
-                                        />
-                                    }
-                                })
-                            }}
-                        </AddConditionRow>
-                    }
-                })}
+            <AddConditionRow show_label=!conditions.is_empty()>
+                {conditions.iter().map(|kind| {
+                    let node_ref = match kind {
+                        ConditionKind::Account => controls.account_ref,
+                        ConditionKind::Course => controls.course_ref,
+                    };
+                    condition_button(*kind, node_ref)
+                }).collect_view()}
+                {move || {
+                    controls.open.get().map(|kind| {
+                        let options = match kind {
+                            ConditionKind::Account => account_options,
+                            ConditionKind::Course => course_options,
+                        };
+                        view! {
+                            <AssetConditionPopover
+                                kind=kind
+                                search=search
+                                options=options
+                                on_close=move || controls.finish(kind)
+                            />
+                        }
+                    })
+                }}
+                <ConditionRowEnd>
+                    <SearchCount
+                        filtered=move || search_count.get().0
+                        total=move || search_count.get().1
+                        testid="asset-search-count"
+                    />
+                    <SearchClearButton
+                        disabled=move || !has_anything.get()
+                        testid="asset-search-clear"
+                        on_clear=on_clear_all
+                    />
+                </ConditionRowEnd>
+            </AddConditionRow>
         </div>
     }
 }

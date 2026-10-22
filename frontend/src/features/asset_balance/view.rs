@@ -235,24 +235,15 @@ pub fn AssetBalancePage() -> impl IntoView {
         funds.set(None);
         load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
     };
-    let pc_subtitle = move || match sort_state.kind.get() {
+    let pc_count = move || match sort_state.kind.get() {
         AssetKind::Stock => resolved_view().map(|view| summary::list_subtitle(&view)),
         AssetKind::Fund => resolved_fund_view().map(|view| summary::fund_subtitle(&view)),
         AssetKind::All => {
             summary::merged_subtitle(resolved_view().as_ref(), resolved_fund_view().as_ref())
         }
     };
-    let title_row: Children = Box::new(move || {
-        view! {
-            <span
-                class="hidden self-center text-sm font-normal text-text-muted lg:inline"
-                data-testid="asset-subtitle"
-            >
-                {move || pc_subtitle().unwrap_or_default()}
-            </span>
-        }
-        .into_any()
-    });
+    // 見出しの横の件数。現在のタブの全件数
+    let title_count = Signal::derive(move || pc_count().unwrap_or_default());
     let csv_link: Children = Box::new(move || {
         view! {
             <span class="flex items-center gap-2">
@@ -263,7 +254,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         .into_any()
     });
     view! {
-        <PageFrame title="資産管理" full_bleed=true title_row=title_row action_bar=action_bar action_bar_mobile_only=true links=csv_link>
+        <PageFrame title="資産管理" title_count=title_count full_bleed=true action_bar=action_bar action_bar_mobile_only=true links=csv_link>
         <div
             class="flex flex-1 flex-col lg:mt-2 lg:flex-none"
             data-testid="assetbalance-workspace"
@@ -283,13 +274,13 @@ pub fn AssetBalancePage() -> impl IntoView {
                 }
             }
         >
-            <div class="content-gutter flex flex-1 flex-col gap-0 lg:gap-3.5" data-testid="assetbalance-main-stage">
+            <div class="content-gutter flex flex-1 flex-col gap-0" data-testid="assetbalance-main-stage">
                     {move || {
                         data_ops
                             .with(|ops| ops.refresh_error.clone())
                             .map(|message| {
                                 view! {
-                                    <div class="no-print px-4 lg:px-0">
+                                    <div class="no-print mb-3 px-4 lg:px-0">
                                         <Alert variant=AlertVariant::Danger>
                                             <strong>"エラー:"</strong>
                                             " "
@@ -302,7 +293,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     {move || {
                         resolved_view().and_then(|view| view.warning).map(|message| {
                             view! {
-                                <div class="no-print px-4 lg:px-0">
+                                <div class="no-print mb-3 px-4 lg:px-0">
                                     <Alert variant=AlertVariant::Warning>
                                         <strong>"注意:"</strong>
                                         " "
@@ -315,7 +306,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     {move || {
                         resolved_fund_view().and_then(|view| view.warning).map(|message| {
                             view! {
-                                <div class="no-print px-4 lg:px-0">
+                                <div class="no-print mb-3 px-4 lg:px-0">
                                     <Alert variant=AlertVariant::Warning>
                                         <strong>"注意:"</strong>
                                         " "

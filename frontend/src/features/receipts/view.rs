@@ -6,7 +6,7 @@ mod summary;
 mod table;
 mod tabs;
 
-pub use action_bar::{ReceiptsMobileBottomSection, ReceiptsPcSearchBar};
+pub use action_bar::{ReceiptsMobileBottomSection, ReceiptsSearchBar};
 pub use csv_page::ReceiptsCsvPage;
 pub use main_content::ReceiptsMainContent;
 pub use summary::SummaryStrip;
@@ -15,7 +15,9 @@ pub use tabs::{ReceiptsTabButton, TabPanel};
 
 use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
+use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
+use crate::ui::page_skeleton::SkeletonTabs;
 use leptos::prelude::*;
 
 pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
@@ -42,11 +44,16 @@ pub fn ReceiptsPage() -> impl IntoView {
         }
         .into_any()
     });
-    // スマホはヘッダーの下、PC は見出しの横に置く
-    let tabs: Children = Box::new(move || {
+    // 見出しの横の件数。現在のタブの全件数
+    let title_count = Signal::derive(move || match store.tab_state(active_tab.get()) {
+        TabState::Ready(data) => labels::count(data.total.unwrap_or(data.rows.len())),
+        TabState::Loading | TabState::Failed(_) => String::new(),
+    });
+    // タブはページ名の下の行に置く(資産管理と同じ順序)
+    let tabs = move || {
         view! {
-            <nav class="no-print" aria-label="種別">
-                <div class="receipts-tab-list" role="tablist">
+            <nav aria-label="種別">
+                <div class="page-tab-list" role="tablist">
                     {ReceiptsTab::ALL
                         .iter()
                         .copied()
@@ -58,10 +65,10 @@ pub fn ReceiptsPage() -> impl IntoView {
             </nav>
         }
         .into_any()
-    });
+    };
 
     view! {
-        <PageFrame title="取引明細" links=csv_link title_row=tabs full_bleed=true mobile_inner_scroll=true>
+        <PageFrame title="取引明細" title_count=title_count links=csv_link full_bleed=true mobile_inner_scroll=true>
             <div
                 class="flex flex-1 flex-col min-h-0 lg:flex-none"
                 aria-busy=move || {
@@ -72,10 +79,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     }
                 }
             >
-                <div class="content-gutter no-print hidden shrink-0 py-4 lg:block">
-                    <ReceiptsPcSearchBar store=store active_tab=active_tab />
-                </div>
-
+                <SkeletonTabs>{tabs}</SkeletonTabs>
                 <div
                     class="content-gutter flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible"
                     data-testid="receipts-workspace"

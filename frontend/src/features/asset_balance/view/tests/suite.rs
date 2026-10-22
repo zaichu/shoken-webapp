@@ -911,41 +911,53 @@ fn fund_saved_row(
 
 #[test]
 fn fund_nav_note_distinguishes_fetched_failed_and_not_fetched_yet() {
-    // 取得できたとき: 最終更新の時刻と取得件数
-    let fetched = super::summary::fund_nav_note(&FundNavStatus {
-        updated_at: Some("2026-10-20 23:02".to_string()),
-        fetched_count: 30,
-        failed_count: 0,
-        failure_reason: None,
-    });
+    // 取得できたとき: 最終更新の時刻と対象・取得件数
+    let fetched = super::summary::fund_nav_note(
+        &FundNavStatus {
+            updated_at: Some("2026-10-20 23:02".to_string()),
+            fetched_count: 30,
+            failed_count: 0,
+            failure_reason: None,
+        },
+        0,
+    );
     assert!(fetched.contains("10/20 23:02"), "{fetched}");
-    assert!(fetched.contains("30"), "{fetched}");
+    assert!(fetched.contains("対象 30件"), "{fetched}");
+    assert!(fetched.contains("取得 30件"), "{fetched}");
     assert!(!fetched.contains("失敗"), "{fetched}");
 
     // 取得できなかったとき: 失敗件数と理由を出す
-    let failed = super::summary::fund_nav_note(&FundNavStatus {
-        updated_at: Some("2026-10-20 23:02".to_string()),
-        fetched_count: 0,
-        failed_count: 2,
-        failure_reason: Some("HTTP 403".to_string()),
-    });
+    let failed = super::summary::fund_nav_note(
+        &FundNavStatus {
+            updated_at: Some("2026-10-20 23:02".to_string()),
+            fetched_count: 0,
+            failed_count: 2,
+            failure_reason: Some("HTTP 403".to_string()),
+        },
+        5,
+    );
     assert!(failed.contains("10/20 23:02"), "{failed}");
-    assert!(failed.contains("2"), "{failed}");
+    assert!(failed.contains("失敗 2件"), "{failed}");
     assert!(failed.contains("HTTP 403"), "{failed}");
+    assert!(failed.contains("他社のファンド 5件"), "{failed}");
 
     // 一部だけ取得できたとき: 取得件数と失敗件数の両方を出す
-    let mixed = super::summary::fund_nav_note(&FundNavStatus {
-        updated_at: Some("2026-10-20 23:02".to_string()),
-        fetched_count: 28,
-        failed_count: 2,
-        failure_reason: Some("HTTP 403".to_string()),
-    });
-    assert!(mixed.contains("28"), "{mixed}");
-    assert!(mixed.contains("2"), "{mixed}");
+    let mixed = super::summary::fund_nav_note(
+        &FundNavStatus {
+            updated_at: Some("2026-10-20 23:02".to_string()),
+            fetched_count: 28,
+            failed_count: 2,
+            failure_reason: Some("HTTP 403".to_string()),
+        },
+        0,
+    );
+    assert!(mixed.contains("対象 30件"), "{mixed}");
+    assert!(mixed.contains("取得 28件"), "{mixed}");
+    assert!(mixed.contains("失敗 2件"), "{mixed}");
     assert!(mixed.contains("HTTP 403"), "{mixed}");
 
     // まだ取得されていないとき: 件数を出さず未取得の文言だけを出す
-    let not_fetched = super::summary::fund_nav_note(&FundNavStatus::default());
+    let not_fetched = super::summary::fund_nav_note(&FundNavStatus::default(), 0);
     assert!(not_fetched.contains("まだ"), "{not_fetched}");
     assert!(!not_fetched.contains("件"), "{not_fetched}");
 }
@@ -953,19 +965,25 @@ fn fund_nav_note_distinguishes_fetched_failed_and_not_fetched_yet() {
 #[test]
 fn fund_nav_note_shows_three_states_differently() {
     // 3状態はそれぞれ別の文言になる(取り違えても同じ表示にしない)
-    let fetched = super::summary::fund_nav_note(&FundNavStatus {
-        updated_at: Some("2026-10-20 23:02".to_string()),
-        fetched_count: 3,
-        failed_count: 0,
-        failure_reason: None,
-    });
-    let failed = super::summary::fund_nav_note(&FundNavStatus {
-        updated_at: Some("2026-10-20 23:02".to_string()),
-        fetched_count: 0,
-        failed_count: 3,
-        failure_reason: Some("HTTP 403".to_string()),
-    });
-    let not_fetched = super::summary::fund_nav_note(&FundNavStatus::default());
+    let fetched = super::summary::fund_nav_note(
+        &FundNavStatus {
+            updated_at: Some("2026-10-20 23:02".to_string()),
+            fetched_count: 3,
+            failed_count: 0,
+            failure_reason: None,
+        },
+        0,
+    );
+    let failed = super::summary::fund_nav_note(
+        &FundNavStatus {
+            updated_at: Some("2026-10-20 23:02".to_string()),
+            fetched_count: 0,
+            failed_count: 3,
+            failure_reason: Some("HTTP 403".to_string()),
+        },
+        0,
+    );
+    let not_fetched = super::summary::fund_nav_note(&FundNavStatus::default(), 0);
     assert_ne!(fetched, failed);
     assert_ne!(fetched, not_fetched);
     assert_ne!(failed, not_fetched);

@@ -173,7 +173,7 @@ test.describe('資産管理のタブ', () => {
       // 帯の主要3項目(評価額・損益・前日比)が2タブで同じ
       bandLabels.push(
         await band
-          .locator('.asset-summary-group-main dt, .asset-summary-item-daily dt')
+          .locator('.summary-band-group-main dt, .summary-band-item-daily dt')
           .allTextContents(),
       );
 
