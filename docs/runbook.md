@@ -156,6 +156,12 @@ git fetch origin --prune
 
 ## よくあるトラブル
 
+### lane が failed になったとき
+
+状態は `$LANE_REQUESTS_DIR/lane-state/<repo>-<PR>.json` に保存され、`last_error` に失敗した理由が入ります。
+原因が実装者の完了条件を満たしていないことなら、不足している作業を実装者に依頼して lane を再実行します。
+詳細は agent-config の pr-review スキルにある `references/lane-operations.md` を参照してください。
+
 ### DB 接続失敗
 
 ```bash
