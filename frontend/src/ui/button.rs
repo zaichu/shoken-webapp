@@ -3,6 +3,7 @@ use leptos::prelude::*;
 
 /// features/ では <button> を直書きしない。種類は enum の props で受け、
 /// 誤った組み合わせを型で防ぐ。見た目の変更は各 variant のクラスで行う。
+/// ボタンは主(Primary=塗り)・副(Secondary=枠線)・無効(disabled prop=薄い・押せない)の3種。
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ButtonVariant {
@@ -18,10 +19,6 @@ pub enum ButtonVariant {
     Ghost,
     /// AI プロンプトのコピーなど細い枠の全幅ボタン
     Prompt,
-    /// ログイン画面の輪郭ボタン
-    Login,
-    /// 検索フォームの送信ボタン(submit と一緒に使う)
-    SearchSubmit,
     /// 読み込みエラーの再読み込み(独自ベース)
     Retry,
     /// メニュー項目(role="menuitem" と一緒に使う)
@@ -82,8 +79,6 @@ impl ButtonVariant {
             ),
             Self::Ghost => "text-sm text-text-deep hover:underline".to_string(),
             Self::Prompt => "review-prompt-button".to_string(),
-            Self::Login => "login-button".to_string(),
-            Self::SearchSubmit => "search-submit".to_string(),
             Self::Retry => {
                 "inline-flex min-h-11 items-center justify-center rounded-md border border-ink bg-ink px-4 text-sm font-bold text-page transition-colors hover:bg-ink-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2".to_string()
             }

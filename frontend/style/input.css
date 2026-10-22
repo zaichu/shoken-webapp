@@ -321,10 +321,6 @@
     @apply rounded-xl border border-ink/10 bg-surface/90 shadow-card print:border-black print:shadow-none;
   }
 
-  .login-card {
-    @apply w-full rounded-xl border border-ink/10 bg-surface/90 shadow-md print:border-black print:shadow-none;
-  }
-
   .table-card {
     @apply overflow-clip rounded-xl border border-ink/10 bg-surface/95 shadow-elevation-2 print:border-black print:shadow-none;
   }
@@ -333,8 +329,9 @@
     @apply mb-3 rounded-xl border border-ink/10 bg-surface/95 px-4 py-3 shadow-elevation-1 max-sm:px-3;
   }
 
+  /* 空状態・案内のカード。ログイン案内・銘柄検索の空状態・ホーム(ログアウト中)が同じ部品を使う */
   .empty-state {
-    @apply flex flex-col items-center justify-center rounded-xl border border-dashed border-border-strong bg-surface-sunken/70 px-4 py-8 text-center;
+    @apply flex flex-col items-center justify-center rounded-xl border border-border-strong bg-surface px-4 py-8 text-center;
   }
 
   .review-prompt-button {
@@ -367,15 +364,6 @@
 
   .group-card-trigger {
     @apply flex min-h-11 w-full items-center gap-2 bg-surface-raised px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
-  }
-
-  .login-button {
-    @apply inline-flex w-full items-center justify-center gap-2 rounded-md border border-night px-4 py-2 text-sm font-semibold text-text-deep transition-colors hover:bg-night hover:text-text-inverse;
-  }
-
-  .search-submit {
-    /* ink はダークで明転するため、ink 塗り面の上の文字は text-inverse(白固定)ではなく page 色にする */
-    @apply inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-ink bg-ink px-5 text-sm font-bold text-page shadow-edge-lit transition-[background-color,border-color,color,box-shadow,transform] hover:bg-ink-hover active:bg-ink focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .stock-link-button {
@@ -513,16 +501,18 @@
     @apply inline-flex min-h-11 items-center gap-1 rounded-full border border-brand-text bg-surface px-2.5 text-xs font-medium text-text-deep;
   }
 
-  /* 検索欄(タグ入力型): 今の条件のタグ・銘柄入力・件数・すべてクリアを1つの面にまとめる */
+  /* 検索欄(銘柄検索・資産管理・取引明細で共有)。
+     虫眼鏡アイコン・入力欄・実行ボタン・条件タグを1つの面にまとめる */
+  .search-field {
+    @apply flex w-full flex-wrap items-center gap-1.5 rounded-lg border border-border-strong bg-surface p-1.5 focus-within:border-accent-strong focus-within:ring-2 focus-within:ring-accent-bright/20;
+  }
+
+  /* PC の検索欄の置き場所(小窓の座標の基準にする) */
   .pc-search-area {
     @apply relative mb-4;
   }
 
-  .receipts-search-box {
-    @apply flex flex-wrap items-center gap-1.5 rounded-lg border border-border-strong bg-surface p-1.5 focus-within:border-accent-strong focus-within:ring-2 focus-within:ring-accent-bright/20;
-  }
-
-  .receipts-search-input {
+  .search-field-input {
     /* iPhone Safari は 16px 未満の入力欄でフォーカス時に自動ズームする。
        下部操作帯は lg 未満で出続けるため、16px のまま lg まで保つ */
     @apply block h-11 min-w-0 flex-1 rounded-md border-0 bg-surface px-2 text-base font-medium text-ink shadow-none placeholder:text-text-faint focus:outline-none lg:h-9 lg:text-sm;
@@ -1045,20 +1035,6 @@
     @apply rounded p-0.5 text-icon opacity-100 group-hover:text-icon-hover group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100;
   }
 
-  .search-input-frame {
-    @apply flex w-full items-stretch rounded-lg border border-border-strong bg-surface p-1 shadow-inner shadow-fill/80 focus-within:border-accent-strong focus-within:ring-2 focus-within:ring-accent-bright/20;
-  }
-
-  .search-input {
-    /* iPhone Safari は 16px 未満の入力欄でフォーカス時に自動ズームする */
-    @apply block h-11 w-full rounded-l-md border-0 border-border-strong bg-surface px-3 py-2 text-base font-medium text-ink shadow-none transition-[border-color,box-shadow,background-color] placeholder:text-text-faint focus:border-accent-strong focus:outline-none focus:ring-2 focus:ring-accent-bright/25 sm:text-sm;
-  }
-
-  .asset-search-input {
-    /* iPhone Safari は 16px 未満の入力欄でフォーカス時に自動ズームするため常に 16px */
-    @apply block h-11 w-full min-w-0 flex-1 appearance-none rounded-md border-0 bg-surface px-3 py-2 text-base font-medium text-ink shadow-none placeholder:text-text-faint focus:outline-none;
-  }
-
   .asset-search-count {
     @apply mt-1.5 px-1 text-right text-xs font-medium text-text-subtle;
   }
@@ -1490,14 +1466,6 @@
     @apply overflow-clip bg-surface lg:rounded-lg lg:border lg:border-border;
   }
 
-  .asset-pc-toolbar {
-    @apply hidden lg:flex items-center gap-3 px-3.5 py-2.5 border-b border-border;
-  }
-
-  .asset-pc-toolbar .search-input {
-    @apply h-7;
-  }
-
   /* スマホ下部の操作帯。絞り込みの開閉・並べ替え項目・昇順/降順を同じ段に置く */
   .asset-mobile-bar {
     @apply flex flex-col gap-2 py-2;
@@ -1806,13 +1774,6 @@
   background-repeat: no-repeat;
   background-position: .55rem center;
   background-size: .9rem;
-}
-
-/* type=search のネイティブ装飾は自前の × ボタンに任せる */
-.asset-search-input::-webkit-search-cancel-button,
-.asset-search-input::-webkit-search-decoration {
-  -webkit-appearance: none;
-  appearance: none;
 }
 
 
