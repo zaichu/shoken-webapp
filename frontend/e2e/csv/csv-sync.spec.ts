@@ -210,7 +210,12 @@ function emitAllCsvs(page: Page) {
 // リセットを再現するため)
 async function mockSyncApis(
   page: Page,
-  options: { assetSavedTotal?: number; heldPreview?: { kind: string; gate: Promise<void> } } = {},
+  options: {
+    assetSavedTotal?: number;
+    heldPreview?: { kind: string; gate: Promise<void> };
+    // その種類の最初の import POST だけを gate が解くまで保留する(分割送信の途中を再現するため)
+    heldImport?: { kind: string; gate: Promise<void> };
+  } = {},
 ) {
   let seq = 0;
   const asDbRow = (row: Record<string, unknown>) => {
@@ -249,8 +254,13 @@ async function mockSyncApis(
       }
       return route.fulfill(json({ total_rows: 1, valid_rows: 1, errors: [], rows: [] }));
     });
-    await page.route(fixture.importPath, (route) => {
+    let importHeld = false;
+    await page.route(fixture.importPath, async (route) => {
       calls.import.push(fixture.kind);
+      if (options.heldImport?.kind === fixture.kind && !importHeld) {
+        importHeld = true;
+        await options.heldImport.gate;
+      }
       const rows = db.get(fixture.kind);
       if (rows) rows.push(asDbRow(fixture.row));
       return route.fulfill(json({ inserted: 1, skipped: 0, errors: [] }));
@@ -405,6 +415,54 @@ test.describe('CSV 最新取得', () => {
     // preview の応答が戻っても旧セッションの取り込みは送らない
     await page.waitForTimeout(500);
     expect(calls.import).toEqual([]);
+  });
+
+  test('分割送信の途中でログアウトすると残りのチャンクは送らない', async ({ page }) => {
+    let loggedIn = true;
+    await page.route(/\/api\/v1\/session$/, (route) => {
+      if (route.request().method() === 'DELETE') {
+        loggedIn = false;
+        return route.fulfill(json({ message: 'ok' }));
+      }
+      return route.fulfill(
+        loggedIn
+          ? json(USER)
+          : { status: 401, contentType: 'application/json', body: '{"message":"unauthorized"}' },
+      );
+    });
+    let releaseImport: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      releaseImport = resolve;
+    });
+    const calls = await mockSyncApis(page, { heldImport: { kind: 'dividend', gate } });
+    await mockExtension(page);
+    await page.goto('/receipts/csv?kind=dividend');
+    await page.getByTestId('csv-sync-button').click();
+    // 追加系の取り込みは500行ごとの分割送信(2チャンク目が残る形にする)
+    const dividendCsv =
+      '入金日,商品,口座,銘柄\n' +
+      Array.from({ length: 501 }, (_, i) => `2026/10/01,国内株式,特定,${SECRET_MARK}${i}`).join(
+        '\n',
+      ) +
+      '\n';
+    await emitMessage(page, {
+      type: 'result',
+      csvs: [
+        { kind: 'dividend', content: dividendCsv, fetchedAt: '2026-10-23T00:00:00Z' },
+      ],
+      failures: [],
+    });
+
+    // 1チャンク目の import が応答待ちの間にログアウトする
+    await expect.poll(() => calls.import.includes('dividend')).toBe(true);
+    await page.getByRole('button', { name: /テストユーザーのアカウントメニュー/ }).click();
+    await page.getByRole('menuitem', { name: 'ログアウト' }).click();
+    await expect(page.getByTestId('csv-sync-status')).toHaveCount(0);
+
+    releaseImport();
+    // 1チャンク目の応答が戻っても2チャンク目以降は送らない
+    await page.waitForTimeout(500);
+    expect(calls.import).toEqual(['dividend']);
   });
 
   test('安全装置で取り込めない CSV は理由を出して取り込まない', async ({ page }) => {

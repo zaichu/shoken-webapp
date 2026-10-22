@@ -39,6 +39,9 @@ const AUTH_RETRY_DELAY_MULTIPLIER: u64 = 1;
 pub enum ApiError {
     Network,
     Timeout,
+    /// 呼び出し側の継続条件が切れて送信前に中断した(送っていないので再送してよいが、
+    /// 中断理由の解消は呼び出し側が管理する)
+    Cancelled,
     Http {
         status: u16,
         // 400 ではバリデーション理由が入る。取れない場合は既定文に倒す
@@ -64,7 +67,7 @@ impl ApiError {
         match self {
             ApiError::Network | ApiError::Timeout => true,
             ApiError::Http { status, .. } => *status >= 500,
-            ApiError::Parse => false,
+            ApiError::Cancelled | ApiError::Parse => false,
         }
     }
 
@@ -74,6 +77,7 @@ impl ApiError {
             ApiError::Timeout => {
                 "リクエストがタイムアウトしました。もう一度お試しください".to_string()
             }
+            ApiError::Cancelled => "処理を中断しました".to_string(),
             ApiError::Parse => {
                 "銘柄情報の取得に失敗しました。時間をおいて再度お試しください。".to_string()
             }
@@ -95,6 +99,7 @@ impl ApiError {
         match self {
             ApiError::Network => "ネットワークエラーが発生しました".to_string(),
             ApiError::Timeout => "リクエストがタイムアウトしました".to_string(),
+            ApiError::Cancelled => "処理を中断しました".to_string(),
             ApiError::Parse => "応答の解析に失敗しました".to_string(),
             ApiError::Http {
                 status,

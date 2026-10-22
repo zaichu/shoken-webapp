@@ -10,7 +10,7 @@ use crate::features::asset_balance::{
     IMPORT_PATH, LIST_PATH, PREVIEW_PATH,
 };
 use crate::features::receipts::{ReceiptsTab, chunking_for};
-use crate::support::csv_flow::{CsvChunking, preview_csv, upload_csv};
+use crate::support::csv_flow::{CsvChunking, preview_csv, upload_csv_while};
 use leptos::prelude::*;
 
 /// 種類ごとの取り込み経路。パス・分割・保存方式は既存の CSV 管理の定義そのまま
@@ -195,8 +195,14 @@ async fn import_csv(
             return Outcome::Stale;
         }
     }
-    match upload_csv(plan.import_path, &file, plan.chunking).await {
+    match upload_csv_while(plan.import_path, &file, plan.chunking, move || {
+        store.alive(epoch, generation)
+    })
+    .await
+    {
         Ok(result) => Outcome::Imported(result),
+        // 中断(世代切替)で返った分は旧実行の結果なので画面に出さない
+        Err(_) if !store.alive(epoch, generation) => Outcome::Stale,
         Err(error) => Outcome::Failed(error.message()),
     }
 }

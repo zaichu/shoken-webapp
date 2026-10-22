@@ -60,6 +60,7 @@ fn csv_errors_use_api_error_messages() {
     for (error, expected) in [
         (ApiError::Network, "ネットワークエラーが発生しました"),
         (ApiError::Timeout, "リクエストがタイムアウトしました"),
+        (ApiError::Cancelled, "処理を中断しました"),
         (ApiError::Parse, "応答の解析に失敗しました"),
         (ApiError::http(400), "リクエストが不正です"),
         (ApiError::http(401), "認証が必要です"),
