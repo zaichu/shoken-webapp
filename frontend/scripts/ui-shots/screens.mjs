@@ -15,7 +15,9 @@ import {
 } from './data.mjs';
 
 export const VIEWPORTS = [
+  { key: 'pc-1024', width: 1024, height: 768, label: 'PC 1024×768' },
   { key: 'pc-1280', width: 1280, height: 800, label: 'PC 1280×800' },
+  { key: 'pc-1440', width: 1440, height: 900, label: 'PC 1440×900' },
   { key: 'pc-1920', width: 1920, height: 1080, label: 'PC 1920×1080' },
   { key: 'sp-390', width: 390, height: 844, label: 'スマホ 390×844' },
 ];
