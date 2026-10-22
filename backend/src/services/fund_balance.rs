@@ -94,9 +94,10 @@ const NAV_STATUS_SQL: &str = "SELECT MAX(fp.updated_at) AS updated_at, \
      COUNT(DISTINCT fc.association_fund_cd) \
          FILTER (WHERE fp.nav IS NOT NULL AND fp.fetch_error IS NULL) AS fetched_count, \
      COUNT(DISTINCT fc.association_fund_cd) \
-         FILTER (WHERE fp.fetch_error IS NOT NULL) AS failed_count \
+         FILTER (WHERE fp.fetch_error IS NOT NULL) AS failed_count, \
+     COUNT(DISTINCT fb.normalized_fund_name) AS fund_count \
      FROM fund_balances fb \
-     JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name \
+     LEFT JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name \
      LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd \
      WHERE fb.user_id = $1";
 
@@ -114,6 +115,7 @@ struct NavStatusRow {
     updated_at: Option<DateTime<Utc>>,
     fetched_count: i64,
     failed_count: i64,
+    fund_count: i64,
 }
 
 impl crate::db::FromRow for NavStatusRow {
@@ -122,6 +124,7 @@ impl crate::db::FromRow for NavStatusRow {
             updated_at: row.try_get("updated_at")?,
             fetched_count: row.try_get("fetched_count")?,
             failed_count: row.try_get("failed_count")?,
+            fund_count: row.try_get("fund_count")?,
         })
     }
 }
@@ -143,6 +146,7 @@ async fn fetch_nav_status(pool: &Db, user_id: UserId) -> Result<FundNavStatus, A
         updated_at: row.updated_at.map(jst_minute),
         fetched_count: row.fetched_count,
         failed_count: row.failed_count,
+        fund_count: row.fund_count,
         failure_reason,
     })
 }

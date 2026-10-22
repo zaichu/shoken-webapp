@@ -2851,6 +2851,11 @@
             "format": "int64",
             "description": "共有値を取得できたファンド数"
           },
+          "fund_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "保有ファンドの総数(対象・対象外の分母。口座違いの同名ファンドは1つに数える)"
+          },
           "updated_at": {
             "type": [
               "string",

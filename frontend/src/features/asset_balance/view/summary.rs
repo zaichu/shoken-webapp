@@ -99,9 +99,15 @@ pub(crate) fn fund_nav_note(status: &FundNavStatus, csv_only: usize) -> String {
 }
 
 /// 自動更新の対象外のファンド数(他社のファンド)。
-/// 対象・取得・失敗はファンド単位(nav_status は重複しないファンド数)なので、
-/// こちらも重複しないファンド名で数え、取得に失敗したファンドの分を除く
+/// 行の price_source は失敗時の前回値や CSV 再取込で変わるため数えず、
+/// 全ファンド数 − 対象(取得+失敗) で求める。API 集計が無いときだけ
+/// CSV 由来の行の重複しないファンド数を使う
 pub(crate) fn fund_csv_only_count(view: &ResolvedFundBalance) -> usize {
+    if let Some(summary) = view.summary.as_ref() {
+        let status = &summary.nav_status;
+        let target = (status.fetched_count + status.failed_count).max(0) as usize;
+        return (status.fund_count.max(0) as usize).saturating_sub(target);
+    }
     let mut csv_funds: Vec<&str> = Vec::new();
     for row in view
         .rows
@@ -113,12 +119,7 @@ pub(crate) fn fund_csv_only_count(view: &ResolvedFundBalance) -> usize {
             csv_funds.push(name);
         }
     }
-    let failed = view
-        .summary
-        .as_ref()
-        .map(|summary| summary.nav_status.failed_count.max(0) as usize)
-        .unwrap_or(0);
-    csv_funds.len().saturating_sub(failed)
+    csv_funds.len()
 }
 
 /// 投資信託タブの注記。自動更新の状況・前日比の件数・最後の CSV 取り込みを

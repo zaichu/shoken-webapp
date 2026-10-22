@@ -131,8 +131,9 @@ async function setupMocks(page: Page) {
           pending_nav_count: 0,
           nav_status: {
             updated_at: '2026-10-20 18:05',
-            fetched_count: FUNDS.length,
+            fetched_count: 1,
             failed_count: 0,
+            fund_count: FUNDS.length,
             failure_reason: null,
           },
         },

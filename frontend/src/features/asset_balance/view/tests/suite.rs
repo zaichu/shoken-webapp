@@ -911,13 +911,14 @@ fn fund_saved_row(
 
 #[test]
 fn fund_csv_only_count_counts_distinct_funds_and_stays_consistent() {
-    // 口座違いの同じファンドが2行あるとき、対象外はファンド単位で1件と数える。
-    // 対象(取得+失敗)と対象外を合わせると全ファンド数になる
+    // 対象外は全ファンド数 − 対象(取得+失敗)で求める。行の price_source に
+    // 依らないので、失敗後に前回値が残った 'api' の行や、対象ファンドへの
+    // CSV 再取込で 'csv' になった行があっても数がずれない
     let resolved = ResolvedFundBalance {
         rows: vec![
             fund_saved_row("ファンドA", "api", true, Some(100), "2026-10-17"),
-            fund_saved_row("ファンドB", "csv", true, Some(50), "2026-10-10"),
-            fund_saved_row("ファンドB", "csv", true, Some(50), "2026-10-10"),
+            fund_saved_row("ファンドB", "api", true, Some(50), "2026-10-17"),
+            fund_saved_row("ファンドC", "csv", true, Some(30), "2026-10-10"),
             fund_saved_row("ファンドC", "csv", true, Some(30), "2026-10-10"),
         ],
         total: 4,
@@ -932,29 +933,21 @@ fn fund_csv_only_count_counts_distinct_funds_and_stays_consistent() {
             nav_status: FundNavStatus {
                 updated_at: Some("2026-10-20 23:02".to_string()),
                 fetched_count: 1,
-                failed_count: 0,
-                failure_reason: None,
-            },
-        }),
-    };
-    let csv_only = super::summary::fund_csv_only_count(&resolved);
-    // 対象1ファンド + 対象外2ファンド = 全3ファンド(行は4)
-    assert_eq!(csv_only, 2);
-
-    // 自動更新に失敗したファンドは CSV 由来の行になるが「他社」ではないので除く
-    let with_failed = ResolvedFundBalance {
-        summary: Some(crate::api::dto::FundBalanceSummary {
-            nav_status: FundNavStatus {
-                updated_at: Some("2026-10-20 23:02".to_string()),
-                fetched_count: 1,
                 failed_count: 1,
+                fund_count: 3,
                 failure_reason: Some("HTTP 403".to_string()),
             },
-            ..resolved.summary.clone().unwrap()
         }),
+    };
+    // 対象2ファンド(取得1+失敗1) + 対象外1ファンド = 全3ファンド(行は4)
+    assert_eq!(super::summary::fund_csv_only_count(&resolved), 1);
+
+    // API 集計が無いときは CSV 由来の行の重複しないファンド数を使う
+    let without_summary = ResolvedFundBalance {
+        summary: None,
         ..resolved
     };
-    assert_eq!(super::summary::fund_csv_only_count(&with_failed), 1);
+    assert_eq!(super::summary::fund_csv_only_count(&without_summary), 1);
 }
 
 #[test]
@@ -965,6 +958,7 @@ fn fund_nav_note_distinguishes_fetched_failed_and_not_fetched_yet() {
             updated_at: Some("2026-10-20 23:02".to_string()),
             fetched_count: 30,
             failed_count: 0,
+            fund_count: 30,
             failure_reason: None,
         },
         0,
@@ -980,6 +974,7 @@ fn fund_nav_note_distinguishes_fetched_failed_and_not_fetched_yet() {
             updated_at: Some("2026-10-20 23:02".to_string()),
             fetched_count: 0,
             failed_count: 2,
+            fund_count: 7,
             failure_reason: Some("HTTP 403".to_string()),
         },
         5,
@@ -995,6 +990,7 @@ fn fund_nav_note_distinguishes_fetched_failed_and_not_fetched_yet() {
             updated_at: Some("2026-10-20 23:02".to_string()),
             fetched_count: 28,
             failed_count: 2,
+            fund_count: 30,
             failure_reason: Some("HTTP 403".to_string()),
         },
         0,
@@ -1018,6 +1014,7 @@ fn fund_nav_note_shows_three_states_differently() {
             updated_at: Some("2026-10-20 23:02".to_string()),
             fetched_count: 3,
             failed_count: 0,
+            fund_count: 3,
             failure_reason: None,
         },
         0,
@@ -1027,6 +1024,7 @@ fn fund_nav_note_shows_three_states_differently() {
             updated_at: Some("2026-10-20 23:02".to_string()),
             fetched_count: 0,
             failed_count: 3,
+            fund_count: 3,
             failure_reason: Some("HTTP 403".to_string()),
         },
         0,

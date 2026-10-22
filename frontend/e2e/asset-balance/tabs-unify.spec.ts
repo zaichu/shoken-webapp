@@ -117,8 +117,9 @@ async function setupMocks(page: Page) {
           has_missing_daily_change: false,
           nav_status: {
             updated_at: '2026-10-20 18:05',
-            fetched_count: FUND_ROWS.length,
+            fetched_count: 1,
             failed_count: 0,
+            fund_count: FUND_ROWS.length,
             failure_reason: null,
           },
         },
