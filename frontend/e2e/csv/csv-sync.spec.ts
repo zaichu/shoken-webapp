@@ -110,22 +110,31 @@ test.describe('CSV 最新取得', () => {
     await emitMessage(page, {
       type: 'result',
       csvs: [
-        {
-          kind: 'assetbalance',
-          content: `コード,名称\n9901,${SECRET_MARK}\n`,
-          fetchedAt: '2026-10-23T00:00:00Z',
-          fileRemoved: true,
-        },
-      ],
-      failures: [
-        { kind: 'dividend', reason: '取得に失敗しました', code: 'fetch-failed' },
-      ],
+        'assetbalance',
+        'fundbalance',
+        'dividend',
+        'domesticstock',
+        'mutualfund',
+      ].map((kind) => ({
+        kind,
+        content: `コード,名称\n9901,${SECRET_MARK}\n`,
+        fetchedAt: '2026-10-23T00:00:00Z',
+        fileRemoved: true,
+      })),
+      failures: [],
     });
 
     const list = page.getByTestId('csv-sync-kinds');
     await expect(list).toBeVisible();
-    await expect(list.getByText('受け取った(2行)')).toBeVisible();
-    await expect(list.getByText('失敗: 取得に失敗しました')).toBeVisible();
+    for (const kind of [
+      'assetbalance',
+      'fundbalance',
+      'dividend',
+      'domesticstock',
+      'mutualfund',
+    ]) {
+      await expect(page.getByTestId(`csv-sync-kind-${kind}`)).toContainText('受け取った(2行)');
+    }
     // CSV の中身(個人情報)は表示しない
     await expect(page.getByText(SECRET_MARK)).toHaveCount(0);
     // 結果を受けたら再実行できる
@@ -164,6 +173,7 @@ test.describe('CSV 最新取得', () => {
         },
       ],
     });
+    await expect(page.getByTestId('csv-sync-kind-dividend')).toContainText('失敗');
     await expect(
       page.getByText('ファイルの URL へのアクセスが許可されていません'),
     ).toBeVisible();
