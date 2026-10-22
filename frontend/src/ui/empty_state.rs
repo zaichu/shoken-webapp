@@ -5,13 +5,14 @@ pub enum EmptyStateIcon {
     Search,
     Tray,
     Warning,
+    Lock,
 }
 
 impl EmptyStateIcon {
     fn svg_class(self) -> &'static str {
         match self {
             Self::Warning => "h-16 w-16",
-            Self::Search | Self::Tray => "h-10 w-10",
+            Self::Search | Self::Tray | Self::Lock => "h-10 w-10",
         }
     }
 
@@ -23,6 +24,9 @@ impl EmptyStateIcon {
             Self::Search => "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
             Self::Tray => {
                 "M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293H9.414a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 005.586 13H4"
+            }
+            Self::Lock => {
+                "M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
             }
         }
     }
@@ -37,17 +41,21 @@ pub fn EmptyState(
     #[prop(optional)] icon: Option<EmptyStateIcon>,
     #[prop(optional)] as_h1: bool,
     #[prop(into, optional)] class: Signal<String>,
+    #[prop(optional)] testid: Option<&'static str>,
     #[prop(optional)] children: Option<Children>,
 ) -> impl IntoView {
     view! {
-        <div class=move || {
-            let extra = class.get();
-            if extra.is_empty() {
-                "empty-state".to_string()
-            } else {
-                format!("empty-state {extra}")
+        <div
+            class=move || {
+                let extra = class.get();
+                if extra.is_empty() {
+                    "empty-state".to_string()
+                } else {
+                    format!("empty-state {extra}")
+                }
             }
-        }>
+            data-testid=move || testid.unwrap_or("empty-state")
+        >
             {icon.map(|icon| {
                 view! {
                     <div class="mb-3 text-text-faint" aria-hidden="true">

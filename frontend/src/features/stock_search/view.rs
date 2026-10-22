@@ -1,10 +1,11 @@
 use super::use_stock_search;
 use crate::api::dto::Stock;
 use crate::ui::badge::CodeBadge;
-use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
+use crate::ui::search_controls::{SearchBox, SearchSubmitButton, SearchTextInput};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, Spinner, SpinnerSize};
 use leptos::prelude::*;
 use shared::normalize::normalize_display_name;
@@ -56,6 +57,7 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
             <SearchForm
                 stock_code=stock_search.stock_code
                 loading=loading.into()
+                icon_size="h-5 w-5"
                 on_submit=on_submit
             />
         </div>
@@ -118,56 +120,27 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
 fn SearchForm(
     stock_code: RwSignal<String>,
     loading: Signal<bool>,
+    /// 虫眼鏡アイコンのサイズ。PC は h-4、スマホは h-5
+    #[prop(optional, default = "h-4 w-4")]
+    icon_size: &'static str,
     on_submit: impl Fn(web_sys::SubmitEvent) + Send + Sync + 'static,
 ) -> impl IntoView {
     view! {
         <form on:submit=on_submit class="w-full">
-            <div class="search-input-frame">
-                <svg aria-hidden="true" class="h-5 w-5 shrink-0 self-center mx-2 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="7"></circle>
-                    <path d="M20 20l-3.5-3.5"></path>
-                </svg>
-                <div class="flex-1 min-w-0">
-                    <input
-                        type="text"
-                        class="search-input"
-                        placeholder="銘柄コードまたは銘柄名"
-                        aria-label="銘柄コードまたは銘柄名"
-                        autocomplete="off"
-                        aria-invalid="false"
-                        disabled=move || loading.get()
-                        prop:value=move || stock_code.get()
-                        on:input=move |ev| {
-                            stock_code.set(event_target_value(&ev));
-                        }
-                    />
-                </div>
-                <Button
-                    variant=ButtonVariant::SearchSubmit
-                    class="no-print"
-                    submit=true
-                    on_click=move |_| {}
-                    disabled=Signal::derive(move || {
-                        loading.get() || stock_code.get().is_empty()
-                    })
-                    attr:data-loading=move || loading.get().then_some("true")
-                    aria_label=Signal::derive(move || {
-                        if loading.get() { "検索中" } else { "銘柄を検索" }.to_string()
-                    })
-                >
-                    {move || {
-                        if loading.get() {
-                            view! {
-                                <Spinner size=SpinnerSize::Sm class="mr-2" />
-                                "読み込み中..."
-                            }
-                                .into_any()
-                        } else {
-                            "検索".into_any()
-                        }
-                    }}
-                </Button>
-            </div>
+            <SearchBox icon_size=icon_size>
+                <SearchTextInput
+                    placeholder=labels::search_placeholder(labels::STOCK_SEARCH_TARGET)
+                    disabled=Signal::derive(move || loading.get())
+                    value=move || stock_code.get()
+                    on_input=move |value| stock_code.set(value)
+                />
+                <SearchSubmitButton
+                    disabled=move || loading.get() || stock_code.get().is_empty()
+                    loading=move || loading.get()
+                    label=labels::STOCK_SEARCH_ACTION
+                    loading_label=labels::SEARCH_LOADING
+                />
+            </SearchBox>
         </form>
     }
 }

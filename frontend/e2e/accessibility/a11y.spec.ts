@@ -272,7 +272,7 @@ test('銘柄検索に moderate 以上の WCAG 違反がない', async ({ page })
   await page.setViewportSize(PC);
   await page.goto('/search');
   await page.waitForLoadState('networkidle');
-  await page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }).fill('9905');
+  await page.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' }).fill('9905');
   await page.keyboard.press('Enter');
   await expect(page.getByText('架空ゲーム').first()).toBeVisible({ timeout: 10000 });
   await scanAxe(page, '銘柄検索(結果あり,PC)');

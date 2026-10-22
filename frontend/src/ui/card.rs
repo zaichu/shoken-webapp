@@ -7,8 +7,6 @@ use leptos::prelude::*;
 pub enum CardVariant {
     /// フォーム・一覧の外枠
     Panel,
-    /// ログイン画面のカード
-    Login,
     /// 開閉つきの帯(section 要素で出す)
     Collapsible,
     /// 明細カード(スマホの行カード)
@@ -25,7 +23,6 @@ impl CardVariant {
     fn class(self) -> String {
         let class = match self {
             Self::Panel => "panel-card",
-            Self::Login => "login-card",
             Self::Collapsible => "collapsible-card",
             Self::Item => "rounded-lg border border-border-strong bg-surface",
             Self::Group => "overflow-hidden rounded-lg border border-border-subtle",

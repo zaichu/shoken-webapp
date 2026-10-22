@@ -46,7 +46,7 @@ test('検索ページの初期表示で検索フォームが表示される', as
   await page.goto('/search');
   await page.waitForLoadState('networkidle');
 
-  await expect(page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' })).toBeVisible();
+  await expect(page.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' })).toBeVisible();
 });
 
 test('PC では検索フォームが本文の上部に1つだけ表示される', async ({ page }) => {
@@ -60,7 +60,7 @@ test('PC では検索フォームが本文の上部に1つだけ表示される'
   const search = page.getByRole('search', { name: '銘柄検索' });
   await expect(search).toHaveCount(1);
   await expect(
-    search.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }),
+    search.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' }),
   ).toBeVisible();
 });
 
@@ -74,7 +74,7 @@ test('モバイルでも検索フォームが見える', async ({ page }) => {
   const search = page.getByRole('search', { name: '銘柄検索' });
   await expect(search).toHaveCount(1);
   await expect(
-    search.getByRole('textbox', { name: '銘柄コードまたは銘柄名' }),
+    search.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' }),
   ).toBeVisible();
 });
 
@@ -84,7 +84,7 @@ test('検索フォームに文字を入力できる', async ({ page }) => {
   await page.goto('/search');
   await page.waitForLoadState('networkidle');
 
-  const searchInput = page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' });
+  const searchInput = page.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' });
   await searchInput.fill('架空ゲーム');
 
   await expect(searchInput).toHaveValue('架空ゲーム');

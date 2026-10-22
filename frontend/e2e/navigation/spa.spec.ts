@@ -144,7 +144,7 @@ test('ナビ遷移はページリロードせず session も再取得しない',
   await expect(page).toHaveTitle('資産管理 - 証券Web');
 
   await nav(page, '銘柄検索').click();
-  await expect(page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' })).toBeVisible();
+  await expect(page.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' })).toBeVisible();
   await expect(page).toHaveURL(/\/search$/);
 
   // wasm や HTML の再取得が起きていない(マーカーが残る)、session も初回の1回だけ
@@ -276,7 +276,7 @@ test('明細の銘柄コードリンクから検索結果へ遷移する', async
 
   await page.locator('a[href="/search?code=9904"]').first().click();
   await expect(page).toHaveURL(/\/search\?code=9904$/);
-  await expect(page.getByRole('textbox', { name: '銘柄コードまたは銘柄名' })).toBeVisible();
+  await expect(page.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' })).toBeVisible();
   await expect(page.getByText('架空自動車').first()).toBeVisible();
 });
 

@@ -148,6 +148,21 @@ pub const NO_MATCH_TITLE: &str = "条件に合う保有がありません";
 pub const NO_MATCH_DESCRIPTION: &str = "検索条件を変更するか、検索条件を解除してください。";
 /// 検索条件の解除(操作のボタン)
 pub const CLEAR_SEARCH_CONDITIONS: &str = "検索条件を解除";
+/// ログインが要る画面に出す案内の見出し
+pub const LOGIN_REQUIRED_TITLE: &str = "ログインしてください";
+/// ログインが要る画面に出す案内の説明
+pub const LOGIN_REQUIRED_DESCRIPTION: &str =
+    "Googleアカウントでログインすると、保有資産と取引明細を確認できます。";
+/// Googleアカウントでのログイン操作
+pub const GOOGLE_LOGIN: &str = "Googleでログイン";
+/// 検索を実行するボタン
+pub const SEARCH: &str = "検索";
+/// 検索を実行しているときのボタン名
+pub const SEARCH_LOADING: &str = "検索中";
+/// 銘柄検索の検索対象(検索欄の文言に使う)
+pub const STOCK_SEARCH_TARGET: &str = "銘柄コードまたは銘柄名";
+/// 銘柄検索の実行ボタン(実行中でないときの名前)
+pub const STOCK_SEARCH_ACTION: &str = "銘柄を検索";
 
 /// 統一前の語。画面の文言には使わない(括弧内は現在の用語)。
 /// `labels.rs` の単体テストが `frontend/src` の他のソースに現れないことを確かめる
