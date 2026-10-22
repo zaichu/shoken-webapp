@@ -3,9 +3,10 @@
 //! 口座・分配金コースの選択肢)だけを各ページが渡す
 
 use crate::support::list_search::SearchOption;
-use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::focus::trap_focus;
 use crate::ui::labels;
+use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -49,9 +50,9 @@ pub fn SearchBox(
         <div class=move || {
             let extra = class.get();
             if extra.is_empty() {
-                "receipts-search-box".to_string()
+                "search-field".to_string()
             } else {
-                format!("receipts-search-box {extra}")
+                format!("search-field {extra}")
             }
         }>
             <svg aria-hidden="true" class=format!("{icon_size} shrink-0 mx-2 text-text-muted") viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -68,21 +69,74 @@ pub fn SearchBox(
 pub fn SearchTextInput(
     #[prop(into)] placeholder: String,
     #[prop(optional)] testid: Option<&'static str>,
+    /// 取得中など、入力を止める場面
+    #[prop(into, optional)]
+    disabled: Option<Signal<bool>>,
     value: impl Fn() -> String + Copy + 'static + Send + Sync,
     on_input: impl Fn(String) + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
     view! {
         <input
             type="search"
-            class="receipts-search-input"
+            class="search-field-input"
             placeholder=placeholder.clone()
             aria-label=placeholder.clone()
             autocomplete="off"
             enterkeyhint="search"
+            disabled=move || disabled.is_some_and(|disabled| disabled.get())
             data-testid=move || testid.unwrap_or("")
             prop:value=value
             on:input=move |ev| on_input(event_target_value(&ev))
         />
+    }
+}
+
+/// 検索欄の実行ボタン。入力が空のあいだは押せない(薄い色)になり、
+/// 文字が入ると主の色になる
+#[component]
+pub fn SearchSubmitButton(
+    disabled: impl Fn() -> bool + Copy + 'static + Send + Sync,
+    loading: impl Fn() -> bool + Copy + 'static + Send + Sync,
+    /// 実行中でないときの読み上げ用の名前
+    #[prop(into, optional)]
+    label: Option<String>,
+    /// 実行中のときの読み上げ用の名前
+    #[prop(into, optional)]
+    loading_label: Option<String>,
+    #[prop(optional)] testid: Option<&'static str>,
+) -> impl IntoView {
+    let label = label.unwrap_or_else(|| labels::SEARCH.to_string());
+    let loading_label = loading_label.unwrap_or_else(|| labels::SEARCH_LOADING.to_string());
+    view! {
+        <Button
+            variant=ButtonVariant::Primary(ButtonSize::Sm)
+            class="h-11 shrink-0 lg:h-9"
+            submit=true
+            disabled=Signal::derive(disabled)
+            testid=testid.unwrap_or("")
+            aria_label=move || {
+                if loading() {
+                    loading_label.clone()
+                } else {
+                    label.clone()
+                }
+            }
+            attr:data-loading=move || loading().then_some("true")
+            // 送信はフォームの submit が行う(ボタン自身では検索しない)
+            on_click=move |_| {}
+        >
+            {move || {
+                if loading() {
+                    view! {
+                        <Spinner size=SpinnerSize::Sm class="mr-2" />
+                        {labels::SEARCH_LOADING}
+                    }
+                        .into_any()
+                } else {
+                    labels::SEARCH.into_any()
+                }
+            }}
+        </Button>
     }
 }
 

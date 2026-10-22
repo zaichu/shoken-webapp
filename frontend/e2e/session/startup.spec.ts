@@ -70,7 +70,7 @@ test('匿名セッション(401)ならログインボタンを出し、撃ち直
     return route.fulfill(fulfillSession(null));
   });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
   expect(sessionCount).toBe(1);
 });
 
@@ -124,7 +124,7 @@ test('無応答でも従来の合計時間内で未ログイン表示になる',
 
   await page.goto('/');
   // プローブ 3s + 撃ち直し1回 7s で従来経路(約10.5s)を超えないことを固定
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible({
+  await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible({
     timeout: 20_000,
   });
   expect(firstSessionAt).toBeGreaterThan(0);
@@ -168,7 +168,7 @@ test('ログアウト保留中はプローブを出さず DELETE が先に出る
   });
 
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
   await expect.poll(() => sessionMethods.length).toBe(1);
   expect(sessionMethods).toEqual(['DELETE']);
 });

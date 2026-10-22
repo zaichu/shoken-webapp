@@ -53,7 +53,7 @@ test('ログアウト失敗を保留し、間隔を伸ばして再送し、再�
   await page.clock.install();
 
   await logoutViaUserMenu(page);
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
   await expect.poll(() => pendingFlag(page)).toBe('1');
   await expect.poll(() => deleteCount).toBe(1);
 
@@ -80,7 +80,7 @@ test('ログアウト失敗を保留し、間隔を伸ばして再送し、再�
   await page.clock.resume();
   await page.reload();
   await expect.poll(() => deleteCount).toBeGreaterThan(deletesBeforeReload);
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeHidden();
   await expect.poll(() => pendingFlag(page)).toBeNull();
   expect(getCount).toBe(getsBeforeReload);
@@ -104,7 +104,7 @@ test('ログアウトが401を返したらセッション消失とみなして�
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
 
   await logoutViaUserMenu(page);
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
   await expect.poll(() => pendingFlag(page)).toBeNull();
   expect(deleteCount).toBe(1);
 });
@@ -136,13 +136,13 @@ test('保留中にログインすると一度だけ再送して記録を消し�
   await page.clock.install();
 
   await logoutViaUserMenu(page);
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
   await expect.poll(() => pendingFlag(page)).toBe('1');
   await expect.poll(() => deleteCount).toBe(1);
 
   await Promise.all([
     page.waitForURL(/\/api\/v1\/oauth\/google\/authorize/),
-    page.getByRole('button', { name: 'ログイン' }).click(),
+    page.getByRole('button', { name: 'ログイン', exact: true }).click(),
   ]);
   await expect.poll(() => deleteCount).toBe(2);
   await expect.poll(() => pendingFlag(page)).toBeNull();
@@ -179,5 +179,5 @@ test('localStorageが使えなくてもログインとログアウトが動く',
   await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
 
   await logoutViaUserMenu(page);
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
 });

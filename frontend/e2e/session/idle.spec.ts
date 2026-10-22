@@ -41,7 +41,7 @@ test('30分無操作でログアウトし、操作で延長され、ログアウ
 
   await page.clock.fastForward(2 * MINUTE);
   await expect.poll(() => sessionDeletes).toBe(1);
-  await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible();
 
   await page.mouse.move(300, 300);
   await page.clock.fastForward(30 * MINUTE);

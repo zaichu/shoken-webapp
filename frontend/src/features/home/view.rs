@@ -18,6 +18,7 @@ use crate::ui::format::{
     format_currency, format_integer_percent, format_latest_import_date, format_short_date,
 };
 use crate::ui::labels::{ANNUAL_EXPECTED_DIVIDEND, MARKET_VALUE, MISSING, VALUATION_PROFIT_LOSS};
+use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
 use crate::ui::summary::{SummaryItem, SummarySize, SummaryTone};
@@ -96,9 +97,16 @@ pub fn HomePage() -> impl IntoView {
                     }
                 })
             }}
-            <a class="page-secondary-link-sm" href="/assetbalance/csv">
-                "CSV管理"
-            </a>
+            // ログイン前の画面に、ログインが要る操作を出さない
+            {move || {
+                session.user.get().is_some().then(|| {
+                    view! {
+                        <a class="page-secondary-link-sm" href="/assetbalance/csv">
+                            "CSV管理"
+                        </a>
+                    }
+                })
+            }}
         }
         .into_any()
     });
@@ -161,7 +169,10 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
         )
     };
     view! {
-        <Show when=move || session.user.get().is_some()>
+        <Show
+            when=move || session.user.get().is_some()
+            fallback=|| view! { <LoginPrompt class="mx-auto w-full max-w-md" /> }
+        >
             <p
                 class="text-xs font-medium text-text-muted"
                 role="status"
