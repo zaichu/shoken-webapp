@@ -184,7 +184,7 @@ pub(crate) struct AppOwner(pub Owner);
 // ページごとの遅延状態スロット。ページ遷移でビューが作り直されても取得済みデータを
 // 失わないよう、各ページは初回利用時に自分のスロットへ構築結果を置く。
 // Owner は Send ではないため LocalStorage のシグナルを使う
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub(crate) struct PageStates {
     // テストでは use_receipts_data が都度新しいストアを返すため、このスロットは読まれない
     #[cfg_attr(test, allow(dead_code))]

@@ -95,12 +95,28 @@ fn CsvSyncBody() -> impl IntoView {
                                     KindStatus::Waiting => labels::CSV_SYNC_WAITING.to_string(),
                                     KindStatus::Fetching => labels::CSV_SYNC_RUNNING.to_string(),
                                     KindStatus::Done { lines } => labels::csv_received(*lines),
+                                    KindStatus::Importing => {
+                                        labels::CSV_SYNC_IMPORTING.to_string()
+                                    }
+                                    KindStatus::Confirming => {
+                                        labels::CSV_SYNC_CONFIRMING.to_string()
+                                    }
+                                    KindStatus::Imported { result } => labels::csv_imported(
+                                        result.inserted,
+                                        result.skipped,
+                                        result.errors.len(),
+                                    ),
+                                    KindStatus::Skipped { reason } => {
+                                        labels::csv_sync_skipped(reason.label())
+                                    }
                                     KindStatus::Failed { reason } => {
                                         labels::csv_sync_failed(reason)
                                     }
                                 };
                                 let status_class = match status {
-                                    KindStatus::Failed { .. } => "text-negative-vivid",
+                                    KindStatus::Failed { .. } | KindStatus::Skipped { .. } => {
+                                        "text-negative-vivid"
+                                    }
                                     _ => "text-text-muted",
                                 };
                                 view! {
@@ -115,6 +131,38 @@ fn CsvSyncBody() -> impl IntoView {
                             })
                             .collect_view()}
                     </ul>
+                }
+            })}
+            {state.import.confirm.clone().map(|confirm| {
+                let kind_label = confirm.kind.label();
+                view! {
+                    <div class="mt-2" data-testid="csv-sync-confirm">
+                        <Alert variant=AlertVariant::Warning>
+                            <p>
+                                {labels::csv_sync_plunge_question(
+                                    kind_label,
+                                    confirm.new_rows,
+                                    confirm.saved_rows,
+                                )}
+                            </p>
+                            <div class="mt-2 flex gap-2">
+                                <Button
+                                    variant=ButtonVariant::Primary(ButtonSize::Sm)
+                                    testid="csv-sync-confirm-yes"
+                                    on_click=move |_| store.answer_confirm(true)
+                                >
+                                    {labels::YES}
+                                </Button>
+                                <Button
+                                    variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                                    testid="csv-sync-confirm-no"
+                                    on_click=move |_| store.answer_confirm(false)
+                                >
+                                    {labels::NO}
+                                </Button>
+                            </div>
+                        </Alert>
+                    </div>
                 }
             })}
             {state.missing.then(|| {

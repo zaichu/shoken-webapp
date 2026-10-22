@@ -98,22 +98,107 @@ fn quoted_newlines_count_as_one_record() {
 }
 
 #[test]
-fn store_keeps_received_csvs_for_import() {
+fn result_csvs_are_marked_done_and_handled_to_import_task() {
+    let _ = any_spawner::Executor::init_futures_executor();
     let owner = leptos::prelude::Owner::new();
     owner.with(|| {
         let store = CsvSyncStore::new();
+        store.state.set(SyncState::initial());
         store.apply(Event::Result {
             csvs: vec![ReceivedCsv {
                 kind: CsvKind::Dividend,
-                content: "ヘッダ\n行1\n".to_string(),
+                content: "入金日,商品,口座,銘柄\n2026/10/01,国内株式,特定,秘密銘柄\n".to_string(),
                 fetched_at: "2026-10-23T00:00:00Z".to_string(),
             }],
             failures: vec![],
         });
-        let received = store.received();
-        assert_eq!(received.len(), 1);
-        assert_eq!(received[0].kind, CsvKind::Dividend);
-        assert!(!store.state().running);
+        let state = store.state();
+        assert!(!state.running);
+        assert!(state.finished);
+        // 本文は表示状態に載せず、取り込みタスクへ渡す(タスクは executor 待ちのままでよい)
+        assert_eq!(
+            state.kinds[CsvKind::Dividend.index()].1,
+            KindStatus::Done { lines: 2 }
+        );
+    });
+}
+
+#[test]
+fn confirm_answer_no_skips_kind_and_clears_confirm() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = leptos::prelude::Owner::new();
+    owner.with(|| {
+        let store = CsvSyncStore::new();
+        let csv = ReceivedCsv {
+            kind: CsvKind::AssetBalance,
+            content: "銘柄コード,銘柄名\n9901,架空\n".to_string(),
+            fetched_at: "2026-10-23T00:00:00Z".to_string(),
+        };
+        store.state.set(SyncState::initial());
+        store.hold_confirm(import::PendingImport {
+            csv: csv.clone(),
+            new_rows: 10,
+            saved_rows: 40,
+            rest: vec![csv],
+            epoch: store.epoch.get_untracked(),
+        });
+        let state = store.state();
+        assert_eq!(
+            state.kinds[CsvKind::AssetBalance.index()].1,
+            KindStatus::Confirming
+        );
+        assert_eq!(
+            state.import.confirm,
+            Some(PlungeConfirm {
+                kind: CsvKind::AssetBalance,
+                new_rows: 10,
+                saved_rows: 40,
+            })
+        );
+
+        store.answer_confirm(false);
+        let state = store.state();
+        assert_eq!(state.import.confirm, None);
+        assert_eq!(
+            state.kinds[CsvKind::AssetBalance.index()].1,
+            KindStatus::Skipped {
+                reason: SkipReason::Declined
+            }
+        );
+    });
+}
+
+#[test]
+fn stale_epoch_confirm_is_ignored() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = leptos::prelude::Owner::new();
+    owner.with(|| {
+        let store = CsvSyncStore::new();
+        store.state.set(SyncState::initial());
+        // 前の実行(別世代)から遅れて届いた確認は表示しない
+        store.hold_confirm(import::PendingImport {
+            csv: ReceivedCsv {
+                kind: CsvKind::FundBalance,
+                content: String::new(),
+                fetched_at: String::new(),
+            },
+            new_rows: 1,
+            saved_rows: 10,
+            rest: vec![],
+            epoch: store.epoch.get_untracked() + 1,
+        });
+        let state = store.state();
+        assert_eq!(state.import.confirm, None);
+        assert_eq!(
+            state.kinds[CsvKind::FundBalance.index()].1,
+            KindStatus::Waiting
+        );
+        // 回答しても pending が無いので何も起きない
+        store.answer_confirm(false);
+        assert_eq!(
+            store.state().kinds[CsvKind::FundBalance.index()].1,
+            KindStatus::Waiting
+        );
     });
 }
 
