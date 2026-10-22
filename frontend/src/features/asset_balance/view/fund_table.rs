@@ -1,12 +1,14 @@
 use super::day_change::{DAY_CHANGE_COLUMN_NOTE, day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_unit_price, pnl_cells, unit_price_decimals,
-};
+use crate::features::asset_balance::format::{format_row_valuation_amount, pnl_cells};
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
-use crate::features::asset_balance::model::format_number_value;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::badge::AccountBadge;
+use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
+use crate::ui::labels::{
+    ACCOUNT, BASE_PRICE, DAY_CHANGE, DISTRIBUTION, FUND, FUND_SHARES, MARKET_VALUE,
+    VALUATION_PROFIT_LOSS,
+};
 use crate::ui::security_link::TableNameLink;
 use leptos::prelude::*;
 
@@ -23,21 +25,26 @@ pub fn FundHoldingsTable(
             <table class="asset-table">
                 <thead>
                     <tr>
-                        <th scope="col" class="col-text">"ファンド"</th>
-                        <th scope="col" class="col-text">"口座"</th>
-                        <th scope="col" class="col-text">"分配金"</th>
-                        {sort_header("保有口数", FundSortKey::Shares, sort_key, sort_order)}
-                        {sort_header("基準価額", FundSortKey::BasePrice, sort_key, sort_order)}
+                        <th scope="col" class="col-text">{FUND}</th>
+                        <th scope="col" class="col-text">{ACCOUNT}</th>
+                        <th scope="col" class="col-text">{DISTRIBUTION}</th>
+                        {sort_header(FUND_SHARES, FundSortKey::Shares, sort_key, sort_order)}
+                        {sort_header(BASE_PRICE, FundSortKey::BasePrice, sort_key, sort_order)}
                         <th
                             scope="col"
                             class="col-num"
                             title=DAY_CHANGE_COLUMN_NOTE
                             abbr=DAY_CHANGE_COLUMN_NOTE
                         >
-                            "前日比"
+                            {DAY_CHANGE}
                         </th>
-                        {sort_header("評価額", FundSortKey::MarketValue, sort_key, sort_order)}
-                        {sort_header("評価損益", FundSortKey::ProfitLoss, sort_key, sort_order)}
+                        {sort_header(MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
+                        {sort_header(
+                            VALUATION_PROFIT_LOSS,
+                            FundSortKey::ProfitLoss,
+                            sort_key,
+                            sort_order,
+                        )}
                     </tr>
                 </thead>
                 <tbody>

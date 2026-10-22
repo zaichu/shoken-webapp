@@ -4,6 +4,8 @@
 
 Leptos の主要ページ（ホーム・銘柄検索・資産管理・取引明細）と CSV の取込・削除を確認する。
 レビュー観点は `docs/ui-design.md` の「UI の要件(必須)」に従う。
+用語・書式の揺れは `docs/ui-design.md` の「用語と書式(全画面の共通ルール)」で確認する
+(定義は `frontend/src/ui/labels.rs` と `frontend/src/ui/format.rs`)。
 
 ## 手順
 

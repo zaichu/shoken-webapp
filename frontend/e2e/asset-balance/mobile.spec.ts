@@ -143,7 +143,7 @@ test('一覧に無い文字列を入れるとフィルタ済み空状態と解�
   await page.getByTestId('asset-search-input').fill('9999');
   const heading = page.getByRole('heading', { name: '条件に合う保有がありません' });
   await expect(heading).toBeVisible();
-  const clearButton = page.getByRole('button', { name: '絞り込みを解除' });
+  const clearButton = page.getByRole('button', { name: '検索条件を解除' });
   await expect(clearButton).toBeVisible();
 
   // 解除すると絞り込みも消えて一覧が戻る

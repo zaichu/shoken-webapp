@@ -1,17 +1,23 @@
 use super::use_asset_balance_state;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
-    format_signed_valuation_rate, is_negative_valuation, unit_price_decimals,
+    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
+    is_negative_valuation,
 };
 use crate::features::asset_balance::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
 };
-use crate::features::asset_balance::model::{
-    ValuationInput, format_number_value, holding_valuation,
-};
+use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::session::use_session;
 use crate::ui::amount::Amount;
 use crate::ui::badge::AccountBadge;
+use crate::ui::format::{
+    format_currency, format_iso_date, format_number_value, unit_price_decimals,
+};
+use crate::ui::labels::{
+    ACCOUNT, ACQUISITION_BASIS_YIELD, ANNUAL_DIVIDEND_REFERENCE, AVERAGE_PRICE, CURRENT_PRICE,
+    MARKET_VALUE, MISSING, PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY, TOTAL_ACQUISITION,
+    VALUATION_PROFIT_LOSS,
+};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
@@ -147,20 +153,23 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                             </div>
                                             <dl class="divide-y divide-border-faint">
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">現在値</dt>
+                                                    <dt class="text-text-muted">{CURRENT_PRICE}</dt>
                                                     <dd class="tabular-nums text-text">
                                                         {current_price_text}
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">価格基準日</dt>
+                                                    <dt class="text-text-muted">{PRICE_AS_OF}</dt>
                                                     <dd class="text-text">
                                                         {price_as_of
-                                                            .map_or("—".to_string(), |d| d.replace('-', "/"))}
+                                                            .map_or_else(
+                                                                || MISSING.to_string(),
+                                                                |date| format_iso_date(&date),
+                                                            )}
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">口座</dt>
+                                                    <dt class="text-text-muted">{ACCOUNT}</dt>
                                                     <dd class="text-text">
                                                         {holding_view
                                                             .account
@@ -169,27 +178,27 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                                 view! { <AccountBadge label=value /> }
                                                                     .into_any()
                                                             })
-                                                            .unwrap_or_else(|| "—".into_any())}
+                                                            .unwrap_or_else(|| MISSING.into_any())}
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">数量</dt>
+                                                    <dt class="text-text-muted">{QUANTITY}</dt>
                                                     <dd class="tabular-nums text-text">{shares_text}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">取得単価</dt>
+                                                    <dt class="text-text-muted">{AVERAGE_PRICE}</dt>
                                                     <dd class="tabular-nums text-text">{average_price_text}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">取得総額</dt>
+                                                    <dt class="text-text-muted">{TOTAL_ACQUISITION}</dt>
                                                     <dd class="tabular-nums text-text">{purchase_text}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">評価額</dt>
+                                                    <dt class="text-text-muted">{MARKET_VALUE}</dt>
                                                     <dd class="tabular-nums font-bold text-text">{market_text}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">評価損益</dt>
+                                                    <dt class="text-text-muted">{VALUATION_PROFIT_LOSS}</dt>
                                                     <dd>
                                                         <Amount
                                                             class="tabular-nums"
@@ -202,15 +211,15 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">1株配当</dt>
+                                                    <dt class="text-text-muted">{PER_SHARE_DIVIDEND}</dt>
                                                     <dd class="tabular-nums text-text">{dividend_per_share}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">年間配当参考額</dt>
+                                                    <dt class="text-text-muted">{ANNUAL_DIVIDEND_REFERENCE}</dt>
                                                     <dd class="tabular-nums text-text">{dividend_annual}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">取得額基準利回り</dt>
+                                                    <dt class="text-text-muted">{ACQUISITION_BASIS_YIELD}</dt>
                                                     <dd class="tabular-nums text-text">{dividend_yield}</dd>
                                                 </div>
                                             </dl>

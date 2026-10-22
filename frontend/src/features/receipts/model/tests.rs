@@ -570,9 +570,6 @@ fn monthly_mutual_fund_groups_sum_and_sort_descending() {
 
 #[test]
 fn date_helpers_format_output_and_reject_invalid_values() {
-    assert_eq!(format_date("2023-12-25"), "2023/12/25");
-    assert_eq!(format_date("2023-02-29"), "—");
-    assert_eq!(format_date("string"), "—");
     assert_eq!(create_year_month_key("2023-12-25"), "2023-12");
     assert_eq!(create_year_month_key("invalid"), "");
     assert_eq!(create_iso_date_key("2023-01-05"), "2023-01-05");
@@ -586,7 +583,6 @@ fn date_helpers_format_output_and_reject_invalid_values() {
         "X024-03-01",
     ] {
         assert!(!is_valid_iso_date(malformed), "{malformed}");
-        assert_eq!(format_date(malformed), "—", "{malformed}");
     }
 }
 
@@ -788,11 +784,9 @@ proptest::proptest! {
         let expected = (1..=max_day).contains(&day) && (1..=12).contains(&month);
         proptest::prop_assert_eq!(is_valid_iso_date(&input), expected, "input={}", input);
         if expected {
-            proptest::prop_assert_eq!(format_date(&input), input.replace('-', "/"));
             proptest::prop_assert_eq!(create_year_month_key(&input), input[..7].to_string());
             proptest::prop_assert_eq!(create_iso_date_key(&input), input);
         } else {
-            proptest::prop_assert_eq!(format_date(&input), "—");
             proptest::prop_assert_eq!(create_year_month_key(&input), "");
         }
     }

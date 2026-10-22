@@ -5,6 +5,7 @@
 use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::focus::trap_focus;
+use crate::ui::labels;
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -65,7 +66,7 @@ pub fn SearchBox(
 /// 文字列の部分一致検索の入力欄
 #[component]
 pub fn SearchTextInput(
-    placeholder: &'static str,
+    #[prop(into)] placeholder: String,
     #[prop(optional)] testid: Option<&'static str>,
     value: impl Fn() -> String + Copy + 'static + Send + Sync,
     on_input: impl Fn(String) + Copy + 'static + Send + Sync,
@@ -74,8 +75,8 @@ pub fn SearchTextInput(
         <input
             type="search"
             class="receipts-search-input"
-            placeholder=placeholder
-            aria-label=placeholder
+            placeholder=placeholder.clone()
+            aria-label=placeholder.clone()
             autocomplete="off"
             enterkeyhint="search"
             data-testid=move || testid.unwrap_or("")
@@ -94,8 +95,8 @@ pub fn SearchCount(
 ) -> impl IntoView {
     view! {
         <span class="receipts-search-count" data-testid=move || testid.unwrap_or("")>
-            <b>{move || format!("{}件", filtered())}</b>
-            {move || format!(" / {}件", total())}
+            <b>{move || labels::count(filtered())}</b>
+            {move || format!(" / {}", labels::count(total()))}
         </span>
     }
 }
@@ -162,7 +163,7 @@ pub fn AddConditionButton(
 /// どのページでも同じ位置に出る
 #[component]
 pub fn ConditionPanel(
-    title: &'static str,
+    #[prop(into)] title: String,
     on_close: impl Fn() + Copy + 'static + Send + Sync,
     children: Children,
 ) -> impl IntoView {
@@ -228,7 +229,7 @@ pub fn ConditionPanel(
         <div
             class="condition-panel"
             role="dialog"
-            aria-label=title
+            aria-label=title.clone()
             tabindex="-1"
             node_ref=panel_ref
             on:keydown=move |event| {
@@ -242,7 +243,7 @@ pub fn ConditionPanel(
                 }
             }
         >
-            <p class="condition-panel-title">{title}</p>
+            <p class="condition-panel-title">{title.clone()}</p>
             {children()}
         </div>
     }

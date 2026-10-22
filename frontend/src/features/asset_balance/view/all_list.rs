@@ -2,9 +2,7 @@
 
 use super::day_change::{day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, pnl_cells, unit_price_decimals,
-};
+use crate::features::asset_balance::format::{format_row_valuation_amount, pnl_cells};
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::holdings::{
     HoldingDividend, HoldingView, format_dividend_per_share, holding_dividend,
@@ -13,6 +11,11 @@ use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::AccountBadge;
+use crate::ui::format::unit_price_decimals;
+use crate::ui::labels::{
+    ACCOUNT, CODE_COLUMN, DAY_CHANGE, DISTRIBUTION, DOMESTIC_STOCK, MARKET_VALUE, MUTUAL_FUND,
+    PER_SHARE_DIVIDEND, PER_SHARE_DIVIDEND_COMPACT, SECURITY_AND_FUND, VALUATION_PROFIT_LOSS,
+};
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
 
@@ -46,7 +49,7 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
     let valuation = holding_valuation(&ValuationInput::from(view));
     UnifiedRow {
         name: view.name.clone(),
-        kind: "国内株式",
+        kind: DOMESTIC_STOCK,
         sub: view.code.clone(),
         code: Some(view.code.clone()),
         account: view.account.clone(),
@@ -75,7 +78,7 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
 pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
     UnifiedRow {
         name: view.name.clone(),
-        kind: "投資信託",
+        kind: MUTUAL_FUND,
         sub: view.course.clone().unwrap_or_default(),
         code: None,
         account: Some(view.account.clone()),
@@ -147,15 +150,20 @@ pub fn AssetMergedTable(
             <table class="asset-table">
                 <thead>
                     <tr>
-                        <th scope="col" class="col-text">"コード"</th>
-                        <th scope="col" class="col-text">"銘柄・ファンド"</th>
+                        <th scope="col" class="col-text">{CODE_COLUMN}</th>
+                        <th scope="col" class="col-text">{SECURITY_AND_FUND}</th>
                         <th scope="col" class="col-text">"種別"</th>
-                        <th scope="col" class="col-text">"口座"</th>
-                        <th scope="col" class="col-text">"分配金"</th>
-                        <th scope="col" class="col-num">"1株配当"</th>
-                        <th scope="col" class="col-num">"前日比"</th>
-                        {sort_header("評価額", FundSortKey::MarketValue, sort_key, sort_order)}
-                        {sort_header("評価損益", FundSortKey::ProfitLoss, sort_key, sort_order)}
+                        <th scope="col" class="col-text">{ACCOUNT}</th>
+                        <th scope="col" class="col-text">{DISTRIBUTION}</th>
+                        <th scope="col" class="col-num">{PER_SHARE_DIVIDEND}</th>
+                        <th scope="col" class="col-num">{DAY_CHANGE}</th>
+                        {sort_header(MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
+                        {sort_header(
+                            VALUATION_PROFIT_LOSS,
+                            FundSortKey::ProfitLoss,
+                            sort_key,
+                            sort_order,
+                        )}
                     </tr>
                 </thead>
                 <tbody>
@@ -330,7 +338,8 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                                 view! {
                                     <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
                                         <span class="text-text-muted tabular-nums">
-                                            "1株 "
+                                            {PER_SHARE_DIVIDEND_COMPACT}
+                                            " "
                                             {format_dividend_per_share(
                                                 dividend,
                                                 dividend_decimals,

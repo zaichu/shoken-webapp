@@ -9,6 +9,7 @@ use crate::features::asset_balance::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::account_display_name;
+use crate::ui::format::date_parts;
 use rust_decimal::Decimal;
 use shared::tax::TAX_RATE;
 
@@ -85,64 +86,6 @@ pub(crate) fn annual_dividend_forecast(
 /// 予想配当の推定値がまだ計算中(pending)の銘柄が残っているか
 pub(crate) fn has_pending_estimate(maps: &DividendMaps) -> bool {
     maps.status.values().any(|status| status == "pending")
-}
-
-fn date_parts(date: &str) -> Option<(i32, u32, u32)> {
-    if !date.is_ascii()
-        || date.len() < 10
-        || date.as_bytes()[4] != b'-'
-        || date.as_bytes()[7] != b'-'
-    {
-        return None;
-    }
-    let year: i32 = date[..4].parse().ok()?;
-    let month: u32 = date[5..7].parse().ok()?;
-    let day: u32 = date[8..10].parse().ok()?;
-    if !(1..=12).contains(&month) || day == 0 {
-        return None;
-    }
-    Some((year, month, day))
-}
-
-/// updated_at(UTC) を JST の取込日として出す。+9h で日付が繰り上がる場合だけ桁を進める
-pub(crate) fn jst_date(iso: &str) -> Option<(i32, u32, u32)> {
-    let (mut year, mut month, mut day) = date_parts(iso)?;
-    let hour: u32 = if iso.len() >= 13 && (iso.as_bytes()[10] == b'T' || iso.as_bytes()[10] == b' ')
-    {
-        iso[11..13].parse().ok()?
-    } else {
-        0
-    };
-    if hour + 9 >= 24 {
-        day += 1;
-        if day > days_in_month(year, month) {
-            day = 1;
-            month += 1;
-            if month > 12 {
-                month = 1;
-                year += 1;
-            }
-        }
-    }
-    Some((year, month, day))
-}
-
-fn days_in_month(year: i32, month: u32) -> u32 {
-    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if leap => 29,
-        _ => 28,
-    }
-}
-
-/// 最新の取込日(JST)。"YYYY/M/D" で返す。有効な日時が無ければ None
-pub(crate) fn latest_import_label<'a>(timestamps: impl Iterator<Item = &'a str>) -> Option<String> {
-    timestamps
-        .filter_map(jst_date)
-        .max()
-        .map(|(y, m, d)| format!("{y}/{m}/{d}"))
 }
 
 fn month_of(settlement_date: &str) -> Option<u32> {

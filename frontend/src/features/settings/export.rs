@@ -9,6 +9,13 @@ use crate::api::ApiError;
 use crate::api::dto::{AssetBalance, Dividend, DomesticStock, Mutualfund};
 use crate::features::asset_balance::{ValuationInput, holding_valuation};
 use crate::support::pagination::{ListPage, fetch_all_pages_with};
+use crate::ui::labels::{
+    ACCOUNT, ACQUISITION_AMOUNT, ACQUISITION_PRICE, AFTER_TAX, AVERAGE_UNIT_PRICE, CURRENT_PRICE,
+    DIVIDEND_AMOUNT, DOMESTIC_STOCK, HOLDING_COUNT, KIND, MARKET_VALUE, MUTUAL_FUND, PAYMENT_DATE,
+    PER_SHARE_DIVIDEND, PRICE_AS_OF, PRODUCT, QUANTITY, REALIZED_PROFIT_LOSS, SECURITY_CODE,
+    SECURITY_NAME, SELLING_OR_REDEMPTION_AMOUNT, TAX, TRADE_DATE, UNIT_PRICE,
+    VALUATION_PROFIT_LOSS,
+};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 
@@ -145,7 +152,7 @@ fn num(value: Decimal) -> String {
     value.normalize().to_string()
 }
 
-/// 計算値(評価額・含み損益)は画面と同じ円単位の整数に丸める。算出不能は空欄
+/// 計算値(評価額・評価損益)は画面と同じ円単位の整数に丸める。算出不能は空欄
 fn derived_num(value: Option<f64>) -> String {
     value
         .filter(|value| value.is_finite())
@@ -168,16 +175,16 @@ fn dividends_csv(rows: &[Dividend]) -> String {
             .then_with(|| a.security_code.cmp(&b.security_code))
     });
     let mut lines = vec![header(&[
-        "入金日",
-        "商品",
-        "口座",
-        "銘柄コード",
-        "銘柄名",
-        "1株配当",
-        "数量",
-        "配当金",
-        "税額",
-        "税引後",
+        PAYMENT_DATE,
+        PRODUCT,
+        ACCOUNT,
+        SECURITY_CODE,
+        SECURITY_NAME,
+        PER_SHARE_DIVIDEND,
+        QUANTITY,
+        DIVIDEND_AMOUNT,
+        TAX,
+        AFTER_TAX,
     ])];
     for row in sorted {
         lines.push(csv_line(&[
@@ -219,15 +226,15 @@ fn asset_balances_csv(rows: &[AssetBalance]) -> String {
         ordering.then_with(|| rows[*a].security_code.cmp(&rows[*b].security_code))
     });
     let mut lines = vec![header(&[
-        "銘柄コード",
-        "銘柄名",
-        "保有数",
-        "平均取得単価",
-        "取得額",
-        "現在値",
-        "価格基準日",
-        "評価額",
-        "含み損益",
+        SECURITY_CODE,
+        SECURITY_NAME,
+        HOLDING_COUNT,
+        AVERAGE_UNIT_PRICE,
+        ACQUISITION_AMOUNT,
+        CURRENT_PRICE,
+        PRICE_AS_OF,
+        MARKET_VALUE,
+        VALUATION_PROFIT_LOSS,
     ])];
     for index in order {
         let row = &rows[index];
@@ -257,7 +264,7 @@ fn transactions_csv(stocks: &[DomesticStock], funds: &[Mutualfund]) -> String {
     for row in stocks {
         entries.push((
             row.trade_date.to_string(),
-            "国内株式",
+            DOMESTIC_STOCK,
             vec![
                 csv_text(row.security_code.as_str()),
                 csv_text(&row.security_name),
@@ -275,7 +282,7 @@ fn transactions_csv(stocks: &[DomesticStock], funds: &[Mutualfund]) -> String {
     for row in funds {
         entries.push((
             row.trade_date.to_string(),
-            "投資信託",
+            MUTUAL_FUND,
             vec![
                 String::new(),
                 csv_text(&row.fund_name),
@@ -292,18 +299,18 @@ fn transactions_csv(stocks: &[DomesticStock], funds: &[Mutualfund]) -> String {
     }
     entries.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
     let mut lines = vec![header(&[
-        "種別",
-        "約定日",
-        "銘柄コード",
-        "銘柄名",
-        "口座",
-        "数量",
-        "単価",
-        "売却・解約額",
-        "取得価額",
-        "実現損益",
-        "税額",
-        "税引後",
+        KIND,
+        TRADE_DATE,
+        SECURITY_CODE,
+        SECURITY_NAME,
+        ACCOUNT,
+        QUANTITY,
+        UNIT_PRICE,
+        SELLING_OR_REDEMPTION_AMOUNT,
+        ACQUISITION_PRICE,
+        REALIZED_PROFIT_LOSS,
+        TAX,
+        AFTER_TAX,
     ])];
     for (date, kind, fields) in entries {
         let mut line = vec![kind.to_string(), date];

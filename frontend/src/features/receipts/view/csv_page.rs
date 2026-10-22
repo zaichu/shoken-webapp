@@ -1,5 +1,4 @@
 use super::table::ReceiptTable;
-use crate::features::receipts::model::format_date;
 use crate::features::receipts::{
     ReceiptRow, ReceiptsStore, ReceiptsTab, TabState, use_receipts_data,
 };
@@ -7,6 +6,7 @@ use crate::session::use_session;
 use crate::support::csv_flow::CsvTabMeta;
 use crate::support::row::Row;
 use crate::ui::csv_page::{CsvManagePage, CsvSource};
+use crate::ui::format::format_iso_date;
 use leptos::prelude::*;
 
 #[derive(Clone, Copy)]
@@ -81,7 +81,7 @@ impl CsvSource for ReceiptCsvSource {
             }
             let min = dates.iter().min()?;
             let max = dates.iter().max()?;
-            Some((format_date(min), format_date(max)))
+            Some((format_iso_date(min), format_iso_date(max)))
         } else {
             None
         }

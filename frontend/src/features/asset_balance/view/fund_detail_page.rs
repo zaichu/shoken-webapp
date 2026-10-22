@@ -1,14 +1,19 @@
 use super::use_asset_balance_state;
 use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::format::{
-    format_currency, format_row_valuation_amount, format_signed_row_valuation_amount,
-    format_signed_valuation_rate, is_negative_valuation,
+    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
+    is_negative_valuation,
 };
 use crate::features::asset_balance::fund::fund_view;
-use crate::features::asset_balance::model::format_number_value;
 use crate::session::use_session;
 use crate::ui::amount::Amount;
 use crate::ui::badge::AccountBadge;
+use crate::ui::format::{format_currency, format_iso_date, format_number_value};
+use crate::ui::labels::{
+    AVERAGE_ACQUISITION_PRICE, BASE_PRICE, BASE_PRICE_AS_OF, BASE_PRICE_DAY_CHANGE,
+    BASE_PRICE_MONTH_CHANGE, CSV_IMPORTED_AT, FUND_SHARES, MARKET_VALUE, MISSING, PENDING_UPDATE,
+    TOTAL_ACQUISITION, TOTAL_RETURN, VALUATION_PROFIT_LOSS,
+};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
@@ -123,32 +128,32 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                     let pnl_negative =
                                         is_negative_valuation(Some(view.profit_loss));
                                     let day_text = if view.nav_pending() {
-                                        "更新待ち".to_string()
+                                        PENDING_UPDATE.to_string()
                                     } else {
                                         view.base_price_day_change
                                             .map(|value| {
                                                 format_signed_row_valuation_amount(Some(value))
                                             })
-                                            .unwrap_or_else(|| "—".to_string())
+                                            .unwrap_or_else(|| MISSING.to_string())
                                     };
                                     let month_text = view
                                         .base_price_month_change
                                         .map(|value| {
                                             format_signed_row_valuation_amount(Some(value))
                                         })
-                                        .unwrap_or_else(|| "—".to_string());
+                                        .unwrap_or_else(|| MISSING.to_string());
                                     let total_return_text = view
                                         .total_return
                                         .map(|value| {
                                             format_signed_row_valuation_amount(Some(value))
                                         })
-                                        .unwrap_or_else(|| "—".to_string());
+                                        .unwrap_or_else(|| MISSING.to_string());
                                     let asof_text = view
                                         .price_as_of
-                                        .map_or("—".to_string(), |d| d.replace('-', "/"));
+                                        .map_or_else(|| MISSING.to_string(), |date| format_iso_date(&date));
                                     let asof_label = match view.price_source {
-                                        FundPriceSource::Api => "基準価額の基準日",
-                                        FundPriceSource::Csv => "CSV 取込日",
+                                        FundPriceSource::Api => BASE_PRICE_AS_OF,
+                                        FundPriceSource::Csv => CSV_IMPORTED_AT,
                                     };
                                     view! {
                                         <div class="asset-panel">
@@ -165,21 +170,21 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                 </p>
                                             </div>
                                             <dl class="divide-y divide-border-faint">
-                                                {detail_row("基準価額", base_price_text)}
-                                                {detail_row("基準価額(前日比)", day_text)}
-                                                {detail_row("基準価額(前月比)", month_text)}
+                                                {detail_row(BASE_PRICE, base_price_text)}
+                                                {detail_row(BASE_PRICE_DAY_CHANGE, day_text)}
+                                                {detail_row(BASE_PRICE_MONTH_CHANGE, month_text)}
                                                 {detail_row(asof_label, asof_text)}
-                                                {detail_row("保有口数", shares_text)}
-                                                {detail_row("平均取得価額", average_price_text)}
-                                                {detail_row("取得総額", purchase_text)}
+                                                {detail_row(FUND_SHARES, shares_text)}
+                                                {detail_row(AVERAGE_ACQUISITION_PRICE, average_price_text)}
+                                                {detail_row(TOTAL_ACQUISITION, purchase_text)}
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">評価額</dt>
+                                                    <dt class="text-text-muted">{MARKET_VALUE}</dt>
                                                     <dd class="tabular-nums font-bold text-text">
                                                         {market_text}
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">評価損益</dt>
+                                                    <dt class="text-text-muted">{VALUATION_PROFIT_LOSS}</dt>
                                                     <dd>
                                                         <Amount
                                                             class="tabular-nums"
@@ -191,7 +196,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                         </span>
                                                     </dd>
                                                 </div>
-                                                {detail_row("トータルリターン", total_return_text)}
+                                                {detail_row(TOTAL_RETURN, total_return_text)}
                                             </dl>
                                         </div>
                                     }

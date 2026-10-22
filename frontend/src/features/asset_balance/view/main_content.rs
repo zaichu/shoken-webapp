@@ -31,6 +31,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
+use crate::ui::labels::{self, CLEAR_SEARCH_CONDITIONS, NO_MATCH_DESCRIPTION, NO_MATCH_TITLE};
 use leptos::prelude::*;
 
 fn sorted_views(
@@ -75,7 +76,7 @@ fn EmptyAssetPanel() -> impl IntoView {
     }
 }
 
-/// 絞り込み0件(検索で全行が消えた)ときの表示
+/// 検索で全行が消えたときの表示
 #[component]
 fn EmptyFilteredPanel(
     title: &'static str,
@@ -84,13 +85,10 @@ fn EmptyFilteredPanel(
     view! {
         <div class="asset-panel-padded mx-4 mt-3 lg:mx-0">
             <div class="text-center">
-                <EmptyState
-                    title=title
-                    description="検索条件を変更するか、絞り込みを解除してください。"
-                />
+                <EmptyState title=title description=NO_MATCH_DESCRIPTION />
                 <div class="mt-3 text-center">
                     <Button variant=ButtonVariant::Ghost on_click=move |_| on_clear()>
-                        "絞り込みを解除"
+                        {CLEAR_SEARCH_CONDITIONS}
                     </Button>
                 </div>
             </div>
@@ -99,10 +97,10 @@ fn EmptyFilteredPanel(
 }
 
 /// 検索欄の入力欄に出す文言。3タブで同じ文言・同じ動詞(検索)を使う
-const SEARCH_PLACEHOLDER: &str = "銘柄・ファンド名・コード・口座で検索";
+const SEARCH_TARGET: &str = "銘柄・ファンド名・コード・口座";
 
-/// 絞り込み0件のときの文面。3タブで同じ文言を使う
-const EMPTY_FILTERED_TITLE: &str = "条件に合う保有がありません";
+/// 検索で全行が消えたときの文面。3タブで同じ文言を使う
+const EMPTY_FILTERED_TITLE: &str = NO_MATCH_TITLE;
 
 #[component]
 fn StockContent(
@@ -166,7 +164,7 @@ fn StockContent(
                 <AssetSearchBar
                     search=search
                     search_count=search_count
-                    placeholder=SEARCH_PLACEHOLDER
+                    placeholder=labels::search_placeholder(SEARCH_TARGET)
                     conditions=&[ConditionKind::Account]
                     account_options=account_options
                     course_options=course_options
@@ -310,7 +308,7 @@ fn FundContent(
                 <AssetSearchBar
                     search=search
                     search_count=search_count
-                    placeholder=SEARCH_PLACEHOLDER
+                    placeholder=labels::search_placeholder(SEARCH_TARGET)
                     conditions=&[ConditionKind::Account, ConditionKind::Course]
                     account_options=account_options
                     course_options=course_options
@@ -510,7 +508,7 @@ fn AllContent(
                 <AssetSearchBar
                     search=search
                     search_count=search_count
-                    placeholder=SEARCH_PLACEHOLDER
+                    placeholder=labels::search_placeholder(SEARCH_TARGET)
                     conditions=&[]
                     account_options=account_options
                     course_options=course_options

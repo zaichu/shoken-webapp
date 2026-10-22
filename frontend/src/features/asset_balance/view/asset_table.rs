@@ -1,19 +1,21 @@
 use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_unit_price, pnl_cells, price_date_outliers,
-    unit_price_decimals,
+    format_row_valuation_amount, pnl_cells, price_date_outliers,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
     holding_dividend,
 };
-use crate::features::asset_balance::model::{
-    ValuationInput, format_number_value, holding_valuation,
-};
+use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::AccountBadge;
+use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
+use crate::ui::labels::{
+    ACCOUNT, ACQUISITION_YIELD, ANNUAL_DIVIDEND, AVERAGE_PRICE, CODE_COLUMN, CURRENT_PRICE,
+    DAY_CHANGE, MARKET_VALUE, NAME_COLUMN, PER_SHARE_DIVIDEND, QUANTITY, VALUATION_PROFIT_LOSS,
+};
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
 
@@ -57,18 +59,28 @@ pub fn AssetHoldingsTable(
             <table class="asset-table">
                 <thead>
                     <tr>
-                        <th scope="col" class="col-text">"コード"</th>
-                        <th scope="col" class="col-text">"銘柄"</th>
-                        <th scope="col" class="col-text">"口座"</th>
-                        <th scope="col" class="col-num">"数量"</th>
-                        <th scope="col" class="col-num">"取得単価"</th>
-                        <th scope="col" class="col-num">"現在値"</th>
-                        <th scope="col" class="col-num">"前日比"</th>
-                        {sort_header("評価額", SortKey::MarketValue, sort_key, sort_order)}
-                        {sort_header("評価損益", SortKey::ProfitLoss, sort_key, sort_order)}
-                        <th scope="col" class="col-num">"1株配当"</th>
-                        {sort_header("年間配当", SortKey::Dividend, sort_key, sort_order)}
-                        {sort_header("取得額利回り", SortKey::Yield, sort_key, sort_order)}
+                        <th scope="col" class="col-text">{CODE_COLUMN}</th>
+                        <th scope="col" class="col-text">{NAME_COLUMN}</th>
+                        <th scope="col" class="col-text">{ACCOUNT}</th>
+                        <th scope="col" class="col-num">{QUANTITY}</th>
+                        <th scope="col" class="col-num">{AVERAGE_PRICE}</th>
+                        <th scope="col" class="col-num">{CURRENT_PRICE}</th>
+                        <th scope="col" class="col-num">{DAY_CHANGE}</th>
+                        {sort_header(MARKET_VALUE, SortKey::MarketValue, sort_key, sort_order)}
+                        {sort_header(
+                            VALUATION_PROFIT_LOSS,
+                            SortKey::ProfitLoss,
+                            sort_key,
+                            sort_order,
+                        )}
+                        <th scope="col" class="col-num">{PER_SHARE_DIVIDEND}</th>
+                        {sort_header(ANNUAL_DIVIDEND, SortKey::Dividend, sort_key, sort_order)}
+                        {sort_header(
+                            ACQUISITION_YIELD,
+                            SortKey::Yield,
+                            sort_key,
+                            sort_order,
+                        )}
                     </tr>
                 </thead>
                 <tbody>

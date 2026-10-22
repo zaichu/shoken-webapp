@@ -10,8 +10,8 @@ use crate::features::asset_balance::fund::{AssetSearch, FundBalanceRow};
 use crate::features::asset_balance::holdings::*;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::{
-    KpiHolding, ValuationInput, calculate_portfolio_kpi, format_number_value,
-    normalize_display_name, normalize_security_code, portfolio_valuation, total_purchase_amount,
+    KpiHolding, ValuationInput, calculate_portfolio_kpi, normalize_display_name,
+    normalize_security_code, portfolio_valuation, total_purchase_amount,
 };
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{
@@ -22,6 +22,10 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
 use crate::support::row::Row;
 use crate::testing::asset_balance::*;
+use crate::ui::format::{
+    format_currency, format_fixed_percent, format_percentage_value, format_price_date,
+    format_unit_price, unit_price_decimals,
+};
 use leptos::prelude::*;
 use shared::domain::FundNavStatus;
 use std::collections::HashMap;
@@ -143,50 +147,11 @@ fn security_name_normalization_cases() {
 }
 
 #[test]
-fn number_and_currency_formatters_match_intl_cases() {
-    assert_eq!(format_number_value(100.0), "100");
-    assert_eq!(format_number_value(-12345.0), "-12,345");
-    assert_eq!(format_number_value(1.5), "1.5");
-    assert_eq!(format_number_value(1.2345), "1.23");
-    assert_eq!(format_number_value(-0.001), "-0");
-    // 符号は丸め前の値の `num < 0` で判定するため -0 は `0` と表示する
-    assert_eq!(format_number_value(-0.0), "0");
-    assert_eq!(format_currency(-0.0), "¥0");
-    assert_eq!(format_number_value(-12345.678), "-12,345.68");
-    // Intl.NumberFormat は toFixed と異なり10進の値で半分以上を切り上げる
-    assert_eq!(format_number_value(1.005), "1.01");
-    assert_eq!(format_number_value(-1.005), "-1.01");
-    assert_eq!(format_number_value(2.675), "2.68");
-    assert_eq!(format_number_value(0.995), "1");
-    assert_eq!(format_currency(850000.0), "¥850,000");
-    assert_eq!(format_currency(0.0), "¥0");
-    assert_eq!(format_currency(-250000.0), "-¥250,000");
-    assert_eq!(format_currency(2600.0), "¥2,600");
-    assert_eq!(format_currency(123.456), "¥123.456");
-    assert_eq!(format_fixed_percent(1.005, 2), "1.01%");
-    assert_eq!(format_currency(f64::NAN), "—");
-    assert_eq!(
-        format_currency("0.123456789012345678".parse::<f64>().unwrap()),
-        "¥0.123456789012346"
-    );
-    assert_eq!(format_fixed_percent(f64::NAN, 1), "—");
-    assert_eq!(
-        format_currency(1e29),
-        "¥100,000,000,000,000,000,000,000,000,000"
-    );
-    assert_eq!(
-        format_currency(-1e29),
-        "-¥100,000,000,000,000,000,000,000,000,000"
-    );
+fn valuation_amount_uses_the_settings_unit() {
     assert_eq!(
         format_valuation_amount(Some(1e29)),
         "¥100,000,000,000,000,000,000,000,000,000"
     );
-    assert_eq!(
-        format_fixed_percent(1e30, 1),
-        "1000000000000000019884624838656.0%"
-    );
-    assert_eq!(format_fixed_percent(f64::INFINITY, 1), "—");
 }
 
 #[test]

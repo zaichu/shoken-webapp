@@ -1,8 +1,9 @@
 //! 資産管理の一覧・構成比・KPI と、ホームの評価損益表示の純粋ロジック。
 
 use crate::api::dto::AssetBalanceSummary;
+use crate::ui::format::to_fixed;
+use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
-use rust_decimal::{Decimal, RoundingStrategy};
 use std::collections::HashMap;
 
 fn valuation_parts(
@@ -30,108 +31,9 @@ fn valuation_parts(
     (amount, rate)
 }
 
-/// JS の `Number(value.toFixed(decimals))` と同じ結果を返す。
-/// f64 の2進の値で最も近い `10^-decimals` の倍数を選び、同距離なら大きい方を選ぶ。
-/// 負値は符号を分けて絶対値で丸めてから符号を戻す。
-/// 非有限値と巨大値はそのまま返し、panic しない。
-pub fn to_fixed(value: f64, decimals: u32) -> f64 {
-    if !value.is_finite() {
-        return value;
-    }
-    let negative = value.is_sign_negative();
-    let magnitude = value.abs();
-    if magnitude == 0.0 {
-        return 0.0;
-    }
-    let bits = magnitude.to_bits();
-    let raw_exponent = ((bits >> 52) & 0x7ff) as i32;
-    let (mantissa, exponent) = if raw_exponent == 0 {
-        (bits & 0xfffffffffffff, -1074)
-    } else {
-        (
-            bits & 0xfffffffffffff | 0x10000000000000,
-            raw_exponent - 1075,
-        )
-    };
-    if exponent >= 0 {
-        return value;
-    }
-    let shift = -exponent;
-    if shift >= 128 {
-        return if negative { -0.0 } else { 0.0 };
-    }
-    let numerator = (mantissa as u128) * 10u128.pow(decimals);
-    let quantum = 1u128 << (shift as u32);
-    let rounded = numerator / quantum + u128::from(numerator % quantum * 2 >= quantum);
-    if rounded == 0 {
-        return if negative { -0.0 } else { 0.0 };
-    }
-    let result = rounded as f64 / 10f64.powi(decimals as i32);
-    if negative { -result } else { result }
-}
-
-/// `Intl.NumberFormat`(maximumFractionDigits) 相当の丸め。
-/// `toFixed` と異なり、f64 の最短10進表記を10進の値として丸めるため、
-/// 捨てる部分が半分以上なら切り上げる（`1.005` → `1.01`、`2.675` → `2.68`）。
-/// `Decimal` に載らない巨大値・多桁値は `to_fixed` にフォールバックする。
-pub fn intl_fixed(value: f64, decimals: u32) -> f64 {
-    if !value.is_finite() {
-        return value;
-    }
-    let negative = value.is_sign_negative();
-    let fallback = || to_fixed(value, decimals);
-    let Ok(decimal) = Decimal::from_str_exact(&value.abs().to_string()) else {
-        return fallback();
-    };
-    let Some(result) = decimal
-        .round_dp_with_strategy(decimals, RoundingStrategy::MidpointAwayFromZero)
-        .to_f64()
-    else {
-        return fallback();
-    };
-    if negative { -result } else { result }
-}
-
 /// `formatters.ts` の `safeAdd` に対応する。加算ごとに小数10桁で丸める。
 pub fn safe_add(a: f64, b: f64) -> f64 {
     to_fixed(a + b, 10)
-}
-
-fn group_thousands(digits: &str) -> String {
-    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
-    for (index, byte) in digits.bytes().enumerate() {
-        if index > 0 && (digits.len() - index).is_multiple_of(3) {
-            grouped.push(',');
-        }
-        grouped.push(byte as char);
-    }
-    grouped
-}
-
-// 符号は呼び出し側が丸め前の値で `value < 0` と判定する（`-0.0` は負としない）。
-// この関数は絶対値の桁区切りだけを返す。
-pub(crate) fn format_abs_number(value: f64) -> Option<String> {
-    if !value.is_finite() {
-        return None;
-    }
-    let text = value.abs().to_string();
-    let (integer, fraction) = match text.split_once('.') {
-        Some((integer, fraction)) => (integer, Some(fraction)),
-        None => (text.as_str(), None),
-    };
-    let grouped = group_thousands(integer);
-    Some(match fraction {
-        Some(fraction) => format!("{grouped}.{fraction}"),
-        None => grouped,
-    })
-}
-
-pub fn format_number_value(value: f64) -> String {
-    match format_abs_number(intl_fixed(value, 2)) {
-        None => "—".to_string(),
-        Some(body) if value < 0.0 => format!("-{body}"),
-        Some(body) => body,
-    }
 }
 
 /// 1銘柄の評価損益。`valuation.ts` の `calculateValuation` に対応する。

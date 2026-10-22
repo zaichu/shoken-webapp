@@ -6,8 +6,13 @@ use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::ui::badge::AccountBadge;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
+use crate::ui::format::{format_decimal_number, format_number_value};
+use crate::ui::labels::{
+    ACCOUNT, AVERAGE_ACQUISITION_PRICE, BASE_PRICE, CURRENT_PRICE, FUND_NAME, FUND_SHARES,
+    HOLDING_QUANTITY, MARKET_VALUE, MISSING, SECURITY_CODE, SECURITY_NAME, TIMED_MARKET_VALUE,
+    TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
+};
 use leptos::prelude::*;
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
 const MOBILE_PREVIEW_LIMIT: usize = 5;
@@ -50,7 +55,7 @@ fn preview_row_data(
     let security_name = row.security_name().to_string();
     let security_code = row.security_code().to_string();
     let account = row.account().map(str::to_string);
-    let shares_str = format!("{}株", format_number(row.shares()));
+    let shares_str = format!("{}株", format_decimal_number(row.shares()));
     (
         security_code,
         security_name,
@@ -116,23 +121,23 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                         <table class="receipts-table w-full">
                             <thead>
                             <tr class="text-text-soft font-semibold text-xs">
-                                <th class="col-text">"銘柄コード"</th>
-                                <th class="col-text">"銘柄名"</th>
-                                <th class="col-text">"口座"</th>
-                                <th class="col-num">"保有数量"</th>
-                                <th class="col-num">"平均取得価額"</th>
-                                <th class="col-num">"取得総額"</th>
-                                <th class="col-num">"現在値"</th>
-                                <th class="col-num">"時価評価額"</th>
-                                <th class="col-num">"評価損益"</th>
+                                <th class="col-text">{SECURITY_CODE}</th>
+                                <th class="col-text">{SECURITY_NAME}</th>
+                                <th class="col-text">{ACCOUNT}</th>
+                                <th class="col-num">{HOLDING_QUANTITY}</th>
+                                <th class="col-num">{AVERAGE_ACQUISITION_PRICE}</th>
+                                <th class="col-num">{TOTAL_ACQUISITION}</th>
+                                <th class="col-num">{CURRENT_PRICE}</th>
+                                <th class="col-num">{TIMED_MARKET_VALUE}</th>
+                                <th class="col-num">{VALUATION_PROFIT_LOSS}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {rows_for_pc.into_iter().map(|row| {
                                 let (security_code, security_name, account, shares_str, market_text, pnl_class, pnl_text, pnl_rate_text) = preview_row_data(&row);
-                                let avg_price_str = format!("¥{}", format_number(row.average_purchase_price()));
-                                let total_purchase_str = format!("¥{}", format_number(row.total_purchase_amount()));
-                                let current_price_str = format!("¥{}", format_number(row.current_price()));
+                                let avg_price_str = format!("¥{}", format_decimal_number(row.average_purchase_price()));
+                                let total_purchase_str = format!("¥{}", format_decimal_number(row.total_purchase_amount()));
+                                let current_price_str = format!("¥{}", format_decimal_number(row.current_price()));
                                 view! {
                                     <tr class="border-t border-border">
                                         <td class="col-text font-mono">{security_code}</td>
@@ -142,7 +147,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                                                 .map(|value| {
                                                     view! { <AccountBadge label=value /> }.into_any()
                                                 })
-                                                .unwrap_or_else(|| "—".into_any())}
+                                                .unwrap_or_else(|| MISSING.into_any())}
                                         </td>
                                         <td class="col-num">{shares_str}</td>
                                         <td class="col-num">{avg_price_str}</td>
@@ -210,18 +215,18 @@ pub fn FundBalanceCsvPreview(
                         <table class="receipts-table w-full">
                             <thead>
                             <tr class="text-text-soft font-semibold text-xs">
-                                <th class="col-text">"ファンド名"</th>
-                                <th class="col-text">"口座"</th>
-                                <th class="col-num">"保有口数"</th>
-                                <th class="col-num">"基準価額"</th>
-                                <th class="col-num">"評価額"</th>
-                                <th class="col-num">"評価損益"</th>
+                                <th class="col-text">{FUND_NAME}</th>
+                                <th class="col-text">{ACCOUNT}</th>
+                                <th class="col-num">{FUND_SHARES}</th>
+                                <th class="col-num">{BASE_PRICE}</th>
+                                <th class="col-num">{MARKET_VALUE}</th>
+                                <th class="col-num">{VALUATION_PROFIT_LOSS}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {views_for_pc.into_iter().map(|view| {
-                                let shares_str = format!("{}口", crate::features::asset_balance::model::format_number_value(view.shares));
-                                let base_price_str = format!("¥{}", crate::features::asset_balance::model::format_number_value(view.base_price));
+                                let shares_str = format!("{}口", format_number_value(view.shares));
+                                let base_price_str = format!("¥{}", format_number_value(view.base_price));
                                 let market_text = format_row_valuation_amount(Some(view.market_value));
                                 let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
                                 let pnl_class = if view.profit_loss < 0.0 { "text-negative" } else if view.profit_loss > 0.0 { "text-positive" } else { "text-text-soft" };
@@ -230,7 +235,7 @@ pub fn FundBalanceCsvPreview(
                                         <td class="col-text">{view.name}</td>
                                         <td class="col-text">
                                             {if view.account.is_empty() {
-                                                "—".into_any()
+                                                MISSING.into_any()
                                             } else {
                                                 view! { <AccountBadge label=view.account.clone() /> }
                                                     .into_any()
@@ -252,7 +257,7 @@ pub fn FundBalanceCsvPreview(
                         let market_text = format_row_valuation_amount(Some(view.market_value));
                         let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
                         let pnl_class = if view.profit_loss < 0.0 { "text-negative" } else if view.profit_loss > 0.0 { "text-positive" } else { "text-text-soft" };
-                        let shares_str = format!("{}口", crate::features::asset_balance::model::format_number_value(view.shares));
+                        let shares_str = format!("{}口", format_number_value(view.shares));
                         view! {
                             <Card variant=CardVariant::Item class="p-3">
                                 <div class="flex items-baseline justify-between gap-2">
@@ -293,39 +298,3 @@ pub fn FundBalanceCsvPreview(
         </section>
     }
 }
-
-fn format_number(value: Decimal) -> String {
-    let s = value.to_string();
-    let (sign, abs_s) = if let Some(stripped) = s.strip_prefix('-') {
-        ("-", stripped)
-    } else {
-        ("", s.as_str())
-    };
-    if abs_s.contains('.') {
-        let parts: Vec<&str> = abs_s.split('.').collect();
-        let int_part = parts[0];
-        let dec_part = parts[1];
-        let mut result = String::new();
-        let chars: Vec<char> = int_part.chars().collect();
-        for (i, ch) in chars.iter().rev().enumerate() {
-            result.insert(0, *ch);
-            if (i + 1) % 3 == 0 && i + 1 != chars.len() {
-                result.insert(0, ',');
-            }
-        }
-        format!("{}{}.{}", sign, result, dec_part)
-    } else {
-        let mut result = String::new();
-        let chars: Vec<char> = abs_s.chars().collect();
-        for (i, ch) in chars.iter().rev().enumerate() {
-            result.insert(0, *ch);
-            if (i + 1) % 3 == 0 && i + 1 != chars.len() {
-                result.insert(0, ',');
-            }
-        }
-        format!("{}{}", sign, result)
-    }
-}
-
-#[cfg(test)]
-mod tests;

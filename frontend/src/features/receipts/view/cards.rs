@@ -5,6 +5,10 @@ use crate::ui::badge::{AccountBadge, CodeBadge};
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
+use crate::ui::labels::{
+    self, AFTER_TAX, DIVIDEND, DIVIDEND_AMOUNT, QUANTITY, REALIZED_PROFIT_LOSS, REDEMPTION_AMOUNT,
+    SELLING_AMOUNT,
+};
 use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
@@ -13,7 +17,7 @@ use wasm_bindgen::JsCast;
 
 // 配当の税引後(受取額)は損益ではないので色を付けない
 pub(crate) fn is_profit_label(tab: ReceiptsTab, label: &str) -> bool {
-    tab != ReceiptsTab::Dividend && matches!(label, "実現損益" | "税引後")
+    tab != ReceiptsTab::Dividend && matches!(label, REALIZED_PROFIT_LOSS | AFTER_TAX)
 }
 
 pub(crate) fn is_negative_text(value: &str) -> bool {
@@ -230,13 +234,13 @@ fn CompactReceiptRow(
     let labels = tab.summary_labels();
     // 2行目の主表示は税引後と対になる取引総額(損益ではないので負の装飾を付けない)
     let (primary_label, primary_detail) = match tab {
-        ReceiptsTab::Dividend => ("配当", "配当金"),
-        ReceiptsTab::DomesticStock => ("売却額", "売却額"),
-        ReceiptsTab::MutualFund => ("解約額", "解約額"),
+        ReceiptsTab::Dividend => (DIVIDEND, DIVIDEND_AMOUNT),
+        ReceiptsTab::DomesticStock => (SELLING_AMOUNT, SELLING_AMOUNT),
+        ReceiptsTab::MutualFund => (REDEMPTION_AMOUNT, REDEMPTION_AMOUNT),
     };
     let (primary_value, primary_negative) = compact_value(&details, primary_detail);
     let (net_value, net_negative) = compact_value(&details, labels[2]);
-    let (quantity, _) = compact_value(&details, "数量");
+    let (quantity, _) = compact_value(&details, QUANTITY);
     // 投資信託の数量は口数
     let quantity_unit = if tab == ReceiptsTab::MutualFund {
         "口"
@@ -244,7 +248,7 @@ fn CompactReceiptRow(
         "株"
     };
     // 行に出している項目は詳細に重複して出さない
-    let shown = [primary_detail, labels[2], "数量"];
+    let shown = [primary_detail, labels[2], QUANTITY];
     let rest: Vec<CardDetail> = details
         .iter()
         .filter(|detail| !shown.contains(&detail.label.as_str()))
@@ -370,7 +374,7 @@ pub(crate) fn CompactReceiptGroup(
     view! {
         <section data-testid="receipt-card-group">
             <div class="receipt-compact-group">
-                <span class="font-bold">{format!("{label} · {count}件")}</span>
+                <span class="font-bold">{labels::group_count(&label, count)}</span>
                 {(!summary_value.is_empty()).then(|| view! {
                     <span>
                         {summary_label}
@@ -481,7 +485,7 @@ pub(crate) fn MobileCardGroup(
                 <Card variant=CardVariant::GroupLabel>
                     <span class="text-sm font-semibold text-text-soft">{label}</span>
                     <span class="ml-2 text-xs font-medium text-text-muted">
-                        {format!("{count}件")}
+                        {labels::count(count)}
                     </span>
                 </Card>
                 {card_list}
@@ -496,7 +500,13 @@ pub(crate) fn MobileCardGroup(
     } else {
         "text-sm font-semibold tabular-nums text-text"
     };
-    let aria_label = format!("{label} {count}件 {primary_label} {primary_value}");
+    let aria_label = format!(
+        "{} {} {} {}",
+        label,
+        labels::count(count),
+        primary_label,
+        primary_value
+    );
     view! {
         <section data-testid="receipt-card-group">
             <Card variant=CardVariant::Group>
@@ -517,7 +527,7 @@ pub(crate) fn MobileCardGroup(
                     <span class="min-w-0 flex-1 truncate text-sm font-semibold text-text-soft">
                         {label}
                         <span class="ml-2 text-xs font-medium text-text-muted">
-                            {format!("{count}件")}
+                            {labels::count(count)}
                         </span>
                     </span>
                     <span

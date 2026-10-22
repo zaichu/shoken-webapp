@@ -2,6 +2,7 @@
 
 use crate::features::asset_balance::holdings::HoldingDividend;
 use crate::features::asset_balance::model::{ValuationInput, chart_percentages, holding_valuation};
+use crate::ui::labels::{ACQUISITION_YIELD, ANNUAL_DIVIDEND, MARKET_VALUE, VALUATION_PROFIT_LOSS};
 use std::cmp::Ordering;
 
 /// 並べ替えの指標。
@@ -24,10 +25,10 @@ impl SortKey {
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            SortKey::MarketValue => "評価額",
-            SortKey::ProfitLoss => "評価損益",
-            SortKey::Dividend => "年間配当",
-            SortKey::Yield => "取得額利回り",
+            SortKey::MarketValue => MARKET_VALUE,
+            SortKey::ProfitLoss => VALUATION_PROFIT_LOSS,
+            SortKey::Dividend => ANNUAL_DIVIDEND,
+            SortKey::Yield => ACQUISITION_YIELD,
         }
     }
 
