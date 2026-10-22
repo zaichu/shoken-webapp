@@ -154,7 +154,7 @@ pub fn AssetBalancePage() -> impl IntoView {
     };
     let search_count = state.search_count;
     let sort_state = state;
-    // タブの件数表示用。AssetBalanceMainContent 側でも使うが、タブ行をページレベルで描くためここで算出
+    // タブの件数表示用。タブ行をページレベルで描くためここで算出
     let stock_count = Signal::derive(move || resolved_view().map(|v| v.rows.len()).unwrap_or(0));
     let fund_count = Signal::derive(move || {
         resolved_fund_view()
