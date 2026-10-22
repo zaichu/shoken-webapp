@@ -25,7 +25,8 @@ async function mockSession(page: Page, loggedIn = true) {
   );
 }
 
-// 拡張機能の chrome.runtime.connect を仕込む。state に emit で好きな応答を流せる
+// 拡張機能の chrome.runtime.connect を仕込む。state に emit で好きな応答を流せる。
+// 実物と同じく connect ごとに別 port を返す(再実行で破棄済みのリスナーを呼ばない)
 async function mockExtension(page: Page) {
   await page.addInitScript(() => {
     const state = {
@@ -33,26 +34,30 @@ async function mockExtension(page: Page) {
       requests: [] as { type?: string; kinds?: string[] }[],
       emit: (_message: unknown) => {},
     };
-    const listeners: ((message: unknown) => void)[] = [];
-    const port = {
-      onMessage: {
-        addListener: (fn: (message: unknown) => void) => {
-          listeners.push(fn);
-        },
-      },
-      onDisconnect: { addListener: (_fn: (p: unknown) => void) => {} },
-      postMessage: (message: { type?: string; kinds?: string[] }) => {
-        state.requests.push(message);
-      },
-      disconnect: () => {},
-    };
-    state.emit = (message) => listeners.forEach((fn) => fn(message));
+    const ports: { listeners: ((message: unknown) => void)[] }[] = [];
+    state.emit = (message) =>
+      ports.forEach((port) => port.listeners.forEach((fn) => fn(message)));
     (window as unknown as { __csvSyncMock: typeof state }).__csvSyncMock = state;
     (window as unknown as { chrome: unknown }).chrome = {
       runtime: {
         connect: (id: string) => {
           state.ids.push(id);
-          return port;
+          const port = { listeners: [] as ((message: unknown) => void)[] };
+          ports.push(port);
+          return {
+            onMessage: {
+              addListener: (fn: (message: unknown) => void) => {
+                port.listeners.push(fn);
+              },
+            },
+            onDisconnect: { addListener: (_fn: (p: unknown) => void) => {} },
+            postMessage: (message: { type?: string; kinds?: string[] }) => {
+              state.requests.push(message);
+            },
+            disconnect: () => {
+              port.listeners = [];
+            },
+          };
         },
       },
     };
