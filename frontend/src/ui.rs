@@ -16,3 +16,4 @@ pub(crate) mod select;
 pub(crate) mod site;
 pub(crate) mod stat_row;
 pub(crate) mod state;
+pub(crate) mod summary;
