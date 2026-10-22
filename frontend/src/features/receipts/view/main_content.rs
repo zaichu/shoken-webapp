@@ -144,6 +144,12 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
         }
     });
     let basis = vec![String::from(labels::SUMMARY_SAME_TARGET)];
+    // 対象期間の注記。絞り込み後の明細の最初と最後の日を出す
+    let period = Memo::new(move |_| {
+        crate::features::receipts::view::summary::period_note(&filtered_rows.get())
+            .into_iter()
+            .collect::<Vec<String>>()
+    });
 
     view! {
         // 裏再取得の失敗は一覧を消さずに知らせる
@@ -200,7 +206,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                         </section>
                     </SkeletonSummary>
                 </div>
-                <SkeletonNote notes=Vec::new() filtered=filtered_count basis=basis.clone() />
+                <SkeletonNote notes=period.get() filtered=filtered_count basis=basis.clone() />
             }
                 .into_any()
         }}

@@ -1,6 +1,8 @@
-use crate::features::receipts::{ReceiptTabData, ReceiptsTab, select_header_summary};
+use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab, select_header_summary};
 use crate::settings::format_amount;
 use crate::ui::card::StatTone;
+use crate::ui::format::format_iso_date;
+use crate::ui::labels;
 use crate::ui::summary::{SummaryItem, SummarySize, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -43,6 +45,16 @@ pub fn header_summary(
             (label, values[index], tone)
         })
         .collect()
+}
+
+/// 対象期間の注記。明細の最初と最後の日を出す
+pub fn period_note(rows: &[ReceiptRow]) -> Option<String> {
+    let from = rows.iter().map(|row| row.date()).min()?;
+    let to = rows.iter().map(|row| row.date()).max()?;
+    Some(labels::target_period_note(
+        &format_iso_date(from),
+        &format_iso_date(to),
+    ))
 }
 
 #[component]

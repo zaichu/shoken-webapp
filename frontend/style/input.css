@@ -1009,7 +1009,7 @@
   }
 
   .page-skeleton-note {
-    @apply grid grid-cols-[1fr_auto] items-start gap-x-3 text-xs text-text-muted;
+    @apply grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 text-xs text-text-muted;
     margin-bottom: var(--space-search);
   }
 

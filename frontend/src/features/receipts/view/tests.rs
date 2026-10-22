@@ -86,6 +86,26 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
     }
 }
 
+// 対象期間の注記は絞り込み後の明細の最初と最後の日を出す。行が無いときは出さない
+#[test]
+fn period_note_spans_first_to_last_row_date() {
+    assert_eq!(period_note(&[]), None);
+    assert_eq!(
+        period_note(&dividends()),
+        Some(crate::ui::labels::target_period_note(
+            "2024/06/21",
+            "2026/06/01"
+        ))
+    );
+    assert_eq!(
+        period_note(&domestic()),
+        Some(crate::ui::labels::target_period_note(
+            "2024/03/01",
+            "2024/03/01"
+        ))
+    );
+}
+
 #[test]
 fn header_tones_mark_negative_profit_only() {
     let tones = |profit: Decimal, taxes: Decimal, after_tax: Decimal| {
