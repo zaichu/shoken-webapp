@@ -1,0 +1,27 @@
+# tbls(DB ドキュメント生成ツール)の設定。
+# 接続先は環境変数 TBLS_DSN で渡す(実データ・本番の接続情報は使わない)。
+# 生成手順は scripts/gen-db-docs.sh を参照。
+name: shoken-webapp
+desc: shoken-webapp の DB スキーマ(テーブル一覧・外部キー・ER 図)
+docPath: docs/db
+
+# 1.96 系固定。テンプレートと設定の仕様が次のメジャーで変わっても
+# 生成結果が黙って変わらないようにする
+requiredVersion: '>= 1.96, < 1.97'
+
+er:
+  # Mermaid なら GitHub 上でも図としてそのまま見える
+  format: mermaid
+
+exclude:
+  # マイグレーション履歴は内部 bookkeeping なので図に出さない
+  - _sqlx_migrations
+
+# schema.json には PostgreSQL のバージョン文字列が入って差分が出るので出さない
+disableOutputSchema: true
+
+templates:
+  md:
+    # 既定の index テンプレートから Functions の節だけ除いたもの。
+    # citext / pg_trgm / pgcrypto の拡張関数が 100 個以上並び、ER 図が下へ埋もれるため
+    index: .tbls/index.md.tmpl

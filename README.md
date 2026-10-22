@@ -31,6 +31,8 @@ cd ..
 
 `start-local.sh` は DB → backend（wrangler dev）→ Leptos の順に起動します。フロントエンドは `http://127.0.0.1:8081`、バックエンドは `http://127.0.0.1:8787` です。停止には `./scripts/stop-local.sh` を使います。
 
+DB ドキュメント（テーブル一覧と ER 図）の生成には開発用ツールの `tbls` が必要（`brew install tbls` または `go install github.com/k1LoW/tbls@v1.96.1`、1.96 系）。生成は `./scripts/gen-db-docs.sh`（Docker と Rust が必要）で行い、migration を変えたら `docs/db/` を更新してコミットします。
+
 ## 検証
 
 ```bash
@@ -57,6 +59,7 @@ worker-build --release
 ## ドキュメント
 
 - [アーキテクチャ概要](docs/architecture.md)
+- [DB スキーマ（テーブル一覧と ER 図）](docs/db/README.md)
 - [運用ランブック](docs/runbook.md)
 - [API ドキュメント](docs/api/v1-rest-design.md)
 - [技術者倫理ガイドライン](docs/ethics.md)

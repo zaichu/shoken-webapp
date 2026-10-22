@@ -27,6 +27,9 @@ migration ファイルの置き場所と運用メモ。
   `asset_balances_view`(`asset_balances` と `security_prices` の両方に依存するため
   後に作られる側のファイルで定義)を持つ
 
+migration を変えたら `scripts/gen-db-docs.sh` を実行して `docs/db/` をコミットする
+(テーブル一覧と ER 図は `docs/db/README.md` に自動生成される)。
+
 ## _sqlx_migrations 履歴の扱い
 
 baseline 張り直し前に migrate を動かしていた DB のうち、旧 baseline + 増分の

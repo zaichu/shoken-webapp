@@ -6,6 +6,8 @@
 `backend/migrations/README.md` にある。ここには「なぜこの形なのか」「テーブル同士が
 どう関係するか」だけを書く。列の定義は migrations を読むこと。
 
+テーブル一覧と ER 図(外部キーの関係)は `docs/db/README.md` に自動生成して置いている。
+
 ## 設計原則
 
 1. **取引明細は CSV の写像（追記型）**。取込んだ事実をそのまま持ち、重複は業務キーで排除する。
@@ -77,6 +79,7 @@ dividend_per_share_cache.security_code ─┘
 
 ## 関連
 
+- `docs/db/README.md` — 自動生成したテーブル一覧と ER 図(外部キーの関係)
 - `docs/adr/0002-separate-stock-master-and-caches.md` — 3表を分ける決定と却下した案
 - `backend/migrations/README.md` — baseline と増分の運用、`_sqlx_migrations` の扱い、列の削除・改名(破壊的変更)をどのリリースで行うかの手順
 - `docs/architecture.md` — 構成と境界

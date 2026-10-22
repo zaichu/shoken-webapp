@@ -1,0 +1,88 @@
+name: DB Docs CI
+
+# migration を触った PR で、docs/db/ を生成し直して差分が出ないことを確かめる。
+# 生成は scripts/gen-db-docs.sh と同じ手順(一時 PostgreSQL → migration → tbls doc)で行う。
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Check generated DB docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # paths-filter は pull_request で REST API を使うため pull-requests: read が要る
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 1
+
+      - name: Detect DB doc changes
+        id: detect
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
+        with:
+          filters: |
+            db-docs:
+              - 'backend/migrations/**'
+              - 'backend/src/db/migrate.rs'
+              - 'docs/db/**'
+              - '.tbls.yml'
+              - '.tbls/**'
+              - 'scripts/gen-db-docs.sh'
+              - '.github/workflows/db-docs.yml'
+
+      # 手動実行のときは常に関数を走らせる(任意のブランチで差分を確認したいときに使う)
+      - name: Resolve DB doc detection
+        id: gate
+        run: echo "db-docs=${{ steps.detect.outputs.db-docs == 'true' || github.event_name == 'workflow_dispatch' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Rust toolchain
+        if: steps.gate.outputs.db-docs == 'true'
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0 https://github.com/actions-rust-lang/setup-rust-toolchain/releases/tag/v2.0.0
+        with:
+          cache: false
+
+      - name: Cache Rust dependencies
+        if: steps.gate.outputs.db-docs == 'true'
+        uses: ./.github/actions/rust-cache
+        with:
+          workspaces: |
+            backend -> target
+            shared -> target
+          shared-key: backend-ci
+
+      # バージョンを固定する(生成結果は tbls のバージョンで変わることがあるため)
+      - name: Install tbls
+        if: steps.gate.outputs.db-docs == 'true'
+        env:
+          TBLS_VERSION: 1.96.1
+          TBLS_SHA256: 18285eef0ba7d917214e8bd7dd6a22afe5fea021eed52e7149100a3d10a2af95
+        run: |
+          set -euo pipefail
+          curl -sSfL -o "${RUNNER_TEMP}/tbls.tar.gz" "https://github.com/k1LoW/tbls/releases/download/v${TBLS_VERSION}/tbls_v${TBLS_VERSION}_linux_amd64.tar.gz"
+          echo "${TBLS_SHA256}  ${RUNNER_TEMP}/tbls.tar.gz" | sha256sum --check
+          tar -xzf "${RUNNER_TEMP}/tbls.tar.gz" -C /usr/local/bin tbls
+
+      - name: Generate DB docs
+        if: steps.gate.outputs.db-docs == 'true'
+        run: bash scripts/gen-db-docs.sh
+
+      - name: Check generated DB docs are up to date
+        if: steps.gate.outputs.db-docs == 'true'
+        run: |
+          set -euo pipefail
+          # 追加・削除されたファイルも差分として検出するため先にステージする
+          git add --all -- docs/db
+          git diff --exit-code --cached -- docs/db
