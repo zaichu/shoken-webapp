@@ -93,13 +93,14 @@ const SYNC_KINDS: SyncKind[] = [
     row: {
       security_code: '9901',
       security_name: '架空同期銘柄',
+      account: '特定',
       shares: 100,
       average_purchase_price: 1000,
       total_purchase_amount: 100000,
       current_price: 1100,
       daily_change: 10,
-      market_value: 110000,
-      profit_loss_rate: 10,
+      price_as_of: '2026-10-23',
+      prev_close: 1090,
     },
   },
   {
@@ -109,16 +110,21 @@ const SYNC_KINDS: SyncKind[] = [
     previewPath: /\/api\/v1\/fund-balance-import-validations$/,
     importPath: /\/api\/v1\/fund-balance-imports$/,
     row: {
-      fund_kind: '投資信託',
-      account_type: '特定',
       fund_name: '架空同期ファンド',
-      security_code: '9902',
+      account: '特定',
+      dividends_course: '再投資型',
       shares: 100,
       average_purchase_price: 1000,
       total_purchase_amount: 100000,
-      current_price: 1100,
+      base_price: 1100,
+      base_price_day_change: 10,
+      base_price_month_change: null,
       market_value: 110000,
+      profit_loss: 10000,
       profit_loss_rate: 10,
+      total_return: 10000,
+      price_as_of: '2026-10-23',
+      price_source: 'csv',
     },
   },
   {
@@ -152,10 +158,13 @@ const SYNC_KINDS: SyncKind[] = [
       security_code: '9904',
       security_name: '架空同期売買',
       account: '特定',
-      trade_type: '買付',
       shares: 100,
-      unit_price: 1000,
-      amount: 100000,
+      asked_price: 1000,
+      proceeds: 100000,
+      purchase_price: 950,
+      realized_profit_and_loss: 5000,
+      taxes: 1015,
+      realized_profit_and_loss_after_tax: 3985,
     },
   },
   {
@@ -168,11 +177,16 @@ const SYNC_KINDS: SyncKind[] = [
       trade_date: '2026-10-01',
       settlement_date: '2026-10-03',
       fund_name: '架空同期投信',
+      dividends: '再投資型',
       account: '特定',
-      trade_type: '買付',
       shares: 100,
-      unit_price: 1000,
-      amount: 100000,
+      exchange_rate: 0,
+      cancellation_unit_price_yen: 1000,
+      cancellation_amount_yen: 100000,
+      average_acquisition_price_yen: 900,
+      realized_profit_and_loss: 10000,
+      taxes: 2031,
+      realized_profit_and_loss_after_tax: 7969,
     },
   },
 ];
@@ -193,14 +207,26 @@ function emitAllCsvs(page: Page) {
 // 取り込み経路の API モック。import が来た種類の行を db に積み、一覧 API は db を返す。
 // assetSavedTotal を渡すと保有残高の保存済み件数をあらかじめ持つ状態にする(激減確認用)
 async function mockSyncApis(page: Page, options: { assetSavedTotal?: number } = {}) {
+  let seq = 0;
+  const asDbRow = (row: Record<string, unknown>) => {
+    seq += 1;
+    return {
+      id: `00000000-0000-0000-0000-${String(seq).padStart(12, '0')}`,
+      ...row,
+      created_at: '2026-10-01T00:00:00Z',
+      updated_at: '2026-10-01T00:00:00Z',
+    };
+  };
   const db = new Map<string, unknown[]>(SYNC_KINDS.map(({ kind }) => [kind, []]));
   if (options.assetSavedTotal) {
     db.set(
       'assetbalance',
-      Array.from({ length: options.assetSavedTotal }, (_, i) => ({
-        ...SYNC_KINDS[0].row,
-        security_code: `98${String(i).padStart(2, '0')}`,
-      })),
+      Array.from({ length: options.assetSavedTotal }, (_, i) =>
+        asDbRow({
+          ...SYNC_KINDS[0].row,
+          security_code: `98${String(i).padStart(2, '0')}`,
+        }),
+      ),
     );
   }
   const calls = { preview: [] as string[], import: [] as string[], list: [] as string[] };
@@ -217,7 +243,8 @@ async function mockSyncApis(page: Page, options: { assetSavedTotal?: number } = 
     });
     await page.route(fixture.importPath, (route) => {
       calls.import.push(fixture.kind);
-      db.get(fixture.kind)?.push(fixture.row);
+      const rows = db.get(fixture.kind);
+      if (rows) rows.push(asDbRow(fixture.row));
       return route.fulfill(json({ inserted: 1, skipped: 0, errors: [] }));
     });
   }
@@ -281,10 +308,11 @@ test.describe('CSV 最新取得', () => {
 
     // 取り込んだ種類の一覧が再取得され、戻ったページの表に新しい行が出る
     await page.goto('/receipts');
-    await expect(page.getByText('架空同期配当')).toBeVisible();
+    await expect(page.getByText('架空同期配当').first()).toBeVisible();
     await page.goto('/assetbalance');
-    await expect(page.getByText('架空同期銘柄')).toBeVisible();
-    await expect(page.getByText('架空同期ファンド')).toBeVisible();
+    await expect(page.getByText('架空同期銘柄').first()).toBeVisible();
+    await page.getByRole('tab', { name: '投資信託' }).click();
+    await expect(page.getByText('架空同期ファンド').first()).toBeVisible();
   });
 
   test('件数が半分未満に減る種類は確認を出し、「いいえ」でその種類だけ取り込まない', async ({
