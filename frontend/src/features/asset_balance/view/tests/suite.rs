@@ -910,6 +910,54 @@ fn fund_saved_row(
 }
 
 #[test]
+fn fund_csv_only_count_counts_distinct_funds_and_stays_consistent() {
+    // 口座違いの同じファンドが2行あるとき、対象外はファンド単位で1件と数える。
+    // 対象(取得+失敗)と対象外を合わせると全ファンド数になる
+    let resolved = ResolvedFundBalance {
+        rows: vec![
+            fund_saved_row("ファンドA", "api", true, Some(100), "2026-10-17"),
+            fund_saved_row("ファンドB", "csv", true, Some(50), "2026-10-10"),
+            fund_saved_row("ファンドB", "csv", true, Some(50), "2026-10-10"),
+            fund_saved_row("ファンドC", "csv", true, Some(30), "2026-10-10"),
+        ],
+        total: 4,
+        warning: None,
+        fallback_totals: None,
+        summary: Some(crate::api::dto::FundBalanceSummary {
+            total_market_value: rust_decimal::Decimal::from(1),
+            total_purchase_amount: rust_decimal::Decimal::from(1),
+            total_daily_change: rust_decimal::Decimal::from(1),
+            latest_nav_count: 4,
+            pending_nav_count: 0,
+            nav_status: FundNavStatus {
+                updated_at: Some("2026-10-20 23:02".to_string()),
+                fetched_count: 1,
+                failed_count: 0,
+                failure_reason: None,
+            },
+        }),
+    };
+    let csv_only = super::summary::fund_csv_only_count(&resolved);
+    // 対象1ファンド + 対象外2ファンド = 全3ファンド(行は4)
+    assert_eq!(csv_only, 2);
+
+    // 自動更新に失敗したファンドは CSV 由来の行になるが「他社」ではないので除く
+    let with_failed = ResolvedFundBalance {
+        summary: Some(crate::api::dto::FundBalanceSummary {
+            nav_status: FundNavStatus {
+                updated_at: Some("2026-10-20 23:02".to_string()),
+                fetched_count: 1,
+                failed_count: 1,
+                failure_reason: Some("HTTP 403".to_string()),
+            },
+            ..resolved.summary.clone().unwrap()
+        }),
+        ..resolved
+    };
+    assert_eq!(super::summary::fund_csv_only_count(&with_failed), 1);
+}
+
+#[test]
 fn fund_nav_note_distinguishes_fetched_failed_and_not_fetched_yet() {
     // 取得できたとき: 最終更新の時刻と対象・取得件数
     let fetched = super::summary::fund_nav_note(

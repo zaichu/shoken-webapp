@@ -79,7 +79,9 @@ pub fn ReceiptsPage() -> impl IntoView {
                     }
                 }
             >
-                <SkeletonTabs>{tabs}</SkeletonTabs>
+                <div class="content-gutter">
+                    <SkeletonTabs>{tabs}</SkeletonTabs>
+                </div>
                 <div
                     class="content-gutter flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible"
                     data-testid="receipts-workspace"

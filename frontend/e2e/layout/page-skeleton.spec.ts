@@ -147,10 +147,11 @@ async function setupMocks(page: Page) {
   );
 }
 
-// ページの骨格の各段。上下の順と、段どうしの間隔を測る
+// ページの骨格の各段。上下の順と、段どうしの間隔と左端を測る
 type Skeleton = {
   tops: number[];
   bottoms: number[];
+  lefts: number[];
 };
 
 async function measureSkeleton(page: Page, selectors: string[]): Promise<Skeleton> {
@@ -161,12 +162,13 @@ async function measureSkeleton(page: Page, selectors: string[]): Promise<Skeleto
         throw new Error(`要素が見つかりません: ${sel}`);
       }
       const rect = element.getBoundingClientRect();
-      return { top: rect.top, bottom: rect.bottom };
+      return { top: rect.top, bottom: rect.bottom, left: rect.left };
     });
   }, selectors);
   return {
     tops: boxes.map((box) => box.top),
     bottoms: boxes.map((box) => box.bottom),
+    lefts: boxes.map((box) => box.left),
   };
 }
 
@@ -224,6 +226,39 @@ test.describe('資産管理と取引明細のページの骨格', () => {
         Math.abs(assetGaps[index] - receiptGaps[index]),
         `段${index + 1}と段${index + 2}の間隔`,
       ).toBeLessThanOrEqual(2);
+    }
+
+    // 各段の左端がそろう(タブ行がページの枠からはみ出さない。差 2px 以内)
+    for (const [name, skeleton] of [
+      ['資産管理', asset],
+      ['取引明細', receipt],
+    ] as const) {
+      for (const [index, left] of skeleton.lefts.entries()) {
+        expect(
+          Math.abs(left - skeleton.lefts[0]),
+          `${name}の段${index + 1}の左端`,
+        ).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  test('見出しはタイトルの右に件数が並ぶ', async ({ page }) => {
+    await setupMocks(page);
+
+    for (const path of ['/assetbalance', '/receipts']) {
+      await page.goto(path);
+      const title = page.locator('h1.page-frame-title');
+      const count = page.getByTestId('page-title-count');
+      await expect(title).toBeVisible();
+      await expect(count).toBeVisible();
+
+      const titleBox = await title.boundingBox();
+      const countBox = await count.boundingBox();
+      expect(titleBox).not.toBeNull();
+      expect(countBox).not.toBeNull();
+      expect(countBox!.x, `${path}の件数はタイトルの右`).toBeGreaterThan(
+        titleBox!.x + titleBox!.width,
+      );
     }
   });
 

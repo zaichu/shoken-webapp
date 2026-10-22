@@ -81,7 +81,7 @@ pub fn PageFrame(
                     {move || {
                         title_count.map(|count| {
                             view! {
-                                <span class="page-frame-count" data-testid="page-title-count">
+                                <span class="page-frame-count order-1" data-testid="page-title-count">
                                     {count}
                                 </span>
                             }
