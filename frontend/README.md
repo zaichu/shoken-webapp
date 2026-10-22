@@ -48,13 +48,13 @@ bash scripts/e2e-ci-like.sh --show-fonts e2e/receipts/desktop-layout.spec.ts
 画面を変える PR のスクショは `scripts/ui-shots.sh` で撮ります。ビルド・配信・撮影・push まで1コマンドで済み、途中でコマンドを連結せずに済みます。
 
 ```bash
-scripts/ui-shots.sh <名前> <before|after> [--only 画面一覧] [--pr 番号] [--no-push]
+scripts/ui-shots.sh <名前> <before|after> --pr <番号> [--only 画面一覧] [--no-push]
 ```
 
-- `<名前>` は commit のメッセージに出すラベル(例: `i1484`)、`<before|after>` はどちらの画面を撮るかを指定します
+- `<名前>` は commit のメッセージに出すラベル(例: `i1234`)、`<before|after>` はどちらの画面を撮るかを指定します
+- `--pr` は画像を置く `pr<番号>/` の番号で必須です(ブランチ名には Issue 番号が入るため、ブランチ名からは取れません)
 - `--only` で撮る画面を絞れます(例: `--only home,asset-stock`)。画面名は `home` / `asset-all` / `asset-stock` / `asset-fund` / `receipts-dividend` / `receipts-stock` / `receipts-fund` / `search` / `settings` / `csv` / `login`
-- `--pr` を省略するとブランチ名から番号を取ります。画像は `screenshots` ブランチの `pr<番号>/<before|after>/` に入ります
-- 最後に PR 本文に貼る Markdown(変更前後の表)が出力されます
+- 画像は `screenshots` ブランチの `pr<番号>/<before|after>/` に入ります。最後に PR 本文に貼る Markdown(変更前後の表)が出力されます
 
 撮影する画面は「ホーム・資産管理3タブ・取引明細3タブ・銘柄検索・設定・CSV管理・ログイン(ログアウト状態)」で、ダーク・ライト × 1280×800 / 1920×1080 / 390×844 を撮ります。表・一覧がある画面は PC のスクロール後も撮ります。データは全て `scripts/ui-shots/data.mjs` の架空データで、本番の接続情報・実保有データは使いません。
 

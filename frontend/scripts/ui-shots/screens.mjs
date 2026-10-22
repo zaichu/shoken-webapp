@@ -1,6 +1,5 @@
 // 撮影する画面の一覧と、画面のモック設定。
-// 画面の集合は Issue #1484 の標準セット(ホーム・資産管理3タブ・取引明細3タブ・
-// 銘柄検索・設定・CSV管理・ログイン)。
+// 集合はホーム・資産管理3タブ・取引明細3タブ・銘柄検索・設定・CSV管理・ログイン。
 //
 // API は全て架空の応答を返す。本番の backend には繋がない。
 
@@ -165,7 +164,6 @@ async function installGuards(context) {
   return unexpected;
 }
 
-// 画面が必要とする API をモックする
 async function installMocks(context, { anonymous }) {
   const stocks = assetBalances();
   const funds = fundBalances();

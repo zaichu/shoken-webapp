@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // PR 本文に貼る Markdown(変更前後の表)を作る。
-// screenshots ブランチの pr<番号>/<before|after>/ にある画像を見て、
-// ある側だけをリンクする。無い側は「—」にする。
+// ある側だけをリンクし、無い側は「—」にする。
 //
 // 使い:
-//   node scripts/ui-shots/markdown.mjs --pr 1484 --sha <commit> \
+//   node scripts/ui-shots/markdown.mjs --pr <番号> --sha <commit> \
 //     --repo zaichu/shoken-webapp --dir <screenshots の worktree>
 
 import { existsSync } from 'node:fs';

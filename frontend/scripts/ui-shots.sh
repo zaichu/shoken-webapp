@@ -1,29 +1,20 @@
 #!/usr/bin/env bash
-# 画面を1コマンドで撮るスクリプト(Issue #1484)。
-#
-#   frontend/scripts/ui-shots.sh <名前> <before|after> [--only 画面一覧] [--pr 番号] [--no-push]
-#
-# 1. フレッシュにビルド(test-results/dist-leptos を作り直す)
-# 2. 空きポート(8160 以降)で配信を起動する(自分が起動したプロセスだけ後で止める)
-# 3. 標準セットの画面をダーク・ライト × 1280×800 / 1920×1080 / 390×844 で撮る
-# 4. 画像を screenshots ブランチの pr<番号>/<before|after>/ に push して
-#    PR 本文に貼る Markdown(変更前後の表)を出力する
-#
-# データの出所は全て架空のモック(frontend/scripts/ui-shots/data.mjs)。
+# 画面を1コマンドで撮るスクリプト。使い方は usage 参照。
+# データは全て架空のモック(frontend/scripts/ui-shots/data.mjs)で、
 # 本番の接続情報・実保有データには触らない。
 
 set -euo pipefail
 
 usage() {
   cat <<'EOF'
-使い: frontend/scripts/ui-shots.sh <名前> <before|after> [オプション]
+使い: frontend/scripts/ui-shots.sh <名前> <before|after> --pr <番号> [オプション]
 
-  <名前>           コミットメッセージに出すラベル(例: i1484)
+  <名前>           コミットメッセージに出すラベル(例: i1234)
   <before|after>   変更前 / 変更後のどちらを撮るか
 
 オプション:
+  --pr <番号>        画像を置く pr<番号>/ の番号(必須。ブランチ名には Issue 番号が入るため)
   --only <画面一覧>  撮る画面を絞る(例: --only home,asset-stock)
-  --pr <番号>        screenshots ブランチの pr<番号>/ に置く。省略時はブランチ名から取る
   --no-push          画像を push しない(撮るだけ)
   -h, --help         この説明を表示する
 EOF
@@ -75,6 +66,12 @@ case "$SIDE" in
     ;;
 esac
 
+if [ -z "$PR_NUMBER" ]; then
+  echo "--pr で PR 番号を指定してください" >&2
+  usage >&2
+  exit 2
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$FRONTEND_DIR"
@@ -83,17 +80,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 DIST_DIR="test-results/dist-leptos"
 SHOT_DIR="test-results/shots"
 MARKDOWN_FILE="test-results/shots.md"
-
-if [ -z "$PR_NUMBER" ]; then
-  BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-  if [[ "$BRANCH" =~ ([0-9]+) ]]; then
-    PR_NUMBER="${BASH_REMATCH[1]}"
-  fi
-fi
-if [ -z "$PR_NUMBER" ]; then
-  echo "PR 番号が分かりません。--pr で指定してください(ブランチ: $(git rev-parse --abbrev-ref HEAD))" >&2
-  exit 2
-fi
+SERVER_LOG="test-results/ui-shots-server.log"
 
 SERVER_PID=""
 stop_server() {
@@ -109,6 +96,16 @@ port_in_use() {
   (exec 3<>"/dev/tcp/127.0.0.1/$1") >/dev/null 2>&1
 }
 
+# 選んだポートを自分のサーバーが保持しているかを確認する。
+# 他の撮影とポートを競合すると相手のポートに接続してしまうため、プロセスまで確かめる
+server_owns_port() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnpH "sport = :$1" 2>/dev/null | grep -q "pid=$SERVER_PID,"
+    return
+  fi
+  kill -0 "$SERVER_PID" 2>/dev/null
+}
+
 echo "==> ビルド(${DIST_DIR})"
 rm -rf "$DIST_DIR" "$SHOT_DIR"
 trunk build --release --dist "$DIST_DIR"
@@ -116,30 +113,33 @@ node scripts/prepare-dist.mjs "$DIST_DIR" ''
 
 PORT=""
 for candidate in $(seq 8160 8199); do
-  if ! port_in_use "$candidate"; then
-    PORT="$candidate"
+  if port_in_use "$candidate"; then
+    continue
+  fi
+  node scripts/serve-dist.mjs "$DIST_DIR" "$candidate" >"$SERVER_LOG" 2>&1 &
+  SERVER_PID=$!
+  for _ in $(seq 1 60); do
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+      break
+    fi
+    if server_owns_port "$candidate"; then
+      PORT="$candidate"
+      break
+    fi
+    sleep 0.5
+  done
+  if [ -n "$PORT" ]; then
     break
   fi
+  echo "ポート $candidate で起動できなかったため次のポートを試します"
+  stop_server
 done
 if [ -z "$PORT" ]; then
-  echo "8160〜8199 に空いているポートがありません" >&2
+  echo "8160〜8199 にサーバーを起動できませんでした(${SERVER_LOG} を確認)" >&2
   exit 1
 fi
 
 echo "==> 配信(ポート $PORT)"
-node scripts/serve-dist.mjs "$DIST_DIR" "$PORT" >test-results/ui-shots-server.log 2>&1 &
-SERVER_PID=$!
-for _ in $(seq 1 60); do
-  if port_in_use "$PORT"; then
-    break
-  fi
-  sleep 0.5
-done
-if ! port_in_use "$PORT"; then
-  echo "サーバーが起動しませんでした(test-results/ui-shots-server.log を確認)" >&2
-  exit 1
-fi
-
 echo "==> 撮影"
 mkdir -p "$SHOT_DIR"
 if [ -n "$ONLY" ]; then
@@ -168,10 +168,19 @@ fi
 
 SHOTS_DIR="$(dirname "$REPO_ROOT")/shots-pr${PR_NUMBER}"
 echo "==> screenshots ブランチへ push(${SHOTS_DIR})"
-git fetch origin screenshots
+git fetch origin
 git worktree prune
-if [ -d "$SHOTS_DIR" ]; then
-  git worktree remove --force "$SHOTS_DIR" 2>/dev/null || rm -rf "$SHOTS_DIR"
+if [ -e "$SHOTS_DIR" ]; then
+  # 名前が同じでも持ち主が違う可能性があるため、git に worktree として登録されているか確かめる
+  if ! git worktree list --porcelain | grep -Fxq "worktree $SHOTS_DIR"; then
+    echo "同名ディレクトリがあります。$SHOTS_DIR を確認してください" >&2
+    exit 1
+  fi
+  # 変更や未 push のコミットがある worktree は git が削除を拒む
+  if ! git worktree remove "$SHOTS_DIR"; then
+    echo "撮影用 worktree に変更があります。$SHOTS_DIR を確認してください" >&2
+    exit 1
+  fi
 fi
 git worktree add --detach "$SHOTS_DIR" origin/screenshots
 
@@ -181,12 +190,16 @@ cp "$SHOT_DIR"/*.png "$TARGET_DIR/"
 
 cd "$SHOTS_DIR"
 git add "pr${PR_NUMBER}/${SIDE}"
-git commit -m "pr${PR_NUMBER}: ${NAME} のスクリーンショット(${SIDE})"
-if ! git push origin HEAD:screenshots; then
-  # 他の lane が先に push していたら取り込んでからもう1度 push する(force push はしない)
-  git fetch origin screenshots
-  git merge origin/screenshots
-  git push origin HEAD:screenshots
+if ! git diff --cached --quiet; then
+  git commit -m "pr${PR_NUMBER}: ${NAME} のスクリーンショット(${SIDE})"
+fi
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/screenshots)" ]; then
+  if ! git push origin HEAD:screenshots; then
+    # 他の lane が先に push していたら取り込んでからもう1度 push する(force push はしない)
+    git fetch origin screenshots
+    git merge origin/screenshots
+    git push origin HEAD:screenshots
+  fi
 fi
 SHA="$(git rev-parse HEAD)"
 
@@ -198,4 +211,4 @@ node "$FRONTEND_DIR/scripts/ui-shots/markdown.mjs" \
   --dir "$SHOTS_DIR" | tee "$FRONTEND_DIR/$MARKDOWN_FILE"
 
 cd "$REPO_ROOT"
-git worktree remove --force "$SHOTS_DIR"
+git worktree remove "$SHOTS_DIR"

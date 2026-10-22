@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 撮影本体。起動済みの配信に Playwright の Chromium で接続して撮る。
-// サーバーの起動・停止は ui-shots.sh が担う(自分が起動したプロセスだけ止める)。
+// 配信の起動・停止は ui-shots.sh が担う。
 //
 // 使い:
 //   node scripts/ui-shots/shoot.mjs --port 8160 --out test-results/shots [--only home,asset-stock]
