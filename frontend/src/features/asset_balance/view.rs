@@ -289,9 +289,9 @@ pub fn AssetBalancePage() -> impl IntoView {
                 <SkeletonTabs>
                     <AssetKindTabs
                         kind=state.kind
-                        all_count=stock_count.get() + fund_count.get()
-                        stock_count=stock_count.get()
-                        fund_count=fund_count.get()
+                        all_count=Signal::derive(move || stock_count.get() + fund_count.get())
+                        stock_count=stock_count
+                        fund_count=fund_count
                     />
                 </SkeletonTabs>
             </div>
