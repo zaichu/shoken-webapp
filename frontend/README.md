@@ -43,6 +43,21 @@ bash scripts/e2e-ci-like.sh --show-fonts e2e/receipts/desktop-layout.spec.ts
 
 ホストで `npm ci` してから `trunk build --release --dist dist-e2e` して、コンテナに `LEPTOS_E2E_DIST_DIR=dist-e2e` で渡します(CI と同じ。コンテナに Rust は入れません)。コンテナはイメージ内の `node_modules` を使い、ホストの `node_modules` には書き込みません。フォント・依存パッケージは `.github/actions/setup-playwright/action.yml` の apt 行から読み取り、Node は `setup-node` の版、`@playwright/test` は `package-lock.json` の版を使います。イメージは内容のハッシュでタグ付けして使い回します(`--rebuild` で作り直し)。引数はそのまま Playwright に渡します。ポートは `LEPTOS_E2E_PORT` がなければ 8140 を使います。
 
+### 画面のスクショを撮る
+
+画面を変える PR のスクショは `scripts/ui-shots.sh` で撮ります。ビルド・配信・撮影・push まで1コマンドで済み、途中でコマンドを連結せずに済みます。
+
+```bash
+scripts/ui-shots.sh <名前> <before|after> [--only 画面一覧] [--pr 番号] [--no-push]
+```
+
+- `<名前>` は commit のメッセージに出すラベル(例: `i1484`)、`<before|after>` はどちらの画面を撮るかを指定します
+- `--only` で撮る画面を絞れます(例: `--only home,asset-stock`)。画面名は `home` / `asset-all` / `asset-stock` / `asset-fund` / `receipts-dividend` / `receipts-stock` / `receipts-fund` / `search` / `settings` / `csv` / `login`
+- `--pr` を省略するとブランチ名から番号を取ります。画像は `screenshots` ブランチの `pr<番号>/<before|after>/` に入ります
+- 最後に PR 本文に貼る Markdown(変更前後の表)が出力されます
+
+撮影する画面は「ホーム・資産管理3タブ・取引明細3タブ・銘柄検索・設定・CSV管理・ログイン(ログアウト状態)」で、ダーク・ライト × 1280×800 / 1920×1080 / 390×844 を撮ります。表・一覧がある画面は PC のスクロール後も撮ります。データは全て `scripts/ui-shots/data.mjs` の架空データで、本番の接続情報・実保有データは使いません。
+
 ## ソースの構成
 
 機能ごとにまとめる。1つの責務で完結する処理は `foo.rs` だけに置く。責務を分ける子モジュールがあるときだけ `foo.rs` + `foo/` にし、親は型・公開窓口・子の組み立て、子は `foo/bar.rs` に置く。`mod.rs` は使わない。単体テストだけの `foo/tests.rs` も下記の配置規則に従う。
