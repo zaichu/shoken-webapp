@@ -151,8 +151,7 @@ pub const CLEAR_SEARCH_CONDITIONS: &str = "検索条件を解除";
 /// ログインが要る画面に出す案内の見出し
 pub const LOGIN_REQUIRED_TITLE: &str = "ログインしてください";
 /// ログインが要る画面に出す案内の説明
-pub const LOGIN_REQUIRED_DESCRIPTION: &str =
-    "Googleアカウントでログインすると、保有資産と取引明細を確認できます。";
+pub const LOGIN_REQUIRED_DESCRIPTION: &str = "保有資産と取引明細はログイン後に確認できます。";
 /// Googleアカウントでのログイン操作
 pub const GOOGLE_LOGIN: &str = "Googleでログイン";
 /// 検索を実行するボタン
