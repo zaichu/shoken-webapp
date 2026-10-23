@@ -56,7 +56,7 @@ pub(crate) struct AssetBalanceState {
     sort_order: RwSignal<SortOrder>,
     fund_sort_key: RwSignal<FundSortKey>,
     fund_sort_order: RwSignal<SortOrder>,
-    kind: RwSignal<AssetKind>,
+    pub(crate) kind: RwSignal<AssetKind>,
     data_ops: RwSignal<DataOps>,
     pub(crate) csv: AssetBalanceCsvStore,
 }
@@ -86,8 +86,17 @@ impl AssetBalanceState {
 }
 
 pub(crate) fn use_asset_balance_state(session: SessionStore) -> AssetBalanceState {
-    let states = use_context::<crate::app::PageStates>().unwrap_or_default();
-    crate::app::page_state(states.asset_balance, || build_asset_balance_state(session))
+    #[cfg(test)]
+    {
+        // テストでは呼び出しごとに新しい状態を返して独立性を保つ
+        build_asset_balance_state(session)
+    }
+    #[cfg(not(test))]
+    {
+        // ページ遷移でビューを作り直しても取得済みデータを失わないよう、App コンテキストのスロットに保持する
+        let states = use_context::<crate::app::PageStates>().unwrap_or_default();
+        crate::app::page_state(states.asset_balance, || build_asset_balance_state(session))
+    }
 }
 
 fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {

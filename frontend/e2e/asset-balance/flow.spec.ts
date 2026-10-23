@@ -280,7 +280,7 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/csv');
 
-  // 国内株式カード内の削除ボタンをクリック(投資信託のカードもあるので名前で区別する)
+  // 国内株式タブの削除ボタンをクリック(投資信託は別タブなので名前どおり)
   const deleteButton = page.getByRole('button', { name: '国内株式をすべて削除…' });
   await expect(deleteButton).toBeVisible();
   await deleteButton.click();

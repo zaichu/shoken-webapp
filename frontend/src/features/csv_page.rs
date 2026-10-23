@@ -4,7 +4,8 @@
 
 use crate::app::{current_location, pathname_of, query_param};
 use crate::features::asset_balance::{
-    AssetBalanceCsvSource, AssetKind, FundCsvPreview, StockCsvPreview, use_asset_balance_state,
+    AssetBalanceCsvSource, AssetBalanceState, AssetKind, FundCsvPreview, StockCsvPreview,
+    use_asset_balance_state,
 };
 use crate::features::csv_sync::CsvSyncPanel;
 use crate::features::receipts::{
@@ -18,7 +19,7 @@ use crate::ui::page_skeleton::SkeletonTabs;
 use leptos::prelude::*;
 
 /// 統合 CSV ページの5タブ。並びは Issue で指定された5種類の順
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CsvPageTab {
     AssetStock,
     AssetFund,
@@ -79,6 +80,14 @@ impl CsvPageTab {
             Self::Dividend => Some(ReceiptsTab::Dividend),
             Self::DomesticStock => Some(ReceiptsTab::DomesticStock),
             Self::MutualFund => Some(ReceiptsTab::MutualFund),
+            _ => None,
+        }
+    }
+
+    fn asset_kind(self) -> Option<AssetKind> {
+        match self {
+            Self::AssetStock => Some(AssetKind::Stock),
+            Self::AssetFund => Some(AssetKind::Fund),
             _ => None,
         }
     }
@@ -198,6 +207,15 @@ fn CsvPageTabs(tab: RwSignal<CsvPageTab>) -> impl IntoView {
     }
 }
 
+/// 「一覧に戻る」が同じ種別のタブを開くよう、一覧側ストアの選択状態を CSV 側のタブにそろえる
+fn ensure_list_tab(asset: AssetBalanceState, receipts: ReceiptsStore, tab: CsvPageTab) {
+    if let Some(receipt_tab) = tab.receipt_tab() {
+        ensure_kind(receipts, receipt_tab);
+    } else if let Some(kind) = tab.asset_kind() {
+        asset.kind.set(kind);
+    }
+}
+
 #[component]
 fn ReceiptCsvSection(
     store: ReceiptsStore,
@@ -231,12 +249,10 @@ pub fn CsvPage() -> impl IntoView {
     // ?kind= はページの再マウントでしか変わらないため、マウント時に1回だけ読む
     let tab = RwSignal::new(CsvPageTab::from_location(&current_location()));
 
-    // 取引明細タブを開いたとき一覧側の選択タブも同じ種別にそろえ、「一覧に戻る」が同じタブを開く。
+    // 一覧側の選択タブを CSV 側の種別にそろえ、「一覧に戻る」が同じタブを開く。
     // 世代リセット(ユーザー切替)後はストア側の Effect が選択済みタブを再取得する
     Effect::new(move |_| {
-        if let Some(receipt_tab) = tab.get().receipt_tab() {
-            ensure_kind(receipts, receipt_tab);
-        }
+        ensure_list_tab(asset_state, receipts, tab.get());
     });
 
     let action_bar = view! {
@@ -313,5 +329,123 @@ pub fn CsvPage() -> impl IntoView {
                 }}
             </div>
         </PageFrame>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::session::SessionStore;
+
+    /// 引数は `location.pathname + location.search` 相当の文字列
+    #[test]
+    fn from_location_interprets_legacy_kind_per_path() {
+        // 旧 /receipts/csv の kind 値は取引明細の種別
+        assert_eq!(
+            CsvPageTab::from_location("/receipts/csv"),
+            CsvPageTab::Dividend
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/receipts/csv?kind=dividend"),
+            CsvPageTab::Dividend
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/receipts/csv?kind=stock"),
+            CsvPageTab::DomesticStock
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/receipts/csv?kind=fund"),
+            CsvPageTab::MutualFund
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/receipts/csv/delete?kind=fund"),
+            CsvPageTab::MutualFund
+        );
+
+        // 旧 /assetbalance/csv では kind=fund が資産管理の投資信託
+        assert_eq!(
+            CsvPageTab::from_location("/assetbalance/csv"),
+            CsvPageTab::AssetStock
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/assetbalance/csv?kind=fund"),
+            CsvPageTab::AssetFund
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/assetbalance/csv/delete?kind=fund"),
+            CsvPageTab::AssetFund
+        );
+        // 資産管理側にない種別値は国内株式に戻す
+        assert_eq!(
+            CsvPageTab::from_location("/assetbalance/csv?kind=dividend"),
+            CsvPageTab::AssetStock
+        );
+    }
+
+    #[test]
+    fn from_location_matches_canonical_kind_params() {
+        assert_eq!(CsvPageTab::from_location("/csv"), CsvPageTab::AssetStock);
+        assert_eq!(
+            CsvPageTab::from_location("/csv?kind=assetbalance"),
+            CsvPageTab::AssetStock
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/csv?kind=fundbalance"),
+            CsvPageTab::AssetFund
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/csv?kind=dividend"),
+            CsvPageTab::Dividend
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/csv?kind=stock"),
+            CsvPageTab::DomesticStock
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/csv?kind=fund"),
+            CsvPageTab::MutualFund
+        );
+        assert_eq!(
+            CsvPageTab::from_location("/csv?kind=unknown"),
+            CsvPageTab::AssetStock
+        );
+    }
+
+    /// 「一覧に戻る」が CSV 側で開いていた種別のタブを再現できるよう、
+    /// 資産管理タブを開いたときは一覧側の kind も同じ種別にそろう
+    #[test]
+    fn ensure_list_tab_syncs_asset_kind_for_asset_tabs() {
+        let _ = any_spawner::Executor::init_futures_executor();
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            let asset = use_asset_balance_state(session);
+            let receipts = use_receipts_data(session, RwSignal::new(ReceiptsTab::Dividend));
+
+            asset.kind.set(AssetKind::Stock);
+            ensure_list_tab(asset, receipts, CsvPageTab::AssetFund);
+            assert_eq!(asset.kind.get_untracked(), AssetKind::Fund);
+
+            asset.kind.set(AssetKind::Fund);
+            ensure_list_tab(asset, receipts, CsvPageTab::AssetStock);
+            assert_eq!(asset.kind.get_untracked(), AssetKind::Stock);
+        });
+    }
+
+    /// 取引明細タブでは資産管理側の選択を変えない(取引明細側だけ同期する)
+    #[test]
+    fn ensure_list_tab_leaves_asset_kind_alone_for_receipt_tabs() {
+        let _ = any_spawner::Executor::init_futures_executor();
+        let owner = Owner::new();
+        owner.with(|| {
+            let session = SessionStore::new();
+            let asset = use_asset_balance_state(session);
+            let receipts = use_receipts_data(session, RwSignal::new(ReceiptsTab::Dividend));
+
+            asset.kind.set(AssetKind::Fund);
+            ensure_list_tab(asset, receipts, CsvPageTab::MutualFund);
+            assert_eq!(asset.kind.get_untracked(), AssetKind::Fund);
+            assert_eq!(receipts.active_tab.get_untracked(), ReceiptsTab::MutualFund);
+        });
     }
 }
