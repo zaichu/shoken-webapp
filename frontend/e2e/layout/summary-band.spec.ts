@@ -211,9 +211,16 @@ function expectBandAligned(items: BandItem[]) {
   expect([...labelColors]).toHaveLength(1);
   const labelFontSizes = new Set(items.map((item) => item.labelFontSize));
   expect([...labelFontSizes]).toHaveLength(1);
-  // 数字の大きさは主と従の2種類だけ
+  // 数字の大きさは主と従と補足(率など)の3種類までで、補足は主の数字を上回らない
   const valueFontSizes = new Set(items.flatMap((item) => item.valueFontSizes));
-  expect([...valueFontSizes].sort()).toHaveLength(2);
+  expect(valueFontSizes.size).toBeLessThanOrEqual(3);
+  for (const item of items) {
+    const sizes = item.valueFontSizes.map(Number.parseFloat);
+    expect(
+      Math.max(...sizes),
+      `項目「${item.label}」の補足の大きさ`,
+    ).toBe(sizes[0]);
+  }
 }
 
 const ASSET_BAND = '[data-testid="asset-portfolio-summary"]';
