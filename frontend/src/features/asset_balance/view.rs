@@ -305,7 +305,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         .with(|ops| ops.refresh_error.clone())
                         .map(|message| {
                             view! {
-                                <div class="no-print mb-3 px-4 lg:mb-0 lg:px-0">
+                                <div class="no-print mb-3 px-4 lg:px-0">
                                     <Alert variant=AlertVariant::Danger>
                                         <strong>"エラー:"</strong>
                                         " "
@@ -318,7 +318,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 {move || {
                     resolved_view().and_then(|view| view.warning).map(|message| {
                         view! {
-                            <div class="no-print mb-3 px-4 lg:mb-0 lg:px-0">
+                            <div class="no-print mb-3 px-4 lg:px-0">
                                 <Alert variant=AlertVariant::Warning>
                                     <strong>"注意:"</strong>
                                     " "
@@ -331,7 +331,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 {move || {
                     resolved_fund_view().and_then(|view| view.warning).map(|message| {
                         view! {
-                            <div class="no-print mb-3 px-4 lg:mb-0 lg:px-0">
+                            <div class="no-print mb-3 px-4 lg:px-0">
                                 <Alert variant=AlertVariant::Warning>
                                     <strong>"注意:"</strong>
                                     " "
