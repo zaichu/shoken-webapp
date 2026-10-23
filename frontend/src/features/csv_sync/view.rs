@@ -8,7 +8,7 @@ use leptos::prelude::*;
 /// Chrome ウェブストアの拡張機能ページ(公開版の ID)
 const STORE_URL: &str = "https://chromewebstore.google.com/detail/hneplimfghlcckeielonpeklmjagmceh";
 
-/// 「CSV 最新取得」の主ボタン。見出し右のボタン群と CSV 管理のパネルで使う。
+/// 「CSV 最新取得」の主ボタン。CSV 管理のパネルで使う。
 /// ログイン中だけ出す(拡張機能が取る CSV は本人のデータのため)
 #[component]
 pub(crate) fn CsvSyncButton() -> impl IntoView {
@@ -31,26 +31,6 @@ pub(crate) fn CsvSyncButton() -> impl IntoView {
                 }}
             </Button>
         </Show>
-    }
-}
-
-/// 資産管理・取引明細の本文上部に出す進行表示。何も動いていない間は何も出さない
-#[component]
-pub(crate) fn CsvSyncStatus() -> impl IntoView {
-    let store = use_csv_sync();
-    view! {
-        {move || {
-            store.visible().then(|| {
-                view! {
-                    <section
-                        class="mb-3 rounded-lg border border-border bg-surface-sunken p-4"
-                        data-testid="csv-sync-status"
-                    >
-                        <CsvSyncBody />
-                    </section>
-                }
-            })
-        }}
     }
 }
 

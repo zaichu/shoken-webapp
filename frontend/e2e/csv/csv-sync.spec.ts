@@ -296,7 +296,7 @@ test.describe('CSV 最新取得', () => {
     await page.goto('/receipts');
     await expect(page.getByTestId('receipts-workspace')).toBeVisible();
     await page.goto('/assetbalance');
-    await page.getByTestId('csv-sync-button').waitFor();
+    await expect(page.getByTestId('assetbalance-workspace')).toBeVisible();
 
     await page.goto('/receipts/csv?kind=dividend');
     const button = page.getByTestId('csv-sync-button');
@@ -408,8 +408,8 @@ test.describe('CSV 最新取得', () => {
     await expect.poll(() => calls.preview.includes('assetbalance')).toBe(true);
     await page.getByRole('button', { name: /テストユーザーのアカウントメニュー/ }).click();
     await page.getByRole('menuitem', { name: 'ログアウト' }).click();
-    // リセットされると進行表示ごと消える
-    await expect(page.getByTestId('csv-sync-status')).toHaveCount(0);
+    // リセットされると進行表示の内容が消える(パネル自体は残るが中身は空になる)
+    await expect(page.getByTestId('csv-sync-kinds')).toHaveCount(0);
 
     releasePreview();
     // preview の応答が戻っても旧セッションの取り込みは送らない
@@ -457,7 +457,8 @@ test.describe('CSV 最新取得', () => {
     await expect.poll(() => calls.import.includes('dividend')).toBe(true);
     await page.getByRole('button', { name: /テストユーザーのアカウントメニュー/ }).click();
     await page.getByRole('menuitem', { name: 'ログアウト' }).click();
-    await expect(page.getByTestId('csv-sync-status')).toHaveCount(0);
+    // リセットされると進行表示の内容が消える(パネル自体は残るが中身は空になる)
+    await expect(page.getByTestId('csv-sync-kinds')).toHaveCount(0);
 
     releaseImport();
     // 1チャンク目の応答が戻っても2チャンク目以降は送らない
@@ -521,22 +522,26 @@ test.describe('CSV 最新取得', () => {
     await expect(page.getByText('「ファイルの URL へのアクセスを許可する」を ON にする')).toBeVisible();
   });
 
-  test('資産管理・取引明細の見出し横にもボタンがある', async ({ page }) => {
+  test('資産管理・取引明細の見出し横にはボタンがなくなり、CSV管理画面で操作する', async ({ page }) => {
     await mockSession(page);
     await mockSyncApis(page);
     await mockExtension(page);
 
+    // 一覧画面にはボタンが出ない
     await page.goto('/receipts');
     await expect(page.getByTestId('receipts-workspace')).toBeVisible();
-    await expect(page.getByTestId('csv-sync-button')).toBeVisible();
+    await expect(page.getByTestId('csv-sync-button')).toHaveCount(0);
 
     await page.goto('/assetbalance');
+    await expect(page.getByTestId('csv-sync-button')).toHaveCount(0);
+
+    // CSV管理画面にはパネルがあり、ボタンと進行表示がある
+    await page.goto('/receipts/csv?kind=dividend');
+    await expect(page.getByTestId('csv-sync-panel')).toBeVisible();
     await expect(page.getByTestId('csv-sync-button')).toBeVisible();
-    // 一覧画面では実行したあとも状態が見える
     await page.getByTestId('csv-sync-button').click();
-    await emitMessage(page, { type: 'progress', state: 'login-wait' });
-    await expect(page.getByTestId('csv-sync-status')).toBeVisible();
-    await expect(page.getByText('楽天証券のタブでログインしてください')).toBeVisible();
+    await emitMessage(page, { type: 'progress', state: 'fetching', kind: 'dividend' });
+    await expect(page.getByTestId('csv-sync-kind-dividend')).toContainText('取得中');
   });
 
   test('ログインしていないときはボタンが出ない', async ({ page }) => {

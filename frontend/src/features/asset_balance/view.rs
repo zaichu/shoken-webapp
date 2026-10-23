@@ -282,7 +282,6 @@ pub fn AssetBalancePage() -> impl IntoView {
             <span class="flex items-center gap-2">
                 <a class="page-secondary-link-sm hidden lg:inline-flex" href="/assetbalance/composition">"構成比を見る"</a>
                 <a class="page-secondary-link-sm" href="/assetbalance/csv">"CSV管理"</a>
-                <crate::features::csv_sync::CsvSyncButton />
             </span>
         }
         .into_any()
@@ -321,9 +320,6 @@ pub fn AssetBalancePage() -> impl IntoView {
             </div>
             {/* 本文: スクロール可能 */}
             <div class="content-gutter flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible" data-testid="assetbalance-main-stage">
-                <div class="no-print px-4 lg:px-0">
-                    <crate::features::csv_sync::CsvSyncStatus />
-                </div>
                 {move || {
                     data_ops
                         .with(|ops| ops.refresh_error.clone())
