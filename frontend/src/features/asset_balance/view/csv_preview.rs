@@ -99,7 +99,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                         </span>
                         <span class=format!("flex shrink-0 items-baseline {}", pnl_class)>
                             {pnl_text}
-                            {pnl_rate_text.map(|rate| view! { " " <span class="asset-badge">{rate}</span> })}
+                            {pnl_rate_text.map(|rate| view! { " " <span class="text-xs tabular-nums">{rate}</span> })}
                         </span>
                     </div>
                 </Card>
@@ -156,7 +156,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                                         <td class="col-num text-text-deep">{market_text}</td>
                                         <td class=format!("col-num {}", pnl_class)>
                                             {pnl_text}
-                                            {pnl_rate_text.map(|rate| view! { " " <span class="asset-badge">{rate}</span> })}
+                                            {pnl_rate_text.map(|rate| view! { " " <span class="text-xs tabular-nums">{rate}</span> })}
                                         </td>
                                     </tr>
                                 }

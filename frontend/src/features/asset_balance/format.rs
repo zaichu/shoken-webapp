@@ -54,11 +54,11 @@ pub(crate) fn pnl_cells(
     let text = format_signed_row_valuation_amount(amount);
     let rate_text = format_signed_valuation_rate(rate, 1);
     let (text_class, badge_class) = if is_negative_valuation(amount) {
-        ("text-negative", "asset-badge asset-badge-loss")
+        ("text-negative", "ml-1 text-xs tabular-nums text-negative")
     } else if is_positive_valuation(amount) {
-        ("text-positive", "asset-badge asset-badge-gain")
+        ("text-positive", "ml-1 text-xs tabular-nums text-positive")
     } else {
-        ("text-text-soft", "asset-badge")
+        ("text-text-soft", "ml-1 text-xs tabular-nums text-text-soft")
     };
     (text, rate_text, text_class, badge_class)
 }
