@@ -5,7 +5,7 @@ mod port;
 mod tests;
 mod view;
 
-pub(crate) use view::{CsvSyncButton, CsvSyncPanel, CsvSyncStatus};
+pub(crate) use view::CsvSyncPanel;
 
 use crate::ui::labels;
 use leptos::prelude::*;
@@ -303,12 +303,6 @@ impl CsvSyncStore {
 
     pub(crate) fn running(&self) -> bool {
         self.state.with(|state| state.running)
-    }
-
-    /// 一覧画面に進行を出すか。CSV 管理では常時パネルに置くためこれは使わない
-    pub(crate) fn visible(&self) -> bool {
-        self.state
-            .with(|state| state.running || state.finished || state.missing || state.error.is_some())
     }
 
     pub(crate) fn state(&self) -> SyncState {
