@@ -208,8 +208,10 @@ export function fundBalances() {
       pending_nav_count: 0,
       nav_status: {
         updated_at: '2026-10-20 18:05',
-        fetched_count: rows.length,
+        // 対象+対象外=全件になるよう、取得数は api 由来のファンド数に合わせる
+        fetched_count: rows.filter((row) => row.price_source === 'api').length,
         failed_count: 0,
+        fund_count: rows.length,
         failure_reason: null,
       },
     },

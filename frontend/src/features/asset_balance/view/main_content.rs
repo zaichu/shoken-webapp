@@ -5,11 +5,10 @@ use super::all_list::{
 use super::asset_table::AssetHoldingsTable;
 use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
-use super::kind_tabs::AssetKindTabs;
 use super::search_bar::{AssetSearchBar, ConditionKind};
 use super::summary::{
-    AssetSummaryBand, AssetSummaryNote, all_basis_lines, fund_basis_lines, fund_latest_nav_count,
-    purchase_summary_tag, stock_basis_lines, stock_price_dates, stock_summary_values,
+    AssetSummaryBand, all_basis_lines, fund_basis_lines, fund_notes, purchase_summary_tag,
+    stock_basis_lines, stock_price_dates, stock_summary_values,
 };
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
@@ -32,7 +31,23 @@ use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels::{self, CLEAR_SEARCH_CONDITIONS, NO_MATCH_DESCRIPTION, NO_MATCH_TITLE};
+use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use leptos::prelude::*;
+
+/// 絞り込みの件数。検索条件が無いときは注記に出さない
+fn filtered_count(
+    search: RwSignal<AssetSearch>,
+    search_count: RwSignal<(usize, usize)>,
+) -> Signal<FilteredCount> {
+    Signal::derive(move || {
+        let (filtered, total) = search_count.get();
+        FilteredCount {
+            filtered,
+            total,
+            filtering: !search.with(|search| search.is_empty()),
+        }
+    })
+}
 
 fn sorted_views(
     views: &[HoldingView],
@@ -133,6 +148,7 @@ fn StockContent(
     });
     let account_options = Memo::new(move |_| stock_accounts(&option_rows));
     let course_options = Memo::new(|_| Vec::<String>::new());
+    let filtered_count = filtered_count(search, search_count);
     // 集計は絞り込み前の全保有分で求める(検索中も全件のまま)
     let summary = Memo::new(move |_| {
         let all_views = filtered.get().all_views;
@@ -145,22 +161,25 @@ fn StockContent(
                 (!empty).then(|| {
                     let (values, tags) = summary.get();
                     view! {
-                        <AssetSummaryBand
-                            market=values.market
-                            profit=values.profit
-                            profit_rate=values.profit_rate
-                            daily_change=values.daily_change
-                            tags=tags
-                            composition_link=true
-                        />
-                        <AssetSummaryNote
-                            note=vec![stock_note.clone()]
+                        <SkeletonSummary>
+                            <AssetSummaryBand
+                                market=values.market
+                                profit=values.profit
+                                profit_rate=values.profit_rate
+                                daily_change=values.daily_change
+                                tags=tags
+                                composition_link=true
+                            />
+                        </SkeletonSummary>
+                        <SkeletonNote
+                            notes=vec![stock_note.clone()]
+                            filtered=filtered_count
                             basis=stock_basis_lines()
                         />
                     }
                 })
             }}
-            <div class="asset-list-surface">
+            <SkeletonSearch>
                 <AssetSearchBar
                     search=search
                     search_count=search_count
@@ -169,6 +188,8 @@ fn StockContent(
                     account_options=account_options
                     course_options=course_options
                 />
+            </SkeletonSearch>
+            <div class="asset-list-surface">
                 <div class="hidden lg:block print:block">
                     {move || {
                         let FilteredPortfolio { views, .. } = filtered.get();
@@ -256,11 +277,6 @@ fn FundContent(
     let all_views: Vec<_> = resolved.rows.iter().map(fund_view).collect();
     let totals = fund_totals(&all_views);
     let fallback = resolved.fallback_totals.clone();
-    // 「最新」の前日比を持つ件数。0件なら合計の前日比は出さない(「—」)
-    let latest_nav_count = match &fallback {
-        Some(summary) => summary.latest_nav_count as usize,
-        None => totals.latest_nav_count,
-    };
     let (market, purchase, profit, daily) = match &fallback {
         Some(summary) => (
             crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
@@ -278,33 +294,24 @@ fn FundContent(
         ),
     };
     let profit_rate = (purchase != 0.0).then_some(profit / purchase * 100.0);
-    // 前日比の合計に入らない行があるときだけ理由を出す
-    let daily_note = (latest_nav_count < resolved.total && resolved.total > 0).then(|| {
-        format!(
-            "前日比は、最新の前日比が分かるファンドだけの合計です({latest_nav_count}件/{}件)。更新待ちのファンドは、CSV を取り込むと出ます",
-            resolved.total
-        )
-    });
-    // 基準価額の自動更新が動いたか。取得できた/できなかった/まだ取得されていないの3状態を出す
-    let nav_note = resolved
-        .summary
-        .as_ref()
-        .map(|summary| super::summary::fund_nav_note(&summary.nav_status));
+    let filtered_count = filtered_count(search, search_count);
     let empty = total_count == 0;
-    let notes: Vec<String> = [daily_note, nav_note].into_iter().flatten().collect();
+    let notes = fund_notes(&resolved, "");
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
         <section id="assetbalance-fund-list" hidden=empty>
-            <AssetSummaryBand
-                market=Some(market)
-                profit=Some(profit)
-                profit_rate=profit_rate
-                daily_change=daily
-                tags=vec![purchase_summary_tag(purchase)]
-                composition_link=false
-            />
-            <AssetSummaryNote note=notes basis=fund_basis_lines() />
-            <div class="asset-list-surface">
+            <SkeletonSummary>
+                <AssetSummaryBand
+                    market=Some(market)
+                    profit=Some(profit)
+                    profit_rate=profit_rate
+                    daily_change=daily
+                    tags=vec![purchase_summary_tag(purchase)]
+                    composition_link=false
+                />
+            </SkeletonSummary>
+            <SkeletonNote notes=notes filtered=filtered_count basis=fund_basis_lines() />
+            <SkeletonSearch>
                 <AssetSearchBar
                     search=search
                     search_count=search_count
@@ -313,6 +320,8 @@ fn FundContent(
                     account_options=account_options
                     course_options=course_options
                 />
+            </SkeletonSearch>
+            <div class="asset-list-surface">
                 <div class="hidden lg:block print:block">
                     {move || {
                         let views = filtered.get();
@@ -463,20 +472,8 @@ fn AllContent(
                 .then_some(fund_totals_value.daily_change),
         ),
     };
-    let fund_latest_nav = fund_latest_nav_count(&fund_resolved);
-    let fund_note = if fund_latest_nav < fund_resolved.total && fund_resolved.total > 0 {
-        format!(
-            "投資信託の前日比は、最新の前日比が分かるファンドだけの合計({fund_latest_nav}件/{}件)",
-            fund_resolved.total
-        )
-    } else {
-        String::new()
-    };
-    let merged_note = [stock_note, fund_note]
-        .into_iter()
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("・");
+    let mut notes = vec![stock_note];
+    notes.extend(fund_notes(&fund_resolved, "投資信託の"));
     let stock_profit = stock_market - stock_purchase;
     let market = stock_market + fund_market;
     let purchase = stock_purchase + fund_purchase;
@@ -487,24 +484,24 @@ fn AllContent(
     };
     let profit_rate = (purchase != 0.0).then_some(profit / purchase * 100.0);
     let empty = total_count == 0;
+    let filtered_count = filtered_count(search, search_count);
     let account_options = Memo::new(|_| Vec::<String>::new());
     let course_options = Memo::new(|_| Vec::<String>::new());
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
         <section id="assetbalance-all-list" hidden=empty>
-            <AssetSummaryBand
-                market=Some(market)
-                profit=Some(profit)
-                profit_rate=profit_rate
-                daily_change=daily
-                tags=vec![purchase_summary_tag(purchase)]
-                composition_link=false
-            />
-            <AssetSummaryNote
-                note=vec![merged_note.clone()]
-                basis=all_basis_lines()
-            />
-            <div class="asset-list-surface">
+            <SkeletonSummary>
+                <AssetSummaryBand
+                    market=Some(market)
+                    profit=Some(profit)
+                    profit_rate=profit_rate
+                    daily_change=daily
+                    tags=vec![purchase_summary_tag(purchase)]
+                    composition_link=false
+                />
+            </SkeletonSummary>
+            <SkeletonNote notes=notes filtered=filtered_count basis=all_basis_lines() />
+            <SkeletonSearch>
                 <AssetSearchBar
                     search=search
                     search_count=search_count
@@ -513,6 +510,8 @@ fn AllContent(
                     account_options=account_options
                     course_options=course_options
                 />
+            </SkeletonSearch>
+            <div class="asset-list-surface">
                 <div class="hidden lg:block print:block">
                     {move || {
                         let rows = filtered.get();
@@ -571,8 +570,6 @@ pub(crate) fn AssetBalanceMainContent(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> impl IntoView {
-    let stock_count = stock_rows.len();
-    let fund_count = fund_resolved.total.max(fund_resolved.rows.len());
     // 口座・コースの選択肢はタブごとに語彙が違うため、切替時は選択条件だけ消す
     // (テキストは全タブ共通で引き継ぐ)
     let prev_kind = RwSignal::new(kind.get_untracked());
@@ -585,12 +582,6 @@ pub(crate) fn AssetBalanceMainContent(
         search.update(|s| *s = text_only_search(s));
     });
     view! {
-        <AssetKindTabs
-            kind=kind
-            all_count=stock_count + fund_count
-            stock_count=stock_count
-            fund_count=fund_count
-        />
         {move || match kind.get() {
             AssetKind::Stock => {
                 view! {

@@ -172,7 +172,7 @@ test('投資信託タブでファンド一覧が表示され、検索と並べ�
   await page.getByTestId('asset-search-input-pc').fill('B号');
   await expect(table).not.toContainText('架空バランスファンドA号');
   await expect(table).toContainText('架空インデックスファンドB号');
-  await page.getByTestId('asset-search-clear-pc').click();
+  await page.getByTestId('asset-search-clear').click();
 
   // 口座チップで絞り込む
   await page.getByTestId('asset-condition-account').click();
@@ -221,7 +221,7 @@ test('前日比は最新の基準価額の変動だけを出し、タイトル�
   await expect(pending).not.toContainText('-¥30');
 
   // タイトルには件数だけを出す(前日比の集計は出さない)
-  const subtitle = page.getByTestId('asset-subtitle');
+  const subtitle = page.getByTestId('page-title-count');
   await expect(subtitle).toContainText('2件');
   await expect(subtitle).not.toContainText('前日比');
   await expect(page.getByText(/前日比が最新/)).toHaveCount(0);
@@ -233,7 +233,7 @@ test('前日比は最新の基準価額の変動だけを出し、タイトル�
   await expect(header).toHaveAttribute('abbr', /最新の基準価額の日の前日比/);
 
   // 合計の前日比は最新の行だけの合計(更新待ちの -60円は入らない)
-  const note = page.getByText(/前日比は、最新の前日比が分かるファンドだけの合計/);
+  const note = page.getByText(/前日比は \d+件\/\d+件\(最新の前日比が分かるファンドだけ\)/);
   await expect(note).toBeVisible();
 
   // 注記は帯の直下にあり、表の末尾までスクロールしなくても読める
@@ -260,14 +260,14 @@ test('前日比は最新の基準価額の変動だけを出し、タイトル�
   await expect(mergedPending).not.toContainText('-¥30');
 
   // 「すべて」タブでもタイトルに前日比の集計を出さない
-  await expect(page.getByTestId('asset-subtitle')).not.toContainText('前日比が最新');
-  await expect(page.getByTestId('asset-subtitle')).not.toContainText('更新待ち');
+  await expect(page.getByTestId('page-title-count')).not.toContainText('前日比が最新');
+  await expect(page.getByTestId('page-title-count')).not.toContainText('更新待ち');
   await expect(page.getByText(/前日比が最新/)).toHaveCount(0);
   await expect(page.getByText(/更新待ち \d件/)).toHaveCount(0);
 
   // 「すべて」タブも、合計から投信の行を除外する注記を PC で帯の近くに見せる
   await expect(
-    page.getByText(/投資信託の前日比は、最新の前日比が分かるファンドだけの合計/),
+    page.getByText(/投資信託の前日比は \d+件\/\d+件/),
   ).toBeVisible();
 
   // 「すべて」タブでも投信の行は前日比の横に基準日を出さない

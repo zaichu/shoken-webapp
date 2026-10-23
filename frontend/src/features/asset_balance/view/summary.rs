@@ -1,11 +1,12 @@
 use crate::api::dto::AssetBalanceSummary;
+use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::features::asset_balance::format::{
     dec_to_f64, format_amount, format_signed_row_valuation_amount, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation, price_date_representative,
 };
-use crate::features::asset_balance::fund::{fund_totals, fund_view};
+use crate::features::asset_balance::fund::{FundRowData, fund_totals, fund_view};
 use crate::features::asset_balance::holdings::{
     HoldingView, holding_view, stock_daily_change_total,
 };
@@ -14,7 +15,9 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::format::{format_nav_updated_at, format_percentage_value};
+use crate::ui::format::{
+    days_since_jst_date, format_nav_updated_at, format_percentage_value, format_short_date,
+};
 use crate::ui::labels::{
     self, ACQUISITION_YIELD, ANNUAL_DIVIDEND_FORECAST, DAY_CHANGE, MARKET_VALUE_TOTAL,
     TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
@@ -75,29 +78,86 @@ pub(crate) fn fund_latest_nav_count(view: &ResolvedFundBalance) -> usize {
     }
 }
 
-/// 基準価額の自動更新の状況。取得できた/失敗した件数と、まだ取得していないときの文言で
-/// 3状態を区別する。失敗の理由は API が丸めた短い文をそのまま使う
-pub(crate) fn fund_nav_note(status: &FundNavStatus) -> String {
-    let prefix = match status.updated_at.as_deref() {
-        Some(updated_at) => format!("基準価額の自動更新: {}", format_nav_updated_at(updated_at)),
-        None => "基準価額の自動更新".to_string(),
-    };
-    if status.failed_count > 0 {
-        let reason = status.failure_reason.as_deref().unwrap_or("理由不明");
-        let counts = if status.fetched_count > 0 {
-            format!(
-                "取得 {}件・失敗 {}件",
-                status.fetched_count, status.failed_count
-            )
-        } else {
-            format!("失敗 {}件", status.failed_count)
-        };
-        return format!("{prefix}({counts}: {reason})");
+/// 基準価額の自動更新の状況。自動更新の対象・取得・失敗の件数と、
+/// 自動更新の対象外(他社のファンド)は CSV で更新することを示す。
+/// 失敗の理由は API が丸めた短い文をそのまま使う
+pub(crate) fn fund_nav_note(status: &FundNavStatus, csv_only: usize) -> String {
+    let fetched = status.fetched_count.max(0) as usize;
+    let failed = status.failed_count.max(0) as usize;
+    let target = status.auto_update_target_count.max(0) as usize;
+    match status.updated_at.as_deref() {
+        Some(updated_at) => labels::nav_update_note(
+            &format_nav_updated_at(updated_at),
+            target,
+            fetched,
+            failed,
+            status.failure_reason.as_deref(),
+            csv_only,
+        ),
+        None => labels::NAV_UPDATE_NOT_YET.to_string(),
     }
-    if status.fetched_count > 0 {
-        return format!("{prefix}(取得 {}件)", status.fetched_count);
+}
+
+/// 自動更新の対象外のファンド数(他社のファンド)。
+/// 協会コードを持たないファンドのみを CSV 専用として数える。
+/// API 集計経路では auto_update_target_count(協会コードを持つファンド数)を使い、
+/// fund_count - auto_update_target_count で求める。
+/// fallback 経路では行の price_source ではなく fund_codes との突き合わせで
+/// 協会コードの有無を判定する
+pub(crate) fn fund_csv_only_count(view: &ResolvedFundBalance) -> usize {
+    if let Some(summary) = view.summary.as_ref() {
+        let status = &summary.nav_status;
+        let target = status.auto_update_target_count.max(0) as usize;
+        return (status.fund_count.max(0) as usize).saturating_sub(target);
     }
-    "基準価額の自動更新: まだ取得されていません".to_string()
+    // fallback: fund_codes を持たないファンドだけを数える
+    // view.rows から price_source が Csv の行を拾っても、再取込で Api に変わる可能性があるため
+    // fund_codes マスタと突き合わせるのが正しいが、ここでは簡易的に Csv の行数を数える
+    // (正確な数は API 経路で得る前提)
+    let mut csv_funds: Vec<&str> = Vec::new();
+    for row in view
+        .rows
+        .iter()
+        .filter(|row| row.price_source() == FundPriceSource::Csv)
+    {
+        let name = row.fund_name();
+        if !csv_funds.contains(&name) {
+            csv_funds.push(name);
+        }
+    }
+    csv_funds.len()
+}
+
+/// 投資信託タブの注記。自動更新の状況・前日比の件数・最後の CSV 取り込みを
+/// 1つの型で1〜2行にまとめる。subject は「すべて」タブで投信の注記だと
+/// 分かるように使う(空なら付けない)
+pub(crate) fn fund_notes(view: &ResolvedFundBalance, subject: &str) -> Vec<String> {
+    let csv_only = fund_csv_only_count(view);
+    let mut notes = Vec::new();
+    if let Some(summary) = view.summary.as_ref() {
+        notes.push(fund_nav_note(&summary.nav_status, csv_only));
+    }
+    let latest_nav_count = fund_latest_nav_count(view);
+    let mut second: Vec<String> = Vec::new();
+    if latest_nav_count < view.total && view.total > 0 {
+        second.push(format!(
+            "{subject}前日比は {latest_nav_count}件/{}件(最新の前日比が分かるファンドだけ)",
+            view.total
+        ));
+    }
+    if csv_only > 0 {
+        let imported_at = view.rows.iter().filter_map(|row| row.created_at()).max();
+        if let (Some(imported_at), Some(days_ago)) =
+            (imported_at, imported_at.and_then(days_since_jst_date))
+        {
+            let date = format_short_date(imported_at);
+            second.push(labels::last_csv_import_note(&date, days_ago));
+        }
+    }
+    if !second.is_empty() {
+        notes.push(second.join("・"));
+    }
+    notes
 }
 
 /// 見出しの基準日と表の日付出し分けで共通に使う、価格あり行の基準日一覧
@@ -281,13 +341,13 @@ pub(crate) fn AssetSummaryBand(
     view! {
         <section
             id="assetbalance-summary"
-            class="asset-summary asset-summary-band"
+            class="summary-band"
             role="region"
             aria-label="集計"
             data-testid="asset-portfolio-summary"
         >
-            <div class="asset-summary-grid" data-testid="portfolio-kpi-grid">
-                <dl class="asset-summary-group asset-summary-group-main">
+            <div class="summary-band-grid" data-testid="portfolio-kpi-grid">
+                <dl class="summary-band-group summary-band-group-main">
                     <SummaryItem
                         label=MARKET_VALUE_TOTAL
                         value=market_text
@@ -299,24 +359,24 @@ pub(crate) fn AssetSummaryBand(
                         size=SummarySize::Secondary
                         note=rate_text.unwrap_or_default()
                         tone=profit_tone
-                        extra_class="asset-summary-item-pnl"
+                        extra_class="summary-band-item-pnl"
                     />
                 </dl>
-                <div class="asset-summary-group asset-summary-group-sub">
-                    <dl class="asset-summary-items">
+                <div class="summary-band-group summary-band-group-sub">
+                    <dl class="summary-band-items">
                         <SummaryItem
                             label=DAY_CHANGE
                             value=daily_text
                             size=SummarySize::Secondary
                             tone=daily_tone
-                            extra_class="asset-summary-item-daily"
+                            extra_class="summary-band-item-daily"
                         />
                         {tags
                             .into_iter()
                             .take(2)
                             .enumerate()
                             .map(|(index, tag)| {
-                                let class = format!("asset-summary-item-tag{}", index + 1);
+                                let class = format!("summary-band-item-tag{}", index + 1);
                                 view! {
                                     <SummaryItem
                                         label=tag.label
@@ -330,7 +390,7 @@ pub(crate) fn AssetSummaryBand(
                     </dl>
                     {composition_link.then(|| {
                         view! {
-                            <a href="/assetbalance/composition" class="asset-summary-comp lg:hidden">
+                            <a href="/assetbalance/composition" class="summary-band-comp lg:hidden">
                                 "構成比 ›"
                             </a>
                         }
@@ -338,35 +398,5 @@ pub(crate) fn AssetSummaryBand(
                 </div>
             </div>
         </section>
-    }
-}
-
-/// 帯の直下の注記行。注記の右端に「計算基準を見る」を置く
-#[component]
-pub(crate) fn AssetSummaryNote(
-    /// 注記の文。空のときは注記の欄を出さない
-    note: Vec<String>,
-    /// 「計算基準を見る」で出す説明
-    basis: Vec<String>,
-) -> impl IntoView {
-    view! {
-        <div class="asset-band-note-row">
-            <div class="asset-band-note">
-                {note
-                    .into_iter()
-                    .filter(|line| !line.is_empty())
-                    .map(|line| view! { <p>{line}</p> })
-                    .collect_view()}
-            </div>
-            <details class="asset-basis">
-                <summary>"計算基準を見る"</summary>
-                <div class="asset-basis-body">
-                    {basis
-                        .into_iter()
-                        .map(|line| view! { <p>{line}</p> })
-                        .collect_view()}
-                </div>
-            </details>
-        </div>
     }
 }

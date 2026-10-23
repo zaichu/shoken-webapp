@@ -8,8 +8,8 @@ use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels::{self, ACCOUNT, PERIOD, PRODUCT};
 use crate::ui::search_controls::{
-    AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
-    SearchClearButton, SearchCount, SearchTag, SearchTextInput,
+    AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, ConditionRowEnd,
+    SearchBox, SearchClearButton, SearchCount, SearchTag, SearchTextInput,
 };
 use leptos::prelude::*;
 
@@ -113,7 +113,10 @@ fn SecuritiesInput(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 
 /// 絞り込み中の件数と全件数。取得中は出さない
 #[component]
-fn ReceiptSearchCount(store: ReceiptsStore, tab: RwSignal<ReceiptsTab>) -> impl IntoView {
+fn ReceiptSearchCount(
+    store: ReceiptsStore,
+    #[prop(into)] tab: Signal<ReceiptsTab>,
+) -> impl IntoView {
     let count = Memo::new(move |_| match store.tab_state(tab.get()) {
         TabState::Ready(data) => {
             let query = store.search.with(|s| s.query.clone());
@@ -542,15 +545,15 @@ impl ConditionControls {
     }
 }
 
-/// PC の検索欄。タグ・銘柄入力・件数・すべてクリアを1つの面にまとめ、
-/// 直下の「条件を足す」から小窓を開く
+/// 取引明細の検索欄。検索欄と条件の行を1つの段にまとめ、件数は条件の行の右端に置く。
+/// PC・スマホとも同じ作りを使う
 #[component]
-pub fn ReceiptsPcSearchBar(
+pub fn ReceiptsSearchBar(
     store: ReceiptsStore,
-    active_tab: RwSignal<ReceiptsTab>,
+    #[prop(into)] tab: Signal<ReceiptsTab>,
+    #[prop(optional, default = "h-4 w-4")] icon_size: &'static str,
 ) -> impl IntoView {
     let search = store.search;
-    let tab = active_tab;
 
     let display_rows = Memo::new(move |_| match store.tab_state(tab.get()) {
         TabState::Ready(data) => data.rows.clone(),
@@ -567,14 +570,12 @@ pub fn ReceiptsPcSearchBar(
     let on_close = move |kind: ConditionKind| controls.finish(kind);
 
     view! {
-        <div class="pc-search-area no-print" role="search" aria-label="取引明細の検索">
-            <SearchBox>
+        <div class="pc-search-area no-print">
+            <SearchBox icon_size=icon_size>
                 <ConditionTags search=search has_years=has_years />
                 <SecuritiesInput search=search />
-                <ReceiptSearchCount store=store tab=tab />
-                <ClearAllButton search=search has_years=has_years />
             </SearchBox>
-            <AddConditionRow>
+            <AddConditionRow show_label=true>
                 <ReceiptAddConditionButton kind=ConditionKind::Period open=controls.open node_ref=controls.period_ref />
                 {move || {
                     (!accounts.get().is_empty()).then(|| {
@@ -605,6 +606,10 @@ pub fn ReceiptsPcSearchBar(
                         }
                     })
                 }}
+                <ConditionRowEnd>
+                    <ReceiptSearchCount store=store tab=tab />
+                    <ClearAllButton search=search has_years=has_years />
+                </ConditionRowEnd>
             </AddConditionRow>
         </div>
     }
@@ -613,67 +618,12 @@ pub fn ReceiptsPcSearchBar(
 /// スマホの下部操作帯。検索欄・条件を足す・件数とすべてクリアを常設する
 #[component]
 pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
-    let search = store.search;
     let tab = store.active_tab;
-
-    let display_rows = Memo::new(move |_| match store.tab_state(tab.get()) {
-        TabState::Ready(data) => data.rows.clone(),
-        _ => Vec::new(),
-    });
-    let categories = Memo::new(move |_| search_categories(tab.get(), &display_rows.get()));
-    let years = Memo::new(move |_| categories.with(|c| c.years.clone()));
-    let products = Memo::new(move |_| categories.with(|c| c.products.clone()));
-    let accounts = Memo::new(move |_| categories.with(|c| c.accounts.clone()));
-    let has_years = move || !years.get().is_empty();
-
-    let controls = ConditionControls::new();
-    let on_close = move |kind: ConditionKind| controls.finish(kind);
 
     view! {
         <div class="receipts-mobile-bottom-section no-print lg:hidden" role="search" aria-label="検索">
             <div class="page-gutter">
-                <div class="receipts-mobile-search">
-                    <SearchBox icon_size="h-5 w-5">
-                        <ConditionTags search=search has_years=has_years />
-                        <SecuritiesInput search=search />
-                    </SearchBox>
-                    <AddConditionRow>
-                        <ReceiptAddConditionButton kind=ConditionKind::Period open=controls.open node_ref=controls.period_ref />
-                        {move || {
-                            (!accounts.get().is_empty()).then(|| {
-                                view! {
-                                    <ReceiptAddConditionButton kind=ConditionKind::Account open=controls.open node_ref=controls.account_ref />
-                                }
-                            })
-                        }}
-                        {move || {
-                            (!products.get().is_empty()).then(|| {
-                                view! {
-                                    <ReceiptAddConditionButton kind=ConditionKind::Product open=controls.open node_ref=controls.product_ref />
-                                }
-                            })
-                        }}
-                        {move || {
-                            controls.open.get().map(|kind| {
-                                view! {
-                                    <ConditionPopover
-                                        kind=kind
-                                        search=search
-                                        years=years
-                                        products=products
-                                        accounts=accounts
-                                        has_years=has_years
-                                        on_close=on_close
-                                    />
-                                }
-                            })
-                        }}
-                    </AddConditionRow>
-                    <div class="receipts-mobile-search-meta">
-                        <ReceiptSearchCount store=store tab=tab />
-                        <ClearAllButton search=search has_years=has_years />
-                    </div>
-                </div>
+                <ReceiptsSearchBar store=store tab=tab icon_size="h-5 w-5" />
             </div>
         </div>
     }

@@ -37,7 +37,9 @@ use crate::features::asset_balance::store::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
 use crate::ui::page_frame::PageFrame;
+use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use kind_tabs::AssetKindTabs;
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
 use sort_bar::AssetMobileSortBar;
@@ -176,6 +178,13 @@ pub fn AssetBalancePage() -> impl IntoView {
     };
     let search_count = state.search_count;
     let sort_state = state;
+    // タブの件数表示用。タブ行をページレベルで描くためここで算出
+    let stock_count = Signal::derive(move || resolved_view().map(|v| v.rows.len()).unwrap_or(0));
+    let fund_count = Signal::derive(move || {
+        resolved_fund_view()
+            .map(|v| v.total.max(v.rows.len()))
+            .unwrap_or(0)
+    });
     let action_bar = view! {
         {move || {
             let (stock_rows, fund_rows) = (
@@ -259,24 +268,15 @@ pub fn AssetBalancePage() -> impl IntoView {
         funds.set(None);
         load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
     };
-    let pc_subtitle = move || match sort_state.kind.get() {
+    let pc_count = move || match sort_state.kind.get() {
         AssetKind::Stock => resolved_view().map(|view| summary::list_subtitle(&view)),
         AssetKind::Fund => resolved_fund_view().map(|view| summary::fund_subtitle(&view)),
         AssetKind::All => {
             summary::merged_subtitle(resolved_view().as_ref(), resolved_fund_view().as_ref())
         }
     };
-    let title_row: Children = Box::new(move || {
-        view! {
-            <span
-                class="hidden self-center text-sm font-normal text-text-muted lg:inline"
-                data-testid="asset-subtitle"
-            >
-                {move || pc_subtitle().unwrap_or_default()}
-            </span>
-        }
-        .into_any()
-    });
+    // 見出しの横の件数。現在のタブの全件数
+    let title_count = Signal::derive(move || pc_count().unwrap_or_default());
     let csv_link: Children = Box::new(move || {
         view! {
             <span class="flex items-center gap-2">
@@ -288,7 +288,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         .into_any()
     });
     view! {
-        <PageFrame title="資産管理" full_bleed=true title_row=title_row action_bar=action_bar action_bar_mobile_only=true links=csv_link>
+        <PageFrame title="資産管理" title_count=title_count full_bleed=true action_bar=action_bar action_bar_mobile_only=true links=csv_link>
         <div
             class="flex flex-1 flex-col lg:mt-2 lg:flex-none"
             data-testid="assetbalance-workspace"
@@ -308,96 +308,108 @@ pub fn AssetBalancePage() -> impl IntoView {
                 }
             }
         >
-            <div class="content-gutter flex flex-1 flex-col gap-0 lg:gap-3.5" data-testid="assetbalance-main-stage">
-                    <div class="no-print px-4 lg:px-0">
-                        <crate::features::csv_sync::CsvSyncStatus />
-                    </div>
-                    {move || {
-                        data_ops
-                            .with(|ops| ops.refresh_error.clone())
-                            .map(|message| {
-                                view! {
-                                    <div class="no-print px-4 lg:px-0">
-                                        <Alert variant=AlertVariant::Danger>
-                                            <strong>"エラー:"</strong>
-                                            " "
-                                            {message}
-                                        </Alert>
-                                    </div>
-                                }
-                            })
-                    }}
-                    {move || {
-                        resolved_view().and_then(|view| view.warning).map(|message| {
+            {/* タブ行: 固定上部 */}
+            <div class="content-gutter no-print">
+                <SkeletonTabs>
+                    <AssetKindTabs
+                        kind=state.kind
+                        all_count=Signal::derive(move || stock_count.get() + fund_count.get())
+                        stock_count=stock_count
+                        fund_count=fund_count
+                    />
+                </SkeletonTabs>
+            </div>
+            {/* 本文: スクロール可能 */}
+            <div class="content-gutter flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible" data-testid="assetbalance-main-stage">
+                <div class="no-print px-4 lg:px-0">
+                    <crate::features::csv_sync::CsvSyncStatus />
+                </div>
+                {move || {
+                    data_ops
+                        .with(|ops| ops.refresh_error.clone())
+                        .map(|message| {
                             view! {
-                                <div class="no-print px-4 lg:px-0">
-                                    <Alert variant=AlertVariant::Warning>
-                                        <strong>"注意:"</strong>
+                                <div class="no-print mb-3 px-4 lg:px-0">
+                                    <Alert variant=AlertVariant::Danger>
+                                        <strong>"エラー:"</strong>
                                         " "
-                                        <span data-testid="truncated-list-warning">{message}</span>
+                                        {message}
                                     </Alert>
                                 </div>
                             }
                         })
-                    }}
-                    {move || {
-                        resolved_fund_view().and_then(|view| view.warning).map(|message| {
-                            view! {
-                                <div class="no-print px-4 lg:px-0">
-                                    <Alert variant=AlertVariant::Warning>
-                                        <strong>"注意:"</strong>
-                                        " "
-                                        <span data-testid="fund-truncated-list-warning">{message}</span>
-                                    </Alert>
-                                </div>
-                            }
-                        })
-                    }}
-                    {move || {
-                        let generation = render_session.generation.get();
-                        let list_error = balances.with(|slot| match slot {
-                            Some((cached, Err(message))) if *cached == generation => {
-                                Some(message.clone())
-                            }
-                            _ => None,
-                        });
-                        let resolved = resolved_view();
-                        let resolved_fund = resolved_fund_view();
-                        match (resolved, resolved_fund, list_error) {
-                            (None, _, _) | (_, None, _) => {
-                                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
-                                    .into_any()
-                            }
-                            (Some(_), _, Some(message)) => {
-                                view! {
-                                    <ListLoadError message=message on_retry=reload />
-                                }
-                                    .into_any()
-                            }
-                            (Some(resolved), Some(resolved_fund), None) => {
-                                let stock_note = summary::stock_note(&resolved);
-                                view! {
-                                    <AssetBalanceMainContent
-                                        stock_rows=resolved.rows
-                                        fallback_totals=resolved.fallback_totals
-                                        stock_note=stock_note
-                                        fund_resolved=resolved_fund
-                                        search=search
-                                        search_count=search_count
-                                        sort_key=state.sort_key
-                                        sort_order=state.sort_order
-                                        fund_sort_key=state.fund_sort_key
-                                        fund_sort_order=state.fund_sort_order
-                                        kind=state.kind
-                                        dividends=dividends
-                                        lookup=lookup
-                                        generation=generation
-                                    />
-                                }
-                                    .into_any()
-                            }
+                }}
+                {move || {
+                    resolved_view().and_then(|view| view.warning).map(|message| {
+                        view! {
+                            <div class="no-print mb-3 px-4 lg:px-0">
+                                <Alert variant=AlertVariant::Warning>
+                                    <strong>"注意:"</strong>
+                                    " "
+                                    <span data-testid="truncated-list-warning">{message}</span>
+                                </Alert>
+                            </div>
                         }
-                    }}
+                    })
+                }}
+                {move || {
+                    resolved_fund_view().and_then(|view| view.warning).map(|message| {
+                        view! {
+                            <div class="no-print mb-3 px-4 lg:px-0">
+                                <Alert variant=AlertVariant::Warning>
+                                    <strong>"注意:"</strong>
+                                    " "
+                                    <span data-testid="fund-truncated-list-warning">{message}</span>
+                                </Alert>
+                            </div>
+                        }
+                    })
+                }}
+                {move || {
+                    let generation = render_session.generation.get();
+                    let list_error = balances.with(|slot| match slot {
+                        Some((cached, Err(message))) if *cached == generation => {
+                            Some(message.clone())
+                        }
+                        _ => None,
+                    });
+                    let resolved = resolved_view();
+                    let resolved_fund = resolved_fund_view();
+                    match (resolved, resolved_fund, list_error) {
+                        (None, _, _) | (_, None, _) => {
+                            view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
+                                .into_any()
+                        }
+                        (Some(_), _, Some(message)) => {
+                            view! {
+                                <ListLoadError message=message on_retry=reload />
+                            }
+                                .into_any()
+                        }
+                        (Some(resolved), Some(resolved_fund), None) => {
+                            let stock_note = summary::stock_note(&resolved);
+                            view! {
+                                <AssetBalanceMainContent
+                                    stock_rows=resolved.rows
+                                    fallback_totals=resolved.fallback_totals
+                                    stock_note=stock_note
+                                    fund_resolved=resolved_fund
+                                    search=search
+                                    search_count=search_count
+                                    sort_key=state.sort_key
+                                    sort_order=state.sort_order
+                                    fund_sort_key=state.fund_sort_key
+                                    fund_sort_order=state.fund_sort_order
+                                    kind=state.kind
+                                    dividends=dividends
+                                    lookup=lookup
+                                    generation=generation
+                                />
+                            }
+                                .into_any()
+                        }
+                    }
+                }}
             </div>
         </div>
         </PageFrame>

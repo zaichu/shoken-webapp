@@ -74,19 +74,22 @@ async function openFundTab(page: Page) {
   await expect(page.getByTestId('asset-fund-table')).toBeVisible();
 }
 
-test('基準価額の自動更新: 取得できたときは時刻と取得件数を出す', async ({ page }) => {
+test('基準価額の自動更新: 取得できたときは時刻と対象・取得件数を出す', async ({ page }) => {
   await setupMocks(page, {
     updated_at: '2026-10-20 23:02',
     fetched_count: 2,
     failed_count: 0,
+    fund_count: 2,
+    auto_update_target_count: 2,
     failure_reason: null,
   });
   await openFundTab(page);
 
-  const note = page.getByText(/基準価額の自動更新/);
+  const note = page.locator('.page-skeleton-note');
   await expect(note).toBeVisible();
-  await expect(note).toContainText('10/20 23:02');
-  await expect(note).toContainText('2');
+  await expect(note).toContainText('自動更新 10/20 23:02');
+  await expect(note).toContainText('対象 2件');
+  await expect(note).toContainText('取得 2件');
   await expect(note).not.toContainText('失敗');
 });
 
@@ -95,14 +98,16 @@ test('基準価額の自動更新: 取得できなかったときは失敗件数
     updated_at: '2026-10-20 23:02',
     fetched_count: 0,
     failed_count: 2,
+    fund_count: 2,
+    auto_update_target_count: 2,
     failure_reason: 'HTTP 403',
   });
   await openFundTab(page);
 
-  const note = page.getByText(/基準価額の自動更新/);
+  const note = page.locator('.page-skeleton-note');
   await expect(note).toBeVisible();
-  await expect(note).toContainText('10/20 23:02');
-  await expect(note).toContainText('2');
+  await expect(note).toContainText('自動更新 10/20 23:02');
+  await expect(note).toContainText('失敗 2件');
   await expect(note).toContainText('HTTP 403');
 });
 
@@ -111,11 +116,13 @@ test('基準価額の自動更新: まだ取得されていないときは件数
     updated_at: null,
     fetched_count: 0,
     failed_count: 0,
+    fund_count: 1,
+    auto_update_target_count: 1,
     failure_reason: null,
   });
   await openFundTab(page);
 
-  const note = page.getByText(/基準価額の自動更新/);
+  const note = page.locator('.page-skeleton-note');
   await expect(note).toBeVisible();
   await expect(note).toContainText('まだ');
   await expect(note).not.toContainText('件');

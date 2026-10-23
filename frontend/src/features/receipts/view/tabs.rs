@@ -45,7 +45,7 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
             aria-controls=format!("tabpanel-{slug}")
             aria-selected=move || (selected.active_tab.get() == tab).to_string()
             tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
-            class="receipts-tab"
+            class="page-tab"
             on:click=move |_| clicked.select_tab(tab)
             on:keydown=move |event| {
                 let current = ReceiptsTab::ALL
@@ -62,7 +62,7 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
             {label}
             <span
                 data-testid={format!("tab-count-{slug}")}
-                class="receipts-tab-count"
+                class="page-tab-count"
             >
                 {move || match counted_store.tab_state(tab) {
                     TabState::Ready(data) => {

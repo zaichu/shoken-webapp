@@ -3606,6 +3606,8 @@ async fn fund_nav_status_counts_fetched_failed_and_pending() {
     let summary = res.summary.expect("summary が返る");
     assert_eq!(summary.nav_status.fetched_count, 1);
     assert_eq!(summary.nav_status.failed_count, 1);
+    assert_eq!(summary.nav_status.fund_count, 3);
+    assert_eq!(summary.nav_status.auto_update_target_count, 3);
     assert_eq!(
         summary.nav_status.failure_reason.as_deref(),
         Some("HTTP 403")

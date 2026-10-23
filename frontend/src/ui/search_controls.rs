@@ -177,12 +177,26 @@ pub fn SearchClearButton(
 /// 「条件を足す:」の行。中身の条件ボタンは各ページが渡す。
 /// 開いた小窓(ConditionPanel)もこの中に置く。小窓はこの行の座標を基準に出る
 #[component]
-pub fn AddConditionRow(children: Children) -> impl IntoView {
+pub fn AddConditionRow(
+    /// 条件を足すボタンがあるときだけ「条件を足す:」の文言を出す
+    #[prop(optional)]
+    show_label: bool,
+    children: Children,
+) -> impl IntoView {
     view! {
         <div class="add-condition-row">
-            <span class="add-condition-label">"条件を足す:"</span>
+            {show_label.then(|| view! { <span class="add-condition-label">"条件を足す:"</span> })}
             {children()}
         </div>
+    }
+}
+
+/// 条件の行の右端に置く件数と「すべてクリア」。
+/// スマホは条件のボタンと1行に並べない(ボタンが狭くなるため次の行に置く)
+#[component]
+pub fn ConditionRowEnd(children: Children) -> impl IntoView {
+    view! {
+        <div class="ml-auto flex w-full items-center justify-end gap-2 lg:w-auto">{children()}</div>
     }
 }
 

@@ -172,6 +172,23 @@ fn short_date_drops_the_zero_padding() {
 }
 
 #[test]
+fn calendar_days_between_counts_calendar_days() {
+    // 同じ日は 0
+    assert_eq!(calendar_days_between((2026, 10, 20), (2026, 10, 20)), 0);
+    // 1日後・2日後
+    assert_eq!(calendar_days_between((2026, 10, 20), (2026, 10, 21)), 1);
+    assert_eq!(calendar_days_between((2026, 10, 20), (2026, 10, 22)), 2);
+    // 月をまたぐ
+    assert_eq!(calendar_days_between((2026, 10, 31), (2026, 11, 1)), 1);
+    assert_eq!(calendar_days_between((2026, 1, 31), (2026, 2, 1)), 1);
+    // 2月の日数は年で変わる(うるう年)
+    assert_eq!(calendar_days_between((2024, 2, 28), (2024, 3, 1)), 2);
+    assert_eq!(calendar_days_between((2026, 2, 28), (2026, 3, 1)), 1);
+    // 過去の日付なら負
+    assert_eq!(calendar_days_between((2026, 10, 22), (2026, 10, 20)), -2);
+}
+
+#[test]
 fn latest_import_date_picks_newest() {
     let stamps = [
         "2026-10-10T00:00:00Z",

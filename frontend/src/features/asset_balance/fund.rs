@@ -134,6 +134,8 @@ pub(crate) trait FundRowData {
     fn is_nav_latest(&self) -> bool;
     /// 「公表済みのはずの最新の基準価額の日」(更新待ちの説明文に使う)
     fn expected_nav_date(&self) -> Option<String>;
+    /// 保有残高の取込時刻(CSV 取り込みの時刻)。プレビュー行には無い
+    fn created_at(&self) -> Option<&str>;
 }
 
 impl FundRowData for FundBalance {
@@ -188,6 +190,9 @@ impl FundRowData for FundBalance {
     fn expected_nav_date(&self) -> Option<String> {
         self.expected_nav_date.clone()
     }
+    fn created_at(&self) -> Option<&str> {
+        Some(self.created_at.as_str())
+    }
 }
 
 impl FundRowData for FundBalanceCsvRow {
@@ -241,6 +246,9 @@ impl FundRowData for FundBalanceCsvRow {
         true
     }
     fn expected_nav_date(&self) -> Option<String> {
+        None
+    }
+    fn created_at(&self) -> Option<&str> {
         None
     }
 }
@@ -310,6 +318,9 @@ impl FundRowData for FundBalanceRow {
     }
     fn expected_nav_date(&self) -> Option<String> {
         self.inner().expected_nav_date()
+    }
+    fn created_at(&self) -> Option<&str> {
+        self.inner().created_at()
     }
 }
 

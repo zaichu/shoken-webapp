@@ -304,6 +304,76 @@ pub fn format_latest_import_date<'a>(timestamps: impl Iterator<Item = &'a str>) 
         .map(|(year, month, day)| format!("{year}/{month}/{day}"))
 }
 
+/// 暦日(年・月・日)を「1970-01-01 からの日数」に直す。暦日の差を数えるためだけに使う
+fn days_from_civil(year: i32, month: u32, day: u32) -> i64 {
+    let year = i64::from(year);
+    let month = i64::from(month);
+    let day = i64::from(day);
+    // 3月を1月とする年(月をまたいでずらす)の実装
+    let shifted_year = if month <= 2 { year - 1 } else { year };
+    let era = if shifted_year >= 0 {
+        shifted_year
+    } else {
+        shifted_year - 399
+    } / 400;
+    let year_of_era = shifted_year - era * 400;
+    let shifted_month = if month > 2 { month - 3 } else { month + 9 };
+    let day_of_year = (153 * shifted_month + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146_097 + day_of_era - 719_468
+}
+
+/// 「1970-01-01 からの日数」を暦日(年・月・日)に戻す
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn civil_from_days(days: i64) -> (i32, u32, u32) {
+    let shifted = days + 719_468;
+    let era = if shifted >= 0 {
+        shifted
+    } else {
+        shifted - 146_096
+    } / 146_097;
+    let day_of_era = shifted - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36524 - day_of_era / 146_096) / 365;
+    let year = year_of_era + era * 400;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let shifted_month = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * shifted_month + 2) / 5 + 1;
+    let month = if shifted_month < 10 {
+        shifted_month + 3
+    } else {
+        shifted_month - 9
+    };
+    let year = if month <= 2 { year + 1 } else { year };
+    (year as i32, month as u32, day as u32)
+}
+
+/// 2つの暦日の差(to − from)。後なら正、前でなければ負
+pub fn calendar_days_between(from: (i32, u32, u32), to: (i32, u32, u32)) -> i64 {
+    days_from_civil(to.0, to.1, to.2) - days_from_civil(from.0, from.1, from.2)
+}
+
+/// 今日(JST)の年月日
+#[cfg(target_arch = "wasm32")]
+pub fn today_jst() -> Option<(i32, u32, u32)> {
+    // epoch 秒を9時間進めて JST の暦日を出す
+    let jst_seconds = (js_sys::Date::now() / 1000.0) as i64 + 9 * 3600;
+    Some(civil_from_days(jst_seconds.div_euclid(86_400)))
+}
+
+/// 今日(JST)の年月日。ネイティブでは None
+#[cfg(not(target_arch = "wasm32"))]
+pub fn today_jst() -> Option<(i32, u32, u32)> {
+    None
+}
+
+/// 取込日から今日までの暦日の差。日付か今日が読めないときは None
+pub fn days_since_jst_date(timestamp: &str) -> Option<i64> {
+    let imported = jst_date(timestamp)?;
+    let today = today_jst()?;
+    Some(calendar_days_between(imported, today))
+}
+
 /// 数値(Decimal)を桁区切りで出す
 pub fn format_decimal_number(value: Decimal) -> String {
     let text = value.to_string();

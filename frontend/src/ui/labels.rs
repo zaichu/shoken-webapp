@@ -156,6 +156,8 @@ pub const LOGIN_REQUIRED_DESCRIPTION: &str = "保有資産と取引明細はロ�
 pub const GOOGLE_LOGIN: &str = "Googleでログイン";
 /// 検索を実行するボタン
 pub const SEARCH: &str = "検索";
+/// 絞り込み中の表示(注記の行に出す)
+pub const FILTERING: &str = "絞り込み中";
 /// 検索を実行しているときのボタン名
 pub const SEARCH_LOADING: &str = "検索中";
 /// 銘柄検索の検索対象(検索欄の文言に使う)
@@ -289,6 +291,59 @@ pub fn group_count(label: &str, total: usize) -> String {
 /// 基準日の書き方(「10/21 時点」)
 pub fn price_as_of(date: &str) -> String {
     format!("{} 時点", format_price_date(date))
+}
+
+/// 絞り込み中の件数(注記の行に出す「絞り込み中(4件 / 77件)」)
+pub fn filtering_count(filtered: usize, total: usize) -> String {
+    format!("{FILTERING}({} / {})", count(filtered), count(total))
+}
+
+/// 基準価額の自動更新の注記。自動更新の対象件数・取得件数・失敗件数と、
+/// 自動更新の対象外のファンド(他社のファンド)は CSV で更新することを示す
+pub fn nav_update_note(
+    // 自動更新の時刻("10/22 20:00")
+    updated_at: &str,
+    // 自動更新の対象のファンド数
+    target: usize,
+    // 取得できたファンド数
+    fetched: usize,
+    // 取得できなかったファンド数
+    failed: usize,
+    // 失敗の理由
+    failure_reason: Option<&str>,
+    // 自動更新の対象外のファンド数
+    csv_only: usize,
+) -> String {
+    let mut counts = format!("対象 {target}件(取得 {fetched}件");
+    if failed > 0 {
+        counts.push_str(&format!("・失敗 {failed}件"));
+        if let Some(reason) = failure_reason {
+            counts.push_str(&format!(": {reason}"));
+        }
+    }
+    counts.push(')');
+    format!("自動更新 {updated_at}・{counts}・他社のファンド {csv_only}件は CSV で更新")
+}
+
+/// 基準価額の自動更新がまだ走っていないときの注記
+pub const NAV_UPDATE_NOT_YET: &str = "自動更新: まだ取得されていません";
+
+/// 最後の CSV 取り込みの注記。「N日前」は暦日の差
+pub fn last_csv_import_note(date: &str, days_ago: i64) -> String {
+    if days_ago <= 0 {
+        format!("最後の CSV 取り込み: {date}(今日)")
+    } else {
+        format!("最後の CSV 取り込み: {date}({days_ago}日前)")
+    }
+}
+
+/// 集計は一覧と同じ対象であることの注記
+pub const SUMMARY_SAME_TARGET: &str =
+    "集計は一覧と同じ対象です(検索・条件で絞り込むと集計も変わります)";
+
+/// 対象期間の注記(明細の最初と最後の日)
+pub fn target_period_note(from: &str, to: &str) -> String {
+    format!("対象期間: {from} 〜 {to}")
 }
 
 #[cfg(test)]

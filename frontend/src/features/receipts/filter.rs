@@ -46,8 +46,7 @@ impl SelectedQueries {
         }
     }
 
-    #[cfg(test)]
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.securities.is_empty()
             && self.years.is_empty()
             && self.products.is_empty()
@@ -153,9 +152,13 @@ impl ReceiptSearch {
         }
     }
 
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub fn is_default(&self) -> bool {
         self.query.is_empty() && self.selected_queries.is_empty()
+    }
+
+    pub fn has_any_filter(&self) -> bool {
+        !self.query.is_empty() || !self.selected_queries.is_empty()
     }
 
     pub fn select_quick(&mut self, key: SearchKey, value: String) {

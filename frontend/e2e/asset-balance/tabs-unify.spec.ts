@@ -117,8 +117,9 @@ async function setupMocks(page: Page) {
           has_missing_daily_change: false,
           nav_status: {
             updated_at: '2026-10-20 18:05',
-            fetched_count: FUND_ROWS.length,
+            fetched_count: 1,
             failed_count: 0,
+            fund_count: FUND_ROWS.length,
             failure_reason: null,
           },
         },
@@ -173,7 +174,7 @@ test.describe('資産管理のタブ', () => {
       // 帯の主要3項目(評価額・損益・前日比)が2タブで同じ
       bandLabels.push(
         await band
-          .locator('.asset-summary-group-main dt, .asset-summary-item-daily dt')
+          .locator('.summary-band-group-main dt, .summary-band-item-daily dt')
           .allTextContents(),
       );
 

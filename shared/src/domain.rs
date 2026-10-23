@@ -340,6 +340,12 @@ pub struct FundNavStatus {
     /// 直近の取得で失敗したファンド数
     #[serde(default)]
     pub failed_count: i64,
+    /// 保有ファンドの総数(対象・対象外の分母。口座違いの同名ファンドは1つに数える)
+    #[serde(default)]
+    pub fund_count: i64,
+    /// 自動更新の対象となるファンド数(協会コードを持つファンド数)
+    #[serde(default)]
+    pub auto_update_target_count: i64,
     /// 直近の失敗の理由(URL・応答本文・内部 Details を含まない短い文)
     #[serde(default)]
     pub failure_reason: Option<String>,
