@@ -14,6 +14,9 @@ use shared::format::format_number;
 pub use kind::ReceiptRow;
 pub use store::{ReceiptsStore, use_receipts_data};
 
+// CSV 最新取得(自動取り込み)がタブごとの取り込み設定を使う
+pub(crate) use csv::chunking_for;
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ReceiptsTab {
     Dividend,

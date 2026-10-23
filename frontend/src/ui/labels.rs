@@ -198,6 +198,32 @@ pub const CSV_KIND_FUND_BALANCE: &str = "投資信託の保有";
 pub const CSV_KIND_STOCK_TRADE: &str = "国内株式の取引";
 /// 投資信託の取引履歴(CSV 最新取得の種類名)
 pub const CSV_KIND_FUND_TRADE: &str = "投資信託の取引";
+/// 種類ごとの取り込みの実行中表示
+pub const CSV_SYNC_IMPORTING: &str = "取り込み中...";
+/// 件数激減の確認を出して回答を待っている表示
+pub const CSV_SYNC_CONFIRMING: &str = "確認待ち";
+/// 受け取った内容から送信ファイルを作れなかったときの文言
+pub const CSV_SYNC_FILE_FAILED: &str = "ファイルを作成できませんでした";
+/// 確認への「はい」の回答
+pub const YES: &str = "はい";
+/// 確認への「いいえ」の回答
+pub const NO: &str = "いいえ";
+/// 取り込まなかった理由: 空(ヘッダーだけ)
+pub const CSV_SKIP_EMPTY: &str = "データ行がありません";
+/// 取り込まなかった理由: HTML を受け取った
+pub const CSV_SKIP_HTML: &str = "CSV ではない内容(HTML)を受け取りました";
+/// 取り込まなかった理由: 文字化け
+pub const CSV_SKIP_MOJIBAKE: &str = "文字化けしています";
+/// 取り込まなかった理由: 必須列・見出しなし
+pub const CSV_SKIP_COLUMNS: &str = "必要な列が見つかりません";
+/// 取り込まなかった理由: 検証で有効行0件
+pub const CSV_SKIP_NO_VALID: &str = "取り込める行がありませんでした";
+/// 取り込まなかった理由: 全件置換で行エラーあり
+pub const CSV_SKIP_ROW_ERRORS: &str = "エラーのある行が含まれます";
+/// 取り込まなかった理由: 確認で取り込まない選択
+pub const CSV_SKIP_DECLINED: &str = "確認で取り込みをやめました";
+/// 取り込まなかった理由: 保存済み件数を取れなかった
+pub const CSV_SKIP_COUNT_UNKNOWN: &str = "保存済みの件数を確認できませんでした";
 
 /// 受け取った行数の書き方(「受け取った(12行)」)
 pub fn csv_received(lines: usize) -> String {
@@ -207,6 +233,30 @@ pub fn csv_received(lines: usize) -> String {
 /// 種類ごとの取得失敗の書き方
 pub fn csv_sync_failed(reason: &str) -> String {
     format!("失敗: {reason}")
+}
+
+/// 種類ごとの取り込み結果の書き方(「取り込んだ(32件)」)
+pub fn csv_imported(inserted: usize, skipped: usize, errors: usize) -> String {
+    let mut text = format!("取り込んだ({inserted}件");
+    if skipped > 0 {
+        text.push_str(&format!("・{skipped}件スキップ"));
+    }
+    if errors > 0 {
+        text.push_str(&format!("・{errors}件エラー"));
+    }
+    format!("{text})")
+}
+
+/// 取り込まなかった理由の書き方
+pub fn csv_sync_skipped(reason: &str) -> String {
+    format!("取り込まなかった({reason})")
+}
+
+/// 件数激減の確認文。「はい/いいえ」で答える
+pub fn csv_sync_plunge_question(kind: &str, new_rows: usize, saved_rows: usize) -> String {
+    format!(
+        "{kind}: 件数が大きく減っています(保存済み{saved_rows}件 → {new_rows}件)。取り込みますか?"
+    )
 }
 
 /// 統一前の語。画面の文言には使わない(括弧内は現在の用語)。

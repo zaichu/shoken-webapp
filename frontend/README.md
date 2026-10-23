@@ -56,7 +56,7 @@ scripts/ui-shots.sh <名前> <before|after> --pr <番号> [--only 画面一覧] 
 - `--only` で撮る画面を絞れます(例: `--only home,asset-stock`)。画面名は `home` / `asset-all` / `asset-stock` / `asset-fund` / `receipts-dividend` / `receipts-stock` / `receipts-fund` / `search` / `settings` / `csv` / `login`
 - 画像は `screenshots` ブランチの `pr<番号>/<before|after>/` に入ります。最後に PR 本文に貼る Markdown(変更前後の表)が出力されます
 
-撮影する画面は「ホーム・資産管理3タブ・取引明細3タブ・銘柄検索・設定・CSV管理・ログイン(ログアウト状態)」で、ダーク・ライト × 1280×800 / 1920×1080 / 390×844 を撮ります。表・一覧がある画面は PC のスクロール後も撮ります。データは全て `scripts/ui-shots/data.mjs` の架空データで、本番の接続情報・実保有データは使いません。
+撮影する画面は「ホーム・資産管理3タブ・取引明細3タブ・銘柄検索・設定・CSV管理・ログイン(ログアウト状態)」で、ダーク・ライト × 1024×768 / 1280×800 / 1440×900 / 1920×1080 / 390×844 を撮ります。表・一覧がある画面は PC のスクロール後も撮ります。データは全て `scripts/ui-shots/data.mjs` の架空データで、本番の接続情報・実保有データは使いません。
 
 ## ソースの構成
 

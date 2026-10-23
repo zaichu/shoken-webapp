@@ -520,6 +520,12 @@ test('ダークテーマの主要画面に moderate 以上の WCAG 違反がな�
     expect(page.getByTestId('asset-portfolio-summary')).toBeVisible({ timeout: 10000 }),
   );
   await scanBothViewports(page, 'ダーク(設定)', () => page.goto('/settings'));
+  // ログイン画面は未ログインのときだけ出るので、認証モックを 401 に差し替える
+  await page.unrouteAll({ behavior: 'wait' });
+  await page.route(ROUTES.authMe, (route) => route.fulfill(json({}, 401)));
+  await scanBothViewports(page, 'ダーク(ログイン)', () => page.goto('/login'), true, () =>
+    expect(page.getByRole('button', { name: /Googleでログイン/ })).toBeVisible({ timeout: 10000 }),
+  );
 });
 
 // ダークでも全タブ・CSV 管理の文字色を color-contrast 含めて走査する

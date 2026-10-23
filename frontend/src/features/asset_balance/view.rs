@@ -61,6 +61,30 @@ pub(crate) struct AssetBalanceState {
     csv: AssetBalanceCsvStore,
 }
 
+impl AssetBalanceState {
+    /// CSV 最新取得など画面の保存操作を通らない取り込みのあと、保存済み一覧を取り直す
+    pub(crate) fn reload_lists(&self, session: SessionStore, stock: bool, fund: bool) {
+        if session.user.get_untracked().is_none() {
+            return;
+        }
+        let generation = session.generation.get_untracked();
+        if stock {
+            load_asset_balances(
+                session,
+                generation,
+                self.balances,
+                self.dividends,
+                self.lookup,
+                self.csv.csv,
+                self.data_ops,
+            );
+        }
+        if fund {
+            load_fund_balances(session, generation, self.funds, self.data_ops);
+        }
+    }
+}
+
 fn use_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let states = use_context::<crate::app::PageStates>().unwrap_or_default();
     crate::app::page_state(states.asset_balance, || build_asset_balance_state(session))

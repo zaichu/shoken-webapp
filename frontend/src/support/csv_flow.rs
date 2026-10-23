@@ -470,12 +470,30 @@ pub async fn upload_csv(
     file: &web_sys::File,
     chunking: CsvChunking,
 ) -> Result<CsvUploadResponse, ApiError> {
+    upload_csv_while(path, file, chunking, || true).await
+}
+
+/// upload_csv に継続条件を渡す版。分割待ちの間に条件が切れると、残りの
+/// チャンクは送らず Cancelled で中断する(セッション切替後に旧データを
+/// 新しい Cookie で送らないためのもの)
+pub async fn upload_csv_while(
+    path: &str,
+    file: &web_sys::File,
+    chunking: CsvChunking,
+    alive: impl Fn() -> bool,
+) -> Result<CsvUploadResponse, ApiError> {
+    if !alive() {
+        return Err(ApiError::Cancelled);
+    }
     if !chunking.import_chunked {
         return ApiClient::default_client()
             .post_multipart(path, &csv_form_data(file)?)
             .await;
     }
     let chunks = split_file_chunks(file, chunking, CSV_CHUNK_ROWS).await?;
+    if !alive() {
+        return Err(ApiError::Cancelled);
+    }
     let client = ApiClient::default_client();
     let filename = file.name();
     let mut merged = CsvUploadResponse {
@@ -485,6 +503,9 @@ pub async fn upload_csv(
     };
     let mut offset = 0usize;
     for chunk in chunks {
+        if !alive() {
+            return Err(ApiError::Cancelled);
+        }
         let mut response: CsvUploadResponse = client
             .post_multipart(path, &chunk_form_data(&chunk, &filename)?)
             .await?;
