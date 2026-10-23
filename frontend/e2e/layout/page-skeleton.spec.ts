@@ -134,6 +134,7 @@ async function setupMocks(page: Page) {
             fetched_count: 1,
             failed_count: 0,
             fund_count: FUNDS.length,
+            auto_update_target_count: FUNDS.length,
             failure_reason: null,
           },
         },

@@ -84,7 +84,7 @@ pub(crate) fn fund_latest_nav_count(view: &ResolvedFundBalance) -> usize {
 pub(crate) fn fund_nav_note(status: &FundNavStatus, csv_only: usize) -> String {
     let fetched = status.fetched_count.max(0) as usize;
     let failed = status.failed_count.max(0) as usize;
-    let target = fetched + failed;
+    let target = status.auto_update_target_count.max(0) as usize;
     match status.updated_at.as_deref() {
         Some(updated_at) => labels::nav_update_note(
             &format_nav_updated_at(updated_at),

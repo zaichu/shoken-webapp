@@ -80,6 +80,7 @@ test('基準価額の自動更新: 取得できたときは時刻と対象・取
     fetched_count: 2,
     failed_count: 0,
     fund_count: 2,
+    auto_update_target_count: 2,
     failure_reason: null,
   });
   await openFundTab(page);
@@ -98,6 +99,7 @@ test('基準価額の自動更新: 取得できなかったときは失敗件数
     fetched_count: 0,
     failed_count: 2,
     fund_count: 2,
+    auto_update_target_count: 2,
     failure_reason: 'HTTP 403',
   });
   await openFundTab(page);
@@ -115,6 +117,7 @@ test('基準価額の自動更新: まだ取得されていないときは件数
     fetched_count: 0,
     failed_count: 0,
     fund_count: 1,
+    auto_update_target_count: 1,
     failure_reason: null,
   });
   await openFundTab(page);
