@@ -63,7 +63,7 @@ pub fn AssetHoldingsTable(
                         <th scope="col" class="col-text">{NAME_COLUMN}</th>
                         <th scope="col" class="col-text">{ACCOUNT}</th>
                         <th scope="col" class="col-num">{QUANTITY}</th>
-                        <th scope="col" class="col-num">{AVERAGE_PRICE}</th>
+                        <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{AVERAGE_PRICE}</th>
                         <th scope="col" class="col-num">{CURRENT_PRICE}</th>
                         <th scope="col" class="col-num">{DAY_CHANGE}</th>
                         {sort_header(MARKET_VALUE, SortKey::MarketValue, sort_key, sort_order)}
@@ -73,7 +73,7 @@ pub fn AssetHoldingsTable(
                             sort_key,
                             sort_order,
                         )}
-                        <th scope="col" class="col-num">{PER_SHARE_DIVIDEND}</th>
+                        <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{PER_SHARE_DIVIDEND}</th>
                         {sort_header(ANNUAL_DIVIDEND, SortKey::Dividend, sort_key, sort_order)}
                         {sort_header(
                             ACQUISITION_YIELD,
@@ -125,7 +125,7 @@ pub fn AssetHoldingsTable(
                                     <td class="col-num text-text-soft">
                                         {format!("{}株", format_number_value(view.shares))}
                                     </td>
-                                    <td class="col-num text-text-soft">
+                                    <td class="col-num text-text-soft hidden xl:table-cell print:table-cell">
                                         {format_unit_price(view.average_price, average_price_decimals)}
                                     </td>
                                     <td class="col-num text-text-soft">
@@ -156,7 +156,7 @@ pub fn AssetHoldingsTable(
                                             view! { "—" }.into_any()
                                         }}
                                     </td>
-                                    <td class="col-num">{dividend_per_share}</td>
+                                    <td class="col-num hidden xl:table-cell print:table-cell">{dividend_per_share}</td>
                                     <td class="col-num">{dividend_annual}</td>
                                     <td class="col-num text-text-deep">{dividend_yield}</td>
                                 </tr>
