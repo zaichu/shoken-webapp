@@ -140,7 +140,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
         FilteredCount {
             filtered,
             total,
-            filtering: !search.with(|state| state.query.is_empty()),
+            filtering: search.with(|s| s.has_any_filter()),
         }
     });
     let basis = vec![String::from(labels::SUMMARY_SAME_TARGET)];
