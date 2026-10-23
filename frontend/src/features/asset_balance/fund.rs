@@ -52,31 +52,6 @@ impl AssetKind {
     }
 }
 
-/// 選んだ CSV が国内株式(資産残高)か投資信託かを見出し行で判別する。
-/// 国内株式は先頭列が「銘柄コード」、投資信託は「投資信託種別」。
-/// 判別できない場合は既存どおり国内株式として扱い、backend の検証に委ねる
-pub fn detect_asset_csv_kind(head: &[u8]) -> AssetKind {
-    for (start, end) in crate::support::csv_flow::record_ranges(head)
-        .iter()
-        .take(10)
-    {
-        let fields = crate::support::csv_flow::csv_fields(
-            crate::support::csv_flow::decode_csv_bytes(&head[*start..*end]).as_ref(),
-        );
-        let Some(first) = fields.first() else {
-            continue;
-        };
-        let first = first.trim();
-        if first.starts_with("投資信託種別") {
-            return AssetKind::Fund;
-        }
-        if first.starts_with("銘柄コード") {
-            return AssetKind::Stock;
-        }
-    }
-    AssetKind::Stock
-}
-
 /// CSV プレビュー行。backend の CreateFundBalanceRequest そのままの形を
 /// lenient に受け取る(検証に通らない値も画面に出すため)
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]

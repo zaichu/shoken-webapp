@@ -121,7 +121,7 @@ async function setupMocks(page: Page, options: MockOptions) {
 }
 
 async function selectCsvAndSave(page: Page, validRows: number) {
-  await page.goto('/receipts/csv?kind=dividend');
+  await page.goto('/csv?kind=dividend');
   const fileInput = page.getByTestId('csv-file-input');
   await expect(fileInput).toBeAttached();
   await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
@@ -177,7 +177,7 @@ test.describe('取込結果のエラー詳細表示', () => {
       }),
     );
 
-    await page.goto('/receipts/csv?kind=dividend');
+    await page.goto('/csv?kind=dividend');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
     const notice = page.getByTestId('csv-save-result-notice');
@@ -209,7 +209,7 @@ test.describe('取込結果のエラー詳細表示', () => {
 
   test('プレビューの行エラーは操作なしで表示される', async ({ page }) => {
     await setupMocks(page, { previewErrors: ROW_ERRORS });
-    await page.goto('/receipts/csv?kind=dividend');
+    await page.goto('/csv?kind=dividend');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeAttached();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));

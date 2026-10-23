@@ -1,9 +1,7 @@
 mod export;
 
 use crate::session::use_session;
-use crate::settings::{
-    AmountUnit, AssetSort, IDLE_LOGOUT_CHOICES, PromptColumn, Theme, use_settings,
-};
+use crate::settings::{AmountUnit, AssetSort, IDLE_LOGOUT_CHOICES, Theme, use_settings};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::card::Card;
 use crate::ui::card::CardVariant;
@@ -212,12 +210,9 @@ fn SectionDisplay() -> impl IntoView {
 
 #[component]
 fn SectionData() -> impl IntoView {
-    let settings = use_settings();
-    let review_prompt = settings.review_prompt;
     let exporting = RwSignal::new(Option::<ExportKind>::None);
     let export_message = RwSignal::new(Option::<String>::None);
     let export_failed = RwSignal::new(false);
-    let editor_open = RwSignal::new(false);
 
     let on_export = move |kind: ExportKind| {
         exporting.set(Some(kind));
@@ -286,71 +281,12 @@ fn SectionData() -> impl IntoView {
                     <SettingRow title="CSVの取り込み・保存済みデータの削除">
                         <LinkButton
                             variant=ButtonVariant::Ghost
-                            href="/receipts/csv"
+                            href="/csv"
                             class="no-print shrink-0 whitespace-nowrap"
                         >
                             "CSV管理へ →"
                         </LinkButton>
                     </SettingRow>
-                    <SettingRow title="AI総評プロンプトの書式" note="前置き文と、含める列を選ぶ">
-                        <Button
-                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            class="whitespace-nowrap"
-                            aria_expanded=Signal::derive(move || editor_open.get())
-                            aria_controls="review-prompt-editor"
-                            testid="review-prompt-edit"
-                            on_click=move |_| editor_open.update(|open| *open = !*open)
-                        >
-                            {move || if editor_open.get() { "閉じる" } else { "編集" }}
-                        </Button>
-                    </SettingRow>
-                    {move || {
-                        editor_open.get().then(|| {
-                            view! {
-                                <div id="review-prompt-editor" class="pb-3" data-testid="review-prompt-editor">
-                                    <label class="block text-xs font-medium text-text-muted mb-1" for="review-prompt-preamble">
-                                        "前置き文"
-                                    </label>
-                                    <textarea
-                                        id="review-prompt-preamble"
-                                        class="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text"
-                                        rows="3"
-                                        prop:value=move || review_prompt.get().preamble
-                                        on:input=move |ev| {
-                                            let value = event_target_value(&ev);
-                                            review_prompt.update(|pref| pref.preamble = value);
-                                        }
-                                    />
-                                    <fieldset class="mt-3">
-                                        <legend class="text-xs font-medium text-text-muted mb-1">
-                                            "プロンプトに含める列(銘柄コード・銘柄名は常に含む)"
-                                        </legend>
-                                        <div class="flex flex-wrap gap-x-4 gap-y-1">
-                                            {PromptColumn::ALL.iter().map(|column| {
-                                                let column = *column;
-                                                view! {
-                                                    <label class="flex items-center gap-1.5 text-sm">
-                                                        <input
-                                                            type="checkbox"
-                                                            class="h-4 w-4 accent-brand-text"
-                                                            prop:checked=move || review_prompt.get().has_column(column)
-                                                            on:change=move |ev| {
-                                                                let checked = event_target_checked(&ev);
-                                                                review_prompt.update(|pref| {
-                                                                    pref.set_column(column, checked);
-                                                                });
-                                                            }
-                                                        />
-                                                        {column.label()}
-                                                    </label>
-                                                }
-                                            }).collect_view()}
-                                        </div>
-                                    </fieldset>
-                                </div>
-                            }
-                        })
-                    }}
                 </div>
             </Card>
         </section>
@@ -414,7 +350,7 @@ fn SectionDanger() -> impl IntoView {
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            href="/receipts/csv/delete?kind=dividend"
+                            href="/csv?kind=dividend"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="配当金データを削除"
                         >
@@ -428,7 +364,7 @@ fn SectionDanger() -> impl IntoView {
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            href="/receipts/csv/delete?kind=stock"
+                            href="/csv?kind=stock"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="国内株式データを削除"
                         >
@@ -442,7 +378,7 @@ fn SectionDanger() -> impl IntoView {
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            href="/receipts/csv/delete?kind=fund"
+                            href="/csv?kind=fund"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="投資信託データを削除"
                         >
@@ -456,7 +392,7 @@ fn SectionDanger() -> impl IntoView {
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            href="/assetbalance/csv/delete"
+                            href="/csv?kind=assetbalance"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="資産管理データを削除"
                         >

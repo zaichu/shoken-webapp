@@ -104,7 +104,6 @@ test('localStorage の値が壊れているとき設定は既定値に戻る', a
   await page.addInitScript(() => {
     localStorage.setItem('setting_amount_unit', 'invalid');
     localStorage.setItem('setting_auto_logout_minutes', '7');
-    localStorage.setItem('setting_review_prompt', '{broken');
     localStorage.setItem('setting_theme', 'sepia');
   });
   await page.goto('/settings');

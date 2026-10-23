@@ -1,11 +1,12 @@
 use crate::features::asset_balance::{
-    AssetBalanceCompositionPage, AssetBalanceCsvPage, AssetBalanceHoldingPage, AssetBalancePage,
-    AssetBalanceState, AssetFundHoldingPage,
+    AssetBalanceCompositionPage, AssetBalanceHoldingPage, AssetBalancePage, AssetBalanceState,
+    AssetFundHoldingPage,
 };
+use crate::features::csv_page::CsvPage;
 use crate::features::home::{HomeOverviewData, HomePage};
 use crate::features::login::LoginPage;
 use crate::features::not_found::NotFoundPage;
-use crate::features::receipts::{ReceiptsCsvPage, ReceiptsPage, ReceiptsStore};
+use crate::features::receipts::{ReceiptsPage, ReceiptsStore};
 use crate::features::settings::SettingsPage;
 use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
@@ -48,12 +49,11 @@ enum Route {
     Home,
     Search,
     Receipts,
-    ReceiptsCsv,
     AssetBalance,
     AssetBalanceComposition,
     AssetBalanceHolding,
     AssetFundHolding,
-    AssetBalanceCsv,
+    Csv,
     Settings,
     Login,
     NotFound,
@@ -65,7 +65,7 @@ impl Route {
             Route::Home => "ホーム",
             Route::Search => "銘柄検索",
             Route::Receipts => "取引明細",
-            Route::ReceiptsCsv | Route::AssetBalanceCsv => "CSV管理",
+            Route::Csv => "CSV管理",
             Route::AssetBalance => "資産管理",
             Route::AssetBalanceComposition => "構成比",
             Route::AssetBalanceHolding => "保有銘柄詳細",
@@ -94,11 +94,14 @@ fn route_for_path(path: &str) -> Route {
         "/receipts" => Route::Receipts,
         // 旧検索条件ページの URL は取引明細を開く(ブックマーク・履歴からの到達を 404 にしない)
         "/receipts/conditions" => Route::Receipts,
-        // 旧削除ページの URL は取り込み画面と同じタブを開く(設定ページの「危険な操作」からも来る)
-        "/receipts/csv" | "/receipts/csv/delete" => Route::ReceiptsCsv,
+        // CSV管理は統合ページ。旧2ルートと旧削除ページは対応するタブを開いたままにする
+        "/csv"
+        | "/receipts/csv"
+        | "/receipts/csv/delete"
+        | "/assetbalance/csv"
+        | "/assetbalance/csv/delete" => Route::Csv,
         "/assetbalance" => Route::AssetBalance,
         "/assetbalance/composition" => Route::AssetBalanceComposition,
-        "/assetbalance/csv" | "/assetbalance/csv/delete" => Route::AssetBalanceCsv,
         "/settings" => Route::Settings,
         path if holding_id(path).is_some() => Route::AssetBalanceHolding,
         path if fund_holding_id(path).is_some() => Route::AssetFundHolding,
@@ -111,7 +114,7 @@ fn route_for_path(path: &str) -> Route {
 // 取引明細・資産管理・設定配下は未ログインで開けない(新設ルートもプレフィックスで保護する)
 fn protected_path(path: &str) -> bool {
     let path = pathname_of(path);
-    matches!(path, "/receipts" | "/assetbalance" | "/settings")
+    matches!(path, "/receipts" | "/assetbalance" | "/settings" | "/csv")
         || path.starts_with("/receipts/")
         || path.starts_with("/assetbalance/")
         || path.starts_with("/settings/")
@@ -377,11 +380,10 @@ pub fn App() -> impl IntoView {
             Route::Home
                 | Route::Search
                 | Route::Receipts
-                | Route::ReceiptsCsv
+                | Route::Csv
                 | Route::AssetBalance
                 | Route::AssetBalanceComposition
                 | Route::AssetBalanceHolding
-                | Route::AssetBalanceCsv
         )
     };
     view! {
@@ -410,7 +412,7 @@ pub fn App() -> impl IntoView {
                         Route::Home => view! { <HomePage /> }.into_any(),
                         Route::Search => view! { <StockSearchPage /> }.into_any(),
                         Route::Receipts => view! { <ReceiptsPage /> }.into_any(),
-                        Route::ReceiptsCsv => view! { <ReceiptsCsvPage /> }.into_any(),
+                        Route::Csv => view! { <CsvPage /> }.into_any(),
                         Route::AssetBalance => view! { <AssetBalancePage /> }.into_any(),
                         Route::AssetBalanceComposition => {
                             view! { <AssetBalanceCompositionPage /> }.into_any()
@@ -424,7 +426,6 @@ pub fn App() -> impl IntoView {
                                 fund_holding_id(&path.get()).unwrap_or_default().to_string();
                             view! { <AssetFundHoldingPage id=id /> }.into_any()
                         }
-                        Route::AssetBalanceCsv => view! { <AssetBalanceCsvPage /> }.into_any(),
                         Route::Settings => view! { <SettingsPage /> }.into_any(),
                         Route::Login => view! { <LoginPage /> }.into_any(),
                         _ => view! { <NotFoundPage /> }.into_any(),

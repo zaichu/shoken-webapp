@@ -62,6 +62,8 @@ for (const path of [
   '/assetbalance',
   '/receipts',
   '/settings',
+  '/csv',
+  // 旧ルートも保護対象のまま
   '/assetbalance/csv',
   '/receipts/csv',
 ]) {

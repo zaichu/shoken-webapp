@@ -6,9 +6,7 @@ use super::{
 use crate::api::ApiError;
 use crate::api::dto::{AssetBalanceSummary, CsvPreviewResponse, CsvUploadResponse};
 use crate::features::asset_balance::csv::{self, AssetBalanceCsvRow, AssetBalanceRow};
-use crate::features::asset_balance::fund::{
-    AssetKind, FundBalanceCsvRow, FundBalanceRow, detect_asset_csv_kind,
-};
+use crate::features::asset_balance::fund::{AssetKind, FundBalanceCsvRow, FundBalanceRow};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::{DividendMaps, unique_sorted_codes};
 use crate::session::{Generation, SessionStore};
@@ -27,9 +25,8 @@ pub(crate) struct AssetBalanceCsvStore {
     lookup: RwSignal<AssetBalanceLookupStore>,
     pub(crate) csv: RwSignal<AssetCsvSlot>,
     pub(crate) csv_fund: RwSignal<FundCsvSlot>,
-    // 直前に選んだ CSV の判別結果。保存先とプレビュー描画を切り替える
-    pub(crate) csv_kind: RwSignal<AssetKind>,
     pub(crate) csv_file: RwSignal<AssetCsvFileSlot>,
+    pub(crate) csv_fund_file: RwSignal<AssetCsvFileSlot>,
     pub(crate) data_ops: RwSignal<DataOps>,
 }
 
@@ -140,8 +137,8 @@ impl AssetBalanceCsvStore {
             lookup,
             csv: RwSignal::new(None),
             csv_fund: RwSignal::new(None),
-            csv_kind: RwSignal::new(AssetKind::Stock),
             csv_file: RwSignal::new(None),
+            csv_fund_file: RwSignal::new(None),
             data_ops,
         }
     }
@@ -154,14 +151,13 @@ impl AssetBalanceCsvStore {
         self.csv_tab_state(self.csv_fund)
     }
 
-    // 共通 CSV UI が読むのはメタ情報だけ。プレビュー行の複製を避ける。
-    // 判別済みのファイルがある間はその種別の状態を返す
+    // 共通 CSV UI が読むのはメタ情報だけ。プレビュー行の複製を避ける
     pub(crate) fn csv_meta(&self) -> CsvTabMeta {
-        if self.csv_kind.get() == AssetKind::Fund {
-            self.csv_tab_meta(self.csv_fund)
-        } else {
-            self.csv_tab_meta(self.csv)
-        }
+        self.csv_tab_meta(self.csv)
+    }
+
+    pub(crate) fn fund_csv_meta(&self) -> CsvTabMeta {
+        self.csv_tab_meta(self.csv_fund)
     }
 
     // どちらかの取り込みが動いている間は新しい選択を受け付けない
@@ -170,8 +166,12 @@ impl AssetBalanceCsvStore {
     }
 
     // ファイル入力を押せない間は空状態 CTA 経由の選択も効かないので、両者は同じ条件にする
-    pub(crate) fn csv_input_disabled(&self) -> bool {
-        !self.is_authenticated() || self.csv_busy() || self.list_loading()
+    pub(crate) fn csv_input_disabled(&self, kind: AssetKind) -> bool {
+        let list_loading = match kind {
+            AssetKind::Fund => self.fund_list_loading(),
+            _ => self.list_loading(),
+        };
+        !self.is_authenticated() || self.csv_busy() || list_loading
     }
 
     pub(crate) fn is_authenticated(&self) -> bool {
@@ -195,6 +195,12 @@ impl AssetBalanceCsvStore {
         self.session.user.get().is_some()
             && (self.data_ops.with(|ops| !ops.inflight.is_empty())
                 || self.with_slot(self.balances, |slot| slot.is_none()))
+    }
+
+    pub(crate) fn fund_list_loading(&self) -> bool {
+        self.session.user.get().is_some()
+            && (self.data_ops.with(|ops| !ops.inflight.is_empty())
+                || self.with_slot(self.funds, |slot| slot.is_none()))
     }
 
     // ---- 投資信託の保存済み件数(削除カード用) ----
@@ -283,30 +289,24 @@ impl AssetBalanceCsvStore {
         self.update_slot(self.csv_fund, generation, update);
     }
 
-    // 見出し行で国内株式/投資信託を判別し、対応する backend の検証・保存へ流す
-    pub(crate) fn select_file(&self, file: web_sys::File) {
+    // タブが決めた種別の backend 検証・保存へ流す。他の種別のファイルを選んだ場合は
+    // backend の検証がエラーを返し、画面に出す
+    pub(crate) fn select_file(&self, kind: AssetKind, file: web_sys::File) {
         let Some(generation) = self.current_generation() else {
             return;
         };
-        let store = *self;
-        leptos::task::spawn_local(async move {
-            let head = crate::support::csv_flow::read_file_head(&file, 8192)
-                .await
-                .unwrap_or_default();
-            if !store.session.is_current(generation) {
-                return;
-            }
-            match detect_asset_csv_kind(&head) {
-                AssetKind::Fund => {
-                    store.csv_kind.set(AssetKind::Fund);
-                    let mut started = false;
-                    store.update_csv_fund(generation, |state| {
-                        started = state.begin_preview(file.name());
-                    });
-                    if !started {
-                        return;
-                    }
-                    store.csv_file.set(Some((generation, file.clone())));
+        match kind {
+            AssetKind::Fund => {
+                let mut started = false;
+                self.update_csv_fund(generation, |state| {
+                    started = state.begin_preview(file.name());
+                });
+                if !started {
+                    return;
+                }
+                self.csv_fund_file.set(Some((generation, file.clone())));
+                let store = *self;
+                leptos::task::spawn_local(async move {
                     let result = crate::support::csv_flow::preview_csv(
                         crate::features::asset_balance::fund::FUND_PREVIEW_PATH,
                         &file,
@@ -314,13 +314,15 @@ impl AssetBalanceCsvStore {
                     )
                     .await;
                     store.apply_fund_preview_result(generation, result);
+                });
+            }
+            _ => {
+                if !self.begin_file_preview(generation, file.name()) {
+                    return;
                 }
-                _ => {
-                    store.csv_kind.set(AssetKind::Stock);
-                    if !store.begin_file_preview(generation, file.name()) {
-                        return;
-                    }
-                    store.csv_file.set(Some((generation, file.clone())));
+                self.csv_file.set(Some((generation, file.clone())));
+                let store = *self;
+                leptos::task::spawn_local(async move {
                     let result = crate::support::csv_flow::preview_csv(
                         csv::PREVIEW_PATH,
                         &file,
@@ -342,9 +344,9 @@ impl AssetBalanceCsvStore {
                             poll_rev,
                         ));
                     }
-                }
+                });
             }
-        });
+        }
     }
 
     // 別CSVを選び直した場合、旧銘柄向けのポーリング結果と配当マップが残らないよう無効化する
@@ -360,61 +362,57 @@ impl AssetBalanceCsvStore {
         started
     }
 
-    pub(crate) fn save_csv(&self) {
-        if self.csv_kind.get_untracked() == AssetKind::Fund {
-            let Some((generation, file)) = self.try_begin_fund_save() else {
-                return;
-            };
-            let store = *self;
-            leptos::task::spawn_local(async move {
-                let result = crate::support::csv_flow::upload_csv(
-                    crate::features::asset_balance::fund::FUND_IMPORT_PATH,
-                    &file,
-                    crate::features::asset_balance::fund::FUND_CSV_CHUNKING,
-                )
-                .await;
-                if store.apply_fund_upload_result(generation, result) {
-                    load_fund_balances(store.session, generation, store.funds, store.data_ops);
-                }
-            });
-            return;
-        }
-        let Some((generation, file)) = self.try_begin_save() else {
+    pub(crate) fn save_csv(&self, kind: AssetKind) {
+        let Some((generation, file)) = (match kind {
+            AssetKind::Fund => self.try_begin_save_in(self.csv_fund, self.csv_fund_file),
+            _ => self.try_begin_save_in(self.csv, self.csv_file),
+        }) else {
             return;
         };
         let store = *self;
         leptos::task::spawn_local(async move {
-            let result =
-                crate::support::csv_flow::upload_csv(csv::IMPORT_PATH, &file, csv::CSV_CHUNKING)
+            match kind {
+                AssetKind::Fund => {
+                    let result = crate::support::csv_flow::upload_csv(
+                        crate::features::asset_balance::fund::FUND_IMPORT_PATH,
+                        &file,
+                        crate::features::asset_balance::fund::FUND_CSV_CHUNKING,
+                    )
                     .await;
-            if store.apply_upload_result(generation, result) {
-                load_asset_balances(
-                    store.session,
-                    generation,
-                    store.balances,
-                    store.dividends,
-                    store.lookup,
-                    store.csv,
-                    store.data_ops,
-                );
+                    if store.apply_fund_upload_result(generation, result) {
+                        load_fund_balances(store.session, generation, store.funds, store.data_ops);
+                    }
+                }
+                _ => {
+                    let result = crate::support::csv_flow::upload_csv(
+                        csv::IMPORT_PATH,
+                        &file,
+                        csv::CSV_CHUNKING,
+                    )
+                    .await;
+                    if store.apply_upload_result(generation, result) {
+                        load_asset_balances(
+                            store.session,
+                            generation,
+                            store.balances,
+                            store.dividends,
+                            store.lookup,
+                            store.csv,
+                            store.data_ops,
+                        );
+                    }
+                }
             }
         });
-    }
-
-    fn try_begin_fund_save(&self) -> Option<(Generation, web_sys::File)> {
-        self.try_begin_save_in(self.csv_fund)
-    }
-
-    fn try_begin_save(&self) -> Option<(Generation, web_sys::File)> {
-        self.try_begin_save_in(self.csv)
     }
 
     fn try_begin_save_in<T: Send + Sync + 'static>(
         &self,
         slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
+        file_slot: RwSignal<AssetCsvFileSlot>,
     ) -> Option<(Generation, web_sys::File)> {
         let generation = self.current_generation()?;
-        let file = self.csv_file.with_untracked(|slot| match slot {
+        let file = file_slot.with_untracked(|slot| match slot {
             Some((cached, file)) if *cached == generation => Some(file.clone()),
             _ => None,
         })?;
@@ -454,6 +452,7 @@ impl AssetBalanceCsvStore {
     fn apply_upload_in<T: Send + Sync + 'static>(
         &self,
         slot: RwSignal<Option<(Generation, CsvTabState<T>)>>,
+        file_slot: RwSignal<AssetCsvFileSlot>,
         generation: Generation,
         result: Result<CsvUploadResponse, ApiError>,
     ) -> bool {
@@ -465,7 +464,7 @@ impl AssetBalanceCsvStore {
                 self.update_slot(slot, generation, |state| {
                     state.finish_save(Ok(response));
                 });
-                self.csv_file.set(None);
+                file_slot.set(None);
                 true
             }
             Err(error) => {
@@ -508,7 +507,7 @@ impl AssetBalanceCsvStore {
         generation: Generation,
         result: Result<CsvUploadResponse, ApiError>,
     ) -> bool {
-        self.apply_upload_in(self.csv_fund, generation, result)
+        self.apply_upload_in(self.csv_fund, self.csv_fund_file, generation, result)
     }
 
     pub(crate) fn apply_upload_result(
@@ -516,7 +515,7 @@ impl AssetBalanceCsvStore {
         generation: Generation,
         result: Result<CsvUploadResponse, ApiError>,
     ) -> bool {
-        self.apply_upload_in(self.csv, generation, result)
+        self.apply_upload_in(self.csv, self.csv_file, generation, result)
     }
 
     // ---- 投資信託の全件削除(保存済みカードから呼ぶ) ----

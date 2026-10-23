@@ -1,4 +1,5 @@
 pub(crate) mod asset_balance;
+pub(crate) mod csv_page;
 pub(crate) mod csv_sync;
 pub(crate) mod dividend_per_share;
 pub(crate) mod home;

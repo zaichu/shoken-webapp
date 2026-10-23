@@ -394,10 +394,13 @@ fn csv_input_disabled_blocks_unauth_busy_and_loading() {
         let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((generation, Ok(loaded))));
         let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
 
-        assert!(store.csv_input_disabled(), "未認証では選べない");
+        assert!(
+            store.csv_input_disabled(AssetKind::Stock),
+            "未認証では選べない"
+        );
         session.user.set(Some(user("alice")));
         assert!(
-            !store.csv_input_disabled(),
+            !store.csv_input_disabled(AssetKind::Stock),
             "一覧済み・CSV 未処理なら選べる"
         );
 
@@ -407,14 +410,17 @@ fn csv_input_disabled_blocks_unauth_busy_and_loading() {
             RwSignal::new(DividendMaps::default()),
         );
         assert!(
-            loading_store.csv_input_disabled(),
+            loading_store.csv_input_disabled(AssetKind::Stock),
             "一覧未取得(list_loading)では選べない"
         );
 
         store.update_csv(generation, |state| {
             state.previewing = true;
         });
-        assert!(store.csv_input_disabled(), "CSV 処理中は選べない");
+        assert!(
+            store.csv_input_disabled(AssetKind::Stock),
+            "CSV 処理中は選べない"
+        );
     });
 }
 

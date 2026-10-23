@@ -276,17 +276,17 @@ test('前日比は最新の基準価額の変動だけを出し、タイトル�
   await expect(mergedLatest).not.toContainText(/\(\d{1,2}\/\d{1,2}\)/);
 });
 
-test('投資信託CSVは見出しで判別されプレビューから全件置換で保存できる', async ({
+test('投資信託タブのCSVはプレビューから全件置換で保存できる', async ({
   page,
 }) => {
   await setupMocks(page);
-  await page.goto('/assetbalance/csv');
+  await page.goto('/csv?kind=fundbalance');
 
   const input = page.getByLabel('CSVファイルを選択');
   await expect(input).toBeEnabled();
   await input.setInputFiles(CSV_FIXTURE_PATH);
 
-  // 投資信託と判別されてプレビューが出る
+  // 投資信託タブの入力に投したので、ファンドのプレビューが出る
   const preview = page.getByTestId('csv-preview');
   await expect(preview).toContainText('架空バランスファンドA号');
 

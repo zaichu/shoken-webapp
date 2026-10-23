@@ -108,7 +108,7 @@ test('配当金タブにデータがないとき EmptyState が表示される',
   const cta = page.getByRole('link', { name: 'CSVを取り込む' });
   await expect(cta).toBeVisible();
   await cta.click();
-  await expect(page).toHaveURL('/receipts/csv?kind=dividend');
+  await expect(page).toHaveURL('/csv?kind=dividend');
   await expect(page.getByTestId('csv-file-input')).toBeAttached();
 });
 
@@ -121,7 +121,7 @@ test('別タブの一覧取得中は CSV ページのファイル選択が無効
     pending.push(route);
   });
 
-  await page.goto('/receipts/csv?kind=dividend');
+  await page.goto('/csv?kind=dividend');
 
   const fileInput = page.getByTestId('csv-file-input');
   await expect(fileInput).toBeAttached();
@@ -172,7 +172,7 @@ test('スマホ幅で空状態 CTA からプレビューして保存ボタンま
   const cta = page.getByRole('link', { name: 'CSVを取り込む' });
   await expect(cta).toBeVisible();
   await cta.click();
-  await expect(page).toHaveURL('/receipts/csv?kind=dividend');
+  await expect(page).toHaveURL('/csv?kind=dividend');
 
   // 取り込み結果は CSV 管理ページに出る
   const fileInput = page.getByTestId('csv-file-input');

@@ -117,7 +117,7 @@ test('取引明細: 最下端でも本文がフッターに重ならない', asy
 test('CSV管理: 最下端でも本文がフッターに重ならない', async ({ page }) => {
   await mockBase(page);
   await mockReceipts(page);
-  await page.goto('/receipts/csv?kind=dividend');
+  await page.goto('/csv?kind=dividend');
   await expect(page.getByTestId('csv-file-input')).toBeAttached();
   await expectFooterBelowContent(page);
 });

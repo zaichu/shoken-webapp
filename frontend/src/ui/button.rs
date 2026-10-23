@@ -17,8 +17,6 @@ pub enum ButtonVariant {
     DangerSolid(ButtonSize),
     /// 文字だけの静かな操作(絞り込みの解除など)
     Ghost,
-    /// AI プロンプトのコピーなど細い枠の全幅ボタン
-    Prompt,
     /// 読み込みエラーの再読み込み(独自ベース)
     Retry,
     /// メニュー項目(role="menuitem" と一緒に使う)
@@ -78,7 +76,6 @@ impl ButtonVariant {
                 size,
             ),
             Self::Ghost => "text-sm text-text-deep hover:underline".to_string(),
-            Self::Prompt => "review-prompt-button".to_string(),
             Self::Retry => {
                 "inline-flex min-h-11 items-center justify-center rounded-md border border-ink bg-ink px-4 text-sm font-bold text-page transition-colors hover:bg-ink-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2".to_string()
             }

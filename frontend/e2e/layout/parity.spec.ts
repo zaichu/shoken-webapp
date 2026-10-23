@@ -292,7 +292,6 @@ for (const width of [1440, 390]) {
     await expect(alert).toBeVisible();
     await expect(alert).not.toBeEmpty();
     await expect(page.getByRole('alert')).toHaveCount(1);
-    await expect(page.getByTestId('asset-review-prompt-card')).toHaveCount(0);
     await expect(main).not.toContainText('資産管理データがありません');
     await expectNoPageOverflow(page, width);
   });
@@ -321,9 +320,8 @@ test('資産管理の検索とCSV管理ページに390pxでもアクセスでき
   await expect(page.getByTestId('asset-search-input')).toBeEditable();
   // CSV 操作は専用ページに置く
   await page.getByRole('link', { name: 'CSV管理' }).click();
-  await expect(page).toHaveURL('/assetbalance/csv');
+  await expect(page).toHaveURL('/csv');
   await expect(page.getByTestId('csv-file-input')).toBeAttached();
-  await expect(page.getByTestId('asset-review-prompt-card')).toBeVisible();
   await page.getByRole('link', { name: '一覧に戻る' }).click();
   await expect(page).toHaveURL('/assetbalance');
 });

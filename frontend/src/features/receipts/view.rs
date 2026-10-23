@@ -7,7 +7,7 @@ mod table;
 mod tabs;
 
 pub use action_bar::{ReceiptsMobileBottomSection, ReceiptsSearchBar};
-pub use csv_page::ReceiptsCsvPage;
+pub(crate) use csv_page::{ReceiptCsvSource, ReceiptsCsvPreview, ensure_kind};
 pub use main_content::ReceiptsMainContent;
 pub use summary::SummaryStrip;
 pub use table::ReceiptTable;
@@ -36,8 +36,7 @@ pub fn ReceiptsPage() -> impl IntoView {
         store.auth_loading() || matches!(store.tab_state(active_tab.get()), TabState::Loading)
     });
 
-    let csv_href =
-        Signal::derive(move || format!("/receipts/csv?kind={}", active_tab.get().kind_param()));
+    let csv_href = Signal::derive(move || format!("/csv?kind={}", active_tab.get().kind_param()));
     let csv_link: Children = Box::new(move || {
         view! {
             <a class="page-secondary-link-sm" href=move || csv_href.get()>"CSV管理"</a>
