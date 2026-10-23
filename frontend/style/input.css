@@ -764,12 +764,10 @@
       overflow: hidden;
     }
 
-    /* 1024px 前後では数値列が狭くなりすぎるため、数値セルを折り返して
-       重なりを防ぐ(スクロールコンテナを作ると見出しの sticky が崩れる) */
-    @media (max-width: 1279px) {
-      .receipts-table td.col-num {
-        white-space: normal;
-        overflow-wrap: anywhere;
+    @media (min-width: 1024px) and (max-width: 1279px) {
+      .receipts-table th.receipt-instrument-col,
+      .receipts-table td.receipt-instrument-cell {
+        max-width: 0;
       }
     }
   }
@@ -1505,6 +1503,14 @@
   .asset-table td.asset-name-cell-narrow {
     width: 18em;
     max-width: 18em;
+  }
+
+  @media screen and (min-width: 1024px) and (max-width: 1279px) {
+    /* 内容の最小幅を抑え、名前の省略より先に金額列の幅を確保する */
+    .asset-table td.asset-name-cell {
+      min-width: 10em;
+      max-width: 0;
+    }
   }
 
   /* 最終列がカードの縁に触れないよう右側だけ余白を残す */

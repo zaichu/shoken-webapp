@@ -17,7 +17,7 @@ const STOCKS: Array<[string, string]> = [
   ['9910', '架空電信電話'],
   ['9914', '架空エレクトロニクス'],
   ['9907', '架空フィナンシャル・グループ'],
-  ['9915', '架空通信ホールディングス'],
+  ['9915', '架空グローバル先端素材ソリューションホールディングス'],
   ['9905', '架空医薬品'],
 ];
 
@@ -223,25 +223,21 @@ test('PCの数値列は折り返さず1行で表示され、表は枠に収ま�
       });
       expect(fits, `${tab.label} の表が枠に収まる`).toBe(true);
 
-      // 1280px 以上では数値列は折り返さず 1 行で表示される。
-      // 1024px 以下では数値セルを折り返して重なりを防ぐ (CSS の退行検出)。
-      if (width >= 1280) {
-        const hasWrappedNumberCell = await page.evaluate(() => {
-          const visible = (element: Element) => {
-            const rect = element.getBoundingClientRect();
-            return rect.width > 0 && rect.height > 0 && (element.textContent ?? '').trim().length > 0;
-          };
-          const numericCells = Array.from(document.querySelectorAll('td.col-num')).filter(visible);
-          return numericCells.some((cell) => {
-            const range = document.createRange();
-            range.selectNodeContents(cell);
-            const lineCount = Array.from(range.getClientRects()).filter((rect) => rect.height > 0).length;
-            if (lineCount > 1) return true;
-            return getComputedStyle(cell).whiteSpace !== 'nowrap';
-          });
+      const hasWrappedNumberCell = await page.evaluate(() => {
+        const visible = (element: Element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && (element.textContent ?? '').trim().length > 0;
+        };
+        const numericCells = Array.from(document.querySelectorAll('td.col-num')).filter(visible);
+        return numericCells.some((cell) => {
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          const lineTops = new Set(Array.from(range.getClientRects())
+            .filter((rect) => rect.height > 0).map((rect) => Math.round(rect.top)));
+          return lineTops.size > 1;
         });
-        expect(hasWrappedNumberCell, `${tab.label} の数値列が折り返していない`).toBe(false);
-      }
+      });
+      expect(hasWrappedNumberCell, `${tab.label} の数値列が折り返していない`).toBe(false);
       await expectNoPageOverflow(page, width);
     }
   }

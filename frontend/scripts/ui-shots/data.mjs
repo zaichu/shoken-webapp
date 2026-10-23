@@ -112,10 +112,12 @@ function settlementDate(index, year = 2026) {
 
 // 同一の添字の行が同じ保有数・同じ取得単価を持つようにする
 function stockShares(index) {
+  if (index >= 34) return 1200 + (index - 34) * 100;
   return 20 + index * 2;
 }
 
 function fundShares(index) {
+  if (index >= 30) return 2000000 + (index - 30) * 100000;
   return 20000 + index * 2000;
 }
 
@@ -221,7 +223,7 @@ export function fundBalances() {
 // 配当。ホームの前年同期比較があるため年を指定して取り分ける
 export function dividends(year = 2026) {
   const rows = STOCK_NAMES.map((security_name, index) => {
-    const unit_price = decimal(20, index * 1.5);
+    const unit_price = decimal(index >= 34 ? 1500 : 20, index * 1.5);
     const shares = stockShares(index);
     const dividends_before_tax = Number((unit_price * shares).toFixed(2));
     const taxes = taxOf(dividends_before_tax);
