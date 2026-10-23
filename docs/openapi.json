@@ -2834,6 +2834,11 @@
         "type": "object",
         "description": "基準価額の自動更新(共有値の取得)の状態。\n取得できた/できなかった件数と、直近の失敗の理由で3状態を区別する",
         "properties": {
+          "auto_update_target_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "自動更新の対象となるファンド数(協会コードを持つファンド数)"
+          },
           "failed_count": {
             "type": "integer",
             "format": "int64",

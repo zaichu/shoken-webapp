@@ -90,12 +90,15 @@ const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(market_value), 0) AS total_market
 
 // 基準価額の自動更新(共有値)の状態。保有ファンドのうち協会コードが引けるものだけを対象にする。
 // 共有値の取得はユーザー全体で行うため、検索条件には依存しない
+// auto_update_target_count = 協会コードを持つファンド数(自動更新の対象)
 const NAV_STATUS_SQL: &str = "SELECT MAX(fp.updated_at) AS updated_at, \
      COUNT(DISTINCT fc.association_fund_cd) \
          FILTER (WHERE fp.nav IS NOT NULL AND fp.fetch_error IS NULL) AS fetched_count, \
      COUNT(DISTINCT fc.association_fund_cd) \
          FILTER (WHERE fp.fetch_error IS NOT NULL) AS failed_count, \
-     COUNT(DISTINCT fb.normalized_fund_name) AS fund_count \
+     COUNT(DISTINCT fb.normalized_fund_name) AS fund_count, \
+     COUNT(DISTINCT fc.association_fund_cd) \
+         FILTER (WHERE fc.association_fund_cd IS NOT NULL) AS auto_update_target_count \
      FROM fund_balances fb \
      LEFT JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name \
      LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd \
@@ -116,6 +119,7 @@ struct NavStatusRow {
     fetched_count: i64,
     failed_count: i64,
     fund_count: i64,
+    auto_update_target_count: i64,
 }
 
 impl crate::db::FromRow for NavStatusRow {
@@ -125,6 +129,7 @@ impl crate::db::FromRow for NavStatusRow {
             fetched_count: row.try_get("fetched_count")?,
             failed_count: row.try_get("failed_count")?,
             fund_count: row.try_get("fund_count")?,
+            auto_update_target_count: row.try_get("auto_update_target_count")?,
         })
     }
 }
@@ -147,6 +152,7 @@ async fn fetch_nav_status(pool: &Db, user_id: UserId) -> Result<FundNavStatus, A
         fetched_count: row.fetched_count,
         failed_count: row.failed_count,
         fund_count: row.fund_count,
+        auto_update_target_count: row.auto_update_target_count,
         failure_reason,
     })
 }

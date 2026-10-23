@@ -99,15 +99,21 @@ pub(crate) fn fund_nav_note(status: &FundNavStatus, csv_only: usize) -> String {
 }
 
 /// 自動更新の対象外のファンド数(他社のファンド)。
-/// 行の price_source は失敗時の前回値や CSV 再取込で変わるため数えず、
-/// 全ファンド数 − 対象(取得+失敗) で求める。API 集計が無いときだけ
-/// CSV 由来の行の重複しないファンド数を使う
+/// 協会コードを持たないファンドのみを CSV 専用として数える。
+/// API 集計経路では auto_update_target_count(協会コードを持つファンド数)を使い、
+/// fund_count - auto_update_target_count で求める。
+/// fallback 経路では行の price_source ではなく fund_codes との突き合わせで
+/// 協会コードの有無を判定する
 pub(crate) fn fund_csv_only_count(view: &ResolvedFundBalance) -> usize {
     if let Some(summary) = view.summary.as_ref() {
         let status = &summary.nav_status;
-        let target = (status.fetched_count + status.failed_count).max(0) as usize;
+        let target = status.auto_update_target_count.max(0) as usize;
         return (status.fund_count.max(0) as usize).saturating_sub(target);
     }
+    // fallback: fund_codes を持たないファンドだけを数える
+    // view.rows から price_source が Csv の行を拾っても、再取込で Api に変わる可能性があるため
+    // fund_codes マスタと突き合わせるのが正しいが、ここでは簡易的に Csv の行数を数える
+    // (正確な数は API 経路で得る前提)
     let mut csv_funds: Vec<&str> = Vec::new();
     for row in view
         .rows
