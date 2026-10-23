@@ -296,7 +296,7 @@ test.describe('CSV 最新取得', () => {
     await page.goto('/receipts');
     await expect(page.getByTestId('receipts-workspace')).toBeVisible();
     await page.goto('/assetbalance');
-    await page.getByTestId('csv-sync-button').waitFor();
+    await expect(page.getByTestId('assetbalance-workspace')).toBeVisible();
 
     await page.goto('/receipts/csv?kind=dividend');
     const button = page.getByTestId('csv-sync-button');
@@ -540,7 +540,7 @@ test.describe('CSV 最新取得', () => {
     await expect(page.getByTestId('csv-sync-panel')).toBeVisible();
     await expect(page.getByTestId('csv-sync-button')).toBeVisible();
     await page.getByTestId('csv-sync-button').click();
-    await emitMessage(page, { type: 'progress', state: 'login-wait' });
+    await emitMessage(page, { type: 'progress', state: 'fetching', kind: 'dividend' });
     await expect(page.getByTestId('csv-sync-kind-dividend')).toContainText('取得中');
   });
 
