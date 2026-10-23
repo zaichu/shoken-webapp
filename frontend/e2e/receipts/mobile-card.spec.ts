@@ -114,7 +114,7 @@ test('CSVプレビューで内容が同じ行も明細行ごとに1件ずつ出�
       }),
     }),
   );
-  await page.goto('/receipts/csv?kind=dividend');
+  await page.goto('/csv?kind=dividend');
 
   const fileInput = page.getByTestId('csv-file-input');
   await expect(fileInput).toBeEnabled();

@@ -25,31 +25,6 @@ fn csv_row(
     })
 }
 
-#[test]
-fn detect_kind_reads_fund_header_after_preamble() {
-    let head = "資産残高のお知らせ\n\n架空証券\n\n\"投資信託種別\",\"口座区分\",\"ファンド\"\n";
-    assert_eq!(detect_asset_csv_kind(head.as_bytes()), AssetKind::Fund);
-}
-
-#[test]
-fn detect_kind_reads_stock_header() {
-    let head = "前置き\n\"銘柄コード\",\"銘柄名\"\n\"1234\",\"テスト\"\n";
-    assert_eq!(detect_asset_csv_kind(head.as_bytes()), AssetKind::Stock);
-}
-
-#[test]
-fn detect_kind_defaults_to_stock() {
-    assert_eq!(detect_asset_csv_kind(b""), AssetKind::Stock);
-    assert_eq!(detect_asset_csv_kind("なにか".as_bytes()), AssetKind::Stock);
-}
-
-#[test]
-fn detect_kind_handles_shift_jis() {
-    // 「投資信託種別」を CP932 で書いた行(実ファイルの先頭と同じ並び)
-    let sjis: &[u8] = b"\x93\x8a\x8e\x91\x90\x4d\x91\xf5\x8e\xed\x95\xca,\"a\"\n";
-    assert_eq!(detect_asset_csv_kind(sjis), AssetKind::Fund);
-}
-
 fn rows() -> Vec<FundBalanceRow> {
     vec![
         csv_row("Aファンド", "特定", Some("受取型"), "100", "10"),

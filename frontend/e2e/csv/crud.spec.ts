@@ -436,7 +436,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
         await page.getByRole('tab', { name: scenario.label }).click();
       }
       await page.getByRole('link', { name: 'CSV管理' }).click();
-      await expect(page).toHaveURL(`/receipts/csv?kind=${scenario.kind}`);
+      await expect(page).toHaveURL(`/csv?kind=${scenario.kind}`);
 
       const fileInput = page.getByTestId('csv-file-input');
       await expect(fileInput).toBeAttached();
@@ -546,7 +546,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
       });
     });
 
-    await page.goto('/receipts/csv?kind=dividend');
+    await page.goto('/csv?kind=dividend');
     const savedCount = page.getByTestId('saved-count');
     await expect(savedCount).toContainText('3件', { timeout: 10000 });
 
@@ -590,7 +590,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
         }),
       }),
     );
-    await page.goto('/receipts/csv?kind=dividend');
+    await page.goto('/csv?kind=dividend');
 
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
@@ -604,7 +604,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
   });
 });
 
-// 資産管理はタブではなく独立ページで、追加ではなく全件置換になる
+// 資産管理は取引明細と違い、追加ではなく全件置換になる
 // モック応答は fixture CSV の行と一致させる
 const ASSET_SYN_RESOURCE = {
   security_code: '9901',
@@ -756,7 +756,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await page.goto('/assetbalance');
     await expect(page.getByText('資産管理データがありません')).toBeVisible();
     await page.getByRole('link', { name: 'CSV管理' }).click();
-    await expect(page).toHaveURL('/assetbalance/csv');
+    await expect(page).toHaveURL('/csv');
 
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeAttached();
@@ -838,7 +838,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
       }),
     });
 
-    await page.goto('/assetbalance/csv');
+    await page.goto('/csv');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));

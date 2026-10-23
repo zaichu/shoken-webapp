@@ -343,7 +343,7 @@ test('取引明細のCSVプレビューの表', async ({ page }) => {
       }),
     ),
   );
-  await page.goto('/receipts/csv?kind=dividend');
+  await page.goto('/csv?kind=dividend');
   const input = page.getByTestId('csv-file-input');
   await expect(input).toBeEnabled();
   await input.setInputFiles({
@@ -367,7 +367,7 @@ test('資産管理のCSVプレビューの表', async ({ page }) => {
       }),
     ),
   );
-  await page.goto('/assetbalance/csv');
+  await page.goto('/csv?kind=assetbalance');
   const input = page.getByTestId('csv-file-input');
   await expect(input).toBeEnabled();
   await input.setInputFiles({

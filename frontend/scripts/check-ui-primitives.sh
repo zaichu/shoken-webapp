@@ -12,7 +12,7 @@ cd "$SCRIPT_DIR/.."
 # features/ では <button> / <select> を直書きしない(ui/ の部品を使う)
 RAW_ELEMENT='<button|<select'
 # カード・空状態・開閉・ボタン・バッジのコンポーネントクラスの直書き
-PRIMITIVE_CLASS='(panel-card|login-card|table-card|collapsible-card|empty-state|collapsible-trigger|group-card-trigger|search-submit|review-prompt-button|login-button|copyable-name|code-badge|skeleton-table-row)'
+PRIMITIVE_CLASS='(panel-card|login-card|table-card|collapsible-card|empty-state|collapsible-trigger|group-card-trigger|search-submit|login-button|copyable-name|code-badge|skeleton-table-row)'
 # 開閉トリガーは DisclosureToggle(または Button/FieldTrigger の aria_expanded)を使う
 RAW_DISCLOSURE='aria-expanded'
 # 状態表示は ui/ の部品(Alert/ListLoadError/ListSkeleton/Skeleton 等)を使う。
@@ -31,6 +31,7 @@ ALLOWED=(
   "src/features/receipts/view/tabs.rs"         # 新規: タブボタンの部品化は別PRで対応
   "src/features/receipts/view/table.rs"        # 新規: テーブルカードの部品化は別PRで対応
   "src/features/asset_balance/view/kind_tabs.rs" # 新規: role="tab"+aria-selected のタブ部品化は別PRで対応
+  "src/features/csv_page.rs"                     # 新規: role="tab"+aria-selected のタブ部品化は別PRで対応
 )
 
 fail=0

@@ -6,7 +6,8 @@ mod model;
 mod store;
 mod view;
 
-pub use view::{ReceiptsCsvPage, ReceiptsPage};
+pub use view::ReceiptsPage;
+pub(crate) use view::{ReceiptCsvSource, ReceiptsCsvPreview, ensure_kind};
 
 use rust_decimal::Decimal;
 use shared::format::format_number;
@@ -31,7 +32,7 @@ impl ReceiptsTab {
         ReceiptsTab::MutualFund,
     ];
 
-    /// `/receipts/csv?kind=…` の種別値
+    /// `/csv?kind=…`(旧 `/receipts/csv?kind=…`)の種別値
     pub fn kind_param(self) -> &'static str {
         match self {
             Self::Dividend => "dividend",

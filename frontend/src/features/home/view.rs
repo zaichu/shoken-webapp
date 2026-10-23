@@ -101,7 +101,7 @@ pub fn HomePage() -> impl IntoView {
             {move || {
                 session.user.get().is_some().then(|| {
                     view! {
-                        <a class="page-secondary-link-sm" href="/assetbalance/csv">
+                        <a class="page-secondary-link-sm" href="/csv">
                             "CSV管理"
                         </a>
                     }
@@ -678,7 +678,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                 title="保有データがありません"
                                 description="保有残高をCSVで登録すると、商品別・口座別の内訳が表示されます。"
                             >
-                                <a class="home-card-link mt-2" href="/assetbalance/csv">
+                                <a class="home-card-link mt-2" href="/csv">
                                     "CSV管理へ →"
                                 </a>
                             </EmptyState>

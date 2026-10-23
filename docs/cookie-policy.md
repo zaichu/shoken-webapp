@@ -60,7 +60,6 @@ Google OAuth のログイン開始時に発行され、認証に成功したと�
 | `setting_receipts_initial_tab` | タブ種別（`dividend` / `stock` / `fund`） | 取引明細を開いたときの初期タブ |
 | `setting_amount_unit` | 表示単位（`yen` / `sen` / `man`） | 金額を円・千円・万円のどれで表示するか |
 | `setting_auto_logout_minutes` | 分数（`15` / `30` / `60`） | 無操作時の自動ログアウトまでの時間 |
-| `setting_review_prompt` | JSON（前置き文・含める列の一覧） | AI 総評プロンプトの書式 |
 | `setting_theme` | テーマ（`system` / `light` / `dark`） | 画面のテーマ（ライト/ダーク/端末に合わせる） |
 
 設定値は端末ごとに保存され、端末間では同期されません。値が不正な場合や読み取れない場合は既定値が使われます。

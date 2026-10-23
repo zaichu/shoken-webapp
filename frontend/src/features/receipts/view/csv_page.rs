@@ -1,11 +1,8 @@
 use super::table::ReceiptTable;
-use crate::features::receipts::{
-    ReceiptRow, ReceiptsStore, ReceiptsTab, TabState, use_receipts_data,
-};
-use crate::session::use_session;
+use crate::features::receipts::{ReceiptRow, ReceiptsStore, ReceiptsTab, TabState};
 use crate::support::csv_flow::CsvTabMeta;
 use crate::support::row::Row;
-use crate::ui::csv_page::{CsvManagePage, CsvSource};
+use crate::ui::csv_page::CsvSource;
 use crate::ui::format::format_iso_date;
 use leptos::prelude::*;
 
@@ -112,16 +109,9 @@ impl CsvSource for ReceiptCsvSource {
     }
 }
 
-// ?kind= はページの再マウントでしか変わらないため、マウント時に1回だけ読む
-fn kind_tab() -> ReceiptsTab {
-    ReceiptsTab::from_kind_param(
-        crate::app::query_param(&crate::app::current_location(), "kind").as_deref(),
-    )
-}
-
 // 世代リセットが起きると ensure の対象が配当へ差し替わるので、
 // 世代を確定させてから対象タブの一覧を未取得なら取得する。
-// ?kind= 直リンクでは一覧側の選択タブも URL の種別に同期し、「一覧に戻る」が同じタブを開く。
+// CSV管理側のタブを開いたとき一覧側の選択タブも同じ種別に同期し、「一覧に戻る」が同じタブを開く。
 // active_tab を直接変えると検索語が前のタブから残るため、通常のタブ切替と同じリセットを通す
 pub(crate) fn ensure_kind(store: ReceiptsStore, tab: ReceiptsTab) {
     store.ensure(tab);
@@ -129,27 +119,7 @@ pub(crate) fn ensure_kind(store: ReceiptsStore, tab: ReceiptsTab) {
 }
 
 #[component]
-pub fn ReceiptsCsvPage() -> impl IntoView {
-    let store = use_receipts_data(
-        use_session(),
-        crate::settings::try_use_settings().receipts_initial_tab,
-    );
-    let tab = kind_tab();
-    ensure_kind(store, tab);
-    let source = ReceiptCsvSource { store, tab };
-    view! {
-        <CsvManagePage
-            source=source
-            subject=tab.label()
-            back_href="/receipts"
-            preview=view! { <ReceiptsCsvPreview store=store tab=tab /> }.into_any()
-            top_extra=view! { <crate::features::csv_sync::CsvSyncPanel /> }.into_any()
-        />
-    }
-}
-
-#[component]
-fn ReceiptsCsvPreview(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+pub(crate) fn ReceiptsCsvPreview(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     move || {
         let preview = store.csv_state(tab).preview?;
         if preview.rows.is_empty() {

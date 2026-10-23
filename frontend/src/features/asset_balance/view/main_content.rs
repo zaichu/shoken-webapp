@@ -81,7 +81,7 @@ fn EmptyAssetPanel() -> impl IntoView {
                     "CSVファイルをインポートするか、データを登録してください。"
                 </p>
                 <a
-                    href="/assetbalance/csv"
+                    href="/csv"
                     class="mt-4 inline-flex items-center justify-center rounded-md border border-border-strong bg-surface px-4 py-2 text-sm font-bold text-text no-underline hover:border-border-bold hover:bg-surface-sunken"
                 >
                     "CSVを取り込む"

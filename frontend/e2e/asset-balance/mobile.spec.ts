@@ -111,11 +111,10 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
   // モバイルはコンパクト行、PC 表は出さない
   await expect(page.getByTestId('asset-holdings-table')).toBeHidden();
 
-  // CSV 管理ページにはヘッダーのリンクから入り、AI プロンプトもそこにある
+  // CSV 管理ページにはヘッダーのリンクから入る
   await page.getByRole('link', { name: 'CSV管理' }).click();
-  await expect(page).toHaveURL('/assetbalance/csv');
+  await expect(page).toHaveURL('/csv');
   await expect(page.getByTestId('csv-file-input')).toBeAttached();
-  await expect(page.getByTestId('asset-review-prompt-card')).toBeVisible();
   await page.getByRole('link', { name: '一覧に戻る' }).click();
   await expect(page).toHaveURL('/assetbalance');
   await expect(main).toBeVisible();
@@ -173,7 +172,7 @@ test('1920px でも一覧は1カラムでページをはみ出さない', async 
   await page.setViewportSize({ width: 1920, height: 1080 });
   await gotoAssetBalance(page);
 
-  // CSV 操作と AI プロンプトは専用ページに移ったためユーティリティレールは無い
+  // CSV 操作は専用ページに移ったためユーティリティレールは無い
   await expect(page.getByTestId('assetbalance-utility-rail')).toHaveCount(0);
   const main = page.getByTestId('assetbalance-main-stage');
   await expect(main).toBeVisible();

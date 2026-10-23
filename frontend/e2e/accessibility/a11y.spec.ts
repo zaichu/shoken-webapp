@@ -405,7 +405,7 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
   );
   for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
     await page.setViewportSize(size);
-    await page.goto('/receipts/csv?kind=dividend');
+    await page.goto('/csv?kind=dividend');
     await page.waitForLoadState('networkidle');
     const fileInput = page.locator('[data-testid="csv-file-input"]');
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
@@ -448,7 +448,7 @@ test('CSVプレビューの行エラー表示に moderate 以上の WCAG 違反�
     ),
   );
   await scanBothViewports(page, 'CSVプレビュー(行エラー)', async () => {
-    await page.goto('/receipts/csv?kind=dividend');
+    await page.goto('/csv?kind=dividend');
     await page.waitForLoadState('networkidle');
     const fileInput = page.locator('[data-testid="csv-file-input"]');
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
@@ -594,7 +594,7 @@ test('ダークテーマの各タブとCSV管理に moderate 以上の WCAG 違�
   }
   await page.setViewportSize(PC);
   await scanBothViewports(page, 'ダーク(CSV管理)', async () => {
-    await page.goto('/receipts/csv?kind=dividend');
+    await page.goto('/csv?kind=dividend');
     await page.waitForLoadState('networkidle');
     const fileInput = page.locator('[data-testid="csv-file-input"]');
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
@@ -655,7 +655,7 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await expect(search).toBeFocused();
 
   // CSV 操作は専用ページに移った。ファイル選択と削除導線を Tab で辿る
-  await page.goto('/receipts/csv?kind=dividend');
+  await page.goto('/csv?kind=dividend');
   await page.waitForLoadState('networkidle');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   await expect(fileInput).toBeEnabled({ timeout: 10000 });
@@ -905,7 +905,7 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
   let upload: unknown = { inserted: 1, skipped: 0, errors: [] };
   await page.route(ROUTES.dividendUpload, (route) => route.fulfill(json(upload)));
   await page.setViewportSize(PC);
-  await page.goto('/receipts/csv?kind=dividend');
+  await page.goto('/csv?kind=dividend');
   await page.waitForLoadState('networkidle');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   const preview = page.locator('[role="status"][aria-live="polite"]').first();

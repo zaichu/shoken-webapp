@@ -20,7 +20,7 @@ mod summary;
 mod tests;
 
 pub use composition_page::AssetBalanceCompositionPage;
-pub use csv_page::AssetBalanceCsvPage;
+pub(crate) use csv_page::{AssetBalanceCsvSource, FundCsvPreview, StockCsvPreview};
 pub use csv_preview::{AssetBalanceCsvPreview, FundBalanceCsvPreview};
 pub use fund_detail_page::AssetFundHoldingPage;
 pub use holding_detail_page::AssetBalanceHoldingPage;
@@ -56,9 +56,9 @@ pub(crate) struct AssetBalanceState {
     sort_order: RwSignal<SortOrder>,
     fund_sort_key: RwSignal<FundSortKey>,
     fund_sort_order: RwSignal<SortOrder>,
-    kind: RwSignal<AssetKind>,
+    pub(crate) kind: RwSignal<AssetKind>,
     data_ops: RwSignal<DataOps>,
-    csv: AssetBalanceCsvStore,
+    pub(crate) csv: AssetBalanceCsvStore,
 }
 
 impl AssetBalanceState {
@@ -85,9 +85,18 @@ impl AssetBalanceState {
     }
 }
 
-fn use_asset_balance_state(session: SessionStore) -> AssetBalanceState {
-    let states = use_context::<crate::app::PageStates>().unwrap_or_default();
-    crate::app::page_state(states.asset_balance, || build_asset_balance_state(session))
+pub(crate) fn use_asset_balance_state(session: SessionStore) -> AssetBalanceState {
+    #[cfg(test)]
+    {
+        // テストでは呼び出しごとに新しい状態を返して独立性を保つ
+        build_asset_balance_state(session)
+    }
+    #[cfg(not(test))]
+    {
+        // ページ遷移でビューを作り直しても取得済みデータを失わないよう、App コンテキストのスロットに保持する
+        let states = use_context::<crate::app::PageStates>().unwrap_or_default();
+        crate::app::page_state(states.asset_balance, || build_asset_balance_state(session))
+    }
 }
 
 fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
@@ -281,7 +290,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         view! {
             <span class="flex items-center gap-2">
                 <a class="page-secondary-link-sm hidden lg:inline-flex" href="/assetbalance/composition">"構成比を見る"</a>
-                <a class="page-secondary-link-sm" href="/assetbalance/csv">"CSV管理"</a>
+                <a class="page-secondary-link-sm" href="/csv">"CSV管理"</a>
             </span>
         }
         .into_any()

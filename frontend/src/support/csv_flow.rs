@@ -417,19 +417,6 @@ async fn split_file_chunks(
         .collect()
 }
 
-/// ファイルの先頭 max_bytes だけを読む(形式判別など、全体を読む前の peek 用)。
-/// ファイルが小さいときは全体を返す
-pub async fn read_file_head(file: &web_sys::File, max_bytes: usize) -> Result<Vec<u8>, ApiError> {
-    let end = file.size().min(max_bytes as f64);
-    let blob = file
-        .slice_with_f64_and_f64(0.0, end)
-        .map_err(|_| ApiError::Network)?;
-    let buf = wasm_bindgen_futures::JsFuture::from(blob.array_buffer())
-        .await
-        .map_err(|_| ApiError::Network)?;
-    Ok(js_sys::Uint8Array::new(&buf).to_vec())
-}
-
 pub async fn preview_csv<R: serde::de::DeserializeOwned>(
     path: &str,
     file: &web_sys::File,

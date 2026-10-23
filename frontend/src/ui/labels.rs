@@ -108,14 +108,10 @@ pub const CURRENT_PRICE: &str = "現在値";
 pub const PRICE_AS_OF: &str = "価格基準日";
 /// 取得単価
 pub const AVERAGE_PRICE: &str = "取得単価";
-/// 平均取得単価(AI 総評プロンプト・CSV エクスポート)
+/// 平均取得単価(CSV エクスポート)
 pub const AVERAGE_UNIT_PRICE: &str = "平均取得単価";
 /// 取得額(CSV エクスポートの列)
 pub const ACQUISITION_AMOUNT: &str = "取得額";
-/// 取得額合計(AI 総評プロンプト)
-pub const ACQUISITION_AMOUNT_TOTAL: &str = "取得額合計";
-/// 保有株数(AI 総評プロンプト)
-pub const SHARES: &str = "保有株数";
 /// 保有数(CSV エクスポートの列)
 pub const HOLDING_COUNT: &str = "保有数";
 /// 単価(CSV エクスポートの列)

@@ -6,7 +6,6 @@ use crate::ui::csv_preview::{
     CsvPreviewNotice, CsvRowErrorList, preview_notice_text, shared_message,
     should_show_preview_notice,
 };
-use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
 use leptos::ev::DragEvent;
 use leptos::prelude::*;
@@ -76,33 +75,24 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     fn confirm_delete_all(&self);
 }
 
-/// CSV の選択→検証→保存までを1ページに置く管理画面。
-/// 操作バーは1か所だけで、全件削除は保存済みデータのカードから確認モーダルで行う
+/// CSV の選択→検証→保存→全件削除までを1区画に置く管理画面の本文。
+/// ファイル選択と保存は CsvActionBar(呼び出し側が PageFrame の操作帯に置く)、
+/// 全件削除は保存済みデータのカードから確認モーダルで行う
 #[component]
-pub fn CsvManagePage<S: CsvSource>(
+pub fn CsvManageBody<S: CsvSource>(
     source: S,
-    /// 「対象」欄に出す名前(配当金・資産管理 など)
+    /// 「対象」欄・削除モーダルに出す名前(配当金・資産管理(国内株式) など)
     #[prop(into)]
     subject: String,
-    /// 一覧への戻り先
-    back_href: &'static str,
+    /// 「一覧に戻る」「一覧で確認する」のリンク先
+    list_href: &'static str,
     /// 検証済みプレビュー行の描画。対象ごとの一覧部品を呼び出し側で組む
     preview: AnyView,
-    /// AI相談文コピーなど対象ごとの追加領域
-    #[prop(optional)]
-    extra: Option<AnyView>,
-    /// 保存済みカードの直下に置く追加の保存済みブロック(別種別の件数・削除など)
-    #[prop(optional)]
-    saved_extra: Option<AnyView>,
-    /// 対象・保存方式の行より上に置く区画(CSV 最新取得など)
-    #[prop(optional)]
-    top_extra: Option<AnyView>,
-    /// 削除ボタンの文言。同じページに別種別の削除ボタンがあるとき種類が分かる名前を渡す
+    /// 削除ボタンの文言。種類が分かる名前を渡したいときだけ指定する
     #[prop(optional, into)]
     delete_button_label: Option<String>,
 ) -> impl IntoView {
     let previewing = Memo::new(move |_| source.csv_meta().previewing);
-    let saving = Memo::new(move |_| source.csv_meta().saving);
     let meta_error = Memo::new(move |_| source.csv_meta().error);
     let save_result = Memo::new(move |_| source.csv_meta().import_result);
     let preview_notice = Memo::new(move |_| {
@@ -118,16 +108,6 @@ pub fn CsvManagePage<S: CsvSource>(
                 .filter(|(valid_rows, errors)| *valid_rows == 0 || !errors.is_empty())
         } else {
             None
-        }
-    });
-
-    // 保存の再送待ちは ApiClient の内部で完結するため、フック経由で受けて
-    // 操作バーの保存ボタンに「再試行中...」を出す
-    let retrying = RwSignal::new(false);
-    crate::api::client::set_retry_hook(move || retrying.set(true));
-    Effect::new(move |_| {
-        if !saving.get() && retrying.get_untracked() {
-            retrying.set(false);
         }
     });
 
@@ -237,27 +217,21 @@ pub fn CsvManagePage<S: CsvSource>(
         }
     });
 
-    let action_bar = view! { <CsvActionBar source=source retrying=retrying /> }.into_any();
     let subject_for_card = subject.clone();
     let subject_for_modal = subject.clone();
 
     view! {
-        <PageFrame
-            title="CSV管理"
-            back_href=back_href
-            back_label="一覧に戻る"
-            action_bar=action_bar
-            action_bar_pc_top=true
-        >
-            <div class="flex flex-col gap-4">
-                {top_extra}
-                <p class="text-sm text-text-soft">
-                    "対象: " <strong class="text-text">{subject}</strong>
-                    <span class="mx-2" aria-hidden="true">
-                        "/"
-                    </span>
-                    "保存方式: " <strong class="text-text">{source.save_mode_label()}</strong>
-                </p>
+        <div class="flex flex-col gap-4">
+            <a class="page-back-link" href=list_href>
+                "一覧に戻る"
+            </a>
+            <p class="text-sm text-text-soft">
+                "対象: " <strong class="text-text">{subject}</strong>
+                <span class="mx-2" aria-hidden="true">
+                    "/"
+                </span>
+                "保存方式: " <strong class="text-text">{source.save_mode_label()}</strong>
+            </p>
                 {move || {
                     previewing.get().then(|| {
                         view! { <LoadingStrip text="CSVファイルを解析しています...".to_string() /> }
@@ -289,10 +263,9 @@ pub fn CsvManagePage<S: CsvSource>(
                 {preview}
                 {move || {
                     save_result.get().map(|result| {
-                        view! { <CsvSaveResultNotice result=result list_href=back_href /> }
+                        view! { <CsvSaveResultNotice result=result list_href=list_href /> }
                     })
                 }}
-                {extra}
                 <section class="border-t border-border-subtle pt-4">
                     <div class="bg-surface-sunken rounded-lg border border-border p-4">
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -357,7 +330,6 @@ pub fn CsvManagePage<S: CsvSource>(
                         }}
                     </div>
                 </section>
-                {saved_extra}
             </div>
 
             {move || {
@@ -382,14 +354,23 @@ pub fn CsvManagePage<S: CsvSource>(
                     }
                 })
             }}
-        </PageFrame>
     }
 }
 
 /// ファイルの選択(ドラッグ&ドロップ含む)から保存までを1つのバーに置く。
 /// 選ぶ前後でボタンの位置が変わらないため、マウスをほとんど動かさずに済む
 #[component]
-fn CsvActionBar<S: CsvSource>(source: S, retrying: RwSignal<bool>) -> impl IntoView {
+pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
+    // 保存の再送待ちは ApiClient の内部で完結するため、フック経由で受けて
+    // 操作バーの保存ボタンに「再試行中...」を出す
+    let retrying = RwSignal::new(false);
+    crate::api::client::set_retry_hook(move || retrying.set(true));
+    let saving = Memo::new(move |_| source.csv_meta().saving);
+    Effect::new(move |_| {
+        if !saving.get() && retrying.get_untracked() {
+            retrying.set(false);
+        }
+    });
     let input_id = source.input_id();
     let disabled = Memo::new(move |_| source.input_disabled());
     let has_file = Memo::new(move |_| source.csv_meta().file_name.is_some());

@@ -131,8 +131,15 @@ export const SCREENS = [
   },
   {
     key: 'csv',
-    label: 'CSV管理',
-    path: '/receipts/csv?kind=dividend',
+    label: 'CSV管理・取引明細',
+    path: '/csv?kind=dividend',
+    ready: ['[data-testid="csv-file-trigger"]'],
+    scroll: true,
+  },
+  {
+    key: 'csv-asset',
+    label: 'CSV管理・資産管理',
+    path: '/csv?kind=assetbalance',
     ready: ['[data-testid="csv-file-trigger"]'],
     scroll: true,
   },

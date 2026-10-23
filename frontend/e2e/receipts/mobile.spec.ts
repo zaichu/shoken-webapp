@@ -292,12 +292,12 @@ test('CSV管理ページは一覧のリンクから開き戻れる', async ({ pa
   await expect(page.getByTestId('csv-file-input')).toHaveCount(0);
 
   await page.getByRole('link', { name: 'CSV管理' }).click();
-  await expect(page).toHaveURL('/receipts/csv?kind=dividend');
+  await expect(page).toHaveURL('/csv?kind=dividend');
   const fileInput = page.getByTestId('csv-file-input');
   await expect(fileInput).toBeAttached();
 
   // 種別の切替は kind クエリで行う
-  await page.goto('/receipts/csv?kind=stock');
+  await page.goto('/csv?kind=stock');
   await expect(page.getByText('対象: 国内株式')).toBeVisible();
 
   await page.getByRole('link', { name: '一覧に戻る' }).click();
@@ -352,7 +352,7 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
       body: JSON.stringify(paginated(rows)),
     });
   });
-  await page.goto('/receipts/csv?kind=dividend');
+  await page.goto('/csv?kind=dividend');
 
   // カード内の「すべて削除…」ボタンをクリック
   const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
@@ -429,7 +429,7 @@ test('CSV取込の保存結果は一覧再取得後もCSVページに見える',
       body: JSON.stringify({ inserted: 1, skipped: 0, errors: [] }),
     });
   });
-  await page.goto('/receipts/csv?kind=dividend');
+  await page.goto('/csv?kind=dividend');
 
   const fileInput = page.getByTestId('csv-file-input');
   // バックグラウンドの他タブ取得中は input が disabled で、change イベントが捨てられる。

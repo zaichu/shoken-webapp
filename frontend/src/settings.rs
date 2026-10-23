@@ -7,11 +7,9 @@ mod tests;
 
 use crate::features::asset_balance::{SortKey, SortOrder};
 use crate::features::receipts::ReceiptsTab;
-use crate::ui::labels::{ACQUISITION_AMOUNT_TOTAL, AVERAGE_UNIT_PRICE, CURRENT_PRICE, SHARES};
 use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
 use shared::format::{format_currency, format_number};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
@@ -20,7 +18,6 @@ const KEY_ASSET_SORT: &str = "setting_asset_sort";
 const KEY_RECEIPTS_TAB: &str = "setting_receipts_initial_tab";
 const KEY_AMOUNT_UNIT: &str = "setting_amount_unit";
 const KEY_IDLE_MINUTES: &str = "setting_auto_logout_minutes";
-const KEY_REVIEW_PROMPT: &str = "setting_review_prompt";
 const KEY_THEME: &str = "setting_theme";
 
 // 非 wasm(単体テスト)では window が無いため常に None を返す
@@ -244,104 +241,6 @@ fn parse_idle_minutes(value: &str) -> Option<u32> {
     IDLE_LOGOUT_CHOICES.contains(&minutes).then_some(minutes)
 }
 
-/// AI 総評プロンプトの表に含める任意列(銘柄コード・銘柄名は常に含む)
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PromptColumn {
-    Shares,
-    AveragePrice,
-    TotalPurchase,
-    CurrentPrice,
-    // 保存値が将来のバージョンの列名を含んでいても読み落とすだけにする
-    #[serde(other)]
-    Unknown,
-}
-
-impl PromptColumn {
-    pub(crate) const ALL: [Self; 4] = [
-        Self::Shares,
-        Self::AveragePrice,
-        Self::TotalPurchase,
-        Self::CurrentPrice,
-    ];
-
-    pub(crate) fn label(self) -> &'static str {
-        match self {
-            Self::Shares => SHARES,
-            Self::AveragePrice => AVERAGE_UNIT_PRICE,
-            Self::TotalPurchase => ACQUISITION_AMOUNT_TOTAL,
-            Self::CurrentPrice => CURRENT_PRICE,
-            Self::Unknown => "",
-        }
-    }
-}
-
-/// AI 総評プロンプトの書式。前置き文と、コード・名称のほかに含める列
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct ReviewPromptPref {
-    #[serde(default)]
-    pub preamble: String,
-    #[serde(default = "default_prompt_columns")]
-    pub columns: Vec<PromptColumn>,
-}
-
-fn default_prompt_columns() -> Vec<PromptColumn> {
-    vec![PromptColumn::Shares, PromptColumn::AveragePrice]
-}
-
-impl Default for ReviewPromptPref {
-    fn default() -> Self {
-        Self {
-            preamble: String::new(),
-            columns: default_prompt_columns(),
-        }
-    }
-}
-
-impl ReviewPromptPref {
-    /// ヘッダー順を常に決めるため、選択済みでも未定義列を除き ALL の順に揃える
-    fn normalized_columns(columns: &[PromptColumn]) -> Vec<PromptColumn> {
-        PromptColumn::ALL
-            .iter()
-            .copied()
-            .filter(|column| columns.contains(column))
-            .collect()
-    }
-
-    fn parse_json(value: &str) -> Option<Self> {
-        // serde は struct を配列からも復元するため、オブジェクト形状だけを受理する
-        let parsed = serde_json::from_str::<serde_json::Value>(value).ok()?;
-        if !parsed.is_object() {
-            return None;
-        }
-        serde_json::from_value::<Self>(parsed)
-            .ok()
-            .map(|pref| Self {
-                columns: Self::normalized_columns(&pref.columns),
-                ..pref
-            })
-    }
-
-    fn to_json(&self) -> String {
-        serde_json::to_string(self).unwrap_or_default()
-    }
-
-    pub(crate) fn has_column(&self, column: PromptColumn) -> bool {
-        self.columns.contains(&column)
-    }
-
-    pub(crate) fn set_column(&mut self, column: PromptColumn, enabled: bool) {
-        if enabled {
-            if !self.columns.contains(&column) {
-                self.columns.push(column);
-            }
-        } else {
-            self.columns.retain(|existing| *existing != column);
-        }
-        self.columns = Self::normalized_columns(&self.columns);
-    }
-}
-
 #[derive(Clone, Copy)]
 pub struct SettingsStore {
     /// 資産管理を開いたときの初期の並び順
@@ -352,8 +251,6 @@ pub struct SettingsStore {
     pub amount_unit: RwSignal<AmountUnit>,
     /// 無操作の自動ログアウトまでの分数
     pub idle_logout_minutes: RwSignal<u32>,
-    /// AI 総評プロンプトの書式
-    pub review_prompt: RwSignal<ReviewPromptPref>,
     /// 画面のテーマ
     pub theme: RwSignal<Theme>,
 }
@@ -366,7 +263,6 @@ impl SettingsStore {
             receipts_initial_tab: RwSignal::new(ReceiptsTab::Dividend),
             amount_unit: amount_unit_signal(),
             idle_logout_minutes: RwSignal::new(DEFAULT_IDLE_LOGOUT_MINUTES),
-            review_prompt: RwSignal::new(ReviewPromptPref::default()),
             theme: RwSignal::new(Theme::System),
         }
     }
@@ -417,11 +313,6 @@ fn watch_settings_sync(store: SettingsStore) {
             KEY_IDLE_MINUTES => {
                 if let Some(parsed) = parse_idle_minutes(&value) {
                     set_if_different(store.idle_logout_minutes, parsed);
-                }
-            }
-            KEY_REVIEW_PROMPT => {
-                if let Some(parsed) = ReviewPromptPref::parse_json(&value) {
-                    set_if_different(store.review_prompt, parsed);
                 }
             }
             KEY_THEME => {
@@ -502,11 +393,6 @@ pub fn provide_settings() -> SettingsStore {
         parse_idle_minutes,
         DEFAULT_IDLE_LOGOUT_MINUTES,
     ));
-    store.review_prompt.set(read_setting(
-        KEY_REVIEW_PROMPT,
-        ReviewPromptPref::parse_json,
-        ReviewPromptPref::default(),
-    ));
     store
         .theme
         .set(read_setting(KEY_THEME, Theme::from_value, Theme::System));
@@ -520,9 +406,6 @@ pub fn provide_settings() -> SettingsStore {
     });
     persist_on_change(store.idle_logout_minutes, KEY_IDLE_MINUTES, |minutes| {
         minutes.to_string()
-    });
-    persist_on_change(store.review_prompt, KEY_REVIEW_PROMPT, |pref| {
-        pref.to_json()
     });
     persist_on_change(store.theme, KEY_THEME, |theme| theme.value().to_string());
 
