@@ -205,7 +205,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                             text=pnl_text
                                                             negative=pnl_negative
                                                         />
-                                                        <span class="ml-1 text-sm text-text-muted tabular-nums">
+                                                        <span class="ml-1 text-xs text-text-muted tabular-nums">
                                                             {pnl_rate_text}
                                                         </span>
                                                     </dd>

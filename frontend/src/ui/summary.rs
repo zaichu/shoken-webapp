@@ -30,7 +30,7 @@ pub fn SummaryItem(
     #[prop(into)] label: String,
     #[prop(into)] value: String,
     #[prop(optional)] size: SummarySize,
-    /// 数字の右に添える補足(率など)。数字と同じ大きさで出す
+    /// 数字の右に添える補足(率など)。値より小さいサイズで出す
     #[prop(optional)]
     note: String,
     /// 数字の横に小さく出す補足(読み込み中など)
