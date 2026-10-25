@@ -1,13 +1,20 @@
-use crate::features::asset_balance::{
-    AssetBalanceCsvSource, AssetBalanceCsvStore, AssetKind, FundCsvPreview, StockCsvPreview,
-};
+use crate::features::asset_balance::AssetBalanceCsvStore;
 use crate::features::csv_sync::CsvSyncStore;
-use crate::features::receipts::{ReceiptCsvSource, ReceiptsCsvPreview, ReceiptsStore, ReceiptsTab};
-use crate::support::csv_flow::{CsvTabMeta, CsvUploadResponseExt};
+use crate::features::receipts::ReceiptsStore;
+use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::labels;
 use leptos::prelude::*;
+
+#[allow(unused_imports)]
+use crate::features::asset_balance::{
+    AssetBalanceCsvSource, AssetKind, FundCsvPreview, StockCsvPreview,
+};
+#[allow(unused_imports)]
+use crate::features::receipts::{ReceiptCsvSource, ReceiptsCsvPreview, ReceiptsTab};
+#[allow(unused_imports)]
+use crate::support::csv_flow::CsvUploadResponseExt;
 
 // 全件置換ではエラー行を含む CSV を backend が拒否するため、有効行があっても保存を止める
 #[allow(dead_code)]

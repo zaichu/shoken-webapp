@@ -77,6 +77,7 @@ impl CsvKind {
     }
 
     /// 保存方式ラベル(資産管理=全件置換、取引明細=追加)
+    #[allow(dead_code)]
     pub fn save_mode_label(self) -> &'static str {
         match self {
             Self::AssetStock | Self::AssetFund => labels::CSV_MANAGE_SAVE_MODE_REPLACE,
@@ -168,14 +169,13 @@ pub fn CsvPage() -> impl IntoView {
                     }
                 }
             }
-            if let Some(ts) = latest {
-                if let Some(days_ago) = days_since_jst_date(&ts) {
-                    if days_ago <= 0 {
-                        let date = format_short_date(&ts);
-                        let time = ts[11..16].to_string(); // HH:MM部分
-                        last_fetched.set(Some(labels::csv_manage_last_fetched(&date, &time)));
-                    }
-                }
+            if let Some(ts) = latest
+                && let Some(days_ago) = days_since_jst_date(&ts)
+                && days_ago <= 0
+            {
+                let date = format_short_date(&ts);
+                let time = ts[11..16].to_string(); // HH:MM部分
+                last_fetched.set(Some(labels::csv_manage_last_fetched(&date, &time)));
             }
         }
     });
