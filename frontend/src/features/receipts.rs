@@ -7,7 +7,7 @@ mod store;
 mod view;
 
 pub use view::ReceiptsPage;
-pub(crate) use view::{ReceiptCsvSource, ReceiptsCsvPreview, ensure_kind};
+pub(crate) use view::{ReceiptCsvSource, ReceiptsCsvPreview};
 
 use rust_decimal::Decimal;
 use shared::format::format_number;
@@ -38,15 +38,6 @@ impl ReceiptsTab {
             Self::Dividend => "dividend",
             Self::DomesticStock => "stock",
             Self::MutualFund => "fund",
-        }
-    }
-
-    /// `?kind=` の値を種別に戻す。未知・未指定は配当金に倒す
-    pub fn from_kind_param(value: Option<&str>) -> Self {
-        match value {
-            Some("stock") => Self::DomesticStock,
-            Some("fund") => Self::MutualFund,
-            _ => Self::Dividend,
         }
     }
 }

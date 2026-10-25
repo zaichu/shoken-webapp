@@ -296,6 +296,18 @@ pub fn format_short_date(date: &str) -> String {
     }
 }
 
+/// updated_at(UTC) を JST の時刻 "HH:MM" で出す。日付は jst_date が返す
+pub fn format_jst_time(iso: &str) -> String {
+    let bytes = iso.as_bytes();
+    if bytes.len() < 16 || bytes[13] != b':' {
+        return "—".to_string();
+    }
+    let (Ok(hour), Ok(minute)) = (iso[11..13].parse::<u32>(), iso[14..16].parse::<u32>()) else {
+        return "—".to_string();
+    };
+    format!("{:02}:{:02}", (hour + 9) % 24, minute)
+}
+
 /// 最新の取込日(JST)。"Y/M/D" で返す。有効な日時が無ければ None
 pub fn format_latest_import_date<'a>(timestamps: impl Iterator<Item = &'a str>) -> Option<String> {
     timestamps

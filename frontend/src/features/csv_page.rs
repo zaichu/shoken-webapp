@@ -3,12 +3,12 @@
 
 use crate::api::dto::CsvKindStatsResponse;
 use crate::api::fetch_csv_kind_stats;
-use crate::features::asset_balance::{AssetKind, use_asset_balance_state};
-use crate::features::csv_sync::{CsvSyncPanel, use_csv_sync};
+use crate::features::asset_balance::use_asset_balance_state;
+use crate::features::csv_sync::{CsvKind as SyncKind, CsvSyncPanel, KindStatus, use_csv_sync};
 use crate::features::receipts::{ReceiptsTab, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::csv_page::{CsvKindRowData, CsvKindTable, CsvManageFetchCard};
-use crate::ui::format::{days_since_jst_date, format_short_date};
+use crate::ui::format::{days_since_jst_date, format_jst_time, format_short_date};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use leptos::prelude::*;
@@ -42,6 +42,7 @@ impl CsvKind {
         }
     }
 
+    /// API の kind 値。csv-kinds/stats と拡張機能の依頼で同じ値を使う
     pub fn kind_param(self) -> &'static str {
         match self {
             Self::AssetStock => "assetbalance",
@@ -49,6 +50,18 @@ impl CsvKind {
             Self::Dividend => "dividend",
             Self::DomesticStock => "domesticstock",
             Self::MutualFund => "mutualfund",
+        }
+    }
+
+    /// `?kind=` から開く種類を決める。一覧・設定のリンクは旧い種別値も使うため受け付ける
+    pub fn from_kind_param(value: Option<&str>) -> Option<Self> {
+        match value? {
+            "assetbalance" => Some(Self::AssetStock),
+            "fundbalance" => Some(Self::AssetFund),
+            "dividend" => Some(Self::Dividend),
+            "domesticstock" | "stock" => Some(Self::DomesticStock),
+            "mutualfund" | "fund" => Some(Self::MutualFund),
+            _ => None,
         }
     }
 
@@ -61,39 +74,52 @@ impl CsvKind {
         }
     }
 
-    #[allow(dead_code)]
-    fn asset_kind(self) -> Option<AssetKind> {
+    /// 取得(拡張機能)側の同じ種類
+    pub fn sync_kind(self) -> SyncKind {
         match self {
-            Self::AssetStock => Some(AssetKind::Stock),
-            Self::AssetFund => Some(AssetKind::Fund),
-            _ => None,
+            Self::AssetStock => SyncKind::AssetBalance,
+            Self::AssetFund => SyncKind::FundBalance,
+            Self::Dividend => SyncKind::Dividend,
+            Self::DomesticStock => SyncKind::DomesticStock,
+            Self::MutualFund => SyncKind::MutualFund,
         }
     }
 
-    #[allow(dead_code)]
-    fn list_href(self) -> &'static str {
+    /// 削除確認に出す種類名
+    pub fn delete_subject(self) -> &'static str {
+        self.label()
+    }
+
+    /// 保存後に確認できる一覧ページ
+    pub fn list_href(self) -> &'static str {
         match self.receipt_tab() {
             Some(_) => "/receipts",
             None => "/assetbalance",
         }
     }
-
-    /// 保存方式ラベル(資産管理=全件置換、取引明細=追加)
-    #[allow(dead_code)]
-    pub fn save_mode_label(self) -> &'static str {
-        match self {
-            Self::AssetStock | Self::AssetFund => labels::CSV_MANAGE_SAVE_MODE_REPLACE,
-            _ => labels::CSV_MANAGE_SAVE_MODE_APPEND,
-        }
-    }
-
-    /// 削除確認用の件数・種類名を取得するためのキー
-    pub fn delete_subject(self) -> &'static str {
-        self.label()
-    }
 }
 
-type StatsSlot = RwSignal<Option<CsvKindStatsResponse>>;
+fn row_data(
+    kind: CsvKind,
+    stats: Option<&CsvKindStatsResponse>,
+    sync_kinds: &[(SyncKind, KindStatus)],
+) -> CsvKindRowData {
+    let stat = stats.and_then(|response| {
+        response
+            .kinds
+            .iter()
+            .find(|stat| stat.kind == kind.kind_param())
+    });
+    CsvKindRowData {
+        kind,
+        count: stat.map(|stat| stat.count),
+        latest_imported_at: stat.and_then(|stat| stat.latest_imported_at.clone()),
+        sync_status: sync_kinds
+            .iter()
+            .find(|(sync_kind, _)| *sync_kind == kind.sync_kind())
+            .map(|(_, status)| status.clone()),
+    }
+}
 
 #[component]
 pub fn CsvPage() -> impl IntoView {
@@ -107,109 +133,85 @@ pub fn CsvPage() -> impl IntoView {
 
     let csv_sync = use_csv_sync();
 
-    // 統計データを取得
-    let stats = StatsSlot::new(None);
-    let stats_loading = RwSignal::new(false);
-
-    // 初回取得
-    let stats_for_fetch = stats;
-    let loading_for_fetch = stats_loading;
-    leptos::task::spawn_local(async move {
-        loading_for_fetch.set(true);
-        match fetch_csv_kind_stats().await {
-            Ok(response) => {
-                stats_for_fetch.set(Some(response));
+    let stats = RwSignal::new(None::<CsvKindStatsResponse>);
+    // 取得完了・取り込み・削除のあとに件数と状態を取り直す。失敗しても前回の表示は残す
+    let refresh_stats = move || {
+        leptos::task::spawn_local(async move {
+            if let Ok(response) = fetch_csv_kind_stats().await {
+                stats.set(Some(response));
             }
-            Err(_) => {
-                // エラー時は空のまま
-            }
-        }
-        loading_for_fetch.set(false);
-    });
+        });
+    };
+    Effect::new(move |_| refresh_stats());
 
     // 取得結果のメッセージ(取得完了時に表示)
     let fetch_result = RwSignal::new(None::<String>);
     // 取得前の最終取得時刻表示用
     let last_fetched = RwSignal::new(None::<String>);
-    // 実行中状態を追跡するシグナル
     let running = RwSignal::new(false);
     Effect::new(move |_| running.set(csv_sync.running()));
 
-    // csv_syncの完了を監視して結果メッセージを更新
+    // csv_syncの完了を監視して結果メッセージを更新し、保存済み件数を取り直す
     Effect::new(move |_| {
         let state = csv_sync.state();
         if state.finished && !state.running {
             let mut updated = 0;
             let mut failed = 0;
-            for (_, status) in state.kinds {
+            for (_, status) in &state.kinds {
                 match status {
-                    crate::features::csv_sync::KindStatus::Imported { .. } => updated += 1,
-                    crate::features::csv_sync::KindStatus::Failed { .. } => failed += 1,
-                    crate::features::csv_sync::KindStatus::Skipped { .. } => failed += 1,
+                    KindStatus::Imported { .. } => updated += 1,
+                    KindStatus::Failed { .. } | KindStatus::Skipped { .. } => failed += 1,
                     _ => {}
                 }
             }
             if updated > 0 || failed > 0 {
                 fetch_result.set(Some(labels::csv_manage_fetch_result(updated, failed)));
             }
-            // 取得完了後はlast_fetchedをクリア
             last_fetched.set(None);
+            refresh_stats();
         } else if state.running {
-            // 取得中は結果をクリア
             fetch_result.set(None);
         }
     });
 
-    // 初期表示用のlast_fetched(統計データから最新の取込日時を計算)
+    // 取得前の最終取得時刻(統計の最新の取込日時)
     Effect::new(move |_| {
-        if let Some(response) = stats.get() {
-            let mut latest: Option<String> = None;
-            for stat in &response.kinds {
-                if let Some(ts) = &stat.latest_imported_at {
-                    if latest.clone().is_none_or(|l: String| *ts > l) {
-                        latest = Some(ts.clone());
-                    }
-                }
-            }
-            if let Some(ts) = latest
-                && let Some(days_ago) = days_since_jst_date(&ts)
-                && days_ago <= 0
-            {
-                let date = format_short_date(&ts);
-                let time = ts[11..16].to_string(); // HH:MM部分
-                last_fetched.set(Some(labels::csv_manage_last_fetched(&date, &time)));
-            }
+        let latest = stats.get().and_then(|response| {
+            response
+                .kinds
+                .iter()
+                .filter_map(|stat| stat.latest_imported_at.clone())
+                .max()
+        });
+        if let Some(ts) = latest
+            && let Some(days_ago) = days_since_jst_date(&ts)
+            && days_ago <= 0
+        {
+            let date = format_short_date(&ts);
+            let time = format_jst_time(&ts);
+            last_fetched.set(Some(labels::csv_manage_last_fetched(&date, &time)));
         }
     });
 
-    // 行データの構築(統計 + sync状態をマージ)
+    // 表は5種類を常に出し、統計が未取得なら件数は「—」で削除も選べない
     let rows = Memo::new(move |_| {
-        let mut result = Vec::new();
-        if let Some(response) = stats.get() {
-            let sync_state = csv_sync.state();
-            for stat in response.kinds {
-                let kind = CsvKind::ALL
-                    .iter()
-                    .find(|k| k.kind_param() == stat.kind)
-                    .copied()
-                    .unwrap_or(CsvKind::AssetStock);
-                let sync_status = sync_state
-                    .kinds
-                    .iter()
-                    .find(|(k, _)| k.request_value() == stat.kind)
-                    .map(|(_, s)| s.clone());
-                result.push(CsvKindRowData {
-                    kind,
-                    count: stat.count,
-                    latest_imported_at: stat.latest_imported_at,
-                    sync_status,
-                });
-            }
-        }
-        result
+        let stats = stats.get();
+        let sync_kinds = csv_sync.state().kinds;
+        CsvKind::ALL
+            .into_iter()
+            .map(|kind| row_data(kind, stats.as_ref(), &sync_kinds))
+            .collect::<Vec<_>>()
     });
 
-    // 取得カードのアクションバー(csv_syncのボタンを配置)
+    // 一覧・設定からの `?kind=` は同じ種類の取り込みを開く。
+    // 指定が無いときは従来の初期タブ(国内株式)と同じ種類を開く
+    let open_import = RwSignal::new(
+        CsvKind::from_kind_param(
+            crate::app::query_param(&crate::app::current_location(), "kind").as_deref(),
+        )
+        .or(Some(CsvKind::AssetStock)),
+    );
+
     let fetch_action_bar = view! { <CsvSyncPanel /> }.into_any();
 
     view! {
@@ -237,6 +239,8 @@ pub fn CsvPage() -> impl IntoView {
                         asset_csv=asset_state.csv
                         receipts_store=receipts
                         csv_sync=csv_sync
+                        open_import=open_import
+                        on_stats_changed=Callback::new(move |_| refresh_stats())
                     />
                 </section>
             </div>
@@ -263,15 +267,55 @@ mod tests {
         for kind in CsvKind::ALL {
             // APIのkind値と一致すること
             assert!(!kind.kind_param().is_empty());
+            assert_eq!(
+                CsvKind::from_kind_param(Some(kind.kind_param())),
+                Some(kind)
+            );
         }
     }
 
     #[test]
-    fn csv_kind_save_mode() {
-        assert_eq!(CsvKind::AssetStock.save_mode_label(), "全件置換");
-        assert_eq!(CsvKind::AssetFund.save_mode_label(), "全件置換");
-        assert_eq!(CsvKind::Dividend.save_mode_label(), "追加");
-        assert_eq!(CsvKind::DomesticStock.save_mode_label(), "追加");
-        assert_eq!(CsvKind::MutualFund.save_mode_label(), "追加");
+    fn from_kind_param_accepts_legacy_values() {
+        assert_eq!(
+            CsvKind::from_kind_param(Some("stock")),
+            Some(CsvKind::DomesticStock)
+        );
+        assert_eq!(
+            CsvKind::from_kind_param(Some("fund")),
+            Some(CsvKind::MutualFund)
+        );
+        assert_eq!(CsvKind::from_kind_param(Some("unknown")), None);
+        assert_eq!(CsvKind::from_kind_param(None), None);
+    }
+
+    #[test]
+    fn row_data_takes_count_and_time_of_same_kind() {
+        let stats = CsvKindStatsResponse {
+            kinds: vec![shared::csv_kind_stats::CsvKindStat {
+                kind: "dividend".to_string(),
+                label: "取引明細(配当金)".to_string(),
+                count: 77,
+                latest_imported_at: Some("2026-10-25T12:39:00Z".to_string()),
+            }],
+        };
+        let row = row_data(CsvKind::Dividend, Some(&stats), &[]);
+        assert_eq!(row.count, Some(77));
+        assert_eq!(
+            row.latest_imported_at.as_deref(),
+            Some("2026-10-25T12:39:00Z")
+        );
+
+        // 統計に無い種類は件数未取得として扱う
+        let other = row_data(CsvKind::AssetStock, Some(&stats), &[]);
+        assert_eq!(other.count, None);
+    }
+
+    #[test]
+    fn row_data_maps_sync_status_by_kind() {
+        let sync = [(SyncKind::FundBalance, KindStatus::Fetching)];
+        let row = row_data(CsvKind::AssetFund, None, &sync);
+        assert_eq!(row.sync_status, Some(KindStatus::Fetching));
+        let asset = row_data(CsvKind::AssetStock, None, &sync);
+        assert_eq!(asset.sync_status, None);
     }
 }

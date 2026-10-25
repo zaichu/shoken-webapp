@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test';
 import { expect, test, json, paginated } from '../support/test';
+import { csvRow, mockCsvKindStats } from '../support/csv-page';
 
 /**
  * 「CSV 最新取得」ボタンの E2E。拡張機能は window.chrome をモックして、
@@ -490,6 +491,37 @@ test.describe('CSV 最新取得', () => {
     await expect(page.getByTestId('csv-sync-kind-dividend')).toContainText('取り込まなかった');
     // 安全装置で止めた分は preview/import を呼ばない
     expect(calls.import).toEqual([]);
+    expect(calls.preview).toEqual([]);
+  });
+
+  test('取得に失敗した種類は表の行にも「取得できず」と詳細を出す', async ({ page }) => {
+    await mockSession(page);
+    await mockSyncApis(page);
+    await mockCsvKindStats(page, { counts: () => ({}) });
+    await mockExtension(page);
+    await page.goto('/csv?kind=dividend');
+    await page.getByTestId('csv-sync-button').click();
+    await emitFailureResult(page);
+
+    await expect(csvRow(page, 'dividend')).toContainText('取得できず');
+    await expect(csvRow(page, 'dividend').getByTestId('status-detail')).toBeVisible();
+  });
+
+  test('行の⋯メニューの再取得はその種類だけを拡張機能へ渡す', async ({ page }) => {
+    await mockSession(page);
+    const calls = await mockSyncApis(page);
+    await mockCsvKindStats(page, { counts: () => ({}) });
+    await mockExtension(page);
+    await page.goto('/csv?kind=dividend');
+
+    await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
+    await page.getByRole('button', { name: '楽天証券から再取得' }).click();
+
+    const request = await page.evaluate(
+      () => (window as unknown as { __csvSyncMock: { requests: unknown[] } }).__csvSyncMock.requests[0],
+    );
+    expect(request).toMatchObject({ type: 'fetchLatestCsv', kinds: ['dividend'] });
+    // 1種類だけの依頼なので、他の種類の取り込みは始まらない
     expect(calls.preview).toEqual([]);
   });
 

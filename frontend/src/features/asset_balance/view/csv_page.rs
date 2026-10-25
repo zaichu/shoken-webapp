@@ -3,9 +3,10 @@ use crate::features::asset_balance::store::csv::{AssetBalanceCsvStore, csv_previ
 use crate::features::asset_balance::view::{AssetBalanceCsvPreview, FundBalanceCsvPreview};
 use crate::support::csv_flow::CsvTabMeta;
 use crate::ui::csv_page::CsvSource;
+use crate::ui::labels;
 use leptos::prelude::*;
 
-/// 資産管理(国内株式・投資信託)それぞれの CSV 操作元。タブごとに種別が決まる
+/// 資産管理(国内株式・投資信託)それぞれの CSV 操作元。種別ごとに固定
 #[derive(Clone, Copy)]
 pub(crate) struct AssetBalanceCsvSource {
     pub(crate) store: AssetBalanceCsvStore,
@@ -32,7 +33,7 @@ impl CsvSource for AssetBalanceCsvSource {
     }
 
     fn save_mode_label(&self) -> &'static str {
-        "全件置換"
+        labels::CSV_MANAGE_SAVE_MODE_REPLACE
     }
 
     // 追加保存と違い、置換の対象が全件だとボタン上でも分かるようにする

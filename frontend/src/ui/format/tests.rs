@@ -172,6 +172,14 @@ fn short_date_drops_the_zero_padding() {
 }
 
 #[test]
+fn format_jst_time_adds_nine_hours() {
+    assert_eq!(format_jst_time("2026-10-25T12:39:00+00:00"), "21:39");
+    // 日付を跨ぐ時刻は 24 時間で戻る(日付側は jst_date が繰り上げる)
+    assert_eq!(format_jst_time("2026-10-25T20:05:00Z"), "05:05");
+    assert_eq!(format_jst_time("not-a-timestamp"), "—");
+}
+
+#[test]
 fn calendar_days_between_counts_calendar_days() {
     // 同じ日は 0
     assert_eq!(calendar_days_between((2026, 10, 20), (2026, 10, 20)), 0);

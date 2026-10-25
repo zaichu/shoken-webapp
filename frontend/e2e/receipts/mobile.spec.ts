@@ -1,5 +1,12 @@
 import type { Page } from '@playwright/test';
 import { expect, test, paginated } from '../support/test';
+import {
+  csvImportRow,
+  csvRow,
+  mockCsvKindStats,
+  openCsvDelete,
+  savedCount,
+} from '../support/csv-page';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
@@ -285,24 +292,34 @@ test('下部ナビは検索欄より下にありリンクで遷移できる', as
   await expect(page).toHaveURL('/search');
 });
 
-test('CSV管理ページは一覧のリンクから開き戻れる', async ({ page }) => {
+test('CSV管理ページは一覧のリンクから開き、5種類の行が出る', async ({ page }) => {
   await mockApi(page);
+  await mockCsvKindStats(page, { counts: () => ({}) });
   await page.goto('/receipts');
   // CSV の操作は一覧のレールではなく専用ページに移った
   await expect(page.getByTestId('csv-file-input')).toHaveCount(0);
 
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/csv?kind=dividend');
-  const fileInput = page.getByTestId('csv-file-input');
-  await expect(fileInput).toBeAttached();
+  // 指定した種類の取り込みだけが開く
+  await expect(csvImportRow(page).getByTestId('csv-file-input')).toBeAttached();
 
-  // 種別の切替は kind クエリで行う
+  for (const kind of [
+    'assetbalance',
+    'fundbalance',
+    'dividend',
+    'domesticstock',
+    'mutualfund',
+  ] as const) {
+    await expect(csvRow(page, kind)).toHaveCount(1);
+  }
+  // 種別の切替は kind クエリで行う(旧い値は同じ取り込みを開く)
   await page.goto('/csv?kind=stock');
-  await expect(page.getByText('対象: 国内株式')).toBeVisible();
+  await expect(csvRow(page, 'domesticstock')).toContainText('取引明細(国内株式)');
+  await expect(csvImportRow(page)).toContainText('取引明細(国内株式) へファイルから取り込み');
 
-  await page.getByRole('link', { name: '一覧に戻る' }).click();
-  await expect(page).toHaveURL('/receipts');
-  await expect(page.getByTestId('receipt-card-list')).toBeVisible();
+  await page.getByRole('link', { name: '資産管理' }).click();
+  await expect(page).toHaveURL('/assetbalance');
 });
 
 test('1024px境界で2行の行表示と表が切り替わる', async ({ page }) => {
@@ -352,18 +369,19 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
       body: JSON.stringify(paginated(rows)),
     });
   });
+  await mockCsvKindStats(page, {
+    counts: () => ({ dividend: rows.length }),
+  });
   await page.goto('/csv?kind=dividend');
 
-  // カード内の「すべて削除…」ボタンをクリック
-  const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
-  await expect(deleteButton).toBeVisible();
-  await deleteButton.click();
+  // 配当金の行の⋯メニューから削除を開く
+  await openCsvDelete(page, 'dividend');
 
-  // 確認モーダルが表示される
+  // 確認モーダルに種類と件数が出る
   const modal = page.getByRole('dialog');
   await expect(modal).toBeVisible();
-  await expect(modal).toContainText('配当金を削除しますか?');
-  await expect(modal).toContainText('この操作は取り消せません');
+  await expect(modal).toContainText('取引明細(配当金)を削除しますか?');
+  await expect(modal).toContainText('元に戻せません');
   await expect(modal).toContainText('3件');
 
   // 初期フォーカスは「キャンセル」にある
@@ -376,13 +394,12 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
   expect(deleteCount).toBe(0);
 
   // 再度開いて確定する
-  await deleteButton.click();
-  await expect(modal).toBeVisible();
+  await openCsvDelete(page, 'dividend');
   await modal.getByRole('button', { name: '3件を削除する' }).click();
   expect(deleteCount).toBe(1);
   await expect(modal).toBeHidden();
-  // CSV管理ページではカードが「0件」になる
-  await expect(page.getByTestId('saved-count')).toContainText('0件');
+  // 削除後は行の件数が「0件」になる
+  await expect(savedCount(page, 'dividend')).toContainText('0件');
 });
 
 test('CSV取込の保存結果は一覧再取得後もCSVページに見える', async ({ page }) => {

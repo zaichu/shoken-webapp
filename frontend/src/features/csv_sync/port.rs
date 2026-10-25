@@ -110,7 +110,7 @@ impl ActiveFetch {
 
 /// chrome.runtime.connect で拡張機能に依頼を出す。
 /// chrome が無い・connect が無い環境では None を返し、呼び出し側が Unavailable に倒す
-pub(crate) fn start(on_event: impl Fn(Event) + 'static) -> Option<ActiveFetch> {
+pub(crate) fn start(kinds: &[CsvKind], on_event: impl Fn(Event) + 'static) -> Option<ActiveFetch> {
     let runtime = chrome_runtime()?;
     let ctx = Rc::new(FetchContext {
         on_event: Box::new(on_event),
@@ -120,7 +120,7 @@ pub(crate) fn start(on_event: impl Fn(Event) + 'static) -> Option<ActiveFetch> {
         port: RefCell::new(JsValue::UNDEFINED),
         _listeners: RefCell::new(Vec::new()),
     });
-    try_connect(&ctx, &runtime)?;
+    try_connect(&ctx, &runtime, kinds)?;
     Some(ActiveFetch { ctx })
 }
 
@@ -143,15 +143,15 @@ fn chrome_runtime() -> Option<JsValue> {
 
 /// extension_id へ接続し、受信・切断のリスナーを付けて依頼を投げる。
 /// 接続そのものが成立しなかった(全 ID 失敗)ときだけ None
-fn try_connect(ctx: &Rc<FetchContext>, runtime: &JsValue) -> Option<JsValue> {
+fn try_connect(ctx: &Rc<FetchContext>, runtime: &JsValue, kinds: &[CsvKind]) -> Option<JsValue> {
     for (index, extension_id) in EXTENSION_IDS.iter().enumerate().skip(ctx.next_id.get()) {
         ctx.next_id.set(index + 1);
         let Some(port) = connect(runtime, extension_id) else {
             continue;
         };
-        if listen(ctx, runtime, &port) {
+        if listen(ctx, runtime, &port, kinds) {
             *ctx.port.borrow_mut() = port.clone();
-            post(&port, &request_message());
+            post(&port, &request_message(kinds));
             return Some(port);
         }
     }
@@ -169,10 +169,11 @@ fn connect(runtime: &JsValue, extension_id: &str) -> Option<JsValue> {
     (!port.is_null() && !port.is_undefined()).then_some(port)
 }
 
-fn request_message() -> JsValue {
-    let kinds = js_sys::Array::new();
-    for kind in CsvKind::ALL {
-        kinds.push(&JsValue::from_str(kind.request_value()));
+/// 依頼する種類だけを含むリクエストメッセージを作る
+fn request_message(kinds: &[CsvKind]) -> JsValue {
+    let kinds_array = js_sys::Array::new();
+    for kind in kinds {
+        kinds_array.push(&JsValue::from_str(kind.request_value()));
     }
     let request = js_sys::Object::new();
     let _ = js_sys::Reflect::set(
@@ -180,12 +181,12 @@ fn request_message() -> JsValue {
         &JsValue::from_str("type"),
         &JsValue::from_str("fetchLatestCsv"),
     );
-    let _ = js_sys::Reflect::set(&request, &JsValue::from_str("kinds"), &kinds);
+    let _ = js_sys::Reflect::set(&request, &JsValue::from_str("kinds"), &kinds_array);
     request.into()
 }
 
 /// onMessage / onDisconnect のリスナーを付ける。付けられなければ false(=この ID は使えない)
-fn listen(ctx: &Rc<FetchContext>, runtime: &JsValue, port: &JsValue) -> bool {
+fn listen(ctx: &Rc<FetchContext>, runtime: &JsValue, port: &JsValue, kinds: &[CsvKind]) -> bool {
     let on_message = {
         let ctx = Rc::clone(ctx);
         Closure::new(move |raw: JsValue| {
@@ -199,12 +200,13 @@ fn listen(ctx: &Rc<FetchContext>, runtime: &JsValue, port: &JsValue) -> bool {
     let on_disconnect = {
         let ctx = Rc::clone(ctx);
         let runtime = runtime.clone();
+        let kinds = kinds.to_vec();
         Closure::new(move |_: JsValue| {
             if ctx.settled.get() {
                 return;
             }
             // 1通も届かず切れた ID は「その拡張機能が無い」として次を試す
-            if !ctx.saw_message.get() && try_connect(&ctx, &runtime).is_some() {
+            if !ctx.saw_message.get() && try_connect(&ctx, &runtime, &kinds).is_some() {
                 return;
             }
             ctx.settled.set(true);

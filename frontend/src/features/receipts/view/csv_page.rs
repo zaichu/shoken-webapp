@@ -4,6 +4,7 @@ use crate::support::csv_flow::CsvTabMeta;
 use crate::support::row::Row;
 use crate::ui::csv_page::CsvSource;
 use crate::ui::format::format_iso_date;
+use crate::ui::labels;
 use leptos::prelude::*;
 
 #[derive(Clone, Copy)]
@@ -22,7 +23,7 @@ impl CsvSource for ReceiptCsvSource {
     }
 
     fn save_mode_label(&self) -> &'static str {
-        "追加"
+        labels::CSV_MANAGE_SAVE_MODE_APPEND
     }
 
     fn csv_meta(&self) -> CsvTabMeta {
@@ -107,15 +108,6 @@ impl CsvSource for ReceiptCsvSource {
     fn confirm_delete_all(&self) {
         self.store.confirm_delete_all(self.tab)
     }
-}
-
-// 世代リセットが起きると ensure の対象が配当へ差し替わるので、
-// 世代を確定させてから対象タブの一覧を未取得なら取得する。
-// CSV管理側のタブを開いたとき一覧側の選択タブも同じ種別に同期し、「一覧に戻る」が同じタブを開く。
-// active_tab を直接変えると検索語が前のタブから残るため、通常のタブ切替と同じリセットを通す
-pub(crate) fn ensure_kind(store: ReceiptsStore, tab: ReceiptsTab) {
-    store.ensure(tab);
-    store.select_tab(tab);
 }
 
 #[component]

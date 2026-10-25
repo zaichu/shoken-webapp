@@ -384,6 +384,10 @@ pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> 
 /// CSV管理: 状態「取得できず・楽天証券のタブを再読み込みしてください 詳細」(赤)
 pub const CSV_MANAGE_STATUS_FAILED: &str =
     "取得できず・楽天証券のタブを再読み込みしてください 詳細";
+/// CSV管理: 状態「取り込まなかった(理由)」(薄い色)
+pub fn csv_manage_status_skipped(reason: &str) -> String {
+    format!("取り込まなかった({reason})")
+}
 /// CSV管理: 状態「まだ取得していません」(薄い色)
 pub const CSV_MANAGE_STATUS_NEVER: &str = "まだ取得していません";
 /// CSV管理: 取得失敗の詳細ラベル
@@ -398,9 +402,14 @@ pub const CSV_MANAGE_MENU_DELETE: &str = "削除";
 pub fn csv_manage_delete_confirm_title(kind: &str) -> String {
     format!("{kind}を削除しますか?")
 }
-/// CSV管理: 削除確認モーダルの説明(件数付き)
-pub fn csv_manage_delete_confirm_description(kind: &str, count: usize) -> String {
-    format!("{kind}の保存済み {count}件を削除します。元に戻せません")
+/// CSV管理: 削除確認モーダルの説明(件数付き)。range は保存データの期間
+pub fn csv_manage_delete_confirm_description(
+    kind: &str,
+    range: Option<&str>,
+    count: usize,
+) -> String {
+    let range = range.map(|range| format!("({range})")).unwrap_or_default();
+    format!("{kind}の保存済み {count}件{range}を削除します。元に戻せません")
 }
 /// CSV管理: 削除確認モーダルの実行ボタン
 pub fn csv_manage_delete_confirm_button(count: usize) -> String {

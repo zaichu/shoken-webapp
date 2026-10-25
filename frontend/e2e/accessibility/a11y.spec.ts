@@ -1,5 +1,6 @@
 import type { Browser, Locator, Page } from '@playwright/test';
 import { expect, test, json, paginated } from '../support/test';
+import { csvRow, mockCsvKindStats } from '../support/csv-page';
 import AxeBuilder from '@axe-core/playwright';
 import * as path from 'path';
 
@@ -403,6 +404,7 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
       json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
     ),
   );
+  await mockCsvKindStats(page, { counts: () => ({ dividend: 1 }) });
   for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
     await page.setViewportSize(size);
     await page.goto('/csv?kind=dividend');
@@ -414,10 +416,9 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
       page.locator('[role="status"][aria-live="polite"]').first(),
     ).toContainText('追加で保存できます', { timeout: 10000 });
     await scanAxe(page, `CSVプレビュー(${name})`);
-    // 確認はカード内の「すべて削除…」ボタンからモーダルで行う
-    const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
-    await expect(deleteButton).toBeVisible();
-    await deleteButton.click();
+    // 確認は行の⋯メニューの「削除」からモーダルで行う
+    await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
+    await page.getByRole('button', { name: '削除', exact: true }).click();
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible();
     await scanAxe(page, `削除確認モーダル(${name})`);
@@ -434,6 +435,7 @@ test('CSVプレビューの行エラー表示に moderate 以上の WCAG 違反�
   await mockSession(page);
   await mockEmptyLists(page);
   await mockReceiptsData(page);
+  await mockCsvKindStats(page, { counts: () => ({ dividend: 1 }) });
   await page.route(ROUTES.dividendPreview, (route) =>
     route.fulfill(
       json({
@@ -625,6 +627,7 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await mockSession(page);
   await mockEmptyLists(page);
   await mockReceiptsData(page);
+  await mockCsvKindStats(page, { counts: () => ({ dividend: 1 }) });
   await page.route(ROUTES.dividendPreview, (route) =>
     route.fulfill(
       json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
@@ -679,8 +682,9 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
     page.locator('[role="status"][aria-live="polite"]').first(),
   ).toContainText('追加で保存できます', { timeout: 10000 });
 
-  // カード内の「すべて削除…」ボタンへのキーボード操作
-  const deleteButton = page.getByRole('button', { name: 'すべて削除…' });
+  // 行の⋯メニューを開き、「削除」へのキーボード操作で確認まで進める
+  await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
+  const deleteButton = page.getByRole('button', { name: '削除', exact: true });
   await tabTo(page, deleteButton);
   await expect(deleteButton).toBeFocused();
   await page.keyboard.press('Enter');

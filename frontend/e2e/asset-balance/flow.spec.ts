@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect, test, json } from '../support/test';
+import { mockCsvKindStats, openCsvDelete, savedCount } from '../support/csv-page';
 
 const CSV_FIXTURE_PATH = path.resolve(process.cwd(), 'e2e/fixtures/csv/assetbalance-base.csv');
 
@@ -96,6 +97,7 @@ async function setupAssetBalanceMocks(
   let uploadRequestCount = 0;
 
   await page.route(ROUTES.authMe, (route) => route.fulfill(json(MOCK_USER)));
+  await mockCsvKindStats(page, { counts: () => ({ assetbalance: assetBalances.length }) });
 
   await page.route(ROUTES.dividendPerShareBatch, (route) =>
     route.fulfill(
@@ -227,11 +229,9 @@ test('保存後に一覧が再取得されて銘柄データが表示される',
   await expect.poll(mocks.getUploadRequestCount).toBe(1);
   await expect.poll(mocks.getListRequestCount).toBeGreaterThanOrEqual(2);
   await expect(page.getByTestId('csv-save-result-notice')).toContainText('1件反映');
-  // 新UI: カードの件数が更新される
-  await expect(page.getByText('保存済みの資産管理')).toBeVisible();
-  await expect(page.getByTestId('saved-count')).toContainText('1件');
+  await expect(savedCount(page, 'assetbalance')).toContainText('1件');
   // 一覧に戻ると保存した銘柄が見える
-  await page.getByRole('link', { name: '一覧に戻る' }).click();
+  await page.getByRole('link', { name: '一覧で確認する' }).click();
   await expect(
     page.getByTestId('asset-holdings-table').getByText('架空自動車'),
   ).toBeVisible();
@@ -273,23 +273,19 @@ test('銘柄名の一部で絞り込み解除できる', async ({ page }) => {
   await expect(list.getByText('架空自動車')).toBeVisible();
 });
 
-test('全件削除はカード内の「すべて削除…」ボタンから確認モーダルで行う', async ({ page }) => {
+test('全件削除は行の⋯メニューから確認モーダルで行う', async ({ page }) => {
   const mocks = await setupAssetBalanceMocks(page, { initialAssetBalances: [MOCK_ASSET] });
 
   await gotoAssetBalancePage(page);
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/csv');
 
-  // 国内株式タブの削除ボタンをクリック(投資信託は別タブなので名前どおり)
-  const deleteButton = page.getByRole('button', { name: '国内株式をすべて削除…' });
-  await expect(deleteButton).toBeVisible();
-  await deleteButton.click();
+  // 国内株式の行の⋯メニューから削除確認を開く
+  await openCsvDelete(page, 'assetbalance');
 
-  // 確認モーダルが表示される
   const modal = page.getByRole('dialog');
-  await expect(modal).toBeVisible();
   await expect(modal).toContainText('資産管理(国内株式)を削除しますか?');
-  await expect(modal).toContainText('この操作は取り消せません');
+  await expect(modal).toContainText('元に戻せません');
   await expect(modal).toContainText('1件');
   expect(mocks.getDeleteRequestCount()).toBe(0);
 
@@ -299,12 +295,10 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
   expect(mocks.getDeleteRequestCount()).toBe(0);
 
   // 再度開いて確定する
-  await deleteButton.click();
-  await expect(modal).toBeVisible();
+  await openCsvDelete(page, 'assetbalance');
   await modal.getByRole('button', { name: '1件を削除する' }).click();
 
   await expect.poll(mocks.getDeleteRequestCount).toBe(1);
   await expect(modal).toBeHidden();
-  // CSV管理ページではカードが「0件」になる
-  await expect(page.getByTestId('saved-count')).toContainText('0件');
+  await expect(savedCount(page, 'assetbalance')).toContainText('0件');
 });

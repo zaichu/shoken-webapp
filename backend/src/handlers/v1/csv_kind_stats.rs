@@ -1,9 +1,9 @@
-use crate::{
-    errors::ApiError,
-    extractors::auth::AuthenticatedUser,
-    state::AppState,
+use crate::{errors::ApiError, extractors::auth::AuthenticatedUser, state::AppState};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Json},
 };
-use axum::{extract::State, http::StatusCode, response::{IntoResponse, Json}};
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -46,11 +46,12 @@ pub async fn csv_kind_stats(
 ) -> Result<impl IntoResponse, ApiError> {
     let user_id = auth_user.id();
 
-    // 各テーブルから件数と最新 created_at を並行取得
+    // 各テーブルから件数と最新 created_at を取得
     let asset_balance = query_kind_stat(&state.pool, user_id, "asset_balances").await?;
     let fund_balance = query_kind_stat(&state.pool, user_id, "fund_balances").await?;
     let dividend = query_kind_stat(&state.pool, user_id, "dividends").await?;
-    let domestic_stock = query_kind_stat(&state.pool, user_id, "domestic_stock_transactions").await?;
+    let domestic_stock =
+        query_kind_stat(&state.pool, user_id, "domestic_stock_transactions").await?;
     let mutual_fund = query_kind_stat(&state.pool, user_id, "mutual_fund_transactions").await?;
 
     let kinds = vec![
@@ -99,12 +100,10 @@ async fn query_kind_stat(
         table
     );
     // タプル (count, latest) として取得
-    let row: (i64, Option<chrono::DateTime<chrono::Utc>>) = crate::db::query_as(&query, vec![user_id.into()])
-        .fetch_one(pool)
-        .await?;
+    let row: (i64, Option<chrono::DateTime<chrono::Utc>>) =
+        crate::db::query_as(&query, vec![user_id.into()])
+            .fetch_one(pool)
+            .await?;
 
-    Ok((
-        row.0,
-        row.1.map(|dt| dt.to_rfc3339()),
-    ))
+    Ok((row.0, row.1.map(|dt| dt.to_rfc3339())))
 }

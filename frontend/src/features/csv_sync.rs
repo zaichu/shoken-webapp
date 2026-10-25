@@ -309,8 +309,17 @@ impl CsvSyncStore {
         self.state.get()
     }
 
-    /// ボタンの押下。実行中は何もしない
+    /// ボタンの押下。実行中は何もしない(全種類取得)
     pub(crate) fn start(&self) {
+        self.start_kinds(&CsvKind::ALL);
+    }
+
+    /// 指定した1種類だけを取得する。行のメニューから呼ぶ
+    pub(crate) fn start_kind(&self, kind: CsvKind) {
+        self.start_kinds(&[kind]);
+    }
+
+    fn start_kinds(&self, kinds: &[CsvKind]) {
         if self.running() {
             return;
         }
@@ -320,7 +329,7 @@ impl CsvSyncStore {
         self.state.set(SyncState::initial());
         self.pending.set(None);
         let store = *self;
-        match port::start(move |event| {
+        match port::start(kinds, move |event| {
             if store.epoch.get_untracked() == epoch {
                 store.apply(event);
             }
