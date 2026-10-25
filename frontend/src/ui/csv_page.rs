@@ -320,6 +320,7 @@ pub fn CsvKindRow(
 }
 
 /// 状態テキストとクラスを計算
+#[allow(clippy::collapsible_if)]
 fn compute_status(
     sync_status: &Option<crate::features::csv_sync::KindStatus>,
     latest_imported_at: &Option<String>,

@@ -61,6 +61,7 @@ impl CsvKind {
         }
     }
 
+    #[allow(dead_code)]
     fn asset_kind(self) -> Option<AssetKind> {
         match self {
             Self::AssetStock => Some(AssetKind::Stock),
@@ -69,6 +70,7 @@ impl CsvKind {
         }
     }
 
+    #[allow(dead_code)]
     fn list_href(self) -> &'static str {
         match self.receipt_tab() {
             Some(_) => "/receipts",
