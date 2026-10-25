@@ -342,5 +342,78 @@ pub fn target_period_note(from: &str, to: &str) -> String {
     format!("対象期間: {from} 〜 {to}")
 }
 
+/// CSV管理: ページ見出し
+pub const CSV_MANAGE_TITLE: &str = "CSV管理";
+/// CSV管理: パンくず
+pub const CSV_MANAGE_BREADCRUMB: &str = "資産管理 › CSV管理";
+/// CSV管理: 取得カードの見出し
+pub const CSV_MANAGE_FETCH_TITLE: &str = "楽天証券から最新のデータを取得";
+/// CSV管理: 取得カードの説明
+pub const CSV_MANAGE_FETCH_HINT: &str = "拡張機能を呼び出して、楽天証券の最新 CSV を受け取ります。";
+/// CSV管理: 取得ボタン(通常)
+pub const CSV_MANAGE_FETCH_BUTTON: &str = "最新を取得する";
+/// CSV管理: 取得ボタン(実行中)
+pub const CSV_MANAGE_FETCH_RUNNING: &str = "取得中...";
+/// CSV管理: 取得前の初期メッセージ
+pub fn csv_manage_last_fetched(date: &str, time: &str) -> String {
+    format!("最終取得: {date} {time}")
+}
+/// CSV管理: 取得完了メッセージ(成功・失敗の組み合わせ)
+pub fn csv_manage_fetch_result(updated: usize, failed: usize) -> String {
+    let mut parts = Vec::new();
+    if updated > 0 {
+        parts.push(format!("{updated}種類を更新しました"));
+    }
+    if failed > 0 {
+        parts.push(format!("{failed}種類は取得できませんでした"));
+    }
+    parts.join("・")
+}
+/// CSV管理: 表ヘッダー「データの種類」
+pub const CSV_MANAGE_COL_KIND: &str = "データの種類";
+/// CSV管理: 表ヘッダー「保存済み」
+pub const CSV_MANAGE_COL_COUNT: &str = "保存済み";
+/// CSV管理: 表ヘッダー「状態」
+pub const CSV_MANAGE_COL_STATUS: &str = "状態";
+/// CSV管理: 表ヘッダー「メニュー」
+pub const CSV_MANAGE_COL_MENU: &str = "⋯";
+/// CSV管理: 状態「今日 HH:MM に更新」(緑)
+pub fn csv_manage_status_updated_today(time: &str) -> String {
+    format!("● 今日 {time} に更新")
+}
+/// CSV管理: 状態「N日前(M/D HH:MM)に更新」(薄い色)
+pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
+    format!("○ {days}日前({date} {time})に更新")
+}
+/// CSV管理: 状態「取得できず・楽天証券のタブを再読み込みしてください 詳細」(赤)
+pub const CSV_MANAGE_STATUS_FAILED: &str =
+    "取得できず・楽天証券のタブを再読み込みしてください 詳細";
+/// CSV管理: 状態「まだ取得していません」(薄い色)
+pub const CSV_MANAGE_STATUS_NEVER: &str = "まだ取得していません";
+/// CSV管理: 取得失敗の詳細ラベル
+pub const CSV_MANAGE_FAILED_DETAIL_LABEL: &str = "詳細";
+/// CSV管理: メニュー項目「楽天証券から再取得」
+pub const CSV_MANAGE_MENU_REFETCH: &str = "楽天証券から再取得";
+/// CSV管理: メニュー項目「ファイルから取り込み」
+pub const CSV_MANAGE_MENU_FILE_IMPORT: &str = "ファイルから取り込み";
+/// CSV管理: メニュー項目「削除」(赤)
+pub const CSV_MANAGE_MENU_DELETE: &str = "削除";
+/// CSV管理: 削除確認モーダルのタイトル
+pub fn csv_manage_delete_confirm_title(kind: &str) -> String {
+    format!("{kind}を削除しますか?")
+}
+/// CSV管理: 削除確認モーダルの説明(件数付き)
+pub fn csv_manage_delete_confirm_description(kind: &str, count: usize) -> String {
+    format!("{kind}の保存済み {count}件を削除します。元に戻せません")
+}
+/// CSV管理: 削除確認モーダルの実行ボタン
+pub fn csv_manage_delete_confirm_button(count: usize) -> String {
+    format!("{count}件を削除する")
+}
+/// CSV管理: 保存方式「追加」
+pub const CSV_MANAGE_SAVE_MODE_APPEND: &str = "追加";
+/// CSV管理: 保存方式「全件置換」
+pub const CSV_MANAGE_SAVE_MODE_REPLACE: &str = "全件置換";
+
 #[cfg(test)]
 mod tests;

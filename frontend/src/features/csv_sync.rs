@@ -35,7 +35,7 @@ impl CsvKind {
         Self::MutualFund,
     ];
 
-    fn request_value(self) -> &'static str {
+    pub fn request_value(self) -> &'static str {
         match self {
             Self::AssetBalance => "assetbalance",
             Self::FundBalance => "fundbalance",
@@ -62,7 +62,7 @@ impl CsvKind {
     }
 
     /// ALL 内の位置。進行表示の配列添字に使う
-    fn index(self) -> usize {
+    pub fn index(self) -> usize {
         Self::ALL.iter().position(|kind| *kind == self).unwrap()
     }
 }

@@ -1,5 +1,6 @@
 pub mod common;
 pub mod csv_import;
+pub mod csv_kind_stats;
 pub mod dividend_per_share;
 pub mod domain;
 pub mod error;
