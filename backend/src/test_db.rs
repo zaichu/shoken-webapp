@@ -1,4 +1,6 @@
 use crate::db::Db;
+use crate::test_constants::POSTGRES_TAG;
+use testcontainers::ImageExt;
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{Duration, sleep};
@@ -19,7 +21,11 @@ async fn connect_with_retry(database_url: &str) -> Db {
 /// Docker 上に独立した Postgres コンテナを起動し、migration 済みの pool を返す。
 /// 各テストが別コンテナ・DB を持つ隔離は維持し、返す node でコンテナを生存させる。
 pub async fn start_test_pool() -> (Db, impl Drop) {
-    let node = Postgres::default().start().await.unwrap();
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
     let pool = connect_with_retry(&database_url).await;
