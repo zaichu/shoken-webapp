@@ -2466,6 +2466,20 @@ const SQLX_MIGRATIONS_DDL: &str = "CREATE TABLE _sqlx_migrations (
     execution_time BIGINT NOT NULL
 )";
 
+const STATE_B_SCHEMA_FILES: &[&str] = &[
+    include_str!("../migrations/0000_extensions.sql"),
+    include_str!("../migrations/0001_users.sql"),
+    include_str!("../migrations/0002_sessions.sql"),
+    include_str!("../migrations/0003_dividends.sql"),
+    include_str!("../migrations/0004_domestic_stocks.sql"),
+    include_str!("../migrations/0005_mutualfunds.sql"),
+    include_str!("../migrations/0006_asset_balances.sql"),
+    include_str!("../migrations/0007_stock.sql"),
+    include_str!("../migrations/0008_dividend_per_share_cache.sql"),
+    include_str!("../migrations/0009_market_data_provider_rate_control.sql"),
+    include_str!("../migrations/0010_security_prices.sql"),
+];
+
 /// 旧ランナーで version 1〜=max_version まで適用済みの状態を再現する
 async fn seed_migration_history(pool: &Db, max_version: i64) {
     seed_migration_history_range(pool, 1, max_version).await;
@@ -2489,6 +2503,16 @@ async fn seed_migration_history_range(pool: &Db, from: i64, to: i64) {
     }
 }
 
+/// 状態Bの schema は現行 baseline 0〜10 と同一なので、履歴と schema の両方を再現する
+async fn seed_linear_history_state(pool: &Db) {
+    for sql in STATE_B_SCHEMA_FILES {
+        pool.batch_execute(sql)
+            .await
+            .expect("状態Bの schema 作成に失敗");
+    }
+    seed_migration_history_range(pool, 0, 18).await;
+}
+
 /// _sqlx_migrations の適用済み version 一覧(昇順)
 async fn migration_versions(pool: &Db) -> Vec<i64> {
     db::query(
@@ -2501,6 +2525,17 @@ async fn migration_versions(pool: &Db) -> Vec<i64> {
     .into_iter()
     .map(|(version,)| version)
     .collect()
+}
+
+async fn legacy_migration_count(pool: &Db) -> i64 {
+    db::query(
+        "SELECT COUNT(*) FROM _sqlx_migrations WHERE description = 'legacy'",
+        vec![],
+    )
+    .fetch_one::<(i64,), _>(pool)
+    .await
+    .expect("旧履歴行数の取得に失敗")
+    .0
 }
 
 /// rotate 後に migrate を再実行しても no-op(履歴も schema も変わらない)ことを確かめる
@@ -2596,15 +2631,18 @@ async fn linear_history_rotates_to_new_baseline() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    seed_migration_history_range(&pool, 0, 18).await;
+    seed_linear_history_state(&pool).await;
 
     run_migrations(&pool)
         .await
         .expect("状態Bの DB は rotate できるはず");
+    let versions = migration_versions(&pool).await;
     assert_eq!(
-        migration_versions(&pool).await,
-        (0..=10).collect::<Vec<_>>()
+        versions,
+        (0..versions.len() as i64).collect::<Vec<_>>(),
+        "rotate 後は現行 migration が欠けずに適用されること"
     );
+    assert_eq!(legacy_migration_count(&pool).await, 0);
     assert_migrate_is_noop(&pool).await;
 }
 

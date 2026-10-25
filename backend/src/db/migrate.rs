@@ -10,6 +10,7 @@ use postgres_types::ToSql;
 use sha2::{Digest, Sha384};
 use std::collections::{BTreeSet, HashMap};
 use std::time::Instant;
+use tokio_postgres::error::ErrorPosition;
 
 const MIGRATION_FILES: &[(&str, &str)] = &[
     (
@@ -128,6 +129,36 @@ fn lock_id(database: &str) -> i64 {
 
 fn checksum(sql: &str) -> Vec<u8> {
     Sha384::digest(sql.as_bytes()).to_vec()
+}
+
+fn sql_line_at_position(sql: &str, position: u32) -> Option<&str> {
+    let character_index = usize::try_from(position).ok()?.checked_sub(1)?;
+    let byte_index = sql.char_indices().nth(character_index)?.0;
+    let start = sql[..byte_index]
+        .rfind('\n')
+        .map_or(0, |newline| newline + 1);
+    let end = sql[byte_index..]
+        .find('\n')
+        .map_or(sql.len(), |newline| byte_index + newline);
+    let line = sql[start..end].trim();
+    (!line.is_empty()).then_some(line)
+}
+
+fn format_migration_error(error: tokio_postgres::Error, sql: &str) -> String {
+    let Some(db_error) = error.as_db_error() else {
+        return error.to_string();
+    };
+    let mut message = format!("{db_error} (SQLSTATE {})", db_error.code().code());
+    let sql_line = match db_error.position() {
+        Some(ErrorPosition::Original(position)) => sql_line_at_position(sql, *position),
+        Some(ErrorPosition::Internal { position, query }) => sql_line_at_position(query, *position),
+        None => None,
+    };
+    if let Some(sql_line) = sql_line {
+        message.push_str("\nSQL: ");
+        message.push_str(sql_line);
+    }
+    message
 }
 
 pub async fn run_migrations(db: &Db) -> Result<(), String> {
@@ -303,9 +334,10 @@ async fn apply(client: &mut tokio_postgres::Client, m: &Migration) -> Result<(),
     if m.no_tx {
         insert_migration(client, m, &sum, false, 0).await?;
         let started = Instant::now();
-        if let Err(e) = client.batch_execute(m.sql).await {
-            return Err(format!("{e}"));
-        }
+        client
+            .batch_execute(m.sql)
+            .await
+            .map_err(|e| format_migration_error(e, m.sql))?;
         let elapsed = i64::try_from(started.elapsed().as_nanos()).unwrap_or(i64::MAX);
         client
             .execute(
@@ -325,7 +357,9 @@ async fn apply(client: &mut tokio_postgres::Client, m: &Migration) -> Result<(),
         .await
         .map_err(|e| format!("トランザクション開始に失敗: {e}"))?;
     let started = Instant::now();
-    tx.batch_execute(m.sql).await.map_err(|e| format!("{e}"))?;
+    tx.batch_execute(m.sql)
+        .await
+        .map_err(|e| format_migration_error(e, m.sql))?;
     let elapsed = i64::try_from(started.elapsed().as_nanos()).unwrap_or(i64::MAX);
     insert_migration_tx(&tx, m, &sum, elapsed).await?;
     tx.commit()
@@ -380,4 +414,24 @@ async fn insert_migration_tx(
     .await
     .map(|_| ())
     .map_err(|e| format!("マイグレーション記録の挿入に失敗: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sql_line_at_position;
+
+    #[test]
+    fn extracts_sql_line_from_postgres_character_position() {
+        let sql = "-- 日本語\nCREATE INDEX broken";
+        let position = sql
+            .chars()
+            .position(|character| character == 'b')
+            .expect("対象文字がある") as u32
+            + 1;
+
+        assert_eq!(
+            sql_line_at_position(sql, position),
+            Some("CREATE INDEX broken")
+        );
+    }
 }
