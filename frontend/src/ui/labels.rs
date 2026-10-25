@@ -342,10 +342,6 @@ pub fn target_period_note(from: &str, to: &str) -> String {
     format!("対象期間: {from} 〜 {to}")
 }
 
-/// CSV管理: ページ見出し
-pub const CSV_MANAGE_TITLE: &str = "CSV管理";
-/// CSV管理: パンくず
-pub const CSV_MANAGE_BREADCRUMB: &str = "資産管理 › CSV管理";
 /// CSV管理: 取得カードの見出し
 pub const CSV_MANAGE_FETCH_TITLE: &str = "楽天証券から最新のデータを取得";
 /// CSV管理: 取得カードの説明

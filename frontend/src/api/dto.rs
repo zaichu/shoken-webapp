@@ -3,6 +3,7 @@
 pub use shared::common::{FacetOption, SearchFacets};
 pub use shared::common::{MessageResponse, PaginatedSearchResponse, SessionUser, Stock};
 pub use shared::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+#[allow(unused_imports)]
 pub use shared::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse};
 pub use shared::domain::{
     AssetBalance, AssetBalanceSummary, Dividend, DividendSummary, DomesticStock,

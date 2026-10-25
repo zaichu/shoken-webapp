@@ -1,7 +1,7 @@
 pub mod client;
 pub mod dto;
 
-pub use crate::api::dto::{CsvKindStat, CsvKindStatsResponse, Stock};
+pub use crate::api::dto::{CsvKindStatsResponse, Stock};
 pub use client::{ApiClient, ApiError};
 
 pub async fn fetch_stock(query: &str) -> Result<Stock, ApiError> {

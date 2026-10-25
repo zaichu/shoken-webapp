@@ -1,4 +1,3 @@
-use crate::api::dto::CsvUploadResponse;
 use crate::features::asset_balance::{
     AssetBalanceCsvSource, AssetBalanceCsvStore, AssetKind, FundCsvPreview, StockCsvPreview,
 };
@@ -7,17 +6,11 @@ use crate::features::receipts::{ReceiptCsvSource, ReceiptsCsvPreview, ReceiptsSt
 use crate::support::csv_flow::{CsvTabMeta, CsvUploadResponseExt};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::csv_preview::{
-    CsvPreviewNotice, CsvRowErrorList, preview_notice_text, shared_message,
-    should_show_preview_notice,
-};
 use crate::ui::labels;
-use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
-use leptos::ev::DragEvent;
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
 
 // 全件置換ではエラー行を含む CSV を backend が拒否するため、有効行があっても保存を止める
+#[allow(dead_code)]
 pub(crate) fn save_disabled_by_preview(meta: &CsvTabMeta, errors_block_save: bool) -> bool {
     meta.busy()
         || !meta.has_preview_rows()
@@ -29,10 +22,16 @@ pub(crate) fn save_disabled_by_preview(meta: &CsvTabMeta, errors_block_save: boo
 }
 
 /// CSV 管理・削除ページが要求するデータソース。
+/// 取引明細(種別付き)と資産残高が同じページ構成を共有するため、
+/// 状態取得と操作をトレイトで受け取る。状態は行データを含まない CsvTabMeta
+#[allow(dead_code)]
 pub trait CsvSource: Copy + Send + Sync + 'static {
     fn input_id(&self) -> &'static str;
+    /// 検証結果の通知で使う方式込みの動詞("追加で保存" / "全件置換で保存")
     fn save_action(&self) -> &'static str;
+    /// 「保存方式」の短い表示名("追加" / "全件置換")
     fn save_mode_label(&self) -> &'static str;
+    /// 操作バーの保存ボタンのラベル。プレビューが無い間は件数を言えないので None
     fn save_button_label(&self, valid_rows: Option<usize>) -> String {
         match valid_rows {
             Some(rows) => format!("{rows}件を保存する"),
@@ -41,22 +40,31 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     }
     fn csv_meta(&self) -> CsvTabMeta;
     fn is_authenticated(&self) -> bool;
+    // 未認証・取得中・CSV 処理中など、ファイル選択を受け付けられない状態の判定
     fn input_disabled(&self) -> bool;
+    /// エラー付きプレビューでは保存を止めるか(全件置換など一部保存ができない方式)
     fn errors_block_save(&self) -> bool {
         false
     }
+    // 検証前・検証失敗・全行エラー(有効行0)では保存を送らない
     fn save_disabled(&self, meta: &CsvTabMeta) -> bool {
         save_disabled_by_preview(meta, self.errors_block_save())
     }
+    /// 操作バーに出す、想定するCSV形式の案内
     fn csv_format_hint(&self) -> &'static str;
+    /// 保存済み全件数。削除ページで対象件数を示すために使う
     fn db_count(&self) -> usize;
+    /// 保存済み全件数が確定したか(一覧が未取得・取得失敗なら false で削除を止める)
     fn delete_count_ready(&self) -> bool;
+    /// 全件数が確定できない理由(一覧取得の失敗表示用)
     fn delete_count_error(&self) -> Option<String> {
         None
     }
+    /// 保存済みデータの日付範囲(最小・最大)。取得済み行から算出し、未取得なら None
     fn date_range(&self) -> Option<(String, String)> {
         None
     }
+    /// 削除件数の再取得を要求する(件数取得失敗時の再読み込み用)
     fn refresh_for_delete(&self) {}
     fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
         meta.saving || meta.deleting
@@ -65,6 +73,16 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     fn save_csv(&self);
     fn open_delete_confirm(&self);
     fn confirm_delete_all(&self);
+}
+
+/// 種類ごとの行データ
+#[derive(Clone, Debug, PartialEq)]
+pub struct CsvKindRowData {
+    pub kind: crate::features::csv_page::CsvKind,
+    pub count: i64,
+    pub latest_imported_at: Option<String>,
+    /// csv_syncの状態
+    pub sync_status: Option<crate::features::csv_sync::KindStatus>,
 }
 
 /// CSV 管理画面の取得カード
@@ -123,15 +141,6 @@ pub fn CsvManageFetchCard(
             </div>
         </section>
     }
-}
-
-/// 種類ごとの行データ
-#[derive(Clone, Debug, PartialEq)]
-pub struct CsvKindRowData {
-    pub kind: crate::features::csv_page::CsvKind,
-    pub count: i64,
-    pub latest_imported_at: Option<String>,
-    pub sync_status: Option<crate::features::csv_sync::KindStatus>,
 }
 
 /// 種類ごとのテーブル行 - シンプルな実装（メニューは単純なボタン群で代替）
@@ -222,16 +231,14 @@ pub fn CsvKindRow(
                 <div class="flex items-center gap-2">
                     <span class=status_class>{status_text}</span>
                     {has_error_detail.then(|| {
-                        let detail = error_detail.clone();
                         view! {
                             <button
                                 type="button"
                                 class="text-xs underline text-text-muted hover:text-text"
                                 data-testid="status-detail"
                                 on:click=move |_| {
-                                    // 詳細表示用のアラート等を出す（簡易実装）
                                     if let Some(window) = web_sys::window() {
-                                        let _ = window.alert_with_message(&detail);
+                                        let _ = window.alert_with_message(&error_detail);
                                     }
                                 }
                             >
@@ -442,28 +449,6 @@ pub fn CsvKindTable(
             </table>
         </div>
     }
-}
-
-/// 既存の CsvManageBody と CsvActionBar (タブ形式の旧UI用・段階的に削除予定)
-#[component]
-pub fn CsvManageBody<S: CsvSource>(
-    source: S,
-    #[prop(into)] subject: String,
-    list_href: &'static str,
-    preview: AnyView,
-    #[prop(optional, into)] delete_button_label: Option<String>,
-) -> impl IntoView {
-    // 既存の実装を維持(互換性のため)
-    // 実際の新UIでは CsvKindTable + CsvKindRow を使用
-    let _ = (source, subject, list_href, preview, delete_button_label);
-    view! { <div>"Legacy CsvManageBody - not used in new table UI"</div> }
-}
-
-#[component]
-pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
-    // 既存の実装を維持(互換性のため)
-    let _ = source;
-    view! { <div>"Legacy CsvActionBar - not used in new table UI"</div> }
 }
 
 #[cfg(test)]
