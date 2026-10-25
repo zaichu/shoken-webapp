@@ -9,6 +9,8 @@ pub mod models;
 pub mod openapi;
 pub mod services;
 pub mod state;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod test_constants;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub mod test_db;
 #[cfg(target_arch = "wasm32")]

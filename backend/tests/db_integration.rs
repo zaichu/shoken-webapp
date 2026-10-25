@@ -59,6 +59,7 @@ fn dividend_search_params_with_pagination(
         ..Default::default()
     }
 }
+use backend::test_constants::POSTGRES_TAG;
 use chrono::{NaiveDate, Utc};
 use rust_decimal_macros::dec;
 use shared::dividend_per_share::DividendCacheStatus;
@@ -94,7 +95,7 @@ async fn connect_with_retry(database_url: &str) -> Db {
 #[ignore = "requires Docker to run Postgres container"]
 async fn db_integration_with_docker_and_migrations() {
     let node = Postgres::default()
-        .with_tag("16-alpine")
+        .with_tag(POSTGRES_TAG)
         .start()
         .await
         .unwrap();
@@ -540,7 +541,7 @@ fn make_asset_balance_csv() -> String {
 /// Docker が必要なテスト用の Postgres コンテナ起動ヘルパー
 async fn start_test_pool() -> (Db, impl Drop) {
     let node = Postgres::default()
-        .with_tag("16-alpine")
+        .with_tag(POSTGRES_TAG)
         .start()
         .await
         .unwrap();
