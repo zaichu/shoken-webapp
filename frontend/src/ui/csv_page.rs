@@ -386,7 +386,7 @@ pub fn CsvKindRow(
 
     view! {
         <tr
-            class="border-t border-border-subtle max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto_auto] max-sm:items-center"
+            class="csv-kind-row border-t border-border-subtle"
             data-kind=kind.kind_param()
         >
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-1 max-sm:pb-0">
