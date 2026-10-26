@@ -325,15 +325,14 @@ pub const CSV_MANAGE_COL_STATUS: &str = "状態";
 pub const CSV_MANAGE_COL_MENU: &str = "⋯";
 /// CSV管理: 状態「今日 HH:MM に更新」(緑)
 pub fn csv_manage_status_updated_today(time: &str) -> String {
-    format!("● 今日 {time} に更新")
+    format!("今日 {time} に更新")
 }
 /// CSV管理: 状態「N日前(M/D HH:MM)に更新」(薄い色)
 pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
-    format!("○ {days}日前({date} {time})に更新")
+    format!("{days}日前({date} {time})に更新")
 }
-/// CSV管理: 状態「取得できず・楽天証券のタブを再読み込みしてください 詳細」(赤)
-pub const CSV_MANAGE_STATUS_FAILED: &str =
-    "取得できず・楽天証券のタブを再読み込みしてください 詳細";
+/// CSV管理: 状態「取得できず・楽天証券のタブを再読み込みしてください」(赤)
+pub const CSV_MANAGE_STATUS_FAILED: &str = "取得できず・楽天証券のタブを再読み込みしてください";
 /// CSV管理: 状態「取り込まなかった(理由)」(薄い色)
 pub fn csv_manage_status_skipped(reason: &str) -> String {
     format!("取り込まなかった({reason})")

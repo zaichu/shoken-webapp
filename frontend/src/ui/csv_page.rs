@@ -16,6 +16,8 @@ use crate::ui::csv_preview::{
 use crate::ui::format::{days_since_jst_date, format_jst_time, format_short_date};
 use crate::ui::labels;
 use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
+use leptos::ev;
+use leptos::html;
 use leptos::portal::Portal;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -248,6 +250,10 @@ impl KindFlag {
         self.slot.get() == Some(self.kind)
     }
 
+    fn get_untracked(self) -> bool {
+        self.slot.get_untracked() == Some(self.kind)
+    }
+
     fn set(self, open: bool) {
         if open {
             self.slot.set(Some(self.kind));
@@ -281,8 +287,9 @@ pub fn CsvKindRow(
     let latest_imported_at = row_data.latest_imported_at;
     let sync_status = row_data.sync_status;
 
-    let (status_text, status_class, has_error_detail, error_detail) =
-        compute_status(&sync_status, &latest_imported_at, count_ready);
+    let (status_text, status_class, has_error_detail, error_detail, status_key) =
+        compute_status(kind, &sync_status, &latest_imported_at, count_ready);
+    let row_failed = status_key == "failed";
 
     // 削除の対象件数と失敗理由は一覧ストア（保存済みデータ）から取る
     let source = RowSource::new(kind, asset_csv, receipts_store);
@@ -314,10 +321,79 @@ pub fn CsvKindRow(
         slot: detail_kind,
         kind,
     };
+    let menu_container = NodeRef::<html::Div>::new();
+    let menu_trigger = NodeRef::<html::Button>::new();
+    let menu_list = NodeRef::<html::Div>::new();
+
+    let focus_trigger = move || {
+        if let Some(trigger) = menu_trigger.get_untracked() {
+            let _ = trigger.focus();
+        }
+    };
+
+    // 開いたメニューの外側を押したら閉じる。別の行の⋯はその行の容器の内側なので、
+    // 先にこちらが閉じてから向こうの切り替え処理が開く(同時に2つ開かない)
+    let on_pointer_down = window_event_listener(ev::pointerdown, move |ev| {
+        if !menu_open.get_untracked() {
+            return;
+        }
+        let inside = menu_container
+            .get_untracked()
+            .zip(
+                ev.target()
+                    .and_then(|target| target.dyn_into::<web_sys::Node>().ok()),
+            )
+            .is_some_and(|(container, target)| container.contains(Some(&target)));
+        if !inside {
+            menu_open.set(false);
+        }
+    });
+
+    let on_key_down = window_event_listener(ev::keydown, move |ev| {
+        if !menu_open.get_untracked() {
+            return;
+        }
+        if ev.key() == "Escape" {
+            menu_open.set(false);
+            focus_trigger();
+        }
+    });
+
+    on_cleanup(move || {
+        on_pointer_down.remove();
+        on_key_down.remove();
+    });
+
+    // 開いたら最初の項目へフォーカスを移す。利用者が既に別の場所へ移した
+    // フォーカスは奪わない(別の行へ切り替えた直後など)
+    Effect::new(move |_| {
+        if menu_open.get() {
+            leptos::task::spawn_local(async move {
+                gloo_timers::future::TimeoutFuture::new(0).await;
+                if !menu_open.get_untracked() {
+                    return;
+                }
+                let on_trigger = menu_trigger.get_untracked().is_some_and(|trigger| {
+                    web_sys::window()
+                        .and_then(|window| window.document())
+                        .and_then(|document| document.active_element())
+                        .is_some_and(|active| active.is_same_node(Some(&trigger)))
+                });
+                if on_trigger
+                    && let Some(menu) = menu_list.get_untracked()
+                    && let Ok(Some(first)) = menu.query_selector("button")
+                    && let Ok(first) = first.dyn_into::<web_sys::HtmlElement>()
+                {
+                    let _ = first.focus();
+                }
+            });
+        }
+    });
 
     // 削除は確認表示中だけ開始できるため、モーダルを開く時点でフラグを立てる
     let open_delete = move |_| {
         menu_open.set(false);
+        focus_trigger();
         delete_error.set(None);
         // 開き直すたびに件数を取り直す
         source.refresh_for_delete();
@@ -364,17 +440,25 @@ pub fn CsvKindRow(
 
     let on_refetch = move |_| {
         menu_open.set(false);
+        focus_trigger();
         csv_sync.start_kind(kind.sync_kind());
     };
 
     let on_file_import = move |_| {
         menu_open.set(false);
+        focus_trigger();
         open_import.set(Some(kind));
     };
 
     view! {
         <tr
-            class="csv-kind-row border-t border-border-subtle"
+            class=move || {
+                if row_failed {
+                    "csv-kind-row csv-kind-row-failed border-t border-border-subtle"
+                } else {
+                    "csv-kind-row border-t border-border-subtle"
+                }
+            }
             data-kind=kind.kind_param()
         >
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-1 max-sm:pb-0">
@@ -391,7 +475,13 @@ pub fn CsvKindRow(
             </td>
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-xs">
                 <div class="flex items-center gap-2">
-                    <span class=status_class>{status_text}</span>
+                    <span class="inline-flex items-center gap-1.5">
+                        {status_dot_class(status_key)
+                            .map(|dot| {
+                                view! { <span class=dot aria-hidden="true"></span> }
+                            })}
+                        <span class=status_class data-status=status_key>{status_text}</span>
+                    </span>
                     {has_error_detail.then(|| {
                         view! {
                             <button
@@ -421,19 +511,23 @@ pub fn CsvKindRow(
                 }}
             </td>
             <td class="px-4 py-3 whitespace-nowrap text-right max-sm:col-start-3 max-sm:row-span-2 max-sm:row-start-1">
-                <div class="relative inline-block">
+                <div class="relative inline-block" node_ref=menu_container>
                     <Button
                         variant=ButtonVariant::Secondary(ButtonSize::Sm)
                         class="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-sunken text-text-muted"
                         aria_label="メニュー"
                         aria_expanded=move || menu_open.get()
                         on_click=move |_| menu_open.toggle()
+                        node_ref=menu_trigger
                     >
                         <span class="text-lg font-mono">"⋯"</span>
                     </Button>
                     {move || menu_open.get().then(|| {
                         view! {
-                            <div class="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface p-1 shadow-lg">
+                            <div
+                                node_ref=menu_list
+                                class="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface p-1 shadow-lg"
+                            >
                                 <button
                                     type="button"
                                     class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-deep hover:bg-surface-raised rounded text-left"
@@ -879,12 +973,14 @@ fn CsvFileIcon() -> impl IntoView {
     }
 }
 
-/// 状態テキストとクラスを計算する。件数が未取得の間は状態を出さない
+/// 状態テキストとクラスを計算する。件数が未取得の間は状態を出さない。
+/// 5つ目の戻り値は `data-status` に出す意味的な状態(緑か黄かの分岐を確かめる用)
 fn compute_status(
+    kind: CsvKind,
     sync_status: &Option<KindStatus>,
     latest_imported_at: &Option<String>,
     count_ready: bool,
-) -> (String, String, bool, String) {
+) -> (String, String, bool, String, &'static str) {
     // 取得中・取り込み中の状態を最優先
     if let Some(status) = sync_status {
         match status {
@@ -894,6 +990,7 @@ fn compute_status(
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),
+                    "fetching",
                 );
             }
             KindStatus::Importing => {
@@ -902,6 +999,7 @@ fn compute_status(
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),
+                    "importing",
                 );
             }
             KindStatus::Confirming => {
@@ -910,6 +1008,7 @@ fn compute_status(
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),
+                    "confirming",
                 );
             }
             KindStatus::Failed { reason } => {
@@ -918,6 +1017,7 @@ fn compute_status(
                     "text-negative-vivid".to_string(),
                     true,
                     reason.clone(),
+                    "failed",
                 );
             }
             KindStatus::Skipped { reason } => {
@@ -926,6 +1026,7 @@ fn compute_status(
                     "text-text-muted".to_string(),
                     false,
                     String::new(),
+                    "skipped",
                 );
             }
             // 成功時は最終取込日時で判断する
@@ -939,6 +1040,7 @@ fn compute_status(
             "text-text-muted".to_string(),
             false,
             String::new(),
+            "unknown",
         );
     }
 
@@ -946,22 +1048,9 @@ fn compute_status(
     if let Some(ts) = latest_imported_at
         && let Some(days_ago) = days_since_jst_date(ts)
     {
-        let date = format_short_date(ts);
-        let time = format_jst_time(ts);
-        if days_ago <= 0 {
-            return (
-                labels::csv_manage_status_updated_today(&time),
-                "text-positive-vivid".to_string(),
-                false,
-                String::new(),
-            );
-        }
-        return (
-            labels::csv_manage_status_updated_days_ago(days_ago, &date, &time),
-            "text-text-muted".to_string(),
-            false,
-            String::new(),
-        );
+        let (text, class, key) =
+            dated_status(kind, days_ago, &format_short_date(ts), &format_jst_time(ts));
+        return (text, class.to_string(), false, String::new(), key);
     }
 
     (
@@ -969,7 +1058,49 @@ fn compute_status(
         "text-text-muted".to_string(),
         false,
         String::new(),
+        "never",
     )
+}
+
+/// 取込日からの経過日数による状態。残高は当日だけ緑、明細は7日以内が緑
+fn dated_status(
+    kind: CsvKind,
+    days_ago: i64,
+    date: &str,
+    time: &str,
+) -> (String, &'static str, &'static str) {
+    if days_ago <= 0 {
+        (
+            labels::csv_manage_status_updated_today(time),
+            "text-positive-vivid",
+            "fresh",
+        )
+    } else if kind.is_fresh(days_ago) {
+        (
+            labels::csv_manage_status_updated_days_ago(days_ago, date, time),
+            "text-positive-vivid",
+            "fresh",
+        )
+    } else {
+        (
+            labels::csv_manage_status_updated_days_ago(days_ago, date, time),
+            "text-warn-ink",
+            "stale",
+        )
+    }
+}
+
+/// 状態の塗り丸の色。未取得・件数未取得は点を出さない
+fn status_dot_class(status_key: &str) -> Option<&'static str> {
+    match status_key {
+        "fresh" => Some("inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-positive-vivid"),
+        "stale" => Some("inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-warn-ink"),
+        "failed" => Some("inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-negative-vivid"),
+        "fetching" | "importing" | "confirming" => {
+            Some("inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-accent-vivid")
+        }
+        _ => None,
+    }
 }
 
 /// 種類ごとのテーブル
