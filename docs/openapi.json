@@ -455,6 +455,35 @@
         ]
       }
     },
+    "/api/v1/csv-kinds/stats": {
+      "get": {
+        "tags": [
+          "CSV管理"
+        ],
+        "summary": "GET /api/v1/csv-kinds/stats - CSV管理画面用の種類ごと統計を取得",
+        "operationId": "csv_kind_stats",
+        "responses": {
+          "200": {
+            "description": "CSV種類ごとの件数と最終取込日時",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvKindStatsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ログインが必要です"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/dividend-import-validations": {
       "post": {
         "tags": [
@@ -2256,6 +2285,52 @@
           "total_purchase_amount": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "CsvKindStat": {
+        "type": "object",
+        "description": "CSV種類ごとの統計情報",
+        "required": [
+          "kind",
+          "label",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "保存済み件数"
+          },
+          "kind": {
+            "type": "string",
+            "description": "種類識別子 (assetbalance, fundbalance, dividend, domesticstock, mutualfund)"
+          },
+          "label": {
+            "type": "string",
+            "description": "表示名"
+          },
+          "latest_imported_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "最終取込日時 (ISO 8601, UTC)"
+          }
+        }
+      },
+      "CsvKindStatsResponse": {
+        "type": "object",
+        "description": "CSV種類統計のレスポンス",
+        "required": [
+          "kinds"
+        ],
+        "properties": {
+          "kinds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CsvKindStat"
+            }
           }
         }
       },

@@ -266,8 +266,7 @@ test('CSV プレビューで行エラーが返ったとき warning Alert に一�
   );
 
   // warning Alert に行エラー一覧が表示されることを確認
-  const previewRegion = page.locator('[role="status"][aria-live="polite"]').first();
-  await expect(previewRegion).toContainText('2件エラー', { timeout: 10000 });
-  await expect(previewRegion).toContainText('2行目');
-  await expect(previewRegion).toContainText('3行目');
+  await expect(page.getByText('2件エラー').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('2行目').first()).toBeVisible();
+  await expect(page.getByText('3行目').first()).toBeVisible();
 });

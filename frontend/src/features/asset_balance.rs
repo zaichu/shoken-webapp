@@ -25,6 +25,7 @@ pub(crate) use model::{
     normalize_display_name, summary_valuation,
 };
 pub(crate) use portfolio::{SortKey, SortOrder};
+pub(crate) use store::csv::AssetBalanceCsvStore;
 pub(crate) use store::{
     LoadedAssetBalances, LoadedFundBalances, fetch_asset_balances, fetch_fund_balances,
 };
@@ -38,7 +39,5 @@ pub(crate) use view::{
 pub(crate) use csv::AssetBalanceCsvRow;
 #[cfg(test)]
 pub(crate) use lookup::AssetBalanceLookupStore;
-#[cfg(test)]
-pub(crate) use store::csv::AssetBalanceCsvStore;
 #[cfg(test)]
 pub(crate) use store::{BalanceSlot, DataOps, FundSlot};

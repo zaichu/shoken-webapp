@@ -1,4 +1,11 @@
 use crate::api::dto::CsvUploadResponse;
+use crate::features::asset_balance::{
+    AssetBalanceCsvSource, AssetBalanceCsvStore, AssetKind, FundCsvPreview, StockCsvPreview,
+};
+use crate::features::csv_page::CsvKind;
+use crate::features::csv_sync::{CsvSyncStore, KindStatus};
+use crate::features::receipts::{ReceiptCsvSource, ReceiptsCsvPreview, ReceiptsStore, ReceiptsTab};
+use crate::session::use_session;
 use crate::support::csv_flow::{CsvTabMeta, CsvUploadResponseExt};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
@@ -6,8 +13,11 @@ use crate::ui::csv_preview::{
     CsvPreviewNotice, CsvRowErrorList, preview_notice_text, shared_message,
     should_show_preview_notice,
 };
+use crate::ui::format::{days_since_jst_date, format_jst_time, format_short_date};
+use crate::ui::labels;
 use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
 use leptos::ev::DragEvent;
+use leptos::portal::Portal;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -22,9 +32,8 @@ pub(crate) fn save_disabled_by_preview(meta: &CsvTabMeta, errors_block_save: boo
                 .is_some_and(|preview| !preview.errors.is_empty()))
 }
 
-/// CSV 管理・削除ページが要求するデータソース。
-/// 取引明細(種別付き)と資産残高が同じページ構成を共有するため、
-/// 状態取得と操作をトレイトで受け取る。状態は行データを含まない CsvTabMeta
+/// CSV の取り込み操作に必要なデータソース。取引明細(種別付き)と資産残高で同じ操作バーを
+/// 共有するため、状態取得と操作をトレイトで受け取る。状態は行データを含まない CsvTabMeta
 pub trait CsvSource: Copy + Send + Sync + 'static {
     fn input_id(&self) -> &'static str;
     /// 検証結果の通知で使う方式込みの動詞("追加で保存" / "全件置換で保存")
@@ -52,7 +61,7 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     }
     /// 操作バーに出す、想定するCSV形式の案内
     fn csv_format_hint(&self) -> &'static str;
-    /// 保存済み全件数。削除ページで対象件数を示すために使う
+    /// 保存済み全件数。削除確認で対象件数を示すために使う
     fn db_count(&self) -> usize;
     /// 保存済み全件数が確定したか(一覧が未取得・取得失敗なら false で削除を止める)
     fn delete_count_ready(&self) -> bool;
@@ -75,28 +84,511 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     fn confirm_delete_all(&self);
 }
 
-/// CSV の選択→検証→保存→全件削除までを1区画に置く管理画面の本文。
-/// ファイル選択と保存は CsvActionBar(呼び出し側が PageFrame の操作帯に置く)、
-/// 全件削除は保存済みデータのカードから確認モーダルで行う
+/// 行ごとの CsvSource。種類が動的に決まるため、どちらかの実装を持って操作を委譲する
+#[derive(Clone, Copy)]
+enum RowSource {
+    Asset(AssetBalanceCsvSource),
+    Receipt(ReceiptCsvSource),
+}
+
+impl RowSource {
+    fn new(kind: CsvKind, asset_csv: AssetBalanceCsvStore, receipts_store: ReceiptsStore) -> Self {
+        match kind {
+            CsvKind::AssetStock => Self::Asset(AssetBalanceCsvSource {
+                store: asset_csv,
+                kind: AssetKind::Stock,
+            }),
+            CsvKind::AssetFund => Self::Asset(AssetBalanceCsvSource {
+                store: asset_csv,
+                kind: AssetKind::Fund,
+            }),
+            _ => Self::Receipt(ReceiptCsvSource {
+                store: receipts_store,
+                tab: kind.receipt_tab().unwrap_or(ReceiptsTab::Dividend),
+            }),
+        }
+    }
+
+    fn db_count(&self) -> usize {
+        match self {
+            Self::Asset(source) => source.db_count(),
+            Self::Receipt(source) => source.db_count(),
+        }
+    }
+
+    fn delete_count_ready(&self) -> bool {
+        match self {
+            Self::Asset(source) => source.delete_count_ready(),
+            Self::Receipt(source) => source.delete_count_ready(),
+        }
+    }
+
+    fn delete_count_error(&self) -> Option<String> {
+        match self {
+            Self::Asset(source) => source.delete_count_error(),
+            Self::Receipt(source) => source.delete_count_error(),
+        }
+    }
+
+    fn date_range(&self) -> Option<(String, String)> {
+        match self {
+            Self::Asset(source) => source.date_range(),
+            Self::Receipt(source) => source.date_range(),
+        }
+    }
+
+    fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
+        match self {
+            Self::Asset(source) => source.delete_disabled(meta),
+            Self::Receipt(source) => source.delete_disabled(meta),
+        }
+    }
+
+    fn refresh_for_delete(&self) {
+        match self {
+            Self::Asset(source) => source.refresh_for_delete(),
+            Self::Receipt(source) => source.refresh_for_delete(),
+        }
+    }
+
+    fn open_delete_confirm(&self) {
+        match self {
+            Self::Asset(source) => source.open_delete_confirm(),
+            Self::Receipt(source) => source.open_delete_confirm(),
+        }
+    }
+
+    fn confirm_delete_all(&self) {
+        match self {
+            Self::Asset(source) => source.confirm_delete_all(),
+            Self::Receipt(source) => source.confirm_delete_all(),
+        }
+    }
+}
+
+/// 種類ごとの行データ。統計が未取得なら count は None
+#[derive(Clone, Debug, PartialEq)]
+pub struct CsvKindRowData {
+    pub kind: CsvKind,
+    pub count: Option<i64>,
+    pub latest_imported_at: Option<String>,
+    /// csv_syncの状態
+    pub sync_status: Option<KindStatus>,
+}
+
+impl CsvKindRowData {
+    pub fn saved_count(&self) -> usize {
+        self.count.unwrap_or(0).max(0) as usize
+    }
+}
+
+/// CSV 管理画面の取得カード
 #[component]
-pub fn CsvManageBody<S: CsvSource>(
-    source: S,
-    /// 「対象」欄・削除モーダルに出す名前(配当金・資産管理(国内株式) など)
-    #[prop(into)]
-    subject: String,
-    /// 「一覧に戻る」「一覧で確認する」のリンク先
-    list_href: &'static str,
-    /// 検証済みプレビュー行の描画。対象ごとの一覧部品を呼び出し側で組む
-    preview: AnyView,
-    /// 削除ボタンの文言。種類が分かる名前を渡したいときだけ指定する
-    #[prop(optional, into)]
-    delete_button_label: Option<String>,
+pub fn CsvManageFetchCard(
+    running: ReadSignal<bool>,
+    fetch_result: ReadSignal<Option<String>>,
+    last_fetched: ReadSignal<Option<String>>,
+    on_fetch: Callback<web_sys::MouseEvent>,
 ) -> impl IntoView {
-    let previewing = Memo::new(move |_| source.csv_meta().previewing);
-    let meta_error = Memo::new(move |_| source.csv_meta().error);
-    let save_result = Memo::new(move |_| source.csv_meta().import_result);
-    let preview_notice = Memo::new(move |_| {
-        let meta = source.csv_meta();
+    let session = use_session();
+    view! {
+        <section class="rounded-lg border border-border bg-surface-sunken p-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h2 class="text-sm font-bold text-text">{labels::CSV_MANAGE_FETCH_TITLE}</h2>
+                    <p class="mt-0.5 text-xs text-text-soft">{labels::CSV_MANAGE_FETCH_HINT}</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full sm:w-auto">
+                    {move || {
+                        session.user.get().is_some().then(|| {
+                            view! {
+                        <Button
+                            variant=ButtonVariant::Primary(ButtonSize::Md)
+                            testid="csv-fetch-button"
+                            disabled=move || running.get()
+                            on_click=move |ev| on_fetch.run(ev)
+                            class="w-full sm:w-auto sm:min-w-44"
+                        >
+                            {move || {
+                                if running.get() {
+                                    labels::CSV_MANAGE_FETCH_RUNNING
+                                } else {
+                                    labels::CSV_MANAGE_FETCH_BUTTON
+                                }
+                            }}
+                        </Button>
+                            }
+                        })
+                    }}
+                    <div class="flex-1 min-w-0">
+                        {move || {
+                            fetch_result.get().map(|msg| {
+                                view! {
+                                    <p class="text-sm text-text" role="status" aria-live="polite">
+                                        {msg}
+                                    </p>
+                                }
+                            })
+                        }}
+                        {move || {
+                            last_fetched.get().and_then(|lf| {
+                                fetch_result.get().is_none().then_some(lf)
+                            }).map(|lf| {
+                                view! {
+                                    <p class="text-sm text-text-muted" role="status" aria-live="polite">
+                                        {lf}
+                                    </p>
+                                }
+                            })
+                        }}
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+}
+
+/// 表側の「開いている種類」を、1つの種類の開閉フラグとして読み書きする。
+/// 件数・状態の更新で行が作り直されても、開閉の状態が残る
+#[derive(Clone, Copy)]
+struct KindFlag {
+    slot: RwSignal<Option<CsvKind>>,
+    kind: CsvKind,
+}
+
+impl KindFlag {
+    fn get(self) -> bool {
+        self.slot.get() == Some(self.kind)
+    }
+
+    fn set(self, open: bool) {
+        if open {
+            self.slot.set(Some(self.kind));
+        } else if self.slot.get_untracked() == Some(self.kind) {
+            self.slot.set(None);
+        }
+    }
+
+    fn toggle(self) {
+        self.set(self.slot.get_untracked() != Some(self.kind));
+    }
+}
+
+/// 種類ごとのテーブル行。⋯ のメニューから再取得・取り込み・削除を選ぶ
+#[component]
+pub fn CsvKindRow(
+    row_data: CsvKindRowData,
+    asset_csv: AssetBalanceCsvStore,
+    receipts_store: ReceiptsStore,
+    csv_sync: CsvSyncStore,
+    open_import: RwSignal<Option<CsvKind>>,
+    menu_kind: RwSignal<Option<CsvKind>>,
+    delete_kind: RwSignal<Option<CsvKind>>,
+    on_stats_changed: Callback<()>,
+) -> impl IntoView {
+    let kind = row_data.kind;
+    let count = row_data.count;
+    let saved_count = row_data.saved_count();
+    let count_ready = count.is_some();
+    let latest_imported_at = row_data.latest_imported_at;
+    let sync_status = row_data.sync_status;
+
+    let (status_text, status_class, has_error_detail, error_detail) =
+        compute_status(&sync_status, &latest_imported_at, count_ready);
+
+    // 削除の対象件数と失敗理由は一覧ストア（保存済みデータ）から取る
+    let source = RowSource::new(kind, asset_csv, receipts_store);
+    let meta = Memo::new(move |_| match kind {
+        CsvKind::AssetStock => asset_csv.csv_meta(),
+        CsvKind::AssetFund => asset_csv.fund_csv_meta(),
+        _ => kind
+            .receipt_tab()
+            .map(|tab| receipts_store.csv_meta(tab))
+            .unwrap_or_default(),
+    });
+    let deleting = Memo::new(move |_| meta.get().deleting);
+    let delete_count = Memo::new(move |_| source.db_count());
+    let delete_count_ready = Memo::new(move |_| source.delete_count_ready());
+    let delete_count_error = Memo::new(move |_| source.delete_count_error());
+    let date_range = Memo::new(move |_| source.date_range());
+    let delete_disabled = Memo::new(move |_| source.delete_disabled(&meta.get()));
+
+    let menu_open = KindFlag {
+        slot: menu_kind,
+        kind,
+    };
+    let show_delete_confirm = KindFlag {
+        slot: delete_kind,
+        kind,
+    };
+    let delete_error = RwSignal::new(None::<String>);
+
+    // 削除は確認表示中だけ開始できるため、モーダルを開く時点でフラグを立てる
+    let open_delete = move |_| {
+        menu_open.set(false);
+        delete_error.set(None);
+        // 開き直すたびに件数を取り直す
+        source.refresh_for_delete();
+        source.open_delete_confirm();
+        show_delete_confirm.set(true);
+    };
+
+    let confirm_delete = move || {
+        delete_error.set(None);
+        source.open_delete_confirm();
+        source.confirm_delete_all();
+    };
+
+    let cancel_delete = move || {
+        if !deleting.get_untracked() {
+            show_delete_confirm.set(false);
+            delete_error.set(None);
+        }
+    };
+
+    // 削除が終わったら成功時だけ閉じ、失敗理由はモーダルに残す。件数はどちらでも取り直す
+    let was_deleting = RwSignal::new(false);
+    Effect::new(move |_| {
+        let deleting_now = meta.get().deleting;
+        if deleting_now {
+            was_deleting.set(true);
+            return;
+        }
+        if !was_deleting.get_untracked() || !show_delete_confirm.get() {
+            return;
+        }
+        was_deleting.set(false);
+        on_stats_changed.run(());
+        match meta.get().error {
+            Some(message) => delete_error.set(Some(message)),
+            None => {
+                show_delete_confirm.set(false);
+                delete_error.set(None);
+            }
+        }
+    });
+
+    let importing = Memo::new(move |_| open_import.get() == Some(kind));
+
+    let on_refetch = move |_| {
+        menu_open.set(false);
+        csv_sync.start_kind(kind.sync_kind());
+    };
+
+    let on_file_import = move |_| {
+        menu_open.set(false);
+        open_import.set(Some(kind));
+    };
+
+    view! {
+        <tr class="border-t border-border-subtle" data-kind=kind.kind_param()>
+            <td class="px-4 py-3 whitespace-nowrap">
+                <span class="text-text font-medium">{kind.label()}</span>
+            </td>
+            <td
+                class="px-4 py-3 whitespace-nowrap text-right text-text-muted"
+                data-testid="saved-count"
+            >
+                {match count {
+                    Some(count) => labels::count(count.max(0) as usize),
+                    None => "—".to_string(),
+                }}
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">
+                <div class="flex items-center gap-2">
+                    <span class=status_class>{status_text}</span>
+                    {has_error_detail.then(|| {
+                        view! {
+                            <button
+                                type="button"
+                                class="text-xs underline text-text-muted hover:text-text"
+                                data-testid="status-detail"
+                                on:click=move |_| {
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.alert_with_message(&error_detail);
+                                    }
+                                }
+                            >
+                                {labels::CSV_MANAGE_FAILED_DETAIL_LABEL}
+                            </button>
+                        }
+                    })}
+                </div>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-right">
+                <div class="relative inline-block">
+                    <Button
+                        variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-sunken text-text-muted"
+                        aria_label="メニュー"
+                        aria_expanded=move || menu_open.get()
+                        on_click=move |_| menu_open.toggle()
+                    >
+                        <span class="text-lg font-mono">"⋯"</span>
+                    </Button>
+                    {move || menu_open.get().then(|| {
+                        view! {
+                            <div class="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface p-1 shadow-lg">
+                                <button
+                                    type="button"
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-deep hover:bg-surface-raised rounded text-left"
+                                    on:click=on_refetch
+                                >
+                                    <svg class="shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                    {labels::CSV_MANAGE_MENU_REFETCH}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-deep hover:bg-surface-raised rounded text-left"
+                                    on:click=on_file_import
+                                >
+                                    <svg class="shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12v6m0-6l-2.5 2.5M12 12l2.5 2.5"/></svg>
+                                    {labels::CSV_MANAGE_MENU_FILE_IMPORT}
+                                </button>
+                                <hr class="border-border my-1" />
+                                <button
+                                    type="button"
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-negative hover:bg-negative/10 rounded text-left disabled:opacity-50 disabled:hover:bg-transparent"
+                                    on:click=open_delete
+                                    disabled=move || {
+                                        !count_ready || saved_count == 0 || delete_disabled.get()
+                                    }
+                                >
+                                    <svg class="shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    {labels::CSV_MANAGE_MENU_DELETE}
+                                </button>
+                            </div>
+                        }
+                    })}
+                </div>
+            </td>
+        </tr>
+        {move || importing.get().then(|| {
+            view! {
+                <tr class="border-t border-border-subtle" data-testid="csv-import-row">
+                    <td colspan="4" class="px-4 py-3">
+                        <CsvImportPanel
+                            kind=kind
+                            asset_csv=asset_csv
+                            receipts_store=receipts_store
+                            on_saved=on_stats_changed
+                            on_close=Callback::new(move |_| open_import.set(None))
+                        />
+                    </td>
+                </tr>
+            }
+        })}
+        {move || show_delete_confirm.get().then(|| {
+            let count = delete_count.get();
+            let range = date_range.get().map(|(min, max)| format!("{min} 〜 {max}"));
+            view! {
+                <Portal>
+                <ConfirmDeleteModal
+                    title=labels::csv_manage_delete_confirm_title(kind.delete_subject())
+                    description=labels::csv_manage_delete_confirm_description(
+                        kind.delete_subject(),
+                        range.as_deref(),
+                        count,
+                    )
+                    item_count=count
+                    confirm_label=labels::csv_manage_delete_confirm_button(count)
+                    loading=deleting
+                    confirm_ready=delete_count_ready
+                    error=Memo::new(move |_| {
+                        delete_error.get().or_else(|| delete_count_error.get())
+                    })
+                    on_confirm=confirm_delete
+                    on_cancel=cancel_delete
+                />
+                </Portal>
+            }
+        })}
+    }
+}
+
+/// 種類ごとの取り込み欄。既存のファイル選択→プレビュー→保存をそのまま使う
+#[component]
+fn CsvImportPanel(
+    kind: CsvKind,
+    asset_csv: AssetBalanceCsvStore,
+    receipts_store: ReceiptsStore,
+    on_saved: Callback<()>,
+    on_close: Callback<()>,
+) -> impl IntoView {
+    let close = move |_| on_close.run(());
+    view! {
+        <div class="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-sm font-bold text-text">
+                    {kind.label()} " へファイルから取り込み"
+                </p>
+                <Button variant=ButtonVariant::Secondary(ButtonSize::Xs) on_click=close>
+                    "閉じる"
+                </Button>
+            </div>
+            {match kind {
+                CsvKind::AssetStock => view! {
+                    <CsvImportBody
+                        source=AssetBalanceCsvSource { store: asset_csv, kind: AssetKind::Stock }
+                        preview=view! { <StockCsvPreview store=asset_csv /> }.into_any()
+                        list_href=kind.list_href()
+                        on_saved=on_saved
+                    />
+                }
+                    .into_any(),
+                CsvKind::AssetFund => view! {
+                    <CsvImportBody
+                        source=AssetBalanceCsvSource { store: asset_csv, kind: AssetKind::Fund }
+                        preview=view! { <FundCsvPreview store=asset_csv /> }.into_any()
+                        list_href=kind.list_href()
+                        on_saved=on_saved
+                    />
+                }
+                    .into_any(),
+                _ => {
+                    let tab = kind.receipt_tab().unwrap_or(ReceiptsTab::Dividend);
+                    view! {
+                        <CsvImportBody
+                            source=ReceiptCsvSource { store: receipts_store, tab }
+                            preview=view! { <ReceiptsCsvPreview store=receipts_store tab=tab /> }
+                                .into_any()
+                            list_href=kind.list_href()
+                            on_saved=on_saved
+                        />
+                    }
+                        .into_any()
+                }
+            }}
+        </div>
+    }
+}
+
+/// 検証が終わった直後のフォーカス先。保存できるなら保存ボタン(Enter で保存)、
+/// そうでなければ選び直せるファイル入力へ戻す(失敗時にフォーカスが迷子にならないように)
+fn focus_element(selector: &'static str) {
+    leptos::task::spawn_local(async move {
+        gloo_timers::future::TimeoutFuture::new(0).await;
+        let element = web_sys::window()
+            .and_then(|window| window.document())
+            .and_then(|document| document.query_selector(selector).ok())
+            .flatten();
+        if let Some(element) = element {
+            let _ = element.unchecked_into::<web_sys::HtmlElement>().focus();
+        }
+    });
+}
+
+/// 取り込み枠の本文。操作バー・検証の通知・プレビュー・保存結果を並べる
+#[component]
+fn CsvImportBody<S: CsvSource>(
+    source: S,
+    preview: AnyView,
+    list_href: &'static str,
+    on_saved: Callback<()>,
+) -> impl IntoView {
+    let meta = Memo::new(move |_| source.csv_meta());
+    let notice = Memo::new(move |_| {
+        let meta = meta.get();
         if should_show_preview_notice(
             source.is_authenticated(),
             meta.file_name.is_some(),
@@ -104,109 +596,20 @@ pub fn CsvManageBody<S: CsvSource>(
         ) {
             meta.preview
                 .map(|preview| (preview.valid_rows, preview.errors))
-                // 問題のないプレビューは操作バーに案内を出すため、通知は出すべきときだけ出す
                 .filter(|(valid_rows, errors)| *valid_rows == 0 || !errors.is_empty())
         } else {
             None
         }
     });
-
-    // 選んだ直後のフォーカス先: 保存できるなら保存ボタン(Enter で保存)、
-    // そうでなければ選び直せるファイル入力へ戻す(失敗時にフォーカスが迷子にならないように)
-    fn focus_element(selector: &'static str) {
-        leptos::task::spawn_local(async move {
-            gloo_timers::future::TimeoutFuture::new(0).await;
-            let element = web_sys::window()
-                .and_then(|window| window.document())
-                .and_then(|document| document.query_selector(selector).ok())
-                .flatten();
-            if let Some(element) = element {
-                let _ = element.unchecked_into::<web_sys::HtmlElement>().focus();
-            }
-        });
-    }
-
-    let db_count = Memo::new(move |_| source.db_count());
-    let delete_count_ready = Memo::new(move |_| source.delete_count_ready());
-    let delete_count_error = Memo::new(move |_| source.delete_count_error());
-    let date_range = Memo::new(move |_| source.date_range());
-    // 削除確認モーダルの表示状態
-    let show_delete_confirm = RwSignal::new(false);
-    let deleting = Memo::new(move |_| source.csv_meta().deleting);
-    let delete_error = RwSignal::new(None::<String>);
-    // モーダル内のエラー表示。削除の失敗を最優先にし、削除していない間は件数取得の失敗も出す
-    let modal_error = Memo::new(move |_| {
-        if deleting.get() {
-            delete_error.get()
-        } else {
-            delete_error.get().or_else(|| delete_count_error.get())
-        }
-    });
-    // 開いた直後の件数は取り直しが終わるまで確定しない
-    let delete_confirm_ready = Memo::new(move |_| deleting.get() || delete_count_ready.get());
-
-    let delete_trigger_ref = NodeRef::<leptos::html::Button>::new();
-    let restore_trigger_focus = move || {
-        leptos::task::spawn_local(async move {
-            gloo_timers::future::TimeoutFuture::new(0).await;
-            if let Some(button) = delete_trigger_ref.get() {
-                let _ = button.focus();
-            }
-        });
-    };
-
-    let open_delete_confirm = move |_| {
-        // 開き直すたびに前回の失敗表示を消し、他タブ等での変化に備えて件数を取り直す
-        delete_error.set(None);
-        source.refresh_for_delete();
-        source.open_delete_confirm();
-        show_delete_confirm.set(true);
-    };
-
-    // S: Copy なのでクロージャに移動できる
-    let confirm_source = source;
-    let on_confirm_delete = move || {
-        // 削除の開始はストアの確認フラグが立っている間だけ許されるため、毎回立ててから送る
-        confirm_source.open_delete_confirm();
-        delete_error.set(None);
-        confirm_source.confirm_delete_all();
-    };
-
-    let on_cancel_delete = move || {
-        if !deleting.get() {
-            show_delete_confirm.set(false);
-            delete_error.set(None);
-            restore_trigger_focus();
-        }
-    };
-
-    // 削除が終わったら失敗だけをモーダルに残す(成功ときだけ閉じる)
-    let was_deleting = RwSignal::new(false);
-    Effect::new(move |_| {
-        let deleting_now = deleting.get();
-        if deleting_now {
-            was_deleting.set(true);
-            return;
-        }
-        if !was_deleting.get() || !show_delete_confirm.get() {
-            return;
-        }
-        was_deleting.set(false);
-        if let Some(err) = meta_error.get() {
-            delete_error.set(Some(err));
-        } else {
-            show_delete_confirm.set(false);
-            delete_error.set(None);
-        }
-    });
+    let save_result = Memo::new(move |_| meta.get().import_result);
+    let meta_error = Memo::new(move |_| meta.get().error);
 
     let prev_previewing = RwSignal::new(false);
     Effect::new(move |_| {
-        let previewing = previewing.get();
+        let previewing = meta.get().previewing;
         let was = prev_previewing.get_untracked();
         prev_previewing.set(previewing);
-        // モーダルが出ている間にフォーカスを動かすと閉じ込めを壊す
-        if !was || previewing || show_delete_confirm.get() {
+        if !was || previewing {
             return;
         }
         let meta = source.csv_meta();
@@ -217,28 +620,31 @@ pub fn CsvManageBody<S: CsvSource>(
         }
     });
 
-    let subject_for_card = subject.clone();
-    let subject_for_modal = subject.clone();
+    // 保存が終わったら保存済み件数を取り直す
+    let saved_before = RwSignal::new(false);
+    Effect::new(move |_| {
+        let saved_now = meta.get().import_result.is_some();
+        if saved_now && !saved_before.get_untracked() {
+            on_saved.run(());
+        }
+        saved_before.set(saved_now);
+    });
 
     view! {
-        <div class="flex flex-col gap-4">
-            <a class="page-back-link" href=list_href>
-                "一覧に戻る"
-            </a>
-            <p class="text-sm text-text-soft">
-                "対象: " <strong class="text-text">{subject}</strong>
-                <span class="mx-2" aria-hidden="true">
-                    "/"
-                </span>
-                "保存方式: " <strong class="text-text">{source.save_mode_label()}</strong>
+        <div class="flex flex-col gap-2">
+            <p class="text-xs font-medium text-text-muted">
+                "保存方式: " {source.save_mode_label()}
             </p>
-                {move || {
-                    previewing.get().then(|| {
-                        view! { <LoadingStrip text="CSVファイルを解析しています...".to_string() /> }
-                    })
-                }}
-                {move || {
-                    meta_error.get().map(|message| {
+            {move || {
+                meta.get()
+                    .previewing
+                    .then(|| view! { <LoadingStrip text="CSVファイルを解析しています...".to_string() /> })
+            }}
+            <CsvActionBar source=source />
+            {move || {
+                meta_error
+                    .get()
+                    .map(|message| {
                         view! {
                             <Alert variant=AlertVariant::Danger>
                                 <strong>"エラー:"</strong>
@@ -247,9 +653,11 @@ pub fn CsvManageBody<S: CsvSource>(
                             </Alert>
                         }
                     })
-                }}
-                {move || {
-                    preview_notice.get().map(|(valid_rows, errors)| {
+            }}
+            {move || {
+                notice
+                    .get()
+                    .map(|(valid_rows, errors)| {
                         view! {
                             <CsvPreviewNotice
                                 valid_rows=valid_rows
@@ -259,101 +667,16 @@ pub fn CsvManageBody<S: CsvSource>(
                             />
                         }
                     })
-                }}
-                {preview}
-                {move || {
-                    save_result.get().map(|result| {
+            }}
+            {preview}
+            {move || {
+                save_result
+                    .get()
+                    .map(|result| {
                         view! { <CsvSaveResultNotice result=result list_href=list_href /> }
                     })
-                }}
-                <section class="border-t border-border-subtle pt-4">
-                    <div class="bg-surface-sunken rounded-lg border border-border p-4">
-                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div>
-                                <p class="text-xs text-text-soft">"保存済みの" {subject_for_card}</p>
-                                <div class="flex items-baseline gap-2 mt-0.5">
-                                    <span class="text-2xl font-bold text-text" data-testid="saved-count">
-                                        {move || {
-                                            if delete_count_ready.get() {
-                                                format!("{}件", db_count.get())
-                                            } else if delete_count_error.get().is_some() {
-                                                "取得できませんでした".to_string()
-                                            } else {
-                                                "取得中...".to_string()
-                                            }
-                                        }}
-                                    </span>
-                                    {move || {
-                                        date_range.get().map(|(min, max)| {
-                                            view! {
-                                                <span class="text-sm font-medium text-text-muted ml-2">
-                                                    {format!("{} 〜 {}", min, max)}
-                                                </span>
-                                            }
-                                        })
-                                    }}
-                                </div>
-                            </div>
-                            <Button
-                                variant=ButtonVariant::Secondary(ButtonSize::Md)
-                                class="text-negative border-negative border"
-                                node_ref=delete_trigger_ref
-                                disabled=move || {
-                                    !delete_count_ready.get()
-                                        || db_count.get() == 0
-                                        || source.csv_meta().busy()
-                                        || source.delete_disabled(&source.csv_meta())
-                                }
-                                on_click=open_delete_confirm
-                            >
-                                {delete_button_label.clone().unwrap_or_else(|| "すべて削除…".to_string())}
-                            </Button>
-                        </div>
-                        {move || {
-                            delete_count_error.get().map(|message| {
-                                view! {
-                                    <div class="mt-3">
-                                        <Alert variant=AlertVariant::Danger>
-                                            <strong>"エラー:"</strong>
-                                            " "
-                                            {message}
-                                            <button
-                                                class="ml-2 text-xs underline"
-                                                on:click=move |_| source.refresh_for_delete()
-                                            >
-                                                "再読み込み"
-                                            </button>
-                                        </Alert>
-                                    </div>
-                                }
-                            })
-                        }}
-                    </div>
-                </section>
-            </div>
-
-            {move || {
-                show_delete_confirm.get().then(|| {
-                    let count = db_count.get();
-                    let range = date_range.get();
-                    let range_text = range.map(|(min, max)| format!("{} 〜 {} の", min, max)).unwrap_or_default();
-                    let description = format!("{}データが、一覧と集計から消えます。", range_text);
-                    let confirm_label = format!("{}件を削除する", count);
-                    view! {
-                        <ConfirmDeleteModal
-                            title=format!("{}を削除しますか?", subject_for_modal)
-                            description=description
-                            item_count=count
-                            confirm_label=confirm_label
-                            loading=deleting
-                            confirm_ready=delete_confirm_ready
-                            error=modal_error
-                            on_confirm=on_confirm_delete
-                            on_cancel=on_cancel_delete
-                        />
-                    }
-                })
             }}
+        </div>
     }
 }
 
@@ -566,6 +889,158 @@ fn CsvFileIcon() -> impl IntoView {
     }
 }
 
+/// 状態テキストとクラスを計算する。件数が未取得の間は状態を出さない
+fn compute_status(
+    sync_status: &Option<KindStatus>,
+    latest_imported_at: &Option<String>,
+    count_ready: bool,
+) -> (String, String, bool, String) {
+    // 取得中・取り込み中の状態を最優先
+    if let Some(status) = sync_status {
+        match status {
+            KindStatus::Fetching => {
+                return (
+                    "取得中...".to_string(),
+                    "text-accent-vivid".to_string(),
+                    false,
+                    String::new(),
+                );
+            }
+            KindStatus::Importing => {
+                return (
+                    "取り込み中...".to_string(),
+                    "text-accent-vivid".to_string(),
+                    false,
+                    String::new(),
+                );
+            }
+            KindStatus::Confirming => {
+                return (
+                    "確認待ち".to_string(),
+                    "text-accent-vivid".to_string(),
+                    false,
+                    String::new(),
+                );
+            }
+            KindStatus::Failed { reason } => {
+                return (
+                    labels::CSV_MANAGE_STATUS_FAILED.to_string(),
+                    "text-negative-vivid".to_string(),
+                    true,
+                    reason.clone(),
+                );
+            }
+            KindStatus::Skipped { reason } => {
+                return (
+                    labels::csv_manage_status_skipped(reason.label()),
+                    "text-text-muted".to_string(),
+                    false,
+                    String::new(),
+                );
+            }
+            // 成功時は最終取込日時で判断する
+            KindStatus::Imported { .. } | KindStatus::Done { .. } | KindStatus::Waiting => {}
+        }
+    }
+
+    if !count_ready {
+        return (
+            "—".to_string(),
+            "text-text-muted".to_string(),
+            false,
+            String::new(),
+        );
+    }
+
+    // 最終取込日時から状態を判定する。時刻は日本時間で出す
+    if let Some(ts) = latest_imported_at
+        && let Some(days_ago) = days_since_jst_date(ts)
+    {
+        let date = format_short_date(ts);
+        let time = format_jst_time(ts);
+        if days_ago <= 0 {
+            return (
+                labels::csv_manage_status_updated_today(&time),
+                "text-positive-vivid".to_string(),
+                false,
+                String::new(),
+            );
+        }
+        return (
+            labels::csv_manage_status_updated_days_ago(days_ago, &date, &time),
+            "text-text-muted".to_string(),
+            false,
+            String::new(),
+        );
+    }
+
+    (
+        labels::CSV_MANAGE_STATUS_NEVER.to_string(),
+        "text-text-muted".to_string(),
+        false,
+        String::new(),
+    )
+}
+
+/// 種類ごとのテーブル
+#[component]
+pub fn CsvKindTable(
+    rows: Memo<Vec<CsvKindRowData>>,
+    asset_csv: AssetBalanceCsvStore,
+    receipts_store: ReceiptsStore,
+    csv_sync: CsvSyncStore,
+    open_import: RwSignal<Option<CsvKind>>,
+    on_stats_changed: Callback<()>,
+) -> impl IntoView {
+    // 件数・状態が更新されると行が作り直されるため、開いているメニューと削除確認は表で持つ
+    let menu_kind = RwSignal::new(None::<CsvKind>);
+    let delete_kind = RwSignal::new(None::<CsvKind>);
+    view! {
+        <div class="overflow-x-auto sm:overflow-visible">
+            <table class="w-full" role="table">
+                <thead class="bg-surface-sunken border-b border-border">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                            {labels::CSV_MANAGE_COL_KIND}
+                        </th>
+                        <th class="px-4 py-3 text-right text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                            {labels::CSV_MANAGE_COL_COUNT}
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                            {labels::CSV_MANAGE_COL_STATUS}
+                        </th>
+                        <th class="px-4 py-3 text-right text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                            {labels::CSV_MANAGE_COL_MENU}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border-subtle">
+                    {move || {
+                        rows
+                            .get()
+                            .into_iter()
+                            .map(|row| {
+                                view! {
+                                    <CsvKindRow
+                                        row_data=row
+                                        asset_csv=asset_csv
+                                        receipts_store=receipts_store
+                                        csv_sync=csv_sync
+                                        open_import=open_import
+                                        menu_kind=menu_kind
+                                        delete_kind=delete_kind
+                                        on_stats_changed=on_stats_changed
+                                    />
+                                }
+                            })
+                            .collect_view()
+                    }}
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
 // 成功・追加なし・失敗を見出しで分ける(件数の有無だけでは区別しにくいため)
 pub(crate) fn save_result_heading(result: &CsvUploadResponse) -> &'static str {
     match save_result_tone(result) {
@@ -696,10 +1171,7 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, list_href: &'static str) -> im
                         }
                     })}
                     <div class="mt-3">
-                        <LinkButton
-                            variant=ButtonVariant::Primary(ButtonSize::Md)
-                            href=list_href
-                        >
+                        <LinkButton variant=ButtonVariant::Primary(ButtonSize::Md) href=list_href>
                             "一覧で確認する"
                         </LinkButton>
                     </div>

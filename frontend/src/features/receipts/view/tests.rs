@@ -944,46 +944,6 @@ fn receipt_csv_source_format_hint_names_expected_header() {
 }
 
 #[test]
-fn ensure_kind_resets_search_state_like_tab_switch() {
-    use super::csv_page::ensure_kind;
-    use crate::features::receipts::TabState;
-    use crate::features::receipts::filter::ReceiptSearch;
-    use leptos::prelude::*;
-
-    let owner = Owner::new();
-    owner.with(|| {
-        let store = csv_source_store();
-        // 世代リセットの検索クリアを通さず、タブ切替のリセットだけを見る
-        let generation = store.session.generation.get_untracked();
-        store.expanded_epoch.set(Some(generation));
-        // 対象タブを取得済みにして ensure の fetch dispatch を起こさない
-        store.tabs.update(|map| {
-            map.entry((generation, ReceiptsTab::DomesticStock))
-                .or_default()
-                .list = Some(TabState::Ready(ReceiptTabData {
-                rows: vec![],
-                total: Some(0),
-                summary: None,
-                truncated: false,
-            }));
-        });
-        store.search.set(ReceiptSearch {
-            query: "9904".to_string(),
-            ..Default::default()
-        });
-        store.expanded.update(|set| {
-            set.insert("g0".to_string());
-        });
-
-        ensure_kind(store, ReceiptsTab::DomesticStock);
-
-        assert_eq!(store.active_tab.get_untracked(), ReceiptsTab::DomesticStock);
-        assert_eq!(store.search.get_untracked().query, "");
-        assert!(store.expanded.with_untracked(|set| set.is_empty()));
-    });
-}
-
-#[test]
 fn condition_count_covers_structured_filters_only() {
     use super::action_bar::condition_count;
     use crate::features::receipts::filter::{ReceiptSearch, SearchKey};

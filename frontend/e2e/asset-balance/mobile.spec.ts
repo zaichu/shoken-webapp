@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test, json } from '../support/test';
+import { csvRow } from '../support/csv-page';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000010',
@@ -114,8 +115,11 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
   // CSV 管理ページにはヘッダーのリンクから入る
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/csv');
-  await expect(page.getByTestId('csv-file-input')).toBeAttached();
-  await page.getByRole('link', { name: '一覧に戻る' }).click();
+  await expect(csvRow(page, 'assetbalance')).toBeVisible();
+  await page
+    .getByRole('navigation', { name: 'パンくず' })
+    .getByRole('link', { name: '資産管理' })
+    .click();
   await expect(page).toHaveURL('/assetbalance');
   await expect(main).toBeVisible();
 });

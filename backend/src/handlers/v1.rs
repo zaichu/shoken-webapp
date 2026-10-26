@@ -7,6 +7,7 @@ use axum::{
 pub mod asset_balances;
 pub mod auth;
 pub mod csv_import;
+pub mod csv_kind_stats;
 pub mod dividend_per_share;
 pub mod dividends;
 pub mod domestic_stocks;
@@ -84,6 +85,10 @@ pub fn data_routes() -> Router<AppState> {
         .route(
             "/api/v1/fund-balance-import-validations",
             post(fund_balances::validate_import),
+        )
+        .route(
+            "/api/v1/csv-kinds/stats",
+            get(csv_kind_stats::csv_kind_stats),
         )
 }
 

@@ -7,7 +7,7 @@ mod table;
 mod tabs;
 
 pub use action_bar::{ReceiptsMobileBottomSection, ReceiptsSearchBar};
-pub(crate) use csv_page::{ReceiptCsvSource, ReceiptsCsvPreview, ensure_kind};
+pub(crate) use csv_page::{ReceiptCsvSource, ReceiptsCsvPreview};
 pub use main_content::ReceiptsMainContent;
 pub use summary::SummaryStrip;
 pub use table::ReceiptTable;

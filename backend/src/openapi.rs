@@ -4,6 +4,7 @@ use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use crate::{
     errors::{ErrorDetails, ErrorResponse},
     handlers,
+    handlers::v1::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse},
     models::{
         asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest},
         common::{BulkCreateResponse, MessageResponse},
@@ -53,6 +54,7 @@ use shared::domain::FundNavStatus;
         handlers::v1::fund_balances::delete_all,
         handlers::v1::fund_balances::validate_import,
         handlers::v1::fund_balances::import,
+        handlers::v1::csv_kind_stats::csv_kind_stats,
     ),
     components(
         schemas(
@@ -72,6 +74,8 @@ use shared::domain::FundNavStatus;
             CsvUploadResponse,
             CsvPreviewResponse,
             CsvRowError,
+            CsvKindStat,
+            CsvKindStatsResponse,
             DividendPerShareBatchRequest,
             DividendPerShareItem,
             DividendPerShareBatchResponse,
