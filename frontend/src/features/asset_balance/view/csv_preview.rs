@@ -110,9 +110,6 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
     view! {
         <section data-testid="csv-preview">
             <h2 class="text-sm font-bold text-text">"プレビュー"</h2>
-            <p class="mt-1 text-xs text-text-soft">
-                "表は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
-            </p>
             <div class="mt-2">
                 // PC: テーブル表示
                 <div class="hidden lg:block">
@@ -206,9 +203,6 @@ pub fn FundBalanceCsvPreview(
     view! {
         <section data-testid="csv-preview">
             <h2 class="text-sm font-bold text-text">"プレビュー(投資信託)"</h2>
-            <p class="mt-1 text-xs text-text-soft">
-                "表は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
-            </p>
             <div class="mt-2">
                 <div class="hidden lg:block">
                     <div class="csv-preview-scroll max-h-96 overflow-y-auto">

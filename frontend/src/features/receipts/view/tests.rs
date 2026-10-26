@@ -920,30 +920,6 @@ fn receipt_csv_source_save_disabled_requires_preview_rows() {
 }
 
 #[test]
-fn receipt_csv_source_format_hint_names_expected_header() {
-    use super::csv_page::ReceiptCsvSource;
-    use crate::ui::csv_page::CsvSource;
-    use leptos::prelude::*;
-
-    let owner = Owner::new();
-    owner.with(|| {
-        let store = csv_source_store();
-        let hints: Vec<&str> = ReceiptsTab::ALL
-            .iter()
-            .map(|tab| ReceiptCsvSource { store, tab: *tab }.csv_format_hint())
-            .collect();
-        assert!(
-            hints.iter().all(|hint| hint.contains("見出し")),
-            "各タブが想定する列を案内する"
-        );
-        assert!(
-            hints.iter().all(|hint| hint.contains("CSV")),
-            "どのファイルか分かる名前を含む"
-        );
-    });
-}
-
-#[test]
 fn condition_count_covers_structured_filters_only() {
     use super::action_bar::condition_count;
     use crate::features::receipts::filter::{ReceiptSearch, SearchKey};

@@ -38,20 +38,6 @@ impl CsvSource for ReceiptCsvSource {
         self.store.csv_input_disabled(self.tab)
     }
 
-    fn csv_format_hint(&self) -> &'static str {
-        match self.tab {
-            ReceiptsTab::Dividend => {
-                "対応形式: 「配当金・分配金・利金一覧」CSV(見出し行の先頭は「入金日」)"
-            }
-            ReceiptsTab::DomesticStock => {
-                "対応形式: 国内株式の取引履歴CSV(見出し行の先頭は「約定日」)"
-            }
-            ReceiptsTab::MutualFund => {
-                "対応形式: 投資信託の取引履歴CSV(見出し行の先頭は「約定日」)"
-            }
-        }
-    }
-
     fn db_count(&self) -> usize {
         self.store.count(self.tab)
     }
@@ -121,9 +107,6 @@ pub(crate) fn ReceiptsCsvPreview(store: ReceiptsStore, tab: ReceiptsTab) -> impl
         Some(view! {
             <section data-testid="csv-preview">
                 <h2 class="text-sm font-bold text-text">"プレビュー"</h2>
-                <p class="mt-1 text-xs text-text-soft">
-                    "表は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
-                </p>
                 <div class="mt-2">
                     // 全行をそのまま置くと保存ボタンが遠くなるため、枠内スクロールにする
                     <div class="csv-preview-scroll mt-2 max-h-96 overflow-y-auto">

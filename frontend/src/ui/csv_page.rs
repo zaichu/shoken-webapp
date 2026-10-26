@@ -58,8 +58,10 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     fn save_disabled(&self, meta: &CsvTabMeta) -> bool {
         save_disabled_by_preview(meta, self.errors_block_save())
     }
-    /// 操作バーに出す、想定するCSV形式の案内
-    fn csv_format_hint(&self) -> &'static str;
+    /// 操作バーに出す、想定するCSV形式の案内。対応形式を出さない種類は空のままにする
+    fn csv_format_hint(&self) -> &'static str {
+        ""
+    }
     /// 保存済み全件数。削除確認で対象件数を示すために使う
     fn db_count(&self) -> usize;
     /// 保存済み全件数が確定したか(一覧が未取得・取得失敗なら false で削除を止める)
@@ -833,7 +835,11 @@ pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
                                 <p class="text-sm font-bold text-text">
                                     {labels::CSV_IMPORT_PICK_PROMPT}
                                 </p>
-                                <p class="text-xs text-text-muted">{source.csv_format_hint()}</p>
+                                {(!source.csv_format_hint().is_empty()).then(|| {
+                                    view! {
+                                        <p class="text-xs text-text-muted">{source.csv_format_hint()}</p>
+                                    }
+                                })}
                             </div>
                             <span class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md border border-brand bg-brand px-4 text-sm font-bold text-text-inverse shadow-edge-lit hover:bg-brand-deep">
                                 "CSVを選ぶ"
