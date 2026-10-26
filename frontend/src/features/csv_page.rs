@@ -174,8 +174,7 @@ pub fn CsvPage() -> impl IntoView {
         }
     });
 
-    // 取得前の最終取得時刻(統計の最新の取込日時)。統計が変わるたびに再計算し、
-    // 該当する時刻がなければ表示を消す
+    // 取得前の最終取得時刻(統計の最新の取込日時)
     Effect::new(move |_| {
         let latest = stats.get().and_then(|response| {
             response
