@@ -78,7 +78,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     }
                 }
             >
-                <div class="content-gutter">
+                <div class="content-gutter no-print">
                     <SkeletonTabs>{tabs}</SkeletonTabs>
                 </div>
                 <div
