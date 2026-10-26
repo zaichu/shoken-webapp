@@ -504,7 +504,16 @@ test.describe('CSV 最新取得', () => {
     await emitFailureResult(page);
 
     await expect(csvRow(page, 'dividend')).toContainText('取得できず');
-    await expect(csvRow(page, 'dividend').getByTestId('status-detail')).toBeVisible();
+    const detailButton = csvRow(page, 'dividend').getByTestId('status-detail');
+    const detail = csvRow(page, 'dividend').getByTestId('status-detail-content');
+    await expect(detailButton).toBeVisible();
+    await expect(detail).toHaveCount(0);
+
+    await detailButton.click();
+    await expect(detail).toBeVisible();
+
+    await detailButton.click();
+    await expect(detail).toHaveCount(0);
   });
 
   test('行の⋯メニューの再取得はその種類だけを拡張機能へ渡す', async ({ page }) => {
