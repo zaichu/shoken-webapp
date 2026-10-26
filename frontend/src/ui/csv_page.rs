@@ -400,7 +400,7 @@ pub fn CsvKindRow(
                     {has_error_detail.then(|| {
                         view! {
                             <span
-                                class="text-xs text-negative-vivid whitespace-nowrap overflow-x-auto"
+                                class="inline-block max-w-xs min-w-0 text-xs text-negative-vivid whitespace-nowrap overflow-x-auto align-middle"
                                 data-testid="status-detail"
                                 title=error_detail.clone()
                             >
