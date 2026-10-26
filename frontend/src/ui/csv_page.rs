@@ -16,7 +16,6 @@ use crate::ui::csv_preview::{
 use crate::ui::format::{days_since_jst_date, format_jst_time, format_short_date};
 use crate::ui::labels;
 use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
-use leptos::ev::DragEvent;
 use leptos::portal::Portal;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -386,12 +385,15 @@ pub fn CsvKindRow(
     };
 
     view! {
-        <tr class="border-t border-border-subtle" data-kind=kind.kind_param()>
-            <td class="px-4 py-3 whitespace-nowrap">
+        <tr
+            class="border-t border-border-subtle max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto_auto] max-sm:items-center"
+            data-kind=kind.kind_param()
+        >
+            <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-1 max-sm:pb-0">
                 <span class="text-text font-medium">{kind.label()}</span>
             </td>
             <td
-                class="px-4 py-3 whitespace-nowrap text-right text-text-muted"
+                class="px-4 py-3 whitespace-nowrap text-right text-text-muted max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:pr-2"
                 data-testid="saved-count"
             >
                 {match count {
@@ -399,7 +401,7 @@ pub fn CsvKindRow(
                     None => "—".to_string(),
                 }}
             </td>
-            <td class="px-4 py-3 whitespace-nowrap">
+            <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-xs">
                 <div class="flex items-center gap-2">
                     <span class=status_class>{status_text}</span>
                     {has_error_detail.then(|| {
@@ -430,7 +432,7 @@ pub fn CsvKindRow(
                         })
                 }}
             </td>
-            <td class="px-4 py-3 whitespace-nowrap text-right">
+            <td class="px-4 py-3 whitespace-nowrap text-right max-sm:col-start-3 max-sm:row-span-2 max-sm:row-start-1">
                 <div class="relative inline-block">
                     <Button
                         variant=ButtonVariant::Secondary(ButtonSize::Sm)
@@ -695,7 +697,7 @@ fn CsvImportBody<S: CsvSource>(
     }
 }
 
-/// ファイルの選択(ドラッグ&ドロップ含む)から保存までを1つのバーに置く。
+/// ファイルの選択から保存までを1つのバーに置く。
 /// 選ぶ前後でボタンの位置が変わらないため、マウスをほとんど動かさずに済む
 #[component]
 pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
@@ -767,33 +769,18 @@ pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
             input.set_value("");
         }
     };
-    let on_drop = move |event: DragEvent| {
-        event.prevent_default();
-        if disabled.get_untracked() {
-            return;
-        }
-        if let Some(file) = event
-            .data_transfer()
-            .and_then(|transfer| transfer.files())
-            .and_then(|files| files.get(0))
-        {
-            source.select_file(file);
-        }
-    };
     let pick_button_class = "inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface px-4 text-sm font-bold text-text transition-colors hover:border-border-bold hover:bg-surface-sunken focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink";
     let pick_trigger_class = move || {
         if disabled.get() {
-            "flex min-h-20 items-center gap-3 rounded-lg border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors pointer-events-none opacity-65"
+            "flex min-h-20 items-center gap-3 rounded-lg border border-border-strong bg-surface-sunken px-4 py-3 transition-colors pointer-events-none opacity-65"
         } else {
-            "flex min-h-20 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border-strong bg-surface-sunken px-4 py-3 transition-colors hover:border-border-xstrong hover:bg-surface-raised focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink"
+            "flex min-h-20 cursor-pointer items-center gap-3 rounded-lg border border-border-strong bg-surface-sunken px-4 py-3 transition-colors hover:border-border-xstrong hover:bg-surface-raised focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink"
         }
     };
     view! {
         <div
             class="flex gap-2 py-2"
             data-testid="csv-action-bar"
-            on:dragover=move |event: DragEvent| event.prevent_default()
-            on:drop=on_drop
         >
             {move || {
                 if has_file.get() {
@@ -856,7 +843,7 @@ pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
                             <CsvFileIcon />
                             <div class="min-w-0 flex-1">
                                 <p class="text-sm font-bold text-text">
-                                    "CSVをドラッグ、またはボタンで選ぶ"
+                                    {labels::CSV_IMPORT_PICK_PROMPT}
                                 </p>
                                 <p class="text-xs text-text-muted">{source.csv_format_hint()}</p>
                             </div>
@@ -1012,9 +999,9 @@ pub fn CsvKindTable(
     let delete_kind = RwSignal::new(None::<CsvKind>);
     let detail_kind = RwSignal::new(None::<CsvKind>);
     view! {
-        <div class="overflow-x-auto sm:overflow-visible">
+        <div>
             <table class="w-full" role="table">
-                <thead class="bg-surface-sunken border-b border-border">
+                <thead class="bg-surface-sunken border-b border-border max-sm:hidden">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
                             {labels::CSV_MANAGE_COL_KIND}
