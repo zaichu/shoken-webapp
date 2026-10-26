@@ -85,6 +85,15 @@ impl CsvKind {
         }
     }
 
+    /// 残高(資産管理2種)は当日だけが新しく、明細(取引3種)は7日以内が新しい。
+    /// 日数の判定は呼び出し側が JST の暦日差で求めた値を渡す
+    pub fn is_fresh(self, days_ago: i64) -> bool {
+        match self {
+            Self::AssetStock | Self::AssetFund => days_ago <= 0,
+            Self::Dividend | Self::DomesticStock | Self::MutualFund => days_ago <= 7,
+        }
+    }
+
     /// 削除確認に出す種類名
     pub fn delete_subject(self) -> &'static str {
         self.label()
@@ -348,5 +357,23 @@ mod tests {
             row.latest_imported_at.as_deref(),
             Some("2026-10-26T01:02:00Z")
         );
+    }
+
+    #[test]
+    fn freshness_boundary_differs_between_balance_and_receipts() {
+        for kind in [CsvKind::AssetStock, CsvKind::AssetFund] {
+            assert!(kind.is_fresh(0));
+            assert!(!kind.is_fresh(1));
+        }
+        for kind in [
+            CsvKind::Dividend,
+            CsvKind::DomesticStock,
+            CsvKind::MutualFund,
+        ] {
+            assert!(kind.is_fresh(0));
+            assert!(kind.is_fresh(7));
+            assert!(!kind.is_fresh(8));
+            assert!(!kind.is_fresh(40));
+        }
     }
 }

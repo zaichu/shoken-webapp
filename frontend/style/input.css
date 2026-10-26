@@ -322,6 +322,15 @@
     @apply max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto_auto] max-sm:items-center;
   }
 
+  /* 取得に失敗した行は左に赤い線と薄い背景を付ける(表側が data-status=failed の行に付ける) */
+  .csv-kind-row-failed {
+    background-color: var(--color-negative-soft);
+  }
+
+  .csv-kind-row-failed > td:first-child {
+    box-shadow: inset 3px 0 var(--color-negative);
+  }
+
   .skeleton-table-row {
     @apply grid grid-cols-[1fr_6rem_6rem] items-center gap-3 max-sm:grid-cols-[1fr_5rem];
   }
