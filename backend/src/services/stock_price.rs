@@ -76,9 +76,8 @@ struct Quote {
 }
 
 /// chart API のレスポンス文字列から終値・基準日・前日終値を取り出す。
-/// 日中バーを含まない日足（interval=1d）を想定する。配列末尾のバーは現在のセッションの
-/// ライブバーで、翌セッションが始まるまで暫定値や null が入り確定値にならないため、
-/// 末尾バーの日付以降を除いた確定バーのうち null でない終値を持つ最後のバーを採用する
+/// 日中バーを含まない日足（interval=1d）を想定し、max_as_of 以前のバーから
+/// null でない終値を持つ最後のバーを採用する
 pub fn parse_chart_close(body: &str, max_as_of: NaiveDate) -> Result<ClosePrice, ApiError> {
     let response: ChartResponse = serde_json::from_str(body).map_err(UpstreamError::Decode)?;
     if response.chart.error.is_some() {
@@ -102,13 +101,12 @@ pub fn parse_chart_close(body: &str, max_as_of: NaiveDate) -> Result<ClosePrice,
     let bar_date = |ts: i64| {
         DateTime::from_timestamp(ts, 0).map(|t| (t + chrono::Duration::hours(9)).date_naive())
     };
-    // 末尾バーはライブバーなので確定値として採用しない（#1502）
-    let live_date = timestamps.last().and_then(|ts| bar_date(*ts));
+    // 場中の暫定値は max_as_of より後の日付なのでここで弾かれる
     let bars: Vec<(NaiveDate, f64)> = timestamps
         .iter()
         .zip(closes.iter())
         .filter_map(|(ts, close)| Some((bar_date(*ts)?, (*close)?)))
-        .filter(|(as_of, _)| *as_of <= max_as_of && Some(*as_of) < live_date)
+        .filter(|(as_of, _)| *as_of <= max_as_of)
         .collect();
     let (as_of, close) = bars.last().ok_or_else(no_data)?;
     let to_price = |v: f64| Decimal::from_f64_retain(v).map(|d| d.round_dp(2).normalize());
@@ -227,17 +225,16 @@ fn prev_weekday(date: NaiveDate) -> NaiveDate {
     })
 }
 
-/// 最新の終値が確定している基準日。現在のセッションのバーは翌セッション開始
-/// （JST 9:00 場開始）まで暫定値のまま確定しないため、ライブ中のセッションの
-/// 1つ前のセッション日を返す
+/// 最新の終値が確定している基準日。場中のバーは暫定値のため取引日の
+/// 16:00（引け 15:30 + 余裕）までは直前の取引日を、以降は当日を返す
 fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
     let jst = now + chrono::Duration::hours(9);
-    let mut live = jst.date_naive();
-    if matches!(live.weekday(), Weekday::Sat | Weekday::Sun) || (jst.hour(), jst.minute()) < (9, 0)
-    {
-        live = prev_weekday(live);
+    let live = jst.date_naive();
+    if matches!(live.weekday(), Weekday::Sat | Weekday::Sun) || jst.hour() < 16 {
+        prev_weekday(live)
+    } else {
+        live
     }
-    prev_weekday(live)
 }
 
 /// cron から呼ばれる更新処理。最新の終値の日より共有価格の price_as_of が
@@ -373,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_parse_chart_close_uses_last_finalized_close() {
-        // 配列末尾はライブバーのため、採用されるのはその1つ前の確定バー
+        // max_as_of 以内の末尾バー（引け後の当日バー）は採用する
         let price = parse_chart_close(
             &chart_body(&[
                 (T20240116, Some(3000.0)),
@@ -385,22 +382,22 @@ mod tests {
         )
         .expect("parse");
 
-        assert_eq!(price.close, dec!(3200.25));
-        assert_eq!(price.prev_close, Some(dec!(3100.5)));
+        assert_eq!(price.close, dec!(3300.0));
+        assert_eq!(price.prev_close, Some(dec!(3200.25)));
         // JST のバー日付で基準日を記録する
-        assert_eq!(price.as_of, NaiveDate::from_ymd_opt(2024, 1, 18).unwrap());
+        assert_eq!(price.as_of, NaiveDate::from_ymd_opt(2024, 1, 19).unwrap());
     }
 
     #[test]
     fn test_parse_chart_close_drops_provisional_last_bar() {
-        // 引け後でも末尾バーは確定前の暫定値が乗り得るため採用しない（#1502）
+        // 場中の当日バーは max_as_of より後の日付なので採用しない
         let price = parse_chart_close(
             &chart_body(&[
                 (T20240116, Some(3000.0)),
                 (T20240117, Some(3100.5)),
                 (T20240118, Some(3200.25)),
             ]),
-            MAX,
+            NaiveDate::from_ymd_opt(2024, 1, 17).unwrap(),
         )
         .expect("parse");
 
@@ -447,13 +444,10 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_chart_close_two_bars_have_no_prev_close() {
-        // 末尾バーを除くと確定バーが1本だけ残るため前日終値は取れない
-        let price = parse_chart_close(
-            &chart_body(&[(T20240116, Some(3000.0)), (T20240117, Some(3100.0))]),
-            MAX,
-        )
-        .expect("parse");
+    fn test_parse_chart_close_single_bar_has_no_prev_close() {
+        // バーが1本だけ残るため前日終値は取れない
+        let price =
+            parse_chart_close(&chart_body(&[(T20240116, Some(3000.0))]), MAX).expect("parse");
 
         assert_eq!(price.close, dec!(3000));
         assert_eq!(price.prev_close, None);
@@ -471,8 +465,8 @@ mod tests {
         )
         .expect("parse");
 
-        assert_eq!(price.close, dec!(2896.5));
-        assert_eq!(price.prev_close, Some(dec!(1500.25)));
+        assert_eq!(price.close, dec!(716.6));
+        assert_eq!(price.prev_close, Some(dec!(2896.5)));
     }
 
     #[test]
@@ -485,12 +479,11 @@ mod tests {
             )
             .is_err()
         );
-        // result 空・timestamp 欠落・close 欠落・全バー null・確定バーなし
-        // （ライブバーのみ・全バーが max_as_of より後）はいずれもエラー
+        // result 空・timestamp 欠落・close 欠落・全バー null・
+        // 全バーが max_as_of より後のいずれもエラー
         assert!(parse_chart_close(r#"{"chart":{"result":[],"error":null}}"#, MAX).is_err());
         assert!(parse_chart_close(&chart_body(&[]), MAX).is_err());
         assert!(parse_chart_close(&chart_body(&[(T20240116, None)]), MAX).is_err());
-        assert!(parse_chart_close(&chart_body(&[(T20240116, Some(3000.0))]), MAX).is_err());
         assert!(
             parse_chart_close(
                 &chart_body(&[(T20240118, Some(3200.25))]),
@@ -541,22 +534,41 @@ mod tests {
         };
         let date = |y: i32, m: u32, d: u32| NaiveDate::from_ymd_opt(y, m, d).unwrap();
 
-        // 平日は JST 9:00(場開始)を境にライブバーが当日に切り替わり、
-        // 確定しているのは常にライブバーの1つ前のセッション
-        assert_eq!(jst(2026, 10, 14, 8, 59), date(2026, 10, 12));
-        assert_eq!(jst(2026, 10, 14, 9, 0), date(2026, 10, 13));
-        // 引け後も当日バーは確定しないので前営業日のまま
-        assert_eq!(jst(2026, 10, 14, 15, 30), date(2026, 10, 13));
+        // 取引日の 16:00 までは直前の取引日、16:00 以降は当日が確定する
+        assert_eq!(jst(2026, 10, 26, 8, 59), date(2026, 10, 23));
+        assert_eq!(jst(2026, 10, 26, 9, 0), date(2026, 10, 23));
+        assert_eq!(jst(2026, 10, 26, 15, 29), date(2026, 10, 23));
+        assert_eq!(jst(2026, 10, 26, 15, 59), date(2026, 10, 23));
+        assert_eq!(jst(2026, 10, 26, 16, 0), date(2026, 10, 26));
+        assert_eq!(jst(2026, 10, 26, 22, 0), date(2026, 10, 26));
+        assert_eq!(jst(2026, 10, 27, 8, 59), date(2026, 10, 26));
+        assert_eq!(jst(2026, 10, 30, 15, 59), date(2026, 10, 29));
+        assert_eq!(jst(2026, 10, 30, 16, 0), date(2026, 10, 30));
 
-        // 土日はライブバーが金曜のままなので木曜が最新の確定日
-        assert_eq!(jst(2026, 10, 17, 9, 0), date(2026, 10, 15));
-        assert_eq!(jst(2026, 10, 17, 16, 0), date(2026, 10, 15));
-        assert_eq!(jst(2026, 10, 18, 12, 0), date(2026, 10, 15));
+        // 土日は直前の金曜
+        assert_eq!(jst(2026, 10, 31, 12, 0), date(2026, 10, 30));
+        assert_eq!(jst(2026, 11, 1, 12, 0), date(2026, 10, 30));
 
-        // 月曜の場が始まる前はライブバーが金曜のまま(確定は木曜)、場開始後は金曜が確定
-        assert_eq!(jst(2026, 10, 19, 8, 59), date(2026, 10, 15));
-        assert_eq!(jst(2026, 10, 19, 9, 0), date(2026, 10, 16));
-        assert_eq!(jst(2026, 10, 19, 15, 30), date(2026, 10, 16));
+        // 日付をまたぐ UTC 時刻でも JST で判定する
+        let utc = |y: i32, m: u32, d: u32, h: u32, mi: u32| {
+            NaiveDate::from_ymd_opt(y, m, d)
+                .unwrap()
+                .and_hms_opt(h, mi, 0)
+                .unwrap()
+                .and_utc()
+        };
+        assert_eq!(
+            latest_close_date(utc(2026, 10, 25, 15, 0)),
+            date(2026, 10, 23)
+        );
+        assert_eq!(
+            latest_close_date(utc(2026, 10, 26, 6, 59)),
+            date(2026, 10, 23)
+        );
+        assert_eq!(
+            latest_close_date(utc(2026, 10, 26, 7, 0)),
+            date(2026, 10, 26)
+        );
     }
 
     #[test]
