@@ -305,8 +305,6 @@ pub fn target_period_note(from: &str, to: &str) -> String {
 
 /// CSV管理: 取得カードの見出し
 pub const CSV_MANAGE_FETCH_TITLE: &str = "楽天証券から最新のデータを取得";
-/// CSV管理: 取得カードの説明
-pub const CSV_MANAGE_FETCH_HINT: &str = "拡張機能を呼び出して、楽天証券の最新 CSV を受け取ります。";
 /// CSV管理: 取得ボタン(通常)
 pub const CSV_MANAGE_FETCH_BUTTON: &str = "最新を取得する";
 /// CSV管理: 取得ボタン(実行中)
