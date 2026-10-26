@@ -22,9 +22,9 @@ export function csvRow(page: Page, kind: CsvKindParam): Locator {
   return page.locator(`tr[data-kind="${kind}"]`);
 }
 
-/** 行の下に開くファイル取り込み欄 */
+/** 画面中央に開くファイル取り込みダイアログ */
 export function csvImportRow(page: Page): Locator {
-  return page.locator('tr[data-testid="csv-import-row"]');
+  return page.getByTestId('csv-import-dialog');
 }
 
 /** 行の「保存済み」件数 */

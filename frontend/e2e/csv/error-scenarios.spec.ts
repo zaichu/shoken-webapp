@@ -131,7 +131,7 @@ test('有効な行が0件のときは保存が押せない', async ({ page }) =>
   await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
 
   await expect(
-    page.locator('[data-testid="csv-preview-notice"]'),
+    page.getByTestId('csv-action-bar'),
   ).toContainText('取り込める行がありません', { timeout: 10000 });
   await expect(
     page.getByRole('button', { name: /保存する/ }).first(),

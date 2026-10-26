@@ -210,8 +210,8 @@ test('エラーのあるCSVは全件置換で保存できない', async ({ page 
   await selectCsvFile(page);
 
   // 全件置換はエラー行を含む CSV を backend が拒否するため、有効行だけの保存を約束しない
+  await expect(page.getByTestId('csv-action-bar')).toContainText('全件置換で保存できません');
   const notice = page.getByTestId('csv-preview-notice');
-  await expect(notice).toContainText('全件置換で保存できません');
   await expect(
     page.getByRole('button', { name: /全件置換で保存/ }).first(),
   ).toBeDisabled();
@@ -228,10 +228,11 @@ test('保存後に一覧が再取得されて銘柄データが表示される',
 
   await expect.poll(mocks.getUploadRequestCount).toBe(1);
   await expect.poll(mocks.getListRequestCount).toBeGreaterThanOrEqual(2);
-  await expect(page.getByTestId('csv-save-result-notice')).toContainText('1件反映');
+  // 成功したらダイアログが閉じ、表の件数を取り直す
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
   await expect(savedCount(page, 'assetbalance')).toContainText('1件');
   // 一覧に戻ると保存した銘柄が見える
-  await page.getByRole('link', { name: '一覧で確認する' }).click();
+  await page.goto('/assetbalance');
   await expect(
     page.getByTestId('asset-holdings-table').getByText('架空自動車'),
   ).toBeVisible();

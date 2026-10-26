@@ -416,6 +416,9 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
       page.locator('[role="status"][aria-live="polite"]').first(),
     ).toContainText('追加で保存できます', { timeout: 10000 });
     await scanAxe(page, `CSVプレビュー(${name})`);
+    // 取り込みはダイアログになったため、閉じてから削除の導線へ進む
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
     // 確認は行の⋯メニューの「削除」からモーダルで行う
     await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
     await page.getByRole('button', { name: '削除', exact: true }).click();
@@ -682,6 +685,9 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
     page.locator('[role="status"][aria-live="polite"]').first(),
   ).toContainText('追加で保存できます', { timeout: 10000 });
 
+  // 取り込みダイアログを閉じてから、行の⋯メニューを開く
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
   // 行の⋯メニューを開き、「削除」へのキーボード操作で確認まで進める
   await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
   const deleteButton = page.getByRole('button', { name: '削除', exact: true });
@@ -914,31 +920,31 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   const preview = page.locator('[role="status"][aria-live="polite"]').first();
 
-  for (const failure of [false, true]) {
+  for (const failure of [true, false]) {
     upload = failure
       ? { inserted: 0, skipped: 0, errors: [{ row: 2, message: '受取金額が数値ではありません' }] }
       : { inserted: 1, skipped: 0, errors: [] };
-    // 反映0件の全失敗と成功は別の見出しで読み上げられる
-    const heading = failure ? '保存できませんでした' : '保存しました';
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
     await expect(preview).toContainText('追加で保存できます', { timeout: 10000 });
     const before = await liveRegionTexts(page);
     await page.getByRole('button', { name: /保存する/ }).first().click();
-    const notice = page.getByTestId('csv-save-result-notice');
-    await expect(notice).toBeVisible({ timeout: 10000 });
-    await expect(notice).toContainText(heading);
     if (failure) {
+      // 行エラーありは結果を見せるため開いたままにし、見出しで読み上げる
+      const notice = page.getByTestId('csv-save-result-notice');
+      await expect(notice).toBeVisible({ timeout: 10000 });
+      await expect(notice).toContainText('保存できませんでした');
       await expect(notice).toContainText('1件エラー');
+      const after = await liveRegionTexts(page);
+      expect(after, 'ライブリージョンの内容が保存で変わらなかった').not.toEqual(before);
+      expect(
+        after.filter((text) => text.includes('保存できませんでした')),
+        '保存結果がライブリージョンに伝わらなかった',
+      ).not.toHaveLength(0);
     } else {
-      await expect(notice).toContainText('1件反映');
+      // 成功したらダイアログが閉じ、表の件数と状態を取り直す
+      await expect(page.getByTestId('csv-import-dialog')).toBeHidden({ timeout: 10000 });
     }
-    const after = await liveRegionTexts(page);
-    expect(after, 'ライブリージョンの内容が保存で変わらなかった').not.toEqual(before);
-    expect(
-      after.filter((text) => text.includes(heading)),
-      '保存結果がライブリージョンに伝わらなかった',
-    ).not.toHaveLength(0);
   }
 });
 

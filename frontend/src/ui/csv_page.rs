@@ -13,6 +13,7 @@ use crate::ui::csv_preview::{
     CsvPreviewNotice, CsvRowErrorList, preview_notice_text, shared_message,
     should_show_preview_notice,
 };
+use crate::ui::focus::trap_focus;
 use crate::ui::format::{days_since_jst_date, format_jst_time, format_short_date};
 use crate::ui::labels;
 use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
@@ -436,8 +437,6 @@ pub fn CsvKindRow(
         }
     });
 
-    let importing = Memo::new(move |_| open_import.get() == Some(kind));
-
     let on_refetch = move |_| {
         menu_open.set(false);
         focus_trigger();
@@ -446,7 +445,6 @@ pub fn CsvKindRow(
 
     let on_file_import = move |_| {
         menu_open.set(false);
-        focus_trigger();
         open_import.set(Some(kind));
     };
 
@@ -562,19 +560,20 @@ pub fn CsvKindRow(
                 </div>
             </td>
         </tr>
-        {move || importing.get().then(|| {
+        {move || (open_import.get() == Some(kind)).then(|| {
             view! {
-                <tr class="border-t border-border-subtle" data-testid="csv-import-row">
-                    <td colspan="4" class="px-4 py-3">
-                        <CsvImportPanel
-                            kind=kind
-                            asset_csv=asset_csv
-                            receipts_store=receipts_store
-                            on_saved=on_stats_changed
-                            on_close=Callback::new(move |_| open_import.set(None))
-                        />
-                    </td>
-                </tr>
+                <Portal>
+                    <CsvImportDialog
+                        kind=kind
+                        asset_csv=asset_csv
+                        receipts_store=receipts_store
+                        on_saved=on_stats_changed
+                        on_close=Callback::new(move |_| {
+                            open_import.set(None);
+                            focus_trigger();
+                        })
+                    />
+                </Portal>
             }
         })}
         {move || show_delete_confirm.get().then(|| {
@@ -605,59 +604,133 @@ pub fn CsvKindRow(
     }
 }
 
-/// 種類ごとの取り込み欄。既存のファイル選択→プレビュー→保存をそのまま使う
+/// 種類ごとの取り込みダイアログ。既存のファイル選択→プレビュー→保存をそのまま使う
 #[component]
-fn CsvImportPanel(
+fn CsvImportDialog(
     kind: CsvKind,
     asset_csv: AssetBalanceCsvStore,
     receipts_store: ReceiptsStore,
     on_saved: Callback<()>,
     on_close: Callback<()>,
 ) -> impl IntoView {
-    let close = move |_| on_close.run(());
+    let meta = Memo::new(move |_| match kind {
+        CsvKind::AssetStock => asset_csv.csv_meta(),
+        CsvKind::AssetFund => asset_csv.fund_csv_meta(),
+        _ => kind
+            .receipt_tab()
+            .map(|tab| receipts_store.csv_meta(tab))
+            .unwrap_or_default(),
+    });
+    let saving = Memo::new(move |_| meta.get().saving);
+    let try_close = move || {
+        if !saving.get_untracked() {
+            on_close.run(());
+        }
+    };
+    // 成功(行エラーなし)したら閉じる。行エラーありは結果を見せるため開いたままにする。
+    // 前回の保存結果が残って開き直しても閉じないよう、遷移だけ見る
+    let seen_result = RwSignal::new(meta.get_untracked().import_result.is_some());
+    Effect::new(move |_| match meta.get().import_result {
+        Some(result) if result.errors.is_empty() => {
+            if !seen_result.get_untracked() {
+                seen_result.set(true);
+                on_close.run(());
+            }
+        }
+        Some(_) => seen_result.set(true),
+        None => seen_result.set(false),
+    });
+    let close_ref = NodeRef::<html::Button>::new();
+    Effect::new(move |_| {
+        if let Some(button) = close_ref.get() {
+            let _ = button.focus();
+        }
+    });
     view! {
-        <div class="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-                <p class="text-sm font-bold text-text">
-                    {kind.label()} " へファイルから取り込み"
-                </p>
-                <Button variant=ButtonVariant::Secondary(ButtonSize::Xs) on_click=close>
-                    "閉じる"
-                </Button>
+        <div
+            class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 p-4"
+            on:click=move |_| try_close()
+            on:keydown=move |event| {
+                if event.key() == "Escape" {
+                    try_close();
+                    return;
+                }
+                if event.key() == "Tab" {
+                    trap_focus(&event);
+                }
+            }
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="csv-import-title"
+            aria-describedby="csv-import-desc"
+            tabindex="-1"
+            data-testid="csv-import-dialog"
+        >
+            <div
+                class="w-full max-w-2xl"
+                role="presentation"
+                on:click=move |event| event.stop_propagation()
+            >
+                <div class="max-h-full overflow-y-auto rounded-lg bg-surface shadow-lg">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+                        <h2 id="csv-import-title" class="text-sm font-bold text-text">
+                            {kind.label()} " へファイルから取り込み"
+                        </h2>
+                        <Button
+                            variant=ButtonVariant::Secondary(ButtonSize::Xs)
+                            disabled=move || saving.get()
+                            on_click=move |_| try_close()
+                            node_ref=close_ref
+                        >
+                            "閉じる"
+                        </Button>
+                    </div>
+                    <div class="flex flex-col gap-2 px-4 py-4">
+                        {match kind {
+                            CsvKind::AssetStock => view! {
+                                <CsvImportBody
+                                    source=AssetBalanceCsvSource { store: asset_csv, kind: AssetKind::Stock }
+                                    preview=view! { <StockCsvPreview store=asset_csv /> }.into_any()
+                                    list_href=kind.list_href()
+                                    on_saved=on_saved
+                                />
+                            }
+                                .into_any(),
+                            CsvKind::AssetFund => view! {
+                                <CsvImportBody
+                                    source=AssetBalanceCsvSource { store: asset_csv, kind: AssetKind::Fund }
+                                    preview=view! { <FundCsvPreview store=asset_csv /> }.into_any()
+                                    list_href=kind.list_href()
+                                    on_saved=on_saved
+                                />
+                            }
+                                .into_any(),
+                            _ => {
+                                let tab = kind.receipt_tab().unwrap_or(ReceiptsTab::Dividend);
+                                view! {
+                                    <CsvImportBody
+                                        source=ReceiptCsvSource { store: receipts_store, tab }
+                                        preview=view! { <ReceiptsCsvPreview store=receipts_store tab=tab /> }
+                                            .into_any()
+                                        list_href=kind.list_href()
+                                        on_saved=on_saved
+                                    />
+                                }
+                                    .into_any()
+                            }
+                        }}
+                    </div>
+                    <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
+                        <Button
+                            variant=ButtonVariant::Secondary(ButtonSize::Md)
+                            disabled=move || saving.get()
+                            on_click=move |_| try_close()
+                        >
+                            "キャンセル"
+                        </Button>
+                    </div>
+                </div>
             </div>
-            {match kind {
-                CsvKind::AssetStock => view! {
-                    <CsvImportBody
-                        source=AssetBalanceCsvSource { store: asset_csv, kind: AssetKind::Stock }
-                        preview=view! { <StockCsvPreview store=asset_csv /> }.into_any()
-                        list_href=kind.list_href()
-                        on_saved=on_saved
-                    />
-                }
-                    .into_any(),
-                CsvKind::AssetFund => view! {
-                    <CsvImportBody
-                        source=AssetBalanceCsvSource { store: asset_csv, kind: AssetKind::Fund }
-                        preview=view! { <FundCsvPreview store=asset_csv /> }.into_any()
-                        list_href=kind.list_href()
-                        on_saved=on_saved
-                    />
-                }
-                    .into_any(),
-                _ => {
-                    let tab = kind.receipt_tab().unwrap_or(ReceiptsTab::Dividend);
-                    view! {
-                        <CsvImportBody
-                            source=ReceiptCsvSource { store: receipts_store, tab }
-                            preview=view! { <ReceiptsCsvPreview store=receipts_store tab=tab /> }
-                                .into_any()
-                            list_href=kind.list_href()
-                            on_saved=on_saved
-                        />
-                    }
-                        .into_any()
-                }
-            }}
         </div>
     }
 }
@@ -693,9 +766,7 @@ fn CsvImportBody<S: CsvSource>(
             meta.file_name.is_some(),
             meta.previewing,
         ) {
-            meta.preview
-                .map(|preview| (preview.valid_rows, preview.errors))
-                .filter(|(valid_rows, errors)| *valid_rows == 0 || !errors.is_empty())
+            meta.preview.filter(|preview| !preview.errors.is_empty())
         } else {
             None
         }
@@ -731,7 +802,7 @@ fn CsvImportBody<S: CsvSource>(
 
     view! {
         <div class="flex flex-col gap-2">
-            <p class="text-xs font-medium text-text-muted">
+            <p id="csv-import-desc" class="text-xs font-medium text-text-muted">
                 "保存方式: " {source.save_mode_label()}
             </p>
             {move || {
@@ -756,13 +827,11 @@ fn CsvImportBody<S: CsvSource>(
             {move || {
                 notice
                     .get()
-                    .map(|(valid_rows, errors)| {
+                    .map(|preview| {
                         view! {
                             <CsvPreviewNotice
-                                valid_rows=valid_rows
-                                save_action=source.save_action()
-                                errors=errors
-                                errors_block_save=source.errors_block_save()
+                                valid_rows=preview.valid_rows
+                                errors=preview.errors
                             />
                         }
                     })
@@ -797,6 +866,16 @@ pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
     let disabled = Memo::new(move |_| source.input_disabled());
     let has_file = Memo::new(move |_| source.csv_meta().file_name.is_some());
     let file_name = Memo::new(move |_| source.csv_meta().file_name.unwrap_or_default());
+    // 保存できる件数の文だけを緑にする(解析中・保存中・保存できない文は薄いまま)
+    let status_positive = Memo::new(move |_| {
+        let meta = source.csv_meta();
+        !meta.previewing
+            && !meta.saving
+            && meta.preview.as_ref().is_some_and(|preview| {
+                preview.valid_rows > 0
+                    && !(source.errors_block_save() && !preview.errors.is_empty())
+            })
+    });
     let status_text = Memo::new(move |_| {
         let meta = source.csv_meta();
         if meta.previewing {
@@ -891,7 +970,17 @@ pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
                                 {move || {
                                     status_text.get().map(|text| {
                                         view! {
-                                            <p class="text-xs font-medium text-text-soft" role="status" aria-live="polite">
+                                            <p
+                                                class=move || {
+                                                    if status_positive.get() {
+                                                        "text-xs font-medium text-positive-vivid"
+                                                    } else {
+                                                        "text-xs font-medium text-text-soft"
+                                                    }
+                                                }
+                                                role="status"
+                                                aria-live="polite"
+                                            >
                                                 {text}
                                             </p>
                                         }
@@ -924,9 +1013,6 @@ pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
                         <label class=pick_trigger_class data-testid="csv-file-trigger">
                             <CsvFileIcon />
                             <div class="min-w-0 flex-1">
-                                <p class="text-sm font-bold text-text">
-                                    {labels::CSV_IMPORT_PICK_PROMPT}
-                                </p>
                                 <p class="text-xs text-text-muted">{source.csv_format_hint()}</p>
                             </div>
                             <span class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md border border-brand bg-brand px-4 text-sm font-bold text-text-inverse shadow-edge-lit hover:bg-brand-deep">
