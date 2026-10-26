@@ -6,6 +6,7 @@ import {
   csvRow,
   mockCsvKindStats,
   openCsvDelete,
+  openCsvImport,
   savedCount,
 } from '../support/csv-page';
 import * as path from 'path';
@@ -778,6 +779,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(page.getByText('資産管理データがありません')).toBeVisible();
     await page.getByRole('link', { name: 'CSV管理' }).click();
     await expect(page).toHaveURL('/csv');
+    await openCsvImport(page, 'assetbalance');
 
     const fileInput = csvImportRow(page).getByTestId('csv-file-input');
     await expect(fileInput).toBeAttached();
@@ -847,7 +849,7 @@ test.describe('資産管理 CSV 取込・削除', () => {
       }),
     });
 
-    await page.goto('/csv');
+    await page.goto('/csv?kind=assetbalance');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));

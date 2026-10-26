@@ -1,6 +1,7 @@
 import type { BrowserContext, Page } from '@playwright/test';
 import { expectTableFit } from '../support/layout';
 import { expect, test, json, paginated } from '../support/test';
+import { csvRow } from '../support/csv-page';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -321,7 +322,7 @@ test('資産管理の検索とCSV管理ページに390pxでもアクセスでき
   // CSV 操作は専用ページに置く
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/csv');
-  await expect(page.getByTestId('csv-file-input')).toBeAttached();
+  await expect(csvRow(page, 'assetbalance')).toBeVisible();
   await page
     .getByRole('navigation', { name: 'パンくず' })
     .getByRole('link', { name: '資産管理' })
