@@ -64,9 +64,9 @@ test('5種類の行が出て、状態が最終取込時刻で変わる', async (
   }
 
   await expect(savedCount(page, 'assetbalance')).toContainText('12件');
-  await expect(csvRow(page, 'assetbalance')).toContainText('● 今日 12:00 に更新');
+  await expect(csvRow(page, 'assetbalance')).toContainText('今日 12:00 に更新');
   await expect(csvRow(page, 'fundbalance')).toContainText(
-    /○ 3日前\(\d{1,2}\/\d{1,2} 09:15\)に更新/,
+    /3日前\(\d{1,2}\/\d{1,2} 09:15\)に更新/,
   );
   await expect(csvRow(page, 'dividend')).toContainText('まだ取得していません');
   await expect(csvRow(page, 'domesticstock')).toContainText('まだ取得していません');
@@ -96,6 +96,69 @@ test('⋯ のメニューは3項目で、件数が0件の削除だけ選べな�
   await page.getByRole('button', { name: 'ファイルから取り込み' }).click();
   await expect(csvImportRow(page)).toContainText('取引明細(配当金) へファイルから取り込み');
   await expect(csvImportRow(page).getByTestId('csv-file-input')).toBeAttached();
+});
+
+test('残高は当日だけ新しく、明細は7日以内が新しい', async ({ page }) => {
+  await mockLists(page);
+  await mockCsvKindStats(page, {
+    counts: () => ({
+      assetbalance: 1,
+      fundbalance: 1,
+      dividend: 1,
+      domesticstock: 1,
+    }),
+    latest: () => ({
+      assetbalance: jstNoonIso(0),
+      fundbalance: jstNoonIso(3),
+      dividend: jstNoonIso(3),
+      domesticstock: jstNoonIso(8),
+    }),
+  });
+
+  await page.goto('/csv');
+
+  const statusOf = (kind: 'assetbalance' | 'fundbalance' | 'dividend' | 'domesticstock' | 'mutualfund') =>
+    csvRow(page, kind).locator('span[data-status]');
+  await expect(statusOf('assetbalance')).toHaveAttribute('data-status', 'fresh');
+  await expect(statusOf('fundbalance')).toHaveAttribute('data-status', 'stale');
+  await expect(statusOf('dividend')).toHaveAttribute('data-status', 'fresh');
+  await expect(statusOf('domesticstock')).toHaveAttribute('data-status', 'stale');
+  await expect(statusOf('mutualfund')).toHaveAttribute('data-status', 'never');
+});
+
+test('⋯ のメニューは外側を押す・Esc・項目選択で閉じる', async ({ page }) => {
+  await mockLists(page);
+  await mockCsvKindStats(page, {
+    counts: () => ({ assetbalance: 12 }),
+  });
+
+  await page.goto('/csv');
+
+  const menuButton = csvRow(page, 'assetbalance').getByRole('button', { name: 'メニュー' });
+  const refetch = page.getByRole('button', { name: '楽天証券から再取得' });
+
+  // 開くと最初の項目へフォーカスが移る
+  await menuButton.click();
+  await expect(refetch).toBeVisible();
+  await expect(refetch).toBeFocused();
+
+  // 外側を押すと閉じる
+  await page.getByText('楽天証券から最新のデータを取得').click();
+  await expect(refetch).toHaveCount(0);
+
+  // Esc で閉じてフォーカスが ⋯ に戻る
+  await menuButton.click();
+  await expect(refetch).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(refetch).toHaveCount(0);
+  await expect(menuButton).toBeFocused();
+
+  // 項目を選んだら閉じる
+  await menuButton.click();
+  await expect(refetch).toBeVisible();
+  await page.getByRole('button', { name: 'ファイルから取り込み' }).click();
+  await expect(refetch).toHaveCount(0);
+  await expect(csvImportRow(page)).toBeVisible();
 });
 
 test('取得中も取得ボタンの位置は変わらない', async ({ page }) => {
@@ -138,7 +201,7 @@ test.describe('390px', () => {
     });
 
     await page.goto('/csv');
-    await expect(csvRow(page, 'assetbalance')).toContainText('● 今日 21:39 に更新');
+    await expect(csvRow(page, 'assetbalance')).toContainText('今日 21:39 に更新');
 
     // 種類名と状態は1行のまま(折り返すと行の高さが増える)
     const wrapped = await page
