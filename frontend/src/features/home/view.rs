@@ -711,9 +711,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                     role="img"
                                     aria-label="商品別の資産内訳"
                                 >
-                                    <div class="home-donut-hole">
-                                        <span class="text-xs text-text-muted">"商品別"</span>
-                                    </div>
+                                    <div class="home-donut-hole"></div>
                                 </div>
                                 <ul class="grid gap-2 text-sm">
                                     {products

@@ -121,9 +121,6 @@ pub(crate) fn ReceiptsCsvPreview(store: ReceiptsStore, tab: ReceiptsTab) -> impl
         Some(view! {
             <section data-testid="csv-preview">
                 <h2 class="text-sm font-bold text-text">"プレビュー"</h2>
-                <p class="mt-1 text-xs text-text-soft">
-                    "表は取り込むファイルの内容です。保存するまで登録済みのデータは変わりません。"
-                </p>
                 <div class="mt-2">
                     // 全行をそのまま置くと保存ボタンが遠くなるため、枠内スクロールにする
                     <div class="csv-preview-scroll mt-2 max-h-96 overflow-y-auto">
