@@ -174,7 +174,8 @@ pub fn CsvPage() -> impl IntoView {
         }
     });
 
-    // 取得前の最終取得時刻(統計の最新の取込日時)
+    // 取得前の最終取得時刻(統計の最新の取込日時)。統計が変わるたびに再計算し、
+    // 該当する時刻がなければ表示を消す
     Effect::new(move |_| {
         let latest = stats.get().and_then(|response| {
             response
@@ -183,13 +184,17 @@ pub fn CsvPage() -> impl IntoView {
                 .filter_map(|stat| stat.latest_imported_at.clone())
                 .max()
         });
-        if let Some(ts) = latest
-            && let Some(days_ago) = days_since_jst_date(&ts)
-            && days_ago <= 0
-        {
-            let date = format_short_date(&ts);
-            let time = format_jst_time(&ts);
-            last_fetched.set(Some(labels::csv_manage_last_fetched(&date, &time)));
+        match latest {
+            Some(ts)
+                if days_since_jst_date(&ts)
+                    .map(|days| days <= 0)
+                    .unwrap_or(false) =>
+            {
+                let date = format_short_date(&ts);
+                let time = format_jst_time(&ts);
+                last_fetched.set(Some(labels::csv_manage_last_fetched(&date, &time)));
+            }
+            _ => last_fetched.set(None),
         }
     });
 
@@ -203,14 +208,10 @@ pub fn CsvPage() -> impl IntoView {
             .collect::<Vec<_>>()
     });
 
-    // 一覧・設定からの `?kind=` は同じ種類の取り込みを開く。
-    // 指定が無いときは従来の初期タブ(国内株式)と同じ種類を開く
-    let open_import = RwSignal::new(
-        CsvKind::from_kind_param(
-            crate::app::query_param(&crate::app::current_location(), "kind").as_deref(),
-        )
-        .or(Some(CsvKind::AssetStock)),
-    );
+    // 一覧・設定からの `?kind=` は同じ種類の取り込みを開く。指定が無いときは閉じておく
+    let open_import = RwSignal::new(CsvKind::from_kind_param(
+        crate::app::query_param(&crate::app::current_location(), "kind").as_deref(),
+    ));
 
     view! {
         <PageFrame title="CSV管理">
