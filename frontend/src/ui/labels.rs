@@ -160,14 +160,10 @@ pub const SEARCH_LOADING: &str = "検索中";
 pub const STOCK_SEARCH_TARGET: &str = "銘柄コードまたは銘柄名";
 /// 銘柄検索の実行ボタン(実行中でないときの名前)
 pub const STOCK_SEARCH_ACTION: &str = "銘柄を検索";
-/// 「CSV 最新取得」ボタン(拡張機能から最新の CSV を受け取る操作)
-pub const CSV_FETCH_LATEST: &str = "CSV 最新取得";
 /// CSV 最新取得の実行中表示
 pub const CSV_SYNC_RUNNING: &str = "取得中...";
 /// 種類ごとの進行がまだ始まっていない表示
 pub const CSV_SYNC_WAITING: &str = "待機中";
-/// CSV 最新取得の区画の説明
-pub const CSV_SYNC_PANEL_HINT: &str = "拡張機能を呼び出して、楽天証券の最新 CSV を受け取ります。";
 /// 拡張機能がログインを待っているときの案内
 pub const CSV_SYNC_LOGIN_WAIT: &str = "楽天証券のタブでログインしてください";
 /// 拡張機能との通信が切れたときのエラー

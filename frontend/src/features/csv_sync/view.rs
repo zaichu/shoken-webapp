@@ -1,5 +1,4 @@
 use super::{KindStatus, use_csv_sync};
-use crate::session::use_session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels;
 use crate::ui::state::{Alert, AlertVariant};
@@ -8,55 +7,9 @@ use leptos::prelude::*;
 /// Chrome ウェブストアの拡張機能ページ(公開版の ID)
 const STORE_URL: &str = "https://chromewebstore.google.com/detail/hneplimfghlcckeielonpeklmjagmceh";
 
-/// 「CSV 最新取得」の主ボタン。CSV 管理のパネルで使う。
-/// ログイン中だけ出す(拡張機能が取る CSV は本人のデータのため)
-#[component]
-pub(crate) fn CsvSyncButton() -> impl IntoView {
-    let session = use_session();
-    let store = use_csv_sync();
-    view! {
-        <Show when=move || session.user.get().is_some()>
-            <Button
-                variant=ButtonVariant::Primary(ButtonSize::Sm)
-                testid="csv-sync-button"
-                disabled=move || store.running()
-                on_click=move |_| store.start()
-            >
-                {move || {
-                    if store.running() {
-                        labels::CSV_SYNC_RUNNING
-                    } else {
-                        labels::CSV_FETCH_LATEST
-                    }
-                }}
-            </Button>
-        </Show>
-    }
-}
-
-/// CSV 管理に常設する「CSV 最新取得」の区画。ボタンと進行表示を一緒に置く
-#[component]
-pub(crate) fn CsvSyncPanel() -> impl IntoView {
-    view! {
-        <section
-            class="rounded-lg border border-border bg-surface-sunken p-4"
-            data-testid="csv-sync-panel"
-        >
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 class="text-sm font-bold text-text">{labels::CSV_FETCH_LATEST}</h2>
-                    <p class="mt-0.5 text-xs text-text-soft">{labels::CSV_SYNC_PANEL_HINT}</p>
-                </div>
-                <CsvSyncButton />
-            </div>
-            <CsvSyncBody />
-        </section>
-    }
-}
-
 /// 進行・結果・案内の本体。受け取った CSV の中身は表示しない(個人情報)
 #[component]
-fn CsvSyncBody() -> impl IntoView {
+pub(crate) fn CsvSyncBody() -> impl IntoView {
     let store = use_csv_sync();
     move || {
         let state = store.state();

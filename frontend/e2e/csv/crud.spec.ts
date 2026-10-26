@@ -479,7 +479,9 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await expect(fileInput).toBeEnabled();
       await fileInput.setInputFiles(path.join(fixtureDir(), scenario.baseFile));
       await expect(page.getByText(`${base.previewRows.length}件を追加で保存できます`)).toBeVisible();
-      await expect(page.getByRole('cell', { name: scenario.baseName })).toBeVisible();
+      await expect(
+        page.getByTestId('receipt-table-body').getByRole('cell', { name: scenario.baseName }),
+      ).toBeVisible();
       await page
         .getByRole('button', { name: `${base.previewRows.length}件を保存する` })
         .click();

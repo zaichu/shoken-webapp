@@ -300,7 +300,7 @@ test.describe('CSV 最新取得', () => {
     await expect(page.getByTestId('assetbalance-workspace')).toBeVisible();
 
     await page.goto('/csv?kind=dividend');
-    const button = page.getByTestId('csv-sync-button');
+    const button = page.getByTestId('csv-fetch-button');
     await button.click();
     const request = await page.evaluate(
       () => (window as unknown as { __csvSyncMock: { requests: unknown[] } }).__csvSyncMock.requests[0],
@@ -341,7 +341,7 @@ test.describe('CSV 最新取得', () => {
     const calls = await mockSyncApis(page, { assetSavedTotal: 10 });
     await mockExtension(page);
     await page.goto('/csv?kind=dividend');
-    await page.getByTestId('csv-sync-button').click();
+    await page.getByTestId('csv-fetch-button').click();
     await emitAllCsvs(page);
 
     // 保有残高だけ 10件→1件 で確認が出て、後続の種類は回答を待って止まる
@@ -351,7 +351,7 @@ test.describe('CSV 最新取得', () => {
     expect(calls.import).toEqual([]);
 
     // 確認待ちの間も実行中のままで、連打で二重に流せない
-    await expect(page.getByTestId('csv-sync-button')).toBeDisabled();
+    await expect(page.getByTestId('csv-fetch-button')).toBeDisabled();
 
     await page.getByTestId('csv-sync-confirm-no').click();
     await expect(confirm).toHaveCount(0);
@@ -370,7 +370,7 @@ test.describe('CSV 最新取得', () => {
     const calls = await mockSyncApis(page, { assetSavedTotal: 10 });
     await mockExtension(page);
     await page.goto('/csv?kind=dividend');
-    await page.getByTestId('csv-sync-button').click();
+    await page.getByTestId('csv-fetch-button').click();
     await emitAllCsvs(page);
 
     await page.getByTestId('csv-sync-confirm').waitFor();
@@ -402,7 +402,7 @@ test.describe('CSV 最新取得', () => {
     const calls = await mockSyncApis(page, { heldPreview: { kind: 'assetbalance', gate } });
     await mockExtension(page);
     await page.goto('/csv?kind=dividend');
-    await page.getByTestId('csv-sync-button').click();
+    await page.getByTestId('csv-fetch-button').click();
     await emitAllCsvs(page);
 
     // 先頭の種類が preview 応答待ちの間にログアウトする
@@ -438,7 +438,7 @@ test.describe('CSV 最新取得', () => {
     const calls = await mockSyncApis(page, { heldImport: { kind: 'dividend', gate } });
     await mockExtension(page);
     await page.goto('/csv?kind=dividend');
-    await page.getByTestId('csv-sync-button').click();
+    await page.getByTestId('csv-fetch-button').click();
     // 追加系の取り込みは500行ごとの分割送信(2チャンク目が残る形にする)
     const dividendCsv =
       '入金日,商品,口座,銘柄\n' +
@@ -472,7 +472,7 @@ test.describe('CSV 最新取得', () => {
     const calls = await mockSyncApis(page);
     await mockExtension(page);
     await page.goto('/csv?kind=dividend');
-    await page.getByTestId('csv-sync-button').click();
+    await page.getByTestId('csv-fetch-button').click();
     await emitMessage(page, {
       type: 'result',
       csvs: [
@@ -500,7 +500,7 @@ test.describe('CSV 最新取得', () => {
     await mockCsvKindStats(page, { counts: () => ({}) });
     await mockExtension(page);
     await page.goto('/csv?kind=dividend');
-    await page.getByTestId('csv-sync-button').click();
+    await page.getByTestId('csv-fetch-button').click();
     await emitFailureResult(page);
 
     await expect(csvRow(page, 'dividend')).toContainText('取得できず');
@@ -533,7 +533,7 @@ test.describe('CSV 最新取得', () => {
       (window as unknown as { chrome: unknown }).chrome = {};
     });
     await page.goto('/csv?kind=dividend');
-    await page.getByTestId('csv-sync-button').click();
+    await page.getByTestId('csv-fetch-button').click();
     await expect(page.getByText('CSV 取得用の拡張機能が見つかりません')).toBeVisible();
     await expect(
       page.getByRole('link', { name: /Chrome ウェブストアで拡張機能を導入する/ }),
@@ -545,7 +545,7 @@ test.describe('CSV 最新取得', () => {
     await mockSyncApis(page);
     await mockExtension(page);
     await page.goto('/csv?kind=dividend');
-    await page.getByTestId('csv-sync-button').click();
+    await page.getByTestId('csv-fetch-button').click();
     await emitFailureResult(page);
     await expect(page.getByTestId('csv-sync-kind-dividend')).toContainText('失敗');
     await expect(
@@ -562,16 +562,15 @@ test.describe('CSV 最新取得', () => {
     // 一覧画面にはボタンが出ない
     await page.goto('/receipts');
     await expect(page.getByTestId('receipts-workspace')).toBeVisible();
-    await expect(page.getByTestId('csv-sync-button')).toHaveCount(0);
+    await expect(page.getByTestId('csv-fetch-button')).toHaveCount(0);
 
     await page.goto('/assetbalance');
-    await expect(page.getByTestId('csv-sync-button')).toHaveCount(0);
+    await expect(page.getByTestId('csv-fetch-button')).toHaveCount(0);
 
     // CSV管理画面にはパネルがあり、ボタンと進行表示がある
     await page.goto('/csv?kind=dividend');
-    await expect(page.getByTestId('csv-sync-panel')).toBeVisible();
-    await expect(page.getByTestId('csv-sync-button')).toBeVisible();
-    await page.getByTestId('csv-sync-button').click();
+    await expect(page.getByTestId('csv-fetch-button')).toBeVisible();
+    await page.getByTestId('csv-fetch-button').click();
     await emitMessage(page, { type: 'progress', state: 'fetching', kind: 'dividend' });
     await expect(page.getByTestId('csv-sync-kind-dividend')).toContainText('取得中');
   });
@@ -579,6 +578,6 @@ test.describe('CSV 最新取得', () => {
   test('ログインしていないときはボタンが出ない', async ({ page }) => {
     await mockSession(page, false);
     await page.goto('/csv?kind=dividend');
-    await expect(page.getByTestId('csv-sync-button')).toHaveCount(0);
+    await expect(page.getByTestId('csv-fetch-button')).toHaveCount(0);
   });
 });

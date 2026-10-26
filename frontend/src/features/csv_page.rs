@@ -4,7 +4,7 @@
 use crate::api::dto::CsvKindStatsResponse;
 use crate::api::fetch_csv_kind_stats;
 use crate::features::asset_balance::use_asset_balance_state;
-use crate::features::csv_sync::{CsvKind as SyncKind, CsvSyncPanel, KindStatus, use_csv_sync};
+use crate::features::csv_sync::{CsvKind as SyncKind, CsvSyncBody, KindStatus, use_csv_sync};
 use crate::features::receipts::{ReceiptsTab, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::csv_page::{CsvKindRowData, CsvKindTable, CsvManageFetchCard};
@@ -212,10 +212,8 @@ pub fn CsvPage() -> impl IntoView {
         .or(Some(CsvKind::AssetStock)),
     );
 
-    let fetch_action_bar = view! { <CsvSyncPanel /> }.into_any();
-
     view! {
-        <PageFrame title="CSV管理" action_bar=fetch_action_bar action_bar_pc_top=true>
+        <PageFrame title="CSV管理">
             <div class="flex flex-col gap-4">
                 {/* パンくず + 見出し */}
                 <nav class="flex items-center gap-2 text-sm text-text-soft" aria-label="パンくず">
@@ -229,8 +227,9 @@ pub fn CsvPage() -> impl IntoView {
                     running=running.read_only()
                     fetch_result=fetch_result.read_only()
                     last_fetched=last_fetched.read_only()
-                    on_fetch=move |_| csv_sync.start()
+                    on_fetch=Callback::new(move |_| csv_sync.start())
                 />
+                <CsvSyncBody />
 
                 {/* 種類ごとのテーブル */}
                 <section class="rounded-lg border border-border bg-surface-sunken overflow-hidden">

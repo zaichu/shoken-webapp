@@ -5,6 +5,7 @@ use crate::features::asset_balance::{
 use crate::features::csv_page::CsvKind;
 use crate::features::csv_sync::{CsvSyncStore, KindStatus};
 use crate::features::receipts::{ReceiptCsvSource, ReceiptsCsvPreview, ReceiptsStore, ReceiptsTab};
+use crate::session::use_session;
 use crate::support::csv_flow::{CsvTabMeta, CsvUploadResponseExt};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
@@ -16,6 +17,7 @@ use crate::ui::format::{days_since_jst_date, format_jst_time, format_short_date}
 use crate::ui::labels;
 use crate::ui::state::{Alert, AlertVariant, LoadingStrip};
 use leptos::ev::DragEvent;
+use leptos::portal::Portal;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -186,8 +188,9 @@ pub fn CsvManageFetchCard(
     running: ReadSignal<bool>,
     fetch_result: ReadSignal<Option<String>>,
     last_fetched: ReadSignal<Option<String>>,
-    on_fetch: impl Fn(web_sys::MouseEvent) + Copy + 'static,
+    on_fetch: Callback<web_sys::MouseEvent>,
 ) -> impl IntoView {
+    let session = use_session();
     view! {
         <section class="rounded-lg border border-border bg-surface-sunken p-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -196,21 +199,27 @@ pub fn CsvManageFetchCard(
                     <p class="mt-0.5 text-xs text-text-soft">{labels::CSV_MANAGE_FETCH_HINT}</p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full sm:w-auto">
-                    <Button
-                        variant=ButtonVariant::Primary(ButtonSize::Md)
-                        testid="csv-fetch-button"
-                        disabled=move || running.get()
-                        on_click=on_fetch
-                        class="w-full sm:w-auto"
-                    >
-                        {move || {
-                            if running.get() {
-                                labels::CSV_MANAGE_FETCH_RUNNING
-                            } else {
-                                labels::CSV_MANAGE_FETCH_BUTTON
+                    {move || {
+                        session.user.get().is_some().then(|| {
+                            view! {
+                        <Button
+                            variant=ButtonVariant::Primary(ButtonSize::Md)
+                            testid="csv-fetch-button"
+                            disabled=move || running.get()
+                            on_click=move |ev| on_fetch.run(ev)
+                            class="w-full sm:w-auto sm:min-w-44"
+                        >
+                            {move || {
+                                if running.get() {
+                                    labels::CSV_MANAGE_FETCH_RUNNING
+                                } else {
+                                    labels::CSV_MANAGE_FETCH_BUTTON
+                                }
+                            }}
+                        </Button>
                             }
-                        }}
-                    </Button>
+                        })
+                    }}
                     <div class="flex-1 min-w-0">
                         {move || {
                             fetch_result.get().map(|msg| {
@@ -239,6 +248,32 @@ pub fn CsvManageFetchCard(
     }
 }
 
+/// 表側の「開いている種類」を、1つの種類の開閉フラグとして読み書きする。
+/// 件数・状態の更新で行が作り直されても、開閉の状態が残る
+#[derive(Clone, Copy)]
+struct KindFlag {
+    slot: RwSignal<Option<CsvKind>>,
+    kind: CsvKind,
+}
+
+impl KindFlag {
+    fn get(self) -> bool {
+        self.slot.get() == Some(self.kind)
+    }
+
+    fn set(self, open: bool) {
+        if open {
+            self.slot.set(Some(self.kind));
+        } else if self.slot.get_untracked() == Some(self.kind) {
+            self.slot.set(None);
+        }
+    }
+
+    fn toggle(self) {
+        self.set(self.slot.get_untracked() != Some(self.kind));
+    }
+}
+
 /// 種類ごとのテーブル行。⋯ のメニューから再取得・取り込み・削除を選ぶ
 #[component]
 pub fn CsvKindRow(
@@ -247,6 +282,8 @@ pub fn CsvKindRow(
     receipts_store: ReceiptsStore,
     csv_sync: CsvSyncStore,
     open_import: RwSignal<Option<CsvKind>>,
+    menu_kind: RwSignal<Option<CsvKind>>,
+    delete_kind: RwSignal<Option<CsvKind>>,
     on_stats_changed: Callback<()>,
 ) -> impl IntoView {
     let kind = row_data.kind;
@@ -276,11 +313,19 @@ pub fn CsvKindRow(
     let date_range = Memo::new(move |_| source.date_range());
     let delete_disabled = Memo::new(move |_| source.delete_disabled(&meta.get()));
 
-    let show_delete_confirm = RwSignal::new(false);
+    let menu_open = KindFlag {
+        slot: menu_kind,
+        kind,
+    };
+    let show_delete_confirm = KindFlag {
+        slot: delete_kind,
+        kind,
+    };
     let delete_error = RwSignal::new(None::<String>);
 
     // 削除は確認表示中だけ開始できるため、モーダルを開く時点でフラグを立てる
     let open_delete = move |_| {
+        menu_open.set(false);
         delete_error.set(None);
         // 開き直すたびに件数を取り直す
         source.refresh_for_delete();
@@ -323,7 +368,6 @@ pub fn CsvKindRow(
         }
     });
 
-    let menu_open = RwSignal::new(false);
     let importing = Memo::new(move |_| open_import.get() == Some(kind));
 
     let on_refetch = move |_| {
@@ -378,7 +422,7 @@ pub fn CsvKindRow(
                         class="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-sunken text-text-muted"
                         aria_label="メニュー"
                         aria_expanded=move || menu_open.get()
-                        on_click=move |_| menu_open.update(|open| *open = !*open)
+                        on_click=move |_| menu_open.toggle()
                     >
                         <span class="text-lg font-mono">"⋯"</span>
                     </Button>
@@ -434,10 +478,11 @@ pub fn CsvKindRow(
                 </tr>
             }
         })}
-        {show_delete_confirm.get().then(|| {
+        {move || show_delete_confirm.get().then(|| {
             let count = delete_count.get();
             let range = date_range.get().map(|(min, max)| format!("{min} 〜 {max}"));
             view! {
+                <Portal>
                 <ConfirmDeleteModal
                     title=labels::csv_manage_delete_confirm_title(kind.delete_subject())
                     description=labels::csv_manage_delete_confirm_description(
@@ -455,6 +500,7 @@ pub fn CsvKindRow(
                     on_confirm=confirm_delete
                     on_cancel=cancel_delete
                 />
+                </Portal>
             }
         })}
     }
@@ -946,6 +992,9 @@ pub fn CsvKindTable(
     open_import: RwSignal<Option<CsvKind>>,
     on_stats_changed: Callback<()>,
 ) -> impl IntoView {
+    // 件数・状態が更新されると行が作り直されるため、開いているメニューと削除確認は表で持つ
+    let menu_kind = RwSignal::new(None::<CsvKind>);
+    let delete_kind = RwSignal::new(None::<CsvKind>);
     view! {
         <div class="overflow-x-auto">
             <table class="w-full" role="table">
@@ -978,6 +1027,8 @@ pub fn CsvKindTable(
                                         receipts_store=receipts_store
                                         csv_sync=csv_sync
                                         open_import=open_import
+                                        menu_kind=menu_kind
+                                        delete_kind=delete_kind
                                         on_stats_changed=on_stats_changed
                                     />
                                 }

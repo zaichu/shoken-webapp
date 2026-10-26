@@ -5,7 +5,7 @@ mod port;
 mod tests;
 mod view;
 
-pub(crate) use view::CsvSyncPanel;
+pub(crate) use view::CsvSyncBody;
 
 use crate::ui::labels;
 use leptos::prelude::*;
