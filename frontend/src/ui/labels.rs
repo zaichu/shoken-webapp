@@ -140,14 +140,10 @@ pub const MISSING: &str = "—";
 pub const PENDING_UPDATE: &str = "更新待ち";
 /// 条件に合う行が無いときの空状態の見出し
 pub const NO_MATCH_TITLE: &str = "条件に合う保有がありません";
-/// 条件に合う行が無いときの空状態の説明
-pub const NO_MATCH_DESCRIPTION: &str = "検索条件を変更するか、検索条件を解除してください。";
 /// 検索条件の解除(操作のボタン)
 pub const CLEAR_SEARCH_CONDITIONS: &str = "検索条件を解除";
 /// ログインが要る画面に出す案内の見出し
 pub const LOGIN_REQUIRED_TITLE: &str = "ログインしてください";
-/// ログインが要る画面に出す案内の説明
-pub const LOGIN_REQUIRED_DESCRIPTION: &str = "保有資産と取引明細はログイン後に確認できます。";
 /// Googleアカウントでのログイン操作
 pub const GOOGLE_LOGIN: &str = "Googleでログイン";
 /// 検索を実行するボタン

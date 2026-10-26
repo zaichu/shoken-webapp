@@ -33,11 +33,11 @@ impl EmptyStateIcon {
 }
 
 /// データが空の画面の見せ方を1種類にまとめる。
-/// icon は見出しの上、children は説明の下(次の行動)に出る。
+/// icon は見出しの上、children は見出しの下(次の行動)に出る。
 #[component]
 pub fn EmptyState(
     #[prop(into)] title: String,
-    #[prop(into)] description: String,
+    #[prop(into, optional)] description: Option<String>,
     #[prop(optional)] icon: Option<EmptyStateIcon>,
     #[prop(optional)] as_h1: bool,
     #[prop(into, optional)] class: Signal<String>,
@@ -83,7 +83,9 @@ pub fn EmptyState(
             } else {
                 view! { <h3 class="text-balance text-base font-black text-ink">{title.clone()}</h3> }.into_any()
             }}
-            <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">{description}</p>
+            {description.clone().map(|description| {
+                view! { <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">{description}</p> }
+            })}
             {children.map(|children| children())}
         </div>
     }

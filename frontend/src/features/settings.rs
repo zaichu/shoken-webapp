@@ -98,18 +98,11 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
 
 /// セクション内の1行。右側に操作(子要素)を置く
 #[component]
-fn SettingRow(
-    title: &'static str,
-    #[prop(optional)] note: &'static str,
-    children: Children,
-) -> impl IntoView {
+fn SettingRow(title: &'static str, children: Children) -> impl IntoView {
     view! {
         <div class="flex items-center justify-between gap-3 py-3 max-sm:flex-col max-sm:items-start">
             <div class="min-w-0">
                 <div class="font-medium">{title}</div>
-                {(!note.is_empty()).then(|| {
-                    view! { <div class="text-xs text-text-muted">{note}</div> }
-                })}
             </div>
             <div class="shrink-0 flex items-center gap-2">{children()}</div>
         </div>
@@ -127,10 +120,9 @@ fn SectionDisplay() -> impl IntoView {
     view! {
         <section id="display" aria-labelledby="display-heading">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="display-heading" class="text-lg font-bold">"表示"</h2>
-                <p class="text-xs text-text-muted mb-2">"この端末のブラウザに保存されます"</p>
+                <h2 id="display-heading" class="text-lg font-bold mb-4">"表示"</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
-                    <SettingRow title="テーマ" note="端末の設定に合わせることもできます">
+                    <SettingRow title="テーマ">
                         <Segmented
                             options=&THEME_SEGMENTS
                             value=Signal::derive(move || theme.get().value())
@@ -143,7 +135,7 @@ fn SectionDisplay() -> impl IntoView {
                             }
                         />
                     </SettingRow>
-                    <SettingRow title="資産管理の並び順" note="開いたときの初期の並び">
+                    <SettingRow title="資産管理の並び順">
                         <Select
                             value=Signal::derive(move || asset_sort.get().value())
                             aria_label="資産管理の初期の並び順".to_string()
@@ -185,7 +177,7 @@ fn SectionDisplay() -> impl IntoView {
                             }).collect_view()}
                         </Select>
                     </SettingRow>
-                    <SettingRow title="金額の表示単位" note="合計の欄に使います。明細の行は円のまま表示します">
+                    <SettingRow title="金額の表示単位">
                         <Segmented
                             options=&[
                                 ("yen", "円"),
@@ -242,7 +234,7 @@ fn SectionData() -> impl IntoView {
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="data-heading" class="text-lg font-bold mb-4">"データ"</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
-                    <SettingRow title="CSVでエクスポート" note="保存済みのデータをCSVでダウンロード">
+                    <SettingRow title="CSVでエクスポート">
                         {ExportKind::ALL.iter().map(|kind| {
                             let kind = *kind;
                             view! {
@@ -303,7 +295,7 @@ fn SectionSecurity() -> impl IntoView {
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="security-heading" class="text-lg font-bold mb-4">"セキュリティ"</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
-                    <SettingRow title="操作がないときの自動ログアウト" note="共有のパソコンでは短くしておくと安心です">
+                    <SettingRow title="操作がないときの自動ログアウト">
                         <Segmented
                             options=&IDLE_SEGMENTS
                             value=Signal::derive(move || idle_minutes.get().to_string())
