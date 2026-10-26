@@ -151,6 +151,47 @@ fn finish_import_releases_running() {
 }
 
 #[test]
+fn stats_refresh_settles_only_imported_statuses() {
+    let owner = leptos::prelude::Owner::new();
+    owner.with(|| {
+        let store = CsvSyncStore::new();
+        let mut state = SyncState::initial();
+        state.set_kind(
+            CsvKind::AssetBalance,
+            KindStatus::Imported {
+                result: crate::api::dto::CsvUploadResponse {
+                    inserted: 1,
+                    skipped: 0,
+                    errors: vec![],
+                },
+                fetched_at: "2026-10-26T01:02:00Z".to_string(),
+            },
+        );
+        state.set_kind(
+            CsvKind::Dividend,
+            KindStatus::Failed {
+                reason: "取得失敗".to_string(),
+            },
+        );
+        store.state.set(state);
+
+        store.settle_imported_with_stats();
+
+        let state = store.state();
+        assert_eq!(
+            state.kinds[CsvKind::AssetBalance.index()].1,
+            KindStatus::Waiting
+        );
+        assert_eq!(
+            state.kinds[CsvKind::Dividend.index()].1,
+            KindStatus::Failed {
+                reason: "取得失敗".to_string()
+            }
+        );
+    });
+}
+
+#[test]
 fn confirm_answer_no_skips_kind_and_clears_confirm() {
     let _ = any_spawner::Executor::init_futures_executor();
     let owner = leptos::prelude::Owner::new();

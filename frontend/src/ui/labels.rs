@@ -160,10 +160,6 @@ pub const SEARCH_LOADING: &str = "検索中";
 pub const STOCK_SEARCH_TARGET: &str = "銘柄コードまたは銘柄名";
 /// 銘柄検索の実行ボタン(実行中でないときの名前)
 pub const STOCK_SEARCH_ACTION: &str = "銘柄を検索";
-/// CSV 最新取得の実行中表示
-pub const CSV_SYNC_RUNNING: &str = "取得中...";
-/// 種類ごとの進行がまだ始まっていない表示
-pub const CSV_SYNC_WAITING: &str = "待機中";
 /// 拡張機能がログインを待っているときの案内
 pub const CSV_SYNC_LOGIN_WAIT: &str = "楽天証券のタブでログインしてください";
 /// 拡張機能との通信が切れたときのエラー
@@ -190,10 +186,6 @@ pub const CSV_KIND_FUND_BALANCE: &str = "投資信託の保有";
 pub const CSV_KIND_STOCK_TRADE: &str = "国内株式の取引";
 /// 投資信託の取引履歴(CSV 最新取得の種類名)
 pub const CSV_KIND_FUND_TRADE: &str = "投資信託の取引";
-/// 種類ごとの取り込みの実行中表示
-pub const CSV_SYNC_IMPORTING: &str = "取り込み中...";
-/// 件数激減の確認を出して回答を待っている表示
-pub const CSV_SYNC_CONFIRMING: &str = "確認待ち";
 /// 受け取った内容から送信ファイルを作れなかったときの文言
 pub const CSV_SYNC_FILE_FAILED: &str = "ファイルを作成できませんでした";
 /// 確認への「はい」の回答
@@ -216,33 +208,6 @@ pub const CSV_SKIP_ROW_ERRORS: &str = "エラーのある行が含まれます";
 pub const CSV_SKIP_DECLINED: &str = "確認で取り込みをやめました";
 /// 取り込まなかった理由: 保存済み件数を取れなかった
 pub const CSV_SKIP_COUNT_UNKNOWN: &str = "保存済みの件数を確認できませんでした";
-
-/// 受け取った行数の書き方(「受け取った(12行)」)
-pub fn csv_received(lines: usize) -> String {
-    format!("受け取った({lines}行)")
-}
-
-/// 種類ごとの取得失敗の書き方
-pub fn csv_sync_failed(reason: &str) -> String {
-    format!("失敗: {reason}")
-}
-
-/// 種類ごとの取り込み結果の書き方(「取り込んだ(32件)」)
-pub fn csv_imported(inserted: usize, skipped: usize, errors: usize) -> String {
-    let mut text = format!("取り込んだ({inserted}件");
-    if skipped > 0 {
-        text.push_str(&format!("・{skipped}件スキップ"));
-    }
-    if errors > 0 {
-        text.push_str(&format!("・{errors}件エラー"));
-    }
-    format!("{text})")
-}
-
-/// 取り込まなかった理由の書き方
-pub fn csv_sync_skipped(reason: &str) -> String {
-    format!("取り込まなかった({reason})")
-}
 
 /// 件数激減の確認文。「はい/いいえ」で答える
 pub fn csv_sync_plunge_question(kind: &str, new_rows: usize, saved_rows: usize) -> String {
@@ -349,17 +314,6 @@ pub const CSV_MANAGE_FETCH_RUNNING: &str = "取得中...";
 /// CSV管理: 取得前の初期メッセージ
 pub fn csv_manage_last_fetched(date: &str, time: &str) -> String {
     format!("最終取得: {date} {time}")
-}
-/// CSV管理: 取得完了メッセージ(成功・失敗の組み合わせ)
-pub fn csv_manage_fetch_result(updated: usize, failed: usize) -> String {
-    let mut parts = Vec::new();
-    if updated > 0 {
-        parts.push(format!("{updated}種類を更新しました"));
-    }
-    if failed > 0 {
-        parts.push(format!("{failed}種類は取得できませんでした"));
-    }
-    parts.join("・")
 }
 /// CSV管理: 表ヘッダー「データの種類」
 pub const CSV_MANAGE_COL_KIND: &str = "データの種類";
