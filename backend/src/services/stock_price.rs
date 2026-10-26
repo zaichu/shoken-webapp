@@ -227,17 +227,16 @@ fn prev_weekday(date: NaiveDate) -> NaiveDate {
     })
 }
 
-/// 最新の終値が確定している基準日。現在のセッションのバーは翌セッション開始
-/// （JST 9:00 場開始）まで暫定値のまま確定しないため、ライブ中のセッションの
-/// 1つ前のセッション日を返す
+/// 最新の終値が確定している基準日。場中のバーは暫定値のため取引日の
+/// 16:00（引け 15:30 + 余裕）までは直前の取引日を、以降は当日を返す
 fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
     let jst = now + chrono::Duration::hours(9);
-    let mut live = jst.date_naive();
-    if matches!(live.weekday(), Weekday::Sat | Weekday::Sun) || (jst.hour(), jst.minute()) < (9, 0)
-    {
-        live = prev_weekday(live);
+    let live = jst.date_naive();
+    if matches!(live.weekday(), Weekday::Sat | Weekday::Sun) || jst.hour() < 16 {
+        prev_weekday(live)
+    } else {
+        live
     }
-    prev_weekday(live)
 }
 
 /// cron から呼ばれる更新処理。最新の終値の日より共有価格の price_as_of が
@@ -541,22 +540,41 @@ mod tests {
         };
         let date = |y: i32, m: u32, d: u32| NaiveDate::from_ymd_opt(y, m, d).unwrap();
 
-        // 平日は JST 9:00(場開始)を境にライブバーが当日に切り替わり、
-        // 確定しているのは常にライブバーの1つ前のセッション
-        assert_eq!(jst(2026, 10, 14, 8, 59), date(2026, 10, 12));
-        assert_eq!(jst(2026, 10, 14, 9, 0), date(2026, 10, 13));
-        // 引け後も当日バーは確定しないので前営業日のまま
-        assert_eq!(jst(2026, 10, 14, 15, 30), date(2026, 10, 13));
+        // 取引日の 16:00 までは直前の取引日、16:00 以降は当日が確定する
+        assert_eq!(jst(2026, 10, 26, 8, 59), date(2026, 10, 23));
+        assert_eq!(jst(2026, 10, 26, 9, 0), date(2026, 10, 23));
+        assert_eq!(jst(2026, 10, 26, 15, 29), date(2026, 10, 23));
+        assert_eq!(jst(2026, 10, 26, 15, 59), date(2026, 10, 23));
+        assert_eq!(jst(2026, 10, 26, 16, 0), date(2026, 10, 26));
+        assert_eq!(jst(2026, 10, 26, 22, 0), date(2026, 10, 26));
+        assert_eq!(jst(2026, 10, 27, 8, 59), date(2026, 10, 26));
+        assert_eq!(jst(2026, 10, 30, 15, 59), date(2026, 10, 29));
+        assert_eq!(jst(2026, 10, 30, 16, 0), date(2026, 10, 30));
 
-        // 土日はライブバーが金曜のままなので木曜が最新の確定日
-        assert_eq!(jst(2026, 10, 17, 9, 0), date(2026, 10, 15));
-        assert_eq!(jst(2026, 10, 17, 16, 0), date(2026, 10, 15));
-        assert_eq!(jst(2026, 10, 18, 12, 0), date(2026, 10, 15));
+        // 土日は直前の金曜
+        assert_eq!(jst(2026, 10, 31, 12, 0), date(2026, 10, 30));
+        assert_eq!(jst(2026, 11, 1, 12, 0), date(2026, 10, 30));
 
-        // 月曜の場が始まる前はライブバーが金曜のまま(確定は木曜)、場開始後は金曜が確定
-        assert_eq!(jst(2026, 10, 19, 8, 59), date(2026, 10, 15));
-        assert_eq!(jst(2026, 10, 19, 9, 0), date(2026, 10, 16));
-        assert_eq!(jst(2026, 10, 19, 15, 30), date(2026, 10, 16));
+        // 日付をまたぐ UTC 時刻でも JST で判定する
+        let utc = |y: i32, m: u32, d: u32, h: u32, mi: u32| {
+            NaiveDate::from_ymd_opt(y, m, d)
+                .unwrap()
+                .and_hms_opt(h, mi, 0)
+                .unwrap()
+                .and_utc()
+        };
+        assert_eq!(
+            latest_close_date(utc(2026, 10, 25, 15, 0)),
+            date(2026, 10, 23)
+        );
+        assert_eq!(
+            latest_close_date(utc(2026, 10, 26, 6, 59)),
+            date(2026, 10, 23)
+        );
+        assert_eq!(
+            latest_close_date(utc(2026, 10, 26, 7, 0)),
+            date(2026, 10, 26)
+        );
     }
 
     #[test]
