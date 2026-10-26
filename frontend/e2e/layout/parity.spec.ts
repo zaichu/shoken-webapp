@@ -342,3 +342,206 @@ test('取引明細 390px はカード表示でページはみ出しなし', asyn
     await expectNoPageOverflow(page, 390);
   }
 });
+
+const PARITY_FUNDS = [
+  {
+    id: 'fund-1',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    fund_name: '架空インデックス全世界株式オールワールド長期保有テストファンド',
+    account: '特定',
+    dividends_course: '受取型',
+    shares: 10000,
+    average_purchase_price: 9970.5,
+    total_purchase_amount: 9970,
+    base_price: 10012.25,
+    base_price_day_change: 5,
+    base_price_month_change: 120,
+    market_value: 10012,
+    profit_loss: 42,
+    profit_loss_rate: 0.42,
+    total_return: 42,
+    price_as_of: '2026-10-20',
+    price_source: 'api',
+    nav_is_latest: true,
+    expected_nav_date: null,
+  },
+  {
+    id: 'fund-2',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    fund_name: '架空バランスファンドA号',
+    account: '一般',
+    dividends_course: '再投資型',
+    shares: 20000,
+    average_purchase_price: 9500,
+    total_purchase_amount: 19000,
+    base_price: 9800,
+    base_price_day_change: -30,
+    base_price_month_change: 120,
+    market_value: 19600,
+    profit_loss: 600,
+    profit_loss_rate: 3.16,
+    total_return: 600,
+    price_as_of: '2026-10-20',
+    price_source: 'api',
+    nav_is_latest: true,
+    expected_nav_date: null,
+  },
+];
+
+async function setupParityMocks(page: Page) {
+  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated(ASSET_BALANCES))),
+  );
+  await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(
+      json({
+        data: PARITY_FUNDS,
+        total: PARITY_FUNDS.length,
+        page: 1,
+        per_page: 1000,
+        summary: {
+          total_market_value: 29612,
+          total_purchase_amount: 28970,
+          total_daily_change: 0,
+          latest_nav_count: PARITY_FUNDS.length,
+          pending_nav_count: 0,
+          nav_status: {
+            updated_at: '2026-10-20 18:05',
+            fetched_count: 1,
+            failed_count: 0,
+            fund_count: PARITY_FUNDS.length,
+            auto_update_target_count: PARITY_FUNDS.length,
+            failure_reason: null,
+          },
+        },
+      }),
+    ),
+  );
+  await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ items: [] })),
+  );
+}
+
+type Box = { y: number; height: number };
+
+async function skeletonBox(page: Page, selector: string): Promise<Box> {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const locator = page.locator(selector).first();
+  await expect(locator).toBeVisible();
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  return { y: box!.y, height: box!.height };
+}
+
+async function expectTopsEqual(page: Page, other: Page, selector: string, label: string) {
+  const a = await skeletonBox(page, selector);
+  const b = await skeletonBox(other, selector);
+  expect(Math.abs(a.y - b.y), `${label}の上端`).toBeLessThanOrEqual(1);
+  expect(Math.abs(a.height - b.height), `${label}の高さ`).toBeLessThanOrEqual(1);
+}
+
+test.describe('資産管理と取引明細の上部 parity', () => {
+  for (const { width, height } of [
+    { width: 1280, height: 800 },
+    { width: 1920, height: 1080 },
+  ]) {
+    test(`タブ・帯・検索の位置と高さが一致する(${width}px)`, async ({
+      page,
+      context,
+    }) => {
+      await page.setViewportSize({ width, height });
+      await setupParityMocks(page);
+      const other = await context.newPage();
+      await other.setViewportSize({ width, height });
+      await setupParityMocks(other);
+      try {
+        await page.goto('/assetbalance');
+        await expectAssetDataLoaded(page);
+        await other.goto('/receipts');
+        await other.getByTestId('receipt-summary-strip').first().waitFor();
+        for (const selector of [
+          '.page-skeleton-tabs',
+          '.page-skeleton-summary',
+          '.page-skeleton-note',
+          '.page-skeleton-search',
+        ]) {
+          await expectTopsEqual(page, other, selector, selector);
+        }
+        const assetTab = await skeletonBox(page, '.page-tab');
+        const receiptTab = await skeletonBox(other, '.page-tab');
+        expect(Math.abs(assetTab.height - receiptTab.height), 'タブの高さ').toBeLessThanOrEqual(1);
+        // タブ切替でも上端が動かない
+        const before = await skeletonBox(page, '.page-skeleton-tabs');
+        await page.getByTestId('asset-kind-tab-fund').click();
+        await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+        const afterFund = await skeletonBox(page, '.page-skeleton-tabs');
+        expect(Math.abs(afterFund.y - before.y), '資産管理のタブ切替').toBeLessThanOrEqual(1);
+        await page.getByTestId('asset-kind-tab-all').click();
+        await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+        const afterAll = await skeletonBox(page, '.page-skeleton-tabs');
+        expect(Math.abs(afterAll.y - before.y), '資産管理のタブ切替(すべて)').toBeLessThanOrEqual(1);
+        const receiptBefore = await skeletonBox(other, '.page-skeleton-tabs');
+        await selectReceiptTab(other, TABS[1]);
+        const receiptAfter = await skeletonBox(other, '.page-skeleton-tabs');
+        expect(Math.abs(receiptAfter.y - receiptBefore.y), '取引明細のタブ切替').toBeLessThanOrEqual(1);
+      } finally {
+        await other.close();
+      }
+    });
+  }
+
+  test('スマホではタブと帯の上端が一致する(390px)', async ({ page, context }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await setupParityMocks(page);
+    const other = await context.newPage();
+    await other.setViewportSize({ width: 390, height: 844 });
+    await setupParityMocks(other);
+    try {
+      await page.goto('/assetbalance');
+      await expectAssetDataLoaded(page);
+      await other.goto('/receipts');
+      await other.getByTestId('receipt-summary-strip').first().waitFor();
+      // 検索欄は配置が違う(資産管理は本文内・取引明細は下部固定)のため、
+      // スマホではタブと帯の上端だけを比べる。帯の高さは項目数が違うため比べない
+      for (const selector of ['.page-skeleton-tabs', '.page-skeleton-summary']) {
+        const a = await skeletonBox(page, selector);
+        const b = await skeletonBox(other, selector);
+        expect(Math.abs(a.y - b.y), `${selector}の上端`).toBeLessThanOrEqual(1);
+      }
+      await expectNoPageOverflow(page, 390);
+      await expectNoPageOverflow(other, 390);
+    } finally {
+      await other.close();
+    }
+  });
+
+  test('長い名前・30件でも上部がずれない', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+    const longStocks = Array.from({ length: 30 }, (_, i) => ({
+      id: `asset-long-${i}`,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      security_code: '9904',
+      security_name: '架空自動車ホールディングスインターナショナルグループ株式会社',
+      shares: 100 * (i + 1),
+      average_purchase_price: 2500,
+      total_purchase_amount: 250000,
+      current_price: 2600,
+      daily_change: 10,
+      market_value: 260000,
+      profit_loss_rate: 4.0,
+    }));
+    await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+      route.fulfill(json({ data: longStocks, total: 30, page: 1, per_page: 1000 })),
+    );
+    await page.goto('/assetbalance');
+    await expectAssetDataLoaded(page);
+    await expectNoPageOverflow(page, 1280);
+    const tabs = await skeletonBox(page, '.page-skeleton-tabs');
+    expect(tabs.y).toBeGreaterThan(0);
+  });
+});
