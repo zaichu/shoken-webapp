@@ -112,7 +112,13 @@ pub(crate) async fn process(
         match outcome {
             Outcome::Imported(result) => {
                 store.state.update(|state| {
-                    state.set_kind(csv.kind, KindStatus::Imported { result });
+                    state.set_kind(
+                        csv.kind,
+                        KindStatus::Imported {
+                            result,
+                            fetched_at: csv.fetched_at.clone(),
+                        },
+                    );
                     state.import.imported.push(csv.kind);
                 });
             }

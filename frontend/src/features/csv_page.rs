@@ -110,14 +110,25 @@ fn row_data(
             .iter()
             .find(|stat| stat.kind == kind.kind_param())
     });
+    let sync_status = sync_kinds
+        .iter()
+        .find(|(sync_kind, _)| *sync_kind == kind.sync_kind())
+        .map(|(_, status)| status.clone());
+    let (count, latest_imported_at) = match &sync_status {
+        Some(KindStatus::Imported { result, fetched_at }) => (
+            Some(i64::try_from(result.inserted).unwrap_or(i64::MAX)),
+            Some(fetched_at.clone()),
+        ),
+        _ => (
+            stat.map(|stat| stat.count),
+            stat.and_then(|stat| stat.latest_imported_at.clone()),
+        ),
+    };
     CsvKindRowData {
         kind,
-        count: stat.map(|stat| stat.count),
-        latest_imported_at: stat.and_then(|stat| stat.latest_imported_at.clone()),
-        sync_status: sync_kinds
-            .iter()
-            .find(|(sync_kind, _)| *sync_kind == kind.sync_kind())
-            .map(|(_, status)| status.clone()),
+        count,
+        latest_imported_at,
+        sync_status,
     }
 }
 
@@ -135,42 +146,33 @@ pub fn CsvPage() -> impl IntoView {
 
     let stats = RwSignal::new(None::<CsvKindStatsResponse>);
     // 取得完了・取り込み・削除のあとに件数と状態を取り直す。失敗しても前回の表示は残す
-    let refresh_stats = move || {
+    let refresh_stats = move |settle_sync: bool| {
         leptos::task::spawn_local(async move {
             if let Ok(response) = fetch_csv_kind_stats().await {
                 stats.set(Some(response));
+                if settle_sync {
+                    csv_sync.settle_imported_with_stats();
+                }
             }
         });
     };
-    Effect::new(move |_| refresh_stats());
+    Effect::new(move |_| refresh_stats(false));
 
-    // 取得結果のメッセージ(取得完了時に表示)
-    let fetch_result = RwSignal::new(None::<String>);
     // 取得前の最終取得時刻表示用
     let last_fetched = RwSignal::new(None::<String>);
     let running = RwSignal::new(false);
+    let handled_finished = RwSignal::new(false);
     Effect::new(move |_| running.set(csv_sync.running()));
 
-    // csv_syncの完了を監視して結果メッセージを更新し、保存済み件数を取り直す
+    // csv_syncの完了を監視して保存済み件数を取り直す
     Effect::new(move |_| {
         let state = csv_sync.state();
-        if state.finished && !state.running {
-            let mut updated = 0;
-            let mut failed = 0;
-            for (_, status) in &state.kinds {
-                match status {
-                    KindStatus::Imported { .. } => updated += 1,
-                    KindStatus::Failed { .. } | KindStatus::Skipped { .. } => failed += 1,
-                    _ => {}
-                }
-            }
-            if updated > 0 || failed > 0 {
-                fetch_result.set(Some(labels::csv_manage_fetch_result(updated, failed)));
-            }
-            last_fetched.set(None);
-            refresh_stats();
+        let finished = state.finished && !state.running;
+        if finished && !handled_finished.get_untracked() {
+            handled_finished.set(true);
+            refresh_stats(true);
         } else if state.running {
-            fetch_result.set(None);
+            handled_finished.set(false);
         }
     });
 
@@ -225,7 +227,6 @@ pub fn CsvPage() -> impl IntoView {
                 {/* 取得カード */}
                 <CsvManageFetchCard
                     running=running.read_only()
-                    fetch_result=fetch_result.read_only()
                     last_fetched=last_fetched.read_only()
                     on_fetch=Callback::new(move |_| csv_sync.start())
                 />
@@ -239,7 +240,7 @@ pub fn CsvPage() -> impl IntoView {
                         receipts_store=receipts
                         csv_sync=csv_sync
                         open_import=open_import
-                        on_stats_changed=Callback::new(move |_| refresh_stats())
+                        on_stats_changed=Callback::new(move |_| refresh_stats(false))
                     />
                 </section>
             </div>
@@ -316,5 +317,36 @@ mod tests {
         assert_eq!(row.sync_status, Some(KindStatus::Fetching));
         let asset = row_data(CsvKind::AssetStock, None, &sync);
         assert_eq!(asset.sync_status, None);
+    }
+
+    #[test]
+    fn row_data_prefers_import_result_until_stats_refresh() {
+        let stats = CsvKindStatsResponse {
+            kinds: vec![shared::csv_kind_stats::CsvKindStat {
+                kind: "dividend".to_string(),
+                label: "取引明細(配当金)".to_string(),
+                count: 40,
+                latest_imported_at: Some("2026-10-25T12:00:00Z".to_string()),
+            }],
+        };
+        let sync = [(
+            SyncKind::Dividend,
+            KindStatus::Imported {
+                result: crate::api::dto::CsvUploadResponse {
+                    inserted: 1,
+                    skipped: 0,
+                    errors: vec![],
+                },
+                fetched_at: "2026-10-26T01:02:00Z".to_string(),
+            },
+        )];
+
+        let row = row_data(CsvKind::Dividend, Some(&stats), &sync);
+
+        assert_eq!(row.count, Some(1));
+        assert_eq!(
+            row.latest_imported_at.as_deref(),
+            Some("2026-10-26T01:02:00Z")
+        );
     }
 }

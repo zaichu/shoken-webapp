@@ -3733,3 +3733,33 @@ async fn fund_expected_nav_date_matches_rust_mirror() {
         );
     }
 }
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_kind_stats_queries_all_five_tables() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = UserId::from(Uuid::new_v4());
+
+    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+        .await
+        .expect("5種類すべてのテーブルを検索できる");
+
+    let kinds: Vec<&str> = stats.kinds.iter().map(|stat| stat.kind.as_str()).collect();
+    assert_eq!(
+        kinds,
+        [
+            "assetbalance",
+            "fundbalance",
+            "dividend",
+            "domesticstock",
+            "mutualfund"
+        ]
+    );
+    assert!(stats.kinds.iter().all(|stat| stat.count == 0));
+    assert!(
+        stats
+            .kinds
+            .iter()
+            .all(|stat| stat.latest_imported_at.is_none())
+    );
+}

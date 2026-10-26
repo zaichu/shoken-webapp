@@ -44,15 +44,20 @@ pub async fn csv_kind_stats(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    let user_id = auth_user.id();
+    let stats = collect_csv_kind_stats(&state.pool, auth_user.id()).await?;
+    Ok((StatusCode::OK, Json(stats)))
+}
 
-    // 各テーブルから件数と最新 created_at を取得
-    let asset_balance = query_kind_stat(&state.pool, user_id, "asset_balances").await?;
-    let fund_balance = query_kind_stat(&state.pool, user_id, "fund_balances").await?;
-    let dividend = query_kind_stat(&state.pool, user_id, "dividends").await?;
-    let domestic_stock =
-        query_kind_stat(&state.pool, user_id, "domestic_stock_transactions").await?;
-    let mutual_fund = query_kind_stat(&state.pool, user_id, "mutual_fund_transactions").await?;
+/// 5種類のテーブルから、ユーザーごとの件数と最新 created_at を集める
+pub async fn collect_csv_kind_stats(
+    pool: &crate::db::Db,
+    user_id: shared::value::UserId,
+) -> Result<CsvKindStatsResponse, ApiError> {
+    let asset_balance = query_kind_stat(pool, user_id, "asset_balances").await?;
+    let fund_balance = query_kind_stat(pool, user_id, "fund_balances").await?;
+    let dividend = query_kind_stat(pool, user_id, "dividends").await?;
+    let domestic_stock = query_kind_stat(pool, user_id, "domestic_stocks").await?;
+    let mutual_fund = query_kind_stat(pool, user_id, "mutualfunds").await?;
 
     let kinds = vec![
         CsvKindStat {
@@ -87,7 +92,7 @@ pub async fn csv_kind_stats(
         },
     ];
 
-    Ok((StatusCode::OK, Json(CsvKindStatsResponse { kinds })))
+    Ok(CsvKindStatsResponse { kinds })
 }
 
 async fn query_kind_stat(

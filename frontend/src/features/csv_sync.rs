@@ -133,6 +133,7 @@ pub(crate) enum KindStatus {
     Confirming,
     Imported {
         result: crate::api::dto::CsvUploadResponse,
+        fetched_at: String,
     },
     Skipped {
         reason: SkipReason,
@@ -355,6 +356,24 @@ impl CsvSyncStore {
 
     fn set_kind(&self, kind: CsvKind, status: KindStatus) {
         self.state.update(|state| state.set_kind(kind, status));
+    }
+
+    pub(crate) fn settle_imported_with_stats(&self) {
+        if !self.state.with_untracked(|state| {
+            state
+                .kinds
+                .iter()
+                .any(|(_, status)| matches!(status, KindStatus::Imported { .. }))
+        }) {
+            return;
+        }
+        self.state.update(|state| {
+            for (_, status) in &mut state.kinds {
+                if matches!(status, KindStatus::Imported { .. }) {
+                    *status = KindStatus::Waiting;
+                }
+            }
+        });
     }
 
     /// この実行とセッションがまだ有効か。リセット・次の実行・ユーザー切替のあとに

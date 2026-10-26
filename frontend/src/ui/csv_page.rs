@@ -185,7 +185,6 @@ impl CsvKindRowData {
 #[component]
 pub fn CsvManageFetchCard(
     running: ReadSignal<bool>,
-    fetch_result: ReadSignal<Option<String>>,
     last_fetched: ReadSignal<Option<String>>,
     on_fetch: Callback<web_sys::MouseEvent>,
 ) -> impl IntoView {
@@ -221,18 +220,7 @@ pub fn CsvManageFetchCard(
                     }}
                     <div class="flex-1 min-w-0">
                         {move || {
-                            fetch_result.get().map(|msg| {
-                                view! {
-                                    <p class="text-sm text-text" role="status" aria-live="polite">
-                                        {msg}
-                                    </p>
-                                }
-                            })
-                        }}
-                        {move || {
-                            last_fetched.get().and_then(|lf| {
-                                fetch_result.get().is_none().then_some(lf)
-                            }).map(|lf| {
+                            last_fetched.get().map(|lf| {
                                 view! {
                                     <p class="text-sm text-text-muted" role="status" aria-live="polite">
                                         {lf}

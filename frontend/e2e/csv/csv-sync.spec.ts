@@ -1,6 +1,6 @@
 import { Page } from '@playwright/test';
 import { expect, test, json, paginated } from '../support/test';
-import { csvRow, mockCsvKindStats } from '../support/csv-page';
+import { csvRow, mockCsvKindStats, savedCount } from '../support/csv-page';
 
 /**
  * 「CSV 最新取得」ボタンの E2E。拡張機能は window.chrome をモックして、
@@ -198,7 +198,7 @@ function emitAllCsvs(page: Page) {
     csvs: SYNC_KINDS.map(({ kind, csv }) => ({
       kind,
       content: csv,
-      fetchedAt: '2026-10-23T00:00:00Z',
+      fetchedAt: new Date().toISOString(),
       fileRemoved: true,
     })),
     failures: [],
@@ -288,7 +288,7 @@ async function emitFailureResult(page: Page) {
 }
 
 test.describe('CSV 最新取得', () => {
-  test('CSV管理: 5種類を受け取って自動で取り込み、結果と表の更新が出る', async ({ page }) => {
+  test('CSV管理: 統計APIなしでも取得直後に5種類の件数と更新時刻を表へ出す', async ({ page }) => {
     await mockSession(page);
     const calls = await mockSyncApis(page);
     await mockExtension(page);
@@ -313,10 +313,13 @@ test.describe('CSV 最新取得', () => {
 
     await emitAllCsvs(page);
 
-    // 5種類とも既存の preview → import を通って取り込み結果が出る
+    // 5種類とも既存の preview → import を通り、統計 API を待たず表へ結果が出る
     for (const { kind } of SYNC_KINDS) {
-      await expect(page.getByTestId(`csv-sync-kind-${kind}`)).toContainText('取り込んだ(1件');
+      await expect(savedCount(page, kind)).toHaveText('1件');
+      await expect(csvRow(page, kind)).toContainText(/今日 \d{2}:\d{2} に更新/);
     }
+    await expect(page.getByTestId('csv-sync-kinds')).toHaveCount(0);
+    await expect(page.getByText('5種類を更新しました')).toHaveCount(0);
     for (const { kind } of SYNC_KINDS) {
       expect(calls.preview.filter((k) => k === kind)).toHaveLength(1);
       expect(calls.import.filter((k) => k === kind)).toHaveLength(1);
@@ -355,12 +358,10 @@ test.describe('CSV 最新取得', () => {
 
     await page.getByTestId('csv-sync-confirm-no').click();
     await expect(confirm).toHaveCount(0);
-    await expect(page.getByTestId('csv-sync-kind-assetbalance')).toContainText(
-      '取り込まなかった',
-    );
+    await expect(csvRow(page, 'assetbalance')).toContainText('取り込まなかった');
     // 残りの種類は続けて取り込む
     for (const { kind } of SYNC_KINDS.slice(1)) {
-      await expect(page.getByTestId(`csv-sync-kind-${kind}`)).toContainText('取り込んだ(1件');
+      await expect(csvRow(page, kind)).toContainText(/今日 \d{2}:\d{2} に更新/);
     }
     expect(calls.import).not.toContain('assetbalance');
   });
@@ -376,7 +377,7 @@ test.describe('CSV 最新取得', () => {
     await page.getByTestId('csv-sync-confirm').waitFor();
     await page.getByTestId('csv-sync-confirm-yes').click();
     for (const { kind } of SYNC_KINDS) {
-      await expect(page.getByTestId(`csv-sync-kind-${kind}`)).toContainText('取り込んだ(1件');
+      await expect(csvRow(page, kind)).toContainText(/今日 \d{2}:\d{2} に更新/);
     }
     expect(calls.import).toContain('assetbalance');
   });
@@ -409,8 +410,7 @@ test.describe('CSV 最新取得', () => {
     await expect.poll(() => calls.preview.includes('assetbalance')).toBe(true);
     await page.getByRole('button', { name: /テストユーザーのアカウントメニュー/ }).click();
     await page.getByRole('menuitem', { name: 'ログアウト' }).click();
-    // リセットされると進行表示の内容が消える(パネル自体は残るが中身は空になる)
-    await expect(page.getByTestId('csv-sync-kinds')).toHaveCount(0);
+    await expect(csvRow(page, 'assetbalance')).toHaveCount(0);
 
     releasePreview();
     // preview の応答が戻っても旧セッションの取り込みは送らない
@@ -458,8 +458,7 @@ test.describe('CSV 最新取得', () => {
     await expect.poll(() => calls.import.includes('dividend')).toBe(true);
     await page.getByRole('button', { name: /テストユーザーのアカウントメニュー/ }).click();
     await page.getByRole('menuitem', { name: 'ログアウト' }).click();
-    // リセットされると進行表示の内容が消える(パネル自体は残るが中身は空になる)
-    await expect(page.getByTestId('csv-sync-kinds')).toHaveCount(0);
+    await expect(csvRow(page, 'dividend')).toHaveCount(0);
 
     releaseImport();
     // 1チャンク目の応答が戻っても2チャンク目以降は送らない
@@ -485,10 +484,8 @@ test.describe('CSV 最新取得', () => {
       ],
       failures: [],
     });
-    await expect(page.getByTestId('csv-sync-kind-assetbalance')).toContainText(
-      '取り込まなかった',
-    );
-    await expect(page.getByTestId('csv-sync-kind-dividend')).toContainText('取り込まなかった');
+    await expect(csvRow(page, 'assetbalance')).toContainText('取り込まなかった');
+    await expect(csvRow(page, 'dividend')).toContainText('取り込まなかった');
     // 安全装置で止めた分は preview/import を呼ばない
     expect(calls.import).toEqual([]);
     expect(calls.preview).toEqual([]);
@@ -556,7 +553,7 @@ test.describe('CSV 最新取得', () => {
     await page.goto('/csv?kind=dividend');
     await page.getByTestId('csv-fetch-button').click();
     await emitFailureResult(page);
-    await expect(page.getByTestId('csv-sync-kind-dividend')).toContainText('失敗');
+    await expect(csvRow(page, 'dividend')).toContainText('取得できず');
     await expect(
       page.getByText('ファイルの URL へのアクセスが許可されていません'),
     ).toBeVisible();
@@ -576,12 +573,12 @@ test.describe('CSV 最新取得', () => {
     await page.goto('/assetbalance');
     await expect(page.getByTestId('csv-fetch-button')).toHaveCount(0);
 
-    // CSV管理画面にはパネルがあり、ボタンと進行表示がある
+    // CSV管理画面には取得カードがあり、種類ごとの進行は表へ出る
     await page.goto('/csv?kind=dividend');
     await expect(page.getByTestId('csv-fetch-button')).toBeVisible();
     await page.getByTestId('csv-fetch-button').click();
     await emitMessage(page, { type: 'progress', state: 'fetching', kind: 'dividend' });
-    await expect(page.getByTestId('csv-sync-kind-dividend')).toContainText('取得中');
+    await expect(csvRow(page, 'dividend')).toContainText('取得中');
   });
 
   test('ログインしていないときはボタンが出ない', async ({ page }) => {
