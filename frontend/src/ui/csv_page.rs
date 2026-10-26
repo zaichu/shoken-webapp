@@ -322,6 +322,7 @@ pub fn CsvKindRow(
         kind,
     };
     let delete_error = RwSignal::new(None::<String>);
+    let detail_open = RwSignal::new(false);
 
     // 削除は確認表示中だけ開始できるため、モーダルを開く時点でフラグを立てる
     let open_delete = move |_| {
@@ -399,16 +400,31 @@ pub fn CsvKindRow(
                     <span class=status_class>{status_text}</span>
                     {has_error_detail.then(|| {
                         view! {
-                            <span
-                                class="inline-block max-w-xs min-w-0 text-xs text-negative-vivid whitespace-nowrap overflow-x-auto align-middle"
+                            <button
+                                type="button"
+                                class="text-xs underline text-text-muted hover:text-text"
                                 data-testid="status-detail"
-                                title=error_detail.clone()
+                                on:click=move |_| detail_open.update(|v| *v = !*v)
                             >
-                                {error_detail.clone()}
-                            </span>
+                                {labels::CSV_MANAGE_FAILED_DETAIL_LABEL}
+                            </button>
                         }
                     })}
                 </div>
+                {has_error_detail.then(|| {
+                    detail_open.get().then(|| {
+                        let detail = error_detail.clone();
+                        view! {
+                            <div
+                                class="mt-1 max-w-xs overflow-x-auto whitespace-nowrap text-xs text-negative-vivid"
+                                data-testid="status-detail-content"
+                                title=detail.clone()
+                            >
+                                {detail.clone()}
+                            </div>
+                        }
+                    })
+                })}
             </td>
             <td class="px-4 py-3 whitespace-nowrap text-right">
                 <div class="relative inline-block">
