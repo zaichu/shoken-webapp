@@ -996,7 +996,7 @@ pub fn CsvKindTable(
     let menu_kind = RwSignal::new(None::<CsvKind>);
     let delete_kind = RwSignal::new(None::<CsvKind>);
     view! {
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto sm:overflow-visible">
             <table class="w-full" role="table">
                 <thead class="bg-surface-sunken border-b border-border">
                     <tr>

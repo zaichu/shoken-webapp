@@ -232,7 +232,7 @@ pub fn CsvPage() -> impl IntoView {
                 <CsvSyncBody />
 
                 {/* 種類ごとのテーブル */}
-                <section class="rounded-lg border border-border bg-surface-sunken overflow-hidden">
+                <section class="rounded-lg border border-border bg-surface-sunken overflow-hidden sm:overflow-visible">
                     <CsvKindTable
                         rows=rows
                         asset_csv=asset_state.csv
