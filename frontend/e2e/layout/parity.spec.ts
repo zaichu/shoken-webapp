@@ -322,7 +322,10 @@ test('資産管理の検索とCSV管理ページに390pxでもアクセスでき
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/csv');
   await expect(page.getByTestId('csv-file-input')).toBeAttached();
-  await page.getByRole('link', { name: '一覧に戻る' }).click();
+  await page
+    .getByRole('navigation', { name: 'パンくず' })
+    .getByRole('link', { name: '資産管理' })
+    .click();
   await expect(page).toHaveURL('/assetbalance');
 });
 
