@@ -375,7 +375,7 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
   await mockCsvKindStats(page, {
     counts: () => ({ dividend: rows.length }),
   });
-  await page.goto('/csv?kind=dividend');
+  await page.goto('/csv');
 
   // 配当金の行の⋯メニューから削除を開く
   await openCsvDelete(page, 'dividend');
@@ -405,7 +405,7 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
   await expect(savedCount(page, 'dividend')).toContainText('0件');
 });
 
-test('CSV取込の保存結果は一覧再取得後もCSVページに見える', async ({ page }) => {
+test('CSV取込の保存後はダイアログが閉じる', async ({ page }) => {
   const imported = { ...DIVIDENDS[0], id: '00000000-0000-0000-0000-000000000009' };
   const rows: unknown[] = [...DIVIDENDS];
   await page.route(/\/api\/v1\//, (route) =>
@@ -463,7 +463,6 @@ test('CSV取込の保存結果は一覧再取得後もCSVページに見える',
     );
   await page.getByRole('button', { name: '1件を保存する' }).click();
 
-  const notice = page.getByTestId('csv-save-result-notice');
-  await expect(notice).toBeVisible();
-  await expect(notice).toContainText('1件反映');
+  // 成功したらダイアログが閉じる
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
 });

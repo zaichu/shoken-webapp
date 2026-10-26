@@ -463,9 +463,10 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await page.getByRole('link', { name: 'CSV管理' }).click();
       await expect(page).toHaveURL(`/csv?kind=${scenario.kind}`);
 
-      // 表は5種類を常に出し、`?kind=` で指定した種類の取り込みだけを開く
+      // 表は5種類を常に出し、`?kind=` で指定した種類の取り込みダイアログだけを開く
       await expect(csvRow(page, scenario.row)).toHaveCount(1);
-      const fileInput = csvImportRow(page).getByTestId('csv-file-input');
+      const dialog = csvImportRow(page);
+      const fileInput = dialog.getByTestId('csv-file-input');
       await expect(fileInput).toBeAttached();
       await expect(savedCount(page, scenario.row)).toContainText('0件');
 
@@ -486,23 +487,23 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await page
         .getByRole('button', { name: `${base.previewRows.length}件を保存する` })
         .click();
-      const notice = page.getByTestId('csv-save-result-notice');
-      await expect(notice).toContainText(`${baseCount}件反映`);
-      // 保存後は行の件数と状態を取り直す
+      // 保存に成功したらダイアログが閉じ、行の件数を取り直す
+      await expect(dialog).toBeHidden();
       await expect(savedCount(page, scenario.row)).toContainText(`${baseCount}件`);
 
-      await expect(fileInput).toBeEnabled();
-      await fileInput.setInputFiles(path.join(fixtureDir(), scenario.additionalFile));
+      await openCsvImport(page, scenario.row);
+      const reopened = csvImportRow(page);
+      const additionalInput = reopened.getByTestId('csv-file-input');
+      await expect(additionalInput).toBeEnabled();
+      await additionalInput.setInputFiles(path.join(fixtureDir(), scenario.additionalFile));
       await expect(
         page.getByText(`${additional.previewRows.length}件を追加で保存できます`),
       ).toBeVisible();
       await page
         .getByRole('button', { name: `${additional.previewRows.length}件を保存する` })
         .click();
-      await expect(notice).toContainText(`${additionalCount}件反映`);
-      await expect(notice).toContainText(
-        `${additional.previewRows.length - additionalCount}件スキップ`,
-      );
+      await expect(reopened).toBeHidden();
+      await expect(savedCount(page, scenario.row)).toContainText(`${totalCount}件`);
 
       // 削除は行の⋯メニューから確認モーダルで行う
       await openCsvDelete(page, scenario.row);
@@ -795,19 +796,21 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await expect(preview.getByText('架空ゲーム').first()).toBeVisible();
 
     await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
-    const notice = page.getByTestId('csv-save-result-notice');
-    await expect(notice).toContainText('2件反映');
+    // 保存に成功したらダイアログが閉じ、行の件数を取り直す
+    await expect(csvImportRow(page)).toBeHidden();
     await expect(savedCount(page, 'assetbalance')).toContainText('2件');
 
-    await expect(fileInput).toBeEnabled();
-    await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
+    await openCsvImport(page, 'assetbalance');
+    const updatedInput = csvImportRow(page).getByTestId('csv-file-input');
+    await expect(updatedInput).toBeEnabled();
+    await updatedInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
     await expect(page.getByRole('button', { name: '3件 全件置換で保存' })).toBeEnabled();
     await expect(
       page.getByTestId('csv-preview').getByText('架空フィナンシャルＧ').first(),
     ).toBeVisible();
 
     await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
-    await expect(notice).toContainText('3件反映');
+    await expect(csvImportRow(page)).toBeHidden();
     await expect(savedCount(page, 'assetbalance')).toContainText('3件');
 
     // 削除は国内株式の行の⋯メニューから確認モーダルで行う

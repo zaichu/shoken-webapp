@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/test';
+import { csvRow } from '../support/csv-page';
 import * as path from 'path';
 
 /**
@@ -166,7 +167,7 @@ test.describe('取込結果のエラー詳細表示', () => {
     await expect(items.nth(1)).toHaveText('4行目: 株数が不正です');
   });
 
-  test('失敗の保存結果はアイコンと色が成功と区別できる', async ({ page }) => {
+  test('成功したらダイアログが閉じ、失敗は結果を残す', async ({ page }) => {
     let upload: object = { inserted: PREVIEW_ROWS.length, skipped: 0, errors: [] };
     await setupMocks(page, {});
     await page.route(/\/api\/v1\/dividend-imports$/, (route) =>
@@ -178,17 +179,16 @@ test.describe('取込結果のエラー詳細表示', () => {
     );
 
     await page.goto('/csv?kind=dividend');
+    const dialog = page.getByTestId('csv-import-dialog');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
-    const notice = page.getByTestId('csv-save-result-notice');
 
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
     await page.getByRole('button', { name: /保存する/ }).first().click();
-    await expect(notice).toContainText('保存しました');
-    const successIcon = await notice.locator('svg path').first().getAttribute('d');
-    const successClass = await notice.getAttribute('class');
+    // 成功(行エラーなし)したらダイアログが閉じる
+    await expect(dialog).toBeHidden();
 
-    // 失敗する取り込みで同じ画面をもう一度実行する
+    // 失敗する取り込みで開き直して実行する
     upload = {
       inserted: 0,
       skipped: 0,
@@ -197,14 +197,17 @@ test.describe('取込結果のエラー詳細表示', () => {
         { row: 2, message: '数量が数値ではありません' },
       ],
     };
+    await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
+    await page.getByRole('button', { name: 'ファイルから取り込み' }).click();
+    await expect(dialog).toBeVisible();
+    await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
     await page.getByRole('button', { name: /保存する/ }).first().click();
+    // 行エラーありは結果を見せるため開いたままにする
+    const notice = page.getByTestId('csv-save-result-notice');
     await expect(notice).toContainText('保存できませんでした');
-    const failureIcon = await notice.locator('svg path').first().getAttribute('d');
-    const failureClass = await notice.getAttribute('class');
-
-    expect(failureIcon, '失敗でも成功と同じアイコン').not.toBe(successIcon);
-    expect(failureClass, '失敗でも成功と同じ配色').not.toBe(successClass);
+    await expect(notice).toContainText('2件エラー');
+    await expect(notice.locator('svg').first()).toBeVisible();
   });
 
   test('プレビューの行エラーは操作なしで表示される', async ({ page }) => {

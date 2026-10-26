@@ -291,5 +291,6 @@ test('投資信託タブのCSVはプレビューから全件置換で保存で�
   await expect(preview).toContainText('架空バランスファンドA号');
 
   await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
-  await expect(page.getByRole('link', { name: '一覧で確認する' })).toBeVisible();
+  // 成功したらダイアログが閉じる
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
 });
