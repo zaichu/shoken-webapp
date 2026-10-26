@@ -568,7 +568,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
       });
     });
 
-    await page.goto('/csv?kind=dividend');
+    await page.goto('/csv');
     const count = savedCount(page, 'dividend');
     await expect(count).toContainText('3件', { timeout: 10000 });
 

@@ -318,6 +318,9 @@ test('CSV管理ページは一覧のリンクから開き、5種類の行が出�
   await expect(csvRow(page, 'domesticstock')).toContainText('取引明細(国内株式)');
   await expect(csvImportRow(page)).toContainText('取引明細(国内株式) へファイルから取り込み');
 
+  // ダイアログを閉じてからパンくずで戻る
+  await page.keyboard.press('Escape');
+  await expect(csvImportRow(page)).toBeHidden();
   await page
     .getByRole('navigation', { name: 'パンくず' })
     .getByRole('link', { name: '資産管理' })

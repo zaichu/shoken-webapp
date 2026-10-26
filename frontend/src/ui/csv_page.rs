@@ -628,8 +628,8 @@ fn CsvImportDialog(
         }
     };
     // 成功(行エラーなし)したら閉じる。行エラーありは結果を見せるため開いたままにする。
-    // 初期表示で前回の保存結果が残っていても閉じないよう、遷移だけ見る
-    let seen_result = RwSignal::new(false);
+    // 前回の保存結果が残って開き直しても閉じないよう、遷移だけ見る
+    let seen_result = RwSignal::new(meta.get_untracked().import_result.is_some());
     Effect::new(move |_| match meta.get().import_result {
         Some(result) if result.errors.is_empty() => {
             if !seen_result.get_untracked() {
