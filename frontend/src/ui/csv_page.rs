@@ -284,6 +284,7 @@ pub fn CsvKindRow(
     open_import: RwSignal<Option<CsvKind>>,
     menu_kind: RwSignal<Option<CsvKind>>,
     delete_kind: RwSignal<Option<CsvKind>>,
+    detail_kind: RwSignal<Option<CsvKind>>,
     on_stats_changed: Callback<()>,
 ) -> impl IntoView {
     let kind = row_data.kind;
@@ -322,7 +323,10 @@ pub fn CsvKindRow(
         kind,
     };
     let delete_error = RwSignal::new(None::<String>);
-    let detail_open = RwSignal::new(false);
+    let detail_open = KindFlag {
+        slot: detail_kind,
+        kind,
+    };
 
     // 削除は確認表示中だけ開始できるため、モーダルを開く時点でフラグを立てる
     let open_delete = move |_| {
@@ -404,27 +408,27 @@ pub fn CsvKindRow(
                                 type="button"
                                 class="text-xs underline text-text-muted hover:text-text"
                                 data-testid="status-detail"
-                                on:click=move |_| detail_open.update(|v| *v = !*v)
+                                on:click=move |_| detail_open.toggle()
                             >
                                 {labels::CSV_MANAGE_FAILED_DETAIL_LABEL}
                             </button>
                         }
                     })}
                 </div>
-                {has_error_detail.then(|| {
-                    detail_open.get().then(|| {
-                        let detail = error_detail.clone();
-                        view! {
-                            <div
-                                class="mt-1 max-w-xs overflow-x-auto whitespace-nowrap text-xs text-negative-vivid"
-                                data-testid="status-detail-content"
-                                title=detail.clone()
-                            >
-                                {detail.clone()}
-                            </div>
-                        }
-                    })
-                })}
+                {move || {
+                    (has_error_detail && detail_open.get())
+                        .then(|| {
+                            view! {
+                                <div
+                                    class="mt-1 max-w-xs overflow-x-auto whitespace-nowrap text-xs text-negative-vivid"
+                                    data-testid="status-detail-content"
+                                    title=error_detail.clone()
+                                >
+                                    {error_detail.clone()}
+                                </div>
+                            }
+                        })
+                }}
             </td>
             <td class="px-4 py-3 whitespace-nowrap text-right">
                 <div class="relative inline-block">
@@ -1006,6 +1010,7 @@ pub fn CsvKindTable(
     // 件数・状態が更新されると行が作り直されるため、開いているメニューと削除確認は表で持つ
     let menu_kind = RwSignal::new(None::<CsvKind>);
     let delete_kind = RwSignal::new(None::<CsvKind>);
+    let detail_kind = RwSignal::new(None::<CsvKind>);
     view! {
         <div class="overflow-x-auto sm:overflow-visible">
             <table class="w-full" role="table">
@@ -1040,6 +1045,7 @@ pub fn CsvKindTable(
                                         open_import=open_import
                                         menu_kind=menu_kind
                                         delete_kind=delete_kind
+                                        detail_kind=detail_kind
                                         on_stats_changed=on_stats_changed
                                     />
                                 }
