@@ -475,7 +475,13 @@ pub fn CsvKindRow(
             </td>
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-xs">
                 <div class="flex items-center gap-2">
-                    <span class=status_class data-status=status_key>{status_text}</span>
+                    <span class="inline-flex items-center gap-1.5">
+                        {status_dot_class(status_key)
+                            .map(|dot| {
+                                view! { <span class=dot aria-hidden="true"></span> }
+                            })}
+                        <span class=status_class data-status=status_key>{status_text}</span>
+                    </span>
                     {has_error_detail.then(|| {
                         view! {
                             <button
@@ -1081,6 +1087,19 @@ fn dated_status(
             "text-warn-ink",
             "stale",
         )
+    }
+}
+
+/// 状態の塗り丸の色。未取得・件数未取得は点を出さない
+fn status_dot_class(status_key: &str) -> Option<&'static str> {
+    match status_key {
+        "fresh" => Some("inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-positive-vivid"),
+        "stale" => Some("inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-warn-ink"),
+        "failed" => Some("inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-negative-vivid"),
+        "fetching" | "importing" | "confirming" => {
+            Some("inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-accent-vivid")
+        }
+        _ => None,
     }
 }
 

@@ -37,6 +37,23 @@ fn compute_status_key_distinguishes_failure_unknown_and_never() {
 }
 
 #[test]
+fn status_dot_appears_only_for_dated_or_active_status() {
+    for key in [
+        "fresh",
+        "stale",
+        "failed",
+        "fetching",
+        "importing",
+        "confirming",
+    ] {
+        assert!(status_dot_class(key).is_some(), "{key} は点を出す");
+    }
+    for key in ["never", "unknown", "skipped"] {
+        assert!(status_dot_class(key).is_none(), "{key} は点を出さない");
+    }
+}
+
+#[test]
 fn save_disabled_by_preview_blocks_erroring_preview_only_for_all_or_nothing() {
     let error = || CsvRowError {
         row: 2,

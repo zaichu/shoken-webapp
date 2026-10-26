@@ -64,9 +64,9 @@ test('5種類の行が出て、状態が最終取込時刻で変わる', async (
   }
 
   await expect(savedCount(page, 'assetbalance')).toContainText('12件');
-  await expect(csvRow(page, 'assetbalance')).toContainText('● 今日 12:00 に更新');
+  await expect(csvRow(page, 'assetbalance')).toContainText('今日 12:00 に更新');
   await expect(csvRow(page, 'fundbalance')).toContainText(
-    /○ 3日前\(\d{1,2}\/\d{1,2} 09:15\)に更新/,
+    /3日前\(\d{1,2}\/\d{1,2} 09:15\)に更新/,
   );
   await expect(csvRow(page, 'dividend')).toContainText('まだ取得していません');
   await expect(csvRow(page, 'domesticstock')).toContainText('まだ取得していません');
@@ -201,7 +201,7 @@ test.describe('390px', () => {
     });
 
     await page.goto('/csv');
-    await expect(csvRow(page, 'assetbalance')).toContainText('● 今日 21:39 に更新');
+    await expect(csvRow(page, 'assetbalance')).toContainText('今日 21:39 に更新');
 
     // 種類名と状態は1行のまま(折り返すと行の高さが増える)
     const wrapped = await page
