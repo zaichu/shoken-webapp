@@ -217,12 +217,7 @@ test.describe('取込結果のエラー詳細表示', () => {
     await expect(fileInput).toBeAttached();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
 
-    const previewAlert = page.locator('section[role="status"]', {
-      hasText: '追加で保存できます',
-    });
-    await expect(previewAlert).toContainText(
-      `${PREVIEW_ROWS.length}件を追加で保存できます`,
-    );
+    const previewAlert = page.getByTestId('csv-preview-notice');
     await expect(previewAlert).toContainText(`${ROW_ERRORS.length}件エラー`);
 
     const items = previewAlert.locator('li');
@@ -232,5 +227,13 @@ test.describe('取込結果のエラー詳細表示', () => {
     await expect(items.first()).toHaveText('2行目: 銘柄コードが不正です');
     await expect(items.nth(1)).toBeVisible();
     await expect(items.nth(1)).toHaveText('4行目: 株数が不正です');
+
+    // 解析結果の文はファイル欄に1回だけ出し、帯には出さない
+    await expect(
+      page.getByTestId('csv-action-bar').getByText(`${PREVIEW_ROWS.length}件を追加で保存できます`),
+    ).toBeVisible();
+    await expect(
+      previewAlert.getByText(`${PREVIEW_ROWS.length}件を追加で保存できます`),
+    ).toHaveCount(0);
   });
 });

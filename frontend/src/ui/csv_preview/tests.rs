@@ -27,14 +27,6 @@ fn preview_notice_text_blocks_save_when_errors_disallow_partial_save() {
 }
 
 #[test]
-fn preview_notice_warns_only_when_save_is_not_possible() {
-    assert!(preview_notice_warns(0, 3, false));
-    assert!(preview_notice_warns(3, 2, true));
-    assert!(!preview_notice_warns(3, 2, false));
-    assert!(!preview_notice_warns(3, 0, true));
-}
-
-#[test]
 fn preview_notice_text_without_valid_rows_tells_nothing_importable() {
     let notice = preview_notice_text(0, 36, "追加で保存", false);
     assert!(notice.contains("取り込める行がありません"));

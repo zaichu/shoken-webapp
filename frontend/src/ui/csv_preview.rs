@@ -29,14 +29,6 @@ pub fn preview_notice_text(
 }
 
 // 保存できないプレビュー(有効行0・または全件置換でエラー残り)は警告色にする
-pub(crate) fn preview_notice_warns(
-    valid_rows: usize,
-    error_count: usize,
-    errors_block_save: bool,
-) -> bool {
-    valid_rows == 0 || (errors_block_save && error_count > 0)
-}
-
 // 未認証・ファイル未選択・解析中は通知を出さない(画面に残った古いプレビューを誤表示しない)
 pub(crate) fn should_show_preview_notice(
     authenticated: bool,
@@ -103,37 +95,29 @@ pub fn CsvRowErrorList(errors: Vec<CsvRowError>, all_failed: bool) -> impl IntoV
     }
 }
 
+/// 行エラーの帯。保存できる件数の文はファイル欄に出るため、ここには出さない。
+/// 「N件エラー ・ N行目: 理由 …」を1つの黄の帯にまとめ、折り返さずに横へ流す(全文は title に)
 #[component]
-pub fn CsvPreviewNotice(
-    valid_rows: usize,
-    save_action: &'static str,
-    errors: Vec<CsvRowError>,
-    #[prop(default = false)] errors_block_save: bool,
-) -> impl IntoView {
-    let text = preview_notice_text(valid_rows, errors.len(), save_action, errors_block_save);
-    let (section_class, icon_path) = if preview_notice_warns(
-        valid_rows,
-        errors.len(),
-        errors_block_save,
-    ) {
-        (
-            "rounded-lg border border-band-border bg-band px-4 py-3 text-sm font-medium text-warn-ink shadow-sm",
-            "M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01",
-        )
-    } else {
-        (
-            "rounded-lg border border-accent-border bg-accent-soft px-4 py-3 text-sm font-medium text-accent-text shadow-sm",
-            "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-        )
-    };
+pub fn CsvPreviewNotice(valid_rows: usize, errors: Vec<CsvRowError>) -> impl IntoView {
+    let heading = format!("{}件エラー", errors.len());
+    let full = format!(
+        "{} ・ {}",
+        heading,
+        errors
+            .iter()
+            .map(row_error_text)
+            .collect::<Vec<_>>()
+            .join(" ・ ")
+    );
     view! {
         <section
-            class=section_class
+            class="overflow-x-auto rounded-lg border border-band-border bg-band px-4 py-3 text-sm font-medium text-warn-ink shadow-sm"
             role="status"
             aria-live="polite"
             data-testid="csv-preview-notice"
+            title=full
         >
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 whitespace-nowrap">
                 <svg
                     class="h-5 w-5 shrink-0"
                     fill="none"
@@ -145,16 +129,16 @@ pub fn CsvPreviewNotice(
                         stroke-linecap="round"
                         stroke-linejoin="round"
                         stroke-width="2"
-                        d=icon_path
+                        d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01"
                     />
                 </svg>
                 <p>
-                    <strong>{text}</strong>
+                    <strong>{heading}</strong>
                 </p>
             </div>
-            {(!errors.is_empty()).then(|| {
-                view! { <CsvRowErrorList errors=errors all_failed=valid_rows == 0 /> }
-            })}
+            <div class="mt-1 whitespace-nowrap">
+                <CsvRowErrorList errors=errors all_failed=valid_rows == 0 />
+            </div>
         </section>
     }
 }

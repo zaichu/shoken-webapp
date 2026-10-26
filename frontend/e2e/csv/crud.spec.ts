@@ -858,8 +858,8 @@ test.describe('資産管理 CSV 取込・削除', () => {
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
 
     // 全件置換はエラー行を含む CSV を backend が拒否するため、有効行だけの保存を約束しない
+    await expect(page.getByTestId('csv-action-bar')).toContainText('全件置換で保存できません');
     const notice = page.getByTestId('csv-preview-notice');
-    await expect(notice).toContainText('全件置換で保存できません');
     await expect(notice).toContainText('2行目: 銘柄コードが不正です');
     await expect(
       page.getByRole('button', { name: /全件置換で保存/ }).first(),

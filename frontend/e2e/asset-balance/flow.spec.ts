@@ -210,8 +210,8 @@ test('エラーのあるCSVは全件置換で保存できない', async ({ page 
   await selectCsvFile(page);
 
   // 全件置換はエラー行を含む CSV を backend が拒否するため、有効行だけの保存を約束しない
+  await expect(page.getByTestId('csv-action-bar')).toContainText('全件置換で保存できません');
   const notice = page.getByTestId('csv-preview-notice');
-  await expect(notice).toContainText('全件置換で保存できません');
   await expect(
     page.getByRole('button', { name: /全件置換で保存/ }).first(),
   ).toBeDisabled();

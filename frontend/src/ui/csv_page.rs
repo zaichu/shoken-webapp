@@ -766,9 +766,7 @@ fn CsvImportBody<S: CsvSource>(
             meta.file_name.is_some(),
             meta.previewing,
         ) {
-            meta.preview
-                .map(|preview| (preview.valid_rows, preview.errors))
-                .filter(|(valid_rows, errors)| *valid_rows == 0 || !errors.is_empty())
+            meta.preview.filter(|preview| !preview.errors.is_empty())
         } else {
             None
         }
@@ -829,13 +827,11 @@ fn CsvImportBody<S: CsvSource>(
             {move || {
                 notice
                     .get()
-                    .map(|(valid_rows, errors)| {
+                    .map(|preview| {
                         view! {
                             <CsvPreviewNotice
-                                valid_rows=valid_rows
-                                save_action=source.save_action()
-                                errors=errors
-                                errors_block_save=source.errors_block_save()
+                                valid_rows=preview.valid_rows
+                                errors=preview.errors
                             />
                         }
                     })
@@ -870,6 +866,16 @@ pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
     let disabled = Memo::new(move |_| source.input_disabled());
     let has_file = Memo::new(move |_| source.csv_meta().file_name.is_some());
     let file_name = Memo::new(move |_| source.csv_meta().file_name.unwrap_or_default());
+    // 保存できる件数の文だけを緑にする(解析中・保存中・保存できない文は薄いまま)
+    let status_positive = Memo::new(move |_| {
+        let meta = source.csv_meta();
+        !meta.previewing
+            && !meta.saving
+            && meta.preview.as_ref().is_some_and(|preview| {
+                preview.valid_rows > 0
+                    && !(source.errors_block_save() && !preview.errors.is_empty())
+            })
+    });
     let status_text = Memo::new(move |_| {
         let meta = source.csv_meta();
         if meta.previewing {
@@ -964,7 +970,17 @@ pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
                                 {move || {
                                     status_text.get().map(|text| {
                                         view! {
-                                            <p class="text-xs font-medium text-text-soft" role="status" aria-live="polite">
+                                            <p
+                                                class=move || {
+                                                    if status_positive.get() {
+                                                        "text-xs font-medium text-positive-vivid"
+                                                    } else {
+                                                        "text-xs font-medium text-text-soft"
+                                                    }
+                                                }
+                                                role="status"
+                                                aria-live="polite"
+                                            >
                                                 {text}
                                             </p>
                                         }
