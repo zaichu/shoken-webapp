@@ -197,7 +197,6 @@ pub fn CsvManageFetchCard(
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 class="text-sm font-bold text-text">{labels::CSV_MANAGE_FETCH_TITLE}</h2>
-                    <p class="mt-0.5 text-xs text-text-soft">{labels::CSV_MANAGE_FETCH_HINT}</p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full sm:w-auto">
                     {move || {
