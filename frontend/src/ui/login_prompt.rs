@@ -17,7 +17,6 @@ pub fn LoginPrompt(#[prop(into, optional)] class: Signal<String>) -> impl IntoVi
             class=class
             icon=EmptyStateIcon::Lock
             title=labels::LOGIN_REQUIRED_TITLE
-            description=labels::LOGIN_REQUIRED_DESCRIPTION
         >
             <Button
                 variant=ButtonVariant::Primary(ButtonSize::Md)

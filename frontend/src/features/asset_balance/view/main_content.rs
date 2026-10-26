@@ -30,7 +30,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
-use crate::ui::labels::{self, CLEAR_SEARCH_CONDITIONS, NO_MATCH_DESCRIPTION, NO_MATCH_TITLE};
+use crate::ui::labels::{self, CLEAR_SEARCH_CONDITIONS, NO_MATCH_TITLE};
 use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use leptos::prelude::*;
 
@@ -100,7 +100,7 @@ fn EmptyFilteredPanel(
     view! {
         <div class="asset-panel-padded mx-4 mt-3 lg:mx-0">
             <div class="text-center">
-                <EmptyState title=title description=NO_MATCH_DESCRIPTION />
+                <EmptyState title=title />
                 <div class="mt-3 text-center">
                     <Button variant=ButtonVariant::Ghost on_click=move |_| on_clear()>
                         {CLEAR_SEARCH_CONDITIONS}

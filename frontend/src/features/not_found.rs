@@ -16,7 +16,6 @@ pub fn NotFoundPage() -> impl IntoView {
         <div class="min-h-[50vh] flex flex-1 items-center justify-center">
             <EmptyState
                 title="404 - ページが見つかりません"
-                description="お探しのページは存在しないか、移動した可能性があります。"
                 icon=EmptyStateIcon::Warning
             >
                 <div class="mt-4">
