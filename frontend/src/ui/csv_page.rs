@@ -399,18 +399,13 @@ pub fn CsvKindRow(
                     <span class=status_class>{status_text}</span>
                     {has_error_detail.then(|| {
                         view! {
-                            <button
-                                type="button"
-                                class="text-xs underline text-text-muted hover:text-text"
+                            <span
+                                class="text-xs text-negative-vivid whitespace-nowrap overflow-x-auto"
                                 data-testid="status-detail"
-                                on:click=move |_| {
-                                    if let Some(window) = web_sys::window() {
-                                        let _ = window.alert_with_message(&error_detail);
-                                    }
-                                }
+                                title=error_detail.clone()
                             >
-                                {labels::CSV_MANAGE_FAILED_DETAIL_LABEL}
-                            </button>
+                                {error_detail.clone()}
+                            </span>
                         }
                     })}
                 </div>

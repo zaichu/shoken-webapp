@@ -386,8 +386,6 @@ pub fn csv_manage_status_skipped(reason: &str) -> String {
 }
 /// CSV管理: 状態「まだ取得していません」(薄い色)
 pub const CSV_MANAGE_STATUS_NEVER: &str = "まだ取得していません";
-/// CSV管理: 取得失敗の詳細ラベル
-pub const CSV_MANAGE_FAILED_DETAIL_LABEL: &str = "詳細";
 /// CSV管理: メニュー項目「楽天証券から再取得」
 pub const CSV_MANAGE_MENU_REFETCH: &str = "楽天証券から再取得";
 /// CSV管理: メニュー項目「ファイルから取り込み」
