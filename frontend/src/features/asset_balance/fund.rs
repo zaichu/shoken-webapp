@@ -494,3 +494,6 @@ pub(crate) fn fund_totals(views: &[FundView]) -> FundTotals {
     }
     totals
 }
+
+#[cfg(test)]
+mod tests;
