@@ -102,6 +102,12 @@ pub async fn collect_csv_kind_stats(
             stat.latest_imported_at = Some(imported_at.to_rfc3339());
         }
     }
+    // 全削除後も履歴行は残るため、件数0の種類は未取得として扱う
+    for stat in &mut kinds {
+        if stat.count == 0 {
+            stat.latest_imported_at = None;
+        }
+    }
 
     Ok(CsvKindStatsResponse { kinds })
 }

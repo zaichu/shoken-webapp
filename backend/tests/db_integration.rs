@@ -4080,6 +4080,14 @@ async fn csv_import_history_is_scoped_by_user() {
         (first_user, first_timestamp),
         (second_user, second_timestamp),
     ] {
+        dividend_svc::bulk_create(
+            &pool,
+            user_id,
+            &[make_dividend_item("9908")],
+            RowLimit::new(i64::MAX),
+        )
+        .await
+        .expect("ユーザー別の配当データを作成できる");
         db::query(
             "INSERT INTO csv_import_history (user_id, kind, last_imported_at) VALUES ($1, $2, $3) ON CONFLICT (user_id, kind) DO UPDATE SET last_imported_at = EXCLUDED.last_imported_at",
             vec![
@@ -4138,4 +4146,51 @@ async fn csv_import_history_is_scoped_by_user() {
             .filter(|stat| stat.kind != "dividend")
             .all(|stat| stat.latest_imported_at.is_none())
     );
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_kind_stats_ignores_history_after_delete_all() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    dividend_svc::bulk_create(
+        &pool,
+        user_id,
+        &[make_dividend_item("9908")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当データを作成できる");
+    let recorded = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    db::query(
+        "INSERT INTO csv_import_history (user_id, kind, last_imported_at) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(user_id),
+            Bind::from("dividend"),
+            Bind::from(recorded),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+        .await
+        .unwrap();
+    assert_eq!(csv_kind_timestamp(&stats, "dividend"), recorded);
+
+    bulk::delete_all::<dividend_svc::DividendDomain>(&pool, user_id)
+        .await
+        .expect("全削除できる");
+    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+        .await
+        .unwrap();
+    let dividend = stats
+        .kinds
+        .iter()
+        .find(|stat| stat.kind == "dividend")
+        .unwrap();
+    assert_eq!(dividend.count, 0);
+    assert!(dividend.latest_imported_at.is_none());
 }
