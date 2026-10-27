@@ -11,7 +11,7 @@ use crate::features::dividend_per_share::{
     dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch, unique_sorted_codes,
 };
 use crate::session::{Generation, SessionStore};
-use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, collect_list_pages};
+use crate::support::pagination::{LIST_MAX_PAGES, ListEndpoint, fetch_all_pages_filtered};
 use leptos::prelude::*;
 use std::collections::HashMap;
 use std::future::Future;
@@ -170,27 +170,9 @@ async fn fetch_fund_rows() -> Result<Option<LoadedFundBalances>, ApiError> {
 
 /// 決済日が `year` の配当を全ページ取る。月別・前年同期・実効税率の材料にする
 async fn fetch_dividend_year(year: u32) -> Result<Option<Vec<Dividend>>, ApiError> {
-    let client = ApiClient::read_client();
     let year = year.to_string();
-    let page = collect_list_pages(LIST_PER_PAGE, LIST_MAX_PAGES, |page_no| {
-        let client = client.clone();
-        let year = year.clone();
-        async move {
-            let page = page_no.to_string();
-            let per_page = LIST_PER_PAGE.to_string();
-            let include_summary = if page_no == 1 { "true" } else { "false" };
-            let query = vec![
-                ("page", page.as_str()),
-                ("per_page", per_page.as_str()),
-                ("include_summary", include_summary),
-                ("year", year.as_str()),
-            ];
-            client
-                .get_json::<DividendListResponse>(<Dividend as ListEndpoint>::PATH, &query)
-                .await
-        }
-    })
-    .await?;
+    let page =
+        fetch_all_pages_filtered::<Dividend>(&[("year", year.as_str())], LIST_MAX_PAGES).await?;
     Ok(Some(page.rows))
 }
 
