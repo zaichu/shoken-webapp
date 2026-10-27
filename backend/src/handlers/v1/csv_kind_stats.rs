@@ -52,11 +52,15 @@ pub async fn collect_csv_kind_stats(
     pool: &crate::db::Db,
     user_id: shared::value::UserId,
 ) -> Result<CsvKindStatsResponse, ApiError> {
-    let asset_balance = query_kind_stat(pool, user_id, "asset_balances").await?;
-    let fund_balance = query_kind_stat(pool, user_id, "fund_balances").await?;
-    let dividend = query_kind_stat(pool, user_id, "dividends").await?;
-    let domestic_stock = query_kind_stat(pool, user_id, "domestic_stocks").await?;
-    let mutual_fund = query_kind_stat(pool, user_id, "mutualfunds").await?;
+    let (asset_balance, fund_balance, dividend, domestic_stock, mutual_fund) =
+        futures_util::future::try_join5(
+            query_kind_stat(pool, user_id, "asset_balances"),
+            query_kind_stat(pool, user_id, "fund_balances"),
+            query_kind_stat(pool, user_id, "dividends"),
+            query_kind_stat(pool, user_id, "domestic_stocks"),
+            query_kind_stat(pool, user_id, "mutualfunds"),
+        )
+        .await?;
 
     let mut kinds = vec![
         CsvKindStat {
