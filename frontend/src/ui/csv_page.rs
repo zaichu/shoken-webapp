@@ -175,11 +175,11 @@ pub(crate) fn CsvManageFetchCard(
     let session = use_session();
     view! {
         <section class="rounded-lg border border-border bg-surface-sunken p-4">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 class="text-sm font-bold text-text">{labels::CSV_MANAGE_FETCH_TITLE}</h2>
                 </div>
-                <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full sm:w-auto">
+                <div class="csv-manage-fetch-actions">
                     {move || {
                         session.user.get().is_some().then(|| {
                             view! {
@@ -188,7 +188,7 @@ pub(crate) fn CsvManageFetchCard(
                             testid="csv-fetch-button"
                             disabled=move || running.get()
                             on_click=move |ev| on_fetch.run(ev)
-                            class="w-full sm:w-auto sm:min-w-44"
+                            class="w-full"
                         >
                             {move || {
                                 if running.get() {
@@ -201,17 +201,9 @@ pub(crate) fn CsvManageFetchCard(
                             }
                         })
                     }}
-                    <div class="flex-1 min-w-0">
-                        {move || {
-                            last_fetched.get().map(|lf| {
-                                view! {
-                                    <p class="text-sm text-text-muted" role="status" aria-live="polite">
-                                        {lf}
-                                    </p>
-                                }
-                            })
-                        }}
-                    </div>
+                    <p class="text-sm text-text-muted whitespace-nowrap" data-testid="csv-last-fetched">
+                        {move || last_fetched.get().unwrap_or_else(|| labels::CSV_MANAGE_LAST_FETCHED_MISSING.to_string())}
+                    </p>
                 </div>
             </div>
         </section>
@@ -1195,7 +1187,13 @@ pub(crate) fn CsvKindTable(
     let detail_kind = RwSignal::new(None::<CsvKind>);
     view! {
         <div>
-            <table class="w-full" role="table">
+            <table class="csv-kind-table w-full" role="table">
+                <colgroup class="max-sm:hidden">
+                    <col class="csv-kind-col-kind" />
+                    <col class="csv-kind-col-count" />
+                    <col />
+                    <col class="csv-kind-col-menu" />
+                </colgroup>
                 <thead class="bg-surface-sunken border-b border-border max-sm:hidden">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
