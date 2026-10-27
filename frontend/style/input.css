@@ -730,12 +730,6 @@
     @apply sticky top-14 z-10;
   }
 
-  /* CSV プレビューの枠内スクロールでは、頁ヘッダーではなく枠の上端に見出しを固定する */
-  .csv-preview-scroll .receipts-table thead th,
-  .csv-preview-scroll .asset-table thead th {
-    top: 0;
-  }
-
   /* 全表の見出し。大きさ・太さ・色・余白・縦位置を全表でそろえる。
      左右の余白は列の種別クラスが持ち、見出しとセルで同じ値になる */
   .receipts-table th,

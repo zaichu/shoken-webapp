@@ -1,8 +1,6 @@
 import type { Browser, Locator, Page } from '@playwright/test';
 import { expect, test, json, paginated, mockSession } from '../support/test';
-import { csvRow, mockCsvKindStats } from '../support/csv-page';
 import AxeBuilder from '@axe-core/playwright';
-import * as path from 'path';
 
 const ROUTES = {
   authMe: /\/api\/v1\/session$/,
@@ -12,12 +10,8 @@ const ROUTES = {
   assetBalances: /\/api\/v1\/asset-balances(?:\?.*)?$/,
   fundBalances: /\/api\/v1\/fund-balances(?:\?.*)?$/,
   stock: /\/api\/v1\/stocks(?:\?.*)?$/,
-  dividendPreview: /\/api\/v1\/dividend-import-validations$/,
-  dividendUpload: /\/api\/v1\/dividend-imports$/,
   dividendPerShare: /\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/,
 };
-
-const CSV_FIXTURES = path.resolve(process.cwd(), 'e2e/fixtures/csv');
 
 const EMPTY_PAGE = { data: [], total: 0, page: 1, per_page: 0 };
 
@@ -53,20 +47,6 @@ const NEGATIVE_DOMESTIC_ROW = {
   realized_profit_and_loss_after_tax: -8000,
   created_at: '2024-02-01T00:00:00Z',
   updated_at: '2024-02-01T00:00:00Z',
-};
-
-// プレビュー応答の行。id・timestamps は付かず数値は number で返る(backend の wire 形式)
-const CSV_PREVIEW_ROW = {
-  settlement_date: '2024-03-01',
-  product: '特定口座',
-  account: 'SBI証券',
-  security_code: '9904',
-  security_name: '架空自動車',
-  unit_price: 30,
-  shares: 100,
-  dividends_before_tax: 3000,
-  taxes: 609,
-  net_amount_received: 2391,
 };
 
 const ASSET_ROW = {
@@ -116,14 +96,6 @@ const MOCK_STOCK = {
 
 const PC = { width: 1280, height: 800 };
 const MOBILE = { width: 390, height: 844 };
-
-async function liveRegionTexts(page: Page): Promise<string[]> {
-  return page.evaluate(() =>
-    Array.from(document.querySelectorAll('[role="status"], [role="alert"], [aria-live]'))
-      .map((el) => ((el as HTMLElement).innerText ?? '').trim())
-      .filter((text) => text.length > 0),
-  );
-}
 
 async function mockEmptyLists(page: Page) {
   await page.route(ROUTES.dividends, (route) => route.fulfill(json(EMPTY_PAGE)));
@@ -383,10 +355,6 @@ test('取引明細の取得失敗と読み込み中に moderate 以上の WCAG �
   );
 });
 
-
-
-
-
 test('取引明細の検索と条件を足す小窓に moderate 以上の WCAG 違反がない', async ({ page }) => {
   await mockSession(page);
   await mockEmptyLists(page);
@@ -457,7 +425,6 @@ test('ダークテーマの主要画面に moderate 以上の WCAG 違反がな�
 });
 
 // ダークでも全タブ・CSV 管理の文字色を color-contrast 含めて走査する
-
 
 // .focus() は tabindex=-1 や順序外にも当たるため、Tab キーだけで到達できることを固定する
 async function tabTo(page: Page, target: Locator, maxPresses = 250): Promise<void> {
@@ -678,8 +645,6 @@ test('320px幅で横スクロールが出ない', async ({ page }) => {
   }
   await page.setViewportSize(PC);
 });
-
-
 
 test('読み込み中が支援技術に伝わる', async ({ page }) => {
   await mockSession(page);
