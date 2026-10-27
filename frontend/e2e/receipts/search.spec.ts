@@ -1,11 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json, paginated } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000011',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, json, paginated, mockSession } from '../support/test';
 
 const DIVIDENDS = [
   {
@@ -41,7 +35,7 @@ const DIVIDENDS = [
 ];
 
 async function mockReceipts(page: Page) {
-  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(DIVIDENDS))),
   );

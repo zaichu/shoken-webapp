@@ -1,11 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import { expect, test } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000003',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, MOCK_USER, mockSession } from '../support/test';
 
 const ACTIVITY_KEY = 'last_activity_at';
 const MINUTE = 60_000;
@@ -148,13 +142,7 @@ test('未認証のタブの操作は最終操作時刻に記録されず、認�
   const pageA = await context.newPage();
   const pageB = await context.newPage();
   await pageA.clock.install();
-  await pageA.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(pageA);
   await pageB.route(/\/api\/v1\/session$/, (route) => route.fulfill({ status: 401, body: '{}' }));
 
   await pageA.goto('/');

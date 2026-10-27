@@ -1,14 +1,8 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json, paginated } from '../support/test';
+import { expect, test, json, paginated, mockSession } from '../support/test';
 import { expectFooterBelowContent } from '../support/layout';
 
 test.use({ viewport: { width: 390, height: 844 } });
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000002',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
 
 const SYN_GAME = {
   id: 'asset-balance-1',
@@ -55,7 +49,7 @@ const DIVIDENDS = Array.from({ length: 30 }, (_, i) => ({
 
 async function mockBase(page: Page) {
   await page.route(/\/api\/v1\//, (route) => route.fulfill(json(paginated([]))));
-  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
 }
 
 async function mockAssetBalances(page: Page, rows: unknown[]) {

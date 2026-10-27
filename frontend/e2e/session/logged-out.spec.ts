@@ -1,11 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json, paginated } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000003',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, json, paginated, mockSession } from '../support/test';
 
 const ROUTES = {
   authMe: /\/api\/v1\/session$/,
@@ -35,7 +29,7 @@ async function mockAnonymous(page: Page) {
 async function mockAuthenticated(page: Page) {
   // 後から登録した route が優先されるため、基本モックの後に呼ぶ
   await page.route(/\/api\/v1\//, (route) => route.fulfill(json(paginated([]))));
-  await page.route(ROUTES.authMe, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(ASSET_BALANCES))),
   );

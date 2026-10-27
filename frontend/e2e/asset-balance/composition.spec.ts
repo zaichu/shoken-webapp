@@ -1,11 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000010',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, json, mockSession } from '../support/test';
 
 function holding(index: number, purchase: number) {
   return {
@@ -29,14 +23,11 @@ const HOLDINGS = [
   holding(22, -10_000),
 ];
 
-
 async function setupAssetBalanceMocks(
   page: Page,
   holdings: ReturnType<typeof holding>[] = HOLDINGS,
 ) {
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill(json(MOCK_USER)),
-  );
+  await mockSession(page);
 
   const totalPurchase = holdings.reduce(
     (sum, h) => sum + h.total_purchase_amount,

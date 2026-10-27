@@ -1,10 +1,8 @@
 import type { Browser, Locator, Page } from '@playwright/test';
-import { expect, test, json, paginated } from '../support/test';
+import { expect, test, json, paginated, mockSession } from '../support/test';
 import { csvRow, mockCsvKindStats } from '../support/csv-page';
 import AxeBuilder from '@axe-core/playwright';
 import * as path from 'path';
-
-const MOCK_USER = { id: '00000000-0000-0000-0000-000000000001', email: 'test@example.com', name: 'テストユーザー' };
 
 const ROUTES = {
   authMe: /\/api\/v1\/session$/,
@@ -119,19 +117,11 @@ const MOCK_STOCK = {
 const PC = { width: 1280, height: 800 };
 const MOBILE = { width: 390, height: 844 };
 
-
-
 async function liveRegionTexts(page: Page): Promise<string[]> {
   return page.evaluate(() =>
     Array.from(document.querySelectorAll('[role="status"], [role="alert"], [aria-live]'))
       .map((el) => ((el as HTMLElement).innerText ?? '').trim())
       .filter((text) => text.length > 0),
-  );
-}
-
-async function mockSession(page: Page, user: unknown = MOCK_USER, status = 200) {
-  await page.route(ROUTES.authMe, (route) =>
-    route.fulfill(json(user, status)),
   );
 }
 

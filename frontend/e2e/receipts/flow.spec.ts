@@ -1,15 +1,8 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test, paginated } from '../support/test';
+import { expect, test, paginated, mockSession } from '../support/test';
 import * as path from 'path';
 
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000002',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
-
 const ROUTES = {
-  authMe: /\/api\/v1\/session$/,
   dividends: /\/api\/v1\/dividends(?:\?.*)?$/,
   domesticStocks: /\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/,
   mutualfunds: /\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/,
@@ -37,7 +30,6 @@ const DIVIDEND_RECORD = [
   },
 ];
 
-
 async function setupAuthMocks(
   page: Page,
   {
@@ -50,13 +42,7 @@ async function setupAuthMocks(
     mutualfunds?: unknown[];
   } = {},
 ) {
-  await page.route(ROUTES.authMe, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(page);
   await page.route(ROUTES.dividends, (route) =>
     route.fulfill({
       status: 200,

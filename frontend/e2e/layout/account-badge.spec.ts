@@ -1,11 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, test, json, paginated } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000012',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, json, paginated, mockSession } from '../support/test';
 
 // 証券会社の CSV は複数口座を連結した値を1つの口座区分として持つ
 const JOINED_ACCOUNT = '特定・一般';
@@ -36,7 +30,7 @@ const DIVIDENDS = ROWS.map((row, index) => ({
 async function mockApi(page: Page) {
   // 後から登録した route が優先されるため catch-all を先に登録する
   await page.route(/\/api\/v1\//, (route) => route.fulfill(json(paginated([]))));
-  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(DIVIDENDS))),
   );

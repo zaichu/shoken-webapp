@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, paginated } from '../support/test';
+import { expect, test, paginated, mockSession } from '../support/test';
 import {
   csvImportRow,
   csvRow,
@@ -10,12 +10,6 @@ import {
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000002',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
 
 const DIVIDENDS = [
   {
@@ -101,7 +95,6 @@ const FUND = {
   updated_at: '2024-02-01T00:00:00Z',
 };
 
-
 async function mockApi(page: Page) {
   await page.route(/\/api\/v1\//, (route) =>
     route.fulfill({
@@ -110,13 +103,7 @@ async function mockApi(page: Page) {
       body: JSON.stringify(paginated([])),
     }),
   );
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill({
       status: 200,
@@ -352,13 +339,7 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
       body: JSON.stringify(paginated([])),
     }),
   );
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => {
     if (route.request().method() === 'DELETE') {
       deleteCount += 1;
@@ -418,13 +399,7 @@ test('CSV取込の保存後はダイアログが閉じる', async ({ page }) => 
       body: JSON.stringify(paginated([])),
     }),
   );
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill({
       status: 200,

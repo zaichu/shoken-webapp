@@ -1,12 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expectTableFit } from '../support/layout';
-import { expect, test, json } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000010',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, json, mockSession } from '../support/test';
 
 // 長い名前と小数の値段の行。表が枠から横にはみ出さないことを確かめる
 const STOCK_ROWS = [
@@ -68,9 +62,7 @@ const FUND_ROWS = [
 ];
 
 async function setupMocks(page: Page) {
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill(json(MOCK_USER)),
-  );
+  await mockSession(page);
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
     route.fulfill(
       json({

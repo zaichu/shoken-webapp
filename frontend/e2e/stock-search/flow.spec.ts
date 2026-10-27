@@ -1,11 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000001',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, mockSession } from '../support/test';
 
 const MOCK_STOCK = {
   date: '2024-03-01',
@@ -18,19 +12,12 @@ const MOCK_STOCK = {
 };
 
 const ROUTES = {
-  authMe: /\/api\/v1\/session$/,
   // query string を含む URL でも一致するよう path 部分のみでマッチ
   stock: /\/api\/v1\/stocks(?:\?.*)?$/,
 };
 
 async function setupAuthMocks(page: Page) {
-  await page.route(ROUTES.authMe, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(page);
   await page.route(ROUTES.stock, (route) =>
     route.fulfill({
       status: 200,
@@ -91,13 +78,7 @@ test('検索フォームに文字を入力できる', async ({ page }) => {
 });
 
 test('検索の取得が失敗したとき再読み込みで再取得できる', async ({ page }) => {
-  await page.route(ROUTES.authMe, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(page);
   // 500 はクライアント側で1回リトライされるので、初回 dispatch は2リクエスト分を失敗させる
   let stockCalls = 0;
   await page.route(ROUTES.stock, (route) => {
