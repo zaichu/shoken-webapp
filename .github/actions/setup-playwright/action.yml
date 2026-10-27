@@ -8,18 +8,26 @@ outputs:
     value: ${{ steps.apt-packages.outputs.cache-hit }}
   apt_cache_key:
     value: ${{ steps.apt-packages.outputs.cache-primary-key }}
+  browsers_cache_key:
+    value: ${{ steps.playwright-browsers.outputs.cache-primary-key }}
 
 runs:
   using: composite
   steps:
+    - name: Resolve Playwright version
+      id: playwright-version
+      shell: bash
+      working-directory: frontend
+      run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")" >> "$GITHUB_OUTPUT"
+
     - name: Restore Playwright browsers cache
       id: playwright-browsers
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
       with:
         path: ~/.cache/ms-playwright
-        key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+        key: ${{ runner.os }}-playwright-browsers-${{ steps.playwright-version.outputs.version }}
         restore-keys: |
-          ${{ runner.os }}-playwright-
+          ${{ runner.os }}-playwright-browsers-
 
     - name: Restore APT packages cache
       id: apt-packages
