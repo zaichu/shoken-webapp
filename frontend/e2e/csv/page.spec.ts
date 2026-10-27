@@ -169,34 +169,65 @@ test('`?kind=` を付けても何も開かない', async ({ page }) => {
   await expect(csvRow(page, 'dividend').getByTestId('csv-file-input')).toBeAttached();
 });
 
-test('取得中も取得ボタンの位置は変わらない', async ({ page }) => {
-  await mockLists(page);
-  await mockCsvKindStats(page, { counts: () => ({}) });
-  await page.addInitScript(() => {
-    (window as unknown as { chrome: unknown }).chrome = {
-      runtime: {
-        connect: () => ({
-          onMessage: { addListener: () => {} },
-          onDisconnect: { addListener: () => {} },
-          postMessage: () => {},
-          disconnect: () => {},
-        }),
-      },
-    };
+for (const width of [1280, 390]) {
+  test(`読み込み前後・取得中でボタンと保存済み列が動かない (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
+    await mockLists(page);
+    await mockCsvKindStats(page, {
+      counts: () => ({ assetbalance: 12345, fundbalance: 30 }),
+      latest: () => ({ assetbalance: jstNoonIso(0, 21, 39) }),
+    });
+    let releaseStats!: () => void;
+    const statsReady = new Promise<void>(resolve => { releaseStats = resolve; });
+    let statsRequested!: () => void;
+    const statsRequest = new Promise<void>(resolve => { statsRequested = resolve; });
+    await page.route(/\/api\/v1\/csv-kinds\/stats$/, async route => {
+      statsRequested();
+      await statsReady;
+      await route.fallback();
+    });
+    await page.addInitScript(() => {
+      (window as unknown as { chrome: unknown }).chrome = {
+        runtime: {
+          connect: () => ({
+            onMessage: { addListener: () => {} },
+            onDisconnect: { addListener: () => {} },
+            postMessage: () => {},
+            disconnect: () => {},
+          }),
+        },
+      };
+    });
+
+    try {
+      await page.goto('/csv');
+      await statsRequest;
+      const button = page.getByTestId('csv-fetch-button');
+      await expect(button).toBeEnabled();
+      const countHeader = page.locator('thead th').nth(1);
+      const countCells = page.locator('tr[data-kind] > td:nth-child(2)');
+      await expect(countCells).toHaveCount(5);
+      // スマホは見出しが非表示なので、実際に見える件数セルの位置も比べる。
+      const positions = async () => ({
+        button: await button.evaluate(el => ({ x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y })),
+        header: await countHeader.evaluate(el => el.getBoundingClientRect().x),
+        counts: await countCells.evaluateAll(cells => cells.map(cell => cell.getBoundingClientRect().x)),
+      });
+      const before = await positions();
+
+      releaseStats();
+      await expect(savedCount(page, 'assetbalance')).toContainText('12345');
+      await expect(page.getByTestId('csv-last-fetched')).toContainText('21:39');
+      expect(await positions()).toEqual(before);
+
+      await button.click();
+      await expect(button).toBeDisabled();
+      expect(await positions()).toEqual(before);
+    } finally {
+      releaseStats();
+    }
   });
-
-  await page.goto('/csv');
-  const button = page.getByTestId('csv-fetch-button');
-  await expect(button).toHaveText('最新を取得する');
-  const before = await button.boundingBox();
-
-  await button.click();
-  await expect(button).toHaveText('取得中...');
-  const during = await button.boundingBox();
-
-  expect(during?.x).toBe(before?.x);
-  expect(during?.y).toBe(before?.y);
-});
+}
 
 test.describe('390px', () => {
   test.use({ viewport: { width: 390, height: 844 } });

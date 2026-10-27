@@ -322,8 +322,40 @@
 }
 
 @layer components {
+  .csv-manage-fetch-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  @media (width >= 40rem) {
+    .csv-kind-table {
+      table-layout: fixed;
+    }
+
+    .csv-manage-fetch-actions {
+      grid-template-columns: 11rem 12rem;
+      flex-shrink: 0;
+      width: auto;
+    }
+
+    .csv-kind-col-kind {
+      width: 16rem;
+    }
+
+    .csv-kind-col-count {
+      width: 7rem;
+    }
+
+    .csv-kind-col-menu {
+      width: 4rem;
+    }
+  }
+
   .csv-kind-row {
-    @apply max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto_auto] max-sm:items-center;
+    @apply max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_6rem_4rem] max-sm:items-center;
   }
 
   /* 取得に失敗した行は左に赤い線と薄い背景を付ける(表側が data-status=failed の行に付ける) */
