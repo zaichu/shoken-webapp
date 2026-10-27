@@ -14,56 +14,22 @@ use crate::support::list_search::is_valid_iso_date;
 /// 1株・1口あたりの金額(取得単価・現在値・基準価額・1株配当)の小数桁の上限
 const UNIT_PRICE_DECIMALS_MAX: u32 = 2;
 
-/// JS の `Number(value.toFixed(decimals))` と同じ結果を返す。
-/// f64 の2進の値で最も近い `10^-decimals` の倍数を選び、同距離なら大きい方を選ぶ。
-/// 負値は符号を分けて絶対値で丸めてから符号を戻す。
-/// 非有限値と巨大値はそのまま返し、panic しない。
-pub fn to_fixed(value: f64, decimals: u32) -> f64 {
-    if !value.is_finite() {
-        return value;
-    }
-    let negative = value.is_sign_negative();
-    let magnitude = value.abs();
-    if magnitude == 0.0 {
-        return 0.0;
-    }
-    let bits = magnitude.to_bits();
-    let raw_exponent = ((bits >> 52) & 0x7ff) as i32;
-    let (mantissa, exponent) = if raw_exponent == 0 {
-        (bits & 0xfffffffffffff, -1074)
-    } else {
-        (
-            bits & 0xfffffffffffff | 0x10000000000000,
-            raw_exponent - 1075,
-        )
-    };
-    if exponent >= 0 {
-        return value;
-    }
-    let shift = -exponent;
-    if shift >= 128 {
-        return if negative { -0.0 } else { 0.0 };
-    }
-    let numerator = (mantissa as u128) * 10u128.pow(decimals);
-    let quantum = 1u128 << (shift as u32);
-    let rounded = numerator / quantum + u128::from(numerator % quantum * 2 >= quantum);
-    if rounded == 0 {
-        return if negative { -0.0 } else { 0.0 };
-    }
-    let result = rounded as f64 / 10f64.powi(decimals as i32);
-    if negative { -result } else { result }
-}
-
 /// `Intl.NumberFormat`(maximumFractionDigits) 相当の丸め。
-/// `toFixed` と異なり、f64 の最短10進表記を10進の値として丸めるため、
-/// 捨てる部分が半分以上なら切り上げる（`1.005` → `1.01`、`2.675` → `2.68`）。
-/// `Decimal` に載らない巨大値・多桁値は `to_fixed` にフォールバックする。
+/// f64 の最短10進表記を10進の値として半分は遠ざけて丸める
+/// (`1.005` → `1.01`、`2.675` → `2.68`)。
+/// 非有限値はそのまま返し、巨大値は丸めずに返し、微小値は符号付きゼロにする。
 pub fn intl_fixed(value: f64, decimals: u32) -> f64 {
     if !value.is_finite() {
         return value;
     }
     let negative = value.is_sign_negative();
-    let fallback = || to_fixed(value, decimals);
+    let fallback = || {
+        if value.abs() < 1.0 {
+            if negative { -0.0 } else { 0.0 }
+        } else {
+            value
+        }
+    };
     let Ok(decimal) = Decimal::from_str_exact(&value.abs().to_string()) else {
         return fallback();
     };
@@ -123,7 +89,7 @@ pub fn f64_to_decimal(value: f64) -> Option<Decimal> {
 
 // Decimal に収まらない合計でも、f64 のまま同じ書式で出す
 pub fn format_currency_beyond_decimal(value: f64) -> String {
-    match format_abs_number(to_fixed(value, 0)) {
+    match format_abs_number(intl_fixed(value, 0)) {
         Some(body) if value < 0.0 => format!("-¥{body}"),
         Some(body) => format!("¥{body}"),
         None => "—".to_string(),
@@ -164,7 +130,7 @@ pub fn format_unit_price(value: f64, decimals: u32) -> String {
 
 // Decimal に収まらない値でも小数桁をそろえて出す
 fn format_unit_price_beyond_decimal(value: f64, decimals: u32) -> String {
-    let rounded = to_fixed(value, decimals);
+    let rounded = intl_fixed(value, decimals);
     let Some(body) = format_abs_number(rounded) else {
         return "—".to_string();
     };
@@ -188,7 +154,7 @@ pub fn format_fixed_percent(value: f64, decimals: u32) -> String {
         || {
             format!(
                 "{:.prec$}%",
-                to_fixed(value, decimals),
+                intl_fixed(value, decimals),
                 prec = decimals as usize
             )
         },
