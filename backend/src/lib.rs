@@ -1,4 +1,5 @@
 pub mod config;
+pub mod cron_log;
 pub mod db;
 pub mod errors;
 pub mod extractors;

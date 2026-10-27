@@ -10,6 +10,7 @@ use worker::*;
 
 use crate::{
     config::{self, Config},
+    cron_log::{CronStep, CronTimer, format_cron_noop, format_cron_step},
     handlers,
     middleware::{add_security_headers, binding_rate_limit, validate_origin},
     services::{
@@ -173,9 +174,31 @@ async fn fetch(
     Ok(router(state, &env).call(req).await?)
 }
 
+// 何もしなかった回を noop の1行に抑えるため、処理した回だけ開始・終了を出す
+fn log_cron_outcome(
+    step: CronStep,
+    label: &str,
+    outcome: Result<Option<usize>, Error>,
+    elapsed_ms: u64,
+) -> bool {
+    match outcome {
+        Ok(Some(count)) if count > 0 => {
+            console_log!("cron {}: 開始", step.name());
+            console_log!("{}", format_cron_step(step, count, elapsed_ms));
+            true
+        }
+        Ok(_) => false,
+        Err(e) => {
+            console_error!("scheduled イベントエラー: {label}: {e} ({elapsed_ms}ms)");
+            true
+        }
+    }
+}
+
 // 同じ分の cron は1回にまとまって届くため振り分けない
 #[event(scheduled)]
 async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
+    let total = CronTimer::start();
     let state = match build_state(&env) {
         Ok(state) => state,
         Err(e) => {
@@ -183,69 +206,97 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             return;
         }
     };
-    if let Err(e) = drain_dividend_cache(&state).await {
-        console_error!("scheduled イベントエラー: 配当キャッシュ消化: {e}");
-    }
-    if stock_price::should_refresh_at(event.schedule())
-        && let Err(e) = refresh_stock_prices(&env, &state).await
+    let mut ran = false;
     {
-        console_error!("scheduled イベントエラー: 現在値更新: {e}");
+        let timer = CronTimer::start();
+        let outcome = drain_dividend_cache(&state).await;
+        ran |= log_cron_outcome(
+            CronStep::DividendCache,
+            "配当キャッシュ消化",
+            outcome,
+            timer.elapsed_ms(),
+        );
     }
-    if fund_price::should_fund_refresh_at(event.schedule())
-        && let Err(e) = refresh_fund_prices(&env, &state).await
     {
-        console_error!("scheduled イベントエラー: 基準価額更新: {e}");
+        let timer = CronTimer::start();
+        let outcome: Result<Option<usize>, Error> =
+            if stock_price::should_refresh_at(event.schedule()) {
+                refresh_stock_prices(&env, &state).await.map(Some)
+            } else {
+                Ok(None)
+            };
+        ran |= log_cron_outcome(
+            CronStep::StockPrice,
+            "現在値更新",
+            outcome,
+            timer.elapsed_ms(),
+        );
     }
-    if let Err(e) = refresh_stock_master(&state, event.schedule()).await {
-        console_error!("scheduled イベントエラー: 銘柄マスタ更新: {e}");
+    {
+        let timer = CronTimer::start();
+        let outcome: Result<Option<usize>, Error> =
+            if fund_price::should_fund_refresh_at(event.schedule()) {
+                refresh_fund_prices(&env, &state).await.map(Some)
+            } else {
+                Ok(None)
+            };
+        ran |= log_cron_outcome(
+            CronStep::FundPrice,
+            "基準価額更新",
+            outcome,
+            timer.elapsed_ms(),
+        );
+    }
+    {
+        let timer = CronTimer::start();
+        let outcome = refresh_stock_master(&state, event.schedule()).await;
+        ran |= log_cron_outcome(
+            CronStep::StockMaster,
+            "銘柄マスタ更新",
+            outcome,
+            timer.elapsed_ms(),
+        );
+    }
+    if !ran {
+        console_log!("{}", format_cron_noop(total.elapsed_ms()));
     }
 }
 
 /// 保有銘柄の現在値を Yahoo chart API から取得して更新する。
 /// dev/検証用に vars の YAHOO_CHART_BASE_URL でモックへ差し替えられる
-async fn refresh_stock_prices(env: &Env, state: &AppState) -> Result<()> {
+async fn refresh_stock_prices(env: &Env, state: &AppState) -> Result<usize> {
     let base_url = env.var("YAHOO_CHART_BASE_URL").ok().map(|v| v.to_string());
-    let updated = stock_price::refresh_stock_prices(&state.pool, base_url)
+    stock_price::refresh_stock_prices(&state.pool, base_url)
         .await
-        .map_err(|e| Error::RustError(e.to_string()))?;
-    console_log!("現在値更新: {} 銘柄を取得", updated);
-    Ok(())
+        .map_err(|e| Error::RustError(e.to_string()))
 }
 
 /// 保有ファンドの基準価額を三菱UFJアセットの投信情報APIから取得して更新する。
 /// dev/検証用に vars の MUFG_API_BASE_URL でモックへ差し替えられる
-async fn refresh_fund_prices(env: &Env, state: &AppState) -> Result<()> {
+async fn refresh_fund_prices(env: &Env, state: &AppState) -> Result<usize> {
     let base_url = env.var("MUFG_API_BASE_URL").ok().map(|v| v.to_string());
-    let updated = fund_price::refresh_fund_prices(&state.pool, base_url)
+    fund_price::refresh_fund_prices(&state.pool, base_url)
         .await
-        .map_err(|e| Error::RustError(e.to_string()))?;
-    console_log!("基準価額更新: {} コードを取得", updated);
-    Ok(())
+        .map_err(|e| Error::RustError(e.to_string()))
 }
 
 /// J-Quants 上場銘柄一覧から銘柄マスタ(stock)を全置換する。
 /// dev/検証用に vars の JQUANTS_MASTER_BASE_URL でモックへ差し替えられる
-async fn refresh_stock_master(state: &AppState, scheduled_ms: f64) -> Result<()> {
+async fn refresh_stock_master(state: &AppState, scheduled_ms: f64) -> Result<Option<usize>> {
     let Some(client) = state.jquants_client.as_ref() else {
-        console_log!("JQUANTS_API_KEY 未設定のため銘柄マスタ更新をスキップ");
-        return Ok(());
+        return Ok(None);
     };
-    match stock_master::maybe_refresh(&state.pool, client, scheduled_ms).await {
-        Ok(Some(count)) => console_log!("銘柄マスタ更新: {} 件を投入", count),
-        Ok(None) => {}
-        Err(e) => return Err(Error::RustError(e.to_string())),
-    }
-    Ok(())
+    stock_master::maybe_refresh(&state.pool, client, scheduled_ms)
+        .await
+        .map_err(|e| Error::RustError(e.to_string()))
 }
 
-async fn drain_dividend_cache(state: &AppState) -> Result<()> {
+async fn drain_dividend_cache(state: &AppState) -> Result<Option<usize>> {
     let Some(client) = state.jquants_client.as_ref() else {
-        console_log!("JQUANTS_API_KEY 未設定のため配当キャッシュ消化をスキップ");
-        return Ok(());
+        return Ok(None);
     };
-    let processed = dividend_cache::drain_refresh_queue(&state.pool, client)
+    dividend_cache::drain_refresh_queue(&state.pool, client)
         .await
-        .map_err(|e| Error::RustError(e.to_string()))?;
-    console_log!("配当キャッシュ消化: {} 件処理", processed);
-    Ok(())
+        .map(Some)
+        .map_err(|e| Error::RustError(e.to_string()))
 }
