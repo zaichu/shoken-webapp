@@ -10,7 +10,6 @@ use crate::{
     state::AppState,
 };
 use axum::{
-    Json,
     extract::{Multipart, Query, State},
     response::IntoResponse,
 };
@@ -119,20 +118,12 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let (status, Json(response)) =
-        crate::handlers::v1::csv_import::handle_import_csv::<DomesticStockDomain>(
-            &state.pool,
-            auth_user.id(),
-            multipart,
-            state.config.user_row_limit,
-        )
-        .await?;
-    crate::services::csv::record_import_success(
+    crate::handlers::v1::csv_import::handle_import_csv::<DomesticStockDomain>(
         &state.pool,
         auth_user.id(),
         "domesticstock",
-        &response,
+        multipart,
+        state.config.user_row_limit,
     )
-    .await?;
-    Ok((status, Json(response)))
+    .await
 }

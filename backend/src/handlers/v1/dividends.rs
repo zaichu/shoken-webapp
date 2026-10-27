@@ -11,7 +11,6 @@ use crate::{
     state::AppState,
 };
 use axum::{
-    Json,
     extract::{Multipart, Query, State},
     response::IntoResponse,
 };
@@ -117,17 +116,14 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    let (status, Json(response)) =
-        crate::handlers::v1::csv_import::handle_import_csv::<DividendDomain>(
-            &state.pool,
-            auth_user.id(),
-            multipart,
-            state.config.user_row_limit,
-        )
-        .await?;
-    crate::services::csv::record_import_success(&state.pool, auth_user.id(), "dividend", &response)
-        .await?;
-    Ok((status, Json(response)))
+    crate::handlers::v1::csv_import::handle_import_csv::<DividendDomain>(
+        &state.pool,
+        auth_user.id(),
+        "dividend",
+        multipart,
+        state.config.user_row_limit,
+    )
+    .await
 }
 
 /// 配当利回りを一括取得（v1）

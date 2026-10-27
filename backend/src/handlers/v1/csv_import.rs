@@ -52,11 +52,13 @@ pub async fn handle_delete_all<D: Domain>(
 pub async fn handle_import_csv<D: CsvImport>(
     pool: &Db,
     user_id: UserId,
+    kind: &str,
     multipart: Multipart,
     user_row_limit: RowLimit,
 ) -> Result<(StatusCode, Json<CsvUploadResponse>), ApiError> {
     let bytes = read_csv_file_bytes(multipart).await?;
     let response = D::upload_csv(pool, user_id, &bytes, user_row_limit).await?;
+    crate::services::csv::record_import_success(pool, user_id, kind, &response).await?;
     Ok((StatusCode::CREATED, Json(response)))
 }
 #[cfg(test)]
@@ -180,13 +182,12 @@ mod tests {
         State(pool): State<Db>,
         multipart: Multipart,
     ) -> Result<impl IntoResponse, ApiError> {
-        handle_import_csv::<TestCsvImport>(
-            &pool,
-            UserId::default(),
-            multipart,
-            RowLimit::new(100_000),
-        )
-        .await
+        // DBなしで回す単体テストでは履歴書込を経由しない。履歴の有無は db_integration の csv_* で見る
+        let bytes = read_csv_file_bytes(multipart).await?;
+        let response =
+            TestCsvImport::upload_csv(&pool, UserId::default(), &bytes, RowLimit::new(100_000))
+                .await?;
+        Ok((StatusCode::CREATED, Json(response)))
     }
 
     #[tokio::test]
@@ -302,5 +303,27 @@ mod tests {
             let error: ErrorResponse = read_json_response(response).await;
             assert_eq!(error.error.code, code);
         }
+    }
+
+    #[tokio::test]
+    async fn test_record_import_success_skips_history_when_all_rows_error() {
+        let pool = crate::db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
+            .unwrap();
+        let response = crate::models::csv_import::CsvUploadResponse {
+            inserted: 0,
+            skipped: 0,
+            errors: vec![CsvRowError {
+                row: 1,
+                message: "a is empty".to_string(),
+            }],
+        };
+        crate::services::csv::record_import_success(
+            &pool,
+            UserId::default(),
+            "dividend",
+            &response,
+        )
+        .await
+        .expect("全行エラー時はDBに触れず成功する");
     }
 }

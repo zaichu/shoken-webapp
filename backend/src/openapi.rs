@@ -4,7 +4,6 @@ use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use crate::{
     errors::{ErrorDetails, ErrorResponse},
     handlers,
-    handlers::v1::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse},
     models::{
         asset_balance::{AssetBalance, BulkCreateAssetBalanceRequest},
         common::{BulkCreateResponse, MessageResponse},
@@ -20,6 +19,7 @@ use crate::{
         user::UserResponse,
     },
 };
+use shared::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse};
 use shared::domain::FundNavStatus;
 
 #[derive(OpenApi)]
