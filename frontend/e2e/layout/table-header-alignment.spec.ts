@@ -317,6 +317,13 @@ for (const [label, tab] of [
   ['取引明細・国内株式', '国内株式'],
   ['取引明細・投資信託', '投資信託'],
 ] as const) {
-  
+  test(`${label}の表`, async ({ page }) => {
+    await page.goto('/receipts');
+    await page.getByRole('tab', { name: tab }).click();
+    const table = page.getByRole('table');
+    await expect(table).toBeVisible();
+    await expectHeaderFollowsCells(table, label);
+  });
+}
 
 
