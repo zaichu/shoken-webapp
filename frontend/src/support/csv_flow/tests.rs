@@ -345,11 +345,39 @@ fn detect_preamble_lines_parses_quoted_fields() {
 }
 
 #[test]
-fn detect_preamble_lines_reads_shift_jis() {
-    // Shift-JIS の新形式でも見出しを検出できる
-    let (bytes, _, _) = encoding_rs::SHIFT_JIS
-        .encode("配当金・分配金・利金一覧\n入金日(受渡日),商品\n2025/03/31,国内株式\n");
-    let bytes = bytes.as_ref();
-    let ranges = record_ranges(bytes);
-    assert_eq!(detect_preamble_lines(bytes, &ranges, "入金日"), Some(2));
+fn decode_csv_bytes_keeps_utf8_with_or_without_bom() {
+    assert_eq!(decode_csv_bytes("架空テスト".as_bytes()), "架空テスト");
+    // UTF-8 の BOM は取り除かずそのまま返す
+    let mut bytes = b"\xEF\xBB\xBF".to_vec();
+    bytes.extend_from_slice("架空テスト".as_bytes());
+    assert_eq!(decode_csv_bytes(&bytes), "\u{FEFF}架空テスト");
+}
+
+#[test]
+fn decode_csv_bytes_strips_bom_before_shift_jis_body() {
+    // BOM の後ろに Shift-JIS が続く入力は、BOM を除いた残りを UTF-8 として置換復号する
+    // 後半は "架空テスト" を Shift-JIS にしたもの
+    let mut bytes = b"\xEF\xBB\xBF".to_vec();
+    bytes.extend_from_slice(b"\x89\xCB\x8B\xF3\x83\x65\x83\x58\x83\x67");
+    assert_eq!(decode_csv_bytes(&bytes), "�ˋ�e�X�g");
+}
+
+#[test]
+fn decode_csv_bytes_replaces_invalid_bytes() {
+    // UTF-8 でも Shift-JIS でもないバイトは置換文字にする(エラーにしない)
+    for (bytes, expected) in [
+        (&[0xFF][..], "�"),
+        (&[0x82][..], "�"),
+        (&[0x82, 0x20][..], "� "),
+        (&[0x41, 0xFF, 0x42][..], "A�B"),
+    ] {
+        assert_eq!(decode_csv_bytes(bytes), expected, "input={bytes:02X?}");
+    }
+}
+
+#[test]
+fn record_ranges_splits_shift_jis_bytes() {
+    // "架空商品,金額\n架空株式,100\n" を Shift-JIS にしたもの
+    let bytes = b"\x89\xCB\x8B\xF3\x8F\xA4\x95\x69\x2C\x8B\xE0\x8A\x7A\x0A\x89\xCB\x8B\xF3\x8A\x94\x8E\xAE\x2C\x31\x30\x30\x0A";
+    assert_eq!(record_ranges(bytes), vec![(0, 14), (14, 27)]);
 }

@@ -309,7 +309,29 @@ pub(crate) fn decode_csv_bytes(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
     if let Ok(text) = std::str::from_utf8(bytes) {
         return std::borrow::Cow::Borrowed(text);
     }
-    encoding_rs::SHIFT_JIS.decode(bytes).0
+    std::borrow::Cow::Owned(decode_non_utf8(bytes))
+}
+
+/// UTF-8 でない入力の復号。先頭の UTF-8 BOM は取り除いて残りを UTF-8 として置換復号する
+fn decode_non_utf8(bytes: &[u8]) -> String {
+    if let Some(rest) = bytes.strip_prefix(b"\xEF\xBB\xBF".as_slice()) {
+        return String::from_utf8_lossy(rest).into_owned();
+    }
+    decode_shift_jis(bytes)
+}
+
+/// Shift-JIS バイト列の復号。wasm はブラウザの TextDecoder を使う
+#[cfg(target_arch = "wasm32")]
+fn decode_shift_jis(bytes: &[u8]) -> String {
+    web_sys::TextDecoder::new_with_label("shift_jis")
+        .and_then(|decoder| decoder.decode_with_u8_array(bytes))
+        .unwrap_or_else(|_| String::from_utf8_lossy(bytes).into_owned())
+}
+
+/// host の単体テスト用。TextDecoder を使えないため UTF-8 の置換復号に倒す
+#[cfg(not(target_arch = "wasm32"))]
+fn decode_shift_jis(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).into_owned()
 }
 
 /// backend の csv パーサーと同じ規則でレコードをフィールドに切る。
