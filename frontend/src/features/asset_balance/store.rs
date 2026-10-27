@@ -3,7 +3,7 @@ pub(super) mod csv;
 use super::holdings::{HoldingView, holding_view};
 use crate::api::dto::{AssetBalance, AssetBalanceSummary, FundBalance, FundBalanceSummary};
 use crate::api::{ApiClient, ApiError};
-use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
+use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::lookup::{AssetBalanceLookupStore, fetch_single_asset_balance};
 use crate::features::asset_balance::search::filter_asset_balances;
 use crate::features::dividend_per_share::{
@@ -187,10 +187,8 @@ pub(crate) fn filtered_portfolio(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> FilteredPortfolio {
-    // プレビュー行は CSV の値をそのまま見せるため lookup で DB 行に置き換えない
     let resolve_view = |row: &AssetBalanceRow| {
         let mut view = match row {
-            Row::Preview(_) => holding_view(row),
             Row::Saved(saved) => {
                 let resolved = lookup
                     .with(|store| store.get(generation, saved).cloned())
@@ -286,7 +284,7 @@ pub(crate) fn load_asset_balances(
     balances: RwSignal<BalanceSlot>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
-    csv: RwSignal<AssetCsvSlot>,
+    _csv: RwSignal<AssetCsvSlot>,
     data_ops: RwSignal<DataOps>,
 ) {
     data_ops.update(DataOps::begin_list_fetch);
@@ -306,18 +304,8 @@ pub(crate) fn load_asset_balances(
                 {
                     return;
                 }
-                let preview_active = csv.with_untracked(|slot| {
-                    matches!(slot, Some((cached, state))
-                        if *cached == generation && state.file_name.is_some())
-                });
-                let (codes, missing) = apply_loaded_asset_balances(
-                    generation,
-                    loaded,
-                    balances,
-                    dividends,
-                    lookup,
-                    preview_active,
-                );
+                let (codes, missing) =
+                    apply_loaded_asset_balances(generation, loaded, balances, dividends, lookup);
                 if !missing.is_empty() {
                     leptos::task::spawn_local(async move {
                         for code in missing {
@@ -341,33 +329,8 @@ pub(crate) fn load_asset_balances(
                         }
                     });
                 }
-                // ポーリング結果はマップ全体を置き換えるため、プレビュー中は
-                // プレビュー銘柄も混ぜて取り直し、片方の配当が欠けないようにする
-                let poll_codes = if preview_active {
-                    let preview_codes = csv.with_untracked(|slot| match slot {
-                        Some((cached, state)) if *cached == generation => state
-                            .preview
-                            .as_ref()
-                            .map(|preview| {
-                                preview
-                                    .rows
-                                    .iter()
-                                    .map(|row| row.security_code.to_string())
-                                    .collect::<Vec<_>>()
-                            })
-                            .unwrap_or_default(),
-                        _ => Vec::new(),
-                    });
-                    unique_sorted_codes(
-                        &codes
-                            .iter()
-                            .cloned()
-                            .chain(preview_codes)
-                            .collect::<Vec<_>>(),
-                    )
-                } else {
-                    codes
-                };
+                // ポーリング結果はマップ全体を置き換えるため、保存済み銘柄で取り直す
+                let poll_codes = codes;
                 if !poll_codes.is_empty() {
                     data_ops.update(DataOps::next_poll_rev);
                     let poll_rev = data_ops.with_untracked(|ops| ops.poll_rev);
@@ -406,7 +369,6 @@ pub(crate) fn apply_loaded_asset_balances(
     balances: RwSignal<BalanceSlot>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
-    preview_active: bool,
 ) -> (Vec<String>, Vec<String>) {
     // 同一世代の置換では or_insert では古い値が残るため seed 前に必ず消す
     lookup.update(|store| {
@@ -420,9 +382,7 @@ pub(crate) fn apply_loaded_asset_balances(
             .map(|row| row.security_code.to_string())
             .collect::<Vec<_>>(),
     );
-    if !preview_active {
-        dividends.set(DividendMaps::default());
-    }
+    dividends.set(DividendMaps::default());
     balances.set(Some((generation, Ok(loaded))));
     let missing: Vec<String> = codes
         .iter()
@@ -432,8 +392,4 @@ pub(crate) fn apply_loaded_asset_balances(
     (codes, missing)
 }
 
-pub(crate) type AssetCsvSlot = Option<(Generation, CsvTabState<AssetBalanceCsvRow>)>;
-pub(crate) type AssetCsvFileSlot = Option<(Generation, web_sys::File)>;
-
-#[cfg(test)]
-mod tests;
+pub(crate) type AssetCsvSlot = Option<(Generation, CsvTabState)>;

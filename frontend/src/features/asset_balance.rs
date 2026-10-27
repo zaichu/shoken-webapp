@@ -33,8 +33,6 @@ pub(crate) use view::{
 };
 
 #[cfg(test)]
-pub(crate) use csv::AssetBalanceCsvRow;
-#[cfg(test)]
 pub(crate) use lookup::AssetBalanceLookupStore;
 #[cfg(test)]
 pub(crate) use store::{BalanceSlot, DataOps, FundSlot};

@@ -352,21 +352,5 @@ pub fn days_since_jst_date(timestamp: &str) -> Option<i64> {
     Some(calendar_days_between(imported, today))
 }
 
-/// 数値(Decimal)を桁区切りで出す
-pub fn format_decimal_number(value: Decimal) -> String {
-    let text = value.to_string();
-    let (sign, abs) = text
-        .strip_prefix('-')
-        .map_or(("", text.as_str()), |stripped| ("-", stripped));
-    let (integer, fraction) = abs
-        .split_once('.')
-        .map_or((abs, None), |(i, f)| (i, Some(f)));
-    let grouped = group_thousands(integer);
-    match fraction {
-        Some(fraction) => format!("{sign}{grouped}.{fraction}"),
-        None => format!("{sign}{grouped}"),
-    }
-}
-
 #[cfg(test)]
 mod tests;

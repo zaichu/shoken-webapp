@@ -81,14 +81,6 @@ impl CsvKind {
             Self::Dividend | Self::DomesticStock | Self::MutualFund => days_ago <= 7,
         }
     }
-
-    /// 保存後に確認できる一覧ページ
-    pub(crate) fn list_href(self) -> &'static str {
-        match self.receipt_tab() {
-            Some(_) => "/receipts",
-            None => "/assetbalance",
-        }
-    }
 }
 
 fn row_data(

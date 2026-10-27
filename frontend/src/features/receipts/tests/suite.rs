@@ -1,5 +1,3 @@
-#[path = "csv.rs"]
-mod csv;
 #[path = "fetch.rs"]
 mod fetch;
 #[path = "search.rs"]
@@ -531,52 +529,6 @@ fn refresh_error_returns_entry_for_current_generation_only() {
         });
         assert_eq!(store.refresh_error(tab).as_deref(), Some("再取得に失敗"));
         assert_eq!(store.refresh_error(ReceiptsTab::DomesticStock), None);
-    });
-}
-
-#[test]
-fn csv_input_disabled_covers_unauth_busy_and_fetching() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.loaded.set(true);
-        let store = ReceiptsStore {
-            session,
-            active_tab: RwSignal::new(ReceiptsTab::Dividend),
-            search: RwSignal::new(ReceiptSearch::default()),
-            expanded: RwSignal::new(HashSet::new()),
-            mobile_summary_expanded: RwSignal::new(false),
-            expanded_epoch: RwSignal::new(None),
-            visited: RwSignal::new(HashSet::new()),
-            tabs: RwSignal::new(HashMap::new()),
-            fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
-        };
-        let tab = ReceiptsTab::Dividend;
-
-        // 未ログインは他条件に関わらず無効(||→&& 変異はここで検出できる)
-        assert!(store.csv_input_disabled(tab));
-
-        session.user.set(Some(user("alice")));
-        assert!(!store.csv_input_disabled(tab));
-
-        let generation = session.generation.get_untracked();
-        store.tabs.update(|map| {
-            map.entry((generation, tab)).or_default().csv = crate::support::csv_flow::CsvTabState {
-                previewing: true,
-                ..Default::default()
-            };
-        });
-        assert!(store.csv_input_disabled(tab));
-        store.tabs.update(|map| {
-            for entry in map.values_mut() {
-                entry.csv = Default::default();
-            }
-        });
-
-        store.tabs.update(|map| {
-            map.entry((generation, tab)).or_default().list = Some(TabState::Loading);
-        });
-        assert!(store.csv_input_disabled(tab));
     });
 }
 

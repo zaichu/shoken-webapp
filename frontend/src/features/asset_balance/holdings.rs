@@ -142,6 +142,3 @@ pub(crate) fn format_dividend_annual(dividend: &HoldingDividend) -> String {
 pub(crate) fn format_dividend_yield(dividend: &HoldingDividend) -> String {
     format_dividend_value(dividend, dividend.yield_value, format_percentage_value)
 }
-
-#[cfg(test)]
-mod tests;

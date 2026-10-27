@@ -189,7 +189,7 @@ fn CsvKindRow(
     });
     let delete_disabled = Memo::new(move |_| {
         let meta = meta.get();
-        if meta.saving || meta.deleting {
+        if meta.deleting {
             return true;
         }
         match kind {

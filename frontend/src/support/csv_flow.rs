@@ -1,90 +1,14 @@
-use crate::api::dto::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
+use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
 use crate::api::{ApiClient, ApiError};
-use crate::support::row::Row;
-use crate::ui::labels::count;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct CsvTabState<R> {
-    pub file_name: Option<String>,
-    pub preview: Option<CsvPreviewResponse<R>>,
-    pub import_result: Option<CsvUploadResponse>,
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CsvTabState {
     pub error: Option<String>,
-    pub previewing: bool,
-    pub saving: bool,
     pub deleting: bool,
     pub show_delete_confirm: bool,
 }
 
-impl<R> Default for CsvTabState<R> {
-    fn default() -> Self {
-        Self {
-            file_name: None,
-            preview: None,
-            import_result: None,
-            error: None,
-            previewing: false,
-            saving: false,
-            deleting: false,
-            show_delete_confirm: false,
-        }
-    }
-}
-
-impl<R> CsvTabState<R> {
-    pub fn busy(&self) -> bool {
-        self.previewing || self.saving || self.deleting
-    }
-
-    pub fn has_preview_rows(&self) -> bool {
-        self.preview
-            .as_ref()
-            .is_some_and(|preview| !preview.rows.is_empty())
-    }
-
-    pub fn begin_preview(&mut self, file_name: String) -> bool {
-        if self.busy() {
-            return false;
-        }
-        self.file_name = Some(file_name);
-        self.preview = None;
-        self.import_result = None;
-        self.error = None;
-        self.previewing = true;
-        true
-    }
-
-    pub fn finish_preview(&mut self, preview: CsvPreviewResponse<R>) {
-        self.previewing = false;
-        self.preview = Some(preview);
-    }
-
-    pub fn fail_preview(&mut self, message: String) {
-        self.previewing = false;
-        self.error = Some(message);
-    }
-
-    pub fn begin_save(&mut self) -> bool {
-        if self.busy() {
-            return false;
-        }
-        self.error = None;
-        self.saving = true;
-        true
-    }
-
-    pub fn finish_save(&mut self, result: Result<CsvUploadResponse, String>) {
-        self.saving = false;
-        match result {
-            Ok(result) => {
-                self.file_name = None;
-                // 消さないと全件削除後もプレビュー行が一覧に残る
-                self.preview = None;
-                self.import_result = Some(result);
-            }
-            Err(message) => self.error = Some(message),
-        }
-    }
-
+impl CsvTabState {
     pub fn open_delete_confirm(&mut self) {
         self.show_delete_confirm = true;
     }
@@ -103,20 +27,9 @@ impl<R> CsvTabState<R> {
     pub fn finish_delete(&mut self, result: Result<(), String>) {
         self.deleting = false;
         match result {
-            Ok(()) => self.import_result = None,
+            Ok(()) => {}
             Err(message) => self.error = Some(message),
         }
-    }
-
-    pub fn set_preview_result(&mut self, result: Result<CsvPreviewResponse<R>, ApiError>) {
-        match result {
-            Ok(preview) => self.finish_preview(preview),
-            Err(error) => self.fail_preview(error.message()),
-        }
-    }
-
-    pub fn set_upload_result(&mut self, result: Result<CsvUploadResponse, ApiError>) {
-        self.finish_save(result.map_err(|error| error.message()));
     }
 
     pub fn set_delete_result(&mut self, result: Result<(), ApiError>) {
@@ -125,98 +38,19 @@ impl<R> CsvTabState<R> {
 
     pub fn meta(&self) -> CsvTabMeta {
         CsvTabMeta {
-            file_name: self.file_name.clone(),
-            preview: self.preview.as_ref().map(|preview| CsvPreviewMeta {
-                valid_rows: preview.valid_rows,
-                errors: preview.errors.clone(),
-                has_rows: !preview.rows.is_empty(),
-            }),
-            import_result: self.import_result.clone(),
             error: self.error.clone(),
-            previewing: self.previewing,
-            saving: self.saving,
             deleting: self.deleting,
             show_delete_confirm: self.show_delete_confirm,
         }
     }
 }
 
-// プレビュー行を含まない CSV 状態の投影。
-// 共通 UI(CsvSection)の Memo が読むのはこれだけにして、評価ごとの全行複製を避ける
+// 削除確認の表示に必要な状態の投影
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CsvTabMeta {
-    pub file_name: Option<String>,
-    pub preview: Option<CsvPreviewMeta>,
-    pub import_result: Option<CsvUploadResponse>,
     pub error: Option<String>,
-    pub previewing: bool,
-    pub saving: bool,
     pub deleting: bool,
     pub show_delete_confirm: bool,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct CsvPreviewMeta {
-    pub valid_rows: usize,
-    pub errors: Vec<CsvRowError>,
-    pub has_rows: bool,
-}
-
-impl CsvTabMeta {
-    pub fn busy(&self) -> bool {
-        self.previewing || self.saving || self.deleting
-    }
-
-    pub fn has_preview_rows(&self) -> bool {
-        self.preview
-            .as_ref()
-            .is_some_and(|preview| preview.has_rows)
-    }
-}
-
-// 共有クレートの型に固有メソッドを生やせないため、表示用文字列の組み立ては拡張トレイトで提供する
-pub trait CsvUploadResponseExt {
-    fn inserted_text(&self) -> String;
-    fn skipped_text(&self) -> Option<String>;
-    fn error_count_text(&self) -> Option<String>;
-}
-
-impl CsvUploadResponseExt for CsvUploadResponse {
-    fn inserted_text(&self) -> String {
-        format!("{}反映", count(self.inserted))
-    }
-
-    fn skipped_text(&self) -> Option<String> {
-        (self.skipped > 0).then(|| format!("{}スキップ", count(self.skipped)))
-    }
-
-    fn error_count_text(&self) -> Option<String> {
-        (!self.errors.is_empty()).then(|| format!("{}エラー", count(self.errors.len())))
-    }
-}
-
-// backend は値の無いエラーでも末尾に空の括弧を付けて返すことがある(例: 「…（）」)
-pub fn display_message(message: &str) -> &str {
-    let trimmed = message.trim_end();
-    for suffix in ["（）", "()"] {
-        if let Some(stripped) = trimmed.strip_suffix(suffix) {
-            return stripped.trim_end();
-        }
-    }
-    trimmed
-}
-
-pub fn row_error_text(error: &CsvRowError) -> String {
-    format!("{}行目: {}", error.row, display_message(&error.message))
-}
-
-/// 未保存プレビュー行を一覧用の行に写す。空のときは空のままにして呼び出し側で非表示にする
-pub fn preview_rows<S, P: Clone>(state: &CsvTabState<P>) -> Vec<Row<S, P>> {
-    state
-        .preview
-        .as_ref()
-        .map(|preview| preview.rows.iter().cloned().map(Row::Preview).collect())
-        .unwrap_or_default()
 }
 
 fn csv_form_data(file: &web_sys::File) -> Result<web_sys::FormData, ApiError> {
@@ -495,17 +329,6 @@ pub async fn preview_csv<R: serde::de::DeserializeOwned>(
         merged.rows.append(&mut response.rows);
     }
     Ok(merged)
-}
-
-/// 分割 import は「途中で失敗すると手前のチャンクだけコミットされる」。
-/// Append 型ドメインは ON CONFLICT の重複スキップで冪等なので、
-/// 失敗時は同じファイルをそのまま再送すれば残りが追いつく
-pub async fn upload_csv(
-    path: &str,
-    file: &web_sys::File,
-    chunking: CsvChunking,
-) -> Result<CsvUploadResponse, ApiError> {
-    upload_csv_while(path, file, chunking, || true).await
 }
 
 /// upload_csv に継続条件を渡す版。分割待ちの間に条件が切れると、残りの

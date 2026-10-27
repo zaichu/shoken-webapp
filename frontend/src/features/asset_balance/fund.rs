@@ -7,7 +7,6 @@ use crate::features::asset_balance::format::dec_to_f64;
 use crate::support::csv_flow::CsvChunking;
 use crate::support::row::Row;
 use rust_decimal::Decimal;
-use serde::Deserialize;
 
 pub const FUND_LIST_PATH: &str = "/api/v1/fund-balances";
 pub const FUND_PREVIEW_PATH: &str = "/api/v1/fund-balance-import-validations";
@@ -52,42 +51,10 @@ impl AssetKind {
     }
 }
 
-/// CSV プレビュー行。backend の CreateFundBalanceRequest そのままの形を
-/// lenient に受け取る(検証に通らない値も画面に出すため)
-#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
-pub struct FundBalanceCsvRow {
-    #[serde(default)]
-    pub fund_name: String,
-    #[serde(default)]
-    pub account: String,
-    #[serde(default)]
-    pub dividends_course: Option<String>,
-    #[serde(default)]
-    pub shares: Decimal,
-    #[serde(default)]
-    pub average_purchase_price: Decimal,
-    #[serde(default)]
-    pub total_purchase_amount: Decimal,
-    #[serde(default)]
-    pub base_price: Decimal,
-    #[serde(default)]
-    pub base_price_day_change: Option<Decimal>,
-    #[serde(default)]
-    pub base_price_month_change: Option<Decimal>,
-    #[serde(default)]
-    pub market_value: Decimal,
-    #[serde(default)]
-    pub profit_loss: Decimal,
-    #[serde(default)]
-    pub profit_loss_rate: Option<Decimal>,
-    #[serde(default)]
-    pub total_return: Option<Decimal>,
-}
+/// 一覧行
+pub(crate) type FundBalanceRow = Row<FundBalance>;
 
-/// 一覧行と CSV プレビュー行を束ねる
-pub(crate) type FundBalanceRow = Row<FundBalance, FundBalanceCsvRow>;
-
-/// 保存済み行とプレビュー行の共通読み出し面
+/// 保存済み行の読み出し面
 pub(crate) trait FundRowData {
     fn fund_name(&self) -> &str;
     fn account(&self) -> &str;
@@ -109,7 +76,7 @@ pub(crate) trait FundRowData {
     fn is_nav_latest(&self) -> bool;
     /// 「公表済みのはずの最新の基準価額の日」(更新待ちの説明文に使う)
     fn expected_nav_date(&self) -> Option<String>;
-    /// 保有残高の取込時刻(CSV 取り込みの時刻)。プレビュー行には無い
+    /// 保有残高の取込時刻(CSV 取り込みの時刻)
     fn created_at(&self) -> Option<&str>;
 }
 
@@ -170,73 +137,8 @@ impl FundRowData for FundBalance {
     }
 }
 
-impl FundRowData for FundBalanceCsvRow {
-    fn fund_name(&self) -> &str {
-        &self.fund_name
-    }
-    fn account(&self) -> &str {
-        &self.account
-    }
-    fn dividends_course(&self) -> Option<&str> {
-        self.dividends_course.as_deref()
-    }
-    fn shares(&self) -> Decimal {
-        self.shares
-    }
-    fn average_purchase_price(&self) -> Decimal {
-        self.average_purchase_price
-    }
-    fn total_purchase_amount(&self) -> Decimal {
-        self.total_purchase_amount
-    }
-    fn base_price(&self) -> Decimal {
-        self.base_price
-    }
-    fn base_price_day_change(&self) -> Option<Decimal> {
-        self.base_price_day_change
-    }
-    fn base_price_month_change(&self) -> Option<Decimal> {
-        self.base_price_month_change
-    }
-    fn market_value(&self) -> Decimal {
-        self.market_value
-    }
-    fn profit_loss(&self) -> Decimal {
-        self.profit_loss
-    }
-    fn profit_loss_rate(&self) -> Option<Decimal> {
-        self.profit_loss_rate
-    }
-    fn total_return(&self) -> Option<Decimal> {
-        self.total_return
-    }
-    fn price_as_of(&self) -> Option<String> {
-        None
-    }
-    fn price_source(&self) -> FundPriceSource {
-        FundPriceSource::Csv
-    }
-    fn is_nav_latest(&self) -> bool {
-        // プレビューは取り込むファイルの値そのものなので「最新」として扱う
-        true
-    }
-    fn expected_nav_date(&self) -> Option<String> {
-        None
-    }
-    fn created_at(&self) -> Option<&str> {
-        None
-    }
-}
-
 impl FundBalanceRow {
-    fn inner(&self) -> &dyn FundRowData {
-        match self {
-            Self::Saved(row) => row,
-            Self::Preview(row) => row,
-        }
-    }
-
-    /// 詳細ページのパスに使う保存済みレコード ID。CSV プレビュー行には無い
+    /// 詳細ページのパスに使う保存済みレコード ID
     pub(crate) fn saved_id(&self) -> Option<String> {
         self.saved().map(|row| row.id.to_string())
     }
@@ -244,58 +146,72 @@ impl FundBalanceRow {
 
 impl FundRowData for FundBalanceRow {
     fn fund_name(&self) -> &str {
-        self.inner().fund_name()
+        self.saved().map(|row| row.fund_name()).unwrap_or("")
     }
     fn account(&self) -> &str {
-        self.inner().account()
+        self.saved().map(|row| row.account()).unwrap_or("")
     }
     fn dividends_course(&self) -> Option<&str> {
-        self.inner().dividends_course()
+        self.saved().and_then(|row| row.dividends_course())
     }
     fn shares(&self) -> Decimal {
-        self.inner().shares()
+        self.saved()
+            .map(|row| row.shares())
+            .unwrap_or(Decimal::ZERO)
     }
     fn average_purchase_price(&self) -> Decimal {
-        self.inner().average_purchase_price()
+        self.saved()
+            .map(|row| row.average_purchase_price())
+            .unwrap_or(Decimal::ZERO)
     }
     fn total_purchase_amount(&self) -> Decimal {
-        self.inner().total_purchase_amount()
+        self.saved()
+            .map(|row| row.total_purchase_amount())
+            .unwrap_or(Decimal::ZERO)
     }
     fn base_price(&self) -> Decimal {
-        self.inner().base_price()
+        self.saved()
+            .map(|row| row.base_price())
+            .unwrap_or(Decimal::ZERO)
     }
     fn base_price_day_change(&self) -> Option<Decimal> {
-        self.inner().base_price_day_change()
+        self.saved().and_then(|row| row.base_price_day_change())
     }
     fn base_price_month_change(&self) -> Option<Decimal> {
-        self.inner().base_price_month_change()
+        self.saved().and_then(|row| row.base_price_month_change())
     }
     fn market_value(&self) -> Decimal {
-        self.inner().market_value()
+        self.saved()
+            .map(|row| row.market_value())
+            .unwrap_or(Decimal::ZERO)
     }
     fn profit_loss(&self) -> Decimal {
-        self.inner().profit_loss()
+        self.saved()
+            .map(|row| row.profit_loss())
+            .unwrap_or(Decimal::ZERO)
     }
     fn profit_loss_rate(&self) -> Option<Decimal> {
-        self.inner().profit_loss_rate()
+        self.saved().and_then(|row| row.profit_loss_rate())
     }
     fn total_return(&self) -> Option<Decimal> {
-        self.inner().total_return()
+        self.saved().and_then(|row| row.total_return())
     }
     fn price_as_of(&self) -> Option<String> {
-        self.inner().price_as_of()
+        self.saved().and_then(|row| row.price_as_of())
     }
     fn price_source(&self) -> FundPriceSource {
-        self.inner().price_source()
+        self.saved()
+            .map(|row| row.price_source())
+            .unwrap_or(FundPriceSource::Csv)
     }
     fn is_nav_latest(&self) -> bool {
-        self.inner().is_nav_latest()
+        self.saved().map(|row| row.is_nav_latest()).unwrap_or(false)
     }
     fn expected_nav_date(&self) -> Option<String> {
-        self.inner().expected_nav_date()
+        self.saved().and_then(|row| row.expected_nav_date())
     }
     fn created_at(&self) -> Option<&str> {
-        self.inner().created_at()
+        self.saved().and_then(|row| row.created_at())
     }
 }
 
@@ -578,6 +494,3 @@ pub(crate) fn fund_totals(views: &[FundView]) -> FundTotals {
     }
     totals
 }
-
-#[cfg(test)]
-mod tests;

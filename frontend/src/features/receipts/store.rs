@@ -4,7 +4,6 @@ mod csv;
 use super::ReceiptRow;
 use super::{ReceiptTabData, ReceiptsTab, TabState};
 use crate::api::ApiError;
-use crate::features::receipts::csv::CsvPreviewRow;
 use crate::features::receipts::filter::ReceiptSearch;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
@@ -16,11 +15,10 @@ use std::collections::{HashMap, HashSet};
 #[derive(Default)]
 pub(crate) struct TabCacheEntry {
     pub(crate) list: Option<TabState>,
-    pub(crate) csv: CsvTabState<CsvPreviewRow>,
-    pub(crate) csv_file: Option<web_sys::File>,
+    pub(crate) csv: CsvTabState,
     // 裏再取得の失敗は表示済みの一覧とは別に持ち、行を消さない
     pub(crate) refresh_error: Option<String>,
-    // 裏再取得の遅れ応答が全件削除や CSV 保存の結果を上書きしないための世代内リビジョン
+    // 裏再取得の遅れ応答が全件削除の結果を上書きしないための世代内リビジョン
     pub(crate) fetch_rev: u64,
 }
 
