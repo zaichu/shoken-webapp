@@ -45,6 +45,31 @@ fn intl_fixed_matches_number_format_boundary_cases() {
 }
 
 #[test]
+fn rounding_display_locked_before_unification() {
+    // 0・負数・x.5・桁の多い値・小数第2位の表示を固定する
+    assert_eq!(format_number_value(0.0), "0");
+    assert_eq!(format_number_value(-0.0), "0");
+    assert_eq!(format_number_value(-0.001), "-0");
+    assert_eq!(format_number_value(-12345.678), "-12,345.68");
+    assert_eq!(format_number_value(1.005), "1.01");
+    assert_eq!(format_number_value(2.675), "2.68");
+    assert_eq!(format_number_value(0.995), "1");
+    assert_eq!(format_number_value(1.2345), "1.23");
+    assert_eq!(format_fixed_percent(1.005, 2), "1.01%");
+    assert_eq!(format_fixed_percent(0.0, 2), "0.00%");
+    assert_eq!(format_currency(0.0), "¥0");
+    assert_eq!(format_currency(-0.0), "¥0");
+    assert_eq!(
+        format_currency(1e29),
+        "¥100,000,000,000,000,000,000,000,000,000"
+    );
+    assert_eq!(format_number_value(f64::NAN), "—");
+    assert_eq!(format_number_value(f64::INFINITY), "—");
+    assert_eq!(format_fixed_percent(f64::NAN, 1), "—");
+    assert_eq!(format_fixed_percent(f64::INFINITY, 1), "—");
+}
+
+#[test]
 fn number_and_currency_formatters_match_intl_cases() {
     assert_eq!(format_number_value(100.0), "100");
     assert_eq!(format_number_value(-12345.0), "-12,345");
