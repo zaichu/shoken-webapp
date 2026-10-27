@@ -41,19 +41,36 @@ pub async fn fetch_all_pages<E: ListEndpoint>() -> Result<ListPage<E::Row, E::Su
 pub async fn fetch_all_pages_with<E: ListEndpoint>(
     max_pages: usize,
 ) -> Result<ListPage<E::Row, E::Summary>, ApiError> {
+    fetch_all_pages_filtered::<E>(&[], max_pages).await
+}
+
+/// 追加の絞り込み条件つきで全ページ取得する。`extra` は `page`・`per_page`・
+/// `include_summary` に加えて毎ページへ付けるクエリ対(ホームの年次絞り等)。
+pub async fn fetch_all_pages_filtered<E: ListEndpoint>(
+    extra: &[(&str, &str)],
+    max_pages: usize,
+) -> Result<ListPage<E::Row, E::Summary>, ApiError> {
+    let extra: Vec<(String, String)> = extra
+        .iter()
+        .map(|(key, value)| ((*key).to_string(), (*value).to_string()))
+        .collect();
     let client = ApiClient::read_client();
     collect_list_pages(E::PER_PAGE, max_pages, |page_no| {
         let client = client.clone();
+        let extra = extra.clone();
         async move {
             let page = page_no.to_string();
             let per_page = E::PER_PAGE.to_string();
             // summary はどのページも同じ全体集計を返すため、1ページ目だけ取る
             let include_summary = if page_no == 1 { "true" } else { "false" };
-            let query = vec![
+            let mut query = vec![
                 ("page", page.as_str()),
                 ("per_page", per_page.as_str()),
                 ("include_summary", include_summary),
             ];
+            for (key, value) in &extra {
+                query.push((key.as_str(), value.as_str()));
+            }
             client
                 .get_json::<PaginatedSearchResponse<E::Row, E::Summary>>(E::PATH, &query)
                 .await

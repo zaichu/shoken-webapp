@@ -1,6 +1,8 @@
 use super::*;
-use crate::api::dto::{AssetBalance, Dividend};
-use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint};
+use crate::api::dto::{AssetBalance, Dividend, PaginatedSearchResponse};
+use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, collect_list_pages};
+use crate::testing::block_on;
+use std::future::ready;
 
 #[test]
 fn summary_endpoints_share_the_list_paths() {
@@ -138,4 +140,66 @@ fn refresh_failed_ignores_other_generations() {
     assert!(!refresh_failed(&map, generation));
     map.insert((generation, SummaryKind::Recent), failed());
     assert!(refresh_failed(&map, generation));
+}
+
+// 年次配当の集計が依存する全ページ取得の挙動。`fetch_dividend_year` は
+// 取得結果を `Some(rows)` に包むだけなので、ここでは行の結合だけを固定する
+fn year_rows(pages: &[(Vec<usize>, i64)]) -> Result<Option<Vec<usize>>, ApiError> {
+    block_on(collect_list_pages(
+        LIST_PER_PAGE,
+        LIST_MAX_PAGES,
+        |page_no| {
+            let (rows, total) = &pages[page_no - 1];
+            ready(Ok(PaginatedSearchResponse {
+                data: rows.clone(),
+                total: *total,
+                page: page_no as i64,
+                per_page: LIST_PER_PAGE as i64,
+                summary: None::<()>,
+                facets: None,
+            }))
+        },
+    ))
+    .map(|page| Some(page.rows))
+}
+
+#[test]
+fn dividend_year_joins_multiple_pages_in_order() {
+    let full: Vec<usize> = (0..LIST_PER_PAGE).collect();
+    let rest: Vec<usize> = (LIST_PER_PAGE..LIST_PER_PAGE + 3).collect();
+    let total = (LIST_PER_PAGE + 3) as i64;
+    let rows = year_rows(&[(full, total), (rest, total)]).expect("fetch");
+    assert_eq!(rows, Some((0..LIST_PER_PAGE + 3).collect()));
+}
+
+#[test]
+fn dividend_year_empty_returns_no_rows() {
+    let rows = year_rows(&[(Vec::new(), 0)]).expect("fetch");
+    assert_eq!(rows, Some(Vec::new()));
+}
+
+#[test]
+fn dividend_year_mid_page_error_fails_whole_fetch() {
+    let calls = std::cell::Cell::new(0);
+    let result: Result<Option<Vec<usize>>, ApiError> = block_on(async {
+        collect_list_pages(LIST_PER_PAGE, LIST_MAX_PAGES, |page_no| {
+            calls.set(calls.get() + 1);
+            if page_no == 1 {
+                ready(Ok(PaginatedSearchResponse {
+                    data: (0..LIST_PER_PAGE).collect(),
+                    total: LIST_PER_PAGE as i64 + 1,
+                    page: 1,
+                    per_page: LIST_PER_PAGE as i64,
+                    summary: None::<()>,
+                    facets: None,
+                }))
+            } else {
+                ready(Err(ApiError::http(500)))
+            }
+        })
+        .await
+        .map(|page| Some(page.rows))
+    });
+    assert!(matches!(result, Err(ApiError::Http { .. })));
+    assert_eq!(calls.get(), 2, "失敗したページ以降は要求しない");
 }
