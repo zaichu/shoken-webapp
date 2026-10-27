@@ -4,28 +4,8 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json},
 };
-use serde::Serialize;
-use utoipa::ToSchema;
 
-/// CSV種類ごとの統計情報
-#[derive(Debug, Clone, Serialize, ToSchema)]
-pub struct CsvKindStat {
-    /// 種類識別子 (assetbalance, fundbalance, dividend, domesticstock, mutualfund)
-    pub kind: String,
-    /// 表示名
-    pub label: String,
-    /// 保存済み件数
-    pub count: i64,
-    /// 最終取込日時 (ISO 8601, UTC)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub latest_imported_at: Option<String>,
-}
-
-/// CSV種類統計のレスポンス
-#[derive(Debug, Clone, Serialize, ToSchema)]
-pub struct CsvKindStatsResponse {
-    pub kinds: Vec<CsvKindStat>,
-}
+pub use shared::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse};
 
 /// GET /api/v1/csv-kinds/stats - CSV管理画面用の種類ごと統計を取得
 #[utoipa::path(

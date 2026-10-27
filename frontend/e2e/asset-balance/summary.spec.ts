@@ -1,11 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000010',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, json, mockSession } from '../support/test';
 
 const SYN_AUTO = {
   id: 'asset-balance-1',
@@ -43,9 +37,7 @@ const API_SUMMARY = {
 };
 
 async function setupAssetBalanceMocks(page: Page) {
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill(json(MOCK_USER)),
-  );
+  await mockSession(page);
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {

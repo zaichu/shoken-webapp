@@ -1,14 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
-import { json, paginated } from '../support/test';
+import { json, paginated, MOCK_USER } from '../support/test';
 
 const paginatedAll = (data: unknown[], extra: Record<string, unknown> = {}) =>
   paginated(data, { per_page: 1000, ...extra });
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000002',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
 
 const DIVIDEND = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -50,8 +44,6 @@ const STOCK = {
   industry_category_17: '自動車・輸送機',
   size_category: '大型',
 };
-
-
 
 interface ApiCounts {
   session: number;

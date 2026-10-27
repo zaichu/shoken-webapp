@@ -1,17 +1,11 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, test, json, paginated } from '../support/test';
+import { expect, test, json, paginated, MOCK_USER, mockSession } from '../support/test';
 
 /**
  * 表の列見出しの規則を確かめる。
  * 見出しは列のデータの位置と同じ(文字位置=left/right が一致)、
  * 中央そろえは使わない、並べ替えの前後で見出しの文字が動かない。
  */
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000002',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
 
 const STOCK_NAMES = [
   '架空自動車',
@@ -114,7 +108,7 @@ const MUTUALFUNDS = Array.from({ length: 12 }, (_, i) => ({
 }));
 
 async function mockApi(page: Page) {
-  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(STOCKS))),
   );

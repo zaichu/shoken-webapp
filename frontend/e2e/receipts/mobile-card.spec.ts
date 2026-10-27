@@ -1,14 +1,8 @@
 import type { Page } from '@playwright/test';
-import { expect, test, paginated } from '../support/test';
+import { expect, test, paginated, mockSession } from '../support/test';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000002',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
 
 const DIVIDEND = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -70,13 +64,7 @@ async function mockApi(page: Page) {
       body: JSON.stringify(paginated([])),
     }),
   );
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill({
       status: 200,

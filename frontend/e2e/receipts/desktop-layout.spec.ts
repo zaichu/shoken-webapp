@@ -1,16 +1,10 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json, paginated } from '../support/test';
+import { expect, test, json, paginated, MOCK_USER, mockSession } from '../support/test';
 import {
   domesticStocksFixture,
   LONG_FUND_NAME,
   mutualFundsFixture,
 } from '../fixtures/receipts-print';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000002',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
 
 const STOCKS: Array<[string, string]> = [
   ['9904', '架空自動車'],
@@ -55,7 +49,7 @@ const RECEIPT_TABS = [
 async function mockApi(page: Page) {
   // 後から登録した route が優先されるため catch-all を先に登録する
   await page.route(/\/api\/v1\//, (route) => route.fulfill(json(paginated([]))));
-  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(DIVIDENDS))),
   );

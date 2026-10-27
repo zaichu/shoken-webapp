@@ -1,11 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000010',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, json, mockSession } from '../support/test';
 
 const FUND_ROWS = [
   {
@@ -33,14 +27,13 @@ const FUND_ROWS = [
 ];
 
 const ROUTES = {
-  authMe: /\/api\/v1\/session$/,
   assetBalances: /\/api\/v1\/asset-balances(?:\?.*)?$/,
   fundBalances: /\/api\/v1\/fund-balances(?:\?.*)?$/,
   dividendPerShareBatch: /\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/,
 };
 
 async function setupMocks(page: Page, navStatus: Record<string, unknown>) {
-  await page.route(ROUTES.authMe, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
   await page.route(ROUTES.dividendPerShareBatch, (route) =>
     route.fulfill(json({ items: [] })),
   );

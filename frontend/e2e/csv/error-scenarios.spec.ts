@@ -6,11 +6,9 @@
  * Leptos の開発サーバーで実行する。
  */
 import type { Page } from '@playwright/test';
-import { expect, test } from '../support/test';
+import { expect, test, MOCK_USER } from '../support/test';
 import * as path from 'path';
 const FIXTURE_DIR = path.resolve(process.cwd(), 'e2e/fixtures/csv');
-
-const MOCK_USER = { id: '1', email: 'test@example.com', name: 'テストユーザー' };
 
 // ホスト非依存のパターン（VITE_SHOKEN_WEBAPI_API_URL の値に関わらず一致する）
 const ROUTES = {

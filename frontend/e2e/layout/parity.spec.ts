@@ -1,13 +1,7 @@
 import type { BrowserContext, Page } from '@playwright/test';
 import { expectTableFit } from '../support/layout';
-import { expect, test, json, paginated } from '../support/test';
+import { expect, test, json, paginated, MOCK_USER, mockSession } from '../support/test';
 import { csvRow } from '../support/csv-page';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000002',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
 
 const STOCKS: Array<[string, string]> = [
   ['9904', '架空自動車'],
@@ -117,13 +111,11 @@ const TABS = [
 
 type ReceiptTab = (typeof TABS)[number];
 
-
-
 // context 単位でモックするため、比較用に同じ context へ追加したページにも効く
 async function mockApi(context: BrowserContext) {
   // 後から登録した route が優先されるため catch-all を先に登録する
   await context.route(/\/api\/v1\//, (route) => route.fulfill(json(paginated([]))));
-  await context.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(context);
   await context.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(DIVIDENDS))),
   );
@@ -391,7 +383,7 @@ const PARITY_FUNDS = [
 ];
 
 async function setupParityMocks(page: Page) {
-  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(ASSET_BALANCES))),
   );
@@ -520,7 +512,7 @@ test.describe('資産管理と取引明細の上部 parity', () => {
 
   test('長い名前・30件でも上部がずれない', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+    await mockSession(page);
     const longStocks = Array.from({ length: 30 }, (_, i) => ({
       id: `asset-long-${i}`,
       created_at: '2026-01-01T00:00:00Z',

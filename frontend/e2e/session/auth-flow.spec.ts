@@ -1,11 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000001',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, mockSession } from '../support/test';
 
 const ROUTES = {
   authMe: /\/api\/v1\/session$/,
@@ -18,13 +12,7 @@ async function mockUnauthorizedAuth(page: Page) {
 }
 
 async function mockAuthorizedAuth(page: Page) {
-  await page.route(ROUTES.authMe, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(page);
 }
 
 test('未認証時に /receipts へアクセスするとログインページにリダイレクトされる', async ({ page }) => {

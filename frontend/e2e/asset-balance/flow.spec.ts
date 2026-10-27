@@ -1,18 +1,11 @@
 import path from 'node:path';
 import type { Page } from '@playwright/test';
-import { expect, test, json } from '../support/test';
+import { expect, test, json, mockSession } from '../support/test';
 import { mockCsvKindStats, openCsvDelete, savedCount } from '../support/csv-page';
 
 const CSV_FIXTURE_PATH = path.resolve(process.cwd(), 'e2e/fixtures/csv/assetbalance-base.csv');
 
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000010',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
-
 const ROUTES = {
-  authMe: /\/api\/v1\/session$/,
   assetBalances: /\/api\/v1\/asset-balances(?:\?.*)?$/,
   assetBalancePreview: /\/api\/v1\/asset-balance-import-validations$/,
   assetBalanceUpload: /\/api\/v1\/asset-balance-imports$/,
@@ -68,7 +61,6 @@ function cloneAssetBalances(assetBalances: typeof ASSET_BALANCES | typeof MOCK_P
   return assetBalances.map((assetBalance) => ({ ...assetBalance }));
 }
 
-
 interface AssetBalanceMockController {
   getDeleteRequestCount: () => number;
   getListRequestCount: () => number;
@@ -96,7 +88,7 @@ async function setupAssetBalanceMocks(
   let previewRequestCount = 0;
   let uploadRequestCount = 0;
 
-  await page.route(ROUTES.authMe, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
   await mockCsvKindStats(page, { counts: () => ({ assetbalance: assetBalances.length }) });
 
   await page.route(ROUTES.dividendPerShareBatch, (route) =>

@@ -1,10 +1,4 @@
-import { expect, test } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000003',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, MOCK_USER } from '../support/test';
 
 const MINUTE = 60 * 1000;
 

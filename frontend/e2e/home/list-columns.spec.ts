@@ -1,11 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json, paginated } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000073',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, json, paginated, mockSession } from '../support/test';
 
 // 桁の違う月を混ぜる。2桁の月(10/20 など)の行を含める
 const DIVIDENDS = [
@@ -48,7 +42,7 @@ const STOCKS = [
 
 async function mockApi(page: Page) {
   await page.route(/\/api\/v1\//, (route) => route.fulfill(json(paginated([]))));
-  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(MOCK_USER)));
+  await mockSession(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(DIVIDENDS))),
   );

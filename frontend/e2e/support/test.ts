@@ -1,4 +1,4 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
 import { loadBackendOrigin, loadProductionCsp } from '../../scripts/backend-origin.cjs';
 
 const backendOrigin = loadBackendOrigin();
@@ -81,4 +81,18 @@ export function json(body: unknown, status = 200) {
 
 export function paginated(data: unknown[], extra: Record<string, unknown> = {}) {
   return { data, total: data.length, page: 1, per_page: Math.max(data.length, 1), ...extra };
+}
+
+export const MOCK_USER = {
+  id: '00000000-0000-0000-0000-000000000002',
+  email: 'test@example.com',
+  name: 'テストユーザー',
+};
+
+export async function mockSession(
+  target: Page | BrowserContext,
+  user: unknown = MOCK_USER,
+  status = 200,
+) {
+  await target.route(/\/api\/v1\/session$/, (route) => route.fulfill(json(user, status)));
 }

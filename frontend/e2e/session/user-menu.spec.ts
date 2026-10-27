@@ -1,20 +1,8 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from '../support/test';
-
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000002',
-  email: 'test@example.com',
-  name: 'テストユーザー',
-};
+import { expect, test, MOCK_USER, mockSession } from '../support/test';
 
 async function mockAuthorizedAuth(page: Page) {
-  await page.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(MOCK_USER),
-    }),
-  );
+  await mockSession(page);
 }
 
 // セッションを失った画面は /login に誘導されるので、ログイン画面のボタンで未認証を確認する
