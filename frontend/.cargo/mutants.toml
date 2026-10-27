@@ -121,11 +121,7 @@ exclude_re = [
     # String::new() と等価。wasm 本番の接続先は index.html の meta で決まり、
     # ユニット mutation では検証できない領域
     "replace ApiClient::base_url -> String with String::new()",
-    # 70行目はサブノーマル入力専用で仮数の取り方に関わらず丸め結果が ±0.0 で同じ
-    "src/features/asset_balance/model\\.rs:\\d+:\\d+: replace & with \\| in to_fixed",
-    "src/features/asset_balance/model\\.rs:\\d+:\\d+: replace & with \\^ in to_fixed",
-    # bits & mask は bit52 を含まないため暗黙ビットの合成は | と ^ で同じ結果
-    "src/features/asset_balance/model\\.rs:\\d+:\\d+: replace \\| with \\^ in to_fixed",
+
     # 66行目は total==TOP_ITEMS で skip(visible) が空になり visible_count/others/toggle/grid が同じ
     "src/features/asset_balance/portfolio\\.rs:\\d+:\\d+: replace > with >= in chart_display",
     # amount==0 のとき amount/investment*100 は 0.0 で else 分岐と同じ結果

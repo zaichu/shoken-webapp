@@ -82,9 +82,9 @@
       "expected_percentages": [0, 0]
     },
     {
-      "name": "binary_halfway_rounds_down",
+      "name": "decimal_halfway_rounds_up",
       "values": [201, 19799],
-      "expected_percentages": [1, 99]
+      "expected_percentages": [1.01, 99]
     },
     {
       "name": "exact_halfway_rounds_up",

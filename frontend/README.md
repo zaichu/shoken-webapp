@@ -88,7 +88,7 @@ src/
 | --- | --- | --- |
 | 一覧の全件取得 | `support/pagination.rs` の `fetch_all_pages`。ページ結合・終了・切り詰め判定は `collect_list_pages`、上限は `LIST_PER_PAGE` / `LIST_MAX_PAGES` | `ListEndpoint` の行・集計型と PATH。ホームの集計のみ取得は同じ PATH を使い、`per_page=1`・年指定を維持する |
 | CSV の状態・通信 | `support/csv_flow.rs` の `CsvTabState` と preview/upload/delete 関数 | `store/csv.rs` の世代確認・ファイル保持・一覧再取得。エラー文言は `ApiError::message()`、銘柄検索の案内文は `user_message()` |
-| 金額・数値の書式 | Decimal は `shared::format`、表示要素は `ui/amount.rs` の `Amount` | `asset_balance/format.rs` の f64 変換・巨大値・非有限値の扱い。配当集計の率は既存の `to_fixed` を使い、Decimal の丸めと混ぜない |
+| 金額・数値の書式 | Decimal は `shared::format`、表示要素は `ui/amount.rs` の `Amount` | `asset_balance/format.rs` の f64 変換・巨大値・非有限値の扱い。f64 の丸めは `ui/format.rs` の `intl_fixed` に一本化し、Decimal の丸めと混ぜない |
 | URL と画面遷移 | `app.rs` の `CurrentPath`・`current_location`・`pathname_of`・`navigate` | `ui/site.rs` は現在パスを読んでナビを表示する。OAuth の外部遷移は `SessionStore::login` / `redirect_to`、通常のリンクは `<a>` と App のクリック処理を使う |
 
 ### 画面部品の名前
