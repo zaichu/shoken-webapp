@@ -1,7 +1,6 @@
 use super::table::ReceiptTable;
 use crate::features::receipts::{ReceiptRow, ReceiptsStore, ReceiptsTab, TabState};
-use crate::support::csv_flow::CsvTabMeta;
-use crate::support::row::Row;
+use crate::support::csv_flow::{CsvTabMeta, preview_rows};
 use crate::ui::csv_page::CsvSource;
 use crate::ui::format::format_iso_date;
 use crate::ui::labels;
@@ -113,11 +112,10 @@ impl CsvSource for ReceiptCsvSource {
 #[component]
 pub(crate) fn ReceiptsCsvPreview(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     move || {
-        let preview = store.csv_state(tab).preview?;
-        if preview.rows.is_empty() {
+        let rows: Vec<ReceiptRow> = preview_rows(&store.csv_state(tab));
+        if rows.is_empty() {
             return None;
         }
-        let rows: Vec<ReceiptRow> = preview.rows.into_iter().map(Row::Preview).collect();
         Some(view! {
             <section data-testid="csv-preview">
                 <h2 class="text-sm font-bold text-text">"プレビュー"</h2>
