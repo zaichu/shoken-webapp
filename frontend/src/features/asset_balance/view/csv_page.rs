@@ -1,7 +1,7 @@
 use crate::features::asset_balance::fund::AssetKind;
-use crate::features::asset_balance::store::csv::{AssetBalanceCsvStore, csv_preview_rows};
+use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::features::asset_balance::view::{AssetBalanceCsvPreview, FundBalanceCsvPreview};
-use crate::support::csv_flow::CsvTabMeta;
+use crate::support::csv_flow::{CsvTabMeta, preview_rows};
 use crate::ui::csv_page::CsvSource;
 use crate::ui::labels;
 use leptos::prelude::*;
@@ -150,7 +150,7 @@ impl CsvSource for AssetBalanceCsvSource {
 #[component]
 pub(crate) fn StockCsvPreview(store: AssetBalanceCsvStore) -> impl IntoView {
     move || {
-        let rows = csv_preview_rows(&store.csv_state());
+        let rows = preview_rows(&store.csv_state());
         (!rows.is_empty()).then(|| view! { <AssetBalanceCsvPreview rows=rows /> })
     }
 }
@@ -159,7 +159,7 @@ pub(crate) fn StockCsvPreview(store: AssetBalanceCsvStore) -> impl IntoView {
 #[component]
 pub(crate) fn FundCsvPreview(store: AssetBalanceCsvStore) -> impl IntoView {
     move || {
-        let rows = csv_preview_rows(&store.fund_csv_state());
+        let rows = preview_rows(&store.fund_csv_state());
         (!rows.is_empty()).then(|| view! { <FundBalanceCsvPreview rows=rows /> })
     }
 }

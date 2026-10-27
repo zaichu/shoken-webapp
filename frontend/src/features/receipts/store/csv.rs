@@ -136,19 +136,9 @@ impl ReceiptsStore {
         if !self.session.is_current(generation) {
             return;
         }
-        match result {
-            Ok(preview) => {
-                self.update_csv_state(generation, tab, |state| {
-                    state.finish_preview(preview);
-                });
-            }
-            Err(error) => {
-                let message = error.message();
-                self.update_csv_state(generation, tab, |state| {
-                    state.fail_preview(message);
-                });
-            }
-        }
+        self.update_csv_state(generation, tab, |state| {
+            state.set_preview_result(result);
+        });
     }
 
     // 一覧の再取得が必要になったら true を返す。fetch の起動(dispatch)は呼び出し側が行う
@@ -171,9 +161,8 @@ impl ReceiptsStore {
                 self.refresh_tab_list(generation, tab)
             }
             Err(error) => {
-                let message = error.message();
                 self.update_csv_state(generation, tab, |state| {
-                    state.finish_save(Err(message));
+                    state.set_upload_result(Err(error));
                 });
                 false
             }
@@ -210,9 +199,8 @@ impl ReceiptsStore {
                 });
             }
             Err(error) => {
-                let message = error.message();
                 self.update_csv_state(generation, tab, |state| {
-                    state.finish_delete(Err(message));
+                    state.set_delete_result(Err(error));
                 });
             }
         }

@@ -258,6 +258,55 @@ fn notice_texts_format_counts_and_row_errors() {
 }
 
 #[test]
+fn set_results_map_api_error_to_message() {
+    let mut state = CsvTabState::<String> {
+        previewing: true,
+        ..Default::default()
+    };
+    state.set_preview_result(Err(ApiError::http(500)));
+    assert!(!state.previewing);
+    assert_eq!(state.error.as_deref(), Some("サーバーエラーが発生しました"));
+
+    let mut state = CsvTabState::<String> {
+        saving: true,
+        ..Default::default()
+    };
+    state.set_upload_result(Err(ApiError::http(401)));
+    assert!(!state.saving);
+    assert_eq!(state.error.as_deref(), Some("認証が必要です"));
+
+    let mut state = CsvTabState::<String> {
+        deleting: true,
+        ..Default::default()
+    };
+    state.set_delete_result(Err(ApiError::Timeout));
+    assert!(!state.deleting);
+    assert_eq!(
+        state.error.as_deref(),
+        Some("リクエストがタイムアウトしました")
+    );
+}
+
+#[test]
+fn preview_rows_wraps_preview_only() {
+    use crate::support::row::Row;
+
+    let empty = CsvTabState::<String>::default();
+    assert!(preview_rows::<String, String>(&empty).is_empty());
+
+    let state = CsvTabState {
+        preview: Some(CsvPreviewResponse {
+            rows: vec!["row".to_string()],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let rows: Vec<Row<String, String>> = preview_rows(&state);
+    assert_eq!(rows.len(), 1);
+    assert!(matches!(rows[0], Row::Preview(_)));
+}
+
+#[test]
 fn record_ranges_splits_on_newlines() {
     let bytes = b"a,b\n1,2\n3,4\n";
     assert_eq!(record_ranges(bytes), vec![(0, 4), (4, 8), (8, 12)]);

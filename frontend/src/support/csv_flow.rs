@@ -1,5 +1,6 @@
 use crate::api::dto::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::api::{ApiClient, ApiError};
+use crate::support::row::Row;
 use crate::ui::labels::count;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -107,6 +108,21 @@ impl<R> CsvTabState<R> {
         }
     }
 
+    pub fn set_preview_result(&mut self, result: Result<CsvPreviewResponse<R>, ApiError>) {
+        match result {
+            Ok(preview) => self.finish_preview(preview),
+            Err(error) => self.fail_preview(error.message()),
+        }
+    }
+
+    pub fn set_upload_result(&mut self, result: Result<CsvUploadResponse, ApiError>) {
+        self.finish_save(result.map_err(|error| error.message()));
+    }
+
+    pub fn set_delete_result(&mut self, result: Result<(), ApiError>) {
+        self.finish_delete(result.map_err(|error| error.message()));
+    }
+
     pub fn meta(&self) -> CsvTabMeta {
         CsvTabMeta {
             file_name: self.file_name.clone(),
@@ -192,6 +208,15 @@ pub fn display_message(message: &str) -> &str {
 
 pub fn row_error_text(error: &CsvRowError) -> String {
     format!("{}行目: {}", error.row, display_message(&error.message))
+}
+
+/// 未保存プレビュー行を一覧用の行に写す。空のときは空のままにして呼び出し側で非表示にする
+pub fn preview_rows<S, P: Clone>(state: &CsvTabState<P>) -> Vec<Row<S, P>> {
+    state
+        .preview
+        .as_ref()
+        .map(|preview| preview.rows.iter().cloned().map(Row::Preview).collect())
+        .unwrap_or_default()
 }
 
 fn csv_form_data(file: &web_sys::File) -> Result<web_sys::FormData, ApiError> {
