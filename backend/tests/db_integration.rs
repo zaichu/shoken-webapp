@@ -4225,3 +4225,145 @@ async fn csv_kind_stats_ignores_history_after_delete_all() {
     assert_eq!(dividend.count, 0);
     assert!(dividend.latest_imported_at.is_none());
 }
+
+/// CSV 取り込み SQL の性能計測。架空データ1万行で UNNEST 取り込みと
+/// facets(ARRAY_AGG 含む)の所要時間を報告する。行・件数・並び順は変えない
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_import_perf_10k_reports_timing() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    let base = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let items: Vec<CreateDividendRequest> = (0..10_000)
+        .map(|i| {
+            let code = format!("C{:04}", i % 100);
+            CreateDividendRequest {
+                settlement_date: base + chrono::Duration::days(i / 100),
+                product: "国内株式".to_string(),
+                account: "特定".parse().unwrap(),
+                security_code: code.clone(),
+                security_name: format!("架空銘柄{:03}_{:05}", i % 200, i),
+                unit_price: dec!(100.0),
+                shares: dec!(100.0) + rust_decimal::Decimal::from(i),
+                dividends_before_tax: dec!(1000.0) + rust_decimal::Decimal::from(i),
+                taxes: dec!(203.0),
+                net_amount_received: dec!(797.0) + rust_decimal::Decimal::from(i),
+            }
+        })
+        .collect();
+
+    let start = std::time::Instant::now();
+    let created = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+        .await
+        .expect("10k bulk_create");
+    let import_ms = start.elapsed().as_secs_f64() * 1000.0;
+    assert_eq!(created.inserted, 10_000);
+    assert_eq!(created.skipped, 0);
+
+    let mut params = default_dividend_search_params();
+    params.search.include_facets = Some(true);
+    let start = std::time::Instant::now();
+    let res = domain_search::<dividend_svc::DividendDomain>(&pool, user_id, params)
+        .await
+        .expect("10k facets search");
+    let facets_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let facets = res.facets.expect("facets 必須");
+    assert_eq!(res.total, 10_000);
+    assert_eq!(facets.securities.expect("securities").len(), 100);
+
+    eprintln!("perf: import_10k_ms={import_ms:.1} facets_ms={facets_ms:.1}");
+
+    let ds_items: Vec<CreateDomesticStockRequest> = (0..10_000)
+        .map(|i| CreateDomesticStockRequest {
+            trade_date: base + chrono::Duration::days(i),
+            settlement_date: base + chrono::Duration::days(i),
+            security_code: format!("D{:04}", i % 100).parse().unwrap(),
+            security_name: format!("架空銘柄D{:03}_{:05}", i % 200, i),
+            account: "特定".parse().unwrap(),
+            shares: dec!(100.0) + rust_decimal::Decimal::from(i),
+            asked_price: dec!(1000.0),
+            proceeds: dec!(100000.0) + rust_decimal::Decimal::from(i),
+            purchase_price: dec!(90000.0),
+            realized_profit_and_loss: dec!(10000.0) + rust_decimal::Decimal::from(i),
+            taxes: dec!(2030.0),
+            realized_profit_and_loss_after_tax: dec!(7970.0) + rust_decimal::Decimal::from(i),
+        })
+        .collect();
+
+    let start = std::time::Instant::now();
+    let ds_created =
+        domestic_stock_svc::bulk_create(&pool, user_id, &ds_items, RowLimit::new(i64::MAX))
+            .await
+            .expect("10k domestic bulk_create");
+    let ds_import_ms = start.elapsed().as_secs_f64() * 1000.0;
+    assert_eq!(ds_created.inserted, 10_000);
+
+    let mut ds_params = default_domestic_stock_search_params();
+    ds_params.search.include_facets = Some(true);
+    let start = std::time::Instant::now();
+    let ds_res =
+        domain_search::<domestic_stock_svc::DomesticStockDomain>(&pool, user_id, ds_params)
+            .await
+            .expect("10k domestic facets search");
+    let ds_facets_ms = start.elapsed().as_secs_f64() * 1000.0;
+    assert_eq!(ds_res.total, 10_000);
+
+    eprintln!(
+        "perf: domestic_import_10k_ms={ds_import_ms:.1} domestic_facets_ms={ds_facets_ms:.1}"
+    );
+
+    let plans: Vec<(String,)> = db::query(
+        "EXPLAIN (ANALYZE, BUFFERS) SELECT security_code AS value, \
+         (ARRAY_AGG(security_name ORDER BY settlement_date DESC, id DESC))[1] AS label, \
+         COUNT(*) AS count FROM dividends WHERE user_id = $1 \
+         GROUP BY security_code ORDER BY security_code",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("EXPLAIN securities");
+    for (line,) in &plans {
+        eprintln!("plan(securities): {line}");
+    }
+
+    let plans: Vec<(String,)> = db::query(
+        "EXPLAIN (ANALYZE, BUFFERS) SELECT product AS value, product AS label, COUNT(*) AS count \
+         FROM dividends WHERE user_id = $1 GROUP BY product ORDER BY product ASC",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("EXPLAIN products");
+    for (line,) in &plans {
+        eprintln!("plan(products): {line}");
+    }
+
+    let plans: Vec<(String,)> = db::query(
+        "EXPLAIN (ANALYZE, BUFFERS) INSERT INTO dividends (user_id, settlement_date, product, \
+         account, security_code, security_name, unit_price, shares, dividends_before_tax, taxes, \
+         net_amount_received) SELECT $1::uuid, $2::date, $3::text, $4::text, $5::text, $6::text, \
+         $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::numeric \
+         ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, \
+         dividends_before_tax, product, account) DO NOTHING",
+        vec![
+            Bind::from(user_id),
+            Bind::from(base),
+            Bind::from("国内株式"),
+            Bind::from("特定"),
+            Bind::from("C0000"),
+            Bind::from("架空銘柄000_explain"),
+            Bind::from(dec!(100.0)),
+            Bind::from(dec!(100.0)),
+            Bind::from(dec!(1000.0)),
+            Bind::from(dec!(203.0)),
+            Bind::from(dec!(797.0)),
+        ],
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("EXPLAIN insert");
+    for (line,) in &plans {
+        eprintln!("plan(insert): {line}");
+    }
+}
