@@ -5,19 +5,19 @@ use chrono::NaiveDate;
 use shared::value::UserId;
 use std::future::Future;
 
-pub fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
+fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
     NaiveDate::parse_from_str(value, "%Y-%m-%d")
         .map_err(|_| ApiError::Validation(format!("{field} の形式が不正です（YYYY-MM-DD）")))
 }
 
-pub fn year_to_range(year: i32) -> Result<(NaiveDate, NaiveDate), ApiError> {
+fn year_to_range(year: i32) -> Result<(NaiveDate, NaiveDate), ApiError> {
     let invalid = || ApiError::Validation("year の値が不正です".to_string());
     let start = NaiveDate::from_ymd_opt(year, 1, 1).ok_or_else(invalid)?;
     let end = NaiveDate::from_ymd_opt(year + 1, 1, 1).ok_or_else(invalid)?;
     Ok((start, end))
 }
 
-pub fn parse_year_month_range(value: &str) -> Result<(NaiveDate, NaiveDate), ApiError> {
+fn parse_year_month_range(value: &str) -> Result<(NaiveDate, NaiveDate), ApiError> {
     let invalid = || ApiError::Validation("year_month の形式が不正です（YYYY-MM）".to_string());
     let (year_str, month_str) = value.split_once('-').ok_or_else(invalid)?;
     let year: i32 = year_str.parse().map_err(|_| invalid())?;
@@ -138,7 +138,7 @@ impl SearchFilter {
 }
 
 /// date_column（呼び出し側が渡す固定文字列のみ）を使って date 条件を WHERE 句へ push する
-pub fn push_date_axis_filters(
+fn push_date_axis_filters(
     qb: &mut QueryBuilder,
     date_column: &'static str,
     filter: &DateAxisFilter,
@@ -170,11 +170,7 @@ pub fn tokens_from_query(q: Option<&str>) -> Vec<String> {
 
 /// token ごとに columns（呼び出し側が渡す固定文字列配列のみ）への ILIKE OR 条件を
 /// `AND (col1 ILIKE $n ESCAPE '\' OR col2 ILIKE $n+1 ESCAPE '\' ...)` として push する
-pub fn push_token_ilike_filters(
-    qb: &mut QueryBuilder,
-    tokens: &[String],
-    columns: &[&'static str],
-) {
+fn push_token_ilike_filters(qb: &mut QueryBuilder, tokens: &[String], columns: &[&'static str]) {
     if columns.is_empty() {
         return;
     }

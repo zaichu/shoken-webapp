@@ -32,7 +32,7 @@ pub fn LoginPrompt(#[prop(into, optional)] class: Signal<String>) -> impl IntoVi
 
 /// Googleのロゴ(色付きの4色)
 #[component]
-pub fn GoogleLogo() -> impl IntoView {
+fn GoogleLogo() -> impl IntoView {
     view! {
         <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
             <path

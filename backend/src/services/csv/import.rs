@@ -26,7 +26,7 @@ where
     (items, errors)
 }
 
-pub fn build_preview_response<T>(items: Vec<T>, errors: Vec<CsvRowError>) -> CsvPreviewResponse<T> {
+fn build_preview_response<T>(items: Vec<T>, errors: Vec<CsvRowError>) -> CsvPreviewResponse<T> {
     CsvPreviewResponse {
         total_rows: items.len() + errors.len(),
         valid_rows: items.len(),
@@ -36,10 +36,7 @@ pub fn build_preview_response<T>(items: Vec<T>, errors: Vec<CsvRowError>) -> Csv
 }
 
 /// bulk_create 結果と行エラーから CsvUploadResponse を構築
-pub fn finish_csv_upload(
-    result: &BulkCreateResponse,
-    errors: Vec<CsvRowError>,
-) -> CsvUploadResponse {
+fn finish_csv_upload(result: &BulkCreateResponse, errors: Vec<CsvRowError>) -> CsvUploadResponse {
     CsvUploadResponse {
         inserted: result.inserted,
         skipped: result.skipped,
@@ -48,7 +45,7 @@ pub fn finish_csv_upload(
 }
 
 /// CSV bytes をパース → 行 transform → preview response 化を共通化する
-pub fn build_csv_preview<T, F>(
+fn build_csv_preview<T, F>(
     bytes: &[u8],
     config: &CsvParserConfig,
     transform_rows: F,

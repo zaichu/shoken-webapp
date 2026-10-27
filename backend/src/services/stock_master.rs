@@ -24,7 +24,7 @@ pub struct StockRow {
 /// 上場銘柄一覧を stock 行へ写す。
 /// 5桁コードのうち末尾 `0` の行だけが普通株（末尾 5/6 は優先株式）なので採用し、
 /// `code` は先頭4桁とする。同一の4桁 code が複数来た場合は先着を残す（防御）
-pub fn map_master(response: &EquitiesMasterResponse) -> Vec<StockRow> {
+fn map_master(response: &EquitiesMasterResponse) -> Vec<StockRow> {
     let mut seen = HashSet::new();
     let non_empty = |s: &Option<String>| s.as_deref().filter(|v| !v.is_empty()).map(str::to_owned);
     response
@@ -111,7 +111,7 @@ pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiEr
 /// ならないため、こちらで記録する時刻で判定する。枠の行が無い(None)は初回として
 /// 実行する。stock が空の初回投入もこの経路で起きる(更新は成功すれば必ず行を残すため、
 /// stock 空のまま枠が未来なのは失敗待ち・実行中だけで、待つのが正しい)
-pub fn should_refresh(next_available_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+fn should_refresh(next_available_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
     next_available_at.is_none_or(|at| at <= now)
 }
 

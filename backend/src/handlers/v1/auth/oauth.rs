@@ -56,15 +56,15 @@ fn clear_cookie(name: &'static str, secure: bool) -> Cookie<'static> {
     auth_cookie(name, String::new(), time::Duration::seconds(0), secure)
 }
 
-pub fn build_state_cookie(state: &str, secure: bool) -> Cookie<'static> {
+fn build_state_cookie(state: &str, secure: bool) -> Cookie<'static> {
     build_oauth_cookie(auth_service::OAUTH_STATE_COOKIE_NAME, state, secure)
 }
 
-pub fn clear_state_cookie(secure: bool) -> Cookie<'static> {
+fn clear_state_cookie(secure: bool) -> Cookie<'static> {
     clear_cookie(auth_service::OAUTH_STATE_COOKIE_NAME, secure)
 }
 
-pub fn build_session_cookie(token: SessionToken, secure: bool) -> Cookie<'static> {
+fn build_session_cookie(token: SessionToken, secure: bool) -> Cookie<'static> {
     auth_cookie(
         auth_service::SESSION_COOKIE_NAME,
         token.to_string(),

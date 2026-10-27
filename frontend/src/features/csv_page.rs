@@ -15,7 +15,7 @@ use leptos::prelude::*;
 
 /// CSV種類の定義(表示順はIssue指定の5種類)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CsvKind {
+pub(crate) enum CsvKind {
     AssetStock,
     AssetFund,
     Dividend,
@@ -24,7 +24,7 @@ pub enum CsvKind {
 }
 
 impl CsvKind {
-    pub const ALL: [CsvKind; 5] = [
+    pub(crate) const ALL: [CsvKind; 5] = [
         Self::AssetStock,
         Self::AssetFund,
         Self::Dividend,
@@ -32,7 +32,7 @@ impl CsvKind {
         Self::MutualFund,
     ];
 
-    pub fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> &'static str {
         match self {
             Self::AssetStock => "資産管理(国内株式)",
             Self::AssetFund => "資産管理(投資信託)",
@@ -43,7 +43,7 @@ impl CsvKind {
     }
 
     /// API の kind 値。csv-kinds/stats と拡張機能の依頼で同じ値を使う
-    pub fn kind_param(self) -> &'static str {
+    pub(crate) fn kind_param(self) -> &'static str {
         match self {
             Self::AssetStock => "assetbalance",
             Self::AssetFund => "fundbalance",
@@ -54,7 +54,7 @@ impl CsvKind {
     }
 
     /// `?kind=` から開く種類を決める。一覧・設定のリンクは旧い種別値も使うため受け付ける
-    pub fn from_kind_param(value: Option<&str>) -> Option<Self> {
+    fn from_kind_param(value: Option<&str>) -> Option<Self> {
         match value? {
             "assetbalance" => Some(Self::AssetStock),
             "fundbalance" => Some(Self::AssetFund),
@@ -65,7 +65,7 @@ impl CsvKind {
         }
     }
 
-    pub fn receipt_tab(self) -> Option<ReceiptsTab> {
+    pub(crate) fn receipt_tab(self) -> Option<ReceiptsTab> {
         match self {
             Self::Dividend => Some(ReceiptsTab::Dividend),
             Self::DomesticStock => Some(ReceiptsTab::DomesticStock),
@@ -75,7 +75,7 @@ impl CsvKind {
     }
 
     /// 取得(拡張機能)側の同じ種類
-    pub fn sync_kind(self) -> SyncKind {
+    pub(crate) fn sync_kind(self) -> SyncKind {
         match self {
             Self::AssetStock => SyncKind::AssetBalance,
             Self::AssetFund => SyncKind::FundBalance,
@@ -87,7 +87,7 @@ impl CsvKind {
 
     /// 残高(資産管理2種)は当日だけが新しく、明細(取引3種)は7日以内が新しい。
     /// 日数の判定は呼び出し側が JST の暦日差で求めた値を渡す
-    pub fn is_fresh(self, days_ago: i64) -> bool {
+    pub(crate) fn is_fresh(self, days_ago: i64) -> bool {
         match self {
             Self::AssetStock | Self::AssetFund => days_ago <= 0,
             Self::Dividend | Self::DomesticStock | Self::MutualFund => days_ago <= 7,
@@ -95,7 +95,7 @@ impl CsvKind {
     }
 
     /// 保存後に確認できる一覧ページ
-    pub fn list_href(self) -> &'static str {
+    pub(crate) fn list_href(self) -> &'static str {
         match self.receipt_tab() {
             Some(_) => "/receipts",
             None => "/assetbalance",
@@ -137,7 +137,7 @@ fn row_data(
 }
 
 #[component]
-pub fn CsvPage() -> impl IntoView {
+pub(crate) fn CsvPage() -> impl IntoView {
     let session = use_session();
     let asset_state = use_asset_balance_state(session);
     let receipts = use_receipts_data(
