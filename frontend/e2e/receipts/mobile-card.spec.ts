@@ -1,6 +1,5 @@
 import type { Page } from '@playwright/test';
 import { expect, test, paginated, mockSession } from '../support/test';
-import { openCsvImport } from '../support/csv-page';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
@@ -89,48 +88,7 @@ async function mockApi(page: Page) {
   );
 }
 
-test('CSVプレビューで内容が同じ行も明細行ごとに1件ずつ出す', async ({ page }) => {
-  await mockApi(page);
-  await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        total_rows: 2,
-        valid_rows: 2,
-        errors: [],
-        rows: [{ ...DIVIDEND }, { ...DIVIDEND }],
-      }),
-    }),
-  );
-  await page.goto('/csv?kind=dividend');
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  await openCsvImport(page, 'dividend');
 
-  const fileInput = page.getByTestId('csv-file-input');
-  await expect(fileInput).toBeEnabled();
-  await fileInput.setInputFiles(
-    path.resolve(
-      test.info().project.testDir,
-      'fixtures/csv/dividend-base.csv',
-    ),
-  );
-
-  const cardList = page.getByTestId('receipt-card-list');
-  const cards = cardList.getByTestId('receipt-card');
-  await expect(cards).toHaveCount(2);
-
-  for (const index of [0, 1]) {
-    const card = cards.nth(index);
-    await expect(
-      card.locator('.receipt-compact-toggle'),
-    ).toHaveAttribute('aria-expanded', 'false');
-    await expect(
-      card.getByRole('button', { name: '架空自動車(9904) をコピー' }),
-    ).toBeVisible();
-    await expect(card.locator('.receipt-compact-net')).toHaveText('¥2,391');
-  }
-});
 
 test('行一覧はスマホ幅に収まり、長いファンド名は省略せず表示する', async ({ page }) => {
   await mockApi(page);

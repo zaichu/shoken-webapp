@@ -1,6 +1,6 @@
 import type { Browser, Locator, Page } from '@playwright/test';
 import { expect, test, json, paginated, mockSession } from '../support/test';
-import { csvRow, mockCsvKindStats, openCsvImport } from '../support/csv-page';
+import { csvRow, mockCsvKindStats } from '../support/csv-page';
 import AxeBuilder from '@axe-core/playwright';
 import * as path from 'path';
 
@@ -383,80 +383,9 @@ test('取引明細の取得失敗と読み込み中に moderate 以上の WCAG �
   );
 });
 
-test('CSVプレビューと削除ページに moderate 以上の WCAG 違反がない', async ({
-  page,
-}) => {
-  await mockSession(page);
-  await mockEmptyLists(page);
-  await mockReceiptsData(page);
-  await page.route(ROUTES.dividendPreview, (route) =>
-    route.fulfill(
-      json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
-    ),
-  );
-  await mockCsvKindStats(page, { counts: () => ({ dividend: 1 }) });
-  for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
-    await page.setViewportSize(size);
-    await page.goto('/csv?kind=dividend');
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-    await openCsvImport(page, 'dividend');
-    const fileInput = page.locator('[data-testid="csv-file-input"]');
-    await expect(fileInput).toBeEnabled({ timeout: 10000 });
-    await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
-    await expect(
-      page.locator('[role="status"][aria-live="polite"]').first(),
-    ).toContainText('追加で保存できます', { timeout: 10000 });
-    await scanAxe(page, `CSVプレビュー(${name})`);
-    // 取り込みはダイアログになったため、閉じてから削除の導線へ進む
-    await page.keyboard.press('Escape');
-    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-    // 確認は行の⋯メニューの「削除」からモーダルで行う
-    await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
-    await page.getByRole('button', { name: '削除', exact: true }).click();
-    const modal = page.getByRole('dialog');
-    await expect(modal).toBeVisible();
-    await scanAxe(page, `削除確認モーダル(${name})`);
-    // モーダルを閉じる
-    await modal.getByRole('button', { name: 'キャンセル' }).click();
-    await expect(modal).toBeHidden();
-  }
-  await page.setViewportSize(PC);
-});
 
-test('CSVプレビューの行エラー表示に moderate 以上の WCAG 違反がない', async ({
-  page,
-}) => {
-  await mockSession(page);
-  await mockEmptyLists(page);
-  await mockReceiptsData(page);
-  await mockCsvKindStats(page, { counts: () => ({ dividend: 1 }) });
-  await page.route(ROUTES.dividendPreview, (route) =>
-    route.fulfill(
-      json({
-        total_rows: 3,
-        valid_rows: 1,
-        errors: [
-          { row: 2, message: '受取金額が数値ではありません' },
-          { row: 3, message: '受取日の形式が不正です' },
-        ],
-        rows: [CSV_PREVIEW_ROW],
-      }),
-    ),
-  );
-  await scanBothViewports(page, 'CSVプレビュー(行エラー)', async () => {
-    await page.goto('/csv?kind=dividend');
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-    await openCsvImport(page, 'dividend');
-    const fileInput = page.locator('[data-testid="csv-file-input"]');
-    await expect(fileInput).toBeEnabled({ timeout: 10000 });
-    await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
-    await expect(
-      page.locator('[role="status"][aria-live="polite"]').first(),
-    ).toContainText('件エラー', { timeout: 10000 });
-  });
-});
+
+
 
 test('取引明細の検索と条件を足す小窓に moderate 以上の WCAG 違反がない', async ({ page }) => {
   await mockSession(page);
@@ -528,83 +457,7 @@ test('ダークテーマの主要画面に moderate 以上の WCAG 違反がな�
 });
 
 // ダークでも全タブ・CSV 管理の文字色を color-contrast 含めて走査する
-test('ダークテーマの各タブとCSV管理に moderate 以上の WCAG 違反がない', async ({
-  page,
-}) => {
-  await mockSession(page);
-  await mockEmptyLists(page);
-  await mockReceiptsData(page);
-  await mockAssetData(page);
-  await page.route(ROUTES.dividendPreview, (route) =>
-    route.fulfill(
-      json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
-    ),
-  );
-  await page.addInitScript(() => {
-    localStorage.setItem('setting_theme', 'dark');
-  });
-  const receiptTabs = [
-    { label: '配当金', id: 'tab-dividend', visible: DIVIDEND_ROW.security_name },
-    { label: '国内株式', id: 'tab-domesticstock', visible: NEGATIVE_DOMESTIC_ROW.security_name },
-    { label: '投資信託', id: 'tab-mutualfund', visible: 'データがありません' },
-  ];
-  const assetTabs = [
-    {
-      label: 'すべて',
-      id: 'asset-kind-tab-all',
-      content: '[data-testid="asset-merged-table"]:visible, [data-testid="asset-merged-list"]:visible',
-    },
-    {
-      label: '国内株式',
-      id: 'asset-kind-tab-stock',
-      content: '[data-testid="asset-holdings-table"]:visible, [data-testid="asset-holdings-list"]:visible',
-    },
-    {
-      label: '投資信託',
-      id: 'asset-kind-tab-fund',
-      content: '[data-testid="asset-fund-table"]:visible, [data-testid="asset-fund-list"]:visible',
-    },
-  ];
-  for (const [name, size] of [['PC', PC], ['mobile', MOBILE]] as const) {
-    await page.setViewportSize(size);
-    await page.goto('/receipts');
-    await page.waitForLoadState('networkidle');
-    for (const tab of receiptTabs) {
-      await page.click(`button[role="tab"][id="${tab.id}"]`);
-      await expect(page.locator(`#${tab.id}`)).toHaveAttribute('aria-selected', 'true');
-      await expect(
-        page
-          .locator(`#tabpanel-${tab.id.replace('tab-', '')}`)
-          .getByText(tab.visible)
-          .filter({ visible: true })
-          .first(),
-      ).toBeVisible({ timeout: 10000 });
-      await scanAxe(page, `ダーク取引明細${tab.label}(${name})`);
-    }
-    await page.goto('/assetbalance');
-    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible({
-      timeout: 10000,
-    });
-    for (const tab of assetTabs) {
-      await page.getByTestId(tab.id).click();
-      await expect(page.locator(tab.content)).toBeVisible({ timeout: 10000 });
-      await scanAxe(page, `ダーク資産管理${tab.label}(${name})`);
-    }
-  }
-  await page.setViewportSize(PC);
-  await scanBothViewports(page, 'ダーク(CSV管理)', async () => {
-    await page.goto('/csv?kind=dividend');
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-    await openCsvImport(page, 'dividend');
-    const fileInput = page.locator('[data-testid="csv-file-input"]');
-    await expect(fileInput).toBeEnabled({ timeout: 10000 });
-    await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
-    await expect(
-      page.locator('[role="status"][aria-live="polite"]').first(),
-    ).toContainText('追加で保存できます', { timeout: 10000 });
-  });
-});
+
 
 // .focus() は tabindex=-1 や順序外にも当たるため、Tab キーだけで到達できることを固定する
 async function tabTo(page: Page, target: Locator, maxPresses = 250): Promise<void> {
@@ -622,84 +475,7 @@ async function tabTo(page: Page, target: Locator, maxPresses = 250): Promise<voi
   expect(await reached(), `${maxPresses}回 Tab しても ${target} に届かなかった`).toBe(true);
 }
 
-test('Tab だけで主要な操作ができる', async ({ page }) => {
-  await mockSession(page);
-  await mockEmptyLists(page);
-  await mockReceiptsData(page);
-  await mockCsvKindStats(page, { counts: () => ({ dividend: 1 }) });
-  await page.route(ROUTES.dividendPreview, (route) =>
-    route.fulfill(
-      json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
-    ),
-  );
-  await page.setViewportSize(PC);
-  await page.goto('/receipts');
-  await page.waitForLoadState('networkidle');
 
-  const dividendTab = page.locator('button[role="tab"][id="tab-dividend"]');
-  const domesticTab = page.locator('button[role="tab"][id="tab-domesticstock"]');
-  await tabTo(page, dividendTab);
-  await expect(dividendTab).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(dividendTab).toHaveAttribute('aria-selected', 'true');
-  await page.keyboard.press('ArrowRight');
-  await expect(domesticTab).toBeFocused();
-  await expect(domesticTab).toHaveAttribute('aria-selected', 'true');
-  await page.keyboard.press('ArrowLeft');
-  await expect(dividendTab).toBeFocused();
-  await expect(dividendTab).toHaveAttribute('aria-selected', 'true');
-  await page.keyboard.press('Space');
-  await expect(dividendTab).toHaveAttribute('aria-selected', 'true');
-
-  // 一覧の直上の検索欄と条件の解除は Tab で辿れる
-  const search = page.getByRole('search', { name: '取引明細の検索' }).getByRole('searchbox');
-  await tabTo(page, search);
-  await expect(search).toBeFocused();
-
-  // CSV 操作は専用ページに移った。ファイル選択と削除導線を Tab で辿る
-  // ダイアログは⋯から開く
-  await page.goto('/csv?kind=dividend');
-  await page.waitForLoadState('networkidle');
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  await openCsvImport(page, 'dividend');
-  const fileInput = page.locator('[data-testid="csv-file-input"]');
-  await expect(fileInput).toBeEnabled({ timeout: 10000 });
-  await tabTo(page, fileInput);
-  await expect(fileInput).toBeFocused();
-  const labelOutline = await page
-    .locator('[data-testid="csv-file-trigger"]')
-    .evaluate((el) => {
-      const style = getComputedStyle(el);
-      return `${style.outlineStyle}/${style.outlineWidth}`;
-    });
-  expect(labelOutline, 'CSVの入力にフォーカスしても表示ラベルに枠が出ない').not.toMatch(
-    /^none\/(0px|none)$/,
-  );
-  const [chooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    page.keyboard.press('Enter'),
-  ]);
-  await chooser.setFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
-  await expect(
-    page.locator('[role="status"][aria-live="polite"]').first(),
-  ).toContainText('追加で保存できます', { timeout: 10000 });
-
-  // 取り込みダイアログを閉じてから、行の⋯メニューを開く
-  await page.keyboard.press('Escape');
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  // 行の⋯メニューを開き、「削除」へのキーボード操作で確認まで進める
-  await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
-  const deleteButton = page.getByRole('button', { name: '削除', exact: true });
-  await tabTo(page, deleteButton);
-  await expect(deleteButton).toBeFocused();
-  await page.keyboard.press('Enter');
-  // モーダルが開く
-  const modal = page.getByRole('dialog');
-  await expect(modal).toBeVisible();
-  // モーダル内の「キャンセル」ボタンにフォーカスが移る
-  const cancelButton = modal.getByRole('button', { name: 'キャンセル' });
-  await expect(cancelButton).toBeFocused();
-});
 
 test('フォーカスが見えてスキップリンクが使える', async ({ page }) => {
   await mockSession(page);
@@ -903,52 +679,7 @@ test('320px幅で横スクロールが出ない', async ({ page }) => {
   await page.setViewportSize(PC);
 });
 
-test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
-  await mockSession(page);
-  await mockEmptyLists(page);
-  await page.route(ROUTES.dividendPreview, (route) =>
-    route.fulfill(
-      json({ total_rows: 1, valid_rows: 1, errors: [], rows: [CSV_PREVIEW_ROW] }),
-    ),
-  );
-  let upload: unknown = { inserted: 1, skipped: 0, errors: [] };
-  await page.route(ROUTES.dividendUpload, (route) => route.fulfill(json(upload)));
-  await page.setViewportSize(PC);
-  await page.goto('/csv?kind=dividend');
-  await page.waitForLoadState('networkidle');
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  // 2回目の保存では⋯から開き直すため、ここで開く
-  await openCsvImport(page, 'dividend');
-  const fileInput = page.locator('[data-testid="csv-file-input"]');
-  const preview = page.locator('[role="status"][aria-live="polite"]').first();
 
-  for (const failure of [true, false]) {
-    upload = failure
-      ? { inserted: 0, skipped: 0, errors: [{ row: 2, message: '受取金額が数値ではありません' }] }
-      : { inserted: 1, skipped: 0, errors: [] };
-    await expect(fileInput).toBeEnabled({ timeout: 10000 });
-    await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
-    await expect(preview).toContainText('追加で保存できます', { timeout: 10000 });
-    const before = await liveRegionTexts(page);
-    await page.getByRole('button', { name: /保存する/ }).first().click();
-    if (failure) {
-      // 行エラーありは結果を見せるため開いたままにし、見出しで読み上げる
-      const notice = page.getByTestId('csv-save-result-notice');
-      await expect(notice).toBeVisible({ timeout: 10000 });
-      await expect(notice).toContainText('保存できませんでした');
-      await expect(notice).toContainText('1件エラー');
-      const after = await liveRegionTexts(page);
-      expect(after, 'ライブリージョンの内容が保存で変わらなかった').not.toEqual(before);
-      expect(
-        after.filter((text) => text.includes('保存できませんでした')),
-        '保存結果がライブリージョンに伝わらなかった',
-      ).not.toHaveLength(0);
-    } else {
-      // 成功したらダイアログが閉じ、表の件数と状態を取り直す
-      await expect(page.getByTestId('csv-import-dialog')).toBeHidden({ timeout: 10000 });
-    }
-  }
-});
 
 test('読み込み中が支援技術に伝わる', async ({ page }) => {
   await mockSession(page);

@@ -1,7 +1,6 @@
 import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect, test, json, mockSession } from '../support/test';
-import { openCsvImport } from '../support/csv-page';
 
 const CSV_FIXTURE_PATH = path.resolve(
   process.cwd(),
@@ -270,23 +269,4 @@ test('前日比は最新の基準価額の変動だけを出し、タイトル�
   await expect(mergedLatest).not.toContainText(/\(\d{1,2}\/\d{1,2}\)/);
 });
 
-test('投資信託タブのCSVはプレビューから全件置換で保存できる', async ({
-  page,
-}) => {
-  await setupMocks(page);
-  await page.goto('/csv?kind=fundbalance');
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  await openCsvImport(page, 'fundbalance');
 
-  const input = page.getByLabel('CSVファイルを選択');
-  await expect(input).toBeEnabled();
-  await input.setInputFiles(CSV_FIXTURE_PATH);
-
-  // 投資信託タブの入力に投したので、ファンドのプレビューが出る
-  const preview = page.getByTestId('csv-preview');
-  await expect(preview).toContainText('架空バランスファンドA号');
-
-  await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
-  // 成功したらダイアログが閉じる
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-});

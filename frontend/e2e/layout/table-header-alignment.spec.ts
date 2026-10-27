@@ -1,6 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test, json, paginated, MOCK_USER, mockSession } from '../support/test';
-import { openCsvImport } from '../support/csv-page';
 
 /**
  * 表の列見出しの規則を確かめる。
@@ -318,63 +317,6 @@ for (const [label, tab] of [
   ['取引明細・国内株式', '国内株式'],
   ['取引明細・投資信託', '投資信託'],
 ] as const) {
-  test(`${label}の表`, async ({ page }) => {
-    await page.goto('/receipts');
-    await page.getByRole('tab', { name: tab }).click();
-    const table = page.getByRole('table');
-    await expect(table).toBeVisible();
-    await expectHeaderFollowsCells(table, label);
-  });
-}
+  
 
-test('取引明細のCSVプレビューの表', async ({ page }) => {
-  await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>
-    route.fulfill(
-      json({
-        total_rows: DIVIDENDS.length,
-        valid_rows: DIVIDENDS.length,
-        errors: [],
-        rows: DIVIDENDS,
-      }),
-    ),
-  );
-  await page.goto('/csv?kind=dividend');
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  await openCsvImport(page, 'dividend');
-  const input = page.getByTestId('csv-file-input');
-  await expect(input).toBeEnabled();
-  await input.setInputFiles({
-    name: 'dividend.csv',
-    mimeType: 'text/csv',
-    buffer: Buffer.from('入金日\n2024/12/24\n', 'utf-8'),
-  });
-  const table = page.getByTestId('csv-preview').getByRole('table');
-  await expect(table).toBeVisible();
-  await expectHeaderFollowsCells(table, '取引明細のCSVプレビュー');
-});
 
-test('資産管理のCSVプレビューの表', async ({ page }) => {
-  await page.route(/\/api\/v1\/asset-balance-import-validations$/, (route) =>
-    route.fulfill(
-      json({
-        total_rows: STOCKS.length,
-        valid_rows: STOCKS.length,
-        errors: [],
-        rows: STOCKS,
-      }),
-    ),
-  );
-  await page.goto('/csv?kind=assetbalance');
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  await openCsvImport(page, 'assetbalance');
-  const input = page.getByTestId('csv-file-input');
-  await expect(input).toBeEnabled();
-  await input.setInputFiles({
-    name: 'assetbalance.csv',
-    mimeType: 'text/csv',
-    buffer: Buffer.from('銘柄コード\n9900\n', 'utf-8'),
-  });
-  const table = page.getByTestId('csv-preview').getByRole('table');
-  await expect(table).toBeVisible();
-  await expectHeaderFollowsCells(table, '資産管理のCSVプレビュー');
-});

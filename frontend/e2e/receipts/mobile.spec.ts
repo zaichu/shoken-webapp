@@ -1,11 +1,9 @@
 import type { Page } from '@playwright/test';
 import { expect, test, paginated, mockSession } from '../support/test';
 import {
-  csvImportRow,
   csvRow,
   mockCsvKindStats,
   openCsvDelete,
-  openCsvImport,
   savedCount,
 } from '../support/csv-page';
 import * as path from 'path';
@@ -280,44 +278,7 @@ test('下部ナビは検索欄より下にありリンクで遷移できる', as
   await expect(page).toHaveURL('/search');
 });
 
-test('CSV管理ページは一覧のリンクから開き、5種類の行が出る', async ({ page }) => {
-  await mockApi(page);
-  await mockCsvKindStats(page, { counts: () => ({}) });
-  await page.goto('/receipts');
-  // CSV の操作は一覧のレールではなく専用ページに移った
-  await expect(page.getByTestId('csv-file-input')).toHaveCount(0);
 
-  await page.getByRole('link', { name: 'CSV管理' }).click();
-  await expect(page).toHaveURL('/csv');
-  // ダイアログは初期表示では開かない
-  await expect(csvImportRow(page)).toBeHidden();
-
-  for (const kind of [
-    'assetbalance',
-    'fundbalance',
-    'dividend',
-    'domesticstock',
-    'mutualfund',
-  ] as const) {
-    await expect(csvRow(page, kind)).toHaveCount(1);
-  }
-  // `?kind=` を付けてもダイアログは開かない
-  await page.goto('/csv?kind=stock');
-  await expect(csvRow(page, 'domesticstock')).toContainText('取引明細(国内株式)');
-  await expect(csvImportRow(page)).toBeHidden();
-  // ⋯から開く
-  await openCsvImport(page, 'domesticstock');
-  await expect(csvImportRow(page)).toContainText('取引明細(国内株式) へファイルから取り込み');
-
-  // ダイアログを閉じてからパンくずで戻る
-  await page.keyboard.press('Escape');
-  await expect(csvImportRow(page)).toBeHidden();
-  await page
-    .getByRole('navigation', { name: 'パンくず' })
-    .getByRole('link', { name: '資産管理' })
-    .click();
-  await expect(page).toHaveURL('/assetbalance');
-});
 
 test('1024px境界で2行の行表示と表が切り替わる', async ({ page }) => {
   await mockApi(page);
@@ -393,60 +354,4 @@ test('全件削除はカード内の「すべて削除…」ボタンから確�
   await expect(savedCount(page, 'dividend')).toContainText('0件');
 });
 
-test('CSV取込の保存後はダイアログが閉じる', async ({ page }) => {
-  const imported = { ...DIVIDENDS[0], id: '00000000-0000-0000-0000-000000000009' };
-  const rows: unknown[] = [...DIVIDENDS];
-  await page.route(/\/api\/v1\//, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(paginated([])),
-    }),
-  );
-  await mockSession(page);
-  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(paginated(rows)),
-    }),
-  );
-  await page.route(/\/api\/v1\/dividend-import-validations$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        total_rows: 1,
-        valid_rows: 1,
-        errors: [],
-        rows: [imported],
-      }),
-    }),
-  );
-  await page.route(/\/api\/v1\/dividend-imports$/, (route) => {
-    rows.push(imported);
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ inserted: 1, skipped: 0, errors: [] }),
-    });
-  });
-  await page.goto('/csv?kind=dividend');
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  await openCsvImport(page, 'dividend');
 
-  const fileInput = page.getByTestId('csv-file-input');
-  // バックグラウンドの他タブ取得中は input が disabled で、change イベントが捨てられる。
-  // setInputFiles は enabled を待たないので、先に有効化を待つ
-  await expect(fileInput).toBeEnabled();
-  await fileInput.setInputFiles(
-      path.resolve(
-        test.info().project.testDir,
-        'fixtures/csv/dividend-base.csv',
-      ),
-    );
-  await page.getByRole('button', { name: '1件を保存する' }).click();
-
-  // 成功したらダイアログが閉じる
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-});

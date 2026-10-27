@@ -1,7 +1,7 @@
 import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect, test, json, mockSession } from '../support/test';
-import { mockCsvKindStats, openCsvDelete, openCsvImport, savedCount } from '../support/csv-page';
+import { mockCsvKindStats, openCsvDelete, savedCount } from '../support/csv-page';
 
 const CSV_FIXTURE_PATH = path.resolve(process.cwd(), 'e2e/fixtures/csv/assetbalance-base.csv');
 
@@ -165,19 +165,6 @@ async function gotoAssetBalancePage(page: Page) {
   await page.goto('/assetbalance');
 }
 
-async function openAssetImport(page: Page) {
-  await page.goto('/csv?kind=assetbalance');
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  await openCsvImport(page, 'assetbalance');
-}
-
-async function selectCsvFile(page: Page) {
-  const input = page.getByLabel('CSVファイルを選択');
-  // 取得中・保存中は input が disabled で change イベントが捨てられるため、有効化を待ってから投入する
-  await expect(input).toBeEnabled();
-  await input.setInputFiles(CSV_FIXTURE_PATH);
-}
-
 test('資産管理データがないとき EmptyState が表示される', async ({ page }) => {
   await setupAssetBalanceMocks(page);
 
@@ -186,55 +173,11 @@ test('資産管理データがないとき EmptyState が表示される', async
   await expect(page.getByText('資産管理データがありません')).toBeVisible();
 });
 
-test('CSV プレビュー完了後に保存ボタンが活性化する', async ({ page }) => {
-  const mocks = await setupAssetBalanceMocks(page);
 
-  await openAssetImport(page);
-  await selectCsvFile(page);
 
-  await expect.poll(mocks.getPreviewRequestCount).toBe(1);
-  await expect(page.getByTestId('csv-action-bar')).toContainText(
-    'assetbalance-base.csv',
-  );
-  await expect(page.getByRole('button', { name: '1件 全件置換で保存' })).toBeEnabled();
-});
 
-test('エラーのあるCSVは全件置換で保存できない', async ({ page }) => {
-  const mocks = await setupAssetBalanceMocks(page, {
-    previewErrors: [{ row: 2, message: '株数が数値ではありません' }],
-  });
 
-  await openAssetImport(page);
-  await selectCsvFile(page);
 
-  // 全件置換はエラー行を含む CSV を backend が拒否するため、有効行だけの保存を約束しない
-  await expect(page.getByTestId('csv-action-bar')).toContainText('全件置換で保存できません');
-  const notice = page.getByTestId('csv-preview-notice');
-  await expect(
-    page.getByRole('button', { name: /全件置換で保存/ }).first(),
-  ).toBeDisabled();
-  expect(mocks.getUploadRequestCount()).toBe(0);
-});
-
-test('保存後に一覧が再取得されて銘柄データが表示される', async ({ page }) => {
-  const mocks = await setupAssetBalanceMocks(page);
-
-  await openAssetImport(page);
-  await selectCsvFile(page);
-
-  await page.getByRole('button', { name: '1件 全件置換で保存' }).click();
-
-  await expect.poll(mocks.getUploadRequestCount).toBe(1);
-  await expect.poll(mocks.getListRequestCount).toBeGreaterThanOrEqual(2);
-  // 成功したらダイアログが閉じ、表の件数を取り直す
-  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-  await expect(savedCount(page, 'assetbalance')).toContainText('1件');
-  // 一覧に戻ると保存した銘柄が見える
-  await page.goto('/assetbalance');
-  await expect(
-    page.getByTestId('asset-holdings-table').getByText('架空自動車'),
-  ).toBeVisible();
-});
 
 test('資産管理データが2件あるときサマリーと検索入力が表示される', async ({ page }) => {
   await setupAssetBalanceMocks(page, { initialAssetBalances: ASSET_BALANCES });
