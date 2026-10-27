@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test, paginated, mockSession } from '../support/test';
+import { openCsvImport } from '../support/csv-page';
 import * as path from 'path';
 
 test.use({ viewport: { width: 390, height: 844 } });
@@ -103,6 +104,8 @@ test('CSVプレビューで内容が同じ行も明細行ごとに1件ずつ出�
     }),
   );
   await page.goto('/csv?kind=dividend');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
 
   const fileInput = page.getByTestId('csv-file-input');
   await expect(fileInput).toBeEnabled();

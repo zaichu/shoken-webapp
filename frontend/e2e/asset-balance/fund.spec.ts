@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect, test, json, mockSession } from '../support/test';
+import { openCsvImport } from '../support/csv-page';
 
 const CSV_FIXTURE_PATH = path.resolve(
   process.cwd(),
@@ -274,6 +275,8 @@ test('投資信託タブのCSVはプレビューから全件置換で保存で�
 }) => {
   await setupMocks(page);
   await page.goto('/csv?kind=fundbalance');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'fundbalance');
 
   const input = page.getByLabel('CSVファイルを選択');
   await expect(input).toBeEnabled();

@@ -161,15 +161,20 @@ test('⋯ のメニューは外側を押す・Esc・項目選択で閉じる', a
   await expect(csvImportRow(page)).toBeVisible();
 });
 
-test('取り込みダイアログはEsc・キャンセル・閉じるで閉じる', async ({ page }) => {
+test('取り込みダイアログは⋯から開きEsc・キャンセル・閉じるで閉じる', async ({ page }) => {
   await mockLists(page);
   await mockCsvKindStats(page, {
     counts: () => ({ assetbalance: 12 }),
   });
 
-  // `?kind=` の指定があるときはダイアログを初期表示で開く
+  // `?kind=` を付けてもダイアログは開かない
   await page.goto('/csv?kind=dividend');
   const dialog = csvImportRow(page);
+  await expect(csvRow(page, 'dividend')).toBeVisible();
+  await expect(dialog).toBeHidden();
+
+  // ⋯ から開く
+  await openCsvImport(page, 'dividend');
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAttribute('role', 'dialog');
   await expect(dialog.getByTestId('csv-file-input')).toBeAttached();

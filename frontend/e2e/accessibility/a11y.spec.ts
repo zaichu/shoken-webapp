@@ -1,6 +1,6 @@
 import type { Browser, Locator, Page } from '@playwright/test';
 import { expect, test, json, paginated, mockSession } from '../support/test';
-import { csvRow, mockCsvKindStats } from '../support/csv-page';
+import { csvRow, mockCsvKindStats, openCsvImport } from '../support/csv-page';
 import AxeBuilder from '@axe-core/playwright';
 import * as path from 'path';
 
@@ -399,6 +399,8 @@ test('CSVプレビューと削除ページに moderate 以上の WCAG 違反が�
     await page.setViewportSize(size);
     await page.goto('/csv?kind=dividend');
     await page.waitForLoadState('networkidle');
+    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+    await openCsvImport(page, 'dividend');
     const fileInput = page.locator('[data-testid="csv-file-input"]');
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
@@ -445,6 +447,8 @@ test('CSVプレビューの行エラー表示に moderate 以上の WCAG 違反�
   await scanBothViewports(page, 'CSVプレビュー(行エラー)', async () => {
     await page.goto('/csv?kind=dividend');
     await page.waitForLoadState('networkidle');
+    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+    await openCsvImport(page, 'dividend');
     const fileInput = page.locator('[data-testid="csv-file-input"]');
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
@@ -591,6 +595,8 @@ test('ダークテーマの各タブとCSV管理に moderate 以上の WCAG 違�
   await scanBothViewports(page, 'ダーク(CSV管理)', async () => {
     await page.goto('/csv?kind=dividend');
     await page.waitForLoadState('networkidle');
+    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+    await openCsvImport(page, 'dividend');
     const fileInput = page.locator('[data-testid="csv-file-input"]');
     await expect(fileInput).toBeEnabled({ timeout: 10000 });
     await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));
@@ -651,8 +657,11 @@ test('Tab だけで主要な操作ができる', async ({ page }) => {
   await expect(search).toBeFocused();
 
   // CSV 操作は専用ページに移った。ファイル選択と削除導線を Tab で辿る
+  // ダイアログは⋯から開く
   await page.goto('/csv?kind=dividend');
   await page.waitForLoadState('networkidle');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   await expect(fileInput).toBeEnabled({ timeout: 10000 });
   await tabTo(page, fileInput);
@@ -907,6 +916,9 @@ test('CSVの保存結果が支援技術に伝わる', async ({ page }) => {
   await page.setViewportSize(PC);
   await page.goto('/csv?kind=dividend');
   await page.waitForLoadState('networkidle');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  // 2回目の保存では⋯から開き直すため、ここで開く
+  await openCsvImport(page, 'dividend');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   const preview = page.locator('[role="status"][aria-live="polite"]').first();
 

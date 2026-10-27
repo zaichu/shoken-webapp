@@ -53,18 +53,6 @@ impl CsvKind {
         }
     }
 
-    /// `?kind=` から開く種類を決める。一覧・設定のリンクは旧い種別値も使うため受け付ける
-    fn from_kind_param(value: Option<&str>) -> Option<Self> {
-        match value? {
-            "assetbalance" => Some(Self::AssetStock),
-            "fundbalance" => Some(Self::AssetFund),
-            "dividend" => Some(Self::Dividend),
-            "domesticstock" | "stock" => Some(Self::DomesticStock),
-            "mutualfund" | "fund" => Some(Self::MutualFund),
-            _ => None,
-        }
-    }
-
     pub(crate) fn receipt_tab(self) -> Option<ReceiptsTab> {
         match self {
             Self::Dividend => Some(ReceiptsTab::Dividend),
@@ -213,10 +201,8 @@ pub(crate) fn CsvPage() -> impl IntoView {
             .collect::<Vec<_>>()
     });
 
-    // 一覧・設定からの `?kind=` は同じ種類の取り込みを開く。指定が無いときは閉じておく
-    let open_import = RwSignal::new(CsvKind::from_kind_param(
-        crate::app::query_param(&crate::app::current_location(), "kind").as_deref(),
-    ));
+    // 取り込みは行の「⋯」→「ファイルから取り込み」でだけ開く。`?kind=` が付いても開かない
+    let open_import = RwSignal::new(None::<CsvKind>);
 
     view! {
         <PageFrame title="CSV管理">
@@ -268,28 +254,16 @@ mod tests {
 
     #[test]
     fn csv_kind_params_match_api() {
-        for kind in CsvKind::ALL {
-            // APIのkind値と一致すること
-            assert!(!kind.kind_param().is_empty());
-            assert_eq!(
-                CsvKind::from_kind_param(Some(kind.kind_param())),
-                Some(kind)
-            );
+        let params = [
+            "assetbalance",
+            "fundbalance",
+            "dividend",
+            "domesticstock",
+            "mutualfund",
+        ];
+        for (kind, expected) in CsvKind::ALL.into_iter().zip(params) {
+            assert_eq!(kind.kind_param(), expected);
         }
-    }
-
-    #[test]
-    fn from_kind_param_accepts_legacy_values() {
-        assert_eq!(
-            CsvKind::from_kind_param(Some("stock")),
-            Some(CsvKind::DomesticStock)
-        );
-        assert_eq!(
-            CsvKind::from_kind_param(Some("fund")),
-            Some(CsvKind::MutualFund)
-        );
-        assert_eq!(CsvKind::from_kind_param(Some("unknown")), None);
-        assert_eq!(CsvKind::from_kind_param(None), None);
     }
 
     #[test]

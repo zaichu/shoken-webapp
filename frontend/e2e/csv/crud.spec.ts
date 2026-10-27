@@ -461,14 +461,17 @@ test.describe('取引明細 CSV 取込・削除', () => {
         await page.getByRole('tab', { name: scenario.label }).click();
       }
       await page.getByRole('link', { name: 'CSV管理' }).click();
-      await expect(page).toHaveURL(`/csv?kind=${scenario.kind}`);
+      await expect(page).toHaveURL('/csv');
 
-      // 表は5種類を常に出し、`?kind=` で指定した種類の取り込みダイアログだけを開く
+      // 表は5種類を常に出し、ダイアログは初期表示では開かない
       await expect(csvRow(page, scenario.row)).toHaveCount(1);
+      await expect(csvImportRow(page)).toBeHidden();
+      await expect(savedCount(page, scenario.row)).toContainText('0件');
+
+      await openCsvImport(page, scenario.row);
       const dialog = csvImportRow(page);
       const fileInput = dialog.getByTestId('csv-file-input');
       await expect(fileInput).toBeAttached();
-      await expect(savedCount(page, scenario.row)).toContainText('0件');
 
       const fixture = TAB_FIXTURES[scenario.tab].files;
       const base = fixture[scenario.baseFile];
@@ -613,7 +616,9 @@ test.describe('取引明細 CSV 取込・削除', () => {
       }),
     );
     await page.goto('/csv?kind=dividend');
+    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
 
+    await openCsvImport(page, 'dividend');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
@@ -853,6 +858,9 @@ test.describe('資産管理 CSV 取込・削除', () => {
     });
 
     await page.goto('/csv?kind=assetbalance');
+    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+
+    await openCsvImport(page, 'assetbalance');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
