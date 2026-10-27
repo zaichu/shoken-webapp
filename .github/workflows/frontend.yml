@@ -192,20 +192,22 @@ jobs:
         id: playwright
         uses: ./.github/actions/setup-playwright
 
-      # キャッシュの保存はこのジョブに一本化する(複数ジョブの同時保存はキー競合で失敗する)
+      # 全 shard・PR の run で同じキャッシュを保存する。同一キーへの同時保存は一方が競合で失敗するが、他方が保存するため無害として継続する
       - name: Save APT packages cache
-        if: matrix.shard == 1 && github.ref == 'refs/heads/main' && steps.playwright.outputs.apt_cache_hit != 'true'
+        if: steps.playwright.outputs.apt_cache_hit != 'true'
+        continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/apt-packages
           key: ${{ steps.playwright.outputs.apt_cache_key }}
 
       - name: Save Playwright browsers cache
-        if: matrix.shard == 1 && github.ref == 'refs/heads/main' && steps.playwright.outputs.browsers_cache_hit != 'true'
+        if: steps.playwright.outputs.browsers_cache_hit != 'true'
+        continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          key: ${{ steps.playwright.outputs.browsers_cache_key }}
 
       - name: Run E2E tests
         run: env -u NO_COLOR npx playwright test --config playwright.leptos.config.ts --shard=${{ matrix.shard }}/3
@@ -242,7 +244,25 @@ jobs:
           path: frontend/dist-release
 
       - name: Setup Playwright environment
+        id: playwright
         uses: ./.github/actions/setup-playwright
+
+      # e2e と同じキャッシュを保存する。同一キーへの同時保存の競合は無害として継続する
+      - name: Save APT packages cache
+        if: steps.playwright.outputs.apt_cache_hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
+        with:
+          path: ~/apt-packages
+          key: ${{ steps.playwright.outputs.apt_cache_key }}
+
+      - name: Save Playwright browsers cache
+        if: steps.playwright.outputs.browsers_cache_hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright.outputs.browsers_cache_key }}
 
       - name: Run delivery E2E tests
         run: env -u NO_COLOR npx playwright test --config playwright.deploy.config.ts
