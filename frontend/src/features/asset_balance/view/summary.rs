@@ -141,8 +141,9 @@ pub(crate) fn fund_notes(view: &ResolvedFundBalance, subject: &str) -> Vec<Strin
     let mut second: Vec<String> = Vec::new();
     if latest_nav_count < view.total && view.total > 0 {
         second.push(format!(
-            "{subject}前日比は {latest_nav_count}件/{}件(最新の前日比が分かるファンドだけ)",
-            view.total
+            "{subject}前日比は {}/{}(最新の前日比が分かるファンドだけ)",
+            labels::count(latest_nav_count),
+            labels::count(view.total)
         ));
     }
     if csv_only > 0 {

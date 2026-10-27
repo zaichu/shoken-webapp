@@ -151,6 +151,7 @@ fn forbidden_terms_are_not_used_outside_the_glossary() {
 fn glossary_builds_counts_and_placeholders() {
     assert_eq!(count(4), "4件");
     assert_eq!(count(0), "0件");
+    assert_eq!(count(1_000_000), "1000000件");
     assert_eq!(search_placeholder("銘柄名・コード"), "銘柄名・コードで検索");
     assert_eq!(group_count("2026年10月", 3), "2026年10月 · 3件");
     assert_eq!(price_as_of("2026-10-21"), "10/21 時点");

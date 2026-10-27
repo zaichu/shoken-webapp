@@ -1,5 +1,6 @@
 use crate::api::dto::CsvRowError;
 use crate::support::csv_flow::{display_message, row_error_text};
+use crate::ui::labels::count;
 use leptos::prelude::*;
 
 // 同一メッセージのエラーが4件以上並ぶときは1文に集約する(件数が少ない・理由が混在する一覧はそのままの方が読みやすい)
@@ -13,7 +14,7 @@ pub fn preview_notice_text(
     errors_block_save: bool,
 ) -> String {
     let errors = if error_count > 0 {
-        format!("({error_count}件エラー)")
+        format!("({}エラー)", count(error_count))
     } else {
         String::new()
     };
@@ -21,10 +22,12 @@ pub fn preview_notice_text(
         format!("取り込める行がありません{errors}")
     } else if errors_block_save && error_count > 0 {
         format!(
-            "{valid_rows}件を読み込めますが、{error_count}件のエラーを修正するまで{save_action}できません"
+            "{}を読み込めますが、{}のエラーを修正するまで{save_action}できません",
+            count(valid_rows),
+            count(error_count)
         )
     } else {
-        format!("{valid_rows}件を{save_action}できます{errors}")
+        format!("{}を{save_action}できます{errors}", count(valid_rows))
     }
 }
 
@@ -99,7 +102,7 @@ pub fn CsvRowErrorList(errors: Vec<CsvRowError>, all_failed: bool) -> impl IntoV
 /// 「N件エラー ・ N行目: 理由 …」を1つの黄の帯にまとめ、折り返さずに横へ流す(全文は title に)
 #[component]
 pub fn CsvPreviewNotice(valid_rows: usize, errors: Vec<CsvRowError>) -> impl IntoView {
-    let heading = format!("{}件エラー", errors.len());
+    let heading = format!("{}エラー", count(errors.len()));
     let full = format!(
         "{} ・ {}",
         heading,

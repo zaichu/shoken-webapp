@@ -1,5 +1,6 @@
 use crate::api::dto::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
 use crate::api::{ApiClient, ApiError};
+use crate::ui::labels::count;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CsvTabState<R> {
@@ -166,15 +167,15 @@ pub trait CsvUploadResponseExt {
 
 impl CsvUploadResponseExt for CsvUploadResponse {
     fn inserted_text(&self) -> String {
-        format!("{}件反映", self.inserted)
+        format!("{}反映", count(self.inserted))
     }
 
     fn skipped_text(&self) -> Option<String> {
-        (self.skipped > 0).then(|| format!("{}件スキップ", self.skipped))
+        (self.skipped > 0).then(|| format!("{}スキップ", count(self.skipped)))
     }
 
     fn error_count_text(&self) -> Option<String> {
-        (!self.errors.is_empty()).then(|| format!("{}件エラー", self.errors.len()))
+        (!self.errors.is_empty()).then(|| format!("{}エラー", count(self.errors.len())))
     }
 }
 
