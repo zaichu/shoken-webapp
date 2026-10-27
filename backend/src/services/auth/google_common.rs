@@ -79,7 +79,6 @@ pub fn begin_auth(client: &GoogleOAuthClient) -> GoogleAuthFlow {
 
 pub const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 pub const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
-pub const GOOGLE_ISSUER: &str = "https://accounts.google.com";
 pub const GOOGLE_TOKENINFO_URL: &str = "https://oauth2.googleapis.com/tokeninfo";
 
 /// RFC 3986 unreserved 以外を %XX にする最小のパーセントエンコード。

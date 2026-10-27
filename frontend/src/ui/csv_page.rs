@@ -581,9 +581,9 @@ pub fn CsvKindRow(
             view! {
                 <Portal>
                 <ConfirmDeleteModal
-                    title=labels::csv_manage_delete_confirm_title(kind.delete_subject())
+                    title=labels::csv_manage_delete_confirm_title(kind.label())
                     description=labels::csv_manage_delete_confirm_description(
-                        kind.delete_subject(),
+                        kind.label(),
                         range.as_deref(),
                         count,
                     )
@@ -685,39 +685,49 @@ fn CsvImportDialog(
                         </Button>
                     </div>
                     <div class="flex flex-col gap-2 px-4 py-4">
-                        {match kind {
-                            CsvKind::AssetStock => view! {
-                                <CsvImportBody
-                                    source=AssetBalanceCsvSource { store: asset_csv, kind: AssetKind::Stock }
-                                    preview=view! { <StockCsvPreview store=asset_csv /> }.into_any()
-                                    list_href=kind.list_href()
-                                    on_saved=on_saved
-                                />
-                            }
-                                .into_any(),
-                            CsvKind::AssetFund => view! {
-                                <CsvImportBody
-                                    source=AssetBalanceCsvSource { store: asset_csv, kind: AssetKind::Fund }
-                                    preview=view! { <FundCsvPreview store=asset_csv /> }.into_any()
-                                    list_href=kind.list_href()
-                                    on_saved=on_saved
-                                />
-                            }
-                                .into_any(),
-                            _ => {
-                                let tab = kind.receipt_tab().unwrap_or(ReceiptsTab::Dividend);
-                                view! {
-                                    <CsvImportBody
-                                        source=ReceiptCsvSource { store: receipts_store, tab }
-                                        preview=view! { <ReceiptsCsvPreview store=receipts_store tab=tab /> }
-                                            .into_any()
-                                        list_href=kind.list_href()
-                                        on_saved=on_saved
-                                    />
+                        {
+                            let list_href = kind.list_href();
+                            const ASSET_TABLE: [(CsvKind, AssetKind); 2] = [
+                                (CsvKind::AssetStock, AssetKind::Stock),
+                                (CsvKind::AssetFund, AssetKind::Fund),
+                            ];
+                            match ASSET_TABLE.iter().find(|(k, _)| *k == kind).map(|(_, k)| *k) {
+                                Some(asset_kind) => {
+                                    let preview = if asset_kind == AssetKind::Stock {
+                                        view! { <StockCsvPreview store=asset_csv /> }.into_any()
+                                    } else {
+                                        view! { <FundCsvPreview store=asset_csv /> }.into_any()
+                                    };
+                                    view! {
+                                        <CsvImportBody
+                                            source=AssetBalanceCsvSource {
+                                                store: asset_csv,
+                                                kind: asset_kind,
+                                            }
+                                            preview=preview
+                                            list_href=list_href
+                                            on_saved=on_saved
+                                        />
+                                    }
+                                        .into_any()
                                 }
-                                    .into_any()
+                                None => {
+                                    let tab = kind.receipt_tab().unwrap_or(ReceiptsTab::Dividend);
+                                    view! {
+                                        <CsvImportBody
+                                            source=ReceiptCsvSource { store: receipts_store, tab }
+                                            preview=view! {
+                                                <ReceiptsCsvPreview store=receipts_store tab=tab />
+                                            }
+                                                .into_any()
+                                            list_href=list_href
+                                            on_saved=on_saved
+                                        />
+                                    }
+                                        .into_any()
+                                }
                             }
-                        }}
+                        }
                     </div>
                     <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
                         <Button
