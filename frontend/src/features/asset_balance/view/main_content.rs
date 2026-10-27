@@ -25,7 +25,7 @@ use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder, sort_holdings};
 use crate::features::asset_balance::search::stock_accounts;
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
-use crate::features::asset_balance::store::{FilteredPortfolio, filtered_portfolio};
+use crate::features::asset_balance::store::{all_portfolio_views, filtered_portfolio_views};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
@@ -133,26 +133,29 @@ fn StockContent(
     let total_count = rows.len();
     let empty = rows.is_empty();
     let option_rows = rows.clone();
-    let initial = filtered_portfolio(&rows, &search.get_untracked(), lookup, generation);
-    search_count.set((initial.views.len(), total_count));
-    let filtered = RwSignal::new(initial);
+    // 全保有分の変換は検索語に依存させない。検索入力では絞り込みだけ再計算する
+    let rows_for_all = rows.clone();
+    let all_views = Memo::new(move |_| all_portfolio_views(&rows_for_all, lookup, generation));
+    let rows_for_filtered = rows.clone();
+    let filtered_views = Memo::new(move |_| {
+        filtered_portfolio_views(&rows_for_filtered, &search.get(), lookup, generation)
+    });
+    search_count.set((filtered_views.get_untracked().len(), total_count));
+    Effect::new(move |_| {
+        search_count.set((filtered_views.with(|views| views.len()), total_count));
+    });
     // 見出しの基準日と同じ代表を表の日付出し分けにも使う(絞り込み前の全行で決める)
     let date_rep = {
         let dates = stock_price_dates(&rows);
         price_date_representative(dates.into_iter()).map(str::to_string)
     };
-    Effect::new(move |_| {
-        let next = filtered_portfolio(&rows, &search.get(), lookup, generation);
-        search_count.set((next.views.len(), total_count));
-        filtered.set(next);
-    });
     let account_options = Memo::new(move |_| stock_accounts(&option_rows));
     let course_options = Memo::new(|_| Vec::<String>::new());
     let filtered_count = filtered_count(search, search_count);
     // 集計は絞り込み前の全保有分で求める(検索中も全件のまま)
     let summary = Memo::new(move |_| {
-        let all_views = filtered.get().all_views;
-        stock_summary_values(&all_views, fallback_totals.as_ref(), &dividends.get())
+        all_views
+            .with(|views| stock_summary_values(views, fallback_totals.as_ref(), &dividends.get()))
     });
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
@@ -192,7 +195,7 @@ fn StockContent(
             <div class="asset-list-surface">
                 <div class="hidden lg:block print:block">
                     {move || {
-                        let FilteredPortfolio { views, .. } = filtered.get();
+                        let views = filtered_views.get();
                         let order = sorted_views(
                             &views,
                             &dividends.get(),
@@ -216,7 +219,7 @@ fn StockContent(
                 </div>
                 <div class="lg:hidden print:hidden">
                     {move || {
-                        let FilteredPortfolio { views, .. } = filtered.get();
+                        let views = filtered_views.get();
                         let key = sort_key.get();
                         let order = sorted_views(&views, &dividends.get(), key, sort_order.get());
                         let sorted: Vec<_> = order
@@ -235,7 +238,7 @@ fn StockContent(
                 </div>
             </div>
             {move || {
-                (!empty && filtered.with(|filtered| filtered.views.is_empty())).then(|| {
+                (!empty && filtered_views.with(|views| views.is_empty())).then(|| {
                     view! {
                         <EmptyFilteredPanel
                             title=EMPTY_FILTERED_TITLE
@@ -404,8 +407,8 @@ fn AllContent(
         // 「すべて」はテキストのみ。口座・コースの選択条件はタブごとに語彙が
         // 違うためここでは使わない(テキストは株の口座・ファンド口座も部分一致する)
         let text_search = text_only_search(search);
-        let FilteredPortfolio { views, .. } =
-            filtered_portfolio(&stock_rows_for_search, &text_search, lookup, generation);
+        let views =
+            filtered_portfolio_views(&stock_rows_for_search, &text_search, lookup, generation);
         let dividend_maps = dividends.get();
         let mut rows: Vec<UnifiedRow> = views
             .iter()
@@ -432,8 +435,7 @@ fn AllContent(
         filtered.set(next);
     });
     // 集計は両種別を合算。株側は銘柄ごとの現在値評価を使う
-    let stock_all_views =
-        filtered_portfolio(&stock_rows, &AssetSearch::default(), lookup, generation).all_views;
+    let stock_all_views = all_portfolio_views(&stock_rows, lookup, generation);
     let stock_inputs: Vec<ValuationInput> =
         stock_all_views.iter().map(ValuationInput::from).collect();
     let stock_valuation = crate::features::asset_balance::model::portfolio_valuation(&stock_inputs);

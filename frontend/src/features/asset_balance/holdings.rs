@@ -4,7 +4,7 @@ use crate::features::asset_balance::model::{ValuationInput, normalize_display_na
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::format::{format_currency, format_percentage_value, format_unit_price};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct HoldingView {
     /// 保存済みレコードの ID。詳細ページのパスに使う。
     pub(crate) id: Option<String>,

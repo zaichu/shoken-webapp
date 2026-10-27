@@ -385,6 +385,33 @@ pub(crate) type ResolvedFundBalance =
     ResolvedRows<FundBalanceRow, crate::api::dto::FundBalanceSummary>;
 pub(crate) type ResolvedAssetBalance = ResolvedRows<AssetBalanceRow, AssetBalanceSummary>;
 
+fn loaded_counts<T, S>(
+    generation: Generation,
+    slot: &LoadedSlotValue<T, S>,
+) -> Option<(usize, usize)> {
+    let result = slot_value(slot, generation)?;
+    Some(match result {
+        Err(_) => (0, 0),
+        Ok(loaded) => (loaded.rows.len(), loaded.total),
+    })
+}
+
+/// タブ件数・並べ替え欄の有無用。行の複製はしない
+pub(crate) fn asset_balance_counts(
+    generation: Generation,
+    slot: &BalanceSlot,
+) -> Option<(usize, usize)> {
+    loaded_counts(generation, slot)
+}
+
+/// タブ件数・並べ替え欄の有無用。行の複製はしない
+pub(crate) fn fund_balance_counts(
+    generation: Generation,
+    slot: &FundSlot,
+) -> Option<(usize, usize)> {
+    loaded_counts(generation, slot)
+}
+
 fn resolve_balance<T: Clone, S: Clone>(
     generation: Generation,
     slot: &LoadedSlotValue<T, S>,
