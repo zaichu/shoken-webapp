@@ -13,7 +13,7 @@ const LOGOUT_NOTIFY_KEY: &str = "logout_at";
 pub const ACTIVITY_KEY: &str = "last_activity_at";
 
 // 最終操作時刻の書き込みを間引く幅。取りこぼしは発火時の共有時刻確認で吸収する
-pub const ACTIVITY_THROTTLE_MS: u64 = 10_000;
+const ACTIVITY_THROTTLE_MS: u64 = 10_000;
 
 thread_local! {
     // None=未試行、Some(None)=構築不可、Some(Some)=利用中

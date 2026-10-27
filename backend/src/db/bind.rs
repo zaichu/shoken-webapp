@@ -35,7 +35,7 @@ impl Bind {
     }
 
     /// `ty` を明示して値を束縛する。`Vec<T>` の配列は専用 `From` impl 側で型を決める
-    pub fn custom(ty: Type, value: impl ToSql + Sync + Send + 'static) -> Self {
+    fn custom(ty: Type, value: impl ToSql + Sync + Send + 'static) -> Self {
         Bind::Custom {
             ty,
             value: Box::new(value),

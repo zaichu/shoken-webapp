@@ -214,7 +214,7 @@ fn is_production_env() -> bool {
 ///
 /// 本番環境では内部エラー詳細を露出させないため、`debug_detail` があっても
 /// `details` は `None` になる（ログ・機密情報ルール対応）。
-pub fn error_details_with_debug(
+fn error_details_with_debug(
     code: &str,
     message: String,
     debug_detail: Option<String>,

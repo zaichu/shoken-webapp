@@ -83,7 +83,7 @@ pub struct DateInputs {
     pub range_end: String,
 }
 
-pub fn build_range_query(start: &str, end: &str) -> String {
+fn build_range_query(start: &str, end: &str) -> String {
     if start.is_empty() && end.is_empty() {
         String::new()
     } else {
@@ -91,7 +91,7 @@ pub fn build_range_query(start: &str, end: &str) -> String {
     }
 }
 
-pub fn format_query_token(value: &str) -> String {
+fn format_query_token(value: &str) -> String {
     let trimmed = value.trim_matches(is_js_whitespace);
     if trimmed.chars().any(is_js_whitespace) {
         format!("\"{}\"", trimmed.replace('"', "\\\""))
@@ -100,7 +100,7 @@ pub fn format_query_token(value: &str) -> String {
     }
 }
 
-pub fn build_combined_query(queries: &SelectedQueries) -> String {
+fn build_combined_query(queries: &SelectedQueries) -> String {
     [
         SearchKey::Date,
         SearchKey::Securities,
