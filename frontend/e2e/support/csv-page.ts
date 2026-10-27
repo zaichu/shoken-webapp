@@ -22,14 +22,14 @@ export function csvRow(page: Page, kind: CsvKindParam): Locator {
   return page.locator(`tr[data-kind="${kind}"]`);
 }
 
-/** 画面中央に開くファイル取り込みダイアログ */
-export function csvImportRow(page: Page): Locator {
-  return page.getByTestId('csv-import-dialog');
-}
-
 /** 行の「保存済み」件数 */
 export function savedCount(page: Page, kind: CsvKindParam): Locator {
   return csvRow(page, kind).getByTestId('saved-count');
+}
+
+/** 行の状態文 */
+export function rowStatus(page: Page, kind: CsvKindParam): Locator {
+  return csvRow(page, kind).locator('span[data-status]');
 }
 
 /** ⋯ メニューを開く */
@@ -38,13 +38,19 @@ export async function openCsvMenu(page: Page, kind: CsvKindParam): Promise<void>
   await expect(page.getByRole('button', { name: '楽天証券から再取得' })).toBeVisible();
 }
 
-/** ⋯ メニューからファイル取り込みを開く */
-export async function openCsvImport(page: Page, kind: CsvKindParam): Promise<void> {
+/**
+ * ⋯ メニューからファイル取り込みで OS の選択を開き、ファイルを渡す。
+ * 新しい流れはプレビューなしでそのまま保存し、結果は行の状態に出る。
+ */
+export async function importCsvFile(
+  page: Page,
+  kind: CsvKindParam,
+  filePath: string,
+): Promise<void> {
   await openCsvMenu(page, kind);
+  const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'ファイルから取り込み' }).click();
-  await expect(
-    page.getByText(`${KIND_LABELS[kind]} へファイルから取り込み`),
-  ).toBeVisible();
+  await (await chooser).setFiles(filePath);
 }
 
 /** ⋯ メニューから削除確認を開く */
