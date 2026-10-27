@@ -77,12 +77,22 @@ async function mockUpload(
 }
 
 test('資産管理1種は選んだらそのまま保存し行の状態が更新される', async ({ page }) => {
+  let saved = 0;
+  let latest: string | undefined;
   await mockSessionAndLists(page, { assetbalance: 0 });
+  await mockCsvKindStats(page, {
+    counts: () => ({ assetbalance: saved }),
+    latest: () => (latest ? { assetbalance: latest } : {}),
+  });
   await mockPreview(page, /\/api\/v1\/asset-balance-import-validations$/, {
     total_rows: 2,
     valid_rows: 2,
   });
-  await mockUpload(page, /\/api\/v1\/asset-balance-imports$/, { inserted: 2 });
+  await page.route(/\/api\/v1\/asset-balance-imports$/, (route) => {
+    saved = 2;
+    latest = new Date().toISOString();
+    return route.fulfill(json({ inserted: 2, skipped: 0, errors: [] }));
+  });
   // 激減確認の保存済み件数は 0 件(確認なし)
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated([]))),
@@ -93,20 +103,32 @@ test('資産管理1種は選んだらそのまま保存し行の状態が更新�
 
   await expect(rowStatus(page, 'assetbalance')).toContainText('に更新', { timeout: 10000 });
   await expect(rowStatus(page, 'assetbalance')).toHaveAttribute('data-status', 'fresh');
+  await expect(savedCount(page, 'assetbalance')).toContainText('2件');
 });
 
 test('取引明細1種は選んだらそのまま保存し行の状態が更新される', async ({ page }) => {
+  let saved = 0;
+  let latest: string | undefined;
   await mockSessionAndLists(page, { dividend: 0 });
+  await mockCsvKindStats(page, {
+    counts: () => ({ dividend: saved }),
+    latest: () => (latest ? { dividend: latest } : {}),
+  });
   await mockPreview(page, /\/api\/v1\/dividend-import-validations$/, {
     total_rows: 2,
     valid_rows: 2,
   });
-  await mockUpload(page, /\/api\/v1\/dividend-imports$/, { inserted: 2 });
+  await page.route(/\/api\/v1\/dividend-imports$/, (route) => {
+    saved = 2;
+    latest = new Date().toISOString();
+    return route.fulfill(json({ inserted: 2, skipped: 0, errors: [] }));
+  });
 
   await page.goto('/csv');
   await importCsvFile(page, 'dividend', path.join(fixtureDir(), 'dividend-base.csv'));
 
   await expect(rowStatus(page, 'dividend')).toContainText('に更新', { timeout: 10000 });
+  await expect(savedCount(page, 'dividend')).toContainText('2件');
 });
 
 test('全件置換で行エラーがあれば保存せず理由を行に出す', async ({ page }) => {
