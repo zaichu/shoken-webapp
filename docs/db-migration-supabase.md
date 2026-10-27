@@ -99,8 +99,21 @@ DB クライアントの生エラーは表示しない。再実行時は新し�
 
 ## 4. ユーザーだけが実行: Hyperdrive の付け替え
 
-既存の Hyperdrive ID は変更しない。`backend/wrangler.toml` の本番 binding の ID をユーザーが `HYPERDRIVE_ID` に設定する。
+`backend/wrangler.toml` の本番 binding の ID は `00000000000000000000000000000000` の仮値で、実IDはリポジトリに置かない。既存 Hyperdrive `shoken-backend-db` の実IDを Cloudflare 上で確認し、ユーザーが `HYPERDRIVE_ID` に設定する。デプロイ時は `.github/workflows/deploy-cloudflare-worker.yml` の Ensure Hyperdrive config exists と同じく名前で検索して ID を解決している。
 `TARGET_DATABASE_URL` は Supabase Session pooler のまま使う。Wrangler の認証はユーザーの端末で済ませる。
+
+```bash
+set +x
+wrangler hyperdrive list
+```
+
+一覧から `shoken-backend-db` の行の ID を確認し、非表示入力で設定する。`wrangler.toml` の仮値は使わない。
+
+```bash
+set +x
+read -r -p 'HYPERDRIVE_ID: ' HYPERDRIVE_ID
+export HYPERDRIVE_ID
+```
 
 Wrangler の `hyperdrive update` は更新後の接続情報を表示するため、直接実行して結果を共有しない。
 下記は Wrangler の `main` を同じ Node プロセス内で呼び、秘密値を OS のコマンド引数へ渡さず、標準出力・標準エラー・ディスクログ・メトリクス・エラー報告を無効にする。
@@ -134,19 +147,23 @@ sys.exit(result.returncode)
 このコマンドの本番での実行はユーザーが行う。成功するまで書き込みは停止したままにする。
 Wrangler の API が変わって実行できない場合も、秘密値を引数に付けた CLI やデバッグログへ切り替えず、実装担当へ固定メッセージだけで調査を依頼する。
 
+### 4b. ユーザーだけが実行: CI の `DATABASE_URL` secret の切り替え
+
+CI のマイグレーション（`.github/workflows/deploy-cloudflare-worker.yml:189` の `cargo run --bin migrate` が `backend/src/bin/migrate.rs:6` の `DATABASE_URL` を使う）は GitHub secret の `DATABASE_URL` を接続先にする。Hyperdrive だけを付け替えても次のバックエンドデプロイは Neon に接続し、新しいマイグレーションは Supabase に適用されない。照合成功・Hyperdrive 付け替え後に、ユーザーが GitHub のリポジトリ設定で `DATABASE_URL` secret を Supabase Session pooler の値へ更新する。値は画面に表示せず、パスワード管理ツールからの貼り付けか非表示入力で扱い、チャット・PR・Issue・ログに残さない。安定動作の確認が終わるまで Neon の値はパスワード管理ツールに残し、切り戻し時は同じ secret を実際の接続先に合わせて戻す。
+
 ## 5. 統合担当とユーザー: 本番確認と再開
 
 1. Worker 経由の `/health` と、実際に DB を問い合わせる `/ready` が200になることを確認する。`/health` だけでは DB 接続成功の判断にしない。
 2. ユーザー自身が既存ログインと新規ログイン、配当・取引・保有一覧、口座別残高、CSV の最終取り込み日時、価格の表示を確認する。実データの行や画像は共有せず、成功・失敗だけを報告する。
 3. 統合担当が読み取り結果を確認後、架空の検証用アカウントで更新・CSV 取り込み・再読み込みを確認する。本物のユーザーデータを検証のために更新しない。
 4. Worker の定期処理とユーザーの書き込みを再開する。`/ready` と DB エラーの発生件数を確認し、本文や接続値を含むログは共有しない。
-5. 安定動作と戻し不要をユーザー・統合担当が確認するまで Neon を保持する。ダンプとチェックポイントはユーザーが安全な保管場所で扱い、確認後に端末から削除する。接続環境変数も `unset SOURCE_DATABASE_URL TARGET_DATABASE_URL` で破棄する。
+5. 安定動作と戻し不要をユーザー・統合担当が確認するまで Neon を保持する。Neon の削除は Hyperdrive と CI の `DATABASE_URL` secret の両方が Supabase を指し、本番確認が終わってから判断する。ダンプとチェックポイントはユーザーが安全な保管場所で扱い、確認後に端末から削除する。接続環境変数も `unset SOURCE_DATABASE_URL TARGET_DATABASE_URL` で破棄する。
 
 ## 戻し方
 
 - **付け替え前に失敗**: Hyperdrive は Neon のまま。移行先に付け替えず、Neon の状態を確認してから書き込みを再開する。
-- **付け替え後、Supabase にまだ書き込んでいない**: 両 DB の書き込み停止を維持し、ユーザーが `TARGET_DATABASE_URL` を元の Neon の値で非表示入力し直す。同じ Hyperdrive 更新コマンドで元へ戻し、`/ready` とログイン・一覧を確認して再開する。
-- **Supabase に書き込み済み**: 古い Neon にそのまま戻すと新しいデータを失う。両 DB の書き込みを止め、Supabase を `SOURCE_DATABASE_URL`、新規の戻し先 Neon を `TARGET_DATABASE_URL` に非表示入力する。この手順の `prepare` → `export`（新しいファイル名）→ `import` → `verify` を逆方向に行い、一致後に同じ Hyperdrive 更新コマンドで戻す。既存のデータ入り Neon への読み込みはしない。戻し先を確保できなければ停止を保ち、統合担当が判断する。
+- **付け替え後、Supabase にまだ書き込んでいない**: 両 DB の書き込み停止を維持し、ユーザーが `TARGET_DATABASE_URL` を元の Neon の値で非表示入力し直す。同じ Hyperdrive 更新コマンドで元へ戻し、CI の `DATABASE_URL` secret も Neon に戻して実際の接続先と揃える。`/ready` とログイン・一覧を確認して再開する。
+- **Supabase に書き込み済み**: 古い Neon にそのまま戻すと新しいデータを失う。両 DB の書き込みを止め、Supabase を `SOURCE_DATABASE_URL`、新規の戻し先 Neon を `TARGET_DATABASE_URL` に非表示入力する。この手順の `prepare` → `export`（新しいファイル名）→ `import` → `verify` を逆方向に行い、一致後に同じ Hyperdrive 更新コマンドで戻す。CI の `DATABASE_URL` secret も戻し先に合わせて更新する。既存のデータ入り Neon への読み込みはしない。戻し先を確保できなければ停止を保ち、統合担当が判断する。
 
 Neon と Supabase は、戻しの確認が済むまでどちらも削除しない。
 
