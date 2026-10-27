@@ -109,7 +109,7 @@ src/
 
 ## アクセシビリティ
 
-`e2e/accessibility/a11y.spec.ts` が関門になる。axe は WCAG 2.0/2.1/2.2 の A/AA で moderate 以上ゼロを必須にする(minor は記録のみ)。対象は主要画面と読み込み中・取得失敗・空・データあり・CSV プレビュー・確認モーダル・フィルター展開で、PC 1280px とスマホ 390px の両方を見る。スキャンの前にその状態になったことを assert する(空表示や失敗表示のつもりで別の状態を検査しない)。
+`e2e/accessibility/a11y.spec.ts` が関門になる。axe は WCAG 2.0/2.1/2.2 の A/AA で moderate 以上ゼロを必須にする(minor は記録のみ)。対象は主要画面と読み込み中・取得失敗・空・データあり・確認モーダル・フィルター展開で、PC 1280px とスマホ 390px の両方を見る。スキャンの前にその状態になったことを assert する(空表示や失敗表示のつもりで別の状態を検査しない)。
 
 - タップ領域: PC 幅は 24px 以上、スマホの操作要素は 44px 以上(`max-sm:min-h-11`)
 - 主要な操作は Tab だけで到達でき、Enter/Space で操作できること(`.focus()` での到達は検証にならない)
@@ -149,10 +149,9 @@ src/
 | `Chip` / `Select` / `FieldTrigger` / `OptionButton`(`ui/choice.rs`) | 押せる選択部品とフォーム | Chip は Filter・Segment(aria-pressed)・Pill |
 | `TabButton`(`ui/tabs.rs`) | `role="tab"` のタブ | 見た目と roving tabindex は部品が持つ。矢印キー移動は呼び出し側の `on_keydown` が担う(例: ReceiptsTabButton) |
 | `Amount`(`ui/amount.rs`) | 金額・率の値 | `tabular-nums` と `[data-negative]` をまとめる。`block=true` で `<p>` として出す |
-| `Alert` / `Spinner` / `Loading` / `LoadingStrip` / `ListLoadError` / `ListSkeleton`(`ui/state.rs`) | 読み込み・失敗の状態表示 | Alert は Warning・Danger、SpinnerSize は Sm・Lg、ListSkeletonVariant は Cards・Table。ListLoadError は再読み込み操作を持つ |
+| `Alert` / `Spinner` / `Loading` / `ListLoadError` / `ListSkeleton`(`ui/state.rs`) | 読み込み・失敗の状態表示 | Alert は Warning・Danger、SpinnerSize は Sm・Lg、ListSkeletonVariant は Cards・Table。ListLoadError は再読み込み操作を持つ |
 | `CollapsibleSearchCard`(`ui/collapsible_search_card.rs`) | 検索欄の開閉と解除操作 | SearchCardLayout は Card・Toolbar |
 | `CsvSection`(`ui/csv_section.rs`) / `CsvActionRail`(`ui/csv_rail.rs`) | CSV の選択・保存・結果・削除欄 | CsvSource が状態と操作を渡し、配線とマークアップを共有する |
-| `CsvPreviewBanner` / `CsvPreviewNotice`(`ui/csv_preview.rs`) | 未保存のプレビュー・行エラーの通知 | 保存操作と有効行数に合わせた通知。variant なし |
 | `ConfirmDeleteModal`(`ui/confirm_modal.rs`) | 削除確認ダイアログ | フォーカスの閉じ込め、処理中の閉じ操作無効化。item_count は任意 |
 | `SecurityCodeLink` / `CopyableInstrumentName`(`ui/security_link.rs`) | 銘柄コードの遷移と銘柄名コピー | SecurityLinkVariant は Code・Details |
 | `SiteHeader` / `SiteFooter`(`ui/site.rs`) | サイト共通のナビゲーション・ユーザーメニュー・フッター | URL と SPA 遷移は app.rs が持つ |
