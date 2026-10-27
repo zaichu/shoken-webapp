@@ -33,17 +33,6 @@ pub(crate) fn current_location() -> String {
 #[derive(Clone, Copy)]
 pub(crate) struct CurrentPath(pub RwSignal<String>);
 
-// ?kind= のような単一クエリを pathname + search 形式の文字列から取る。
-// 同じキーの複数指定は先勝ち、パーセントデコードはしない(種別値はASCIIのみ)
-pub(crate) fn query_param(location: &str, key: &str) -> Option<String> {
-    let query = location.split_once('?')?.1.split('#').next()?;
-    query
-        .split('&')
-        .filter_map(|pair| pair.split_once('='))
-        .find(|(name, _)| *name == key)
-        .map(|(_, value)| value.to_string())
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Route {
     Home,
@@ -94,7 +83,7 @@ fn route_for_path(path: &str) -> Route {
         "/receipts" => Route::Receipts,
         // 旧検索条件ページの URL は取引明細を開く(ブックマーク・履歴からの到達を 404 にしない)
         "/receipts/conditions" => Route::Receipts,
-        // CSV管理は統合ページ。旧2ルートと旧削除ページは対応するタブを開いたままにする
+        // CSV管理は統合ページ。旧2ルートと旧削除ページも一覧だけの同じ画面を開く
         "/csv"
         | "/receipts/csv"
         | "/receipts/csv/delete"

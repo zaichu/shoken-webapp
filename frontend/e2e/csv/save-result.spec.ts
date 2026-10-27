@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/test';
-import { csvRow } from '../support/csv-page';
+import { csvRow, openCsvImport } from '../support/csv-page';
 import * as path from 'path';
 
 /**
@@ -123,6 +123,8 @@ async function setupMocks(page: Page, options: MockOptions) {
 
 async function selectCsvAndSave(page: Page, validRows: number) {
   await page.goto('/csv?kind=dividend');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   const fileInput = page.getByTestId('csv-file-input');
   await expect(fileInput).toBeAttached();
   await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
@@ -179,6 +181,8 @@ test.describe('取込結果のエラー詳細表示', () => {
     );
 
     await page.goto('/csv?kind=dividend');
+    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+    await openCsvImport(page, 'dividend');
     const dialog = page.getByTestId('csv-import-dialog');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeEnabled();
@@ -213,6 +217,8 @@ test.describe('取込結果のエラー詳細表示', () => {
   test('プレビューの行エラーは操作なしで表示される', async ({ page }) => {
     await setupMocks(page, { previewErrors: ROW_ERRORS });
     await page.goto('/csv?kind=dividend');
+    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+    await openCsvImport(page, 'dividend');
     const fileInput = page.getByTestId('csv-file-input');
     await expect(fileInput).toBeAttached();
     await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));

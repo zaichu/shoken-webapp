@@ -7,6 +7,7 @@
  */
 import type { Page } from '@playwright/test';
 import { expect, test, MOCK_USER } from '../support/test';
+import { openCsvImport } from '../support/csv-page';
 import * as path from 'path';
 const FIXTURE_DIR = path.resolve(process.cwd(), 'e2e/fixtures/csv');
 
@@ -92,6 +93,8 @@ test('検証 API が失敗したときエラーが表示され保存が押せな
   );
 
   await page.goto('/csv?kind=dividend');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   await expect(fileInput).toBeEnabled({ timeout: 10000 });
   await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
@@ -124,6 +127,8 @@ test('有効な行が0件のときは保存が押せない', async ({ page }) =>
   );
 
   await page.goto('/csv?kind=dividend');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   await expect(fileInput).toBeEnabled({ timeout: 10000 });
   await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
@@ -157,6 +162,8 @@ test('全行が同じエラーのときメッセージは1回だけ出て件数�
   );
 
   await page.goto('/csv?kind=dividend');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   await expect(fileInput).toBeEnabled({ timeout: 10000 });
   await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
@@ -209,6 +216,8 @@ test('有効行が残る同一エラーでは見出し不一致の案内を出�
   );
 
   await page.goto('/csv?kind=dividend');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   await expect(fileInput).toBeEnabled({ timeout: 10000 });
   await fileInput.setInputFiles(path.join(FIXTURE_DIR, 'dividend-base.csv'));
@@ -256,6 +265,9 @@ test('CSV プレビューで行エラーが返ったとき warning Alert に一�
   await page.goto('/csv?kind=dividend');
 
   // 初回取得中は input が disabled で change を捨てるため、有効化を待ってから投入する
+  // ダイアログは⋯から開く
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   const fileInput = page.locator('[data-testid="csv-file-input"]');
   await expect(fileInput).toBeEnabled({ timeout: 10000 });
   // ファイル選択でプレビュー API が自動的に呼ばれる

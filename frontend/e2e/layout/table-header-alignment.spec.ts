@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test, json, paginated, MOCK_USER, mockSession } from '../support/test';
+import { openCsvImport } from '../support/csv-page';
 
 /**
  * 表の列見出しの規則を確かめる。
@@ -338,6 +339,8 @@ test('取引明細のCSVプレビューの表', async ({ page }) => {
     ),
   );
   await page.goto('/csv?kind=dividend');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   const input = page.getByTestId('csv-file-input');
   await expect(input).toBeEnabled();
   await input.setInputFiles({
@@ -362,6 +365,8 @@ test('資産管理のCSVプレビューの表', async ({ page }) => {
     ),
   );
   await page.goto('/csv?kind=assetbalance');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'assetbalance');
   const input = page.getByTestId('csv-file-input');
   await expect(input).toBeEnabled();
   await input.setInputFiles({

@@ -5,6 +5,7 @@ import {
   csvRow,
   mockCsvKindStats,
   openCsvDelete,
+  openCsvImport,
   savedCount,
 } from '../support/csv-page';
 import * as path from 'path';
@@ -287,9 +288,9 @@ test('CSV管理ページは一覧のリンクから開き、5種類の行が出�
   await expect(page.getByTestId('csv-file-input')).toHaveCount(0);
 
   await page.getByRole('link', { name: 'CSV管理' }).click();
-  await expect(page).toHaveURL('/csv?kind=dividend');
-  // 指定した種類の取り込みだけが開く
-  await expect(csvImportRow(page).getByTestId('csv-file-input')).toBeAttached();
+  await expect(page).toHaveURL('/csv');
+  // ダイアログは初期表示では開かない
+  await expect(csvImportRow(page)).toBeHidden();
 
   for (const kind of [
     'assetbalance',
@@ -300,9 +301,12 @@ test('CSV管理ページは一覧のリンクから開き、5種類の行が出�
   ] as const) {
     await expect(csvRow(page, kind)).toHaveCount(1);
   }
-  // 種別の切替は kind クエリで行う(旧い値は同じ取り込みを開く)
+  // `?kind=` を付けてもダイアログは開かない
   await page.goto('/csv?kind=stock');
   await expect(csvRow(page, 'domesticstock')).toContainText('取引明細(国内株式)');
+  await expect(csvImportRow(page)).toBeHidden();
+  // ⋯から開く
+  await openCsvImport(page, 'domesticstock');
   await expect(csvImportRow(page)).toContainText('取引明細(国内株式) へファイルから取り込み');
 
   // ダイアログを閉じてからパンくずで戻る
@@ -428,6 +432,8 @@ test('CSV取込の保存後はダイアログが閉じる', async ({ page }) => 
     });
   });
   await page.goto('/csv?kind=dividend');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
 
   const fileInput = page.getByTestId('csv-file-input');
   // バックグラウンドの他タブ取得中は input が disabled で、change イベントが捨てられる。

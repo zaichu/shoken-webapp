@@ -342,7 +342,7 @@ fn SectionDanger() -> impl IntoView {
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            href="/csv?kind=dividend"
+                            href="/csv"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="配当金データを削除"
                         >
@@ -356,7 +356,7 @@ fn SectionDanger() -> impl IntoView {
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            href="/csv?kind=stock"
+                            href="/csv"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="国内株式データを削除"
                         >
@@ -370,7 +370,7 @@ fn SectionDanger() -> impl IntoView {
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            href="/csv?kind=fund"
+                            href="/csv"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="投資信託データを削除"
                         >
@@ -384,7 +384,7 @@ fn SectionDanger() -> impl IntoView {
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            href="/csv?kind=assetbalance"
+                            href="/csv"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             aria_label="資産管理データを削除"
                         >

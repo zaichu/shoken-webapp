@@ -1,5 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test, paginated, mockSession } from '../support/test';
+import { openCsvImport } from '../support/csv-page';
 import * as path from 'path';
 
 const ROUTES = {
@@ -94,7 +95,10 @@ test('配当金タブにデータがないとき EmptyState が表示される',
   const cta = page.getByRole('link', { name: 'CSVを取り込む' });
   await expect(cta).toBeVisible();
   await cta.click();
-  await expect(page).toHaveURL('/csv?kind=dividend');
+  await expect(page).toHaveURL('/csv');
+  // ダイアログは初期表示では開かず、⋯から開く
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   await expect(page.getByTestId('csv-file-input')).toBeAttached();
 });
 
@@ -108,6 +112,8 @@ test('別タブの一覧取得中は CSV ページのファイル選択が無効
   });
 
   await page.goto('/csv?kind=dividend');
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
 
   const fileInput = page.getByTestId('csv-file-input');
   await expect(fileInput).toBeAttached();
@@ -158,9 +164,11 @@ test('スマホ幅で空状態 CTA からプレビューして保存ボタンま
   const cta = page.getByRole('link', { name: 'CSVを取り込む' });
   await expect(cta).toBeVisible();
   await cta.click();
-  await expect(page).toHaveURL('/csv?kind=dividend');
+  await expect(page).toHaveURL('/csv');
 
-  // 取り込み結果は CSV 管理ページに出る
+  // 取り込み結果は CSV 管理ページに出る。ダイアログは⋯から開く
+  await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+  await openCsvImport(page, 'dividend');
   const fileInput = page.getByTestId('csv-file-input');
   await expect(fileInput).toBeEnabled();
   await fileInput.setInputFiles(path.join(CSV_FIXTURES, 'dividend-base.csv'));

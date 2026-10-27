@@ -36,10 +36,9 @@ pub fn ReceiptsPage() -> impl IntoView {
         store.auth_loading() || matches!(store.tab_state(active_tab.get()), TabState::Loading)
     });
 
-    let csv_href = Signal::derive(move || format!("/csv?kind={}", active_tab.get().kind_param()));
     let csv_link: Children = Box::new(move || {
         view! {
-            <a class="page-secondary-link-sm" href=move || csv_href.get()>"CSV管理"</a>
+            <a class="page-secondary-link-sm" href="/csv">"CSV管理"</a>
         }
         .into_any()
     });

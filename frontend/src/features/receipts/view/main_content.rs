@@ -65,7 +65,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
         });
     }
 
-    let csv_href = Signal::stored(format!("/csv?kind={}", tab.kind_param()));
+    let csv_href = "/csv";
 
     let is_empty = Signal::derive(
         move || matches!(store.tab_state(tab), TabState::Ready(data) if data.rows.is_empty()),
@@ -233,7 +233,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                     >
                         <LinkButton
                             variant=ButtonVariant::Primary(ButtonSize::Md)
-                            href=csv_href.get()
+                            href=csv_href
                         >
                             "CSVを取り込む"
                         </LinkButton>

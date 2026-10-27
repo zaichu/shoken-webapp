@@ -32,7 +32,7 @@ impl ReceiptsTab {
         ReceiptsTab::MutualFund,
     ];
 
-    /// `/csv?kind=…`(旧 `/receipts/csv?kind=…`)の種別値
+    /// 取引明細の種別値(タブの初期値・設定の選択肢で使う)
     pub fn kind_param(self) -> &'static str {
         match self {
             Self::Dividend => "dividend",
