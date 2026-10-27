@@ -201,7 +201,7 @@ pub(crate) fn CsvManageFetchCard(
                             }
                         })
                     }}
-                    <p class="text-sm text-text-muted whitespace-nowrap" role="status" aria-live="polite">
+                    <p class="text-sm text-text-muted whitespace-nowrap" data-testid="csv-last-fetched">
                         {move || last_fetched.get().unwrap_or_else(|| labels::CSV_MANAGE_LAST_FETCHED_MISSING.to_string())}
                     </p>
                 </div>

@@ -244,7 +244,7 @@ for (const width of [1280, 390]) {
 
       releaseStats();
       await expect(savedCount(page, 'assetbalance')).toContainText('12345');
-      await expect(page.getByRole('status').filter({ hasText: /21:39/ })).toBeVisible();
+      await expect(page.getByTestId('csv-last-fetched')).toContainText('21:39');
       expect(await positions()).toEqual(before);
 
       await button.click();
