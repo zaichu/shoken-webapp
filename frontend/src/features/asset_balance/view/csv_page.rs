@@ -39,7 +39,7 @@ impl CsvSource for AssetBalanceCsvSource {
     // 追加保存と違い、置換の対象が全件だとボタン上でも分かるようにする
     fn save_button_label(&self, valid_rows: Option<usize>) -> String {
         match valid_rows {
-            Some(rows) => format!("{rows}件 全件置換で保存"),
+            Some(rows) => format!("{} 全件置換で保存", labels::count(rows)),
             None => "全件置換で保存".to_string(),
         }
     }

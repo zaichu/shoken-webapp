@@ -45,7 +45,7 @@ pub(crate) trait CsvSource: Copy + Send + Sync + 'static {
     /// 操作バーの保存ボタンのラベル。プレビューが無い間は件数を言えないので None
     fn save_button_label(&self, valid_rows: Option<usize>) -> String {
         match valid_rows {
-            Some(rows) => format!("{rows}件を保存する"),
+            Some(rows) => format!("{}を保存する", labels::count(rows)),
             None => "保存する".to_string(),
         }
     }
@@ -1321,8 +1321,8 @@ fn CsvSaveResultNotice(result: CsvUploadResponse, list_href: &'static str) -> im
         && result.skipped > 0)
         .then(|| {
             format!(
-                "{}件はすべて保存済みのため、スキップしました。データは変わりません。",
-                result.skipped
+                "{}はすべて保存済みのため、スキップしました。データは変わりません。",
+                labels::count(result.skipped)
             )
         });
     view! {

@@ -8,7 +8,7 @@ use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::format::{format_decimal_number, format_number_value};
 use crate::ui::labels::{
-    ACCOUNT, AVERAGE_ACQUISITION_PRICE, BASE_PRICE, CURRENT_PRICE, FUND_NAME, FUND_SHARES,
+    self, ACCOUNT, AVERAGE_ACQUISITION_PRICE, BASE_PRICE, CURRENT_PRICE, FUND_NAME, FUND_SHARES,
     HOLDING_QUANTITY, MARKET_VALUE, MISSING, SECURITY_CODE, SECURITY_NAME, TIMED_MARKET_VALUE,
     TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
@@ -173,7 +173,7 @@ pub fn AssetBalanceCsvPreview(rows: Vec<AssetBalanceRow>) -> impl IntoView {
                                 testid="csv-preview-show-all"
                                 on_click=move |_| show_all.set(true)
                             >
-                                {format!("残り{}件をすべて表示", total - MOBILE_PREVIEW_LIMIT)}
+                                {format!("残り{}をすべて表示", labels::count(total - MOBILE_PREVIEW_LIMIT))}
                             </Button>
                         }
                     })}
@@ -283,7 +283,7 @@ pub fn FundBalanceCsvPreview(
                                 testid="csv-preview-show-all"
                                 on_click=move |_| show_all.set(true)
                             >
-                                {format!("残り{}件をすべて表示", total - MOBILE_PREVIEW_LIMIT)}
+                                {format!("残り{}をすべて表示", labels::count(total - MOBILE_PREVIEW_LIMIT))}
                             </Button>
                         }
                     })}

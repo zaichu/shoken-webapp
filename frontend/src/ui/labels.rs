@@ -208,7 +208,9 @@ pub const CSV_SKIP_COUNT_UNKNOWN: &str = "保存済みの件数を確認でき�
 /// 件数激減の確認文。「はい/いいえ」で答える
 pub fn csv_sync_plunge_question(kind: &str, new_rows: usize, saved_rows: usize) -> String {
     format!(
-        "{kind}: 件数が大きく減っています(保存済み{saved_rows}件 → {new_rows}件)。取り込みますか?"
+        "{kind}: 件数が大きく減っています(保存済み{} → {})。取り込みますか?",
+        count(saved_rows),
+        count(new_rows)
     )
 }
 
@@ -267,15 +269,18 @@ pub fn nav_update_note(
     // 自動更新の対象外のファンド数
     csv_only: usize,
 ) -> String {
-    let mut counts = format!("対象 {target}件(取得 {fetched}件");
+    let mut counts = format!("対象 {}(取得 {}", count(target), count(fetched));
     if failed > 0 {
-        counts.push_str(&format!("・失敗 {failed}件"));
+        counts.push_str(&format!("・失敗 {}", count(failed)));
         if let Some(reason) = failure_reason {
             counts.push_str(&format!(": {reason}"));
         }
     }
     counts.push(')');
-    format!("自動更新 {updated_at}・{counts}・他社のファンド {csv_only}件は CSV で更新")
+    format!(
+        "自動更新 {updated_at}・{counts}・他社のファンド {}は CSV で更新",
+        count(csv_only)
+    )
 }
 
 /// 基準価額の自動更新がまだ走っていないときの注記
@@ -349,14 +354,18 @@ pub fn csv_manage_delete_confirm_title(kind: &str) -> String {
 pub fn csv_manage_delete_confirm_description(
     kind: &str,
     range: Option<&str>,
-    count: usize,
+    total: usize,
 ) -> String {
     let range = range.map(|range| format!("({range})")).unwrap_or_default();
-    format!("{kind}の保存済み {count}件{range}を削除します。元に戻せません")
+    format!(
+        "{kind}の保存済み {}{}を削除します。元に戻せません",
+        count(total),
+        range
+    )
 }
 /// CSV管理: 削除確認モーダルの実行ボタン
-pub fn csv_manage_delete_confirm_button(count: usize) -> String {
-    format!("{count}件を削除する")
+pub fn csv_manage_delete_confirm_button(total: usize) -> String {
+    format!("{}を削除する", count(total))
 }
 /// CSV管理: 保存方式「追加」
 pub const CSV_MANAGE_SAVE_MODE_APPEND: &str = "追加";
