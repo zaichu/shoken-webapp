@@ -64,10 +64,6 @@ pub const REDEMPTION_UNIT_PRICE: &str = "解約単価";
 pub const REDEMPTION_AMOUNT: &str = "解約額";
 /// 数量
 pub const QUANTITY: &str = "数量";
-/// 保有数量(CSV プレビューの表の見出し)
-pub const HOLDING_QUANTITY: &str = "保有数量";
-/// 時価評価額(CSV プレビューの表の見出し)
-pub const TIMED_MARKET_VALUE: &str = "時価評価額";
 /// 税額
 pub const TAX: &str = "税額";
 /// 税引後
@@ -368,10 +364,6 @@ pub fn csv_manage_delete_confirm_description(
 pub fn csv_manage_delete_confirm_button(total: usize) -> String {
     format!("{}を削除する", count(total))
 }
-/// CSV管理: 保存方式「追加」
-pub const CSV_MANAGE_SAVE_MODE_APPEND: &str = "追加";
-/// CSV管理: 保存方式「全件置換」
-pub const CSV_MANAGE_SAVE_MODE_REPLACE: &str = "全件置換";
 
 #[cfg(test)]
 mod tests;

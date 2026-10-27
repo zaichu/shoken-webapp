@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test, json, paginated } from '../support/test';
-import { csvImportRow, csvRow, mockCsvKindStats, openCsvImport, savedCount } from '../support/csv-page';
+import { csvRow, mockCsvKindStats, savedCount } from '../support/csv-page';
 
 /**
  * CSV 管理ページの表そのものの E2E。
@@ -91,11 +91,6 @@ test('⋯ のメニューは3項目で、件数が0件の削除だけ選べな�
   await menu.click();
   await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
   await expect(page.getByRole('button', { name: '削除', exact: true })).toBeDisabled();
-
-  // メニューの「ファイルから取り込み」は既存の手動取り込みを開く
-  await page.getByRole('button', { name: 'ファイルから取り込み' }).click();
-  await expect(csvImportRow(page)).toContainText('取引明細(配当金) へファイルから取り込み');
-  await expect(csvImportRow(page).getByTestId('csv-file-input')).toBeAttached();
 });
 
 test('残高は当日だけ新しく、明細は7日以内が新しい', async ({ page }) => {
@@ -153,47 +148,25 @@ test('⋯ のメニューは外側を押す・Esc・項目選択で閉じる', a
   await expect(refetch).toHaveCount(0);
   await expect(menuButton).toBeFocused();
 
-  // 項目を選んだら閉じる
+  // 項目を選んだら閉じる(ファイル選択はキャンセル扱いで閉じるだけにする)
   await menuButton.click();
   await expect(refetch).toBeVisible();
+  const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'ファイルから取り込み' }).click();
   await expect(refetch).toHaveCount(0);
-  await expect(csvImportRow(page)).toBeVisible();
+  await (await chooser).setFiles([]);
 });
 
-test('取り込みダイアログは⋯から開きEsc・キャンセル・閉じるで閉じる', async ({ page }) => {
+test('`?kind=` を付けても何も開かない', async ({ page }) => {
   await mockLists(page);
   await mockCsvKindStats(page, {
     counts: () => ({ assetbalance: 12 }),
   });
 
-  // `?kind=` を付けてもダイアログは開かない
+  // `?kind=` を付けても何も開かない。行ごとの隠し入力は付いている
   await page.goto('/csv?kind=dividend');
-  const dialog = csvImportRow(page);
   await expect(csvRow(page, 'dividend')).toBeVisible();
-  await expect(dialog).toBeHidden();
-
-  // ⋯ から開く
-  await openCsvImport(page, 'dividend');
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toHaveAttribute('role', 'dialog');
-  await expect(dialog.getByTestId('csv-file-input')).toBeAttached();
-
-  // Esc で閉じる
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-
-  // ⋯ から開き直してキャンセルで閉じる
-  await openCsvImport(page, 'dividend');
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'キャンセル' }).click();
-  await expect(dialog).toBeHidden();
-
-  // ⋯ から開き直して閉じるで閉じる
-  await openCsvImport(page, 'dividend');
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: '閉じる' }).click();
-  await expect(dialog).toBeHidden();
+  await expect(csvRow(page, 'dividend').getByTestId('csv-file-input')).toBeAttached();
 });
 
 for (const width of [1280, 390]) {

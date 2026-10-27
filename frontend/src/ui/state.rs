@@ -84,18 +84,6 @@ pub fn Loading() -> impl IntoView {
 }
 
 #[component]
-pub fn LoadingStrip(#[prop(into)] text: Signal<String>) -> impl IntoView {
-    view! {
-        <section class="px-5 py-4" role="status" aria-live="polite" aria-atomic="true">
-            <div class="flex items-center gap-2 text-text-muted">
-                <Spinner size=SpinnerSize::Sm class=""/>
-                <p class="text-sm">{move || text.get()}</p>
-            </div>
-        </section>
-    }
-}
-
-#[component]
 pub fn ListLoadError(
     message: String,
     on_retry: impl Fn() + Send + Sync + 'static,

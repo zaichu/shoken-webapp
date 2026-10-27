@@ -1,13 +1,13 @@
-use crate::api::ApiError;
-use crate::features::receipts::csv::CsvPreviewRow;
 use crate::features::receipts::filter::ReceiptSearch;
 use crate::features::receipts::store::{TabCacheEntry, mark_tab_for_refresh, tab_settled};
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
-use crate::support::csv_flow::CsvTabState;
+use crate::support::csv_flow::{CsvTabMeta, CsvTabState};
 use crate::testing::receipts::dividends;
 use leptos::prelude::*;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 fn user(id: &str) -> crate::api::dto::SessionUser {
     crate::api::dto::SessionUser {
@@ -20,7 +20,7 @@ fn user(id: &str) -> crate::api::dto::SessionUser {
 fn test_store(
     session: &SessionStore,
     cache: HashMap<(Generation, ReceiptsTab), TabState>,
-    csv: HashMap<(Generation, ReceiptsTab), CsvTabState<CsvPreviewRow>>,
+    csv: HashMap<(Generation, ReceiptsTab), CsvTabState>,
 ) -> ReceiptsStore {
     let mut tabs: HashMap<(Generation, ReceiptsTab), TabCacheEntry> = HashMap::new();
     for (key, list) in cache {
@@ -39,14 +39,6 @@ fn test_store(
         visited: RwSignal::new(HashSet::new()),
         tabs: RwSignal::new(tabs),
         fetch: Action::new_unsync(|_: &(Generation, ReceiptsTab)| async {}),
-    }
-}
-
-fn upload_response(inserted: usize) -> crate::api::dto::CsvUploadResponse {
-    crate::api::dto::CsvUploadResponse {
-        inserted,
-        skipped: 0,
-        errors: vec![],
     }
 }
 
@@ -96,8 +88,8 @@ fn refresh_for_delete_refetches_only_settled_tab() {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
-        let calls = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
-        let record = std::rc::Rc::clone(&calls);
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let record = Rc::clone(&calls);
         let fetch = Action::new_unsync(move |(generation, tab): &(Generation, ReceiptsTab)| {
             record.borrow_mut().push((*generation, *tab));
             async {}
@@ -134,48 +126,36 @@ fn refresh_for_delete_refetches_only_settled_tab() {
 }
 
 #[test]
-fn csv_state_is_scoped_to_generation_and_cleared_by_logout() {
+fn csv_meta_is_scoped_to_generation_and_cleared_by_logout() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let store = test_store(
-            &session,
-            HashMap::new(),
-            HashMap::from([(
-                (generation, ReceiptsTab::Dividend),
-                CsvTabState {
-                    file_name: Some("dividend.csv".to_string()),
-                    import_result: Some(upload_response(3)),
-                    show_delete_confirm: true,
-                    ..Default::default()
-                },
-            )]),
-        );
+        let tab = ReceiptsTab::Dividend;
+        let store = test_store(&session, HashMap::new(), HashMap::new());
+        assert_eq!(store.csv_meta(tab), CsvTabMeta::default());
 
-        assert_eq!(
-            store.csv_state(ReceiptsTab::Dividend).file_name.as_deref(),
-            Some("dividend.csv")
-        );
+        session.user.set(Some(user("alice")));
+        store.open_delete_confirm(tab);
+        assert!(store.csv_meta(tab).show_delete_confirm);
 
         session.mark_unauthenticated();
         assert_eq!(
-            store.csv_state(ReceiptsTab::Dividend),
-            CsvTabState::default(),
+            store.csv_meta(tab),
+            CsvTabMeta::default(),
             "世代が進むとCSV状態は見えなくなる"
         );
 
-        session.user.set(Some(user("alice")));
+        session.user.set(Some(user("bob")));
         assert_eq!(
-            store.csv_state(ReceiptsTab::Dividend),
-            CsvTabState::default()
+            store.csv_meta(tab),
+            CsvTabMeta::default(),
+            "別ユーザーでも見えない"
         );
     });
 }
 
 #[test]
-fn upload_success_sets_result_and_refreshes_cached_list() {
+fn delete_success_empties_cached_list_and_clears_state() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
@@ -187,7 +167,7 @@ fn upload_success_sets_result_and_refreshes_cached_list() {
             HashMap::from([(
                 (generation, tab),
                 TabState::Ready(ReceiptTabData {
-                    rows: Vec::new(),
+                    rows: vec![dividends()[0].clone()],
                     total: None,
                     summary: None,
                     truncated: false,
@@ -196,202 +176,6 @@ fn upload_success_sets_result_and_refreshes_cached_list() {
             HashMap::from([(
                 (generation, tab),
                 CsvTabState {
-                    file_name: Some("a.csv".to_string()),
-                    saving: true,
-                    ..Default::default()
-                },
-            )]),
-        );
-
-        assert!(
-            store.apply_upload_result(generation, tab, Ok(upload_response(2))),
-            "キャッシュ済みタブは再取得対象になる"
-        );
-
-        let state = store.csv_state(tab);
-        assert!(!state.saving);
-        assert!(state.file_name.is_none());
-        assert_eq!(
-            state.import_result.as_ref().map(|result| result.inserted),
-            Some(2)
-        );
-        assert!(matches!(store.tab_state(tab), TabState::Loading,));
-    });
-}
-
-#[test]
-fn upload_success_does_not_fetch_uncached_tab() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::MutualFund;
-        let store = test_store(&session, HashMap::new(), HashMap::new());
-
-        assert!(!store.apply_upload_result(generation, tab, Ok(upload_response(1))));
-
-        assert!(
-            store
-                .tabs
-                .with_untracked(|map| map.get(&(generation, tab)).is_none_or(|e| e.list.is_none()))
-        );
-    });
-}
-
-#[test]
-fn upload_error_sets_message_and_keeps_file() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::DomesticStock;
-        let store = test_store(
-            &session,
-            HashMap::new(),
-            HashMap::from([(
-                (generation, tab),
-                CsvTabState {
-                    file_name: Some("stocks.csv".to_string()),
-                    saving: true,
-                    ..Default::default()
-                },
-            )]),
-        );
-
-        store.apply_upload_result(generation, tab, Err(ApiError::http(401)));
-
-        let state = store.csv_state(tab);
-        assert!(!state.saving);
-        assert_eq!(state.file_name.as_deref(), Some("stocks.csv"));
-        assert_eq!(state.error.as_deref(), Some("認証が必要です"));
-    });
-}
-
-#[test]
-fn preview_result_applies_only_in_current_generation() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::Dividend;
-        let store = test_store(
-            &session,
-            HashMap::new(),
-            HashMap::from([(
-                (generation, tab),
-                CsvTabState {
-                    file_name: Some("a.csv".to_string()),
-                    previewing: true,
-                    ..Default::default()
-                },
-            )]),
-        );
-
-        let response = crate::api::dto::CsvPreviewResponse {
-            total_rows: 2,
-            valid_rows: 2,
-            errors: vec![],
-            rows: vec![
-                CsvPreviewRow::Dividend(Default::default()),
-                CsvPreviewRow::Dividend(Default::default()),
-            ],
-        };
-        store.apply_preview_result(generation, tab, Ok(response));
-
-        let state = store.csv_state(tab);
-        assert!(!state.previewing);
-        let preview = state.preview.expect("preview set");
-        assert_eq!(preview.rows.len(), 2);
-    });
-}
-
-#[test]
-fn preview_failure_sets_error_keeps_file_and_leaves_no_preview() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::Dividend;
-        let store = test_store(
-            &session,
-            HashMap::new(),
-            HashMap::from([(
-                (generation, tab),
-                CsvTabState {
-                    file_name: Some("a.csv".to_string()),
-                    previewing: true,
-                    ..Default::default()
-                },
-            )]),
-        );
-
-        store.apply_preview_result(generation, tab, Err(ApiError::http(500)));
-
-        let state = store.csv_state(tab);
-        assert!(!state.previewing);
-        assert_eq!(
-            state.error.as_deref(),
-            Some("サーバーエラーが発生しました"),
-            "検証の失敗は画面に出す"
-        );
-        assert_eq!(
-            state.file_name.as_deref(),
-            Some("a.csv"),
-            "選び直せるようファイル選択は残す"
-        );
-        assert!(state.preview.is_none());
-        let meta = store.csv_meta(tab);
-        assert!(
-            !meta.has_preview_rows(),
-            "検証できなかったファイルを保存へ送らない"
-        );
-    });
-}
-
-#[test]
-fn delete_success_empties_cached_list_and_clears_result() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::Dividend;
-        let store = test_store(
-            &session,
-            HashMap::from([(
-                (generation, tab),
-                TabState::Ready(ReceiptTabData {
-                    rows: vec![crate::support::row::Row::Saved(ReceiptItem::Dividend(
-                        serde_json::from_value(serde_json::json!({
-                            "id": "550e8400-e29b-41d4-a716-446655440000",
-                            "settlement_date": "2024-03-01",
-                            "product": "特定口座",
-                            "account": "SBI証券",
-                            "security_code": "9904",
-                            "security_name": "架空自動車",
-                            "unit_price": 30.0,
-                            "shares": 100,
-                            "dividends_before_tax": 3000,
-                            "taxes": 609,
-                            "net_amount_received": 2391,
-                            "created_at": "2024-03-01T00:00:00Z",
-                            "updated_at": "2024-03-01T00:00:00Z"
-                        }))
-                        .expect("dividend"),
-                    ))],
-                    total: None,
-                    summary: None,
-                    truncated: false,
-                }),
-            )]),
-            HashMap::from([(
-                (generation, tab),
-                CsvTabState {
-                    import_result: Some(upload_response(1)),
                     deleting: true,
                     ..Default::default()
                 },
@@ -400,9 +184,7 @@ fn delete_success_empties_cached_list_and_clears_result() {
 
         store.apply_delete_result(generation, tab, Ok(()));
 
-        let state = store.csv_state(tab);
-        assert!(!state.deleting);
-        assert!(state.import_result.is_none());
+        assert!(!store.csv_meta(tab).deleting);
         match store.tab_state(tab) {
             TabState::Ready(data) => assert!(data.rows.is_empty()),
             _ => panic!("キャッシュは空の Ready に置き換わる"),
@@ -431,7 +213,7 @@ fn delete_success_without_cached_list_creates_nothing() {
 }
 
 #[test]
-fn stale_generation_results_are_dropped() {
+fn stale_generation_delete_result_is_dropped() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
@@ -440,45 +222,25 @@ fn stale_generation_results_are_dropped() {
         let tab = ReceiptsTab::Dividend;
         let store = test_store(
             &session,
-            HashMap::from([((generation, tab), TabState::Loading)]),
+            HashMap::new(),
             HashMap::from([(
                 (generation, tab),
                 CsvTabState {
-                    saving: true,
-                    deleting: true,
-                    previewing: true,
+                    show_delete_confirm: true,
                     ..Default::default()
                 },
             )]),
         );
 
         session.mark_unauthenticated();
-
-        store.apply_preview_result(
-            generation,
-            tab,
-            Ok(crate::api::dto::CsvPreviewResponse {
-                total_rows: 1,
-                valid_rows: 1,
-                errors: vec![],
-                rows: vec![CsvPreviewRow::Dividend(Default::default())],
-            }),
-        );
-        assert!(!store.apply_upload_result(generation, tab, Ok(upload_response(1))));
         store.apply_delete_result(generation, tab, Ok(()));
 
-        let stale = store
-            .tabs
-            .with_untracked(|map| map.get(&(generation, tab)).map(|e| e.csv.clone()))
-            .unwrap_or_default();
-        assert!(stale.previewing && stale.saving && stale.deleting);
-        assert!(stale.preview.is_none() && stale.import_result.is_none());
-        assert!(matches!(
-            store
-                .tabs
-                .with_untracked(|map| map.get(&(generation, tab)).and_then(|e| e.list.clone())),
-            Some(TabState::Loading)
-        ));
+        let untouched = store.tabs.with_untracked(|map| {
+            map.get(&(generation, tab)).is_some_and(|entry| {
+                entry.csv.show_delete_confirm && !entry.csv.deleting && entry.csv.error.is_none()
+            })
+        });
+        assert!(untouched, "古い世代の遅れ結果は現在世代に影響しない");
     });
 }
 
@@ -492,12 +254,12 @@ fn delete_confirm_opens_and_guards_double_confirm() {
         let store = test_store(&session, HashMap::new(), HashMap::new());
 
         store.open_delete_confirm(tab);
-        assert!(store.csv_state(tab).show_delete_confirm);
+        assert!(store.csv_meta(tab).show_delete_confirm);
 
         assert!(store.try_begin_delete(tab).is_some());
-        let state = store.csv_state(tab);
-        assert!(!state.show_delete_confirm);
-        assert!(state.deleting);
+        let meta = store.csv_meta(tab);
+        assert!(!meta.show_delete_confirm);
+        assert!(meta.deleting);
         assert!(
             store.try_begin_delete(tab).is_none(),
             "deleting 中の確定は開始しない"
@@ -513,30 +275,9 @@ fn csv_operations_require_authentication() {
         let tab = ReceiptsTab::Dividend;
         let store = test_store(&session, HashMap::new(), HashMap::new());
 
-        assert!(store.try_begin_save(tab).is_none());
         assert!(store.try_begin_delete(tab).is_none());
         store.open_delete_confirm(tab);
-        assert!(!store.csv_state(tab).show_delete_confirm);
-    });
-}
-
-#[test]
-fn save_csv_requires_selected_file_and_idle_state() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::Dividend;
-        let store = test_store(&session, HashMap::new(), HashMap::new());
-
-        assert!(store.try_begin_save(tab).is_none(), "ファイル未選択");
-        assert!(!store.csv_state(tab).saving);
-
-        store.tabs.update(|map| {
-            map.entry((generation, tab)).or_default().csv.previewing = true;
-        });
-        assert!(store.try_begin_save(tab).is_none());
+        assert!(!store.csv_meta(tab).show_delete_confirm);
     });
 }
 
@@ -582,7 +323,6 @@ fn mark_tab_for_refresh_marks_only_existing_entry() {
         Generation::new(0),
         ReceiptsTab::Dividend
     ));
-
     map.entry((Generation::new(0), ReceiptsTab::Dividend))
         .or_default()
         .list = Some(TabState::Ready(ReceiptTabData {
@@ -631,9 +371,9 @@ fn confirm_delete_all_requires_open_confirmation() {
         let store = test_store(&session, HashMap::new(), HashMap::new());
 
         store.confirm_delete_all(tab);
-        let state = store.csv_state(tab);
-        assert!(!state.deleting);
-        assert!(state.error.is_none());
+        let meta = store.csv_meta(tab);
+        assert!(!meta.deleting);
+        assert!(meta.error.is_none());
         assert!(store.try_begin_delete(tab).is_none());
 
         store.open_delete_confirm(tab);
@@ -653,7 +393,7 @@ fn confirm_delete_all_marks_state_deleting() {
 
         store.open_delete_confirm(tab);
         store.confirm_delete_all(tab);
-        assert!(store.csv_state(tab).deleting);
+        assert!(store.csv_meta(tab).deleting);
     });
 }
 
@@ -701,99 +441,11 @@ fn tab_labels_and_api_paths_are_defined_per_tab() {
 }
 
 #[test]
-fn store_accessors_reflect_auth_and_tab_state() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        let generation = session.generation.get_untracked();
-        let mut busy_state = CsvTabState::<CsvPreviewRow>::default();
-        busy_state.begin_preview("a.csv".to_string());
-        let store = test_store(
-            &session,
-            HashMap::from([((generation, ReceiptsTab::MutualFund), TabState::Loading)]),
-            HashMap::from([((generation, ReceiptsTab::Dividend), busy_state)]),
-        );
-
-        assert!(!store.is_authenticated());
-        assert!(
-            store.csv_input_disabled(ReceiptsTab::Dividend),
-            "未認証ではファイル選択を受け付けない"
-        );
-        session.user.set(Some(user("alice")));
-        assert!(store.is_authenticated());
-        assert!(store.auth_loading());
-        assert!(
-            store.csv_input_disabled(ReceiptsTab::Dividend),
-            "認証確認中は選べない"
-        );
-        session.loaded.set(true);
-        assert!(!store.auth_loading());
-        assert!(store.csv_busy(ReceiptsTab::Dividend));
-        assert!(!store.csv_busy(ReceiptsTab::DomesticStock));
-        assert!(store.any_tab_fetching());
-        assert!(
-            store.csv_input_disabled(ReceiptsTab::Dividend),
-            "当該タブの CSV 処理中"
-        );
-        assert!(
-            store.csv_input_disabled(ReceiptsTab::DomesticStock),
-            "別タブの一覧取得中も選べない"
-        );
-        let settled_store = test_store(&session, HashMap::new(), HashMap::new());
-        assert!(!settled_store.any_tab_fetching());
-        assert!(!settled_store.csv_input_disabled(ReceiptsTab::Dividend));
-    });
-}
-
-#[test]
-fn csv_state_has_preview_rows_only_when_non_empty() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let tab = ReceiptsTab::Dividend;
-        let store = test_store(
-            &session,
-            HashMap::new(),
-            HashMap::from([
-                (
-                    (generation, tab),
-                    CsvTabState {
-                        preview: Some(crate::api::dto::CsvPreviewResponse {
-                            rows: vec![crate::features::receipts::csv::CsvPreviewRow::Dividend(
-                                crate::features::receipts::csv::DividendCsvRow::default(),
-                            )],
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    },
-                ),
-                (
-                    (generation, ReceiptsTab::DomesticStock),
-                    CsvTabState {
-                        preview: Some(crate::api::dto::CsvPreviewResponse::default()),
-                        ..Default::default()
-                    },
-                ),
-            ]),
-        );
-
-        assert!(store.csv_state(tab).has_preview_rows());
-        assert!(
-            !store
-                .csv_state(ReceiptsTab::DomesticStock)
-                .has_preview_rows()
-        );
-        assert!(!store.csv_state(ReceiptsTab::MutualFund).has_preview_rows());
-    });
-}
-
-#[test]
 fn tab_settled_only_for_ready_or_failed() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
         let store = test_store(&session, HashMap::new(), HashMap::new());
         let tab = ReceiptsTab::Dividend;
         assert!(!tab_settled(&store, Generation::new(0), tab));
@@ -826,27 +478,26 @@ fn ensure_prunes_only_stale_generation_entries() {
     owner.with(|| {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let stale = generation.next();
-        let tab = ReceiptsTab::Dividend;
         let store = test_store(
             &session,
-            HashMap::from([
-                (
-                    (generation, tab),
-                    TabState::Ready(ReceiptTabData {
-                        rows: Vec::new(),
-                        total: None,
-                        summary: None,
-                        truncated: false,
-                    }),
-                ),
-                ((stale, tab), TabState::Loading),
-            ]),
-            HashMap::from([((stale, tab), CsvTabState::default())]),
+            HashMap::from([(
+                (session.generation.get_untracked(), ReceiptsTab::Dividend),
+                TabState::Loading,
+            )]),
+            HashMap::new(),
         );
+        let tab = ReceiptsTab::Dividend;
+        let stale = session.generation.get_untracked().next();
 
-        store.ensure(ReceiptsTab::DomesticStock);
+        store.tabs.update(|map| {
+            map.insert((stale, tab), TabCacheEntry::default());
+        });
+        let generation = session.generation.get_untracked();
+        store.tabs.update(|map| {
+            map.entry((generation, tab)).or_default().fetch_rev = 1;
+        });
+
+        store.ensure(tab);
 
         assert!(
             store
@@ -869,7 +520,7 @@ fn ensure_prunes_csv_state_when_only_csv_has_stale_entries() {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
-        let stale = generation.next();
+        let stale = session.generation.get_untracked().next();
         let tab = ReceiptsTab::Dividend;
         let store = test_store(
             &session,
@@ -883,13 +534,7 @@ fn ensure_prunes_csv_state_when_only_csv_has_stale_entries() {
                 }),
             )]),
             HashMap::from([
-                (
-                    (generation, tab),
-                    CsvTabState {
-                        file_name: Some("a.csv".to_string()),
-                        ..Default::default()
-                    },
-                ),
+                ((generation, tab), CsvTabState::default()),
                 ((stale, tab), CsvTabState::default()),
             ]),
         );
@@ -921,13 +566,7 @@ fn ensure_keeps_entries_when_nothing_is_stale() {
         let store = test_store(
             &session,
             HashMap::from([((generation, tab), TabState::Loading)]),
-            HashMap::from([(
-                (generation, tab),
-                CsvTabState {
-                    file_name: Some("a.csv".to_string()),
-                    ..Default::default()
-                },
-            )]),
+            HashMap::from([((generation, tab), CsvTabState::default())]),
         );
 
         store.ensure(tab);

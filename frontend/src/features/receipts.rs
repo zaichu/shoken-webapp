@@ -7,7 +7,6 @@ mod store;
 mod view;
 
 pub use view::ReceiptsPage;
-pub(crate) use view::{ReceiptCsvSource, ReceiptsCsvPreview};
 
 use rust_decimal::Decimal;
 use shared::format::format_number;

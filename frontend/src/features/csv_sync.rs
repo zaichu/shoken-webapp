@@ -196,6 +196,19 @@ impl SyncState {
         }
     }
 
+    /// ファイル取り込み開始時の準備。最新取得を一度も実行していないと
+    /// kinds が空で set_kind が捨てられるため、必要なら Waiting で埋める。
+    /// 実行中もここで立てて、別行の取り込みや最新取得の同時開始を抑える
+    fn prepare_file_import(&mut self) {
+        if self.kinds.is_empty() {
+            self.kinds = CsvKind::ALL
+                .into_iter()
+                .map(|kind| (kind, KindStatus::Waiting))
+                .collect();
+        }
+        self.running = true;
+    }
+
     /// 「ファイルの URL へのアクセス」の案内を出すか
     pub(crate) fn needs_file_access_guide(&self) -> bool {
         self.failures
@@ -320,6 +333,20 @@ impl CsvSyncStore {
         self.start_kinds(&[kind]);
     }
 
+    /// 行で選んだファイルをそのまま保存する。最新取得と同じ安全装置を通す
+    pub(crate) fn import_file(&self, kind: CsvKind, file: web_sys::File) {
+        if self.running() {
+            return;
+        }
+        self.state.update(|state| state.prepare_file_import());
+        let epoch = self.epoch.get_untracked();
+        let generation = self.session.generation.get_untracked();
+        let store = *self;
+        leptos::task::spawn_local(async move {
+            import::import_single_file(store, epoch, generation, kind, file).await;
+        });
+    }
+
     fn start_kinds(&self, kinds: &[CsvKind]) {
         if self.running() {
             return;
@@ -438,7 +465,11 @@ impl CsvSyncStore {
     fn finish_import(&self) {
         let imported = self.state.with(|state| state.import.imported.clone());
         self.refresh_lists(&imported);
-        self.state.update(|state| state.running = false);
+        self.state.update(|state| {
+            state.running = false;
+            // ファイル取り込みの完了でも統計を取り直す(最新取得は Result イベントで立つ)
+            state.finished = true;
+        });
     }
 
     /// 取り込めた種類の一覧を取り直す。ページ未訪問のスロットは未生成なので何もしない

@@ -12,9 +12,7 @@ use crate::api::ApiError;
 use crate::api::dto::{
     Dividend, DividendSummary, DomesticStock, DomesticStockSummary, Mutualfund, MutualfundSummary,
 };
-use crate::features::receipts::csv::{
-    CsvPreviewRow, DividendCsvRow, DomesticStockCsvRow, MutualfundCsvRow,
-};
+
 use crate::features::receipts::model::create_year_month_key;
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptSummary, ReceiptTabData, ReceiptsTab,
@@ -28,12 +26,11 @@ use crate::support::row::Row;
 use crate::ui::format::format_iso_date;
 use shared::format::{format_currency, format_number};
 
-/// 取引明細の一覧行。保存済み(DB の行)と CSV プレビュー行を分けて持ち、
-/// プレビュー行に永続化済みの偽 id は割り当てない。
-pub type ReceiptRow = Row<ReceiptItem, CsvPreviewRow>;
+/// 取引明細の一覧行。保存済み(DB の行)を包む。
+pub type ReceiptRow = Row<ReceiptItem>;
 
-impl Row<ReceiptItem, CsvPreviewRow> {
-    /// 保存済み行だけが持つ DB id。プレビュー行は None。
+impl Row<ReceiptItem> {
+    /// 保存済み行が持つ DB id。
     pub(crate) fn saved_id(&self) -> Option<&str> {
         self.saved().map(ReceiptItem::id)
     }
@@ -73,7 +70,7 @@ impl Row<ReceiptItem, CsvPreviewRow> {
     }
 }
 
-/// 明細行(保存済み・CSV プレビュー)に共通の表示・検索・集計アクセサ。
+/// 明細行(保存済み)に共通の表示・検索・集計アクセサ。
 /// 各型は `view` で商品ごとの値に展開し、表示規則は `RowView` 側に集約する。
 pub(crate) trait ReceiptRowData {
     fn view(&self) -> RowView<'_>;
@@ -295,25 +292,6 @@ impl ReceiptRowData for Dividend {
     }
 }
 
-// プレビュー行は backend の検証を通った Create*Request 相当のため、
-// 口座・銘柄コードは文字列のまま保持する(保存済み行と表示・検索の規則は同じ)。
-impl ReceiptRowData for DividendCsvRow {
-    fn view(&self) -> RowView<'_> {
-        RowView::Dividend(DividendView {
-            date: &self.settlement_date,
-            product: &self.product,
-            account: &self.account,
-            code: &self.security_code,
-            name: &self.security_name,
-            unit_price: self.unit_price,
-            shares: self.shares,
-            dividends_before_tax: self.dividends_before_tax,
-            taxes: self.taxes,
-            net_amount_received: self.net_amount_received,
-        })
-    }
-}
-
 pub(crate) struct DomesticStockView<'a> {
     date: &'a str,
     code: &'a str,
@@ -402,24 +380,6 @@ impl ReceiptRowData for DomesticStock {
     }
 }
 
-impl ReceiptRowData for DomesticStockCsvRow {
-    fn view(&self) -> RowView<'_> {
-        RowView::DomesticStock(DomesticStockView {
-            date: &self.trade_date,
-            code: &self.security_code,
-            name: &self.security_name,
-            account: &self.account,
-            shares: self.shares,
-            asked_price: self.asked_price,
-            proceeds: self.proceeds,
-            purchase_price: self.purchase_price,
-            realized_profit_and_loss: self.realized_profit_and_loss,
-            taxes: self.taxes,
-            realized_profit_and_loss_after_tax: self.realized_profit_and_loss_after_tax,
-        })
-    }
-}
-
 pub(crate) struct MutualfundView<'a> {
     date: &'a str,
     name: &'a str,
@@ -497,34 +457,6 @@ impl ReceiptRowData for Mutualfund {
     }
 }
 
-impl ReceiptRowData for MutualfundCsvRow {
-    fn view(&self) -> RowView<'_> {
-        RowView::MutualFund(MutualfundView {
-            date: &self.trade_date,
-            name: &self.fund_name,
-            account: &self.account,
-            shares: self.shares,
-            exchange_rate: self.exchange_rate,
-            cancellation_unit_price_yen: self.cancellation_unit_price_yen,
-            cancellation_amount_yen: self.cancellation_amount_yen,
-            average_acquisition_price_yen: self.average_acquisition_price_yen,
-            realized_profit_and_loss: self.realized_profit_and_loss,
-            taxes: self.taxes,
-            realized_profit_and_loss_after_tax: self.realized_profit_and_loss_after_tax,
-        })
-    }
-}
-
-impl ReceiptRowData for CsvPreviewRow {
-    fn view(&self) -> RowView<'_> {
-        match self {
-            Self::Dividend(row) => row.view(),
-            Self::DomesticStock(row) => row.view(),
-            Self::MutualFund(row) => row.view(),
-        }
-    }
-}
-
 impl ReceiptRowData for ReceiptItem {
     fn view(&self) -> RowView<'_> {
         match self {
@@ -535,11 +467,10 @@ impl ReceiptRowData for ReceiptItem {
     }
 }
 
-impl<S: ReceiptRowData, P: ReceiptRowData> ReceiptRowData for Row<S, P> {
+impl<S: ReceiptRowData> ReceiptRowData for Row<S> {
     fn view(&self) -> RowView<'_> {
         match self {
             Self::Saved(row) => row.view(),
-            Self::Preview(row) => row.view(),
         }
     }
 }
@@ -611,7 +542,7 @@ pub(crate) struct CardFields {
     pub(crate) code: Option<usize>,
 }
 
-/// 表の1グループ。保存行は id、プレビュー行は None の行識別子を持つ。
+/// 表の1グループ。行識別子は保存済み行の id。
 pub(crate) struct TableGroup {
     pub(crate) key: String,
     pub(crate) label: String,
@@ -717,8 +648,8 @@ fn totals_from_amounts<S>(
     build(sum)
 }
 
-/// 保存済み行・CSV プレビュー行どちらも `shared::summary` の日次集計にそのまま渡せるようにする。
-impl DomesticDailyRow for Row<ReceiptItem, CsvPreviewRow> {
+/// 保存済み行を `shared::summary` の日次集計にそのまま渡せるようにする。
+impl DomesticDailyRow for Row<ReceiptItem> {
     fn daily_key(&self) -> String {
         self.date().to_string()
     }
@@ -905,10 +836,6 @@ impl ReceiptsTab {
         self.kind().empty_hint
     }
 
-    pub(crate) fn csv_input_id(self) -> &'static str {
-        self.kind().csv_input_id
-    }
-
     pub(crate) fn product_category(self) -> bool {
         self.kind().product_category
     }
@@ -974,7 +901,7 @@ impl ReceiptsTab {
         }
     }
 
-    /// 検索・プレビュー中に使う画面側合計をヘッダー表示用の 3 値にする。
+    /// 検索中に使う画面側合計をヘッダー表示用の 3 値にする。
     pub(crate) fn client_summary_triple(self, rows: &[ReceiptRow]) -> [Decimal; 3] {
         match self {
             Self::DomesticStock => {

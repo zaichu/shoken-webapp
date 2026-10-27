@@ -6,6 +6,7 @@ use crate::features::asset_balance::store::DataOps;
 use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::SessionStore;
+use crate::support::csv_flow::CsvTabMeta;
 use crate::support::pagination::collect_list_pages;
 use crate::testing::asset_balance::*;
 use crate::testing::block_on;
@@ -87,7 +88,6 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
             balances,
             dividends,
             lookup,
-            false,
         );
 
         let loaded = balances
@@ -129,7 +129,6 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
             balances,
             dividends,
             lookup,
-            false,
         );
 
         let shares = lookup.with_untracked(|store| {
@@ -146,44 +145,6 @@ fn apply_loaded_replaces_same_generation_lookup_values() {
             lookup.with_untracked(|store| store.get(generation, &balance_row(9914)).is_none()),
             "置換後に消えた銘柄の lookup も消す"
         );
-    });
-}
-
-#[test]
-fn apply_loaded_keeps_dividends_while_preview_active() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let generation = Generation::new(1);
-        let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
-        let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
-            per_share: HashMap::from([("9904".to_string(), 50.0)]),
-            status: HashMap::new(),
-        });
-        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-
-        apply_loaded_asset_balances(
-            generation,
-            LoadedAssetBalances {
-                rows: vec![balance_row(9904)],
-                total: 1,
-                summary: None,
-                truncated: false,
-            },
-            balances,
-            dividends,
-            lookup,
-            true,
-        );
-
-        assert_eq!(
-            dividends.get_untracked().per_share.get("9904"),
-            Some(&50.0),
-            "プレビュー表示中の一覧適用ではプレビュー行の配当を消さない"
-        );
-        assert!(matches!(
-            balances.get_untracked(),
-            Some((cached, Ok(_))) if cached == generation
-        ));
     });
 }
 
@@ -406,32 +367,6 @@ fn stale_list_completion_does_not_clear_inflight_of_current_generation() {
 }
 
 #[test]
-fn begin_file_preview_stops_old_poll_and_clears_dividends() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let dividends = RwSignal::new(DividendMaps {
-            per_share: HashMap::from([("9904".to_string(), 50.0)]),
-            status: HashMap::new(),
-        });
-        let store = csv_store(&session, RwSignal::new(None), dividends);
-        store.data_ops.update(DataOps::next_poll_rev);
-        let old_poll_rev = store.data_ops.with_untracked(|ops| ops.poll_rev);
-
-        assert!(store.begin_file_preview(generation, "next.csv".to_string()));
-
-        assert!(
-            !store
-                .data_ops
-                .with_untracked(|ops| ops.is_current_poll(old_poll_rev))
-        );
-        assert!(dividends.get_untracked().per_share.is_empty());
-    });
-}
-
-#[test]
 fn has_current_balances_only_matches_same_generation() {
     let generation = Generation::new(1);
     let other = Generation::new(2);
@@ -466,44 +401,73 @@ fn data_ops_reset_clears_inflight_and_error() {
 }
 
 #[test]
-fn csv_state_returns_none_when_no_user() {
+fn csv_meta_returns_default_without_user() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        let _csv: RwSignal<AssetCsvSlot> = RwSignal::new(None);
         let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
         let funds: RwSignal<FundSlot> = RwSignal::new(None);
-
         let store =
             AssetBalanceCsvStore::new(session, balances, funds, dividends, lookup, data_ops);
 
-        assert_eq!(store.csv_state(), CsvTabState::default());
+        assert_eq!(store.csv_meta(), CsvTabMeta::default());
     });
 }
 
 #[test]
-fn csv_state_returns_value_when_user_exists() {
+fn csv_meta_reflects_delete_confirm() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
-        let generation = session.generation.get_untracked();
+        session.user.set(Some(user("alice")));
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        let _csv: RwSignal<AssetCsvSlot> = RwSignal::new(None);
         let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
         let funds: RwSignal<FundSlot> = RwSignal::new(None);
-
         let store =
             AssetBalanceCsvStore::new(session, balances, funds, dividends, lookup, data_ops);
 
+        store.open_delete_confirm();
+        let meta = store.csv_meta();
+        assert!(meta.show_delete_confirm);
+        assert!(!meta.deleting);
+        assert!(meta.error.is_none());
+    });
+}
+
+#[test]
+fn csv_meta_is_scoped_to_session_generation() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
         session.user.set(Some(user("alice")));
-        store.update_csv(generation, |state| {
-            state.file_name = Some("asset.csv".to_string());
-        });
-        assert_eq!(store.csv_state().file_name.as_deref(), Some("asset.csv"));
+        let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
+        let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps::default());
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
+        let funds: RwSignal<FundSlot> = RwSignal::new(None);
+        let store =
+            AssetBalanceCsvStore::new(session, balances, funds, dividends, lookup, data_ops);
+
+        store.open_delete_confirm();
+        assert!(store.csv_meta().show_delete_confirm);
+
+        session.mark_unauthenticated();
+        assert_eq!(
+            store.csv_meta(),
+            CsvTabMeta::default(),
+            "ログアウトでCSV状態は見えなくなる"
+        );
+
+        session.user.set(Some(user("bob")));
+        assert_eq!(
+            store.csv_meta(),
+            CsvTabMeta::default(),
+            "別ユーザーでも見えない"
+        );
     });
 }

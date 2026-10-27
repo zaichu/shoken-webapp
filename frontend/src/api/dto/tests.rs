@@ -1,6 +1,7 @@
 use super::*;
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
+use shared::csv_import::CsvRowError;
 use std::collections::BTreeSet;
 
 #[test]

@@ -1,5 +1,4 @@
 use super::*;
-use rust_decimal_macros::dec;
 
 #[test]
 fn intl_fixed_matches_number_format_boundary_cases() {
@@ -220,18 +219,6 @@ fn latest_import_date_picks_newest() {
         Some("2026/10/19".to_string())
     );
     assert_eq!(format_latest_import_date([].iter().copied()), None);
-}
-
-#[test]
-fn decimal_number_groups_digits_and_keeps_sign() {
-    assert_eq!(format_decimal_number(dec!(1000)), "1,000");
-    assert_eq!(format_decimal_number(dec!(1000000)), "1,000,000");
-    assert_eq!(format_decimal_number(dec!(1234.56)), "1,234.56");
-    assert_eq!(format_decimal_number(dec!(0)), "0");
-    assert_eq!(format_decimal_number(dec!(0.123)), "0.123");
-    assert_eq!(format_decimal_number(dec!(-1000)), "-1,000");
-    assert_eq!(format_decimal_number(dec!(-1234.56)), "-1,234.56");
-    assert_eq!(format_decimal_number(dec!(-0.123)), "-0.123");
 }
 
 proptest::proptest! {

@@ -147,6 +147,8 @@ fn finish_import_releases_running() {
         store.finish_import();
         // ページ未訪問なら再取得は何もせず、実行中だけ解除する
         assert!(!store.state().running);
+        // ファイル取り込みの完了でも統計を取り直せるよう完了を立てる
+        assert!(store.state().finished);
     });
 }
 
@@ -313,4 +315,27 @@ fn terminal_events_stop_running() {
         assert_eq!(state.missing, missing);
         assert_eq!(state.error.is_some(), error_is_some);
     }
+}
+
+#[test]
+fn prepare_file_import_initializes_kinds_and_blocks_concurrent_runs() {
+    // 最新取得を一度も実行していない状態でも行の状態を書ける
+    let mut state = SyncState::default();
+    assert!(state.kinds.is_empty());
+    state.prepare_file_import();
+    assert!(state.running);
+    assert_eq!(state.kinds.len(), CsvKind::ALL.len());
+    state.set_kind(CsvKind::Dividend, KindStatus::Importing);
+    assert_eq!(
+        state.kinds[CsvKind::Dividend.index()].1,
+        KindStatus::Importing
+    );
+
+    // 進行中の表示は残し、実行中だけ立て直す
+    state.prepare_file_import();
+    assert!(state.running);
+    assert_eq!(
+        state.kinds[CsvKind::Dividend.index()].1,
+        KindStatus::Importing
+    );
 }

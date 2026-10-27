@@ -6,7 +6,7 @@ use crate::ui::format::{format_currency, format_percentage_value, format_unit_pr
 
 #[derive(Clone, Debug)]
 pub(crate) struct HoldingView {
-    /// 保存済みレコードの ID。詳細ページのパスに使う。CSV プレビュー行は None
+    /// 保存済みレコードの ID。詳細ページのパスに使う。
     pub(crate) id: Option<String>,
     pub(crate) code: String,
     pub(crate) name: String,
@@ -18,7 +18,7 @@ pub(crate) struct HoldingView {
     pub(crate) current_price: f64,
     /// 1株あたりの前日比。前日終値がない銘柄は None
     pub(crate) day_change: Option<f64>,
-    /// 現在値の基準日（"YYYY-MM-DD"）。CSV プレビュー行は None
+    /// 現在値の基準日（"YYYY-MM-DD"）。
     pub(crate) price_as_of: Option<String>,
 }
 

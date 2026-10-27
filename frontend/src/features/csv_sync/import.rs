@@ -1,5 +1,5 @@
-//! 受け取った CSV の自動取り込み。
-//! 既存の CSV 管理と同じ preview → import の API に流す。
+//! 行と最新取得のファイル取り込み。
+//! どちらも同じ preview → import の API に流す。
 //! 画面の保存操作を通らないため、安全装置の判定と件数激減の確認はここで行う
 
 use super::{CsvKind, CsvSyncStore, KindStatus, ReceivedCsv, SkipReason, guard};
@@ -161,15 +161,40 @@ async fn import_csv(
     csv: &ReceivedCsv,
     confirmed: bool,
 ) -> Outcome {
-    if let Some(reason) = guard::inspect(csv.kind, &csv.content) {
-        return Outcome::Skipped(reason);
-    }
     let Some(file) = csv_to_file(csv) else {
         return Outcome::Failed(crate::ui::labels::CSV_SYNC_FILE_FAILED.to_string());
     };
-    let plan = plan_of(csv.kind);
+    import_with_file(
+        store,
+        epoch,
+        generation,
+        csv.kind,
+        &file,
+        &csv.content,
+        confirmed,
+    )
+    .await
+}
+
+/// ファイル選択からの中身を同じ安全装置に通す本体。拡張機能の取り込みと共有する
+async fn import_with_file(
+    store: CsvSyncStore,
+    epoch: u64,
+    generation: crate::session::Generation,
+    kind: CsvKind,
+    file: &web_sys::File,
+    content: &str,
+    confirmed: bool,
+) -> Outcome {
+    if let Some(reason) = guard::inspect(kind, content) {
+        if reason == SkipReason::Columns {
+            return Outcome::Failed(format!("{}。{}", reason.label(), format_hint(kind)));
+        }
+        return Outcome::Skipped(reason);
+    }
+    let plan = plan_of(kind);
     let preview: CsvPreviewResponse =
-        match preview_csv(plan.preview_path, &file, plan.chunking).await {
+        match preview_csv(plan.preview_path, file, plan.chunking).await {
             Ok(preview) => preview,
             Err(error) => return Outcome::Failed(error.message()),
         };
@@ -201,7 +226,7 @@ async fn import_csv(
             return Outcome::Stale;
         }
     }
-    match upload_csv_while(plan.import_path, &file, plan.chunking, move || {
+    match upload_csv_while(plan.import_path, file, plan.chunking, move || {
         store.alive(epoch, generation)
     })
     .await
@@ -224,6 +249,83 @@ fn csv_to_file(csv: &ReceivedCsv) -> Option<web_sys::File> {
 
 fn file_name(kind: CsvKind) -> String {
     format!("sync-{}.csv", kind.request_value())
+}
+
+/// 形式が合わないときに理由へ添える対応形式。成功前の案内には出さない
+fn format_hint(kind: CsvKind) -> &'static str {
+    match kind {
+        CsvKind::AssetBalance => "対応形式: 資産残高CSV(見出し行の先頭は「銘柄コード」)",
+        CsvKind::FundBalance => "対応形式: 投資信託の保有残高CSV(見出し行の先頭は「投資信託種別」)",
+        CsvKind::Dividend => {
+            "対応形式: 「配当金・分配金・利金一覧」CSV(見出し行の先頭は「入金日」)"
+        }
+        CsvKind::DomesticStock => "対応形式: 国内株式の取引履歴CSV(見出し行の先頭は「約定日」)",
+        CsvKind::MutualFund => "対応形式: 投資信託の取引履歴CSV(見出し行の先頭は「約定日」)",
+    }
+}
+
+/// 行で選んだ1件を同じ安全装置で取り込む。結果はその種類の状態に残す
+pub(crate) async fn import_single_file(
+    store: CsvSyncStore,
+    epoch: u64,
+    generation: crate::session::Generation,
+    kind: CsvKind,
+    file: web_sys::File,
+) {
+    let fetched_at = js_sys::Date::new_0()
+        .to_iso_string()
+        .as_string()
+        .unwrap_or_default();
+    let content = read_file_text(&file).await.unwrap_or_default();
+    store.set_kind(kind, KindStatus::Importing);
+    let outcome = import_with_file(store, epoch, generation, kind, &file, &content, false).await;
+    if !store.alive(epoch, generation) {
+        return;
+    }
+    match outcome {
+        Outcome::Imported(result) => {
+            store.state.update(|state| {
+                state.set_kind(kind, KindStatus::Imported { result, fetched_at });
+                state.import.imported.push(kind);
+            });
+            store.finish_import();
+        }
+        Outcome::Skipped(reason) => {
+            store.set_kind(kind, KindStatus::Skipped { reason });
+            store.state.update(|state| state.running = false);
+        }
+        Outcome::Failed(message) => {
+            store.set_kind(kind, KindStatus::Failed { reason: message });
+            store.state.update(|state| state.running = false);
+        }
+        Outcome::NeedsConfirm {
+            new_rows,
+            saved_rows,
+        } => {
+            // 実行中は回答まで維持し、answer_confirm → process → finish_import で下ろす
+            store.hold_confirm(PendingImport {
+                csv: ReceivedCsv {
+                    kind,
+                    content,
+                    fetched_at,
+                },
+                new_rows,
+                saved_rows,
+                rest: Vec::new(),
+                epoch,
+                generation,
+            });
+        }
+        Outcome::Stale => {}
+    }
+}
+
+async fn read_file_text(file: &web_sys::File) -> Result<String, crate::api::ApiError> {
+    let buf = wasm_bindgen_futures::JsFuture::from(file.array_buffer())
+        .await
+        .map_err(|_| crate::api::ApiError::Network)?;
+    let bytes = js_sys::Uint8Array::new(&buf).to_vec();
+    Ok(crate::support::csv_flow::decode_csv_bytes(&bytes).into_owned())
 }
 
 /// 激減判定のための保存済み件数。一覧 API の total を1行だけ取る

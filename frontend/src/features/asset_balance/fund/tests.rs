@@ -4,32 +4,45 @@ fn dec(value: &str) -> Decimal {
     value.parse().unwrap()
 }
 
-fn csv_row(
+fn saved_row(
     name: &str,
     account: &str,
     course: Option<&str>,
     market: &str,
     profit: &str,
 ) -> FundBalanceRow {
-    FundBalanceRow::Preview(FundBalanceCsvRow {
-        fund_name: name.to_string(),
-        account: account.to_string(),
-        dividends_course: course.map(str::to_string),
-        shares: dec("10000"),
-        average_purchase_price: dec("10000"),
-        total_purchase_amount: dec("1000"),
-        base_price: dec("11000"),
-        market_value: dec(market),
-        profit_loss: dec(profit),
-        ..Default::default()
-    })
+    FundBalanceRow::Saved(
+        serde_json::from_value(serde_json::json!({
+            "id": format!("fund-{name}"),
+            "fund_name": name,
+            "dividends_course": course,
+            "account": account,
+            "shares": 10000,
+            "average_purchase_price": 10000,
+            "total_purchase_amount": 1000,
+            "base_price": 11000,
+            "base_price_day_change": null,
+            "base_price_month_change": null,
+            "market_value": dec(market),
+            "profit_loss": dec(profit),
+            "profit_loss_rate": null,
+            "total_return": null,
+            "price_as_of": "2026-10-10",
+            "price_source": "csv",
+            "nav_is_latest": true,
+            "expected_nav_date": null,
+            "created_at": "2026-10-17T00:00:00Z",
+            "updated_at": "2026-10-18T00:00:00Z"
+        }))
+        .unwrap(),
+    )
 }
 
 fn rows() -> Vec<FundBalanceRow> {
     vec![
-        csv_row("Aファンド", "特定", Some("受取型"), "100", "10"),
-        csv_row("Bファンド", "NISA", Some("再投資型"), "300", "-5"),
-        csv_row("Cインデックス", "旧NISA", None, "200", "30"),
+        saved_row("Aファンド", "特定", Some("受取型"), "100", "10"),
+        saved_row("Bファンド", "NISA", Some("再投資型"), "300", "-5"),
+        saved_row("Cインデックス", "旧NISA", None, "200", "30"),
     ]
 }
 
@@ -103,28 +116,58 @@ fn sort_by_market_value_desc_then_name() {
 
 #[test]
 fn totals_weight_daily_change_by_shares() {
-    let mut row_a = FundBalanceCsvRow {
-        shares: dec("20000"),
-        base_price_day_change: Some(dec("100")),
-        market_value: dec("220"),
-        total_purchase_amount: dec("200"),
-        profit_loss: dec("20"),
-        ..Default::default()
-    };
+    let row_a = FundBalanceRow::Saved(
+        serde_json::from_value(serde_json::json!({
+            "id": "fund-A",
+            "fund_name": "A",
+            "dividends_course": null,
+            "account": "特定",
+            "shares": 20000,
+            "average_purchase_price": 10000,
+            "total_purchase_amount": 200,
+            "base_price": 11000,
+            "base_price_day_change": 100,
+            "base_price_month_change": null,
+            "market_value": 220,
+            "profit_loss": 20,
+            "profit_loss_rate": null,
+            "total_return": null,
+            "price_as_of": "2026-10-10",
+            "price_source": "api",
+            "nav_is_latest": true,
+            "expected_nav_date": null,
+            "created_at": "2026-10-17T00:00:00Z",
+            "updated_at": "2026-10-18T00:00:00Z"
+        }))
+        .unwrap(),
+    );
     // 前日比を持たない行は合計に混ぜない
-    let row_b = FundBalanceCsvRow {
-        shares: dec("10000"),
-        base_price_day_change: None,
-        market_value: dec("110"),
-        total_purchase_amount: dec("100"),
-        profit_loss: dec("10"),
-        ..Default::default()
-    };
-    row_a.fund_name = "A".to_string();
-    let rows = [
-        FundBalanceRow::Preview(row_a),
-        FundBalanceRow::Preview(row_b),
-    ];
+    let row_b = FundBalanceRow::Saved(
+        serde_json::from_value(serde_json::json!({
+            "id": "fund-B",
+            "fund_name": "B",
+            "dividends_course": null,
+            "account": "特定",
+            "shares": 10000,
+            "average_purchase_price": 10000,
+            "total_purchase_amount": 100,
+            "base_price": 11000,
+            "base_price_day_change": null,
+            "base_price_month_change": null,
+            "market_value": 110,
+            "profit_loss": 10,
+            "profit_loss_rate": null,
+            "total_return": null,
+            "price_as_of": "2026-10-10",
+            "price_source": "csv",
+            "nav_is_latest": false,
+            "expected_nav_date": null,
+            "created_at": "2026-10-17T00:00:00Z",
+            "updated_at": "2026-10-18T00:00:00Z"
+        }))
+        .unwrap(),
+    );
+    let rows = [row_a, row_b];
     let views: Vec<FundView> = rows.iter().map(fund_view).collect();
     let totals = fund_totals(&views);
     assert_eq!(totals.market, 330.0);
@@ -138,9 +181,9 @@ fn totals_weight_daily_change_by_shares() {
 #[test]
 fn fund_accounts_and_courses_dedup() {
     let rows = vec![
-        csv_row("A", "特定", Some("受取型"), "1", "0"),
-        csv_row("B", "特定", None, "1", "0"),
-        csv_row("C", "NISA", Some("受取型"), "1", "0"),
+        saved_row("A", "特定", Some("受取型"), "1", "0"),
+        saved_row("B", "特定", None, "1", "0"),
+        saved_row("C", "NISA", Some("受取型"), "1", "0"),
     ];
     assert_eq!(fund_accounts(&rows), ["特定", "NISA"]);
     assert_eq!(fund_courses(&rows), ["受取型"]);

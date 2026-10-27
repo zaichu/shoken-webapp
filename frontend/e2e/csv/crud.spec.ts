@@ -2,11 +2,10 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '../support/test';
 import {
   type CsvKindParam,
-  csvImportRow,
   csvRow,
   mockCsvKindStats,
   openCsvDelete,
-  openCsvImport,
+  importCsvFile,
   savedCount,
 } from '../support/csv-page';
 import * as path from 'path';
@@ -463,15 +462,10 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await page.getByRole('link', { name: 'CSV管理' }).click();
       await expect(page).toHaveURL('/csv');
 
-      // 表は5種類を常に出し、ダイアログは初期表示では開かない
+      // 表は5種類を常に出す。隠し入力は行ごとに付いている
       await expect(csvRow(page, scenario.row)).toHaveCount(1);
-      await expect(csvImportRow(page)).toBeHidden();
+      await expect(csvRow(page, scenario.row).getByTestId('csv-file-input')).toBeAttached();
       await expect(savedCount(page, scenario.row)).toContainText('0件');
-
-      await openCsvImport(page, scenario.row);
-      const dialog = csvImportRow(page);
-      const fileInput = dialog.getByTestId('csv-file-input');
-      await expect(fileInput).toBeAttached();
 
       const fixture = TAB_FIXTURES[scenario.tab].files;
       const base = fixture[scenario.baseFile];
@@ -480,32 +474,10 @@ test.describe('取引明細 CSV 取込・削除', () => {
       const additionalCount = additional.insertedRows.length;
       const totalCount = baseCount + additionalCount;
 
-      // 取得中・保存中は input が disabled で change イベントが捨てられるため、有効化を待ってから投入する
-      await expect(fileInput).toBeEnabled();
-      await fileInput.setInputFiles(path.join(fixtureDir(), scenario.baseFile));
-      await expect(page.getByText(`${base.previewRows.length}件を追加で保存できます`)).toBeVisible();
-      await expect(
-        page.getByTestId('receipt-table-body').getByRole('cell', { name: scenario.baseName }),
-      ).toBeVisible();
-      await page
-        .getByRole('button', { name: `${base.previewRows.length}件を保存する` })
-        .click();
-      // 保存に成功したらダイアログが閉じ、行の件数を取り直す
-      await expect(dialog).toBeHidden();
+      await importCsvFile(page, scenario.row, path.join(fixtureDir(), scenario.baseFile));
       await expect(savedCount(page, scenario.row)).toContainText(`${baseCount}件`);
 
-      await openCsvImport(page, scenario.row);
-      const reopened = csvImportRow(page);
-      const additionalInput = reopened.getByTestId('csv-file-input');
-      await expect(additionalInput).toBeEnabled();
-      await additionalInput.setInputFiles(path.join(fixtureDir(), scenario.additionalFile));
-      await expect(
-        page.getByText(`${additional.previewRows.length}件を追加で保存できます`),
-      ).toBeVisible();
-      await page
-        .getByRole('button', { name: `${additional.previewRows.length}件を保存する` })
-        .click();
-      await expect(reopened).toBeHidden();
+      await importCsvFile(page, scenario.row, path.join(fixtureDir(), scenario.additionalFile));
       await expect(savedCount(page, scenario.row)).toContainText(`${totalCount}件`);
 
       // 削除は行の⋯メニューから確認モーダルで行う
@@ -615,265 +587,13 @@ test.describe('取引明細 CSV 取込・削除', () => {
         }),
       }),
     );
-    await page.goto('/csv?kind=dividend');
-    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+    await page.goto('/csv');
+    await importCsvFile(page, 'dividend', path.join(fixtureDir(), 'dividend-base.csv'));
 
-    await openCsvImport(page, 'dividend');
-    const fileInput = page.getByTestId('csv-file-input');
-    await expect(fileInput).toBeEnabled();
-    await fileInput.setInputFiles(path.join(fixtureDir(), 'dividend-base.csv'));
-    const saveCount = TAB_FIXTURES.dividend.files['dividend-base.csv'].previewRows.length;
-    await page.getByRole('button', { name: `${saveCount}件を保存する` }).click();
-
-    await expect(page.getByRole('alert')).toContainText(
-      'CSVファイル（.csv）のみアップロードできます',
-    );
-  });
-});
-
-// 資産管理は取引明細と違い、追加ではなく全件置換になる
-// モック応答は fixture CSV の行と一致させる
-const ASSET_SYN_RESOURCE = {
-  security_code: '9901',
-  security_name: '架空資源開発',
-  shares: 200,
-  average_purchase_price: 2000,
-  total_purchase_amount: 400000,
-  current_price: 3000,
-  daily_change: 50,
-  market_value: 600000,
-  profit_loss_rate: 50.00,
-};
-const ASSET_SYN_GAME = {
-  security_code: '9905',
-  security_name: '架空ゲーム',
-  shares: 1000,
-  average_purchase_price: 5000,
-  total_purchase_amount: 5000000,
-  current_price: 7000,
-  daily_change: 100,
-  market_value: 7000000,
-  profit_loss_rate: 40.00,
-};
-const ASSET_SYN_RESOURCE_UPDATED = {
-  ...ASSET_SYN_RESOURCE,
-  shares: 300,
-  total_purchase_amount: 600000,
-  market_value: 900000,
-};
-const ASSET_MUFJ = {
-  security_code: '9907',
-  security_name: '架空フィナンシャルＧ',
-  shares: 300,
-  average_purchase_price: 3000,
-  total_purchase_amount: 900000,
-  current_price: 2900,
-  daily_change: 90,
-  market_value: 870000,
-  profit_loss_rate: -3.33,
-};
-const ASSET_SYN_COMM = {
-  security_code: '9911',
-  security_name: '架空通信',
-  shares: 600,
-  average_purchase_price: 2000,
-  total_purchase_amount: 1200000,
-  current_price: 2500,
-  daily_change: 20,
-  market_value: 1500000,
-  profit_loss_rate: 25,
-};
-const ASSET_BASE = [ASSET_SYN_RESOURCE, ASSET_SYN_GAME];
-// 置換の証明のため、base の架空ゲームを含まない別3件にする
-const ASSET_UPDATED = [ASSET_SYN_RESOURCE_UPDATED, ASSET_MUFJ, ASSET_SYN_COMM];
-const ASSET_FILES: Record<string, unknown[]> = {
-  'assetbalance-base.csv': ASSET_BASE,
-  'assetbalance-updated.csv': ASSET_UPDATED,
-};
-
-test.describe('資産管理 CSV 取込・削除', () => {
-  async function setupAssetApi(
-    page: Page,
-    overrides?: {
-      previewBody?: (rows: unknown[]) => object;
-      importBody?: (rows: unknown[]) => object;
-      savedRows?: (rows: unknown[]) => unknown[];
-    },
-  ) {
-    const api = { db: [] as unknown[], deleteCount: 0 };
-    await mockCsvKindStats(page, { counts: () => ({ assetbalance: api.db.length }) });
-    await page.route(/\/api\/v1\/session$/, (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(USER),
-      }),
-    );
-    await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ items: [] }),
-      }),
-    );
-    await page.route(/\/api\/v1\/asset-balance-import-validations$/, (route) => {
-      const rows = ASSET_FILES[uploadFileName(route.request().postData() ?? '')] ?? [];
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(
-          overrides?.previewBody?.(rows) ?? {
-            total_rows: rows.length,
-            valid_rows: rows.length,
-            errors: [],
-            rows,
-          },
-        ),
-      });
-    });
-    await page.route(/\/api\/v1\/asset-balance-imports$/, (route) => {
-      const rows = ASSET_FILES[uploadFileName(route.request().postData() ?? '')];
-      if (!rows) {
-        return route.fulfill({
-          status: 400,
-          contentType: 'application/json',
-          body: JSON.stringify({ message: '不正なファイルです' }),
-        });
-      }
-      api.db = (overrides?.savedRows?.(rows) ?? rows).map(asDbRow);
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(
-          overrides?.importBody?.(rows) ?? {
-            inserted: rows.length,
-            skipped: 0,
-            errors: [],
-          },
-        ),
-      });
-    });
-    await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
-      if (route.request().method() === 'DELETE') {
-        api.deleteCount += 1;
-        api.db = [];
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: '{}',
-        });
-      }
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          data: api.db,
-          total: api.db.length,
-          page: 1,
-          per_page: api.db.length,
-        }),
-      });
-    });
-    return api;
-  }
-
-  test('base2件の取込後にupdated3件で全件置換し全件削除する', async ({ page }) => {
-    const api = await setupAssetApi(page);
-
-    // 一覧から CSV 管理ページへ移動する
-    await page.goto('/assetbalance');
-    await expect(page.getByText('資産管理データがありません')).toBeVisible();
-    await page.getByRole('link', { name: 'CSV管理' }).click();
-    await expect(page).toHaveURL('/csv');
-    await openCsvImport(page, 'assetbalance');
-
-    const fileInput = csvImportRow(page).getByTestId('csv-file-input');
-    await expect(fileInput).toBeAttached();
-    await expect(savedCount(page, 'assetbalance')).toContainText('0件');
-
-    await expect(fileInput).toBeEnabled();
-    await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
-    await expect(page.getByRole('button', { name: '2件 全件置換で保存' })).toBeEnabled();
-    await expect(page.getByText('2件を全件置換で保存できます')).toBeVisible();
-    // プレビュー行がページ内に出る(資産管理はテーブル表示)
-    const preview = page.getByTestId('csv-preview');
-    await expect(preview.getByText('架空資源開発').first()).toBeVisible();
-    await expect(preview.getByText('架空ゲーム').first()).toBeVisible();
-
-    await page.getByRole('button', { name: '2件 全件置換で保存' }).click();
-    // 保存に成功したらダイアログが閉じ、行の件数を取り直す
-    await expect(csvImportRow(page)).toBeHidden();
-    await expect(savedCount(page, 'assetbalance')).toContainText('2件');
-
-    await openCsvImport(page, 'assetbalance');
-    const updatedInput = csvImportRow(page).getByTestId('csv-file-input');
-    await expect(updatedInput).toBeEnabled();
-    await updatedInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-updated.csv'));
-    await expect(page.getByRole('button', { name: '3件 全件置換で保存' })).toBeEnabled();
-    await expect(
-      page.getByTestId('csv-preview').getByText('架空フィナンシャルＧ').first(),
-    ).toBeVisible();
-
-    await page.getByRole('button', { name: '3件 全件置換で保存' }).click();
-    await expect(csvImportRow(page)).toBeHidden();
-    await expect(savedCount(page, 'assetbalance')).toContainText('3件');
-
-    // 削除は国内株式の行の⋯メニューから確認モーダルで行う
-    await openCsvDelete(page, 'assetbalance');
-    const modal = page.getByRole('dialog');
-    await expect(modal).toContainText('資産管理(国内株式)を削除しますか?');
-    await expect(modal).toContainText('元に戻せません');
-    await expect(modal).toContainText('3件');
-
-    // 初期フォーカスは「キャンセル」にある
-    const cancelButton = modal.getByRole('button', { name: 'キャンセル' });
-    await expect(cancelButton).toBeFocused();
-
-    // キャンセルでモーダルが閉じ、DELETE は送られない
-    await cancelButton.click();
-    await expect(modal).toBeHidden();
-    expect(api.deleteCount).toBe(0);
-
-    // 再度開いて確定する
-    await openCsvDelete(page, 'assetbalance');
-    await modal.getByRole('button', { name: '3件を削除する' }).click();
-    // 確定時に DELETE が1回だけ送られる
-    expect(api.deleteCount).toBe(1);
-    await expect(modal).toBeHidden();
-    await expect(savedCount(page, 'assetbalance')).toContainText('0件');
-  });
-
-  test('不正行を含むCSVは修正するまで全件置換で保存できない', async ({ page }) => {
-    const rowErrors = [
-      { row: 2, message: '銘柄コードが不正です' },
-      { row: 3, message: '株数が不正です' },
-    ];
-    await setupAssetApi(page, {
-      previewBody: () => ({
-        total_rows: 3,
-        valid_rows: 1,
-        errors: rowErrors,
-        rows: [ASSET_SYN_RESOURCE],
-      }),
-    });
-
-    await page.goto('/csv?kind=assetbalance');
-    await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-
-    await openCsvImport(page, 'assetbalance');
-    const fileInput = page.getByTestId('csv-file-input');
-    await expect(fileInput).toBeEnabled();
-    await fileInput.setInputFiles(path.join(fixtureDir(), 'assetbalance-base.csv'));
-
-    // 全件置換はエラー行を含む CSV を backend が拒否するため、有効行だけの保存を約束しない
-    await expect(page.getByTestId('csv-action-bar')).toContainText('全件置換で保存できません');
-    const notice = page.getByTestId('csv-preview-notice');
-    await expect(notice).toContainText('2行目: 銘柄コードが不正です');
-    await expect(
-      page.getByRole('button', { name: /全件置換で保存/ }).first(),
-    ).toBeDisabled();
-    const preview = page.getByTestId('csv-preview');
-    await expect(preview.getByText('架空資源開発').first()).toBeVisible();
-    await expect(preview.getByText('架空ゲーム')).toHaveCount(0);
+    await expect(csvRow(page, 'dividend')).toContainText('取得できず', { timeout: 10000 });
+    const detailButton = csvRow(page, 'dividend').getByTestId('status-detail');
+    const detail = csvRow(page, 'dividend').getByTestId('status-detail-content');
+    await detailButton.click();
+    await expect(detail).toContainText('CSVファイル（.csv）のみアップロードできます');
   });
 });

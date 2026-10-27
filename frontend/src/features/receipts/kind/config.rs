@@ -21,7 +21,6 @@ pub(super) struct ReceiptKind {
     // ヘッダー集計の項目。(ラベル, 損益系なら負数で赤文字にするか)
     pub(super) header_items: [(&'static str, bool); 3],
     pub(super) empty_hint: &'static str,
-    pub(super) csv_input_id: &'static str,
     pub(super) string_fields: &'static [fn(&ReceiptRow) -> &str],
     pub(super) search_amounts: &'static [fn(&ReceiptRow) -> Decimal],
     pub(super) product_category: bool,
@@ -93,7 +92,6 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
         ],
         header_items: [(DIVIDEND_AMOUNT, false), (TAX, false), (AFTER_TAX, false)],
         empty_hint: "配当金明細をCSVで追加してください",
-        csv_input_id: "csv-file-input-dividend",
         string_fields: &[
             ReceiptRow::code,
             ReceiptRow::name,
@@ -165,7 +163,6 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
             (AFTER_TAX, true),
         ],
         empty_hint: "国内株式明細をCSVで追加してください",
-        csv_input_id: "csv-file-input-domesticstock",
         string_fields: &[ReceiptRow::code, ReceiptRow::name, ReceiptRow::account],
         search_amounts: &[
             |row| row.search_amount(0),
@@ -220,7 +217,6 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
             (AFTER_TAX, true),
         ],
         empty_hint: "投資信託明細をCSVで追加してください",
-        csv_input_id: "csv-file-input-mutualfund",
         string_fields: &[ReceiptRow::name, ReceiptRow::account],
         search_amounts: &[],
         product_category: false,

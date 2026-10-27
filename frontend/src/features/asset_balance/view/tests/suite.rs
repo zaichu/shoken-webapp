@@ -4,7 +4,7 @@ mod integration;
 use super::summary::{AssetSummaryBand, AssetSummaryBandProps};
 use crate::api::ApiError;
 use crate::api::dto::AssetBalanceSummary;
-use crate::features::asset_balance::csv::{AssetBalanceCsvRow, AssetBalanceRow};
+use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::format::*;
 use crate::features::asset_balance::fund::{AssetSearch, FundBalanceRow};
 use crate::features::asset_balance::holdings::*;
@@ -253,36 +253,6 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
 }
 
 #[test]
-fn filtered_portfolio_keeps_preview_row_instead_of_lookup_row() {
-    let owner = Owner::new();
-    owner.with(|| {
-        // lookup に同じ銘柄コード・別金額の保存済み行を置く。
-        // Row::Saved なら lookup で置き換わるが、Preview は CSV の値をそのまま見せる
-        let mut saved = balance_row(9904);
-        saved.security_name = "保存済み架空".to_string();
-        saved.total_purchase_amount = rust_decimal_macros::dec!(999999);
-        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&saved)));
-
-        let preview = AssetBalanceCsvRow {
-            security_code: "9904".to_string(),
-            security_name: "CSV架空".to_string(),
-            total_purchase_amount: rust_decimal_macros::dec!(100),
-            ..AssetBalanceCsvRow::default()
-        };
-        let rows = vec![AssetBalanceRow::Preview(preview)];
-
-        // Preview 行は lookup で置き換えず CSV の値をそのまま見せる
-        let filtered =
-            filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1));
-        assert_eq!(filtered.views.len(), 1);
-        assert_eq!(filtered.views[0].code, "9904");
-        assert_eq!(filtered.views[0].name, "CSV架空");
-        assert_eq!(filtered.views[0].purchase, 100.0);
-    });
-}
-
-#[test]
 fn summary_band_renders_without_values() {
     let owner = Owner::new();
     owner.with(|| {
@@ -485,10 +455,7 @@ fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
         lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&refreshed)));
 
         let saved_id = saved.id.to_string();
-        let rows = vec![
-            AssetBalanceRow::Saved(saved),
-            AssetBalanceRow::Preview(AssetBalanceCsvRow::default()),
-        ];
+        let rows = vec![AssetBalanceRow::Saved(saved)];
         let filtered =
             filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1));
 
@@ -497,7 +464,6 @@ fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
             filtered.views[0].name, "差し替わり行",
             "表示値は lookup の行を使う"
         );
-        assert_eq!(filtered.views[1].id, None, "プレビュー行はリンクしない");
     });
 }
 

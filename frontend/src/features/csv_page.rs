@@ -81,14 +81,6 @@ impl CsvKind {
             Self::Dividend | Self::DomesticStock | Self::MutualFund => days_ago <= 7,
         }
     }
-
-    /// 保存後に確認できる一覧ページ
-    pub(crate) fn list_href(self) -> &'static str {
-        match self.receipt_tab() {
-            Some(_) => "/receipts",
-            None => "/assetbalance",
-        }
-    }
 }
 
 fn row_data(
@@ -201,8 +193,7 @@ pub(crate) fn CsvPage() -> impl IntoView {
             .collect::<Vec<_>>()
     });
 
-    // 取り込みは行の「⋯」→「ファイルから取り込み」でだけ開く。`?kind=` が付いても開かない
-    let open_import = RwSignal::new(None::<CsvKind>);
+    // 取り込みは行の「⋯」→「ファイルから取り込み」で OS の選択を開く
 
     view! {
         <PageFrame title="CSV管理">
@@ -229,7 +220,6 @@ pub(crate) fn CsvPage() -> impl IntoView {
                         asset_csv=asset_state.csv
                         receipts_store=receipts
                         csv_sync=csv_sync
-                        open_import=open_import
                         on_stats_changed=Callback::new(move |_| refresh_stats(false))
                     />
                 </section>

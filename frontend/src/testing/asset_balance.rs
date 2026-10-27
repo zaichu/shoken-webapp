@@ -1,8 +1,4 @@
-use crate::api::dto::{
-    AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, CsvPreviewResponse,
-    CsvUploadResponse, SessionUser,
-};
-use crate::features::asset_balance::AssetBalanceCsvRow;
+use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary, SessionUser};
 use crate::features::asset_balance::{
     AssetBalanceCsvStore, AssetBalanceLookupStore, BalanceSlot, DataOps, FundSlot,
 };
@@ -73,33 +69,4 @@ pub(crate) fn csv_store(
         RwSignal::new(AssetBalanceLookupStore::new()),
         RwSignal::new(DataOps::default()),
     )
-}
-
-pub(crate) fn csv_upload_response(inserted: usize) -> CsvUploadResponse {
-    CsvUploadResponse {
-        inserted,
-        skipped: 0,
-        errors: vec![],
-    }
-}
-
-pub(crate) fn csv_preview_response(
-    rows: Vec<AssetBalanceCsvRow>,
-) -> CsvPreviewResponse<AssetBalanceCsvRow> {
-    CsvPreviewResponse {
-        total_rows: 1,
-        valid_rows: 1,
-        errors: vec![],
-        rows,
-    }
-}
-
-pub(crate) fn csv_preview_row(code: &str) -> AssetBalanceCsvRow {
-    AssetBalanceCsvRow {
-        security_code: code.to_string(),
-        security_name: "銘柄".to_string(),
-        shares: rust_decimal_macros::dec!(100),
-        average_purchase_price: rust_decimal_macros::dec!(2500),
-        ..Default::default()
-    }
 }

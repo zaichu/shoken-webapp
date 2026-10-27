@@ -1,260 +1,97 @@
 use super::*;
-use crate::api::ApiError;
-use crate::features::asset_balance::csv::AssetBalanceCsvRow;
-use crate::features::asset_balance::store::*;
+use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
+use crate::features::asset_balance::store::DataOps;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::SessionStore;
-use crate::support::csv_flow::CsvTabState;
+use crate::support::csv_flow::CsvTabMeta;
 use crate::testing::asset_balance::*;
 use std::collections::HashMap;
 
+fn store_with(session: &SessionStore, balances: RwSignal<BalanceSlot>) -> AssetBalanceCsvStore {
+    AssetBalanceCsvStore::new(
+        *session,
+        balances,
+        RwSignal::new(None),
+        RwSignal::new(DividendMaps::default()),
+        RwSignal::new(AssetBalanceLookupStore::new()),
+        RwSignal::new(DataOps::default()),
+    )
+}
+
 #[test]
-fn csv_state_returns_none_when_no_user() {
+fn csv_meta_returns_default_without_user() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
-        assert_eq!(store.csv_state(), CsvTabState::default());
+        let store = store_with(&session, RwSignal::new(None));
+
+        assert_eq!(store.csv_meta(), CsvTabMeta::default());
     });
 }
 
 #[test]
-fn csv_state_returns_value_when_user_exists() {
+fn csv_meta_reflects_delete_confirm() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
-        let generation = session.generation.get_untracked();
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
         session.user.set(Some(user("alice")));
-        store.update_csv(generation, |state| {
-            state.file_name = Some("asset.csv".to_string());
-        });
-        assert_eq!(store.csv_state().file_name.as_deref(), Some("asset.csv"));
+        let store = store_with(&session, RwSignal::new(None));
+
+        store.open_delete_confirm();
+        let meta = store.csv_meta();
+        assert!(meta.show_delete_confirm);
+        assert!(!meta.deleting);
+        assert!(meta.error.is_none());
     });
 }
 
 #[test]
-fn csv_state_is_scoped_to_session_generation() {
+fn csv_meta_is_scoped_to_session_generation() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
-        store.update_csv(generation, |state| {
-            state.file_name = Some("asset.csv".to_string());
-        });
-        assert_eq!(store.csv_state().file_name.as_deref(), Some("asset.csv"));
+        let store = store_with(&session, RwSignal::new(None));
+
+        store.open_delete_confirm();
+        assert!(store.csv_meta().show_delete_confirm);
 
         session.mark_unauthenticated();
         assert_eq!(
-            store.csv_state(),
-            CsvTabState::default(),
+            store.csv_meta(),
+            CsvTabMeta::default(),
             "ログアウトでCSV状態は見えなくなる"
         );
 
         session.user.set(Some(user("bob")));
         assert_eq!(
-            store.csv_state(),
-            CsvTabState::default(),
+            store.csv_meta(),
+            CsvTabMeta::default(),
             "別ユーザーでも見えない"
         );
     });
 }
 
 #[test]
-fn stale_generation_csv_results_are_discarded() {
+fn stale_generation_delete_result_is_dropped() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
-        store.update_csv(generation, |state| {
-            state.file_name = Some("asset.csv".to_string());
-            state.previewing = true;
-        });
+        let store = store_with(&session, RwSignal::new(None));
+        store.open_delete_confirm();
+        assert!(store.csv_meta().show_delete_confirm);
 
         session.mark_unauthenticated();
-        session.user.set(Some(user("bob")));
-
-        assert!(
-            store
-                .apply_preview_result(
-                    generation,
-                    Ok(csv_preview_response(vec![csv_preview_row("9904")])),
-                )
-                .is_none()
-        );
-        assert!(!store.apply_upload_result(generation, Ok(csv_upload_response(2))));
         store.apply_delete_result(generation, Ok(()));
 
-        // 古い世代のスロットは進行中のまま残るだけで、現在世代からは見えない
-        let slot = store.csv.get_untracked();
-        assert!(matches!(
-            slot,
-            Some((cached, ref state))
-                if cached == generation && state.previewing && state.preview.is_none()
-        ));
-        assert_eq!(store.csv_state(), CsvTabState::default());
-    });
-}
-
-#[test]
-fn preview_success_collects_security_codes_and_failure_shows_error() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
-        store.update_csv(generation, |state| {
-            state.file_name = Some("asset.csv".to_string());
-            state.previewing = true;
-        });
-
-        let codes = store.apply_preview_result(
-            generation,
-            Ok(csv_preview_response(vec![
-                csv_preview_row("9904"),
-                csv_preview_row("9914"),
-                csv_preview_row("9904"),
-            ])),
-        );
         assert_eq!(
-            codes,
-            Some(vec!["9904".to_string(), "9914".to_string()]),
-            "プレビュー行の銘柄コードが配当取得の対象になる"
+            store.csv_meta(),
+            CsvTabMeta::default(),
+            "古い世代の遅れ結果は現在世代に影響しない"
         );
-        let state = store.csv_state();
-        assert!(!state.previewing);
-        assert_eq!(
-            state.preview.as_ref().map(|preview| preview.rows.len()),
-            Some(3)
-        );
-
-        store.update_csv(generation, |state| {
-            state.file_name = Some("asset.csv".to_string());
-            state.previewing = true;
-        });
-        assert!(
-            store
-                .apply_preview_result(generation, Err(ApiError::http(500)))
-                .is_none()
-        );
-        let state = store.csv_state();
-        assert!(!state.previewing);
-        assert_eq!(
-            state.error.as_deref(),
-            Some("サーバーエラーが発生しました"),
-            "資産管理はプレビュー失敗を画面に出す"
-        );
-        assert_eq!(state.file_name.as_deref(), Some("asset.csv"));
     });
-}
-
-#[test]
-fn save_success_clears_file_and_preview_and_requests_reload() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
-        store.update_csv(generation, |state| {
-            state.file_name = Some("asset.csv".to_string());
-            state.preview = Some(crate::api::dto::CsvPreviewResponse {
-                valid_rows: 1,
-                rows: vec![AssetBalanceCsvRow::default()],
-                ..Default::default()
-            });
-            state.saving = true;
-        });
-
-        assert!(
-            store.apply_upload_result(generation, Ok(csv_upload_response(2))),
-            "成功時は一覧の再取得を要求する"
-        );
-        let state = store.csv_state();
-        assert!(!state.saving);
-        assert!(state.file_name.is_none());
-        assert!(state.preview.is_none());
-        assert_eq!(state.import_result.map(|result| result.inserted), Some(2));
-        assert!(store.csv_file.get_untracked().is_none());
-    });
-}
-
-#[test]
-fn save_error_keeps_preview_and_sets_message() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        session.user.set(Some(user("alice")));
-        let generation = session.generation.get_untracked();
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
-        store.update_csv(generation, |state| {
-            state.file_name = Some("asset.csv".to_string());
-            state.preview = Some(crate::api::dto::CsvPreviewResponse::default());
-            state.saving = true;
-        });
-
-        assert!(!store.apply_upload_result(generation, Err(ApiError::http(401)),));
-        let state = store.csv_state();
-        assert!(!state.saving);
-        assert_eq!(state.file_name.as_deref(), Some("asset.csv"));
-        assert!(state.preview.is_some());
-        assert_eq!(state.error.as_deref(), Some("認証が必要です"));
-    });
-}
-
-#[test]
-fn save_requires_preview_rows() {
-    let state = CsvTabState::<AssetBalanceCsvRow>::default();
-    assert!(!state.has_preview_rows());
-    let empty = CsvTabState::<AssetBalanceCsvRow> {
-        preview: Some(crate::api::dto::CsvPreviewResponse::default()),
-        ..Default::default()
-    };
-    assert!(
-        !empty.has_preview_rows(),
-        "有効行0件のプレビューでは保存しない"
-    );
-    let ready = CsvTabState::<AssetBalanceCsvRow> {
-        preview: Some(crate::api::dto::CsvPreviewResponse {
-            rows: vec![AssetBalanceCsvRow::default()],
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
-    assert!(ready.has_preview_rows());
 }
 
 #[test]
@@ -263,11 +100,8 @@ fn delete_requires_open_confirm_and_rejects_double_start() {
     owner.with(|| {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
+        let store = store_with(&session, RwSignal::new(None));
+
         assert!(
             store.try_begin_delete().is_none(),
             "確認を表示していないと削除を開始しない"
@@ -276,9 +110,9 @@ fn delete_requires_open_confirm_and_rejects_double_start() {
         store.open_delete_confirm();
         assert!(store.try_begin_delete().is_some());
         assert!(store.try_begin_delete().is_none(), "削除中は再開始しない");
-        let state = store.csv_state();
-        assert!(state.deleting);
-        assert!(!state.show_delete_confirm);
+        let meta = store.csv_meta();
+        assert!(meta.deleting);
+        assert!(!meta.show_delete_confirm);
     });
 }
 
@@ -302,17 +136,20 @@ fn delete_success_clears_result_and_empties_cached_list() {
             per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
         });
-        let store = csv_store(&session, balances, dividends);
-        store.update_csv(generation, |state| {
-            state.import_result = Some(csv_upload_response(3));
-            state.deleting = true;
-        });
+        let store = AssetBalanceCsvStore::new(
+            session,
+            balances,
+            RwSignal::new(None),
+            dividends,
+            RwSignal::new(AssetBalanceLookupStore::new()),
+            RwSignal::new(DataOps::default()),
+        );
+        store.update_csv(generation, |state| state.deleting = true);
 
         store.apply_delete_result(generation, Ok(()));
 
-        let state = store.csv_state();
-        assert!(!state.deleting);
-        assert!(state.import_result.is_none(), "削除成功で保存結果を消す");
+        let meta = store.csv_meta();
+        assert!(!meta.deleting);
         let loaded = balances
             .get_untracked()
             .and_then(|(cached, result)| (cached == generation).then_some(result))
@@ -334,11 +171,12 @@ fn delete_success_without_cached_list_sets_empty() {
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
         let balances: RwSignal<BalanceSlot> = RwSignal::new(None);
-        let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+        let store = store_with(&session, balances);
         store.update_csv(generation, |state| state.deleting = true);
 
         store.apply_delete_result(generation, Ok(()));
 
+        assert!(!store.csv_meta().deleting);
         let loaded = balances
             .get_untracked()
             .and_then(|(cached, result)| (cached == generation).then_some(result))
@@ -352,79 +190,6 @@ fn delete_success_without_cached_list_sets_empty() {
 }
 
 #[test]
-fn csv_store_accessors_reflect_session_and_slots() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        let generation = session.generation.get_untracked();
-        let loaded = LoadedAssetBalances {
-            total: 3,
-            rows: vec![balance_row(9904)],
-            summary: None,
-            truncated: false,
-        };
-        let balances = RwSignal::new(Some((generation, Ok(loaded))));
-        let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
-
-        assert!(!store.is_authenticated());
-        session.user.set(Some(user("alice")));
-        assert!(store.is_authenticated());
-        assert_eq!(store.db_count(), 3);
-        assert!(!store.csv_busy());
-
-        store.update_csv(generation, |state| {
-            state.begin_preview("a.csv".to_string());
-        });
-        assert!(store.csv_busy());
-    });
-}
-
-#[test]
-fn csv_input_disabled_blocks_unauth_busy_and_loading() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let session = SessionStore::new();
-        let generation = session.generation.get_untracked();
-        let loaded = LoadedAssetBalances {
-            rows: vec![],
-            total: 0,
-            summary: None,
-            truncated: false,
-        };
-        let balances: RwSignal<BalanceSlot> = RwSignal::new(Some((generation, Ok(loaded))));
-        let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
-
-        assert!(
-            store.csv_input_disabled(AssetKind::Stock),
-            "未認証では選べない"
-        );
-        session.user.set(Some(user("alice")));
-        assert!(
-            !store.csv_input_disabled(AssetKind::Stock),
-            "一覧済み・CSV 未処理なら選べる"
-        );
-
-        let loading_store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
-        assert!(
-            loading_store.csv_input_disabled(AssetKind::Stock),
-            "一覧未取得(list_loading)では選べない"
-        );
-
-        store.update_csv(generation, |state| {
-            state.previewing = true;
-        });
-        assert!(
-            store.csv_input_disabled(AssetKind::Stock),
-            "CSV 処理中は選べない"
-        );
-    });
-}
-
-#[test]
 fn saved_count_ready_waits_for_inflight_refresh() {
     let owner = Owner::new();
     owner.with(|| {
@@ -432,14 +197,13 @@ fn saved_count_ready_waits_for_inflight_refresh() {
         session.user.set(Some(user("alice")));
         let generation = session.generation.get_untracked();
         let loaded = LoadedAssetBalances {
-            rows: vec![balance_row(9904)],
             total: 1,
+            rows: vec![balance_row(9904)],
             summary: None,
             truncated: false,
         };
         let balances = RwSignal::new(Some((generation, Ok(loaded))));
-        let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
-
+        let store = store_with(&session, balances);
         assert!(store.saved_count_ready());
         store.data_ops.update(DataOps::begin_list_fetch);
         assert!(
@@ -472,7 +236,7 @@ fn db_count_ignores_stale_generation_balances() {
             truncated: false,
         };
         let balances = RwSignal::new(Some((stale, Ok(loaded))));
-        let store = csv_store(&session, balances, RwSignal::new(DividendMaps::default()));
+        let store = store_with(&session, balances);
         session.user.set(Some(user("alice")));
         assert_eq!(store.db_count(), 0);
     });
@@ -485,16 +249,12 @@ fn delete_confirm_flow_updates_csv_state() {
     owner.with(|| {
         let session = SessionStore::new();
         session.user.set(Some(user("alice")));
-        let store = csv_store(
-            &session,
-            RwSignal::new(None),
-            RwSignal::new(DividendMaps::default()),
-        );
+        let store = store_with(&session, RwSignal::new(None));
 
         store.open_delete_confirm();
-        assert!(store.csv_state().show_delete_confirm);
+        assert!(store.csv_meta().show_delete_confirm);
 
         store.confirm_delete_all();
-        assert!(store.csv_state().deleting);
+        assert!(store.csv_meta().deleting);
     });
 }
