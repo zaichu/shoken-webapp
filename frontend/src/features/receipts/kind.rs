@@ -26,12 +26,11 @@ use crate::support::row::Row;
 use crate::ui::format::format_iso_date;
 use shared::format::{format_currency, format_number};
 
-/// 取引明細の一覧行。保存済み(DB の行)と CSV プレビュー行を分けて持ち、
-/// プレビュー行に永続化済みの偽 id は割り当てない。
+/// 取引明細の一覧行。保存済み(DB の行)を包む。
 pub type ReceiptRow = Row<ReceiptItem>;
 
 impl Row<ReceiptItem> {
-    /// 保存済み行だけが持つ DB id。プレビュー行は None。
+    /// 保存済み行が持つ DB id。
     pub(crate) fn saved_id(&self) -> Option<&str> {
         self.saved().map(ReceiptItem::id)
     }
@@ -71,7 +70,7 @@ impl Row<ReceiptItem> {
     }
 }
 
-/// 明細行(保存済み・CSV プレビュー)に共通の表示・検索・集計アクセサ。
+/// 明細行(保存済み)に共通の表示・検索・集計アクセサ。
 /// 各型は `view` で商品ごとの値に展開し、表示規則は `RowView` 側に集約する。
 pub(crate) trait ReceiptRowData {
     fn view(&self) -> RowView<'_>;
@@ -543,7 +542,7 @@ pub(crate) struct CardFields {
     pub(crate) code: Option<usize>,
 }
 
-/// 表の1グループ。保存行は id、プレビュー行は None の行識別子を持つ。
+/// 表の1グループ。行識別子は保存済み行の id。
 pub(crate) struct TableGroup {
     pub(crate) key: String,
     pub(crate) label: String,
@@ -649,7 +648,7 @@ fn totals_from_amounts<S>(
     build(sum)
 }
 
-/// 保存済み行・CSV プレビュー行どちらも `shared::summary` の日次集計にそのまま渡せるようにする。
+/// 保存済み行を `shared::summary` の日次集計にそのまま渡せるようにする。
 impl DomesticDailyRow for Row<ReceiptItem> {
     fn daily_key(&self) -> String {
         self.date().to_string()
@@ -902,7 +901,7 @@ impl ReceiptsTab {
         }
     }
 
-    /// 検索・プレビュー中に使う画面側合計をヘッダー表示用の 3 値にする。
+    /// 検索中に使う画面側合計をヘッダー表示用の 3 値にする。
     pub(crate) fn client_summary_triple(self, rows: &[ReceiptRow]) -> [Decimal; 3] {
         match self {
             Self::DomesticStock => {
@@ -947,3 +946,6 @@ where
         truncated: page.truncated,
     })
 }
+
+#[cfg(test)]
+mod tests;

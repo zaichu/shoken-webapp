@@ -115,3 +115,6 @@ impl AssetBalanceRowData for AssetBalanceRow {
         self.saved().and_then(|row| row.price_as_of())
     }
 }
+
+#[cfg(test)]
+mod tests;

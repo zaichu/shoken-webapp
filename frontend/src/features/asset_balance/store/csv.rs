@@ -425,3 +425,6 @@ pub(crate) fn resolve_asset_balance(
 ) -> Option<ResolvedAssetBalance> {
     resolve_balance(generation, slot)
 }
+
+#[cfg(test)]
+mod tests;

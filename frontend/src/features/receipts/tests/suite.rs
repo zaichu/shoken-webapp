@@ -1,3 +1,5 @@
+#[path = "csv.rs"]
+mod csv;
 #[path = "fetch.rs"]
 mod fetch;
 #[path = "search.rs"]

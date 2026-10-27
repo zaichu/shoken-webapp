@@ -393,3 +393,6 @@ pub(crate) fn apply_loaded_asset_balances(
 }
 
 pub(crate) type AssetCsvSlot = Option<(Generation, CsvTabState)>;
+
+#[cfg(test)]
+mod tests;
