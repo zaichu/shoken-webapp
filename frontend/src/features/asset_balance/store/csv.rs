@@ -437,13 +437,14 @@ impl AssetBalanceCsvStore {
             Ok(preview) => {
                 let value = map(&preview);
                 self.update_slot(slot, generation, |state| {
-                    state.finish_preview(preview);
+                    state.set_preview_result(Ok(preview));
                 });
                 Some(value)
             }
             Err(error) => {
-                let message = error.message();
-                self.update_slot(slot, generation, |state| state.fail_preview(message));
+                self.update_slot(slot, generation, |state| {
+                    state.set_preview_result(Err(error));
+                });
                 None
             }
         }
@@ -462,15 +463,14 @@ impl AssetBalanceCsvStore {
         match result {
             Ok(response) => {
                 self.update_slot(slot, generation, |state| {
-                    state.finish_save(Ok(response));
+                    state.set_upload_result(Ok(response));
                 });
                 file_slot.set(None);
                 true
             }
             Err(error) => {
-                let message = error.message();
                 self.update_slot(slot, generation, |state| {
-                    state.finish_save(Err(message));
+                    state.set_upload_result(Err(error));
                 });
                 false
             }
@@ -573,15 +573,14 @@ impl AssetBalanceCsvStore {
         }
         match result {
             Ok(()) => {
-                self.update_slot(slot, generation, |state| state.finish_delete(Ok(())));
+                self.update_slot(slot, generation, |state| state.set_delete_result(Ok(())));
                 // 削除確定後に届く一覧取得・配当ポーリングの遅れ結果を捨てる
                 self.data_ops.update(DataOps::invalidate);
                 on_deleted(self);
             }
             Err(error) => {
-                let message = error.message();
                 self.update_slot(slot, generation, |state| {
-                    state.finish_delete(Err(message));
+                    state.set_delete_result(Err(error));
                 });
             }
         }
@@ -642,14 +641,6 @@ impl AssetBalanceCsvStore {
             store.lookup.update(|store| store.clear());
         });
     }
-}
-
-pub(crate) fn csv_preview_rows<S, T: Clone>(state: &CsvTabState<T>) -> Vec<Row<S, T>> {
-    state
-        .preview
-        .as_ref()
-        .map(|preview| preview.rows.iter().cloned().map(Row::Preview).collect())
-        .unwrap_or_default()
 }
 
 #[derive(Clone)]

@@ -1,6 +1,6 @@
 use crate::ui::format::{
     f64_to_decimal, format_abs_number, format_currency_beyond_decimal, format_fixed_percent,
-    to_fixed,
+    intl_fixed,
 };
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
@@ -16,7 +16,7 @@ fn format_amount_beyond_decimal(value: f64) -> String {
         crate::settings::AmountUnit::Yen => format_currency_beyond_decimal(value),
         unit => {
             let scaled = value / unit.divisor_f64();
-            match format_abs_number(to_fixed(scaled, 1)) {
+            match format_abs_number(intl_fixed(scaled, 1)) {
                 Some(body) if scaled < 0.0 => format!("-{body}{}", unit.label()),
                 Some(body) => format!("{body}{}", unit.label()),
                 None => "—".to_string(),
@@ -36,7 +36,7 @@ pub(crate) fn format_amount(value: f64) -> String {
 
 fn round_to_yen(value: f64) -> f64 {
     f64_to_decimal(value).map_or_else(
-        || to_fixed(value, 0),
+        || intl_fixed(value, 0),
         |value| {
             value
                 .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)

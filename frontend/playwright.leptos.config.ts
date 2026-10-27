@@ -14,10 +14,11 @@ const prebuiltDist = process.env.LEPTOS_E2E_DIST_DIR;
 export default defineConfig({
   testDir: './e2e',
   outputDir,
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: true,
   retries: 0,
-  workers: 1,
+  // 重い spec が shard 1 に集まり直列では待ち時間が伸びるため CI だけ並列にする
+  workers: process.env.CI ? 2 : 1,
   reporter: [['list']],
   // wasm の取得・コンパイル・hydrate が初回 goto 後のアサーションに乗るため、CI の低負荷時も見て長めに取る
   expect: { timeout: 15_000 },

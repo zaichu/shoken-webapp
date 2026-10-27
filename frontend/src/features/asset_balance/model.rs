@@ -1,7 +1,7 @@
 //! 資産管理の一覧・構成比・KPI と、ホームの評価損益表示の純粋ロジック。
 
 use crate::api::dto::AssetBalanceSummary;
-use crate::ui::format::to_fixed;
+use crate::ui::format::intl_fixed;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ fn valuation_parts(
 
 /// `formatters.ts` の `safeAdd` に対応する。加算ごとに小数10桁で丸める。
 pub fn safe_add(a: f64, b: f64) -> f64 {
-    to_fixed(a + b, 10)
+    intl_fixed(a + b, 10)
 }
 
 /// 1銘柄の評価損益。`valuation.ts` の `calculateValuation` に対応する。
