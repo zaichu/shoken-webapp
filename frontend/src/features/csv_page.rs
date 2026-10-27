@@ -94,11 +94,6 @@ impl CsvKind {
         }
     }
 
-    /// 削除確認に出す種類名
-    pub fn delete_subject(self) -> &'static str {
-        self.label()
-    }
-
     /// 保存後に確認できる一覧ページ
     pub fn list_href(self) -> &'static str {
         match self.receipt_tab() {

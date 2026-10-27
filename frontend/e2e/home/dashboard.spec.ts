@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json } from '../support/test';
+import { expect, test, json, paginated } from '../support/test';
 
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000010',
@@ -112,27 +112,17 @@ const ESTIMATES = {
   ],
 };
 
-function paginated(data: unknown[], summary?: unknown) {
-  return {
-    data,
-    total: data.length,
-    page: 1,
-    per_page: Math.max(data.length, 1),
-    ...(summary ? { summary } : {}),
-  };
-}
-
 async function setupHomeMocks(page: Page) {
   await page.route(/\/api\/v1\/session$/, (route) =>
     route.fulfill(json(MOCK_USER)),
   );
 
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
-    route.fulfill(json(paginated(STOCKS, STOCK_SUMMARY))),
+    route.fulfill(json(paginated(STOCKS, { summary: STOCK_SUMMARY }))),
   );
 
   await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) =>
-    route.fulfill(json(paginated(FUNDS, FUND_SUMMARY))),
+    route.fulfill(json(paginated(FUNDS, { summary: FUND_SUMMARY }))),
   );
 
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => {

@@ -413,10 +413,6 @@
     @apply h-7 w-7;
   }
 
-  .header-avatar {
-    @apply flex h-9 w-9 items-center justify-center rounded-md border border-ink/15 bg-surface-raised text-sm font-black text-text-deep max-sm:hidden;
-  }
-
   .pc-header {
     @apply sticky top-0 z-40 bg-brand text-text-inverse;
   }
@@ -1057,12 +1053,6 @@
     @apply sticky bottom-0 z-10 mt-auto border-t border-ink/10 bg-surface;
   }
 
-  /* モバイル用アクションバー: 画面下部に固定、PCでは非表示 */
-  .action-bar-mobile {
-    @apply fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-ink/10 shadow-elevation-2;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
   .app-bottom-nav {
     @apply flex border-t border-ink/10 bg-surface;
     padding-bottom: env(safe-area-inset-bottom);
@@ -1087,10 +1077,6 @@
 
   .asset-search-count {
     @apply mt-1.5 px-1 text-right text-xs font-medium text-text-subtle;
-  }
-
-  .year-picker-dropdown {
-    @apply absolute z-10 grid w-full grid-cols-3 gap-1 rounded-b-md border border-t-0 border-border-strong bg-surface px-2 pb-2 pt-1.5 max-h-72 overflow-y-auto;
   }
 
   .table-frame {
@@ -1150,20 +1136,6 @@
   }
 
   /* 帯の直下の注記行は「ページの骨格」(page-skeleton-note) が持つ */
-
-  .asset-badge {
-    @apply inline-flex items-center whitespace-nowrap rounded-lg bg-surface-raised px-1.5 py-px text-xs tabular-nums text-text-soft;
-  }
-
-  .asset-badge-gain {
-    color: var(--color-positive);
-    background: var(--color-positive-soft);
-  }
-
-  .asset-badge-loss {
-    color: var(--color-negative);
-    background: var(--color-negative-soft);
-  }
 
   /* ホームの集計帯。スマホでは帯自体がカード面になるため角丸にする */
   .home-summary {
@@ -1427,10 +1399,6 @@
 
   .asset-mobile-bar-row {
     @apply flex items-center gap-2;
-  }
-
-  .asset-mobile-tool {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 text-[13px] font-medium text-text-deep;
   }
 
   .asset-mobile-sort {
@@ -1727,15 +1695,6 @@
   .app-scroll {
     overflow: visible;
   }
-}
-
-/* 検索用セレクトボックス: 左に検索アイコンを配置 */
-.search-select {
-  padding-left: 1.9rem;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-3.5-3.5'/></svg>");
-  background-repeat: no-repeat;
-  background-position: .55rem center;
-  background-size: .9rem;
 }
 
 
