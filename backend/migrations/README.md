@@ -32,17 +32,13 @@ migration を変えたら `scripts/gen-db-docs.sh` を実行して `docs/db/` �
 
 ## _sqlx_migrations 履歴の扱い
 
-baseline 張り直し前に migrate を動かしていた DB のうち、旧 baseline + 増分の
-履歴 `0〜18`(#1351 以降の DB)が残っているものは、migrate 実行時に baseline
-`0〜10` の記録へ置き換える(一度だけ。テーブル・データには触れない)。
-旧履歴かどうかは version=1 の checksum が現行 `0001_users.sql` と異なるかで
-判定する。
+`run_migrations` は `_sqlx_migrations` の履歴が現行ファイル(`0000〜0017`)と
+一致することを前提にする。一致しない履歴(対応するファイルが無い version、
+適用済み内容が現行ファイルと異なる version)がある DB では、状態と対処
+(`make db-reset` で作り直し)を示してエラーで停止する。履歴の書き換えはしない。
 
-旧運用履歴 `1〜17`(初回 baseline 化の前の DB)は**エラーで停止する**。
-この状態の DB には `security_prices` テーブルも `asset_balances_view` も無い
-(schema が現行と違う)ため、rotate では修復できない。`make db-reset` で
-DB を作り直す必要がある。途中までしか適用されていない履歴も同様にエラーで
-停止する。
+新規 DB は全 migration が適用され、適用済み DB は未適用分だけが増分適用される
+(どちらも `backend/tests/db_integration.rs` の migrate テストで固定)。
 
 ## デプロイ時（Cloudflare Workers）の動作：自動適用
 

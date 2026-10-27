@@ -2457,8 +2457,7 @@ async fn bulk_create_respects_user_row_limit() {
         .expect("上限内なら成功");
 }
 
-/// migrate.rs が作る _sqlx_migrations と同じ定義。履歴の置き換えを確かめるため
-/// ランナーを介さず手動で履歴を作るのに使う
+/// migrate.rs が作る _sqlx_migrations と同じ定義。履歴だけ手動で用意するときに使う
 const SQLX_MIGRATIONS_DDL: &str = "CREATE TABLE _sqlx_migrations (
     version BIGINT PRIMARY KEY,
     description TEXT NOT NULL,
@@ -2468,23 +2467,70 @@ const SQLX_MIGRATIONS_DDL: &str = "CREATE TABLE _sqlx_migrations (
     execution_time BIGINT NOT NULL
 )";
 
-const STATE_B_SCHEMA_FILES: &[&str] = &[
-    include_str!("../migrations/0000_extensions.sql"),
-    include_str!("../migrations/0001_users.sql"),
-    include_str!("../migrations/0002_sessions.sql"),
-    include_str!("../migrations/0003_dividends.sql"),
-    include_str!("../migrations/0004_domestic_stocks.sql"),
-    include_str!("../migrations/0005_mutualfunds.sql"),
-    include_str!("../migrations/0006_asset_balances.sql"),
-    include_str!("../migrations/0007_stock.sql"),
-    include_str!("../migrations/0008_dividend_per_share_cache.sql"),
-    include_str!("../migrations/0009_market_data_provider_rate_control.sql"),
-    include_str!("../migrations/0010_security_prices.sql"),
+/// 現行 baseline(0000〜0010)の SQL。本文の checksum を履歴に記録するため名前も持つ
+const BASELINE_SCHEMA_FILES: &[(&str, &str)] = &[
+    (
+        "0000_extensions",
+        include_str!("../migrations/0000_extensions.sql"),
+    ),
+    ("0001_users", include_str!("../migrations/0001_users.sql")),
+    (
+        "0002_sessions",
+        include_str!("../migrations/0002_sessions.sql"),
+    ),
+    (
+        "0003_dividends",
+        include_str!("../migrations/0003_dividends.sql"),
+    ),
+    (
+        "0004_domestic_stocks",
+        include_str!("../migrations/0004_domestic_stocks.sql"),
+    ),
+    (
+        "0005_mutualfunds",
+        include_str!("../migrations/0005_mutualfunds.sql"),
+    ),
+    (
+        "0006_asset_balances",
+        include_str!("../migrations/0006_asset_balances.sql"),
+    ),
+    ("0007_stock", include_str!("../migrations/0007_stock.sql")),
+    (
+        "0008_dividend_per_share_cache",
+        include_str!("../migrations/0008_dividend_per_share_cache.sql"),
+    ),
+    (
+        "0009_market_data_provider_rate_control",
+        include_str!("../migrations/0009_market_data_provider_rate_control.sql"),
+    ),
+    (
+        "0010_security_prices",
+        include_str!("../migrations/0010_security_prices.sql"),
+    ),
 ];
 
-/// 旧ランナーで version 1〜=max_version まで適用済みの状態を再現する
-async fn seed_migration_history(pool: &Db, max_version: i64) {
-    seed_migration_history_range(pool, 1, max_version).await;
+/// baseline の schema を適用し、履歴 0〜10 を実 checksum で記録する。
+/// checksum は pgcrypto の digest で現行ファイルから計算する
+async fn seed_baseline_applied_state(pool: &Db) {
+    for (name, sql) in BASELINE_SCHEMA_FILES {
+        pool.batch_execute(sql)
+            .await
+            .expect("baseline schema の適用に失敗");
+        let (version, description) = name.split_once('_').expect("migration 名の形式");
+        db::query(
+            "INSERT INTO _sqlx_migrations
+                (version, description, success, checksum, execution_time)
+            VALUES ($1, $2, true, digest($3, 'sha384'), 0)",
+            vec![
+                Bind::from(version.parse::<i64>().expect("migration version")),
+                Bind::from(description.replace('_', " ")),
+                Bind::from(*sql),
+            ],
+        )
+        .execute(pool)
+        .await
+        .expect("履歴行の作成に失敗");
+    }
 }
 
 /// version from〜=to まで任意の checksum で適用済みの状態を再現する
@@ -2505,16 +2551,6 @@ async fn seed_migration_history_range(pool: &Db, from: i64, to: i64) {
     }
 }
 
-/// 状態Bの schema は現行 baseline 0〜10 と同一なので、履歴と schema の両方を再現する
-async fn seed_linear_history_state(pool: &Db) {
-    for sql in STATE_B_SCHEMA_FILES {
-        pool.batch_execute(sql)
-            .await
-            .expect("状態Bの schema 作成に失敗");
-    }
-    seed_migration_history_range(pool, 0, 18).await;
-}
-
 /// _sqlx_migrations の適用済み version 一覧(昇順)
 async fn migration_versions(pool: &Db) -> Vec<i64> {
     db::query(
@@ -2529,29 +2565,12 @@ async fn migration_versions(pool: &Db) -> Vec<i64> {
     .collect()
 }
 
-async fn legacy_migration_count(pool: &Db) -> i64 {
-    db::query(
-        "SELECT COUNT(*) FROM _sqlx_migrations WHERE description = 'legacy'",
-        vec![],
-    )
-    .fetch_one::<(i64,), _>(pool)
-    .await
-    .expect("旧履歴行数の取得に失敗")
-    .0
-}
-
-/// rotate 後に migrate を再実行しても no-op(履歴も schema も変わらない)ことを確かめる
-async fn assert_migrate_is_noop(pool: &Db) {
-    run_migrations(pool)
-        .await
-        .expect("rotate 後の再実行は成功するはず");
-}
-
+/// 空の DB に全 migration が適用され、再実行は履歴を変えない
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn partial_legacy_history_stops_migration() {
+async fn fresh_database_applies_all_migrations() {
     let node = Postgres::default()
-        .with_tag("16-alpine")
+        .with_tag(POSTGRES_TAG)
         .start()
         .await
         .unwrap();
@@ -2559,19 +2578,30 @@ async fn partial_legacy_history_stops_migration() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    seed_migration_history(&pool, 10).await;
-
-    let err = run_migrations(&pool)
+    run_migrations(&pool)
         .await
-        .expect_err("旧履歴が途中までの DB はエラーで止まるはず");
-    assert!(err.contains("揃っていません"), "unexpected error: {err}");
+        .expect("空 DB への全適用は成功するはず");
+    assert_eq!(
+        migration_versions(&pool).await,
+        (0..=17).collect::<Vec<_>>()
+    );
+
+    run_migrations(&pool)
+        .await
+        .expect("適用済み DB の再実行は成功するはず");
+    assert_eq!(
+        migration_versions(&pool).await,
+        (0..=17).collect::<Vec<_>>()
+    );
 }
 
+/// baseline(0000〜0010)適用済みの DB には残りが増分適用される。
+/// 新規 migration 追加時のデプロイと同じ経路
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn partial_linear_history_stops_migration() {
+async fn baseline_applied_database_applies_increments() {
     let node = Postgres::default()
-        .with_tag("16-alpine")
+        .with_tag(POSTGRES_TAG)
         .start()
         .await
         .unwrap();
@@ -2579,22 +2609,26 @@ async fn partial_linear_history_stops_migration() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    seed_migration_history_range(&pool, 0, 12).await;
-
-    let err = run_migrations(&pool)
+    pool.batch_execute(SQLX_MIGRATIONS_DDL)
         .await
-        .expect_err("状態Bの途中までの DB はエラーで止まるはず");
-    assert!(err.contains("揃っていません"), "unexpected error: {err}");
+        .expect("履歴テーブルの作成に失敗");
+    seed_baseline_applied_state(&pool).await;
+
+    run_migrations(&pool)
+        .await
+        .expect("baseline 済み DB への増分適用は成功するはず");
+    assert_eq!(
+        migration_versions(&pool).await,
+        (0..=17).collect::<Vec<_>>()
+    );
 }
 
-/// 状態A(旧運用履歴 1〜17)の DB では migrate をエラーで停止する。
-/// この状態の DB には security_prices / asset_balances_view が無く schema が
-/// 現行と異なるため、rotate では修復できない
+/// 想定外の履歴は状態と対処を示して止める: 履歴に対応するファイルが無い場合
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn legacy_history_stops_migration() {
+async fn unknown_history_version_stops_migration() {
     let node = Postgres::default()
-        .with_tag("16-alpine")
+        .with_tag(POSTGRES_TAG)
         .start()
         .await
         .unwrap();
@@ -2602,30 +2636,27 @@ async fn legacy_history_stops_migration() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    seed_migration_history(&pool, 17).await;
+    seed_migration_history_range(&pool, 99, 99).await;
 
     let err = run_migrations(&pool)
         .await
-        .expect_err("旧運用履歴 1〜17 の DB はエラーで止まるはず");
-    assert!(err.contains("揃っていません"), "unexpected error: {err}");
+        .expect_err("未知の履歴はエラーで止まるはず");
+    assert!(
+        err.contains("対応するファイルがありません"),
+        "unexpected error: {err}"
+    );
     assert!(
         err.contains("make db-reset"),
         "対処法(db-reset)への言及があるはず: {err}"
     );
-    // 履歴は置き換わらず残る
-    assert_eq!(
-        migration_versions(&pool).await,
-        (1..=17).collect::<Vec<_>>()
-    );
 }
 
-/// 状態B(旧 baseline + 増分の履歴 0〜18)の DB で migrate すると、履歴が新 baseline
-/// 0〜10 に置き換わる。version=1 の checksum はダミーでも判定できる
+/// 想定外の履歴は状態と対処を示して止める: 適用済み内容が現行ファイルと異なる場合
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn linear_history_rotates_to_new_baseline() {
+async fn mismatched_history_stops_migration() {
     let node = Postgres::default()
-        .with_tag("16-alpine")
+        .with_tag(POSTGRES_TAG)
         .start()
         .await
         .unwrap();
@@ -2633,19 +2664,19 @@ async fn linear_history_rotates_to_new_baseline() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    seed_linear_history_state(&pool).await;
+    seed_migration_history_range(&pool, 0, 10).await;
 
-    run_migrations(&pool)
+    let err = run_migrations(&pool)
         .await
-        .expect("状態Bの DB は rotate できるはず");
-    let versions = migration_versions(&pool).await;
-    assert_eq!(
-        versions,
-        (0..versions.len() as i64).collect::<Vec<_>>(),
-        "rotate 後は現行 migration が欠けずに適用されること"
+        .expect_err("内容の異なる履歴はエラーで止まるはず");
+    assert!(
+        err.contains("現行ファイルと一致しません"),
+        "unexpected error: {err}"
     );
-    assert_eq!(legacy_migration_count(&pool).await, 0);
-    assert_migrate_is_noop(&pool).await;
+    assert!(
+        err.contains("make db-reset"),
+        "対処法(db-reset)への言及があるはず: {err}"
+    );
 }
 
 /// (銘柄コード, 数量) の一覧。置換ガードの前後比較用
