@@ -6,7 +6,7 @@ use crate::features::receipts::kind::dividend_totals;
 use crate::features::receipts::view::ReceiptsSearchBar;
 use crate::features::receipts::view::{ReceiptTable, SummaryStrip};
 use crate::features::receipts::{
-    ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState, truncated_list_warning,
+    ReceiptRow, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState, truncated_list_warning,
 };
 use crate::session::use_session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
@@ -16,6 +16,28 @@ use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, Skel
 use crate::ui::state::{Alert, AlertVariant, ListLoadError};
 use leptos::ev;
 use leptos::prelude::*;
+
+// 絞り込み結果から配当情報カードへ切り替える条件。検索語が銘柄に定まるときだけ置き換える
+pub(crate) fn show_dividend_section(
+    tab: ReceiptsTab,
+    filtered: &[ReceiptRow],
+    query: &str,
+) -> bool {
+    tab == ReceiptsTab::Dividend && !search_security_code(filtered, query).is_empty()
+}
+
+// 絞り込み中の件数。取得上限で行が欠けても API の total を優先する
+pub(crate) fn derive_filtered_count(
+    data: &ReceiptTabData,
+    filtered_len: usize,
+    filtering: bool,
+) -> FilteredCount {
+    FilteredCount {
+        filtered: filtered_len,
+        total: data.total.unwrap_or(data.rows.len()),
+        filtering,
+    }
+}
 
 #[component]
 pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
@@ -27,21 +49,23 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
         DividendInfoStore::new(session)
     });
 
+    // タブの取得結果は1か所で受け、絞り込み結果は1つの Memo で共有する。
+    // 判定・集計・期間・件数・表がそれぞれ複製・再実行しないようにする
+    let tab_state = Memo::new(move |_| store.tab_state(tab));
+    let filtered_rows = Memo::new(move |_| {
+        let query = search.with(|state| state.query.clone());
+        tab_state.with(|state| match state {
+            TabState::Ready(data) => filter_receipts(tab, &data.rows, &query),
+            _ => Vec::new(),
+        })
+    });
+
     if let Some(info) = dividend_info {
-        let filtered_rows = Signal::derive(move || {
-            if let TabState::Ready(data) = store.tab_state(tab) {
-                filter_receipts(tab, &data.rows, &search.get().query)
-            } else {
-                Vec::new()
-            }
-        });
-        let search_query = search;
         Effect::new(move |_| {
             let authenticated = use_session().user.get().is_some();
             let generation = use_session().generation.get();
-            let query = search_query.with(|state| state.query.clone());
-            let rows = filtered_rows.get();
-            let code = search_security_code(&rows, &query);
+            let query = search.with(|state| state.query.clone());
+            let code = filtered_rows.with(|rows| search_security_code(rows, &query));
             info.set_code(generation, authenticated, &code);
         });
 
@@ -67,88 +91,70 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
 
     let csv_href = "/csv";
 
-    let is_empty = Signal::derive(
-        move || matches!(store.tab_state(tab), TabState::Ready(data) if data.rows.is_empty()),
-    );
-    let show_dividend_info = Signal::derive(move || {
-        dividend_info.is_some() && {
-            let rows = if let TabState::Ready(data) = store.tab_state(tab) {
-                filter_receipts(tab, &data.rows, &search.get().query)
-            } else {
-                Vec::new()
-            };
-            !search_security_code(&rows, &search.with(|s| s.query.clone())).is_empty()
-        }
+    let is_empty = Memo::new(move |_| {
+        tab_state.with(|state| matches!(state, TabState::Ready(data) if data.rows.is_empty()))
     });
-    let dividend_totals_val = Signal::derive(move || {
-        if show_dividend_info.get() {
-            let rows = if let TabState::Ready(data) = store.tab_state(tab) {
-                filter_receipts(tab, &data.rows, &search.get().query)
-            } else {
-                Vec::new()
-            };
-            Some(dividend_totals(&rows))
-        } else {
-            None
-        }
+    let show_dividend_info = Memo::new(move |_| {
+        dividend_info.is_some()
+            && filtered_rows.with(|rows| {
+                show_dividend_section(tab, rows, &search.with(|state| state.query.clone()))
+            })
     });
-    let header = Signal::derive(move || {
-        if !show_dividend_info.get() {
-            if let TabState::Ready(data) = store.tab_state(tab) {
-                let query = search.with(|s| s.query.clone());
-                let rows = filter_receipts(tab, &data.rows, &query);
+    let dividend_totals_val = Memo::new(move |_| {
+        if !show_dividend_info.with(|show| *show) {
+            return None;
+        }
+        filtered_rows.with(|rows| Some(dividend_totals(rows)))
+    });
+    let header = Memo::new(move |_| {
+        if show_dividend_info.with(|show| *show) {
+            return None;
+        }
+        let query = search.with(|state| state.query.clone());
+        tab_state.with(|state| match state {
+            TabState::Ready(data) => {
                 Some(crate::features::receipts::view::summary::header_summary(
                     tab,
                     &ReceiptTabData {
-                        rows: rows.clone(),
+                        rows: filtered_rows.with(|rows| rows.clone()),
                         total: None,
                         summary: data.summary.clone(),
                         truncated: false,
                     },
                     &query,
                 ))
-            } else {
-                None
             }
-        } else {
-            None
-        }
+            _ => None,
+        })
     });
-    let display_rows = Signal::derive(move || {
-        if let TabState::Ready(data) = store.tab_state(tab) {
-            data.rows.clone()
-        } else {
-            Vec::new()
-        }
-    });
-    let filtered_rows = Signal::derive(move || {
-        if let TabState::Ready(data) = store.tab_state(tab) {
-            filter_receipts(tab, &data.rows, &search.get().query)
-        } else {
-            Vec::new()
-        }
+    let all_rows = Memo::new(move |_| {
+        tab_state.with(|state| match state {
+            TabState::Ready(data) => data.rows.clone(),
+            _ => Vec::new(),
+        })
     });
     // 絞り込み中の件数。検索条件が無いときは注記に出さない
-    let filtered_count = Signal::derive(move || {
-        let (filtered, total) = match store.tab_state(tab) {
-            TabState::Ready(data) => (
-                filtered_rows.get().len(),
-                data.total.unwrap_or(data.rows.len()),
-            ),
-            _ => (0, 0),
-        };
-        FilteredCount {
-            filtered,
-            total,
-            filtering: search.with(|s| s.has_any_filter()),
-        }
+    let filtered_count = Memo::new(move |_| {
+        let filtering = search.with(|state| state.has_any_filter());
+        tab_state.with(|state| match state {
+            TabState::Ready(data) => {
+                derive_filtered_count(data, filtered_rows.with(|rows| rows.len()), filtering)
+            }
+            _ => FilteredCount {
+                filtered: 0,
+                total: 0,
+                filtering,
+            },
+        })
     });
     let basis = vec![String::from(labels::SUMMARY_SAME_TARGET)];
     // 対象期間の注記。絞り込み後の明細の最初と最後の日を出す
     let period = Memo::new(move |_| {
-        crate::features::receipts::view::summary::period_note(&filtered_rows.get())
-            .into_iter()
-            .collect::<Vec<String>>()
+        filtered_rows.with(|rows| {
+            crate::features::receipts::view::summary::period_note(rows)
+                .into_iter()
+                .collect::<Vec<String>>()
+        })
     });
 
     view! {
@@ -167,16 +173,20 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                 .into_any()
         }}
         // 件数上限の警告は表の上に出す
-        {move || match store.tab_state(tab) {
-            TabState::Ready(data) if data.truncated => {
+        {move || {
+            let truncated = tab_state
+                .with(|state| matches!(state, TabState::Ready(data) if data.truncated));
+            if truncated {
                 view! { <Alert variant=AlertVariant::Warning>{truncated_list_warning()}</Alert> }
                     .into_any()
+            } else {
+                ().into_any()
             }
-            _ => ().into_any(),
         }}
         // 帯と注記。読み込み中や空のときは出さない
         {move || {
-            let ready = matches!(store.tab_state(tab), TabState::Ready(_)) && !is_empty.get();
+            let ready =
+                tab_state.with(|state| matches!(state, TabState::Ready(_))) && !is_empty.get();
             if !ready {
                 return ().into_any();
             }
@@ -206,7 +216,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                         </section>
                     </SkeletonSummary>
                 </div>
-                <SkeletonNote notes=period.get() filtered=filtered_count basis=basis.clone() />
+                <SkeletonNote notes=period.get() filtered=filtered_count.into() basis=basis.clone() />
             }
                 .into_any()
         }}
@@ -216,15 +226,17 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                 <ReceiptsSearchBar store=store tab=Signal::stored(tab) />
             </div>
         </SkeletonSearch>
-        {move || match store.tab_state(tab) {
-            TabState::Failed(message) => {
-                let retry_store = store;
-                view! {
-                    <ListLoadError message=message on_retry=move || retry_store.reload(tab) />
+        {move || {
+            tab_state.with(|state| match state {
+                TabState::Failed(message) => {
+                    let retry_store = store;
+                    let message = message.clone();
+                    view! {
+                        <ListLoadError message=message on_retry=move || retry_store.reload(tab) />
+                    }
+                        .into_any()
                 }
-                    .into_any()
-            }
-            TabState::Ready(_) if is_empty.get() => {
+                TabState::Ready(_) if is_empty.get() => {
                 view! {
                     <EmptyState
                         title="データがありません"
@@ -247,7 +259,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                         <ReceiptTable
                             tab=tab
                             rows=filtered_rows.get()
-                            all_rows=display_rows.get()
+                            all_rows=all_rows.get()
                             query=search.with(|s| s.selected_queries.securities.clone())
                             expanded_ids=store.expanded
                             compact_mobile=true
@@ -257,6 +269,6 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                     .into_any()
             }
             TabState::Loading => view! { <div class="py-12 text-center text-sm text-text-muted" data-testid="receipt-loading">"読み込み中..."</div> }.into_any(),
-        }}
+        })}}
     }
 }
