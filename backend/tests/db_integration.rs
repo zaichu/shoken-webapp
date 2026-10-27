@@ -11,6 +11,7 @@ use backend::{
     middleware::validate_origin,
     models::asset_balance::{AssetBalanceSearchQueryParams, CreateAssetBalanceRequest},
     models::common::{PaginationParams, SearchQueryParams},
+    models::csv_import::CsvUploadResponse,
     models::dividend::{CreateDividendRequest, DividendSearchQueryParams},
     models::domestic_stock::{CreateDomesticStockRequest, DomesticStockSearchQueryParams},
     models::fund_balance::{FundBalance, FundBalanceSearchQueryParams},
@@ -3762,4 +3763,434 @@ async fn csv_kind_stats_queries_all_five_tables() {
             .iter()
             .all(|stat| stat.latest_imported_at.is_none())
     );
+}
+
+async fn csv_test_app(pool: &Db) -> (axum::Router, UserId, SessionToken) {
+    let session = auth_svc::upsert_user_and_rotate_session(
+        pool,
+        &GoogleUserInfo {
+            sub: Uuid::new_v4().to_string(),
+            email: format!("csv-{}@example.com", Uuid::new_v4()),
+            name: Some("架空の取込利用者".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+    let user_id = auth_svc::select_user_id_by_session(pool, session)
+        .await
+        .unwrap()
+        .unwrap();
+    let state = AppState {
+        pool: pool.clone(),
+        secrets: Arc::new(Secrets {
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+        }),
+        config: Arc::new(Config::default()),
+        google_oauth: None,
+        jquants_client: None,
+    };
+    (
+        backend::handlers::v1::csv_upload_routes().with_state(state),
+        user_id,
+        session,
+    )
+}
+
+async fn post_csv(
+    app: &axum::Router,
+    session: SessionToken,
+    path: &str,
+    csv: &str,
+) -> axum::response::Response {
+    let body = format!(
+        "--csv-boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"test.csv\"\r\nContent-Type: text/csv\r\n\r\n{csv}\r\n--csv-boundary--\r\n"
+    );
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri(path)
+                .header("cookie", format!("session_token={session}"))
+                .header("content-type", "multipart/form-data; boundary=csv-boundary")
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+}
+
+fn csv_kind_timestamp(
+    stats: &backend::handlers::v1::csv_kind_stats::CsvKindStatsResponse,
+    kind: &str,
+) -> chrono::DateTime<Utc> {
+    stats
+        .kinds
+        .iter()
+        .find(|stat| stat.kind == kind)
+        .and_then(|stat| stat.latest_imported_at.as_deref())
+        .and_then(|timestamp| chrono::DateTime::parse_from_rfc3339(timestamp).ok())
+        .map(|timestamp| timestamp.with_timezone(&Utc))
+        .expect("取込時刻が存在する")
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_import_success_updates_history_when_no_rows_are_inserted() {
+    let (pool, _node) = start_test_pool().await;
+    let (app, user_id, session) = csv_test_app(&pool).await;
+    let old_timestamp = Utc::now() - chrono::Duration::days(3);
+    let fund_csv = concat!(
+        "投資信託種別,口座区分,ファンド,分配金コース,保有数量[口],平均取得価額[円],取得総額[円],基準価額[円],時価評価額[円],評価損益[円]\n",
+        "投資信託,特定,架空長期積立ファンド,再投資型,10000,10000,10000,11000,11000,1000"
+    );
+
+    for (kind, path, csv, replaces) in [
+        (
+            "dividend",
+            "/api/v1/dividend-imports",
+            make_dividend_csv().to_string(),
+            false,
+        ),
+        (
+            "domesticstock",
+            "/api/v1/domestic-stock-imports",
+            make_domestic_stock_csv().to_string(),
+            false,
+        ),
+        (
+            "mutualfund",
+            "/api/v1/mutual-fund-imports",
+            make_mutualfund_csv().to_string(),
+            false,
+        ),
+        (
+            "assetbalance",
+            "/api/v1/asset-balance-imports",
+            make_asset_balance_csv(),
+            true,
+        ),
+        (
+            "fundbalance",
+            "/api/v1/fund-balance-imports",
+            fund_csv.to_string(),
+            true,
+        ),
+    ] {
+        let first = post_csv(&app, session, path, &csv).await;
+        assert_eq!(first.status(), StatusCode::CREATED, "{kind}");
+        let recorded: Option<chrono::DateTime<Utc>> = db::query_scalar(
+            "SELECT last_imported_at FROM csv_import_history WHERE user_id = $1 AND kind = $2",
+            vec![Bind::from(user_id), Bind::from(kind)],
+        )
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+        assert!(recorded.is_some(), "{kind} の初回成功時刻が記録される");
+
+        db::query(
+            "UPDATE csv_import_history SET last_imported_at = $3 WHERE user_id = $1 AND kind = $2",
+            vec![
+                Bind::from(user_id),
+                Bind::from(kind),
+                Bind::from(old_timestamp),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let response = post_csv(&app, session, path, &csv).await;
+        assert_eq!(response.status(), StatusCode::CREATED, "{kind}");
+        let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        let result: CsvUploadResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(
+            (result.inserted, result.skipped),
+            if replaces { (1, 0) } else { (0, 1) },
+            "{kind}"
+        );
+        assert!(result.errors.is_empty(), "{kind}: {:?}", result.errors);
+
+        let last_imported_at: chrono::DateTime<Utc> = db::query_scalar(
+            "SELECT last_imported_at FROM csv_import_history WHERE user_id = $1 AND kind = $2",
+            vec![Bind::from(user_id), Bind::from(kind)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(last_imported_at > old_timestamp, "{kind}");
+        let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+            .await
+            .unwrap();
+        assert_eq!(csv_kind_timestamp(&stats, kind), last_imported_at, "{kind}");
+        assert_eq!(
+            stats
+                .kinds
+                .iter()
+                .find(|stat| stat.kind == kind)
+                .unwrap()
+                .count,
+            1
+        );
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_import_failure_does_not_update_history() {
+    let (pool, _node) = start_test_pool().await;
+    let (app, user_id, session) = csv_test_app(&pool).await;
+    let old_timestamp = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+
+    for (kind, path, csv, expected_status) in [
+        (
+            "assetbalance",
+            "/api/v1/asset-balance-imports",
+            asset_balance_csv(&[]),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            "fundbalance",
+            "/api/v1/fund-balance-imports",
+            "投資信託種別,口座区分,ファンド\n".to_string(),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            "domesticstock",
+            "/api/v1/domestic-stock-imports",
+            String::new(),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            "mutualfund",
+            "/api/v1/mutual-fund-imports",
+            String::new(),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            "dividend",
+            "/api/v1/dividend-imports",
+            make_dividend_csv().replace("18000", "不正値"),
+            StatusCode::CREATED,
+        ),
+    ] {
+        db::query(
+            "INSERT INTO csv_import_history (user_id, kind, last_imported_at) VALUES ($1, $2, $3)",
+            vec![
+                Bind::from(user_id),
+                Bind::from(kind),
+                Bind::from(old_timestamp),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let response = post_csv(&app, session, path, &csv).await;
+        assert_eq!(response.status(), expected_status, "{kind}");
+        if expected_status == StatusCode::CREATED {
+            let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+            let result: CsvUploadResponse = serde_json::from_slice(&body).unwrap();
+            assert_eq!((result.inserted, result.skipped), (0, 0));
+            assert!(!result.errors.is_empty());
+        }
+        let last_imported_at: chrono::DateTime<Utc> = db::query_scalar(
+            "SELECT last_imported_at FROM csv_import_history WHERE user_id = $1 AND kind = $2",
+            vec![Bind::from(user_id), Bind::from(kind)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(last_imported_at, old_timestamp, "{kind}");
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_kind_stats_falls_back_to_latest_created_at_without_history() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let expected = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+
+    dividend_svc::bulk_create(
+        &pool,
+        user_id,
+        &[make_dividend_item("9908"), make_dividend_item("9909")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当データを作成できる");
+    db::query(
+        "UPDATE dividends SET created_at = CASE WHEN security_code = '9908' THEN $2 ELSE $2 - INTERVAL '1 day' END WHERE user_id = $1",
+        vec![Bind::from(user_id), Bind::from(expected)],
+    )
+    .execute(&pool)
+    .await
+    .expect("created_at を固定できる");
+
+    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+        .await
+        .expect("統計を取得できる");
+    assert_eq!(csv_kind_timestamp(&stats, "dividend"), expected);
+    assert_eq!(
+        stats
+            .kinds
+            .iter()
+            .find(|stat| stat.kind == "dividend")
+            .unwrap()
+            .count,
+        2
+    );
+    let recorded = expected - chrono::Duration::days(2);
+    db::query(
+        "INSERT INTO csv_import_history (user_id, kind, last_imported_at) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(user_id),
+            Bind::from("dividend"),
+            Bind::from(recorded),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+        .await
+        .unwrap();
+    assert_eq!(csv_kind_timestamp(&stats, "dividend"), recorded);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_import_history_is_scoped_by_user() {
+    let (pool, _node) = start_test_pool().await;
+    let (app, first_user, session) = csv_test_app(&pool).await;
+    let second_user = create_test_user(&pool).await;
+    let first_timestamp = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    let second_timestamp = chrono::DateTime::parse_from_rfc3339("2026-10-27T04:30:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+
+    for (user_id, timestamp) in [
+        (first_user, first_timestamp),
+        (second_user, second_timestamp),
+    ] {
+        dividend_svc::bulk_create(
+            &pool,
+            user_id,
+            &[make_dividend_item("9908")],
+            RowLimit::new(i64::MAX),
+        )
+        .await
+        .expect("ユーザー別の配当データを作成できる");
+        db::query(
+            "INSERT INTO csv_import_history (user_id, kind, last_imported_at) VALUES ($1, $2, $3) ON CONFLICT (user_id, kind) DO UPDATE SET last_imported_at = EXCLUDED.last_imported_at",
+            vec![
+                Bind::from(user_id),
+                Bind::from("dividend"),
+                Bind::from(timestamp),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .expect("ユーザー別の履歴を作成できる");
+    }
+
+    let first_stats =
+        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, first_user)
+            .await
+            .expect("1人目の統計を取得できる");
+    let second_stats =
+        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, second_user)
+            .await
+            .expect("2人目の統計を取得できる");
+
+    assert_eq!(
+        csv_kind_timestamp(&first_stats, "dividend"),
+        first_timestamp
+    );
+    assert_eq!(
+        csv_kind_timestamp(&second_stats, "dividend"),
+        second_timestamp
+    );
+    let response = post_csv(
+        &app,
+        session,
+        "/api/v1/dividend-imports",
+        make_dividend_csv(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let first_stats =
+        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, first_user)
+            .await
+            .unwrap();
+    let second_stats =
+        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, second_user)
+            .await
+            .unwrap();
+    assert!(csv_kind_timestamp(&first_stats, "dividend") > first_timestamp);
+    assert_eq!(
+        csv_kind_timestamp(&second_stats, "dividend"),
+        second_timestamp
+    );
+    assert!(
+        first_stats
+            .kinds
+            .iter()
+            .filter(|stat| stat.kind != "dividend")
+            .all(|stat| stat.latest_imported_at.is_none())
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_kind_stats_ignores_history_after_delete_all() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    dividend_svc::bulk_create(
+        &pool,
+        user_id,
+        &[make_dividend_item("9908")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当データを作成できる");
+    let recorded = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    db::query(
+        "INSERT INTO csv_import_history (user_id, kind, last_imported_at) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(user_id),
+            Bind::from("dividend"),
+            Bind::from(recorded),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+        .await
+        .unwrap();
+    assert_eq!(csv_kind_timestamp(&stats, "dividend"), recorded);
+
+    bulk::delete_all::<dividend_svc::DividendDomain>(&pool, user_id)
+        .await
+        .expect("全削除できる");
+    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+        .await
+        .unwrap();
+    let dividend = stats
+        .kinds
+        .iter()
+        .find(|stat| stat.kind == "dividend")
+        .unwrap();
+    assert_eq!(dividend.count, 0);
+    assert!(dividend.latest_imported_at.is_none());
 }

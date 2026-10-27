@@ -145,11 +145,20 @@ pub async fn import(
     auth_user: AuthenticatedUser,
     multipart: Multipart,
 ) -> Result<impl IntoResponse, ApiError> {
-    crate::handlers::v1::csv_import::handle_import_csv::<AssetBalanceDomain>(
+    let (status, Json(response)) =
+        crate::handlers::v1::csv_import::handle_import_csv::<AssetBalanceDomain>(
+            &state.pool,
+            auth_user.id(),
+            multipart,
+            state.config.user_row_limit,
+        )
+        .await?;
+    crate::services::csv::record_import_success(
         &state.pool,
         auth_user.id(),
-        multipart,
-        state.config.user_row_limit,
+        "assetbalance",
+        &response,
     )
-    .await
+    .await?;
+    Ok((status, Json(response)))
 }

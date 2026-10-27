@@ -81,6 +81,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0016_comments",
         include_str!("../../migrations/0016_comments.sql"),
     ),
+    (
+        "0017_csv_import_history",
+        include_str!("../../migrations/0017_csv_import_history.sql"),
+    ),
 ];
 
 /// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に

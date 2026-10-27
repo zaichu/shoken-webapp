@@ -23,6 +23,7 @@ shoken-webapp の DB スキーマ(テーブル一覧・外部キー・ER 図)
 | [public.fund_codes](public.fund_codes.md) | 3 | ファンド名と投信協会コードの対応表(共有) | BASE TABLE |
 | [public.fund_prices](public.fund_prices.md) | 7 | ファンドごとの共有基準価額 | BASE TABLE |
 | [public.fund_balances_view](public.fund_balances_view.md) | 21 | 投信の保有残高と共有基準価額の合成(読み取りビュー)。price_source / nav_is_latest は出どころの判定 | VIEW |
+| [public.csv_import_history](public.csv_import_history.md) | 3 | ユーザー・CSV種類ごとの最終取り込み成功時刻 | BASE TABLE |
 
 ## Relations
 
@@ -35,6 +36,7 @@ erDiagram
 "public.mutualfunds" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.asset_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.fund_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.csv_import_history" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 
 "public.users" {
   uuid id
@@ -224,6 +226,11 @@ erDiagram
   text price_source
   boolean nav_is_latest
   date expected_nav_date
+}
+"public.csv_import_history" {
+  uuid user_id FK
+  text kind
+  timestamp_with_time_zone last_imported_at
 }
 ```
 
