@@ -100,7 +100,7 @@ pub async fn fetch_single_asset_balance(
     let normalized = normalize_security_code(code);
     client
         .get_json::<AssetBalanceListResponse>(
-            "/api/v1/asset-balances",
+            super::csv::LIST_PATH,
             &[
                 ("page", "1"),
                 ("per_page", "1"),
