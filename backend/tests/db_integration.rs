@@ -4019,13 +4019,13 @@ async fn csv_kind_stats_falls_back_to_latest_created_at_without_history() {
     dividend_svc::bulk_create(
         &pool,
         user_id,
-        &[make_dividend_item("9908")],
+        &[make_dividend_item("9908"), make_dividend_item("9909")],
         RowLimit::new(i64::MAX),
     )
     .await
     .expect("配当データを作成できる");
     db::query(
-        "UPDATE dividends SET created_at = $2 WHERE user_id = $1",
+        "UPDATE dividends SET created_at = CASE WHEN security_code = '9908' THEN $2 ELSE $2 - INTERVAL '1 day' END WHERE user_id = $1",
         vec![Bind::from(user_id), Bind::from(expected)],
     )
     .execute(&pool)
@@ -4036,13 +4036,38 @@ async fn csv_kind_stats_falls_back_to_latest_created_at_without_history() {
         .await
         .expect("統計を取得できる");
     assert_eq!(csv_kind_timestamp(&stats, "dividend"), expected);
+    assert_eq!(
+        stats
+            .kinds
+            .iter()
+            .find(|stat| stat.kind == "dividend")
+            .unwrap()
+            .count,
+        2
+    );
+    let recorded = expected - chrono::Duration::days(2);
+    db::query(
+        "INSERT INTO csv_import_history (user_id, kind, last_imported_at) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(user_id),
+            Bind::from("dividend"),
+            Bind::from(recorded),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+        .await
+        .unwrap();
+    assert_eq!(csv_kind_timestamp(&stats, "dividend"), recorded);
 }
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn csv_import_history_is_scoped_by_user() {
     let (pool, _node) = start_test_pool().await;
-    let first_user = create_test_user(&pool).await;
+    let (app, first_user, session) = csv_test_app(&pool).await;
     let second_user = create_test_user(&pool).await;
     let first_timestamp = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
         .unwrap()
@@ -4084,5 +4109,33 @@ async fn csv_import_history_is_scoped_by_user() {
     assert_eq!(
         csv_kind_timestamp(&second_stats, "dividend"),
         second_timestamp
+    );
+    let response = post_csv(
+        &app,
+        session,
+        "/api/v1/dividend-imports",
+        make_dividend_csv(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let first_stats =
+        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, first_user)
+            .await
+            .unwrap();
+    let second_stats =
+        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, second_user)
+            .await
+            .unwrap();
+    assert!(csv_kind_timestamp(&first_stats, "dividend") > first_timestamp);
+    assert_eq!(
+        csv_kind_timestamp(&second_stats, "dividend"),
+        second_timestamp
+    );
+    assert!(
+        first_stats
+            .kinds
+            .iter()
+            .filter(|stat| stat.kind != "dividend")
+            .all(|stat| stat.latest_imported_at.is_none())
     );
 }

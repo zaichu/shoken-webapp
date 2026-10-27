@@ -48,7 +48,6 @@ pub async fn csv_kind_stats(
     Ok((StatusCode::OK, Json(stats)))
 }
 
-/// 5種類のテーブルから、ユーザーごとの件数と最新 created_at を集める
 pub async fn collect_csv_kind_stats(
     pool: &crate::db::Db,
     user_id: shared::value::UserId,
@@ -59,7 +58,7 @@ pub async fn collect_csv_kind_stats(
     let domestic_stock = query_kind_stat(pool, user_id, "domestic_stocks").await?;
     let mutual_fund = query_kind_stat(pool, user_id, "mutualfunds").await?;
 
-    let kinds = vec![
+    let mut kinds = vec![
         CsvKindStat {
             kind: "assetbalance".to_string(),
             label: "資産管理(国内株式)".to_string(),
@@ -92,6 +91,18 @@ pub async fn collect_csv_kind_stats(
         },
     ];
 
+    let history: Vec<(String, chrono::DateTime<chrono::Utc>)> = crate::db::query_as(
+        "SELECT kind, last_imported_at FROM csv_import_history WHERE user_id = $1",
+        vec![user_id.into()],
+    )
+    .fetch_all(pool)
+    .await?;
+    for (kind, imported_at) in history {
+        if let Some(stat) = kinds.iter_mut().find(|stat| stat.kind == kind) {
+            stat.latest_imported_at = Some(imported_at.to_rfc3339());
+        }
+    }
+
     Ok(CsvKindStatsResponse { kinds })
 }
 
@@ -100,13 +111,20 @@ async fn query_kind_stat(
     user_id: shared::value::UserId,
     table: &str,
 ) -> Result<(i64, Option<String>), ApiError> {
-    let query = format!(
-        "SELECT COUNT(*) as count, MAX(created_at) as latest FROM {} WHERE user_id = $1",
-        table
-    );
-    // タプル (count, latest) として取得
+    let query = match table {
+        "asset_balances" => {
+            "SELECT COUNT(*), MAX(created_at) FROM asset_balances WHERE user_id = $1"
+        }
+        "fund_balances" => "SELECT COUNT(*), MAX(created_at) FROM fund_balances WHERE user_id = $1",
+        "dividends" => "SELECT COUNT(*), MAX(created_at) FROM dividends WHERE user_id = $1",
+        "domestic_stocks" => {
+            "SELECT COUNT(*), MAX(created_at) FROM domestic_stocks WHERE user_id = $1"
+        }
+        "mutualfunds" => "SELECT COUNT(*), MAX(created_at) FROM mutualfunds WHERE user_id = $1",
+        _ => return Err(ApiError::Internal("不明なCSV種類です")),
+    };
     let row: (i64, Option<chrono::DateTime<chrono::Utc>>) =
-        crate::db::query_as(&query, vec![user_id.into()])
+        crate::db::query_as(query, vec![user_id.into()])
             .fetch_one(pool)
             .await?;
 
