@@ -111,60 +111,47 @@ impl RowSource {
         }
     }
 
-    fn db_count(&self) -> usize {
+    fn with<R>(
+        &self,
+        asset: impl FnOnce(&AssetBalanceCsvSource) -> R,
+        receipt: impl FnOnce(&ReceiptCsvSource) -> R,
+    ) -> R {
         match self {
-            Self::Asset(source) => source.db_count(),
-            Self::Receipt(source) => source.db_count(),
+            Self::Asset(source) => asset(source),
+            Self::Receipt(source) => receipt(source),
         }
+    }
+
+    fn db_count(&self) -> usize {
+        self.with(|a| a.db_count(), |r| r.db_count())
     }
 
     fn delete_count_ready(&self) -> bool {
-        match self {
-            Self::Asset(source) => source.delete_count_ready(),
-            Self::Receipt(source) => source.delete_count_ready(),
-        }
+        self.with(|a| a.delete_count_ready(), |r| r.delete_count_ready())
     }
 
     fn delete_count_error(&self) -> Option<String> {
-        match self {
-            Self::Asset(source) => source.delete_count_error(),
-            Self::Receipt(source) => source.delete_count_error(),
-        }
+        self.with(|a| a.delete_count_error(), |r| r.delete_count_error())
     }
 
     fn date_range(&self) -> Option<(String, String)> {
-        match self {
-            Self::Asset(source) => source.date_range(),
-            Self::Receipt(source) => source.date_range(),
-        }
+        self.with(|a| a.date_range(), |r| r.date_range())
     }
 
     fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
-        match self {
-            Self::Asset(source) => source.delete_disabled(meta),
-            Self::Receipt(source) => source.delete_disabled(meta),
-        }
+        self.with(|a| a.delete_disabled(meta), |r| r.delete_disabled(meta))
     }
 
     fn refresh_for_delete(&self) {
-        match self {
-            Self::Asset(source) => source.refresh_for_delete(),
-            Self::Receipt(source) => source.refresh_for_delete(),
-        }
+        self.with(|a| a.refresh_for_delete(), |r| r.refresh_for_delete())
     }
 
     fn open_delete_confirm(&self) {
-        match self {
-            Self::Asset(source) => source.open_delete_confirm(),
-            Self::Receipt(source) => source.open_delete_confirm(),
-        }
+        self.with(|a| a.open_delete_confirm(), |r| r.open_delete_confirm())
     }
 
     fn confirm_delete_all(&self) {
-        match self {
-            Self::Asset(source) => source.confirm_delete_all(),
-            Self::Receipt(source) => source.confirm_delete_all(),
-        }
+        self.with(|a| a.confirm_delete_all(), |r| r.confirm_delete_all())
     }
 }
 
