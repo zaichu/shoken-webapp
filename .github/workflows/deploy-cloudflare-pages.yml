@@ -16,6 +16,7 @@ on:
       - 'rust-toolchain.toml'
       - '.github/workflows/deploy-cloudflare-pages.yml'
       - '.github/actions/rust-cache/**'
+      - '.github/actions/setup-node-npm/**'
       - '!**/*.md'
   workflow_dispatch:
 
@@ -93,15 +94,8 @@ jobs:
           tar -xzf trunk-x86_64-unknown-linux-gnu.tar.gz
           install -m 755 trunk ~/.cargo/bin/
 
-      - name: Setup frontend dependencies
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 https://github.com/actions/setup-node/releases/tag/v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        run: npm ci
+      - name: Setup frontend dependencies and install
+        uses: ./.github/actions/setup-node-npm
 
       - name: Build output (trunk build)
         run: trunk build --release --dist dist
