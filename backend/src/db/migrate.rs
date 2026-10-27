@@ -8,7 +8,7 @@
 use super::{Db, DbInner};
 use postgres_types::ToSql;
 use sha2::{Digest, Sha384};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::time::Instant;
 use tokio_postgres::error::ErrorPosition;
 
@@ -86,19 +86,6 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         include_str!("../../migrations/0017_csv_import_history.sql"),
     ),
 ];
-
-/// ベースラインファイル群の最大バージョン。これ以下の version は旧履歴置き換え時に
-/// 「適用済み」として記録される。新しい migration は 0011 以降に採番する
-const BASELINE_MAX_VERSION: i64 = 10;
-
-/// 旧ファイル名で運用していた頃の最大バージョン(旧運用履歴 1〜17)。
-/// そのままの schema は現行と異なるため rotate の許可対象にはせず、
-/// エラーメッセージでのみ参照する
-const LEGACY_MAX_VERSION: i64 = 17;
-
-/// 現行の baseline + 増分を全適用した状態(状態B: 履歴 0〜18)の最大バージョン。
-/// 状態Aと状態Bの schema は同じなので、両方の履歴を rotate の許可対象にする
-const INCREMENT_MAX_VERSION: i64 = 18;
 
 struct Migration {
     version: i64,
@@ -225,7 +212,7 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
         ));
     }
 
-    let mut applied: HashMap<i64, Vec<u8>> = client
+    let applied: HashMap<i64, Vec<u8>> = client
         .query(
             "SELECT version, checksum FROM _sqlx_migrations WHERE success = true",
             &[],
@@ -237,12 +224,12 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
         .collect();
 
     let local = migrations();
-    squash_legacy_history(client, &mut applied, &local).await?;
 
     for applied_version in applied.keys() {
         if !local.iter().any(|m| m.version == *applied_version) {
             return Err(format!(
-                "適用済みマイグレーション {applied_version} に対応するファイルがありません"
+                "適用済みマイグレーション {applied_version} に対応するファイルがありません\n\
+                 `make db-reset` で DB を作り直してください"
             ));
         }
     }
@@ -251,7 +238,8 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
         match applied.get(&m.version) {
             Some(sum) if *sum != checksum(m.sql) => {
                 return Err(format!(
-                    "マイグレーション {} の checksum が一致しません（適用後にファイルが編集された可能性）",
+                    "マイグレーション {} の適用済み内容が現行ファイルと一致しません\n\
+                     `make db-reset` で DB を作り直してください",
                     m.version
                 ));
             }
@@ -268,68 +256,6 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
             }
         }
     }
-    Ok(())
-}
-
-/// 旧 baseline + 増分の履歴(0〜INCREMENT_MAX_VERSION)が残る DB の
-/// `_sqlx_migrations` を、ベースラインファイル群(0〜BASELINE_MAX_VERSION)の記録へ
-/// 一度だけ置き換える。テーブル・データには触れない。
-/// 旧運用履歴(1〜LEGACY_MAX_VERSION)の DB は schema が現行と異なる
-/// (security_prices / asset_balances_view が無い)ためエラーで止める
-async fn squash_legacy_history(
-    client: &mut tokio_postgres::Client,
-    applied: &mut HashMap<i64, Vec<u8>>,
-    local: &[Migration],
-) -> Result<(), String> {
-    let baseline_v1 = local
-        .iter()
-        .find(|m| m.version == 1)
-        .expect("baseline (version=1) の migration が必要です");
-    // 旧運用の version=1 は 0001_initial_schema.sql だったため、その checksum と
-    // 新 0001_users.sql の差だけを見て判定する。version 2 以降の存在では判定しない
-    // (新形式の追加 migration と番号が被り、履歴を誤って消すため)
-    let has_legacy = applied
-        .get(&1)
-        .is_some_and(|sum| *sum != checksum(baseline_v1.sql));
-    if !has_legacy {
-        return Ok(());
-    }
-
-    let applied_versions: BTreeSet<i64> = applied.keys().copied().collect();
-    let linear_all: BTreeSet<i64> = (0..=INCREMENT_MAX_VERSION).collect();
-    if applied_versions != linear_all {
-        return Err(format!(
-            "旧マイグレーション履歴(0〜{INCREMENT_MAX_VERSION})が揃っていません\
-             (現在: {applied_versions:?})。\
-             旧運用履歴(1〜{LEGACY_MAX_VERSION})の DB は schema が現行と異なるため適用できません。\
-             `make db-reset` で DB を作り直してください。\
-             schema が現行と異なる可能性があるため適用を中止しました"
-        ));
-    }
-
-    let baseline: Vec<(&Migration, Vec<u8>)> = local
-        .iter()
-        .filter(|m| m.version <= BASELINE_MAX_VERSION)
-        .map(|m| (m, checksum(m.sql)))
-        .collect();
-    let tx = client
-        .transaction()
-        .await
-        .map_err(|e| format!("トランザクション開始に失敗: {e}"))?;
-    tx.execute("DELETE FROM _sqlx_migrations", &[])
-        .await
-        .map_err(|e| format!("旧マイグレーション履歴の削除に失敗: {e}"))?;
-    for (m, sum) in &baseline {
-        insert_migration_tx(&tx, m, sum, 0).await?;
-    }
-    tx.commit()
-        .await
-        .map_err(|e| format!("コミットに失敗: {e}"))?;
-    tracing::info!(
-        "旧マイグレーション履歴をベースライン 0〜{BASELINE_MAX_VERSION} の記録に置き換えました"
-    );
-    applied.clear();
-    applied.extend(baseline.into_iter().map(|(m, sum)| (m.version, sum)));
     Ok(())
 }
 
