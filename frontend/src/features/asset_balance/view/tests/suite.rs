@@ -15,7 +15,8 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{
-    ResolvedAssetBalance, ResolvedFundBalance, resolve_asset_balance,
+    ResolvedAssetBalance, ResolvedFundBalance, asset_balance_counts, fund_balance_counts,
+    resolve_asset_balance, resolve_fund_balance,
 };
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
@@ -175,20 +176,20 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         let saved_rows: Vec<AssetBalanceRow> =
             loaded.rows.iter().cloned().map(Row::Saved).collect();
 
-        let filtered = filtered_portfolio(
+        let views = filtered_portfolio_views(
             &saved_rows,
             &text_search("9904"),
             lookup,
             Generation::new(1),
         );
-        assert_eq!(filtered.views.len(), 1);
-        assert_eq!(filtered.views[0].code, "9904");
+        let all_views = all_portfolio_views(&saved_rows, lookup, Generation::new(1));
+        assert_eq!(views.len(), 1);
+        assert_eq!(views[0].code, "9904");
         // 集計は絞り込み前の全保有分を使う
-        assert_eq!(filtered.all_views.len(), 2);
+        assert_eq!(all_views.len(), 2);
 
         // PortfolioSummary と同じ手順で画面に出る金額を計算する
-        let kpi_holdings: Vec<KpiHolding> = filtered
-            .all_views
+        let kpi_holdings: Vec<KpiHolding> = all_views
             .iter()
             .map(|view| KpiHolding {
                 security_code: view.code.clone(),
@@ -213,8 +214,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
             assert_eq!(kpi.holdings_count, 2);
         });
         let valuation = portfolio_valuation(
-            &filtered
-                .all_views
+            &all_views
                 .iter()
                 .map(ValuationInput::from)
                 .collect::<Vec<_>>(),
@@ -231,15 +231,15 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         lookup.update(|store| store.seed(Generation::new(2), &decimal_rows));
         let decimal_saved: Vec<AssetBalanceRow> =
             decimal_rows.iter().cloned().map(Row::Saved).collect();
-        let decimal_filtered = filtered_portfolio(
+        let decimal_views = filtered_portfolio_views(
             &decimal_saved,
             &text_search("検証対象"),
             lookup,
             Generation::new(2),
         );
-        assert_eq!(decimal_filtered.views.len(), 2);
-        let decimal_holdings: Vec<KpiHolding> = decimal_filtered
-            .all_views
+        assert_eq!(decimal_views.len(), 2);
+        let decimal_all = all_portfolio_views(&decimal_saved, lookup, Generation::new(2));
+        let decimal_holdings: Vec<KpiHolding> = decimal_all
             .iter()
             .map(|view| KpiHolding {
                 security_code: view.code.clone(),
@@ -456,14 +456,11 @@ fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
 
         let saved_id = saved.id.to_string();
         let rows = vec![AssetBalanceRow::Saved(saved)];
-        let filtered =
-            filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1));
+        let views =
+            filtered_portfolio_views(&rows, &AssetSearch::default(), lookup, Generation::new(1));
 
-        assert_eq!(filtered.views[0].id, Some(saved_id));
-        assert_eq!(
-            filtered.views[0].name, "差し替わり行",
-            "表示値は lookup の行を使う"
-        );
+        assert_eq!(views[0].id, Some(saved_id));
+        assert_eq!(views[0].name, "差し替わり行", "表示値は lookup の行を使う");
     });
 }
 
@@ -489,17 +486,64 @@ fn filtered_portfolio_resolves_same_code_rows_by_id() {
             AssetBalanceRow::Saved(nisa),
             AssetBalanceRow::Saved(tokutei),
         ];
-        let filtered =
-            filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1));
+        let views =
+            filtered_portfolio_views(&rows, &AssetSearch::default(), lookup, Generation::new(1));
 
-        assert_eq!(filtered.views.len(), 2);
-        assert_eq!(filtered.views[0].id, Some("id-nisa".to_string()));
-        assert_eq!(filtered.views[0].account.as_deref(), Some("NISA"));
-        assert_eq!(filtered.views[0].shares, 40.0);
-        assert_eq!(filtered.views[0].purchase, 100000.0);
-        assert_eq!(filtered.views[1].id, Some("id-tokutei".to_string()));
-        assert_eq!(filtered.views[1].account.as_deref(), Some("特定"));
-        assert_eq!(filtered.views[1].shares, 100.0);
+        assert_eq!(views.len(), 2);
+        assert_eq!(views[0].id, Some("id-nisa".to_string()));
+        assert_eq!(views[0].account.as_deref(), Some("NISA"));
+        assert_eq!(views[0].shares, 40.0);
+        assert_eq!(views[0].purchase, 100000.0);
+        assert_eq!(views[1].id, Some("id-tokutei".to_string()));
+        assert_eq!(views[1].account.as_deref(), Some("特定"));
+        assert_eq!(views[1].shares, 100.0);
+    });
+}
+
+#[test]
+fn filtered_portfolio_all_views_ignore_search_and_follow_lookup() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let generation = Generation::new(1);
+        let mut first = balance_row(9904);
+        first.security_name = "架空自動車".to_string();
+        let mut second = balance_row(9914);
+        second.security_name = "架空エレクトロニクス".to_string();
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        lookup.update(|store| store.seed(generation, &[first.clone(), second.clone()]));
+        let rows: Vec<AssetBalanceRow> = vec![first, second].into_iter().map(Row::Saved).collect();
+
+        let narrowed = filtered_portfolio_views(&rows, &text_search("9904"), lookup, generation);
+        let unfiltered =
+            filtered_portfolio_views(&rows, &AssetSearch::default(), lookup, generation);
+        let narrowed_all = all_portfolio_views(&rows, lookup, generation);
+        assert_eq!(narrowed.len(), 1);
+        assert_eq!(unfiltered.len(), 2);
+        assert_eq!(narrowed_all.len(), 2);
+        let narrowed_codes: Vec<_> = narrowed_all.iter().map(|view| view.code.clone()).collect();
+        let unfiltered_codes: Vec<_> = all_portfolio_views(&rows, lookup, generation)
+            .iter()
+            .map(|view| view.code.clone())
+            .collect();
+        assert_eq!(
+            narrowed_codes, unfiltered_codes,
+            "検索語を変えても全保有分の内容は変わらない"
+        );
+
+        let mut refreshed = balance_row(9904);
+        refreshed.security_name = "差し替わり行".to_string();
+        lookup.update(|store| store.seed(generation, std::slice::from_ref(&refreshed)));
+        let after_lookup_all = all_portfolio_views(&rows, lookup, generation);
+        assert_eq!(
+            after_lookup_all[0].name, "差し替わり行",
+            "lookup の更新は全保有分に反映される"
+        );
+        let after_lookup_views =
+            filtered_portfolio_views(&rows, &text_search("9904"), lookup, generation);
+        assert_eq!(
+            after_lookup_views[0].name, "差し替わり行",
+            "lookup の更新は検索結果にも反映される"
+        );
     });
 }
 
@@ -524,6 +568,101 @@ fn resolve_asset_balance_carries_api_total() {
 }
 
 #[test]
+fn filtered_views_are_subset_of_all_views() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let generation = Generation::new(1);
+        let mut first = balance_row(9904);
+        first.security_name = "架空自動車".to_string();
+        let second = balance_row(9914);
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        lookup.update(|store| store.seed(generation, &[first.clone(), second.clone()]));
+        let rows: Vec<AssetBalanceRow> = vec![first, second].into_iter().map(Row::Saved).collect();
+        let search = text_search("9904");
+
+        let views = filtered_portfolio_views(&rows, &search, lookup, generation);
+        let all_views = all_portfolio_views(&rows, lookup, generation);
+        assert_eq!(views.len(), 1);
+        assert_eq!(all_views.len(), 2);
+        assert!(
+            views
+                .iter()
+                .all(|view| all_views.iter().any(|all| all.code == view.code)),
+            "検索結果は全保有分の中にある"
+        );
+    });
+}
+
+#[test]
+fn balance_counts_match_resolved_rows() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let generation = Generation::new(1);
+        let slot: BalanceSlot = Some((
+            generation,
+            Ok(LoadedAssetBalances {
+                total: 150000,
+                rows: vec![balance_row(9904)],
+                summary: None,
+                truncated: true,
+            }),
+        ));
+        let resolved = resolve_asset_balance(generation, &slot).expect("resolved");
+        let counts = asset_balance_counts(generation, &slot).expect("counts");
+        assert_eq!(counts.0, resolved.rows.len());
+        assert_eq!(counts.1, resolved.total);
+    });
+}
+
+#[test]
+fn balance_counts_cover_error_and_stale_slots() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let generation = Generation::new(1);
+        let err_slot: BalanceSlot = Some((generation, Err("取得失敗".to_string())));
+        assert_eq!(asset_balance_counts(generation, &err_slot), Some((0, 0)));
+
+        let empty: BalanceSlot = None;
+        assert_eq!(asset_balance_counts(generation, &empty), None);
+
+        let stale: BalanceSlot = Some((
+            Generation::new(9),
+            Ok(LoadedAssetBalances {
+                total: 1,
+                rows: vec![balance_row(9904)],
+                summary: None,
+                truncated: false,
+            }),
+        ));
+        assert_eq!(asset_balance_counts(generation, &stale), None);
+    });
+}
+
+#[test]
+fn fund_counts_prefer_api_total_like_tab_counts() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let generation = Generation::new(1);
+        let slot: FundSlot = Some((
+            generation,
+            Ok(LoadedFundBalances {
+                total: 7,
+                rows: Vec::new(),
+                summary: None,
+                truncated: false,
+            }),
+        ));
+        let counts = fund_balance_counts(generation, &slot).expect("counts");
+        assert_eq!(counts.1.max(counts.0), 7);
+        let resolved = resolve_fund_balance(generation, &slot).expect("resolved");
+        assert_eq!(resolved.total.max(resolved.rows.len()), 7);
+
+        let empty: FundSlot = None;
+        assert_eq!(fund_balance_counts(generation, &empty), None);
+    });
+}
+
+#[test]
 fn composition_basis_matches_abs_sum_percentages() {
     let owner = Owner::new();
     owner.with(|| {
@@ -536,8 +675,7 @@ fn composition_basis_matches_abs_sum_percentages() {
             .into_iter()
             .map(Row::Saved)
             .collect();
-        let views =
-            filtered_portfolio(&rows, &AssetSearch::default(), lookup, Generation::new(1)).views;
+        let views = all_portfolio_views(&rows, lookup, Generation::new(1));
 
         let basis = super::composition_page::composition_basis(&views);
         assert_eq!(basis, 150.0, "母数は絶対値合計");

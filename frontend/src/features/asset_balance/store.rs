@@ -173,40 +173,47 @@ pub(crate) async fn poll_dividend_maps(
     }
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct FilteredPortfolio {
-    /// 絞り込み後の行。カード一覧・構成比・件数表示に使う
-    pub(crate) views: Vec<HoldingView>,
-    /// 絞り込み前の全行。合計はここから求め、検索中も全保有分を維持する
-    pub(crate) all_views: Vec<HoldingView>,
+fn resolve_view(
+    row: &AssetBalanceRow,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    generation: Generation,
+) -> HoldingView {
+    let mut view = match row {
+        Row::Saved(saved) => {
+            let resolved = lookup
+                .with(|store| store.get(generation, saved).cloned())
+                .unwrap_or_else(|| saved.clone());
+            holding_view(&resolved)
+        }
+    };
+    // 詳細は保存済み行のレコード ID で開く。lookup の代替行の id ではなく外側の行の id を使う
+    view.id = row.saved_id();
+    view
 }
 
-pub(crate) fn filtered_portfolio(
+/// 検索に依存しない全保有分の変換。検索語が変わっても再計算しないよう、
+/// 呼び出し側は rows・lookup・世代だけに依存する Memo から読む
+pub(crate) fn all_portfolio_views(
+    rows: &[AssetBalanceRow],
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    generation: Generation,
+) -> Vec<HoldingView> {
+    rows.iter()
+        .map(|row| resolve_view(row, lookup, generation))
+        .collect()
+}
+
+/// 絞り込み後の変換だけ。合計に使う全保有分は含まない
+pub(crate) fn filtered_portfolio_views(
     rows: &[AssetBalanceRow],
     search: &crate::features::asset_balance::fund::AssetSearch,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
-) -> FilteredPortfolio {
-    let resolve_view = |row: &AssetBalanceRow| {
-        let mut view = match row {
-            Row::Saved(saved) => {
-                let resolved = lookup
-                    .with(|store| store.get(generation, saved).cloned())
-                    .unwrap_or_else(|| saved.clone());
-                holding_view(&resolved)
-            }
-        };
-        // 詳細は保存済み行のレコード ID で開く。lookup の代替行の id ではなく外側の行の id を使う
-        view.id = row.saved_id();
-        view
-    };
-    FilteredPortfolio {
-        views: filter_asset_balances(rows, search)
-            .into_iter()
-            .map(resolve_view)
-            .collect(),
-        all_views: rows.iter().map(resolve_view).collect(),
-    }
+) -> Vec<HoldingView> {
+    filter_asset_balances(rows, search)
+        .into_iter()
+        .map(|row| resolve_view(row, lookup, generation))
+        .collect()
 }
 
 #[derive(Clone, Debug, Default)]

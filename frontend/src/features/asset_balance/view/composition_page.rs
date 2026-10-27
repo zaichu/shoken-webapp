@@ -2,7 +2,7 @@ use super::use_asset_balance_state;
 use crate::features::asset_balance::format::format_amount;
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::portfolio::chart_plan;
-use crate::features::asset_balance::store::{filtered_portfolio, load_asset_balances};
+use crate::features::asset_balance::store::{all_portfolio_views, load_asset_balances};
 use crate::session::use_session;
 use crate::ui::format::{format_currency, format_fixed_percent};
 use crate::ui::labels::TOTAL_ACQUISITION;
@@ -112,13 +112,11 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                         }
                         Some(view) => {
                             let generation = session.generation.get();
-                            let filtered = filtered_portfolio(
+                            let views = all_portfolio_views(
                                 &view.rows,
-                                &crate::features::asset_balance::fund::AssetSearch::default(),
                                 lookup,
                                 generation,
                             );
-                            let views = filtered.views;
                             let total_purchase = composition_basis(&views);
                             let chart_values: Vec<f64> = views.iter().map(|v| v.purchase).collect();
                             let plan = chart_plan(&chart_values);

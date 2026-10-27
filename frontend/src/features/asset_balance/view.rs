@@ -25,7 +25,8 @@ use crate::features::asset_balance::fund::{AssetKind, AssetSearch, FundSortKey};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{
-    AssetBalanceCsvStore, resolve_asset_balance, resolve_fund_balance,
+    AssetBalanceCsvStore, asset_balance_counts, fund_balance_counts, resolve_asset_balance,
+    resolve_fund_balance,
 };
 use crate::features::asset_balance::store::{
     BalanceSlot, DataOps, FundSlot, has_current_balances, load_asset_balances, load_fund_balances,
@@ -184,17 +185,32 @@ pub fn AssetBalancePage() -> impl IntoView {
     let search_count = state.search_count;
     let sort_state = state;
     // タブの件数表示用。タブ行をページレベルで描くためここで算出
-    let stock_count = Signal::derive(move || resolved_view().map(|v| v.rows.len()).unwrap_or(0));
+    let stock_count = Signal::derive(move || {
+        let generation = rail_session.generation.get();
+        balances
+            .with(|slot| asset_balance_counts(generation, slot))
+            .map(|(rows_len, _)| rows_len)
+            .unwrap_or(0)
+    });
     let fund_count = Signal::derive(move || {
-        resolved_fund_view()
-            .map(|v| v.total.max(v.rows.len()))
+        let generation = rail_session.generation.get();
+        funds
+            .with(|slot| fund_balance_counts(generation, slot))
+            .map(|(rows_len, total)| total.max(rows_len))
             .unwrap_or(0)
     });
     let action_bar = view! {
         {move || {
+            let generation = rail_session.generation.get();
             let (stock_rows, fund_rows) = (
-                resolved_view().map(|view| view.rows.len()).unwrap_or(0),
-                resolved_fund_view().map(|view| view.rows.len()).unwrap_or(0),
+                balances
+                    .with(|slot| asset_balance_counts(generation, slot))
+                    .map(|(rows_len, _)| rows_len)
+                    .unwrap_or(0),
+                funds
+                    .with(|slot| fund_balance_counts(generation, slot))
+                    .map(|(rows_len, _)| rows_len)
+                    .unwrap_or(0),
             );
             let has_rows = match sort_state.kind.get() {
                 AssetKind::Stock => stock_rows > 0,
