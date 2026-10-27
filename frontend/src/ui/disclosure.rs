@@ -35,7 +35,7 @@ pub fn ChevronIcon(
 
 /// 「開く/閉じる」の文字と山形のセット(帯・レールのトリガー右端)
 #[component]
-pub fn DisclosureHint(#[prop(into)] expanded: Signal<bool>) -> impl IntoView {
+fn DisclosureHint(#[prop(into)] expanded: Signal<bool>) -> impl IntoView {
     view! {
         <span class="flex shrink-0 items-center gap-1 text-text-soft">
             <span class="text-xs font-semibold">

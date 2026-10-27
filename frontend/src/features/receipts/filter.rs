@@ -116,7 +116,7 @@ pub fn build_combined_query(queries: &SelectedQueries) -> String {
     .join(" ")
 }
 
-pub fn initial_date_segment(has_years: bool) -> DateSegment {
+fn initial_date_segment(has_years: bool) -> DateSegment {
     if has_years {
         DateSegment::Year
     } else {
@@ -236,7 +236,7 @@ impl ReceiptSearch {
     }
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct SearchCategories {
+pub(crate) struct SearchCategories {
     pub securities: Vec<SearchOption>,
     pub products: Vec<SearchOption>,
     pub accounts: Vec<SearchOption>,

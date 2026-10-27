@@ -242,7 +242,7 @@ fn parse_idle_minutes(value: &str) -> Option<u32> {
 }
 
 #[derive(Clone, Copy)]
-pub struct SettingsStore {
+pub(crate) struct SettingsStore {
     /// 資産管理を開いたときの初期の並び順
     pub asset_sort: RwSignal<AssetSort>,
     /// 取引明細を開いたときの初期タブ

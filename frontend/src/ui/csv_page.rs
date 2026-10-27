@@ -36,7 +36,7 @@ pub(crate) fn save_disabled_by_preview(meta: &CsvTabMeta, errors_block_save: boo
 
 /// CSV の取り込み操作に必要なデータソース。取引明細(種別付き)と資産残高で同じ操作バーを
 /// 共有するため、状態取得と操作をトレイトで受け取る。状態は行データを含まない CsvTabMeta
-pub trait CsvSource: Copy + Send + Sync + 'static {
+pub(crate) trait CsvSource: Copy + Send + Sync + 'static {
     fn input_id(&self) -> &'static str;
     /// 検証結果の通知で使う方式込みの動詞("追加で保存" / "全件置換で保存")
     fn save_action(&self) -> &'static str;
@@ -68,18 +68,12 @@ pub trait CsvSource: Copy + Send + Sync + 'static {
     /// 保存済み全件数が確定したか(一覧が未取得・取得失敗なら false で削除を止める)
     fn delete_count_ready(&self) -> bool;
     /// 全件数が確定できない理由(一覧取得の失敗表示用)
-    fn delete_count_error(&self) -> Option<String> {
-        None
-    }
+    fn delete_count_error(&self) -> Option<String>;
     /// 保存済みデータの日付範囲(最小・最大)。取得済み行から算出し、未取得なら None
-    fn date_range(&self) -> Option<(String, String)> {
-        None
-    }
+    fn date_range(&self) -> Option<(String, String)>;
     /// 削除件数の再取得を要求する(件数取得失敗時の再読み込み用)
-    fn refresh_for_delete(&self) {}
-    fn delete_disabled(&self, meta: &CsvTabMeta) -> bool {
-        meta.saving || meta.deleting
-    }
+    fn refresh_for_delete(&self);
+    fn delete_disabled(&self, meta: &CsvTabMeta) -> bool;
     fn select_file(&self, file: web_sys::File);
     fn save_csv(&self);
     fn open_delete_confirm(&self);
@@ -157,7 +151,7 @@ impl RowSource {
 
 /// 種類ごとの行データ。統計が未取得なら count は None
 #[derive(Clone, Debug, PartialEq)]
-pub struct CsvKindRowData {
+pub(crate) struct CsvKindRowData {
     pub kind: CsvKind,
     pub count: Option<i64>,
     pub latest_imported_at: Option<String>,
@@ -166,14 +160,14 @@ pub struct CsvKindRowData {
 }
 
 impl CsvKindRowData {
-    pub fn saved_count(&self) -> usize {
+    fn saved_count(&self) -> usize {
         self.count.unwrap_or(0).max(0) as usize
     }
 }
 
 /// CSV 管理画面の取得カード
 #[component]
-pub fn CsvManageFetchCard(
+pub(crate) fn CsvManageFetchCard(
     running: ReadSignal<bool>,
     last_fetched: ReadSignal<Option<String>>,
     on_fetch: Callback<web_sys::MouseEvent>,
@@ -256,7 +250,7 @@ impl KindFlag {
 
 /// 種類ごとのテーブル行。⋯ のメニューから再取得・取り込み・削除を選ぶ
 #[component]
-pub fn CsvKindRow(
+fn CsvKindRow(
     row_data: CsvKindRowData,
     asset_csv: AssetBalanceCsvStore,
     receipts_store: ReceiptsStore,
@@ -847,7 +841,7 @@ fn CsvImportBody<S: CsvSource>(
 /// ファイルの選択から保存までを1つのバーに置く。
 /// 選ぶ前後でボタンの位置が変わらないため、マウスをほとんど動かさずに済む
 #[component]
-pub fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
+fn CsvActionBar<S: CsvSource>(source: S) -> impl IntoView {
     // 保存の再送待ちは ApiClient の内部で完結するため、フック経由で受けて
     // 操作バーの保存ボタンに「再試行中...」を出す
     let retrying = RwSignal::new(false);
@@ -1187,7 +1181,7 @@ fn status_dot_class(status_key: &str) -> Option<&'static str> {
 
 /// 種類ごとのテーブル
 #[component]
-pub fn CsvKindTable(
+pub(crate) fn CsvKindTable(
     rows: Memo<Vec<CsvKindRowData>>,
     asset_csv: AssetBalanceCsvStore,
     receipts_store: ReceiptsStore,

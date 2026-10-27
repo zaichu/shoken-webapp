@@ -48,7 +48,7 @@ extern "C" {
     fn locale_compare_js(a: &str, b: &str) -> i32;
 }
 
-pub fn locale_compare(a: &str, b: &str) -> std::cmp::Ordering {
+fn locale_compare(a: &str, b: &str) -> std::cmp::Ordering {
     #[cfg(target_arch = "wasm32")]
     {
         locale_compare_js(a, b).cmp(&0)

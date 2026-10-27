@@ -2,7 +2,7 @@ use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::features::asset_balance::fund::AssetSearch;
 use crate::support::list_search::{FilterConfig, filter_by_config};
 
-pub fn asset_balance_filter_config() -> FilterConfig<AssetBalanceRow> {
+fn asset_balance_filter_config() -> FilterConfig<AssetBalanceRow> {
     FilterConfig {
         string_fields: None,
         partial_string_fields: Some(vec![

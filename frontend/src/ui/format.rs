@@ -12,7 +12,7 @@ use shared::format::{
 use crate::support::list_search::is_valid_iso_date;
 
 /// 1株・1口あたりの金額(取得単価・現在値・基準価額・1株配当)の小数桁の上限
-pub const UNIT_PRICE_DECIMALS_MAX: u32 = 2;
+const UNIT_PRICE_DECIMALS_MAX: u32 = 2;
 
 /// JS の `Number(value.toFixed(decimals))` と同じ結果を返す。
 /// f64 の2進の値で最も近い `10^-decimals` の倍数を選び、同距離なら大きい方を選ぶ。
@@ -367,7 +367,7 @@ pub fn calendar_days_between(from: (i32, u32, u32), to: (i32, u32, u32)) -> i64 
 
 /// 今日(JST)の年月日
 #[cfg(target_arch = "wasm32")]
-pub fn today_jst() -> Option<(i32, u32, u32)> {
+fn today_jst() -> Option<(i32, u32, u32)> {
     // epoch 秒を9時間進めて JST の暦日を出す
     let jst_seconds = (js_sys::Date::now() / 1000.0) as i64 + 9 * 3600;
     Some(civil_from_days(jst_seconds.div_euclid(86_400)))
@@ -375,7 +375,7 @@ pub fn today_jst() -> Option<(i32, u32, u32)> {
 
 /// 今日(JST)の年月日。ネイティブでは None
 #[cfg(not(target_arch = "wasm32"))]
-pub fn today_jst() -> Option<(i32, u32, u32)> {
+fn today_jst() -> Option<(i32, u32, u32)> {
     None
 }
 

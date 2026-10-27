@@ -51,15 +51,15 @@ pub fn create_oauth_client(
 
 /// `/api/v1/oauth/google/authorize` が返す認可リダイレクト一式。
 /// state/nonce/PKCE verifier は Cookie に保存し、callback で検証する
-pub struct GoogleAuthFlow {
-    pub authorize_url: String,
-    pub state: String,
-    pub nonce: String,
-    pub pkce_verifier: String,
+pub(crate) struct GoogleAuthFlow {
+    pub(crate) authorize_url: String,
+    pub(crate) state: String,
+    pub(crate) nonce: String,
+    pub(crate) pkce_verifier: String,
 }
 
 /// Google 認可フローの開始一式（認可 URL・state・nonce・PKCE verifier）
-pub fn begin_auth(client: &GoogleOAuthClient) -> GoogleAuthFlow {
+pub(crate) fn begin_auth(client: &GoogleOAuthClient) -> GoogleAuthFlow {
     let (pkce_verifier, pkce_challenge) = new_pkce_pair();
     let state = new_oauth_random();
     let nonce = new_oauth_random();
@@ -77,7 +77,7 @@ pub fn begin_auth(client: &GoogleOAuthClient) -> GoogleAuthFlow {
     }
 }
 
-pub const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
+const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 pub const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 pub const GOOGLE_TOKENINFO_URL: &str = "https://oauth2.googleapis.com/tokeninfo";
 
@@ -100,7 +100,7 @@ pub fn url_encode(value: &str) -> String {
 }
 
 /// base64url エンコード（パディングなし）。PKCE の code_challenge 用
-pub fn base64url_nopad(bytes: &[u8]) -> String {
+fn base64url_nopad(bytes: &[u8]) -> String {
     const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut out = String::with_capacity(bytes.len() * 4 / 3);
     for chunk in bytes.chunks(3) {
@@ -123,13 +123,13 @@ pub fn base64url_nopad(bytes: &[u8]) -> String {
 }
 
 /// state/nonce 用のランダム値（UUID v4 の hex 32 文字）
-pub fn new_oauth_random() -> String {
+fn new_oauth_random() -> String {
     uuid::Uuid::new_v4().simple().to_string()
 }
 
 /// PKCE の (verifier, S256 challenge)。verifier は 64 文字の hex で
 /// RFC 7636 の 43..=128 文字・unreserved 制約を満たす
-pub fn new_pkce_pair() -> (String, String) {
+fn new_pkce_pair() -> (String, String) {
     let verifier = format!(
         "{}{}",
         uuid::Uuid::new_v4().simple(),
@@ -141,7 +141,7 @@ pub fn new_pkce_pair() -> (String, String) {
 
 /// Google 認可エンドポイントへのリダイレクト URL を組み立てる。
 /// scope は `openid email profile`、nonce は extra param
-pub fn build_authorize_url(
+pub(crate) fn build_authorize_url(
     client_id: &str,
     redirect_uri: &str,
     state: &str,

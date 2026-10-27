@@ -38,7 +38,7 @@ pub fn safe_add(a: f64, b: f64) -> f64 {
 
 /// 1銘柄の評価損益。`valuation.ts` の `calculateValuation` に対応する。
 #[derive(Clone, Debug, PartialEq)]
-pub struct ValuationResult {
+pub(crate) struct ValuationResult {
     pub amount: Option<f64>,
     pub rate: Option<f64>,
 }
@@ -80,7 +80,7 @@ fn priced_market_value(input: &ValuationInput) -> Option<f64> {
 
 /// 1銘柄の評価額と含み損益。
 #[derive(Clone, Debug, PartialEq)]
-pub struct HoldingValuation {
+pub(crate) struct HoldingValuation {
     /// 評価額(現在値×数量)。価格なしは None
     pub market_value: Option<f64>,
     /// 含み損益(評価額−取得総額)と率(損益÷取得総額)
@@ -98,7 +98,7 @@ pub fn holding_valuation(input: &ValuationInput) -> HoldingValuation {
 /// 保有全体の評価額と含み損益。
 /// 価格なし銘柄は分子・分母の両方から外し、取得額分の損と誤表示しない。
 #[derive(Clone, Debug, PartialEq)]
-pub struct PortfolioValuation {
+pub(crate) struct PortfolioValuation {
     /// 評価額合計(価格あり銘柄のみ)。価格のある銘柄が1件も無ければ None
     pub market_value: Option<f64>,
     /// 含み損益合計と率。率の分母は価格あり銘柄の取得総額

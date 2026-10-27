@@ -199,7 +199,7 @@ impl SessionStore {
         }
     }
 
-    pub fn redirect_to(path: &str) {
+    fn redirect_to(path: &str) {
         if let Some(window) = web_sys::window() {
             let _ = window.location().set_href(path);
         }
