@@ -465,7 +465,11 @@ impl CsvSyncStore {
     fn finish_import(&self) {
         let imported = self.state.with(|state| state.import.imported.clone());
         self.refresh_lists(&imported);
-        self.state.update(|state| state.running = false);
+        self.state.update(|state| {
+            state.running = false;
+            // ファイル取り込みの完了でも統計を取り直す(最新取得は Result イベントで立つ)
+            state.finished = true;
+        });
     }
 
     /// 取り込めた種類の一覧を取り直す。ページ未訪問のスロットは未生成なので何もしない

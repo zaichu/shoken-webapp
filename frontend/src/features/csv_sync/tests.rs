@@ -147,6 +147,8 @@ fn finish_import_releases_running() {
         store.finish_import();
         // ページ未訪問なら再取得は何もせず、実行中だけ解除する
         assert!(!store.state().running);
+        // ファイル取り込みの完了でも統計を取り直せるよう完了を立てる
+        assert!(store.state().finished);
     });
 }
 

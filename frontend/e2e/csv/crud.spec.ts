@@ -590,6 +590,10 @@ test.describe('取引明細 CSV 取込・削除', () => {
     await page.goto('/csv');
     await importCsvFile(page, 'dividend', path.join(fixtureDir(), 'dividend-base.csv'));
 
-    await expect(csvRow(page, 'dividend')).toContainText('CSVファイル', { timeout: 10000 });
+    await expect(csvRow(page, 'dividend')).toContainText('取得できず', { timeout: 10000 });
+    const detailButton = csvRow(page, 'dividend').getByTestId('status-detail');
+    const detail = csvRow(page, 'dividend').getByTestId('status-detail-content');
+    await detailButton.click();
+    await expect(detail).toContainText('CSVファイル（.csv）のみアップロードできます');
   });
 });

@@ -288,8 +288,7 @@ pub(crate) async fn import_single_file(
                 state.set_kind(kind, KindStatus::Imported { result, fetched_at });
                 state.import.imported.push(kind);
             });
-            store.refresh_lists(&[kind]);
-            store.state.update(|state| state.running = false);
+            store.finish_import();
         }
         Outcome::Skipped(reason) => {
             store.set_kind(kind, KindStatus::Skipped { reason });
