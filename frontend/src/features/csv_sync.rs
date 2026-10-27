@@ -320,6 +320,19 @@ impl CsvSyncStore {
         self.start_kinds(&[kind]);
     }
 
+    /// 行で選んだファイルをそのまま保存する。最新取得と同じ安全装置を通す
+    pub(crate) fn import_file(&self, kind: CsvKind, file: web_sys::File) {
+        if self.running() {
+            return;
+        }
+        let epoch = self.epoch.get_untracked();
+        let generation = self.session.generation.get_untracked();
+        let store = *self;
+        leptos::task::spawn_local(async move {
+            import::import_single_file(store, epoch, generation, kind, file).await;
+        });
+    }
+
     fn start_kinds(&self, kinds: &[CsvKind]) {
         if self.running() {
             return;
