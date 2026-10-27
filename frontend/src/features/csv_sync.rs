@@ -196,6 +196,19 @@ impl SyncState {
         }
     }
 
+    /// ファイル取り込み開始時の準備。最新取得を一度も実行していないと
+    /// kinds が空で set_kind が捨てられるため、必要なら Waiting で埋める。
+    /// 実行中もここで立てて、別行の取り込みや最新取得の同時開始を抑える
+    fn prepare_file_import(&mut self) {
+        if self.kinds.is_empty() {
+            self.kinds = CsvKind::ALL
+                .into_iter()
+                .map(|kind| (kind, KindStatus::Waiting))
+                .collect();
+        }
+        self.running = true;
+    }
+
     /// 「ファイルの URL へのアクセス」の案内を出すか
     pub(crate) fn needs_file_access_guide(&self) -> bool {
         self.failures
@@ -325,6 +338,7 @@ impl CsvSyncStore {
         if self.running() {
             return;
         }
+        self.state.update(|state| state.prepare_file_import());
         let epoch = self.epoch.get_untracked();
         let generation = self.session.generation.get_untracked();
         let store = *self;

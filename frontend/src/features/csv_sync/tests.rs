@@ -314,3 +314,26 @@ fn terminal_events_stop_running() {
         assert_eq!(state.error.is_some(), error_is_some);
     }
 }
+
+#[test]
+fn prepare_file_import_initializes_kinds_and_blocks_concurrent_runs() {
+    // 最新取得を一度も実行していない状態でも行の状態を書ける
+    let mut state = SyncState::default();
+    assert!(state.kinds.is_empty());
+    state.prepare_file_import();
+    assert!(state.running);
+    assert_eq!(state.kinds.len(), CsvKind::ALL.len());
+    state.set_kind(CsvKind::Dividend, KindStatus::Importing);
+    assert_eq!(
+        state.kinds[CsvKind::Dividend.index()].1,
+        KindStatus::Importing
+    );
+
+    // 進行中の表示は残し、実行中だけ立て直す
+    state.prepare_file_import();
+    assert!(state.running);
+    assert_eq!(
+        state.kinds[CsvKind::Dividend.index()].1,
+        KindStatus::Importing
+    );
+}

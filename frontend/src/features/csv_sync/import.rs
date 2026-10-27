@@ -293,14 +293,17 @@ pub(crate) async fn import_single_file(
         }
         Outcome::Skipped(reason) => {
             store.set_kind(kind, KindStatus::Skipped { reason });
+            store.state.update(|state| state.running = false);
         }
         Outcome::Failed(message) => {
             store.set_kind(kind, KindStatus::Failed { reason: message });
+            store.state.update(|state| state.running = false);
         }
         Outcome::NeedsConfirm {
             new_rows,
             saved_rows,
         } => {
+            // 実行中は回答まで維持し、answer_confirm → process → finish_import で下ろす
             store.hold_confirm(PendingImport {
                 csv: ReceivedCsv {
                     kind,

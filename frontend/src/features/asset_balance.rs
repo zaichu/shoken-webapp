@@ -31,8 +31,3 @@ pub(crate) use view::{
     AssetBalanceCompositionPage, AssetBalanceHoldingPage, AssetBalancePage, AssetBalanceState,
     AssetFundHoldingPage, use_asset_balance_state,
 };
-
-#[cfg(test)]
-pub(crate) use lookup::AssetBalanceLookupStore;
-#[cfg(test)]
-pub(crate) use store::{BalanceSlot, DataOps, FundSlot};
