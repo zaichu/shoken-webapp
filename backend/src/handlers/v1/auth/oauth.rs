@@ -13,8 +13,8 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct AuthCallbackQuery {
-    pub code: String,
-    pub state: String,
+    code: String,
+    state: String,
 }
 
 pub fn same_site(secure: bool) -> SameSite {

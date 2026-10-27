@@ -24,7 +24,7 @@ use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
 // 全件置換ではエラー行を含む CSV を backend が拒否するため、有効行があっても保存を止める
-pub(crate) fn save_disabled_by_preview(meta: &CsvTabMeta, errors_block_save: bool) -> bool {
+fn save_disabled_by_preview(meta: &CsvTabMeta, errors_block_save: bool) -> bool {
     meta.busy()
         || !meta.has_preview_rows()
         || (errors_block_save

@@ -30,7 +30,7 @@ const MAX_DRAIN_CODES_PER_RUN: i64 = 4;
 const ERROR_RETRY_INTERVAL_SECS: i32 = 24 * 60 * 60;
 
 /// 429 レートリミットエラーの場合に消化を打ち切るべきか判定する
-pub(crate) fn should_abort_on_error(e: &ApiError) -> bool {
+fn should_abort_on_error(e: &ApiError) -> bool {
     matches!(e, ApiError::Upstream(UpstreamError::RateLimited))
 }
 

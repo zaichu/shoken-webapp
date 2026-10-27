@@ -78,8 +78,8 @@ pub(crate) fn begin_auth(client: &GoogleOAuthClient) -> GoogleAuthFlow {
 }
 
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
-pub const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
-pub const GOOGLE_TOKENINFO_URL: &str = "https://oauth2.googleapis.com/tokeninfo";
+const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
+const GOOGLE_TOKENINFO_URL: &str = "https://oauth2.googleapis.com/tokeninfo";
 
 /// RFC 3986 unreserved 以外を %XX にする最小のパーセントエンコード。
 /// tokeninfo のクエリと token 交換のフォームボディで使う
@@ -141,7 +141,7 @@ fn new_pkce_pair() -> (String, String) {
 
 /// Google 認可エンドポイントへのリダイレクト URL を組み立てる。
 /// scope は `openid email profile`、nonce は extra param
-pub(crate) fn build_authorize_url(
+fn build_authorize_url(
     client_id: &str,
     redirect_uri: &str,
     state: &str,
