@@ -1,17 +1,126 @@
 use super::cards::*;
+use super::main_content::{derive_filtered_count, show_dividend_section};
 use super::summary::*;
 use super::tabs::*;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::filter::{column_order, filter_receipts};
-use crate::features::receipts::kind::{ColumnTier, group_label, is_date_group_key};
+use crate::features::receipts::kind::{
+    ColumnTier, dividend_totals, group_label, is_date_group_key,
+};
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
 use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::card::StatTone;
+use crate::ui::page_skeleton::FilteredCount;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+
+// 絞り込み結果の共有先(配当情報の切り替え・集計・期間・件数・表)は同じ入力から同じ値を出す
+#[test]
+fn dividend_section_switch_needs_dividend_tab_and_exact_code() {
+    let rows = dividends();
+    let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9904");
+    assert!(show_dividend_section(
+        ReceiptsTab::Dividend,
+        &filtered,
+        "9904"
+    ));
+
+    assert!(!show_dividend_section(ReceiptsTab::Dividend, &rows, ""));
+    assert!(!show_dividend_section(ReceiptsTab::Dividend, &rows, "架空"));
+
+    let domestic_rows = filter_receipts(ReceiptsTab::DomesticStock, &domestic(), "9904");
+    assert!(!domestic_rows.is_empty());
+    assert!(!show_dividend_section(
+        ReceiptsTab::DomesticStock,
+        &domestic_rows,
+        "9904"
+    ));
+
+    let fund_rows = filter_receipts(ReceiptsTab::MutualFund, &funds(), "Alpha");
+    assert!(!fund_rows.is_empty());
+    assert!(!show_dividend_section(
+        ReceiptsTab::MutualFund,
+        &fund_rows,
+        "Alpha"
+    ));
+}
+
+#[test]
+fn dividend_totals_match_filtered_rows_when_section_shows() {
+    let filtered = filter_receipts(ReceiptsTab::Dividend, &dividends(), "9904");
+    assert!(show_dividend_section(
+        ReceiptsTab::Dividend,
+        &filtered,
+        "9904"
+    ));
+    let totals = dividend_totals(&filtered);
+    assert_eq!(
+        (
+            totals.total_dividends_before_tax,
+            totals.total_taxes,
+            totals.total_net_amount_received
+        ),
+        (dec!(500), dec!(100), dec!(400))
+    );
+}
+
+#[test]
+fn filtered_count_keeps_api_total_and_filtering_flag() {
+    let rows = dividends();
+    let with_total = ReceiptTabData {
+        rows: rows.clone(),
+        total: Some(100),
+        summary: None,
+        truncated: false,
+    };
+    assert_eq!(
+        derive_filtered_count(&with_total, 1, true),
+        FilteredCount {
+            filtered: 1,
+            total: 100,
+            filtering: true,
+        }
+    );
+    let without_total = ReceiptTabData {
+        rows: rows.clone(),
+        total: None,
+        summary: None,
+        truncated: false,
+    };
+    assert_eq!(
+        derive_filtered_count(&without_total, rows.len(), false),
+        FilteredCount {
+            filtered: rows.len(),
+            total: rows.len(),
+            filtering: false,
+        }
+    );
+}
+
+#[test]
+fn period_note_spans_filtered_rows() {
+    let filtered = filter_receipts(ReceiptsTab::Dividend, &dividends(), "9910");
+    assert_eq!(filtered.len(), 2);
+    assert_eq!(
+        period_note(&filtered),
+        Some(crate::ui::labels::target_period_note(
+            "2024/06/21",
+            "2026/06/01"
+        ))
+    );
+    let single = filter_receipts(ReceiptsTab::Dividend, &dividends(), "9904 2026");
+    assert_eq!(single.len(), 1);
+    assert_eq!(
+        period_note(&single),
+        Some(crate::ui::labels::target_period_note(
+            "2026/06/01",
+            "2026/06/01"
+        ))
+    );
+}
 
 #[test]
 fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
