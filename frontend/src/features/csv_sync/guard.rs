@@ -90,6 +90,29 @@ pub(crate) fn inspect(kind: CsvKind, content: &str) -> Option<SkipReason> {
     None
 }
 
+/// 失敗の理由に添える受け取った CSV の先頭行(最初の非空の行)。
+/// 口座番号や金額の可能性があるため数字・カンマ・空白だけの行は出さない。
+/// 80 文字を超えたら切り、改行・タブは空白に置き換える
+pub(crate) fn first_line_snippet(content: &str) -> Option<String> {
+    let body = content.strip_prefix('\u{FEFF}').unwrap_or(content);
+    let line = body
+        .lines()
+        .map(|line| line.replace(['\t', '\r'], " ").trim().to_string())
+        .find(|line| !line.is_empty())?;
+    let without_separators: String = line
+        .chars()
+        .filter(|c| *c != ',' && *c != '，' && *c != '、' && !c.is_whitespace())
+        .collect();
+    if !without_separators.is_empty() && without_separators.chars().all(|c| c.is_numeric()) {
+        return None;
+    }
+    if line.chars().nth(80).is_some() {
+        Some(format!("{}…", line.chars().take(80).collect::<String>()))
+    } else {
+        Some(line)
+    }
+}
+
 /// 「いまの件数の半分未満」の激減判定
 pub(crate) fn is_plunge(new_rows: usize, saved_rows: usize) -> bool {
     new_rows * 2 < saved_rows
