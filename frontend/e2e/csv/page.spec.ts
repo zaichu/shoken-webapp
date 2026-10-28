@@ -204,6 +204,8 @@ for (const width of [1280, 390]) {
       await statsRequest;
       const button = page.getByTestId('csv-fetch-button');
       await expect(button).toBeEnabled();
+      await expect(button).toContainText('すべて取得');
+      await expect(page.getByText('最終取得')).toHaveCount(0);
       const countHeader = page.locator('thead th').nth(1);
       const countCells = page.locator('tr[data-kind] > td:nth-child(2)');
       await expect(countCells).toHaveCount(5);
@@ -217,11 +219,12 @@ for (const width of [1280, 390]) {
 
       releaseStats();
       await expect(savedCount(page, 'assetbalance')).toContainText('12345');
-      await expect(page.getByTestId('csv-last-fetched')).toContainText('21:39');
+      await expect(page.getByText('最終取得')).toHaveCount(0);
       expect(await positions()).toEqual(before);
 
       await button.click();
       await expect(button).toBeDisabled();
+      await expect(button).toContainText('取得中...');
       expect(await positions()).toEqual(before);
     } finally {
       releaseStats();
