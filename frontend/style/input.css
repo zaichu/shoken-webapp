@@ -367,6 +367,31 @@
     box-shadow: inset 3px 0 var(--color-negative);
   }
 
+  /* 失敗の詳細の理由。横スクロールにせず折り返して全文を出す。
+     親の td は nowrap のため normal で上書きする。日本語の自然な改行を優先し、
+     行に収まらない長い語だけ途中で切る。幅は PC の固定列に収める上限(20rem)と
+     cell 幅の小さい方に留め、列位置を動かさない。色は negative-vivid(両テーマで検証済み) */
+  .csv-detail-reason {
+    margin-top: 0.25rem;
+    max-width: min(20rem, 100%);
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: break-word;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-negative-vivid);
+  }
+
+  /* 状態の1行(文言と「詳細」ボタン)。PC では1行に収まるため見た目は変わらない。
+     スマホ幅では文言が長いとボタンが右へ押し出されてメニューの下に潜るため、
+     折り返してボタンを次行に落とし、押せる位置に残す */
+  .csv-status-line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
   .skeleton-table-row {
     @apply grid grid-cols-[1fr_6rem_6rem] items-center gap-3 max-sm:grid-cols-[1fr_5rem];
   }

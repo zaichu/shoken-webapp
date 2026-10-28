@@ -513,6 +513,58 @@ test.describe('CSV 最新取得', () => {
     await expect(detail).toHaveCount(0);
   });
 
+  test('失敗の詳細は横スクロールせず全文を折り返し、列位置を動かさない', async ({ page }) => {
+    const longReason =
+      '必要な列が見つかりません。対応形式: 投資信託の保有残高CSV(見出し行の先頭は「投資信託種別」)' +
+      '不足している列名を見本と見比べて確認してください。'.repeat(5);
+    expect(longReason.length).toBeGreaterThan(150);
+    await mockSession(page);
+    await mockSyncApis(page);
+    await mockCsvKindStats(page, { counts: () => ({}) });
+    await mockExtension(page);
+    await page.goto('/csv');
+    await page.getByTestId('csv-fetch-button').click();
+    await emitMessage(page, {
+      type: 'result',
+      csvs: [],
+      failures: [{ kind: 'dividend', reason: longReason, code: 'unexpected-format' }],
+    });
+    await expect(csvRow(page, 'dividend')).toContainText('取得できず');
+
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      const detailButton = csvRow(page, 'dividend').getByTestId('status-detail');
+      const detail = csvRow(page, 'dividend').getByTestId('status-detail-content');
+      const saved = csvRow(page, 'dividend').getByTestId('saved-count');
+      await expect(detailButton).toBeVisible();
+
+      const before = await saved.boundingBox();
+      expect(before).not.toBeNull();
+      await detailButton.click();
+      await expect(detail).toBeVisible();
+      await expect(detail).toContainText(longReason);
+      const sizes = await detail.evaluate((el) => ({
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+      }));
+      expect(sizes.scrollWidth).toBeLessThanOrEqual(sizes.clientWidth + 1);
+      const pageOverflow = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+      }));
+      expect(pageOverflow.scrollWidth).toBeLessThanOrEqual(pageOverflow.innerWidth + 1);
+      const opened = await saved.boundingBox();
+      expect(opened).not.toBeNull();
+      expect(Math.abs((opened?.x ?? 0) - (before?.x ?? 0))).toBeLessThanOrEqual(1);
+
+      await detailButton.click();
+      await expect(detail).toHaveCount(0);
+      const closed = await saved.boundingBox();
+      expect(closed).not.toBeNull();
+      expect(Math.abs((closed?.x ?? 0) - (before?.x ?? 0))).toBeLessThanOrEqual(1);
+    }
+  });
+
   test('行の⋯メニューの再取得はその種類だけを拡張機能へ渡す', async ({ page }) => {
     await mockSession(page);
     const calls = await mockSyncApis(page);
