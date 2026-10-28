@@ -336,7 +336,7 @@
     }
 
     .csv-manage-fetch-actions {
-      grid-template-columns: 11rem 12rem;
+      grid-template-columns: 11rem;
       flex-shrink: 0;
       width: auto;
     }

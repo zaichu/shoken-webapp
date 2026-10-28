@@ -303,14 +303,9 @@ pub fn target_period_note(from: &str, to: &str) -> String {
 /// CSV管理: 取得カードの見出し
 pub const CSV_MANAGE_FETCH_TITLE: &str = "楽天証券から最新のデータを取得";
 /// CSV管理: 取得ボタン(通常)
-pub const CSV_MANAGE_FETCH_BUTTON: &str = "一括最新取得";
+pub const CSV_MANAGE_FETCH_BUTTON: &str = "すべて取得";
 /// CSV管理: 取得ボタン(実行中)
 pub const CSV_MANAGE_FETCH_RUNNING: &str = "取得中...";
-pub const CSV_MANAGE_LAST_FETCHED_MISSING: &str = "最終取得: —";
-/// CSV管理: 取得前の初期メッセージ
-pub fn csv_manage_last_fetched(date: &str, time: &str) -> String {
-    format!("最終取得: {date} {time}")
-}
 /// CSV管理: 表ヘッダー「データの種類」
 pub const CSV_MANAGE_COL_KIND: &str = "データの種類";
 /// CSV管理: 表ヘッダー「保存済み」

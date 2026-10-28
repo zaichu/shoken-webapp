@@ -8,8 +8,6 @@ use crate::features::csv_sync::{CsvKind as SyncKind, CsvSyncBody, KindStatus, us
 use crate::features::receipts::{ReceiptsTab, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::csv_page::{CsvKindRowData, CsvKindTable, CsvManageFetchCard};
-use crate::ui::format::{days_since_jst_date, format_jst_time, format_short_date};
-use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use leptos::prelude::*;
 
@@ -142,8 +140,6 @@ pub(crate) fn CsvPage() -> impl IntoView {
     };
     Effect::new(move |_| refresh_stats(false));
 
-    // 取得前の最終取得時刻表示用
-    let last_fetched = RwSignal::new(None::<String>);
     let running = RwSignal::new(false);
     let handled_finished = RwSignal::new(false);
     Effect::new(move |_| running.set(csv_sync.running()));
@@ -157,29 +153,6 @@ pub(crate) fn CsvPage() -> impl IntoView {
             refresh_stats(true);
         } else if state.running {
             handled_finished.set(false);
-        }
-    });
-
-    // 取得前の最終取得時刻(統計の最新の取込日時)
-    Effect::new(move |_| {
-        let latest = stats.get().and_then(|response| {
-            response
-                .kinds
-                .iter()
-                .filter_map(|stat| stat.latest_imported_at.clone())
-                .max()
-        });
-        match latest {
-            Some(ts)
-                if days_since_jst_date(&ts)
-                    .map(|days| days <= 0)
-                    .unwrap_or(false) =>
-            {
-                let date = format_short_date(&ts);
-                let time = format_jst_time(&ts);
-                last_fetched.set(Some(labels::csv_manage_last_fetched(&date, &time)));
-            }
-            _ => last_fetched.set(None),
         }
     });
 
@@ -208,7 +181,6 @@ pub(crate) fn CsvPage() -> impl IntoView {
                 {/* 取得カード */}
                 <CsvManageFetchCard
                     running=running.read_only()
-                    last_fetched=last_fetched.read_only()
                     on_fetch=Callback::new(move |_| csv_sync.start())
                 />
                 <CsvSyncBody />
