@@ -315,18 +315,109 @@ enum DbInner {
     Worker(WorkerDb),
 }
 
+/// `DATABASE_URL` の `sslmode` に応じた TLS 検証方針（libpq と同じ意味）。
+/// Supabase の Session pooler は独自 CA のチェーンを提示するため、OS の
+/// 信頼ストアだけでは検証できない。検証する運用ではダッシュボード配布の
+/// CA を `sslrootcert` で足し、できない運用では `sslmode=require` を選ぶ。
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, PartialEq)]
+enum TlsMode {
+    /// `disable`・`prefer`・未指定。システムルートで検証する（従来通り）
+    System,
+    /// `verify-ca`・`verify-full`。システムルートに加え `sslrootcert` の CA も信頼する
+    WithExtraCa(String),
+    /// `require`。libpq と同じく暗号化のみで検証はしない
+    Unverified,
+}
+
+/// `sslmode` は後勝ち（tokio-postgres の上書きと同じ向き）
+#[cfg(not(target_arch = "wasm32"))]
+fn tls_mode_from_url(url: &str) -> Result<TlsMode, String> {
+    let parsed =
+        url::Url::parse(url).map_err(|_| "DATABASE_URL の解析に失敗しました".to_string())?;
+    let mut sslmode = "prefer";
+    let mut sslrootcert = None;
+    for (key, value) in parsed.query_pairs() {
+        if key == "sslmode" {
+            sslmode = match value.as_ref() {
+                "disable" | "prefer" => "prefer",
+                "require" => "require",
+                "verify-ca" | "verify-full" => "verify",
+                _ => continue,
+            };
+        } else if key == "sslrootcert" && !value.is_empty() {
+            sslrootcert = Some(value.into_owned());
+        }
+    }
+    match sslmode {
+        "require" => Ok(TlsMode::Unverified),
+        "verify" => match sslrootcert {
+            Some(path) => Ok(TlsMode::WithExtraCa(path)),
+            None => Err("sslmode=verify-ca/verify-full には sslrootcert が必要です".to_string()),
+        },
+        _ => Ok(TlsMode::System),
+    }
+}
+
+/// PEM ファイルから証明書をすべて読み込む（Dashboard 配布の CA など複数入りに対応）
+#[cfg(not(target_arch = "wasm32"))]
+fn load_pem_certs(path: &str) -> Result<Vec<native_tls::Certificate>, String> {
+    let bytes = std::fs::read(path)
+        .map_err(|e| format!("sslrootcert の CA ファイルを読み込めませんでした: {e}"))?;
+    let text = String::from_utf8(bytes)
+        .map_err(|_| "sslrootcert の CA ファイルが PEM 形式ではありません".to_string())?;
+    const BEGIN: &str = "-----BEGIN CERTIFICATE-----";
+    const END: &str = "-----END CERTIFICATE-----";
+    let mut certs = Vec::new();
+    let mut rest = text.as_str();
+    while let Some(start) = rest.find(BEGIN) {
+        let after_begin = start + BEGIN.len();
+        let end = rest[after_begin..]
+            .find(END)
+            .map(|i| after_begin + i + END.len())
+            .ok_or_else(|| "sslrootcert の CA ファイルが PEM 形式ではありません".to_string())?;
+        certs.push(
+            native_tls::Certificate::from_pem(&rest.as_bytes()[start..end])
+                .map_err(|e| format!("sslrootcert の CA 証明書を読み込めませんでした: {e}"))?,
+        );
+        rest = &rest[end..];
+    }
+    if certs.is_empty() {
+        return Err("sslrootcert の CA ファイルに証明書が含まれていません".to_string());
+    }
+    Ok(certs)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn build_tls_connector(mode: &TlsMode) -> Result<postgres_native_tls::MakeTlsConnector, String> {
+    let mut builder = native_tls::TlsConnector::builder();
+    match mode {
+        TlsMode::System => {}
+        TlsMode::WithExtraCa(path) => {
+            for cert in load_pem_certs(path)? {
+                builder.add_root_certificate(cert);
+            }
+        }
+        TlsMode::Unverified => {
+            builder.danger_accept_invalid_certs(true);
+        }
+    }
+    let connector = builder
+        .build()
+        .map_err(|e| format!("TLS コネクタの初期化に失敗しました: {e}"))?;
+    Ok(postgres_native_tls::MakeTlsConnector::new(connector))
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<Db, String> {
     let database_url = database_url.trim();
     validate_database_url(database_url)?;
+    let tls_mode = tls_mode_from_url(database_url)?;
     let sanitized_url = sanitize_database_url(database_url)?;
     let config = sanitized_url
         .parse::<tokio_postgres::Config>()
         .map_err(|e| format!("DB 接続設定の解析に失敗しました: {e}"))?;
-    let tls = postgres_native_tls::MakeTlsConnector::new(
-        native_tls::TlsConnector::new()
-            .map_err(|e| format!("TLS コネクタの初期化に失敗しました: {e}"))?,
-    );
+    let tls = build_tls_connector(&tls_mode)?;
     let manager = deadpool_postgres::Manager::from_config(
         config,
         tls,
@@ -767,18 +858,25 @@ impl_executor_for_tx!(&mut Tx);
 #[cfg(not(target_arch = "wasm32"))]
 use url::Url;
 
-/// `tokio_postgres::Config` へ渡す前に `channel_binding` query parameter を除去する。
-/// `channel_binding` がない場合は入力文字列をそのまま返す。
+/// `tokio_postgres::Config` へ渡す前に `channel_binding`・`sslrootcert` の
+/// query parameter を除去し、`sslmode=verify-ca/verify-full` を `require` に
+/// 読み替える（tokio-postgres が解釈できない値を先に正規化する。検証の有無は
+/// `tls_mode_from_url` が決め、ここでは TLS を必須にすることだけ伝える）。
+/// 上記がなければ入力文字列をそのまま返す。
 /// 保持する query pair は raw 文字列を再利用し percent-encoding を変換しない。
 #[cfg(not(target_arch = "wasm32"))]
 fn sanitize_database_url(url: &str) -> Result<String, String> {
     let parsed = Url::parse(url).map_err(|_| "DATABASE_URL の解析に失敗しました".to_string())?;
 
-    if !parsed.query_pairs().any(|(k, _)| k == "channel_binding") {
+    if !parsed.query_pairs().any(|(k, v)| {
+        k == "channel_binding"
+            || k == "sslrootcert"
+            || (k == "sslmode" && (v == "verify-ca" || v == "verify-full"))
+    }) {
         return Ok(url.to_string());
     }
 
-    // raw pair と decoded pair を zip し、decoded key が channel_binding の raw pair を除去する
+    // raw pair と decoded pair を zip し、decoded key が除去・読替対象の raw pair を処理する
     let filtered_query = parsed
         .query()
         .map(|q| {
@@ -787,8 +885,15 @@ fn sanitize_database_url(url: &str) -> Result<String, String> {
             raw_pairs
                 .iter()
                 .zip(decoded_pairs.iter())
-                .filter(|(_, (k, _))| k != "channel_binding")
-                .map(|(raw, _)| *raw)
+                .filter_map(|(raw, (k, v))| {
+                    if k == "channel_binding" || k == "sslrootcert" {
+                        None
+                    } else if k == "sslmode" && (v == "verify-ca" || v == "verify-full") {
+                        Some("sslmode=require")
+                    } else {
+                        Some(*raw)
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join("&")
         })
@@ -968,4 +1073,150 @@ mod tests {
             "エラーに URL 値を含めない: {err}"
         );
     }
+
+    #[test]
+    fn test_sanitize_database_url_removes_sslrootcert() {
+        // sslrootcert は tokio-postgres が解釈できないため除去する
+        let url = "postgres://localhost/db?sslmode=require&sslrootcert=/tmp/ca.crt";
+        let sanitized = sanitize_database_url(url).unwrap();
+        assert!(
+            !sanitized.contains("sslrootcert"),
+            "sslrootcert が残っている"
+        );
+        assert!(
+            sanitized.contains("sslmode=require"),
+            "sslmode が除去されている"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_database_url_rewrites_verify_sslmode() {
+        // tokio-postgres が解釈できない verify-ca/verify-full は require に読み替える
+        for mode in ["verify-ca", "verify-full"] {
+            let url = format!("postgres://localhost/db?sslmode={mode}&application_name=a#frag");
+            let sanitized = sanitize_database_url(&url).unwrap();
+            assert!(
+                sanitized.contains("sslmode=require"),
+                "読み替えられていない: {sanitized}"
+            );
+            assert!(!sanitized.contains(mode), "元の値が残っている");
+            assert!(
+                sanitized.contains("application_name=a"),
+                "他の parameter が消えている"
+            );
+            assert!(sanitized.ends_with("#frag"), "fragment が消えている");
+        }
+    }
+
+    #[test]
+    fn test_tls_mode_from_url_defaults_to_system() {
+        // 未指定・prefer・disable は従来通りシステムルートで検証する
+        for url in [
+            "postgres://localhost/db",
+            "postgres://localhost/db?sslmode=prefer",
+            "postgres://localhost/db?sslmode=disable",
+        ] {
+            assert_eq!(tls_mode_from_url(url).unwrap(), TlsMode::System);
+        }
+    }
+
+    #[test]
+    fn test_tls_mode_from_url_require_skips_verification() {
+        // require は libpq と同じく暗号化のみで検証はしない
+        let mode = tls_mode_from_url("postgres://localhost/db?sslmode=require").unwrap();
+        assert_eq!(mode, TlsMode::Unverified);
+    }
+
+    #[test]
+    fn test_tls_mode_from_url_verify_needs_rootcert() {
+        // verify-ca/verify-full は sslrootcert なしでは構築できない
+        for mode in ["verify-ca", "verify-full"] {
+            let err =
+                tls_mode_from_url(&format!("postgres://localhost/db?sslmode={mode}")).unwrap_err();
+            assert!(err.contains("sslrootcert"), "案内がない: {err}");
+        }
+        let mode = tls_mode_from_url(
+            "postgres://localhost/db?sslmode=verify-full&sslrootcert=/tmp/ca.crt",
+        )
+        .unwrap();
+        assert_eq!(mode, TlsMode::WithExtraCa("/tmp/ca.crt".to_string()));
+    }
+
+    #[test]
+    fn test_tls_mode_from_url_last_sslmode_wins() {
+        // 複数指定は後勝ち（tokio-postgres の上書きと同じ向き）
+        let mode =
+            tls_mode_from_url("postgres://localhost/db?sslmode=disable&sslmode=require").unwrap();
+        assert_eq!(mode, TlsMode::Unverified);
+    }
+
+    #[test]
+    fn test_connect_pool_lazy_verify_without_rootcert_fails() {
+        // sslrootcert なしの verify-full はプール構築前に失敗する
+        let err =
+            connect_pool_lazy("postgresql://localhost/db?sslmode=verify-full", 1).unwrap_err();
+        assert!(err.contains("sslrootcert"), "案内がない: {err}");
+        assert!(!err.contains("localhost"), "ホストを漏らさない: {err}");
+    }
+
+    #[test]
+    fn test_build_tls_connector_system_and_unverified() {
+        assert!(build_tls_connector(&TlsMode::System).is_ok());
+        assert!(build_tls_connector(&TlsMode::Unverified).is_ok());
+    }
+
+    #[test]
+    fn test_build_tls_connector_with_extra_ca() {
+        // 存在しない CA ファイルは失敗する
+        let err = match build_tls_connector(&TlsMode::WithExtraCa(
+            "/tmp/shoken-test-ca-missing-1586.pem".to_string(),
+        )) {
+            Ok(_) => panic!("存在しない CA ファイルで構築できた"),
+            Err(err) => err,
+        };
+        assert!(err.contains("sslrootcert"), "案内がない: {err}");
+
+        // PEM でない中身は失敗する
+        let bad =
+            std::env::temp_dir().join(format!("shoken-test-ca-bad-{}.pem", std::process::id()));
+        std::fs::write(&bad, "not a certificate").unwrap();
+        let err =
+            match build_tls_connector(&TlsMode::WithExtraCa(bad.to_string_lossy().into_owned())) {
+                Ok(_) => panic!("PEM でない中身で構築できた"),
+                Err(err) => err,
+            };
+        assert!(err.contains("sslrootcert"), "案内がない: {err}");
+        let _ = std::fs::remove_file(&bad);
+
+        // 正しい PEM はシステムルートに足して構築できる（使い捨ての自己署名 CA）
+        let good =
+            std::env::temp_dir().join(format!("shoken-test-ca-good-{}.pem", std::process::id()));
+        std::fs::write(&good, TEST_CA_PEM).unwrap();
+        assert!(
+            build_tls_connector(&TlsMode::WithExtraCa(good.to_string_lossy().into_owned())).is_ok()
+        );
+        let _ = std::fs::remove_file(&good);
+    }
+
+    /// 使い捨ての自己署名テスト CA（openssl で生成、有効期限 2 日）。
+    /// `Certificate::from_pem` の解析に通ることだけを見る
+    const TEST_CA_PEM: &str = "-----BEGIN CERTIFICATE-----\n\
+        MIIDEzCCAfugAwIBAgIUIBz8scoCMzzPsh3HSvpELBwAMF4wDQYJKoZIhvcNAQEL\n\
+        BQAwGTEXMBUGA1UEAwwOc2hva2VuLXRlc3QtY2EwHhcNMjYxMDI4MjMzOTA5WhcN\n\
+        MjYxMDMwMjMzOTA5WjAZMRcwFQYDVQQDDA5zaG9rZW4tdGVzdC1jYTCCASIwDQYJ\n\
+        KoZIhvcNAQEBBQADggEPADCCAQoCggEBAKoEaGxyCdyxdx5O+Cd9p3Ys/ER1RYio\n\
+        w5G+5NZ+o8Vxp47bk/N60hfJTQGz3Bc3iuuh+w/Rgm2i+owSNYbHiqViEb2BkgIF\n\
+        Em4Y96kFpOvfMwAjd0LlGn+aTQoKU7lqdqMvqYxFdySGgtmad3P1bsCofpJfWOdS\n\
+        IvxfGp5goH06Crts6tWM7A8j2F4vr3cln1UgJeHT91UKByJPES0TwANz8rxaki9M\n\
+        HbgFJ+wYkdpDkkwdyCbQx7QKFF28hDBMwdThHD+CvM5tu4DlRQ8MfIV/GxtIXlOX\n\
+        lMVXMkOg1zG5HWxoEMfcALEtZMukHWUt7ggbOcDfq2pUtwdFzvm8A0UCAwEAAaNT\n\
+        MFEwHQYDVR0OBBYEFNGgY9wHQEWMw9DTqZPvFoLw6Q8YMB8GA1UdIwQYMBaAFNGg\n\
+        Y9wHQEWMw9DTqZPvFoLw6Q8YMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQEL\n\
+        BQADggEBADWjU80ah5BcOZbUGjHNeyIQ8mgeNMn05bOQaTNfaF4ZjGal+dgj1cse\n\
+        JKdbdreB0AEKppCEXdnqqmeGsamSzSk9dXtl7GqLTx0kTxa5FnVWR9kd/LYxwBp0\n\
+        WbPQM5abzNTOU7TAA258V/liOVhYyHhsrSHbTOzz8RVW+JYH5jNLKsRbRWZ02SSs\n\
+        TU//hxMb9s/E0EQZDZl2jGxEb56v46DJKktyn8j2ojiFytO5pbghrMCxpyjiLd1r\n\
+        rmOdokpUgEQ+Wq6CGpi/eq0nGNKhttl93bTloFtwl9RXjt6ulxfWQRW2p1gNkli+\n\
+        AduEulXqlyfrNc8aTQd0G7sfCdCHPMo=\n\
+        -----END CERTIFICATE-----\n";
 }

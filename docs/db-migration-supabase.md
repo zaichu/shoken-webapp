@@ -133,6 +133,11 @@ WRANGLER_LOG=none WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false WRANGLER
 
 CI のマイグレーション（`.github/workflows/deploy-cloudflare-worker.yml:189` の `cargo run --bin migrate` が `backend/src/bin/migrate.rs:6` の `DATABASE_URL` を使う）は GitHub secret の `DATABASE_URL` を接続先にする。Hyperdrive だけを付け替えても次のバックエンドデプロイは Neon に接続し、新しいマイグレーションは Supabase に適用されない。照合成功(空の Supabase で始める場合は `prepare` 成功)・Hyperdrive 付け替え後に、ユーザーが GitHub のリポジトリ設定で `DATABASE_URL` secret を Supabase Session pooler の値へ更新する。値は画面に表示せず、パスワード管理ツールからの貼り付けか非表示入力で扱い、チャット・PR・Issue・ログに残さない。安定動作の確認が終わるまで Neon の値はパスワード管理ツールに残し、切り戻し時は同じ secret を実際の接続先に合わせて戻す。
 
+migrate バイナリは `DATABASE_URL` の `sslmode` を libpq と同じ意味で扱う。Supabase の Session pooler は独自 CA の証明書を提示するため、OS の信頼ストアだけでは検証できない。CI の secret には次のいずれかを付ける。`sslmode` を付けない既定(検証あり)のままでは接続できない。`sslrootcert` は tokio-postgres が解釈できないため migrate バイナリ側で読み替える。検証したい場合は Dashboard の Database settings からサーバ CA を取得し `sslmode=verify-full` と `sslrootcert` の CA ファイルを組み合わせる。
+
+- 暗号化のみで接続する: `sslmode=require`
+- 検証して接続する: `sslmode=verify-full` と `sslrootcert` の CA ファイル
+
 ## 5. 統合担当とユーザー: 本番確認と再開
 
 1. Worker 経由の `/health` と、実際に DB を問い合わせる `/ready` が200になることを確認する。`/health` だけでは DB 接続成功の判断にしない。
