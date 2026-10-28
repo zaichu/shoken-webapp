@@ -13,6 +13,9 @@ use crate::features::receipts::{ReceiptsTab, chunking_for};
 use crate::support::csv_flow::{CsvChunking, preview_csv, upload_csv_while};
 use leptos::prelude::*;
 
+#[cfg(test)]
+mod tests;
+
 /// 種類ごとの取り込み経路。パス・分割・保存方式は既存の CSV 管理の定義そのまま
 struct ImportPlan {
     preview_path: &'static str,
@@ -188,7 +191,7 @@ async fn import_with_file(
 ) -> Outcome {
     if let Some(reason) = guard::inspect(kind, content) {
         if reason == SkipReason::Columns {
-            return Outcome::Failed(format!("{}。{}", reason.label(), format_hint(kind)));
+            return Outcome::Failed(columns_failure_reason(kind, content));
         }
         return Outcome::Skipped(reason);
     }
@@ -249,6 +252,19 @@ fn csv_to_file(csv: &ReceivedCsv) -> Option<web_sys::File> {
 
 fn file_name(kind: CsvKind) -> String {
     format!("sync-{}.csv", kind.request_value())
+}
+
+/// 必須列なしの失敗理由。渡されたファイルの切り分けに使うため先頭行も添える
+pub(crate) fn columns_failure_reason(kind: CsvKind, content: &str) -> String {
+    let base = format!("{}。{}", SkipReason::Columns.label(), format_hint(kind));
+    match guard::first_line_snippet(content) {
+        Some(line) => format!(
+            "{}。{}",
+            base,
+            crate::ui::labels::csv_columns_first_line(&line)
+        ),
+        None => base,
+    }
 }
 
 /// 形式が合わないときに理由へ添える対応形式。成功前の案内には出さない
