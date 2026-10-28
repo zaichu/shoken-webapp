@@ -1,5 +1,6 @@
 pub mod import;
 pub mod pipeline;
+pub mod stats;
 pub mod util;
 
 use crate::db::{self, Bind, Db};
