@@ -426,7 +426,7 @@ fn CsvKindRow(
                 }}
             </td>
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-xs">
-                <div class="flex items-center gap-2">
+                <div class="csv-status-line">
                     <span class="inline-flex items-center gap-1.5">
                         {status_dot_class(status_key)
                             .map(|dot| {
@@ -452,7 +452,7 @@ fn CsvKindRow(
                         .then(|| {
                             view! {
                                 <div
-                                    class="mt-1 max-w-xs overflow-x-auto whitespace-nowrap text-xs text-negative-vivid"
+                                    class="csv-detail-reason"
                                     data-testid="status-detail-content"
                                     title=error_detail.clone()
                                 >
