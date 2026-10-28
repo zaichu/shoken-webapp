@@ -192,6 +192,10 @@ pub const CSV_SKIP_HTML: &str = "CSV ではない内容(HTML)を受け取りま�
 pub const CSV_SKIP_MOJIBAKE: &str = "文字化けしています";
 /// 取り込まなかった理由: 必須列・見出しなし
 pub const CSV_SKIP_COLUMNS: &str = "必要な列が見つかりません";
+/// 必須列なしの失敗理由に添える受け取った CSV の先頭行
+pub fn csv_columns_first_line(line: &str) -> String {
+    format!("受け取った先頭行: 「{line}」")
+}
 /// 取り込まなかった理由: 検証で有効行0件
 pub const CSV_SKIP_NO_VALID: &str = "取り込める行がありませんでした";
 /// 取り込まなかった理由: 全件置換で行エラーあり
