@@ -1,8 +1,11 @@
 # Neon から Supabase へのデータ移行
 
 Issue #1568 の本番移行手順。2026年11月1日に Neon の月間計算枠が戻り、読み書きできることを確認してから書き出す。
-順序は **Supabase に空のテーブルを作る → データを入れる → 全テーブルの件数・主キーを照合する → Hyperdrive を付け替える → 本番を確認する**。
+データを移さず空の Supabase で始める場合は、`prepare` → Hyperdrive の付け替え(§4) → GitHub の `DATABASE_URL` の更新(§4b) → 本番確認(§5)の短い手順で始める。今回はこの短い手順で復旧した。
+旧データを移す場合だけ、順序は **Supabase に空のテーブルを作る → データを入れる → 全テーブルの件数・主キーを照合する(§3) → Hyperdrive を付け替える → 本番を確認する**。
 Neon は本番確認と戻しの必要性の判断が終わるまで削除しない。
+
+この手順書のコマンドは、wrangler 4.155.0 の `npx wrangler hyperdrive update --help` と `npx wrangler hyperdrive list --help` で確かめたものだけを書く。確かめていないオプションは足さない。
 
 ## 担当と秘密情報
 
@@ -34,10 +37,10 @@ URL のクエリパラメーターは `sslmode`、`channel_binding`、`sslrootce
 ## 1. ユーザー: Supabase の用意（11月1日より前に可能）
 
 1. Supabase で無料枠のプロジェクトを作る。Specific region の **Northeast Asia (Tokyo)、`ap-northeast-1`** を選ぶ。APAC の自動選択は東京を保証しない。[リージョン一覧](https://supabase.com/docs/guides/platform/regions)
-2. このアプリは Worker の認証を通して DB を使う。テーブルを作る前に Supabase の Data API を無効化し、`public` を REST / GraphQL から公開しない。[Data API の保護](https://supabase.com/docs/guides/api/securing-your-api)
-3. Connect で **Session pooler** を選ぶ。共有プーラーのセッションモードは IPv4 で利用でき、ポートは 5432。Direct connection は無料枠では IPv6 が基本、Transaction pooler の 6543 はこの手順では使わない。ユーザー名も Session pooler の表示に従う。[接続方式](https://supabase.com/docs/guides/database/connecting-to-postgres)
-4. Session pooler の値を `TARGET_DATABASE_URL` に非表示入力する。URI 内の特殊文字は URL エンコードする。パスワードのある画面を共有しない。
-5. Python 3、Neon のサーバーと同じか新しいメジャーの `pg_dump` / `psql`、Docker、Wrangler を用意する。PostgreSQL 16 のローカルテストと、本番のサーバーバージョン互換性の確認は別に扱う。
+2. このアプリは Worker の認証を通して DB を使う。テーブルを作る前に Supabase の Data API を無効化し、`public` を REST / GraphQL から公開しない。プロジェクト作成時に Data API・自動公開をオフにする。[Data API の保護](https://supabase.com/docs/guides/api/securing-your-api)
+3. Connect で **Session pooler** を選ぶ。共有プーラーのセッションモードは IPv4 で利用でき、ポートは 5432。ユーザー名は `postgres.<識別子>` の形式で、Session pooler の表示に従う。Direct connection(`db.<識別子>.supabase.co`)は IPv6 のみで使えないため、この手順では使わない。Transaction pooler の 6543 はこの手順では使わない。[接続方式](https://supabase.com/docs/guides/database/connecting-to-postgres)
+4. Session pooler の値を `TARGET_DATABASE_URL` に非表示入力する。URI 内の特殊文字は URL エンコードする。パスワードは英数字だけにする。パスワードのある画面を共有しない。
+5. Python 3、`pg_dump` / `psql`、Docker、Wrangler を用意する。`pg_dump` はサーバーと同じか新しい版が必要になる。Supabase は PostgreSQL 17 だったので 17 以上を用意する。版が古いと書き出しに失敗するため、事前に版を確認する。PostgreSQL 16 のローカルテストと、本番のサーバーバージョン互換性の確認は別に扱う。
 
 ## 2. ユーザーが実行、統合担当が結果確認: 空のテーブルを作る
 
@@ -54,7 +57,7 @@ backend と互換の SHA-384 チェックサムを `_sqlx_migrations` に記録�
 アプリのテーブルは空になるが、`fund_codes` と `market_data_provider_rate_control` にはマイグレーションの初期行が入る。
 Supabase 管理用の `auth` / `storage` などのスキーマには触らない。
 
-## 3. 11月1日: ユーザーが実行、統合担当が書き込み停止を確認
+## 3. 旧データを移す場合だけ: 11月1日にユーザーが実行、統合担当が書き込み停止を確認
 
 1. Neon の枠が戻り、DB に接続できることを確認する。失敗したまま Supabase に付け替えない。
 2. 統合担当がメンテナンス時間を確保する。ユーザー操作による CSV・更新・ログインに加え、Worker の Cron、外部 API のキャッシュ更新、進行中のリクエストなど、**両 DB への全書き込みを止める**。実行中の書き込みが完了してから書き出す。停止を保証できなければ作業を進めない。
@@ -99,15 +102,15 @@ DB クライアントの生エラーは表示しない。再実行時は新し�
 
 ## 4. ユーザーだけが実行: Hyperdrive の付け替え
 
-`backend/wrangler.toml` の本番 binding の ID は `00000000000000000000000000000000` の仮値で、実IDはリポジトリに置かない。既存 Hyperdrive `shoken-backend-db` の実IDを Cloudflare 上で確認し、ユーザーが `HYPERDRIVE_ID` に設定する。デプロイ時は `.github/workflows/deploy-cloudflare-worker.yml` の Ensure Hyperdrive config exists と同じく名前で検索して ID を解決している。
-`TARGET_DATABASE_URL` は Supabase Session pooler のまま使う。Wrangler の認証はユーザーの端末で済ませる。
+`backend/wrangler.toml` の本番 binding の ID は `00000000000000000000000000000000` の仮値で、実IDはリポジトリに置かない。実IDは `npx wrangler hyperdrive list` の `shoken-backend-db` の行で確認する(秘密ではない)。デプロイ時は `.github/workflows/deploy-cloudflare-worker.yml` の Ensure Hyperdrive config exists と同じく名前で検索して ID を解決している。
+`TARGET_DATABASE_URL` は Supabase Session pooler のまま使う。Wrangler の認証はユーザーの端末で済ませる。TLS は接続先が必須で既定になるため、`--sslmode` は付けない。実際に成功した手順(10/29、ユーザーが実行して Hyperdrive が Supabase を指すようになった)も付けずに実行した。
 
 ```bash
 set +x
-wrangler hyperdrive list
+npx wrangler hyperdrive list
 ```
 
-一覧から `shoken-backend-db` の行の ID を確認し、非表示入力で設定する。`wrangler.toml` の仮値は使わない。
+一覧から `shoken-backend-db` の行の ID を確認し、設定する。`wrangler.toml` の仮値は使わない。
 
 ```bash
 set +x
@@ -115,41 +118,20 @@ read -r -p 'HYPERDRIVE_ID: ' HYPERDRIVE_ID
 export HYPERDRIVE_ID
 ```
 
-Wrangler の `hyperdrive update` は更新後の接続情報を表示するため、直接実行して結果を共有しない。
-下記は Wrangler の `main` を同じ Node プロセス内で呼び、秘密値を OS のコマンド引数へ渡さず、標準出力・標準エラー・ディスクログ・メトリクス・エラー報告を無効にする。
-使用するのは `hyperdrive update` と `--connection-string`、`--sslmode require`。[Wrangler のコマンド](https://developers.cloudflare.com/hyperdrive/reference/wrangler-commands/)、[ログ設定](https://developers.cloudflare.com/workers/wrangler/system-environment-variables/)、[ディスクログ停止の実装](https://github.com/cloudflare/workers-sdk/blob/main/packages/wrangler/src/logger.ts)
-
-事前にツールを専用ディレクトリへ入れる。これは DB への接続や付け替えを行わない。
+照合成功後(空の Supabase で始める場合は `prepare` 成功後)、ユーザーが `backend` で次の1コマンドを実行する。接続文字列・パスワードは画面に出さず、URL とパスワードらしい部分を伏せて表示し、固定の終了コードだけを確認する。
 
 ```bash
-npm install --no-save --prefix .db-migration/tools wrangler@latest
+cd backend
+WRANGLER_LOG=none WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false WRANGLER_SEND_ERROR_REPORTS=false npx wrangler hyperdrive update "$HYPERDRIVE_ID" --connection-string "$TARGET_DATABASE_URL" 2>&1 | sed -E 's#[A-Za-z]+://[^ ",]+#<URL伏せ>#g; s#(password"?[ :=]+)[^ ,]+#\1<伏せ>#Ig' | head -30; echo "終了コード: ${PIPESTATUS[0]}"
 ```
 
-照合成功後、ユーザーが次の1コマンドを実行する。固定メッセージと終了コードだけを確認する。
+このコマンドの本番での実行はユーザーが行う。成功するまで書き込みは停止したままにする。`--help` で確かめていないオプションは足さない。秘密値を引数に付けたままの表示やデバッグログへ切り替えず、失敗時は固定メッセージだけで実装担当へ調査を依頼する。
 
-```bash
-env WRANGLER_LOG=none WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false WRANGLER_SEND_ERROR_REPORTS=false WRANGLER_OUTPUT_FILE_PATH=/dev/null python3 -c '
-import os
-import subprocess
-import sys
-code = """
-const { main } = require("./.db-migration/tools/node_modules/wrangler");
-main(["hyperdrive", "update", process.env.HYPERDRIVE_ID,
-      "--connection-string", process.env.TARGET_DATABASE_URL,
-      "--sslmode", "require"]).catch(() => { process.exitCode = 1; });
-"""
-result = subprocess.run(["node", "-e", code], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-print("付け替え完了" if result.returncode == 0 else "付け替え失敗。接続設定を非表示で確認してください。")
-sys.exit(result.returncode)
-'
-```
-
-このコマンドの本番での実行はユーザーが行う。成功するまで書き込みは停止したままにする。
-Wrangler の API が変わって実行できない場合も、秘密値を引数に付けた CLI やデバッグログへ切り替えず、実装担当へ固定メッセージだけで調査を依頼する。
+付け替えの確認は、同じく `npx wrangler hyperdrive list` で行う。`shoken-backend-db` の行の host・user・database が移行先(Supabase Session pooler)になっていること。
 
 ### 4b. ユーザーだけが実行: CI の `DATABASE_URL` secret の切り替え
 
-CI のマイグレーション（`.github/workflows/deploy-cloudflare-worker.yml:189` の `cargo run --bin migrate` が `backend/src/bin/migrate.rs:6` の `DATABASE_URL` を使う）は GitHub secret の `DATABASE_URL` を接続先にする。Hyperdrive だけを付け替えても次のバックエンドデプロイは Neon に接続し、新しいマイグレーションは Supabase に適用されない。照合成功・Hyperdrive 付け替え後に、ユーザーが GitHub のリポジトリ設定で `DATABASE_URL` secret を Supabase Session pooler の値へ更新する。値は画面に表示せず、パスワード管理ツールからの貼り付けか非表示入力で扱い、チャット・PR・Issue・ログに残さない。安定動作の確認が終わるまで Neon の値はパスワード管理ツールに残し、切り戻し時は同じ secret を実際の接続先に合わせて戻す。
+CI のマイグレーション（`.github/workflows/deploy-cloudflare-worker.yml:189` の `cargo run --bin migrate` が `backend/src/bin/migrate.rs:6` の `DATABASE_URL` を使う）は GitHub secret の `DATABASE_URL` を接続先にする。Hyperdrive だけを付け替えても次のバックエンドデプロイは Neon に接続し、新しいマイグレーションは Supabase に適用されない。照合成功(空の Supabase で始める場合は `prepare` 成功)・Hyperdrive 付け替え後に、ユーザーが GitHub のリポジトリ設定で `DATABASE_URL` secret を Supabase Session pooler の値へ更新する。値は画面に表示せず、パスワード管理ツールからの貼り付けか非表示入力で扱い、チャット・PR・Issue・ログに残さない。安定動作の確認が終わるまで Neon の値はパスワード管理ツールに残し、切り戻し時は同じ secret を実際の接続先に合わせて戻す。
 
 ## 5. 統合担当とユーザー: 本番確認と再開
 
