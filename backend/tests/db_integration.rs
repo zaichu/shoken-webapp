@@ -3772,7 +3772,7 @@ async fn csv_kind_stats_queries_all_five_tables() {
     let (pool, _node) = start_test_pool().await;
     let user_id = UserId::from(Uuid::new_v4());
 
-    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+    let stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, user_id)
         .await
         .expect("5種類すべてのテーブルを検索できる");
 
@@ -3854,7 +3854,7 @@ async fn post_csv(
 }
 
 fn csv_kind_timestamp(
-    stats: &backend::handlers::v1::csv_kind_stats::CsvKindStatsResponse,
+    stats: &shared::csv_kind_stats::CsvKindStatsResponse,
     kind: &str,
 ) -> chrono::DateTime<Utc> {
     stats
@@ -3951,7 +3951,7 @@ async fn csv_import_success_updates_history_when_no_rows_are_inserted() {
         .await
         .unwrap();
         assert!(last_imported_at > old_timestamp, "{kind}");
-        let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+        let stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, user_id)
             .await
             .unwrap();
         assert_eq!(csv_kind_timestamp(&stats, kind), last_imported_at, "{kind}");
@@ -4063,7 +4063,7 @@ async fn csv_kind_stats_falls_back_to_latest_created_at_without_history() {
     .await
     .expect("created_at を固定できる");
 
-    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+    let stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, user_id)
         .await
         .expect("統計を取得できる");
     assert_eq!(csv_kind_timestamp(&stats, "dividend"), expected);
@@ -4088,7 +4088,7 @@ async fn csv_kind_stats_falls_back_to_latest_created_at_without_history() {
     .execute(&pool)
     .await
     .unwrap();
-    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+    let stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, user_id)
         .await
         .unwrap();
     assert_eq!(csv_kind_timestamp(&stats, "dividend"), recorded);
@@ -4132,14 +4132,12 @@ async fn csv_import_history_is_scoped_by_user() {
         .expect("ユーザー別の履歴を作成できる");
     }
 
-    let first_stats =
-        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, first_user)
-            .await
-            .expect("1人目の統計を取得できる");
-    let second_stats =
-        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, second_user)
-            .await
-            .expect("2人目の統計を取得できる");
+    let first_stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, first_user)
+        .await
+        .expect("1人目の統計を取得できる");
+    let second_stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, second_user)
+        .await
+        .expect("2人目の統計を取得できる");
 
     assert_eq!(
         csv_kind_timestamp(&first_stats, "dividend"),
@@ -4157,14 +4155,12 @@ async fn csv_import_history_is_scoped_by_user() {
     )
     .await;
     assert_eq!(response.status(), StatusCode::CREATED);
-    let first_stats =
-        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, first_user)
-            .await
-            .unwrap();
-    let second_stats =
-        backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, second_user)
-            .await
-            .unwrap();
+    let first_stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, first_user)
+        .await
+        .unwrap();
+    let second_stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, second_user)
+        .await
+        .unwrap();
     assert!(csv_kind_timestamp(&first_stats, "dividend") > first_timestamp);
     assert_eq!(
         csv_kind_timestamp(&second_stats, "dividend"),
@@ -4206,7 +4202,7 @@ async fn csv_kind_stats_ignores_history_after_delete_all() {
     .execute(&pool)
     .await
     .unwrap();
-    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+    let stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, user_id)
         .await
         .unwrap();
     assert_eq!(csv_kind_timestamp(&stats, "dividend"), recorded);
@@ -4214,7 +4210,7 @@ async fn csv_kind_stats_ignores_history_after_delete_all() {
     bulk::delete_all::<dividend_svc::DividendDomain>(&pool, user_id)
         .await
         .expect("全削除できる");
-    let stats = backend::handlers::v1::csv_kind_stats::collect_csv_kind_stats(&pool, user_id)
+    let stats = backend::services::csv::stats::collect_csv_kind_stats(&pool, user_id)
         .await
         .unwrap();
     let dividend = stats
