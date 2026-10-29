@@ -90,7 +90,7 @@ const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(market_value), 0) AS total_market
 
 // 基準価額の自動更新(共有値)の状態。保有ファンドのうち協会コードが引けるものだけを対象にする。
 // 共有値の取得はユーザー全体で行うため、検索条件には依存しない
-// auto_update_target_count = 協会コードを持つファンド数(自動更新の対象)
+// 失敗理由は同じ結合の直近失敗から選ぶ(失敗なしのときは NULL)
 const NAV_STATUS_SQL: &str = "SELECT MAX(fp.updated_at) AS updated_at, \
      COUNT(DISTINCT fc.association_fund_cd) \
          FILTER (WHERE fp.nav IS NOT NULL AND fp.fetch_error IS NULL) AS fetched_count, \
@@ -98,20 +98,18 @@ const NAV_STATUS_SQL: &str = "SELECT MAX(fp.updated_at) AS updated_at, \
          FILTER (WHERE fp.fetch_error IS NOT NULL) AS failed_count, \
      COUNT(DISTINCT fb.normalized_fund_name) AS fund_count, \
      COUNT(DISTINCT fc.association_fund_cd) \
-         FILTER (WHERE fc.association_fund_cd IS NOT NULL) AS auto_update_target_count \
+         FILTER (WHERE fc.association_fund_cd IS NOT NULL) AS auto_update_target_count, \
+     (SELECT fp2.fetch_error \
+          FROM fund_prices fp2 \
+          JOIN fund_codes fc2 ON fc2.association_fund_cd = fp2.association_fund_cd \
+          JOIN fund_balances fb2 ON fb2.normalized_fund_name = fc2.normalized_name \
+          WHERE fb2.user_id = $1 AND fp2.fetch_error IS NOT NULL \
+          ORDER BY fp2.fetch_failed_at DESC NULLS LAST \
+          LIMIT 1) AS failure_reason \
      FROM fund_balances fb \
      LEFT JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name \
      LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd \
      WHERE fb.user_id = $1";
-
-// 直近の失敗理由。失敗した共有値のうち最後に失敗したものの理由を出す
-const NAV_FAILURE_REASON_SQL: &str = "SELECT fp.fetch_error \
-     FROM fund_prices fp \
-     JOIN fund_codes fc ON fc.association_fund_cd = fp.association_fund_cd \
-     JOIN fund_balances fb ON fb.normalized_fund_name = fc.normalized_name \
-     WHERE fb.user_id = $1 AND fp.fetch_error IS NOT NULL \
-     ORDER BY fp.fetch_failed_at DESC NULLS LAST \
-     LIMIT 1";
 
 /// 自動更新の状態の集計行
 struct NavStatusRow {
@@ -120,6 +118,7 @@ struct NavStatusRow {
     failed_count: i64,
     fund_count: i64,
     auto_update_target_count: i64,
+    failure_reason: Option<String>,
 }
 
 impl crate::db::FromRow for NavStatusRow {
@@ -130,6 +129,7 @@ impl crate::db::FromRow for NavStatusRow {
             failed_count: row.try_get("failed_count")?,
             fund_count: row.try_get("fund_count")?,
             auto_update_target_count: row.try_get("auto_update_target_count")?,
+            failure_reason: row.try_get("failure_reason")?,
         })
     }
 }
@@ -139,21 +139,13 @@ async fn fetch_nav_status(pool: &Db, user_id: UserId) -> Result<FundNavStatus, A
     let row = crate::db::query(NAV_STATUS_SQL, vec![Bind::from(user_id)])
         .fetch_one::<NavStatusRow, _>(pool)
         .await?;
-    let failure_reason = if row.failed_count > 0 {
-        crate::db::query(NAV_FAILURE_REASON_SQL, vec![Bind::from(user_id)])
-            .fetch_optional::<(String,), _>(pool)
-            .await?
-            .map(|(reason,)| reason)
-    } else {
-        None
-    };
     Ok(FundNavStatus {
         updated_at: row.updated_at.map(jst_minute),
         fetched_count: row.fetched_count,
         failed_count: row.failed_count,
         fund_count: row.fund_count,
         auto_update_target_count: row.auto_update_target_count,
-        failure_reason,
+        failure_reason: row.failure_reason,
     })
 }
 

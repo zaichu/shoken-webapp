@@ -3689,6 +3689,202 @@ async fn fund_nav_status_counts_fetched_failed_and_pending() {
     assert!(updated_at.contains(':'), "{updated_at}");
 }
 
+/// 失敗がないときは失敗理由を持たない。JST の分表示は UTC+9 で切り捨てる
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_nav_status_without_failure_has_no_reason() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000041', $1",
+        vec![Bind::from("失敗なしファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    insert_fund_row(
+        &pool,
+        user_id,
+        "失敗なしファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        None,
+        dec!(100000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+    put_fund_price(&pool, "90000041", "11000", "100", today).await;
+    let fixed = chrono::DateTime::parse_from_rfc3339("2026-10-26T14:05:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    db::query(
+        "UPDATE fund_prices SET updated_at = $1 WHERE association_fund_cd = $2",
+        vec![Bind::from(fixed), Bind::from("90000041")],
+    )
+    .execute(&pool)
+    .await
+    .expect("updated_at の固定に失敗");
+
+    let res = domain_search::<FundBalanceDomain>(
+        &pool,
+        user_id,
+        FundBalanceSearchQueryParams {
+            search: SearchQueryParams {
+                include_summary: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("search 失敗");
+    let summary = res.summary.expect("summary が返る");
+    assert_eq!(summary.nav_status.fetched_count, 1);
+    assert_eq!(summary.nav_status.failed_count, 0);
+    assert_eq!(summary.nav_status.failure_reason, None);
+    assert_eq!(summary.nav_status.fund_count, 1);
+    assert_eq!(summary.nav_status.auto_update_target_count, 1);
+    assert_eq!(
+        summary.nav_status.updated_at.as_deref(),
+        Some("2026-10-26 23:05")
+    );
+}
+
+/// 失敗が複数あるときは fetch_failed_at の新しい理由を返す(NULL は最後)。
+/// 同じファンドを口座違いで持っても件数は重ねず、別ユーザーの失敗は混ざらない
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_nav_status_failure_reason_prefers_latest_and_isolates_users() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let other_id = create_test_user(&pool).await;
+    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let at = |s: &str| {
+        chrono::DateTime::parse_from_rfc3339(s)
+            .unwrap()
+            .with_timezone(&Utc)
+    };
+
+    for (name, cd) in [
+        ("口座またぎ失敗ファンド", "90000042"),
+        ("新しい失敗ファンド", "90000043"),
+        ("時刻なし失敗ファンド", "90000044"),
+        ("別ユーザー失敗ファンド", "90000045"),
+    ] {
+        db::query(
+            "INSERT INTO fund_codes SELECT fund_name_normalize($1), $2, $1",
+            vec![Bind::from(name), Bind::from(cd)],
+        )
+        .execute(&pool)
+        .await
+        .expect("fund_codes の seed に失敗");
+    }
+    for (name, account) in [
+        ("口座またぎ失敗ファンド", "特定"),
+        ("口座またぎ失敗ファンド", "一般"),
+        ("新しい失敗ファンド", "特定"),
+        ("時刻なし失敗ファンド", "特定"),
+    ] {
+        db::query(
+            "INSERT INTO fund_balances (user_id, fund_name, account, dividends_course, shares, \
+             average_purchase_price, total_purchase_amount, base_price, base_price_day_change, \
+             market_value, profit_loss, profit_loss_rate, price_as_of, created_at) \
+             VALUES ($1, $2, $3, '再投資型', 10000, 10000, 100000, 10000, NULL, 100000, 0, 0, $4, $5)",
+            vec![
+                Bind::from(user_id),
+                Bind::from(name),
+                Bind::from(account),
+                Bind::from(today),
+                Bind::from(Utc::now()),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .expect("fund_balances の seed に失敗");
+    }
+    insert_fund_row(
+        &pool,
+        other_id,
+        "別ユーザー失敗ファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        None,
+        dec!(100000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+    for (cd, reason, failed_at) in [
+        ("90000042", "古い失敗", Some(at("2026-10-20T00:00:00Z"))),
+        ("90000043", "新しい失敗", Some(at("2026-10-21T00:00:00Z"))),
+        ("90000044", "時刻なし失敗", None),
+        (
+            "90000045",
+            "別ユーザーの失敗",
+            Some(at("2026-10-22T00:00:00Z")),
+        ),
+    ] {
+        db::query(
+            "INSERT INTO fund_prices (association_fund_cd, nav, fetch_error, fetch_failed_at) \
+             VALUES ($1, NULL, $2, $3)",
+            vec![Bind::from(cd), Bind::from(reason), Bind::opt(failed_at)],
+        )
+        .execute(&pool)
+        .await
+        .expect("fund_prices の seed に失敗");
+    }
+
+    let res = domain_search::<FundBalanceDomain>(
+        &pool,
+        user_id,
+        FundBalanceSearchQueryParams {
+            search: SearchQueryParams {
+                include_summary: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("search 失敗");
+    let summary = res.summary.expect("summary が返る");
+    assert_eq!(summary.nav_status.fetched_count, 0);
+    assert_eq!(summary.nav_status.failed_count, 3);
+    assert_eq!(summary.nav_status.fund_count, 3);
+    assert_eq!(summary.nav_status.auto_update_target_count, 3);
+    assert_eq!(
+        summary.nav_status.failure_reason.as_deref(),
+        Some("新しい失敗")
+    );
+
+    let res = domain_search::<FundBalanceDomain>(
+        &pool,
+        other_id,
+        FundBalanceSearchQueryParams {
+            search: SearchQueryParams {
+                include_summary: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("search 失敗");
+    let summary = res.summary.expect("summary が返る");
+    assert_eq!(summary.nav_status.failed_count, 1);
+    assert_eq!(
+        summary.nav_status.failure_reason.as_deref(),
+        Some("別ユーザーの失敗")
+    );
+}
+
 /// 古い基準日の取得値では共有値を上書きしない(前回値を維持)
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
