@@ -78,7 +78,7 @@ is intentionally pragmatic and does not require a framework migration.
 - Handlers stay thin: parse request, call services, map errors to the v1
   envelope. Business rules live in `services`.
 - Cross-module calls go through service functions, not through HTTP.
-- SQLx is used directly in services. The internal boundary is the service function signature, not a trait.
+- tokio-postgres is used directly in services. The internal boundary is the service function signature, not a trait.
 
 ### Frontend: Leptos (CSR) の単一 Wasm アプリ
 
@@ -94,7 +94,7 @@ is intentionally pragmatic and does not require a framework migration.
 
 - **Full hexagonal / full clean architecture.** The cost of ports, adapters,
   use-case objects, and entity/DTO duplication is not justified at this size.
-- **A Repository trait per aggregate.** SQLx queries inside service functions
+- **A Repository trait per aggregate.** tokio-postgres queries inside service functions
   are simpler, faster to evolve, and easier to test against a real database.
 - **A DI container.** `AppState` and function arguments already cover
   dependency wiring without runtime resolution magic.
@@ -107,7 +107,7 @@ is intentionally pragmatic and does not require a framework migration.
 - **HTTP boundary**: handlers + extractors. Axum types stop here.
 - **Service boundary**: `services::<domain>` functions own business rules,
   validation, and DB access for that domain.
-- **Persistence boundary**: SQLx queries live inside service modules; no
+- **Persistence boundary**: tokio-postgres queries live inside service modules; no
   generic repository abstraction.
 - **Frontend boundary**: each module owns its components and API calls;
   shared concerns are promoted to `src/ui/`・`src/api/`・`shared/`
@@ -120,7 +120,7 @@ is intentionally pragmatic and does not require a framework migration.
   rules.
 - A domain grows to the point where a single service module becomes hard to
   review.
-- Tests start needing to fake the database at a granularity SQLx fixtures
+- Tests start needing to fake the database at a granularity tokio-postgres fixtures
   cannot cover.
 
 Until one of those triggers fires, prefer adding clarity inside the current
