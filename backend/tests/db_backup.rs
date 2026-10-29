@@ -95,6 +95,24 @@ async fn connect_with_retry(database_url: &str) -> Db {
 
 async fn seed_dummy(pool: &Db) {
     run_migrations(pool).await.expect("マイグレーションに失敗");
+    db::query("CREATE SCHEMA backup_probe", vec![])
+        .execute(pool)
+        .await
+        .expect("別スキーマの作成に失敗");
+    db::query(
+        "CREATE TABLE backup_probe.secret_note (id bigint PRIMARY KEY, body text NOT NULL)",
+        vec![],
+    )
+    .execute(pool)
+    .await
+    .expect("別スキーマのテーブル作成に失敗");
+    db::query(
+        "INSERT INTO backup_probe.secret_note (id, body) VALUES ($1, $2)",
+        vec![Bind::from(1_i64), Bind::from("probe-secret-1596")],
+    )
+    .execute(pool)
+    .await
+    .expect("別スキーマへの投入に失敗");
     let user_id = Uuid::new_v4();
     db::query(
         "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
@@ -188,6 +206,10 @@ fn restore_to(dest_url: &str, encrypted: &Path, identity: &Path) {
         "展開に失敗しました: {}",
         String::from_utf8_lossy(&gunzipped.stderr)
     );
+    let sql = String::from_utf8_lossy(&gunzipped.stdout).replace(
+        "CREATE SCHEMA public;",
+        "CREATE SCHEMA IF NOT EXISTS public;",
+    );
     let mut psql = Command::new("psql")
         .arg(dest_url)
         .arg("-v")
@@ -201,7 +223,7 @@ fn restore_to(dest_url: &str, encrypted: &Path, identity: &Path) {
     psql.stdin
         .as_mut()
         .unwrap()
-        .write_all(&gunzipped.stdout)
+        .write_all(sql.as_bytes())
         .expect("リストア入力の書き込みに失敗");
     let restored = psql.wait_with_output().expect("リストアの完了待機に失敗");
     assert!(
@@ -209,6 +231,33 @@ fn restore_to(dest_url: &str, encrypted: &Path, identity: &Path) {
         "リストアに失敗しました: {}",
         String::from_utf8_lossy(&restored.stderr)
     );
+}
+
+fn decrypted_plaintext(encrypted: &Path, identity: &Path, workdir: &Workdir) -> String {
+    let dumped = workdir.file("inspect.sql.gz");
+    let decrypted = run(
+        "age",
+        &[
+            "--decrypt",
+            "--identity",
+            identity.to_str().unwrap(),
+            "--output",
+            dumped.to_str().unwrap(),
+            encrypted.to_str().unwrap(),
+        ],
+    );
+    assert!(
+        decrypted.status.success(),
+        "復号に失敗しました: {}",
+        String::from_utf8_lossy(&decrypted.stderr)
+    );
+    let gunzipped = run("gzip", &["-dc", dumped.to_str().unwrap()]);
+    assert!(
+        gunzipped.status.success(),
+        "展開に失敗しました: {}",
+        String::from_utf8_lossy(&gunzipped.stderr)
+    );
+    String::from_utf8_lossy(&gunzipped.stdout).into_owned()
 }
 
 #[tokio::test]
@@ -241,14 +290,42 @@ async fn backup_roundtrip_keeps_all_table_counts() {
         !String::from_utf8_lossy(&stored).contains("架空バックアップ銘柄A"),
         "暗号化ファイルに平文が残っています"
     );
+    let plain = decrypted_plaintext(&encrypted, &identity, &workdir);
+    assert!(
+        plain.contains("架空バックアップ銘柄A"),
+        "public のデータが書き出しにありません"
+    );
+    assert!(
+        !plain.contains("backup_probe") && !plain.contains("probe-secret-1596"),
+        "public 外のスキーマが書き出しに含まれています"
+    );
 
     let dest = Postgres::default().with_tag("17").start().await.unwrap();
     let dest_port = dest.get_host_port_ipv4(5432).await.unwrap();
     let dest_url = format!("postgres://postgres:postgres@127.0.0.1:{dest_port}/postgres");
-    connect_with_retry(&dest_url).await;
+    let dest_prep = connect_with_retry(&dest_url).await;
+    for stmt in [
+        "CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public",
+        "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public",
+        "CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public",
+    ] {
+        db::query(stmt, vec![])
+            .execute(&dest_prep)
+            .await
+            .expect("復元前の拡張作成に失敗");
+    }
     restore_to(&dest_url, &encrypted, &identity);
     let dest_pool = connect_with_retry(&dest_url).await;
     assert_eq!(table_counts(&dest_pool).await, expected);
+    let probe_tables = db::query_scalar::<i64>(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'backup_probe'"
+            .to_string(),
+        vec![],
+    )
+    .fetch_one(&dest_pool)
+    .await
+    .expect("別スキーマの有無の取得に失敗");
+    assert_eq!(probe_tables, 0);
 }
 
 #[tokio::test]
