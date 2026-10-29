@@ -55,7 +55,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! pg_dump "$PGURL" 2>"$err_file" | gzip -c | age --recipient "$recipient" --output "$tmp_out"; then
+if ! pg_dump --schema=public "$PGURL" 2>"$err_file" | gzip -c | age --recipient "$recipient" --output "$tmp_out"; then
   echo "バックアップの書き出しに失敗しました" >&2
   exit 1
 fi
