@@ -1,13 +1,21 @@
 # システム全体と配置
 
-フロントエンドは利用者の画面を動かす部分、バックエンドは認証・保存・外部取得を担う部分。APIは、それらがデータを受け渡す窓口を指す。
-LeptosはRustで画面を書く仕組み。CSRはブラウザ側で画面を組み立てる方式で、Wasmはブラウザなどで動かすコンパイル済みの形式。
-Cloudflare Pagesは静的ファイルの配信先、Cloudflare Workersはリクエストや定期イベントで処理を実行する環境、Workerはそこに配置するプログラム。
-HyperdriveはWorkerとPostgreSQLの接続を仲介する仕組み。SupabaseはPostgreSQLを提供するサービスで、このアプリのDB配置先として既存の構成文書に記載されている。
-OAuthは、Googleでのログイン結果を受けてアプリへログインするための認可の仕組み。callbackは、認可画面から戻るAPIの入口。
-JSONはAPIの応答に使うデータ形式、Cookieはブラウザが保存して通信時に送る小さな値。セッションは、ログイン状態をサーバー側で識別する仕組み。
-CSVはカンマで項目を区切るファイル形式、SQLはDBに読み書きを指示する言語。
-J-Quantsは決算や上場銘柄の情報を取得する外部API。基準価額は投資信託の1万口あたりの価格。
+| 用語 | 意味 |
+| --- | --- |
+| フロントエンド・バックエンド | フロントエンドは利用者の画面を動かす部分、バックエンドは認証・保存・外部取得を担う部分。 |
+| API | APIは、それらがデータを受け渡す窓口を指す。 |
+| Leptos | LeptosはRustで画面を書く仕組み。 |
+| CSR・Wasm | CSRはブラウザ側で画面を組み立てる方式で、Wasmはブラウザなどで動かすコンパイル済みの形式。 |
+| Cloudflare Pages・Cloudflare Workers・Worker | Cloudflare Pagesは静的ファイルの配信先、Cloudflare Workersはリクエストや定期イベントで処理を実行する環境、Workerはそこに配置するプログラム。 |
+| Hyperdrive | HyperdriveはWorkerとPostgreSQLの接続を仲介する仕組み。 |
+| Supabase | SupabaseはPostgreSQLを提供するサービスで、このアプリのDB配置先として既存の構成文書に記載されている。 |
+| OAuth | OAuthは、Googleでのログイン結果を受けてアプリへログインするための認可の仕組み。 |
+| callback | callbackは、認可画面から戻るAPIの入口。 |
+| JSON・Cookie | JSONはAPIの応答に使うデータ形式、Cookieはブラウザが保存して通信時に送る小さな値。 |
+| セッション | セッションは、ログイン状態をサーバー側で識別する仕組み。 |
+| CSV・SQL | CSVはカンマで項目を区切るファイル形式、SQLはDBに読み書きを指示する言語。 |
+| J-Quants | J-Quantsは決算や上場銘柄の情報を取得する外部API。 |
+| 基準価額 | 基準価額は投資信託の1万口あたりの価格。 |
 
 ## 通信する相手
 
@@ -47,7 +55,11 @@ flowchart LR
 
 ## どこで何が動くか
 
-AxumはAPIの入口を振り分けるRustの仕組み。Cron Triggersは指定した時刻にWorkerへイベントを渡す設定。ビューは保存済みの表を組み合わせ、読み取り時に結果を返すDBの仕組み。
+| 用語 | 意味 |
+| --- | --- |
+| Axum | AxumはAPIの入口を振り分けるRustの仕組み。 |
+| Cron Triggers | Cron Triggersは指定した時刻にWorkerへイベントを渡す設定。 |
+| ビュー | ビューは保存済みの表を組み合わせ、読み取り時に結果を返すDBの仕組み。 |
 
 この図で分かること: 画面はブラウザ、APIと定期処理はWorker、永続データはDBで扱うという実行場所の分担。
 枠は配置場所、矢印は配信・呼び出し・接続を表す。定期処理もAPIと同じWorkerプログラムの入口を使う。
