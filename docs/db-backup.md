@@ -5,7 +5,8 @@ Supabase の DB を毎日 artifact に残す。Neon 時代の反省 (データ�
 ## 仕組み
 
 - `.github/workflows/db-backup.yml` が毎日 JST 03:00 (UTC 18:00) と手動 (`workflow_dispatch`) で実行する
-- `scripts/db-backup.sh` が `pg_dump` の出力をパイプで `gzip` → `age` 暗号化し、`*.sql.gz.age` だけを `actions/upload-artifact` で 90 日保存する
+- `scripts/db-backup.sh` が `pg_dump` の出力をパイプで `gzip` → `age` 暗号化し、`*.sql.gz.age` だけを `actions/upload-artifact` で 2 日保存する
+- 保存は 2 日。毎日 1 回取るので、常に最新の 1〜2 個が残り、復元には最新の 1 個を使う。失敗したら GitHub のメールで通知が来るので見逃さない。2 日続けて失敗すると、バックアップが無くなる
 - 平文の dump を artifact・ログ・キャッシュ・リポジトリに出さない。暗号化できなければ失敗する
 - 公開鍵は `.github/backup-recipient.txt` (age の公開鍵 1 行)。秘密鍵はリポジトリにも CI にも置かない
 - 公開鍵のファイルが無い・空・形式が違うときは、バックアップせずに失敗する
