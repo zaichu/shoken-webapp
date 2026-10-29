@@ -57,6 +57,8 @@ curl https://shoken-backend.zaitomo41.workers.dev/health
 Neon からの移行は [Supabase へのデータ移行手順](db-migration-supabase.md) を参照。
 空テーブルの作成、11月1日の書き出し・照合、Hyperdrive の付け替えと戻しを担当別に記載しています。
 
+毎日のバックアップ (暗号化して artifact に 90 日保存) は [DB バックアップ](db-backup.md) を参照。
+
 ```bash
 # マイグレーション実行（ローカル Docker DB へ）
 (cd backend && make migrate-local)

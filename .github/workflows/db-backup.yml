@@ -1,0 +1,61 @@
+name: DB Backup
+
+# Supabase の DB を pg_dump で書き出し、age で暗号化して artifact に残す。
+# 平文の dump を artifact・ログに出さないため、暗号化はパイプで直接行い、
+# 接続文字列はこのステップの env (PGURL) だけに渡す。
+# 公開リポジトリでは Actions のログが誰でも見えるため、pg_dump のエラー本文は
+# 接続文字列が混ざり得るので出さず、固定の文言に置き換える (scripts/db-backup.sh)。
+on:
+  schedule:
+    # 毎日 JST 03:00 (UTC 18:00)
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump and encrypt database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # workflow_dispatch は任意ブランチから起動できるため main 以外では流さない
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 1
+
+      - name: Install pg_dump and age
+        run: |
+          set -euo pipefail
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -sSfL -o /tmp/pgdg.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo mv /tmp/pgdg.asc /etc/apt/trusted.gpg.d/pgdg.asc
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17 age
+          pg_dump --version
+
+      - name: Dump and encrypt
+        env:
+          PGURL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ -n "${PGURL:-}" ]] || { echo "::error::secrets.DATABASE_URL が未設定です"; exit 1; }
+          OUT="db-backup-$(date -u +%Y%m%dT%H%M%SZ).sql.gz.age"
+          echo "OUT=${OUT}" >> "$GITHUB_ENV"
+          bash scripts/db-backup.sh "$OUT"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7 https://github.com/actions/upload-artifact/releases/tag/v7
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: ${{ env.OUT }}
+          retention-days: 90
+          if-no-files-found: error
