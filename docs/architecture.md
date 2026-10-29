@@ -25,13 +25,15 @@
 │  ├── 認証ミドルウェア（CSRF / レート制限 / セキュリティヘッダー）│
 │  ├── ハンドラー層 (handlers/)                                 │
 │  ├── サービス層 (services/)                                   │
-│  └── SQLx → PostgreSQL (Neon)                               │
+│  └── tokio-postgres → PostgreSQL (Supabase, Hyperdrive 経由) │
 └─────────────────────────────────────────────────────────────┘
          │                              │
          │ Google OAuth 2.0            │ J-Quants API
          ▼                              ▼
    accounts.google.com          jpx-jquants.com
 ```
+
+本番 DB は Supabase (PostgreSQL 17、東京リージョンの Session pooler) を Hyperdrive 経由で利用する。詳細は `docs/db-migration-supabase.md` を参照。
 
 ## ディレクトリ構成
 
@@ -117,15 +119,12 @@ CSRF 対策: `Origin` / `Referer` ヘッダーによるオリジン検証
 
 1. ルートハンドラー
 2. ドメイン別 keyed レート制限（auth / csv / stock_search / data）
-3. 起動完了ゲート（`startup_ready` が立つまで 503）
-4. `TraceLayer`（リクエストトレース。パスのみ記録・クエリパラメータ除外。`/health`・`/ready` は対象外）
-5. `validate_origin`（CSRF 防止）
-6. `RequestBodyLimitLayer`（10MB 上限）
-7. CORS
-8. `PropagateRequestIdLayer`（x-request-id をレスポンスに伝播）
-9. `SetRequestIdLayer`（x-request-id の UUID 自動付与）
-10. `CompressionLayer`（1KB 超のレスポンスのみ gzip。gRPC・画像・SSE は除外）
-11. `add_security_headers`（最外層: すべてのレスポンスに付与）
+3. `validate_origin`（CSRF 防止）
+4. `RequestBodyLimitLayer`（10MB 上限）
+5. CORS
+6. `PropagateRequestIdLayer`（x-request-id をレスポンスに伝播）
+7. `SetRequestIdLayer`（x-request-id の UUID 自動付与）
+8. `add_security_headers`（最外層: すべてのレスポンスに付与）
 
 ## CSV インポート設計
 
