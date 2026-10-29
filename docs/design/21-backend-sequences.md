@@ -5,8 +5,11 @@
 
 ## Google OAuth とセッション作成
 
-OAuth は外部サービスでの認証結果を受け取る仕組み。Cookie はブラウザが保存し、リクエスト時に送り返す値で、セッションはログイン状態をDBと照合する仕組み。
-state は認証開始と結果を結び付ける値、PKCE は認可コードを盗まれても交換されにくくする検証方式、nonce は受け取るIDトークンを今回の認証に結び付ける値。
+| 用語 | 意味 |
+| --- | --- |
+| OAuth | OAuth は外部サービスでの認証結果を受け取る仕組み。 |
+| Cookie・セッション | Cookie はブラウザが保存し、リクエスト時に送り返す値で、セッションはログイン状態をDBと照合する仕組み。 |
+| state・PKCE・nonce | state は認証開始と結果を結び付ける値、PKCE は認可コードを盗まれても交換されにくくする検証方式、nonce は受け取るIDトークンを今回の認証に結び付ける値。 |
 
 この図で分かること: 認証開始で短命Cookieを作り、callbackで照合してからGoogleへのコード交換とDB保存へ進む順序。正常に最後まで進む経路を示す。
 
@@ -44,8 +47,12 @@ sequenceDiagram
 - `backend/src/services/auth/google_worker.rs:15`（交換）、`backend/src/services/auth/google_worker.rs:63`（tokeninfo）、`backend/src/services/auth/google_worker.rs:82`（呼出順序）。
 - `backend/src/services/auth.rs:61`（認証）、`backend/src/services/auth.rs:107`（トランザクション）、`backend/src/services/auth.rs:153`（旧削除と新発行）、`backend/src/services/auth.rs:174`（ユーザー更新）。
 
-クレームはIDトークンの発行者・宛先・期限などの属性。検証は `iss`・`aud`・`exp`・`nonce` と `sub`・`email` の存在を確認する。ハッシュは元の値をそのまま保存せず照合に使う変換値で、セッションは SHA-256 のハッシュをDBに保存する（`backend/src/services/auth.rs:29`）。
-短命Cookieは10分、セッションCookieは7日。どちらも `HttpOnly`（JavaScriptから読み取れない属性）を持ち、`secure_cookie` の値で `Secure`・`SameSite` を決める（`backend/src/handlers/v1/auth/oauth.rs:36`・`backend/src/handlers/v1/auth/oauth.rs:51`・`backend/src/handlers/v1/auth/oauth.rs:67`）。
+| 用語 | 意味 |
+| --- | --- |
+| クレーム・検証 | クレームはIDトークンの発行者・宛先・期限などの属性。検証は `iss`・`aud`・`exp`・`nonce` と `sub`・`email` の存在を確認する。 |
+| ハッシュ・セッション | ハッシュは元の値をそのまま保存せず照合に使う変換値で、セッションは SHA-256 のハッシュをDBに保存する（`backend/src/services/auth.rs:29`）。 |
+| 短命Cookie・セッションCookie・HttpOnly | 短命Cookieは10分、セッションCookieは7日。どちらも `HttpOnly`（JavaScriptから読み取れない属性）を持ち、`secure_cookie` の値で `Secure`・`SameSite` を決める（`backend/src/handlers/v1/auth/oauth.rs:36`・`backend/src/handlers/v1/auth/oauth.rs:51`・`backend/src/handlers/v1/auth/oauth.rs:67`）。 |
+
 state不一致や必須Cookie欠落は後続に進まず、Google検証失敗時はユーザー・セッションを作らない。図中のDB操作は一つのトランザクションである。
 
 ## 認証付きAPIの1リクエスト
@@ -128,7 +135,10 @@ sequenceDiagram
 
 ## 一覧の検索とページ送り
 
-ページ送りは結果を指定件数ずつ取り出すこと。`LIMIT` は取得件数、`OFFSET` は先頭から読み飛ばす件数。summary は検索全体の集計、facets は絞り込み候補を表す。
+| 用語 | 意味 |
+| --- | --- |
+| ページ送り・LIMIT・OFFSET | ページ送りは結果を指定件数ずつ取り出すこと。`LIMIT` は取得件数、`OFFSET` は先頭から読み飛ばす件数。 |
+| summary・facets | summary は検索全体の集計、facets は絞り込み候補を表す。 |
 
 この図で分かること: 同じ検索条件で件数とページ内の行を取得し、次ページは新しいGETとして処理すること。配当一覧の認証後を例とする。
 

@@ -1,9 +1,12 @@
 # 配信と自動化
 
-CIは変更を自動検証する仕組み、CDは検証したプログラムを配信する仕組み。このリポジトリではGitHub Actionsのワークフロー（実行手順の定義）で行う。
-PRは変更をレビューするための提案、mainは統合先のブランチ、pushはコミットをGitHubへ送る操作。手動起動はGitHub Actionsの `workflow_dispatch` を指す。
-アーティファクトはジョブ間で受け渡したり保管したりする成果物。E2Eはブラウザ操作を通して画面の動きを確かめるテスト。
-TrunkはRustの画面をブラウザ向けの配信物にまとめるビルドツール。lintは不適切な書き方などの静的な検査、secretsは実行時だけ渡す秘密の設定値。
+| 用語 | 意味 |
+| --- | --- |
+| CI・CD | CIは変更を自動検証する仕組み、CDは検証したプログラムを配信する仕組み。このリポジトリではGitHub Actionsのワークフロー（実行手順の定義）で行う。 |
+| PR・main・push・手動起動 | PRは変更をレビューするための提案、mainは統合先のブランチ、pushはコミットをGitHubへ送る操作。手動起動はGitHub Actionsの `workflow_dispatch` を指す。 |
+| アーティファクト・E2E | アーティファクトはジョブ間で受け渡したり保管したりする成果物。E2Eはブラウザ操作を通して画面の動きを確かめるテスト。 |
+| Trunk・lint・secrets | TrunkはRustの画面をブラウザ向けの配信物にまとめるビルドツール。lintは不適切な書き方などの静的な検査、secretsは実行時だけ渡す秘密の設定値。 |
+
 本資料はワークフローに書かれた条件を示し、各処理が本番で直近に成功したことまでは保証しない。
 
 ## フロントエンドの検証から配信まで
@@ -45,8 +48,11 @@ Markdownだけの変更はフロント変更の対象から除外される。変
 
 ## バックエンドの検証とWorker配置
 
-マイグレーションはDB構造の更新、スモーク確認は配信後の最低限の疎通確認。HyperdriveはWorkerとPostgreSQLの接続を仲介する仕組み。
-OpenAPIはAPIの入出力を機械可読な形式で定義した契約、sharedはフロントエンドとバックエンドが共用するRustコード、WranglerはCloudflareへ配置するためのコマンドツール。Wasmは配信プログラムのコンパイル形式。
+| 用語 | 意味 |
+| --- | --- |
+| マイグレーション・スモーク確認・Hyperdrive | マイグレーションはDB構造の更新、スモーク確認は配信後の最低限の疎通確認。HyperdriveはWorkerとPostgreSQLの接続を仲介する仕組み。 |
+| OpenAPI・shared・Wrangler | OpenAPIはAPIの入出力を機械可読な形式で定義した契約、sharedはフロントエンドとバックエンドが共用するRustコード、WranglerはCloudflareへ配置するためのコマンドツール。 |
+| Wasm | Wasmは配信プログラムのコンパイル形式。 |
 
 この図で分かること: PRの検証とmainの配信は別経路で、配信時はDB更新がWorker配置より先に行われること。
 図のWorker Deployは必要なsecretsが登録済みでmain上の場合にのみ配置へ進む。
@@ -79,8 +85,10 @@ DB更新中は旧Workerが稼働しうる。列の削除・改名を、その列
 
 ## バックアップ・依存更新・拡張機能との関係
 
-Dependabotは依存ライブラリの更新PRを作る仕組み。pg_dumpはDBを書き出すツール、gzipは圧縮、ageは公開鍵を使って暗号化するツール。
-patch・minor・majorは依存のバージョン更新の区分。npmはJavaScript、CargoはRustの依存を管理する仕組み。
+| 用語 | 意味 |
+| --- | --- |
+| Dependabot・pg_dump・gzip・age | Dependabotは依存ライブラリの更新PRを作る仕組み。pg_dumpはDBを書き出すツール、gzipは圧縮、ageは公開鍵を使って暗号化するツール。 |
+| patch・minor・major・npm・Cargo | patch・minor・majorは依存のバージョン更新の区分。npmはJavaScript、CargoはRustの依存を管理する仕組み。 |
 
 この図で分かること: バックアップと依存更新は別の自動処理で、拡張機能はこのリポジトリの配信対象に含まれないこと。
 拡張機能との矢印は実行時のメッセージ連携を表し、拡張機能へのデプロイを意味しない。
