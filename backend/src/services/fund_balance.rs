@@ -99,13 +99,8 @@ const NAV_STATUS_SQL: &str = "SELECT MAX(fp.updated_at) AS updated_at, \
      COUNT(DISTINCT fb.normalized_fund_name) AS fund_count, \
      COUNT(DISTINCT fc.association_fund_cd) \
          FILTER (WHERE fc.association_fund_cd IS NOT NULL) AS auto_update_target_count, \
-     (SELECT fp2.fetch_error \
-          FROM fund_prices fp2 \
-          JOIN fund_codes fc2 ON fc2.association_fund_cd = fp2.association_fund_cd \
-          JOIN fund_balances fb2 ON fb2.normalized_fund_name = fc2.normalized_name \
-          WHERE fb2.user_id = $1 AND fp2.fetch_error IS NOT NULL \
-          ORDER BY fp2.fetch_failed_at DESC NULLS LAST \
-          LIMIT 1) AS failure_reason \
+     (ARRAY_AGG(fp.fetch_error ORDER BY fp.fetch_failed_at DESC NULLS LAST) \
+          FILTER (WHERE fp.fetch_error IS NOT NULL))[1] AS failure_reason \
      FROM fund_balances fb \
      LEFT JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name \
      LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd \
