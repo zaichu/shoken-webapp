@@ -13,6 +13,7 @@ pub const DEFAULT_USER_ROW_LIMIT: RowLimit = RowLimit::new(100_000);
 
 #[derive(Debug, Clone)]
 pub struct Config {
+    pub admin_emails: Option<String>,
     pub cors_origins: Vec<String>,
     /// 実行環境（起動時に一度だけ解決）
     pub runtime_env: RuntimeEnv,
@@ -27,6 +28,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            admin_emails: None,
             cors_origins: vec![
                 "https://shoken-webapp.pages.dev".to_string(),
                 "http://localhost:8081".to_string(),
@@ -44,12 +46,27 @@ impl Default for Config {
 }
 
 impl Config {
+    pub fn is_admin_email(&self, email: &str) -> bool {
+        !email.is_empty()
+            && self.admin_emails.as_deref().is_some_and(|emails| {
+                emails
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|entry| !entry.is_empty())
+                    .any(|entry| entry.eq_ignore_ascii_case(email))
+            })
+    }
     /// Workers 側の設定解決。値は `wrangler.toml` の [vars] / `.dev.vars` から取る。
     /// レート制限の上限値は [[ratelimits]] バインディング側が持つ
     #[cfg(target_arch = "wasm32")]
     pub fn from_worker_env(env: &worker::Env) -> Self {
         let get = |name: &str| env.var(name).ok().map(|v| v.to_string());
         let mut config = Config::default();
+
+        config.admin_emails = env
+            .secret("ADMIN_EMAILS")
+            .ok()
+            .map(|value| value.to_string());
 
         config.runtime_env =
             RuntimeEnv::resolve(get("RUST_ENV").as_deref(), get("APP_ENV").as_deref());
@@ -99,6 +116,37 @@ mod tests {
         std::sync::Arc,
         tower::ServiceExt,
     };
+
+    #[test]
+    fn admin_emails_requires_case_insensitive_exact_membership() {
+        let config = Config {
+            admin_emails: Some(" Admin@Example.com, second@example.com, ,".into()),
+            ..Config::default()
+        };
+        for email in [
+            "admin@example.com",
+            "ADMIN@EXAMPLE.COM",
+            "second@example.com",
+        ] {
+            assert!(config.is_admin_email(email), "{email}");
+        }
+        for email in [
+            "",
+            "other@example.com",
+            "prefixadmin@example.com",
+            "admin@example.com.evil",
+        ] {
+            assert!(!config.is_admin_email(email), "{email}");
+        }
+        for emails in [None, Some(String::new()), Some(" , ".into())] {
+            let config = Config {
+                admin_emails: emails,
+                ..Config::default()
+            };
+            assert!(!config.is_admin_email("admin@example.com"));
+            assert!(!config.is_admin_email(""));
+        }
+    }
 
     /// worker_entry の router と同じレイヤ順で CORS/origin 検証/セキュリティヘッダを
     /// 再現したテスト用ルータ

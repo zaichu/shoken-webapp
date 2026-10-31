@@ -102,6 +102,128 @@
         ]
       }
     },
+    "/api/v1/admin/logins": {
+      "get": {
+        "tags": [
+          "handlers::v1::admin_logins"
+        ],
+        "operationId": "v1_admin_logins_list",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "ページ番号（既定: 1）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "取得件数（既定: 200、最大: 1000）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "メール・場所の部分一致（空白区切り AND）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "description": "メールの部分一致",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "place",
+            "in": "query",
+            "description": "国・地域の部分一致",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "description": "occurred_at / email / result / place（既定: occurred_at）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "description": "asc / desc（既定: desc）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "全利用者のログイン記録。閲覧者と日時を監査表に記録する。IP・端末識別子・財産のデータは含まない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "検索条件が不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "管理者権限が必要（未認証・ADMIN_EMAILS 未設定を含む）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "サーバーエラー",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/asset-balance-import-validations": {
       "post": {
         "tags": [
@@ -2108,11 +2230,11 @@
         "operationId": "v1_get_session",
         "responses": {
           "200": {
-            "description": "現在のユーザー情報を返す",
+            "description": "現在のユーザー情報と管理者権限を返す",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+                  "$ref": "#/components/schemas/SessionResponse"
                 }
               }
             }
@@ -3364,6 +3486,56 @@
           }
         }
       },
+      "PaginatedSearchResponse": {
+        "type": "object",
+        "description": "検索・集計付きページネーションレスポンス。",
+        "required": [
+          "data",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminLoginEntry"
+            }
+          },
+          "facets": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchFacets"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "summary": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TupleUnit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "PaginatedSearchResponse_AssetBalance_AssetBalanceSummary": {
         "type": "object",
         "description": "検索・集計付きページネーションレスポンス。",
@@ -4180,6 +4352,24 @@
             }
           }
         }
+      },
+      "SessionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/UserResponse"
+          },
+          {
+            "type": "object",
+            "required": [
+              "is_admin"
+            ],
+            "properties": {
+              "is_admin": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
       },
       "Stock": {
         "type": "object",

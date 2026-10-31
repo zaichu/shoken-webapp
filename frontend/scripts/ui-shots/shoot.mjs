@@ -74,7 +74,7 @@ try {
           deviceScaleFactor: 1,
           locale: 'ja-JP',
         });
-        const hits = await prepareContext(context, { anonymous: Boolean(screen.anonymous) });
+        const hits = await prepareContext(context, { anonymous: Boolean(screen.anonymous), admin: Boolean(screen.admin) });
         const page = await context.newPage();
         const name = `${screen.key}-${viewport.width}x${viewport.height}-${theme}`;
         try {

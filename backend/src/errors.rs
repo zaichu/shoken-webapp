@@ -90,6 +90,8 @@ pub enum ApiError {
     NotFound,
     #[error("{0}")]
     Unauthorized(&'static str),
+    #[error("管理者権限が必要です")]
+    Forbidden,
     #[error("OAuth error: {0}")]
     OAuth(String),
     #[error("{0}")]
@@ -108,6 +110,7 @@ impl ApiError {
             Self::Validation(_) | Self::JsonParse(_) | Self::Csv(_) => StatusCode::BAD_REQUEST,
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            Self::Forbidden => StatusCode::FORBIDDEN,
             Self::OAuth(_) | Self::Config(_) | Self::Internal(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
@@ -134,6 +137,7 @@ impl ApiError {
             Self::Csv(_) => "CSV_ERROR",
             Self::NotFound => "NOT_FOUND",
             Self::Unauthorized(_) => "UNAUTHORIZED",
+            Self::Forbidden => "FORBIDDEN",
             Self::OAuth(_) => "OAUTH_ERROR",
             Self::Upstream(e) => e.code(),
             Self::Database(e) => {
@@ -156,7 +160,9 @@ impl ApiError {
     fn response_message(&self) -> String {
         match self {
             Self::Validation(msg) => msg.clone(),
-            Self::JsonParse(_) | Self::NotFound | Self::Unauthorized(_) => self.to_string(),
+            Self::JsonParse(_) | Self::NotFound | Self::Unauthorized(_) | Self::Forbidden => {
+                self.to_string()
+            }
             Self::Csv(e) => e.to_string(),
             Self::OAuth(_) => "Authentication error".to_string(),
             Self::Upstream(e) => match e {

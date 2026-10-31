@@ -1,5 +1,39 @@
 use super::*;
 
+#[test]
+fn session_response_reads_admin_permission_with_safe_default() {
+    let response: SessionResponse =
+        serde_json::from_str(r#"{"id":"a","email":"a@example.com","is_admin":true}"#).unwrap();
+    assert!(response.is_admin);
+    assert_eq!(response.user.id, "a");
+    for admin in ["", ",\"is_admin\":false"] {
+        let json = format!("{{\"id\":\"a\",\"email\":\"a@example.com\"{admin}}}");
+        assert!(
+            !serde_json::from_str::<SessionResponse>(&json)
+                .unwrap()
+                .is_admin
+        );
+    }
+}
+
+#[test]
+fn logout_and_identity_change_clear_admin_permission() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.set_user(alice());
+        session.is_admin.set(true);
+        session.mark_unauthenticated();
+        assert!(!session.is_admin.get_untracked());
+        session.set_user(alice());
+        session.is_admin.set(true);
+        let mut other = alice().unwrap();
+        other.id = "other".into();
+        session.set_user(Some(other));
+        assert!(!session.is_admin.get_untracked());
+    });
+}
+
 // 本番では `Default` + `next()` でしか世代を作らない。任意値の生成はテスト専用
 impl Generation {
     pub(crate) fn new(value: u64) -> Self {

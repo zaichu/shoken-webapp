@@ -29,6 +29,7 @@ use shared::domain::FundNavStatus;
 #[openapi(
     paths(
         handlers::v1::auth::get_session,
+        handlers::v1::admin_logins::list,
         handlers::v1::auth::delete_session,
         handlers::v1::auth::delete_account,
         handlers::v1::auth::create_account_deletion_confirmation,
@@ -75,6 +76,7 @@ use shared::domain::FundNavStatus;
             BulkCreateAssetBalanceRequest,
             Stock,
             UserResponse,
+            handlers::v1::auth::SessionResponse,
             BulkCreateResponse,
             MessageResponse,
             CsvUploadForm,

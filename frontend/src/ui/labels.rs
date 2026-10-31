@@ -404,5 +404,19 @@ pub const LOGIN_HISTORY_EMPTY: &str = "ログイン履歴はまだありませ�
 /// 登録した端末: 有効な端末が無いときの空表示
 pub const DEVICE_EMPTY: &str = "登録した端末はありません";
 
+pub const ADMIN_LOGINS: &str = "ログイン一覧(管理者)";
+pub const ADMIN_LOGIN_EMAIL: &str = "メール";
+pub const ADMIN_LOGIN_SEARCH: &str = "メール・場所";
+pub const ADMIN_LOGIN_EMPTY: &str = "条件に一致するログイン記録はありません";
+pub const ADMIN_FILTER_APPLY: &str = "この条件で絞る";
+pub const PAGE_PREVIOUS: &str = "前へ";
+pub const PAGE_NEXT: &str = "次へ";
+pub const PAGE_NAVIGATION: &str = "ページ送り";
+pub const SORT_BY: &str = "並べ替え";
+
+pub fn page_number(page: i64) -> String {
+    format!("{page}ページ")
+}
+
 #[cfg(test)]
 mod tests;

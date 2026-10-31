@@ -8,7 +8,7 @@ Google 認証のユーザー
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | uuid | gen_random_uuid() | false | [public.sessions](public.sessions.md) [public.dividends](public.dividends.md) [public.domestic_stocks](public.domestic_stocks.md) [public.mutualfunds](public.mutualfunds.md) [public.asset_balances](public.asset_balances.md) [public.fund_balances](public.fund_balances.md) [public.csv_import_history](public.csv_import_history.md) [public.login_events](public.login_events.md) |  |  |
+| id | uuid | gen_random_uuid() | false | [public.sessions](public.sessions.md) [public.dividends](public.dividends.md) [public.domestic_stocks](public.domestic_stocks.md) [public.mutualfunds](public.mutualfunds.md) [public.asset_balances](public.asset_balances.md) [public.fund_balances](public.fund_balances.md) [public.csv_import_history](public.csv_import_history.md) [public.login_events](public.login_events.md) [public.admin_login_views](public.admin_login_views.md) |  |  |
 | google_id | varchar(255) |  | false |  |  |  |
 | email | varchar(255) |  | false |  |  |  |
 | name | varchar(255) |  | true |  |  |  |
@@ -42,6 +42,7 @@ erDiagram
 "public.fund_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.csv_import_history" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.login_events" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.admin_login_views" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 
 "public.users" {
   uuid id
@@ -164,6 +165,11 @@ erDiagram
   text region
   text browser
   text os
+}
+"public.admin_login_views" {
+  uuid id
+  uuid user_id FK
+  timestamp_with_time_zone occurred_at
 }
 ```
 

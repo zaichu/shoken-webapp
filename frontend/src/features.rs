@@ -1,3 +1,4 @@
+pub(crate) mod admin_logins;
 pub(crate) mod asset_balance;
 pub(crate) mod csv_page;
 pub(crate) mod csv_sync;

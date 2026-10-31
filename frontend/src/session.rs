@@ -7,6 +7,14 @@ use crate::api::dto::{MessageResponse, SessionUser};
 use crate::api::{ApiClient, ApiError};
 use leptos::prelude::*;
 
+#[derive(serde::Deserialize)]
+pub(crate) struct SessionResponse {
+    #[serde(flatten)]
+    user: SessionUser,
+    #[serde(default)]
+    is_admin: bool,
+}
+
 pub(crate) fn local_storage() -> Option<web_sys::Storage> {
     web_sys::window().and_then(|window| window.local_storage().ok().flatten())
 }
@@ -72,6 +80,7 @@ impl Generation {
 #[derive(Clone, Copy)]
 pub struct SessionStore {
     pub user: RwSignal<Option<SessionUser>>,
+    pub is_admin: RwSignal<bool>,
     pub loaded: RwSignal<bool>,
     pub generation: RwSignal<Generation>,
     logout_epoch: RwSignal<u64>,
@@ -81,6 +90,7 @@ impl SessionStore {
     pub fn new() -> Self {
         SessionStore {
             user: RwSignal::new(None),
+            is_admin: RwSignal::new(false),
             loaded: RwSignal::new(false),
             generation: RwSignal::new(Generation::default()),
             logout_epoch: RwSignal::new(0),
@@ -101,6 +111,9 @@ impl SessionStore {
 
     fn set_user(&self, user: Option<SessionUser>) {
         let previous = self.user.get_untracked();
+        if user.is_none() || !Self::same_identity(previous.as_ref(), user.as_ref()) {
+            self.is_admin.set(false);
+        }
         if previous.is_some() && !Self::same_identity(previous.as_ref(), user.as_ref()) {
             self.generation.update(Generation::advance);
         }
@@ -118,18 +131,20 @@ impl SessionStore {
             probe::Probe::Retry => client
                 .with_timeout_ms(PROBE_FOLLOWUP_TIMEOUT_MS)
                 .with_max_retries(0)
-                .get_json::<SessionUser>("/api/v1/session", &[])
+                .get_json::<SessionResponse>("/api/v1/session", &[])
                 .await
                 .ok(),
             probe::Probe::Missing => client
-                .get_json::<SessionUser>("/api/v1/session", &[])
+                .get_json::<SessionResponse>("/api/v1/session", &[])
                 .await
                 .ok(),
         };
-        let user = fetched.filter(|user| !user.id.is_empty());
+        let response = fetched.filter(|response| !response.user.id.is_empty());
         batch(|| {
             if self.check_result_applies(epoch, pending_logout::is_pending()) {
-                self.set_user(user);
+                let is_admin = response.as_ref().is_some_and(|response| response.is_admin);
+                self.set_user(response.map(|response| response.user));
+                self.is_admin.set(is_admin);
             } else {
                 self.set_user(None);
             }

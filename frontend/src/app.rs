@@ -1,3 +1,4 @@
+use crate::features::admin_logins::AdminLoginsPage;
 use crate::features::asset_balance::{
     AssetBalanceCompositionPage, AssetBalanceHoldingPage, AssetBalancePage, AssetBalanceState,
     AssetFundHoldingPage,
@@ -44,6 +45,7 @@ enum Route {
     AssetFundHolding,
     Csv,
     Settings,
+    AdminLogins,
     Login,
     NotFound,
 }
@@ -60,6 +62,7 @@ impl Route {
             Route::AssetBalanceHolding => "保有銘柄詳細",
             Route::AssetFundHolding => "保有ファンド詳細",
             Route::Settings => "設定",
+            Route::AdminLogins => crate::ui::labels::ADMIN_LOGINS,
             Route::Login => "ログイン",
             Route::NotFound => "ページが見つかりません",
         }
@@ -92,6 +95,7 @@ fn route_for_path(path: &str) -> Route {
         "/assetbalance" => Route::AssetBalance,
         "/assetbalance/composition" => Route::AssetBalanceComposition,
         "/settings" => Route::Settings,
+        "/admin/logins" => Route::AdminLogins,
         path if holding_id(path).is_some() => Route::AssetBalanceHolding,
         path if fund_holding_id(path).is_some() => Route::AssetFundHolding,
         "/login" => Route::Login,
@@ -107,6 +111,7 @@ fn protected_path(path: &str) -> bool {
         || path.starts_with("/receipts/")
         || path.starts_with("/assetbalance/")
         || path.starts_with("/settings/")
+        || path.starts_with("/admin/")
 }
 
 pub(crate) fn pathname_of(path: &str) -> &str {
@@ -346,7 +351,11 @@ pub fn App() -> impl IntoView {
         }
     });
     Effect::new(move |_| {
-        let title = route.get().title();
+        let title = if route.get() == Route::AdminLogins && !session.is_admin.get() {
+            Route::NotFound.title()
+        } else {
+            route.get().title()
+        };
         if let Some(document) = web_sys::window().and_then(|window| window.document()) {
             document.set_title(&format!("{title} - {BASE_TITLE}"));
         }
@@ -416,6 +425,7 @@ pub fn App() -> impl IntoView {
                             view! { <AssetFundHoldingPage id=id /> }.into_any()
                         }
                         Route::Settings => view! { <SettingsPage /> }.into_any(),
+                        Route::AdminLogins if session.is_admin.get() => view! { <AdminLoginsPage /> }.into_any(),
                         Route::Login => view! { <LoginPage /> }.into_any(),
                         _ => view! { <NotFoundPage /> }.into_any(),
                     }
