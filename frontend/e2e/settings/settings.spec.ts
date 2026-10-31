@@ -168,6 +168,81 @@ test('設定の目次は7項目あり各セクションへリンクする', asyn
   ]);
 });
 
+test.describe('設定の目次(PC)', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('目次を押すと押した項目が強調され見出しが上部ナビに隠れない', async ({ page }) => {
+    await mockAuthorizedAuth(page);
+    await page.route(/\/api\/v1\/notification-settings$/, (route) =>
+      route.fulfill(json({ login_notify_enabled: true })),
+    );
+    const history = Array.from({ length: 14 }, (_, index) => ({
+      occurred_at: `2026-10-${String(31 - index).padStart(2, '0')}T00:12:00Z`,
+      result: 'success',
+      country: 'JP',
+      region: 'Tokyo',
+      browser: 'chrome',
+      os: 'windows',
+    }));
+    await page.route(/\/api\/v1\/login-history(?:\?.*)?$/, (route) =>
+      route.fulfill(json({ data: history })),
+    );
+    const devices = Array.from({ length: 6 }, (_, index) => ({
+      id: `device-${index + 1}`,
+      last_used_at: '2026-10-31T00:12:00Z',
+      country: 'JP',
+      region: 'Tokyo',
+      browser: 'chrome',
+      os: 'windows',
+      is_current: index === 0,
+    }));
+    await page.route(/\/api\/v1\/devices$/, (route) =>
+      route.fulfill(json({ data: devices })),
+    );
+    await page.goto('/settings');
+    await page.waitForSelector('#login-history tbody tr');
+    await page.waitForSelector('#devices li');
+
+    const items = [
+      ['settings-toc-account', 'account-heading'],
+      ['settings-toc-display', 'display-heading'],
+      ['settings-toc-data', 'data-heading'],
+      ['settings-toc-security', 'security-heading'],
+      ['settings-toc-login-history', 'login-history-heading'],
+      ['settings-toc-devices', 'devices-heading'],
+      ['settings-toc-danger', 'danger-heading'],
+    ] as const;
+    for (const [testid, heading] of items) {
+      const link = page.getByTestId(testid);
+      await link.click();
+      await expect(link).toHaveAttribute('aria-current', 'true');
+      for (const [other] of items) {
+        if (other !== testid) {
+          await expect(page.getByTestId(other)).not.toHaveAttribute('aria-current', 'true');
+        }
+      }
+      const geometry = await page.evaluate((headingId: string) => {
+        const headingElement = document.getElementById(headingId);
+        const header = document.querySelector('.pc-header');
+        if (!headingElement || !header) {
+          return null;
+        }
+        const headingRect = headingElement.getBoundingClientRect();
+        const headerRect = header.getBoundingClientRect();
+        return {
+          top: headingRect.top,
+          headerBottom: headerRect.bottom,
+          viewportHeight: window.innerHeight,
+        };
+      }, heading);
+      expect(geometry).not.toBeNull();
+      // 末尾の項目は上端まで届かなくてもよいが、見出しは上部ナビの下に出る
+      expect(geometry!.top).toBeGreaterThanOrEqual(geometry!.headerBottom - 1);
+      expect(geometry!.top).toBeLessThan(geometry!.viewportHeight);
+    }
+  });
+});
+
 test('配当金のCSVエクスポートがダウンロードされ内容に個人情報を含まない', async ({ page }) => {
   await mockAuthorizedAuth(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>

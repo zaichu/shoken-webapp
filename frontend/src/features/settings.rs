@@ -18,6 +18,128 @@ use crate::ui::site::get_initials;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, Loading};
 use export::ExportKind;
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
+
+const SECTION_IDS: [&str; 7] = [
+    "account",
+    "display",
+    "data",
+    "security",
+    "login-history",
+    "devices",
+    "danger",
+];
+
+fn initial_section() -> String {
+    let fragment = web_sys::window()
+        .and_then(|window| window.location().hash().ok())
+        .unwrap_or_default();
+    let fragment = fragment.trim_start_matches('#');
+    if SECTION_IDS.contains(&fragment) {
+        return fragment.to_string();
+    }
+    SECTION_IDS[0].to_string()
+}
+
+/// 目次の並びを DOM から読む(目次の並びと本文の並びは同じ前提)。
+/// 並び替えがあっても追随がずれないようにするため、順序の正本は持たない
+fn toc_ids_in_dom_order(document: &web_sys::Document) -> Vec<String> {
+    let mut ids = Vec::new();
+    let Ok(links) =
+        document.query_selector_all("nav[aria-label=\"設定セクション\"] a[href^=\"/settings#\"]")
+    else {
+        return ids;
+    };
+    for index in 0..links.length() {
+        let Some(anchor) = links.item(index) else {
+            continue;
+        };
+        let anchor: &web_sys::Element = anchor.unchecked_ref();
+        let Some(href) = anchor.get_attribute("href") else {
+            continue;
+        };
+        if let Some(id) = href.strip_prefix("/settings#")
+            && SECTION_IDS.contains(&id)
+            && !ids.iter().any(|known| known == id)
+        {
+            ids.push(id.to_string());
+        }
+    }
+    ids
+}
+/// 目次の強調をスクロールに追随させる。押下直後は押した項目に固定し、
+/// 自分の指での操作があってから追随を再開する(末尾の項目は上端まで
+/// 届かないため、押した直後のスクロールで上書きするとずれる)。
+fn track_toc(active: RwSignal<String>, locked: RwSignal<bool>) {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    // scroll はバブルしないため、内側のスクロール領域も拾えるよう
+    // document のキャプチャ段で追従させる
+    let sync = move || {
+        if locked.get_untracked() {
+            return;
+        }
+        let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+            return;
+        };
+        let Some(main) = document.get_element_by_id("main-content") else {
+            return;
+        };
+        let header_bottom = document
+            .query_selector(".pc-header")
+            .ok()
+            .flatten()
+            .map(|header| header.get_bounding_client_rect().height())
+            .unwrap_or_default();
+        let line = main.get_bounding_client_rect().top() + header_bottom + 8.0;
+        let ids = toc_ids_in_dom_order(&document);
+        let mut current = ids.first().map(String::as_str).unwrap_or(SECTION_IDS[0]);
+        for id in &ids {
+            let top = document
+                .get_element_by_id(id)
+                .map(|section| section.get_bounding_client_rect().top())
+                .unwrap_or(f64::MAX);
+            if top <= line {
+                current = id;
+            }
+        }
+        active.set(current.to_string());
+    };
+    let scroll_listener: wasm_bindgen::closure::Closure<dyn FnMut()> =
+        wasm_bindgen::closure::Closure::wrap(Box::new(sync) as Box<dyn FnMut()>);
+    let _ = document.add_event_listener_with_callback_and_bool(
+        "scroll",
+        scroll_listener.as_ref().unchecked_ref(),
+        true,
+    );
+    let unlock: wasm_bindgen::closure::Closure<dyn FnMut()> = wasm_bindgen::closure::Closure::wrap(
+        Box::new(move || locked.set(false)) as Box<dyn FnMut()>,
+    );
+    for name in ["pointerdown", "wheel", "keydown"] {
+        let _ = document.add_event_listener_with_callback_and_bool(
+            name,
+            unlock.as_ref().unchecked_ref(),
+            true,
+        );
+    }
+    let pair = send_wrapper::SendWrapper::new((document, scroll_listener, unlock));
+    on_cleanup(move || {
+        let (document, scroll_listener, unlock) = &*pair;
+        let _ = document.remove_event_listener_with_callback_and_bool(
+            "scroll",
+            scroll_listener.as_ref().unchecked_ref(),
+            true,
+        );
+        for name in ["pointerdown", "wheel", "keydown"] {
+            let _ = document.remove_event_listener_with_callback_and_bool(
+                name,
+                unlock.as_ref().unchecked_ref(),
+                true,
+            );
+        }
+    });
+}
 
 #[component]
 pub fn SettingsPage() -> impl IntoView {
@@ -34,6 +156,12 @@ pub fn SettingsPage() -> impl IntoView {
         ("danger", "危険な操作"),
     ];
 
+    let active = RwSignal::new(initial_section());
+    let locked = RwSignal::new(false);
+    Effect::new(move |_| {
+        track_toc(active, locked);
+    });
+
     view! {
         <PageFrame title="設定">
             <div class="flex flex-col lg:flex-row gap-7">
@@ -42,11 +170,19 @@ pub fn SettingsPage() -> impl IntoView {
                         {sections.iter().map(|(id, label)| {
                             let id = *id;
                             let label = *label;
+                            let link_id = id.to_string();
+                            let click_id = id.to_string();
                             view! {
                                 <li>
                                     <a
                                         href={format!("/settings#{}", id)}
-                                        class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-deep transition-colors no-underline hover:bg-surface-raised"
+                                        data-testid={format!("settings-toc-{}", id)}
+                                        aria-current=move || (active.get() == link_id).then_some("true")
+                                        on:click=move |_| {
+                                            active.set(click_id.clone());
+                                            locked.set(true);
+                                        }
+                                        class="settings-toc-link flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-deep transition-colors no-underline hover:bg-surface-raised"
                                     >
                                         {label}
                                     </a>
@@ -90,7 +226,7 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
     let login_method_text = "Google でログイン中";
 
     view! {
-        <section id="account" aria-labelledby="account-heading">
+        <section id="account" aria-labelledby="account-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="account-heading" class="text-lg font-bold mb-4">"アカウント"</h2>
                 <div class="flex items-center gap-4">
@@ -130,7 +266,7 @@ fn SectionDisplay() -> impl IntoView {
     let theme = settings.theme;
 
     view! {
-        <section id="display" aria-labelledby="display-heading">
+        <section id="display" aria-labelledby="display-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="display-heading" class="text-lg font-bold mb-4">"表示"</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
@@ -242,7 +378,7 @@ fn SectionData() -> impl IntoView {
     };
 
     view! {
-        <section id="data" aria-labelledby="data-heading">
+        <section id="data" aria-labelledby="data-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="data-heading" class="text-lg font-bold mb-4">"データ"</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
@@ -337,7 +473,7 @@ fn SectionSecurity() -> impl IntoView {
     };
 
     view! {
-        <section id="security" aria-labelledby="security-heading">
+        <section id="security" aria-labelledby="security-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="security-heading" class="text-lg font-bold mb-4">"セキュリティ"</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
@@ -553,7 +689,7 @@ fn SectionDanger() -> impl IntoView {
         .unwrap_or_else(|| RwSignal::new(false));
 
     view! {
-        <section id="danger" aria-labelledby="danger-heading">
+        <section id="danger" aria-labelledby="danger-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5 border-negative-border bg-negative/5">
                 <h2 id="danger-heading" class="text-lg font-bold text-negative mb-4">"危険な操作"</h2>
                 <div class="space-y-3 border-t border-negative-border/50">
