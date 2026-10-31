@@ -291,7 +291,7 @@ pub async fn delete_device_sessions(
     device_hash: &[u8],
 ) -> Result<u64, DbError> {
     crate::db::query(
-        "DELETE FROM sessions WHERE user_id = $1 AND device_hash = $2",
+        "DELETE FROM sessions WHERE user_id = $1 AND (device_hash = $2 OR device_hash IS NULL)",
         vec![Bind::from(user_id), Bind::Bytes(device_hash.to_vec())],
     )
     .execute(pool)

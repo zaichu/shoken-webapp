@@ -6,7 +6,7 @@ use crate::ui::card::{Card, CardVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels::{
-    DEVICE_COL_LAST_USED, DEVICE_CURRENT, DEVICE_LOGOUT_ALL, DEVICE_REVOKE,
+    DEVICE_COL_LAST_USED, DEVICE_CURRENT, DEVICE_EMPTY, DEVICE_LOGOUT_ALL, DEVICE_REVOKE,
     LOGIN_HISTORY_COL_AGENT, LOGIN_HISTORY_COL_DATETIME, LOGIN_HISTORY_COL_PLACE,
     LOGIN_HISTORY_COL_RESULT, LOGIN_HISTORY_COOKIE_NOTE, LOGIN_HISTORY_EMPTY,
     LOGIN_HISTORY_SECTION, LOGIN_RESULT_FAILURE, LOGIN_RESULT_LOCATION_CHANGED,
@@ -327,7 +327,7 @@ pub fn SectionDevices() -> impl IntoView {
                     }
                     Some(Ok(entries)) => {
                         if entries.is_empty() {
-                            view! { <EmptyState title=LOGIN_HISTORY_EMPTY.to_string() /> }
+                            view! { <EmptyState title=DEVICE_EMPTY.to_string() /> }
                                 .into_any()
                         } else {
                             view! {
@@ -377,24 +377,24 @@ pub fn SectionDevices() -> impl IntoView {
                                         })
                                         .collect_view()}
                                 </ul>
-                                <div class="mt-4 border-t border-negative-border/50 pt-4">
-                                    <Button
-                                        variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                                        class="shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
-                                        testid="device-logout-all"
-                                        on_click=move |_| {
-                                            logout_failed.set(None);
-                                            logout_confirm_open.set(true);
-                                        }
-                                    >
-                                        {DEVICE_LOGOUT_ALL}
-                                    </Button>
-                                </div>
                             }
                                 .into_any()
                         }
                     }
                 }}
+                <div class="mt-4 border-t border-negative-border/50 pt-4">
+                    <Button
+                        variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                        class="shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
+                        testid="device-logout-all"
+                        on_click=move |_| {
+                            logout_failed.set(None);
+                            logout_confirm_open.set(true);
+                        }
+                    >
+                        {DEVICE_LOGOUT_ALL}
+                    </Button>
+                </div>
             </Card>
             {move || {
                 pending_revoke.get().map(|entry| {

@@ -111,9 +111,19 @@ pub async fn list_devices(
     current_device_hash: &[u8],
 ) -> Result<Vec<DeviceEntry>, DbError> {
     let rows = crate::db::query_as::<DeviceRow>(
-        "SELECT DISTINCT ON (device_hash) device_hash, occurred_at AS last_used_at,
-                country, region, browser, os
-         FROM login_events WHERE user_id = $1 ORDER BY device_hash, occurred_at DESC",
+        "SELECT DISTINCT ON (s.device_hash) s.device_hash,
+                COALESCE(le.occurred_at, s.created_at) AS last_used_at,
+                le.country, le.region, le.browser, le.os
+         FROM sessions s
+         LEFT JOIN LATERAL (
+             SELECT occurred_at, country, region, browser, os
+             FROM login_events
+             WHERE user_id = s.user_id AND device_hash = s.device_hash
+             ORDER BY occurred_at DESC
+             LIMIT 1
+         ) le ON TRUE
+         WHERE s.user_id = $1 AND s.expires_at > NOW() AND s.device_hash IS NOT NULL
+         ORDER BY s.device_hash, last_used_at DESC",
         vec![Bind::from(user_id)],
     )
     .fetch_all(pool)
@@ -150,7 +160,8 @@ pub async fn resolve_device_hash(
         }
     }
     let rows = crate::db::query_as::<HashRow>(
-        "SELECT DISTINCT device_hash FROM login_events WHERE user_id = $1",
+        "SELECT DISTINCT device_hash FROM sessions
+         WHERE user_id = $1 AND expires_at > NOW() AND device_hash IS NOT NULL",
         vec![Bind::from(user_id)],
     )
     .fetch_all(pool)
@@ -601,6 +612,7 @@ mod tests {
         .expect("別利用者の作成失敗");
         let owner_hash = vec![11u8; 32];
         let other_hash = vec![12u8; 32];
+        let expired_hash = vec![13u8; 32];
         for (user, hash) in [(owner, &owner_hash), (other, &other_hash)] {
             crate::db::query(
                 "INSERT INTO login_events (user_id, result, device_hash, country) VALUES ($1, 'success', $2, 'JP')",
@@ -609,11 +621,43 @@ mod tests {
             .execute(&pool)
             .await
             .expect("履歴の投入失敗");
+            crate::db::query(
+                "INSERT INTO sessions (user_id, token_hash, device_hash) VALUES ($1, $2, $3)",
+                vec![
+                    Bind::from(user),
+                    Bind::Bytes(vec![rand_byte(), rand_byte()]),
+                    Bind::Bytes(hash.clone()),
+                ],
+            )
+            .execute(&pool)
+            .await
+            .expect("セッションの投入失敗");
+        }
+        for hash in [&expired_hash] {
+            crate::db::query(
+                "INSERT INTO login_events (user_id, result, device_hash, country) VALUES ($1, 'success', $2, 'JP')",
+                vec![Bind::from(owner), Bind::Bytes(hash.clone())],
+            )
+            .execute(&pool)
+            .await
+            .expect("履歴の投入失敗");
+            crate::db::query(
+                "INSERT INTO sessions (user_id, token_hash, device_hash, expires_at)
+                 VALUES ($1, $2, $3, NOW() - INTERVAL '1 hour')",
+                vec![
+                    Bind::from(owner),
+                    Bind::Bytes(vec![rand_byte(), rand_byte()]),
+                    Bind::Bytes(hash.clone()),
+                ],
+            )
+            .execute(&pool)
+            .await
+            .expect("期限切れセッションの投入失敗");
         }
         let owner_history = list_login_history(&pool, owner, 50)
             .await
             .expect("履歴の取得失敗");
-        assert_eq!(owner_history.len(), 1);
+        assert_eq!(owner_history.len(), 2);
         let owner_devices = list_devices(&pool, owner, &owner_hash)
             .await
             .expect("端末の取得失敗");
@@ -634,6 +678,67 @@ mod tests {
             resolve_device_hash(&pool, other, &owner_devices[0].id)
                 .await
                 .expect("別利用者の解決失敗"),
+            None
+        );
+        assert_eq!(
+            resolve_device_hash(&pool, owner, &device_opaque_id(&owner, &expired_hash))
+                .await
+                .expect("期限切れ端末の解決失敗"),
+            None
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn revoked_device_leaves_device_list() {
+        let (pool, _node) = crate::test_db::start_test_pool().await;
+        let user_id: UserId = crate::db::query_scalar(
+            "INSERT INTO users (google_id, email) VALUES ('revoked-list-user', 'revoked-list-user@example.com') RETURNING id",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("利用者の作成失敗");
+        let hash = vec![31u8; 32];
+        crate::db::query(
+            "INSERT INTO login_events (user_id, result, device_hash, country) VALUES ($1, 'success', $2, 'JP')",
+            vec![Bind::from(user_id), Bind::Bytes(hash.clone())],
+        )
+        .execute(&pool)
+        .await
+        .expect("履歴の投入失敗");
+        crate::db::query(
+            "INSERT INTO sessions (user_id, token_hash, device_hash) VALUES ($1, $2, $3)",
+            vec![
+                Bind::from(user_id),
+                Bind::Bytes(vec![rand_byte(), rand_byte()]),
+                Bind::Bytes(hash.clone()),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .expect("セッションの投入失敗");
+        let opaque = device_opaque_id(&user_id, &hash);
+        assert_eq!(
+            list_devices(&pool, user_id, &hash)
+                .await
+                .expect("端末の取得失敗")
+                .len(),
+            1
+        );
+        crate::services::auth::delete_device_sessions(&pool, user_id, &hash)
+            .await
+            .expect("端末の解除失敗");
+        assert!(
+            list_devices(&pool, user_id, &hash)
+                .await
+                .expect("解除後の取得失敗")
+                .is_empty()
+        );
+        assert_eq!(
+            resolve_device_hash(&pool, user_id, &opaque)
+                .await
+                .expect("解除後の解決失敗"),
             None
         );
     }
@@ -664,10 +769,17 @@ mod tests {
             .await
             .expect("セッションの投入失敗");
         }
+        crate::db::query(
+            "INSERT INTO sessions (user_id, token_hash) VALUES ($1, $2)",
+            vec![Bind::from(user_id), Bind::Bytes(vec![rand_byte()])],
+        )
+        .execute(&pool)
+        .await
+        .expect("移行前のセッションの投入失敗");
         let removed = crate::services::auth::delete_device_sessions(&pool, user_id, &hash_a)
             .await
             .expect("端末の解除失敗");
-        assert_eq!(removed, 1);
+        assert_eq!(removed, 2);
         let remaining: i64 = crate::db::query_scalar(
             "SELECT COUNT(*) FROM sessions WHERE user_id = $1",
             vec![Bind::from(user_id)],

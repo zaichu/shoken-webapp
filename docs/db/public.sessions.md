@@ -13,6 +13,7 @@
 | created_at | timestamp with time zone | now() | false |  |  |  |
 | expires_at | timestamp with time zone | (now() + '7 days'::interval) | false |  |  |  |
 | token_hash | bytea |  | false |  |  |  |
+| device_hash | bytea |  | true |  |  | ログイン時の端末IDのSHA-256(平文は保存しない) |
 
 ## Constraints
 
@@ -29,6 +30,7 @@
 | idx_sessions_expires_at | CREATE INDEX idx_sessions_expires_at ON public.sessions USING btree (expires_at) |
 | idx_sessions_token_hash | CREATE UNIQUE INDEX idx_sessions_token_hash ON public.sessions USING btree (token_hash) |
 | idx_sessions_user_id | CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id) |
+| idx_sessions_user_device | CREATE INDEX idx_sessions_user_device ON public.sessions USING btree (user_id, device_hash) |
 
 ## Relations
 
@@ -43,6 +45,7 @@ erDiagram
   timestamp_with_time_zone created_at
   timestamp_with_time_zone expires_at
   bytea token_hash
+  bytea device_hash
 }
 "public.users" {
   uuid id
