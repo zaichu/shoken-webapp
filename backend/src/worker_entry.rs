@@ -14,8 +14,8 @@ use crate::{
     handlers,
     middleware::{add_security_headers, binding_rate_limit, validate_origin},
     services::{
-        auth, dividend_cache, fund_price, jquants, jquants::JQuantsClient, stock_master,
-        stock_price,
+        auth, dividend_cache, fund_price, jquants, jquants::JQuantsClient, login_event,
+        stock_master, stock_price,
     },
     state::{AppState, Secrets},
 };
@@ -257,6 +257,16 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             timer.elapsed_ms(),
         );
     }
+    {
+        let timer = CronTimer::start();
+        let outcome = prune_login_events(&state).await;
+        ran |= log_cron_outcome(
+            CronStep::LoginEvents,
+            "ログイン履歴削除",
+            outcome,
+            timer.elapsed_ms(),
+        );
+    }
     if !ran {
         console_log!("{}", format_cron_noop(total.elapsed_ms()));
     }
@@ -298,5 +308,12 @@ async fn drain_dividend_cache(state: &AppState) -> Result<Option<usize>> {
     dividend_cache::drain_refresh_queue(&state.pool, client)
         .await
         .map(Some)
+        .map_err(|e| Error::RustError(e.to_string()))
+}
+
+async fn prune_login_events(state: &AppState) -> Result<Option<usize>> {
+    login_event::prune_login_events(&state.pool)
+        .await
+        .map(|deleted| (deleted > 0).then(|| usize::try_from(deleted).unwrap_or(usize::MAX)))
         .map_err(|e| Error::RustError(e.to_string()))
 }
