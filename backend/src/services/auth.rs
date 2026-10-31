@@ -127,7 +127,7 @@ async fn upsert_user_rotate_session_with_login_event(
         country: country.as_deref(),
         region: region.as_deref(),
     });
-    let session_token = rotate_session_in_tx(&mut tx, user.id).await?;
+    let session_token = rotate_session_for_device_in_tx(&mut tx, user.id, &device_hash).await?;
     insert_login_event_in_tx(
         &mut tx,
         user.id,
@@ -241,6 +241,60 @@ async fn rotate_session_in_tx(tx: &mut Tx, user_id: UserId) -> Result<SessionTok
     .await?;
 
     Ok(token)
+}
+
+/// 同一端末の旧セッションと期限切れセッションの削除、新セッションの発行を1文で行う。
+/// 他の端末のセッションは残す。端末IDはハッシュだけを保存する
+async fn rotate_session_for_device_in_tx(
+    tx: &mut Tx,
+    user_id: UserId,
+    device_hash: &[u8],
+) -> Result<SessionToken, DbError> {
+    let token = SessionToken::new();
+    crate::db::query(
+        r#"
+        WITH expired AS (
+            SELECT id FROM sessions WHERE expires_at <= NOW() FOR UPDATE SKIP LOCKED
+        ),
+        deleted AS (
+            DELETE FROM sessions
+            WHERE (user_id = $1 AND device_hash = $3) OR id IN (SELECT id FROM expired)
+        )
+        INSERT INTO sessions (user_id, token_hash, device_hash)
+        VALUES ($1, $2, $3)
+        "#,
+        vec![
+            Bind::from(user_id),
+            Bind::Bytes(token.hash()),
+            Bind::Bytes(device_hash.to_vec()),
+        ],
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    Ok(token)
+}
+
+pub async fn delete_all_sessions(pool: &Db, user_id: UserId) -> Result<u64, DbError> {
+    crate::db::query(
+        "DELETE FROM sessions WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .execute(pool)
+    .await
+}
+
+pub async fn delete_device_sessions(
+    pool: &Db,
+    user_id: UserId,
+    device_hash: &[u8],
+) -> Result<u64, DbError> {
+    crate::db::query(
+        "DELETE FROM sessions WHERE user_id = $1 AND device_hash = $2",
+        vec![Bind::from(user_id), Bind::Bytes(device_hash.to_vec())],
+    )
+    .execute(pool)
+    .await
 }
 
 async fn upsert_user_in_tx(tx: &mut Tx, user_info: &GoogleUserInfo) -> Result<User, DbError> {

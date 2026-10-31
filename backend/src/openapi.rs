@@ -18,6 +18,9 @@ use crate::{
         stock::Stock,
         user::UserResponse,
     },
+    services::login_event::{
+        DeviceEntry, DeviceListResponse, LoginHistoryEntry, LoginHistoryListResponse,
+    },
 };
 use shared::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse};
 use shared::domain::FundNavStatus;
@@ -29,6 +32,10 @@ use shared::domain::FundNavStatus;
         handlers::v1::auth::delete_session,
         handlers::v1::auth::delete_account,
         handlers::v1::auth::create_account_deletion_confirmation,
+        handlers::v1::login_history::list_history,
+        handlers::v1::login_history::list_devices,
+        handlers::v1::login_history::delete_device,
+        handlers::v1::login_history::delete_all_sessions,
         handlers::v1::auth::oauth::google_auth,
         handlers::v1::auth::oauth::google_callback,
         handlers::v1::stocks::search,
@@ -76,6 +83,10 @@ use shared::domain::FundNavStatus;
             CsvRowError,
             CsvKindStat,
             CsvKindStatsResponse,
+            LoginHistoryEntry,
+            LoginHistoryListResponse,
+            DeviceEntry,
+            DeviceListResponse,
             DividendPerShareBatchRequest,
             DividendPerShareItem,
             DividendPerShareBatchResponse,
