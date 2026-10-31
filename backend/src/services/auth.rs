@@ -11,6 +11,7 @@ use std::{fmt, str::FromStr};
 use crate::db::{Bind, Db, DbError, Tx};
 use crate::errors::ApiError;
 use crate::models::user::{GoogleUserInfo, User};
+use crate::services::login_event::{self, ClientInfo, PriorLocation, insert_login_event_in_tx};
 
 pub use google_common::{GoogleOAuthClient, create_oauth_client};
 
@@ -52,21 +53,92 @@ impl FromStr for SessionToken {
 }
 
 pub const SESSION_COOKIE_NAME: &str = "session_token";
+pub const DEVICE_COOKIE_NAME: &str = "device_id";
 pub const OAUTH_STATE_COOKIE_NAME: &str = "oauth_state";
 pub const OAUTH_PKCE_VERIFIER_COOKIE_NAME: &str = "oauth_pkce_verifier";
 pub const OAUTH_NONCE_COOKIE_NAME: &str = "oauth_nonce";
 
+/// 端末IDの Cookie 値。平文をサーバーに保存せず、SHA-256 ハッシュだけを記録する
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DeviceToken(uuid::Uuid);
+
+impl DeviceToken {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::new_v4())
+    }
+
+    pub fn hash(self) -> Vec<u8> {
+        Sha256::digest(self.0.to_string().as_bytes()).to_vec()
+    }
+}
+
+impl Default for DeviceToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Display for DeviceToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for DeviceToken {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        uuid::Uuid::parse_str(s).map(Self)
+    }
+}
+
 /// Google OAuth コードを検証し、ユーザーを upsert してセッショントークンを返す。
 /// ID トークン検証は tokeninfo エンドポイントに委譲する
-pub async fn authenticate_with_google_code(
+pub async fn authenticate_with_google_code_and_login_event(
     pool: &Db,
     oauth_client: &GoogleOAuthClient,
     code: String,
     pkce_verifier: String,
     nonce: &str,
+    device_hash: Vec<u8>,
+    client: &ClientInfo,
 ) -> Result<SessionToken, ApiError> {
     let user_info = verify_code_with_google(oauth_client, &code, &pkce_verifier, nonce).await?;
-    Ok(upsert_user_and_rotate_session(pool, &user_info).await?)
+    Ok(upsert_user_rotate_session_with_login_event(pool, &user_info, device_hash, client).await?)
+}
+
+#[doc(hidden)]
+async fn upsert_user_rotate_session_with_login_event(
+    pool: &Db,
+    user_info: &GoogleUserInfo,
+    device_hash: Vec<u8>,
+    client: &ClientInfo,
+) -> Result<SessionToken, DbError> {
+    let mut tx = pool.begin().await?;
+    let user = upsert_user_in_tx(&mut tx, user_info).await?;
+    let prior_row = crate::db::query(
+        "SELECT country, region FROM login_events
+         WHERE user_id = $1 AND device_hash = $2 ORDER BY occurred_at DESC LIMIT 1",
+        vec![Bind::from(user.id), Bind::Bytes(device_hash.clone())],
+    )
+    .fetch_optional::<(Option<String>, Option<String>), _>(&mut tx)
+    .await?;
+    let prior = prior_row.as_ref().map(|(country, region)| PriorLocation {
+        country: country.as_deref(),
+        region: region.as_deref(),
+    });
+    let session_token = rotate_session_in_tx(&mut tx, user.id).await?;
+    insert_login_event_in_tx(
+        &mut tx,
+        user.id,
+        login_event::classify_login(prior, client),
+        device_hash,
+        client,
+    )
+    .await?;
+    tx.commit().await?;
+
+    Ok(session_token)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -225,6 +297,14 @@ mod tests {
             digest_hex,
             "a3a9e1ed9732cab28868127be00f1ce921acaefdd5c3b23a6e9e0072bd9c1a34"
         );
+    }
+
+    #[test]
+    fn test_device_token_hash_is_stable_and_not_plaintext() {
+        let token: DeviceToken = "550e8400-e29b-41d4-a716-446655440000".parse().unwrap();
+        assert_eq!(token.hash(), token.hash());
+        assert_ne!(token.hash(), DeviceToken::new().hash());
+        assert_ne!(token.hash(), token.to_string().into_bytes());
     }
 
     fn test_google_user_info() -> GoogleUserInfo {
