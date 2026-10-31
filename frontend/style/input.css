@@ -483,6 +483,11 @@
     box-shadow: inset 0 -3px 0 var(--color-gold);
   }
 
+  /* 設定の左目次。押した項目・読んでいる項目だけ aria-current を付ける */
+  .settings-toc-link[aria-current="true"] {
+    @apply bg-surface-raised font-bold text-text-deep;
+  }
+
   /* 一覧ページの本文列。スマホは全幅のまま、PC だけページ枠の余白と最大幅を持つ */
   .content-gutter {
     @apply mx-auto w-full;

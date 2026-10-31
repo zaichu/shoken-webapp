@@ -120,7 +120,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
     });
 
     view! {
-        <section id="login-history" aria-labelledby="login-history-heading">
+        <section id="login-history" aria-labelledby="login-history-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="login-history-heading" class="text-lg font-bold mb-4">
                     {LOGIN_HISTORY_SECTION}
@@ -301,7 +301,7 @@ pub fn SectionDevices() -> impl IntoView {
     };
 
     view! {
-        <section id="devices" aria-labelledby="devices-heading">
+        <section id="devices" aria-labelledby="devices-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="devices-heading" class="text-lg font-bold mb-4">
                     {REGISTERED_DEVICES_SECTION}
