@@ -8,12 +8,13 @@ Google 認証のユーザー
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | uuid | gen_random_uuid() | false | [public.sessions](public.sessions.md) [public.dividends](public.dividends.md) [public.domestic_stocks](public.domestic_stocks.md) [public.mutualfunds](public.mutualfunds.md) [public.asset_balances](public.asset_balances.md) [public.fund_balances](public.fund_balances.md) [public.csv_import_history](public.csv_import_history.md) [public.login_events](public.login_events.md) [public.admin_login_views](public.admin_login_views.md) |  |  |
+| id | uuid | gen_random_uuid() | false | [public.sessions](public.sessions.md) [public.dividends](public.dividends.md) [public.domestic_stocks](public.domestic_stocks.md) [public.mutualfunds](public.mutualfunds.md) [public.asset_balances](public.asset_balances.md) [public.fund_balances](public.fund_balances.md) [public.csv_import_history](public.csv_import_history.md) [public.login_events](public.login_events.md) [public.admin_login_views](public.admin_login_views.md) [public.login_notify_tokens](public.login_notify_tokens.md) |  |  |
 | google_id | varchar(255) |  | false |  |  |  |
 | email | varchar(255) |  | false |  |  |  |
 | name | varchar(255) |  | true |  |  |  |
 | created_at | timestamp with time zone | now() | false |  |  |  |
 | updated_at | timestamp with time zone | now() | false |  |  |  |
+| login_notify_enabled | boolean | true | false |  |  | 新しい端末・場所変化のログイン通知を受け取るか |
 
 ## Constraints
 
@@ -43,6 +44,7 @@ erDiagram
 "public.csv_import_history" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.login_events" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.admin_login_views" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.login_notify_tokens" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 
 "public.users" {
   uuid id
@@ -51,6 +53,7 @@ erDiagram
   varchar_255_ name
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
+  boolean login_notify_enabled
 }
 "public.sessions" {
   uuid id
@@ -170,6 +173,14 @@ erDiagram
   uuid id
   uuid user_id FK
   timestamp_with_time_zone occurred_at
+}
+"public.login_notify_tokens" {
+  uuid id
+  uuid user_id FK
+  bytea token_hash
+  timestamp_with_time_zone expires_at
+  timestamp_with_time_zone used_at
+  timestamp_with_time_zone created_at
 }
 ```
 

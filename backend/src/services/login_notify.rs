@@ -2,12 +2,17 @@ use crate::db::{Bind, Db, DbError};
 use crate::models::user::User;
 use crate::services::login_event::{ClientInfo, LoginOutcome};
 use chrono::{DateTime, Utc};
+#[cfg(any(target_arch = "wasm32", test))]
+use futures_util::future::{self, Either};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use shared::value::UserId;
+#[cfg(any(target_arch = "wasm32", test))]
+use std::future::Future;
 use utoipa::ToSchema;
 
 pub const MAX_SENDS_PER_HOUR: i64 = 3;
+pub const SEND_TIMEOUT_SECS: u64 = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct NotificationSettingsResponse {
@@ -207,6 +212,18 @@ impl MailSender for FailingSender {
     }
 }
 
+#[cfg(any(target_arch = "wasm32", test))]
+async fn send_with_timeout<F, T>(send: F, timeout: T) -> Result<(), String>
+where
+    F: Future<Output = Result<(), String>>,
+    T: Future<Output = ()>,
+{
+    match future::select(Box::pin(send), Box::pin(timeout)).await {
+        Either::Left((result, _)) => result,
+        Either::Right((_, _)) => Err("タイムアウトしました".to_string()),
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 pub struct WorkerSmtpSender {
     pub smtp_user: String,
@@ -237,7 +254,6 @@ async fn send_via_gmail(
     async fn read_reply(
         stream: &mut tokio::io::BufReader<worker::Socket>,
     ) -> Result<String, String> {
-        let mut last = String::new();
         loop {
             let mut buf = String::new();
             let n = stream
@@ -247,16 +263,15 @@ async fn send_via_gmail(
             if n == 0 {
                 return Err("SMTP 接続が切断されました".to_string());
             }
-            last = buf.trim_end().to_string();
+            let last = buf.trim_end().to_string();
             if last.len() >= 4 && last.as_bytes()[3] == b' ' {
-                break;
+                return reply_code(&last)
+                    .filter(|code| (200..400).contains(code))
+                    .is_some()
+                    .then_some(last)
+                    .ok_or_else(|| "SMTP 応答が不正です".to_string());
             }
         }
-        reply_code(&last)
-            .filter(|code| (200..400).contains(code))
-            .is_some()
-            .then_some(last)
-            .ok_or_else(|| "SMTP 応答が不正です".to_string())
     }
     async fn write_cmd(
         stream: &mut tokio::io::BufReader<worker::Socket>,
@@ -411,7 +426,10 @@ pub async fn maybe_notify_on_login(
         smtp_user: smtp_user.to_string(),
         smtp_pass: smtp_pass.to_string(),
     };
-    match sender.send_raw(smtp_user, &user.email, &message).await {
+    let timeout = worker::send::SendFuture::new(worker::Delay::from(
+        std::time::Duration::from_secs(SEND_TIMEOUT_SECS),
+    ));
+    match send_with_timeout(sender.send_raw(smtp_user, &user.email, &message), timeout).await {
         Ok(()) => worker::console_log!("login_notify sent"),
         Err(e) => worker::console_error!("login_notify failed: {e}"),
     }
@@ -536,6 +554,45 @@ mod tests {
                 .send_raw("a@example.com", "b@example.com", &message)
                 .await
                 .is_err()
+        );
+    }
+
+    struct HangingSender;
+
+    impl MailSender for HangingSender {
+        async fn send_raw(&self, _from: &str, _to: &str, _message: &str) -> Result<(), String> {
+            futures_util::future::pending::<Result<(), String>>().await
+        }
+    }
+
+    #[tokio::test]
+    async fn send_timeout_fires_before_hanging_sender_resolves() {
+        let err = send_with_timeout(
+            HangingSender.send_raw("a@example.com", "b@example.com", "hi"),
+            futures_util::future::ready(()),
+        )
+        .await
+        .expect_err("応答のない送信はタイムアウトで打ち切られること");
+        assert!(err.contains("タイムアウト"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn send_result_passes_through_when_sender_responds_first() {
+        let message = build_message("a@example.com", "b@example.com", "hi", "body").unwrap();
+        send_with_timeout(
+            NoopSender.send_raw("a@example.com", "b@example.com", &message),
+            futures_util::future::pending(),
+        )
+        .await
+        .expect("応答した送信は成功すること");
+        assert!(
+            send_with_timeout(
+                FailingSender.send_raw("a@example.com", "b@example.com", &message),
+                futures_util::future::pending(),
+            )
+            .await
+            .is_err(),
+            "送信の失敗はタイムアウト待ちに隠されずに返ること"
         );
     }
 }
