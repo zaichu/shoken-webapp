@@ -166,12 +166,31 @@ fn build_state(env: &Env) -> Result<AppState> {
 
 #[event(fetch)]
 async fn fetch(
-    req: HttpRequest,
+    mut req: HttpRequest,
     env: Env,
     _ctx: Context,
 ) -> Result<axum::http::Response<axum::body::Body>> {
     let state = build_state(&env)?;
+    #[cfg(target_arch = "wasm32")]
+    insert_cf_region_header(&mut req);
     Ok(router(state, &env).call(req).await?)
+}
+
+// 地域ヘッダーは自動付与されないため Cf 拡張から補う(既存ヘッダーがあれば優先)
+#[cfg(target_arch = "wasm32")]
+fn insert_cf_region_header(req: &mut HttpRequest) {
+    if req.headers().contains_key("cf-region") {
+        return;
+    }
+    let region = req
+        .extensions()
+        .get::<worker::Cf>()
+        .and_then(worker::Cf::region);
+    if let Some(region) = region {
+        if let Ok(value) = axum::http::HeaderValue::from_str(&region) {
+            req.headers_mut().insert("cf-region", value);
+        }
+    }
 }
 
 // 何もしなかった回を noop の1行に抑えるため、処理した回だけ開始・終了を出す
