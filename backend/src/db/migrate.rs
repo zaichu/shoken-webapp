@@ -89,6 +89,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0018_login_events",
         include_str!("../../migrations/0018_login_events.sql"),
     ),
+    (
+        "0019_sessions_device_hash",
+        include_str!("../../migrations/0019_sessions_device_hash.sql"),
+    ),
 ];
 
 struct Migration {

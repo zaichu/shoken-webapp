@@ -1,4 +1,5 @@
 mod export;
+mod login_history;
 
 use crate::session::use_session;
 use crate::settings::{AmountUnit, AssetSort, IDLE_LOGOUT_CHOICES, Theme, use_settings};
@@ -22,6 +23,8 @@ pub fn SettingsPage() -> impl IntoView {
         ("display", "表示"),
         ("data", "データ"),
         ("security", "セキュリティ"),
+        ("login-history", crate::ui::labels::LOGIN_HISTORY_SECTION),
+        ("devices", crate::ui::labels::REGISTERED_DEVICES_SECTION),
         ("danger", "危険な操作"),
     ];
 
@@ -55,6 +58,8 @@ pub fn SettingsPage() -> impl IntoView {
                                 <SectionDisplay />
                                 <SectionData />
                                 <SectionSecurity />
+                                <login_history::SectionLoginHistory />
+                                <login_history::SectionDevices />
                                 <SectionDanger />
                             }.into_any()
                         } else {

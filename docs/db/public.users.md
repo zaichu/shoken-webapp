@@ -57,6 +57,7 @@ erDiagram
   timestamp_with_time_zone created_at
   timestamp_with_time_zone expires_at
   bytea token_hash
+  bytea device_hash
 }
 "public.dividends" {
   uuid id

@@ -364,5 +364,45 @@ pub fn csv_manage_delete_confirm_button(total: usize) -> String {
     format!("{}を削除する", count(total))
 }
 
+/// ログイン履歴: 設定内の履歴セクションの見出し
+pub const LOGIN_HISTORY_SECTION: &str = "ログイン履歴";
+/// ログイン履歴: 登録した端末セクションの見出し
+pub const REGISTERED_DEVICES_SECTION: &str = "登録した端末";
+/// ログイン履歴: Cookie を消すと新しい端末になる旨の注意書き
+pub const LOGIN_HISTORY_COOKIE_NOTE: &str =
+    "Cookie を消すと同じ端末でも新しい端末として登録されます";
+/// ログイン履歴: 結果「成功」
+pub const LOGIN_RESULT_SUCCESS: &str = "成功";
+/// ログイン履歴: 結果「新しい端末」
+pub const LOGIN_RESULT_NEW_DEVICE: &str = "新しい端末";
+/// ログイン履歴: 結果「場所の変化」
+pub const LOGIN_RESULT_LOCATION_CHANGED: &str = "場所の変化";
+/// ログイン履歴: 結果「失敗」
+pub const LOGIN_RESULT_FAILURE: &str = "失敗";
+/// ログイン履歴: 列見出し「日時」
+pub const LOGIN_HISTORY_COL_DATETIME: &str = "日時";
+/// ログイン履歴: 列見出し「結果」
+pub const LOGIN_HISTORY_COL_RESULT: &str = "結果";
+/// ログイン履歴: 列見出し「場所」
+pub const LOGIN_HISTORY_COL_PLACE: &str = "場所";
+/// ログイン履歴: 列見出し「ブラウザ・OS」
+pub const LOGIN_HISTORY_COL_AGENT: &str = "ブラウザ・OS";
+/// 登録した端末: 列見出し「最終利用」
+pub const DEVICE_COL_LAST_USED: &str = "最終利用";
+/// 登録した端末: 自分が今使っている端末の印
+pub const DEVICE_CURRENT: &str = "この端末";
+/// 登録した端末: 1台の解除操作
+pub const DEVICE_REVOKE: &str = "解除";
+/// 登録した端末: 確認ダイアログの実行ボタン
+pub fn device_revoke_confirm_button(place: &str) -> String {
+    format!("{place}を解除する")
+}
+/// 登録した端末: すべての端末のログアウト操作
+pub const DEVICE_LOGOUT_ALL: &str = "すべての端末をログアウト";
+/// 登録した端末: 履歴も端末も無いときの空表示
+pub const LOGIN_HISTORY_EMPTY: &str = "ログイン履歴はまだありません";
+/// 登録した端末: 有効な端末が無いときの空表示
+pub const DEVICE_EMPTY: &str = "登録した端末はありません";
+
 #[cfg(test)]
 mod tests;

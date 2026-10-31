@@ -5,6 +5,12 @@ use leptos::prelude::*;
 pub enum BadgeVariant {
     /// 保有銘柄の緑
     Positive,
+    /// 情報の青
+    Info,
+    /// 注意の青紫
+    Accent,
+    /// 失敗・危険の赤
+    Danger,
 }
 
 impl BadgeVariant {
@@ -12,6 +18,15 @@ impl BadgeVariant {
         match self {
             Self::Positive => {
                 "inline-flex items-center rounded bg-positive-softer px-1.5 py-0.5 text-xs font-medium text-positive"
+            }
+            Self::Info => {
+                "inline-flex items-center rounded bg-info-soft px-1.5 py-0.5 text-xs font-medium text-info"
+            }
+            Self::Accent => {
+                "inline-flex items-center rounded bg-accent-soft px-1.5 py-0.5 text-xs font-medium text-accent-text"
+            }
+            Self::Danger => {
+                "inline-flex items-center rounded bg-negative-soft px-1.5 py-0.5 text-xs font-medium text-negative-vivid"
             }
         }
     }

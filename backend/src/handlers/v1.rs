@@ -12,6 +12,7 @@ pub mod dividend_per_share;
 pub mod dividends;
 pub mod domestic_stocks;
 pub mod fund_balances;
+pub mod login_history;
 pub mod mutual_funds;
 pub mod stocks;
 
@@ -22,6 +23,13 @@ pub fn auth_routes() -> Router<AppState> {
             "/api/v1/session",
             get(auth::get_session).delete(auth::delete_session),
         )
+        .route(
+            "/api/v1/sessions",
+            delete(login_history::delete_all_sessions),
+        )
+        .route("/api/v1/login-history", get(login_history::list_history))
+        .route("/api/v1/devices", get(login_history::list_devices))
+        .route("/api/v1/devices/{id}", delete(login_history::delete_device))
         .route(
             "/api/v1/account-deletion-confirmations",
             post(auth::create_account_deletion_confirmation),

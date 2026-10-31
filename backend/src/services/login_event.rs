@@ -1,9 +1,176 @@
 use crate::db::{Bind, Db, DbError, Tx};
 use crate::errors::ApiError;
 use axum::http::HeaderMap;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use shared::value::UserId;
+use utoipa::ToSchema;
 
 pub const MAX_EVENTS_PER_USER: i64 = 500;
+pub const MAX_HISTORY_LIMIT: i64 = 100;
+pub const DEFAULT_HISTORY_LIMIT: i64 = 50;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct LoginHistoryEntry {
+    pub occurred_at: DateTime<Utc>,
+    pub result: String,
+    pub country: Option<String>,
+    pub region: Option<String>,
+    pub browser: Option<String>,
+    pub os: Option<String>,
+}
+
+impl crate::db::FromRow for LoginHistoryEntry {
+    fn from_row(row: &crate::db::Row) -> Result<Self, DbError> {
+        Ok(Self {
+            occurred_at: row.try_get("occurred_at")?,
+            result: row.try_get("result")?,
+            country: row.try_get("country")?,
+            region: row.try_get("region")?,
+            browser: row.try_get("browser")?,
+            os: row.try_get("os")?,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct LoginHistoryListResponse {
+    pub data: Vec<LoginHistoryEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct DeviceEntry {
+    pub id: String,
+    pub last_used_at: DateTime<Utc>,
+    pub country: Option<String>,
+    pub region: Option<String>,
+    pub browser: Option<String>,
+    pub os: Option<String>,
+    pub is_current: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct DeviceListResponse {
+    pub data: Vec<DeviceEntry>,
+}
+
+pub fn device_opaque_id(user_id: &UserId, device_hash: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(user_id.to_string().as_bytes());
+    hasher.update(device_hash);
+    hex::encode(hasher.finalize())
+}
+
+pub fn clamp_history_limit(limit: Option<i64>) -> i64 {
+    match limit {
+        Some(n) if n > 0 => n.min(MAX_HISTORY_LIMIT),
+        _ => DEFAULT_HISTORY_LIMIT,
+    }
+}
+
+pub async fn list_login_history(
+    pool: &Db,
+    user_id: UserId,
+    limit: i64,
+) -> Result<Vec<LoginHistoryEntry>, DbError> {
+    crate::db::query_as::<LoginHistoryEntry>(
+        "SELECT occurred_at, result, country, region, browser, os FROM login_events
+         WHERE user_id = $1 ORDER BY occurred_at DESC, id DESC LIMIT $2",
+        vec![Bind::from(user_id), Bind::from(limit)],
+    )
+    .fetch_all(pool)
+    .await
+}
+
+struct DeviceRow {
+    device_hash: Vec<u8>,
+    last_used_at: DateTime<Utc>,
+    country: Option<String>,
+    region: Option<String>,
+    browser: Option<String>,
+    os: Option<String>,
+}
+
+impl crate::db::FromRow for DeviceRow {
+    fn from_row(row: &crate::db::Row) -> Result<Self, DbError> {
+        Ok(Self {
+            device_hash: row.try_get("device_hash")?,
+            last_used_at: row.try_get("last_used_at")?,
+            country: row.try_get("country")?,
+            region: row.try_get("region")?,
+            browser: row.try_get("browser")?,
+            os: row.try_get("os")?,
+        })
+    }
+}
+
+pub async fn list_devices(
+    pool: &Db,
+    user_id: UserId,
+    current_device_hash: &[u8],
+) -> Result<Vec<DeviceEntry>, DbError> {
+    let rows = crate::db::query_as::<DeviceRow>(
+        "SELECT DISTINCT ON (s.device_hash) s.device_hash,
+                COALESCE(le.occurred_at, s.created_at) AS last_used_at,
+                le.country, le.region, le.browser, le.os
+         FROM sessions s
+         LEFT JOIN LATERAL (
+             SELECT occurred_at, country, region, browser, os
+             FROM login_events
+             WHERE user_id = s.user_id AND device_hash = s.device_hash
+             ORDER BY occurred_at DESC
+             LIMIT 1
+         ) le ON TRUE
+         WHERE s.user_id = $1 AND s.expires_at > NOW() AND s.device_hash IS NOT NULL
+         ORDER BY s.device_hash, last_used_at DESC",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all(pool)
+    .await?;
+    let mut devices: Vec<DeviceEntry> = rows
+        .into_iter()
+        .map(|row| DeviceEntry {
+            id: device_opaque_id(&user_id, &row.device_hash),
+            last_used_at: row.last_used_at,
+            country: row.country,
+            region: row.region,
+            browser: row.browser,
+            os: row.os,
+            is_current: row.device_hash == current_device_hash,
+        })
+        .collect();
+    devices.sort_by_key(|a| std::cmp::Reverse(a.last_used_at));
+    Ok(devices)
+}
+
+pub async fn resolve_device_hash(
+    pool: &Db,
+    user_id: UserId,
+    opaque_id: &str,
+) -> Result<Option<Vec<u8>>, DbError> {
+    struct HashRow {
+        device_hash: Vec<u8>,
+    }
+    impl crate::db::FromRow for HashRow {
+        fn from_row(row: &crate::db::Row) -> Result<Self, DbError> {
+            Ok(Self {
+                device_hash: row.try_get("device_hash")?,
+            })
+        }
+    }
+    let rows = crate::db::query_as::<HashRow>(
+        "SELECT DISTINCT device_hash FROM sessions
+         WHERE user_id = $1 AND expires_at > NOW() AND device_hash IS NOT NULL",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| row.device_hash)
+        .find(|hash| device_opaque_id(&user_id, hash) == opaque_id))
+}
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ClientInfo {
@@ -359,5 +526,293 @@ mod tests {
         .await
         .expect("列の確認失敗");
         assert_eq!(ip_like, 0);
+    }
+
+    #[test]
+    fn opaque_id_is_stable_user_scoped_and_hides_hash() {
+        let user_a = UserId::from(uuid::Uuid::new_v4());
+        let user_b = UserId::from(uuid::Uuid::new_v4());
+        let hash = vec![9u8; 32];
+        let other_hash = vec![8u8; 32];
+        assert_eq!(
+            device_opaque_id(&user_a, &hash),
+            device_opaque_id(&user_a, &hash)
+        );
+        assert_ne!(
+            device_opaque_id(&user_a, &hash),
+            device_opaque_id(&user_a, &other_hash)
+        );
+        assert_ne!(
+            device_opaque_id(&user_a, &hash),
+            device_opaque_id(&user_b, &hash)
+        );
+        let id = device_opaque_id(&user_a, &hash);
+        let raw_hex: String = hash.iter().map(|b| format!("{b:02x}")).collect();
+        assert!(!id.contains(&raw_hex));
+    }
+
+    #[test]
+    fn history_limit_is_clamped() {
+        assert_eq!(clamp_history_limit(None), DEFAULT_HISTORY_LIMIT);
+        assert_eq!(clamp_history_limit(Some(0)), DEFAULT_HISTORY_LIMIT);
+        assert_eq!(clamp_history_limit(Some(-5)), DEFAULT_HISTORY_LIMIT);
+        assert_eq!(clamp_history_limit(Some(10)), 10);
+        assert_eq!(clamp_history_limit(Some(10_000)), MAX_HISTORY_LIMIT);
+    }
+
+    #[test]
+    fn history_and_device_responses_carry_no_secret_fields() {
+        let entry = LoginHistoryEntry {
+            occurred_at: chrono::Utc::now(),
+            result: "success".to_string(),
+            country: Some("JP".to_string()),
+            region: Some("Tokyo".to_string()),
+            browser: Some("chrome".to_string()),
+            os: Some("windows".to_string()),
+        };
+        let history_json =
+            serde_json::to_value(LoginHistoryListResponse { data: vec![entry] }).unwrap();
+        let history_text = history_json.to_string();
+        for forbidden in ["device_hash", "device_id", "token", "ip"] {
+            assert!(!history_text.contains(forbidden), "{forbidden}");
+        }
+        let device = DeviceEntry {
+            id: "opaque".to_string(),
+            last_used_at: chrono::Utc::now(),
+            country: None,
+            region: None,
+            browser: None,
+            os: None,
+            is_current: true,
+        };
+        let device_text =
+            serde_json::to_string(&DeviceListResponse { data: vec![device] }).unwrap();
+        for forbidden in ["device_hash", "token", "ip"] {
+            assert!(!device_text.contains(forbidden), "{forbidden}");
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn history_and_devices_are_scoped_to_owner() {
+        let (pool, _node) = crate::test_db::start_test_pool().await;
+        let owner: UserId = crate::db::query_scalar(
+            "INSERT INTO users (google_id, email) VALUES ('history-owner', 'history-owner@example.com') RETURNING id",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("利用者の作成失敗");
+        let other: UserId = crate::db::query_scalar(
+            "INSERT INTO users (google_id, email) VALUES ('history-other', 'history-other@example.com') RETURNING id",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("別利用者の作成失敗");
+        let owner_hash = vec![11u8; 32];
+        let other_hash = vec![12u8; 32];
+        let expired_hash = vec![13u8; 32];
+        for (user, hash) in [(owner, &owner_hash), (other, &other_hash)] {
+            crate::db::query(
+                "INSERT INTO login_events (user_id, result, device_hash, country) VALUES ($1, 'success', $2, 'JP')",
+                vec![Bind::from(user), Bind::Bytes(hash.clone())],
+            )
+            .execute(&pool)
+            .await
+            .expect("履歴の投入失敗");
+            crate::db::query(
+                "INSERT INTO sessions (user_id, token_hash, device_hash) VALUES ($1, $2, $3)",
+                vec![
+                    Bind::from(user),
+                    Bind::Bytes(vec![rand_byte(), rand_byte()]),
+                    Bind::Bytes(hash.clone()),
+                ],
+            )
+            .execute(&pool)
+            .await
+            .expect("セッションの投入失敗");
+        }
+        for hash in [&expired_hash] {
+            crate::db::query(
+                "INSERT INTO login_events (user_id, result, device_hash, country) VALUES ($1, 'success', $2, 'JP')",
+                vec![Bind::from(owner), Bind::Bytes(hash.clone())],
+            )
+            .execute(&pool)
+            .await
+            .expect("履歴の投入失敗");
+            crate::db::query(
+                "INSERT INTO sessions (user_id, token_hash, device_hash, expires_at)
+                 VALUES ($1, $2, $3, NOW() - INTERVAL '1 hour')",
+                vec![
+                    Bind::from(owner),
+                    Bind::Bytes(vec![rand_byte(), rand_byte()]),
+                    Bind::Bytes(hash.clone()),
+                ],
+            )
+            .execute(&pool)
+            .await
+            .expect("期限切れセッションの投入失敗");
+        }
+        let owner_history = list_login_history(&pool, owner, 50)
+            .await
+            .expect("履歴の取得失敗");
+        assert_eq!(owner_history.len(), 2);
+        let owner_devices = list_devices(&pool, owner, &owner_hash)
+            .await
+            .expect("端末の取得失敗");
+        assert_eq!(owner_devices.len(), 1);
+        assert!(owner_devices[0].is_current);
+        assert_eq!(owner_devices[0].id, device_opaque_id(&owner, &owner_hash));
+        let other_devices = list_devices(&pool, other, &other_hash)
+            .await
+            .expect("別利用者の端末取得失敗");
+        assert_ne!(owner_devices[0].id, other_devices[0].id);
+        assert_eq!(
+            resolve_device_hash(&pool, owner, &owner_devices[0].id)
+                .await
+                .expect("端末IDの解決失敗"),
+            Some(owner_hash.clone())
+        );
+        assert_eq!(
+            resolve_device_hash(&pool, other, &owner_devices[0].id)
+                .await
+                .expect("別利用者の解決失敗"),
+            None
+        );
+        assert_eq!(
+            resolve_device_hash(&pool, owner, &device_opaque_id(&owner, &expired_hash))
+                .await
+                .expect("期限切れ端末の解決失敗"),
+            None
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn revoked_device_leaves_device_list() {
+        let (pool, _node) = crate::test_db::start_test_pool().await;
+        let user_id: UserId = crate::db::query_scalar(
+            "INSERT INTO users (google_id, email) VALUES ('revoked-list-user', 'revoked-list-user@example.com') RETURNING id",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("利用者の作成失敗");
+        let hash = vec![31u8; 32];
+        crate::db::query(
+            "INSERT INTO login_events (user_id, result, device_hash, country) VALUES ($1, 'success', $2, 'JP')",
+            vec![Bind::from(user_id), Bind::Bytes(hash.clone())],
+        )
+        .execute(&pool)
+        .await
+        .expect("履歴の投入失敗");
+        crate::db::query(
+            "INSERT INTO sessions (user_id, token_hash, device_hash) VALUES ($1, $2, $3)",
+            vec![
+                Bind::from(user_id),
+                Bind::Bytes(vec![rand_byte(), rand_byte()]),
+                Bind::Bytes(hash.clone()),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .expect("セッションの投入失敗");
+        let opaque = device_opaque_id(&user_id, &hash);
+        assert_eq!(
+            list_devices(&pool, user_id, &hash)
+                .await
+                .expect("端末の取得失敗")
+                .len(),
+            1
+        );
+        crate::services::auth::delete_device_sessions(&pool, user_id, &hash)
+            .await
+            .expect("端末の解除失敗");
+        assert!(
+            list_devices(&pool, user_id, &hash)
+                .await
+                .expect("解除後の取得失敗")
+                .is_empty()
+        );
+        assert_eq!(
+            resolve_device_hash(&pool, user_id, &opaque)
+                .await
+                .expect("解除後の解決失敗"),
+            None
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn revoke_one_device_keeps_other_sessions_and_logout_all_clears() {
+        let (pool, _node) = crate::test_db::start_test_pool().await;
+        let user_id: UserId = crate::db::query_scalar(
+            "INSERT INTO users (google_id, email) VALUES ('revoke-user', 'revoke-user@example.com') RETURNING id",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("利用者の作成失敗");
+        let hash_a = vec![21u8; 32];
+        let hash_b = vec![22u8; 32];
+        for hash in [&hash_a, &hash_b] {
+            crate::db::query(
+                "INSERT INTO sessions (user_id, token_hash, device_hash) VALUES ($1, $2, $3)",
+                vec![
+                    Bind::from(user_id),
+                    Bind::Bytes(vec![rand_byte()]),
+                    Bind::Bytes(hash.clone()),
+                ],
+            )
+            .execute(&pool)
+            .await
+            .expect("セッションの投入失敗");
+        }
+        crate::db::query(
+            "INSERT INTO sessions (user_id, token_hash) VALUES ($1, $2)",
+            vec![Bind::from(user_id), Bind::Bytes(vec![rand_byte()])],
+        )
+        .execute(&pool)
+        .await
+        .expect("移行前のセッションの投入失敗");
+        let removed = crate::services::auth::delete_device_sessions(&pool, user_id, &hash_a)
+            .await
+            .expect("端末の解除失敗");
+        assert_eq!(removed, 2);
+        let remaining: i64 = crate::db::query_scalar(
+            "SELECT COUNT(*) FROM sessions WHERE user_id = $1",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("件数取得失敗");
+        assert_eq!(remaining, 1);
+        let remaining_hash: Vec<u8> = crate::db::query_scalar(
+            "SELECT device_hash FROM sessions WHERE user_id = $1",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("残セッションの取得失敗");
+        assert_eq!(remaining_hash, hash_b);
+        let cleared = crate::services::auth::delete_all_sessions(&pool, user_id)
+            .await
+            .expect("全ログアウト失敗");
+        assert_eq!(cleared, 1);
+        let remaining: i64 = crate::db::query_scalar(
+            "SELECT COUNT(*) FROM sessions WHERE user_id = $1",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("件数取得失敗");
+        assert_eq!(remaining, 0);
+    }
+
+    fn rand_byte() -> u8 {
+        use std::sync::atomic::{AtomicU8, Ordering};
+        static NEXT: AtomicU8 = AtomicU8::new(1);
+        NEXT.fetch_add(1, Ordering::Relaxed)
     }
 }

@@ -484,6 +484,99 @@
         ]
       }
     },
+    "/api/v1/devices": {
+      "get": {
+        "tags": [
+          "handlers::v1::login_history"
+        ],
+        "summary": "自分が使った端末の一覧を返す（v1）",
+        "operationId": "v1_device_list",
+        "responses": {
+          "200": {
+            "description": "自分が使った端末の一覧を返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/devices/{id}": {
+      "delete": {
+        "tags": [
+          "handlers::v1::login_history"
+        ],
+        "summary": "端末を1台解除する（v1）",
+        "operationId": "v1_device_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "端末一覧で返した不透明な ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "端末を解除しました",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "端末が見つからない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/dividend-import-validations": {
       "post": {
         "tags": [
@@ -1536,6 +1629,54 @@
         ]
       }
     },
+    "/api/v1/login-history": {
+      "get": {
+        "tags": [
+          "handlers::v1::login_history"
+        ],
+        "summary": "自分のログイン履歴を新しい順に返す（v1）",
+        "operationId": "v1_login_history_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "取得上限（既定: 50、最大: 100）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "自分のログイン履歴を新しい順に返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginHistoryListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/mutual-fund-import-validations": {
       "post": {
         "tags": [
@@ -2018,6 +2159,42 @@
         ]
       }
     },
+    "/api/v1/sessions": {
+      "delete": {
+        "tags": [
+          "handlers::v1::login_history"
+        ],
+        "summary": "すべての端末をログアウトする（v1）",
+        "operationId": "v1_session_delete_all",
+        "responses": {
+          "200": {
+            "description": "すべての端末からログアウトしました",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/stocks": {
       "get": {
         "tags": [
@@ -2424,6 +2601,64 @@
           "skipped": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "DeviceEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "last_used_at",
+          "is_current"
+        ],
+        "properties": {
+          "browser": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_current": {
+            "type": "boolean"
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "os": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DeviceListResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeviceEntry"
+            }
           }
         }
       },
@@ -2952,6 +3187,60 @@
           "csv",
           "api"
         ]
+      },
+      "LoginHistoryEntry": {
+        "type": "object",
+        "required": [
+          "occurred_at",
+          "result"
+        ],
+        "properties": {
+          "browser": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "os": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginHistoryListResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoginHistoryEntry"
+            }
+          }
+        }
       },
       "MessageResponse": {
         "type": "object",

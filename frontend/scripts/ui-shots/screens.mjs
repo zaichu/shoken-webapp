@@ -127,7 +127,18 @@ export const SCREENS = [
     key: 'settings',
     label: '設定',
     path: '/settings',
-    ready: ['h1'],
+    ready: ['#login-history tbody tr', '#devices li'],
+    scroll: true,
+  },
+  {
+    key: 'settings-login-history',
+    label: '設定・ログイン履歴と登録端末',
+    path: '/settings',
+    ready: ['#login-history tbody tr', '#devices li'],
+    prepare: async (page) => {
+      await page.locator('#login-history').scrollIntoViewIfNeeded();
+    },
+    scroll: true,
   },
   {
     key: 'csv',
@@ -215,6 +226,76 @@ async function installMocks(context, { anonymous }) {
     const url = new URL(route.request().url());
     return route.fulfill(json(stock(url.searchParams.get('query'))));
   });
+  await context.route(/\/api\/v1\/login-history(?:\?.*)?$/, (route) =>
+    route.fulfill(json(loginHistory())),
+  );
+  await context.route(/\/api\/v1\/devices$/, (route) => route.fulfill(json(deviceList())));
+}
+
+// ログイン履歴・登録端末の撮影用データ。12件以上の履歴・長いブラウザ名・5台以上の端末
+function loginHistory() {
+  const rows = [
+    ['2026-10-31T00:12:00Z', 'success', 'JP', 'Tokyo', 'chrome', 'windows'],
+    ['2026-10-30T15:03:00Z', 'new_device', 'JP', 'Osaka', 'safari', 'ios'],
+    ['2026-10-29T09:44:00Z', 'success', 'JP', 'Tokyo', 'edge', 'windows'],
+    ['2026-10-28T22:18:00Z', 'location_changed', 'US', 'California', 'firefox', 'linux'],
+    ['2026-10-27T11:05:00Z', 'success', 'JP', 'Fukuoka', 'chrome', 'android'],
+    ['2026-10-26T08:31:00Z', 'failure', null, null, 'chrome', 'windows'],
+    ['2026-10-25T19:52:00Z', 'success', 'JP', 'Hokkaido', 'safari', 'macos'],
+    [
+      '2026-10-24T13:20:00Z',
+      'success',
+      'JP',
+      'Tokyo',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0 とても長いブラウザ名の表示確認用',
+      'Windows 10 Pro 64ビット版とても長いOS名の表示確認用',
+    ],
+    ['2026-10-23T07:11:00Z', 'new_device', 'JP', 'Aichi', 'firefox', 'linux'],
+    ['2026-10-22T18:40:00Z', 'success', 'JP', 'Kyoto', 'chrome', 'macos'],
+    ['2026-10-21T12:26:00Z', 'location_changed', 'KR', 'Seoul', 'safari', 'ios'],
+    ['2026-10-20T05:59:00Z', 'success', null, null, null, null],
+    ['2026-10-19T21:14:00Z', 'success', 'JP', 'Okinawa', 'edge', 'windows'],
+  ];
+  return {
+    data: rows.map(([occurred_at, result, country, region, browser, os]) => ({
+      occurred_at,
+      result,
+      country,
+      region,
+      browser,
+      os,
+    })),
+  };
+}
+
+function deviceList() {
+  const rows = [
+    ['device-1', '2026-10-31T00:12:00Z', 'JP', 'Tokyo', 'chrome', 'windows', true],
+    ['device-2', '2026-10-30T15:03:00Z', 'JP', 'Osaka', 'safari', 'ios', false],
+    ['device-3', '2026-10-28T22:18:00Z', 'US', 'California', 'firefox', 'linux', false],
+    ['device-4', '2026-10-25T19:52:00Z', 'JP', 'Hokkaido', 'safari', 'macos', false],
+    [
+      'device-5',
+      '2026-10-24T13:20:00Z',
+      'JP',
+      'Tokyo',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0 とても長いブラウザ名の表示確認用',
+      'Windows 10 Pro 64ビット版とても長いOS名の表示確認用',
+      false,
+    ],
+    ['device-6', '2026-10-21T12:26:00Z', 'KR', 'Seoul', 'chrome', 'android', false],
+  ];
+  return {
+    data: rows.map(([id, last_used_at, country, region, browser, os, is_current]) => ({
+      id,
+      last_used_at,
+      country,
+      region,
+      browser,
+      os,
+      is_current,
+    })),
+  };
 }
 
 export async function prepareContext(context, { anonymous }) {
