@@ -416,6 +416,8 @@ pub fn device_revoke_confirm_button(place: &str) -> String {
 pub const DEVICE_LOGOUT_ALL: &str = "すべての端末をログアウト";
 /// 登録した端末: 履歴も端末も無いときの空表示
 pub const LOGIN_HISTORY_EMPTY: &str = "ログイン履歴はまだありません";
+/// ログイン履歴: 追加の履歴を読み込む操作
+pub const LOGIN_HISTORY_SHOW_MORE: &str = "もっと見る";
 /// 登録した端末: 有効な端末が無いときの空表示
 pub const DEVICE_EMPTY: &str = "登録した端末はありません";
 

@@ -1768,6 +1768,16 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "取得開始位置（既定: 0）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
           }
         ],
         "responses": {

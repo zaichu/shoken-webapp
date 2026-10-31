@@ -151,8 +151,8 @@ pub fn SettingsPage() -> impl IntoView {
         ("display", "表示"),
         ("data", "データ"),
         ("security", "セキュリティ"),
-        ("login-history", crate::ui::labels::LOGIN_HISTORY_SECTION),
         ("devices", crate::ui::labels::REGISTERED_DEVICES_SECTION),
+        ("login-history", crate::ui::labels::LOGIN_HISTORY_SECTION),
         ("danger", "危険な操作"),
     ];
 
@@ -201,8 +201,8 @@ pub fn SettingsPage() -> impl IntoView {
                                 <SectionDisplay />
                                 <SectionData />
                                 <SectionSecurity />
-                                <login_history::SectionLoginHistory />
                                 <login_history::SectionDevices />
+                                <login_history::SectionLoginHistory />
                                 <SectionDanger />
                             }.into_any()
                         } else {

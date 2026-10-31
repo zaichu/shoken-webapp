@@ -264,9 +264,13 @@ async function installMocks(context, { anonymous, admin }) {
     const url = new URL(route.request().url());
     return route.fulfill(json(stock(url.searchParams.get('query'))));
   });
-  await context.route(/\/api\/v1\/login-history(?:\?.*)?$/, (route) =>
-    route.fulfill(json(loginHistory())),
-  );
+  await context.route(/\/api\/v1\/login-history(?:\?.*)?$/, (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const limit = Number(params.get('limit') ?? 10);
+    const offset = Number(params.get('offset') ?? 0);
+    const rows = loginHistory().data;
+    return route.fulfill(json({ data: rows.slice(offset, offset + limit) }));
+  });
   await context.route(/\/api\/v1\/devices$/, (route) => route.fulfill(json(deviceList())));
   await context.route(/\/api\/v1\/notification-settings$/, (route) =>
     route.fulfill(json({ login_notify_enabled: true })),

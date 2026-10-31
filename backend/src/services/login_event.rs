@@ -70,15 +70,23 @@ pub fn clamp_history_limit(limit: Option<i64>) -> i64 {
     }
 }
 
+pub fn clamp_history_offset(offset: Option<i64>) -> i64 {
+    match offset {
+        Some(n) if n > 0 => n,
+        _ => 0,
+    }
+}
+
 pub async fn list_login_history(
     pool: &Db,
     user_id: UserId,
     limit: i64,
+    offset: i64,
 ) -> Result<Vec<LoginHistoryEntry>, DbError> {
     crate::db::query_as::<LoginHistoryEntry>(
         "SELECT occurred_at, result, country, region, browser, os FROM login_events
-         WHERE user_id = $1 ORDER BY occurred_at DESC, id DESC LIMIT $2",
-        vec![Bind::from(user_id), Bind::from(limit)],
+         WHERE user_id = $1 ORDER BY occurred_at DESC, id DESC LIMIT $2 OFFSET $3",
+        vec![Bind::from(user_id), Bind::from(limit), Bind::from(offset)],
     )
     .fetch_all(pool)
     .await
@@ -562,6 +570,15 @@ mod tests {
     }
 
     #[test]
+    fn history_offset_starts_at_zero_and_rejects_negative() {
+        assert_eq!(clamp_history_offset(None), 0);
+        assert_eq!(clamp_history_offset(Some(0)), 0);
+        assert_eq!(clamp_history_offset(Some(-3)), 0);
+        assert_eq!(clamp_history_offset(Some(10)), 10);
+        assert_eq!(clamp_history_offset(Some(500)), 500);
+    }
+
+    #[test]
     fn history_and_device_responses_carry_no_secret_fields() {
         let entry = LoginHistoryEntry {
             occurred_at: chrono::Utc::now(),
@@ -655,7 +672,7 @@ mod tests {
             .await
             .expect("期限切れセッションの投入失敗");
         }
-        let owner_history = list_login_history(&pool, owner, 50)
+        let owner_history = list_login_history(&pool, owner, 50, 0)
             .await
             .expect("履歴の取得失敗");
         assert_eq!(owner_history.len(), 2);
