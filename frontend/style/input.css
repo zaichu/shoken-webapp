@@ -1537,6 +1537,22 @@
     max-width: 18em;
   }
 
+  /* ログイン履歴の表。asset-table を土台に、長いブラウザ名は折り返して
+     横スクロールを出さない(日時・結果は折り返さない) */
+  .login-history-table th,
+  .login-history-table td {
+    @apply px-2.5 text-left;
+  }
+
+  .login-history-table td {
+    @apply whitespace-normal break-words;
+  }
+
+  .login-history-table td.login-history-datetime,
+  .login-history-table td.login-history-result {
+    @apply whitespace-nowrap;
+  }
+
   @media screen and (min-width: 1024px) and (max-width: 1279px) {
     /* 内容の最小幅を抑え、名前の省略より先に金額列の幅を確保する */
     .asset-table td.asset-name-cell {

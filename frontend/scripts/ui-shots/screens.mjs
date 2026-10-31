@@ -131,6 +131,16 @@ export const SCREENS = [
     scroll: true,
   },
   {
+    key: 'settings-login-history',
+    label: '設定・ログイン履歴と登録端末',
+    path: '/settings',
+    ready: ['#login-history tbody tr', '#devices li'],
+    prepare: async (page) => {
+      await page.locator('#login-history').scrollIntoViewIfNeeded();
+    },
+    scroll: true,
+  },
+  {
     key: 'csv',
     label: 'CSV管理・取引明細',
     path: '/csv?kind=dividend',

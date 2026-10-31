@@ -155,7 +155,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
                             let mobile_rows = entries.clone();
                             view! {
                                 <div class="table-frame overflow-x-auto max-sm:hidden">
-                                    <table class="asset-table">
+                                    <table class="asset-table login-history-table">
                                         <thead>
                                             <tr>
                                                 <th scope="col">{LOGIN_HISTORY_COL_DATETIME}</th>
@@ -175,14 +175,14 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                                     let agent = format_agent(&entry.browser, &entry.os);
                                                     view! {
                                                         <tr>
-                                                            <td class="whitespace-nowrap tabular-nums">
+                                                            <td class="login-history-datetime tabular-nums">
                                                                 {format_datetime(&entry.occurred_at)}
                                                             </td>
-                                                            <td>
+                                                            <td class="login-history-result">
                                                                 <ResultBadge result=entry.result.clone() />
                                                             </td>
-                                                            <td class="break-words">{place}</td>
-                                                            <td class="break-words">{agent}</td>
+                                                            <td>{place}</td>
+                                                            <td>{agent}</td>
                                                         </tr>
                                                     }
                                                 })
