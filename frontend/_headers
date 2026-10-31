@@ -1,7 +1,7 @@
 # Cloudflare Pages の配信ヘッダー正本。trunk の copy-file で dist 直下に入る
 # (Pages は dist 直下の _headers を読む)。backend origin は下の CSP connect-src が正本。
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' https://lh3.googleusercontent.com; connect-src 'self' https://shoken-backend.zaitomo41.workers.dev; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' https://*.googleusercontent.com; connect-src 'self' https://shoken-backend.zaitomo41.workers.dev; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   Cache-Control: public, max-age=0, must-revalidate
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY

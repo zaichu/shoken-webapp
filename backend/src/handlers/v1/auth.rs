@@ -272,6 +272,7 @@ mod tests {
             google_id: "google-123".to_string(),
             email: "test@example.com".to_string(),
             name: Some("Test User".to_string()),
+            picture_url: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }

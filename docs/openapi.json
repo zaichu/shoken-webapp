@@ -4648,6 +4648,12 @@
               "string",
               "null"
             ]
+          },
+          "picture_url": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       }

@@ -4,6 +4,7 @@ pub(crate) use login_history::{ResultBadge, format_agent, format_datetime, forma
 
 use crate::session::use_session;
 use crate::settings::{AmountUnit, AssetSort, IDLE_LOGOUT_CHOICES, Theme, use_settings};
+use crate::ui::avatar::UserAvatar;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton, Switch};
 use crate::ui::card::Card;
 use crate::ui::card::CardVariant;
@@ -14,7 +15,6 @@ use crate::ui::labels::{
 use crate::ui::page_frame::PageFrame;
 use crate::ui::segmented::Segmented;
 use crate::ui::select::Select;
-use crate::ui::site::get_initials;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, Loading};
 use export::ExportKind;
 use leptos::prelude::*;
@@ -222,7 +222,6 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
         .clone()
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| user.email.clone());
-    let initials = get_initials(user.name.as_deref(), Some(&user.email));
     let login_method_text = "Google でログイン中";
 
     view! {
@@ -230,9 +229,13 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="account-heading" class="text-lg font-bold mb-4">"アカウント"</h2>
                 <div class="flex items-center gap-4">
-                    <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gold text-brand font-bold text-2xl">
-                        {initials}
-                    </span>
+                    <UserAvatar
+                        picture_url=user.picture_url.clone()
+                        name=user.name.clone()
+                        email=user.email.clone()
+                        large=true
+                        alt=display_name.clone()
+                    />
                     <div class="min-w-0">
                         <div class="font-bold text-lg break-words">{display_name}</div>
                         <div class="text-sm text-text-muted break-all">{user.email.clone()}</div>

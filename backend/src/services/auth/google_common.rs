@@ -227,7 +227,23 @@ pub fn validate_tokeninfo_claims(
         sub: sub.to_string(),
         email: email.to_string(),
         name: get_str("name").map(str::to_string),
+        picture_url: sanitize_picture_url(get_str("picture")),
     })
+}
+
+/// Google の画像ホストだけを通す。https で `*.googleusercontent.com` 以外は落とす
+pub fn sanitize_picture_url(raw: Option<&str>) -> Option<String> {
+    let raw = raw.filter(|s| !s.is_empty())?;
+    let url = url::Url::parse(raw).ok()?;
+    if url.scheme() != "https" {
+        return None;
+    }
+    let host = url.host_str()?;
+    if host == "googleusercontent.com" || host.ends_with(".googleusercontent.com") {
+        Some(raw.to_string())
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -312,6 +328,7 @@ mod tests {
         assert_eq!(info.sub, "test-subject");
         assert_eq!(info.email, "oidc@example.com");
         assert_eq!(info.name.as_deref(), Some("テスト利用者"));
+        assert!(info.picture_url.is_none());
         // iss の短縮形も許容
         let mut claims = valid_tokeninfo();
         claims["iss"] = serde_json::json!("accounts.google.com");
@@ -329,6 +346,56 @@ mod tests {
         claims.as_object_mut().unwrap().remove("name");
         let info = validate_tokeninfo_claims(&claims, CLIENT_ID, NONCE, NOW).unwrap();
         assert!(info.name.is_none());
+        // picture は任意
+        let mut claims = valid_tokeninfo();
+        claims.as_object_mut().unwrap().remove("picture");
+        let info = validate_tokeninfo_claims(&claims, CLIENT_ID, NONCE, NOW).unwrap();
+        assert!(info.picture_url.is_none());
+    }
+
+    #[test]
+    fn test_validate_tokeninfo_picture_allows_google_host_only() {
+        let mut claims = valid_tokeninfo();
+        claims["picture"] = serde_json::json!("https://lh3.googleusercontent.com/a-/avatar");
+        let info = validate_tokeninfo_claims(&claims, CLIENT_ID, NONCE, NOW).unwrap();
+        assert_eq!(
+            info.picture_url.as_deref(),
+            Some("https://lh3.googleusercontent.com/a-/avatar")
+        );
+        for picture in [
+            "https://example.com/avatar.png",
+            "http://lh3.googleusercontent.com/a-/avatar",
+            "https://lh3.googleusercontent.com.evil.example.com/avatar",
+            "https://evilgoogleusercontent.com/avatar",
+            "",
+        ] {
+            let mut claims = valid_tokeninfo();
+            claims["picture"] = serde_json::json!(picture);
+            let info = validate_tokeninfo_claims(&claims, CLIENT_ID, NONCE, NOW).unwrap();
+            assert!(info.picture_url.is_none(), "{picture}");
+        }
+    }
+
+    #[test]
+    fn test_sanitize_picture_url() {
+        assert_eq!(
+            sanitize_picture_url(Some("https://lh3.googleusercontent.com/a-/avatar")).as_deref(),
+            Some("https://lh3.googleusercontent.com/a-/avatar")
+        );
+        assert_eq!(
+            sanitize_picture_url(Some("https://a.b.googleusercontent.com/x")).as_deref(),
+            Some("https://a.b.googleusercontent.com/x")
+        );
+        for bad in [
+            None,
+            Some(""),
+            Some("https://example.com/avatar.png"),
+            Some("http://lh3.googleusercontent.com/a"),
+            Some("not-a-url"),
+            Some("https://googleusercontent.com.evil.example.com/a"),
+        ] {
+            assert!(sanitize_picture_url(bad).is_none(), "{bad:?}");
+        }
     }
 
     #[test]
