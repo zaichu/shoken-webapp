@@ -335,6 +335,18 @@ impl ApiClient {
         serde_json::from_str(&text).map_err(|_| ApiError::Parse)
     }
 
+    pub async fn put_json<B: Serialize, T: DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, ApiError> {
+        let json = serde_json::to_string(body).map_err(|_| ApiError::Parse)?;
+        let text = self
+            .execute("PUT", path, &[], RequestBody::Json(json))
+            .await?;
+        serde_json::from_str(&text).map_err(|_| ApiError::Parse)
+    }
+
     pub async fn post_multipart<T: DeserializeOwned>(
         &self,
         path: &str,
