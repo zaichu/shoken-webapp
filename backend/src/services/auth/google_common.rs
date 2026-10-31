@@ -175,6 +175,15 @@ fn json_i64(value: &serde_json::Value, field: &str) -> Option<i64> {
     }
 }
 
+/// tokeninfo の `email_verified` は真偽値または文字列 "true"/"false" で返る
+fn is_email_verified(claims: &serde_json::Value) -> bool {
+    match claims.get("email_verified") {
+        Some(serde_json::Value::Bool(b)) => *b,
+        Some(serde_json::Value::String(s)) => s == "true",
+        _ => false,
+    }
+}
+
 /// Google tokeninfo レスポンスのクレームを検証してユーザー情報を取り出す。
 ///
 /// tokeninfo エンドポイントが署名検証を肩代わりするため、ここでは
@@ -210,6 +219,9 @@ pub fn validate_tokeninfo_claims(
     let email = get_str("email")
         .filter(|s| !s.is_empty())
         .ok_or_else(invalid)?;
+    if !is_email_verified(claims) {
+        return Err(invalid());
+    }
 
     Ok(GoogleUserInfo {
         sub: sub.to_string(),
@@ -308,6 +320,10 @@ mod tests {
         let mut claims = valid_tokeninfo();
         claims["exp"] = serde_json::json!(NOW + 60);
         assert!(validate_tokeninfo_claims(&claims, CLIENT_ID, NONCE, NOW).is_ok());
+        // email_verified が真偽値 true でも受理
+        let mut claims = valid_tokeninfo();
+        claims["email_verified"] = serde_json::json!(true);
+        assert!(validate_tokeninfo_claims(&claims, CLIENT_ID, NONCE, NOW).is_ok());
         // name は任意
         let mut claims = valid_tokeninfo();
         claims.as_object_mut().unwrap().remove("name");
@@ -324,6 +340,8 @@ mod tests {
             ("nonce", serde_json::json!("unsolicited-nonce")),
             ("email", serde_json::Value::Null),
             ("sub", serde_json::Value::Null),
+            ("email_verified", serde_json::json!(false)),
+            ("email_verified", serde_json::json!("false")),
         ];
         for (field, value) in cases {
             let mut claims = valid_tokeninfo();
@@ -334,7 +352,15 @@ mod tests {
             );
         }
         // 必須フィールド欠落
-        for field in ["iss", "aud", "exp", "nonce", "email", "sub"] {
+        for field in [
+            "iss",
+            "aud",
+            "exp",
+            "nonce",
+            "email",
+            "sub",
+            "email_verified",
+        ] {
             let mut claims = valid_tokeninfo();
             claims.as_object_mut().unwrap().remove(field);
             assert!(
