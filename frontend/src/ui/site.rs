@@ -356,8 +356,10 @@ fn UserMenu(
         .clone()
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| "ユーザー".to_string());
+    let initials = crate::ui::avatar::avatar_initials(user_name.as_deref(), Some(&user_email));
     let login_method_text = LOGIN_METHOD_TEXT;
-    let menu_label = format!("{aria_name}のアカウントメニュー");
+    // 見える頭文字がアクセシブル名に含まれないと WCAG 2.5.3 違反になるため頭文字を先頭に置く
+    let menu_label = format!("{initials} {aria_name}のアカウントメニュー");
 
     view! {
         <div class="flex items-center gap-3">
@@ -384,12 +386,14 @@ fn UserMenu(
                         }
                     }
                 >
-                    <UserAvatar
-                        picture_url=user_picture.clone()
-                        name=user_name.clone()
-                        email=user_email.clone()
-                        alt="".to_string()
-                    />
+                    <span aria-hidden="true" class="contents">
+                        <UserAvatar
+                            picture_url=user_picture.clone()
+                            name=user_name.clone()
+                            email=user_email.clone()
+                            alt="".to_string()
+                        />
+                    </span>
                 </button>
                 <Show when=move || menu_open.get()>
                     <ul
