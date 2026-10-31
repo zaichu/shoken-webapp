@@ -192,7 +192,7 @@ pub fn ReceiptTable(
     let table_frame_class = if compact_mobile {
         ""
     } else {
-        "table-frame overflow-x-auto"
+        "table-frame overflow-clip"
     };
     let table_class = if compact_mobile {
         "receipts-table"
