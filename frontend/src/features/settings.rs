@@ -1,5 +1,6 @@
 mod export;
 mod login_history;
+pub(crate) use login_history::{ResultBadge, format_agent, format_datetime, format_place};
 
 use crate::session::use_session;
 use crate::settings::{AmountUnit, AssetSort, IDLE_LOGOUT_CHOICES, Theme, use_settings};

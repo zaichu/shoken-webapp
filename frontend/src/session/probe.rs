@@ -1,4 +1,4 @@
-use crate::api::dto::SessionUser;
+use super::SessionResponse;
 use serde::Deserialize;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
@@ -8,7 +8,7 @@ const GLOBAL_KEY: &str = "__shokenSessionProbe";
 pub enum Probe {
     /// プローブ未起動・または消費済み(起動時の1回しか使わない)。通常経路で確認する
     Missing,
-    Authenticated(SessionUser),
+    Authenticated(SessionResponse),
     /// 4xx など確定した拒否。撃ち直さず未認証として扱う
     Anonymous,
     /// 5xx・時間切れ・通信失敗。残り予算で1回だけ撃ち直す
@@ -20,7 +20,7 @@ pub enum Probe {
 struct ProbeResult {
     state: String,
     #[serde(default)]
-    user: Option<SessionUser>,
+    user: Option<SessionResponse>,
 }
 
 // 取り出しと同時に窓から消す。応答済みの Promise は値を保持するため、

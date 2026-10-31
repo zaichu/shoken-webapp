@@ -39,8 +39,8 @@ pub async fn list(
     if !state.config.is_admin_email(&auth_user.0.email) {
         return Err(ApiError::Forbidden);
     }
-    admin::record_view(&state.pool, auth_user.id()).await?;
     let Query(query) = query.map_err(|_| ApiError::Validation("検索条件が不正です".into()))?;
+    admin::record_view(&state.pool, auth_user.id()).await?;
     Ok(Json(admin::search(&state.pool, query).await?))
 }
 
@@ -50,6 +50,80 @@ mod tests {
     use crate::{config::Config, db::connect_pool_lazy, models::user::User, state::Secrets};
     use axum::{http::StatusCode, response::IntoResponse};
     use std::sync::Arc;
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn successful_api_call_records_viewer_and_denied_calls_do_not() {
+        use crate::{
+            db::{self, Bind},
+            models::user::GoogleUserInfo,
+            services::auth,
+        };
+        use axum::{
+            body::{Body, to_bytes},
+            http::Request,
+        };
+        use tower::ServiceExt;
+        let (pool, _node) = crate::test_db::start_test_pool().await;
+        let token = auth::upsert_user_and_rotate_session(
+            &pool,
+            &GoogleUserInfo {
+                sub: "admin-api".into(),
+                email: "admin@example.com".into(),
+                name: None,
+            },
+        )
+        .await
+        .unwrap();
+        let user_id = auth::select_user_id_by_session(&pool, token)
+            .await
+            .unwrap()
+            .unwrap();
+        for (emails, expected) in [
+            (None, StatusCode::FORBIDDEN),
+            (Some("other@example.com"), StatusCode::FORBIDDEN),
+            (Some("ADMIN@EXAMPLE.COM"), StatusCode::OK),
+        ] {
+            let state = AppState {
+                pool: pool.clone(),
+                secrets: Arc::new(Secrets {
+                    jquants_api_key: None,
+                    google_client_id: None,
+                    google_client_secret: None,
+                    frontend_url: "http://localhost:8080".into(),
+                }),
+                config: Arc::new(Config {
+                    admin_emails: emails.map(str::to_owned),
+                    ..Default::default()
+                }),
+                google_oauth: None,
+                jquants_client: None,
+            };
+            let response = crate::handlers::v1::data_routes().with_state(state).oneshot(Request::builder()
+                .uri("/api/v1/admin/logins?per_page=5000&page=0&email=admin&place=Tokyo&sort_by=email&sort_order=asc")
+                .header("cookie", format!("session_token={token}"))
+                .body(Body::empty()).unwrap()).await.unwrap();
+            assert_eq!(response.status(), expected);
+            if expected == StatusCode::OK {
+                let body: serde_json::Value =
+                    serde_json::from_slice(&to_bytes(response.into_body(), 65536).await.unwrap())
+                        .unwrap();
+                assert_eq!(
+                    (body["page"].as_i64(), body["per_page"].as_i64()),
+                    (Some(1), Some(1000))
+                );
+                assert!(body["data"].as_array().unwrap().is_empty());
+            }
+        }
+        let recorded: i64 = db::query_scalar(
+            "SELECT COUNT(*) FROM admin_login_views WHERE user_id = $1 AND occurred_at <= NOW()",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(recorded, 1);
+    }
 
     #[tokio::test]
     async fn admin_logins_checks_permission_before_accessing_database() {

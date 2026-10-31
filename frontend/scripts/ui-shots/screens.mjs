@@ -49,6 +49,25 @@ const RECEIPT_TAB = {
 
 export const SCREENS = [
   {
+    key: 'admin-logins',
+    label: 'ログイン一覧(管理者)',
+    path: '/admin/logins',
+    ready: ['[data-testid="admin-login-table"] tbody tr', '[data-testid="admin-login-list"] li'],
+    admin: true,
+    scroll: true,
+  },
+  {
+    key: 'admin-logins-empty',
+    label: 'ログイン一覧(管理者)・検索0件',
+    path: '/admin/logins',
+    loaded: ['[data-testid="admin-login-table"] tbody tr', '[data-testid="admin-login-list"] li'],
+    ready: ['[data-testid="empty-state"]'],
+    admin: true,
+    prepare: async (page) => {
+      await page.getByRole('searchbox', { name: 'メール・場所で検索' }).fill('no-matching-login');
+    },
+  },
+  {
     key: 'home',
     label: 'ホーム',
     path: '/',
@@ -184,7 +203,7 @@ async function installGuards(context) {
   return unexpected;
 }
 
-async function installMocks(context, { anonymous }) {
+async function installMocks(context, { anonymous, admin }) {
   const stocks = assetBalances();
   const funds = fundBalances();
   const currentDividends = dividends(CURRENT_YEAR);
@@ -193,8 +212,27 @@ async function installMocks(context, { anonymous }) {
   const mutualFunds = mutualFundTransactions();
 
   await context.route(/\/api\/v1\/session$/, (route) =>
-    route.fulfill(anonymous ? json({ message: 'unauthorized' }, 401) : json(MOCK_USER)),
+    route.fulfill(anonymous ? json({ message: 'unauthorized' }, 401) : json({ ...MOCK_USER, is_admin: Boolean(admin) })),
   );
+  await context.route(/\/api\/v1\/admin\/logins(?:\?.*)?$/, (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    if (!admin) return route.fulfill(json({ error: { code: 'FORBIDDEN', message: '管理者権限が必要です' } }, 403));
+    const all = adminLogins();
+    const q = (params.get('q') ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+    const email = (params.get('email') ?? '').toLowerCase();
+    const place = (params.get('place') ?? '').toLowerCase();
+    const rows = all.filter((row) => {
+      const location = `${row.country ?? ''} ${row.region ?? ''}`.toLowerCase();
+      return row.email.toLowerCase().includes(email) && location.includes(place)
+        && q.every((token) => `${row.email} ${location}`.toLowerCase().includes(token));
+    });
+    const key = params.get('sort_by') ?? 'occurred_at';
+    const value = (row) => key === 'place' ? `${row.country ?? ''} ${row.region ?? ''}` : row[key];
+    rows.sort((a, b) => String(value(a)).localeCompare(String(value(b))) * (params.get('sort_order') === 'asc' ? 1 : -1));
+    const page = Number(params.get('page') ?? 1);
+    const per_page = Number(params.get('per_page') ?? 50);
+    return route.fulfill(json({ data: rows.slice((page - 1) * per_page, page * per_page), total: rows.length, page, per_page }));
+  });
   await context.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(stocks.rows, { summary: stocks.summary }))),
   );
@@ -298,8 +336,22 @@ function deviceList() {
   };
 }
 
-export async function prepareContext(context, { anonymous }) {
+export async function prepareContext(context, { anonymous, admin }) {
   const unexpected = await installGuards(context);
-  await installMocks(context, { anonymous });
+  await installMocks(context, { anonymous, admin });
   return unexpected;
+}
+
+export function adminLogins() {
+  return Array.from({ length: 64 }, (_, index) => ({
+    occurred_at: new Date(Date.UTC(2026, 9, 31, 0, 12) - index * 3600000).toISOString(),
+    email: index % 5 === 0
+      ? `long.email.for.administrator.login.history.display.check.${index}@example.com`
+      : `user${String(index).padStart(2, '0')}@example.com`,
+    result: ['success', 'new_device', 'location_changed', 'failure'][index % 4],
+    country: index % 7 === 0 ? null : 'JP',
+    region: [null, 'Tokyo', 'Osaka', 'Hokkaido'][index % 4],
+    browser: ['chrome', 'safari', 'edge', 'firefox'][index % 4],
+    os: ['windows', 'ios', 'macos', 'linux'][index % 4],
+  }));
 }

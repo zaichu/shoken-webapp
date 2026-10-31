@@ -12,6 +12,23 @@ use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 
+#[component]
+pub fn SortColumnButton(
+    label: &'static str,
+    #[prop(into)] active: Signal<bool>,
+    #[prop(into)] descending: Signal<bool>,
+    on_click: impl Fn() + Copy + Send + Sync + 'static,
+) -> impl IntoView {
+    view! {
+        <Button variant=ButtonVariant::AssetSortColumn class="max-sm:min-h-11" aria_pressed=move || active.get().to_string() on_click=move |_| on_click()>
+            <span class="asset-sort-arrow" aria_hidden="true">
+                {move || if !active.get() { "" } else if descending.get() { "▼" } else { "▲" }}
+            </span>
+            {label}
+        </Button>
+    }
+}
+
 /// 適用中の条件チップ(「口座: 特定 ✕」)。押すとその条件だけ解除する
 #[component]
 pub fn SearchTag(

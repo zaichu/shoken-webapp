@@ -452,6 +452,15 @@ fn UserMenu(
                                 <span>データをエクスポート</span>
                             </a>
                         </li>
+                        <Show when=move || session.is_admin.get()>
+                            <li role="none">
+                                <a href="/admin/logins" role="menuitem" tabindex="0"
+                                    class="flex min-h-11 items-center gap-3 px-3 py-2 text-sm font-semibold text-text-deep hover:bg-surface-raised no-underline"
+                                    on:click=move |_| menu_open.set(false)>
+                                    {crate::ui::labels::ADMIN_LOGINS}
+                                </a>
+                            </li>
+                        </Show>
                         <li role="none">
                             <Button
                                 variant=ButtonVariant::MenuItem

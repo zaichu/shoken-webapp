@@ -6,6 +6,7 @@ fn route_for_known_and_unknown_paths() {
     assert_eq!(route_for_path("/search"), Route::Search);
     assert_eq!(route_for_path("/receipts"), Route::Receipts);
     assert_eq!(route_for_path("/assetbalance"), Route::AssetBalance);
+    assert_eq!(route_for_path("/admin/logins"), Route::AdminLogins);
     assert_eq!(route_for_path("/login"), Route::Login);
     assert_eq!(route_for_path("/404"), Route::NotFound);
     assert_eq!(route_for_path("/unknown"), Route::NotFound);
@@ -58,6 +59,7 @@ fn designed_routes_have_titles() {
 
 #[test]
 fn protected_path_covers_feature_sub_paths() {
+    assert!(protected_path("/admin/logins"));
     assert!(protected_path("/receipts"));
     assert!(protected_path("/receipts?kind=stock"));
     assert!(protected_path("/receipts/csv"));

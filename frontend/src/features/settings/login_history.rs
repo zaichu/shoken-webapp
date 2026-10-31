@@ -68,7 +68,7 @@ fn result_label(result: &str) -> &'static str {
     }
 }
 
-fn format_place(country: &Option<String>, region: &Option<String>) -> String {
+pub(crate) fn format_place(country: &Option<String>, region: &Option<String>) -> String {
     match (country.as_deref(), region.as_deref()) {
         (Some(country), Some(region)) if !region.is_empty() => format!("{country} {region}"),
         (Some(country), _) => country.to_string(),
@@ -77,7 +77,7 @@ fn format_place(country: &Option<String>, region: &Option<String>) -> String {
     }
 }
 
-fn format_agent(browser: &Option<String>, os: &Option<String>) -> String {
+pub(crate) fn format_agent(browser: &Option<String>, os: &Option<String>) -> String {
     match (browser.as_deref(), os.as_deref()) {
         (Some(browser), Some(os)) => format!("{browser} / {os}"),
         (Some(browser), None) => browser.to_string(),
@@ -86,7 +86,7 @@ fn format_agent(browser: &Option<String>, os: &Option<String>) -> String {
     }
 }
 
-fn format_datetime(occurred_at: &str) -> String {
+pub(crate) fn format_datetime(occurred_at: &str) -> String {
     let date = crate::ui::format::jst_date(occurred_at);
     let time = crate::ui::format::format_jst_time(occurred_at);
     match date {
@@ -110,7 +110,7 @@ async fn fetch_devices() -> Result<Vec<DeviceEntry>, ApiError> {
 }
 
 #[component]
-fn ResultBadge(result: String) -> impl IntoView {
+pub(crate) fn ResultBadge(result: String) -> impl IntoView {
     let label = result_label(&result);
     let variant = result_badge_variant(&result);
     view! { <Badge variant=variant>{label}</Badge> }
