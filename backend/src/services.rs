@@ -8,6 +8,7 @@ pub mod domestic_stock;
 pub mod fund_balance;
 pub mod fund_price;
 pub mod jquants;
+pub mod login_event;
 pub mod mutualfund;
 pub mod stock;
 pub mod stock_master;

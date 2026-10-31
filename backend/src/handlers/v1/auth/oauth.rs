@@ -1,8 +1,10 @@
 use crate::errors::{ApiError, ConfigError, ErrorResponse};
 use crate::services::auth::{self as auth_service, GoogleOAuthClient, SessionToken};
+use crate::services::login_event::client_info_from_headers;
 use crate::state::AppState;
 use axum::{
     extract::{Query, State},
+    http::HeaderMap,
     response::{IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::{
@@ -73,6 +75,15 @@ fn build_session_cookie(token: SessionToken, secure: bool) -> Cookie<'static> {
     )
 }
 
+fn build_device_cookie(token: auth_service::DeviceToken, secure: bool) -> Cookie<'static> {
+    auth_cookie(
+        auth_service::DEVICE_COOKIE_NAME,
+        token.to_string(),
+        time::Duration::days(365),
+        secure,
+    )
+}
+
 pub fn clear_session_cookie(secure: bool) -> Cookie<'static> {
     clear_cookie(auth_service::SESSION_COOKIE_NAME, secure)
 }
@@ -83,6 +94,12 @@ pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<SessionToken, ApiError
         .value()
         .parse()
         .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))
+}
+
+pub fn get_device_token_from_jar(jar: &CookieJar) -> auth_service::DeviceToken {
+    jar.get(auth_service::DEVICE_COOKIE_NAME)
+        .and_then(|c| c.value().parse().ok())
+        .unwrap_or_default()
 }
 
 /// Google OAuth 認証を開始（v1）
@@ -139,6 +156,7 @@ pub async fn google_auth(
 )]
 pub async fn google_callback(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(query): Query<AuthCallbackQuery>,
     jar: CookieJar,
 ) -> Result<Response, ApiError> {
@@ -175,19 +193,26 @@ pub async fn google_callback(
         .ok_or_else(|| ApiError::Unauthorized("OAuth の PKCE verifier が見つかりません"))?;
     let nonce = nonce.ok_or_else(|| ApiError::Unauthorized("OAuth nonce が見つかりません"))?;
 
-    let session_token = auth_service::authenticate_with_google_code(
+    let device_token = get_device_token_from_jar(&jar);
+    let client_info = client_info_from_headers(&headers);
+
+    let session_token = auth_service::authenticate_with_google_code_and_login_event(
         &state.pool,
         client,
         query.code,
         pkce_verifier,
         &nonce,
+        device_token.hash(),
+        &client_info,
     )
     .await?;
 
     // クロスオリジン（フロントエンド: Cloudflare Pages, バックエンド: Cloudflare Workers）で
     // Cookieを送受信するには SameSite=None + Secure が必要
     let cookie = build_session_cookie(session_token, is_secure);
-    let jar = jar.add(cookie);
+    let jar = jar
+        .add(cookie)
+        .add(build_device_cookie(device_token, is_secure));
 
     let frontend_url = &state.secrets.frontend_url;
     let redirect_url = format!("{frontend_url}?login=success");
@@ -338,6 +363,7 @@ mod tests {
         let jar = CookieJar::new().add(Cookie::new(OAUTH_STATE_COOKIE_NAME, "test-state"));
         let result = google_callback(
             State(make_test_state()),
+            HeaderMap::default(),
             Query(AuthCallbackQuery {
                 code: "auth-code".to_string(),
                 state: "test-state".to_string(),
@@ -368,6 +394,44 @@ mod tests {
                 &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, token.to_string()))
             )
             .unwrap(),
+            token
+        );
+    }
+
+    #[test]
+    fn test_device_cookie_helpers() {
+        use crate::services::auth::DEVICE_COOKIE_NAME;
+        for secure in [true, false] {
+            let cookie = build_device_cookie(auth_service::DeviceToken::new(), secure);
+            assert_eq!(
+                (
+                    cookie.name(),
+                    cookie.path(),
+                    cookie.http_only(),
+                    cookie.secure(),
+                    cookie.same_site(),
+                    cookie.max_age(),
+                ),
+                (
+                    DEVICE_COOKIE_NAME,
+                    Some("/"),
+                    Some(true),
+                    Some(secure),
+                    Some(same_site(secure)),
+                    Some(time::Duration::days(365)),
+                )
+            );
+        }
+        let missing = get_device_token_from_jar(&CookieJar::new());
+        let invalid = get_device_token_from_jar(
+            &CookieJar::new().add(Cookie::new(DEVICE_COOKIE_NAME, "invalid-uuid")),
+        );
+        assert_ne!(missing, invalid);
+        let token = auth_service::DeviceToken::new();
+        assert_eq!(
+            get_device_token_from_jar(
+                &CookieJar::new().add(Cookie::new(DEVICE_COOKIE_NAME, token.to_string()))
+            ),
             token
         );
     }
