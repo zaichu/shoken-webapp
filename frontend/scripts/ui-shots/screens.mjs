@@ -274,6 +274,7 @@ async function installMocks(context, { anonymous, admin }) {
 }
 
 // ログイン履歴・登録端末の撮影用データ。12件以上の履歴・長いブラウザ名・5台以上の端末
+// 表にない国・地域(XX/Atlantis)も1件入れて、そのまま出すことを確かめる
 function loginHistory() {
   const rows = [
     ['2026-10-31T00:12:00Z', 'success', 'JP', 'Tokyo', 'chrome', 'windows'],
@@ -295,6 +296,7 @@ function loginHistory() {
     ['2026-10-22T18:40:00Z', 'success', 'JP', 'Kyoto', 'chrome', 'macos'],
     ['2026-10-21T12:26:00Z', 'location_changed', 'KR', 'Seoul', 'safari', 'ios'],
     ['2026-10-20T05:59:00Z', 'success', null, null, null, null],
+    ['2026-10-20T04:00:00Z', 'success', 'XX', 'Atlantis', 'vivaldi', 'freebsd'],
     ['2026-10-19T21:14:00Z', 'success', 'JP', 'Okinawa', 'edge', 'windows'],
   ];
   return {
@@ -325,6 +327,7 @@ function deviceList() {
       false,
     ],
     ['device-6', '2026-10-21T12:26:00Z', 'KR', 'Seoul', 'chrome', 'android', false],
+    ['device-7', '2026-10-20T04:00:00Z', 'XX', 'Atlantis', 'vivaldi', 'freebsd', false],
   ];
   return {
     data: rows.map(([id, last_used_at, country, region, browser, os, is_current]) => ({
@@ -346,15 +349,28 @@ export async function prepareContext(context, { anonymous, admin }) {
 }
 
 export function adminLogins() {
-  return Array.from({ length: 64 }, (_, index) => ({
-    occurred_at: new Date(Date.UTC(2026, 9, 31, 0, 12) - index * 3600000).toISOString(),
-    email: index % 5 === 0
-      ? `long.email.for.administrator.login.history.display.check.${index}@example.com`
-      : `user${String(index).padStart(2, '0')}@example.com`,
-    result: ['success', 'new_device', 'location_changed', 'failure'][index % 4],
-    country: index % 7 === 0 ? null : 'JP',
-    region: [null, 'Tokyo', 'Osaka', 'Hokkaido'][index % 4],
-    browser: ['chrome', 'safari', 'edge', 'firefox'][index % 4],
-    os: ['windows', 'ios', 'macos', 'linux'][index % 4],
-  }));
+  return Array.from({ length: 64 }, (_, index) => {
+    if (index === 3) {
+      return {
+        occurred_at: new Date(Date.UTC(2026, 9, 31, 0, 12) - index * 3600000).toISOString(),
+        email: `user${String(index).padStart(2, '0')}@example.com`,
+        result: 'success',
+        country: 'XX',
+        region: 'Atlantis',
+        browser: 'vivaldi',
+        os: 'freebsd',
+      };
+    }
+    return {
+      occurred_at: new Date(Date.UTC(2026, 9, 31, 0, 12) - index * 3600000).toISOString(),
+      email: index % 5 === 0
+        ? `long.email.for.administrator.login.history.display.check.${index}@example.com`
+        : `user${String(index).padStart(2, '0')}@example.com`,
+      result: ['success', 'new_device', 'location_changed', 'failure'][index % 4],
+      country: index % 7 === 0 ? null : 'JP',
+      region: [null, 'Tokyo', 'Osaka', 'Hokkaido'][index % 4],
+      browser: ['chrome', 'safari', 'edge', 'firefox'][index % 4],
+      os: ['windows', 'ios', 'macos', 'linux'][index % 4],
+    };
+  });
 }

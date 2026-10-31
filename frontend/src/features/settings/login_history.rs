@@ -1,4 +1,6 @@
 use crate::api::{ApiClient, ApiError};
+#[cfg(test)]
+mod tests;
 use crate::session::use_session;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
@@ -69,30 +71,16 @@ fn result_label(result: &str) -> &'static str {
 }
 
 pub(crate) fn format_place(country: &Option<String>, region: &Option<String>) -> String {
-    match (country.as_deref(), region.as_deref()) {
-        (Some(country), Some(region)) if !region.is_empty() => format!("{country} {region}"),
-        (Some(country), _) => country.to_string(),
-        (None, Some(region)) if !region.is_empty() => region.to_string(),
-        _ => crate::ui::labels::MISSING.to_string(),
-    }
+    shared::login_display::format_place(country.as_deref(), region.as_deref())
 }
 
 pub(crate) fn format_agent(browser: &Option<String>, os: &Option<String>) -> String {
-    match (browser.as_deref(), os.as_deref()) {
-        (Some(browser), Some(os)) => format!("{browser} / {os}"),
-        (Some(browser), None) => browser.to_string(),
-        (None, Some(os)) => os.to_string(),
-        _ => crate::ui::labels::MISSING.to_string(),
-    }
+    shared::login_display::format_agent(browser.as_deref(), os.as_deref())
 }
 
 pub(crate) fn format_datetime(occurred_at: &str) -> String {
-    let date = crate::ui::format::jst_date(occurred_at);
-    let time = crate::ui::format::format_jst_time(occurred_at);
-    match date {
-        Some((_, month, day)) => format!("{month}/{day} {time}"),
-        None => occurred_at.to_string(),
-    }
+    shared::login_display::format_iso_utc_as_jst(occurred_at)
+        .unwrap_or_else(|| occurred_at.to_string())
 }
 
 async fn fetch_history() -> Result<Vec<LoginHistoryEntry>, ApiError> {

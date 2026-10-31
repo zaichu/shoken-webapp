@@ -347,22 +347,19 @@ async fn send_via_gmail(
 
 #[cfg(any(target_arch = "wasm32", test))]
 fn display_place(client: &ClientInfo) -> String {
-    match (client.country.as_deref(), client.region.as_deref()) {
-        (Some(country), Some(region)) if !region.is_empty() => format!("{country} {region}"),
-        (Some(country), _) => country.to_string(),
-        (None, Some(region)) if !region.is_empty() => region.to_string(),
-        _ => "—".to_string(),
-    }
+    shared::login_display::format_place(client.country.as_deref(), client.region.as_deref())
 }
 
 #[cfg(any(target_arch = "wasm32", test))]
 fn display_agent(client: &ClientInfo) -> String {
-    match (client.browser.as_deref(), client.os.as_deref()) {
-        (Some(browser), Some(os)) => format!("{browser} / {os}"),
-        (Some(browser), None) => browser.to_string(),
-        (None, Some(os)) => os.to_string(),
-        _ => "—".to_string(),
-    }
+    shared::login_display::format_agent(client.browser.as_deref(), client.os.as_deref())
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn format_occurred_jst(now: DateTime<Utc>) -> String {
+    let shifted = now + chrono::Duration::hours(9);
+    let date = shifted.format("%Y/%m/%d %H:%M").to_string();
+    format!("{date} JST")
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -408,7 +405,7 @@ pub async fn maybe_notify_on_login(
             return;
         }
     };
-    let occurred = chrono::Utc::now().format("%Y/%m/%d %H:%M UTC").to_string();
+    let occurred = format_occurred_jst(chrono::Utc::now());
     let body = login_notification_body(
         &occurred,
         &display_place(client),
@@ -506,15 +503,15 @@ mod tests {
     #[test]
     fn notification_body_contains_expected_parts() {
         let body = login_notification_body(
-            "2026/10/31 10:00",
-            "JP Tokyo",
-            "chrome / windows",
+            "2026/10/31 16:38 JST",
+            "東京都, 日本",
+            "Chrome / Windows",
             "https://app/settings?notify_token=x",
         );
         for part in [
-            "2026/10/31 10:00",
-            "JP Tokyo",
-            "chrome / windows",
+            "2026/10/31 16:38 JST",
+            "東京都, 日本",
+            "Chrome / Windows",
             "https://app/settings?notify_token=x",
             "24時間",
             "1回限り",
@@ -524,17 +521,37 @@ mod tests {
     }
 
     #[test]
-    fn display_helpers_cover_missing_parts() {
+    fn display_helpers_use_shared_japanese_labels() {
         let full = ClientInfo {
             country: Some("JP".to_string()),
             region: Some("Tokyo".to_string()),
             browser: Some("chrome".to_string()),
             os: Some("windows".to_string()),
         };
-        assert_eq!(display_place(&full), "JP Tokyo");
-        assert_eq!(display_agent(&full), "chrome / windows");
+        assert_eq!(display_place(&full), "東京都, 日本");
+        assert_eq!(display_agent(&full), "Chrome / Windows");
+        assert_eq!(
+            display_place(&full),
+            shared::login_display::format_place(Some("JP"), Some("Tokyo"))
+        );
+        assert_eq!(
+            display_agent(&full),
+            shared::login_display::format_agent(Some("chrome"), Some("windows"))
+        );
         assert_eq!(display_place(&ClientInfo::default()), "—");
         assert_eq!(display_agent(&ClientInfo::default()), "—");
+    }
+
+    #[test]
+    fn occurred_uses_jst_with_zone() {
+        let utc = DateTime::parse_from_rfc3339("2026-10-31T07:38:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        assert_eq!(format_occurred_jst(utc), "2026/10/31 16:38 JST");
+        assert_eq!(
+            shared::login_display::format_iso_utc_as_jst_with_zone("2026-10-31T07:38:00Z"),
+            Some("2026/10/31 16:38 JST".to_string())
+        );
     }
 
     #[tokio::test]

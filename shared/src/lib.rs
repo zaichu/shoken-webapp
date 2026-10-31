@@ -5,6 +5,7 @@ pub mod dividend_per_share;
 pub mod domain;
 pub mod error;
 pub mod format;
+pub mod login_display;
 pub mod normalize;
 pub mod summary;
 pub mod tax;
