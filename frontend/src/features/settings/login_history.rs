@@ -11,9 +11,9 @@ use crate::ui::labels::{
     DEVICE_COL_LAST_USED, DEVICE_CURRENT, DEVICE_EMPTY, DEVICE_LOGOUT_ALL, DEVICE_REVOKE,
     LOGIN_HISTORY_COL_AGENT, LOGIN_HISTORY_COL_DATETIME, LOGIN_HISTORY_COL_PLACE,
     LOGIN_HISTORY_COL_RESULT, LOGIN_HISTORY_COOKIE_NOTE, LOGIN_HISTORY_EMPTY,
-    LOGIN_HISTORY_SECTION, LOGIN_RESULT_FAILURE, LOGIN_RESULT_LOCATION_CHANGED,
-    LOGIN_RESULT_NEW_DEVICE, LOGIN_RESULT_SUCCESS, REGISTERED_DEVICES_SECTION,
-    device_revoke_confirm_button,
+    LOGIN_HISTORY_SECTION, LOGIN_HISTORY_SHOW_MORE, LOGIN_RESULT_FAILURE,
+    LOGIN_RESULT_LOCATION_CHANGED, LOGIN_RESULT_NEW_DEVICE, LOGIN_RESULT_SUCCESS,
+    REGISTERED_DEVICES_SECTION, device_revoke_confirm_button,
 };
 use crate::ui::state::{ListLoadError, Loading};
 use leptos::prelude::*;
@@ -83,9 +83,20 @@ pub(crate) fn format_datetime(occurred_at: &str) -> String {
         .unwrap_or_else(|| occurred_at.to_string())
 }
 
-async fn fetch_history() -> Result<Vec<LoginHistoryEntry>, ApiError> {
+const HISTORY_PAGE_SIZE: i64 = 10;
+const HISTORY_MAX_TOTAL: usize = 500;
+
+async fn fetch_history_page(limit: i64, offset: i64) -> Result<Vec<LoginHistoryEntry>, ApiError> {
+    let limit_value = limit.to_string();
+    let offset_value = offset.to_string();
     ApiClient::read_client()
-        .get_json::<LoginHistoryListResponse>("/api/v1/login-history", &[("limit", "50")])
+        .get_json::<LoginHistoryListResponse>(
+            "/api/v1/login-history",
+            &[
+                ("limit", limit_value.as_str()),
+                ("offset", offset_value.as_str()),
+            ],
+        )
         .await
         .map(|response| response.data)
 }
@@ -106,13 +117,48 @@ pub(crate) fn ResultBadge(result: String) -> impl IntoView {
 
 #[component]
 pub fn SectionLoginHistory() -> impl IntoView {
-    let history = RwSignal::new(Option::<Result<Vec<LoginHistoryEntry>, String>>::None);
+    let entries = RwSignal::new(Vec::<LoginHistoryEntry>::new());
+    let initial = RwSignal::new(Option::<Result<(), String>>::None);
+    let has_more = RwSignal::new(false);
+    let loading_more = RwSignal::new(false);
+    let more_error = RwSignal::new(Option::<String>::None);
     let load = move || {
-        history.set(None);
+        initial.set(None);
+        more_error.set(None);
+        has_more.set(false);
         leptos::task::spawn_local(async move {
-            history.set(Some(
-                fetch_history().await.map_err(|error| error.user_message()),
-            ));
+            match fetch_history_page(HISTORY_PAGE_SIZE, 0).await {
+                Ok(rows) => {
+                    has_more.set(rows.len() as i64 == HISTORY_PAGE_SIZE);
+                    entries.set(rows);
+                    initial.set(Some(Ok(())));
+                }
+                Err(error) => initial.set(Some(Err(error.user_message()))),
+            }
+        });
+    };
+    let load_more = move || {
+        if loading_more.get_untracked() {
+            return;
+        }
+        loading_more.set(true);
+        more_error.set(None);
+        leptos::task::spawn_local(async move {
+            let offset = entries.with_untracked(Vec::len) as i64;
+            match fetch_history_page(HISTORY_PAGE_SIZE, offset).await {
+                Ok(rows) => {
+                    let exhausted = rows.len() as i64 != HISTORY_PAGE_SIZE;
+                    entries.update(|all| {
+                        all.extend(rows);
+                        all.truncate(HISTORY_MAX_TOTAL);
+                    });
+                    if exhausted || entries.with_untracked(Vec::len) >= HISTORY_MAX_TOTAL {
+                        has_more.set(false);
+                    }
+                }
+                Err(error) => more_error.set(Some(error.user_message())),
+            }
+            loading_more.set(false);
         });
     };
     Effect::new(move |_| {
@@ -126,7 +172,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
                     {LOGIN_HISTORY_SECTION}
                 </h2>
                 <p class="pb-3 text-xs text-text-muted">{LOGIN_HISTORY_COOKIE_NOTE}</p>
-                {move || match history.get() {
+                {move || match initial.get() {
                     None => view! { <Loading /> }.into_any(),
                     Some(Err(message)) => {
                         view! {
@@ -134,15 +180,15 @@ pub fn SectionLoginHistory() -> impl IntoView {
                         }
                             .into_any()
                     }
-                    Some(Ok(entries)) => {
-                        if entries.is_empty() {
+                    Some(Ok(())) => {
+                        if entries.with(Vec::is_empty) {
                             view! { <EmptyState title=LOGIN_HISTORY_EMPTY.to_string() /> }
                                 .into_any()
                         } else {
-                            let desktop_rows = entries.clone();
-                            let mobile_rows = entries.clone();
+                            let desktop_rows = entries.with(|rows| rows.clone());
+                            let mobile_rows = entries.with(|rows| rows.clone());
                             view! {
-                                <div class="table-frame overflow-x-auto max-sm:hidden">
+                                <div class="table-frame overflow-clip max-sm:hidden">
                                     <table class="asset-table login-history-table">
                                         <thead>
                                             <tr>
@@ -213,6 +259,38 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                         })
                                         .collect_view()}
                                 </ul>
+                                {move || {
+                                    more_error
+                                        .get()
+                                        .map(|message| {
+                                            view! {
+                                                <div class="mt-4">
+                                                    <ListLoadError
+                                                        message=message
+                                                        on_retry=move || load_more()
+                                                    />
+                                                </div>
+                                            }
+                                        })
+                                }}
+                                {move || {
+                                    has_more
+                                        .get()
+                                        .then(|| {
+                                            view! {
+                                                <div class="mt-4 flex justify-center">
+                                                    <Button
+                                                        variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                                                        testid="login-history-more"
+                                                        disabled=Signal::derive(move || loading_more.get())
+                                                        on_click=move |_| load_more()
+                                                    >
+                                                        {LOGIN_HISTORY_SHOW_MORE}
+                                                    </Button>
+                                                </div>
+                                            }
+                                        })
+                                }}
                             }
                                 .into_any()
                         }

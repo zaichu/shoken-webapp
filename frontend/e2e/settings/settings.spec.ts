@@ -162,8 +162,8 @@ test('設定の目次は7項目あり各セクションへリンクする', asyn
     '/settings#display',
     '/settings#data',
     '/settings#security',
-    '/settings#login-history',
     '/settings#devices',
+    '/settings#login-history',
     '/settings#danger',
   ]);
 });
