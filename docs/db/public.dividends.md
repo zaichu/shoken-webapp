@@ -74,6 +74,7 @@ erDiagram
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
   boolean login_notify_enabled
+  varchar_2048_ picture_url
 }
 ```
 

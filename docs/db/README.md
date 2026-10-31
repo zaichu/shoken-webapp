@@ -8,7 +8,7 @@ shoken-webapp の DB スキーマ(テーブル一覧・外部キー・ER 図)
 
 | Name | Columns | Comment | Type |
 | ---- | ------- | ------- | ---- |
-| [public.users](public.users.md) | 7 | Google 認証のユーザー | BASE TABLE |
+| [public.users](public.users.md) | 8 | Google 認証のユーザー | BASE TABLE |
 | [public.sessions](public.sessions.md) | 6 | ログインセッション | BASE TABLE |
 | [public.dividends](public.dividends.md) | 14 | 配当・分配金の受取明細(CSV 取込) | BASE TABLE |
 | [public.domestic_stocks](public.domestic_stocks.md) | 18 | 国内株式の売買明細(CSV 取込) | BASE TABLE |
@@ -52,6 +52,7 @@ erDiagram
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
   boolean login_notify_enabled
+  varchar_2048_ picture_url
 }
 "public.sessions" {
   uuid id

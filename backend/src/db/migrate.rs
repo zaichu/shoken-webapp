@@ -101,6 +101,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0021_login_notify",
         include_str!("../../migrations/0021_login_notify.sql"),
     ),
+    (
+        "0022_users_picture_url",
+        include_str!("../../migrations/0022_users_picture_url.sql"),
+    ),
 ];
 
 struct Migration {
