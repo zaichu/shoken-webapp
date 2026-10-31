@@ -11,6 +11,7 @@ use crate::features::asset_balance::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{AccountBadge, account_display_name};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
@@ -832,9 +833,13 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                                         <span class="home-dividend-account">
                                             <AccountBadge label=row.account.clone() />
                                         </span>
-                                        <span class="home-dividend-amount">
-                                            {format_currency(dec_to_f64(&row.net_amount_received))}
-                                        </span>
+                                        <Amount
+                                            kind=AmountKind::Plain
+                                            text=format_currency(
+                                                dec_to_f64(&row.net_amount_received),
+                                            )
+                                            class="home-dividend-amount"
+                                        />
                                     </li>
                                 }
                             })
@@ -921,12 +926,14 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
 
 #[component]
 fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
+    let negative = is_negative_valuation(Some(holding.profit_loss));
     let positive = is_positive_valuation(Some(holding.profit_loss));
-    let tone = if positive {
-        "text-positive"
-    } else {
-        "text-negative"
-    };
+    let rate_negative = holding
+        .rate
+        .is_some_and(|rate| is_negative_valuation(Some(rate)));
+    let rate_positive = holding
+        .rate
+        .is_some_and(|rate| is_positive_valuation(Some(rate)));
     let label = if holding.code.is_empty() {
         holding.name.clone()
     } else {
@@ -940,15 +947,23 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
                 href=holding.href
             >
                 <span class="home-pnl-name" title=title>{label}</span>
-                <span class=format!("home-pnl-amount {tone}")>
-                    {format_signed_row_valuation_amount(Some(holding.profit_loss))}
-                </span>
-                <span class=format!("home-pnl-rate {tone}")>
-                    {holding
+                <Amount
+                    kind=AmountKind::Delta
+                    text=format_signed_row_valuation_amount(Some(holding.profit_loss))
+                    negative=negative
+                    positive=positive
+                    class="home-pnl-amount font-bold"
+                />
+                <Amount
+                    kind=AmountKind::Delta
+                    text=holding
                         .rate
                         .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-                        .unwrap_or_else(|| MISSING.to_string())}
-                </span>
+                        .unwrap_or_else(|| MISSING.to_string())
+                    negative=rate_negative
+                    positive=rate_positive
+                    class="home-pnl-rate"
+                />
             </a>
         </li>
     }

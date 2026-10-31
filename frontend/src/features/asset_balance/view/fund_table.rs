@@ -1,8 +1,12 @@
 use super::day_change::{DAY_CHANGE_COLUMN_NOTE, day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
-use crate::features::asset_balance::format::{format_row_valuation_amount, pnl_cells};
+use crate::features::asset_balance::format::{
+    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
+    is_negative_valuation, is_positive_valuation,
+};
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
 use crate::ui::labels::{
@@ -51,12 +55,31 @@ pub fn FundHoldingsTable(
                     {views
                         .into_iter()
                         .map(|view| {
-                            let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
-                                pnl_cells(Some(view.profit_loss), view.profit_loss_rate);
+                            let pnl_text = format_signed_row_valuation_amount(Some(
+                                view.profit_loss,
+                            ));
+                            let pnl_rate_text =
+                                format_signed_valuation_rate(view.profit_loss_rate, 1);
+                            let pnl_negative =
+                                is_negative_valuation(Some(view.profit_loss));
+                            let pnl_positive =
+                                is_positive_valuation(Some(view.profit_loss));
+                            let rate_negative =
+                                is_negative_valuation(view.profit_loss_rate);
+                            let rate_positive =
+                                is_positive_valuation(view.profit_loss_rate);
                             let href = view
                                 .id
                                 .clone()
                                 .map(|id| format!("/assetbalance/funds/{id}"));
+                            let shares_text = format!(
+                                "{}口",
+                                format_number_value(view.shares)
+                            );
+                            let base_price_text = format_unit_price(
+                                view.base_price,
+                                base_price_decimals,
+                            );
                             view! {
                                 <tr>
                                     <td class="asset-name-cell col-text" title=view.name.clone()>
@@ -69,10 +92,10 @@ pub fn FundHoldingsTable(
                                         {view.course.clone().unwrap_or_else(|| "—".to_string())}
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        {format!("{}口", format_number_value(view.shares))}
+                                        <Amount kind=AmountKind::Plain text=shares_text />
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        {format_unit_price(view.base_price, base_price_decimals)}
+                                        <Amount kind=AmountKind::Plain text=base_price_text />
                                     </td>
                                     <td
                                         class="col-num"
@@ -86,15 +109,28 @@ pub fn FundHoldingsTable(
                                         }}
                                     </td>
                                     <td class="col-num font-bold text-text-deep">
-                                        {format_row_valuation_amount(Some(view.market_value))}
+                                        <Amount
+                                            kind=AmountKind::Plain
+                                            text=format_row_valuation_amount(
+                                                Some(view.market_value),
+                                            )
+                                        />
                                     </td>
                                     <td class="col-num">
-                                        <span class=format!("font-bold tabular-nums {pnl_text_class}")>
-                                            {pnl_text}
-                                        </span>
-                                        <span class=pnl_badge_class>
-                                            {pnl_rate_text}
-                                        </span>
+                                        <Amount
+                                            kind=AmountKind::Delta
+                                            text=pnl_text
+                                            negative=pnl_negative
+                                            positive=pnl_positive
+                                            class="font-bold"
+                                        />
+                                        <Amount
+                                            kind=AmountKind::Delta
+                                            text=pnl_rate_text
+                                            negative=rate_negative
+                                            positive=rate_positive
+                                            class="ml-1 text-xs"
+                                        />
                                     </td>
                                 </tr>
                             }
@@ -116,35 +152,52 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
             {views
                 .into_iter()
                 .map(|view| {
-                    let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
-                        pnl_cells(Some(view.profit_loss), view.profit_loss_rate);
-                    let meta = format!(
-                        "{}口 ・ 基準価額 {}",
-                        format_number_value(view.shares),
-                        format_unit_price(view.base_price, base_price_decimals),
-                    );
+                    let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
+                    let pnl_rate_text =
+                        format_signed_valuation_rate(view.profit_loss_rate, 1);
+                    let pnl_negative = is_negative_valuation(Some(view.profit_loss));
+                    let pnl_positive = is_positive_valuation(Some(view.profit_loss));
+                    let rate_negative = is_negative_valuation(view.profit_loss_rate);
+                    let rate_positive = is_positive_valuation(view.profit_loss_rate);
+                    let shares_text =
+                        format!("{}口", format_number_value(view.shares));
+                    let base_price_text =
+                        format_unit_price(view.base_price, base_price_decimals);
                     let inner = view! {
                         <>
                             <div class="flex items-baseline justify-between gap-2">
                                 <span class="min-w-0 truncate font-medium text-text">
                                     {view.name.clone()}
                                 </span>
-                                <span class="shrink-0 font-bold tabular-nums text-text-deep">
-                                    {format_row_valuation_amount(Some(view.market_value))}
-                                </span>
+                                <Amount
+                                    kind=AmountKind::Plain
+                                    text=format_row_valuation_amount(Some(view.market_value))
+                                    class="shrink-0 font-bold text-text-deep"
+                                />
                             </div>
-                            <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
-                                <span class="min-w-0 truncate text-text-muted">
+                            <div class="mt-0.5 flex items-start justify-between gap-2 text-xs">
+                                <span class="min-w-0 flex-1 break-words text-text-muted">
                                     <AccountBadge label=view.account.clone() />
-                                    " ・ " {meta}
+                                    " ・ "
+                                    <Amount kind=AmountKind::Plain text=shares_text />
+                                    " ・ 基準価額 "
+                                    <Amount kind=AmountKind::Plain text=base_price_text />
                                 </span>
-                                <span class="flex shrink-0 items-baseline">
-                                    <span class=format!("font-bold tabular-nums {pnl_text_class}")>
-                                        {pnl_text}
-                                    </span>
-                                    <span class=pnl_badge_class>
-                                        {pnl_rate_text}
-                                    </span>
+                                <span class="flex shrink-0 items-baseline whitespace-nowrap">
+                                    <Amount
+                                        kind=AmountKind::Delta
+                                        text=pnl_text
+                                        negative=pnl_negative
+                                        positive=pnl_positive
+                                        class="font-bold"
+                                    />
+                                    <Amount
+                                        kind=AmountKind::Delta
+                                        text=pnl_rate_text
+                                        negative=rate_negative
+                                        positive=rate_positive
+                                        class="ml-1 text-xs"
+                                    />
                                 </span>
                             </div>
                         </>
