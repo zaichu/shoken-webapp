@@ -20,6 +20,13 @@ use sha2::Sha256;
 const ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME: &str = "account_delete_confirmation";
 const ACCOUNT_DELETE_CONFIRMATION_TTL_SECONDS: i64 = 10 * 60;
 
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub struct SessionResponse {
+    #[serde(flatten)]
+    pub user: UserResponse,
+    pub is_admin: bool,
+}
+
 fn build_account_delete_confirmation_cookie(value: String, secure: bool) -> Cookie<'static> {
     Cookie::build((ACCOUNT_DELETE_CONFIRMATION_COOKIE_NAME, value))
         .path("/api/v1/account")
@@ -89,7 +96,7 @@ fn clear_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
     path = "/api/v1/session",
     operation_id = "v1_get_session",
     responses(
-        (status = 200, description = "現在のユーザー情報を返す", body = UserResponse),
+        (status = 200, description = "現在のユーザー情報と管理者権限を返す", body = SessionResponse),
         (status = 401, description = "認証が必要", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
@@ -97,7 +104,7 @@ fn clear_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
 pub async fn get_session(
     State(state): State<AppState>,
     jar: CookieJar,
-) -> Result<Json<UserResponse>, ApiError> {
+) -> Result<Json<SessionResponse>, ApiError> {
     let token = get_session_id_from_jar(&jar)?;
 
     // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
@@ -105,7 +112,11 @@ pub async fn get_session(
         .await?
         .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです"))?;
 
-    Ok(Json(user.into()))
+    let is_admin = state.config.is_admin_email(&user.email);
+    Ok(Json(SessionResponse {
+        user: user.into(),
+        is_admin,
+    }))
 }
 
 /// セッションを削除してログアウト（v1）

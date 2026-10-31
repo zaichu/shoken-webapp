@@ -4,6 +4,7 @@ use axum::{
     routing::{delete, get, post},
 };
 
+pub mod admin_logins;
 pub mod asset_balances;
 pub mod auth;
 pub mod csv_import;
@@ -48,6 +49,7 @@ pub fn auth_routes() -> Router<AppState> {
 /// データ系 v1 ルート(data_limiter 対象)
 pub fn data_routes() -> Router<AppState> {
     Router::new()
+        .route("/api/v1/admin/logins", get(admin_logins::list))
         .route(
             "/api/v1/dividends",
             get(dividends::list).delete(dividends::delete_all),
@@ -149,6 +151,15 @@ mod tests {
             google_oauth: None,
             jquants_client: None,
         }
+    }
+
+    #[tokio::test]
+    async fn admin_logins_rejects_anonymous() {
+        let router = data_routes().with_state(make_test_state());
+        assert_eq!(
+            check_status(router, Method::GET, "/api/v1/admin/logins").await,
+            StatusCode::FORBIDDEN
+        );
     }
 
     async fn check_status(router: axum::Router, method: Method, uri: &str) -> StatusCode {

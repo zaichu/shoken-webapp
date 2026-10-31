@@ -1,4 +1,5 @@
 use crate::db::{Bind, Db, DbError, Tx};
+pub mod admin;
 use crate::errors::ApiError;
 use axum::http::HeaderMap;
 use chrono::{DateTime, Utc};

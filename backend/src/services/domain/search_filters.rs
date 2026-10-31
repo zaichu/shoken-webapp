@@ -170,7 +170,11 @@ pub fn tokens_from_query(q: Option<&str>) -> Vec<String> {
 
 /// token ごとに columns（呼び出し側が渡す固定文字列配列のみ）への ILIKE OR 条件を
 /// `AND (col1 ILIKE $n ESCAPE '\' OR col2 ILIKE $n+1 ESCAPE '\' ...)` として push する
-fn push_token_ilike_filters(qb: &mut QueryBuilder, tokens: &[String], columns: &[&'static str]) {
+pub(crate) fn push_token_ilike_filters(
+    qb: &mut QueryBuilder,
+    tokens: &[String],
+    columns: &[&'static str],
+) {
     if columns.is_empty() {
         return;
     }
