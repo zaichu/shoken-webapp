@@ -258,7 +258,8 @@ async fn rotate_session_for_device_in_tx(
         ),
         deleted AS (
             DELETE FROM sessions
-            WHERE (user_id = $1 AND device_hash = $3) OR id IN (SELECT id FROM expired)
+            WHERE (user_id = $1 AND (device_hash = $3 OR device_hash IS NULL))
+               OR id IN (SELECT id FROM expired)
         )
         INSERT INTO sessions (user_id, token_hash, device_hash)
         VALUES ($1, $2, $3)

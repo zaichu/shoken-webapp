@@ -273,6 +273,7 @@ pub fn SectionDevices() -> impl IntoView {
         let Some(entry) = pending_revoke.get() else {
             return;
         };
+        let revoked_current = entry.is_current;
         revoke_running.set(true);
         revoke_failed.set(None);
         leptos::task::spawn_local(async move {
@@ -282,7 +283,11 @@ pub fn SectionDevices() -> impl IntoView {
             match result {
                 Ok(()) => {
                     pending_revoke.set(None);
-                    load();
+                    if revoked_current {
+                        session.mark_unauthenticated();
+                    } else {
+                        load();
+                    }
                 }
                 Err(error) => revoke_failed.set(Some(error.user_message())),
             }
@@ -292,7 +297,6 @@ pub fn SectionDevices() -> impl IntoView {
     let confirm_logout_all = move || {
         logout_running.set(true);
         logout_failed.set(None);
-        let session_store = session;
         leptos::task::spawn_local(async move {
             let result = ApiClient::default_client()
                 .delete_empty("/api/v1/sessions")
@@ -300,7 +304,7 @@ pub fn SectionDevices() -> impl IntoView {
             match result {
                 Ok(()) => {
                     logout_confirm_open.set(false);
-                    session_store.mark_unauthenticated();
+                    session.mark_unauthenticated();
                 }
                 Err(error) => logout_failed.set(Some(error.user_message())),
             }
