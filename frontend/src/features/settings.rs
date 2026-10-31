@@ -37,7 +37,7 @@ pub fn SettingsPage() -> impl IntoView {
     view! {
         <PageFrame title="設定">
             <div class="flex flex-col lg:flex-row gap-7">
-                <nav class="hidden lg:block lg:w-48 shrink-0" aria-label="設定セクション">
+                <nav class="hidden lg:block lg:w-48 shrink-0 lg:sticky lg:top-16 lg:self-start" aria-label="設定セクション">
                     <ul class="flex flex-col gap-1" role="list">
                         {sections.iter().map(|(id, label)| {
                             let id = *id;

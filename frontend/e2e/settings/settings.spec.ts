@@ -146,6 +146,28 @@ test('金額の表示単位設定は合計欄だけに効き、明細の行は1�
   await expect(page.getByText('¥30').first()).toBeAttached();
 });
 
+test('設定の目次は7項目あり各セクションへリンクする', async ({ page }) => {
+  await mockAuthorizedAuth(page);
+  await page.goto('/settings');
+
+  const nav = page.getByRole('navigation', { name: '設定セクション' });
+  await expect(nav).toBeVisible();
+  const links = nav.getByRole('link');
+  await expect(links).toHaveCount(7);
+  const hrefs = await links.evaluateAll((els) =>
+    els.map((el) => el.getAttribute('href')),
+  );
+  expect(hrefs).toEqual([
+    '/settings#account',
+    '/settings#display',
+    '/settings#data',
+    '/settings#security',
+    '/settings#login-history',
+    '/settings#devices',
+    '/settings#danger',
+  ]);
+});
+
 test('配当金のCSVエクスポートがダウンロードされ内容に個人情報を含まない', async ({ page }) => {
   await mockAuthorizedAuth(page);
   await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
