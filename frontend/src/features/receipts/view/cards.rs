@@ -1,6 +1,6 @@
 use crate::features::receipts::kind::{CardFields, CardRole};
 use crate::features::receipts::{ReceiptCell, ReceiptsTab};
-use crate::ui::amount::Amount;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{AccountBadge, CodeBadge};
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
@@ -41,10 +41,51 @@ pub(crate) fn is_negative_labeled_value(tab: ReceiptsTab, label: &str, value: &s
     is_profit_label(tab, label) && is_negative_text(value)
 }
 
+pub(crate) fn is_positive_text(value: &str) -> bool {
+    let normalized: String = value
+        .trim()
+        .chars()
+        .filter(|c| !matches!(c, '¥' | '￥' | '$' | '€' | '£' | ',') && !c.is_whitespace())
+        .collect();
+    let digits = normalized
+        .strip_prefix('-')
+        .or_else(|| normalized.strip_prefix('+'))
+        .unwrap_or(normalized.as_str());
+    let valid = !digits.is_empty()
+        && digits
+            .split('.')
+            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()));
+    valid && normalized.parse::<f64>().is_ok_and(|n| n > 0.0)
+}
+
+pub(crate) fn is_positive_labeled_value(tab: ReceiptsTab, label: &str, value: &str) -> bool {
+    is_profit_label(tab, label) && is_positive_text(value)
+}
+
+/// 損益の正値に「+」を付ける。色だけに頼らず符号で正負を示す。
+/// 0・欠損・既に符号付き・損益でない項目はそのまま返す。
+pub(crate) fn signed_text_for_profit(tab: ReceiptsTab, label: &str, value: &str) -> String {
+    if is_profit_label(tab, label)
+        && is_positive_text(value)
+        && !value.trim_start().starts_with('+')
+    {
+        format!("+{value}")
+    } else {
+        value.to_string()
+    }
+}
+
 #[derive(Clone)]
 pub(crate) enum CardDetailValue {
-    Text { text: String, negative: bool },
-    CopyName { display: String, copy: String },
+    Text {
+        text: String,
+        negative: bool,
+        positive: bool,
+    },
+    CopyName {
+        display: String,
+        copy: String,
+    },
 }
 
 #[derive(Clone)]
@@ -86,12 +127,14 @@ pub(crate) fn card_detail_value(
             CardDetailValue::CopyName { display, copy }
         }
         _ => {
-            let text = cells
+            let raw = cells
                 .get(index)
                 .map(|cell| cell.text().to_string())
                 .unwrap_or_default();
+            let text = signed_text_for_profit(tab, label, &raw);
             CardDetailValue::Text {
-                negative: is_negative_labeled_value(tab, label, &text),
+                negative: is_negative_labeled_value(tab, label, &raw),
+                positive: is_positive_labeled_value(tab, label, &raw),
                 text,
             }
         }
@@ -136,9 +179,23 @@ pub(crate) fn card_row_data(
 
 pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<String>) {
     match value {
-        CardDetailValue::Text { text, negative } => (
+        CardDetailValue::Text {
+            text,
+            negative,
+            positive,
+        } => (
             view! {
-                <Amount text=text.clone() negative=*negative class="font-semibold" />
+                <Amount
+                    kind=if *negative || *positive {
+                        AmountKind::Delta
+                    } else {
+                        AmountKind::Plain
+                    }
+                    text=text.clone()
+                    negative=*negative
+                    positive=*positive
+                    class="font-semibold"
+                />
             }
             .into_any(),
             Some(text.clone()),
@@ -181,13 +238,17 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
     }
 }
 
-fn compact_value(details: &[CardDetail], label: &str) -> (String, bool) {
+fn compact_value(details: &[CardDetail], label: &str) -> (String, bool, bool) {
     details
         .iter()
         .find(|detail| detail.label == label)
         .map(|detail| match &detail.value {
-            CardDetailValue::Text { text, negative } => (text.clone(), *negative),
-            CardDetailValue::CopyName { display, .. } => (display.clone(), false),
+            CardDetailValue::Text {
+                text,
+                negative,
+                positive,
+            } => (text.clone(), *negative, *positive),
+            CardDetailValue::CopyName { display, .. } => (display.clone(), false, false),
         })
         .unwrap_or_default()
 }
@@ -238,9 +299,14 @@ fn CompactReceiptRow(
         ReceiptsTab::DomesticStock => (SELLING_AMOUNT, SELLING_AMOUNT),
         ReceiptsTab::MutualFund => (REDEMPTION_AMOUNT, REDEMPTION_AMOUNT),
     };
-    let (primary_value, primary_negative) = compact_value(&details, primary_detail);
-    let (net_value, net_negative) = compact_value(&details, labels[2]);
-    let (quantity, _) = compact_value(&details, QUANTITY);
+    let (primary_value, _, _) = compact_value(&details, primary_detail);
+    let (net_value, net_negative, net_positive) = compact_value(&details, labels[2]);
+    let net_kind = if is_profit_label(tab, labels[2]) {
+        AmountKind::Delta
+    } else {
+        AmountKind::Plain
+    };
+    let (quantity, _, _) = compact_value(&details, QUANTITY);
     // 投資信託の数量は口数
     let quantity_unit = if tab == ReceiptsTab::MutualFund {
         "口"
@@ -295,7 +361,12 @@ fn CompactReceiptRow(
             <div class="receipt-compact-main">
                 <div class="receipt-compact-name-cell">{name}</div>
                 <span class="receipt-compact-net">
-                    <Amount text=net_value negative=net_negative />
+                    <Amount
+                        kind=net_kind
+                        text=net_value
+                        negative=net_negative
+                        positive=net_positive
+                    />
                 </span>
             </div>
             <div class="receipt-compact-meta">
@@ -312,14 +383,17 @@ fn CompactReceiptRow(
                     {(!quantity.is_empty()).then(|| view! {
                         <>
                             <span aria-hidden="true">" · "</span>
-                            <span>{format!("{quantity}{quantity_unit}")}</span>
+                            <Amount
+                                kind=AmountKind::Plain
+                                text=format!("{quantity}{quantity_unit}")
+                            />
                         </>
                     })}
                 </div>
                 <span class="receipt-compact-primary">
                     {primary_label}
                     " "
-                    <Amount text=primary_value negative=primary_negative />
+                    <Amount kind=AmountKind::Plain text=primary_value />
                 </span>
                 {(!rest.is_empty()).then(|| view! {
                     <DisclosureToggle
@@ -371,15 +445,27 @@ pub(crate) fn CompactReceiptGroup(
 ) -> impl IntoView {
     let (summary_label, summary_value) = summary.last().cloned().unwrap_or_default();
     let summary_negative = is_negative_labeled_value(tab, summary_label, &summary_value);
+    let summary_positive = is_positive_labeled_value(tab, summary_label, &summary_value);
+    let summary_text = signed_text_for_profit(tab, summary_label, &summary_value);
+    let summary_kind = if is_profit_label(tab, summary_label) {
+        AmountKind::Delta
+    } else {
+        AmountKind::Plain
+    };
     view! {
         <section data-testid="receipt-card-group">
             <div class="receipt-compact-group">
                 <span class="font-bold">{labels::group_count(&label, count)}</span>
                 {(!summary_value.is_empty()).then(|| view! {
-                    <span>
+                    <span class="whitespace-nowrap">
                         {summary_label}
                         " "
-                        <Amount text=summary_value negative=summary_negative />
+                        <Amount
+                            kind=summary_kind
+                            text=summary_text
+                            negative=summary_negative
+                            positive=summary_positive
+                        />
                     </span>
                 })}
             </div>
@@ -493,12 +579,14 @@ pub(crate) fn MobileCardGroup(
         }
         .into_any();
     }
-    let (primary_label, primary_value) = summary.last().cloned().unwrap_or_default();
-    let primary_negative = is_negative_labeled_value(tab, primary_label, &primary_value);
-    let primary_value_class = if primary_negative {
-        "text-sm font-semibold tabular-nums text-negative-vivid"
+    let (primary_label, primary_raw) = summary.last().cloned().unwrap_or_default();
+    let primary_negative = is_negative_labeled_value(tab, primary_label, &primary_raw);
+    let primary_positive = is_positive_labeled_value(tab, primary_label, &primary_raw);
+    let primary_value = signed_text_for_profit(tab, primary_label, &primary_raw);
+    let primary_kind = if is_profit_label(tab, primary_label) {
+        AmountKind::Delta
     } else {
-        "text-sm font-semibold tabular-nums text-text"
+        AmountKind::Plain
     };
     let aria_label = format!(
         "{} {} {} {}",
@@ -535,9 +623,13 @@ pub(crate) fn MobileCardGroup(
                         aria-hidden="true"
                     >
                         <span class="text-xs text-text-muted">{primary_label}</span>
-                        <span class=primary_value_class>
-                            {primary_value}
-                        </span>
+                        <Amount
+                            kind=primary_kind
+                            text=primary_value.clone()
+                            negative=primary_negative
+                            positive=primary_positive
+                            class="text-sm font-semibold"
+                        />
                         <ChevronIcon
                             expanded=Signal::derive(move || expanded.get())
                             class="h-4 w-4 shrink-0 self-center text-text-muted"
@@ -562,13 +654,26 @@ pub(crate) fn MobileCardGroup(
                                             .map(|(label, value)| {
                                                 let negative =
                                                     is_negative_labeled_value(tab, label, value);
-                                                let text = value.clone();
+                                                let positive =
+                                                    is_positive_labeled_value(tab, label, value);
+                                                let text =
+                                                    signed_text_for_profit(tab, label, value);
+                                                let kind = if is_profit_label(tab, label) {
+                                                    AmountKind::Delta
+                                                } else {
+                                                    AmountKind::Plain
+                                                };
                                                 view! {
                                                     <StatRow
                                                         label=label.to_string()
                                                         numeric=true
                                                     >
-                                                        <Amount text=text negative=negative />
+                                                        <Amount
+                                                            kind=kind
+                                                            text=text
+                                                            negative=negative
+                                                            positive=positive
+                                                        />
                                                     </StatRow>
                                                 }
                                             })

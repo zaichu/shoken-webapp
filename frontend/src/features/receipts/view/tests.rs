@@ -509,7 +509,11 @@ fn card_row_data_maps_card_fields() {
         !["銘柄コード", "銘柄名", "入金日", "口座"].contains(&detail.label.as_str())
     }));
     assert!(card.details.iter().all(|detail| match &detail.value {
-        CardDetailValue::Text { text, negative } => {
+        CardDetailValue::Text {
+            text,
+            negative,
+            positive: _,
+        } => {
             *negative
                 == (is_profit_label(ReceiptsTab::Dividend, &detail.label) && is_negative_text(text))
         }
@@ -522,6 +526,21 @@ fn detail_negative(card: &CardRowData, label: &str) -> bool {
         .iter()
         .find(|detail| detail.label == label)
         .is_some_and(|detail| matches!(detail.value, CardDetailValue::Text { negative: true, .. }))
+}
+
+fn detail_value(card: &CardRowData, label: &str) -> (String, bool, bool) {
+    card.details
+        .iter()
+        .find(|detail| detail.label == label)
+        .map(|detail| match &detail.value {
+            CardDetailValue::Text {
+                text,
+                negative,
+                positive,
+            } => (text.clone(), *negative, *positive),
+            CardDetailValue::CopyName { display, .. } => (display.clone(), false, false),
+        })
+        .unwrap_or_default()
 }
 
 fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
@@ -804,4 +823,65 @@ fn condition_count_covers_structured_filters_only() {
     assert_eq!(condition_count(&search), 3);
     search.clear_key(SearchKey::Accounts, false);
     assert_eq!(condition_count(&search), 2);
+}
+
+#[test]
+fn profit_sign_uses_plus_minus_and_zero_has_no_sign() {
+    assert!(is_positive_text("¥1,234"));
+    assert!(is_positive_text("+¥1,234"));
+    assert!(!is_positive_text("-¥1,234"));
+    assert!(!is_positive_text("¥0"));
+    assert!(!is_positive_text("—"));
+    assert!(is_negative_text("-¥1,234"));
+    assert!(!is_negative_text("¥1,234"));
+    assert!(!is_negative_text("-¥0"));
+}
+
+#[test]
+fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
+    let mut stock = match domestic().remove(0) {
+        Saved(ReceiptItem::DomesticStock(row)) => row,
+        _ => unreachable!(),
+    };
+    stock.realized_profit_and_loss = dec!(1000);
+    stock.taxes = dec!(203);
+    stock.realized_profit_and_loss_after_tax = dec!(797);
+    let card = card_for(
+        ReceiptsTab::DomesticStock,
+        Saved(ReceiptItem::DomesticStock(stock)),
+    );
+    let (text, negative, positive) = detail_value(&card, "実現損益");
+    assert_eq!(text, "+¥1,000");
+    assert!(!negative);
+    assert!(positive);
+    let (after_text, after_negative, after_positive) = detail_value(&card, "税引後");
+    assert_eq!(after_text, "+¥797");
+    assert!(!after_negative);
+    assert!(after_positive);
+    let (tax_text, tax_negative, tax_positive) = detail_value(&card, "税額");
+    assert_eq!(tax_text, "¥203");
+    assert!(!tax_negative);
+    assert!(!tax_positive);
+}
+
+#[test]
+fn dividend_amount_stays_neutral_without_plus() {
+    let mut dividend = match dividends().remove(0) {
+        Saved(ReceiptItem::Dividend(row)) => row,
+        _ => unreachable!(),
+    };
+    dividend.net_amount_received = dec!(400);
+    dividend.taxes = dec!(100);
+    let card = card_for(
+        ReceiptsTab::Dividend,
+        Saved(ReceiptItem::Dividend(dividend)),
+    );
+    let (net_text, net_negative, net_positive) = detail_value(&card, "税引後");
+    assert_eq!(net_text, "¥400");
+    assert!(!net_negative);
+    assert!(!net_positive);
+    let (tax_text, tax_negative, tax_positive) = detail_value(&card, "税額");
+    assert_eq!(tax_text, "¥100");
+    assert!(!tax_negative);
+    assert!(!tax_positive);
 }

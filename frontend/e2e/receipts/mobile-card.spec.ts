@@ -202,7 +202,7 @@ test('国内株式は1件日の小計を省き、複数件日は小計を残す'
   await expect(singleHeading.getByText(/^¥/)).toHaveCount(0);
   const multipleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月2日' });
   await expect(multipleHeading.locator('td:not([colspan])')).toHaveText([
-    '¥10,000', '¥0', '¥10,000',
+    '+¥10,000', '¥0', '+¥10,000',
   ]);
 });
 
