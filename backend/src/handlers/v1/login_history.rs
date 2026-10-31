@@ -5,7 +5,10 @@ use crate::{
     models::common::MessageResponse,
     services::{
         auth as auth_service,
-        login_event::{self, DeviceListResponse, LoginHistoryListResponse, clamp_history_limit},
+        login_event::{
+            self, DeviceListResponse, LoginHistoryListResponse, clamp_history_limit,
+            clamp_history_offset,
+        },
         login_notify,
     },
     state::AppState,
@@ -22,6 +25,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct HistoryQuery {
     pub limit: Option<i64>,
+    pub offset: Option<i64>,
 }
 
 /// 自分のログイン履歴を新しい順に返す（v1）
@@ -31,6 +35,7 @@ pub struct HistoryQuery {
     operation_id = "v1_login_history_list",
     params(
         ("limit" = Option<i64>, Query, description = "取得上限（既定: 50、最大: 100）"),
+        ("offset" = Option<i64>, Query, description = "取得開始位置（既定: 0）"),
     ),
     responses(
         (status = 200, description = "自分のログイン履歴を新しい順に返す", body = LoginHistoryListResponse),
@@ -47,6 +52,7 @@ pub async fn list_history(
         &state.pool,
         auth_user.id(),
         clamp_history_limit(query.limit),
+        clamp_history_offset(query.offset),
     )
     .await?;
     Ok(Json(LoginHistoryListResponse { data: entries }))
