@@ -11,6 +11,8 @@ pub struct Secrets {
     pub google_client_id: Option<String>,
     pub google_client_secret: Option<String>,
     pub frontend_url: String,
+    pub gmail_user: Option<String>,
+    pub gmail_app_password: Option<String>,
 }
 
 impl Secrets {
@@ -37,6 +39,8 @@ impl Secrets {
             google_client_secret: Some(required("GOOGLE_CLIENT_SECRET")?),
             frontend_url: get(env, "FRONTEND_URL")
                 .unwrap_or_else(|| "http://localhost:8081".to_string()),
+            gmail_user: get(env, "GMAIL_USER"),
+            gmail_app_password: get(env, "GMAIL_APP_PASSWORD"),
         })
     }
 }

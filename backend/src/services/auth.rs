@@ -102,7 +102,14 @@ pub async fn authenticate_with_google_code_and_login_event(
     nonce: &str,
     device_hash: Vec<u8>,
     client: &ClientInfo,
-) -> Result<SessionToken, ApiError> {
+) -> Result<
+    (
+        SessionToken,
+        crate::models::user::User,
+        login_event::LoginOutcome,
+    ),
+    ApiError,
+> {
     let user_info = verify_code_with_google(oauth_client, &code, &pkce_verifier, nonce).await?;
     Ok(upsert_user_rotate_session_with_login_event(pool, &user_info, device_hash, client).await?)
 }
@@ -113,7 +120,14 @@ async fn upsert_user_rotate_session_with_login_event(
     user_info: &GoogleUserInfo,
     device_hash: Vec<u8>,
     client: &ClientInfo,
-) -> Result<SessionToken, DbError> {
+) -> Result<
+    (
+        SessionToken,
+        crate::models::user::User,
+        login_event::LoginOutcome,
+    ),
+    DbError,
+> {
     let mut tx = pool.begin().await?;
     let user = upsert_user_in_tx(&mut tx, user_info).await?;
     let prior_row = crate::db::query(
@@ -127,18 +141,12 @@ async fn upsert_user_rotate_session_with_login_event(
         country: country.as_deref(),
         region: region.as_deref(),
     });
+    let outcome = login_event::classify_login(prior, client);
     let session_token = rotate_session_for_device_in_tx(&mut tx, user.id, &device_hash).await?;
-    insert_login_event_in_tx(
-        &mut tx,
-        user.id,
-        login_event::classify_login(prior, client),
-        device_hash,
-        client,
-    )
-    .await?;
+    insert_login_event_in_tx(&mut tx, user.id, outcome, device_hash, client).await?;
     tx.commit().await?;
 
-    Ok(session_token)
+    Ok((session_token, user, outcome))
 }
 
 #[cfg(target_arch = "wasm32")]

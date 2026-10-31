@@ -14,6 +14,7 @@ use uuid::Uuid;
 #[derive(Debug)]
 pub enum Bind {
     Null,
+    Bool(bool),
     Int(i64),
     Decimal(Decimal),
     Str(String),
@@ -47,6 +48,7 @@ impl Bind {
     pub(crate) fn declared_type(&self) -> Type {
         match self {
             Bind::Null => Type::UNKNOWN,
+            Bind::Bool(_) => Type::BOOL,
             Bind::Int(_) => Type::INT8,
             Bind::Decimal(_) => Type::NUMERIC,
             Bind::Str(_) => Type::TEXT,
@@ -67,6 +69,7 @@ impl ToSql for Bind {
     ) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
         match self {
             Bind::Null => Ok(IsNull::Yes),
+            Bind::Bool(v) => ToSql::to_sql(v, ty, out),
             Bind::Int(v) => ToSql::to_sql(v, ty, out),
             Bind::Decimal(v) => ToSql::to_sql(&Numeric(*v), ty, out),
             Bind::Str(v) => ToSql::to_sql(v, ty, out),
@@ -97,6 +100,12 @@ macro_rules! from_int {
     )*};
 }
 from_int!(i32, i64);
+
+impl From<bool> for Bind {
+    fn from(v: bool) -> Self {
+        Bind::Bool(v)
+    }
+}
 
 impl From<Decimal> for Bind {
     fn from(v: Decimal) -> Self {
@@ -218,6 +227,7 @@ mod tests {
     #[test]
     fn declared_type_maps_each_variant() {
         assert_eq!(Bind::Null.declared_type(), Type::UNKNOWN);
+        assert_eq!(Bind::from(true).declared_type(), Type::BOOL);
         assert_eq!(Bind::from(1i64).declared_type(), Type::INT8);
         assert_eq!(Bind::from(Decimal::ONE).declared_type(), Type::NUMERIC);
         assert_eq!(Bind::from("x").declared_type(), Type::TEXT);

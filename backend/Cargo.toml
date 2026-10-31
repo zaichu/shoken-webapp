@@ -52,6 +52,7 @@ futures-util = "0.3"
 csv = "1.4"
 encoding_rs = "0.8"
 thiserror = "2.0.18"
+tokio = { version = "1", default-features = false, features = ["io-util"] }
 tracing = "0.1.44"
 validator = "0.21.0"
 utoipa = { version = "6", features = ["chrono", "uuid"] }

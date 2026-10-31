@@ -196,16 +196,28 @@ pub async fn google_callback(
     let device_token = get_device_token_from_jar(&jar);
     let client_info = client_info_from_headers(&headers);
 
-    let session_token = auth_service::authenticate_with_google_code_and_login_event(
+    let (session_token, user, outcome) =
+        auth_service::authenticate_with_google_code_and_login_event(
+            &state.pool,
+            client,
+            query.code,
+            pkce_verifier,
+            &nonce,
+            device_token.hash(),
+            &client_info,
+        )
+        .await?;
+
+    crate::services::login_notify::maybe_notify_on_login(
         &state.pool,
-        client,
-        query.code,
-        pkce_verifier,
-        &nonce,
-        device_token.hash(),
+        state.secrets.gmail_user.as_deref(),
+        state.secrets.gmail_app_password.as_deref(),
+        &state.secrets.frontend_url,
+        &user,
+        outcome,
         &client_info,
     )
-    .await?;
+    .await;
 
     // クロスオリジン（フロントエンド: Cloudflare Pages, バックエンド: Cloudflare Workers）で
     // Cookieを送受信するには SameSite=None + Secure が必要
@@ -249,6 +261,8 @@ mod tests {
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
+            gmail_user: None,
+            gmail_app_password: None,
         });
         AppState {
             pool,
