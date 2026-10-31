@@ -268,6 +268,9 @@ async function installMocks(context, { anonymous, admin }) {
     route.fulfill(json(loginHistory())),
   );
   await context.route(/\/api\/v1\/devices$/, (route) => route.fulfill(json(deviceList())));
+  await context.route(/\/api\/v1\/notification-settings$/, (route) =>
+    route.fulfill(json({ login_notify_enabled: true })),
+  );
 }
 
 // ログイン履歴・登録端末の撮影用データ。12件以上の履歴・長いブラウザ名・5台以上の端末

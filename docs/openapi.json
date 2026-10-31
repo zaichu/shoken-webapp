@@ -2143,6 +2143,167 @@
         ]
       }
     },
+    "/api/v1/notification-logout": {
+      "get": {
+        "tags": [
+          "handlers::v1::login_history"
+        ],
+        "summary": "使い捨てリンクの有効性を確認する（v1、認証不要、GET では実行しない）",
+        "operationId": "v1_notification_logout_info",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "description": "通知メール内の使い捨てトークン",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "リンクが有効な場合の有効期限を返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutTokenInfoResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "リンクが無効・期限切れ・使用済み",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "handlers::v1::login_history"
+        ],
+        "summary": "使い捨てリンクで全端末をログアウトする（v1、認証不要、確認画面からの POST のみ実行）",
+        "operationId": "v1_notification_logout_execute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutWithTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "すべての端末からログアウトしました",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "リンクが無効・期限切れ・使用済み",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notification-settings": {
+      "get": {
+        "tags": [
+          "handlers::v1::login_history"
+        ],
+        "summary": "自分のログイン通知設定を取得する（v1）",
+        "operationId": "v1_notification_settings_get",
+        "responses": {
+          "200": {
+            "description": "自分のログイン通知設定を返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "handlers::v1::login_history"
+        ],
+        "summary": "自分のログイン通知設定を更新する（v1）",
+        "operationId": "v1_notification_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "更新後のログイン通知設定を返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/oauth/google/authorize": {
       "get": {
         "tags": [
@@ -3364,6 +3525,29 @@
           }
         }
       },
+      "LogoutTokenInfoResponse": {
+        "type": "object",
+        "required": [
+          "expires_at"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LogoutWithTokenRequest": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        }
+      },
       "MessageResponse": {
         "type": "object",
         "description": "メッセージレスポンス（削除・ログアウト等）",
@@ -3483,6 +3667,17 @@
           "total_taxes": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "NotificationSettingsResponse": {
+        "type": "object",
+        "required": [
+          "login_notify_enabled"
+        ],
+        "properties": {
+          "login_notify_enabled": {
+            "type": "boolean"
           }
         }
       },
@@ -4410,6 +4605,17 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "UpdateNotificationSettingsRequest": {
+        "type": "object",
+        "required": [
+          "login_notify_enabled"
+        ],
+        "properties": {
+          "login_notify_enabled": {
+            "type": "boolean"
           }
         }
       },

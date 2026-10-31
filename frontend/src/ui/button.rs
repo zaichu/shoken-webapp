@@ -185,5 +185,56 @@ pub fn LinkButton(
     }
 }
 
+/// ON/OFF の切替スイッチ。`role="switch"` と `aria-checked` で状態を伝える
+#[component]
+pub fn Switch(
+    #[prop(into)] checked: Signal<bool>,
+    #[prop(into)] label: String,
+    #[prop(optional)] testid: Option<&'static str>,
+    #[prop(into, optional)] disabled: Signal<bool>,
+    on_toggle: impl Fn(bool) + 'static,
+) -> impl IntoView {
+    view! {
+        <button
+            type="button"
+            role="switch"
+            aria-checked=move || checked.get().to_string()
+            aria-label=label.clone()
+            data-testid=testid
+            disabled=move || disabled.get()
+            class=move || {
+                let on = checked.get();
+                format!(
+                    "relative inline-flex min-h-11 min-w-16 items-center rounded-full border px-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 {}",
+                    if on {
+                        "border-brand bg-brand"
+                    } else {
+                        "border-border-strong bg-surface-sunken"
+                    },
+                )
+            }
+            on:click=move |_| {
+                if !disabled.get_untracked() {
+                    on_toggle(!checked.get_untracked());
+                }
+            }
+        >
+            <span
+                aria-hidden="true"
+                class=move || {
+                    format!(
+                        "inline-block h-6 w-6 rounded-full shadow {}",
+                        if checked.get() {
+                            "translate-x-6 bg-text-inverse"
+                        } else {
+                            "translate-x-0 border border-border-strong bg-surface"
+                        },
+                    )
+                }
+            ></span>
+        </button>
+    }
+}
+
 #[cfg(test)]
 mod tests;

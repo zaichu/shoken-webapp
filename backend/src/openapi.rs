@@ -21,6 +21,10 @@ use crate::{
     services::login_event::{
         DeviceEntry, DeviceListResponse, LoginHistoryEntry, LoginHistoryListResponse,
     },
+    services::login_notify::{
+        LogoutTokenInfoResponse, LogoutWithTokenRequest, NotificationSettingsResponse,
+        UpdateNotificationSettingsRequest,
+    },
 };
 use shared::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse};
 use shared::domain::FundNavStatus;
@@ -37,6 +41,10 @@ use shared::domain::FundNavStatus;
         handlers::v1::login_history::list_devices,
         handlers::v1::login_history::delete_device,
         handlers::v1::login_history::delete_all_sessions,
+        handlers::v1::login_history::get_notification_settings,
+        handlers::v1::login_history::put_notification_settings,
+        handlers::v1::login_history::logout_token_info,
+        handlers::v1::login_history::logout_with_token,
         handlers::v1::auth::oauth::google_auth,
         handlers::v1::auth::oauth::google_callback,
         handlers::v1::stocks::search,
@@ -89,6 +97,10 @@ use shared::domain::FundNavStatus;
             LoginHistoryListResponse,
             DeviceEntry,
             DeviceListResponse,
+            NotificationSettingsResponse,
+            UpdateNotificationSettingsRequest,
+            LogoutTokenInfoResponse,
+            LogoutWithTokenRequest,
             DividendPerShareBatchRequest,
             DividendPerShareItem,
             DividendPerShareBatchResponse,

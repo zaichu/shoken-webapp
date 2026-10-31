@@ -91,6 +91,8 @@ mod tests {
                     google_client_id: None,
                     google_client_secret: None,
                     frontend_url: "http://localhost:8080".into(),
+                    gmail_user: None,
+                    gmail_app_password: None,
                 }),
                 config: Arc::new(Config {
                     admin_emails: emails.map(str::to_owned),
@@ -160,6 +162,8 @@ mod tests {
                     google_client_id: None,
                     google_client_secret: None,
                     frontend_url: "http://localhost:8080".into(),
+                    gmail_user: None,
+                    gmail_app_password: None,
                 }),
                 config: Arc::new(Config {
                     admin_emails: emails.map(str::to_owned),

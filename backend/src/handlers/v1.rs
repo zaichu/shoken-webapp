@@ -32,6 +32,15 @@ pub fn auth_routes() -> Router<AppState> {
         .route("/api/v1/devices", get(login_history::list_devices))
         .route("/api/v1/devices/{id}", delete(login_history::delete_device))
         .route(
+            "/api/v1/notification-settings",
+            get(login_history::get_notification_settings)
+                .put(login_history::put_notification_settings),
+        )
+        .route(
+            "/api/v1/notification-logout",
+            get(login_history::logout_token_info).post(login_history::logout_with_token),
+        )
+        .route(
             "/api/v1/account-deletion-confirmations",
             post(auth::create_account_deletion_confirmation),
         )
@@ -146,6 +155,8 @@ mod tests {
                 google_client_id: None,
                 google_client_secret: None,
                 frontend_url: "http://localhost:8080".to_string(),
+                gmail_user: None,
+                gmail_app_password: None,
             }),
             config: Arc::new(crate::config::Config::default()),
             google_oauth: None,

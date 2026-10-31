@@ -257,6 +257,8 @@ mod tests {
                 google_client_id: None,
                 google_client_secret: None,
                 frontend_url: "http://localhost:8080".to_string(),
+                gmail_user: None,
+                gmail_app_password: None,
             }),
             config: Arc::new(crate::config::Config::default()),
             google_oauth: None,

@@ -135,6 +135,8 @@ async fn db_integration_with_docker_and_migrations() {
         google_client_id: None,
         google_client_secret: None,
         frontend_url: "http://localhost:8080".to_string(),
+        gmail_user: None,
+        gmail_app_password: None,
     });
     let state = AppState {
         pool,
@@ -1876,6 +1878,8 @@ async fn account_delete_confirmation_http_lifecycle() {
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
+            gmail_user: None,
+            gmail_app_password: None,
         }),
         config: Arc::new(Config::default()),
         google_oauth: None,
@@ -4014,6 +4018,8 @@ async fn csv_test_app(pool: &Db) -> (axum::Router, UserId, SessionToken) {
             google_client_id: None,
             google_client_secret: None,
             frontend_url: "http://localhost:8080".to_string(),
+            gmail_user: None,
+            gmail_app_password: None,
         }),
         config: Arc::new(Config::default()),
         google_oauth: None,

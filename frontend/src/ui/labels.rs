@@ -379,6 +379,21 @@ pub const LOGIN_RESULT_NEW_DEVICE: &str = "新しい端末";
 pub const LOGIN_RESULT_LOCATION_CHANGED: &str = "場所の変化";
 /// ログイン履歴: 結果「失敗」
 pub const LOGIN_RESULT_FAILURE: &str = "失敗";
+/// ログイン通知: トグルの文言
+pub const LOGIN_NOTIFY_TITLE: &str = "新しい端末からログインしたときに通知する";
+/// ログイン通知: トグルの補足
+pub const LOGIN_NOTIFY_NOTE: &str = "オフでも、ログインの記録は残ります";
+/// ログイン通知: 使い捨てリンクの確認画面の見出し
+pub const NOTIFY_LOGOUT_TITLE: &str = "心当たりのないログインがありましたか";
+/// ログイン通知: 使い捨てリンクの確認画面の説明
+pub const NOTIFY_LOGOUT_DESCRIPTION: &str =
+    "次の操作でこのアカウントのすべての端末をログアウトします";
+/// ログイン通知: 使い捨てリンクの実行ボタン
+pub const NOTIFY_LOGOUT_CONFIRM: &str = "すべての端末をログアウトする";
+/// ログイン通知: ログアウト完了の文言
+pub const NOTIFY_LOGOUT_DONE: &str = "すべての端末からログアウトしました";
+/// ログイン通知: リンクが無効・期限切れ・使用済みのときの文言
+pub const NOTIFY_LOGOUT_INVALID: &str = "リンクが無効か期限切れです";
 /// ログイン履歴: 列見出し「日時」
 pub const LOGIN_HISTORY_COL_DATETIME: &str = "日時";
 /// ログイン履歴: 列見出し「結果」
