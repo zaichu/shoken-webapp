@@ -25,6 +25,7 @@ shoken-webapp の DB スキーマ(テーブル一覧・外部キー・ER 図)
 | [public.fund_balances_view](public.fund_balances_view.md) | 21 | 投信の保有残高と共有基準価額の合成(読み取りビュー)。price_source / nav_is_latest は出どころの判定 | VIEW |
 | [public.csv_import_history](public.csv_import_history.md) | 3 | ユーザー・CSV種類ごとの最終取り込み成功時刻 | BASE TABLE |
 | [public.login_events](public.login_events.md) | 9 | ログインの記録(端末IDはハッシュのみ。IPは保存しない) | BASE TABLE |
+| [public.admin_login_views](public.admin_login_views.md) | 3 | 管理者によるログイン一覧の閲覧監査（閲覧者と日時のみ） | BASE TABLE |
 
 ## Relations
 
@@ -39,6 +40,7 @@ erDiagram
 "public.fund_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.csv_import_history" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.login_events" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.admin_login_views" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 
 "public.users" {
   uuid id
@@ -245,6 +247,11 @@ erDiagram
   text region
   text browser
   text os
+}
+"public.admin_login_views" {
+  uuid id
+  uuid user_id FK
+  timestamp_with_time_zone occurred_at
 }
 ```
 
