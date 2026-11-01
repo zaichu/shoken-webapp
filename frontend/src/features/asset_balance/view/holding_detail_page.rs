@@ -1,14 +1,14 @@
 use super::use_asset_balance_state;
 use crate::features::asset_balance::format::{
     format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation,
+    is_negative_valuation, is_positive_valuation,
 };
 use crate::features::asset_balance::holdings::{
     format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
 };
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::session::use_session;
-use crate::ui::amount::Amount;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, unit_price_decimals,
@@ -124,6 +124,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                     let pnl_text = format_signed_row_valuation_amount(valuation.profit_loss.amount);
                                     let pnl_rate_text = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
                                     let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
+                                    let pnl_positive = is_positive_valuation(valuation.profit_loss.amount);
                                     let dividend = holding_dividend(
                                         &holding_view.code,
                                         holding_view.shares,
@@ -201,9 +202,11 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                     <dt class="text-text-muted">{VALUATION_PROFIT_LOSS}</dt>
                                                     <dd>
                                                         <Amount
+                                                            kind=AmountKind::Delta
                                                             class="tabular-nums"
                                                             text=pnl_text
                                                             negative=pnl_negative
+                                                            positive=pnl_positive
                                                         />
                                                         <span class="ml-1 text-xs text-text-muted tabular-nums">
                                                             {pnl_rate_text}

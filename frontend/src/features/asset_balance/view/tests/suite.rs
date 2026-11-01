@@ -397,6 +397,18 @@ fn positive_valuation_is_decided_by_rounded_amount() {
 }
 
 #[test]
+fn rate_sign_uses_raw_value_not_yen_rounding() {
+    assert!(is_negative_rate(Some(-0.4)));
+    assert!(is_positive_rate(Some(0.4)));
+    assert!(!is_negative_rate(Some(0.0)));
+    assert!(!is_positive_rate(Some(0.0)));
+    assert!(!is_negative_rate(None));
+    assert!(!is_positive_rate(None));
+    assert!(!is_negative_rate(Some(f64::NAN)));
+    assert!(!is_positive_rate(Some(f64::NAN)));
+}
+
+#[test]
 fn price_date_representative_picks_the_most_common_date() {
     // 最多の日付を代表にする。見出しはこの日付を出す
     assert_eq!(
