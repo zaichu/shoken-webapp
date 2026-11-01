@@ -1,34 +1,12 @@
 use crate::features::asset_balance::fund::AssetKind;
+use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index};
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
 
 fn tab_id(kind: AssetKind) -> &'static str {
     match kind {
         AssetKind::All => "tab-asset-all",
         AssetKind::Stock => "tab-asset-stock",
         AssetKind::Fund => "tab-asset-fund",
-    }
-}
-
-fn next_index(current: usize, key: &str) -> Option<usize> {
-    match key {
-        "ArrowRight" => Some((current + 1) % 3),
-        "ArrowLeft" => Some((current + 3 - 1) % 3),
-        "Home" => Some(0),
-        "End" => Some(2),
-        _ => None,
-    }
-}
-
-fn focus_tab(kind: AssetKind) {
-    let Some(element) = web_sys::window()
-        .and_then(|window| window.document())
-        .and_then(|document| document.get_element_by_id(tab_id(kind)))
-    else {
-        return;
-    };
-    if let Some(element) = element.dyn_ref::<web_sys::HtmlElement>() {
-        let _ = element.focus();
     }
 }
 
@@ -75,10 +53,10 @@ pub(crate) fn AssetKindTabs(
                                     .iter()
                                     .position(|candidate| *candidate == keyed.get_untracked())
                                     .unwrap_or(0);
-                                if let Some(next) = next_index(current, &event.key()) {
+                                if let Some(next) = next_tab_index(3, current, &event.key()) {
                                     event.prevent_default();
                                     keyed.set(AssetKind::ALL[next]);
-                                    focus_tab(AssetKind::ALL[next]);
+                                    focus_tab_by_id(tab_id(AssetKind::ALL[next]));
                                 }
                             }
                         >

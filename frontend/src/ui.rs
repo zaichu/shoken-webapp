@@ -22,3 +22,4 @@ pub(crate) mod site;
 pub(crate) mod stat_row;
 pub(crate) mod state;
 pub(crate) mod summary;
+pub(crate) mod underline_tabs;

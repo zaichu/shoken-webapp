@@ -526,6 +526,22 @@
     @apply text-[11px] font-medium tabular-nums;
   }
 
+  /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す */
+  @media (width < 64rem) {
+    .page-tab-list {
+      @apply gap-0 border-b border-border-strong;
+    }
+
+    .page-tab {
+      @apply rounded-none border-0 bg-transparent px-1 text-sm text-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+    }
+
+    .page-tab[aria-selected="true"] {
+      @apply bg-transparent font-bold text-text-deep;
+      box-shadow: inset 0 -3px 0 var(--color-gold);
+    }
+  }
+
   @media (width >= 64rem) {
     .page-tab-count {
       @apply bg-row-group text-xs text-text-soft;
