@@ -15,7 +15,6 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::amount::AmountKind;
 use crate::ui::format::{
     days_since_jst_date, format_nav_updated_at, format_percentage_value, format_short_date,
 };
@@ -379,7 +378,6 @@ pub(crate) fn AssetSummaryBand(
                 aux_label=VALUATION_PROFIT_LOSS
                 aux_value=profit_text
                 aux_rate=rate_text
-                aux_kind=AmountKind::Delta
                 aux_negative=profit_negative
                 aux_positive=profit_positive
                 pc_items=pc_items
@@ -387,7 +385,6 @@ pub(crate) fn AssetSummaryBand(
                     SummaryBreakdownEntry {
                         label: DAY_CHANGE.to_string(),
                         value: daily_text,
-                        kind: AmountKind::Delta,
                         negative: daily_negative,
                         positive: daily_positive,
                         rate: daily_rate_text,
@@ -395,7 +392,6 @@ pub(crate) fn AssetSummaryBand(
                     SummaryBreakdownEntry {
                         label: TOTAL_ACQUISITION.to_string(),
                         value: purchase_text,
-                        kind: AmountKind::Plain,
                         negative: false,
                         positive: false,
                         rate: String::new(),

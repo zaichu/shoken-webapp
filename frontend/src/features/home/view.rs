@@ -238,8 +238,8 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
             {move || {
                 let (assets, funds, estimates) = state();
                 let loading = assets.is_none() || funds.is_none();
-                let merged = if loading {
-                    None
+                let (merged, daily) = if loading {
+                    (None, None)
                 } else {
                     let stock_summary = assets.as_ref().and_then(|slot| {
                         slot.as_ref().map(|loaded| {
@@ -255,11 +255,20 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
                             })
                         })
                     });
-                    model::merged_asset_summary(stock_summary.as_ref(), fund_summary.as_ref())
+                    let daily = model::merged_daily_change(
+                        stock_summary.as_ref(),
+                        fund_summary.as_ref(),
+                    );
+                    let merged = model::merged_asset_summary(
+                        stock_summary.as_ref(),
+                        fund_summary.as_ref(),
+                    );
+                    (merged, daily)
                 };
                 view! {
                     <BandTiles
                         merged=merged
+                        daily=daily
                         estimates=estimates
                         stocks=stocks_of(&assets).unwrap_or(&[]).to_vec()
                         loading=loading
@@ -279,6 +288,7 @@ fn daily_rate_text(market: Option<f64>, daily: Option<f64>) -> String {
 #[component]
 fn BandTiles(
     merged: Option<AssetBalanceSummary>,
+    daily: Option<f64>,
     estimates: Option<Option<DividendMaps>>,
     stocks: Vec<AssetBalance>,
     loading: bool,
@@ -310,9 +320,7 @@ fn BandTiles(
         .and_then(|valuation| valuation.profit_loss.rate)
         .map(|rate| format_signed_valuation_rate(Some(rate), 1))
         .unwrap_or_default();
-    let daily_value = merged
-        .as_ref()
-        .map(|summary| dec_to_f64(&summary.total_daily_change));
+    let daily_value = daily;
     let daily_text = if loading {
         MISSING.to_string()
     } else {
@@ -357,7 +365,6 @@ fn BandTiles(
             aux_label=VALUATION_PROFIT_LOSS
             aux_value=profit_text
             aux_rate=profit_rate
-            aux_kind=AmountKind::Delta
             aux_negative=pnl_negative
             aux_positive=pnl_positive
             pc_items=vec![
@@ -373,7 +380,6 @@ fn BandTiles(
                 SummaryBreakdownEntry {
                     label: DAY_CHANGE.to_string(),
                     value: daily_text,
-                    kind: AmountKind::Delta,
                     negative: daily_negative,
                     positive: daily_positive,
                     rate: daily_rate,
@@ -381,7 +387,6 @@ fn BandTiles(
                 SummaryBreakdownEntry {
                     label: ANNUAL_EXPECTED_DIVIDEND.to_string(),
                     value: dividend_text,
-                    kind: AmountKind::Plain,
                     negative: false,
                     positive: false,
                     rate: estimate_pending_text,
@@ -389,7 +394,6 @@ fn BandTiles(
                 SummaryBreakdownEntry {
                     label: TOTAL_ACQUISITION.to_string(),
                     value: purchase_text,
-                    kind: AmountKind::Plain,
                     negative: false,
                     positive: false,
                     rate: String::new(),

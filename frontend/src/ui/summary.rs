@@ -1,4 +1,4 @@
-use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::amount::Amount;
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use leptos::prelude::*;
 
@@ -6,7 +6,6 @@ use leptos::prelude::*;
 mod tests;
 
 /// 集計帯の数字の大きさ。主は1つだけ、従はすべて同じ大きさにする
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SummarySize {
     /// 主
@@ -95,7 +94,6 @@ pub struct SummarySubItem {
 pub struct SummaryBreakdownEntry {
     pub label: String,
     pub value: String,
-    pub kind: AmountKind,
     pub negative: bool,
     pub positive: bool,
     pub rate: String,
@@ -109,15 +107,12 @@ pub struct SummaryBreakdownEntry {
 pub fn SummaryBand(
     #[prop(into)] primary_label: String,
     #[prop(into)] primary_value: String,
-    #[prop(optional)] primary_kind: AmountKind,
     #[prop(optional)] primary_negative: bool,
-    #[prop(optional)] primary_positive: bool,
     /// 補助1行(ホーム・資産管理の評価損益と率。取引明細はなし)
     #[prop(optional, into)]
     aux_label: String,
     #[prop(optional, into)] aux_value: String,
     #[prop(optional, into)] aux_rate: String,
-    #[prop(optional)] aux_kind: AmountKind,
     #[prop(optional)] aux_negative: bool,
     #[prop(optional)] aux_positive: bool,
     /// PCの横並びに残す項目(従来どおり・スマホでは出さない)
@@ -140,6 +135,7 @@ pub fn SummaryBand(
     } else {
         ""
     };
+    let primary_tone_class = if primary_negative { "summary-loss" } else { "" };
     let label_open = "内訳を開く".to_string();
     let label_close = "内訳を閉じる".to_string();
     view! {
@@ -152,6 +148,12 @@ pub fn SummaryBand(
                     <SummaryItem
                         label=primary_label.clone()
                         value=primary_value.clone()
+                        size=SummarySize::Primary
+                        tone=if primary_negative {
+                            SummaryTone::Loss
+                        } else {
+                            SummaryTone::Neutral
+                        }
                     />
                     {has_aux
                         .then(|| view! {
@@ -198,23 +200,22 @@ pub fn SummaryBand(
                             style=DisclosureStyle::SummaryBand
                             expanded=expanded
                             controls=controls_id.clone()
-                            aria_label=Signal::derive(move || if expanded.get() {
-                                label_close.clone()
-                            } else {
-                                label_open.clone()
-                            })
                             testid=testid_toggle
                             on_toggle=move || expanded.update(|open| *open = !*open)
                         >
+                            <span class="sr-only">
+                                {move || if expanded.get() {
+                                    label_close.clone()
+                                } else {
+                                    label_open.clone()
+                                }}
+                            </span>
                             <span class="summary-band-label">{primary_label.clone()}</span>
                             <span class="summary-band-hero-row">
-                                <span class="summary-band-hero-value">
-                                    <Amount
-                                        text=primary_value.clone()
-                                        kind=primary_kind
-                                        negative=primary_negative
-                                        positive=primary_positive
-                                    />
+                                <span class=format!(
+                                    "summary-band-hero-value {primary_tone_class}",
+                                )>
+                                    <Amount text=primary_value.clone() />
                                 </span>
                                 <span class="summary-band-chevron-circle" aria-hidden="true">
                                     <ChevronIcon
@@ -231,12 +232,7 @@ pub fn SummaryBand(
                                         <span class="summary-band-aux-label">
                                             {aux_label.clone()}
                                         </span>
-                                        <Amount
-                                            text=aux_value.clone()
-                                            kind=aux_kind
-                                            negative=aux_negative
-                                            positive=aux_positive
-                                        />
+                                        <Amount text=aux_value.clone() />
                                         {(!aux_rate.is_empty())
                                             .then(|| view! {
                                                 <span class="summary-note">{aux_rate.clone()}</span>
@@ -264,12 +260,7 @@ pub fn SummaryBand(
                                                 <dd class=format!(
                                                     "summary-band-breakdown-value {tone_class}",
                                                 )>
-                                                    <Amount
-                                                        text=entry.value
-                                                        kind=entry.kind
-                                                        negative=entry.negative
-                                                        positive=entry.positive
-                                                    />
+                                                    <Amount text=entry.value />
                                                     {(!entry.rate.is_empty())
                                                         .then(|| view! {
                                                             <span class="summary-note">{entry.rate}</span>

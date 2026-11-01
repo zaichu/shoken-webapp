@@ -1,6 +1,5 @@
 use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab, select_header_summary};
 use crate::settings::format_amount;
-use crate::ui::amount::AmountKind;
 use crate::ui::card::StatTone;
 use crate::ui::format::format_iso_date;
 use crate::ui::labels;
@@ -80,11 +79,6 @@ pub fn SummaryStrip(
         SummaryBreakdownEntry {
             label: label.to_string(),
             value: format_signed(value, is_profit),
-            kind: if is_profit {
-                AmountKind::Delta
-            } else {
-                AmountKind::Plain
-            },
             negative,
             positive,
             rate: String::new(),
@@ -112,20 +106,12 @@ pub fn SummaryStrip(
         .zip(marks)
         .map(|(item, profit)| to_breakdown(item, profit))
         .collect();
-    let (primary_label, primary_value, primary_negative, primary_positive, primary_kind) = primary
+    let (primary_label, primary_value, primary_negative) = primary
         .map(|(label, value, tone)| {
-            let negative = tone == StatTone::Loss;
-            let positive = primary_mark && value > Decimal::ZERO;
             (
                 label.to_string(),
                 format_signed(value, primary_mark),
-                negative,
-                positive,
-                if primary_mark {
-                    AmountKind::Delta
-                } else {
-                    AmountKind::Plain
-                },
+                tone == StatTone::Loss,
             )
         })
         .unwrap_or_default();
@@ -139,9 +125,7 @@ pub fn SummaryStrip(
             <SummaryBand
                 primary_label=primary_label
                 primary_value=primary_value
-                primary_kind=primary_kind
                 primary_negative=primary_negative
-                primary_positive=primary_positive
                 pc_items=pc_items
                 breakdown=breakdown
                 testid_band="kpi-grid"

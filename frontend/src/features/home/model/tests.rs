@@ -98,6 +98,43 @@ fn merged_asset_summary_combines_stock_and_fund() {
 }
 
 #[test]
+fn merged_daily_change_treats_missing_fund_nav_as_unknown() {
+    let stock = AssetBalanceSummary {
+        total_market_value: dec!(1_000_000),
+        total_purchase_amount: dec!(800_000),
+        total_daily_change: dec!(30),
+        priced_market_value: dec!(1_000_000),
+        priced_purchase_amount: dec!(800_000),
+        has_missing_daily_change: false,
+    };
+    let no_nav = FundBalanceSummary {
+        total_market_value: dec!(300_000),
+        total_purchase_amount: dec!(250_000),
+        total_daily_change: dec!(0),
+        latest_nav_count: 0,
+        pending_nav_count: 0,
+        nav_status: shared::domain::FundNavStatus::default(),
+    };
+    // 取得件数が0なら投信分は欠測。株式分だけ出す
+    assert_eq!(merged_daily_change(Some(&stock), Some(&no_nav)), Some(30.0));
+    let with_nav = FundBalanceSummary {
+        total_market_value: dec!(300_000),
+        total_purchase_amount: dec!(250_000),
+        total_daily_change: dec!(20),
+        latest_nav_count: 2,
+        pending_nav_count: 0,
+        nav_status: shared::domain::FundNavStatus::default(),
+    };
+    assert_eq!(
+        merged_daily_change(Some(&stock), Some(&with_nav)),
+        Some(50.0)
+    );
+    // 株式がなく投信も欠測なら全体も欠測
+    assert_eq!(merged_daily_change(None, Some(&no_nav)), None);
+    assert_eq!(merged_daily_change(None, None), None);
+}
+
+#[test]
 fn row_summaries_skip_unpriced_stocks() {
     let rows = vec![
         stock("1111", "A", 100, 200, 20_000),

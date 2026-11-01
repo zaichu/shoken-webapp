@@ -1,5 +1,4 @@
 use super::{SummaryBreakdownEntry, daily_rate};
-use crate::ui::amount::AmountKind;
 
 #[test]
 fn daily_rate_uses_previous_market_as_denominator() {
@@ -27,7 +26,6 @@ fn breakdown_keeps_item_order() {
         SummaryBreakdownEntry {
             label: "前日比".to_string(),
             value: "+¥100".to_string(),
-            kind: AmountKind::Delta,
             negative: false,
             positive: true,
             rate: "+1.0%".to_string(),
@@ -35,7 +33,6 @@ fn breakdown_keeps_item_order() {
         SummaryBreakdownEntry {
             label: "年間予想配当(税引前)".to_string(),
             value: "¥500".to_string(),
-            kind: AmountKind::Plain,
             negative: false,
             positive: false,
             rate: String::new(),
@@ -43,7 +40,6 @@ fn breakdown_keeps_item_order() {
         SummaryBreakdownEntry {
             label: "取得総額".to_string(),
             value: "¥1,000".to_string(),
-            kind: AmountKind::Plain,
             negative: false,
             positive: false,
             rate: String::new(),

@@ -66,6 +66,23 @@ pub(crate) fn fund_summary_from_rows(rows: &[FundBalance]) -> FundBalanceSummary
     summary
 }
 
+/// ホーム帯の前日比。投信側は基準価額の取得件数が0のとき欠測として扱い、
+/// 株式・投信のどちらも算出できないときは全体も欠測にする(0と断定しない)。
+/// 株式側は資産管理の国内株式タブと同じく API 集計の値をそのまま使う
+pub(crate) fn merged_daily_change(
+    stock: Option<&AssetBalanceSummary>,
+    fund: Option<&FundBalanceSummary>,
+) -> Option<f64> {
+    let stock_daily = stock.map(|summary| dec_to_f64(&summary.total_daily_change));
+    let fund_daily = fund.and_then(|summary| {
+        (summary.latest_nav_count > 0).then(|| dec_to_f64(&summary.total_daily_change))
+    });
+    match (stock_daily, fund_daily) {
+        (Some(stock), Some(fund)) => Some(stock + fund),
+        (stock, fund) => stock.or(fund),
+    }
+}
+
 /// 年間予想配当(税引前)と取得額に対する率。資産管理の KPI と同じく
 /// 株式の取得総額を分母にする(ファンドは予想配当の対象外)
 pub(crate) fn annual_dividend_forecast(
