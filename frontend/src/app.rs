@@ -249,6 +249,10 @@ fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
     focus_main(&window);
 }
 
+fn show_bottom_nav_for(route: Route) -> bool {
+    !matches!(route, Route::Login | Route::NotFound)
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     let path = RwSignal::new(current_location());
@@ -372,18 +376,7 @@ pub fn App() -> impl IntoView {
             navigate(path, "/", true);
         }
     });
-    let show_bottom_nav = move || {
-        matches!(
-            route.get(),
-            Route::Home
-                | Route::Search
-                | Route::Receipts
-                | Route::Csv
-                | Route::AssetBalance
-                | Route::AssetBalanceComposition
-                | Route::AssetBalanceHolding
-        )
-    };
+    let show_bottom_nav = move || show_bottom_nav_for(route.get());
     view! {
         <div class="app-shell">
             <a

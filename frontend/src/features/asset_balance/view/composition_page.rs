@@ -14,9 +14,9 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::format::{format_currency, format_fixed_percent};
 use crate::ui::labels::{
-    COMPOSITION, COMPOSITION_BACK, COMPOSITION_BASIS_LABEL, COMPOSITION_DIVIDEND_BASIS,
-    COMPOSITION_GROUP_LABEL, MARKET_VALUE, MISSING, TOTAL_ACQUISITION, composition_accounts,
-    composition_basis_note, composition_kinds, composition_total,
+    COMPOSITION, COMPOSITION_BASIS_LABEL, COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_LABEL,
+    MARKET_VALUE, MISSING, TOTAL_ACQUISITION, composition_accounts, composition_basis_note,
+    composition_kinds, composition_total,
 };
 use crate::ui::page_frame::PageFrame;
 use crate::ui::segmented::Segmented;
@@ -128,13 +128,8 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
         load_fund_balances(session, generation, funds, data_ops);
     };
     view! {
-        <PageFrame title=COMPOSITION>
-            <div class="page-gutter">
-                <a class="comp-back-link" href="/assetbalance">
-                    {COMPOSITION_BACK}
-                </a>
-            </div>
-            <div class="page-gutter flex flex-1 flex-col py-4">
+        <PageFrame title=COMPOSITION back_href="/assetbalance" back_label="資産管理に戻る">
+            <div class="flex flex-1 flex-col">
                 {move || {
                     data_ops
                         .with(|ops| ops.refresh_error.clone())

@@ -65,7 +65,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
             back_href="/assetbalance"
             back_label="資産管理に戻る"
         >
-            <div class="page-gutter flex flex-1 flex-col py-4">
+            <div class="flex flex-1 flex-col">
                 {move || {
                     data_ops
                         .with(|ops| ops.refresh_error.clone())

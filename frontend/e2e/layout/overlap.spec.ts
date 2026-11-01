@@ -134,36 +134,31 @@ test('銘柄検索: 最下端でも本文がフッターに重ならない', asy
   await expectFooterBelowContent(page);
 });
 
-test('集計帯はスクロール中も明細行より手前に描かれる', async ({ page }) => {
+test('集計帯はページと一緒に流れ、張り付かない', async ({ page }) => {
   await mockBase(page);
   await mockReceipts(page);
   await page.goto('/receipts');
-  const band = page.locator('.receipts-sticky-top');
+  const band = page.getByTestId('receipt-summary-strip');
   await expect(band).toBeVisible();
 
-  const max = await page.evaluate(() => {
-    const ws = document.querySelector<HTMLElement>('[data-testid="receipts-workspace"]')!;
-    return ws.scrollHeight - ws.clientHeight;
-  });
-  expect(max, '内側スクロールが発生していない').toBeGreaterThan(0);
+  const sticky = await band.evaluate((element) => getComputedStyle(element).position);
+  expect(sticky, '帯は sticky で張り付かない').not.toBe('sticky');
 
-  for (const y of [0, Math.floor(max / 3), Math.floor(max / 2), max]) {
-    const res = await page.evaluate((scrollY) => {
-      const ws = document.querySelector<HTMLElement>('[data-testid="receipts-workspace"]')!;
-      ws.scrollTop = scrollY;
-      const band = document.querySelector<HTMLElement>('.receipts-sticky-top')!;
-      const r = band.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + Math.min(r.height / 2, r.height - 2);
-      const top = document.elementsFromPoint(cx, cy)[0];
-      return {
-        top: top ? top.tagName + '.' + String(top.className).slice(0, 80) : 'none',
-        inside: top ? band.contains(top) : false,
-      };
-    }, y);
-    expect(
-      res.inside,
-      `スクロール位置 ${y} で帯の最前面が帯の外にある: ${res.top}`,
-    ).toBe(true);
-  }
+  // 本文に内側スクロールは作らず、ページ全体(main)で流す
+  const inner = await page.evaluate(() => {
+    const ws = document.querySelector<HTMLElement>('[data-testid="receipts-workspace"]')!;
+    const style = getComputedStyle(ws);
+    return {
+      overflowY: style.overflowY,
+      scrollable: ws.scrollHeight - ws.clientHeight,
+    };
+  });
+  expect(inner.scrollable, '内側スクロールは作らない').toBeLessThanOrEqual(1);
+
+  const topBefore = await band.evaluate((element) => element.getBoundingClientRect().top);
+  await page.evaluate(() => {
+    document.querySelector<HTMLElement>('#main-content')!.scrollTop = 10000;
+  });
+  const topAfter = await band.evaluate((element) => element.getBoundingClientRect().top);
+  expect(topAfter, '帯はスクロールで流れる').toBeLessThan(topBefore);
 });

@@ -235,7 +235,7 @@ pub fn AssetBalancePage() -> impl IntoView {
     let csv_link: Children = Box::new(move || {
         view! {
             <span class="flex items-center gap-2">
-                <a class="page-secondary-link-sm hidden lg:inline-flex" href="/assetbalance/composition">{COMPOSITION_VIEW_LINK}</a>
+                <a class="page-secondary-link-sm" href="/assetbalance/composition">{COMPOSITION_VIEW_LINK}</a>
                 <a class="page-secondary-link-sm" href="/csv">"CSV管理"</a>
             </span>
         }

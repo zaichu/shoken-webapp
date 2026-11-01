@@ -44,6 +44,27 @@ test('下タブバーは現在地にaria-currentを付けタップで遷移で�
   ).toHaveAttribute('aria-current', 'page');
 });
 
+test('下部ナビは設定・保有ファンド詳細でも出て、404では出ない', async ({
+  page,
+}) => {
+  await mockApi(page);
+  for (const path of ['/settings', '/assetbalance/funds/fund-1', '/assetbalance/composition']) {
+    await page.goto(path);
+    await expect(bottomNav(page)).toBeVisible();
+  }
+  await page.goto('/404');
+  await expect(bottomNav(page)).toHaveCount(0);
+});
+
+test('下部ナビはログインでは出ない', async ({ page }) => {
+  await page.route('**/api/v1/**', (route) =>
+    route.fulfill(json(paginated([], { per_page: 1000 }))),
+  );
+  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json({}, 401)));
+  await page.goto('/login');
+  await expect(bottomNav(page)).toHaveCount(0);
+});
+
 test('上バーのアカウントボタンは丸いアイコンと「アカウント」の文字を持つ', async ({
   page,
 }) => {

@@ -335,6 +335,9 @@ test.describe('スマホの構成比', () => {
     }
     await entry.click();
     await expect(page).toHaveURL('/assetbalance/composition');
+    await expect(page.getByRole('link', { name: '資産管理に戻る' })).toBeVisible();
+    await page.getByRole('link', { name: '資産管理に戻る' }).click();
+    await expect(page).toHaveURL('/assetbalance');
 
     // 投資信託タブに構成比の入口は無い(対象は国内株式のまま)
     await page.goto('/assetbalance');

@@ -119,10 +119,7 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/csv');
   await expect(csvRow(page, 'assetbalance')).toBeVisible();
-  await page
-    .getByRole('navigation', { name: 'パンくず' })
-    .getByRole('link', { name: '資産管理' })
-    .click();
+  await page.getByRole('link', { name: '資産管理に戻る' }).click();
   await expect(page).toHaveURL('/assetbalance');
   await expect(main).toBeVisible();
 });

@@ -84,8 +84,6 @@ pub const DOMESTIC_STOCK: &str = "国内株式";
 pub const COMPOSITION: &str = "構成比";
 /// 構成比画面への入口(資産管理の一覧見出しの右)
 pub const COMPOSITION_VIEW_LINK: &str = "構成比を見る ›";
-/// 構成比画面の戻りリンク
-pub const COMPOSITION_BACK: &str = "‹ 資産管理";
 /// 構成比の区分切り替え: 銘柄別
 pub const COMPOSITION_GROUP_HOLDING: &str = "銘柄別";
 /// 構成比の区分切り替え: 商品別
