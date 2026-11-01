@@ -8,7 +8,7 @@ mod search;
 use super::store::{TabCacheEntry, bump_fetch_rev, is_current_fetch, settle_tab_result};
 use super::*;
 use crate::api::ApiError;
-use crate::features::receipts::filter::ReceiptSearch;
+use crate::features::receipts::filter::{ReceiptSearch, ReceiptSortOrder};
 use crate::session::{Generation, SessionStore};
 use crate::support::row::Row;
 use leptos::prelude::*;
@@ -83,6 +83,7 @@ fn failed_tabs_are_not_fetched_again_in_the_same_generation() {
                 session,
                 active_tab: RwSignal::new(tab),
                 search: RwSignal::new(ReceiptSearch::default()),
+                sort_order: RwSignal::new(ReceiptSortOrder::Newest),
                 expanded: RwSignal::new(HashSet::new()),
                 mobile_summary_expanded: RwSignal::new(false),
                 expanded_epoch: RwSignal::new(None),
@@ -127,6 +128,7 @@ fn revisit_refetches_only_visited_settled_tabs() {
             session,
             active_tab: RwSignal::new(ReceiptsTab::Dividend),
             search: RwSignal::new(ReceiptSearch::default()),
+            sort_order: RwSignal::new(ReceiptSortOrder::Newest),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
             expanded_epoch: RwSignal::new(None),
@@ -183,6 +185,7 @@ fn revisit_skips_unauthenticated_and_unvisited() {
             session,
             active_tab: RwSignal::new(ReceiptsTab::Dividend),
             search: RwSignal::new(ReceiptSearch::default()),
+            sort_order: RwSignal::new(ReceiptSortOrder::Newest),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
             expanded_epoch: RwSignal::new(None),
@@ -286,6 +289,7 @@ fn revisit_does_not_dispatch_while_fetch_pending() {
             session,
             active_tab: RwSignal::new(ReceiptsTab::Dividend),
             search: RwSignal::new(ReceiptSearch::default()),
+            sort_order: RwSignal::new(ReceiptSortOrder::Newest),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
             expanded_epoch: RwSignal::new(None),
@@ -332,6 +336,7 @@ fn generation_change_resets_search_tab_and_visited() {
                 query: "9904".to_string(),
                 ..Default::default()
             }),
+            sort_order: RwSignal::new(ReceiptSortOrder::Newest),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
             expanded_epoch: RwSignal::new(None),
@@ -399,6 +404,7 @@ fn expanded_state_is_cleared_on_generation_change() {
             session,
             active_tab: RwSignal::new(tab),
             search: RwSignal::new(ReceiptSearch::default()),
+            sort_order: RwSignal::new(ReceiptSortOrder::Newest),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
             expanded_epoch: RwSignal::new(None),
@@ -434,6 +440,7 @@ fn expanded_state_survives_ensure_in_same_generation() {
             session,
             active_tab: RwSignal::new(tab),
             search: RwSignal::new(ReceiptSearch::default()),
+            sort_order: RwSignal::new(ReceiptSortOrder::Newest),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
             expanded_epoch: RwSignal::new(None),
@@ -508,6 +515,7 @@ fn refresh_error_returns_entry_for_current_generation_only() {
             session,
             active_tab: RwSignal::new(ReceiptsTab::Dividend),
             search: RwSignal::new(ReceiptSearch::default()),
+            sort_order: RwSignal::new(ReceiptSortOrder::Newest),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
             expanded_epoch: RwSignal::new(None),
@@ -546,6 +554,7 @@ fn ensure_prunes_stale_generation_in_any_state_map() {
             session,
             active_tab: RwSignal::new(ReceiptsTab::Dividend),
             search: RwSignal::new(ReceiptSearch::default()),
+            sort_order: RwSignal::new(ReceiptSortOrder::Newest),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
             expanded_epoch: RwSignal::new(None),

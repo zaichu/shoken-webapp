@@ -213,6 +213,7 @@ fn StockContent(
                     sort_options=&SortKey::ALL
                     key_label=|key: SortKey| key.label()
                     key_value=|key: SortKey| key.value()
+                    key_from_value=|value: &str| SortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
                 />
@@ -359,6 +360,7 @@ fn FundContent(
                     sort_options=&FundSortKey::ALL
                     key_label=|key: FundSortKey| key.label()
                     key_value=|key: FundSortKey| key.value()
+                    key_from_value=|value: &str| FundSortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
                 />
@@ -561,6 +563,7 @@ fn AllContent(
                     sort_options=&FundSortKey::MERGED
                     key_label=|key: FundSortKey| key.label()
                     key_value=|key: FundSortKey| key.value()
+                    key_from_value=|value: &str| FundSortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
                 />

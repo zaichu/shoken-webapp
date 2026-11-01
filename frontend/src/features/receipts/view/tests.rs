@@ -121,6 +121,38 @@ fn receipt_sheet_draft_apply_matches_direct_filter() {
 }
 
 #[test]
+fn receipt_dialog_clear_resets_search() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let draft = RwSignal::new({
+            let mut search = ReceiptSearch::new(true);
+            search.set_securities_query("9904".to_string());
+            search.select_quick(
+                crate::features::receipts::filter::SearchKey::Accounts,
+                "SBI証券".to_string(),
+            );
+            search
+        });
+        super::action_bar::clear_receipt_dialog_draft(draft, true);
+        assert!(draft.with(|s| s.query.is_empty()));
+    });
+}
+
+#[test]
+fn receipt_sort_order_round_trips() {
+    use crate::features::receipts::filter::ReceiptSortOrder;
+    assert_eq!(
+        ReceiptSortOrder::from_value(ReceiptSortOrder::Newest.value()),
+        Some(ReceiptSortOrder::Newest)
+    );
+    assert_eq!(
+        ReceiptSortOrder::from_value(ReceiptSortOrder::Oldest.value()),
+        Some(ReceiptSortOrder::Oldest)
+    );
+    assert_eq!(ReceiptSortOrder::from_value("other"), None);
+}
+
+#[test]
 fn receipt_sheet_date_label_matches_tab() {
     assert_eq!(
         super::action_bar::receipt_date_label(ReceiptsTab::Dividend),
@@ -283,12 +315,22 @@ fn header_tones_mark_negative_profit_only() {
 fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
     let rows = dividends();
     let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9910 2024");
-    let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, "9910 2024");
+    let groups = ReceiptsTab::Dividend.table_groups(
+        &filtered,
+        &rows,
+        "9910 2024",
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].label, "TELE");
     assert_eq!(groups[0].summary, ["¥500", "¥100", "¥400"]);
     let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9910");
-    let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, "9910");
+    let groups = ReceiptsTab::Dividend.table_groups(
+        &filtered,
+        &rows,
+        "9910",
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].rows.len(), 2);
     assert_eq!(groups[0].summary, ["¥1,000", "¥200", "¥800"]);
@@ -322,7 +364,12 @@ fn receipt_rows_stay_in_yen_while_group_summary_follows_the_unit() {
     assert!(!fund_texts.iter().any(|text| text.contains("万円")));
     // 合計欄は単位に従う
     let rows = dividends();
-    let groups = ReceiptsTab::Dividend.table_groups(&rows, &rows, "");
+    let groups = ReceiptsTab::Dividend.table_groups(
+        &rows,
+        &rows,
+        "",
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
     assert!(
         groups
             .iter()
@@ -339,7 +386,12 @@ fn dividend_product_and_account_group_keys_follow_priority() {
         ("2024", "2024年6月"),
     ] {
         let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, query);
-        let groups = ReceiptsTab::Dividend.table_groups(&filtered, &rows, query);
+        let groups = ReceiptsTab::Dividend.table_groups(
+            &filtered,
+            &rows,
+            query,
+            crate::features::receipts::filter::ReceiptSortOrder::Newest,
+        );
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].label, expected);
     }
@@ -348,11 +400,22 @@ fn dividend_product_and_account_group_keys_follow_priority() {
 fn mutual_fund_name_groups_and_domestic_daily_groups() {
     let rows = funds();
     assert_eq!(
-        ReceiptsTab::MutualFund.table_groups(&rows, &rows, "\"Alpha Fund A\"")[0].label,
+        ReceiptsTab::MutualFund.table_groups(
+            &rows,
+            &rows,
+            "\"Alpha Fund A\"",
+            crate::features::receipts::filter::ReceiptSortOrder::Newest,
+        )[0]
+        .label,
         "Alpha Fund A"
     );
     let rows = domestic();
-    let groups = ReceiptsTab::DomesticStock.table_groups(&rows, &rows, "9904");
+    let groups = ReceiptsTab::DomesticStock.table_groups(
+        &rows,
+        &rows,
+        "9904",
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
     assert_eq!(groups[0].label, "2024年3月1日");
     assert!(groups[0].summary.is_empty());
 }
@@ -369,7 +432,12 @@ fn domestic_daily_summary_remains_for_multiple_rows_only() {
     second.id = "next-day".to_string().into();
     second.trade_date = "2024-03-02".into();
     rows.push(Saved(ReceiptItem::DomesticStock(second)));
-    let groups = ReceiptsTab::DomesticStock.table_groups(&rows, &rows, "");
+    let groups = ReceiptsTab::DomesticStock.table_groups(
+        &rows,
+        &rows,
+        "",
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
     assert_eq!(groups.len(), 2);
     assert_eq!(groups[0].label, "2024年3月2日");
     assert_eq!(groups[0].rows.len(), 1);
@@ -717,7 +785,12 @@ fn card_header_carries_code_badge_value_and_copy_name() {
 #[test]
 fn table_groups_carry_group_key_and_row_ids() {
     let rows = dividends();
-    let groups = ReceiptsTab::Dividend.table_groups(&rows, &rows, "");
+    let groups = ReceiptsTab::Dividend.table_groups(
+        &rows,
+        &rows,
+        "",
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
     assert_eq!(groups[0].key, "2026-06");
     assert_eq!(groups[0].label, "2026年6月");
     let ids: Vec<Option<&str>> = groups
@@ -749,7 +822,12 @@ fn latest_name_uses_newest_settlement_per_code() {
     };
     same_date.security_name = "別名".into();
     rows.push(Saved(ReceiptItem::Dividend(same_date)));
-    let groups = ReceiptsTab::Dividend.table_groups(&rows, &rows, "9910");
+    let groups = ReceiptsTab::Dividend.table_groups(
+        &rows,
+        &rows,
+        "9910",
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
     assert_eq!(groups[0].label, "TELE");
 }
 
@@ -765,10 +843,20 @@ fn cells_normalize_full_width_security_names() {
 #[test]
 fn group_rows_contain_only_matching_rows() {
     let domestic_rows = domestic();
-    let groups = ReceiptsTab::DomesticStock.table_groups(&domestic_rows, &domestic_rows, "");
+    let groups = ReceiptsTab::DomesticStock.table_groups(
+        &domestic_rows,
+        &domestic_rows,
+        "",
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
     assert_eq!(groups[0].rows.len(), 1);
     let fund_rows = funds();
-    let groups = ReceiptsTab::MutualFund.table_groups(&fund_rows, &fund_rows, "");
+    let groups = ReceiptsTab::MutualFund.table_groups(
+        &fund_rows,
+        &fund_rows,
+        "",
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
     assert_eq!(groups[0].rows.len(), 1);
 }
 

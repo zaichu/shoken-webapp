@@ -242,7 +242,7 @@ test('検索欄で銘柄コードで絞り込んでも残る行は同じ書式',
   await page.getByTestId('receipts-search-sheet-entry').click();
   const sheet = page.getByTestId('receipts-search-sheet');
   await sheet.getByPlaceholder('銘柄名・コード').fill('9910');
-  await sheet.getByRole('button', { name: '適用する' }).click();
+  await sheet.getByTestId('search-dialog-search').click();
   await expect(sheet).toBeHidden();
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');

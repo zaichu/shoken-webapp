@@ -739,6 +739,63 @@
     @apply text-sm font-bold text-text;
   }
 
+  /* 中央の検索ダイアログ。背景を暗くし、面は中央に小さく出す。
+     中身だけがスクロールし、上下の見出しと操作は常に見える */
+  .search-dialog-root {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+  }
+
+  .search-dialog-backdrop {
+    @apply fixed inset-0 z-40 bg-scrim/50;
+  }
+
+  .search-dialog-panel {
+    @apply relative z-50 flex w-full flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-elevation-2;
+    max-width: 28rem;
+    max-height: 88vh;
+    max-height: 88dvh;
+  }
+
+  .search-dialog-head {
+    @apply flex items-center gap-2 border-b border-border px-4 py-3;
+  }
+
+  .search-dialog-title {
+    @apply flex-1 text-base font-bold text-text;
+  }
+
+  .search-dialog-body {
+    @apply flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-3;
+  }
+
+  .search-dialog-section-title {
+    @apply text-sm font-bold text-text;
+  }
+
+  .search-dialog-hint {
+    @apply mt-1 text-xs text-text-muted;
+  }
+
+  .search-dialog-field {
+    @apply mt-2;
+  }
+
+  .search-dialog-select {
+    @apply h-11 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-text;
+  }
+
+  .search-dialog-sort-row {
+    @apply mt-2 grid grid-cols-2 gap-2;
+  }
+
+  .search-dialog-footer {
+    @apply flex shrink-0 items-center justify-between gap-2 border-t border-border bg-surface px-4 py-3;
+  }
+
+  .search-dialog-footer-actions {
+    @apply flex items-center gap-2;
+  }
+
   /* スマホの検索・並べ替えの入口。紺帯の下に置く1行 */
   .search-sort-entry {
     @apply w-full flex-col items-stretch gap-1 px-3 py-2 text-left;

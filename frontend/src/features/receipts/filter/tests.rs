@@ -124,7 +124,12 @@ fn fund_options_merge_names_differing_only_by_width() {
     );
     assert_eq!(
         ReceiptsTab::MutualFund
-            .table_groups(&rows, &rows, query)
+            .table_groups(
+                &rows,
+                &rows,
+                query,
+                crate::features::receipts::filter::ReceiptSortOrder::Newest
+            )
             .len(),
         1
     );

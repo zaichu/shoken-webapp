@@ -456,12 +456,13 @@ fn sort_labels_distinguish_each_option() {
 }
 
 #[test]
-fn asset_sheet_condition_toggle_adds_and_removes() {
+fn asset_dialog_single_select_replaces_value() {
     let mut list = vec!["特定".to_string()];
-    super::search_bar::toggle_sheet_condition(&mut list, "NISA".to_string());
-    assert_eq!(list, vec!["特定".to_string(), "NISA".to_string()]);
-    super::search_bar::toggle_sheet_condition(&mut list, "特定".to_string());
+    super::search_bar::set_dialog_single(&mut list, "NISA".to_string());
     assert_eq!(list, vec!["NISA".to_string()]);
+    super::search_bar::set_dialog_single(&mut list, String::new());
+    assert!(list.is_empty());
+    assert_eq!(super::search_bar::dialog_single_value(&list), String::new());
 }
 
 #[test]
@@ -492,10 +493,10 @@ fn asset_sheet_draft_apply_matches_direct_search() {
 }
 
 #[test]
-fn asset_sheet_clear_resets_search_but_keeps_sort() {
+fn asset_dialog_clear_resets_search_but_keeps_sort() {
     let owner = Owner::new();
     owner.with(|| {
-        let search = RwSignal::new(AssetSearch {
+        let draft = RwSignal::new(AssetSearch {
             text: "9904".to_string(),
             accounts: vec!["特定".to_string()],
             ..Default::default()
@@ -504,8 +505,8 @@ fn asset_sheet_clear_resets_search_but_keeps_sort() {
         let sort_order = RwSignal::new(SortOrder::Desc);
         sort_key.set(SortKey::ProfitLoss);
         sort_order.set(SortOrder::Asc);
-        search.set(AssetSearch::default());
-        assert!(search.with(|s| s.is_empty()));
+        super::search_bar::clear_asset_dialog_draft(draft);
+        assert!(draft.with(|s| s.is_empty()));
         assert_eq!(sort_key.get_untracked(), SortKey::ProfitLoss);
         assert_eq!(sort_order.get_untracked(), SortOrder::Asc);
     });

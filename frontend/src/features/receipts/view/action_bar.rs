@@ -1,20 +1,21 @@
 use crate::features::receipts::filter::{
-    DateSegment, ReceiptSearch, SearchKey, filter_receipts, search_categories,
+    DateSegment, ReceiptSearch, ReceiptSortOrder, SearchKey, filter_receipts, search_categories,
 };
 use crate::features::receipts::kind::group_label;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
-use crate::ui::bottom_sheet::BottomSheet;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels::{
-    self, ACCOUNT, PAYMENT_DATE, PERIOD, PRODUCT, SEARCH_AND_SORT, SHEET_APPLY, SHEET_CLEAR,
-    SORT_BY, SORT_NEWEST_FIRST, TRADE_DATE,
+    self, ACCOUNT, PAYMENT_DATE, PERIOD, PRODUCT, SEARCH_AND_SORT, SEARCH_DIALOG_HINT, SORT_BY,
+    SORT_NEWEST_FIRST, SORT_OLDEST_FIRST, SORT_ORDER_LABEL, SORT_TARGET, TRADE_DATE,
 };
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, ConditionRowEnd,
     SearchBox, SearchClearButton, SearchCount, SearchTag, SearchTextInput,
 };
+use crate::ui::search_dialog::SearchDialog;
+use crate::ui::select::Select;
 use leptos::prelude::*;
 
 // 銘柄名・コードの文字列検索は入力欄で行うため、条件として数えるのは
@@ -619,9 +620,14 @@ pub fn ReceiptsSearchBar(
     }
 }
 
-/// 下書きを一覧へ反映する。シートの適用ボタンと単体テストの共通入口
+/// 下書きを一覧へ反映する。ダイアログの検索ボタンと単体テストの共通入口
 pub(crate) fn apply_receipt_sheet_draft(search: RwSignal<ReceiptSearch>, draft: &ReceiptSearch) {
     search.set(draft.clone());
+}
+
+/// ダイアログのクリアは下書きの検索条件だけを消す
+pub(crate) fn clear_receipt_dialog_draft(draft: RwSignal<ReceiptSearch>, has_years: bool) {
+    draft.update(|s| s.clear(has_years));
 }
 
 /// タブの日付の列見出し。入口とシートの並べ替え表示で使う
@@ -632,12 +638,13 @@ pub(crate) fn receipt_date_label(tab: ReceiptsTab) -> &'static str {
     }
 }
 
-/// スマホの検索・並べ替えの入口とシート。資産管理と同じく帯のすぐ下に置く。
-/// PC の検索欄・条件の行は変えず、スマホ幅では入口の1行と条件タグだけを出し、中身はシートで編集する
+/// スマホの検索・並べ替えの入口とダイアログ。資産管理と同じく帯のすぐ下に置く。
+/// PC の検索欄・条件の行は変えず、スマホ幅では入口の1行と条件タグだけを出し中身は中央のダイアログで編集する
 #[component]
 pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
     let tab = store.active_tab;
     let search = store.search;
+    let sort_order = store.sort_order;
     let open = RwSignal::new(false);
     let entry_ref = NodeRef::<leptos::html::Button>::new();
 
@@ -651,7 +658,13 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
     let accounts = Memo::new(move |_| categories.with(|c| c.accounts.clone()));
     let has_years = move || !years.get().is_empty();
     let has_years_for_tags = has_years;
-    let sort_summary = move || format!("{} {SORT_NEWEST_FIRST}", receipt_date_label(tab.get()));
+    let sort_summary = move || {
+        let order = match sort_order.get() {
+            ReceiptSortOrder::Newest => SORT_NEWEST_FIRST,
+            ReceiptSortOrder::Oldest => SORT_OLDEST_FIRST,
+        };
+        format!("{} {order}", receipt_date_label(tab.get()))
+    };
 
     view! {
         <div class="no-print lg:hidden" role="search" aria-label="検索">
@@ -679,22 +692,34 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
                 {move || {
                     open.get()
                         .then(|| {
+                            let draft = RwSignal::new(search.get_untracked());
+                            let draft_order = RwSignal::new(sort_order.get_untracked());
+                            let do_search = move || {
+                                apply_receipt_sheet_draft(search, &draft.get_untracked());
+                                sort_order.set(draft_order.get_untracked());
+                                open.set(false);
+                            };
+                            let years_flag = has_years();
+                            let do_clear = move || clear_receipt_dialog_draft(draft, years_flag);
                             view! {
-                                <BottomSheet
+                                <SearchDialog
                                     title=SEARCH_AND_SORT.to_string()
                                     on_close=move || open.set(false)
+                                    on_search=do_search
+                                    on_clear=do_clear
                                     testid="receipts-search-sheet"
                                 >
-                                    <ReceiptSheetBody
-                                        search=search
+                                    <ReceiptDialogFields
+                                        draft=draft
+                                        draft_order=draft_order
                                         tab=tab
                                         years=years
                                         products=products
                                         accounts=accounts
                                         has_years=has_years
-                                        on_close=move || open.set(false)
+                                        on_search=do_search
                                     />
-                                </BottomSheet>
+                                </SearchDialog>
                             }
                         })
                 }}
@@ -702,78 +727,129 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
     }
 }
 
-/// シートの中身。開くたびに作り直され、下書きの上で編集して適用で反映する。
-/// 並べ替えは従来どおり日付の新しい順のままで切り替えは足さない
+/// ダイアログの中身。開くたびに作り直され、下書きの上で編集して検索で反映する
 #[component]
-fn ReceiptSheetBody(
-    search: RwSignal<ReceiptSearch>,
+fn ReceiptDialogFields(
+    draft: RwSignal<ReceiptSearch>,
+    draft_order: RwSignal<ReceiptSortOrder>,
     #[prop(into)] tab: Signal<ReceiptsTab>,
     years: Memo<Vec<SearchOption>>,
     products: Memo<Vec<SearchOption>>,
     accounts: Memo<Vec<SearchOption>>,
     has_years: impl Fn() -> bool + Copy + 'static + Send + Sync,
-    on_close: impl Fn() + Copy + 'static + Send + Sync,
+    on_search: impl Fn() + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
-    let draft = RwSignal::new(search.get_untracked());
     let draft_text = move || draft.with(|s| s.selected_queries.securities.clone());
     let set_draft_text = move |value: String| draft.update(|s| s.set_securities_query(value));
-    let selected_of = move |get: fn(&ReceiptSearch) -> String| {
-        Memo::new(move |_| {
-            let value = draft.with(get);
-            if value.is_empty() {
-                Vec::new()
-            } else {
-                vec![value]
-            }
-        })
-    };
-    let selected_accounts = selected_of(|s| s.selected_queries.accounts.clone());
-    let selected_products = selected_of(|s| s.selected_queries.products.clone());
-    let select_draft = move |key: SearchKey, value: String| {
-        draft.update(|s| s.select_quick(key, value));
-    };
-    let apply = move || {
-        apply_receipt_sheet_draft(search, &draft.get_untracked());
-        on_close();
-    };
-    let clear = move || {
-        search.update(|s| s.clear(has_years()));
-        draft.set(search.get_untracked());
-    };
+    let search_callback = Callback::new(move |_| on_search());
     let date_label = move || receipt_date_label(tab.get());
+    let period_value = Memo::new(move |_| {
+        let date = draft.with(|s| {
+            if s.date_all {
+                String::new()
+            } else {
+                s.selected_queries.date.clone()
+            }
+        });
+        if date.is_empty() {
+            return String::new();
+        }
+        let is_year = years.get().into_iter().any(|item| item.value == date);
+        if is_year { date } else { String::new() }
+    });
+    let account_value = Memo::new(move |_| draft.with(|s| s.selected_queries.accounts.clone()));
+    let product_value = Memo::new(move |_| draft.with(|s| s.selected_queries.products.clone()));
     view! {
         <div class="flex flex-col gap-4">
             <section aria-label="検索">
-                <p class="bottom-sheet-section-title">"検索"</p>
-                <div class="mt-2">
+                <p class="search-dialog-section-title">"検索"</p>
+                <div class="search-dialog-field">
                     <SearchBox>
                         <SearchTextInput
                             placeholder=labels::search_placeholder("銘柄名・コード")
+                            testid="receipts-search-input"
                             value=draft_text
                             on_input=set_draft_text
+                            on_enter=search_callback
                         />
                     </SearchBox>
+                    <p class="search-dialog-hint">{SEARCH_DIALOG_HINT}</p>
                 </div>
             </section>
-            <section aria-label="条件を足す">
-                <p class="bottom-sheet-section-title">"条件を足す"</p>
-                <div class="mt-2">
-                    <p class="text-sm font-medium text-text-deep">{PERIOD}</p>
-                    <PeriodDraftContent draft=draft years=years has_years=has_years />
+            <section aria-label="条件">
+                <p class="search-dialog-section-title">"条件"</p>
+                <div class="search-dialog-field">
+                    <label class="mb-1 block text-sm font-medium text-text-deep">
+                        {PERIOD}
+                        <Select
+                            value=Signal::derive(move || period_value.get())
+                            aria_label=PERIOD.to_string()
+                            testid="receipts-dialog-period"
+                            class="search-dialog-select".to_string()
+                            on_change=move |next: String| {
+                                draft.update(|s| {
+                                    if next.is_empty() {
+                                        s.clear_key(SearchKey::Date, has_years());
+                                    } else {
+                                        s.date_segment = DateSegment::Year;
+                                        s.date_all = false;
+                                        s.select_year(next);
+                                    }
+                                });
+                            }
+                        >
+                            <option value="">"すべて"</option>
+                            {move || {
+                                years
+                                    .get()
+                                    .into_iter()
+                                    .map(|item| {
+                                        let value = item.value.clone();
+                                        let label = item.label.clone();
+                                        view! { <option value=value>{label}</option> }
+                                    })
+                                    .collect_view()
+                            }}
+                        </Select>
+                    </label>
                 </div>
                 {move || {
                     (!accounts.get().is_empty())
                         .then(|| {
                             view! {
-                                <div class="mt-2">
-                                    <p class="text-sm font-medium text-text-deep">{ACCOUNT}</p>
-                                    <div class="mt-1">
-                                        <ConditionOptionList
-                                            options=accounts
-                                            selected=selected_accounts
-                                            on_toggle=move |value| select_draft(SearchKey::Accounts, value)
-                                        />
-                                    </div>
+                                <div class="search-dialog-field">
+                                    <label class="mb-1 block text-sm font-medium text-text-deep">
+                                        {ACCOUNT}
+                                        <Select
+                                            value=Signal::derive(move || account_value.get())
+                                            aria_label=ACCOUNT.to_string()
+                                            testid="receipts-dialog-account"
+                                            class="search-dialog-select".to_string()
+                                            on_change=move |next: String| {
+                                                draft.update(|s| {
+                                                    if next.is_empty() {
+                                                        s.clear_key(SearchKey::Accounts, has_years());
+                                                    } else {
+                                                        s.selected_queries.accounts = next;
+                                                        s.rebuild_query();
+                                                    }
+                                                });
+                                            }
+                                        >
+                                            <option value="">"すべて"</option>
+                                            {move || {
+                                                accounts
+                                                    .get()
+                                                    .into_iter()
+                                                    .map(|item| {
+                                                        let value = item.value.clone();
+                                                        let label = item.label.clone();
+                                                        view! { <option value=value>{label}</option> }
+                                                    })
+                                                    .collect_view()
+                                            }}
+                                        </Select>
+                                    </label>
                                 </div>
                             }
                         })
@@ -782,51 +858,82 @@ fn ReceiptSheetBody(
                     (!products.get().is_empty())
                         .then(|| {
                             view! {
-                                <div class="mt-2">
-                                    <p class="text-sm font-medium text-text-deep">{PRODUCT}</p>
-                                    <div class="mt-1">
-                                        <ConditionOptionList
-                                            options=products
-                                            selected=selected_products
-                                            on_toggle=move |value| select_draft(SearchKey::Products, value)
-                                        />
-                                    </div>
+                                <div class="search-dialog-field">
+                                    <label class="mb-1 block text-sm font-medium text-text-deep">
+                                        {PRODUCT}
+                                        <Select
+                                            value=Signal::derive(move || product_value.get())
+                                            aria_label=PRODUCT.to_string()
+                                            testid="receipts-dialog-product"
+                                            class="search-dialog-select".to_string()
+                                            on_change=move |next: String| {
+                                                draft.update(|s| {
+                                                    if next.is_empty() {
+                                                        s.clear_key(SearchKey::Products, has_years());
+                                                    } else {
+                                                        s.selected_queries.products = next;
+                                                        s.rebuild_query();
+                                                    }
+                                                });
+                                            }
+                                        >
+                                            <option value="">"すべて"</option>
+                                            {move || {
+                                                products
+                                                    .get()
+                                                    .into_iter()
+                                                    .map(|item| {
+                                                        let value = item.value.clone();
+                                                        let label = item.label.clone();
+                                                        view! { <option value=value>{label}</option> }
+                                                    })
+                                                    .collect_view()
+                                            }}
+                                        </Select>
+                                    </label>
                                 </div>
                             }
                         })
                 }}
             </section>
             <section aria-label=SORT_BY.to_string()>
-                <p class="bottom-sheet-section-title">{SORT_BY}</p>
-                <div class="sort-option-list mt-2" role="group" aria-label=SORT_BY.to_string()>
-                    <span class="sort-option" data-selected="true">
-                        <span class="sort-option-check" aria-hidden="true">"✓"</span>
-                        {date_label}
-                        <span class="ml-auto inline-flex items-center gap-1 text-xs text-text-soft">
-                            {SORT_NEWEST_FIRST}
-                            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M8 3v10M4 9l4 4 4-4" />
-                            </svg>
-                        </span>
-                    </span>
+                <p class="search-dialog-section-title">{SORT_BY}</p>
+                <div class="search-dialog-sort-row">
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-text-deep">
+                            {SORT_TARGET}
+                            <Select
+                                value=Signal::derive(move || "date".to_string())
+                                aria_label=SORT_TARGET.to_string()
+                                testid="receipts-dialog-sort-target"
+                                class="search-dialog-select".to_string()
+                                on_change=move |_| {}
+                            >
+                                <option value="date">{date_label}</option>
+                            </Select>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-text-deep">
+                            {SORT_ORDER_LABEL}
+                            <Select
+                                value=Signal::derive(move || draft_order.get().value().to_string())
+                                aria_label=SORT_ORDER_LABEL.to_string()
+                                testid="receipts-dialog-sort-order"
+                                class="search-dialog-select".to_string()
+                                on_change=move |next: String| {
+                                    if let Some(order) = ReceiptSortOrder::from_value(&next) {
+                                        draft_order.set(order);
+                                    }
+                                }
+                            >
+                                <option value="newest">{SORT_NEWEST_FIRST}</option>
+                                <option value="oldest">{SORT_OLDEST_FIRST}</option>
+                            </Select>
+                        </label>
+                    </div>
                 </div>
             </section>
-            <div class="bottom-sheet-actions">
-                <Button
-                    variant=ButtonVariant::Secondary(ButtonSize::Md)
-                    testid="receipts-sheet-clear"
-                    on_click=move |_| clear()
-                >
-                    {SHEET_CLEAR}
-                </Button>
-                <Button
-                    variant=ButtonVariant::Primary(ButtonSize::Md)
-                    testid="receipts-sheet-apply"
-                    on_click=move |_| apply()
-                >
-                    {SHEET_APPLY}
-                </Button>
-            </div>
         </div>
     }
 }
