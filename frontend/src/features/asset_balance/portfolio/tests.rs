@@ -1,5 +1,9 @@
-use super::{ChartPlan, SortInput, SortKey, SortOrder, chart_plan, sort_holdings};
-use crate::features::asset_balance::holdings::HoldingDividend;
+use super::{
+    ChartPlan, CompositionBasis, CompositionGroup, SortInput, SortKey, SortOrder, chart_plan,
+    composition_color, composition_entries, composition_percentages, composition_rows,
+    sort_holdings,
+};
+use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
 use crate::features::asset_balance::model::ValuationInput;
 use serde::Deserialize;
 
@@ -174,6 +178,170 @@ fn sort_holdings_breaks_ties_by_code() {
     ];
     let order = sort_holdings(inputs, SortKey::MarketValue, SortOrder::Desc);
     assert_eq!(order, vec![0, 1, 2]);
+}
+
+#[test]
+fn composition_group_and_basis_labels_are_distinct() {
+    let labels: Vec<&str> = CompositionGroup::ALL
+        .iter()
+        .map(|group| group.label())
+        .collect();
+    for (index, label) in labels.iter().enumerate() {
+        assert!(!label.is_empty());
+        assert!(
+            !labels[..index].contains(label),
+            "区分のラベルが重複している: {label}"
+        );
+    }
+    assert_eq!(CompositionBasis::MarketValue.value(), "market_value");
+    assert_eq!(CompositionBasis::Dividend.value(), "dividend");
+    assert_ne!(
+        CompositionBasis::MarketValue.label(),
+        CompositionBasis::Dividend.label()
+    );
+}
+
+fn composition_view(
+    code: &str,
+    name: &str,
+    account: Option<&str>,
+    id: Option<&str>,
+) -> HoldingView {
+    HoldingView {
+        id: id.map(str::to_string),
+        code: code.to_string(),
+        name: name.to_string(),
+        account: account.map(str::to_string),
+        shares: 100.0,
+        average_price: 100.0,
+        purchase: 100.0,
+        current_price: 100.0,
+        day_change: None,
+        price_as_of: None,
+    }
+}
+
+#[test]
+fn composition_entries_keep_rows_for_holding_and_aggregate_for_product_and_account() {
+    let views = vec![
+        composition_view("9904", "架空自動車", Some("特定"), Some("1")),
+        composition_view("9904", "架空自動車", Some("NISA"), Some("2")),
+        composition_view("9914", "架空電機", Some("特定"), Some("3")),
+        composition_view("9920", "口座なし銘柄", None, Some("4")),
+    ];
+    let basis = vec![Some(300.0), Some(100.0), Some(200.0), Some(50.0)];
+
+    let holding = composition_entries(&views, CompositionGroup::Holding, &basis);
+    assert_eq!(holding.len(), 4);
+    assert_eq!(holding[0].name, "架空自動車");
+    assert_eq!(holding[0].sub, "9904");
+    assert_eq!(holding[0].value, Some(300.0));
+    assert_eq!(holding[0].holdings, 1);
+    assert_eq!(holding[0].href.as_deref(), Some("/assetbalance/holdings/1"));
+
+    let product = composition_entries(&views, CompositionGroup::Product, &basis);
+    assert_eq!(product.len(), 3);
+    assert_eq!(product[0].name, "架空自動車");
+    assert_eq!(product[0].value, Some(400.0));
+    assert_eq!(product[0].holdings, 2);
+    assert_eq!(product[0].href, None);
+    assert_eq!(product[1].name, "架空電機");
+
+    let account = composition_entries(&views, CompositionGroup::Account, &basis);
+    assert_eq!(account.len(), 3);
+    assert_eq!(account[0].name, "特定");
+    assert_eq!(account[0].value, Some(500.0));
+    assert_eq!(account[0].holdings, 2);
+    assert!(account.iter().any(|entry| entry.name == "—"));
+}
+
+#[test]
+fn composition_entries_put_uncomputable_last_and_sum_only_available_values() {
+    let views = vec![
+        composition_view("9904", "算出不可", Some("特定"), Some("1")),
+        composition_view("9914", "一部なし", Some("特定"), Some("2")),
+        composition_view("9914", "一部なし", Some("NISA"), Some("3")),
+    ];
+    let basis = vec![None, Some(200.0), None];
+    let entries = composition_entries(&views, CompositionGroup::Product, &basis);
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].name, "一部なし");
+    assert_eq!(entries[0].value, Some(200.0));
+    assert_eq!(entries[1].value, None);
+}
+
+#[test]
+fn composition_percentages_follow_the_existing_zero_and_total_rules() {
+    let (total, percentages) = composition_percentages(&[Some(150.0), Some(50.0), Some(0.0), None]);
+    assert_eq!(total, 200.0);
+    assert_eq!(percentages.len(), 4);
+    assert!(percentages[0].is_some_and(|value| (value - 75.0).abs() < 1e-9));
+    assert!(percentages[1].is_some_and(|value| (value - 25.0).abs() < 1e-9));
+    assert_eq!(percentages[2], None);
+    assert_eq!(percentages[3], None);
+
+    let (total, percentages) = composition_percentages(&[Some(0.0), None]);
+    assert_eq!(total, 0.0);
+    assert_eq!(percentages, vec![None, None]);
+}
+
+#[test]
+fn composition_rows_split_major_and_other_at_nine_percent() {
+    let views = vec![
+        composition_view("9904", "A", Some("特定"), Some("1")),
+        composition_view("9914", "B", Some("特定"), Some("2")),
+        composition_view("9920", "C", Some("特定"), Some("3")),
+        composition_view("9930", "D", Some("特定"), Some("4")),
+        composition_view("9940", "E", Some("特定"), Some("5")),
+    ];
+    let basis = vec![Some(50.0), Some(30.0), Some(9.0), Some(8.9), Some(2.1)];
+    let entries = composition_entries(&views, CompositionGroup::Holding, &basis);
+    let (_, percentages) =
+        composition_percentages(&entries.iter().map(|entry| entry.value).collect::<Vec<_>>());
+    let rows = composition_rows(&entries, &percentages);
+    assert_eq!(rows.len(), 4);
+    assert!(!rows[0].is_other);
+    assert_eq!(rows[0].name, "A");
+    assert!(rows[0].computable);
+    assert_eq!(rows[2].name, "C");
+    assert_eq!(rows[2].color, composition_color(2));
+    let other = &rows[3];
+    assert!(other.is_other);
+    assert_eq!(other.name, "その他 2銘柄");
+    assert!((other.percentage - 11.0).abs() < 1e-9);
+    assert!(other.computable);
+    assert_eq!(other.href, None);
+}
+
+#[test]
+fn composition_rows_keep_uncomputable_minors_in_other() {
+    let views = vec![
+        composition_view("9904", "A", Some("特定"), Some("1")),
+        composition_view("9914", "B", Some("特定"), Some("2")),
+    ];
+    let entries = composition_entries(&views, CompositionGroup::Holding, &[Some(100.0), None]);
+    let (_, percentages) =
+        composition_percentages(&entries.iter().map(|entry| entry.value).collect::<Vec<_>>());
+    let rows = composition_rows(&entries, &percentages);
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].name, "A");
+    let other = &rows[1];
+    assert!(other.is_other);
+    assert_eq!(other.name, "その他 1銘柄");
+    assert!(!other.computable);
+    assert_eq!(other.value, None);
+}
+
+#[test]
+fn composition_color_keeps_neighbors_different() {
+    for position in 0..20 {
+        assert_ne!(
+            composition_color(position),
+            composition_color(position + 1),
+            "{position}"
+        );
+        assert!(composition_color(position) < 5, "{position}");
+    }
 }
 
 #[test]

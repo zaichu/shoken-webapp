@@ -82,6 +82,40 @@ pub const NAME_COLUMN: &str = "銘柄";
 pub const SECURITY_AND_FUND: &str = "銘柄・ファンド";
 /// 国内株式
 pub const DOMESTIC_STOCK: &str = "国内株式";
+/// 構成比(資産管理の内訳画面)
+pub const COMPOSITION: &str = "構成比";
+/// 構成比画面への入口(資産管理の一覧見出しの右)
+pub const COMPOSITION_VIEW_LINK: &str = "構成比を見る ›";
+/// 構成比画面の戻りリンク
+pub const COMPOSITION_BACK: &str = "‹ 資産管理";
+/// 保有銘柄の見出し(件数は count で付ける)
+pub const STOCK_HOLDINGS_TITLE: &str = "保有銘柄";
+/// 構成比の区分切り替え: 銘柄別
+pub const COMPOSITION_GROUP_HOLDING: &str = "銘柄別";
+/// 構成比の区分切り替え: 商品別
+pub const COMPOSITION_GROUP_PRODUCT: &str = "商品別";
+/// 構成比の区分切り替え: 口座別
+pub const COMPOSITION_GROUP_ACCOUNT: &str = "口座別";
+/// 構成比の区分切り替えのラベル
+pub const COMPOSITION_GROUP_LABEL: &str = "構成比の区分";
+/// 構成比の基準切り替えのラベル
+pub const COMPOSITION_BASIS_LABEL: &str = "構成比の基準";
+/// 構成比の基準: 年間配当(税引前)
+pub const COMPOSITION_DIVIDEND_BASIS: &str = "年間配当(税引前)";
+/// 構成比の基準注記(「評価額の比率・合計 ¥…」)
+pub fn composition_basis_note(basis: &str, total: &str) -> String {
+    format!("{basis}の比率・合計 {total}")
+}
+
+/// 構成比で小さい区分をまとめたときの名前(「その他 3銘柄」)
+pub fn composition_other(count: usize) -> String {
+    format!("その他 {count}銘柄")
+}
+
+/// 構成比の中央に出す全体の件数(「全22銘柄」)
+pub fn composition_total(count: usize) -> String {
+    format!("全{count}銘柄")
+}
 /// 投資信託
 pub const MUTUAL_FUND: &str = "投資信託";
 /// 口座

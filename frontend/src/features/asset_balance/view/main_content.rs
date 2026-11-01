@@ -184,7 +184,6 @@ fn StockContent(
                                 daily_change=values.daily_change
                                 tags=tags
                                 purchase=purchase
-                                composition_link=true
                             />
                         </SkeletonSummary>
                         <SkeletonNote
@@ -218,6 +217,18 @@ fn StockContent(
                     sort_order=sort_order
                 />
             </SkeletonSearch>
+            <div
+                class="asset-list-heading lg:hidden"
+                data-testid="asset-stock-heading"
+                hidden=empty
+            >
+                <h2 class="asset-list-title">
+                    {format!("{} {}", labels::STOCK_HOLDINGS_TITLE, labels::count(total_count))}
+                </h2>
+                <a class="asset-list-comp-link" href="/assetbalance/composition">
+                    {labels::COMPOSITION_VIEW_LINK}
+                </a>
+            </div>
             <div class="asset-list-surface">
                 <div class="hidden lg:block print:block">
                     {move || {
@@ -337,7 +348,6 @@ fn FundContent(
                     daily_change=daily
                     tags=vec![purchase_summary_tag(purchase)]
                     purchase=Some(purchase)
-                    composition_link=false
                 />
             </SkeletonSummary>
             <SkeletonNote notes=notes filtered=filtered_count basis=fund_basis_lines() />
@@ -540,7 +550,6 @@ fn AllContent(
                     daily_change=daily
                     tags=vec![purchase_summary_tag(purchase)]
                     purchase=Some(purchase)
-                    composition_link=false
                 />
             </SkeletonSummary>
             <SkeletonNote notes=notes filtered=filtered_count basis=all_basis_lines() />
