@@ -21,9 +21,9 @@ use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, unit_price_decimals,
 };
 use crate::ui::labels::{
-    ACCOUNT, ANNUAL_DIVIDEND, AVERAGE_PRICE, BASE_PRICE, CODE_COLUMN, CURRENT_PRICE, DAY_CHANGE,
-    DISTRIBUTION, DOMESTIC_STOCK, FUND_SHARES, MARKET_VALUE, MUTUAL_FUND, PER_SHARE_DIVIDEND,
-    PRICE_AS_OF, QUANTITY, SECURITY_AND_FUND, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
+    ACCOUNT, ANNUAL_DIVIDEND, BASE_PRICE, CODE_COLUMN, CURRENT_PRICE, DAY_CHANGE, DISTRIBUTION,
+    DOMESTIC_STOCK, FUND_SHARES, MARKET_VALUE, MUTUAL_FUND, PER_SHARE_DIVIDEND, PRICE_AS_OF,
+    QUANTITY, SECURITY_AND_FUND, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
@@ -400,7 +400,6 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
         },
         as_of,
     ));
-    let _ = AVERAGE_PRICE;
     (left, right)
 }
 

@@ -12,9 +12,7 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
-use crate::ui::format::{
-    format_currency, format_iso_date, format_number_value, unit_price_decimals,
-};
+use crate::ui::format::{format_currency, format_iso_date, format_number_value};
 use crate::ui::labels::{
     ACQUISITION_YIELD, ANNUAL_DIVIDEND, AVERAGE_PRICE, CURRENT_PRICE, MARKET_VALUE,
     PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY, TOTAL_ACQUISITION,
@@ -43,9 +41,7 @@ pub(crate) fn holding_detail_cells(
         is_positive_valuation(view.day_change),
     );
     let dividend = holding_dividend(&view.code, view.shares, view.average_price, dividends);
-    let decimals = unit_price_decimals([view.current_price, view.average_price].into_iter());
     let current_text = format_currency(view.current_price);
-    let _ = decimals;
     let average_text = format_currency(view.average_price);
     let purchase_text = format_currency(view.purchase);
     let shares_text = format!("{}株", format_number_value(view.shares));
@@ -81,10 +77,6 @@ pub(crate) fn holding_detail_cells(
         DetailCell::plain(ANNUAL_DIVIDEND.to_string(), annual),
         DetailCell::plain(PRICE_AS_OF.to_string(), as_of),
     ];
-    let _ = (
-        is_negative_rate as fn(Option<f64>) -> bool,
-        is_positive_rate as fn(Option<f64>) -> bool,
-    );
     (left, right)
 }
 
