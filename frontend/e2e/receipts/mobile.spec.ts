@@ -147,12 +147,19 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(meta).toContainText('楽天証券');
   await expect(card.locator('.list-row-secondary')).toContainText('税引前');
   await expect(card.locator('.list-row-secondary')).toContainText('¥2,000');
-  // 行を押すと残りの項目(税額など)が開く
-  const toggle = card.getByRole('button', { name: /架空電信電話の詳細/ });
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(card.locator('.receipt-compact-details')).toContainText('税額');
+  // 行を押すと詳細シートが開く。閉じると押した行に戻る
+  const rowButton = card.getByTestId('receipt-row-button');
+  await expect(rowButton).toHaveAttribute('aria-haspopup', 'dialog');
+  await rowButton.click();
+  const sheet = page.getByTestId('receipt-detail-sheet');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByTestId('row-detail-sub')).toContainText('9910');
+  await expect(sheet.locator('.receipt-detail-hero-value')).toHaveText('¥1,594');
+  const items = sheet.getByTestId('row-detail-list').locator('dt');
+  await expect(items).toHaveText(['口座', '配当金', '税額', '1株配当', '数量']);
+  await sheet.getByTestId('bottom-sheet-close').click();
+  await expect(sheet).toBeHidden();
+  await expect(rowButton).toBeFocused();
 });
 
 test('グループ見出しは件数と小計を常に表示する', async ({ page }) => {

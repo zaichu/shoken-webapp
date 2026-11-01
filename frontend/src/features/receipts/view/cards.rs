@@ -7,15 +7,16 @@ use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::format::format_short_date;
 use crate::ui::labels::{
-    self, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, PROFIT_SHORT, REALIZED_PROFIT_LOSS,
-    RECEIPT_SHORT, REDEMPTION_AMOUNT, SELLING_AMOUNT,
+    self, ACCOUNT, ACQUISITION_PRICE, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, PER_SHARE_DIVIDEND,
+    PROFIT_SHORT, QUANTITY, REALIZED_PROFIT_LOSS, RECEIPT_SHORT, REDEMPTION_AMOUNT, SELLING_AMOUNT,
+    TAX,
 };
 use crate::ui::list_row::ListRow;
+use crate::ui::row_detail_sheet::{RowDetailSheet, SheetItem};
 use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
 use std::collections::HashSet;
-use wasm_bindgen::JsCast;
 
 // 配当の税引後(受取額)は損益ではないので色を付けない
 pub(crate) fn is_profit_label(tab: ReceiptsTab, label: &str) -> bool {
@@ -112,8 +113,6 @@ pub(crate) struct CardDetail {
 
 #[derive(Clone)]
 pub(crate) struct CardRowData {
-    /// 開閉状態を照合する行キー(表示丸め前の値)
-    pub(crate) key: String,
     pub(crate) name: CardDetailValue,
     pub(crate) code: Option<String>,
     pub(crate) date: String,
@@ -162,7 +161,6 @@ pub(crate) fn card_detail_value(
 // 役割のない列を表の列順で全部出す
 pub(crate) fn card_row_data(
     tab: ReceiptsTab,
-    key: String,
     cells: &[ReceiptCell],
     order: &[usize],
     fields: CardFields,
@@ -175,7 +173,6 @@ pub(crate) fn card_row_data(
             .unwrap_or_default()
     };
     CardRowData {
-        key,
         name: card_detail_value(tab, columns[fields.name].header, fields.name, cells),
         // コード列を持つタブでは空コードも欠損値として見出しに出す
         code: fields
@@ -272,20 +269,71 @@ fn compact_value(details: &[CardDetail], label: &str) -> (String, bool, bool) {
         .unwrap_or_default()
 }
 
+pub(crate) fn sheet_detail_order(tab: ReceiptsTab) -> Vec<&'static str> {
+    match tab {
+        ReceiptsTab::Dividend => vec![ACCOUNT, DIVIDEND_AMOUNT, TAX, PER_SHARE_DIVIDEND, QUANTITY],
+        ReceiptsTab::DomesticStock => vec![
+            REALIZED_PROFIT_LOSS,
+            TAX,
+            QUANTITY,
+            SELLING_AMOUNT,
+            ACQUISITION_PRICE,
+            ACCOUNT,
+        ],
+        ReceiptsTab::MutualFund => vec![
+            REALIZED_PROFIT_LOSS,
+            TAX,
+            QUANTITY,
+            REDEMPTION_AMOUNT,
+            ACQUISITION_PRICE,
+            ACCOUNT,
+        ],
+    }
+}
+
+pub(crate) fn sheet_details(tab: ReceiptsTab, card: &CardRowData) -> Vec<SheetItem> {
+    let order = sheet_detail_order(tab);
+    let mut items = Vec::with_capacity(order.len());
+    for label in order {
+        if label == ACCOUNT {
+            if card.account.is_empty() {
+                continue;
+            }
+            items.push(SheetItem::plain(label.to_string(), card.account.clone()));
+            continue;
+        }
+        if let Some(detail) = card.details.iter().find(|detail| detail.label == label) {
+            match &detail.value {
+                CardDetailValue::Text {
+                    text,
+                    negative,
+                    positive,
+                    is_profit,
+                } => items.push(SheetItem::amount(
+                    detail.label.clone(),
+                    text.clone(),
+                    *negative,
+                    *positive,
+                    *is_profit,
+                )),
+                CardDetailValue::CopyName { display, .. } => {
+                    items.push(SheetItem::plain(detail.label.clone(), display.clone()));
+                }
+            }
+        }
+    }
+    items
+}
+
 #[component]
-fn CompactReceiptRow(
-    tab: ReceiptsTab,
-    card: CardRowData,
-    detail_id: String,
-    expanded_ids: RwSignal<HashSet<String>>,
-) -> impl IntoView {
+fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     let CardRowData {
-        key,
         name,
         code,
         date,
         account,
         details,
+        ..
     } = card;
     let aux_detail = match tab {
         ReceiptsTab::Dividend => DIVIDEND_AMOUNT,
@@ -293,146 +341,101 @@ fn CompactReceiptRow(
         ReceiptsTab::MutualFund => REDEMPTION_AMOUNT,
     };
     let (aux_value, _, _) = compact_value(&details, aux_detail);
-    // 行の主役は全タブで税引後(月見出し・帯と同じ基準。行を足すと帯に合う)。
-    // 税引前の実現損益は展開した詳細に残す
     let (hero_value, hero_negative, hero_positive) = compact_value(&details, AFTER_TAX);
     let hero_is_profit = tab != ReceiptsTab::Dividend;
-    let hero_label = AFTER_TAX;
     let hero_kind = if hero_is_profit {
         AmountKind::Delta
     } else {
         AmountKind::Plain
     };
-    // 行に出している項目だけ詳細から除き、税引後など残りは詳細に残す
-    let shown = [aux_detail, hero_label];
-    let rest: Vec<CardDetail> = details
-        .iter()
-        .filter(|detail| !shown.contains(&detail.label.as_str()))
-        .cloned()
-        .collect();
-    // トグルの読み上げ名は行ごとに識別できるよう銘柄名を入れる
     let name_text = match &name {
         CardDetailValue::Text { text, .. } => text.clone(),
         CardDetailValue::CopyName { display, .. } => display.clone(),
     };
     let row_name = name_text.clone();
-
-    let toggle_key = format!("r:{key}");
-    let key_for_expanded = toggle_key.clone();
-    let expanded = Memo::new(move |_| expanded_ids.with(|set| set.contains(&key_for_expanded)));
-    let toggle_ids = expanded_ids;
-    let toggle = move |key: &str| {
-        toggle_ids.update(|set| {
-            if !set.remove(key) {
-                set.insert(key.to_string());
-            }
-        });
-    };
-    let key_for_toggle = toggle_key.clone();
-    // リンクやボタンの上以外を押しても詳細が開くようにする
-    let on_row_click = move |ev: leptos::ev::MouseEvent| {
-        let interactive = ev
-            .target()
-            .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
-            .and_then(|element| element.closest("a,button").ok().flatten())
-            .is_some();
-        if !interactive {
-            toggle(&key_for_toggle);
-        }
-    };
-    let key_for_button = toggle_key;
-    // 行の日付セルは "YYYY/MM/DD" 済みなので区切りを戻してから月/日に直す
+    let sheet_title = name_text.clone();
     let short_date = format_short_date(&date.replace('/', "-"));
-    let has_details = !rest.is_empty();
-    // 開閉ボタンは行の2行目に入れる。expanded の信号で追従するため作り直しは要らない
-    let toggle_view: AnyView = view! {
-        <DisclosureToggle
-            style=DisclosureStyle::RowToggle
-            expanded=Signal::derive(move || expanded.get())
-            controls=detail_id.clone()
-            aria_label=format!("{name_text}の詳細")
-            on_toggle=move || toggle(&key_for_button)
-        >
-            <ChevronIcon
-                expanded=Signal::derive(move || expanded.get())
-                class="h-3.5 w-3.5"
-            />
-        </DisclosureToggle>
-    }
-    .into_any();
-    // 補助の金額には何の金額か分かるようラベルを付ける
+    let sheet_subtitle = match code.clone().map(|code| code.trim().to_string()) {
+        Some(code) if !code.is_empty() => format!("{code} · {date}"),
+        _ => date.clone(),
+    };
     let aux_label: &'static str = match tab {
         ReceiptsTab::Dividend => BEFORE_TAX,
         ReceiptsTab::DomesticStock => SELLING_AMOUNT,
         ReceiptsTab::MutualFund => REDEMPTION_AMOUNT,
     };
-    let secondary_view: AnyView = view! {
-        <span class="flex items-center gap-4">
-            <span>
-                {aux_label}
-                " "
-                <Amount kind=AmountKind::Plain text=aux_value.clone() />
-            </span>
-            {has_details.then_some(toggle_view)}
-        </span>
-    }
-    .into_any();
+    let sheet_open = RwSignal::new(false);
+    let hero_value_for_row = hero_value.clone();
+    let hero_value_for_sheet = hero_value.clone();
+    let account_for_meta = account.clone();
+    let code_for_meta = code.clone();
+    let short_date_for_meta = short_date.clone();
+    let aux_value_for_row = aux_value.clone();
+    let sheet_card = CardRowData {
+        name,
+        code,
+        date,
+        account: account_for_meta.clone(),
+        details,
+    };
+    let sheet_items = sheet_details(tab, &sheet_card);
 
     view! {
-        <li
-            class="receipt-compact-row"
-            data-testid="receipt-card"
-            on:click=on_row_click
-        >
-            <div class="px-4 py-2">
-                <ListRow
-                    name=move || row_name.clone()
-                    primary=move || view! {
-                        <Amount
-                            kind=hero_kind
-                            text=hero_value.clone()
-                            negative=hero_negative
-                            positive=hero_positive
-                        />
-                    }
-                    meta=move || view! {
-                        {short_date.clone()}
-                        {code
-                            .clone()
-                            .map(|code| {
-                                view! {
-                                    {" · "}
-                                    <SecurityCodeLink
-                                        value=code
-                                        class="receipt-compact-code".to_string()
-                                    />
-                                }
-                            })}
-                        {" · "}
-                        <AccountBadge label=account.clone() />
-                    }
-                    secondary=secondary_view
-                />
-            </div>
-            <div
-                id=detail_id
-                class="receipt-compact-details"
-                hidden=move || !expanded.get()
+        <li class="receipt-compact-row" data-testid="receipt-card">
+            <Button
+                variant=ButtonVariant::RowButton
+                testid="receipt-row-button"
+                aria_label=format!("{sheet_title}の詳細")
+                aria_haspopup="dialog"
+                on_click=move |_| sheet_open.set(true)
             >
-                <dl class="space-y-1">
-                    {rest
-                        .iter()
-                        .map(|detail| {
-                            let (content, _) = card_detail_view(&detail.value);
-                            view! {
-                                <StatRow label=detail.label.clone() numeric=true>
-                                    {content}
-                                </StatRow>
-                            }
-                        })
-                        .collect_view()}
-                </dl>
-            </div>
+                <span class="receipt-compact-button-inner">
+                    <ListRow
+                        name=move || row_name.clone()
+                        primary=move || view! {
+                            <Amount
+                                kind=hero_kind
+                                text=hero_value_for_row.clone()
+                                negative=hero_negative
+                                positive=hero_positive
+                            />
+                        }
+                        meta=move || view! {
+                            {short_date_for_meta.clone()}
+                            {code_for_meta
+                                .clone()
+                                .and_then(|code| {
+                                    let trimmed = code.trim().to_string();
+                                    (!trimmed.is_empty()).then_some(trimmed)
+                                })
+                                .map(|trimmed| {
+                                    view! { {" · "} <span class="receipt-compact-code">{trimmed}</span> }
+                                })}
+                            {" · "}
+                            <AccountBadge label=account_for_meta.clone() />
+                        }
+                        secondary=move || view! {
+                            {aux_label}
+                            " "
+                            <Amount kind=AmountKind::Plain text=aux_value_for_row.clone() />
+                        }
+                    />
+                </span>
+            </Button>
+            <Show when=move || sheet_open.get()>
+                <RowDetailSheet
+                    title=sheet_title.clone()
+                    subtitle=sheet_subtitle.clone()
+                    hero_label=AFTER_TAX.to_string()
+                    hero_text=hero_value_for_sheet.clone()
+                    hero_negative=hero_negative
+                    hero_positive=hero_positive
+                    hero_is_profit=hero_is_profit
+                    details=sheet_items.clone()
+                    on_close=move || sheet_open.set(false)
+                    testid="receipt-detail-sheet"
+                />
+            </Show>
         </li>
     }
 }
@@ -467,8 +470,6 @@ pub(crate) fn CompactReceiptGroup(
     count: usize,
     summary: Vec<(&'static str, String)>,
     cards: Vec<CardRowData>,
-    id_prefix: String,
-    expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
     // 単発の日は集計が無いのでその行の税引後を見出しに出す
     let summary: Vec<(&'static str, String)> = if summary.is_empty() {
@@ -514,14 +515,8 @@ pub(crate) fn CompactReceiptGroup(
             <ul class="receipt-compact-list">
                 {cards
                     .into_iter()
-                    .enumerate()
-                    .map(|(index, card)| view! {
-                        <CompactReceiptRow
-                            tab=tab
-                            card=card
-                            detail_id=format!("{id_prefix}-detail-{index}")
-                            expanded_ids=expanded_ids
-                        />
+                    .map(|card| view! {
+                        <CompactReceiptRow tab=tab card=card />
                     })
                     .collect_view()}
             </ul>
