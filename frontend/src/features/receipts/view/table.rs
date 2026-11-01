@@ -279,6 +279,7 @@ pub fn ReceiptTable(
                                                     .iter()
                                                     .zip(labels.iter())
                                                     .map(|(value, label)| {
+                                                        let is_profit = is_profit_label(tab, label);
                                                         let negative = is_negative_labeled_value(
                                                             tab, label, value,
                                                         );
@@ -289,17 +290,17 @@ pub fn ReceiptTable(
                                                             signed_text_for_profit(tab, label, value);
                                                         let bold = compact_mobile
                                                             && *label == AFTER_TAX;
-                                                        let profit_class = if negative {
+                                                        let profit_class = if !is_profit || negative {
                                                             ""
                                                         } else if positive {
                                                             " text-positive"
                                                         } else {
-                                                            ""
+                                                            " text-text-soft"
                                                         };
                                                         view! {
                                                             <td
                                                                 class=format!(
-                                                                    "col-num whitespace-nowrap{}{}{top}",
+                                                                    "col-num whitespace-nowrap {}{}{top}",
                                                                     if compact_mobile { "receipts-table-group" } else { "bg-surface-raised text-text font-semibold" },
                                                                     if bold {
                                                                         format!(" font-bold{profit_class}")
@@ -382,8 +383,9 @@ pub fn ReceiptTable(
                                                                                 }
                                                                             } else if positive {
                                                                                 " text-positive"
-                                                                            } else if compact_mobile
-                                                                                && matches!(header, "入金日" | "約定日" | "数量" | "税額")
+                                                                            } else if is_profit
+                                                                                || (compact_mobile
+                                                                                    && matches!(header, "入金日" | "約定日" | "数量" | "税額"))
                                                                             {
                                                                                 " text-text-soft"
                                                                             } else {

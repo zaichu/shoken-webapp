@@ -1,6 +1,6 @@
 use crate::features::asset_balance::format::{
     format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation, is_positive_valuation,
+    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
@@ -59,8 +59,8 @@ pub fn HoldingsList(
                         is_negative_valuation(valuation.profit_loss.amount);
                     let pnl_positive =
                         is_positive_valuation(valuation.profit_loss.amount);
-                    let rate_negative = is_negative_valuation(valuation.profit_loss.rate);
-                    let rate_positive = is_positive_valuation(valuation.profit_loss.rate);
+                    let rate_negative = is_negative_rate(valuation.profit_loss.rate);
+                    let rate_positive = is_positive_rate(valuation.profit_loss.rate);
                     let day_text =
                         format_signed_row_valuation_amount(view.day_change);
                     let day_negative = is_negative_valuation(view.day_change);

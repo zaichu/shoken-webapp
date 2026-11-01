@@ -7,7 +7,8 @@ use crate::api::dto::{AssetBalance, AssetBalanceSummary, FundBalance};
 use crate::features::asset_balance::{
     LoadedAssetBalances, LoadedFundBalances, dec_to_f64, format_signed_row_valuation_amount,
     format_signed_valuation_amount, format_signed_valuation_rate, format_valuation_amount,
-    is_negative_valuation, is_positive_valuation, summary_valuation,
+    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
+    summary_valuation,
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
@@ -930,10 +931,10 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
     let positive = is_positive_valuation(Some(holding.profit_loss));
     let rate_negative = holding
         .rate
-        .is_some_and(|rate| is_negative_valuation(Some(rate)));
+        .is_some_and(|rate| is_negative_rate(Some(rate)));
     let rate_positive = holding
         .rate
-        .is_some_and(|rate| is_positive_valuation(Some(rate)));
+        .is_some_and(|rate| is_positive_rate(Some(rate)));
     let label = if holding.code.is_empty() {
         holding.name.clone()
     } else {

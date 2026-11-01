@@ -20,21 +20,43 @@ pub(crate) fn is_profit_label(tab: ReceiptsTab, label: &str) -> bool {
     tab != ReceiptsTab::Dividend && matches!(label, REALIZED_PROFIT_LOSS | AFTER_TAX)
 }
 
-pub(crate) fn is_negative_text(value: &str) -> bool {
-    let normalized: String = value
+fn stripped_amount_text(value: &str) -> String {
+    let without_symbols: String = value
         .trim()
         .chars()
         .filter(|c| !matches!(c, '¥' | '￥' | '$' | '€' | '£' | ',') && !c.is_whitespace())
         .collect();
+    // 表示単位(円/千円/万円)を除く。長い接尾辞から剥がす
+    for suffix in ["千円", "万円", "円"] {
+        if let Some(stripped) = without_symbols.strip_suffix(suffix) {
+            return stripped.to_string();
+        }
+    }
+    without_symbols
+}
+
+fn valid_amount_digits(normalized: &str) -> bool {
     let digits = normalized
         .strip_prefix('-')
         .or_else(|| normalized.strip_prefix('+'))
-        .unwrap_or(normalized.as_str());
-    let valid = !digits.is_empty()
+        .unwrap_or(normalized);
+    !digits.is_empty()
         && digits
             .split('.')
-            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()));
-    valid && normalized.parse::<f64>().is_ok_and(|n| n < 0.0)
+            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+}
+
+pub(crate) fn is_negative_text(value: &str) -> bool {
+    let normalized = stripped_amount_text(value);
+    if !valid_amount_digits(&normalized) {
+        return false;
+    }
+    match normalized.parse::<f64>() {
+        // 「-¥0」のような真のゼロは負としないが、小数部を持つ -0.0 は
+        // 丸め前の符号を残した表示なので負とする
+        Ok(n) => n < 0.0 || (n == 0.0 && normalized.starts_with('-') && normalized.contains('.')),
+        Err(_) => false,
+    }
 }
 
 pub(crate) fn is_negative_labeled_value(tab: ReceiptsTab, label: &str, value: &str) -> bool {
@@ -42,20 +64,11 @@ pub(crate) fn is_negative_labeled_value(tab: ReceiptsTab, label: &str, value: &s
 }
 
 pub(crate) fn is_positive_text(value: &str) -> bool {
-    let normalized: String = value
-        .trim()
-        .chars()
-        .filter(|c| !matches!(c, '¥' | '￥' | '$' | '€' | '£' | ',') && !c.is_whitespace())
-        .collect();
-    let digits = normalized
-        .strip_prefix('-')
-        .or_else(|| normalized.strip_prefix('+'))
-        .unwrap_or(normalized.as_str());
-    let valid = !digits.is_empty()
-        && digits
-            .split('.')
-            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()));
-    valid && normalized.parse::<f64>().is_ok_and(|n| n > 0.0)
+    let normalized = stripped_amount_text(value);
+    if !valid_amount_digits(&normalized) {
+        return false;
+    }
+    normalized.parse::<f64>().is_ok_and(|n| n > 0.0)
 }
 
 pub(crate) fn is_positive_labeled_value(tab: ReceiptsTab, label: &str, value: &str) -> bool {
@@ -81,6 +94,7 @@ pub(crate) enum CardDetailValue {
         text: String,
         negative: bool,
         positive: bool,
+        is_profit: bool,
     },
     CopyName {
         display: String,
@@ -135,6 +149,7 @@ pub(crate) fn card_detail_value(
             CardDetailValue::Text {
                 negative: is_negative_labeled_value(tab, label, &raw),
                 positive: is_positive_labeled_value(tab, label, &raw),
+                is_profit: is_profit_label(tab, label),
                 text,
             }
         }
@@ -183,10 +198,11 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
             text,
             negative,
             positive,
+            is_profit,
         } => (
             view! {
                 <Amount
-                    kind=if *negative || *positive {
+                    kind=if *is_profit {
                         AmountKind::Delta
                     } else {
                         AmountKind::Plain
@@ -247,6 +263,7 @@ fn compact_value(details: &[CardDetail], label: &str) -> (String, bool, bool) {
                 text,
                 negative,
                 positive,
+                ..
             } => (text.clone(), *negative, *positive),
             CardDetailValue::CopyName { display, .. } => (display.clone(), false, false),
         })

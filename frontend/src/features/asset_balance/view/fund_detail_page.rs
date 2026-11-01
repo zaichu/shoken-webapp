@@ -2,11 +2,11 @@ use super::use_asset_balance_state;
 use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::format::{
     format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation,
+    is_negative_valuation, is_positive_valuation,
 };
 use crate::features::asset_balance::fund::fund_view;
 use crate::session::use_session;
-use crate::ui::amount::Amount;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::format::{format_currency, format_iso_date, format_number_value};
 use crate::ui::labels::{
@@ -127,6 +127,8 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                         format_signed_valuation_rate(view.profit_loss_rate, 1);
                                     let pnl_negative =
                                         is_negative_valuation(Some(view.profit_loss));
+                                    let pnl_positive =
+                                        is_positive_valuation(Some(view.profit_loss));
                                     let day_text = if view.nav_pending() {
                                         PENDING_UPDATE.to_string()
                                     } else {
@@ -187,9 +189,11 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                     <dt class="text-text-muted">{VALUATION_PROFIT_LOSS}</dt>
                                                     <dd>
                                                         <Amount
+                                                            kind=AmountKind::Delta
                                                             class="tabular-nums"
                                                             text=pnl_text
                                                             negative=pnl_negative
+                                                            positive=pnl_positive
                                                         />
                                                         <span class="ml-1 text-xs text-text-muted tabular-nums">
                                                             {pnl_rate_text}

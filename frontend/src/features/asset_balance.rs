@@ -13,8 +13,8 @@ mod view;
 pub(crate) use csv::{CSV_CHUNKING, IMPORT_PATH, LIST_PATH, PREVIEW_PATH};
 pub(crate) use format::{
     dec_to_f64, format_signed_row_valuation_amount, format_signed_valuation_amount,
-    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
-    is_positive_valuation,
+    format_signed_valuation_rate, format_valuation_amount, is_negative_rate, is_negative_valuation,
+    is_positive_rate, is_positive_valuation,
 };
 pub(crate) use fund::{FUND_CSV_CHUNKING, FUND_IMPORT_PATH, FUND_LIST_PATH, FUND_PREVIEW_PATH};
 pub(crate) use lookup::{fetch_single_asset_balance, find_by_code};

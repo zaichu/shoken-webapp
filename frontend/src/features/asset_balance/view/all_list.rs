@@ -4,7 +4,7 @@ use super::day_change::{day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
     format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation, is_positive_valuation,
+    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
 };
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::holdings::{
@@ -183,8 +183,8 @@ pub fn AssetMergedTable(
                                     format_signed_valuation_rate(row.rate, 1);
                                 let pnl_negative = is_negative_valuation(row.profit);
                                 let pnl_positive = is_positive_valuation(row.profit);
-                                let rate_negative = is_negative_valuation(row.rate);
-                                let rate_positive = is_positive_valuation(row.rate);
+                                let rate_negative = is_negative_rate(row.rate);
+                                let rate_positive = is_positive_rate(row.rate);
                                 let outlier_date = if row.date_outlier {
                                     row.price_as_of.clone()
                                 } else {
@@ -300,8 +300,8 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                     let rate_text = format_signed_valuation_rate(row.rate, 1);
                     let pnl_negative = is_negative_valuation(row.profit);
                     let pnl_positive = is_positive_valuation(row.profit);
-                    let rate_negative = is_negative_valuation(row.rate);
-                    let rate_positive = is_positive_valuation(row.rate);
+                    let rate_negative = is_negative_rate(row.rate);
+                    let rate_positive = is_positive_rate(row.rate);
                     let meta = if row.sub.is_empty() {
                         row.kind.to_string()
                     } else {
