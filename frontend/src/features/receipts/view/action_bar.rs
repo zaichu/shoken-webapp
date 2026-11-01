@@ -746,13 +746,18 @@ fn ReceiptDialogFields(
     let search_callback = Callback::new(move |_| on_search());
     let date_label = move || receipt_date_label(tab.get());
     let period_value = Memo::new(move |_| {
-        draft.with(|s| {
-            if s.date_all || s.selected_queries.date.is_empty() {
+        let date = draft.with(|s| {
+            if s.date_all {
                 String::new()
             } else {
                 s.selected_queries.date.clone()
             }
-        })
+        });
+        if date.is_empty() {
+            return String::new();
+        }
+        let is_year = years.get().into_iter().any(|item| item.value == date);
+        if is_year { date } else { String::new() }
     });
     let account_value = Memo::new(move |_| draft.with(|s| s.selected_queries.accounts.clone()));
     let product_value = Memo::new(move |_| draft.with(|s| s.selected_queries.products.clone()));
