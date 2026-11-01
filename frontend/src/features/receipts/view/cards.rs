@@ -287,14 +287,13 @@ fn CompactReceiptRow(
         account,
         details,
     } = card;
-    let labels = tab.summary_labels();
     let aux_detail = match tab {
         ReceiptsTab::Dividend => DIVIDEND_AMOUNT,
         ReceiptsTab::DomesticStock => SELLING_AMOUNT,
         ReceiptsTab::MutualFund => REDEMPTION_AMOUNT,
     };
     let (aux_value, _, _) = compact_value(&details, aux_detail);
-    let (_, hero_value, hero_negative, hero_positive, hero_is_profit) = match tab {
+    let (hero_label, hero_value, hero_negative, hero_positive, hero_is_profit) = match tab {
         ReceiptsTab::Dividend => {
             let (value, negative, positive) = compact_value(&details, AFTER_TAX);
             (AFTER_TAX, value, negative, positive, false)
@@ -309,9 +308,8 @@ fn CompactReceiptRow(
     } else {
         AmountKind::Plain
     };
-    let _ = labels;
-    // 行に出している項目は詳細に重複して出さない(数量は詳細に回す)
-    let shown = [aux_detail, AFTER_TAX, REALIZED_PROFIT_LOSS];
+    // 行に出している項目だけ詳細から除き、税引後など残りは詳細に残す
+    let shown = [aux_detail, hero_label];
     let rest: Vec<CardDetail> = details
         .iter()
         .filter(|detail| !shown.contains(&detail.label.as_str()))
