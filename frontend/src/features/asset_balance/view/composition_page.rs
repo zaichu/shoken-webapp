@@ -19,6 +19,7 @@ use crate::ui::labels::{
     composition_kinds, composition_total,
 };
 use crate::ui::page_frame::PageFrame;
+use crate::ui::page_skeleton::SkeletonNote;
 use crate::ui::segmented::Segmented;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index};
@@ -402,9 +403,10 @@ fn CompositionMobile(
                     CompositionGroup::Account => composition_accounts(entries.len()),
                 };
                 view! {
-                    <p class="comp-note" data-testid="asset-composition-note">
-                        {composition_basis_note(current_basis.label(), &format_amount(total))}
-                    </p>
+                    <SkeletonNote note=composition_basis_note(
+                        current_basis.label(),
+                        &format_amount(total),
+                    ) />
                     {if total <= 0.0 {
                         view! {
                             <div class="comp-empty">"算出不可"</div>

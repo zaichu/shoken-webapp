@@ -10,6 +10,7 @@ use crate::features::asset_balance::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::account_display_name;
 use crate::ui::format::date_parts;
+use crate::ui::labels;
 use rust_decimal::Decimal;
 use shared::tax::TAX_RATE;
 
@@ -85,6 +86,33 @@ pub(crate) fn merged_daily_change(
         (Some(stock), Some(fund)) => Some(stock + fund),
         (stock, fund) => stock.or(fund),
     }
+}
+
+/// ホーム帯の時点。株と投信を合わせ、最も古い日を出す(嘘の新しさを見せない)。
+/// 価格なし株は時点と結びつかないため除く
+pub(crate) fn oldest_home_as_of(stocks: &[AssetBalance], funds: &[FundBalance]) -> Option<String> {
+    let mut dates: Vec<String> = stocks
+        .iter()
+        .filter(|row| row.current_price > Decimal::ZERO)
+        .filter_map(|row| row.price_as_of.clone())
+        .map(|date| date.to_string())
+        .collect();
+    dates.extend(funds.iter().map(|row| row.price_as_of.to_string()));
+    dates.sort();
+    dates.first().map(|date| labels::price_as_of(date))
+}
+
+/// ホーム帯の更新待ち。価格なし株か最新の基準価額でない投信があれば true
+pub(crate) fn home_has_pending(
+    stocks: &[AssetBalance],
+    funds: &[FundBalance],
+    stock_summary: Option<&AssetBalanceSummary>,
+) -> bool {
+    let stock_pending = match stock_summary {
+        Some(summary) if !stocks.is_empty() => summary.has_missing_daily_change,
+        _ => stocks.iter().any(|row| row.current_price <= Decimal::ZERO),
+    };
+    stock_pending || funds.iter().any(|row| !row.nav_is_latest)
 }
 
 /// 年間予想配当(税引前)と取得額に対する率。資産管理の KPI と同じく

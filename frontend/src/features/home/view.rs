@@ -29,6 +29,7 @@ use crate::ui::labels::{
 use crate::ui::list_row::ListRow;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
+use crate::ui::page_skeleton::{SkeletonNote, SkeletonSummary};
 use crate::ui::row_detail_sheet::{RowDetailSheet, SheetItem};
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
 use crate::ui::summary::{
@@ -124,9 +125,7 @@ pub fn HomePage() -> impl IntoView {
     });
     view! {
         <PageFrame title="ホーム" full_bleed=true links=links>
-            <div class="page-gutter flex flex-1 flex-col pb-4">
-                <HomeDashboard data=data />
-            </div>
+            <HomeDashboard data=data />
         </PageFrame>
     }
 }
@@ -185,31 +184,40 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
             when=move || session.user.get().is_some()
             fallback=|| view! { <LoginPrompt class="mx-auto w-full max-w-md" /> }
         >
-            <p
-                class="text-xs font-medium text-text-muted"
-                role="status"
-                aria-live="polite"
-            >
-                {move || {
-                    let (_, _, _, _, _, _, generation) = snapshot();
-                    let any_failed = data.fetch_state.with(|map| {
-                        store::refresh_failed(map, generation)
-                    });
-                    any_failed.then(|| {
-                        view! {
-                            <span class="mt-1 block">"一部の集計を取得できませんでした。"</span>
-                        }
-                    })
-                }}
-            </p>
-            <SummaryBand data=data />
-            <div class="home-card-row home-card-row-dividend">
-                <DividendCard data=data />
-                <CompositionCard data=data />
+            <div class="page-gutter">
+                <p
+                    class="text-xs font-medium text-text-muted"
+                    role="status"
+                    aria-live="polite"
+                >
+                    {move || {
+                        let (_, _, _, _, _, _, generation) = snapshot();
+                        let any_failed = data.fetch_state.with(|map| {
+                            store::refresh_failed(map, generation)
+                        });
+                        any_failed.then(|| {
+                            view! {
+                                <span class="mt-1 block">"一部の集計を取得できませんでした。"</span>
+                            }
+                        })
+                    }}
+                </p>
             </div>
-            <div class="home-card-row">
-                <RecentDividendsCard data=data />
-                <PnlRankingCard data=data />
+            <div class="content-gutter lg:mt-3">
+                <SkeletonSummary>
+                    <SummaryBand data=data />
+                </SkeletonSummary>
+                <SkeletonNote />
+            </div>
+            <div class="page-gutter flex flex-1 flex-col pb-4">
+                <div class="home-card-row home-card-row-dividend">
+                    <DividendCard data=data />
+                    <CompositionCard data=data />
+                </div>
+                <div class="home-card-row">
+                    <RecentDividendsCard data=data />
+                    <PnlRankingCard data=data />
+                </div>
             </div>
         </Show>
     }
@@ -227,7 +235,7 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
     };
     view! {
         <section
-            class="summary-band home-summary"
+            class="summary-band"
             role="region"
             aria-label="資産の概要"
             aria-busy=move || {
@@ -243,8 +251,8 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
             {move || {
                 let (assets, funds, estimates) = state();
                 let loading = assets.is_none() || funds.is_none();
-                let (merged, daily) = if loading {
-                    (None, None)
+                let (merged, daily, as_of, pending) = if loading {
+                    (None, None, String::new(), false)
                 } else {
                     let stock_summary = assets.as_ref().and_then(|slot| {
                         slot.as_ref().map(|loaded| {
@@ -269,7 +277,16 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
                         stock_summary.as_ref(),
                         fund_summary.as_ref(),
                     );
-                    (merged, daily)
+                    let stock_rows = stocks_of(&assets).unwrap_or(&[]);
+                    let fund_rows = funds_of(&funds).unwrap_or(&[]);
+                    let as_of = model::oldest_home_as_of(stock_rows, fund_rows)
+                        .unwrap_or_default();
+                    let pending = model::home_has_pending(
+                        stock_rows,
+                        fund_rows,
+                        stock_summary.as_ref(),
+                    );
+                    (merged, daily, as_of, pending)
                 };
                 view! {
                     <BandTiles
@@ -278,6 +295,8 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
                         estimates=estimates
                         stocks=stocks_of(&assets).unwrap_or(&[]).to_vec()
                         loading=loading
+                        as_of=as_of
+                        show_pending=pending
                     />
                 }
             }}
@@ -298,6 +317,8 @@ fn BandTiles(
     estimates: Option<Option<DividendMaps>>,
     stocks: Vec<AssetBalance>,
     loading: bool,
+    #[prop(optional, into)] as_of: String,
+    #[prop(optional)] show_pending: bool,
 ) -> impl IntoView {
     let market_value = merged
         .as_ref()
@@ -368,6 +389,8 @@ fn BandTiles(
         <UiSummaryBand
             primary_label=MARKET_VALUE
             primary_value=market_text
+            primary_as_of=as_of
+            show_pending=show_pending
             aux_label=VALUATION_PROFIT_LOSS
             aux_value=profit_text
             aux_rate=profit_rate
