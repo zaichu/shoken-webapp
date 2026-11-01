@@ -15,8 +15,8 @@ use crate::ui::format::{
 };
 use crate::ui::labels::{
     ACCOUNT, ACQUISITION_BASIS_YIELD, ANNUAL_DIVIDEND_REFERENCE, AVERAGE_PRICE, CURRENT_PRICE,
-    MARKET_VALUE, MISSING, PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY, TOTAL_ACQUISITION,
-    VALUATION_PROFIT_LOSS,
+    DAY_CHANGE, MARKET_VALUE, MISSING, PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY,
+    TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::page_frame::PageFrame;
 use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
@@ -141,6 +141,13 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                     let average_price_text = format_currency(holding_view.average_price);
                                     let purchase_text = format_currency(holding_view.purchase);
                                     let current_price_text = format_currency(holding_view.current_price);
+                                    let day_text = format_signed_row_valuation_amount(
+                                        holding_view.day_change,
+                                    );
+                                    let day_negative =
+                                        is_negative_valuation(holding_view.day_change);
+                                    let day_positive =
+                                        is_positive_valuation(holding_view.day_change);
                                     let price_as_of = holding_view.price_as_of.clone();
                                     view! {
                                         <div class="asset-panel">
@@ -157,6 +164,18 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                     <dt class="text-text-muted">{CURRENT_PRICE}</dt>
                                                     <dd class="tabular-nums text-text">
                                                         {current_price_text}
+                                                    </dd>
+                                                </div>
+                                                <div class="flex justify-between px-4 py-3">
+                                                    <dt class="text-text-muted">{DAY_CHANGE}</dt>
+                                                    <dd>
+                                                        <Amount
+                                                            kind=AmountKind::Delta
+                                                            class="tabular-nums"
+                                                            text=day_text
+                                                            negative=day_negative
+                                                            positive=day_positive
+                                                        />
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">

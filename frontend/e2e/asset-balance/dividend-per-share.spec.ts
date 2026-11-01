@@ -154,7 +154,7 @@ test('国内株式の表に1株配当の列があり、1株配当と年間配当
   await expect(kpi).toContainText('¥12,500');
 });
 
-test('スマホの行は年間配当の隣に1株配当を出す', async ({ page }) => {
+test('スマホの行は2行で配当を出さず詳細で1株配当を見せる', async ({ page }) => {
   await setupMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
@@ -163,15 +163,22 @@ test('スマホの行は年間配当の隣に1株配当を出す', async ({ page
   const row = page.getByTestId('asset-compact-row').filter({ hasText: '架空自動車' });
   await expect(row).toBeVisible();
 
-  // 配当で並べたときだけ行に配当を出す
+  // 配当で並べても行は2行のまま(配当・現在値・前日比は行に出さない)
   await page.getByTestId('asset-search-sheet-entry').click();
   const sheet = page.getByTestId('asset-search-sheet');
   await sheet.getByRole('button', { name: '年間配当' }).click();
   await sheet.getByRole('button', { name: '適用する' }).click();
   await expect(sheet).toBeHidden();
-  await expect(row).toContainText('1株 ¥90');
-  // 年間配当(1株配当×数量)も一緒に出る
-  await expect(row).toContainText('¥9,000');
+  await expect(row).not.toContainText('1株 ¥90');
+  await expect(row).not.toContainText('¥9,000');
+  await expect(row).toContainText('架空自動車');
+  await expect(row).toContainText('100株');
+
+  // 行を押すと詳細に1株配当が出る
+  await row.getByRole('link').first().click();
+  await expect(page).toHaveURL('/assetbalance/holdings/asset-balance-1');
+  await expect(page.getByText('1株配当')).toBeVisible();
+  await expect(page.getByText('¥90')).toBeVisible();
 });
 
 test('「すべて」タブの株式行にも1株配当が出る', async ({ page }) => {

@@ -246,20 +246,12 @@ fn StockContent(
                 <div class="lg:hidden print:hidden">
                     {move || {
                         let views = filtered_views.get();
-                        let key = sort_key.get();
-                        let order = sorted_views(&views, &dividends.get(), key, sort_order.get());
+                        let order = sorted_views(&views, &dividends.get(), sort_key.get(), sort_order.get());
                         let sorted: Vec<_> = order
                             .into_iter()
                             .map(|index| views[index].clone())
                             .collect();
-                        let show_dividend = matches!(key, SortKey::Dividend | SortKey::Yield);
-                        view! {
-                            <HoldingsList
-                                views=sorted
-                                dividends=dividends
-                                show_dividend=show_dividend
-                            />
-                        }
+                        view! { <HoldingsList views=sorted /> }
                     }}
                 </div>
             </div>

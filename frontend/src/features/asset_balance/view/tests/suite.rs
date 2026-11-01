@@ -1300,3 +1300,93 @@ fn merged_subtitle_shows_only_the_count() {
         assert!(!subtitle.contains("更新待ち"), "{subtitle}");
     });
 }
+
+#[test]
+fn unified_row_quantity_keeps_stock_and_fund_units_separate() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let stock = super::all_list::unified_from_stock(
+            &holding_view(&balance_row(9904)),
+            &DividendMaps::default(),
+        );
+        assert!(
+            stock.quantity_text.ends_with("株"),
+            "{}",
+            stock.quantity_text
+        );
+        assert!(
+            !stock.quantity_text.ends_with("口"),
+            "株と口を混同しない: {}",
+            stock.quantity_text
+        );
+
+        let fund =
+            super::all_list::unified_from_fund(&crate::features::asset_balance::fund::FundView {
+                id: Some("fund-1".to_string()),
+                name: "ファンドA".to_string(),
+                account: "特定".to_string(),
+                course: None,
+                shares: 10000.0,
+                average_purchase_price: 10000.0,
+                purchase: 100000.0,
+                base_price: 11000.0,
+                base_price_day_change: Some(50.0),
+                base_price_month_change: None,
+                market_value: 110000.0,
+                profit_loss: 10000.0,
+                profit_loss_rate: Some(10.0),
+                total_return: None,
+                price_as_of: Some("2026-10-19".to_string()),
+                price_source: crate::api::dto::FundPriceSource::Api,
+                is_nav_latest: true,
+                expected_nav_date: None,
+            });
+        assert!(fund.quantity_text.ends_with("口"), "{}", fund.quantity_text);
+        assert!(
+            !fund.quantity_text.ends_with("株"),
+            "株と口を混同しない: {}",
+            fund.quantity_text
+        );
+    });
+}
+
+#[test]
+fn stock_daily_change_total_skips_rows_without_previous_close() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let mut with_change = balance_row(9904);
+        with_change.daily_change = rust_decimal_macros::dec!(50);
+        with_change.prev_close = Some(rust_decimal_macros::dec!(2550));
+        let mut without_change = balance_row(9914);
+        without_change.daily_change = rust_decimal_macros::dec!(30);
+        without_change.prev_close = None;
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        lookup.update(|store| {
+            store.seed(
+                Generation::new(1),
+                &[with_change.clone(), without_change.clone()],
+            )
+        });
+        let rows: Vec<AssetBalanceRow> = vec![with_change, without_change]
+            .into_iter()
+            .map(Row::Saved)
+            .collect();
+        let views =
+            filtered_portfolio_views(&rows, &AssetSearch::default(), lookup, Generation::new(1));
+        assert_eq!(views.len(), 2);
+        let changed = views
+            .iter()
+            .find(|view| view.code == "9904")
+            .expect("with change");
+        let missing = views
+            .iter()
+            .find(|view| view.code == "9914")
+            .expect("without change");
+        assert_eq!(changed.day_change, Some(50.0));
+        assert_eq!(missing.day_change, None);
+        assert_eq!(
+            crate::features::asset_balance::holdings::stock_daily_change_total(&views),
+            Some(50.0 * 100.0)
+        );
+    });
+}
