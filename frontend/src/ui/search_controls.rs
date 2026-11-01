@@ -91,6 +91,9 @@ pub fn SearchTextInput(
     disabled: Option<Signal<bool>>,
     value: impl Fn() -> String + Copy + 'static + Send + Sync,
     on_input: impl Fn(String) + Copy + 'static + Send + Sync,
+    /// キーワードで Enter を押したとき。IME 変換中は呼ばない
+    #[prop(optional)]
+    on_enter: Option<Callback<()>>,
 ) -> impl IntoView {
     view! {
         <input
@@ -104,6 +107,15 @@ pub fn SearchTextInput(
             data-testid=move || testid.unwrap_or("")
             prop:value=value
             on:input=move |ev| on_input(event_target_value(&ev))
+            on:keydown=move |event: web_sys::KeyboardEvent| {
+                if event.key() == "Enter"
+                    && !event.is_composing()
+                    && let Some(on_enter) = on_enter
+                {
+                    event.prevent_default();
+                    on_enter.run(());
+                }
+            }
         />
     }
 }

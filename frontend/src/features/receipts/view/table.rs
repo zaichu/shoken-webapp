@@ -67,9 +67,11 @@ pub fn ReceiptTable(
     query: String,
     expanded_ids: RwSignal<HashSet<String>>,
     #[prop(optional)] compact_mobile: bool,
+    #[prop(optional)] sort_order: Option<crate::features::receipts::filter::ReceiptSortOrder>,
 ) -> impl IntoView {
     let columns = tab.columns();
-    let groups: Vec<TableGroup> = tab.table_groups(&rows, &all_rows, &query);
+    let order = sort_order.unwrap_or_default();
+    let groups: Vec<TableGroup> = tab.table_groups(&rows, &all_rows, &query, order);
     let order = column_order(tab, &rows, &query);
     let promoted = promoted_column(tab, &rows, &query);
     let fields = tab.card_fields();

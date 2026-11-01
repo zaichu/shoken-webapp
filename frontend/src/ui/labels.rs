@@ -148,16 +148,24 @@ pub const ACCOUNT_BUTTON: &str = "アカウント";
 pub const SEARCH: &str = "検索";
 /// スマホの検索・並べ替えの入口とシートの見出し
 pub const SEARCH_AND_SORT: &str = "検索・並べ替え";
-/// シートで下書きを一覧に反映するボタン
-pub const SHEET_APPLY: &str = "適用する";
 /// シートの下書きと適用中の条件を消すボタン
 pub const SHEET_CLEAR: &str = "クリア";
+/// ダイアログの変更を捨てて閉じるボタン
+pub const DIALOG_CLOSE: &str = "閉じる";
+/// 並べ替えの対象の見出し
+pub const SORT_TARGET: &str = "並べ替え対象";
+/// 並べ替えの順序の見出し
+pub const SORT_ORDER_LABEL: &str = "順序";
 /// 並べ替えの向き(シートの選択肢)
 pub const SORT_HIGH_TO_LOW: &str = "高い順";
 /// 並べ替えの向き(シートの選択肢)
 pub const SORT_LOW_TO_HIGH: &str = "低い順";
 /// 並べ替えの向き(取引明細の日付)
 pub const SORT_NEWEST_FIRST: &str = "新しい順";
+/// 並べ替えの向き(取引明細の日付)
+pub const SORT_OLDEST_FIRST: &str = "古い順";
+/// ダイアログのキーワード入力の補足
+pub const SEARCH_DIALOG_HINT: &str = "銘柄名・コード・口座で検索";
 /// 絞り込み中の表示(注記の行に出す)
 pub const FILTERING: &str = "絞り込み中";
 /// 検索を実行しているときのボタン名
