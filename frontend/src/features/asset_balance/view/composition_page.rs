@@ -157,25 +157,32 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                         }
                         _ => None,
                     });
+                    let fund_error = funds.with(|slot| match slot {
+                        Some((cached, Err(message))) if *cached == generation => {
+                            Some(message.clone())
+                        }
+                        _ => None,
+                    });
                     let view = resolved();
-                    if let Some(message) = list_error {
+                    let fund_resolved = resolved_funds();
+                    if let Some(message) = list_error.or(fund_error) {
                         return view! { <ListLoadError message=message on_retry=reload /> }
                             .into_any();
                     }
-                    match view {
-                        None => view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any(),
-                        Some(view) => {
+                    match (view, fund_resolved) {
+                        (None, _) | (_, None) => view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any(),
+                        (Some(view), Some(fund_data)) => {
                             let generation = session.generation.get();
                             let views = all_portfolio_views(
                                 &view.rows,
                                 lookup,
                                 generation,
                             );
-                            let fund_views: Vec<FundView> = resolved_funds()
-                                .map(|resolved| {
-                                    resolved.rows.iter().map(fund_view).collect()
-                                })
-                                .unwrap_or_default();
+                            let fund_views: Vec<FundView> = fund_data
+                                .rows
+                                .iter()
+                                .map(fund_view)
+                                .collect();
                             if views.is_empty() && fund_views.is_empty() {
                                 return view! {
                                     <div class="asset-panel-padded">
