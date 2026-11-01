@@ -108,6 +108,9 @@ pub fn SummaryBand(
     #[prop(into)] primary_label: String,
     #[prop(into)] primary_value: String,
     #[prop(optional)] primary_negative: bool,
+    /// スマホ主値の正色用。PCは変更前の配色(負のみ赤)を保つため使わない
+    #[prop(optional)]
+    primary_positive: bool,
     /// 補助1行(ホーム・資産管理の評価損益と率。取引明細はなし)
     #[prop(optional, into)]
     aux_label: String,
@@ -135,7 +138,13 @@ pub fn SummaryBand(
     } else {
         ""
     };
-    let primary_tone_class = if primary_negative { "summary-loss" } else { "" };
+    let primary_tone_class = if primary_negative {
+        "summary-loss"
+    } else if primary_positive {
+        "summary-gain"
+    } else {
+        ""
+    };
     let label_open = "内訳を開く".to_string();
     let label_close = "内訳を閉じる".to_string();
     view! {

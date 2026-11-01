@@ -106,12 +106,13 @@ pub fn SummaryStrip(
         .zip(marks)
         .map(|(item, profit)| to_breakdown(item, profit))
         .collect();
-    let (primary_label, primary_value, primary_negative) = primary
+    let (primary_label, primary_value, primary_negative, primary_positive) = primary
         .map(|(label, value, tone)| {
             (
                 label.to_string(),
                 format_signed(value, primary_mark),
                 tone == StatTone::Loss,
+                primary_mark && value > Decimal::ZERO,
             )
         })
         .unwrap_or_default();
@@ -126,6 +127,7 @@ pub fn SummaryStrip(
                 primary_label=primary_label
                 primary_value=primary_value
                 primary_negative=primary_negative
+                primary_positive=primary_positive
                 pc_items=pc_items
                 breakdown=breakdown
                 testid_band="kpi-grid"

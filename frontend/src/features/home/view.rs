@@ -257,6 +257,7 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
                     });
                     let daily = model::merged_daily_change(
                         stock_summary.as_ref(),
+                        stocks_of(&assets).is_some_and(|rows| !rows.is_empty()),
                         fund_summary.as_ref(),
                     );
                     let merged = model::merged_asset_summary(

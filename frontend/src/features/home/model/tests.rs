@@ -116,7 +116,10 @@ fn merged_daily_change_treats_missing_fund_nav_as_unknown() {
         nav_status: shared::domain::FundNavStatus::default(),
     };
     // 取得件数が0なら投信分は欠測。株式分だけ出す
-    assert_eq!(merged_daily_change(Some(&stock), Some(&no_nav)), Some(30.0));
+    assert_eq!(
+        merged_daily_change(Some(&stock), true, Some(&no_nav)),
+        Some(30.0)
+    );
     let with_nav = FundBalanceSummary {
         total_market_value: dec!(300_000),
         total_purchase_amount: dec!(250_000),
@@ -126,12 +129,21 @@ fn merged_daily_change_treats_missing_fund_nav_as_unknown() {
         nav_status: shared::domain::FundNavStatus::default(),
     };
     assert_eq!(
-        merged_daily_change(Some(&stock), Some(&with_nav)),
+        merged_daily_change(Some(&stock), true, Some(&with_nav)),
         Some(50.0)
     );
+    // 株式0件の正常応答(ゼロ集計)は欠測扱い。投信も欠測なら全体も欠測
+    let empty_stock = AssetBalanceSummary {
+        total_daily_change: dec!(0),
+        ..stock
+    };
+    assert_eq!(
+        merged_daily_change(Some(&empty_stock), false, Some(&no_nav)),
+        None
+    );
     // 株式がなく投信も欠測なら全体も欠測
-    assert_eq!(merged_daily_change(None, Some(&no_nav)), None);
-    assert_eq!(merged_daily_change(None, None), None);
+    assert_eq!(merged_daily_change(None, false, Some(&no_nav)), None);
+    assert_eq!(merged_daily_change(None, false, None), None);
 }
 
 #[test]
