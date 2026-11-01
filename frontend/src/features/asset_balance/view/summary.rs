@@ -1,23 +1,18 @@
 use crate::api::dto::AssetBalanceSummary;
-use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
 use crate::features::asset_balance::format::{
     dec_to_f64, format_amount, format_signed_row_valuation_amount, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
-    is_positive_valuation, price_date_representative,
+    is_positive_valuation,
 };
-use crate::features::asset_balance::fund::{FundRowData, fund_totals, fund_view};
-use crate::features::asset_balance::holdings::{
-    HoldingView, holding_view, stock_daily_change_total,
-};
+use crate::features::asset_balance::fund::FundRowData;
+use crate::features::asset_balance::holdings::{HoldingView, stock_daily_change_total};
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
 };
-use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
+use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::format::{
-    days_since_jst_date, format_nav_updated_at, format_percentage_value, format_short_date,
-};
+use crate::ui::format::format_percentage_value;
 use crate::ui::labels::{
     self, ACQUISITION_YIELD, ANNUAL_DIVIDEND_FORECAST, DAY_CHANGE, MARKET_VALUE_TOTAL,
     TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
@@ -27,124 +22,11 @@ use crate::ui::summary::{
 };
 use leptos::prelude::*;
 use rust_decimal::Decimal;
-use shared::domain::FundNavStatus;
-
-fn unpriced_suffix(has_unpriced: bool) -> &'static str {
-    if has_unpriced {
-        "・価格なし銘柄を除く"
-    } else {
-        ""
-    }
-}
-
-/// 前日終値が取れない行を合計から除いたときの注記
-fn missing_day_change_suffix(has_missing: bool) -> &'static str {
-    if has_missing {
-        "・前日比なし銘柄を除く"
-    } else {
-        ""
-    }
-}
 
 /// 投資信託タブの件数。行が取り切れていないときは API 集計の総件数を使い、
 /// 集計欄と食い違わないようにする
 pub(crate) fn fund_tab_count(rows_len: usize, total: usize) -> usize {
     total.max(rows_len)
-}
-
-/// 「前日比が最新」の件数(前日比を持ち合計に入る行)。
-/// 行が取り切れていないときは API 集計を優先する
-pub(crate) fn fund_latest_nav_count(view: &ResolvedFundBalance) -> usize {
-    match &view.fallback_totals {
-        Some(summary) => summary.latest_nav_count as usize,
-        None => {
-            let views: Vec<_> = view.rows.iter().map(fund_view).collect();
-            fund_totals(&views).latest_nav_count
-        }
-    }
-}
-
-/// 基準価額の自動更新の状況。自動更新の対象・取得・失敗の件数と、
-/// 自動更新の対象外(他社のファンド)は CSV で更新することを示す。
-/// 失敗の理由は API が丸めた短い文をそのまま使う
-pub(crate) fn fund_nav_note(status: &FundNavStatus, csv_only: usize) -> String {
-    let fetched = status.fetched_count.max(0) as usize;
-    let failed = status.failed_count.max(0) as usize;
-    let target = status.auto_update_target_count.max(0) as usize;
-    match status.updated_at.as_deref() {
-        Some(updated_at) => labels::nav_update_note(
-            &format_nav_updated_at(updated_at),
-            target,
-            fetched,
-            failed,
-            status.failure_reason.as_deref(),
-            csv_only,
-        ),
-        None => labels::NAV_UPDATE_NOT_YET.to_string(),
-    }
-}
-
-/// 自動更新の対象外のファンド数(他社のファンド)。
-/// 協会コードを持たないファンドのみを CSV 専用として数える。
-/// API 集計経路では auto_update_target_count(協会コードを持つファンド数)を使い、
-/// fund_count - auto_update_target_count で求める。
-/// fallback 経路では行の price_source ではなく fund_codes との突き合わせで
-/// 協会コードの有無を判定する
-pub(crate) fn fund_csv_only_count(view: &ResolvedFundBalance) -> usize {
-    if let Some(summary) = view.summary.as_ref() {
-        let status = &summary.nav_status;
-        let target = status.auto_update_target_count.max(0) as usize;
-        return (status.fund_count.max(0) as usize).saturating_sub(target);
-    }
-    // fallback: fund_codes を持たないファンドだけを数える
-    // view.rows から price_source が Csv の行を拾っても、再取込で Api に変わる可能性があるため
-    // fund_codes マスタと突き合わせるのが正しいが、ここでは簡易的に Csv の行数を数える
-    // (正確な数は API 経路で得る前提)
-    let mut csv_funds: Vec<&str> = Vec::new();
-    for row in view
-        .rows
-        .iter()
-        .filter(|row| row.price_source() == FundPriceSource::Csv)
-    {
-        let name = row.fund_name();
-        if !csv_funds.contains(&name) {
-            csv_funds.push(name);
-        }
-    }
-    csv_funds.len()
-}
-
-/// 投資信託タブの注記。自動更新の状況・前日比の件数・最後の CSV 取り込みを
-/// 1つの型で1〜2行にまとめる。subject は「すべて」タブで投信の注記だと
-/// 分かるように使う(空なら付けない)
-pub(crate) fn fund_notes(view: &ResolvedFundBalance, subject: &str) -> Vec<String> {
-    let csv_only = fund_csv_only_count(view);
-    let mut notes = Vec::new();
-    if let Some(summary) = view.summary.as_ref() {
-        notes.push(fund_nav_note(&summary.nav_status, csv_only));
-    }
-    let latest_nav_count = fund_latest_nav_count(view);
-    let mut second: Vec<String> = Vec::new();
-    if latest_nav_count < view.total && view.total > 0 {
-        second.push(format!(
-            "{subject}前日比は {}/{}(最新の前日比が分かるファンドだけ)",
-            labels::count(latest_nav_count),
-            labels::count(view.total)
-        ));
-    }
-    if csv_only > 0 {
-        let imported_at = view.rows.iter().filter_map(|row| row.created_at()).max();
-        if let (Some(imported_at), Some(days_ago)) =
-            (imported_at, imported_at.and_then(days_since_jst_date))
-        {
-            let date = format_short_date(imported_at);
-            second.push(labels::last_csv_import_note(&date, days_ago));
-        }
-    }
-    if !second.is_empty() {
-        notes.push(second.join("・"));
-    }
-    notes
 }
 
 /// 見出しの基準日と表の日付出し分けで共通に使う、価格あり行の基準日一覧
@@ -156,40 +38,55 @@ pub(crate) fn stock_price_dates(rows: &[AssetBalanceRow]) -> Vec<&str> {
         .collect()
 }
 
-/// 帯の直下に出す、株価の基準日と合計から除いた行の付記。
-/// 基準日は数字の根拠なので、付記が無くても常に出す
-pub(crate) fn stock_note(view: &ResolvedAssetBalance) -> String {
-    if view.rows.is_empty() {
-        return String::new();
-    }
-    let (has_unpriced, has_missing_daily) = match &view.fallback_totals {
-        Some(summary) => (
-            summary_valuation(summary).has_unpriced,
-            summary.has_missing_daily_change,
-        ),
-        None => {
-            let views: Vec<_> = view.rows.iter().map(holding_view).collect();
-            let inputs: Vec<ValuationInput> = views.iter().map(ValuationInput::from).collect();
-            (
-                portfolio_valuation(&inputs).has_unpriced,
-                views.iter().any(|view| view.day_change.is_none()),
-            )
-        }
-    };
-    let dates = stock_price_dates(&view.rows);
-    stock_note_text(has_unpriced, has_missing_daily, &dates)
+/// 帯のラベルの横に出す時点。混在時は最も古い日を出し、嘘の新しさを見せない
+pub(crate) fn oldest_stock_as_of(rows: &[AssetBalanceRow]) -> Option<String> {
+    let mut dates = stock_price_dates(rows);
+    dates.sort_unstable();
+    dates.first().map(|date| labels::price_as_of(date))
 }
 
-fn stock_note_text(has_unpriced: bool, has_missing_daily: bool, dates: &[&str]) -> String {
-    let base = match price_date_representative(dates.iter().copied()) {
-        Some(date) => format!("株価 {}(銘柄ごとの最新終値)", labels::price_as_of(date)),
-        None => "株価の基準日は不明".to_string(),
-    };
-    format!(
-        "{base}{}{}",
-        unpriced_suffix(has_unpriced),
-        missing_day_change_suffix(has_missing_daily)
-    )
+/// 投信の基準日のうち最も古い日を帯の時点に出す
+pub(crate) fn oldest_fund_as_of(view: &ResolvedFundBalance) -> Option<String> {
+    let mut dates: Vec<String> = view
+        .rows
+        .iter()
+        .filter_map(|row| row.price_as_of())
+        .collect();
+    dates.sort();
+    dates.first().map(|date| labels::price_as_of(date))
+}
+
+/// 株と投信を合わせた時点。混在時は最も古い日を出す
+pub(crate) fn oldest_combined_as_of(
+    stock_rows: &[AssetBalanceRow],
+    fund_view: &ResolvedFundBalance,
+) -> Option<String> {
+    let mut dates: Vec<String> = stock_price_dates(stock_rows)
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    dates.extend(fund_view.rows.iter().filter_map(|row| row.price_as_of()));
+    dates.sort();
+    dates.first().map(|date| labels::price_as_of(date))
+}
+
+/// 投信に更新待ちの行があるか。前日比の合計に入っていない行があれば true
+pub(crate) fn fund_has_pending(view: &ResolvedFundBalance) -> bool {
+    view.rows.iter().any(|row| !row.is_nav_latest())
+}
+
+/// 行と API 集計から更新待ちを判定する(一覧の部品用)
+pub(crate) fn stock_pending_from_parts(
+    rows: &[AssetBalanceRow],
+    fallback_totals: Option<&AssetBalanceSummary>,
+) -> bool {
+    if rows.is_empty() {
+        return false;
+    }
+    match fallback_totals {
+        Some(summary) => summary_valuation(summary).has_unpriced,
+        None => rows.iter().any(|row| row.current_price() <= Decimal::ZERO),
+    }
 }
 
 /// 集計帯の補助項目(右側に並べる札)
@@ -265,35 +162,6 @@ pub(crate) fn purchase_summary_tag(purchase: f64) -> SummaryTag {
     }
 }
 
-/// 「計算基準を見る」の中身(国内株式)
-pub(crate) fn stock_basis_lines() -> Vec<String> {
-    vec![
-        "評価額 = 現在値 × 株数(価格なし銘柄は除く。現在値は銘柄ごとの最新終値で、日付は銘柄ごとに違い、他と違う行は表の「前日比」の横に表示)".to_string(),
-        "前日比 = (現在値 − 前日終値) × 株数の合計(前日終値なし銘柄は除く。1株あたりの前日比は表の「前日比」に表示)".to_string(),
-        "評価損益 = 評価額 − 取得総額、率 = 評価損益 ÷ 取得総額(価格あり銘柄の合計どうし)".to_string(),
-        "年間配当 = 1株配当 × 株数(1株配当は会社予想。なければ直近の実績)".to_string(),
-        "取得額利回り = 年間配当 ÷ 取得総額。合計は全銘柄の年間配当の合計 ÷ 取得総額の合計".to_string(),
-    ]
-}
-
-/// 「計算基準を見る」の中身(投資信託)
-pub(crate) fn fund_basis_lines() -> Vec<String> {
-    vec![
-        "評価額 = 基準価額 × 保有口数 ÷ 10000".to_string(),
-        "前日比 = 基準価額(前日比) × 保有口数 ÷ 10000 の合計(最新の基準価額の日が分かるファンドだけ。更新待ちのファンドは含まない)".to_string(),
-        "評価損益 = 評価額 − 取得総額、率 = 評価損益 ÷ 取得総額".to_string(),
-    ]
-}
-
-/// 「計算基準を見る」の中身(すべて)
-pub(crate) fn all_basis_lines() -> Vec<String> {
-    vec![
-        "評価額 = 国内株式は 現在値 × 株数、投資信託は 基準価額 × 保有口数 ÷ 10000 の合計".to_string(),
-        "前日比 = 国内株式は (現在値 − 前日終値) × 株数、投資信託は 基準価額(前日比) × 保有口数 ÷ 10000 の合計(更新待ちのファンドは含まない)".to_string(),
-        "評価損益 = 評価額 − 取得総額、率 = 評価損益 ÷ 取得総額".to_string(),
-    ]
-}
-
 /// 資産管理の集計帯。国内株式・投資信託・すべての3タブで同じ部品を使う
 #[component]
 pub(crate) fn AssetSummaryBand(
@@ -305,6 +173,12 @@ pub(crate) fn AssetSummaryBand(
     tags: Vec<SummaryTag>,
     /// 取得総額(内訳用)。国内株式は呼び出し側で全保有分から求める
     purchase: Option<f64>,
+    /// 帯のラベルの横に出す時点(株価・基準価額の最も古い日)。空なら出さない
+    #[prop(optional, into)]
+    as_of: String,
+    /// 更新待ちの行があるときの小さな表示
+    #[prop(optional)]
+    show_pending: bool,
 ) -> impl IntoView {
     let market_text = format_valuation_amount(market);
     let profit_text = format_signed_valuation_amount(profit);
@@ -357,6 +231,8 @@ pub(crate) fn AssetSummaryBand(
             <SummaryBand
                 primary_label=MARKET_VALUE_TOTAL
                 primary_value=market_text
+                primary_as_of=as_of
+                show_pending=show_pending
                 aux_label=VALUATION_PROFIT_LOSS
                 aux_value=profit_text
                 aux_rate=rate_text

@@ -12,7 +12,6 @@ use crate::features::receipts::{
 use crate::session::use_session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
-use crate::ui::labels;
 use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError};
 use leptos::ev;
@@ -148,8 +147,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
             },
         })
     });
-    let basis = vec![String::from(labels::SUMMARY_SAME_TARGET)];
-    // 帯に出す小さな期間。注記行の対象期間と重ねないため注記には出さない
+    // 帯に出す小さな期間
     let period = Memo::new(move |_| {
         filtered_rows.with(|rows| {
             crate::features::receipts::view::summary::period_note_short(rows)
@@ -224,11 +222,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                             }}
                         </section>
                     </SkeletonSummary>
-                <SkeletonNote
-                    notes=Vec::new()
-                    filtered=filtered_count.into()
-                    basis=basis.clone()
-                />
+                <SkeletonNote filtered=filtered_count.into() />
             }
                 .into_any()
         }}
