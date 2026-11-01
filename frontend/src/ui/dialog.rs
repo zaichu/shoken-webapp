@@ -14,7 +14,6 @@ pub fn DialogShell(
     let key_close = on_close.clone();
     let dialog_title = title.clone();
     let panel_testid = testid.unwrap_or("search-dialog");
-    let backdrop_testid = format!("{panel_testid}-backdrop");
     Effect::new(move |_| {
         let (body_overflow, previous_focus) = web_sys::window()
             .and_then(|window| window.document())
@@ -53,7 +52,7 @@ pub fn DialogShell(
         <div class="search-dialog-root">
             <div
                 class="search-dialog-backdrop"
-                data-testid=backdrop_testid
+                data-testid="search-dialog-backdrop"
                 on:click=move |_| overlay_close()
             />
             <div

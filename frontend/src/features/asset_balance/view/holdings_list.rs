@@ -184,7 +184,7 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                                 aria_haspopup="dialog"
                                 on_click=move |_| open.set(true)
                             >
-                                <span class="asset-compact-button-inner">{inner}</span>
+                                <span class="receipt-compact-button-inner">{inner}</span>
                             </Button>
                             <Show when=move || open.get()>
                                 <DetailDialog
