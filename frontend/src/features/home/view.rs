@@ -19,11 +19,16 @@ use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{
     format_currency, format_integer_percent, format_latest_import_date, format_short_date,
 };
-use crate::ui::labels::{ANNUAL_EXPECTED_DIVIDEND, MARKET_VALUE, MISSING, VALUATION_PROFIT_LOSS};
+use crate::ui::labels::{
+    ANNUAL_EXPECTED_DIVIDEND, DAY_CHANGE, MARKET_VALUE, MISSING, TOTAL_ACQUISITION,
+    VALUATION_PROFIT_LOSS,
+};
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
-use crate::ui::summary::{SummaryItem, SummarySize, SummaryTone};
+use crate::ui::summary::{
+    SummaryBand as UiSummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
+};
 use leptos::prelude::*;
 
 // 内訳チャートの塗り色。ドーナツのグラデーションは CSS 変数、棒・凡例は同じ色の
@@ -233,8 +238,8 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
             {move || {
                 let (assets, funds, estimates) = state();
                 let loading = assets.is_none() || funds.is_none();
-                let merged = if loading {
-                    None
+                let (merged, daily) = if loading {
+                    (None, None)
                 } else {
                     let stock_summary = assets.as_ref().and_then(|slot| {
                         slot.as_ref().map(|loaded| {
@@ -250,11 +255,21 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
                             })
                         })
                     });
-                    model::merged_asset_summary(stock_summary.as_ref(), fund_summary.as_ref())
+                    let daily = model::merged_daily_change(
+                        stock_summary.as_ref(),
+                        stocks_of(&assets).is_some_and(|rows| !rows.is_empty()),
+                        fund_summary.as_ref(),
+                    );
+                    let merged = model::merged_asset_summary(
+                        stock_summary.as_ref(),
+                        fund_summary.as_ref(),
+                    );
+                    (merged, daily)
                 };
                 view! {
                     <BandTiles
                         merged=merged
+                        daily=daily
                         estimates=estimates
                         stocks=stocks_of(&assets).unwrap_or(&[]).to_vec()
                         loading=loading
@@ -265,33 +280,34 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
     }
 }
 
+fn daily_rate_text(market: Option<f64>, daily: Option<f64>) -> String {
+    daily_rate(market, daily)
+        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
+        .unwrap_or_default()
+}
+
 #[component]
 fn BandTiles(
     merged: Option<AssetBalanceSummary>,
+    daily: Option<f64>,
     estimates: Option<Option<DividendMaps>>,
     stocks: Vec<AssetBalance>,
     loading: bool,
 ) -> impl IntoView {
+    let market_value = merged
+        .as_ref()
+        .map(|summary| dec_to_f64(&summary.total_market_value));
     let market_text = if loading {
         MISSING.to_string()
     } else {
-        format_valuation_amount(
-            merged
-                .as_ref()
-                .map(|summary| dec_to_f64(&summary.total_market_value)),
-        )
+        format_valuation_amount(market_value)
     };
     let valuation = merged.as_ref().map(summary_valuation);
     let pnl_amount = valuation
         .as_ref()
         .and_then(|valuation| valuation.profit_loss.amount);
-    let pnl_tone = if is_negative_valuation(pnl_amount) {
-        SummaryTone::Loss
-    } else if is_positive_valuation(pnl_amount) {
-        SummaryTone::Gain
-    } else {
-        SummaryTone::Neutral
-    };
+    let pnl_negative = is_negative_valuation(pnl_amount);
+    let pnl_positive = is_positive_valuation(pnl_amount);
     let profit_text = if loading {
         MISSING.to_string()
     } else {
@@ -303,7 +319,29 @@ fn BandTiles(
     let profit_rate = valuation
         .as_ref()
         .and_then(|valuation| valuation.profit_loss.rate)
-        .map(|rate| format_signed_valuation_rate(Some(rate), 1));
+        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
+        .unwrap_or_default();
+    let daily_value = daily;
+    let daily_text = if loading {
+        MISSING.to_string()
+    } else {
+        format_signed_row_valuation_amount(daily_value)
+    };
+    let daily_rate = if loading {
+        String::new()
+    } else {
+        daily_rate_text(market_value, daily_value)
+    };
+    let daily_negative = is_negative_valuation(daily_value);
+    let daily_positive = is_positive_valuation(daily_value);
+    let purchase_value = merged
+        .as_ref()
+        .map(|summary| dec_to_f64(&summary.total_purchase_amount));
+    let purchase_text = if loading {
+        MISSING.to_string()
+    } else {
+        format_valuation_amount(purchase_value)
+    };
     let estimates_pending = estimates.is_none();
     let maps = estimates.as_ref().and_then(|slot| slot.as_ref());
     let kpi = maps.map(|maps| model::annual_dividend_forecast(&stocks, maps));
@@ -317,40 +355,53 @@ fn BandTiles(
                 |amount| format_valuation_amount(Some(amount)),
             )
     };
-    let estimate_note = match (maps, kpi.as_ref().and_then(|k| k.dividend_yield)) {
-        (Some(maps), None) if model::has_pending_estimate(maps) => {
-            Some("予想を取得中です".to_string())
-        }
-        _ => None,
+    let estimate_pending_text = match (maps, kpi.as_ref().and_then(|k| k.dividend_yield)) {
+        (Some(maps), None) if model::has_pending_estimate(maps) => "予想を取得中です".to_string(),
+        _ => String::new(),
     };
     view! {
-        <div class="summary-band-grid">
-            <dl class="summary-band-group summary-band-group-main">
-                <SummaryItem
-                    label=MARKET_VALUE
-                    value=market_text
-                    size=SummarySize::Primary
-                />
-                <SummaryItem
-                    label=VALUATION_PROFIT_LOSS
-                    value=profit_text
-                    size=SummarySize::Secondary
-                    note=profit_rate.unwrap_or_default()
-                    tone=pnl_tone
-                    extra_class="summary-band-item-pnl"
-                />
-            </dl>
-            <div class="summary-band-group summary-band-group-sub">
-                <dl class="summary-band-items">
-                    <SummaryItem
-                        label=ANNUAL_EXPECTED_DIVIDEND
-                        value=dividend_text
-                        size=SummarySize::Secondary
-                        status=estimate_note.unwrap_or_default()
-                    />
-                </dl>
-            </div>
-        </div>
+        <UiSummaryBand
+            primary_label=MARKET_VALUE
+            primary_value=market_text
+            aux_label=VALUATION_PROFIT_LOSS
+            aux_value=profit_text
+            aux_rate=profit_rate
+            aux_negative=pnl_negative
+            aux_positive=pnl_positive
+            pc_items=vec![
+                SummarySubItem {
+                    label: ANNUAL_EXPECTED_DIVIDEND.to_string(),
+                    value: dividend_text.clone(),
+                    note: String::new(),
+                    tone: SummaryTone::Neutral,
+                    extra_class: String::new(),
+                },
+            ]
+            breakdown=vec![
+                SummaryBreakdownEntry {
+                    label: DAY_CHANGE.to_string(),
+                    value: daily_text,
+                    negative: daily_negative,
+                    positive: daily_positive,
+                    rate: daily_rate,
+                },
+                SummaryBreakdownEntry {
+                    label: ANNUAL_EXPECTED_DIVIDEND.to_string(),
+                    value: dividend_text,
+                    negative: false,
+                    positive: false,
+                    rate: estimate_pending_text,
+                },
+                SummaryBreakdownEntry {
+                    label: TOTAL_ACQUISITION.to_string(),
+                    value: purchase_text,
+                    negative: false,
+                    positive: false,
+                    rate: String::new(),
+                },
+            ]
+            testid_toggle="summary-details-toggle"
+        />
     }
 }
 

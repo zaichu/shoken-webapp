@@ -154,15 +154,27 @@ fn StockContent(
     let filtered_count = filtered_count(search, search_count);
     // 集計は絞り込み前の全保有分で求める(検索中も全件のまま)
     let summary = Memo::new(move |_| {
-        all_views
-            .with(|views| stock_summary_values(views, fallback_totals.as_ref(), &dividends.get()))
+        let (values, tags) = all_views
+            .with(|views| stock_summary_values(views, fallback_totals.as_ref(), &dividends.get()));
+        let purchase = fallback_totals
+            .as_ref()
+            .map(|summary| {
+                crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount)
+            })
+            .or_else(|| {
+                all_views.with(|views| {
+                    let total: f64 = views.iter().map(|view| view.purchase).sum();
+                    Some(total)
+                })
+            });
+        (values, tags, purchase)
     });
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
         <section id="assetbalance-stock-list" hidden=empty>
             {move || {
                 (!empty).then(|| {
-                    let (values, tags) = summary.get();
+                    let (values, tags, purchase) = summary.get();
                     view! {
                         <SkeletonSummary>
                             <AssetSummaryBand
@@ -171,6 +183,7 @@ fn StockContent(
                                 profit_rate=values.profit_rate
                                 daily_change=values.daily_change
                                 tags=tags
+                                purchase=purchase
                                 composition_link=true
                             />
                         </SkeletonSummary>
@@ -310,6 +323,7 @@ fn FundContent(
                     profit_rate=profit_rate
                     daily_change=daily
                     tags=vec![purchase_summary_tag(purchase)]
+                    purchase=Some(purchase)
                     composition_link=false
                 />
             </SkeletonSummary>
@@ -499,6 +513,7 @@ fn AllContent(
                     profit_rate=profit_rate
                     daily_change=daily
                     tags=vec![purchase_summary_tag(purchase)]
+                    purchase=Some(purchase)
                     composition_link=false
                 />
             </SkeletonSummary>
