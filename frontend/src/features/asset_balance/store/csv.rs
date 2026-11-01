@@ -372,13 +372,9 @@ impl AssetBalanceCsvStore {
 #[derive(Clone)]
 pub(crate) struct ResolvedRows<R, S> {
     pub(crate) rows: Vec<R>,
-    /// API が返した総件数。行が欠ける(truncated)とき rows.len とは一致しない
-    pub(crate) total: usize,
     pub(crate) warning: Option<String>,
     /// 取得上限超過で行が欠けるときの API 集計。行が揃う通常時は None
     pub(crate) fallback_totals: Option<S>,
-    /// API 集計(常に取れる)。行に依らない情報(自動更新の状況など)に使う
-    pub(crate) summary: Option<S>,
 }
 
 pub(crate) type ResolvedFundBalance =
@@ -420,21 +416,17 @@ fn resolve_balance<T: Clone, S: Clone>(
     Some(match result {
         Err(_) => ResolvedRows {
             rows: Vec::new(),
-            total: 0,
             warning: None,
             fallback_totals: None,
-            summary: None,
         },
         Ok(loaded) => ResolvedRows {
             rows: loaded.rows.iter().cloned().map(Row::Saved).collect(),
-            total: loaded.total,
             warning: loaded.truncated.then(truncated_list_warning),
             fallback_totals: if loaded.truncated {
                 loaded.summary.clone()
             } else {
                 None
             },
-            summary: loaded.summary.clone(),
         },
     })
 }

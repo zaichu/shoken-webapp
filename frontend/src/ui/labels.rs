@@ -310,56 +310,13 @@ pub fn price_as_of(date: &str) -> String {
     format!("{} 時点", format_price_date(date))
 }
 
-/// 絞り込み中の件数(注記の行に出す「絞り込み中(4件 / 77件)」)
+/// 絞り込み中の件数(「絞り込み中(4件 / 77件)」)
 pub fn filtering_count(filtered: usize, total: usize) -> String {
     format!("{FILTERING}({} / {})", count(filtered), count(total))
 }
 
-/// 基準価額の自動更新の注記。自動更新の対象件数・取得件数・失敗件数と、
-/// 自動更新の対象外のファンド(他社のファンド)は CSV で更新することを示す
-pub fn nav_update_note(
-    // 自動更新の時刻("10/22 20:00")
-    updated_at: &str,
-    // 自動更新の対象のファンド数
-    target: usize,
-    // 取得できたファンド数
-    fetched: usize,
-    // 取得できなかったファンド数
-    failed: usize,
-    // 失敗の理由
-    failure_reason: Option<&str>,
-    // 自動更新の対象外のファンド数
-    csv_only: usize,
-) -> String {
-    let mut counts = format!("対象 {}(取得 {}", count(target), count(fetched));
-    if failed > 0 {
-        counts.push_str(&format!("・失敗 {}", count(failed)));
-        if let Some(reason) = failure_reason {
-            counts.push_str(&format!(": {reason}"));
-        }
-    }
-    counts.push(')');
-    format!(
-        "自動更新 {updated_at}・{counts}・他社のファンド {}は CSV で更新",
-        count(csv_only)
-    )
-}
-
-/// 基準価額の自動更新がまだ走っていないときの注記
-pub const NAV_UPDATE_NOT_YET: &str = "自動更新: まだ取得されていません";
-
-/// 最後の CSV 取り込みの注記。「N日前」は暦日の差
-pub fn last_csv_import_note(date: &str, days_ago: i64) -> String {
-    if days_ago <= 0 {
-        format!("最後の CSV 取り込み: {date}(今日)")
-    } else {
-        format!("最後の CSV 取り込み: {date}({days_ago}日前)")
-    }
-}
-
-/// 集計は一覧と同じ対象であることの注記
-pub const SUMMARY_SAME_TARGET: &str =
-    "集計は一覧と同じ対象です(検索・条件で絞り込むと集計も変わります)";
+/// 一部の基準価額・株価が最新でないときの小さな表示(帯のラベルの横に出す)
+pub const PARTIAL_PENDING_UPDATE: &str = "一部更新待ち";
 
 /// CSV管理: 取得カードの見出し
 pub const CSV_MANAGE_FETCH_TITLE: &str = "楽天証券から最新のデータを取得";

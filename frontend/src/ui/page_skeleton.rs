@@ -31,48 +31,30 @@ pub fn SkeletonSummary(children: Children) -> impl IntoView {
     }
 }
 
-/// 注記の行。帯の直下に置く。注記の右端に「計算基準を見る」を置く
+/// 注記の行。帯の直下に置く。絞り込み中だけ件数を出す(通常時は行自体を出さない)
 #[component]
 pub fn SkeletonNote(
-    /// 注記の文
-    #[prop(into)]
-    notes: Vec<String>,
     /// 絞り込み中の表示。条件が無いときは出さない
     #[prop(optional)]
     filtered: Option<Signal<FilteredCount>>,
-    /// 「計算基準を見る」で出す説明
-    #[prop(into, optional)]
-    basis: Vec<String>,
 ) -> impl IntoView {
+    let show = move || {
+        filtered
+            .as_ref()
+            .map(|signal| signal.get())
+            .filter(|count| count.filtering)
+            .map(|count| labels::filtering_count(count.filtered, count.total))
+    };
     view! {
-        <div class="page-skeleton-note">
-            <div class="page-skeleton-note-body">
-                {notes
-                    .into_iter()
-                    .filter(|line| !line.is_empty())
-                    .map(|line| view! { <p>{line}</p> })
-                    .collect_view()}
-                {move || {
-                    filtered
-                        .as_ref()
-                        .map(|signal| signal.get())
-                        .filter(|count| count.filtering)
-                        .map(|count| {
-                            let text = labels::filtering_count(count.filtered, count.total);
-                            view! { <p data-testid="page-filtering-count">{text}</p> }
-                        })
-                }}
-            </div>
-            <details class="page-skeleton-basis">
-                <summary>"計算基準を見る"</summary>
-                <div class="page-skeleton-basis-body">
-                    {basis
-                        .into_iter()
-                        .map(|line| view! { <p>{line}</p> })
-                        .collect_view()}
+        {move || {
+            show().map(|text| view! {
+                <div class="page-skeleton-note">
+                    <div class="page-skeleton-note-body">
+                        <p data-testid="page-filtering-count">{text}</p>
+                    </div>
                 </div>
-            </details>
-        </div>
+            })
+        }}
     }
 }
 

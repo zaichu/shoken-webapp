@@ -235,22 +235,12 @@ test('前日比は最新の基準価額の変動だけを出し、タブと件�
   await expect(header).toHaveAttribute('title', /最新の基準価額の日の前日比/);
   await expect(header).toHaveAttribute('abbr', /最新の基準価額の日の前日比/);
 
-  // 合計の前日比は最新の行だけの合計(更新待ちの -60円は入らない)
-  const note = page.getByText(/前日比は \d+件\/\d+件\(最新の前日比が分かるファンドだけ\)/);
-  await expect(note).toBeVisible();
-
-  // 注記は帯の直下にあり、表の末尾までスクロールしなくても読める
-  const band = await page.getByTestId('asset-portfolio-summary').boundingBox();
-  const noteBox = await note.boundingBox();
-  const tableBox = await table.boundingBox();
-  expect(band).not.toBeNull();
-  expect(noteBox).not.toBeNull();
-  expect(tableBox).not.toBeNull();
-  if (!band || !noteBox || !tableBox) {
-    return;
-  }
-  expect(noteBox.y).toBeGreaterThan(band.y + band.height - 1);
-  expect(noteBox.y + noteBox.height).toBeLessThanOrEqual(tableBox.y + 1);
+  // 合計の前日比は最新の行だけの合計(更新待ちの -60円は入らない)。
+  // 注記行は出さず、時点と更新待ちだけを帯のラベル横に出す
+  await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
+  const bandText = page.getByTestId('asset-portfolio-summary');
+  await expect(bandText).toContainText('01/01 時点');
+  await expect(bandText).toContainText('一部更新待ち');
 
   // 「すべて」タブでも更新待ちの行は前日比を出さない
   await page.getByTestId('asset-kind-tab-all').click();
@@ -267,10 +257,10 @@ test('前日比は最新の基準価額の変動だけを出し、タブと件�
   await expect(page.getByText(/前日比が最新/)).toHaveCount(0);
   await expect(page.getByText(/更新待ち \d件/)).toHaveCount(0);
 
-  // 「すべて」タブも、合計から投信の行を除外する注記を PC で帯の近くに見せる
-  await expect(
-    page.getByText(/投資信託の前日比は \d+件\/\d+件/),
-  ).toBeVisible();
+  // 「すべて」タブも、時点と更新待ちを帯のラベル横に出す
+  const allBand = page.getByTestId('asset-portfolio-summary');
+  await expect(allBand).toContainText('01/01 時点');
+  await expect(allBand).toContainText('一部更新待ち');
 
   // 「すべて」タブでも投信の行は前日比の横に基準日を出さない
   const mergedLatest = merged.getByRole('row', { name: /架空バランスファンドA号/ });

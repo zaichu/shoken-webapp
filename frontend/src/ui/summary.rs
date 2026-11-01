@@ -51,6 +51,9 @@ pub fn SummaryItem(
     /// 数字の横に小さく出す補足(読み込み中など)
     #[prop(optional)]
     status: String,
+    /// ラベルの横に小さく出す補足(基準日・更新待ちなど)。空なら出さない
+    #[prop(optional, into)]
+    label_note: String,
     #[prop(optional)] tone: SummaryTone,
     /// 項目ごとに付けたいクラス
     #[prop(optional, into)]
@@ -67,7 +70,11 @@ pub fn SummaryItem(
     };
     view! {
         <div class=format!("summary-item {extra_class}")>
-            <dt class="summary-label">{label}</dt>
+            <dt class="summary-label">
+                {label}
+                {(!label_note.is_empty())
+                    .then(|| view! { <span class="summary-label-note">{label_note.clone()}</span> })}
+            </dt>
             <dd class=format!("summary-value {size_class} {tone_class}")>
                 <Amount text=value />
                 {(!note.is_empty())
@@ -129,11 +136,27 @@ pub fn SummaryBand(
     /// スマホの縦リスト(初期は閉)
     #[prop(optional, into)]
     breakdown: Vec<SummaryBreakdownEntry>,
+    /// 主ラベルの横に小さく出す基準日(「10/20 時点」。空なら出さない)
+    #[prop(optional, into)]
+    primary_as_of: String,
+    /// 基準日が古い行・更新待ちの行があるときの小さな表示
+    #[prop(optional)]
+    show_pending: bool,
     #[prop(optional)] testid_band: Option<&'static str>,
     testid_toggle: &'static str,
 ) -> impl IntoView {
     let expanded = RwSignal::new(false);
     let controls_id = format!("{}-breakdown", testid_band.unwrap_or("summary"));
+    let as_of_note = {
+        let mut text = primary_as_of.clone();
+        if show_pending {
+            if !text.is_empty() {
+                text.push('・');
+            }
+            text.push_str(crate::ui::labels::PARTIAL_PENDING_UPDATE);
+        }
+        text
+    };
     let has_breakdown = !breakdown.is_empty();
     let has_aux = !aux_label.is_empty();
     let aux_tone_class = if aux_negative {
@@ -163,6 +186,7 @@ pub fn SummaryBand(
                         label=primary_label.clone()
                         value=primary_value.clone()
                         size=SummarySize::Primary
+                        label_note=as_of_note.clone()
                         tone=if primary_negative {
                             SummaryTone::Loss
                         } else {
@@ -225,9 +249,14 @@ pub fn SummaryBand(
                                 }}
                             </span>
                             <span class="summary-band-label">{primary_label.clone()}</span>
-                            {(!primary_sub.is_empty())
+                            {(!primary_sub.is_empty() || !as_of_note.is_empty())
                                 .then(|| view! {
-                                    <span class="summary-band-sub">{primary_sub.clone()}</span>
+                                    <span class="summary-band-sub">
+                                        {primary_sub.clone()}
+                                        {(!primary_sub.is_empty() && !as_of_note.is_empty())
+                                            .then_some("・")}
+                                        {as_of_note.clone()}
+                                    </span>
                                 })}
                             <span class="summary-band-hero-row">
                                 <span class=format!(

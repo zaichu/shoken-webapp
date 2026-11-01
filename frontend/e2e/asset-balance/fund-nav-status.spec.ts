@@ -32,7 +32,11 @@ const ROUTES = {
   dividendPerShareBatch: /\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/,
 };
 
-async function setupMocks(page: Page, navStatus: Record<string, unknown>) {
+async function setupMocks(
+  page: Page,
+  navStatus: Record<string, unknown>,
+  rows = FUND_ROWS,
+) {
   await mockSession(page);
   await page.route(ROUTES.dividendPerShareBatch, (route) =>
     route.fulfill(json({ items: [] })),
@@ -41,7 +45,7 @@ async function setupMocks(page: Page, navStatus: Record<string, unknown>) {
     route.fulfill(json({ data: [], total: 0, page: 1, per_page: 0 })),
   );
   await page.route(ROUTES.fundBalances, (route) => {
-    const data = FUND_ROWS.map((row) => ({ ...row }));
+    const data = rows.map((row) => ({ ...row }));
     return route.fulfill(
       json({
         data,
@@ -67,7 +71,9 @@ async function openFundTab(page: Page) {
   await expect(page.getByTestId('asset-fund-table')).toBeVisible();
 }
 
-test('基準価額の自動更新: 取得できたときは時刻と対象・取得件数を出す', async ({ page }) => {
+test('帯の下の注記は出さず、基準日の時点だけを帯のラベル横に出す', async ({
+  page,
+}) => {
   await setupMocks(page, {
     updated_at: '2026-10-20 23:02',
     fetched_count: 2,
@@ -78,45 +84,42 @@ test('基準価額の自動更新: 取得できたときは時刻と対象・取
   });
   await openFundTab(page);
 
-  const note = page.locator('.page-skeleton-note');
-  await expect(note).toBeVisible();
-  await expect(note).toContainText('自動更新 10/20 23:02');
-  await expect(note).toContainText('対象 2件');
-  await expect(note).toContainText('取得 2件');
-  await expect(note).not.toContainText('失敗');
+  // 注記行は出さない(詳細は CSV 管理に任せる)
+  await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
+  // 『計算基準を見る』は全ページから削除
+  await expect(page.getByText('計算基準を見る')).toHaveCount(0);
+  // 時点だけは帯のラベル横に小さく残す(数字を嘘にしない)
+  const band = page.getByTestId('asset-portfolio-summary');
+  await expect(band).toContainText('01/05 時点');
 });
 
-test('基準価額の自動更新: 取得できなかったときは失敗件数と理由を出す', async ({ page }) => {
-  await setupMocks(page, {
-    updated_at: '2026-10-20 23:02',
-    fetched_count: 0,
-    failed_count: 2,
-    fund_count: 2,
-    auto_update_target_count: 2,
-    failure_reason: 'HTTP 403',
-  });
+test('更新待ちのファンドがあるときは帯に一部更新待ちを出す', async ({
+  page,
+}) => {
+  const stale = FUND_ROWS.map((row) => ({
+    ...row,
+    nav_is_latest: false,
+    expected_nav_date: '2026-01-06',
+  }));
+  await setupMocks(
+    page,
+    {
+      updated_at: '2026-10-20 23:02',
+      fetched_count: 0,
+      failed_count: 2,
+      fund_count: 2,
+      auto_update_target_count: 2,
+      failure_reason: 'HTTP 403',
+    },
+    stale,
+  );
   await openFundTab(page);
 
-  const note = page.locator('.page-skeleton-note');
-  await expect(note).toBeVisible();
-  await expect(note).toContainText('自動更新 10/20 23:02');
-  await expect(note).toContainText('失敗 2件');
-  await expect(note).toContainText('HTTP 403');
-});
-
-test('基準価額の自動更新: まだ取得されていないときは件数を出さない', async ({ page }) => {
-  await setupMocks(page, {
-    updated_at: null,
-    fetched_count: 0,
-    failed_count: 0,
-    fund_count: 1,
-    auto_update_target_count: 1,
-    failure_reason: null,
-  });
-  await openFundTab(page);
-
-  const note = page.locator('.page-skeleton-note');
-  await expect(note).toBeVisible();
-  await expect(note).toContainText('まだ');
-  await expect(note).not.toContainText('件');
+  // 失敗件数や理由は帯の下に出さない
+  await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
+  await expect(page.getByText('計算基準を見る')).toHaveCount(0);
+  // 時点と更新待ちだけ出す
+  const band = page.getByTestId('asset-portfolio-summary');
+  await expect(band).toContainText('01/05 時点');
+  await expect(band).toContainText('一部更新待ち');
 });

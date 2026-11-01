@@ -1122,7 +1122,7 @@
      li の外の重なり順で最前面に出す必要があるため、内側の
      ボタン面に閉じ込める */
   .receipt-compact-row {
-    @apply border-b border-border-faint;
+    @apply border-b border-border;
   }
 
   /* 2行の行のコード表示。銘柄コードはシートを開くボタンの一部なので
@@ -1132,7 +1132,7 @@
   }
 
   .receipt-compact-group {
-    @apply flex items-center justify-between gap-2 px-4 py-1.5 bg-row-group border-b border-border-faint;
+    @apply flex items-center justify-between gap-2 px-4 py-1.5 bg-row-group border-b border-border;
     border-left: 3px solid var(--color-gold);
   }
 
@@ -1254,7 +1254,7 @@
   }
 
   .page-skeleton-note {
-    @apply grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 px-4 text-xs text-text-muted lg:px-0;
+    @apply px-4 text-xs text-text-muted lg:px-0;
     margin-bottom: var(--space-search);
   }
 
@@ -1266,23 +1266,6 @@
 
   .page-skeleton-note-body {
     @apply min-w-0;
-  }
-
-  /* 計算基準は注記行と同じ段に置き、開いたときだけ下に本文を落とす */
-  .page-skeleton-basis {
-    display: contents;
-  }
-
-  .page-skeleton-basis > summary {
-    @apply inline-flex min-h-11 cursor-pointer items-start whitespace-nowrap text-text-deep lg:min-h-7;
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .page-skeleton-basis-body {
-    @apply mt-1 rounded-lg border border-border bg-surface px-3.5 py-2.5 leading-relaxed text-text-soft;
-    grid-column: 1 / -1;
-    grid-row: 2;
   }
 
   .page-skeleton-search {
@@ -1364,6 +1347,11 @@
     @apply text-xs font-medium text-brand-muted;
   }
 
+  /* 帯のラベルの横に出す時点・更新待ち。ラベルと同じ行で小さく出す */
+  .summary-label-note {
+    @apply ml-1 text-xs font-normal text-brand-muted;
+  }
+
   /* 数字は下端をそろえるため行の高さを1に固定し、項目の底にそろえる */
   .summary-value {
     @apply mt-auto flex flex-wrap items-baseline gap-x-1.5 leading-none;
@@ -1427,7 +1415,7 @@
   /* ホームの一覧。列は行をまたいで親の grid で共有し、口座の札・金額の幅を
      最長の行に合わせる。行は subgrid で列位置だけを借りる */
   .home-dividend-list {
-    @apply mt-1.5 grid divide-y divide-border-faint;
+    @apply mt-1.5 grid divide-y divide-border;
     /* 行の左右の余白(px-4 = 1rem)は subgrid では最初の列から差し引かれる。
        日付の列は差し引かれた 1rem を足した幅(2.5rem + 1rem)にして、
        「12/31」が余白つきで収まるようにする */
@@ -1668,14 +1656,14 @@
   }
 
   .asset-compact-row {
-    @apply border-b border-border-faint;
+    @apply border-b border-border;
   }
 
   .asset-compact-link {
     @apply block px-4 py-2 no-underline;
   }
 
-  .asset-compact-link:hover {
+  .asset-compact-link:active {
     @apply bg-surface-sunken;
   }
 
@@ -1712,7 +1700,7 @@
   }
 
   /* 取引明細・ホームの配当入金の行ボタン。行全体を押せるボタンにし、
-     押したときの反応として背景を変える */
+     押したときだけ背景を変える(押していない行が別の色に見えないようにする) */
   .receipt-compact-button {
     @apply block w-full cursor-pointer border-0 bg-transparent p-0 text-left;
   }
@@ -1721,12 +1709,8 @@
     @apply block px-4 py-2 isolate;
   }
 
-  .receipt-compact-button:hover {
-    @apply bg-surface-sunken;
-  }
-
   .receipt-compact-button:active {
-    @apply bg-surface-raised;
+    @apply bg-surface-sunken;
   }
 
   .receipt-compact-button:focus-visible {

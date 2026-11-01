@@ -7,8 +7,9 @@ use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::search_bar::{AssetMobileSearchEntry, AssetSearchBar, ConditionKind};
 use super::summary::{
-    AssetSummaryBand, all_basis_lines, fund_basis_lines, fund_notes, purchase_summary_tag,
-    stock_basis_lines, stock_price_dates, stock_summary_values,
+    AssetSummaryBand, fund_has_pending, oldest_combined_as_of, oldest_fund_as_of,
+    oldest_stock_as_of, purchase_summary_tag, stock_pending_from_parts, stock_price_dates,
+    stock_summary_values,
 };
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
@@ -121,7 +122,6 @@ const EMPTY_FILTERED_TITLE: &str = NO_MATCH_TITLE;
 fn StockContent(
     rows: Vec<AssetBalanceRow>,
     fallback_totals: Option<AssetBalanceSummary>,
-    stock_note: String,
     search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<SortKey>,
@@ -153,10 +153,11 @@ fn StockContent(
     let course_options = Memo::new(|_| Vec::<String>::new());
     let filtered_count = filtered_count(search, search_count);
     // 集計は絞り込み前の全保有分で求める(検索中も全件のまま)
+    let summary_fallback = fallback_totals.clone();
     let summary = Memo::new(move |_| {
         let (values, tags) = all_views
-            .with(|views| stock_summary_values(views, fallback_totals.as_ref(), &dividends.get()));
-        let purchase = fallback_totals
+            .with(|views| stock_summary_values(views, summary_fallback.as_ref(), &dividends.get()));
+        let purchase = summary_fallback
             .as_ref()
             .map(|summary| {
                 crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount)
@@ -175,6 +176,8 @@ fn StockContent(
             {move || {
                 (!empty).then(|| {
                     let (values, tags, purchase) = summary.get();
+                    let as_of = oldest_stock_as_of(&rows).unwrap_or_default();
+                    let pending = stock_pending_from_parts(&rows, fallback_totals.as_ref());
                     view! {
                         <SkeletonSummary>
                             <AssetSummaryBand
@@ -184,13 +187,11 @@ fn StockContent(
                                 daily_change=values.daily_change
                                 tags=tags
                                 purchase=purchase
+                                as_of=as_of
+                                show_pending=pending
                             />
                         </SkeletonSummary>
-                        <SkeletonNote
-                            notes=vec![stock_note.clone()]
-                            filtered=filtered_count
-                            basis=stock_basis_lines()
-                        />
+                        <SkeletonNote filtered=filtered_count />
                     }
                 })
             }}
@@ -319,7 +320,8 @@ fn FundContent(
     let profit_rate = (purchase != 0.0).then_some(profit / purchase * 100.0);
     let filtered_count = filtered_count(search, search_count);
     let empty = total_count == 0;
-    let notes = fund_notes(&resolved, "");
+    let as_of = oldest_fund_as_of(&resolved).unwrap_or_default();
+    let pending = fund_has_pending(&resolved);
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
         <section id="assetbalance-fund-list" hidden=empty>
@@ -331,9 +333,11 @@ fn FundContent(
                     daily_change=daily
                     tags=vec![purchase_summary_tag(purchase)]
                     purchase=Some(purchase)
+                    as_of=as_of
+                    show_pending=pending
                 />
             </SkeletonSummary>
-            <SkeletonNote notes=notes filtered=filtered_count basis=fund_basis_lines() />
+            <SkeletonNote filtered=filtered_count />
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -416,7 +420,6 @@ fn filtered_fund_views(rows: &[FundBalanceRow], search: &AssetSearch) -> Vec<Fun
 fn AllContent(
     stock_rows: Vec<AssetBalanceRow>,
     stock_fallback: Option<AssetBalanceSummary>,
-    stock_note: String,
     fund_resolved: ResolvedFundBalance,
     search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
@@ -508,8 +511,9 @@ fn AllContent(
                 .then_some(fund_totals_value.daily_change),
         ),
     };
-    let mut notes = vec![stock_note];
-    notes.extend(fund_notes(&fund_resolved, "投資信託の"));
+    let mut pending = fund_has_pending(&fund_resolved);
+    pending |= stock_pending_from_parts(&stock_rows, stock_fallback.as_ref());
+    let as_of = oldest_combined_as_of(&stock_rows, &fund_resolved).unwrap_or_default();
     let stock_profit = stock_market - stock_purchase;
     let market = stock_market + fund_market;
     let purchase = stock_purchase + fund_purchase;
@@ -534,9 +538,11 @@ fn AllContent(
                     daily_change=daily
                     tags=vec![purchase_summary_tag(purchase)]
                     purchase=Some(purchase)
+                    as_of=as_of
+                    show_pending=pending
                 />
             </SkeletonSummary>
-            <SkeletonNote notes=notes filtered=filtered_count basis=all_basis_lines() />
+            <SkeletonNote filtered=filtered_count />
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -607,7 +613,6 @@ fn AllContent(
 pub(crate) fn AssetBalanceMainContent(
     stock_rows: Vec<AssetBalanceRow>,
     fallback_totals: Option<AssetBalanceSummary>,
-    stock_note: String,
     fund_resolved: ResolvedFundBalance,
     search: RwSignal<AssetSearch>,
     search_count: RwSignal<(usize, usize)>,
@@ -638,7 +643,6 @@ pub(crate) fn AssetBalanceMainContent(
                     <StockContent
                         rows=stock_rows.clone()
                         fallback_totals=fallback_totals.clone()
-                        stock_note=stock_note.clone()
                         search=search
                         search_count=search_count
                         sort_key=sort_key
@@ -667,7 +671,6 @@ pub(crate) fn AssetBalanceMainContent(
                     <AllContent
                         stock_rows=stock_rows.clone()
                         stock_fallback=fallback_totals.clone()
-                        stock_note=stock_note.clone()
                         fund_resolved=fund_resolved.clone()
                         search=search
                         search_count=search_count

@@ -966,7 +966,7 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                         .into_any()
                 }
                 Some(Some(rows)) => view! {
-                    <ul class="home-dividend-list divide-y divide-border-faint" data-testid="home-recent-list">
+                    <ul class="home-dividend-list divide-y divide-border" data-testid="home-recent-list">
                         {rows
                             .iter()
                             .cloned()

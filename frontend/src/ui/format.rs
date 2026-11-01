@@ -177,18 +177,6 @@ pub fn format_price_date(as_of: &str) -> String {
     }
 }
 
-/// 基準価額の自動更新の時刻("YYYY-MM-DD HH:MM")を "MM/DD HH:MM" にする。
-/// 想定外の形式はそのまま返す
-pub fn format_nav_updated_at(updated_at: &str) -> String {
-    let Some((date, time)) = updated_at.split_once(' ') else {
-        return updated_at.to_string();
-    };
-    if date.len() != 10 || time.len() < 5 {
-        return updated_at.to_string();
-    }
-    format!("{} {}", format_price_date(date), &time[..5])
-}
-
 /// 日付("YYYY-MM-DD")を "YYYY/MM/DD" にする。日付として読めない値は「—」
 pub fn format_iso_date(value: &str) -> String {
     if is_valid_iso_date(value) {
