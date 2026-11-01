@@ -155,7 +155,7 @@ test('390px では2行の行表示になり表とPCの検索バーは隠れる',
   await expect(
     sheet.getByPlaceholder('銘柄名・コード'),
   ).toBeVisible();
-  await expect(sheet.getByRole('button', { name: '年月', exact: true })).toBeVisible();
+  await expect(sheet.getByTestId('receipts-dialog-period')).toBeVisible();
   // Esc で閉じて入口にフォーカスが戻る
   await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();

@@ -263,6 +263,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                             query=search.with(|s| s.selected_queries.securities.clone())
                             expanded_ids=store.expanded
                             compact_mobile=true
+                            sort_order=store.sort_order.get()
                         />
                     </section>
                 }

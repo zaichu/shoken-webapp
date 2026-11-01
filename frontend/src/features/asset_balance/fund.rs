@@ -427,6 +427,16 @@ impl FundSortKey {
             FundSortKey::BasePrice => "base_price",
         }
     }
+
+    pub(crate) fn from_value(value: &str) -> Option<Self> {
+        match value {
+            "market_value" => Some(FundSortKey::MarketValue),
+            "profit_loss" => Some(FundSortKey::ProfitLoss),
+            "shares" => Some(FundSortKey::Shares),
+            "base_price" => Some(FundSortKey::BasePrice),
+            _ => None,
+        }
+    }
 }
 
 /// 行から取り出す並べ替え値

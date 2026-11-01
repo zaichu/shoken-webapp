@@ -320,36 +320,83 @@ test('PC: キーボードだけで条件を足して外せる', async ({ page })
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
 });
 
-test('スマホ: 条件を足すと下から出るシートで期間を選べる', async ({ page }) => {
+test('スマホ: ダイアログで期間を選べる', async ({ page }) => {
   await gotoReceipts(page, 390, 844);
 
   await page.getByTestId('receipts-search-sheet-entry').click();
   const sheet = page.getByTestId('receipts-search-sheet');
   await expect(sheet).toBeVisible();
-  await sheet.getByRole('button', { name: '年月', exact: true }).click();
-  await sheet.getByRole('combobox', { name: '年' }).selectOption('2024');
-  await sheet.getByRole('combobox', { name: '月' }).selectOption('03');
-  await sheet.getByRole('button', { name: '適用する' }).click();
+  await sheet.getByTestId('receipts-dialog-period').selectOption('2024');
+  await sheet.getByTestId('search-dialog-search').click();
 
   await expect(sheet).toBeHidden();
   await expect(page.getByTestId('receipts-search-sheet-entry')).toBeFocused();
-  await expect(page.getByRole('button', { name: '期間 2024年3月 を解除' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '期間 2024年 を解除' })).toBeVisible();
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(page.getByRole('search', { name: '検索', exact: true })).toContainText(
     '1件 / 2件',
   );
 });
 
-test('スマホ: 口座のシートで選んで絞り込める', async ({ page }) => {
+test('スマホ: 口座のダイアログで選んで絞り込める', async ({ page }) => {
   await gotoReceipts(page, 390, 844);
 
   await page.getByTestId('receipts-search-sheet-entry').click();
   const sheet = page.getByTestId('receipts-search-sheet');
-  await sheet.getByRole('button', { name: '楽天証券', exact: true }).click();
-  await sheet.getByRole('button', { name: '適用する' }).click();
+  await sheet.getByTestId('receipts-dialog-account').selectOption('楽天証券');
+  await sheet.getByTestId('search-dialog-search').click();
 
   await expect(sheet).toBeHidden();
   await expect(page.getByRole('button', { name: '口座 楽天証券 を解除' })).toBeVisible();
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(page.getByTestId('receipt-card')).toHaveCount(1);
+});
+
+test('スマホ: Enter で検索し、閉じるは捨て、クリアは下書きを消す', async ({ page }) => {
+  await gotoReceipts(page, 390, 844);
+
+  // Enter で検索して閉じる
+  await page.getByTestId('receipts-search-sheet-entry').click();
+  const sheet = page.getByTestId('receipts-search-sheet');
+  await sheet.getByPlaceholder('銘柄名・コード').fill('9910');
+  await sheet.getByPlaceholder('銘柄名・コード').press('Enter');
+  await expect(sheet).toBeHidden();
+  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  // ダイアログを開き直してクリアして検索すると元に戻る
+  await page.getByTestId('receipts-search-sheet-entry').click();
+  const reset = page.getByTestId('receipts-search-sheet');
+  await reset.getByTestId('search-dialog-clear').click();
+  await reset.getByTestId('search-dialog-search').click();
+  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+
+  // 閉じるは捨てる
+  await page.getByTestId('receipts-search-sheet-entry').click();
+  const dialog = page.getByTestId('receipts-search-sheet');
+  await dialog.getByPlaceholder('銘柄名・コード').fill('9910');
+  await dialog.getByTestId('search-dialog-close').click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+
+  // クリアは下書きだけ消す
+  await page.getByTestId('receipts-search-sheet-entry').click();
+  const cleared = page.getByTestId('receipts-search-sheet');
+  await cleared.getByPlaceholder('銘柄名・コード').fill('9910');
+  await cleared.getByTestId('search-dialog-clear').click();
+  await expect(cleared.getByPlaceholder('銘柄名・コード')).toHaveValue('');
+  await cleared.getByTestId('search-dialog-search').click();
+  await expect(cleared).toBeHidden();
+  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+});
+
+test('スマホ: 並べ替えの順序で古い順にできる', async ({ page }) => {
+  await gotoReceipts(page, 390, 844);
+
+  await page.getByTestId('receipts-search-sheet-entry').click();
+  const sheet = page.getByTestId('receipts-search-sheet');
+  await sheet.getByTestId('receipts-dialog-sort-order').selectOption('oldest');
+  await sheet.getByTestId('search-dialog-search').click();
+  await expect(sheet).toBeHidden();
+  // 古い順なら先頭が 2023 年の行になる
+  const first = page.getByTestId('receipt-card').first();
+  await expect(first.locator('.receipt-compact-facts')).toContainText('2023/06/01');
 });

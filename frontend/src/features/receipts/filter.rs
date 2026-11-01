@@ -235,6 +235,32 @@ impl ReceiptSearch {
         self.query = build_combined_query(&self.selected_queries);
     }
 }
+
+/// 並べ替え順。資産管理の SortOrder と同じ考え方で、
+/// 新しい順が Desc、古い順が Asc に対応する
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ReceiptSortOrder {
+    #[default]
+    Newest,
+    Oldest,
+}
+
+impl ReceiptSortOrder {
+    pub(crate) fn value(self) -> &'static str {
+        match self {
+            Self::Newest => "newest",
+            Self::Oldest => "oldest",
+        }
+    }
+
+    pub(crate) fn from_value(value: &str) -> Option<Self> {
+        match value {
+            "newest" => Some(Self::Newest),
+            "oldest" => Some(Self::Oldest),
+            _ => None,
+        }
+    }
+}
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct SearchCategories {
     pub securities: Vec<SearchOption>,
