@@ -54,6 +54,8 @@ pub enum DisclosureStyle {
     HeaderFlat,
     /// 行の右端の山形(明細行の詳細)
     RowToggle,
+    /// 紺帯サマリーの内訳開閉(帯全体がボタン・主役行右端に丸いシェブロン)
+    SummaryBand,
 }
 
 impl DisclosureStyle {
@@ -64,6 +66,7 @@ impl DisclosureStyle {
                 "flex w-full items-start justify-between gap-3 border-b border-ink/10 pb-2.5 text-left max-sm:min-h-11 max-sm:items-center"
             }
             Self::RowToggle => "receipt-compact-toggle",
+            Self::SummaryBand => "summary-band-main-toggle",
         }
     }
 }

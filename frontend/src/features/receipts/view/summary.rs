@@ -1,9 +1,10 @@
 use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab, select_header_summary};
 use crate::settings::format_amount;
+use crate::ui::amount::AmountKind;
 use crate::ui::card::StatTone;
 use crate::ui::format::format_iso_date;
 use crate::ui::labels;
-use crate::ui::summary::{SummaryItem, SummarySize, SummaryTone};
+use crate::ui::summary::{SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
@@ -12,14 +13,6 @@ pub fn profit_tone(value: Decimal) -> StatTone {
         StatTone::Loss
     } else {
         StatTone::Neutral
-    }
-}
-
-/// 集計帯の数字の色
-fn summary_tone(tone: StatTone) -> SummaryTone {
-    match tone {
-        StatTone::Loss => SummaryTone::Loss,
-        StatTone::Neutral => SummaryTone::Neutral,
     }
 }
 
@@ -58,10 +51,84 @@ pub fn period_note(rows: &[ReceiptRow]) -> Option<String> {
 }
 
 #[component]
-pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoView {
-    // 見本では主値(税引後)を金の見出しで先頭に大きく出す。items の末尾が主値
+pub fn SummaryStrip(
+    tab: ReceiptsTab,
+    items: Vec<(&'static str, Decimal, StatTone)>,
+) -> impl IntoView {
+    // 主役は末尾(税引後)。補助はなし。内訳は先頭2つ(配当金・税額 / 実現損益・税額)。
+    // 売却額・取得価額は API 集計になく、一覧の部分合計では欠けると嘘になるため出さない。
+    let mut marks: Vec<bool> = tab
+        .header_items()
+        .into_iter()
+        .map(|(_, profit)| profit)
+        .collect();
     let mut secondary = items;
     let primary = secondary.pop();
+    let primary_mark = marks.pop().unwrap_or(false);
+    let format_signed = |value: Decimal, is_profit: bool| {
+        let text = format_amount(value);
+        if is_profit && value > Decimal::ZERO {
+            format!("+{text}")
+        } else {
+            text
+        }
+    };
+    let to_breakdown = |(label, value, tone): (&'static str, Decimal, StatTone),
+                        is_profit: bool| {
+        let negative = tone == StatTone::Loss;
+        let positive = is_profit && value > Decimal::ZERO;
+        SummaryBreakdownEntry {
+            label: label.to_string(),
+            value: format_signed(value, is_profit),
+            kind: if is_profit {
+                AmountKind::Delta
+            } else {
+                AmountKind::Plain
+            },
+            negative,
+            positive,
+            rate: String::new(),
+        }
+    };
+    let to_sub =
+        |(label, value, tone): (&'static str, Decimal, StatTone), is_profit: bool| SummarySubItem {
+            label: label.to_string(),
+            value: format_signed(value, is_profit),
+            note: String::new(),
+            tone: match tone {
+                StatTone::Loss => SummaryTone::Loss,
+                StatTone::Neutral => SummaryTone::Neutral,
+            },
+            extra_class: String::new(),
+        };
+    let pc_items: Vec<SummarySubItem> = secondary
+        .clone()
+        .into_iter()
+        .zip(marks.clone())
+        .map(|(item, profit)| to_sub(item, profit))
+        .collect();
+    let breakdown: Vec<SummaryBreakdownEntry> = secondary
+        .into_iter()
+        .zip(marks)
+        .map(|(item, profit)| to_breakdown(item, profit))
+        .collect();
+    let (primary_label, primary_value, primary_negative, primary_positive, primary_kind) = primary
+        .map(|(label, value, tone)| {
+            let negative = tone == StatTone::Loss;
+            let positive = primary_mark && value > Decimal::ZERO;
+            (
+                label.to_string(),
+                format_signed(value, primary_mark),
+                negative,
+                positive,
+                if primary_mark {
+                    AmountKind::Delta
+                } else {
+                    AmountKind::Plain
+                },
+            )
+        })
+        .unwrap_or_default();
     view! {
         <section
             data-testid="receipt-summary-strip"
@@ -69,37 +136,17 @@ pub fn SummaryStrip(items: Vec<(&'static str, Decimal, StatTone)>) -> impl IntoV
             aria-label="集計"
             class="summary-band"
         >
-            <div class="summary-band-grid" data-testid="kpi-grid">
-                <dl class="summary-band-group summary-band-group-main">
-                    {primary.map(|(label, value, tone)| {
-                        view! {
-                            <SummaryItem
-                                label=label
-                                value=format_amount(value)
-                                size=SummarySize::Primary
-                                tone=summary_tone(tone)
-                            />
-                        }
-                    })}
-                </dl>
-                <div class="summary-band-group summary-band-group-sub">
-                    <dl class="summary-band-items">
-                        {secondary
-                            .into_iter()
-                            .map(|(label, value, tone)| {
-                                view! {
-                                    <SummaryItem
-                                        label=label
-                                        value=format_amount(value)
-                                        size=SummarySize::Secondary
-                                        tone=summary_tone(tone)
-                                    />
-                                }
-                            })
-                            .collect_view()}
-                    </dl>
-                </div>
-            </div>
+            <SummaryBand
+                primary_label=primary_label
+                primary_value=primary_value
+                primary_kind=primary_kind
+                primary_negative=primary_negative
+                primary_positive=primary_positive
+                pc_items=pc_items
+                breakdown=breakdown
+                testid_band="kpi-grid"
+                testid_toggle="receipt-summary-details-toggle"
+            />
         </section>
     }
 }
