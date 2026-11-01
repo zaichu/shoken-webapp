@@ -7,8 +7,8 @@ use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::format::format_short_date;
 use crate::ui::labels::{
-    self, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, REALIZED_PROFIT_LOSS, REDEMPTION_AMOUNT,
-    SELLING_AMOUNT,
+    self, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, PROFIT_SHORT, REALIZED_PROFIT_LOSS,
+    RECEIPT_SHORT, REDEMPTION_AMOUNT, SELLING_AMOUNT,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
@@ -447,28 +447,47 @@ pub(crate) fn CompactReceiptGroup(
     id_prefix: String,
     expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
-    let (summary_label, summary_value) = summary.last().cloned().unwrap_or_default();
-    let summary_negative = is_negative_labeled_value(tab, summary_label, &summary_value);
-    let summary_positive = is_positive_labeled_value(tab, summary_label, &summary_value);
-    let summary_text = signed_text_for_profit(tab, summary_label, &summary_value);
-    let summary_kind = if is_profit_label(tab, summary_label) {
-        AmountKind::Delta
-    } else {
-        AmountKind::Plain
+    let (display_label, display_value, display_negative, display_positive, display_kind) = match tab
+    {
+        ReceiptsTab::Dividend => {
+            let (_, value) = summary
+                .iter()
+                .find(|(label, _)| *label == AFTER_TAX)
+                .cloned()
+                .or_else(|| summary.last().cloned())
+                .unwrap_or_default();
+            (RECEIPT_SHORT, value, false, false, AmountKind::Plain)
+        }
+        _ => {
+            let (_, value) = summary
+                .iter()
+                .find(|(label, _)| *label == REALIZED_PROFIT_LOSS)
+                .cloned()
+                .or_else(|| summary.first().cloned())
+                .unwrap_or_default();
+            let negative = is_negative_text(&value);
+            let positive = is_positive_text(&value);
+            let text = if positive && !value.trim_start().starts_with('+') {
+                format!("+{value}")
+            } else {
+                value
+            };
+            (PROFIT_SHORT, text, negative, positive, AmountKind::Delta)
+        }
     };
     view! {
         <section data-testid="receipt-card-group">
             <div class="receipt-compact-group">
                 <span class="font-bold">{labels::group_count(&label, count)}</span>
-                {(!summary_value.is_empty()).then(|| view! {
+                {(!display_value.is_empty()).then(|| view! {
                     <span class="whitespace-nowrap">
-                        {summary_label}
+                        {display_label}
                         " "
                         <Amount
-                            kind=summary_kind
-                            text=summary_text
-                            negative=summary_negative
-                            positive=summary_positive
+                            kind=display_kind
+                            text=display_value
+                            negative=display_negative
+                            positive=display_positive
                         />
                     </span>
                 })}

@@ -385,6 +385,7 @@ fn BandTiles(
                     negative: daily_negative,
                     positive: daily_positive,
                     rate: daily_rate,
+                    boxed: false,
                 },
                 SummaryBreakdownEntry {
                     label: ANNUAL_EXPECTED_DIVIDEND.to_string(),
@@ -392,6 +393,7 @@ fn BandTiles(
                     negative: false,
                     positive: false,
                     rate: estimate_pending_text,
+                    boxed: false,
                 },
                 SummaryBreakdownEntry {
                     label: TOTAL_ACQUISITION.to_string(),
@@ -399,6 +401,7 @@ fn BandTiles(
                     negative: false,
                     positive: false,
                     rate: String::new(),
+                    boxed: true,
                 },
             ]
             testid_toggle="summary-details-toggle"
@@ -884,7 +887,7 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                                     dec_to_f64(&row.dividends_before_tax),
                                 );
                                 view! {
-                                    <li class="home-dividend-row">
+                                    <li class="home-dividend-row" data-testid="home-dividend-row">
                                         <div class="px-4 py-2">
                                             <ListRow
                                                 name=move || name.clone()

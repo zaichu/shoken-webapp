@@ -28,10 +28,6 @@ pub const ACQUISITION_YIELD: &str = "取得額利回り";
 pub const ACQUISITION_BASIS_YIELD: &str = "取得額基準利回り";
 /// 1株配当
 pub const PER_SHARE_DIVIDEND: &str = "1株配当";
-/// 1株配当(スマホの行の短い表記)
-pub const PER_SHARE_DIVIDEND_COMPACT: &str = "1株";
-/// 取得額利回り(スマホの行の短い表記)
-pub const ACQUISITION_YIELD_COMPACT: &str = "利回り";
 /// 一株配当(取引明細の配当情報カード)
 pub const PER_SHARE_DIVIDEND_CARD: &str = "一株配当";
 /// 平均取得価格(取引明細の配当情報カード)
@@ -42,8 +38,6 @@ pub const HOLDING_QUANTITY_CARD: &str = "保有数量(株)";
 pub const DIVIDEND_AMOUNT_AND_YIELD: &str = "配当金額 (配当利回り)";
 /// 税引後と累積利回り(取引明細の配当情報カード)
 pub const AFTER_TAX_AND_YIELD: &str = "税引後 (累積利回り)";
-/// 配当(一覧の行に出すabr表記)
-pub const DIVIDEND: &str = "配当";
 /// 配当金(取引明細の配当金タブ・列見出し)
 pub const DIVIDEND_AMOUNT: &str = "配当金";
 /// 入金日(配当の入金日)

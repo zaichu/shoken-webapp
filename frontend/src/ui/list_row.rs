@@ -20,6 +20,3 @@ pub fn ListRow(
         </div>
     }
 }
-
-#[cfg(test)]
-mod tests;

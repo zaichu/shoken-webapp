@@ -2,7 +2,7 @@ use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab, select_
 use crate::settings::format_amount;
 use crate::ui::card::StatTone;
 use crate::ui::format::format_iso_date;
-use crate::ui::labels;
+use crate::ui::labels::{self, DIVIDEND_AMOUNT, REALIZED_AFTER_TAX, RECEIVED_DIVIDEND_AFTER_TAX};
 use crate::ui::summary::{SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -53,6 +53,7 @@ pub fn period_note(rows: &[ReceiptRow]) -> Option<String> {
 pub fn SummaryStrip(
     tab: ReceiptsTab,
     items: Vec<(&'static str, Decimal, StatTone)>,
+    #[prop(optional, into)] period: String,
 ) -> impl IntoView {
     // 主役は末尾(税引後)。補助はなし。内訳は先頭2つ(配当金・税額 / 実現損益・税額)。
     // 売却額・取得価額は API 集計になく、一覧の部分合計では欠けると嘘になるため出さない。
@@ -82,6 +83,7 @@ pub fn SummaryStrip(
             negative,
             positive,
             rate: String::new(),
+            boxed: tab == ReceiptsTab::Dividend && label == DIVIDEND_AMOUNT,
         }
     };
     let to_sub =
@@ -108,8 +110,13 @@ pub fn SummaryStrip(
         .collect();
     let (primary_label, primary_value, primary_negative, primary_positive) = primary
         .map(|(label, value, tone)| {
+            let display = match tab {
+                ReceiptsTab::Dividend => RECEIVED_DIVIDEND_AFTER_TAX,
+                _ => REALIZED_AFTER_TAX,
+            };
+            let _ = label;
             (
-                label.to_string(),
+                display.to_string(),
                 format_signed(value, primary_mark),
                 tone == StatTone::Loss,
                 primary_mark && value > Decimal::ZERO,
@@ -128,6 +135,7 @@ pub fn SummaryStrip(
                 primary_value=primary_value
                 primary_negative=primary_negative
                 primary_positive=primary_positive
+                primary_sub=period
                 pc_items=pc_items
                 breakdown=breakdown
                 testid_band="kpi-grid"

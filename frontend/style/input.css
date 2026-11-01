@@ -877,6 +877,10 @@
     @apply text-xs font-medium text-brand-muted;
   }
 
+  .summary-band-sub {
+    @apply text-xs font-normal text-brand-muted;
+  }
+
   .summary-band-hero-row {
     @apply flex w-full items-center justify-between gap-3;
   }
@@ -886,7 +890,7 @@
   }
 
   .summary-band-chevron-circle {
-    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand-line;
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-brand-line;
   }
 
   .summary-band-toggle-chevron {
@@ -907,6 +911,11 @@
 
   .summary-band-breakdown-row {
     @apply flex min-w-0 items-center justify-between gap-3 py-2;
+  }
+
+  /* 内訳のうち箱で区切る行(取得総額・税引前配当)。少し強めに出す */
+  .summary-band-breakdown-boxed {
+    @apply rounded-lg border border-brand-line bg-brand-deep px-3;
   }
 
   .summary-band-breakdown-label {
@@ -1251,13 +1260,13 @@
   }
 
   .page-skeleton-note {
-    @apply grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 text-xs text-text-muted;
+    @apply grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 px-4 text-xs text-text-muted lg:px-0;
     margin-bottom: var(--space-search);
   }
 
   @media (width < 64rem) {
     .page-skeleton-note {
-      margin-bottom: var(--space-note);
+      margin-bottom: 0.625rem;
     }
   }
 
@@ -1284,6 +1293,13 @@
 
   .page-skeleton-search {
     margin-bottom: var(--space-table);
+  }
+
+  @media (width < 64rem) {
+    .page-skeleton-search {
+      @apply px-4;
+      margin-bottom: 0.625rem;
+    }
   }
 
   .page-back-link {

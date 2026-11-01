@@ -8,7 +8,7 @@ use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::format::format_number_value;
+use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
 use crate::ui::labels::{
     ACCOUNT, BASE_PRICE, DAY_CHANGE, DISTRIBUTION, FUND, FUND_SHARES, MARKET_VALUE,
     VALUATION_PROFIT_LOSS,

@@ -154,7 +154,7 @@ test('国内株式の表に1株配当の列があり、1株配当と年間配当
   await expect(kpi).toContainText('¥12,500');
 });
 
-test('スマホの行は年間配当の隣に1株配当を出す', async ({ page }) => {
+test('スマホの行は名前と評価額・損益を出し配当の内訳は詳細に回す', async ({ page }) => {
   await setupMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
@@ -163,15 +163,14 @@ test('スマホの行は年間配当の隣に1株配当を出す', async ({ page
   const row = page.getByTestId('asset-compact-row').filter({ hasText: '架空自動車' });
   await expect(row).toBeVisible();
 
-  // 配当で並べたときだけ行に配当を出す
-  await page.getByTestId('asset-search-sheet-entry').click();
-  const sheet = page.getByTestId('asset-search-sheet');
-  await sheet.getByRole('button', { name: '年間配当' }).click();
-  await sheet.getByRole('button', { name: '適用する' }).click();
-  await expect(sheet).toBeHidden();
-  await expect(row).toContainText('1株 ¥90');
-  // 年間配当(1株配当×数量)も一緒に出る
-  await expect(row).toContainText('¥9,000');
+  await expect(row.locator('.list-row-name')).toContainText('架空自動車');
+  await expect(row.locator('.list-row-meta')).toContainText('9904');
+  await expect(row.locator('.list-row-meta')).toContainText('100株');
+  // 行に配当の内訳は出さず、詳細画面で確かめる
+  await expect(row).not.toContainText('1株 ¥90');
+  await row.getByRole('link').click();
+  await expect(page).toHaveURL(/\/assetbalance\/holdings\//);
+  await expect(page.getByText('1株配当')).toBeVisible();
 });
 
 test('「すべて」タブの株式行にも1株配当が出る', async ({ page }) => {

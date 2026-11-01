@@ -85,8 +85,8 @@ for (const width of [1024, 1280, 1440]) {
 
     await expect(page.getByRole('search', { name: '取引明細の検索' })).toBeVisible();
     await expect(page.getByTestId('receipt-summary-strip')).toBeVisible();
-    // 下部ナビと下部の常設操作帯は PC では出さない
-    await expect(page.locator('.receipts-mobile-bottom-section')).toBeHidden();
+    // 下部ナビとスマホの検索入口は PC では出さない
+    await expect(page.getByTestId('receipts-search-sheet-entry')).toBeHidden();
     await expect(page.locator('.app-bottom-nav')).toBeHidden();
 
     for (const tab of RECEIPT_TABS) {

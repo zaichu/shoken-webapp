@@ -3,6 +3,7 @@ use crate::features::receipts::dividend_info::{
 };
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::kind::dividend_totals;
+use crate::features::receipts::view::ReceiptsMobileSearchEntry;
 use crate::features::receipts::view::ReceiptsSearchBar;
 use crate::features::receipts::view::{ReceiptTable, SummaryStrip};
 use crate::features::receipts::{
@@ -207,9 +208,18 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                                     }
                                         .into_any()
                                 } else {
+                                    let period_text = period
+                                        .get()
+                                        .first()
+                                        .cloned()
+                                        .unwrap_or_default();
                                     header
                                         .get()
-                                        .map(|items| view! { <SummaryStrip tab=tab items=items /> })
+                                        .map(|items| {
+                                            view! {
+                                                <SummaryStrip tab=tab items=items period=period_text.clone() />
+                                            }
+                                        })
                                         .into_any()
                                 }
                             }}
@@ -225,6 +235,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
             <div class="hidden lg:block" role="search" aria-label="取引明細の検索">
                 <ReceiptsSearchBar store=store tab=Signal::stored(tab) />
             </div>
+            <ReceiptsMobileSearchEntry store=store />
         </SkeletonSearch>
         {move || {
             tab_state.with(|state| match state {

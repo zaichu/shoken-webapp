@@ -321,8 +321,6 @@ pub(crate) fn AssetSummaryBand(
     tags: Vec<SummaryTag>,
     /// 取得総額(内訳用)。国内株式は呼び出し側で全保有分から求める
     purchase: Option<f64>,
-    /// 構成比ページへの入口(国内株式のみ)
-    composition_link: bool,
 ) -> impl IntoView {
     let market_text = format_valuation_amount(market);
     let profit_text = format_signed_valuation_amount(profit);
@@ -388,6 +386,7 @@ pub(crate) fn AssetSummaryBand(
                         negative: daily_negative,
                         positive: daily_positive,
                         rate: daily_rate_text,
+                        boxed: false,
                     },
                     SummaryBreakdownEntry {
                         label: TOTAL_ACQUISITION.to_string(),
@@ -395,18 +394,12 @@ pub(crate) fn AssetSummaryBand(
                         negative: false,
                         positive: false,
                         rate: String::new(),
+                        boxed: true,
                     },
                 ]
                 testid_band="portfolio-kpi-grid"
                 testid_toggle="asset-summary-details-toggle"
             />
-            {composition_link.then(|| {
-                view! {
-                    <a href="/assetbalance/composition" class="summary-band-comp lg:hidden">
-                        "構成比 ›"
-                    </a>
-                }
-            })}
         </section>
     }
 }

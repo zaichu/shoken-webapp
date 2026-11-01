@@ -632,10 +632,10 @@ pub(crate) fn receipt_date_label(tab: ReceiptsTab) -> &'static str {
     }
 }
 
-/// スマホの検索・並べ替えの入口とシート。PC の検索欄・条件の行は変えず、
-/// スマホ幅では入口の1行と条件タグだけを出し、中身はシートで編集する
+/// スマホの検索・並べ替えの入口とシート。資産管理と同じく帯のすぐ下に置く。
+/// PC の検索欄・条件の行は変えず、スマホ幅では入口の1行と条件タグだけを出し、中身はシートで編集する
 #[component]
-pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
+pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
     let tab = store.active_tab;
     let search = store.search;
     let open = RwSignal::new(false);
@@ -654,9 +654,8 @@ pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
     let sort_summary = move || format!("{} {SORT_NEWEST_FIRST}", receipt_date_label(tab.get()));
 
     view! {
-        <div class="receipts-mobile-bottom-section no-print lg:hidden" role="search" aria-label="検索">
-            <div class="page-gutter">
-                <Button
+        <div class="no-print lg:hidden" role="search" aria-label="検索">
+            <Button
                     variant=ButtonVariant::Secondary(ButtonSize::Md)
                     class="search-sort-entry".to_string()
                     aria_expanded=Signal::derive(move || open.get())
@@ -699,7 +698,6 @@ pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
                             }
                         })
                 }}
-            </div>
         </div>
     }
 }

@@ -3,11 +3,11 @@ use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant, Loading};
-use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index};
+use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index as shared_next_tab_index};
 use leptos::prelude::*;
 
 pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
-    crate::ui::underline_tabs::next_tab_index(TAB_IDS.len(), current, key)
+    shared_next_tab_index(TAB_IDS.len(), current, key)
 }
 
 fn focus_tab(index: usize) {

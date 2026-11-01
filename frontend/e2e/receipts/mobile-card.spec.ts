@@ -102,10 +102,9 @@ test('行一覧はスマホ幅に収まり、長いファンド名は省略せ�
   expect(listBox!.x + listBox!.width).toBeLessThanOrEqual(390 + 1);
 
   await page.getByRole('tab', { name: /投資信託/ }).click();
-  const name = cardList.getByRole('button', {
-    name: '架空インデックス 全世界株式(オール・ワールド) をコピー',
-  });
+  const name = cardList.locator('.list-row-name').first();
   await expect(name).toBeVisible();
+  await expect(name).toContainText('架空インデックス');
   const nameBox = await name.boundingBox();
   expect(nameBox, 'ファンド名ボタンの幅').not.toBeNull();
   expect(nameBox!.x).toBeGreaterThanOrEqual(listBox!.x - 1);
@@ -151,25 +150,24 @@ test('マイナスの損益は符号と色を保ち、税引後だけが負に�
     .getByTestId('receipt-card')
     .first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.receipt-compact-net')).toHaveText('-¥3,985');
+  await expect(card.locator('.list-row-primary')).toHaveText('-¥5,000');
   await expect(
-    card.locator('.receipt-compact-net span[data-negative="true"]'),
+    card.locator('.list-row-primary [data-negative="true"]'),
   ).toHaveCount(1);
   // 売却額は損益ではないので負の装飾を付けない
-  await expect(card.locator('.receipt-compact-primary')).toContainText('¥55,000');
+  await expect(card.locator('.list-row-secondary')).toContainText('¥55,000');
   await expect(
-    card.locator('.receipt-compact-primary span[data-negative]'),
+    card.locator('.list-row-secondary [data-negative]'),
   ).toHaveCount(0);
 });
 
-test('行の日付は常に年付きで出す', async ({ page }) => {
+test('行の日付は月/日で出す', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
   const card = page.getByTestId('receipt-card-list').getByTestId('receipt-card').first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.receipt-compact-facts')).toContainText('2024/03/01');
-  await expect(card.getByText('03/01', { exact: true })).toHaveCount(0);
+  await expect(card.locator('.list-row-meta')).toContainText('3/01');
 });
 
 test('国内株式は1件日の小計を省き、複数件日は小計を残す', async ({ page }) => {
@@ -222,15 +220,15 @@ test('長い口座名は省略せず折り返して全文を出す', async ({ pa
   await page.goto('/receipts');
   await page.getByRole('tab', { name: '国内株式' }).click();
 
-  const facts = page
+  const meta = page
     .getByTestId('receipt-card-list')
     .getByTestId('receipt-card')
     .first()
-    .locator('.receipt-compact-facts');
-  await expect(facts).toContainText(longAccount);
+    .locator('.list-row-meta');
+  await expect(meta).toContainText(longAccount);
 
   // 1行目から溢れた分は折り返して出す
-  const metrics = await facts.evaluate((el) => {
+  const metrics = await meta.evaluate((el) => {
     const range = document.createRange();
     range.selectNodeContents(el);
     return {
