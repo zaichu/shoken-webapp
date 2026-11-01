@@ -7,6 +7,22 @@ fn nav_items_cover_main_pages_with_labels() {
 }
 
 #[test]
+fn nav_items_link_to_main_pages() {
+    let hrefs: Vec<&str> = NAV_ITEMS.iter().map(|(to, _)| *to).collect();
+    assert_eq!(hrefs, ["/", "/assetbalance", "/receipts", "/search"]);
+}
+
+#[test]
+fn nav_icons_cover_all_items() {
+    let icons: Vec<&str> = NAV_ITEMS.iter().map(|(to, _)| nav_icon_inner(to)).collect();
+    assert_eq!(icons.len(), 4);
+    for icon in &icons {
+        assert!(!icon.is_empty());
+        assert_eq!(icons.iter().filter(|other| *other == icon).count(), 1);
+    }
+}
+
+#[test]
 fn nav_active_matches_root_only_exactly() {
     assert!(is_nav_active("/", "/"));
     assert!(!is_nav_active("/assetbalance", "/"));
@@ -17,6 +33,7 @@ fn nav_active_covers_sub_paths() {
     assert!(is_nav_active("/assetbalance", "/assetbalance"));
     assert!(is_nav_active("/assetbalance/composition", "/assetbalance"));
     assert!(is_nav_active("/receipts?kind=stock", "/receipts"));
+    assert!(is_nav_active("/search", "/search"));
     assert!(!is_nav_active("/receipts", "/assetbalance"));
     assert!(!is_nav_active("/receipts-other?tab=dividend", "/receipts"));
     assert!(!is_nav_active("/search?next=/receipts", "/receipts"));
