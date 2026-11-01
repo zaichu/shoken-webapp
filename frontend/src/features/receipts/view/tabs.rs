@@ -3,76 +3,52 @@ use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant, Loading};
+use crate::ui::underline_tabs::{UnderlineTabButton, focus_tab_by_id, next_tab_index};
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
 
-pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
-    let count = TAB_IDS.len();
-    match key {
-        "ArrowRight" => Some((current + 1) % count),
-        "ArrowLeft" => Some((current + count - 1) % count),
-        "Home" => Some(0),
-        "End" => Some(count - 1),
-        _ => None,
-    }
+pub fn next_receipt_tab_index(current: usize, key: &str) -> Option<usize> {
+    next_tab_index(TAB_IDS.len(), current, key)
 }
 
 fn focus_tab(index: usize) {
-    let Some(element) = web_sys::window()
-        .and_then(|window| window.document())
-        .and_then(|document| document.get_element_by_id(&format!("tab-{}", TAB_IDS[index])))
-    else {
-        return;
-    };
-    if let Some(element) = element.dyn_ref::<web_sys::HtmlElement>() {
-        let _ = element.focus();
-    }
+    focus_tab_by_id(&format!("tab-{}", TAB_IDS[index]));
 }
 
 #[component]
 pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
     let label = tab.label();
-    let selected = store;
+    let selected = Signal::derive(move || store.active_tab.get() == tab);
+    let count = Signal::derive(move || match store.tab_state(tab) {
+        TabState::Ready(data) => {
+            let query = store.search.with(|s| s.query.clone());
+            filter_receipts(tab, &data.rows, &query).len().to_string()
+        }
+        TabState::Loading | TabState::Failed(_) => "—".to_string(),
+    });
     let keyed = store;
     let clicked = store;
-    let counted_store = store;
     view! {
-        <button
-            type="button"
-            role="tab"
+        <UnderlineTabButton
             id=format!("tab-{slug}")
-            aria-controls=format!("tabpanel-{slug}")
-            aria-selected=move || (selected.active_tab.get() == tab).to_string()
-            tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
-            class="page-tab"
-            on:click=move |_| clicked.select_tab(tab)
-            on:keydown=move |event| {
+            controls=format!("tabpanel-{slug}")
+            label=label.to_string()
+            count=count
+            selected=selected
+            count_testid=format!("tab-count-{slug}")
+            on_select=move || clicked.select_tab(tab)
+            on_keydown=move |event: web_sys::KeyboardEvent| {
                 let current = ReceiptsTab::ALL
                     .iter()
                     .position(|item| *item == keyed.active_tab.get_untracked())
                     .unwrap_or(0);
-                if let Some(next) = next_tab_index(current, &event.key()) {
+                if let Some(next) = next_receipt_tab_index(current, &event.key()) {
                     event.prevent_default();
                     keyed.select_tab(ReceiptsTab::ALL[next]);
                     focus_tab(next);
                 }
             }
-        >
-            {label}
-            <span
-                data-testid={format!("tab-count-{slug}")}
-                class="page-tab-count"
-            >
-                {move || match counted_store.tab_state(tab) {
-                    TabState::Ready(data) => {
-                        let query = counted_store.search.with(|s| s.query.clone());
-                        filter_receipts(tab, &data.rows, &query).len().to_string()
-                    }
-                    TabState::Loading | TabState::Failed(_) => "—".to_string(),
-                }}
-            </span>
-        </button>
+        />
     }
 }
 

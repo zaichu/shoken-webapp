@@ -1,7 +1,7 @@
 use super::cards::*;
 use super::main_content::{derive_filtered_count, show_dividend_section};
 use super::summary::*;
-use super::tabs::*;
+use super::tabs::next_receipt_tab_index;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
 use crate::features::receipts::filter::{column_order, filter_receipts};
 use crate::features::receipts::kind::{
@@ -14,6 +14,7 @@ use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::card::StatTone;
 use crate::ui::page_skeleton::FilteredCount;
+use crate::ui::underline_tabs::next_tab_index;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
@@ -352,14 +353,21 @@ fn hyphenated_instrument_names_are_not_formatted_as_dates() {
 }
 #[test]
 fn next_tab_index_cycles_through_tabs() {
-    assert_eq!(next_tab_index(0, "ArrowRight"), Some(1));
-    assert_eq!(next_tab_index(2, "ArrowRight"), Some(0));
-    assert_eq!(next_tab_index(0, "ArrowLeft"), Some(2));
-    assert_eq!(next_tab_index(1, "ArrowLeft"), Some(0));
-    assert_eq!(next_tab_index(1, "Home"), Some(0));
-    assert_eq!(next_tab_index(0, "End"), Some(2));
-    assert_eq!(next_tab_index(1, "Enter"), None);
-    assert_eq!(next_tab_index(1, "Escape"), None);
+    assert_eq!(next_receipt_tab_index(0, "ArrowRight"), Some(1));
+    assert_eq!(next_receipt_tab_index(2, "ArrowRight"), Some(0));
+    assert_eq!(next_receipt_tab_index(0, "ArrowLeft"), Some(2));
+    assert_eq!(next_receipt_tab_index(1, "ArrowLeft"), Some(0));
+    assert_eq!(next_receipt_tab_index(1, "Home"), Some(0));
+    assert_eq!(next_receipt_tab_index(0, "End"), Some(2));
+    assert_eq!(next_receipt_tab_index(1, "Enter"), None);
+    assert_eq!(next_receipt_tab_index(1, "Escape"), None);
+}
+
+#[test]
+fn underline_tab_index_shares_same_cycle() {
+    assert_eq!(next_tab_index(3, 0, "ArrowRight"), Some(1));
+    assert_eq!(next_tab_index(3, 2, "ArrowRight"), Some(0));
+    assert_eq!(next_tab_index(3, 0, "ArrowLeft"), Some(2));
 }
 
 #[test]
@@ -919,6 +927,13 @@ fn dividend_amount_stays_neutral_without_plus() {
     assert_eq!(tax_text, "¥100");
     assert!(!tax_negative);
     assert!(!tax_positive);
+}
+
+#[test]
+fn compact_row_shows_single_amount_per_tab() {
+    assert_eq!(compact_row_label(ReceiptsTab::Dividend), "税引後");
+    assert_eq!(compact_row_label(ReceiptsTab::DomesticStock), "実現損益");
+    assert_eq!(compact_row_label(ReceiptsTab::MutualFund), "実現損益");
 }
 
 #[test]

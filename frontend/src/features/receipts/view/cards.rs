@@ -5,19 +5,23 @@ use crate::ui::badge::{AccountBadge, CodeBadge};
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
-use crate::ui::labels::{
-    self, AFTER_TAX, DIVIDEND, DIVIDEND_AMOUNT, QUANTITY, REALIZED_PROFIT_LOSS, REDEMPTION_AMOUNT,
-    SELLING_AMOUNT,
-};
+use crate::ui::labels::{self, AFTER_TAX, REALIZED_PROFIT_LOSS};
+use crate::ui::ledger_row::LedgerRow;
 use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
 use std::collections::HashSet;
 use wasm_bindgen::JsCast;
 
-// 配当の税引後(受取額)は損益ではないので色を付けない
 pub(crate) fn is_profit_label(tab: ReceiptsTab, label: &str) -> bool {
     tab != ReceiptsTab::Dividend && matches!(label, REALIZED_PROFIT_LOSS | AFTER_TAX)
+}
+
+pub(crate) fn compact_row_label(tab: ReceiptsTab) -> &'static str {
+    match tab {
+        ReceiptsTab::Dividend => AFTER_TAX,
+        ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => REALIZED_PROFIT_LOSS,
+    }
 }
 
 fn stripped_amount_text(value: &str) -> String {
@@ -309,40 +313,24 @@ fn CompactReceiptRow(
         account,
         details,
     } = card;
-    let labels = tab.summary_labels();
-    // 2行目の主表示は税引後と対になる取引総額(損益ではないので負の装飾を付けない)
-    let (primary_label, primary_detail) = match tab {
-        ReceiptsTab::Dividend => (DIVIDEND, DIVIDEND_AMOUNT),
-        ReceiptsTab::DomesticStock => (SELLING_AMOUNT, SELLING_AMOUNT),
-        ReceiptsTab::MutualFund => (REDEMPTION_AMOUNT, REDEMPTION_AMOUNT),
-    };
-    let (primary_value, _, _) = compact_value(&details, primary_detail);
-    let (net_value, net_negative, net_positive) = compact_value(&details, labels[2]);
-    let net_kind = if is_profit_label(tab, labels[2]) {
+    let row_label = compact_row_label(tab);
+    let (row_value, row_negative, row_positive) = compact_value(&details, row_label);
+    let row_kind = if is_profit_label(tab, row_label) {
         AmountKind::Delta
     } else {
         AmountKind::Plain
     };
-    let (quantity, _, _) = compact_value(&details, QUANTITY);
-    // 投資信託の数量は口数
-    let quantity_unit = if tab == ReceiptsTab::MutualFund {
-        "口"
-    } else {
-        "株"
-    };
-    // 行に出している項目は詳細に重複して出さない
-    let shown = [primary_detail, labels[2], QUANTITY];
     let rest: Vec<CardDetail> = details
         .iter()
-        .filter(|detail| !shown.contains(&detail.label.as_str()))
+        .filter(|detail| detail.label.as_str() != row_label)
         .cloned()
         .collect();
-    // トグルの読み上げ名は行ごとに識別できるよう銘柄名を入れる
     let name_text = match &name {
         CardDetailValue::Text { text, .. } => text.clone(),
         CardDetailValue::CopyName { display, .. } => display.clone(),
     };
     let name = compact_name(name);
+    let code_text = code.filter(|code| !code.is_empty()).unwrap_or_default();
 
     let toggle_key = format!("r:{key}");
     let key_for_expanded = toggle_key.clone();
@@ -356,7 +344,6 @@ fn CompactReceiptRow(
         });
     };
     let key_for_toggle = toggle_key.clone();
-    // リンクやボタンの上以外を押しても詳細が開くようにする
     let on_row_click = move |ev: leptos::ev::MouseEvent| {
         let interactive = ev
             .target()
@@ -368,6 +355,7 @@ fn CompactReceiptRow(
         }
     };
     let key_for_button = toggle_key;
+    let account_label = account.clone();
 
     view! {
         <li
@@ -375,43 +363,26 @@ fn CompactReceiptRow(
             data-testid="receipt-card"
             on:click=on_row_click
         >
-            <div class="receipt-compact-main">
-                <div class="receipt-compact-name-cell">{name}</div>
-                <span class="receipt-compact-net">
-                    <Amount
-                        kind=net_kind
-                        text=net_value
-                        negative=net_negative
-                        positive=net_positive
-                    />
-                </span>
-            </div>
-            <div class="receipt-compact-meta">
-                <div class="receipt-compact-facts">
-                    <span>{date}</span>
-                    {code.map(|code| view! {
-                        <>
-                            <span aria-hidden="true">" · "</span>
-                            <SecurityCodeLink value=code class="receipt-compact-code".to_string() />
-                        </>
-                    })}
-                    <span aria-hidden="true">" · "</span>
-                    <AccountBadge label=account />
-                    {(!quantity.is_empty()).then(|| view! {
-                        <>
-                            <span aria-hidden="true">" · "</span>
-                            <Amount
-                                kind=AmountKind::Plain
-                                text=format!("{quantity}{quantity_unit}")
+            <div class="receipt-compact-line">
+                <LedgerRow
+                    date=date
+                    name=name
+                    code=(!code_text.is_empty())
+                        .then(|| view! {
+                            <SecurityCodeLink
+                                value=code_text.clone()
+                                class="ledger-code".to_string()
                             />
-                        </>
-                    })}
-                </div>
-                <span class="receipt-compact-primary">
-                    {primary_label}
-                    " "
-                    <Amount kind=AmountKind::Plain text=primary_value />
-                </span>
+                        })
+                    amount=view! {
+                        <Amount
+                            kind=row_kind
+                            text=row_value
+                            negative=row_negative
+                            positive=row_positive
+                        />
+                    }
+                />
                 {(!rest.is_empty()).then(|| view! {
                     <DisclosureToggle
                         style=DisclosureStyle::RowToggle
@@ -433,6 +404,9 @@ fn CompactReceiptRow(
                 hidden=move || !expanded.get()
             >
                 <dl class="space-y-1">
+                    <StatRow label="口座".to_string() numeric=true>
+                        <AccountBadge label=account_label.clone() />
+                    </StatRow>
                     {rest
                         .iter()
                         .map(|detail| {

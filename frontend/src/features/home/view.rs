@@ -23,6 +23,7 @@ use crate::ui::labels::{
     ANNUAL_EXPECTED_DIVIDEND, DAY_CHANGE, MARKET_VALUE, MISSING, TOTAL_ACQUISITION,
     VALUATION_PROFIT_LOSS,
 };
+use crate::ui::ledger_row::LedgerRow;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
@@ -875,22 +876,24 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                                 };
                                 view! {
                                     <li class="home-dividend-row">
-                                        <span class="home-dividend-date">
-                                            {format_short_date(&row.settlement_date)}
-                                        </span>
-                                        <span class="home-dividend-code">{code}</span>
-                                        <span class="home-dividend-name" title=row.security_name.clone()>
-                                            {row.security_name.clone()}
-                                        </span>
-                                        <span class="home-dividend-account">
-                                            <AccountBadge label=row.account.clone() />
-                                        </span>
-                                        <Amount
-                                            kind=AmountKind::Plain
-                                            text=format_currency(
-                                                dec_to_f64(&row.net_amount_received),
-                                            )
-                                            class="home-dividend-amount"
+                                        <LedgerRow
+                                            date=format_short_date(&row.settlement_date)
+                                            name=view! {
+                                                <span title=row.security_name.clone()>
+                                                    {row.security_name.clone()}
+                                                </span>
+                                            }
+                                            code=view! {
+                                                <span>{code}</span>
+                                            }
+                                            amount=view! {
+                                                <Amount
+                                                    kind=AmountKind::Plain
+                                                    text=format_currency(
+                                                        dec_to_f64(&row.net_amount_received),
+                                                    )
+                                                />
+                                            }
                                         />
                                     </li>
                                 }
@@ -986,36 +989,46 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
     let rate_positive = holding
         .rate
         .is_some_and(|rate| is_positive_rate(Some(rate)));
-    let label = if holding.code.is_empty() {
+    let title = if holding.code.is_empty() {
         holding.name.clone()
     } else {
         format!("{} {}", holding.code, holding.name)
     };
-    let title = label.clone();
     view! {
         <li>
             <a
                 class="home-pnl-row hover:bg-surface-raised max-sm:min-h-11"
                 href=holding.href
             >
-                <span class="home-pnl-name" title=title>{label}</span>
-                <Amount
-                    kind=AmountKind::Delta
-                    text=format_signed_row_valuation_amount(Some(holding.profit_loss))
-                    negative=negative
-                    positive=positive
-                    class="home-pnl-amount font-bold"
-                />
-                <Amount
-                    kind=AmountKind::Delta
-                    text=holding
-                        .rate
-                        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-                        .unwrap_or_else(|| MISSING.to_string())
-                    negative=rate_negative
-                    positive=rate_positive
-                    class="home-pnl-rate"
-                />
+                <span class="home-pnl-line1">
+                    <span class="home-pnl-name" title=title.clone()>
+                        {holding.name.clone()}
+                    </span>
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=format_signed_row_valuation_amount(Some(holding.profit_loss))
+                        negative=negative
+                        positive=positive
+                        class="home-pnl-amount font-bold"
+                    />
+                </span>
+                <span class="home-pnl-line2">
+                    <Amount
+                        kind=AmountKind::Plain
+                        text=format_valuation_amount(Some(holding.market_value))
+                        class="home-pnl-market"
+                    />
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=holding
+                            .rate
+                            .map(|rate| format_signed_valuation_rate(Some(rate), 1))
+                            .unwrap_or_else(|| MISSING.to_string())
+                        negative=rate_negative
+                        positive=rate_positive
+                        class="home-pnl-rate"
+                    />
+                </span>
             </a>
         </li>
     }

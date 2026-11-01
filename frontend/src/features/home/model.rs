@@ -296,6 +296,7 @@ pub(crate) struct HoldingPnl {
     /// 詳細ページへのパス(一覧の行と同じ保存済みレコード ID)
     pub(crate) href: String,
     pub(crate) profit_loss: f64,
+    pub(crate) market_value: f64,
     pub(crate) rate: Option<f64>,
 }
 
@@ -318,6 +319,7 @@ pub(crate) fn holding_pnls(stocks: &[AssetBalance], funds: &[FundBalance]) -> Ve
             name,
             href: format!("/assetbalance/holdings/{}", row.id),
             profit_loss,
+            market_value: valuation.market_value.unwrap_or(0.0),
             rate: valuation.profit_loss.rate,
         })
     });
@@ -326,6 +328,7 @@ pub(crate) fn holding_pnls(stocks: &[AssetBalance], funds: &[FundBalance]) -> Ve
         name: normalize_display_name(&row.fund_name),
         href: format!("/assetbalance/funds/{}", row.id),
         profit_loss: dec_to_f64(&row.profit_loss),
+        market_value: dec_to_f64(&row.market_value),
         rate: row.profit_loss_rate.as_ref().map(dec_to_f64),
     });
     stock_rows.chain(fund_rows).collect()

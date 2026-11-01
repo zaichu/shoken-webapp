@@ -1,6 +1,6 @@
 use crate::features::asset_balance::fund::AssetKind;
+use crate::ui::underline_tabs::{UnderlineTabButton, focus_tab_by_id, next_tab_index};
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
 
 fn tab_id(kind: AssetKind) -> &'static str {
     match kind {
@@ -10,31 +10,14 @@ fn tab_id(kind: AssetKind) -> &'static str {
     }
 }
 
-fn next_index(current: usize, key: &str) -> Option<usize> {
-    match key {
-        "ArrowRight" => Some((current + 1) % 3),
-        "ArrowLeft" => Some((current + 3 - 1) % 3),
-        "Home" => Some(0),
-        "End" => Some(2),
-        _ => None,
-    }
+fn next_kind_index(current: usize, key: &str) -> Option<usize> {
+    next_tab_index(AssetKind::ALL.len(), current, key)
 }
 
 fn focus_tab(kind: AssetKind) {
-    let Some(element) = web_sys::window()
-        .and_then(|window| window.document())
-        .and_then(|document| document.get_element_by_id(tab_id(kind)))
-    else {
-        return;
-    };
-    if let Some(element) = element.dyn_ref::<web_sys::HtmlElement>() {
-        let _ = element.focus();
-    }
+    focus_tab_by_id(tab_id(kind));
 }
 
-/// 保有種別の切り替えピル(すべて/国内株式/投資信託)。
-/// 取引明細のタブと同じ構造で、件数はラベルの横に出す
-/// 件数は Signal<usize> で受け取り、データ読み込み完了時に更新されるようにする
 #[component]
 pub(crate) fn AssetKindTabs(
     kind: RwSignal<AssetKind>,
@@ -57,34 +40,30 @@ pub(crate) fn AssetKindTabs(
             {AssetKind::ALL
                 .into_iter()
                 .map(|item| {
-                    let selected = move || kind.get() == item;
+                    let selected = Signal::derive(move || kind.get() == item);
+                    let count_value = Signal::derive(move || count(item).to_string());
                     let keyed = kind;
                     let clicked = kind;
                     view! {
-                        <button
-                            type="button"
-                            role="tab"
-                            id=tab_id(item)
-                            aria-selected=move || selected().to_string()
-                            tabindex=move || if selected() { "0" } else { "-1" }
-                            class="page-tab"
-                            data-testid=format!("asset-kind-tab-{}", item.value())
-                            on:click=move |_| clicked.set(item)
-                            on:keydown=move |event| {
+                        <UnderlineTabButton
+                            id=tab_id(item).to_string()
+                            label=item.label().to_string()
+                            count=count_value
+                            selected=selected
+                            testid=format!("asset-kind-tab-{}", item.value())
+                            on_select=move || clicked.set(item)
+                            on_keydown=move |event: web_sys::KeyboardEvent| {
                                 let current = AssetKind::ALL
                                     .iter()
                                     .position(|candidate| *candidate == keyed.get_untracked())
                                     .unwrap_or(0);
-                                if let Some(next) = next_index(current, &event.key()) {
+                                if let Some(next) = next_kind_index(current, &event.key()) {
                                     event.prevent_default();
                                     keyed.set(AssetKind::ALL[next]);
                                     focus_tab(AssetKind::ALL[next]);
                                 }
                             }
-                        >
-                            {item.label()}
-                            <span class="page-tab-count">{move || count(item)}</span>
-                        </button>
+                        />
                     }
                 })
                 .collect_view()}
