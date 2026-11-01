@@ -1069,9 +1069,9 @@
     @apply border-b border-border-faint isolate;
   }
 
-  /* 2行の行のコードリンク。押せる高さ44pxを実寸で持ち、隣の開閉ボタンと重ならない */
+  /* 2行の行のコードリンク。押せる領域44pxを実寸で持ち、隣の開閉ボタンと重ならない */
   .receipt-compact-code {
-    @apply inline-flex min-h-11 items-center font-normal text-text-muted no-underline;
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center font-normal text-text-muted no-underline;
   }
 
   /* 2行目の右端の開閉ボタン。44pxの実寸で置き、隣と重ならない */

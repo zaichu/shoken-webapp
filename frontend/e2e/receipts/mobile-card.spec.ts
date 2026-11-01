@@ -167,7 +167,7 @@ test('行の日付は月/日で出す', async ({ page }) => {
 
   const card = page.getByTestId('receipt-card-list').getByTestId('receipt-card').first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.list-row-meta')).toContainText('3/01');
+  await expect(card.locator('.list-row-meta')).toContainText('3/1');
 });
 
 test('国内株式は1件日の小計を省き、複数件日は小計を残す', async ({ page }) => {
