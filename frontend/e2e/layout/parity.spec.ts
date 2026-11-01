@@ -477,7 +477,7 @@ test.describe('資産管理と取引明細の上部 parity', () => {
     });
   }
 
-  test('スマホではタブと帯の上端が一致する(390px)', async ({ page, context }) => {
+  test('スマホではタブと帯の間隔が一致する(390px)', async ({ page, context }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await setupParityMocks(page);
     const other = await context.newPage();
@@ -488,13 +488,16 @@ test.describe('資産管理と取引明細の上部 parity', () => {
       await expectAssetDataLoaded(page);
       await other.goto('/receipts');
       await other.getByTestId('receipt-summary-strip').first().waitFor();
-      // 検索欄は配置が違う(資産管理は本文内・取引明細は下部固定)のため、
-      // スマホではタブと帯の上端だけを比べる。帯の高さは項目数が違うため比べない
-      for (const selector of ['.page-skeleton-tabs', '.page-skeleton-summary']) {
-        const a = await skeletonBox(page, selector);
-        const b = await skeletonBox(other, selector);
-        expect(Math.abs(a.y - b.y), `${selector}の上端`).toBeLessThanOrEqual(1);
-      }
+      // 資産管理の上バーは構成比リンクを出すため取引明細より背が高く、
+      // タブの絶対位置は一致しない。骨組みの間隔が同じなのを確かめる
+      const assetTabs = await skeletonBox(page, '.page-skeleton-tabs');
+      const receiptTabs = await skeletonBox(other, '.page-skeleton-tabs');
+      expect(Math.abs(assetTabs.height - receiptTabs.height), 'タブの高さ').toBeLessThanOrEqual(1);
+      const assetSummary = await skeletonBox(page, '.page-skeleton-summary');
+      const receiptSummary = await skeletonBox(other, '.page-skeleton-summary');
+      const assetGap = assetSummary.y - (assetTabs.y + assetTabs.height);
+      const receiptGap = receiptSummary.y - (receiptTabs.y + receiptTabs.height);
+      expect(Math.abs(assetGap - receiptGap), 'タブと帯の間隔').toBeLessThanOrEqual(2);
       await expectNoPageOverflow(page, 390);
       await expectNoPageOverflow(other, 390);
     } finally {
