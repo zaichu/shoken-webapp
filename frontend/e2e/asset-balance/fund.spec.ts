@@ -130,7 +130,7 @@ test('PC: 「条件を足す」の小窓はどのボタンでもその行の直�
   }
 });
 
-test('スマホ: 検索・並べ替えシートは下端に接して出る', async ({ page }) => {
+test('スマホ: 検索・並べ替えダイアログは中央に小さく出る', async ({ page }) => {
   await setupMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
@@ -145,10 +145,16 @@ test('スマホ: 検索・並べ替えシートは下端に接して出る', asy
   if (!panel) {
     return;
   }
-  // 画面下端に接するシートのまま(PC の小窓位置にはならない)
-  expect(panel.y + panel.height).toBeGreaterThanOrEqual(844 - 2);
-  // ×で閉じて入口にフォーカスが戻る
-  await sheet.getByRole('button', { name: '閉じる' }).click();
+  // 中央の小さなダイアログ(下端に接しないし画面いっぱいでもない)
+  expect(panel.y).toBeGreaterThan(10);
+  expect(panel.y + panel.height).toBeLessThan(844 - 10);
+  expect(panel.width).toBeLessThanOrEqual(480);
+  // 下のボタンが見切れない
+  await expect(sheet.getByTestId('search-dialog-search')).toBeVisible();
+  await expect(sheet.getByTestId('search-dialog-close')).toBeVisible();
+  await expect(sheet.getByTestId('search-dialog-clear')).toBeVisible();
+  // 閉じるで閉じて入口にフォーカスが戻る
+  await sheet.getByTestId('search-dialog-close').click();
   await expect(sheet).toBeHidden();
   await expect(page.getByTestId('asset-search-sheet-entry')).toBeFocused();
 });
