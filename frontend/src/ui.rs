@@ -11,6 +11,7 @@ pub(crate) mod empty_state;
 pub(crate) mod focus;
 pub(crate) mod format;
 pub(crate) mod labels;
+pub(crate) mod list_row;
 pub(crate) mod login_prompt;
 pub(crate) mod page_frame;
 pub(crate) mod page_skeleton;

@@ -8,11 +8,12 @@ use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
+use crate::ui::format::format_number_value;
 use crate::ui::labels::{
     ACCOUNT, BASE_PRICE, DAY_CHANGE, DISTRIBUTION, FUND, FUND_SHARES, MARKET_VALUE,
     VALUATION_PROFIT_LOSS,
 };
+use crate::ui::list_row::ListRow;
 use crate::ui::security_link::TableNameLink;
 use leptos::prelude::*;
 
@@ -142,11 +143,9 @@ pub fn FundHoldingsTable(
     }
 }
 
-/// スマホのファンド一覧。1行は「ファンド名 + 評価額」と「口座・口数・基準価額 + 損益」
+/// スマホのファンド一覧。共通の2行の行で出す
 #[component]
 pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
-    // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let base_price_decimals = unit_price_decimals(views.iter().map(|view| view.base_price));
     view! {
         <ul class="asset-compact-list" data-testid="asset-fund-list">
             {views
@@ -161,46 +160,36 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     let rate_positive = is_positive_rate(view.profit_loss_rate);
                     let shares_text =
                         format!("{}口", format_number_value(view.shares));
-                    let base_price_text =
-                        format_unit_price(view.base_price, base_price_decimals);
+                    let market_text = format_row_valuation_amount(Some(view.market_value));
+                    let name = view.name.clone();
+                    let account = view.account.clone();
                     let inner = view! {
-                        <>
-                            <div class="flex items-baseline justify-between gap-2">
-                                <span class="min-w-0 truncate font-medium text-text">
-                                    {view.name.clone()}
-                                </span>
+                        <ListRow
+                            name=move || name.clone()
+                            primary=move || view! {
+                                <Amount kind=AmountKind::Plain text=market_text.clone() />
+                            }
+                            meta=move || view! {
+                                <AccountBadge label=account.clone() />
+                                {" · "}
+                                <Amount kind=AmountKind::Plain text=shares_text.clone() />
+                            }
+                            secondary=move || view! {
                                 <Amount
-                                    kind=AmountKind::Plain
-                                    text=format_row_valuation_amount(Some(view.market_value))
-                                    class="shrink-0 font-bold text-text-deep"
+                                    kind=AmountKind::Delta
+                                    text=pnl_text.clone()
+                                    negative=pnl_negative
+                                    positive=pnl_positive
                                 />
-                            </div>
-                            <div class="mt-0.5 flex items-start justify-between gap-2 text-xs">
-                                <span class="min-w-0 flex-1 break-words text-text-muted">
-                                    <AccountBadge label=view.account.clone() />
-                                    " ・ "
-                                    <Amount kind=AmountKind::Plain text=shares_text />
-                                    " ・ 基準価額 "
-                                    <Amount kind=AmountKind::Plain text=base_price_text />
-                                </span>
-                                <span class="flex shrink-0 items-baseline whitespace-nowrap">
-                                    <Amount
-                                        kind=AmountKind::Delta
-                                        text=pnl_text
-                                        negative=pnl_negative
-                                        positive=pnl_positive
-                                        class="font-bold"
-                                    />
-                                    <Amount
-                                        kind=AmountKind::Delta
-                                        text=pnl_rate_text
-                                        negative=rate_negative
-                                        positive=rate_positive
-                                        class="ml-1 text-xs"
-                                    />
-                                </span>
-                            </div>
-                        </>
+                                {" "}
+                                <Amount
+                                    kind=AmountKind::Delta
+                                    text=pnl_rate_text.clone()
+                                    negative=rate_negative
+                                    positive=rate_positive
+                                />
+                            }
+                        />
                     };
                     view! {
                         <li class="asset-compact-row" data-testid="asset-compact-row">

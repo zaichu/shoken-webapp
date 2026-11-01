@@ -1669,6 +1669,38 @@
     @apply bg-surface-sunken;
   }
 
+  /* 資産管理・取引明細・ホームの配当入金で共通の2行の行。
+     1行目=名前(左、折り返して全文)・主役の金額(右、折り返さない・桁そろえ)。
+     2行目=左に小さく補助色で日付・コード・口座など、右に補助の金額。
+     PCの表は変えない(スマホのリスト専用) */
+  .list-row {
+    @apply flex min-w-0 flex-col gap-y-0.5;
+  }
+
+  .list-row-main {
+    @apply flex min-w-0 items-baseline justify-between gap-2;
+  }
+
+  .list-row-name {
+    @apply min-w-0 flex-1 break-words font-medium text-text-deep;
+  }
+
+  .list-row-primary {
+    @apply shrink-0 whitespace-nowrap text-right font-bold tabular-nums;
+  }
+
+  .list-row-sub {
+    @apply flex min-w-0 items-baseline justify-between gap-2 text-xs;
+  }
+
+  .list-row-meta {
+    @apply min-w-0 flex-1 break-words text-text-muted;
+  }
+
+  .list-row-secondary {
+    @apply shrink-0 whitespace-nowrap text-right tabular-nums;
+  }
+
   .asset-comp-link {
     @apply block px-4 py-3 no-underline;
   }

@@ -444,6 +444,16 @@ pub const PAGE_PREVIOUS: &str = "前へ";
 pub const PAGE_NEXT: &str = "次へ";
 pub const PAGE_NAVIGATION: &str = "ページ送り";
 pub const SORT_BY: &str = "並べ替え";
+/// 税引前の金額の頭に付ける短い表記(行の補助の金額用)
+pub const BEFORE_TAX: &str = "税引前";
+/// 取引明細の帯の主役(配当金タブ)
+pub const RECEIVED_DIVIDEND_AFTER_TAX: &str = "受け取った配当金(税引後)";
+/// 取引明細の帯の主役(国内株式・投資信託タブ)
+pub const REALIZED_AFTER_TAX: &str = "実現損益(税引後)";
+/// 月見出しの右に出す短い受取表記(配当金タブ)
+pub const RECEIPT_SHORT: &str = "受取";
+/// 月見出しの右に出す短い損益表記(国内株式・投資信託タブ。#1634 の指定による例外)
+pub const PROFIT_SHORT: &str = "損益";
 
 pub fn page_number(page: i64) -> String {
     format!("{page}ページ")
