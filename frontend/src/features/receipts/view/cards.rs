@@ -293,16 +293,11 @@ fn CompactReceiptRow(
         ReceiptsTab::MutualFund => REDEMPTION_AMOUNT,
     };
     let (aux_value, _, _) = compact_value(&details, aux_detail);
-    let (hero_label, hero_value, hero_negative, hero_positive, hero_is_profit) = match tab {
-        ReceiptsTab::Dividend => {
-            let (value, negative, positive) = compact_value(&details, AFTER_TAX);
-            (AFTER_TAX, value, negative, positive, false)
-        }
-        _ => {
-            let (value, negative, positive) = compact_value(&details, REALIZED_PROFIT_LOSS);
-            (REALIZED_PROFIT_LOSS, value, negative, positive, true)
-        }
-    };
+    // 行の主役は全タブで税引後(月見出し・帯と同じ基準。行を足すと帯に合う)。
+    // 税引前の実現損益は展開した詳細に残す
+    let (hero_value, hero_negative, hero_positive) = compact_value(&details, AFTER_TAX);
+    let hero_is_profit = tab != ReceiptsTab::Dividend;
+    let hero_label = AFTER_TAX;
     let hero_kind = if hero_is_profit {
         AmountKind::Delta
     } else {
@@ -446,6 +441,16 @@ fn CompactReceiptRow(
     }
 }
 
+/// 月・日見出しの右に出す合計。行の主役・帯と同じ税引後の合計を使う
+pub(crate) fn group_headline_value<'a>(summary: &'a [(&'static str, String)]) -> &'a str {
+    summary
+        .iter()
+        .find(|(label, _)| *label == AFTER_TAX)
+        .map(|(_, value)| value.as_str())
+        .or_else(|| summary.last().map(|(_, value)| value.as_str()))
+        .unwrap_or("")
+}
+
 #[component]
 pub(crate) fn CompactReceiptGroup(
     tab: ReceiptsTab,
@@ -459,21 +464,11 @@ pub(crate) fn CompactReceiptGroup(
     let (display_label, display_value, display_negative, display_positive, display_kind) = match tab
     {
         ReceiptsTab::Dividend => {
-            let (_, value) = summary
-                .iter()
-                .find(|(label, _)| *label == AFTER_TAX)
-                .cloned()
-                .or_else(|| summary.last().cloned())
-                .unwrap_or_default();
+            let value = group_headline_value(&summary).to_string();
             (RECEIPT_SHORT, value, false, false, AmountKind::Plain)
         }
         _ => {
-            let (_, value) = summary
-                .iter()
-                .find(|(label, _)| *label == REALIZED_PROFIT_LOSS)
-                .cloned()
-                .or_else(|| summary.first().cloned())
-                .unwrap_or_default();
+            let value = group_headline_value(&summary).to_string();
             let negative = is_negative_text(&value);
             let positive = is_positive_text(&value);
             let text = if positive && !value.trim_start().starts_with('+') {

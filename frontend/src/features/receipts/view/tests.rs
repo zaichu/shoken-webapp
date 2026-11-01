@@ -981,3 +981,46 @@ fn summary_band_keeps_primary_last_and_breakdown_order() {
         }
     }
 }
+
+#[test]
+fn row_group_band_share_after_tax_total() {
+    // 行の主役・月見出し・帯はすべて税引後。行を足すと帯に合う
+    let mut domestic_row = domestic().remove(0);
+    if let Saved(ReceiptItem::DomesticStock(row)) = &mut domestic_row {
+        row.taxes = dec!(203);
+        row.realized_profit_and_loss_after_tax = dec!(797);
+    }
+    let domestic_rows = vec![domestic_row];
+    let domestic_card = card_for(ReceiptsTab::DomesticStock, domestic_rows[0].clone());
+    assert_eq!(detail_value(&domestic_card, "税引後").0, "+¥797");
+    let fund_card = card_for(ReceiptsTab::MutualFund, funds().remove(0));
+    assert_eq!(detail_value(&fund_card, "税引後").0, "+¥900");
+    let dividend_card = card_for(ReceiptsTab::Dividend, dividends().remove(0));
+    assert_eq!(detail_value(&dividend_card, "税引後").0, "¥400");
+    for (tab, rows) in [
+        (ReceiptsTab::Dividend, dividends()),
+        (ReceiptsTab::DomesticStock, domestic_rows),
+        (ReceiptsTab::MutualFund, funds()),
+    ] {
+        let band_after_tax = tab.client_summary_triple(&rows)[2];
+        let row_sum: Decimal = rows.iter().map(|row| row.summary_amounts().2).sum();
+        assert_eq!(band_after_tax, row_sum);
+    }
+}
+
+#[test]
+fn month_headline_uses_after_tax_total() {
+    // 税引前と税引後が違う集計でも月見出しは税引後を選ぶ
+    let stock = vec![
+        ("実現損益", "+¥1,000".to_string()),
+        ("税額", "¥203".to_string()),
+        ("税引後", "+¥797".to_string()),
+    ];
+    assert_eq!(group_headline_value(&stock), "+¥797");
+    let dividend = vec![
+        ("配当金", "¥500".to_string()),
+        ("税額", "¥100".to_string()),
+        ("税引後", "¥400".to_string()),
+    ];
+    assert_eq!(group_headline_value(&dividend), "¥400");
+}

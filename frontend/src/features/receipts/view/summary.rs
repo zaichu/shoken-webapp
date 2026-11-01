@@ -2,7 +2,9 @@ use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab, select_
 use crate::settings::format_amount;
 use crate::ui::card::StatTone;
 use crate::ui::format::format_iso_date;
-use crate::ui::labels::{self, DIVIDEND_AMOUNT, REALIZED_AFTER_TAX, RECEIVED_DIVIDEND_AFTER_TAX};
+use crate::ui::labels::{
+    self, DIVIDEND_AMOUNT, REALIZED_AFTER_TAX, REALIZED_PROFIT_LOSS, RECEIVED_DIVIDEND_AFTER_TAX,
+};
 use crate::ui::summary::{SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -77,13 +79,16 @@ pub fn SummaryStrip(
                         is_profit: bool| {
         let negative = tone == StatTone::Loss;
         let positive = is_profit && value > Decimal::ZERO;
+        // 内訳の税引前(配当金・実現損益)は内側の箱で区切る
+        let boxed = (tab == ReceiptsTab::Dividend && label == DIVIDEND_AMOUNT)
+            || (tab != ReceiptsTab::Dividend && label == REALIZED_PROFIT_LOSS);
         SummaryBreakdownEntry {
             label: label.to_string(),
             value: format_signed(value, is_profit),
             negative,
             positive,
             rate: String::new(),
-            boxed: tab == ReceiptsTab::Dividend && label == DIVIDEND_AMOUNT,
+            boxed,
         }
     };
     let to_sub =

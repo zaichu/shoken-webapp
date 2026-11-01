@@ -150,7 +150,7 @@ test('マイナスの損益は符号と色を保ち、売却額には負の装�
     .getByTestId('receipt-card')
     .first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.list-row-primary')).toHaveText('-¥5,000');
+  await expect(card.locator('.list-row-primary')).toHaveText('-¥3,985');
   await expect(
     card.locator('.list-row-primary [data-negative="true"]'),
   ).toHaveCount(1);

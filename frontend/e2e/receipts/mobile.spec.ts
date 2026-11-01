@@ -218,7 +218,7 @@ test('国内株式タブでも2行の行にコード・口座・金額が出る'
     .first();
   await expect(card.locator('.list-row-meta')).toContainText('9905');
   await expect(card.locator('.list-row-meta')).toContainText('SBI証券');
-  await expect(card.locator('.list-row-primary')).toContainText('¥5,000');
+  await expect(card.locator('.list-row-primary')).toContainText('¥3,985');
   await expect(card.locator('.list-row-secondary')).toContainText('¥55,000');
 });
 
