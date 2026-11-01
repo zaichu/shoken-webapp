@@ -96,7 +96,7 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
   await expect(sheet.getByTestId('asset-dialog-sort-target')).toHaveValue('market_value');
   await expect(sheet.getByTestId('asset-dialog-sort-order')).toHaveValue('desc');
   // 背景を押すと閉じて入口にフォーカスが戻る
-  await page.getByTestId('search-dialog-backdrop').click();
+  await page.getByTestId('search-dialog-backdrop').click({ position: { x: 10, y: 10 } });
   await expect(sheet).toBeHidden();
   await expect(entry).toBeFocused();
 

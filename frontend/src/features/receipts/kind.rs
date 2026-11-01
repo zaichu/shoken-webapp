@@ -610,7 +610,11 @@ fn row_tuple(row: &ReceiptRow) -> (Option<String>, String, Vec<ReceiptCell>) {
     )
 }
 
-fn summarize_groups(sorted: &[ReceiptRow], key: impl Fn(&ReceiptRow) -> String) -> Vec<TableGroup> {
+fn summarize_groups(
+    sorted: &[ReceiptRow],
+    key: impl Fn(&ReceiptRow) -> String,
+    descending: bool,
+) -> Vec<TableGroup> {
     group_and_summarize(
         sorted,
         &key,
@@ -619,7 +623,7 @@ fn summarize_groups(sorted: &[ReceiptRow], key: impl Fn(&ReceiptRow) -> String) 
             |row: &ReceiptRow| row.summary_amounts().1,
             |row: &ReceiptRow| row.summary_amounts().2,
         ],
-        true,
+        descending,
     )
     .into_iter()
     .map(|summary| {
@@ -732,7 +736,11 @@ fn dividend_table_groups(
         },
     ];
     let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
-    summarize_groups(&sorted, key)
+    summarize_groups(
+        &sorted,
+        key,
+        order == crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    )
 }
 
 impl ListEndpoint for DomesticStock {
@@ -746,7 +754,7 @@ fn domestic_table_groups(
     order: crate::features::receipts::filter::ReceiptSortOrder,
 ) -> Vec<TableGroup> {
     let sorted = sorted_rows(rows, order);
-    domestic_daily(&sorted)
+    let mut groups: Vec<TableGroup> = domestic_daily(&sorted)
         .into_iter()
         .map(|day| {
             let date = day.filter;
@@ -771,7 +779,11 @@ fn domestic_table_groups(
                 rows,
             }
         })
-        .collect()
+        .collect();
+    if order == crate::features::receipts::filter::ReceiptSortOrder::Oldest {
+        groups.reverse();
+    }
+    groups
 }
 
 impl ListEndpoint for Mutualfund {
@@ -796,7 +808,11 @@ fn mutual_fund_table_groups(
         key_fn: &|row: &ReceiptRow| normalize_display_name(row.name()),
     }];
     let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
-    summarize_groups(&sorted, key)
+    summarize_groups(
+        &sorted,
+        key,
+        order == crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    )
 }
 
 impl ReceiptsTab {
