@@ -304,7 +304,7 @@ test.describe('スマホの構成比', () => {
     await expect(other).toContainText('—');
   });
 
-  test('一覧の見出しから構成比へ進め、帯の入口は無い', async ({ page }) => {
+  test('一覧の見出しと上バーから構成比へ進める', async ({ page }) => {
     await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS);
     await page.goto('/assetbalance');
     await page.getByTestId('asset-kind-tab-stock').click();
@@ -312,9 +312,16 @@ test.describe('スマホの構成比', () => {
     const heading = page.getByTestId('asset-stock-heading');
     await expect(heading).toContainText('保有銘柄');
     await expect(heading).toContainText('3件');
-    await expect(page.getByText('構成比 ›', { exact: true })).toHaveCount(0);
     await heading.getByRole('link', { name: '構成比を見る' }).click();
     await expect(page).toHaveURL('/assetbalance/composition');
+    await expect(page.getByRole('link', { name: '資産管理に戻る' })).toBeVisible();
+
+    await page.goto('/assetbalance');
+    await page.getByTestId('asset-kind-tab-stock').click();
+    await page.getByRole('link', { name: '構成比を見る' }).first().click();
+    await expect(page).toHaveURL('/assetbalance/composition');
+    await page.getByRole('link', { name: '資産管理に戻る' }).click();
+    await expect(page).toHaveURL('/assetbalance');
   });
 });
 

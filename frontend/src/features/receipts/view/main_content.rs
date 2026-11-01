@@ -192,9 +192,8 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                 return ().into_any();
             }
             view! {
-                <div class="receipts-sticky-top">
-                    <SkeletonSummary>
-                        <section id="receipts-summary">
+                <SkeletonSummary>
+                    <section id="receipts-summary">
                             {move || {
                                 // 銘柄を指定したときは配当情報のカードに置き換える
                                 if show_dividend_info.get() {
@@ -225,7 +224,6 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                             }}
                         </section>
                     </SkeletonSummary>
-                </div>
                 <SkeletonNote
                     notes=Vec::new()
                     filtered=filtered_count.into()

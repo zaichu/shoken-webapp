@@ -169,14 +169,8 @@ pub(crate) fn CsvPage() -> impl IntoView {
     // 取り込みは行の「⋯」→「ファイルから取り込み」で OS の選択を開く
 
     view! {
-        <PageFrame title="CSV管理">
+        <PageFrame title="CSV管理" back_href="/assetbalance" back_label="資産管理に戻る">
             <div class="flex flex-col gap-4">
-                {/* パンくず + 見出し */}
-                <nav class="flex items-center gap-2 text-sm text-text-soft" aria-label="パンくず">
-                    <a href="/assetbalance" class="hover:underline">"資産管理"</a>
-                    <span aria-hidden="true">"/"</span>
-                    <span class="text-text" aria-current="page">"CSV管理"</span>
-                </nav>
 
                 {/* 取得カード */}
                 <CsvManageFetchCard

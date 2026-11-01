@@ -1167,13 +1167,6 @@
     @apply border-badge-old-nisa-border bg-badge-old-nisa text-badge-old-nisa-text;
   }
 
-  /* 集計の帯はスクロール中も一覧の上に張り付く(スマホのみ) */
-  @media (width < 64rem) {
-    .receipts-sticky-top {
-      @apply sticky top-0 z-10 flex flex-col;
-    }
-  }
-
   /* スマホの下部帯はスクロール領域の流れの中で、下部ナビの直前に置く */
   .receipts-mobile-bottom-section {
     @apply mt-auto shrink-0 border-t border-border bg-surface;
@@ -1207,17 +1200,10 @@
     padding-inline: clamp(1rem, 3.5vw, 3rem);
   }
 
-  /* 頁枠を縮めると、縮まない本文が枠の下へはみ出して直後のフッターに重なる。
-     縮めてよいのは、スマホで本文が内側スクロールを持つ頁(内側スクロール+
-     下部帯固定)だけ。それ以外はどの幅でも縮めない */
+  /* 頁枠は本文の高さまで伸ばし、本文はページ全体(main.app-scroll)で流す。
+     内側スクロールは作らない */
   .page-frame {
     @apply flex min-h-full flex-col shrink-0;
-  }
-
-  @media (width < 64rem) {
-    .page-frame.inner-scroll {
-      @apply shrink;
-    }
   }
 
   /* 下部操作帯を下端に張り付けるには、帯を含む頁枠が本文の高さまで伸びて
@@ -1774,11 +1760,6 @@
 
   a.asset-comp-link:hover {
     @apply bg-surface-sunken;
-  }
-
-  /* 構成比の戻り操作。下線なしの小さな文字ボタン(44px) */
-  .comp-back-link {
-    @apply inline-flex min-h-11 items-center text-sm font-medium text-text-deep no-underline hover:text-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
   }
 
   /* 資産管理の一覧見出し(スマホ)。見出しの左に件数、右に構成比への入口を置く */

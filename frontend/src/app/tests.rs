@@ -122,6 +122,26 @@ fn strip_hash_keeps_query() {
 }
 
 #[test]
+fn bottom_nav_shows_on_logged_in_pages_only() {
+    for route in [
+        Route::Home,
+        Route::Search,
+        Route::Receipts,
+        Route::Csv,
+        Route::AssetBalance,
+        Route::AssetBalanceComposition,
+        Route::AssetBalanceHolding,
+        Route::AssetFundHolding,
+        Route::Settings,
+        Route::AdminLogins,
+    ] {
+        assert!(show_bottom_nav_for(route));
+    }
+    assert!(!show_bottom_nav_for(Route::Login));
+    assert!(!show_bottom_nav_for(Route::NotFound));
+}
+
+#[test]
 fn spa_href_parts_rejects_download_target_and_external() {
     // アプリ内遷移にするのは href がルート相対で download も target=_self 以外の target もないリンクだけ
     assert_eq!(
