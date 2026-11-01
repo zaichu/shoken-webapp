@@ -35,6 +35,8 @@ pub enum ButtonVariant {
     SearchClear,
     /// 設定画面の少数択一(金額単位・自動ログアウト)。aria-pressed で選択中を示す
     Segmented,
+    /// 取引明細・ホームの配当入金の行全体ボタン(2行の ListRow を包む)
+    RowButton,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -88,6 +90,7 @@ impl ButtonVariant {
             Self::ConditionOption => "condition-option".to_string(),
             Self::SearchClear => "receipts-search-clear".to_string(),
             Self::Segmented => "segmented-option".to_string(),
+            Self::RowButton => "receipt-compact-button".to_string(),
         }
     }
 }
@@ -127,6 +130,9 @@ pub fn Button(
     /// 開閉対象の要素 id(絞り込み欄の開閉ボタンなど)
     #[prop(optional)]
     aria_controls: Option<&'static str>,
+    /// ポップアップの種別(行の詳細シートなど dialog を開くボタン)
+    #[prop(optional)]
+    aria_haspopup: Option<&'static str>,
     #[prop(optional)] node_ref: NodeRef<leptos::html::Button>,
     on_click: impl Fn(ev::MouseEvent) + 'static,
     children: Children,
@@ -143,6 +149,7 @@ pub fn Button(
             aria-expanded=aria_expanded.map(|expanded| move || expanded.get().to_string())
             aria-pressed=aria_pressed.map(|pressed| move || pressed.get())
             aria-controls=aria_controls
+            aria-haspopup=aria_haspopup
             tabindex=tabindex.map(|index| move || index.get())
             data-testid=testid
             node_ref=node_ref

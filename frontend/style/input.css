@@ -1121,23 +1121,18 @@
   }
 
   /* 行内の重なり順(meta)は行の中で完結させる。漏れると
-     スクロール中に sticky の集計帯より手前に描かれる */
+     スクロール中に sticky の集計帯より手前に描かれる。
+     ただし行全体(li)には置かない。詳細シート(fixed の面)は
+     li の外の重なり順で最前面に出す必要があるため、内側の
+     ボタン面に閉じ込める */
   .receipt-compact-row {
-    @apply border-b border-border-faint isolate;
+    @apply border-b border-border-faint;
   }
 
-  /* 2行の行のコードリンク。押せる領域44pxを実寸で持ち、隣の開閉ボタンと重ならない */
+  /* 2行の行のコード表示。銘柄コードはシートを開くボタンの一部なので
+     リンクにはしない(ボタンの中にリンクは置けない) */
   .receipt-compact-code {
-    @apply inline-flex min-h-11 min-w-11 items-center justify-center font-normal text-text-muted no-underline;
-  }
-
-  /* 2行目の右端の開閉ボタン。44pxの実寸で置き、隣と重ならない */
-  .receipt-compact-toggle {
-    @apply flex min-h-11 min-w-11 shrink-0 items-center justify-center text-text-muted;
-  }
-
-  .receipt-compact-details {
-    @apply px-4 pb-2;
+    @apply inline text-text-muted no-underline;
   }
 
   .receipt-compact-group {
@@ -1731,6 +1726,50 @@
 
   .list-row-secondary {
     @apply shrink-0 whitespace-nowrap text-right tabular-nums;
+  }
+
+  /* 取引明細・ホームの配当入金の行ボタン。行全体を押せるボタンにし、
+     押したときの反応として背景を変える */
+  .receipt-compact-button {
+    @apply block w-full cursor-pointer border-0 bg-transparent p-0 text-left;
+  }
+
+  .receipt-compact-button-inner {
+    @apply block px-4 py-2 isolate;
+  }
+
+  .receipt-compact-button:hover {
+    @apply bg-surface-sunken;
+  }
+
+  .receipt-compact-button:active {
+    @apply bg-surface-raised;
+  }
+
+  .receipt-compact-button:focus-visible {
+    @apply outline-2 -outline-offset-2 outline-ink;
+  }
+
+  /* 行の詳細シートの中身。取っ手・×・タイトルは BottomSheet が持ち、
+     ここでは副題(コード・日付)、主役の金額、縦リストだけを出す */
+  .receipt-detail-sub {
+    @apply text-xs text-text-muted;
+  }
+
+  .receipt-detail-hero {
+    @apply flex flex-col gap-1 rounded-lg bg-surface-sunken px-3 py-2.5;
+  }
+
+  .receipt-detail-hero-label {
+    @apply text-xs font-medium text-text-muted;
+  }
+
+  .receipt-detail-hero-value {
+    @apply text-xl font-bold tabular-nums text-text-deep;
+  }
+
+  .receipt-detail-list {
+    @apply flex flex-col gap-2;
   }
 
   .asset-comp-link {

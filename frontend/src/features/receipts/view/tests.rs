@@ -582,7 +582,6 @@ fn card_row_data_maps_card_fields() {
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
-        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -636,7 +635,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
     let order = column_order(tab, &rows, "");
-    card_row_data(tab, "test".to_string(), &cells, &order, tab.card_fields())
+    card_row_data(tab, &cells, &order, tab.card_fields())
 }
 
 #[test]
@@ -708,7 +707,6 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
-        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -738,7 +736,6 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     let order = column_order(ReceiptsTab::MutualFund, &rows, "");
     let card = card_row_data(
         ReceiptsTab::MutualFund,
-        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::MutualFund.card_fields(),
@@ -762,7 +759,6 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
-        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -900,7 +896,6 @@ fn card_row_data_details_follow_column_reorder() {
     let cells = rows[0].cells();
     let card = card_row_data(
         ReceiptsTab::Dividend,
-        "test".to_string(),
         &cells,
         &order,
         ReceiptsTab::Dividend.card_fields(),
@@ -913,6 +908,93 @@ fn card_row_data_details_follow_column_reorder() {
         CardDetailValue::CopyName { display, .. } if display == "架空電信電話"
     ));
     assert_eq!(card.account, "特定");
+}
+
+#[test]
+fn sheet_details_follow_specified_order_and_hero_stays_after_tax() {
+    for tab in ReceiptsTab::ALL {
+        let rows = match tab {
+            ReceiptsTab::Dividend => dividends(),
+            ReceiptsTab::DomesticStock => domestic(),
+            ReceiptsTab::MutualFund => funds(),
+        };
+        let cells = rows[0].cells();
+        let order = column_order(tab, &rows, "");
+        let card = card_row_data(tab, &cells, &order, tab.card_fields());
+        let items = sheet_details(tab, &card);
+        let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
+        let expected: Vec<&str> = match tab {
+            ReceiptsTab::Dividend => vec!["口座", "配当金(税引前)", "税額", "1株配当", "数量"],
+            ReceiptsTab::DomesticStock => {
+                vec![
+                    "実現損益(税引前)",
+                    "税額",
+                    "数量",
+                    "売却額",
+                    "取得価額",
+                    "口座",
+                ]
+            }
+            ReceiptsTab::MutualFund => {
+                vec![
+                    "実現損益(税引前)",
+                    "税額",
+                    "数量",
+                    "解約額",
+                    "取得価額",
+                    "口座",
+                ]
+            }
+        };
+        assert_eq!(labels, expected, "{tab:?}");
+        assert!(
+            !labels.contains(&"税引後"),
+            "{tab:?}: 主役はヒーローに出し一覧には入れない"
+        );
+        let (hero, _, _, _) = detail_value(&card, "税引後");
+        assert!(!hero.is_empty(), "{tab:?}: 行の主役が無い");
+    }
+}
+
+// 1件だけの特定口座の行では帯・月見出し・行の税引後が一致する
+#[test]
+fn single_specific_row_keeps_band_group_and_row_after_tax_equal() {
+    use crate::api::dto::DomesticStock;
+    let row: DomesticStock = serde_json::from_value(serde_json::json!({"id":"single", "trade_date":"2024-03-18", "settlement_date":"2024-03-18", "security_code":"9905", "security_name":"架空ゲーム", "account":"特定口座", "shares":10, "asked_price":5500, "proceeds":55000, "purchase_price":5000, "realized_profit_and_loss":5000, "taxes":1015, "realized_profit_and_loss_after_tax":3985, "created_at":"", "updated_at":""})).unwrap();
+    let rows = vec![Saved(ReceiptItem::DomesticStock(row))];
+    let query = "9905";
+    let filtered = filter_receipts(ReceiptsTab::DomesticStock, &rows, query);
+    assert_eq!(filtered.len(), 1);
+    let data = ReceiptTabData {
+        rows: filtered.clone(),
+        total: None,
+        summary: None,
+        truncated: false,
+    };
+    assert_eq!(
+        header_summary(ReceiptsTab::DomesticStock, &data, query)
+            .iter()
+            .map(|v| v.1)
+            .collect::<Vec<_>>(),
+        [dec!(5000), dec!(1015), dec!(3985)]
+    );
+    let groups = ReceiptsTab::DomesticStock.table_groups(
+        &filtered,
+        &rows,
+        query,
+        crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    );
+    assert_eq!(groups.len(), 1);
+    assert!(groups[0].summary.is_empty());
+    let card = card_for(ReceiptsTab::DomesticStock, filtered[0].clone());
+    assert_eq!(
+        single_row_headline(std::slice::from_ref(&card)),
+        vec![(AFTER_TAX, "+¥3,985".to_string())]
+    );
+    assert_eq!(detail_value(&card, "税引後").0, "+¥3,985");
+    let sheet = sheet_details(ReceiptsTab::DomesticStock, &card);
+    assert_eq!(sheet[0].label, "実現損益(税引前)");
+    assert_eq!(sheet[0].text, "+¥5,000");
 }
 
 #[test]

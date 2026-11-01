@@ -42,7 +42,7 @@ const DOMESTIC = {
   id: '00000000-0000-0000-0000-000000000004',
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
-  account: 'SBI証券',
+  account: '特定口座',
   security_code: '9905',
   security_name: '架空ゲーム',
   shares: 10,
@@ -136,7 +136,8 @@ test('マイナスの損益は符号と色を保ち、売却額には負の装�
           {
             ...DOMESTIC,
             realized_profit_and_loss: -5000,
-            realized_profit_and_loss_after_tax: -3985,
+            taxes: 0,
+            realized_profit_and_loss_after_tax: -5000,
           },
         ]),
       ),
@@ -150,7 +151,7 @@ test('マイナスの損益は符号と色を保ち、売却額には負の装�
     .getByTestId('receipt-card')
     .first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.list-row-primary')).toHaveText('-¥3,985');
+  await expect(card.locator('.list-row-primary')).toHaveText('-¥5,000');
   await expect(
     card.locator('.list-row-primary [data-negative="true"]'),
   ).toHaveCount(1);
@@ -200,7 +201,7 @@ test('国内株式は1件日の小計を省き、複数件日は小計を残す'
   await expect(singleHeading.getByText(/^¥/)).toHaveCount(0);
   const multipleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月2日' });
   await expect(multipleHeading.locator('td:not([colspan])')).toHaveText([
-    '+¥10,000', '¥0', '+¥10,000',
+    '+¥10,000', '¥2,031', '+¥7,969',
   ]);
 });
 
