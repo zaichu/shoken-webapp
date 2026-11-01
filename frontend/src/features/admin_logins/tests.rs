@@ -1,6 +1,15 @@
 use super::*;
 
 #[test]
+fn more_button_needs_successful_first_load_and_remaining_rows() {
+    assert!(!can_load_more(false, 50, Some(64)));
+    assert!(!can_load_more(true, 50, None));
+    assert!(can_load_more(true, 50, Some(64)));
+    assert!(!can_load_more(true, 64, Some(64)));
+    assert!(!can_load_more(true, 70, Some(64)));
+}
+
+#[test]
 fn sort_changes_reset_page_and_toggle_direction() {
     let mut query = ListQuery {
         page: 3,

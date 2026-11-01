@@ -87,6 +87,13 @@ fn sort_label(sort_by: &str) -> &'static str {
         .unwrap_or(labels::LOGIN_HISTORY_COL_DATETIME)
 }
 
+/// 「もっと見る」を出せるか。初回取得が成功して一覧が出ているときだけ、
+/// 読み込み済み件数が総件数より少なければ出す。絞り込み直後の読み込み中・
+/// 失敗中は旧結果の件数で出さない(押すと新条件の続きを旧一覧に混ぜるため)
+fn can_load_more(ready: bool, loaded: usize, total: Option<i64>) -> bool {
+    ready && total.is_some_and(|total| (loaded as i64) < total)
+}
+
 /// スマホのダイアログの中身。キーワード・メール・場所の入力と並べ替えの選択を
 /// 下書きの上で編集し、検索で一覧へ反映する
 #[component]
@@ -299,7 +306,8 @@ pub fn AdminLoginsPage() -> impl IntoView {
         load_first();
     });
     let has_more = move || {
-        total.with(|total| total.is_some_and(|total| (entries.with(Vec::len) as i64) < total))
+        let ready = initial.with(|state| matches!(state, Some(Ok(()))));
+        can_load_more(ready, entries.with(Vec::len), total.get_untracked())
     };
     let email_tag = Memo::new(move |_| query.with(|query| query.email.clone()));
     let place_tag = Memo::new(move |_| query.with(|query| query.place.clone()));
