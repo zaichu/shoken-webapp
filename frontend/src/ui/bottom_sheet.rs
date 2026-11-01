@@ -125,6 +125,7 @@ mod tests {
     #[test]
     fn swipe_down_over_threshold_closes() {
         assert!(swipe_should_close(100.0, 170.0));
+        assert!(!swipe_should_close(100.0, 160.0));
     }
 
     #[test]

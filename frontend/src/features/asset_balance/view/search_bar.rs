@@ -245,6 +245,15 @@ pub(crate) fn AssetSearchBar(
     }
 }
 
+/// シートの下書きで条件を選ぶ。選んでいれば外し、無ければ足す
+pub(crate) fn toggle_sheet_condition(list: &mut Vec<String>, value: String) {
+    if let Some(index) = list.iter().position(|item| *item == value) {
+        list.remove(index);
+    } else {
+        list.push(value);
+    }
+}
+
 /// 下書きを一覧へ反映する。シートの適用ボタンと単体テストの共通入口
 pub(crate) fn apply_asset_sheet_draft(search: RwSignal<AssetSearch>, draft: &AssetSearch) {
     search.set(draft.clone());
@@ -389,15 +398,13 @@ fn AssetSheetBody<K: Copy + PartialEq + Send + Sync + 'static>(
     let set_draft_text = move |value: String| draft.update(|s| s.text = value);
     let toggle_draft = move |kind: ConditionKind, value: String| {
         draft.update(|s| {
-            let list = match kind {
-                ConditionKind::Account => &mut s.accounts,
-                ConditionKind::Course => &mut s.courses,
-            };
-            if let Some(index) = list.iter().position(|item| *item == value) {
-                list.remove(index);
-            } else {
-                list.push(value);
-            }
+            toggle_sheet_condition(
+                match kind {
+                    ConditionKind::Account => &mut s.accounts,
+                    ConditionKind::Course => &mut s.courses,
+                },
+                value,
+            );
         });
     };
     let apply = move || {
