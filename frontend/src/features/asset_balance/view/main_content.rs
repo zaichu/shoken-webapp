@@ -218,12 +218,16 @@ fn StockContent(
                     sort_order=sort_order
                 />
             </SkeletonSearch>
-            <div class="flex items-center justify-between px-4 py-2 lg:hidden">
-                <span class="text-sm font-bold text-text">
-                    {format!("保有銘柄 {}", labels::count(total_count))}
-                </span>
-                <a href="/assetbalance/composition" class="security-details-link">
-                    "構成比を見る ›"
+            <div
+                class="asset-list-heading lg:hidden"
+                data-testid="asset-stock-heading"
+                hidden=empty
+            >
+                <h2 class="asset-list-title">
+                    {format!("{} {}", labels::STOCK_HOLDINGS_TITLE, labels::count(total_count))}
+                </h2>
+                <a class="asset-list-comp-link" href="/assetbalance/composition">
+                    {labels::COMPOSITION_VIEW_LINK}
                 </a>
             </div>
             <div class="asset-list-surface">

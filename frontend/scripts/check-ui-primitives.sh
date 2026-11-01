@@ -31,6 +31,7 @@ ALLOWED=(
   "src/features/receipts/view/tabs.rs"         # 新規: タブボタンの部品化は別PRで対応
   "src/features/receipts/view/table.rs"        # 新規: テーブルカードの部品化は別PRで対応
   "src/features/asset_balance/view/kind_tabs.rs" # 新規: role="tab"+aria-selected のタブ部品化は別PRで対応
+  "src/features/asset_balance/view/composition_page.rs" # 新規: role="tab"+aria-selected のタブは #1638 の underline_tabs へ寄せる
   "src/features/csv_page.rs"                     # 新規: role="tab"+aria-selected のタブ部品化は別PRで対応
 )
 
