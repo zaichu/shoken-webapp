@@ -485,7 +485,6 @@ fn CompositionMobile(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>)
                                             <li
                                                 class="comp-row"
                                                 data-testid="comp-row"
-                                                data-other=row.is_other.to_string()
                                             >
                                                 <span
                                                     class=format!("comp-dot {fill}")
