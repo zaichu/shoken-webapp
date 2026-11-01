@@ -315,11 +315,6 @@ pub fn last_csv_import_note(date: &str, days_ago: i64) -> String {
 pub const SUMMARY_SAME_TARGET: &str =
     "集計は一覧と同じ対象です(検索・条件で絞り込むと集計も変わります)";
 
-/// 対象期間の注記(明細の最初と最後の日)
-pub fn target_period_note(from: &str, to: &str) -> String {
-    format!("対象期間: {from} 〜 {to}")
-}
-
 /// CSV管理: 取得カードの見出し
 pub const CSV_MANAGE_FETCH_TITLE: &str = "楽天証券から最新のデータを取得";
 /// CSV管理: 取得ボタン(通常)

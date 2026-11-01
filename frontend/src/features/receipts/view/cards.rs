@@ -360,22 +360,18 @@ fn CompactReceiptRow(
         </DisclosureToggle>
     }
     .into_any();
+    // 補助の金額には何の金額か分かるようラベルを付ける
+    let aux_label: &'static str = match tab {
+        ReceiptsTab::Dividend => BEFORE_TAX,
+        ReceiptsTab::DomesticStock => SELLING_AMOUNT,
+        ReceiptsTab::MutualFund => REDEMPTION_AMOUNT,
+    };
     let secondary_view: AnyView = view! {
         <span class="flex items-center gap-4">
             <span>
-                {if tab == ReceiptsTab::Dividend {
-                    view! {
-                        {BEFORE_TAX}
-                        " "
-                        <Amount kind=AmountKind::Plain text=aux_value.clone() />
-                    }
-                        .into_any()
-                } else {
-                    view! {
-                        <Amount kind=AmountKind::Plain text=aux_value.clone() />
-                    }
-                        .into_any()
-                }}
+                {aux_label}
+                " "
+                <Amount kind=AmountKind::Plain text=aux_value.clone() />
             </span>
             {has_details.then_some(toggle_view)}
         </span>
@@ -451,6 +447,19 @@ pub(crate) fn group_headline_value<'a>(summary: &'a [(&'static str, String)]) ->
         .unwrap_or("")
 }
 
+/// 月見出しの合計。集計が無い単発の日はその行の税引後を使う
+pub(crate) fn single_row_headline(cards: &[CardRowData]) -> Vec<(&'static str, String)> {
+    let [card] = cards else {
+        return Vec::new();
+    };
+    let (text, _, _) = compact_value(&card.details, AFTER_TAX);
+    if text.is_empty() {
+        Vec::new()
+    } else {
+        vec![(AFTER_TAX, text)]
+    }
+}
+
 #[component]
 pub(crate) fn CompactReceiptGroup(
     tab: ReceiptsTab,
@@ -461,6 +470,12 @@ pub(crate) fn CompactReceiptGroup(
     id_prefix: String,
     expanded_ids: RwSignal<HashSet<String>>,
 ) -> impl IntoView {
+    // 単発の日は集計が無いのでその行の税引後を見出しに出す
+    let summary: Vec<(&'static str, String)> = if summary.is_empty() {
+        single_row_headline(&cards)
+    } else {
+        summary
+    };
     let (display_label, display_value, display_negative, display_positive, display_kind) = match tab
     {
         ReceiptsTab::Dividend => {

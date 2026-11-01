@@ -1,9 +1,9 @@
 use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab, select_header_summary};
 use crate::settings::format_amount;
 use crate::ui::card::StatTone;
-use crate::ui::format::format_iso_date;
+use crate::ui::format::date_parts;
 use crate::ui::labels::{
-    self, DIVIDEND_AMOUNT, REALIZED_AFTER_TAX, REALIZED_PROFIT_LOSS, RECEIVED_DIVIDEND_AFTER_TAX,
+    DIVIDEND_AMOUNT, REALIZED_AFTER_TAX, REALIZED_PROFIT_LOSS, RECEIVED_DIVIDEND_AFTER_TAX,
 };
 use crate::ui::summary::{SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone};
 use leptos::prelude::*;
@@ -41,14 +41,15 @@ pub fn header_summary(
         .collect()
 }
 
-/// 対象期間の注記。明細の最初と最後の日を出す
-pub fn period_note(rows: &[ReceiptRow]) -> Option<String> {
+/// 帯に出す小さな期間。「2026/01 〜 2026/12」。行の日付は YYYY-MM-DD のため年月だけ切り出す
+pub fn period_note_short(rows: &[ReceiptRow]) -> Option<String> {
     let from = rows.iter().map(|row| row.date()).min()?;
     let to = rows.iter().map(|row| row.date()).max()?;
-    Some(labels::target_period_note(
-        &format_iso_date(from),
-        &format_iso_date(to),
-    ))
+    Some(format!("{} 〜 {}", year_month(from)?, year_month(to)?))
+}
+
+fn year_month(date: &str) -> Option<String> {
+    date_parts(date).map(|(year, month, _)| format!("{year}/{month:02}"))
 }
 
 #[component]

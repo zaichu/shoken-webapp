@@ -306,9 +306,7 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                     let name = row.name.clone();
                     let code = row.code.clone();
                     let account = row.account.clone();
-                    let course = row.course.clone();
                     let quantity = row.quantity.clone();
-                    let kind = row.kind;
                     let inner = view! {
                         <ListRow
                             name=move || name.clone()
@@ -332,21 +330,7 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                                             {" · "}
                                         }
                                     })}
-                                {(!quantity.is_empty())
-                                    .then(|| {
-                                        view! {
-                                            <Amount
-                                                kind=AmountKind::Plain
-                                                text=quantity.clone()
-                                            />
-                                            {" · "}
-                                        }
-                                    })}
-                                {course
-                                    .clone()
-                                    .filter(|course| !course.is_empty())
-                                    .map(|course| view! { {course} {" · "} })}
-                                {kind}
+                                <Amount kind=AmountKind::Plain text=quantity.clone() />
                             }
                             secondary=move || view! {
                                 {if row.profit.is_some() {

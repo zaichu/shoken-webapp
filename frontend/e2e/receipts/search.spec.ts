@@ -396,7 +396,10 @@ test('スマホ: 並べ替えの順序で古い順にできる', async ({ page }
   await sheet.getByTestId('receipts-dialog-sort-order').selectOption('oldest');
   await sheet.getByTestId('search-dialog-search').click();
   await expect(sheet).toBeHidden();
-  // 古い順なら先頭が 2023 年の行になる
+  // 古い順なら先頭が 2023 年 6 月の見出しと 6/1 の行になる
+  const firstGroup = page.getByTestId('receipt-card-group').first();
+  await expect(firstGroup).toContainText('2023年6月');
   const first = page.getByTestId('receipt-card').first();
-  await expect(first.locator('.receipt-compact-facts')).toContainText('2023/06/01');
+  await expect(first.locator('.list-row-meta')).toContainText('6/1');
+  await expect(first.locator('.list-row-name')).toContainText('架空電信電話');
 });

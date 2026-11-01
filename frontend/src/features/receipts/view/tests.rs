@@ -14,7 +14,7 @@ use crate::features::receipts::{
 use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::card::StatTone;
-use crate::ui::labels::{PAYMENT_DATE, TRADE_DATE};
+use crate::ui::labels::{AFTER_TAX, PAYMENT_DATE, TRADE_DATE};
 use crate::ui::page_skeleton::FilteredCount;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -169,24 +169,18 @@ fn receipt_sheet_date_label_matches_tab() {
 }
 
 #[test]
-fn period_note_spans_filtered_rows() {
+fn period_note_short_spans_filtered_rows() {
     let filtered = filter_receipts(ReceiptsTab::Dividend, &dividends(), "9910");
     assert_eq!(filtered.len(), 2);
     assert_eq!(
-        period_note(&filtered),
-        Some(crate::ui::labels::target_period_note(
-            "2024/06/21",
-            "2026/06/01"
-        ))
+        period_note_short(&filtered),
+        Some("2024/06 〜 2026/06".to_string())
     );
     let single = filter_receipts(ReceiptsTab::Dividend, &dividends(), "9904 2026");
     assert_eq!(single.len(), 1);
     assert_eq!(
-        period_note(&single),
-        Some(crate::ui::labels::target_period_note(
-            "2026/06/01",
-            "2026/06/01"
-        ))
+        period_note_short(&single),
+        Some("2026/06 〜 2026/06".to_string())
     );
 }
 
@@ -263,23 +257,17 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
     }
 }
 
-// 対象期間の注記は絞り込み後の明細の最初と最後の日を出す。行が無いときは出さない
+// 帯に出す小さな期間は絞り込み後の明細の最初と最後の年月を出す。行が無いときは出さない
 #[test]
-fn period_note_spans_first_to_last_row_date() {
-    assert_eq!(period_note(&[]), None);
+fn period_note_short_spans_first_to_last_year_month() {
+    assert_eq!(period_note_short(&[]), None);
     assert_eq!(
-        period_note(&dividends()),
-        Some(crate::ui::labels::target_period_note(
-            "2024/06/21",
-            "2026/06/01"
-        ))
+        period_note_short(&dividends()),
+        Some("2024/06 〜 2026/06".to_string())
     );
     assert_eq!(
-        period_note(&domestic()),
-        Some(crate::ui::labels::target_period_note(
-            "2024/03/01",
-            "2024/03/01"
-        ))
+        period_note_short(&domestic()),
+        Some("2024/03 〜 2024/03".to_string())
     );
 }
 
@@ -1111,4 +1099,13 @@ fn month_headline_uses_after_tax_total() {
         ("税引後", "¥400".to_string()),
     ];
     assert_eq!(group_headline_value(&dividend), "¥400");
+}
+
+#[test]
+fn single_day_group_headline_uses_row_after_tax() {
+    // 集計が無い単発の日はその行の税引後を見出しに出す
+    let card = card_for(ReceiptsTab::DomesticStock, domestic().remove(0));
+    let headline = single_row_headline(std::slice::from_ref(&card));
+    assert_eq!(headline, [(AFTER_TAX, "+¥112".to_string())]);
+    assert!(single_row_headline(&[]).is_empty());
 }
