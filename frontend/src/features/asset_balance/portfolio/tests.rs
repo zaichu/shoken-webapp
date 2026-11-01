@@ -1,7 +1,7 @@
 use super::{
     ChartPlan, CompositionBasis, CompositionGroup, SortInput, SortKey, SortOrder, chart_plan,
     composition_color, composition_entries, composition_label_fits, composition_percentages,
-    composition_rows, sort_holdings,
+    composition_rows, composition_slice_arc, sort_holdings,
 };
 use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
 use crate::features::asset_balance::model::ValuationInput;
@@ -334,10 +334,26 @@ fn composition_rows_keep_uncomputable_minors_in_other() {
 
 #[test]
 fn composition_label_fits_only_when_text_stays_inside_the_slice() {
-    assert!(composition_label_fits("架空自動車 95.2%", 95.2));
-    assert!(!composition_label_fits("その他 1銘柄 4.8%", 4.8));
+    assert!(composition_label_fits("架空自動車 100.0%", 100.0));
     assert!(composition_label_fits("架空グローバル先端素… 58.0%", 58.0));
+    assert!(!composition_label_fits("その他 1銘柄 4.8%", 4.8));
+    assert!(composition_label_fits("A 9.5%", 9.5));
     assert!(!composition_label_fits("架空エレクトロニクス 9.5%", 9.5));
+}
+
+#[test]
+fn composition_slice_arc_reverses_below_the_middle() {
+    let (_, top) = composition_slice_arc(80.0, 10.0);
+    assert!(!top, "上半分は時計回りに読む");
+    let (_, bottom) = composition_slice_arc(20.0, 20.0);
+    assert!(bottom, "真下は逆向きに読む");
+    let (path, full_reversed) = composition_slice_arc(0.0, 100.0);
+    assert!(full_reversed, "1周は真下を中心にするため逆向きに読む");
+    assert_eq!(
+        path.matches("A 80 80").count(),
+        2,
+        "1周しても弧が欠けない: {path}"
+    );
 }
 
 #[test]

@@ -358,8 +358,9 @@ pub const COMPOSITION_MAJOR_THRESHOLD: f64 = 9.0;
 /// ドーナツの環の半径。ラベルの収まり判定と描画で同じ値を使う
 pub const COMPOSITION_DONUT_RADIUS: f64 = 80.0;
 
-/// ドーナツ内の1行ラベルが区分に収まるか。文字幅の見積もりが区分の弧に
-/// 収まるときだけ文字を出す(収まらない区分は一覧で分かる)
+/// ドーナツ内の1行ラベルが区分に収まるか。文字幅の見積もりが区分の弧の長さに
+/// 収まるときだけ文字を出す(収まらない区分は一覧で分かる)。
+/// 文字は弧に沿わせるため、弧に収まれば帯の外に出ない
 pub fn composition_label_fits(label: &str, percentage: f64) -> bool {
     let width: f64 = label
         .chars()
@@ -367,6 +368,45 @@ pub fn composition_label_fits(label: &str, percentage: f64) -> bool {
         .sum();
     let arc = COMPOSITION_DONUT_RADIUS * (percentage / 100.0 * std::f64::consts::TAU);
     width <= arc
+}
+
+/// ドーナツの区分の弧パスと文字の向き。真下をまたぐ区分は読みやすいよう
+/// 逆向き(反時計回り)に描く。角度は上を起点に時計回りの度数。
+/// 100% の区分も2つの弧で描くため、欠けなく1周する
+pub fn composition_slice_arc(start: f64, percentage: f64) -> (String, bool) {
+    fn point(angle: f64) -> (f64, f64) {
+        let radians = angle.to_radians();
+        (
+            100.0 + COMPOSITION_DONUT_RADIUS * radians.sin(),
+            100.0 - COMPOSITION_DONUT_RADIUS * radians.cos(),
+        )
+    }
+    let from = start / 100.0 * 360.0;
+    let to = (start + percentage) / 100.0 * 360.0;
+    let middle = (from + to) / 2.0;
+    let reversed = 90.0 < middle && middle <= 270.0;
+    let (head, middle_point, tail) = if reversed {
+        (point(to), point(middle), point(from))
+    } else {
+        (point(from), point(middle), point(to))
+    };
+    let sweep = if reversed { 0 } else { 1 };
+    let path = format!(
+        "M {} {} A {} {} 0 0 {} {} {} A {} {} 0 0 {} {} {}",
+        head.0,
+        head.1,
+        COMPOSITION_DONUT_RADIUS,
+        COMPOSITION_DONUT_RADIUS,
+        sweep,
+        middle_point.0,
+        middle_point.1,
+        COMPOSITION_DONUT_RADIUS,
+        COMPOSITION_DONUT_RADIUS,
+        sweep,
+        tail.0,
+        tail.1
+    );
+    (path, reversed)
 }
 
 /// 区分の色番号。`[0, 2, 4, 1, 3]` を回して隣り合う区分の色が並ばないようにする

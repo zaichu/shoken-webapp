@@ -197,12 +197,10 @@ test.describe('スマホの構成比', () => {
 
     const list = page.getByTestId('asset-composition-mobile-list');
     await expect(list.getByText('その他 12銘柄')).toHaveCount(1);
+    // その他にまとめた区分の環は出す(中の文字は弧に収まらないため出さない)
     await expect(
       page.getByTestId('asset-composition-donut').getByTestId('comp-slice-other'),
     ).toHaveCount(1);
-    await expect(
-      page.getByTestId('asset-composition-donut').getByText('その他 12銘柄'),
-    ).toBeVisible();
   });
 
   test('1銘柄だけでも件数と100%を出す', async ({ page }) => {
