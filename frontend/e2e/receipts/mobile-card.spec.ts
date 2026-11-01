@@ -155,12 +155,17 @@ test('マイナスの損益は符号と色を保ち、税引後だけが負に�
   await expect(
     card.locator('.ledger-amount span[data-negative="true"]'),
   ).toHaveCount(1);
-  // 売却額は詳細に回し、損益ではないので負の装飾を付けない
+  // 売却額は詳細に回し、損益ではないので負の装飾を付けない。
+  // 税引後は損益として行に続いて詳細にも出すため、詳細の負は税引後の1件になる
   await card.locator('.receipt-compact-toggle').click();
   await expect(card.locator('.receipt-compact-details')).toContainText('¥55,000');
+  await expect(card.locator('.receipt-compact-details')).toContainText('-¥3,985');
   await expect(
-    card.locator('.receipt-compact-details span[data-negative]'),
-  ).toHaveCount(0);
+    card.locator('.receipt-compact-details span[data-negative="true"]'),
+  ).toHaveCount(1);
+  await expect(
+    card.locator('.receipt-compact-details span[data-negative="true"]'),
+  ).toContainText('-¥3,985');
 });
 
 test('行の日付は常に年付きで出す', async ({ page }) => {

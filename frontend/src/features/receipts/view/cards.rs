@@ -278,9 +278,7 @@ fn compact_name(value: CardDetailValue) -> AnyView {
     match value {
         CardDetailValue::CopyName { display, copy } => {
             let aria_label = format!("{copy} をコピー");
-            let sizer = display.clone();
             view! {
-                <span class="receipt-compact-name-sizer" aria-hidden="true">{sizer}</span>
                 <Button
                     variant=ButtonVariant::CopyName
                     class="receipt-compact-name"
@@ -369,10 +367,7 @@ fn CompactReceiptRow(
                     name=name
                     code=(!code_text.is_empty())
                         .then(|| view! {
-                            <SecurityCodeLink
-                                value=code_text.clone()
-                                class="ledger-code".to_string()
-                            />
+                            <SecurityCodeLink value=code_text.clone() />
                         })
                     amount=view! {
                         <Amount

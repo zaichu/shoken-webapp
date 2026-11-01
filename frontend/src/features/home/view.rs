@@ -885,6 +885,7 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                                             }
                                             code=view! {
                                                 <span>{code}</span>
+                                                <AccountBadge label=row.account.clone() />
                                             }
                                             amount=view! {
                                                 <Amount

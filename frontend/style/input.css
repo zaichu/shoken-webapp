@@ -977,28 +977,30 @@
   }
 
   .ledger-name > span {
-    @apply block min-w-0 break-words line-clamp-2;
+    @apply block min-w-0 break-words;
   }
 
   .ledger-code {
     @apply mt-0.5 block text-xs tabular-nums text-text-muted;
   }
 
+  .home-dividend-row .ledger-code .account-badge {
+    @apply mt-1;
+  }
+
+  /* スマホの操作要素は44px以上にする。行の高さは変えず、コードの押せる範囲だけ広げる */
+  @media (width < 64rem) {
+    .receipt-compact-row .receipt-compact-name {
+      @apply min-h-11 min-w-11;
+    }
+
+    .receipt-compact-row .security-code-link {
+      @apply -my-3.5 min-h-11 min-w-11 justify-center;
+    }
+  }
+
   .ledger-amount {
     @apply shrink-0 text-right font-bold tabular-nums whitespace-nowrap;
-  }
-
-  .receipt-compact-main {
-    @apply flex items-baseline justify-between gap-2 px-4 pt-2 text-sm;
-  }
-
-  .receipt-compact-name-cell {
-    @apply relative min-w-0 flex-1 font-medium;
-  }
-
-  /* sizer が行の高さを確保し、ボタンはその上に被せて押せる範囲を下へ広げる */
-  .receipt-compact-name-sizer {
-    @apply invisible break-words;
   }
 
   .receipt-compact-row .receipt-compact-name {
@@ -1006,32 +1008,11 @@
   }
 
   .receipt-compact-row .receipt-compact-name > span {
-    @apply min-w-0 break-words line-clamp-2;
+    @apply min-w-0 break-words;
   }
 
   .receipt-compact-name-static {
-    @apply min-w-0 break-words line-clamp-2;
-  }
-
-  .receipt-compact-net {
-    @apply shrink-0 font-bold tabular-nums whitespace-nowrap text-right;
-  }
-
-  .receipt-compact-meta {
-    @apply relative z-10 flex items-baseline justify-between gap-2 px-4 pb-2 text-xs text-text-muted;
-  }
-
-  .receipt-compact-facts {
-    @apply min-w-0 flex-1 break-words;
-  }
-
-  /* 行の高さは変えず、押せる範囲だけ 44px に広げる */
-  .receipt-compact-code {
-    @apply -my-3.5 min-h-11 min-w-11 justify-center font-normal text-text-muted no-underline;
-  }
-
-  .receipt-compact-primary {
-    @apply shrink-0 whitespace-nowrap;
+    @apply min-w-0 break-words;
   }
 
   /* 行の高さは変えず、押せる範囲だけ 44px に広げる */
