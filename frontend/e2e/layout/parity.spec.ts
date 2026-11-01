@@ -153,13 +153,6 @@ async function expectAssetDataLoaded(page: Page) {
   ).toBeVisible();
 }
 
-// スマホ下部の常設検索欄。PC の検索バーは同名の入力を持つので scoped で取る
-function mobileSearch(page: Page) {
-  return page
-    .getByRole('search', { name: '検索', exact: true })
-    .getByPlaceholder('銘柄名・コード');
-}
-
 async function selectReceiptTab(page: Page, tab: ReceiptTab) {
   const button = page.getByRole('tab', { name: tab.name });
   await button.click();
@@ -201,9 +194,9 @@ async function expectReceiptsErrorLayout(page: Page, width: number) {
   await expect(alert).not.toBeEmpty();
   await expect(page.getByRole('alert')).toHaveCount(1);
   await expect(main.getByTestId('receipt-card')).toHaveCount(0);
-  // 検索は常に画面下手前にあるのでどの幅でも残る
+  // 検索の入口は取得失敗時も残る(PC は検索バー、スマホは入口の1行)
   if (width < 1024) {
-    await expect(mobileSearch(page)).toBeVisible();
+    await expect(page.getByTestId('receipts-search-sheet-entry')).toBeVisible();
   }
 }
 
@@ -309,8 +302,10 @@ test('資産管理の検索とCSV管理ページに390pxでもアクセスでき
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
-  // 検索欄は一覧の上に常時出すのでドロワーを開かなくても届く
+  // 検索・並べ替えは入口の1行にまとめ、入力欄はシートの中にある
+  await page.getByTestId('asset-search-sheet-entry').click();
   await expect(page.getByTestId('asset-search-input')).toBeEditable();
+  await page.keyboard.press('Escape');
   // CSV 操作は専用ページに置く
   await page.getByRole('link', { name: 'CSV管理' }).click();
   await expect(page).toHaveURL('/csv');

@@ -3,6 +3,7 @@ use super::main_content::{derive_filtered_count, show_dividend_section};
 use super::summary::*;
 use super::tabs::*;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
+use crate::features::receipts::filter::ReceiptSearch;
 use crate::features::receipts::filter::{column_order, filter_receipts};
 use crate::features::receipts::kind::{
     ColumnTier, dividend_totals, group_label, is_date_group_key,
@@ -13,7 +14,9 @@ use crate::features::receipts::{
 use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::card::StatTone;
+use crate::ui::labels::{PAYMENT_DATE, TRADE_DATE};
 use crate::ui::page_skeleton::FilteredCount;
+use leptos::prelude::*;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
@@ -97,6 +100,39 @@ fn filtered_count_keeps_api_total_and_filtering_flag() {
             total: rows.len(),
             filtering: false,
         }
+    );
+}
+
+#[test]
+fn receipt_sheet_draft_apply_matches_direct_filter() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let search = RwSignal::new(ReceiptSearch::new(true));
+        let mut draft = ReceiptSearch::new(true);
+        draft.set_securities_query("9904".to_string());
+        super::action_bar::apply_receipt_sheet_draft(search, &draft);
+        let rows = dividends();
+        let query = search.with(|s| s.query.clone());
+        let applied = filter_receipts(ReceiptsTab::Dividend, &rows, &query);
+        let direct = filter_receipts(ReceiptsTab::Dividend, &rows, &draft.query);
+        assert_eq!(applied.len(), direct.len());
+        assert!(!applied.is_empty());
+    });
+}
+
+#[test]
+fn receipt_sheet_date_label_matches_tab() {
+    assert_eq!(
+        super::action_bar::receipt_date_label(ReceiptsTab::Dividend),
+        PAYMENT_DATE
+    );
+    assert_eq!(
+        super::action_bar::receipt_date_label(ReceiptsTab::DomesticStock),
+        TRADE_DATE
+    );
+    assert_eq!(
+        super::action_bar::receipt_date_label(ReceiptsTab::MutualFund),
+        TRADE_DATE
     );
 }
 

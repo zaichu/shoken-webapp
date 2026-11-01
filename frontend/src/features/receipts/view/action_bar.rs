@@ -5,8 +5,12 @@ use crate::features::receipts::kind::group_label;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
+use crate::ui::bottom_sheet::BottomSheet;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::labels::{self, ACCOUNT, PERIOD, PRODUCT};
+use crate::ui::labels::{
+    self, ACCOUNT, PAYMENT_DATE, PERIOD, PRODUCT, SEARCH_AND_SORT, SHEET_APPLY, SHEET_CLEAR,
+    SORT_BY, SORT_NEWEST_FIRST, TRADE_DATE,
+};
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, ConditionRowEnd,
     SearchBox, SearchClearButton, SearchCount, SearchTag, SearchTextInput,
@@ -615,15 +619,215 @@ pub fn ReceiptsSearchBar(
     }
 }
 
-/// スマホの下部操作帯。検索欄・条件を足す・件数とすべてクリアを常設する
+/// 下書きを一覧へ反映する。シートの適用ボタンと単体テストの共通入口
+pub(crate) fn apply_receipt_sheet_draft(search: RwSignal<ReceiptSearch>, draft: &ReceiptSearch) {
+    search.set(draft.clone());
+}
+
+/// タブの日付の列見出し。入口とシートの並べ替え表示で使う
+pub(crate) fn receipt_date_label(tab: ReceiptsTab) -> &'static str {
+    match tab {
+        ReceiptsTab::Dividend => PAYMENT_DATE,
+        ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => TRADE_DATE,
+    }
+}
+
+/// スマホの検索・並べ替えの入口とシート。PC の検索欄・条件の行は変えず、
+/// スマホ幅では入口の1行と条件タグだけを出し、中身はシートで編集する
 #[component]
 pub fn ReceiptsMobileBottomSection(store: ReceiptsStore) -> impl IntoView {
     let tab = store.active_tab;
+    let search = store.search;
+    let open = RwSignal::new(false);
+    let entry_ref = NodeRef::<leptos::html::Button>::new();
+
+    let display_rows = Memo::new(move |_| match store.tab_state(tab.get()) {
+        TabState::Ready(data) => data.rows.clone(),
+        _ => Vec::new(),
+    });
+    let categories = Memo::new(move |_| search_categories(tab.get(), &display_rows.get()));
+    let years = Memo::new(move |_| categories.with(|c| c.years.clone()));
+    let products = Memo::new(move |_| categories.with(|c| c.products.clone()));
+    let accounts = Memo::new(move |_| categories.with(|c| c.accounts.clone()));
+    let has_years = move || !years.get().is_empty();
+    let has_years_for_tags = has_years;
+    let sort_summary = move || format!("{} {SORT_NEWEST_FIRST}", receipt_date_label(tab.get()));
 
     view! {
         <div class="receipts-mobile-bottom-section no-print lg:hidden" role="search" aria-label="検索">
             <div class="page-gutter">
-                <ReceiptsSearchBar store=store tab=tab icon_size="h-5 w-5" />
+                <Button
+                    variant=ButtonVariant::Secondary(ButtonSize::Md)
+                    class="search-sort-entry".to_string()
+                    aria_expanded=Signal::derive(move || open.get())
+                    testid="receipts-search-sheet-entry"
+                    node_ref=entry_ref
+                    on_click=move |_| open.set(true)
+                >
+                    <span class="search-sort-entry-title">
+                        <svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-3.5-3.5"></path>
+                        </svg>
+                        {SEARCH_AND_SORT}
+                    </span>
+                    <span class="search-sort-entry-sub">{sort_summary}</span>
+                </Button>
+                <div class="search-sort-entry-tags">
+                    <ConditionTags search=search has_years=has_years_for_tags />
+                    <ReceiptSearchCount store=store tab=tab />
+                </div>
+                {move || {
+                    open.get()
+                        .then(|| {
+                            view! {
+                                <BottomSheet
+                                    title=SEARCH_AND_SORT.to_string()
+                                    on_close=move || open.set(false)
+                                    testid="receipts-search-sheet"
+                                >
+                                    <ReceiptSheetBody
+                                        search=search
+                                        tab=tab
+                                        years=years
+                                        products=products
+                                        accounts=accounts
+                                        has_years=has_years
+                                        on_close=move || open.set(false)
+                                    />
+                                </BottomSheet>
+                            }
+                        })
+                }}
+            </div>
+        </div>
+    }
+}
+
+/// シートの中身。開くたびに作り直され、下書きの上で編集して適用で反映する。
+/// 並べ替えは従来どおり日付の新しい順のままで切り替えは足さない
+#[component]
+fn ReceiptSheetBody(
+    search: RwSignal<ReceiptSearch>,
+    #[prop(into)] tab: Signal<ReceiptsTab>,
+    years: Memo<Vec<SearchOption>>,
+    products: Memo<Vec<SearchOption>>,
+    accounts: Memo<Vec<SearchOption>>,
+    has_years: impl Fn() -> bool + Copy + 'static + Send + Sync,
+    on_close: impl Fn() + Copy + 'static + Send + Sync,
+) -> impl IntoView {
+    let draft = RwSignal::new(search.get_untracked());
+    let draft_text = move || draft.with(|s| s.selected_queries.securities.clone());
+    let set_draft_text = move |value: String| draft.update(|s| s.set_securities_query(value));
+    let selected_of = move |get: fn(&ReceiptSearch) -> String| {
+        Memo::new(move |_| {
+            let value = draft.with(get);
+            if value.is_empty() {
+                Vec::new()
+            } else {
+                vec![value]
+            }
+        })
+    };
+    let selected_accounts = selected_of(|s| s.selected_queries.accounts.clone());
+    let selected_products = selected_of(|s| s.selected_queries.products.clone());
+    let select_draft = move |key: SearchKey, value: String| {
+        draft.update(|s| s.select_quick(key, value));
+    };
+    let apply = move || {
+        apply_receipt_sheet_draft(search, &draft.get_untracked());
+        on_close();
+    };
+    let clear = move || {
+        search.update(|s| s.clear(has_years()));
+        draft.set(search.get_untracked());
+    };
+    let date_label = move || receipt_date_label(tab.get());
+    view! {
+        <div class="flex flex-col gap-4">
+            <section aria-label="検索">
+                <p class="bottom-sheet-section-title">"検索"</p>
+                <div class="mt-2">
+                    <SearchBox>
+                        <SearchTextInput
+                            placeholder=labels::search_placeholder("銘柄名・コード")
+                            value=draft_text
+                            on_input=set_draft_text
+                        />
+                    </SearchBox>
+                </div>
+            </section>
+            <section aria-label="条件を足す">
+                <p class="bottom-sheet-section-title">"条件を足す"</p>
+                <div class="mt-2">
+                    <p class="text-sm font-medium text-text-deep">{PERIOD}</p>
+                    <PeriodDraftContent draft=draft years=years has_years=has_years />
+                </div>
+                {move || {
+                    (!accounts.get().is_empty())
+                        .then(|| {
+                            view! {
+                                <div class="mt-2">
+                                    <p class="text-sm font-medium text-text-deep">{ACCOUNT}</p>
+                                    <div class="mt-1">
+                                        <ConditionOptionList
+                                            options=accounts
+                                            selected=selected_accounts
+                                            on_toggle=move |value| select_draft(SearchKey::Accounts, value)
+                                        />
+                                    </div>
+                                </div>
+                            }
+                        })
+                }}
+                {move || {
+                    (!products.get().is_empty())
+                        .then(|| {
+                            view! {
+                                <div class="mt-2">
+                                    <p class="text-sm font-medium text-text-deep">{PRODUCT}</p>
+                                    <div class="mt-1">
+                                        <ConditionOptionList
+                                            options=products
+                                            selected=selected_products
+                                            on_toggle=move |value| select_draft(SearchKey::Products, value)
+                                        />
+                                    </div>
+                                </div>
+                            }
+                        })
+                }}
+            </section>
+            <section aria-label=SORT_BY.to_string()>
+                <p class="bottom-sheet-section-title">{SORT_BY}</p>
+                <div class="sort-option-list mt-2" role="group" aria-label=SORT_BY.to_string()>
+                    <span class="sort-option" data-selected="true">
+                        <span class="sort-option-check" aria-hidden="true">"✓"</span>
+                        {date_label}
+                        <span class="ml-auto inline-flex items-center gap-1 text-xs text-text-soft">
+                            {SORT_NEWEST_FIRST}
+                            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M8 3v10M4 9l4 4 4-4" />
+                            </svg>
+                        </span>
+                    </span>
+                </div>
+            </section>
+            <div class="bottom-sheet-actions">
+                <Button
+                    variant=ButtonVariant::Secondary(ButtonSize::Md)
+                    testid="receipts-sheet-clear"
+                    on_click=move |_| clear()
+                >
+                    {SHEET_CLEAR}
+                </Button>
+                <Button
+                    variant=ButtonVariant::Primary(ButtonSize::Md)
+                    testid="receipts-sheet-apply"
+                    on_click=move |_| apply()
+                >
+                    {SHEET_APPLY}
+                </Button>
             </div>
         </div>
     }
