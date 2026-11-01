@@ -110,7 +110,7 @@ test('行一覧はスマホ幅に収まり、長いファンド名は省略せ�
   expect(nameBox!.x).toBeGreaterThanOrEqual(listBox!.x - 1);
   expect(nameBox!.x + nameBox!.width).toBeLessThanOrEqual(listBox!.x + listBox!.width + 1);
 
-  const wrap = await name.locator('span').first().evaluate((el) => {
+  const wrap = await name.evaluate((el) => {
     const range = document.createRange();
     range.selectNodeContents(el);
     const lines = new Set(
@@ -125,7 +125,7 @@ test('行一覧はスマホ幅に収まり、長いファンド名は省略せ�
   expect(wrap.lines, 'ファンド名が描画される').toBeGreaterThan(0);
 });
 
-test('マイナスの損益は符号と色を保ち、税引後だけが負になる', async ({ page }) => {
+test('マイナスの損益は符号と色を保ち、売却額には負の装飾を付けない', async ({ page }) => {
   await mockApi(page);
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
     route.fulfill({

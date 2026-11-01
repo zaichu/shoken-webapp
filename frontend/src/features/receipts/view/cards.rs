@@ -346,7 +346,46 @@ fn CompactReceiptRow(
         }
     };
     let key_for_button = toggle_key;
-    let short_date = format_short_date(&date);
+    // 行の日付セルは "YYYY/MM/DD" 済みなので区切りを戻してから月/日に直す
+    let short_date = format_short_date(&date.replace('/', "-"));
+    let has_details = !rest.is_empty();
+    // 開閉ボタンは行の2行目に入れる。expanded の信号で追従するため作り直しは要らない
+    let toggle_view: AnyView = view! {
+        <DisclosureToggle
+            style=DisclosureStyle::RowToggle
+            expanded=Signal::derive(move || expanded.get())
+            controls=detail_id.clone()
+            aria_label=format!("{name_text}の詳細")
+            on_toggle=move || toggle(&key_for_button)
+        >
+            <ChevronIcon
+                expanded=Signal::derive(move || expanded.get())
+                class="h-3.5 w-3.5"
+            />
+        </DisclosureToggle>
+    }
+    .into_any();
+    let secondary_view: AnyView = view! {
+        <span class="flex items-center gap-4">
+            <span>
+                {if tab == ReceiptsTab::Dividend {
+                    view! {
+                        {BEFORE_TAX}
+                        " "
+                        <Amount kind=AmountKind::Plain text=aux_value.clone() />
+                    }
+                        .into_any()
+                } else {
+                    view! {
+                        <Amount kind=AmountKind::Plain text=aux_value.clone() />
+                    }
+                        .into_any()
+                }}
+            </span>
+            {has_details.then_some(toggle_view)}
+        </span>
+    }
+    .into_any();
 
     view! {
         <li
@@ -381,36 +420,8 @@ fn CompactReceiptRow(
                         {" · "}
                         <AccountBadge label=account.clone() />
                     }
-                    secondary=move || view! {
-                        {if tab == ReceiptsTab::Dividend {
-                            view! {
-                                {BEFORE_TAX}
-                                " "
-                                <Amount kind=AmountKind::Plain text=aux_value.clone() />
-                            }
-                                .into_any()
-                        } else {
-                            view! {
-                                <Amount kind=AmountKind::Plain text=aux_value.clone() />
-                            }
-                                .into_any()
-                        }}
-                    }
+                    secondary=secondary_view
                 />
-                {(!rest.is_empty()).then(|| view! {
-                    <DisclosureToggle
-                        style=DisclosureStyle::RowToggle
-                        expanded=Signal::derive(move || expanded.get())
-                        controls=detail_id.clone()
-                        aria_label=format!("{name_text}の詳細")
-                        on_toggle=move || toggle(&key_for_button)
-                    >
-                        <ChevronIcon
-                            expanded=Signal::derive(move || expanded.get())
-                            class="h-3.5 w-3.5"
-                        />
-                    </DisclosureToggle>
-                })}
             </div>
             <div
                 id=detail_id

@@ -207,7 +207,7 @@ test('矢印キーとHome/Endでタブを移動しフォーカスも追従する
   await expect(dividend).toHaveAttribute('aria-selected', 'true');
 });
 
-test('国内株式タブでも銘柄リンクとコピーが使える', async ({ page }) => {
+test('国内株式タブでも2行の行にコード・口座・金額が出る', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
