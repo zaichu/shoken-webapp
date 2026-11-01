@@ -1,6 +1,7 @@
 pub(crate) mod amount;
 pub(crate) mod avatar;
 pub(crate) mod badge;
+pub(crate) mod bottom_sheet;
 pub(crate) mod button;
 pub(crate) mod card;
 pub(crate) mod confirm_modal;

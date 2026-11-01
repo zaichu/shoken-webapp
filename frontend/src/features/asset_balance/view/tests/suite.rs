@@ -27,6 +27,7 @@ use crate::ui::format::{
     format_currency, format_fixed_percent, format_percentage_value, format_price_date,
     format_unit_price, unit_price_decimals,
 };
+use crate::ui::labels::{SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH};
 use leptos::prelude::*;
 use shared::domain::FundNavStatus;
 use std::collections::HashMap;
@@ -445,14 +446,61 @@ fn sort_key_value_round_trips() {
 
 #[test]
 fn sort_labels_distinguish_each_option() {
-    // 同じラベルが並ぶとドロップダウンと順序ボタンで項目を区別できない
+    // 同じラベルが並ぶとシートの並べ替え一覧で項目を区別できない
     let labels: Vec<&str> = SortKey::ALL.iter().map(|key| key.label()).collect();
     for (index, label) in labels.iter().enumerate() {
         assert!(!labels[..index].contains(label), "{label}");
     }
-    assert_ne!(SortOrder::Asc.label(), SortOrder::Desc.label());
-    assert!(!SortOrder::Asc.label().is_empty());
-    assert!(!SortOrder::Desc.label().is_empty());
+    assert_ne!(SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH);
+    assert!(!SORT_HIGH_TO_LOW.is_empty());
+    assert!(!SORT_LOW_TO_HIGH.is_empty());
+}
+
+#[test]
+fn asset_sheet_draft_apply_matches_direct_search() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let generation = Generation::new(1);
+        let mut first = balance_row(9904);
+        first.security_name = "架空自動車".to_string();
+        let mut second = balance_row(9914);
+        second.security_name = "架空エレクトロニクス".to_string();
+        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
+        lookup.update(|store| store.seed(generation, &[first.clone(), second.clone()]));
+        let rows: Vec<AssetBalanceRow> = vec![first, second].into_iter().map(Row::Saved).collect();
+
+        let search = RwSignal::new(AssetSearch::default());
+        let draft = AssetSearch {
+            text: "9904".to_string(),
+            ..Default::default()
+        };
+        super::search_bar::apply_asset_sheet_draft(search, &draft);
+        let applied = filtered_portfolio_views(&rows, &search.get_untracked(), lookup, generation);
+        let direct = filtered_portfolio_views(&rows, &draft, lookup, generation);
+        assert_eq!(applied.len(), direct.len());
+        assert_eq!(applied.len(), 1);
+        assert_eq!(applied[0].code, direct[0].code);
+    });
+}
+
+#[test]
+fn asset_sheet_clear_resets_search_but_keeps_sort() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let search = RwSignal::new(AssetSearch {
+            text: "9904".to_string(),
+            accounts: vec!["特定".to_string()],
+            ..Default::default()
+        });
+        let sort_key = RwSignal::new(SortKey::MarketValue);
+        let sort_order = RwSignal::new(SortOrder::Desc);
+        sort_key.set(SortKey::ProfitLoss);
+        sort_order.set(SortOrder::Asc);
+        search.set(AssetSearch::default());
+        assert!(search.with(|s| s.is_empty()));
+        assert_eq!(sort_key.get_untracked(), SortKey::ProfitLoss);
+        assert_eq!(sort_order.get_untracked(), SortOrder::Asc);
+    });
 }
 
 #[test]

@@ -9,7 +9,6 @@ mod holdings_list;
 mod kind_tabs;
 mod main_content;
 mod search_bar;
-mod sort_bar;
 mod sort_header;
 mod summary;
 
@@ -39,7 +38,6 @@ use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSke
 use kind_tabs::AssetKindTabs;
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
-use sort_bar::AssetMobileSortBar;
 
 #[derive(Clone, Copy)]
 pub(crate) struct AssetBalanceState {
@@ -199,61 +197,6 @@ pub fn AssetBalancePage() -> impl IntoView {
             .map(|(rows_len, total)| total.max(rows_len))
             .unwrap_or(0)
     });
-    let action_bar = view! {
-        {move || {
-            let generation = rail_session.generation.get();
-            let (stock_rows, fund_rows) = (
-                balances
-                    .with(|slot| asset_balance_counts(generation, slot))
-                    .map(|(rows_len, _)| rows_len)
-                    .unwrap_or(0),
-                funds
-                    .with(|slot| fund_balance_counts(generation, slot))
-                    .map(|(rows_len, _)| rows_len)
-                    .unwrap_or(0),
-            );
-            let has_rows = match sort_state.kind.get() {
-                AssetKind::Stock => stock_rows > 0,
-                AssetKind::Fund => fund_rows > 0,
-                AssetKind::All => stock_rows + fund_rows > 0,
-            };
-            has_rows.then(|| {
-                match sort_state.kind.get() {
-                    AssetKind::Stock => view! {
-                        <AssetMobileSortBar
-                            options=&SortKey::ALL
-                            key_label=|key: SortKey| key.label()
-                            key_value=|key: SortKey| key.value()
-                            sort_key=sort_state.sort_key
-                            sort_order=sort_state.sort_order
-                        />
-                    }
-                    .into_any(),
-                    AssetKind::Fund => view! {
-                        <AssetMobileSortBar
-                            options=&FundSortKey::ALL
-                            key_label=|key: FundSortKey| key.label()
-                            key_value=|key: FundSortKey| key.value()
-                            sort_key=sort_state.fund_sort_key
-                            sort_order=sort_state.fund_sort_order
-                        />
-                    }
-                    .into_any(),
-                    AssetKind::All => view! {
-                        <AssetMobileSortBar
-                            options=&FundSortKey::MERGED
-                            key_label=|key: FundSortKey| key.label()
-                            key_value=|key: FundSortKey| key.value()
-                            sort_key=sort_state.fund_sort_key
-                            sort_order=sort_state.fund_sort_order
-                        />
-                    }
-                    .into_any(),
-                }
-            })
-        }}
-    }
-    .into_any();
     if session.user.get_untracked().is_some()
         && has_current_balances(
             &balances.get_untracked(),
@@ -308,7 +251,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         .into_any()
     });
     view! {
-        <PageFrame title="資産管理" title_count=title_count full_bleed=true action_bar=action_bar action_bar_mobile_only=true links=csv_link>
+        <PageFrame title="資産管理" title_count=title_count full_bleed=true links=csv_link>
         <div
             class="flex flex-1 flex-col min-h-0 lg:flex-none"
             data-testid="assetbalance-workspace"
