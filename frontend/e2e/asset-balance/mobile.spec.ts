@@ -81,13 +81,30 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
 
   // CSV 操作は専用ページに移ったため、一覧にはドロワーがない
   await expect(page.getByTestId('asset-utility-toggle')).toHaveCount(0);
+  // 検索・並べ替えは紺帯の下の入口1行にまとめ、操作はシートで行う
+  const entry = page.getByTestId('asset-search-sheet-entry');
+  await expect(entry).toBeVisible();
+  await expect(entry).toContainText('検索・並べ替え');
   const main = page.getByTestId('assetbalance-main-stage');
-  // 検索欄は一覧の上に常時出す。並べ替えは画面下部の操作帯
+  // 検索欄は入口を開いたシートの中にある。並べ替えは項目の一覧と順序の選択
+  await entry.click();
+  const sheet = page.getByTestId('asset-search-sheet');
+  await expect(sheet).toBeVisible();
   const searchInput = page.getByTestId('asset-search-input');
   await expect(searchInput).toBeVisible();
   await expect(searchInput).toBeEditable();
-  await expect(page.getByTestId('asset-sort-select')).toBeVisible();
-  await expect(page.getByTestId('asset-sort-order-toggle')).toBeVisible();
+  await expect(sheet.getByRole('button', { name: '評価額' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(sheet.getByRole('button', { name: /高い順/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  // 背景を押すと閉じて入口にフォーカスが戻る
+  await page.locator('.bottom-sheet-backdrop').click({ position: { x: 195, y: 50 } });
+  await expect(sheet).toBeHidden();
+  await expect(entry).toBeFocused();
 
   // main 内は集計情報 → 保有内訳
   const summary = page.getByTestId('asset-portfolio-summary');
@@ -135,7 +152,11 @@ test('一覧に無い文字列を入れるとフィルタ済み空状態と解�
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAssetBalance(page);
 
-  await page.getByTestId('asset-search-input').fill('9999');
+  await page.getByTestId('asset-search-sheet-entry').click();
+  const sheet = page.getByTestId('asset-search-sheet');
+  await sheet.getByTestId('asset-search-input').fill('9999');
+  await sheet.getByRole('button', { name: '適用する' }).click();
+  await expect(sheet).toBeHidden();
   const heading = page.getByRole('heading', { name: '条件に合う保有がありません' });
   await expect(heading).toBeVisible();
   const clearButton = page.getByRole('button', { name: '検索条件を解除' });

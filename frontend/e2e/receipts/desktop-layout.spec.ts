@@ -138,12 +138,28 @@ test('390px では2行の行表示になり表とPCの検索バーは隠れる',
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(DIVIDENDS.length);
   await expect(page.getByRole('table')).toBeHidden();
   await expect(page.getByRole('search', { name: '取引明細の検索' })).toBeHidden();
-  // 検索欄は一覧の下、下部ナビの上に常設する
+  // 検索・並べ替えは入口の1行にまとめ、中身はシートで操作する
+  await expect(page.getByTestId('receipts-search-sheet-entry')).toBeVisible();
+  await expect(page.getByTestId('receipts-search-sheet-entry')).toContainText(
+    '検索・並べ替え',
+  );
   await expect(
     page.getByRole('search', { name: '検索', exact: true }).getByPlaceholder('銘柄名・コード'),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('search', { name: '検索', exact: true }).getByRole('button', { name: '＋ 期間' }),
+  ).toHaveCount(0);
+  await page.getByTestId('receipts-search-sheet-entry').click();
+  const sheet = page.getByTestId('receipts-search-sheet');
+  await expect(sheet).toBeVisible();
+  await expect(
+    sheet.getByPlaceholder('銘柄名・コード'),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: '＋ 期間' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'すべてクリア' })).toBeVisible();
+  await expect(sheet.getByRole('button', { name: '年月', exact: true })).toBeVisible();
+  // Esc で閉じて入口にフォーカスが戻る
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+  await expect(page.getByTestId('receipts-search-sheet-entry')).toBeFocused();
   await expect(page.locator('.app-bottom-nav')).toBeVisible();
   await expectNoPageOverflow(page, 390);
 });

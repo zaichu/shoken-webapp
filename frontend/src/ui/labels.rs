@@ -142,8 +142,22 @@ pub const CLEAR_SEARCH_CONDITIONS: &str = "検索条件を解除";
 pub const LOGIN_REQUIRED_TITLE: &str = "ログインしてください";
 /// Googleアカウントでのログイン操作
 pub const GOOGLE_LOGIN: &str = "Googleでログイン";
+/// 上バーのアカウントボタン(丸いアイコンの右に出す文字)
+pub const ACCOUNT_BUTTON: &str = "アカウント";
 /// 検索を実行するボタン
 pub const SEARCH: &str = "検索";
+/// スマホの検索・並べ替えの入口とシートの見出し
+pub const SEARCH_AND_SORT: &str = "検索・並べ替え";
+/// シートで下書きを一覧に反映するボタン
+pub const SHEET_APPLY: &str = "適用する";
+/// シートの下書きと適用中の条件を消すボタン
+pub const SHEET_CLEAR: &str = "クリア";
+/// 並べ替えの向き(シートの選択肢)
+pub const SORT_HIGH_TO_LOW: &str = "高い順";
+/// 並べ替えの向き(シートの選択肢)
+pub const SORT_LOW_TO_HIGH: &str = "低い順";
+/// 並べ替えの向き(取引明細の日付)
+pub const SORT_NEWEST_FIRST: &str = "新しい順";
 /// 絞り込み中の表示(注記の行に出す)
 pub const FILTERING: &str = "絞り込み中";
 /// 検索を実行しているときのボタン名

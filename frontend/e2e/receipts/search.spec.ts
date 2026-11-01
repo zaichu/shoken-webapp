@@ -323,15 +323,16 @@ test('PC: キーボードだけで条件を足して外せる', async ({ page })
 test('スマホ: 条件を足すと下から出るシートで期間を選べる', async ({ page }) => {
   await gotoReceipts(page, 390, 844);
 
-  await page.getByRole('button', { name: '＋ 期間' }).click();
-  const sheet = page.getByRole('dialog', { name: '期間を選ぶ' });
+  await page.getByTestId('receipts-search-sheet-entry').click();
+  const sheet = page.getByTestId('receipts-search-sheet');
   await expect(sheet).toBeVisible();
   await sheet.getByRole('button', { name: '年月', exact: true }).click();
   await sheet.getByRole('combobox', { name: '年' }).selectOption('2024');
   await sheet.getByRole('combobox', { name: '月' }).selectOption('03');
-  await sheet.getByRole('button', { name: 'この期間で絞る' }).click();
+  await sheet.getByRole('button', { name: '適用する' }).click();
 
   await expect(sheet).toBeHidden();
+  await expect(page.getByTestId('receipts-search-sheet-entry')).toBeFocused();
   await expect(page.getByRole('button', { name: '期間 2024年3月 を解除' })).toBeVisible();
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(page.getByRole('search', { name: '検索', exact: true })).toContainText(
@@ -342,9 +343,10 @@ test('スマホ: 条件を足すと下から出るシートで期間を選べる
 test('スマホ: 口座のシートで選んで絞り込める', async ({ page }) => {
   await gotoReceipts(page, 390, 844);
 
-  await page.getByRole('button', { name: '＋ 口座' }).click();
-  const sheet = page.getByRole('dialog', { name: '口座を選ぶ' });
+  await page.getByTestId('receipts-search-sheet-entry').click();
+  const sheet = page.getByTestId('receipts-search-sheet');
   await sheet.getByRole('button', { name: '楽天証券', exact: true }).click();
+  await sheet.getByRole('button', { name: '適用する' }).click();
 
   await expect(sheet).toBeHidden();
   await expect(page.getByRole('button', { name: '口座 楽天証券 を解除' })).toBeVisible();

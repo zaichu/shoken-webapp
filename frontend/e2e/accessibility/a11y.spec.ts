@@ -368,20 +368,33 @@ test('取引明細の検索と条件を足す小窓に moderate 以上の WCAG �
     await expect(page.getByRole('search')).toBeVisible({ timeout: 10000 });
     await scanAxe(page, `取引明細の検索(${name})`);
     // 条件を足すの小窓・シートを開いた状態もスキャンする
-    await page.getByRole('button', { name: '＋ 口座' }).click();
-    await expect(page.getByRole('dialog', { name: '口座を選ぶ' })).toBeVisible({
-      timeout: 10000,
-    });
+    if (name === 'PC') {
+      await page.getByRole('button', { name: '＋ 口座' }).click();
+      await expect(page.getByRole('dialog', { name: '口座を選ぶ' })).toBeVisible({
+        timeout: 10000,
+      });
+    } else {
+      await page.getByTestId('receipts-search-sheet-entry').click();
+      await expect(page.getByRole('dialog', { name: '検索・並べ替え' })).toBeVisible({
+        timeout: 10000,
+      });
+    }
     await scanAxe(page, `条件を足すの小窓(${name})`);
+    await page.keyboard.press('Escape');
     await page.goto('/assetbalance');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(400);
     // 資産管理の検索入力は行がある時だけ描画されるので
     // 空・取得失敗だと入力欄が無くスキャンが黙って飛ばされる。
-    // PC ・モバイルとも一覧の上の入力欄が常時表示される
-    const searchTestid = name === 'PC' ? 'asset-search-input-pc' : 'asset-search-input';
-    await expect(page.getByTestId(searchTestid)).toBeVisible({ timeout: 10000 });
+    // PC は一覧の上の入力欄、モバイルはシートの中の入力欄
+    if (name === 'PC') {
+      await expect(page.getByTestId('asset-search-input-pc')).toBeVisible({ timeout: 10000 });
+    } else {
+      await page.getByTestId('asset-search-sheet-entry').click();
+      await expect(page.getByTestId('asset-search-input')).toBeVisible({ timeout: 10000 });
+    }
     await scanAxe(page, `資産フィルター(${name})`);
+    await page.keyboard.press('Escape');
   }
   await page.setViewportSize(PC);
 });

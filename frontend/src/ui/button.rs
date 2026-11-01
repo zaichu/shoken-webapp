@@ -25,8 +25,6 @@ pub enum ButtonVariant {
     CopyName,
     /// 資産管理テーブルの並び替え列見出し
     AssetSortColumn,
-    /// 資産管理スマホ下部帯の並べ替え順トグル(「高い順 ↓」)
-    AssetMobileOrder,
     /// 検索条件の適用中チップ(「口座: 特定 ✕」)
     ConditionChip,
     /// 「条件を足す」ボタン(＋口座 など)
@@ -85,7 +83,6 @@ impl ButtonVariant {
             }
             Self::CopyName => "copyable-name".to_string(),
             Self::AssetSortColumn => "asset-th-sort".to_string(),
-            Self::AssetMobileOrder => "asset-mobile-order".to_string(),
             Self::ConditionChip => "active-condition-chip".to_string(),
             Self::AddCondition => "add-condition-button".to_string(),
             Self::ConditionOption => "condition-option".to_string(),

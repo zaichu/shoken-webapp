@@ -5,7 +5,7 @@ use super::all_list::{
 use super::asset_table::AssetHoldingsTable;
 use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
-use super::search_bar::{AssetSearchBar, ConditionKind};
+use super::search_bar::{AssetMobileSearchEntry, AssetSearchBar, ConditionKind};
 use super::summary::{
     AssetSummaryBand, all_basis_lines, fund_basis_lines, fund_notes, purchase_summary_tag,
     stock_basis_lines, stock_price_dates, stock_summary_values,
@@ -204,6 +204,19 @@ fn StockContent(
                     account_options=account_options
                     course_options=course_options
                 />
+                <AssetMobileSearchEntry
+                    search=search
+                    search_count=search_count
+                    placeholder=labels::search_placeholder(SEARCH_TARGET)
+                    conditions=&[ConditionKind::Account]
+                    account_options=account_options
+                    course_options=course_options
+                    sort_options=&SortKey::ALL
+                    key_label=|key: SortKey| key.label()
+                    key_value=|key: SortKey| key.value()
+                    sort_key=sort_key
+                    sort_order=sort_order
+                />
             </SkeletonSearch>
             <div class="asset-list-surface">
                 <div class="hidden lg:block print:block">
@@ -336,6 +349,19 @@ fn FundContent(
                     conditions=&[ConditionKind::Account, ConditionKind::Course]
                     account_options=account_options
                     course_options=course_options
+                />
+                <AssetMobileSearchEntry
+                    search=search
+                    search_count=search_count
+                    placeholder=labels::search_placeholder(SEARCH_TARGET)
+                    conditions=&[ConditionKind::Account, ConditionKind::Course]
+                    account_options=account_options
+                    course_options=course_options
+                    sort_options=&FundSortKey::ALL
+                    key_label=|key: FundSortKey| key.label()
+                    key_value=|key: FundSortKey| key.value()
+                    sort_key=sort_key
+                    sort_order=sort_order
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">
@@ -526,6 +552,19 @@ fn AllContent(
                     conditions=&[]
                     account_options=account_options
                     course_options=course_options
+                />
+                <AssetMobileSearchEntry
+                    search=search
+                    search_count=search_count
+                    placeholder=labels::search_placeholder(SEARCH_TARGET)
+                    conditions=&[]
+                    account_options=account_options
+                    course_options=course_options
+                    sort_options=&FundSortKey::MERGED
+                    key_label=|key: FundSortKey| key.label()
+                    key_value=|key: FundSortKey| key.value()
+                    sort_key=sort_key
+                    sort_order=sort_order
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">
