@@ -1292,12 +1292,24 @@
   }
 
   .bottom-nav-link {
-    @apply flex min-h-12 flex-1 items-center justify-center px-1 text-center text-xs font-medium leading-tight text-text-muted transition-colors hover:bg-surface-raised hover:text-text-deep focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink sm:text-sm;
+    @apply flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-center leading-tight text-text-muted transition-colors hover:bg-surface-raised hover:text-text-deep focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink;
   }
 
   .bottom-nav-link[aria-current] {
     @apply font-bold text-text-deep;
     box-shadow: var(--shadow-edge-accent);
+  }
+
+  .bottom-nav-icon {
+    @apply h-6 w-6 shrink-0;
+  }
+
+  .bottom-nav-label {
+    @apply text-xs font-medium leading-tight;
+  }
+
+  .bottom-nav-link[aria-current] .bottom-nav-label {
+    @apply font-bold;
   }
 
   .copyable-name {
