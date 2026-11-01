@@ -102,9 +102,9 @@ pub const COMPOSITION_GROUP_LABEL: &str = "構成比の区分";
 pub const COMPOSITION_BASIS_LABEL: &str = "構成比の基準";
 /// 構成比の基準: 年間配当(税引前)
 pub const COMPOSITION_DIVIDEND_BASIS: &str = "年間配当(税引前)";
-/// 構成比の基準注記(「評価額の比率・合計 ¥…」)
+/// 構成比の基準注記(「評価額の比率・合計 ¥… ・保有全体」)
 pub fn composition_basis_note(basis: &str, total: &str) -> String {
-    format!("{basis}の比率・合計 {total}")
+    format!("{basis}の比率・合計 {total} ・保有全体")
 }
 
 /// 構成比で小さい区分をまとめたときの名前(「その他 3銘柄」)
@@ -112,9 +112,9 @@ pub fn composition_other(count: usize) -> String {
     format!("その他 {count}銘柄")
 }
 
-/// 構成比の中央に出す全体の件数(「全22銘柄」)
+/// 構成比の中央に出す全体の件数(「36銘柄」)
 pub fn composition_total(count: usize) -> String {
-    format!("全{count}銘柄")
+    format!("{count}銘柄")
 }
 /// 投資信託
 pub const MUTUAL_FUND: &str = "投資信託";

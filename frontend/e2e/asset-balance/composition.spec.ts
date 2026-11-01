@@ -217,7 +217,7 @@ test.describe('スマホの構成比', () => {
     await page.goto('/assetbalance/composition');
 
     await expect(page.getByTestId('asset-composition-mobile')).toContainText(
-      '全1銘柄',
+      '1銘柄',
     );
     const list = page.getByTestId('asset-composition-mobile-list');
     await expect(list.getByTestId('comp-row')).toHaveCount(1);

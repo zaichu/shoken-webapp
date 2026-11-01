@@ -1,7 +1,7 @@
 use super::{
     ChartPlan, CompositionBasis, CompositionGroup, SortInput, SortKey, SortOrder, chart_plan,
-    composition_color, composition_entries, composition_percentages, composition_rows,
-    sort_holdings,
+    composition_color, composition_entries, composition_label_fits, composition_percentages,
+    composition_rows, sort_holdings,
 };
 use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
 use crate::features::asset_balance::model::ValuationInput;
@@ -330,6 +330,14 @@ fn composition_rows_keep_uncomputable_minors_in_other() {
     assert_eq!(other.name, "その他 1銘柄");
     assert!(!other.computable);
     assert_eq!(other.value, None);
+}
+
+#[test]
+fn composition_label_fits_only_when_text_stays_inside_the_slice() {
+    assert!(composition_label_fits("架空自動車 95.2%", 95.2));
+    assert!(!composition_label_fits("その他 1銘柄 4.8%", 4.8));
+    assert!(composition_label_fits("架空グローバル先端素… 58.0%", 58.0));
+    assert!(!composition_label_fits("架空エレクトロニクス 9.5%", 9.5));
 }
 
 #[test]

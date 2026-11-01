@@ -3,8 +3,8 @@ use crate::features::asset_balance::format::format_amount;
 use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::{
-    CompositionBasis, CompositionGroup, CompositionRow, composition_entries,
-    composition_percentages, composition_rows,
+    COMPOSITION_DONUT_RADIUS, CompositionBasis, CompositionGroup, CompositionRow,
+    composition_entries, composition_label_fits, composition_percentages, composition_rows,
 };
 use crate::features::asset_balance::store::{all_portfolio_views, load_asset_balances};
 use crate::features::dividend_per_share::DividendMaps;
@@ -91,13 +91,12 @@ fn donut_display_name(name: &str) -> String {
     }
 }
 
-/// ドーナツ内の区分名の位置。区分の中央角の点で、隣り合う区分の文字が
-/// 重ならないよう内周と外周で交互にずらす。両端ではみ出さないよう寄せる
-fn donut_label_position(start: f64, percentage: f64, radius: f64) -> (f64, f64) {
+/// ドーナツ内の区分名の位置。区分の角度の中心の点。両端ではみ出さないよう寄せる
+fn donut_label_position(start: f64, percentage: f64) -> (f64, f64) {
     let middle = (start + percentage / 2.0) / 100.0 * 360.0 - 90.0;
     let radians = middle.to_radians();
-    let x = (100.0 + radius * radians.cos()).clamp(30.0, 170.0);
-    (x, 100.0 + radius * radians.sin())
+    let x = (100.0 + COMPOSITION_DONUT_RADIUS * radians.cos()).clamp(60.0, 140.0);
+    (x, 100.0 + COMPOSITION_DONUT_RADIUS * radians.sin())
 }
 
 #[derive(Clone)]
@@ -148,7 +147,12 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
         );
     };
     view! {
-        <PageFrame title=COMPOSITION back_href="/assetbalance" back_label=COMPOSITION_BACK>
+        <PageFrame title=COMPOSITION>
+            <div class="page-gutter">
+                <a class="comp-back-link" href="/assetbalance">
+                    {COMPOSITION_BACK}
+                </a>
+            </div>
             <div class="page-gutter flex flex-1 flex-col py-4">
                 {move || {
                     data_ops
@@ -322,7 +326,6 @@ fn CompositionMobile(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>)
     let basis_value = Signal::derive(move || basis.get().value().to_string());
     view! {
         <div class="lg:hidden" data-testid="asset-composition-mobile">
-            <p class="text-sm text-text-muted">"対象: 保存済みの保有全体"</p>
             <div
                 class="page-tab-list"
                 role="tablist"
@@ -518,14 +521,12 @@ fn CompositionMobile(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>)
 #[component]
 fn CompositionDonut(rows: Vec<CompositionRow>, total_count: usize) -> impl IntoView {
     let mut cursor = 0.0;
-    let slices: Vec<(CompositionRow, f64, f64)> = rows
+    let slices: Vec<(CompositionRow, f64)> = rows
         .into_iter()
-        .enumerate()
-        .map(|(index, row)| {
+        .map(|row| {
             let start = cursor;
             cursor += row.percentage;
-            let radius = if index % 2 == 0 { 71.0 } else { 89.0 };
-            (row, start, radius)
+            (row, start)
         })
         .collect();
     view! {
@@ -540,27 +541,24 @@ fn CompositionDonut(rows: Vec<CompositionRow>, total_count: usize) -> impl IntoV
                 <circle cx="100" cy="100" r="80" class="comp-donut-track" />
                 {slices
                     .into_iter()
-                    .filter(|(row, _, _)| row.percentage > 0.0)
-                    .map(|(row, start, radius)| {
+                    .filter(|(row, _)| row.percentage > 0.0)
+                    .map(|(row, start)| {
                         let slice_class = color_slice_class(row.color);
                         let label_class = color_label_class(row.color);
                         let (label_x, label_y) = donut_label_position(
                             start,
                             row.percentage,
-                            radius,
                         );
                         let testid = if row.is_other {
                             "comp-slice-other"
                         } else {
                             "comp-slice"
                         };
-                        let anchor = if label_x <= 60.0 {
-                            "start"
-                        } else if label_x >= 140.0 {
-                            "end"
-                        } else {
-                            "middle"
-                        };
+                        let label = format!(
+                            "{} {}",
+                            donut_display_name(&row.name),
+                            format_fixed_percent(row.percentage, 1),
+                        );
                         view! {
                             <g data-testid=testid>
                                 <circle
@@ -577,18 +575,19 @@ fn CompositionDonut(rows: Vec<CompositionRow>, total_count: usize) -> impl IntoV
                                     transform="rotate(-90 100 100)"
                                     class=slice_class
                                 />
-                                <text
-                                    x=label_x.to_string()
-                                    y=(label_y + 3.0).to_string()
-                                    text-anchor=anchor
-                                    class=format!("comp-slice-label {label_class}")
-                                >
-                                    {format!(
-                                        "{} {}",
-                                        donut_display_name(&row.name),
-                                        format_fixed_percent(row.percentage, 1),
-                                    )}
-                                </text>
+                                {composition_label_fits(&label, row.percentage)
+                                    .then(|| {
+                                        view! {
+                                            <text
+                                                x=label_x.to_string()
+                                                y=(label_y + 3.0).to_string()
+                                                text-anchor="middle"
+                                                class=format!("comp-slice-label {label_class}")
+                                            >
+                                                {label.clone()}
+                                            </text>
+                                        }
+                                    })}
                             </g>
                         }
                     })

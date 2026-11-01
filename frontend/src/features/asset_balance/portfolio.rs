@@ -355,6 +355,20 @@ pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>
 /// ドーナツに個別で出す割合の下限。未満は「その他」にまとめる
 pub const COMPOSITION_MAJOR_THRESHOLD: f64 = 9.0;
 
+/// ドーナツの環の半径。ラベルの収まり判定と描画で同じ値を使う
+pub const COMPOSITION_DONUT_RADIUS: f64 = 80.0;
+
+/// ドーナツ内の1行ラベルが区分に収まるか。文字幅の見積もりが区分の弧に
+/// 収まるときだけ文字を出す(収まらない区分は一覧で分かる)
+pub fn composition_label_fits(label: &str, percentage: f64) -> bool {
+    let width: f64 = label
+        .chars()
+        .map(|c| if c.is_ascii() { 5.0 } else { 9.0 })
+        .sum();
+    let arc = COMPOSITION_DONUT_RADIUS * (percentage / 100.0 * std::f64::consts::TAU);
+    width <= arc
+}
+
 /// 区分の色番号。`[0, 2, 4, 1, 3]` を回して隣り合う区分の色が並ばないようにする
 pub fn composition_color(position: usize) -> usize {
     const ORDER: [usize; 5] = [0, 2, 4, 1, 3];
