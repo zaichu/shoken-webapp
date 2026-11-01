@@ -14,18 +14,22 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{AccountBadge, account_display_name};
+use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{
-    format_currency, format_integer_percent, format_latest_import_date, format_short_date,
+    format_currency, format_integer_percent, format_latest_import_date, format_number_value,
+    format_short_date,
 };
 use crate::ui::labels::{
-    ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, MARKET_VALUE, MISSING, TOTAL_ACQUISITION,
+    ACCOUNT, AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, DIVIDEND_BEFORE_TAX,
+    MARKET_VALUE, MISSING, PER_SHARE_DIVIDEND, QUANTITY, TAX, TOTAL_ACQUISITION,
     VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
+use crate::ui::row_detail_sheet::{RowDetailSheet, SheetItem};
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
 use crate::ui::summary::{
     SummaryBand as UiSummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
@@ -847,6 +851,100 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
 }
 
 #[component]
+fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
+    let code = if row.security_code.is_empty() {
+        MISSING.to_string()
+    } else {
+        row.security_code.clone()
+    };
+    let date = format_short_date(&row.settlement_date);
+    let full_date = row.settlement_date.clone();
+    let name = row.security_name.clone();
+    let sheet_title = name.clone();
+    let row_name = name.clone();
+    let account = String::from(row.account.clone());
+    let account_for_sheet = account.clone();
+    let account_for_meta = account.clone();
+    let net = format_currency(dec_to_f64(&row.net_amount_received));
+    let net_for_sheet = net.clone();
+    let net_for_row = net.clone();
+    let gross = format_currency(dec_to_f64(&row.dividends_before_tax));
+    let gross_for_row = gross.clone();
+    let tax = format_currency(dec_to_f64(&row.taxes));
+    let per_share = format_currency(dec_to_f64(&row.unit_price));
+    let shares = format_number_value(dec_to_f64(&row.shares));
+    let code_for_meta = code.clone();
+    let date_for_meta = date.clone();
+    let sheet_subtitle = if code.trim().is_empty() || code == MISSING {
+        full_date.clone()
+    } else {
+        format!("{code} · {full_date}")
+    };
+    let sheet_open = RwSignal::new(false);
+    let sheet_details = vec![
+        SheetItem::plain(ACCOUNT.to_string(), account_for_sheet.clone()),
+        SheetItem::amount(
+            DIVIDEND_BEFORE_TAX.to_string(),
+            gross.clone(),
+            false,
+            false,
+            false,
+        ),
+        SheetItem::amount(TAX.to_string(), tax.clone(), false, false, false),
+        SheetItem::amount(
+            PER_SHARE_DIVIDEND.to_string(),
+            per_share.clone(),
+            false,
+            false,
+            false,
+        ),
+        SheetItem::amount(QUANTITY.to_string(), shares.clone(), false, false, false),
+    ];
+    view! {
+        <li class="home-dividend-row" data-testid="home-dividend-row">
+            <Button
+                variant=ButtonVariant::RowButton
+                testid="home-dividend-button"
+                aria_haspopup="dialog"
+                on_click=move |_| sheet_open.set(true)
+            >
+                <span class="receipt-compact-button-inner">
+                    <ListRow
+                        name=move || row_name.clone()
+                        primary=move || view! {
+                            <Amount kind=AmountKind::Plain text=net_for_row.clone() />
+                        }
+                        meta=move || view! {
+                            {date_for_meta.clone()}
+                            {" · "}
+                            {code_for_meta.clone()}
+                            {" · "}
+                            <AccountBadge label=account_for_meta.clone() />
+                        }
+                        secondary=move || view! {
+                            {BEFORE_TAX}
+                            " "
+                            <Amount kind=AmountKind::Plain text=gross_for_row.clone() />
+                        }
+                    />
+                </span>
+            </Button>
+            <Show when=move || sheet_open.get()>
+                <RowDetailSheet
+                    title=sheet_title.clone()
+                    subtitle=sheet_subtitle.clone()
+                    hero_label=AFTER_TAX.to_string()
+                    hero_text=net_for_sheet.clone()
+                    details=sheet_details.clone()
+                    on_close=move || sheet_open.set(false)
+                    testid="home-dividend-sheet"
+                />
+            </Show>
+        </li>
+    }
+}
+
+#[component]
 fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
     let session = use_session();
     let card = move || {
@@ -871,49 +969,8 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                     <ul class="home-dividend-list divide-y divide-border-faint" data-testid="home-recent-list">
                         {rows
                             .iter()
-                            .map(|row| {
-                                let code = if row.security_code.is_empty() {
-                                    MISSING.to_string()
-                                } else {
-                                    row.security_code.clone()
-                                };
-                                let date = format_short_date(&row.settlement_date);
-                                let name = row.security_name.clone();
-                                let account = row.account.clone();
-                                let net = format_currency(
-                                    dec_to_f64(&row.net_amount_received),
-                                );
-                                let gross = format_currency(
-                                    dec_to_f64(&row.dividends_before_tax),
-                                );
-                                view! {
-                                    <li class="home-dividend-row" data-testid="home-dividend-row">
-                                        <div class="px-4 py-2">
-                                            <ListRow
-                                                name=move || name.clone()
-                                                primary=move || view! {
-                                                    <Amount kind=AmountKind::Plain text=net.clone() />
-                                                }
-                                                meta=move || view! {
-                                                    {date.clone()}
-                                                    {" · "}
-                                                    {code.clone()}
-                                                    {" · "}
-                                                    <AccountBadge label=account.clone() />
-                                                }
-                                                secondary=move || view! {
-                                                    {BEFORE_TAX}
-                                                    " "
-                                                    <Amount
-                                                        kind=AmountKind::Plain
-                                                        text=gross.clone()
-                                                    />
-                                                }
-                                            />
-                                        </div>
-                                    </li>
-                                }
-                            })
+                            .cloned()
+                            .map(|row| view! { <HomeDividendRow row=row /> })
                             .collect_view()}
                     </ul>
                 }

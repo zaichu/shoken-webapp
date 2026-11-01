@@ -89,7 +89,7 @@ pub fn ReceiptTable(
             let cards: Vec<CardRowData> = group
                 .rows
                 .iter()
-                .map(|(_, raw, cells)| card_row_data(tab, raw.clone(), cells, &order, fields))
+                .map(|(_, _, cells)| card_row_data(tab, cells, &order, fields))
                 .collect();
             (
                 group_index,
@@ -438,7 +438,7 @@ pub fn ReceiptTable(
                             <div>
                                 {card_groups
                                     .into_iter()
-                                    .map(|(group_index, _, label, count, summary, cards)| {
+                                    .map(|(_, _, label, count, summary, cards)| {
                                         view! {
                                             <CompactReceiptGroup
                                                 tab=tab
@@ -446,8 +446,6 @@ pub fn ReceiptTable(
                                                 count=count
                                                 summary=summary
                                                 cards=cards
-                                                id_prefix=format!("receipt-{slug}-group-{group_index}")
-                                                expanded_ids=expanded_ids
                                             />
                                         }
                                     })

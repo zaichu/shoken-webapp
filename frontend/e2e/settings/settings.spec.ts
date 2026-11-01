@@ -140,10 +140,18 @@ test('金額の表示単位設定は合計欄だけに効き、明細の行は1�
   await page.goto('/receipts');
 
   // 合計欄(集計)は千円表示になり、明細の行は1円単位のまま。
-  // 単価(1株配当 30 円)も円のまま出る(非表示列でも DOM に残るため存在だけ見る)
+  // 単価(1株配当 30 円)も円のまま出る。単価は PC の表に出ないため、
+  // スマホ幅で行の詳細シートを開いて確かめる
   await expect(page.getByText('2.4千円').first()).toBeVisible();
   await expect(page.getByRole('cell', { name: '¥2,391' }).first()).toBeVisible();
-  await expect(page.getByText('¥30').first()).toBeAttached();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const card = page.getByTestId('receipt-card').first();
+  const rowButton = card.getByTestId('receipt-row-button');
+  await expect(rowButton).toBeVisible();
+  await rowButton.click();
+  const sheet = page.getByTestId('receipt-detail-sheet');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText('¥30').first()).toBeVisible();
 });
 
 test('設定の目次は7項目あり各セクションへリンクする', async ({ page }) => {
