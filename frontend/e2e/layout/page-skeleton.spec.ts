@@ -171,7 +171,6 @@ async function measureSkeleton(page: Page, selectors: string[]): Promise<Skeleto
 const ASSET_SELECTORS = [
   '.page-skeleton-tabs',
   '[data-testid="asset-portfolio-summary"]',
-  '.page-skeleton-note',
   '.search-field',
   '.add-condition-row',
   '.asset-table',
@@ -180,7 +179,6 @@ const ASSET_SELECTORS = [
 const RECEIPT_SELECTORS = [
   '.page-skeleton-tabs',
   '[data-testid="receipt-summary-strip"]',
-  '.page-skeleton-note',
   '.search-field',
   '.add-condition-row',
   '.receipts-table',

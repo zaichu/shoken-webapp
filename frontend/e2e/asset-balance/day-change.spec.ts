@@ -82,33 +82,22 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
   await expect(kpi).toContainText('前日比');
   await expect(kpi).toContainText('+¥5,000');
 
-  // タイトル横は件数だけ。基準日と除いた行の説明は帯の直下の注記に出す
+  // タイトル横は件数だけ。基準日は帯のラベル横に小さく出す
   const subtitle = page.getByTestId('page-title-count');
   await expect(subtitle).toContainText('2件');
   await expect(subtitle).not.toContainText('時点');
-  const note = page.getByText(/株価 01\/01 時点/);
-  await expect(note).toBeVisible();
-  await expect(note).toContainText('前日比なし銘柄を除く');
-  const band = await page.getByTestId('asset-portfolio-summary').boundingBox();
-  const noteBox = await note.boundingBox();
-  const basisBox = await page.getByText('計算基準を見る').boundingBox();
-  expect(band).not.toBeNull();
-  expect(noteBox).not.toBeNull();
-  expect(basisBox).not.toBeNull();
-  if (band && noteBox && basisBox) {
-    // 注記は帯の直下にあり、「計算基準を見る」は注記と同じ行の右端に置く
-    expect(noteBox.y).toBeGreaterThanOrEqual(band.y + band.height - 1);
-    expect(basisBox.y).toBeGreaterThanOrEqual(band.y + band.height - 1);
-    expect(basisBox.y).toBeLessThanOrEqual(noteBox.y + noteBox.height);
-    expect(basisBox.y + basisBox.height).toBeGreaterThanOrEqual(noteBox.y);
-    expect(basisBox.x).toBeGreaterThan(noteBox.x);
-  }
+  await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
+  await expect(page.getByText('計算基準を見る')).toHaveCount(0);
+  const bandText = page.getByTestId('asset-portfolio-summary');
+  await expect(bandText).toContainText('01/01 時点');
 
-  // 「すべて」タブも件数だけ。株の注記は帯の直下に残る
+  // 「すべて」タブも件数だけ。時点は帯のラベル横に残る
   await page.getByTestId('asset-kind-tab-all').click();
   await expect(page.getByTestId('page-title-count')).toContainText('2件');
   await expect(page.getByTestId('page-title-count')).not.toContainText('時点');
-  await expect(page.getByText(/株価 01\/01 時点/)).toBeVisible();
+  await expect(page.getByTestId('asset-portfolio-summary')).toContainText(
+    '01/01 時点',
+  );
 });
 
 test('基準日が他の行と違う行だけ、前日比の横に日付を出す', async ({ page }) => {
@@ -141,8 +130,12 @@ test('基準日が他の行と違う行だけ、前日比の横に日付を出�
   const same = table.getByRole('row', { name: /架空自動車/ });
   await expect(same).not.toContainText('01/01');
 
-  // 見出しは件数だけ。日付は帯の注記に出し、行で日付を省く基準と同じ多数派だけを出す
+  // 見出しは件数だけ。時点は帯のラベル横に最も古い日だけ出す
   await expect(page.getByTestId('page-title-count')).not.toContainText('時点');
-  await expect(page.locator('body')).toContainText('株価 01/01 時点');
-  await expect(page.locator('body')).not.toContainText('株価 12/30');
+  await expect(page.getByTestId('asset-portfolio-summary')).toContainText(
+    '12/30 時点',
+  );
+  await expect(page.getByTestId('asset-portfolio-summary')).not.toContainText(
+    '01/01 時点',
+  );
 });

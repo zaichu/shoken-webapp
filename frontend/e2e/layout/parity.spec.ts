@@ -452,7 +452,6 @@ test.describe('資産管理と取引明細の上部 parity', () => {
         for (const selector of [
           '.page-skeleton-tabs',
           '.page-skeleton-summary',
-          '.page-skeleton-note',
           '.page-skeleton-search',
         ]) {
           await expectTopsEqual(page, other, selector, selector);

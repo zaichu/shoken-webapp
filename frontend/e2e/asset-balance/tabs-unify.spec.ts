@@ -148,7 +148,7 @@ async function columnDecimals(page: Page, columnName: string): Promise<number[]>
 test.describe('資産管理のタブ', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test('国内株式と投資信託は同じ用語・同じ検索欄・同じ注記の位置で出す', async ({
+  test('国内株式と投資信託は同じ用語・同じ検索欄・同じ時点の出し方で出す', async ({
     page,
   }) => {
     await setupMocks(page);
@@ -156,7 +156,6 @@ test.describe('資産管理のタブ', () => {
 
     const placeholders: string[] = [];
     const bandLabels: string[][] = [];
-    const noteOffsets: number[] = [];
 
     for (const tab of ['stock', 'fund'] as const) {
       await page.getByTestId(`asset-kind-tab-${tab}`).click();
@@ -175,23 +174,15 @@ test.describe('資産管理のタブ', () => {
         await page.getByTestId('asset-search-input-pc').getAttribute('placeholder'),
       );
 
-      // 注記は帯の直下にあり、「計算基準を見る」は注記と同じ行の右端
-      const basis = page.getByText('計算基準を見る');
-      await expect(basis).toBeVisible();
-      const bandBox = await band.boundingBox();
-      const basisBox = await basis.boundingBox();
-      expect(bandBox).not.toBeNull();
-      expect(basisBox).not.toBeNull();
-      if (!bandBox || !basisBox) {
-        return;
-      }
-      noteOffsets.push(Math.round(basisBox.y - (bandBox.y + bandBox.height)));
+      // 注記行は出さず、時点だけを帯のラベル横に出す
+      await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
+      await expect(page.getByText('計算基準を見る')).toHaveCount(0);
+      await expect(band).toContainText('時点');
     }
 
-    // タブを跨いで帯の主要項目・検索欄の文言・注記の位置がそろう
+    // タブを跨いで帯の主要項目・検索欄の文言がそろう
     expect(bandLabels[0]).toEqual(bandLabels[1]);
     expect(placeholders[0]).toBe(placeholders[1]);
-    expect(noteOffsets[0]).toBe(noteOffsets[1]);
   });
 
   test('同じ列の金額は同じ小数桁でそろえる', async ({ page }) => {

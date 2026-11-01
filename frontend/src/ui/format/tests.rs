@@ -158,12 +158,6 @@ fn price_date_formats_month_and_day() {
 }
 
 #[test]
-fn nav_updated_at_formats_month_day_and_time() {
-    assert_eq!(format_nav_updated_at("2026-10-21 09:30"), "10/21 09:30");
-    assert_eq!(format_nav_updated_at("2026-10-21"), "2026-10-21");
-}
-
-#[test]
 fn jst_date_rolls_over_at_nine_am_boundary() {
     assert_eq!(jst_date("2026-10-17T15:00:00Z"), Some((2026, 10, 18)));
     assert_eq!(jst_date("2026-10-17T14:59:59Z"), Some((2026, 10, 17)));

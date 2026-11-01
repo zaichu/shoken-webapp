@@ -29,7 +29,6 @@ use crate::ui::format::{
 };
 use crate::ui::labels::{SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH};
 use leptos::prelude::*;
-use shared::domain::FundNavStatus;
 use std::collections::HashMap;
 
 fn text_search(text: &str) -> AssetSearch {
@@ -754,7 +753,7 @@ fn composition_basis_matches_abs_sum_percentages() {
 }
 
 #[test]
-fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
+fn list_subtitle_shows_only_the_count_and_as_of_uses_oldest_priced_date() {
     let owner = Owner::new();
     owner.with(|| {
         // 読み込み済み行は価格あり1件だけだが、API 集計は価格なし行を含む
@@ -770,7 +769,6 @@ fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
                 priced_purchase_amount: rust_decimal_macros::dec!(60),
                 has_missing_daily_change: false,
             }),
-            summary: None,
         };
         let subtitle = super::summary::list_subtitle(&resolved);
         assert!(
@@ -782,11 +780,11 @@ fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
             "基準日はタイトルに出さない: {subtitle}"
         );
 
-        let note = super::summary::stock_note(&resolved);
-        assert!(
-            note.contains("価格なし銘柄"),
-            "行外の価格なし銘柄も注記に出る: {note}"
-        );
+        // 行外の価格なし銘柄も更新待ちとして扱う
+        assert!(super::summary::stock_pending_from_parts(
+            &resolved.rows,
+            resolved.fallback_totals.as_ref()
+        ));
 
         // 通常時は行から件数と価格なし判定を出す
         let mut unpriced = balance_row(9914);
@@ -796,77 +794,61 @@ fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
             total: 2,
             warning: None,
             fallback_totals: None,
-            summary: None,
         };
         let subtitle = super::summary::list_subtitle(&resolved);
         assert!(subtitle.contains("2"), "{subtitle}");
         assert!(!subtitle.contains("時点"), "{subtitle}");
-        let note = super::summary::stock_note(&resolved);
-        assert!(note.contains("価格なし銘柄"), "{note}");
+        assert!(super::summary::stock_pending_from_parts(
+            &resolved.rows,
+            resolved.fallback_totals.as_ref()
+        ));
         // 価格あり行の基準日を MM/DD にして出す
-        assert!(note.contains("01/16"), "{note}");
+        let as_of = super::summary::oldest_stock_as_of(&resolved.rows).expect("as_of");
+        assert!(as_of.contains("01/16"), "{as_of}");
     });
 }
 
 #[test]
-fn stock_note_excludes_unpriced_rows_from_price_dates() {
+fn oldest_stock_as_of_excludes_unpriced_rows() {
     let owner = Owner::new();
     owner.with(|| {
         // 価格が出ていない行の日付は「その時点の株価」と結びつかないので範囲に混ぜない
         let mut unpriced = balance_row(9914);
         unpriced.current_price = rust_decimal_macros::dec!(0);
         unpriced.price_as_of = Some("2024-01-01".to_string());
-        let resolved = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(9904)), Row::Saved(unpriced)],
-            total: 2,
-            warning: None,
-            fallback_totals: None,
-            summary: None,
-        };
-        let note = super::summary::stock_note(&resolved);
-        assert!(note.contains("01/16"), "{note}");
-        assert!(!note.contains("01/01"), "{note}");
+        let rows = vec![Row::Saved(balance_row(9904)), Row::Saved(unpriced)];
+        let as_of = super::summary::oldest_stock_as_of(&rows).expect("as_of");
+        assert!(as_of.contains("01/16"), "{as_of}");
+        assert!(!as_of.contains("01/01"), "{as_of}");
     });
 }
 
 #[test]
-fn stock_note_shows_single_date_when_all_rows_share_as_of() {
+fn oldest_stock_as_of_shows_single_date_when_all_rows_share_as_of() {
     let owner = Owner::new();
     owner.with(|| {
         // 基準日が揃っているときは範囲ではなく単一の日付を出す
-        let resolved = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(9904)), Row::Saved(balance_row(9914))],
-            total: 2,
-            warning: None,
-            fallback_totals: None,
-            summary: None,
-        };
-        let note = super::summary::stock_note(&resolved);
-        assert!(!note.contains("〜"), "{note}");
+        let rows = vec![Row::Saved(balance_row(9904)), Row::Saved(balance_row(9914))];
+        let as_of = super::summary::oldest_stock_as_of(&rows).expect("as_of");
+        assert!(!as_of.contains("〜"), "{as_of}");
     });
 }
 
 #[test]
-fn stock_note_shows_the_representative_date_when_dates_differ() {
+fn oldest_stock_as_of_shows_oldest_date_when_dates_differ() {
     let owner = Owner::new();
     owner.with(|| {
-        // 基準日が混在するときは、行の日付を省く基準と同じ「最多の日付」を注記に出す
+        // 基準日が混在するときは最も古い日を出す(嘘の新しさを見せない)
         let mut older = balance_row(9914);
         older.price_as_of = Some("2024-01-15".to_string());
-        let resolved = ResolvedAssetBalance {
-            rows: vec![
-                Row::Saved(balance_row(9904)),
-                Row::Saved(balance_row(9934)),
-                Row::Saved(older),
-            ],
-            total: 3,
-            warning: None,
-            fallback_totals: None,
-            summary: None,
-        };
-        let note = super::summary::stock_note(&resolved);
-        assert!(note.contains("株価 01/16 時点"), "{note}");
-        assert!(!note.contains("01/15"), "{note}");
+        let rows = vec![
+            Row::Saved(balance_row(9904)),
+            Row::Saved(balance_row(9934)),
+            Row::Saved(older),
+        ];
+        let as_of = super::summary::oldest_stock_as_of(&rows).expect("as_of");
+        assert!(as_of.contains("01/15"), "{as_of}");
+        assert!(!as_of.contains("01/16"), "{as_of}");
     });
 }
 
@@ -1084,135 +1066,64 @@ fn fund_saved_row(
 }
 
 #[test]
-fn fund_csv_only_count_counts_distinct_funds_and_stays_consistent() {
-    // 対象外は全ファンド数 − 対象(取得+失敗)で求める。行の price_source に
-    // 依らないので、失敗後に前回値が残った 'api' の行や、対象ファンドへの
-    // CSV 再取込で 'csv' になった行があっても数がずれない
+fn oldest_fund_as_of_shows_oldest_date_and_pending_flags_stale_nav() {
+    // 混在時は最も古い日を出す。更新待ちの行があれば帯に小さく出す
     let resolved = ResolvedFundBalance {
         rows: vec![
             fund_saved_row("ファンドA", "api", true, Some(100), "2026-10-17"),
-            fund_saved_row("ファンドB", "api", true, Some(50), "2026-10-17"),
-            fund_saved_row("ファンドC", "csv", true, Some(30), "2026-10-10"),
-            fund_saved_row("ファンドC", "csv", true, Some(30), "2026-10-10"),
+            fund_saved_row("ファンドB", "api", false, Some(50), "2026-10-10"),
+            fund_saved_row("ファンドC", "csv", true, Some(30), "2026-10-17"),
         ],
-        total: 4,
+        total: 3,
         warning: None,
         fallback_totals: None,
-        summary: Some(crate::api::dto::FundBalanceSummary {
-            total_market_value: rust_decimal::Decimal::from(1),
-            total_purchase_amount: rust_decimal::Decimal::from(1),
-            total_daily_change: rust_decimal::Decimal::from(1),
-            latest_nav_count: 4,
-            pending_nav_count: 0,
-            nav_status: FundNavStatus {
-                updated_at: Some("2026-10-20 23:02".to_string()),
-                fetched_count: 1,
-                failed_count: 1,
-                fund_count: 3,
-                auto_update_target_count: 2,
-                failure_reason: Some("HTTP 403".to_string()),
-            },
-        }),
     };
-    // 対象2ファンド(取得1+失敗1) + 対象外1ファンド = 全3ファンド(行は4)
-    assert_eq!(super::summary::fund_csv_only_count(&resolved), 1);
+    let as_of = super::summary::oldest_fund_as_of(&resolved).expect("as_of");
+    assert!(as_of.contains("10/10"), "{as_of}");
+    assert!(!as_of.contains("10/17"), "{as_of}");
+    assert!(super::summary::fund_has_pending(&resolved));
 
-    // API 集計が無いときは CSV 由来の行の重複しないファンド数を使う
-    let without_summary = ResolvedFundBalance {
-        summary: None,
-        ..resolved
+    // すべて最新なら更新待ちは出さない
+    let all_latest = ResolvedFundBalance {
+        rows: vec![fund_saved_row(
+            "ファンドA",
+            "api",
+            true,
+            Some(100),
+            "2026-10-17",
+        )],
+        total: 1,
+        warning: None,
+        fallback_totals: None,
     };
-    assert_eq!(super::summary::fund_csv_only_count(&without_summary), 1);
+    let as_of = super::summary::oldest_fund_as_of(&all_latest).expect("as_of");
+    assert!(as_of.contains("10/17"), "{as_of}");
+    assert!(!super::summary::fund_has_pending(&all_latest));
 }
 
 #[test]
-fn fund_nav_note_distinguishes_fetched_failed_and_not_fetched_yet() {
-    // 取得できたとき: 最終更新の時刻と対象・取得件数
-    let fetched = super::summary::fund_nav_note(
-        &FundNavStatus {
-            updated_at: Some("2026-10-20 23:02".to_string()),
-            fetched_count: 30,
-            failed_count: 0,
-            fund_count: 30,
-            auto_update_target_count: 30,
-            failure_reason: None,
-        },
-        0,
-    );
-    assert!(fetched.contains("10/20 23:02"), "{fetched}");
-    assert!(fetched.contains("対象 30件"), "{fetched}");
-    assert!(fetched.contains("取得 30件"), "{fetched}");
-    assert!(!fetched.contains("失敗"), "{fetched}");
-
-    // 取得できなかったとき: 失敗件数と理由を出す
-    let failed = super::summary::fund_nav_note(
-        &FundNavStatus {
-            updated_at: Some("2026-10-20 23:02".to_string()),
-            fetched_count: 0,
-            failed_count: 2,
-            fund_count: 7,
-            auto_update_target_count: 2,
-            failure_reason: Some("HTTP 403".to_string()),
-        },
-        5,
-    );
-    assert!(failed.contains("10/20 23:02"), "{failed}");
-    assert!(failed.contains("失敗 2件"), "{failed}");
-    assert!(failed.contains("HTTP 403"), "{failed}");
-    assert!(failed.contains("他社のファンド 5件"), "{failed}");
-
-    // 一部だけ取得できたとき: 取得件数と失敗件数の両方を出す
-    let mixed = super::summary::fund_nav_note(
-        &FundNavStatus {
-            updated_at: Some("2026-10-20 23:02".to_string()),
-            fetched_count: 28,
-            failed_count: 2,
-            fund_count: 30,
-            auto_update_target_count: 30,
-            failure_reason: Some("HTTP 403".to_string()),
-        },
-        0,
-    );
-    assert!(mixed.contains("対象 30件"), "{mixed}");
-    assert!(mixed.contains("取得 28件"), "{mixed}");
-    assert!(mixed.contains("失敗 2件"), "{mixed}");
-    assert!(mixed.contains("HTTP 403"), "{mixed}");
-
-    // まだ取得されていないとき: 件数を出さず未取得の文言だけを出す
-    let not_fetched = super::summary::fund_nav_note(&FundNavStatus::default(), 0);
-    assert!(not_fetched.contains("まだ"), "{not_fetched}");
-    assert!(!not_fetched.contains("件"), "{not_fetched}");
-}
-
-#[test]
-fn fund_nav_note_shows_three_states_differently() {
-    // 3状態はそれぞれ別の文言になる(取り違えても同じ表示にしない)
-    let fetched = super::summary::fund_nav_note(
-        &FundNavStatus {
-            updated_at: Some("2026-10-20 23:02".to_string()),
-            fetched_count: 3,
-            failed_count: 0,
-            fund_count: 3,
-            auto_update_target_count: 3,
-            failure_reason: None,
-        },
-        0,
-    );
-    let failed = super::summary::fund_nav_note(
-        &FundNavStatus {
-            updated_at: Some("2026-10-20 23:02".to_string()),
-            fetched_count: 0,
-            failed_count: 3,
-            fund_count: 3,
-            auto_update_target_count: 3,
-            failure_reason: Some("HTTP 403".to_string()),
-        },
-        0,
-    );
-    let not_fetched = super::summary::fund_nav_note(&FundNavStatus::default(), 0);
-    assert_ne!(fetched, failed);
-    assert_ne!(fetched, not_fetched);
-    assert_ne!(failed, not_fetched);
+fn oldest_combined_as_of_picks_oldest_across_stock_and_fund() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let fund = ResolvedFundBalance {
+            rows: vec![fund_saved_row(
+                "ファンドA",
+                "api",
+                true,
+                Some(100),
+                "2026-10-17",
+            )],
+            total: 1,
+            warning: None,
+            fallback_totals: None,
+        };
+        // 株 01/16 より投信 10/17 が新しいので、株の日付を出す
+        let stock = balance_row(9904);
+        assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));
+        let as_of =
+            super::summary::oldest_combined_as_of(&[Row::Saved(stock)], &fund).expect("as_of");
+        assert!(as_of.contains("01/16"), "{as_of}");
+    });
 }
 
 #[test]
@@ -1226,11 +1137,10 @@ fn fund_subtitle_shows_only_the_count() {
         total: 3,
         warning: None,
         fallback_totals: None,
-        summary: None,
     };
     let subtitle = super::summary::fund_subtitle(&resolved);
     assert!(subtitle.contains("3件"), "{subtitle}");
-    // 前日比の集計はタイトルに出さない(列の見出しと帯の注記に寄せる)
+    // 前日比の集計はタイトルに出さない(基準日と更新待ちは帯のラベル横に出す)
     assert!(!subtitle.contains("前日比"), "{subtitle}");
     assert!(!subtitle.contains("更新待ち"), "{subtitle}");
 
@@ -1247,7 +1157,6 @@ fn fund_subtitle_shows_only_the_count() {
             pending_nav_count: 4,
             nav_status: shared::domain::FundNavStatus::default(),
         }),
-        summary: None,
     };
     let subtitle = super::summary::fund_subtitle(&truncated);
     assert!(subtitle.contains("9件"), "{subtitle}");
@@ -1259,7 +1168,6 @@ fn fund_subtitle_shows_only_the_count() {
         total: 1,
         warning: None,
         fallback_totals: None,
-        summary: None,
     };
     let subtitle = super::summary::fund_subtitle(&all_latest);
     assert!(subtitle.contains("1件"), "{subtitle}");
@@ -1277,7 +1185,6 @@ fn merged_subtitle_shows_only_the_count() {
             total: 1,
             warning: None,
             fallback_totals: None,
-            summary: None,
         };
         let fund = ResolvedFundBalance {
             rows: vec![
@@ -1287,14 +1194,17 @@ fn merged_subtitle_shows_only_the_count() {
             total: 2,
             warning: None,
             fallback_totals: None,
-            summary: None,
         };
         let subtitle =
             super::summary::merged_subtitle(Some(&stock), Some(&fund)).expect("subtitle");
         assert!(subtitle.contains("3"), "{subtitle}");
-        // 株の基準日は帯の直下の注記に出す
+        // 株の基準日は帯のラベル横に出す
         assert!(!subtitle.contains("時点"), "{subtitle}");
-        assert!(super::summary::stock_note(&stock).contains("01/16"));
+        assert!(
+            super::summary::oldest_stock_as_of(&stock.rows)
+                .expect("as_of")
+                .contains("01/16")
+        );
         // 前日比の集計も注記もタイトルに出さない
         assert!(!subtitle.contains("前日比"), "{subtitle}");
         assert!(!subtitle.contains("更新待ち"), "{subtitle}");
