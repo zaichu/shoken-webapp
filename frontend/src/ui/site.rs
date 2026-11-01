@@ -411,7 +411,7 @@ fn UserMenu(
                     aria-haspopup="menu"
                     aria-expanded=move || menu_open.get().to_string()
                     aria-controls="user-menu"
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2 max-sm:h-11 max-sm:w-11"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2 max-sm:h-11 max-sm:w-auto max-sm:gap-2 max-sm:pr-3"
                     node_ref=trigger_ref
                     on:click=move |_| {
                         menu_open.update(|open| *open = !*open);
@@ -429,6 +429,9 @@ fn UserMenu(
                             email=user_email.clone()
                             alt="".to_string()
                         />
+                    </span>
+                    <span class="hidden text-sm font-semibold text-text-inverse max-sm:inline">
+                        {crate::ui::labels::ACCOUNT_BUTTON}
                     </span>
                 </button>
                 <Show when=move || menu_open.get()>

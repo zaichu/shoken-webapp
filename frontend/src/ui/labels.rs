@@ -142,6 +142,8 @@ pub const CLEAR_SEARCH_CONDITIONS: &str = "検索条件を解除";
 pub const LOGIN_REQUIRED_TITLE: &str = "ログインしてください";
 /// Googleアカウントでのログイン操作
 pub const GOOGLE_LOGIN: &str = "Googleでログイン";
+/// 上バーのアカウントボタン(丸いアイコンの右に出す文字)
+pub const ACCOUNT_BUTTON: &str = "アカウント";
 /// 検索を実行するボタン
 pub const SEARCH: &str = "検索";
 /// 絞り込み中の表示(注記の行に出す)

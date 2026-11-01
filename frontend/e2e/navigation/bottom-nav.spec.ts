@@ -44,6 +44,18 @@ test('下タブバーは現在地にaria-currentを付けタップで遷移で�
   ).toHaveAttribute('aria-current', 'page');
 });
 
+test('上バーのアカウントボタンは丸いアイコンと「アカウント」の文字を持つ', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto('/');
+  const trigger = page.getByRole('button', { name: /アカウントメニュー/ });
+  await expect(trigger).toBeVisible();
+  await expect(trigger.getByText('アカウント', { exact: true })).toBeVisible();
+  await trigger.click();
+  await expect(page.getByRole('menu', { name: 'ユーザーメニュー' })).toBeVisible();
+});
+
 test('CSV管理はホーム・資産管理・取引明細に出て銘柄検索・設定には出ない', async ({
   page,
 }) => {
