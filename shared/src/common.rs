@@ -198,6 +198,8 @@ pub struct SessionUser {
     pub email: String,
     #[serde(default)]
     pub name: Option<String>,
+    #[serde(default)]
+    pub picture_url: Option<String>,
 }
 
 #[cfg(test)]
@@ -211,17 +213,22 @@ mod tests {
     #[test]
     fn session_user_keeps_string_ids_and_optional_fields() {
         let user: SessionUser = serde_json::from_str(
-            r#"{"id":"alice","email":"test@example.com","name":"テストユーザー"}"#,
+            r#"{"id":"alice","email":"test@example.com","name":"テストユーザー","picture_url":"https://lh3.googleusercontent.com/a-/avatar"}"#,
         )
         .expect("session");
         assert_eq!(user.id, "alice");
         assert_eq!(user.name.as_deref(), Some("テストユーザー"));
+        assert_eq!(
+            user.picture_url.as_deref(),
+            Some("https://lh3.googleusercontent.com/a-/avatar")
+        );
         let parsed: SessionUser =
             serde_json::from_value(serde_json::to_value(&user).unwrap()).unwrap();
         assert_eq!(parsed, user);
         let absent: SessionUser =
             serde_json::from_str(r#"{"id":"alice","email":"test@example.com"}"#).unwrap();
         assert!(absent.name.is_none());
+        assert!(absent.picture_url.is_none());
     }
 
     #[test]

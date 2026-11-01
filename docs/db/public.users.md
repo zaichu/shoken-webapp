@@ -15,6 +15,7 @@ Google 認証のユーザー
 | created_at | timestamp with time zone | now() | false |  |  |  |
 | updated_at | timestamp with time zone | now() | false |  |  |  |
 | login_notify_enabled | boolean | true | false |  |  | 新しい端末・場所変化のログイン通知を受け取るか |
+| picture_url | varchar(2048) |  | true |  |  | Google プロフィール画像の URL(googleusercontent の https のみ。未設定・他ホストは NULL) |
 
 ## Constraints
 
@@ -54,6 +55,7 @@ erDiagram
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
   boolean login_notify_enabled
+  varchar_2048_ picture_url
 }
 "public.sessions" {
   uuid id

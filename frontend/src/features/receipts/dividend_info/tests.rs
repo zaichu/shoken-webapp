@@ -28,6 +28,7 @@ fn authenticated_session() -> SessionStore {
         id: "a".to_string(),
         email: "a@example.com".to_string(),
         name: None,
+        picture_url: None,
     }));
     session
 }

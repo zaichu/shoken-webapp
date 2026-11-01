@@ -1,6 +1,7 @@
 use crate::api::dto::SessionUser;
 use crate::app::{CurrentPath, current_location, pathname_of};
 use crate::session::{SessionStore, use_session};
+use crate::ui::avatar::UserAvatar;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use leptos::ev;
@@ -193,22 +194,6 @@ pub fn AccountDeleteDialog() -> impl IntoView {
     content.into_any()
 }
 
-pub fn get_initials(name: Option<&str>, email: Option<&str>) -> String {
-    if let Some(name) = name.filter(|name| !name.is_empty()) {
-        let parts: Vec<&str> = name.split_whitespace().collect();
-        if parts.len() >= 2 {
-            let first = parts[0].chars().next().unwrap_or_default();
-            let last = parts[parts.len() - 1].chars().next().unwrap_or_default();
-            return format!("{first}{last}").to_uppercase();
-        }
-        return name.chars().take(2).collect::<String>().to_uppercase();
-    }
-    if let Some(email) = email.filter(|email| !email.is_empty()) {
-        return email.chars().take(2).collect::<String>().to_uppercase();
-    }
-    "U".to_string()
-}
-
 // 現在は Google OAuth のみ対応
 const LOGIN_METHOD_TEXT: &str = "Google でログイン中";
 
@@ -356,6 +341,7 @@ fn UserMenu(
 
     let user_name = user.name.clone();
     let user_email = user.email.clone();
+    let user_picture = user.picture_url.clone();
     let display_name = Memo::new({
         let user_name = user_name.clone();
         let user_email = user_email.clone();
@@ -370,9 +356,10 @@ fn UserMenu(
         .clone()
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| "ユーザー".to_string());
-    let initials = get_initials(user_name.as_deref(), Some(&user_email));
+    let initials = crate::ui::avatar::avatar_initials(user_name.as_deref(), Some(&user_email));
     let login_method_text = LOGIN_METHOD_TEXT;
-    let menu_label = format!("{aria_name}のアカウントメニュー");
+    // 見える頭文字がアクセシブル名に含まれないと WCAG 2.5.3 違反になるため頭文字を先頭に置く
+    let menu_label = format!("{initials} {aria_name}のアカウントメニュー");
 
     view! {
         <div class="flex items-center gap-3">
@@ -382,25 +369,32 @@ fn UserMenu(
                 </span>
             </Show>
             <div class="relative" node_ref=menu_container>
-                <Button
-                    variant=ButtonVariant::Header(ButtonSize::Sm)
-                    attr:aria-haspopup="menu"
-                    aria_label=menu_label
-                    aria_expanded=move || menu_open.get()
-                    attr:aria-controls="user-menu"
-                    on_click=move |_| {
+                <button
+                    type="button"
+                    aria-label=menu_label.clone()
+                    aria-haspopup="menu"
+                    aria-expanded=move || menu_open.get().to_string()
+                    aria-controls="user-menu"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2 max-sm:h-11 max-sm:w-11"
+                    node_ref=trigger_ref
+                    on:click=move |_| {
                         menu_open.update(|open| *open = !*open);
                         if !menu_open.get() {
                             focused_index.set(-1);
                         } else {
-                            // メニューを開くとき世代を進め、古い Effect を無効化
                             menu_generation.update(|g| *g = g.wrapping_add(1));
                         }
                     }
-                    node_ref=trigger_ref
                 >
-                    "アカウント"
-                </Button>
+                    <span aria-hidden="true" class="contents">
+                        <UserAvatar
+                            picture_url=user_picture.clone()
+                            name=user_name.clone()
+                            email=user_email.clone()
+                            alt="".to_string()
+                        />
+                    </span>
+                </button>
                 <Show when=move || menu_open.get()>
                     <ul
                         id="user-menu"
@@ -411,9 +405,12 @@ fn UserMenu(
                     >
                         <li role="none" class="p-3 border-b border-ink/10">
                             <div class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold text-brand font-bold text-lg">
-                                    {initials.clone()}
-                                </span>
+                                <UserAvatar
+                                    picture_url=user_picture.clone()
+                                    name=user_name.clone()
+                                    email=user_email.clone()
+                                    alt=display_name.get()
+                                />
                                 <div class="min-w-0">
                                     <div class="font-semibold text-sm truncate">{display_name.get()}</div>
                                     <div class="text-xs text-text-muted truncate">{user_email.clone()}</div>

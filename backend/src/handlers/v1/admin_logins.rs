@@ -71,6 +71,7 @@ mod tests {
                 sub: "admin-api".into(),
                 email: "admin@example.com".into(),
                 name: None,
+                picture_url: None,
             },
         )
         .await
@@ -177,6 +178,7 @@ mod tests {
                 google_id: "admin-test".into(),
                 email: email.into(),
                 name: None,
+                picture_url: None,
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
             };

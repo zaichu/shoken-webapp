@@ -60,6 +60,7 @@ fn alice() -> Option<SessionUser> {
         id: "a".to_string(),
         email: "a@example.com".to_string(),
         name: None,
+        picture_url: None,
     })
 }
 

@@ -28,7 +28,7 @@ test('index と SPA フォールバックが CSP 付きの HTML を返す', asyn
   // connect-src は 'self' と backend の URL だけで閉じること(他の外部 origin を足さない)
   expect(csp).toContain(`connect-src 'self' ${BACKEND_ORIGIN}; font-src 'self'`);
   expect(csp).toContain('img-src');
-  expect(csp).toContain('lh3.googleusercontent.com');
+  expect(csp).toContain('*.googleusercontent.com');
   expect(root.headers()['x-content-type-options']).toBe('nosniff');
   expect(root.headers()['x-frame-options']).toBe('DENY');
 

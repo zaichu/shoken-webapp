@@ -10,6 +10,7 @@ pub struct User {
     pub google_id: String,
     pub email: String,
     pub name: Option<String>,
+    pub picture_url: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -21,6 +22,7 @@ impl crate::db::FromRow for User {
             google_id: row.try_get("google_id")?,
             email: row.try_get("email")?,
             name: row.try_get("name")?,
+            picture_url: row.try_get("picture_url")?,
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
         })
@@ -33,6 +35,7 @@ pub struct UserResponse {
     pub id: String,
     pub email: String,
     pub name: Option<String>,
+    pub picture_url: Option<String>,
 }
 
 impl From<User> for UserResponse {
@@ -41,6 +44,7 @@ impl From<User> for UserResponse {
             id: user.id.to_string(),
             email: user.email,
             name: user.name,
+            picture_url: user.picture_url,
         }
     }
 }
@@ -51,6 +55,7 @@ pub struct GoogleUserInfo {
     pub sub: String, // Google ID
     pub email: String,
     pub name: Option<String>,
+    pub picture_url: Option<String>,
 }
 #[cfg(test)]
 mod tests {
@@ -62,6 +67,7 @@ mod tests {
             google_id: "google123".to_string(),
             email: "test@example.com".to_string(),
             name: Some("テストユーザー".to_string()),
+            picture_url: Some("https://lh3.googleusercontent.com/a-/avatar".to_string()),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
@@ -70,5 +76,6 @@ mod tests {
             (response.id, response.email, response.name),
             (user.id.to_string(), user.email, user.name)
         );
+        assert_eq!(response.picture_url, user.picture_url);
     }
 }

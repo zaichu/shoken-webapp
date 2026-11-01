@@ -24,8 +24,9 @@ fn nav_active_covers_sub_paths() {
 
 #[test]
 fn initials_prefers_first_and_last_name_part() {
-    assert_eq!(get_initials(Some("Taro Yamada"), None), "TY");
-    assert_eq!(get_initials(Some("zaichu"), None), "ZA");
-    assert_eq!(get_initials(None, Some("user@example.com")), "US");
-    assert_eq!(get_initials(None, None), "U");
+    use crate::ui::avatar::avatar_initials;
+    assert_eq!(avatar_initials(Some("Taro Yamada"), None), "TY");
+    assert_eq!(avatar_initials(Some("zaichu"), None), "ZA");
+    assert_eq!(avatar_initials(None, Some("user@example.com")), "US");
+    assert_eq!(avatar_initials(None, None), "U");
 }

@@ -202,7 +202,7 @@ pub async fn select_user_by_session(
 ) -> Result<Option<User>, DbError> {
     crate::db::query_as::<User>(
         r#"
-        SELECT u.id, u.google_id, u.email, u.name, u.created_at, u.updated_at
+        SELECT u.id, u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
         FROM users u
         INNER JOIN sessions s ON u.id = s.user_id
         WHERE s.token_hash = $1 AND s.expires_at > NOW()
@@ -309,18 +309,20 @@ pub async fn delete_device_sessions(
 async fn upsert_user_in_tx(tx: &mut Tx, user_info: &GoogleUserInfo) -> Result<User, DbError> {
     crate::db::query_as::<User>(
         r#"
-        INSERT INTO users (google_id, email, name)
-        VALUES ($1, $2, $3)
+        INSERT INTO users (google_id, email, name, picture_url)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (google_id) DO UPDATE SET
             email = EXCLUDED.email,
             name = EXCLUDED.name,
+            picture_url = EXCLUDED.picture_url,
             updated_at = NOW()
-        RETURNING id, google_id, email, name, created_at, updated_at
+        RETURNING id, google_id, email, name, picture_url, created_at, updated_at
         "#,
         vec![
             Bind::from(user_info.sub.as_str()),
             Bind::from(user_info.email.as_str()),
             Bind::from(user_info.name.as_deref()),
+            Bind::from(user_info.picture_url.as_deref()),
         ],
     )
     .fetch_one(&mut *tx)
@@ -375,6 +377,7 @@ mod tests {
             sub: "test-google-id-804".to_string(),
             email: "test804@example.com".to_string(),
             name: Some("テストユーザー804".to_string()),
+            picture_url: None,
         }
     }
 
