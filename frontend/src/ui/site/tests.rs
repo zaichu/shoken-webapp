@@ -14,10 +14,12 @@ fn nav_items_link_to_main_pages() {
 
 #[test]
 fn nav_icons_cover_all_items() {
-    for (to, _) in NAV_ITEMS {
-        assert!(!nav_icon_inner(to).is_empty());
+    let icons: Vec<&str> = NAV_ITEMS.iter().map(|(to, _)| nav_icon_inner(to)).collect();
+    assert_eq!(icons.len(), 4);
+    for icon in &icons {
+        assert!(!icon.is_empty());
+        assert_eq!(icons.iter().filter(|other| *other == icon).count(), 1);
     }
-    assert_ne!(nav_icon_inner("/"), nav_icon_inner("/search"));
 }
 
 #[test]
