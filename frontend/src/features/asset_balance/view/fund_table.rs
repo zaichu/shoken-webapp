@@ -14,8 +14,8 @@ use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, format_unit_price, unit_price_decimals,
 };
 use crate::ui::labels::{
-    ACCOUNT, BASE_PRICE, DAY_CHANGE, DISTRIBUTION, FUND, FUND_SHARES, MARKET_VALUE,
-    TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
+    ACCOUNT, AVERAGE_PRICE, BASE_PRICE, DAY_CHANGE, DISTRIBUTION, FUND, FUND_SHARES, MARKET_VALUE,
+    PENDING_UPDATE, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::security_link::TableNameLink;
@@ -150,7 +150,7 @@ pub fn FundHoldingsTable(
 pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<DetailCell>) {
     let base_text = format_currency(view.base_price);
     let day_text = if view.nav_pending() {
-        "更新待ち".to_string()
+        PENDING_UPDATE.to_string()
     } else {
         format_signed_row_valuation_amount(view.view_day_change())
     };
@@ -178,7 +178,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
             day_negative,
             day_positive,
         ),
-        DetailCell::plain("取得単価".to_string(), average_text),
+        DetailCell::plain(AVERAGE_PRICE.to_string(), average_text),
         DetailCell::plain(DISTRIBUTION.to_string(), course_text),
     ];
     let right = vec![

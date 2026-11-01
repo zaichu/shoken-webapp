@@ -21,9 +21,10 @@ use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, unit_price_decimals,
 };
 use crate::ui::labels::{
-    ACCOUNT, ANNUAL_DIVIDEND, BASE_PRICE, CODE_COLUMN, CURRENT_PRICE, DAY_CHANGE, DISTRIBUTION,
-    DOMESTIC_STOCK, FUND_SHARES, MARKET_VALUE, MUTUAL_FUND, PER_SHARE_DIVIDEND, PRICE_AS_OF,
-    QUANTITY, SECURITY_AND_FUND, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
+    ACCOUNT, ACQUISITION_YIELD, ANNUAL_DIVIDEND, AVERAGE_PRICE, BASE_PRICE, CODE_COLUMN,
+    CURRENT_PRICE, DAY_CHANGE, DISTRIBUTION, DOMESTIC_STOCK, FUND_SHARES, MARKET_VALUE,
+    MUTUAL_FUND, PENDING_UPDATE, PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY, SECURITY_AND_FUND,
+    TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
@@ -311,7 +312,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
         .map(format_currency)
         .unwrap_or_else(|| "—".to_string());
     let day_text = if row.nav_pending {
-        "更新待ち".to_string()
+        PENDING_UPDATE.to_string()
     } else {
         format_signed_row_valuation_amount(row.day_change)
     };
@@ -328,7 +329,10 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     let market_text = format_row_valuation_amount(row.market);
     let pnl_text = format_signed_row_valuation_amount(row.profit);
     let pnl_rate = format_signed_valuation_rate(row.rate, 1);
-    let pnl_sub = Some(format!("{pnl_text} {pnl_rate}"));
+    let pnl_sub = row
+        .rate
+        .map(|_| format!("{pnl_text} {pnl_rate}"))
+        .or_else(|| row.profit.map(|_| pnl_text.clone()));
     let pnl_negative = is_negative_valuation(row.profit);
     let pnl_positive = is_positive_valuation(row.profit);
     let as_of = row
@@ -343,7 +347,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             day_negative,
             day_positive,
         ),
-        DetailCell::plain("取得単価".to_string(), average_text),
+        DetailCell::plain(AVERAGE_PRICE.to_string(), average_text),
     ];
     if is_fund {
         left.push(DetailCell::plain(
@@ -363,7 +367,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             .as_ref()
             .map(crate::features::asset_balance::holdings::format_dividend_yield)
             .unwrap_or_else(|| "—".to_string());
-        left.push(DetailCell::plain("取得額利回り".to_string(), yield_text));
+        left.push(DetailCell::plain(ACQUISITION_YIELD.to_string(), yield_text));
         left.push(DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share));
     }
     let mut right = vec![
