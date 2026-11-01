@@ -141,7 +141,7 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.getByRole('button', { name: /架空電信電話\(9910\) をコピー/ })).toBeVisible();
   await expect(card.locator('.ledger-amount')).toHaveText('¥1,594');
-  await expect(card.locator('.ledger-date')).toContainText('2024/03/15');
+  await expect(card.locator('.ledger-date')).toContainText('03/15');
   await expect(card.locator('.ledger-code')).toContainText('9910');
   // 行を押すと残りの項目(配当金・税額・口座・数量)が開く
   const toggle = card.locator('.receipt-compact-toggle');
@@ -222,7 +222,7 @@ test('国内株式タブでも銘柄リンクとコピーが使える', async ({
     card.getByRole('button', { name: '架空ゲーム(9905) をコピー' }),
   ).toBeVisible();
   await expect(card.locator('.ledger-amount')).toContainText('+¥5,000');
-  await expect(card.locator('.ledger-date')).toContainText('2024/02/01');
+  await expect(card.locator('.ledger-date')).toContainText('02/01');
   await card.locator('.receipt-compact-toggle').click();
   await expect(card.locator('.receipt-compact-details')).toContainText('SBI証券');
 });

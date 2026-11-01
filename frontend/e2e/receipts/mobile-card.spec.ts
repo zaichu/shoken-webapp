@@ -168,14 +168,55 @@ test('マイナスの損益は符号と色を保ち、税引後だけが負に�
   ).toContainText('-¥3,985');
 });
 
-test('行の日付は常に年付きで出す', async ({ page }) => {
+test('行の日付は年なしの月日で出す', async ({ page }) => {
   await mockApi(page);
   await page.goto('/receipts');
 
   const card = page.getByTestId('receipt-card-list').getByTestId('receipt-card').first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.ledger-date')).toContainText('2024/03/01');
-  await expect(card.getByText('03/01', { exact: true })).toHaveCount(0);
+  // 年はグループ見出しにあるので行には出さない
+  await expect(card.locator('.ledger-date')).toHaveText('03/01');
+  await expect(card.locator('.ledger-date')).not.toContainText('2024');
+});
+
+test('行の日付は欠けずコードは名前の左端にそろう', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/receipts');
+
+  const cardList = page.getByTestId('receipt-card-list');
+  const card = cardList.getByTestId('receipt-card').first();
+  await expect(card).toBeVisible();
+  // 日付もコードも列からはみ出さない
+  for (const selector of ['.ledger-date', '.ledger-code']) {
+    const clipped = await card.locator(selector).evaluate(
+      (el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
+    );
+    expect(clipped, `${selector}が欠けている`).toBe(false);
+  }
+  // コードは名前の左端にそろい、名前の下にある
+  const nameBox = await card.locator('.ledger-name button').boundingBox();
+  const codeBox = await card.locator('.ledger-code a').boundingBox();
+  expect(Math.abs(codeBox!.x - nameBox!.x), 'コードは名前の左端').toBeLessThanOrEqual(2);
+  expect(codeBox!.y, 'コードは名前の下').toBeGreaterThan(nameBox!.y + nameBox!.height - 1);
+  // コードは補助文字色(日付と同じ色)でリンク色にしない
+  const colors = await card.evaluate((el) => {
+    const code = el.querySelector<HTMLElement>('.ledger-code a');
+    const date = el.querySelector<HTMLElement>('.ledger-date');
+    return {
+      code: code && getComputedStyle(code).color,
+      date: date && getComputedStyle(date).color,
+    };
+  });
+  expect(colors.code, 'コードは補助文字色').toBe(colors.date);
+
+  // 2桁の月でも欠けない(国内株式タブ: 2024-02-01 → 02/01)
+  await page.getByRole('tab', { name: '国内株式' }).click();
+  const stock = cardList.getByTestId('receipt-card').first();
+  await expect(stock.locator('.ledger-date')).toHaveText('02/01');
+  const monthClipped = await stock
+    .locator('.ledger-date')
+    .evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  expect(monthClipped, '2桁の月が欠けている').toBe(false);
 });
 
 test('国内株式は1件日の小計を省き、複数件日は小計を残す', async ({ page }) => {

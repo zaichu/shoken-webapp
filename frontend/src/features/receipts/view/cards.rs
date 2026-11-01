@@ -24,6 +24,18 @@ pub(crate) fn compact_row_label(tab: ReceiptsTab) -> &'static str {
     }
 }
 
+/// 行の日付は年を省いた "MM/DD" にする(年はグループ見出しにある)。
+/// 表のセルは "YYYY/MM/DD" なので末尾2節だけ残し、読めない値はそのまま返す
+pub(crate) fn compact_date_text(date: &str) -> String {
+    let mut parts = date.split('/');
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(year), Some(month), Some(day), None) if year.len() == 4 => {
+            format!("{month}/{day}")
+        }
+        _ => date.to_string(),
+    }
+}
+
 fn stripped_amount_text(value: &str) -> String {
     let without_symbols: String = value
         .trim()
@@ -363,7 +375,7 @@ fn CompactReceiptRow(
         >
             <div class="receipt-compact-line">
                 <LedgerRow
-                    date=date
+                    date=compact_date_text(&date)
                     name=name
                     code=(!code_text.is_empty())
                         .then(|| view! {

@@ -973,6 +973,14 @@ fn compact_row_shows_single_amount_per_tab() {
 }
 
 #[test]
+fn compact_row_date_drops_year_and_keeps_padding() {
+    assert_eq!(compact_date_text("2026/12/27"), "12/27");
+    assert_eq!(compact_date_text("2024/09/05"), "09/05");
+    assert_eq!(compact_date_text("—"), "—");
+    assert_eq!(compact_date_text("12/27"), "12/27");
+}
+
+#[test]
 fn summary_band_keeps_primary_last_and_breakdown_order() {
     for tab in ReceiptsTab::ALL {
         let labels: Vec<&str> = tab

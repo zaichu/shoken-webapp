@@ -1073,7 +1073,7 @@
      取引明細のスマホ行とホームの最近の配当入金で同じ作りを使う */
   .ledger-row {
     @apply grid items-start gap-x-3 py-2;
-    grid-template-columns: 3.5rem minmax(0, 1fr) max-content;
+    grid-template-columns: 3rem minmax(0, 1fr) max-content;
   }
 
   .ledger-date {
@@ -1096,6 +1096,12 @@
     @apply mt-0.5 block text-xs tabular-nums text-text-muted;
   }
 
+  /* 行のコードは銘柄名の左端にそろえる小さな補助表示にする。
+     リンク機能は残すが、リンク色・太字にはしない */
+  .ledger-code .security-code-link {
+    @apply font-normal text-text-muted no-underline hover:underline;
+  }
+
   .home-dividend-row .ledger-code .account-badge {
     @apply mt-1;
   }
@@ -1107,7 +1113,7 @@
     }
 
     .receipt-compact-row .security-code-link {
-      @apply -my-3.5 min-h-11 min-w-11 justify-center;
+      @apply -my-3.5 min-h-11 min-w-11 justify-start;
     }
   }
 
