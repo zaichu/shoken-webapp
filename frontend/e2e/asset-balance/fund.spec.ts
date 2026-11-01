@@ -130,15 +130,15 @@ test('PC: 「条件を足す」の小窓はどのボタンでもその行の直�
   }
 });
 
-test('スマホ: 「条件を足す」の小窓は下から出るシートのまま', async ({ page }) => {
+test('スマホ: 検索・並べ替えシートは下端に接して出る', async ({ page }) => {
   await setupMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await page.getByTestId('asset-kind-tab-fund').click();
   await expect(page.getByTestId('asset-fund-list')).toBeVisible();
 
-  await page.getByTestId('asset-condition-account').click();
-  const sheet = page.getByRole('dialog', { name: '口座を選ぶ' });
+  await page.getByTestId('asset-search-sheet-entry').click();
+  const sheet = page.getByRole('dialog', { name: '検索・並べ替え' });
   await expect(sheet).toBeVisible();
   const panel = await sheet.boundingBox();
   expect(panel).not.toBeNull();
@@ -147,6 +147,10 @@ test('スマホ: 「条件を足す」の小窓は下から出るシートのま
   }
   // 画面下端に接するシートのまま(PC の小窓位置にはならない)
   expect(panel.y + panel.height).toBeGreaterThanOrEqual(844 - 2);
+  // ×で閉じて入口にフォーカスが戻る
+  await sheet.getByRole('button', { name: '閉じる' }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.getByTestId('asset-search-sheet-entry')).toBeFocused();
 });
 
 test('投資信託タブでファンド一覧が表示され、検索と並べ替えが効く', async ({

@@ -164,7 +164,11 @@ test('スマホの行は年間配当の隣に1株配当を出す', async ({ page
   await expect(row).toBeVisible();
 
   // 配当で並べたときだけ行に配当を出す
-  await page.getByTestId('asset-sort-select').selectOption('dividend');
+  await page.getByTestId('asset-search-sheet-entry').click();
+  const sheet = page.getByTestId('asset-search-sheet');
+  await sheet.getByRole('button', { name: '年間配当' }).click();
+  await sheet.getByRole('button', { name: '適用する' }).click();
+  await expect(sheet).toBeHidden();
   await expect(row).toContainText('1株 ¥90');
   // 年間配当(1株配当×数量)も一緒に出る
   await expect(row).toContainText('¥9,000');

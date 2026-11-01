@@ -60,13 +60,6 @@ pub enum SortOrder {
 }
 
 impl SortOrder {
-    pub(crate) fn label(self) -> &'static str {
-        match self {
-            SortOrder::Desc => "高い順 ↓",
-            SortOrder::Asc => "低い順 ↑",
-        }
-    }
-
     /// localStorage への保存値
     pub(crate) fn value(self) -> &'static str {
         match self {
