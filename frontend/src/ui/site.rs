@@ -394,8 +394,12 @@ fn UserMenu(
         .unwrap_or_else(|| "ユーザー".to_string());
     let initials = crate::ui::avatar::avatar_initials(user_name.as_deref(), Some(&user_email));
     let login_method_text = LOGIN_METHOD_TEXT;
-    // 見える頭文字がアクセシブル名に含まれないと WCAG 2.5.3 違反になるため頭文字を先頭に置く
-    let menu_label = format!("{initials} {aria_name}のアカウントメニュー");
+    // 可視テキストは aria-hidden の頭文字を含む(「テス アカウント」)ため、空白を明示して
+    // 単語トークンをそろえないと WCAG 2.5.3 違反になる。頭文字も先頭の独立トークンに置く
+    let menu_label = format!(
+        "{initials} {} {aria_name}のアカウントメニュー",
+        crate::ui::labels::ACCOUNT_BUTTON
+    );
 
     view! {
         <div class="flex items-center gap-3">
@@ -430,6 +434,7 @@ fn UserMenu(
                             alt="".to_string()
                         />
                     </span>
+                    {" "}
                     <span class="hidden text-sm font-semibold text-text-inverse max-sm:inline">
                         {crate::ui::labels::ACCOUNT_BUTTON}
                     </span>
