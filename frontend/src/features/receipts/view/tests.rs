@@ -920,3 +920,28 @@ fn dividend_amount_stays_neutral_without_plus() {
     assert!(!tax_negative);
     assert!(!tax_positive);
 }
+
+#[test]
+fn summary_band_keeps_primary_last_and_breakdown_order() {
+    for tab in ReceiptsTab::ALL {
+        let labels: Vec<&str> = tab
+            .header_items()
+            .into_iter()
+            .map(|(label, _)| label)
+            .collect();
+        assert_eq!(labels.len(), 3);
+        let primary = labels[2];
+        let breakdown = &labels[..2];
+        match tab {
+            ReceiptsTab::Dividend => {
+                assert_eq!(primary, "税引後");
+                assert_eq!(breakdown, ["配当金", "税額"]);
+            }
+            ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => {
+                assert_eq!(primary, "税引後");
+                assert_eq!(breakdown[0], "実現損益");
+                assert_eq!(breakdown[1], "税額");
+            }
+        }
+    }
+}

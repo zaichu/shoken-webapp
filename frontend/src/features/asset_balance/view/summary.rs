@@ -15,6 +15,7 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::amount::AmountKind;
 use crate::ui::format::{
     days_since_jst_date, format_nav_updated_at, format_percentage_value, format_short_date,
 };
@@ -22,7 +23,9 @@ use crate::ui::labels::{
     self, ACQUISITION_YIELD, ANNUAL_DIVIDEND_FORECAST, DAY_CHANGE, MARKET_VALUE_TOTAL,
     TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
-use crate::ui::summary::{SummaryItem, SummarySize, SummaryTone};
+use crate::ui::summary::{
+    SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
+};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use shared::domain::FundNavStatus;
@@ -317,27 +320,50 @@ pub(crate) fn AssetSummaryBand(
     /// 前日比の合計。行から求められないときは None
     daily_change: Option<f64>,
     tags: Vec<SummaryTag>,
+    /// 取得総額(内訳用)。国内株式は呼び出し側で全保有分から求める
+    purchase: Option<f64>,
     /// 構成比ページへの入口(国内株式のみ)
     composition_link: bool,
 ) -> impl IntoView {
     let market_text = format_valuation_amount(market);
     let profit_text = format_signed_valuation_amount(profit);
-    let rate_text = profit_rate.map(|rate| format_signed_valuation_rate(Some(rate), 1));
+    let rate_text = profit_rate
+        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
+        .unwrap_or_default();
     // 前日比は表・カードと同じく表示単位を適用せず必ず円マーク付きで出す
     let daily_text = format_signed_row_valuation_amount(daily_change);
-    let profit_tone = if is_negative_valuation(profit) {
-        SummaryTone::Loss
-    } else if is_positive_valuation(profit) {
-        SummaryTone::Gain
-    } else {
-        SummaryTone::Neutral
-    };
-    let daily_tone = if is_negative_valuation(daily_change) {
-        SummaryTone::Loss
-    } else if is_positive_valuation(daily_change) {
-        SummaryTone::Gain
-    } else {
-        SummaryTone::Neutral
+    let daily_rate_text = daily_rate(market, daily_change)
+        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
+        .unwrap_or_default();
+    let profit_negative = is_negative_valuation(profit);
+    let profit_positive = is_positive_valuation(profit);
+    let daily_negative = is_negative_valuation(daily_change);
+    let daily_positive = is_positive_valuation(daily_change);
+    let purchase_text = format_valuation_amount(purchase);
+    let pc_items: Vec<SummarySubItem> = {
+        let mut items = vec![SummarySubItem {
+            label: DAY_CHANGE.to_string(),
+            value: daily_text.clone(),
+            note: String::new(),
+            tone: if daily_negative {
+                SummaryTone::Loss
+            } else if daily_positive {
+                SummaryTone::Gain
+            } else {
+                SummaryTone::Neutral
+            },
+            extra_class: "summary-band-item-daily".to_string(),
+        }];
+        for (index, tag) in tags.iter().take(2).enumerate() {
+            items.push(SummarySubItem {
+                label: tag.label.to_string(),
+                value: tag.value.clone(),
+                note: String::new(),
+                tone: SummaryTone::Neutral,
+                extra_class: format!("summary-band-item-tag{}", index + 1),
+            });
+        }
+        items
     };
     view! {
         <section
@@ -347,57 +373,44 @@ pub(crate) fn AssetSummaryBand(
             aria-label="集計"
             data-testid="asset-portfolio-summary"
         >
-            <div class="summary-band-grid" data-testid="portfolio-kpi-grid">
-                <dl class="summary-band-group summary-band-group-main">
-                    <SummaryItem
-                        label=MARKET_VALUE_TOTAL
-                        value=market_text
-                        size=SummarySize::Primary
-                    />
-                    <SummaryItem
-                        label=VALUATION_PROFIT_LOSS
-                        value=profit_text
-                        size=SummarySize::Secondary
-                        note=rate_text.unwrap_or_default()
-                        tone=profit_tone
-                        extra_class="summary-band-item-pnl"
-                    />
-                </dl>
-                <div class="summary-band-group summary-band-group-sub">
-                    <dl class="summary-band-items">
-                        <SummaryItem
-                            label=DAY_CHANGE
-                            value=daily_text
-                            size=SummarySize::Secondary
-                            tone=daily_tone
-                            extra_class="summary-band-item-daily"
-                        />
-                        {tags
-                            .into_iter()
-                            .take(2)
-                            .enumerate()
-                            .map(|(index, tag)| {
-                                let class = format!("summary-band-item-tag{}", index + 1);
-                                view! {
-                                    <SummaryItem
-                                        label=tag.label
-                                        value=tag.value
-                                        size=SummarySize::Secondary
-                                        extra_class=class
-                                    />
-                                }
-                            })
-                            .collect_view()}
-                    </dl>
-                    {composition_link.then(|| {
-                        view! {
-                            <a href="/assetbalance/composition" class="summary-band-comp lg:hidden">
-                                "構成比 ›"
-                            </a>
-                        }
-                    })}
-                </div>
-            </div>
+            <SummaryBand
+                primary_label=MARKET_VALUE_TOTAL
+                primary_value=market_text
+                aux_label=VALUATION_PROFIT_LOSS
+                aux_value=profit_text
+                aux_rate=rate_text
+                aux_kind=AmountKind::Delta
+                aux_negative=profit_negative
+                aux_positive=profit_positive
+                pc_items=pc_items
+                breakdown=vec![
+                    SummaryBreakdownEntry {
+                        label: DAY_CHANGE.to_string(),
+                        value: daily_text,
+                        kind: AmountKind::Delta,
+                        negative: daily_negative,
+                        positive: daily_positive,
+                        rate: daily_rate_text,
+                    },
+                    SummaryBreakdownEntry {
+                        label: TOTAL_ACQUISITION.to_string(),
+                        value: purchase_text,
+                        kind: AmountKind::Plain,
+                        negative: false,
+                        positive: false,
+                        rate: String::new(),
+                    },
+                ]
+                testid_band="portfolio-kpi-grid"
+                testid_toggle="asset-summary-details-toggle"
+            />
+            {composition_link.then(|| {
+                view! {
+                    <a href="/assetbalance/composition" class="summary-band-comp lg:hidden">
+                        "構成比 ›"
+                    </a>
+                }
+            })}
         </section>
     }
 }

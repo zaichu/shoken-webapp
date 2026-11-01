@@ -209,7 +209,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                                 } else {
                                     header
                                         .get()
-                                        .map(|items| view! { <SummaryStrip items=items /> })
+                                        .map(|items| view! { <SummaryStrip tab=tab items=items /> })
                                         .into_any()
                                 }
                             }}

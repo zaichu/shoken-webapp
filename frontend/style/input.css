@@ -694,12 +694,7 @@
 
   @media (width < 64rem) {
     .summary-band {
-      @apply px-4 pb-3 pt-1;
-    }
-
-    /* 損益の数字は段の右端に寄せる */
-    .summary-band-item-pnl {
-      @apply ml-auto;
+      @apply px-4 py-2.5;
     }
 
     .summary-band-comp {
@@ -737,6 +732,70 @@
     .summary-band-item-tag1 {
       @apply ml-auto;
     }
+  }
+
+  @media (width >= 64rem) {
+    .summary-band-pc {
+      display: contents;
+    }
+  }
+
+  /* 紺帯の開閉(スマホ)。帯全体がボタンで、主役行の右端に44pxの丸いシェブロン */
+  .summary-band-main-toggle {
+    @apply flex w-full min-h-11 flex-col justify-center gap-y-0.5 text-left;
+  }
+
+  .summary-band-label {
+    @apply text-xs font-medium text-brand-muted;
+  }
+
+  .summary-band-hero-row {
+    @apply flex w-full items-center justify-between gap-3;
+  }
+
+  .summary-band-hero-value {
+    @apply mt-auto flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-none text-summary-primary-compact font-bold;
+  }
+
+  .summary-band-chevron-circle {
+    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand-line;
+  }
+
+  .summary-band-toggle-chevron {
+    @apply h-4 w-4 shrink-0 transition-transform duration-200;
+  }
+
+  .summary-band-aux {
+    @apply flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-summary-secondary-compact font-bold;
+  }
+
+  .summary-band-aux-label {
+    @apply text-xs font-medium text-brand-muted;
+  }
+
+  .summary-band-breakdown {
+    @apply divide-y divide-brand-line;
+  }
+
+  .summary-band-breakdown-row {
+    @apply flex min-w-0 items-center justify-between gap-3 py-2;
+  }
+
+  .summary-band-breakdown-label {
+    @apply min-w-0 shrink-0 text-xs font-medium text-brand-muted;
+  }
+
+  .summary-band-breakdown-value {
+    @apply flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right text-sm font-bold tabular-nums;
+  }
+
+  /* 紺地では Amount の通常の正負色が見えにくいため明るい色に寄せる */
+  .summary-band .text-positive {
+    color: var(--color-profit-bright);
+  }
+
+  .summary-band [data-negative="true"] {
+    color: var(--color-loss-bright) !important;
   }
 
   /* PC Receipts Table (compact mobile desktop view) */
@@ -1066,6 +1125,12 @@
   .page-skeleton-note {
     @apply grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 text-xs text-text-muted;
     margin-bottom: var(--space-search);
+  }
+
+  @media (width < 64rem) {
+    .page-skeleton-note {
+      margin-bottom: var(--space-note);
+    }
   }
 
   .page-skeleton-note-body {
