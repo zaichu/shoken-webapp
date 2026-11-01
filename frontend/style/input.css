@@ -1242,19 +1242,6 @@
     }
   }
 
-  /* ページ名の横の件数(「15件」)。スマホは紺地のヘッダーなので明るい文字にする */
-  .page-frame-count {
-    @apply text-sm font-normal;
-    color: var(--color-text-inverse-muted);
-  }
-
-  @media (width >= 64rem) {
-    .page-frame-count {
-      @apply text-base;
-      color: var(--color-text-muted);
-    }
-  }
-
   /* ページの骨格(資産管理・取引明細で同じ順序・同じ余白で並べる)。
      余白は --space-* のトークン1セットだけで決める */
   .page-skeleton-tabs {
@@ -1779,19 +1766,6 @@
   /* 構成比の戻り操作。下線なしの小さな文字ボタン(44px) */
   .comp-back-link {
     @apply inline-flex min-h-11 items-center text-sm font-medium text-text-deep no-underline hover:text-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
-  }
-
-  /* 資産管理の一覧見出し(スマホ)。見出しの左に件数、右に構成比への入口を置く */
-  .asset-list-heading {
-    @apply flex items-center gap-3 px-4 pt-3;
-  }
-
-  .asset-list-title {
-    @apply text-sm font-bold text-text;
-  }
-
-  .asset-list-comp-link {
-    @apply ml-auto inline-flex min-h-11 shrink-0 items-center whitespace-nowrap text-xs font-medium text-accent-text hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
   }
 
   /* スマホの構成比。区分タブは資産管理の種別タブと同じ部品を使う */

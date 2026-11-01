@@ -238,24 +238,26 @@ test.describe('資産管理と取引明細のページの骨格', () => {
     }
   });
 
-  test('見出しはタイトルの右に件数が並ぶ', async ({ page }) => {
+  test('タイトル横に件数は出さず、タブと件数行に出す', async ({ page }) => {
     await setupMocks(page);
 
     for (const path of ['/assetbalance', '/receipts']) {
       await page.goto(path);
       const title = page.locator('h1.page-frame-title');
-      const count = page.getByTestId('page-title-count');
       await expect(title).toBeVisible();
-      await expect(count).toBeVisible();
-
-      const titleBox = await title.boundingBox();
-      const countBox = await count.boundingBox();
-      expect(titleBox).not.toBeNull();
-      expect(countBox).not.toBeNull();
-      expect(countBox!.x, `${path}の件数はタイトルの右`).toBeGreaterThan(
-        titleBox!.x + titleBox!.width,
-      );
+      await expect(page.getByTestId('page-title-count')).toHaveCount(0);
     }
+
+    // 資産管理はタブと件数行に件数が出る
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-kind-tab-stock')).toContainText('2');
+    await expect(page.getByTestId('asset-search-count')).toContainText(
+      '2件 / 2件',
+    );
+
+    // 取引明細はタブに件数が出る
+    await page.goto('/receipts');
+    await expect(page.getByTestId('tab-count-dividend')).toContainText('30');
   });
 
   test('絞り込み中は注記に件数が出て、条件を消すと消える', async ({ page }) => {

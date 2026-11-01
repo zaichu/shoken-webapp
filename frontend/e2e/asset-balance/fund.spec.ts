@@ -201,7 +201,7 @@ test('投資信託タブでファンド一覧が表示され、検索と並べ�
   await expect(page.getByText('トータルリターン')).toBeVisible();
 });
 
-test('前日比は最新の基準価額の変動だけを出し、タイトルには件数だけを出す', async ({
+test('前日比は最新の基準価額の変動だけを出し、タブと件数行には件数だけを出す', async ({
   page,
 }) => {
   await setupMocks(page);
@@ -223,10 +223,10 @@ test('前日比は最新の基準価額の変動だけを出し、タイトル�
   await expect(pending).toContainText('更新待ち');
   await expect(pending).not.toContainText('-¥30');
 
-  // タイトルには件数だけを出す(前日比の集計は出さない)
-  const subtitle = page.getByTestId('page-title-count');
-  await expect(subtitle).toContainText('2件');
-  await expect(subtitle).not.toContainText('前日比');
+  // タブと件数行には件数だけを出す(前日比の集計は出さない)
+  await expect(page.getByTestId('page-title-count')).toHaveCount(0);
+  await expect(page.getByTestId('asset-kind-tab-fund')).toContainText('2');
+  await expect(page.getByTestId('asset-search-count')).toContainText('2件 / 2件');
   await expect(page.getByText(/前日比が最新/)).toHaveCount(0);
   await expect(page.getByText(/更新待ち \d件/)).toHaveCount(0);
 
@@ -263,8 +263,7 @@ test('前日比は最新の基準価額の変動だけを出し、タイトル�
   await expect(mergedPending).not.toContainText('-¥30');
 
   // 「すべて」タブでもタイトルに前日比の集計を出さない
-  await expect(page.getByTestId('page-title-count')).not.toContainText('前日比が最新');
-  await expect(page.getByTestId('page-title-count')).not.toContainText('更新待ち');
+  await expect(page.getByTestId('page-title-count')).toHaveCount(0);
   await expect(page.getByText(/前日比が最新/)).toHaveCount(0);
   await expect(page.getByText(/更新待ち \d件/)).toHaveCount(0);
 

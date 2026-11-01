@@ -32,6 +32,7 @@ use crate::features::asset_balance::store::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
+use crate::ui::labels::COMPOSITION_VIEW_LINK;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
@@ -181,7 +182,6 @@ pub fn AssetBalancePage() -> impl IntoView {
         funds.with(|slot| resolve_fund_balance(generation, slot))
     };
     let search_count = state.search_count;
-    let sort_state = state;
     // タブの件数表示用。タブ行をページレベルで描くためここで算出
     let stock_count = Signal::derive(move || {
         let generation = rail_session.generation.get();
@@ -194,7 +194,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         let generation = rail_session.generation.get();
         funds
             .with(|slot| fund_balance_counts(generation, slot))
-            .map(|(rows_len, total)| total.max(rows_len))
+            .map(|(rows_len, total)| summary::fund_tab_count(rows_len, total))
             .unwrap_or(0)
     });
     if session.user.get_untracked().is_some()
@@ -232,26 +232,17 @@ pub fn AssetBalancePage() -> impl IntoView {
         funds.set(None);
         load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
     };
-    let pc_count = move || match sort_state.kind.get() {
-        AssetKind::Stock => resolved_view().map(|view| summary::list_subtitle(&view)),
-        AssetKind::Fund => resolved_fund_view().map(|view| summary::fund_subtitle(&view)),
-        AssetKind::All => {
-            summary::merged_subtitle(resolved_view().as_ref(), resolved_fund_view().as_ref())
-        }
-    };
-    // 見出しの横の件数。現在のタブの全件数
-    let title_count = Signal::derive(move || pc_count().unwrap_or_default());
     let csv_link: Children = Box::new(move || {
         view! {
             <span class="flex items-center gap-2">
-                <a class="page-secondary-link-sm hidden lg:inline-flex" href="/assetbalance/composition">"構成比を見る"</a>
+                <a class="page-secondary-link-sm hidden lg:inline-flex" href="/assetbalance/composition">{COMPOSITION_VIEW_LINK}</a>
                 <a class="page-secondary-link-sm" href="/csv">"CSV管理"</a>
             </span>
         }
         .into_any()
     });
     view! {
-        <PageFrame title="資産管理" title_count=title_count full_bleed=true links=csv_link>
+        <PageFrame title="資産管理" full_bleed=true links=csv_link>
         <div
             class="flex flex-1 flex-col min-h-0 lg:flex-none"
             data-testid="assetbalance-workspace"

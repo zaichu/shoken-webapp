@@ -46,26 +46,10 @@ fn missing_day_change_suffix(has_missing: bool) -> &'static str {
     }
 }
 
-/// PC ヘッダー横の件数。取得上限超過で行が欠けるときは API 集計側の件数を使い、
-/// 集計欄と食い違わないようにする。基準日と除外した行の説明は帯の直下の注記に出す
-pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
-    labels::count(view.total)
-}
-
-pub(crate) fn fund_subtitle(view: &ResolvedFundBalance) -> String {
-    labels::count(view.total)
-}
-
-pub(crate) fn merged_subtitle(
-    stock: Option<&ResolvedAssetBalance>,
-    fund: Option<&ResolvedFundBalance>,
-) -> Option<String> {
-    if stock.is_none() && fund.is_none() {
-        return None;
-    }
-    let count =
-        stock.map(|view| view.total).unwrap_or(0) + fund.map(|view| view.total).unwrap_or(0);
-    Some(labels::count(count))
+/// 投資信託タブの件数。行が取り切れていないときは API 集計の総件数を使い、
+/// 集計欄と食い違わないようにする
+pub(crate) fn fund_tab_count(rows_len: usize, total: usize) -> usize {
+    total.max(rows_len)
 }
 
 /// 「前日比が最新」の件数(前日比を持ち合計に入る行)。
