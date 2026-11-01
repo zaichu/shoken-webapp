@@ -516,6 +516,22 @@
     @apply border-brand bg-brand font-bold text-text-inverse;
   }
 
+  /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ+太さ+下線の3つで示す */
+  @media (width < 64rem) {
+    .page-tab-list {
+      @apply gap-0 border-b border-border-strong;
+    }
+
+    .page-tab {
+      @apply rounded-none border-0 bg-transparent px-1 text-sm text-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+    }
+
+    .page-tab[aria-selected="true"] {
+      @apply bg-transparent font-bold text-text-deep;
+      box-shadow: inset 0 -3px 0 var(--color-gold);
+    }
+  }
+
   @media (width >= 64rem) {
     .page-tab {
       height: 34px;
@@ -932,6 +948,46 @@
     @apply border-b border-border-faint isolate;
   }
 
+  /* 固定形の1行(日付・銘柄・金額)と開閉ボタンを同じ段に置く */
+  .receipt-compact-line {
+    @apply flex items-start gap-1;
+  }
+
+  .receipt-compact-line .ledger-row {
+    @apply flex-1 px-4;
+  }
+
+  /* 固定形の行。左に日付(固定幅)、中央に銘柄名とコード、右端に金額1つ。
+     取引明細のスマホ行とホームの最近の配当入金で同じ作りを使う */
+  .ledger-row {
+    @apply grid items-start gap-x-3 py-2;
+    grid-template-columns: 3.5rem minmax(0, 1fr) max-content;
+  }
+
+  .ledger-date {
+    @apply shrink-0 tabular-nums text-text-muted;
+  }
+
+  .ledger-body {
+    @apply min-w-0;
+  }
+
+  .ledger-name {
+    @apply block min-w-0 font-medium;
+  }
+
+  .ledger-name > span {
+    @apply block min-w-0 break-words line-clamp-2;
+  }
+
+  .ledger-code {
+    @apply mt-0.5 block text-xs tabular-nums text-text-muted;
+  }
+
+  .ledger-amount {
+    @apply shrink-0 text-right font-bold tabular-nums whitespace-nowrap;
+  }
+
   .receipt-compact-main {
     @apply flex items-baseline justify-between gap-2 px-4 pt-2 text-sm;
   }
@@ -946,15 +1002,15 @@
   }
 
   .receipt-compact-row .receipt-compact-name {
-    @apply absolute inset-x-0 top-0 -bottom-6 min-w-0 items-start font-medium;
+    @apply min-w-0 items-start font-medium;
   }
 
   .receipt-compact-row .receipt-compact-name > span {
-    @apply min-w-0 break-words;
+    @apply min-w-0 break-words line-clamp-2;
   }
 
   .receipt-compact-name-static {
-    @apply min-w-0 break-words;
+    @apply min-w-0 break-words line-clamp-2;
   }
 
   .receipt-compact-net {
@@ -1274,118 +1330,53 @@
     @apply lg:grid-cols-[2fr_1fr];
   }
 
-  /* ホームの一覧。列は行をまたいで親の grid で共有し、口座の札・金額の幅を
-     最長の行に合わせる。行は subgrid で列位置だけを借りる */
+  /* ホームの一覧。最近の配当入金は取引明細のスマホ行と同じ固定形
+     (日付・銘柄名+コード・金額)で出す */
   .home-dividend-list {
-    @apply mt-1.5 grid divide-y divide-border-faint;
-    /* 行の左右の余白(px-4 = 1rem)は subgrid では最初の列から差し引かれる。
-       日付の列は差し引かれた 1rem を足した幅(2.5rem + 1rem)にして、
-       「12/31」が余白つきで収まるようにする */
-    grid-template-columns: 3.5rem 3.25rem minmax(6rem, 1fr) max-content max-content;
-    column-gap: 0.75rem;
+    @apply mt-1.5 divide-y divide-border-faint;
   }
 
   .home-dividend-row {
-    @apply grid items-center px-4 py-2 text-sm;
-    grid-column: 1 / -1;
-    grid-template-columns: subgrid;
+    @apply text-sm;
   }
 
-  .home-dividend-date,
-  .home-dividend-code {
-    @apply tabular-nums text-text-muted;
+  .home-dividend-row .ledger-row {
+    @apply px-4;
   }
 
-  .home-dividend-name {
-    @apply min-w-0 truncate font-medium;
-  }
-
-  .home-dividend-account {
-    @apply flex flex-wrap items-center gap-1;
-  }
-
-  .home-dividend-amount {
-    @apply text-right tabular-nums font-bold whitespace-nowrap;
-  }
-
-  /* 評価損益の一覧。金額の右端と損益率の列を全行でそろえる */
+  /* 評価損益の一覧。1行目に名前と損益、2行目に評価額と率 */
   .home-pnl-row {
-    @apply grid items-center gap-x-3 px-4 py-2 text-sm;
-    grid-template-columns: minmax(0, 1fr) max-content 4.5rem;
+    @apply block px-4 py-2 text-sm no-underline;
+  }
+
+  .home-pnl-line1 {
+    @apply flex items-baseline justify-between gap-2;
+  }
+
+  .home-pnl-line2 {
+    @apply mt-0.5 flex items-baseline justify-end gap-2;
   }
 
   .home-pnl-name {
-    @apply min-w-0 truncate font-medium;
+    @apply min-w-0 break-words font-medium line-clamp-2;
   }
 
   .home-pnl-amount,
-  .home-pnl-rate {
-    @apply text-right tabular-nums;
+  .home-pnl-rate,
+  .home-pnl-market {
+    @apply shrink-0 text-right tabular-nums whitespace-nowrap;
   }
 
   .home-pnl-amount {
     @apply font-bold;
   }
 
-  .home-pnl-group {
-    @apply bg-surface-raised px-4 py-1 text-[11px] font-medium text-text-muted;
+  .home-pnl-market {
+    @apply text-text-muted;
   }
 
-  /* スマホは銘柄名を1段に置き、その下に日付・コード・口座と金額を寄せる */
-  @media (width < 64rem) {
-    .home-dividend-list {
-      grid-template-columns: auto auto minmax(0, 1fr) auto;
-    }
-
-    .home-dividend-row {
-      @apply gap-y-0.5;
-    }
-
-    .home-dividend-name {
-      grid-row: 1;
-      grid-column: 1 / -1;
-    }
-
-    .home-dividend-date {
-      grid-row: 2;
-      grid-column: 1;
-    }
-
-    .home-dividend-code {
-      grid-row: 2;
-      grid-column: 2;
-    }
-
-    .home-dividend-account {
-      grid-row: 2;
-      grid-column: 3;
-    }
-
-    .home-dividend-amount {
-      grid-row: 2;
-      grid-column: 4;
-    }
-
-    .home-pnl-row {
-      @apply gap-y-0.5;
-      grid-template-columns: minmax(0, 1fr) 4.5rem;
-    }
-
-    .home-pnl-name {
-      grid-row: 1;
-      grid-column: 1 / -1;
-    }
-
-    .home-pnl-amount {
-      @apply justify-self-end;
-      grid-row: 2;
-      grid-column: 1;
-    }
-
-    .home-pnl-rate {
-      grid-row: 2;
-      grid-column: 2;
-    }
+  .home-pnl-group {
+    @apply bg-surface-raised px-4 py-1 text-[11px] font-medium text-text-muted;
   }
 
   .home-card-link {

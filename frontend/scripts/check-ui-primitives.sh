@@ -28,9 +28,7 @@ STYLE_ATTR='(^|[^[:alnum:]_:.-])style[[:space:]]*=|(^|[^[:alnum:]_])attr:style[[
 # (カード相当の組み合わせはタグ単位で検出するため行番号を出さず、許可リストは適用できない)
 ALLOWED=(
   "src/features/receipts/view/action_bar.rs"  # 新規: 受信明細PC検索バーの部品化は別PRで対応
-  "src/features/receipts/view/tabs.rs"         # 新規: タブボタンの部品化は別PRで対応
   "src/features/receipts/view/table.rs"        # 新規: テーブルカードの部品化は別PRで対応
-  "src/features/asset_balance/view/kind_tabs.rs" # 新規: role="tab"+aria-selected のタブ部品化は別PRで対応
   "src/features/csv_page.rs"                     # 新規: role="tab"+aria-selected のタブ部品化は別PRで対応
 )
 

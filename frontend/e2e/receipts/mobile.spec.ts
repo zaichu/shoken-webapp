@@ -143,23 +143,21 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(3);
   await expect(cardList.getByTestId('receipt-card-group')).toHaveCount(2);
 
-  // 1行目は銘柄名と税引後、2行目は日付・コード・口座・数量を並べる
+  // 1行目は銘柄名と税引後、詳細に日付・コード・口座・数量を置く
   // 先頭は入金日順で架空電信電話
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.getByRole('button', { name: /架空電信電話\(9910\) をコピー/ })).toBeVisible();
-  await expect(card.locator('.receipt-compact-net')).toHaveText('¥1,594');
-  const facts = card.locator('.receipt-compact-facts');
-  await expect(facts).toContainText('2024/03/15');
-  await expect(facts).toContainText('9910');
-  await expect(facts).toContainText('楽天証券');
-  await expect(facts).toContainText('200株');
-  await expect(card.locator('.receipt-compact-primary')).toContainText('配当 ¥2,000');
-  // 行を押すと残りの項目(税額など)が開く
+  await expect(card.locator('.ledger-amount')).toHaveText('¥1,594');
+  await expect(card.locator('.ledger-date')).toContainText('2024/03/15');
+  await expect(card.locator('.ledger-code')).toContainText('9910');
+  // 行を押すと残りの項目(配当金・税額・口座・数量)が開く
   const toggle = card.locator('.receipt-compact-toggle');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(card.locator('.receipt-compact-details')).toContainText('税額');
+  await expect(card.locator('.receipt-compact-details')).toContainText('楽天証券');
+  await expect(card.locator('.receipt-compact-details')).toContainText('配当金');
 });
 
 test('グループ見出しは件数と小計を常に表示する', async ({ page }) => {
@@ -230,7 +228,10 @@ test('国内株式タブでも銘柄リンクとコピーが使える', async ({
   await expect(
     card.getByRole('button', { name: '架空ゲーム(9905) をコピー' }),
   ).toBeVisible();
-  await expect(card.locator('.receipt-compact-facts')).toContainText('10株');
+  await expect(card.locator('.ledger-amount')).toContainText('+¥5,000');
+  await expect(card.locator('.ledger-date')).toContainText('2024/02/01');
+  await card.locator('.receipt-compact-toggle').click();
+  await expect(card.locator('.receipt-compact-details')).toContainText('SBI証券');
 });
 
 test('投資信託タブでもファンド名をコピーできる', async ({ page }) => {
@@ -259,8 +260,9 @@ test('検索欄で銘柄コードで絞り込んでも残る行は同じ書式',
   await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
 
   const card = cardList.getByTestId('receipt-card').first();
-  await expect(card.locator('.receipt-compact-facts')).toContainText('9910');
-  await expect(card.locator('.receipt-compact-facts')).toContainText('楽天証券');
+  await expect(card.locator('.ledger-code')).toContainText('9910');
+  await card.locator('.receipt-compact-toggle').click();
+  await expect(card.locator('.receipt-compact-details')).toContainText('楽天証券');
 });
 
 test('下部ナビは検索欄より下にありリンクで遷移できる', async ({ page }) => {

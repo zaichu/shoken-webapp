@@ -151,14 +151,15 @@ test('マイナスの損益は符号と色を保ち、税引後だけが負に�
     .getByTestId('receipt-card')
     .first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.receipt-compact-net')).toHaveText('-¥3,985');
+  await expect(card.locator('.ledger-amount')).toHaveText('-¥5,000');
   await expect(
-    card.locator('.receipt-compact-net span[data-negative="true"]'),
+    card.locator('.ledger-amount span[data-negative="true"]'),
   ).toHaveCount(1);
-  // 売却額は損益ではないので負の装飾を付けない
-  await expect(card.locator('.receipt-compact-primary')).toContainText('¥55,000');
+  // 売却額は詳細に回し、損益ではないので負の装飾を付けない
+  await card.locator('.receipt-compact-toggle').click();
+  await expect(card.locator('.receipt-compact-details')).toContainText('¥55,000');
   await expect(
-    card.locator('.receipt-compact-primary span[data-negative]'),
+    card.locator('.receipt-compact-details span[data-negative]'),
   ).toHaveCount(0);
 });
 
@@ -168,7 +169,7 @@ test('行の日付は常に年付きで出す', async ({ page }) => {
 
   const card = page.getByTestId('receipt-card-list').getByTestId('receipt-card').first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.receipt-compact-facts')).toContainText('2024/03/01');
+  await expect(card.locator('.ledger-date')).toContainText('2024/03/01');
   await expect(card.getByText('03/01', { exact: true })).toHaveCount(0);
 });
 
@@ -222,15 +223,16 @@ test('長い口座名は省略せず折り返して全文を出す', async ({ pa
   await page.goto('/receipts');
   await page.getByRole('tab', { name: '国内株式' }).click();
 
-  const facts = page
+  const card = page
     .getByTestId('receipt-card-list')
     .getByTestId('receipt-card')
-    .first()
-    .locator('.receipt-compact-facts');
-  await expect(facts).toContainText(longAccount);
+    .first();
+  await card.locator('.receipt-compact-toggle').click();
+  const details = card.locator('.receipt-compact-details');
+  await expect(details).toContainText(longAccount);
 
   // 1行目から溢れた分は折り返して出す
-  const metrics = await facts.evaluate((el) => {
+  const metrics = await details.evaluate((el) => {
     const range = document.createRange();
     range.selectNodeContents(el);
     return {
