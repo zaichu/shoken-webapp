@@ -147,18 +147,18 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(meta).toContainText('楽天証券');
   await expect(card.locator('.list-row-secondary')).toContainText('税引前');
   await expect(card.locator('.list-row-secondary')).toContainText('¥2,000');
-  // 行を押すと詳細シートが開く。閉じると押した行に戻る
+  // 行を押すと詳細ダイアログが開く。閉じると押した行に戻る
   const rowButton = card.getByTestId('receipt-row-button');
   await expect(rowButton).toHaveAttribute('aria-haspopup', 'dialog');
   await rowButton.click();
-  const sheet = page.getByTestId('receipt-detail-sheet');
-  await expect(sheet).toBeVisible();
-  await expect(sheet.getByTestId('row-detail-sub')).toContainText('9910');
-  await expect(sheet.locator('.receipt-detail-hero-value')).toHaveText('¥1,594');
-  const items = sheet.getByTestId('row-detail-list').locator('dt');
-  await expect(items).toHaveText(['口座', '配当金(税引前)', '税額', '1株配当', '数量']);
-  await sheet.getByTestId('bottom-sheet-close').click();
-  await expect(sheet).toBeHidden();
+  const dialog = page.getByTestId('receipt-detail-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('9910');
+  await expect(dialog).toContainText('¥1,594');
+  const items = dialog.locator('dt');
+  await expect(items).toHaveText(['入金日', '数量', '1株配当', '税引前', '税額', '税引後']);
+  await dialog.getByTestId('detail-dialog-close').click();
+  await expect(dialog).toBeHidden();
   await expect(rowButton).toBeFocused();
 });
 

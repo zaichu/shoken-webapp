@@ -16,20 +16,19 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{AccountBadge, account_display_name};
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
+use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{
-    format_currency, format_integer_percent, format_latest_import_date, format_number_value,
-    format_short_date,
+    format_currency, format_integer_percent, format_iso_date, format_latest_import_date,
+    format_number_value, format_short_date,
 };
 use crate::ui::labels::{
-    ACCOUNT, AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, DIVIDEND_BEFORE_TAX,
-    MARKET_VALUE, MISSING, PER_SHARE_DIVIDEND, QUANTITY, TAX, TOTAL_ACQUISITION,
-    VALUATION_PROFIT_LOSS,
+    AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, MARKET_VALUE, MISSING,
+    PAYMENT_DATE, PER_SHARE_DIVIDEND, QUANTITY, TAX, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
-use crate::ui::row_detail_sheet::{RowDetailSheet, SheetItem};
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
 use crate::ui::summary::{
     SummaryBand as UiSummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
@@ -863,10 +862,8 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let sheet_title = name.clone();
     let row_name = name.clone();
     let account = String::from(row.account.clone());
-    let account_for_sheet = account.clone();
     let account_for_meta = account.clone();
     let net = format_currency(dec_to_f64(&row.net_amount_received));
-    let net_for_sheet = net.clone();
     let net_for_row = net.clone();
     let gross = format_currency(dec_to_f64(&row.dividends_before_tax));
     let gross_for_row = gross.clone();
@@ -875,30 +872,24 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let shares = format_number_value(dec_to_f64(&row.shares));
     let code_for_meta = code.clone();
     let date_for_meta = date.clone();
-    let sheet_subtitle = if code.trim().is_empty() || code == MISSING {
-        full_date.clone()
-    } else {
-        format!("{code} · {full_date}")
-    };
     let sheet_open = RwSignal::new(false);
-    let sheet_details = vec![
-        SheetItem::plain(ACCOUNT.to_string(), account_for_sheet.clone()),
-        SheetItem::amount(
-            DIVIDEND_BEFORE_TAX.to_string(),
-            gross.clone(),
-            false,
-            false,
-            false,
-        ),
-        SheetItem::amount(TAX.to_string(), tax.clone(), false, false, false),
-        SheetItem::amount(
-            PER_SHARE_DIVIDEND.to_string(),
-            per_share.clone(),
-            false,
-            false,
-            false,
-        ),
-        SheetItem::amount(QUANTITY.to_string(), shares.clone(), false, false, false),
+    let dialog_open = sheet_open;
+    let dialog_name = sheet_title.clone();
+    let dialog_code = if code == MISSING {
+        String::new()
+    } else {
+        code.clone()
+    };
+    let dialog_account = account.clone();
+    let dialog_left = vec![
+        DetailCell::plain(PAYMENT_DATE.to_string(), format_iso_date(&full_date)),
+        DetailCell::plain(QUANTITY.to_string(), shares.clone()),
+        DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share.clone()),
+    ];
+    let dialog_right = vec![
+        DetailCell::plain(BEFORE_TAX.to_string(), gross.clone()),
+        DetailCell::plain(TAX.to_string(), tax.clone()),
+        DetailCell::strong(AFTER_TAX.to_string(), net.clone(), false, false, false),
     ];
     view! {
         <li class="home-dividend-row" data-testid="home-dividend-row">
@@ -929,15 +920,15 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
                     />
                 </span>
             </Button>
-            <Show when=move || sheet_open.get()>
-                <RowDetailSheet
-                    title=sheet_title.clone()
-                    subtitle=sheet_subtitle.clone()
-                    hero_label=AFTER_TAX.to_string()
-                    hero_text=net_for_sheet.clone()
-                    details=sheet_details.clone()
-                    on_close=move || sheet_open.set(false)
-                    testid="home-dividend-sheet"
+            <Show when=move || dialog_open.get()>
+                <DetailDialog
+                    name=dialog_name.clone()
+                    code=dialog_code.clone()
+                    account=dialog_account.clone()
+                    left=dialog_left.clone()
+                    right=dialog_right.clone()
+                    on_close=move || dialog_open.set(false)
+                    testid="home-dividend-dialog"
                 />
             </Show>
         </li>

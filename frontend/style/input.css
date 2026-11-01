@@ -796,6 +796,58 @@
     @apply flex items-center gap-2;
   }
 
+  .detail-dialog-head {
+    @apply border-b border-border px-4 py-3;
+  }
+
+  .detail-dialog-title {
+    @apply text-base font-bold text-text;
+  }
+
+  .detail-dialog-badges {
+    @apply mt-1 flex flex-wrap items-center gap-1.5 text-xs text-text-muted;
+  }
+
+  .detail-dialog-code {
+    @apply tabular-nums;
+  }
+
+  .detail-dialog-body {
+    @apply min-h-0 flex-1 overflow-y-auto px-4 py-3;
+  }
+
+  .detail-dialog-grid {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .detail-dialog-col {
+    @apply flex min-w-0 flex-col;
+  }
+
+  .detail-dialog-row {
+    @apply flex min-w-0 flex-col gap-0.5 border-b border-border-faint py-2;
+  }
+
+  .detail-dialog-row:last-child {
+    @apply border-b-0;
+  }
+
+  .detail-dialog-label {
+    @apply text-xs font-medium text-text-subtle;
+  }
+
+  .detail-dialog-value {
+    @apply flex min-w-0 flex-col items-end gap-0.5 text-right text-sm font-semibold tabular-nums text-text;
+  }
+
+  .detail-dialog-sub {
+    @apply text-xs tabular-nums;
+  }
+
+  .detail-dialog-footer {
+    @apply flex shrink-0 items-center justify-center gap-2 border-t border-border bg-surface px-4 py-3;
+  }
+
   /* スマホの検索・並べ替えの入口。紺帯の下に置く1行 */
   .search-sort-entry {
     @apply w-full flex-col items-stretch gap-1 px-3 py-2 text-left;
