@@ -22,7 +22,7 @@ use crate::ui::format::{
     format_short_date,
 };
 use crate::ui::labels::{
-    ACCOUNT, AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, DIVIDEND_AMOUNT,
+    ACCOUNT, AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, DIVIDEND_BEFORE_TAX,
     MARKET_VALUE, MISSING, PER_SHARE_DIVIDEND, QUANTITY, TAX, TOTAL_ACQUISITION,
     VALUATION_PROFIT_LOSS,
 };
@@ -884,7 +884,7 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let sheet_details = vec![
         SheetItem::plain(ACCOUNT.to_string(), account_for_sheet.clone()),
         SheetItem::amount(
-            DIVIDEND_AMOUNT.to_string(),
+            DIVIDEND_BEFORE_TAX.to_string(),
             gross.clone(),
             false,
             false,

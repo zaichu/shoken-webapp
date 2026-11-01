@@ -7,9 +7,9 @@ use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::format::format_short_date;
 use crate::ui::labels::{
-    self, ACCOUNT, ACQUISITION_PRICE, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, PER_SHARE_DIVIDEND,
-    PROFIT_SHORT, QUANTITY, REALIZED_PROFIT_LOSS, RECEIPT_SHORT, REDEMPTION_AMOUNT, SELLING_AMOUNT,
-    TAX,
+    self, ACCOUNT, ACQUISITION_PRICE, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX,
+    PER_SHARE_DIVIDEND, PROFIT_SHORT, QUANTITY, REALIZED_BEFORE_TAX, REALIZED_PROFIT_LOSS,
+    RECEIPT_SHORT, REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::row_detail_sheet::{RowDetailSheet, SheetItem};
@@ -302,6 +302,12 @@ pub(crate) fn sheet_details(tab: ReceiptsTab, card: &CardRowData) -> Vec<SheetIt
             items.push(SheetItem::plain(label.to_string(), card.account.clone()));
             continue;
         }
+        // 税引前の金額は主役の税引後と区別できるよう基準を明記する
+        let display = match label {
+            DIVIDEND_AMOUNT => DIVIDEND_BEFORE_TAX,
+            REALIZED_PROFIT_LOSS => REALIZED_BEFORE_TAX,
+            _ => label,
+        };
         if let Some(detail) = card.details.iter().find(|detail| detail.label == label) {
             match &detail.value {
                 CardDetailValue::Text {
@@ -310,14 +316,14 @@ pub(crate) fn sheet_details(tab: ReceiptsTab, card: &CardRowData) -> Vec<SheetIt
                     positive,
                     is_profit,
                 } => items.push(SheetItem::amount(
-                    detail.label.clone(),
+                    display.to_string(),
                     text.clone(),
                     *negative,
                     *positive,
                     *is_profit,
                 )),
-                CardDetailValue::CopyName { display, .. } => {
-                    items.push(SheetItem::plain(detail.label.clone(), display.clone()));
+                CardDetailValue::CopyName { display: value, .. } => {
+                    items.push(SheetItem::plain(display.to_string(), value.clone()));
                 }
             }
         }

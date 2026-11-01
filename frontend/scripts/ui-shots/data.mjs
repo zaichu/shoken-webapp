@@ -103,6 +103,15 @@ function taxOf(amount) {
   return Number(Math.floor(amount * 0.20315).toFixed(2));
 }
 
+// 国内株式の税額は backend と同じ仕様(特定口座のプラスの損益だけ課税)にする。
+// 口座と税額が食い違うと、絞り込み中の帯(画面側で日次に再計算)と行の数字が合わなくなる
+function domesticTaxes(account, realizedProfitAndLoss) {
+  if (!account.includes('特定') || !(realizedProfitAndLoss > 0)) {
+    return 0;
+  }
+  return taxOf(realizedProfitAndLoss);
+}
+
 // 2桁の月(10・11・12)を含む日付を作る
 function settlementDate(index, year = 2026) {
   const month = (index % 12) + 1;
@@ -261,14 +270,15 @@ export function domesticStockTransactions() {
     const purchase_price = decimal(1500, index * 18);
     const proceeds = Number((shares * asked_price).toFixed(2));
     const realized_profit_and_loss = Number((proceeds - shares * purchase_price).toFixed(2));
-    const taxes = taxOf(realized_profit_and_loss);
+    const account = ACCOUNTS[index % ACCOUNTS.length];
+    const taxes = domesticTaxes(account, realized_profit_and_loss);
     return {
       id: `domestic-stock-${index + 1}`,
       trade_date: settlementDate(index),
       settlement_date: settlementDate(index + 2),
       security_code: String(9901 + index),
       security_name,
-      account: ACCOUNTS[index % ACCOUNTS.length],
+      account,
       shares,
       asked_price,
       proceeds,

@@ -62,7 +62,7 @@ const DOMESTIC = {
   id: '00000000-0000-0000-0000-000000000004',
   trade_date: '2024-02-01',
   settlement_date: '2024-02-03',
-  account: 'SBI証券',
+  account: '特定口座',
   security_code: '9905',
   security_name: '架空ゲーム',
   shares: 10,
@@ -156,7 +156,7 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(sheet.getByTestId('row-detail-sub')).toContainText('9910');
   await expect(sheet.locator('.receipt-detail-hero-value')).toHaveText('¥1,594');
   const items = sheet.getByTestId('row-detail-list').locator('dt');
-  await expect(items).toHaveText(['口座', '配当金', '税額', '1株配当', '数量']);
+  await expect(items).toHaveText(['口座', '配当金(税引前)', '税額', '1株配当', '数量']);
   await sheet.getByTestId('bottom-sheet-close').click();
   await expect(sheet).toBeHidden();
   await expect(rowButton).toBeFocused();
@@ -224,9 +224,11 @@ test('国内株式タブでも2行の行にコード・口座・金額が出る'
     .getByTestId('receipt-card')
     .first();
   await expect(card.locator('.list-row-meta')).toContainText('9905');
-  await expect(card.locator('.list-row-meta')).toContainText('SBI証券');
+  await expect(card.locator('.list-row-meta')).toContainText('特定');
   await expect(card.locator('.list-row-primary')).toContainText('¥3,985');
   await expect(card.locator('.list-row-secondary')).toContainText('¥55,000');
+  // 1件だけのとき帯・見出し・行の税引後が一致する
+  await expect(page.getByTestId('receipt-summary-strip')).toContainText('+¥3,985');
 });
 
 test('投資信託タブでもファンド名が出る', async ({ page }) => {
