@@ -65,7 +65,42 @@ pub fn NavLink(
     }
 }
 
-/// 文字付きの下部ナビ。主要4ページへ1タップで移動できる
+/// 下部ナビの線画アイコン。24px・stroke 2・currentColor で描く
+fn nav_icon_inner(to: &str) -> &'static str {
+    match to {
+        "/" => {
+            "<path d=\"M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/><polyline points=\"9 22 9 12 15 12 15 22\"/>"
+        }
+        "/assetbalance" => {
+            "<path d=\"M21.21 15.89A10 10 0 1 1 8 2.83\"/><path d=\"M22 12A10 10 0 0 0 12 2v10z\"/>"
+        }
+        "/receipts" => {
+            "<line x1=\"8\" y1=\"6\" x2=\"21\" y2=\"6\"/><line x1=\"8\" y1=\"12\" x2=\"21\" y2=\"12\"/><line x1=\"8\" y1=\"18\" x2=\"21\" y2=\"18\"/><line x1=\"3\" y1=\"6\" x2=\"3.01\" y2=\"6\"/><line x1=\"3\" y1=\"12\" x2=\"3.01\" y2=\"12\"/><line x1=\"3\" y1=\"18\" x2=\"3.01\" y2=\"18\"/>"
+        }
+        _ => {
+            "<circle cx=\"11\" cy=\"11\" r=\"8\"/><line x1=\"21\" y1=\"21\" x2=\"16.65\" y2=\"16.65\"/>"
+        }
+    }
+}
+
+fn nav_icon(to: &str) -> impl IntoView {
+    let path = nav_icon_inner(to);
+    view! {
+        <svg
+            class="bottom-nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            inner_html=path
+        />
+    }
+}
+
+/// 線画アイコン付きの下部ナビ。主要4ページへ1タップで移動できる
 #[component]
 pub fn BottomNav(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
     let path = current_path();
@@ -84,7 +119,8 @@ pub fn BottomNav(#[prop(optional, into)] class: Option<String>) -> impl IntoView
                             class="bottom-nav-link"
                             aria-current=move || active().then_some("page")
                         >
-                            {*label}
+                            {nav_icon(to)}
+                            <span class="bottom-nav-label">{*label}</span>
                         </a>
                     }
                 })
