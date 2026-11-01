@@ -1,13 +1,16 @@
+#![allow(dead_code)]
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::focus::trap_focus;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
+#[allow(dead_code)]
 fn swipe_should_close(start_y: f64, end_y: f64) -> bool {
     end_y - start_y > 60.0
 }
 
 /// 下から出る共通シート。行の詳細シートでも使い回す前提で中身は呼び出し側が渡す。
+#[allow(dead_code)]
 #[component]
 pub fn BottomSheet(
     #[prop(into)] title: String,

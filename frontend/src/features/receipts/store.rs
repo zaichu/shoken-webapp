@@ -4,7 +4,7 @@ mod csv;
 use super::ReceiptRow;
 use super::{ReceiptTabData, ReceiptsTab, TabState};
 use crate::api::ApiError;
-use crate::features::receipts::filter::ReceiptSearch;
+use crate::features::receipts::filter::{ReceiptSearch, ReceiptSortOrder};
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
 use leptos::prelude::*;
@@ -36,6 +36,7 @@ pub struct ReceiptsStore {
     pub(crate) session: SessionStore,
     pub active_tab: RwSignal<ReceiptsTab>,
     pub search: RwSignal<ReceiptSearch>,
+    pub sort_order: RwSignal<ReceiptSortOrder>,
     // 開閉状態は検索変更や一覧再描画でビューが作り直されても消えないようストア側に持つ
     pub expanded: RwSignal<HashSet<String>>,
     pub mobile_summary_expanded: RwSignal<bool>,
@@ -138,6 +139,7 @@ impl ReceiptsStore {
             self.mobile_summary_expanded.set(false);
             // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
             self.search.set(ReceiptSearch::default());
+            self.sort_order.set(ReceiptSortOrder::Newest);
             let initial = crate::settings::try_use_settings()
                 .receipts_initial_tab
                 .get_untracked();
@@ -342,6 +344,7 @@ fn build_receipts_store(
         session,
         active_tab,
         search: RwSignal::new(ReceiptSearch::default()),
+        sort_order: RwSignal::new(ReceiptSortOrder::Newest),
         expanded: RwSignal::new(HashSet::new()),
         mobile_summary_expanded: RwSignal::new(false),
         expanded_epoch: RwSignal::new(None),

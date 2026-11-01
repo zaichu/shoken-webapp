@@ -5,16 +5,17 @@ use crate::features::asset_balance::fund::AssetSearch;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
-use crate::ui::bottom_sheet::BottomSheet;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels::{
-    ACCOUNT, DISTRIBUTION_COURSE, SEARCH_AND_SORT, SHEET_APPLY, SHEET_CLEAR, SORT_BY,
-    SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH,
+    ACCOUNT, DISTRIBUTION_COURSE, SEARCH_AND_SORT, SEARCH_DIALOG_HINT, SORT_BY, SORT_HIGH_TO_LOW,
+    SORT_LOW_TO_HIGH, SORT_ORDER_LABEL, SORT_TARGET,
 };
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, ConditionRowEnd,
     SearchBox, SearchClearButton, SearchCount, SearchTag, SearchTextInput,
 };
+use crate::ui::search_dialog::SearchDialog;
+use crate::ui::select::Select;
 use leptos::prelude::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -245,22 +246,35 @@ pub(crate) fn AssetSearchBar(
     }
 }
 
-/// シートの下書きで条件を選ぶ。選んでいれば外し、無ければ足す
-pub(crate) fn toggle_sheet_condition(list: &mut Vec<String>, value: String) {
-    if let Some(index) = list.iter().position(|item| *item == value) {
-        list.remove(index);
-    } else {
+/// ダイアログの下書きで条件を1件に絞る。空はすべてに戻す
+pub(crate) fn dialog_single_value(list: &[String]) -> String {
+    list.first().cloned().unwrap_or_default()
+}
+
+/// 下書きの条件を単一選択で置き換える
+pub(crate) fn set_dialog_single(list: &mut Vec<String>, value: String) {
+    list.clear();
+    if !value.is_empty() {
         list.push(value);
     }
 }
 
-/// 下書きを一覧へ反映する。シートの適用ボタンと単体テストの共通入口
+/// 下書きを一覧へ反映する。検索ボタンと単体テストの共通入口
 pub(crate) fn apply_asset_sheet_draft(search: RwSignal<AssetSearch>, draft: &AssetSearch) {
     search.set(draft.clone());
 }
 
-/// スマホの検索・並べ替えの入口とシート。PC の検索欄・条件の行は変えず、
-/// スマホ幅ではこの1行と条件タグだけを出し、中身はシートで編集する
+/// ダイアログのクリアは下書きの検索条件だけを消し、並べ替えは保つ
+pub(crate) fn clear_asset_dialog_draft(draft: RwSignal<AssetSearch>) {
+    draft.update(|s| {
+        s.text.clear();
+        s.accounts.clear();
+        s.courses.clear();
+    });
+}
+
+/// スマホの検索・並べ替えの入口とダイアログ。PC の検索欄・条件の行は変えず、
+/// スマホ幅ではこの1行と条件タグだけを出し、中身は中央のダイアログで編集する
 #[component]
 pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static>(
     search: RwSignal<AssetSearch>,
@@ -272,6 +286,7 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
     sort_options: &'static [K],
     key_label: fn(K) -> &'static str,
     key_value: fn(K) -> &'static str,
+    key_from_value: fn(&str) -> Option<K>,
     sort_key: RwSignal<K>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
@@ -335,26 +350,39 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                 let sheet_text = sheet_placeholder.clone();
                 open.get()
                     .then(|| {
+                        let draft = RwSignal::new(search.get_untracked());
+                        let draft_key = RwSignal::new(sort_key.get_untracked());
+                        let draft_order = RwSignal::new(sort_order.get_untracked());
+                        let do_search = move || {
+                            apply_asset_sheet_draft(search, &draft.get_untracked());
+                            sort_key.set(draft_key.get_untracked());
+                            sort_order.set(draft_order.get_untracked());
+                            open.set(false);
+                        };
+                        let do_clear = move || clear_asset_dialog_draft(draft);
                         view! {
-                            <BottomSheet
+                            <SearchDialog
                                 title=SEARCH_AND_SORT.to_string()
                                 on_close=move || open.set(false)
+                                on_search=do_search
+                                on_clear=do_clear
                                 testid="asset-search-sheet"
                             >
-                                <AssetSheetBody
-                                    search=search
-                                    sort_key=sort_key
-                                    sort_order=sort_order
+                                <AssetDialogFields
+                                    draft=draft
+                                    draft_key=draft_key
+                                    draft_order=draft_order
                                     sort_options=sort_options
                                     key_label=key_label
                                     key_value=key_value
+                                    key_from_value=key_from_value
                                     conditions=conditions
                                     account_options=account_options
                                     course_options=course_options
                                     placeholder=sheet_text.clone()
-                                    on_close=move || open.set(false)
+                                    on_search=do_search
                                 />
-                            </BottomSheet>
+                            </SearchDialog>
                         }
                     })
             }}
@@ -362,105 +390,106 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
     }
 }
 
-/// シートの中身。開くたびに作り直され、下書きの上で編集して適用で反映する
+/// ダイアログの中身。開くたびに作り直され、下書きの上で編集して検索で反映する
 #[component]
-fn AssetSheetBody<K: Copy + PartialEq + Send + Sync + 'static>(
-    search: RwSignal<AssetSearch>,
-    sort_key: RwSignal<K>,
-    sort_order: RwSignal<SortOrder>,
+fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
+    draft: RwSignal<AssetSearch>,
+    draft_key: RwSignal<K>,
+    draft_order: RwSignal<SortOrder>,
     sort_options: &'static [K],
     key_label: fn(K) -> &'static str,
     key_value: fn(K) -> &'static str,
+    key_from_value: fn(&str) -> Option<K>,
     conditions: &'static [ConditionKind],
     account_options: Memo<Vec<String>>,
     course_options: Memo<Vec<String>>,
     #[prop(into)] placeholder: String,
-    on_close: impl Fn() + Copy + 'static + Send + Sync,
+    on_search: impl Fn() + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
-    let draft = RwSignal::new(search.get_untracked());
-    let draft_key = RwSignal::new(sort_key.get_untracked());
-    let draft_order = RwSignal::new(sort_order.get_untracked());
-    let to_options = |options: Memo<Vec<String>>, to_label: fn(&str) -> &str| {
-        Memo::new(move |_| {
-            options
-                .get()
-                .into_iter()
-                .map(|value| SearchOption {
-                    label: to_label(&value).to_string(),
-                    value,
-                })
-                .collect()
-        })
-    };
-    let account_list = to_options(account_options, account_display_name);
-    let course_list = to_options(course_options, |value| value);
     let draft_text = move || draft.with(|s| s.text.clone());
     let set_draft_text = move |value: String| draft.update(|s| s.text = value);
-    let toggle_draft = move |kind: ConditionKind, value: String| {
-        draft.update(|s| {
-            toggle_sheet_condition(
-                match kind {
-                    ConditionKind::Account => &mut s.accounts,
-                    ConditionKind::Course => &mut s.courses,
-                },
-                value,
-            );
-        });
-    };
-    let apply = move || {
-        apply_asset_sheet_draft(search, &draft.get_untracked());
-        sort_key.set(draft_key.get_untracked());
-        sort_order.set(draft_order.get_untracked());
-        on_close();
-    };
-    let clear = move || {
-        search.set(AssetSearch::default());
-        draft.set(AssetSearch::default());
-    };
+    let search_callback = Callback::new(move |_| on_search());
     view! {
         <div class="flex flex-col gap-4">
             <section aria-label="検索">
-                <p class="bottom-sheet-section-title">"検索"</p>
-                <div class="mt-2">
+                <p class="search-dialog-section-title">"検索"</p>
+                <div class="search-dialog-field">
                     <SearchBox>
                         <SearchTextInput
                             placeholder=placeholder.clone()
                             testid="asset-search-input"
                             value=draft_text
                             on_input=set_draft_text
+                            on_enter=search_callback
                         />
                     </SearchBox>
+                    <p class="search-dialog-hint">{SEARCH_DIALOG_HINT}</p>
                 </div>
             </section>
             {(!conditions.is_empty())
                 .then(|| {
                     view! {
-                        <section aria-label="条件を足す">
-                            <p class="bottom-sheet-section-title">"条件を足す"</p>
+                        <section aria-label="条件">
+                            <p class="search-dialog-section-title">"条件"</p>
                             {conditions
                                 .iter()
                                 .map(|kind| {
+                                    let kind = *kind;
                                     let options = match kind {
-                                        ConditionKind::Account => account_list,
-                                        ConditionKind::Course => course_list,
+                                        ConditionKind::Account => account_options,
+                                        ConditionKind::Course => course_options,
                                     };
-                                    let selected = Memo::new(move |_| {
+                                    let value = Memo::new(move |_| {
                                         draft.with(|s| match kind {
-                                            ConditionKind::Account => s.accounts.clone(),
-                                            ConditionKind::Course => s.courses.clone(),
+                                            ConditionKind::Account => dialog_single_value(&s.accounts),
+                                            ConditionKind::Course => dialog_single_value(&s.courses),
                                         })
                                     });
-                                    let kind = *kind;
+                                    let label = kind.label();
+                                    let testid = match kind {
+                                        ConditionKind::Account => "asset-dialog-account",
+                                        ConditionKind::Course => "asset-dialog-course",
+                                    };
+                                    let to_label: fn(&str) -> &str = match kind {
+                                        ConditionKind::Account => account_display_name,
+                                        ConditionKind::Course => |v| v,
+                                    };
                                     view! {
-                                        <div class="mt-2">
-                                            <p class="text-sm font-medium text-text-deep">{kind.label()}</p>
-                                            <div class="mt-1">
-                                                <ConditionOptionList
-                                                    options=options
-                                                    selected=selected
-                                                    on_toggle=move |value| toggle_draft(kind, value)
-                                                />
-                                            </div>
+                                        <div class="search-dialog-field">
+                                            <label class="mb-1 block text-sm font-medium text-text-deep">
+                                                {label}
+                                                <Select
+                                                    value=Signal::derive(move || value.get())
+                                                    aria_label=label.to_string()
+                                                    testid=testid
+                                                    class="search-dialog-select".to_string()
+                                                    on_change=move |next: String| {
+                                                        draft.update(|s| match kind {
+                                                            ConditionKind::Account => {
+                                                                set_dialog_single(&mut s.accounts, next)
+                                                            }
+                                                            ConditionKind::Course => {
+                                                                set_dialog_single(&mut s.courses, next)
+                                                            }
+                                                        });
+                                                    }
+                                                >
+                                                    <option value="">"すべて"</option>
+                                                    {move || {
+                                                        options
+                                                            .get()
+                                                            .into_iter()
+                                                            .map(|item| {
+                                                                let item_label = to_label(&item).to_string();
+                                                                let item_value = item.clone();
+                                                                view! {
+                                                                    <option value=item_value.clone()>{item_label}</option>
+                                                                }
+                                                            })
+                                                            .collect_view()
+                                                    }}
+                                                </Select>
+                                            </label>
                                         </div>
                                     }
                                 })
@@ -469,69 +498,54 @@ fn AssetSheetBody<K: Copy + PartialEq + Send + Sync + 'static>(
                     }
                 })}
             <section aria-label=SORT_BY.to_string()>
-                <p class="bottom-sheet-section-title">{SORT_BY}</p>
-                <div class="sort-option-list mt-2" role="group" aria-label=SORT_BY.to_string()>
-                    {sort_options
-                        .iter()
-                        .map(|key| {
-                            let key = *key;
-                            view! {
-                                <Button
-                                    variant=ButtonVariant::Ghost
-                                    class="sort-option".to_string()
-                                    aria_pressed=move || (draft_key.get() == key).to_string()
-                                    testid=key_value(key)
-                                    on_click=move |_| draft_key.set(key)
-                                >
-                                    <span class="sort-option-check" aria-hidden="true">
-                                        {move || if draft_key.get() == key { "✓" } else { "" }}
-                                    </span>
-                                    {key_label(key)}
-                                </Button>
-                            }
-                        })
-                        .collect_view()}
-                </div>
-                <div class="sort-order-row mt-2" role="group" aria-label="順序">
-                    {[(SortOrder::Desc, SORT_HIGH_TO_LOW), (SortOrder::Asc, SORT_LOW_TO_HIGH)]
-                        .map(|(order, label)| {
-                            view! {
-                                <Button
-                                    variant=ButtonVariant::Secondary(ButtonSize::Md)
-                                    class="sort-order-option".to_string()
-                                    aria_pressed=move || (draft_order.get() == order).to_string()
-                                    attr:data-selected=move || (draft_order.get() == order).to_string()
-                                    on_click=move |_| draft_order.set(order)
-                                >
-                                    {label}
-                                    <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        {if order == SortOrder::Desc {
-                                            view! { <path d="M8 3v10M4 9l4 4 4-4" /> }.into_any()
-                                        } else {
-                                            view! { <path d="M8 13V3M4 7l4-4 4 4" /> }.into_any()
-                                        }}
-                                    </svg>
-                                </Button>
-                            }
-                        })}
+                <p class="search-dialog-section-title">{SORT_BY}</p>
+                <div class="search-dialog-sort-row">
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-text-deep">
+                            {SORT_TARGET}
+                            <Select
+                                value=Signal::derive(move || key_value(draft_key.get()).to_string())
+                                aria_label=SORT_TARGET.to_string()
+                                testid="asset-dialog-sort-target"
+                                class="search-dialog-select".to_string()
+                                on_change=move |next: String| {
+                                    if let Some(key) = key_from_value(&next) {
+                                        draft_key.set(key);
+                                    }
+                                }
+                            >
+                                {sort_options
+                                    .iter()
+                                    .map(|key| {
+                                        let value = key_value(*key).to_string();
+                                        let label = key_label(*key);
+                                        view! { <option value=value>{label}</option> }
+                                    })
+                                    .collect_view()}
+                            </Select>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-text-deep">
+                            {SORT_ORDER_LABEL}
+                            <Select
+                                value=Signal::derive(move || draft_order.get().value().to_string())
+                                aria_label=SORT_ORDER_LABEL.to_string()
+                                testid="asset-dialog-sort-order"
+                                class="search-dialog-select".to_string()
+                                on_change=move |next: String| {
+                                    if let Some(order) = SortOrder::from_value(&next) {
+                                        draft_order.set(order);
+                                    }
+                                }
+                            >
+                                <option value="desc">{SORT_HIGH_TO_LOW}</option>
+                                <option value="asc">{SORT_LOW_TO_HIGH}</option>
+                            </Select>
+                        </label>
+                    </div>
                 </div>
             </section>
-            <div class="bottom-sheet-actions">
-                <Button
-                    variant=ButtonVariant::Secondary(ButtonSize::Md)
-                    testid="asset-sheet-clear"
-                    on_click=move |_| clear()
-                >
-                    {SHEET_CLEAR}
-                </Button>
-                <Button
-                    variant=ButtonVariant::Primary(ButtonSize::Md)
-                    testid="asset-sheet-apply"
-                    on_click=move |_| apply()
-                >
-                    {SHEET_APPLY}
-                </Button>
-            </div>
         </div>
     }
 }

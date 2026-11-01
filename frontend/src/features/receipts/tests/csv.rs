@@ -1,4 +1,4 @@
-use crate::features::receipts::filter::ReceiptSearch;
+use crate::features::receipts::filter::{ReceiptSearch, ReceiptSortOrder};
 use crate::features::receipts::store::{TabCacheEntry, mark_tab_for_refresh, tab_settled};
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
@@ -34,6 +34,7 @@ fn test_store(
         session: *session,
         active_tab: RwSignal::new(ReceiptsTab::Dividend),
         search: RwSignal::new(ReceiptSearch::default()),
+        sort_order: RwSignal::new(ReceiptSortOrder::Newest),
         expanded: RwSignal::new(HashSet::new()),
         mobile_summary_expanded: RwSignal::new(false),
         expanded_epoch: RwSignal::new(None),

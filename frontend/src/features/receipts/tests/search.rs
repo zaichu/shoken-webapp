@@ -1,5 +1,5 @@
-use crate::features::receipts::filter::ReceiptSearch;
 use crate::features::receipts::filter::filter_receipts;
+use crate::features::receipts::filter::{ReceiptSearch, ReceiptSortOrder};
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
 use crate::testing::receipts::dividends;
@@ -17,6 +17,7 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
                 query: "9910".into(),
                 ..Default::default()
             }),
+            sort_order: RwSignal::new(ReceiptSortOrder::Newest),
             expanded: RwSignal::new(HashSet::new()),
             mobile_summary_expanded: RwSignal::new(false),
             expanded_epoch: RwSignal::new(None),

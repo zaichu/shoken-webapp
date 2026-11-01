@@ -590,9 +590,15 @@ fn account_matches(row: &ReceiptRow, query: &str) -> bool {
         .contains(query)
 }
 
-fn sorted_rows(rows: &[ReceiptRow]) -> Vec<ReceiptRow> {
+fn sorted_rows(
+    rows: &[ReceiptRow],
+    order: crate::features::receipts::filter::ReceiptSortOrder,
+) -> Vec<ReceiptRow> {
     let mut sorted = rows.to_vec();
     sorted.sort_by(|a, b| b.date().cmp(a.date()));
+    if order == crate::features::receipts::filter::ReceiptSortOrder::Oldest {
+        sorted.reverse();
+    }
     sorted
 }
 
@@ -604,7 +610,11 @@ fn row_tuple(row: &ReceiptRow) -> (Option<String>, String, Vec<ReceiptCell>) {
     )
 }
 
-fn summarize_groups(sorted: &[ReceiptRow], key: impl Fn(&ReceiptRow) -> String) -> Vec<TableGroup> {
+fn summarize_groups(
+    sorted: &[ReceiptRow],
+    key: impl Fn(&ReceiptRow) -> String,
+    descending: bool,
+) -> Vec<TableGroup> {
     group_and_summarize(
         sorted,
         &key,
@@ -613,7 +623,7 @@ fn summarize_groups(sorted: &[ReceiptRow], key: impl Fn(&ReceiptRow) -> String) 
             |row: &ReceiptRow| row.summary_amounts().1,
             |row: &ReceiptRow| row.summary_amounts().2,
         ],
-        true,
+        descending,
     )
     .into_iter()
     .map(|summary| {
@@ -681,8 +691,9 @@ fn dividend_table_groups(
     rows: &[ReceiptRow],
     all_rows: &[ReceiptRow],
     query: &str,
+    order: crate::features::receipts::filter::ReceiptSortOrder,
 ) -> Vec<TableGroup> {
-    let sorted = sorted_rows(rows);
+    let sorted = sorted_rows(rows, order);
     // 同じ銘柄コードでも新しい行の銘柄名を優先する。絞り込み前の全行から引く
     let mut latest: HashMap<&str, (&str, &str)> = HashMap::new();
     for row in all_rows {
@@ -725,7 +736,11 @@ fn dividend_table_groups(
         },
     ];
     let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
-    summarize_groups(&sorted, key)
+    summarize_groups(
+        &sorted,
+        key,
+        order == crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    )
 }
 
 impl ListEndpoint for DomesticStock {
@@ -734,9 +749,12 @@ impl ListEndpoint for DomesticStock {
     const PATH: &'static str = RECEIPT_KINDS[ReceiptsTab::DomesticStock as usize].list_path;
 }
 
-fn domestic_table_groups(rows: &[ReceiptRow]) -> Vec<TableGroup> {
-    let sorted = sorted_rows(rows);
-    domestic_daily(&sorted)
+fn domestic_table_groups(
+    rows: &[ReceiptRow],
+    order: crate::features::receipts::filter::ReceiptSortOrder,
+) -> Vec<TableGroup> {
+    let sorted = sorted_rows(rows, order);
+    let mut groups: Vec<TableGroup> = domestic_daily(&sorted)
         .into_iter()
         .map(|day| {
             let date = day.filter;
@@ -761,7 +779,11 @@ fn domestic_table_groups(rows: &[ReceiptRow]) -> Vec<TableGroup> {
                 rows,
             }
         })
-        .collect()
+        .collect();
+    if order == crate::features::receipts::filter::ReceiptSortOrder::Oldest {
+        groups.reverse();
+    }
+    groups
 }
 
 impl ListEndpoint for Mutualfund {
@@ -770,8 +792,12 @@ impl ListEndpoint for Mutualfund {
     const PATH: &'static str = RECEIPT_KINDS[ReceiptsTab::MutualFund as usize].list_path;
 }
 
-fn mutual_fund_table_groups(rows: &[ReceiptRow], query: &str) -> Vec<TableGroup> {
-    let sorted = sorted_rows(rows);
+fn mutual_fund_table_groups(
+    rows: &[ReceiptRow],
+    query: &str,
+    order: crate::features::receipts::filter::ReceiptSortOrder,
+) -> Vec<TableGroup> {
+    let sorted = sorted_rows(rows, order);
     let rules = [GroupKeyRule {
         test: |row: &ReceiptRow, token| {
             normalize_display_name(row.name())
@@ -782,7 +808,11 @@ fn mutual_fund_table_groups(rows: &[ReceiptRow], query: &str) -> Vec<TableGroup>
         key_fn: &|row: &ReceiptRow| normalize_display_name(row.name()),
     }];
     let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
-    summarize_groups(&sorted, key)
+    summarize_groups(
+        &sorted,
+        key,
+        order == crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    )
 }
 
 impl ReceiptsTab {
@@ -871,11 +901,12 @@ impl ReceiptsTab {
         rows: &[ReceiptRow],
         all_rows: &[ReceiptRow],
         query: &str,
+        order: crate::features::receipts::filter::ReceiptSortOrder,
     ) -> Vec<TableGroup> {
         match self {
-            Self::Dividend => dividend_table_groups(rows, all_rows, query),
-            Self::DomesticStock => domestic_table_groups(rows),
-            Self::MutualFund => mutual_fund_table_groups(rows, query),
+            Self::Dividend => dividend_table_groups(rows, all_rows, query, order),
+            Self::DomesticStock => domestic_table_groups(rows, order),
+            Self::MutualFund => mutual_fund_table_groups(rows, query, order),
         }
     }
 
