@@ -21,6 +21,7 @@ use crate::ui::labels::{
 use crate::ui::page_frame::PageFrame;
 use crate::ui::segmented::Segmented;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index};
 use leptos::prelude::*;
 
 /// 構成比の母数。比率と同じく絶対値合計を使う。負の取得額があると
@@ -352,40 +353,19 @@ fn CompositionMobile(
                                             *candidate == group.get_untracked()
                                         })
                                         .unwrap_or(0);
-                                    let next = match event.key().as_str() {
-                                        "ArrowRight" => {
-                                            Some((current + 1) % CompositionGroup::ALL.len())
-                                        }
-                                        "ArrowLeft" => {
-                                            Some(
-                                                (current + CompositionGroup::ALL.len() - 1)
-                                                    % CompositionGroup::ALL.len(),
-                                            )
-                                        }
-                                        "Home" => Some(0),
-                                        "End" => Some(CompositionGroup::ALL.len() - 1),
-                                        _ => None,
-                                    };
-                                    if let Some(next) = next {
+                                    if let Some(next) = next_tab_index(
+                                        CompositionGroup::ALL.len(),
+                                        current,
+                                        &event.key(),
+                                    ) {
                                         event.prevent_default();
                                         group.set(CompositionGroup::ALL[next]);
-                                        if let Some(element) = web_sys::window()
-                                            .and_then(|window| window.document())
-                                            .and_then(|document| {
-                                                document
-                                                    .get_element_by_id(
-                                                        &format!(
-                                                            "comp-tab-{}",
-                                                            CompositionGroup::ALL[next].value(),
-                                                        ),
-                                                    )
-                                            })
-                                            && let Some(element) = wasm_bindgen::JsCast::dyn_ref::<
-                                                web_sys::HtmlElement,
-                                            >(&element)
-                                        {
-                                            let _ = element.focus();
-                                        }
+                                        focus_tab_by_id(
+                                            &format!(
+                                                "comp-tab-{}",
+                                                CompositionGroup::ALL[next].value()
+                                            ),
+                                        );
                                     }
                                 }
                             >

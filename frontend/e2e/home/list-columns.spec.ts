@@ -51,7 +51,7 @@ async function mockApi(page: Page) {
   );
 }
 
-test('最近の配当入金は日付が列からはみ出さず、コードと重ならない', async ({ page }) => {
+test('最近の配当入金は2行で名前と金額が重ならず全文が出る', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await mockApi(page);
   await page.goto('/');
@@ -59,36 +59,26 @@ test('最近の配当入金は日付が列からはみ出さず、コードと�
   const list = page.getByTestId('home-recent-list');
   await expect(list).toBeVisible();
 
-  const rows = await list.evaluate((element) => {
+  const rows = list.getByTestId('home-dividend-row');
+  await expect(rows).toHaveCount(5);
+  await expect(rows.first().locator('.list-row-name')).toContainText('架空');
+  await expect(rows.first().locator('.list-row-primary')).toContainText('¥');
+  await expect(rows.first().locator('.list-row-meta')).toContainText('9901');
+  await expect(rows.first().locator('.list-row-secondary')).toContainText('税引前');
+
+  const overflow = await list.evaluate((element) => {
     return [...element.querySelectorAll<HTMLElement>('.home-dividend-row')].map((row) => {
-      const date = row.querySelector<HTMLElement>('.home-dividend-date')!;
-      const code = row.querySelector<HTMLElement>('.home-dividend-code')!;
-      // はみ出したぶんも測るために、要素の枠ではなく文字の範囲で測る
-      const range = document.createRange();
-      range.selectNodeContents(date);
+      const name = row.querySelector<HTMLElement>('.list-row-name')!;
+      const primary = row.querySelector<HTMLElement>('.list-row-primary')!;
       return {
-        date: date.textContent?.trim() ?? '',
-        textRight: range.getBoundingClientRect().right,
-        textWidth: range.getBoundingClientRect().width,
-        cellWidth: date.clientWidth,
-        codeLeft: code.getBoundingClientRect().left,
+        nameRight: name.getBoundingClientRect().right,
+        primaryLeft: primary.getBoundingClientRect().left,
       };
     });
   });
 
-  expect(rows.length).toBeGreaterThan(0);
-  expect(
-    rows.some((row) => /^\d{2}\//.test(row.date)),
-    '2桁の月の行が含まれていない',
-  ).toBe(true);
-
-  for (const row of rows) {
-    expect(row.textWidth, `日付(${row.date})が列からはみ出している`).toBeLessThanOrEqual(
-      row.cellWidth,
-    );
-    expect(row.textRight, `日付(${row.date})とコードが重なっている`).toBeLessThan(
-      row.codeLeft,
-    );
+  for (const row of overflow) {
+    expect(row.nameRight).toBeLessThanOrEqual(row.primaryLeft);
   }
 });
 

@@ -264,14 +264,7 @@ fn StockContent(
                             .into_iter()
                             .map(|index| views[index].clone())
                             .collect();
-                        let show_dividend = matches!(key, SortKey::Dividend | SortKey::Yield);
-                        view! {
-                            <HoldingsList
-                                views=sorted
-                                dividends=dividends
-                                show_dividend=show_dividend
-                            />
-                        }
+                        view! { <HoldingsList views=sorted /> }
                     }}
                 </div>
             </div>

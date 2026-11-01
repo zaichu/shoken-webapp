@@ -516,7 +516,17 @@
     @apply border-brand bg-brand font-bold text-text-inverse;
   }
 
-  /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ+太さ+下線の3つで示す */
+  @media (width >= 64rem) {
+    .page-tab {
+      height: 34px;
+    }
+  }
+
+  .page-tab-count {
+    @apply text-[11px] font-medium tabular-nums;
+  }
+
+  /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す */
   @media (width < 64rem) {
     .page-tab-list {
       @apply gap-0 border-b border-border-strong;
@@ -530,16 +540,6 @@
       @apply bg-transparent font-bold text-text-deep;
       box-shadow: inset 0 -3px 0 var(--color-gold);
     }
-  }
-
-  @media (width >= 64rem) {
-    .page-tab {
-      height: 34px;
-    }
-  }
-
-  .page-tab-count {
-    @apply text-[11px] font-medium tabular-nums;
   }
 
   @media (width >= 64rem) {
@@ -930,6 +930,10 @@
     @apply text-xs font-medium text-brand-muted;
   }
 
+  .summary-band-sub {
+    @apply text-xs font-normal text-brand-muted;
+  }
+
   .summary-band-hero-row {
     @apply flex w-full items-center justify-between gap-3;
   }
@@ -939,7 +943,7 @@
   }
 
   .summary-band-chevron-circle {
-    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand-line;
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-brand-line;
   }
 
   .summary-band-toggle-chevron {
@@ -960,6 +964,11 @@
 
   .summary-band-breakdown-row {
     @apply flex min-w-0 items-center justify-between gap-3 py-2;
+  }
+
+  /* 内訳のうち箱で区切る行(取得総額・税引前配当)。少し強めに出す */
+  .summary-band-breakdown-boxed {
+    @apply rounded-lg border border-brand-line bg-brand-deep px-3;
   }
 
   .summary-band-breakdown-label {
@@ -1107,61 +1116,20 @@
     @apply list-none m-0 p-0;
   }
 
-  /* 行内の重なり順(名前ボタン・meta)は行の中で完結させる。漏れると
+  /* 行内の重なり順(meta)は行の中で完結させる。漏れると
      スクロール中に sticky の集計帯より手前に描かれる */
   .receipt-compact-row {
     @apply border-b border-border-faint isolate;
   }
 
-  .receipt-compact-main {
-    @apply flex items-baseline justify-between gap-2 px-4 pt-2 text-sm;
-  }
-
-  .receipt-compact-name-cell {
-    @apply relative min-w-0 flex-1 font-medium;
-  }
-
-  /* sizer が行の高さを確保し、ボタンはその上に被せて押せる範囲を下へ広げる */
-  .receipt-compact-name-sizer {
-    @apply invisible break-words;
-  }
-
-  .receipt-compact-row .receipt-compact-name {
-    @apply absolute inset-x-0 top-0 -bottom-6 min-w-0 items-start font-medium;
-  }
-
-  .receipt-compact-row .receipt-compact-name > span {
-    @apply min-w-0 break-words;
-  }
-
-  .receipt-compact-name-static {
-    @apply min-w-0 break-words;
-  }
-
-  .receipt-compact-net {
-    @apply shrink-0 font-bold tabular-nums whitespace-nowrap text-right;
-  }
-
-  .receipt-compact-meta {
-    @apply relative z-10 flex items-baseline justify-between gap-2 px-4 pb-2 text-xs text-text-muted;
-  }
-
-  .receipt-compact-facts {
-    @apply min-w-0 flex-1 break-words;
-  }
-
-  /* 行の高さは変えず、押せる範囲だけ 44px に広げる */
+  /* 2行の行のコードリンク。押せる領域44pxを実寸で持ち、隣の開閉ボタンと重ならない */
   .receipt-compact-code {
-    @apply -my-3.5 min-h-11 min-w-11 justify-center font-normal text-text-muted no-underline;
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center font-normal text-text-muted no-underline;
   }
 
-  .receipt-compact-primary {
-    @apply shrink-0 whitespace-nowrap;
-  }
-
-  /* 行の高さは変えず、押せる範囲だけ 44px に広げる */
+  /* 2行目の右端の開閉ボタン。44pxの実寸で置き、隣と重ならない */
   .receipt-compact-toggle {
-    @apply -my-3.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center self-center text-text-muted;
+    @apply flex min-h-11 min-w-11 shrink-0 items-center justify-center text-text-muted;
   }
 
   .receipt-compact-details {
@@ -1304,13 +1272,13 @@
   }
 
   .page-skeleton-note {
-    @apply grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 text-xs text-text-muted;
+    @apply grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 px-4 text-xs text-text-muted lg:px-0;
     margin-bottom: var(--space-search);
   }
 
   @media (width < 64rem) {
     .page-skeleton-note {
-      margin-bottom: var(--space-note);
+      margin-bottom: 0.625rem;
     }
   }
 
@@ -1337,6 +1305,13 @@
 
   .page-skeleton-search {
     margin-bottom: var(--space-table);
+  }
+
+  @media (width < 64rem) {
+    .page-skeleton-search {
+      @apply px-4;
+      margin-bottom: 0.625rem;
+    }
   }
 
   .page-back-link {
@@ -1720,6 +1695,38 @@
 
   .asset-compact-link:hover {
     @apply bg-surface-sunken;
+  }
+
+  /* 資産管理・取引明細・ホームの配当入金で共通の2行の行。
+     1行目=名前(左、折り返して全文)・主役の金額(右、折り返さない・桁そろえ)。
+     2行目=左に小さく補助色で日付・コード・口座など、右に補助の金額。
+     PCの表は変えない(スマホのリスト専用) */
+  .list-row {
+    @apply flex min-w-0 flex-col gap-y-0.5;
+  }
+
+  .list-row-main {
+    @apply flex min-w-0 items-baseline justify-between gap-2;
+  }
+
+  .list-row-name {
+    @apply min-w-0 flex-1 break-words font-medium text-text-deep;
+  }
+
+  .list-row-primary {
+    @apply shrink-0 whitespace-nowrap text-right font-bold tabular-nums;
+  }
+
+  .list-row-sub {
+    @apply flex min-w-0 items-baseline justify-between gap-2 text-xs;
+  }
+
+  .list-row-meta {
+    @apply min-w-0 flex-1 break-words text-text-muted;
+  }
+
+  .list-row-secondary {
+    @apply shrink-0 whitespace-nowrap text-right tabular-nums;
   }
 
   .asset-comp-link {

@@ -1,8 +1,10 @@
 use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab, select_header_summary};
 use crate::settings::format_amount;
 use crate::ui::card::StatTone;
-use crate::ui::format::format_iso_date;
-use crate::ui::labels;
+use crate::ui::format::date_parts;
+use crate::ui::labels::{
+    DIVIDEND_AMOUNT, REALIZED_AFTER_TAX, REALIZED_PROFIT_LOSS, RECEIVED_DIVIDEND_AFTER_TAX,
+};
 use crate::ui::summary::{SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -39,20 +41,22 @@ pub fn header_summary(
         .collect()
 }
 
-/// 対象期間の注記。明細の最初と最後の日を出す
-pub fn period_note(rows: &[ReceiptRow]) -> Option<String> {
+/// 帯に出す小さな期間。「2026/01 〜 2026/12」。行の日付は YYYY-MM-DD のため年月だけ切り出す
+pub fn period_note_short(rows: &[ReceiptRow]) -> Option<String> {
     let from = rows.iter().map(|row| row.date()).min()?;
     let to = rows.iter().map(|row| row.date()).max()?;
-    Some(labels::target_period_note(
-        &format_iso_date(from),
-        &format_iso_date(to),
-    ))
+    Some(format!("{} 〜 {}", year_month(from)?, year_month(to)?))
+}
+
+fn year_month(date: &str) -> Option<String> {
+    date_parts(date).map(|(year, month, _)| format!("{year}/{month:02}"))
 }
 
 #[component]
 pub fn SummaryStrip(
     tab: ReceiptsTab,
     items: Vec<(&'static str, Decimal, StatTone)>,
+    #[prop(optional, into)] period: String,
 ) -> impl IntoView {
     // 主役は末尾(税引後)。補助はなし。内訳は先頭2つ(配当金・税額 / 実現損益・税額)。
     // 売却額・取得価額は API 集計になく、一覧の部分合計では欠けると嘘になるため出さない。
@@ -76,12 +80,16 @@ pub fn SummaryStrip(
                         is_profit: bool| {
         let negative = tone == StatTone::Loss;
         let positive = is_profit && value > Decimal::ZERO;
+        // 内訳の税引前(配当金・実現損益)は内側の箱で区切る
+        let boxed = (tab == ReceiptsTab::Dividend && label == DIVIDEND_AMOUNT)
+            || (tab != ReceiptsTab::Dividend && label == REALIZED_PROFIT_LOSS);
         SummaryBreakdownEntry {
             label: label.to_string(),
             value: format_signed(value, is_profit),
             negative,
             positive,
             rate: String::new(),
+            boxed,
         }
     };
     let to_sub =
@@ -108,8 +116,13 @@ pub fn SummaryStrip(
         .collect();
     let (primary_label, primary_value, primary_negative, primary_positive) = primary
         .map(|(label, value, tone)| {
+            let display = match tab {
+                ReceiptsTab::Dividend => RECEIVED_DIVIDEND_AFTER_TAX,
+                _ => REALIZED_AFTER_TAX,
+            };
+            let _ = label;
             (
-                label.to_string(),
+                display.to_string(),
                 format_signed(value, primary_mark),
                 tone == StatTone::Loss,
                 primary_mark && value > Decimal::ZERO,
@@ -128,6 +141,7 @@ pub fn SummaryStrip(
                 primary_value=primary_value
                 primary_negative=primary_negative
                 primary_positive=primary_positive
+                primary_sub=period
                 pc_items=pc_items
                 breakdown=breakdown
                 testid_band="kpi-grid"
