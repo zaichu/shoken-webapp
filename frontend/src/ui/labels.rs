@@ -28,10 +28,6 @@ pub const ACQUISITION_YIELD: &str = "取得額利回り";
 pub const ACQUISITION_BASIS_YIELD: &str = "取得額基準利回り";
 /// 1株配当
 pub const PER_SHARE_DIVIDEND: &str = "1株配当";
-/// 1株配当(スマホの行の短い表記)
-pub const PER_SHARE_DIVIDEND_COMPACT: &str = "1株";
-/// 取得額利回り(スマホの行の短い表記)
-pub const ACQUISITION_YIELD_COMPACT: &str = "利回り";
 /// 一株配当(取引明細の配当情報カード)
 pub const PER_SHARE_DIVIDEND_CARD: &str = "一株配当";
 /// 平均取得価格(取引明細の配当情報カード)
@@ -42,8 +38,6 @@ pub const HOLDING_QUANTITY_CARD: &str = "保有数量(株)";
 pub const DIVIDEND_AMOUNT_AND_YIELD: &str = "配当金額 (配当利回り)";
 /// 税引後と累積利回り(取引明細の配当情報カード)
 pub const AFTER_TAX_AND_YIELD: &str = "税引後 (累積利回り)";
-/// 配当(一覧の行に出すabr表記)
-pub const DIVIDEND: &str = "配当";
 /// 配当金(取引明細の配当金タブ・列見出し)
 pub const DIVIDEND_AMOUNT: &str = "配当金";
 /// 入金日(配当の入金日)
@@ -321,11 +315,6 @@ pub fn last_csv_import_note(date: &str, days_ago: i64) -> String {
 pub const SUMMARY_SAME_TARGET: &str =
     "集計は一覧と同じ対象です(検索・条件で絞り込むと集計も変わります)";
 
-/// 対象期間の注記(明細の最初と最後の日)
-pub fn target_period_note(from: &str, to: &str) -> String {
-    format!("対象期間: {from} 〜 {to}")
-}
-
 /// CSV管理: 取得カードの見出し
 pub const CSV_MANAGE_FETCH_TITLE: &str = "楽天証券から最新のデータを取得";
 /// CSV管理: 取得ボタン(通常)
@@ -452,6 +441,16 @@ pub const PAGE_PREVIOUS: &str = "前へ";
 pub const PAGE_NEXT: &str = "次へ";
 pub const PAGE_NAVIGATION: &str = "ページ送り";
 pub const SORT_BY: &str = "並べ替え";
+/// 税引前の金額の頭に付ける短い表記(行の補助の金額用)
+pub const BEFORE_TAX: &str = "税引前";
+/// 取引明細の帯の主役(配当金タブ)
+pub const RECEIVED_DIVIDEND_AFTER_TAX: &str = "受け取った配当金(税引後)";
+/// 取引明細の帯の主役(国内株式・投資信託タブ)
+pub const REALIZED_AFTER_TAX: &str = "実現損益(税引後)";
+/// 月見出しの右に出す短い受取表記(配当金タブ)
+pub const RECEIPT_SHORT: &str = "受取";
+/// 月見出しの右に出す短い損益表記(国内株式・投資信託タブ。#1634 の指定による例外)
+pub const PROFIT_SHORT: &str = "損益";
 
 pub fn page_number(page: i64) -> String {
     format!("{page}ページ")

@@ -97,6 +97,8 @@ pub struct SummaryBreakdownEntry {
     pub negative: bool,
     pub positive: bool,
     pub rate: String,
+    /// 内側の箱で区切って少し強めに出す(取得総額・税引前配当など)
+    pub boxed: bool,
 }
 
 /// 紺帯サマリーの共通形。主役1つ・補助1行・主役行右端の丸いシェブロンで開閉する。
@@ -111,6 +113,9 @@ pub fn SummaryBand(
     /// スマホ主値の正色用。PCは変更前の配色(負のみ赤)を保つため使わない
     #[prop(optional)]
     primary_positive: bool,
+    /// 主ラベルの下に小さく出す期間(取引明細の帯用。空なら出さない)
+    #[prop(optional, into)]
+    primary_sub: String,
     /// 補助1行(ホーム・資産管理の評価損益と率。取引明細はなし)
     #[prop(optional, into)]
     aux_label: String,
@@ -220,6 +225,10 @@ pub fn SummaryBand(
                                 }}
                             </span>
                             <span class="summary-band-label">{primary_label.clone()}</span>
+                            {(!primary_sub.is_empty())
+                                .then(|| view! {
+                                    <span class="summary-band-sub">{primary_sub.clone()}</span>
+                                })}
                             <span class="summary-band-hero-row">
                                 <span class=format!(
                                     "summary-band-hero-value {primary_tone_class}",
@@ -233,21 +242,23 @@ pub fn SummaryBand(
                                     />
                                 </span>
                             </span>
-                            {has_aux
-                                .then(|| view! {
-                                    <span class=format!(
-                                        "summary-band-aux {aux_tone_class}",
-                                    )>
-                                        <span class="summary-band-aux-label">
-                                            {aux_label.clone()}
+                            {move || {
+                                (has_aux && !expanded.get())
+                                    .then(|| view! {
+                                        <span class=format!(
+                                            "summary-band-aux {aux_tone_class}",
+                                        )>
+                                            <span class="summary-band-aux-label">
+                                                {aux_label.clone()}
+                                            </span>
+                                            <Amount text=aux_value.clone() />
+                                            {(!aux_rate.is_empty())
+                                                .then(|| view! {
+                                                    <span class="summary-note">{aux_rate.clone()}</span>
+                                                })}
                                         </span>
-                                        <Amount text=aux_value.clone() />
-                                        {(!aux_rate.is_empty())
-                                            .then(|| view! {
-                                                <span class="summary-note">{aux_rate.clone()}</span>
-                                            })}
-                                    </span>
-                                })}
+                                    })
+                            }}
                         </DisclosureToggle>
                         <div id=controls_id.clone() hidden=move || !expanded.get()>
                             <dl class="summary-band-breakdown">
@@ -262,7 +273,11 @@ pub fn SummaryBand(
                                             ""
                                         };
                                         view! {
-                                            <div class="summary-band-breakdown-row">
+                                            <div class=if entry.boxed {
+                                                "summary-band-breakdown-row summary-band-breakdown-boxed"
+                                            } else {
+                                                "summary-band-breakdown-row"
+                                            }>
                                                 <dt class="summary-band-breakdown-label">
                                                     {entry.label}
                                                 </dt>

@@ -29,6 +29,7 @@ fn breakdown_keeps_item_order() {
             negative: false,
             positive: true,
             rate: "+1.0%".to_string(),
+            boxed: false,
         },
         SummaryBreakdownEntry {
             label: "年間予想配当(税引前)".to_string(),
@@ -36,6 +37,7 @@ fn breakdown_keeps_item_order() {
             negative: false,
             positive: false,
             rate: String::new(),
+            boxed: false,
         },
         SummaryBreakdownEntry {
             label: "取得総額".to_string(),
@@ -43,6 +45,7 @@ fn breakdown_keeps_item_order() {
             negative: false,
             positive: false,
             rate: String::new(),
+            boxed: true,
         },
     ];
     let labels: Vec<&str> = entries.iter().map(|entry| entry.label.as_str()).collect();

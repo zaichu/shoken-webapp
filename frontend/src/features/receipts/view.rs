@@ -5,7 +5,7 @@ mod summary;
 mod table;
 mod tabs;
 
-pub use action_bar::{ReceiptsMobileBottomSection, ReceiptsSearchBar};
+pub use action_bar::{ReceiptsMobileSearchEntry, ReceiptsSearchBar};
 pub use main_content::ReceiptsMainContent;
 pub use summary::SummaryStrip;
 pub use table::ReceiptTable;
@@ -93,8 +93,6 @@ pub fn ReceiptsPage() -> impl IntoView {
                             .collect_view()
                     }}
                 </div>
-
-                <ReceiptsMobileBottomSection store=store />
             </div>
         </PageFrame>
     }

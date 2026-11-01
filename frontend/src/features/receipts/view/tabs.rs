@@ -3,30 +3,15 @@ use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant, Loading};
+use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index as shared_next_tab_index};
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
 
 pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
-    let count = TAB_IDS.len();
-    match key {
-        "ArrowRight" => Some((current + 1) % count),
-        "ArrowLeft" => Some((current + count - 1) % count),
-        "Home" => Some(0),
-        "End" => Some(count - 1),
-        _ => None,
-    }
+    shared_next_tab_index(TAB_IDS.len(), current, key)
 }
 
 fn focus_tab(index: usize) {
-    let Some(element) = web_sys::window()
-        .and_then(|window| window.document())
-        .and_then(|document| document.get_element_by_id(&format!("tab-{}", TAB_IDS[index])))
-    else {
-        return;
-    };
-    if let Some(element) = element.dyn_ref::<web_sys::HtmlElement>() {
-        let _ = element.focus();
-    }
+    focus_tab_by_id(&format!("tab-{}", TAB_IDS[index]));
 }
 
 #[component]

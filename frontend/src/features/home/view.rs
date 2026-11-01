@@ -20,9 +20,10 @@ use crate::ui::format::{
     format_currency, format_integer_percent, format_latest_import_date, format_short_date,
 };
 use crate::ui::labels::{
-    ANNUAL_EXPECTED_DIVIDEND, DAY_CHANGE, MARKET_VALUE, MISSING, TOTAL_ACQUISITION,
+    ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, MARKET_VALUE, MISSING, TOTAL_ACQUISITION,
     VALUATION_PROFIT_LOSS,
 };
+use crate::ui::list_row::ListRow;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
@@ -384,6 +385,7 @@ fn BandTiles(
                     negative: daily_negative,
                     positive: daily_positive,
                     rate: daily_rate,
+                    boxed: false,
                 },
                 SummaryBreakdownEntry {
                     label: ANNUAL_EXPECTED_DIVIDEND.to_string(),
@@ -391,6 +393,7 @@ fn BandTiles(
                     negative: false,
                     positive: false,
                     rate: estimate_pending_text,
+                    boxed: false,
                 },
                 SummaryBreakdownEntry {
                     label: TOTAL_ACQUISITION.to_string(),
@@ -398,6 +401,7 @@ fn BandTiles(
                     negative: false,
                     positive: false,
                     rate: String::new(),
+                    boxed: true,
                 },
             ]
             testid_toggle="summary-details-toggle"
@@ -873,25 +877,40 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                                 } else {
                                     row.security_code.clone()
                                 };
+                                let date = format_short_date(&row.settlement_date);
+                                let name = row.security_name.clone();
+                                let account = row.account.clone();
+                                let net = format_currency(
+                                    dec_to_f64(&row.net_amount_received),
+                                );
+                                let gross = format_currency(
+                                    dec_to_f64(&row.dividends_before_tax),
+                                );
                                 view! {
-                                    <li class="home-dividend-row">
-                                        <span class="home-dividend-date">
-                                            {format_short_date(&row.settlement_date)}
-                                        </span>
-                                        <span class="home-dividend-code">{code}</span>
-                                        <span class="home-dividend-name" title=row.security_name.clone()>
-                                            {row.security_name.clone()}
-                                        </span>
-                                        <span class="home-dividend-account">
-                                            <AccountBadge label=row.account.clone() />
-                                        </span>
-                                        <Amount
-                                            kind=AmountKind::Plain
-                                            text=format_currency(
-                                                dec_to_f64(&row.net_amount_received),
-                                            )
-                                            class="home-dividend-amount"
-                                        />
+                                    <li class="home-dividend-row" data-testid="home-dividend-row">
+                                        <div class="px-4 py-2">
+                                            <ListRow
+                                                name=move || name.clone()
+                                                primary=move || view! {
+                                                    <Amount kind=AmountKind::Plain text=net.clone() />
+                                                }
+                                                meta=move || view! {
+                                                    {date.clone()}
+                                                    {" · "}
+                                                    {code.clone()}
+                                                    {" · "}
+                                                    <AccountBadge label=account.clone() />
+                                                }
+                                                secondary=move || view! {
+                                                    {BEFORE_TAX}
+                                                    " "
+                                                    <Amount
+                                                        kind=AmountKind::Plain
+                                                        text=gross.clone()
+                                                    />
+                                                }
+                                            />
+                                        </div>
                                     </li>
                                 }
                             })

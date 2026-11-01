@@ -184,7 +184,6 @@ fn StockContent(
                                 daily_change=values.daily_change
                                 tags=tags
                                 purchase=purchase
-                                composition_link=true
                             />
                         </SkeletonSummary>
                         <SkeletonNote
@@ -219,6 +218,14 @@ fn StockContent(
                     sort_order=sort_order
                 />
             </SkeletonSearch>
+            <div class="flex items-center justify-between px-4 py-2 lg:hidden">
+                <span class="text-sm font-bold text-text">
+                    {format!("保有銘柄 {}", labels::count(total_count))}
+                </span>
+                <a href="/assetbalance/composition" class="security-details-link">
+                    "構成比を見る ›"
+                </a>
+            </div>
             <div class="asset-list-surface">
                 <div class="hidden lg:block print:block">
                     {move || {
@@ -253,14 +260,7 @@ fn StockContent(
                             .into_iter()
                             .map(|index| views[index].clone())
                             .collect();
-                        let show_dividend = matches!(key, SortKey::Dividend | SortKey::Yield);
-                        view! {
-                            <HoldingsList
-                                views=sorted
-                                dividends=dividends
-                                show_dividend=show_dividend
-                            />
-                        }
+                        view! { <HoldingsList views=sorted /> }
                     }}
                 </div>
             </div>
@@ -338,7 +338,6 @@ fn FundContent(
                     daily_change=daily
                     tags=vec![purchase_summary_tag(purchase)]
                     purchase=Some(purchase)
-                    composition_link=false
                 />
             </SkeletonSummary>
             <SkeletonNote notes=notes filtered=filtered_count basis=fund_basis_lines() />
@@ -542,7 +541,6 @@ fn AllContent(
                     daily_change=daily
                     tags=vec![purchase_summary_tag(purchase)]
                     purchase=Some(purchase)
-                    composition_link=false
                 />
             </SkeletonSummary>
             <SkeletonNote notes=notes filtered=filtered_count basis=all_basis_lines() />

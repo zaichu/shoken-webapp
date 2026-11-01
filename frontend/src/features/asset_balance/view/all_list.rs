@@ -15,11 +15,12 @@ use crate::features::asset_balance::portfolio::SortOrder;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::format::unit_price_decimals;
+use crate::ui::format::{format_number_value, unit_price_decimals};
 use crate::ui::labels::{
     ACCOUNT, CODE_COLUMN, DAY_CHANGE, DISTRIBUTION, DOMESTIC_STOCK, MARKET_VALUE, MUTUAL_FUND,
-    PER_SHARE_DIVIDEND, PER_SHARE_DIVIDEND_COMPACT, SECURITY_AND_FUND, VALUATION_PROFIT_LOSS,
+    PER_SHARE_DIVIDEND, SECURITY_AND_FUND, VALUATION_PROFIT_LOSS,
 };
+use crate::ui::list_row::ListRow;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
 
@@ -33,6 +34,8 @@ pub(crate) struct UnifiedRow {
     pub code: Option<String>,
     pub account: Option<String>,
     pub course: Option<String>,
+    /// スマホの2行目に出す株数・口数(「100株」「1.5口」。投信と株を混同しない)
+    pub quantity: String,
     pub day_change: Option<f64>,
     pub price_as_of: Option<String>,
     /// 基準日がその種別の代表(見出しに出す日付)と違うか。構築側で立てる
@@ -58,6 +61,7 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
         code: Some(view.code.clone()),
         account: view.account.clone(),
         course: None,
+        quantity: format!("{}株", format_number_value(view.shares)),
         day_change: view.day_change,
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
@@ -87,6 +91,7 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
         code: None,
         account: Some(view.account.clone()),
         course: view.course.clone(),
+        quantity: format!("{}口", format_number_value(view.shares)),
         day_change: view.view_day_change(),
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
@@ -286,11 +291,6 @@ pub fn AssetMergedTable(
 
 #[component]
 pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
-    // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let dividend_decimals = unit_price_decimals(
-        rows.iter()
-            .filter_map(|row| row.dividend.as_ref()?.per_share),
-    );
     view! {
         <ul class="asset-compact-list" data-testid="asset-merged-list">
             {rows
@@ -302,88 +302,66 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                     let pnl_positive = is_positive_valuation(row.profit);
                     let rate_negative = is_negative_rate(row.rate);
                     let rate_positive = is_positive_rate(row.rate);
-                    let meta = if row.sub.is_empty() {
-                        row.kind.to_string()
-                    } else {
-                        format!("{} ・ {}", row.kind, row.sub)
-                    };
+                    let market_text = format_row_valuation_amount(row.market);
+                    let name = row.name.clone();
+                    let code = row.code.clone();
+                    let account = row.account.clone();
+                    let quantity = row.quantity.clone();
                     let inner = view! {
-                        <>
-                            <div class="flex items-baseline justify-between gap-2">
-                                <span class="min-w-0 truncate font-medium text-text">
-                                    {row.name.clone()}
-                                </span>
-                                <Amount
-                                    kind=AmountKind::Plain
-                                    text=format_row_valuation_amount(row.market)
-                                    class="shrink-0 font-bold text-text-deep"
-                                />
-                            </div>
-                            <div class="mt-0.5 flex items-start justify-between gap-2 text-xs">
-                                <span class="min-w-0 flex-1 break-words text-text-muted">
-                                    {meta}
-                                    {row
-                                        .account
-                                        .clone()
-                                        .map(|account| {
-                                            view! {
-                                                " · "
-                                                <AccountBadge label=account />
-                                            }
-                                        })}
-                                </span>
+                        <ListRow
+                            name=move || name.clone()
+                            primary=move || view! {
+                                <Amount kind=AmountKind::Plain text=market_text.clone() />
+                            }
+                            meta=move || view! {
+                                {code
+                                    .clone()
+                                    .map(|code| {
+                                        view! {
+                                            {code}
+                                            {" · "}
+                                        }
+                                    })}
+                                {account
+                                    .clone()
+                                    .map(|account| {
+                                        view! {
+                                            <AccountBadge label=account />
+                                            {" · "}
+                                        }
+                                    })}
+                                <Amount kind=AmountKind::Plain text=quantity.clone() />
+                            }
+                            secondary=move || view! {
                                 {if row.profit.is_some() {
                                     view! {
-                                        <span class="flex shrink-0 items-baseline whitespace-nowrap">
-                                            <Amount
-                                                kind=AmountKind::Delta
-                                                text=pnl_text
-                                                negative=pnl_negative
-                                                positive=pnl_positive
-                                                class="font-bold"
-                                            />
-                                            {row.rate.is_some().then(|| {
+                                        <Amount
+                                            kind=AmountKind::Delta
+                                            text=pnl_text.clone()
+                                            negative=pnl_negative
+                                            positive=pnl_positive
+                                        />
+                                        {row
+                                            .rate
+                                            .is_some()
+                                            .then(|| {
                                                 view! {
+                                                    " "
                                                     <Amount
                                                         kind=AmountKind::Delta
                                                         text=rate_text.clone()
                                                         negative=rate_negative
                                                         positive=rate_positive
-                                                        class="ml-1 text-xs"
                                                     />
                                                 }
                                             })}
-                                        </span>
                                     }
                                         .into_any()
                                 } else {
-                                    view! {
-                                        <span class="shrink-0 text-text-muted tabular-nums">
-                                            "—"
-                                        </span>
-                                    }
-                                        .into_any()
+                                    view! { "—" }.into_any()
                                 }}
-                            </div>
-                            {row.dividend.as_ref().map(|dividend| {
-                                view! {
-                                    <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
-                                        <Amount
-                                            kind=AmountKind::Plain
-                                            text=format!(
-                                                "{} {}",
-                                                PER_SHARE_DIVIDEND_COMPACT,
-                                                format_dividend_per_share(
-                                                    dividend,
-                                                    dividend_decimals,
-                                                ),
-                                            )
-                                            class="min-w-0 flex-1 break-words text-text-muted"
-                                        />
-                                    </div>
-                                }
-                            })}
-                        </>
+                            }
+                        />
                     };
                     view! {
                         <li class="asset-compact-row" data-testid="asset-compact-row">
