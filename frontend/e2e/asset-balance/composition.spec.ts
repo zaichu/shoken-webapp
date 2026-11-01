@@ -27,6 +27,7 @@ async function setupAssetBalanceMocks(
   page: Page,
   holdings: ReturnType<typeof holding>[] = HOLDINGS,
   dividendItems: unknown[] = [],
+  funds: unknown[] = [],
 ) {
   await mockSession(page);
 
@@ -53,6 +54,15 @@ async function setupAssetBalanceMocks(
           priced_market_value: totalPurchase,
         },
       }),
+    );
+  });
+
+  await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) => {
+    if (route.request().method() !== 'GET') {
+      return route.abort();
+    }
+    return route.fulfill(
+      json({ data: funds, total: funds.length, page: 1, per_page: 1000 }),
     );
   });
 
@@ -109,6 +119,42 @@ const GROUP_HOLDINGS = [
   }),
 ];
 
+function groupFund(
+  id: string,
+  fund_name: string,
+  account: string,
+  market_value: number,
+) {
+  return {
+    id,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    fund_name,
+    dividends_course: '再投資型',
+    account,
+    shares: 10000,
+    average_purchase_price: 10000,
+    total_purchase_amount: 100000,
+    base_price: 11000,
+    base_price_day_change: null,
+    base_price_month_change: null,
+    market_value,
+    profit_loss: 10000,
+    profit_loss_rate: 10.0,
+    total_return: null,
+    price_as_of: '2026-10-20',
+    price_source: 'api',
+    nav_is_latest: true,
+    expected_nav_date: null,
+  };
+}
+
+// 商品別は国内株式・投資信託の2区分、口座別は特定・NISAの2区分に集まる
+const GROUP_FUNDS = [
+  groupFund('fund-a', 'ファンドA', '特定', 400_000),
+  groupFund('fund-b', 'ファンドB', 'NISA', 100_000),
+];
+
 const GROUP_DIVIDENDS = [
   dividendItem('9904', 90),
   dividendItem('9914', 70),
@@ -120,7 +166,7 @@ test.describe('スマホの構成比', () => {
   test('区分の切り替えで銘柄別・商品別・口座別の集まりが変わる', async ({
     page,
   }) => {
-    await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS);
+    await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS, GROUP_FUNDS);
     await page.goto('/assetbalance/composition');
 
     const tabs = page.getByTestId('asset-composition-tabs');
@@ -129,31 +175,42 @@ test.describe('スマホの構成比', () => {
       'true',
     );
     const list = page.getByTestId('asset-composition-mobile-list');
-    await expect(list.getByTestId('comp-row')).toHaveCount(3);
+    await expect(list.getByTestId('comp-row')).toHaveCount(5);
+    await expect(list.getByTestId('comp-row').nth(0)).toContainText('ファンドA');
+    await expect(list.getByTestId('comp-row').nth(0)).toContainText('36.4%');
+    await expect(page.getByTestId('asset-composition-mobile')).toContainText(
+      '5銘柄',
+    );
     await expect(page.getByTestId('asset-composition-donut')).toBeVisible();
 
     await tabs.getByRole('tab', { name: '商品別' }).click();
     await expect(list.getByTestId('comp-row')).toHaveCount(2);
-    await expect(list.getByTestId('comp-row').nth(0)).toContainText('架空自動車');
-    await expect(list.getByTestId('comp-row').nth(0)).toContainText('66.7%');
+    await expect(list.getByTestId('comp-row').nth(0)).toContainText('国内株式');
+    await expect(list.getByTestId('comp-row').nth(0)).toContainText('54.5%');
+    await expect(page.getByTestId('asset-composition-mobile')).toContainText(
+      '2種類',
+    );
 
     await tabs.getByRole('tab', { name: '口座別' }).click();
     await expect(list.getByTestId('comp-row')).toHaveCount(2);
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('特定');
-    await expect(list.getByTestId('comp-row').nth(0)).toContainText('83.3%');
+    await expect(list.getByTestId('comp-row').nth(0)).toContainText('81.8%');
+    await expect(page.getByTestId('asset-composition-mobile')).toContainText(
+      '2口座',
+    );
   });
 
   test('基準の切り替えで注記と金額の集まりが変わる', async ({ page }) => {
-    await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS);
+    await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS, GROUP_FUNDS);
     await page.goto('/assetbalance/composition');
 
     const list = page.getByTestId('asset-composition-mobile-list');
-    await expect(list.getByTestId('comp-row')).toHaveCount(3);
+    await expect(list.getByTestId('comp-row')).toHaveCount(5);
     await expect(page.getByTestId('asset-composition-note')).toContainText(
       '評価額の比率',
     );
     await expect(page.getByTestId('asset-composition-note')).toContainText(
-      '¥600,000',
+      '¥1,100,000',
     );
 
     await page.getByTestId('comp-basis').getByRole('button', { name: '年間配当' }).click();
@@ -170,7 +227,7 @@ test.describe('スマホの構成比', () => {
       .getByRole('tab', { name: '商品別' })
       .click();
     await expect(list.getByTestId('comp-row')).toHaveCount(2);
-    await expect(list.getByTestId('comp-row').nth(0)).toContainText('72.0%');
+    await expect(list.getByTestId('comp-row').nth(0)).toContainText('100.0%');
   });
 
   test('小さい区分はその他にまとまる', async ({ page }) => {

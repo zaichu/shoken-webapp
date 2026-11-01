@@ -1,12 +1,13 @@
 //! 資産管理の構成比一覧と並べ替えの純粋ロジック。
 
+use crate::features::asset_balance::fund::FundView;
 use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
 use crate::features::asset_balance::model::{ValuationInput, chart_percentages, holding_valuation};
 use crate::ui::badge::account_display_name;
 use crate::ui::labels::{
     ACQUISITION_YIELD, ANNUAL_DIVIDEND, COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_ACCOUNT,
-    COMPOSITION_GROUP_HOLDING, COMPOSITION_GROUP_PRODUCT, MARKET_VALUE, MISSING,
-    VALUATION_PROFIT_LOSS, composition_other,
+    COMPOSITION_GROUP_HOLDING, COMPOSITION_GROUP_PRODUCT, DOMESTIC_STOCK, MARKET_VALUE, MISSING,
+    MUTUAL_FUND, VALUATION_PROFIT_LOSS, composition_other,
 };
 use std::cmp::Ordering;
 
@@ -239,6 +240,62 @@ impl CompositionBasis {
     }
 }
 
+/// 構成比の商品種別。商品別の区分名になる
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompositionProduct {
+    Stock,
+    Fund,
+}
+
+impl CompositionProduct {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            CompositionProduct::Stock => DOMESTIC_STOCK,
+            CompositionProduct::Fund => MUTUAL_FUND,
+        }
+    }
+}
+
+/// 構成比の入力1行(国内株式・投資信託共通)。`basis` と並べて渡す
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompositionSource {
+    pub name: String,
+    pub sub: String,
+    pub account: Option<String>,
+    pub product: CompositionProduct,
+    pub href: Option<String>,
+}
+
+/// 国内株式と投資信託の保有行を構成比の入力にそろえる。
+/// 投資信託の sub は分配金コース(銘柄名だけでは区別できない行があるため)
+pub fn composition_sources(views: &[HoldingView], funds: &[FundView]) -> Vec<CompositionSource> {
+    views
+        .iter()
+        .map(|view| CompositionSource {
+            name: view.name.clone(),
+            sub: view.code.clone(),
+            account: view.account.clone(),
+            product: CompositionProduct::Stock,
+            href: view
+                .id
+                .as_ref()
+                .map(|id| format!("/assetbalance/holdings/{id}")),
+        })
+        .chain(funds.iter().map(|view| {
+            CompositionSource {
+                name: view.name.clone(),
+                sub: view.course.clone().unwrap_or_default(),
+                account: Some(view.account.clone()),
+                product: CompositionProduct::Fund,
+                href: view
+                    .id
+                    .as_ref()
+                    .map(|id| format!("/assetbalance/funds/{id}")),
+            }
+        }))
+        .collect()
+}
+
 /// 構成比の区分1行。`value` は基準の金額で、算出不可は `None`(一覧の末尾に置く)。
 #[derive(Clone, Debug, PartialEq)]
 pub struct CompositionEntry {
@@ -261,23 +318,25 @@ fn sort_composition_entries(entries: &mut [CompositionEntry]) {
 
 /// 保有行を区分にまとめる。`basis` は各行の基準金額(算出不可は `None`)
 /// で、区分の金額は行の合計(行が全て算出不可なら区分も算出不可)になる。
-/// 商品別は同一銘柄コード、口座別は同一口座でまとめ、銘柄別は行のまま出す
+/// 基準が0の行は算出不可として扱い、末尾に置く。
+/// 銘柄別は行のまま、商品別は商品種別、口座別は同一口座でまとめる
 pub fn composition_entries(
-    views: &[HoldingView],
+    sources: &[CompositionSource],
     group: CompositionGroup,
     basis: &[Option<f64>],
 ) -> Vec<CompositionEntry> {
-    fn entry_key(view: &HoldingView, group: CompositionGroup) -> String {
+    fn entry_key(source: &CompositionSource, group: CompositionGroup) -> String {
         match group {
             CompositionGroup::Holding => String::new(),
-            CompositionGroup::Product => view.code.clone(),
-            CompositionGroup::Account => view.account.clone().unwrap_or_default(),
+            CompositionGroup::Product => source.product.label().to_string(),
+            CompositionGroup::Account => source.account.clone().unwrap_or_default(),
         }
     }
     let mut entries: Vec<CompositionEntry> = Vec::new();
     let mut positions: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for (view, value) in views.iter().zip(basis.iter().copied()) {
-        let key = entry_key(view, group);
+    for (source, value) in sources.iter().zip(basis.iter().copied()) {
+        let value = value.filter(|value| *value != 0.0);
+        let key = entry_key(source, group);
         let is_new_holding = matches!(group, CompositionGroup::Holding);
         let position = if is_new_holding {
             entries.len()
@@ -294,17 +353,18 @@ pub fn composition_entries(
         if position == entries.len() {
             entries.push(CompositionEntry {
                 name: match group {
-                    CompositionGroup::Account => view
+                    CompositionGroup::Holding => source.name.clone(),
+                    CompositionGroup::Product => source.product.label().to_string(),
+                    CompositionGroup::Account => source
                         .account
                         .as_deref()
                         .map(account_display_name)
                         .unwrap_or(MISSING)
                         .to_string(),
-                    _ => view.name.clone(),
                 },
                 sub: match group {
-                    CompositionGroup::Holding | CompositionGroup::Product => view.code.clone(),
-                    CompositionGroup::Account => String::new(),
+                    CompositionGroup::Holding => source.sub.clone(),
+                    CompositionGroup::Product | CompositionGroup::Account => String::new(),
                 },
                 value: None,
                 holdings: 0,
@@ -319,10 +379,7 @@ pub fn composition_entries(
         }
         entry.holdings += 1;
         if entry.holdings == 1 {
-            entry.href = view
-                .id
-                .as_ref()
-                .map(|id| format!("/assetbalance/holdings/{id}"));
+            entry.href = source.href.clone();
         } else {
             entry.href = None;
         }
@@ -354,60 +411,6 @@ pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>
 
 /// ドーナツに個別で出す割合の下限。未満は「その他」にまとめる
 pub const COMPOSITION_MAJOR_THRESHOLD: f64 = 9.0;
-
-/// ドーナツの環の半径。ラベルの収まり判定と描画で同じ値を使う
-pub const COMPOSITION_DONUT_RADIUS: f64 = 80.0;
-
-/// ドーナツ内の1行ラベルが区分に収まるか。文字幅の見積もりが区分の弧の長さに
-/// 収まるときだけ文字を出す(収まらない区分は一覧で分かる)。
-/// 文字は弧に沿わせるため、弧に収まれば帯の外に出ない
-pub fn composition_label_fits(label: &str, percentage: f64) -> bool {
-    let width: f64 = label
-        .chars()
-        .map(|c| if c.is_ascii() { 5.0 } else { 9.0 })
-        .sum();
-    let arc = COMPOSITION_DONUT_RADIUS * (percentage / 100.0 * std::f64::consts::TAU);
-    width <= arc
-}
-
-/// ドーナツの区分の弧パスと文字の向き。真下をまたぐ区分は読みやすいよう
-/// 逆向き(反時計回り)に描く。角度は上を起点に時計回りの度数。
-/// 100% の区分も2つの弧で描くため、欠けなく1周する
-pub fn composition_slice_arc(start: f64, percentage: f64) -> (String, bool) {
-    fn point(angle: f64) -> (f64, f64) {
-        let radians = angle.to_radians();
-        (
-            100.0 + COMPOSITION_DONUT_RADIUS * radians.sin(),
-            100.0 - COMPOSITION_DONUT_RADIUS * radians.cos(),
-        )
-    }
-    let from = start / 100.0 * 360.0;
-    let to = (start + percentage) / 100.0 * 360.0;
-    let middle = (from + to) / 2.0;
-    let reversed = 90.0 < middle && middle <= 270.0;
-    let (head, middle_point, tail) = if reversed {
-        (point(to), point(middle), point(from))
-    } else {
-        (point(from), point(middle), point(to))
-    };
-    let sweep = if reversed { 0 } else { 1 };
-    let path = format!(
-        "M {} {} A {} {} 0 0 {} {} {} A {} {} 0 0 {} {} {}",
-        head.0,
-        head.1,
-        COMPOSITION_DONUT_RADIUS,
-        COMPOSITION_DONUT_RADIUS,
-        sweep,
-        middle_point.0,
-        middle_point.1,
-        COMPOSITION_DONUT_RADIUS,
-        COMPOSITION_DONUT_RADIUS,
-        sweep,
-        tail.0,
-        tail.1
-    );
-    (path, reversed)
-}
 
 /// 区分の色番号。`[0, 2, 4, 1, 3]` を回して隣り合う区分の色が並ばないようにする
 pub fn composition_color(position: usize) -> usize {

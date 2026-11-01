@@ -116,6 +116,16 @@ pub fn composition_other(count: usize) -> String {
 pub fn composition_total(count: usize) -> String {
     format!("{count}銘柄")
 }
+
+/// 構成比の中央に出す区分の数(「2種類」)
+pub fn composition_kinds(count: usize) -> String {
+    format!("{count}種類")
+}
+
+/// 構成比の中央に出す口座の数(「3口座」)
+pub fn composition_accounts(count: usize) -> String {
+    format!("{count}口座")
+}
 /// 投資信託
 pub const MUTUAL_FUND: &str = "投資信託";
 /// 口座

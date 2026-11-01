@@ -1802,38 +1802,6 @@
     stroke: var(--color-text-muted);
   }
 
-  .comp-slice-label {
-    font-size: 9px;
-  }
-
-  .comp-slice-text-0,
-  .comp-slice-text-1 {
-    fill: var(--color-text-inverse);
-  }
-
-  .comp-slice-text-2,
-  .comp-slice-text-3,
-  .comp-slice-text-4 {
-    fill: #111827;
-  }
-
-  .comp-slice-text-other {
-    fill: var(--color-text-inverse);
-  }
-
-  @media screen {
-    :root[data-theme="dark"] .comp-slice-text-0,
-    :root[data-theme="dark"] .comp-slice-text-1,
-    :root[data-theme="dark"] .comp-slice-text-2,
-    :root[data-theme="dark"] .comp-slice-text-other {
-      fill: #111827;
-    }
-
-    :root[data-theme="dark"] .comp-slice-text-4 {
-      fill: var(--color-text-inverse);
-    }
-  }
-
   .comp-donut-center {
     @apply pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-center text-lg font-bold text-text;
   }

@@ -1,19 +1,22 @@
 use super::use_asset_balance_state;
 use crate::features::asset_balance::format::format_amount;
+use crate::features::asset_balance::fund::{FundView, fund_view};
 use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::{
     CompositionBasis, CompositionGroup, CompositionRow, composition_entries,
-    composition_label_fits, composition_percentages, composition_rows, composition_slice_arc,
+    composition_percentages, composition_rows, composition_sources,
 };
-use crate::features::asset_balance::store::{all_portfolio_views, load_asset_balances};
+use crate::features::asset_balance::store::{
+    all_portfolio_views, load_asset_balances, load_fund_balances,
+};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::format::{format_currency, format_fixed_percent};
 use crate::ui::labels::{
     COMPOSITION, COMPOSITION_BACK, COMPOSITION_BASIS_LABEL, COMPOSITION_DIVIDEND_BASIS,
-    COMPOSITION_GROUP_LABEL, MARKET_VALUE, MISSING, TOTAL_ACQUISITION, composition_basis_note,
-    composition_total,
+    COMPOSITION_GROUP_LABEL, MARKET_VALUE, MISSING, TOTAL_ACQUISITION, composition_accounts,
+    composition_basis_note, composition_kinds, composition_total,
 };
 use crate::ui::page_frame::PageFrame;
 use crate::ui::segmented::Segmented;
@@ -31,9 +34,11 @@ const BASIS_OPTIONS: &[(&str, &str)] = &[
     ("dividend", COMPOSITION_DIVIDEND_BASIS),
 ];
 
-/// 行ごとの基準金額。算出不可は `None`
+/// 行ごとの基準金額。算出不可は `None`。投資信託の年間配当は
+/// 1株配当の見積もりが無いため算出不可にする
 fn basis_values(
     views: &[HoldingView],
+    funds: &[FundView],
     basis: CompositionBasis,
     dividends: &DividendMaps,
 ) -> Vec<Option<f64>> {
@@ -47,6 +52,10 @@ fn basis_values(
                 holding_dividend(&view.code, view.shares, view.average_price, dividends).annual
             }
         })
+        .chain(funds.iter().map(|view| match basis {
+            CompositionBasis::MarketValue => Some(view.market_value),
+            CompositionBasis::Dividend => None,
+        }))
         .collect()
 }
 
@@ -70,27 +79,6 @@ fn color_slice_class(color: usize) -> &'static str {
     }
 }
 
-fn color_label_class(color: usize) -> &'static str {
-    match color {
-        0 => "comp-slice-text-0",
-        1 => "comp-slice-text-1",
-        2 => "comp-slice-text-2",
-        3 => "comp-slice-text-3",
-        4 => "comp-slice-text-4",
-        _ => "comp-slice-text-other",
-    }
-}
-
-/// ドーナツ内に収めるための区分名。長い名前は先頭だけ出し、一覧で全文を見せる
-fn donut_display_name(name: &str) -> String {
-    const MAX: usize = 10;
-    if name.chars().count() > MAX {
-        format!("{}…", name.chars().take(MAX).collect::<String>())
-    } else {
-        name.to_string()
-    }
-}
-
 #[derive(Clone)]
 struct ChartItem {
     view: HoldingView,
@@ -102,20 +90,17 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
     let session = use_session();
     let state = use_asset_balance_state(session);
     let balances = state.balances;
+    let funds = state.funds;
     let dividends = state.dividends;
     let lookup = state.lookup;
     let data_ops = state.data_ops;
     let csv_slot = state.csv.csv;
     if session.user.get_untracked().is_some() {
+        let generation = session.generation.get_untracked();
         crate::features::asset_balance::store::load_asset_balances(
-            session,
-            session.generation.get_untracked(),
-            balances,
-            dividends,
-            lookup,
-            csv_slot,
-            data_ops,
+            session, generation, balances, dividends, lookup, csv_slot, data_ops,
         );
+        load_fund_balances(session, generation, funds, data_ops);
     }
     let resolved = move || {
         let generation = session.generation.get();
@@ -123,20 +108,23 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
             crate::features::asset_balance::store::csv::resolve_asset_balance(generation, slot)
         })
     };
+    let resolved_funds = move || {
+        let generation = session.generation.get();
+        funds.with(|slot| {
+            crate::features::asset_balance::store::csv::resolve_fund_balance(generation, slot)
+        })
+    };
     let reload = move || {
         if session.user.get_untracked().is_none() {
             return;
         }
+        let generation = session.generation.get_untracked();
         balances.set(None);
         load_asset_balances(
-            session,
-            session.generation.get_untracked(),
-            balances,
-            dividends,
-            lookup,
-            csv_slot,
-            data_ops,
+            session, generation, balances, dividends, lookup, csv_slot, data_ops,
         );
+        funds.set(None);
+        load_fund_balances(session, generation, funds, data_ops);
     };
     view! {
         <PageFrame title=COMPOSITION>
@@ -176,16 +164,6 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                     }
                     match view {
                         None => view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any(),
-                        Some(view) if view.rows.is_empty() => {
-                            view! {
-                                <div class="asset-panel-padded">
-                                    <p class="text-center text-text-muted">
-                                        "データがありません"
-                                    </p>
-                                </div>
-                            }
-                                .into_any()
-                        }
                         Some(view) => {
                             let generation = session.generation.get();
                             let views = all_portfolio_views(
@@ -193,9 +171,25 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                 lookup,
                                 generation,
                             );
+                            let fund_views: Vec<FundView> = resolved_funds()
+                                .map(|resolved| {
+                                    resolved.rows.iter().map(fund_view).collect()
+                                })
+                                .unwrap_or_default();
+                            if views.is_empty() && fund_views.is_empty() {
+                                return view! {
+                                    <div class="asset-panel-padded">
+                                        <p class="text-center text-text-muted">
+                                            "データがありません"
+                                        </p>
+                                    </div>
+                                }
+                                    .into_any();
+                            }
                             view! {
                                 <CompositionMobile
                                     views=views.clone()
+                                    funds=fund_views
                                     dividends=dividends
                                 />
                                 <div
@@ -311,11 +305,17 @@ fn CompositionDesktop(views: Vec<HoldingView>) -> impl IntoView {
 }
 
 /// スマホの構成比(下線タブ・基準切り替え・ドーナツ・一覧)。
+/// 国内株式と投資信託の両方を区分に入れる
 #[component]
-fn CompositionMobile(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) -> impl IntoView {
+fn CompositionMobile(
+    views: Vec<HoldingView>,
+    funds: Vec<FundView>,
+    dividends: RwSignal<DividendMaps>,
+) -> impl IntoView {
     let group = RwSignal::new(CompositionGroup::Holding);
     let basis = RwSignal::new(CompositionBasis::MarketValue);
     let basis_value = Signal::derive(move || basis.get().value().to_string());
+    let sources = composition_sources(&views, &funds);
     view! {
         <div class="lg:hidden" data-testid="asset-composition-mobile">
             <div
@@ -405,15 +405,20 @@ fn CompositionMobile(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>)
             </div>
             {move || {
                 let current_basis = basis.get();
-                let values = basis_values(&views, current_basis, &dividends.get());
-                let entries = composition_entries(&views, group.get(), &values);
+                let current_group = group.get();
+                let values = basis_values(&views, &funds, current_basis, &dividends.get());
+                let entries = composition_entries(&sources, current_group, &values);
                 let raw: Vec<Option<f64>> = entries
                     .iter()
                     .map(|entry| entry.value)
                     .collect();
                 let (total, percentages) = composition_percentages(&raw);
                 let rows = composition_rows(&entries, &percentages);
-                let holdings_count = views.len();
+                let center = match current_group {
+                    CompositionGroup::Holding => composition_total(entries.len()),
+                    CompositionGroup::Product => composition_kinds(entries.len()),
+                    CompositionGroup::Account => composition_accounts(entries.len()),
+                };
                 view! {
                     <p class="comp-note" data-testid="asset-composition-note">
                         {composition_basis_note(current_basis.label(), &format_amount(total))}
@@ -425,7 +430,7 @@ fn CompositionMobile(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>)
                             .into_any()
                     } else {
                         view! {
-                            <CompositionDonut rows=rows.clone() total_count=holdings_count />
+                            <CompositionDonut rows=rows.clone() center=center />
                             <ul
                                 class="comp-list"
                                 data-testid="asset-composition-mobile-list"
@@ -508,10 +513,9 @@ fn CompositionMobile(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>)
     }
 }
 
-/// ドーナツ。区分の割合を環の長さで出し、中央に全体の件数を出す.
-/// 区分名は弧に沿わせるため、環の外に出ない
+/// ドーナツ。区分の割合を環の長さで出し、中央に件数を出す
 #[component]
-fn CompositionDonut(rows: Vec<CompositionRow>, total_count: usize) -> impl IntoView {
+fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView {
     let mut cursor = 0.0;
     let slices: Vec<(CompositionRow, f64)> = rows
         .into_iter()
@@ -533,23 +537,14 @@ fn CompositionDonut(rows: Vec<CompositionRow>, total_count: usize) -> impl IntoV
                 <circle cx="100" cy="100" r="80" class="comp-donut-track" />
                 {slices
                     .into_iter()
-                    .enumerate()
-                    .filter(|(_, (row, _))| row.percentage > 0.0)
-                    .map(|(index, (row, start))| {
+                    .filter(|(row, _)| row.percentage > 0.0)
+                    .map(|(row, start)| {
                         let slice_class = color_slice_class(row.color);
-                        let label_class = color_label_class(row.color);
-                        let arc_id = format!("comp-arc-{index}");
-                        let (arc_path, _) = composition_slice_arc(start, row.percentage);
                         let testid = if row.is_other {
                             "comp-slice-other"
                         } else {
                             "comp-slice"
                         };
-                        let label = format!(
-                            "{} {}",
-                            donut_display_name(&row.name),
-                            format_fixed_percent(row.percentage, 1),
-                        );
                         view! {
                             <g data-testid=testid>
                                 <circle
@@ -566,38 +561,13 @@ fn CompositionDonut(rows: Vec<CompositionRow>, total_count: usize) -> impl IntoV
                                     transform="rotate(-90 100 100)"
                                     class=slice_class
                                 />
-                                {composition_label_fits(&label, row.percentage)
-                                    .then(|| {
-                                        view! {
-                                            <>
-                                                <path
-                                                    id=arc_id.clone()
-                                                    d=arc_path
-                                                    class="fill-none"
-                                                />
-                                                <text
-                                                    class=format!(
-                                                        "comp-slice-label {label_class}"
-                                                    )
-                                                >
-                                                    <textPath
-                                                        href=format!("#{}", arc_id.clone())
-                                                        startOffset="50%"
-                                                        text-anchor="middle"
-                                                    >
-                                                        {label.clone()}
-                                                    </textPath>
-                                                </text>
-                                            </>
-                                        }
-                                    })}
                             </g>
                         }
                     })
                     .collect_view()}
             </svg>
             <div class="comp-donut-center" aria-hidden="true">
-                {composition_total(total_count)}
+                {center}
             </div>
         </div>
     }
