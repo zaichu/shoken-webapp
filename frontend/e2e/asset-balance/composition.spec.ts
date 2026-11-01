@@ -304,24 +304,45 @@ test.describe('スマホの構成比', () => {
     await expect(other).toContainText('—');
   });
 
-  test('一覧の見出しと上バーから構成比へ進める', async ({ page }) => {
+  test('件数行の右端から構成比へ進め、見出し行は無い', async ({ page }) => {
     await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS);
     await page.goto('/assetbalance');
     await page.getByTestId('asset-kind-tab-stock').click();
 
-    const heading = page.getByTestId('asset-stock-heading');
-    await expect(heading).toContainText('保有銘柄');
-    await expect(heading).toContainText('3件');
-    await heading.getByRole('link', { name: '構成比を見る' }).click();
+    // 『保有銘柄 ◯件』の見出し行は無い
+    await expect(page.getByTestId('asset-stock-heading')).toHaveCount(0);
+    await expect(page.getByText('保有銘柄')).toHaveCount(0);
+
+    // 件数はタブと件数行に出る
+    await expect(page.getByTestId('asset-search-count-mobile')).toContainText(
+      '3件 / 3件',
+    );
+
+    // 入口は件数行の右端にあり、押せる高さを持つ
+    const count = page.getByTestId('asset-search-count-mobile');
+    const entry = page.getByTestId('asset-composition-link');
+    await expect(entry).toBeVisible();
+    await expect(entry).toContainText('構成比を見る');
+    const countBox = await count.boundingBox();
+    const entryBox = await entry.boundingBox();
+    expect(countBox).not.toBeNull();
+    expect(entryBox).not.toBeNull();
+    if (countBox && entryBox) {
+      expect(entryBox.x).toBeGreaterThan(countBox.x);
+      expect(entryBox.y).toBeLessThanOrEqual(countBox.y + countBox.height);
+      expect(entryBox.y + entryBox.height).toBeGreaterThanOrEqual(countBox.y);
+      expect(entryBox.height).toBeGreaterThanOrEqual(44);
+    }
+    await entry.click();
     await expect(page).toHaveURL('/assetbalance/composition');
     await expect(page.getByRole('link', { name: '資産管理に戻る' })).toBeVisible();
-
-    await page.goto('/assetbalance');
-    await page.getByTestId('asset-kind-tab-stock').click();
-    await page.getByRole('link', { name: '構成比を見る' }).first().click();
-    await expect(page).toHaveURL('/assetbalance/composition');
     await page.getByRole('link', { name: '資産管理に戻る' }).click();
     await expect(page).toHaveURL('/assetbalance');
+
+    // 投資信託タブに構成比の入口は無い(対象は国内株式のまま)
+    await page.goto('/assetbalance');
+    await page.getByTestId('asset-kind-tab-fund').click();
+    await expect(page.getByTestId('asset-composition-link')).toHaveCount(0);
   });
 });
 

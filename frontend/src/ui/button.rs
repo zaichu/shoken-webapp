@@ -170,6 +170,7 @@ pub fn LinkButton(
     #[prop(optional)]
     on_click: Option<Callback<()>>,
     #[prop(into, optional)] aria_label: Option<Signal<String>>,
+    #[prop(optional)] testid: Option<&'static str>,
     children: Children,
 ) -> impl IntoView {
     let classes = move || button_classes(variant, &class.get());
@@ -178,6 +179,7 @@ pub fn LinkButton(
             href=href
             class=classes
             aria-label=move || aria_label.as_ref().map(|label| label.get())
+            data-testid=testid
             on:click=move |_| {
                 if let Some(on_click) = on_click {
                     on_click.run(());
