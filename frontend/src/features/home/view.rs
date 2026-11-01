@@ -29,7 +29,7 @@ use crate::ui::labels::{
 use crate::ui::list_row::ListRow;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
-use crate::ui::page_skeleton::{SkeletonNote, SkeletonSummary};
+use crate::ui::page_skeleton::SkeletonSummary;
 use crate::ui::row_detail_sheet::{RowDetailSheet, SheetItem};
 use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
 use crate::ui::summary::{
@@ -207,7 +207,6 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
                 <SkeletonSummary>
                     <SummaryBand data=data />
                 </SkeletonSummary>
-                <SkeletonNote />
             </div>
             <div class="page-gutter flex flex-1 flex-col pb-4">
                 <div class="home-card-row home-card-row-dividend">
