@@ -186,18 +186,32 @@ test('行の日付は欠けずコードは名前の左端にそろう', async ({
   const cardList = page.getByTestId('receipt-card-list');
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card).toBeVisible();
-  // 日付もコードも列からはみ出さない
-  for (const selector of ['.ledger-date', '.ledger-code']) {
-    const clipped = await card.locator(selector).evaluate(
-      (el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
-    );
-    expect(clipped, `${selector}が欠けている`).toBe(false);
-  }
-  // コードは名前の左端にそろい、名前の下にある
-  const nameBox = await card.locator('.ledger-name button').boundingBox();
-  const codeBox = await card.locator('.ledger-code a').boundingBox();
-  expect(Math.abs(codeBox!.x - nameBox!.x), 'コードは名前の左端').toBeLessThanOrEqual(2);
-  expect(codeBox!.y, 'コードは名前の下').toBeGreaterThan(nameBox!.y + nameBox!.height - 1);
+  // 日付は列からはみ出さない(素の文字要素なので枠の計測がそのまま欠けを表す)
+  const dateClipped = await card.locator('.ledger-date').evaluate(
+    (el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
+  );
+  expect(dateClipped, '日付が欠けている').toBe(false);
+  // コードは文字の描画領域で比べる。リンクの枠は44pxの操作域まで広げてあるため、
+  // 枠同士の比較ではタップ領域の張り出しを欠け・ずれと誤判定する
+  const textPos = await card.evaluate((el) => {
+    const rectOf = (target: Element | null) => {
+      const range = document.createRange();
+      range.selectNodeContents(target!);
+      const rect = range.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    };
+    const name = el.querySelector('.ledger-name button span');
+    const code = el.querySelector('.ledger-code a');
+    const link = code as HTMLElement | null;
+    return {
+      name: rectOf(name),
+      code: rectOf(code),
+      codeClipped: link!.scrollWidth > link!.clientWidth + 1,
+    };
+  });
+  expect(textPos.codeClipped, 'コードが欠けている').toBe(false);
+  expect(Math.abs(textPos.code.x - textPos.name.x), 'コードは名前の左端').toBeLessThanOrEqual(2);
+  expect(textPos.code.y, 'コードは名前の下').toBeGreaterThanOrEqual(textPos.name.y + textPos.name.height - 1);
   // コードは補助文字色(日付と同じ色)でリンク色にしない
   const colors = await card.evaluate((el) => {
     const code = el.querySelector<HTMLElement>('.ledger-code a');
