@@ -217,16 +217,9 @@ fn StockContent(
                     key_from_value=|value: &str| SortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
+                    composition=true
                 />
             </SkeletonSearch>
-            <div class="flex items-center justify-between px-4 py-2 lg:hidden">
-                <span class="text-sm font-bold text-text">
-                    {format!("保有銘柄 {}", labels::count(total_count))}
-                </span>
-                <a href="/assetbalance/composition" class="security-details-link">
-                    "構成比を見る ›"
-                </a>
-            </div>
             <div class="asset-list-surface">
                 <div class="hidden lg:block print:block">
                     {move || {

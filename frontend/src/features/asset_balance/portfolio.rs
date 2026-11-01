@@ -1,8 +1,14 @@
 //! 資産管理の構成比一覧と並べ替えの純粋ロジック。
 
-use crate::features::asset_balance::holdings::HoldingDividend;
+use crate::features::asset_balance::fund::FundView;
+use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
 use crate::features::asset_balance::model::{ValuationInput, chart_percentages, holding_valuation};
-use crate::ui::labels::{ACQUISITION_YIELD, ANNUAL_DIVIDEND, MARKET_VALUE, VALUATION_PROFIT_LOSS};
+use crate::ui::badge::account_display_name;
+use crate::ui::labels::{
+    ACQUISITION_YIELD, ANNUAL_DIVIDEND, COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_ACCOUNT,
+    COMPOSITION_GROUP_HOLDING, COMPOSITION_GROUP_PRODUCT, DOMESTIC_STOCK, MARKET_VALUE, MISSING,
+    MUTUAL_FUND, VALUATION_PROFIT_LOSS, composition_other,
+};
 use std::cmp::Ordering;
 
 /// 並べ替えの指標。
@@ -178,3 +184,304 @@ pub fn chart_plan(values: &[f64]) -> ChartPlan {
 
 #[cfg(test)]
 mod tests;
+
+/// 構成比の区分切り替え(銘柄別/商品別/口座別)。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompositionGroup {
+    Holding,
+    Product,
+    Account,
+}
+
+impl CompositionGroup {
+    pub(crate) const ALL: [CompositionGroup; 3] = [
+        CompositionGroup::Holding,
+        CompositionGroup::Product,
+        CompositionGroup::Account,
+    ];
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            CompositionGroup::Holding => COMPOSITION_GROUP_HOLDING,
+            CompositionGroup::Product => COMPOSITION_GROUP_PRODUCT,
+            CompositionGroup::Account => COMPOSITION_GROUP_ACCOUNT,
+        }
+    }
+
+    pub(crate) fn value(self) -> &'static str {
+        match self {
+            CompositionGroup::Holding => "holding",
+            CompositionGroup::Product => "product",
+            CompositionGroup::Account => "account",
+        }
+    }
+}
+
+/// 構成比の基準切り替え(評価額/年間配当)。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompositionBasis {
+    MarketValue,
+    Dividend,
+}
+
+impl CompositionBasis {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            CompositionBasis::MarketValue => MARKET_VALUE,
+            CompositionBasis::Dividend => COMPOSITION_DIVIDEND_BASIS,
+        }
+    }
+
+    pub(crate) fn value(self) -> &'static str {
+        match self {
+            CompositionBasis::MarketValue => "market_value",
+            CompositionBasis::Dividend => "dividend",
+        }
+    }
+}
+
+/// 構成比の商品種別。商品別の区分名になる
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompositionProduct {
+    Stock,
+    Fund,
+}
+
+impl CompositionProduct {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            CompositionProduct::Stock => DOMESTIC_STOCK,
+            CompositionProduct::Fund => MUTUAL_FUND,
+        }
+    }
+}
+
+/// 構成比の入力1行(国内株式・投資信託共通)。`basis` と並べて渡す
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompositionSource {
+    pub name: String,
+    pub sub: String,
+    pub account: Option<String>,
+    pub product: CompositionProduct,
+    pub href: Option<String>,
+}
+
+/// 国内株式と投資信託の保有行を構成比の入力にそろえる。
+/// 投資信託の sub は分配金コース(銘柄名だけでは区別できない行があるため)
+pub fn composition_sources(views: &[HoldingView], funds: &[FundView]) -> Vec<CompositionSource> {
+    views
+        .iter()
+        .map(|view| CompositionSource {
+            name: view.name.clone(),
+            sub: view.code.clone(),
+            account: view.account.clone(),
+            product: CompositionProduct::Stock,
+            href: view
+                .id
+                .as_ref()
+                .map(|id| format!("/assetbalance/holdings/{id}")),
+        })
+        .chain(funds.iter().map(|view| {
+            CompositionSource {
+                name: view.name.clone(),
+                sub: view.course.clone().unwrap_or_default(),
+                account: Some(view.account.clone()),
+                product: CompositionProduct::Fund,
+                href: view
+                    .id
+                    .as_ref()
+                    .map(|id| format!("/assetbalance/funds/{id}")),
+            }
+        }))
+        .collect()
+}
+
+/// 構成比の区分1行。`value` は基準の金額で、算出不可は `None`(一覧の末尾に置く)。
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompositionEntry {
+    pub name: String,
+    pub sub: String,
+    pub value: Option<f64>,
+    pub holdings: usize,
+    pub href: Option<String>,
+}
+
+/// 区分を金額の降順に並べる。算出不可は末尾、同値は入力順を保つ
+fn sort_composition_entries(entries: &mut [CompositionEntry]) {
+    entries.sort_by(|a, b| match (b.value, a.value) {
+        (Some(rhs), Some(lhs)) => rhs.total_cmp(&lhs),
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Less,
+        (Some(_), None) => Ordering::Greater,
+    });
+}
+
+/// 保有行を区分にまとめる。`basis` は各行の基準金額(算出不可は `None`)
+/// で、区分の金額は行の合計(行が全て算出不可なら区分も算出不可)になる。
+/// 基準が0の行は算出不可として扱い、末尾に置く。
+/// 銘柄別は行のまま、商品別は商品種別、口座別は同一口座でまとめる
+pub fn composition_entries(
+    sources: &[CompositionSource],
+    group: CompositionGroup,
+    basis: &[Option<f64>],
+) -> Vec<CompositionEntry> {
+    fn entry_key(source: &CompositionSource, group: CompositionGroup) -> String {
+        match group {
+            CompositionGroup::Holding => String::new(),
+            CompositionGroup::Product => source.product.label().to_string(),
+            CompositionGroup::Account => source.account.clone().unwrap_or_default(),
+        }
+    }
+    let mut entries: Vec<CompositionEntry> = Vec::new();
+    let mut positions: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for (source, value) in sources.iter().zip(basis.iter().copied()) {
+        let value = value.filter(|value| *value != 0.0);
+        let key = entry_key(source, group);
+        let is_new_holding = matches!(group, CompositionGroup::Holding);
+        let position = if is_new_holding {
+            entries.len()
+        } else {
+            match positions.get(&key) {
+                Some(&position) => position,
+                None => {
+                    let position = entries.len();
+                    positions.insert(key.clone(), position);
+                    position
+                }
+            }
+        };
+        if position == entries.len() {
+            entries.push(CompositionEntry {
+                name: match group {
+                    CompositionGroup::Holding => source.name.clone(),
+                    CompositionGroup::Product => source.product.label().to_string(),
+                    CompositionGroup::Account => source
+                        .account
+                        .as_deref()
+                        .map(account_display_name)
+                        .unwrap_or(MISSING)
+                        .to_string(),
+                },
+                sub: match group {
+                    CompositionGroup::Holding => source.sub.clone(),
+                    CompositionGroup::Product | CompositionGroup::Account => String::new(),
+                },
+                value: None,
+                holdings: 0,
+                href: None,
+            });
+        }
+        let entry = &mut entries[position];
+        if entry.holdings == 0 {
+            entry.value = value;
+        } else if let Some(value) = value {
+            entry.value = Some(entry.value.unwrap_or(0.0) + value);
+        }
+        entry.holdings += 1;
+        if entry.holdings == 1 {
+            entry.href = source.href.clone();
+        } else {
+            entry.href = None;
+        }
+    }
+    sort_composition_entries(&mut entries);
+    entries
+}
+
+/// 基準の合計と区分ごとの未丸め構成比。基準が0の区分は `None`、
+/// 合計が0以下なら算出不可(全て `None`)
+pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>) {
+    let raw: Vec<f64> = values.iter().map(|value| value.unwrap_or(0.0)).collect();
+    let total: f64 = raw.iter().map(|value| value.abs()).sum();
+    if total <= 0.0 {
+        return (total, vec![None; values.len()]);
+    }
+    let percentages = chart_percentages(&raw);
+    let percentages = percentages
+        .into_iter()
+        .enumerate()
+        .map(
+            |(index, percentage)| {
+                if raw[index] == 0.0 { None } else { percentage }
+            },
+        )
+        .collect();
+    (total, percentages)
+}
+
+/// ドーナツに個別で出す割合の下限。未満は「その他」にまとめる
+pub const COMPOSITION_MAJOR_THRESHOLD: f64 = 9.0;
+
+/// 区分の色番号。`[0, 2, 4, 1, 3]` を回して隣り合う区分の色が並ばないようにする
+pub fn composition_color(position: usize) -> usize {
+    const ORDER: [usize; 5] = [0, 2, 4, 1, 3];
+    ORDER[position % ORDER.len()]
+}
+
+/// その他の区分の色番号(中立色)。通常の色番号(0〜4)と重ねない
+pub const COMPOSITION_OTHER_COLOR: usize = usize::MAX;
+
+/// 構成比の表示1行。割合は未丸めで、算出不可の行は `computable` が false
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompositionRow {
+    pub name: String,
+    pub sub: String,
+    pub value: Option<f64>,
+    pub percentage: f64,
+    pub computable: bool,
+    pub color: usize,
+    pub holdings: usize,
+    pub href: Option<String>,
+    pub is_other: bool,
+}
+
+/// 区分をドーナツと一覧に出す行に分ける。割合が下限以上の区分は個別に、
+/// それ未満と算出不可は「その他 ◯銘柄」にまとめる。その他自体の色は中立のままにする
+pub fn composition_rows(
+    entries: &[CompositionEntry],
+    percentages: &[Option<f64>],
+) -> Vec<CompositionRow> {
+    let mut rows = Vec::new();
+    let mut other_holdings = 0;
+    let mut other_percentage = 0.0;
+    let mut other_value: Option<f64> = None;
+    let mut other_computable = false;
+    for (entry, percentage) in entries.iter().zip(percentages.iter().copied()) {
+        if percentage.is_some_and(|value| value >= COMPOSITION_MAJOR_THRESHOLD) {
+            rows.push(CompositionRow {
+                name: entry.name.clone(),
+                sub: entry.sub.clone(),
+                value: entry.value,
+                percentage: percentage.unwrap_or(0.0),
+                computable: true,
+                color: composition_color(rows.len()),
+                holdings: entry.holdings,
+                href: entry.href.clone(),
+                is_other: false,
+            });
+            continue;
+        }
+        other_holdings += entry.holdings;
+        if let Some(percentage) = percentage {
+            other_percentage += percentage;
+            other_computable = true;
+        }
+        if let Some(value) = entry.value {
+            other_value = Some(other_value.unwrap_or(0.0) + value);
+        }
+    }
+    if other_holdings > 0 {
+        rows.push(CompositionRow {
+            name: composition_other(other_holdings),
+            sub: String::new(),
+            value: other_value,
+            percentage: other_percentage,
+            computable: other_computable,
+            color: COMPOSITION_OTHER_COLOR,
+            holdings: other_holdings,
+            href: None,
+            is_other: true,
+        });
+    }
+    rows
+}

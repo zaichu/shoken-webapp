@@ -10,7 +10,7 @@ use crate::features::asset_balance::holdings::{HoldingView, stock_daily_change_t
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
 };
-use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
+use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::format::format_percentage_value;
 use crate::ui::labels::{
@@ -23,25 +23,10 @@ use crate::ui::summary::{
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
-/// PC ヘッダー横の件数。取得上限超過で行が欠けるときは API 集計側の件数を使う
-pub(crate) fn list_subtitle(view: &ResolvedAssetBalance) -> String {
-    labels::count(view.total)
-}
-
-pub(crate) fn fund_subtitle(view: &ResolvedFundBalance) -> String {
-    labels::count(view.total)
-}
-
-pub(crate) fn merged_subtitle(
-    stock: Option<&ResolvedAssetBalance>,
-    fund: Option<&ResolvedFundBalance>,
-) -> Option<String> {
-    if stock.is_none() && fund.is_none() {
-        return None;
-    }
-    let count =
-        stock.map(|view| view.total).unwrap_or(0) + fund.map(|view| view.total).unwrap_or(0);
-    Some(labels::count(count))
+/// 投資信託タブの件数。行が取り切れていないときは API 集計の総件数を使い、
+/// 集計欄と食い違わないようにする
+pub(crate) fn fund_tab_count(rows_len: usize, total: usize) -> usize {
+    total.max(rows_len)
 }
 
 /// 見出しの基準日と表の日付出し分けで共通に使う、価格あり行の基準日一覧
