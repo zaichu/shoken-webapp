@@ -71,6 +71,18 @@ pub(crate) fn is_positive_valuation(amount: Option<f64>) -> bool {
     amount.is_some_and(|value| round_to_yen(value) > 0.0)
 }
 
+/// 率の正負判定。率は小数(0.3 や -0.4)が普通なので、円単位に丸める
+/// is_negative_valuation たちでは 0 になる。丸めずに直接比べる。
+pub(crate) fn is_negative_rate(rate: Option<f64>) -> bool {
+    rate.is_some_and(|value| value < 0.0)
+}
+
+/// 率の正負判定。率は小数(0.3 や -0.4)が普通なので、円単位に丸める
+/// is_positive_valuation たちでは 0 になる。丸めずに直接比べる。
+pub(crate) fn is_positive_rate(rate: Option<f64>) -> bool {
+    rate.is_some_and(|value| value > 0.0)
+}
+
 /// 日付群の代表(最も多い日付。同数なら新しい方)。日付の無いものは比較に含めない。
 /// 見出しはこの日付を出し、表の行は違うときだけ日付を足すので、両者で同じ値を使う
 pub(crate) fn price_date_representative<'a>(

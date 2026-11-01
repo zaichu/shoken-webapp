@@ -899,7 +899,7 @@
   }
 
   .receipt-compact-net {
-    @apply shrink-0 font-bold tabular-nums text-positive;
+    @apply shrink-0 font-bold tabular-nums whitespace-nowrap text-right;
   }
 
   .receipt-compact-meta {
@@ -1240,7 +1240,7 @@
   }
 
   .home-dividend-amount {
-    @apply text-right tabular-nums font-bold text-positive;
+    @apply text-right tabular-nums font-bold whitespace-nowrap;
   }
 
   /* 評価損益の一覧。金額の右端と損益率の列を全行でそろえる */
