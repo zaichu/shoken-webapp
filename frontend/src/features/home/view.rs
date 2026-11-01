@@ -905,7 +905,6 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
             <Button
                 variant=ButtonVariant::RowButton
                 testid="home-dividend-button"
-                aria_label=format!("{sheet_title}の詳細")
                 aria_haspopup="dialog"
                 on_click=move |_| sheet_open.set(true)
             >

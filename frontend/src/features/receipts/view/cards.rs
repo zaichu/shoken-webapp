@@ -385,7 +385,6 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
             <Button
                 variant=ButtonVariant::RowButton
                 testid="receipt-row-button"
-                aria_label=format!("{sheet_title}の詳細")
                 aria_haspopup="dialog"
                 on_click=move |_| sheet_open.set(true)
             >
