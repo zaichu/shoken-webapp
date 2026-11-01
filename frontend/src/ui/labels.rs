@@ -194,6 +194,10 @@ pub const DIALOG_CLOSE: &str = "閉じる";
 pub const SORT_TARGET: &str = "並べ替え対象";
 /// 並べ替えの順序の見出し
 pub const SORT_ORDER_LABEL: &str = "順序";
+/// 並べ替えの向き(降順・昇順の選択肢)
+pub const SORT_DESCENDING: &str = "降順";
+/// 並べ替えの向き(降順・昇順の選択肢)
+pub const SORT_ASCENDING: &str = "昇順";
 /// 並べ替えの向き(シートの選択肢)
 pub const SORT_HIGH_TO_LOW: &str = "高い順";
 /// 並べ替えの向き(シートの選択肢)
@@ -438,9 +442,6 @@ pub const ADMIN_LOGIN_EMAIL: &str = "メール";
 pub const ADMIN_LOGIN_SEARCH: &str = "メール・場所";
 pub const ADMIN_LOGIN_EMPTY: &str = "条件に一致するログイン記録はありません";
 pub const ADMIN_FILTER_APPLY: &str = "この条件で絞る";
-pub const PAGE_PREVIOUS: &str = "前へ";
-pub const PAGE_NEXT: &str = "次へ";
-pub const PAGE_NAVIGATION: &str = "ページ送り";
 pub const SORT_BY: &str = "並べ替え";
 /// 税引前の金額の頭に付ける短い表記(行の補助の金額用)
 pub const BEFORE_TAX: &str = "税引前";
@@ -452,10 +453,6 @@ pub const REALIZED_AFTER_TAX: &str = "実現損益(税引後)";
 pub const RECEIPT_SHORT: &str = "受取";
 /// 月見出しの右に出す短い損益表記(国内株式・投資信託タブ。#1634 の指定による例外)
 pub const PROFIT_SHORT: &str = "損益";
-
-pub fn page_number(page: i64) -> String {
-    format!("{page}ページ")
-}
 
 #[cfg(test)]
 mod tests;

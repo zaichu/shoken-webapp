@@ -15,6 +15,7 @@ use crate::ui::search_controls::{
     SearchBox, SearchClearButton, SearchCount, SearchTag, SearchTextInput,
 };
 use crate::ui::search_dialog::SearchDialog;
+use crate::ui::search_entry::MobileSearchEntryShell;
 use crate::ui::select::Select;
 use leptos::prelude::*;
 
@@ -646,7 +647,6 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
     let search = store.search;
     let sort_order = store.sort_order;
     let open = RwSignal::new(false);
-    let entry_ref = NodeRef::<leptos::html::Button>::new();
 
     let display_rows = Memo::new(move |_| match store.tab_state(tab.get()) {
         TabState::Ready(data) => data.rows.clone(),
@@ -666,64 +666,51 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
         format!("{} {order}", receipt_date_label(tab.get()))
     };
 
+    let sort_summary = Signal::derive(sort_summary);
     view! {
-        <div class="no-print lg:hidden" role="search" aria-label="検索">
-            <Button
-                    variant=ButtonVariant::Secondary(ButtonSize::Md)
-                    class="search-sort-entry".to_string()
-                    aria_expanded=Signal::derive(move || open.get())
-                    testid="receipts-search-sheet-entry"
-                    node_ref=entry_ref
-                    on_click=move |_| open.set(true)
-                >
-                    <span class="search-sort-entry-title">
-                        <svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="M20 20l-3.5-3.5"></path>
-                        </svg>
-                        {SEARCH_AND_SORT}
-                    </span>
-                    <span class="search-sort-entry-sub">{sort_summary}</span>
-                </Button>
-                <div class="search-sort-entry-tags">
-                    <ConditionTags search=search has_years=has_years_for_tags />
-                    <ReceiptSearchCount store=store tab=tab />
-                </div>
-                {move || {
-                    open.get()
-                        .then(|| {
-                            let draft = RwSignal::new(search.get_untracked());
-                            let draft_order = RwSignal::new(sort_order.get_untracked());
-                            let do_search = move || {
-                                apply_receipt_sheet_draft(search, &draft.get_untracked());
-                                sort_order.set(draft_order.get_untracked());
-                                open.set(false);
-                            };
-                            let years_flag = has_years();
-                            let do_clear = move || clear_receipt_dialog_draft(draft, years_flag);
-                            view! {
-                                <SearchDialog
-                                    title=SEARCH_AND_SORT.to_string()
-                                    on_close=move || open.set(false)
-                                    on_search=do_search
-                                    on_clear=do_clear
-                                    testid="receipts-search-sheet"
-                                >
-                                    <ReceiptDialogFields
-                                        draft=draft
-                                        draft_order=draft_order
-                                        tab=tab
-                                        years=years
-                                        products=products
-                                        accounts=accounts
-                                        has_years=has_years
-                                        on_search=do_search
-                                    />
-                                </SearchDialog>
-                            }
-                        })
-                }}
-        </div>
+        <MobileSearchEntryShell
+            entry_testid="receipts-search-sheet-entry"
+            search_label="検索".to_string()
+            sort_summary=sort_summary
+            open=open
+        >
+            <ConditionTags search=search has_years=has_years_for_tags />
+            <ReceiptSearchCount store=store tab=tab />
+        </MobileSearchEntryShell>
+        {move || {
+            open.get()
+                .then(|| {
+                    let draft = RwSignal::new(search.get_untracked());
+                    let draft_order = RwSignal::new(sort_order.get_untracked());
+                    let do_search = move || {
+                        apply_receipt_sheet_draft(search, &draft.get_untracked());
+                        sort_order.set(draft_order.get_untracked());
+                        open.set(false);
+                    };
+                    let years_flag = has_years();
+                    let do_clear = move || clear_receipt_dialog_draft(draft, years_flag);
+                    view! {
+                        <SearchDialog
+                            title=SEARCH_AND_SORT.to_string()
+                            on_close=move || open.set(false)
+                            on_search=do_search
+                            on_clear=do_clear
+                            testid="receipts-search-sheet"
+                        >
+                            <ReceiptDialogFields
+                                draft=draft
+                                draft_order=draft_order
+                                tab=tab
+                                years=years
+                                products=products
+                                accounts=accounts
+                                has_years=has_years
+                                on_search=do_search
+                            />
+                        </SearchDialog>
+                    }
+                })
+        }}
     }
 }
 

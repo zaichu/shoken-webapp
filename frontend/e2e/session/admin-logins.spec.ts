@@ -26,7 +26,7 @@ for (const permission of [undefined, false]) {
   });
 }
 
-test('管理者メニューから開き、検索・並べ替え・ページ送りを API に渡す', async ({ page }) => {
+test('管理者メニューから開き、検索・並べ替え・もっと見るを API に渡す', async ({ page }) => {
   await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json({ ...MOCK_USER, is_admin: true })));
   await page.route(/\/api\/v1\/admin\/logins(?:\?.*)?$/, (route) => {
     const params = new URL(route.request().url()).searchParams;
@@ -41,10 +41,10 @@ test('管理者メニューから開き、検索・並べ替え・ページ送�
   const table = page.getByTestId('admin-login-table');
   await expect(table.locator('tbody tr')).toHaveCount(50);
   const pageTwo = page.waitForRequest((request) => request.url().includes('/admin/logins?') && new URL(request.url()).searchParams.get('page') === '2');
-  await page.getByRole('button', { name: '次へ', exact: true }).click();
+  await page.getByTestId('admin-login-more').click();
   await pageTwo;
-  await expect(table.locator('tbody tr')).toHaveCount(14);
-  await expect(page.getByRole('button', { name: '次へ', exact: true })).toBeDisabled();
+  await expect(table.locator('tbody tr')).toHaveCount(64);
+  await expect(page.getByTestId('admin-login-more')).toHaveCount(0);
   const sorted = page.waitForRequest((request) => {
     const url = new URL(request.url());
     return url.pathname.endsWith('/admin/logins') && url.searchParams.get('sort_by') === 'email' && url.searchParams.get('page') === '1';
@@ -56,6 +56,40 @@ test('管理者メニューから開き、検索・並べ替え・ページ送�
   await expect(page.getByTestId('empty-state')).toBeVisible();
   await page.getByRole('button', { name: 'すべてクリア', exact: true }).click();
   await expect(table.locator('tbody tr')).toHaveCount(50);
+});
+
+test('スマホは検索・並べ替えの入口とダイアログを使い、もっと見るで増やす', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route(/\/api\/v1\/session$/, (route) => route.fulfill(json({ ...MOCK_USER, is_admin: true })));
+  await page.route(/\/api\/v1\/admin\/logins(?:\?.*)?$/, (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const number = Number(params.get('page'));
+    const filtered = params.get('q') || params.get('email') || params.get('place');
+    const data = filtered ? [] : entries.slice((number - 1) * 50, number * 50);
+    return route.fulfill(json({ data, page: number, per_page: 50, total: filtered ? 0 : entries.length }));
+  });
+  await page.goto('/admin/logins');
+  const list = page.getByTestId('admin-login-list');
+  await expect(list.locator('li')).toHaveCount(50);
+  await expect(page.getByTestId('admin-login-search-entry')).toBeVisible();
+  await expect(page.getByTestId('admin-login-table')).toBeHidden();
+  const sorted = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname.endsWith('/admin/logins') && url.searchParams.get('sort_by') === 'email' && url.searchParams.get('page') === '1';
+  });
+  await page.getByTestId('admin-login-search-entry').click();
+  const dialog = page.getByTestId('admin-login-search-sheet');
+  await expect(dialog).toBeVisible();
+  await dialog.getByTestId('admin-login-dialog-sort-target').selectOption('email');
+  await dialog.getByTestId('search-dialog-search').click();
+  await sorted;
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId('admin-login-search-count')).toContainText('50件 / 64件');
+  const pageTwo = page.waitForRequest((request) => request.url().includes('/admin/logins?') && new URL(request.url()).searchParams.get('page') === '2');
+  await page.getByTestId('admin-login-more').click();
+  await pageTwo;
+  await expect(list.locator('li')).toHaveCount(64);
+  await expect(page.getByTestId('admin-login-more')).toHaveCount(0);
 });
 
 test('一覧 API が 403 を返したら管理画面と管理者メニューを閉じる', async ({ page }) => {

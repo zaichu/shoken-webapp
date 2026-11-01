@@ -11,10 +11,11 @@ use crate::ui::labels::{
     SORT_BY, SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH, SORT_ORDER_LABEL, SORT_TARGET,
 };
 use crate::ui::search_controls::{
-    AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, ConditionRowEnd,
-    SearchBox, SearchClearButton, SearchCount, SearchTag, SearchTextInput,
+    AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
+    SearchCount, SearchTag, SearchTextInput,
 };
 use crate::ui::search_dialog::SearchDialog;
+use crate::ui::search_entry::{MobileSearchEntryShell, SearchCountAndClear};
 use crate::ui::select::Select;
 use leptos::prelude::*;
 
@@ -228,18 +229,14 @@ pub(crate) fn AssetSearchBar(
                             }
                         })
                     }}
-                    <ConditionRowEnd>
-                        <SearchCount
-                            filtered=move || search_count.get().0
-                            total=move || search_count.get().1
-                            testid="asset-search-count"
-                        />
-                        <SearchClearButton
-                            disabled=move || !has_anything.get()
-                            testid="asset-search-clear"
-                            on_clear=on_clear_all
-                        />
-                    </ConditionRowEnd>
+                    <SearchCountAndClear
+                        filtered=move || search_count.get().0
+                        total=move || search_count.get().1
+                        clear_disabled=move || !has_anything.get()
+                        on_clear=on_clear_all
+                        testid="asset-search-count"
+                        clear_testid="asset-search-clear"
+                    />
                 </AddConditionRow>
             </div>
         </div>
@@ -294,7 +291,6 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
     composition: bool,
 ) -> impl IntoView {
     let open = RwSignal::new(false);
-    let entry_ref = NodeRef::<leptos::html::Button>::new();
     let accounts_tag = Memo::new(move |_| {
         search.with(|s| {
             s.accounts
@@ -313,96 +309,83 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
         format!("{} {order}", key_label(sort_key.get()))
     };
     let sheet_placeholder = placeholder.clone();
+    let sort_summary = Signal::derive(sort_summary);
     view! {
-        <div class="no-print lg:hidden" role="search" aria-label="資産の検索">
-            <Button
-                variant=ButtonVariant::Secondary(ButtonSize::Md)
-                class="search-sort-entry".to_string()
-                aria_expanded=Signal::derive(move || open.get())
-                testid="asset-search-sheet-entry"
-                node_ref=entry_ref
-                on_click=move |_| open.set(true)
-            >
-                <span class="search-sort-entry-title">
-                    <svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="7"></circle>
-                        <path d="M20 20l-3.5-3.5"></path>
-                    </svg>
-                    {SEARCH_AND_SORT}
-                </span>
-                <span class="search-sort-entry-sub">{sort_summary}</span>
-            </Button>
-            <div class="search-sort-entry-tags">
-                <SearchTag
-                    label=ACCOUNT
-                    value=accounts_tag
-                    on_clear=move || search.update(|s| s.accounts.clear())
-                />
-                <SearchTag
-                    label=DISTRIBUTION_COURSE
-                    value=courses_tag
-                    on_clear=move || search.update(|s| s.courses.clear())
-                />
-                <SearchCount
-                    filtered=move || search_count.get().0
-                    total=move || search_count.get().1
-                    testid="asset-search-count-mobile"
-                />
-                {composition.then(|| {
+        <MobileSearchEntryShell
+            entry_testid="asset-search-sheet-entry"
+            search_label="資産の検索".to_string()
+            sort_summary=sort_summary
+            open=open
+        >
+            <SearchTag
+                label=ACCOUNT
+                value=accounts_tag
+                on_clear=move || search.update(|s| s.accounts.clear())
+            />
+            <SearchTag
+                label=DISTRIBUTION_COURSE
+                value=courses_tag
+                on_clear=move || search.update(|s| s.courses.clear())
+            />
+            <SearchCount
+                filtered=move || search_count.get().0
+                total=move || search_count.get().1
+                testid="asset-search-count-mobile"
+            />
+            {composition.then(|| {
+                view! {
+                    <span class="ml-auto">
+                        <LinkButton
+                            variant=ButtonVariant::SearchClear
+                            href="/assetbalance/composition"
+                            testid="asset-composition-link"
+                        >
+                            {COMPOSITION_VIEW_LINK}
+                        </LinkButton>
+                    </span>
+                }
+            })}
+        </MobileSearchEntryShell>
+        {move || {
+            let sheet_text = sheet_placeholder.clone();
+            open.get()
+                .then(|| {
+                    let draft = RwSignal::new(search.get_untracked());
+                    let draft_key = RwSignal::new(sort_key.get_untracked());
+                    let draft_order = RwSignal::new(sort_order.get_untracked());
+                    let do_search = move || {
+                        apply_asset_sheet_draft(search, &draft.get_untracked());
+                        sort_key.set(draft_key.get_untracked());
+                        sort_order.set(draft_order.get_untracked());
+                        open.set(false);
+                    };
+                    let do_clear = move || clear_asset_dialog_draft(draft);
                     view! {
-                        <span class="ml-auto">
-                            <LinkButton
-                                variant=ButtonVariant::SearchClear
-                                href="/assetbalance/composition"
-                                testid="asset-composition-link"
-                            >
-                                {COMPOSITION_VIEW_LINK}
-                            </LinkButton>
-                        </span>
-                    }
-                })}
-            </div>
-            {move || {
-                let sheet_text = sheet_placeholder.clone();
-                open.get()
-                    .then(|| {
-                        let draft = RwSignal::new(search.get_untracked());
-                        let draft_key = RwSignal::new(sort_key.get_untracked());
-                        let draft_order = RwSignal::new(sort_order.get_untracked());
-                        let do_search = move || {
-                            apply_asset_sheet_draft(search, &draft.get_untracked());
-                            sort_key.set(draft_key.get_untracked());
-                            sort_order.set(draft_order.get_untracked());
-                            open.set(false);
-                        };
-                        let do_clear = move || clear_asset_dialog_draft(draft);
-                        view! {
-                            <SearchDialog
-                                title=SEARCH_AND_SORT.to_string()
-                                on_close=move || open.set(false)
+                        <SearchDialog
+                            title=SEARCH_AND_SORT.to_string()
+                            on_close=move || open.set(false)
+                            on_search=do_search
+                            on_clear=do_clear
+                            testid="asset-search-sheet"
+                        >
+                            <AssetDialogFields
+                                draft=draft
+                                draft_key=draft_key
+                                draft_order=draft_order
+                                sort_options=sort_options
+                                key_label=key_label
+                                key_value=key_value
+                                key_from_value=key_from_value
+                                conditions=conditions
+                                account_options=account_options
+                                course_options=course_options
+                                placeholder=sheet_text.clone()
                                 on_search=do_search
-                                on_clear=do_clear
-                                testid="asset-search-sheet"
-                            >
-                                <AssetDialogFields
-                                    draft=draft
-                                    draft_key=draft_key
-                                    draft_order=draft_order
-                                    sort_options=sort_options
-                                    key_label=key_label
-                                    key_value=key_value
-                                    key_from_value=key_from_value
-                                    conditions=conditions
-                                    account_options=account_options
-                                    course_options=course_options
-                                    placeholder=sheet_text.clone()
-                                    on_search=do_search
-                                />
-                            </SearchDialog>
-                        }
-                    })
-            }}
-        </div>
+                            />
+                        </SearchDialog>
+                    }
+                })
+        }}
     }
 }
 
