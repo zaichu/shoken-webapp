@@ -216,20 +216,9 @@ fn StockContent(
                     key_from_value=|value: &str| SortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
+                    composition=true
                 />
             </SkeletonSearch>
-            <div
-                class="asset-list-heading lg:hidden"
-                data-testid="asset-stock-heading"
-                hidden=empty
-            >
-                <h2 class="asset-list-title">
-                    {format!("{} {}", labels::STOCK_HOLDINGS_TITLE, labels::count(total_count))}
-                </h2>
-                <a class="asset-list-comp-link" href="/assetbalance/composition">
-                    {labels::COMPOSITION_VIEW_LINK}
-                </a>
-            </div>
             <div class="asset-list-surface">
                 <div class="hidden lg:block print:block">
                     {move || {

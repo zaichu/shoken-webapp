@@ -5,10 +5,10 @@ use crate::features::asset_balance::fund::AssetSearch;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
-use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::labels::{
-    ACCOUNT, DISTRIBUTION_COURSE, SEARCH_AND_SORT, SEARCH_DIALOG_HINT, SORT_BY, SORT_HIGH_TO_LOW,
-    SORT_LOW_TO_HIGH, SORT_ORDER_LABEL, SORT_TARGET,
+    ACCOUNT, COMPOSITION_VIEW_LINK, DISTRIBUTION_COURSE, SEARCH_AND_SORT, SEARCH_DIALOG_HINT,
+    SORT_BY, SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH, SORT_ORDER_LABEL, SORT_TARGET,
 };
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, ConditionRowEnd,
@@ -289,6 +289,9 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
     key_from_value: fn(&str) -> Option<K>,
     sort_key: RwSignal<K>,
     sort_order: RwSignal<SortOrder>,
+    /// true のとき件数の行の右端に構成比への入口を出す(国内株式タブだけ)
+    #[prop(optional)]
+    composition: bool,
 ) -> impl IntoView {
     let open = RwSignal::new(false);
     let entry_ref = NodeRef::<leptos::html::Button>::new();
@@ -345,6 +348,19 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                     total=move || search_count.get().1
                     testid="asset-search-count-mobile"
                 />
+                {composition.then(|| {
+                    view! {
+                        <span class="ml-auto">
+                            <LinkButton
+                                variant=ButtonVariant::SearchClear
+                                href="/assetbalance/composition"
+                                testid="asset-composition-link"
+                            >
+                                {COMPOSITION_VIEW_LINK}
+                            </LinkButton>
+                        </span>
+                    }
+                })}
             </div>
             {move || {
                 let sheet_text = sheet_placeholder.clone();

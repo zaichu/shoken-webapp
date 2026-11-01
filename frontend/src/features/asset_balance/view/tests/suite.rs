@@ -754,7 +754,7 @@ fn composition_basis_matches_abs_sum_percentages() {
 }
 
 #[test]
-fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
+fn stock_note_keeps_price_details_for_rows_outside_loaded_rows() {
     let owner = Owner::new();
     owner.with(|| {
         // 読み込み済み行は価格あり1件だけだが、API 集計は価格なし行を含む
@@ -772,16 +772,6 @@ fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
             }),
             summary: None,
         };
-        let subtitle = super::summary::list_subtitle(&resolved);
-        assert!(
-            subtitle.contains("150000"),
-            "件数は読み込み済み行数ではなく API の総件数: {subtitle}"
-        );
-        assert!(
-            !subtitle.contains("時点"),
-            "基準日はタイトルに出さない: {subtitle}"
-        );
-
         let note = super::summary::stock_note(&resolved);
         assert!(
             note.contains("価格なし銘柄"),
@@ -798,9 +788,6 @@ fn list_subtitle_shows_only_the_count_and_the_note_keeps_price_details() {
             fallback_totals: None,
             summary: None,
         };
-        let subtitle = super::summary::list_subtitle(&resolved);
-        assert!(subtitle.contains("2"), "{subtitle}");
-        assert!(!subtitle.contains("時点"), "{subtitle}");
         let note = super::summary::stock_note(&resolved);
         assert!(note.contains("価格なし銘柄"), "{note}");
         // 価格あり行の基準日を MM/DD にして出す
@@ -1216,87 +1203,9 @@ fn fund_nav_note_shows_three_states_differently() {
 }
 
 #[test]
-fn fund_subtitle_shows_only_the_count() {
-    let resolved = ResolvedFundBalance {
-        rows: vec![
-            fund_saved_row("A", "api", true, Some(100), "2026-10-17"),
-            fund_saved_row("B", "csv", false, Some(50), "2026-10-10"),
-            fund_saved_row("C", "api", true, None, "2026-10-17"),
-        ],
-        total: 3,
-        warning: None,
-        fallback_totals: None,
-        summary: None,
-    };
-    let subtitle = super::summary::fund_subtitle(&resolved);
-    assert!(subtitle.contains("3件"), "{subtitle}");
-    // 前日比の集計はタイトルに出さない(列の見出しと帯の注記に寄せる)
-    assert!(!subtitle.contains("前日比"), "{subtitle}");
-    assert!(!subtitle.contains("更新待ち"), "{subtitle}");
-
-    // 行が取り切れていないときは API 集計の件数を使う
-    let truncated = ResolvedFundBalance {
-        rows: resolved.rows.clone(),
-        total: 9,
-        warning: None,
-        fallback_totals: Some(crate::api::dto::FundBalanceSummary {
-            total_market_value: rust_decimal::Decimal::from(1),
-            total_purchase_amount: rust_decimal::Decimal::from(1),
-            total_daily_change: rust_decimal::Decimal::from(1),
-            latest_nav_count: 5,
-            pending_nav_count: 4,
-            nav_status: shared::domain::FundNavStatus::default(),
-        }),
-        summary: None,
-    };
-    let subtitle = super::summary::fund_subtitle(&truncated);
-    assert!(subtitle.contains("9件"), "{subtitle}");
-    assert!(!subtitle.contains("前日比"), "{subtitle}");
-
-    // すべて最新でもタイトルは件数だけ
-    let all_latest = ResolvedFundBalance {
-        rows: vec![fund_saved_row("A", "api", true, Some(100), "2026-10-17")],
-        total: 1,
-        warning: None,
-        fallback_totals: None,
-        summary: None,
-    };
-    let subtitle = super::summary::fund_subtitle(&all_latest);
-    assert!(subtitle.contains("1件"), "{subtitle}");
-    assert!(!subtitle.contains("前日比"), "{subtitle}");
-}
-
-#[test]
-fn merged_subtitle_shows_only_the_count() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let mut stock_row = balance_row(9904);
-        stock_row.prev_close = None;
-        let stock = ResolvedAssetBalance {
-            rows: vec![Row::Saved(stock_row)],
-            total: 1,
-            warning: None,
-            fallback_totals: None,
-            summary: None,
-        };
-        let fund = ResolvedFundBalance {
-            rows: vec![
-                fund_saved_row("A", "api", true, Some(100), "2026-10-17"),
-                fund_saved_row("B", "csv", false, Some(50), "2026-10-10"),
-            ],
-            total: 2,
-            warning: None,
-            fallback_totals: None,
-            summary: None,
-        };
-        let subtitle =
-            super::summary::merged_subtitle(Some(&stock), Some(&fund)).expect("subtitle");
-        assert!(subtitle.contains("3"), "{subtitle}");
-        // 株の基準日は帯の直下の注記に出す
-        assert!(!subtitle.contains("時点"), "{subtitle}");
-        assert!(super::summary::stock_note(&stock).contains("01/16"));
-        // 前日比の集計も注記もタイトルに出さない
-        assert!(!subtitle.contains("前日比"), "{subtitle}");
-        assert!(!subtitle.contains("更新待ち"), "{subtitle}");
-    });
+fn fund_tab_count_prefers_api_total_when_truncated() {
+    // 行が取り切れていないときは API 集計の総件数をタブに出す
+    assert_eq!(super::summary::fund_tab_count(3, 9), 9);
+    assert_eq!(super::summary::fund_tab_count(3, 3), 3);
+    assert_eq!(super::summary::fund_tab_count(1, 1), 1);
 }
