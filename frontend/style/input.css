@@ -1697,14 +1697,6 @@
     @apply border-b border-border;
   }
 
-  .asset-compact-link {
-    @apply block px-4 py-2 no-underline;
-  }
-
-  .asset-compact-link:active {
-    @apply bg-surface-sunken;
-  }
-
   /* 資産管理・取引明細・ホームの配当入金で共通の2行の行。
      1行目=名前(左、折り返して全文)・主役の金額(右、折り返さない・桁そろえ)。
      2行目=左に小さく補助色で日付・コード・口座など、右に補助の金額。
@@ -1753,28 +1745,6 @@
 
   .receipt-compact-button:focus-visible {
     @apply outline-2 -outline-offset-2 outline-ink;
-  }
-
-  /* 行の詳細シートの中身。取っ手・×・タイトルは BottomSheet が持ち、
-     ここでは副題(コード・日付)、主役の金額、縦リストだけを出す */
-  .receipt-detail-sub {
-    @apply text-xs text-text-muted;
-  }
-
-  .receipt-detail-hero {
-    @apply flex flex-col gap-1 rounded-lg bg-surface-sunken px-3 py-2.5;
-  }
-
-  .receipt-detail-hero-label {
-    @apply text-xs font-medium text-text-muted;
-  }
-
-  .receipt-detail-hero-value {
-    @apply text-xl font-bold tabular-nums text-text-deep;
-  }
-
-  .receipt-detail-list {
-    @apply flex flex-col gap-2;
   }
 
   .asset-comp-link {
