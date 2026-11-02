@@ -1275,6 +1275,23 @@ fn summary_breakdown_labels_show_tax_basis() {
 }
 
 #[test]
+fn summary_band_pc_and_mobile_share_tax_basis_labels() {
+    for tab in ReceiptsTab::ALL {
+        let items: Vec<(&str, bool)> = tab.header_items().into_iter().collect();
+        let pc: Vec<&str> = items[..2]
+            .iter()
+            .map(|(label, _)| breakdown_label(label))
+            .collect();
+        match tab {
+            ReceiptsTab::Dividend => assert_eq!(pc, [DIVIDEND_BEFORE_TAX, TAX]),
+            ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => {
+                assert_eq!(pc, [REALIZED_BEFORE_TAX, TAX])
+            }
+        }
+    }
+}
+
+#[test]
 fn band_breakdown_signs_match_detail_dialog() {
     use crate::ui::summary::SummaryTone;
     let (text, negative, positive, tone) = band_value(DIVIDEND_AMOUNT, dec!(2000));
