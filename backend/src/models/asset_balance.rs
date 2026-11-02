@@ -180,7 +180,7 @@ mod tests {
 
     fn base() -> CreateAssetBalanceRequest {
         CreateAssetBalanceRequest {
-            security_code: "1234".parse().expect("valid code"),
+            security_code: "9931".parse().expect("valid code"),
             security_name: "テスト株式会社".to_string(),
             account: None,
             shares: dec!(100),

@@ -381,7 +381,7 @@ mod tests {
             (5, 5, true)
         );
         let last = &preview.rows[4];
-        assert_eq!(last.security_code.as_str(), "1234");
+        assert_eq!(last.security_code.as_str(), "9931");
         // 税額は 外国税額500 + 国内税額2,031
         assert_eq!(last.taxes, rust_decimal_macros::dec!(2531));
         assert_eq!(last.net_amount_received, rust_decimal_macros::dec!(7469));

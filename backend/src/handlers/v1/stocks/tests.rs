@@ -23,7 +23,7 @@ async fn setup_test_db() -> (crate::db::Db, impl Drop) {
         r#"INSERT INTO stock (date, code, name, market_category, industry_category_33, industry_category_17, size_category) VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
         vec![
             crate::db::Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
-            crate::db::Bind::from("1234"),
+            crate::db::Bind::from("9931"),
             crate::db::Bind::from("テスト株式会社"),
             crate::db::Bind::from("プライム"),
             crate::db::Bind::from(Some("情報・通信業".to_string())),
@@ -89,13 +89,13 @@ async fn test_search_stock() {
     let (pool, _node) = setup_test_db().await;
     let app = setup_test_app(&pool);
 
-    let response = call(app.clone(), "GET", "/api/v1/stocks?query=1234", None).await;
+    let response = call(app.clone(), "GET", "/api/v1/stocks?query=9931", None).await;
     assert_eq!(response.status(), StatusCode::OK);
 
     let stock = read_json(response).await;
     assert_eq!(
         (stock["code"].as_str(), stock["name"].as_str()),
-        (Some("1234"), Some("テスト株式会社"))
+        (Some("9931"), Some("テスト株式会社"))
     );
 
     for (uri, expected_status) in [

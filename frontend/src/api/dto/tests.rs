@@ -271,8 +271,8 @@ fn decimal_precision_without_user_id() {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "trade_date": "2024-01-15",
                 "settlement_date": "2024-01-17",
-                "security_code": "1301",
-                "security_name": "極洋",
+                "security_code": "9931",
+                "security_name": "架空水産",
                 "account": "特定",
                 "shares": 100,
                 "asked_price": 1500.5,
@@ -318,7 +318,7 @@ fn optional_summary_and_facets() {
             "per_page": 200,
             "facets": {
                 "accounts": [{"value": "特定", "label": "特定", "count": 3}],
-                "securities": [{"value": "1301", "label": "極洋"}],
+                "securities": [{"value": "9931", "label": "架空水産"}],
                 "years": null
             }
         }"#,

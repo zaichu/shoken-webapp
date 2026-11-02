@@ -118,7 +118,7 @@ async fn db_integration_with_docker_and_migrations() {
         "#,
         vec![
             Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
-            Bind::from("1234"),
+            Bind::from("9931"),
             Bind::from("テスト株式会社"),
             Bind::from("プライム"),
             Bind::from(Some("情報・通信業".to_string())),
@@ -166,7 +166,7 @@ async fn db_integration_with_docker_and_migrations() {
 
     let req = Request::builder()
         .method(Method::GET)
-        .uri("/api/v1/stocks?query=1234")
+        .uri("/api/v1/stocks?query=9931")
         .body(Body::empty())
         .unwrap();
     let resp = app.clone().oneshot(req).await.unwrap();
@@ -174,7 +174,7 @@ async fn db_integration_with_docker_and_migrations() {
 
     let body = to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
     let stock: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(stock["code"], "1234");
+    assert_eq!(stock["code"], "9931");
 
     let req = Request::builder()
         .method(Method::OPTIONS)
@@ -212,8 +212,8 @@ async fn stock_master_replace_master_swaps_all_rows() {
     let rows = vec![
         stock_master::StockRow {
             date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
-            code: "1301".to_string(),
-            name: "極洋".to_string(),
+            code: "9931".to_string(),
+            name: "架空水産".to_string(),
             market_category: "プライム".to_string(),
             industry_category_33: Some("水産・農林業".to_string()),
             industry_category_17: Some("食品".to_string()),
@@ -243,12 +243,12 @@ async fn stock_master_replace_master_swaps_all_rows() {
 
     let name = db::query_scalar::<String>(
         "SELECT name::text FROM stock WHERE code = $1",
-        vec![Bind::from("1301")],
+        vec![Bind::from("9931")],
     )
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(name, "極洋");
+    assert_eq!(name, "架空水産");
     assert!(
         db::query_scalar::<i64>("SELECT COUNT(*) FROM stock WHERE code = '9990'", vec![])
             .fetch_one(&pool)
@@ -263,7 +263,7 @@ async fn stock_master_replace_master_swaps_all_rows() {
         "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
         vec![
             Bind::from(NaiveDate::from_ymd_opt(2026, 10, 16).unwrap()),
-            Bind::from("1301"),
+            Bind::from("9931"),
             Bind::from("重複銘柄"),
             Bind::from("プライム"),
         ],
@@ -277,8 +277,8 @@ async fn stock_master_replace_master_swaps_all_rows() {
 async fn seed_stock_row(pool: &Db) {
     let rows = vec![stock_master::StockRow {
         date: Utc::now().date_naive() - chrono::Duration::days(3),
-        code: "1301".to_string(),
-        name: "極洋".to_string(),
+        code: "9931".to_string(),
+        name: "架空水産".to_string(),
         market_category: "プライム".to_string(),
         industry_category_33: None,
         industry_category_17: None,
@@ -664,7 +664,7 @@ async fn service_coverage_all_domains() {
     assert_eq!(dividend_empty.inserted, 0);
     assert_eq!(dividend_empty.skipped, 0);
 
-    let dividend_items = vec![make_dividend_item("1001"), make_dividend_item("1002")];
+    let dividend_items = vec![make_dividend_item("9931"), make_dividend_item("9932")];
     let dividend_created =
         dividend_svc::bulk_create(&pool, user_id, &dividend_items, RowLimit::new(i64::MAX))
             .await
@@ -733,8 +733,8 @@ async fn service_coverage_all_domains() {
     assert_eq!(domestic_stock_empty.skipped, 0);
 
     let domestic_stock_items = vec![
-        make_domestic_stock_item("3001"),
-        make_domestic_stock_item("3002"),
+        make_domestic_stock_item("9935"),
+        make_domestic_stock_item("9936"),
     ];
     let domestic_stock_created = domestic_stock_svc::bulk_create(
         &pool,
@@ -807,7 +807,7 @@ async fn service_coverage_all_domains() {
     assert_eq!(asset_balance_empty.inserted, 0);
     assert_eq!(asset_balance_empty.skipped, 0);
 
-    let asset_balance_items = vec![make_asset_item("1301"), make_asset_item("9901")];
+    let asset_balance_items = vec![make_asset_item("9931"), make_asset_item("9901")];
     let asset_balance_created = asset_balance_svc::bulk_create(
         &pool,
         user_id,
@@ -880,16 +880,16 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
     let user_id = create_test_user(&pool).await;
 
     // 1回目: 2銘柄を登録
-    let items_a = vec![make_asset_item("1001"), make_asset_item("1002")];
+    let items_a = vec![make_asset_item("9931"), make_asset_item("9932")];
     asset_balance_svc::bulk_create(&pool, user_id, &items_a, RowLimit::new(i64::MAX))
         .await
         .expect("1回目 bulk_create 失敗");
 
     // 2回目: 3銘柄を登録（スナップショット置き換えなので合計3件になるはず）
     let items_b = vec![
-        make_asset_item("2001"),
-        make_asset_item("2002"),
-        make_asset_item("2003"),
+        make_asset_item("9941"),
+        make_asset_item("9942"),
+        make_asset_item("9943"),
     ];
     asset_balance_svc::bulk_create(&pool, user_id, &items_b, RowLimit::new(i64::MAX))
         .await
@@ -910,10 +910,10 @@ async fn asset_balance_bulk_create_replaces_previous_snapshot() {
         rows.len()
     );
     let codes: Vec<&str> = rows.iter().map(|r| r.security_code.as_str()).collect();
-    assert!(codes.contains(&"2001"), "2001 が存在しない");
-    assert!(codes.contains(&"2002"), "2002 が存在しない");
-    assert!(codes.contains(&"2003"), "2003 が存在しない");
-    assert!(!codes.contains(&"1001"), "1001 が残存している（削除漏れ）");
+    assert!(codes.contains(&"9941"), "9941 が存在しない");
+    assert!(codes.contains(&"9942"), "9942 が存在しない");
+    assert!(codes.contains(&"9943"), "9943 が存在しない");
+    assert!(!codes.contains(&"9931"), "9931 が残存している（削除漏れ）");
 }
 
 #[tokio::test]
@@ -960,13 +960,13 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
     asset_balance_svc::bulk_create(
         &pool,
         user_id,
-        &[make_asset_item("1301")],
+        &[make_asset_item("9931")],
         RowLimit::new(i64::MAX),
     )
     .await
     .expect("bulk_create 失敗");
 
-    let code: SecurityCode = "1301".parse().unwrap();
+    let code: SecurityCode = "9931".parse().unwrap();
 
     // 取込直後は基準日が未確定(NULL)なので、最初の取得値がそのまま入る
     let first = ClosePrice {
@@ -1233,9 +1233,9 @@ async fn dividend_bulk_create_and_list() {
     let user_id = create_test_user(&pool).await;
 
     let items = vec![
-        make_dividend_item("1001"),
-        make_dividend_item("1002"),
-        make_dividend_item("1003"),
+        make_dividend_item("9931"),
+        make_dividend_item("9932"),
+        make_dividend_item("9933"),
     ];
     let created = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
@@ -1321,7 +1321,7 @@ async fn dividend_bulk_create_and_list() {
 async fn dividend_bulk_create_skips_duplicates() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let items = vec![make_dividend_item("2001")];
+    let items = vec![make_dividend_item("9934")];
 
     let first = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
@@ -1421,9 +1421,9 @@ async fn domestic_stock_bulk_create_and_list() {
     let user_id = create_test_user(&pool).await;
 
     let items = vec![
-        make_domestic_stock_item("3001"),
-        make_domestic_stock_item("3002"),
-        make_domestic_stock_item("3003"),
+        make_domestic_stock_item("9935"),
+        make_domestic_stock_item("9936"),
+        make_domestic_stock_item("9937"),
     ];
     let created = domestic_stock_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
@@ -1462,7 +1462,7 @@ async fn domestic_stock_bulk_create_and_list() {
 async fn domestic_stock_bulk_create_skips_duplicates() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let items = vec![make_domestic_stock_item("4001")];
+    let items = vec![make_domestic_stock_item("9938")];
 
     let first = domestic_stock_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
         .await
@@ -1984,13 +1984,13 @@ async fn search_facets_group_by_domain_fields() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
 
-    let mut older = make_dividend_item("4001");
+    let mut older = make_dividend_item("9938");
     older.security_name = "旧社名".to_string();
     older.settlement_date = NaiveDate::from_ymd_opt(2024, 3, 25).unwrap();
-    let mut newer = make_dividend_item("4001");
+    let mut newer = make_dividend_item("9938");
     newer.security_name = "新社名".to_string();
     newer.settlement_date = NaiveDate::from_ymd_opt(2024, 6, 10).unwrap();
-    let mut other = make_dividend_item("4002");
+    let mut other = make_dividend_item("9939");
     other.product = "投資信託".to_string();
     other.account = "NISA".parse().unwrap();
     other.settlement_date = NaiveDate::from_ymd_opt(2023, 1, 10).unwrap();
@@ -2030,10 +2030,10 @@ async fn search_facets_group_by_domain_fields() {
     );
     let securities = facets.securities.expect("securities");
     assert_eq!(securities.len(), 2);
-    assert_eq!(securities[0].value, "4001");
+    assert_eq!(securities[0].value, "9938");
     assert_eq!(securities[0].label, "新社名");
     assert_eq!(securities[0].count, Some(2));
-    assert_eq!(securities[1].value, "4002");
+    assert_eq!(securities[1].value, "9939");
     assert_eq!(securities[1].count, Some(1));
     assert_eq!(
         facets
@@ -2054,10 +2054,10 @@ async fn search_facets_group_by_domain_fields() {
         vec!["2024-06", "2024-03", "2023-01"]
     );
 
-    let mut ds_older = make_domestic_stock_item("3001");
+    let mut ds_older = make_domestic_stock_item("9935");
     ds_older.account = "NISA".parse().unwrap();
     ds_older.trade_date = NaiveDate::from_ymd_opt(2023, 5, 15).unwrap();
-    let ds_newer = make_domestic_stock_item("3002");
+    let ds_newer = make_domestic_stock_item("9936");
     domestic_stock_svc::bulk_create(
         &pool,
         user_id,
@@ -2090,7 +2090,7 @@ async fn search_facets_group_by_domain_fields() {
             .iter()
             .map(|f| f.value.as_str())
             .collect::<Vec<_>>(),
-        vec!["3001", "3002"]
+        vec!["9935", "9936"]
     );
     assert_eq!(
         facets
@@ -2151,7 +2151,7 @@ async fn search_facets_group_by_domain_fields() {
         vec!["2024", "2023"]
     );
 
-    let asset_items = vec![make_asset_item("1301"), make_asset_item("9901")];
+    let asset_items = vec![make_asset_item("9931"), make_asset_item("9901")];
     asset_balance_svc::bulk_create(&pool, user_id, &asset_items, RowLimit::new(i64::MAX))
         .await
         .expect("asset_balance bulk_create");
@@ -2169,7 +2169,7 @@ async fn search_facets_group_by_domain_fields() {
             .iter()
             .map(|f| (f.value.as_str(), f.count))
             .collect::<Vec<_>>(),
-        vec![("1301", Some(1)), ("9901", Some(1))]
+        vec![("9931", Some(1)), ("9901", Some(1))]
     );
     assert!(facets.products.is_none());
     assert!(facets.accounts.is_none());
@@ -2192,17 +2192,17 @@ async fn dividend_cache_persistence_and_rate_slot() {
 
     dividend_cache::persistence::update_cache_error(
         &pool,
-        &"1234".parse::<SecurityCode>().unwrap(),
+        &"9931".parse::<SecurityCode>().unwrap(),
         "fetch failed",
         0,
     )
     .await
     .expect("エラー記録");
-    let items = dividend_cache::get_batch(&pool, None, &["1234".parse().unwrap()])
+    let items = dividend_cache::get_batch(&pool, None, &["9931".parse().unwrap()])
         .await
         .unwrap();
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].security_code.as_str(), "1234");
+    assert_eq!(items[0].security_code.as_str(), "9931");
     assert_eq!(items[0].status, DividendCacheStatus::Error);
     assert_eq!(items[0].dividend_per_share, None);
     assert!(
@@ -2212,13 +2212,13 @@ async fn dividend_cache_persistence_and_rate_slot() {
 
     dividend_cache::persistence::update_cache_error(
         &pool,
-        &"5678".parse::<SecurityCode>().unwrap(),
+        &"9932".parse::<SecurityCode>().unwrap(),
         "429",
         3600,
     )
     .await
     .expect("cooldown 付きエラー記録");
-    let items = dividend_cache::get_batch(&pool, None, &["5678".parse().unwrap()])
+    let items = dividend_cache::get_batch(&pool, None, &["9932".parse().unwrap()])
         .await
         .unwrap();
     assert_eq!(items[0].status, DividendCacheStatus::Error);
@@ -2227,18 +2227,18 @@ async fn dividend_cache_persistence_and_rate_slot() {
     // 既存行への upsert: stale_at が cooldown で未来に更新される
     dividend_cache::persistence::update_cache_error(
         &pool,
-        &"1234".parse::<SecurityCode>().unwrap(),
+        &"9931".parse::<SecurityCode>().unwrap(),
         "429",
         3600,
     )
     .await
     .expect("既存行の上書き");
-    let items = dividend_cache::get_batch(&pool, None, &["1234".parse().unwrap()])
+    let items = dividend_cache::get_batch(&pool, None, &["9931".parse().unwrap()])
         .await
         .unwrap();
     assert!(!items[0].is_stale);
     let row: (String,) = db::query_as(
-        "SELECT error_message FROM dividend_per_share_cache WHERE security_code = '1234'",
+        "SELECT error_message FROM dividend_per_share_cache WHERE security_code = '9931'",
         vec![],
     )
     .fetch_one(&pool)
@@ -2365,7 +2365,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
     const LIMIT: RowLimit = RowLimit::new(3);
 
     // 追記型(dividends): 既存行数 + 追加分が上限を超えると拒否
-    let items = vec![make_dividend_item("1001"), make_dividend_item("1002")];
+    let items = vec![make_dividend_item("9931"), make_dividend_item("9932")];
     dividend_svc::bulk_create(&pool, user_id, &items, LIMIT)
         .await
         .expect("初回 bulk_create は成功");
@@ -2385,7 +2385,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
     );
 
     let domestic_items = vec![
-        make_domestic_stock_item("6501"),
+        make_domestic_stock_item("9940"),
         make_domestic_stock_item("9914"),
     ];
     domestic_stock_svc::bulk_create(&pool, user_id, &domestic_items, LIMIT)
@@ -2425,7 +2425,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
     );
 
     // 置換型(asset_balances): 追加分のみで上限判定(既存行数を見ない)
-    let asset_items = vec![make_asset_item("1301"), make_asset_item("9901")];
+    let asset_items = vec![make_asset_item("9931"), make_asset_item("9901")];
     asset_balance_svc::bulk_create(&pool, user_id, &asset_items, LIMIT)
         .await
         .expect("asset_balances は置換のため上限内");
@@ -2449,7 +2449,7 @@ async fn user_row_limit_rejects_over_limit_inserts() {
 async fn bulk_create_respects_user_row_limit() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let items = vec![make_dividend_item("1001")];
+    let items = vec![make_dividend_item("9931")];
 
     // 上限値は引数で渡す(プロセス全体の環境変数を書き換えると並行テストに影響する)
     let err = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(0))
@@ -2829,8 +2829,8 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     use backend::services::asset_balance::AssetBalanceDomain;
     use backend::services::dividend::DividendDomain;
 
-    const VALID_ROW_1301: &str = "\"1301\",\"極洋\",\"100\",\"0\",\"100\",\"0\",\"500\",\"50000\",\"600\",\"5\",\"60000\",\"20.0\"";
-    const VALID_ROW_1605: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2000\",\"400000\",\"3000\",\"50\",\"600000\",\"50.00\"";
+    const VALID_ROW_9931: &str = "\"9931\",\"架空水産\",\"100\",\"0\",\"100\",\"0\",\"500\",\"50000\",\"600\",\"5\",\"60000\",\"20.0\"";
+    const VALID_ROW_9901: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2000\",\"400000\",\"3000\",\"50\",\"600000\",\"50.00\"";
     const BAD_SHARES_ROW: &str = "\"9905\",\"架空ゲーム\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,000.00\",\"5,000,000\",\"7,000.0\",\"100.0\",\"7,000,000\",\"40.00\"";
     const BAD_PRICE_ROW: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2,000.00\",\"400,000\",\"不明\",\"50.0\",\"600,000\",\"50.00\"";
     const SUMMARY_ONLY_ROW: &str = ",,,,,,特定口座合計,\"5,400,000\",,,\"7,600,000\",\"40.74\"";
@@ -2847,7 +2847,7 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     let ok = AssetBalanceDomain::upload_csv(
         &pool,
         user_id,
-        asset_balance_csv(&[VALID_ROW_1301, VALID_ROW_1605]).as_bytes(),
+        asset_balance_csv(&[VALID_ROW_9931, VALID_ROW_9901]).as_bytes(),
         RowLimit::new(i64::MAX),
     )
     .await
@@ -2856,7 +2856,7 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     assert_eq!(
         asset_balance_rows(&pool, user_id).await,
         vec![
-            ("1301".to_string(), "100".to_string()),
+            ("9931".to_string(), "100".to_string()),
             ("9901".to_string(), "200".to_string()),
         ]
     );
@@ -2871,7 +2871,7 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     for (label, csv) in [
         (
             "1行不正",
-            asset_balance_csv(&[VALID_ROW_1301, BAD_SHARES_ROW]),
+            asset_balance_csv(&[VALID_ROW_9931, BAD_SHARES_ROW]),
         ),
         (
             "全行不正",

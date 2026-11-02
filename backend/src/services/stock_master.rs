@@ -232,24 +232,24 @@ mod tests {
     #[test]
     fn test_map_master_keeps_only_zero_tail_and_truncates_to_4_digits() {
         let rows = map_master(&response(vec![
-            master_row("13010", "極洋"),
-            master_row("25935", "伊藤園 優先株式"),
-            master_row("25936", "日本航空 優先株式"),
-            master_row("25930", "伊藤園"),
+            master_row("99310", "架空水産"),
+            master_row("99325", "架空飲料 優先株式"),
+            master_row("99326", "架空航空 優先株式"),
+            master_row("99320", "架空飲料"),
         ]));
         let codes: Vec<&str> = rows.iter().map(|r| r.code.as_str()).collect();
-        assert_eq!(codes, ["1301", "2593"]);
+        assert_eq!(codes, ["9931", "9932"]);
         // 優先株式が先に来ても採用されるのは普通株(末尾0)の行だけ
         let names: Vec<&str> = rows.iter().map(|r| r.name.as_str()).collect();
-        assert_eq!(names, ["極洋", "伊藤園"]);
+        assert_eq!(names, ["架空水産", "架空飲料"]);
     }
 
     #[test]
     fn test_map_master_dedupes_same_4_digit_code() {
         // 末尾 0 だけでは衝突しないため、防御として先着を残す経路を検証する
         let rows = map_master(&response(vec![
-            master_row("13010", "先の行"),
-            master_row("13010", "後の行"),
+            master_row("99310", "先の行"),
+            master_row("99310", "後の行"),
         ]));
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].name, "先の行");
@@ -257,27 +257,27 @@ mod tests {
 
     #[test]
     fn test_map_master_skips_malformed_rows() {
-        for code in ["1234", "123456", "1234A", "１２３４０"] {
+        for code in ["9931", "993100", "9931A", "９９３１０"] {
             assert!(
                 map_master(&response(vec![master_row(code, "x")])).is_empty(),
                 "{code}"
             );
         }
-        let mut bad_date = master_row("13010", "x");
+        let mut bad_date = master_row("99310", "x");
         bad_date.date = "2026/10/15".to_string();
         assert!(map_master(&response(vec![bad_date])).is_empty());
     }
 
     #[test]
     fn test_map_master_maps_fields_and_none_if_empty() {
-        let mut row = master_row("13010", "極洋");
+        let mut row = master_row("99310", "架空水産");
         row.sector17_name = Some(String::new());
         row.sector33_name = None;
         let rows = map_master(&response(vec![row]));
         assert_eq!(rows.len(), 1);
         let r = &rows[0];
         assert_eq!(r.date, NaiveDate::from_ymd_opt(2026, 10, 15).unwrap());
-        assert_eq!(r.name, "極洋");
+        assert_eq!(r.name, "架空水産");
         assert_eq!(r.market_category, "プライム");
         assert_eq!(r.industry_category_17, None);
         assert_eq!(r.industry_category_33, None);

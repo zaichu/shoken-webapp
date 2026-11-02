@@ -119,7 +119,7 @@ mod tests {
         CreateDomesticStockRequest {
             trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
             settlement_date: NaiveDate::from_ymd_opt(2024, 1, 17).expect("有効な日付 2024-01-17"),
-            security_code: "1234".parse().expect("valid code"),
+            security_code: "9931".parse().expect("valid code"),
             security_name: "テスト株式会社".to_string(),
             account: "特定".parse().expect("valid account"),
             shares: dec!(100),
