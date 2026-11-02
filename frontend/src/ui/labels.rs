@@ -781,8 +781,8 @@ pub const API_RETRY_TIMEOUT: &str = "リクエストがタイムアウトしま�
 /// API: 中断の利用者向け文言(送信前の取り消し)
 pub const API_CANCELLED: &str = "処理を中断しました";
 /// API: 応答の解析に失敗したときの利用者向け文言
-pub const API_STOCK_FETCH_FAILED: &str =
-    "銘柄情報の取得に失敗しました。時間をおいて再度お試しください。";
+pub const API_DATA_LOAD_FAILED: &str =
+    "データの読み込みに失敗しました。時間をおいて再度お試しください。";
 /// API: 入力の見直しを促す利用者向け文言(400)
 pub const API_CHECK_INPUT: &str = "入力内容を確認してください";
 /// API: ログインを促す利用者向け文言(401)
