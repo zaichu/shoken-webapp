@@ -28,6 +28,18 @@ fn unknown_values_pass_through_without_inventing() {
 }
 
 #[test]
+fn long_raw_ua_is_shortened_so_place_column_keeps_width() {
+    let raw = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36".to_string();
+    let agent = format_agent(&Some(raw.clone()), &Some(raw.clone()));
+    assert!(agent.chars().count() < raw.chars().count() * 2);
+    assert!(agent.contains('…'));
+    assert_eq!(
+        format_place(&Some("JP".to_string()), &Some("Tokyo".to_string())),
+        "東京都, 日本"
+    );
+}
+
+#[test]
 fn datetime_shows_jst_with_year() {
     assert_eq!(format_datetime("2026-10-31T07:38:00Z"), "2026/10/31 16:38");
     assert_eq!(format_datetime("not-a-date"), "not-a-date");
