@@ -14,8 +14,8 @@ use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, format_unit_price, unit_price_decimals,
 };
 use crate::ui::labels::{
-    ACCOUNT, AVERAGE_PRICE, BASE_PRICE, DAY_CHANGE, DISTRIBUTION, FUND, FUND_SHARES, MARKET_VALUE,
-    PENDING_UPDATE, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
+    ACCOUNT, AVERAGE_PRICE, BASE_PRICE, BASE_PRICE_MONTH_CHANGE, DAY_CHANGE, DISTRIBUTION, FUND,
+    FUND_SHARES, MARKET_VALUE, PENDING_UPDATE, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::security_link::TableNameLink;
@@ -156,6 +156,13 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
     };
     let day_negative = is_negative_valuation(view.view_day_change());
     let day_positive = is_positive_valuation(view.view_day_change());
+    let month_text = if view.nav_pending() {
+        PENDING_UPDATE.to_string()
+    } else {
+        format_signed_row_valuation_amount(view.base_price_month_change)
+    };
+    let month_negative = is_negative_valuation(view.base_price_month_change);
+    let month_positive = is_positive_valuation(view.base_price_month_change);
     let average_text = format_currency(view.average_purchase_price);
     let course_text = view.course.clone().unwrap_or_else(|| "—".to_string());
     let shares_text = format!("{}口", format_number_value(view.shares));
@@ -178,6 +185,15 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
             day_negative,
             day_positive,
         ),
+        DetailCell {
+            label: BASE_PRICE_MONTH_CHANGE.to_string(),
+            value: month_text,
+            sub: None,
+            negative: month_negative,
+            positive: month_positive,
+            bold: false,
+            delta: true,
+        },
         DetailCell::plain(AVERAGE_PRICE.to_string(), average_text),
         DetailCell::plain(DISTRIBUTION.to_string(), course_text),
     ];
@@ -311,7 +327,10 @@ mod tests {
     fn fund_dialog_preserves_order() {
         let (left, right) = fund_detail_cells(&sample_fund());
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
-        assert_eq!(left_labels, ["基準価額", "取得単価", "分配金"]);
+        assert_eq!(
+            left_labels,
+            ["基準価額", "基準価額(前月比)", "取得単価", "分配金"]
+        );
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(right_labels, ["保有口数", "取得総額", "評価額", "基準日"]);
     }
@@ -328,5 +347,22 @@ mod tests {
                 .as_deref()
                 .is_some_and(|sub| sub.contains("10,000"))
         );
+    }
+
+    #[test]
+    fn fund_dialog_month_change_uses_delta_sign() {
+        let mut view = sample_fund();
+        view.base_price_month_change = Some(-30.0);
+        let (left, _) = fund_detail_cells(&view);
+        let month = &left[1];
+        assert!(month.delta);
+        assert!(month.negative);
+        assert!(!month.positive);
+        assert!(month.value.starts_with('-'));
+        view.base_price_month_change = Some(20.0);
+        let (left, _) = fund_detail_cells(&view);
+        let month = &left[1];
+        assert!(month.positive);
+        assert!(month.value.starts_with('+'));
     }
 }

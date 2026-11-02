@@ -767,9 +767,9 @@ fn stock_pending_and_as_of_use_priced_rows_and_api_totals() {
             &resolved.rows,
             resolved.fallback_totals.as_ref()
         ));
-        // 価格あり行の基準日を MM/DD にして出す
+        // 価格あり行の基準日を M/D にして出す
         let as_of = super::summary::oldest_stock_as_of(&resolved.rows).expect("as_of");
-        assert!(as_of.contains("01/16"), "{as_of}");
+        assert!(as_of.contains("1/16"), "{as_of}");
     });
 }
 
@@ -783,8 +783,8 @@ fn oldest_stock_as_of_excludes_unpriced_rows() {
         unpriced.price_as_of = Some("2024-01-01".to_string());
         let rows = vec![Row::Saved(balance_row(9904)), Row::Saved(unpriced)];
         let as_of = super::summary::oldest_stock_as_of(&rows).expect("as_of");
-        assert!(as_of.contains("01/16"), "{as_of}");
-        assert!(!as_of.contains("01/01"), "{as_of}");
+        assert!(as_of.contains("1/16"), "{as_of}");
+        assert!(!as_of.contains("1/1 "), "{as_of}");
     });
 }
 
@@ -812,8 +812,8 @@ fn oldest_stock_as_of_shows_oldest_date_when_dates_differ() {
             Row::Saved(older),
         ];
         let as_of = super::summary::oldest_stock_as_of(&rows).expect("as_of");
-        assert!(as_of.contains("01/15"), "{as_of}");
-        assert!(!as_of.contains("01/16"), "{as_of}");
+        assert!(as_of.contains("1/15"), "{as_of}");
+        assert!(!as_of.contains("1/16"), "{as_of}");
     });
 }
 
@@ -1079,12 +1079,12 @@ fn oldest_combined_as_of_picks_oldest_across_stock_and_fund() {
             warning: None,
             fallback_totals: None,
         };
-        // 株 01/16 より投信 10/17 が新しいので、株の日付を出す
+        // 株 1/16 より投信 10/17 が新しいので、株の日付を出す
         let stock = balance_row(9904);
         assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));
         let as_of =
             super::summary::oldest_combined_as_of(&[Row::Saved(stock)], &fund).expect("as_of");
-        assert!(as_of.contains("01/16"), "{as_of}");
+        assert!(as_of.contains("1/16"), "{as_of}");
     });
 }
 

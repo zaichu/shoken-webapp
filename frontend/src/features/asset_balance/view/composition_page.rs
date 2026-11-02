@@ -12,6 +12,7 @@ use crate::features::asset_balance::store::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
+use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{format_currency, format_fixed_percent};
 use crate::ui::labels::{
     COMPOSITION, COMPOSITION_BASIS_LABEL, COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_LABEL,
@@ -182,10 +183,8 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                 .collect();
                             if views.is_empty() && fund_views.is_empty() {
                                 return view! {
-                                    <div class="asset-panel-padded">
-                                        <p class="text-center text-text-muted">
-                                            "データがありません"
-                                        </p>
+                                    <div class="px-4 py-4">
+                                        <EmptyState title="データがありません" />
                                     </div>
                                 }
                                     .into_any();
@@ -409,7 +408,9 @@ fn CompositionMobile(
                     ) />
                     {if total <= 0.0 {
                         view! {
-                            <div class="comp-empty">"算出不可"</div>
+                            <div class="px-4 py-4">
+                                <EmptyState title="算出不可" />
+                            </div>
                         }
                             .into_any()
                     } else {

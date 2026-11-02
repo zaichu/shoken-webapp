@@ -470,7 +470,7 @@ test('設定ページにアカウント・表示・データ・セキュリテ�
 
   // データセクション
   await expect(page.getByRole('heading', { name: 'データ' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'CSV管理へ →' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'CSV管理へ' })).toBeVisible();
 
   // 危険な操作セクション
   await expect(page.getByRole('heading', { name: '危険な操作' })).toBeVisible();

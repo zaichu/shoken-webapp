@@ -10,6 +10,7 @@ use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::session::use_session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
+use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, unit_price_decimals,
 };
@@ -109,10 +110,8 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                             match found {
                                 None => {
                                     view! {
-                                        <div class="asset-panel-padded">
-                                            <p class="text-center text-text-muted">
-                                                "銘柄が見つかりません"
-                                            </p>
+                                        <div class="px-4 py-4">
+                                            <EmptyState title="銘柄が見つかりません" />
                                         </div>
                                     }
                                         .into_any()

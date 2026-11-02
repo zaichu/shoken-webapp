@@ -75,19 +75,18 @@ fn sorted_views(
 #[component]
 fn EmptyAssetPanel() -> impl IntoView {
     view! {
-        <div class="asset-panel-padded mx-4 lg:mx-0">
-            <div class="text-center">
-                <p class="font-medium text-text">"資産管理データがありません"</p>
-                <p class="mt-1 text-sm text-text-muted">
-                    "CSVファイルをインポートするか、データを登録してください。"
-                </p>
+        <div class="px-4 py-4 lg:px-0">
+            <EmptyState
+                title="資産管理データがありません"
+                description="CSVファイルをインポートするか、データを登録してください。"
+            >
                 <a
                     href="/csv"
                     class="mt-4 inline-flex items-center justify-center rounded-md border border-border-strong bg-surface px-4 py-2 text-sm font-bold text-text no-underline hover:border-border-bold hover:bg-surface-sunken"
                 >
                     "CSVを取り込む"
                 </a>
-            </div>
+            </EmptyState>
         </div>
     }
 }

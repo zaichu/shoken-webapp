@@ -88,7 +88,7 @@ try {
           await page.screenshot({ path: join(options.out, `${name}.png`) });
           files.push(`${name}.png`);
           // 表・一覧がある画面はスクロール後も見せる(見出しが追従するか確かめる)
-          if (screen.scroll && viewport.width > 768) {
+          if (screen.scroll) {
             await scrollToBottom(page);
             await page.screenshot({ path: join(options.out, `${name}-scrolled.png`) });
             files.push(`${name}-scrolled.png`);
