@@ -105,6 +105,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0022_users_picture_url",
         include_str!("../../migrations/0022_users_picture_url.sql"),
     ),
+    (
+        "0023_csv_import_history_rls",
+        include_str!("../../migrations/0023_csv_import_history_rls.sql"),
+    ),
 ];
 
 struct Migration {
