@@ -1,5 +1,8 @@
 use crate::features::asset_balance::fund::AssetKind;
-use crate::ui::underline_tabs::{SwipeMotion, focus_tab_by_id, next_tab_index, tab_ink_offset};
+use crate::ui::underline_tabs::{
+    SwipeMotion, focus_tab_by_id, next_tab_index, prefers_reduced_motion,
+    swipe_should_ignore_input, tab_ink_offset,
+};
 use leptos::prelude::*;
 
 fn tab_id(kind: AssetKind) -> &'static str {
@@ -40,6 +43,7 @@ pub(crate) fn AssetKindTabs(
                     let selected = move || kind.get() == item;
                     let keyed = kind;
                     let clicked = kind;
+                    let guard = motion;
                     view! {
                         <button
                             type="button"
@@ -49,7 +53,17 @@ pub(crate) fn AssetKindTabs(
                             tabindex=move || if selected() { "0" } else { "-1" }
                             class="page-tab"
                             data-testid=format!("asset-kind-tab-{}", item.value())
-                            on:click=move |_| clicked.set(item)
+                            on:click=move |event| {
+                                if event.detail() != 0
+                                    && swipe_should_ignore_input(
+                                        guard.settling.get_untracked(),
+                                        prefers_reduced_motion(),
+                                    )
+                                {
+                                    return;
+                                }
+                                clicked.set(item);
+                            }
                             on:keydown=move |event| {
                                 let current = AssetKind::ALL
                                     .iter()

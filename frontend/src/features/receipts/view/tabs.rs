@@ -4,7 +4,8 @@ use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{
-    SwipeMotion, focus_tab_by_id, next_tab_index as shared_next_tab_index,
+    SwipeMotion, focus_tab_by_id, next_tab_index as shared_next_tab_index, prefers_reduced_motion,
+    swipe_should_ignore_input,
 };
 use leptos::prelude::*;
 
@@ -17,12 +18,17 @@ fn focus_tab(index: usize) {
 }
 
 #[component]
-pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+pub fn ReceiptsTabButton(
+    store: ReceiptsStore,
+    tab: ReceiptsTab,
+    motion: SwipeMotion,
+) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
     let label = tab.label();
     let selected = store;
     let keyed = store;
     let clicked = store;
+    let guard = motion;
     let counted_store = store;
     view! {
         <button
@@ -33,7 +39,17 @@ pub fn ReceiptsTabButton(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoVie
             aria-selected=move || (selected.active_tab.get() == tab).to_string()
             tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
             class="page-tab"
-            on:click=move |_| clicked.select_tab(tab)
+            on:click=move |event| {
+                if event.detail() != 0
+                    && swipe_should_ignore_input(
+                        guard.settling.get_untracked(),
+                        prefers_reduced_motion(),
+                    )
+                {
+                    return;
+                }
+                clicked.select_tab(tab);
+            }
             on:keydown=move |event| {
                 let current = ReceiptsTab::ALL
                     .iter()

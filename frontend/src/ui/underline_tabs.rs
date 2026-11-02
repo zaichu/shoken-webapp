@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use send_wrapper::SendWrapper;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -49,9 +50,30 @@ pub const SWIPE_RUBBER_FACTOR: f64 = 0.35;
 pub const SWIPE_RUBBER_MAX_PX: f64 = 96.0;
 /// 離したあと隣へ吸い付く・元へ戻る動きの長さ(ms)
 pub const SWIPE_SETTLE_MS: f64 = 250.0;
+/// 動きの終わりの合図が来なくても受付を再開するまでの余裕(ms)
+pub const SWIPE_SETTLE_GUARD_EXTRA_MS: f64 = 150.0;
+/// 動きの終わりの合図が来なくても再開するまでの時間(ms)。動きの長さより少し長い
+pub const SWIPE_SETTLE_GUARD_MS: f64 = SWIPE_SETTLE_MS + SWIPE_SETTLE_GUARD_EXTRA_MS;
 /// 速度の計算に使う直近の時間幅(ms)
 pub const SWIPE_VELOCITY_WINDOW_MS: f64 = 100.0;
 const MOBILE_MAX_WIDTH_PX: f64 = 1024.0;
+
+/// 動いている間の入力無視が必要か。動きを減らす設定では動きが無いため今のまま受け付ける
+pub fn swipe_should_ignore_input(settling: bool, reduced_motion: bool) -> bool {
+    settling && !reduced_motion
+}
+
+/// 新しい接触の開始を無視するか。動いている間のタップ・新しいスワイプと2本目の指を無視する
+pub fn swipe_should_ignore_touchstart(
+    settling: bool,
+    reduced_motion: bool,
+    touch_count: usize,
+) -> bool {
+    if reduced_motion {
+        return false;
+    }
+    settling || touch_count > 1
+}
 
 /// スワイプの向き。左へ払うと次のタブ、右へ払うと前のタブに進む
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -238,6 +260,7 @@ pub fn prefers_reduced_motion() -> bool {
 pub struct SwipeMotion {
     pub progress: RwSignal<f64>,
     pub dragging: RwSignal<bool>,
+    pub settling: RwSignal<bool>,
 }
 
 impl SwipeMotion {
@@ -245,6 +268,7 @@ impl SwipeMotion {
         Self {
             progress: RwSignal::new(0.0),
             dragging: RwSignal::new(false),
+            settling: RwSignal::new(false),
         }
     }
 }
@@ -389,6 +413,7 @@ fn request_frame(
                 }
                 motion.progress.set(0.0);
                 motion.dragging.set(false);
+                motion.settling.set(false);
                 tick_gesture.borrow_mut().locked = false;
                 if target != current.get_untracked() {
                     on_select.run(target);
@@ -410,6 +435,50 @@ fn cancel_frame(gesture: &Rc<RefCell<SwipeGesture>>) {
         let _ = window.cancel_animation_frame(id);
     }
     gesture.borrow_mut().settle = None;
+}
+
+#[allow(clippy::too_many_arguments)]
+fn arm_settle_guard(
+    gesture: &Rc<RefCell<SwipeGesture>>,
+    mounted: &Arc<AtomicBool>,
+    track: NodeRef<leptos::html::Div>,
+    current: Signal<usize>,
+    on_select: Callback<usize>,
+    motion: SwipeMotion,
+) {
+    let guard_gesture = gesture.clone();
+    let guard_mounted = mounted.clone();
+    gloo_timers::callback::Timeout::new(SWIPE_SETTLE_GUARD_MS as u32, move || {
+        if !guard_mounted.load(Ordering::Relaxed) {
+            return;
+        }
+        if !motion.settling.get_untracked() {
+            return;
+        }
+        let target = {
+            let mut gesture = guard_gesture.borrow_mut();
+            let Some(settle) = gesture.settle.take() else {
+                return;
+            };
+            if let Some(id) = gesture.frame.take()
+                && let Some(window) = web_sys::window()
+            {
+                let _ = window.cancel_animation_frame(id);
+            }
+            gesture.locked = false;
+            settle.target
+        };
+        if let Some(track) = track.get() {
+            clear_slides(&track);
+        }
+        motion.progress.set(0.0);
+        motion.dragging.set(false);
+        motion.settling.set(false);
+        if target != current.get_untracked() {
+            on_select.run(target);
+        }
+    })
+    .forget();
 }
 
 enum TickAction {
@@ -451,6 +520,7 @@ fn finish_swipe(
         }
         motion.progress.set(0.0);
         motion.dragging.set(false);
+        motion.settling.set(false);
     };
     if cancelled || suppressed || has_open_dialog() || !is_mobile_width() {
         reset_view();
@@ -508,6 +578,8 @@ fn finish_swipe(
         target,
         started: js_sys::Date::now(),
     });
+    motion.settling.set(true);
+    arm_settle_guard(gesture, mounted, track, current, on_select, motion);
     request_frame(gesture, mounted, track, count, current, on_select, motion);
 }
 
@@ -552,6 +624,7 @@ pub fn SwipeArea(
     children: Children,
 ) -> impl IntoView {
     let track = NodeRef::<leptos::html::Div>::new();
+    let area = NodeRef::<leptos::html::Div>::new();
     let gesture: Rc<RefCell<SwipeGesture>> = Rc::new(RefCell::new(SwipeGesture::default()));
     let mounted = Arc::new(AtomicBool::new(true));
     {
@@ -560,15 +633,54 @@ pub fn SwipeArea(
             mounted.store(false, Ordering::Relaxed);
         });
     }
+    {
+        Effect::new(move || {
+            let Some(element) = area.get() else {
+                return;
+            };
+            let guard =
+                SendWrapper::new(Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+                    if event.detail() == 0 {
+                        return;
+                    }
+                    if motion.settling.get_untracked() {
+                        event.prevent_default();
+                        event.stop_propagation();
+                    }
+                }) as Box<dyn FnMut(_)>));
+            let _ = element.add_event_listener_with_callback_and_bool(
+                "click",
+                guard.as_ref().unchecked_ref(),
+                true,
+            );
+            let pair = SendWrapper::new((element, guard));
+            on_cleanup(move || {
+                let (target, guard) = &*pair;
+                let _ = target.remove_event_listener_with_callback_and_bool(
+                    "click",
+                    guard.as_ref().unchecked_ref(),
+                    true,
+                );
+            });
+        });
+    }
     let on_touchstart = {
         let gesture = gesture.clone();
         move |event: web_sys::TouchEvent| {
+            if swipe_should_ignore_touchstart(
+                motion.settling.get_untracked(),
+                prefers_reduced_motion(),
+                event.touches().length() as usize,
+            ) {
+                return;
+            }
             cancel_frame(&gesture);
             if let Some(track) = track.get() {
                 clear_slides(&track);
             }
             motion.progress.set(0.0);
             motion.dragging.set(false);
+            motion.settling.set(false);
             {
                 let mut gesture = gesture.borrow_mut();
                 *gesture = SwipeGesture::default();
@@ -591,6 +703,12 @@ pub fn SwipeArea(
         let mounted = mounted.clone();
         move |event: web_sys::TouchEvent| {
             if !is_mobile_width() {
+                return;
+            }
+            if gesture.borrow().settle.is_some() {
+                return;
+            }
+            if event.touches().length() > 1 {
                 return;
             }
             let Some(touch) = event.touches().get(0) else {
@@ -634,6 +752,7 @@ pub fn SwipeArea(
                     return;
                 }
                 motion.dragging.set(true);
+                motion.settling.set(true);
             }
             locked.latest_dx = dx;
             locked.latest_dy = dy;
@@ -649,6 +768,9 @@ pub fn SwipeArea(
         let gesture = gesture.clone();
         let mounted = mounted.clone();
         move |event: web_sys::TouchEvent| {
+            if gesture.borrow().settle.is_some() {
+                return;
+            }
             finish_swipe(
                 &gesture, &mounted, track, count, current, on_select, motion, event, false,
             );
@@ -658,6 +780,9 @@ pub fn SwipeArea(
         let gesture = gesture.clone();
         let mounted = mounted.clone();
         move |event: web_sys::TouchEvent| {
+            if gesture.borrow().settle.is_some() {
+                return;
+            }
             finish_swipe(
                 &gesture, &mounted, track, count, current, on_select, motion, event, true,
             );
@@ -667,6 +792,8 @@ pub fn SwipeArea(
         <div
             class="content-gutter tab-swipe-area flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible"
             data-testid=testid
+            data-settling=move || motion.settling.get().to_string()
+            node_ref=area
             on:touchstart=on_touchstart
             on:touchmove=on_touchmove
             on:touchend=on_touchend

@@ -1,6 +1,7 @@
 use super::{
-    SWIPE_EDGE_GUARD_PX, clamp_drag_offset, is_edge_start, next_swipe_index, next_tab_index,
-    swipe_can_advance, swipe_commit_index, swipe_lock_allowed, swipe_progress, swipe_settle_offset,
+    SWIPE_EDGE_GUARD_PX, SWIPE_SETTLE_GUARD_MS, SWIPE_SETTLE_MS, clamp_drag_offset, is_edge_start,
+    next_swipe_index, next_tab_index, swipe_can_advance, swipe_commit_index, swipe_lock_allowed,
+    swipe_progress, swipe_settle_offset, swipe_should_ignore_input, swipe_should_ignore_touchstart,
     swipe_step, swipe_velocity, tab_ink_offset,
 };
 
@@ -153,4 +154,27 @@ fn progress_points_toward_neighbor() {
     assert_eq!(swipe_progress(100.0, 0.0), 0.0);
     assert_eq!(tab_ink_offset(0, swipe_progress(-195.0, 390.0)), 0.5);
     assert_eq!(tab_ink_offset(1, swipe_progress(195.0, 390.0)), 0.5);
+}
+
+#[test]
+fn settling_ignores_taps_and_resumes_after() {
+    assert!(swipe_should_ignore_input(true, false));
+    assert!(!swipe_should_ignore_input(false, false));
+    assert!(!swipe_should_ignore_input(true, true));
+    assert!(!swipe_should_ignore_input(false, true));
+}
+
+#[test]
+fn settling_ignores_new_swipe_and_second_finger() {
+    assert!(swipe_should_ignore_touchstart(true, false, 1));
+    assert!(swipe_should_ignore_touchstart(false, false, 2));
+    assert!(!swipe_should_ignore_touchstart(false, false, 1));
+    assert!(!swipe_should_ignore_touchstart(true, true, 1));
+    assert!(!swipe_should_ignore_touchstart(false, true, 2));
+}
+
+#[test]
+#[allow(clippy::assertions_on_constants)]
+fn guard_releases_after_settle() {
+    assert!(SWIPE_SETTLE_GUARD_MS > SWIPE_SETTLE_MS);
 }
