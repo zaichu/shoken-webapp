@@ -1,4 +1,4 @@
-use crate::ui::amount::Amount;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::labels;
 use leptos::prelude::*;
@@ -39,6 +39,22 @@ pub enum SummaryTone {
     Loss,
 }
 
+fn tone_amount(tone: SummaryTone) -> (AmountKind, bool, bool) {
+    match tone {
+        SummaryTone::Gain => (AmountKind::Delta, false, true),
+        SummaryTone::Loss => (AmountKind::Delta, true, false),
+        SummaryTone::Neutral => (AmountKind::Plain, false, false),
+    }
+}
+
+fn delta_or_plain(negative: bool, positive: bool) -> AmountKind {
+    if negative || positive {
+        AmountKind::Delta
+    } else {
+        AmountKind::Plain
+    }
+}
+
 /// 集計帯の1項目。ラベルと数字の組。
 /// 全項目でラベルの上端と数字の基準線をそろえるために、帯の中で同じ作りを使う
 #[component]
@@ -60,11 +76,7 @@ pub fn SummaryItem(
     #[prop(optional, into)]
     extra_class: String,
 ) -> impl IntoView {
-    let tone_class = match tone {
-        SummaryTone::Neutral => "",
-        SummaryTone::Gain => "summary-gain",
-        SummaryTone::Loss => "summary-loss",
-    };
+    let (kind, negative, positive) = tone_amount(tone);
     let size_class = match size {
         SummarySize::Primary => "summary-value-primary",
         SummarySize::Secondary => "summary-value-secondary",
@@ -76,8 +88,8 @@ pub fn SummaryItem(
                 {(!label_note.is_empty())
                     .then(|| view! { <span class="summary-label-note">{label_note.clone()}</span> })}
             </dt>
-            <dd class=format!("summary-value {size_class} {tone_class}")>
-                <Amount text=value />
+            <dd class=format!("summary-value {size_class}")>
+                <Amount text=value kind=kind negative=negative positive=positive />
                 {(!note.is_empty())
                     .then(|| view! { <span class="summary-note">{note.clone()}</span> })}
                 {(!status.is_empty())
@@ -165,20 +177,6 @@ pub fn SummaryBand(
     } else {
         as_of_note.clone()
     };
-    let aux_tone_class = if aux_negative {
-        "summary-loss"
-    } else if aux_positive {
-        "summary-gain"
-    } else {
-        ""
-    };
-    let primary_tone_class = if primary_negative {
-        "summary-loss"
-    } else if primary_positive {
-        "summary-gain"
-    } else {
-        ""
-    };
     let label_open = labels::SUMMARY_OPEN.to_string();
     let label_close = labels::SUMMARY_CLOSE.to_string();
     view! {
@@ -195,6 +193,8 @@ pub fn SummaryBand(
                         label_note=label_note.clone()
                         tone=if primary_negative {
                             SummaryTone::Loss
+                        } else if primary_positive {
+                            SummaryTone::Gain
                         } else {
                             SummaryTone::Neutral
                         }
@@ -264,10 +264,13 @@ pub fn SummaryBand(
                                     })}
                             </span>
                             <span class="summary-band-hero-row">
-                                <span class=format!(
-                                    "summary-band-hero-value {primary_tone_class}",
-                                )>
-                                    <Amount text=primary_value.clone() />
+                                <span class="summary-band-hero-value">
+                                    <Amount
+                                        text=primary_value.clone()
+                                        kind=delta_or_plain(primary_negative, primary_positive)
+                                        negative=primary_negative
+                                        positive=primary_positive
+                                    />
                                 </span>
                                 <span class="summary-band-chevron-circle" aria-hidden="true">
                                     <ChevronIcon
@@ -278,13 +281,16 @@ pub fn SummaryBand(
                             </span>
                             {has_aux
                                 .then(|| view! {
-                                    <span class=format!(
-                                        "summary-band-aux {aux_tone_class}",
-                                    )>
+                                    <span class="summary-band-aux">
                                         <span class="summary-band-aux-label">
                                             {aux_label.clone()}
                                         </span>
-                                        <Amount text=aux_value.clone() />
+                                        <Amount
+                                            text=aux_value.clone()
+                                            kind=delta_or_plain(aux_negative, aux_positive)
+                                            negative=aux_negative
+                                            positive=aux_positive
+                                        />
                                         {(!aux_rate.is_empty())
                                             .then(|| view! {
                                                 <span class="summary-note">{aux_rate.clone()}</span>
@@ -297,22 +303,21 @@ pub fn SummaryBand(
                                 {breakdown
                                     .into_iter()
                                     .map(|entry| {
-                                        let tone_class = if entry.negative {
-                                            "summary-loss"
-                                        } else if entry.positive {
-                                            "summary-gain"
-                                        } else {
-                                            ""
-                                        };
+                                        let kind = delta_or_plain(entry.negative, entry.positive);
+                                        let negative = entry.negative;
+                                        let positive = entry.positive;
                                         view! {
                                             <div class="summary-band-breakdown-row">
                                                 <dt class="summary-band-breakdown-label">
                                                     {entry.label}
                                                 </dt>
-                                                <dd class=format!(
-                                                    "summary-band-breakdown-value {tone_class}",
-                                                )>
-                                                    <Amount text=entry.value />
+                                                <dd class="summary-band-breakdown-value">
+                                                    <Amount
+                                                        text=entry.value
+                                                        kind=kind
+                                                        negative=negative
+                                                        positive=positive
+                                                    />
                                                     {(!entry.rate.is_empty())
                                                         .then(|| view! {
                                                             <span class="summary-note">{entry.rate}</span>

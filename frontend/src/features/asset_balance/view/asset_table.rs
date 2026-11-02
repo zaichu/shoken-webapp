@@ -1,7 +1,9 @@
 use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
-    format_row_valuation_amount, pnl_cells, price_date_outliers,
+    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
+    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
+    price_date_outliers,
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
@@ -10,6 +12,7 @@ use crate::features::asset_balance::holdings::{
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
 use crate::ui::labels;
@@ -88,8 +91,19 @@ pub fn AssetHoldingsTable(
                         .map(|((view, is_outlier), dividend)| {
                             let valuation = holding_valuation(&ValuationInput::from(&view));
                             let market_text = format_row_valuation_amount(valuation.market_value);
-                            let (pnl_text, pnl_rate_text, pnl_text_class, pnl_badge_class) =
-                                pnl_cells(valuation.profit_loss.amount, valuation.profit_loss.rate);
+                            let pnl_text = format_signed_row_valuation_amount(
+                                valuation.profit_loss.amount,
+                            );
+                            let pnl_rate_text = format_signed_valuation_rate(
+                                valuation.profit_loss.rate,
+                                1,
+                            );
+                            let pnl_negative =
+                                is_negative_valuation(valuation.profit_loss.amount);
+                            let pnl_positive =
+                                is_positive_valuation(valuation.profit_loss.amount);
+                            let rate_negative = is_negative_rate(valuation.profit_loss.rate);
+                            let rate_positive = is_positive_rate(valuation.profit_loss.rate);
                             let dividend_annual = format_dividend_annual(&dividend);
                             let dividend_per_share =
                                 format_dividend_per_share(&dividend, dividend_decimals);
@@ -136,19 +150,26 @@ pub fn AssetHoldingsTable(
                                     <td class="col-num font-bold text-text-deep">{market_text}</td>
                                     <td class="col-num">
                                         {if valuation.profit_loss.amount.is_some() {
-                                            let rate_badge = valuation.profit_loss.rate.is_some().then(|| {
-                                                view! {
-                                                    " "
-                                                    <span class=pnl_badge_class>
-                                                        {pnl_rate_text.clone()}
-                                                    </span>
-                                                }
-                                            });
                                             view! {
-                                                <span class=format!("font-bold tabular-nums {pnl_text_class}")>
-                                                    {pnl_text}
-                                                </span>
-                                                {rate_badge}
+                                                <Amount
+                                                    kind=AmountKind::Delta
+                                                    text=pnl_text
+                                                    negative=pnl_negative
+                                                    positive=pnl_positive
+                                                    class="font-bold"
+                                                />
+                                                {valuation.profit_loss.rate.is_some().then(|| {
+                                                    view! {
+                                                        " "
+                                                        <Amount
+                                                            kind=AmountKind::Delta
+                                                            text=pnl_rate_text.clone()
+                                                            negative=rate_negative
+                                                            positive=rate_positive
+                                                            class="ml-1 text-xs"
+                                                        />
+                                                    }
+                                                })}
                                             }
                                                 .into_any()
                                         } else {
