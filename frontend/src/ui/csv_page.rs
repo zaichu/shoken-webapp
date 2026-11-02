@@ -438,11 +438,12 @@ fn CsvKindRow(
                         view! {
                             <button
                                 type="button"
-                                class="text-xs underline text-text-muted hover:text-text"
+                                class="more-link text-xs"
                                 data-testid="status-detail"
                                 on:click=move |_| detail_open.toggle()
                             >
                                 {labels::CSV_MANAGE_FAILED_DETAIL_LABEL}
+                                <span aria-hidden="true">" ›"</span>
                             </button>
                         }
                     })}

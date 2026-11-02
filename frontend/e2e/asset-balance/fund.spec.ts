@@ -239,7 +239,7 @@ test('前日比は最新の基準価額の変動だけを出し、タブと件�
   // 注記行は出さず、時点と更新待ちだけを帯のラベル横に出す
   await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
   const bandText = page.getByTestId('asset-portfolio-summary');
-  await expect(bandText).toContainText('01/01 時点');
+  await expect(bandText).toContainText('1/1 時点');
   await expect(bandText).toContainText('一部更新待ち');
 
   // 「すべて」タブでも更新待ちの行は前日比を出さない
@@ -259,7 +259,7 @@ test('前日比は最新の基準価額の変動だけを出し、タブと件�
 
   // 「すべて」タブも、時点と更新待ちを帯のラベル横に出す
   const allBand = page.getByTestId('asset-portfolio-summary');
-  await expect(allBand).toContainText('01/01 時点');
+  await expect(allBand).toContainText('1/1 時点');
   await expect(allBand).toContainText('一部更新待ち');
 
   // 「すべて」タブでも投信の行は前日比の横に基準日を出さない

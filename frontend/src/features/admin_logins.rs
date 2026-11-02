@@ -412,7 +412,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
             }}
             <div aria-busy=move || initial.with(|state| state.is_none()).to_string()>
                 {move || match initial.get() {
-                    None => view! { <Loading /> }.into_any(),
+                    None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => view! { <ListLoadError message=message on_retry=load_first /> }.into_any(),
                     Some(Ok(())) if entries.with(Vec::is_empty) => view! { <EmptyState title=ADMIN_LOGIN_EMPTY.to_string() /> }.into_any(),
                     Some(Ok(())) => view! { <LoginEntries entries=entries.get() query=query reload=load_first /> }.into_any(),
@@ -513,7 +513,7 @@ use crate::ui::search_controls::{
 use crate::ui::search_dialog::SearchDialog;
 use crate::ui::search_entry::{MobileSearchEntryShell, ShowMoreButton};
 use crate::ui::select::Select;
-use crate::ui::state::{ListLoadError, Loading};
+use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 use serde::Deserialize;
 

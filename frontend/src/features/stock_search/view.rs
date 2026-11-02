@@ -6,7 +6,7 @@ use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::search_controls::{SearchBox, SearchSubmitButton, SearchTextInput};
-use crate::ui::state::{Alert, AlertVariant, ListLoadError, Spinner, SpinnerSize};
+use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 use shared::normalize::normalize_display_name;
 
@@ -104,11 +104,7 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
                     }
                         .into_any()
                 } else {
-                    view! {
-                        <div class="flex justify-center py-8">
-                            <Spinner size=SpinnerSize::Sm class="" />
-                        </div>
-                    }
+                    view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
                         .into_any()
                 }
             }}

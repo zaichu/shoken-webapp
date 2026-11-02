@@ -5,11 +5,12 @@ use crate::features::asset_balance::fund::AssetSearch;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
-use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton};
+use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels::{
     ACCOUNT, COMPOSITION_VIEW_LINK, DISTRIBUTION_COURSE, SEARCH_AND_SORT, SEARCH_DIALOG_HINT,
     SORT_BY, SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH, SORT_ORDER_LABEL, SORT_TARGET,
 };
+use crate::ui::more_link::MoreLink;
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
     SearchCount, SearchTag, SearchTextInput,
@@ -335,13 +336,11 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
             {composition.then(|| {
                 view! {
                     <span class="ml-auto">
-                        <LinkButton
-                            variant=ButtonVariant::SearchClear
-                            href="/assetbalance/composition"
-                            testid="asset-composition-link"
-                        >
-                            {COMPOSITION_VIEW_LINK}
-                        </LinkButton>
+                        <MoreLink
+                            href="/assetbalance/composition".to_string()
+                            label=COMPOSITION_VIEW_LINK.to_string()
+                            testid="asset-composition-link".to_string()
+                        />
                     </span>
                 }
             })}

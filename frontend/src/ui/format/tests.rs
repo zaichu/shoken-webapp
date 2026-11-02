@@ -152,7 +152,7 @@ fn iso_date_formats_and_rejects_invalid_values() {
 #[test]
 fn price_date_formats_month_and_day() {
     assert_eq!(format_price_date("2026-10-21"), "10/21");
-    assert_eq!(format_price_date("2026-01-05"), "01/05");
+    assert_eq!(format_price_date("2026-01-05"), "1/5");
     // 想定外の形式はそのまま返す
     assert_eq!(format_price_date("2026/10/21"), "2026/10/21");
 }

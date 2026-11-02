@@ -12,10 +12,11 @@ use crate::ui::labels::{
     LOGIN_NOTIFY_NOTE, LOGIN_NOTIFY_TITLE, NOTIFY_LOGOUT_CONFIRM, NOTIFY_LOGOUT_DESCRIPTION,
     NOTIFY_LOGOUT_DONE, NOTIFY_LOGOUT_INVALID, NOTIFY_LOGOUT_TITLE,
 };
+use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::segmented::Segmented;
 use crate::ui::select::Select;
-use crate::ui::state::{Alert, AlertVariant, ListLoadError, Loading};
+use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use export::ExportKind;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -422,13 +423,7 @@ fn SectionData() -> impl IntoView {
                         })
                     }}
                     <SettingRow title="CSVの取り込み・保存済みデータの削除">
-                        <LinkButton
-                            variant=ButtonVariant::Ghost
-                            href="/csv"
-                            class="no-print shrink-0 whitespace-nowrap"
-                        >
-                            "CSV管理へ →"
-                        </LinkButton>
+                        <MoreLink href="/csv".to_string() label="CSV管理へ".to_string() />
                     </SettingRow>
                 </div>
             </Card>
@@ -497,7 +492,10 @@ fn SectionSecurity() -> impl IntoView {
                     </SettingRow>
                     <SettingRow title=LOGIN_NOTIFY_TITLE>
                         {move || match notify.get() {
-                            None => view! { <Loading /> }.into_any(),
+                            None => {
+                                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
+                                    .into_any()
+                            }
                             Some(Err(message)) => {
                                 view! {
                                     <ListLoadError message=message on_retry=load_notify />
@@ -624,7 +622,10 @@ fn SectionNotifyLogout() -> impl IntoView {
                                     view! { <p role="status">{NOTIFY_LOGOUT_DONE}</p> }.into_any()
                                 } else {
                                     match state.get() {
-                                        None => view! { <Loading /> }.into_any(),
+                                        None => {
+                                            view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
+                                                .into_any()
+                                        }
                                         Some(Err(message)) => {
                                             view! {
                                                 <Alert variant=AlertVariant::Danger>{message}</Alert>

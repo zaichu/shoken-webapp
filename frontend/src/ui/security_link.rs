@@ -54,16 +54,23 @@ pub(crate) fn SecurityCodeLink(
     }
     let href = format!("/search?code={}", urlencoding::encode(&code));
     let has_weight = class.as_deref().is_some_and(has_font_weight_class);
-    let label = match variant {
-        SecurityLinkVariant::Code => code.clone(),
-        SecurityLinkVariant::Details => format!("{code} の銘柄情報を見る"),
-    };
-    let base = match variant {
-        SecurityLinkVariant::Code => "security-code-link",
-        SecurityLinkVariant::Details => "security-details-link",
-    };
+    if variant == SecurityLinkVariant::Details {
+        let classes = format!(
+            "more-link{}{}",
+            if has_weight { "" } else { " font-bold" },
+            class.map(|extra| format!(" {extra}")).unwrap_or_default(),
+        );
+        return view! {
+            <a href=href class=classes data-search=code>
+                {format!("{code} の銘柄情報を見る")}
+                <span aria-hidden="true">" ›"</span>
+            </a>
+        }
+        .into_any();
+    }
+    let label = code.clone();
     let classes = format!(
-        "{base}{}{}",
+        "security-code-link{}{}",
         if has_weight { "" } else { " font-bold" },
         class.map(|extra| format!(" {extra}")).unwrap_or_default(),
     );

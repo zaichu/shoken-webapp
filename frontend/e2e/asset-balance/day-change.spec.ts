@@ -91,7 +91,7 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
   await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
   await expect(page.getByText('計算基準を見る')).toHaveCount(0);
   const bandText = page.getByTestId('asset-portfolio-summary');
-  await expect(bandText).toContainText('01/01 時点');
+  await expect(bandText).toContainText('1/1 時点');
 
   // 「すべて」タブもタブと件数行に件数だけ。時点は帯のラベル横に残る
   await page.getByTestId('asset-kind-tab-all').click();
@@ -100,7 +100,7 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
     '2件 / 2件',
   );
   await expect(page.getByTestId('asset-portfolio-summary')).toContainText(
-    '01/01 時点',
+    '1/1 時点',
   );
 });
 
@@ -132,7 +132,7 @@ test('基準日が他の行と違う行だけ、前日比の横に日付を出�
 
   // 多数派と同じ日付の行は行内に日付を出さない
   const same = table.getByRole('row', { name: /架空自動車/ });
-  await expect(same).not.toContainText('01/01');
+  await expect(same).not.toContainText('1/1');
 
   // タブと件数行は件数だけ。時点は帯のラベル横に最も古い日だけ出す
   await expect(page.getByTestId('asset-kind-tab-stock')).toContainText('3');
@@ -141,6 +141,6 @@ test('基準日が他の行と違う行だけ、前日比の横に日付を出�
     '12/30 時点',
   );
   await expect(page.getByTestId('asset-portfolio-summary')).not.toContainText(
-    '01/01 時点',
+    '1/1 時点',
   );
 });

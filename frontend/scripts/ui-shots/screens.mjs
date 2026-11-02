@@ -163,14 +163,14 @@ export const SCREENS = [
     key: 'csv',
     label: 'CSV管理・取引明細',
     path: '/csv?kind=dividend',
-    ready: ['[data-testid="csv-file-trigger"]'],
+    ready: ['[data-testid="csv-fetch-button"]'],
     scroll: true,
   },
   {
     key: 'csv-asset',
     label: 'CSV管理・資産管理',
     path: '/csv?kind=assetbalance',
-    ready: ['[data-testid="csv-file-trigger"]'],
+    ready: ['[data-testid="csv-fetch-button"]'],
     scroll: true,
   },
   {
@@ -274,6 +274,43 @@ async function installMocks(context, { anonymous, admin }) {
   await context.route(/\/api\/v1\/devices$/, (route) => route.fulfill(json(deviceList())));
   await context.route(/\/api\/v1\/notification-settings$/, (route) =>
     route.fulfill(json({ login_notify_enabled: true })),
+  );
+  await context.route(/\/api\/v1\/csv-kinds\/stats$/, (route) =>
+    route.fulfill(
+      json({
+        kinds: [
+          {
+            kind: 'assetbalance',
+            label: '資産管理(国内株式)',
+            count: 22,
+            latest_imported_at: '2026-10-31T00:12:00Z',
+          },
+          {
+            kind: 'fundbalance',
+            label: '資産管理(投資信託)',
+            count: 8,
+            latest_imported_at: '2026-10-31T00:12:00Z',
+          },
+          {
+            kind: 'dividend',
+            label: '取引明細(配当金)',
+            count: 64,
+            latest_imported_at: '2026-10-29T09:44:00Z',
+          },
+          {
+            kind: 'domesticstock',
+            label: '取引明細(国内株式)',
+            count: 41,
+            latest_imported_at: '2026-10-20T04:00:00Z',
+          },
+          {
+            kind: 'mutualfund',
+            label: '取引明細(投資信託)',
+            count: 0,
+          },
+        ],
+      }),
+    ),
   );
 }
 

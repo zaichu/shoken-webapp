@@ -13,7 +13,7 @@ use crate::session::use_session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
-use crate::ui::state::{Alert, AlertVariant, ListLoadError};
+use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::ev;
 use leptos::prelude::*;
 
@@ -276,7 +276,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                 }
                     .into_any()
             }
-            TabState::Loading => view! { <div class="py-12 text-center text-sm text-text-muted" data-testid="receipt-loading">"読み込み中..."</div> }.into_any(),
+            TabState::Loading => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
         })}}
     }
 }

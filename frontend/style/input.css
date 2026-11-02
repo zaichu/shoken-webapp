@@ -396,10 +396,6 @@
     @apply grid grid-cols-[1fr_6rem_6rem] items-center gap-3 max-sm:grid-cols-[1fr_5rem];
   }
 
-  .security-details-link {
-    @apply inline-flex min-h-11 items-center text-info underline underline-offset-2 hover:text-info-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
-  }
-
   .panel-card {
     @apply rounded-xl border border-ink/10 bg-surface/90 shadow-card print:border-black print:shadow-none;
   }
@@ -1567,6 +1563,10 @@
 
   .home-card-link {
     @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-xs font-medium text-accent-text hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
+  }
+
+  .more-link {
+    @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-xs font-medium text-accent-text no-underline hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
   }
 
   /* チャートの凡例スウォッチ。塗りは呼び出し側がクラスで渡す(style 属性は本番 CSP で止まる) */

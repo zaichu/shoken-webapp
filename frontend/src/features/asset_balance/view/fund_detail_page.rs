@@ -8,6 +8,7 @@ use crate::features::asset_balance::fund::fund_view;
 use crate::session::use_session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
+use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{format_currency, format_iso_date, format_number_value};
 use crate::ui::labels::{
     AVERAGE_ACQUISITION_PRICE, BASE_PRICE, BASE_PRICE_AS_OF, BASE_PRICE_DAY_CHANGE,
@@ -103,10 +104,8 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                             match found {
                                 None => {
                                     view! {
-                                        <div class="asset-panel-padded">
-                                            <p class="text-center text-text-muted">
-                                                "ファンドが見つかりません"
-                                            </p>
+                                        <div class="px-4 py-4">
+                                            <EmptyState title="ファンドが見つかりません" />
                                         </div>
                                     }
                                         .into_any()
@@ -150,6 +149,12 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                             format_signed_row_valuation_amount(Some(value))
                                         })
                                         .unwrap_or_else(|| MISSING.to_string());
+                                    let day_negative = is_negative_valuation(view.base_price_day_change);
+                                    let day_positive = is_positive_valuation(view.base_price_day_change);
+                                    let month_negative = is_negative_valuation(view.base_price_month_change);
+                                    let month_positive = is_positive_valuation(view.base_price_month_change);
+                                    let total_negative = is_negative_valuation(view.total_return);
+                                    let total_positive = is_positive_valuation(view.total_return);
                                     let asof_text = view
                                         .price_as_of
                                         .map_or_else(|| MISSING.to_string(), |date| format_iso_date(&date));
@@ -173,8 +178,30 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                             </div>
                                             <dl class="divide-y divide-border-faint">
                                                 {detail_row(BASE_PRICE, base_price_text)}
-                                                {detail_row(BASE_PRICE_DAY_CHANGE, day_text)}
-                                                {detail_row(BASE_PRICE_MONTH_CHANGE, month_text)}
+                                                <div class="flex justify-between px-4 py-3">
+                                                    <dt class="text-text-muted">{BASE_PRICE_DAY_CHANGE}</dt>
+                                                    <dd>
+                                                        <Amount
+                                                            kind=AmountKind::Delta
+                                                            class="tabular-nums"
+                                                            text=day_text
+                                                            negative=day_negative
+                                                            positive=day_positive
+                                                        />
+                                                    </dd>
+                                                </div>
+                                                <div class="flex justify-between px-4 py-3">
+                                                    <dt class="text-text-muted">{BASE_PRICE_MONTH_CHANGE}</dt>
+                                                    <dd>
+                                                        <Amount
+                                                            kind=AmountKind::Delta
+                                                            class="tabular-nums"
+                                                            text=month_text
+                                                            negative=month_negative
+                                                            positive=month_positive
+                                                        />
+                                                    </dd>
+                                                </div>
                                                 {detail_row(asof_label, asof_text)}
                                                 {detail_row(FUND_SHARES, shares_text)}
                                                 {detail_row(AVERAGE_ACQUISITION_PRICE, average_price_text)}
@@ -200,7 +227,18 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                         </span>
                                                     </dd>
                                                 </div>
-                                                {detail_row(TOTAL_RETURN, total_return_text)}
+                                                <div class="flex justify-between px-4 py-3">
+                                                    <dt class="text-text-muted">{TOTAL_RETURN}</dt>
+                                                    <dd>
+                                                        <Amount
+                                                            kind=AmountKind::Delta
+                                                            class="tabular-nums"
+                                                            text=total_return_text
+                                                            negative=total_negative
+                                                            positive=total_positive
+                                                        />
+                                                    </dd>
+                                                </div>
                                             </dl>
                                         </div>
                                     }
