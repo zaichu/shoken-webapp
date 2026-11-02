@@ -98,9 +98,9 @@ impl ButtonVariant {
             Self::ConditionOption => "condition-option".to_string(),
             Self::YearOption => "year-option".to_string(),
             Self::SearchClear => "receipts-search-clear".to_string(),
-            Self::Segmented => "segmented-option".to_string(),
+            Self::Segmented => "segment-option".to_string(),
             Self::PageTab => "page-tab".to_string(),
-            Self::ConditionSegment => "condition-segment-option".to_string(),
+            Self::ConditionSegment => "segment-option".to_string(),
             Self::MenuItemDanger => {
                 "w-full px-3 py-2 text-left text-sm font-semibold text-negative hover:bg-negative/10 disabled:opacity-50 disabled:hover:bg-transparent"
                     .to_string()
