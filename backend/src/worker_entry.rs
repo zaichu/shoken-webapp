@@ -31,16 +31,28 @@ fn rate_limiter(env: &Env, name: &str) -> Option<Arc<RateLimiter>> {
     env.rate_limiter(name).ok().map(Arc::new)
 }
 
-/// `Some(limiter)` のときだけバインディングレート制限を付与する
+/// `Some(limiter)` のときはバインディングレート制限を付与する。
+/// 未設定の場合は本番だけ 503 で拒否し、開発では制限なしのままにする。
 fn with_rate_limit(
     routes: Router<AppState>,
     limiter: Option<Arc<RateLimiter>>,
+    is_production: bool,
 ) -> Router<AppState> {
     if let Some(l) = limiter {
         routes.layer(middleware::from_fn(move |req, next| {
             let l = l.clone();
-            async move { binding_rate_limit(l, req, next).await }
+            async move { binding_rate_limit(l, is_production, req, next).await }
         }))
+    } else if is_production {
+        routes.layer(middleware::from_fn(
+            |_req: axum::http::Request<axum::body::Body>, _next: middleware::Next| async {
+                crate::errors::simple_error_response(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "SERVICE_UNAVAILABLE",
+                    "一時的に利用できません。しばらくしてから再試行してください。".to_string(),
+                )
+            },
+        ))
     } else {
         routes
     }
@@ -51,10 +63,12 @@ fn router(state: AppState, env: &Env) -> Router {
     let allowed_origins = Arc::new(config.cors_origins.clone());
     let strict_origin_check = config.is_production();
     let secure_cookie = config.secure_cookie;
+    let is_production = config.is_production();
 
     let auth_routes = with_rate_limit(
         handlers::v1::auth_routes(),
         rate_limiter(env, "RATE_LIMIT_AUTH"),
+        is_production,
     );
 
     // 配当キャッシュのエンキューも data_routes 内の dividend-per-share-estimates が担う。
@@ -62,16 +76,19 @@ fn router(state: AppState, env: &Env) -> Router {
     let data_routes = with_rate_limit(
         handlers::v1::data_routes(),
         rate_limiter(env, "RATE_LIMIT_DATA"),
+        is_production,
     );
 
     let csv_routes = with_rate_limit(
         handlers::v1::csv_upload_routes(),
         rate_limiter(env, "RATE_LIMIT_CSV"),
+        is_production,
     );
 
     let stock_search_routes = with_rate_limit(
         handlers::v1::stock_search_routes(),
         rate_limiter(env, "RATE_LIMIT_STOCK_SEARCH"),
+        is_production,
     );
 
     let ready_db = state.pool.clone();

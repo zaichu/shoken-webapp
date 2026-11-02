@@ -2,7 +2,10 @@
 
 use worker::{Fetch, Headers, Method, Request, RequestInit};
 
-use super::{EquitiesMasterResponse, FinSummaryResponse, FinancialStatementsQuery, JQuantsClient};
+use super::{
+    EquitiesMasterResponse, FinSummaryResponse, FinancialStatementsQuery, JQuantsClient,
+    decode_error_summary, upstream_error_summary,
+};
 use crate::errors::{ApiError, UpstreamError};
 
 impl JQuantsClient {
@@ -20,13 +23,12 @@ impl JQuantsClient {
             url.query_pairs_mut().append_pair("to", to);
         }
 
-        tracing::info!("JQuants API V2 リクエスト: code={}", params.code);
+        tracing::info!("JQuants fins/summary リクエスト");
         let response_text = self.fetch_text(url.as_str()).await?;
         serde_json::from_str(&response_text).map_err(|e| {
             tracing::error!(
-                "決算サマリーレスポンス解析エラー: {} - 本文: {}",
-                e,
-                response_text
+                "{}: {e}",
+                decode_error_summary("決算サマリー", response_text.len())
             );
             UpstreamError::Decode(e).into()
         })
@@ -34,13 +36,12 @@ impl JQuantsClient {
 
     /// 上場銘柄一覧を全件取得する。ページネーション・クエリパラメータは無い
     pub async fn get_equities_master(&self) -> Result<EquitiesMasterResponse, ApiError> {
-        tracing::info!("JQuants API V2 リクエスト: equities/master");
+        tracing::info!("JQuants equities/master リクエスト");
         let response_text = self.fetch_text(&self.master_url).await?;
         serde_json::from_str(&response_text).map_err(|e| {
             tracing::error!(
-                "上場銘柄一覧レスポンス解析エラー: {} - 本文: {}",
-                e,
-                response_text
+                "{}: {e}",
+                decode_error_summary("上場銘柄一覧", response_text.len())
             );
             UpstreamError::Decode(e).into()
         })
@@ -68,17 +69,13 @@ impl JQuantsClient {
             })?;
 
         let status = response.status_code();
-        tracing::info!("JQuants API レスポンスステータス: {}", status);
+        tracing::info!("JQuants レスポンス status={status}");
 
         if !(200..300).contains(&status) {
             let error_text = worker::send::SendFuture::new(response.text())
                 .await
                 .unwrap_or_default();
-            tracing::error!(
-                "JQuants API エラー - ステータス: {}, 本文: {}",
-                status,
-                error_text
-            );
+            tracing::error!("{}", upstream_error_summary(status, error_text.len()));
             if status == 429 {
                 return Err(UpstreamError::RateLimited.into());
             }
@@ -92,10 +89,10 @@ impl JQuantsClient {
         let response_text = worker::send::SendFuture::new(response.text())
             .await
             .map_err(|e| {
-                tracing::error!("レスポンス本文取得エラー: {}", e);
+                tracing::error!("JQuants レスポンス取得エラー: {e}");
                 UpstreamError::Transport(e)
             })?;
-        tracing::debug!("JQuants API レスポンス本文: {}", response_text);
+        tracing::debug!("JQuants レスポンス len={}", response_text.len());
         Ok(response_text)
     }
 }

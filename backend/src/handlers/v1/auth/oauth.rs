@@ -88,6 +88,17 @@ pub fn clear_session_cookie(secure: bool) -> Cookie<'static> {
     clear_cookie(auth_service::SESSION_COOKIE_NAME, secure)
 }
 
+fn oauth_state_equal(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.bytes().zip(b.bytes()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
 pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<SessionToken, ApiError> {
     jar.get(auth_service::SESSION_COOKIE_NAME)
         .ok_or_else(|| ApiError::Unauthorized("ログインが必要です"))?
@@ -165,7 +176,7 @@ pub async fn google_callback(
         .map(|c| c.value().to_string())
         .ok_or_else(|| ApiError::Unauthorized("OAuth state が見つかりません"))?;
 
-    if query.state != stored_state {
+    if !oauth_state_equal(&query.state, &stored_state) {
         return Err(ApiError::Unauthorized("OAuth state が一致しません"));
     }
 
@@ -390,6 +401,36 @@ mod tests {
             matches!(err, ApiError::Config(_)),
             "state 一致時は Config エラーになるはず: {err:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn test_google_callback_mismatched_state_is_unauthorized() {
+        use crate::services::auth::OAUTH_STATE_COOKIE_NAME;
+        let jar = CookieJar::new().add(Cookie::new(OAUTH_STATE_COOKIE_NAME, "stored-state"));
+        let result = google_callback(
+            State(make_test_state()),
+            HeaderMap::default(),
+            Query(AuthCallbackQuery {
+                code: "auth-code".to_string(),
+                state: "different-state".to_string(),
+            }),
+            jar,
+        )
+        .await;
+        let err = result.expect_err("state 不一致は拒否される");
+        assert!(
+            matches!(err, ApiError::Unauthorized(_)),
+            "state 不一致は Unauthorized になるはず: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_oauth_state_equal() {
+        assert!(oauth_state_equal("abc123", "abc123"));
+        assert!(!oauth_state_equal("abc123", "abc124"));
+        assert!(!oauth_state_equal("abc123", "abc12"));
+        assert!(!oauth_state_equal("abc123", "abc1234"));
+        assert!(!oauth_state_equal("", "a"));
     }
 
     #[test]

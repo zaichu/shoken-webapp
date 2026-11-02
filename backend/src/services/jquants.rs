@@ -51,6 +51,18 @@ impl JQuantsClient {
     }
 }
 
+/// 上流の応答本文を含めない要約ログ。処理名・状態・長さだけにする。
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn upstream_error_summary(status: u16, body_len: usize) -> String {
+    format!("JQuants API エラー status={status} len={body_len}")
+}
+
+/// 解析失敗の要約ログ。本文は載せず長さだけにする。
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn decode_error_summary(op: &'static str, body_len: usize) -> String {
+    format!("{op}解析エラー len={body_len}")
+}
+
 // openapi.json はホストで生成されるためハンドラ経由で本メソッドもホストでコンパイル
 // される必要がある。J-Quants への問い合わせ経路は Worker にしか存在しない
 #[cfg(not(target_arch = "wasm32"))]
@@ -68,5 +80,21 @@ impl JQuantsClient {
         Err(ApiError::Internal(
             "J-Quants API の呼び出しは Workers 環境でのみ利用できます",
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_upstream_log_summaries_exclude_body() {
+        let body = "secret-body-xyz-123";
+        let error_log = upstream_error_summary(500, body.len());
+        assert!(error_log.contains("500"));
+        assert!(!error_log.contains(body));
+        let decode_log = decode_error_summary("決算サマリー", body.len());
+        assert!(decode_log.contains("決算サマリー"));
+        assert!(!decode_log.contains(body));
     }
 }

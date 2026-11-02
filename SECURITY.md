@@ -52,7 +52,7 @@ GitHub の [Security Advisories](https://github.com/zaichu/shoken-webapp/securit
 ### 認証・セッション
 
 - OAuth の `state` は HttpOnly Cookie（10 分）に保存し、コールバックで照合する
-- Google の ID トークンは JWKS による署名検証（RS256）と iss・aud・exp の検証を行う
+- Google の ID トークンは tokeninfo エンドポイントへの委譲で検証し、iss・aud・exp・nonce・email_verified の確認を行う（JWKS による自前署名検証はしない）
 - ログイン後のリダイレクト先は設定値 `FRONTEND_URL` に固定し、オープンリダイレクトを防ぐ
 - セッション Cookie は `HttpOnly`・`Path=/`・`Max-Age=7日` で、DB 側の `expires_at` でも期限を管理する
 - 本番では `Secure` + `SameSite=None`（Pages と Workers のクロスサイト構成で必要）。ローカル開発では `SameSite=Lax`
