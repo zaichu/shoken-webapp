@@ -700,6 +700,10 @@
     max-height: 88dvh;
   }
 
+  .dialog-title {
+    @apply flex-1 text-base font-bold text-text;
+  }
+
   /* 条件ダイアログの背景。中央ダイアログと同じく下地を暗くする。
      旧名の互換のため残すが、配置は search-dialog-root の中央に任せる */
   .condition-backdrop {
@@ -800,10 +804,6 @@
     @apply flex items-center gap-2 border-b border-border px-4 py-3;
   }
 
-  .search-dialog-title {
-    @apply flex-1 text-base font-bold text-text;
-  }
-
   .search-dialog-body {
     @apply flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-3;
     overscroll-behavior: contain;
@@ -839,10 +839,6 @@
 
   .detail-dialog-head {
     @apply border-b border-border px-4 py-3;
-  }
-
-  .detail-dialog-title {
-    @apply text-base font-bold text-text;
   }
 
   .detail-dialog-badges {
