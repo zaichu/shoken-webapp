@@ -562,12 +562,13 @@
       position: relative;
     }
 
+    /* スライドに will-change: transform を置かない。置くと fixed の
+       検索ダイアログがスライド内に閉じ込められ、中央に出なくなる */
     .tab-swipe-slide {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      will-change: transform;
     }
 
     .tab-swipe-slide[data-active="true"] {
