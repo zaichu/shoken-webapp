@@ -3,9 +3,8 @@ pub mod facets;
 pub mod search;
 pub mod search_filters;
 
-use crate::db::{Bind, Db, DbError, Query};
+use crate::db::{Bind, Query};
 use shared::value::UserId;
-use std::future::Future;
 
 /// 書き込みで既存行に追記するか、利用者の行を全件置き換えるか
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,11 +27,4 @@ pub trait Domain: Send + Sync + 'static {
     const NAME: &'static str;
     const TABLE: &'static str;
     const WRITE_MODE: WriteMode;
-
-    fn delete_rows(
-        pool: &Db,
-        user_id: UserId,
-    ) -> impl Future<Output = Result<u64, DbError>> + Send {
-        async move { delete_rows_query::<Self>(user_id).execute(pool).await }
-    }
 }

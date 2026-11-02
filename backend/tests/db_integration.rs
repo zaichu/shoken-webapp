@@ -3435,6 +3435,358 @@ async fn trading_tables_rls_isolates_restricted_role() {
     }
 }
 
+/// RLS 第三段階(後半): 書き込み経路は `begin_with_user` で開いた
+/// トランザクション内で動くため、制限ロールでも本人の行だけが書ける。
+/// 読み取り経路の配線は接続ロールの切り替え段階まで見送り、ここでは所有者側で挙動が変わらないことだけ見る。
+/// 未認証経路は設定を残さない。値はトランザクションをまたいで残らない
+/// (接続に残る空文字のプレースホルダは利用者の値ではなく、比較では不一致になる)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn rls_set_local_wiring_scopes_authenticated_paths() {
+    use backend::services::login_event::admin::record_view as record_admin_view;
+    use backend::services::login_event::list_login_history;
+    use backend::services::login_notify::{
+        consume_token, get_setting, issue_token, peek_token, set_setting,
+    };
+
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&database_url).await;
+    run_migrations(&pool).await.expect("migrations failed");
+
+    let user_a = create_test_user(&pool).await;
+    let user_b = create_test_user(&pool).await;
+    let user_c = create_test_user(&pool).await;
+
+    dividend_svc::bulk_create(
+        &pool,
+        user_a,
+        &[make_dividend_item("9931")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当の投入に失敗");
+    dividend_svc::bulk_create(
+        &pool,
+        user_b,
+        &[make_dividend_item("9932")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当の投入に失敗");
+    dividend_svc::bulk_create(
+        &pool,
+        user_c,
+        &[make_dividend_item("9933")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当の投入に失敗");
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_a,
+        &[make_asset_item("9931")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("残高の投入に失敗");
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_b,
+        &[make_asset_item("9901")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("残高の投入に失敗");
+
+    for (user_id, device_byte) in [(&user_a, 61u8), (&user_b, 62u8)] {
+        db::query(
+            "INSERT INTO login_events (user_id, result, device_hash) VALUES ($1, 'success', $2)",
+            vec![Bind::from(*user_id), Bind::Bytes(vec![device_byte; 32])],
+        )
+        .execute(&pool)
+        .await
+        .expect("ログイン記録の投入に失敗");
+    }
+
+    pool.batch_execute("CREATE ROLE rls_app WITH LOGIN PASSWORD 'rls-test-password'")
+        .await
+        .expect("制限ロールの作成に失敗");
+    pool.batch_execute("GRANT CONNECT ON DATABASE postgres TO rls_app")
+        .await
+        .expect("CONNECT 付与に失敗");
+    pool.batch_execute("GRANT USAGE ON SCHEMA public TO rls_app")
+        .await
+        .expect("USAGE 付与に失敗");
+    for table in [
+        "dividends",
+        "domestic_stocks",
+        "mutualfunds",
+        "asset_balances",
+        "fund_balances",
+        "csv_import_history",
+        "login_events",
+        "admin_login_views",
+        "login_notify_tokens",
+    ] {
+        pool.batch_execute(&format!(
+            "GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO rls_app"
+        ))
+        .await
+        .expect("表権限の付与に失敗");
+    }
+    pool.batch_execute("GRANT SELECT, UPDATE ON users TO rls_app")
+        .await
+        .expect("users の参照・更新付与に失敗");
+    let restricted_url = format!("postgres://rls_app:rls-test-password@127.0.0.1:{port}/postgres");
+    let restricted = connect_with_retry(&restricted_url).await;
+
+    async fn current_setting(executor: &Db) -> Option<String> {
+        db::query_scalar::<Option<String>>(
+            "SELECT current_setting('app.current_user_id', true)",
+            vec![],
+        )
+        .fetch_one(executor)
+        .await
+        .expect("設定値の取得に失敗")
+    }
+    async fn assert_no_user_setting(executor: &Db) {
+        let setting = current_setting(executor).await;
+        assert!(
+            setting.as_deref().is_none_or(|value| value.is_empty()),
+            "別利用者の値が残ってはいけない: {setting:?}"
+        );
+    }
+    assert_no_user_setting(&restricted).await;
+
+    let mut tx = restricted
+        .begin_with_user(user_a)
+        .await
+        .expect("利用者付き tx の開始に失敗");
+    let setting = db::query_scalar::<Option<String>>(
+        "SELECT current_setting('app.current_user_id', true)",
+        vec![],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .expect("tx 内の設定値の取得に失敗");
+    assert_eq!(
+        setting,
+        Some(user_a.to_string()),
+        "tx 内では利用者 ID が設定されているはず"
+    );
+    tx.rollback().await.expect("rollback に失敗");
+    assert_no_user_setting(&restricted).await;
+
+    let uploaded = dividend_svc::DividendDomain::upload_csv(
+        &restricted,
+        user_a,
+        make_dividend_csv().as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("制限ロールでの CSV 取り込みは通るはず");
+    assert_eq!(uploaded.inserted, 1);
+    backend::services::csv::record_import_success(&restricted, user_a, "dividend", &uploaded)
+        .await
+        .expect("制限ロールでの履歴記録は通るはず");
+    let history_noset = db::query_scalar::<i64>(
+        "SELECT COUNT(*) FROM csv_import_history WHERE user_id = $1",
+        vec![Bind::from(user_a)],
+    )
+    .fetch_one(&restricted)
+    .await
+    .expect("履歴の件数取得に失敗");
+    assert_eq!(
+        history_noset, 0,
+        "設定なしの制限ロールには履歴が見えてはいけない"
+    );
+    let mut tx = restricted
+        .begin_with_user(user_a)
+        .await
+        .expect("利用者付き tx の開始に失敗");
+    let history_a = db::query_scalar::<i64>(
+        "SELECT COUNT(*) FROM csv_import_history WHERE user_id = $1",
+        vec![Bind::from(user_a)],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .expect("履歴の件数取得に失敗");
+    assert_eq!(history_a, 1, "履歴は本人の行だけが見えるはず");
+    tx.rollback().await.expect("rollback に失敗");
+
+    let replaced = asset_balance_svc::bulk_create(
+        &restricted,
+        user_a,
+        &[make_asset_item("9902")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("制限ロールでの残高置換は通るはず");
+    assert_eq!(replaced.inserted, 1);
+    let mut tx = restricted
+        .begin_with_user(user_a)
+        .await
+        .expect("利用者付き tx の開始に失敗");
+    let asset_codes = db::query("SELECT security_code FROM asset_balances", vec![])
+        .fetch_all::<(String,), _>(&mut tx)
+        .await
+        .expect("残高の取得に失敗");
+    assert_eq!(
+        asset_codes,
+        vec![("9902".to_string(),)],
+        "置換後は本人の行だけが見えるはず"
+    );
+    tx.rollback().await.expect("rollback に失敗");
+
+    let token = issue_token(&restricted, user_a)
+        .await
+        .expect("制限ロールでのトークン発行は通るはず");
+    assert!(!token.is_empty(), "発行されたトークンが空ではいけない");
+    for (user_id, expected) in [(user_a, 1i64), (user_b, 0i64)] {
+        let mut tx = restricted
+            .begin_with_user(user_id)
+            .await
+            .expect("利用者付き tx の開始に失敗");
+        let sends = db::query_scalar::<i64>(
+            "SELECT COUNT(*) FROM login_notify_tokens WHERE user_id = $1 \
+             AND created_at > NOW() - INTERVAL '1 hour'",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(&mut tx)
+        .await
+        .expect("送信回数の取得に失敗");
+        assert_eq!(sends, expected, "自分の発行分だけ数えるはず");
+        tx.rollback().await.expect("rollback に失敗");
+    }
+    assert!(
+        !set_setting(&restricted, user_a, false)
+            .await
+            .expect("制限ロールでの設定更新は通るはず"),
+        "更新で返った設定値が変わっているはず"
+    );
+    assert!(
+        !get_setting(&pool, user_a)
+            .await
+            .expect("設定取得は通るはず"),
+        "更新後の設定値が読めるはず"
+    );
+    assert!(
+        get_setting(&pool, user_b)
+            .await
+            .expect("設定取得は通るはず"),
+        "別利用者の設定値に影響してはいけない"
+    );
+    set_setting(&restricted, user_a, true)
+        .await
+        .expect("設定値の復元に失敗");
+
+    record_admin_view(&restricted, user_a)
+        .await
+        .expect("制限ロールでの閲覧記録は通るはず");
+    let mut tx = restricted
+        .begin_with_user(user_a)
+        .await
+        .expect("利用者付き tx の開始に失敗");
+    let views_a = db::query_scalar::<i64>(
+        "SELECT COUNT(*) FROM admin_login_views WHERE user_id = $1",
+        vec![Bind::from(user_a)],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .expect("閲覧記録の件数取得に失敗");
+    assert_eq!(views_a, 1, "閲覧記録は本人の行だけが見えるはず");
+    tx.rollback().await.expect("rollback に失敗");
+
+    let deleted = bulk::delete_all::<dividend_svc::DividendDomain>(&restricted, user_c)
+        .await
+        .expect("制限ロールでの全削除は通るはず");
+    assert_eq!(deleted, 1, "利用者 C の配当 1 件だけ消えるはず");
+    for (user_id, expected) in [(user_a, 2i64), (user_b, 1i64)] {
+        let count = db::query_scalar::<i64>(
+            "SELECT COUNT(*) FROM dividends WHERE user_id = $1",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("所有者の件数取得に失敗");
+        assert_eq!(count, expected, "別利用者の行が消えてはいけない");
+    }
+
+    let mut list_params = default_dividend_search_params();
+    list_params.search.include_summary = Some(true);
+    list_params.search.include_facets = Some(true);
+    let dividends_a = domain_search::<dividend_svc::DividendDomain>(&pool, user_a, list_params)
+        .await
+        .expect("配当一覧は通るはず");
+    assert_eq!(dividends_a.total, 2, "利用者 A の配当が見えるはず");
+    assert!(dividends_a.summary.is_some(), "配当集計が返るはず");
+    assert!(dividends_a.facets.is_some(), "配当 facets が返るはず");
+    let asset_a = domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_a,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("残高一覧は通るはず");
+    assert_eq!(asset_a.total, 1, "利用者 A の残高が見えるはず");
+    let history_a = list_login_history(&pool, user_a, 50, 0)
+        .await
+        .expect("ログイン履歴は通るはず");
+    assert_eq!(history_a.len(), 1, "利用者 A の記録が見えるはず");
+
+    assert_no_user_setting(&restricted).await;
+
+    let preview = dividend_svc::DividendDomain::preview_csv(make_dividend_csv().as_bytes())
+        .expect("未認証のプレビューは通るはず");
+    assert_eq!(preview.valid_rows, 1);
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, SessionToken::new())
+            .await
+            .expect("未知セッションの参照に失敗")
+            .is_none(),
+        "未知のセッションは利用者を返してはいけない"
+    );
+    assert!(
+        peek_token(&pool, "存在しない平文トークン")
+            .await
+            .expect("未知トークンの参照に失敗")
+            .is_none()
+    );
+    assert!(
+        consume_token(&pool, "存在しない平文トークン")
+            .await
+            .expect("未知トークンの消費に失敗")
+            .is_none()
+    );
+    let owner_setting = db::query_scalar::<Option<String>>(
+        "SELECT current_setting('app.current_user_id', true)",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("設定値の取得に失敗");
+    assert!(
+        owner_setting
+            .as_deref()
+            .is_none_or(|value| value.is_empty()),
+        "未認証経路では利用者の値が残ってはいけない: {owner_setting:?}"
+    );
+
+    for (table, expected) in [("dividends", 3i64), ("login_events", 2i64)] {
+        let count = db::query_scalar::<i64>(format!("SELECT COUNT(*) FROM {table}"), vec![])
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, expected, "所有者の挙動は変わらないはず: {table}");
+    }
+}
+
 /// (銘柄コード, 数量) の一覧。置換ガードの前後比較用
 async fn asset_balance_rows(pool: &Db, user_id: UserId) -> Vec<(String, String)> {
     db::query(

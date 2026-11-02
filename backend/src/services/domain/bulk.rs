@@ -165,7 +165,7 @@ async fn begin_bulk_write<D: Domain>(
     additional: usize,
     limit: RowLimit,
 ) -> Result<Tx, ApiError> {
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_with_user(user_id).await?;
     lock_user_domain::<D>(&mut tx, user_id).await?;
     ensure_user_row_limit_with::<D, _>(&mut tx, user_id, additional, limit).await?;
     Ok(tx)
@@ -214,7 +214,11 @@ pub async fn bulk_replace<D: Domain>(
 /// ユーザーに紐づく全レコードを削除する共通実装
 pub async fn delete_all<D: Domain>(pool: &Db, user_id: UserId) -> Result<u64, ApiError> {
     info!("[{}.delete_all] リクエスト受信", D::NAME);
-    let deleted = D::delete_rows(pool, user_id).await?;
+    let mut tx = pool.begin_with_user(user_id).await?;
+    let deleted = super::delete_rows_query::<D>(user_id)
+        .execute(&mut tx)
+        .await?;
+    tx.commit().await?;
     info!("[{}.delete_all] 完了: {}件削除", D::NAME, deleted);
     Ok(deleted)
 }
