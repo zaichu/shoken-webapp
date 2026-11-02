@@ -429,21 +429,23 @@
     @apply inline-flex overflow-clip rounded-lg border border-border-strong bg-surface;
   }
 
-  .segmented-option {
-    @apply min-h-9 min-w-12 items-center justify-center px-4 py-1.5 text-sm font-medium text-text-deep transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-sm:min-h-11;
+  /* 少数択一の切り替え(設定の金額単位・自動ログアウト・テーマと取引明細の期間)。
+     余白・文字は共通の形にそろえ、種別の出し分けは Button の variant で行う */
+  .segment-option {
+    @apply inline-flex min-h-9 min-w-12 items-center justify-center px-4 py-1.5 text-sm font-medium text-text-deep transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-sm:min-h-11;
   }
 
-  .segmented-option + .segmented-option {
+  .segment-option + .segment-option {
     @apply border-l border-border-strong;
   }
 
-  .segmented-option[aria-pressed="true"] {
+  .segment-option[aria-pressed="true"] {
     @apply bg-brand font-bold text-text-inverse;
   }
 
   /* ダークでは紺の選択色が面に溶けるため、明るい塗り+反転文字で選択状態を示す */
   @media screen {
-    :root[data-theme="dark"] .segmented-option[aria-pressed="true"] {
+    :root[data-theme="dark"] .segment-option[aria-pressed="true"] {
       @apply bg-accent text-page;
     }
   }
@@ -729,24 +731,9 @@
     @apply mt-2 flex w-full overflow-clip rounded-lg border border-border-strong bg-surface;
   }
 
-  .condition-segment-option {
-    @apply flex min-h-9 flex-1 items-center justify-center px-1 text-[13px] font-medium text-text-deep transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-sm:min-h-11;
-  }
-
-  .condition-segment-option + .condition-segment-option {
-    @apply border-l border-border-strong;
-  }
-
-  .condition-segment-option[aria-pressed="true"] {
-    @apply bg-brand font-bold text-text-inverse;
-  }
-
-  /* ダークでは紺の選択色が面に溶けるため、segmented-option と同じ
-     明るい塗り+反転文字で選択状態を示す */
-  @media screen {
-    :root[data-theme="dark"] .condition-segment-option[aria-pressed="true"] {
-      @apply bg-accent text-page;
-    }
+  /* 全幅の帯では5択を等分に分ける */
+  .condition-segment > .segment-option {
+    @apply flex-1;
   }
 
   .condition-option-list {
@@ -771,7 +758,7 @@
     @apply border-brand-text text-text-deep;
   }
 
-  /* ダークでは紺の選択色が面に溶けるため、segmented-option と同じ
+  /* ダークでは紺の選択色が面に溶けるため、segment-option と同じ
      明るい塗り+反転文字で選択状態を示す */
   @media screen {
     :root[data-theme="dark"] .condition-option[aria-pressed="true"] {
@@ -1416,10 +1403,6 @@
 
   .home-card-row-dividend {
     @apply lg:grid-cols-[2fr_1fr];
-  }
-
-  .home-card-link {
-    @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-xs font-medium text-accent-text hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
   }
 
   .more-link {
