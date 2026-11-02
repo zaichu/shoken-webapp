@@ -360,6 +360,7 @@ fn FundContent(
                     key_from_value=|value: &str| FundSortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
+                    composition=true
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">
@@ -567,6 +568,7 @@ fn AllContent(
                     key_from_value=|value: &str| FundSortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
+                    composition=true
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">

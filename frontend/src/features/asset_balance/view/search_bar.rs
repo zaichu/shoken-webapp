@@ -284,7 +284,7 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
     key_from_value: fn(&str) -> Option<K>,
     sort_key: RwSignal<K>,
     sort_order: RwSignal<SortOrder>,
-    /// true のとき件数の行の右端に構成比への入口を出す(国内株式タブだけ)
+    /// true のとき件数の行の右端に構成比への入口を出す
     #[prop(optional)]
     composition: bool,
 ) -> impl IntoView {

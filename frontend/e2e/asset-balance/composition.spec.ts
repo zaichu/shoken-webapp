@@ -339,10 +339,13 @@ test.describe('スマホの構成比', () => {
     await page.getByRole('link', { name: '資産管理に戻る' }).click();
     await expect(page).toHaveURL('/assetbalance');
 
-    // 投資信託タブに構成比の入口は無い(対象は国内株式のまま)
-    await page.goto('/assetbalance');
-    await page.getByTestId('asset-kind-tab-fund').click();
-    await expect(page.getByTestId('asset-composition-link')).toHaveCount(0);
+    // 3タブとも件数行の右に構成比への入口を出す
+    for (const tab of ['asset-kind-tab-stock', 'asset-kind-tab-fund', 'asset-kind-tab-all']) {
+      await page.goto('/assetbalance');
+      await page.getByTestId(tab).click();
+      await expect(page.getByTestId('asset-composition-link')).toBeVisible();
+      await expect(page.getByTestId('asset-composition-link')).toContainText('構成比を見る');
+    }
   });
 });
 
