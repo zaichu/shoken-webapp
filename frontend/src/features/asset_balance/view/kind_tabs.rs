@@ -1,4 +1,5 @@
 use crate::features::asset_balance::fund::AssetKind;
+use crate::ui::button::TabButton;
 use crate::ui::labels;
 use crate::ui::underline_tabs::{
     SwipeMotion, focus_tab_by_id, next_tab_index, prefers_reduced_motion,
@@ -46,15 +47,11 @@ pub(crate) fn AssetKindTabs(
                     let clicked = kind;
                     let guard = motion;
                     view! {
-                        <button
-                            type="button"
-                            role="tab"
-                            id=tab_id(item)
-                            aria-selected=move || selected().to_string()
-                            tabindex=move || if selected() { "0" } else { "-1" }
-                            class="page-tab"
-                            data-testid=format!("asset-kind-tab-{}", item.value())
-                            on:click=move |event| {
+                        <TabButton
+                            id=tab_id(item).to_string()
+                            selected=selected
+                            testid=format!("asset-kind-tab-{}", item.value())
+                            on_click=move |event| {
                                 if event.detail() != 0
                                     && swipe_should_ignore_input(
                                         guard.settling.get_untracked(),
@@ -65,7 +62,7 @@ pub(crate) fn AssetKindTabs(
                                 }
                                 clicked.set(item);
                             }
-                            on:keydown=move |event| {
+                            on_keydown=move |event| {
                                 let current = AssetKind::ALL
                                     .iter()
                                     .position(|candidate| *candidate == keyed.get_untracked())
@@ -79,7 +76,7 @@ pub(crate) fn AssetKindTabs(
                         >
                             {item.label()}
                             <span class="page-tab-count">{move || count(item)}</span>
-                        </button>
+                        </TabButton>
                     }
                 })
                 .collect_view()}

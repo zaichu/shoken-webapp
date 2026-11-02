@@ -734,6 +734,15 @@
     @apply border-brand bg-brand text-text-inverse;
   }
 
+  /* 年・月の選択肢。枠線の色で選択中を示し、塗りは変えない */
+  .year-option {
+    @apply inline-flex items-center rounded-full border border-border-strong bg-surface px-3 py-1.5 text-sm font-medium text-text-soft transition-colors hover:bg-surface-sunken max-sm:min-h-11;
+  }
+
+  .year-option[aria-pressed="true"] {
+    @apply border-brand-text text-text-deep;
+  }
+
   /* ダークでは紺の選択色が面に溶けるため、segmented-option と同じ
      明るい塗り+反転文字で選択状態を示す */
   @media screen {
@@ -878,39 +887,7 @@
     @apply flex w-full flex-wrap gap-1.5;
   }
 
-  /* シートの中の並べ替えの縦リスト。選択中は左に印を出す */
-  .sort-option-list {
-    @apply flex flex-col overflow-y-auto rounded-lg border border-border;
-    max-height: 16rem;
-  }
-
-  .sort-option {
-    @apply flex min-h-11 w-full items-center gap-2 border-0 bg-surface px-3 py-2 text-left text-sm;
-  }
-
-  .sort-option + .sort-option {
-    @apply border-t border-border-faint;
-  }
-
-  .sort-option[data-selected="true"] {
-    @apply bg-surface-sunken font-bold;
-  }
-
-  .sort-option-check {
-    @apply inline-flex w-5 shrink-0 items-center justify-center font-bold text-accent;
-  }
-
-  .sort-order-row {
-    @apply grid grid-cols-2 gap-2;
-  }
-
-  .sort-order-option {
-    @apply min-h-11 w-full;
-  }
-
-  .sort-order-option[data-selected="true"] {
-    @apply border-brand bg-brand font-bold text-text-inverse;
-  }
+  /* シートの中の並べ替えは Select 部品で選ぶ。旧 `sort-option` 系の定義は使わない */
 
   /* type=date は未入力だと「年/月/日 ()」のような形式表示が出る。入力中は
      打った桁を見せる必要があるので、空かつ未フォーカスのときだけ文字を消す */
@@ -1612,11 +1589,8 @@
     @apply block w-full px-4 py-3 no-underline text-text-deep;
   }
 
-  .list-row-action-body {
-    @apply block w-full px-4 py-3 isolate;
-  }
-
-  a.list-row-action:hover {
+  .list-row-action:hover,
+  .list-row-action:active {
     @apply bg-surface-sunken;
   }
 
@@ -1637,24 +1611,6 @@
 
   .list-group-summary {
     @apply text-xs whitespace-nowrap text-text-deep tabular-nums;
-  }
-
-  /* 取引明細・ホームの配当入金の行ボタン。行全体を押せるボタンにし、
-     押したときだけ背景を変える(押していない行が別の色に見えないようにする) */
-  .receipt-compact-button {
-    @apply block w-full cursor-pointer border-0 bg-transparent p-0 text-left;
-  }
-
-  .receipt-compact-button-inner {
-    @apply block px-4 py-2 isolate;
-  }
-
-  .receipt-compact-button:active {
-    @apply bg-surface-sunken;
-  }
-
-  .receipt-compact-button:focus-visible {
-    @apply outline-2 -outline-offset-2 outline-ink;
   }
 
   .asset-comp-link {
