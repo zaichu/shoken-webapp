@@ -166,11 +166,15 @@ test('スマホの行は名前と評価額・損益を出し配当の内訳は�
   await expect(row.locator('.list-row-name')).toContainText('架空自動車');
   await expect(row.locator('.list-row-meta')).toContainText('9904');
   await expect(row.locator('.list-row-meta')).toContainText('100株');
-  // 行に配当の内訳は出さず、詳細画面で確かめる
+  // 行に配当の内訳は出さず、中央ダイアログで確かめる
   await expect(row).not.toContainText('1株 ¥90');
-  await row.getByRole('link').click();
-  await expect(page).toHaveURL(/\/assetbalance\/holdings\//);
-  await expect(page.getByText('1株配当')).toBeVisible();
+  await row.getByTestId('asset-row-button').click();
+  const dialog = page.getByTestId('asset-holding-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('1株配当');
+  await expect(dialog).toContainText('¥90');
+  await dialog.getByTestId('detail-dialog-close').click();
+  await expect(dialog).toBeHidden();
 });
 
 test('「すべて」タブの株式行にも1株配当が出る', async ({ page }) => {

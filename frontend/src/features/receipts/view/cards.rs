@@ -4,15 +4,15 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{AccountBadge, CodeBadge};
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
+use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
-use crate::ui::format::format_short_date;
+use crate::ui::format::{format_iso_date, format_short_date};
 use crate::ui::labels::{
-    self, ACCOUNT, ACQUISITION_PRICE, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX,
-    PER_SHARE_DIVIDEND, PROFIT_SHORT, QUANTITY, REALIZED_BEFORE_TAX, REALIZED_PROFIT_LOSS,
-    RECEIPT_SHORT, REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX,
+    self, ACQUISITION_PRICE, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, PAYMENT_DATE,
+    PER_SHARE_DIVIDEND, PROFIT_SHORT, QUANTITY, REALIZED_PROFIT_LOSS, RECEIPT_SHORT,
+    REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX, TRADE_DATE,
 };
 use crate::ui::list_row::ListRow;
-use crate::ui::row_detail_sheet::{RowDetailSheet, SheetItem};
 use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
@@ -269,66 +269,75 @@ fn compact_value(details: &[CardDetail], label: &str) -> (String, bool, bool) {
         .unwrap_or_default()
 }
 
-pub(crate) fn sheet_detail_order(tab: ReceiptsTab) -> Vec<&'static str> {
-    match tab {
-        ReceiptsTab::Dividend => vec![ACCOUNT, DIVIDEND_AMOUNT, TAX, PER_SHARE_DIVIDEND, QUANTITY],
-        ReceiptsTab::DomesticStock => vec![
-            REALIZED_PROFIT_LOSS,
-            TAX,
-            QUANTITY,
-            SELLING_AMOUNT,
-            ACQUISITION_PRICE,
-            ACCOUNT,
-        ],
-        ReceiptsTab::MutualFund => vec![
-            REALIZED_PROFIT_LOSS,
-            TAX,
-            QUANTITY,
-            REDEMPTION_AMOUNT,
-            ACQUISITION_PRICE,
-            ACCOUNT,
-        ],
-    }
+fn detail_text(details: &[CardDetail], label: &str) -> (String, bool, bool, bool) {
+    details
+        .iter()
+        .find(|detail| detail.label == label)
+        .map(|detail| match &detail.value {
+            CardDetailValue::Text {
+                text,
+                negative,
+                positive,
+                is_profit,
+            } => (text.clone(), *negative, *positive, *is_profit),
+            CardDetailValue::CopyName { display, .. } => (display.clone(), false, false, false),
+        })
+        .unwrap_or_default()
 }
 
-pub(crate) fn sheet_details(tab: ReceiptsTab, card: &CardRowData) -> Vec<SheetItem> {
-    let order = sheet_detail_order(tab);
-    let mut items = Vec::with_capacity(order.len());
-    for label in order {
-        if label == ACCOUNT {
-            if card.account.is_empty() {
-                continue;
-            }
-            items.push(SheetItem::plain(label.to_string(), card.account.clone()));
-            continue;
+pub(crate) fn receipt_detail_cells(
+    tab: ReceiptsTab,
+    card: &CardRowData,
+) -> (Vec<DetailCell>, Vec<DetailCell>) {
+    let date_text = format_iso_date(&card.date.replace('/', "-"));
+    let date_label = match tab {
+        ReceiptsTab::Dividend => PAYMENT_DATE,
+        _ => TRADE_DATE,
+    };
+    match tab {
+        ReceiptsTab::Dividend => {
+            let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
+            let (per_share, _, _, _) = detail_text(&card.details, PER_SHARE_DIVIDEND);
+            let (gross, _, _, _) = detail_text(&card.details, DIVIDEND_AMOUNT);
+            let (tax, _, _, _) = detail_text(&card.details, TAX);
+            let (net, _, _, _) = detail_text(&card.details, AFTER_TAX);
+            let left = vec![
+                DetailCell::plain(date_label.to_string(), date_text),
+                DetailCell::plain(QUANTITY.to_string(), qty),
+                DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
+            ];
+            let right = vec![
+                DetailCell::plain(BEFORE_TAX.to_string(), gross),
+                DetailCell::plain(TAX.to_string(), tax),
+                DetailCell::strong(AFTER_TAX.to_string(), net, false, false, false),
+            ];
+            (left, right)
         }
-        // 税引前の金額は主役の税引後と区別できるよう基準を明記する
-        let display = match label {
-            DIVIDEND_AMOUNT => DIVIDEND_BEFORE_TAX,
-            REALIZED_PROFIT_LOSS => REALIZED_BEFORE_TAX,
-            _ => label,
-        };
-        if let Some(detail) = card.details.iter().find(|detail| detail.label == label) {
-            match &detail.value {
-                CardDetailValue::Text {
-                    text,
-                    negative,
-                    positive,
-                    is_profit,
-                } => items.push(SheetItem::amount(
-                    display.to_string(),
-                    text.clone(),
-                    *negative,
-                    *positive,
-                    *is_profit,
-                )),
-                CardDetailValue::CopyName { display: value, .. } => {
-                    items.push(SheetItem::plain(display.to_string(), value.clone()));
-                }
-            }
+        _ => {
+            let amount_label = match tab {
+                ReceiptsTab::DomesticStock => SELLING_AMOUNT,
+                _ => REDEMPTION_AMOUNT,
+            };
+            let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
+            let (amount, _, _, _) = detail_text(&card.details, amount_label);
+            let (cost, _, _, _) = detail_text(&card.details, ACQUISITION_PRICE);
+            let (pnl, _pnl_neg, _pnl_pos, _) = detail_text(&card.details, REALIZED_PROFIT_LOSS);
+            let (tax, _, _, _) = detail_text(&card.details, TAX);
+            let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
+            let left = vec![
+                DetailCell::plain(date_label.to_string(), date_text),
+                DetailCell::plain(QUANTITY.to_string(), qty),
+                DetailCell::plain(amount_label.to_string(), amount),
+                DetailCell::plain(ACQUISITION_PRICE.to_string(), cost),
+            ];
+            let right = vec![
+                DetailCell::plain(BEFORE_TAX.to_string(), pnl),
+                DetailCell::plain(TAX.to_string(), tax),
+                DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
+            ];
+            (left, right)
         }
     }
-    items
 }
 
 #[component]
@@ -361,10 +370,6 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     let row_name = name_text.clone();
     let sheet_title = name_text.clone();
     let short_date = format_short_date(&date.replace('/', "-"));
-    let sheet_subtitle = match code.clone().map(|code| code.trim().to_string()) {
-        Some(code) if !code.is_empty() => format!("{code} · {date}"),
-        _ => date.clone(),
-    };
     let aux_label: &'static str = match tab {
         ReceiptsTab::Dividend => BEFORE_TAX,
         ReceiptsTab::DomesticStock => SELLING_AMOUNT,
@@ -372,7 +377,6 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     };
     let sheet_open = RwSignal::new(false);
     let hero_value_for_row = hero_value.clone();
-    let hero_value_for_sheet = hero_value.clone();
     let account_for_meta = account.clone();
     let code_for_meta = code.clone();
     let short_date_for_meta = short_date.clone();
@@ -384,7 +388,13 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         account: account_for_meta.clone(),
         details,
     };
-    let sheet_items = sheet_details(tab, &sheet_card);
+
+    let dialog_open = sheet_open;
+    let dialog_card = sheet_card.clone();
+    let (dialog_left, dialog_right) = receipt_detail_cells(tab, &dialog_card);
+    let dialog_name = sheet_title.clone();
+    let dialog_code = code_for_meta.clone();
+    let dialog_account = account_for_meta.clone();
 
     view! {
         <li class="receipt-compact-row" data-testid="receipt-card">
@@ -427,18 +437,15 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                     />
                 </span>
             </Button>
-            <Show when=move || sheet_open.get()>
-                <RowDetailSheet
-                    title=sheet_title.clone()
-                    subtitle=sheet_subtitle.clone()
-                    hero_label=AFTER_TAX.to_string()
-                    hero_text=hero_value_for_sheet.clone()
-                    hero_negative=hero_negative
-                    hero_positive=hero_positive
-                    hero_is_profit=hero_is_profit
-                    details=sheet_items.clone()
-                    on_close=move || sheet_open.set(false)
-                    testid="receipt-detail-sheet"
+            <Show when=move || dialog_open.get()>
+                <DetailDialog
+                    name=dialog_name.clone()
+                    code=dialog_code.clone().unwrap_or_default()
+                    account=dialog_account.clone()
+                    left=dialog_left.clone()
+                    right=dialog_right.clone()
+                    on_close=move || dialog_open.set(false)
+                    testid="receipt-detail-dialog"
                 />
             </Show>
         </li>

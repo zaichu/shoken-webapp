@@ -254,7 +254,7 @@ fn StockContent(
                             .into_iter()
                             .map(|index| views[index].clone())
                             .collect();
-                        view! { <HoldingsList views=sorted /> }
+                        view! { <HoldingsList views=sorted dividends=dividends /> }
                     }}
                 </div>
             </div>

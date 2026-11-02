@@ -15,10 +15,16 @@ use crate::features::asset_balance::portfolio::SortOrder;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::format::{format_number_value, unit_price_decimals};
+use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::detail_dialog::{DetailCell, DetailDialog};
+use crate::ui::format::{
+    format_currency, format_iso_date, format_number_value, unit_price_decimals,
+};
 use crate::ui::labels::{
-    ACCOUNT, CODE_COLUMN, DAY_CHANGE, DISTRIBUTION, DOMESTIC_STOCK, MARKET_VALUE, MUTUAL_FUND,
-    PER_SHARE_DIVIDEND, SECURITY_AND_FUND, VALUATION_PROFIT_LOSS,
+    ACCOUNT, ACQUISITION_YIELD, ANNUAL_DIVIDEND, AVERAGE_PRICE, BASE_PRICE, CODE_COLUMN,
+    CURRENT_PRICE, DAY_CHANGE, DISTRIBUTION, DOMESTIC_STOCK, FUND_SHARES, MARKET_VALUE,
+    MUTUAL_FUND, PENDING_UPDATE, PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY, SECURITY_AND_FUND,
+    TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
@@ -50,6 +56,9 @@ pub(crate) struct UnifiedRow {
     pub href: Option<String>,
     /// 株式行の1株配当。投資信託の行は None
     pub dividend: Option<HoldingDividend>,
+    pub current_price: Option<f64>,
+    pub average_price: Option<f64>,
+    pub purchase: Option<f64>,
 }
 
 pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -> UnifiedRow {
@@ -80,6 +89,9 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
             view.average_price,
             dividends,
         )),
+        current_price: Some(view.current_price),
+        average_price: Some(view.average_price),
+        purchase: Some(view.purchase),
     }
 }
 
@@ -105,6 +117,9 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
             .clone()
             .map(|id| format!("/assetbalance/funds/{id}")),
         dividend: None,
+        current_price: Some(view.base_price),
+        average_price: Some(view.average_purchase_price),
+        purchase: Some(view.purchase),
     }
 }
 
@@ -289,6 +304,113 @@ pub fn AssetMergedTable(
     }
 }
 
+pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<DetailCell>) {
+    let is_fund = row.kind == MUTUAL_FUND;
+    let price_label = if is_fund { BASE_PRICE } else { CURRENT_PRICE };
+    let price_text = row
+        .current_price
+        .map(format_currency)
+        .unwrap_or_else(|| "—".to_string());
+    let day_text = if row.nav_pending {
+        PENDING_UPDATE.to_string()
+    } else {
+        format_signed_row_valuation_amount(row.day_change)
+    };
+    let day_negative = is_negative_valuation(row.day_change);
+    let day_positive = is_positive_valuation(row.day_change);
+    let average_text = row
+        .average_price
+        .map(format_currency)
+        .unwrap_or_else(|| "—".to_string());
+    let purchase_text = row
+        .purchase
+        .map(format_currency)
+        .unwrap_or_else(|| "—".to_string());
+    let market_text = format_row_valuation_amount(row.market);
+    let pnl_text = format_signed_row_valuation_amount(row.profit);
+    let pnl_rate = format_signed_valuation_rate(row.rate, 1);
+    let pnl_sub = row
+        .rate
+        .map(|_| format!("{pnl_text} {pnl_rate}"))
+        .or_else(|| row.profit.map(|_| pnl_text.clone()));
+    let pnl_negative = is_negative_valuation(row.profit);
+    let pnl_positive = is_positive_valuation(row.profit);
+    let as_of = row
+        .price_as_of
+        .clone()
+        .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
+    let mut left = vec![
+        DetailCell::with_sub(
+            price_label.to_string(),
+            price_text,
+            day_text,
+            day_negative,
+            day_positive,
+        ),
+        DetailCell::plain(AVERAGE_PRICE.to_string(), average_text),
+    ];
+    if is_fund {
+        left.push(DetailCell::plain(
+            DISTRIBUTION.to_string(),
+            row.course.clone().unwrap_or_else(|| "—".to_string()),
+        ));
+    } else {
+        let per_share = row
+            .dividend
+            .as_ref()
+            .map(|dividend| {
+                crate::features::asset_balance::holdings::format_dividend_per_share(dividend, 0)
+            })
+            .unwrap_or_else(|| "—".to_string());
+        let yield_text = row
+            .dividend
+            .as_ref()
+            .map(crate::features::asset_balance::holdings::format_dividend_yield)
+            .unwrap_or_else(|| "—".to_string());
+        left.push(DetailCell::plain(ACQUISITION_YIELD.to_string(), yield_text));
+        left.push(DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share));
+    }
+    let market_cell = match pnl_sub {
+        Some(sub) => DetailCell::strong_sub(
+            MARKET_VALUE.to_string(),
+            market_text,
+            sub,
+            pnl_negative,
+            pnl_positive,
+        ),
+        None => DetailCell::plain(MARKET_VALUE.to_string(), market_text),
+    };
+    let mut right = vec![
+        DetailCell::plain(
+            if is_fund {
+                FUND_SHARES.to_string()
+            } else {
+                QUANTITY.to_string()
+            },
+            row.quantity.clone(),
+        ),
+        DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
+        market_cell,
+    ];
+    if !is_fund {
+        let annual = row
+            .dividend
+            .as_ref()
+            .map(crate::features::asset_balance::holdings::format_dividend_annual)
+            .unwrap_or_else(|| "—".to_string());
+        right.push(DetailCell::plain(ANNUAL_DIVIDEND.to_string(), annual));
+    }
+    right.push(DetailCell::plain(
+        if is_fund {
+            "基準日".to_string()
+        } else {
+            PRICE_AS_OF.to_string()
+        },
+        as_of,
+    ));
+    (left, right)
+}
+
 #[component]
 pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
     view! {
@@ -307,6 +429,13 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                     let code = row.code.clone();
                     let account = row.account.clone();
                     let quantity = row.quantity.clone();
+                    let dialog_name = row.name.clone();
+                    let dialog_code = row.code.clone();
+                    let dialog_account = row.account.clone();
+                    let dialog_row = row.clone();
+                    let open = RwSignal::new(false);
+                    let open_for_dialog = open;
+                    let (left, right) = unified_detail_cells(&dialog_row);
                     let inner = view! {
                         <ListRow
                             name=move || name.clone()
@@ -365,20 +494,100 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                     };
                     view! {
                         <li class="asset-compact-row" data-testid="asset-compact-row">
-                            {match &row.href {
-                                Some(href) => view! {
-                                    <a href=href.clone() class="asset-compact-link">
-                                        {inner}
-                                    </a>
-                                }
-                                    .into_any(),
-                                None => view! { <div class="asset-compact-link">{inner}</div> }
-                                    .into_any(),
-                            }}
+                            <Button
+                                variant=ButtonVariant::RowButton
+                                testid="asset-row-button"
+                                aria_haspopup="dialog"
+                                on_click=move |_| open.set(true)
+                            >
+                                <span class="receipt-compact-button-inner">{inner}</span>
+                            </Button>
+                            <Show when=move || open.get()>
+                                <DetailDialog
+                                    name=dialog_name.clone()
+                                    code=dialog_code.clone().unwrap_or_default()
+                                    account=dialog_account.clone().unwrap_or_default()
+                                    left=left.clone()
+                                    right=right.clone()
+                                    on_close=move || open_for_dialog.set(false)
+                                    testid="asset-merged-dialog"
+                                />
+                            </Show>
                         </li>
                     }
                 })
                 .collect_view()}
         </ul>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{unified_detail_cells, unified_from_fund, unified_from_stock};
+    use crate::api::dto::FundPriceSource;
+    use crate::features::asset_balance::fund::FundView;
+    use crate::features::asset_balance::holdings::HoldingView;
+    use crate::features::dividend_per_share::DividendMaps;
+
+    fn sample_stock() -> HoldingView {
+        HoldingView {
+            id: Some("1".to_string()),
+            code: "9904".to_string(),
+            name: "架空自動車".to_string(),
+            account: Some("特定".to_string()),
+            shares: 100.0,
+            average_price: 2500.0,
+            purchase: 250000.0,
+            current_price: 2600.0,
+            day_change: Some(50.0),
+            price_as_of: Some("2026-01-01".to_string()),
+        }
+    }
+
+    fn sample_fund() -> FundView {
+        FundView {
+            id: Some("fund-1".to_string()),
+            name: "架空ファンド".to_string(),
+            account: "特定".to_string(),
+            course: Some("受取型".to_string()),
+            shares: 10000.0,
+            average_purchase_price: 10000.0,
+            purchase: 100000.0,
+            base_price: 11000.0,
+            base_price_day_change: Some(50.0),
+            base_price_month_change: None,
+            market_value: 110000.0,
+            profit_loss: 10000.0,
+            profit_loss_rate: Some(10.0),
+            total_return: None,
+            price_as_of: Some("2026-01-05".to_string()),
+            price_source: FundPriceSource::Api,
+            is_nav_latest: true,
+            expected_nav_date: None,
+        }
+    }
+
+    #[test]
+    fn merged_dialog_uses_row_basis_and_order() {
+        let stock = unified_from_stock(&sample_stock(), &DividendMaps::default());
+        let (left, right) = unified_detail_cells(&stock);
+        let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
+        assert_eq!(
+            left_labels,
+            ["現在値", "取得単価", "取得額利回り", "1株配当"]
+        );
+        let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
+        assert_eq!(
+            right_labels,
+            ["数量", "取得総額", "評価額", "年間配当", "価格基準日"]
+        );
+        assert!(right[2].value.contains("260,000") || right[2].value.contains("260000"));
+
+        let fund = unified_from_fund(&sample_fund());
+        let (left, right) = unified_detail_cells(&fund);
+        let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
+        assert_eq!(left_labels, ["基準価額", "取得単価", "分配金"]);
+        let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
+        assert_eq!(right_labels, ["保有口数", "取得総額", "評価額", "基準日"]);
     }
 }

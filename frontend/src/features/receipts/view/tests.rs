@@ -911,7 +911,7 @@ fn card_row_data_details_follow_column_reorder() {
 }
 
 #[test]
-fn sheet_details_follow_specified_order_and_hero_stays_after_tax() {
+fn receipt_dialog_follows_specified_order_and_uses_row_values() {
     for tab in ReceiptsTab::ALL {
         let rows = match tab {
             ReceiptsTab::Dividend => dividends(),
@@ -921,38 +921,30 @@ fn sheet_details_follow_specified_order_and_hero_stays_after_tax() {
         let cells = rows[0].cells();
         let order = column_order(tab, &rows, "");
         let card = card_row_data(tab, &cells, &order, tab.card_fields());
-        let items = sheet_details(tab, &card);
-        let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
-        let expected: Vec<&str> = match tab {
-            ReceiptsTab::Dividend => vec!["口座", "配当金(税引前)", "税額", "1株配当", "数量"],
+        let (left, right) = receipt_detail_cells(tab, &card);
+        let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
+        let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
+        match tab {
+            ReceiptsTab::Dividend => {
+                assert_eq!(left_labels, ["入金日", "数量", "1株配当"]);
+                assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
+            }
             ReceiptsTab::DomesticStock => {
-                vec![
-                    "実現損益(税引前)",
-                    "税額",
-                    "数量",
-                    "売却額",
-                    "取得価額",
-                    "口座",
-                ]
+                assert_eq!(left_labels, ["約定日", "数量", "売却額", "取得価額"]);
+                assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
             ReceiptsTab::MutualFund => {
-                vec![
-                    "実現損益(税引前)",
-                    "税額",
-                    "数量",
-                    "解約額",
-                    "取得価額",
-                    "口座",
-                ]
+                assert_eq!(left_labels, ["約定日", "数量", "解約額", "取得価額"]);
+                assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
-        };
-        assert_eq!(labels, expected, "{tab:?}");
-        assert!(
-            !labels.contains(&"税引後"),
-            "{tab:?}: 主役はヒーローに出し一覧には入れない"
-        );
+        }
+        assert!(right[2].bold, "{tab:?}: 税引後は太字");
+        if tab != ReceiptsTab::Dividend {
+            assert!(right[2].delta, "{tab:?}: 税引後は損益として符号と色");
+        }
         let (hero, _, _, _) = detail_value(&card, "税引後");
         assert!(!hero.is_empty(), "{tab:?}: 行の主役が無い");
+        assert_eq!(right[2].value, hero, "{tab:?}: ダイアログは行と同じ基準");
     }
 }
 
@@ -992,9 +984,13 @@ fn single_specific_row_keeps_band_group_and_row_after_tax_equal() {
         vec![(AFTER_TAX, "+¥3,985".to_string())]
     );
     assert_eq!(detail_value(&card, "税引後").0, "+¥3,985");
-    let sheet = sheet_details(ReceiptsTab::DomesticStock, &card);
-    assert_eq!(sheet[0].label, "実現損益(税引前)");
-    assert_eq!(sheet[0].text, "+¥5,000");
+    let (left, right) = receipt_detail_cells(ReceiptsTab::DomesticStock, &card);
+    assert_eq!(left[0].label, "約定日");
+    assert_eq!(left[2].label, "売却額");
+    assert_eq!(right[0].label, "税引前");
+    assert_eq!(right[0].value, "+¥5,000");
+    assert_eq!(right[2].label, "税引後");
+    assert!(right[2].bold);
 }
 
 #[test]
