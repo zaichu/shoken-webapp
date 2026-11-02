@@ -1,0 +1,127 @@
+# DB 権限分離(RLS)計画
+
+Issue #1675(親 #1608)。監査 7-1(中)への対応。現状はアプリの `WHERE user_id` が唯一の境界で、
+将来の SQL の書き間違いが他人のデータの露出に直結する。本書は移行の計画の正本とし、
+一段階ごとに実際の適用結果を追記する。
+
+## 1. 現状
+
+### 1.1 接続の仕組み
+
+| 経路 | 実装 | 接続先 |
+|---|---|---|
+| ホスト(migrate bin・DB 結合テスト) | `backend/src/db.rs` の `connect_pool_lazy`(deadpool-postgres、`DATABASE_URL` 直結) | Neon 直結 / ローカル Docker |
+| 本番リクエスト | `backend/src/db.rs` の `WorkerDb::from_hyperdrive`(Hyperdrive binding から接続文字列・host・port を取得し `worker::Socket`(StartTls)で接続) | Hyperdrive → Supabase Session pooler(5432、`postgres.<識別子>` 形式) |
+| デプロイ時 migration | `cargo run --bin migrate`(`backend/src/db/migrate.rs` の `run_migrations`)を Neon/Supabase へ直接実行してから `wrangler deploy` | `DATABASE_URL`(GitHub secret) |
+
+- プールは利用者間で接続を使い回す。1接続が特定の利用者に紐付くことはない。
+- Hyperdrive は接続を束ねる層で、利用者ごとの接続分離はしない。
+- Session pooler はセッションモードのため、セッション単位の設定は接続を使い回す他人に漏れる余地がある。
+  トランザクションモード(6543)は使わない(`docs/db-migration-supabase.md` §1)。
+- 本番 PostgreSQL は Supabase の 17。結合テストは `postgres:16-alpine`(`backend/src/test_constants.rs`)。
+- 現在の接続ロールは単一で、テーブルの所有者相当として全表へ読み書きできる。`GRANT`/`POLICY` は migrations 全体に存在しない(監査で grep 済み)。
+
+### 1.2 表と `user_id` の一覧
+
+| テーブル | `user_id` | 分類 |
+|---|---|---|
+| `users` | 主キーが本人(`id`) | 本人の起点 |
+| `sessions` | あり | 本人 |
+| `dividends` | あり | 本人(取引明細) |
+| `domestic_stocks` | あり | 本人(取引明細) |
+| `mutualfunds` | あり | 本人(取引明細) |
+| `asset_balances` | あり | 本人(保有残高) |
+| `fund_balances` | あり | 本人(保有残高) |
+| `csv_import_history` | あり(主キーの一部) | 本人(取込履歴) |
+| `login_events` | あり | 本人(監査) |
+| `login_notify_tokens` | あり | 本人(通知) |
+| `admin_login_views` | あり | 本人(監査) |
+| `stock` | なし | 共有(マスタ) |
+| `security_prices` | なし | 共有(キャッシュ) |
+| `dividend_per_share_cache` | なし | 共有(キャッシュ) |
+| `market_data_provider_rate_control` | なし | 共有(レート制御) |
+| `fund_codes` | なし | 共有(対応表) |
+| `fund_prices` | なし | 共有(基準価額) |
+| `asset_balances_view` / `fund_balances_view` | 合成(ビュー) | 読み取り専用 |
+
+利用者データの境界はすべて `user_id` で、共有表には個人の値を書かない(`docs/db-design.md` §共有の3表・§個人値と共有値の合成)。
+
+## 2. 方式の比較
+
+| 方式 | 仕組み | 利点 | 欠点 |
+|---|---|---|---|
+| RLS + 接続ごとの利用者 ID | `ENABLE ROW LEVEL SECURITY` と `USING (user_id = ...)` ポリシーを本人表に付け、リクエスト開始時に `app.current_user_id` を接続へ渡す | SQL の書き間違いが他人の行に届かなくなる。監査 7-1 の直接の対応 | 接続使い回しのため設定漏れ・設定忘れの経路管理が要る。ポリシー式の誤りは全遮断(使えない)か全開放(意味なし)のどちらかに倒れる |
+| ロールの分離(読み取り専用など) | アプリ用に権限を絞ったロールを作り、所有者ロールは migration 専用にする | 書き込み系の事故(`DELETE` の付け忘れなど)を権限で止められる。RLS と併用できる | ロールを増やすと接続文字列の管理・切替時の整合が必要。単独では「他人の行」の分離にならない |
+| ビューによる分離 | `security_invoker` ビューやマスク用ビューを読み取り経路に使う | 読み取り列の制限(金額のマスクなど)に有効 | 行の分離の正本にはならない。ビューと実表の二重管理になる |
+
+## 3. 選んだ方式と理由
+
+RLS(行の分離)を主とし、ロールの分離(権限の縮小)を従とする。ビューは列の制限が必要になった時点でのみ検討し、行分離には使わない。
+
+- 監査 7-1 の危険は「他人の行への到達」で、行の分離に効くのは RLS だけ。
+- ロールの分離だけでは水平アクセスを止められないため、単独採用はしない。
+- 利用者 ID の受け渡しはトランザクション内の `SET LOCAL`(または `set_config(..., true)`)に限定する。
+  セッション単位の `SET` はプール・Hyperdrive の接続使い回しで他人に漏れるため使わない。
+  `Db::begin` が1接続を掴む構造(`backend/src/db.rs`)のため、トランザクション開始直後の設定で漏れを防げる。
+
+### BYPASSRLS の扱い・FORCE の有無(最優先事項)
+
+- PostgreSQL ではテーブルの所有者とスーパーユーザーは RLS を迂回する(`BYPASSRLS` 相当)。
+  現在の単一接続ロールは所有者相当のため、`ENABLE ROW LEVEL SECURITY` だけでは本番の挙動は変わらない。
+  第一段階はこの性質を意図的に使い、「RLS を有効にしても今の接続ロールが通る形」にする。
+- `FORCE ROW LEVEL SECURITY` は所有者にもポリシーを適用するため、**使わない**。
+  専用の非所有者アプリロールへ切り替えて検証が終わるまでは、どの表にも付けない。
+- 将来作るアプリ用制限ロールには `BYPASSRLS` を付けない。migration 実行ロールは所有者のままとし、
+  アプリのリクエスト経路では使わない。
+
+## 4. 移行の順番
+
+| 順 | 対象 | 理由 |
+|---|---|---|
+| 1 | `csv_import_history`(本 Issue の第一段階) | 参照が2か所(`services/csv.rs` の upsert、`services/csv/stats.rs` の LEFT JOIN)のみで、金額・数量を持たない。失敗時の実害が小さい |
+| 2 | 監査系(`login_events`・`admin_login_views`・`login_notify_tokens`) | 本人表だが認証経路の外側。読み書きの影響範囲が狭い |
+| 3 | 取引明細・残高(`dividends`・`domestic_stocks`・`mutualfunds`・`asset_balances`・`fund_balances`) | 金額を持つ中心表。1表ずつポリシー追加→制限ロールでの検証→アプリ側 `SET LOCAL` 配線の順で進める |
+| 4 | `sessions`・`users` | 認証の心臓部のため最後。誤ると全利用者が締め出される |
+| 対象外 | 共有表(`stock`・`security_prices`・`dividend_per_share_cache`・`market_data_provider_rate_control`・`fund_codes`・`fund_prices`) | 利用者の行がなく RLS の対象外。制限ロールには `SELECT` のみ与える |
+
+各段階は「ポリシー追加(所有者は迂回し挙動不変)→制限ロールでの隔離検証→アプリ側の `SET LOCAL` 配線→`FORCE` なしのまま本番確認」の順で進め、
+`FORCE` の検討は全表の配線が終わってから行う。過去の migration は書き換えない(増分のみ)。
+
+## 5. 性能への影響
+
+- ポリシーは行ごとに `user_id` の比較を足すだけの述語で、本人表の既存索引はすべて先頭が `user_id` のため、
+  計画の変化は想定しない。段階ごとに `EXPLAIN` で利用者 ID 付き問い合わせの計画が変わらないことを確かめる。
+- `SET LOCAL` はトランザクション開始時に1往復増えるが、対象は書き込み系のトランザクションのみに限定する。
+  読み取りの単発問い合わせには付けない。
+- `csv_import_history` は利用者あたり最大5行(`kind` 固定値)の表で、ポリシー評価の行数は無視できる。
+
+## 6. 止まる危険と戻し方
+
+| 危険 | 向き | 対策 |
+|---|---|---|
+| ポリシー式の誤りで制限ロールが何も見えない | 使えない側(fail-closed) | 結合テストで制限ロールの読み書きを通してから進める。本番の所有者ロールは迂回するため止まらない |
+| ポリシー式の誤りで他人が見える | 見える側(fail-open) | 式は `user_id` の等価比較のみに限定し、制限ロールで他人行の不可視・他人口座での書込失敗をテストで固定する |
+| `SET LOCAL` の付け忘れ | 制限ロールでは何も見えない | 付け忘れは「見えない」側に倒れる設計のため、露出にはならない。配線時は該当経路の結合テストを必須にする |
+| 所有者ロールの誤った `FORCE` 付け | 全停止 | `FORCE` は全段階完了まで付けないことを本書で固定する |
+
+戻し方は新しい migration で `DROP POLICY` / `DISABLE ROW LEVEL SECURITY` を行う(過去ファイルの書き換えはしない)。
+ポリシー追加のみの段階では所有者の挙動が変わらないため、戻しは当該 migration の取り消し1件で足りる。
+
+## 7. テストの方法
+
+- 既存の結合テストの仕組み(`backend/tests/db_integration.rs` の testcontainers 起動)に合わせ、
+  Docker 上の使い捨て DB で行う。本番データ・本番 DB は使わない。
+- 隔離の検証は `BYPASSRLS` を持たない制限ロールをテスト内で作り、そのロールで接続した上で
+  `SET LOCAL app.current_user_id` 相当(`set_config(..., true)` をトランザクション内で実行)を行い、
+  他人の行が見えないこと・他人 ID での書き込みが失敗することを確かめる。
+- 既存機能の検証は所有者ロールのまま行い、RLS 有効後も読み書きが通ることを確かめる。
+- 悪用手順の詳細は書かない(親 Issue の守ること)。
+
+## 8. 第一段階の記録(#1675)
+
+- `backend/migrations/0023_csv_import_history_rls.sql`: `csv_import_history` に RLS を有効化し、
+  `user_id` と接続ごとの `app.current_user_id` が一致する行だけを許可するポリシーを追加。
+  `FORCE` なしのため現行の所有者ロールの挙動は不変。比較はテキスト同士で行い、不正な値でも型変換エラーにならない。
+- 結合テスト(`backend/tests/db_integration.rs`): RLS が有効であること、所有者の既存操作(2利用者の読み書き)が通ること、
+  制限ロールでは設定なしで0件・利用者 A の設定で A の行のみ・利用者 B 名義の書き込みが失敗することを固定。
+- アプリコードの変更なし(`SET LOCAL` の配線は第3段階で行う)。

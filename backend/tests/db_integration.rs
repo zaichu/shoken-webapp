@@ -2590,7 +2590,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=22).collect::<Vec<_>>()
+        (0..=23).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2598,7 +2598,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=22).collect::<Vec<_>>()
+        (0..=23).collect::<Vec<_>>()
     );
 }
 
@@ -2626,7 +2626,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=22).collect::<Vec<_>>()
+        (0..=23).collect::<Vec<_>>()
     );
 }
 
@@ -2684,6 +2684,115 @@ async fn mismatched_history_stops_migration() {
         err.contains("make db-reset"),
         "対処法(db-reset)への言及があるはず: {err}"
     );
+}
+
+/// RLS 第一段階: `csv_import_history` は所有者の挙動を変えず、
+/// 権限を絞ったロールでは利用者ごとに分離される
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_import_history_rls_isolates_restricted_role() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&database_url).await;
+    run_migrations(&pool).await.expect("migrations failed");
+
+    let rls = db::query_scalar::<bool>(
+        "SELECT relrowsecurity FROM pg_class WHERE relname = 'csv_import_history'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("RLS 有効の取得に失敗");
+    assert!(rls, "csv_import_history に RLS が有効のはず");
+    let forced = db::query_scalar::<bool>(
+        "SELECT relforcerowsecurity FROM pg_class WHERE relname = 'csv_import_history'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("FORCE 状態の取得に失敗");
+    assert!(!forced, "FORCE は付けない(所有者の挙動を変えない)");
+
+    let user_a = create_test_user(&pool).await;
+    let user_b = create_test_user(&pool).await;
+    for user_id in [user_a, user_b] {
+        db::query(
+            "INSERT INTO csv_import_history (user_id, kind) VALUES ($1, 'dividend')",
+            vec![Bind::from(user_id)],
+        )
+        .execute(&pool)
+        .await
+        .expect("履歴の投入に失敗");
+    }
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM csv_import_history", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 2, "所有者は両利用者の行を読めるはず");
+
+    pool.batch_execute("CREATE ROLE rls_app WITH LOGIN PASSWORD 'rls-test-password'")
+        .await
+        .expect("制限ロールの作成に失敗");
+    pool.batch_execute("GRANT CONNECT ON DATABASE postgres TO rls_app")
+        .await
+        .expect("CONNECT 付与に失敗");
+    pool.batch_execute("GRANT USAGE ON SCHEMA public TO rls_app")
+        .await
+        .expect("USAGE 付与に失敗");
+    pool.batch_execute("GRANT SELECT, INSERT, UPDATE, DELETE ON csv_import_history TO rls_app")
+        .await
+        .expect("表権限の付与に失敗");
+    let restricted_url = format!("postgres://rls_app:rls-test-password@127.0.0.1:{port}/postgres");
+    let restricted = connect_with_retry(&restricted_url).await;
+
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM csv_import_history", vec![])
+        .fetch_one(&restricted)
+        .await
+        .unwrap();
+    assert_eq!(count, 0, "利用者 ID 未設定の制限ロールは何も見えないはず");
+
+    let mut tx = restricted.begin().await.expect("tx 開始に失敗");
+    db::query(
+        "SELECT set_config('app.current_user_id', $1, true)",
+        vec![Bind::from(user_a.to_string())],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("利用者 ID の設定に失敗");
+    let kinds = db::query("SELECT kind FROM csv_import_history", vec![])
+        .fetch_all::<(String,), _>(&mut tx)
+        .await
+        .expect("履歴の取得に失敗");
+    assert_eq!(
+        kinds,
+        vec![("dividend".to_string(),)],
+        "利用者 A の行だけが見えるはず"
+    );
+    db::query(
+        "INSERT INTO csv_import_history (user_id, kind) VALUES ($1, 'assetbalance')",
+        vec![Bind::from(user_a)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    let err = db::query(
+        "INSERT INTO csv_import_history (user_id, kind) VALUES ($1, 'assetbalance')",
+        vec![Bind::from(user_b)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect_err("他人名義の書き込みは失敗するはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "行共有違反のはず: {err:?}"
+    );
+    tx.rollback().await.expect("rollback に失敗");
 }
 
 /// (銘柄コード, 数量) の一覧。置換ガードの前後比較用
