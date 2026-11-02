@@ -461,6 +461,93 @@ pub const REALIZED_AFTER_TAX: &str = "実現損益(税引後)";
 pub const RECEIPT_SHORT: &str = "受取";
 /// 月見出しの右に出す短い損益表記(国内株式・投資信託タブ。#1634 の指定による例外)
 pub const PROFIT_SHORT: &str = "損益";
+/// 取引明細の画面名
+pub const RECEIPTS_TITLE: &str = "取引明細";
+/// CSV管理の画面名
+pub const CSV_MANAGE_TITLE: &str = "CSV管理";
+/// すべて(期間なし・選択なしの状態)
+pub const ALL: &str = "すべて";
+/// 条件(検索ダイアログの節見出し)
+pub const CONDITION: &str = "条件";
+/// 集計(帯の領域名)
+pub const SUMMARY: &str = "集計";
+/// 空の表に出す文言
+pub const NO_DATA: &str = "データがありません";
+/// 失敗表示の頭に付ける文言
+pub const ERROR_PREFIX: &str = "エラー:";
+/// 日付(日単位の絞り込みの見出し)
+pub const DATE: &str = "日付";
+/// 月(月選択の見出し)
+pub const MONTH: &str = "月";
+/// 開始日(範囲絞り込みの見出し)
+pub const START_DATE: &str = "開始日";
+/// 終了日(範囲絞り込みの見出し)
+pub const END_DATE: &str = "終了日";
+/// 期間の年単位
+pub const PERIOD_YEAR: &str = "年";
+/// 期間の年月単位
+pub const PERIOD_YEAR_MONTH: &str = "年月";
+/// 期間の日単位
+pub const PERIOD_DAY: &str = "日";
+/// 期間の範囲指定
+pub const PERIOD_RANGE: &str = "範囲";
+/// 期間の種類(絞り込みの小窓の見出し)
+pub const PERIOD_KIND_LABEL: &str = "期間の種類";
+/// 取引明細の検索領域名
+pub const RECEIPT_SEARCH_REGION: &str = "取引明細の検索";
+/// 期間の絞り込みを確定するボタン
+pub const RECEIPT_APPLY_PERIOD: &str = "この期間で絞る";
+/// 年の選択肢が無いときの表示
+pub const RECEIPT_NO_YEARS: &str = "該当する年がありません";
+/// 年の選択肢の初期表示
+pub const RECEIPT_YEAR_SELECT: &str = "年を選択";
+/// 月の選択肢の初期表示
+pub const RECEIPT_MONTH_SELECT: &str = "月を選択";
+/// 円(金額の表示単位)
+pub const YEN: &str = "円";
+/// 千円(金額の表示単位)
+pub const THOUSAND_YEN: &str = "千円";
+/// 万円(金額の表示単位)
+pub const TEN_THOUSAND_YEN: &str = "万円";
+/// CSVを取り込む操作
+pub const CSV_IMPORT: &str = "CSVを取り込む";
+/// 範囲の区切り
+pub const RANGE_SEPARATOR: &str = "〜";
+
+/// 年の書き方(「2024年」)
+pub fn receipt_year_label(year: &str) -> String {
+    format!("{year}年")
+}
+
+/// 月の書き方(「3月」)
+pub fn receipt_month_label(month: u32) -> String {
+    format!("{month}月")
+}
+
+/// 期間の開始だけあるときの表示(「2024-03〜」)
+pub fn receipt_range_from(start: &str) -> String {
+    format!("{start}〜")
+}
+
+/// 期間の終了だけあるときの表示(「〜2024-03」)
+pub fn receipt_range_until(end: &str) -> String {
+    format!("〜{end}")
+}
+
+/// 期間の開始と終了があるときの表示(「2024-01〜2024-03」)
+pub fn receipt_range_between(start: &str, end: &str) -> String {
+    format!("{start}〜{end}")
+}
+
+/// 帯に出す期間の書き方(「2026/01 〜 2026/12」)
+pub fn receipt_period_short(from: &str, to: &str) -> String {
+    format!("{from} 〜 {to}")
+}
+
+/// コピー操作の読み上げ文言(「◯◯ をコピー」)
+pub fn copy_aria_label(text: &str) -> String {
+    format!("{text} をコピー")
+}
 
 #[cfg(test)]
 mod tests;

@@ -10,7 +10,8 @@ use crate::ui::format::{format_iso_date, format_short_date};
 use crate::ui::labels::{
     self, ACQUISITION_PRICE, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, PAYMENT_DATE,
     PER_SHARE_DIVIDEND, PROFIT_SHORT, QUANTITY, REALIZED_PROFIT_LOSS, RECEIPT_SHORT,
-    REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX, TRADE_DATE,
+    REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX, TEN_THOUSAND_YEN, THOUSAND_YEN, TRADE_DATE, YEN,
+    copy_aria_label,
 };
 use crate::ui::list_row::{GroupSummary, ListGroupHeader, ListRowButtonWithoutSecondary};
 use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
@@ -48,7 +49,7 @@ fn stripped_amount_text(value: &str) -> String {
         .filter(|c| !matches!(c, '¥' | '￥' | '$' | '€' | '£' | ',') && !c.is_whitespace())
         .collect();
     // 表示単位(円/千円/万円)を除く。長い接尾辞から剥がす
-    for suffix in ["千円", "万円", "円"] {
+    for suffix in [THOUSAND_YEN, TEN_THOUSAND_YEN, YEN] {
         if let Some(stripped) = without_symbols.strip_suffix(suffix) {
             return stripped.to_string();
         }
@@ -257,7 +258,7 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
         ),
         CardDetailValue::CopyName { display, copy } => {
             let copy_text = copy.clone();
-            let aria_label = format!("{copy} をコピー");
+            let aria_label = copy_aria_label(copy);
             let display = display.clone();
             (
                 view! {

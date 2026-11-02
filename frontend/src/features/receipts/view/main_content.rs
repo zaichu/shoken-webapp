@@ -12,6 +12,7 @@ use crate::features::receipts::{
 use crate::session::use_session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::labels::{CSV_IMPORT, ERROR_PREFIX, NO_DATA, RECEIPT_SEARCH_REGION};
 use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::ev;
@@ -164,7 +165,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
             };
             view! {
                 <Alert variant=AlertVariant::Danger>
-                    <strong>"エラー:"</strong>
+                    <strong>{ERROR_PREFIX}</strong>
                     " "
                     {message}
                 </Alert>
@@ -228,7 +229,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
         }}
         // 検索欄は帯と表の間に固定で置く(読み込み中や空でも操作できるようにする)
         <SkeletonSearch>
-            <div class="hidden lg:block" role="search" aria-label="取引明細の検索">
+            <div class="hidden lg:block" role="search" aria-label=RECEIPT_SEARCH_REGION>
                 <ReceiptsSearchBar store=store tab=Signal::stored(tab) />
             </div>
             <ReceiptsMobileSearchEntry store=store />
@@ -246,7 +247,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                 TabState::Ready(_) if is_empty.get() => {
                 view! {
                     <EmptyState
-                        title="データがありません"
+                        title=NO_DATA
                         description=tab.empty_hint()
                         icon=EmptyStateIcon::Tray
                     >
@@ -254,7 +255,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                             variant=ButtonVariant::Primary(ButtonSize::Md)
                             href=csv_href
                         >
-                            "CSVを取り込む"
+                            {CSV_IMPORT}
                         </LinkButton>
                     </EmptyState>
                 }

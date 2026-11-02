@@ -7,8 +7,12 @@ use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels::{
-    self, ACCOUNT, PAYMENT_DATE, PERIOD, PRODUCT, RECEIPT_SEARCH_TARGET, SEARCH_AND_SORT, SORT_BY,
-    SORT_NEWEST_FIRST, SORT_OLDEST_FIRST, SORT_ORDER_LABEL, SORT_TARGET, TRADE_DATE,
+    self, ACCOUNT, ALL, CONDITION, DATE, END_DATE, MONTH, PAYMENT_DATE, PERIOD, PERIOD_DAY,
+    PERIOD_KIND_LABEL, PERIOD_RANGE, PERIOD_YEAR, PERIOD_YEAR_MONTH, PRODUCT, RANGE_SEPARATOR,
+    RECEIPT_APPLY_PERIOD, RECEIPT_MONTH_SELECT, RECEIPT_NO_YEARS, RECEIPT_SEARCH_TARGET,
+    RECEIPT_YEAR_SELECT, SEARCH, SEARCH_AND_SORT, SORT_BY, SORT_NEWEST_FIRST, SORT_OLDEST_FIRST,
+    SORT_ORDER_LABEL, SORT_TARGET, START_DATE, TRADE_DATE, receipt_month_label,
+    receipt_range_between, receipt_range_from, receipt_range_until, receipt_year_label,
 };
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, ConditionRowEnd,
@@ -57,9 +61,9 @@ fn date_tag_text(value: &str) -> String {
     if let Some((start, end)) = value.split_once("..") {
         let (start, end) = (date_part_text(start), date_part_text(end));
         return match (start.is_empty(), end.is_empty()) {
-            (true, _) => format!("〜{end}"),
-            (_, true) => format!("{start}〜"),
-            (false, false) => format!("{start}〜{end}"),
+            (true, _) => receipt_range_until(&end),
+            (_, true) => receipt_range_from(&start),
+            (false, false) => receipt_range_between(&start, &end),
         };
     }
     date_part_text(value)
@@ -67,7 +71,7 @@ fn date_tag_text(value: &str) -> String {
 
 fn date_part_text(value: &str) -> String {
     if value.len() == 4 {
-        format!("{value}年")
+        receipt_year_label(value)
     } else {
         group_label(value)
     }
@@ -236,7 +240,7 @@ fn ConditionPopover(
                     <PeriodDraftContent draft=draft years=years has_years=has_years />
                     <div class="condition-panel-actions">
                         <Button variant=ButtonVariant::Primary(ButtonSize::Md) on_click=apply_period>
-                            "この期間で絞る"
+                            {RECEIPT_APPLY_PERIOD}
                         </Button>
                     </div>
                 }
@@ -269,10 +273,16 @@ fn PeriodDraftContent(
     has_years: impl Fn() -> bool + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
     let segment = Memo::new(move |_| draft.with(|s| s.date_segment));
-    let segment_options = ["すべて", "年", "年月", "日", "範囲"];
+    let segment_options = [
+        ALL,
+        PERIOD_YEAR,
+        PERIOD_YEAR_MONTH,
+        PERIOD_DAY,
+        PERIOD_RANGE,
+    ];
 
     view! {
-        <div class="condition-segment" role="group" aria-label="期間の種類">
+        <div class="condition-segment" role="group" aria-label=PERIOD_KIND_LABEL>
             {segment_options
                 .iter()
                 .map(|opt| {
@@ -280,7 +290,7 @@ fn PeriodDraftContent(
                     let is_selected = move || {
                         draft.with(|s| {
                             if s.date_all {
-                                opt == "すべて"
+                                opt == ALL
                             } else {
                                 s.date_segment.value() == opt
                             }
@@ -292,12 +302,18 @@ fn PeriodDraftContent(
                             class="condition-segment-option"
                             aria-pressed=move || is_selected().to_string()
                             on:click=move |_| {
-                                draft.update(|s| match opt {
-                                    "すべて" => s.clear_key(SearchKey::Date, has_years()),
-                                    "年" => s.change_date_segment(DateSegment::Year),
-                                    "年月" => s.change_date_segment(DateSegment::Month),
-                                    "日" => s.change_date_segment(DateSegment::Date),
-                                    _ => s.change_date_segment(DateSegment::Range),
+                                draft.update(|s| {
+                                    if opt == ALL {
+                                        s.clear_key(SearchKey::Date, has_years())
+                                    } else if opt == PERIOD_YEAR {
+                                        s.change_date_segment(DateSegment::Year)
+                                    } else if opt == PERIOD_YEAR_MONTH {
+                                        s.change_date_segment(DateSegment::Month)
+                                    } else if opt == PERIOD_DAY {
+                                        s.change_date_segment(DateSegment::Date)
+                                    } else {
+                                        s.change_date_segment(DateSegment::Range)
+                                    }
                                 })
                             }
                         >
@@ -328,7 +344,7 @@ fn YearPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -
             {move || {
                 let years = years.get();
                 if years.is_empty() {
-                    return view! { <span class="text-sm text-text-muted">"該当する年がありません"</span> }.into_any();
+                    return view! { <span class="text-sm text-text-muted">{RECEIPT_NO_YEARS}</span> }.into_any();
                 }
                 view! {
                     {years.iter().map(|y| {
@@ -374,7 +390,7 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                         <div class="flex flex-wrap gap-1.5">
                             {months.iter().map(|m| {
                                 let m_value = m.clone();
-                                let m_label = format!("{}月", m_value.parse::<u32>().unwrap_or(0));
+                                let m_label = receipt_month_label(m_value.parse::<u32>().unwrap_or(0));
                                 let m_value_for_selected = m_value.clone();
                                 let is_selected = move || selected_month.get() == m_value_for_selected;
                                 view! {
@@ -409,18 +425,18 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                     <div class="flex items-center gap-1">
                         <select
                             class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm max-sm:min-h-11"
-                            aria-label="年"
+                            aria-label=PERIOD_YEAR
                             prop:value=move || selected_year.get()
                             on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
                         >
-                            <option value="">"年を選択"</option>
+                            <option value="">{RECEIPT_YEAR_SELECT}</option>
                             {years.iter().map(|y| {
                                 view! { <option value={y.value.clone()}>{y.label.clone()}</option> }
                             }).collect_view()}
                         </select>
                         <select
                             class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm max-sm:min-h-11"
-                            aria-label="月"
+                            aria-label=MONTH
                             prop:value=move || selected_month.get()
                             on:change=move |ev| {
                                 let month = event_target_value(&ev);
@@ -435,10 +451,10 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                                 });
                             }
                         >
-                            <option value="">"月を選択"</option>
+                            <option value="">{RECEIPT_MONTH_SELECT}</option>
                             {(1..=12).map(|m| {
                                 let m_str = format!("{:02}", m);
-                                let m_label = format!("{}月", m);
+                                let m_label = receipt_month_label(m);
                                 view! { <option value={m_str.clone()}>{m_label}</option> }
                             }).collect_view()}
                         </select>
@@ -455,11 +471,11 @@ fn DatePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 
     view! {
         <div class="mt-2 max-w-xs">
-            <label class="block text-xs text-text-muted mb-1">"日付"</label>
+            <label class="block text-xs text-text-muted mb-1">{DATE}</label>
             <input
                 type="date"
                 class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full max-sm:min-h-11"
-                aria-label="日付"
+                aria-label=DATE
                 data-empty=move || selected_date.get().is_empty().then_some("true")
                 prop:value=move || selected_date.get()
                 on:input=move |ev| {
@@ -481,11 +497,11 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     view! {
         <div class="mt-2 flex flex-wrap gap-2 items-end">
             <div class="flex-1 min-w-40">
-                <label class="block text-xs text-text-muted mb-1">"開始日"</label>
+                <label class="block text-xs text-text-muted mb-1">{START_DATE}</label>
                 <input
                     type="date"
                     class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full max-sm:min-h-11"
-                    aria-label="開始日"
+                    aria-label=START_DATE
                     data-empty=move || range_start.get().is_empty().then_some("true")
                     prop:value=move || range_start.get()
                     on:input=move |ev| {
@@ -496,13 +512,13 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                     }
                 />
             </div>
-            <span class="text-text-muted">"〜"</span>
+            <span class="text-text-muted">{RANGE_SEPARATOR}</span>
             <div class="flex-1 min-w-40">
-                <label class="block text-xs text-text-muted mb-1">"終了日"</label>
+                <label class="block text-xs text-text-muted mb-1">{END_DATE}</label>
                 <input
                     type="date"
                     class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full max-sm:min-h-11"
-                    aria-label="終了日"
+                    aria-label=END_DATE
                     data-empty=move || range_end.get().is_empty().then_some("true")
                     prop:value=move || range_end.get()
                     on:input=move |ev| {
@@ -670,7 +686,7 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
     view! {
         <MobileSearchEntryShell
             entry_testid="receipts-search-sheet-entry"
-            search_label="検索".to_string()
+            search_label=SEARCH.to_string()
             sort_summary=sort_summary
             open=open
         >
@@ -748,8 +764,8 @@ fn ReceiptDialogFields(
     let product_value = Memo::new(move |_| draft.with(|s| s.selected_queries.products.clone()));
     view! {
         <div class="flex flex-col gap-4">
-            <section aria-label="検索">
-                <p class="search-dialog-section-title">"検索"</p>
+            <section aria-label=SEARCH>
+                <p class="search-dialog-section-title">{SEARCH}</p>
                 <div class="search-dialog-field">
                     <SearchBox>
                         <SearchTextInput
@@ -763,8 +779,8 @@ fn ReceiptDialogFields(
                     <p class="search-dialog-hint">{labels::search_placeholder(RECEIPT_SEARCH_TARGET)}</p>
                 </div>
             </section>
-            <section aria-label="条件">
-                <p class="search-dialog-section-title">"条件"</p>
+            <section aria-label=CONDITION>
+                <p class="search-dialog-section-title">{CONDITION}</p>
                 <div class="search-dialog-field">
                     <label class="mb-1 block text-sm font-medium text-text-deep">
                         {PERIOD}
@@ -785,7 +801,7 @@ fn ReceiptDialogFields(
                                 });
                             }
                         >
-                            <option value="">"すべて"</option>
+                            <option value="">{ALL}</option>
                             {move || {
                                 years
                                     .get()
@@ -823,7 +839,7 @@ fn ReceiptDialogFields(
                                                 });
                                             }
                                         >
-                                            <option value="">"すべて"</option>
+                                            <option value="">{ALL}</option>
                                             {move || {
                                                 accounts
                                                     .get()
@@ -864,7 +880,7 @@ fn ReceiptDialogFields(
                                                 });
                                             }
                                         >
-                                            <option value="">"すべて"</option>
+                                            <option value="">{ALL}</option>
                                             {move || {
                                                 products
                                                     .get()
