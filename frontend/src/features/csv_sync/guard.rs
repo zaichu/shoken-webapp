@@ -2,6 +2,7 @@
 //! 取り込むかどうかの判定だけを持ち、通信・画面には触れない
 
 use super::{CsvKind, SkipReason};
+use crate::csv_input;
 use crate::support::csv_flow::{csv_fields, decode_csv_bytes, record_ranges};
 
 /// 種類ごとの見出しの見つけ方と、形式を見分ける必須の列。
@@ -17,24 +18,44 @@ struct KindSpec {
 fn spec_of(kind: CsvKind) -> KindSpec {
     match kind {
         CsvKind::AssetBalance => KindSpec {
-            marker: Some("銘柄コード"),
-            required: &["銘柄コード", "銘柄名", "保有数量"],
+            marker: Some(csv_input::COLUMN_SECURITY_CODE),
+            required: &[
+                csv_input::COLUMN_SECURITY_CODE,
+                csv_input::COLUMN_SECURITY_NAME,
+                csv_input::COLUMN_HOLDING_QUANTITY,
+            ],
         },
         CsvKind::FundBalance => KindSpec {
-            marker: Some("投資信託種別"),
-            required: &["投資信託種別", "ファンド", "保有数量"],
+            marker: Some(csv_input::COLUMN_FUND_KIND),
+            required: &[
+                csv_input::COLUMN_FUND_KIND,
+                csv_input::COLUMN_FUND,
+                csv_input::COLUMN_HOLDING_QUANTITY,
+            ],
         },
         CsvKind::Dividend => KindSpec {
-            marker: Some("入金日"),
-            required: &["入金日", "口座", "銘柄"],
+            marker: Some(csv_input::COLUMN_PAYMENT_DATE),
+            required: &[
+                csv_input::COLUMN_PAYMENT_DATE,
+                csv_input::COLUMN_ACCOUNT,
+                csv_input::COLUMN_SECURITY,
+            ],
         },
         CsvKind::DomesticStock => KindSpec {
             marker: None,
-            required: &["約定日", "銘柄コード", "口座"],
+            required: &[
+                csv_input::COLUMN_TRADE_DATE,
+                csv_input::COLUMN_SECURITY_CODE,
+                csv_input::COLUMN_ACCOUNT,
+            ],
         },
         CsvKind::MutualFund => KindSpec {
             marker: None,
-            required: &["約定日", "ファンド名", "口座"],
+            required: &[
+                csv_input::COLUMN_TRADE_DATE,
+                csv_input::COLUMN_FUND_NAME,
+                csv_input::COLUMN_ACCOUNT,
+            ],
         },
     }
 }

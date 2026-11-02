@@ -1,3 +1,4 @@
+use crate::ui::labels;
 use crate::ui::site::{AccountMenu, NAV_ITEMS, NavLink};
 use leptos::prelude::*;
 
@@ -7,7 +8,7 @@ fn PcHeader() -> impl IntoView {
     view! {
         <header class="pc-header no-print hidden lg:flex">
             <div class="page-gutter flex items-center gap-8 h-14">
-                <a href="/" class="flex items-center gap-2.5 no-underline" aria-label="証券Web トップ">
+                <a href="/" class="flex items-center gap-2.5 no-underline" aria-label=labels::page_frame_top_label()>
                     <div class="header-logo" aria-hidden="true">
                         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                             <rect width="28" height="28" rx="7" fill="#FFFFFF"/>
@@ -16,9 +17,9 @@ fn PcHeader() -> impl IntoView {
                             <rect x="17" y="7" width="4" height="16" rx="1" fill="#F2B33D"/>
                         </svg>
                     </div>
-                    <span class="text-base font-bold text-text-inverse">証券Web</span>
+                    <span class="text-base font-bold text-text-inverse">{labels::APP_NAME}</span>
                 </a>
-                <nav class="flex gap-1 h-14" aria-label="メインナビゲーション">
+                <nav class="flex gap-1 h-14" aria-label=labels::PAGE_MAIN_NAV>
                     {NAV_ITEMS.iter().map(|(to, label)| {
                         view! { <NavLink to=*to label=*label class="pc-nav-link" /> }
                     }).collect_view()}

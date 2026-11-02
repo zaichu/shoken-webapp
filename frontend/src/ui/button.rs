@@ -31,10 +31,18 @@ pub enum ButtonVariant {
     AddCondition,
     /// 条件小窓の選択肢(aria-pressed で選択中を示す)
     ConditionOption,
+    /// 年・月の選択肢(枠線で選択中を示す)。aria-pressed で選択中を示す
+    YearOption,
     /// 検索条件の一括解除(「すべてクリア」)
     SearchClear,
     /// 設定画面の少数択一(金額単位・自動ログアウト)。aria-pressed で選択中を示す
     Segmented,
+    /// 種別切り替えのタブ(資産管理・取引明細・構成比で同じ作り)。role="tab" と一緒に使う
+    PageTab,
+    /// 期間の5種類(すべて/年/年月/日/範囲)の切り替え。aria-pressed で選択中を示す
+    ConditionSegment,
+    /// メニュー内の危険な項目(削除)。role="menuitem" と一緒に使う
+    MenuItemDanger,
     /// 取引明細・ホームの配当入金の行全体ボタン(2行の ListRow を包む)
     RowButton,
 }
@@ -88,9 +96,18 @@ impl ButtonVariant {
             Self::ConditionChip => "active-condition-chip".to_string(),
             Self::AddCondition => "add-condition-button".to_string(),
             Self::ConditionOption => "condition-option".to_string(),
+            Self::YearOption => "year-option".to_string(),
             Self::SearchClear => "receipts-search-clear".to_string(),
             Self::Segmented => "segmented-option".to_string(),
-            Self::RowButton => "receipt-compact-button".to_string(),
+            Self::PageTab => "page-tab".to_string(),
+            Self::ConditionSegment => "condition-segment-option".to_string(),
+            Self::MenuItemDanger => {
+                "w-full px-3 py-2 text-left text-sm font-semibold text-negative hover:bg-negative/10 disabled:opacity-50 disabled:hover:bg-transparent"
+                    .to_string()
+            }
+            Self::RowButton => {
+                "list-row-action border-0 bg-transparent cursor-pointer text-left".to_string()
+            }
         }
     }
 }
@@ -154,6 +171,38 @@ pub fn Button(
             data-testid=testid
             node_ref=node_ref
             on:click=on_click
+        >
+            {children()}
+        </button>
+    }
+}
+
+/// 種別切り替えのタブ。`role="tab"` の意味付けと矢印キー移動を持ち、見た目は `PageTab` を使う
+#[component]
+pub fn TabButton(
+    #[prop(into)] id: String,
+    #[prop(into, optional)] controls: Option<String>,
+    selected: impl Fn() -> bool + Copy + Send + Sync + 'static,
+    #[prop(into, optional)] testid: Option<String>,
+    on_click: impl Fn(ev::MouseEvent) + 'static,
+    on_keydown: impl Fn(ev::KeyboardEvent) + 'static,
+    children: Children,
+) -> impl IntoView {
+    let selected_tabindex = move || {
+        if selected() { "0" } else { "-1" }
+    };
+    view! {
+        <button
+            type="button"
+            role="tab"
+            id=id
+            aria-controls=controls
+            aria-selected=move || selected().to_string()
+            tabindex=selected_tabindex
+            class=ButtonVariant::PageTab.classes()
+            data-testid=testid
+            on:click=on_click
+            on:keydown=on_keydown
         >
             {children()}
         </button>

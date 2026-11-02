@@ -37,7 +37,7 @@ pub fn SearchTag(
     move || {
         let value = value.get();
         (!value.is_empty()).then(|| {
-            let aria_label = format!("{label} {value} を解除");
+            let aria_label = labels::search_tag_clear_label(label, &value);
             view! {
                 <Button
                     variant=ButtonVariant::ConditionChip
@@ -196,7 +196,7 @@ pub fn SearchClearButton(
             testid=testid.unwrap_or("")
             on_click=move |_| on_clear()
         >
-            "すべてクリア"
+            {labels::SEARCH_CLEAR_ALL}
         </Button>
     }
 }
@@ -212,7 +212,7 @@ pub fn AddConditionRow(
 ) -> impl IntoView {
     view! {
         <div class="add-condition-row">
-            {show_label.then(|| view! { <span class="add-condition-label">"条件を足す:"</span> })}
+            {show_label.then(|| view! { <span class="add-condition-label">{labels::ADD_CONDITION_LABEL}</span> })}
             {children()}
         </div>
     }
@@ -245,7 +245,7 @@ pub fn AddConditionButton(
             node_ref=node_ref
             on_click=move |_| on_click()
         >
-            "＋ " {label}
+            {labels::ADD_CONDITION_PREFIX} {label}
         </Button>
     }
 }

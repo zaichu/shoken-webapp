@@ -1,6 +1,7 @@
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::dialog::{focus_without_scroll, move_root_to_body, use_page_scroll_lock};
 use crate::ui::focus::trap_focus;
+use crate::ui::labels;
 use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 
@@ -72,7 +73,7 @@ pub fn ConfirmDeleteModal(
                             disabled=move || loading.get()
                             on_click=move |_| close_cancel()
                         >
-                            "閉じる"
+                            {labels::DIALOG_CLOSE}
                         </Button>
                     </div>
                     <div id="confirm-delete-desc" class="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-base text-text-deep">
@@ -81,9 +82,9 @@ pub fn ConfirmDeleteModal(
                             .map(|count| {
                                 view! {
                                     <p class="mt-2 text-sm text-text-quiet">
-                                        "対象: "
-                                        <strong class="text-negative">{count}"件"</strong>
-                                        "のデータ"
+                                        {labels::CONFIRM_TARGET_PREFIX}
+                                        <strong class="text-negative">{labels::count(count)}</strong>
+                                        {labels::CONFIRM_TARGET_SUFFIX}
                                     </p>
                                 }
                             })}
@@ -103,8 +104,8 @@ pub fn ConfirmDeleteModal(
                                 />
                             </svg>
                             <p>
-                                <strong>"この操作は取り消せません。"</strong>
-                                "削除されたデータは復元できません。"
+                                <strong>{labels::CONFIRM_IRREVERSIBLE}</strong>
+                                {labels::CONFIRM_UNRECOVERABLE}
                             </p>
                         </div>
                         {move || {
@@ -130,7 +131,7 @@ pub fn ConfirmDeleteModal(
                             on_click=move |_| cancel()
                             node_ref=cancel_button_ref
                         >
-                            "キャンセル"
+                            {labels::CANCEL}
                         </Button>
                         <Button
                             variant=ButtonVariant::DangerSolid(ButtonSize::Md)

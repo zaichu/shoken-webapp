@@ -1,5 +1,6 @@
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
+use crate::ui::labels;
 use leptos::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,7 +59,7 @@ pub fn Spinner(size: SpinnerSize, class: &'static str) -> impl IntoView {
                 fill="none"
                 viewBox="0 0 24 24"
                 role="status"
-                aria-label="読み込み中..."
+                aria-label=labels::LOADING
             >
                 <circle
                     class="opacity-25"
@@ -80,7 +81,7 @@ pub fn Spinner(size: SpinnerSize, class: &'static str) -> impl IntoView {
 
 #[component]
 pub fn Loading() -> impl IntoView {
-    view! { <p role="status">"読み込み中..."</p> }
+    view! { <p role="status">{labels::LOADING}</p> }
 }
 
 #[component]
@@ -94,13 +95,13 @@ pub fn ListLoadError(
                 class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-vivid"
                 role="alert"
             >
-                <strong>"エラー:"</strong>
+                <strong>{labels::ERROR_PREFIX}</strong>
                 " "
                 {message}
             </div>
             <div class="mt-4">
                 <Button variant=ButtonVariant::Retry on_click=move |_| on_retry()>
-                    "再読み込み"
+                    {labels::RETRY}
                 </Button>
             </div>
         </Card>
@@ -158,7 +159,7 @@ pub fn ListSkeleton(variant: ListSkeletonVariant) -> impl IntoView {
     };
     view! {
         <Card variant=CardVariant::Panel class="p-4" attr:role="status" testid="list-skeleton">
-            <span class="sr-only">"データを読み込んでいます..."</span>
+            <span class="sr-only">{labels::LIST_LOADING_MESSAGE}</span>
             <div class="grid animate-pulse gap-4" aria-hidden="true">
                 {body}
             </div>

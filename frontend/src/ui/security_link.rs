@@ -1,5 +1,6 @@
 use crate::support::list_search::is_searchable_code;
 use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::labels;
 use leptos::prelude::*;
 use shared::normalize::normalize_security_code;
 use wasm_bindgen::{JsCast, JsValue};
@@ -47,7 +48,7 @@ pub(crate) fn SecurityCodeLink(
 ) -> impl IntoView {
     let code = normalize_security_code(&value);
     if code.is_empty() {
-        return view! { <span>"—"</span> }.into_any();
+        return view! { <span>{labels::MISSING}</span> }.into_any();
     }
     if !is_searchable_code(&code) {
         return view! { <span>{code}</span> }.into_any();
@@ -62,7 +63,7 @@ pub(crate) fn SecurityCodeLink(
         );
         return view! {
             <a href=href class=classes data-search=code>
-                {format!("{code} の銘柄情報を見る")}
+                {labels::security_details_label(&code)}
                 <span aria-hidden="true">" ›"</span>
             </a>
         }
@@ -106,7 +107,7 @@ pub(crate) fn TableNameLink(href: Option<String>, name: String) -> impl IntoView
 fn display_text(value: &str) -> String {
     let text = value.trim();
     if text.is_empty() {
-        "—".to_string()
+        labels::MISSING.to_string()
     } else {
         text.to_string()
     }
@@ -172,7 +173,7 @@ pub(crate) fn CopyableInstrumentName(
 ) -> impl IntoView {
     let display = display_text(&name);
     let copy_text = instrument_copy_text(&name, code.as_deref());
-    let aria_label = format!("{copy_text} をコピー");
+    let aria_label = labels::copy_aria_label(&copy_text);
     view! {
         <Button
             variant=ButtonVariant::CopyName

@@ -12,6 +12,7 @@ use crate::features::asset_balance::store::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
+use crate::ui::button::TabButton;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{format_currency, format_fixed_percent};
 use crate::ui::labels;
@@ -330,16 +331,12 @@ fn CompositionMobile(
                     .map(|item| {
                         let selected = move || group.get() == item;
                         view! {
-                            <button
-                                type="button"
-                                role="tab"
+                            <TabButton
                                 id=format!("comp-tab-{}", item.value())
-                                aria-selected=move || selected().to_string()
-                                tabindex=move || if selected() { "0" } else { "-1" }
-                                class="page-tab"
-                                data-testid=format!("comp-tab-{}", item.value())
-                                on:click=move |_| group.set(item)
-                                on:keydown=move |event| {
+                                selected=selected
+                                testid=format!("comp-tab-{}", item.value())
+                                on_click=move |_| group.set(item)
+                                on_keydown=move |event| {
                                     let current = CompositionGroup::ALL
                                         .iter()
                                         .position(|candidate| {
@@ -363,7 +360,7 @@ fn CompositionMobile(
                                 }
                             >
                                 {item.label()}
-                            </button>
+                            </TabButton>
                         }
                     })
                     .collect_view()}

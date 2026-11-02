@@ -421,7 +421,7 @@ fn CsvKindRow(
             >
                 {match count {
                     Some(count) => labels::count(count.max(0) as usize),
-                    None => "—".to_string(),
+                    None => labels::MISSING.to_string(),
                 }}
             </td>
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-xs">
@@ -467,12 +467,12 @@ fn CsvKindRow(
                     <Button
                         variant=ButtonVariant::Secondary(ButtonSize::Sm)
                         class="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-sunken text-text-muted"
-                        aria_label="メニュー"
+                        aria_label=labels::MENU
                         aria_expanded=move || menu_open.get()
                         on_click=move |_| menu_open.toggle()
                         node_ref=menu_trigger
                     >
-                        <span class="text-lg font-mono">"⋯"</span>
+                        <span class="text-lg font-mono">{labels::CSV_MANAGE_COL_MENU}</span>
                     </Button>
                     {move || menu_open.get().then(|| {
                         view! {
@@ -480,34 +480,34 @@ fn CsvKindRow(
                                 node_ref=menu_list
                                 class="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface p-1 shadow-lg"
                             >
-                                <button
-                                    type="button"
-                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-deep hover:bg-surface-raised rounded text-left"
-                                    on:click=on_refetch
+                                <Button
+                                    variant=ButtonVariant::MenuItem
+                                    class="min-h-11 flex items-center gap-2 rounded text-text-deep"
+                                    on_click=on_refetch
                                 >
                                     <svg class="shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                     {labels::CSV_MANAGE_MENU_REFETCH}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-deep hover:bg-surface-raised rounded text-left"
-                                    on:click=on_file_import
+                                </Button>
+                                <Button
+                                    variant=ButtonVariant::MenuItem
+                                    class="min-h-11 flex items-center gap-2 rounded text-text-deep"
+                                    on_click=on_file_import
                                 >
                                     <svg class="shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12v6m0-6l-2.5 2.5M12 12l2.5 2.5"/></svg>
                                     {labels::CSV_MANAGE_MENU_FILE_IMPORT}
-                                </button>
+                                </Button>
                                 <hr class="border-border my-1" />
-                                <button
-                                    type="button"
-                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-negative hover:bg-negative/10 rounded text-left disabled:opacity-50 disabled:hover:bg-transparent"
-                                    on:click=open_delete
+                                <Button
+                                    variant=ButtonVariant::MenuItemDanger
+                                    class="min-h-11 flex items-center gap-2 rounded"
                                     disabled=move || {
                                         !count_ready || saved_count == 0 || delete_disabled.get()
                                     }
+                                    on_click=open_delete
                                 >
                                     <svg class="shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                     {labels::CSV_MANAGE_MENU_DELETE}
-                                </button>
+                                </Button>
                             </div>
                         }
                     })}
@@ -518,7 +518,7 @@ fn CsvKindRow(
                     class="sr-only"
                     id=input_id.clone()
                     data-testid="csv-file-input"
-                    aria-label="CSVファイルを選択"
+                    aria-label=labels::CSV_FILE_SELECT
                     node_ref=file_input
                     on:change=on_file_change
                 />
@@ -526,7 +526,7 @@ fn CsvKindRow(
         </tr>
         {move || show_delete_confirm.get().then(|| {
             let count = delete_count.get();
-            let range = date_range.get().map(|(min, max)| format!("{min} 〜 {max}"));
+            let range = date_range.get().map(|(min, max)| labels::receipt_period_short(&min, &max));
             view! {
                 <ConfirmDeleteModal
                     title=labels::csv_manage_delete_confirm_title(kind.label())
@@ -563,7 +563,7 @@ fn compute_status(
         match status {
             KindStatus::Fetching => {
                 return (
-                    "取得中...".to_string(),
+                    labels::CSV_MANAGE_FETCH_RUNNING.to_string(),
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),
@@ -572,7 +572,7 @@ fn compute_status(
             }
             KindStatus::Importing => {
                 return (
-                    "取り込み中...".to_string(),
+                    labels::CSV_STATUS_IMPORTING.to_string(),
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),
@@ -581,7 +581,7 @@ fn compute_status(
             }
             KindStatus::Confirming => {
                 return (
-                    "確認待ち".to_string(),
+                    labels::CSV_STATUS_CONFIRMING.to_string(),
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),
@@ -613,7 +613,7 @@ fn compute_status(
 
     if !count_ready {
         return (
-            "—".to_string(),
+            labels::MISSING.to_string(),
             "text-text-muted".to_string(),
             false,
             String::new(),
@@ -661,8 +661,9 @@ fn dated_status(
     } else {
         (
             format!(
-                "{}・{}",
+                "{}{}{}",
                 labels::CSV_MANAGE_STATUS_UPDATE_REQUIRED,
+                labels::TAG_SEPARATOR,
                 labels::csv_manage_status_updated_days_ago(days_ago, date, time),
             ),
             "text-warn-ink",
