@@ -816,5 +816,156 @@ pub fn api_status_error(status: u16) -> String {
     format!("エラーが発生しました (ステータス: {status})")
 }
 
+/// 口座区分の短い表示名(バッジと同じ表記)
+pub const ACCOUNT_SPECIFIC: &str = "特定";
+/// 口座区分の短い表示名(バッジと同じ表記)
+pub const ACCOUNT_GENERAL: &str = "一般";
+/// 口座区分の短い表示名(バッジと同じ表記)
+pub const ACCOUNT_OLD_NISA: &str = "旧NISA";
+/// 口座区分の短い表示名(バッジと同じ表記)
+pub const ACCOUNT_NISA_GROWTH: &str = "NISA成長";
+/// 口座区分の短い表示名(バッジと同じ表記)
+pub const ACCOUNT_NISA_TSUMITATE: &str = "NISAつみたて";
+/// ホーム: 今年の配当カードの見出し
+pub const HOME_THIS_YEAR_DIVIDEND: &str = "今年の配当金(税引後)";
+/// ホーム: 配当カードから取引明細へのリンク名
+pub const HOME_RECEIPTS_VIEW_LINK: &str = "取引明細で見る";
+/// ホーム: 最近の配当カードの見出し
+pub const HOME_RECENT_DIVIDENDS: &str = "最近の配当入金";
+/// ホーム: カードの右に出すすべてへのリンク名
+pub const HOME_SEE_ALL: &str = "すべて見る";
+/// ホーム: 損益ランキングの見出し
+pub const HOME_PNL_TITLE: &str = "評価損益の大きい銘柄";
+/// ホーム: 内訳カードの見出し
+pub const HOME_COMPOSITION_TITLE: &str = "資産の内訳";
+/// ホーム: 概要帯の領域名
+pub const HOME_OVERVIEW_LABEL: &str = "資産の概要";
+/// ホーム: 一部の集計が取れなかったときの注意
+pub const HOME_PARTIAL_ERROR: &str = "一部の集計を取得できませんでした。";
+/// ホーム: 配当の集計失敗
+pub const HOME_DIVIDEND_FETCH_FAILED: &str = "配当の集計を取得できませんでした";
+/// ホーム: 資産の集計失敗
+pub const HOME_ASSET_FETCH_FAILED: &str = "資産の集計を取得できませんでした";
+/// ホーム: 保有の集計失敗
+pub const HOME_HOLDING_FETCH_FAILED: &str = "保有の集計を取得できませんでした";
+/// ホーム: 最近の配当の取得失敗
+pub const HOME_RECENT_FETCH_FAILED: &str = "配当入金を取得できませんでした";
+/// ホーム: 保有が無いときの空表示
+pub const HOME_NO_HOLDINGS: &str = "保有データがありません";
+/// ホーム: 内訳が出ない理由の説明
+pub const HOME_NO_HOLDINGS_HINT: &str =
+    "保有残高をCSVで登録すると、商品別・口座別の内訳が表示されます。";
+/// ホーム: 評価額が無いときの空表示
+pub const HOME_NO_MARKET_VALUE: &str = "評価額がありません";
+/// ホーム: 最近の配当が無いときの空表示
+pub const HOME_NO_RECENT: &str = "まだ配当入金がありません";
+/// ホーム: 保有銘柄が無いときの空表示
+pub const HOME_NO_STOCKS: &str = "保有している銘柄がありません";
+/// ホーム: 損益を出せる銘柄が無いときの空表示
+pub const HOME_NO_PNL: &str = "評価損益を出せる銘柄がありません";
+/// ホーム: 含み損区切りの見出し
+pub const HOME_LOSS_GROUP: &str = "含み損";
+/// ホーム: 商品別内訳の図の読み上げ名
+pub const HOME_PRODUCT_BREAKDOWN_LABEL: &str = "商品別の資産内訳";
+/// ホーム: 口座別内訳の見出し
+pub const HOME_ACCOUNT_FUND_LABEL: &str = "口座別(投資信託)";
+/// ホーム: 当月を示す印
+pub const HOME_CURRENT_MONTH: &str = "(今月)";
+/// ホーム: 受取額の頭に付ける文言(後ろに空白あり)
+pub const HOME_RECEIVED_LABEL: &str = "受取 ";
+/// ホーム: 予想の取得待ち(帯の内訳)
+pub const HOME_ESTIMATE_PENDING: &str = "予想を取得中です";
+/// ホーム: 予想の取得待ち(配当カードの予想欄)
+pub const HOME_FORECAST_LOADING: &str = "/ 予想を取得中";
+/// ホーム: 月別グラフの差の見出し
+pub const HOME_DIFF_LABEL: &str = "差";
+
+/// ホーム: 取込日の表示(「データ: 10/21 12:00 取り込み」)
+pub fn home_import_label(label: &str) -> String {
+    format!("データ: {label} 取り込み")
+}
+
+/// ホーム: 予想額の表示(「/ 予想 ¥12,000」)
+pub fn home_forecast(forecast: &str) -> String {
+    format!("/ 予想 {forecast}")
+}
+
+/// ホーム: 配当カードの要約行(「残り … ・ 前年同期より …」)
+pub fn home_dividend_summary(remaining_text: &str, previous_span: &str, yoy_text: &str) -> String {
+    format!("{remaining_text} {previous_span}・ 前年同期より {yoy_text}")
+}
+
+/// ホーム: 月別グラフの領域名(「月別の税引後配当(2026年と2025年)」)
+pub fn home_monthly_aria(year: u32, previous_year: u32) -> String {
+    format!("月別の税引後配当({year}年と{previous_year}年)")
+}
+
+/// ホーム: 月別グラフの棒の読み上げ文
+pub fn home_month_aria(
+    month: u32,
+    current_note: &str,
+    year: u32,
+    cur_text: &str,
+    previous_year: u32,
+    prev_text: &str,
+    diff_text: &str,
+) -> String {
+    format!(
+        "{month}月{current_note}: {year}年 {cur_text} / {previous_year}年 {prev_text} / 差 {diff_text}"
+    )
+}
+
+/// ホーム: 年と金額の並び(「2026年 ¥12,000」)
+pub fn home_year_amount(year: u32, amount: &str) -> String {
+    format!("{year}年 {amount}")
+}
+
+/// 銘柄検索: 不正なコード指定の警告
+pub const STOCK_SEARCH_INVALID: &str = "不正な銘柄コードが指定されています。";
+/// 銘柄検索: 該当なしの見出し
+pub const STOCK_SEARCH_NOT_FOUND_TITLE: &str = "該当する銘柄が見つかりませんでした";
+/// 銘柄検索: 初期表示の見出し
+pub const STOCK_SEARCH_INITIAL_TITLE: &str = "銘柄を検索";
+/// 銘柄検索: 初期表示の説明
+pub const STOCK_SEARCH_INITIAL_HINT: &str =
+    "銘柄コード（例：7203）または銘柄名を入力して検索してください。";
+/// 銘柄検索: 該当なしの説明
+pub const STOCK_SEARCH_NO_RESULT_HINT: &str = "銘柄コードまたは銘柄名を確認してください。";
+/// 銘柄検索: 空表示の案内(コード検索)
+pub const STOCK_SEARCH_TIP_CODE: &str = "4桁の銘柄コードで検索できます（例：7203, 9984）";
+/// 銘柄検索: 空表示の案内(名前検索)
+pub const STOCK_SEARCH_TIP_NAME: &str = "会社名の一部でも検索できます（例：トヨタ）";
+/// 銘柄検索: 空表示の案内(外部リンク)
+pub const STOCK_SEARCH_TIP_LINKS: &str = "検索結果から各種証券サイトへのリンクを確認できます";
+/// 銘柄検索: 詳細の項目名(市場)
+pub const STOCK_SEARCH_META_MARKET: &str = "市場";
+/// 銘柄検索: 詳細の項目名(33業種)
+pub const STOCK_SEARCH_META_INDUSTRY_33: &str = "33業種";
+/// 銘柄検索: 詳細の項目名(17業種)
+pub const STOCK_SEARCH_META_INDUSTRY_17: &str = "17業種";
+/// 銘柄検索: 詳細の項目名(規模)
+pub const STOCK_SEARCH_META_SIZE: &str = "規模";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_RAKUTEN: &str = "楽天証券";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_SBI: &str = "SBI証券";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_KABUTAN: &str = "株探";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_NIKKEI: &str = "日経";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_BUFFETT: &str = "バフェットコード";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_MINKABU: &str = "みんかぶ";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_SCOUTER: &str = "銘柄スカウター";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_ZAIMANI: &str = "ザイマニ";
+
+/// 銘柄検索: 外部リンクの読み上げ文(「◯◯（新しいタブで開く）」)
+pub fn stock_search_new_tab(name: &str) -> String {
+    format!("{name}（新しいタブで開く）")
+}
+
 #[cfg(test)]
 mod tests;

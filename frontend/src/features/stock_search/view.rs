@@ -12,27 +12,39 @@ use shared::normalize::normalize_display_name;
 
 const STOCK_LINKS: &[(&str, &str)] = &[
     (
-        "楽天証券",
+        labels::STOCK_LINK_RAKUTEN,
         "https://www.rakuten-sec.co.jp/web/market/search/quote.html?ric={code}.T",
     ),
     (
-        "SBI証券",
+        labels::STOCK_LINK_SBI,
         "https://site3.sbisec.co.jp/ETGate/?_ControlID=WPLETsiR001Control&_DataStoreID=DSWPLETsiR001Control&_PageID=WPLETsiR001Ilst10&_ActionID=getDetailOfStockPriceJP&s_rkbn=1&i_stock_sec=%94%43%93%56%93%B0&i_dom_flg=1&i_exchange_code=JPN&i_output_type=0&stock_sec_code_mul={code}",
     ),
-    ("株探", "https://kabutan.jp/stock/?code={code}"),
-    ("Yahoo! Finance", "https://finance.yahoo.co.jp/quote/{code}"),
-    ("日経", "https://www.nikkei.com/nkd/company/?scode={code}"),
     (
-        "バフェットコード",
+        labels::STOCK_LINK_KABUTAN,
+        "https://kabutan.jp/stock/?code={code}",
+    ),
+    ("Yahoo! Finance", "https://finance.yahoo.co.jp/quote/{code}"),
+    (
+        labels::STOCK_LINK_NIKKEI,
+        "https://www.nikkei.com/nkd/company/?scode={code}",
+    ),
+    (
+        labels::STOCK_LINK_BUFFETT,
         "https://www.buffett-code.com/company/{code}",
     ),
-    ("みんかぶ", "https://minkabu.jp/stock/{code}/"),
+    (
+        labels::STOCK_LINK_MINKABU,
+        "https://minkabu.jp/stock/{code}/",
+    ),
     ("IR BANK", "https://irbank.net/{code}"),
     (
-        "銘柄スカウター",
+        labels::STOCK_LINK_SCOUTER,
         "https://monex.ifis.co.jp/index.php?sa=report_index&bcode={code}",
     ),
-    ("ザイマニ", "https://zaimani.com/search/?_sf_s={code}"),
+    (
+        labels::STOCK_LINK_ZAIMANI,
+        "https://zaimani.com/search/?_sf_s={code}",
+    ),
     ("JPX Explorer", "https://jpx-explorer.com/ja-JP/{code}-TSE"),
 ];
 
@@ -53,7 +65,7 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
 
     // 検索欄はスマホが下部操作帯、PC が本文の直上。どちらも同じ入力を共有する
     let action_bar = view! {
-        <div class="py-2" role="search" aria-label="銘柄検索">
+        <div class="py-2" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
             <SearchForm
                 stock_code=stock_search.stock_code
                 loading=loading.into()
@@ -65,8 +77,8 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
     .into_any();
 
     view! {
-        <PageFrame title="銘柄検索" action_bar=action_bar action_bar_mobile_only=true>
-            <div class="hidden lg:block lg:pb-4" role="search" aria-label="銘柄検索">
+        <PageFrame title=labels::STOCK_SEARCH_TITLE action_bar=action_bar action_bar_mobile_only=true>
+            <div class="hidden lg:block lg:pb-4" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
                 <SearchForm
                     stock_code=stock_search.stock_code
                     loading=loading.into()
@@ -74,7 +86,7 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
                 />
             </div>
             <Show when=move || has_invalid>
-                <Alert variant=AlertVariant::Warning>"不正な銘柄コードが指定されています。"</Alert>
+                <Alert variant=AlertVariant::Warning>{labels::STOCK_SEARCH_INVALID}</Alert>
             </Show>
             {move || {
                 let data = stock_search.stock_data();
@@ -95,12 +107,12 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
                     view! { <StockInfo stock=stock /> }.into_any()
                 } else if not_found {
                     view! {
-                        <EmptySearch title="該当する銘柄が見つかりませんでした" />
+                        <EmptySearch title=labels::STOCK_SEARCH_NOT_FOUND_TITLE />
                     }
                         .into_any()
                 } else if !is_loading {
                     view! {
-                        <EmptySearch title="銘柄を検索" />
+                        <EmptySearch title=labels::STOCK_SEARCH_INITIAL_TITLE />
                     }
                         .into_any()
                 } else {
@@ -142,10 +154,10 @@ fn SearchForm(
 }
 
 fn empty_search_description(title: &str) -> &'static str {
-    if title == "銘柄を検索" {
-        "銘柄コード（例：7203）または銘柄名を入力して検索してください。"
+    if title == labels::STOCK_SEARCH_INITIAL_TITLE {
+        labels::STOCK_SEARCH_INITIAL_HINT
     } else {
-        "銘柄コードまたは銘柄名を確認してください。"
+        labels::STOCK_SEARCH_NO_RESULT_HINT
     }
 }
 
@@ -160,9 +172,9 @@ fn EmptySearch(title: &'static str) -> impl IntoView {
             icon=EmptyStateIcon::Search
         >
             <ul class="mt-4 space-y-1 text-sm font-medium text-text-muted">
-                <li>"4桁の銘柄コードで検索できます（例：7203, 9984）"</li>
-                <li>"会社名の一部でも検索できます（例：トヨタ）"</li>
-                <li>"検索結果から各種証券サイトへのリンクを確認できます"</li>
+                <li>{labels::STOCK_SEARCH_TIP_CODE}</li>
+                <li>{labels::STOCK_SEARCH_TIP_NAME}</li>
+                <li>{labels::STOCK_SEARCH_TIP_LINKS}</li>
             </ul>
         </EmptyState>
     }
@@ -171,16 +183,22 @@ fn EmptySearch(title: &'static str) -> impl IntoView {
 #[component]
 fn StockInfo(stock: Stock) -> impl IntoView {
     let meta = [
-        ("市場", stock.market_category.clone()),
         (
-            "33業種",
+            labels::STOCK_SEARCH_META_MARKET,
+            stock.market_category.clone(),
+        ),
+        (
+            labels::STOCK_SEARCH_META_INDUSTRY_33,
             stock.industry_category_33.clone().unwrap_or_default(),
         ),
         (
-            "17業種",
+            labels::STOCK_SEARCH_META_INDUSTRY_17,
             stock.industry_category_17.clone().unwrap_or_default(),
         ),
-        ("規模", stock.size_category.clone().unwrap_or_default()),
+        (
+            labels::STOCK_SEARCH_META_SIZE,
+            stock.size_category.clone().unwrap_or_default(),
+        ),
     ];
     let code = stock.code.clone();
     let code_badge = code.clone();
@@ -238,7 +256,7 @@ fn StockInfoLinks(code: String) -> impl IntoView {
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            aria-label={format!("{name}（新しいタブで開く）")}
+                            aria-label=labels::stock_search_new_tab(name)
                         >
                             {*name}
                             <svg
