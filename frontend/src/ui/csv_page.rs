@@ -563,7 +563,7 @@ fn compute_status(
         match status {
             KindStatus::Fetching => {
                 return (
-                    labels::CSV_STATUS_FETCHING.to_string(),
+                    labels::CSV_MANAGE_FETCH_RUNNING.to_string(),
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),

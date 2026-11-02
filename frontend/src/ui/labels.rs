@@ -980,10 +980,8 @@ pub const CONFIRM_TARGET_SUFFIX: &str = "のデータ";
 
 /// CSV管理: ファイル選択の読み上げ名
 pub const CSV_FILE_SELECT: &str = "CSVファイルを選択";
-/// CSV管理: 行の状態「取得中」(三点はピリオド3つ)
-pub const CSV_STATUS_FETCHING: &str = "取得中...";
-/// CSV管理: 行の状態「取り込み中」(三点はピリオド3つ)
-pub const CSV_STATUS_IMPORTING: &str = "取り込み中...";
+/// CSV管理: 行の状態「取り込み中」
+pub const CSV_STATUS_IMPORTING: &str = "取り込み中…";
 /// CSV管理: 行の状態「確認待ち」
 pub const CSV_STATUS_CONFIRMING: &str = "確認待ち";
 /// 開閉メニューの読み上げ名
@@ -992,7 +990,7 @@ pub const MENU: &str = "メニュー";
 /// 開閉の表示(閉じているときに開く操作)
 pub const DISCLOSURE_OPEN: &str = "開く";
 
-/// ページヘッダーのナビの読み上げ名
+/// 主要ナビ(ページヘッダーと下部ナビで共通)の読み上げ名
 pub const PAGE_MAIN_NAV: &str = "メインナビゲーション";
 
 /// ページヘッダーのロゴの読み上げ文(「証券Web トップ」)
@@ -1038,14 +1036,12 @@ pub const USER_MENU_LABEL: &str = "ユーザーメニュー";
 pub const USER_MENU_EXPORT: &str = "データをエクスポート";
 /// 利用者メニューの項目「ログアウト」
 pub const USER_MENU_LOGOUT: &str = "ログアウト";
-/// 下部ナビの読み上げ名
-pub const BOTTOM_NAV_LABEL: &str = "主要ナビゲーション";
-/// 読み込み中の表示(三点はピリオド3つ)
-pub const LOADING: &str = "読み込み中...";
+/// 読み込み中の表示
+pub const LOADING: &str = "読み込み中…";
 /// 失敗表示から再取得する操作
 pub const RETRY: &str = "再読み込み";
-/// 一覧の読み込み中の読み上げ文(三点はピリオド3つ)
-pub const LIST_LOADING_MESSAGE: &str = "データを読み込んでいます...";
+/// 一覧の読み込み中の読み上げ文
+pub const LIST_LOADING_MESSAGE: &str = "データを読み込んでいます…";
 
 /// 利用者メニューのボタンの読み上げ文(頭文字と表示名を含む)。
 /// 可視テキストは頭文字を含むため空白で単語を区切る

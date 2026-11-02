@@ -108,7 +108,7 @@ pub fn BottomNav(#[prop(optional, into)] class: Option<String>) -> impl IntoView
     let base_class = "app-bottom-nav no-print";
     let class = move || format!("{} {}", base_class, class.clone().unwrap_or_default());
     view! {
-        <nav class=class aria-label=labels::BOTTOM_NAV_LABEL>
+        <nav class=class aria-label=labels::PAGE_MAIN_NAV>
             {NAV_ITEMS
                 .iter()
                 .map(|(to, label)| {
