@@ -20,12 +20,12 @@ pub use composition_page::AssetBalanceCompositionPage;
 pub use fund_detail_page::AssetFundHoldingPage;
 pub use holding_detail_page::AssetBalanceHoldingPage;
 
-use crate::features::asset_balance::fund::{AssetKind, AssetSearch, FundSortKey};
+use crate::features::asset_balance::fund::{AssetKind, AssetSearch, FundSortKey, text_only_search};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{
-    AssetBalanceCsvStore, asset_balance_counts, fund_balance_counts, resolve_asset_balance,
-    resolve_fund_balance,
+    AssetBalanceCsvStore, AssetCsvSlot, asset_balance_counts, fund_balance_counts,
+    resolve_asset_balance, resolve_fund_balance,
 };
 use crate::features::asset_balance::store::{
     BalanceSlot, DataOps, FundSlot, has_current_balances, load_asset_balances, load_fund_balances,
@@ -36,10 +36,100 @@ use crate::ui::labels::COMPOSITION_VIEW_LINK;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
-use crate::ui::underline_tabs::SwipeArea;
+use crate::ui::underline_tabs::{SwipeArea, SwipeMotion, SwipeSlide};
 use kind_tabs::AssetKindTabs;
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
+
+/// タブごとの表示に要るもの。指で引いた先の面も同じ値で描く
+#[derive(Clone, Copy)]
+struct KindContent {
+    session: SessionStore,
+    balances: RwSignal<BalanceSlot>,
+    funds: RwSignal<FundSlot>,
+    search: RwSignal<AssetSearch>,
+    counts: [RwSignal<(usize, usize)>; 3],
+    kinds: [RwSignal<AssetKind>; 3],
+    sort_key: RwSignal<SortKey>,
+    sort_order: RwSignal<SortOrder>,
+    fund_sort_key: RwSignal<FundSortKey>,
+    fund_sort_order: RwSignal<SortOrder>,
+    dividends: RwSignal<DividendMaps>,
+    lookup: RwSignal<AssetBalanceLookupStore>,
+    csv: RwSignal<AssetCsvSlot>,
+    data_ops: RwSignal<DataOps>,
+}
+
+impl KindContent {
+    fn reload(self) {
+        if self.session.user.get_untracked().is_none() {
+            return;
+        }
+        self.balances.set(None);
+        load_asset_balances(
+            self.session,
+            self.session.generation.get_untracked(),
+            self.balances,
+            self.dividends,
+            self.lookup,
+            self.csv,
+            self.data_ops,
+        );
+        self.funds.set(None);
+        load_fund_balances(
+            self.session,
+            self.session.generation.get_untracked(),
+            self.funds,
+            self.data_ops,
+        );
+    }
+
+    fn render(self, kind: AssetKind) -> AnyView {
+        let generation = self.session.generation.get();
+        let list_error = self.balances.with(|slot| match slot {
+            Some((cached, Err(message))) if *cached == generation => Some(message.clone()),
+            _ => None,
+        });
+        let resolved = self
+            .balances
+            .with(|slot| resolve_asset_balance(generation, slot));
+        let resolved_fund = self
+            .funds
+            .with(|slot| resolve_fund_balance(generation, slot));
+        let index = AssetKind::ALL
+            .iter()
+            .position(|item| *item == kind)
+            .unwrap_or(0);
+        match (resolved, resolved_fund, list_error) {
+            (None, _, _) | (_, None, _) => {
+                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any()
+            }
+            (Some(_), _, Some(message)) => {
+                let this = self;
+                view! { <ListLoadError message=message on_retry=move || this.reload() /> }
+                    .into_any()
+            }
+            (Some(resolved), Some(resolved_fund), None) => view! {
+                <AssetBalanceMainContent
+                    stock_rows=resolved.rows
+                    fallback_totals=resolved.fallback_totals
+                    fund_resolved=resolved_fund
+                    search=self.search
+                    search_count=self.counts[index]
+                    sort_key=self.sort_key
+                    sort_order=self.sort_order
+                    fund_sort_key=self.fund_sort_key
+                    fund_sort_order=self.fund_sort_order
+                    kind=self.kinds[index]
+                    dividends=self.dividends
+                    lookup=self.lookup
+                    generation=generation
+                />
+            }
+            .into_any(),
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 pub(crate) struct AssetBalanceState {
@@ -48,7 +138,6 @@ pub(crate) struct AssetBalanceState {
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     search: RwSignal<AssetSearch>,
-    search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
     fund_sort_key: RwSignal<FundSortKey>,
@@ -103,7 +192,6 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let lookup = RwSignal::new(AssetBalanceLookupStore::new());
     let search = RwSignal::new(AssetSearch::default());
     let reset_search = search;
-    let search_count = RwSignal::new((0usize, 0usize));
     let sort_key = RwSignal::new(SortKey::MarketValue);
     let sort_order = RwSignal::new(SortOrder::Desc);
     // 初期の並び順は設定から。設定が変わったら並び順に反映する(ユーザーの手動選択は設定変更まで保持)
@@ -129,7 +217,6 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
             dividends.set(DividendMaps::default());
             data_ops.update(DataOps::reset);
             reset_search.set(AssetSearch::default());
-            search_count.set((0, 0));
             return;
         }
         lookup.update(|store| store.clear_if_stale(generation));
@@ -148,7 +235,6 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
         dividends,
         lookup,
         search,
-        search_count,
         sort_key,
         sort_order,
         fund_sort_key,
@@ -162,7 +248,6 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
 #[component]
 pub fn AssetBalancePage() -> impl IntoView {
     let session = use_session();
-    let render_session = session;
     let busy_session = session;
     let rail_session = session;
     let state = use_asset_balance_state(session);
@@ -174,15 +259,34 @@ pub fn AssetBalancePage() -> impl IntoView {
     let data_ops = state.data_ops;
     let busy_ops = data_ops;
     let csv_slot = state.csv.csv;
-    let resolved_view = move || {
-        let generation = rail_session.generation.get();
-        balances.with(|slot| resolve_asset_balance(generation, slot))
+    let motion = SwipeMotion::new();
+    let content = KindContent {
+        session,
+        balances,
+        funds,
+        search,
+        counts: std::array::from_fn(|_| RwSignal::new((0usize, 0usize))),
+        kinds: std::array::from_fn(|index| RwSignal::new(AssetKind::ALL[index])),
+        sort_key: state.sort_key,
+        sort_order: state.sort_order,
+        fund_sort_key: state.fund_sort_key,
+        fund_sort_order: state.fund_sort_order,
+        dividends,
+        lookup,
+        csv: csv_slot,
+        data_ops,
     };
-    let resolved_fund_view = move || {
-        let generation = rail_session.generation.get();
-        funds.with(|slot| resolve_fund_balance(generation, slot))
-    };
-    let search_count = state.search_count;
+    // 口座・コースの選択肢はタブごとに語彙が違うため、切替時は選択条件だけ消す
+    // (テキストは全タブ共通で引き継ぐ)
+    let prev_kind = RwSignal::new(state.kind.get_untracked());
+    Effect::new(move |_| {
+        let next = state.kind.get();
+        if prev_kind.get_untracked() == next {
+            return;
+        }
+        prev_kind.set(next);
+        search.update(|search| *search = text_only_search(search));
+    });
     // タブの件数表示用。タブ行をページレベルで描くためここで算出
     let stock_count = Signal::derive(move || {
         let generation = rail_session.generation.get();
@@ -216,23 +320,12 @@ pub fn AssetBalancePage() -> impl IntoView {
         );
         load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
     }
-    let reload = move || {
-        if session.user.get_untracked().is_none() {
-            return;
-        }
-        balances.set(None);
-        load_asset_balances(
-            session,
-            session.generation.get_untracked(),
-            balances,
-            dividends,
-            lookup,
-            csv_slot,
-            data_ops,
-        );
-        funds.set(None);
-        load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
-    };
+    let current_tab = Signal::derive(move || {
+        AssetKind::ALL
+            .iter()
+            .position(|kind| *kind == state.kind.get())
+            .unwrap_or(0)
+    });
     let csv_link: Children = Box::new(move || {
         view! {
             <span class="flex items-center gap-2">
@@ -271,6 +364,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         all_count=Signal::derive(move || stock_count.get() + fund_count.get())
                         stock_count=stock_count
                         fund_count=fund_count
+                        motion=motion
                     />
                 </SkeletonTabs>
             </div>
@@ -278,13 +372,9 @@ pub fn AssetBalancePage() -> impl IntoView {
             <SwipeArea
                 testid="assetbalance-main-stage"
                 count=Signal::derive(move || AssetKind::ALL.len())
-                current=Signal::derive(move || {
-                    AssetKind::ALL
-                        .iter()
-                        .position(|kind| *kind == state.kind.get())
-                        .unwrap_or(0)
-                })
+                current=current_tab
                 on_select=Callback::new(move |next: usize| state.kind.set(AssetKind::ALL[next]))
+                motion=motion
             >
                 {move || {
                     data_ops
@@ -302,7 +392,11 @@ pub fn AssetBalancePage() -> impl IntoView {
                         })
                 }}
                 {move || {
-                    resolved_view().and_then(|view| view.warning).map(|message| {
+                    let generation = rail_session.generation.get();
+                    balances
+                        .with(|slot| resolve_asset_balance(generation, slot))
+                        .and_then(|view| view.warning)
+                        .map(|message| {
                         view! {
                             <div class="no-print mb-3 px-4 lg:px-0">
                                 <Alert variant=AlertVariant::Warning>
@@ -315,7 +409,11 @@ pub fn AssetBalancePage() -> impl IntoView {
                     })
                 }}
                 {move || {
-                    resolved_fund_view().and_then(|view| view.warning).map(|message| {
+                    let generation = rail_session.generation.get();
+                    funds
+                        .with(|slot| resolve_fund_balance(generation, slot))
+                        .and_then(|view| view.warning)
+                        .map(|message| {
                         view! {
                             <div class="no-print mb-3 px-4 lg:px-0">
                                 <Alert variant=AlertVariant::Warning>
@@ -327,49 +425,18 @@ pub fn AssetBalancePage() -> impl IntoView {
                         }
                     })
                 }}
-                {move || {
-                    let generation = render_session.generation.get();
-                    let list_error = balances.with(|slot| match slot {
-                        Some((cached, Err(message))) if *cached == generation => {
-                            Some(message.clone())
+                {AssetKind::ALL
+                    .iter()
+                    .enumerate()
+                    .map(|(index, kind)| {
+                        let kind = *kind;
+                        view! {
+                            <SwipeSlide index=index current=current_tab motion=motion>
+                                {move || content.render(kind)}
+                            </SwipeSlide>
                         }
-                        _ => None,
-                    });
-                    let resolved = resolved_view();
-                    let resolved_fund = resolved_fund_view();
-                    match (resolved, resolved_fund, list_error) {
-                        (None, _, _) | (_, None, _) => {
-                            view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
-                                .into_any()
-                        }
-                        (Some(_), _, Some(message)) => {
-                            view! {
-                                <ListLoadError message=message on_retry=reload />
-                            }
-                                .into_any()
-                        }
-                        (Some(resolved), Some(resolved_fund), None) => {
-                            view! {
-                                <AssetBalanceMainContent
-                                    stock_rows=resolved.rows
-                                    fallback_totals=resolved.fallback_totals
-                                    fund_resolved=resolved_fund
-                                    search=search
-                                    search_count=search_count
-                                    sort_key=state.sort_key
-                                    sort_order=state.sort_order
-                                    fund_sort_key=state.fund_sort_key
-                                    fund_sort_order=state.fund_sort_order
-                                    kind=state.kind
-                                    dividends=dividends
-                                    lookup=lookup
-                                    generation=generation
-                                />
-                            }
-                                .into_any()
-                        }
-                    }
-                }}
+                    })
+                    .collect_view()}
             </SwipeArea>
         </div>
         </PageFrame>

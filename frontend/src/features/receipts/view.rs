@@ -15,7 +15,7 @@ use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
-use crate::ui::underline_tabs::SwipeArea;
+use crate::ui::underline_tabs::{SwipeArea, SwipeMotion, tab_ink_offset};
 use leptos::prelude::*;
 
 pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
@@ -30,6 +30,13 @@ pub fn ReceiptsPage() -> impl IntoView {
     store.revisit();
 
     let active_tab = store.active_tab;
+    let motion = SwipeMotion::new();
+    let current_tab = Signal::derive(move || {
+        ReceiptsTab::ALL
+            .iter()
+            .position(|tab| *tab == active_tab.get())
+            .unwrap_or(0)
+    });
     let tabs_loading = Memo::new(move |_| {
         store.auth_loading() || matches!(store.tab_state(active_tab.get()), TabState::Loading)
     });
@@ -44,7 +51,11 @@ pub fn ReceiptsPage() -> impl IntoView {
     let tabs = move || {
         view! {
             <nav aria-label="種別">
-                <div class="page-tab-list" role="tablist">
+                <div
+                    class="page-tab-list relative"
+                    role="tablist"
+                    data-swiping=move || motion.dragging.get().to_string()
+                >
                     {ReceiptsTab::ALL
                         .iter()
                         .copied()
@@ -52,6 +63,21 @@ pub fn ReceiptsPage() -> impl IntoView {
                             view! { <ReceiptsTabButton store=store tab=tab /> }
                         })
                         .collect_view()}
+                    <span
+                        class="tab-swipe-ink"
+                        data-on=move || motion.dragging.get().to_string()
+                        style:width=format!("calc(100% / {})", ReceiptsTab::ALL.len())
+                        style:transform=move || {
+                            let position = ReceiptsTab::ALL
+                                .iter()
+                                .position(|tab| *tab == active_tab.get())
+                                .unwrap_or(0);
+                            format!(
+                                "translateX({}%)",
+                                tab_ink_offset(position, motion.progress.get()) * 100.0
+                            )
+                        }
+                    ></span>
                 </div>
             </nav>
         }
@@ -76,15 +102,11 @@ pub fn ReceiptsPage() -> impl IntoView {
                 <SwipeArea
                     testid="receipts-workspace"
                     count=Signal::derive(move || ReceiptsTab::ALL.len())
-                    current=Signal::derive(move || {
-                        ReceiptsTab::ALL
-                            .iter()
-                            .position(|tab| *tab == active_tab.get())
-                            .unwrap_or(0)
-                    })
+                    current=current_tab
                     on_select=Callback::new(move |next: usize| {
                         store.select_tab(ReceiptsTab::ALL[next])
                     })
+                    motion=motion
                 >
                     {move || {
                         let loading = tabs_loading.get();
@@ -92,7 +114,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                             .iter()
                             .copied()
                             .map(|tab| {
-                                view! { <TabPanel store=store tab=tab loading=loading /> }
+                                view! { <TabPanel store=store tab=tab loading=loading motion=motion /> }
                             })
                             .collect_view()
                     }}

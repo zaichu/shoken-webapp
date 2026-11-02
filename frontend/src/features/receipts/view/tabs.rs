@@ -3,7 +3,9 @@ use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
-use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index as shared_next_tab_index};
+use crate::ui::underline_tabs::{
+    SwipeMotion, focus_tab_by_id, next_tab_index as shared_next_tab_index,
+};
 use leptos::prelude::*;
 
 pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
@@ -66,22 +68,36 @@ pub fn TabPanel(
     store: ReceiptsStore,
     tab: ReceiptsTab,
     #[prop(optional)] loading: bool,
+    motion: SwipeMotion,
 ) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
-    let hidden = store;
-    let rendered = store;
+    let index = ReceiptsTab::ALL
+        .iter()
+        .position(|item| *item == tab)
+        .unwrap_or(0);
+    let shown = Memo::new(move |_| {
+        let current = store.active_tab.get();
+        let position = ReceiptsTab::ALL
+            .iter()
+            .position(|item| *item == current)
+            .unwrap_or(0);
+        current == tab || (motion.dragging.get() && position.abs_diff(index) == 1)
+    });
     view! {
         <div
             id={format!("tabpanel-{slug}")}
             role="tabpanel"
             aria-labelledby={format!("tab-{slug}")}
-            hidden=move || hidden.active_tab.get() != tab
+            class="tab-swipe-slide"
+            data-index=index.to_string()
+            data-active=move || (store.active_tab.get() == tab).to_string()
+            hidden=move || !shown.get()
         >
             {move || {
-                let store = rendered;
-                if store.active_tab.get() != tab {
+                if !shown.get() {
                     return ().into_any();
                 }
+                let store = store;
                 if loading {
                     return view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any();
                 }

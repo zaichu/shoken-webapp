@@ -551,38 +551,57 @@
     }
   }
 
-  /* 下線タブの横スワイプ(スマホ幅だけ)。縦スクロールは残し、切り替え時は中身が横に流れる */
+  /* 下線タブの横スワイプ(スマホ幅だけ)。縦スクロールは残し、指に追従する面は transform だけで動かす */
   @media (width < 64rem) {
     .tab-swipe-area {
       touch-action: pan-y;
+      overflow-x: clip;
     }
 
-    .tab-swipe-panel[data-swipe-dir="next"] {
-      animation: tab-swipe-from-right 180ms ease-out;
+    .tab-swipe-track {
+      position: relative;
     }
 
-    .tab-swipe-panel[data-swipe-dir="prev"] {
-      animation: tab-swipe-from-left 180ms ease-out;
+    .tab-swipe-slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      will-change: transform;
+    }
+
+    .tab-swipe-slide[data-active="true"] {
+      position: relative;
+    }
+
+    .tab-swipe-ink {
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      height: 3px;
+      background: var(--color-gold);
+      will-change: transform;
+    }
+
+    .tab-swipe-ink[data-on="false"] {
+      display: none;
+    }
+
+    .page-tab-list[data-swiping="true"] .page-tab[aria-selected="true"] {
+      box-shadow: none;
     }
   }
 
-  @keyframes tab-swipe-from-right {
-    from {
-      transform: translateX(24px);
-    }
-
-    to {
-      transform: translateX(0);
+  @media (width >= 64rem) {
+    .tab-swipe-ink {
+      display: none;
     }
   }
 
-  @keyframes tab-swipe-from-left {
-    from {
-      transform: translateX(-24px);
-    }
-
-    to {
-      transform: translateX(0);
+  @media (prefers-reduced-motion: reduce) {
+    .tab-swipe-slide,
+    .tab-swipe-ink {
+      transition: none;
     }
   }
 

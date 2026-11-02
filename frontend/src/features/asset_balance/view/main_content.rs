@@ -624,17 +624,6 @@ pub(crate) fn AssetBalanceMainContent(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> impl IntoView {
-    // 口座・コースの選択肢はタブごとに語彙が違うため、切替時は選択条件だけ消す
-    // (テキストは全タブ共通で引き継ぐ)
-    let prev_kind = RwSignal::new(kind.get_untracked());
-    Effect::new(move |_| {
-        let next = kind.get();
-        if prev_kind.get_untracked() == next {
-            return;
-        }
-        prev_kind.set(next);
-        search.update(|s| *s = text_only_search(s));
-    });
     view! {
         {move || match kind.get() {
             AssetKind::Stock => {
