@@ -186,7 +186,7 @@ test('資産管理データが2件あるときサマリーと検索入力が表�
 
   await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
   // スマホ用の帯にも同じ文言があるため、PC 帯の用語(dt)に絞る
-  await expect(page.locator('dt', { hasText: '評価額合計' })).toBeVisible();
+  await expect(page.locator('dt', { hasText: '評価額' })).toBeVisible();
   // 全件削除は一覧には置かず CSV 管理ページへ誘導する
   await expect(page.getByRole('link', { name: 'CSV管理' })).toBeVisible();
   await expect(page.getByTestId('asset-search-input-pc')).toBeVisible();

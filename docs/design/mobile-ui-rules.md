@@ -50,7 +50,7 @@
 | 行 | 全一覧で `ListRow`。行の器は左右16px・上下12px・下に区切り線。口座は `AccountBadge`、日付は2段目の先頭に `M/D`。右端に矢印などの印は付けない。スマホでは行をカードで包まない | `ui/list_row.rs` `ListRow`・`ListRowButton`・`ListRowLink`・`ListRowStatic`・`ListGroupHeader`、`ui/badge.rs` `AccountBadge`、行の器 |
 | 行を押したとき | 保有している物(銘柄・ファンド)は詳細画面へ移る。1回の出来事(入金・売買)はシートで開く。その場で展開はしない。全部見えている行(ログイン履歴など)は押せなくてよい | `<a>` + 行の器 / `ui/row_detail_sheet.rs` `RowDetailSheet` |
 | リンクとボタン | 3種類だけ: 上バーの枠つき小ボタン、本文内の移動リンク(下線なし・強調色の文字に「→」)、戻る。下線付きリンクは外部サイトへのリンクだけ | `page-secondary-link-sm`、`home-card-link` を共通名にしたもの、`page-back-link`、`ui/security_link.rs` |
-| 数字 | 金額・率は `Amount` と `format.rs` を通す。お金の出入りと損益(配当の受取額・売買の損益・評価損益・前日比)と税の3つ(税引前・税額・税引後)は符号(+/−)と色の両方(緑/赤)で出す。税引前は損益または受取額としてプラスは+¥の緑・マイナスは−¥の赤、税額は出ていくお金として−¥の赤(還付のマイナスの税額は+¥の緑、0は¥0の通常色)、税引後は今のまま。残高・価格・元になる額(評価額・現在値・取得総額)は通常の文字色で出し、▲▼は使わない。DeltaかPlainかは `AmountKind` で表し、画面ごとに色を書かない。日付は `format_iso_date`("YYYY/MM/DD")か `format_short_date`("M/D") | `ui/amount.rs` `Amount`、`ui/format.rs` |
+| 数字 | 金額・率は `Amount` と `format.rs` を通す。お金の出入りと損益(配当の受取額・売買の損益・評価損益・前日比)と税の3つ(税引前・税額・税引後)は符号(+/−)と色の両方(緑/赤)で出す。税引前は損益または受取額としてプラスは+¥の緑・マイナスは−¥の赤、税額は出ていくお金として−¥の赤(還付のマイナスの税額は+¥の緑、0は¥0の通常色)、税引後は今のまま。残高・価格・元になる額(評価額・現在値・取得総額)は通常の文字色で出し、▲▼は使わない。DeltaかPlainかは `AmountKind` で表し、画面ごとに色を書かない。日付は `format_iso_date`("YYYY/MM/DD")か `format_short_date`("M/D")。一覧の月の見出しは YYYY年M月 | `ui/amount.rs` `Amount`、`ui/format.rs` |
 | 余白 | 文字の左端は画面端から16px。帯・タブ・行は端まで敷き、中の文字だけ16px。`page-gutter` の中にさらに `page-gutter` や余白つきのカードを重ねない | `PageFrame`(`page-gutter`)/`content-gutter` |
 | スクロール | スマホはページ全体(`main.app-scroll`)の1本だけ。本文の内側にスクロール領域を作らない | `PageFrame` |
 | 空・読み込み中・失敗 | 空は `EmptyState`、読み込み中は `ListSkeleton`、失敗は `ListLoadError`(再読み込みつき)。裏の再取得の失敗だけ `Alert` | `ui/empty_state.rs`、`ui/state.rs` |

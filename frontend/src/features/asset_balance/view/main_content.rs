@@ -111,9 +111,6 @@ fn EmptyFilteredPanel(
     }
 }
 
-/// 検索欄の入力欄に出す文言。3タブで同じ文言・同じ動詞(検索)を使う
-const SEARCH_TARGET: &str = "銘柄・ファンド名・コード・口座";
-
 /// 検索で全行が消えたときの文面。3タブで同じ文言を使う
 const EMPTY_FILTERED_TITLE: &str = NO_MATCH_TITLE;
 
@@ -198,7 +195,7 @@ fn StockContent(
                 <AssetSearchBar
                     search=search
                     search_count=search_count
-                    placeholder=labels::search_placeholder(SEARCH_TARGET)
+                    placeholder=labels::search_placeholder(labels::ASSET_SEARCH_TARGET)
                     conditions=&[ConditionKind::Account]
                     account_options=account_options
                     course_options=course_options
@@ -206,7 +203,7 @@ fn StockContent(
                 <AssetMobileSearchEntry
                     search=search
                     search_count=search_count
-                    placeholder=labels::search_placeholder(SEARCH_TARGET)
+                    placeholder=labels::search_placeholder(labels::ASSET_SEARCH_TARGET)
                     conditions=&[ConditionKind::Account]
                     account_options=account_options
                     course_options=course_options
@@ -341,7 +338,7 @@ fn FundContent(
                 <AssetSearchBar
                     search=search
                     search_count=search_count
-                    placeholder=labels::search_placeholder(SEARCH_TARGET)
+                    placeholder=labels::search_placeholder(labels::ASSET_SEARCH_TARGET)
                     conditions=&[ConditionKind::Account, ConditionKind::Course]
                     account_options=account_options
                     course_options=course_options
@@ -349,7 +346,7 @@ fn FundContent(
                 <AssetMobileSearchEntry
                     search=search
                     search_count=search_count
-                    placeholder=labels::search_placeholder(SEARCH_TARGET)
+                    placeholder=labels::search_placeholder(labels::ASSET_SEARCH_TARGET)
                     conditions=&[ConditionKind::Account, ConditionKind::Course]
                     account_options=account_options
                     course_options=course_options
@@ -546,7 +543,7 @@ fn AllContent(
                 <AssetSearchBar
                     search=search
                     search_count=search_count
-                    placeholder=labels::search_placeholder(SEARCH_TARGET)
+                    placeholder=labels::search_placeholder(labels::ASSET_SEARCH_TARGET)
                     conditions=&[]
                     account_options=account_options
                     course_options=course_options
@@ -554,7 +551,7 @@ fn AllContent(
                 <AssetMobileSearchEntry
                     search=search
                     search_count=search_count
-                    placeholder=labels::search_placeholder(SEARCH_TARGET)
+                    placeholder=labels::search_placeholder(labels::ASSET_SEARCH_TARGET)
                     conditions=&[]
                     account_options=account_options
                     course_options=course_options

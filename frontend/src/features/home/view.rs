@@ -22,7 +22,7 @@ use crate::ui::format::{
     format_number_value, format_short_date,
 };
 use crate::ui::labels::{
-    AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, MARKET_VALUE, MISSING,
+    self, AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, MARKET_VALUE, MISSING,
     PAYMENT_DATE, PER_SHARE_DIVIDEND, QUANTITY, TAX, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::{ListGroupHeader, ListRowButtonWithoutSecondary, ListRowLink};
@@ -532,7 +532,8 @@ fn DividendCardBody(
         .flat_map(|pair| [pair.current, pair.previous])
         .max()
         .unwrap_or_default();
-    let received = format_valuation_amount(Some(dec_to_f64(&model.received)));
+    let received_value = Some(dec_to_f64(&model.received));
+    let received = format_signed_valuation_amount(received_value);
     let forecast = model
         .forecast_net
         .map(|v| format_valuation_amount(Some(v)))
@@ -541,14 +542,14 @@ fn DividendCardBody(
     let progress_text = progress_pct.map_or_else(|| MISSING.to_string(), format_integer_percent);
     let remaining_text = model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
-    let previous_span = match model.previous_remaining {
-        Some(remaining) if current_month < 12 => format!(
-            "・ 前年の{}〜12月は {} 入金 ",
-            current_month + 1,
-            format_valuation_amount(Some(dec_to_f64(&remaining)))
-        ),
-        _ => String::new(),
-    };
+    let previous_span = model
+        .previous_remaining
+        .map_or_else(String::new, |remaining| {
+            labels::previous_dividend_span(
+                current_month,
+                &format_valuation_amount(Some(dec_to_f64(&remaining))),
+            )
+        });
     let yoy_text = model
         .yoy_diff
         .map(|diff| format_signed_valuation_amount(Some(dec_to_f64(&diff))))
@@ -557,7 +558,14 @@ fn DividendCardBody(
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
             <span class="text-sm">
                 "受取 "
-                <strong class="text-lg tabular-nums">{received}</strong>
+                <strong class="text-lg">
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=received
+                        negative=is_negative_valuation(received_value)
+                        positive=is_positive_valuation(received_value)
+                    />
+                </strong>
             </span>
             <span class="text-sm text-text-muted">
                 {if pending {

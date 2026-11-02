@@ -112,7 +112,7 @@ fn holding_dividend_matches_component_cases() {
     assert_eq!(zero.per_share, Some(0.0));
     assert_eq!(zero.annual, Some(0.0));
     assert_eq!(format_dividend_per_share(&zero, 0), "¥0");
-    assert_eq!(format_dividend_yield(&zero), "—");
+    assert_eq!(zero.yield_value, Some(0.0));
 
     let zero_price = holding_dividend("9904", 10.0, 0.0, &maps);
     assert_eq!(zero_price.yield_value, None);

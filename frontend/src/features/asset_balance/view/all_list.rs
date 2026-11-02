@@ -399,14 +399,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             .unwrap_or_else(|| "—".to_string());
         right.push(DetailCell::plain(ANNUAL_DIVIDEND.to_string(), annual));
     }
-    right.push(DetailCell::plain(
-        if is_fund {
-            "基準日".to_string()
-        } else {
-            PRICE_AS_OF.to_string()
-        },
-        as_of,
-    ));
+    right.push(DetailCell::plain(PRICE_AS_OF.to_string(), as_of));
     (left, right)
 }
 
@@ -579,6 +572,14 @@ mod tests {
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(left_labels, ["基準価額", "取得単価", "分配金"]);
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
-        assert_eq!(right_labels, ["保有口数", "取得総額", "評価額", "基準日"]);
+        assert_eq!(
+            right_labels,
+            [
+                "保有口数",
+                "取得総額",
+                "評価額",
+                crate::ui::labels::PRICE_AS_OF
+            ]
+        );
     }
 }

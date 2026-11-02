@@ -3,13 +3,31 @@ use crate::features::csv_page::CsvKind;
 use crate::features::csv_sync::KindStatus;
 
 #[test]
+fn stale_status_explains_why_same_age_has_different_freshness() {
+    for days in 1..=7 {
+        let stale = dated_status(CsvKind::AssetStock, days, "10/20", "12:00");
+        let fresh = dated_status(CsvKind::Dividend, days, "10/20", "12:00");
+        assert_ne!(stale.2, fresh.2);
+        assert_ne!(stale.0, fresh.0);
+    }
+}
+
+#[test]
 fn dated_status_key_marks_fresh_and_stale_by_kind() {
-    let key = |kind: CsvKind, days: i64| dated_status(kind, days, "10/20", "12:00").2;
-    assert_eq!(key(CsvKind::AssetStock, 0), "fresh");
-    assert_eq!(key(CsvKind::AssetFund, 1), "stale");
-    assert_eq!(key(CsvKind::Dividend, 7), "fresh");
-    assert_eq!(key(CsvKind::DomesticStock, 8), "stale");
-    assert_eq!(key(CsvKind::MutualFund, 40), "stale");
+    for (kind, days, key, needs_update) in [
+        (CsvKind::AssetStock, 0, "fresh", false),
+        (CsvKind::AssetFund, 1, "stale", true),
+        (CsvKind::Dividend, 7, "fresh", false),
+        (CsvKind::DomesticStock, 8, "stale", true),
+        (CsvKind::MutualFund, 40, "stale", true),
+    ] {
+        let status = dated_status(kind, days, "10/20", "12:00");
+        assert_eq!(status.2, key);
+        assert_eq!(
+            status.0.contains(labels::CSV_MANAGE_STATUS_UPDATE_REQUIRED),
+            needs_update,
+        );
+    }
 }
 
 #[test]

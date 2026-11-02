@@ -91,7 +91,7 @@ pub(crate) fn holding_dividend(
         Some("zero") => HoldingDividend {
             per_share: Some(0.0),
             annual: Some(0.0),
-            yield_value: None,
+            yield_value: Some(0.0),
             status,
         },
         _ => match maps.per_share.get(code) {

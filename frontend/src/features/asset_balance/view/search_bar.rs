@@ -7,8 +7,8 @@ use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels::{
-    ACCOUNT, COMPOSITION_VIEW_LINK, DISTRIBUTION_COURSE, SEARCH_AND_SORT, SEARCH_DIALOG_HINT,
-    SORT_BY, SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH, SORT_ORDER_LABEL, SORT_TARGET,
+    ACCOUNT, COMPOSITION_VIEW_LINK, DISTRIBUTION_COURSE, SEARCH_AND_SORT, SORT_BY,
+    SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH, SORT_ORDER_LABEL, SORT_TARGET,
 };
 use crate::ui::more_link::MoreLink;
 use crate::ui::search_controls::{
@@ -407,6 +407,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
     let draft_text = move || draft.with(|s| s.text.clone());
     let set_draft_text = move |value: String| draft.update(|s| s.text = value);
     let search_callback = Callback::new(move |_| on_search());
+    let hint = placeholder.clone();
     view! {
         <div class="flex flex-col gap-4">
             <section aria-label="検索">
@@ -421,7 +422,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                             on_enter=search_callback
                         />
                     </SearchBox>
-                    <p class="search-dialog-hint">{SEARCH_DIALOG_HINT}</p>
+                    <p class="search-dialog-hint">{hint}</p>
                 </div>
             </section>
             {(!conditions.is_empty())

@@ -14,7 +14,8 @@ use crate::ui::format::{
 };
 use crate::ui::labels::{
     ACCOUNT, AVERAGE_PRICE, BASE_PRICE, BASE_PRICE_MONTH_CHANGE, DAY_CHANGE, DISTRIBUTION, FUND,
-    FUND_SHARES, MARKET_VALUE, PENDING_UPDATE, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
+    FUND_SHARES, MARKET_VALUE, PENDING_UPDATE, PRICE_AS_OF, TOTAL_ACQUISITION,
+    VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::ListRowButton;
 use crate::ui::security_link::TableNameLink;
@@ -206,7 +207,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
             pnl_negative,
             pnl_positive,
         ),
-        DetailCell::plain("基準日".to_string(), as_of),
+        DetailCell::plain(PRICE_AS_OF.to_string(), as_of),
     ];
     (left, right)
 }
@@ -323,7 +324,15 @@ mod tests {
             ["基準価額", "基準価額(前月比)", "取得単価", "分配金"]
         );
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
-        assert_eq!(right_labels, ["保有口数", "取得総額", "評価額", "基準日"]);
+        assert_eq!(
+            right_labels,
+            [
+                "保有口数",
+                "取得総額",
+                "評価額",
+                crate::ui::labels::PRICE_AS_OF
+            ]
+        );
     }
 
     #[test]
