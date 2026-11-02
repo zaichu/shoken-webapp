@@ -2590,7 +2590,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=24).collect::<Vec<_>>()
+        (0..=25).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2598,7 +2598,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=24).collect::<Vec<_>>()
+        (0..=25).collect::<Vec<_>>()
     );
 }
 
@@ -2626,7 +2626,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=24).collect::<Vec<_>>()
+        (0..=25).collect::<Vec<_>>()
     );
 }
 
@@ -2963,6 +2963,455 @@ async fn audit_tables_rls_isolates_restricted_role() {
             "login_notify_tokens",
             vec![Bind::from(user_b), Bind::Bytes(vec![48u8; 32])],
             "INSERT INTO login_notify_tokens (user_id, token_hash) VALUES ($1, $2)",
+        ),
+    ] {
+        let mut tx = restricted.begin().await.expect("tx 開始に失敗");
+        db::query(
+            "SELECT set_config('app.current_user_id', $1, true)",
+            vec![Bind::from(user_a.to_string())],
+        )
+        .execute(&mut tx)
+        .await
+        .expect("利用者 ID の設定に失敗");
+        let err = db::query(sql, binds)
+            .execute(&mut tx)
+            .await
+            .expect_err("他人名義の書き込みは失敗するはず");
+        assert!(
+            err.sql_state()
+                .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+            "行共有違反のはず({table}): {err:?}"
+        );
+        tx.rollback().await.expect("rollback に失敗");
+    }
+}
+
+/// RLS 第三段階(前半): 取引明細・残高の5表は所有者の挙動を変えず、
+/// 権限を絞ったロールでは利用者ごとに分離される
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn trading_tables_rls_isolates_restricted_role() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&database_url).await;
+    run_migrations(&pool).await.expect("migrations failed");
+
+    for table in [
+        "dividends",
+        "domestic_stocks",
+        "mutualfunds",
+        "asset_balances",
+        "fund_balances",
+    ] {
+        let rls = db::query_scalar::<bool>(
+            "SELECT relrowsecurity FROM pg_class WHERE relname = $1",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("RLS 有効の取得に失敗");
+        assert!(rls, "{table} に RLS が有効のはず");
+        let forced = db::query_scalar::<bool>(
+            "SELECT relforcerowsecurity FROM pg_class WHERE relname = $1",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("FORCE 状態の取得に失敗");
+        assert!(
+            !forced,
+            "{table} に FORCE は付けない(所有者の挙動を変えない)"
+        );
+    }
+
+    let user_a = create_test_user(&pool).await;
+    let user_b = create_test_user(&pool).await;
+    dividend_svc::bulk_create(
+        &pool,
+        user_a,
+        &[make_dividend_item("9931")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当の投入に失敗");
+    dividend_svc::bulk_create(
+        &pool,
+        user_b,
+        &[make_dividend_item("9932")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当の投入に失敗");
+    domestic_stock_svc::bulk_create(
+        &pool,
+        user_a,
+        &[make_domestic_stock_item("9935")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("国内株式の投入に失敗");
+    domestic_stock_svc::bulk_create(
+        &pool,
+        user_b,
+        &[make_domestic_stock_item("9936")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("国内株式の投入に失敗");
+    mutualfund_svc::bulk_create(
+        &pool,
+        user_a,
+        &[make_mutualfund_item("架空投信A")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("投信の投入に失敗");
+    mutualfund_svc::bulk_create(
+        &pool,
+        user_b,
+        &[make_mutualfund_item("架空投信B")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("投信の投入に失敗");
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_a,
+        &[make_asset_item("9931")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("残高の投入に失敗");
+    asset_balance_svc::bulk_create(
+        &pool,
+        user_b,
+        &[make_asset_item("9901")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("残高の投入に失敗");
+    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    insert_fund_row(
+        &pool,
+        user_a,
+        "架空残高投信A",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        Some(dec!(5)),
+        dec!(100000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+    insert_fund_row(
+        &pool,
+        user_b,
+        "架空残高投信B",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        Some(dec!(5)),
+        dec!(100000),
+        dec!(0),
+        today,
+        Utc::now(),
+    )
+    .await;
+
+    let uploaded = dividend_svc::DividendDomain::upload_csv(
+        &pool,
+        user_a,
+        make_dividend_csv().as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当 CSV 取込は通るはず");
+    assert_eq!(uploaded.inserted, 1);
+    let uploaded = domestic_stock_svc::DomesticStockDomain::upload_csv(
+        &pool,
+        user_a,
+        make_domestic_stock_csv().as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("国内株式 CSV 取込は通るはず");
+    assert_eq!(uploaded.inserted, 1);
+    let uploaded = mutualfund_svc::MutualfundDomain::upload_csv(
+        &pool,
+        user_a,
+        make_mutualfund_csv().as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("投信 CSV 取込は通るはず");
+    assert_eq!(uploaded.inserted, 1);
+    let uploaded = asset_balance_svc::AssetBalanceDomain::upload_csv(
+        &pool,
+        user_a,
+        make_asset_balance_csv().as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("残高 CSV 取込は通るはず");
+    assert_eq!(uploaded.inserted, 1);
+    let uploaded = FundBalanceDomain::upload_csv(
+        &pool,
+        user_a,
+        concat!(
+            "投資信託種別,口座区分,ファンド,分配金コース,保有数量[口],平均取得価額[円],取得総額[円],基準価額[円],時価評価額[円],評価損益[円]\n",
+            "投資信託,特定,架空長期積立ファンド,再投資型,10000,10000,10000,11000,11000,1000"
+        )
+        .as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("ファンド残高 CSV 取込は通るはず");
+    assert_eq!(uploaded.inserted, 1);
+
+    for (table, expected) in [
+        ("dividends", 3i64),
+        ("domestic_stocks", 3i64),
+        ("mutualfunds", 3i64),
+        ("asset_balances", 2i64),
+        ("fund_balances", 2i64),
+    ] {
+        let count = db::query_scalar::<i64>(format!("SELECT COUNT(*) FROM {table}"), vec![])
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, expected, "所有者は両利用者の行を読めるはず: {table}");
+    }
+
+    let dividends_a = domain_search::<dividend_svc::DividendDomain>(
+        &pool,
+        user_a,
+        default_dividend_search_params(),
+    )
+    .await
+    .expect("配当一覧は通るはず");
+    assert_eq!(dividends_a.data.len(), 2);
+    let mut dividend_summary_params = default_dividend_search_params();
+    dividend_summary_params.search.include_summary = Some(true);
+    let dividends_a =
+        domain_search::<dividend_svc::DividendDomain>(&pool, user_a, dividend_summary_params)
+            .await
+            .expect("配当集計は通るはず");
+    assert!(dividends_a.summary.is_some(), "配当集計が返るはず");
+    let domestic_a = domain_search::<domestic_stock_svc::DomesticStockDomain>(
+        &pool,
+        user_a,
+        default_domestic_stock_search_params(),
+    )
+    .await
+    .expect("国内株式一覧は通るはず");
+    assert_eq!(domestic_a.data.len(), 2);
+    let mutualfund_a = domain_search::<mutualfund_svc::MutualfundDomain>(
+        &pool,
+        user_a,
+        default_mutualfund_search_params(),
+    )
+    .await
+    .expect("投信一覧は通るはず");
+    assert_eq!(mutualfund_a.data.len(), 2);
+    let mut asset_params = default_asset_balance_search_params();
+    asset_params.search.include_summary = Some(true);
+    let asset_a =
+        domain_search::<asset_balance_svc::AssetBalanceDomain>(&pool, user_a, asset_params)
+            .await
+            .expect("残高一覧・集計は通るはず");
+    assert_eq!(asset_a.data.len(), 1);
+    assert!(asset_a.summary.is_some(), "残高集計が返るはず");
+    let fund_a = domain_search::<FundBalanceDomain>(
+        &pool,
+        user_a,
+        FundBalanceSearchQueryParams {
+            search: SearchQueryParams {
+                include_summary: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("ファンド残高一覧・集計は通るはず");
+    assert_eq!(fund_a.data.len(), 1);
+    assert!(fund_a.summary.is_some(), "ファンド残高集計が返るはず");
+
+    pool.batch_execute("CREATE ROLE rls_app WITH LOGIN PASSWORD 'rls-test-password'")
+        .await
+        .expect("制限ロールの作成に失敗");
+    pool.batch_execute("GRANT CONNECT ON DATABASE postgres TO rls_app")
+        .await
+        .expect("CONNECT 付与に失敗");
+    pool.batch_execute("GRANT USAGE ON SCHEMA public TO rls_app")
+        .await
+        .expect("USAGE 付与に失敗");
+    for table in [
+        "dividends",
+        "domestic_stocks",
+        "mutualfunds",
+        "asset_balances",
+        "fund_balances",
+    ] {
+        pool.batch_execute(&format!(
+            "GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO rls_app"
+        ))
+        .await
+        .expect("表権限の付与に失敗");
+    }
+    let restricted_url = format!("postgres://rls_app:rls-test-password@127.0.0.1:{port}/postgres");
+    let restricted = connect_with_retry(&restricted_url).await;
+
+    for table in [
+        "dividends",
+        "domestic_stocks",
+        "mutualfunds",
+        "asset_balances",
+        "fund_balances",
+    ] {
+        let count = db::query_scalar::<i64>(format!("SELECT COUNT(*) FROM {table}"), vec![])
+            .fetch_one(&restricted)
+            .await
+            .unwrap();
+        assert_eq!(
+            count, 0,
+            "利用者 ID 未設定の制限ロールは何も見えないはず: {table}"
+        );
+    }
+
+    let mut tx = restricted.begin().await.expect("tx 開始に失敗");
+    db::query(
+        "SELECT set_config('app.current_user_id', $1, true)",
+        vec![Bind::from(user_a.to_string())],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("利用者 ID の設定に失敗");
+    for (table, expected) in [
+        ("dividends", 2usize),
+        ("domestic_stocks", 2usize),
+        ("mutualfunds", 2usize),
+        ("asset_balances", 1usize),
+        ("fund_balances", 1usize),
+    ] {
+        let owners = db::query(format!("SELECT user_id::text FROM {table}"), vec![])
+            .fetch_all::<(String,), _>(&mut tx)
+            .await
+            .expect("明細・残高の取得に失敗");
+        assert_eq!(
+            owners.len(),
+            expected,
+            "利用者 A の行数が合わないはず: {table}"
+        );
+        assert!(
+            owners.iter().all(|(id,)| id == &user_a.to_string()),
+            "利用者 A の行だけが見えるはず: {table}"
+        );
+    }
+    db::query(
+        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, \
+         security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) \
+         VALUES ($1, '2024-04-01', '国内株式', '特定', '9921', '架空自己配当', 100, 50, 5000, 1015, 3985)",
+        vec![Bind::from(user_a)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    db::query(
+        "INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code, \
+         security_name, account, shares, asked_price, proceeds, purchase_price, \
+         realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax, content_hash, \
+         occurrence_index) VALUES ($1, '2024-03-20', '2024-03-25', '9941', '架空自己株式', '特定', \
+         10, 1000, 10000, 9000, 1000, 203, 797, 'rls-own-hash-a', 0)",
+        vec![Bind::from(user_a)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    db::query(
+        "INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, account, shares, \
+         exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
+         average_acquisition_price_yen, realized_profit_and_loss, taxes, \
+         realized_profit_and_loss_after_tax) VALUES ($1, '2024-03-20', '2024-03-25', \
+         '架空自己投信A', '特定', 1000, 1, 12000, 12000000, 10000, 2000000, 406060, 1593940)",
+        vec![Bind::from(user_a)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    db::query(
+        "INSERT INTO asset_balances (user_id, security_code, security_name, shares, \
+         average_purchase_price, total_purchase_amount) \
+         VALUES ($1, '9911', '架空自己残高', 100, 1000, 100000)",
+        vec![Bind::from(user_a)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    db::query(
+        "INSERT INTO fund_balances (user_id, fund_name, account, shares, average_purchase_price, \
+         total_purchase_amount, base_price, market_value, profit_loss, price_as_of) \
+         VALUES ($1, '架空自己残高投信A', '特定', 10000, 10000, 100000, 11000, 110000, 10000, '2024-03-25')",
+        vec![Bind::from(user_a)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    let err = db::query(
+        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, \
+         security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) \
+         VALUES ($1, '2024-04-01', '国内株式', '特定', '9922', '架空他人配当', 100, 50, 5000, 1015, 3985)",
+        vec![Bind::from(user_b)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect_err("他人名義の書き込みは失敗するはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "行共有違反のはず: {err:?}"
+    );
+    tx.rollback().await.expect("rollback に失敗");
+
+    for (table, binds, sql) in [
+        (
+            "domestic_stocks",
+            vec![Bind::from(user_b)],
+            "INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code, \
+             security_name, account, shares, asked_price, proceeds, purchase_price, \
+             realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax, content_hash, \
+             occurrence_index) VALUES ($1, '2024-03-20', '2024-03-25', '9942', '架空他人株式', '特定', \
+             10, 1000, 10000, 9000, 1000, 203, 797, 'rls-other-hash-b', 0)",
+        ),
+        (
+            "mutualfunds",
+            vec![Bind::from(user_b)],
+            "INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, account, shares, \
+             exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
+             average_acquisition_price_yen, realized_profit_and_loss, taxes, \
+             realized_profit_and_loss_after_tax) VALUES ($1, '2024-03-20', '2024-03-25', \
+             '架空他人投信B', '特定', 1000, 1, 12000, 12000000, 10000, 2000000, 406060, 1593940)",
+        ),
+        (
+            "asset_balances",
+            vec![Bind::from(user_b)],
+            "INSERT INTO asset_balances (user_id, security_code, security_name, shares, \
+             average_purchase_price, total_purchase_amount) \
+             VALUES ($1, '9912', '架空他人残高', 100, 1000, 100000)",
+        ),
+        (
+            "fund_balances",
+            vec![Bind::from(user_b)],
+            "INSERT INTO fund_balances (user_id, fund_name, account, shares, average_purchase_price, \
+             total_purchase_amount, base_price, market_value, profit_loss, price_as_of) \
+             VALUES ($1, '架空他人残高投信B', '特定', 10000, 10000, 100000, 11000, 110000, 10000, '2024-03-25')",
         ),
     ] {
         let mut tx = restricted.begin().await.expect("tx 開始に失敗");
