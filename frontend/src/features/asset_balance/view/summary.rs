@@ -246,7 +246,6 @@ pub(crate) fn AssetSummaryBand(
                         negative: daily_negative,
                         positive: daily_positive,
                         rate: daily_rate_text,
-                        boxed: false,
                     },
                     SummaryBreakdownEntry {
                         label: TOTAL_ACQUISITION.to_string(),
@@ -254,7 +253,6 @@ pub(crate) fn AssetSummaryBand(
                         negative: false,
                         positive: false,
                         rate: String::new(),
-                        boxed: true,
                     },
                 ]
                 testid_band="portfolio-kpi-grid"

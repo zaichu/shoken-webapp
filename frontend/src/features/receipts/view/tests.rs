@@ -14,7 +14,10 @@ use crate::features::receipts::{
 use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::card::StatTone;
-use crate::ui::labels::{AFTER_TAX, PAYMENT_DATE, TRADE_DATE};
+use crate::ui::labels::{
+    AFTER_TAX, DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX, PAYMENT_DATE, REALIZED_BEFORE_TAX,
+    REALIZED_PROFIT_LOSS, TAX, TRADE_DATE,
+};
 use crate::ui::page_skeleton::FilteredCount;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -1131,6 +1134,14 @@ fn summary_band_keeps_primary_last_and_breakdown_order() {
             }
         }
     }
+}
+
+#[test]
+fn summary_breakdown_labels_show_tax_basis() {
+    assert_eq!(breakdown_label(DIVIDEND_AMOUNT), DIVIDEND_BEFORE_TAX);
+    assert_eq!(breakdown_label(REALIZED_PROFIT_LOSS), REALIZED_BEFORE_TAX);
+    assert_eq!(breakdown_label(TAX), TAX);
+    assert_eq!(breakdown_label(AFTER_TAX), AFTER_TAX);
 }
 
 #[test]
