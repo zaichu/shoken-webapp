@@ -127,8 +127,8 @@ src/
 
 ### 色・値はトークンとコンポーネントで再利用する
 
-- 色・影・角丸・幅は `style/input.css` の `@theme` に意味で名前を付けたトークンで使う: 面 `surface`・文字 `text`・プラス `positive`/`gain`・マイナス `negative`・アクセント `accent`・リンク `info`、影 `shadow-elevation-1..3`、角丸 `rounded-panel`/`rounded-note`/`rounded-field` など
-- 生のパレット(`slate-500`・`amber-50`・`red-700` など色名+番号)と白・黒の直書き(`bg-white`・`text-black` など)、任意値(`shadow-[...]`・`text-[10px]`・`min-h-[44px]` など `[...]` 指定)を `src/` のクラスに直書きしない。同じ見た目が必要ならトークンを追加するか、`ui/` か `input.css` の `@layer components` の部品(`.panel-card`・`.empty-state`・`.receipts-tab-list`・`.security-code-link` など)を使う
+- 色・影・角丸・幅は `style/input.css` の `@theme` に意味で名前を付けたトークンで使う: 面 `surface`・文字 `text`・プラス `positive`・マイナス `negative`・アクセント `accent`・情報 `info`・口座札 `badge-*`・図 `chart-*`、余白 `space-*`、文字の大きさ `text-eyebrow`・`text-cell`・`text-summary-*`、角丸 `radius-note` と `rounded-xl`・`rounded-lg`・`rounded-full`、影 `shadow-elevation-*`・`shadow-card`・`shadow-header` など。選び方は `docs/design/mobile-ui-rules.md` のトークン表が正本
+- 生のパレット(`slate-500`・`amber-50`・`red-700` など色名+番号)と白・黒の直書き(`bg-white`・`text-black` など)、任意値(`shadow-[...]`・`text-[10px]`・`min-h-[44px]` など `[...]` 指定)を `src/` のクラスに直書きしない。同じ見た目が必要ならトークンを追加するか、`ui/` か `input.css` の `@layer components` の部品(`.panel-card`・`.empty-state`・`.page-tab`・`.security-code-link` など)を使う
 - `@apply` は `@layer base` と、コンポーネント化できない最小限にとどめる
 - 1つのクラス内で同じプロパティを二度指定しない(打ち消し合う指定は効いている方だけ残す)
 - `bash scripts/check-css-tokens.sh`(`npm run check:css`)が違反を検出し、CI(`frontend.yml`)でも実行する。やむを得ない例外はスクリプトの許可リスト(`ALLOWED_SRC`・`ALLOWED_CSS`)に理由付きで列挙する
@@ -136,18 +136,23 @@ src/
 
 ### 画面の基本部品(`src/ui/`)
 
-`features/` のマークアップは基本部品で組む。種類は enum の props で選び、違う見た目が必要なら variant を足す(クラスを直書きしない)。レイアウトや余白など見た目に関係しない調整だけ `class` で追加する。
+`features/` のマークアップは基本部品で組む。種類は enum の props で選び、違う見た目が必要なら variant を足す(クラスを直書きしない)。レイアウトや余白など見た目に関係しない調整だけ `class` で追加する。デザイン上の選び方は `docs/design/mobile-ui-rules.md` の共通部品表が正本。
 
 | 部品 | 役割 | 主な variant |
 | --- | --- | --- |
-| `Button` / `IconButton`(`ui/button.rs`) | すべての `<button>` | 大きさを持つ variant は `Primary(ButtonSize)`・`Secondary(ButtonSize)`・`SecondarySoft(ButtonSize)`・`DangerSolid(ButtonSize)`・`Header(ButtonSize)`。それ以外は DangerGhost・Ghost・Quiet・Prompt・Login・SearchSubmit・Retry・MenuItem・MenuItemDanger・CopyName(size は持たない)。IconButton はモーダルの閉じるボタン(variant なし) |
+| `Button`(`ui/button.rs`) | すべての `<button>` | 大きさを持つ variant は `Primary(ButtonSize)`・`Secondary(ButtonSize)`・`Header(ButtonSize)`・`DangerSolid(ButtonSize)`。それ以外は Ghost・Retry・MenuItem・MenuItemDanger・CopyName・AssetSortColumn・ConditionChip・AddCondition・ConditionOption・YearOption・SearchClear・Segmented・PageTab・ConditionSegment・RowButton(size は持たない) |
 | `LinkButton`(同) | ボタンの見た目の遷移リンク(`<a>`) | ButtonVariant を共有 |
-| `Card`(`ui/card.rs`) | カード状の面 | Panel・Login・Table・Collapsible・Shell・Soft・Item・Group・Holding・Sunken・Strip・DashedCompact・GroupLabel |
-| `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | Rail・GroupCard・HeaderFlat・AssetCard・SearchCard。`hint=true` で末尾に「開く/閉じる」 |
+| `TabButton`(同) | `role="tab"` のタブ | 見た目は `PageTab`。矢印キー移動は呼び出し側の `on_keydown` が担う |
+| `Switch`(同) | ON/OFF の切替 | `role="switch"` と `aria-checked` で状態を伝える |
+| `Card`(`ui/card.rs`) | カード状の面 | Panel・Collapsible・Item・Group・Sunken・GroupLabel |
+| `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | GroupCard・HeaderFlat・SummaryBand。`hint=true` で末尾に「開く/閉じる」 |
 | `EmptyState`(`ui/empty_state.rs`) | データが空の画面 | `icon`・`as_h1`・children(次の行動)を持つ |
-| `Badge` / `CodeBadge`(`ui/badge.rs`) | 押せない小さなバッジ | Accent・AccentFlat・Info・Positive |
-| `Chip` / `Select` / `FieldTrigger` / `OptionButton`(`ui/choice.rs`) | 押せる選択部品とフォーム | Chip は Filter・Segment(aria-pressed)・Pill |
-| `TabButton`(`ui/tabs.rs`) | `role="tab"` のタブ | 見た目と roving tabindex は部品が持つ。矢印キー移動は呼び出し側の `on_keydown` が担う(例: ReceiptsTabButton) |
+| `Badge` / `AccountBadge` / `CodeBadge`(`ui/badge.rs`) | 押せない小さなバッジ | Positive・Info・Accent・Danger・AccountSpecific・AccountGeneral・AccountNisa・AccountOldNisa・Code・CodeFlush・Count |
+| `Segmented`(`ui/segmented.rs`) | 少数択一の横並び | 選択肢は `ButtonVariant::Segmented`(`segment-option`) |
+| `ListRow`・`ListRowButton`・`ListRowLink`・`ListRowStatic`・`ListGroupHeader`(`ui/list_row.rs`) | 一覧の2行の行とグループ見出し | 行全体がボタンなら `ButtonVariant::RowButton`、遷移なら `ListRowLink` |
+| `SummaryBand`・`SummaryItem`(`ui/summary.rs`) | 集計の紺帯 | 大きさは `SummarySize::Primary`・`Secondary`、色は `SummaryTone::Neutral`・`Gain`・`Loss` |
+| `DialogShell`(`ui/dialog.rs`)・`DetailDialog`(`ui/detail_dialog.rs`) | 中央ダイアログ・行の詳細 | 枠は `dialog-panel`、題は `dialog-title` |
+| `MoreLink`(`ui/more_link.rs`) | 本文内の移動リンク | `more-link`。下線なし・強調色に「›」 |
 | `Amount`(`ui/amount.rs`) | 金額・率の値 | `tabular-nums` と `[data-negative]` をまとめる。`block=true` で `<p>` として出す |
 | `Alert` / `Spinner` / `Loading` / `ListLoadError` / `ListSkeleton`(`ui/state.rs`) | 読み込み・失敗の状態表示 | Alert は Warning・Danger、SpinnerSize は Sm・Lg、ListSkeletonVariant は Cards・Table。ListLoadError は再読み込み操作を持つ |
 | `CollapsibleSearchCard`(`ui/collapsible_search_card.rs`) | 検索欄の開閉と解除操作 | SearchCardLayout は Card・Toolbar |

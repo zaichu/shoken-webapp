@@ -1176,16 +1176,6 @@
     @apply border-badge-old-nisa-border bg-badge-old-nisa text-badge-old-nisa-text;
   }
 
-  /* スマホの下部帯はスクロール領域の流れの中で、下部ナビの直前に置く */
-  .receipts-mobile-bottom-section {
-    @apply mt-auto shrink-0 border-t border-border bg-surface;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .receipts-mobile-bottom-section .page-gutter {
-    @apply py-2;
-  }
-
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-2 focus:outline-text-deep;
   }
@@ -1622,10 +1612,6 @@
     @apply mt-3 flex justify-center;
   }
 
-  .comp-empty {
-    @apply py-6 text-center text-text-muted;
-  }
-
   .comp-donut-wrap {
     @apply relative mx-auto mt-3 w-52 max-w-full;
   }
@@ -1669,14 +1655,6 @@
 
   .comp-donut-center {
     @apply pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-center text-lg font-bold text-text;
-  }
-
-  .comp-list {
-    @apply mt-3 list-none divide-y divide-border-faint m-0 p-0;
-  }
-
-  .comp-dot {
-    @apply mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full;
   }
 
   .comp-bar {
