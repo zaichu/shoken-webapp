@@ -879,8 +879,8 @@ fn home_dividend_dialog_cells(
     full_date: &str,
     shares: String,
     per_share: String,
-    gross: String,
-    tax: String,
+    gross: (String, bool, bool),
+    tax: (String, bool, bool),
     net: (String, bool, bool),
 ) -> (Vec<DetailCell>, Vec<DetailCell>) {
     let left = vec![
@@ -889,11 +889,45 @@ fn home_dividend_dialog_cells(
         DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
     ];
     let right = vec![
-        DetailCell::plain(BEFORE_TAX.to_string(), gross),
-        DetailCell::plain(TAX.to_string(), tax),
+        DetailCell {
+            label: BEFORE_TAX.to_string(),
+            value: gross.0,
+            sub: None,
+            negative: gross.1,
+            positive: gross.2,
+            bold: false,
+            delta: true,
+        },
+        DetailCell {
+            label: TAX.to_string(),
+            value: tax.0,
+            sub: None,
+            negative: tax.1,
+            positive: tax.2,
+            bold: false,
+            delta: tax.1 || tax.2,
+        },
         DetailCell::strong(AFTER_TAX.to_string(), net.0, net.1, net.2, true),
     ];
     (left, right)
+}
+
+fn signed_gross_text(value: f64, text: &str) -> String {
+    if value > 0.0 && !text.trim_start().starts_with('+') {
+        format!("+{text}")
+    } else {
+        text.to_string()
+    }
+}
+
+fn signed_tax_text(value: f64, text: &str) -> String {
+    if value > 0.0 {
+        format!("-{text}")
+    } else if value < 0.0 {
+        format!("+{}", text.trim_start_matches('-'))
+    } else {
+        text.to_string()
+    }
 }
 
 #[component]
@@ -920,8 +954,16 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let net_negative = net_value < 0.0;
     let net_positive = net_value > 0.0;
     let net_for_row = net_signed.clone();
-    let gross = format_currency(dec_to_f64(&row.dividends_before_tax));
-    let tax = format_currency(dec_to_f64(&row.taxes));
+    let gross_value = dec_to_f64(&row.dividends_before_tax);
+    let gross_raw = format_currency(gross_value);
+    let gross_signed = signed_gross_text(gross_value, &gross_raw);
+    let gross_negative = gross_value < 0.0;
+    let gross_positive = gross_value > 0.0;
+    let tax_value = dec_to_f64(&row.taxes);
+    let tax_raw = format_currency(tax_value);
+    let tax_signed = signed_tax_text(tax_value, &tax_raw);
+    let tax_negative = tax_value > 0.0;
+    let tax_positive = tax_value < 0.0;
     let per_share = format_currency(dec_to_f64(&row.unit_price));
     let shares = format_number_value(dec_to_f64(&row.shares));
     let code_for_meta = code.clone();
@@ -939,8 +981,8 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
         &full_date,
         shares.clone(),
         per_share.clone(),
-        gross.clone(),
-        tax.clone(),
+        (gross_signed, gross_negative, gross_positive),
+        (tax_signed, tax_negative, tax_positive),
         (net_signed.clone(), net_negative, net_positive),
     );
     view! {

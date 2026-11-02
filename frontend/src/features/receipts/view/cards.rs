@@ -18,10 +18,27 @@ use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
 use std::collections::HashSet;
 
-// 受取額(配当の税引後・売買の税引後)と実現損益はお金の出入りとして Delta。
-// 税引前・税額・数量など元になる額は Plain のまま
+// 税引前(配当金・実現損益・ダイアログの税引前)と税引後はお金の出入りとして Delta。
+// 税額は出ていくお金として符号を反転し、0 のときだけ Plain にする
 pub(crate) fn is_profit_label(_tab: ReceiptsTab, label: &str) -> bool {
-    matches!(label, REALIZED_PROFIT_LOSS | AFTER_TAX)
+    matches!(
+        label,
+        REALIZED_PROFIT_LOSS | AFTER_TAX | DIVIDEND_AMOUNT | BEFORE_TAX
+    )
+}
+
+pub(crate) fn is_tax_label(label: &str) -> bool {
+    label == TAX
+}
+
+pub(crate) fn tax_signed_text(raw: &str) -> String {
+    if is_positive_text(raw) {
+        format!("-{raw}")
+    } else if is_negative_text(raw) {
+        format!("+{}", raw.trim_start_matches('-'))
+    } else {
+        raw.to_string()
+    }
 }
 
 fn stripped_amount_text(value: &str) -> String {
@@ -64,6 +81,9 @@ pub(crate) fn is_negative_text(value: &str) -> bool {
 }
 
 pub(crate) fn is_negative_labeled_value(tab: ReceiptsTab, label: &str, value: &str) -> bool {
+    if is_tax_label(label) {
+        return is_positive_text(value);
+    }
     is_profit_label(tab, label) && is_negative_text(value)
 }
 
@@ -76,12 +96,18 @@ pub(crate) fn is_positive_text(value: &str) -> bool {
 }
 
 pub(crate) fn is_positive_labeled_value(tab: ReceiptsTab, label: &str, value: &str) -> bool {
+    if is_tax_label(label) {
+        return is_negative_text(value);
+    }
     is_profit_label(tab, label) && is_positive_text(value)
 }
 
-/// 損益の正値に「+」を付ける。色だけに頼らず符号で正負を示す。
-/// 0・欠損・既に符号付き・損益でない項目はそのまま返す。
+/// 損益と税額の正値に符号を付ける。税額は出ていくお金として反転する。
+/// 0・欠損・既に符号付き・対象外はそのまま返す。
 pub(crate) fn signed_text_for_profit(tab: ReceiptsTab, label: &str, value: &str) -> String {
+    if is_tax_label(label) {
+        return tax_signed_text(value);
+    }
     if is_profit_label(tab, label)
         && is_positive_text(value)
         && !value.trim_start().starts_with('+')
@@ -90,6 +116,19 @@ pub(crate) fn signed_text_for_profit(tab: ReceiptsTab, label: &str, value: &str)
     } else {
         value.to_string()
     }
+}
+
+pub(crate) fn amount_kind_for_label(tab: ReceiptsTab, label: &str, value: &str) -> AmountKind {
+    if is_tax_label(label) {
+        if is_positive_text(value) || is_negative_text(value) {
+            return AmountKind::Delta;
+        }
+        return AmountKind::Plain;
+    }
+    if is_profit_label(tab, label) {
+        return AmountKind::Delta;
+    }
+    AmountKind::Plain
 }
 
 #[derive(Clone)]
@@ -151,7 +190,7 @@ pub(crate) fn card_detail_value(
             CardDetailValue::Text {
                 negative: is_negative_labeled_value(tab, label, &raw),
                 positive: is_positive_labeled_value(tab, label, &raw),
-                is_profit: is_profit_label(tab, label),
+                is_profit: amount_kind_for_label(tab, label, &raw) == AmountKind::Delta,
                 text,
             }
         }
@@ -299,8 +338,8 @@ pub(crate) fn receipt_detail_cells(
         ReceiptsTab::Dividend => {
             let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
             let (per_share, _, _, _) = detail_text(&card.details, PER_SHARE_DIVIDEND);
-            let (gross, _, _, _) = detail_text(&card.details, DIVIDEND_AMOUNT);
-            let (tax, _, _, _) = detail_text(&card.details, TAX);
+            let (gross, gross_neg, gross_pos, _) = detail_text(&card.details, DIVIDEND_AMOUNT);
+            let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, TAX);
             let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
             let left = vec![
                 DetailCell::plain(date_label.to_string(), date_text),
@@ -308,8 +347,24 @@ pub(crate) fn receipt_detail_cells(
                 DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
             ];
             let right = vec![
-                DetailCell::plain(BEFORE_TAX.to_string(), gross),
-                DetailCell::plain(TAX.to_string(), tax),
+                DetailCell {
+                    label: BEFORE_TAX.to_string(),
+                    value: gross,
+                    sub: None,
+                    negative: gross_neg,
+                    positive: gross_pos,
+                    bold: false,
+                    delta: true,
+                },
+                DetailCell {
+                    label: TAX.to_string(),
+                    value: tax,
+                    sub: None,
+                    negative: tax_neg,
+                    positive: tax_pos,
+                    bold: false,
+                    delta: tax_neg || tax_pos,
+                },
                 DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
             ];
             (left, right)
@@ -322,8 +377,8 @@ pub(crate) fn receipt_detail_cells(
             let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
             let (amount, _, _, _) = detail_text(&card.details, amount_label);
             let (cost, _, _, _) = detail_text(&card.details, ACQUISITION_PRICE);
-            let (pnl, _pnl_neg, _pnl_pos, _) = detail_text(&card.details, REALIZED_PROFIT_LOSS);
-            let (tax, _, _, _) = detail_text(&card.details, TAX);
+            let (pnl, pnl_neg, pnl_pos, _) = detail_text(&card.details, REALIZED_PROFIT_LOSS);
+            let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, TAX);
             let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
             let left = vec![
                 DetailCell::plain(date_label.to_string(), date_text),
@@ -332,8 +387,24 @@ pub(crate) fn receipt_detail_cells(
                 DetailCell::plain(ACQUISITION_PRICE.to_string(), cost),
             ];
             let right = vec![
-                DetailCell::plain(BEFORE_TAX.to_string(), pnl),
-                DetailCell::plain(TAX.to_string(), tax),
+                DetailCell {
+                    label: BEFORE_TAX.to_string(),
+                    value: pnl,
+                    sub: None,
+                    negative: pnl_neg,
+                    positive: pnl_pos,
+                    bold: false,
+                    delta: true,
+                },
+                DetailCell {
+                    label: TAX.to_string(),
+                    value: tax,
+                    sub: None,
+                    negative: tax_neg,
+                    positive: tax_pos,
+                    bold: false,
+                    delta: tax_neg || tax_pos,
+                },
                 DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
             ];
             (left, right)
@@ -610,11 +681,7 @@ pub(crate) fn MobileCardGroup(
     let primary_negative = is_negative_labeled_value(tab, primary_label, &primary_raw);
     let primary_positive = is_positive_labeled_value(tab, primary_label, &primary_raw);
     let primary_value = signed_text_for_profit(tab, primary_label, &primary_raw);
-    let primary_kind = if is_profit_label(tab, primary_label) {
-        AmountKind::Delta
-    } else {
-        AmountKind::Plain
-    };
+    let primary_kind = amount_kind_for_label(tab, primary_label, &primary_raw);
     let aria_label = format!(
         "{} {} {} {}",
         label,
@@ -685,11 +752,8 @@ pub(crate) fn MobileCardGroup(
                                                     is_positive_labeled_value(tab, label, value);
                                                 let text =
                                                     signed_text_for_profit(tab, label, value);
-                                                let kind = if is_profit_label(tab, label) {
-                                                    AmountKind::Delta
-                                                } else {
-                                                    AmountKind::Plain
-                                                };
+                                                let kind =
+                                                    amount_kind_for_label(tab, label, value);
                                                 view! {
                                                     <StatRow
                                                         label=label.to_string()
