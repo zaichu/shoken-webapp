@@ -182,15 +182,15 @@ fn AdminDialogFields(
                                     draft.update(|query| query.descending = next != "asc");
                                 }
                             >
-                                {move || {
-                                    let (descending_label, ascending_label) = order_labels(
-                                        draft.with(|query| query.sort_by),
-                                    );
-                                    view! {
-                                        <option value="desc">{descending_label}</option>
-                                        <option value="asc">{ascending_label}</option>
-                                    }
-                                }}
+                                // option 自体は固定し文言だけ追随させる。要素を作り直すと
+                                // ブラウザが先頭を選び直す一方 prop:value は当て直されず、
+                                // 表示と draft.descending が食い違う
+                                <option value="desc">
+                                    {move || order_labels(draft.with(|query| query.sort_by)).0}
+                                </option>
+                                <option value="asc">
+                                    {move || order_labels(draft.with(|query| query.sort_by)).1}
+                                </option>
                             </Select>
                         </label>
                     </div>

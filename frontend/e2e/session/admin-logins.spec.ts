@@ -75,12 +75,15 @@ test('スマホは検索・並べ替えの入口とダイアログを使い、�
   await expect(page.getByTestId('admin-login-table')).toBeHidden();
   const sorted = page.waitForRequest((request) => {
     const url = new URL(request.url());
-    return url.pathname.endsWith('/admin/logins') && url.searchParams.get('sort_by') === 'email' && url.searchParams.get('page') === '1';
+    return url.pathname.endsWith('/admin/logins') && url.searchParams.get('sort_by') === 'email' && url.searchParams.get('sort_order') === 'asc' && url.searchParams.get('page') === '1';
   });
   await page.getByTestId('admin-login-search-entry').click();
   const dialog = page.getByTestId('admin-login-search-sheet');
   await expect(dialog).toBeVisible();
+  // 昇順を選んでから対象を変えても、順序の選択は保たれる
+  await dialog.getByTestId('admin-login-dialog-sort-order').selectOption('asc');
   await dialog.getByTestId('admin-login-dialog-sort-target').selectOption('email');
+  await expect(dialog.getByTestId('admin-login-dialog-sort-order')).toHaveValue('asc');
   await dialog.getByTestId('search-dialog-search').click();
   await sorted;
   await expect(dialog).toBeHidden();
