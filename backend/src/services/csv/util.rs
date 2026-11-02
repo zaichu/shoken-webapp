@@ -539,7 +539,7 @@ mod tests {
             let mut s = String::from("日付,銘柄コード,金額\n");
             for i in 0..ROWS {
                 s.push_str(&format!(
-                    "2024/{:02}/{:02},1234,{}\n",
+                    "2024/{:02}/{:02},9931,{}\n",
                     (i % 12) + 1,
                     (i % 28) + 1,
                     i * 100

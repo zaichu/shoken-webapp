@@ -72,7 +72,7 @@ mod tests {
     ) -> FinSummaryData {
         serde_json::from_value(serde_json::json!({
             "DiscDate": disc_date,
-            "Code": "1234",
+            "Code": "9931",
             "DocType": "test",
             "NxFDivAnn": nx_div,
             "FDivAnn": f_div,

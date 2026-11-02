@@ -87,13 +87,13 @@ mod tests {
     #[test]
     fn test_stock_validation() {
         assert!(
-            make_stock("1234", "テスト株式会社", "プライム")
+            make_stock("9931", "テスト株式会社", "プライム")
                 .validate()
                 .is_ok()
         );
         // code の形式は SecurityCode の serde(try_from) が検証する
         assert!("".parse::<SecurityCode>().is_err());
-        assert!(make_stock("1234", "", "プライム").validate().is_err());
-        assert!(make_stock("1234", "テスト株式会社", "").validate().is_err());
+        assert!(make_stock("9931", "", "プライム").validate().is_err());
+        assert!(make_stock("9931", "テスト株式会社", "").validate().is_err());
     }
 }

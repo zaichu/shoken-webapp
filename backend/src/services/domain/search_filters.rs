@@ -505,7 +505,7 @@ mod tests {
                     filter_sql::<DividendDomain>(&DividendSearchQueryParams {
                         product: Some("国内株式".to_string()),
                         account: Some("特定".to_string()),
-                        security_code: Some("1234".to_string()),
+                        security_code: Some("9931".to_string()),
                         security_name: Some("テスト株式会社".to_string()),
                         ..Default::default()
                     }),
@@ -514,7 +514,7 @@ mod tests {
                 (
                     filter_sql::<DomesticStockDomain>(&DomesticStockSearchQueryParams {
                         account: Some("特定".to_string()),
-                        security_code: Some("1234".to_string()),
+                        security_code: Some("9931".to_string()),
                         security_name: Some("テスト株式会社".to_string()),
                         ..Default::default()
                     }),
@@ -531,7 +531,7 @@ mod tests {
                 ),
                 (
                     filter_sql::<AssetBalanceDomain>(&AssetBalanceSearchQueryParams {
-                        security_code: Some("1234".to_string()),
+                        security_code: Some("9931".to_string()),
                         security_name: Some("テスト株式会社".to_string()),
                         ..Default::default()
                     }),
@@ -684,7 +684,7 @@ mod tests {
                     year_month: Some("invalid".to_string()),
                     ..Default::default()
                 },
-                security_code: Some("1234".to_string()),
+                security_code: Some("9931".to_string()),
                 ..Default::default()
             });
 

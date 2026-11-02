@@ -98,7 +98,7 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 [[ "$ROW" == "2" ]] || { cat "$WRANGLER_LOG" >&2; fail "stock の件数が想定外: $ROW"; }
-BAD=$(psql "SELECT code FROM stock WHERE code NOT IN ('1301','2593')")
+BAD=$(psql "SELECT code FROM stock WHERE code NOT IN ('9931','9932')")
 [[ -z "$BAD" ]] || fail "優先株・4桁衝突行が残っている: $BAD"
 grep -q "GET /v2/equities/master" "$MOCK_LOG" || fail "モックが equities/master を受けていない"
 echo "3c. equities/master -> stock 2件(末尾5除外): OK"

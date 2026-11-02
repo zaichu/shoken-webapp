@@ -6,7 +6,7 @@ function holding(index: number, purchase: number) {
     id: `asset-balance-${index}`,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
-    security_code: `70${String(index).padStart(2, '0')}`,
+    security_code: `99${String(index).padStart(2, '0')}`,
     security_name: `銘柄${String(index).padStart(2, '0')}`,
     shares: 100,
     average_purchase_price: 100,

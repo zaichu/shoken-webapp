@@ -316,14 +316,14 @@ mod tests {
 
     #[test]
     fn test_uncached_code() {
-        let codes = vec![code("1234")];
+        let codes = vec![code("9931")];
         let cache_map = std::collections::HashMap::new();
 
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, fixed_now());
 
-        assert_eq!(refresh_codes, vec![code("1234")]);
+        assert_eq!(refresh_codes, vec![code("9931")]);
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].security_code.as_str(), "1234");
+        assert_eq!(items[0].security_code.as_str(), "9931");
         assert_eq!(items[0].status, DividendCacheStatus::Pending);
         assert_eq!(items[0].dividend_per_share, None);
         assert!(!items[0].is_stale);
@@ -333,12 +333,12 @@ mod tests {
     fn test_cached_fresh() {
         let now = fixed_now();
         let caches = vec![make_cache(
-            "1234",
+            "9931",
             DividendCacheStatus::Ok,
             Some(now + Duration::days(1)),
         )];
         let cache_map = make_cache_map(&caches);
-        let codes = vec![code("1234")];
+        let codes = vec![code("9931")];
 
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, now);
 
@@ -352,16 +352,16 @@ mod tests {
     fn test_cached_stale() {
         let now = fixed_now();
         let caches = vec![make_cache(
-            "1234",
+            "9931",
             DividendCacheStatus::Ok,
             Some(now - Duration::days(1)),
         )];
         let cache_map = make_cache_map(&caches);
-        let codes = vec![code("1234")];
+        let codes = vec![code("9931")];
 
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, now);
 
-        assert_eq!(refresh_codes, vec![code("1234")]);
+        assert_eq!(refresh_codes, vec![code("9931")]);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].status, DividendCacheStatus::Ok);
         assert!(items[0].is_stale);
@@ -370,13 +370,13 @@ mod tests {
     #[test]
     fn test_cached_error() {
         let now = fixed_now();
-        let caches = vec![make_cache("1234", DividendCacheStatus::Error, None)];
+        let caches = vec![make_cache("9931", DividendCacheStatus::Error, None)];
         let cache_map = make_cache_map(&caches);
-        let codes = vec![code("1234")];
+        let codes = vec![code("9931")];
 
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, now);
 
-        assert_eq!(refresh_codes, vec![code("1234")]);
+        assert_eq!(refresh_codes, vec![code("9931")]);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].status, DividendCacheStatus::Error);
         assert!(items[0].is_stale);
@@ -388,12 +388,12 @@ mod tests {
         // is_stale=false となり refresh_codes に入らない
         let now = fixed_now();
         let caches = vec![make_cache(
-            "1234",
+            "9931",
             DividendCacheStatus::Error,
             Some(now + Duration::hours(1)),
         )];
         let cache_map = make_cache_map(&caches);
-        let codes = vec![code("1234")];
+        let codes = vec![code("9931")];
 
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, now);
 
@@ -407,17 +407,17 @@ mod tests {
     fn test_duplicate_codes() {
         let now = fixed_now();
         let caches = vec![make_cache(
-            "1234",
+            "9931",
             DividendCacheStatus::Ok,
             Some(now - Duration::days(1)),
         )];
         let cache_map = make_cache_map(&caches);
-        let codes = vec![code("1234"), code("1234")];
+        let codes = vec![code("9931"), code("9931")];
 
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, now);
 
         assert_eq!(items.len(), 2);
-        assert_eq!(refresh_codes, vec![code("1234")]);
+        assert_eq!(refresh_codes, vec![code("9931")]);
     }
 
     #[test]

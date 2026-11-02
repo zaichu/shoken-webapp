@@ -259,7 +259,7 @@ mod tests {
             Type::TEXT_ARRAY
         );
         assert_eq!(
-            Bind::from(vec![SecurityCode::from_raw("1234".into())]).declared_type(),
+            Bind::from(vec![SecurityCode::from_raw("9931".into())]).declared_type(),
             Type::VARCHAR_ARRAY
         );
         assert_eq!(
