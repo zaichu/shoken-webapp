@@ -324,7 +324,7 @@ pub fn ConditionPanel(
     view! {
         <div class="condition-backdrop" on:click=move |_| on_close() />
         <div
-            class="condition-panel"
+            class="dialog-panel condition-panel"
             role="dialog"
             aria-label=title.clone()
             tabindex="-1"

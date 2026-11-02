@@ -654,6 +654,15 @@
     }
   }
 
+  /* ダイアログ・シートの共通の枠(角丸・枠線・背景・影・最大高さ)。
+     中央ダイアログ(DialogShell)と条件の小窓(PC)で共有し、
+     スマホのシートは配置と下端の形だけ上書きする */
+  .dialog-panel {
+    @apply rounded-xl border border-border bg-surface shadow-elevation-2;
+    max-height: 88vh;
+    max-height: 88dvh;
+  }
+
   /* 小窓(PC)と下から出るシート(スマホ)。構造は共通で、どちらも fixed。
      PC は JS が「条件を足す」行の座標を top/left に写してボタンの直下に出し、
      スマホは画面下端に固定する。fixed は祖先の relative や overflow-clip な面に
@@ -664,7 +673,7 @@
   }
 
   .condition-panel {
-    @apply fixed z-50 mt-2 rounded-xl border border-border bg-surface p-4 shadow-elevation-2;
+    @apply fixed z-50 mt-2 p-4;
     width: min(26rem, calc(100vw - 2rem));
   }
 
@@ -726,7 +735,7 @@
       @apply bg-scrim/50;
     }
 
-    .condition-panel {
+    .dialog-panel.condition-panel {
       @apply fixed inset-x-0 bottom-0 top-auto mt-0 rounded-b-none rounded-t-2xl border-b-0 border-t-border-strong pt-3 shadow-sheet-up;
       padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
     }
@@ -734,59 +743,6 @@
     .condition-panel-actions > button {
       @apply min-h-11 w-full;
     }
-  }
-
-  /* 共通のボトムシート(検索・並べ替えと行の詳細で共有)。
-     スマホは画面下端の面、PC は中央の対話面 */
-  .bottom-sheet-root {
-    @apply fixed inset-0 z-50;
-  }
-
-  .bottom-sheet-backdrop {
-    @apply fixed inset-0 z-40 bg-scrim/50;
-  }
-
-  .bottom-sheet-panel {
-    @apply fixed inset-x-0 bottom-0 top-auto z-50 flex flex-col rounded-t-2xl border border-border bg-surface pt-2 shadow-sheet-up;
-    max-height: 88vh;
-    max-height: 88dvh;
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
-  }
-
-  @media (width >= 64rem) {
-    .bottom-sheet-panel {
-      @apply inset-x-auto bottom-auto left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 rounded-2xl p-0;
-      max-width: 32rem;
-    }
-  }
-
-  .bottom-sheet-handle {
-    @apply flex min-h-11 items-center justify-center;
-    touch-action: pan-y;
-  }
-
-  .bottom-sheet-grip {
-    @apply block h-1 w-10 rounded-full bg-border-strong;
-  }
-
-  .bottom-sheet-head {
-    @apply flex items-center gap-2 px-4 pb-2;
-  }
-
-  .bottom-sheet-title {
-    @apply flex-1 text-base font-bold text-text;
-  }
-
-  .bottom-sheet-close {
-    @apply min-h-11 min-w-11;
-  }
-
-  .bottom-sheet-body {
-    @apply flex min-h-0 flex-col gap-4 overflow-y-auto px-4 pb-2;
-  }
-
-  .bottom-sheet-section-title {
-    @apply text-sm font-bold text-text;
   }
 
   /* 中央の検索ダイアログ。背景を暗くし、面は中央に小さく出す。
@@ -800,10 +756,8 @@
   }
 
   .search-dialog-panel {
-    @apply relative z-50 flex w-full flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-elevation-2;
+    @apply relative z-50 flex w-full flex-col overflow-hidden;
     max-width: 28rem;
-    max-height: 88vh;
-    max-height: 88dvh;
   }
 
   .search-dialog-head {
@@ -951,14 +905,6 @@
 
   .sort-order-option[data-selected="true"] {
     @apply border-brand bg-brand font-bold text-text-inverse;
-  }
-
-  .bottom-sheet-actions {
-    @apply grid grid-cols-2 gap-2;
-  }
-
-  .bottom-sheet-actions > button {
-    @apply min-h-11 w-full;
   }
 
   /* type=date は未入力だと「年/月/日 ()」のような形式表示が出る。入力中は

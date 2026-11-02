@@ -56,7 +56,7 @@ pub fn DialogShell(
                 on:click=move |_| overlay_close()
             />
             <div
-                class="search-dialog-panel"
+                class="dialog-panel search-dialog-panel"
                 role="dialog"
                 aria-modal="true"
                 aria-label=dialog_title
