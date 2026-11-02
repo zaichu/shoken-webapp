@@ -117,6 +117,14 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0025_trading_tables_rls",
         include_str!("../../migrations/0025_trading_tables_rls.sql"),
     ),
+    (
+        "0026_sessions_users_rls",
+        include_str!("../../migrations/0026_sessions_users_rls.sql"),
+    ),
+    (
+        "0027_app_restricted_role",
+        include_str!("../../migrations/0027_app_restricted_role.sql"),
+    ),
 ];
 
 struct Migration {

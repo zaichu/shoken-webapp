@@ -415,3 +415,35 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
   4. 付け替え後は旧接続文字列を残し、新経路の疎通を確認してから切り替える。
 - 実装担当・統合担当は秘密を見ない。手順書・PR・ログに接続文字列・鍵を残さないことは
   `docs/db-migration-supabase.md` の担当分離と同じにする。
+
+## 14. 第五段階(5a)の記録(#1747)
+
+- `backend/migrations/0027_app_restricted_role.sql`: 制限ロール `app_restricted` を `NOLOGIN` で作成し、
+  本人表 11 表(`users`・`sessions`・`dividends`・`domestic_stocks`・`mutualfunds`・`asset_balances`・
+  `fund_balances`・`csv_import_history`・`login_events`・`login_notify_tokens`・`admin_login_views`)に
+  `SELECT, INSERT, UPDATE, DELETE`、共有表 6 表(`stock`・`security_prices`・`dividend_per_share_cache`・
+  `market_data_provider_rate_control`・`fund_codes`・`fund_prices`)と
+  ビュー 2 件(`asset_balances_view`・`fund_balances_view`)に `SELECT`、
+  関数 2 件(`fund_name_normalize(text)`・`fund_expected_nav_date(timestamptz)`)に `EXECUTE`、
+  `public` スキーマに `USAGE` を与え、実行者(`CURRENT_USER`)を所属させる。
+  `FORCE` なしのため所有者の挙動は変わらない。ロール名は §13 の設計どおり `app_restricted`。
+- 作成は存在確認つきで、所属付与は未所属のときだけ行う。権限不足時は失敗させず `NOTICE` に留める
+  (ロール作成なし→権限付与全体を省略、所属付与だけ失敗→そこだけ省略)。表権限の付与は厳密に扱い、
+  所有者以外の実行など本当に通らない場合は失敗させる。過去の migration は書き換えていない。
+- 結合テスト(`backend/tests/db_integration.rs` の `app_restricted_role_has_least_privilege`):
+  ロールが `NOLOGIN`・`BYPASSRLS` なしであること、所有者が所属していること、
+  本人表 11 表が読み書き・共有表 6 表とビュー 2 件が読み取りだけ・関数 2 件が実行可であること(権限カタログで固定)、
+  `SET LOCAL ROLE app_restricted` + `set_config('app.current_user_id', ...)` で
+  本人の行だけが見え・他人名義の書き込みが失敗し・共有表は読めるが書けず、
+  終了後は所有者に戻り両利用者の行が読めることを固定する。
+- アプリコードの変更なし。
+- 権限不足時の挙動の確認: 使い捨て DB(`postgres:16-alpine`)で `NOCREATEROLE` の移行用ロールに
+  `CONNECT, CREATE`(DB)と `CREATE, USAGE`(schema)のみ与えて全 migration を実行した。
+  0027 は成功扱い(`_sqlx_migrations` に記録)で `app_restricted` は作られず、表は移行用ロール所有で残る。
+  デプロイは止まらない。ロールだけ別管理者が先作りした場合の所属付与の失敗も `NOTICE` で止めないことを確かめた。
+  `CREATEROLE` ありの非特権ロールが自作ロールへ所属付与できることも確かめた。
+  よって本番の移行ロールに `CREATE ROLE` がなくてもデプロイは止まらず、
+  その場合は管理者が SQL エディタ等で作成と権限付与・所属付与を1回だけ行う(PR 本文に全文を載せる)。
+- 付随する修正: `0026_sessions_users_rls.sql` が `migrate.rs` に未登録だったため、
+  この PR で 0026 と 0027 の登録を足した(過去ファイル自体の書き換えなし)。
+  未登録のままでは `sessions`・`users` の RLS が適用されず、第四段階の結合テストが空振りになる。

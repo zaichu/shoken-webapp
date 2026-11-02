@@ -5920,3 +5920,305 @@ async fn sessions_users_rls_isolates_restricted_role() {
     );
     tx.rollback().await.expect("rollback に失敗");
 }
+
+/// RLS 第五段階 5a: migration 作成の制限ロール `app_restricted` は NOLOGIN で特権なし、
+/// 本人表への読み書きと共有表・ビューへの読み取りだけを持ち、所有者は所属により切り替えできる
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn app_restricted_role_has_least_privilege() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&database_url).await;
+    run_migrations(&pool).await.expect("migrations failed");
+
+    let can_login = db::query_scalar::<bool>(
+        "SELECT rolcanlogin FROM pg_roles WHERE rolname = 'app_restricted'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("ロールの取得に失敗");
+    assert!(!can_login, "app_restricted は NOLOGIN のはず");
+    let bypass = db::query_scalar::<bool>(
+        "SELECT rolbypassrls FROM pg_roles WHERE rolname = 'app_restricted'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("ロールの取得に失敗");
+    assert!(!bypass, "app_restricted に BYPASSRLS はないはず");
+
+    let is_member = db::query_scalar::<bool>(
+        "SELECT EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid JOIN pg_roles u ON u.oid = m.member WHERE r.rolname = 'app_restricted' AND u.rolname = CURRENT_USER)",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("所属の取得に失敗");
+    assert!(is_member, "所有者は app_restricted の所属のはず");
+
+    let schema_usage = db::query_scalar::<bool>(
+        "SELECT has_schema_privilege('app_restricted', 'public', 'USAGE')",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("スキーマ権限の取得に失敗");
+    assert!(schema_usage, "app_restricted は public の USAGE を持つはず");
+
+    let grants = db::query(
+        "SELECT table_name, privilege_type FROM information_schema.role_table_grants WHERE grantee = 'app_restricted' AND table_schema = 'public'",
+        vec![],
+    )
+    .fetch_all::<(String, String), _>(&pool)
+    .await
+    .expect("表権限の取得に失敗");
+    let mut by_table: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for (table, privilege) in grants {
+        by_table.entry(table).or_default().push(privilege);
+    }
+    for privileges in by_table.values_mut() {
+        privileges.sort();
+    }
+    let personal = [
+        "users",
+        "sessions",
+        "dividends",
+        "domestic_stocks",
+        "mutualfunds",
+        "asset_balances",
+        "fund_balances",
+        "csv_import_history",
+        "login_events",
+        "login_notify_tokens",
+        "admin_login_views",
+    ];
+    for table in personal {
+        let expected: Vec<String> = ["DELETE", "INSERT", "SELECT", "UPDATE"]
+            .iter()
+            .map(|privilege| (*privilege).to_string())
+            .collect();
+        assert_eq!(
+            by_table.get(table),
+            Some(&expected),
+            "{table} は本人表の読み書きだけのはず"
+        );
+    }
+    let shared = [
+        "stock",
+        "security_prices",
+        "dividend_per_share_cache",
+        "market_data_provider_rate_control",
+        "fund_codes",
+        "fund_prices",
+        "asset_balances_view",
+        "fund_balances_view",
+    ];
+    for table in shared {
+        let expected: Vec<String> = ["SELECT"]
+            .iter()
+            .map(|privilege| (*privilege).to_string())
+            .collect();
+        assert_eq!(
+            by_table.get(table),
+            Some(&expected),
+            "{table} は読み取りだけのはず"
+        );
+    }
+    for function in [
+        "public.fund_name_normalize(text)",
+        "public.fund_expected_nav_date(timestamptz)",
+    ] {
+        let executable = db::query_scalar::<bool>(
+            format!("SELECT has_function_privilege('app_restricted', '{function}', 'EXECUTE')"),
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数権限の取得に失敗");
+        assert!(executable, "{function} は実行できるはず");
+    }
+
+    let user_a = create_test_user(&pool).await;
+    let user_b = create_test_user(&pool).await;
+    dividend_svc::bulk_create(
+        &pool,
+        user_a,
+        &[make_dividend_item("9931")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当の投入に失敗");
+    dividend_svc::bulk_create(
+        &pool,
+        user_b,
+        &[make_dividend_item("9932")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当の投入に失敗");
+    db::query(
+        "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
+        vec![
+            Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
+            Bind::from("9931"),
+            Bind::from("テスト株式会社"),
+            Bind::from("プライム"),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .expect("銘柄の投入に失敗");
+    for user_id in [user_a, user_b] {
+        db::query(
+            "INSERT INTO csv_import_history (user_id, kind) VALUES ($1, 'dividend')",
+            vec![Bind::from(user_id)],
+        )
+        .execute(&pool)
+        .await
+        .expect("履歴の投入に失敗");
+    }
+
+    let mut tx = pool.begin().await.expect("tx 開始に失敗");
+    db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
+        .execute(&mut tx)
+        .await
+        .expect("ロールの切り替えに失敗");
+    let current = db::query_scalar::<String>("SELECT current_user", vec![])
+        .fetch_one(&mut tx)
+        .await
+        .expect("利用者名の取得に失敗");
+    assert_eq!(
+        current, "app_restricted",
+        "切り替え後の利用者は制限ロールのはず"
+    );
+
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM dividends", vec![])
+        .fetch_one(&mut tx)
+        .await
+        .unwrap();
+    assert_eq!(count, 0, "利用者 ID 未設定の制限ロールは何も見えないはず");
+    tx.rollback().await.expect("rollback に失敗");
+
+    async fn restricted_tx_with_user(pool: &Db, user: UserId) -> backend::db::Tx {
+        let mut tx = pool.begin().await.expect("tx 開始に失敗");
+        db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
+            .execute(&mut tx)
+            .await
+            .expect("ロールの切り替えに失敗");
+        db::query(
+            "SELECT set_config('app.current_user_id', $1, true)",
+            vec![Bind::from(user.to_string())],
+        )
+        .execute(&mut tx)
+        .await
+        .expect("利用者 ID の設定に失敗");
+        tx
+    }
+
+    let mut tx = restricted_tx_with_user(&pool, user_a).await;
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM dividends", vec![])
+        .fetch_one(&mut tx)
+        .await
+        .unwrap();
+    assert_eq!(count, 1, "利用者 A の行だけが見えるはず");
+    let kinds = db::query("SELECT kind FROM csv_import_history", vec![])
+        .fetch_all::<(String,), _>(&mut tx)
+        .await
+        .expect("履歴の取得に失敗");
+    assert_eq!(
+        kinds,
+        vec![("dividend".to_string(),)],
+        "利用者 A の履歴だけが見えるはず"
+    );
+    let stock_count = db::query_scalar::<i64>("SELECT COUNT(*) FROM stock", vec![])
+        .fetch_one(&mut tx)
+        .await
+        .unwrap();
+    assert_eq!(stock_count, 1, "共有表は読めるはず");
+    tx.rollback().await.expect("rollback に失敗");
+
+    let mut tx = restricted_tx_with_user(&pool, user_a).await;
+    db::query(
+        "INSERT INTO csv_import_history (user_id, kind) VALUES ($1, 'assetbalance')",
+        vec![Bind::from(user_a)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    db::query(
+        "INSERT INTO sessions (user_id, token_hash) VALUES ($1, $2)",
+        vec![Bind::from(user_a), Bind::Bytes(vec![61u8; 32])],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分のセッションの書き込みは通るはず");
+    tx.rollback().await.expect("rollback に失敗");
+
+    let mut tx = restricted_tx_with_user(&pool, user_a).await;
+    let err = db::query(
+        "INSERT INTO csv_import_history (user_id, kind) VALUES ($1, 'assetbalance')",
+        vec![Bind::from(user_b)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect_err("他人名義の書き込みは失敗するはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "行共有違反のはず: {err:?}"
+    );
+    tx.rollback().await.expect("rollback に失敗");
+
+    let mut tx = restricted_tx_with_user(&pool, user_a).await;
+    let err = db::query(
+        "INSERT INTO sessions (user_id, token_hash) VALUES ($1, $2)",
+        vec![Bind::from(user_b), Bind::Bytes(vec![62u8; 32])],
+    )
+    .execute(&mut tx)
+    .await
+    .expect_err("他人名義のセッション書き込みは失敗するはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "行共有違反のはず(sessions): {err:?}"
+    );
+    tx.rollback().await.expect("rollback に失敗");
+
+    let mut tx = restricted_tx_with_user(&pool, user_a).await;
+    let err = db::query(
+        "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
+        vec![
+            Bind::from(NaiveDate::from_ymd_opt(2025, 3, 25).unwrap()),
+            Bind::from("9932"),
+            Bind::from("テスト株式会社"),
+            Bind::from("プライム"),
+        ],
+    )
+    .execute(&mut tx)
+    .await
+    .expect_err("共有表の書き込みは失敗するはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "権限不足のはず(stock): {err:?}"
+    );
+    tx.rollback().await.expect("rollback に失敗");
+
+    let current = db::query_scalar::<String>("SELECT current_user", vec![])
+        .fetch_one(&pool)
+        .await
+        .expect("利用者名の取得に失敗");
+    assert_eq!(current, "postgres", "終了後は所有者に戻るはず");
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM dividends", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 2, "所有者は両利用者の行を読めるはず");
+}
