@@ -1110,9 +1110,10 @@
     }
   }
 
-  /* クラスは tr ではなく各 td に付く */
+  /* クラスは tr ではなく各 td に付く。背景・金の左線は
+     `list-group-header` と同じトークンを使う */
   .receipts-table-group {
-    @apply bg-row-group text-[13px] text-night-soft;
+    @apply bg-row-group text-[13px] text-text-soft;
   }
 
   /* グループ小計の見出しセルだけ左に金の線。colspan 切替で複製される
@@ -1149,20 +1150,6 @@
      リンクにはしない(ボタンの中にリンクは置けない) */
   .receipt-compact-code {
     @apply inline text-text-muted no-underline;
-  }
-
-  .receipt-compact-group {
-    @apply flex items-center justify-between gap-2 px-4 bg-row-group border-b border-border-strong;
-    min-height: 44px;
-    border-left: 3px solid var(--color-gold);
-  }
-
-  .receipt-compact-group > span:first-child {
-    @apply font-bold text-sm text-text-deep;
-  }
-
-  .receipt-compact-group > span:last-child {
-    @apply text-xs text-text-deep whitespace-nowrap tabular-nums;
   }
 
   /* 口座区分の札。配色は --color-badge-* トークンで種類(特定・一般・NISA系・旧NISA)
@@ -1599,6 +1586,9 @@
     @apply outline-2 -outline-offset-2 outline-ink;
   }
 
+  /* 一覧のグループ見出しの正本。月の見出しなどは `ListGroupHeader` と
+     このクラスに寄せ、金の左線・`bg-row-group` をここで持つ。
+     表のグループ行(`receipts-table-group-label`)も同じトークンを使う */
   .list-group-header {
     @apply flex items-center justify-between gap-2 px-4 bg-row-group border-b border-border-strong;
     min-height: 44px;
