@@ -13,7 +13,7 @@
 | 注記行 | 帯の直下の小さい文字の行(`SkeletonNote`)。時点・対象外・絞り込み中と「計算基準を見る」 |
 | 検索入口 | 「検索・並べ替え」のボタンと、その下の条件タグ・件数の段 |
 | 行 | 一覧の1件(`ListRow`)。1段目=名前と主の金額、2段目=補助情報と補助の金額 |
-| シート | 画面下から出る面(`BottomSheet`)。行の詳細に使う |
+| シート | 画面下から出る面(`DetailDialog`)。行の詳細に使う |
 
 ## 画面の型
 
@@ -48,12 +48,47 @@
 | タブの切り替え | 種別の下線タブはスマホ幅で横スワイプでも切り替える(横が縦の2倍以上かつ約60px以上。端20px・ダイアログや開閉ボタンの操作中は無視) | `ui/underline_tabs.rs` `SwipeArea` |
 | 一覧の見出し行 | 置かない。区切りが必要な一覧(取引明細)だけグループ行(月ごと)を置く。日ごとのグループは作らない | グループ行の共通部品 |
 | 行 | 全一覧で `ListRow`。行の器は左右16px・上下12px・下に区切り線。口座は `AccountBadge`、日付は2段目の先頭に `M/D`。右端に矢印などの印は付けない。スマホでは行をカードで包まない | `ui/list_row.rs` `ListRow`・`ListRowButton`・`ListRowLink`・`ListRowStatic`・`ListGroupHeader`、`ui/badge.rs` `AccountBadge`、行の器 |
-| 行を押したとき | 保有している物(銘柄・ファンド)は詳細画面へ移る。1回の出来事(入金・売買)はシートで開く。その場で展開はしない。全部見えている行(ログイン履歴など)は押せなくてよい | `<a>` + 行の器 / `ui/row_detail_sheet.rs` `RowDetailSheet` |
-| リンクとボタン | 3種類だけ: 上バーの枠つき小ボタン、本文内の移動リンク(下線なし・強調色の文字に「→」)、戻る。下線付きリンクは外部サイトへのリンクだけ | `page-secondary-link-sm`、`home-card-link` を共通名にしたもの、`page-back-link`、`ui/security_link.rs` |
+| 行を押したとき | 保有している物(銘柄・ファンド)は詳細画面へ移る。1回の出来事(入金・売買)はダイアログで開く。その場で展開はしない。全部見えている行(ログイン履歴など)は押せなくてよい | `<a>` + 行の器 / `ui/detail_dialog.rs` `DetailDialog` |
+| リンクとボタン | 3種類だけ: 上バーの枠つき小ボタン、本文内の移動リンク(下線なし・強調色の文字に「→」)、戻る。下線付きリンクは外部サイトへのリンクだけ | `page-secondary-link-sm`、`more-link`(`ui/more_link.rs` `MoreLink`)、`page-back-link`、`ui/security_link.rs` |
 | 数字 | 金額・率は `Amount` と `format.rs` を通す。お金の出入りと損益(配当の受取額・売買の損益・評価損益・前日比)と税の3つ(税引前・税額・税引後)は符号(+/−)と色の両方(緑/赤)で出す。税引前は損益または受取額としてプラスは+¥の緑・マイナスは−¥の赤、税額は出ていくお金として−¥の赤(還付のマイナスの税額は+¥の緑、0は¥0の通常色)、税引後は今のまま。残高・価格・元になる額(評価額・現在値・取得総額)は通常の文字色で出し、▲▼は使わない。DeltaかPlainかは `AmountKind` で表し、画面ごとに色を書かない。帯の内訳(PCの横並び・スマホの縦リスト)も同じ決まりで出す。日付は `format_iso_date`("YYYY/MM/DD")か `format_short_date`("M/D")。一覧の月の見出しは YYYY年M月 | `ui/amount.rs` `Amount`、`ui/format.rs` |
 | 余白 | 文字の左端は画面端から16px。帯・タブ・行は端まで敷き、中の文字だけ16px。`page-gutter` の中にさらに `page-gutter` や余白つきのカードを重ねない | `PageFrame`(`page-gutter`)/`content-gutter` |
 | スクロール | スマホはページ全体(`main.app-scroll`)の1本だけ。本文の内側にスクロール領域を作らない | `PageFrame` |
 | 空・読み込み中・失敗 | 空は `EmptyState`、読み込み中は `ListSkeleton`、失敗は `ListLoadError`(再読み込みつき)。裏の再取得の失敗だけ `Alert` | `ui/empty_state.rs`、`ui/state.rs` |
+
+## トークン
+
+新しい画面はここから選ぶ。色・寸法の直書きは `npm --prefix frontend run check:css` で落とす。正本は `frontend/style/input.css` の `@theme`。
+
+| 種別 | トークン | 用途 |
+| --- | --- | --- |
+| 面 | `page`・`surface`・`surface-sunken`・`surface-raised`・`segment`・`row-group` | ページ地・面・沈み面・浮き面・選択肢の地・グループ行の地 |
+| 紺・金 | `brand`・`brand-deep`・`brand-lift`・`brand-border`・`brand-line`・`brand-muted`・`brand-text`・`gold` | 上バー・帯・選択中・金の差し色。紺面上の文字は `text-inverse`、紺面上の枠・印は `brand-text` |
+| 帯・注意 | `band`・`band-border`・`warn-ink`・`nisa-soft` | 注意の帯・NISA系の淡い面 |
+| 損益(明) | `profit-bright`・`loss-bright` | 紺の帯の中の正負(`.summary-band .text-positive`・`[data-negative]` の上書きで使う) |
+| 損益 | `negative`・`negative-vivid`・`negative-strong`・`negative-soft`・`negative-border`、`positive`・`positive-strong`・`positive-vivid`・`positive-soft`・`positive-softer`・`positive-border` | `AmountKind::Delta` の正負。`data-negative="true"` と `text-positive` で出す |
+| 強調・情報 | `accent`・`accent-bright`・`accent-ring`・`accent-strong`・`accent-vivid`・`accent-text`・`accent-text-soft`・`accent-soft`・`accent-softer`・`accent-border`・`accent-border-strong`、`info`・`info-strong`・`info-deep`・`info-soft`・`info-border`・`info-focus` | リンク・移動リンク(`more-link` は `accent-text`)・銘柄コード |
+| 文字・罫線 | `ink`・`ink-hover`、`text`・`text-deep`・`text-strong`・`text-soft`・`text-muted`・`text-subtle`・`text-quiet`・`text-faint`・`text-inverse`・`text-inverse-muted`、`border`・`border-faint`・`border-subtle`・`border-strong`・`border-xstrong`・`border-bold`・`border-link` | 本文・補助・罫線。`text-faint` は薄い補助に限定 |
+| 札 | `badge-specific`・`badge-general`・`badge-nisa`・`badge-old-nisa`(各 `bg`・`text`・`border` の3点) | `AccountBadge` の口座区分 |
+| 図 | `chart-1`〜`chart-5`・`chart-previous`、`fill`・`fill-strong` | 系列色・前年比較・棒の下地 |
+| 余白 | `space-tabs`・`space-summary`・`space-note`・`space-search`・`space-condition`・`space-table` | 骨格の段間(`page-skeleton-*` が使う)。値は `0.75rem`・`0.75rem`・`0.25rem`・`0.75rem`・`0.5rem`・`0.75rem` |
+| 文字の大きさ | `text-eyebrow`(0.6875rem)・`text-cell`(0.75rem)、`text-summary-primary`(1.875rem)・`text-summary-secondary`(1.5rem)と compact 版(1.625rem・0.9375rem) | 図の目盛り・表の小文字・帯の主従 |
+| 角丸・影・幅 | `radius-note`(1.35rem)、`shadow-elevation-1`・`shadow-elevation-2`・`shadow-card`・`shadow-card-hover`・`shadow-header`・`shadow-sheet-up`・`shadow-edge-lit`・`shadow-edge-accent`・`shadow-edge-brand`、`container-page`(90rem)・`container-wide`(1680px) | 角丸は他に `rounded-xl`(面)・`rounded-lg`(入力・選択)・`rounded-full`(タブ・札)。影と本文幅 |
+
+## 共通部品と共通クラス
+
+新しい画面はここから選ぶ。実装の props は [`frontend/README.md`](../../frontend/README.md)の部品表が正本で、ここでは選び方だけを決める。
+
+| 用途 | 使う部品・クラス | 選び方 |
+| --- | --- | --- |
+| 一覧の行 | `ui/list_row.rs` `ListRow`・`ListRowButton`・`ListRowLink`・`ListRowStatic`。器は `list-row`・`list-row-main`・`list-row-name`・`list-row-primary`・`list-row-sub`・`list-row-meta`・`list-row-secondary`、行は `list-row-item` + `list-row-action`(押せる)・`list-row-action-static`(押せない) | 全一覧で使う。行全体がボタンなら `ButtonVariant::RowButton`(`ListRowButton`)、遷移なら `ListRowLink` |
+| グループ見出し | `ListGroupHeader` + `list-group-header`・`list-group-title`・`list-group-summary`。表の行は `receipts-table-group` + `receipts-table-group-label` | 同じトークン(`bg-row-group`・金の左線 `--color-gold`)。表と行で別名を作らない |
+| 帯 | `ui/summary.rs` `SummaryBand`・`SummaryItem`(`SummarySize::Primary`・`Secondary`、`SummaryTone::Neutral`・`Gain`・`Loss`)。枠は `summary-band`・`summary-band-grid`・`summary-band-group`・`summary-band-items`、項目は `summary-item`・`summary-label`・`summary-label-note`・`summary-value`・`summary-value-primary`・`summary-value-secondary`・`summary-note`・`summary-status`、スマホ開閉は `summary-band-main-toggle`・`summary-band-top-row`・`summary-band-hero-row`・`summary-band-chevron-circle`・`summary-band-toggle-chevron`・`summary-band-breakdown`・`summary-band-breakdown-row`・`summary-band-breakdown-value`、PC 残存は `summary-band-pc`・`summary-band-item-tag1` | 主1つ+補助1行。色は `SummaryTone` だけで選び、帯独自の色名は作らない |
+| ダイアログ枠とタイトル | 枠は `dialog-panel`(角丸・枠・影・`max-height:88vh`)、題は `dialog-title`。中央は `DialogShell` + `search-dialog-root`・`search-dialog-backdrop`・`search-dialog-panel`・`search-dialog-head`・`search-dialog-body`・`search-dialog-footer`、条件は `condition-panel`・`condition-backdrop`・`condition-panel-title`・`condition-panel-actions`、詳細は `ui/detail_dialog.rs` `DetailDialog` + `detail-dialog-*`、削除確認は `ConfirmDeleteModal` | 枠と題は共通。配置・幅・内側スクロールだけ個別に残す |
+| ボタンの種別 | `ui/button.rs` `Button`・`LinkButton`・`TabButton`(`ButtonVariant::PageTab`)・`Switch`。大きさは `ButtonSize::Xs`・`Sm`・`Md`。種別は `Primary`・`Secondary`・`Header`・`DangerSolid`(確認の確定)・`Ghost`(解除など静かな操作)・`Retry`(再読み込み)・`MenuItem`・`MenuItemDanger`(削除)・`CopyName`・`AssetSortColumn`・`ConditionChip`・`AddCondition`・`ConditionOption`・`YearOption`・`SearchClear`・`Segmented`・`PageTab`・`ConditionSegment`・`RowButton` | `features/` で `<button>` を直書きしない。行全体は `RowButton`、種別切替のタブは `PageTab`(`TabButton`) |
+| 切り替え | `ui/segmented.rs` `Segmented` + `segmented`・`segment-option`、条件は `condition-segment`・`condition-option`・`condition-option-list`、年・月は `year-option`、種別タブは `page-tab-list`・`page-tab`・`badge-count`、下線タブの横 swipe は `tab-swipe-area`・`tab-swipe-track`・`tab-swipe-slide`・`tab-swipe-ink` | `Segmented` と条件の切り替えは同じ `segment-option`。`flex-1` は容器側だけに置く |
+| リンク | `ui/more_link.rs` `MoreLink` + `more-link`、上バーの枠つき小は `page-secondary-link-sm`、戻りは `page-back-link`、銘柄は `ui/security_link.rs` `SecurityCodeLink`・`CopyableInstrumentName` + `security-code-link`・`copyable-name`・`copy-icon` | 本文内の移動は `MoreLink` に寄せる。下線付きは外部リンクだけ |
+| バッジの種別 | `ui/badge.rs` `Badge`(`BadgeVariant::Positive`・`Info`・`Accent`・`Danger`・`AccountSpecific`・`AccountGeneral`・`AccountNisa`・`AccountOldNisa`・`Code`・`CodeFlush`・`Count`)・`AccountBadge`・`CodeBadge`。クラスは `badge` + `badge-positive`・`badge-info`・`badge-accent`・`badge-danger`・`badge-account`・`badge-account-specific`・`badge-account-nisa`・`badge-account-old-nisa`・`badge-code`・`badge-code-flush`・`badge-count`。表の薄字コードは `table-code` | 小さな札は `Badge` の種別で表す。角丸・余白の差は variant に集める |
+| 金額の種別 | `ui/amount.rs` `Amount`(`AmountKind::Plain`・`Delta`、`block`)。`Delta` は `text-positive`・`data-negative="true"`、紺帯では明色に寄せる | 出入り・損益・税の3つ(税引前・税額・税引後)だけ `Delta`、残高・価格・元額は `Plain`。画面ごとに色を書かない |
 
 ## 例外として認めるもの
 
