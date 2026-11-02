@@ -1,4 +1,4 @@
-use crate::db::{Bind, Db};
+use crate::db::{Bind, Db, Tx};
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
@@ -101,13 +101,13 @@ impl Search for DividendDomain {
     }
 
     async fn fetch_summary(
-        pool: &Db,
+        tx: &mut Tx,
         user_id: UserId,
         filter: &SearchFilter,
     ) -> Result<DividendSummary, ApiError> {
         Ok(Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<DividendSummary>()
-            .fetch_one(pool)
+            .fetch_one(&mut *tx)
             .await?)
     }
 }

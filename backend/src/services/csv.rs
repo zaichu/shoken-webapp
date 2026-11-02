@@ -17,13 +17,15 @@ pub async fn record_import_success(
     if response.inserted == 0 && response.skipped == 0 && !response.errors.is_empty() {
         return Ok(());
     }
+    let mut tx = pool.begin_with_user(user_id).await?;
     db::query(
         "INSERT INTO csv_import_history (user_id, kind, last_imported_at)
          VALUES ($1, $2, NOW())
          ON CONFLICT (user_id, kind) DO UPDATE SET last_imported_at = EXCLUDED.last_imported_at",
         vec![Bind::from(user_id), Bind::from(kind)],
     )
-    .execute(pool)
+    .execute(&mut tx)
     .await?;
+    tx.commit().await?;
     Ok(())
 }

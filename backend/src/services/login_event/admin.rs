@@ -91,12 +91,14 @@ fn push_order(qb: &mut QueryBuilder, params: &AdminLoginQuery) -> Result<(), Api
 }
 
 pub async fn record_view(pool: &Db, user_id: UserId) -> Result<(), ApiError> {
+    let mut tx = pool.begin_with_user(user_id).await?;
     db::query(
         "INSERT INTO admin_login_views (user_id) VALUES ($1)",
         vec![Bind::from(user_id)],
     )
-    .execute(pool)
+    .execute(&mut tx)
     .await?;
+    tx.commit().await?;
     Ok(())
 }
 

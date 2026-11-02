@@ -1,4 +1,4 @@
-use crate::db::{Bind, Db};
+use crate::db::{Bind, Db, Tx};
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
@@ -130,9 +130,9 @@ impl crate::db::FromRow for NavStatusRow {
 }
 
 /// 基準価額の自動更新の状態を返す。取得できた/失敗した件数と、直近の失敗理由を出す
-async fn fetch_nav_status(pool: &Db, user_id: UserId) -> Result<FundNavStatus, ApiError> {
+async fn fetch_nav_status(tx: &mut Tx, user_id: UserId) -> Result<FundNavStatus, ApiError> {
     let row = crate::db::query(NAV_STATUS_SQL, vec![Bind::from(user_id)])
-        .fetch_one::<NavStatusRow, _>(pool)
+        .fetch_one::<NavStatusRow, _>(&mut *tx)
         .await?;
     Ok(FundNavStatus {
         updated_at: row.updated_at.map(jst_minute),
@@ -179,16 +179,16 @@ impl Search for FundBalanceDomain {
 
     /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
     async fn fetch_summary(
-        pool: &Db,
+        tx: &mut Tx,
         user_id: UserId,
         filter: &SearchFilter,
     ) -> Result<FundBalanceSummary, ApiError> {
         let mut summary = Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<FundBalanceSummary>()
-            .fetch_one(pool)
+            .fetch_one(&mut *tx)
             .await?;
         // 自動更新の状況は検索条件に依らないので別のクエリで取る
-        summary.nav_status = fetch_nav_status(pool, user_id).await?;
+        summary.nav_status = fetch_nav_status(&mut *tx, user_id).await?;
         Ok(summary)
     }
 }

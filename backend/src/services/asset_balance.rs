@@ -1,4 +1,4 @@
-use crate::db::{Bind, Db};
+use crate::db::{Bind, Db, Tx};
 use crate::errors::ApiError;
 use crate::models::asset_balance::{
     AssetBalance, AssetBalanceSearchQueryParams, AssetBalanceSummary, CreateAssetBalanceRequest,
@@ -141,13 +141,13 @@ impl Search for AssetBalanceDomain {
 
     /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
     async fn fetch_summary(
-        pool: &Db,
+        tx: &mut Tx,
         user_id: UserId,
         filter: &SearchFilter,
     ) -> Result<AssetBalanceSummary, ApiError> {
         Ok(Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<AssetBalanceSummary>()
-            .fetch_one(pool)
+            .fetch_one(&mut *tx)
             .await?)
     }
 }
