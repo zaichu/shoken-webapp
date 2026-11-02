@@ -1,4 +1,5 @@
-use super::{SummaryBreakdownEntry, daily_rate};
+use super::{SummaryBreakdownEntry, SummaryTone, daily_rate, delta_or_plain, tone_amount};
+use crate::ui::amount::AmountKind;
 
 #[test]
 fn daily_rate_uses_previous_market_as_denominator() {
@@ -18,6 +19,37 @@ fn daily_rate_returns_none_without_base() {
 fn daily_rate_keeps_sign_of_daily_change() {
     let rate = daily_rate(Some(90.0), Some(-10.0)).expect("率が出る");
     assert!(rate < 0.0);
+}
+
+#[test]
+fn gain_maps_to_delta_positive() {
+    let (kind, negative, positive) = tone_amount(SummaryTone::Gain);
+    assert_eq!(kind, AmountKind::Delta);
+    assert!(!negative);
+    assert!(positive);
+}
+
+#[test]
+fn loss_maps_to_delta_negative() {
+    let (kind, negative, positive) = tone_amount(SummaryTone::Loss);
+    assert_eq!(kind, AmountKind::Delta);
+    assert!(negative);
+    assert!(!positive);
+}
+
+#[test]
+fn neutral_maps_to_plain_without_sign() {
+    let (kind, negative, positive) = tone_amount(SummaryTone::Neutral);
+    assert_eq!(kind, AmountKind::Plain);
+    assert!(!negative);
+    assert!(!positive);
+}
+
+#[test]
+fn delta_or_plain_needs_sign_for_delta() {
+    assert_eq!(delta_or_plain(true, false), AmountKind::Delta);
+    assert_eq!(delta_or_plain(false, true), AmountKind::Delta);
+    assert_eq!(delta_or_plain(false, false), AmountKind::Plain);
 }
 
 #[test]

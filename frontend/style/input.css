@@ -1399,14 +1399,9 @@
     @apply text-xs font-normal text-brand-muted;
   }
 
-  /* 紺地では --color-positive/-negative がコントラスト不足になるため明るい色を使う */
-  .summary-gain {
-    color: var(--color-profit-bright);
-  }
-
-  .summary-loss {
-    color: var(--color-loss-bright);
-  }
+  /* 紺地では Amount の通常の正負色が見えにくいため明るい色に寄せる。
+     正負の色は Amount(Delta の text-positive/data-negative)+帯の上書きの1組に集約し、
+     summary-gain/loss の別名は作らない */
 
   @media (width < 64rem) {
     .summary-value-primary {
