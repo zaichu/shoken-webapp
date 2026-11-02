@@ -983,6 +983,11 @@
     @apply flex w-full items-center justify-between gap-3 whitespace-nowrap;
   }
 
+  /* 帯の補助行は旧定義どおり本文の行の高さにする。共通の summary-value は行の高さを1に詰める */
+  .summary-band-main-toggle .summary-value-secondary {
+    @apply leading-normal;
+  }
+
   .summary-band-chevron-circle {
     @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-brand-line;
   }
