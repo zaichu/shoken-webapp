@@ -140,7 +140,7 @@ pub fn SummaryStrip(
     let to_sub = |(label, value, _): (&'static str, Decimal, StatTone)| {
         let (text, _, _, tone) = band_value(label, value);
         SummarySubItem {
-            label: label.to_string(),
+            label: breakdown_label(label).to_string(),
             value: text,
             note: String::new(),
             tone,
