@@ -37,56 +37,6 @@ features/csv_sync/import.rs	対応形式: 投資信託の取引履歴CSV(見出�
 features/csv_sync/import.rs	対応形式: 資産残高CSV(見出し行の先頭は「銘柄コード」)
 features/csv_sync/view.rs	{}（新しいタブで開く）
 features/csv_sync/view.rs	エラー:
-features/home/view.rs	 取り込み
-features/home/view.rs	(今月)
-features/home/view.rs	/ 予想 {forecast}
-features/home/view.rs	/ 予想を取得中
-features/home/view.rs	CSV管理
-features/home/view.rs	CSV管理へ
-features/home/view.rs	NISAつみたて
-features/home/view.rs	NISA成長
-features/home/view.rs	{previous_year}年
-features/home/view.rs	{remaining_text} {previous_span}・ 前年同期より {yoy_text}
-features/home/view.rs	{year}年
-features/home/view.rs	{}年 {}
-features/home/view.rs	{}年 {}
-features/home/view.rs	{}月
-features/home/view.rs	{}月
-features/home/view.rs	{}月{}: {}年 {} / {}年 {} / 差 {}
-features/home/view.rs	すべて見る
-features/home/view.rs	まだ配当入金がありません
-features/home/view.rs	データ: 
-features/home/view.rs	ホーム
-features/home/view.rs	一般
-features/home/view.rs	一部の集計を取得できませんでした。
-features/home/view.rs	予想を取得中です
-features/home/view.rs	今年の配当金(税引後)
-features/home/view.rs	保有している銘柄がありません
-features/home/view.rs	保有の集計を取得できませんでした
-features/home/view.rs	保有データがありません
-features/home/view.rs	保有残高をCSVで登録すると、商品別・口座別の内訳が表示されます。
-features/home/view.rs	取引明細で見る
-features/home/view.rs	受取 
-features/home/view.rs	口座別(投資信託)
-features/home/view.rs	含み損
-features/home/view.rs	商品別の資産内訳
-features/home/view.rs	国内株式
-features/home/view.rs	差
-features/home/view.rs	投資信託
-features/home/view.rs	旧NISA
-features/home/view.rs	最近の配当入金
-features/home/view.rs	月別の税引後配当({year}年と{previous_year}年)
-features/home/view.rs	特定
-features/home/view.rs	評価損益の大きい銘柄
-features/home/view.rs	評価損益を出せる銘柄がありません
-features/home/view.rs	評価額がありません
-features/home/view.rs	資産の内訳
-features/home/view.rs	資産の概要
-features/home/view.rs	資産の集計を取得できませんでした
-features/home/view.rs	資産管理
-features/home/view.rs	資産管理
-features/home/view.rs	配当の集計を取得できませんでした
-features/home/view.rs	配当入金を取得できませんでした
 features/login.rs	ログイン
 features/not_found.rs	404 - ページが見つかりません
 features/not_found.rs	ページが見つかりません
@@ -95,31 +45,6 @@ features/not_found.rs	取引明細
 features/not_found.rs	資産管理
 features/not_found.rs	銘柄検索
 features/settings.rs	nav[aria-label="設定セクション"] a[href^="/settings#"]
-features/stock_search/view.rs	17業種
-features/stock_search/view.rs	33業種
-features/stock_search/view.rs	4桁の銘柄コードで検索できます（例：7203, 9984）
-features/stock_search/view.rs	SBI証券
-features/stock_search/view.rs	{name}（新しいタブで開く）
-features/stock_search/view.rs	みんかぶ
-features/stock_search/view.rs	ザイマニ
-features/stock_search/view.rs	バフェットコード
-features/stock_search/view.rs	不正な銘柄コードが指定されています。
-features/stock_search/view.rs	会社名の一部でも検索できます（例：トヨタ）
-features/stock_search/view.rs	市場
-features/stock_search/view.rs	日経
-features/stock_search/view.rs	株探
-features/stock_search/view.rs	検索結果から各種証券サイトへのリンクを確認できます
-features/stock_search/view.rs	楽天証券
-features/stock_search/view.rs	規模
-features/stock_search/view.rs	該当する銘柄が見つかりませんでした
-features/stock_search/view.rs	銘柄を検索
-features/stock_search/view.rs	銘柄を検索
-features/stock_search/view.rs	銘柄コードまたは銘柄名を確認してください。
-features/stock_search/view.rs	銘柄コード（例：7203）または銘柄名を入力して検索してください。
-features/stock_search/view.rs	銘柄スカウター
-features/stock_search/view.rs	銘柄検索
-features/stock_search/view.rs	銘柄検索
-features/stock_search/view.rs	銘柄検索
 ui/badge.rs	NISAつみたて
 ui/badge.rs	NISAつみたて投資枠
 ui/badge.rs	NISA口座

@@ -21,10 +21,7 @@ use crate::ui::format::{
     format_currency, format_integer_percent, format_iso_date, format_latest_import_date,
     format_number_value, format_short_date,
 };
-use crate::ui::labels::{
-    self, AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, MARKET_VALUE, MISSING,
-    PAYMENT_DATE, PER_SHARE_DIVIDEND, QUANTITY, TAX, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
-};
+use crate::ui::labels;
 use crate::ui::list_row::{ListGroupHeader, ListRowButtonWithoutSecondary, ListRowLink};
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::more_link::MoreLink;
@@ -50,8 +47,8 @@ const CHART_COLORS: &[(&str, &str)] = &[
 /// 商品別ドーナツの系列番号。商品名に固定で対応させ、絞り込みや並び替えで色が変わらないようにする
 fn product_chart_index(label: &str) -> Option<usize> {
     match label {
-        "国内株式" => Some(0),
-        "投資信託" => Some(1),
+        labels::DOMESTIC_STOCK => Some(0),
+        labels::MUTUAL_FUND => Some(1),
         _ => None,
     }
 }
@@ -59,11 +56,11 @@ fn product_chart_index(label: &str) -> Option<usize> {
 /// 口座別の系列番号。口座名はバッジと同じ表示名に正規化してから対応表に当てる
 fn account_chart_index(label: &str) -> Option<usize> {
     match account_display_name(label) {
-        "特定" => Some(0),
-        "NISA成長" => Some(1),
-        "旧NISA" => Some(2),
-        "NISAつみたて" => Some(3),
-        "一般" => Some(4),
+        labels::ACCOUNT_SPECIFIC => Some(0),
+        labels::ACCOUNT_NISA_GROWTH => Some(1),
+        labels::ACCOUNT_OLD_NISA => Some(2),
+        labels::ACCOUNT_NISA_TSUMITATE => Some(3),
+        labels::ACCOUNT_GENERAL => Some(4),
         _ => None,
     }
 }
@@ -104,7 +101,7 @@ pub fn HomePage() -> impl IntoView {
                 import_label.get().map(|label| {
                     view! {
                         <span class="hidden text-xs font-medium text-text-muted lg:inline">
-                            "データ: " {label} " 取り込み"
+                            {labels::home_import_label(&label)}
                         </span>
                     }
                 })
@@ -114,7 +111,7 @@ pub fn HomePage() -> impl IntoView {
                 session.user.get().is_some().then(|| {
                     view! {
                         <a class="page-secondary-link-sm" href="/csv">
-                            "CSV管理"
+                            {labels::CSV_MANAGE_TITLE}
                         </a>
                     }
                 })
@@ -123,7 +120,7 @@ pub fn HomePage() -> impl IntoView {
         .into_any()
     });
     view! {
-        <PageFrame title="ホーム" full_bleed=true links=links>
+        <PageFrame title=labels::HOME_TITLE full_bleed=true links=links>
             <HomeDashboard data=data />
         </PageFrame>
     }
@@ -196,7 +193,7 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
                         });
                         any_failed.then(|| {
                             view! {
-                                <span class="mt-1 block">"一部の集計を取得できませんでした。"</span>
+                                <span class="mt-1 block">{labels::HOME_PARTIAL_ERROR}</span>
                             }
                         })
                     }}
@@ -235,7 +232,7 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
         <section
             class="summary-band"
             role="region"
-            aria-label="資産の概要"
+            aria-label=labels::HOME_OVERVIEW_LABEL
             aria-busy=move || {
                 let (assets, funds, estimates) = state();
                 if assets.is_none() || funds.is_none() || estimates.is_none() {
@@ -322,7 +319,7 @@ fn BandTiles(
         .as_ref()
         .map(|summary| dec_to_f64(&summary.total_market_value));
     let market_text = if loading {
-        MISSING.to_string()
+        labels::MISSING.to_string()
     } else {
         format_valuation_amount(market_value)
     };
@@ -333,12 +330,12 @@ fn BandTiles(
     let pnl_negative = is_negative_valuation(pnl_amount);
     let pnl_positive = is_positive_valuation(pnl_amount);
     let profit_text = if loading {
-        MISSING.to_string()
+        labels::MISSING.to_string()
     } else {
         valuation
             .as_ref()
             .map(|valuation| format_signed_valuation_amount(valuation.profit_loss.amount))
-            .unwrap_or_else(|| MISSING.to_string())
+            .unwrap_or_else(|| labels::MISSING.to_string())
     };
     let profit_rate = valuation
         .as_ref()
@@ -347,7 +344,7 @@ fn BandTiles(
         .unwrap_or_default();
     let daily_value = daily;
     let daily_text = if loading {
-        MISSING.to_string()
+        labels::MISSING.to_string()
     } else {
         format_signed_row_valuation_amount(daily_value)
     };
@@ -362,7 +359,7 @@ fn BandTiles(
         .as_ref()
         .map(|summary| dec_to_f64(&summary.total_purchase_amount));
     let purchase_text = if loading {
-        MISSING.to_string()
+        labels::MISSING.to_string()
     } else {
         format_valuation_amount(purchase_value)
     };
@@ -370,33 +367,35 @@ fn BandTiles(
     let maps = estimates.as_ref().and_then(|slot| slot.as_ref());
     let kpi = maps.map(|maps| model::annual_dividend_forecast(&stocks, maps));
     let dividend_text = if estimates_pending || maps.is_none() {
-        MISSING.to_string()
+        labels::MISSING.to_string()
     } else {
         kpi.as_ref()
             .and_then(|kpi| kpi.total_annual_dividends)
             .map_or_else(
-                || MISSING.to_string(),
+                || labels::MISSING.to_string(),
                 |amount| format_valuation_amount(Some(amount)),
             )
     };
     let estimate_pending_text = match (maps, kpi.as_ref().and_then(|k| k.dividend_yield)) {
-        (Some(maps), None) if model::has_pending_estimate(maps) => "予想を取得中です".to_string(),
+        (Some(maps), None) if model::has_pending_estimate(maps) => {
+            labels::HOME_ESTIMATE_PENDING.to_string()
+        }
         _ => String::new(),
     };
     view! {
         <UiSummaryBand
-            primary_label=MARKET_VALUE
+            primary_label=labels::MARKET_VALUE
             primary_value=market_text
             primary_as_of=as_of
             show_pending=show_pending
-            aux_label=VALUATION_PROFIT_LOSS
+            aux_label=labels::VALUATION_PROFIT_LOSS
             aux_value=profit_text
             aux_rate=profit_rate
             aux_negative=pnl_negative
             aux_positive=pnl_positive
             pc_items=vec![
                 SummarySubItem {
-                    label: ANNUAL_EXPECTED_DIVIDEND.to_string(),
+                    label: labels::ANNUAL_EXPECTED_DIVIDEND.to_string(),
                     value: dividend_text.clone(),
                     note: String::new(),
                     tone: SummaryTone::Neutral,
@@ -405,21 +404,21 @@ fn BandTiles(
             ]
             breakdown=vec![
                 SummaryBreakdownEntry {
-                    label: DAY_CHANGE.to_string(),
+                    label: labels::DAY_CHANGE.to_string(),
                     value: daily_text,
                     negative: daily_negative,
                     positive: daily_positive,
                     rate: daily_rate,
                 },
                 SummaryBreakdownEntry {
-                    label: ANNUAL_EXPECTED_DIVIDEND.to_string(),
+                    label: labels::ANNUAL_EXPECTED_DIVIDEND.to_string(),
                     value: dividend_text,
                     negative: false,
                     positive: false,
                     rate: estimate_pending_text,
                 },
                 SummaryBreakdownEntry {
-                    label: TOTAL_ACQUISITION.to_string(),
+                    label: labels::TOTAL_ACQUISITION.to_string(),
                     value: purchase_text,
                     negative: false,
                     positive: false,
@@ -473,9 +472,9 @@ fn DividendCard(data: HomeOverviewData) -> impl IntoView {
     view! {
         <Card variant=CardVariant::Panel class="pb-4" testid="home-dividend-card">
             <CardHead
-                title="今年の配当金(税引後)"
+                title=labels::HOME_THIS_YEAR_DIVIDEND
                 href="/receipts"
-                link_label="取引明細で見る"
+                link_label=labels::HOME_RECEIPTS_VIEW_LINK
             />
             {move || {
                 let (current, previous, assets, estimates) = card();
@@ -483,7 +482,7 @@ fn DividendCard(data: HomeOverviewData) -> impl IntoView {
                     return view! { <CardSkeleton /> }.into_any();
                 }
                 if matches!(current, Some(None)) {
-                    return view! { <CardError message="配当の集計を取得できませんでした" /> }
+                    return view! { <CardError message=labels::HOME_DIVIDEND_FETCH_FAILED.to_string() /> }
                         .into_any();
                 }
                 let current_rows = current.flatten().unwrap_or_default();
@@ -537,9 +536,10 @@ fn DividendCardBody(
     let forecast = model
         .forecast_net
         .map(|v| format_valuation_amount(Some(v)))
-        .unwrap_or_else(|| MISSING.to_string());
+        .unwrap_or_else(|| labels::MISSING.to_string());
     let progress_pct = model.progress.map(|p| p * 100.0);
-    let progress_text = progress_pct.map_or_else(|| MISSING.to_string(), format_integer_percent);
+    let progress_text =
+        progress_pct.map_or_else(|| labels::MISSING.to_string(), format_integer_percent);
     let remaining_text = model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
     let previous_span = model
@@ -553,11 +553,11 @@ fn DividendCardBody(
     let yoy_text = model
         .yoy_diff
         .map(|diff| format_signed_valuation_amount(Some(dec_to_f64(&diff))))
-        .unwrap_or_else(|| MISSING.to_string());
+        .unwrap_or_else(|| labels::MISSING.to_string());
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
             <span class="text-sm">
-                "受取 "
+                {labels::HOME_RECEIVED_LABEL}
                 <strong class="text-lg">
                     <Amount
                         kind=AmountKind::Delta
@@ -569,9 +569,9 @@ fn DividendCardBody(
             </span>
             <span class="text-sm text-text-muted">
                 {if pending {
-                    "/ 予想を取得中".to_string()
+                    labels::HOME_FORECAST_LOADING.to_string()
                 } else {
-                    format!("/ 予想 {forecast}")
+                    labels::home_forecast(&forecast)
                 }}
             </span>
             <span class="ml-auto text-sm font-bold tabular-nums">{progress_text}</span>
@@ -587,12 +587,12 @@ fn DividendCardBody(
             })}
         </div>
         <p class="px-4 pt-1.5 text-xs text-text-muted">
-            {format!("{remaining_text} {previous_span}・ 前年同期より {yoy_text}")}
+            {labels::home_dividend_summary(&remaining_text, &previous_span, &yoy_text)}
         </p>
         <div
             class="mt-3 px-4"
             role="group"
-            aria-label=format!("月別の税引後配当({year}年と{previous_year}年)")
+            aria-label=labels::home_monthly_aria(year, previous_year)
         >
             <p class="home-chart-max">{format_valuation_amount(Some(dec_to_f64(&max)))}</p>
             <div class="home-chart-plot">
@@ -614,7 +614,7 @@ fn DividendCardBody(
                                 &(pair.current - pair.previous),
                             )));
                             let current_note = if pair.month == current_month {
-                                "(今月)"
+                                labels::HOME_CURRENT_MONTH
                             } else {
                                 ""
                             };
@@ -623,15 +623,14 @@ fn DividendCardBody(
                                     class="home-chart-month"
                                     tabindex="0"
                                     role="group"
-                                    aria-label=format!(
-                                        "{}月{}: {}年 {} / {}年 {} / 差 {}",
+                                    aria-label=labels::home_month_aria(
                                         pair.month,
                                         current_note,
                                         year,
-                                        cur_text,
+                                        &cur_text,
                                         previous_year,
-                                        prev_text,
-                                        diff_text
+                                        &prev_text,
+                                        &diff_text,
                                     )
                                 >
                                     <div class="home-chart-bars">
@@ -646,19 +645,19 @@ fn DividendCardBody(
                                     </div>
                                     <div class="home-chart-tip" aria-hidden="true">
                                         <p class="font-bold text-text">
-                                            {format!("{}月", pair.month)}
+                                            {labels::receipt_month_label(pair.month)}
                                         </p>
                                         <dl class="mt-1 space-y-0.5">
                                             <div class="flex items-center gap-1.5">
                                                 <dt class="home-swatch bg-chart-1"></dt>
-                                                <dd>{format!("{}年 {}", year, cur_text)}</dd>
+                                                <dd>{labels::home_year_amount(year, &cur_text)}</dd>
                                             </div>
                                             <div class="flex items-center gap-1.5">
                                                 <dt class="home-swatch bg-chart-previous"></dt>
-                                                <dd>{format!("{}年 {}", previous_year, prev_text)}</dd>
+                                                <dd>{labels::home_year_amount(previous_year, &prev_text)}</dd>
                                             </div>
                                             <div class="flex items-center gap-1.5">
-                                                <dt class="text-text-muted">"差"</dt>
+                                                <dt class="text-text-muted">{labels::HOME_DIFF_LABEL}</dt>
                                                 <dd class="tabular-nums">{diff_text.clone()}</dd>
                                             </div>
                                         </dl>
@@ -680,7 +679,7 @@ fn DividendCardBody(
                                 class="home-chart-month-label"
                                 data-current=current.to_string()
                             >
-                                {format!("{}月", pair.month)}
+                                {labels::receipt_month_label(pair.month)}
                             </span>
                         }
                     })
@@ -690,11 +689,11 @@ fn DividendCardBody(
         <div class="mt-2 flex justify-center gap-4 px-4 text-xs text-text-muted">
             <span class="flex items-center gap-1">
                 <span class="home-swatch bg-chart-1"></span>
-                {format!("{year}年")}
+                {labels::receipt_year_label(&year.to_string())}
             </span>
             <span class="flex items-center gap-1">
                 <span class="home-swatch bg-chart-previous"></span>
-                {format!("{previous_year}年")}
+                {labels::receipt_year_label(&previous_year.to_string())}
             </span>
         </div>
     }
@@ -744,14 +743,14 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
     };
     view! {
         <Card variant=CardVariant::Panel class="pb-4" testid="home-composition-card">
-            <CardHead title="資産の内訳" href="/assetbalance" link_label="資産管理" />
+            <CardHead title=labels::HOME_COMPOSITION_TITLE href="/assetbalance" link_label=labels::ASSET_BALANCE_TITLE />
             {move || {
                 let (assets, funds) = card();
                 if assets.is_none() && funds.is_none() {
                     return view! { <CardSkeleton /> }.into_any();
                 }
                 if matches!(assets, Some(None)) && matches!(funds, Some(None)) {
-                    return view! { <CardError message="資産の集計を取得できませんでした" /> }
+                    return view! { <CardError message=labels::HOME_ASSET_FETCH_FAILED.to_string() /> }
                         .into_any();
                 }
                 let empty_holdings = stocks_of(&assets).is_none_or(<[_]>::is_empty)
@@ -760,12 +759,12 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                     return view! {
                         <div class="px-4 py-4">
                             <EmptyState
-                                title="保有データがありません"
-                                description="保有残高をCSVで登録すると、商品別・口座別の内訳が表示されます。"
+                                title=labels::HOME_NO_HOLDINGS
+                                description=labels::HOME_NO_HOLDINGS_HINT
                             >
                                 <MoreLink
                                     href="/csv".to_string()
-                                    label="CSV管理へ".to_string()
+                                    label=labels::SETTINGS_CSV_MANAGE_LINK.to_string()
                                 />
                             </EmptyState>
                         </div>
@@ -782,7 +781,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                     {if product_total <= 0.0 {
                         view! {
                             <div class="px-4 py-4">
-                                <EmptyState title="評価額がありません" />
+                                <EmptyState title=labels::HOME_NO_MARKET_VALUE />
                             </div>
                         }
                             .into_any()
@@ -795,7 +794,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                     class="home-donut"
                                     style:background=donut
                                     role="img"
-                                    aria-label="商品別の資産内訳"
+                                    aria-label=labels::HOME_PRODUCT_BREAKDOWN_LABEL
                                 >
                                     <div class="home-donut-hole"></div>
                                 </div>
@@ -825,7 +824,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                         view! {
                             <div class="px-4 pt-4">
                                 <p class="text-xs font-medium text-text-muted">
-                                    "口座別(投資信託)"
+                                    {labels::HOME_ACCOUNT_FUND_LABEL}
                                 </p>
                                 <div class="home-stacked-bar mt-1.5">
                                     {accounts
@@ -884,13 +883,13 @@ fn home_dividend_dialog_cells(
     net: (String, bool, bool),
 ) -> (Vec<DetailCell>, Vec<DetailCell>) {
     let left = vec![
-        DetailCell::plain(PAYMENT_DATE.to_string(), format_iso_date(full_date)),
-        DetailCell::plain(QUANTITY.to_string(), shares),
-        DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
+        DetailCell::plain(labels::PAYMENT_DATE.to_string(), format_iso_date(full_date)),
+        DetailCell::plain(labels::QUANTITY.to_string(), shares),
+        DetailCell::plain(labels::PER_SHARE_DIVIDEND.to_string(), per_share),
     ];
     let right = vec![
         DetailCell {
-            label: BEFORE_TAX.to_string(),
+            label: labels::BEFORE_TAX.to_string(),
             value: gross.0,
             sub: None,
             negative: gross.1,
@@ -899,7 +898,7 @@ fn home_dividend_dialog_cells(
             delta: true,
         },
         DetailCell {
-            label: TAX.to_string(),
+            label: labels::TAX.to_string(),
             value: tax.0,
             sub: None,
             negative: tax.1,
@@ -907,7 +906,7 @@ fn home_dividend_dialog_cells(
             bold: false,
             delta: tax.1 || tax.2,
         },
-        DetailCell::strong(AFTER_TAX.to_string(), net.0, net.1, net.2, true),
+        DetailCell::strong(labels::AFTER_TAX.to_string(), net.0, net.1, net.2, true),
     ];
     (left, right)
 }
@@ -933,7 +932,7 @@ fn signed_tax_text(value: f64, text: &str) -> String {
 #[component]
 fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let code = if row.security_code.is_empty() {
-        MISSING.to_string()
+        labels::MISSING.to_string()
     } else {
         row.security_code.clone()
     };
@@ -971,7 +970,7 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let sheet_open = RwSignal::new(false);
     let dialog_open = sheet_open;
     let dialog_name = sheet_title.clone();
-    let dialog_code = if code == MISSING {
+    let dialog_code = if code == labels::MISSING {
         String::new()
     } else {
         code.clone()
@@ -1031,14 +1030,14 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
     };
     view! {
         <Card variant=CardVariant::Panel class="overflow-clip" testid="home-recent-card">
-            <CardHead title="最近の配当入金" href="/receipts" link_label="すべて見る" />
+            <CardHead title=labels::HOME_RECENT_DIVIDENDS href="/receipts" link_label=labels::HOME_SEE_ALL />
             {move || match card() {
                 None => view! { <CardSkeleton /> }.into_any(),
-                Some(None) => view! { <CardError message="配当入金を取得できませんでした" /> }.into_any(),
+                Some(None) => view! { <CardError message=labels::HOME_RECENT_FETCH_FAILED.to_string() /> }.into_any(),
                 Some(Some(rows)) if rows.is_empty() => {
                     view! {
                         <div class="px-4 py-4">
-                            <EmptyState title="まだ配当入金がありません" />
+                            <EmptyState title=labels::HOME_NO_RECENT />
                         </div>
                     }
                         .into_any()
@@ -1070,9 +1069,9 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
     view! {
         <Card variant=CardVariant::Panel class="overflow-clip" testid="home-pnl-card">
             <CardHead
-                title="評価損益の大きい銘柄"
+                title=labels::HOME_PNL_TITLE
                 href="/assetbalance"
-                link_label="資産管理"
+                link_label=labels::ASSET_BALANCE_TITLE
             />
             {move || {
                 let (assets, funds) = card();
@@ -1080,7 +1079,7 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                     return view! { <CardSkeleton /> }.into_any();
                 }
                 if matches!(assets, Some(None)) && matches!(funds, Some(None)) {
-                    return view! { <CardError message="保有の集計を取得できませんでした" /> }
+                    return view! { <CardError message=labels::HOME_HOLDING_FETCH_FAILED.to_string() /> }
                         .into_any();
                 }
                 let stocks = stocks_of(&assets).unwrap_or(&[]);
@@ -1088,7 +1087,7 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                 if stocks.is_empty() && fund_rows.is_empty() {
                     return view! {
                         <div class="px-4 py-4">
-                            <EmptyState title="保有している銘柄がありません" />
+                            <EmptyState title=labels::HOME_NO_STOCKS />
                         </div>
                     }
                         .into_any();
@@ -1108,7 +1107,7 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                             .then(|| {
                                 view! {
                                     <li aria-hidden="true">
-                                        <ListGroupHeader label="含み損".to_string() summary=None />
+                                        <ListGroupHeader label=labels::HOME_LOSS_GROUP.to_string() summary=None />
                                     </li>
                                 }
                             })}
@@ -1120,7 +1119,7 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                     {if gains.is_empty() && losses.is_empty() {
                         view! {
                             <div class="px-4 py-4">
-                                <EmptyState title="評価損益を出せる銘柄がありません" />
+                                <EmptyState title=labels::HOME_NO_PNL />
                             </div>
                         }
                             .into_any()
@@ -1151,7 +1150,7 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
     let rate_text = holding
         .rate
         .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-        .unwrap_or_else(|| MISSING.to_string());
+        .unwrap_or_else(|| labels::MISSING.to_string());
     view! {
         <li class="list-row-item">
             <ListRowLink
