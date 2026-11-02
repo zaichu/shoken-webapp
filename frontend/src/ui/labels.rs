@@ -314,9 +314,9 @@ pub fn group_count(label: &str, total: usize) -> String {
     format!("{label} · {}", count(total))
 }
 
-/// 基準日の書き方(「10/21 時点」)
+/// 基準日の書き方(「価格基準日 10/21」)
 pub fn price_as_of(date: &str) -> String {
-    format!("{} 時点", format_price_date(date))
+    format!("{PRICE_AS_OF} {}", format_price_date(date))
 }
 
 /// 絞り込み中の件数(「絞り込み中(4件 / 77件)」)
