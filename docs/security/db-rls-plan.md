@@ -196,3 +196,53 @@ RLS(行の分離)を主とし、ロールの分離(権限の縮小)を従とす�
   (現行のテキスト比較は不一致で0件になり、fail-closed を保つ)。未認証のトークン経路など
   設定なしで RLS 表に触る経路が壊れるため不採用とし、ポリシーの書き換え・索引の追加は行わない。
   migration の追加なし。制限ロールへの切り替え段階で実量とともに測り直す。
+
+## 12. 第四段階の記録(#1723)
+
+- `backend/migrations/0026_sessions_users_rls.sql`: `sessions`・`users` に RLS を有効化し、
+  `sessions` は `user_id`、`users` は `id` と接続ごとの `app.current_user_id` が一致する行だけを許可するポリシーを追加。
+  `FORCE` なしのため現行の所有者ロールの挙動は不変。比較はテキスト同士で行い、不正な値でも型変換エラーにならない。
+- 結合テスト(`backend/tests/db_integration.rs` の `sessions_users_rls_isolates_restricted_role`):
+  RLS が 2 表で有効・`FORCE` なしであること、所有者の既存操作
+  (2利用者のログインとセッション照会・セッション削除と再ログイン・第三利用者の作成と利用者削除)が通ること、
+  制限ロールでは設定なしで0件・利用者 A の設定で A の行のみ・
+  他人名義のセッション挿入と他人 `id` での利用者挿入が失敗することを固定。
+  自分の行の更新(`users` の本人メール更新・`sessions` の本人挿入)は通る。
+- アプリコードの変更なし(`SET LOCAL` の配線は行わない)。
+
+### 利用者が決まる前に読む経路の一覧
+
+| 経路 | 実装 | 触る表 | 利用者確定前の理由 |
+|---|---|---|---|
+| 全認証要求の入口 | `extractors/auth.rs` の `AuthenticatedUser` → `auth::select_user_by_session` | `users` JOIN `sessions`(token_hash 照合) | Cookie のトークンから利用者を特定する前 |
+| 現在の利用者表示 | `handlers/v1/auth.rs` の `get_session` → `select_user_by_session` | 同上 | 同上 |
+| ログアウト | `handlers/v1/auth.rs` の `delete_session` → `auth::delete_session`(token_hash で DELETE) | `sessions` | 利用者不明でも冪等に消す必要がある |
+| アカウント削除 | `handlers/v1/auth.rs` の `delete_account` → `select_user_id_by_session` 後に `delete_account` | `sessions` 参照後に `users` 削除 | 削除対象の特定自体がセッション照合 |
+| 削除確認の発行 | `create_account_deletion_confirmation`(入口で `AuthenticatedUser`) | `users` JOIN `sessions` | 照合後に確認 Cookie を発行する |
+| 管理者判定の再照合 | `handlers/v1/admin_logins.rs` → `select_user_id_by_session` | `sessions` | 管理者画面の入口照合 |
+| 通知設定の token 照会・消費 | `handlers/v1/login_history.rs` → `login_notify::peek_token`・`consume_token` | `login_notify_tokens`(token_hash 照合) | 平文トークンから利用者を特定する前 |
+| ログイン Tx | `auth::upsert_user_and_rotate_session`(upsert 後に `set_local_user`) | `users` upsert 後に `sessions` 回転 | upsert 前は `google_id` しかない |
+| 回転時の期限切れ掃除 | `rotate_session_in_tx`(他人の期限切れ行も DELETE) | `sessions`(他人行を含む) | 利用者 A の設定では他人行が見えず掃除が残る |
+| 端末一覧・解決 | `login_event::list_devices`・`resolve_device_hash` | `sessions`(利用者 ID あり) | 利用者確定後は通る(配線対象) |
+| 通知設定の取得・回数 | `login_notify::get_setting`・`recent_send_count` | `users`・`login_notify_tokens`(利用者 ID あり) | 利用者確定後は通る(配線対象) |
+| 一括登録の利用者ロック | `domain/bulk.rs` の `lock_user_domain`(`users` 行の `FOR UPDATE`) | `users`(本人行) | 利用者確定後は本人行が見えるため通る |
+| 管理者横断ビュー | `login_event/admin.rs` の `search`(`login_events` JOIN `users`) | `users`(他人行を含む) | 管理者が全利用者をまたぐ |
+| 古い記録の破棄 | `login_event::prune_login_events`(利用者なしの cron) | `login_events` | 利用者がいない |
+
+### ロール切替の段階での通し方の案の比較(実装はしない)
+
+| 案 | 仕組み | 利点 | 欠点 |
+|---|---|---|---|
+| A 照会専用の SECURITY DEFINER 関数 | トークン照合(`sessions`・`login_notify_tokens`)と利用者特定だけを所有者権限の関数に閉じ込め、引数は token_hash のみ・戻りは利用者 ID のみに絞る。`search_path` を固定し、戻り値以外の列を返さない | 接続ロールは制限のまま特権を最小化できる。呼び出し箇所が照合の正本になり監査しやすい | 関数の所有者管理・`search_path` 固定・`STABLE`/`SECURITY DEFINER` の定型が要る。期限切れ掃除や `consume` の更新も関数内に入れる設計が要る |
+| B 照会専用ロール(読み取り限定の別接続) | 認証前の照合だけ別プール・別接続文字列で照会ロールを使う。トークン表と `sessions`・`users` には照合に必要な `SELECT` のみ与え、書き込み(`consume` の `used_at` 更新・回転時の DELETE/INSERT)は認証確定後の制限ロール側に残す | SQL はそのまま使え、特権関数の管理が要らない | 接続文字列とプールが増え、切替ミスで権限混同が起きやすい。Hyperdrive の束ね先が増える。読み書きの境界が2接続にまたがる |
+| C 所有者ロールのまま照合だけ迂回 | 照合経路だけ現行の所有者接続に残し、それ以外を制限ロールに寄せる | 変更が最小で、期限切れ掃除や管理者横断ビューも壊れない | 特権の境界が接続ごとに割れ、将来の書き間違いが照合経路に残る。監査 7-1 の対応として不十分になりやすい |
+
+- 期限切れ掃除は A では回転関数内に含めるか cron の破棄に寄せ、B/C では別権限の掃除経路が要る。
+  現行の回転文(`WHERE user_id = $1 OR id IN (expired)`)は制限ロールでは他人行が見えず掃除が残るため、
+  切り替え時に文を変えるか掃除を分離する。
+- ログアウトの DELETE は冪等に成功応答を返す実装のため、ポリシーだけでは行が残る。
+  A では所有者関数の消去、B では照会ロールに DELETE を足すか認証後の消去に寄せる判断が要る。
+- 管理者横断ビューと cron 破棄は利用者をまたぐため、制限ロールの `SET LOCAL` 方式では通らない。
+  切り替え時に管理者専用ロールか所有者のまま残すかを決める。
+- 次の段階(接続ロールの切り替え)で、A を主案・B を退路として使い捨て DB で比べ、
+  照合・消費・回転・掃除・管理者横断の5経路が制限ロールでどう振る舞うかを固定してから決める。
