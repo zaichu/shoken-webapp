@@ -724,8 +724,6 @@ pub const ASSET_KIND_TABS_LABEL: &str = "保有の種類";
 /// 前日比列の見出しの説明
 pub const DAY_CHANGE_COLUMN_NOTE: &str =
     "最新の基準価額の日の前日比がわかる行だけ出します。更新待ちの行は CSV を取り込むと出ます";
-/// 配当の取得待ちの表示(三点リーダー)
-pub const HOLDING_DIVIDEND_PENDING: &str = "取得中...";
 /// 配当の取得失敗の表示
 pub const HOLDING_DIVIDEND_FAILED: &str = "取得失敗";
 

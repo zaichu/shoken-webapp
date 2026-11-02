@@ -122,7 +122,7 @@ fn format_dividend_value(
     format: impl Fn(f64) -> String,
 ) -> String {
     match dividend.status.as_deref() {
-        Some("pending") => labels::HOLDING_DIVIDEND_PENDING.to_string(),
+        Some("pending") => labels::CSV_MANAGE_FETCH_RUNNING.to_string(),
         Some("error") => labels::HOLDING_DIVIDEND_FAILED.to_string(),
         _ => value.map_or_else(|| "—".to_string(), format),
     }
