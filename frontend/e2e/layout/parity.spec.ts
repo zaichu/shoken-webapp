@@ -239,7 +239,7 @@ test('資産管理に評価額と評価損益を表示する', async ({ page }) 
   const main = page.getByTestId('assetbalance-main-stage');
   const summary = main.getByTestId('asset-portfolio-summary');
   await expect(summary).toBeVisible();
-  await expect(summary).toContainText('評価額合計');
+  await expect(summary).toContainText('評価額');
   await expect(summary).toContainText('評価損益');
   const row = page.getByTestId('asset-compact-row').first();
   await expect(row).toBeVisible();

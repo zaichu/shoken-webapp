@@ -663,7 +663,11 @@ fn dated_status(
         )
     } else {
         (
-            labels::csv_manage_status_updated_days_ago(days_ago, date, time),
+            format!(
+                "{}・{}",
+                labels::CSV_MANAGE_STATUS_UPDATE_REQUIRED,
+                labels::csv_manage_status_updated_days_ago(days_ago, date, time),
+            ),
             "text-warn-ink",
             "stale",
         )

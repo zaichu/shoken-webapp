@@ -14,8 +14,8 @@ use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::format::format_percentage_value;
 use crate::ui::labels::{
-    self, ACQUISITION_YIELD, ANNUAL_DIVIDEND_FORECAST, DAY_CHANGE, MARKET_VALUE_TOTAL,
-    TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
+    self, ACQUISITION_YIELD, ANNUAL_DIVIDEND_FORECAST, DAY_CHANGE, MARKET_VALUE, TOTAL_ACQUISITION,
+    VALUATION_PROFIT_LOSS,
 };
 use crate::ui::summary::{
     SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
@@ -229,7 +229,7 @@ pub(crate) fn AssetSummaryBand(
             data-testid="asset-portfolio-summary"
         >
             <SummaryBand
-                primary_label=MARKET_VALUE_TOTAL
+                primary_label=MARKET_VALUE
                 primary_value=market_text
                 primary_as_of=as_of
                 show_pending=show_pending

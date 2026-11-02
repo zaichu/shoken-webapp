@@ -5,6 +5,32 @@ use crate::support::row::Row;
 use crate::testing::asset_balance::balance_row;
 use rust_decimal_macros::dec;
 
+#[test]
+fn known_zero_dividend_has_zero_yield() {
+    let mut maps = DividendMaps::default();
+    maps.status.insert("9904".to_string(), "zero".to_string());
+    for average_price in [2500.0, 0.0] {
+        let dividend = holding_dividend("9904", 100.0, average_price, &maps);
+        assert_eq!(dividend.per_share, Some(0.0));
+        assert_eq!(dividend.annual, Some(0.0));
+        assert_eq!(dividend.yield_value, Some(0.0));
+    }
+}
+
+#[test]
+fn missing_dividend_keeps_yield_unknown() {
+    for status in [None, Some("pending"), Some("error")] {
+        let mut maps = DividendMaps::default();
+        if let Some(status) = status {
+            maps.status.insert("9904".to_string(), status.to_string());
+        }
+        let dividend = holding_dividend("9904", 100.0, 2500.0, &maps);
+        assert!(dividend.per_share.is_none());
+        assert!(dividend.annual.is_none());
+        assert!(dividend.yield_value.is_none());
+    }
+}
+
 fn saved(prev_close: Option<rust_decimal::Decimal>) -> AssetBalanceRow {
     Row::Saved(AssetBalance {
         id: "id1".to_string().into(),

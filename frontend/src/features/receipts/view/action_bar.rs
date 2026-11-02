@@ -7,7 +7,7 @@ use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels::{
-    self, ACCOUNT, PAYMENT_DATE, PERIOD, PRODUCT, SEARCH_AND_SORT, SEARCH_DIALOG_HINT, SORT_BY,
+    self, ACCOUNT, PAYMENT_DATE, PERIOD, PRODUCT, RECEIPT_SEARCH_TARGET, SEARCH_AND_SORT, SORT_BY,
     SORT_NEWEST_FIRST, SORT_OLDEST_FIRST, SORT_ORDER_LABEL, SORT_TARGET, TRADE_DATE,
 };
 use crate::ui::search_controls::{
@@ -110,7 +110,7 @@ fn ConditionTags(
 fn SecuritiesInput(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     view! {
         <SearchTextInput
-            placeholder=labels::search_placeholder("銘柄名・コード")
+            placeholder=labels::search_placeholder(RECEIPT_SEARCH_TARGET)
             value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
             on_input=move |value| search.update(|s| s.set_securities_query(value))
         />
@@ -753,14 +753,14 @@ fn ReceiptDialogFields(
                 <div class="search-dialog-field">
                     <SearchBox>
                         <SearchTextInput
-                            placeholder=labels::search_placeholder("銘柄名・コード")
+                            placeholder=labels::search_placeholder(RECEIPT_SEARCH_TARGET)
                             testid="receipts-search-input"
                             value=draft_text
                             on_input=set_draft_text
                             on_enter=search_callback
                         />
                     </SearchBox>
-                    <p class="search-dialog-hint">{SEARCH_DIALOG_HINT}</p>
+                    <p class="search-dialog-hint">{labels::search_placeholder(RECEIPT_SEARCH_TARGET)}</p>
                 </div>
             </section>
             <section aria-label="条件">

@@ -6,8 +6,6 @@ use crate::ui::format::format_price_date;
 
 /// 評価額(保有資産の時価評価額)
 pub const MARKET_VALUE: &str = "評価額";
-/// 評価額の合計(資産管理の集計帯)
-pub const MARKET_VALUE_TOTAL: &str = "評価額合計";
 /// 評価損益(評価額 − 取得総額)
 pub const VALUATION_PROFIT_LOSS: &str = "評価損益";
 /// 前日比(前営業日との差)
@@ -206,8 +204,8 @@ pub const SORT_OLDEST_FIRST: &str = "古い順";
 pub const SORT_ALPHA_FIRST: &str = "あいうえお順";
 /// 並べ替えの向き(文字の列の選択肢)
 pub const SORT_ALPHA_LAST: &str = "逆順";
-/// ダイアログのキーワード入力の補足
-pub const SEARCH_DIALOG_HINT: &str = "銘柄名・コード・口座で検索";
+pub const ASSET_SEARCH_TARGET: &str = "銘柄・ファンド名・コード・口座";
+pub const RECEIPT_SEARCH_TARGET: &str = "銘柄名・コード";
 /// 絞り込み中の表示(注記の行に出す)
 pub const FILTERING: &str = "絞り込み中";
 /// 検索を実行しているときのボタン名
@@ -297,6 +295,15 @@ pub fn search_placeholder(target: &str) -> String {
     format!("{target}で検索")
 }
 
+pub fn previous_dividend_span(current_month: u32, amount: &str) -> String {
+    let months = match current_month {
+        1..=10 => format!("{}〜12月", current_month + 1),
+        11 => "12月".to_string(),
+        _ => return String::new(),
+    };
+    format!("・ 前年の{months}は {amount} 入金 ")
+}
+
 /// 条件を選ぶ小窓の見出し。対象名だけを引数にして画面ごとに使い回す
 pub fn pick_title(target: &str) -> String {
     format!("{target}を選ぶ")
@@ -342,6 +349,7 @@ pub fn csv_manage_status_updated_today(time: &str) -> String {
 pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
     format!("{days}日前({date} {time})に更新")
 }
+pub const CSV_MANAGE_STATUS_UPDATE_REQUIRED: &str = "要更新";
 /// CSV管理: 状態「取得できず・楽天証券のタブを再読み込みしてください」(赤)
 pub const CSV_MANAGE_STATUS_FAILED: &str = "取得できず・楽天証券のタブを再読み込みしてください";
 /// CSV管理: 状態「取り込まなかった(理由)」(薄い色)
