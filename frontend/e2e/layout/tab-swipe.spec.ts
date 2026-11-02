@@ -547,4 +547,83 @@ test.describe('下線タブの横スワイプ', () => {
       await activeSlideTransform(page, 'assetbalance-main-stage'),
     ).toBe('');
   });
+
+  test('動きの途中のタップと新しいスワイプを無視し終わったら受け付ける', async ({
+    page,
+  }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 200, 400);
+    await touchMove(page, 'assetbalance-main-stage', 90, 400);
+    await expect(page.getByTestId('assetbalance-main-stage')).toHaveAttribute(
+      'data-settling',
+      'true',
+    );
+    await touchEnd(page, 'assetbalance-main-stage', 90, 400);
+    await expect(page.getByTestId('assetbalance-main-stage')).toHaveAttribute(
+      'data-settling',
+      'true',
+    );
+
+    // 動きの最中の前のタブへのタップは無視される
+    await page.getByTestId('asset-kind-tab-stock').click();
+    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    // 動きの最中の逆向きの新しいスワイプも無視される
+    await touchStart(page, 'assetbalance-main-stage', 90, 400);
+    await touchMove(page, 'assetbalance-main-stage', 200, 400);
+    await touchMove(page, 'assetbalance-main-stage', 300, 400);
+    await touchEnd(page, 'assetbalance-main-stage', 300, 400);
+    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    // 終わりの合図がなくても一定時間で再開する
+    await expect(page.getByTestId('assetbalance-main-stage')).toHaveAttribute(
+      'data-settling',
+      'false',
+      { timeout: 2_000 },
+    );
+    await page.getByTestId('asset-kind-tab-stock').click();
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('引いている最中の2本目の指を無視する', async ({ page }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 200, 400);
+    await expect(page.getByTestId('assetbalance-main-stage')).toHaveAttribute(
+      'data-settling',
+      'true',
+    );
+    // 2本目の指の接触は無視され、1本目の追従が続く
+    await touchStart(page, 'assetbalance-main-stage', 250, 400);
+    await touchMove(page, 'assetbalance-main-stage', 90, 400);
+    await touchEnd(page, 'assetbalance-main-stage', 90, 400);
+    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
 });

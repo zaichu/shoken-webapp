@@ -60,7 +60,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                         .iter()
                         .copied()
                         .map(|tab| {
-                            view! { <ReceiptsTabButton store=store tab=tab /> }
+                            view! { <ReceiptsTabButton store=store tab=tab motion=motion /> }
                         })
                         .collect_view()}
                     <span
