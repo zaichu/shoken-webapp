@@ -204,7 +204,7 @@ pub(crate) fn AssetSummaryBand(
             } else {
                 SummaryTone::Neutral
             },
-            extra_class: "summary-band-item-daily".to_string(),
+            extra_class: String::new(),
         }];
         for (index, tag) in tags.iter().take(2).enumerate() {
             items.push(SummarySubItem {
@@ -212,7 +212,11 @@ pub(crate) fn AssetSummaryBand(
                 value: tag.value.clone(),
                 note: String::new(),
                 tone: SummaryTone::Neutral,
-                extra_class: format!("summary-band-item-tag{}", index + 1),
+                extra_class: if index == 0 {
+                    "summary-band-item-tag1".to_string()
+                } else {
+                    String::new()
+                },
             });
         }
         items

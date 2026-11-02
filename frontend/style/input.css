@@ -971,20 +971,16 @@
     @apply flex w-full items-baseline justify-between gap-2 whitespace-nowrap;
   }
 
-  .summary-band-label {
-    @apply shrink-0 text-xs font-medium text-brand-muted;
+  .summary-band-top-row .summary-label {
+    @apply shrink-0;
   }
 
-  .summary-band-date {
-    @apply ml-auto min-w-0 shrink truncate text-right text-xs font-normal text-brand-muted;
+  .summary-band-top-row .summary-label-note {
+    @apply ml-auto min-w-0 shrink truncate text-right;
   }
 
   .summary-band-hero-row {
     @apply flex w-full items-center justify-between gap-3 whitespace-nowrap;
-  }
-
-  .summary-band-hero-value {
-    @apply mt-auto flex min-w-0 items-baseline gap-x-1.5 whitespace-nowrap leading-none text-summary-primary-compact font-bold;
   }
 
   .summary-band-chevron-circle {
@@ -995,14 +991,6 @@
     @apply h-4 w-4 shrink-0 transition-transform duration-200;
   }
 
-  .summary-band-aux {
-    @apply flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-summary-secondary-compact font-bold;
-  }
-
-  .summary-band-aux-label {
-    @apply text-xs font-medium text-brand-muted;
-  }
-
   .summary-band-breakdown {
     @apply mt-3 divide-y divide-brand-line border-t border-brand-line;
   }
@@ -1011,8 +999,8 @@
     @apply flex min-w-0 items-center justify-between gap-3 py-2;
   }
 
-  .summary-band-breakdown-label {
-    @apply min-w-0 shrink-0 text-xs font-medium text-brand-muted;
+  .summary-band-breakdown-row .summary-label {
+    @apply shrink-0;
   }
 
   .summary-band-breakdown-value {
