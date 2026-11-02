@@ -257,11 +257,13 @@ RLS(行の分離)を主とし、ロールの分離(権限の縮小)を従とす�
 - 進め方は設計の本章を含めて全5 PR。実装は 4 本に分ける:
   - 5a: 制限ロール作成の migration(0027)。アプリコードの変更なし。
   - 5b: 照合専用の `SECURITY DEFINER` 関数の migration(0028)。アプリコードの変更なし。
-  - 5c: 書き込み Tx の切替(`begin_with_user` に `SET LOCAL ROLE` を足す)。読み取りは変えない。
+  - 5c: 書き込み Tx の切替(`begin_with_user` の設定を `app_enter` 呼び出しに寄せる)。読み取りは変えない。
   - 5d: 読み取りの切替(問い合わせごとの短い Tx 化)と管理者横断・cron の扱い決定。
-- 往復回数の見込みは §13.2 の表のとおり。書き込みは 1 リクエストあたり +1 往復、
-  読み取りの一覧は並行を保ったまま 1 問い合わせあたり 1 往復→4 往復(最適化後)。
-  `FORCE` は 5d の完了まで付けない。
+- 往復回数の見込みは §13.2 の表のとおり。準備は `app_enter(uuid)` 1呼び出しにまとめ、
+  書き込みは 1 リクエストあたり +0 往復、読み取りの一覧は並行を保ったまま
+  1 問い合わせあたり待ち 1 往復→3 往復になる。`FORCE` は 5d の完了まで付けない。
+- 5d(読み取りの切替)には関門を置く。一覧の応答の増加見込みが +50ms 以内のときだけ進める。
+  見積もりの方法と計算例は §13.2 に書く。
 
 ### 13.1 ロールの切り替え方: (a) と (b) の比較
 
@@ -295,16 +297,69 @@ RLS(行の分離)を主とし、ロールの分離(権限の縮小)を従とす�
 書き込みは `begin_with_user`(`BEGIN` + `set_config` + 本文 + `COMMIT`)で 1 往復増を受け入れ済み。
 
 切替後の読み取りは並行を保つ。各問い合わせをロールと利用者 ID を設定した短い Tx で投げる。
-`BEGIN` と `SET LOCAL ROLE` は1回の `batch_execute` にまとめられるため、1 問い合わせは4往復になる。
-1文に設定を含める案は採らない。`batch_execute` には束縛変数がなく、
-利用者 ID を文字列連結すると SQL 組み立ての禁止に触れるため。
 
-| 経路 | 現行 | 切替後(b) | 増分 |
+### 準備のまとめ方: `app_enter(uuid)` を使う
+
+準備(`SET LOCAL ROLE` + 利用者 ID 設定)を1つの関数呼び出しにまとめる。
+`SECURITY INVOKER` の普通の関数 `app_enter(uuid)` を migration で作り、
+中では束縛変数なしの固定文だけを実行する。アプリ側は `BEGIN` のあと
+`SELECT app_enter($1)`(束縛変数あり)を1回呼ぶだけで、SQL の文字列連結はしない。
+
+```sql
+CREATE FUNCTION app_enter(uid uuid) RETURNS void
+    LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp AS $$
+BEGIN
+    PERFORM set_config('role', 'app_restricted', true);
+    PERFORM set_config('app.current_user_id', uid::text, true);
+END $$;
+REVOKE ALL ON FUNCTION app_enter(uuid) FROM PUBLIC;
+```
+
+使い捨て DB(`postgres:16-alpine`)での確認結果:
+
+- 非特権の所有者もどき(所属付与あり)の接続で `BEGIN` → `SELECT app_enter($1)` →
+  照会の順で、本人の行だけが見え、他人名義の書き込みは行共有違反で失敗する。
+  `COMMIT`/`ROLLBACK` 後はロールと利用者 ID の設定が消える。
+- `set_config('role', ...)` は `SET LOCAL ROLE` と同じく所属検査を受ける。
+  所属なしの非特権ロールが呼ぶと権限不足で失敗し、Tx が止まる(使える側には倒れない)。
+  制限ロール名は関数内の固定値で、利用者 ID は `uid::text` の変換のみのため、
+  呼び出し側の文字列連結は要らない。
+- `BEGIN` と `SELECT app_enter($1)` を1往復にまとめることはしない。
+  `batch_execute` には束縛変数がなく、`BEGIN` と束縛付き呼び出しは別送になる。
+  `db.rs` は逐次 await のためパイプラインで重ねても往復回数は減らない。
+  1 問い合わせは `BEGIN`(1)・`app_enter`(1)・本文(1)・`COMMIT`(1)の4往復になる。
+
+### 読み取り専用の短い Tx の後始末
+
+読み取り専用の短い Tx は、結果を返したあとの `COMMIT`/`ROLLBACK` を待たない。
+読み取りでは書くものがなく `COMMIT` と `ROLLBACK` は等価で、どちらも
+Tx 内の設定を捨てるだけのため。`Tx` を drop すれば `rollback_and_release` が
+裏側で `ROLLBACK` を送ってから接続をプールへ戻す(呼び出し側は待たない)。
+接続の再利用前に後始末が終わることはプールへの返却順で保証される。
+書き込みは耐久の確認が要るため `COMMIT` の待ちを残す。
+
+### 1リクエストあたりの往復回数と体感の見積もり
+
+待ちだけを数える(後始末の非同期分は除く)。一覧は `try_join4` + `try_join_all` の
+並行問い合わせのため、待ちは並列の最大値になる。
+
+| 経路 | 現行(待ち) | 切替後(待ち) | 増分 |
 |---|---|---|---|
-| 一覧の1問い合わせ(count・data・summary・facet 1件) | 1 往復(並行) | 4 往復(`BEGIN`+`SET LOCAL ROLE` 同梱・`set_config`・本文・`COMMIT`、並行) | +3 往復 |
-| 一覧1リクエスト全体(例: count・data・summary・facet 6件の10並行) | 並行で約1往復分の待ち | 並行で約4往復分の待ち | 待ちが約4倍 |
-| 単一文の書き込み | 4 往復(`BEGIN`・`set_config`・本文・`COMMIT`) | 5 往復(`BEGIN`+`SET LOCAL ROLE` 同梱・`set_config`・本文・`COMMIT`) | +1 往復 |
-| ログイン Tx(upsert 後に設定) | `BEGIN`・upsert・`set_config`・回転・`COMMIT` | `BEGIN`+`SET LOCAL ROLE` 同梱・upsert・`set_config`・回転・`COMMIT` | +0 往復(同梱のため) |
+| 一覧1リクエスト全体(例: 10並行) | 約1往復 | 約3往復(`BEGIN`・`app_enter`・本文を並行、後始末は非同期) | +2往復 |
+| 単一文の書き込み | 4往復(`BEGIN`・`set_config`・本文・`COMMIT`) | 4往復(`BEGIN`・`app_enter`・本文・`COMMIT`) | +0往復 |
+| ログイン Tx | 5往復(`BEGIN`・upsert・`set_config`・回転・`COMMIT`) | 5往復(`BEGIN`・upsert・`app_enter`・回転・`COMMIT`) | +0往復 |
+
+1往復の目安は、5d の着手時に本番の計測値から求める。
+`/api/v1/session` の 401 経路は DB 問い合わせ1回のため、その p50 が
+「1往復 + アプリ処理」の上限になる。増加見込みは `+2往復 × 1往復の目安` で出す。
+計算例: 1往復の目安が 10ms なら一覧の増加は約 +20ms になる。
+なお #1114 の本番計測(`/api/v1/session` の 401 経路で 37-45ms)は
+Fly・Neon 時代の値のため上限の参考に留め、5d では現行経路で測り直す。
+Hyperdrive のクエリ枠に対しては、一覧1回あたりの送信数が約4倍になることも
+5d の確認事項に含める。
+
+5d の関門: 増加見込みが一覧の応答 +50ms 以内のときだけ読み取りの切替に進める。
+超える場合は立ち止まり、読み取りを所有者のまま残すか (a) 案に戻るかを選び直す。
 
 なお §11 のとおり制限ロールでは並び順つき一覧が並べ替え併用になりやすい。
 5d で実量とともに測り直す。索引の追加・ポリシーの書き換えは行わない。
@@ -342,7 +397,8 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
 3. 5c: 書き込み Tx(`begin_with_user` とログイン Tx の `set_local_user` 呼び出し)だけを (b) に寄せる。
    読み取り・認証前・管理者・cron は変えない。問題が出たらコードを戻すだけでよい。
 4. 5d: 読み取りを短い Tx 化し、認証前経路を §13.3 の関数に寄せ、管理者横断と cron の扱いを決める。
-   `EXPLAIN` を測り直し、`FORCE` の検討は全経路の配線が終わってから行う。
+   `EXPLAIN` を測り直し、増加見込みが +50ms 以内であることを関門として確かめてから進める。
+   `FORCE` の検討は全経路の配線が終わってから行う。
 
 戻し方はコードの revert が正本になる。migration の追加分(ロール・関数・権限)は残しても
 所有者の挙動を変えず、露出にはならない。取り消す場合は新しい migration で `DROP FUNCTION`・
