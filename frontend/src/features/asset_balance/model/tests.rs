@@ -332,6 +332,14 @@ fn portfolio_valuation_all_unpriced_returns_none() {
 }
 
 #[test]
+fn valuation_pending_flags_only_missing_or_stale_prices() {
+    assert!(valuation_has_pending(true, false));
+    assert!(valuation_has_pending(false, true));
+    assert!(valuation_has_pending(true, true));
+    assert!(!valuation_has_pending(false, false));
+}
+
+#[test]
 fn summary_valuation_computes_totals_from_api_summary() {
     let summary = AssetBalanceSummary {
         total_market_value: rust_decimal_macros::dec!(1184900),

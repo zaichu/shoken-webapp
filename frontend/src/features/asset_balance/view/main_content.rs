@@ -27,6 +27,7 @@ use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder, s
 use crate::features::asset_balance::search::stock_accounts;
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::asset_balance::store::{all_portfolio_views, filtered_portfolio_views};
+use crate::features::asset_balance::valuation_has_pending;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
@@ -173,7 +174,10 @@ fn StockContent(
                 (!empty).then(|| {
                     let (values, tags, purchase) = summary.get();
                     let as_of = oldest_stock_as_of(&rows).unwrap_or_default();
-                    let pending = stock_pending_from_parts(&rows, fallback_totals.as_ref());
+                    let pending = valuation_has_pending(
+                        stock_pending_from_parts(&rows, fallback_totals.as_ref()),
+                        false,
+                    );
                     view! {
                         <SkeletonSummary>
                             <AssetSummaryBand
@@ -317,7 +321,7 @@ fn FundContent(
     let filtered_count = filtered_count(search, search_count);
     let empty = total_count == 0;
     let as_of = oldest_fund_as_of(&resolved).unwrap_or_default();
-    let pending = fund_has_pending(&resolved);
+    let pending = valuation_has_pending(false, fund_has_pending(&resolved));
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
         <section id="assetbalance-fund-list" hidden=empty>
@@ -507,8 +511,10 @@ fn AllContent(
                 .then_some(fund_totals_value.daily_change),
         ),
     };
-    let mut pending = fund_has_pending(&fund_resolved);
-    pending |= stock_pending_from_parts(&stock_rows, stock_fallback.as_ref());
+    let pending = valuation_has_pending(
+        stock_pending_from_parts(&stock_rows, stock_fallback.as_ref()),
+        fund_has_pending(&fund_resolved),
+    );
     let as_of = oldest_combined_as_of(&stock_rows, &fund_resolved).unwrap_or_default();
     let stock_profit = stock_market - stock_purchase;
     let market = stock_market + fund_market;
