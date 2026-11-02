@@ -11,10 +11,11 @@ use crate::ui::labels::{
     DEVICE_COL_LAST_USED, DEVICE_CURRENT, DEVICE_EMPTY, DEVICE_LOGOUT_ALL, DEVICE_REVOKE,
     LOGIN_HISTORY_COL_AGENT, LOGIN_HISTORY_COL_DATETIME, LOGIN_HISTORY_COL_PLACE,
     LOGIN_HISTORY_COL_RESULT, LOGIN_HISTORY_COOKIE_NOTE, LOGIN_HISTORY_EMPTY,
-    LOGIN_HISTORY_SECTION, LOGIN_HISTORY_SHOW_MORE, LOGIN_RESULT_FAILURE,
-    LOGIN_RESULT_LOCATION_CHANGED, LOGIN_RESULT_NEW_DEVICE, LOGIN_RESULT_SUCCESS,
-    REGISTERED_DEVICES_SECTION, device_revoke_confirm_button,
+    LOGIN_HISTORY_SECTION, LOGIN_RESULT_FAILURE, LOGIN_RESULT_LOCATION_CHANGED,
+    LOGIN_RESULT_NEW_DEVICE, LOGIN_RESULT_SUCCESS, REGISTERED_DEVICES_SECTION,
+    device_revoke_confirm_button,
 };
+use crate::ui::search_entry::ShowMoreButton;
 use crate::ui::state::{ListLoadError, Loading};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -278,16 +279,11 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                         .get()
                                         .then(|| {
                                             view! {
-                                                <div class="mt-4 flex justify-center">
-                                                    <Button
-                                                        variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                                                        testid="login-history-more"
-                                                        disabled=Signal::derive(move || loading_more.get())
-                                                        on_click=move |_| load_more()
-                                                    >
-                                                        {LOGIN_HISTORY_SHOW_MORE}
-                                                    </Button>
-                                                </div>
+                                                <ShowMoreButton
+                                                    testid="login-history-more"
+                                                    disabled=Signal::derive(move || loading_more.get())
+                                                    on_click=load_more
+                                                />
                                             }
                                         })
                                 }}
