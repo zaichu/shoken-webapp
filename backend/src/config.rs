@@ -11,6 +11,11 @@ pub use environment::RuntimeEnv;
 /// `USER_ROW_LIMIT` 未設定時の既定値（ユーザー1人あたりの登録行数上限）
 pub const DEFAULT_USER_ROW_LIMIT: RowLimit = RowLimit::new(100_000);
 
+/// CSV取り込みの上限。実データ(行数千・列十数・セル数百文字)に数倍の余裕を持たせた値
+pub const MAX_CSV_ROWS: usize = 20_000;
+pub const MAX_CSV_COLUMNS: usize = 50;
+pub const MAX_CSV_CELL_CHARS: usize = 2_000;
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub admin_emails: Option<String>,

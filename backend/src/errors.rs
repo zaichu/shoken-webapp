@@ -30,6 +30,12 @@ pub enum CsvError {
     FileRead(String),
     #[error("fileフィールドが見つかりません")]
     MissingFile,
+    #[error("CSVの行数が上限({0}行)を超えています")]
+    TooManyRows(usize),
+    #[error("CSVの列数が上限({0}列)を超えています")]
+    TooManyColumns(usize),
+    #[error("CSVのセルの文字数が上限({0}文字)を超えています")]
+    CellTooLong(usize),
 }
 
 /// 上流サービス(J-Quants / Google OAuth)との通信エラー
