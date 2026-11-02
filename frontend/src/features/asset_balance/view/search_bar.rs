@@ -6,10 +6,7 @@ use crate::features::asset_balance::portfolio::SortOrder;
 use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::labels::{
-    ACCOUNT, COMPOSITION_VIEW_LINK, DISTRIBUTION_COURSE, SEARCH_AND_SORT, SORT_BY,
-    SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH, SORT_ORDER_LABEL, SORT_TARGET,
-};
+use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
@@ -29,15 +26,15 @@ pub(crate) enum ConditionKind {
 impl ConditionKind {
     fn label(self) -> &'static str {
         match self {
-            ConditionKind::Account => ACCOUNT,
-            ConditionKind::Course => DISTRIBUTION_COURSE,
+            ConditionKind::Account => labels::ACCOUNT,
+            ConditionKind::Course => labels::DISTRIBUTION_COURSE,
         }
     }
 
-    fn title(self) -> &'static str {
+    fn title(self) -> String {
         match self {
-            ConditionKind::Account => "口座を選ぶ",
-            ConditionKind::Course => "分配金コースを選ぶ",
+            ConditionKind::Account => labels::pick_title(labels::ACCOUNT),
+            ConditionKind::Course => labels::pick_title(labels::DISTRIBUTION_COURSE),
         }
     }
 
@@ -123,7 +120,7 @@ fn AssetConditionPopover(
                     variant=ButtonVariant::Secondary(ButtonSize::Md)
                     on_click=move |_| on_close()
                 >
-                    "閉じる"
+                    {labels::DIALOG_CLOSE}
                 </Button>
             </div>
         </ConditionPanel>
@@ -148,10 +145,10 @@ pub(crate) fn AssetSearchBar(
                 .iter()
                 .map(|value| account_display_name(value))
                 .collect::<Vec<_>>()
-                .join("・")
+                .join(labels::TAG_SEPARATOR)
         })
     });
-    let courses_tag = Memo::new(move |_| search.with(|s| s.courses.join("・")));
+    let courses_tag = Memo::new(move |_| search.with(|s| s.courses.join(labels::TAG_SEPARATOR)));
     let has_anything = Signal::derive(move || search.with(|s| !s.is_empty()));
     let on_clear_all = move || search.update(|s| *s = AssetSearch::default());
     let input_value = move || search.with(|s| s.text.clone());
@@ -185,16 +182,16 @@ pub(crate) fn AssetSearchBar(
     };
 
     view! {
-        <div class="no-print" role="search" aria-label="資産の検索">
+        <div class="no-print" role="search" aria-label=labels::ASSET_SEARCH_REGION>
             // PC: タグ入力+条件を足す+件数を1つの段にまとめる(取引明細と同じ構造)
             <SearchBox class="hidden lg:flex">
                 <SearchTag
-                    label=ACCOUNT
+                    label=labels::ACCOUNT
                     value=accounts_tag
                     on_clear=move || search.update(|s| s.accounts.clear())
                 />
                 <SearchTag
-                    label=DISTRIBUTION_COURSE
+                    label=labels::DISTRIBUTION_COURSE
                     value=courses_tag
                     on_clear=move || search.update(|s| s.courses.clear())
                 />
@@ -298,14 +295,14 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                 .iter()
                 .map(|value| account_display_name(value))
                 .collect::<Vec<_>>()
-                .join("・")
+                .join(labels::TAG_SEPARATOR)
         })
     });
-    let courses_tag = Memo::new(move |_| search.with(|s| s.courses.join("・")));
+    let courses_tag = Memo::new(move |_| search.with(|s| s.courses.join(labels::TAG_SEPARATOR)));
     let sort_summary = move || {
         let order = match sort_order.get() {
-            SortOrder::Desc => SORT_HIGH_TO_LOW,
-            SortOrder::Asc => SORT_LOW_TO_HIGH,
+            SortOrder::Desc => labels::SORT_HIGH_TO_LOW,
+            SortOrder::Asc => labels::SORT_LOW_TO_HIGH,
         };
         format!("{} {order}", key_label(sort_key.get()))
     };
@@ -314,17 +311,17 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
     view! {
         <MobileSearchEntryShell
             entry_testid="asset-search-sheet-entry"
-            search_label="資産の検索".to_string()
+            search_label=labels::ASSET_SEARCH_REGION.to_string()
             sort_summary=sort_summary
             open=open
         >
             <SearchTag
-                label=ACCOUNT
+                label=labels::ACCOUNT
                 value=accounts_tag
                 on_clear=move || search.update(|s| s.accounts.clear())
             />
             <SearchTag
-                label=DISTRIBUTION_COURSE
+                label=labels::DISTRIBUTION_COURSE
                 value=courses_tag
                 on_clear=move || search.update(|s| s.courses.clear())
             />
@@ -338,7 +335,7 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                     <span class="ml-auto">
                         <MoreLink
                             href="/assetbalance/composition".to_string()
-                            label=COMPOSITION_VIEW_LINK.to_string()
+                            label=labels::COMPOSITION_VIEW_LINK.to_string()
                             testid="asset-composition-link".to_string()
                         />
                     </span>
@@ -361,7 +358,7 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                     let do_clear = move || clear_asset_dialog_draft(draft);
                     view! {
                         <SearchDialog
-                            title=SEARCH_AND_SORT.to_string()
+                            title=labels::SEARCH_AND_SORT.to_string()
                             on_close=move || open.set(false)
                             on_search=do_search
                             on_clear=do_clear
@@ -410,8 +407,8 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
     let hint = placeholder.clone();
     view! {
         <div class="flex flex-col gap-4">
-            <section aria-label="検索">
-                <p class="search-dialog-section-title">"検索"</p>
+            <section aria-label=labels::SEARCH>
+                <p class="search-dialog-section-title">{labels::SEARCH}</p>
                 <div class="search-dialog-field">
                     <SearchBox>
                         <SearchTextInput
@@ -428,8 +425,8 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
             {(!conditions.is_empty())
                 .then(|| {
                     view! {
-                        <section aria-label="条件">
-                            <p class="search-dialog-section-title">"条件"</p>
+                        <section aria-label=labels::CONDITION>
+                            <p class="search-dialog-section-title">{labels::CONDITION}</p>
                             {conditions
                                 .iter()
                                 .map(|kind| {
@@ -473,7 +470,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                                                         });
                                                     }
                                                 >
-                                                    <option value="">"すべて"</option>
+                                                    <option value="">{labels::ALL}</option>
                                                     {move || {
                                                         options
                                                             .get()
@@ -496,15 +493,15 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                         </section>
                     }
                 })}
-            <section aria-label=SORT_BY.to_string()>
-                <p class="search-dialog-section-title">{SORT_BY}</p>
+            <section aria-label=labels::SORT_BY.to_string()>
+                <p class="search-dialog-section-title">{labels::SORT_BY}</p>
                 <div class="search-dialog-sort-row">
                     <div>
                         <label class="mb-1 block text-sm font-medium text-text-deep">
-                            {SORT_TARGET}
+                            {labels::SORT_TARGET}
                             <Select
                                 value=Signal::derive(move || key_value(draft_key.get()).to_string())
-                                aria_label=SORT_TARGET.to_string()
+                                aria_label=labels::SORT_TARGET.to_string()
                                 testid="asset-dialog-sort-target"
                                 class="search-dialog-select".to_string()
                                 on_change=move |next: String| {
@@ -526,10 +523,10 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-text-deep">
-                            {SORT_ORDER_LABEL}
+                            {labels::SORT_ORDER_LABEL}
                             <Select
                                 value=Signal::derive(move || draft_order.get().value().to_string())
-                                aria_label=SORT_ORDER_LABEL.to_string()
+                                aria_label=labels::SORT_ORDER_LABEL.to_string()
                                 testid="asset-dialog-sort-order"
                                 class="search-dialog-select".to_string()
                                 on_change=move |next: String| {
@@ -538,8 +535,8 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                                     }
                                 }
                             >
-                                <option value="desc">{SORT_HIGH_TO_LOW}</option>
-                                <option value="asc">{SORT_LOW_TO_HIGH}</option>
+                                <option value="desc">{labels::SORT_HIGH_TO_LOW}</option>
+                                <option value="asc">{labels::SORT_LOW_TO_HIGH}</option>
                             </Select>
                         </label>
                     </div>

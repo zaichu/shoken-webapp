@@ -32,7 +32,7 @@ use crate::features::asset_balance::store::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
-use crate::ui::labels::COMPOSITION_VIEW_LINK;
+use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
@@ -329,14 +329,14 @@ pub fn AssetBalancePage() -> impl IntoView {
     let csv_link: Children = Box::new(move || {
         view! {
             <span class="flex items-center gap-2">
-                <a class="page-secondary-link-sm max-lg:hidden" href="/assetbalance/composition">{COMPOSITION_VIEW_LINK}</a>
-                <a class="page-secondary-link-sm" href="/csv">"CSV管理"</a>
+                <a class="page-secondary-link-sm max-lg:hidden" href="/assetbalance/composition">{labels::COMPOSITION_VIEW_LINK}</a>
+                <a class="page-secondary-link-sm" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
             </span>
         }
         .into_any()
     });
     view! {
-        <PageFrame title="資産管理" full_bleed=true links=csv_link>
+        <PageFrame title=labels::ASSET_BALANCE_TITLE full_bleed=true links=csv_link>
         <div
             class="flex flex-1 flex-col min-h-0 lg:flex-none"
             data-testid="assetbalance-workspace"
@@ -383,7 +383,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                             view! {
                                 <div class="no-print mb-3 px-4 lg:px-0">
                                     <Alert variant=AlertVariant::Danger>
-                                        <strong>"エラー:"</strong>
+                                        <strong>{labels::ERROR_PREFIX}</strong>
                                         " "
                                         {message}
                                     </Alert>
@@ -400,7 +400,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         view! {
                             <div class="no-print mb-3 px-4 lg:px-0">
                                 <Alert variant=AlertVariant::Warning>
-                                    <strong>"注意:"</strong>
+                                    <strong>{labels::WARNING_PREFIX}</strong>
                                     " "
                                     <span data-testid="truncated-list-warning">{message}</span>
                                 </Alert>
@@ -417,7 +417,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         view! {
                             <div class="no-print mb-3 px-4 lg:px-0">
                                 <Alert variant=AlertVariant::Warning>
-                                    <strong>"注意:"</strong>
+                                    <strong>{labels::WARNING_PREFIX}</strong>
                                     " "
                                     <span data-testid="fund-truncated-list-warning">{message}</span>
                                 </Alert>

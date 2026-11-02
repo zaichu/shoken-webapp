@@ -32,7 +32,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
-use crate::ui::labels::{self, CLEAR_SEARCH_CONDITIONS, NO_MATCH_TITLE};
+use crate::ui::labels;
 use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use leptos::prelude::*;
 
@@ -78,14 +78,14 @@ fn EmptyAssetPanel() -> impl IntoView {
     view! {
         <div class="px-4 py-4 lg:px-0">
             <EmptyState
-                title="資産管理データがありません"
-                description="CSVファイルをインポートするか、データを登録してください。"
+                title=labels::ASSET_EMPTY_TITLE
+                description=labels::ASSET_EMPTY_DESCRIPTION
             >
                 <a
                     href="/csv"
                     class="mt-4 inline-flex items-center justify-center rounded-md border border-border-strong bg-surface px-4 py-2 text-sm font-bold text-text no-underline hover:border-border-bold hover:bg-surface-sunken"
                 >
-                    "CSVを取り込む"
+                    {labels::CSV_IMPORT}
                 </a>
             </EmptyState>
         </div>
@@ -104,7 +104,7 @@ fn EmptyFilteredPanel(
                 <EmptyState title=title />
                 <div class="mt-3 text-center">
                     <Button variant=ButtonVariant::Ghost on_click=move |_| on_clear()>
-                        {CLEAR_SEARCH_CONDITIONS}
+                        {labels::CLEAR_SEARCH_CONDITIONS}
                     </Button>
                 </div>
             </div>
@@ -113,7 +113,7 @@ fn EmptyFilteredPanel(
 }
 
 /// 検索で全行が消えたときの文面。3タブで同じ文言を使う
-const EMPTY_FILTERED_TITLE: &str = NO_MATCH_TITLE;
+const EMPTY_FILTERED_TITLE: &str = labels::NO_MATCH_TITLE;
 
 #[component]
 fn StockContent(

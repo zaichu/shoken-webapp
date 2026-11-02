@@ -19,12 +19,7 @@ use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, unit_price_decimals,
 };
-use crate::ui::labels::{
-    ACCOUNT, ACQUISITION_YIELD, ANNUAL_DIVIDEND, AVERAGE_PRICE, BASE_PRICE, CODE_COLUMN,
-    CURRENT_PRICE, DAY_CHANGE, DISTRIBUTION, DOMESTIC_STOCK, FUND_SHARES, MARKET_VALUE,
-    MUTUAL_FUND, PENDING_UPDATE, PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY, SECURITY_AND_FUND,
-    TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
-};
+use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
@@ -64,12 +59,12 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
     let valuation = holding_valuation(&ValuationInput::from(view));
     UnifiedRow {
         name: view.name.clone(),
-        kind: DOMESTIC_STOCK,
+        kind: labels::DOMESTIC_STOCK,
         sub: view.code.clone(),
         code: Some(view.code.clone()),
         account: view.account.clone(),
         course: None,
-        quantity: format!("{}株", format_number_value(view.shares)),
+        quantity: labels::stock_shares_label(&format_number_value(view.shares)),
         day_change: view.day_change,
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
@@ -97,12 +92,12 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
 pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
     UnifiedRow {
         name: view.name.clone(),
-        kind: MUTUAL_FUND,
+        kind: labels::MUTUAL_FUND,
         sub: view.course.clone().unwrap_or_default(),
         code: None,
         account: Some(view.account.clone()),
         course: view.course.clone(),
-        quantity: format!("{}口", format_number_value(view.shares)),
+        quantity: labels::fund_units_label(&format_number_value(view.shares)),
         day_change: view.view_day_change(),
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
@@ -173,16 +168,16 @@ pub fn AssetMergedTable(
             <table class="asset-table">
                 <thead>
                     <tr>
-                        <th scope="col" class="col-text">{CODE_COLUMN}</th>
-                        <th scope="col" class="col-text">{SECURITY_AND_FUND}</th>
-                        <th scope="col" class="col-text">"種別"</th>
-                        <th scope="col" class="col-text">{ACCOUNT}</th>
-                        <th scope="col" class="col-text">{DISTRIBUTION}</th>
-                        <th scope="col" class="col-num">{PER_SHARE_DIVIDEND}</th>
-                        <th scope="col" class="col-num">{DAY_CHANGE}</th>
-                        {sort_header(MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
+                        <th scope="col" class="col-text">{labels::CODE_COLUMN}</th>
+                        <th scope="col" class="col-text">{labels::SECURITY_AND_FUND}</th>
+                        <th scope="col" class="col-text">{labels::KIND}</th>
+                        <th scope="col" class="col-text">{labels::ACCOUNT}</th>
+                        <th scope="col" class="col-text">{labels::DISTRIBUTION}</th>
+                        <th scope="col" class="col-num">{labels::PER_SHARE_DIVIDEND}</th>
+                        <th scope="col" class="col-num">{labels::DAY_CHANGE}</th>
+                        {sort_header(labels::MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
                         {sort_header(
-                            VALUATION_PROFIT_LOSS,
+                            labels::VALUATION_PROFIT_LOSS,
                             FundSortKey::ProfitLoss,
                             sort_key,
                             sort_order,
@@ -304,14 +299,18 @@ pub fn AssetMergedTable(
 }
 
 pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<DetailCell>) {
-    let is_fund = row.kind == MUTUAL_FUND;
-    let price_label = if is_fund { BASE_PRICE } else { CURRENT_PRICE };
+    let is_fund = row.kind == labels::MUTUAL_FUND;
+    let price_label = if is_fund {
+        labels::BASE_PRICE
+    } else {
+        labels::CURRENT_PRICE
+    };
     let price_text = row
         .current_price
         .map(format_currency)
         .unwrap_or_else(|| "—".to_string());
     let day_text = if row.nav_pending {
-        PENDING_UPDATE.to_string()
+        labels::PENDING_UPDATE.to_string()
     } else {
         format_signed_row_valuation_amount(row.day_change)
     };
@@ -346,11 +345,11 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             day_negative,
             day_positive,
         ),
-        DetailCell::plain(AVERAGE_PRICE.to_string(), average_text),
+        DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
     ];
     if is_fund {
         left.push(DetailCell::plain(
-            DISTRIBUTION.to_string(),
+            labels::DISTRIBUTION.to_string(),
             row.course.clone().unwrap_or_else(|| "—".to_string()),
         ));
     } else {
@@ -366,29 +365,35 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             .as_ref()
             .map(crate::features::asset_balance::holdings::format_dividend_yield)
             .unwrap_or_else(|| "—".to_string());
-        left.push(DetailCell::plain(ACQUISITION_YIELD.to_string(), yield_text));
-        left.push(DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share));
+        left.push(DetailCell::plain(
+            labels::ACQUISITION_YIELD.to_string(),
+            yield_text,
+        ));
+        left.push(DetailCell::plain(
+            labels::PER_SHARE_DIVIDEND.to_string(),
+            per_share,
+        ));
     }
     let market_cell = match pnl_sub {
         Some(sub) => DetailCell::strong_sub(
-            MARKET_VALUE.to_string(),
+            labels::MARKET_VALUE.to_string(),
             market_text,
             sub,
             pnl_negative,
             pnl_positive,
         ),
-        None => DetailCell::plain(MARKET_VALUE.to_string(), market_text),
+        None => DetailCell::plain(labels::MARKET_VALUE.to_string(), market_text),
     };
     let mut right = vec![
         DetailCell::plain(
             if is_fund {
-                FUND_SHARES.to_string()
+                labels::FUND_SHARES.to_string()
             } else {
-                QUANTITY.to_string()
+                labels::QUANTITY.to_string()
             },
             row.quantity.clone(),
         ),
-        DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
+        DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
         market_cell,
     ];
     if !is_fund {
@@ -397,9 +402,12 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             .as_ref()
             .map(crate::features::asset_balance::holdings::format_dividend_annual)
             .unwrap_or_else(|| "—".to_string());
-        right.push(DetailCell::plain(ANNUAL_DIVIDEND.to_string(), annual));
+        right.push(DetailCell::plain(
+            labels::ANNUAL_DIVIDEND.to_string(),
+            annual,
+        ));
     }
-    right.push(DetailCell::plain(PRICE_AS_OF.to_string(), as_of));
+    right.push(DetailCell::plain(labels::PRICE_AS_OF.to_string(), as_of));
     (left, right)
 }
 
@@ -512,6 +520,7 @@ mod tests {
     use crate::features::asset_balance::fund::FundView;
     use crate::features::asset_balance::holdings::HoldingView;
     use crate::features::dividend_per_share::DividendMaps;
+    use crate::ui::labels;
 
     fn sample_stock() -> HoldingView {
         HoldingView {
@@ -574,12 +583,7 @@ mod tests {
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             right_labels,
-            [
-                "保有口数",
-                "取得総額",
-                "評価額",
-                crate::ui::labels::PRICE_AS_OF
-            ]
+            ["保有口数", "取得総額", "評価額", labels::PRICE_AS_OF]
         );
     }
 }
