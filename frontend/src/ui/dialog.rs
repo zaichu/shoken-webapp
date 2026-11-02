@@ -2,8 +2,25 @@ use crate::ui::focus::trap_focus;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
+pub(crate) fn move_root_to_body(root: NodeRef<leptos::html::Div>) {
+    Effect::new(move |_| {
+        if let Some(root) = root.get()
+            && let Some(body) = web_sys::window()
+                .and_then(|window| window.document())
+                .and_then(|document| document.body())
+        {
+            let _ = body.append_child(root.unchecked_ref());
+        }
+    });
+}
+
+pub(crate) fn focus_without_scroll(element: &web_sys::HtmlElement) {
+    let options = web_sys::FocusOptions::new();
+    options.set_prevent_scroll(true);
+    let _ = element.focus_with_options(&options);
+}
+
 pub(crate) fn use_page_scroll_lock() {
-    // iOS Safari は overflow:hidden だけでは後ろが動くため body を固定して位置を保つ
     Effect::new(move |_| {
         let Some(window) = web_sys::window() else {
             return;
@@ -35,25 +52,10 @@ pub(crate) fn use_page_scroll_lock() {
             .as_ref()
             .and_then(|style| style.get_property_value("overflow").ok())
             .unwrap_or_default();
-        let body_position = body_style
-            .as_ref()
-            .and_then(|style| style.get_property_value("position").ok())
-            .unwrap_or_default();
-        let body_top = body_style
-            .as_ref()
-            .and_then(|style| style.get_property_value("top").ok())
-            .unwrap_or_default();
-        let body_width = body_style
-            .as_ref()
-            .and_then(|style| style.get_property_value("width").ok())
-            .unwrap_or_default();
         let page_y = window.scroll_y().unwrap_or_default();
         let app_top = app_scroll.as_ref().map(|scroller| scroller.scroll_top());
         if let Some(style) = body_style.as_ref() {
             let _ = style.set_property("overflow", "hidden");
-            let _ = style.set_property("position", "fixed");
-            let _ = style.set_property("top", &format!("-{page_y}px"));
-            let _ = style.set_property("width", "100%");
         }
         if let Some(style) = html_style.as_ref() {
             let _ = style.set_property("overflow", "hidden");
@@ -71,21 +73,6 @@ pub(crate) fn use_page_scroll_lock() {
                         let _ = style.remove_property("overflow");
                     } else {
                         let _ = style.set_property("overflow", &body_overflow);
-                    }
-                    if body_position.is_empty() {
-                        let _ = style.remove_property("position");
-                    } else {
-                        let _ = style.set_property("position", &body_position);
-                    }
-                    if body_top.is_empty() {
-                        let _ = style.remove_property("top");
-                    } else {
-                        let _ = style.set_property("top", &body_top);
-                    }
-                    if body_width.is_empty() {
-                        let _ = style.remove_property("width");
-                    } else {
-                        let _ = style.set_property("width", &body_width);
                     }
                 }
                 if let Some(html) = document
@@ -125,28 +112,30 @@ pub fn DialogShell(
     children: Children,
 ) -> impl IntoView {
     let panel_ref = NodeRef::<leptos::html::Div>::new();
+    let root_ref = NodeRef::<leptos::html::Div>::new();
     let overlay_close = on_close.clone();
     let key_close = on_close.clone();
     let dialog_title = title.clone();
     let panel_testid = testid.unwrap_or("search-dialog");
     use_page_scroll_lock();
+    move_root_to_body(root_ref);
     Effect::new(move |_| {
         let previous_focus = web_sys::window()
             .and_then(|window| window.document())
             .and_then(|document| document.active_element());
         if let Some(panel) = panel_ref.get() {
-            let _ = panel.focus();
+            focus_without_scroll(&panel);
         }
         on_cleanup(move || {
             if let Some(element) = previous_focus
                 && let Ok(element) = element.dyn_into::<web_sys::HtmlElement>()
             {
-                let _ = element.focus();
+                focus_without_scroll(&element);
             }
         });
     });
     view! {
-        <div class="search-dialog-root">
+        <div class="search-dialog-root" node_ref=root_ref>
             <div
                 class="search-dialog-backdrop"
                 data-testid="search-dialog-backdrop"

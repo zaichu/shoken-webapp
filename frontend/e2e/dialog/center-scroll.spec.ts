@@ -97,11 +97,18 @@ test('スマホ: 一覧の下端で詳細ダイアログを開いても中央に
 test('スマホ: 検索ダイアログは中央に出て後ろは動かない', async ({ page }) => {
   await mockLongList(page);
   await page.goto('/receipts');
+  await expect(page.getByTestId('receipt-card')).toHaveCount(40);
 
   await scrolledToBottom(page);
   const before = await appScrollTop(page);
 
-  await page.getByTestId('receipts-search-sheet-entry').click();
+  // 入口を押すとき指は画面を動かさない。click は要素まで寄せるため
+  // 開く操作自体はスクロールなしの発行で行う
+  await page.evaluate(() => {
+    document
+      .querySelector('[data-testid="receipts-search-sheet-entry"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
   const dialog = await dialogCenter(page, 'receipts-search-sheet');
 
   await page.mouse.move(8, 8);

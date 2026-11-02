@@ -4,7 +4,7 @@
 
 use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::dialog::use_page_scroll_lock;
+use crate::ui::dialog::{focus_without_scroll, move_root_to_body, use_page_scroll_lock};
 use crate::ui::focus::trap_focus;
 use crate::ui::labels;
 use crate::ui::state::{Spinner, SpinnerSize};
@@ -260,14 +260,16 @@ pub fn ConditionPanel(
     children: Children,
 ) -> impl IntoView {
     let panel_ref = NodeRef::<leptos::html::Div>::new();
+    let root_ref = NodeRef::<leptos::html::Div>::new();
     use_page_scroll_lock();
+    move_root_to_body(root_ref);
     Effect::new(move |_| {
         if let Some(panel) = panel_ref.get() {
-            let _ = panel.focus();
+            focus_without_scroll(&panel);
         }
     });
     view! {
-        <div class="search-dialog-root">
+        <div class="search-dialog-root" node_ref=root_ref>
             <div
                 class="search-dialog-backdrop condition-backdrop"
                 data-testid="condition-backdrop"
