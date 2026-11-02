@@ -128,10 +128,10 @@ fn csv_cell(text: &str) -> String {
     }
 }
 
-/// ユーザー由来の文字列は式実行を防ぐため `= + - @`・タブ・CR 始まりに `'` を付ける(数値は対象外)
+/// ユーザー由来の文字列は式実行を防ぐため `= + - @`・タブ・改行始まりに `'` を付ける(数値は対象外)
 fn csv_text(text: &str) -> String {
     match text.chars().next() {
-        Some('=' | '+' | '-' | '@' | '\t' | '\r') => format!("'{text}"),
+        Some('=' | '+' | '-' | '@' | '\t' | '\r' | '\n') => format!("'{text}"),
         _ => text.to_string(),
     }
 }
