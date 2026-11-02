@@ -142,12 +142,15 @@ pub async fn get_setting(pool: &Db, user_id: UserId) -> Result<bool, DbError> {
 }
 
 pub async fn set_setting(pool: &Db, user_id: UserId, enabled: bool) -> Result<bool, DbError> {
-    crate::db::query_scalar::<bool>(
+    let mut tx = pool.begin_with_user(user_id).await?;
+    let updated = crate::db::query_scalar::<bool>(
         "UPDATE users SET login_notify_enabled = $2, updated_at = NOW() WHERE id = $1 RETURNING login_notify_enabled",
         vec![Bind::from(user_id), Bind::from(enabled)],
     )
-    .fetch_one(pool)
-    .await
+    .fetch_one(&mut tx)
+    .await?;
+    tx.commit().await?;
+    Ok(updated)
 }
 
 pub async fn recent_send_count(pool: &Db, user_id: UserId) -> Result<i64, DbError> {
@@ -161,12 +164,14 @@ pub async fn recent_send_count(pool: &Db, user_id: UserId) -> Result<i64, DbErro
 
 pub async fn issue_token(pool: &Db, user_id: UserId) -> Result<String, DbError> {
     let plaintext = new_plaintext_token();
+    let mut tx = pool.begin_with_user(user_id).await?;
     crate::db::query(
         "INSERT INTO login_notify_tokens (user_id, token_hash) VALUES ($1, $2)",
         vec![Bind::from(user_id), Bind::Bytes(token_hash(&plaintext))],
     )
-    .execute(pool)
+    .execute(&mut tx)
     .await?;
+    tx.commit().await?;
     Ok(plaintext)
 }
 

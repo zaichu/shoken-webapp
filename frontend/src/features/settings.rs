@@ -8,10 +8,7 @@ use crate::ui::avatar::UserAvatar;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton, Switch};
 use crate::ui::card::Card;
 use crate::ui::card::CardVariant;
-use crate::ui::labels::{
-    LOGIN_NOTIFY_NOTE, LOGIN_NOTIFY_TITLE, NOTIFY_LOGOUT_CONFIRM, NOTIFY_LOGOUT_DESCRIPTION,
-    NOTIFY_LOGOUT_DONE, NOTIFY_LOGOUT_INVALID, NOTIFY_LOGOUT_TITLE,
-};
+use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::segmented::Segmented;
@@ -148,13 +145,13 @@ pub fn SettingsPage() -> impl IntoView {
     let user = move || session.user.get();
 
     let sections = [
-        ("account", "アカウント"),
-        ("display", "表示"),
-        ("data", "データ"),
-        ("security", "セキュリティ"),
-        ("devices", crate::ui::labels::REGISTERED_DEVICES_SECTION),
-        ("login-history", crate::ui::labels::LOGIN_HISTORY_SECTION),
-        ("danger", "危険な操作"),
+        ("account", labels::ACCOUNT_BUTTON),
+        ("display", labels::SETTINGS_DISPLAY_SECTION),
+        ("data", labels::SETTINGS_DATA_SECTION),
+        ("security", labels::SETTINGS_SECURITY_SECTION),
+        ("devices", labels::REGISTERED_DEVICES_SECTION),
+        ("login-history", labels::LOGIN_HISTORY_SECTION),
+        ("danger", labels::SETTINGS_DANGER_SECTION),
     ];
 
     let active = RwSignal::new(initial_section());
@@ -164,9 +161,9 @@ pub fn SettingsPage() -> impl IntoView {
     });
 
     view! {
-        <PageFrame title="設定">
+        <PageFrame title=labels::SETTINGS_TITLE>
             <div class="flex flex-col lg:flex-row gap-7">
-                <nav class="hidden lg:block lg:w-48 shrink-0 lg:sticky lg:top-16 lg:self-start" aria-label="設定セクション">
+                <nav class="hidden lg:block lg:w-48 shrink-0 lg:sticky lg:top-16 lg:self-start" aria-label=labels::SETTINGS_TOC_LABEL>
                     <ul class="flex flex-col gap-1" role="list">
                         {sections.iter().map(|(id, label)| {
                             let id = *id;
@@ -207,7 +204,7 @@ pub fn SettingsPage() -> impl IntoView {
                                 <SectionDanger />
                             }.into_any()
                         } else {
-                            view! { <div class="text-center py-12">"ログインが必要です"</div> }.into_any()
+                            view! { <div class="text-center py-12">{labels::LOGIN_REQUIRED_TITLE}</div> }.into_any()
                         }
                     }}
                 </div>
@@ -223,12 +220,12 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
         .clone()
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| user.email.clone());
-    let login_method_text = "Google でログイン中";
+    let login_method_text = labels::SETTINGS_GOOGLE_LOGIN;
 
     view! {
         <section id="account" aria-labelledby="account-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="account-heading" class="text-lg font-bold mb-4">"アカウント"</h2>
+                <h2 id="account-heading" class="text-lg font-bold mb-4">{labels::ACCOUNT_BUTTON}</h2>
                 <div class="flex items-center gap-4">
                     <UserAvatar
                         picture_url=user.picture_url.clone()
@@ -272,13 +269,13 @@ fn SectionDisplay() -> impl IntoView {
     view! {
         <section id="display" aria-labelledby="display-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="display-heading" class="text-lg font-bold mb-4">"表示"</h2>
+                <h2 id="display-heading" class="text-lg font-bold mb-4">{labels::SETTINGS_DISPLAY_SECTION}</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
-                    <SettingRow title="テーマ">
+                    <SettingRow title=labels::SETTINGS_THEME>
                         <Segmented
                             options=&THEME_SEGMENTS
                             value=Signal::derive(move || theme.get().value())
-                            aria_label="テーマ"
+                            aria_label=labels::SETTINGS_THEME
                             testid="setting-theme"
                             on_change=move |value| {
                                 if let Some(parsed) = Theme::from_value(&value) {
@@ -287,10 +284,10 @@ fn SectionDisplay() -> impl IntoView {
                             }
                         />
                     </SettingRow>
-                    <SettingRow title="資産管理の並び順">
+                    <SettingRow title=labels::SETTINGS_ASSET_SORT>
                         <Select
                             value=Signal::derive(move || asset_sort.get().value())
-                            aria_label="資産管理の初期の並び順".to_string()
+                            aria_label=labels::SETTINGS_ASSET_SORT_INITIAL.to_string()
                             testid="setting-asset-sort"
                             class="min-w-44 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11".to_string()
                             on_change=move |value| {
@@ -306,10 +303,10 @@ fn SectionDisplay() -> impl IntoView {
                             }).collect_view()}
                         </Select>
                     </SettingRow>
-                    <SettingRow title="取引明細の初期タブ">
+                    <SettingRow title=labels::SETTINGS_RECEIPTS_TAB>
                         <Select
                             value=Signal::derive(move || initial_tab.get().kind_param().to_string())
-                            aria_label="取引明細の初期タブ".to_string()
+                            aria_label=labels::SETTINGS_RECEIPTS_TAB.to_string()
                             testid="setting-receipts-tab"
                             class="min-w-44 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11".to_string()
                             on_change=move |value| {
@@ -329,15 +326,15 @@ fn SectionDisplay() -> impl IntoView {
                             }).collect_view()}
                         </Select>
                     </SettingRow>
-                    <SettingRow title="金額の表示単位">
+                    <SettingRow title=labels::SETTINGS_AMOUNT_UNIT>
                         <Segmented
                             options=&[
-                                ("yen", "円"),
-                                ("sen", "千円"),
-                                ("man", "万円"),
+                                ("yen", labels::YEN),
+                                ("sen", labels::THOUSAND_YEN),
+                                ("man", labels::TEN_THOUSAND_YEN),
                             ]
                             value=Signal::derive(move || amount_unit.get().value())
-                            aria_label="金額の表示単位"
+                            aria_label=labels::SETTINGS_AMOUNT_UNIT
                             testid="setting-amount-unit"
                             on_change=move |value| {
                                 if let Some(unit) = AmountUnit::from_value(&value) {
@@ -366,14 +363,13 @@ fn SectionData() -> impl IntoView {
             match export::fetch_csv(kind).await {
                 Ok((filename, content)) => {
                     export::download_csv(&filename, &content);
-                    export_message.set(Some(format!("{filename} を保存しました")));
+                    export_message.set(Some(labels::settings_export_saved(&filename)));
                 }
                 Err(error) => {
                     export_failed.set(true);
-                    export_message.set(Some(format!(
-                        "{}のエクスポートに失敗しました: {}",
+                    export_message.set(Some(labels::settings_export_failed(
                         kind.label(),
-                        error.user_message()
+                        &error.user_message(),
                     )));
                 }
             }
@@ -384,9 +380,9 @@ fn SectionData() -> impl IntoView {
     view! {
         <section id="data" aria-labelledby="data-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="data-heading" class="text-lg font-bold mb-4">"データ"</h2>
+                <h2 id="data-heading" class="text-lg font-bold mb-4">{labels::SETTINGS_DATA_SECTION}</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
-                    <SettingRow title="CSVでエクスポート">
+                    <SettingRow title=labels::SETTINGS_EXPORT_CSV>
                         {ExportKind::ALL.iter().map(|kind| {
                             let kind = *kind;
                             view! {
@@ -403,7 +399,7 @@ fn SectionData() -> impl IntoView {
                                 >
                                     {move || {
                                         if exporting.get() == Some(kind) {
-                                            "取得中…".to_string()
+                                            labels::CSV_MANAGE_FETCH_RUNNING.to_string()
                                         } else {
                                             kind.label().to_string()
                                         }
@@ -422,8 +418,8 @@ fn SectionData() -> impl IntoView {
                             view! { <p class=format!("pb-2 text-xs {tone}")>{message}</p> }
                         })
                     }}
-                    <SettingRow title="CSVの取り込み・保存済みデータの削除">
-                        <MoreLink href="/csv".to_string() label="CSV管理へ".to_string() />
+                    <SettingRow title=labels::SETTINGS_CSV_IMPORT_DELETE>
+                        <MoreLink href="/csv".to_string() label=labels::SETTINGS_CSV_MANAGE_LINK.to_string() />
                     </SettingRow>
                 </div>
             </Card>
@@ -473,13 +469,13 @@ fn SectionSecurity() -> impl IntoView {
     view! {
         <section id="security" aria-labelledby="security-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="security-heading" class="text-lg font-bold mb-4">"セキュリティ"</h2>
+                <h2 id="security-heading" class="text-lg font-bold mb-4">{labels::SETTINGS_SECURITY_SECTION}</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
-                    <SettingRow title="操作がないときの自動ログアウト">
+                    <SettingRow title=labels::SETTINGS_IDLE_LOGOUT>
                         <Segmented
                             options=&IDLE_SEGMENTS
                             value=Signal::derive(move || idle_minutes.get().to_string())
-                            aria_label="自動ログアウトまでの時間"
+                            aria_label=labels::SETTINGS_IDLE_LOGOUT_TIME
                             testid="setting-idle-minutes"
                             on_change=move |value| {
                                 if let Ok(minutes) = value.parse::<u32>()
@@ -490,7 +486,7 @@ fn SectionSecurity() -> impl IntoView {
                             }
                         />
                     </SettingRow>
-                    <SettingRow title=LOGIN_NOTIFY_TITLE>
+                    <SettingRow title=labels::LOGIN_NOTIFY_TITLE>
                         {move || match notify.get() {
                             None => {
                                 view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
@@ -506,7 +502,7 @@ fn SectionSecurity() -> impl IntoView {
                                 view! {
                                     <Switch
                                         checked=Signal::derive(move || enabled)
-                                        label=LOGIN_NOTIFY_TITLE.to_string()
+                                        label=labels::LOGIN_NOTIFY_TITLE.to_string()
                                         testid="setting-login-notify"
                                         disabled=Signal::derive(move || notify_pending.get())
                                         on_toggle=on_toggle
@@ -517,7 +513,7 @@ fn SectionSecurity() -> impl IntoView {
                         }}
                     </SettingRow>
                 </div>
-                <p class="pt-2 text-xs text-text-muted">{LOGIN_NOTIFY_NOTE}</p>
+                <p class="pt-2 text-xs text-text-muted">{labels::LOGIN_NOTIFY_NOTE}</p>
             </Card>
         </section>
     }
@@ -570,7 +566,7 @@ fn SectionNotifyLogout() -> impl IntoView {
                     if error.is_unauthorized()
                         || matches!(error, crate::api::ApiError::Http { status: 404, .. })
                     {
-                        NOTIFY_LOGOUT_INVALID.to_string()
+                        labels::NOTIFY_LOGOUT_INVALID.to_string()
                     } else {
                         error.user_message()
                     }
@@ -614,12 +610,12 @@ fn SectionNotifyLogout() -> impl IntoView {
                     <section id="notify-logout" aria-labelledby="notify-logout-heading">
                         <Card variant=CardVariant::Panel class="p-5 border-negative-border">
                             <h2 id="notify-logout-heading" class="text-lg font-bold mb-2">
-                                {NOTIFY_LOGOUT_TITLE}
+                                {labels::NOTIFY_LOGOUT_TITLE}
                             </h2>
-                            <p class="pb-3 text-sm">{NOTIFY_LOGOUT_DESCRIPTION}</p>
+                            <p class="pb-3 text-sm">{labels::NOTIFY_LOGOUT_DESCRIPTION}</p>
                             {move || {
                                 if done.get() {
-                                    view! { <p role="status">{NOTIFY_LOGOUT_DONE}</p> }.into_any()
+                                    view! { <p role="status">{labels::NOTIFY_LOGOUT_DONE}</p> }.into_any()
                                 } else {
                                     match state.get() {
                                         None => {
@@ -641,7 +637,7 @@ fn SectionNotifyLogout() -> impl IntoView {
                                                         testid="notify-logout-confirm"
                                                         on_click=move |_| confirm()
                                                     >
-                                                        {NOTIFY_LOGOUT_CONFIRM}
+                                                        {labels::NOTIFY_LOGOUT_CONFIRM}
                                                     </Button>
                                                     {move || {
                                                         failed
@@ -678,12 +674,16 @@ struct NotifyLogoutInfo {
     expires_at: String,
 }
 
-const IDLE_SEGMENTS: [(&str, &str); 3] = [("15", "15分"), ("30", "30分"), ("60", "60分")];
+const IDLE_SEGMENTS: [(&str, &str); 3] = [
+    ("15", labels::SETTINGS_IDLE_15),
+    ("30", labels::SETTINGS_IDLE_30),
+    ("60", labels::SETTINGS_IDLE_60),
+];
 
 const THEME_SEGMENTS: [(&str, &str); 3] = [
-    ("system", "端末に合わせる"),
-    ("light", "ライト"),
-    ("dark", "ダーク"),
+    ("system", labels::SETTINGS_THEME_SYSTEM),
+    ("light", labels::SETTINGS_THEME_LIGHT),
+    ("dark", labels::SETTINGS_THEME_DARK),
 ];
 
 #[component]
@@ -695,76 +695,76 @@ fn SectionDanger() -> impl IntoView {
     view! {
         <section id="danger" aria-labelledby="danger-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5 border-negative-border bg-negative/5">
-                <h2 id="danger-heading" class="text-lg font-bold text-negative mb-4">"危険な操作"</h2>
+                <h2 id="danger-heading" class="text-lg font-bold text-negative mb-4">{labels::SETTINGS_DANGER_SECTION}</h2>
                 <div class="space-y-3 border-t border-negative-border/50">
                     <div class="flex items-center justify-between py-3">
                         <div>
-                            <div class="font-medium text-negative">"取引明細：配当金を削除"</div>
-                            <div class="text-xs text-text-muted">"取り込んだ配当金データ。アカウントは残ります。取り消せません"</div>
+                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_DIVIDEND}</div>
+                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_DIVIDEND_NOTE}</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             href="/csv"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
-                            aria_label="配当金データを削除"
+                            aria_label=labels::SETTINGS_DELETE_DIVIDEND_ACTION
                         >
-                            "削除…"
+                            {labels::SETTINGS_DELETE}
                         </LinkButton>
                     </div>
                     <div class="flex items-center justify-between py-3">
                         <div>
-                            <div class="font-medium text-negative">"取引明細：国内株式を削除"</div>
-                            <div class="text-xs text-text-muted">"取り込んだ国内株式売買データ。アカウントは残ります。取り消せません"</div>
+                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_STOCK}</div>
+                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_STOCK_NOTE}</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             href="/csv"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
-                            aria_label="国内株式データを削除"
+                            aria_label=labels::SETTINGS_DELETE_STOCK_ACTION
                         >
-                            "削除…"
+                            {labels::SETTINGS_DELETE}
                         </LinkButton>
                     </div>
                     <div class="flex items-center justify-between py-3">
                         <div>
-                            <div class="font-medium text-negative">"取引明細：投資信託を削除"</div>
-                            <div class="text-xs text-text-muted">"取り込んだ投資信託売買データ。アカウントは残ります。取り消せません"</div>
+                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_FUND}</div>
+                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_FUND_NOTE}</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             href="/csv"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
-                            aria_label="投資信託データを削除"
+                            aria_label=labels::SETTINGS_DELETE_FUND_ACTION
                         >
-                            "削除…"
+                            {labels::SETTINGS_DELETE}
                         </LinkButton>
                     </div>
                     <div class="flex items-center justify-between py-3">
                         <div>
-                            <div class="font-medium text-negative">"資産管理データを削除"</div>
-                            <div class="text-xs text-text-muted">"保存済みの保有銘柄データ。アカウントは残ります。取り消せません"</div>
+                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_ASSETS}</div>
+                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_ASSETS_NOTE}</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             href="/csv"
                             class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
-                            aria_label="資産管理データを削除"
+                            aria_label=labels::SETTINGS_DELETE_ASSETS
                         >
-                            "削除…"
+                            {labels::SETTINGS_DELETE}
                         </LinkButton>
                     </div>
                     <div class="flex items-center justify-between py-3">
                         <div>
-                            <div class="font-medium text-negative">"アカウントを削除"</div>
-                            <div class="text-xs text-text-muted">"データもすべて消えます。取り消せません"</div>
+                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_ACCOUNT}</div>
+                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_ACCOUNT_NOTE}</div>
                         </div>
                         <Button
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
                             class="shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
                             on_click=move |_| delete_confirm_open.set(true)
-                            aria_label="アカウントを削除"
+                            aria_label=labels::SETTINGS_DELETE_ACCOUNT
                         >
-                            "削除…"
+                            {labels::SETTINGS_DELETE}
                         </Button>
                     </div>
                 </div>

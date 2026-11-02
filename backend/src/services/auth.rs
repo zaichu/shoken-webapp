@@ -130,6 +130,7 @@ async fn upsert_user_rotate_session_with_login_event(
 > {
     let mut tx = pool.begin().await?;
     let user = upsert_user_in_tx(&mut tx, user_info).await?;
+    tx.set_local_user(user.id).await?;
     let prior_row = crate::db::query(
         "SELECT country, region FROM login_events
          WHERE user_id = $1 AND device_hash = $2 ORDER BY occurred_at DESC LIMIT 1",
@@ -190,6 +191,7 @@ pub async fn upsert_user_and_rotate_session(
 ) -> Result<SessionToken, DbError> {
     let mut tx = pool.begin().await?;
     let user = upsert_user_in_tx(&mut tx, user_info).await?;
+    tx.set_local_user(user.id).await?;
     let session_token = rotate_session_in_tx(&mut tx, user.id).await?;
     tx.commit().await?;
 
@@ -285,12 +287,15 @@ async fn rotate_session_for_device_in_tx(
 }
 
 pub async fn delete_all_sessions(pool: &Db, user_id: UserId) -> Result<u64, DbError> {
-    crate::db::query(
+    let mut tx = pool.begin_with_user(user_id).await?;
+    let deleted = crate::db::query(
         "DELETE FROM sessions WHERE user_id = $1",
         vec![Bind::from(user_id)],
     )
-    .execute(pool)
-    .await
+    .execute(&mut tx)
+    .await?;
+    tx.commit().await?;
+    Ok(deleted)
 }
 
 pub async fn delete_device_sessions(
@@ -298,12 +303,15 @@ pub async fn delete_device_sessions(
     user_id: UserId,
     device_hash: &[u8],
 ) -> Result<u64, DbError> {
-    crate::db::query(
+    let mut tx = pool.begin_with_user(user_id).await?;
+    let deleted = crate::db::query(
         "DELETE FROM sessions WHERE user_id = $1 AND (device_hash = $2 OR device_hash IS NULL)",
         vec![Bind::from(user_id), Bind::Bytes(device_hash.to_vec())],
     )
-    .execute(pool)
-    .await
+    .execute(&mut tx)
+    .await?;
+    tx.commit().await?;
+    Ok(deleted)
 }
 
 async fn upsert_user_in_tx(tx: &mut Tx, user_info: &GoogleUserInfo) -> Result<User, DbError> {
@@ -342,9 +350,11 @@ pub async fn delete_session(pool: &Db, token: SessionToken) -> Result<(), DbErro
 
 /// ユーザーを削除（CASCADE により関連データも削除）
 pub async fn delete_account(pool: &Db, user_id: UserId) -> Result<(), DbError> {
+    let mut tx = pool.begin_with_user(user_id).await?;
     crate::db::query("DELETE FROM users WHERE id = $1", vec![Bind::from(user_id)])
-        .execute(pool)
+        .execute(&mut tx)
         .await?;
+    tx.commit().await?;
 
     Ok(())
 }

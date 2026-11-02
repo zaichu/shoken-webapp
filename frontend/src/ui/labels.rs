@@ -332,7 +332,7 @@ pub const CSV_MANAGE_FETCH_TITLE: &str = "楽天証券から最新のデータ�
 /// CSV管理: 取得ボタン(通常)
 pub const CSV_MANAGE_FETCH_BUTTON: &str = "すべて取得";
 /// CSV管理: 取得ボタン(実行中)
-pub const CSV_MANAGE_FETCH_RUNNING: &str = "取得中...";
+pub const CSV_MANAGE_FETCH_RUNNING: &str = "取得中…";
 /// CSV管理: 表ヘッダー「データの種類」
 pub const CSV_MANAGE_COL_KIND: &str = "データの種類";
 /// CSV管理: 表ヘッダー「保存済み」
@@ -576,6 +576,101 @@ pub fn receipt_year_month_label(year: &str, month: u32) -> String {
 /// 年月日の書き方(「2024年3月1日」)
 pub fn receipt_year_month_day_label(year: &str, month: u32, day: u32) -> String {
     format!("{year}年{month}月{day}日")
+}
+
+/// 設定: 画面名
+pub const SETTINGS_TITLE: &str = "設定";
+/// 設定: 目次の nav の読み上げ名
+pub const SETTINGS_TOC_LABEL: &str = "設定セクション";
+/// 設定: 表示セクションの見出し
+pub const SETTINGS_DISPLAY_SECTION: &str = "表示";
+/// 設定: データセクションの見出し
+pub const SETTINGS_DATA_SECTION: &str = "データ";
+/// 設定: セキュリティセクションの見出し
+pub const SETTINGS_SECURITY_SECTION: &str = "セキュリティ";
+/// 設定: 危険な操作セクションの見出し
+pub const SETTINGS_DANGER_SECTION: &str = "危険な操作";
+/// 設定: ログイン手段の表示
+pub const SETTINGS_GOOGLE_LOGIN: &str = "Google でログイン中";
+/// 設定: テーマの行名
+pub const SETTINGS_THEME: &str = "テーマ";
+/// 設定: テーマの選択肢(端末に合わせる)
+pub const SETTINGS_THEME_SYSTEM: &str = "端末に合わせる";
+/// 設定: テーマの選択肢(ライト)
+pub const SETTINGS_THEME_LIGHT: &str = "ライト";
+/// 設定: テーマの選択肢(ダーク)
+pub const SETTINGS_THEME_DARK: &str = "ダーク";
+/// 設定: 資産管理の並び順の行名
+pub const SETTINGS_ASSET_SORT: &str = "資産管理の並び順";
+/// 設定: 資産管理の並び順の選択肢の読み上げ名
+pub const SETTINGS_ASSET_SORT_INITIAL: &str = "資産管理の初期の並び順";
+/// 設定: 取引明細の初期タブの行名
+pub const SETTINGS_RECEIPTS_TAB: &str = "取引明細の初期タブ";
+/// 設定: 金額の表示単位の行名
+pub const SETTINGS_AMOUNT_UNIT: &str = "金額の表示単位";
+/// 設定: CSV エクスポートの行名
+pub const SETTINGS_EXPORT_CSV: &str = "CSVでエクスポート";
+/// 設定: CSV の取り込み・保存済みデータの削除の行名
+pub const SETTINGS_CSV_IMPORT_DELETE: &str = "CSVの取り込み・保存済みデータの削除";
+/// 設定: CSV管理へのリンク名
+pub const SETTINGS_CSV_MANAGE_LINK: &str = "CSV管理へ";
+/// 設定: 自動ログアウトの行名
+pub const SETTINGS_IDLE_LOGOUT: &str = "操作がないときの自動ログアウト";
+/// 設定: 自動ログアウトまでの時間の選択肢の読み上げ名
+pub const SETTINGS_IDLE_LOGOUT_TIME: &str = "自動ログアウトまでの時間";
+/// 設定: 自動ログアウトの選択肢(15分)
+pub const SETTINGS_IDLE_15: &str = "15分";
+/// 設定: 自動ログアウトの選択肢(30分)
+pub const SETTINGS_IDLE_30: &str = "30分";
+/// 設定: 自動ログアウトの選択肢(60分)
+pub const SETTINGS_IDLE_60: &str = "60分";
+/// 設定: 削除操作のボタン名
+pub const SETTINGS_DELETE: &str = "削除…";
+/// 設定: 取引明細(配当金)の削除の行名
+pub const SETTINGS_DELETE_DIVIDEND: &str = "取引明細：配当金を削除";
+/// 設定: 取引明細(配当金)の削除の説明
+pub const SETTINGS_DELETE_DIVIDEND_NOTE: &str =
+    "取り込んだ配当金データ。アカウントは残ります。取り消せません";
+/// 設定: 取引明細(配当金)の削除リンクの読み上げ名
+pub const SETTINGS_DELETE_DIVIDEND_ACTION: &str = "配当金データを削除";
+/// 設定: 取引明細(国内株式)の削除の行名
+pub const SETTINGS_DELETE_STOCK: &str = "取引明細：国内株式を削除";
+/// 設定: 取引明細(国内株式)の削除の説明
+pub const SETTINGS_DELETE_STOCK_NOTE: &str =
+    "取り込んだ国内株式売買データ。アカウントは残ります。取り消せません";
+/// 設定: 取引明細(国内株式)の削除リンクの読み上げ名
+pub const SETTINGS_DELETE_STOCK_ACTION: &str = "国内株式データを削除";
+/// 設定: 取引明細(投資信託)の削除の行名
+pub const SETTINGS_DELETE_FUND: &str = "取引明細：投資信託を削除";
+/// 設定: 取引明細(投資信託)の削除の説明
+pub const SETTINGS_DELETE_FUND_NOTE: &str =
+    "取り込んだ投資信託売買データ。アカウントは残ります。取り消せません";
+/// 設定: 取引明細(投資信託)の削除リンクの読み上げ名
+pub const SETTINGS_DELETE_FUND_ACTION: &str = "投資信託データを削除";
+/// 設定: 資産管理データの削除の行名
+pub const SETTINGS_DELETE_ASSETS: &str = "資産管理データを削除";
+/// 設定: 資産管理データの削除の説明
+pub const SETTINGS_DELETE_ASSETS_NOTE: &str =
+    "保存済みの保有銘柄データ。アカウントは残ります。取り消せません";
+/// 設定: アカウント削除の行名
+pub const SETTINGS_DELETE_ACCOUNT: &str = "アカウントを削除";
+/// 設定: アカウント削除の説明
+pub const SETTINGS_DELETE_ACCOUNT_NOTE: &str = "データもすべて消えます。取り消せません";
+/// CSV エクスポート: 種類名(資産残高)
+pub const EXPORT_ASSET_BALANCE: &str = "資産残高";
+/// CSV エクスポート: 種類名(売買履歴)
+pub const EXPORT_TRANSACTIONS: &str = "売買履歴";
+/// CSV エクスポート: 件数超過の失敗文
+pub const EXPORT_TRUNCATED: &str = "件数が上限を超えたため、全件を取得できませんでした";
+
+/// CSV エクスポートの保存完了文(「◯◯ を保存しました」)
+pub fn settings_export_saved(filename: &str) -> String {
+    format!("{filename} を保存しました")
+}
+
+/// CSV エクスポートの失敗文(「◯◯のエクスポートに失敗しました: 理由」)
+pub fn settings_export_failed(kind: &str, error: &str) -> String {
+    format!("{kind}のエクスポートに失敗しました: {error}")
 }
 
 /// ホームの残りが無いときの表示

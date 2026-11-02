@@ -9,13 +9,7 @@ use crate::api::ApiError;
 use crate::api::dto::{AssetBalance, Dividend, DomesticStock, Mutualfund};
 use crate::features::asset_balance::{ValuationInput, holding_valuation};
 use crate::support::pagination::{ListPage, fetch_all_pages_with};
-use crate::ui::labels::{
-    ACCOUNT, ACQUISITION_AMOUNT, ACQUISITION_PRICE, AFTER_TAX, AVERAGE_UNIT_PRICE, CURRENT_PRICE,
-    DIVIDEND_AMOUNT, DOMESTIC_STOCK, HOLDING_COUNT, KIND, MARKET_VALUE, MUTUAL_FUND, PAYMENT_DATE,
-    PER_SHARE_DIVIDEND, PRICE_AS_OF, PRODUCT, QUANTITY, REALIZED_PROFIT_LOSS, SECURITY_CODE,
-    SECURITY_NAME, SELLING_OR_REDEMPTION_AMOUNT, TAX, TRADE_DATE, UNIT_PRICE,
-    VALUATION_PROFIT_LOSS,
-};
+use crate::ui::labels;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 
@@ -34,7 +28,7 @@ impl ExportError {
     pub(crate) fn user_message(&self) -> String {
         match self {
             Self::Api(error) => error.user_message(),
-            Self::Truncated => "件数が上限を超えたため、全件を取得できませんでした".to_string(),
+            Self::Truncated => labels::EXPORT_TRUNCATED.to_string(),
         }
     }
 }
@@ -57,9 +51,9 @@ impl ExportKind {
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            Self::Dividend => "配当金",
-            Self::AssetBalance => "資産残高",
-            Self::Transaction => "売買履歴",
+            Self::Dividend => labels::DIVIDEND_AMOUNT,
+            Self::AssetBalance => labels::EXPORT_ASSET_BALANCE,
+            Self::Transaction => labels::EXPORT_TRANSACTIONS,
         }
     }
 
@@ -175,16 +169,16 @@ fn dividends_csv(rows: &[Dividend]) -> String {
             .then_with(|| a.security_code.cmp(&b.security_code))
     });
     let mut lines = vec![header(&[
-        PAYMENT_DATE,
-        PRODUCT,
-        ACCOUNT,
-        SECURITY_CODE,
-        SECURITY_NAME,
-        PER_SHARE_DIVIDEND,
-        QUANTITY,
-        DIVIDEND_AMOUNT,
-        TAX,
-        AFTER_TAX,
+        labels::PAYMENT_DATE,
+        labels::PRODUCT,
+        labels::ACCOUNT,
+        labels::SECURITY_CODE,
+        labels::SECURITY_NAME,
+        labels::PER_SHARE_DIVIDEND,
+        labels::QUANTITY,
+        labels::DIVIDEND_AMOUNT,
+        labels::TAX,
+        labels::AFTER_TAX,
     ])];
     for row in sorted {
         lines.push(csv_line(&[
@@ -226,15 +220,15 @@ fn asset_balances_csv(rows: &[AssetBalance]) -> String {
         ordering.then_with(|| rows[*a].security_code.cmp(&rows[*b].security_code))
     });
     let mut lines = vec![header(&[
-        SECURITY_CODE,
-        SECURITY_NAME,
-        HOLDING_COUNT,
-        AVERAGE_UNIT_PRICE,
-        ACQUISITION_AMOUNT,
-        CURRENT_PRICE,
-        PRICE_AS_OF,
-        MARKET_VALUE,
-        VALUATION_PROFIT_LOSS,
+        labels::SECURITY_CODE,
+        labels::SECURITY_NAME,
+        labels::HOLDING_COUNT,
+        labels::AVERAGE_UNIT_PRICE,
+        labels::ACQUISITION_AMOUNT,
+        labels::CURRENT_PRICE,
+        labels::PRICE_AS_OF,
+        labels::MARKET_VALUE,
+        labels::VALUATION_PROFIT_LOSS,
     ])];
     for index in order {
         let row = &rows[index];
@@ -264,7 +258,7 @@ fn transactions_csv(stocks: &[DomesticStock], funds: &[Mutualfund]) -> String {
     for row in stocks {
         entries.push((
             row.trade_date.to_string(),
-            DOMESTIC_STOCK,
+            labels::DOMESTIC_STOCK,
             vec![
                 csv_text(row.security_code.as_str()),
                 csv_text(&row.security_name),
@@ -282,7 +276,7 @@ fn transactions_csv(stocks: &[DomesticStock], funds: &[Mutualfund]) -> String {
     for row in funds {
         entries.push((
             row.trade_date.to_string(),
-            MUTUAL_FUND,
+            labels::MUTUAL_FUND,
             vec![
                 String::new(),
                 csv_text(&row.fund_name),
@@ -299,18 +293,18 @@ fn transactions_csv(stocks: &[DomesticStock], funds: &[Mutualfund]) -> String {
     }
     entries.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
     let mut lines = vec![header(&[
-        KIND,
-        TRADE_DATE,
-        SECURITY_CODE,
-        SECURITY_NAME,
-        ACCOUNT,
-        QUANTITY,
-        UNIT_PRICE,
-        SELLING_OR_REDEMPTION_AMOUNT,
-        ACQUISITION_PRICE,
-        REALIZED_PROFIT_LOSS,
-        TAX,
-        AFTER_TAX,
+        labels::KIND,
+        labels::TRADE_DATE,
+        labels::SECURITY_CODE,
+        labels::SECURITY_NAME,
+        labels::ACCOUNT,
+        labels::QUANTITY,
+        labels::UNIT_PRICE,
+        labels::SELLING_OR_REDEMPTION_AMOUNT,
+        labels::ACQUISITION_PRICE,
+        labels::REALIZED_PROFIT_LOSS,
+        labels::TAX,
+        labels::AFTER_TAX,
     ])];
     for (date, kind, fields) in entries {
         let mut line = vec![kind.to_string(), date];
