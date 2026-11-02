@@ -1,5 +1,6 @@
 use crate::ui::amount::Amount;
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
+use crate::ui::labels;
 use leptos::prelude::*;
 
 #[cfg(test)]
@@ -151,14 +152,14 @@ pub fn SummaryBand(
             if !text.is_empty() {
                 text.push('・');
             }
-            text.push_str(crate::ui::labels::PARTIAL_PENDING_UPDATE);
+            text.push_str(labels::PARTIAL_PENDING_UPDATE);
         }
         text
     };
     let has_breakdown = !breakdown.is_empty();
     let has_aux = !aux_label.is_empty();
     let label_note = if !primary_sub.is_empty() && !as_of_note.is_empty() {
-        format!("{}・{}", primary_sub, as_of_note)
+        format!("{}{}{}", primary_sub, labels::TAG_SEPARATOR, as_of_note)
     } else if !primary_sub.is_empty() {
         primary_sub.clone()
     } else {
@@ -178,8 +179,8 @@ pub fn SummaryBand(
     } else {
         ""
     };
-    let label_open = "内訳を開く".to_string();
-    let label_close = "内訳を閉じる".to_string();
+    let label_open = labels::SUMMARY_OPEN.to_string();
+    let label_close = labels::SUMMARY_CLOSE.to_string();
     view! {
         <div
             class="summary-band-grid"

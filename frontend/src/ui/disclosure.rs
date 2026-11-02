@@ -1,3 +1,4 @@
+use crate::ui::labels;
 use leptos::prelude::*;
 
 // 開閉(ディスクロージャ)の基本部品。トリガーはすべてこの部品を通し、
@@ -39,7 +40,7 @@ fn DisclosureHint(#[prop(into)] expanded: Signal<bool>) -> impl IntoView {
     view! {
         <span class="flex shrink-0 items-center gap-1 text-text-soft">
             <span class="text-xs font-semibold">
-                {move || if expanded.get() { "閉じる" } else { "開く" }}
+                {move || if expanded.get() { labels::DIALOG_CLOSE } else { labels::DISCLOSURE_OPEN }}
             </span>
             <ChevronIcon expanded=expanded class="h-4 w-4 text-text-subtle transition-transform duration-200" />
         </span>

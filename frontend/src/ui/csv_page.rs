@@ -421,7 +421,7 @@ fn CsvKindRow(
             >
                 {match count {
                     Some(count) => labels::count(count.max(0) as usize),
-                    None => "—".to_string(),
+                    None => labels::MISSING.to_string(),
                 }}
             </td>
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-xs">
@@ -467,12 +467,12 @@ fn CsvKindRow(
                     <Button
                         variant=ButtonVariant::Secondary(ButtonSize::Sm)
                         class="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-sunken text-text-muted"
-                        aria_label="メニュー"
+                        aria_label=labels::MENU
                         aria_expanded=move || menu_open.get()
                         on_click=move |_| menu_open.toggle()
                         node_ref=menu_trigger
                     >
-                        <span class="text-lg font-mono">"⋯"</span>
+                        <span class="text-lg font-mono">{labels::CSV_MANAGE_COL_MENU}</span>
                     </Button>
                     {move || menu_open.get().then(|| {
                         view! {
@@ -518,7 +518,7 @@ fn CsvKindRow(
                     class="sr-only"
                     id=input_id.clone()
                     data-testid="csv-file-input"
-                    aria-label="CSVファイルを選択"
+                    aria-label=labels::CSV_FILE_SELECT
                     node_ref=file_input
                     on:change=on_file_change
                 />
@@ -526,7 +526,7 @@ fn CsvKindRow(
         </tr>
         {move || show_delete_confirm.get().then(|| {
             let count = delete_count.get();
-            let range = date_range.get().map(|(min, max)| format!("{min} 〜 {max}"));
+            let range = date_range.get().map(|(min, max)| labels::receipt_period_short(&min, &max));
             view! {
                 <ConfirmDeleteModal
                     title=labels::csv_manage_delete_confirm_title(kind.label())
@@ -563,7 +563,7 @@ fn compute_status(
         match status {
             KindStatus::Fetching => {
                 return (
-                    "取得中...".to_string(),
+                    labels::CSV_STATUS_FETCHING.to_string(),
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),
@@ -572,7 +572,7 @@ fn compute_status(
             }
             KindStatus::Importing => {
                 return (
-                    "取り込み中...".to_string(),
+                    labels::CSV_STATUS_IMPORTING.to_string(),
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),
@@ -581,7 +581,7 @@ fn compute_status(
             }
             KindStatus::Confirming => {
                 return (
-                    "確認待ち".to_string(),
+                    labels::CSV_STATUS_CONFIRMING.to_string(),
                     "text-accent-vivid".to_string(),
                     false,
                     String::new(),
@@ -613,7 +613,7 @@ fn compute_status(
 
     if !count_ready {
         return (
-            "—".to_string(),
+            labels::MISSING.to_string(),
             "text-text-muted".to_string(),
             false,
             String::new(),
@@ -661,8 +661,9 @@ fn dated_status(
     } else {
         (
             format!(
-                "{}・{}",
+                "{}{}{}",
                 labels::CSV_MANAGE_STATUS_UPDATE_REQUIRED,
+                labels::TAG_SEPARATOR,
                 labels::csv_manage_status_updated_days_ago(days_ago, date, time),
             ),
             "text-warn-ink",
