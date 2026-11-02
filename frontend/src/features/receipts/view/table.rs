@@ -11,7 +11,11 @@ use crate::features::receipts::kind::TableGroup;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::amount::Amount;
 use crate::ui::badge::AccountBadge;
-use crate::ui::labels::{self, AFTER_TAX};
+use crate::ui::labels::{
+    self, ACCOUNT, ACQUISITION_PRICE, AFTER_TAX, DIVIDEND_AMOUNT, FUND_NAME, PAYMENT_DATE,
+    QUANTITY, REALIZED_PROFIT_LOSS, REDEMPTION_AMOUNT, SECURITY_CODE, SECURITY_NAME,
+    SELLING_AMOUNT, TAX, TRADE_DATE,
+};
 use crate::ui::security_link::{CopyableInstrumentName, TableSecurityCode};
 use leptos::prelude::*;
 use std::collections::HashSet;
@@ -38,7 +42,9 @@ pub fn displayed_tiers(
 // 売買の内訳金額は xl まで隠し、lg でも銘柄列の幅を確保する
 fn compact_tier(header: &str) -> ColumnTier {
     match header {
-        "売却額" | "解約額" | "取得価額" => ColumnTier::Wide,
+        s if s == SELLING_AMOUNT || s == REDEMPTION_AMOUNT || s == ACQUISITION_PRICE => {
+            ColumnTier::Wide
+        }
         _ => ColumnTier::Core,
     }
 }
@@ -108,42 +114,42 @@ pub fn ReceiptTable(
             .enumerate()
             .filter_map(|(index, column)| {
                 let visible = match tab {
-                    ReceiptsTab::Dividend => matches!(
-                        column.header,
-                        "入金日"
-                            | "銘柄コード"
-                            | "銘柄名"
-                            | "口座"
-                            | "数量"
-                            | "配当金"
-                            | "税額"
-                            | "税引後"
-                    ),
-                    ReceiptsTab::DomesticStock => matches!(
-                        column.header,
-                        "約定日"
-                            | "銘柄コード"
-                            | "銘柄名"
-                            | "口座"
-                            | "数量"
-                            | "売却額"
-                            | "取得価額"
-                            | "実現損益"
-                            | "税額"
-                            | "税引後"
-                    ),
-                    ReceiptsTab::MutualFund => matches!(
-                        column.header,
-                        "約定日"
-                            | "ファンド名"
-                            | "口座"
-                            | "数量"
-                            | "解約額"
-                            | "取得価額"
-                            | "実現損益"
-                            | "税額"
-                            | "税引後"
-                    ),
+                    ReceiptsTab::Dividend => [
+                        PAYMENT_DATE,
+                        SECURITY_CODE,
+                        SECURITY_NAME,
+                        ACCOUNT,
+                        QUANTITY,
+                        DIVIDEND_AMOUNT,
+                        TAX,
+                        AFTER_TAX,
+                    ]
+                    .contains(&column.header),
+                    ReceiptsTab::DomesticStock => [
+                        TRADE_DATE,
+                        SECURITY_CODE,
+                        SECURITY_NAME,
+                        ACCOUNT,
+                        QUANTITY,
+                        SELLING_AMOUNT,
+                        ACQUISITION_PRICE,
+                        REALIZED_PROFIT_LOSS,
+                        TAX,
+                        AFTER_TAX,
+                    ]
+                    .contains(&column.header),
+                    ReceiptsTab::MutualFund => [
+                        TRADE_DATE,
+                        FUND_NAME,
+                        ACCOUNT,
+                        QUANTITY,
+                        REDEMPTION_AMOUNT,
+                        ACQUISITION_PRICE,
+                        REALIZED_PROFIT_LOSS,
+                        TAX,
+                        AFTER_TAX,
+                    ]
+                    .contains(&column.header),
                 };
                 visible.then_some(index)
             })
@@ -369,15 +375,15 @@ pub fn ReceiptTable(
                                                                             let kind = amount_kind_for_label(
                                                                                 tab, header, &value,
                                                                             );
-                                                                            let is_trio = matches!(
-                                                                                header,
-                                                                                "配当金"
-                                                                                    | "実現損益"
-                                                                                    | "税額"
-                                                                                    | "税引後"
-                                                                            );
+                                                                            let is_trio = [
+                                                                                DIVIDEND_AMOUNT,
+                                                                                REALIZED_PROFIT_LOSS,
+                                                                                TAX,
+                                                                                AFTER_TAX,
+                                                                            ]
+                                                                            .contains(&header);
                                                                             let is_net = compact_mobile
-                                                                                && header == "税引後";
+                                                                                && header == AFTER_TAX;
                                                                             let bold_class = if is_net {
                                                                                 " font-bold"
                                                                             } else {
@@ -386,18 +392,18 @@ pub fn ReceiptTable(
                                                                             // 対象の3列以外は従来のまま(日付・数量は薄色)
                                                                             let muted_class = if !is_trio
                                                                                 && compact_mobile
-                                                                                && matches!(
-                                                                                    header,
-                                                                                    "入金日"
-                                                                                        | "約定日"
-                                                                                        | "数量"
-                                                                                ) {
+                                                                                && [
+                                                                                    PAYMENT_DATE,
+                                                                                    TRADE_DATE,
+                                                                                    QUANTITY,
+                                                                                ]
+                                                                                .contains(&header) {
                                                                                 " text-text-soft"
                                                                             } else {
                                                                                 ""
                                                                             };
                                                                             let title = text.clone();
-                                                                            let content = if header == "口座" {
+                                                                            let content = if header == ACCOUNT {
                                                                                 view! { <AccountBadge label=value.clone() /> }
                                                                                     .into_any()
                                                                             } else if is_trio {
@@ -413,7 +419,7 @@ pub fn ReceiptTable(
                                                                             } else {
                                                                                 text.clone().into_any()
                                                                             };
-                                                                            let account_class = if header == "口座" {
+                                                                            let account_class = if header == ACCOUNT {
                                                                                 " receipt-account-col"
                                                                             } else {
                                                                                 ""

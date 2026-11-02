@@ -13,6 +13,7 @@ pub use tabs::{ReceiptsTabButton, TabPanel};
 
 use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
+use crate::ui::labels::{CSV_MANAGE_TITLE, KIND, RECEIPTS_TITLE};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::underline_tabs::{SwipeArea, SwipeMotion, tab_ink_offset};
@@ -43,14 +44,14 @@ pub fn ReceiptsPage() -> impl IntoView {
 
     let csv_link: Children = Box::new(move || {
         view! {
-            <a class="page-secondary-link-sm" href="/csv">"CSV管理"</a>
+            <a class="page-secondary-link-sm" href="/csv">{CSV_MANAGE_TITLE}</a>
         }
         .into_any()
     });
     // タブはページ名の下の行に置く(資産管理と同じ順序)
     let tabs = move || {
         view! {
-            <nav aria-label="種別">
+            <nav aria-label=KIND>
                 <div
                     class="page-tab-list relative"
                     role="tablist"
@@ -85,7 +86,7 @@ pub fn ReceiptsPage() -> impl IntoView {
     };
 
     view! {
-        <PageFrame title="取引明細" links=csv_link full_bleed=true>
+        <PageFrame title=RECEIPTS_TITLE links=csv_link full_bleed=true>
             <div
                 class="flex flex-1 flex-col min-h-0 lg:flex-none"
                 aria-busy=move || {

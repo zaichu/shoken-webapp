@@ -4,7 +4,7 @@ use crate::ui::card::StatTone;
 use crate::ui::format::date_parts;
 use crate::ui::labels::{
     DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX, REALIZED_AFTER_TAX, REALIZED_BEFORE_TAX,
-    REALIZED_PROFIT_LOSS, RECEIVED_DIVIDEND_AFTER_TAX,
+    REALIZED_PROFIT_LOSS, RECEIVED_DIVIDEND_AFTER_TAX, SUMMARY, receipt_period_short,
 };
 use crate::ui::summary::{SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone};
 use leptos::prelude::*;
@@ -46,7 +46,7 @@ pub fn header_summary(
 pub fn period_note_short(rows: &[ReceiptRow]) -> Option<String> {
     let from = rows.iter().map(|row| row.date()).min()?;
     let to = rows.iter().map(|row| row.date()).max()?;
-    Some(format!("{} 〜 {}", year_month(from)?, year_month(to)?))
+    Some(receipt_period_short(&year_month(from)?, &year_month(to)?))
 }
 
 fn year_month(date: &str) -> Option<String> {
@@ -141,7 +141,7 @@ pub fn SummaryStrip(
         <section
             data-testid="receipt-summary-strip"
             role="region"
-            aria-label="集計"
+            aria-label=SUMMARY
             class="summary-band"
         >
             <SummaryBand
