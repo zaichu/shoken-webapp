@@ -47,14 +47,13 @@ fn chart_color_uses_table_slot_or_single_other_color() {
 }
 
 #[test]
-fn dividend_dialog_keeps_before_tax_removed_from_row() {
-    // 行は2行目の右を出さない部品に寄せ、税引前は詳細ダイアログにだけ出す
+fn dividend_dialog_shows_signed_tax_trio() {
     let (left, right) = home_dividend_dialog_cells(
         "2024-03-15",
         "100".to_string(),
         "¥30".to_string(),
-        "¥2,000".to_string(),
-        "¥406".to_string(),
+        ("+¥2,000".to_string(), false, true),
+        ("-¥406".to_string(), true, false),
         ("+¥1,594".to_string(), false, true),
     );
     assert_eq!(left.len(), 3);
@@ -62,11 +61,73 @@ fn dividend_dialog_keeps_before_tax_removed_from_row() {
         .iter()
         .find(|cell| cell.label == "税引前")
         .expect("ダイアログに税引前がある");
-    assert_eq!(before_tax.value, "¥2,000");
+    assert_eq!(before_tax.value, "+¥2,000");
+    assert!(before_tax.delta);
+    assert!(!before_tax.negative);
+    assert!(before_tax.positive);
+    let tax = right
+        .iter()
+        .find(|cell| cell.label == "税額")
+        .expect("ダイアログに税額がある");
+    assert_eq!(tax.value, "-¥406");
+    assert!(tax.delta);
+    assert!(tax.negative);
+    assert!(!tax.positive);
     let net = right
         .iter()
         .find(|cell| cell.label == "税引後")
         .expect("ダイアログに税引後がある");
     assert_eq!(net.value, "+¥1,594");
     assert!(net.delta);
+}
+
+#[test]
+fn dividend_dialog_tax_zero_uses_plain() {
+    let (_, right) = home_dividend_dialog_cells(
+        "2024-03-15",
+        "100".to_string(),
+        "¥30".to_string(),
+        ("+¥2,000".to_string(), false, true),
+        ("¥0".to_string(), false, false),
+        ("+¥2,000".to_string(), false, true),
+    );
+    let tax = right
+        .iter()
+        .find(|cell| cell.label == "税額")
+        .expect("ダイアログに税額がある");
+    assert_eq!(tax.value, "¥0");
+    assert!(!tax.delta);
+    assert!(!tax.negative);
+    assert!(!tax.positive);
+}
+
+#[test]
+fn dividend_dialog_tax_refund_uses_plus() {
+    let (_, right) = home_dividend_dialog_cells(
+        "2024-03-15",
+        "100".to_string(),
+        "¥30".to_string(),
+        ("+¥2,000".to_string(), false, true),
+        ("+¥100".to_string(), false, true),
+        ("+¥2,100".to_string(), false, true),
+    );
+    let tax = right
+        .iter()
+        .find(|cell| cell.label == "税額")
+        .expect("ダイアログに税額がある");
+    assert_eq!(tax.value, "+¥100");
+    assert!(tax.delta);
+    assert!(!tax.negative);
+    assert!(tax.positive);
+}
+
+#[test]
+fn dividend_dialog_signed_helpers_cover_edges() {
+    use super::{signed_gross_text, signed_tax_text};
+    assert_eq!(signed_gross_text(2000.0, "¥2,000"), "+¥2,000");
+    assert_eq!(signed_gross_text(-1000.0, "-¥1,000"), "-¥1,000");
+    assert_eq!(signed_gross_text(0.0, "¥0"), "¥0");
+    assert_eq!(signed_tax_text(406.0, "¥406"), "-¥406");
+    assert_eq!(signed_tax_text(-100.0, "-¥100"), "+¥100");
+    assert_eq!(signed_tax_text(0.0, "¥0"), "¥0");
 }
