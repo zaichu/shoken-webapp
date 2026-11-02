@@ -305,44 +305,45 @@ test.describe('スマホの構成比', () => {
   });
 
   test('件数行の右端から構成比へ進め、見出し行は無い', async ({ page }) => {
-    await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS);
+    await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS, GROUP_FUNDS);
     await page.goto('/assetbalance');
-    await page.getByTestId('asset-kind-tab-stock').click();
 
     // 『保有銘柄 ◯件』の見出し行は無い
+    await page.getByTestId('asset-kind-tab-stock').click();
     await expect(page.getByTestId('asset-stock-heading')).toHaveCount(0);
     await expect(page.getByText('保有銘柄')).toHaveCount(0);
 
-    // 件数はタブと件数行に出る
-    await expect(page.getByTestId('asset-search-count-mobile')).toContainText(
-      '3件 / 3件',
-    );
-
-    // 入口は件数行の右端にあり、押せる高さを持つ
-    const count = page.getByTestId('asset-search-count-mobile');
-    const entry = page.getByTestId('asset-composition-link');
-    await expect(entry).toBeVisible();
-    await expect(entry).toContainText('構成比を見る');
-    const countBox = await count.boundingBox();
-    const entryBox = await entry.boundingBox();
-    expect(countBox).not.toBeNull();
-    expect(entryBox).not.toBeNull();
-    if (countBox && entryBox) {
-      expect(entryBox.x).toBeGreaterThan(countBox.x);
-      expect(entryBox.y).toBeLessThanOrEqual(countBox.y + countBox.height);
-      expect(entryBox.y + entryBox.height).toBeGreaterThanOrEqual(countBox.y);
-      expect(entryBox.height).toBeGreaterThanOrEqual(44);
+    // 3タブとも件数と同じ行の右端に入口があり、押せる高さを持つ
+    const tabs = [
+      { tab: 'asset-kind-tab-stock', count: '3件 / 3件' },
+      { tab: 'asset-kind-tab-fund', count: '2件 / 2件' },
+      { tab: 'asset-kind-tab-all', count: '5件 / 5件' },
+    ] as const;
+    for (const { tab, count } of tabs) {
+      await page.getByTestId(tab).click();
+      const countLine = page.getByTestId('asset-search-count-mobile');
+      await expect(countLine).toContainText(count);
+      const entry = page.getByTestId('asset-composition-link');
+      await expect(entry).toBeVisible();
+      await expect(entry).toContainText('構成比を見る');
+      const countBox = await countLine.boundingBox();
+      const entryBox = await entry.boundingBox();
+      expect(countBox).not.toBeNull();
+      expect(entryBox).not.toBeNull();
+      if (countBox && entryBox) {
+        expect(entryBox.x).toBeGreaterThan(countBox.x);
+        expect(entryBox.y).toBeLessThanOrEqual(countBox.y + countBox.height);
+        expect(entryBox.y + entryBox.height).toBeGreaterThanOrEqual(countBox.y);
+        expect(entryBox.height).toBeGreaterThanOrEqual(44);
+      }
     }
-    await entry.click();
+
+    await page.getByTestId('asset-kind-tab-stock').click();
+    await page.getByTestId('asset-composition-link').click();
     await expect(page).toHaveURL('/assetbalance/composition');
     await expect(page.getByRole('link', { name: '資産管理に戻る' })).toBeVisible();
     await page.getByRole('link', { name: '資産管理に戻る' }).click();
     await expect(page).toHaveURL('/assetbalance');
-
-    // 投資信託タブに構成比の入口は無い(対象は国内株式のまま)
-    await page.goto('/assetbalance');
-    await page.getByTestId('asset-kind-tab-fund').click();
-    await expect(page.getByTestId('asset-composition-link')).toHaveCount(0);
   });
 });
 

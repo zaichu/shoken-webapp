@@ -18,7 +18,7 @@ pub fn SearchDialog(
     view! {
         <DialogShell title=title on_close=on_close testid=panel_testid>
             <div class="search-dialog-head">
-                <h2 class="search-dialog-title">{head_title}</h2>
+                <h2 class="dialog-title">{head_title}</h2>
             </div>
             <div class="search-dialog-body">{children()}</div>
             <div class="search-dialog-footer">

@@ -4,11 +4,50 @@ use crate::ui::card::StatTone;
 use crate::ui::format::date_parts;
 use crate::ui::labels::{
     DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX, REALIZED_AFTER_TAX, REALIZED_BEFORE_TAX,
-    REALIZED_PROFIT_LOSS, RECEIVED_DIVIDEND_AFTER_TAX, SUMMARY, receipt_period_short,
+    REALIZED_PROFIT_LOSS, RECEIVED_DIVIDEND_AFTER_TAX, SUMMARY, TAX, receipt_period_short,
 };
 use crate::ui::summary::{SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
+
+/// 帯の内訳に出す項目が税額かどうか。税額は出ていくお金として符号を反転する
+fn is_band_tax(label: &str) -> bool {
+    label == TAX
+}
+
+/// 帯の内訳に出す項目が税引前・受取額・損益かどうか。詳細ダイアログ・PCの表と同じ決まりで符号と色を付ける
+fn is_band_profit(label: &str) -> bool {
+    label == DIVIDEND_AMOUNT || label == REALIZED_PROFIT_LOSS
+}
+
+/// 帯の内訳の表示値・正負・PC用の種別。税額は正を「-」・還付(負)を「+」に反転し、0は通常色にする
+pub(crate) fn band_value(label: &'static str, value: Decimal) -> (String, bool, bool, SummaryTone) {
+    let text = format_amount(value);
+    if is_band_tax(label) {
+        if value > Decimal::ZERO {
+            (format!("-{text}"), true, false, SummaryTone::Loss)
+        } else if value < Decimal::ZERO {
+            (
+                format!("+{}", format_amount(-value)),
+                false,
+                true,
+                SummaryTone::Gain,
+            )
+        } else {
+            (text, false, false, SummaryTone::Neutral)
+        }
+    } else if is_band_profit(label) {
+        if value > Decimal::ZERO {
+            (format!("+{text}"), false, true, SummaryTone::Gain)
+        } else if value < Decimal::ZERO {
+            (text, true, false, SummaryTone::Loss)
+        } else {
+            (text, false, false, SummaryTone::Neutral)
+        }
+    } else {
+        (text, false, false, SummaryTone::Neutral)
+    }
+}
 
 pub fn profit_tone(value: Decimal) -> StatTone {
     if value < Decimal::ZERO {
@@ -88,41 +127,28 @@ pub fn SummaryStrip(
             text
         }
     };
-    let to_breakdown = |(label, value, tone): (&'static str, Decimal, StatTone),
-                        is_profit: bool| {
-        let negative = tone == StatTone::Loss;
-        let positive = is_profit && value > Decimal::ZERO;
+    let to_breakdown = |(label, value, _): (&'static str, Decimal, StatTone)| {
+        let (text, negative, positive, _) = band_value(label, value);
         SummaryBreakdownEntry {
             label: breakdown_label(label).to_string(),
-            value: format_signed(value, is_profit),
+            value: text,
             negative,
             positive,
             rate: String::new(),
         }
     };
-    let to_sub =
-        |(label, value, tone): (&'static str, Decimal, StatTone), is_profit: bool| SummarySubItem {
-            label: label.to_string(),
-            value: format_signed(value, is_profit),
+    let to_sub = |(label, value, _): (&'static str, Decimal, StatTone)| {
+        let (text, _, _, tone) = band_value(label, value);
+        SummarySubItem {
+            label: breakdown_label(label).to_string(),
+            value: text,
             note: String::new(),
-            tone: match tone {
-                StatTone::Loss => SummaryTone::Loss,
-                StatTone::Neutral if is_profit && value > Decimal::ZERO => SummaryTone::Gain,
-                StatTone::Neutral => SummaryTone::Neutral,
-            },
+            tone,
             extra_class: String::new(),
-        };
-    let pc_items: Vec<SummarySubItem> = secondary
-        .clone()
-        .into_iter()
-        .zip(marks.clone())
-        .map(|(item, profit)| to_sub(item, profit))
-        .collect();
-    let breakdown: Vec<SummaryBreakdownEntry> = secondary
-        .into_iter()
-        .zip(marks)
-        .map(|(item, profit)| to_breakdown(item, profit))
-        .collect();
+        }
+    };
+    let pc_items: Vec<SummarySubItem> = secondary.clone().into_iter().map(to_sub).collect();
+    let breakdown: Vec<SummaryBreakdownEntry> = secondary.into_iter().map(to_breakdown).collect();
     let (primary_label, primary_value, primary_negative, primary_positive) = primary
         .map(|(label, value, tone)| {
             let display = match tab {

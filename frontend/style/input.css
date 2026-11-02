@@ -429,21 +429,23 @@
     @apply inline-flex overflow-clip rounded-lg border border-border-strong bg-surface;
   }
 
-  .segmented-option {
-    @apply min-h-9 min-w-12 items-center justify-center px-4 py-1.5 text-sm font-medium text-text-deep transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-sm:min-h-11;
+  /* 少数択一の切り替え(設定の金額単位・自動ログアウト・テーマと取引明細の期間)。
+     余白・文字は共通の形にそろえ、種別の出し分けは Button の variant で行う */
+  .segment-option {
+    @apply inline-flex min-h-9 min-w-12 items-center justify-center px-4 py-1.5 text-sm font-medium text-text-deep transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-sm:min-h-11;
   }
 
-  .segmented-option + .segmented-option {
+  .segment-option + .segment-option {
     @apply border-l border-border-strong;
   }
 
-  .segmented-option[aria-pressed="true"] {
+  .segment-option[aria-pressed="true"] {
     @apply bg-brand font-bold text-text-inverse;
   }
 
   /* ダークでは紺の選択色が面に溶けるため、明るい塗り+反転文字で選択状態を示す */
   @media screen {
-    :root[data-theme="dark"] .segmented-option[aria-pressed="true"] {
+    :root[data-theme="dark"] .segment-option[aria-pressed="true"] {
       @apply bg-accent text-page;
     }
   }
@@ -456,12 +458,34 @@
     @apply inline-flex items-center justify-between gap-1 whitespace-nowrap rounded-md border border-border-subtle bg-surface px-3 py-2 text-sm font-medium text-text-deep transition-colors hover:border-text-deep hover:bg-surface-sunken max-sm:min-h-11 max-sm:px-2 max-sm:text-xs;
   }
 
-  .code-badge {
-    @apply inline-flex shrink-0 items-center rounded-full bg-info-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-info;
+  /* 小さな札は Badge 部品の種別で表す。角丸・余白・文字の太さの差は
+     variant の定義に集め、呼び出し側にクラスを直書きしない */
+  .badge {
+    @apply inline-flex items-center text-xs;
   }
 
-  .code-badge-flush {
-    @apply inline-flex shrink-0 items-center text-xs font-semibold tabular-nums text-info;
+  .badge-positive {
+    @apply rounded bg-positive-softer px-1.5 py-0.5 font-medium text-positive;
+  }
+
+  .badge-info {
+    @apply rounded bg-info-soft px-1.5 py-0.5 font-medium text-info;
+  }
+
+  .badge-accent {
+    @apply rounded bg-accent-soft px-1.5 py-0.5 font-medium text-accent-text;
+  }
+
+  .badge-danger {
+    @apply rounded bg-negative-soft px-1.5 py-0.5 font-medium text-negative-vivid;
+  }
+
+  .badge-code {
+    @apply shrink-0 rounded-full bg-info-soft px-2 py-0.5 font-semibold tabular-nums text-info;
+  }
+
+  .badge-code-flush {
+    @apply shrink-0 font-semibold tabular-nums text-info;
   }
 
   .security-code-link {
@@ -529,8 +553,9 @@
     }
   }
 
-  .page-tab-count {
-    @apply text-[11px] font-medium tabular-nums;
+  .badge-count {
+    @apply font-medium tabular-nums;
+    font-size: 11px;
   }
 
   /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す */
@@ -550,14 +575,15 @@
   }
 
   @media (width >= 64rem) {
-    .page-tab-count {
-      @apply bg-row-group text-xs text-text-soft;
+    .badge-count {
+      @apply bg-row-group text-text-soft;
       border-radius: 9px;
       padding: 0 7px;
       line-height: 18px;
+      font-size: 12px;
     }
 
-    .page-tab[aria-selected="true"] .page-tab-count {
+    .page-tab[aria-selected="true"] .badge-count {
       @apply bg-gold font-bold text-brand;
     }
   }
@@ -676,6 +702,10 @@
     max-height: 88dvh;
   }
 
+  .dialog-title {
+    @apply flex-1 text-base font-bold text-text;
+  }
+
   /* 条件ダイアログの背景。中央ダイアログと同じく下地を暗くする。
      旧名の互換のため残すが、配置は search-dialog-root の中央に任せる */
   .condition-backdrop {
@@ -701,24 +731,9 @@
     @apply mt-2 flex w-full overflow-clip rounded-lg border border-border-strong bg-surface;
   }
 
-  .condition-segment-option {
-    @apply flex min-h-9 flex-1 items-center justify-center px-1 text-[13px] font-medium text-text-deep transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-sm:min-h-11;
-  }
-
-  .condition-segment-option + .condition-segment-option {
-    @apply border-l border-border-strong;
-  }
-
-  .condition-segment-option[aria-pressed="true"] {
-    @apply bg-brand font-bold text-text-inverse;
-  }
-
-  /* ダークでは紺の選択色が面に溶けるため、segmented-option と同じ
-     明るい塗り+反転文字で選択状態を示す */
-  @media screen {
-    :root[data-theme="dark"] .condition-segment-option[aria-pressed="true"] {
-      @apply bg-accent text-page;
-    }
+  /* 全幅の帯では5択を等分に分ける */
+  .condition-segment > .segment-option {
+    @apply flex-1;
   }
 
   .condition-option-list {
@@ -743,7 +758,7 @@
     @apply border-brand-text text-text-deep;
   }
 
-  /* ダークでは紺の選択色が面に溶けるため、segmented-option と同じ
+  /* ダークでは紺の選択色が面に溶けるため、segment-option と同じ
      明るい塗り+反転文字で選択状態を示す */
   @media screen {
     :root[data-theme="dark"] .condition-option[aria-pressed="true"] {
@@ -774,10 +789,6 @@
 
   .search-dialog-head {
     @apply flex items-center gap-2 border-b border-border px-4 py-3;
-  }
-
-  .search-dialog-title {
-    @apply flex-1 text-base font-bold text-text;
   }
 
   .search-dialog-body {
@@ -815,10 +826,6 @@
 
   .detail-dialog-head {
     @apply border-b border-border px-4 py-3;
-  }
-
-  .detail-dialog-title {
-    @apply text-base font-bold text-text;
   }
 
   .detail-dialog-badges {
@@ -964,20 +971,21 @@
     @apply flex w-full items-baseline justify-between gap-2 whitespace-nowrap;
   }
 
-  .summary-band-label {
-    @apply shrink-0 text-xs font-medium text-brand-muted;
+  .summary-band-top-row .summary-label {
+    @apply shrink-0;
   }
 
-  .summary-band-date {
-    @apply ml-auto min-w-0 shrink truncate text-right text-xs font-normal text-brand-muted;
+  .summary-band-top-row .summary-label-note {
+    @apply ml-auto min-w-0 shrink truncate text-right;
   }
 
   .summary-band-hero-row {
     @apply flex w-full items-center justify-between gap-3 whitespace-nowrap;
   }
 
-  .summary-band-hero-value {
-    @apply mt-auto flex min-w-0 items-baseline gap-x-1.5 whitespace-nowrap leading-none text-summary-primary-compact font-bold;
+  /* 帯の補助行は旧定義どおり本文の行の高さにする。共通の summary-value は行の高さを1に詰める */
+  .summary-band-main-toggle .summary-value-secondary {
+    @apply leading-normal;
   }
 
   .summary-band-chevron-circle {
@@ -988,14 +996,6 @@
     @apply h-4 w-4 shrink-0 transition-transform duration-200;
   }
 
-  .summary-band-aux {
-    @apply flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-summary-secondary-compact font-bold;
-  }
-
-  .summary-band-aux-label {
-    @apply text-xs font-medium text-brand-muted;
-  }
-
   .summary-band-breakdown {
     @apply mt-3 divide-y divide-brand-line border-t border-brand-line;
   }
@@ -1004,8 +1004,8 @@
     @apply flex min-w-0 items-center justify-between gap-3 py-2;
   }
 
-  .summary-band-breakdown-label {
-    @apply min-w-0 shrink-0 text-xs font-medium text-brand-muted;
+  .summary-band-breakdown-row .summary-label {
+    @apply shrink-0;
   }
 
   .summary-band-breakdown-value {
@@ -1110,9 +1110,10 @@
     }
   }
 
-  /* クラスは tr ではなく各 td に付く */
+  /* クラスは tr ではなく各 td に付く。背景・金の左線は
+     `list-group-header` と同じトークンを使う */
   .receipts-table-group {
-    @apply bg-row-group text-[13px] text-night-soft;
+    @apply bg-row-group text-[13px] text-text-soft;
   }
 
   /* グループ小計の見出しセルだけ左に金の線。colspan 切替で複製される
@@ -1151,52 +1152,28 @@
     @apply inline text-text-muted no-underline;
   }
 
-  .receipt-compact-group {
-    @apply flex items-center justify-between gap-2 px-4 bg-row-group border-b border-border-strong;
-    min-height: 44px;
-    border-left: 3px solid var(--color-gold);
-  }
-
-  .receipt-compact-group > span:first-child {
-    @apply font-bold text-sm text-text-deep;
-  }
-
-  .receipt-compact-group > span:last-child {
-    @apply text-xs text-text-deep whitespace-nowrap tabular-nums;
-  }
-
   /* 口座区分の札。配色は --color-badge-* トークンで種類(特定・一般・NISA系・旧NISA)
      ごとに決め、枠を付けてどの面の上でも地に溶けないようにする */
-  .account-badge {
-    @apply inline-flex items-center rounded-lg border border-badge-general-border bg-badge-general px-1.5 text-xs text-badge-general-text;
+  .badge-account {
+    @apply rounded-lg border border-badge-general-border bg-badge-general px-1.5 text-badge-general-text;
     line-height: 18px;
   }
 
   /* PC の表ではバッジを折り返さず1行で出す(列は内容に合わせて広がる) */
-  .receipts-table .account-badge {
+  .receipts-table .badge-account {
     @apply whitespace-nowrap;
   }
 
-  .account-badge-specific {
+  .badge-account-specific {
     @apply border-badge-specific-border bg-badge-specific text-badge-specific-text;
   }
 
-  .account-badge-nisa {
+  .badge-account-nisa {
     @apply border-badge-nisa-border bg-badge-nisa text-badge-nisa-text;
   }
 
-  .account-badge-old-nisa {
+  .badge-account-old-nisa {
     @apply border-badge-old-nisa-border bg-badge-old-nisa text-badge-old-nisa-text;
-  }
-
-  /* スマホの下部帯はスクロール領域の流れの中で、下部ナビの直前に置く */
-  .receipts-mobile-bottom-section {
-    @apply mt-auto shrink-0 border-t border-border bg-surface;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .receipts-mobile-bottom-section .page-gutter {
-    @apply py-2;
   }
 
   .skip-link {
@@ -1411,10 +1388,6 @@
     @apply lg:grid-cols-[2fr_1fr];
   }
 
-  .home-card-link {
-    @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-xs font-medium text-accent-text hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
-  }
-
   .more-link {
     @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-xs font-medium text-accent-text no-underline hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
   }
@@ -1599,6 +1572,9 @@
     @apply outline-2 -outline-offset-2 outline-ink;
   }
 
+  /* 一覧のグループ見出しの正本。月の見出しなどは `ListGroupHeader` と
+     このクラスに寄せ、金の左線・`bg-row-group` をここで持つ。
+     表のグループ行(`receipts-table-group-label`)も同じトークンを使う */
   .list-group-header {
     @apply flex items-center justify-between gap-2 px-4 bg-row-group border-b border-border-strong;
     min-height: 44px;
@@ -1634,10 +1610,6 @@
 
   .comp-basis-row {
     @apply mt-3 flex justify-center;
-  }
-
-  .comp-empty {
-    @apply py-6 text-center text-text-muted;
   }
 
   .comp-donut-wrap {
@@ -1683,14 +1655,6 @@
 
   .comp-donut-center {
     @apply pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-center text-lg font-bold text-text;
-  }
-
-  .comp-list {
-    @apply mt-3 list-none divide-y divide-border-faint m-0 p-0;
-  }
-
-  .comp-dot {
-    @apply mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full;
   }
 
   .comp-bar {
@@ -1876,7 +1840,7 @@
 }
 
 /* 表の中ではコードバッジを詰める(等幅数字に 0.16em の字間は要らない) */
-.receipt-table .code-badge {
+.receipt-table .badge-code {
   @apply px-1 tracking-normal;
 }
 

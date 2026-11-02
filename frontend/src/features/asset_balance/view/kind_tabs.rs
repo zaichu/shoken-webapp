@@ -1,4 +1,5 @@
 use crate::features::asset_balance::fund::AssetKind;
+use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::TabButton;
 use crate::ui::labels;
 use crate::ui::underline_tabs::{
@@ -75,7 +76,9 @@ pub(crate) fn AssetKindTabs(
                             }
                         >
                             {item.label()}
-                            <span class="page-tab-count">{move || count(item)}</span>
+                            <Badge variant=BadgeVariant::Count>
+                                {move || count(item)}
+                            </Badge>
                         </TabButton>
                     }
                 })

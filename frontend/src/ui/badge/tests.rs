@@ -7,6 +7,13 @@ fn badge_variant_classes_are_distinguishable() {
         BadgeVariant::Info,
         BadgeVariant::Accent,
         BadgeVariant::Danger,
+        BadgeVariant::AccountSpecific,
+        BadgeVariant::AccountGeneral,
+        BadgeVariant::AccountNisa,
+        BadgeVariant::AccountOldNisa,
+        BadgeVariant::Code,
+        BadgeVariant::CodeFlush,
+        BadgeVariant::Count,
     ];
     let classes: Vec<&str> = variants.iter().map(|variant| variant.class()).collect();
     for (i, class) in classes.iter().enumerate() {
@@ -45,10 +52,10 @@ fn account_display_name_keeps_unknown_labels() {
 
 #[test]
 fn account_badge_color_distinguishes_kinds() {
-    let general = account_badge_class("一般");
-    let specific = account_badge_class("特定");
-    let nisa = account_badge_class("NISA");
-    let old_nisa = account_badge_class("旧NISA");
+    let general = account_badge_variant("一般");
+    let specific = account_badge_variant("特定");
+    let nisa = account_badge_variant("NISA");
+    let old_nisa = account_badge_variant("旧NISA");
 
     // 単独の口座名は種類ごとに色が変わる
     for (left, right) in [
@@ -62,12 +69,12 @@ fn account_badge_color_distinguishes_kinds() {
 
     // NISA 系は同じ種類として同じ色になる
     for label in ["新NISA", "NISA成長", "NISAつみたて"] {
-        assert_eq!(account_badge_class(label), nisa, "{label}");
+        assert_eq!(account_badge_variant(label), nisa, "{label}");
     }
 
     // 対応表にない口座名は一般と同じ中立色
     for label in ["SBI証券", "nisa", ""] {
-        assert_eq!(account_badge_class(label), general, "{label}");
+        assert_eq!(account_badge_variant(label), general, "{label}");
     }
 }
 
@@ -77,12 +84,12 @@ fn joined_account_is_one_badge_with_the_general_color() {
     assert_eq!(account_display_name("特定・一般"), "特定・一般");
     // 単独の口座ではないので一般と同じ中立色
     assert_eq!(
-        account_badge_class("特定・一般"),
-        account_badge_class("一般")
+        account_badge_variant("特定・一般"),
+        account_badge_variant("一般")
     );
     // 単独の「特定」とは区別される
     assert_ne!(
-        account_badge_class("特定"),
-        account_badge_class("特定・一般")
+        account_badge_variant("特定"),
+        account_badge_variant("特定・一般")
     );
 }

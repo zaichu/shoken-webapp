@@ -12,7 +12,7 @@ cd "$SCRIPT_DIR/.."
 # features/ では <button> / <select> を直書きしない(ui/ の部品を使う)
 RAW_ELEMENT='<button|<select'
 # カード・空状態・開閉・ボタン・バッジのコンポーネントクラスの直書き
-PRIMITIVE_CLASS='(panel-card|login-card|table-card|collapsible-card|empty-state|collapsible-trigger|group-card-trigger|search-submit|login-button|copyable-name|code-badge|skeleton-table-row)'
+PRIMITIVE_CLASS='(panel-card|login-card|table-card|collapsible-card|empty-state|collapsible-trigger|group-card-trigger|search-submit|login-button|copyable-name|badge-account|badge-code|badge-count|skeleton-table-row)'
 # 開閉トリガーは DisclosureToggle(または Button/FieldTrigger の aria_expanded)を使う
 RAW_DISCLOSURE='aria-expanded'
 # 状態表示は ui/ の部品(Alert/ListLoadError/ListSkeleton/Skeleton 等)を使う。
@@ -256,7 +256,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'code-badge' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'role="alert"' 'animate-pulse' 'style=format!' 'style="' 'style=bar_width' 'style = "width: 10%"' 'style=STYLE' 'attr:style="'; do
+for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'badge-code' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'role="alert"' 'animate-pulse' 'style=format!' 'style="' 'style=bar_width' 'style = "width: 10%"' 'style=STYLE' 'attr:style="'; do
   if ! grep -Fq -- "$expected" <<<"$self_test_output"; then
     echo "ERROR: 基本部品検査の自己テストが $expected を検出しません" >&2
     exit 1

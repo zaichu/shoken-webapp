@@ -212,7 +212,6 @@ pub fn SummaryBand(
                                 } else {
                                     SummaryTone::Neutral
                                 }
-                                extra_class="summary-band-item-pnl"
                             />
                         })}
                 </dl>
@@ -255,16 +254,16 @@ pub fn SummaryBand(
                                 }}
                             </span>
                             <span class="summary-band-top-row">
-                                <span class="summary-band-label">{primary_label.clone()}</span>
+                                <span class="summary-label">{primary_label.clone()}</span>
                                 {(!primary_sub.is_empty() || !as_of_note.is_empty())
                                     .then(|| view! {
-                                        <span class="summary-band-date">
+                                        <span class="summary-label-note">
                                             {label_note.clone()}
                                         </span>
                                     })}
                             </span>
                             <span class="summary-band-hero-row">
-                                <span class="summary-band-hero-value">
+                                <span class="summary-value summary-value-primary">
                                     <Amount
                                         text=primary_value.clone()
                                         kind=delta_or_plain(primary_negative, primary_positive)
@@ -281,8 +280,8 @@ pub fn SummaryBand(
                             </span>
                             {has_aux
                                 .then(|| view! {
-                                    <span class="summary-band-aux">
-                                        <span class="summary-band-aux-label">
+                                    <span class="summary-value summary-value-secondary">
+                                        <span class="summary-label">
                                             {aux_label.clone()}
                                         </span>
                                         <Amount
@@ -308,7 +307,7 @@ pub fn SummaryBand(
                                         let positive = entry.positive;
                                         view! {
                                             <div class="summary-band-breakdown-row">
-                                                <dt class="summary-band-breakdown-label">
+                                                <dt class="summary-label">
                                                     {entry.label}
                                                 </dt>
                                                 <dd class="summary-band-breakdown-value">

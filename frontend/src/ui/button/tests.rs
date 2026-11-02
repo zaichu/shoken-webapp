@@ -8,6 +8,7 @@ fn button_classes_preserves_variant_and_extra_input() {
         ButtonVariant::DangerSolid(ButtonSize::Sm),
         ButtonVariant::CopyName,
         ButtonVariant::PageTab,
+        ButtonVariant::Segmented,
         ButtonVariant::ConditionSegment,
         ButtonVariant::YearOption,
         ButtonVariant::MenuItem,
@@ -21,4 +22,12 @@ fn button_classes_preserves_variant_and_extra_input() {
             format!("{base} custom-a custom-b")
         );
     }
+}
+
+#[test]
+fn segmented_variants_share_single_class() {
+    assert_eq!(
+        ButtonVariant::Segmented.classes(),
+        ButtonVariant::ConditionSegment.classes()
+    );
 }
