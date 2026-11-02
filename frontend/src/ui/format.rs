@@ -167,11 +167,23 @@ pub fn format_percentage_value(value: f64) -> String {
     format_fixed_percent(value, 2)
 }
 
-/// 基準日("YYYY-MM-DD")を "MM/DD" にする。想定外の形式はそのまま返す
+/// 基準日("YYYY-MM-DD")を "M/D" にする。想定外の形式はそのまま返す
 pub fn format_price_date(as_of: &str) -> String {
     match as_of.split_once('-') {
         Some((year, month_day)) if year.len() == 4 && !month_day.is_empty() => {
-            month_day.replace('-', "/")
+            let (month, day) = match month_day.split_once('-') {
+                Some((month, day)) => (month, day),
+                None => (month_day, ""),
+            };
+            if day.is_empty() {
+                month_day.replace('-', "/")
+            } else {
+                format!(
+                    "{}/{}",
+                    month.trim_start_matches('0'),
+                    day.trim_start_matches('0')
+                )
+            }
         }
         _ => as_of.to_string(),
     }
