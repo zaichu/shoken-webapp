@@ -165,7 +165,7 @@ pub fn DetailDialog(
     view! {
         <DialogShell title=dialog_title on_close=on_close testid=panel_testid>
             <div class="detail-dialog-head">
-                <h2 class="detail-dialog-title">{head_name}</h2>
+                <h2 class="dialog-title">{head_name}</h2>
                 <p class="detail-dialog-badges">
                     {code_view
                         .map(|code| {
