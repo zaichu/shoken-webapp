@@ -1097,6 +1097,60 @@ fn fund_tab_count_prefers_api_total_when_truncated() {
 }
 
 #[test]
+fn combined_band_pending_unifies_stock_and_fund_flags() {
+    use crate::features::asset_balance::model::valuation_has_pending;
+    let owner = Owner::new();
+    owner.with(|| {
+        let priced = Row::Saved(balance_row(9904));
+        let mut unpriced = balance_row(9914);
+        unpriced.current_price = rust_decimal_macros::dec!(0);
+        let unpriced = Row::Saved(unpriced);
+        let latest_fund = ResolvedFundBalance {
+            rows: vec![fund_saved_row(
+                "ファンドA",
+                "api",
+                true,
+                Some(100),
+                "2026-10-17",
+            )],
+            warning: None,
+            fallback_totals: None,
+        };
+        let stale_fund = ResolvedFundBalance {
+            rows: vec![fund_saved_row(
+                "ファンドB",
+                "api",
+                false,
+                Some(50),
+                "2026-10-10",
+            )],
+            warning: None,
+            fallback_totals: None,
+        };
+        let stock_ok =
+            super::summary::stock_pending_from_parts(std::slice::from_ref(&priced), None);
+        let stock_missing =
+            super::summary::stock_pending_from_parts(std::slice::from_ref(&unpriced), None);
+        assert!(!stock_ok);
+        assert!(stock_missing);
+        assert!(!super::summary::fund_has_pending(&latest_fund));
+        assert!(super::summary::fund_has_pending(&stale_fund));
+        assert!(!valuation_has_pending(
+            stock_ok,
+            super::summary::fund_has_pending(&latest_fund)
+        ));
+        assert!(valuation_has_pending(
+            stock_missing,
+            super::summary::fund_has_pending(&latest_fund)
+        ));
+        assert!(valuation_has_pending(
+            stock_ok,
+            super::summary::fund_has_pending(&stale_fund)
+        ));
+    });
+}
+
+#[test]
 fn fund_band_as_of_and_pending_replace_title_notes() {
     // タイトルに件数も注記も出さない代わり、帯のラベル横に時点と更新待ちを出す
     let resolved = ResolvedFundBalance {
