@@ -18,6 +18,7 @@ pub(crate) mod page_skeleton;
 pub(crate) mod row_detail_sheet;
 pub(crate) mod search_controls;
 pub(crate) mod search_dialog;
+pub(crate) mod search_entry;
 pub(crate) mod security_link;
 pub(crate) mod segmented;
 pub(crate) mod select;

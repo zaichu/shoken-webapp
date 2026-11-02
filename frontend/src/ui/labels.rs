@@ -202,6 +202,10 @@ pub const SORT_LOW_TO_HIGH: &str = "低い順";
 pub const SORT_NEWEST_FIRST: &str = "新しい順";
 /// 並べ替えの向き(取引明細の日付)
 pub const SORT_OLDEST_FIRST: &str = "古い順";
+/// 並べ替えの向き(文字の列の選択肢)
+pub const SORT_ALPHA_FIRST: &str = "あいうえお順";
+/// 並べ替えの向き(文字の列の選択肢)
+pub const SORT_ALPHA_LAST: &str = "逆順";
 /// ダイアログのキーワード入力の補足
 pub const SEARCH_DIALOG_HINT: &str = "銘柄名・コード・口座で検索";
 /// 絞り込み中の表示(注記の行に出す)
@@ -438,9 +442,6 @@ pub const ADMIN_LOGIN_EMAIL: &str = "メール";
 pub const ADMIN_LOGIN_SEARCH: &str = "メール・場所";
 pub const ADMIN_LOGIN_EMPTY: &str = "条件に一致するログイン記録はありません";
 pub const ADMIN_FILTER_APPLY: &str = "この条件で絞る";
-pub const PAGE_PREVIOUS: &str = "前へ";
-pub const PAGE_NEXT: &str = "次へ";
-pub const PAGE_NAVIGATION: &str = "ページ送り";
 pub const SORT_BY: &str = "並べ替え";
 /// 税引前の金額の頭に付ける短い表記(行の補助の金額用)
 pub const BEFORE_TAX: &str = "税引前";
@@ -452,10 +453,6 @@ pub const REALIZED_AFTER_TAX: &str = "実現損益(税引後)";
 pub const RECEIPT_SHORT: &str = "受取";
 /// 月見出しの右に出す短い損益表記(国内株式・投資信託タブ。#1634 の指定による例外)
 pub const PROFIT_SHORT: &str = "損益";
-
-pub fn page_number(page: i64) -> String {
-    format!("{page}ページ")
-}
 
 #[cfg(test)]
 mod tests;
