@@ -275,6 +275,43 @@ async function installMocks(context, { anonymous, admin }) {
   await context.route(/\/api\/v1\/notification-settings$/, (route) =>
     route.fulfill(json({ login_notify_enabled: true })),
   );
+  await context.route(/\/api\/v1\/csv-kinds\/stats$/, (route) =>
+    route.fulfill(
+      json({
+        kinds: [
+          {
+            kind: 'assetbalance',
+            label: '資産管理(国内株式)',
+            count: 22,
+            latest_imported_at: '2026-10-31T00:12:00Z',
+          },
+          {
+            kind: 'fundbalance',
+            label: '資産管理(投資信託)',
+            count: 8,
+            latest_imported_at: '2026-10-31T00:12:00Z',
+          },
+          {
+            kind: 'dividend',
+            label: '取引明細(配当金)',
+            count: 64,
+            latest_imported_at: '2026-10-29T09:44:00Z',
+          },
+          {
+            kind: 'domesticstock',
+            label: '取引明細(国内株式)',
+            count: 41,
+            latest_imported_at: '2026-10-20T04:00:00Z',
+          },
+          {
+            kind: 'mutualfund',
+            label: '取引明細(投資信託)',
+            count: 0,
+          },
+        ],
+      }),
+    ),
+  );
 }
 
 // ログイン履歴・登録端末の撮影用データ。12件以上の履歴・長いブラウザ名・5台以上の端末
