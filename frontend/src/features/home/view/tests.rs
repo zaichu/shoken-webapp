@@ -1,5 +1,6 @@
 use super::{
-    CHART_COLOR_OTHER, CHART_COLORS, account_chart_index, chart_color, product_chart_index,
+    CHART_COLOR_OTHER, CHART_COLORS, account_chart_index, chart_color, home_dividend_dialog_cells,
+    product_chart_index,
 };
 
 #[test]
@@ -43,4 +44,29 @@ fn chart_color_uses_table_slot_or_single_other_color() {
             "{label}"
         );
     }
+}
+
+#[test]
+fn dividend_dialog_keeps_before_tax_removed_from_row() {
+    // 行は2行目の右を出さない部品に寄せ、税引前は詳細ダイアログにだけ出す
+    let (left, right) = home_dividend_dialog_cells(
+        "2024-03-15",
+        "100".to_string(),
+        "¥30".to_string(),
+        "¥2,000".to_string(),
+        "¥406".to_string(),
+        ("+¥1,594".to_string(), false, true),
+    );
+    assert_eq!(left.len(), 3);
+    let before_tax = right
+        .iter()
+        .find(|cell| cell.label == "税引前")
+        .expect("ダイアログに税引前がある");
+    assert_eq!(before_tax.value, "¥2,000");
+    let net = right
+        .iter()
+        .find(|cell| cell.label == "税引後")
+        .expect("ダイアログに税引後がある");
+    assert_eq!(net.value, "+¥1,594");
+    assert!(net.delta);
 }

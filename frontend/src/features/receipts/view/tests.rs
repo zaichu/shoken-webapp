@@ -13,6 +13,7 @@ use crate::features::receipts::{
 };
 use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
+use crate::ui::amount::AmountKind;
 use crate::ui::card::StatTone;
 use crate::ui::labels::{
     AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX, PAYMENT_DATE, REALIZED_BEFORE_TAX,
@@ -1187,6 +1188,32 @@ fn month_headline_uses_after_tax_total() {
         ("税引後", "¥400".to_string()),
     ];
     assert_eq!(group_headline_value(&dividend), "¥400");
+}
+
+#[test]
+fn group_headline_amount_uses_delta_kind() {
+    // 月見出しの金額は受取額・損益とも Delta の種別で出す
+    let dividend = vec![
+        ("配当金", "¥500".to_string()),
+        ("税額", "¥100".to_string()),
+        ("税引後", "¥400".to_string()),
+    ];
+    let item = group_headline_summary(ReceiptsTab::Dividend, &dividend).expect("見出しがある");
+    assert_eq!(item.label, "受取");
+    assert_eq!(item.value, "+¥400");
+    assert_eq!(item.kind, AmountKind::Delta);
+    assert!(item.positive);
+    let stock = vec![
+        ("実現損益", "+¥1,000".to_string()),
+        ("税額", "¥203".to_string()),
+        ("税引後", "+¥797".to_string()),
+    ];
+    let item = group_headline_summary(ReceiptsTab::DomesticStock, &stock).expect("見出しがある");
+    assert_eq!(item.label, "損益");
+    assert_eq!(item.value, "+¥797");
+    assert_eq!(item.kind, AmountKind::Delta);
+    assert!(item.positive);
+    assert!(group_headline_summary(ReceiptsTab::Dividend, &[]).is_none());
 }
 
 #[test]

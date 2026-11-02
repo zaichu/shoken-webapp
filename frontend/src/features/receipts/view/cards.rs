@@ -12,7 +12,7 @@ use crate::ui::labels::{
     PER_SHARE_DIVIDEND, PROFIT_SHORT, QUANTITY, REALIZED_PROFIT_LOSS, RECEIPT_SHORT,
     REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX, TRADE_DATE,
 };
-use crate::ui::list_row::{ListGroupHeader, ListRowButtonWithoutSecondary};
+use crate::ui::list_row::{GroupSummary, ListGroupHeader, ListRowButtonWithoutSecondary};
 use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
@@ -452,6 +452,38 @@ pub(crate) fn single_row_headline(cards: &[CardRowData]) -> Vec<(&'static str, S
     }
 }
 
+/// 月見出しの右に出す小計の表示。金額は符号付きにし、受取額・損益は
+/// Delta の種別で出す(行の主役・帯と同じ税引後の合計を使う)
+pub(crate) fn group_headline_summary(
+    tab: ReceiptsTab,
+    summary: &[(&'static str, String)],
+) -> Option<GroupSummary> {
+    let raw = group_headline_value(summary);
+    if raw.is_empty() {
+        return None;
+    }
+    let text = if is_positive_text(raw) && !raw.trim_start().starts_with('+') {
+        format!("+{raw}")
+    } else {
+        raw.to_string()
+    };
+    let label = match tab {
+        ReceiptsTab::Dividend => RECEIPT_SHORT,
+        _ => PROFIT_SHORT,
+    };
+    Some(GroupSummary {
+        label: label.to_string(),
+        value: text,
+        kind: if is_profit_label(tab, AFTER_TAX) {
+            AmountKind::Delta
+        } else {
+            AmountKind::Plain
+        },
+        negative: is_negative_labeled_value(tab, AFTER_TAX, raw),
+        positive: is_positive_labeled_value(tab, AFTER_TAX, raw),
+    })
+}
+
 #[component]
 pub(crate) fn CompactReceiptGroup(
     tab: ReceiptsTab,
@@ -466,23 +498,10 @@ pub(crate) fn CompactReceiptGroup(
     } else {
         summary
     };
-    let (display_label, display_value) = {
-        let raw = group_headline_value(&summary).to_string();
-        let text = if is_positive_text(&raw) && !raw.trim_start().starts_with('+') {
-            format!("+{raw}")
-        } else {
-            raw
-        };
-        match tab {
-            ReceiptsTab::Dividend => (RECEIPT_SHORT, text),
-            _ => (PROFIT_SHORT, text),
-        }
-    };
-    let summary_text =
-        (!display_value.is_empty()).then(|| format!("{display_label} {display_value}",));
+    let headline = group_headline_summary(tab, &summary);
     view! {
         <section data-testid="receipt-card-group">
-            <ListGroupHeader label=labels::group_count(&label, count) summary=summary_text />
+            <ListGroupHeader label=labels::group_count(&label, count) summary=headline />
             <ul class="receipt-compact-list">
                 {cards
                     .into_iter()
