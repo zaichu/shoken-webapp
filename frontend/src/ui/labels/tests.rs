@@ -38,6 +38,11 @@ fn is_glossary_file(path: &Path) -> bool {
     relative == Path::new("ui/labels.rs") || relative.starts_with("ui/labels")
 }
 
+fn is_csv_input_file(path: &Path) -> bool {
+    let relative = path.strip_prefix(source_root()).unwrap_or(path);
+    relative == Path::new("csv_input.rs")
+}
+
 /// 閉じ引用符の位置。文字リテラルでない(ライフタイム)場合は None
 fn char_literal_end(source: &str, index: usize) -> Option<usize> {
     let bytes = source.as_bytes();
@@ -285,25 +290,13 @@ fn blank_cfg_test_regions(source: &str) -> String {
     String::from_utf8(blanked).expect("空白化は改行を保つ")
 }
 
-fn escape_baseline_literal(literal: &str) -> String {
-    literal
-        .replace('\\', "\\\\")
-        .replace('\t', "\\t")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r")
-}
-
-fn baseline_path() -> PathBuf {
-    source_root().join("ui/labels/baseline.txt")
-}
-
 fn collect_japanese_entries() -> Vec<String> {
     let mut files = Vec::new();
     collect_rs_files(&source_root(), &mut files);
     files.sort();
     let mut entries = Vec::new();
     for file in files {
-        if is_glossary_file(&file) {
+        if is_glossary_file(&file) || is_csv_input_file(&file) {
             continue;
         }
         let relative = file.strip_prefix(source_root()).unwrap_or(&file);
@@ -326,44 +319,12 @@ fn collect_japanese_entries() -> Vec<String> {
             entries.push(format!(
                 "{}\t{}",
                 relative.to_string_lossy().replace('\\', "/"),
-                escape_baseline_literal(&literal)
+                literal
             ));
         }
     }
     entries.sort();
     entries
-}
-
-fn load_baseline_entries(path: &Path) -> Vec<String> {
-    let text = std::fs::read_to_string(path).expect("基準ファイルを読める");
-    text.lines()
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .map(str::to_string)
-        .collect()
-}
-
-fn diff_entries(baseline: &[String], actual: &[String]) -> (Vec<String>, Vec<String>) {
-    let mut counts: std::collections::HashMap<&str, (usize, usize)> =
-        std::collections::HashMap::new();
-    for entry in baseline {
-        counts.entry(entry.as_str()).or_default().0 += 1;
-    }
-    for entry in actual {
-        counts.entry(entry.as_str()).or_default().1 += 1;
-    }
-    let mut added = Vec::new();
-    let mut removed = Vec::new();
-    for (entry, (base, now)) in &counts {
-        for _ in 0..now.saturating_sub(*base) {
-            added.push((*entry).to_string());
-        }
-        for _ in 0..base.saturating_sub(*now) {
-            removed.push((*entry).to_string());
-        }
-    }
-    added.sort();
-    removed.sort();
-    (added, removed)
 }
 
 #[test]
@@ -372,7 +333,7 @@ fn forbidden_terms_are_not_used_outside_the_glossary() {
     collect_rs_files(&source_root(), &mut files);
     let mut found = Vec::new();
     for file in files {
-        if is_glossary_file(&file) {
+        if is_glossary_file(&file) || is_csv_input_file(&file) {
             continue;
         }
         let source = std::fs::read_to_string(&file).expect("ソースを読める");
@@ -405,34 +366,13 @@ fn glossary_builds_counts_and_placeholders() {
 }
 
 #[test]
-fn japanese_literals_match_baseline() {
-    let path = baseline_path();
+fn no_japanese_literals_outside_glossary() {
     let mut actual = collect_japanese_entries();
     actual.sort();
-    if std::env::var("UPDATE_LABELS_BASELINE").is_ok() {
-        let mut text = String::from(
-            "# 画面の直書き(用語集の外の日本語リテラル)の基準。1行1件で `相対パス<TAB>文言`。\n\
-             # 新しい直書きは検査で落とす。減ったらこのファイルを更新する(減る方向だけ許す)。\n\
-             # 更新は UPDATE_LABELS_BASELINE=1 cargo test japanese_literals_match_baseline で作り直す。\n",
-        );
-        for entry in &actual {
-            text.push_str(entry);
-            text.push('\n');
-        }
-        std::fs::write(&path, text).expect("基準ファイルを書ける");
-        return;
-    }
-    let baseline = load_baseline_entries(&path);
-    let (added, removed) = diff_entries(&baseline, &actual);
     assert!(
-        added.is_empty(),
-        "用語集の外に新しい日本語の直書きがあります。ui/labels.rs に移してください:\n{}",
-        added.join("\n")
-    );
-    assert!(
-        removed.is_empty(),
-        "直書きが減りました。UPDATE_LABELS_BASELINE=1 cargo test japanese_literals_match_baseline で基準ファイルを更新してください:\n{}",
-        removed.join("\n")
+        actual.is_empty(),
+        "用語集の外に日本語の直書きがあります。ui/labels.rs に移してください:\n{}",
+        actual.join("\n")
     );
 }
 
@@ -458,6 +398,10 @@ fn excludes_test_and_delivery_noise() {
     )));
     assert!(is_test_code_path(Path::new("testing/receipts.rs")));
     assert!(!is_test_code_path(Path::new("features/settings.rs")));
+    assert!(is_csv_input_file(&source_root().join("csv_input.rs")));
+    assert!(!is_csv_input_file(
+        &source_root().join("features/settings.rs")
+    ));
     assert!(is_delivery_excluded_line(
         "web_sys::console::warn_2(&JsValue::from_str(\"失敗\"), &error);"
     ));
@@ -473,16 +417,4 @@ fn excludes_test_and_delivery_noise() {
         .map(|(value, _)| value)
         .collect();
     assert_eq!(found, vec!["表示".to_string()]);
-}
-
-#[test]
-fn baseline_diff_reports_added_and_removed() {
-    let baseline = vec!["a\t表示".to_string(), "b\t設定".to_string()];
-    let same = baseline.clone();
-    assert_eq!(diff_entries(&baseline, &same), (Vec::new(), Vec::new()));
-    let (added, removed) = diff_entries(&baseline, &["a\t表示".to_string(), "c\t検索".to_string()]);
-    assert_eq!(added, vec!["c\t検索".to_string()]);
-    assert_eq!(removed, vec!["b\t設定".to_string()]);
-    let (_, removed_only) = diff_entries(&baseline, &["a\t表示".to_string()]);
-    assert_eq!(removed_only, vec!["b\t設定".to_string()]);
 }

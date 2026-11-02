@@ -43,9 +43,11 @@ fn initial_section() -> String {
 /// 並び替えがあっても追随がずれないようにするため、順序の正本は持たない
 fn toc_ids_in_dom_order(document: &web_sys::Document) -> Vec<String> {
     let mut ids = Vec::new();
-    let Ok(links) =
-        document.query_selector_all("nav[aria-label=\"設定セクション\"] a[href^=\"/settings#\"]")
-    else {
+    let selector = format!(
+        "nav[aria-label=\"{}\"] a[href^=\"/settings#\"]",
+        labels::SETTINGS_TOC_LABEL
+    );
+    let Ok(links) = document.query_selector_all(&selector) else {
         return ids;
     };
     for index in 0..links.length() {
