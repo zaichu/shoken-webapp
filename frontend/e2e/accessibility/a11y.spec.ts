@@ -709,28 +709,36 @@ test('マイナスは符号と色の両方で表す', async ({ page }) => {
   await page.click('button[role="tab"][id="tab-domesticstock"]');
   await page.waitForTimeout(500);
   const negative = await page.evaluate(() => {
-    const token = getComputedStyle(document.documentElement)
-      .getPropertyValue('--color-negative')
-      .trim();
-    const probe = document.createElement('span');
-    probe.style.color = token;
-    document.body.append(probe);
-    const negativeColor = getComputedStyle(probe).color;
-    probe.remove();
+    const tokens = getComputedStyle(document.documentElement);
+    const probeColor = (token: string) => {
+      const probe = document.createElement('span');
+      probe.style.color = token;
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    };
     return {
-      negativeColor,
+      negativeColor: probeColor(tokens.getPropertyValue('--color-negative').trim()),
+      bandNegativeColor: probeColor(
+        tokens.getPropertyValue('--color-loss-bright').trim(),
+      ),
       cells: Array.from(document.querySelectorAll('[data-negative="true"]')).map((el) => ({
         text: (el.textContent ?? '').trim().slice(0, 40),
         color: getComputedStyle(el).color,
+        onBand: el.closest('.summary-band') !== null,
       })),
     };
   });
   expect(negative.negativeColor).not.toBe('');
+  expect(negative.bandNegativeColor).not.toBe('');
   expect(negative.cells.length).toBeGreaterThan(0);
   for (const cell of negative.cells) {
     const amount = cell.text.replace(/^[\s¥￥$€£]+/, '');
     expect(amount, `符号なしのマイナス表示: ${cell.text}`).toMatch(/^[-−]|マイナス/);
-    expect(cell.color, `色だけのマイナス表示: ${cell.text}`).toBe(negative.negativeColor);
+    // 紺帯の上はコントラスト確保のため帯用の明色を使う(通常面は --color-negative)
+    const expected = cell.onBand ? negative.bandNegativeColor : negative.negativeColor;
+    expect(cell.color, `色だけのマイナス表示: ${cell.text}`).toBe(expected);
   }
 });
 
