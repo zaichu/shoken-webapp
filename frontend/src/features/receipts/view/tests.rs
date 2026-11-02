@@ -1275,6 +1275,36 @@ fn summary_breakdown_labels_show_tax_basis() {
 }
 
 #[test]
+fn band_breakdown_signs_match_detail_dialog() {
+    use crate::ui::summary::SummaryTone;
+    let (text, negative, positive, tone) = band_value(DIVIDEND_AMOUNT, dec!(2000));
+    assert_eq!(text, "+¥2,000");
+    assert!(!negative);
+    assert!(positive);
+    assert_eq!(tone, SummaryTone::Gain);
+    let (text, negative, positive, tone) = band_value(REALIZED_PROFIT_LOSS, dec!(-500));
+    assert_eq!(text, "-¥500");
+    assert!(negative);
+    assert!(!positive);
+    assert_eq!(tone, SummaryTone::Loss);
+    let (text, negative, positive, tone) = band_value(TAX, dec!(406));
+    assert_eq!(text, "-¥406");
+    assert!(negative);
+    assert!(!positive);
+    assert_eq!(tone, SummaryTone::Loss);
+    let (text, negative, positive, tone) = band_value(TAX, dec!(-100));
+    assert_eq!(text, "+¥100");
+    assert!(!negative);
+    assert!(positive);
+    assert_eq!(tone, SummaryTone::Gain);
+    let (text, negative, positive, tone) = band_value(TAX, Decimal::ZERO);
+    assert_eq!(text, "¥0");
+    assert!(!negative);
+    assert!(!positive);
+    assert_eq!(tone, SummaryTone::Neutral);
+}
+
+#[test]
 fn row_group_band_share_after_tax_total() {
     // 行の主役・月見出し・帯はすべて税引後。行を足すと帯に合う
     let mut domestic_row = domestic().remove(0);
