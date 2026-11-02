@@ -349,3 +349,39 @@ fn bar_height_has_visibility_floor() {
     // 1% 未満でも棒が見えるよう 3% に底上げ
     assert_eq!(bar_height(dec!(1), dec!(100)), 3.0);
 }
+
+#[test]
+fn home_as_of_uses_oldest_priced_date() {
+    let mut newer = stock("1111", "A", 100, 200, 20_000);
+    newer.price_as_of = Some("2026-10-21".to_string());
+    let mut older = stock("2222", "B", 100, 200, 20_000);
+    older.price_as_of = Some("2026-10-17".to_string());
+    let mut unpriced = stock("3333", "C", 100, 0, 10_000);
+    unpriced.price_as_of = Some("2026-10-10".to_string());
+    let fund = fund("F", "特定", 100_000, 5_000);
+    let as_of = oldest_home_as_of(&[newer, older, unpriced], &[fund]);
+    assert_eq!(as_of.as_deref(), Some("10/17 時点"));
+    assert!(oldest_home_as_of(&[], &[]).is_none());
+}
+
+#[test]
+fn home_pending_detects_unpriced_or_stale_nav() {
+    let priced = stock("1111", "A", 100, 200, 20_000);
+    let mut stale_fund = fund("F", "特定", 100_000, 5_000);
+    stale_fund.nav_is_latest = false;
+    assert!(home_has_pending(
+        std::slice::from_ref(&priced),
+        &[stale_fund],
+        None
+    ));
+    let mut unpriced = stock("2222", "B", 100, 0, 10_000);
+    unpriced.price_as_of = Some("2026-10-17".to_string());
+    let mut fresh_fund = fund("F", "特定", 100_000, 5_000);
+    fresh_fund.nav_is_latest = true;
+    assert!(home_has_pending(
+        std::slice::from_ref(&unpriced),
+        std::slice::from_ref(&fresh_fund),
+        None
+    ));
+    assert!(!home_has_pending(&[priced], &[fresh_fund], None));
+}

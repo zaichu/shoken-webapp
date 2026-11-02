@@ -206,18 +206,18 @@ test.describe('スマホの構成比', () => {
 
     const list = page.getByTestId('asset-composition-mobile-list');
     await expect(list.getByTestId('comp-row')).toHaveCount(5);
-    await expect(page.getByTestId('asset-composition-note')).toContainText(
+    await expect(page.getByTestId('page-skeleton-note-text')).toContainText(
       '評価額の比率',
     );
-    await expect(page.getByTestId('asset-composition-note')).toContainText(
+    await expect(page.getByTestId('page-skeleton-note-text')).toContainText(
       '¥1,100,000',
     );
 
     await page.getByTestId('comp-basis').getByRole('button', { name: '年間配当' }).click();
-    await expect(page.getByTestId('asset-composition-note')).toContainText(
+    await expect(page.getByTestId('page-skeleton-note-text')).toContainText(
       '年間配当(税引前)の比率',
     );
-    await expect(page.getByTestId('asset-composition-note')).toContainText(
+    await expect(page.getByTestId('page-skeleton-note-text')).toContainText(
       '¥25,000',
     );
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('36.0%');

@@ -1438,11 +1438,6 @@
 
   /* 帯の直下の注記行は「ページの骨格」(page-skeleton-note) が持つ */
 
-  /* ホームの集計帯。スマホでは帯自体がカード面になるため角丸にする */
-  .home-summary {
-    @apply mt-3 max-lg:rounded-lg max-lg:overflow-clip;
-  }
-
   /* ホームのカード列。配当カード側は明細ページから見返したとき面積を持たせる。
      列を暗黙の auto に任せると最長の nowrap 行まで列が膨らむため、
      1 列でも grid-cols-1(minmax(0,1fr))を明示してコンテナ幅に留める */
@@ -1762,10 +1757,6 @@
   /* スマホの構成比。区分タブは資産管理の種別タブと同じ部品を使う */
   .comp-basis-row {
     @apply mt-3 flex justify-center;
-  }
-
-  .comp-note {
-    @apply mt-2 text-center text-xs text-text-muted;
   }
 
   .comp-empty {

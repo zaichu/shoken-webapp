@@ -159,6 +159,13 @@ pub fn SummaryBand(
     };
     let has_breakdown = !breakdown.is_empty();
     let has_aux = !aux_label.is_empty();
+    let label_note = if !primary_sub.is_empty() && !as_of_note.is_empty() {
+        format!("{}・{}", primary_sub, as_of_note)
+    } else if !primary_sub.is_empty() {
+        primary_sub.clone()
+    } else {
+        as_of_note.clone()
+    };
     let aux_tone_class = if aux_negative {
         "summary-loss"
     } else if aux_positive {
@@ -186,7 +193,7 @@ pub fn SummaryBand(
                         label=primary_label.clone()
                         value=primary_value.clone()
                         size=SummarySize::Primary
-                        label_note=as_of_note.clone()
+                        label_note=label_note.clone()
                         tone=if primary_negative {
                             SummaryTone::Loss
                         } else {
@@ -271,23 +278,21 @@ pub fn SummaryBand(
                                     />
                                 </span>
                             </span>
-                            {move || {
-                                (has_aux && !expanded.get())
-                                    .then(|| view! {
-                                        <span class=format!(
-                                            "summary-band-aux {aux_tone_class}",
-                                        )>
-                                            <span class="summary-band-aux-label">
-                                                {aux_label.clone()}
-                                            </span>
-                                            <Amount text=aux_value.clone() />
-                                            {(!aux_rate.is_empty())
-                                                .then(|| view! {
-                                                    <span class="summary-note">{aux_rate.clone()}</span>
-                                                })}
+                            {has_aux
+                                .then(|| view! {
+                                    <span class=format!(
+                                        "summary-band-aux {aux_tone_class}",
+                                    )>
+                                        <span class="summary-band-aux-label">
+                                            {aux_label.clone()}
                                         </span>
-                                    })
-                            }}
+                                        <Amount text=aux_value.clone() />
+                                        {(!aux_rate.is_empty())
+                                            .then(|| view! {
+                                                <span class="summary-note">{aux_rate.clone()}</span>
+                                            })}
+                                    </span>
+                                })}
                         </DisclosureToggle>
                         <div id=controls_id.clone() hidden=move || !expanded.get()>
                             <dl class="summary-band-breakdown">

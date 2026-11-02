@@ -31,9 +31,12 @@ pub fn SkeletonSummary(children: Children) -> impl IntoView {
     }
 }
 
-/// 注記の行。帯の直下に置く。絞り込み中だけ件数を出す(通常時は行自体を出さない)
+/// 注記の行。帯の直下に置く。出す文も絞り込みも無いときは行ごと出さない
 #[component]
 pub fn SkeletonNote(
+    /// 帯の直下に出す事実の文(構成比の基準と合計など)。空なら出さない
+    #[prop(optional, into)]
+    note: String,
     /// 絞り込み中の表示。条件が無いときは出さない
     #[prop(optional)]
     filtered: Option<Signal<FilteredCount>>,
@@ -47,10 +50,17 @@ pub fn SkeletonNote(
     };
     view! {
         {move || {
-            show().map(|text| view! {
+            let text = show();
+            let has_note = !note.is_empty();
+            (has_note || text.is_some()).then(|| view! {
                 <div class="page-skeleton-note">
                     <div class="page-skeleton-note-body">
-                        <p data-testid="page-filtering-count">{text}</p>
+                        {has_note.then(|| view! {
+                            <p data-testid="page-skeleton-note-text">{note.clone()}</p>
+                        })}
+                        {text.map(|text| view! {
+                            <p data-testid="page-filtering-count">{text}</p>
+                        })}
                     </div>
                 </div>
             })
