@@ -132,3 +132,5 @@ echo "OK: 違反はありません"
 
 # 続けて features/ の直書きマークアップ検査を実行する
 bash "$SCRIPT_DIR/check-ui-primitives.sh"
+# 続けて色の直書き・style属性の色/寸法検査を実行する
+bash "$SCRIPT_DIR/check-css-colors.sh"
