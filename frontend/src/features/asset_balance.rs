@@ -20,7 +20,7 @@ pub(crate) use fund::{FUND_CSV_CHUNKING, FUND_IMPORT_PATH, FUND_LIST_PATH, FUND_
 pub(crate) use lookup::{fetch_single_asset_balance, find_by_code};
 pub(crate) use model::{
     KpiHolding, PortfolioKpi, ValuationInput, calculate_portfolio_kpi, holding_valuation,
-    normalize_display_name, summary_valuation,
+    normalize_display_name, summary_valuation, valuation_has_pending,
 };
 pub(crate) use portfolio::{SortKey, SortOrder};
 pub(crate) use store::csv::AssetBalanceCsvStore;

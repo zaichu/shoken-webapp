@@ -145,6 +145,12 @@ pub fn summary_valuation(summary: &AssetBalanceSummary) -> PortfolioValuation {
     }
 }
 
+/// 評価額の帯の「一部更新待ち」。評価額の計算に使う価格が無い株や
+/// 基準価額が古い投信があるとき true。前日終値なしで評価額が正しい行は含めない
+pub fn valuation_has_pending(has_unpriced_stock: bool, has_stale_fund: bool) -> bool {
+    has_unpriced_stock || has_stale_fund
+}
+
 /// チャート用の未丸めパーセンテージ（`|item.value| / Σ|values| * 100`）。
 /// 分母が 0 の場合は空ベクターを返す。
 /// 取得額にマイナスが混ざっても帯グラフの幅が 0〜100% に収まるよう絶対値で出す。
