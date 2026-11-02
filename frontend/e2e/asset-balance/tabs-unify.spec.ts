@@ -177,7 +177,7 @@ test.describe('資産管理のタブ', () => {
       // 注記行は出さず、時点だけを帯のラベル横に出す
       await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
       await expect(page.getByText('計算基準を見る')).toHaveCount(0);
-      await expect(band).toContainText('時点');
+      await expect(band).toContainText('価格基準日');
     }
 
     // タブを跨いで帯の主要項目・検索欄の文言がそろう

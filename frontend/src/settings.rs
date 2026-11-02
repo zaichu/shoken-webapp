@@ -7,6 +7,7 @@ mod tests;
 
 use crate::features::asset_balance::{SortKey, SortOrder};
 use crate::features::receipts::ReceiptsTab;
+use crate::ui::labels;
 use leptos::ev;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -94,8 +95,8 @@ impl AssetSort {
 
     pub(crate) fn label(self) -> String {
         let order = match self.order {
-            SortOrder::Desc => "高い順",
-            SortOrder::Asc => "低い順",
+            SortOrder::Desc => labels::SORT_HIGH_TO_LOW,
+            SortOrder::Asc => labels::SORT_LOW_TO_HIGH,
         };
         format!("{}({})", self.key.label(), order)
     }
@@ -126,9 +127,9 @@ pub enum AmountUnit {
 impl AmountUnit {
     pub(crate) fn label(self) -> &'static str {
         match self {
-            Self::Yen => "円",
-            Self::Sen => "千円",
-            Self::Man => "万円",
+            Self::Yen => labels::YEN,
+            Self::Sen => labels::THOUSAND_YEN,
+            Self::Man => labels::TEN_THOUSAND_YEN,
         }
     }
 

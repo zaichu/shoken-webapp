@@ -15,10 +15,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
-use crate::ui::labels::{
-    ACCOUNT, ACQUISITION_YIELD, ANNUAL_DIVIDEND, AVERAGE_PRICE, CODE_COLUMN, CURRENT_PRICE,
-    DAY_CHANGE, MARKET_VALUE, NAME_COLUMN, PER_SHARE_DIVIDEND, QUANTITY, VALUATION_PROFIT_LOSS,
-};
+use crate::ui::labels;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
 
@@ -62,24 +59,24 @@ pub fn AssetHoldingsTable(
             <table class="asset-table">
                 <thead>
                     <tr>
-                        <th scope="col" class="col-text">{CODE_COLUMN}</th>
-                        <th scope="col" class="col-text">{NAME_COLUMN}</th>
-                        <th scope="col" class="col-text">{ACCOUNT}</th>
-                        <th scope="col" class="col-num">{QUANTITY}</th>
-                        <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{AVERAGE_PRICE}</th>
-                        <th scope="col" class="col-num">{CURRENT_PRICE}</th>
-                        <th scope="col" class="col-num">{DAY_CHANGE}</th>
-                        {sort_header(MARKET_VALUE, SortKey::MarketValue, sort_key, sort_order)}
+                        <th scope="col" class="col-text">{labels::CODE_COLUMN}</th>
+                        <th scope="col" class="col-text">{labels::NAME_COLUMN}</th>
+                        <th scope="col" class="col-text">{labels::ACCOUNT}</th>
+                        <th scope="col" class="col-num">{labels::QUANTITY}</th>
+                        <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{labels::AVERAGE_PRICE}</th>
+                        <th scope="col" class="col-num">{labels::CURRENT_PRICE}</th>
+                        <th scope="col" class="col-num">{labels::DAY_CHANGE}</th>
+                        {sort_header(labels::MARKET_VALUE, SortKey::MarketValue, sort_key, sort_order)}
                         {sort_header(
-                            VALUATION_PROFIT_LOSS,
+                            labels::VALUATION_PROFIT_LOSS,
                             SortKey::ProfitLoss,
                             sort_key,
                             sort_order,
                         )}
-                        <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{PER_SHARE_DIVIDEND}</th>
-                        {sort_header(ANNUAL_DIVIDEND, SortKey::Dividend, sort_key, sort_order)}
+                        <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{labels::PER_SHARE_DIVIDEND}</th>
+                        {sort_header(labels::ANNUAL_DIVIDEND, SortKey::Dividend, sort_key, sort_order)}
                         {sort_header(
-                            ACQUISITION_YIELD,
+                            labels::ACQUISITION_YIELD,
                             SortKey::Yield,
                             sort_key,
                             sort_order,
@@ -137,7 +134,9 @@ pub fn AssetHoldingsTable(
                                         )}
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        {format!("{}株", format_number_value(view.shares))}
+                                        {labels::stock_shares_label(
+                                            &format_number_value(view.shares),
+                                        )}
                                     </td>
                                     <td class="col-num text-text-soft hidden xl:table-cell print:table-cell">
                                         {format_unit_price(view.average_price, average_price_decimals)}

@@ -1,67 +1,8 @@
 # 画面の直書き(用語集の外の日本語リテラル)の基準。1行1件で `相対パス<TAB>文言`。
 # 新しい直書きは検査で落とす。減ったらこのファイルを更新する(減る方向だけ許す)。
 # 更新は UPDATE_LABELS_BASELINE=1 cargo test japanese_literals_match_baseline で作り直す。
-api/client.rs	このリソースへのアクセス権限がありません
-api/client.rs	アクセスが拒否されました
-api/client.rs	エラーが発生しました (ステータス: {status})
-api/client.rs	エラーが発生しました (ステータス: {status})
-api/client.rs	サーバーエラーが発生しました
-api/client.rs	サーバーエラーが発生しました。しばらくしてから再度お試しください
-api/client.rs	ネットワークエラーが発生しました
-api/client.rs	ネットワーク接続を確認してください
-api/client.rs	リクエストがタイムアウトしました
-api/client.rs	リクエストがタイムアウトしました。もう一度お試しください
-api/client.rs	リクエストが不正です
-api/client.rs	リソースが見つかりません
-api/client.rs	ログインが必要です
-api/client.rs	入力内容を確認してください
-api/client.rs	処理を中断しました
-api/client.rs	処理を中断しました
-api/client.rs	応答の解析に失敗しました
-api/client.rs	指定されたリソースが見つかりません
-api/client.rs	認証が必要です
-api/client.rs	銘柄情報の取得に失敗しました。時間をおいて再度お試しください。
-app.rs	CSV管理
-app.rs	ページが見つかりません
-app.rs	ホーム
-app.rs	メインコンテンツへスキップ
-app.rs	ログイン
-app.rs	保有ファンド詳細
-app.rs	保有銘柄詳細
-app.rs	取引明細
-app.rs	構成比
-app.rs	設定
-app.rs	証券Web
-app.rs	資産管理
-app.rs	銘柄検索
 features/admin_logins.rs	検索
 features/admin_logins.rs	検索
-features/asset_balance/csv.rs	銘柄コード
-features/asset_balance/fund.rs	CSV 取り込み
-features/asset_balance/fund.rs	{source} {d} の前日比
-features/asset_balance/fund.rs	すべて
-features/asset_balance/fund.rs	保有口数
-features/asset_balance/fund.rs	国内株式
-features/asset_balance/fund.rs	基準価額
-features/asset_balance/fund.rs	投資信託
-features/asset_balance/fund.rs	投資信託種別
-features/asset_balance/fund.rs	更新待ち
-features/asset_balance/fund.rs	更新待ち: 最新の基準価額の日は {e}、この値は{source} {a}
-features/asset_balance/fund.rs	自動更新
-features/asset_balance/fund.rs	評価損益
-features/asset_balance/fund.rs	評価額
-features/asset_balance/holdings.rs	取得中...
-features/asset_balance/holdings.rs	取得失敗
-features/asset_balance/store.rs	一覧は最大{}件まで表示しています。未表示の銘柄がある可能性があります。
-features/asset_balance/view/asset_table.rs	{}株
-features/asset_balance/view/day_change.rs	最新の基準価額の日の前日比がわかる行だけ出します。更新待ちの行は CSV を取り込むと出ます
-features/asset_balance/view/fund_table.rs	{}口
-features/asset_balance/view/fund_table.rs	{}口
-features/asset_balance/view/fund_table.rs	{}口
-features/asset_balance/view/holdings_list.rs	{}株
-features/asset_balance/view/holdings_list.rs	{}株
-features/asset_balance/view/kind_tabs.rs	保有の種類
-features/asset_balance/view/summary.rs	集計
 features/csv_page.rs	CSV管理
 features/csv_page.rs	取引明細(国内株式)
 features/csv_page.rs	取引明細(投資信託)
@@ -179,12 +120,6 @@ features/stock_search/view.rs	銘柄スカウター
 features/stock_search/view.rs	銘柄検索
 features/stock_search/view.rs	銘柄検索
 features/stock_search/view.rs	銘柄検索
-settings.rs	万円
-settings.rs	低い順
-settings.rs	円
-settings.rs	千円
-settings.rs	高い順
-support/list_search.rs	{}年
 ui/badge.rs	NISAつみたて
 ui/badge.rs	NISAつみたて投資枠
 ui/badge.rs	NISA口座
@@ -250,6 +185,5 @@ ui/state.rs	再読み込み
 ui/state.rs	読み込み中...
 ui/state.rs	読み込み中...
 ui/summary.rs	{}・{}
-ui/summary.rs	・
 ui/summary.rs	内訳を閉じる
 ui/summary.rs	内訳を開く

@@ -5670,3 +5670,253 @@ async fn csv_import_perf_10k_reports_timing() {
         eprintln!("plan(insert): {line}");
     }
 }
+
+/// RLS 第四段階: `sessions`・`users` は所有者の挙動を変えず、
+/// 権限を絞ったロールでは利用者ごとに分離される
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn sessions_users_rls_isolates_restricted_role() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&database_url).await;
+    run_migrations(&pool).await.expect("migrations failed");
+
+    for table in ["sessions", "users"] {
+        let rls = db::query_scalar::<bool>(
+            "SELECT relrowsecurity FROM pg_class WHERE relname = $1",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("RLS 有効の取得に失敗");
+        assert!(rls, "{table} に RLS が有効のはず");
+        let forced = db::query_scalar::<bool>(
+            "SELECT relforcerowsecurity FROM pg_class WHERE relname = $1",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("FORCE 状態の取得に失敗");
+        assert!(
+            !forced,
+            "{table} に FORCE は付けない(所有者の挙動を変えない)"
+        );
+    }
+
+    let info_a = GoogleUserInfo {
+        sub: "stage4-google-a".to_string(),
+        email: "stage4-a@example.com".to_string(),
+        name: None,
+        picture_url: None,
+    };
+    let info_b = GoogleUserInfo {
+        sub: "stage4-google-b".to_string(),
+        email: "stage4-b@example.com".to_string(),
+        name: None,
+        picture_url: None,
+    };
+    let token_a = auth_svc::upsert_user_and_rotate_session(&pool, &info_a)
+        .await
+        .expect("利用者 A のログインは通るはず");
+    let token_b = auth_svc::upsert_user_and_rotate_session(&pool, &info_b)
+        .await
+        .expect("利用者 B のログインは通るはず");
+    let user_a = auth_svc::select_user_id_by_session(&pool, token_a)
+        .await
+        .expect("セッション照会は通るはず")
+        .expect("利用者 A のセッションがあるはず");
+    let user_b = auth_svc::select_user_id_by_session(&pool, token_b)
+        .await
+        .expect("セッション照会は通るはず")
+        .expect("利用者 B のセッションがあるはず");
+    assert!(
+        auth_svc::select_user_by_session(&pool, token_a)
+            .await
+            .expect("利用者照会は通るはず")
+            .is_some(),
+        "利用者 A の行が読めるはず"
+    );
+    auth_svc::delete_session(&pool, token_b)
+        .await
+        .expect("セッション削除は通るはず");
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, token_b)
+            .await
+            .expect("削除後の照会は通るはず")
+            .is_none(),
+        "削除したセッションは失効するはず"
+    );
+    let token_b = auth_svc::upsert_user_and_rotate_session(&pool, &info_b)
+        .await
+        .expect("利用者 B の再ログインは通るはず");
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, token_b)
+            .await
+            .expect("再ログイン後の照会は通るはず")
+            .is_some(),
+        "再発行したセッションが有効のはず"
+    );
+
+    let info_c = GoogleUserInfo {
+        sub: "stage4-google-c".to_string(),
+        email: "stage4-c@example.com".to_string(),
+        name: None,
+        picture_url: None,
+    };
+    let token_c = auth_svc::upsert_user_and_rotate_session(&pool, &info_c)
+        .await
+        .expect("利用者 C のログインは通るはず");
+    let user_c = auth_svc::select_user_id_by_session(&pool, token_c)
+        .await
+        .expect("セッション照会は通るはず")
+        .expect("利用者 C のセッションがあるはず");
+    auth_svc::delete_account(&pool, user_c)
+        .await
+        .expect("利用者削除は通るはず");
+    assert!(
+        auth_svc::select_user_by_session(&pool, token_c)
+            .await
+            .expect("削除後の照会は通るはず")
+            .is_none(),
+        "削除した利用者のセッションは失効するはず"
+    );
+    let remaining = db::query_scalar::<i64>(
+        "SELECT COUNT(*) FROM users WHERE id = $1",
+        vec![Bind::from(user_c)],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(remaining, 0, "削除した利用者の行はないはず");
+
+    let user_count = db::query_scalar::<i64>("SELECT COUNT(*) FROM users", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(user_count, 2, "所有者は両利用者の行を読めるはず");
+    let session_count = db::query_scalar::<i64>("SELECT COUNT(*) FROM sessions", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(session_count, 2, "所有者は両利用者のセッションを読めるはず");
+
+    pool.batch_execute("CREATE ROLE rls_app WITH LOGIN PASSWORD 'rls-test-password'")
+        .await
+        .expect("制限ロールの作成に失敗");
+    pool.batch_execute("GRANT CONNECT ON DATABASE postgres TO rls_app")
+        .await
+        .expect("CONNECT 付与に失敗");
+    pool.batch_execute("GRANT USAGE ON SCHEMA public TO rls_app")
+        .await
+        .expect("USAGE 付与に失敗");
+    for table in ["sessions", "users"] {
+        pool.batch_execute(&format!(
+            "GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO rls_app"
+        ))
+        .await
+        .expect("表権限の付与に失敗");
+    }
+    let restricted_url = format!("postgres://rls_app:rls-test-password@127.0.0.1:{port}/postgres");
+    let restricted = connect_with_retry(&restricted_url).await;
+
+    for table in ["sessions", "users"] {
+        let count = db::query_scalar::<i64>(format!("SELECT COUNT(*) FROM {table}"), vec![])
+            .fetch_one(&restricted)
+            .await
+            .unwrap();
+        assert_eq!(
+            count, 0,
+            "利用者 ID 未設定の制限ロールは何も見えないはず: {table}"
+        );
+    }
+
+    let mut tx = restricted.begin().await.expect("tx 開始に失敗");
+    db::query(
+        "SELECT set_config('app.current_user_id', $1, true)",
+        vec![Bind::from(user_a.to_string())],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("利用者 ID の設定に失敗");
+    let owners = db::query("SELECT user_id::text FROM sessions", vec![])
+        .fetch_all::<(String,), _>(&mut tx)
+        .await
+        .expect("セッションの取得に失敗");
+    assert_eq!(
+        owners,
+        vec![(user_a.to_string(),)],
+        "利用者 A のセッションだけが見えるはず"
+    );
+    let ids = db::query("SELECT id::text FROM users", vec![])
+        .fetch_all::<(String,), _>(&mut tx)
+        .await
+        .expect("利用者の取得に失敗");
+    assert_eq!(
+        ids,
+        vec![(user_a.to_string(),)],
+        "利用者 A の行だけが見えるはず"
+    );
+    db::query(
+        "INSERT INTO sessions (user_id, token_hash) VALUES ($1, $2)",
+        vec![Bind::from(user_a), Bind::Bytes(vec![51u8; 32])],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分のセッションの書き込みは通るはず");
+    let updated = db::query(
+        "UPDATE users SET email = $2 WHERE id = $1",
+        vec![
+            Bind::from(user_a),
+            Bind::from("stage4-a-updated@example.com"),
+        ],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の更新は通るはず");
+    assert_eq!(updated, 1, "自分の行が1件更新されるはず");
+    let err = db::query(
+        "INSERT INTO sessions (user_id, token_hash) VALUES ($1, $2)",
+        vec![Bind::from(user_b), Bind::Bytes(vec![52u8; 32])],
+    )
+    .execute(&mut tx)
+    .await
+    .expect_err("他人名義のセッション書き込みは失敗するはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "行共有違反のはず: {err:?}"
+    );
+    tx.rollback().await.expect("rollback に失敗");
+
+    let mut tx = restricted.begin().await.expect("tx 開始に失敗");
+    db::query(
+        "SELECT set_config('app.current_user_id', $1, true)",
+        vec![Bind::from(user_a.to_string())],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("利用者 ID の設定に失敗");
+    let other_id = uuid::Uuid::new_v4();
+    let err = db::query(
+        "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(other_id),
+            Bind::from(format!("stage4-other-{other_id}")),
+            Bind::from(format!("stage4-other-{other_id}@example.com")),
+        ],
+    )
+    .execute(&mut tx)
+    .await
+    .expect_err("他人名義の利用者書き込みは失敗するはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "行共有違反のはず(users): {err:?}"
+    );
+    tx.rollback().await.expect("rollback に失敗");
+}

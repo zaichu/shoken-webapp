@@ -1,6 +1,7 @@
 use crate::api::dto::AssetBalance;
 use crate::support::csv_flow::CsvChunking;
 use crate::support::row::Row;
+use crate::ui::labels;
 
 pub const LIST_PATH: &str = "/api/v1/asset-balances";
 pub const PREVIEW_PATH: &str = "/api/v1/asset-balance-import-validations";
@@ -14,7 +15,7 @@ pub const CSV_CHUNKING: CsvChunking = CsvChunking {
     header_lines: 7,
     import_chunked: false,
     preview_chunked: false,
-    header_marker: Some("銘柄コード"),
+    header_marker: Some(labels::SECURITY_CODE),
 };
 
 pub(crate) type AssetBalanceRow = Row<AssetBalance>;

@@ -314,9 +314,9 @@ pub fn group_count(label: &str, total: usize) -> String {
     format!("{label} · {}", count(total))
 }
 
-/// 基準日の書き方(「10/21 時点」)
+/// 基準日の書き方(「価格基準日 10/21」)
 pub fn price_as_of(date: &str) -> String {
-    format!("{} 時点", format_price_date(date))
+    format!("{PRICE_AS_OF} {}", format_price_date(date))
 }
 
 /// 絞り込み中の件数(「絞り込み中(4件 / 77件)」)
@@ -713,6 +713,19 @@ pub const COMPOSITION_UNAVAILABLE: &str = "算出不可";
 pub const ASSET_SEARCH_REGION: &str = "資産の検索";
 /// タグの区切り
 pub const TAG_SEPARATOR: &str = "・";
+/// 投資信託のCSV見出し(種別の列)
+pub const FUND_KIND: &str = "投資信託種別";
+/// 基準価額の出どころ(公式APIの共有値)
+pub const FUND_PRICE_SOURCE_AUTO: &str = "自動更新";
+/// 基準価額の出どころ(CSVの取り込み値)
+pub const FUND_PRICE_SOURCE_CSV: &str = "CSV 取り込み";
+/// 保有種別の切り替えの読み上げ名
+pub const ASSET_KIND_TABS_LABEL: &str = "保有の種類";
+/// 前日比列の見出しの説明
+pub const DAY_CHANGE_COLUMN_NOTE: &str =
+    "最新の基準価額の日の前日比がわかる行だけ出します。更新待ちの行は CSV を取り込むと出ます";
+/// 配当の取得失敗の表示
+pub const HOLDING_DIVIDEND_FAILED: &str = "取得失敗";
 
 /// 株数の書き方(「100株」)
 pub fn stock_shares_label(shares: &str) -> String {
@@ -724,6 +737,21 @@ pub fn fund_units_label(units: &str) -> String {
     format!("{units}口")
 }
 
+/// 基準価額の前日比の出どころと日付(「CSV 取り込み 1/5 の前日比」)
+pub fn fund_day_change_title(source: &str, date: &str) -> String {
+    format!("{source} {date} の前日比")
+}
+
+/// 更新待ちの理由(「更新待ち: 最新の基準価額の日は 1/6、この値はCSV 取り込み 1/5」)
+pub fn fund_pending_detail(expected: &str, source: &str, as_of: &str) -> String {
+    format!("更新待ち: 最新の基準価額の日は {expected}、この値は{source} {as_of}")
+}
+
+/// 一覧が上限で切れたときの警告(資産管理用)
+pub fn asset_truncated_warning(total: &str) -> String {
+    format!("一覧は最大{total}件まで表示しています。未表示の銘柄がある可能性があります。")
+}
+
 /// 分配金コースの表示(「・ 受取型」)
 pub fn course_with_dot(course: &str) -> String {
     format!("・ {course}")
@@ -732,6 +760,60 @@ pub fn course_with_dot(course: &str) -> String {
 /// 構成比の基準見出し(「基準(取得総額): 」)
 pub fn composition_basis_heading(basis: &str) -> String {
     format!("基準({basis}): ")
+}
+
+/// アプリ名(タブの接尾辞・枠の表示)
+pub const APP_NAME: &str = "証券Web";
+/// ホームの画面名
+pub const HOME_TITLE: &str = "ホーム";
+/// 銘柄検索の画面名
+pub const STOCK_SEARCH_TITLE: &str = "銘柄検索";
+/// ログインの画面名
+pub const LOGIN_TITLE: &str = "ログイン";
+/// 存在しないパスの画面名
+pub const NOT_FOUND_TITLE: &str = "ページが見つかりません";
+/// 本文へ跳ぶリンク
+pub const SKIP_TO_MAIN: &str = "メインコンテンツへスキップ";
+/// API: 通信の確認を促す利用者向け文言
+pub const API_CHECK_NETWORK: &str = "ネットワーク接続を確認してください";
+/// API: タイムアウト後の再試行を促す利用者向け文言
+pub const API_RETRY_TIMEOUT: &str = "リクエストがタイムアウトしました。もう一度お試しください";
+/// API: 中断の利用者向け文言(送信前の取り消し)
+pub const API_CANCELLED: &str = "処理を中断しました";
+/// API: 応答の解析に失敗したときの利用者向け文言
+pub const API_STOCK_FETCH_FAILED: &str =
+    "銘柄情報の取得に失敗しました。時間をおいて再度お試しください。";
+/// API: 入力の見直しを促す利用者向け文言(400)
+pub const API_CHECK_INPUT: &str = "入力内容を確認してください";
+/// API: ログインを促す利用者向け文言(401)
+pub const API_LOGIN_REQUIRED: &str = "ログインが必要です";
+/// API: 権限不足の利用者向け文言(403)
+pub const API_FORBIDDEN: &str = "このリソースへのアクセス権限がありません";
+/// API: 対象が無いときの利用者向け文言(404)
+pub const API_NOT_FOUND_DETAIL: &str = "指定されたリソースが見つかりません";
+/// API: サーバ側の失敗後の再試行を促す利用者向け文言(5xx)
+pub const API_SERVER_RETRY: &str =
+    "サーバーエラーが発生しました。しばらくしてから再度お試しください";
+/// API: 通信失敗の表示
+pub const API_NETWORK_ERROR: &str = "ネットワークエラーが発生しました";
+/// API: タイムアウトの表示
+pub const API_TIMEOUT: &str = "リクエストがタイムアウトしました";
+/// API: 応答の解析失敗の表示
+pub const API_PARSE_FAILED: &str = "応答の解析に失敗しました";
+/// API: 要求不備の表示(400)
+pub const API_BAD_REQUEST: &str = "リクエストが不正です";
+/// API: 認証切れの表示(401)
+pub const API_UNAUTHORIZED: &str = "認証が必要です";
+/// API: 拒否の表示(403)
+pub const API_ACCESS_DENIED: &str = "アクセスが拒否されました";
+/// API: 対象が無いときの表示(404)
+pub const API_NOT_FOUND: &str = "リソースが見つかりません";
+/// API: サーバ側の失敗の表示(5xx)
+pub const API_SERVER_ERROR: &str = "サーバーエラーが発生しました";
+
+/// 想定外の状態の書き方(「エラーが発生しました (ステータス: 418)」)
+pub fn api_status_error(status: u16) -> String {
+    format!("エラーが発生しました (ステータス: {status})")
 }
 
 #[cfg(test)]

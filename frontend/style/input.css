@@ -573,12 +573,13 @@
       position: relative;
     }
 
+    /* スライドに will-change: transform を置かない。置くと fixed の
+       検索ダイアログがスライド内に閉じ込められ、中央に出なくなる */
     .tab-swipe-slide {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      will-change: transform;
     }
 
     .tab-swipe-slide[data-active="true"] {
@@ -924,7 +925,7 @@
   }
 
   .summary-band-grid {
-    @apply flex flex-col gap-y-1;
+    @apply flex flex-col gap-y-0.5;
   }
 
   /* 帯の中の段。段はスマホでは積み、PC では1列に並べる */
@@ -935,7 +936,7 @@
 
   @media (width < 64rem) {
     .summary-band {
-      @apply px-4 py-2.5;
+      @apply px-4 py-1;
     }
   }
 
@@ -979,23 +980,27 @@
 
   /* 紺帯の開閉(スマホ)。帯全体がボタンで、主役行の右端に44pxの丸いシェブロン */
   .summary-band-main-toggle {
-    @apply flex w-full min-h-11 flex-col justify-center gap-y-0.5 text-left;
+    @apply flex w-full min-h-11 flex-col justify-center gap-y-0 text-left;
+  }
+
+  .summary-band-top-row {
+    @apply flex w-full items-baseline justify-between gap-2 whitespace-nowrap;
   }
 
   .summary-band-label {
-    @apply text-xs font-medium text-brand-muted;
+    @apply shrink-0 text-xs font-medium text-brand-muted;
   }
 
-  .summary-band-sub {
-    @apply text-xs font-normal text-brand-muted;
+  .summary-band-date {
+    @apply ml-auto min-w-0 shrink truncate text-right text-xs font-normal text-brand-muted;
   }
 
   .summary-band-hero-row {
-    @apply flex w-full items-center justify-between gap-3;
+    @apply flex w-full items-center justify-between gap-3 whitespace-nowrap;
   }
 
   .summary-band-hero-value {
-    @apply mt-auto flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-none text-summary-primary-compact font-bold;
+    @apply mt-auto flex min-w-0 items-baseline gap-x-1.5 whitespace-nowrap leading-none text-summary-primary-compact font-bold;
   }
 
   .summary-band-chevron-circle {
@@ -1253,8 +1258,9 @@
     @apply shrink-0;
   }
 
+  /* 上バーは中のボタンが 44px のため余白だけで詰める */
   .page-frame-head {
-    @apply bg-brand pb-2.5 pt-2 lg:bg-transparent lg:py-3;
+    @apply bg-brand py-px lg:bg-transparent lg:py-3;
   }
 
   .page-frame-title {

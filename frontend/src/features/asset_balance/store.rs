@@ -15,6 +15,7 @@ use crate::support::csv_flow::CsvTabState;
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fetch_all_pages};
 use crate::support::row::Row;
 use crate::ui::format::format_number_value;
+use crate::ui::labels;
 use leptos::prelude::*;
 use std::collections::HashSet;
 
@@ -106,10 +107,9 @@ pub(crate) async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiErr
 }
 
 pub(crate) fn truncated_list_warning() -> String {
-    format!(
-        "一覧は最大{}件まで表示しています。未表示の銘柄がある可能性があります。",
-        format_number_value((LIST_PER_PAGE * LIST_MAX_PAGES) as f64)
-    )
+    labels::asset_truncated_warning(&format_number_value(
+        (LIST_PER_PAGE * LIST_MAX_PAGES) as f64,
+    ))
 }
 
 pub(crate) type BalanceSlot = Option<(Generation, Result<LoadedAssetBalances, String>)>;
