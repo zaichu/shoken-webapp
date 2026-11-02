@@ -1,7 +1,7 @@
 use super::TAB_IDS;
 use super::cards::{
-    CardRowData, CompactReceiptGroup, MobileCardGroup, card_row_data, is_negative_labeled_value,
-    is_positive_labeled_value, is_profit_label, signed_text_for_profit,
+    CardRowData, CompactReceiptGroup, MobileCardGroup, amount_kind_for_label, card_row_data,
+    is_negative_labeled_value, is_positive_labeled_value, signed_text_for_profit,
 };
 use crate::features::receipts::filter::{column_order, promoted_column};
 use crate::features::receipts::kind::CardRole;
@@ -9,6 +9,7 @@ use crate::features::receipts::kind::ColumnSpec;
 use crate::features::receipts::kind::ColumnTier;
 use crate::features::receipts::kind::TableGroup;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
+use crate::ui::amount::Amount;
 use crate::ui::badge::AccountBadge;
 use crate::ui::labels::{self, AFTER_TAX};
 use crate::ui::security_link::{CopyableInstrumentName, TableSecurityCode};
@@ -281,7 +282,6 @@ pub fn ReceiptTable(
                                                     .iter()
                                                     .zip(labels.iter())
                                                     .map(|(value, label)| {
-                                                        let is_profit = is_profit_label(tab, label);
                                                         let negative = is_negative_labeled_value(
                                                             tab, label, value,
                                                         );
@@ -290,30 +290,27 @@ pub fn ReceiptTable(
                                                         );
                                                         let text =
                                                             signed_text_for_profit(tab, label, value);
+                                                        let kind = amount_kind_for_label(
+                                                            tab, label, value,
+                                                        );
                                                         let bold = compact_mobile
                                                             && *label == AFTER_TAX;
-                                                        let profit_class = if !is_profit || negative {
-                                                            ""
-                                                        } else if positive {
-                                                            " text-positive"
-                                                        } else {
-                                                            " text-text-soft"
-                                                        };
                                                         view! {
                                                             <td
                                                                 class=format!(
                                                                     "col-num whitespace-nowrap {}{}{top}",
                                                                     if compact_mobile { "receipts-table-group" } else { "bg-surface-raised text-text font-semibold" },
-                                                                    if bold {
-                                                                        format!(" font-bold{profit_class}")
-                                                                    } else {
-                                                                        profit_class.to_string()
-                                                                    },
+                                                                    if bold { " font-bold" } else { "" },
                                                                 )
                                                                 title=text.clone()
                                                                 data-negative=negative.then_some("true")
                                                             >
-                                                                {text.clone()}
+                                                                <Amount
+                                                                    kind=kind
+                                                                    text=text.clone()
+                                                                    negative=negative
+                                                                    positive=positive
+                                                                />
                                                             </td>
                                                         }
                                                     })
@@ -369,26 +366,32 @@ pub fn ReceiptTable(
                                                                             let text = signed_text_for_profit(
                                                                                 tab, header, &value,
                                                                             );
-                                                                            let is_profit = is_profit_label(
-                                                                                tab, header,
+                                                                            let kind = amount_kind_for_label(
+                                                                                tab, header, &value,
+                                                                            );
+                                                                            let is_trio = matches!(
+                                                                                header,
+                                                                                "配当金"
+                                                                                    | "実現損益"
+                                                                                    | "税額"
+                                                                                    | "税引後"
                                                                             );
                                                                             let is_net = compact_mobile
-                                                                                && header == "税引後"
-                                                                                && is_profit;
-                                                                            let emphasis = if is_net {
-                                                                                if negative {
-                                                                                    " font-bold"
-                                                                                } else if positive {
-                                                                                    " font-bold text-positive"
-                                                                                } else {
-                                                                                    " font-bold"
-                                                                                }
-                                                                            } else if positive {
-                                                                                " text-positive"
-                                                                            } else if is_profit
-                                                                                || (compact_mobile
-                                                                                    && matches!(header, "入金日" | "約定日" | "数量" | "税額"))
-                                                                            {
+                                                                                && header == "税引後";
+                                                                            let bold_class = if is_net {
+                                                                                " font-bold"
+                                                                            } else {
+                                                                                ""
+                                                                            };
+                                                                            // 対象の3列以外は従来のまま(日付・数量は薄色)
+                                                                            let muted_class = if !is_trio
+                                                                                && compact_mobile
+                                                                                && matches!(
+                                                                                    header,
+                                                                                    "入金日"
+                                                                                        | "約定日"
+                                                                                        | "数量"
+                                                                                ) {
                                                                                 " text-text-soft"
                                                                             } else {
                                                                                 ""
@@ -396,6 +399,16 @@ pub fn ReceiptTable(
                                                                             let title = text.clone();
                                                                             let content = if header == "口座" {
                                                                                 view! { <AccountBadge label=value.clone() /> }
+                                                                                    .into_any()
+                                                                            } else if is_trio {
+                                                                                view! {
+                                                                                    <Amount
+                                                                                        kind=kind
+                                                                                        text=text.clone()
+                                                                                        negative=negative
+                                                                                        positive=positive
+                                                                                    />
+                                                                                }
                                                                                     .into_any()
                                                                             } else {
                                                                                 text.clone().into_any()
@@ -408,7 +421,7 @@ pub fn ReceiptTable(
                                                                             view! {
                                                                                 <td
                                                                                     class=format!(
-                                                                                        "{align}{emphasis}{account_class}",
+                                                                                        "{align}{bold_class}{muted_class}{account_class}",
                                                                                     )
                                                                                     title=title
                                                                                     data-negative=negative.then_some("true")
