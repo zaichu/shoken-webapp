@@ -1,27 +1,28 @@
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use leptos::prelude::*;
 
 const RELATED_LINKS: &[(&str, &str)] = &[
-    ("/search", "銘柄検索"),
-    ("/assetbalance", "資産管理"),
-    ("/receipts", "取引明細"),
+    ("/search", labels::STOCK_SEARCH_TITLE),
+    ("/assetbalance", labels::ASSET_BALANCE_TITLE),
+    ("/receipts", labels::RECEIPTS_TITLE),
 ];
 
 #[component]
 pub fn NotFoundPage() -> impl IntoView {
     view! {
-        <PageFrame title="ページが見つかりません">
+        <PageFrame title=labels::NOT_FOUND_TITLE>
         <div class="min-h-[50vh] flex flex-1 items-center justify-center">
             <EmptyState
-                title="404 - ページが見つかりません"
+                title=labels::NOT_FOUND_HEADING
                 icon=EmptyStateIcon::Warning
             >
                 <div class="mt-4">
                     <div class="flex flex-col items-center gap-4">
                         <LinkButton variant=ButtonVariant::Primary(ButtonSize::Md) class="no-print" href="/">
-                            "ホームに戻る"
+                            {labels::NOT_FOUND_HOME_BACK}
                         </LinkButton>
                         <div class="flex flex-wrap justify-center gap-3">
                             {RELATED_LINKS
