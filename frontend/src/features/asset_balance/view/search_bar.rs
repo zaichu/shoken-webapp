@@ -284,7 +284,7 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
     key_from_value: fn(&str) -> Option<K>,
     sort_key: RwSignal<K>,
     sort_order: RwSignal<SortOrder>,
-    /// true のとき件数の行の右端に構成比への入口を出す(国内株式タブだけ)
+    /// true のとき件数の行の右端に構成比への入口を出す
     #[prop(optional)]
     composition: bool,
 ) -> impl IntoView {
@@ -325,22 +325,22 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                 value=courses_tag
                 on_clear=move || search.update(|s| s.courses.clear())
             />
-            <SearchCount
-                filtered=move || search_count.get().0
-                total=move || search_count.get().1
-                testid="asset-search-count-mobile"
-            />
-            {composition.then(|| {
-                view! {
-                    <span class="ml-auto">
+            <div class="flex w-full items-center justify-between gap-2">
+                <SearchCount
+                    filtered=move || search_count.get().0
+                    total=move || search_count.get().1
+                    testid="asset-search-count-mobile"
+                />
+                {composition.then(|| {
+                    view! {
                         <MoreLink
                             href="/assetbalance/composition".to_string()
                             label=labels::COMPOSITION_VIEW_LINK.to_string()
                             testid="asset-composition-link".to_string()
                         />
-                    </span>
-                }
-            })}
+                    }
+                })}
+            </div>
         </MobileSearchEntryShell>
         {move || {
             let sheet_text = sheet_placeholder.clone();
