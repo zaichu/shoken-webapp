@@ -19,6 +19,15 @@ fn rate_limit_error() -> Response {
     )
 }
 
+#[cfg(target_arch = "wasm32")]
+fn binding_unavailable_error() -> Response {
+    simple_error_response(
+        StatusCode::SERVICE_UNAVAILABLE,
+        "SERVICE_UNAVAILABLE",
+        "一時的に利用できません。しばらくしてから再試行してください。".to_string(),
+    )
+}
+
 /// 指定ヘッダの値をレート制限キーとして取り出す。
 /// 欠落・読み取り不可・空値は `fallback` にまとめる（0.0.0.0 の共有バケットと同じ意味）。
 /// `X-Forwarded-For` 系はクライアントが偽装できるため対象にしない
@@ -37,13 +46,19 @@ fn client_ip_key_from_header(
         .unwrap_or_else(|| fallback.to_string())
 }
 
+/// バインディング失敗時に拒否すべきか。本番だけ拒否し、開発・テストは通過させる。
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn binding_failure_should_reject(is_production: bool) -> bool {
+    is_production
+}
+
 /// Cloudflare の `[[ratelimits]]` バインディングによるレート制限ミドルウェア。
 /// キーは `cf-connecting-ip`（Cloudflare がクライアント IP を正規化して付与するため
-/// クライアントによる偽装はできない）。`limit()` の呼び出し自体が失敗した場合は
-/// 通過させる（バインディング障害で全リクエストを止めない fail-open）
+/// クライアントによる偽装はできない）。
 #[cfg(target_arch = "wasm32")]
 pub async fn binding_rate_limit(
     limiter: Arc<worker::RateLimiter>,
+    is_production: bool,
     req: Request<Body>,
     next: Next,
 ) -> Response {
@@ -52,8 +67,13 @@ pub async fn binding_rate_limit(
         Ok(outcome) if outcome.success => next.run(req).await,
         Ok(_) => rate_limit_error(),
         Err(e) => {
-            worker::console_warn!("ratelimits binding error (fail-open): {e}");
-            next.run(req).await
+            if binding_failure_should_reject(is_production) {
+                worker::console_warn!("ratelimits binding error: {e}");
+                binding_unavailable_error()
+            } else {
+                worker::console_warn!("ratelimits binding error (fail-open): {e}");
+                next.run(req).await
+            }
         }
     }
 }
@@ -92,5 +112,11 @@ mod tests {
             client_ip_key_from_header(&spoof, "cf-connecting-ip", "unknown"),
             "unknown"
         );
+    }
+
+    #[test]
+    fn test_binding_failure_should_reject_only_in_production() {
+        assert!(binding_failure_should_reject(true));
+        assert!(!binding_failure_should_reject(false));
     }
 }
