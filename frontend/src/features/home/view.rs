@@ -410,7 +410,6 @@ fn BandTiles(
                     negative: daily_negative,
                     positive: daily_positive,
                     rate: daily_rate,
-                    boxed: false,
                 },
                 SummaryBreakdownEntry {
                     label: ANNUAL_EXPECTED_DIVIDEND.to_string(),
@@ -418,7 +417,6 @@ fn BandTiles(
                     negative: false,
                     positive: false,
                     rate: estimate_pending_text,
-                    boxed: false,
                 },
                 SummaryBreakdownEntry {
                     label: TOTAL_ACQUISITION.to_string(),
@@ -426,7 +424,6 @@ fn BandTiles(
                     negative: false,
                     positive: false,
                     rate: String::new(),
-                    boxed: true,
                 },
             ]
             testid_toggle="summary-details-toggle"

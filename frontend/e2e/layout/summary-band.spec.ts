@@ -315,7 +315,7 @@ for (const width of [1280, 390]) {
         {
           url: '/receipts',
           band: RECEIPTS_BAND,
-          breakdown: ['配当金', '税額'],
+          breakdown: ['配当金(税引前)', '税額'],
         },
       ];
       for (const { url, band, breakdown } of cases) {
@@ -324,9 +324,9 @@ for (const width of [1280, 390]) {
         await expect(root).toBeVisible();
         if (url === '/receipts') {
           for (const [tab, expected] of [
-            ['配当金', ['配当金', '税額']],
-            ['国内株式', ['実現損益', '税額']],
-            ['投資信託', ['実現損益', '税額']],
+            ['配当金', ['配当金(税引前)', '税額']],
+            ['国内株式', ['実現損益(税引前)', '税額']],
+            ['投資信託', ['実現損益(税引前)', '税額']],
           ] as Array<[string, string[]]>) {
             await selectReceiptTab(page, tab);
             const tabRoot = page.locator(band);

@@ -104,8 +104,6 @@ pub struct SummaryBreakdownEntry {
     pub negative: bool,
     pub positive: bool,
     pub rate: String,
-    /// 内側の箱で区切って少し強めに出す(取得総額・税引前配当など)
-    pub boxed: bool,
 }
 
 /// 紺帯サマリーの共通形。主役1つ・補助1行・主役行右端の丸いシェブロンで開閉する。
@@ -307,11 +305,7 @@ pub fn SummaryBand(
                                             ""
                                         };
                                         view! {
-                                            <div class=if entry.boxed {
-                                                "summary-band-breakdown-row summary-band-breakdown-boxed"
-                                            } else {
-                                                "summary-band-breakdown-row"
-                                            }>
+                                            <div class="summary-band-breakdown-row">
                                                 <dt class="summary-band-breakdown-label">
                                                     {entry.label}
                                                 </dt>
