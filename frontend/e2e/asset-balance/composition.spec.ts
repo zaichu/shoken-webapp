@@ -305,7 +305,7 @@ test.describe('スマホの構成比', () => {
   });
 
   test('件数行の右端から構成比へ進め、見出し行は無い', async ({ page }) => {
-    await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS);
+    await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS, GROUP_FUNDS);
     await page.goto('/assetbalance');
     await page.getByTestId('asset-kind-tab-stock').click();
 
