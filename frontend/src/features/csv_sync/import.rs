@@ -11,6 +11,7 @@ use crate::features::asset_balance::{
 };
 use crate::features::receipts::{ReceiptsTab, chunking_for};
 use crate::support::csv_flow::{CsvChunking, preview_csv, upload_csv_while};
+use crate::ui::labels;
 use leptos::prelude::*;
 
 #[cfg(test)]
@@ -165,7 +166,7 @@ async fn import_csv(
     confirmed: bool,
 ) -> Outcome {
     let Some(file) = csv_to_file(csv) else {
-        return Outcome::Failed(crate::ui::labels::CSV_SYNC_FILE_FAILED.to_string());
+        return Outcome::Failed(labels::CSV_SYNC_FILE_FAILED.to_string());
     };
     import_with_file(
         store,
@@ -256,27 +257,20 @@ fn file_name(kind: CsvKind) -> String {
 
 /// 必須列なしの失敗理由。渡されたファイルの切り分けに使うため先頭行も添える
 pub(crate) fn columns_failure_reason(kind: CsvKind, content: &str) -> String {
-    let base = format!("{}。{}", SkipReason::Columns.label(), format_hint(kind));
-    match guard::first_line_snippet(content) {
-        Some(line) => format!(
-            "{}。{}",
-            base,
-            crate::ui::labels::csv_columns_first_line(&line)
-        ),
-        None => base,
-    }
+    labels::csv_columns_failure(
+        format_hint(kind),
+        guard::first_line_snippet(content).as_deref(),
+    )
 }
 
 /// 形式が合わないときに理由へ添える対応形式。成功前の案内には出さない
 fn format_hint(kind: CsvKind) -> &'static str {
     match kind {
-        CsvKind::AssetBalance => "対応形式: 資産残高CSV(見出し行の先頭は「銘柄コード」)",
-        CsvKind::FundBalance => "対応形式: 投資信託の保有残高CSV(見出し行の先頭は「投資信託種別」)",
-        CsvKind::Dividend => {
-            "対応形式: 「配当金・分配金・利金一覧」CSV(見出し行の先頭は「入金日」)"
-        }
-        CsvKind::DomesticStock => "対応形式: 国内株式の取引履歴CSV(見出し行の先頭は「約定日」)",
-        CsvKind::MutualFund => "対応形式: 投資信託の取引履歴CSV(見出し行の先頭は「約定日」)",
+        CsvKind::AssetBalance => labels::CSV_FORMAT_ASSET_BALANCE,
+        CsvKind::FundBalance => labels::CSV_FORMAT_FUND_BALANCE,
+        CsvKind::Dividend => labels::CSV_FORMAT_DIVIDEND,
+        CsvKind::DomesticStock => labels::CSV_FORMAT_DOMESTIC_STOCK,
+        CsvKind::MutualFund => labels::CSV_FORMAT_MUTUAL_FUND,
     }
 }
 

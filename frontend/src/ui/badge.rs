@@ -1,3 +1,4 @@
+use crate::csv_input;
 use crate::ui::labels;
 use leptos::prelude::*;
 
@@ -42,12 +43,14 @@ pub fn Badge(variant: BadgeVariant, children: Children) -> impl IntoView {
 /// 対応表にない文字列はそのまま返す
 pub fn account_display_name(value: &str) -> &str {
     match value {
-        "特定口座" | labels::ACCOUNT_SPECIFIC => labels::ACCOUNT_SPECIFIC,
-        "一般口座" | labels::ACCOUNT_GENERAL => labels::ACCOUNT_GENERAL,
-        "NISA口座" | "新NISA" | "NISA" => "NISA",
+        csv_input::ACCOUNT_SPECIFIC | labels::ACCOUNT_SPECIFIC => labels::ACCOUNT_SPECIFIC,
+        csv_input::ACCOUNT_GENERAL | labels::ACCOUNT_GENERAL => labels::ACCOUNT_GENERAL,
+        csv_input::ACCOUNT_NISA | csv_input::ACCOUNT_NEW_NISA | csv_input::ACCOUNT_NISA_SHORT => {
+            csv_input::ACCOUNT_NISA_SHORT
+        }
         labels::ACCOUNT_OLD_NISA => labels::ACCOUNT_OLD_NISA,
-        "NISA成長投資枠" => labels::ACCOUNT_NISA_GROWTH,
-        "NISAつみたて投資枠" => labels::ACCOUNT_NISA_TSUMITATE,
+        csv_input::ACCOUNT_NISA_GROWTH => labels::ACCOUNT_NISA_GROWTH,
+        csv_input::ACCOUNT_NISA_TSUMITATE => labels::ACCOUNT_NISA_TSUMITATE,
         _ => value,
     }
 }

@@ -65,7 +65,7 @@
 
 ## 検査
 
-- 画面の文言は `ui/labels.rs` から使う。`labels.rs` の外の日本語の直書きは `labels/tests.rs` の検査で落とす(現状分は `ui/labels/baseline.txt` に登録し、増やさない・減らしたら更新する)
+- 画面の文言は `ui/labels.rs` から使う。`labels.rs`・テスト・受信CSV値(`csv_input.rs`)の外の日本語の直書きは `labels/tests.rs` の検査で落とす
 - 新しい画面は `PageFrame` を使い、`page-gutter` を本文に自分で書かない(`full_bleed` の画面だけ `content-gutter` を使う)
 - 撮影(`frontend/scripts/ui-shots.sh`)でスマホ390・ダークの上端・下端・帯を開いた後を撮り、基準の資産管理と並べて比べる
 - 見た目の値を固定するテストは書かない。部品を使っているか(例: 一覧の `li` が `ListRow` を含む)だけを確かめる

@@ -62,10 +62,7 @@ pub(crate) fn CsvSyncBody() -> impl IntoView {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     class="underline"
-                                    aria-label=format!(
-                                        "{}（新しいタブで開く）",
-                                        labels::CSV_SYNC_STORE_LINK
-                                    )
+                                    aria-label=labels::stock_search_new_tab(labels::CSV_SYNC_STORE_LINK)
                                 >
                                     {labels::CSV_SYNC_STORE_LINK}
                                 </a>
@@ -78,7 +75,7 @@ pub(crate) fn CsvSyncBody() -> impl IntoView {
                 view! {
                     <div class="mt-2">
                         <Alert variant=AlertVariant::Danger>
-                            <strong>"エラー:"</strong>
+                            <strong>{labels::ERROR_PREFIX}</strong>
                             " "
                             {message}
                         </Alert>

@@ -258,6 +258,14 @@ pub const CSV_SKIP_COLUMNS: &str = "必要な列が見つかりません";
 pub fn csv_columns_first_line(line: &str) -> String {
     format!("受け取った先頭行: 「{line}」")
 }
+/// 必須列なしの失敗理由(対応形式と先頭行を句点でつなぐ)
+pub fn csv_columns_failure(hint: &str, first_line: Option<&str>) -> String {
+    let base = format!("{CSV_SKIP_COLUMNS}。{hint}");
+    match first_line {
+        Some(line) => format!("{base}。{}", csv_columns_first_line(line)),
+        None => base,
+    }
+}
 /// 取り込まなかった理由: 検証で有効行0件
 pub const CSV_SKIP_NO_VALID: &str = "取り込める行がありませんでした";
 /// 取り込まなかった理由: 全件置換で行エラーあり
@@ -1036,6 +1044,34 @@ pub const USER_MENU_LABEL: &str = "ユーザーメニュー";
 pub const USER_MENU_EXPORT: &str = "データをエクスポート";
 /// 利用者メニューの項目「ログアウト」
 pub const USER_MENU_LOGOUT: &str = "ログアウト";
+/// CSV管理: 種類名(資産管理・国内株式)
+pub const CSV_PAGE_ASSET_STOCK: &str = "資産管理(国内株式)";
+/// CSV管理: 種類名(資産管理・投資信託)
+pub const CSV_PAGE_ASSET_FUND: &str = "資産管理(投資信託)";
+/// CSV管理: 種類名(取引明細・配当金)
+pub const CSV_PAGE_DIVIDEND: &str = "取引明細(配当金)";
+/// CSV管理: 種類名(取引明細・国内株式)
+pub const CSV_PAGE_DOMESTIC_STOCK: &str = "取引明細(国内株式)";
+/// CSV管理: 種類名(取引明細・投資信託)
+pub const CSV_PAGE_MUTUAL_FUND: &str = "取引明細(投資信託)";
+/// 必須列なしの失敗理由に添える対応形式(資産残高)
+pub const CSV_FORMAT_ASSET_BALANCE: &str = "対応形式: 資産残高CSV(見出し行の先頭は「銘柄コード」)";
+/// 必須列なしの失敗理由に添える対応形式(投資信託の保有残高)
+pub const CSV_FORMAT_FUND_BALANCE: &str =
+    "対応形式: 投資信託の保有残高CSV(見出し行の先頭は「投資信託種別」)";
+/// 必須列なしの失敗理由に添える対応形式(配当金・分配金・利金一覧)
+pub const CSV_FORMAT_DIVIDEND: &str =
+    "対応形式: 「配当金・分配金・利金一覧」CSV(見出し行の先頭は「入金日」)";
+/// 必須列なしの失敗理由に添える対応形式(国内株式の取引履歴)
+pub const CSV_FORMAT_DOMESTIC_STOCK: &str =
+    "対応形式: 国内株式の取引履歴CSV(見出し行の先頭は「約定日」)";
+/// 必須列なしの失敗理由に添える対応形式(投資信託の取引履歴)
+pub const CSV_FORMAT_MUTUAL_FUND: &str =
+    "対応形式: 投資信託の取引履歴CSV(見出し行の先頭は「約定日」)";
+/// 存在しないパスの見出し
+pub const NOT_FOUND_HEADING: &str = "404 - ページが見つかりません";
+/// 存在しないパスからホームへ戻る操作
+pub const NOT_FOUND_HOME_BACK: &str = "ホームに戻る";
 /// 読み込み中の表示
 pub const LOADING: &str = "読み込み中…";
 /// 失敗表示から再取得する操作

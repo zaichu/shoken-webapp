@@ -1,4 +1,5 @@
 use crate::session::use_session;
+use crate::ui::labels;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Spinner, SpinnerSize};
@@ -8,7 +9,7 @@ use leptos::prelude::*;
 pub fn LoginPage() -> impl IntoView {
     let session = use_session();
     view! {
-        <PageFrame title="ログイン">
+        <PageFrame title=labels::LOGIN_TITLE>
         <div class="mx-auto flex min-h-[50vh] w-full max-w-md flex-1 flex-col items-center justify-center py-12">
             {move || {
                 if !session.loaded.get() || session.user.get().is_some() {

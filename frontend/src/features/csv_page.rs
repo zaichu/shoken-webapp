@@ -8,6 +8,7 @@ use crate::features::csv_sync::{CsvKind as SyncKind, CsvSyncBody, KindStatus, us
 use crate::features::receipts::{ReceiptsTab, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::csv_page::{CsvKindRowData, CsvKindTable, CsvManageFetchCard};
+use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use leptos::prelude::*;
 
@@ -32,11 +33,11 @@ impl CsvKind {
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            Self::AssetStock => "資産管理(国内株式)",
-            Self::AssetFund => "資産管理(投資信託)",
-            Self::Dividend => "取引明細(配当金)",
-            Self::DomesticStock => "取引明細(国内株式)",
-            Self::MutualFund => "取引明細(投資信託)",
+            Self::AssetStock => labels::CSV_PAGE_ASSET_STOCK,
+            Self::AssetFund => labels::CSV_PAGE_ASSET_FUND,
+            Self::Dividend => labels::CSV_PAGE_DIVIDEND,
+            Self::DomesticStock => labels::CSV_PAGE_DOMESTIC_STOCK,
+            Self::MutualFund => labels::CSV_PAGE_MUTUAL_FUND,
         }
     }
 
@@ -169,7 +170,7 @@ pub(crate) fn CsvPage() -> impl IntoView {
     // 取り込みは行の「⋯」→「ファイルから取り込み」で OS の選択を開く
 
     view! {
-        <PageFrame title="CSV管理" back_href="/assetbalance" back_label="資産管理に戻る">
+        <PageFrame title=labels::CSV_MANAGE_TITLE back_href="/assetbalance" back_label=labels::ASSET_BALANCE_BACK>
             <div class="flex flex-col gap-4">
 
                 {/* 取得カード */}

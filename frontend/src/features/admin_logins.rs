@@ -59,7 +59,7 @@ impl ListQuery {
 
 const SORT_COLUMNS: [(&str, &str); 4] = [
     ("occurred_at", labels::LOGIN_HISTORY_COL_DATETIME),
-    ("email", ADMIN_LOGIN_EMAIL),
+    ("email", labels::ADMIN_LOGIN_EMAIL),
     ("result", labels::LOGIN_HISTORY_COL_RESULT),
     ("place", labels::LOGIN_HISTORY_COL_PLACE),
 ];
@@ -126,19 +126,19 @@ fn AdminDialogFields(
     let set_draft_text = move |value: String| draft.update(|query| query.q = value);
     view! {
         <div class="flex flex-col gap-4">
-            <section aria-label="検索">
-                <p class="search-dialog-section-title">"検索"</p>
+            <section aria-label=labels::SEARCH>
+                <p class="search-dialog-section-title">{labels::SEARCH}</p>
                 <div class="search-dialog-field">
                     <SearchBox>
                         <SearchTextInput
-                            placeholder=labels::search_placeholder(ADMIN_LOGIN_SEARCH)
+                            placeholder=labels::search_placeholder(labels::ADMIN_LOGIN_SEARCH)
                             testid="admin-login-search-input"
                             value=draft_text
                             on_input=set_draft_text
                             on_enter=search_callback
                         />
                     </SearchBox>
-                    <p class="search-dialog-hint">{labels::search_placeholder(ADMIN_LOGIN_SEARCH)}</p>
+                    <p class="search-dialog-hint">{labels::search_placeholder(labels::ADMIN_LOGIN_SEARCH)}</p>
                 </div>
             </section>
             <section aria-label=labels::SORT_BY.to_string()>
@@ -326,26 +326,26 @@ pub fn AdminLoginsPage() -> impl IntoView {
     let sort_summary = Signal::derive(sort_summary);
 
     view! {
-        <PageFrame title=ADMIN_LOGINS>
+        <PageFrame title=labels::ADMIN_LOGINS>
             <div class="hidden lg:block">
-                <div class="pc-search-area mb-4" role="search" aria-label=ADMIN_LOGIN_SEARCH>
+                <div class="pc-search-area mb-4" role="search" aria-label=labels::ADMIN_LOGIN_SEARCH>
                     <SearchBox>
-                        <SearchTag label=ADMIN_LOGIN_EMAIL value=Memo::new(move |_| query.with(|query| query.email.clone()))
+                        <SearchTag label=labels::ADMIN_LOGIN_EMAIL value=Memo::new(move |_| query.with(|query| query.email.clone()))
                             on_clear=move || { query.update(|query| query.set_filter("email", String::new())); load_first(); } />
                         <SearchTag label=labels::LOGIN_HISTORY_COL_PLACE value=Memo::new(move |_| query.with(|query| query.place.clone()))
                             on_clear=move || { query.update(|query| query.set_filter("place", String::new())); load_first(); } />
-                        <SearchTextInput placeholder=labels::search_placeholder(ADMIN_LOGIN_SEARCH)
+                        <SearchTextInput placeholder=labels::search_placeholder(labels::ADMIN_LOGIN_SEARCH)
                             value=move || query.with(|query| query.q.clone())
                             on_input=move |value| { query.update(|query| query.set_filter("q", value)); load_first(); } />
                     </SearchBox>
                     <AddConditionRow show_label=true>
-                        <AddConditionButton label=ADMIN_LOGIN_EMAIL expanded=move || panel_open.get() == Some("email") node_ref=email_ref
+                        <AddConditionButton label=labels::ADMIN_LOGIN_EMAIL expanded=move || panel_open.get() == Some("email") node_ref=email_ref
                             on_click=move || panel_open.set(Some("email")) />
                         <AddConditionButton label=labels::LOGIN_HISTORY_COL_PLACE expanded=move || panel_open.get() == Some("place") node_ref=place_ref
                             on_click=move || panel_open.set(Some("place")) />
                         {move || panel_open.get().map(|field| {
                             let draft = RwSignal::new(query.with(|query| if field == "email" { query.email.clone() } else { query.place.clone() }));
-                            let label = if field == "email" { ADMIN_LOGIN_EMAIL } else { labels::LOGIN_HISTORY_COL_PLACE };
+                            let label = if field == "email" { labels::ADMIN_LOGIN_EMAIL } else { labels::LOGIN_HISTORY_COL_PLACE };
                             view! {
                                 <ConditionPanel title=label on_close=close_panel>
                                     <form on:submit=move |event| {
@@ -356,7 +356,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
                                     }>
                                         <SearchTextInput placeholder=labels::search_placeholder(label) value=move || draft.get() on_input=move |value| draft.set(value) />
                                         <div class="condition-panel-actions">
-                                            <Button variant=ButtonVariant::Primary(ButtonSize::Md) submit=true on_click=move |_| {}>{ADMIN_FILTER_APPLY}</Button>
+                                            <Button variant=ButtonVariant::Primary(ButtonSize::Md) submit=true on_click=move |_| {}>{labels::ADMIN_FILTER_APPLY}</Button>
                                         </div>
                                     </form>
                                 </ConditionPanel>
@@ -372,11 +372,11 @@ pub fn AdminLoginsPage() -> impl IntoView {
             </div>
             <MobileSearchEntryShell
                 entry_testid="admin-login-search-entry"
-                search_label=ADMIN_LOGIN_SEARCH.to_string()
+                search_label=labels::ADMIN_LOGIN_SEARCH.to_string()
                 sort_summary=sort_summary
                 open=dialog_open
             >
-                <SearchTag label=ADMIN_LOGIN_EMAIL value=email_tag
+                <SearchTag label=labels::ADMIN_LOGIN_EMAIL value=email_tag
                     on_clear=move || { query.update(|query| query.set_filter("email", String::new())); load_first(); } />
                 <SearchTag label=labels::LOGIN_HISTORY_COL_PLACE value=place_tag
                     on_clear=move || { query.update(|query| query.set_filter("place", String::new())); load_first(); } />
@@ -414,7 +414,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
                 {move || match initial.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => view! { <ListLoadError message=message on_retry=load_first /> }.into_any(),
-                    Some(Ok(())) if entries.with(Vec::is_empty) => view! { <EmptyState title=ADMIN_LOGIN_EMPTY.to_string() /> }.into_any(),
+                    Some(Ok(())) if entries.with(Vec::is_empty) => view! { <EmptyState title=labels::ADMIN_LOGIN_EMPTY.to_string() /> }.into_any(),
                     Some(Ok(())) => view! { <LoginEntries entries=entries.get() query=query reload=load_first /> }.into_any(),
                 }}
             </div>
@@ -500,10 +500,7 @@ use crate::features::settings::{ResultBadge, format_agent, format_datetime, form
 use crate::session::use_session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
-use crate::ui::labels::{
-    self, ADMIN_FILTER_APPLY, ADMIN_LOGIN_EMAIL, ADMIN_LOGIN_EMPTY, ADMIN_LOGIN_SEARCH,
-    ADMIN_LOGINS,
-};
+use crate::ui::labels;
 use crate::ui::list_row::ListRowStatic;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::search_controls::{
