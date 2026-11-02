@@ -482,24 +482,18 @@ pub(crate) fn CompactReceiptGroup(
     } else {
         summary
     };
-    let (display_label, display_value, _display_negative, _display_positive, _display_kind) =
-        match tab {
-            ReceiptsTab::Dividend => {
-                let value = group_headline_value(&summary).to_string();
-                (RECEIPT_SHORT, value, false, false, AmountKind::Plain)
-            }
-            _ => {
-                let value = group_headline_value(&summary).to_string();
-                let negative = is_negative_text(&value);
-                let positive = is_positive_text(&value);
-                let text = if positive && !value.trim_start().starts_with('+') {
-                    format!("+{value}")
-                } else {
-                    value
-                };
-                (PROFIT_SHORT, text, negative, positive, AmountKind::Delta)
-            }
-        };
+    let (display_label, display_value) = match tab {
+        ReceiptsTab::Dividend => (RECEIPT_SHORT, group_headline_value(&summary).to_string()),
+        _ => {
+            let value = group_headline_value(&summary).to_string();
+            let text = if is_positive_text(&value) && !value.trim_start().starts_with('+') {
+                format!("+{value}")
+            } else {
+                value
+            };
+            (PROFIT_SHORT, text)
+        }
+    };
     let summary_text =
         (!display_value.is_empty()).then(|| format!("{display_label} {display_value}",));
     view! {
