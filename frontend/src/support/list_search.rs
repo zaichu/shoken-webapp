@@ -1,6 +1,7 @@
 pub(crate) mod group_key;
 pub(crate) mod support;
 
+use crate::ui::labels;
 use rust_decimal::Decimal;
 use shared::normalize::normalize_display_name;
 use std::collections::HashSet;
@@ -303,7 +304,7 @@ pub fn create_year_options<T>(data: &[T], date_getter: impl Fn(&T) -> &str) -> V
             if seen.insert(year.to_string()) {
                 options.push(SearchOption {
                     value: year.to_string(),
-                    label: format!("{}年", year),
+                    label: labels::receipt_year_label(year),
                 });
             }
         }

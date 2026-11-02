@@ -11,13 +11,12 @@ use crate::features::receipts::{ReceiptsPage, ReceiptsStore};
 use crate::features::settings::SettingsPage;
 use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
+use crate::ui::labels;
 use crate::ui::site::{AccountDeleteConfirm, AccountDeleteDialog, BottomNav, SiteFooter};
 use crate::ui::state::Loading;
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
-
-const BASE_TITLE: &str = "証券Web";
 
 pub(crate) fn current_location() -> String {
     web_sys::window()
@@ -53,18 +52,18 @@ enum Route {
 impl Route {
     fn title(&self) -> &'static str {
         match self {
-            Route::Home => "ホーム",
-            Route::Search => "銘柄検索",
-            Route::Receipts => "取引明細",
-            Route::Csv => "CSV管理",
-            Route::AssetBalance => "資産管理",
-            Route::AssetBalanceComposition => "構成比",
-            Route::AssetBalanceHolding => "保有銘柄詳細",
-            Route::AssetFundHolding => "保有ファンド詳細",
-            Route::Settings => "設定",
-            Route::AdminLogins => crate::ui::labels::ADMIN_LOGINS,
-            Route::Login => "ログイン",
-            Route::NotFound => "ページが見つかりません",
+            Route::Home => labels::HOME_TITLE,
+            Route::Search => labels::STOCK_SEARCH_TITLE,
+            Route::Receipts => labels::RECEIPTS_TITLE,
+            Route::Csv => labels::CSV_MANAGE_TITLE,
+            Route::AssetBalance => labels::ASSET_BALANCE_TITLE,
+            Route::AssetBalanceComposition => labels::COMPOSITION,
+            Route::AssetBalanceHolding => labels::ASSET_HOLDING_DETAIL_TITLE,
+            Route::AssetFundHolding => labels::ASSET_FUND_DETAIL_TITLE,
+            Route::Settings => labels::SETTINGS_TITLE,
+            Route::AdminLogins => labels::ADMIN_LOGINS,
+            Route::Login => labels::LOGIN_TITLE,
+            Route::NotFound => labels::NOT_FOUND_TITLE,
         }
     }
 }
@@ -361,7 +360,7 @@ pub fn App() -> impl IntoView {
             route.get().title()
         };
         if let Some(document) = web_sys::window().and_then(|window| window.document()) {
-            document.set_title(&format!("{title} - {BASE_TITLE}"));
+            document.set_title(&format!("{title} - {}", labels::APP_NAME));
         }
     });
     Effect::new(move |_| {
@@ -383,7 +382,7 @@ pub fn App() -> impl IntoView {
                 href="#main-content"
                 class="skip-link"
             >
-                "メインコンテンツへスキップ"
+                {labels::SKIP_TO_MAIN}
             </a>
             <main
                 id="main-content"
