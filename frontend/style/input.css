@@ -1747,6 +1747,11 @@
     @apply bg-surface-sunken;
   }
 
+  .list-row-action:focus-visible,
+  .list-row-action-static:focus-visible {
+    @apply outline-2 -outline-offset-2 outline-ink;
+  }
+
   .list-group-header {
     @apply flex items-center justify-between gap-2 px-4 bg-row-group border-b border-border-strong;
     min-height: 44px;
