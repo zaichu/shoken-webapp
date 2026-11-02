@@ -217,8 +217,8 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                                             <td class="login-history-result">
                                                                 <ResultBadge result=entry.result.clone() />
                                                             </td>
-                                                            <td>{place}</td>
-                                                            <td>{agent}</td>
+                                                            <td class="login-history-place">{place}</td>
+                                                            <td class="login-history-agent">{agent}</td>
                                                         </tr>
                                                     }
                                                 })
@@ -226,7 +226,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                         </tbody>
                                     </table>
                                 </div>
-                                <ul class="asset-compact-list sm:hidden" role="list">
+                                <ul class="asset-compact-list login-history-compact sm:hidden" role="list">
                                     {mobile_rows
                                         .into_iter()
                                         .map(|entry| {

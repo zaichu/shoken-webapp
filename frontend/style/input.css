@@ -2002,7 +2002,7 @@
   }
 
   /* ログイン履歴の表。asset-table を土台に、長いブラウザ名は折り返して
-     横スクロールを出さない(日時・結果は折り返さない) */
+     横スクロールを出さない(日時・結果・場所は折り返さない) */
   .login-history-table th,
   .login-history-table td {
     @apply px-2.5 text-left;
@@ -2013,8 +2013,31 @@
   }
 
   .login-history-table td.login-history-datetime,
-  .login-history-table td.login-history-result {
+  .login-history-table td.login-history-result,
+  .login-history-table td.login-history-place {
     @apply whitespace-nowrap;
+  }
+
+  .login-history-table td.login-history-agent {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* ログイン履歴のスマホ行。長いブラウザ名が来ても場所の列を保つ。
+     2行目全体は折り返し可にし、場所は詰めずに1行で残し、
+     ブラウザ名側だけが縮んで折り返す(区切りのない長い語も途中で切る) */
+  .login-history-compact .list-row-sub {
+    flex-wrap: wrap;
+  }
+
+  .login-history-compact .list-row-meta {
+    @apply flex-none whitespace-nowrap;
+  }
+
+  .login-history-compact .list-row-secondary {
+    @apply min-w-0 flex-1 text-right;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   @media screen and (min-width: 1024px) and (max-width: 1279px) {

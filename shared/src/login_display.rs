@@ -168,6 +168,17 @@ fn capitalize_first(value: &str) -> String {
     }
 }
 
+fn shorten_unknown_label(value: &str) -> String {
+    const MAX_CHARS: usize = 32;
+    let labeled = capitalize_first(value.trim());
+    if labeled.chars().count() > MAX_CHARS {
+        let kept: String = labeled.chars().take(MAX_CHARS).collect();
+        format!("{kept}…")
+    } else {
+        labeled
+    }
+}
+
 #[must_use]
 pub fn browser_label(browser: &str) -> String {
     let mut lower = String::with_capacity(browser.len());
@@ -181,7 +192,7 @@ pub fn browser_label(browser: &str) -> String {
         "edge" => "Edge".to_string(),
         "firefox" => "Firefox".to_string(),
         "safari" => "Safari".to_string(),
-        _ => capitalize_first(browser.trim()),
+        _ => shorten_unknown_label(browser),
     }
 }
 
@@ -199,7 +210,7 @@ pub fn os_label(os: &str) -> String {
         "ios" => "iOS".to_string(),
         "android" => "Android".to_string(),
         "linux" => "Linux".to_string(),
-        _ => capitalize_first(os.trim()),
+        _ => shorten_unknown_label(os),
     }
 }
 
@@ -371,6 +382,15 @@ mod tests {
             format_agent(Some("vivaldi"), Some("windows")),
             "Vivaldi / Windows"
         );
+    }
+
+    #[test]
+    fn raw_ua_is_shortened_and_place_stays_intact() {
+        let raw = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+        let agent = format_agent(Some(raw), Some(raw));
+        assert!(agent.ends_with('…'));
+        assert!(agent.chars().count() < raw.chars().count() * 2);
+        assert_eq!(format_place(Some("JP"), Some("Tokyo")), "東京都, 日本");
     }
 
     #[test]
