@@ -2590,7 +2590,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=24).collect::<Vec<_>>()
+        (0..=25).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2598,7 +2598,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=24).collect::<Vec<_>>()
+        (0..=25).collect::<Vec<_>>()
     );
 }
 
@@ -2626,7 +2626,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=24).collect::<Vec<_>>()
+        (0..=25).collect::<Vec<_>>()
     );
 }
 
