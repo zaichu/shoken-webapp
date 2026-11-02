@@ -1,3 +1,4 @@
+use crate::config::{MAX_CSV_CELL_CHARS, MAX_CSV_COLUMNS, MAX_CSV_ROWS};
 use crate::errors::{ApiError, CsvError};
 use crate::services::csv::util::{CsvRowView, HeaderIndex, decode_bytes};
 
@@ -45,16 +46,27 @@ pub fn parse_csv_with_config(bytes: &[u8], config: &CsvParserConfig) -> Result<C
         .flexible(true)
         .from_reader(stripped.as_bytes());
 
-    let index = HeaderIndex::new(
-        reader
-            .headers()
-            .map_err(|error| CsvError::HeaderRead(error.to_string()))?
-            .iter(),
-    );
+    let headers = reader
+        .headers()
+        .map_err(|error| CsvError::HeaderRead(error.to_string()))?;
+    check_columns(headers.len())?;
+    for field in headers.iter() {
+        check_cell_len(field)?;
+    }
+    let index = HeaderIndex::new(headers.iter());
 
     let mut records = Vec::new();
+    let mut seen_rows: usize = 0;
     for record in reader.records() {
         let record = record.map_err(|error| CsvError::RowRead(error.to_string()))?;
+        seen_rows += 1;
+        if seen_rows > MAX_CSV_ROWS {
+            return Err(CsvError::TooManyRows(MAX_CSV_ROWS).into());
+        }
+        check_columns(record.len())?;
+        for field in record.iter() {
+            check_cell_len(field)?;
+        }
 
         if is_all_empty_record(&record) {
             continue;
@@ -71,6 +83,20 @@ pub fn parse_csv_with_config(bytes: &[u8], config: &CsvParserConfig) -> Result<C
     }
 
     Ok(CsvTable { index, records })
+}
+
+fn check_columns(count: usize) -> Result<(), ApiError> {
+    if count > MAX_CSV_COLUMNS {
+        return Err(CsvError::TooManyColumns(MAX_CSV_COLUMNS).into());
+    }
+    Ok(())
+}
+
+fn check_cell_len(field: &str) -> Result<(), ApiError> {
+    if field.chars().count() > MAX_CSV_CELL_CHARS {
+        return Err(CsvError::CellTooLong(MAX_CSV_CELL_CHARS).into());
+    }
+    Ok(())
 }
 
 fn strip_header_rows(content: &str, skip_header_rows: usize) -> &str {
@@ -242,6 +268,68 @@ mod tests {
             result,
             Err(ApiError::Csv(CsvError::HeaderNotFound(_)))
         ));
+    }
+
+    #[test]
+    fn test_parse_csv_row_limit_boundary() {
+        let mut csv = String::from("name\n");
+        for i in 0..MAX_CSV_ROWS {
+            csv.push_str(&format!("a{i}\n"));
+        }
+        assert_eq!(
+            parse_csv_with_config(csv.as_bytes(), &BASIC_CONFIG)
+                .unwrap()
+                .rows()
+                .count(),
+            MAX_CSV_ROWS
+        );
+
+        csv.push_str("overflow\n");
+        let result = parse_csv_with_config(csv.as_bytes(), &BASIC_CONFIG);
+        assert!(matches!(
+            result,
+            Err(ApiError::Csv(CsvError::TooManyRows(limit))) if limit == MAX_CSV_ROWS
+        ));
+    }
+
+    #[test]
+    fn test_parse_csv_column_and_cell_limits() {
+        let header: Vec<String> = (0..MAX_CSV_COLUMNS).map(|i| format!("c{i}")).collect();
+        let row: Vec<String> = (0..MAX_CSV_COLUMNS).map(|i| format!("v{i}")).collect();
+        let csv = format!("{}\n{}\n", header.join(","), row.join(","));
+        assert_eq!(
+            parse_csv_with_config(csv.as_bytes(), &BASIC_CONFIG)
+                .unwrap()
+                .rows()
+                .count(),
+            1
+        );
+
+        let wide_header: Vec<String> = (0..MAX_CSV_COLUMNS + 1).map(|i| format!("c{i}")).collect();
+        let result = parse_csv_with_config(
+            format!("{}\n", wide_header.join(",")).as_bytes(),
+            &BASIC_CONFIG,
+        );
+        assert!(matches!(
+            result,
+            Err(ApiError::Csv(CsvError::TooManyColumns(limit))) if limit == MAX_CSV_COLUMNS
+        ));
+
+        let long_cell = "x".repeat(MAX_CSV_CELL_CHARS + 1);
+        let result =
+            parse_csv_with_config(format!("name\n{long_cell}\n").as_bytes(), &BASIC_CONFIG);
+        assert!(matches!(
+            result,
+            Err(ApiError::Csv(CsvError::CellTooLong(limit))) if limit == MAX_CSV_CELL_CHARS
+        ));
+        let ok_cell = "x".repeat(MAX_CSV_CELL_CHARS);
+        assert_eq!(
+            parse_csv_with_config(format!("name\n{ok_cell}\n").as_bytes(), &BASIC_CONFIG)
+                .unwrap()
+                .rows()
+                .count(),
+            1
+        );
     }
 
     proptest::proptest! {
