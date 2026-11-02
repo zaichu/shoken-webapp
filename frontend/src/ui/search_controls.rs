@@ -4,13 +4,11 @@
 
 use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::dialog::use_page_scroll_lock;
 use crate::ui::focus::trap_focus;
 use crate::ui::labels;
 use crate::ui::state::{Spinner, SpinnerSize};
-use leptos::ev;
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
-use wasm_bindgen::closure::Closure;
 
 #[component]
 pub fn SortColumnButton(
@@ -252,12 +250,9 @@ pub fn AddConditionButton(
     }
 }
 
-/// 「条件を足す」の小窓(PC)・下から出るシート(スマホ)の外枠。
-/// 開くたびに作り直され、中身(期間の入力・選択肢など)は各ページが渡す。
+/// 条件を選ぶダイアログの外枠。開くたびに作り直され、中身は各ページが渡す。
 /// 背景クリック・Esc で閉じ、面の裏へ Tab で出ないようフォーカスを閉じ込める。
-/// PC は AddConditionRow の直下に fixed で出す(位置は親要素=行の座標から
-/// 写す)。fixed は祖先の relative や overflow-clip な面に左右されないため、
-/// どのページでも同じ位置に出る
+/// 配置とスクロール抑止は中央ダイアログと共通(表示領域の中央・後ろは動かさない)
 #[component]
 pub fn ConditionPanel(
     #[prop(into)] title: String,
@@ -265,83 +260,40 @@ pub fn ConditionPanel(
     children: Children,
 ) -> impl IntoView {
     let panel_ref = NodeRef::<leptos::html::Div>::new();
-    // PC: 行(親要素)の座標をビューポート座標のまま top/left に写す。
-    // スマホは CSS のシートに任せるので、幅をまたいだときは座標を消す
-    let sync_position = move || {
-        let (Some(panel), Some(window)) = (panel_ref.get(), web_sys::window()) else {
-            return;
-        };
-        let panel: &web_sys::HtmlElement = panel.unchecked_ref();
-        let style = panel.style();
-        let is_pc = window
-            .match_media("(width >= 64rem)")
-            .ok()
-            .flatten()
-            .is_some_and(|query| query.matches());
-        if !is_pc {
-            let _ = style.remove_property("top");
-            let _ = style.remove_property("left");
-            return;
-        }
-        if let Some(row) = panel.parent_element() {
-            let rect = row.get_bounding_client_rect();
-            let _ = style.set_property("top", &format!("{}px", rect.bottom()));
-            let _ = style.set_property("left", &format!("{}px", rect.left()));
-        }
-    };
+    use_page_scroll_lock();
     Effect::new(move |_| {
         if let Some(panel) = panel_ref.get() {
             let _ = panel.focus();
         }
-        sync_position();
-    });
-    // scroll はバブルしないため、内側のスクロール領域も拾えるよう
-    // document のキャプチャ段で追従させる
-    let scroll_sync = web_sys::window()
-        .and_then(|window| window.document())
-        .map(|document| {
-            let listener: Closure<dyn FnMut()> =
-                Closure::wrap(Box::new(sync_position) as Box<dyn FnMut()>);
-            let _ = document.add_event_listener_with_callback_and_bool(
-                "scroll",
-                listener.as_ref().unchecked_ref(),
-                true,
-            );
-            send_wrapper::SendWrapper::new((document, listener))
-        });
-    let on_resize = window_event_listener(ev::resize, move |_| sync_position());
-    on_cleanup(move || {
-        on_resize.remove();
-        if let Some(pair) = scroll_sync {
-            let (document, listener) = &*pair;
-            let _ = document.remove_event_listener_with_callback_and_bool(
-                "scroll",
-                listener.as_ref().unchecked_ref(),
-                true,
-            );
-        }
     });
     view! {
-        <div class="condition-backdrop" on:click=move |_| on_close() />
-        <div
-            class="dialog-panel condition-panel"
-            role="dialog"
-            aria-label=title.clone()
-            tabindex="-1"
-            node_ref=panel_ref
-            on:keydown=move |event| {
-                if event.key() == "Escape" {
-                    event.prevent_default();
-                    on_close();
-                    return;
+        <div class="search-dialog-root">
+            <div
+                class="search-dialog-backdrop condition-backdrop"
+                data-testid="condition-backdrop"
+                on:click=move |_| on_close()
+            />
+            <div
+                class="dialog-panel condition-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-label=title.clone()
+                tabindex="-1"
+                node_ref=panel_ref
+                on:keydown=move |event| {
+                    if event.key() == "Escape" {
+                        event.prevent_default();
+                        on_close();
+                        return;
+                    }
+                    if event.key() == "Tab" {
+                        trap_focus(&event);
+                    }
                 }
-                if event.key() == "Tab" {
-                    trap_focus(&event);
-                }
-            }
-        >
-            <p class="condition-panel-title">{title.clone()}</p>
-            {children()}
+            >
+                <p class="condition-panel-title">{title.clone()}</p>
+                {children()}
+            </div>
         </div>
     }
 }
