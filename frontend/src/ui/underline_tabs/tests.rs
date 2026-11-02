@@ -1,7 +1,7 @@
 use super::{
     SWIPE_EDGE_GUARD_PX, clamp_drag_offset, is_edge_start, next_swipe_index, next_tab_index,
-    swipe_can_advance, swipe_commit_index, swipe_lock_allowed, swipe_step, swipe_velocity,
-    tab_ink_offset,
+    swipe_can_advance, swipe_commit_index, swipe_lock_allowed, swipe_progress, swipe_settle_offset,
+    swipe_step, swipe_velocity, tab_ink_offset,
 };
 
 #[test]
@@ -124,4 +124,33 @@ fn ink_follows_progress_between_tabs() {
     assert_eq!(tab_ink_offset(1, 0.0), 1.0);
     assert_eq!(tab_ink_offset(1, -0.5), 0.5);
     assert_eq!(tab_ink_offset(0, 2.0), 1.0);
+}
+
+#[test]
+fn commit_settle_continues_outward_without_reversing() {
+    let width = 390.0;
+    let next_to = swipe_settle_offset(0, 1, width);
+    let next_from = clamp_drag_offset(-195.0, 3, 0, width);
+    assert!(next_from < 0.0 && next_to < 0.0);
+    assert!(next_to < next_from);
+
+    let prev_to = swipe_settle_offset(1, 0, width);
+    let prev_from = clamp_drag_offset(195.0, 3, 1, width);
+    assert!(prev_from > 0.0 && prev_to > 0.0);
+    assert!(prev_to > prev_from);
+}
+
+#[test]
+fn cancel_settle_returns_to_rest() {
+    assert_eq!(swipe_settle_offset(1, 1, 390.0), 0.0);
+}
+
+#[test]
+fn progress_points_toward_neighbor() {
+    assert_eq!(swipe_progress(-195.0, 390.0), 0.5);
+    assert_eq!(swipe_progress(195.0, 390.0), -0.5);
+    assert_eq!(swipe_progress(-800.0, 390.0), 1.0);
+    assert_eq!(swipe_progress(100.0, 0.0), 0.0);
+    assert_eq!(tab_ink_offset(0, swipe_progress(-195.0, 390.0)), 0.5);
+    assert_eq!(tab_ink_offset(1, swipe_progress(195.0, 390.0)), 0.5);
 }
