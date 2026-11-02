@@ -2031,7 +2031,7 @@
   }
 
   .login-history-compact .list-row-meta {
-    @apply shrink-0 whitespace-nowrap;
+    @apply flex-none whitespace-nowrap;
   }
 
   .login-history-compact .list-row-secondary {
