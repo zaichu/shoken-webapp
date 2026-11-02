@@ -1,4 +1,4 @@
-use super::day_change::{DAY_CHANGE_COLUMN_NOTE, day_change_cell, pending_day_change_cell};
+use super::day_change::{day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format::{
     format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
@@ -12,11 +12,7 @@ use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, format_unit_price, unit_price_decimals,
 };
-use crate::ui::labels::{
-    ACCOUNT, AVERAGE_PRICE, BASE_PRICE, BASE_PRICE_MONTH_CHANGE, DAY_CHANGE, DISTRIBUTION, FUND,
-    FUND_SHARES, MARKET_VALUE, PENDING_UPDATE, PRICE_AS_OF, TOTAL_ACQUISITION,
-    VALUATION_PROFIT_LOSS,
-};
+use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use crate::ui::security_link::TableNameLink;
 use leptos::prelude::*;
@@ -34,22 +30,22 @@ pub fn FundHoldingsTable(
             <table class="asset-table">
                 <thead>
                     <tr>
-                        <th scope="col" class="col-text">{FUND}</th>
-                        <th scope="col" class="col-text">{ACCOUNT}</th>
-                        <th scope="col" class="col-text">{DISTRIBUTION}</th>
-                        {sort_header(FUND_SHARES, FundSortKey::Shares, sort_key, sort_order)}
-                        {sort_header(BASE_PRICE, FundSortKey::BasePrice, sort_key, sort_order)}
+                        <th scope="col" class="col-text">{labels::FUND}</th>
+                        <th scope="col" class="col-text">{labels::ACCOUNT}</th>
+                        <th scope="col" class="col-text">{labels::DISTRIBUTION}</th>
+                        {sort_header(labels::FUND_SHARES, FundSortKey::Shares, sort_key, sort_order)}
+                        {sort_header(labels::BASE_PRICE, FundSortKey::BasePrice, sort_key, sort_order)}
                         <th
                             scope="col"
                             class="col-num"
-                            title=DAY_CHANGE_COLUMN_NOTE
-                            abbr=DAY_CHANGE_COLUMN_NOTE
+                            title=labels::DAY_CHANGE_COLUMN_NOTE
+                            abbr=labels::DAY_CHANGE_COLUMN_NOTE
                         >
-                            {DAY_CHANGE}
+                            {labels::DAY_CHANGE}
                         </th>
-                        {sort_header(MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
+                        {sort_header(labels::MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
                         {sort_header(
-                            VALUATION_PROFIT_LOSS,
+                            labels::VALUATION_PROFIT_LOSS,
                             FundSortKey::ProfitLoss,
                             sort_key,
                             sort_order,
@@ -77,9 +73,8 @@ pub fn FundHoldingsTable(
                                 .id
                                 .clone()
                                 .map(|id| format!("/assetbalance/funds/{id}"));
-                            let shares_text = format!(
-                                "{}口",
-                                format_number_value(view.shares)
+                            let shares_text = labels::fund_units_label(
+                                &format_number_value(view.shares),
                             );
                             let base_price_text = format_unit_price(
                                 view.base_price,
@@ -150,14 +145,14 @@ pub fn FundHoldingsTable(
 pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<DetailCell>) {
     let base_text = format_currency(view.base_price);
     let day_text = if view.nav_pending() {
-        PENDING_UPDATE.to_string()
+        labels::PENDING_UPDATE.to_string()
     } else {
         format_signed_row_valuation_amount(view.view_day_change())
     };
     let day_negative = is_negative_valuation(view.view_day_change());
     let day_positive = is_positive_valuation(view.view_day_change());
     let month_text = if view.nav_pending() {
-        PENDING_UPDATE.to_string()
+        labels::PENDING_UPDATE.to_string()
     } else {
         format_signed_row_valuation_amount(view.base_price_month_change)
     };
@@ -165,7 +160,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
     let month_positive = is_positive_valuation(view.base_price_month_change);
     let average_text = format_currency(view.average_purchase_price);
     let course_text = view.course.clone().unwrap_or_else(|| "—".to_string());
-    let shares_text = format!("{}口", format_number_value(view.shares));
+    let shares_text = labels::fund_units_label(&format_number_value(view.shares));
     let purchase_text = format_currency(view.purchase);
     let market_text = format_row_valuation_amount(Some(view.market_value));
     let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
@@ -179,14 +174,14 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
         .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
     let left = vec![
         DetailCell::with_sub(
-            BASE_PRICE.to_string(),
+            labels::BASE_PRICE.to_string(),
             base_text,
             day_text,
             day_negative,
             day_positive,
         ),
         DetailCell {
-            label: BASE_PRICE_MONTH_CHANGE.to_string(),
+            label: labels::BASE_PRICE_MONTH_CHANGE.to_string(),
             value: month_text,
             sub: None,
             negative: month_negative,
@@ -194,20 +189,20 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
             bold: false,
             delta: true,
         },
-        DetailCell::plain(AVERAGE_PRICE.to_string(), average_text),
-        DetailCell::plain(DISTRIBUTION.to_string(), course_text),
+        DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
+        DetailCell::plain(labels::DISTRIBUTION.to_string(), course_text),
     ];
     let right = vec![
-        DetailCell::plain(FUND_SHARES.to_string(), shares_text),
-        DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
+        DetailCell::plain(labels::FUND_SHARES.to_string(), shares_text),
+        DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
         DetailCell::strong_sub(
-            MARKET_VALUE.to_string(),
+            labels::MARKET_VALUE.to_string(),
             market_text,
             pnl_sub,
             pnl_negative,
             pnl_positive,
         ),
-        DetailCell::plain(PRICE_AS_OF.to_string(), as_of),
+        DetailCell::plain(labels::PRICE_AS_OF.to_string(), as_of),
     ];
     (left, right)
 }
@@ -228,7 +223,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     let rate_negative = is_negative_rate(view.profit_loss_rate);
                     let rate_positive = is_positive_rate(view.profit_loss_rate);
                     let shares_text =
-                        format!("{}口", format_number_value(view.shares));
+                        labels::fund_units_label(&format_number_value(view.shares));
                     let market_text = format_row_valuation_amount(Some(view.market_value));
                     let name = view.name.clone();
                     let account = view.account.clone();
@@ -291,6 +286,7 @@ mod tests {
     use super::fund_detail_cells;
     use crate::api::dto::FundPriceSource;
     use crate::features::asset_balance::fund::FundView;
+    use crate::ui::labels;
 
     fn sample_fund() -> FundView {
         FundView {
@@ -321,16 +317,21 @@ mod tests {
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             left_labels,
-            ["基準価額", "基準価額(前月比)", "取得単価", "分配金"]
+            [
+                labels::BASE_PRICE,
+                labels::BASE_PRICE_MONTH_CHANGE,
+                labels::AVERAGE_PRICE,
+                labels::DISTRIBUTION
+            ]
         );
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             right_labels,
             [
-                "保有口数",
-                "取得総額",
-                "評価額",
-                crate::ui::labels::PRICE_AS_OF
+                labels::FUND_SHARES,
+                labels::TOTAL_ACQUISITION,
+                labels::MARKET_VALUE,
+                labels::PRICE_AS_OF
             ]
         );
     }

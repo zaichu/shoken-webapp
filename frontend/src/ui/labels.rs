@@ -713,6 +713,19 @@ pub const COMPOSITION_UNAVAILABLE: &str = "算出不可";
 pub const ASSET_SEARCH_REGION: &str = "資産の検索";
 /// タグの区切り
 pub const TAG_SEPARATOR: &str = "・";
+/// 投資信託のCSV見出し(種別の列)
+pub const FUND_KIND: &str = "投資信託種別";
+/// 基準価額の出どころ(公式APIの共有値)
+pub const FUND_PRICE_SOURCE_AUTO: &str = "自動更新";
+/// 基準価額の出どころ(CSVの取り込み値)
+pub const FUND_PRICE_SOURCE_CSV: &str = "CSV 取り込み";
+/// 保有種別の切り替えの読み上げ名
+pub const ASSET_KIND_TABS_LABEL: &str = "保有の種類";
+/// 前日比列の見出しの説明
+pub const DAY_CHANGE_COLUMN_NOTE: &str =
+    "最新の基準価額の日の前日比がわかる行だけ出します。更新待ちの行は CSV を取り込むと出ます";
+/// 配当の取得失敗の表示
+pub const HOLDING_DIVIDEND_FAILED: &str = "取得失敗";
 
 /// 株数の書き方(「100株」)
 pub fn stock_shares_label(shares: &str) -> String {
@@ -722,6 +735,21 @@ pub fn stock_shares_label(shares: &str) -> String {
 /// 口数の書き方(「10000口」)
 pub fn fund_units_label(units: &str) -> String {
     format!("{units}口")
+}
+
+/// 基準価額の前日比の出どころと日付(「CSV 取り込み 1/5 の前日比」)
+pub fn fund_day_change_title(source: &str, date: &str) -> String {
+    format!("{source} {date} の前日比")
+}
+
+/// 更新待ちの理由(「更新待ち: 最新の基準価額の日は 1/6、この値はCSV 取り込み 1/5」)
+pub fn fund_pending_detail(expected: &str, source: &str, as_of: &str) -> String {
+    format!("更新待ち: 最新の基準価額の日は {expected}、この値は{source} {as_of}")
+}
+
+/// 一覧が上限で切れたときの警告(資産管理用)
+pub fn asset_truncated_warning(total: &str) -> String {
+    format!("一覧は最大{total}件まで表示しています。未表示の銘柄がある可能性があります。")
 }
 
 /// 分配金コースの表示(「・ 受取型」)

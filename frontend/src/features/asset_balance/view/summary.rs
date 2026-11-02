@@ -13,10 +13,7 @@ use crate::features::asset_balance::model::{
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::format::format_percentage_value;
-use crate::ui::labels::{
-    self, ACQUISITION_YIELD, ANNUAL_DIVIDEND_FORECAST, DAY_CHANGE, MARKET_VALUE, TOTAL_ACQUISITION,
-    VALUATION_PROFIT_LOSS,
-};
+use crate::ui::labels;
 use crate::ui::summary::{
     SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
 };
@@ -139,13 +136,13 @@ pub(crate) fn stock_summary_values(
     };
     let tags = vec![
         SummaryTag {
-            label: ANNUAL_DIVIDEND_FORECAST,
+            label: labels::ANNUAL_DIVIDEND_FORECAST,
             value: kpi
                 .total_annual_dividends
                 .map_or("—".to_string(), format_amount),
         },
         SummaryTag {
-            label: ACQUISITION_YIELD,
+            label: labels::ACQUISITION_YIELD,
             value: kpi
                 .dividend_yield
                 .map_or("—".to_string(), format_percentage_value),
@@ -157,7 +154,7 @@ pub(crate) fn stock_summary_values(
 /// 投資信託・すべてのタブの補助の札(取得総額)
 pub(crate) fn purchase_summary_tag(purchase: f64) -> SummaryTag {
     SummaryTag {
-        label: TOTAL_ACQUISITION,
+        label: labels::TOTAL_ACQUISITION,
         value: format_valuation_amount(Some(purchase)),
     }
 }
@@ -197,7 +194,7 @@ pub(crate) fn AssetSummaryBand(
     let purchase_text = format_valuation_amount(purchase);
     let pc_items: Vec<SummarySubItem> = {
         let mut items = vec![SummarySubItem {
-            label: DAY_CHANGE.to_string(),
+            label: labels::DAY_CHANGE.to_string(),
             value: daily_text.clone(),
             note: String::new(),
             tone: if daily_negative {
@@ -225,15 +222,15 @@ pub(crate) fn AssetSummaryBand(
             id="assetbalance-summary"
             class="summary-band"
             role="region"
-            aria-label="集計"
+            aria-label=labels::SUMMARY
             data-testid="asset-portfolio-summary"
         >
             <SummaryBand
-                primary_label=MARKET_VALUE
+                primary_label=labels::MARKET_VALUE
                 primary_value=market_text
                 primary_as_of=as_of
                 show_pending=show_pending
-                aux_label=VALUATION_PROFIT_LOSS
+                aux_label=labels::VALUATION_PROFIT_LOSS
                 aux_value=profit_text
                 aux_rate=rate_text
                 aux_negative=profit_negative
@@ -241,14 +238,14 @@ pub(crate) fn AssetSummaryBand(
                 pc_items=pc_items
                 breakdown=vec![
                     SummaryBreakdownEntry {
-                        label: DAY_CHANGE.to_string(),
+                        label: labels::DAY_CHANGE.to_string(),
                         value: daily_text,
                         negative: daily_negative,
                         positive: daily_positive,
                         rate: daily_rate_text,
                     },
                     SummaryBreakdownEntry {
-                        label: TOTAL_ACQUISITION.to_string(),
+                        label: labels::TOTAL_ACQUISITION.to_string(),
                         value: purchase_text,
                         negative: false,
                         positive: false,
