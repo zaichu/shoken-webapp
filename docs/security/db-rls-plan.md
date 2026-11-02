@@ -246,3 +246,116 @@ RLS(行の分離)を主とし、ロールの分離(権限の縮小)を従とす�
   切り替え時に管理者専用ロールか所有者のまま残すかを決める。
 - 次の段階(接続ロールの切り替え)で、A を主案・B を退路として使い捨て DB で比べ、
   照合・消費・回転・掃除・管理者横断の5経路が制限ロールでどう振る舞うかを固定してから決める。
+
+## 13. 第五段階の設計(接続ロールの切り替え)(#1736)
+
+### 結論
+
+- 主案は (b) 所有者の接続のまま Tx 内で `SET LOCAL ROLE` する。新しい秘密は要らない。
+  退路は (a) 新しいログインロールと接続文字列を作る。Supabase 側で (b) の `SET ROLE` が
+  許されない場合だけ (a) に切り替える。
+- 進め方は設計の本章を含めて全5 PR。実装は 4 本に分ける:
+  - 5a: 制限ロール作成の migration(0027)。アプリコードの変更なし。
+  - 5b: 照合専用の `SECURITY DEFINER` 関数の migration(0028)。アプリコードの変更なし。
+  - 5c: 書き込み Tx の切替(`begin_with_user` に `SET LOCAL ROLE` を足す)。読み取りは変えない。
+  - 5d: 読み取りの切替(問い合わせごとの短い Tx 化)と管理者横断・cron の扱い決定。
+- 往復回数の見込みは §13.2 の表のとおり。書き込みは 1 リクエストあたり +1 往復、
+  読み取りの一覧は並行を保ったまま 1 問い合わせあたり 1 往復→4 往復(最適化後)。
+  `FORCE` は 5d の完了まで付けない。
+
+### 13.1 ロールの切り替え方: (a) と (b) の比較
+
+| 観点 | (a) 新しいログインロールと接続文字列 | (b) 所有者の接続のまま `SET LOCAL ROLE` |
+|---|---|---|
+| 仕組み | 制限ロールを `LOGIN` で作り、Hyperdrive/Wrangler に2つ目の接続文字列を登録する。認証後の経路だけ新プールに寄せる | 制限ロールを `NOLOGIN` で作り、所有者から `SET LOCAL ROLE 制限ロール` する。Tx 開始直後に1文足すだけで、接続文字列とプールは1つのまま |
+| 秘密 | 新しい秘密が要る(Hyperdrive の付け替えと secrets 登録)。管理対象が2倍になる | 新しい秘密は要らない。登録手順もない |
+| コードの変化 | `Db` が接続を2つ持ち、経路ごとに使い分ける。使い分けミスが権限混同になる | `begin_with_user` と読み取り用の短い Tx 補助の2か所に集約できる。使い分けは Tx の有無だけ |
+| プールとの相性 | プールが2つに割れ、Hyperdrive の束ね先が増える。読み書きの境界が接続をまたぐ | Tx 単位の `SET LOCAL` のため、プール・Hyperdrive の接続使い回しに漏れない。`COMMIT`/`ROLLBACK` で自動的に戻る |
+| 失敗の向き | 接続文字列の取り違えは特権混同(見える側)に倒れやすい | 設定失敗は権限不足で Tx が止まる(使えない側)に倒れる |
+
+使い捨て DB(`postgres:16-alpine`)での確認結果:
+
+- 所有者接続で `BEGIN` → `SET LOCAL ROLE app_restricted` →
+  `SELECT set_config('app.current_user_id', $1, true)` → 照会の順で、
+  本人の行だけが見え、他人名義の書き込みは行共有違反で失敗し、
+  設定なしでは 0 件になる。`COMMIT` 後は所有者に戻り全行が見える。
+- 非特権の所有者もどきでは、所属付与なしの `SET LOCAL ROLE` は権限不足で失敗し、
+  `GRANT app_restricted TO <所有者>` の後は通る。特権者では所属なしでも通るため、
+  migration には所属付与を含め、非特権でも成り立つ形にする。
+- Supabase/Hyperdrive 固有の残件は、接続ロールが `SET ROLE` できるかの一点に絞られる。
+  Session pooler(5432)はセッションモードだが `SET LOCAL` は Tx 内に閉じるため、
+  使い回しへの漏れはない。切替前に利用予定の Session pooler 利用者で
+  `BEGIN` → `SET LOCAL ROLE` → `ROLLBACK` が通ることだけを確かめる。
+  通らない場合は (a) を使う。
+
+### 13.2 読み取りの並行と往復回数
+
+現行の一覧は `domain/search.rs` の `try_join4`(count・data・summary・facets)と
+`try_join_all`(facet 内訳)を `&Db` の並行問い合わせで投げ、1 問い合わせ 1 往復で済ませている。
+書き込みは `begin_with_user`(`BEGIN` + `set_config` + 本文 + `COMMIT`)で 1 往復増を受け入れ済み。
+
+切替後の読み取りは並行を保つ。各問い合わせをロールと利用者 ID を設定した短い Tx で投げる。
+`BEGIN` と `SET LOCAL ROLE` は1回の `batch_execute` にまとめられるため、1 問い合わせは4往復になる。
+1文に設定を含める案は採らない。`batch_execute` には束縛変数がなく、
+利用者 ID を文字列連結すると SQL 組み立ての禁止に触れるため。
+
+| 経路 | 現行 | 切替後(b) | 増分 |
+|---|---|---|---|
+| 一覧の1問い合わせ(count・data・summary・facet 1件) | 1 往復(並行) | 4 往復(`BEGIN`+`SET LOCAL ROLE` 同梱・`set_config`・本文・`COMMIT`、並行) | +3 往復 |
+| 一覧1リクエスト全体(例: count・data・summary・facet 6件の10並行) | 並行で約1往復分の待ち | 並行で約4往復分の待ち | 待ちが約4倍 |
+| 単一文の書き込み | 4 往復(`BEGIN`・`set_config`・本文・`COMMIT`) | 5 往復(`BEGIN`+`SET LOCAL ROLE` 同梱・`set_config`・本文・`COMMIT`) | +1 往復 |
+| ログイン Tx(upsert 後に設定) | `BEGIN`・upsert・`set_config`・回転・`COMMIT` | `BEGIN`+`SET LOCAL ROLE` 同梱・upsert・`set_config`・回転・`COMMIT` | +0 往復(同梱のため) |
+
+なお §11 のとおり制限ロールでは並び順つき一覧が並べ替え併用になりやすい。
+5d で実量とともに測り直す。索引の追加・ポリシーの書き換えは行わない。
+
+### 13.3 利用者確定前の経路の通し方
+
+§12 の A 案を主とする。照合と消費・回転・消去だけを所有者権限の関数に閉じ込め、
+引数はハッシュのみ・戻りは利用者 ID のみに絞る。接続ロールは制限のままにする。
+定型は `SECURITY DEFINER`・`SET search_path = public, pg_temp`・`REVOKE ALL ON FUNCTION ... FROM PUBLIC`・
+制限ロールへの `GRANT EXECUTE` とする。列の持ち出しが必要な入口は利用者 ID の特定に留め、
+利用者行の取得自体は特定後の制限 Tx で行う。
+
+| 関数 | 引数 | 戻り値 | 揮発性 | 用途 |
+|---|---|---|---|---|
+| `auth_lookup_user_id_by_session(bytea)` | `token_hash` | `uuid` または NULL | `STABLE` | 全認証要求の入口と管理者判定の再照合 |
+| `auth_delete_session_by_token(bytea)` | `token_hash` | `void` | `VOLATILE` | ログアウトの冪等な消去 |
+| `login_notify_peek_by_token(bytea)` | `token_hash` | `(user_id uuid, expires_at timestamptz)` | `STABLE` | 通知設定の token 照会 |
+| `login_notify_consume_by_token(bytea)` | `token_hash` | `user_id uuid` または NULL | `VOLATILE` | 通知設定の token 消費(`used_at` 更新を含む) |
+| `auth_rotate_session(uuid, bytea, bytea)` | `user_id`・`token_hash`・`device_hash`(NULL 可) | `void` | `VOLATILE` | 回転時の期限切れ掃除と旧行削除・新行挿入を1か所に含める |
+| `auth_upsert_user(text, text, text, text)` | `google_id`・`email`・`name`・`picture_url` | `uuid` | `VOLATILE` | ログイン Tx の upsert 部分(回転前は利用者が定まらないため) |
+
+上記以外の利用者をまたぐ経路は関数化しない。管理者横断ビュー(`login_event/admin.rs` の `search`)と
+cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理者専用ロールに寄せるかを決める。
+現行の回転文の他人行掃除は上記 `auth_rotate_session` 内に移し、制限 Tx 側の文からは他人行条件を外す。
+ログアウト後の参照は冪等な成功応答のままとする(ポリシーで残っても成功を返す現行の向きを変えない)。
+
+### 13.4 切替手順と戻し方
+
+順番は 5a → 5b → 5c → 5d とする。表ごと・経路ごとの段階的な切替になるよう、
+各 PR は後続なしでも本番に入れられる形にする。過去の migration は書き換えない。
+
+1. 5a: 制限ロール(`NOLOGIN`)の作成と各表への権限付与・所有者への所属付与の migration を足す。
+   `FORCE` は付けない。所有者の挙動は変わらず、制限ロールの直接接続で隔離だけを固定する。
+2. 5b: §13.3 の関数の migration を足す。アプリはまだ呼ばない。使い捨て DB で引数・戻り・権限だけを固定する。
+3. 5c: 書き込み Tx(`begin_with_user` とログイン Tx の `set_local_user` 呼び出し)だけを (b) に寄せる。
+   読み取り・認証前・管理者・cron は変えない。問題が出たらコードを戻すだけでよい。
+4. 5d: 読み取りを短い Tx 化し、認証前経路を §13.3 の関数に寄せ、管理者横断と cron の扱いを決める。
+   `EXPLAIN` を測り直し、`FORCE` の検討は全経路の配線が終わってから行う。
+
+戻し方はコードの revert が正本になる。migration の追加分(ロール・関数・権限)は残しても
+所有者の挙動を変えず、露出にはならない。取り消す場合は新しい migration で `DROP FUNCTION`・
+`REVOKE`・`DROP ROLE` を行う。`DISABLE ROW LEVEL SECURITY`・`DROP POLICY` は使わない
+(本番の行分離を弱める方向の戻しはしない)。
+
+### 13.5 秘密の登録手順
+
+- (b) の主案では新しい秘密は要らない。利用者の登録手順はない。
+- 退路の (a) が必要になった場合だけ、利用者が行う手順は以下になる。値は書かない。
+  1. 制限用のログインロールに対応する接続文字列を用意する。
+  2. Cloudflare の Hyperdrive 設定に新しい接続先として登録する。
+  3. デプロイ先の secrets に新しい接続文字列を登録する。
+  4. 付け替え後は旧接続文字列を残し、新経路の疎通を確認してから切り替える。
+- 実装担当・統合担当は秘密を見ない。手順書・PR・ログに接続文字列・鍵を残さないことは
+  `docs/db-migration-supabase.md` の担当分離と同じにする。
