@@ -224,7 +224,7 @@ for (const width of [1280, 390]) {
 
       await button.click();
       await expect(button).toBeDisabled();
-      await expect(button).toContainText('取得中...');
+      await expect(button).toContainText('取得中…');
       expect(await positions()).toEqual(before);
     } finally {
       releaseStats();
