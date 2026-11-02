@@ -194,10 +194,6 @@ pub const DIALOG_CLOSE: &str = "閉じる";
 pub const SORT_TARGET: &str = "並べ替え対象";
 /// 並べ替えの順序の見出し
 pub const SORT_ORDER_LABEL: &str = "順序";
-/// 並べ替えの向き(降順・昇順の選択肢)
-pub const SORT_DESCENDING: &str = "降順";
-/// 並べ替えの向き(降順・昇順の選択肢)
-pub const SORT_ASCENDING: &str = "昇順";
 /// 並べ替えの向き(シートの選択肢)
 pub const SORT_HIGH_TO_LOW: &str = "高い順";
 /// 並べ替えの向き(シートの選択肢)
@@ -206,6 +202,10 @@ pub const SORT_LOW_TO_HIGH: &str = "低い順";
 pub const SORT_NEWEST_FIRST: &str = "新しい順";
 /// 並べ替えの向き(取引明細の日付)
 pub const SORT_OLDEST_FIRST: &str = "古い順";
+/// 並べ替えの向き(文字の列の選択肢)
+pub const SORT_ALPHA_FIRST: &str = "あいうえお順";
+/// 並べ替えの向き(文字の列の選択肢)
+pub const SORT_ALPHA_LAST: &str = "逆順";
 /// ダイアログのキーワード入力の補足
 pub const SEARCH_DIALOG_HINT: &str = "銘柄名・コード・口座で検索";
 /// 絞り込み中の表示(注記の行に出す)

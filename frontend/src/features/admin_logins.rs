@@ -87,6 +87,25 @@ fn sort_label(sort_by: &str) -> &'static str {
         .unwrap_or(labels::LOGIN_HISTORY_COL_DATETIME)
 }
 
+/// 並べ替え対象ごとの順序の言葉(降順・昇順の順)。日時は新しい順・古い順、
+/// 文字の列はあいうえお順・逆順にし、ほかの画面と同じ考え方にそろえる
+fn order_labels(sort_by: &str) -> (&'static str, &'static str) {
+    if sort_by == "occurred_at" {
+        (labels::SORT_NEWEST_FIRST, labels::SORT_OLDEST_FIRST)
+    } else {
+        (labels::SORT_ALPHA_LAST, labels::SORT_ALPHA_FIRST)
+    }
+}
+
+fn sort_order_label(sort_by: &str, descending: bool) -> &'static str {
+    let (descending_label, ascending_label) = order_labels(sort_by);
+    if descending {
+        descending_label
+    } else {
+        ascending_label
+    }
+}
+
 /// 「もっと見る」を出せるか。初回取得が成功して一覧が出ているときだけ、
 /// 読み込み済み件数が総件数より少なければ出す。絞り込み直後の読み込み中・
 /// 失敗中は旧結果の件数で出さない(押すと新条件の続きを旧一覧に混ぜるため)
@@ -94,8 +113,9 @@ fn can_load_more(ready: bool, loaded: usize, total: Option<i64>) -> bool {
     ready && total.is_some_and(|total| (loaded as i64) < total)
 }
 
-/// スマホのダイアログの中身。キーワード・メール・場所の入力と並べ替えの選択を
-/// 下書きの上で編集し、検索で一覧へ反映する
+/// スマホのダイアログの中身。キーワードの入力と並べ替えの選択を
+/// 下書きの上で編集し、検索で一覧へ反映する。メール・場所の絞り込みは
+/// キーワード(メール・場所の両方に当たる)1つにまとめ、欄は作らない
 #[component]
 fn AdminDialogFields(
     draft: RwSignal<ListQuery>,
@@ -104,10 +124,6 @@ fn AdminDialogFields(
     let search_callback = Callback::new(move |_| on_search());
     let draft_text = move || draft.with(|query| query.q.clone());
     let set_draft_text = move |value: String| draft.update(|query| query.q = value);
-    let draft_email = move || draft.with(|query| query.email.clone());
-    let set_draft_email = move |value: String| draft.update(|query| query.email = value);
-    let draft_place = move || draft.with(|query| query.place.clone());
-    let set_draft_place = move |value: String| draft.update(|query| query.place = value);
     view! {
         <div class="flex flex-col gap-4">
             <section aria-label="検索">
@@ -123,28 +139,6 @@ fn AdminDialogFields(
                         />
                     </SearchBox>
                     <p class="search-dialog-hint">{labels::search_placeholder(ADMIN_LOGIN_SEARCH)}</p>
-                </div>
-                <div class="search-dialog-field">
-                    <label class="mb-1 block text-sm font-medium text-text-deep">
-                        {ADMIN_LOGIN_EMAIL}
-                        <SearchTextInput
-                            placeholder=labels::search_placeholder(ADMIN_LOGIN_EMAIL)
-                            testid="admin-login-dialog-email"
-                            value=draft_email
-                            on_input=set_draft_email
-                        />
-                    </label>
-                </div>
-                <div class="search-dialog-field">
-                    <label class="mb-1 block text-sm font-medium text-text-deep">
-                        {labels::LOGIN_HISTORY_COL_PLACE}
-                        <SearchTextInput
-                            placeholder=labels::search_placeholder(labels::LOGIN_HISTORY_COL_PLACE)
-                            testid="admin-login-dialog-place"
-                            value=draft_place
-                            on_input=set_draft_place
-                        />
-                    </label>
                 </div>
             </section>
             <section aria-label=labels::SORT_BY.to_string()>
@@ -188,8 +182,15 @@ fn AdminDialogFields(
                                     draft.update(|query| query.descending = next != "asc");
                                 }
                             >
-                                <option value="desc">{labels::SORT_DESCENDING}</option>
-                                <option value="asc">{labels::SORT_ASCENDING}</option>
+                                {move || {
+                                    let (descending_label, ascending_label) = order_labels(
+                                        draft.with(|query| query.sort_by),
+                                    );
+                                    view! {
+                                        <option value="desc">{descending_label}</option>
+                                        <option value="asc">{ascending_label}</option>
+                                    }
+                                }}
                             </Select>
                         </label>
                     </div>
@@ -313,12 +314,14 @@ pub fn AdminLoginsPage() -> impl IntoView {
     let place_tag = Memo::new(move |_| query.with(|query| query.place.clone()));
     let search_count_total = move || total.get().unwrap_or(0).max(0) as usize;
     let sort_summary = move || {
-        let order = if query.with(|query| query.descending) {
-            labels::SORT_DESCENDING
-        } else {
-            labels::SORT_ASCENDING
-        };
-        format!("{} {order}", sort_label(query.with(|query| query.sort_by)))
+        format!(
+            "{} {}",
+            sort_label(query.with(|query| query.sort_by)),
+            sort_order_label(
+                query.with(|query| query.sort_by),
+                query.with(|query| query.descending)
+            ),
+        )
     };
     let sort_summary = Signal::derive(sort_summary);
 
@@ -392,11 +395,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
                         load_first();
                     };
                     let do_clear = move || {
-                        draft.update(|query| {
-                            query.q.clear();
-                            query.email.clear();
-                            query.place.clear();
-                        });
+                        draft.update(|query| query.q.clear());
                     };
                     view! {
                         <SearchDialog

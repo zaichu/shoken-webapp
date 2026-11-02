@@ -10,6 +10,28 @@ fn more_button_needs_successful_first_load_and_remaining_rows() {
 }
 
 #[test]
+fn sort_order_words_follow_the_target_kind() {
+    assert_ne!(
+        sort_order_label("occurred_at", true),
+        sort_order_label("occurred_at", false)
+    );
+    assert_ne!(
+        sort_order_label("occurred_at", true),
+        sort_order_label("email", true)
+    );
+    for column in ["email", "result", "place"] {
+        assert_eq!(
+            sort_order_label(column, true),
+            sort_order_label("place", true)
+        );
+        assert_eq!(
+            sort_order_label(column, false),
+            sort_order_label("place", false)
+        );
+    }
+}
+
+#[test]
 fn sort_changes_reset_page_and_toggle_direction() {
     let mut query = ListQuery {
         page: 3,
