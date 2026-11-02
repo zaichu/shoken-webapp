@@ -155,7 +155,8 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(dialog).toContainText('9910');
   await expect(dialog).toContainText('+¥1,594');
   await expect(dialog).toContainText('税引前');
-  await expect(dialog).toContainText('¥2,000');
+  await expect(dialog).toContainText('+¥2,000');
+  await expect(dialog).toContainText('-¥406');
   const items = dialog.locator('dt');
   await expect(items).toHaveText(['入金日', '数量', '1株配当', '税引前', '税額', '税引後']);
   await dialog.getByTestId('detail-dialog-close').click();

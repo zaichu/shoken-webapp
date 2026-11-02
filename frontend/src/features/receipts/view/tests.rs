@@ -600,13 +600,16 @@ fn card_row_data_maps_card_fields() {
     assert!(card.details.iter().all(|detail| {
         !["銘柄コード", "銘柄名", "入金日", "口座"].contains(&detail.label.as_str())
     }));
-    assert!(card.details.iter().all(|detail| match &detail.value {
-        CardDetailValue::Text { text, negative, .. } => {
-            *negative
-                == (is_profit_label(ReceiptsTab::Dividend, &detail.label) && is_negative_text(text))
-        }
-        CardDetailValue::CopyName { .. } => true,
-    }));
+    // 税額は符号を反転するため、保存済みの符号付き表示からは再計算しない。既知の値で確かめる
+    let (gross_text, gross_negative, gross_positive, gross_profit) = detail_value(&card, "配当金");
+    assert_eq!(gross_text, "+¥500");
+    assert!(!gross_negative);
+    assert!(gross_positive);
+    assert!(gross_profit);
+    let (tax_text, tax_negative, tax_positive, _) = detail_value(&card, "税額");
+    assert_eq!(tax_text, "-¥100");
+    assert!(tax_negative);
+    assert!(!tax_positive);
 }
 
 fn detail_negative(card: &CardRowData, label: &str) -> bool {
@@ -640,7 +643,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
 }
 
 #[test]
-fn negative_tax_and_dividend_stay_neutral() {
+fn tax_outflow_uses_inverted_sign() {
     let mut stock = match domestic().remove(0) {
         Saved(ReceiptItem::DomesticStock(row)) => row,
         _ => unreachable!(),
@@ -650,10 +653,21 @@ fn negative_tax_and_dividend_stay_neutral() {
     stock.realized_profit_and_loss_after_tax = rust_decimal::Decimal::from(-797);
     let card = card_for(
         ReceiptsTab::DomesticStock,
-        Saved(ReceiptItem::DomesticStock(stock)),
+        Saved(ReceiptItem::DomesticStock(stock.clone())),
     );
     assert!(detail_negative(&card, "実現損益"));
     assert!(!detail_negative(&card, "税額"));
+    let (refund_text, _, refund_positive, _) = detail_value(&card, "税額");
+    assert_eq!(refund_text, "+¥203");
+    assert!(refund_positive);
+
+    stock.taxes = rust_decimal::Decimal::from(203);
+    let card = card_for(
+        ReceiptsTab::DomesticStock,
+        Saved(ReceiptItem::DomesticStock(stock)),
+    );
+    assert!(detail_negative(&card, "税額"));
+    assert_eq!(detail_value(&card, "税額").0, "-¥203");
 
     let mut dividend = match dividends().remove(0) {
         Saved(ReceiptItem::Dividend(row)) => row,
@@ -672,11 +686,21 @@ fn negative_tax_and_dividend_stay_neutral() {
 #[test]
 fn dividend_receipt_counts_as_inflow() {
     assert!(is_profit_label(ReceiptsTab::Dividend, "税引後"));
-    assert!(!is_profit_label(ReceiptsTab::Dividend, "配当金"));
+    assert!(is_profit_label(ReceiptsTab::Dividend, "配当金"));
+    assert!(is_profit_label(ReceiptsTab::Dividend, "税引前"));
     assert!(!is_profit_label(ReceiptsTab::Dividend, "税額"));
     assert!(is_profit_label(ReceiptsTab::DomesticStock, "税引後"));
+    assert!(is_profit_label(ReceiptsTab::DomesticStock, "税引前"));
     assert!(is_profit_label(ReceiptsTab::MutualFund, "税引後"));
     assert!(!is_profit_label(ReceiptsTab::DomesticStock, "税額"));
+    assert_eq!(
+        amount_kind_for_label(ReceiptsTab::Dividend, "税額", "¥100"),
+        AmountKind::Delta
+    );
+    assert_eq!(
+        amount_kind_for_label(ReceiptsTab::Dividend, "税額", "¥0"),
+        AmountKind::Plain
+    );
 }
 
 #[test]
@@ -697,10 +721,40 @@ fn negative_labeled_value_requires_profit_label_and_negative_text() {
         "-¥1,234"
     ));
     assert!(is_negative_labeled_value(
+        ReceiptsTab::DomesticStock,
+        "税額",
+        "¥1,234"
+    ));
+    assert!(!is_negative_labeled_value(
+        ReceiptsTab::DomesticStock,
+        "税額",
+        "¥0"
+    ));
+    assert!(is_negative_labeled_value(
         ReceiptsTab::Dividend,
         "税引後",
         "-¥1,234"
     ));
+}
+
+#[test]
+fn tax_signed_text_inverts_outflow() {
+    assert_eq!(tax_signed_text("¥1,234"), "-¥1,234");
+    assert_eq!(tax_signed_text("-¥1,234"), "+¥1,234");
+    assert_eq!(tax_signed_text("¥0"), "¥0");
+    assert_eq!(tax_signed_text("—"), "—");
+    assert_eq!(
+        signed_text_for_profit(ReceiptsTab::Dividend, "税額", "¥100"),
+        "-¥100"
+    );
+    assert_eq!(
+        signed_text_for_profit(ReceiptsTab::Dividend, "配当金", "¥500"),
+        "+¥500"
+    );
+    assert_eq!(
+        signed_text_for_profit(ReceiptsTab::Dividend, "税引前", "¥500"),
+        "+¥500"
+    );
 }
 
 #[test]
@@ -942,9 +996,9 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
             }
         }
         assert!(right[2].bold, "{tab:?}: 税引後は太字");
-        if tab != ReceiptsTab::Dividend {
-            assert!(right[2].delta, "{tab:?}: 税引後は損益として符号と色");
-        }
+        assert!(right[2].delta, "{tab:?}: 税引後は損益として符号と色");
+        assert!(right[0].delta, "{tab:?}: 税引前は損益として符号と色");
+        assert!(!right[0].bold, "{tab:?}: 税引前は太字にしない");
         let (hero, _, _, _) = detail_value(&card, "税引後");
         assert!(!hero.is_empty(), "{tab:?}: 行の主役が無い");
         assert_eq!(right[2].value, hero, "{tab:?}: ダイアログは行と同じ基準");
@@ -1085,10 +1139,76 @@ fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
     assert!(after_positive);
     assert!(after_profit);
     let (tax_text, tax_negative, tax_positive, tax_profit) = detail_value(&card, "税額");
-    assert_eq!(tax_text, "¥203");
-    assert!(!tax_negative);
+    assert_eq!(tax_text, "-¥203");
+    assert!(tax_negative);
     assert!(!tax_positive);
-    assert!(!tax_profit);
+    assert!(tax_profit);
+}
+
+#[test]
+fn tax_zero_uses_plain_and_refund_uses_plus() {
+    let mut stock = match domestic().remove(0) {
+        Saved(ReceiptItem::DomesticStock(row)) => row,
+        _ => unreachable!(),
+    };
+    stock.realized_profit_and_loss = dec!(1000);
+    stock.taxes = dec!(0);
+    stock.realized_profit_and_loss_after_tax = dec!(1000);
+    let card = card_for(
+        ReceiptsTab::DomesticStock,
+        Saved(ReceiptItem::DomesticStock(stock.clone())),
+    );
+    let (zero_text, zero_negative, zero_positive, zero_profit) = detail_value(&card, "税額");
+    assert_eq!(zero_text, "¥0");
+    assert!(!zero_negative);
+    assert!(!zero_positive);
+    assert!(!zero_profit);
+    assert_eq!(
+        amount_kind_for_label(ReceiptsTab::DomesticStock, "税額", "¥0"),
+        AmountKind::Plain
+    );
+
+    stock.taxes = dec!(-100);
+    stock.realized_profit_and_loss_after_tax = dec!(1100);
+    let card = card_for(
+        ReceiptsTab::DomesticStock,
+        Saved(ReceiptItem::DomesticStock(stock)),
+    );
+    let (refund_text, refund_negative, refund_positive, refund_profit) =
+        detail_value(&card, "税額");
+    assert_eq!(refund_text, "+¥100");
+    assert!(!refund_negative);
+    assert!(refund_positive);
+    assert!(refund_profit);
+}
+
+#[test]
+fn before_tax_loss_uses_minus_and_delta() {
+    let mut stock = match domestic().remove(0) {
+        Saved(ReceiptItem::DomesticStock(row)) => row,
+        _ => unreachable!(),
+    };
+    stock.realized_profit_and_loss = dec!(-1000);
+    stock.taxes = dec!(0);
+    stock.realized_profit_and_loss_after_tax = dec!(-1000);
+    let card = card_for(
+        ReceiptsTab::DomesticStock,
+        Saved(ReceiptItem::DomesticStock(stock)),
+    );
+    let (text, negative, positive, is_profit) = detail_value(&card, "実現損益");
+    assert_eq!(text, "-¥1,000");
+    assert!(negative);
+    assert!(!positive);
+    assert!(is_profit);
+    let (left, right) = receipt_detail_cells(ReceiptsTab::DomesticStock, &card);
+    let _ = left;
+    let before = right
+        .iter()
+        .find(|cell| cell.label == "税引前")
+        .expect("税引前がある");
+    assert_eq!(before.value, "-¥1,000");
+    assert!(before.delta);
+    assert!(before.negative);
 }
 
 #[test]
@@ -1097,21 +1217,28 @@ fn dividend_receipt_gets_plus_as_inflow() {
         Saved(ReceiptItem::Dividend(row)) => row,
         _ => unreachable!(),
     };
+    dividend.dividends_before_tax = dec!(500);
     dividend.net_amount_received = dec!(400);
     dividend.taxes = dec!(100);
     let card = card_for(
         ReceiptsTab::Dividend,
         Saved(ReceiptItem::Dividend(dividend)),
     );
+    let (gross_text, gross_negative, gross_positive, gross_profit) = detail_value(&card, "配当金");
+    assert_eq!(gross_text, "+¥500");
+    assert!(!gross_negative);
+    assert!(gross_positive);
+    assert!(gross_profit);
     let (net_text, net_negative, net_positive, net_profit) = detail_value(&card, "税引後");
     assert_eq!(net_text, "+¥400");
     assert!(!net_negative);
     assert!(net_positive);
     assert!(net_profit);
-    let (tax_text, tax_negative, tax_positive, _) = detail_value(&card, "税額");
-    assert_eq!(tax_text, "¥100");
-    assert!(!tax_negative);
+    let (tax_text, tax_negative, tax_positive, tax_profit) = detail_value(&card, "税額");
+    assert_eq!(tax_text, "-¥100");
+    assert!(tax_negative);
     assert!(!tax_positive);
+    assert!(tax_profit);
 }
 
 #[test]
