@@ -134,7 +134,7 @@ pub fn SummaryBand(
     /// スマホの縦リスト(初期は閉)
     #[prop(optional, into)]
     breakdown: Vec<SummaryBreakdownEntry>,
-    /// 主ラベルの横に小さく出す基準日(「10/20 時点」。空なら出さない)
+    /// 主ラベルの横に小さく出す基準日(「価格基準日 10/20」。空なら出さない)
     #[prop(optional, into)]
     primary_as_of: String,
     /// 基準日が古い行・更新待ちの行があるときの小さな表示
@@ -253,16 +253,15 @@ pub fn SummaryBand(
                                     label_open.clone()
                                 }}
                             </span>
-                            <span class="summary-band-label">{primary_label.clone()}</span>
-                            {(!primary_sub.is_empty() || !as_of_note.is_empty())
-                                .then(|| view! {
-                                    <span class="summary-band-sub">
-                                        {primary_sub.clone()}
-                                        {(!primary_sub.is_empty() && !as_of_note.is_empty())
-                                            .then_some("・")}
-                                        {as_of_note.clone()}
-                                    </span>
-                                })}
+                            <span class="summary-band-top-row">
+                                <span class="summary-band-label">{primary_label.clone()}</span>
+                                {(!primary_sub.is_empty() || !as_of_note.is_empty())
+                                    .then(|| view! {
+                                        <span class="summary-band-date">
+                                            {label_note.clone()}
+                                        </span>
+                                    })}
+                            </span>
                             <span class="summary-band-hero-row">
                                 <span class=format!(
                                     "summary-band-hero-value {primary_tone_class}",

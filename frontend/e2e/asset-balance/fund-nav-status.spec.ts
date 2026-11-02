@@ -90,7 +90,7 @@ test('帯の下の注記は出さず、基準日の時点だけを帯のラベ�
   await expect(page.getByText('計算基準を見る')).toHaveCount(0);
   // 時点だけは帯のラベル横に小さく残す(数字を嘘にしない)
   const band = page.getByTestId('asset-portfolio-summary');
-  await expect(band).toContainText('1/5 時点');
+  await expect(band).toContainText('価格基準日 1/5');
 });
 
 test('更新待ちのファンドがあるときは帯に一部更新待ちを出す', async ({
@@ -120,6 +120,6 @@ test('更新待ちのファンドがあるときは帯に一部更新待ちを�
   await expect(page.getByText('計算基準を見る')).toHaveCount(0);
   // 時点と更新待ちだけ出す
   const band = page.getByTestId('asset-portfolio-summary');
-  await expect(band).toContainText('1/5 時点');
+  await expect(band).toContainText('価格基準日 1/5');
   await expect(band).toContainText('一部更新待ち');
 });
