@@ -90,7 +90,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
             col(TAX, ColumnTier::Core, ColumnAlign::Right),
             col(AFTER_TAX, ColumnTier::Core, ColumnAlign::Right),
         ],
-        header_items: [(DIVIDEND_AMOUNT, false), (TAX, false), (AFTER_TAX, false)],
+        header_items: [(DIVIDEND_AMOUNT, false), (TAX, false), (AFTER_TAX, true)],
         empty_hint: "配当金明細をCSVで追加してください",
         string_fields: &[
             ReceiptRow::code,

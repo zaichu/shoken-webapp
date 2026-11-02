@@ -18,9 +18,10 @@ use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
 use std::collections::HashSet;
 
-// 配当の税引後(受取額)は損益ではないので色を付けない
-pub(crate) fn is_profit_label(tab: ReceiptsTab, label: &str) -> bool {
-    tab != ReceiptsTab::Dividend && matches!(label, REALIZED_PROFIT_LOSS | AFTER_TAX)
+// 受取額(配当の税引後・売買の税引後)と実現損益はお金の出入りとして Delta。
+// 税引前・税額・数量など元になる額は Plain のまま
+pub(crate) fn is_profit_label(_tab: ReceiptsTab, label: &str) -> bool {
+    matches!(label, REALIZED_PROFIT_LOSS | AFTER_TAX)
 }
 
 fn stripped_amount_text(value: &str) -> String {
@@ -300,7 +301,7 @@ pub(crate) fn receipt_detail_cells(
             let (per_share, _, _, _) = detail_text(&card.details, PER_SHARE_DIVIDEND);
             let (gross, _, _, _) = detail_text(&card.details, DIVIDEND_AMOUNT);
             let (tax, _, _, _) = detail_text(&card.details, TAX);
-            let (net, _, _, _) = detail_text(&card.details, AFTER_TAX);
+            let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
             let left = vec![
                 DetailCell::plain(date_label.to_string(), date_text),
                 DetailCell::plain(QUANTITY.to_string(), qty),
@@ -309,7 +310,7 @@ pub(crate) fn receipt_detail_cells(
             let right = vec![
                 DetailCell::plain(BEFORE_TAX.to_string(), gross),
                 DetailCell::plain(TAX.to_string(), tax),
-                DetailCell::strong(AFTER_TAX.to_string(), net, false, false, false),
+                DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
             ];
             (left, right)
         }
@@ -351,7 +352,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         ..
     } = card;
     let (hero_value, hero_negative, hero_positive) = compact_value(&details, AFTER_TAX);
-    let hero_is_profit = tab != ReceiptsTab::Dividend;
+    let hero_is_profit = is_profit_label(tab, AFTER_TAX);
     let hero_kind = if hero_is_profit {
         AmountKind::Delta
     } else {
@@ -465,16 +466,16 @@ pub(crate) fn CompactReceiptGroup(
     } else {
         summary
     };
-    let (display_label, display_value) = match tab {
-        ReceiptsTab::Dividend => (RECEIPT_SHORT, group_headline_value(&summary).to_string()),
-        _ => {
-            let value = group_headline_value(&summary).to_string();
-            let text = if is_positive_text(&value) && !value.trim_start().starts_with('+') {
-                format!("+{value}")
-            } else {
-                value
-            };
-            (PROFIT_SHORT, text)
+    let (display_label, display_value) = {
+        let raw = group_headline_value(&summary).to_string();
+        let text = if is_positive_text(&raw) && !raw.trim_start().starts_with('+') {
+            format!("+{raw}")
+        } else {
+            raw
+        };
+        match tab {
+            ReceiptsTab::Dividend => (RECEIPT_SHORT, text),
+            _ => (PROFIT_SHORT, text),
         }
     };
     let summary_text =

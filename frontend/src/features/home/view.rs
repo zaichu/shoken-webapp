@@ -881,8 +881,16 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let row_name = name.clone();
     let account = String::from(row.account.clone());
     let account_for_meta = account.clone();
-    let net = format_currency(dec_to_f64(&row.net_amount_received));
-    let net_for_row = net.clone();
+    let net_value = dec_to_f64(&row.net_amount_received);
+    let net = format_currency(net_value);
+    let net_signed = if net_value > 0.0 {
+        format!("+{net}")
+    } else {
+        net.clone()
+    };
+    let net_negative = net_value < 0.0;
+    let net_positive = net_value > 0.0;
+    let net_for_row = net_signed.clone();
     let gross = format_currency(dec_to_f64(&row.dividends_before_tax));
     let gross_for_row = gross.clone();
     let tax = format_currency(dec_to_f64(&row.taxes));
@@ -907,7 +915,13 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let dialog_right = vec![
         DetailCell::plain(BEFORE_TAX.to_string(), gross.clone()),
         DetailCell::plain(TAX.to_string(), tax.clone()),
-        DetailCell::strong(AFTER_TAX.to_string(), net.clone(), false, false, false),
+        DetailCell::strong(
+            AFTER_TAX.to_string(),
+            net_signed.clone(),
+            net_negative,
+            net_positive,
+            true,
+        ),
     ];
     view! {
         <li class="list-row-item" data-testid="home-dividend-row">
@@ -916,7 +930,12 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
                 on_click=move |_| sheet_open.set(true)
                 name=move || row_name.clone()
                 primary=move || view! {
-                    <Amount kind=AmountKind::Plain text=net_for_row.clone() />
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=net_for_row.clone()
+                        negative=net_negative
+                        positive=net_positive
+                    />
                 }
                 meta=move || view! {
                     {date_for_meta.clone()}
