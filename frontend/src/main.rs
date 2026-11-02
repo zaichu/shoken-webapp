@@ -1,5 +1,6 @@
 mod api;
 mod app;
+mod csv_input;
 mod features;
 mod session;
 mod settings;
