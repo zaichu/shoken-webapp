@@ -84,29 +84,14 @@ async function setupReceiptMocks(page: Page) {
   );
 }
 
-async function swipe(
-  page: Page,
-  testid: string,
-  fromX: number,
-  toX: number,
-  y = 400,
-  toY?: number,
-) {
+async function touchStart(page: Page, testid: string, x: number, y: number) {
   await page.getByTestId(testid).evaluate(
-    (
-      element,
-      { fromX: startX, toX: endX, y: startY, toY: endY }: {
-        fromX: number;
-        toX: number;
-        y: number;
-        toY?: number;
-      },
-    ) => {
+    (element, { x: clientX, y: clientY }: { x: number; y: number }) => {
       const start = new Touch({
         identifier: 1,
         target: element,
-        clientX: startX,
-        clientY: startY,
+        clientX,
+        clientY,
       });
       element.dispatchEvent(
         new TouchEvent('touchstart', {
@@ -115,11 +100,40 @@ async function swipe(
           cancelable: true,
         }),
       );
+    },
+    { x, y },
+  );
+}
+
+async function touchMove(page: Page, testid: string, x: number, y: number) {
+  await page.getByTestId(testid).evaluate(
+    (element, { x: clientX, y: clientY }: { x: number; y: number }) => {
+      const moved = new Touch({
+        identifier: 1,
+        target: element,
+        clientX,
+        clientY,
+      });
+      element.dispatchEvent(
+        new TouchEvent('touchmove', {
+          touches: [moved],
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    },
+    { x, y },
+  );
+}
+
+async function touchEnd(page: Page, testid: string, x: number, y: number) {
+  await page.getByTestId(testid).evaluate(
+    (element, { x: clientX, y: clientY }: { x: number; y: number }) => {
       const end = new Touch({
         identifier: 1,
         target: element,
-        clientX: endX,
-        clientY: endY ?? startY,
+        clientX,
+        clientY,
       });
       element.dispatchEvent(
         new TouchEvent('touchend', {
@@ -129,8 +143,23 @@ async function swipe(
         }),
       );
     },
-    { fromX, toX, y, toY },
+    { x, y },
   );
+}
+
+async function swipe(
+  page: Page,
+  testid: string,
+  fromX: number,
+  toX: number,
+  y = 400,
+  toY?: number,
+) {
+  await touchStart(page, testid, fromX, y);
+  if (toY !== undefined) {
+    await touchMove(page, testid, toX, toY);
+  }
+  await touchEnd(page, testid, toX, toY ?? y);
 }
 
 test.describe('下線タブの横スワイプ', () => {
@@ -147,13 +176,13 @@ test.describe('下線タブの横スワイプ', () => {
       'true',
     );
 
-    await swipe(page, 'assetbalance-main-stage', 300, 200);
+    await swipe(page, 'assetbalance-main-stage', 300, 90);
     await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
       'aria-selected',
       'true',
     );
 
-    await swipe(page, 'assetbalance-main-stage', 100, 200);
+    await swipe(page, 'assetbalance-main-stage', 90, 300);
     await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
       'aria-selected',
       'true',
@@ -177,13 +206,90 @@ test.describe('下線タブの横スワイプ', () => {
     );
 
     // 端のタブ(投資信託)では外向きのスワイプで動かない
-    await swipe(page, 'assetbalance-main-stage', 300, 200);
+    await swipe(page, 'assetbalance-main-stage', 300, 90);
     await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
       'aria-selected',
       'true',
     );
-    await swipe(page, 'assetbalance-main-stage', 300, 200);
+    await swipe(page, 'assetbalance-main-stage', 300, 90);
     await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('指を止めたままでは中身が追従し離すと切り替わる', async ({ page }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 220, 400);
+    await touchMove(page, 'assetbalance-main-stage', 190, 400);
+    await page.waitForFunction(() => {
+      const current = document.querySelector(
+        '[data-testid="assetbalance-main-stage"] .tab-swipe-slide[data-active="true"]',
+      );
+      return (
+        current instanceof HTMLElement &&
+        current.style.transform !== '' &&
+        current.style.transform !== 'translateX(0px)'
+      );
+    });
+    // 離す前は切り替わらず、隣の中身が端からのぞく
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const fundLeft = await page
+      .locator('#assetbalance-fund-list')
+      .evaluate((element) => element.getBoundingClientRect().left);
+    expect(fundLeft).toBeLessThan(390);
+    await expect(page.locator('.tab-swipe-ink[data-on="true"]')).toHaveCount(1);
+
+    await touchEnd(page, 'assetbalance-main-stage', 100, 400);
+    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('切り替わらない接触では追従しない', async ({ page }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    const currentTransform = () =>
+      page
+        .locator(
+          '[data-testid="assetbalance-main-stage"] .tab-swipe-slide[data-active="true"]',
+        )
+        .evaluate((element) => (element as HTMLElement).style.transform);
+
+    // 端(ブラウザの戻る領域)から引いても面は動かない
+    await touchStart(page, 'assetbalance-main-stage', 5, 400);
+    await touchMove(page, 'assetbalance-main-stage', 120, 400);
+    await touchMove(page, 'assetbalance-main-stage', 200, 400);
+    await page.waitForTimeout(300);
+    expect(await currentTransform()).toBe('');
+    await touchEnd(page, 'assetbalance-main-stage', 200, 400);
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    // 検索ダイアログを開いている間も面は動かない
+    await page.getByTestId('asset-search-sheet-entry').click();
+    await expect(page.getByTestId('asset-search-sheet')).toBeVisible();
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 190, 400);
+    await page.waitForTimeout(300);
+    expect(await currentTransform()).toBe('');
+    await touchEnd(page, 'assetbalance-main-stage', 190, 400);
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -196,7 +302,7 @@ test.describe('下線タブの横スワイプ', () => {
     await page.goto('/receipts');
     await expect(page.getByRole('tab')).toHaveCount(3);
 
-    await swipe(page, 'receipts-workspace', 300, 200);
+    await swipe(page, 'receipts-workspace', 300, 90);
     await expect(page.locator('#tab-dividend')).toHaveAttribute(
       'aria-selected',
       'false',
