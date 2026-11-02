@@ -163,7 +163,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
     let market_text = format_row_valuation_amount(Some(view.market_value));
     let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
     let pnl_rate = format_signed_valuation_rate(view.profit_loss_rate, 1);
-    let pnl_sub = Some(format!("{pnl_text} {pnl_rate}"));
+    let pnl_sub = format!("{pnl_text} {pnl_rate}");
     let pnl_negative = is_negative_valuation(Some(view.profit_loss));
     let pnl_positive = is_positive_valuation(Some(view.profit_loss));
     let as_of = view
@@ -171,10 +171,10 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
         .clone()
         .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
     let left = vec![
-        DetailCell::delta(
+        DetailCell::with_sub(
             BASE_PRICE.to_string(),
             base_text,
-            Some(day_text),
+            day_text,
             day_negative,
             day_positive,
         ),
@@ -184,7 +184,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
     let right = vec![
         DetailCell::plain(FUND_SHARES.to_string(), shares_text),
         DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
-        DetailCell::delta(
+        DetailCell::with_sub(
             MARKET_VALUE.to_string(),
             market_text,
             pnl_sub,

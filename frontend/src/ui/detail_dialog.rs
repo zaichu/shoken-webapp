@@ -29,21 +29,21 @@ impl DetailCell {
         }
     }
 
-    pub fn delta(
+    pub fn with_sub(
         label: String,
         value: String,
-        sub: Option<String>,
+        sub: String,
         negative: bool,
         positive: bool,
     ) -> Self {
         Self {
             label,
             value,
-            sub,
+            sub: Some(sub),
             negative,
             positive,
             bold: false,
-            delta: true,
+            delta: false,
         }
     }
 
@@ -191,15 +191,16 @@ mod tests {
     }
 
     #[test]
-    fn delta_cell_keeps_sub_text() {
-        let cell = DetailCell::delta(
+    fn sub_cell_keeps_plain_value_and_colored_sub() {
+        let cell = DetailCell::with_sub(
             "評価額".to_string(),
             "¥260,000".to_string(),
-            Some("+¥10,000".to_string()),
+            "+¥10,000".to_string(),
             false,
             true,
         );
-        assert!(cell.delta);
+        assert!(!cell.delta);
+        assert!(!cell.bold);
         assert_eq!(cell.sub.as_deref(), Some("+¥10,000"));
         assert!(cell.positive);
     }

@@ -340,10 +340,10 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
         .clone()
         .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
     let mut left = vec![
-        DetailCell::delta(
+        DetailCell::with_sub(
             price_label.to_string(),
             price_text,
-            Some(day_text),
+            day_text,
             day_negative,
             day_positive,
         ),
@@ -370,6 +370,16 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
         left.push(DetailCell::plain(ACQUISITION_YIELD.to_string(), yield_text));
         left.push(DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share));
     }
+    let market_cell = match pnl_sub {
+        Some(sub) => DetailCell::with_sub(
+            MARKET_VALUE.to_string(),
+            market_text,
+            sub,
+            pnl_negative,
+            pnl_positive,
+        ),
+        None => DetailCell::plain(MARKET_VALUE.to_string(), market_text),
+    };
     let mut right = vec![
         DetailCell::plain(
             if is_fund {
@@ -380,13 +390,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             row.quantity.clone(),
         ),
         DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
-        DetailCell::delta(
-            MARKET_VALUE.to_string(),
-            market_text,
-            pnl_sub,
-            pnl_negative,
-            pnl_positive,
-        ),
+        market_cell,
     ];
     if !is_fund {
         let annual = row

@@ -53,10 +53,10 @@ pub(crate) fn holding_detail_cells(
         .clone()
         .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
     let left = vec![
-        DetailCell::delta(
+        DetailCell::with_sub(
             CURRENT_PRICE.to_string(),
             current_text,
-            Some(day_text),
+            day_text,
             day_negative,
             day_positive,
         ),
@@ -64,16 +64,20 @@ pub(crate) fn holding_detail_cells(
         DetailCell::plain(ACQUISITION_YIELD.to_string(), yield_text),
         DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
     ];
-    let right = vec![
-        DetailCell::plain(QUANTITY.to_string(), shares_text),
-        DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
-        DetailCell::delta(
+    let market_cell = match pnl_sub {
+        Some(sub) => DetailCell::with_sub(
             MARKET_VALUE.to_string(),
             market_text,
-            pnl_sub,
+            sub,
             pnl_negative,
             pnl_positive,
         ),
+        None => DetailCell::plain(MARKET_VALUE.to_string(), market_text),
+    };
+    let right = vec![
+        DetailCell::plain(QUANTITY.to_string(), shares_text),
+        DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
+        market_cell,
         DetailCell::plain(ANNUAL_DIVIDEND.to_string(), annual),
         DetailCell::plain(PRICE_AS_OF.to_string(), as_of),
     ];
@@ -255,5 +259,28 @@ mod tests {
         assert!(left[0].value.contains("2,600") || left[0].value.contains("2600"));
         assert!(right[1].value.contains("250,000") || right[1].value.contains("250000"));
         assert!(right[2].value.contains("260,000") || right[2].value.contains("260000"));
+    }
+
+    #[test]
+    fn only_deltas_carry_sign_and_color() {
+        let mut view = sample_view();
+        view.day_change = Some(-30.0);
+        view.current_price = 2000.0;
+        view.purchase = 250000.0;
+        let (left, right) = holding_detail_cells(&view, &DividendMaps::default());
+        let price = &left[0];
+        assert!(!price.delta);
+        assert!(!price.bold);
+        assert_eq!(price.sub.as_deref(), Some("-¥30"));
+        assert!(price.negative);
+        let market = &right[2];
+        assert!(!market.delta);
+        assert!(
+            market
+                .sub
+                .as_deref()
+                .is_some_and(|sub| sub.contains("-¥50,000"))
+        );
+        assert!(market.negative);
     }
 }
