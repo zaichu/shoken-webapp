@@ -7,6 +7,12 @@ fn button_classes_preserves_variant_and_extra_input() {
         ButtonVariant::Secondary(ButtonSize::Xs),
         ButtonVariant::DangerSolid(ButtonSize::Sm),
         ButtonVariant::CopyName,
+        ButtonVariant::PageTab,
+        ButtonVariant::ConditionSegment,
+        ButtonVariant::YearOption,
+        ButtonVariant::MenuItem,
+        ButtonVariant::MenuItemDanger,
+        ButtonVariant::RowButton,
     ] {
         let base = button_classes(variant, "");
         assert_eq!(base, variant.classes());

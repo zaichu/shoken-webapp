@@ -480,34 +480,34 @@ fn CsvKindRow(
                                 node_ref=menu_list
                                 class="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface p-1 shadow-lg"
                             >
-                                <button
-                                    type="button"
-                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-deep hover:bg-surface-raised rounded text-left"
-                                    on:click=on_refetch
+                                <Button
+                                    variant=ButtonVariant::MenuItem
+                                    class="min-h-11 flex items-center gap-2 rounded text-text-deep"
+                                    on_click=on_refetch
                                 >
                                     <svg class="shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                     {labels::CSV_MANAGE_MENU_REFETCH}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-deep hover:bg-surface-raised rounded text-left"
-                                    on:click=on_file_import
+                                </Button>
+                                <Button
+                                    variant=ButtonVariant::MenuItem
+                                    class="min-h-11 flex items-center gap-2 rounded text-text-deep"
+                                    on_click=on_file_import
                                 >
                                     <svg class="shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12v6m0-6l-2.5 2.5M12 12l2.5 2.5"/></svg>
                                     {labels::CSV_MANAGE_MENU_FILE_IMPORT}
-                                </button>
+                                </Button>
                                 <hr class="border-border my-1" />
-                                <button
-                                    type="button"
-                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-negative hover:bg-negative/10 rounded text-left disabled:opacity-50 disabled:hover:bg-transparent"
-                                    on:click=open_delete
+                                <Button
+                                    variant=ButtonVariant::MenuItemDanger
+                                    class="min-h-11 flex items-center gap-2 rounded"
                                     disabled=move || {
                                         !count_ready || saved_count == 0 || delete_disabled.get()
                                     }
+                                    on_click=open_delete
                                 >
                                     <svg class="shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                     {labels::CSV_MANAGE_MENU_DELETE}
-                                </button>
+                                </Button>
                             </div>
                         }
                     })}

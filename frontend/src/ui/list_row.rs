@@ -51,9 +51,7 @@ pub fn ListRowButton(
             aria_haspopup="dialog"
             on_click=on_click
         >
-            <span class="list-row-action-body">
-                {row_body(name, primary, meta, Some(secondary))}
-            </span>
+            {row_body(name, primary, meta, Some(secondary))}
         </Button>
     }
 }
@@ -73,9 +71,7 @@ pub fn ListRowButtonWithoutSecondary(
             aria_haspopup="dialog"
             on_click=on_click
         >
-            <span class="list-row-action-body">
-                {row_body(name, primary, meta, None::<()>)}
-            </span>
+            {row_body(name, primary, meta, None::<()>)}
         </Button>
     }
 }

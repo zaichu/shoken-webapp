@@ -2,6 +2,7 @@ use super::TAB_IDS;
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
+use crate::ui::button::TabButton;
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{
     SwipeMotion, focus_tab_by_id, next_tab_index as shared_next_tab_index, prefers_reduced_motion,
@@ -31,15 +32,11 @@ pub fn ReceiptsTabButton(
     let guard = motion;
     let counted_store = store;
     view! {
-        <button
-            type="button"
-            role="tab"
+        <TabButton
             id=format!("tab-{slug}")
-            aria-controls=format!("tabpanel-{slug}")
-            aria-selected=move || (selected.active_tab.get() == tab).to_string()
-            tabindex=move || if selected.active_tab.get() == tab { "0" } else { "-1" }
-            class="page-tab"
-            on:click=move |event| {
+            controls=format!("tabpanel-{slug}")
+            selected=move || selected.active_tab.get() == tab
+            on_click=move |event| {
                 if event.detail() != 0
                     && swipe_should_ignore_input(
                         guard.settling.get_untracked(),
@@ -50,7 +47,7 @@ pub fn ReceiptsTabButton(
                 }
                 clicked.select_tab(tab);
             }
-            on:keydown=move |event| {
+            on_keydown=move |event| {
                 let current = ReceiptsTab::ALL
                     .iter()
                     .position(|item| *item == keyed.active_tab.get_untracked())
@@ -75,7 +72,7 @@ pub fn ReceiptsTabButton(
                     TabState::Loading | TabState::Failed(_) => "—".to_string(),
                 }}
             </span>
-        </button>
+        </TabButton>
     }
 }
 

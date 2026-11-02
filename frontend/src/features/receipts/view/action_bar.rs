@@ -297,11 +297,10 @@ fn PeriodDraftContent(
                         })
                     };
                     view! {
-                        <button
-                            type="button"
-                            class="condition-segment-option"
-                            aria-pressed=move || is_selected().to_string()
-                            on:click=move |_| {
+                        <Button
+                            variant=ButtonVariant::ConditionSegment
+                            aria_pressed=Signal::derive(move || is_selected().to_string())
+                            on_click=move |_| {
                                 draft.update(|s| {
                                     if opt == ALL {
                                         s.clear_key(SearchKey::Date, has_years())
@@ -318,7 +317,7 @@ fn PeriodDraftContent(
                             }
                         >
                             {opt}
-                        </button>
+                        </Button>
                     }
                 })
                 .collect_view()}
@@ -353,20 +352,13 @@ fn YearPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -
                         let y_value_for_selected = y_value.clone();
                         let selected = Memo::new(move |_| search.with(|s| s.date_inputs.year_value.clone() == y_value_for_selected));
                         view! {
-                            <button
-                                type="button"
-                                class=move || format!(
-                                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors max-sm:min-h-11 {}",
-                                    if selected.get() {
-                                        "bg-surface border border-brand-text text-text-deep"
-                                    } else {
-                                        "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
-                                    }
-                                )
-                                on:click=move |_| search.update(|s| s.select_year(y_value.clone()))
+                            <Button
+                                variant=ButtonVariant::YearOption
+                                aria_pressed=Signal::derive(move || selected.get().to_string())
+                                on_click=move |_| search.update(|s| s.select_year(y_value.clone()))
                             >
                                 {y_label}
-                            </button>
+                            </Button>
                         }
                     }).collect_view()}
                 }.into_any()
@@ -394,17 +386,10 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                                 let m_value_for_selected = m_value.clone();
                                 let is_selected = move || selected_month.get() == m_value_for_selected;
                                 view! {
-                                    <button
-                                        type="button"
-                                        class=move || format!(
-                                            "px-3 py-1.5 rounded-full text-sm font-medium transition-colors max-sm:min-h-11 {}",
-                                            if is_selected() {
-                                                "bg-surface border border-brand-text text-text-deep"
-                                            } else {
-                                                "bg-surface border border-border-strong text-text-soft hover:bg-surface-sunken"
-                                            }
-                                        )
-                                        on:click=move |_| {
+                                    <Button
+                                        variant=ButtonVariant::YearOption
+                                        aria_pressed=Signal::derive(move || is_selected().to_string())
+                                        on_click=move |_| {
                                             search.update(|s| {
                                                 s.date_inputs.month_value = m_value.clone();
                                                 let year = s.date_inputs.year_value.clone();
@@ -415,7 +400,7 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                                         }
                                     >
                                         {m_label}
-                                    </button>
+                                    </Button>
                                 }
                             }).collect_view()}
                         </div>
