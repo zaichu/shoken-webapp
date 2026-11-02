@@ -13,6 +13,7 @@ use crate::features::receipts::{
 };
 use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
+use crate::ui::amount::AmountKind;
 use crate::ui::card::StatTone;
 use crate::ui::labels::{
     AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX, PAYMENT_DATE, REALIZED_BEFORE_TAX,
@@ -665,12 +666,14 @@ fn negative_tax_and_dividend_stay_neutral() {
         Saved(ReceiptItem::Dividend(dividend)),
     );
     assert!(!detail_negative(&card, "税額"));
-    assert!(!detail_negative(&card, "税引後"));
+    assert!(detail_negative(&card, "税引後"));
 }
 
 #[test]
-fn dividend_subtotal_is_not_profit() {
-    assert!(!is_profit_label(ReceiptsTab::Dividend, "税引後"));
+fn dividend_receipt_counts_as_inflow() {
+    assert!(is_profit_label(ReceiptsTab::Dividend, "税引後"));
+    assert!(!is_profit_label(ReceiptsTab::Dividend, "配当金"));
+    assert!(!is_profit_label(ReceiptsTab::Dividend, "税額"));
     assert!(is_profit_label(ReceiptsTab::DomesticStock, "税引後"));
     assert!(is_profit_label(ReceiptsTab::MutualFund, "税引後"));
     assert!(!is_profit_label(ReceiptsTab::DomesticStock, "税額"));
@@ -693,7 +696,7 @@ fn negative_labeled_value_requires_profit_label_and_negative_text() {
         "税額",
         "-¥1,234"
     ));
-    assert!(!is_negative_labeled_value(
+    assert!(is_negative_labeled_value(
         ReceiptsTab::Dividend,
         "税引後",
         "-¥1,234"
@@ -1089,7 +1092,7 @@ fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
 }
 
 #[test]
-fn dividend_amount_stays_neutral_without_plus() {
+fn dividend_receipt_gets_plus_as_inflow() {
     let mut dividend = match dividends().remove(0) {
         Saved(ReceiptItem::Dividend(row)) => row,
         _ => unreachable!(),
@@ -1101,10 +1104,10 @@ fn dividend_amount_stays_neutral_without_plus() {
         Saved(ReceiptItem::Dividend(dividend)),
     );
     let (net_text, net_negative, net_positive, net_profit) = detail_value(&card, "税引後");
-    assert_eq!(net_text, "¥400");
+    assert_eq!(net_text, "+¥400");
     assert!(!net_negative);
-    assert!(!net_positive);
-    assert!(!net_profit);
+    assert!(net_positive);
+    assert!(net_profit);
     let (tax_text, tax_negative, tax_positive, _) = detail_value(&card, "税額");
     assert_eq!(tax_text, "¥100");
     assert!(!tax_negative);
@@ -1158,7 +1161,7 @@ fn row_group_band_share_after_tax_total() {
     let fund_card = card_for(ReceiptsTab::MutualFund, funds().remove(0));
     assert_eq!(detail_value(&fund_card, "税引後").0, "+¥900");
     let dividend_card = card_for(ReceiptsTab::Dividend, dividends().remove(0));
-    assert_eq!(detail_value(&dividend_card, "税引後").0, "¥400");
+    assert_eq!(detail_value(&dividend_card, "税引後").0, "+¥400");
     for (tab, rows) in [
         (ReceiptsTab::Dividend, dividends()),
         (ReceiptsTab::DomesticStock, domestic_rows),
@@ -1185,6 +1188,32 @@ fn month_headline_uses_after_tax_total() {
         ("税引後", "¥400".to_string()),
     ];
     assert_eq!(group_headline_value(&dividend), "¥400");
+}
+
+#[test]
+fn group_headline_amount_uses_delta_kind() {
+    // 月見出しの金額は受取額・損益とも Delta の種別で出す
+    let dividend = vec![
+        ("配当金", "¥500".to_string()),
+        ("税額", "¥100".to_string()),
+        ("税引後", "¥400".to_string()),
+    ];
+    let item = group_headline_summary(ReceiptsTab::Dividend, &dividend).expect("見出しがある");
+    assert_eq!(item.label, "受取");
+    assert_eq!(item.value, "+¥400");
+    assert_eq!(item.kind, AmountKind::Delta);
+    assert!(item.positive);
+    let stock = vec![
+        ("実現損益", "+¥1,000".to_string()),
+        ("税額", "¥203".to_string()),
+        ("税引後", "+¥797".to_string()),
+    ];
+    let item = group_headline_summary(ReceiptsTab::DomesticStock, &stock).expect("見出しがある");
+    assert_eq!(item.label, "損益");
+    assert_eq!(item.value, "+¥797");
+    assert_eq!(item.kind, AmountKind::Delta);
+    assert!(item.positive);
+    assert!(group_headline_summary(ReceiptsTab::Dividend, &[]).is_none());
 }
 
 #[test]

@@ -25,7 +25,7 @@ use crate::ui::labels::{
     AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, MARKET_VALUE, MISSING,
     PAYMENT_DATE, PER_SHARE_DIVIDEND, QUANTITY, TAX, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
-use crate::ui::list_row::{ListGroupHeader, ListRowButton, ListRowLink};
+use crate::ui::list_row::{ListGroupHeader, ListRowButtonWithoutSecondary, ListRowLink};
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
@@ -867,6 +867,27 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
     }
 }
 
+fn home_dividend_dialog_cells(
+    full_date: &str,
+    shares: String,
+    per_share: String,
+    gross: String,
+    tax: String,
+    net: (String, bool, bool),
+) -> (Vec<DetailCell>, Vec<DetailCell>) {
+    let left = vec![
+        DetailCell::plain(PAYMENT_DATE.to_string(), format_iso_date(full_date)),
+        DetailCell::plain(QUANTITY.to_string(), shares),
+        DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
+    ];
+    let right = vec![
+        DetailCell::plain(BEFORE_TAX.to_string(), gross),
+        DetailCell::plain(TAX.to_string(), tax),
+        DetailCell::strong(AFTER_TAX.to_string(), net.0, net.1, net.2, true),
+    ];
+    (left, right)
+}
+
 #[component]
 fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let code = if row.security_code.is_empty() {
@@ -881,10 +902,17 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
     let row_name = name.clone();
     let account = String::from(row.account.clone());
     let account_for_meta = account.clone();
-    let net = format_currency(dec_to_f64(&row.net_amount_received));
-    let net_for_row = net.clone();
+    let net_value = dec_to_f64(&row.net_amount_received);
+    let net = format_currency(net_value);
+    let net_signed = if net_value > 0.0 {
+        format!("+{net}")
+    } else {
+        net.clone()
+    };
+    let net_negative = net_value < 0.0;
+    let net_positive = net_value > 0.0;
+    let net_for_row = net_signed.clone();
     let gross = format_currency(dec_to_f64(&row.dividends_before_tax));
-    let gross_for_row = gross.clone();
     let tax = format_currency(dec_to_f64(&row.taxes));
     let per_share = format_currency(dec_to_f64(&row.unit_price));
     let shares = format_number_value(dec_to_f64(&row.shares));
@@ -899,24 +927,27 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
         code.clone()
     };
     let dialog_account = account.clone();
-    let dialog_left = vec![
-        DetailCell::plain(PAYMENT_DATE.to_string(), format_iso_date(&full_date)),
-        DetailCell::plain(QUANTITY.to_string(), shares.clone()),
-        DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share.clone()),
-    ];
-    let dialog_right = vec![
-        DetailCell::plain(BEFORE_TAX.to_string(), gross.clone()),
-        DetailCell::plain(TAX.to_string(), tax.clone()),
-        DetailCell::strong(AFTER_TAX.to_string(), net.clone(), false, false, false),
-    ];
+    let (dialog_left, dialog_right) = home_dividend_dialog_cells(
+        &full_date,
+        shares.clone(),
+        per_share.clone(),
+        gross.clone(),
+        tax.clone(),
+        (net_signed.clone(), net_negative, net_positive),
+    );
     view! {
         <li class="list-row-item" data-testid="home-dividend-row">
-            <ListRowButton
+            <ListRowButtonWithoutSecondary
                 testid="home-dividend-button"
                 on_click=move |_| sheet_open.set(true)
                 name=move || row_name.clone()
                 primary=move || view! {
-                    <Amount kind=AmountKind::Plain text=net_for_row.clone() />
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=net_for_row.clone()
+                        negative=net_negative
+                        positive=net_positive
+                    />
                 }
                 meta=move || view! {
                     {date_for_meta.clone()}
@@ -924,11 +955,6 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
                     {code_for_meta.clone()}
                     {" · "}
                     <AccountBadge label=account_for_meta.clone() />
-                }
-                secondary=move || view! {
-                    {BEFORE_TAX}
-                    " "
-                    <Amount kind=AmountKind::Plain text=gross_for_row.clone() />
                 }
             />
             <Show when=move || dialog_open.get()>

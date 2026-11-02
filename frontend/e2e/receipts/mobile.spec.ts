@@ -140,7 +140,7 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   // 先頭は入金日順で架空電信電話
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.locator('.list-row-name')).toHaveText('架空電信電話');
-  await expect(card.locator('.list-row-primary')).toHaveText('¥1,594');
+  await expect(card.locator('.list-row-primary')).toHaveText('+¥1,594');
   const meta = card.locator('.list-row-meta');
   await expect(meta).toContainText('3/15');
   await expect(meta).toContainText('9910');
@@ -153,7 +153,7 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   const dialog = page.getByTestId('receipt-detail-dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('9910');
-  await expect(dialog).toContainText('¥1,594');
+  await expect(dialog).toContainText('+¥1,594');
   await expect(dialog).toContainText('税引前');
   await expect(dialog).toContainText('¥2,000');
   const items = dialog.locator('dt');
@@ -173,7 +173,7 @@ test('グループ見出しは件数と小計を常に表示する', async ({ pa
     '2024年3月 · 2件',
   );
   await expect(cardList.getByTestId('receipt-card-group').first()).toContainText(
-    '受取 ¥3,985',
+    '受取 +¥3,985',
   );
 });
 
@@ -226,7 +226,7 @@ test('国内株式タブでも2行の行にコード・口座・金額が出る'
     .first();
   await expect(card.locator('.list-row-meta')).toContainText('9905');
   await expect(card.locator('.list-row-meta')).toContainText('特定');
-  await expect(card.locator('.list-row-primary')).toContainText('¥3,985');
+  await expect(card.locator('.list-row-primary')).toContainText('+¥3,985');
   await expect(card.locator('.list-row-secondary')).toHaveCount(0);
   // 補助の売却額は行に出さず詳細ダイアログに出す
   await card.getByTestId('receipt-row-button').click();

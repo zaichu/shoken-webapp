@@ -1,3 +1,4 @@
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::button::{Button, ButtonVariant};
 use leptos::prelude::*;
 
@@ -108,12 +109,34 @@ pub fn ListRowStatic(
     }
 }
 
+/// 月見出しの右に出す小計。ラベルと金額を分け、金額は `Amount` の種別で
+/// 正負の色を付ける(受取額・損益は Delta、その他は Plain)。
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct GroupSummary {
+    pub label: String,
+    pub value: String,
+    pub kind: AmountKind,
+    pub negative: bool,
+    pub positive: bool,
+}
+
 #[component]
-pub fn ListGroupHeader(label: String, summary: Option<String>) -> impl IntoView {
+pub fn ListGroupHeader(label: String, summary: Option<GroupSummary>) -> impl IntoView {
     view! {
         <div class="list-group-header">
             <span class="list-group-title">{label}</span>
-            {summary.map(|text| view! { <span class="list-group-summary">{text}</span> })}
+            {summary.map(|item| view! {
+                <span class="list-group-summary">
+                    {item.label}
+                    {" "}
+                    <Amount
+                        kind=item.kind
+                        text=item.value
+                        negative=item.negative
+                        positive=item.positive
+                    />
+                </span>
+            })}
         </div>
     }
 }
