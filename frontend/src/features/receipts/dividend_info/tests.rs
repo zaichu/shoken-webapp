@@ -143,7 +143,7 @@ fn per_share_display_uses_short_decimal_digits() {
     assert_eq!(per_share_display(Some(50.0), false), "¥50");
     assert_eq!(per_share_display(Some(50.12345), false), "¥50.12345");
     assert_eq!(per_share_display(None, false), "—");
-    assert_eq!(per_share_display(Some(50.1), true), "取得中...");
+    assert_eq!(per_share_display(Some(50.1), true), "取得中…");
     assert_eq!(per_share_display(Some(f64::NAN), false), "—");
 }
 
