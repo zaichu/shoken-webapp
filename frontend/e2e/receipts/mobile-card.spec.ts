@@ -125,7 +125,7 @@ test('行一覧はスマホ幅に収まり、長いファンド名は省略せ�
   expect(wrap.lines, 'ファンド名が描画される').toBeGreaterThan(0);
 });
 
-test('マイナスの損益は符号と色を保ち、売却額には負の装飾を付けない', async ({ page }) => {
+test('マイナスの損益は符号と色を保つ', async ({ page }) => {
   await mockApi(page);
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
     route.fulfill({
@@ -155,11 +155,15 @@ test('マイナスの損益は符号と色を保ち、売却額には負の装�
   await expect(
     card.locator('.list-row-primary [data-negative="true"]'),
   ).toHaveCount(1);
-  // 売却額は損益ではないので負の装飾を付けない
-  await expect(card.locator('.list-row-secondary')).toContainText('¥55,000');
-  await expect(
-    card.locator('.list-row-secondary [data-negative]'),
-  ).toHaveCount(0);
+  // 補助の売却額は行に出さない
+  await expect(card.locator('.list-row-secondary')).toHaveCount(0);
+  // 詳細ダイアログには売却額を出す
+  await card.getByTestId('receipt-row-button').click();
+  const dialog = page.getByTestId('receipt-detail-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('売却額');
+  await expect(dialog).toContainText('¥55,000');
+  await dialog.getByTestId('detail-dialog-close').click();
 });
 
 test('行の日付は月/日で出す', async ({ page }) => {

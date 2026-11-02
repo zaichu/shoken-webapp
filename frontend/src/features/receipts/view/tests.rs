@@ -14,7 +14,10 @@ use crate::features::receipts::{
 use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::card::StatTone;
-use crate::ui::labels::{AFTER_TAX, PAYMENT_DATE, TRADE_DATE};
+use crate::ui::labels::{
+    AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, PAYMENT_DATE, REDEMPTION_AMOUNT, SELLING_AMOUNT,
+    TRADE_DATE,
+};
 use crate::ui::page_skeleton::FilteredCount;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -1183,4 +1186,34 @@ fn single_day_group_headline_uses_row_after_tax() {
     let headline = single_row_headline(std::slice::from_ref(&card));
     assert_eq!(headline, [(AFTER_TAX, "+¥112".to_string())]);
     assert!(single_row_headline(&[]).is_empty());
+}
+
+#[test]
+fn detail_dialog_keeps_aux_amounts_removed_from_row() {
+    for tab in ReceiptsTab::ALL {
+        let mut rows = match tab {
+            ReceiptsTab::Dividend => dividends(),
+            ReceiptsTab::DomesticStock => domestic(),
+            ReceiptsTab::MutualFund => funds(),
+        };
+        let card = card_for(tab, rows.remove(0));
+        let (left, right) = receipt_detail_cells(tab, &card);
+        let (label, expected) = match tab {
+            ReceiptsTab::Dividend => (BEFORE_TAX, detail_value(&card, DIVIDEND_AMOUNT).0),
+            ReceiptsTab::DomesticStock => (SELLING_AMOUNT, detail_value(&card, SELLING_AMOUNT).0),
+            ReceiptsTab::MutualFund => {
+                (REDEMPTION_AMOUNT, detail_value(&card, REDEMPTION_AMOUNT).0)
+            }
+        };
+        assert!(!expected.is_empty(), "{tab:?}: 行の補助の金額が無い");
+        let shown = left
+            .iter()
+            .chain(right.iter())
+            .find(|cell| cell.label == label)
+            .unwrap_or_else(|| panic!("{tab:?}: ダイアログに{label}が無い"));
+        assert_eq!(
+            shown.value, expected,
+            "{tab:?}: ダイアログは行と同じ補助の金額"
+        );
+    }
 }
