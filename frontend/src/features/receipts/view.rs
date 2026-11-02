@@ -15,6 +15,7 @@ use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
+use crate::ui::underline_tabs::SwipeArea;
 use leptos::prelude::*;
 
 pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
@@ -72,9 +73,18 @@ pub fn ReceiptsPage() -> impl IntoView {
                 <div class="content-gutter no-print">
                     <SkeletonTabs>{tabs}</SkeletonTabs>
                 </div>
-                <div
-                    class="content-gutter flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible"
-                    data-testid="receipts-workspace"
+                <SwipeArea
+                    testid="receipts-workspace"
+                    count=Signal::derive(move || ReceiptsTab::ALL.len())
+                    current=Signal::derive(move || {
+                        ReceiptsTab::ALL
+                            .iter()
+                            .position(|tab| *tab == active_tab.get())
+                            .unwrap_or(0)
+                    })
+                    on_select=Callback::new(move |next: usize| {
+                        store.select_tab(ReceiptsTab::ALL[next])
+                    })
                 >
                     {move || {
                         let loading = tabs_loading.get();
@@ -86,7 +96,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                             })
                             .collect_view()
                     }}
-                </div>
+                </SwipeArea>
             </div>
         </PageFrame>
     }

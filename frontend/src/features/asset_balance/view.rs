@@ -36,6 +36,7 @@ use crate::ui::labels::COMPOSITION_VIEW_LINK;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::underline_tabs::SwipeArea;
 use kind_tabs::AssetKindTabs;
 use leptos::prelude::*;
 use main_content::AssetBalanceMainContent;
@@ -273,8 +274,18 @@ pub fn AssetBalancePage() -> impl IntoView {
                     />
                 </SkeletonTabs>
             </div>
-            {/* 本文: スクロール可能 */}
-            <div class="content-gutter flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible" data-testid="assetbalance-main-stage">
+            {/* 本文: スクロール可能。スマホ幅では横スワイプでタブを切り替える */}
+            <SwipeArea
+                testid="assetbalance-main-stage"
+                count=Signal::derive(move || AssetKind::ALL.len())
+                current=Signal::derive(move || {
+                    AssetKind::ALL
+                        .iter()
+                        .position(|kind| *kind == state.kind.get())
+                        .unwrap_or(0)
+                })
+                on_select=Callback::new(move |next: usize| state.kind.set(AssetKind::ALL[next]))
+            >
                 {move || {
                     data_ops
                         .with(|ops| ops.refresh_error.clone())
@@ -359,7 +370,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                         }
                     }
                 }}
-            </div>
+            </SwipeArea>
         </div>
         </PageFrame>
     }

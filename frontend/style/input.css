@@ -551,6 +551,41 @@
     }
   }
 
+  /* 下線タブの横スワイプ(スマホ幅だけ)。縦スクロールは残し、切り替え時は中身が横に流れる */
+  @media (width < 64rem) {
+    .tab-swipe-area {
+      touch-action: pan-y;
+    }
+
+    .tab-swipe-panel[data-swipe-dir="next"] {
+      animation: tab-swipe-from-right 180ms ease-out;
+    }
+
+    .tab-swipe-panel[data-swipe-dir="prev"] {
+      animation: tab-swipe-from-left 180ms ease-out;
+    }
+  }
+
+  @keyframes tab-swipe-from-right {
+    from {
+      transform: translateX(24px);
+    }
+
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes tab-swipe-from-left {
+    from {
+      transform: translateX(-24px);
+    }
+
+    to {
+      transform: translateX(0);
+    }
+  }
+
   .active-condition-chip {
     @apply inline-flex min-h-11 items-center gap-1 rounded-full border border-brand-text bg-surface px-2.5 text-xs font-medium text-text-deep;
   }
