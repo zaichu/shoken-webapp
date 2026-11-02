@@ -12,7 +12,7 @@ use crate::ui::labels::{
     PER_SHARE_DIVIDEND, PROFIT_SHORT, QUANTITY, REALIZED_PROFIT_LOSS, RECEIPT_SHORT,
     REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX, TRADE_DATE,
 };
-use crate::ui::list_row::{ListGroupHeader, ListRowButton};
+use crate::ui::list_row::{ListGroupHeader, ListRowButtonWithoutSecondary};
 use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
@@ -350,12 +350,6 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         details,
         ..
     } = card;
-    let aux_detail = match tab {
-        ReceiptsTab::Dividend => DIVIDEND_AMOUNT,
-        ReceiptsTab::DomesticStock => SELLING_AMOUNT,
-        ReceiptsTab::MutualFund => REDEMPTION_AMOUNT,
-    };
-    let (aux_value, _, _) = compact_value(&details, aux_detail);
     let (hero_value, hero_negative, hero_positive) = compact_value(&details, AFTER_TAX);
     let hero_is_profit = tab != ReceiptsTab::Dividend;
     let hero_kind = if hero_is_profit {
@@ -370,17 +364,11 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     let row_name = name_text.clone();
     let sheet_title = name_text.clone();
     let short_date = format_short_date(&date.replace('/', "-"));
-    let aux_label: &'static str = match tab {
-        ReceiptsTab::Dividend => BEFORE_TAX,
-        ReceiptsTab::DomesticStock => SELLING_AMOUNT,
-        ReceiptsTab::MutualFund => REDEMPTION_AMOUNT,
-    };
     let sheet_open = RwSignal::new(false);
     let hero_value_for_row = hero_value.clone();
     let account_for_meta = account.clone();
     let code_for_meta = code.clone();
     let short_date_for_meta = short_date.clone();
-    let aux_value_for_row = aux_value.clone();
     let sheet_card = CardRowData {
         name,
         code,
@@ -398,7 +386,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
 
     view! {
         <li class="list-row-item" data-testid="receipt-card">
-            <ListRowButton
+            <ListRowButtonWithoutSecondary
                 testid="receipt-row-button"
                 on_click=move |_| sheet_open.set(true)
                 name=move || row_name.clone()
@@ -423,11 +411,6 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                         })}
                     {" · "}
                     <AccountBadge label=account_for_meta.clone() />
-                }
-                secondary=move || view! {
-                    {aux_label}
-                    " "
-                    <Amount kind=AmountKind::Plain text=aux_value_for_row.clone() />
                 }
             />
             <Show when=move || dialog_open.get()>

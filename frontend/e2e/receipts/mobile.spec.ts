@@ -136,7 +136,7 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(3);
   await expect(cardList.getByTestId('receipt-card-group')).toHaveCount(2);
 
-  // 1行目は銘柄名と受取額(税引後)、2行目は日付・コード・口座と税引前を並べる
+  // 1行目は銘柄名と受取額(税引後)、2行目は日付・コード・口座だけ出す(補助の金額は出さない)
   // 先頭は入金日順で架空電信電話
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.locator('.list-row-name')).toHaveText('架空電信電話');
@@ -145,8 +145,7 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(meta).toContainText('3/15');
   await expect(meta).toContainText('9910');
   await expect(meta).toContainText('楽天証券');
-  await expect(card.locator('.list-row-secondary')).toContainText('税引前');
-  await expect(card.locator('.list-row-secondary')).toContainText('¥2,000');
+  await expect(card.locator('.list-row-secondary')).toHaveCount(0);
   // 行を押すと詳細ダイアログが開く。閉じると押した行に戻る
   const rowButton = card.getByTestId('receipt-row-button');
   await expect(rowButton).toHaveAttribute('aria-haspopup', 'dialog');
@@ -155,6 +154,8 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('9910');
   await expect(dialog).toContainText('¥1,594');
+  await expect(dialog).toContainText('税引前');
+  await expect(dialog).toContainText('¥2,000');
   const items = dialog.locator('dt');
   await expect(items).toHaveText(['入金日', '数量', '1株配当', '税引前', '税額', '税引後']);
   await dialog.getByTestId('detail-dialog-close').click();
@@ -226,7 +227,14 @@ test('国内株式タブでも2行の行にコード・口座・金額が出る'
   await expect(card.locator('.list-row-meta')).toContainText('9905');
   await expect(card.locator('.list-row-meta')).toContainText('特定');
   await expect(card.locator('.list-row-primary')).toContainText('¥3,985');
-  await expect(card.locator('.list-row-secondary')).toContainText('¥55,000');
+  await expect(card.locator('.list-row-secondary')).toHaveCount(0);
+  // 補助の売却額は行に出さず詳細ダイアログに出す
+  await card.getByTestId('receipt-row-button').click();
+  const dialog = page.getByTestId('receipt-detail-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('売却額');
+  await expect(dialog).toContainText('¥55,000');
+  await dialog.getByTestId('detail-dialog-close').click();
   // 1件だけのとき帯・見出し・行の税引後が一致する
   await expect(page.getByTestId('receipt-summary-strip')).toContainText('+¥3,985');
 });
@@ -241,6 +249,13 @@ test('投資信託タブでもファンド名が出る', async ({ page }) => {
     .getByTestId('receipt-card')
     .first();
   await expect(card.locator('.list-row-name')).toContainText('架空インデックス');
+  await expect(card.locator('.list-row-secondary')).toHaveCount(0);
+  // 補助の解約額は行に出さず詳細ダイアログに出す
+  await card.getByTestId('receipt-row-button').click();
+  const dialog = page.getByTestId('receipt-detail-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('解約額');
+  await dialog.getByTestId('detail-dialog-close').click();
 });
 
 test('検索欄で銘柄コードで絞り込んでも残る行は同じ書式', async ({ page }) => {
