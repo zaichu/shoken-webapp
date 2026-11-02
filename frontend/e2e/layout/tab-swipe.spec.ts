@@ -258,6 +258,43 @@ test.describe('下線タブの横スワイプ', () => {
     );
   });
 
+  test('切り替わらない接触では追従しない', async ({ page }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    const currentTransform = () =>
+      page
+        .locator(
+          '[data-testid="assetbalance-main-stage"] .tab-swipe-slide[data-active="true"]',
+        )
+        .evaluate((element) => (element as HTMLElement).style.transform);
+
+    // 端(ブラウザの戻る領域)から引いても面は動かない
+    await touchStart(page, 'assetbalance-main-stage', 5, 400);
+    await touchMove(page, 'assetbalance-main-stage', 120, 400);
+    await touchMove(page, 'assetbalance-main-stage', 200, 400);
+    await page.waitForTimeout(300);
+    expect(await currentTransform()).toBe('');
+    await touchEnd(page, 'assetbalance-main-stage', 200, 400);
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    // 検索ダイアログを開いている間も面は動かない
+    await page.getByTestId('asset-search-sheet-entry').click();
+    await expect(page.getByTestId('asset-search-sheet')).toBeVisible();
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 190, 400);
+    await page.waitForTimeout(300);
+    expect(await currentTransform()).toBe('');
+    await touchEnd(page, 'assetbalance-main-stage', 190, 400);
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
   test('取引明細で左スワイプすると次のタブに切り替わり検索ダイアログ中は動かない', async ({
     page,
   }) => {

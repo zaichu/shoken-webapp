@@ -1,6 +1,7 @@
 use super::{
     SWIPE_EDGE_GUARD_PX, clamp_drag_offset, is_edge_start, next_swipe_index, next_tab_index,
-    swipe_can_advance, swipe_commit_index, swipe_step, swipe_velocity, tab_ink_offset,
+    swipe_can_advance, swipe_commit_index, swipe_lock_allowed, swipe_step, swipe_velocity,
+    tab_ink_offset,
 };
 
 #[test]
@@ -106,6 +107,16 @@ fn velocity_comes_from_recent_frames() {
 fn reduced_motion_keeps_distance_only_decision() {
     assert_eq!(next_swipe_index(3, 0, -80.0, 0.0), Some(1));
     assert_eq!(next_swipe_index(3, 0, -40.0, 0.0), None);
+}
+
+#[test]
+fn lock_ignores_contacts_that_never_switch() {
+    assert!(swipe_lock_allowed(false, false, 195.0, Some(390.0)));
+    assert!(!swipe_lock_allowed(true, false, 195.0, Some(390.0)));
+    assert!(!swipe_lock_allowed(false, true, 195.0, Some(390.0)));
+    assert!(!swipe_lock_allowed(false, false, 5.0, Some(390.0)));
+    assert!(!swipe_lock_allowed(false, false, 385.0, Some(390.0)));
+    assert!(!swipe_lock_allowed(false, false, 195.0, None));
 }
 
 #[test]

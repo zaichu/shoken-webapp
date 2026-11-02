@@ -113,6 +113,22 @@ pub fn swipe_can_advance(count: usize, current: usize, dx: f64) -> bool {
     (dx < 0.0 && current + 1 < count) || (dx > 0.0 && current > 0)
 }
 
+/// 追従を始めてよい接触か。切り替わらない接触(開閉ボタン起点・端末端・ダイアログ中)では面も動かさない
+pub fn swipe_lock_allowed(
+    suppressed: bool,
+    dialog_open: bool,
+    start_x: f64,
+    viewport: Option<f64>,
+) -> bool {
+    if suppressed || dialog_open {
+        return false;
+    }
+    match viewport {
+        Some(width) => !is_edge_start(start_x, width),
+        None => false,
+    }
+}
+
 /// 指の移動量を面の動きに変える。端では抵抗をつけて少しだけ伸びる
 pub fn clamp_drag_offset(dx: f64, count: usize, current: usize, width: f64) -> f64 {
     if dx == 0.0 || count == 0 || width <= 0.0 {
@@ -584,6 +600,15 @@ pub fn SwipeArea(
                     return;
                 }
                 if dx.abs() < SWIPE_LOCK_PX {
+                    return;
+                }
+                if !swipe_lock_allowed(
+                    locked.suppressed,
+                    has_open_dialog(),
+                    locked.start_x,
+                    viewport_width(),
+                ) {
+                    locked.vertical = true;
                     return;
                 }
                 locked.locked = true;
