@@ -162,6 +162,79 @@ async function swipe(
   await touchEnd(page, testid, toX, toY ?? y);
 }
 
+function parseTranslateXPercent(transform: string): number | null {
+  const match = /translateX\((-?\d+(?:\.\d+)?)%\)/.exec(transform);
+  return match ? Number(match[1]) : null;
+}
+
+async function activeSlideTransform(
+  page: Page,
+  testid: string,
+): Promise<string> {
+  return page
+    .locator(
+      `[data-testid="${testid}"] .tab-swipe-slide[data-active="true"]`,
+    )
+    .evaluate((element) => (element as HTMLElement).style.transform);
+}
+
+async function waitForDrag(page: Page, testid: string) {
+  await page.waitForFunction(
+    (id) => {
+      const current = document.querySelector(
+        `[data-testid="${id}"] .tab-swipe-slide[data-active="true"]`,
+      );
+      return (
+        current instanceof HTMLElement &&
+        current.style.transform !== '' &&
+        current.style.transform !== 'translateX(0px)'
+      );
+    },
+    testid,
+  );
+}
+
+function sampleSlideX(
+  page: Page,
+  testid: string,
+  durationMs: number,
+): Promise<(number | null)[]> {
+  return page
+    .getByTestId(testid)
+    .evaluate(
+      (element, ms) =>
+        new Promise<(number | null)[]>((resolve) => {
+          const read = () => {
+            const active = element.querySelector(
+              '.tab-swipe-slide[data-active="true"]',
+            ) as HTMLElement | null;
+            const raw = active ? active.style.transform : '';
+            const match = /translateX\((-?\d+(?:\.\d+)?)px\)/.exec(raw);
+            return match ? Number(match[1]) : null;
+          };
+          const samples: (number | null)[] = [];
+          const start = performance.now();
+          const tick = () => {
+            samples.push(read());
+            if (performance.now() - start < ms) {
+              requestAnimationFrame(tick);
+            } else {
+              resolve(samples);
+            }
+          };
+          requestAnimationFrame(tick);
+        }),
+      durationMs,
+    );
+}
+
+async function inkPercent(page: Page): Promise<number | null> {
+  const transform = await page
+    .locator('.tab-swipe-ink')
+    .evaluate((element) => (element as HTMLElement).style.transform);
+  return parseTranslateXPercent(transform);
+}
+
 test.describe('下線タブの横スワイプ', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
@@ -315,5 +388,163 @@ test.describe('下線タブの横スワイプ', () => {
       'aria-selected',
       'false',
     );
+  });
+
+  test('確定時は外側へ一方向にだけ進み切り替わった後は動かない', async ({
+    page,
+  }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 200, 400);
+    await touchMove(page, 'assetbalance-main-stage', 90, 400);
+    await waitForDrag(page, 'assetbalance-main-stage');
+
+    const sampling = sampleSlideX(page, 'assetbalance-main-stage', 600);
+    await touchEnd(page, 'assetbalance-main-stage', 90, 400);
+    const samples = await sampling;
+    const frames = samples.filter((value): value is number => value !== null);
+    expect(frames.length).toBeGreaterThan(2);
+    for (const value of frames) {
+      expect(value).toBeLessThanOrEqual(5);
+    }
+    for (let index = 1; index < frames.length; index += 1) {
+      expect(frames[index]).toBeLessThanOrEqual(frames[index - 1] + 1);
+    }
+    expect(Math.min(...frames)).toBeLessThan(-100);
+
+    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.waitForTimeout(500);
+    expect(
+      await activeSlideTransform(page, 'assetbalance-main-stage'),
+    ).toBe('');
+    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('右スワイプの確定時も外側へ一方向にだけ進む', async ({ page }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+
+    await swipe(page, 'assetbalance-main-stage', 300, 90);
+    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await touchStart(page, 'assetbalance-main-stage', 90, 400);
+    await touchMove(page, 'assetbalance-main-stage', 200, 400);
+    await touchMove(page, 'assetbalance-main-stage', 300, 400);
+    await waitForDrag(page, 'assetbalance-main-stage');
+
+    const sampling = sampleSlideX(page, 'assetbalance-main-stage', 600);
+    await touchEnd(page, 'assetbalance-main-stage', 300, 400);
+    const samples = await sampling;
+    const frames = samples.filter((value): value is number => value !== null);
+    expect(frames.length).toBeGreaterThan(2);
+    for (const value of frames) {
+      expect(value).toBeGreaterThanOrEqual(-5);
+    }
+    for (let index = 1; index < frames.length; index += 1) {
+      expect(frames[index]).toBeGreaterThanOrEqual(frames[index - 1] - 1);
+    }
+    expect(Math.max(...frames)).toBeGreaterThan(100);
+
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.waitForTimeout(500);
+    expect(
+      await activeSlideTransform(page, 'assetbalance-main-stage'),
+    ).toBe('');
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('取り消し時は元へ戻り切り替わらない', async ({ page }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 270, 400);
+    await waitForDrag(page, 'assetbalance-main-stage');
+    await touchEnd(page, 'assetbalance-main-stage', 270, 400);
+
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.waitForFunction(() => {
+      const current = document.querySelector(
+        '[data-testid="assetbalance-main-stage"] .tab-swipe-slide[data-active="true"]',
+      );
+      return current instanceof HTMLElement && current.style.transform === '';
+    });
+  });
+
+  test('下線は指と同じ向きの隣のタブ側へ進む', async ({ page }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    const before = await inkPercent(page);
+
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 190, 400);
+    await page.waitForFunction(() => {
+      const ink = document.querySelector('.tab-swipe-ink');
+      return (
+        ink instanceof HTMLElement && ink.dataset.on === 'true'
+      );
+    });
+    const during = await inkPercent(page);
+    expect(during).not.toBeNull();
+    expect(before).not.toBeNull();
+    expect(during as number).toBeGreaterThan(before as number);
+
+    await touchEnd(page, 'assetbalance-main-stage', 190, 400);
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('動きを減らす設定では即時に切り替わる', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await swipe(page, 'assetbalance-main-stage', 300, 90);
+    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      await activeSlideTransform(page, 'assetbalance-main-stage'),
+    ).toBe('');
   });
 });

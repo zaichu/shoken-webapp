@@ -173,6 +173,20 @@ pub fn tab_ink_offset(current: usize, progress: f64) -> f64 {
     current as f64 + progress.clamp(-1.0, 1.0)
 }
 
+/// タブ番号方向の進み具合。左スワイプ(指は負)を正(次へ)で表す
+pub fn swipe_progress(drag: f64, width: f64) -> f64 {
+    if width <= 0.0 {
+        0.0
+    } else {
+        (-drag / width).clamp(-1.0, 1.0)
+    }
+}
+
+/// 確定後に面が止まる位置。離した側の外へ流すため指の移動とは逆符号になる
+pub fn swipe_settle_offset(current: usize, target: usize, width: f64) -> f64 {
+    (current as f64 - target as f64) * width
+}
+
 /// 画面の左右の端から始めた接触か。ブラウザの戻る操作とぶつかるため無視する
 pub fn is_edge_start(client_x: f64, viewport_width: f64) -> bool {
     client_x < SWIPE_EDGE_GUARD_PX || client_x > viewport_width - SWIPE_EDGE_GUARD_PX
@@ -355,9 +369,7 @@ fn request_frame(
                 if let Some(track) = track.get() {
                     let width = tick_gesture.borrow().width;
                     place_slides(&track, current.get_untracked(), drag, width);
-                    if width > 0.0 {
-                        motion.progress.set((drag / width).clamp(-1.0, 1.0));
-                    }
+                    motion.progress.set(swipe_progress(drag, width));
                 }
                 if again {
                     request_frame(
@@ -485,7 +497,7 @@ fn finish_swipe(
     let velocity = swipe_velocity(&samples);
     let target = swipe_commit_index(count_value, current_value, dx, dy, width, velocity)
         .unwrap_or(current_value);
-    let to = (target as f64 - current_value as f64) * width;
+    let to = swipe_settle_offset(current_value, target, width);
     if from == 0.0 && to == 0.0 {
         reset_view();
         return;
