@@ -762,5 +762,59 @@ pub fn composition_basis_heading(basis: &str) -> String {
     format!("基準({basis}): ")
 }
 
+/// アプリ名(タブの接尾辞・枠の表示)
+pub const APP_NAME: &str = "証券Web";
+/// ホームの画面名
+pub const HOME_TITLE: &str = "ホーム";
+/// 銘柄検索の画面名
+pub const STOCK_SEARCH_TITLE: &str = "銘柄検索";
+/// ログインの画面名
+pub const LOGIN_TITLE: &str = "ログイン";
+/// 存在しないパスの画面名
+pub const NOT_FOUND_TITLE: &str = "ページが見つかりません";
+/// 本文へ跳ぶリンク
+pub const SKIP_TO_MAIN: &str = "メインコンテンツへスキップ";
+/// API: 通信の確認を促す利用者向け文言
+pub const API_CHECK_NETWORK: &str = "ネットワーク接続を確認してください";
+/// API: タイムアウト後の再試行を促す利用者向け文言
+pub const API_RETRY_TIMEOUT: &str = "リクエストがタイムアウトしました。もう一度お試しください";
+/// API: 中断の利用者向け文言(送信前の取り消し)
+pub const API_CANCELLED: &str = "処理を中断しました";
+/// API: 応答の解析に失敗したときの利用者向け文言
+pub const API_STOCK_FETCH_FAILED: &str =
+    "銘柄情報の取得に失敗しました。時間をおいて再度お試しください。";
+/// API: 入力の見直しを促す利用者向け文言(400)
+pub const API_CHECK_INPUT: &str = "入力内容を確認してください";
+/// API: ログインを促す利用者向け文言(401)
+pub const API_LOGIN_REQUIRED: &str = "ログインが必要です";
+/// API: 権限不足の利用者向け文言(403)
+pub const API_FORBIDDEN: &str = "このリソースへのアクセス権限がありません";
+/// API: 対象が無いときの利用者向け文言(404)
+pub const API_NOT_FOUND_DETAIL: &str = "指定されたリソースが見つかりません";
+/// API: サーバ側の失敗後の再試行を促す利用者向け文言(5xx)
+pub const API_SERVER_RETRY: &str =
+    "サーバーエラーが発生しました。しばらくしてから再度お試しください";
+/// API: 通信失敗の表示
+pub const API_NETWORK_ERROR: &str = "ネットワークエラーが発生しました";
+/// API: タイムアウトの表示
+pub const API_TIMEOUT: &str = "リクエストがタイムアウトしました";
+/// API: 応答の解析失敗の表示
+pub const API_PARSE_FAILED: &str = "応答の解析に失敗しました";
+/// API: 要求不備の表示(400)
+pub const API_BAD_REQUEST: &str = "リクエストが不正です";
+/// API: 認証切れの表示(401)
+pub const API_UNAUTHORIZED: &str = "認証が必要です";
+/// API: 拒否の表示(403)
+pub const API_ACCESS_DENIED: &str = "アクセスが拒否されました";
+/// API: 対象が無いときの表示(404)
+pub const API_NOT_FOUND: &str = "リソースが見つかりません";
+/// API: サーバ側の失敗の表示(5xx)
+pub const API_SERVER_ERROR: &str = "サーバーエラーが発生しました";
+
+/// 想定外の状態の書き方(「エラーが発生しました (ステータス: 418)」)
+pub fn api_status_error(status: u16) -> String {
+    format!("エラーが発生しました (ステータス: {status})")
+}
+
 #[cfg(test)]
 mod tests;

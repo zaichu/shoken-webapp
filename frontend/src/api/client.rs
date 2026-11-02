@@ -1,3 +1,4 @@
+use crate::ui::labels;
 use gloo_timers::future::TimeoutFuture;
 use serde::{Serialize, de::DeserializeOwned};
 use std::cell::Cell;
@@ -55,23 +56,17 @@ impl ApiError {
 
     pub fn user_message(&self) -> String {
         match self {
-            ApiError::Network => "ネットワーク接続を確認してください".to_string(),
-            ApiError::Timeout => {
-                "リクエストがタイムアウトしました。もう一度お試しください".to_string()
-            }
-            ApiError::Cancelled => "処理を中断しました".to_string(),
-            ApiError::Parse => {
-                "銘柄情報の取得に失敗しました。時間をおいて再度お試しください。".to_string()
-            }
+            ApiError::Network => labels::API_CHECK_NETWORK.to_string(),
+            ApiError::Timeout => labels::API_RETRY_TIMEOUT.to_string(),
+            ApiError::Cancelled => labels::API_CANCELLED.to_string(),
+            ApiError::Parse => labels::API_STOCK_FETCH_FAILED.to_string(),
             ApiError::Http { status, .. } => match status {
-                400 => "入力内容を確認してください".to_string(),
-                401 => "ログインが必要です".to_string(),
-                403 => "このリソースへのアクセス権限がありません".to_string(),
-                404 => "指定されたリソースが見つかりません".to_string(),
-                500 | 502..=504 => {
-                    "サーバーエラーが発生しました。しばらくしてから再度お試しください".to_string()
-                }
-                _ => format!("エラーが発生しました (ステータス: {status})"),
+                400 => labels::API_CHECK_INPUT.to_string(),
+                401 => labels::API_LOGIN_REQUIRED.to_string(),
+                403 => labels::API_FORBIDDEN.to_string(),
+                404 => labels::API_NOT_FOUND_DETAIL.to_string(),
+                500 | 502..=504 => labels::API_SERVER_RETRY.to_string(),
+                _ => labels::api_status_error(*status),
             },
         }
     }
@@ -79,22 +74,22 @@ impl ApiError {
     // エラーバッジ用の生文言。user_message() の案内文とは別系統で、HTTP 既定文に直す
     pub fn message(&self) -> String {
         match self {
-            ApiError::Network => "ネットワークエラーが発生しました".to_string(),
-            ApiError::Timeout => "リクエストがタイムアウトしました".to_string(),
-            ApiError::Cancelled => "処理を中断しました".to_string(),
-            ApiError::Parse => "応答の解析に失敗しました".to_string(),
+            ApiError::Network => labels::API_NETWORK_ERROR.to_string(),
+            ApiError::Timeout => labels::API_TIMEOUT.to_string(),
+            ApiError::Cancelled => labels::API_CANCELLED.to_string(),
+            ApiError::Parse => labels::API_PARSE_FAILED.to_string(),
             ApiError::Http {
                 status,
                 server_message,
             } => match status {
                 400 => server_message
                     .clone()
-                    .unwrap_or_else(|| "リクエストが不正です".to_string()),
-                401 => "認証が必要です".to_string(),
-                403 => "アクセスが拒否されました".to_string(),
-                404 => "リソースが見つかりません".to_string(),
-                500 | 502..=504 => "サーバーエラーが発生しました".to_string(),
-                _ => format!("エラーが発生しました (ステータス: {status})"),
+                    .unwrap_or_else(|| labels::API_BAD_REQUEST.to_string()),
+                401 => labels::API_UNAUTHORIZED.to_string(),
+                403 => labels::API_ACCESS_DENIED.to_string(),
+                404 => labels::API_NOT_FOUND.to_string(),
+                500 | 502..=504 => labels::API_SERVER_ERROR.to_string(),
+                _ => labels::api_status_error(*status),
             },
         }
     }
