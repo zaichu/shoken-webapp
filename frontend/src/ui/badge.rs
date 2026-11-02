@@ -1,3 +1,4 @@
+use crate::ui::labels;
 use leptos::prelude::*;
 
 /// 小さな状態バッジ(span)。押せるバッジは choice::Chip を使う。
@@ -41,12 +42,12 @@ pub fn Badge(variant: BadgeVariant, children: Children) -> impl IntoView {
 /// 対応表にない文字列はそのまま返す
 pub fn account_display_name(value: &str) -> &str {
     match value {
-        "特定口座" | "特定" => "特定",
-        "一般口座" | "一般" => "一般",
+        "特定口座" | labels::ACCOUNT_SPECIFIC => labels::ACCOUNT_SPECIFIC,
+        "一般口座" | labels::ACCOUNT_GENERAL => labels::ACCOUNT_GENERAL,
         "NISA口座" | "新NISA" | "NISA" => "NISA",
-        "旧NISA" => "旧NISA",
-        "NISA成長投資枠" => "NISA成長",
-        "NISAつみたて投資枠" => "NISAつみたて",
+        labels::ACCOUNT_OLD_NISA => labels::ACCOUNT_OLD_NISA,
+        "NISA成長投資枠" => labels::ACCOUNT_NISA_GROWTH,
+        "NISAつみたて投資枠" => labels::ACCOUNT_NISA_TSUMITATE,
         _ => value,
     }
 }
@@ -64,8 +65,8 @@ pub fn AccountBadge(#[prop(into)] label: String) -> impl IntoView {
 /// 一般と同じ中立色になる
 fn account_badge_class(label: &str) -> &'static str {
     match label {
-        "特定" => "account-badge account-badge-specific",
-        "旧NISA" => "account-badge account-badge-old-nisa",
+        labels::ACCOUNT_SPECIFIC => "account-badge account-badge-specific",
+        labels::ACCOUNT_OLD_NISA => "account-badge account-badge-old-nisa",
         _ if label.contains("NISA") => "account-badge account-badge-nisa",
         _ => "account-badge",
     }

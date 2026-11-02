@@ -4,29 +4,30 @@ use crate::session::{SessionStore, use_session};
 use crate::ui::avatar::UserAvatar;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
+use crate::ui::labels;
 use leptos::ev;
 use leptos::html;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
 pub const NAV_ITEMS: &[(&str, &str)] = &[
-    ("/", "ホーム"),
-    ("/assetbalance", "資産管理"),
-    ("/receipts", "取引明細"),
-    ("/search", "銘柄検索"),
+    ("/", labels::HOME_TITLE),
+    ("/assetbalance", labels::ASSET_BALANCE_TITLE),
+    ("/receipts", labels::RECEIPTS_TITLE),
+    ("/search", labels::STOCK_SEARCH_TITLE),
 ];
 
 const FOOTER_LINKS: &[(&str, &str)] = &[
     (
-        "プライバシーポリシー",
+        labels::FOOTER_PRIVACY,
         "https://github.com/zaichu/shoken-webapp/blob/main/docs/privacy-policy.md",
     ),
     (
-        "利用規約",
+        labels::FOOTER_TERMS,
         "https://github.com/zaichu/shoken-webapp/blob/main/docs/terms.md",
     ),
     (
-        "Cookie ポリシー",
+        labels::FOOTER_COOKIE,
         "https://github.com/zaichu/shoken-webapp/blob/main/docs/cookie-policy.md",
     ),
 ];
@@ -107,7 +108,7 @@ pub fn BottomNav(#[prop(optional, into)] class: Option<String>) -> impl IntoView
     let base_class = "app-bottom-nav no-print";
     let class = move || format!("{} {}", base_class, class.clone().unwrap_or_default());
     view! {
-        <nav class=class aria-label="主要ナビゲーション">
+        <nav class=class aria-label=labels::PAGE_MAIN_NAV>
             {NAV_ITEMS
                 .iter()
                 .map(|(to, label)| {
@@ -149,7 +150,7 @@ pub fn AccountMenu(
             {move || {
                 if !session.loaded.get() {
                     view! {
-                        <span class="text-sm font-semibold text-brand-muted">"読み込み中..."</span>
+                        <span class="text-sm font-semibold text-brand-muted">{labels::LOADING}</span>
                     }
                         .into_any()
                 } else if let Some(user) = session.user.get() {
@@ -169,7 +170,7 @@ pub fn AccountMenu(
                             variant=ButtonVariant::Header(ButtonSize::Sm)
                             on_click=move |_| session.login()
                         >
-                            "ログイン"
+                            {labels::LOGIN_TITLE}
                         </Button>
                     }
                         .into_any()
@@ -203,10 +204,10 @@ pub fn AccountDeleteDialog() -> impl IntoView {
             }
             view! {
                 <ConfirmDeleteModal
-                    title="アカウント削除の確認".to_string()
-                    description="アカウントを削除すると、資産管理・配当金・取引履歴などすべてのデータが削除されます。"
+                    title=labels::ACCOUNT_DELETE_TITLE.to_string()
+                    description=labels::ACCOUNT_DELETE_DESCRIPTION
                         .to_string()
-                    confirm_label="削除する".to_string()
+                    confirm_label=labels::ACCOUNT_DELETE_CONFIRM.to_string()
                     loading=deleting_memo
                     error=delete_error
                     on_confirm=move || {
@@ -229,9 +230,6 @@ pub fn AccountDeleteDialog() -> impl IntoView {
     };
     content.into_any()
 }
-
-// 現在は Google OAuth のみ対応
-const LOGIN_METHOD_TEXT: &str = "Google でログイン中";
 
 #[component]
 fn UserMenu(
@@ -391,15 +389,10 @@ fn UserMenu(
     let aria_name = user_name
         .clone()
         .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| "ユーザー".to_string());
+        .unwrap_or_else(|| labels::USER_FALLBACK.to_string());
     let initials = crate::ui::avatar::avatar_initials(user_name.as_deref(), Some(&user_email));
-    let login_method_text = LOGIN_METHOD_TEXT;
-    // 可視テキストは aria-hidden の頭文字を含む(「テス アカウント」)ため、空白を明示して
-    // 単語トークンをそろえないと WCAG 2.5.3 違反になる。頭文字も先頭の独立トークンに置く
-    let menu_label = format!(
-        "{initials} {} {aria_name}のアカウントメニュー",
-        crate::ui::labels::ACCOUNT_BUTTON
-    );
+    let login_method_text = labels::SETTINGS_GOOGLE_LOGIN;
+    let menu_label = labels::user_menu_button_label(&initials, &aria_name);
 
     view! {
         <div class="flex items-center gap-3">
@@ -436,7 +429,7 @@ fn UserMenu(
                     </span>
                     {" "}
                     <span class="hidden text-sm font-semibold text-text-inverse max-sm:inline">
-                        {crate::ui::labels::ACCOUNT_BUTTON}
+                        {labels::ACCOUNT_BUTTON}
                     </span>
                 </button>
                 <Show when=move || menu_open.get()>
@@ -445,7 +438,7 @@ fn UserMenu(
                         node_ref=menu_items_ref
                         class="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-lg border border-ink/10 bg-surface text-text-deep shadow-2xl"
                         role="menu"
-                        aria-label="ユーザーメニュー"
+                        aria-label=labels::USER_MENU_LABEL
                     >
                         <li role="none" class="p-3 border-b border-ink/10">
                             <div class="flex items-center gap-3">
@@ -474,7 +467,7 @@ fn UserMenu(
                                     <circle cx="12" cy="12" r="3"/>
                                     <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
                                 </svg>
-                                <span>設定</span>
+                                <span>{labels::SETTINGS_TITLE}</span>
                             </a>
                         </li>
                         <li role="none">
@@ -490,7 +483,7 @@ fn UserMenu(
                                     <polyline points="7 10 12 15 17 10"/>
                                     <line x1="12" y1="15" x2="12" y2="3"/>
                                 </svg>
-                                <span>データをエクスポート</span>
+                                <span>{labels::USER_MENU_EXPORT}</span>
                             </a>
                         </li>
                         <Show when=move || session.is_admin.get()>
@@ -498,7 +491,7 @@ fn UserMenu(
                                 <a href="/admin/logins" role="menuitem" tabindex="0"
                                     class="flex min-h-11 items-center gap-3 px-3 py-2 text-sm font-semibold text-text-deep hover:bg-surface-raised no-underline"
                                     on:click=move |_| menu_open.set(false)>
-                                    {crate::ui::labels::ADMIN_LOGINS}
+                                    {labels::ADMIN_LOGINS}
                                 </a>
                             </li>
                         </Show>
@@ -520,7 +513,7 @@ fn UserMenu(
                                     <polyline points="16 17 21 12 16 7"/>
                                     <line x1="21" y1="12" x2="9" y2="12"/>
                                 </svg>
-                                <span>ログアウト</span>
+                                <span>{labels::USER_MENU_LOGOUT}</span>
                             </Button>
                         </li>
                     </ul>
@@ -544,14 +537,14 @@ pub fn SiteFooter() -> impl IntoView {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 class="inline-flex min-h-6 items-center hover:text-text-soft hover:underline max-sm:min-h-11"
-                                aria-label={format!("{label}（新しいタブで開く）")}
+                                aria-label=labels::stock_search_new_tab(label)
                             >
                                 {*label}
                             </a>
                         }
                     })
                     .collect_view()}
-                <span>"© 2026 証券Web"</span>
+                <span>{format!("© 2026 {}", labels::APP_NAME)}</span>
             </div>
         </footer>
     }
