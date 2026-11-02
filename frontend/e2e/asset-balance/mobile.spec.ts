@@ -124,7 +124,7 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
   await expect(main).toBeVisible();
 });
 
-test('保有行は銘柄詳細ページへのリンクになっている', async ({ page }) => {
+test('保有行を押すと中央ダイアログで詳細が出る', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAssetBalance(page);
   const row = page.getByTestId('asset-compact-row').first();
@@ -132,9 +132,27 @@ test('保有行は銘柄詳細ページへのリンクになっている', async
   await expect(row).toContainText('架空自動車');
   await expect(row).toContainText('¥260,000');
   await expect(row).toContainText('+¥10,000');
-  await row.getByRole('link').first().click();
-  await expect(page).toHaveURL('/assetbalance/holdings/asset-balance-1');
-  await expect(page.getByRole('heading', { name: '架空自動車' })).toBeVisible();
+  const rowButton = row.getByTestId('asset-row-button');
+  await expect(rowButton).toHaveAttribute('aria-haspopup', 'dialog');
+  await rowButton.click();
+  const dialog = page.getByTestId('asset-holding-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('架空自動車');
+  await expect(dialog.locator('dt')).toHaveText([
+    '現在値',
+    '取得単価',
+    '取得額利回り',
+    '1株配当',
+    '数量',
+    '取得総額',
+    '評価額',
+    '年間配当',
+    '価格基準日',
+  ]);
+  await dialog.getByTestId('detail-dialog-close').click();
+  await expect(dialog).toBeHidden();
+  await expect(rowButton).toBeFocused();
+  await expect(page).toHaveURL('/assetbalance');
 });
 
 test('一覧に無い文字列を入れるとフィルタ済み空状態と解除ボタンが出る', async ({

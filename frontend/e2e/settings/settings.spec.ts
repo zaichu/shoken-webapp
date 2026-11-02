@@ -149,9 +149,11 @@ test('金額の表示単位設定は合計欄だけに効き、明細の行は1�
   const rowButton = card.getByTestId('receipt-row-button');
   await expect(rowButton).toBeVisible();
   await rowButton.click();
-  const sheet = page.getByTestId('receipt-detail-sheet');
-  await expect(sheet).toBeVisible();
-  await expect(sheet.getByText('¥30').first()).toBeVisible();
+  const dialog = page.getByTestId('receipt-detail-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('¥30').first()).toBeVisible();
+  await dialog.getByTestId('detail-dialog-close').click();
+  await expect(dialog).toBeHidden();
 });
 
 test('設定の目次は7項目あり各セクションへリンクする', async ({ page }) => {

@@ -796,6 +796,62 @@
     @apply flex items-center gap-2;
   }
 
+  .detail-dialog-head {
+    @apply border-b border-border px-4 py-3;
+  }
+
+  .detail-dialog-title {
+    @apply text-base font-bold text-text;
+  }
+
+  .detail-dialog-badges {
+    @apply mt-1 flex flex-wrap items-center gap-1.5 text-xs text-text-muted;
+  }
+
+  .detail-dialog-code {
+    @apply tabular-nums;
+  }
+
+  .detail-dialog-body {
+    @apply min-h-0 flex-1 overflow-y-auto px-4 py-3;
+  }
+
+  .detail-dialog-grid {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .detail-dialog-col {
+    @apply flex min-w-0 flex-col;
+  }
+
+  .detail-dialog-row {
+    @apply flex min-w-0 items-start justify-between gap-3 border-b border-border-faint py-2;
+  }
+
+  .detail-dialog-row:last-child {
+    @apply border-b-0;
+  }
+
+  .detail-dialog-label {
+    @apply shrink-0 pt-0.5 text-xs font-medium text-text-subtle;
+  }
+
+  .detail-dialog-value {
+    @apply flex min-w-0 flex-col items-end gap-0.5 break-words text-right text-sm font-semibold tabular-nums text-text;
+  }
+
+  .detail-dialog-sub {
+    @apply text-xs tabular-nums;
+  }
+
+  .detail-dialog-footer {
+    @apply shrink-0 border-t border-border bg-surface px-4 pb-3.5 pt-2.5;
+  }
+
+  .detail-dialog-close-button {
+    @apply min-h-12 w-full;
+  }
+
   /* スマホの検索・並べ替えの入口。紺帯の下に置く1行 */
   .search-sort-entry {
     @apply w-full flex-col items-stretch gap-1 px-3 py-2 text-left;
@@ -1645,14 +1701,6 @@
     @apply border-b border-border;
   }
 
-  .asset-compact-link {
-    @apply block px-4 py-2 no-underline;
-  }
-
-  .asset-compact-link:active {
-    @apply bg-surface-sunken;
-  }
-
   /* 資産管理・取引明細・ホームの配当入金で共通の2行の行。
      1行目=名前(左、折り返して全文)・主役の金額(右、折り返さない・桁そろえ)。
      2行目=左に小さく補助色で日付・コード・口座など、右に補助の金額。
@@ -1701,28 +1749,6 @@
 
   .receipt-compact-button:focus-visible {
     @apply outline-2 -outline-offset-2 outline-ink;
-  }
-
-  /* 行の詳細シートの中身。取っ手・×・タイトルは BottomSheet が持ち、
-     ここでは副題(コード・日付)、主役の金額、縦リストだけを出す */
-  .receipt-detail-sub {
-    @apply text-xs text-text-muted;
-  }
-
-  .receipt-detail-hero {
-    @apply flex flex-col gap-1 rounded-lg bg-surface-sunken px-3 py-2.5;
-  }
-
-  .receipt-detail-hero-label {
-    @apply text-xs font-medium text-text-muted;
-  }
-
-  .receipt-detail-hero-value {
-    @apply text-xl font-bold tabular-nums text-text-deep;
-  }
-
-  .receipt-detail-list {
-    @apply flex flex-col gap-2;
   }
 
   .asset-comp-link {

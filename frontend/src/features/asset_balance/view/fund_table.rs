@@ -8,10 +8,14 @@ use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
+use crate::ui::button::{Button, ButtonVariant};
+use crate::ui::detail_dialog::{DetailCell, DetailDialog};
+use crate::ui::format::{
+    format_currency, format_iso_date, format_number_value, format_unit_price, unit_price_decimals,
+};
 use crate::ui::labels::{
-    ACCOUNT, BASE_PRICE, DAY_CHANGE, DISTRIBUTION, FUND, FUND_SHARES, MARKET_VALUE,
-    VALUATION_PROFIT_LOSS,
+    ACCOUNT, AVERAGE_PRICE, BASE_PRICE, DAY_CHANGE, DISTRIBUTION, FUND, FUND_SHARES, MARKET_VALUE,
+    PENDING_UPDATE, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::security_link::TableNameLink;
@@ -143,6 +147,55 @@ pub fn FundHoldingsTable(
     }
 }
 
+pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<DetailCell>) {
+    let base_text = format_currency(view.base_price);
+    let day_text = if view.nav_pending() {
+        PENDING_UPDATE.to_string()
+    } else {
+        format_signed_row_valuation_amount(view.view_day_change())
+    };
+    let day_negative = is_negative_valuation(view.view_day_change());
+    let day_positive = is_positive_valuation(view.view_day_change());
+    let average_text = format_currency(view.average_purchase_price);
+    let course_text = view.course.clone().unwrap_or_else(|| "—".to_string());
+    let shares_text = format!("{}口", format_number_value(view.shares));
+    let purchase_text = format_currency(view.purchase);
+    let market_text = format_row_valuation_amount(Some(view.market_value));
+    let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
+    let pnl_rate = format_signed_valuation_rate(view.profit_loss_rate, 1);
+    let pnl_sub = format!("{pnl_text} {pnl_rate}");
+    let pnl_negative = is_negative_valuation(Some(view.profit_loss));
+    let pnl_positive = is_positive_valuation(Some(view.profit_loss));
+    let as_of = view
+        .price_as_of
+        .clone()
+        .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
+    let left = vec![
+        DetailCell::with_sub(
+            BASE_PRICE.to_string(),
+            base_text,
+            day_text,
+            day_negative,
+            day_positive,
+        ),
+        DetailCell::plain(AVERAGE_PRICE.to_string(), average_text),
+        DetailCell::plain(DISTRIBUTION.to_string(), course_text),
+    ];
+    let right = vec![
+        DetailCell::plain(FUND_SHARES.to_string(), shares_text),
+        DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
+        DetailCell::strong_sub(
+            MARKET_VALUE.to_string(),
+            market_text,
+            pnl_sub,
+            pnl_negative,
+            pnl_positive,
+        ),
+        DetailCell::plain("基準日".to_string(), as_of),
+    ];
+    (left, right)
+}
+
 /// スマホのファンド一覧。共通の2行の行で出す
 #[component]
 pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
@@ -163,6 +216,12 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     let market_text = format_row_valuation_amount(Some(view.market_value));
                     let name = view.name.clone();
                     let account = view.account.clone();
+                    let dialog_name = view.name.clone();
+                    let dialog_account = view.account.clone();
+                    let dialog_view = view.clone();
+                    let open = RwSignal::new(false);
+                    let open_for_dialog = open;
+                    let (left, right) = fund_detail_cells(&dialog_view);
                     let inner = view! {
                         <ListRow
                             name=move || name.clone()
@@ -193,23 +252,81 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     };
                     view! {
                         <li class="asset-compact-row" data-testid="asset-compact-row">
-                            {match &view.id {
-                                Some(id) => view! {
-                                    <a
-                                        href=format!("/assetbalance/funds/{id}")
-                                        class="asset-compact-link"
-                                    >
-                                        {inner}
-                                    </a>
-                                }
-                                    .into_any(),
-                                None => view! { <div class="asset-compact-link">{inner}</div> }
-                                    .into_any(),
-                            }}
+                            <Button
+                                variant=ButtonVariant::RowButton
+                                testid="asset-row-button"
+                                aria_haspopup="dialog"
+                                on_click=move |_| open.set(true)
+                            >
+                                <span class="receipt-compact-button-inner">{inner}</span>
+                            </Button>
+                            <Show when=move || open.get()>
+                                <DetailDialog
+                                    name=dialog_name.clone()
+                                    account=dialog_account.clone()
+                                    left=left.clone()
+                                    right=right.clone()
+                                    on_close=move || open_for_dialog.set(false)
+                                    testid="asset-fund-dialog"
+                                />
+                            </Show>
                         </li>
                     }
                 })
                 .collect_view()}
         </ul>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fund_detail_cells;
+    use crate::api::dto::FundPriceSource;
+    use crate::features::asset_balance::fund::FundView;
+
+    fn sample_fund() -> FundView {
+        FundView {
+            id: Some("fund-1".to_string()),
+            name: "架空ファンド".to_string(),
+            account: "特定".to_string(),
+            course: Some("受取型".to_string()),
+            shares: 10000.0,
+            average_purchase_price: 10000.0,
+            purchase: 100000.0,
+            base_price: 11000.0,
+            base_price_day_change: Some(50.0),
+            base_price_month_change: None,
+            market_value: 110000.0,
+            profit_loss: 10000.0,
+            profit_loss_rate: Some(10.0),
+            total_return: Some(10000.0),
+            price_as_of: Some("2026-01-05".to_string()),
+            price_source: FundPriceSource::Api,
+            is_nav_latest: true,
+            expected_nav_date: None,
+        }
+    }
+
+    #[test]
+    fn fund_dialog_preserves_order() {
+        let (left, right) = fund_detail_cells(&sample_fund());
+        let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
+        assert_eq!(left_labels, ["基準価額", "取得単価", "分配金"]);
+        let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
+        assert_eq!(right_labels, ["保有口数", "取得総額", "評価額", "基準日"]);
+    }
+
+    #[test]
+    fn fund_dialog_uses_row_basis() {
+        let view = sample_fund();
+        let (left, right) = fund_detail_cells(&view);
+        assert!(left[0].value.contains("11,000") || left[0].value.contains("11000"));
+        assert!(right[2].value.contains("110,000") || right[2].value.contains("110000"));
+        assert!(
+            right[2]
+                .sub
+                .as_deref()
+                .is_some_and(|sub| sub.contains("10,000"))
+        );
     }
 }
