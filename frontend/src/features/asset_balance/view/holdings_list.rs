@@ -65,7 +65,7 @@ pub(crate) fn holding_detail_cells(
         DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
     ];
     let market_cell = match pnl_sub {
-        Some(sub) => DetailCell::with_sub(
+        Some(sub) => DetailCell::strong_sub(
             MARKET_VALUE.to_string(),
             market_text,
             sub,
@@ -275,6 +275,7 @@ mod tests {
         assert!(price.negative);
         let market = &right[2];
         assert!(!market.delta);
+        assert!(market.bold);
         assert!(
             market
                 .sub

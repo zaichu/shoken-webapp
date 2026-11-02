@@ -371,7 +371,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
         left.push(DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share));
     }
     let market_cell = match pnl_sub {
-        Some(sub) => DetailCell::with_sub(
+        Some(sub) => DetailCell::strong_sub(
             MARKET_VALUE.to_string(),
             market_text,
             sub,

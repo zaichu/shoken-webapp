@@ -47,6 +47,24 @@ impl DetailCell {
         }
     }
 
+    pub fn strong_sub(
+        label: String,
+        value: String,
+        sub: String,
+        negative: bool,
+        positive: bool,
+    ) -> Self {
+        Self {
+            label,
+            value,
+            sub: Some(sub),
+            negative,
+            positive,
+            bold: true,
+            delta: false,
+        }
+    }
+
     pub fn strong(
         label: String,
         value: String,
@@ -168,6 +186,7 @@ pub fn DetailDialog(
             <div class="detail-dialog-footer">
                 <Button
                     variant=ButtonVariant::Secondary(ButtonSize::Md)
+                    class="detail-dialog-close-button".to_string()
                     testid="detail-dialog-close"
                     on_click=move |_| footer_close()
                 >
@@ -216,5 +235,19 @@ mod tests {
         );
         assert!(cell.bold);
         assert!(!cell.delta);
+    }
+
+    #[test]
+    fn strong_sub_keeps_bold_value_and_colored_sub() {
+        let cell = DetailCell::strong_sub(
+            "評価額".to_string(),
+            "¥200,000".to_string(),
+            "-¥50,000 -20.0%".to_string(),
+            true,
+            false,
+        );
+        assert!(cell.bold);
+        assert!(!cell.delta);
+        assert!(cell.negative);
     }
 }

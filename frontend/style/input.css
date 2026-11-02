@@ -845,7 +845,11 @@
   }
 
   .detail-dialog-footer {
-    @apply flex shrink-0 items-center justify-center gap-2 border-t border-border bg-surface px-4 py-3;
+    @apply shrink-0 border-t border-border bg-surface px-4 pb-3.5 pt-2.5;
+  }
+
+  .detail-dialog-close-button {
+    @apply min-h-12 w-full;
   }
 
   /* スマホの検索・並べ替えの入口。紺帯の下に置く1行 */

@@ -184,7 +184,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
     let right = vec![
         DetailCell::plain(FUND_SHARES.to_string(), shares_text),
         DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
-        DetailCell::with_sub(
+        DetailCell::strong_sub(
             MARKET_VALUE.to_string(),
             market_text,
             pnl_sub,
