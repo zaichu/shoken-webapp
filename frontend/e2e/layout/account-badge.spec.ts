@@ -56,7 +56,7 @@ async function badgeColors(badge: Locator) {
 // 1行の口座の札が1つだけ出ることと、その配色を見る
 async function badgeInRow(scope: Locator, securityName: string) {
   const row = scope.locator('tr, li').filter({ hasText: securityName }).first();
-  const badge = row.locator('.account-badge');
+  const badge = row.locator('.badge-account');
   await expect(badge).toHaveCount(1);
   return badge;
 }

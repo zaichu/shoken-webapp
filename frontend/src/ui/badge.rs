@@ -13,30 +13,64 @@ pub enum BadgeVariant {
     Accent,
     /// 失敗・危険の赤
     Danger,
+    /// 口座の特定
+    AccountSpecific,
+    /// 口座の一般・対応表にない中立
+    AccountGeneral,
+    /// 口座のNISA系
+    AccountNisa,
+    /// 口座の旧NISA
+    AccountOldNisa,
+    /// 銘柄コードの札
+    Code,
+    /// 背景なしの銘柄コード
+    CodeFlush,
+    /// タブ横の件数
+    Count,
 }
 
 impl BadgeVariant {
     fn class(self) -> &'static str {
         match self {
-            Self::Positive => {
-                "inline-flex items-center rounded bg-positive-softer px-1.5 py-0.5 text-xs font-medium text-positive"
-            }
-            Self::Info => {
-                "inline-flex items-center rounded bg-info-soft px-1.5 py-0.5 text-xs font-medium text-info"
-            }
-            Self::Accent => {
-                "inline-flex items-center rounded bg-accent-soft px-1.5 py-0.5 text-xs font-medium text-accent-text"
-            }
-            Self::Danger => {
-                "inline-flex items-center rounded bg-negative-soft px-1.5 py-0.5 text-xs font-medium text-negative-vivid"
-            }
+            Self::Positive => "badge badge-positive",
+            Self::Info => "badge badge-info",
+            Self::Accent => "badge badge-accent",
+            Self::Danger => "badge badge-danger",
+            Self::AccountSpecific => "badge badge-account badge-account-specific",
+            Self::AccountGeneral => "badge badge-account",
+            Self::AccountNisa => "badge badge-account badge-account-nisa",
+            Self::AccountOldNisa => "badge badge-account badge-account-old-nisa",
+            Self::Code => "badge badge-code",
+            Self::CodeFlush => "badge badge-code-flush",
+            Self::Count => "badge badge-count",
         }
     }
 }
 
 #[component]
-pub fn Badge(variant: BadgeVariant, children: Children) -> impl IntoView {
-    view! { <span class=variant.class()>{children()}</span> }
+pub fn Badge(
+    variant: BadgeVariant,
+    #[prop(into, optional)] class: Signal<String>,
+    #[prop(into, optional)] testid: String,
+    children: Children,
+) -> impl IntoView {
+    let testid_attr = testid.clone();
+    view! {
+        <span
+            class=move || {
+                let extra = class.get();
+                let base = variant.class();
+                if extra.is_empty() {
+                    base.to_string()
+                } else {
+                    format!("{base} {extra}")
+                }
+            }
+            data-testid=move || (!testid_attr.is_empty()).then(|| testid_attr.clone())
+        >
+            {children()}
+        </span>
+    }
 }
 
 /// 口座区分の表示名。証券会社 CSV 由来の長い名称を短い札向けの表記に直す。
@@ -60,18 +94,18 @@ pub fn account_display_name(value: &str) -> &str {
 #[component]
 pub fn AccountBadge(#[prop(into)] label: String) -> impl IntoView {
     let label = account_display_name(&label).to_string();
-    let class = account_badge_class(&label);
-    view! { <span class=class>{label}</span> }
+    let variant = account_badge_variant(&label);
+    view! { <Badge variant=variant>{label}</Badge> }
 }
 
 /// 口座名の配色。連結した口座名(「特定・一般」)は単独の口座名ではないので
 /// 一般と同じ中立色になる
-fn account_badge_class(label: &str) -> &'static str {
+fn account_badge_variant(label: &str) -> BadgeVariant {
     match label {
-        labels::ACCOUNT_SPECIFIC => "account-badge account-badge-specific",
-        labels::ACCOUNT_OLD_NISA => "account-badge account-badge-old-nisa",
-        _ if label.contains("NISA") => "account-badge account-badge-nisa",
-        _ => "account-badge",
+        labels::ACCOUNT_SPECIFIC => BadgeVariant::AccountSpecific,
+        labels::ACCOUNT_OLD_NISA => BadgeVariant::AccountOldNisa,
+        _ if label.contains("NISA") => BadgeVariant::AccountNisa,
+        _ => BadgeVariant::AccountGeneral,
     }
 }
 
@@ -82,25 +116,15 @@ pub fn CodeBadge(
     #[prop(optional)] testid: Option<&'static str>,
     children: Children,
 ) -> impl IntoView {
-    let base = if flush {
-        "code-badge-flush"
+    let variant = if flush {
+        BadgeVariant::CodeFlush
     } else {
-        "code-badge"
+        BadgeVariant::Code
     };
     view! {
-        <span
-            class=move || {
-                let extra = class.get();
-                if extra.is_empty() {
-                    base.to_string()
-                } else {
-                    format!("{base} {extra}")
-                }
-            }
-            data-testid=testid
-        >
+        <Badge variant=variant class=class testid=testid.unwrap_or_default()>
             {children()}
-        </span>
+        </Badge>
     }
 }
 

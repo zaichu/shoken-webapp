@@ -456,12 +456,34 @@
     @apply inline-flex items-center justify-between gap-1 whitespace-nowrap rounded-md border border-border-subtle bg-surface px-3 py-2 text-sm font-medium text-text-deep transition-colors hover:border-text-deep hover:bg-surface-sunken max-sm:min-h-11 max-sm:px-2 max-sm:text-xs;
   }
 
-  .code-badge {
-    @apply inline-flex shrink-0 items-center rounded-full bg-info-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-info;
+  /* 小さな札は Badge 部品の種別で表す。角丸・余白・文字の太さの差は
+     variant の定義に集め、呼び出し側にクラスを直書きしない */
+  .badge {
+    @apply inline-flex items-center text-xs;
   }
 
-  .code-badge-flush {
-    @apply inline-flex shrink-0 items-center text-xs font-semibold tabular-nums text-info;
+  .badge-positive {
+    @apply rounded bg-positive-softer px-1.5 py-0.5 font-medium text-positive;
+  }
+
+  .badge-info {
+    @apply rounded bg-info-soft px-1.5 py-0.5 font-medium text-info;
+  }
+
+  .badge-accent {
+    @apply rounded bg-accent-soft px-1.5 py-0.5 font-medium text-accent-text;
+  }
+
+  .badge-danger {
+    @apply rounded bg-negative-soft px-1.5 py-0.5 font-medium text-negative-vivid;
+  }
+
+  .badge-code {
+    @apply shrink-0 rounded-full bg-info-soft px-2 py-0.5 font-semibold tabular-nums text-info;
+  }
+
+  .badge-code-flush {
+    @apply shrink-0 font-semibold tabular-nums text-info;
   }
 
   .security-code-link {
@@ -529,8 +551,9 @@
     }
   }
 
-  .page-tab-count {
-    @apply text-[11px] font-medium tabular-nums;
+  .badge-count {
+    @apply font-medium tabular-nums;
+    font-size: 11px;
   }
 
   /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す */
@@ -550,14 +573,15 @@
   }
 
   @media (width >= 64rem) {
-    .page-tab-count {
-      @apply bg-row-group text-xs text-text-soft;
+    .badge-count {
+      @apply bg-row-group text-text-soft;
       border-radius: 9px;
       padding: 0 7px;
       line-height: 18px;
+      font-size: 12px;
     }
 
-    .page-tab[aria-selected="true"] .page-tab-count {
+    .page-tab[aria-selected="true"] .badge-count {
       @apply bg-gold font-bold text-brand;
     }
   }
@@ -1154,25 +1178,25 @@
 
   /* 口座区分の札。配色は --color-badge-* トークンで種類(特定・一般・NISA系・旧NISA)
      ごとに決め、枠を付けてどの面の上でも地に溶けないようにする */
-  .account-badge {
-    @apply inline-flex items-center rounded-lg border border-badge-general-border bg-badge-general px-1.5 text-xs text-badge-general-text;
+  .badge-account {
+    @apply rounded-lg border border-badge-general-border bg-badge-general px-1.5 text-badge-general-text;
     line-height: 18px;
   }
 
   /* PC の表ではバッジを折り返さず1行で出す(列は内容に合わせて広がる) */
-  .receipts-table .account-badge {
+  .receipts-table .badge-account {
     @apply whitespace-nowrap;
   }
 
-  .account-badge-specific {
+  .badge-account-specific {
     @apply border-badge-specific-border bg-badge-specific text-badge-specific-text;
   }
 
-  .account-badge-nisa {
+  .badge-account-nisa {
     @apply border-badge-nisa-border bg-badge-nisa text-badge-nisa-text;
   }
 
-  .account-badge-old-nisa {
+  .badge-account-old-nisa {
     @apply border-badge-old-nisa-border bg-badge-old-nisa text-badge-old-nisa-text;
   }
 
@@ -1866,7 +1890,7 @@
 }
 
 /* 表の中ではコードバッジを詰める(等幅数字に 0.16em の字間は要らない) */
-.receipt-table .code-badge {
+.receipt-table .badge-code {
   @apply px-1 tracking-normal;
 }
 
