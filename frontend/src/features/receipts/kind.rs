@@ -24,6 +24,7 @@ use crate::support::list_search::support::{ColumnReorderRule, group_and_summariz
 use crate::support::pagination::{ListEndpoint, fetch_all_pages};
 use crate::support::row::Row;
 use crate::ui::format::format_iso_date;
+use crate::ui::labels::{receipt_year_month_day_label, receipt_year_month_label};
 use shared::format::{format_currency, format_number};
 
 /// 取引明細の一覧行。保存済み(DB の行)を包む。
@@ -568,12 +569,12 @@ pub(crate) fn group_label(key: &str) -> String {
     }
     let parts: Vec<_> = key.split('-').collect();
     match parts.as_slice() {
-        [year, month, day] => format!(
-            "{year}年{}月{}日",
+        [year, month, day] => receipt_year_month_day_label(
+            year,
             month.parse::<u32>().unwrap_or(0),
-            day.parse::<u32>().unwrap_or(0)
+            day.parse::<u32>().unwrap_or(0),
         ),
-        [year, month] => format!("{year}年{}月", month.parse::<u32>().unwrap_or(0)),
+        [year, month] => receipt_year_month_label(year, month.parse::<u32>().unwrap_or(0)),
         _ => key.to_string(),
     }
 }

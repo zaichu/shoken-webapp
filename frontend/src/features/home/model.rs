@@ -11,7 +11,9 @@ use crate::features::asset_balance::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::account_display_name;
 use crate::ui::format::date_parts;
-use crate::ui::labels;
+use crate::ui::labels::{
+    self, DOMESTIC_STOCK, HOME_REMAINING_EMPTY, MUTUAL_FUND, home_remaining, home_remaining_over,
+};
 use rust_decimal::Decimal;
 use shared::tax::TAX_RATE;
 
@@ -258,11 +260,9 @@ pub(crate) fn build_dividend_card(
 /// 「予想を N 上回り」に書き分ける
 pub(crate) fn remaining_label(remaining: Option<f64>) -> String {
     match remaining {
-        Some(value) if value < 0.0 => {
-            format!("予想を {} 上回り", format_valuation_amount(Some(-value)))
-        }
-        Some(value) => format!("残り {}", format_valuation_amount(Some(value))),
-        None => "残り —".to_string(),
+        Some(value) if value < 0.0 => home_remaining_over(&format_valuation_amount(Some(-value))),
+        Some(value) => home_remaining(&format_valuation_amount(Some(value))),
+        None => HOME_REMAINING_EMPTY.to_string(),
     }
 }
 
@@ -284,11 +284,11 @@ pub(crate) struct CompositionSlice {
 pub(crate) fn product_slices(stock_market: f64, fund_market: f64) -> Vec<CompositionSlice> {
     let mut slices = vec![
         CompositionSlice {
-            label: "国内株式".to_string(),
+            label: DOMESTIC_STOCK.to_string(),
             amount: stock_market,
         },
         CompositionSlice {
-            label: "投資信託".to_string(),
+            label: MUTUAL_FUND.to_string(),
             amount: fund_market,
         },
     ];

@@ -16,17 +16,15 @@ use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::format::format_percentage_value;
 use crate::ui::labels::{
-    AFTER_TAX_AND_YIELD, AVERAGE_PURCHASE_PRICE, DIVIDEND_AMOUNT_AND_YIELD, HOLDING_QUANTITY_CARD,
-    MISSING, PER_SHARE_DIVIDEND_CARD, TAX,
+    AFTER_TAX_AND_YIELD, AVERAGE_PURCHASE_PRICE, CSV_MANAGE_FETCH_RUNNING,
+    DIVIDEND_AMOUNT_AND_YIELD, DIVIDEND_AUTO_HINT, DIVIDEND_BALANCE_HINT, DIVIDEND_HELD_BADGE,
+    DIVIDEND_SUMMARY_TITLE, HOLDING_QUANTITY_CARD, MISSING, PER_SHARE_DIVIDEND_CARD, TAX,
 };
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use shared::format::{format_currency, format_number};
 use shared::normalize::normalize_security_code;
-
-const ASSET_BALANCE_HINT: &str = "資産管理にCSVを取り込むと表示されます";
-const JQUANTS_HINT: &str = "自動で取得されます";
 
 pub(crate) fn search_security_code(rows: &[ReceiptRow], query: &str) -> String {
     let code = derive_security_code_from_query(query, rows, |row| row.code(), |row| row.name());
@@ -51,7 +49,7 @@ fn dividend_rate(amount: f64, investment: f64) -> f64 {
 
 fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
     if loading {
-        "取得中...".to_string()
+        CSV_MANAGE_FETCH_RUNNING.to_string()
     } else {
         per_share
             .and_then(|value| value.to_string().parse::<Decimal>().ok())
@@ -186,7 +184,7 @@ impl DividendInfoStore {
 
 #[component]
 fn AssetBadge() -> impl IntoView {
-    view! { <Badge variant=BadgeVariant::Positive>"保有銘柄"</Badge> }
+    view! { <Badge variant=BadgeVariant::Positive>{DIVIDEND_HELD_BADGE}</Badge> }
 }
 
 #[component]
@@ -246,21 +244,21 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                 <StatCard
                     label=AVERAGE_PURCHASE_PRICE
                     title_hint=true
-                    hint=Some(Signal::derive(move || asset().is_none().then_some(ASSET_BALANCE_HINT)))
+                    hint=Some(Signal::derive(move || asset().is_none().then_some(DIVIDEND_BALANCE_HINT)))
                 >
                     {average_price_text}
                 </StatCard>
                 <StatCard
                     label=HOLDING_QUANTITY_CARD
                     title_hint=true
-                    hint=Some(Signal::derive(move || asset().is_none().then_some(ASSET_BALANCE_HINT)))
+                    hint=Some(Signal::derive(move || asset().is_none().then_some(DIVIDEND_BALANCE_HINT)))
                 >
                     {shares_text}
                 </StatCard>
                 <StatCard
                     label=PER_SHARE_DIVIDEND_CARD
                     hint=Some(Signal::derive(move || {
-                        (!loading() && per_share().is_none()).then_some(JQUANTS_HINT)
+                        (!loading() && per_share().is_none()).then_some(DIVIDEND_AUTO_HINT)
                     }))
                 >
                     {per_share_text}
@@ -318,7 +316,7 @@ pub(crate) fn DividendSummarySection(
     expanded: RwSignal<bool>,
     mobile_expanded: RwSignal<bool>,
 ) -> impl IntoView {
-    let title = "集計情報";
+    let title = DIVIDEND_SUMMARY_TITLE;
     let totals_mobile = totals.clone();
     view! {
         <Card variant=CardVariant::Collapsible testid="receipt-summary-strip" class=Signal::derive(move || {

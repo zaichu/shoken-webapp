@@ -4,9 +4,10 @@ use super::{
 use crate::support::list_search::support::ColumnReorderRule;
 use crate::ui::labels::{
     ACCOUNT, ACQUISITION_PRICE, AFTER_TAX, DIVIDEND_AMOUNT, DOMESTIC_STOCK, FUND_NAME, MUTUAL_FUND,
-    PAYMENT_DATE, PER_SHARE_DIVIDEND, PRODUCT, QUANTITY, REALIZED_PROFIT_LOSS, REDEMPTION_AMOUNT,
-    REDEMPTION_UNIT_PRICE, SECURITY_CODE, SECURITY_NAME, SELLING_AMOUNT, SELLING_UNIT_PRICE, TAX,
-    TRADE_DATE,
+    PAYMENT_DATE, PER_SHARE_DIVIDEND, PRODUCT, QUANTITY, REALIZED_PROFIT_LOSS,
+    RECEIPT_DIVIDEND_EMPTY_HINT, RECEIPT_FUND_EMPTY_HINT, RECEIPT_STOCK_EMPTY_HINT,
+    REDEMPTION_AMOUNT, REDEMPTION_UNIT_PRICE, SECURITY_CODE, SECURITY_NAME, SELLING_AMOUNT,
+    SELLING_UNIT_PRICE, TAX, TRADE_DATE,
 };
 use rust_decimal::Decimal;
 
@@ -91,7 +92,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
             col(AFTER_TAX, ColumnTier::Core, ColumnAlign::Right),
         ],
         header_items: [(DIVIDEND_AMOUNT, false), (TAX, false), (AFTER_TAX, true)],
-        empty_hint: "配当金明細をCSVで追加してください",
+        empty_hint: RECEIPT_DIVIDEND_EMPTY_HINT,
         string_fields: &[
             ReceiptRow::code,
             ReceiptRow::name,
@@ -162,7 +163,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
             (TAX, false),
             (AFTER_TAX, true),
         ],
-        empty_hint: "国内株式明細をCSVで追加してください",
+        empty_hint: RECEIPT_STOCK_EMPTY_HINT,
         string_fields: &[ReceiptRow::code, ReceiptRow::name, ReceiptRow::account],
         search_amounts: &[
             |row| row.search_amount(0),
@@ -216,7 +217,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
             (TAX, false),
             (AFTER_TAX, true),
         ],
-        empty_hint: "投資信託明細をCSVで追加してください",
+        empty_hint: RECEIPT_FUND_EMPTY_HINT,
         string_fields: &[ReceiptRow::name, ReceiptRow::account],
         search_amounts: &[],
         product_category: false,
