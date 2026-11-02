@@ -9,7 +9,6 @@ use crate::ui::format::{days_since_jst_date, format_iso_date, format_jst_time, f
 use crate::ui::labels;
 use leptos::ev;
 use leptos::html;
-use leptos::portal::Portal;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -529,7 +528,6 @@ fn CsvKindRow(
             let count = delete_count.get();
             let range = date_range.get().map(|(min, max)| format!("{min} 〜 {max}"));
             view! {
-                <Portal>
                 <ConfirmDeleteModal
                     title=labels::csv_manage_delete_confirm_title(kind.label())
                     description=labels::csv_manage_delete_confirm_description(
@@ -547,7 +545,6 @@ fn CsvKindRow(
                     on_confirm=confirm_delete
                     on_cancel=cancel_delete
                 />
-                </Portal>
             }
         })}
     }

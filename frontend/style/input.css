@@ -654,27 +654,26 @@
     }
   }
 
-  /* ダイアログ・シートの共通の枠(角丸・枠線・背景・影・最大高さ)。
-     中央ダイアログ(DialogShell)と条件の小窓(PC)で共有し、
-     スマホのシートは配置と下端の形だけ上書きする */
+  /* ダイアログの共通の枠(角丸・枠線・背景・影・最大高さ)。
+     中央ダイアログ(DialogShell)・条件ダイアログ・確認ダイアログで共有する。
+     配置は中央の根(search-dialog-root か確認モーダルの flex 中央)の1か所に集め、
+     面の高さを超えた分だけ面の中がスクロールする(後ろは動かさない) */
   .dialog-panel {
     @apply rounded-xl border border-border bg-surface shadow-elevation-2;
     max-height: 88vh;
     max-height: 88dvh;
   }
 
-  /* 小窓(PC)と下から出るシート(スマホ)。構造は共通で、どちらも fixed。
-     PC は JS が「条件を足す」行の座標を top/left に写してボタンの直下に出し、
-     スマホは画面下端に固定する。fixed は祖先の relative や overflow-clip な面に
-     左右されないため、どのページでも同じ位置に出る。背景は PC では外側
-     クリックを受ける透明な面、スマホでは下地を暗くする幕 */
+  /* 条件ダイアログの背景。中央ダイアログと同じく下地を暗くする。
+     旧名の互換のため残すが、配置は search-dialog-root の中央に任せる */
   .condition-backdrop {
-    @apply fixed inset-0 z-40;
+    @apply fixed inset-0 z-40 bg-scrim/50;
   }
 
   .condition-panel {
-    @apply fixed z-50 mt-2 p-4;
+    @apply relative z-50 flex w-full flex-col overflow-y-auto p-4;
     width: min(26rem, calc(100vw - 2rem));
+    overscroll-behavior: contain;
   }
 
   .condition-panel-title {
@@ -712,6 +711,7 @@
 
   .condition-option-list {
     @apply mt-2 flex max-h-72 flex-wrap gap-1.5 overflow-y-auto;
+    overscroll-behavior: contain;
   }
 
   .condition-option {
@@ -731,15 +731,6 @@
   }
 
   @media (width < 64rem) {
-    .condition-backdrop {
-      @apply bg-scrim/50;
-    }
-
-    .dialog-panel.condition-panel {
-      @apply fixed inset-x-0 bottom-0 top-auto mt-0 rounded-b-none rounded-t-2xl border-b-0 border-t-border-strong pt-3 shadow-sheet-up;
-      padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
-    }
-
     .condition-panel-actions > button {
       @apply min-h-11 w-full;
     }
@@ -770,6 +761,7 @@
 
   .search-dialog-body {
     @apply flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-3;
+    overscroll-behavior: contain;
   }
 
   .search-dialog-section-title {
@@ -818,6 +810,7 @@
 
   .detail-dialog-body {
     @apply min-h-0 flex-1 overflow-y-auto px-4 py-3;
+    overscroll-behavior: contain;
   }
 
   .detail-dialog-grid {
