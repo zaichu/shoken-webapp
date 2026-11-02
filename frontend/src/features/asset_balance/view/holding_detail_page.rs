@@ -14,11 +14,7 @@ use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, unit_price_decimals,
 };
-use crate::ui::labels::{
-    ACCOUNT, ACQUISITION_BASIS_YIELD, ANNUAL_DIVIDEND_REFERENCE, AVERAGE_PRICE, CURRENT_PRICE,
-    MARKET_VALUE, MISSING, PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY, TOTAL_ACQUISITION,
-    VALUATION_PROFIT_LOSS,
-};
+use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
@@ -67,9 +63,9 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
     };
     view! {
         <PageFrame
-            title="保有銘柄詳細"
+            title=labels::ASSET_HOLDING_DETAIL_TITLE
             back_href="/assetbalance"
-            back_label="資産管理に戻る"
+            back_label=labels::ASSET_BALANCE_BACK
         >
             <div class="flex flex-1 flex-col">
                 {move || {
@@ -79,7 +75,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                             view! {
                                 <div class="no-print mb-3">
                                     <Alert variant=AlertVariant::Danger>
-                                        <strong>"エラー:"</strong>
+                                        <strong>{labels::ERROR_PREFIX}</strong>
                                         " "
                                         {message}
                                     </Alert>
@@ -111,7 +107,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                 None => {
                                     view! {
                                         <div class="px-4 py-4">
-                                            <EmptyState title="銘柄が見つかりません" />
+                                            <EmptyState title=labels::ASSET_HOLDING_NOT_FOUND />
                                         </div>
                                     }
                                         .into_any()
@@ -136,7 +132,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                     );
                                     let dividend_annual = format_dividend_annual(&dividend);
                                     let dividend_yield = format_dividend_yield(&dividend);
-                                    let shares_text = format!("{}株", format_number_value(holding_view.shares));
+                                    let shares_text = labels::stock_shares_label(&format_number_value(holding_view.shares));
                                     let average_price_text = format_currency(holding_view.average_price);
                                     let purchase_text = format_currency(holding_view.purchase);
                                     let current_price_text = format_currency(holding_view.current_price);
@@ -153,23 +149,23 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                             </div>
                                             <dl class="divide-y divide-border-faint">
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{CURRENT_PRICE}</dt>
+                                                    <dt class="text-text-muted">{labels::CURRENT_PRICE}</dt>
                                                     <dd class="tabular-nums text-text">
                                                         {current_price_text}
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{PRICE_AS_OF}</dt>
+                                                    <dt class="text-text-muted">{labels::PRICE_AS_OF}</dt>
                                                     <dd class="text-text">
                                                         {price_as_of
                                                             .map_or_else(
-                                                                || MISSING.to_string(),
+                                                                || labels::MISSING.to_string(),
                                                                 |date| format_iso_date(&date),
                                                             )}
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{ACCOUNT}</dt>
+                                                    <dt class="text-text-muted">{labels::ACCOUNT}</dt>
                                                     <dd class="text-text">
                                                         {holding_view
                                                             .account
@@ -178,27 +174,27 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                                 view! { <AccountBadge label=value /> }
                                                                     .into_any()
                                                             })
-                                                            .unwrap_or_else(|| MISSING.into_any())}
+                                                            .unwrap_or_else(|| labels::MISSING.into_any())}
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{QUANTITY}</dt>
+                                                    <dt class="text-text-muted">{labels::QUANTITY}</dt>
                                                     <dd class="tabular-nums text-text">{shares_text}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{AVERAGE_PRICE}</dt>
+                                                    <dt class="text-text-muted">{labels::AVERAGE_PRICE}</dt>
                                                     <dd class="tabular-nums text-text">{average_price_text}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{TOTAL_ACQUISITION}</dt>
+                                                    <dt class="text-text-muted">{labels::TOTAL_ACQUISITION}</dt>
                                                     <dd class="tabular-nums text-text">{purchase_text}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{MARKET_VALUE}</dt>
+                                                    <dt class="text-text-muted">{labels::MARKET_VALUE}</dt>
                                                     <dd class="tabular-nums font-bold text-text">{market_text}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{VALUATION_PROFIT_LOSS}</dt>
+                                                    <dt class="text-text-muted">{labels::VALUATION_PROFIT_LOSS}</dt>
                                                     <dd>
                                                         <Amount
                                                             kind=AmountKind::Delta
@@ -213,15 +209,15 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{PER_SHARE_DIVIDEND}</dt>
+                                                    <dt class="text-text-muted">{labels::PER_SHARE_DIVIDEND}</dt>
                                                     <dd class="tabular-nums text-text">{dividend_per_share}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{ANNUAL_DIVIDEND_REFERENCE}</dt>
+                                                    <dt class="text-text-muted">{labels::ANNUAL_DIVIDEND_REFERENCE}</dt>
                                                     <dd class="tabular-nums text-text">{dividend_annual}</dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{ACQUISITION_BASIS_YIELD}</dt>
+                                                    <dt class="text-text-muted">{labels::ACQUISITION_BASIS_YIELD}</dt>
                                                     <dd class="tabular-nums text-text">{dividend_yield}</dd>
                                                 </div>
                                             </dl>

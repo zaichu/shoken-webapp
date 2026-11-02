@@ -6,6 +6,7 @@ use crate::api::dto::{FundBalance, FundPriceSource};
 use crate::features::asset_balance::format::dec_to_f64;
 use crate::support::csv_flow::CsvChunking;
 use crate::support::row::Row;
+use crate::ui::labels;
 use rust_decimal::Decimal;
 
 pub const FUND_LIST_PATH: &str = "/api/v1/fund-balances";
@@ -18,7 +19,7 @@ pub const FUND_CSV_CHUNKING: CsvChunking = CsvChunking {
     header_lines: 6,
     import_chunked: false,
     preview_chunked: true,
-    header_marker: Some("投資信託種別"),
+    header_marker: Some(labels::FUND_KIND),
 };
 
 /// 資産管理で扱う保有の種別。一覧の切り替えと CSV の判別に使う
@@ -35,9 +36,9 @@ impl AssetKind {
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            AssetKind::All => "すべて",
-            AssetKind::Stock => "国内株式",
-            AssetKind::Fund => "投資信託",
+            AssetKind::All => labels::ALL,
+            AssetKind::Stock => labels::DOMESTIC_STOCK,
+            AssetKind::Fund => labels::MUTUAL_FUND,
         }
     }
 
@@ -262,18 +263,16 @@ impl FundView {
         };
         let as_of = self.price_as_of.as_deref().map(mmdd);
         let source = match self.price_source {
-            FundPriceSource::Api => "自動更新",
-            FundPriceSource::Csv => "CSV 取り込み",
+            FundPriceSource::Api => labels::FUND_PRICE_SOURCE_AUTO,
+            FundPriceSource::Csv => labels::FUND_PRICE_SOURCE_CSV,
         };
         if self.is_nav_latest {
-            as_of.map(|d| format!("{source} {d} の前日比"))
+            as_of.map(|d| labels::fund_day_change_title(source, &d))
         } else {
             let expected = self.expected_nav_date.as_deref().map(mmdd);
             match (expected, as_of) {
-                (Some(e), Some(a)) => Some(format!(
-                    "更新待ち: 最新の基準価額の日は {e}、この値は{source} {a}"
-                )),
-                _ => Some("更新待ち".to_string()),
+                (Some(e), Some(a)) => Some(labels::fund_pending_detail(&e, source, &a)),
+                _ => Some(labels::PENDING_UPDATE.to_string()),
             }
         }
     }
@@ -404,10 +403,10 @@ impl FundSortKey {
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            FundSortKey::MarketValue => "評価額",
-            FundSortKey::ProfitLoss => "評価損益",
-            FundSortKey::Shares => "保有口数",
-            FundSortKey::BasePrice => "基準価額",
+            FundSortKey::MarketValue => labels::MARKET_VALUE,
+            FundSortKey::ProfitLoss => labels::VALUATION_PROFIT_LOSS,
+            FundSortKey::Shares => labels::FUND_SHARES,
+            FundSortKey::BasePrice => labels::BASE_PRICE,
         }
     }
 

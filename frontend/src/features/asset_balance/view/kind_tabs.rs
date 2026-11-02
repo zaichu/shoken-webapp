@@ -1,4 +1,5 @@
 use crate::features::asset_balance::fund::AssetKind;
+use crate::ui::labels;
 use crate::ui::underline_tabs::{
     SwipeMotion, focus_tab_by_id, next_tab_index, prefers_reduced_motion,
     swipe_should_ignore_input, tab_ink_offset,
@@ -33,7 +34,7 @@ pub(crate) fn AssetKindTabs(
         <div
             class="page-tab-list no-print relative"
             role="tablist"
-            aria-label="保有の種類"
+            aria-label=labels::ASSET_KIND_TABS_LABEL
             data-testid="asset-kind-tabs"
             data-swiping=move || motion.dragging.get().to_string()
         >

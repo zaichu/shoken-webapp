@@ -1,4 +1,5 @@
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::dialog::{focus_without_scroll, move_root_to_body, use_page_scroll_lock};
 use crate::ui::focus::trap_focus;
 use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::prelude::*;
@@ -18,9 +19,12 @@ pub fn ConfirmDeleteModal(
     on_cancel: impl Fn() + Clone + 'static,
 ) -> impl IntoView {
     let cancel_button_ref = NodeRef::<leptos::html::Button>::new();
+    let root_ref = NodeRef::<leptos::html::Div>::new();
+    use_page_scroll_lock();
+    move_root_to_body(root_ref);
     Effect::new(move |_| {
         if let Some(button) = cancel_button_ref.get() {
-            let _ = button.focus();
+            focus_without_scroll(&button);
         }
     });
     // 削除要求が飛んでいる間に閉じると結果を追えなくなるため、閉じ操作は完了まで無効化する
@@ -36,6 +40,7 @@ pub fn ConfirmDeleteModal(
     view! {
         <div
             class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 p-4"
+            node_ref=root_ref
             on:click=move |_| overlay_cancel()
             on:keydown=move |event| {
                 if event.key() == "Escape" {
@@ -57,7 +62,7 @@ pub fn ConfirmDeleteModal(
                 role="presentation"
                 on:click=move |event| event.stop_propagation()
             >
-                <div class="rounded-lg bg-surface shadow-lg">
+                <div class="dialog-panel flex w-full flex-col overflow-hidden">
                     <div class="flex items-center justify-between border-b border-border px-4 py-3">
                         <h5 id="confirm-delete-title" class="text-negative font-semibold">
                             {title}
@@ -70,7 +75,7 @@ pub fn ConfirmDeleteModal(
                             "閉じる"
                         </Button>
                     </div>
-                    <div id="confirm-delete-desc" class="px-4 py-4 text-base text-text-deep">
+                    <div id="confirm-delete-desc" class="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-base text-text-deep">
                         <p>{description}</p>
                         {item_count
                             .map(|count| {

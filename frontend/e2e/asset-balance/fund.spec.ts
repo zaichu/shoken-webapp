@@ -96,7 +96,7 @@ async function setupMocks(page: Page) {
   });
 }
 
-test('PC: 「条件を足す」の小窓はどのボタンでもその行の直下に出る', async ({
+test('PC: 条件ダイアログはどのボタンでも表示領域の中央に出る', async ({
   page,
 }) => {
   await setupMocks(page);
@@ -111,19 +111,16 @@ test('PC: 「条件を足す」の小窓はどのボタンでもその行の直�
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    const button = await trigger.boundingBox();
     const panel = await dialog.boundingBox();
-    expect(button).not.toBeNull();
     expect(panel).not.toBeNull();
-    if (!button || !panel) {
+    if (!panel) {
       return;
     }
-    // ボタンのすぐ下に出る(Issue #1416: 画面左下に離れて出ていた)
-    expect(panel.y).toBeGreaterThanOrEqual(button.y + button.height - 1);
-    expect(panel.y - (button.y + button.height)).toBeLessThan(40);
-    // 横方向はボタンと重なる(直下に出ていること)
-    expect(panel.x).toBeLessThan(button.x + button.width);
-    expect(panel.x + panel.width).toBeGreaterThan(button.x);
+    // 表示領域の中央付近に出る(厳密な寸法ではなく利用者から見た中央性)
+    const centerX = panel.x + panel.width / 2;
+    const centerY = panel.y + panel.height / 2;
+    expect(Math.abs(centerX - 640)).toBeLessThan(60);
+    expect(Math.abs(centerY - 400)).toBeLessThan(80);
 
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
