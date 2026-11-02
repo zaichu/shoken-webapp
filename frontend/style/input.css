@@ -178,6 +178,17 @@
     font-weight: 500;
   }
 
+  /* 紺地では Amount の通常の正負色が見えにくいため明るい色に寄せる。
+     同じ base 層に置くと詳細度で既定に勝てる(別層だと !important 同士でも
+     層の順序で負ける)。text-positive 側は utilities 層の通常指定にも勝つ */
+  .summary-band .text-positive {
+    color: var(--color-profit-bright) !important;
+  }
+
+  .summary-band [data-negative="true"] {
+    color: var(--color-loss-bright) !important;
+  }
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -1017,15 +1028,6 @@
 
   .summary-band-breakdown-value {
     @apply flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right text-sm font-bold tabular-nums;
-  }
-
-  /* 紺地では Amount の通常の正負色が見えにくいため明るい色に寄せる */
-  .summary-band .text-positive {
-    color: var(--color-profit-bright);
-  }
-
-  .summary-band [data-negative="true"] {
-    color: var(--color-loss-bright) !important;
   }
 
   /* PC Receipts Table (compact mobile desktop view) */
