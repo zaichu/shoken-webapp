@@ -10,11 +10,7 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{format_currency, format_iso_date, format_number_value};
-use crate::ui::labels::{
-    AVERAGE_ACQUISITION_PRICE, BASE_PRICE, BASE_PRICE_AS_OF, BASE_PRICE_DAY_CHANGE,
-    BASE_PRICE_MONTH_CHANGE, CSV_IMPORTED_AT, FUND_SHARES, MARKET_VALUE, MISSING, PENDING_UPDATE,
-    TOTAL_ACQUISITION, TOTAL_RETURN, VALUATION_PROFIT_LOSS,
-};
+use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
@@ -62,9 +58,9 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
     };
     view! {
         <PageFrame
-            title="保有ファンド詳細"
+            title=labels::ASSET_FUND_DETAIL_TITLE
             back_href="/assetbalance"
-            back_label="資産管理に戻る"
+            back_label=labels::ASSET_BALANCE_BACK
         >
             <div class="flex flex-1 flex-col">
                 {move || {
@@ -74,7 +70,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                             view! {
                                 <div class="no-print mb-3">
                                     <Alert variant=AlertVariant::Danger>
-                                        <strong>"エラー:"</strong>
+                                        <strong>{labels::ERROR_PREFIX}</strong>
                                         " "
                                         {message}
                                     </Alert>
@@ -105,7 +101,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                 None => {
                                     view! {
                                         <div class="px-4 py-4">
-                                            <EmptyState title="ファンドが見つかりません" />
+                                            <EmptyState title=labels::ASSET_FUND_NOT_FOUND />
                                         </div>
                                     }
                                         .into_any()
@@ -113,7 +109,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                 Some(row) => {
                                     let view = fund_view(row);
                                     let shares_text =
-                                        format!("{}口", format_number_value(view.shares));
+                                        labels::fund_units_label(&format_number_value(view.shares));
                                     let average_price_text =
                                         format_currency(view.average_purchase_price);
                                     let purchase_text = format_currency(view.purchase);
@@ -129,26 +125,26 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                     let pnl_positive =
                                         is_positive_valuation(Some(view.profit_loss));
                                     let day_text = if view.nav_pending() {
-                                        PENDING_UPDATE.to_string()
+                                        labels::PENDING_UPDATE.to_string()
                                     } else {
                                         view.base_price_day_change
                                             .map(|value| {
                                                 format_signed_row_valuation_amount(Some(value))
                                             })
-                                            .unwrap_or_else(|| MISSING.to_string())
+                                            .unwrap_or_else(|| labels::MISSING.to_string())
                                     };
                                     let month_text = view
                                         .base_price_month_change
                                         .map(|value| {
                                             format_signed_row_valuation_amount(Some(value))
                                         })
-                                        .unwrap_or_else(|| MISSING.to_string());
+                                        .unwrap_or_else(|| labels::MISSING.to_string());
                                     let total_return_text = view
                                         .total_return
                                         .map(|value| {
                                             format_signed_row_valuation_amount(Some(value))
                                         })
-                                        .unwrap_or_else(|| MISSING.to_string());
+                                        .unwrap_or_else(|| labels::MISSING.to_string());
                                     let day_negative = is_negative_valuation(view.base_price_day_change);
                                     let day_positive = is_positive_valuation(view.base_price_day_change);
                                     let month_negative = is_negative_valuation(view.base_price_month_change);
@@ -157,10 +153,10 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                     let total_positive = is_positive_valuation(view.total_return);
                                     let asof_text = view
                                         .price_as_of
-                                        .map_or_else(|| MISSING.to_string(), |date| format_iso_date(&date));
+                                        .map_or_else(|| labels::MISSING.to_string(), |date| format_iso_date(&date));
                                     let asof_label = match view.price_source {
-                                        FundPriceSource::Api => BASE_PRICE_AS_OF,
-                                        FundPriceSource::Csv => CSV_IMPORTED_AT,
+                                        FundPriceSource::Api => labels::BASE_PRICE_AS_OF,
+                                        FundPriceSource::Csv => labels::CSV_IMPORTED_AT,
                                     };
                                     view! {
                                         <div class="asset-panel">
@@ -173,13 +169,13 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                     {view
                                                         .course
                                                         .clone()
-                                                        .map(|course| format!("・ {course}"))}
+                                                        .map(|course| labels::course_with_dot(&course))}
                                                 </p>
                                             </div>
                                             <dl class="divide-y divide-border-faint">
-                                                {detail_row(BASE_PRICE, base_price_text)}
+                                                {detail_row(labels::BASE_PRICE, base_price_text)}
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{BASE_PRICE_DAY_CHANGE}</dt>
+                                                    <dt class="text-text-muted">{labels::BASE_PRICE_DAY_CHANGE}</dt>
                                                     <dd>
                                                         <Amount
                                                             kind=AmountKind::Delta
@@ -191,7 +187,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{BASE_PRICE_MONTH_CHANGE}</dt>
+                                                    <dt class="text-text-muted">{labels::BASE_PRICE_MONTH_CHANGE}</dt>
                                                     <dd>
                                                         <Amount
                                                             kind=AmountKind::Delta
@@ -203,17 +199,17 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                     </dd>
                                                 </div>
                                                 {detail_row(asof_label, asof_text)}
-                                                {detail_row(FUND_SHARES, shares_text)}
-                                                {detail_row(AVERAGE_ACQUISITION_PRICE, average_price_text)}
-                                                {detail_row(TOTAL_ACQUISITION, purchase_text)}
+                                                {detail_row(labels::FUND_SHARES, shares_text)}
+                                                {detail_row(labels::AVERAGE_ACQUISITION_PRICE, average_price_text)}
+                                                {detail_row(labels::TOTAL_ACQUISITION, purchase_text)}
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{MARKET_VALUE}</dt>
+                                                    <dt class="text-text-muted">{labels::MARKET_VALUE}</dt>
                                                     <dd class="tabular-nums font-bold text-text">
                                                         {market_text}
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{VALUATION_PROFIT_LOSS}</dt>
+                                                    <dt class="text-text-muted">{labels::VALUATION_PROFIT_LOSS}</dt>
                                                     <dd>
                                                         <Amount
                                                             kind=AmountKind::Delta
@@ -228,7 +224,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                     </dd>
                                                 </div>
                                                 <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{TOTAL_RETURN}</dt>
+                                                    <dt class="text-text-muted">{labels::TOTAL_RETURN}</dt>
                                                     <dd>
                                                         <Amount
                                                             kind=AmountKind::Delta

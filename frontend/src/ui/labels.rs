@@ -686,5 +686,53 @@ pub fn home_remaining_over(amount: &str) -> String {
     format!("予想を {amount} 上回り")
 }
 
+/// 資産管理: 画面名
+pub const ASSET_BALANCE_TITLE: &str = "資産管理";
+/// 資産管理: 保有ファンド詳細の画面名
+pub const ASSET_FUND_DETAIL_TITLE: &str = "保有ファンド詳細";
+/// 資産管理: 保有銘柄詳細の画面名
+pub const ASSET_HOLDING_DETAIL_TITLE: &str = "保有銘柄詳細";
+/// 資産管理: 一覧へ戻る操作
+pub const ASSET_BALANCE_BACK: &str = "資産管理に戻る";
+/// 資産管理: 空状態の見出し
+pub const ASSET_EMPTY_TITLE: &str = "資産管理データがありません";
+/// 資産管理: 空状態の説明
+pub const ASSET_EMPTY_DESCRIPTION: &str =
+    "CSVファイルをインポートするか、データを登録してください。";
+/// 資産管理: ファンドが無いときの空表示
+pub const ASSET_FUND_NOT_FOUND: &str = "ファンドが見つかりません";
+/// 資産管理: 銘柄が無いときの空表示
+pub const ASSET_HOLDING_NOT_FOUND: &str = "銘柄が見つかりません";
+/// 注意表示の頭に付ける文言
+pub const WARNING_PREFIX: &str = "注意:";
+/// 構成比: 対象の注記
+pub const COMPOSITION_TARGET: &str = "対象: 保存済みの保有全体";
+/// 構成比: 算出できないときの表示
+pub const COMPOSITION_UNAVAILABLE: &str = "算出不可";
+/// 資産管理: 検索領域名
+pub const ASSET_SEARCH_REGION: &str = "資産の検索";
+/// タグの区切り
+pub const TAG_SEPARATOR: &str = "・";
+
+/// 株数の書き方(「100株」)
+pub fn stock_shares_label(shares: &str) -> String {
+    format!("{shares}株")
+}
+
+/// 口数の書き方(「10000口」)
+pub fn fund_units_label(units: &str) -> String {
+    format!("{units}口")
+}
+
+/// 分配金コースの表示(「・ 受取型」)
+pub fn course_with_dot(course: &str) -> String {
+    format!("・ {course}")
+}
+
+/// 構成比の基準見出し(「基準(取得総額): 」)
+pub fn composition_basis_heading(basis: &str) -> String {
+    format!("基準({basis}): ")
+}
+
 #[cfg(test)]
 mod tests;

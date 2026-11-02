@@ -14,11 +14,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{format_currency, format_fixed_percent};
-use crate::ui::labels::{
-    COMPOSITION, COMPOSITION_BASIS_LABEL, COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_LABEL,
-    MARKET_VALUE, MISSING, TOTAL_ACQUISITION, composition_accounts, composition_basis_note,
-    composition_kinds, composition_total,
-};
+use crate::ui::labels;
 use crate::ui::list_row::{ListRow, ListRowStatic};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonNote;
@@ -34,8 +30,8 @@ pub(crate) fn composition_basis(views: &[HoldingView]) -> f64 {
 }
 
 const BASIS_OPTIONS: &[(&str, &str)] = &[
-    ("market_value", MARKET_VALUE),
-    ("dividend", COMPOSITION_DIVIDEND_BASIS),
+    ("market_value", labels::MARKET_VALUE),
+    ("dividend", labels::COMPOSITION_DIVIDEND_BASIS),
 ];
 
 /// 行ごとの基準金額。算出不可は `None`。投資信託の年間配当は
@@ -131,7 +127,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
         load_fund_balances(session, generation, funds, data_ops);
     };
     view! {
-        <PageFrame title=COMPOSITION back_href="/assetbalance" back_label="資産管理に戻る">
+        <PageFrame title=labels::COMPOSITION back_href="/assetbalance" back_label=labels::ASSET_BALANCE_BACK>
             <div class="flex flex-1 flex-col">
                 {move || {
                     data_ops
@@ -140,7 +136,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                             view! {
                                 <div class="no-print mb-3">
                                     <Alert variant=AlertVariant::Danger>
-                                        <strong>"エラー:"</strong>
+                                        <strong>{labels::ERROR_PREFIX}</strong>
                                         " "
                                         {message}
                                     </Alert>
@@ -185,7 +181,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                             if views.is_empty() && fund_views.is_empty() {
                                 return view! {
                                     <div class="px-4 py-4">
-                                        <EmptyState title="データがありません" />
+                                        <EmptyState title=labels::NO_DATA />
                                     </div>
                                 }
                                     .into_any();
@@ -230,17 +226,15 @@ fn CompositionDesktop(views: Vec<HoldingView>) -> impl IntoView {
     view! {
         <div class="asset-panel">
             <div class="border-b border-border p-4">
-                <p class="text-sm text-text-muted">"対象: 保存済みの保有全体"</p>
+                <p class="text-sm text-text-muted">{labels::COMPOSITION_TARGET}</p>
                 <p class="mt-1 text-sm">
-                    "基準("
-                    {TOTAL_ACQUISITION}
-                    "): "
+                    {labels::composition_basis_heading(labels::TOTAL_ACQUISITION)}
                     <strong class="tabular-nums">{format_amount(total_purchase)}</strong>
                 </p>
             </div>
             {if total_purchase <= 0.0 {
                 view! {
-                    <div class="p-6 text-center text-text-muted">"算出不可"</div>
+                    <div class="p-6 text-center text-text-muted">{labels::COMPOSITION_UNAVAILABLE}</div>
                 }
                     .into_any()
             } else {
@@ -253,7 +247,7 @@ fn CompositionDesktop(views: Vec<HoldingView>) -> impl IntoView {
                                 let code = item.view.code.clone();
                                 let purchase = item.view.purchase;
                                 let percentage = item.percentage
-                                    .map_or(MISSING.to_string(), |p| {
+                                    .map_or(labels::MISSING.to_string(), |p| {
                                         format_fixed_percent(p, 1)
                                     });
                                 let bar_width = item.percentage
@@ -328,7 +322,7 @@ fn CompositionMobile(
             <div
                 class="page-tab-list"
                 role="tablist"
-                aria-label=COMPOSITION_GROUP_LABEL
+                aria-label=labels::COMPOSITION_GROUP_LABEL
                 data-testid="asset-composition-tabs"
             >
                 {CompositionGroup::ALL
@@ -386,7 +380,7 @@ fn CompositionMobile(
                             basis.set(CompositionBasis::MarketValue);
                         }
                     }
-                    aria_label=COMPOSITION_BASIS_LABEL
+                    aria_label=labels::COMPOSITION_BASIS_LABEL
                     testid="comp-basis"
                 />
             </div>
@@ -402,19 +396,19 @@ fn CompositionMobile(
                 let (total, percentages) = composition_percentages(&raw);
                 let rows = composition_rows(&entries, &percentages);
                 let center = match current_group {
-                    CompositionGroup::Holding => composition_total(entries.len()),
-                    CompositionGroup::Product => composition_kinds(entries.len()),
-                    CompositionGroup::Account => composition_accounts(entries.len()),
+                    CompositionGroup::Holding => labels::composition_total(entries.len()),
+                    CompositionGroup::Product => labels::composition_kinds(entries.len()),
+                    CompositionGroup::Account => labels::composition_accounts(entries.len()),
                 };
                 view! {
-                    <SkeletonNote note=composition_basis_note(
+                    <SkeletonNote note=labels::composition_basis_note(
                         current_basis.label(),
                         &format_amount(total),
                     ) />
                     {if total <= 0.0 {
                         view! {
                             <div class="px-4 py-4">
-                                <EmptyState title="算出不可" />
+                                <EmptyState title=labels::COMPOSITION_UNAVAILABLE />
                             </div>
                         }
                             .into_any()
@@ -432,11 +426,11 @@ fn CompositionMobile(
                                         let percentage = if row.computable {
                                             format_fixed_percent(row.percentage, 1)
                                         } else {
-                                            MISSING.to_string()
+                                            labels::MISSING.to_string()
                                         };
                                         let amount = row
                                             .value
-                                            .map_or(MISSING.to_string(), format_currency);
+                                            .map_or(labels::MISSING.to_string(), format_currency);
                                         let bar_width = if row.computable {
                                             format!("{}%", row.percentage.min(100.0))
                                         } else {
@@ -479,9 +473,9 @@ fn CompositionMobile(
                                                     None => view! {
                                                         <ListRowStatic
                                                             name=move || static_name.clone()
-                                                            primary=move || static_value.map_or(MISSING.to_string(), format_currency)
+                                                            primary=move || static_value.map_or(labels::MISSING.to_string(), format_currency)
                                                             meta=move || static_sub.clone()
-                                                            secondary=move || if static_computable { format_fixed_percent(static_percentage, 1) } else { MISSING.to_string() }
+                                                            secondary=move || if static_computable { format_fixed_percent(static_percentage, 1) } else { labels::MISSING.to_string() }
                                                         />
                                                     }
                                                         .into_any(),
@@ -518,7 +512,7 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                 class="comp-donut"
                 viewBox="0 0 200 200"
                 role="img"
-                aria-label=COMPOSITION
+                aria-label=labels::COMPOSITION
                 data-testid="asset-composition-donut"
             >
                 <circle cx="100" cy="100" r="80" class="comp-donut-track" />
