@@ -549,5 +549,47 @@ pub fn copy_aria_label(text: &str) -> String {
     format!("{text} をコピー")
 }
 
+/// 配当情報に保有があるときの印
+pub const DIVIDEND_HELD_BADGE: &str = "保有銘柄";
+/// 配当情報で保有がないときの案内
+pub const DIVIDEND_BALANCE_HINT: &str = "資産管理にCSVを取り込むと表示されます";
+/// 配当情報で自動取得されるときの案内
+pub const DIVIDEND_AUTO_HINT: &str = "自動で取得されます";
+/// 配当情報の集計区画の見出し
+pub const DIVIDEND_SUMMARY_TITLE: &str = "集計情報";
+/// 配当金明細が空のときの案内
+pub const RECEIPT_DIVIDEND_EMPTY_HINT: &str = "配当金明細をCSVで追加してください";
+/// 国内株式明細が空のときの案内
+pub const RECEIPT_STOCK_EMPTY_HINT: &str = "国内株式明細をCSVで追加してください";
+/// 投資信託明細が空のときの案内
+pub const RECEIPT_FUND_EMPTY_HINT: &str = "投資信託明細をCSVで追加してください";
+/// 一覧が上限で切れたときの警告(取引明細用)
+pub fn receipt_truncated_warning(total: &str) -> String {
+    format!("一覧は最大{total}件まで表示しています。検索条件を絞り込んでください。")
+}
+
+/// 年月の書き方(「2024年3月」)
+pub fn receipt_year_month_label(year: &str, month: u32) -> String {
+    format!("{year}年{month}月")
+}
+
+/// 年月日の書き方(「2024年3月1日」)
+pub fn receipt_year_month_day_label(year: &str, month: u32, day: u32) -> String {
+    format!("{year}年{month}月{day}日")
+}
+
+/// ホームの残りが無いときの表示
+pub const HOME_REMAINING_EMPTY: &str = "残り —";
+
+/// ホームの残りの書き方(「残り ¥12,000」)
+pub fn home_remaining(amount: &str) -> String {
+    format!("残り {amount}")
+}
+
+/// ホームで受取が予想を超えたときの書き方(「予想を ¥17,500 上回り」)
+pub fn home_remaining_over(amount: &str) -> String {
+    format!("予想を {amount} 上回り")
+}
+
 #[cfg(test)]
 mod tests;
