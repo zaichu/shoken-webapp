@@ -67,7 +67,7 @@ test('最近の配当入金は2行で名前と金額が重ならず全文が出�
   await expect(rows.first().locator('.list-row-secondary')).toHaveCount(0);
 
   const overflow = await list.evaluate((element) => {
-    return [...element.querySelectorAll<HTMLElement>('.home-dividend-row')].map((row) => {
+    return [...element.querySelectorAll<HTMLElement>('.list-row-item')].map((row) => {
       const name = row.querySelector<HTMLElement>('.list-row-name')!;
       const primary = row.querySelector<HTMLElement>('.list-row-primary')!;
       return {
