@@ -2590,7 +2590,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=23).collect::<Vec<_>>()
+        (0..=24).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2598,7 +2598,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=23).collect::<Vec<_>>()
+        (0..=24).collect::<Vec<_>>()
     );
 }
 
@@ -2626,7 +2626,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=23).collect::<Vec<_>>()
+        (0..=24).collect::<Vec<_>>()
     );
 }
 
@@ -2793,6 +2793,197 @@ async fn csv_import_history_rls_isolates_restricted_role() {
         "行共有違反のはず: {err:?}"
     );
     tx.rollback().await.expect("rollback に失敗");
+}
+
+/// RLS 第二段階: 監査系 3 表は所有者の挙動を変えず、
+/// 権限を絞ったロールでは利用者ごとに分離される
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn audit_tables_rls_isolates_restricted_role() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&database_url).await;
+    run_migrations(&pool).await.expect("migrations failed");
+
+    for table in ["login_events", "admin_login_views", "login_notify_tokens"] {
+        let rls = db::query_scalar::<bool>(
+            "SELECT relrowsecurity FROM pg_class WHERE relname = $1",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("RLS 有効の取得に失敗");
+        assert!(rls, "{table} に RLS が有効のはず");
+        let forced = db::query_scalar::<bool>(
+            "SELECT relforcerowsecurity FROM pg_class WHERE relname = $1",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("FORCE 状態の取得に失敗");
+        assert!(
+            !forced,
+            "{table} に FORCE は付けない(所有者の挙動を変えない)"
+        );
+    }
+
+    let user_a = create_test_user(&pool).await;
+    let user_b = create_test_user(&pool).await;
+    for (user_id, device_byte, token_byte) in [(user_a, 41u8, 42u8), (user_b, 43u8, 44u8)] {
+        db::query(
+            "INSERT INTO login_events (user_id, result, device_hash) VALUES ($1, 'success', $2)",
+            vec![Bind::from(user_id), Bind::Bytes(vec![device_byte; 32])],
+        )
+        .execute(&pool)
+        .await
+        .expect("ログイン記録の投入に失敗");
+        db::query(
+            "INSERT INTO admin_login_views (user_id) VALUES ($1)",
+            vec![Bind::from(user_id)],
+        )
+        .execute(&pool)
+        .await
+        .expect("閲覧記録の投入に失敗");
+        db::query(
+            "INSERT INTO login_notify_tokens (user_id, token_hash) VALUES ($1, $2)",
+            vec![Bind::from(user_id), Bind::Bytes(vec![token_byte; 32])],
+        )
+        .execute(&pool)
+        .await
+        .expect("通知トークンの投入に失敗");
+    }
+    for (table, expected) in [
+        ("login_events", 2i64),
+        ("admin_login_views", 2i64),
+        ("login_notify_tokens", 2i64),
+    ] {
+        let count = db::query_scalar::<i64>(format!("SELECT COUNT(*) FROM {table}"), vec![])
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, expected, "所有者は両利用者の行を読めるはず: {table}");
+    }
+
+    pool.batch_execute("CREATE ROLE rls_app WITH LOGIN PASSWORD 'rls-test-password'")
+        .await
+        .expect("制限ロールの作成に失敗");
+    pool.batch_execute("GRANT CONNECT ON DATABASE postgres TO rls_app")
+        .await
+        .expect("CONNECT 付与に失敗");
+    pool.batch_execute("GRANT USAGE ON SCHEMA public TO rls_app")
+        .await
+        .expect("USAGE 付与に失敗");
+    for table in ["login_events", "admin_login_views", "login_notify_tokens"] {
+        pool.batch_execute(&format!(
+            "GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO rls_app"
+        ))
+        .await
+        .expect("表権限の付与に失敗");
+    }
+    let restricted_url = format!("postgres://rls_app:rls-test-password@127.0.0.1:{port}/postgres");
+    let restricted = connect_with_retry(&restricted_url).await;
+
+    for table in ["login_events", "admin_login_views", "login_notify_tokens"] {
+        let count = db::query_scalar::<i64>(format!("SELECT COUNT(*) FROM {table}"), vec![])
+            .fetch_one(&restricted)
+            .await
+            .unwrap();
+        assert_eq!(
+            count, 0,
+            "利用者 ID 未設定の制限ロールは何も見えないはず: {table}"
+        );
+    }
+
+    let mut tx = restricted.begin().await.expect("tx 開始に失敗");
+    db::query(
+        "SELECT set_config('app.current_user_id', $1, true)",
+        vec![Bind::from(user_a.to_string())],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("利用者 ID の設定に失敗");
+    for table in ["login_events", "admin_login_views", "login_notify_tokens"] {
+        let owners = db::query(format!("SELECT user_id::text FROM {table}"), vec![])
+            .fetch_all::<(String,), _>(&mut tx)
+            .await
+            .expect("監査行の取得に失敗");
+        assert_eq!(
+            owners,
+            vec![(user_a.to_string(),)],
+            "利用者 A の行だけが見えるはず: {table}"
+        );
+    }
+    db::query(
+        "INSERT INTO login_events (user_id, result, device_hash) VALUES ($1, 'success', $2)",
+        vec![Bind::from(user_a), Bind::Bytes(vec![45u8; 32])],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    db::query(
+        "INSERT INTO admin_login_views (user_id) VALUES ($1)",
+        vec![Bind::from(user_a)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    db::query(
+        "INSERT INTO login_notify_tokens (user_id, token_hash) VALUES ($1, $2)",
+        vec![Bind::from(user_a), Bind::Bytes(vec![46u8; 32])],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("自分の行の書き込みは通るはず");
+    let err = db::query(
+        "INSERT INTO login_events (user_id, result, device_hash) VALUES ($1, 'success', $2)",
+        vec![Bind::from(user_b), Bind::Bytes(vec![47u8; 32])],
+    )
+    .execute(&mut tx)
+    .await
+    .expect_err("他人名義の書き込みは失敗するはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "行共有違反のはず: {err:?}"
+    );
+    tx.rollback().await.expect("rollback に失敗");
+
+    for (table, binds, sql) in [
+        (
+            "admin_login_views",
+            vec![Bind::from(user_b)],
+            "INSERT INTO admin_login_views (user_id) VALUES ($1)",
+        ),
+        (
+            "login_notify_tokens",
+            vec![Bind::from(user_b), Bind::Bytes(vec![48u8; 32])],
+            "INSERT INTO login_notify_tokens (user_id, token_hash) VALUES ($1, $2)",
+        ),
+    ] {
+        let mut tx = restricted.begin().await.expect("tx 開始に失敗");
+        db::query(
+            "SELECT set_config('app.current_user_id', $1, true)",
+            vec![Bind::from(user_a.to_string())],
+        )
+        .execute(&mut tx)
+        .await
+        .expect("利用者 ID の設定に失敗");
+        let err = db::query(sql, binds)
+            .execute(&mut tx)
+            .await
+            .expect_err("他人名義の書き込みは失敗するはず");
+        assert!(
+            err.sql_state()
+                .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+            "行共有違反のはず({table}): {err:?}"
+        );
+        tx.rollback().await.expect("rollback に失敗");
+    }
 }
 
 /// (銘柄コード, 数量) の一覧。置換ガードの前後比較用
