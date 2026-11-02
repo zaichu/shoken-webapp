@@ -3,6 +3,7 @@ use crate::features::asset_balance::csv::AssetBalanceRowData;
 use crate::features::asset_balance::model::{ValuationInput, normalize_display_name};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::format::{format_currency, format_percentage_value, format_unit_price};
+use crate::ui::labels;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct HoldingView {
@@ -121,8 +122,8 @@ fn format_dividend_value(
     format: impl Fn(f64) -> String,
 ) -> String {
     match dividend.status.as_deref() {
-        Some("pending") => "取得中...".to_string(),
-        Some("error") => "取得失敗".to_string(),
+        Some("pending") => labels::HOLDING_DIVIDEND_PENDING.to_string(),
+        Some("error") => labels::HOLDING_DIVIDEND_FAILED.to_string(),
         _ => value.map_or_else(|| "—".to_string(), format),
     }
 }

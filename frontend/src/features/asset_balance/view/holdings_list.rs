@@ -12,10 +12,7 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format::{format_currency, format_iso_date, format_number_value};
-use crate::ui::labels::{
-    ACQUISITION_YIELD, ANNUAL_DIVIDEND, AVERAGE_PRICE, CURRENT_PRICE, MARKET_VALUE,
-    PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY, TOTAL_ACQUISITION,
-};
+use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use leptos::prelude::*;
 
@@ -43,7 +40,7 @@ pub(crate) fn holding_detail_cells(
     let current_text = format_currency(view.current_price);
     let average_text = format_currency(view.average_price);
     let purchase_text = format_currency(view.purchase);
-    let shares_text = format!("{}株", format_number_value(view.shares));
+    let shares_text = labels::stock_shares_label(&format_number_value(view.shares));
     let per_share = format_dividend_per_share(&dividend, 0);
     let annual = format_dividend_annual(&dividend);
     let yield_text = format_dividend_yield(&dividend);
@@ -53,32 +50,32 @@ pub(crate) fn holding_detail_cells(
         .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
     let left = vec![
         DetailCell::with_sub(
-            CURRENT_PRICE.to_string(),
+            labels::CURRENT_PRICE.to_string(),
             current_text,
             day_text,
             day_negative,
             day_positive,
         ),
-        DetailCell::plain(AVERAGE_PRICE.to_string(), average_text),
-        DetailCell::plain(ACQUISITION_YIELD.to_string(), yield_text),
-        DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
+        DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
+        DetailCell::plain(labels::ACQUISITION_YIELD.to_string(), yield_text),
+        DetailCell::plain(labels::PER_SHARE_DIVIDEND.to_string(), per_share),
     ];
     let market_cell = match pnl_sub {
         Some(sub) => DetailCell::strong_sub(
-            MARKET_VALUE.to_string(),
+            labels::MARKET_VALUE.to_string(),
             market_text,
             sub,
             pnl_negative,
             pnl_positive,
         ),
-        None => DetailCell::plain(MARKET_VALUE.to_string(), market_text),
+        None => DetailCell::plain(labels::MARKET_VALUE.to_string(), market_text),
     };
     let right = vec![
-        DetailCell::plain(QUANTITY.to_string(), shares_text),
-        DetailCell::plain(TOTAL_ACQUISITION.to_string(), purchase_text),
+        DetailCell::plain(labels::QUANTITY.to_string(), shares_text),
+        DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
         market_cell,
-        DetailCell::plain(ANNUAL_DIVIDEND.to_string(), annual),
-        DetailCell::plain(PRICE_AS_OF.to_string(), as_of),
+        DetailCell::plain(labels::ANNUAL_DIVIDEND.to_string(), annual),
+        DetailCell::plain(labels::PRICE_AS_OF.to_string(), as_of),
     ];
     (left, right)
 }
@@ -103,7 +100,8 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                     let pnl_positive = is_positive_valuation(valuation.profit_loss.amount);
                     let rate_negative = is_negative_rate(valuation.profit_loss.rate);
                     let rate_positive = is_positive_rate(valuation.profit_loss.rate);
-                    let shares_text = format!("{}株", format_number_value(view.shares));
+                    let shares_text =
+                        labels::stock_shares_label(&format_number_value(view.shares));
                     let code = view.code.clone();
                     let name = view.name.clone();
                     let account = view.account.clone();
@@ -197,10 +195,7 @@ mod tests {
     use super::holding_detail_cells;
     use crate::features::asset_balance::holdings::HoldingView;
     use crate::features::dividend_per_share::DividendMaps;
-    use crate::ui::labels::{
-        ACQUISITION_YIELD, ANNUAL_DIVIDEND, AVERAGE_PRICE, CURRENT_PRICE, MARKET_VALUE,
-        PER_SHARE_DIVIDEND, PRICE_AS_OF, QUANTITY, TOTAL_ACQUISITION,
-    };
+    use crate::ui::labels;
 
     fn sample_view() -> HoldingView {
         HoldingView {
@@ -224,21 +219,21 @@ mod tests {
         assert_eq!(
             left_labels,
             [
-                CURRENT_PRICE,
-                AVERAGE_PRICE,
-                ACQUISITION_YIELD,
-                PER_SHARE_DIVIDEND
+                labels::CURRENT_PRICE,
+                labels::AVERAGE_PRICE,
+                labels::ACQUISITION_YIELD,
+                labels::PER_SHARE_DIVIDEND
             ]
         );
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             right_labels,
             [
-                QUANTITY,
-                TOTAL_ACQUISITION,
-                MARKET_VALUE,
-                ANNUAL_DIVIDEND,
-                PRICE_AS_OF
+                labels::QUANTITY,
+                labels::TOTAL_ACQUISITION,
+                labels::MARKET_VALUE,
+                labels::ANNUAL_DIVIDEND,
+                labels::PRICE_AS_OF
             ]
         );
     }
