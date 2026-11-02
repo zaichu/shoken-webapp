@@ -1,0 +1,6 @@
+hex-src	src/ui/page_frame.rs	4
+hex-src	src/ui/login_prompt.rs	4
+style-prop	src/features/home/view.rs	5
+style-prop	src/features/receipts/view.rs	2
+style-prop	src/features/asset_balance/view/composition_page.rs	2
+style-prop	src/features/asset_balance/view/kind_tabs.rs	2

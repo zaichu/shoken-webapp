@@ -1,0 +1,7 @@
+// 違反fixture: 以下のすべてが検出対象
+view! { <svg><rect fill="#FFFFFF" /></svg> }
+view! { <div style="width: 10%">"静的な幅"</div> }
+view! { <div style:width=bar_width>"動的な幅"</div> }
+view! { <div style:background=donut>"動的な背景"</div> }
+<div class="x" style="color: rgba(15,23,42,0.5)">test</div>
+<p>rgba(15,23,42,0.85) shadow</p>
