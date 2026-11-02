@@ -3435,18 +3435,18 @@ async fn trading_tables_rls_isolates_restricted_role() {
     }
 }
 
-/// RLS 第三段階(後半): 認証済み経路は `begin_with_user` で開いた
-/// トランザクション内で動くため、制限ロールでも本人の行だけが見える。
+/// RLS 第三段階(後半): 書き込み経路は `begin_with_user` で開いた
+/// トランザクション内で動くため、制限ロールでも本人の行だけが書ける。
+/// 読み取り経路の配線は接続ロールの切り替え段階まで見送り、ここでは所有者側で挙動が変わらないことだけ見る。
 /// 未認証経路は設定を残さない。値はトランザクションをまたいで残らない
 /// (接続に残る空文字のプレースホルダは利用者の値ではなく、比較では不一致になる)
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn rls_set_local_wiring_scopes_authenticated_paths() {
-    use backend::services::csv::stats::collect_csv_kind_stats;
     use backend::services::login_event::admin::record_view as record_admin_view;
-    use backend::services::login_event::{list_devices, list_login_history, resolve_device_hash};
+    use backend::services::login_event::list_login_history;
     use backend::services::login_notify::{
-        consume_token, get_setting, issue_token, peek_token, recent_send_count, set_setting,
+        consume_token, get_setting, issue_token, peek_token, set_setting,
     };
 
     let node = Postgres::default()
@@ -3504,27 +3504,14 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
     .await
     .expect("残高の投入に失敗");
 
-    let device_a = vec![61u8; 32];
-    let device_b = vec![62u8; 32];
-    for (user_id, device) in [(&user_a, &device_a), (&user_b, &device_b)] {
+    for (user_id, device_byte) in [(&user_a, 61u8), (&user_b, 62u8)] {
         db::query(
             "INSERT INTO login_events (user_id, result, device_hash) VALUES ($1, 'success', $2)",
-            vec![Bind::from(*user_id), Bind::Bytes(device.clone())],
+            vec![Bind::from(*user_id), Bind::Bytes(vec![device_byte; 32])],
         )
         .execute(&pool)
         .await
         .expect("ログイン記録の投入に失敗");
-        db::query(
-            "INSERT INTO sessions (user_id, token_hash, device_hash) VALUES ($1, $2, $3)",
-            vec![
-                Bind::from(*user_id),
-                Bind::Bytes(device.iter().map(|b| b.wrapping_add(1)).collect()),
-                Bind::Bytes(device.clone()),
-            ],
-        )
-        .execute(&pool)
-        .await
-        .expect("セッションの投入に失敗");
     }
 
     pool.batch_execute("CREATE ROLE rls_app WITH LOGIN PASSWORD 'rls-test-password'")
@@ -3553,9 +3540,6 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
         .await
         .expect("表権限の付与に失敗");
     }
-    pool.batch_execute("GRANT SELECT ON sessions TO rls_app")
-        .await
-        .expect("sessions の参照付与に失敗");
     pool.batch_execute("GRANT SELECT, UPDATE ON users TO rls_app")
         .await
         .expect("users の参照・更新付与に失敗");
@@ -3599,62 +3583,6 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
     tx.rollback().await.expect("rollback に失敗");
     assert_no_user_setting(&restricted).await;
 
-    let mut list_params = default_dividend_search_params();
-    list_params.search.include_summary = Some(true);
-    list_params.search.include_facets = Some(true);
-    let dividends_a =
-        domain_search::<dividend_svc::DividendDomain>(&restricted, user_a, list_params)
-            .await
-            .expect("制限ロールでの配当一覧は通るはず");
-    assert_eq!(dividends_a.total, 1, "利用者 A の配当だけが見えるはず");
-    assert_eq!(dividends_a.data.len(), 1);
-    assert!(
-        dividends_a.summary.is_some(),
-        "制限ロールでも配当集計が返るはず"
-    );
-    assert!(
-        dividends_a.facets.is_some(),
-        "制限ロールでも配当 facets が返るはず"
-    );
-    let dividends_b = domain_search::<dividend_svc::DividendDomain>(
-        &restricted,
-        user_b,
-        default_dividend_search_params(),
-    )
-    .await
-    .expect("制限ロールでの配当一覧は通るはず");
-    assert_eq!(dividends_b.total, 1, "利用者 B の配当だけが見えるはず");
-    assert_ne!(
-        dividends_a.data[0].security_code, dividends_b.data[0].security_code,
-        "別利用者の行が混ざってはいけない"
-    );
-
-    let asset_a = domain_search::<asset_balance_svc::AssetBalanceDomain>(
-        &restricted,
-        user_a,
-        default_asset_balance_search_params(),
-    )
-    .await
-    .expect("制限ロールでの残高一覧は通るはず");
-    assert_eq!(asset_a.total, 1, "利用者 A の残高だけが見えるはず");
-
-    let stats_a = collect_csv_kind_stats(&restricted, user_a)
-        .await
-        .expect("制限ロールでの集計は通るはず");
-    let dividend_stat = stats_a
-        .kinds
-        .iter()
-        .find(|kind| kind.kind == "dividend")
-        .expect("配当の集計があるはず");
-    assert_eq!(dividend_stat.count, 1, "集計も本人の行だけのはず");
-    let stats_b = collect_csv_kind_stats(&restricted, user_b)
-        .await
-        .expect("制限ロールでの集計は通るはず");
-    assert!(
-        stats_b.kinds.iter().all(|kind| kind.count <= 1),
-        "別利用者の行が集計に混ざってはいけない"
-    );
-
     let uploaded = dividend_svc::DividendDomain::upload_csv(
         &restricted,
         user_a,
@@ -3692,59 +3620,50 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
     assert_eq!(history_a, 1, "履歴は本人の行だけが見えるはず");
     tx.rollback().await.expect("rollback に失敗");
 
-    let history_a = list_login_history(&restricted, user_a, 50, 0)
+    let replaced = asset_balance_svc::bulk_create(
+        &restricted,
+        user_a,
+        &[make_asset_item("9902")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("制限ロールでの残高置換は通るはず");
+    assert_eq!(replaced.inserted, 1);
+    let mut tx = restricted
+        .begin_with_user(user_a)
         .await
-        .expect("制限ロールでのログイン履歴は通るはず");
-    assert_eq!(history_a.len(), 1, "本人のログイン記録だけのはず");
-    let history_b = list_login_history(&restricted, user_b, 50, 0)
+        .expect("利用者付き tx の開始に失敗");
+    let asset_codes = db::query("SELECT security_code FROM asset_balances", vec![])
+        .fetch_all::<(String,), _>(&mut tx)
         .await
-        .expect("制限ロールでのログイン履歴は通るはず");
-    assert_eq!(history_b.len(), 1, "本人のログイン記録だけのはず");
-    let devices_a = list_devices(&restricted, user_a, &device_a)
-        .await
-        .expect("制限ロールでの端末一覧は通るはず");
-    assert_eq!(devices_a.len(), 1, "本人の端末だけのはず");
-    assert!(devices_a[0].is_current);
+        .expect("残高の取得に失敗");
     assert_eq!(
-        resolve_device_hash(&restricted, user_a, &devices_a[0].id)
-            .await
-            .expect("端末 ID の解決に失敗"),
-        Some(device_a.clone()),
-        "自分の端末 ID は解決できるはず"
+        asset_codes,
+        vec![("9902".to_string(),)],
+        "置換後は本人の行だけが見えるはず"
     );
-    let devices_b = list_devices(&restricted, user_b, &device_b)
-        .await
-        .expect("制限ロールでの端末一覧は通るはず");
-    assert_eq!(
-        resolve_device_hash(&restricted, user_b, &devices_a[0].id)
-            .await
-            .expect("別利用者の解決に失敗"),
-        None,
-        "別利用者の端末 ID は解決できてはいけない"
-    );
-    assert_ne!(
-        devices_a[0].id, devices_b[0].id,
-        "端末 ID が利用者をまたいで一致してはいけない"
-    );
+    tx.rollback().await.expect("rollback に失敗");
 
     let token = issue_token(&restricted, user_a)
         .await
         .expect("制限ロールでのトークン発行は通るはず");
     assert!(!token.is_empty(), "発行されたトークンが空ではいけない");
-    assert_eq!(
-        recent_send_count(&restricted, user_a)
+    for (user_id, expected) in [(user_a, 1i64), (user_b, 0i64)] {
+        let mut tx = restricted
+            .begin_with_user(user_id)
             .await
-            .expect("送信回数の取得に失敗"),
-        1,
-        "自分の発行分だけ数えるはず"
-    );
-    assert_eq!(
-        recent_send_count(&restricted, user_b)
-            .await
-            .expect("送信回数の取得に失敗"),
-        0,
-        "別利用者の発行分が混ざってはいけない"
-    );
+            .expect("利用者付き tx の開始に失敗");
+        let sends = db::query_scalar::<i64>(
+            "SELECT COUNT(*) FROM login_notify_tokens WHERE user_id = $1 \
+             AND created_at > NOW() - INTERVAL '1 hour'",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(&mut tx)
+        .await
+        .expect("送信回数の取得に失敗");
+        assert_eq!(sends, expected, "自分の発行分だけ数えるはず");
+        tx.rollback().await.expect("rollback に失敗");
+    }
     assert!(
         !set_setting(&restricted, user_a, false)
             .await
@@ -3752,15 +3671,15 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
         "更新で返った設定値が変わっているはず"
     );
     assert!(
-        !get_setting(&restricted, user_a)
+        !get_setting(&pool, user_a)
             .await
-            .expect("制限ロールでの設定取得は通るはず"),
+            .expect("設定取得は通るはず"),
         "更新後の設定値が読めるはず"
     );
     assert!(
-        get_setting(&restricted, user_b)
+        get_setting(&pool, user_b)
             .await
-            .expect("制限ロールでの設定取得は通るはず"),
+            .expect("設定取得は通るはず"),
         "別利用者の設定値に影響してはいけない"
     );
     set_setting(&restricted, user_a, true)
@@ -3798,6 +3717,28 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
         .expect("所有者の件数取得に失敗");
         assert_eq!(count, expected, "別利用者の行が消えてはいけない");
     }
+
+    let mut list_params = default_dividend_search_params();
+    list_params.search.include_summary = Some(true);
+    list_params.search.include_facets = Some(true);
+    let dividends_a = domain_search::<dividend_svc::DividendDomain>(&pool, user_a, list_params)
+        .await
+        .expect("配当一覧は通るはず");
+    assert_eq!(dividends_a.total, 2, "利用者 A の配当が見えるはず");
+    assert!(dividends_a.summary.is_some(), "配当集計が返るはず");
+    assert!(dividends_a.facets.is_some(), "配当 facets が返るはず");
+    let asset_a = domain_search::<asset_balance_svc::AssetBalanceDomain>(
+        &pool,
+        user_a,
+        default_asset_balance_search_params(),
+    )
+    .await
+    .expect("残高一覧は通るはず");
+    assert_eq!(asset_a.total, 1, "利用者 A の残高が見えるはず");
+    let history_a = list_login_history(&pool, user_a, 50, 0)
+        .await
+        .expect("ログイン履歴は通るはず");
+    assert_eq!(history_a.len(), 1, "利用者 A の記録が見えるはず");
 
     assert_no_user_setting(&restricted).await;
 

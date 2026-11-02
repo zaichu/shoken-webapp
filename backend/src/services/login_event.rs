@@ -83,16 +83,13 @@ pub async fn list_login_history(
     limit: i64,
     offset: i64,
 ) -> Result<Vec<LoginHistoryEntry>, DbError> {
-    let mut tx = pool.begin_with_user(user_id).await?;
-    let entries = crate::db::query_as::<LoginHistoryEntry>(
+    crate::db::query_as::<LoginHistoryEntry>(
         "SELECT occurred_at, result, country, region, browser, os FROM login_events
          WHERE user_id = $1 ORDER BY occurred_at DESC, id DESC LIMIT $2 OFFSET $3",
         vec![Bind::from(user_id), Bind::from(limit), Bind::from(offset)],
     )
-    .fetch_all(&mut tx)
-    .await?;
-    tx.rollback().await?;
-    Ok(entries)
+    .fetch_all(pool)
+    .await
 }
 
 struct DeviceRow {
@@ -122,7 +119,6 @@ pub async fn list_devices(
     user_id: UserId,
     current_device_hash: &[u8],
 ) -> Result<Vec<DeviceEntry>, DbError> {
-    let mut tx = pool.begin_with_user(user_id).await?;
     let rows = crate::db::query_as::<DeviceRow>(
         "SELECT DISTINCT ON (s.device_hash) s.device_hash,
                 COALESCE(le.occurred_at, s.created_at) AS last_used_at,
@@ -139,9 +135,8 @@ pub async fn list_devices(
          ORDER BY s.device_hash, last_used_at DESC",
         vec![Bind::from(user_id)],
     )
-    .fetch_all(&mut tx)
+    .fetch_all(pool)
     .await?;
-    tx.rollback().await?;
     let mut devices: Vec<DeviceEntry> = rows
         .into_iter()
         .map(|row| DeviceEntry {
@@ -173,15 +168,13 @@ pub async fn resolve_device_hash(
             })
         }
     }
-    let mut tx = pool.begin_with_user(user_id).await?;
     let rows = crate::db::query_as::<HashRow>(
         "SELECT DISTINCT device_hash FROM sessions
          WHERE user_id = $1 AND expires_at > NOW() AND device_hash IS NOT NULL",
         vec![Bind::from(user_id)],
     )
-    .fetch_all(&mut tx)
+    .fetch_all(pool)
     .await?;
-    tx.rollback().await?;
     Ok(rows
         .into_iter()
         .map(|row| row.device_hash)

@@ -1,4 +1,4 @@
-use crate::db::{Bind, Db, Tx};
+use crate::db::{Bind, Db};
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
@@ -98,13 +98,13 @@ impl Search for MutualfundDomain {
 
     /// 検索条件全体の summary を算出する（ページ内だけでなく検索条件全体の合計）
     async fn fetch_summary(
-        tx: &mut Tx,
+        pool: &Db,
         user_id: UserId,
         filter: &SearchFilter,
     ) -> Result<MutualfundSummary, ApiError> {
         Ok(Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<MutualfundSummary>()
-            .fetch_one(&mut *tx)
+            .fetch_one(pool)
             .await?)
     }
 }

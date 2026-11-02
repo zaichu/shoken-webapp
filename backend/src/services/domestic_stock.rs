@@ -1,4 +1,4 @@
-use crate::db::{Bind, Db, Tx};
+use crate::db::{Bind, Db};
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
@@ -101,7 +101,7 @@ impl Search for DomesticStockDomain {
     /// 特定口座合計がプラスの時だけ `floor(合計 * 税率)` を日次税額として計算したうえで、
     /// 日次結果を合計する。キーワードと税率は shared::tax の正準定数を使う。
     async fn fetch_summary(
-        tx: &mut Tx,
+        pool: &Db,
         user_id: UserId,
         filter: &SearchFilter,
     ) -> Result<DomesticStockSummary, ApiError> {
@@ -128,7 +128,7 @@ impl Search for DomesticStockDomain {
             );
         Ok(qb
             .build_query_as::<DomesticStockSummary>()
-            .fetch_one(&mut *tx)
+            .fetch_one(pool)
             .await?)
     }
 }

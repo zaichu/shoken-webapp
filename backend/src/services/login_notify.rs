@@ -133,15 +133,12 @@ fn new_plaintext_token() -> String {
 }
 
 pub async fn get_setting(pool: &Db, user_id: UserId) -> Result<bool, DbError> {
-    let mut tx = pool.begin_with_user(user_id).await?;
-    let enabled = crate::db::query_scalar::<bool>(
+    crate::db::query_scalar::<bool>(
         "SELECT login_notify_enabled FROM users WHERE id = $1",
         vec![Bind::from(user_id)],
     )
-    .fetch_one(&mut tx)
-    .await?;
-    tx.rollback().await?;
-    Ok(enabled)
+    .fetch_one(pool)
+    .await
 }
 
 pub async fn set_setting(pool: &Db, user_id: UserId, enabled: bool) -> Result<bool, DbError> {
@@ -157,15 +154,12 @@ pub async fn set_setting(pool: &Db, user_id: UserId, enabled: bool) -> Result<bo
 }
 
 pub async fn recent_send_count(pool: &Db, user_id: UserId) -> Result<i64, DbError> {
-    let mut tx = pool.begin_with_user(user_id).await?;
-    let count = crate::db::query_scalar::<i64>(
+    crate::db::query_scalar::<i64>(
         "SELECT COUNT(*) FROM login_notify_tokens WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'",
         vec![Bind::from(user_id)],
     )
-    .fetch_one(&mut tx)
-    .await?;
-    tx.rollback().await?;
-    Ok(count)
+    .fetch_one(pool)
+    .await
 }
 
 pub async fn issue_token(pool: &Db, user_id: UserId) -> Result<String, DbError> {
