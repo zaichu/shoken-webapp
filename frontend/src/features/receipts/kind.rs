@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use rust_decimal::Decimal;
 use shared::normalize::normalize_display_name;
-use shared::summary::{DomesticDailyRow, domestic_daily, domestic_total};
+use shared::summary::{DomesticDailyRow, domestic_total};
 use shared::tax::SPECIFIC_ACCOUNT_KEYWORD;
 
 use crate::api::ApiError;
@@ -754,36 +754,11 @@ fn domestic_table_groups(
     order: crate::features::receipts::filter::ReceiptSortOrder,
 ) -> Vec<TableGroup> {
     let sorted = sorted_rows(rows, order);
-    let mut groups: Vec<TableGroup> = domestic_daily(&sorted)
-        .into_iter()
-        .map(|day| {
-            let date = day.filter;
-            let rows: Vec<_> = sorted
-                .iter()
-                .filter(|row| row.date() == date)
-                .map(row_tuple)
-                .collect();
-            let summary = if rows.len() > 1 {
-                vec![
-                    format_amount(day.total_realized_profit_and_loss),
-                    format_amount(day.total_taxes),
-                    format_amount(day.total_realized_profit_and_loss_after_tax),
-                ]
-            } else {
-                vec![]
-            };
-            TableGroup {
-                key: date.clone(),
-                label: group_label(&date),
-                summary,
-                rows,
-            }
-        })
-        .collect();
-    if order == crate::features::receipts::filter::ReceiptSortOrder::Oldest {
-        groups.reverse();
-    }
-    groups
+    summarize_groups(
+        &sorted,
+        |row| create_year_month_key(row.date()),
+        order == crate::features::receipts::filter::ReceiptSortOrder::Newest,
+    )
 }
 
 impl ListEndpoint for Mutualfund {

@@ -18,6 +18,7 @@ use crate::ui::labels::{
     MARKET_VALUE, MISSING, TOTAL_ACQUISITION, composition_accounts, composition_basis_note,
     composition_kinds, composition_total,
 };
+use crate::ui::list_row::{ListRow, ListRowStatic};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonNote;
 use crate::ui::segmented::Segmented;
@@ -323,6 +324,9 @@ fn CompositionMobile(
     view! {
         <div class="lg:hidden" data-testid="asset-composition-mobile">
             <div
+                class="comp-tab-row"
+            >
+            <div
                 class="page-tab-list"
                 role="tablist"
                 aria-label=COMPOSITION_GROUP_LABEL
@@ -371,6 +375,7 @@ fn CompositionMobile(
                     })
                     .collect_view()}
             </div>
+            </div>
             <div class="comp-basis-row">
                 <Segmented
                     options=BASIS_OPTIONS
@@ -416,7 +421,7 @@ fn CompositionMobile(
                         view! {
                             <CompositionDonut rows=rows.clone() center=center />
                             <ul
-                                class="comp-list"
+                                class="asset-compact-list"
                                 data-testid="asset-composition-mobile-list"
                             >
                                 {rows
@@ -438,48 +443,45 @@ fn CompositionMobile(
                                         };
                                         let name = row.name.clone();
                                         let sub = row.sub.clone();
-                                        let inner = view! {
-                                            <div class="comp-row-main">
-                                                <div class="comp-row-top">
-                                                    <span class="comp-row-name">{name}</span>
-                                                    <span class="comp-row-amount">
-                                                        {amount}
-                                                        " "
-                                                        <span class="comp-row-pct">{percentage}</span>
-                                                    </span>
-                                                </div>
-                                                {(!sub.is_empty())
-                                                    .then(|| {
-                                                        view! {
-                                                            <div class="comp-row-sub">{sub}</div>
-                                                        }
-                                                    })}
-                                                <div class="comp-bar" aria-hidden="true">
-                                                    <span
-                                                        class=format!("comp-bar-fill {fill}")
-                                                        style:width=bar_width
-                                                    />
-                                                </div>
+                                        let row_body = view! {
+                                            <ListRow
+                                                name=move || name.clone()
+                                                primary=move || amount.clone()
+                                                meta=move || sub.clone()
+                                                secondary=move || percentage.clone()
+                                            />
+                                            <div class="comp-bar" aria-hidden="true">
+                                                <span
+                                                    class=format!("comp-bar-fill {fill}")
+                                                    style:width=bar_width
+                                                />
                                             </div>
                                         };
+                                        let href = row.href.clone();
+                                        let static_name = row.name.clone();
+                                        let static_sub = row.sub.clone();
+                                        let static_value = row.value;
+                                        let static_computable = row.computable;
+                                        let static_percentage = row.percentage;
                                         view! {
                                             <li
-                                                class="comp-row"
+                                                class="list-row-item"
                                                 data-testid="comp-row"
                                             >
-                                                <span
-                                                    class=format!("comp-dot {fill}")
-                                                    aria-hidden="true"
-                                                />
-                                                {match &row.href {
+                                                {match href {
                                                     Some(href) => view! {
-                                                        <a href=href.clone() class="comp-row-link">
-                                                            {inner}
+                                                        <a href=href class="list-row-action">
+                                                            {row_body}
                                                         </a>
                                                     }
                                                         .into_any(),
                                                     None => view! {
-                                                        <div class="comp-row-link">{inner}</div>
+                                                        <ListRowStatic
+                                                            name=move || static_name.clone()
+                                                            primary=move || static_value.map_or(MISSING.to_string(), format_currency)
+                                                            meta=move || static_sub.clone()
+                                                            secondary=move || if static_computable { format_fixed_percent(static_percentage, 1) } else { MISSING.to_string() }
+                                                        />
                                                     }
                                                         .into_any(),
                                                 }}

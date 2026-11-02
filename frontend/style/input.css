@@ -1188,22 +1188,24 @@
   }
 
   .receipt-compact-group {
-    @apply flex items-center justify-between gap-2 px-4 py-1.5 bg-row-group border-b border-border;
+    @apply flex items-center justify-between gap-2 px-4 bg-row-group border-b border-border-strong;
+    min-height: 44px;
     border-left: 3px solid var(--color-gold);
   }
 
   .receipt-compact-group > span:first-child {
-    @apply font-bold text-xs text-text-deep;
+    @apply font-bold text-sm text-text-deep;
   }
 
   .receipt-compact-group > span:last-child {
-    @apply text-xs text-text-deep;
+    @apply text-xs text-text-deep whitespace-nowrap tabular-nums;
   }
 
   /* 口座区分の札。配色は --color-badge-* トークンで種類(特定・一般・NISA系・旧NISA)
      ごとに決め、枠を付けてどの面の上でも地に溶けないようにする */
   .account-badge {
-    @apply inline-flex items-center rounded-lg border border-badge-general-border bg-badge-general px-1.5 py-0.5 text-xs text-badge-general-text;
+    @apply inline-flex items-center rounded-lg border border-badge-general-border bg-badge-general px-1.5 text-xs text-badge-general-text;
+    line-height: 18px;
   }
 
   /* PC の表ではバッジを折り返さず1行で出す(列は内容に合わせて広がる) */
@@ -1705,19 +1707,19 @@
   }
 
   .list-row-main {
-    @apply flex min-w-0 items-baseline justify-between gap-2;
+    @apply flex min-w-0 items-baseline justify-between gap-3;
   }
 
   .list-row-name {
-    @apply min-w-0 flex-1 break-words font-medium text-text-deep;
+    @apply min-w-0 flex-1 break-words text-base font-bold text-text-deep;
   }
 
   .list-row-primary {
-    @apply shrink-0 whitespace-nowrap text-right font-bold tabular-nums;
+    @apply shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums;
   }
 
   .list-row-sub {
-    @apply flex min-w-0 items-baseline justify-between gap-2 text-xs;
+    @apply flex min-w-0 items-baseline justify-between gap-3 text-[13px];
   }
 
   .list-row-meta {
@@ -1725,7 +1727,38 @@
   }
 
   .list-row-secondary {
-    @apply shrink-0 whitespace-nowrap text-right tabular-nums;
+    @apply shrink-0 whitespace-nowrap text-right tabular-nums text-text-soft;
+  }
+
+  .list-row-item {
+    @apply border-b border-border-strong list-none;
+  }
+
+  .list-row-action,
+  .list-row-action-static {
+    @apply block w-full px-4 py-3 no-underline text-text-deep;
+  }
+
+  .list-row-action-body {
+    @apply block w-full px-4 py-3 isolate;
+  }
+
+  a.list-row-action:hover {
+    @apply bg-surface-sunken;
+  }
+
+  .list-group-header {
+    @apply flex items-center justify-between gap-2 px-4 bg-row-group border-b border-border-strong;
+    min-height: 44px;
+    border-left: 3px solid var(--color-gold);
+  }
+
+  .list-group-title {
+    @apply text-sm font-bold text-text-deep;
+  }
+
+  .list-group-summary {
+    @apply text-xs whitespace-nowrap text-text-deep tabular-nums;
   }
 
   /* 取引明細・ホームの配当入金の行ボタン。行全体を押せるボタンにし、
@@ -1754,7 +1787,17 @@
     @apply bg-surface-sunken;
   }
 
-  /* スマホの構成比。区分タブは資産管理の種別タブと同じ部品を使う */
+  /* スマホの構成比。区分タブは資産管理の種別タブと同じ全幅の下線タブ */
+  .comp-tab-row {
+    @apply mx-0;
+  }
+
+  @media (width < 64rem) {
+    .comp-tab-row {
+      margin-inline: -1rem;
+    }
+  }
+
   .comp-basis-row {
     @apply mt-3 flex justify-center;
   }

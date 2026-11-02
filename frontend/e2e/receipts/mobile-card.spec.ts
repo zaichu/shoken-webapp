@@ -171,7 +171,7 @@ test('行の日付は月/日で出す', async ({ page }) => {
   await expect(card.locator('.list-row-meta')).toContainText('3/1');
 });
 
-test('国内株式は1件日の小計を省き、複数件日は小計を残す', async ({ page }) => {
+test('国内株式は月単位でまとめ、日ごとの見出しは出さない', async ({ page }) => {
   await mockApi(page);
   await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
     route.fulfill({
@@ -190,18 +190,18 @@ test('国内株式は1件日の小計を省き、複数件日は小計を残す'
   await expect(list.getByTestId('receipt-card')).toHaveCount(3);
 
   const groups = list.getByTestId('receipt-card-group');
-  const single = groups.filter({ hasText: '2024年2月1日' });
-  await expect(single).toContainText('1件');
-  const multiple = groups.filter({ hasText: '2024年2月2日' });
-  await expect(multiple).toContainText('2件');
+  await expect(groups).toHaveCount(1);
+  await expect(groups.first()).toContainText('2024年2月');
+  await expect(groups.first()).toContainText('3件');
+  await expect(groups.first()).not.toContainText('2024年2月1日');
+  await expect(groups.first()).not.toContainText('2024年2月2日');
 
   await page.setViewportSize({ width: 1280, height: 900 });
   const table = page.getByRole('table');
-  const singleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月1日' });
-  await expect(singleHeading.getByText(/^¥/)).toHaveCount(0);
-  const multipleHeading = table.locator('tbody tr').filter({ hasText: '2024年2月2日' });
-  await expect(multipleHeading.locator('td:not([colspan])')).toHaveText([
-    '+¥10,000', '¥2,031', '+¥7,969',
+  const monthHeading = table.locator('tbody tr').filter({ hasText: '2024年2月' });
+  await expect(monthHeading.first()).toBeVisible();
+  await expect(monthHeading.first().locator('td:not([colspan])')).toHaveText([
+    '+¥15,000', '¥3,045', '+¥11,955',
   ]);
 });
 

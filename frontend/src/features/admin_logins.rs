@@ -477,17 +477,16 @@ fn LoginEntries(
                 }).collect_view()}</tbody>
             </table>
         </div>
-        <ul class="space-y-2 lg:hidden" data-testid="admin-login-list">
+        <ul class="asset-compact-list lg:hidden" data-testid="admin-login-list">
             {mobile.into_iter().map(|entry| view! {
-                <li><Card variant=CardVariant::Item class="p-3">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <span class="tabular-nums text-sm font-medium">{format_datetime(&entry.occurred_at)}</span>
-                        <ResultBadge result=entry.result />
-                    </div>
-                    <div class="mt-2 break-all text-sm font-medium">{entry.email}</div>
-                    <div class="mt-1 break-words text-sm text-text-muted">{format_place(&entry.country, &entry.region)}</div>
-                    <div class="mt-1 break-words text-xs text-text-muted">{format_agent(&entry.browser, &entry.os)}</div>
-                </Card></li>
+                <li class="list-row-item">
+                    <ListRowStatic
+                        name=move || entry.email.clone()
+                        primary=move || view! { <ResultBadge result=entry.result.clone() /> }
+                        meta=move || format!("{} · {}", format_datetime(&entry.occurred_at), format_place(&entry.country, &entry.region))
+                        secondary=move || format_agent(&entry.browser, &entry.os)
+                    />
+                </li>
             }).collect_view()}
         </ul>
     }
@@ -500,12 +499,12 @@ use crate::api::{ApiClient, ApiError};
 use crate::features::settings::{ResultBadge, format_agent, format_datetime, format_place};
 use crate::session::use_session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels::{
     self, ADMIN_FILTER_APPLY, ADMIN_LOGIN_EMAIL, ADMIN_LOGIN_EMPTY, ADMIN_LOGIN_SEARCH,
     ADMIN_LOGINS,
 };
+use crate::ui::list_row::ListRowStatic;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionPanel, ConditionRowEnd, SearchBox,

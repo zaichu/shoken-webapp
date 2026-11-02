@@ -91,10 +91,10 @@ test('評価損益の大きい銘柄も列が重ならない', async ({ page }) 
   await expect(list).toBeVisible();
 
   const rows = await list.evaluate((element) => {
-    return [...element.querySelectorAll<HTMLElement>('.home-pnl-row')].map((row) => {
-      const name = row.querySelector<HTMLElement>('.home-pnl-name')!;
-      const amount = row.querySelector<HTMLElement>('.home-pnl-amount')!;
-      const rate = row.querySelector<HTMLElement>('.home-pnl-rate')!;
+    return [...element.querySelectorAll<HTMLElement>('.list-row-item')].map((row) => {
+      const name = row.querySelector<HTMLElement>('.list-row-name')!;
+      const amount = row.querySelector<HTMLElement>('.list-row-primary')!;
+      const rate = row.querySelector<HTMLElement>('.list-row-secondary')!;
       const range = document.createRange();
       range.selectNodeContents(amount);
       return {
