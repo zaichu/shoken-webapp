@@ -931,7 +931,7 @@
 
   @media (width < 64rem) {
     .summary-band {
-      @apply px-4 py-1.5;
+      @apply px-4 py-1;
     }
   }
 
@@ -1262,8 +1262,9 @@
     @apply shrink-0;
   }
 
+  /* 上バーは中のボタンが 44px のため余白だけで詰める */
   .page-frame-head {
-    @apply bg-brand py-1.5 lg:bg-transparent lg:py-3;
+    @apply bg-brand py-px lg:bg-transparent lg:py-3;
   }
 
   .page-frame-title {
