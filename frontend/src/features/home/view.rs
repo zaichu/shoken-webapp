@@ -453,7 +453,6 @@ fn CardSkeleton() -> impl IntoView {
 #[component]
 fn CardError(#[prop(into)] message: String) -> impl IntoView {
     let session = use_session();
-    let message = message.clone();
     view! {
         <div class="px-4 py-3">
             <ListLoadError
