@@ -385,7 +385,7 @@ fn dividend_product_and_account_group_keys_follow_priority() {
     }
 }
 #[test]
-fn mutual_fund_name_groups_and_domestic_daily_groups() {
+fn mutual_fund_name_groups_and_domestic_monthly_groups() {
     let rows = funds();
     assert_eq!(
         ReceiptsTab::MutualFund.table_groups(
@@ -404,12 +404,12 @@ fn mutual_fund_name_groups_and_domestic_daily_groups() {
         "9904",
         crate::features::receipts::filter::ReceiptSortOrder::Newest,
     );
-    assert_eq!(groups[0].label, "2024年3月1日");
-    assert!(groups[0].summary.is_empty());
+    assert_eq!(groups[0].label, "2024年3月");
+    assert_eq!(groups[0].summary, ["¥1,000", "¥888", "¥112"]);
 }
 
 #[test]
-fn domestic_daily_summary_remains_for_multiple_rows_only() {
+fn domestic_monthly_summary_groups_by_month() {
     let mut rows = domestic();
     let mut second = match &rows[0] {
         Saved(ReceiptItem::DomesticStock(row)) => row.clone(),
@@ -426,13 +426,10 @@ fn domestic_daily_summary_remains_for_multiple_rows_only() {
         "",
         crate::features::receipts::filter::ReceiptSortOrder::Newest,
     );
-    assert_eq!(groups.len(), 2);
-    assert_eq!(groups[0].label, "2024年3月2日");
-    assert_eq!(groups[0].rows.len(), 1);
-    assert!(groups[0].summary.is_empty());
-    assert_eq!(groups[1].label, "2024年3月1日");
-    assert_eq!(groups[1].rows.len(), 2);
-    assert_eq!(groups[1].summary, ["¥2,000", "¥406", "¥1,594"]);
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].label, "2024年3月");
+    assert_eq!(groups[0].rows.len(), 3);
+    assert_eq!(groups[0].summary, ["¥3,000", "¥2,664", "¥336"]);
 }
 #[test]
 fn hyphenated_instrument_names_are_not_formatted_as_dates() {
@@ -977,7 +974,7 @@ fn single_specific_row_keeps_band_group_and_row_after_tax_equal() {
         crate::features::receipts::filter::ReceiptSortOrder::Newest,
     );
     assert_eq!(groups.len(), 1);
-    assert!(groups[0].summary.is_empty());
+    assert_eq!(groups[0].summary, ["¥5,000", "¥1,015", "¥3,985"]);
     let card = card_for(ReceiptsTab::DomesticStock, filtered[0].clone());
     assert_eq!(
         single_row_headline(std::slice::from_ref(&card)),

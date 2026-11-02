@@ -12,7 +12,7 @@ use crate::ui::labels::{
     PER_SHARE_DIVIDEND, PROFIT_SHORT, QUANTITY, REALIZED_PROFIT_LOSS, RECEIPT_SHORT,
     REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX, TRADE_DATE,
 };
-use crate::ui::list_row::ListRow;
+use crate::ui::list_row::{ListGroupHeader, ListRowButton};
 use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
@@ -397,46 +397,39 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     let dialog_account = account_for_meta.clone();
 
     view! {
-        <li class="receipt-compact-row" data-testid="receipt-card">
-            <Button
-                variant=ButtonVariant::RowButton
+        <li class="list-row-item" data-testid="receipt-card">
+            <ListRowButton
                 testid="receipt-row-button"
-                aria_haspopup="dialog"
                 on_click=move |_| sheet_open.set(true)
-            >
-                <span class="receipt-compact-button-inner">
-                    <ListRow
-                        name=move || row_name.clone()
-                        primary=move || view! {
-                            <Amount
-                                kind=hero_kind
-                                text=hero_value_for_row.clone()
-                                negative=hero_negative
-                                positive=hero_positive
-                            />
-                        }
-                        meta=move || view! {
-                            {short_date_for_meta.clone()}
-                            {code_for_meta
-                                .clone()
-                                .and_then(|code| {
-                                    let trimmed = code.trim().to_string();
-                                    (!trimmed.is_empty()).then_some(trimmed)
-                                })
-                                .map(|trimmed| {
-                                    view! { {" · "} <span class="receipt-compact-code">{trimmed}</span> }
-                                })}
-                            {" · "}
-                            <AccountBadge label=account_for_meta.clone() />
-                        }
-                        secondary=move || view! {
-                            {aux_label}
-                            " "
-                            <Amount kind=AmountKind::Plain text=aux_value_for_row.clone() />
-                        }
+                name=move || row_name.clone()
+                primary=move || view! {
+                    <Amount
+                        kind=hero_kind
+                        text=hero_value_for_row.clone()
+                        negative=hero_negative
+                        positive=hero_positive
                     />
-                </span>
-            </Button>
+                }
+                meta=move || view! {
+                    {short_date_for_meta.clone()}
+                    {code_for_meta
+                        .clone()
+                        .and_then(|code| {
+                            let trimmed = code.trim().to_string();
+                            (!trimmed.is_empty()).then_some(trimmed)
+                        })
+                        .map(|trimmed| {
+                            view! { {" · "} <span class="receipt-compact-code">{trimmed}</span> }
+                        })}
+                    {" · "}
+                    <AccountBadge label=account_for_meta.clone() />
+                }
+                secondary=move || view! {
+                    {aux_label}
+                    " "
+                    <Amount kind=AmountKind::Plain text=aux_value_for_row.clone() />
+                }
+            />
             <Show when=move || dialog_open.get()>
                 <DetailDialog
                     name=dialog_name.clone()
@@ -489,41 +482,23 @@ pub(crate) fn CompactReceiptGroup(
     } else {
         summary
     };
-    let (display_label, display_value, display_negative, display_positive, display_kind) = match tab
-    {
-        ReceiptsTab::Dividend => {
-            let value = group_headline_value(&summary).to_string();
-            (RECEIPT_SHORT, value, false, false, AmountKind::Plain)
-        }
+    let (display_label, display_value) = match tab {
+        ReceiptsTab::Dividend => (RECEIPT_SHORT, group_headline_value(&summary).to_string()),
         _ => {
             let value = group_headline_value(&summary).to_string();
-            let negative = is_negative_text(&value);
-            let positive = is_positive_text(&value);
-            let text = if positive && !value.trim_start().starts_with('+') {
+            let text = if is_positive_text(&value) && !value.trim_start().starts_with('+') {
                 format!("+{value}")
             } else {
                 value
             };
-            (PROFIT_SHORT, text, negative, positive, AmountKind::Delta)
+            (PROFIT_SHORT, text)
         }
     };
+    let summary_text =
+        (!display_value.is_empty()).then(|| format!("{display_label} {display_value}",));
     view! {
         <section data-testid="receipt-card-group">
-            <div class="receipt-compact-group">
-                <span class="font-bold">{labels::group_count(&label, count)}</span>
-                {(!display_value.is_empty()).then(|| view! {
-                    <span class="whitespace-nowrap">
-                        {display_label}
-                        " "
-                        <Amount
-                            kind=display_kind
-                            text=display_value
-                            negative=display_negative
-                            positive=display_positive
-                        />
-                    </span>
-                })}
-            </div>
+            <ListGroupHeader label=labels::group_count(&label, count) summary=summary_text />
             <ul class="receipt-compact-list">
                 {cards
                     .into_iter()

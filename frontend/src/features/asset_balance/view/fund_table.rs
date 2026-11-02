@@ -8,7 +8,6 @@ use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, format_unit_price, unit_price_decimals,
@@ -17,7 +16,7 @@ use crate::ui::labels::{
     ACCOUNT, AVERAGE_PRICE, BASE_PRICE, DAY_CHANGE, DISTRIBUTION, FUND, FUND_SHARES, MARKET_VALUE,
     PENDING_UPDATE, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
-use crate::ui::list_row::ListRow;
+use crate::ui::list_row::ListRowButton;
 use crate::ui::security_link::TableNameLink;
 use leptos::prelude::*;
 
@@ -222,44 +221,36 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     let open = RwSignal::new(false);
                     let open_for_dialog = open;
                     let (left, right) = fund_detail_cells(&dialog_view);
-                    let inner = view! {
-                        <ListRow
-                            name=move || name.clone()
-                            primary=move || view! {
-                                <Amount kind=AmountKind::Plain text=market_text.clone() />
-                            }
-                            meta=move || view! {
-                                <AccountBadge label=account.clone() />
-                                {" · "}
-                                <Amount kind=AmountKind::Plain text=shares_text.clone() />
-                            }
-                            secondary=move || view! {
-                                <Amount
-                                    kind=AmountKind::Delta
-                                    text=pnl_text.clone()
-                                    negative=pnl_negative
-                                    positive=pnl_positive
-                                />
-                                {" "}
-                                <Amount
-                                    kind=AmountKind::Delta
-                                    text=pnl_rate_text.clone()
-                                    negative=rate_negative
-                                    positive=rate_positive
-                                />
-                            }
-                        />
-                    };
                     view! {
-                        <li class="asset-compact-row" data-testid="asset-compact-row">
-                            <Button
-                                variant=ButtonVariant::RowButton
+                        <li class="list-row-item" data-testid="asset-compact-row">
+                            <ListRowButton
                                 testid="asset-row-button"
-                                aria_haspopup="dialog"
                                 on_click=move |_| open.set(true)
-                            >
-                                <span class="receipt-compact-button-inner">{inner}</span>
-                            </Button>
+                                name=move || name.clone()
+                                primary=move || view! {
+                                    <Amount kind=AmountKind::Plain text=market_text.clone() />
+                                }
+                                meta=move || view! {
+                                    <AccountBadge label=account.clone() />
+                                    {" · "}
+                                    <Amount kind=AmountKind::Plain text=shares_text.clone() />
+                                }
+                                secondary=move || view! {
+                                    <Amount
+                                        kind=AmountKind::Delta
+                                        text=pnl_text.clone()
+                                        negative=pnl_negative
+                                        positive=pnl_positive
+                                    />
+                                    {" "}
+                                    <Amount
+                                        kind=AmountKind::Delta
+                                        text=pnl_rate_text.clone()
+                                        negative=rate_negative
+                                        positive=rate_positive
+                                    />
+                                }
+                            />
                             <Show when=move || open.get()>
                                 <DetailDialog
                                     name=dialog_name.clone()

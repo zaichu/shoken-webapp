@@ -14,7 +14,6 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{AccountBadge, account_display_name};
-use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::empty_state::EmptyState;
@@ -26,7 +25,7 @@ use crate::ui::labels::{
     AFTER_TAX, ANNUAL_EXPECTED_DIVIDEND, BEFORE_TAX, DAY_CHANGE, MARKET_VALUE, MISSING,
     PAYMENT_DATE, PER_SHARE_DIVIDEND, QUANTITY, TAX, TOTAL_ACQUISITION, VALUATION_PROFIT_LOSS,
 };
-use crate::ui::list_row::ListRow;
+use crate::ui::list_row::{ListGroupHeader, ListRowButton, ListRowLink};
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonSummary;
@@ -914,34 +913,27 @@ fn HomeDividendRow(row: crate::api::dto::Dividend) -> impl IntoView {
         DetailCell::strong(AFTER_TAX.to_string(), net.clone(), false, false, false),
     ];
     view! {
-        <li class="home-dividend-row" data-testid="home-dividend-row">
-            <Button
-                variant=ButtonVariant::RowButton
+        <li class="list-row-item" data-testid="home-dividend-row">
+            <ListRowButton
                 testid="home-dividend-button"
-                aria_haspopup="dialog"
                 on_click=move |_| sheet_open.set(true)
-            >
-                <span class="receipt-compact-button-inner">
-                    <ListRow
-                        name=move || row_name.clone()
-                        primary=move || view! {
-                            <Amount kind=AmountKind::Plain text=net_for_row.clone() />
-                        }
-                        meta=move || view! {
-                            {date_for_meta.clone()}
-                            {" · "}
-                            {code_for_meta.clone()}
-                            {" · "}
-                            <AccountBadge label=account_for_meta.clone() />
-                        }
-                        secondary=move || view! {
-                            {BEFORE_TAX}
-                            " "
-                            <Amount kind=AmountKind::Plain text=gross_for_row.clone() />
-                        }
-                    />
-                </span>
-            </Button>
+                name=move || row_name.clone()
+                primary=move || view! {
+                    <Amount kind=AmountKind::Plain text=net_for_row.clone() />
+                }
+                meta=move || view! {
+                    {date_for_meta.clone()}
+                    {" · "}
+                    {code_for_meta.clone()}
+                    {" · "}
+                    <AccountBadge label=account_for_meta.clone() />
+                }
+                secondary=move || view! {
+                    {BEFORE_TAX}
+                    " "
+                    <Amount kind=AmountKind::Plain text=gross_for_row.clone() />
+                }
+            />
             <Show when=move || dialog_open.get()>
                 <DetailDialog
                     name=dialog_name.clone()
@@ -979,7 +971,7 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                         .into_any()
                 }
                 Some(Some(rows)) => view! {
-                    <ul class="home-dividend-list divide-y divide-border" data-testid="home-recent-list">
+                    <ul class="asset-compact-list" data-testid="home-recent-list">
                         {rows
                             .iter()
                             .cloned()
@@ -1032,7 +1024,7 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                 let (gains, losses) = model::pnl_extremes(&holdings, 3, 2);
                 view! {
                     <ul
-                        class="mt-1.5 divide-y divide-border-faint"
+                        class="asset-compact-list"
                         data-testid="home-pnl-list"
                     >
                         {gains
@@ -1041,7 +1033,11 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                             .collect_view()}
                         {(!losses.is_empty())
                             .then(|| {
-                                view! { <li class="home-pnl-group">"含み損"</li> }
+                                view! {
+                                    <li aria-hidden="true">
+                                        <ListGroupHeader label="含み損".to_string() summary=None />
+                                    </li>
+                                }
                             })}
                         {losses
                             .iter()
@@ -1075,37 +1071,39 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
     let rate_positive = holding
         .rate
         .is_some_and(|rate| is_positive_rate(Some(rate)));
-    let label = if holding.code.is_empty() {
-        holding.name.clone()
-    } else {
-        format!("{} {}", holding.code, holding.name)
-    };
-    let title = label.clone();
+    let name = holding.name.clone();
+    let code = holding.code.clone();
+    let href = holding.href.clone();
+    let amount_text = format_signed_row_valuation_amount(Some(holding.profit_loss));
+    let rate_text = holding
+        .rate
+        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
+        .unwrap_or_else(|| MISSING.to_string());
     view! {
-        <li>
-            <a
-                class="home-pnl-row hover:bg-surface-raised max-sm:min-h-11"
-                href=holding.href
-            >
-                <span class="home-pnl-name" title=title>{label}</span>
-                <Amount
-                    kind=AmountKind::Delta
-                    text=format_signed_row_valuation_amount(Some(holding.profit_loss))
-                    negative=negative
-                    positive=positive
-                    class="home-pnl-amount font-bold"
-                />
-                <Amount
-                    kind=AmountKind::Delta
-                    text=holding
-                        .rate
-                        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-                        .unwrap_or_else(|| MISSING.to_string())
-                    negative=rate_negative
-                    positive=rate_positive
-                    class="home-pnl-rate"
-                />
-            </a>
+        <li class="list-row-item">
+            <ListRowLink
+                href=href
+                name=move || name.clone()
+                primary=move || view! {
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=amount_text.clone()
+                        negative=negative
+                        positive=positive
+                    />
+                }
+                meta=move || view! {
+                    {code.clone()}
+                }
+                secondary=move || view! {
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=rate_text.clone()
+                        negative=rate_negative
+                        positive=rate_positive
+                    />
+                }
+            />
         </li>
     }
 }

@@ -46,7 +46,7 @@
 | 件数 | 全件数は上バー、絞り込み後の件数は検索入口の下の左端に「N件 / M件」。一覧の見出しに件数を重ねて出さない | `PageFrame.title_count`、`ui/search_controls.rs` `SearchCount` |
 | 構成比への入口 | 件数行の右の1か所だけ。上バーのボタンは出さない(スマホで上バーが2段になるため) | 件数行の右のリンク |
 | 一覧の見出し行 | 置かない。区切りが必要な一覧(取引明細)だけグループ行(月ごと)を置く。日ごとのグループは作らない | グループ行の共通部品 |
-| 行 | 全一覧で `ListRow`。行の器は左右16px・上下8px・下に区切り線。口座は `AccountBadge`、日付は2段目の先頭に `M/D`。右端に矢印などの印は付けない。スマホでは行をカードで包まない | `ui/list_row.rs` `ListRow`、`ui/badge.rs` `AccountBadge`、行の器 |
+| 行 | 全一覧で `ListRow`。行の器は左右16px・上下12px・下に区切り線。口座は `AccountBadge`、日付は2段目の先頭に `M/D`。右端に矢印などの印は付けない。スマホでは行をカードで包まない | `ui/list_row.rs` `ListRow`・`ListRowButton`・`ListRowLink`・`ListRowStatic`・`ListGroupHeader`、`ui/badge.rs` `AccountBadge`、行の器 |
 | 行を押したとき | 保有している物(銘柄・ファンド)は詳細画面へ移る。1回の出来事(入金・売買)はシートで開く。その場で展開はしない。全部見えている行(ログイン履歴など)は押せなくてよい | `<a>` + 行の器 / `ui/row_detail_sheet.rs` `RowDetailSheet` |
 | リンクとボタン | 3種類だけ: 上バーの枠つき小ボタン、本文内の移動リンク(下線なし・強調色の文字に「→」)、戻る。下線付きリンクは外部サイトへのリンクだけ | `page-secondary-link-sm`、`home-card-link` を共通名にしたもの、`page-back-link`、`ui/security_link.rs` |
 | 数字 | 金額・率は `Amount` と `format.rs` を通す。増減(損益・前日比・前月比)は符号と色の両方、増減でない金額は色を付けない。日付は `format_iso_date`("YYYY/MM/DD")か `format_short_date`("M/D") | `ui/amount.rs` `Amount`、`ui/format.rs` |

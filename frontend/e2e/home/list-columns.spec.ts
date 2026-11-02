@@ -82,7 +82,7 @@ test('最近の配当入金は2行で名前と金額が重ならず全文が出�
   }
 });
 
-test('評価損益の大きい銘柄も列が重ならない', async ({ page }) => {
+test('評価損益の大きい銘柄は2行で名前と金額が重ならない', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await mockApi(page);
   await page.goto('/');
@@ -91,26 +91,37 @@ test('評価損益の大きい銘柄も列が重ならない', async ({ page }) 
   await expect(list).toBeVisible();
 
   const rows = await list.evaluate((element) => {
-    return [...element.querySelectorAll<HTMLElement>('.home-pnl-row')].map((row) => {
-      const name = row.querySelector<HTMLElement>('.home-pnl-name')!;
-      const amount = row.querySelector<HTMLElement>('.home-pnl-amount')!;
-      const rate = row.querySelector<HTMLElement>('.home-pnl-rate')!;
-      const range = document.createRange();
-      range.selectNodeContents(amount);
+    return [...element.querySelectorAll<HTMLElement>('.list-row-item')].map((row) => {
+      const name = row.querySelector<HTMLElement>('.list-row-name')!;
+      const amount = row.querySelector<HTMLElement>('.list-row-primary')!;
+      const rate = row.querySelector<HTMLElement>('.list-row-secondary')!;
+      const amountBox = amount.getBoundingClientRect();
+      const rateBox = rate.getBoundingClientRect();
       return {
         name: name.textContent?.trim() ?? '',
         nameRight: name.getBoundingClientRect().right,
-        amountTextRight: range.getBoundingClientRect().right,
-        rateLeft: rate.getBoundingClientRect().left,
+        amountLeft: amountBox.left,
+        amountRight: amountBox.right,
+        amountBottom: amountBox.bottom,
+        rateTop: rateBox.top,
+        rateRight: rateBox.right,
       };
     });
   });
 
   expect(rows.length).toBeGreaterThan(0);
   for (const row of rows) {
+    // 1行目: 名前と金額が重ならない
     expect(row.nameRight, `銘柄名(${row.name})と金額が重なっている`).toBeLessThanOrEqual(
-      row.amountTextRight,
+      row.amountLeft,
     );
-    expect(row.amountTextRight, `金額と損益率が重なっている`).toBeLessThan(row.rateLeft);
+    // 2行目: 損益率は金額の下にあり、右端がそろう
+    expect(row.rateTop, `損益率が金額と同じ行にある`).toBeGreaterThanOrEqual(
+      row.amountBottom - 1,
+    );
+    expect(
+      Math.abs(row.rateRight - row.amountRight),
+      `金額と損益率の右端がそろっていない`,
+    ).toBeLessThanOrEqual(2);
   }
 });

@@ -15,6 +15,7 @@ use crate::ui::labels::{
     LOGIN_RESULT_NEW_DEVICE, LOGIN_RESULT_SUCCESS, REGISTERED_DEVICES_SECTION,
     device_revoke_confirm_button,
 };
+use crate::ui::list_row::ListRowStatic;
 use crate::ui::search_entry::ShowMoreButton;
 use crate::ui::state::{ListLoadError, Loading};
 use leptos::prelude::*;
@@ -225,36 +226,21 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                         </tbody>
                                     </table>
                                 </div>
-                                <ul class="sm:hidden space-y-2" role="list">
+                                <ul class="asset-compact-list sm:hidden" role="list">
                                     {mobile_rows
                                         .into_iter()
                                         .map(|entry| {
                                             let place = format_place(&entry.country, &entry.region);
                                             let agent = format_agent(&entry.browser, &entry.os);
+                                            let datetime = format_datetime(&entry.occurred_at);
                                             view! {
-                                                <li>
-                                                    <Card variant=CardVariant::Item class="p-3">
-                                                        <div class="flex items-center justify-between gap-2">
-                                                            <span class="tabular-nums text-sm font-medium">
-                                                                {format_datetime(&entry.occurred_at)}
-                                                            </span>
-                                                            <ResultBadge result=entry.result.clone() />
-                                                        </div>
-                                                        <dl class="mt-2 space-y-1 text-sm">
-                                                            <div class="flex gap-2">
-                                                                <dt class="shrink-0 text-text-muted">
-                                                                    {LOGIN_HISTORY_COL_PLACE}
-                                                                </dt>
-                                                                <dd class="min-w-0 break-words">{place}</dd>
-                                                            </div>
-                                                            <div class="flex gap-2">
-                                                                <dt class="shrink-0 text-text-muted">
-                                                                    {LOGIN_HISTORY_COL_AGENT}
-                                                                </dt>
-                                                                <dd class="min-w-0 break-words">{agent}</dd>
-                                                            </div>
-                                                        </dl>
-                                                    </Card>
+                                                <li class="list-row-item">
+                                                    <ListRowStatic
+                                                        name=move || datetime.clone()
+                                                        primary=move || view! { <ResultBadge result=entry.result.clone() /> }
+                                                        meta=move || place.clone()
+                                                        secondary=move || agent.clone()
+                                                    />
                                                 </li>
                                             }
                                         })
