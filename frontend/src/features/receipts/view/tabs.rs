@@ -2,6 +2,7 @@ use super::TAB_IDS;
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
+use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::TabButton;
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{
@@ -60,10 +61,7 @@ pub fn ReceiptsTabButton(
             }
         >
             {label}
-            <span
-                data-testid={format!("tab-count-{slug}")}
-                class="page-tab-count"
-            >
+            <Badge variant=BadgeVariant::Count testid=format!("tab-count-{slug}")>
                 {move || match counted_store.tab_state(tab) {
                     TabState::Ready(data) => {
                         let query = counted_store.search.with(|s| s.query.clone());
@@ -71,7 +69,7 @@ pub fn ReceiptsTabButton(
                     }
                     TabState::Loading | TabState::Failed(_) => "—".to_string(),
                 }}
-            </span>
+            </Badge>
         </TabButton>
     }
 }
