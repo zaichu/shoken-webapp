@@ -2,7 +2,7 @@ use super::TAB_IDS;
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
-use crate::ui::state::{ListSkeleton, ListSkeletonVariant, Loading};
+use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index as shared_next_tab_index};
 use leptos::prelude::*;
 
@@ -86,7 +86,7 @@ pub fn TabPanel(
                     return view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any();
                 }
                 if !store.is_authenticated() {
-                    return view! { <Loading /> }.into_any();
+                    return view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any();
                 }
                 view! { <ReceiptsMainContent store=store tab=tab /> }.into_any()
             }}

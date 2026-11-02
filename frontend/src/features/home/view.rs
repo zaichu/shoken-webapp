@@ -28,9 +28,10 @@ use crate::ui::labels::{
 };
 use crate::ui::list_row::ListRow;
 use crate::ui::login_prompt::LoginPrompt;
+use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonSummary;
-use crate::ui::state::{Alert, AlertVariant, Spinner, SpinnerSize};
+use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
 use crate::ui::summary::{
     SummaryBand as UiSummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
 };
@@ -439,27 +440,26 @@ fn CardHead(title: &'static str, href: &'static str, link_label: &'static str) -
     view! {
         <div class="flex items-center gap-3 px-4 pt-3.5">
             <h2 class="text-sm font-bold text-text">{title}</h2>
-            <a class="home-card-link" href=href>
-                {link_label}
-            </a>
+            <MoreLink href=href.to_string() label=link_label.to_string() />
         </div>
     }
 }
 
 #[component]
 fn CardSkeleton() -> impl IntoView {
-    view! {
-        <div class="flex items-center justify-center px-4 py-8 text-text-muted">
-            <Spinner size=SpinnerSize::Lg class=""/>
-        </div>
-    }
+    view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
 }
 
 #[component]
 fn CardError(#[prop(into)] message: String) -> impl IntoView {
+    let session = use_session();
+    let message = message.clone();
     view! {
         <div class="px-4 py-3">
-            <Alert variant=AlertVariant::Warning>{message}</Alert>
+            <ListLoadError
+                message=message
+                on_retry=move || session.generation.update(|generation| *generation = generation.next())
+            />
         </div>
     }
 }
@@ -480,7 +480,7 @@ fn DividendCard(data: HomeOverviewData) -> impl IntoView {
             <CardHead
                 title="今年の配当金(税引後)"
                 href="/receipts"
-                link_label="取引明細で見る →"
+                link_label="取引明細で見る"
             />
             {move || {
                 let (current, previous, assets, estimates) = card();
@@ -741,7 +741,7 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
     };
     view! {
         <Card variant=CardVariant::Panel class="pb-4" testid="home-composition-card">
-            <CardHead title="資産の内訳" href="/assetbalance" link_label="資産管理 →" />
+            <CardHead title="資産の内訳" href="/assetbalance" link_label="資産管理" />
             {move || {
                 let (assets, funds) = card();
                 if assets.is_none() && funds.is_none() {
@@ -760,9 +760,10 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                                 title="保有データがありません"
                                 description="保有残高をCSVで登録すると、商品別・口座別の内訳が表示されます。"
                             >
-                                <a class="home-card-link mt-2" href="/csv">
-                                    "CSV管理へ →"
-                                </a>
+                                <MoreLink
+                                    href="/csv".to_string()
+                                    label="CSV管理へ".to_string()
+                                />
                             </EmptyState>
                         </div>
                     }
@@ -777,9 +778,9 @@ fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                 view! {
                     {if product_total <= 0.0 {
                         view! {
-                            <p class="px-4 py-6 text-center text-sm text-text-muted">
-                                "評価額がありません"
-                            </p>
+                            <div class="px-4 py-4">
+                                <EmptyState title="評価額がありません" />
+                            </div>
                         }
                             .into_any()
                     } else {
@@ -966,15 +967,15 @@ fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
     };
     view! {
         <Card variant=CardVariant::Panel class="overflow-clip" testid="home-recent-card">
-            <CardHead title="最近の配当入金" href="/receipts" link_label="すべて見る →" />
+            <CardHead title="最近の配当入金" href="/receipts" link_label="すべて見る" />
             {move || match card() {
                 None => view! { <CardSkeleton /> }.into_any(),
                 Some(None) => view! { <CardError message="配当入金を取得できませんでした" /> }.into_any(),
                 Some(Some(rows)) if rows.is_empty() => {
                     view! {
-                        <p class="px-4 py-6 text-center text-sm text-text-muted">
-                            "まだ配当入金がありません"
-                        </p>
+                        <div class="px-4 py-4">
+                            <EmptyState title="まだ配当入金がありません" />
+                        </div>
                     }
                         .into_any()
                 }
@@ -1007,7 +1008,7 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
             <CardHead
                 title="評価損益の大きい銘柄"
                 href="/assetbalance"
-                link_label="資産管理 →"
+                link_label="資産管理"
             />
             {move || {
                 let (assets, funds) = card();
@@ -1022,9 +1023,9 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                 let fund_rows = funds_of(&funds).unwrap_or(&[]);
                 if stocks.is_empty() && fund_rows.is_empty() {
                     return view! {
-                        <p class="px-4 py-6 text-center text-sm text-text-muted">
-                            "保有している銘柄がありません"
-                        </p>
+                        <div class="px-4 py-4">
+                            <EmptyState title="保有している銘柄がありません" />
+                        </div>
                     }
                         .into_any();
                 }
@@ -1050,9 +1051,9 @@ fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                     </ul>
                     {if gains.is_empty() && losses.is_empty() {
                         view! {
-                            <p class="px-4 py-6 text-center text-sm text-text-muted">
-                                "評価損益を出せる銘柄がありません"
-                            </p>
+                            <div class="px-4 py-4">
+                                <EmptyState title="評価損益を出せる銘柄がありません" />
+                            </div>
                         }
                             .into_any()
                     } else {

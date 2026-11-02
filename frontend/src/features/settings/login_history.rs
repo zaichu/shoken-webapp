@@ -16,7 +16,7 @@ use crate::ui::labels::{
     device_revoke_confirm_button,
 };
 use crate::ui::search_entry::ShowMoreButton;
-use crate::ui::state::{ListLoadError, Loading};
+use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -174,7 +174,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
                 </h2>
                 <p class="pb-3 text-xs text-text-muted">{LOGIN_HISTORY_COOKIE_NOTE}</p>
                 {move || match initial.get() {
-                    None => view! { <Loading /> }.into_any(),
+                    None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => {
                         view! {
                             <ListLoadError message=message on_retry=move || load() />
@@ -382,7 +382,7 @@ pub fn SectionDevices() -> impl IntoView {
                 </h2>
                 <p class="pb-3 text-xs text-text-muted">{LOGIN_HISTORY_COOKIE_NOTE}</p>
                 {move || match devices.get() {
-                    None => view! { <Loading /> }.into_any(),
+                    None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => {
                         view! { <ListLoadError message=message on_retry=move || load() /> }
                             .into_any()
