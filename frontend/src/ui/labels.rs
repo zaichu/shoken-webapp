@@ -40,6 +40,8 @@ pub const DIVIDEND_AMOUNT_AND_YIELD: &str = "配当金額 (配当利回り)";
 pub const AFTER_TAX_AND_YIELD: &str = "税引後 (累積利回り)";
 /// 配当金(取引明細の配当金タブ・列見出し)
 pub const DIVIDEND_AMOUNT: &str = "配当金";
+/// 配当金(税引前)(取引明細の帯の内訳用)
+pub const DIVIDEND_BEFORE_TAX: &str = "配当金(税引前)";
 /// 入金日(配当の入金日)
 pub const PAYMENT_DATE: &str = "入金日";
 /// 約定日(売買・解約の成立日)
@@ -64,6 +66,8 @@ pub const TAX: &str = "税額";
 pub const AFTER_TAX: &str = "税引後";
 /// 実現損益(売却・解約の損益)
 pub const REALIZED_PROFIT_LOSS: &str = "実現損益";
+/// 実現損益(税引前)(取引明細の帯の内訳用)
+pub const REALIZED_BEFORE_TAX: &str = "実現損益(税引前)";
 /// 銘柄名
 pub const SECURITY_NAME: &str = "銘柄名";
 /// 銘柄コード

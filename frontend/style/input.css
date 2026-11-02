@@ -1065,16 +1065,11 @@
   }
 
   .summary-band-breakdown {
-    @apply divide-y divide-brand-line;
+    @apply mt-3 divide-y divide-brand-line border-t border-brand-line;
   }
 
   .summary-band-breakdown-row {
     @apply flex min-w-0 items-center justify-between gap-3 py-2;
-  }
-
-  /* 内訳のうち箱で区切る行(取得総額・税引前配当)。少し強めに出す */
-  .summary-band-breakdown-boxed {
-    @apply rounded-lg border border-brand-line bg-brand-deep px-3;
   }
 
   .summary-band-breakdown-label {
