@@ -253,26 +253,17 @@ pub fn ReceiptTable(
                                         } else {
                                             ""
                                         };
-                                        let group_class = if compact_mobile {
-                                            "receipts-table-group"
-                                        } else {
-                                            "whitespace-normal bg-surface-raised text-text-soft font-semibold border-l-4 border-accent"
-                                        };
+                                        let group_class = "receipts-table-group";
                                         view! {
                                             <tr>
                                                 {group_label_spans
                                                     .iter()
                                                     .map(|(class, span)| {
-                                                        let label_class = if compact_mobile {
-                                                            " receipts-table-group-label"
-                                                        } else {
-                                                            ""
-                                                        };
                                                         view! {
                                                             <td
                                                                 colspan=*span + if group.summary.is_empty() { labels.len() } else { 0 }
                                                                 class=format!(
-                                                                    "col-text {group_class}{top}{class}{label_class}"
+                                                                    "col-text {group_class}{top}{class} receipts-table-group-label"
                                                                 )
                                                             >
                                                                 <span class="font-bold">{group.label.clone()}</span>
@@ -304,8 +295,7 @@ pub fn ReceiptTable(
                                                         view! {
                                                             <td
                                                                 class=format!(
-                                                                    "col-num whitespace-nowrap {}{}{top}",
-                                                                    if compact_mobile { "receipts-table-group" } else { "bg-surface-raised text-text font-semibold" },
+                                                                    "col-num whitespace-nowrap receipts-table-group{}{top}",
                                                                     if bold { " font-bold" } else { "" },
                                                                 )
                                                                 title=text.clone()
