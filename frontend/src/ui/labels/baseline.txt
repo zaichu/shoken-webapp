@@ -139,11 +139,6 @@ features/csv_sync/import.rs	対応形式: 投資信託の取引履歴CSV(見出�
 features/csv_sync/import.rs	対応形式: 資産残高CSV(見出し行の先頭は「銘柄コード」)
 features/csv_sync/view.rs	{}（新しいタブで開く）
 features/csv_sync/view.rs	エラー:
-features/home/model.rs	予想を {} 上回り
-features/home/model.rs	国内株式
-features/home/model.rs	投資信託
-features/home/model.rs	残り {}
-features/home/model.rs	残り —
 features/home/view.rs	 取り込み
 features/home/view.rs	(今月)
 features/home/view.rs	/ 予想 {forecast}
@@ -201,22 +196,6 @@ features/not_found.rs	ホームに戻る
 features/not_found.rs	取引明細
 features/not_found.rs	資産管理
 features/not_found.rs	銘柄検索
-features/receipts.rs	一覧は最大{}件まで表示しています。検索条件を絞り込んでください。
-features/receipts/csv.rs	入金日
-features/receipts/dividend_info.rs	保有銘柄
-features/receipts/dividend_info.rs	取得中...
-features/receipts/dividend_info.rs	自動で取得されます
-features/receipts/dividend_info.rs	資産管理にCSVを取り込むと表示されます
-features/receipts/dividend_info.rs	集計情報
-features/receipts/filter.rs	年
-features/receipts/filter.rs	年月
-features/receipts/filter.rs	日
-features/receipts/filter.rs	範囲
-features/receipts/kind.rs	{year}年{}月
-features/receipts/kind.rs	{year}年{}月{}日
-features/receipts/kind/config.rs	国内株式明細をCSVで追加してください
-features/receipts/kind/config.rs	投資信託明細をCSVで追加してください
-features/receipts/kind/config.rs	配当金明細をCSVで追加してください
 features/settings.rs	15分
 features/settings.rs	30分
 features/settings.rs	60分

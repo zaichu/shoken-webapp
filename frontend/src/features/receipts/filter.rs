@@ -4,6 +4,7 @@ use crate::support::list_search::{
     SearchOption, create_year_options, filter_by_config, get_unique_values, is_js_whitespace,
 };
 use crate::ui::badge::account_display_name;
+use crate::ui::labels::{PERIOD_DAY, PERIOD_RANGE, PERIOD_YEAR, PERIOD_YEAR_MONTH};
 use shared::normalize::normalize_display_name;
 use std::collections::HashSet;
 
@@ -66,10 +67,10 @@ pub enum DateSegment {
 impl DateSegment {
     pub fn value(self) -> &'static str {
         match self {
-            Self::Year => "年",
-            Self::Month => "年月",
-            Self::Date => "日",
-            Self::Range => "範囲",
+            Self::Year => PERIOD_YEAR,
+            Self::Month => PERIOD_YEAR_MONTH,
+            Self::Date => PERIOD_DAY,
+            Self::Range => PERIOD_RANGE,
         }
     }
 }
