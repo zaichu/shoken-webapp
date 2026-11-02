@@ -5,7 +5,8 @@ use crate::api::dto::{
 };
 use crate::features::asset_balance::{
     KpiHolding, PortfolioKpi, ValuationInput, calculate_portfolio_kpi, dec_to_f64,
-    format_valuation_amount, holding_valuation, normalize_display_name,
+    format_valuation_amount, holding_valuation, normalize_display_name, summary_valuation,
+    valuation_has_pending,
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::account_display_name;
@@ -102,17 +103,18 @@ pub(crate) fn oldest_home_as_of(stocks: &[AssetBalance], funds: &[FundBalance]) 
     dates.first().map(|date| labels::price_as_of(date))
 }
 
-/// ホーム帯の更新待ち。価格なし株か最新の基準価額でない投信があれば true
+/// ホーム帯の更新待ち。評価額の計算に使う価格が無い株か基準価額が古い投信があれば true
 pub(crate) fn home_has_pending(
     stocks: &[AssetBalance],
     funds: &[FundBalance],
     stock_summary: Option<&AssetBalanceSummary>,
 ) -> bool {
-    let stock_pending = match stock_summary {
-        Some(summary) if !stocks.is_empty() => summary.has_missing_daily_change,
+    let stock_unpriced = match stock_summary {
+        Some(summary) if !stocks.is_empty() => summary_valuation(summary).has_unpriced,
         _ => stocks.iter().any(|row| row.current_price <= Decimal::ZERO),
     };
-    stock_pending || funds.iter().any(|row| !row.nav_is_latest)
+    let fund_stale = funds.iter().any(|row| !row.nav_is_latest);
+    valuation_has_pending(stock_unpriced, fund_stale)
 }
 
 /// 年間予想配当(税引前)と取得額に対する率。資産管理の KPI と同じく

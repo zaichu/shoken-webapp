@@ -385,3 +385,36 @@ fn home_pending_detects_unpriced_or_stale_nav() {
     ));
     assert!(!home_has_pending(&[priced], &[fresh_fund], None));
 }
+
+#[test]
+fn home_pending_ignores_missing_prev_close_when_priced() {
+    let mut no_prev_close = stock("1111", "A", 100, 200, 20_000);
+    no_prev_close.prev_close = None;
+    let mut fresh_fund = fund("F", "特定", 100_000, 5_000);
+    fresh_fund.nav_is_latest = true;
+    assert!(!home_has_pending(
+        std::slice::from_ref(&no_prev_close),
+        std::slice::from_ref(&fresh_fund),
+        None
+    ));
+}
+
+#[test]
+fn home_pending_ignores_daily_change_flag_when_nothing_unpriced() {
+    let priced = stock("1111", "A", 100, 200, 20_000);
+    let mut fresh_fund = fund("F", "特定", 100_000, 5_000);
+    fresh_fund.nav_is_latest = true;
+    let summary = AssetBalanceSummary {
+        total_market_value: dec!(20_000),
+        total_purchase_amount: dec!(20_000),
+        total_daily_change: dec!(0),
+        priced_market_value: dec!(20_000),
+        priced_purchase_amount: dec!(20_000),
+        has_missing_daily_change: true,
+    };
+    assert!(!home_has_pending(
+        std::slice::from_ref(&priced),
+        std::slice::from_ref(&fresh_fund),
+        Some(&summary)
+    ));
+}
