@@ -566,24 +566,32 @@ test.describe('下線タブの横スワイプ', () => {
       'data-settling',
       'true',
     );
-    await touchEnd(page, 'assetbalance-main-stage', 90, 400);
-    await expect(page.getByTestId('assetbalance-main-stage')).toHaveAttribute(
-      'data-settling',
-      'true',
-    );
+    // 離した直後のタップと新しいスワイプは同じタスクで続けて起こす。
+    // 間に待ちを挟むと動きが終わり、終わった後の入力として受け付けてしまう
+    await page.getByTestId('assetbalance-main-stage').evaluate((stage) => {
+      const point = (x: number) =>
+        new Touch({ identifier: 1, target: stage, clientX: x, clientY: 400 });
+      const touch = (type: string, init: TouchEventInit) =>
+        stage.dispatchEvent(
+          new TouchEvent(type, { ...init, bubbles: true, cancelable: true }),
+        );
+      touch('touchend', { changedTouches: [point(90)] });
+      document
+        .querySelector('[data-testid="asset-kind-tab-stock"]')
+        ?.dispatchEvent(
+          new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            detail: 1,
+          }),
+        );
+      touch('touchstart', { touches: [point(90)] });
+      touch('touchmove', { touches: [point(200)] });
+      touch('touchmove', { touches: [point(300)] });
+      touch('touchend', { changedTouches: [point(300)] });
+    });
 
-    // 動きの最中の前のタブへのタップは無視される
-    await page.getByTestId('asset-kind-tab-stock').click();
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-
-    // 動きの最中の逆向きの新しいスワイプも無視される
-    await touchStart(page, 'assetbalance-main-stage', 90, 400);
-    await touchMove(page, 'assetbalance-main-stage', 200, 400);
-    await touchMove(page, 'assetbalance-main-stage', 300, 400);
-    await touchEnd(page, 'assetbalance-main-stage', 300, 400);
+    // 動きの最中の前のタブへのタップと逆向きの新しいスワイプは無視され、隣へ切り替わる
     await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
       'aria-selected',
       'true',
