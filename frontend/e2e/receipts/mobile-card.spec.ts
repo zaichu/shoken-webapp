@@ -205,7 +205,7 @@ test('国内株式は月単位でまとめ、日ごとの見出しは出さな�
   const monthHeading = table.locator('tbody tr').filter({ hasText: '2024年2月' });
   await expect(monthHeading.first()).toBeVisible();
   await expect(monthHeading.first().locator('td:not([colspan])')).toHaveText([
-    '+¥15,000', '¥3,045', '+¥11,955',
+    '+¥15,000', '-¥3,045', '+¥11,955',
   ]);
 });
 
