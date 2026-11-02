@@ -12,7 +12,7 @@ async function mockApi(page: Page) {
 }
 
 function bottomNav(page: Page) {
-  return page.getByRole('navigation', { name: '主要ナビゲーション' });
+  return page.getByRole('navigation', { name: 'メインナビゲーション' });
 }
 
 test('下タブバーは4つのリンクを持ちアイコンは装飾として隠す', async ({ page }) => {
