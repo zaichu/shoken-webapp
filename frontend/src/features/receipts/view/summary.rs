@@ -107,6 +107,7 @@ pub fn SummaryStrip(
             note: String::new(),
             tone: match tone {
                 StatTone::Loss => SummaryTone::Loss,
+                StatTone::Neutral if is_profit && value > Decimal::ZERO => SummaryTone::Gain,
                 StatTone::Neutral => SummaryTone::Neutral,
             },
             extra_class: String::new(),
