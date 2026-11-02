@@ -59,7 +59,7 @@ impl ApiError {
             ApiError::Network => labels::API_CHECK_NETWORK.to_string(),
             ApiError::Timeout => labels::API_RETRY_TIMEOUT.to_string(),
             ApiError::Cancelled => labels::API_CANCELLED.to_string(),
-            ApiError::Parse => labels::API_STOCK_FETCH_FAILED.to_string(),
+            ApiError::Parse => labels::API_DATA_LOAD_FAILED.to_string(),
             ApiError::Http { status, .. } => match status {
                 400 => labels::API_CHECK_INPUT.to_string(),
                 401 => labels::API_LOGIN_REQUIRED.to_string(),

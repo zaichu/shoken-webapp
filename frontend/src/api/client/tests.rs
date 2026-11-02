@@ -1,4 +1,5 @@
 use super::*;
+use crate::ui::labels;
 
 #[test]
 fn retryable_errors() {
@@ -49,6 +50,7 @@ fn user_message_maps_status_to_text() {
         ApiError::http(418).user_message(),
         "エラーが発生しました (ステータス: 418)"
     );
+    assert_eq!(ApiError::Parse.user_message(), labels::API_DATA_LOAD_FAILED);
 }
 
 #[test]
