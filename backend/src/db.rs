@@ -18,6 +18,7 @@ pub use tokio_postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql, Type};
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 type DbFuture<'a, T> = Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
 
@@ -129,6 +130,103 @@ fn query_tag(sql: &str) -> &'static str {
         Some("COMMIT") => "COMMIT",
         Some("ROLLBACK") => "ROLLBACK",
         _ => "other",
+    }
+}
+
+/// DB 1往復の計測設定。`DB_RTT_SAMPLE_EVERY` で何回に1回出すかを変えられる(既定100、0で停止)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DbRttConfig {
+    pub sample_every: u64,
+}
+
+impl DbRttConfig {
+    pub const DEFAULT_SAMPLE_EVERY: u64 = 100;
+
+    pub fn new(sample_every: u64) -> Self {
+        Self { sample_every }
+    }
+
+    fn from_raw(raw: Option<&str>) -> Self {
+        match raw.map(str::trim) {
+            None | Some("") => Self::new(Self::DEFAULT_SAMPLE_EVERY),
+            Some(v) => Self::new(v.parse().unwrap_or(Self::DEFAULT_SAMPLE_EVERY)),
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn from_host_env() -> Self {
+        Self::from_raw(std::env::var("DB_RTT_SAMPLE_EVERY").ok().as_deref())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn from_worker_env(env: &worker::Env) -> Self {
+        let raw = env.var("DB_RTT_SAMPLE_EVERY").ok().map(|v| v.to_string());
+        Self::from_raw(raw.as_deref())
+    }
+}
+
+static DB_RTT_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn sample_hit(count: u64, sample_every: u64) -> bool {
+    sample_every > 0 && count.is_multiple_of(sample_every)
+}
+
+fn should_emit_rtt(sample_every: u64) -> bool {
+    sample_hit(DB_RTT_COUNTER.fetch_add(1, Ordering::Relaxed), sample_every)
+}
+
+fn format_db_rtt(statement: &'static str, elapsed_ms: u64) -> String {
+    format!("db_rtt statement={statement} elapsed_ms={elapsed_ms}")
+}
+
+fn emit_db_rtt(statement: &'static str, elapsed_ms: u64) {
+    let line = format_db_rtt(statement, elapsed_ms);
+    #[cfg(target_arch = "wasm32")]
+    worker::console_warn!("{line}");
+    #[cfg(not(target_arch = "wasm32"))]
+    tracing::warn!("{line}");
+}
+
+/// 問い合わせ1回の往復時間の計測。wasm では Instant が未対応のため
+/// epoch ミリ秒で保持する(CronTimer・BulkTimer と同じ方式)
+struct DbTimer {
+    #[cfg(not(target_arch = "wasm32"))]
+    start: std::time::Instant,
+    #[cfg(target_arch = "wasm32")]
+    start_ms: u64,
+}
+
+impl DbTimer {
+    fn start() -> Self {
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            start: std::time::Instant::now(),
+            #[cfg(target_arch = "wasm32")]
+            start_ms: worker::Date::now().as_millis(),
+        }
+    }
+
+    fn elapsed_ms(&self) -> u64 {
+        #[cfg(not(target_arch = "wasm32"))]
+        return self
+            .start
+            .elapsed()
+            .as_millis()
+            .try_into()
+            .unwrap_or(u64::MAX);
+        #[cfg(target_arch = "wasm32")]
+        return worker::Date::now()
+            .as_millis()
+            .saturating_sub(self.start_ms);
+    }
+
+    /// 計測の唯一の出口。`Executor` の各実装は問い合わせの前後で
+    /// この関数を通すだけで、種別と ms 以外を出さない
+    fn finish(self, statement: &'static str, sample_every: u64) {
+        if !should_emit_rtt(sample_every) {
+            return;
+        }
+        emit_db_rtt(statement, self.elapsed_ms());
     }
 }
 
@@ -334,6 +432,7 @@ where
 #[derive(Clone)]
 pub struct Db {
     inner: Arc<DbInner>,
+    rtt: DbRttConfig,
 }
 
 impl std::fmt::Debug for Db {
@@ -467,6 +566,7 @@ pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<Db,
         .map_err(|e| format!("DB pool の初期化に失敗しました: {e}"))?;
     Ok(Db {
         inner: Arc::new(DbInner::Pool(pool)),
+        rtt: DbRttConfig::from_host_env(),
     })
 }
 
@@ -485,7 +585,7 @@ struct WorkerDb {
 #[cfg(target_arch = "wasm32")]
 impl Db {
     /// Hyperdrive バインディングから DB ハンドルを作る。接続自体は初回クエリ時に張る
-    pub fn from_hyperdrive(hyperdrive: &worker::Hyperdrive) -> Self {
+    pub fn from_hyperdrive(hyperdrive: &worker::Hyperdrive, rtt: DbRttConfig) -> Self {
         Db {
             inner: Arc::new(DbInner::Worker(WorkerDb {
                 connection_string: hyperdrive.connection_string(),
@@ -493,6 +593,7 @@ impl Db {
                 port: hyperdrive.port(),
                 client: worker::send::SendWrapper::new(std::cell::RefCell::new(None)),
             })),
+            rtt,
         }
     }
 }
@@ -573,6 +674,7 @@ impl Db {
                 guard.conn().batch_execute("BEGIN").await?;
                 Ok(Tx {
                     conn: Some(guard.disarm()),
+                    rtt: self.rtt,
                 })
             }
             #[cfg(target_arch = "wasm32")]
@@ -582,6 +684,7 @@ impl Db {
                 guard.conn().batch_execute("BEGIN").await?;
                 Ok(Tx {
                     conn: Some(guard.disarm()),
+                    rtt: self.rtt,
                 })
             }
         }
@@ -605,6 +708,10 @@ impl Executor for Db {
         params: &'a [Bind],
     ) -> DbFuture<'a, Result<Vec<Row>, DbError>> {
         db_future(async move {
+            let sample_every = self.rtt.sample_every;
+            // 計時は接続取得の後に開始する。Worker の Db はリクエストごとに作られ、
+            // 初回の問い合わせでは接続確立・認証の待ちが入るため、含めると
+            // SQL 1往復の計測が汚れる
             match &*self.inner {
                 #[cfg(not(target_arch = "wasm32"))]
                 DbInner::Pool(pool) => {
@@ -612,17 +719,24 @@ impl Executor for Db {
                         .get()
                         .await
                         .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                    obj.query_typed(sql, &typed_params(params))
+                    let timer = DbTimer::start();
+                    let out = obj
+                        .query_typed(sql, &typed_params(params))
                         .await
-                        .map_err(|e| db_err("query", sql, e))
+                        .map_err(|e| db_err("query", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
                 #[cfg(target_arch = "wasm32")]
                 DbInner::Worker(db) => {
                     let client = db.client().await?;
-                    client
+                    let timer = DbTimer::start();
+                    let out = client
                         .query_typed(sql, &typed_params(params))
                         .await
-                        .map_err(|e| db_err("query", sql, e))
+                        .map_err(|e| db_err("query", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
             }
         })
@@ -634,6 +748,7 @@ impl Executor for Db {
         params: &'a [Bind],
     ) -> DbFuture<'a, Result<u64, DbError>> {
         db_future(async move {
+            let sample_every = self.rtt.sample_every;
             match &*self.inner {
                 #[cfg(not(target_arch = "wasm32"))]
                 DbInner::Pool(pool) => {
@@ -641,17 +756,24 @@ impl Executor for Db {
                         .get()
                         .await
                         .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                    obj.execute_typed(sql, &typed_params(params))
+                    let timer = DbTimer::start();
+                    let out = obj
+                        .execute_typed(sql, &typed_params(params))
                         .await
-                        .map_err(|e| db_err("execute", sql, e))
+                        .map_err(|e| db_err("execute", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
                 #[cfg(target_arch = "wasm32")]
                 DbInner::Worker(db) => {
                     let client = db.client().await?;
-                    client
+                    let timer = DbTimer::start();
+                    let out = client
                         .execute_typed(sql, &typed_params(params))
                         .await
-                        .map_err(|e| db_err("execute", sql, e))
+                        .map_err(|e| db_err("execute", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
             }
         })
@@ -659,6 +781,7 @@ impl Executor for Db {
 
     fn batch_execute<'a>(&'a self, sql: &'a str) -> DbFuture<'a, Result<(), DbError>> {
         db_future(async move {
+            let sample_every = self.rtt.sample_every;
             match &*self.inner {
                 #[cfg(not(target_arch = "wasm32"))]
                 DbInner::Pool(pool) => {
@@ -666,17 +789,24 @@ impl Executor for Db {
                         .get()
                         .await
                         .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                    obj.batch_execute(sql)
+                    let timer = DbTimer::start();
+                    let out = obj
+                        .batch_execute(sql)
                         .await
-                        .map_err(|e| db_err("batch", sql, e))
+                        .map_err(|e| db_err("batch", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
                 #[cfg(target_arch = "wasm32")]
                 DbInner::Worker(db) => {
                     let client = db.client().await?;
-                    client
+                    let timer = DbTimer::start();
+                    let out = client
                         .batch_execute(sql)
                         .await
-                        .map_err(|e| db_err("batch", sql, e))
+                        .map_err(|e| db_err("batch", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
             }
         })
@@ -710,6 +840,7 @@ impl Executor for &Db {
 /// commit せず drop された場合は非同期で ROLLBACK を送る
 pub struct Tx {
     conn: Option<TxConn>,
+    rtt: DbRttConfig,
 }
 
 enum TxConn {
@@ -852,7 +983,9 @@ macro_rules! impl_executor_for_tx {
                 params: &'a [Bind],
             ) -> DbFuture<'a, Result<Vec<Row>, DbError>> {
                 db_future(async move {
-                    match self
+                    let timer = DbTimer::start();
+                    let sample_every = self.rtt.sample_every;
+                    let out = match self
                         .conn
                         .as_ref()
                         .expect("トランザクションの接続がありません")
@@ -867,7 +1000,9 @@ macro_rules! impl_executor_for_tx {
                             .query_typed(sql, &typed_params(params))
                             .await
                             .map_err(|e| db_err("query", sql, e)),
-                    }
+                    };
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 })
             }
 
@@ -877,7 +1012,9 @@ macro_rules! impl_executor_for_tx {
                 params: &'a [Bind],
             ) -> DbFuture<'a, Result<u64, DbError>> {
                 db_future(async move {
-                    match self
+                    let timer = DbTimer::start();
+                    let sample_every = self.rtt.sample_every;
+                    let out = match self
                         .conn
                         .as_ref()
                         .expect("トランザクションの接続がありません")
@@ -892,17 +1029,24 @@ macro_rules! impl_executor_for_tx {
                             .execute_typed(sql, &typed_params(params))
                             .await
                             .map_err(|e| db_err("execute", sql, e)),
-                    }
+                    };
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 })
             }
 
             fn batch_execute<'a>(&'a self, sql: &'a str) -> DbFuture<'a, Result<(), DbError>> {
                 db_future(async move {
-                    self.conn
+                    let timer = DbTimer::start();
+                    let sample_every = self.rtt.sample_every;
+                    let out = self
+                        .conn
                         .as_ref()
                         .expect("トランザクションの接続がありません")
                         .batch_execute(sql)
-                        .await
+                        .await;
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 })
             }
         }
@@ -1020,6 +1164,70 @@ mod tests {
             event.record(&mut fields);
             self.0.lock().unwrap().push(fields.0);
         }
+    }
+
+    #[test]
+    fn db_rtt_config_from_raw_defaults_and_disables() {
+        assert_eq!(
+            DbRttConfig::from_raw(None),
+            DbRttConfig::new(DbRttConfig::DEFAULT_SAMPLE_EVERY)
+        );
+        assert_eq!(
+            DbRttConfig::from_raw(Some("")),
+            DbRttConfig::new(DbRttConfig::DEFAULT_SAMPLE_EVERY)
+        );
+        assert_eq!(DbRttConfig::from_raw(Some("50")), DbRttConfig::new(50));
+        assert_eq!(DbRttConfig::from_raw(Some(" 10 ")), DbRttConfig::new(10));
+        assert_eq!(DbRttConfig::from_raw(Some("0")), DbRttConfig::new(0));
+        assert_eq!(
+            DbRttConfig::from_raw(Some("not-a-number")),
+            DbRttConfig::new(DbRttConfig::DEFAULT_SAMPLE_EVERY)
+        );
+    }
+
+    #[test]
+    fn db_rtt_sample_hit_is_periodic_and_zero_disables() {
+        assert!(sample_hit(0, 100));
+        assert!(!sample_hit(1, 100));
+        assert!(!sample_hit(99, 100));
+        assert!(sample_hit(100, 100));
+        assert!(!sample_hit(0, 0));
+        assert!(!sample_hit(100, 0));
+    }
+
+    #[test]
+    fn db_rtt_format_carries_only_fixed_statement_and_ms() {
+        assert_eq!(
+            format_db_rtt("SELECT", 3),
+            "db_rtt statement=SELECT elapsed_ms=3"
+        );
+        assert_eq!(
+            format_db_rtt("app_enter", 0),
+            "db_rtt statement=app_enter elapsed_ms=0"
+        );
+    }
+
+    #[test]
+    fn db_rtt_query_tag_never_echoes_sql() {
+        for (sql, expected) in [
+            ("SELECT id FROM users WHERE id = $1", "SELECT"),
+            ("SELECT app_enter($1)", "app_enter"),
+            (
+                "SELECT auth_upsert_user($1, $2, $3, $4)",
+                "auth_upsert_user",
+            ),
+            ("INSERT INTO users (id) VALUES ($1)", "INSERT"),
+            ("UPDATE users SET email = $1", "UPDATE"),
+            ("DELETE FROM sessions WHERE id = $1", "DELETE"),
+            ("WITH x AS (SELECT 1) SELECT * FROM x", "WITH"),
+        ] {
+            assert_eq!(query_tag(sql), expected, "{sql}");
+        }
+        let tag = query_tag("SELECT 'private_sql_value' FROM users");
+        assert_eq!(tag, "SELECT");
+        assert!(!tag.contains("private_sql_value"));
+        let tag = query_tag("select lower_case_statement");
+        assert!(!tag.contains("lower_case_statement"));
     }
 
     #[test]

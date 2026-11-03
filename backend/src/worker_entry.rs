@@ -173,7 +173,10 @@ fn build_state(env: &Env) -> Result<AppState> {
         )
     });
     Ok(AppState {
-        pool: crate::db::Db::from_hyperdrive(&hyperdrive),
+        pool: crate::db::Db::from_hyperdrive(
+            &hyperdrive,
+            crate::db::DbRttConfig::from_worker_env(env),
+        ),
         secrets,
         config,
         google_oauth,
