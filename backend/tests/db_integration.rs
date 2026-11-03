@@ -6533,6 +6533,20 @@ async fn stage5b_definer_functions_and_app_enter() {
             .is_some_and(|s| s == db::SqlState::RAISE_EXCEPTION),
         "利用者不一致のはず: {err:?}"
     );
+    tx.rollback().await.expect("rollback に失敗");
+
+    let mut tx = pool.begin().await.expect("tx 開始に失敗");
+    db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
+        .execute(&mut tx)
+        .await
+        .expect("ロールの切り替えに失敗");
+    db::query(
+        "SELECT set_config('app.current_user_id', $1, true)",
+        vec![Bind::from(user_a.to_string())],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("利用者 ID の設定に失敗");
     db::query(
         "SELECT auth_rotate_session($1, $2, $3)",
         vec![
