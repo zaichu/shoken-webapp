@@ -6,7 +6,7 @@ use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::{
     AnnotationAnchor, AnnotationRequest, CompositionBasis, CompositionGroup, CompositionRow,
     DonutGeometry, composition_entries, composition_percentages, composition_rows,
-    composition_sources, place_annotations,
+    composition_sources, place_annotations, place_side_annotations,
 };
 use crate::features::asset_balance::store::{
     all_portfolio_views, load_asset_balances, load_fund_balances,
@@ -441,7 +441,7 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
         } else {
             DonutGeometry::COMPACT
         };
-        let max_name_chars = if wide.get() { 24 } else { 10 };
+        let max_name_chars = if wide.get() { 24 } else { 6 };
         let mut cursor = 0.0;
         let slices: Vec<(CompositionRow, f64)> = rows
             .clone()
@@ -471,7 +471,11 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                 computable: row.computable,
             })
             .collect();
-        let annotated = place_annotations(&requests, &geometry, &center);
+        let annotated = if wide.get() {
+            place_annotations(&requests, &geometry, &center)
+        } else {
+            place_side_annotations(&requests, &geometry, &center)
+        };
         let center_x = geometry.center_x;
         let center_y = geometry.center_y;
         let radius = geometry.radius;

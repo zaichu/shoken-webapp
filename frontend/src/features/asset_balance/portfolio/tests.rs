@@ -2,7 +2,7 @@ use super::{
     AnnotationAnchor, AnnotationRequest, CompositionBasis, CompositionGroup, CompositionProduct,
     CompositionSource, DonutGeometry, SortInput, SortKey, SortOrder, composition_color,
     composition_entries, composition_percentages, composition_rows, composition_sources,
-    place_annotations, sort_holdings,
+    place_annotations, place_side_annotations, sort_holdings,
 };
 use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::fund::FundView;
@@ -481,7 +481,39 @@ fn composition_annotations_keep_only_major_slices_up_to_ten() {
 }
 
 #[test]
-fn composition_annotations_skip_overlapping_neighbors() {
+fn composition_side_annotations_take_two_per_side_in_ratio_order() {
+    let requests = annotation_requests(&[
+        ("あ 30.0%", 30.0),
+        ("い 25.0%", 25.0),
+        ("う 20.0%", 20.0),
+        ("え 15.0%", 15.0),
+        ("お 10.0%", 10.0),
+    ]);
+    let selected = place_side_annotations(&requests, &DonutGeometry::COMPACT, "5銘柄");
+    let indexes: Vec<usize> = selected.iter().map(|item| item.index).collect();
+    assert!(indexes.contains(&0));
+    assert!(indexes.contains(&1));
+    assert!(indexes.contains(&2));
+    assert!(indexes.contains(&3));
+    assert!(!indexes.contains(&4));
+    assert_eq!(
+        selected
+            .iter()
+            .filter(|item| item.anchor == AnnotationAnchor::Start)
+            .count(),
+        2
+    );
+    assert_eq!(
+        selected
+            .iter()
+            .filter(|item| item.anchor == AnnotationAnchor::End)
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn composition_side_annotations_skip_overlapping_labels() {
     let requests = annotation_requests(&[("あ 40.0%", 40.0), ("い 5.0%", 5.0), ("う 5.0%", 5.0)]);
     let selected = place_annotations(&requests, &DonutGeometry::WIDE, "75銘柄");
     let indexes: Vec<usize> = selected.iter().map(|item| item.index).collect();
@@ -520,18 +552,24 @@ fn composition_annotations_spread_across_sides() {
         ("架空自動車 9.1%", 100.0 * 100.0 / 1100.0),
         ("ファンドB 9.1%", 100.0 * 100.0 / 1100.0),
     ]);
-    let selected = place_annotations(&requests, &DonutGeometry::COMPACT, "5銘柄");
-    assert_eq!(selected.len(), 5);
-    assert!(
-        selected
-            .iter()
-            .any(|item| item.anchor == AnnotationAnchor::Start
-                || item.anchor == AnnotationAnchor::End)
+    let selected = place_side_annotations(&requests, &DonutGeometry::COMPACT, "5銘柄");
+    assert_eq!(
+        selected.iter().map(|item| item.index).collect::<Vec<_>>(),
+        vec![0, 1, 2, 3]
     );
-    assert!(
+    assert_eq!(
         selected
             .iter()
-            .any(|item| item.anchor == AnnotationAnchor::Middle)
+            .filter(|item| item.anchor == AnnotationAnchor::Start)
+            .count(),
+        2
+    );
+    assert_eq!(
+        selected
+            .iter()
+            .filter(|item| item.anchor == AnnotationAnchor::End)
+            .count(),
+        2
     );
 }
 

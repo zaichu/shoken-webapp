@@ -375,6 +375,22 @@ pub const COMPOSITION_ANNOTATION_MIN_PERCENT: f64 = 3.0;
 /// ドーナツの注釈の上限(重ならずに置ける分だけ、多いときはここまで)
 pub const COMPOSITION_ANNOTATION_MAX: usize = 10;
 
+/// スマホの左右列に出す注釈の片側の上限
+pub const COMPOSITION_SIDE_ANNOTATION_MAX: usize = 2;
+
+/// 矩形と円が重なるか。ラベルがドーナツの輪に乗らないようにする
+fn rect_overlaps_circle(
+    rect: (f64, f64, f64, f64),
+    center_x: f64,
+    center_y: f64,
+    radius: f64,
+) -> bool {
+    let (x, y, width, height) = rect;
+    let nearest_x = center_x.clamp(x, x + width);
+    let nearest_y = center_y.clamp(y, y + height);
+    (nearest_x - center_x).hypot(nearest_y - center_y) < radius
+}
+
 /// 区分の色番号。`[0, 2, 4, 1, 3]` を回して隣り合う区分の色が並ばないようにする
 pub fn composition_color(position: usize) -> usize {
     const ORDER: [usize; 5] = [0, 2, 4, 1, 3];
@@ -433,10 +449,10 @@ pub struct DonutGeometry {
 impl DonutGeometry {
     pub const COMPACT: Self = Self {
         width: 360.0,
-        height: 260.0,
+        height: 240.0,
         center_x: 180.0,
-        center_y: 130.0,
-        radius: 62.0,
+        center_y: 120.0,
+        radius: 70.0,
         stroke: 28.0,
         label_radius: 96.0,
     };
@@ -557,11 +573,12 @@ pub fn place_annotations(
         if width + 2.0 * MARGIN > geometry.width || LABEL_HEIGHT + 2.0 * MARGIN > geometry.height {
             continue;
         }
-        let rect_cx = rect_x + width / 2.0;
-        let rect_cy = rect_y + LABEL_HEIGHT / 2.0;
-        let center_dx = rect_cx - geometry.center_x;
-        let center_dy = rect_cy - geometry.center_y;
-        if center_dx.hypot(center_dy) < geometry.outer() + LABEL_HEIGHT / 2.0 + MARGIN {
+        if rect_overlaps_circle(
+            (rect_x, rect_y, width, LABEL_HEIGHT),
+            geometry.center_x,
+            geometry.center_y,
+            geometry.outer() + MARGIN,
+        ) {
             continue;
         }
         if placed.iter().any(|&(x, y, w, h)| {
@@ -592,6 +609,101 @@ pub fn place_annotations(
             edge_y,
             elbow_x,
             elbow_y,
+            end_x,
+        });
+    }
+    selected
+}
+
+/// スマホ用の注釈配置。ドーナツの左右の外側の列にだけ置き、
+/// 比率の大きい順に右・左へ交互に割り当てて片側2つまで残す
+pub fn place_side_annotations(
+    requests: &[AnnotationRequest<'_>],
+    geometry: &DonutGeometry,
+    center_label: &str,
+) -> Vec<PlacedAnnotation> {
+    const LABEL_HEIGHT: f64 = 18.0;
+    const MARGIN: f64 = 0.0;
+    let mut starts = Vec::with_capacity(requests.len());
+    let mut cursor = 0.0;
+    for request in requests {
+        starts.push(cursor);
+        cursor += request.percentage;
+    }
+    let center_half_width = center_label.chars().count() as f64 * 9.0 + 8.0;
+    let mut placed = vec![(
+        geometry.center_x - center_half_width,
+        geometry.center_y - 18.0,
+        center_half_width * 2.0,
+        36.0,
+    )];
+    let mut selected = Vec::new();
+    let mut right_count = 0;
+    let mut left_count = 0;
+    for (index, request) in requests.iter().enumerate() {
+        if right_count >= COMPOSITION_SIDE_ANNOTATION_MAX
+            && left_count >= COMPOSITION_SIDE_ANNOTATION_MAX
+        {
+            break;
+        }
+        if !request.computable || request.percentage < COMPOSITION_ANNOTATION_MIN_PERCENT {
+            continue;
+        }
+        let right_side = (right_count + left_count) % 2 == 0;
+        if right_side && right_count >= COMPOSITION_SIDE_ANNOTATION_MAX {
+            continue;
+        }
+        if !right_side && left_count >= COMPOSITION_SIDE_ANNOTATION_MAX {
+            continue;
+        }
+        let mid = starts[index] + request.percentage / 2.0;
+        let angle = (mid / 100.0 * 360.0 - 90.0).to_radians();
+        let (sine, cosine) = angle.sin_cos();
+        let width = annotation_label_width(request.label);
+        let edge_x = geometry.center_x + geometry.outer() * cosine;
+        let edge_y = geometry.center_y + geometry.outer() * sine;
+        let (rect_x, anchor) = if right_side {
+            (geometry.width - width, AnnotationAnchor::Start)
+        } else {
+            (0.0, AnnotationAnchor::End)
+        };
+        let rect_y =
+            (edge_y - LABEL_HEIGHT / 2.0).clamp(MARGIN, geometry.height - LABEL_HEIGHT - MARGIN);
+        if width + 2.0 * MARGIN > geometry.width || LABEL_HEIGHT + 2.0 * MARGIN > geometry.height {
+            continue;
+        }
+        if rect_x < MARGIN || rect_x + width > geometry.width - MARGIN {
+            continue;
+        }
+        if rect_overlaps_circle(
+            (rect_x, rect_y, width, LABEL_HEIGHT),
+            geometry.center_x,
+            geometry.center_y,
+            geometry.outer() + MARGIN,
+        ) {
+            continue;
+        }
+        if placed.iter().any(|&(x, y, w, h)| {
+            rect_x < x + w && x < rect_x + width && rect_y < y + h && y < rect_y + LABEL_HEIGHT
+        }) {
+            continue;
+        }
+        let end_x = if right_side { rect_x } else { rect_x + width };
+        placed.push((rect_x, rect_y, width, LABEL_HEIGHT));
+        if right_side {
+            right_count += 1;
+        } else {
+            left_count += 1;
+        }
+        selected.push(PlacedAnnotation {
+            index,
+            text_x: end_x,
+            text_y: rect_y + LABEL_HEIGHT / 2.0,
+            anchor,
+            edge_x,
+            edge_y,
+            elbow_x: end_x,
+            elbow_y: rect_y + LABEL_HEIGHT / 2.0,
             end_x,
         });
     }

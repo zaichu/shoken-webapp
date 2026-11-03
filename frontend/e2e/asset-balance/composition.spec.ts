@@ -310,7 +310,7 @@ test.describe('スマホの構成比', () => {
     await expect(list.getByText('その他')).toHaveCount(0);
   });
 
-  test('切れの数は行と同じで注釈は重なる分を除いて10個まで出す', async ({
+  test('切れの数は行と同じで注釈は左右に4つまで出す', async ({
     page,
   }) => {
     await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS, GROUP_FUNDS);
@@ -322,7 +322,7 @@ test.describe('スマホの構成比', () => {
     const donut = page.getByTestId('asset-composition-donut');
     await expect(donut.getByTestId('comp-slice')).toHaveCount(5);
     const annotations = page.getByTestId('comp-annotation');
-    await expect(annotations).toHaveCount(5);
+    await expect(annotations).toHaveCount(4);
     await expect(annotations.nth(0)).toContainText('ファンドA');
     await expect(annotations.nth(0)).toContainText('36.4%');
   });
