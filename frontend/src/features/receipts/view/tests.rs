@@ -11,7 +11,6 @@ use crate::features::receipts::kind::{
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
-use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::amount::AmountKind;
 use crate::ui::card::StatTone;
@@ -416,14 +415,14 @@ fn mutual_fund_name_groups_and_domestic_monthly_groups() {
 fn domestic_monthly_summary_groups_by_month() {
     let mut rows = domestic();
     let mut second = match &rows[0] {
-        Saved(ReceiptItem::DomesticStock(row)) => row.clone(),
+        ReceiptItem::DomesticStock(row) => row.clone(),
         _ => unreachable!(),
     };
     second.id = "second".to_string().into();
-    rows.push(Saved(ReceiptItem::DomesticStock(second.clone())));
+    rows.push(ReceiptItem::DomesticStock(second.clone()));
     second.id = "next-day".to_string().into();
     second.trade_date = "2024-03-02".into();
-    rows.push(Saved(ReceiptItem::DomesticStock(second)));
+    rows.push(ReceiptItem::DomesticStock(second));
     let groups = ReceiptsTab::DomesticStock.table_groups(
         &rows,
         &rows,
@@ -645,7 +644,7 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
 #[test]
 fn tax_outflow_uses_inverted_sign() {
     let mut stock = match domestic().remove(0) {
-        Saved(ReceiptItem::DomesticStock(row)) => row,
+        ReceiptItem::DomesticStock(row) => row,
         _ => unreachable!(),
     };
     stock.realized_profit_and_loss = rust_decimal::Decimal::from(-1000);
@@ -653,7 +652,7 @@ fn tax_outflow_uses_inverted_sign() {
     stock.realized_profit_and_loss_after_tax = rust_decimal::Decimal::from(-797);
     let card = card_for(
         ReceiptsTab::DomesticStock,
-        Saved(ReceiptItem::DomesticStock(stock.clone())),
+        ReceiptItem::DomesticStock(stock.clone()),
     );
     assert!(detail_negative(&card, "実現損益"));
     assert!(!detail_negative(&card, "税額"));
@@ -664,21 +663,18 @@ fn tax_outflow_uses_inverted_sign() {
     stock.taxes = rust_decimal::Decimal::from(203);
     let card = card_for(
         ReceiptsTab::DomesticStock,
-        Saved(ReceiptItem::DomesticStock(stock)),
+        ReceiptItem::DomesticStock(stock),
     );
     assert!(detail_negative(&card, "税額"));
     assert_eq!(detail_value(&card, "税額").0, "-¥203");
 
     let mut dividend = match dividends().remove(0) {
-        Saved(ReceiptItem::Dividend(row)) => row,
+        ReceiptItem::Dividend(row) => row,
         _ => unreachable!(),
     };
     dividend.taxes = rust_decimal::Decimal::from(-100);
     dividend.net_amount_received = rust_decimal::Decimal::from(-50);
-    let card = card_for(
-        ReceiptsTab::Dividend,
-        Saved(ReceiptItem::Dividend(dividend)),
-    );
+    let card = card_for(ReceiptsTab::Dividend, ReceiptItem::Dividend(dividend));
     assert!(!detail_negative(&card, "税額"));
     assert!(detail_negative(&card, "税引後"));
 }
@@ -811,7 +807,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
         "net_amount_received": 400, "created_at": "", "updated_at": ""
     }))
     .unwrap();
-    let rows = vec![Saved(ReceiptItem::Dividend(row))];
+    let rows = vec![ReceiptItem::Dividend(row)];
     let cells = rows[0].cells();
     let order = column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
@@ -858,11 +854,11 @@ fn group_label_formats_iso_keys_only() {
 fn latest_name_uses_newest_settlement_per_code() {
     let mut rows = dividends();
     let mut same_date = match &rows[1] {
-        Saved(ReceiptItem::Dividend(row)) => row.clone(),
+        ReceiptItem::Dividend(row) => row.clone(),
         _ => panic!("dividend row"),
     };
     same_date.security_name = "別名".into();
-    rows.push(Saved(ReceiptItem::Dividend(same_date)));
+    rows.push(ReceiptItem::Dividend(same_date));
     let groups = ReceiptsTab::Dividend.table_groups(
         &rows,
         &rows,
@@ -1010,7 +1006,7 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
 fn single_specific_row_keeps_band_group_and_row_after_tax_equal() {
     use crate::api::dto::DomesticStock;
     let row: DomesticStock = serde_json::from_value(serde_json::json!({"id":"single", "trade_date":"2024-03-18", "settlement_date":"2024-03-18", "security_code":"9905", "security_name":"架空ゲーム", "account":"特定口座", "shares":10, "asked_price":5500, "proceeds":55000, "purchase_price":5000, "realized_profit_and_loss":5000, "taxes":1015, "realized_profit_and_loss_after_tax":3985, "created_at":"", "updated_at":""})).unwrap();
-    let rows = vec![Saved(ReceiptItem::DomesticStock(row))];
+    let rows = vec![ReceiptItem::DomesticStock(row)];
     let query = "9905";
     let filtered = filter_receipts(ReceiptsTab::DomesticStock, &rows, query);
     assert_eq!(filtered.len(), 1);
@@ -1098,7 +1094,7 @@ fn unit_suffixed_amounts_keep_sign_detection() {
 #[test]
 fn profit_zero_keeps_delta_without_sign() {
     let mut stock = match domestic().remove(0) {
-        Saved(ReceiptItem::DomesticStock(row)) => row,
+        ReceiptItem::DomesticStock(row) => row,
         _ => unreachable!(),
     };
     stock.realized_profit_and_loss = dec!(0);
@@ -1106,7 +1102,7 @@ fn profit_zero_keeps_delta_without_sign() {
     stock.realized_profit_and_loss_after_tax = dec!(0);
     let card = card_for(
         ReceiptsTab::DomesticStock,
-        Saved(ReceiptItem::DomesticStock(stock)),
+        ReceiptItem::DomesticStock(stock),
     );
     let (text, negative, positive, is_profit) = detail_value(&card, "実現損益");
     assert_eq!(text, "¥0");
@@ -1118,7 +1114,7 @@ fn profit_zero_keeps_delta_without_sign() {
 #[test]
 fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
     let mut stock = match domestic().remove(0) {
-        Saved(ReceiptItem::DomesticStock(row)) => row,
+        ReceiptItem::DomesticStock(row) => row,
         _ => unreachable!(),
     };
     stock.realized_profit_and_loss = dec!(1000);
@@ -1126,7 +1122,7 @@ fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
     stock.realized_profit_and_loss_after_tax = dec!(797);
     let card = card_for(
         ReceiptsTab::DomesticStock,
-        Saved(ReceiptItem::DomesticStock(stock)),
+        ReceiptItem::DomesticStock(stock),
     );
     let (text, negative, positive, is_profit) = detail_value(&card, "実現損益");
     assert_eq!(text, "+¥1,000");
@@ -1148,7 +1144,7 @@ fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
 #[test]
 fn tax_zero_uses_plain_and_refund_uses_plus() {
     let mut stock = match domestic().remove(0) {
-        Saved(ReceiptItem::DomesticStock(row)) => row,
+        ReceiptItem::DomesticStock(row) => row,
         _ => unreachable!(),
     };
     stock.realized_profit_and_loss = dec!(1000);
@@ -1156,7 +1152,7 @@ fn tax_zero_uses_plain_and_refund_uses_plus() {
     stock.realized_profit_and_loss_after_tax = dec!(1000);
     let card = card_for(
         ReceiptsTab::DomesticStock,
-        Saved(ReceiptItem::DomesticStock(stock.clone())),
+        ReceiptItem::DomesticStock(stock.clone()),
     );
     let (zero_text, zero_negative, zero_positive, zero_profit) = detail_value(&card, "税額");
     assert_eq!(zero_text, "¥0");
@@ -1172,7 +1168,7 @@ fn tax_zero_uses_plain_and_refund_uses_plus() {
     stock.realized_profit_and_loss_after_tax = dec!(1100);
     let card = card_for(
         ReceiptsTab::DomesticStock,
-        Saved(ReceiptItem::DomesticStock(stock)),
+        ReceiptItem::DomesticStock(stock),
     );
     let (refund_text, refund_negative, refund_positive, refund_profit) =
         detail_value(&card, "税額");
@@ -1185,7 +1181,7 @@ fn tax_zero_uses_plain_and_refund_uses_plus() {
 #[test]
 fn before_tax_loss_uses_minus_and_delta() {
     let mut stock = match domestic().remove(0) {
-        Saved(ReceiptItem::DomesticStock(row)) => row,
+        ReceiptItem::DomesticStock(row) => row,
         _ => unreachable!(),
     };
     stock.realized_profit_and_loss = dec!(-1000);
@@ -1193,7 +1189,7 @@ fn before_tax_loss_uses_minus_and_delta() {
     stock.realized_profit_and_loss_after_tax = dec!(-1000);
     let card = card_for(
         ReceiptsTab::DomesticStock,
-        Saved(ReceiptItem::DomesticStock(stock)),
+        ReceiptItem::DomesticStock(stock),
     );
     let (text, negative, positive, is_profit) = detail_value(&card, "実現損益");
     assert_eq!(text, "-¥1,000");
@@ -1214,16 +1210,13 @@ fn before_tax_loss_uses_minus_and_delta() {
 #[test]
 fn dividend_receipt_gets_plus_as_inflow() {
     let mut dividend = match dividends().remove(0) {
-        Saved(ReceiptItem::Dividend(row)) => row,
+        ReceiptItem::Dividend(row) => row,
         _ => unreachable!(),
     };
     dividend.dividends_before_tax = dec!(500);
     dividend.net_amount_received = dec!(400);
     dividend.taxes = dec!(100);
-    let card = card_for(
-        ReceiptsTab::Dividend,
-        Saved(ReceiptItem::Dividend(dividend)),
-    );
+    let card = card_for(ReceiptsTab::Dividend, ReceiptItem::Dividend(dividend));
     let (gross_text, gross_negative, gross_positive, gross_profit) = detail_value(&card, "配当金");
     assert_eq!(gross_text, "+¥500");
     assert!(!gross_negative);
@@ -1325,7 +1318,7 @@ fn band_breakdown_signs_match_detail_dialog() {
 fn row_group_band_share_after_tax_total() {
     // 行の主役・月見出し・帯はすべて税引後。行を足すと帯に合う
     let mut domestic_row = domestic().remove(0);
-    if let Saved(ReceiptItem::DomesticStock(row)) = &mut domestic_row {
+    if let ReceiptItem::DomesticStock(row) = &mut domestic_row {
         row.taxes = dec!(203);
         row.realized_profit_and_loss_after_tax = dec!(797);
     }

@@ -1,6 +1,5 @@
 use super::*;
 use crate::api::dto::AssetBalance;
-use crate::support::row::Row::Saved;
 use rust_decimal_macros::dec;
 
 #[test]
@@ -27,7 +26,7 @@ fn asset_balance_row_saved_delegates_current_price() {
         created_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
-    let row: AssetBalanceRow = Saved(balance);
+    let row: AssetBalanceRow = balance;
 
     assert_eq!(row.current_price(), dec!(2600));
 }

@@ -1,10 +1,10 @@
 use super::*;
 use crate::features::receipts::kind::product_matches;
-use crate::features::receipts::kind::{ReceiptItem, ReceiptRow, Row};
+use crate::features::receipts::kind::{ReceiptItem, ReceiptRow};
 use rust_decimal::Decimal;
 
 fn saved_dividend_row() -> ReceiptRow {
-    Row::Saved(ReceiptItem::Dividend(
+    ReceiptItem::Dividend(
         serde_json::from_value(serde_json::json!({
             "id": "id1",
             "settlement_date": "2024-06-15",
@@ -21,11 +21,11 @@ fn saved_dividend_row() -> ReceiptRow {
             "updated_at": "2024-06-15T00:00:00Z"
         }))
         .expect("dividend"),
-    ))
+    )
 }
 
 fn saved_domestic_row() -> ReceiptRow {
-    Row::Saved(ReceiptItem::DomesticStock(
+    ReceiptItem::DomesticStock(
         serde_json::from_value(serde_json::json!({
             "id": "id2",
             "trade_date": "2024-06-15",
@@ -44,11 +44,11 @@ fn saved_domestic_row() -> ReceiptRow {
             "updated_at": "2024-06-15T00:00:00Z"
         }))
         .expect("domestic stock"),
-    ))
+    )
 }
 
 fn saved_mutualfund_row() -> ReceiptRow {
-    Row::Saved(ReceiptItem::MutualFund(
+    ReceiptItem::MutualFund(
         serde_json::from_value(serde_json::json!({
             "id": "id3",
             "trade_date": "2024-06-15",
@@ -68,7 +68,7 @@ fn saved_mutualfund_row() -> ReceiptRow {
             "updated_at": "2024-06-15T00:00:00Z"
         }))
         .expect("mutualfund"),
-    ))
+    )
 }
 
 #[test]
@@ -154,7 +154,7 @@ fn api_summaries_accept_only_the_matching_tab() {
 #[test]
 fn dividend_totals_keeps_signed_amounts_and_empty_totals() {
     let row = |before_tax: i64, taxes: i64, net: i64| {
-        Row::Saved(ReceiptItem::Dividend(
+        ReceiptItem::Dividend(
             serde_json::from_value(serde_json::json!({
                 "id": "id1",
                 "settlement_date": "2024-06-15",
@@ -171,7 +171,7 @@ fn dividend_totals_keeps_signed_amounts_and_empty_totals() {
                 "updated_at": "2024-06-15T00:00:00Z"
             }))
             .expect("dividend"),
-        ))
+        )
     };
     let rows = vec![row(15000, 3047, 11953), row(-5000, -1000, -4000)];
     assert_eq!(

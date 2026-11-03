@@ -10,7 +10,6 @@ use super::*;
 use crate::api::ApiError;
 use crate::features::receipts::filter::{ReceiptSearch, ReceiptSortOrder};
 use crate::session::{Generation, SessionStore};
-use crate::support::row::Row;
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -479,7 +478,7 @@ fn dividend_cells_match_columns_and_formatting() {
         "updated_at": "2024-03-01T00:00:00Z"
     }))
     .expect("deserialize");
-    let cells = Row::Saved(ReceiptItem::Dividend(row)).cells();
+    let cells = ReceiptItem::Dividend(row).cells();
     assert_eq!(
         cells.iter().map(ReceiptCell::text).collect::<Vec<_>>(),
         vec![

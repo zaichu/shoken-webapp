@@ -95,7 +95,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                         None => view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any(),
                         Some(view) => {
                             let found = view.rows.iter().find(|row| {
-                                row.saved_id().is_some_and(|saved| saved == id)
+                                row.id.to_string() == id
                             });
                             match found {
                                 None => {

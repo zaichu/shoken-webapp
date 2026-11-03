@@ -101,7 +101,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                         Some(view) => {
                             let rows = view.rows;
                             let found = rows.iter().find(|row| {
-                                row.saved_id().is_some_and(|saved| saved == id)
+                                row.id.to_string() == id
                             });
                             match found {
                                 None => {

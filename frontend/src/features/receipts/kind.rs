@@ -22,18 +22,17 @@ use crate::support::list_search::FilterConfig;
 use crate::support::list_search::group_key::{GroupKeyRule, create_group_key_fn};
 use crate::support::list_search::support::{ColumnReorderRule, group_and_summarize};
 use crate::support::pagination::{ListEndpoint, fetch_all_pages};
-use crate::support::row::Row;
 use crate::ui::format::format_iso_date;
 use crate::ui::labels::{receipt_year_month_day_label, receipt_year_month_label};
 use shared::format::{format_currency, format_number};
 
 /// 取引明細の一覧行。保存済み(DB の行)を包む。
-pub type ReceiptRow = Row<ReceiptItem>;
+pub type ReceiptRow = ReceiptItem;
 
-impl Row<ReceiptItem> {
+impl ReceiptItem {
     /// 保存済み行が持つ DB id。
     pub(crate) fn saved_id(&self) -> Option<&str> {
-        self.saved().map(ReceiptItem::id)
+        Some(self.id())
     }
 
     pub(crate) fn date(&self) -> &str {
@@ -468,14 +467,6 @@ impl ReceiptRowData for ReceiptItem {
     }
 }
 
-impl<S: ReceiptRowData> ReceiptRowData for Row<S> {
-    fn view(&self) -> RowView<'_> {
-        match self {
-            Self::Saved(row) => row.view(),
-        }
-    }
-}
-
 /// 非 Core の列は画面帯で段階的に出す(input.css の .receipt-tier-* と対になる)。
 /// 左パネルは常時 18rem を占有するため、開閉では段階を変えない
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
@@ -660,7 +651,7 @@ fn totals_from_amounts<S>(
 }
 
 /// 保存済み行を `shared::summary` の日次集計にそのまま渡せるようにする。
-impl DomesticDailyRow for Row<ReceiptItem> {
+impl DomesticDailyRow for ReceiptItem {
     fn daily_key(&self) -> String {
         self.date().to_string()
     }
@@ -943,12 +934,7 @@ where
     let page = fetch_all_pages::<E>().await?;
     Ok(ReceiptTabData {
         total: page.total,
-        rows: page
-            .rows
-            .into_iter()
-            .map(Into::into)
-            .map(Row::Saved)
-            .collect(),
+        rows: page.rows.into_iter().map(Into::into).collect(),
         summary: page.summary.map(wrap_summary),
         truncated: page.truncated,
     })
