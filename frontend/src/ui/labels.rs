@@ -99,11 +99,6 @@ pub fn composition_basis_note(basis: &str, total: &str) -> String {
     format!("{basis}の比率・合計 {total} ・保有全体")
 }
 
-/// 構成比で小さい区分をまとめたときの名前(「その他 3銘柄」)
-pub fn composition_other(count: usize) -> String {
-    format!("その他 {count}銘柄")
-}
-
 /// 構成比の中央に出す全体の件数(「36銘柄」)
 pub fn composition_total(count: usize) -> String {
     format!("{count}銘柄")
@@ -117,6 +112,21 @@ pub fn composition_kinds(count: usize) -> String {
 /// 構成比の中央に出す口座の数(「3口座」)
 pub fn composition_accounts(count: usize) -> String {
     format!("{count}口座")
+}
+
+/// 構成比のドーナツ注釈の名前。長いときは途中で「…」で省略する(比率は省略しない)
+pub fn composition_annotation_name(name: &str) -> String {
+    const MAX_CHARS: usize = 8;
+    if name.chars().count() <= MAX_CHARS {
+        return name.to_string();
+    }
+    let truncated: String = name.chars().take(MAX_CHARS - 1).collect();
+    format!("{truncated}…")
+}
+
+/// 構成比のドーナツ注釈(「名前 比率」)
+pub fn composition_annotation(name: &str, percentage: &str) -> String {
+    format!("{} {}", composition_annotation_name(name), percentage)
 }
 /// 投資信託
 pub const MUTUAL_FUND: &str = "投資信託";
@@ -713,8 +723,6 @@ pub const ASSET_FUND_NOT_FOUND: &str = "ファンドが見つかりません";
 pub const ASSET_HOLDING_NOT_FOUND: &str = "銘柄が見つかりません";
 /// 注意表示の頭に付ける文言
 pub const WARNING_PREFIX: &str = "注意:";
-/// 構成比: 対象の注記
-pub const COMPOSITION_TARGET: &str = "対象: 保存済みの保有全体";
 /// 構成比: 算出できないときの表示
 pub const COMPOSITION_UNAVAILABLE: &str = "算出不可";
 /// 資産管理: 検索領域名
@@ -763,11 +771,6 @@ pub fn asset_truncated_warning(total: &str) -> String {
 /// 分配金コースの表示(「・ 受取型」)
 pub fn course_with_dot(course: &str) -> String {
     format!("・ {course}")
-}
-
-/// 構成比の基準見出し(「基準(取得総額): 」)
-pub fn composition_basis_heading(basis: &str) -> String {
-    format!("基準({basis}): ")
 }
 
 /// アプリ名(タブの接尾辞・枠の表示)

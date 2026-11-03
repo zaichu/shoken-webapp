@@ -1,99 +1,13 @@
 use super::{
-    ChartPlan, CompositionBasis, CompositionGroup, CompositionProduct, CompositionSource,
-    SortInput, SortKey, SortOrder, chart_plan, composition_color, composition_entries,
-    composition_percentages, composition_rows, composition_sources, sort_holdings,
+    CompositionBasis, CompositionGroup, CompositionProduct, CompositionRow, CompositionSource,
+    SortInput, SortKey, SortOrder, composition_annotation_indices, composition_color,
+    composition_entries, composition_percentages, composition_rows, composition_sources,
+    sort_holdings,
 };
 use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::fund::FundView;
 use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
 use crate::features::asset_balance::model::ValuationInput;
-use serde::Deserialize;
-
-const PERCENTAGE_TOLERANCE: f64 = 1e-9;
-
-#[derive(Deserialize)]
-struct FixtureItem {
-    id: String,
-    purchase: f64,
-}
-
-#[derive(Deserialize)]
-struct OrderCase {
-    name: String,
-    items: Vec<FixtureItem>,
-    expected_ids: Vec<String>,
-    expected_percentages: Vec<Option<f64>>,
-}
-
-#[derive(Deserialize)]
-struct Fixture {
-    order_cases: Vec<OrderCase>,
-}
-
-fn fixture() -> Fixture {
-    serde_json::from_str(include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/asset_balance/portfolio.json"
-    )))
-    .expect("shared asset balance portfolio fixture parses")
-}
-
-fn plan_for(items: &[FixtureItem]) -> ChartPlan {
-    let values: Vec<f64> = items.iter().map(|item| item.purchase).collect();
-    chart_plan(&values)
-}
-
-fn sorted_ids<'a>(items: &'a [FixtureItem], plan: &ChartPlan) -> Vec<&'a str> {
-    plan.order
-        .iter()
-        .map(|&index| items[index].id.as_str())
-        .collect()
-}
-
-fn assert_percentage(actual: Option<f64>, expected: &Option<f64>, case: &str, index: usize) {
-    match (actual, expected) {
-        (None, None) => {}
-        (Some(actual), Some(expected)) => {
-            let diff = (actual - expected).abs();
-            assert!(
-                diff <= PERCENTAGE_TOLERANCE,
-                "{case} percentages[{index}]: actual {actual} expected {expected}"
-            );
-        }
-        (actual, expected) => {
-            panic!("{case} percentages[{index}]: actual {actual:?} expected {expected:?}")
-        }
-    }
-}
-
-#[test]
-fn shared_order_cases_match() {
-    let fixture = fixture();
-    assert_eq!(fixture.order_cases.len(), 7);
-    for case in &fixture.order_cases {
-        let plan = plan_for(&case.items);
-        assert_eq!(
-            sorted_ids(&case.items, &plan),
-            case.expected_ids,
-            "{}",
-            case.name
-        );
-        assert_eq!(
-            plan.percentages.len(),
-            case.expected_percentages.len(),
-            "{}",
-            case.name
-        );
-        for (index, (actual, expected)) in plan
-            .percentages
-            .iter()
-            .zip(&case.expected_percentages)
-            .enumerate()
-        {
-            assert_percentage(*actual, expected, &case.name, index);
-        }
-    }
-}
 
 fn sort_input(code: &str, market: f64, purchase: f64, annual: Option<f64>) -> SortInput<'static> {
     let dividend = Box::leak(Box::new(HoldingDividend {
@@ -492,28 +406,23 @@ fn composition_stock_sources() -> (Vec<CompositionSource>, Vec<Option<f64>>) {
 }
 
 #[test]
-fn composition_rows_split_major_and_other_at_nine_percent() {
+fn composition_rows_keep_every_entry_without_other() {
     let (sources, basis) = composition_stock_sources();
     let entries = composition_entries(&sources, CompositionGroup::Holding, &basis);
     let (_, percentages) =
         composition_percentages(&entries.iter().map(|entry| entry.value).collect::<Vec<_>>());
     let rows = composition_rows(&entries, &percentages);
-    assert_eq!(rows.len(), 4);
-    assert!(!rows[0].is_other);
+    assert_eq!(rows.len(), 5);
+    assert!(!rows.iter().any(|row| row.name.contains("その他")));
     assert_eq!(rows[0].name, "A");
     assert!(rows[0].computable);
-    assert_eq!(rows[2].name, "C");
     assert_eq!(rows[2].color, composition_color(2));
-    let other = &rows[3];
-    assert!(other.is_other);
-    assert_eq!(other.name, "その他 2銘柄");
-    assert!((other.percentage - 11.0).abs() < 1e-9);
-    assert!(other.computable);
-    assert_eq!(other.href, None);
+    assert_eq!(rows[4].name, "E");
+    assert!(rows[4].computable);
 }
 
 #[test]
-fn composition_rows_keep_uncomputable_minors_in_other() {
+fn composition_rows_keep_uncomputable_as_their_own_row_at_the_end() {
     let sources = vec![
         composition_source(
             "A",
@@ -536,11 +445,50 @@ fn composition_rows_keep_uncomputable_minors_in_other() {
     let rows = composition_rows(&entries, &percentages);
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0].name, "A");
-    let other = &rows[1];
-    assert!(other.is_other);
-    assert_eq!(other.name, "その他 1銘柄");
-    assert!(!other.computable);
-    assert_eq!(other.value, None);
+    assert!(rows[0].computable);
+    assert_eq!(rows[1].name, "B");
+    assert!(!rows[1].computable);
+    assert_eq!(rows[1].value, None);
+}
+
+fn annotation_rows(percentages: &[f64]) -> Vec<CompositionRow> {
+    percentages
+        .iter()
+        .enumerate()
+        .map(|(index, percentage)| CompositionRow {
+            name: format!("銘柄{index:02}"),
+            sub: String::new(),
+            value: Some(100.0),
+            percentage: *percentage,
+            computable: true,
+            color: composition_color(index),
+            holdings: 1,
+            href: None,
+        })
+        .collect()
+}
+
+#[test]
+fn composition_annotations_keep_only_major_slices_up_to_ten() {
+    let rows = annotation_rows(&[100.0 / 12.0; 12]);
+    let selected = composition_annotation_indices(&rows);
+    assert_eq!(selected, (0..10).collect::<Vec<_>>());
+}
+
+#[test]
+fn composition_annotations_skip_overlapping_neighbors() {
+    let rows = annotation_rows(&[40.0, 5.0, 5.0, 50.0]);
+    let selected = composition_annotation_indices(&rows);
+    assert_eq!(selected, vec![0, 1, 3]);
+}
+
+#[test]
+fn composition_annotations_require_computable_major_slices() {
+    let mut rows = annotation_rows(&[50.0, 50.0]);
+    rows[1].computable = false;
+    rows[1].percentage = 0.0;
+    let selected = composition_annotation_indices(&rows);
+    assert_eq!(selected, vec![0]);
 }
 
 #[test]

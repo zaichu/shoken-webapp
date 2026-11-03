@@ -7,7 +7,7 @@ use crate::ui::badge::account_display_name;
 use crate::ui::labels::{
     ACQUISITION_YIELD, ANNUAL_DIVIDEND, COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_ACCOUNT,
     COMPOSITION_GROUP_HOLDING, COMPOSITION_GROUP_PRODUCT, DOMESTIC_STOCK, MARKET_VALUE, MISSING,
-    MUTUAL_FUND, VALUATION_PROFIT_LOSS, composition_other,
+    MUTUAL_FUND, VALUATION_PROFIT_LOSS,
 };
 use std::cmp::Ordering;
 
@@ -140,46 +140,6 @@ where
         }
     });
     indexed.into_iter().map(|(index, _)| index).collect()
-}
-
-/// 構成比一覧の並び結果。`order` は表示順に並んだ全入力のインデックス、
-/// `percentages` は同じ並びの未丸め構成比(取得額0・分母0で算出不可は `None`)。
-#[derive(Clone, Debug)]
-pub struct ChartPlan {
-    pub order: Vec<usize>,
-    pub percentages: Vec<Option<f64>>,
-}
-
-/// 構成比一覧の並びを求める。`values` は各行の取得総額。
-/// `order` は全行を含む(算出不可の行も一覧に残すため)。
-/// 構成比は取得額の絶対値で出し、取得額 0 の行は分母に入らないため `None` とし、
-/// `order` では `Some` の行より後ろに置く。
-///
-/// 取得額降順→構成比降順の二段の安定ソートを踏む。構成比が `None` 同士の
-/// 比較は「等しい」扱いで入力順を保つ。
-pub fn chart_plan(values: &[f64]) -> ChartPlan {
-    let mut order: Vec<usize> = (0..values.len()).collect();
-    order.sort_by(|&a, &b| values[b].total_cmp(&values[a]));
-    let all_percentages = chart_percentages(values);
-    let mut paired: Vec<(usize, Option<f64>)> = order
-        .into_iter()
-        .map(|index| {
-            let percentage = all_percentages
-                .get(index)
-                .copied()
-                .flatten()
-                .filter(|_| values[index] != 0.0);
-            (index, percentage)
-        })
-        .collect();
-    paired.sort_by(|a, b| match (b.1, a.1) {
-        (Some(rhs), Some(lhs)) => rhs.total_cmp(&lhs),
-        (None, None) => Ordering::Equal,
-        (None, Some(_)) => Ordering::Less,
-        (Some(_), None) => Ordering::Greater,
-    });
-    let (order, percentages) = paired.into_iter().unzip();
-    ChartPlan { order, percentages }
 }
 
 #[cfg(test)]
@@ -409,17 +369,17 @@ pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>
     (total, percentages)
 }
 
-/// ドーナツに個別で出す割合の下限。未満は「その他」にまとめる
-pub const COMPOSITION_MAJOR_THRESHOLD: f64 = 9.0;
+/// ドーナツの注釈に出す割合の下限(以上だけ出す)
+pub const COMPOSITION_ANNOTATION_MIN_PERCENT: f64 = 3.0;
+
+/// ドーナツの注釈の上限(重ならずに置ける分だけ、多いときはここまで)
+pub const COMPOSITION_ANNOTATION_MAX: usize = 10;
 
 /// 区分の色番号。`[0, 2, 4, 1, 3]` を回して隣り合う区分の色が並ばないようにする
 pub fn composition_color(position: usize) -> usize {
     const ORDER: [usize; 5] = [0, 2, 4, 1, 3];
     ORDER[position % ORDER.len()]
 }
-
-/// その他の区分の色番号(中立色)。通常の色番号(0〜4)と重ねない
-pub const COMPOSITION_OTHER_COLOR: usize = usize::MAX;
 
 /// 構成比の表示1行。割合は未丸めで、算出不可の行は `computable` が false
 #[derive(Clone, Debug, PartialEq)]
@@ -432,56 +392,67 @@ pub struct CompositionRow {
     pub color: usize,
     pub holdings: usize,
     pub href: Option<String>,
-    pub is_other: bool,
 }
 
-/// 区分をドーナツと一覧に出す行に分ける。割合が下限以上の区分は個別に、
-/// それ未満と算出不可は「その他 ◯銘柄」にまとめる。その他自体の色は中立のままにする
+/// 区分をドーナツと一覧に出す行に分ける。全区分を1行ずつ出し、
+/// 「その他」にはまとめない。並びは entries のまま(比率の降順)で、
+/// 色もその順に割り当てる
 pub fn composition_rows(
     entries: &[CompositionEntry],
     percentages: &[Option<f64>],
 ) -> Vec<CompositionRow> {
-    let mut rows = Vec::new();
-    let mut other_holdings = 0;
-    let mut other_percentage = 0.0;
-    let mut other_value: Option<f64> = None;
-    let mut other_computable = false;
-    for (entry, percentage) in entries.iter().zip(percentages.iter().copied()) {
-        if percentage.is_some_and(|value| value >= COMPOSITION_MAJOR_THRESHOLD) {
-            rows.push(CompositionRow {
-                name: entry.name.clone(),
-                sub: entry.sub.clone(),
-                value: entry.value,
-                percentage: percentage.unwrap_or(0.0),
-                computable: true,
-                color: composition_color(rows.len()),
-                holdings: entry.holdings,
-                href: entry.href.clone(),
-                is_other: false,
-            });
+    entries
+        .iter()
+        .zip(percentages.iter().copied())
+        .enumerate()
+        .map(|(position, (entry, percentage))| CompositionRow {
+            name: entry.name.clone(),
+            sub: entry.sub.clone(),
+            value: entry.value,
+            percentage: percentage.unwrap_or(0.0),
+            computable: percentage.is_some(),
+            color: composition_color(position),
+            holdings: entry.holdings,
+            href: entry.href.clone(),
+        })
+        .collect()
+}
+
+/// 切れの中央の角度から注釈の上下位置と左右を出す。ドーナツの描画と
+/// 注釈の配置で同じ値を使い、線の引き先と判定を一致させる
+pub fn composition_annotation_side(start: f64, percentage: f64) -> (f64, f64, bool) {
+    let mid = start + percentage / 2.0;
+    let angle = (mid / 100.0 * 360.0 - 90.0).to_radians();
+    let (sine, cosine) = angle.sin_cos();
+    (sine, cosine, cosine >= 0.0)
+}
+
+/// ドーナツの注釈に出す行の位置を選ぶ。比率の大きい順に下限以上を拾い、
+/// 同じ側で重なるものは飛ばして上限まで残す
+pub fn composition_annotation_indices(rows: &[CompositionRow]) -> Vec<usize> {
+    const MIN_GAP: f64 = 0.12;
+    let mut starts = Vec::with_capacity(rows.len());
+    let mut cursor = 0.0;
+    for row in rows {
+        starts.push(cursor);
+        cursor += row.percentage;
+    }
+    let mut selected: Vec<(usize, f64, bool)> = Vec::new();
+    for (index, row) in rows.iter().enumerate() {
+        if selected.len() >= COMPOSITION_ANNOTATION_MAX {
+            break;
+        }
+        if !row.computable || row.percentage < COMPOSITION_ANNOTATION_MIN_PERCENT {
             continue;
         }
-        other_holdings += entry.holdings;
-        if let Some(percentage) = percentage {
-            other_percentage += percentage;
-            other_computable = true;
-        }
-        if let Some(value) = entry.value {
-            other_value = Some(other_value.unwrap_or(0.0) + value);
-        }
-    }
-    if other_holdings > 0 {
-        rows.push(CompositionRow {
-            name: composition_other(other_holdings),
-            sub: String::new(),
-            value: other_value,
-            percentage: other_percentage,
-            computable: other_computable,
-            color: COMPOSITION_OTHER_COLOR,
-            holdings: other_holdings,
-            href: None,
-            is_other: true,
+        let (sine, _, right) = composition_annotation_side(starts[index], row.percentage);
+        let overlaps = selected.iter().any(|(_, placed, placed_right)| {
+            *placed_right == right && (sine - placed).abs() < MIN_GAP
         });
+        if overlaps {
+            continue;
+        }
+        selected.push((index, sine, right));
     }
-    rows
+    selected.into_iter().map(|(index, _, _)| index).collect()
 }

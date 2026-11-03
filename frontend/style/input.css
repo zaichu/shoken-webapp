@@ -1613,7 +1613,7 @@
   }
 
   .comp-donut-wrap {
-    @apply relative mx-auto mt-3 w-52 max-w-full;
+    @apply relative mx-auto mt-3 w-full max-w-md;
   }
 
   .comp-donut {
@@ -1649,8 +1649,44 @@
     stroke: var(--color-chart-5);
   }
 
-  .comp-slice-other {
-    stroke: var(--color-text-muted);
+  .comp-slice-gap {
+    fill: none;
+    stroke: var(--color-page);
+    stroke-width: 2;
+  }
+
+  .comp-leader-0,
+  .comp-leader-1,
+  .comp-leader-2,
+  .comp-leader-3,
+  .comp-leader-4 {
+    fill: none;
+    stroke-width: 2;
+  }
+
+  .comp-leader-0 {
+    stroke: var(--color-chart-1);
+  }
+
+  .comp-leader-1 {
+    stroke: var(--color-chart-2);
+  }
+
+  .comp-leader-2 {
+    stroke: var(--color-chart-3);
+  }
+
+  .comp-leader-3 {
+    stroke: var(--color-chart-4);
+  }
+
+  .comp-leader-4 {
+    stroke: var(--color-chart-5);
+  }
+
+  .comp-annotation {
+    font-size: var(--text-eyebrow);
+    fill: var(--color-text);
   }
 
   .comp-donut-center {
