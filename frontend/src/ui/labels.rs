@@ -114,22 +114,9 @@ pub fn composition_accounts(count: usize) -> String {
     format!("{count}口座")
 }
 
-/// 構成比のドーナツ注釈の名前。長いときは途中で「…」で省略する(比率は省略しない)
-pub fn composition_annotation_name(name: &str, max_chars: usize) -> String {
-    if name.chars().count() <= max_chars {
-        return name.to_string();
-    }
-    let truncated: String = name.chars().take(max_chars.saturating_sub(1)).collect();
-    format!("{truncated}…")
-}
-
-/// 構成比のドーナツ注釈(「名前 比率」)
-pub fn composition_annotation(name: &str, percentage: &str, max_chars: usize) -> String {
-    format!(
-        "{} {}",
-        composition_annotation_name(name, max_chars),
-        percentage
-    )
+/// 構成比の凡例で6件目以降をまとめる行(「ほか3件」)
+pub fn composition_others(count: usize) -> String {
+    format!("ほか{count}件")
 }
 /// 投資信託
 pub const MUTUAL_FUND: &str = "投資信託";

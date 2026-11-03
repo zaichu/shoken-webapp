@@ -260,8 +260,11 @@ test.describe('スマホの構成比', () => {
     await expect(
       page.getByTestId('asset-composition-donut').getByTestId('comp-slice'),
     ).toHaveCount(13);
-    // 比率3%未満の小さい切れに注釈は付けない
-    await expect(page.getByTestId('comp-annotation')).toHaveCount(1);
+    // 凡例は比率の大きい順に上位5件、残りは「ほか8件」にまとめる
+    const legend = page.getByTestId('asset-composition-legend');
+    await expect(legend.getByTestId('comp-legend-item')).toHaveCount(5);
+    await expect(legend.getByTestId('comp-legend-item').nth(0)).toContainText('93.8%');
+    await expect(page.getByTestId('comp-legend-others')).toHaveText('ほか8件');
   });
 
   test('1銘柄だけでも件数と100%を出す', async ({ page }) => {
@@ -310,7 +313,7 @@ test.describe('スマホの構成比', () => {
     await expect(list.getByText('その他')).toHaveCount(0);
   });
 
-  test('切れの数は行と同じで注釈は左右に4つまで出す', async ({
+  test('切れの数は行と同じで凡例は上位5件まで出す', async ({
     page,
   }) => {
     await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS, GROUP_FUNDS);
@@ -321,10 +324,13 @@ test.describe('スマホの構成比', () => {
     await expect(rows).toHaveCount(5);
     const donut = page.getByTestId('asset-composition-donut');
     await expect(donut.getByTestId('comp-slice')).toHaveCount(5);
-    const annotations = page.getByTestId('comp-annotation');
-    await expect(annotations).toHaveCount(4);
-    await expect(annotations.nth(0)).toContainText('ファンドA');
-    await expect(annotations.nth(0)).toContainText('36.4%');
+    const legend = page.getByTestId('asset-composition-legend');
+    const items = legend.getByTestId('comp-legend-item');
+    await expect(items).toHaveCount(5);
+    await expect(items.nth(0)).toContainText('ファンドA');
+    await expect(items.nth(0)).toContainText('36.4%');
+    // 5件以下なので「ほか」の行は出さない
+    await expect(page.getByTestId('comp-legend-others')).toHaveCount(0);
   });
 
   test('件数行の右端から構成比へ進め、見出し行は無い', async ({ page }) => {
