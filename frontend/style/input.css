@@ -1629,15 +1629,23 @@
   }
 
   .comp-donut-wrap {
-    @apply relative mx-auto mt-3 w-52 max-w-full;
+    @apply relative mx-auto mt-3 w-full max-w-2xl;
   }
 
   .comp-donut {
     @apply block h-auto w-full;
   }
 
-  .comp-donut circle {
+  .comp-donut-compact circle,
+  .comp-donut-wide circle {
     fill: none;
+  }
+
+  .comp-donut-compact circle {
+    stroke-width: 28;
+  }
+
+  .comp-donut-wide circle {
     stroke-width: 36;
   }
 
@@ -1665,8 +1673,48 @@
     stroke: var(--color-chart-5);
   }
 
-  .comp-slice-other {
-    stroke: var(--color-text-muted);
+  .comp-slice-gap {
+    fill: none;
+    stroke: var(--color-page);
+    stroke-width: 2;
+  }
+
+  .comp-leader-0,
+  .comp-leader-1,
+  .comp-leader-2,
+  .comp-leader-3,
+  .comp-leader-4 {
+    fill: none;
+    stroke-width: 2;
+  }
+
+  .comp-leader-0 {
+    stroke: var(--color-chart-1);
+  }
+
+  .comp-leader-1 {
+    stroke: var(--color-chart-2);
+  }
+
+  .comp-leader-2 {
+    stroke: var(--color-chart-3);
+  }
+
+  .comp-leader-3 {
+    stroke: var(--color-chart-4);
+  }
+
+  .comp-leader-4 {
+    stroke: var(--color-chart-5);
+  }
+
+  .comp-annotation {
+    font-size: var(--text-cell);
+    fill: var(--color-text);
+  }
+
+  .comp-annotation-rate {
+    font-weight: 700;
   }
 
   .comp-donut-center {

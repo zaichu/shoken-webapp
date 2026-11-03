@@ -712,27 +712,6 @@ fn fund_counts_prefer_api_total_like_tab_counts() {
 }
 
 #[test]
-fn composition_basis_matches_abs_sum_percentages() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let lookup = RwSignal::new(AssetBalanceLookupStore::new());
-        let mut positive = balance_row(9904);
-        positive.total_purchase_amount = rust_decimal_macros::dec!(100);
-        let mut negative = balance_row(9914);
-        negative.total_purchase_amount = rust_decimal_macros::dec!(-50);
-        let rows: Vec<AssetBalanceRow> = vec![positive, negative]
-            .into_iter()
-            .map(Row::Saved)
-            .collect();
-        let views = all_portfolio_views(&rows, lookup, Generation::new(1));
-
-        let basis = super::composition_page::composition_basis(&views);
-        assert_eq!(basis, 150.0, "母数は絶対値合計");
-        assert!(basis > 0.0, "符号付き合計が0以下でも算出不可にしない");
-    });
-}
-
-#[test]
 fn stock_pending_and_as_of_use_priced_rows_and_api_totals() {
     let owner = Owner::new();
     owner.with(|| {

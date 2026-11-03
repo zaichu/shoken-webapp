@@ -4,8 +4,9 @@ use crate::features::asset_balance::fund::{FundView, fund_view};
 use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::{
-    CompositionBasis, CompositionGroup, CompositionRow, composition_entries,
-    composition_percentages, composition_rows, composition_sources,
+    AnnotationAnchor, AnnotationRequest, CompositionBasis, CompositionGroup, CompositionRow,
+    DonutGeometry, composition_entries, composition_percentages, composition_rows,
+    composition_sources, place_annotations, place_side_annotations,
 };
 use crate::features::asset_balance::store::{
     all_portfolio_views, load_asset_balances, load_fund_balances,
@@ -23,11 +24,38 @@ use crate::ui::segmented::Segmented;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index};
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
 
-/// 構成比の母数。比率と同じく絶対値合計を使う。負の取得額があると
-/// 符号付き合計と比率が食い違うため
-pub(crate) fn composition_basis(views: &[HoldingView]) -> f64 {
-    views.iter().map(|v| v.purchase.abs()).sum()
+/// ドーナツの注釈配置。PC幅で広い版に切り替える
+fn use_wide_donut_layout() -> RwSignal<bool> {
+    let wide = RwSignal::new(false);
+    Effect::new(move |_| {
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+        let query = window.match_media("(min-width: 64rem)").ok().flatten();
+        let Some(query) = query else {
+            return;
+        };
+        wide.set(query.matches());
+        let listener =
+            wasm_bindgen::closure::Closure::wrap(Box::new(move |event: web_sys::Event| {
+                if let Some(query) = event
+                    .target()
+                    .and_then(|target| target.dyn_into::<web_sys::MediaQueryList>().ok())
+                {
+                    wide.set(query.matches());
+                }
+            }) as Box<dyn FnMut(_)>);
+        let _ = query.add_event_listener_with_callback("change", listener.as_ref().unchecked_ref());
+        let pair = send_wrapper::SendWrapper::new((query, listener));
+        on_cleanup(move || {
+            let (query, listener) = &*pair;
+            let _ = query
+                .remove_event_listener_with_callback("change", listener.as_ref().unchecked_ref());
+        });
+    });
+    wide
 }
 
 const BASIS_OPTIONS: &[(&str, &str)] = &[
@@ -62,11 +90,7 @@ fn basis_values(
 
 /// 区分の色に対応する塗りクラス
 fn color_fill_class(color: usize) -> String {
-    if color == usize::MAX {
-        "bg-text-muted".to_string()
-    } else {
-        format!("bg-chart-{}", color + 1)
-    }
+    format!("bg-chart-{}", color + 1)
 }
 
 fn color_slice_class(color: usize) -> &'static str {
@@ -75,15 +99,18 @@ fn color_slice_class(color: usize) -> &'static str {
         1 => "comp-slice-1",
         2 => "comp-slice-2",
         3 => "comp-slice-3",
-        4 => "comp-slice-4",
-        _ => "comp-slice-other",
+        _ => "comp-slice-4",
     }
 }
 
-#[derive(Clone)]
-struct ChartItem {
-    view: HoldingView,
-    percentage: Option<f64>,
+fn color_leader_class(color: usize) -> &'static str {
+    match color {
+        0 => "comp-leader-0",
+        1 => "comp-leader-1",
+        2 => "comp-leader-2",
+        3 => "comp-leader-3",
+        _ => "comp-leader-4",
+    }
 }
 
 #[component]
@@ -188,17 +215,11 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                     .into_any();
                             }
                             view! {
-                                <CompositionMobile
+                                <CompositionContent
                                     views=views.clone()
                                     funds=fund_views
                                     dividends=dividends
                                 />
-                                <div
-                                    class="hidden lg:block"
-                                    data-testid="asset-composition-desktop"
-                                >
-                                    <CompositionDesktop views=views />
-                                </div>
                             }
                                 .into_any()
                         }
@@ -209,104 +230,10 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
     }
 }
 
-/// PC の構成比。
-#[component]
-fn CompositionDesktop(views: Vec<HoldingView>) -> impl IntoView {
-    let total_purchase = composition_basis(&views);
-    let chart_values: Vec<f64> = views.iter().map(|v| v.purchase).collect();
-    let plan = crate::features::asset_balance::portfolio::chart_plan(&chart_values);
-    let items: Vec<ChartItem> = plan
-        .order
-        .iter()
-        .zip(&plan.percentages)
-        .map(|(&index, &percentage)| ChartItem {
-            view: views[index].clone(),
-            percentage,
-        })
-        .collect();
-    view! {
-        <div class="asset-panel">
-            <div class="border-b border-border p-4">
-                <p class="text-sm text-text-muted">{labels::COMPOSITION_TARGET}</p>
-                <p class="mt-1 text-sm">
-                    {labels::composition_basis_heading(labels::TOTAL_ACQUISITION)}
-                    <strong class="tabular-nums">{format_amount(total_purchase)}</strong>
-                </p>
-            </div>
-            {if total_purchase <= 0.0 {
-                view! {
-                    <div class="p-6 text-center text-text-muted">{labels::COMPOSITION_UNAVAILABLE}</div>
-                }
-                    .into_any()
-            } else {
-                view! {
-                    <ul class="divide-y divide-border-faint" data-testid="asset-composition-list">
-                        {items
-                            .into_iter()
-                            .map(|item| {
-                                let name = item.view.name.clone();
-                                let code = item.view.code.clone();
-                                let purchase = item.view.purchase;
-                                let percentage = item.percentage
-                                    .map_or(labels::MISSING.to_string(), |p| {
-                                        format_fixed_percent(p, 1)
-                                    });
-                                let bar_width = item.percentage
-                                    .map_or("0%".to_string(), |p| {
-                                        format!("{}%", p.min(100.0))
-                                    });
-                                let inner = view! {
-                                    <>
-                                        <div class="flex items-baseline justify-between gap-2">
-                                            <span class="min-w-0 truncate font-medium text-text">
-                                                {name}
-                                            </span>
-                                            <span class="shrink-0 tabular-nums text-text">
-                                                {format_currency(purchase)}
-                                                " "
-                                                <span class="text-text-muted">{percentage}</span>
-                                            </span>
-                                        </div>
-                                        <div class="mt-1 text-sm text-text-muted">{code}</div>
-                                        <div class="mt-2 h-1.5 w-full rounded-full bg-surface-raised">
-                                            <div
-                                                class="h-full rounded-full bg-accent"
-                                                style:width=bar_width
-                                            />
-                                        </div>
-                                    </>
-                                };
-                                view! {
-                                    <li>
-                                        {match &item.view.id {
-                                            Some(id) => view! {
-                                                <a
-                                                    href=format!("/assetbalance/holdings/{id}")
-                                                    class="asset-comp-link"
-                                                >
-                                                    {inner}
-                                                </a>
-                                            }
-                                                .into_any(),
-                                            None => view! { <div class="asset-comp-link">{inner}</div> }
-                                                .into_any(),
-                                        }}
-                                    </li>
-                                }
-                            })
-                            .collect_view()}
-                    </ul>
-                }
-                    .into_any()
-            }}
-        </div>
-    }
-}
-
-/// スマホの構成比(下線タブ・基準切り替え・ドーナツ・一覧)。
+/// 構成比(PCもスマホも同じ形。上にタブ・基準切り替え・ドーナツ、下に一覧)。
 /// 国内株式と投資信託の両方を区分に入れる
 #[component]
-fn CompositionMobile(
+fn CompositionContent(
     views: Vec<HoldingView>,
     funds: Vec<FundView>,
     dividends: RwSignal<DividendMaps>,
@@ -316,7 +243,7 @@ fn CompositionMobile(
     let basis_value = Signal::derive(move || basis.get().value().to_string());
     let sources = composition_sources(&views, &funds);
     view! {
-        <div class="lg:hidden" data-testid="asset-composition-mobile">
+        <div class="mx-auto w-full max-w-2xl" data-testid="asset-composition">
             <div
                 class="comp-tab-row"
             >
@@ -414,7 +341,7 @@ fn CompositionMobile(
                             <CompositionDonut rows=rows.clone() center=center />
                             <ul
                                 class="asset-compact-list"
-                                data-testid="asset-composition-mobile-list"
+                                data-testid="asset-composition-list"
                             >
                                 {rows
                                     .into_iter()
@@ -455,6 +382,12 @@ fn CompositionMobile(
                                         let static_value = row.value;
                                         let static_computable = row.computable;
                                         let static_percentage = row.percentage;
+                                        let static_fill = color_fill_class(row.color);
+                                        let static_bar_width = if static_computable {
+                                            format!("{}%", static_percentage.min(100.0))
+                                        } else {
+                                            "0%".to_string()
+                                        };
                                         view! {
                                             <li
                                                 class="list-row-item"
@@ -474,6 +407,12 @@ fn CompositionMobile(
                                                             meta=move || static_sub.clone()
                                                             secondary=move || if static_computable { format_fixed_percent(static_percentage, 1) } else { labels::MISSING.to_string() }
                                                         />
+                                                        <div class="comp-bar" aria-hidden="true">
+                                                            <span
+                                                                class=format!("comp-bar-fill {static_fill}")
+                                                                style:width=static_bar_width
+                                                            />
+                                                        </div>
                                                     }
                                                         .into_any(),
                                                 }}
@@ -491,62 +430,191 @@ fn CompositionMobile(
     }
 }
 
-/// ドーナツ。区分の割合を環の長さで出し、中央に件数を出す
+/// ドーナツ。全部の区分を1切れずつ出し、大きい切れに引き出し線の注釈を付ける。
+/// 切れの間のすき間は地の色の線で空け、同じ色が隣り合っても区別できるようにする
 #[component]
 fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView {
-    let mut cursor = 0.0;
-    let slices: Vec<(CompositionRow, f64)> = rows
-        .into_iter()
-        .map(|row| {
-            let start = cursor;
-            cursor += row.percentage;
-            (row, start)
-        })
-        .collect();
-    view! {
-        <div class="comp-donut-wrap">
-            <svg
-                class="comp-donut"
-                viewBox="0 0 200 200"
-                role="img"
-                aria-label=labels::COMPOSITION
-                data-testid="asset-composition-donut"
-            >
-                <circle cx="100" cy="100" r="80" class="comp-donut-track" />
-                {slices
-                    .into_iter()
-                    .filter(|(row, _)| row.percentage > 0.0)
-                    .map(|(row, start)| {
-                        let slice_class = color_slice_class(row.color);
-                        let testid = if row.is_other {
-                            "comp-slice-other"
-                        } else {
-                            "comp-slice"
-                        };
-                        view! {
-                            <g data-testid=testid>
-                                <circle
-                                    cx="100"
-                                    cy="100"
-                                    r="80"
-                                    pathLength="100"
-                                    stroke-dasharray=format!(
-                                        "{} {}",
-                                        row.percentage,
-                                        100.0 - row.percentage,
-                                    )
-                                    stroke-dashoffset=format!("{}", -start)
-                                    transform="rotate(-90 100 100)"
-                                    class=slice_class
+    let wide = use_wide_donut_layout();
+    move || {
+        let geometry = if wide.get() {
+            DonutGeometry::WIDE
+        } else {
+            DonutGeometry::COMPACT
+        };
+        let max_name_chars = if wide.get() { 24 } else { 6 };
+        let mut cursor = 0.0;
+        let slices: Vec<(CompositionRow, f64)> = rows
+            .clone()
+            .into_iter()
+            .map(|row| {
+                let start = cursor;
+                cursor += row.percentage;
+                (row, start)
+            })
+            .collect();
+        let labeled: Vec<(CompositionRow, f64, String)> = slices
+            .iter()
+            .map(|(row, start)| {
+                let label = labels::composition_annotation(
+                    &row.name,
+                    &format_fixed_percent(row.percentage, 1),
+                    max_name_chars,
+                );
+                (row.clone(), *start, label)
+            })
+            .collect();
+        let requests: Vec<AnnotationRequest<'_>> = labeled
+            .iter()
+            .map(|(row, _, label)| AnnotationRequest {
+                label,
+                percentage: row.percentage,
+                computable: row.computable,
+            })
+            .collect();
+        let annotated = if wide.get() {
+            place_annotations(&requests, &geometry, &center)
+        } else {
+            place_side_annotations(&requests, &geometry, &center)
+        };
+        let center_x = geometry.center_x;
+        let center_y = geometry.center_y;
+        let radius = geometry.radius;
+        let inner = geometry.inner();
+        let outer = geometry.outer();
+        let gaps: Vec<(f64, f64, f64, f64)> = slices
+            .iter()
+            .enumerate()
+            .filter_map(|(index, (row, start))| {
+                let previous = &slices[(index + slices.len() - 1) % slices.len()].0;
+                if row.percentage < 1.0 || previous.percentage < 1.0 {
+                    return None;
+                }
+                let angle = (start / 100.0 * 360.0 - 90.0).to_radians();
+                let (sine, cosine) = angle.sin_cos();
+                Some((
+                    center_x + inner * cosine,
+                    center_y + inner * sine,
+                    center_x + outer * cosine,
+                    center_y + outer * sine,
+                ))
+            })
+            .collect();
+        view! {
+            <div class="comp-donut-wrap">
+                <svg
+                    class=if wide.get() {
+                        "comp-donut comp-donut-wide"
+                    } else {
+                        "comp-donut comp-donut-compact"
+                    }
+                    viewBox=format!("0 0 {} {}", geometry.width, geometry.height)
+                    role="img"
+                    aria-label=labels::COMPOSITION
+                    data-testid="asset-composition-donut"
+                >
+                    <circle
+                        cx=center_x.to_string()
+                        cy=center_y.to_string()
+                        r=radius.to_string()
+                        class="comp-donut-track"
+                    />
+                    {slices
+                        .iter()
+                        .filter(|(row, _)| row.percentage > 0.0)
+                        .map(|(row, start)| {
+                            let slice_class = color_slice_class(row.color);
+                            view! {
+                                <g data-testid="comp-slice">
+                                    <circle
+                                        cx=center_x.to_string()
+                                        cy=center_y.to_string()
+                                        r=radius.to_string()
+                                        pathLength="100"
+                                        stroke-dasharray=format!(
+                                            "{} {}",
+                                            row.percentage,
+                                            100.0 - row.percentage,
+                                        )
+                                        stroke-dashoffset=format!("{}", -start)
+                                        transform=format!(
+                                            "rotate(-90 {center_x} {center_y})",
+                                        )
+                                        class=slice_class
+                                    />
+                                </g>
+                            }
+                        })
+                        .collect_view()}
+                    {gaps
+                        .into_iter()
+                        .map(|(x1, y1, x2, y2)| {
+                            view! {
+                                <line
+                                    x1=x1.to_string()
+                                    y1=y1.to_string()
+                                    x2=x2.to_string()
+                                    y2=y2.to_string()
+                                    class="comp-slice-gap"
                                 />
-                            </g>
-                        }
-                    })
-                    .collect_view()}
-            </svg>
-            <div class="comp-donut-center" aria-hidden="true">
-                {center}
+                            }
+                        })
+                        .collect_view()}
+                    {annotated
+                        .into_iter()
+                        .filter_map(|item| {
+                            let (row, _, _label) = match labeled.get(item.index) {
+                                Some(found) => found,
+                                None => return None,
+                            };
+                            let name = labels::composition_annotation_name(
+                                &row.name,
+                                max_name_chars,
+                            );
+                            let percentage =
+                                format_fixed_percent(row.percentage, 1);
+                            let leader_class = color_leader_class(row.color);
+                            let anchor = match item.anchor {
+                                AnnotationAnchor::Start => "start",
+                                AnnotationAnchor::Middle => "middle",
+                                AnnotationAnchor::End => "end",
+                            };
+                            Some(
+                                view! {
+                                <g data-testid="comp-annotation" aria-hidden="true">
+                                    <polyline
+                                        points=format!(
+                                            "{},{},{},{} {},{}",
+                                            item.edge_x,
+                                            item.edge_y,
+                                            item.elbow_x,
+                                            item.elbow_y,
+                                            item.end_x,
+                                            item.elbow_y,
+                                        )
+                                        class=leader_class
+                                    />
+                                    <text
+                                        x=item.text_x.to_string()
+                                        y=item.text_y.to_string()
+                                        text-anchor=anchor
+                                        dominant-baseline="central"
+                                        class="comp-annotation"
+                                    >
+                                        {name}
+                                        <tspan class="comp-annotation-rate">
+                                            {format!(" {percentage}")}
+                                        </tspan>
+                                    </text>
+                                </g>
+                            }
+                            )
+                        })
+                        .collect_view()}
+                </svg>
+                <div class="comp-donut-center" aria-hidden="true">
+                    {center.clone()}
+                </div>
             </div>
-        </div>
+        }
     }
 }

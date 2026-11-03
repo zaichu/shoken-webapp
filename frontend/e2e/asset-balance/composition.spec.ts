@@ -174,11 +174,11 @@ test.describe('スマホの構成比', () => {
       'aria-selected',
       'true',
     );
-    const list = page.getByTestId('asset-composition-mobile-list');
+    const list = page.getByTestId('asset-composition-list');
     await expect(list.getByTestId('comp-row')).toHaveCount(5);
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('ファンドA');
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('36.4%');
-    await expect(page.getByTestId('asset-composition-mobile')).toContainText(
+    await expect(page.getByTestId('asset-composition')).toContainText(
       '5銘柄',
     );
     await expect(page.getByTestId('asset-composition-donut')).toBeVisible();
@@ -187,7 +187,7 @@ test.describe('スマホの構成比', () => {
     await expect(list.getByTestId('comp-row')).toHaveCount(2);
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('国内株式');
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('54.5%');
-    await expect(page.getByTestId('asset-composition-mobile')).toContainText(
+    await expect(page.getByTestId('asset-composition')).toContainText(
       '2種類',
     );
 
@@ -195,7 +195,7 @@ test.describe('スマホの構成比', () => {
     await expect(list.getByTestId('comp-row')).toHaveCount(2);
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('特定');
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('81.8%');
-    await expect(page.getByTestId('asset-composition-mobile')).toContainText(
+    await expect(page.getByTestId('asset-composition')).toContainText(
       '2口座',
     );
   });
@@ -204,7 +204,7 @@ test.describe('スマホの構成比', () => {
     await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS, GROUP_FUNDS);
     await page.goto('/assetbalance/composition');
 
-    const list = page.getByTestId('asset-composition-mobile-list');
+    const list = page.getByTestId('asset-composition-list');
     await expect(list.getByTestId('comp-row')).toHaveCount(5);
     await expect(page.getByTestId('page-skeleton-note-text')).toContainText(
       '評価額の比率',
@@ -230,7 +230,7 @@ test.describe('スマホの構成比', () => {
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('100.0%');
   });
 
-  test('小さい区分はその他にまとまる', async ({ page }) => {
+  test('小さい区分も個別の切れと行で出す', async ({ page }) => {
     const holdings = [
       marketHolding(1, {
         id: 'asset-balance-big',
@@ -252,12 +252,16 @@ test.describe('スマホの構成比', () => {
     await setupAssetBalanceMocks(page, holdings);
     await page.goto('/assetbalance/composition');
 
-    const list = page.getByTestId('asset-composition-mobile-list');
-    await expect(list.getByText('その他 12銘柄')).toHaveCount(1);
-    // その他にまとめた区分の環は出す(中の文字は弧に収まらないため出さない)
+    const list = page.getByTestId('asset-composition-list');
+    await expect(list.getByTestId('comp-row')).toHaveCount(13);
+    await expect(list.getByTestId('comp-row').nth(0)).toContainText('93.8%');
+    await expect(list.getByText('その他')).toHaveCount(0);
+    // 13銘柄すべてを1切れずつ出す
     await expect(
-      page.getByTestId('asset-composition-donut').getByTestId('comp-slice-other'),
-    ).toHaveCount(1);
+      page.getByTestId('asset-composition-donut').getByTestId('comp-slice'),
+    ).toHaveCount(13);
+    // 比率3%未満の小さい切れに注釈は付けない
+    await expect(page.getByTestId('comp-annotation')).toHaveCount(1);
   });
 
   test('1銘柄だけでも件数と100%を出す', async ({ page }) => {
@@ -271,10 +275,10 @@ test.describe('スマホの構成比', () => {
     ]);
     await page.goto('/assetbalance/composition');
 
-    await expect(page.getByTestId('asset-composition-mobile')).toContainText(
+    await expect(page.getByTestId('asset-composition')).toContainText(
       '1銘柄',
     );
-    const list = page.getByTestId('asset-composition-mobile-list');
+    const list = page.getByTestId('asset-composition-list');
     await expect(list.getByTestId('comp-row')).toHaveCount(1);
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('100.0%');
   });
@@ -296,12 +300,31 @@ test.describe('スマホの構成比', () => {
     ]);
     await page.goto('/assetbalance/composition');
 
-    const list = page.getByTestId('asset-composition-mobile-list');
+    const list = page.getByTestId('asset-composition-list');
     await expect(list.getByTestId('comp-row')).toHaveCount(2);
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('100.0%');
-    const other = list.getByTestId('comp-row').filter({ hasText: 'その他 1銘柄' });
-    await expect(other).toHaveCount(1);
-    await expect(other).toContainText('—');
+    // 算出不可の行も個別に残し、「その他」にはまとめない
+    const missing = list.getByTestId('comp-row').nth(1);
+    await expect(missing).toContainText('価格なし銘柄');
+    await expect(missing).toContainText('—');
+    await expect(list.getByText('その他')).toHaveCount(0);
+  });
+
+  test('切れの数は行と同じで注釈は左右に4つまで出す', async ({
+    page,
+  }) => {
+    await setupAssetBalanceMocks(page, GROUP_HOLDINGS, GROUP_DIVIDENDS, GROUP_FUNDS);
+    await page.goto('/assetbalance/composition');
+
+    const list = page.getByTestId('asset-composition-list');
+    const rows = list.getByTestId('comp-row');
+    await expect(rows).toHaveCount(5);
+    const donut = page.getByTestId('asset-composition-donut');
+    await expect(donut.getByTestId('comp-slice')).toHaveCount(5);
+    const annotations = page.getByTestId('comp-annotation');
+    await expect(annotations).toHaveCount(4);
+    await expect(annotations.nth(0)).toContainText('ファンドA');
+    await expect(annotations.nth(0)).toContainText('36.4%');
   });
 
   test('件数行の右端から構成比へ進め、見出し行は無い', async ({ page }) => {
@@ -347,27 +370,37 @@ test.describe('スマホの構成比', () => {
   });
 });
 
-test('構成比詳細は直接 URL で開け、基準と対象を示して取得額順に全保有を並べる', async ({
+test('PCでもスマホと同じ部品で評価額順に全保有を並べる', async ({
   page,
 }) => {
   await setupAssetBalanceMocks(page);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/assetbalance/composition');
 
-  const desktop = page.getByTestId('asset-composition-desktop');
-  await expect(desktop.getByText('対象: 保存済みの保有全体')).toBeVisible();
-  await expect(desktop.getByText('基準(取得総額):')).toBeVisible();
-  await expect(desktop.getByText('¥72,110,000')).toBeVisible();
+  // PCでもスマホと同じ部品(タブ・基準切り替え・ドーナツ・一覧)を使う
+  await expect(page.getByTestId('asset-composition')).toBeVisible();
+  await expect(page.getByTestId('asset-composition-tabs')).toBeVisible();
+  await expect(page.getByTestId('asset-composition-donut')).toBeVisible();
+  await expect(page.getByTestId('page-skeleton-note-text')).toContainText(
+    '評価額の比率',
+  );
+  await expect(page.getByTestId('page-skeleton-note-text')).toContainText(
+    '¥220,000',
+  );
 
   const items = page.getByTestId('asset-composition-list').getByRole('listitem');
   await expect(items).toHaveCount(22);
   await expect(items.nth(0)).toContainText('銘柄01');
-  await expect(items.nth(0)).toContainText('97.1%');
-  // 取得額が少ない順に末尾へ並ぶ。0・マイナスも一覧には残る
+  await expect(items.nth(0)).toContainText('4.5%');
   await expect(items.nth(21)).toContainText('銘柄22');
-  // 構成比の棒は本番 CSP 下でも描画される
-  const bar = items.nth(0).locator('.bg-accent');
-  expect((await bar.boundingBox())?.width).toBeGreaterThan(100);
+  // 切れの数は行と同じ
+  await expect(
+    page.getByTestId('asset-composition-donut').getByTestId('comp-slice'),
+  ).toHaveCount(22);
+  // 構成比の棒は本番 CSP 下でも描画される(幅の固定値は見ない)
+  const bar = items.nth(0).locator('.comp-bar-fill');
+  await expect(bar).toBeVisible();
+  expect((await bar.boundingBox())?.width).toBeGreaterThan(0);
 
   // トップからの導線
   await page.goto('/assetbalance');
@@ -375,8 +408,12 @@ test('構成比詳細は直接 URL で開け、基準と対象を示して取得
   await expect(page).toHaveURL('/assetbalance/composition');
 });
 
-test('取得額が0の銘柄は構成比を出さずに一覧へ残す', async ({ page }) => {
-  const gifted = { ...holding(2, 0), security_name: '贈与銘柄' };
+test('評価額が出せない銘柄は構成比を出さずに一覧へ残す', async ({ page }) => {
+  const gifted = {
+    ...holding(2, 0),
+    security_name: '贈与銘柄',
+    current_price: 0,
+  };
   await setupAssetBalanceMocks(page, [holding(1, 100_000), gifted]);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/assetbalance/composition');
@@ -390,8 +427,11 @@ test('取得額が0の銘柄は構成比を出さずに一覧へ残す', async (
   await expect(giftedItem).toContainText('—');
 });
 
-test('取得総額の合計が0のときは算出不可を表示する', async ({ page }) => {
-  const holdings = [holding(1, 0), holding(2, 0)];
+test('評価額の合計が0のときは算出不可を表示する', async ({ page }) => {
+  const holdings = [
+    { ...holding(1, 0), current_price: 0 },
+    { ...holding(2, 0), current_price: 0 },
+  ];
   await setupAssetBalanceMocks(page, holdings);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/assetbalance/composition');

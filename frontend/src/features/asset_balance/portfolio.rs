@@ -7,7 +7,7 @@ use crate::ui::badge::account_display_name;
 use crate::ui::labels::{
     ACQUISITION_YIELD, ANNUAL_DIVIDEND, COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_ACCOUNT,
     COMPOSITION_GROUP_HOLDING, COMPOSITION_GROUP_PRODUCT, DOMESTIC_STOCK, MARKET_VALUE, MISSING,
-    MUTUAL_FUND, VALUATION_PROFIT_LOSS, composition_other,
+    MUTUAL_FUND, VALUATION_PROFIT_LOSS,
 };
 use std::cmp::Ordering;
 
@@ -140,46 +140,6 @@ where
         }
     });
     indexed.into_iter().map(|(index, _)| index).collect()
-}
-
-/// 構成比一覧の並び結果。`order` は表示順に並んだ全入力のインデックス、
-/// `percentages` は同じ並びの未丸め構成比(取得額0・分母0で算出不可は `None`)。
-#[derive(Clone, Debug)]
-pub struct ChartPlan {
-    pub order: Vec<usize>,
-    pub percentages: Vec<Option<f64>>,
-}
-
-/// 構成比一覧の並びを求める。`values` は各行の取得総額。
-/// `order` は全行を含む(算出不可の行も一覧に残すため)。
-/// 構成比は取得額の絶対値で出し、取得額 0 の行は分母に入らないため `None` とし、
-/// `order` では `Some` の行より後ろに置く。
-///
-/// 取得額降順→構成比降順の二段の安定ソートを踏む。構成比が `None` 同士の
-/// 比較は「等しい」扱いで入力順を保つ。
-pub fn chart_plan(values: &[f64]) -> ChartPlan {
-    let mut order: Vec<usize> = (0..values.len()).collect();
-    order.sort_by(|&a, &b| values[b].total_cmp(&values[a]));
-    let all_percentages = chart_percentages(values);
-    let mut paired: Vec<(usize, Option<f64>)> = order
-        .into_iter()
-        .map(|index| {
-            let percentage = all_percentages
-                .get(index)
-                .copied()
-                .flatten()
-                .filter(|_| values[index] != 0.0);
-            (index, percentage)
-        })
-        .collect();
-    paired.sort_by(|a, b| match (b.1, a.1) {
-        (Some(rhs), Some(lhs)) => rhs.total_cmp(&lhs),
-        (None, None) => Ordering::Equal,
-        (None, Some(_)) => Ordering::Less,
-        (Some(_), None) => Ordering::Greater,
-    });
-    let (order, percentages) = paired.into_iter().unzip();
-    ChartPlan { order, percentages }
 }
 
 #[cfg(test)]
@@ -409,17 +369,33 @@ pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>
     (total, percentages)
 }
 
-/// ドーナツに個別で出す割合の下限。未満は「その他」にまとめる
-pub const COMPOSITION_MAJOR_THRESHOLD: f64 = 9.0;
+/// ドーナツの注釈に出す割合の下限(以上だけ出す)
+pub const COMPOSITION_ANNOTATION_MIN_PERCENT: f64 = 3.0;
+
+/// ドーナツの注釈の上限(重ならずに置ける分だけ、多いときはここまで)
+pub const COMPOSITION_ANNOTATION_MAX: usize = 10;
+
+/// スマホの左右列に出す注釈の片側の上限
+pub const COMPOSITION_SIDE_ANNOTATION_MAX: usize = 2;
+
+/// 矩形と円が重なるか。ラベルがドーナツの輪に乗らないようにする
+fn rect_overlaps_circle(
+    rect: (f64, f64, f64, f64),
+    center_x: f64,
+    center_y: f64,
+    radius: f64,
+) -> bool {
+    let (x, y, width, height) = rect;
+    let nearest_x = center_x.clamp(x, x + width);
+    let nearest_y = center_y.clamp(y, y + height);
+    (nearest_x - center_x).hypot(nearest_y - center_y) < radius
+}
 
 /// 区分の色番号。`[0, 2, 4, 1, 3]` を回して隣り合う区分の色が並ばないようにする
 pub fn composition_color(position: usize) -> usize {
     const ORDER: [usize; 5] = [0, 2, 4, 1, 3];
     ORDER[position % ORDER.len()]
 }
-
-/// その他の区分の色番号(中立色)。通常の色番号(0〜4)と重ねない
-pub const COMPOSITION_OTHER_COLOR: usize = usize::MAX;
 
 /// 構成比の表示1行。割合は未丸めで、算出不可の行は `computable` が false
 #[derive(Clone, Debug, PartialEq)]
@@ -432,56 +408,304 @@ pub struct CompositionRow {
     pub color: usize,
     pub holdings: usize,
     pub href: Option<String>,
-    pub is_other: bool,
 }
 
-/// 区分をドーナツと一覧に出す行に分ける。割合が下限以上の区分は個別に、
-/// それ未満と算出不可は「その他 ◯銘柄」にまとめる。その他自体の色は中立のままにする
+/// 区分をドーナツと一覧に出す行に分ける。全区分を1行ずつ出し、
+/// 「その他」にはまとめない。並びは entries のまま(比率の降順)で、
+/// 色もその順に割り当てる
 pub fn composition_rows(
     entries: &[CompositionEntry],
     percentages: &[Option<f64>],
 ) -> Vec<CompositionRow> {
-    let mut rows = Vec::new();
-    let mut other_holdings = 0;
-    let mut other_percentage = 0.0;
-    let mut other_value: Option<f64> = None;
-    let mut other_computable = false;
-    for (entry, percentage) in entries.iter().zip(percentages.iter().copied()) {
-        if percentage.is_some_and(|value| value >= COMPOSITION_MAJOR_THRESHOLD) {
-            rows.push(CompositionRow {
-                name: entry.name.clone(),
-                sub: entry.sub.clone(),
-                value: entry.value,
-                percentage: percentage.unwrap_or(0.0),
-                computable: true,
-                color: composition_color(rows.len()),
-                holdings: entry.holdings,
-                href: entry.href.clone(),
-                is_other: false,
-            });
+    entries
+        .iter()
+        .zip(percentages.iter().copied())
+        .enumerate()
+        .map(|(position, (entry, percentage))| CompositionRow {
+            name: entry.name.clone(),
+            sub: entry.sub.clone(),
+            value: entry.value,
+            percentage: percentage.unwrap_or(0.0),
+            computable: percentage.is_some(),
+            color: composition_color(position),
+            holdings: entry.holdings,
+            href: entry.href.clone(),
+        })
+        .collect()
+}
+
+/// ドーナツ注釈の配置先。スマホは小さく、PCは広く出す
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DonutGeometry {
+    pub width: f64,
+    pub height: f64,
+    pub center_x: f64,
+    pub center_y: f64,
+    pub radius: f64,
+    pub stroke: f64,
+    pub label_radius: f64,
+}
+
+impl DonutGeometry {
+    pub const COMPACT: Self = Self {
+        width: 360.0,
+        height: 240.0,
+        center_x: 180.0,
+        center_y: 120.0,
+        radius: 70.0,
+        stroke: 28.0,
+        label_radius: 96.0,
+    };
+    pub const WIDE: Self = Self {
+        width: 640.0,
+        height: 300.0,
+        center_x: 320.0,
+        center_y: 150.0,
+        radius: 80.0,
+        stroke: 36.0,
+        label_radius: 130.0,
+    };
+
+    /// 切れの外縁の半径
+    pub fn outer(&self) -> f64 {
+        self.radius + self.stroke / 2.0
+    }
+
+    /// 切れの内縁の半径
+    pub fn inner(&self) -> f64 {
+        self.radius - self.stroke / 2.0
+    }
+}
+
+/// 注釈ラベルの文字寄せ。切れの外側の向きで決める
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum AnnotationAnchor {
+    Start,
+    Middle,
+    End,
+}
+
+/// ドーナツの注釈1件の配置。ラベル矩形の基準点と引き出し線の折れ点を持つ
+#[derive(Clone, Debug, PartialEq)]
+pub struct PlacedAnnotation {
+    pub index: usize,
+    pub text_x: f64,
+    pub text_y: f64,
+    pub anchor: AnnotationAnchor,
+    pub edge_x: f64,
+    pub edge_y: f64,
+    pub elbow_x: f64,
+    pub elbow_y: f64,
+    pub end_x: f64,
+}
+
+/// 注釈の配置入力。ラベルは短縮済みの「名前 比率」、割合は角度計算用
+pub struct AnnotationRequest<'a> {
+    pub label: &'a str,
+    pub percentage: f64,
+    pub computable: bool,
+}
+
+/// 注釈ラベルの推定幅。描画と同じ12px基準で見積もる
+pub fn annotation_label_width(label: &str) -> f64 {
+    const FULL_WIDTH: f64 = 12.0;
+    const HALF_WIDTH: f64 = 6.5;
+    label
+        .chars()
+        .map(|c| if c.is_ascii() { HALF_WIDTH } else { FULL_WIDTH })
+        .sum()
+}
+
+/// ドーナツの注釈配置を決める。比率の大きい順に下限以上を拾い、
+/// ラベル矩形が重ならず枠に収まる分だけ残す。中央の件数表示とも重ねない
+pub fn place_annotations(
+    requests: &[AnnotationRequest<'_>],
+    geometry: &DonutGeometry,
+    center_label: &str,
+) -> Vec<PlacedAnnotation> {
+    const LABEL_HEIGHT: f64 = 18.0;
+    const MARGIN: f64 = 1.0;
+    let mut starts = Vec::with_capacity(requests.len());
+    let mut cursor = 0.0;
+    for request in requests {
+        starts.push(cursor);
+        cursor += request.percentage;
+    }
+    let mut placed: Vec<(f64, f64, f64, f64)> = Vec::new();
+    let center_half_width = center_label.chars().count() as f64 * 9.0 + 8.0;
+    let center_rect = (
+        geometry.center_x - center_half_width,
+        geometry.center_y - 18.0,
+        center_half_width * 2.0,
+        36.0,
+    );
+    placed.push(center_rect);
+    let mut selected = Vec::new();
+    for (index, request) in requests.iter().enumerate() {
+        if selected.len() >= COMPOSITION_ANNOTATION_MAX {
+            break;
+        }
+        if !request.computable || request.percentage < COMPOSITION_ANNOTATION_MIN_PERCENT {
             continue;
         }
-        other_holdings += entry.holdings;
-        if let Some(percentage) = percentage {
-            other_percentage += percentage;
-            other_computable = true;
+        let mid = starts[index] + request.percentage / 2.0;
+        let angle = (mid / 100.0 * 360.0 - 90.0).to_radians();
+        let (sine, cosine) = angle.sin_cos();
+        let label_x = geometry.center_x + geometry.label_radius * cosine;
+        let label_y = geometry.center_y + geometry.label_radius * sine;
+        let width = annotation_label_width(request.label);
+        let anchor = if cosine >= 0.5 {
+            AnnotationAnchor::Start
+        } else if cosine <= -0.5 {
+            AnnotationAnchor::End
+        } else {
+            AnnotationAnchor::Middle
+        };
+        let rect_x = match anchor {
+            AnnotationAnchor::Start => label_x.min(geometry.width - width - MARGIN).max(MARGIN),
+            AnnotationAnchor::Middle => {
+                (label_x - width / 2.0).clamp(MARGIN, geometry.width - width - MARGIN)
+            }
+            AnnotationAnchor::End => (label_x - width).max(MARGIN),
+        };
+        let rect_y =
+            (label_y - LABEL_HEIGHT / 2.0).clamp(MARGIN, geometry.height - LABEL_HEIGHT - MARGIN);
+        if width + 2.0 * MARGIN > geometry.width || LABEL_HEIGHT + 2.0 * MARGIN > geometry.height {
+            continue;
         }
-        if let Some(value) = entry.value {
-            other_value = Some(other_value.unwrap_or(0.0) + value);
+        if rect_overlaps_circle(
+            (rect_x, rect_y, width, LABEL_HEIGHT),
+            geometry.center_x,
+            geometry.center_y,
+            geometry.outer() + MARGIN,
+        ) {
+            continue;
         }
-    }
-    if other_holdings > 0 {
-        rows.push(CompositionRow {
-            name: composition_other(other_holdings),
-            sub: String::new(),
-            value: other_value,
-            percentage: other_percentage,
-            computable: other_computable,
-            color: COMPOSITION_OTHER_COLOR,
-            holdings: other_holdings,
-            href: None,
-            is_other: true,
+        if placed.iter().any(|&(x, y, w, h)| {
+            rect_x < x + w && x < rect_x + width && rect_y < y + h && y < rect_y + LABEL_HEIGHT
+        }) {
+            continue;
+        }
+        let edge_x = geometry.center_x + geometry.outer() * cosine;
+        let edge_y = geometry.center_y + geometry.outer() * sine;
+        let bend = geometry.label_radius - 12.0;
+        let elbow_x = geometry.center_x + bend * cosine;
+        let elbow_y = geometry.center_y + bend * sine;
+        let (end_x, text_x, text_y) = match anchor {
+            AnnotationAnchor::Start => (rect_x, rect_x, rect_y + LABEL_HEIGHT / 2.0),
+            AnnotationAnchor::Middle => {
+                let center = rect_x + width / 2.0;
+                (center, center, rect_y + LABEL_HEIGHT / 2.0)
+            }
+            AnnotationAnchor::End => (rect_x + width, rect_x + width, rect_y + LABEL_HEIGHT / 2.0),
+        };
+        placed.push((rect_x, rect_y, width, LABEL_HEIGHT));
+        selected.push(PlacedAnnotation {
+            index,
+            text_x,
+            text_y,
+            anchor,
+            edge_x,
+            edge_y,
+            elbow_x,
+            elbow_y,
+            end_x,
         });
     }
-    rows
+    selected
+}
+
+/// スマホ用の注釈配置。ドーナツの左右の外側の列にだけ置き、
+/// 比率の大きい順に右・左へ交互に割り当てて片側2つまで残す
+pub fn place_side_annotations(
+    requests: &[AnnotationRequest<'_>],
+    geometry: &DonutGeometry,
+    center_label: &str,
+) -> Vec<PlacedAnnotation> {
+    const LABEL_HEIGHT: f64 = 18.0;
+    const MARGIN: f64 = 0.0;
+    let mut starts = Vec::with_capacity(requests.len());
+    let mut cursor = 0.0;
+    for request in requests {
+        starts.push(cursor);
+        cursor += request.percentage;
+    }
+    let center_half_width = center_label.chars().count() as f64 * 9.0 + 8.0;
+    let mut placed = vec![(
+        geometry.center_x - center_half_width,
+        geometry.center_y - 18.0,
+        center_half_width * 2.0,
+        36.0,
+    )];
+    let mut selected = Vec::new();
+    let mut right_count = 0;
+    let mut left_count = 0;
+    for (index, request) in requests.iter().enumerate() {
+        if right_count >= COMPOSITION_SIDE_ANNOTATION_MAX
+            && left_count >= COMPOSITION_SIDE_ANNOTATION_MAX
+        {
+            break;
+        }
+        if !request.computable || request.percentage < COMPOSITION_ANNOTATION_MIN_PERCENT {
+            continue;
+        }
+        let right_side = (right_count + left_count) % 2 == 0;
+        if right_side && right_count >= COMPOSITION_SIDE_ANNOTATION_MAX {
+            continue;
+        }
+        if !right_side && left_count >= COMPOSITION_SIDE_ANNOTATION_MAX {
+            continue;
+        }
+        let mid = starts[index] + request.percentage / 2.0;
+        let angle = (mid / 100.0 * 360.0 - 90.0).to_radians();
+        let (sine, cosine) = angle.sin_cos();
+        let width = annotation_label_width(request.label);
+        let edge_x = geometry.center_x + geometry.outer() * cosine;
+        let edge_y = geometry.center_y + geometry.outer() * sine;
+        let (rect_x, anchor) = if right_side {
+            (geometry.width - width, AnnotationAnchor::Start)
+        } else {
+            (0.0, AnnotationAnchor::End)
+        };
+        let rect_y =
+            (edge_y - LABEL_HEIGHT / 2.0).clamp(MARGIN, geometry.height - LABEL_HEIGHT - MARGIN);
+        if width + 2.0 * MARGIN > geometry.width || LABEL_HEIGHT + 2.0 * MARGIN > geometry.height {
+            continue;
+        }
+        if rect_x < MARGIN || rect_x + width > geometry.width - MARGIN {
+            continue;
+        }
+        if rect_overlaps_circle(
+            (rect_x, rect_y, width, LABEL_HEIGHT),
+            geometry.center_x,
+            geometry.center_y,
+            geometry.outer() + MARGIN,
+        ) {
+            continue;
+        }
+        if placed.iter().any(|&(x, y, w, h)| {
+            rect_x < x + w && x < rect_x + width && rect_y < y + h && y < rect_y + LABEL_HEIGHT
+        }) {
+            continue;
+        }
+        let end_x = if right_side { rect_x } else { rect_x + width };
+        placed.push((rect_x, rect_y, width, LABEL_HEIGHT));
+        if right_side {
+            right_count += 1;
+        } else {
+            left_count += 1;
+        }
+        selected.push(PlacedAnnotation {
+            index,
+            text_x: end_x,
+            text_y: rect_y + LABEL_HEIGHT / 2.0,
+            anchor,
+            edge_x,
+            edge_y,
+            elbow_x: end_x,
+            elbow_y: rect_y + LABEL_HEIGHT / 2.0,
+            end_x,
+        });
+    }
+    selected
 }
