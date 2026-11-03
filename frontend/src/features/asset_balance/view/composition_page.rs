@@ -471,7 +471,7 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                 computable: row.computable,
             })
             .collect();
-        let annotated = place_annotations(&requests, &geometry);
+        let annotated = place_annotations(&requests, &geometry, &center);
         let center_x = geometry.center_x;
         let center_y = geometry.center_y;
         let radius = geometry.radius;

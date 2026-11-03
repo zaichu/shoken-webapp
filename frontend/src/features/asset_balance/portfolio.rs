@@ -501,10 +501,11 @@ pub fn annotation_label_width(label: &str) -> f64 {
 }
 
 /// ドーナツの注釈配置を決める。比率の大きい順に下限以上を拾い、
-/// ラベル矩形が重ならず枠に収まる分だけ残す
+/// ラベル矩形が重ならず枠に収まる分だけ残す。中央の件数表示とも重ねない
 pub fn place_annotations(
     requests: &[AnnotationRequest<'_>],
     geometry: &DonutGeometry,
+    center_label: &str,
 ) -> Vec<PlacedAnnotation> {
     const LABEL_HEIGHT: f64 = 18.0;
     const MARGIN: f64 = 1.0;
@@ -515,6 +516,14 @@ pub fn place_annotations(
         cursor += request.percentage;
     }
     let mut placed: Vec<(f64, f64, f64, f64)> = Vec::new();
+    let center_half_width = center_label.chars().count() as f64 * 9.0 + 8.0;
+    let center_rect = (
+        geometry.center_x - center_half_width,
+        geometry.center_y - 18.0,
+        center_half_width * 2.0,
+        36.0,
+    );
+    placed.push(center_rect);
     let mut selected = Vec::new();
     for (index, request) in requests.iter().enumerate() {
         if selected.len() >= COMPOSITION_ANNOTATION_MAX {
@@ -546,6 +555,13 @@ pub fn place_annotations(
         let rect_y =
             (label_y - LABEL_HEIGHT / 2.0).clamp(MARGIN, geometry.height - LABEL_HEIGHT - MARGIN);
         if width + 2.0 * MARGIN > geometry.width || LABEL_HEIGHT + 2.0 * MARGIN > geometry.height {
+            continue;
+        }
+        let rect_cx = rect_x + width / 2.0;
+        let rect_cy = rect_y + LABEL_HEIGHT / 2.0;
+        let center_dx = rect_cx - geometry.center_x;
+        let center_dy = rect_cy - geometry.center_y;
+        if center_dx.hypot(center_dy) < geometry.outer() + LABEL_HEIGHT / 2.0 + MARGIN {
             continue;
         }
         if placed.iter().any(|&(x, y, w, h)| {
