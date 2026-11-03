@@ -447,3 +447,33 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
 - 付随する修正: `0026_sessions_users_rls.sql` が `migrate.rs` に未登録だったため、
   この PR で 0026 と 0027 の登録を足した(過去ファイル自体の書き換えなし)。
   未登録のままでは `sessions`・`users` の RLS が適用されず、第四段階の結合テストが空振りになる。
+
+## 15. 第五段階(5b)の記録(#1750)
+
+- `backend/migrations/0028_app_enter_and_auth_functions.sql`: 準備を1呼び出しにまとめる
+  `app_enter(uuid)`(`SECURITY INVOKER`、Tx 内で `SET LOCAL ROLE app_restricted` 相当の
+  `set_config('role', ...)` と利用者 ID の `set_config('app.current_user_id', ...)` を行う)と、
+  §13.3 の照会用 `SECURITY DEFINER` 関数 6 件
+  (`auth_lookup_user_id_by_session`・`auth_delete_session_by_token`・
+  `login_notify_peek_by_token`・`login_notify_consume_by_token`・
+  `auth_rotate_session`・`auth_upsert_user`)を追加。
+  回転は期限切れ掃除と旧行削除・新行挿入を1関数に含め、端末なし(`device_hash` NULL)は
+  全端末・端末ありは当該端末と未設定の旧行だけを消す(現行の2文の向きを保つ)。
+  いずれも `SET search_path = public, pg_temp` を固定し、戻り値は利用者 ID 等の最小限に絞る。
+  `EXECUTE` は `app_restricted` にだけ与え、`PUBLIC` からは取り上げる
+  (`app_enter` は切り替え前の所有者が呼ぶため所有権のままにする)。
+  ロール不在時の `GRANT` は `NOTICE` に留め、デプロイを止めない(0027 と同じ向き)。
+  `FORCE` なしのため所有者の挙動は変わらない。過去の migration は書き換えていない。
+- 結合テスト(`backend/tests/db_integration.rs` の `stage5b_definer_functions_and_app_enter`):
+  7 関数の権限カタログ(`app_restricted` は実行可・`PUBLIC` は不可)・`DEFINER` 属性・
+  揮発性(照会と参照のみ `STABLE`)・`search_path` 固定を固定し、
+  権限なしロールからは照会関数と `app_enter` が権限不足で呼べないこと、
+  `app_restricted` からは所有するハッシュで本人の利用者 ID が返り・未知のハッシュでは
+  他人の行を返さないこと(照会・参照・消費のいずれも)、`app_enter` のあとは本人の行だけが見え
+  `COMMIT` で所有者に戻ること、回転・消去・upsert が所有者権限で通ることを固定する。
+- 付随する修正: `fresh_database_applies_all_migrations` と
+  `baseline_applied_database_applies_increments` の期待 version が `0..=25` のまま止まっており、
+  0026・0027 の追加後も更新されていなかったため `0..=28` に直した。
+  登録漏れの再発防止として `migrate.rs` に Docker 不要の単体テスト
+  (`all_migration_files_are_registered`: `migrations/*.sql` と `MIGRATION_FILES` の一致)を足した。
+- アプリコードの変更なし(関数の呼び出しは 5c・5d で行う)。

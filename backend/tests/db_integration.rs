@@ -2590,7 +2590,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=25).collect::<Vec<_>>()
+        (0..=28).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2598,7 +2598,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=25).collect::<Vec<_>>()
+        (0..=28).collect::<Vec<_>>()
     );
 }
 
@@ -2626,7 +2626,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=25).collect::<Vec<_>>()
+        (0..=28).collect::<Vec<_>>()
     );
 }
 
@@ -6221,4 +6221,358 @@ async fn app_restricted_role_has_least_privilege() {
         .await
         .unwrap();
     assert_eq!(count, 2, "所有者は両利用者の行を読めるはず");
+}
+
+/// RLS 第五段階 5b: app_enter と照会用の DEFINER 関数は引数・戻り・権限が最小限で、
+/// app_restricted から呼べる・PUBLIC 権限のロールからは呼べない・未知のハッシュでは他人の行を返さない。
+/// app_enter のあとは本人の行だけが見え、COMMIT で所有者に戻る
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn stage5b_definer_functions_and_app_enter() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&database_url).await;
+    run_migrations(&pool).await.expect("migrations failed");
+    assert_eq!(
+        migration_versions(&pool).await,
+        (0..=28).collect::<Vec<_>>()
+    );
+
+    let info_a = GoogleUserInfo {
+        sub: "stage5b-google-a".to_string(),
+        email: "stage5b-a@example.com".to_string(),
+        name: None,
+        picture_url: None,
+    };
+    let info_b = GoogleUserInfo {
+        sub: "stage5b-google-b".to_string(),
+        email: "stage5b-b@example.com".to_string(),
+        name: None,
+        picture_url: None,
+    };
+    let token_a = auth_svc::upsert_user_and_rotate_session(&pool, &info_a)
+        .await
+        .expect("利用者 A のログインは通るはず");
+    let token_b = auth_svc::upsert_user_and_rotate_session(&pool, &info_b)
+        .await
+        .expect("利用者 B のログインは通るはず");
+    let user_a = auth_svc::select_user_id_by_session(&pool, token_a)
+        .await
+        .expect("セッション照会は通るはず")
+        .expect("利用者 A のセッションがあるはず");
+    let user_b = auth_svc::select_user_id_by_session(&pool, token_b)
+        .await
+        .expect("セッション照会は通るはず")
+        .expect("利用者 B のセッションがあるはず");
+    let hash_a = token_a.hash();
+    let hash_b = token_b.hash();
+    let plain_a = backend::services::login_notify::issue_token(&pool, user_a)
+        .await
+        .expect("通知トークンの発行は通るはず");
+    let plain_b = backend::services::login_notify::issue_token(&pool, user_b)
+        .await
+        .expect("通知トークンの発行は通るはず");
+    let hash_plain_a = backend::services::login_notify::token_hash(&plain_a);
+    let hash_plain_b = backend::services::login_notify::token_hash(&plain_b);
+
+    for (signature, definer) in [
+        ("public.app_enter(uuid)", false),
+        ("public.auth_lookup_user_id_by_session(bytea)", true),
+        ("public.auth_delete_session_by_token(bytea)", true),
+        ("public.login_notify_peek_by_token(bytea)", true),
+        ("public.login_notify_consume_by_token(bytea)", true),
+        ("public.auth_rotate_session(uuid, bytea, bytea)", true),
+        ("public.auth_upsert_user(text, text, text, text)", true),
+    ] {
+        let executable = db::query_scalar::<bool>(
+            format!("SELECT has_function_privilege('app_restricted', '{signature}', 'EXECUTE')"),
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数権限の取得に失敗");
+        assert!(executable, "{signature} は app_restricted が実行できるはず");
+        let public = db::query_scalar::<bool>(
+            format!("SELECT has_function_privilege('PUBLIC', '{signature}', 'EXECUTE')"),
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数権限の取得に失敗");
+        assert!(!public, "{signature} は PUBLIC から実行できないはず");
+        let is_definer = db::query_scalar::<bool>(
+            "SELECT prosecdef FROM pg_proc WHERE oid = $1::regprocedure",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数定義の取得に失敗");
+        assert_eq!(is_definer, definer, "{signature} の DEFINER 属性のはず");
+    }
+
+    for (signature, volatile) in [
+        ("public.app_enter(uuid)", "v"),
+        ("public.auth_lookup_user_id_by_session(bytea)", "s"),
+        ("public.auth_delete_session_by_token(bytea)", "v"),
+        ("public.login_notify_peek_by_token(bytea)", "s"),
+        ("public.login_notify_consume_by_token(bytea)", "v"),
+        ("public.auth_rotate_session(uuid, bytea, bytea)", "v"),
+        ("public.auth_upsert_user(text, text, text, text)", "v"),
+    ] {
+        let actual = db::query_scalar::<String>(
+            "SELECT provolatile::text FROM pg_proc WHERE oid = $1::regprocedure",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("揮発性の取得に失敗");
+        assert_eq!(actual, volatile, "{signature} の揮発性のはず");
+        let config = db::query(
+            "SELECT unnest(proconfig) FROM pg_proc WHERE oid = $1::regprocedure",
+            vec![Bind::from(signature)],
+        )
+        .fetch_all::<(String,), _>(&pool)
+        .await
+        .expect("設定の取得に失敗");
+        assert!(
+            config.contains(&("search_path=public, pg_temp".to_string(),)),
+            "{signature} は search_path を固定するはず"
+        );
+    }
+
+    pool.batch_execute("CREATE ROLE fn_nogrant WITH LOGIN PASSWORD 'fn-nogrant-password'")
+        .await
+        .expect("権限なしロールの作成に失敗");
+    pool.batch_execute("GRANT CONNECT ON DATABASE postgres TO fn_nogrant")
+        .await
+        .expect("CONNECT 付与に失敗");
+    pool.batch_execute("GRANT USAGE ON SCHEMA public TO fn_nogrant")
+        .await
+        .expect("USAGE 付与に失敗");
+    let denied_url = format!("postgres://fn_nogrant:fn-nogrant-password@127.0.0.1:{port}/postgres");
+    let denied = connect_with_retry(&denied_url).await;
+    let err = db::query(
+        "SELECT auth_lookup_user_id_by_session($1)",
+        vec![Bind::Bytes(hash_a.clone())],
+    )
+    .execute(&denied)
+    .await
+    .expect_err("権限なしロールは照会関数を呼べないはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "権限不足のはず: {err:?}"
+    );
+    let err = db::query("SELECT app_enter($1)", vec![Bind::from(user_a)])
+        .execute(&denied)
+        .await
+        .expect_err("権限なしロールは app_enter を呼べないはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+        "権限不足のはず(app_enter): {err:?}"
+    );
+
+    let mut tx = pool.begin().await.expect("tx 開始に失敗");
+    db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
+        .execute(&mut tx)
+        .await
+        .expect("ロールの切り替えに失敗");
+    let found = db::query_scalar::<Option<UserId>>(
+        "SELECT auth_lookup_user_id_by_session($1)",
+        vec![Bind::Bytes(hash_a.clone())],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .expect("照会関数の呼び出しに失敗");
+    assert_eq!(
+        found,
+        Some(user_a),
+        "所有するハッシュでは本人の利用者 ID が返るはず"
+    );
+    let unknown = db::query_scalar::<Option<UserId>>(
+        "SELECT auth_lookup_user_id_by_session($1)",
+        vec![Bind::Bytes(vec![91u8; 32])],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .expect("照会関数の呼び出しに失敗");
+    assert_eq!(unknown, None, "未知のハッシュでは他人の行を返さないはず");
+    let peeked = db::query(
+        "SELECT * FROM login_notify_peek_by_token($1)",
+        vec![Bind::Bytes(hash_plain_b.clone())],
+    )
+    .fetch_optional::<(UserId, chrono::DateTime<chrono::Utc>), _>(&mut tx)
+    .await
+    .expect("参照関数の呼び出しに失敗");
+    assert_eq!(
+        peeked.map(|(user_id, _)| user_id),
+        Some(user_b),
+        "所有するトークンでは本人の利用者 ID が返るはず"
+    );
+    let missing = db::query(
+        "SELECT * FROM login_notify_peek_by_token($1)",
+        vec![Bind::Bytes(vec![92u8; 32])],
+    )
+    .fetch_optional::<(UserId, chrono::DateTime<chrono::Utc>), _>(&mut tx)
+    .await
+    .expect("参照関数の呼び出しに失敗");
+    assert!(missing.is_none(), "未知のハッシュでは行を返さないはず");
+    let consumed = db::query_scalar::<Option<UserId>>(
+        "SELECT login_notify_consume_by_token($1)",
+        vec![Bind::Bytes(hash_plain_a.clone())],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .expect("消費関数の呼び出しに失敗");
+    assert_eq!(consumed, Some(user_a), "所有するトークンを消費できるはず");
+    let consumed_again = db::query_scalar::<Option<UserId>>(
+        "SELECT login_notify_consume_by_token($1)",
+        vec![Bind::Bytes(hash_plain_a.clone())],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .expect("消費関数の呼び出しに失敗");
+    assert_eq!(consumed_again, None, "消費済みトークンは NULL のはず");
+    tx.rollback().await.expect("rollback に失敗");
+
+    let mut tx = pool.begin().await.expect("tx 開始に失敗");
+    db::query("SELECT app_enter($1)", vec![Bind::from(user_a)])
+        .execute(&mut tx)
+        .await
+        .expect("app_enter に失敗");
+    let current = db::query_scalar::<String>("SELECT current_user", vec![])
+        .fetch_one(&mut tx)
+        .await
+        .expect("利用者名の取得に失敗");
+    assert_eq!(
+        current, "app_restricted",
+        "切り替え後の利用者は制限ロールのはず"
+    );
+    let setting =
+        db::query_scalar::<String>("SELECT current_setting('app.current_user_id')", vec![])
+            .fetch_one(&mut tx)
+            .await
+            .expect("利用者 ID の取得に失敗");
+    assert_eq!(setting, user_a.to_string(), "利用者 ID が設定されるはず");
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM sessions", vec![])
+        .fetch_one(&mut tx)
+        .await
+        .unwrap();
+    assert_eq!(count, 1, "app_enter のあとは本人の行だけが見えるはず");
+    tx.commit().await.expect("commit に失敗");
+    let current = db::query_scalar::<String>("SELECT current_user", vec![])
+        .fetch_one(&pool)
+        .await
+        .expect("利用者名の取得に失敗");
+    assert_eq!(current, "postgres", "COMMIT で所有者に戻るはず");
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM sessions", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 2, "所有者は両利用者の行を読めるはず");
+
+    let new_hash = vec![77u8; 32];
+    let mut tx = pool.begin().await.expect("tx 開始に失敗");
+    db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
+        .execute(&mut tx)
+        .await
+        .expect("ロールの切り替えに失敗");
+    db::query(
+        "SELECT auth_rotate_session($1, $2, $3)",
+        vec![
+            Bind::from(user_a),
+            Bind::Bytes(new_hash.clone()),
+            Bind::Bytes(vec![78u8; 32]),
+        ],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("回転関数の呼び出しに失敗");
+    tx.commit().await.expect("commit に失敗");
+    let stored = db::query(
+        "SELECT token_hash FROM sessions WHERE user_id = $1",
+        vec![Bind::from(user_a)],
+    )
+    .fetch_all::<(Vec<u8>,), _>(&pool)
+    .await
+    .expect("セッションの取得に失敗");
+    assert_eq!(
+        stored,
+        vec![(new_hash.clone(),)],
+        "利用者 A の行は新しい1件だけのはず"
+    );
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, token_b)
+            .await
+            .expect("セッション照会は通るはず")
+            .is_some(),
+        "利用者 B の行は残るはず"
+    );
+
+    let mut tx = pool.begin().await.expect("tx 開始に失敗");
+    db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
+        .execute(&mut tx)
+        .await
+        .expect("ロールの切り替えに失敗");
+    db::query(
+        "SELECT auth_delete_session_by_token($1)",
+        vec![Bind::Bytes(hash_b.clone())],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("消去関数の呼び出しに失敗");
+    tx.commit().await.expect("commit に失敗");
+    assert!(
+        auth_svc::select_user_id_by_session(&pool, token_b)
+            .await
+            .expect("セッション照会は通るはず")
+            .is_none(),
+        "削除したセッションは失効するはず"
+    );
+
+    let mut tx = pool.begin().await.expect("tx 開始に失敗");
+    db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
+        .execute(&mut tx)
+        .await
+        .expect("ロールの切り替えに失敗");
+    let new_id = db::query_scalar::<UserId>(
+        "SELECT auth_upsert_user($1, $2, $3, $4)",
+        vec![
+            Bind::from("stage5b-google-c"),
+            Bind::from("stage5b-c@example.com"),
+            Bind::from(Some("stage5b C")),
+            Bind::from(None::<&str>),
+        ],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .expect("upsert 関数の呼び出しに失敗");
+    tx.commit().await.expect("commit に失敗");
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM users", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 3, "新しい利用者が1件増えるはず");
+    let same_id = db::query_scalar::<UserId>(
+        "SELECT auth_upsert_user($1, $2, $3, $4)",
+        vec![
+            Bind::from("stage5b-google-c"),
+            Bind::from("stage5b-c2@example.com"),
+            Bind::from(Some("stage5b C")),
+            Bind::from(None::<&str>),
+        ],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("upsert 関数の呼び出しに失敗");
+    assert_eq!(
+        same_id, new_id,
+        "同じ google_id では同じ利用者 ID が返るはず"
+    );
 }

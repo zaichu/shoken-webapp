@@ -125,6 +125,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0027_app_restricted_role",
         include_str!("../../migrations/0027_app_restricted_role.sql"),
     ),
+    (
+        "0028_app_enter_and_auth_functions",
+        include_str!("../../migrations/0028_app_enter_and_auth_functions.sql"),
+    ),
 ];
 
 struct Migration {
@@ -388,7 +392,33 @@ async fn insert_migration_tx(
 
 #[cfg(test)]
 mod tests {
+    use super::MIGRATION_FILES;
     use super::sql_line_at_position;
+
+    #[test]
+    fn all_migration_files_are_registered() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+        let mut files: Vec<String> = std::fs::read_dir(&dir)
+            .expect("migrations ディレクトリの読み取りに失敗")
+            .map(|entry| {
+                entry
+                    .expect("migrations の要素の取得に失敗")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .filter(|name| name.ends_with(".sql"))
+            .collect();
+        files.sort();
+        let registered: Vec<String> = MIGRATION_FILES
+            .iter()
+            .map(|(name, _)| format!("{name}.sql"))
+            .collect();
+        assert_eq!(
+            files, registered,
+            "migrations の .sql が MIGRATION_FILES に過不足なく登録されているはず"
+        );
+    }
 
     #[test]
     fn extracts_sql_line_from_postgres_character_position() {
