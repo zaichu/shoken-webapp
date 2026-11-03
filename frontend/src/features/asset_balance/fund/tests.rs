@@ -1,4 +1,5 @@
 use super::*;
+use rust_decimal::Decimal;
 
 fn dec(value: &str) -> Decimal {
     value.parse().unwrap()
@@ -74,7 +75,7 @@ fn filter_by_accounts_and_courses() {
     };
     let filtered = filter_fund_rows(&rows, &search);
     assert_eq!(filtered.len(), 1);
-    assert_eq!(filtered[0].fund_name(), "Bファンド");
+    assert_eq!(filtered[0].fund_name, "Bファンド");
 
     // 組み合わせは AND
     let search = AssetSearch {

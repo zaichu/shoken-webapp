@@ -1,5 +1,5 @@
 use super::format::dec_to_f64;
-use crate::features::asset_balance::csv::AssetBalanceRowData;
+use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::model::{ValuationInput, normalize_display_name};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::format::{format_currency, format_percentage_value, format_unit_price};
@@ -33,23 +33,27 @@ impl From<&HoldingView> for ValuationInput {
     }
 }
 
-pub(crate) fn holding_view(row: &impl AssetBalanceRowData) -> HoldingView {
-    let name_source = if row.security_name().is_empty() {
-        row.security_code()
+pub(crate) fn holding_view(row: &AssetBalanceRow) -> HoldingView {
+    let name_source = if row.security_name.is_empty() {
+        row.security_code.as_str()
     } else {
-        row.security_name()
+        row.security_name.as_str()
     };
     HoldingView {
         id: None,
-        code: row.security_code().to_string(),
+        code: row.security_code.as_str().to_string(),
         name: normalize_display_name(name_source),
-        account: row.account().map(str::to_string),
-        shares: dec_to_f64(&row.shares()),
-        average_price: dec_to_f64(&row.average_purchase_price()),
-        purchase: dec_to_f64(&row.total_purchase_amount()),
-        current_price: dec_to_f64(&row.current_price()),
-        day_change: row.day_change().as_ref().map(dec_to_f64),
-        price_as_of: row.price_as_of().map(str::to_string),
+        account: row.account.as_ref().map(|a| a.as_str().to_string()),
+        shares: dec_to_f64(&row.shares),
+        average_price: dec_to_f64(&row.average_purchase_price),
+        purchase: dec_to_f64(&row.total_purchase_amount),
+        current_price: dec_to_f64(&row.current_price),
+        day_change: if row.price_as_of.is_some() && row.prev_close.is_none() {
+            None
+        } else {
+            Some(dec_to_f64(&row.daily_change))
+        },
+        price_as_of: row.price_as_of.clone(),
     }
 }
 

@@ -28,7 +28,7 @@ fn asset_balance_row_saved_delegates_current_price() {
     };
     let row: AssetBalanceRow = balance;
 
-    assert_eq!(row.current_price(), dec!(2600));
+    assert_eq!(row.current_price, dec!(2600));
 }
 
 #[test]
@@ -49,5 +49,5 @@ fn asset_balance_saved_row_current_price_field() {
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
 
-    assert_eq!(row.current_price(), dec!(2900));
+    assert_eq!(row.current_price, dec!(2900));
 }

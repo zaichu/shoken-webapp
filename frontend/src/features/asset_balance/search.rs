@@ -1,4 +1,4 @@
-use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
+use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::fund::AssetSearch;
 use crate::support::list_search::{FilterConfig, filter_by_config};
 
@@ -6,9 +6,9 @@ fn asset_balance_filter_config() -> FilterConfig<AssetBalanceRow> {
     FilterConfig {
         string_fields: None,
         partial_string_fields: Some(vec![
-            |row| row.security_code(),
-            |row| row.security_name(),
-            |row| row.account().unwrap_or(""),
+            |row| row.security_code.as_str(),
+            |row| row.security_name.as_str(),
+            |row| row.account.as_ref().map(|a| a.as_str()).unwrap_or(""),
         ]),
         date_field: None,
         year_search: false,
@@ -31,7 +31,9 @@ pub fn filter_asset_balances<'a>(
     filtered
         .into_iter()
         .filter(|row| {
-            row.account()
+            row.account
+                .as_ref()
+                .map(|a| a.as_str())
                 .is_some_and(|account| search.accounts.iter().any(|a| a == account))
         })
         .collect()
@@ -41,7 +43,7 @@ pub fn filter_asset_balances<'a>(
 pub fn stock_accounts(data: &[AssetBalanceRow]) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for row in data {
-        if let Some(account) = row.account()
+        if let Some(account) = row.account.as_ref().map(|a| a.as_str())
             && !out.iter().any(|a| a == account)
         {
             out.push(account.to_string());

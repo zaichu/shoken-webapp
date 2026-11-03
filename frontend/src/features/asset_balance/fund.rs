@@ -6,8 +6,6 @@ use crate::api::dto::{FundBalance, FundPriceSource};
 use crate::features::asset_balance::format::dec_to_f64;
 use crate::support::csv_flow::CsvChunking;
 use crate::ui::labels;
-use rust_decimal::Decimal;
-
 pub const FUND_LIST_PATH: &str = "/api/v1/fund-balances";
 pub const FUND_PREVIEW_PATH: &str = "/api/v1/fund-balance-import-validations";
 pub const FUND_IMPORT_PATH: &str = "/api/v1/fund-balance-imports";
@@ -53,84 +51,6 @@ impl AssetKind {
 
 /// 一覧行
 pub(crate) type FundBalanceRow = FundBalance;
-
-/// 保存済み行の読み出し面
-pub(crate) trait FundRowData {
-    fn fund_name(&self) -> &str;
-    fn account(&self) -> &str;
-    fn dividends_course(&self) -> Option<&str>;
-    fn shares(&self) -> Decimal;
-    fn average_purchase_price(&self) -> Decimal;
-    fn total_purchase_amount(&self) -> Decimal;
-    fn base_price(&self) -> Decimal;
-    fn base_price_day_change(&self) -> Option<Decimal>;
-    fn base_price_month_change(&self) -> Option<Decimal>;
-    fn market_value(&self) -> Decimal;
-    fn profit_loss(&self) -> Decimal;
-    fn profit_loss_rate(&self) -> Option<Decimal>;
-    fn total_return(&self) -> Option<Decimal>;
-    fn price_as_of(&self) -> Option<String>;
-    /// 基準価額まわりの値の出どころ(CSV か公式APIの共有値)
-    fn price_source(&self) -> FundPriceSource;
-    /// 前日比が「最新の基準価額の日の変動」として出せるか。false は「更新待ち」
-    fn is_nav_latest(&self) -> bool;
-    /// 「公表済みのはずの最新の基準価額の日」(更新待ちの説明文に使う)
-    fn expected_nav_date(&self) -> Option<String>;
-}
-
-impl FundRowData for FundBalance {
-    fn fund_name(&self) -> &str {
-        &self.fund_name
-    }
-    fn account(&self) -> &str {
-        self.account.as_str()
-    }
-    fn dividends_course(&self) -> Option<&str> {
-        self.dividends_course.as_deref()
-    }
-    fn shares(&self) -> Decimal {
-        self.shares
-    }
-    fn average_purchase_price(&self) -> Decimal {
-        self.average_purchase_price
-    }
-    fn total_purchase_amount(&self) -> Decimal {
-        self.total_purchase_amount
-    }
-    fn base_price(&self) -> Decimal {
-        self.base_price
-    }
-    fn base_price_day_change(&self) -> Option<Decimal> {
-        self.base_price_day_change
-    }
-    fn base_price_month_change(&self) -> Option<Decimal> {
-        self.base_price_month_change
-    }
-    fn market_value(&self) -> Decimal {
-        self.market_value
-    }
-    fn profit_loss(&self) -> Decimal {
-        self.profit_loss
-    }
-    fn profit_loss_rate(&self) -> Option<Decimal> {
-        self.profit_loss_rate
-    }
-    fn total_return(&self) -> Option<Decimal> {
-        self.total_return
-    }
-    fn price_as_of(&self) -> Option<String> {
-        Some(self.price_as_of.to_string())
-    }
-    fn price_source(&self) -> FundPriceSource {
-        self.price_source
-    }
-    fn is_nav_latest(&self) -> bool {
-        self.nav_is_latest
-    }
-    fn expected_nav_date(&self) -> Option<String> {
-        self.expected_nav_date.clone()
-    }
-}
 
 /// 一覧・詳細に渡す1行分の表示用データ
 #[derive(Clone, Debug, PartialEq)]
@@ -205,23 +125,23 @@ impl FundView {
 pub(crate) fn fund_view(row: &FundBalanceRow) -> FundView {
     FundView {
         id: Some(row.id.to_string()),
-        name: row.fund_name().to_string(),
-        account: row.account().to_string(),
-        course: row.dividends_course().map(str::to_string),
-        shares: dec_to_f64(&row.shares()),
-        average_purchase_price: dec_to_f64(&row.average_purchase_price()),
-        purchase: dec_to_f64(&row.total_purchase_amount()),
-        base_price: dec_to_f64(&row.base_price()),
-        base_price_day_change: row.base_price_day_change().as_ref().map(dec_to_f64),
-        base_price_month_change: row.base_price_month_change().as_ref().map(dec_to_f64),
-        market_value: dec_to_f64(&row.market_value()),
-        profit_loss: dec_to_f64(&row.profit_loss()),
-        profit_loss_rate: row.profit_loss_rate().as_ref().map(dec_to_f64),
-        total_return: row.total_return().as_ref().map(dec_to_f64),
-        price_as_of: row.price_as_of(),
-        price_source: row.price_source(),
-        is_nav_latest: row.is_nav_latest(),
-        expected_nav_date: row.expected_nav_date(),
+        name: row.fund_name.clone(),
+        account: row.account.as_str().to_string(),
+        course: row.dividends_course.clone(),
+        shares: dec_to_f64(&row.shares),
+        average_purchase_price: dec_to_f64(&row.average_purchase_price),
+        purchase: dec_to_f64(&row.total_purchase_amount),
+        base_price: dec_to_f64(&row.base_price),
+        base_price_day_change: row.base_price_day_change.as_ref().map(dec_to_f64),
+        base_price_month_change: row.base_price_month_change.as_ref().map(dec_to_f64),
+        market_value: dec_to_f64(&row.market_value),
+        profit_loss: dec_to_f64(&row.profit_loss),
+        profit_loss_rate: row.profit_loss_rate.as_ref().map(dec_to_f64),
+        total_return: row.total_return.as_ref().map(dec_to_f64),
+        price_as_of: Some(row.price_as_of.clone()),
+        price_source: row.price_source,
+        is_nav_latest: row.nav_is_latest,
+        expected_nav_date: row.expected_nav_date.clone(),
     }
 }
 
@@ -257,20 +177,22 @@ pub(crate) fn filter_fund_rows<'a>(
     rows.iter()
         .filter(|row| {
             if !query.is_empty() {
-                let name = row.fund_name().to_lowercase();
-                let account = row.account().to_lowercase();
+                let name = row.fund_name.to_lowercase();
+                let account = row.account.as_str().to_lowercase();
                 if !(name.contains(&query) || account.contains(&query)) {
                     return false;
                 }
             }
-            if !search.accounts.is_empty() && !search.accounts.iter().any(|a| a == row.account()) {
+            if !search.accounts.is_empty()
+                && !search.accounts.iter().any(|a| a == row.account.as_str())
+            {
                 return false;
             }
             if !search.courses.is_empty()
                 && !search
                     .courses
                     .iter()
-                    .any(|c| Some(c.as_str()) == row.dividends_course())
+                    .any(|c| Some(c.as_str()) == row.dividends_course.as_deref())
             {
                 return false;
             }
@@ -283,7 +205,7 @@ pub(crate) fn filter_fund_rows<'a>(
 pub(crate) fn fund_accounts(rows: &[FundBalanceRow]) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for row in rows {
-        let account = row.account();
+        let account = row.account.as_str();
         if !account.is_empty() && !out.iter().any(|a| a == account) {
             out.push(account.to_string());
         }
@@ -294,7 +216,7 @@ pub(crate) fn fund_accounts(rows: &[FundBalanceRow]) -> Vec<String> {
 pub(crate) fn fund_courses(rows: &[FundBalanceRow]) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for row in rows {
-        if let Some(course) = row.dividends_course()
+        if let Some(course) = row.dividends_course.as_deref()
             && !course.is_empty()
             && !out.iter().any(|c| c == course)
         {
