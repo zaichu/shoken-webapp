@@ -258,3 +258,62 @@ fn delete_confirm_flow_updates_csv_state() {
         assert!(store.csv_meta().deleting);
     });
 }
+
+#[test]
+fn refresh_for_delete_starts_refetch_and_keeps_csv_state() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.user.set(Some(user("alice")));
+        let generation = session.generation.get_untracked();
+        let loaded = LoadedAssetBalances {
+            total: 3,
+            rows: vec![balance_row(9904)],
+            summary: None,
+            truncated: false,
+        };
+        let balances = RwSignal::new(Some((generation, Ok(loaded))));
+        let store = store_with(&session, balances);
+
+        store.open_delete_confirm();
+        assert!(store.csv_meta().show_delete_confirm);
+        assert!(store.saved_count_ready());
+
+        let list_rev_before = store.data_ops.get_untracked().list_rev;
+        store.refresh_for_delete();
+
+        assert!(
+            store.data_ops.get_untracked().list_fetch_in_flight(),
+            "再取得が始まっている"
+        );
+        assert!(
+            !store.saved_count_ready(),
+            "取り直し中は件数を未確定として扱う"
+        );
+        assert!(
+            store.csv_meta().show_delete_confirm,
+            "CSV 確認状態は保持される"
+        );
+        assert!(
+            store.data_ops.get_untracked().list_rev > list_rev_before,
+            "一覧取得世代が進む"
+        );
+    });
+}
+
+#[test]
+fn refresh_for_delete_does_nothing_when_unauthenticated() {
+    let _ = any_spawner::Executor::init_futures_executor();
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        let store = store_with(&session, RwSignal::new(None));
+
+        let list_rev_before = store.data_ops.get_untracked().list_rev;
+        store.refresh_for_delete();
+
+        assert_eq!(store.data_ops.get_untracked().list_rev, list_rev_before);
+        assert!(!store.data_ops.get_untracked().list_fetch_in_flight());
+    });
+}
