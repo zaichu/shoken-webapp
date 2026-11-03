@@ -553,10 +553,10 @@ impl Db {
         }
     }
 
-    /// 認証済み利用者のトランザクションを開始し、行分離の利用者 ID を
-    /// トランザクション内(`SET LOCAL` 相当)で設定する。Hyperdrive 経由の
-    /// プールは接続を使い回すため、セッション単位の `SET` は使わない。
-    /// 認証済み経路の DB 書き込み・読み取りはこの経路で開く
+    /// 認証済み利用者のトランザクションを開始し、制限ロールへの切り替えと
+    /// 行分離の利用者 ID をトランザクション内(`app_enter` 呼び出し)で設定する。
+    /// Hyperdrive 経由のプールは接続を使い回すため、セッション単位の `SET` は使わない。
+    /// 認証済み経路の DB 書き込みはこの経路で開く
     pub async fn begin_with_user(&self, user_id: shared::value::UserId) -> Result<Tx, DbError> {
         let mut tx = self.begin().await?;
         tx.set_local_user(user_id).await?;
@@ -762,19 +762,16 @@ impl Drop for TxGuard {
 }
 
 impl Tx {
-    /// 行分離の利用者 ID をこのトランザクション内に設定する。
-    /// `set_config(..., true)` は `SET LOCAL` と同じくトランザクション終了で
-    /// 消えるため、プールの使い回しで他の利用者に残らない
+    /// 制限ロールへの切り替えと行分離の利用者 ID をこのトランザクション内に設定する。
+    /// `app_enter` は `SET LOCAL` と同じくトランザクション終了で消えるため、
+    /// プールの使い回しで他の利用者に残らない
     pub(crate) async fn set_local_user(
         &mut self,
         user_id: shared::value::UserId,
     ) -> Result<(), DbError> {
-        query(
-            "SELECT set_config('app.current_user_id', $1, true)",
-            vec![Bind::from(user_id.to_string())],
-        )
-        .execute(&mut *self)
-        .await?;
+        query("SELECT app_enter($1)", vec![Bind::from(user_id)])
+            .execute(&mut *self)
+            .await?;
         Ok(())
     }
 
