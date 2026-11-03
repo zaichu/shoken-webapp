@@ -113,31 +113,65 @@ fn typed_params(params: &[Bind]) -> Vec<(&(dyn ToSql + Sync), Type)> {
         .collect()
 }
 
-/// ログ識別用に SQL を1行・先頭のみに整形する。SQL は静的リテラルで値は
-/// `$n` バインド経由のため、クエリ本文の出力は秘密値を含まない
-fn query_tag(sql: &str) -> String {
-    sql.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .chars()
-        .take(80)
-        .collect()
+fn query_tag(sql: &str) -> &'static str {
+    match sql.split_whitespace().next() {
+        Some("SELECT") => match sql.trim_start().strip_prefix("SELECT ") {
+            Some(s) if s.starts_with("app_enter(") => "app_enter",
+            Some(s) if s.starts_with("auth_upsert_user(") => "auth_upsert_user",
+            Some(s) if s.starts_with("auth_rotate_session(") => "auth_rotate_session",
+            _ => "SELECT",
+        },
+        Some("INSERT") => "INSERT",
+        Some("UPDATE") => "UPDATE",
+        Some("DELETE") => "DELETE",
+        Some("WITH") => "WITH",
+        Some("BEGIN") => "BEGIN",
+        Some("COMMIT") => "COMMIT",
+        Some("ROLLBACK") => "ROLLBACK",
+        _ => "other",
+    }
 }
 
-/// DB 実行失敗を、どのクエリがなぜ失敗したか分かる形で残す（sqlstate・サーバー
-/// メッセージ・クエリ識別タグ）。wasm は tracing subscriber を持たないため console へ
+impl DbError {
+    pub(crate) fn log(&self, op: &'static str, sql: &str) {
+        let pg = match self {
+            Self::Pg(e) => e.as_db_error(),
+            _ => None,
+        };
+        let kind = match self {
+            Self::Pg(e) if e.is_closed() => "closed",
+            Self::Pg(_) if pg.is_some() => "database",
+            Self::Pg(_) => "client",
+            Self::RowNotFound => "row_not_found",
+            Self::Other(_) => "other",
+            Self::State { .. } => "database",
+        };
+        let state = self.sql_state();
+        let sqlstate = state.as_ref().map_or("-", SqlState::code);
+        let constraint = pg.and_then(|e| e.constraint()).unwrap_or("-");
+        let routine = pg.and_then(|e| e.routine()).unwrap_or("-");
+        let statement = query_tag(sql);
+        #[cfg(target_arch = "wasm32")]
+        worker::console_error!(
+            "DB {op} 失敗 kind={kind} sqlstate={sqlstate} constraint={constraint} routine={routine} statement={statement}"
+        );
+        #[cfg(not(target_arch = "wasm32"))]
+        tracing::error!(
+            op,
+            kind,
+            sqlstate,
+            constraint,
+            routine,
+            statement,
+            "DB 失敗"
+        );
+    }
+}
+
 fn db_err(op: &'static str, sql: &str, e: tokio_postgres::Error) -> DbError {
-    let e = DbError::Pg(e);
-    let sqlstate = e
-        .sql_state()
-        .map(|s| s.code().to_string())
-        .unwrap_or_else(|| "-".to_string());
-    let tag = query_tag(sql);
-    #[cfg(target_arch = "wasm32")]
-    worker::console_error!("DB {op} 失敗 sqlstate={sqlstate} sql=`{tag}`: {e}");
-    #[cfg(not(target_arch = "wasm32"))]
-    tracing::error!(sqlstate, sql = tag, error = %e, "DB {op} 失敗");
-    e
+    let error = DbError::Pg(e);
+    error.log(op, sql);
+    error
 }
 
 /// `Row` → モデル変換。`sqlx::FromRow` 相当を手書き impl で提供する
@@ -465,7 +499,7 @@ impl Db {
 
 #[cfg(target_arch = "wasm32")]
 mod worker_db {
-    use super::{DbError, WorkerDb};
+    use super::{DbError, WorkerDb, db_err};
     use std::rc::Rc;
     use tokio_postgres::Client;
 
@@ -484,10 +518,10 @@ mod worker_db {
         let (client, connection) = config
             .connect_raw(socket, worker::postgres_tls::PassthroughTls)
             .await
-            .map_err(DbError::Pg)?;
+            .map_err(|e| db_err("connect", "", e))?;
         wasm_bindgen_futures::spawn_local(async move {
             if let Err(e) = connection.await {
-                worker::console_error!("DB connection task error: {e:?}");
+                db_err("connection", "", e);
             }
         });
         Ok(client)
@@ -553,10 +587,10 @@ impl Db {
         }
     }
 
-    /// 認証済み利用者のトランザクションを開始し、行分離の利用者 ID を
-    /// トランザクション内(`SET LOCAL` 相当)で設定する。Hyperdrive 経由の
-    /// プールは接続を使い回すため、セッション単位の `SET` は使わない。
-    /// 認証済み経路の DB 書き込み・読み取りはこの経路で開く
+    /// 認証済み利用者のトランザクションを開始し、制限ロールへの切り替えと
+    /// 行分離の利用者 ID をトランザクション内(`app_enter` 呼び出し)で設定する。
+    /// Hyperdrive 経由のプールは接続を使い回すため、セッション単位の `SET` は使わない。
+    /// 認証済み経路の DB 書き込みはこの経路で開く
     pub async fn begin_with_user(&self, user_id: shared::value::UserId) -> Result<Tx, DbError> {
         let mut tx = self.begin().await?;
         tx.set_local_user(user_id).await?;
@@ -711,7 +745,7 @@ impl TxConn {
                 if let Ok(handle) = tokio::runtime::Handle::try_current() {
                     handle.spawn(async move {
                         if let Err(e) = obj.batch_execute("ROLLBACK").await {
-                            tracing::error!(error = %e, "DB ロールバック失敗");
+                            db_err("rollback", "ROLLBACK", e);
                         }
                         drop(obj);
                     });
@@ -723,7 +757,7 @@ impl TxConn {
             TxConn::Wasm(client) => {
                 wasm_bindgen_futures::spawn_local(async move {
                     if let Err(e) = client.batch_execute("ROLLBACK").await {
-                        worker::console_error!("DB ロールバック失敗: {e}");
+                        db_err("rollback", "ROLLBACK", e);
                     }
                     drop(client);
                 });
@@ -762,19 +796,16 @@ impl Drop for TxGuard {
 }
 
 impl Tx {
-    /// 行分離の利用者 ID をこのトランザクション内に設定する。
-    /// `set_config(..., true)` は `SET LOCAL` と同じくトランザクション終了で
-    /// 消えるため、プールの使い回しで他の利用者に残らない
+    /// 制限ロールへの切り替えと行分離の利用者 ID をこのトランザクション内に設定する。
+    /// `app_enter` は `SET LOCAL` と同じくトランザクション終了で消えるため、
+    /// プールの使い回しで他の利用者に残らない
     pub(crate) async fn set_local_user(
         &mut self,
         user_id: shared::value::UserId,
     ) -> Result<(), DbError> {
-        query(
-            "SELECT set_config('app.current_user_id', $1, true)",
-            vec![Bind::from(user_id.to_string())],
-        )
-        .execute(&mut *self)
-        .await?;
+        query("SELECT app_enter($1)", vec![Bind::from(user_id)])
+            .execute(&mut *self)
+            .await?;
         Ok(())
     }
 
@@ -955,6 +986,116 @@ fn validate_database_url(url: &str) -> Result<(), String> {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
+
+    #[derive(Clone, Default)]
+    struct LogCapture(Arc<std::sync::Mutex<Vec<String>>>);
+
+    impl tracing::Subscriber for LogCapture {
+        fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+            true
+        }
+
+        fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+            tracing::span::Id::from_u64(1)
+        }
+
+        fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+        fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+        fn enter(&self, _: &tracing::span::Id) {}
+        fn exit(&self, _: &tracing::span::Id) {}
+
+        fn event(&self, event: &tracing::Event<'_>) {
+            struct Fields(String);
+            impl tracing::field::Visit for Fields {
+                fn record_debug(
+                    &mut self,
+                    field: &tracing::field::Field,
+                    value: &dyn std::fmt::Debug,
+                ) {
+                    use std::fmt::Write;
+                    write!(self.0, " {}={value:?}", field.name()).unwrap();
+                }
+            }
+            let mut fields = Fields(event.metadata().level().to_string());
+            event.record(&mut fields);
+            self.0.lock().unwrap().push(fields.0);
+        }
+    }
+
+    #[test]
+    fn db_error_log_omits_sql_and_error_text() {
+        let capture = LogCapture::default();
+        let error = "invalid_secret_connection"
+            .parse::<tokio_postgres::Config>()
+            .unwrap_err();
+        tracing::subscriber::with_default(capture.clone(), || {
+            db_err("query", "SELECT 'private_sql_value'", error);
+        });
+        let entries = capture.0.lock().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].starts_with("ERROR"));
+        assert!(entries[0].contains("sqlstate="));
+        assert!(!entries[0].contains("private_sql_value"));
+        assert!(!entries[0].contains("invalid_secret_connection"));
+        assert!(!entries[0].contains("error="));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn db_error_log_keeps_sqlstate_constraint_and_routine_only() {
+        let (pool, _node) = crate::test_db::start_test_pool().await;
+        let rows = pool
+            .query_rows(
+                "SELECT auth_upsert_user($1, $2, $3, $4)",
+                &[
+                    Bind::from("log-test-google"),
+                    Bind::from("log-test@example.com"),
+                    Bind::from(None::<&str>),
+                    Bind::from(None::<&str>),
+                ],
+            )
+            .await
+            .unwrap();
+        let id: uuid::Uuid = rows[0].get(0);
+        let capture = LogCapture::default();
+        let error = pool
+            .query_rows(
+                "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+                &[
+                    Bind::from(id),
+                    Bind::from("private_google_value"),
+                    Bind::from("private_email@example.com"),
+                ],
+            )
+            .await
+            .unwrap_err();
+        let DbError::Pg(error) = error else {
+            panic!("Postgres エラーが必要");
+        };
+        tracing::subscriber::with_default(capture.clone(), || {
+            db_err(
+                "execute",
+                "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+                error,
+            );
+        });
+        let entries = capture.0.lock().unwrap();
+        assert_eq!(entries.len(), 1);
+        let entry = &entries[0];
+        assert!(entry.starts_with("ERROR"));
+        assert!(entry.contains("23505"));
+        assert!(entry.contains("users_pkey"));
+        assert!(entry.contains("_bt_check_unique"));
+        for private in [
+            id.to_string().as_str(),
+            "private_google_value",
+            "private_email@example.com",
+            "INSERT INTO",
+            "error=",
+        ] {
+            assert!(!entry.contains(private));
+        }
+    }
 
     #[tokio::test]
     async fn test_connect_pool_lazy() {

@@ -254,11 +254,7 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         match &self {
             Self::Database(e) => {
-                if is_production_env() {
-                    tracing::error!("Database error [{}]", self.code());
-                } else {
-                    tracing::error!("Database error [{}]: {}", self.code(), e);
-                }
+                e.log("response", "");
             }
             Self::Config(e) => tracing::error!("Config error: {e}"),
             Self::Internal(msg) => tracing::error!("Internal error: {msg}"),

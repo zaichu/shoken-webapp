@@ -488,3 +488,88 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
   登録漏れの再発防止として `migrate.rs` に Docker 不要の単体テスト
   (`all_migration_files_are_registered`: `migrations/*.sql` と `MIGRATION_FILES` の一致)を足した。
 - アプリコードの変更なし(関数の呼び出しは 5c・5d で行う)。
+
+## 17. 第五段階(5c)の記録(#1753・#1757)
+
+初回の #1754 は本番ログインの `DATABASE_ERROR` により #1755 で戻した。
+#1757 で下記の配線を復元し、§18 の修正と検証を加えて出し直す。
+
+- 配線の変更は `backend/src/db.rs` の1か所のみ。`Tx::set_local_user` が
+  `SELECT set_config('app.current_user_id', ...)` の代わりに
+  `SELECT app_enter($1)`(束縛変数あり)を呼ぶ。`Db::begin_with_user` はこの関数を呼ぶため、
+  書き込みの全経路(CSV 取り込み・一括登録・全削除・ログイン記録・通知トークン・
+  通知設定の更新・閲覧記録・セッション削除・利用者削除)が制限ロールで実行される。
+  読み取り・認証前の照会・管理者の横断・cron は変えない。
+- ログインの取引は `auth_upsert_user` で利用者を決めたあとに `app_enter` を呼び、
+  `auth_rotate_session` で回転する順にした(関数は 5b で用意済み)。
+  利用者行の取得は upsert と同じ文にはまとめず、upsert の次の文で所有者として読む。
+  同じ文の外側からは関数が挿入した新規行が見えないため、新規利用者が RowNotFound になる。
+  回転は直接の `DELETE`/`INSERT` の代わりに `auth_rotate_session` を呼ぶ。
+  回転は引数と設定の一致を確かめるため、他人の利用者 ID での回転は失敗する。
+- 往復回数は、一括登録などは `BEGIN`+`app_enter`+本文+`COMMIT` の4往復のまま、
+  単純なログイン Tx は `BEGIN`+upsert+`app_enter`+回転+`COMMIT` の5往復のまま。
+  端末付きログインだけは利用者行の取得を別文にしたため +1 往復になる。
+- 結合テスト(`backend/tests/db_integration.rs` の `rls_5c_writes_via_app_enter`):
+  本番と同じ所有者の接続から書き込みの全経路を `app_enter` 経由で実行し、
+  成功すること・Tx 内では `current_user` が `app_restricted` で `COMMIT` 後に所有者に戻ること・
+  本人の行だけが変わり他人の行は変わらないこと・Tx 外に利用者 ID の設定が残らないことを固定する。
+  対象は CSV 取り込みと履歴・一括登録・全削除・ログイン記録・トークン発行・設定更新・
+  閲覧記録・端末と全体のセッション削除・利用者削除・ログインと再ログイン(旧失効)・端末付きログイン。
+- 初回は migration を追加しなかったが、出し直しでは §18 の 0029 が必要。
+  過去の migration は書き換えていない。
+- 戻し方は 5c のコードの revert。0029 の切替権限を残しても、所有者で動くコードの挙動は変わらない。
+
+## 18. 5c のログイン失敗の再現と修正(#1757)
+
+### 原因と再現
+
+- #1754 の差分を戻し、既存の `rls_5c_writes_via_app_enter` を Docker で実行すると成功した。
+  このテストの接続は特権者であり、所属の `SET` オプション欠落を検出できなかった。
+- `NOSUPERUSER NOBYPASSRLS CREATEROLE` の利用者を作り、その利用者自身が migration を
+  適用して表と関数の所有者となる接続を用意した。新規・既存利用者 × 端末あり・なしの
+  4 通りがすべて `app_enter` 内の `set_config('role', ...)` で SQLSTATE `42501` となった。
+  API の分類は `DATABASE_ERROR`。利用者の情報・引数は診断出力に使わない。
+- PostgreSQL 16 以降では、非特権の `CREATEROLE` 利用者が作ったロールへの自動所属は
+  `ADMIN TRUE, SET FALSE, INHERIT FALSE` になる。
+  0027 は `pg_auth_members` に所属があれば `GRANT` を省くため、`SET FALSE` のまま残る。
+  所属確認は `MEMBER` と `SET` を分ける必要がある。
+  仕様: [PostgreSQL Role Attributes](https://www.postgresql.org/docs/current/role-attributes.html)。
+- 本番の読み取り専用の [DB RLS State 実行結果](https://github.com/zaichu/shoken-webapp/actions/runs/41555886355)では、
+  `app_restricted` が `NOLOGIN`・`NOBYPASSRLS`、所有者が所属、利用者表 11 表は RLS 有効・
+  FORCE なし、migration 28 が適用済みであることを確認した。この結果には `set_option` が
+  含まれず、本番時の SQLSTATE も残っていないため、本番そのもののエラー詳細との照合は未実施。
+  再現した欠陥と、本番で観測したエラーの分類・既存の所属確認の不足が一致する。
+
+### 修正と検証
+
+- `0029_app_restricted_set_option.sql` を新設し、
+  `GRANT app_restricted TO CURRENT_USER WITH SET TRUE, INHERIT FALSE` で移行用の所有者に切替を許可する。
+  自動継承を追加せず、表・関数の権限、RLS ポリシー、PUBLIC の権限も変えない。
+  `migrate.rs` に登録し、既存履歴の期待値を 29 まで更新した。
+  ロール不在・管理権限不足の場合は移行を失敗させ、切替不能のまま 5c を配信しない。
+- `backend/tests/login_rls.rs` は非特権の所有者から実際のサービス関数を呼び、
+  `BEGIN` → `auth_upsert_user` → (端末ありでは利用者行取得) → `app_enter` →
+  (端末ありでは履歴照会) → `auth_rotate_session` → (端末ありでは履歴登録) → `COMMIT` を通す。
+  新規・既存の 4 通り、名前の更新、旧セッションの失効、履歴の分類、設定の後始末を確認する。
+  自動所属相当の `SET FALSE` で `42501`/`DATABASE_ERROR` を再現してから 0029 で修復し、
+  再適用が成功し `INHERIT FALSE` が維持されることも確認する。
+- `DbError` のログを共通化し、Worker では `console_error!`、ホストでは `tracing::error!` に
+  操作、エラー種別、SQLSTATE、制約名、PostgreSQL の routine、許可した固定の文種別・関数名だけを出す。
+  SQL 本文、引数、エラー本文・detail・hint・context、接続文字列は出さない。
+  API 応答への変換、接続タスク、ロールバックの失敗も同じ方法で扱う。
+  ログのテストは SQL 本文の漏出と制約名欠落で失敗することを先に確認し、修正後の成功を確認した。
+- `make test-ignored` に新しいログイン結合テストを追加した。#1756 の PR #1760 が
+  未マージのため、今回の再現と修正の確認は手元の Docker で実行し、結果を PR に記録する。
+  PR での実行は #1760 の取り込み後の workflow に任せる。
+
+### Hyperdrive の取引の扱い
+
+- [Cloudflare の接続プール仕様](https://developers.cloudflare.com/hyperdrive/concepts/connection-pooling/)では、
+  明示的な取引中は同じ接続を保持し、終了後の返却時に設定をリセットする。
+  [PostgreSQL SET の仕様](https://www.postgresql.org/docs/current/sql-set.html)でも、
+  `SET LOCAL` は `COMMIT`・`ROLLBACK` まで有効である。
+- `db.rs` は取引専用に `fresh_client` を作り、その同一クライアントで逐次実行する。
+  `app_enter` は `set_config(..., true)` を使い、セッション設定を残さない。
+  Docker では取引内の backend PID が同じで、COMMIT・ROLLBACK・drop 後に所有者と利用者設定が
+  復元されることを確認する。Hyperdrive 本体を通した実測は未実施であり、仕様上の確認と区別する。
+  今回の `42501` は Hyperdrive なしでも再現するため、接続の入れ替わりを修正対象にはしない。

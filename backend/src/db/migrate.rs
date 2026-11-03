@@ -129,6 +129,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0028_app_enter_and_auth_functions",
         include_str!("../../migrations/0028_app_enter_and_auth_functions.sql"),
     ),
+    (
+        "0029_app_restricted_set_option",
+        include_str!("../../migrations/0029_app_restricted_set_option.sql"),
+    ),
 ];
 
 struct Migration {
