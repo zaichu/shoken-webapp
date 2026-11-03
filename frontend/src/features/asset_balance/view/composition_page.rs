@@ -506,7 +506,7 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                                     class=format!("comp-legend-dot {fill}")
                                     aria-hidden="true"
                                 />
-                                <span class="comp-legend-name">{name}</span>
+                                <span class="comp-legend-name lg:whitespace-normal">{name}</span>
                                 <span class="comp-legend-rate">{rate}</span>
                             </li>
                         }
