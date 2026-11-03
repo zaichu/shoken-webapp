@@ -469,7 +469,8 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
   ロール不在時の `GRANT` は `NOTICE` に留め、デプロイを止めない(0027 と同じ向き)。
   `FORCE` なしのため所有者の挙動は変わらない。過去の migration は書き換えていない。
 - 結合テスト(`backend/tests/db_integration.rs` の `stage5b_definer_functions_and_app_enter`):
-  7 関数の権限カタログ(`app_restricted` は実行可・`PUBLIC` は不可)・`DEFINER` 属性・
+  照会 6 関数の権限カタログ(`app_restricted` は実行可・`public` は不可)と
+  `app_enter` が所有者専用(`app_restricted`・`public` とも不可)であること・`DEFINER` 属性・
   揮発性(照会と参照のみ `STABLE`)・`search_path` 固定を固定し、
   権限なしロールからは照会関数と `app_enter` が権限不足で呼べないこと、
   `app_restricted` からは所有するハッシュで本人の利用者 ID が返り・未知のハッシュでは

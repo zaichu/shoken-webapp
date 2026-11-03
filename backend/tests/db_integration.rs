@@ -6223,8 +6223,8 @@ async fn app_restricted_role_has_least_privilege() {
     assert_eq!(count, 2, "所有者は両利用者の行を読めるはず");
 }
 
-/// RLS 第五段階 5b: app_enter と照会用の DEFINER 関数は引数・戻り・権限が最小限で、
-/// app_restricted から呼べる・PUBLIC 権限のロールからは呼べない・未知のハッシュでは他人の行を返さない。
+/// RLS 第五段階 5b: app_enter(所有者専用)と照会用の DEFINER 関数は引数・戻り・権限が最小限で、
+/// DEFINER 関数は app_restricted から呼べる・public からは呼べない・未知のハッシュでは他人の行を返さない。
 /// app_enter のあとは本人の行だけが見え、COMMIT で所有者に戻る
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
@@ -6280,14 +6280,13 @@ async fn stage5b_definer_functions_and_app_enter() {
     let hash_plain_a = backend::services::login_notify::token_hash(&plain_a);
     let hash_plain_b = backend::services::login_notify::token_hash(&plain_b);
 
-    for (signature, definer) in [
-        ("public.app_enter(uuid)", false),
-        ("public.auth_lookup_user_id_by_session(bytea)", true),
-        ("public.auth_delete_session_by_token(bytea)", true),
-        ("public.login_notify_peek_by_token(bytea)", true),
-        ("public.login_notify_consume_by_token(bytea)", true),
-        ("public.auth_rotate_session(uuid, bytea, bytea)", true),
-        ("public.auth_upsert_user(text, text, text, text)", true),
+    for signature in [
+        "public.auth_lookup_user_id_by_session(bytea)",
+        "public.auth_delete_session_by_token(bytea)",
+        "public.login_notify_peek_by_token(bytea)",
+        "public.login_notify_consume_by_token(bytea)",
+        "public.auth_rotate_session(uuid, bytea, bytea)",
+        "public.auth_upsert_user(text, text, text, text)",
     ] {
         let executable = db::query_scalar::<bool>(
             format!("SELECT has_function_privilege('app_restricted', '{signature}', 'EXECUTE')"),
@@ -6298,13 +6297,13 @@ async fn stage5b_definer_functions_and_app_enter() {
         .expect("関数権限の取得に失敗");
         assert!(executable, "{signature} は app_restricted が実行できるはず");
         let public = db::query_scalar::<bool>(
-            format!("SELECT has_function_privilege('PUBLIC', '{signature}', 'EXECUTE')"),
+            format!("SELECT has_function_privilege('public', '{signature}', 'EXECUTE')"),
             vec![],
         )
         .fetch_one(&pool)
         .await
         .expect("関数権限の取得に失敗");
-        assert!(!public, "{signature} は PUBLIC から実行できないはず");
+        assert!(!public, "{signature} は public から実行できないはず");
         let is_definer = db::query_scalar::<bool>(
             "SELECT prosecdef FROM pg_proc WHERE oid = $1::regprocedure",
             vec![Bind::from(signature)],
@@ -6312,8 +6311,35 @@ async fn stage5b_definer_functions_and_app_enter() {
         .fetch_one(&pool)
         .await
         .expect("関数定義の取得に失敗");
-        assert_eq!(is_definer, definer, "{signature} の DEFINER 属性のはず");
+        assert!(is_definer, "{signature} は DEFINER のはず");
     }
+
+    let owner_enter = db::query_scalar::<bool>(
+        "SELECT has_function_privilege(CURRENT_USER, 'public.app_enter(uuid)', 'EXECUTE')",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("関数権限の取得に失敗");
+    assert!(owner_enter, "app_enter は所有者が実行できるはず");
+    for role in ["app_restricted", "public"] {
+        let executable = db::query_scalar::<bool>(
+            format!("SELECT has_function_privilege('{role}', 'public.app_enter(uuid)', 'EXECUTE')"),
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数権限の取得に失敗");
+        assert!(!executable, "app_enter は {role} から実行できないはず");
+    }
+    let is_definer = db::query_scalar::<bool>(
+        "SELECT prosecdef FROM pg_proc WHERE oid = 'public.app_enter(uuid)'::regprocedure",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("関数定義の取得に失敗");
+    assert!(!is_definer, "app_enter は INVOKER のはず");
 
     for (signature, volatile) in [
         ("public.app_enter(uuid)", "v"),
