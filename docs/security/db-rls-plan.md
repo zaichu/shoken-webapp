@@ -580,3 +580,40 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
   Docker では取引内の backend PID が同じで、COMMIT・ROLLBACK・drop 後に所有者と利用者設定が
   復元されることを確認する。Hyperdrive 本体を通した実測は未実施であり、仕様上の確認と区別する。
   今回の `42501` は Hyperdrive なしでも再現するため、接続の入れ替わりを修正対象にはしない。
+
+## 19. DB 1往復の計測(#1766)
+
+5d の関門(§13.2、一覧の応答の増加見込みが +50ms 以内のときだけ読み取りの切替に進める)の判断材料として、
+本番の Worker で DB の問い合わせ1回にかかった時間(Hyperdrive 経由の往復)を測ってログに出す。
+
+### 測り方
+
+- 測る場所は `backend/src/db.rs` の `Executor` 実装の入口1か所のみ(`Db` と `Tx` の
+  `query_rows`・`execute`・`batch_execute`)。各ハンドラーには散らさない。
+  計時は `DbTimer::start` で開始し、唯一の出口 `DbTimer::finish` で出す。
+  `BEGIN`・`COMMIT`・`ROLLBACK` の枠組みは対象外で、本文の問い合わせ1回 = 1往復を測る。
+  `app_enter`・`auth_*` の関数呼び出しも `Executor` 経由のため種別つきで測られる。
+- 出すのは固定の種別(`query_tag` の `SELECT`・`INSERT`・`UPDATE`・`DELETE`・`WITH`・
+  `app_enter` 等)と ms だけ(例: `db_rtt statement=SELECT elapsed_ms=3`)。
+  SQL 本文・引数・利用者 ID・接続情報・エラー本文は出さない。
+- 頻度は 100 回に 1 回(既定)。`DB_RTT_SAMPLE_EVERY`(`wrangler.toml` の `[vars]` と
+  `[env.dev.vars]` に `100` で登録)で変更でき、`0` で停止する。
+  ホスト側は起動時に環境変数から、Worker 側はリクエスト開始時に `Env` から解決し、
+  問い合わせごとの解決はしない。未設定・不正値は既定の 100 に倒れる。
+- ログの段階は warn。`worker-tail` は fetch イベントの error/warn 行を拾う設定のため、
+  ワークフローの絞り込み変更なしで artifact(`filtered.jsonl`)に残る。
+- wasm の計時は `worker::Date::now()` の ms 差分(§13.2 の関門に要る ms 精度はある)、
+  ホスト側は `Instant`。計測自体は時刻取得と原子カウンタの加算のみで、
+  余計な往復を送らないため問い合わせを遅くしない。
+
+### 集めた値から 5d の関門を判断する手順
+
+1. マージ後に統合担当が `Worker Tail` ワークフローを回し、`filtered.jsonl` を得る。
+2. `db_rtt` 行だけを抜き、種別ごとに `elapsed_ms` を集める。
+   `SELECT` の p50 を「1往復の目安」とする。p95 も併せて見て外れ値の有無を確認する。
+3. 増加見込みは `+2往復 × 1往復の目安`(§13.2 の表より一覧は待ち +2往復)で出す。
+   計算例: p50 が 10ms なら増加見込みは約 +20ms。
+4. 増加見込みが +50ms 以内のときだけ 5d(読み取りの切替)に進める。
+   超える場合は立ち止まり、読み取りを所有者のまま残すか (a) 案に戻るかを選び直す(§13.2 の関門どおり)。
+5. `app_enter` の種別の値は、書き込み Tx の設定コストの実測として 5c の振り返りに使う。
+   一覧の `SELECT` とは混ぜずに見る。
