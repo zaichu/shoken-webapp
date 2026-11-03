@@ -55,22 +55,23 @@ jobs:
           trap 'rm -f "${err_file}"' EXIT
           [[ -n "${DATABASE_URL:-}" ]] || { echo "::error::secrets.DATABASE_URL が未設定です"; exit 1; }
           q() {
-            psql "${DATABASE_URL}" --no-psqlrc -v ON_ERROR_STOP=1 2>>"${err_file}" <<SQL || { echo "::error::問い合わせに失敗しました(接続情報は表示しません)"; return 1; }
+            psql "${DATABASE_URL}" --no-psqlrc -v ON_ERROR_STOP=1 2>>"${err_file}" <<SQL || { echo "::error::問い合わせに失敗しました(接続情報は表示しません)" >&2; return 1; }
           BEGIN READ ONLY;
           $1
           COMMIT;
           SQL
           }
           section() {
+            body="$(q "$2")" || return 1
             echo "### $1"
             echo '```'
-            q "$2"
+            printf '%s\n' "${body}"
             echo '```'
           }
           {
-            section '制限ロール(app_restricted)' "SELECT rolname, rolcanlogin, rolbypassrls FROM pg_roles WHERE rolname = 'app_restricted'"
-            section '制限ロールの所属者' "SELECT m.rolname AS member FROM pg_auth_members am JOIN pg_roles r ON r.oid = am.roleid JOIN pg_roles m ON m.oid = am.member WHERE r.rolname = 'app_restricted' ORDER BY 1"
-            section '利用者の表の RLS' "SELECT t.table_name, (c.relrowsecurity IS TRUE) AS rls_enabled, (c.relforcerowsecurity IS TRUE) AS rls_forced FROM (VALUES ('admin_login_views'), ('asset_balances'), ('csv_import_history'), ('dividends'), ('domestic_stocks'), ('fund_balances'), ('login_events'), ('login_notify_tokens'), ('mutualfunds'), ('sessions'), ('users')) AS t(table_name) LEFT JOIN pg_class c ON c.relname = t.table_name AND c.relnamespace = 'public'::regnamespace ORDER BY 1"
-            section 'マイグレーションの最新版' "SELECT version AS latest_version, success FROM _sqlx_migrations ORDER BY version DESC LIMIT 1"
-            section '接続ロール' "SELECT CURRENT_USER AS connected_role, (SELECT rolcreaterole FROM pg_roles WHERE rolname = CURRENT_USER) AS can_create_role"
+            section '制限ロール(app_restricted)' "SELECT rolname, rolcanlogin, rolbypassrls FROM pg_roles WHERE rolname = 'app_restricted';"
+            section '制限ロールの所属者' "SELECT m.rolname AS member FROM pg_auth_members am JOIN pg_roles r ON r.oid = am.roleid JOIN pg_roles m ON m.oid = am.member WHERE r.rolname = 'app_restricted' ORDER BY 1;"
+            section '利用者の表の RLS' "SELECT t.table_name, (c.relrowsecurity IS TRUE) AS rls_enabled, (c.relforcerowsecurity IS TRUE) AS rls_forced FROM (VALUES ('admin_login_views'), ('asset_balances'), ('csv_import_history'), ('dividends'), ('domestic_stocks'), ('fund_balances'), ('login_events'), ('login_notify_tokens'), ('mutualfunds'), ('sessions'), ('users')) AS t(table_name) LEFT JOIN pg_class c ON c.relname = t.table_name AND c.relnamespace = 'public'::regnamespace ORDER BY 1;"
+            section 'マイグレーションの最新版' "SELECT version AS latest_version, success FROM _sqlx_migrations ORDER BY version DESC LIMIT 1;"
+            section '接続ロール' "SELECT CURRENT_USER AS connected_role, (SELECT rolcreaterole FROM pg_roles WHERE rolname = CURRENT_USER) AS can_create_role;"
           } | tee -a "${GITHUB_STEP_SUMMARY}"
