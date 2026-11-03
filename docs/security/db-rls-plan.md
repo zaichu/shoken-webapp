@@ -561,6 +561,13 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
 - `make test-ignored` に新しいログイン結合テストを追加した。#1756 の PR #1760 が
   未マージのため、今回の再現と修正の確認は手元の Docker で実行し、結果を PR に記録する。
   PR での実行は #1760 の取り込み後の workflow に任せる。
+- CI で `rls_set_local_wiring_scopes_authenticated_paths` が `app_enter` の実行権限なしで失敗した。
+  5c 以降の `begin_with_user` は所有者専用の `app_enter` を呼ぶため、試験用の `rls_app` ロールには
+  テスト内で `EXECUTE` と `SET` 付き所属を与える。旧試験の本文は変えない。
+- CI で `session_token_hash_rolling_deploy_compat` が停滞で失敗した。
+  `auth_rotate_session` の期限切れ掃除が単純な `DELETE` になり、他者のロック待ちをしていた。
+  旧 SQL の `FOR UPDATE SKIP LOCKED` の向きを関数に戻すため `0030_auth_rotate_session_skip_locked.sql` を新設し、
+  `CREATE OR REPLACE` で置き換える(署名・所有者・権限は不変。過去の migration は書き換えない)。
 
 ### Hyperdrive の取引の扱い
 

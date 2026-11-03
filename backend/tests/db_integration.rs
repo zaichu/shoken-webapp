@@ -2590,7 +2590,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=29).collect::<Vec<_>>()
+        (0..=30).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2598,7 +2598,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=29).collect::<Vec<_>>()
+        (0..=30).collect::<Vec<_>>()
     );
 }
 
@@ -2626,7 +2626,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=29).collect::<Vec<_>>()
+        (0..=30).collect::<Vec<_>>()
     );
 }
 
@@ -3543,6 +3543,12 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
     pool.batch_execute("GRANT SELECT, UPDATE ON users TO rls_app")
         .await
         .expect("users の参照・更新付与に失敗");
+    pool.batch_execute("GRANT EXECUTE ON FUNCTION public.app_enter(uuid) TO rls_app")
+        .await
+        .expect("app_enter の実行付与に失敗");
+    pool.batch_execute("GRANT app_restricted TO rls_app WITH SET TRUE, INHERIT FALSE")
+        .await
+        .expect("制限ロールへの切替付与に失敗");
     let restricted_url = format!("postgres://rls_app:rls-test-password@127.0.0.1:{port}/postgres");
     let restricted = connect_with_retry(&restricted_url).await;
 
@@ -6241,7 +6247,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=29).collect::<Vec<_>>()
+        (0..=30).collect::<Vec<_>>()
     );
 
     let info_a = GoogleUserInfo {
@@ -6659,7 +6665,7 @@ async fn rls_5c_writes_via_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=29).collect::<Vec<_>>()
+        (0..=30).collect::<Vec<_>>()
     );
 
     let user_a = create_test_user(&pool).await;
