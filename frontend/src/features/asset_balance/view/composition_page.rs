@@ -78,11 +78,10 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
     let dividends = state.dividends;
     let lookup = state.lookup;
     let data_ops = state.data_ops;
-    let csv_slot = state.csv.csv;
     if session.user.get_untracked().is_some() {
         let generation = session.generation.get_untracked();
         crate::features::asset_balance::store::load_asset_balances(
-            session, generation, balances, dividends, lookup, csv_slot, data_ops,
+            session, generation, balances, dividends, lookup, data_ops,
         );
         load_fund_balances(session, generation, funds, data_ops);
     }
@@ -104,9 +103,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
         }
         let generation = session.generation.get_untracked();
         balances.set(None);
-        load_asset_balances(
-            session, generation, balances, dividends, lookup, csv_slot, data_ops,
-        );
+        load_asset_balances(session, generation, balances, dividends, lookup, data_ops);
         funds.set(None);
         load_fund_balances(session, generation, funds, data_ops);
     };

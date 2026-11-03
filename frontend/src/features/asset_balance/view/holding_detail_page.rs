@@ -28,7 +28,6 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
     let dividends = state.dividends;
     let lookup = state.lookup;
     let data_ops = state.data_ops;
-    let csv_slot = state.csv.csv;
     if session.user.get_untracked().is_some() {
         crate::features::asset_balance::store::load_asset_balances(
             session,
@@ -36,7 +35,6 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
             balances,
             dividends,
             lookup,
-            csv_slot,
             data_ops,
         );
     }
@@ -57,7 +55,6 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
             balances,
             dividends,
             lookup,
-            csv_slot,
             data_ops,
         );
     };

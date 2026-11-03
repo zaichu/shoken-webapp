@@ -11,7 +11,6 @@ use crate::features::dividend_per_share::{
     dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch, unique_sorted_codes,
 };
 use crate::session::{Generation, SessionStore};
-use crate::support::csv_flow::CsvTabState;
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fetch_all_pages};
 use crate::ui::format::format_number_value;
 use crate::ui::labels;
@@ -286,7 +285,6 @@ pub(crate) fn load_asset_balances(
     balances: RwSignal<BalanceSlot>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
-    _csv: RwSignal<AssetCsvSlot>,
     data_ops: RwSignal<DataOps>,
 ) {
     data_ops.update(DataOps::begin_list_fetch);
@@ -393,8 +391,6 @@ pub(crate) fn apply_loaded_asset_balances(
         .collect();
     (codes, missing)
 }
-
-pub(crate) type AssetCsvSlot = Option<(Generation, CsvTabState)>;
 
 #[cfg(test)]
 mod tests;
