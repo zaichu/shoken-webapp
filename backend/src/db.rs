@@ -708,30 +708,37 @@ impl Executor for Db {
         params: &'a [Bind],
     ) -> DbFuture<'a, Result<Vec<Row>, DbError>> {
         db_future(async move {
-            let timer = DbTimer::start();
             let sample_every = self.rtt.sample_every;
-            let out = match &*self.inner {
+            // 計時は接続取得の後に開始する。Worker の Db はリクエストごとに作られ、
+            // 初回の問い合わせでは接続確立・認証の待ちが入るため、含めると
+            // SQL 1往復の計測が汚れる
+            match &*self.inner {
                 #[cfg(not(target_arch = "wasm32"))]
                 DbInner::Pool(pool) => {
                     let obj = pool
                         .get()
                         .await
                         .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                    obj.query_typed(sql, &typed_params(params))
+                    let timer = DbTimer::start();
+                    let out = obj
+                        .query_typed(sql, &typed_params(params))
                         .await
-                        .map_err(|e| db_err("query", sql, e))
+                        .map_err(|e| db_err("query", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
                 #[cfg(target_arch = "wasm32")]
                 DbInner::Worker(db) => {
                     let client = db.client().await?;
-                    client
+                    let timer = DbTimer::start();
+                    let out = client
                         .query_typed(sql, &typed_params(params))
                         .await
-                        .map_err(|e| db_err("query", sql, e))
+                        .map_err(|e| db_err("query", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
-            };
-            timer.finish(query_tag(sql), sample_every);
-            out
+            }
         })
     }
 
@@ -741,59 +748,67 @@ impl Executor for Db {
         params: &'a [Bind],
     ) -> DbFuture<'a, Result<u64, DbError>> {
         db_future(async move {
-            let timer = DbTimer::start();
             let sample_every = self.rtt.sample_every;
-            let out = match &*self.inner {
+            match &*self.inner {
                 #[cfg(not(target_arch = "wasm32"))]
                 DbInner::Pool(pool) => {
                     let obj = pool
                         .get()
                         .await
                         .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                    obj.execute_typed(sql, &typed_params(params))
+                    let timer = DbTimer::start();
+                    let out = obj
+                        .execute_typed(sql, &typed_params(params))
                         .await
-                        .map_err(|e| db_err("execute", sql, e))
+                        .map_err(|e| db_err("execute", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
                 #[cfg(target_arch = "wasm32")]
                 DbInner::Worker(db) => {
                     let client = db.client().await?;
-                    client
+                    let timer = DbTimer::start();
+                    let out = client
                         .execute_typed(sql, &typed_params(params))
                         .await
-                        .map_err(|e| db_err("execute", sql, e))
+                        .map_err(|e| db_err("execute", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
-            };
-            timer.finish(query_tag(sql), sample_every);
-            out
+            }
         })
     }
 
     fn batch_execute<'a>(&'a self, sql: &'a str) -> DbFuture<'a, Result<(), DbError>> {
         db_future(async move {
-            let timer = DbTimer::start();
             let sample_every = self.rtt.sample_every;
-            let out = match &*self.inner {
+            match &*self.inner {
                 #[cfg(not(target_arch = "wasm32"))]
                 DbInner::Pool(pool) => {
                     let obj = pool
                         .get()
                         .await
                         .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                    obj.batch_execute(sql)
+                    let timer = DbTimer::start();
+                    let out = obj
+                        .batch_execute(sql)
                         .await
-                        .map_err(|e| db_err("batch", sql, e))
+                        .map_err(|e| db_err("batch", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
                 #[cfg(target_arch = "wasm32")]
                 DbInner::Worker(db) => {
                     let client = db.client().await?;
-                    client
+                    let timer = DbTimer::start();
+                    let out = client
                         .batch_execute(sql)
                         .await
-                        .map_err(|e| db_err("batch", sql, e))
+                        .map_err(|e| db_err("batch", sql, e));
+                    timer.finish(query_tag(sql), sample_every);
+                    out
                 }
-            };
-            timer.finish(query_tag(sql), sample_every);
-            out
+            }
         })
     }
 }

@@ -592,6 +592,7 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
   `query_rows`・`execute`・`batch_execute`)。各ハンドラーには散らさない。
   計時は `DbTimer::start` で開始し、唯一の出口 `DbTimer::finish` で出す。
   `BEGIN`・`COMMIT`・`ROLLBACK` の枠組みは対象外で、本文の問い合わせ1回 = 1往復を測る。
+  計時は接続の取得後に開始し、初回問い合わせの接続確立・認証の待ちは含めない。
   `app_enter`・`auth_*` の関数呼び出しも `Executor` 経由のため種別つきで測られる。
 - 出すのは固定の種別(`query_tag` の `SELECT`・`INSERT`・`UPDATE`・`DELETE`・`WITH`・
   `app_enter` 等)と ms だけ(例: `db_rtt statement=SELECT elapsed_ms=3`)。
