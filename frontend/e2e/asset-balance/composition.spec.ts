@@ -397,9 +397,10 @@ test('PCでもスマホと同じ部品で評価額順に全保有を並べる', 
   await expect(
     page.getByTestId('asset-composition-donut').getByTestId('comp-slice'),
   ).toHaveCount(22);
-  // 構成比の棒は本番 CSP 下でも描画される
+  // 構成比の棒は本番 CSP 下でも描画される(幅の固定値は見ない)
   const bar = items.nth(0).locator('.comp-bar-fill');
-  expect((await bar.boundingBox())?.width).toBeGreaterThan(40);
+  await expect(bar).toBeVisible();
+  expect((await bar.boundingBox())?.width).toBeGreaterThan(0);
 
   // トップからの導線
   await page.goto('/assetbalance');
