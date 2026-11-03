@@ -20,6 +20,13 @@ pub(crate) fn focus_without_scroll(element: &web_sys::HtmlElement) {
     let _ = element.focus_with_options(&options);
 }
 
+pub(crate) fn is_pc_width() -> bool {
+    web_sys::window()
+        .and_then(|window| window.match_media("(width >= 64rem)").ok())
+        .flatten()
+        .is_some_and(|query| query.matches())
+}
+
 pub(crate) fn use_page_scroll_lock() {
     Effect::new(move |_| {
         let Some(window) = web_sys::window() else {

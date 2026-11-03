@@ -74,7 +74,7 @@ async function shiftTabTo(page: Page, name: string, maxSteps = 12) {
   throw new Error(`フォーカスが「${name}」に届かない`);
 }
 
-test('PC: 条件のダイアログはどのボタンでも表示領域の中央に出る', async ({ page }) => {
+test('PC: 条件の小窓はどのボタンでもその行のすぐ下に出る', async ({ page }) => {
   await gotoReceipts(page, 1280, 800);
 
   for (const name of ['＋ 期間', '＋ 口座', '＋ 商品']) {
@@ -83,20 +83,47 @@ test('PC: 条件のダイアログはどのボタンでも表示領域の中央�
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
+    const button = await trigger.boundingBox();
     const panel = await dialog.boundingBox();
+    expect(button).not.toBeNull();
     expect(panel).not.toBeNull();
-    if (!panel) {
+    if (!button || !panel) {
       return;
     }
-    const centerX = panel.x + panel.width / 2;
-    const centerY = panel.y + panel.height / 2;
-    // 表示領域の中央付近に出る(厳密な寸法ではなく利用者から見た中央性)
-    expect(Math.abs(centerX - 640)).toBeLessThan(60);
-    expect(Math.abs(centerY - 400)).toBeLessThan(80);
+    // ボタンのすぐ下に出る
+    expect(panel.y).toBeGreaterThanOrEqual(button.y + button.height - 1);
+    expect(panel.y - (button.y + button.height)).toBeLessThan(40);
+    // 横方向はボタンと重なる
+    expect(panel.x).toBeLessThan(button.x + button.width);
+    expect(panel.x + panel.width).toBeGreaterThan(button.x);
+    // 画面の端からはみ出さない
+    expect(panel.x).toBeGreaterThanOrEqual(-1);
+    expect(panel.x + panel.width).toBeLessThanOrEqual(1280 + 1);
 
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
   }
+
+  // PC は後ろを暗くしない・後ろのスクロールを止めない
+  await pcSearch(page).getByRole('button', { name: '＋ 期間' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  const backdrop = await page
+    .locator('.condition-backdrop')
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(backdrop === 'rgba(0, 0, 0, 0)' || backdrop === 'transparent').toBe(
+    true,
+  );
+  const locked = await page.evaluate(() => {
+    const scroller = document.querySelector('.app-scroll');
+    return (
+      getComputedStyle(document.body).overflow === 'hidden' ||
+      (scroller !== null && getComputedStyle(scroller).overflow === 'hidden')
+    );
+  });
+  expect(locked).toBe(false);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
 });
 
 test('PC: 口座の条件を足すとタグが出て一覧・件数・集計が同じ対象に絞られる', async ({ page }) => {

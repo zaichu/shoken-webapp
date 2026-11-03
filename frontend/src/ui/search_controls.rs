@@ -4,11 +4,16 @@
 
 use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::dialog::{focus_without_scroll, move_root_to_body, use_page_scroll_lock};
+use crate::ui::dialog::{
+    focus_without_scroll, is_pc_width, move_root_to_body, use_page_scroll_lock,
+};
 use crate::ui::focus::trap_focus;
 use crate::ui::labels;
 use crate::ui::state::{Spinner, SpinnerSize};
+use leptos::ev;
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 
 #[component]
 pub fn SortColumnButton(
@@ -250,9 +255,11 @@ pub fn AddConditionButton(
     }
 }
 
-/// 条件を選ぶダイアログの外枠。開くたびに作り直され、中身は各ページが渡す。
+/// 条件を選ぶ小窓の外枠。開くたびに作り直され、中身は各ページが渡す。
 /// 背景クリック・Esc で閉じ、面の裏へ Tab で出ないようフォーカスを閉じ込める。
-/// 配置とスクロール抑止は中央ダイアログと共通(表示領域の中央・後ろは動かさない)
+/// PC は「条件を足す」の行のすぐ下に小窓で出し、後ろを暗くしない・後ろの
+/// スクロールを止めない。スマホは中央のダイアログで出し、後ろを暗くして
+/// 止める。出し分けはこの部品だけが持ち、画面ごとには書かない
 #[component]
 pub fn ConditionPanel(
     #[prop(into)] title: String,
@@ -261,24 +268,86 @@ pub fn ConditionPanel(
 ) -> impl IntoView {
     let panel_ref = NodeRef::<leptos::html::Div>::new();
     let root_ref = NodeRef::<leptos::html::Div>::new();
-    use_page_scroll_lock();
-    move_root_to_body(root_ref);
+    let pc = is_pc_width();
+    if !pc {
+        use_page_scroll_lock();
+        move_root_to_body(root_ref);
+    }
+    // PC: 行の座標をビューポート座標のまま top/left に写す。右端からはみ
+    // 出さないよう寄せる。スマホは中央の配置に任せるので座標を消す
+    let sync_position = move || {
+        let (Some(panel), Some(window)) = (panel_ref.get(), web_sys::window()) else {
+            return;
+        };
+        let panel: &web_sys::HtmlElement = panel.unchecked_ref();
+        let style = panel.style();
+        if !is_pc_width() {
+            let _ = style.remove_property("top");
+            let _ = style.remove_property("left");
+            return;
+        }
+        let row = panel
+            .closest(".add-condition-row")
+            .ok()
+            .flatten()
+            .and_then(|row| row.dyn_into::<web_sys::HtmlElement>().ok());
+        let Some(row) = row else {
+            return;
+        };
+        let rect = row.get_bounding_client_rect();
+        let viewport = window
+            .inner_width()
+            .ok()
+            .and_then(|width| width.as_f64())
+            .unwrap_or_default();
+        let panel_width = (viewport - 32.0).min(416.0);
+        let max_left = (viewport - panel_width - 8.0).max(8.0);
+        let _ = style.set_property("top", &format!("{}px", rect.bottom()));
+        let _ = style.set_property("left", &format!("{}px", rect.left().clamp(8.0, max_left)));
+    };
     Effect::new(move |_| {
         if let Some(panel) = panel_ref.get() {
             focus_without_scroll(&panel);
         }
+        sync_position();
+    });
+    // scroll はバブルしないため、内側のスクロール領域も拾えるよう
+    // document のキャプチャ段で追従させる
+    let scroll_sync = web_sys::window()
+        .and_then(|window| window.document())
+        .map(|document| {
+            let listener: Closure<dyn FnMut()> =
+                Closure::wrap(Box::new(sync_position) as Box<dyn FnMut()>);
+            let _ = document.add_event_listener_with_callback_and_bool(
+                "scroll",
+                listener.as_ref().unchecked_ref(),
+                true,
+            );
+            send_wrapper::SendWrapper::new((document, listener))
+        });
+    let on_resize = window_event_listener(ev::resize, move |_| sync_position());
+    on_cleanup(move || {
+        on_resize.remove();
+        if let Some(pair) = scroll_sync {
+            let (document, listener) = &*pair;
+            let _ = document.remove_event_listener_with_callback_and_bool(
+                "scroll",
+                listener.as_ref().unchecked_ref(),
+                true,
+            );
+        }
     });
     view! {
-        <div class="search-dialog-root" node_ref=root_ref>
+        <div class="condition-root" node_ref=root_ref>
             <div
-                class="search-dialog-backdrop condition-backdrop"
+                class="condition-backdrop"
                 data-testid="condition-backdrop"
                 on:click=move |_| on_close()
             />
             <div
                 class="dialog-panel condition-panel"
                 role="dialog"
-                aria-modal="true"
+                aria-modal=if pc { "false" } else { "true" }
                 aria-label=title.clone()
                 tabindex="-1"
                 node_ref=panel_ref
