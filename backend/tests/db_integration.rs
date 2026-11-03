@@ -6641,11 +6641,6 @@ async fn stage5b_definer_functions_and_app_enter() {
     );
 }
 
-/// RLS 第五段階 5c: 所有者の接続から書き込みの全経路を app_enter 経由で実行し、
-/// 成功すること・本人の行だけが変わること・他人の行は変わらないことを固定する。
-/// 対象は CSV 取り込み・一括登録・全削除・ログイン記録・通知トークン・通知設定の更新・
-/// 閲覧記録・セッション削除・利用者削除・ログイン。読み取り・認証前の照会・管理者の横断・
-/// cron は変えないためここでは触らない。
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn rls_5c_writes_via_app_enter() {

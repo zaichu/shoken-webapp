@@ -499,17 +499,18 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
   読み取り・認証前の照会・管理者の横断・cron は変えない。
 - ログインの取引は `auth_upsert_user` で利用者を決めたあとに `app_enter` を呼び、
   `auth_rotate_session` で回転する順にした(関数は 5b で用意済み)。
-  upsert は `RETURNING` の代わりに `auth_upsert_user` の呼び出しと所有者としての
-  利用者行の取得を1往復にまとめ、回転は直接の `DELETE`/`INSERT` の代わりに
-  `auth_rotate_session` を呼ぶ。回転は引数と設定の一致を確かめるため、
-  他人の利用者 ID での回転は失敗する。
-- 往復回数は増やさない。一括登録などは `BEGIN`+`app_enter`+本文+`COMMIT` の4往復のまま、
-  ログイン Tx は `BEGIN`+upsert+`app_enter`+回転+`COMMIT` の5往復のまま。
+  利用者行の取得は upsert と同じ文にはまとめず、upsert の次の文で所有者として読む。
+  同じ文の外側からは関数が挿入した新規行が見えないため、新規利用者が RowNotFound になる。
+  回転は直接の `DELETE`/`INSERT` の代わりに `auth_rotate_session` を呼ぶ。
+  回転は引数と設定の一致を確かめるため、他人の利用者 ID での回転は失敗する。
+- 往復回数は、一括登録などは `BEGIN`+`app_enter`+本文+`COMMIT` の4往復のまま、
+  単純なログイン Tx は `BEGIN`+upsert+`app_enter`+回転+`COMMIT` の5往復のまま。
+  端末付きログインだけは利用者行の取得を別文にしたため +1 往復になる。
 - 結合テスト(`backend/tests/db_integration.rs` の `rls_5c_writes_via_app_enter`):
   本番と同じ所有者の接続から書き込みの全経路を `app_enter` 経由で実行し、
   成功すること・Tx 内では `current_user` が `app_restricted` で `COMMIT` 後に所有者に戻ること・
   本人の行だけが変わり他人の行は変わらないこと・Tx 外に利用者 ID の設定が残らないことを固定する。
   対象は CSV 取り込みと履歴・一括登録・全削除・ログイン記録・トークン発行・設定更新・
-  閲覧記録・端末と全体のセッション削除・利用者削除・ログインと再ログイン(旧失効)。
+  閲覧記録・端末と全体のセッション削除・利用者削除・ログインと再ログイン(旧失効)・端末付きログイン。
 - migration の追加なし(5a の権限で書き込みが通るため)。過去の migration は書き換えていない。
 - 戻し方はコードの revert のみ。migration の追加分は残しても所有者の挙動を変えない。

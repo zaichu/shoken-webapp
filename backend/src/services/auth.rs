@@ -252,16 +252,11 @@ async fn upsert_user_via_function(
     tx: &mut Tx,
     user_info: &GoogleUserInfo,
 ) -> Result<User, DbError> {
+    let user_id = upsert_user_id_via_function(tx, user_info).await?;
     crate::db::query_as::<User>(
-        "WITH uid AS (SELECT auth_upsert_user($1, $2, $3, $4) AS id)
-         SELECT u.id, u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
-         FROM users u JOIN uid ON u.id = uid.id",
-        vec![
-            Bind::from(user_info.sub.as_str()),
-            Bind::from(user_info.email.as_str()),
-            Bind::from(user_info.name.as_deref()),
-            Bind::from(user_info.picture_url.as_deref()),
-        ],
+        "SELECT id, google_id, email, name, picture_url, created_at, updated_at
+         FROM users WHERE id = $1",
+        vec![Bind::from(user_id)],
     )
     .fetch_one(&mut *tx)
     .await
