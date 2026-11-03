@@ -4,9 +4,9 @@ use crate::features::asset_balance::fund::{FundView, fund_view};
 use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::{
-    CompositionBasis, CompositionGroup, CompositionRow, composition_annotation_indices,
-    composition_annotation_side, composition_entries, composition_percentages, composition_rows,
-    composition_sources,
+    AnnotationAnchor, AnnotationRequest, CompositionBasis, CompositionGroup, CompositionRow,
+    DonutGeometry, composition_entries, composition_percentages, composition_rows,
+    composition_sources, place_annotations,
 };
 use crate::features::asset_balance::store::{
     all_portfolio_views, load_asset_balances, load_fund_balances,
@@ -24,6 +24,39 @@ use crate::ui::segmented::Segmented;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index};
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
+
+/// ドーナツの注釈配置。PC幅で広い版に切り替える
+fn use_wide_donut_layout() -> RwSignal<bool> {
+    let wide = RwSignal::new(false);
+    Effect::new(move |_| {
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+        let query = window.match_media("(min-width: 64rem)").ok().flatten();
+        let Some(query) = query else {
+            return;
+        };
+        wide.set(query.matches());
+        let listener =
+            wasm_bindgen::closure::Closure::wrap(Box::new(move |event: web_sys::Event| {
+                if let Some(query) = event
+                    .target()
+                    .and_then(|target| target.dyn_into::<web_sys::MediaQueryList>().ok())
+                {
+                    wide.set(query.matches());
+                }
+            }) as Box<dyn FnMut(_)>);
+        let _ = query.add_event_listener_with_callback("change", listener.as_ref().unchecked_ref());
+        let pair = send_wrapper::SendWrapper::new((query, listener));
+        on_cleanup(move || {
+            let (query, listener) = &*pair;
+            let _ = query
+                .remove_event_listener_with_callback("change", listener.as_ref().unchecked_ref());
+        });
+    });
+    wide
+}
 
 const BASIS_OPTIONS: &[(&str, &str)] = &[
     ("market_value", labels::MARKET_VALUE),
@@ -401,169 +434,183 @@ fn CompositionContent(
 /// 切れの間のすき間は地の色の線で空け、同じ色が隣り合っても区別できるようにする
 #[component]
 fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView {
-    const CENTER_X: f64 = 220.0;
-    const CENTER_Y: f64 = 112.0;
-    const RADIUS: f64 = 80.0;
-    const OUTER: f64 = 98.0;
-    const LABEL_RADIUS: f64 = 104.0;
-    const RIGHT_COLUMN: f64 = 342.0;
-    const LEFT_COLUMN: f64 = 98.0;
-    const MAX_LABEL_WIDTH: f64 = 88.0;
-    let mut cursor = 0.0;
-    let slices: Vec<(CompositionRow, f64)> = rows
-        .into_iter()
-        .map(|row| {
-            let start = cursor;
-            cursor += row.percentage;
-            (row, start)
-        })
-        .collect();
-    let annotated = composition_annotation_indices(
-        &slices
+    let wide = use_wide_donut_layout();
+    move || {
+        let geometry = if wide.get() {
+            DonutGeometry::WIDE
+        } else {
+            DonutGeometry::COMPACT
+        };
+        let max_name_chars = if wide.get() { 24 } else { 10 };
+        let mut cursor = 0.0;
+        let slices: Vec<(CompositionRow, f64)> = rows
+            .clone()
+            .into_iter()
+            .map(|row| {
+                let start = cursor;
+                cursor += row.percentage;
+                (row, start)
+            })
+            .collect();
+        let labeled: Vec<(CompositionRow, f64, String)> = slices
             .iter()
-            .map(|(row, _)| row.clone())
-            .collect::<Vec<_>>(),
-    );
-    let gaps: Vec<(f64, f64, f64, f64)> = slices
-        .iter()
-        .enumerate()
-        .filter_map(|(index, (row, start))| {
-            let previous = &slices[(index + slices.len() - 1) % slices.len()].0;
-            if row.percentage < 1.0 || previous.percentage < 1.0 {
-                return None;
-            }
-            let angle = (start / 100.0 * 360.0 - 90.0).to_radians();
-            let (sine, cosine) = angle.sin_cos();
-            Some((
-                CENTER_X + 62.0 * cosine,
-                CENTER_Y + 62.0 * sine,
-                CENTER_X + OUTER * cosine,
-                CENTER_Y + OUTER * sine,
-            ))
-        })
-        .collect();
-    view! {
-        <div class="comp-donut-wrap">
-            <svg
-                class="comp-donut"
-                viewBox="0 0 440 224"
-                role="img"
-                aria-label=labels::COMPOSITION
-                data-testid="asset-composition-donut"
-            >
-                <circle
-                    cx=CENTER_X.to_string()
-                    cy=CENTER_Y.to_string()
-                    r=RADIUS.to_string()
-                    class="comp-donut-track"
-                />
-                {slices
-                    .iter()
-                    .filter(|(row, _)| row.percentage > 0.0)
-                    .map(|(row, start)| {
-                        let slice_class = color_slice_class(row.color);
-                        view! {
-                            <g data-testid="comp-slice">
-                                <circle
-                                    cx=CENTER_X.to_string()
-                                    cy=CENTER_Y.to_string()
-                                    r=RADIUS.to_string()
-                                    pathLength="100"
-                                    stroke-dasharray=format!(
-                                        "{} {}",
-                                        row.percentage,
-                                        100.0 - row.percentage,
-                                    )
-                                    stroke-dashoffset=format!("{}", -start)
-                                    transform=format!(
-                                        "rotate(-90 {} {})",
-                                        CENTER_X,
-                                        CENTER_Y,
-                                    )
-                                    class=slice_class
-                                />
-                            </g>
-                        }
-                    })
-                    .collect_view()}
-                {gaps
-                    .into_iter()
-                    .map(|(x1, y1, x2, y2)| {
-                        view! {
-                            <line
-                                x1=x1.to_string()
-                                y1=y1.to_string()
-                                x2=x2.to_string()
-                                y2=y2.to_string()
-                                class="comp-slice-gap"
-                            />
-                        }
-                    })
-                    .collect_view()}
-                {annotated
-                    .into_iter()
-                    .filter_map(|index| {
-                        let (row, start) = match slices.get(index) {
-                            Some(found) => found,
-                            None => return None,
-                        };
-                        let (sine, cosine, right) = composition_annotation_side(
-                            *start,
-                            row.percentage,
-                        );
-                        let edge_x = CENTER_X + OUTER * cosine;
-                        let edge_y = CENTER_Y + OUTER * sine;
-                        let elbow_x = CENTER_X + LABEL_RADIUS * cosine;
-                        let elbow_y = CENTER_Y + LABEL_RADIUS * sine;
-                        let column_x = if right { RIGHT_COLUMN } else { LEFT_COLUMN };
-                        let leader_class = color_leader_class(row.color);
-                        let label = labels::composition_annotation(
-                            &row.name,
-                            &format_fixed_percent(row.percentage, 1),
-                        );
-                        let width: f64 = label
-                            .chars()
-                            .map(|c| if c.is_ascii() { 0.55 } else { 1.0 })
-                            .sum::<f64>() * 11.0;
-                        let capped = if width > MAX_LABEL_WIDTH {
-                            Some(MAX_LABEL_WIDTH.to_string())
-                        } else {
-                            None
-                        };
-                        let (text_x, anchor) = if right {
-                            (column_x + 6.0, "start")
-                        } else {
-                            (column_x - 6.0, "end")
-                        };
-                        Some(
+            .map(|(row, start)| {
+                let label = labels::composition_annotation(
+                    &row.name,
+                    &format_fixed_percent(row.percentage, 1),
+                    max_name_chars,
+                );
+                (row.clone(), *start, label)
+            })
+            .collect();
+        let requests: Vec<AnnotationRequest<'_>> = labeled
+            .iter()
+            .map(|(row, _, label)| AnnotationRequest {
+                label,
+                percentage: row.percentage,
+                computable: row.computable,
+            })
+            .collect();
+        let annotated = place_annotations(&requests, &geometry);
+        let center_x = geometry.center_x;
+        let center_y = geometry.center_y;
+        let radius = geometry.radius;
+        let inner = geometry.inner();
+        let outer = geometry.outer();
+        let gaps: Vec<(f64, f64, f64, f64)> = slices
+            .iter()
+            .enumerate()
+            .filter_map(|(index, (row, start))| {
+                let previous = &slices[(index + slices.len() - 1) % slices.len()].0;
+                if row.percentage < 1.0 || previous.percentage < 1.0 {
+                    return None;
+                }
+                let angle = (start / 100.0 * 360.0 - 90.0).to_radians();
+                let (sine, cosine) = angle.sin_cos();
+                Some((
+                    center_x + inner * cosine,
+                    center_y + inner * sine,
+                    center_x + outer * cosine,
+                    center_y + outer * sine,
+                ))
+            })
+            .collect();
+        view! {
+            <div class="comp-donut-wrap">
+                <svg
+                    class=if wide.get() {
+                        "comp-donut comp-donut-wide"
+                    } else {
+                        "comp-donut comp-donut-compact"
+                    }
+                    viewBox=format!("0 0 {} {}", geometry.width, geometry.height)
+                    role="img"
+                    aria-label=labels::COMPOSITION
+                    data-testid="asset-composition-donut"
+                >
+                    <circle
+                        cx=center_x.to_string()
+                        cy=center_y.to_string()
+                        r=radius.to_string()
+                        class="comp-donut-track"
+                    />
+                    {slices
+                        .iter()
+                        .filter(|(row, _)| row.percentage > 0.0)
+                        .map(|(row, start)| {
+                            let slice_class = color_slice_class(row.color);
                             view! {
-                            <g data-testid="comp-annotation">
-                                <polyline
-                                    points=format!(
-                                        "{edge_x},{edge_y} {elbow_x},{elbow_y} {column_x},{elbow_y}",
-                                    )
-                                    class=leader_class
+                                <g data-testid="comp-slice">
+                                    <circle
+                                        cx=center_x.to_string()
+                                        cy=center_y.to_string()
+                                        r=radius.to_string()
+                                        pathLength="100"
+                                        stroke-dasharray=format!(
+                                            "{} {}",
+                                            row.percentage,
+                                            100.0 - row.percentage,
+                                        )
+                                        stroke-dashoffset=format!("{}", -start)
+                                        transform=format!(
+                                            "rotate(-90 {center_x} {center_y})",
+                                        )
+                                        class=slice_class
+                                    />
+                                </g>
+                            }
+                        })
+                        .collect_view()}
+                    {gaps
+                        .into_iter()
+                        .map(|(x1, y1, x2, y2)| {
+                            view! {
+                                <line
+                                    x1=x1.to_string()
+                                    y1=y1.to_string()
+                                    x2=x2.to_string()
+                                    y2=y2.to_string()
+                                    class="comp-slice-gap"
                                 />
-                                <text
-                                    x=text_x.to_string()
-                                    y=elbow_y.to_string()
-                                    text-anchor=anchor
-                                    dominant-baseline="central"
-                                    textLength=capped
-                                    lengthAdjust="spacingAndGlyphs"
-                                    class="comp-annotation"
-                                >
-                                    {label}
-                                </text>
-                            </g>
-                        }
-                        )
-                    })
-                    .collect_view()}
-            </svg>
-            <div class="comp-donut-center" aria-hidden="true">
-                {center}
+                            }
+                        })
+                        .collect_view()}
+                    {annotated
+                        .into_iter()
+                        .filter_map(|item| {
+                            let (row, _, _label) = match labeled.get(item.index) {
+                                Some(found) => found,
+                                None => return None,
+                            };
+                            let name = labels::composition_annotation_name(
+                                &row.name,
+                                max_name_chars,
+                            );
+                            let percentage =
+                                format_fixed_percent(row.percentage, 1);
+                            let leader_class = color_leader_class(row.color);
+                            let anchor = match item.anchor {
+                                AnnotationAnchor::Start => "start",
+                                AnnotationAnchor::Middle => "middle",
+                                AnnotationAnchor::End => "end",
+                            };
+                            Some(
+                                view! {
+                                <g data-testid="comp-annotation" aria-hidden="true">
+                                    <polyline
+                                        points=format!(
+                                            "{},{},{},{} {},{}",
+                                            item.edge_x,
+                                            item.edge_y,
+                                            item.elbow_x,
+                                            item.elbow_y,
+                                            item.end_x,
+                                            item.elbow_y,
+                                        )
+                                        class=leader_class
+                                    />
+                                    <text
+                                        x=item.text_x.to_string()
+                                        y=item.text_y.to_string()
+                                        text-anchor=anchor
+                                        dominant-baseline="central"
+                                        class="comp-annotation"
+                                    >
+                                        {name}
+                                        <tspan class="comp-annotation-rate">
+                                            {format!(" {percentage}")}
+                                        </tspan>
+                                    </text>
+                                </g>
+                            }
+                            )
+                        })
+                        .collect_view()}
+                </svg>
+                <div class="comp-donut-center" aria-hidden="true">
+                    {center.clone()}
+                </div>
             </div>
-        </div>
+        }
     }
 }

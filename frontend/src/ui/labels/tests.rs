@@ -363,13 +363,17 @@ fn glossary_builds_counts_and_placeholders() {
     assert_eq!(search_placeholder("銘柄名・コード"), "銘柄名・コードで検索");
     assert_eq!(group_count("2026年10月", 3), "2026年10月 · 3件");
     assert_eq!(price_as_of("2026-10-21"), "価格基準日 10/21");
-    assert_eq!(composition_annotation_name("短い名前"), "短い名前");
+    assert_eq!(composition_annotation_name("短い名前", 10), "短い名前");
     assert_eq!(
-        composition_annotation_name("架空先端産業技術研究開発機構"),
-        "架空先端産業技…"
+        composition_annotation_name("架空先端産業技術研究開発機構", 10),
+        "架空先端産業技術研…"
     );
     assert_eq!(
-        composition_annotation("ファンドA", "36.4%"),
+        composition_annotation_name("架空先端産業技術研究開発機構", 24),
+        "架空先端産業技術研究開発機構"
+    );
+    assert_eq!(
+        composition_annotation("ファンドA", "36.4%", 10),
         "ファンドA 36.4%"
     );
 }

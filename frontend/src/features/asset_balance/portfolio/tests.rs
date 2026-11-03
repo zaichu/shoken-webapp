@@ -1,8 +1,8 @@
 use super::{
-    CompositionBasis, CompositionGroup, CompositionProduct, CompositionRow, CompositionSource,
-    SortInput, SortKey, SortOrder, composition_annotation_indices, composition_color,
+    AnnotationAnchor, AnnotationRequest, CompositionBasis, CompositionGroup, CompositionProduct,
+    CompositionSource, DonutGeometry, SortInput, SortKey, SortOrder, composition_color,
     composition_entries, composition_percentages, composition_rows, composition_sources,
-    sort_holdings,
+    place_annotations, sort_holdings,
 };
 use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::fund::FundView;
@@ -451,44 +451,88 @@ fn composition_rows_keep_uncomputable_as_their_own_row_at_the_end() {
     assert_eq!(rows[1].value, None);
 }
 
-fn annotation_rows(percentages: &[f64]) -> Vec<CompositionRow> {
-    percentages
+fn annotation_requests<'a>(labels: &'a [(&'a str, f64)]) -> Vec<AnnotationRequest<'a>> {
+    labels
         .iter()
-        .enumerate()
-        .map(|(index, percentage)| CompositionRow {
-            name: format!("銘柄{index:02}"),
-            sub: String::new(),
-            value: Some(100.0),
+        .map(|(label, percentage)| AnnotationRequest {
+            label,
             percentage: *percentage,
             computable: true,
-            color: composition_color(index),
-            holdings: 1,
-            href: None,
         })
         .collect()
 }
 
 #[test]
 fn composition_annotations_keep_only_major_slices_up_to_ten() {
-    let rows = annotation_rows(&[100.0 / 12.0; 12]);
-    let selected = composition_annotation_indices(&rows);
-    assert_eq!(selected, (0..10).collect::<Vec<_>>());
+    let labels: Vec<(String, f64)> = (0..12)
+        .map(|index| (format!("銘柄{index:02} 8.3%"), 100.0 / 12.0))
+        .collect();
+    let borrowed: Vec<(&str, f64)> = labels
+        .iter()
+        .map(|(label, percentage)| (label.as_str(), *percentage))
+        .collect();
+    let requests = annotation_requests(&borrowed);
+    let selected = place_annotations(&requests, &DonutGeometry::WIDE);
+    assert_eq!(selected.len(), 10);
+    assert_eq!(
+        selected.iter().map(|item| item.index).collect::<Vec<_>>(),
+        vec![0, 1, 2, 3, 4, 5, 7, 8, 9, 10]
+    );
 }
 
 #[test]
 fn composition_annotations_skip_overlapping_neighbors() {
-    let rows = annotation_rows(&[40.0, 5.0, 5.0, 50.0]);
-    let selected = composition_annotation_indices(&rows);
-    assert_eq!(selected, vec![0, 1, 3]);
+    let requests = annotation_requests(&[("あ 40.0%", 40.0), ("い 5.0%", 5.0), ("う 5.0%", 5.0)]);
+    let selected = place_annotations(&requests, &DonutGeometry::WIDE);
+    let indexes: Vec<usize> = selected.iter().map(|item| item.index).collect();
+    assert!(indexes.contains(&0));
+    assert!(indexes.contains(&1));
+    assert!(!indexes.contains(&2));
 }
 
 #[test]
 fn composition_annotations_require_computable_major_slices() {
-    let mut rows = annotation_rows(&[50.0, 50.0]);
-    rows[1].computable = false;
-    rows[1].percentage = 0.0;
-    let selected = composition_annotation_indices(&rows);
-    assert_eq!(selected, vec![0]);
+    let requests = vec![
+        AnnotationRequest {
+            label: "あ 50.0%",
+            percentage: 50.0,
+            computable: true,
+        },
+        AnnotationRequest {
+            label: "い 50.0%",
+            percentage: 50.0,
+            computable: false,
+        },
+    ];
+    let selected = place_annotations(&requests, &DonutGeometry::WIDE);
+    assert_eq!(
+        selected.iter().map(|item| item.index).collect::<Vec<_>>(),
+        vec![0]
+    );
+}
+
+#[test]
+fn composition_annotations_spread_across_sides() {
+    let requests = annotation_requests(&[
+        ("ファンドA 36.4%", 100.0 * 400.0 / 1100.0),
+        ("架空自動車 27.3%", 100.0 * 300.0 / 1100.0),
+        ("架空電機 18.2%", 100.0 * 200.0 / 1100.0),
+        ("架空自動車 9.1%", 100.0 * 100.0 / 1100.0),
+        ("ファンドB 9.1%", 100.0 * 100.0 / 1100.0),
+    ]);
+    let selected = place_annotations(&requests, &DonutGeometry::COMPACT);
+    assert_eq!(selected.len(), 5);
+    assert!(
+        selected
+            .iter()
+            .any(|item| item.anchor == AnnotationAnchor::Start
+                || item.anchor == AnnotationAnchor::End)
+    );
+    assert!(
+        selected
+            .iter()
+            .any(|item| item.anchor == AnnotationAnchor::Middle)
+    );
 }
 
 #[test]

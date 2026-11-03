@@ -418,41 +418,166 @@ pub fn composition_rows(
         .collect()
 }
 
-/// 切れの中央の角度から注釈の上下位置と左右を出す。ドーナツの描画と
-/// 注釈の配置で同じ値を使い、線の引き先と判定を一致させる
-pub fn composition_annotation_side(start: f64, percentage: f64) -> (f64, f64, bool) {
-    let mid = start + percentage / 2.0;
-    let angle = (mid / 100.0 * 360.0 - 90.0).to_radians();
-    let (sine, cosine) = angle.sin_cos();
-    (sine, cosine, cosine >= 0.0)
+/// ドーナツ注釈の配置先。スマホは小さく、PCは広く出す
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DonutGeometry {
+    pub width: f64,
+    pub height: f64,
+    pub center_x: f64,
+    pub center_y: f64,
+    pub radius: f64,
+    pub stroke: f64,
+    pub label_radius: f64,
 }
 
-/// ドーナツの注釈に出す行の位置を選ぶ。比率の大きい順に下限以上を拾い、
-/// 同じ側で重なるものは飛ばして上限まで残す
-pub fn composition_annotation_indices(rows: &[CompositionRow]) -> Vec<usize> {
-    const MIN_GAP: f64 = 0.12;
-    let mut starts = Vec::with_capacity(rows.len());
-    let mut cursor = 0.0;
-    for row in rows {
-        starts.push(cursor);
-        cursor += row.percentage;
+impl DonutGeometry {
+    pub const COMPACT: Self = Self {
+        width: 360.0,
+        height: 260.0,
+        center_x: 180.0,
+        center_y: 130.0,
+        radius: 62.0,
+        stroke: 28.0,
+        label_radius: 96.0,
+    };
+    pub const WIDE: Self = Self {
+        width: 640.0,
+        height: 300.0,
+        center_x: 320.0,
+        center_y: 150.0,
+        radius: 80.0,
+        stroke: 36.0,
+        label_radius: 130.0,
+    };
+
+    /// 切れの外縁の半径
+    pub fn outer(&self) -> f64 {
+        self.radius + self.stroke / 2.0
     }
-    let mut selected: Vec<(usize, f64, bool)> = Vec::new();
-    for (index, row) in rows.iter().enumerate() {
+
+    /// 切れの内縁の半径
+    pub fn inner(&self) -> f64 {
+        self.radius - self.stroke / 2.0
+    }
+}
+
+/// 注釈ラベルの文字寄せ。切れの外側の向きで決める
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum AnnotationAnchor {
+    Start,
+    Middle,
+    End,
+}
+
+/// ドーナツの注釈1件の配置。ラベル矩形の基準点と引き出し線の折れ点を持つ
+#[derive(Clone, Debug, PartialEq)]
+pub struct PlacedAnnotation {
+    pub index: usize,
+    pub text_x: f64,
+    pub text_y: f64,
+    pub anchor: AnnotationAnchor,
+    pub edge_x: f64,
+    pub edge_y: f64,
+    pub elbow_x: f64,
+    pub elbow_y: f64,
+    pub end_x: f64,
+}
+
+/// 注釈の配置入力。ラベルは短縮済みの「名前 比率」、割合は角度計算用
+pub struct AnnotationRequest<'a> {
+    pub label: &'a str,
+    pub percentage: f64,
+    pub computable: bool,
+}
+
+/// 注釈ラベルの推定幅。描画と同じ12px基準で見積もる
+pub fn annotation_label_width(label: &str) -> f64 {
+    const FULL_WIDTH: f64 = 12.0;
+    const HALF_WIDTH: f64 = 6.5;
+    label
+        .chars()
+        .map(|c| if c.is_ascii() { HALF_WIDTH } else { FULL_WIDTH })
+        .sum()
+}
+
+/// ドーナツの注釈配置を決める。比率の大きい順に下限以上を拾い、
+/// ラベル矩形が重ならず枠に収まる分だけ残す
+pub fn place_annotations(
+    requests: &[AnnotationRequest<'_>],
+    geometry: &DonutGeometry,
+) -> Vec<PlacedAnnotation> {
+    const LABEL_HEIGHT: f64 = 18.0;
+    const MARGIN: f64 = 1.0;
+    let mut starts = Vec::with_capacity(requests.len());
+    let mut cursor = 0.0;
+    for request in requests {
+        starts.push(cursor);
+        cursor += request.percentage;
+    }
+    let mut placed: Vec<(f64, f64, f64, f64)> = Vec::new();
+    let mut selected = Vec::new();
+    for (index, request) in requests.iter().enumerate() {
         if selected.len() >= COMPOSITION_ANNOTATION_MAX {
             break;
         }
-        if !row.computable || row.percentage < COMPOSITION_ANNOTATION_MIN_PERCENT {
+        if !request.computable || request.percentage < COMPOSITION_ANNOTATION_MIN_PERCENT {
             continue;
         }
-        let (sine, _, right) = composition_annotation_side(starts[index], row.percentage);
-        let overlaps = selected.iter().any(|(_, placed, placed_right)| {
-            *placed_right == right && (sine - placed).abs() < MIN_GAP
+        let mid = starts[index] + request.percentage / 2.0;
+        let angle = (mid / 100.0 * 360.0 - 90.0).to_radians();
+        let (sine, cosine) = angle.sin_cos();
+        let label_x = geometry.center_x + geometry.label_radius * cosine;
+        let label_y = geometry.center_y + geometry.label_radius * sine;
+        let width = annotation_label_width(request.label);
+        let anchor = if cosine >= 0.5 {
+            AnnotationAnchor::Start
+        } else if cosine <= -0.5 {
+            AnnotationAnchor::End
+        } else {
+            AnnotationAnchor::Middle
+        };
+        let rect_x = match anchor {
+            AnnotationAnchor::Start => label_x.min(geometry.width - width - MARGIN).max(MARGIN),
+            AnnotationAnchor::Middle => {
+                (label_x - width / 2.0).clamp(MARGIN, geometry.width - width - MARGIN)
+            }
+            AnnotationAnchor::End => (label_x - width).max(MARGIN),
+        };
+        let rect_y =
+            (label_y - LABEL_HEIGHT / 2.0).clamp(MARGIN, geometry.height - LABEL_HEIGHT - MARGIN);
+        if width + 2.0 * MARGIN > geometry.width || LABEL_HEIGHT + 2.0 * MARGIN > geometry.height {
+            continue;
+        }
+        if placed.iter().any(|&(x, y, w, h)| {
+            rect_x < x + w && x < rect_x + width && rect_y < y + h && y < rect_y + LABEL_HEIGHT
+        }) {
+            continue;
+        }
+        let edge_x = geometry.center_x + geometry.outer() * cosine;
+        let edge_y = geometry.center_y + geometry.outer() * sine;
+        let bend = geometry.label_radius - 12.0;
+        let elbow_x = geometry.center_x + bend * cosine;
+        let elbow_y = geometry.center_y + bend * sine;
+        let (end_x, text_x, text_y) = match anchor {
+            AnnotationAnchor::Start => (rect_x, rect_x, rect_y + LABEL_HEIGHT / 2.0),
+            AnnotationAnchor::Middle => {
+                let center = rect_x + width / 2.0;
+                (center, center, rect_y + LABEL_HEIGHT / 2.0)
+            }
+            AnnotationAnchor::End => (rect_x + width, rect_x + width, rect_y + LABEL_HEIGHT / 2.0),
+        };
+        placed.push((rect_x, rect_y, width, LABEL_HEIGHT));
+        selected.push(PlacedAnnotation {
+            index,
+            text_x,
+            text_y,
+            anchor,
+            edge_x,
+            edge_y,
+            elbow_x,
+            elbow_y,
+            end_x,
         });
-        if overlaps {
-            continue;
-        }
-        selected.push((index, sine, right));
     }
-    selected.into_iter().map(|(index, _, _)| index).collect()
+    selected
 }
