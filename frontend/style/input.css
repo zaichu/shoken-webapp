@@ -1628,25 +1628,21 @@
     @apply mt-3 flex justify-center;
   }
 
+  .comp-donut-row {
+    @apply mx-auto mt-3 flex w-full max-w-2xl items-center gap-4;
+  }
+
   .comp-donut-wrap {
-    @apply relative mx-auto mt-3 w-full max-w-2xl;
+    @apply relative w-2/5 max-w-56 shrink-0;
   }
 
   .comp-donut {
     @apply block h-auto w-full;
   }
 
-  .comp-donut-compact circle,
-  .comp-donut-wide circle {
+  .comp-donut circle {
     fill: none;
-  }
-
-  .comp-donut-compact circle {
-    stroke-width: 28;
-  }
-
-  .comp-donut-wide circle {
-    stroke-width: 36;
+    stroke-width: 30;
   }
 
   .comp-donut-track {
@@ -1679,46 +1675,32 @@
     stroke-width: 2;
   }
 
-  .comp-leader-0,
-  .comp-leader-1,
-  .comp-leader-2,
-  .comp-leader-3,
-  .comp-leader-4 {
-    fill: none;
-    stroke-width: 2;
-  }
-
-  .comp-leader-0 {
-    stroke: var(--color-chart-1);
-  }
-
-  .comp-leader-1 {
-    stroke: var(--color-chart-2);
-  }
-
-  .comp-leader-2 {
-    stroke: var(--color-chart-3);
-  }
-
-  .comp-leader-3 {
-    stroke: var(--color-chart-4);
-  }
-
-  .comp-leader-4 {
-    stroke: var(--color-chart-5);
-  }
-
-  .comp-annotation {
-    font-size: var(--text-cell);
-    fill: var(--color-text);
-  }
-
-  .comp-annotation-rate {
-    font-weight: 700;
-  }
-
   .comp-donut-center {
-    @apply pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-center text-lg font-bold text-text;
+    @apply pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center text-sm font-bold text-text;
+  }
+
+  .comp-legend {
+    @apply min-w-0 flex-1;
+  }
+
+  .comp-legend-item {
+    @apply flex items-center gap-2 py-1;
+  }
+
+  .comp-legend-dot {
+    @apply h-2.5 w-2.5 shrink-0 rounded-full;
+  }
+
+  .comp-legend-name {
+    @apply min-w-0 flex-1 truncate text-sm text-text;
+  }
+
+  .comp-legend-rate {
+    @apply shrink-0 text-sm font-bold tabular-nums text-text;
+  }
+
+  .comp-legend-others {
+    @apply py-1 text-xs text-text-muted;
   }
 
   .comp-bar {

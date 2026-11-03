@@ -1,8 +1,7 @@
 use super::{
-    AnnotationAnchor, AnnotationRequest, CompositionBasis, CompositionGroup, CompositionProduct,
-    CompositionSource, DonutGeometry, SortInput, SortKey, SortOrder, composition_color,
-    composition_entries, composition_percentages, composition_rows, composition_sources,
-    place_annotations, place_side_annotations, sort_holdings,
+    CompositionBasis, CompositionGroup, CompositionProduct, CompositionSource, SortInput, SortKey,
+    SortOrder, composition_color, composition_entries, composition_legend_split,
+    composition_percentages, composition_rows, composition_sources, sort_holdings,
 };
 use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::fund::FundView;
@@ -451,126 +450,92 @@ fn composition_rows_keep_uncomputable_as_their_own_row_at_the_end() {
     assert_eq!(rows[1].value, None);
 }
 
-fn annotation_requests<'a>(labels: &'a [(&'a str, f64)]) -> Vec<AnnotationRequest<'a>> {
-    labels
+#[test]
+fn composition_legend_takes_top_five_in_ratio_order_without_gaps() {
+    let (sources, basis) = composition_stock_sources();
+    let entries = composition_entries(&sources, CompositionGroup::Holding, &basis);
+    let (visible, others) = composition_legend_split(entries.len());
+    assert_eq!((visible, others), (5, 0));
+    let names: Vec<&str> = entries
         .iter()
-        .map(|(label, percentage)| AnnotationRequest {
-            label,
-            percentage: *percentage,
-            computable: true,
+        .take(visible)
+        .map(|e| e.name.as_str())
+        .collect();
+    assert_eq!(names, vec!["A", "B", "C", "D", "E"]);
+}
+
+#[test]
+fn composition_legend_groups_the_sixth_and_later_into_others() {
+    let sources: Vec<CompositionSource> = (0..7)
+        .map(|i| {
+            composition_source(
+                Box::leak(format!("銘柄{i:02}").into_boxed_str()),
+                "9900",
+                Some("特定"),
+                CompositionProduct::Stock,
+                None,
+            )
         })
-        .collect()
-}
-
-#[test]
-fn composition_annotations_keep_only_major_slices_up_to_ten() {
-    let labels: Vec<(String, f64)> = (0..12)
-        .map(|index| (format!("銘柄{index:02} 8.3%"), 100.0 / 12.0))
         .collect();
-    let borrowed: Vec<(&str, f64)> = labels
-        .iter()
-        .map(|(label, percentage)| (label.as_str(), *percentage))
-        .collect();
-    let requests = annotation_requests(&borrowed);
-    let selected = place_annotations(&requests, &DonutGeometry::WIDE, "75銘柄");
-    assert_eq!(selected.len(), 10);
-    assert_eq!(
-        selected.iter().map(|item| item.index).collect::<Vec<_>>(),
-        vec![0, 1, 2, 3, 4, 5, 7, 8, 9, 10]
-    );
-}
-
-#[test]
-fn composition_side_annotations_take_two_per_side_in_ratio_order() {
-    let requests = annotation_requests(&[
-        ("あ 30.0%", 30.0),
-        ("い 25.0%", 25.0),
-        ("う 20.0%", 20.0),
-        ("え 15.0%", 15.0),
-        ("お 10.0%", 10.0),
-    ]);
-    let selected = place_side_annotations(&requests, &DonutGeometry::COMPACT, "5銘柄");
-    let indexes: Vec<usize> = selected.iter().map(|item| item.index).collect();
-    assert!(indexes.contains(&0));
-    assert!(indexes.contains(&1));
-    assert!(indexes.contains(&2));
-    assert!(indexes.contains(&3));
-    assert!(!indexes.contains(&4));
-    assert_eq!(
-        selected
-            .iter()
-            .filter(|item| item.anchor == AnnotationAnchor::Start)
-            .count(),
-        2
-    );
-    assert_eq!(
-        selected
-            .iter()
-            .filter(|item| item.anchor == AnnotationAnchor::End)
-            .count(),
-        2
-    );
-}
-
-#[test]
-fn composition_side_annotations_skip_overlapping_labels() {
-    let requests = annotation_requests(&[("あ 40.0%", 40.0), ("い 5.0%", 5.0), ("う 5.0%", 5.0)]);
-    let selected = place_annotations(&requests, &DonutGeometry::WIDE, "75銘柄");
-    let indexes: Vec<usize> = selected.iter().map(|item| item.index).collect();
-    assert!(indexes.contains(&0));
-    assert!(indexes.contains(&1));
-    assert!(!indexes.contains(&2));
-}
-
-#[test]
-fn composition_annotations_require_computable_major_slices() {
-    let requests = vec![
-        AnnotationRequest {
-            label: "あ 50.0%",
-            percentage: 50.0,
-            computable: true,
-        },
-        AnnotationRequest {
-            label: "い 50.0%",
-            percentage: 50.0,
-            computable: false,
-        },
+    let basis: Vec<Option<f64>> = vec![
+        Some(40.0),
+        Some(20.0),
+        Some(15.0),
+        Some(10.0),
+        Some(8.0),
+        Some(4.0),
+        Some(3.0),
     ];
-    let selected = place_annotations(&requests, &DonutGeometry::WIDE, "75銘柄");
+    let entries = composition_entries(&sources, CompositionGroup::Holding, &basis);
+    assert_eq!(entries.len(), 7);
+    let (visible, others) = composition_legend_split(entries.len());
+    assert_eq!((visible, others), (5, 2));
+    let names: Vec<&str> = entries
+        .iter()
+        .take(visible)
+        .map(|e| e.name.as_str())
+        .collect();
     assert_eq!(
-        selected.iter().map(|item| item.index).collect::<Vec<_>>(),
-        vec![0]
+        names,
+        vec!["銘柄00", "銘柄01", "銘柄02", "銘柄03", "銘柄04"]
     );
 }
 
 #[test]
-fn composition_annotations_spread_across_sides() {
-    let requests = annotation_requests(&[
-        ("ファンドA 36.4%", 100.0 * 400.0 / 1100.0),
-        ("架空自動車 27.3%", 100.0 * 300.0 / 1100.0),
-        ("架空電機 18.2%", 100.0 * 200.0 / 1100.0),
-        ("架空自動車 9.1%", 100.0 * 100.0 / 1100.0),
-        ("ファンドB 9.1%", 100.0 * 100.0 / 1100.0),
-    ]);
-    let selected = place_side_annotations(&requests, &DonutGeometry::COMPACT, "5銘柄");
-    assert_eq!(
-        selected.iter().map(|item| item.index).collect::<Vec<_>>(),
-        vec![0, 1, 2, 3]
-    );
-    assert_eq!(
-        selected
-            .iter()
-            .filter(|item| item.anchor == AnnotationAnchor::Start)
-            .count(),
-        2
-    );
-    assert_eq!(
-        selected
-            .iter()
-            .filter(|item| item.anchor == AnnotationAnchor::End)
-            .count(),
-        2
-    );
+fn composition_legend_shows_all_when_five_or_fewer() {
+    assert_eq!(composition_legend_split(2), (2, 0));
+    assert_eq!(composition_legend_split(5), (5, 0));
+    assert_eq!(composition_legend_split(0), (0, 0));
+    let (sources, basis) = mixed_sources();
+    let product = composition_entries(&sources, CompositionGroup::Product, &basis);
+    let (visible, others) = composition_legend_split(product.len());
+    assert_eq!(product.len(), 2);
+    assert_eq!((visible, others), (2, 0));
+}
+
+#[test]
+fn composition_legend_keeps_ratio_order_for_uncomputable_last() {
+    let sources = vec![
+        composition_source(
+            "A",
+            "9904",
+            Some("特定"),
+            CompositionProduct::Stock,
+            Some("1"),
+        ),
+        composition_source(
+            "B",
+            "9914",
+            Some("特定"),
+            CompositionProduct::Stock,
+            Some("2"),
+        ),
+    ];
+    let entries = composition_entries(&sources, CompositionGroup::Holding, &[Some(100.0), None]);
+    let (visible, others) = composition_legend_split(entries.len());
+    assert_eq!((visible, others), (2, 0));
+    assert_eq!(entries[0].name, "A");
+    assert_eq!(entries[1].value, None);
 }
 
 #[test]

@@ -4,9 +4,8 @@ use crate::features::asset_balance::fund::{FundView, fund_view};
 use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::{
-    AnnotationAnchor, AnnotationRequest, CompositionBasis, CompositionGroup, CompositionRow,
-    DonutGeometry, composition_entries, composition_percentages, composition_rows,
-    composition_sources, place_annotations, place_side_annotations,
+    CompositionBasis, CompositionGroup, CompositionRow, DonutGeometry, composition_entries,
+    composition_legend_split, composition_percentages, composition_rows, composition_sources,
 };
 use crate::features::asset_balance::store::{
     all_portfolio_views, load_asset_balances, load_fund_balances,
@@ -24,39 +23,6 @@ use crate::ui::segmented::Segmented;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index};
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
-
-/// ドーナツの注釈配置。PC幅で広い版に切り替える
-fn use_wide_donut_layout() -> RwSignal<bool> {
-    let wide = RwSignal::new(false);
-    Effect::new(move |_| {
-        let Some(window) = web_sys::window() else {
-            return;
-        };
-        let query = window.match_media("(min-width: 64rem)").ok().flatten();
-        let Some(query) = query else {
-            return;
-        };
-        wide.set(query.matches());
-        let listener =
-            wasm_bindgen::closure::Closure::wrap(Box::new(move |event: web_sys::Event| {
-                if let Some(query) = event
-                    .target()
-                    .and_then(|target| target.dyn_into::<web_sys::MediaQueryList>().ok())
-                {
-                    wide.set(query.matches());
-                }
-            }) as Box<dyn FnMut(_)>);
-        let _ = query.add_event_listener_with_callback("change", listener.as_ref().unchecked_ref());
-        let pair = send_wrapper::SendWrapper::new((query, listener));
-        on_cleanup(move || {
-            let (query, listener) = &*pair;
-            let _ = query
-                .remove_event_listener_with_callback("change", listener.as_ref().unchecked_ref());
-        });
-    });
-    wide
-}
 
 const BASIS_OPTIONS: &[(&str, &str)] = &[
     ("market_value", labels::MARKET_VALUE),
@@ -100,16 +66,6 @@ fn color_slice_class(color: usize) -> &'static str {
         2 => "comp-slice-2",
         3 => "comp-slice-3",
         _ => "comp-slice-4",
-    }
-}
-
-fn color_leader_class(color: usize) -> &'static str {
-    match color {
-        0 => "comp-leader-0",
-        1 => "comp-leader-1",
-        2 => "comp-leader-2",
-        3 => "comp-leader-3",
-        _ => "comp-leader-4",
     }
 }
 
@@ -430,83 +386,52 @@ fn CompositionContent(
     }
 }
 
-/// ドーナツ。全部の区分を1切れずつ出し、大きい切れに引き出し線の注釈を付ける。
+/// ドーナツと横の凡例。切れは全部の区分を1切れずつ出し、
+/// 凡例は比率の大きい順に上位5件、6件目以降は「ほか N 件」にまとめる。
 /// 切れの間のすき間は地の色の線で空け、同じ色が隣り合っても区別できるようにする
 #[component]
 fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView {
-    let wide = use_wide_donut_layout();
-    move || {
-        let geometry = if wide.get() {
-            DonutGeometry::WIDE
-        } else {
-            DonutGeometry::COMPACT
-        };
-        let max_name_chars = if wide.get() { 24 } else { 6 };
-        let mut cursor = 0.0;
-        let slices: Vec<(CompositionRow, f64)> = rows
-            .clone()
-            .into_iter()
-            .map(|row| {
-                let start = cursor;
-                cursor += row.percentage;
-                (row, start)
-            })
-            .collect();
-        let labeled: Vec<(CompositionRow, f64, String)> = slices
-            .iter()
-            .map(|(row, start)| {
-                let label = labels::composition_annotation(
-                    &row.name,
-                    &format_fixed_percent(row.percentage, 1),
-                    max_name_chars,
-                );
-                (row.clone(), *start, label)
-            })
-            .collect();
-        let requests: Vec<AnnotationRequest<'_>> = labeled
-            .iter()
-            .map(|(row, _, label)| AnnotationRequest {
-                label,
-                percentage: row.percentage,
-                computable: row.computable,
-            })
-            .collect();
-        let annotated = if wide.get() {
-            place_annotations(&requests, &geometry, &center)
-        } else {
-            place_side_annotations(&requests, &geometry, &center)
-        };
-        let center_x = geometry.center_x;
-        let center_y = geometry.center_y;
-        let radius = geometry.radius;
-        let inner = geometry.inner();
-        let outer = geometry.outer();
-        let gaps: Vec<(f64, f64, f64, f64)> = slices
-            .iter()
-            .enumerate()
-            .filter_map(|(index, (row, start))| {
-                let previous = &slices[(index + slices.len() - 1) % slices.len()].0;
-                if row.percentage < 1.0 || previous.percentage < 1.0 {
-                    return None;
-                }
-                let angle = (start / 100.0 * 360.0 - 90.0).to_radians();
-                let (sine, cosine) = angle.sin_cos();
-                Some((
-                    center_x + inner * cosine,
-                    center_y + inner * sine,
-                    center_x + outer * cosine,
-                    center_y + outer * sine,
-                ))
-            })
-            .collect();
-        view! {
+    let geometry = DonutGeometry::SQUARE;
+    let mut cursor = 0.0;
+    let slices: Vec<(CompositionRow, f64)> = rows
+        .clone()
+        .into_iter()
+        .map(|row| {
+            let start = cursor;
+            cursor += row.percentage;
+            (row, start)
+        })
+        .collect();
+    let center_x = geometry.center_x;
+    let center_y = geometry.center_y;
+    let radius = geometry.radius;
+    let inner = geometry.inner();
+    let outer = geometry.outer();
+    let gaps: Vec<(f64, f64, f64, f64)> = slices
+        .iter()
+        .enumerate()
+        .filter_map(|(index, (row, start))| {
+            let previous = &slices[(index + slices.len() - 1) % slices.len()].0;
+            if row.percentage < 1.0 || previous.percentage < 1.0 {
+                return None;
+            }
+            let angle = (start / 100.0 * 360.0 - 90.0).to_radians();
+            let (sine, cosine) = angle.sin_cos();
+            Some((
+                center_x + inner * cosine,
+                center_y + inner * sine,
+                center_x + outer * cosine,
+                center_y + outer * sine,
+            ))
+        })
+        .collect();
+    let (visible, others) = composition_legend_split(rows.len());
+    let legend: Vec<CompositionRow> = rows.into_iter().take(visible).collect();
+    view! {
+        <div class="comp-donut-row">
             <div class="comp-donut-wrap">
                 <svg
-                    class=if wide.get() {
-                        "comp-donut comp-donut-wide"
-                    } else {
-                        "comp-donut comp-donut-compact"
-                    }
+                    class="comp-donut"
                     viewBox=format!("0 0 {} {}", geometry.width, geometry.height)
                     role="img"
                     aria-label=labels::COMPOSITION
@@ -559,62 +484,48 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                             }
                         })
                         .collect_view()}
-                    {annotated
-                        .into_iter()
-                        .filter_map(|item| {
-                            let (row, _, _label) = match labeled.get(item.index) {
-                                Some(found) => found,
-                                None => return None,
-                            };
-                            let name = labels::composition_annotation_name(
-                                &row.name,
-                                max_name_chars,
-                            );
-                            let percentage =
-                                format_fixed_percent(row.percentage, 1);
-                            let leader_class = color_leader_class(row.color);
-                            let anchor = match item.anchor {
-                                AnnotationAnchor::Start => "start",
-                                AnnotationAnchor::Middle => "middle",
-                                AnnotationAnchor::End => "end",
-                            };
-                            Some(
-                                view! {
-                                <g data-testid="comp-annotation" aria-hidden="true">
-                                    <polyline
-                                        points=format!(
-                                            "{},{},{},{} {},{}",
-                                            item.edge_x,
-                                            item.edge_y,
-                                            item.elbow_x,
-                                            item.elbow_y,
-                                            item.end_x,
-                                            item.elbow_y,
-                                        )
-                                        class=leader_class
-                                    />
-                                    <text
-                                        x=item.text_x.to_string()
-                                        y=item.text_y.to_string()
-                                        text-anchor=anchor
-                                        dominant-baseline="central"
-                                        class="comp-annotation"
-                                    >
-                                        {name}
-                                        <tspan class="comp-annotation-rate">
-                                            {format!(" {percentage}")}
-                                        </tspan>
-                                    </text>
-                                </g>
-                            }
-                            )
-                        })
-                        .collect_view()}
                 </svg>
                 <div class="comp-donut-center" aria-hidden="true">
                     {center.clone()}
                 </div>
             </div>
-        }
+            <ul class="comp-legend" data-testid="asset-composition-legend">
+                {legend
+                    .into_iter()
+                    .map(|row| {
+                        let fill = color_fill_class(row.color);
+                        let rate = if row.computable {
+                            format_fixed_percent(row.percentage, 1)
+                        } else {
+                            labels::MISSING.to_string()
+                        };
+                        let name = row.name.clone();
+                        view! {
+                            <li class="comp-legend-item" data-testid="comp-legend-item">
+                                <span
+                                    class=format!("comp-legend-dot {fill}")
+                                    aria-hidden="true"
+                                />
+                                <span class="comp-legend-name lg:whitespace-normal">{name}</span>
+                                <span class="comp-legend-rate">{rate}</span>
+                            </li>
+                        }
+                    })
+                    .collect_view()}
+                {if others > 0 {
+                    view! {
+                        <li
+                            class="comp-legend-others"
+                            data-testid="comp-legend-others"
+                        >
+                            {labels::composition_others(others)}
+                        </li>
+                    }
+                        .into_any()
+                } else {
+                    ().into_any()
+                }}
+            </ul>
+        </div>
     }
 }
