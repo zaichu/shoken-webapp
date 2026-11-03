@@ -24,8 +24,8 @@ use crate::features::asset_balance::fund::{AssetKind, AssetSearch, FundSortKey, 
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{
-    AssetBalanceCsvStore, AssetCsvSlot, asset_balance_counts, fund_balance_counts,
-    resolve_asset_balance, resolve_fund_balance,
+    AssetBalanceCsvStore, asset_balance_counts, fund_balance_counts, resolve_asset_balance,
+    resolve_fund_balance,
 };
 use crate::features::asset_balance::store::{
     BalanceSlot, DataOps, FundSlot, has_current_balances, load_asset_balances, load_fund_balances,
@@ -56,7 +56,6 @@ struct KindContent {
     fund_sort_order: RwSignal<SortOrder>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
-    csv: RwSignal<AssetCsvSlot>,
     data_ops: RwSignal<DataOps>,
 }
 
@@ -72,7 +71,6 @@ impl KindContent {
             self.balances,
             self.dividends,
             self.lookup,
-            self.csv,
             self.data_ops,
         );
         self.funds.set(None);
@@ -161,7 +159,6 @@ impl AssetBalanceState {
                 self.balances,
                 self.dividends,
                 self.lookup,
-                self.csv.csv,
                 self.data_ops,
             );
         }
@@ -207,7 +204,6 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
     let csv_store =
         AssetBalanceCsvStore::new(session, balances, funds, dividends, lookup, data_ops);
-    let csv_slot = csv_store.csv;
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
@@ -221,9 +217,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
         }
         lookup.update(|store| store.clear_if_stale(generation));
         if !has_current_balances(&balances.get_untracked(), generation) {
-            load_asset_balances(
-                session, generation, balances, dividends, lookup, csv_slot, data_ops,
-            );
+            load_asset_balances(session, generation, balances, dividends, lookup, data_ops);
         }
         if !matches!(funds.get_untracked(), Some((cached, _)) if cached == generation) {
             load_fund_balances(session, generation, funds, data_ops);
@@ -258,7 +252,6 @@ pub fn AssetBalancePage() -> impl IntoView {
     let search = state.search;
     let data_ops = state.data_ops;
     let busy_ops = data_ops;
-    let csv_slot = state.csv.csv;
     let motion = SwipeMotion::new();
     let content = KindContent {
         session,
@@ -273,7 +266,6 @@ pub fn AssetBalancePage() -> impl IntoView {
         fund_sort_order: state.fund_sort_order,
         dividends,
         lookup,
-        csv: csv_slot,
         data_ops,
     };
     // 口座・コースの選択肢はタブごとに語彙が違うため、切替時は選択条件だけ消す
@@ -315,7 +307,6 @@ pub fn AssetBalancePage() -> impl IntoView {
             balances,
             dividends,
             lookup,
-            csv_slot,
             data_ops,
         );
         load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);

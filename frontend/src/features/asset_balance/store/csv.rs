@@ -221,7 +221,6 @@ impl AssetBalanceCsvStore {
             self.balances,
             self.dividends,
             self.lookup,
-            self.csv,
             self.data_ops,
         );
     }
