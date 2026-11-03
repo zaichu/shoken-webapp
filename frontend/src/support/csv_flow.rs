@@ -35,22 +35,6 @@ impl CsvTabState {
     pub fn set_delete_result(&mut self, result: Result<(), ApiError>) {
         self.finish_delete(result.map_err(|error| error.message()));
     }
-
-    pub fn meta(&self) -> CsvTabMeta {
-        CsvTabMeta {
-            error: self.error.clone(),
-            deleting: self.deleting,
-            show_delete_confirm: self.show_delete_confirm,
-        }
-    }
-}
-
-// 削除確認の表示に必要な状態の投影
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct CsvTabMeta {
-    pub error: Option<String>,
-    pub deleting: bool,
-    pub show_delete_confirm: bool,
 }
 
 fn csv_form_data(file: &web_sys::File) -> Result<web_sys::FormData, ApiError> {

@@ -3,7 +3,7 @@ use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::store::DataOps;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::SessionStore;
-use crate::support::csv_flow::CsvTabMeta;
+use crate::support::csv_flow::CsvTabState;
 use crate::testing::asset_balance::*;
 use std::collections::HashMap;
 
@@ -25,7 +25,7 @@ fn csv_meta_returns_default_without_user() {
         let session = SessionStore::new();
         let store = store_with(&session, RwSignal::new(None));
 
-        assert_eq!(store.csv_meta(), CsvTabMeta::default());
+        assert_eq!(store.csv_meta(), CsvTabState::default());
     });
 }
 
@@ -59,14 +59,14 @@ fn csv_meta_is_scoped_to_session_generation() {
         session.mark_unauthenticated();
         assert_eq!(
             store.csv_meta(),
-            CsvTabMeta::default(),
+            CsvTabState::default(),
             "ログアウトでCSV状態は見えなくなる"
         );
 
         session.user.set(Some(user("bob")));
         assert_eq!(
             store.csv_meta(),
-            CsvTabMeta::default(),
+            CsvTabState::default(),
             "別ユーザーでも見えない"
         );
     });
@@ -88,7 +88,7 @@ fn stale_generation_delete_result_is_dropped() {
 
         assert_eq!(
             store.csv_meta(),
-            CsvTabMeta::default(),
+            CsvTabState::default(),
             "古い世代の遅れ結果は現在世代に影響しない"
         );
     });
