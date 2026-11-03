@@ -21,7 +21,6 @@ use crate::features::asset_balance::store::csv::{
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
-use crate::support::row::Row;
 use crate::testing::asset_balance::*;
 use crate::ui::format::{
     format_currency, format_fixed_percent, format_percentage_value, format_price_date,
@@ -173,8 +172,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         };
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         lookup.update(|store| store.seed(Generation::new(1), &loaded.rows));
-        let saved_rows: Vec<AssetBalanceRow> =
-            loaded.rows.iter().cloned().map(Row::Saved).collect();
+        let saved_rows: Vec<AssetBalanceRow> = loaded.rows.to_vec();
 
         let views = filtered_portfolio_views(
             &saved_rows,
@@ -229,8 +227,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         second.total_purchase_amount = rust_decimal_macros::dec!(2000.15);
         let decimal_rows = vec![first, second];
         lookup.update(|store| store.seed(Generation::new(2), &decimal_rows));
-        let decimal_saved: Vec<AssetBalanceRow> =
-            decimal_rows.iter().cloned().map(Row::Saved).collect();
+        let decimal_saved: Vec<AssetBalanceRow> = decimal_rows.to_vec();
         let decimal_views = filtered_portfolio_views(
             &decimal_saved,
             &text_search("検証対象"),
@@ -475,7 +472,7 @@ fn asset_sheet_draft_apply_matches_direct_search() {
         second.security_name = "架空エレクトロニクス".to_string();
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         lookup.update(|store| store.seed(generation, &[first.clone(), second.clone()]));
-        let rows: Vec<AssetBalanceRow> = vec![first, second].into_iter().map(Row::Saved).collect();
+        let rows: Vec<AssetBalanceRow> = vec![first, second].into_iter().collect();
 
         let search = RwSignal::new(AssetSearch::default());
         let draft = AssetSearch {
@@ -524,7 +521,7 @@ fn filtered_portfolio_keeps_saved_record_id_for_detail_links() {
         lookup.update(|store| store.seed(Generation::new(1), std::slice::from_ref(&refreshed)));
 
         let saved_id = saved.id.to_string();
-        let rows = vec![AssetBalanceRow::Saved(saved)];
+        let rows = vec![saved.clone()];
         let views =
             filtered_portfolio_views(&rows, &AssetSearch::default(), lookup, Generation::new(1));
 
@@ -551,10 +548,7 @@ fn filtered_portfolio_resolves_same_code_rows_by_id() {
         lookup.update(|store| store.seed(Generation::new(1), &[tokutei.clone(), nisa.clone()]));
 
         // 一覧順が lookup の先頭と違っても各行の値が崩れないよう、逆順で渡す
-        let rows = vec![
-            AssetBalanceRow::Saved(nisa),
-            AssetBalanceRow::Saved(tokutei),
-        ];
+        let rows = vec![nisa.clone(), tokutei.clone()];
         let views =
             filtered_portfolio_views(&rows, &AssetSearch::default(), lookup, Generation::new(1));
 
@@ -580,7 +574,7 @@ fn filtered_portfolio_all_views_ignore_search_and_follow_lookup() {
         second.security_name = "架空エレクトロニクス".to_string();
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         lookup.update(|store| store.seed(generation, &[first.clone(), second.clone()]));
-        let rows: Vec<AssetBalanceRow> = vec![first, second].into_iter().map(Row::Saved).collect();
+        let rows: Vec<AssetBalanceRow> = vec![first, second].into_iter().collect();
 
         let narrowed = filtered_portfolio_views(&rows, &text_search("9904"), lookup, generation);
         let unfiltered =
@@ -647,7 +641,7 @@ fn filtered_views_are_subset_of_all_views() {
         let second = balance_row(9914);
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         lookup.update(|store| store.seed(generation, &[first.clone(), second.clone()]));
-        let rows: Vec<AssetBalanceRow> = vec![first, second].into_iter().map(Row::Saved).collect();
+        let rows: Vec<AssetBalanceRow> = vec![first, second].into_iter().collect();
         let search = text_search("9904");
 
         let views = filtered_portfolio_views(&rows, &search, lookup, generation);
@@ -717,7 +711,7 @@ fn stock_pending_and_as_of_use_priced_rows_and_api_totals() {
     owner.with(|| {
         // 読み込み済み行は価格あり1件だけだが、API 集計は価格なし行を含む
         let resolved = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(9904))],
+            rows: vec![balance_row(9904)],
             warning: None,
             fallback_totals: Some(AssetBalanceSummary {
                 total_market_value: rust_decimal_macros::dec!(260000),
@@ -738,7 +732,7 @@ fn stock_pending_and_as_of_use_priced_rows_and_api_totals() {
         let mut unpriced = balance_row(9914);
         unpriced.current_price = rust_decimal_macros::dec!(0);
         let resolved = ResolvedAssetBalance {
-            rows: vec![Row::Saved(balance_row(9904)), Row::Saved(unpriced)],
+            rows: vec![balance_row(9904), unpriced],
             warning: None,
             fallback_totals: None,
         };
@@ -760,7 +754,7 @@ fn oldest_stock_as_of_excludes_unpriced_rows() {
         let mut unpriced = balance_row(9914);
         unpriced.current_price = rust_decimal_macros::dec!(0);
         unpriced.price_as_of = Some("2024-01-01".to_string());
-        let rows = vec![Row::Saved(balance_row(9904)), Row::Saved(unpriced)];
+        let rows = vec![balance_row(9904), unpriced];
         let as_of = super::summary::oldest_stock_as_of(&rows).expect("as_of");
         assert!(as_of.contains("1/16"), "{as_of}");
         assert!(!as_of.contains("1/1 "), "{as_of}");
@@ -772,7 +766,7 @@ fn oldest_stock_as_of_shows_single_date_when_all_rows_share_as_of() {
     let owner = Owner::new();
     owner.with(|| {
         // 基準日が揃っているときは範囲ではなく単一の日付を出す
-        let rows = vec![Row::Saved(balance_row(9904)), Row::Saved(balance_row(9914))];
+        let rows = vec![balance_row(9904), balance_row(9914)];
         let as_of = super::summary::oldest_stock_as_of(&rows).expect("as_of");
         assert!(!as_of.contains("〜"), "{as_of}");
     });
@@ -785,11 +779,7 @@ fn oldest_stock_as_of_shows_oldest_date_when_dates_differ() {
         // 基準日が混在するときは最も古い日を出す(嘘の新しさを見せない)
         let mut older = balance_row(9914);
         older.price_as_of = Some("2024-01-15".to_string());
-        let rows = vec![
-            Row::Saved(balance_row(9904)),
-            Row::Saved(balance_row(9934)),
-            Row::Saved(older),
-        ];
+        let rows = vec![balance_row(9904), balance_row(9934), older];
         let as_of = super::summary::oldest_stock_as_of(&rows).expect("as_of");
         assert!(as_of.contains("1/15"), "{as_of}");
         assert!(!as_of.contains("1/16"), "{as_of}");
@@ -982,31 +972,29 @@ fn fund_saved_row(
     change: Option<i64>,
     asof: &str,
 ) -> FundBalanceRow {
-    FundBalanceRow::Saved(
-        serde_json::from_value(serde_json::json!({
-            "id": format!("fund-{name}"),
-            "fund_name": name,
-            "dividends_course": null,
-            "account": "特定",
-            "shares": 10000,
-            "average_purchase_price": 10000,
-            "total_purchase_amount": 1000,
-            "base_price": 11000,
-            "base_price_day_change": change,
-            "base_price_month_change": null,
-            "market_value": 1100,
-            "profit_loss": 100,
-            "profit_loss_rate": 10.0,
-            "total_return": null,
-            "price_as_of": asof,
-            "price_source": source,
-            "nav_is_latest": latest,
-            "expected_nav_date": null,
-            "created_at": "2026-10-17T00:00:00Z",
-            "updated_at": "2026-10-18T00:00:00Z",
-        }))
-        .unwrap(),
-    )
+    serde_json::from_value(serde_json::json!({
+        "id": format!("fund-{name}"),
+        "fund_name": name,
+        "dividends_course": null,
+        "account": "特定",
+        "shares": 10000,
+        "average_purchase_price": 10000,
+        "total_purchase_amount": 1000,
+        "base_price": 11000,
+        "base_price_day_change": change,
+        "base_price_month_change": null,
+        "market_value": 1100,
+        "profit_loss": 100,
+        "profit_loss_rate": 10.0,
+        "total_return": null,
+        "price_as_of": asof,
+        "price_source": source,
+        "nav_is_latest": latest,
+        "expected_nav_date": null,
+        "created_at": "2026-10-17T00:00:00Z",
+        "updated_at": "2026-10-18T00:00:00Z",
+    }))
+    .unwrap()
 }
 
 #[test]
@@ -1061,8 +1049,7 @@ fn oldest_combined_as_of_picks_oldest_across_stock_and_fund() {
         // 株 1/16 より投信 10/17 が新しいので、株の日付を出す
         let stock = balance_row(9904);
         assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));
-        let as_of =
-            super::summary::oldest_combined_as_of(&[Row::Saved(stock)], &fund).expect("as_of");
+        let as_of = super::summary::oldest_combined_as_of(&[stock], &fund).expect("as_of");
         assert!(as_of.contains("1/16"), "{as_of}");
     });
 }
@@ -1080,10 +1067,10 @@ fn combined_band_pending_unifies_stock_and_fund_flags() {
     use crate::features::asset_balance::model::valuation_has_pending;
     let owner = Owner::new();
     owner.with(|| {
-        let priced = Row::Saved(balance_row(9904));
+        let priced = balance_row(9904);
         let mut unpriced = balance_row(9914);
         unpriced.current_price = rust_decimal_macros::dec!(0);
-        let unpriced = Row::Saved(unpriced);
+        let unpriced = unpriced;
         let latest_fund = ResolvedFundBalance {
             rows: vec![fund_saved_row(
                 "ファンドA",

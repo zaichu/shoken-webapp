@@ -13,7 +13,6 @@ use crate::features::dividend_per_share::{
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
 use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fetch_all_pages};
-use crate::support::row::Row;
 use crate::ui::format::format_number_value;
 use crate::ui::labels;
 use leptos::prelude::*;
@@ -178,16 +177,12 @@ fn resolve_view(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> HoldingView {
-    let mut view = match row {
-        Row::Saved(saved) => {
-            let resolved = lookup
-                .with(|store| store.get(generation, saved).cloned())
-                .unwrap_or_else(|| saved.clone());
-            holding_view(&resolved)
-        }
-    };
+    let resolved = lookup
+        .with(|store| store.get(generation, row).cloned())
+        .unwrap_or_else(|| row.clone());
+    let mut view = holding_view(&resolved);
     // 詳細は保存済み行のレコード ID で開く。lookup の代替行の id ではなく外側の行の id を使う
-    view.id = row.saved_id();
+    view.id = Some(row.id.to_string());
     view
 }
 

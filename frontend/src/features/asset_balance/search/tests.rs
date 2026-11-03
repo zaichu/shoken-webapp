@@ -2,7 +2,7 @@ use super::{filter_asset_balances, stock_accounts};
 use crate::api::dto::AssetBalance;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::fund::AssetSearch;
-use crate::support::row::Row as ListRow;
+
 use rust_decimal::Decimal;
 use serde::Deserialize;
 
@@ -53,13 +53,11 @@ fn balance(row: &Row) -> AssetBalance {
 }
 
 fn balances(rows: &[Row]) -> Vec<AssetBalanceRow> {
-    rows.iter()
-        .map(|row| ListRow::Saved(balance(row)))
-        .collect()
+    rows.iter().map(balance).collect()
 }
 
 fn row_id(row: &AssetBalanceRow) -> String {
-    row.saved().map(|saved| saved.id.to_string()).unwrap()
+    row.id.to_string()
 }
 
 impl FilterCase {
@@ -112,12 +110,12 @@ fn account_filter_and_options() {
     });
     named.account = Some("特定".parse().unwrap());
     let rows = vec![
-        ListRow::Saved(named),
-        ListRow::Saved(balance(&Row {
+        named,
+        balance(&Row {
             id: "no-account".to_string(),
             security_code: "9901".to_string(),
             security_name: "架空資源開発".to_string(),
-        })),
+        }),
     ];
 
     assert_eq!(stock_accounts(&rows), ["特定".to_string()]);

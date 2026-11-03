@@ -10,7 +10,6 @@ use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::{CsvTabMeta, CsvTabState};
-use crate::support::row::Row;
 use crate::ui::format::format_price_date;
 use leptos::prelude::*;
 
@@ -411,7 +410,7 @@ pub(crate) fn fund_balance_counts(
 fn resolve_balance<T: Clone, S: Clone>(
     generation: Generation,
     slot: &LoadedSlotValue<T, S>,
-) -> Option<ResolvedRows<Row<T>, S>> {
+) -> Option<ResolvedRows<T, S>> {
     let result = slot_value(slot, generation)?;
     Some(match result {
         Err(_) => ResolvedRows {
@@ -420,7 +419,7 @@ fn resolve_balance<T: Clone, S: Clone>(
             fallback_totals: None,
         },
         Ok(loaded) => ResolvedRows {
-            rows: loaded.rows.iter().cloned().map(Row::Saved).collect(),
+            rows: loaded.rows.to_vec(),
             warning: loaded.truncated.then(truncated_list_warning),
             fallback_totals: if loaded.truncated {
                 loaded.summary.clone()

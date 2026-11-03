@@ -11,31 +11,29 @@ fn saved_row(
     market: &str,
     profit: &str,
 ) -> FundBalanceRow {
-    FundBalanceRow::Saved(
-        serde_json::from_value(serde_json::json!({
-            "id": format!("fund-{name}"),
-            "fund_name": name,
-            "dividends_course": course,
-            "account": account,
-            "shares": 10000,
-            "average_purchase_price": 10000,
-            "total_purchase_amount": 1000,
-            "base_price": 11000,
-            "base_price_day_change": null,
-            "base_price_month_change": null,
-            "market_value": dec(market),
-            "profit_loss": dec(profit),
-            "profit_loss_rate": null,
-            "total_return": null,
-            "price_as_of": "2026-10-10",
-            "price_source": "csv",
-            "nav_is_latest": true,
-            "expected_nav_date": null,
-            "created_at": "2026-10-17T00:00:00Z",
-            "updated_at": "2026-10-18T00:00:00Z"
-        }))
-        .unwrap(),
-    )
+    serde_json::from_value(serde_json::json!({
+        "id": format!("fund-{name}"),
+        "fund_name": name,
+        "dividends_course": course,
+        "account": account,
+        "shares": 10000,
+        "average_purchase_price": 10000,
+        "total_purchase_amount": 1000,
+        "base_price": 11000,
+        "base_price_day_change": null,
+        "base_price_month_change": null,
+        "market_value": dec(market),
+        "profit_loss": dec(profit),
+        "profit_loss_rate": null,
+        "total_return": null,
+        "price_as_of": "2026-10-10",
+        "price_source": "csv",
+        "nav_is_latest": true,
+        "expected_nav_date": null,
+        "created_at": "2026-10-17T00:00:00Z",
+        "updated_at": "2026-10-18T00:00:00Z"
+    }))
+    .unwrap()
 }
 
 fn rows() -> Vec<FundBalanceRow> {
@@ -116,57 +114,53 @@ fn sort_by_market_value_desc_then_name() {
 
 #[test]
 fn totals_weight_daily_change_by_shares() {
-    let row_a = FundBalanceRow::Saved(
-        serde_json::from_value(serde_json::json!({
-            "id": "fund-A",
-            "fund_name": "A",
-            "dividends_course": null,
-            "account": "特定",
-            "shares": 20000,
-            "average_purchase_price": 10000,
-            "total_purchase_amount": 200,
-            "base_price": 11000,
-            "base_price_day_change": 100,
-            "base_price_month_change": null,
-            "market_value": 220,
-            "profit_loss": 20,
-            "profit_loss_rate": null,
-            "total_return": null,
-            "price_as_of": "2026-10-10",
-            "price_source": "api",
-            "nav_is_latest": true,
-            "expected_nav_date": null,
-            "created_at": "2026-10-17T00:00:00Z",
-            "updated_at": "2026-10-18T00:00:00Z"
-        }))
-        .unwrap(),
-    );
+    let row_a = serde_json::from_value(serde_json::json!({
+        "id": "fund-A",
+        "fund_name": "A",
+        "dividends_course": null,
+        "account": "特定",
+        "shares": 20000,
+        "average_purchase_price": 10000,
+        "total_purchase_amount": 200,
+        "base_price": 11000,
+        "base_price_day_change": 100,
+        "base_price_month_change": null,
+        "market_value": 220,
+        "profit_loss": 20,
+        "profit_loss_rate": null,
+        "total_return": null,
+        "price_as_of": "2026-10-10",
+        "price_source": "api",
+        "nav_is_latest": true,
+        "expected_nav_date": null,
+        "created_at": "2026-10-17T00:00:00Z",
+        "updated_at": "2026-10-18T00:00:00Z"
+    }))
+    .unwrap();
     // 前日比を持たない行は合計に混ぜない
-    let row_b = FundBalanceRow::Saved(
-        serde_json::from_value(serde_json::json!({
-            "id": "fund-B",
-            "fund_name": "B",
-            "dividends_course": null,
-            "account": "特定",
-            "shares": 10000,
-            "average_purchase_price": 10000,
-            "total_purchase_amount": 100,
-            "base_price": 11000,
-            "base_price_day_change": null,
-            "base_price_month_change": null,
-            "market_value": 110,
-            "profit_loss": 10,
-            "profit_loss_rate": null,
-            "total_return": null,
-            "price_as_of": "2026-10-10",
-            "price_source": "csv",
-            "nav_is_latest": false,
-            "expected_nav_date": null,
-            "created_at": "2026-10-17T00:00:00Z",
-            "updated_at": "2026-10-18T00:00:00Z"
-        }))
-        .unwrap(),
-    );
+    let row_b = serde_json::from_value(serde_json::json!({
+        "id": "fund-B",
+        "fund_name": "B",
+        "dividends_course": null,
+        "account": "特定",
+        "shares": 10000,
+        "average_purchase_price": 10000,
+        "total_purchase_amount": 100,
+        "base_price": 11000,
+        "base_price_day_change": null,
+        "base_price_month_change": null,
+        "market_value": 110,
+        "profit_loss": 10,
+        "profit_loss_rate": null,
+        "total_return": null,
+        "price_as_of": "2026-10-10",
+        "price_source": "csv",
+        "nav_is_latest": false,
+        "expected_nav_date": null,
+        "created_at": "2026-10-17T00:00:00Z",
+        "updated_at": "2026-10-18T00:00:00Z"
+    }))
+    .unwrap();
     let rows = [row_a, row_b];
     let views: Vec<FundView> = rows.iter().map(fund_view).collect();
     let totals = fund_totals(&views);
@@ -197,31 +191,29 @@ fn saved_fund(
     price_as_of: &str,
     expected_nav_date: Option<&str>,
 ) -> FundBalanceRow {
-    FundBalanceRow::Saved(
-        serde_json::from_value(serde_json::json!({
-            "id": format!("fund-{name}"),
-            "fund_name": name,
-            "dividends_course": null,
-            "account": "特定",
-            "shares": 10000,
-            "average_purchase_price": 10000,
-            "total_purchase_amount": 1000,
-            "base_price": 11000,
-            "base_price_day_change": day_change,
-            "base_price_month_change": null,
-            "market_value": 1100,
-            "profit_loss": 100,
-            "profit_loss_rate": 10.0,
-            "total_return": null,
-            "price_as_of": price_as_of,
-            "price_source": price_source,
-            "nav_is_latest": nav_is_latest,
-            "expected_nav_date": expected_nav_date,
-            "created_at": "2026-10-17T00:00:00Z",
-            "updated_at": "2026-10-18T00:00:00Z",
-        }))
-        .unwrap(),
-    )
+    serde_json::from_value(serde_json::json!({
+        "id": format!("fund-{name}"),
+        "fund_name": name,
+        "dividends_course": null,
+        "account": "特定",
+        "shares": 10000,
+        "average_purchase_price": 10000,
+        "total_purchase_amount": 1000,
+        "base_price": 11000,
+        "base_price_day_change": day_change,
+        "base_price_month_change": null,
+        "market_value": 1100,
+        "profit_loss": 100,
+        "profit_loss_rate": 10.0,
+        "total_return": null,
+        "price_as_of": price_as_of,
+        "price_source": price_source,
+        "nav_is_latest": nav_is_latest,
+        "expected_nav_date": expected_nav_date,
+        "created_at": "2026-10-17T00:00:00Z",
+        "updated_at": "2026-10-18T00:00:00Z",
+    }))
+    .unwrap()
 }
 
 #[test]

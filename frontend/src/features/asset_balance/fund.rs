@@ -5,7 +5,6 @@ use super::portfolio::SortOrder;
 use crate::api::dto::{FundBalance, FundPriceSource};
 use crate::features::asset_balance::format::dec_to_f64;
 use crate::support::csv_flow::CsvChunking;
-use crate::support::row::Row;
 use crate::ui::labels;
 use rust_decimal::Decimal;
 
@@ -53,7 +52,7 @@ impl AssetKind {
 }
 
 /// 一覧行
-pub(crate) type FundBalanceRow = Row<FundBalance>;
+pub(crate) type FundBalanceRow = FundBalance;
 
 /// 保存済み行の読み出し面
 pub(crate) trait FundRowData {
@@ -133,81 +132,6 @@ impl FundRowData for FundBalance {
     }
 }
 
-impl FundBalanceRow {
-    /// 詳細ページのパスに使う保存済みレコード ID
-    pub(crate) fn saved_id(&self) -> Option<String> {
-        self.saved().map(|row| row.id.to_string())
-    }
-}
-
-impl FundRowData for FundBalanceRow {
-    fn fund_name(&self) -> &str {
-        self.saved().map(|row| row.fund_name()).unwrap_or("")
-    }
-    fn account(&self) -> &str {
-        self.saved().map(|row| row.account()).unwrap_or("")
-    }
-    fn dividends_course(&self) -> Option<&str> {
-        self.saved().and_then(|row| row.dividends_course())
-    }
-    fn shares(&self) -> Decimal {
-        self.saved()
-            .map(|row| row.shares())
-            .unwrap_or(Decimal::ZERO)
-    }
-    fn average_purchase_price(&self) -> Decimal {
-        self.saved()
-            .map(|row| row.average_purchase_price())
-            .unwrap_or(Decimal::ZERO)
-    }
-    fn total_purchase_amount(&self) -> Decimal {
-        self.saved()
-            .map(|row| row.total_purchase_amount())
-            .unwrap_or(Decimal::ZERO)
-    }
-    fn base_price(&self) -> Decimal {
-        self.saved()
-            .map(|row| row.base_price())
-            .unwrap_or(Decimal::ZERO)
-    }
-    fn base_price_day_change(&self) -> Option<Decimal> {
-        self.saved().and_then(|row| row.base_price_day_change())
-    }
-    fn base_price_month_change(&self) -> Option<Decimal> {
-        self.saved().and_then(|row| row.base_price_month_change())
-    }
-    fn market_value(&self) -> Decimal {
-        self.saved()
-            .map(|row| row.market_value())
-            .unwrap_or(Decimal::ZERO)
-    }
-    fn profit_loss(&self) -> Decimal {
-        self.saved()
-            .map(|row| row.profit_loss())
-            .unwrap_or(Decimal::ZERO)
-    }
-    fn profit_loss_rate(&self) -> Option<Decimal> {
-        self.saved().and_then(|row| row.profit_loss_rate())
-    }
-    fn total_return(&self) -> Option<Decimal> {
-        self.saved().and_then(|row| row.total_return())
-    }
-    fn price_as_of(&self) -> Option<String> {
-        self.saved().and_then(|row| row.price_as_of())
-    }
-    fn price_source(&self) -> FundPriceSource {
-        self.saved()
-            .map(|row| row.price_source())
-            .unwrap_or(FundPriceSource::Csv)
-    }
-    fn is_nav_latest(&self) -> bool {
-        self.saved().map(|row| row.is_nav_latest()).unwrap_or(false)
-    }
-    fn expected_nav_date(&self) -> Option<String> {
-        self.saved().and_then(|row| row.expected_nav_date())
-    }
-}
-
 /// 一覧・詳細に渡す1行分の表示用データ
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct FundView {
@@ -280,7 +204,7 @@ impl FundView {
 
 pub(crate) fn fund_view(row: &FundBalanceRow) -> FundView {
     FundView {
-        id: row.saved_id(),
+        id: Some(row.id.to_string()),
         name: row.fund_name().to_string(),
         account: row.account().to_string(),
         course: row.dividends_course().map(str::to_string),

@@ -1,11 +1,10 @@
 use super::*;
 use crate::api::dto::Dividend;
 use crate::features::receipts::ReceiptItem;
-use crate::support::row::Row;
 use rust_decimal_macros::dec;
 
 fn dividend(code: &str, name: &str) -> ReceiptRow {
-    Row::Saved(ReceiptItem::Dividend(Dividend {
+    ReceiptItem::Dividend(Dividend {
         id: "id".to_string().into(),
         settlement_date: "2024-03-01".to_string(),
         product: "特定口座".to_string(),
@@ -19,7 +18,7 @@ fn dividend(code: &str, name: &str) -> ReceiptRow {
         net_amount_received: dec!(2391),
         created_at: String::new(),
         updated_at: String::new(),
-    }))
+    })
 }
 
 fn authenticated_session() -> SessionStore {

@@ -1,6 +1,5 @@
 use super::*;
 use crate::features::receipts::ReceiptItem;
-use crate::support::row::Row::Saved;
 use crate::testing::receipts::{dividends, domestic, funds};
 
 #[test]
@@ -102,12 +101,12 @@ fn full_width_names_match_half_width_query() {
 fn fund_options_merge_names_differing_only_by_width() {
     let mut rows = funds();
     let mut twin = match &rows[0] {
-        Saved(ReceiptItem::MutualFund(row)) => row.clone(),
+        ReceiptItem::MutualFund(row) => row.clone(),
         _ => panic!("fund row"),
     };
     twin.id = "fund2".to_string().into();
     twin.fund_name = "Ａｌｐｈａ Ｆｕｎｄ Ａ".into();
-    rows.push(Saved(ReceiptItem::MutualFund(twin)));
+    rows.push(ReceiptItem::MutualFund(twin));
     let categories = search_categories(ReceiptsTab::MutualFund, &rows);
     assert_eq!(
         categories

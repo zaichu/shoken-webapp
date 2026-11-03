@@ -1,6 +1,5 @@
 use crate::api::dto::AssetBalance;
 use crate::support::csv_flow::CsvChunking;
-use crate::support::row::Row;
 use crate::ui::labels;
 
 pub const LIST_PATH: &str = "/api/v1/asset-balances";
@@ -18,7 +17,7 @@ pub const CSV_CHUNKING: CsvChunking = CsvChunking {
     header_marker: Some(labels::SECURITY_CODE),
 };
 
-pub(crate) type AssetBalanceRow = Row<AssetBalance>;
+pub(crate) type AssetBalanceRow = AssetBalance;
 
 /// `AssetBalance`(保存済み)の読み出し面。
 pub(crate) trait AssetBalanceRowData {
@@ -69,51 +68,6 @@ impl AssetBalanceRowData for AssetBalance {
     }
     fn price_as_of(&self) -> Option<&str> {
         self.price_as_of.as_deref()
-    }
-}
-
-impl AssetBalanceRow {
-    /// 詳細ページのパスに使う保存済みレコード ID
-    pub(crate) fn saved_id(&self) -> Option<String> {
-        self.saved().map(|row| row.id.to_string())
-    }
-}
-
-impl AssetBalanceRowData for AssetBalanceRow {
-    fn security_code(&self) -> &str {
-        self.saved().map(|row| row.security_code()).unwrap_or("")
-    }
-    fn security_name(&self) -> &str {
-        self.saved().map(|row| row.security_name()).unwrap_or("")
-    }
-    fn account(&self) -> Option<&str> {
-        self.saved().and_then(|row| row.account())
-    }
-    fn shares(&self) -> rust_decimal::Decimal {
-        self.saved()
-            .map(|row| row.shares())
-            .unwrap_or(rust_decimal::Decimal::ZERO)
-    }
-    fn average_purchase_price(&self) -> rust_decimal::Decimal {
-        self.saved()
-            .map(|row| row.average_purchase_price())
-            .unwrap_or(rust_decimal::Decimal::ZERO)
-    }
-    fn total_purchase_amount(&self) -> rust_decimal::Decimal {
-        self.saved()
-            .map(|row| row.total_purchase_amount())
-            .unwrap_or(rust_decimal::Decimal::ZERO)
-    }
-    fn current_price(&self) -> rust_decimal::Decimal {
-        self.saved()
-            .map(|row| row.current_price())
-            .unwrap_or(rust_decimal::Decimal::ZERO)
-    }
-    fn day_change(&self) -> Option<rust_decimal::Decimal> {
-        self.saved().and_then(|row| row.day_change())
-    }
-    fn price_as_of(&self) -> Option<&str> {
-        self.saved().and_then(|row| row.price_as_of())
     }
 }
 
