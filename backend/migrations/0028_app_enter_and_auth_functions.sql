@@ -43,6 +43,9 @@ CREATE FUNCTION public.auth_rotate_session(p_user_id uuid, p_token_hash bytea, p
     LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp
 AS $$
 BEGIN
+    IF p_user_id::text IS DISTINCT FROM current_setting('app.current_user_id', true) THEN
+        RAISE EXCEPTION '利用者の不一致';
+    END IF;
     DELETE FROM public.sessions WHERE expires_at <= NOW();
     DELETE FROM public.sessions
     WHERE user_id = p_user_id

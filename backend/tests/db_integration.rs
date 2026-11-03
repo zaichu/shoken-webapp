@@ -6225,7 +6225,8 @@ async fn app_restricted_role_has_least_privilege() {
 
 /// RLS 第五段階 5b: app_enter(所有者専用)と照会用の DEFINER 関数は引数・戻り・権限が最小限で、
 /// DEFINER 関数は app_restricted から呼べる・public からは呼べない・未知のハッシュでは他人の行を返さない。
-/// app_enter のあとは本人の行だけが見え、COMMIT で所有者に戻る
+/// app_enter のあとは本人の行だけが見え、COMMIT で所有者に戻る。
+/// 回転は設定と違う利用者 ID では失敗する
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn stage5b_definer_functions_and_app_enter() {
@@ -6509,6 +6510,29 @@ async fn stage5b_definer_functions_and_app_enter() {
         .execute(&mut tx)
         .await
         .expect("ロールの切り替えに失敗");
+    db::query(
+        "SELECT set_config('app.current_user_id', $1, true)",
+        vec![Bind::from(user_a.to_string())],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("利用者 ID の設定に失敗");
+    let err = db::query(
+        "SELECT auth_rotate_session($1, $2, $3)",
+        vec![
+            Bind::from(user_b),
+            Bind::Bytes(vec![79u8; 32]),
+            Bind::Bytes(vec![80u8; 32]),
+        ],
+    )
+    .execute(&mut tx)
+    .await
+    .expect_err("設定と違う利用者 ID の回転は失敗するはず");
+    assert!(
+        err.sql_state()
+            .is_some_and(|s| s == db::SqlState::RAISE_EXCEPTION),
+        "利用者不一致のはず: {err:?}"
+    );
     db::query(
         "SELECT auth_rotate_session($1, $2, $3)",
         vec![
