@@ -155,8 +155,8 @@ src/
 | `MoreLink`(`ui/more_link.rs`) | 本文内の移動リンク | `more-link`。下線なし・強調色に「›」 |
 | `Amount`(`ui/amount.rs`) | 金額・率の値 | `tabular-nums` と `[data-negative]` をまとめる。`block=true` で `<p>` として出す |
 | `Alert` / `Spinner` / `Loading` / `ListLoadError` / `ListSkeleton`(`ui/state.rs`) | 読み込み・失敗の状態表示 | Alert は Warning・Danger、SpinnerSize は Sm・Lg、ListSkeletonVariant は Cards・Table。ListLoadError は再読み込み操作を持つ |
-| `CollapsibleSearchCard`(`ui/collapsible_search_card.rs`) | 検索欄の開閉と解除操作 | SearchCardLayout は Card・Toolbar |
-| `CsvSection`(`ui/csv_section.rs`) / `CsvActionRail`(`ui/csv_rail.rs`) | CSV の選択・保存・結果・削除欄 | CsvSource が状態と操作を渡し、配線とマークアップを共有する |
+| `SearchBox` / `SearchTextInput` / `SearchTag` / `ConditionPanel` 等(`ui/search_controls.rs`) | 検索欄の箱・入力・条件チップ・条件小窓 | — |
+| `CsvManageFetchCard` / `CsvKindTable`(`ui/csv_page.rs`) | CSV 管理画面の取得カードと種類ごとのテーブル | — |
 | `ConfirmDeleteModal`(`ui/confirm_modal.rs`) | 削除確認ダイアログ | フォーカスの閉じ込め、処理中の閉じ操作無効化。item_count は任意 |
 | `SecurityCodeLink` / `CopyableInstrumentName`(`ui/security_link.rs`) | 銘柄コードの遷移と銘柄名コピー | SecurityLinkVariant は Code・Details |
 | `SiteHeader` / `SiteFooter`(`ui/site.rs`) | サイト共通のナビゲーション・ユーザーメニュー・フッター | URL と SPA 遷移は app.rs が持つ |
