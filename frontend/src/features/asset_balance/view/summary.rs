@@ -1,11 +1,10 @@
 use crate::api::dto::AssetBalanceSummary;
-use crate::features::asset_balance::csv::{AssetBalanceRow, AssetBalanceRowData};
+use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::format::{
     dec_to_f64, format_amount, format_signed_row_valuation_amount, format_signed_valuation_amount,
     format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
     is_positive_valuation,
 };
-use crate::features::asset_balance::fund::FundRowData;
 use crate::features::asset_balance::holdings::{HoldingView, stock_daily_change_total};
 use crate::features::asset_balance::model::{
     KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
@@ -30,8 +29,8 @@ pub(crate) fn fund_tab_count(rows_len: usize, total: usize) -> usize {
 /// (価格が出ていない行の日付は「その時点の株価」と結びつかないので除く)
 pub(crate) fn stock_price_dates(rows: &[AssetBalanceRow]) -> Vec<&str> {
     rows.iter()
-        .filter(|row| row.current_price() > Decimal::ZERO)
-        .filter_map(|row| row.price_as_of())
+        .filter(|row| row.current_price > Decimal::ZERO)
+        .filter_map(|row| row.price_as_of.as_deref())
         .collect()
 }
 
@@ -47,7 +46,7 @@ pub(crate) fn oldest_fund_as_of(view: &ResolvedFundBalance) -> Option<String> {
     let mut dates: Vec<String> = view
         .rows
         .iter()
-        .filter_map(|row| row.price_as_of())
+        .map(|row| row.price_as_of.clone())
         .collect();
     dates.sort();
     dates.first().map(|date| labels::price_as_of(date))
@@ -62,14 +61,14 @@ pub(crate) fn oldest_combined_as_of(
         .into_iter()
         .map(str::to_string)
         .collect();
-    dates.extend(fund_view.rows.iter().filter_map(|row| row.price_as_of()));
+    dates.extend(fund_view.rows.iter().map(|row| row.price_as_of.clone()));
     dates.sort();
     dates.first().map(|date| labels::price_as_of(date))
 }
 
 /// 投信に更新待ちの行があるか。前日比の合計に入っていない行があれば true
 pub(crate) fn fund_has_pending(view: &ResolvedFundBalance) -> bool {
-    view.rows.iter().any(|row| !row.is_nav_latest())
+    view.rows.iter().any(|row| !row.nav_is_latest)
 }
 
 /// 行と API 集計から更新待ちを判定する(一覧の部品用)
@@ -82,7 +81,7 @@ pub(crate) fn stock_pending_from_parts(
     }
     match fallback_totals {
         Some(summary) => summary_valuation(summary).has_unpriced,
-        None => rows.iter().any(|row| row.current_price() <= Decimal::ZERO),
+        None => rows.iter().any(|row| row.current_price <= Decimal::ZERO),
     }
 }
 
