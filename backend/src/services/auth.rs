@@ -115,7 +115,7 @@ pub async fn authenticate_with_google_code_and_login_event(
 }
 
 #[doc(hidden)]
-pub async fn upsert_user_rotate_session_with_login_event(
+async fn upsert_user_rotate_session_with_login_event(
     pool: &Db,
     user_info: &GoogleUserInfo,
     device_hash: Vec<u8>,
@@ -129,7 +129,7 @@ pub async fn upsert_user_rotate_session_with_login_event(
     DbError,
 > {
     let mut tx = pool.begin().await?;
-    let user = upsert_user_via_function(&mut tx, user_info).await?;
+    let user = upsert_user_in_tx(&mut tx, user_info).await?;
     tx.set_local_user(user.id).await?;
     let prior_row = crate::db::query(
         "SELECT country, region FROM login_events
@@ -143,8 +143,7 @@ pub async fn upsert_user_rotate_session_with_login_event(
         region: region.as_deref(),
     });
     let outcome = login_event::classify_login(prior, client);
-    let session_token =
-        rotate_session_for_device_via_function(&mut tx, user.id, &device_hash).await?;
+    let session_token = rotate_session_for_device_in_tx(&mut tx, user.id, &device_hash).await?;
     insert_login_event_in_tx(&mut tx, user.id, outcome, device_hash, client).await?;
     tx.commit().await?;
 
@@ -191,9 +190,9 @@ pub async fn upsert_user_and_rotate_session(
     user_info: &GoogleUserInfo,
 ) -> Result<SessionToken, DbError> {
     let mut tx = pool.begin().await?;
-    let user_id = upsert_user_id_via_function(&mut tx, user_info).await?;
-    tx.set_local_user(user_id).await?;
-    let session_token = rotate_session_via_function(&mut tx, user_id).await?;
+    let user = upsert_user_in_tx(&mut tx, user_info).await?;
+    tx.set_local_user(user.id).await?;
+    let session_token = rotate_session_in_tx(&mut tx, user.id).await?;
     tx.commit().await?;
 
     Ok(session_token)
@@ -231,45 +230,22 @@ pub async fn select_user_id_by_session(
     .await
 }
 
-async fn upsert_user_id_via_function(
-    tx: &mut Tx,
-    user_info: &GoogleUserInfo,
-) -> Result<UserId, DbError> {
-    crate::db::query_scalar::<UserId>(
-        "SELECT auth_upsert_user($1, $2, $3, $4)",
-        vec![
-            Bind::from(user_info.sub.as_str()),
-            Bind::from(user_info.email.as_str()),
-            Bind::from(user_info.name.as_deref()),
-            Bind::from(user_info.picture_url.as_deref()),
-        ],
-    )
-    .fetch_one(&mut *tx)
-    .await
-}
-
-async fn upsert_user_via_function(
-    tx: &mut Tx,
-    user_info: &GoogleUserInfo,
-) -> Result<User, DbError> {
-    let user_id = upsert_user_id_via_function(tx, user_info).await?;
-    crate::db::query_as::<User>(
-        "SELECT id, google_id, email, name, picture_url, created_at, updated_at
-         FROM users WHERE id = $1",
-        vec![Bind::from(user_id)],
-    )
-    .fetch_one(&mut *tx)
-    .await
-}
-
-async fn rotate_session_via_function(
-    tx: &mut Tx,
-    user_id: UserId,
-) -> Result<SessionToken, DbError> {
+/// 旧セッションと期限切れセッションの削除、新セッションの発行を1文でアトミックに行う。
+/// データ変更CTEは外部から参照されなくても必ず実行されるため、DELETE が省略されることはない。
+async fn rotate_session_in_tx(tx: &mut Tx, user_id: UserId) -> Result<SessionToken, DbError> {
     let token = SessionToken::new();
     crate::db::query(
-        "SELECT auth_rotate_session($1, $2, $3)",
-        vec![Bind::from(user_id), Bind::Bytes(token.hash()), Bind::Null],
+        r#"
+        WITH expired AS (
+            SELECT id FROM sessions WHERE expires_at <= NOW() FOR UPDATE SKIP LOCKED
+        ),
+        deleted AS (
+            DELETE FROM sessions WHERE user_id = $1 OR id IN (SELECT id FROM expired)
+        )
+        INSERT INTO sessions (user_id, token_hash)
+        VALUES ($1, $2)
+        "#,
+        vec![Bind::from(user_id), Bind::Bytes(token.hash())],
     )
     .execute(&mut *tx)
     .await?;
@@ -277,14 +253,27 @@ async fn rotate_session_via_function(
     Ok(token)
 }
 
-async fn rotate_session_for_device_via_function(
+/// 同一端末の旧セッションと期限切れセッションの削除、新セッションの発行を1文で行う。
+/// 他の端末のセッションは残す。端末IDはハッシュだけを保存する
+async fn rotate_session_for_device_in_tx(
     tx: &mut Tx,
     user_id: UserId,
     device_hash: &[u8],
 ) -> Result<SessionToken, DbError> {
     let token = SessionToken::new();
     crate::db::query(
-        "SELECT auth_rotate_session($1, $2, $3)",
+        r#"
+        WITH expired AS (
+            SELECT id FROM sessions WHERE expires_at <= NOW() FOR UPDATE SKIP LOCKED
+        ),
+        deleted AS (
+            DELETE FROM sessions
+            WHERE (user_id = $1 AND (device_hash = $3 OR device_hash IS NULL))
+               OR id IN (SELECT id FROM expired)
+        )
+        INSERT INTO sessions (user_id, token_hash, device_hash)
+        VALUES ($1, $2, $3)
+        "#,
         vec![
             Bind::from(user_id),
             Bind::Bytes(token.hash()),
@@ -323,6 +312,29 @@ pub async fn delete_device_sessions(
     .await?;
     tx.commit().await?;
     Ok(deleted)
+}
+
+async fn upsert_user_in_tx(tx: &mut Tx, user_info: &GoogleUserInfo) -> Result<User, DbError> {
+    crate::db::query_as::<User>(
+        r#"
+        INSERT INTO users (google_id, email, name, picture_url)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (google_id) DO UPDATE SET
+            email = EXCLUDED.email,
+            name = EXCLUDED.name,
+            picture_url = EXCLUDED.picture_url,
+            updated_at = NOW()
+        RETURNING id, google_id, email, name, picture_url, created_at, updated_at
+        "#,
+        vec![
+            Bind::from(user_info.sub.as_str()),
+            Bind::from(user_info.email.as_str()),
+            Bind::from(user_info.name.as_deref()),
+            Bind::from(user_info.picture_url.as_deref()),
+        ],
+    )
+    .fetch_one(&mut *tx)
+    .await
 }
 
 pub async fn delete_session(pool: &Db, token: SessionToken) -> Result<(), DbError> {
