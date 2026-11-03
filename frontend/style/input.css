@@ -1605,14 +1605,6 @@
     @apply text-xs whitespace-nowrap text-text-deep tabular-nums;
   }
 
-  .asset-comp-link {
-    @apply block px-4 py-3 no-underline;
-  }
-
-  a.asset-comp-link:hover {
-    @apply bg-surface-sunken;
-  }
-
   /* スマホの構成比。区分タブは資産管理の種別タブと同じ全幅の下線タブ */
   .comp-tab-row {
     @apply mx-0;
