@@ -1,0 +1,77 @@
+name: DB RLS State
+
+# docs/security/db-rls-plan.md §15。本番 DB の権限と RLS の状態を読み取りだけで確かめる手動実行。
+# 公開リポジトリで Actions のログは誰でも見えるため、利用者のデータの中身(行の値・件数)は出さない。
+# SQL は固定し入力値は埋め込まない。接続文字列はログ・Job Summary に出さない。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-rls-state
+  cancel-in-progress: true
+
+jobs:
+  db-secrets:
+    name: Check DATABASE_URL secret
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    # 有無の確認だけなので値は env に置かず、式で真偽だけを受け取る
+    env:
+      HAS_DATABASE_URL: ${{ secrets.DATABASE_URL != '' }}
+    steps:
+      - name: Check secret presence
+        id: check
+        run: |
+          if [[ "${HAS_DATABASE_URL}" != "true" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::secrets.DATABASE_URL が未登録のため確認をスキップします"
+            echo "secrets.DATABASE_URL が未登録のため確認はスキップされました(失敗ではありません)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  check:
+    name: Read role and RLS state
+    needs: [db-secrets]
+    # workflow_dispatch は任意ブランチから起動できるため main 以外では流さない
+    if: needs.db-secrets.outputs.available == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # DATABASE_URL は値がログ・サマリーに出ないよう、このステップの env にだけ渡す
+      - name: Read role and RLS state
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PGOPTIONS: '-c default_transaction_read_only=on'
+        run: |
+          set -euo pipefail
+          # psql の接続失敗文に接続先が混ざるため、失敗時は本文を出さず汎用文だけにする
+          echo "::add-mask::${DATABASE_URL}"
+          err_file="$(mktemp)"
+          trap 'rm -f "${err_file}"' EXIT
+          [[ -n "${DATABASE_URL:-}" ]] || { echo "::error::secrets.DATABASE_URL が未設定です"; exit 1; }
+          q() {
+            psql "${DATABASE_URL}" --no-psqlrc -v ON_ERROR_STOP=1 2>>"${err_file}" <<SQL || { echo "::error::問い合わせに失敗しました(接続情報は表示しません)" >&2; return 1; }
+          BEGIN READ ONLY;
+          $1
+          COMMIT;
+          SQL
+          }
+          section() {
+            body="$(q "$2")" || return 1
+            echo "### $1"
+            echo '```'
+            printf '%s\n' "${body}"
+            echo '```'
+          }
+          {
+            section '制限ロール(app_restricted)' "SELECT rolname, rolcanlogin, rolbypassrls FROM pg_roles WHERE rolname = 'app_restricted';"
+            section '制限ロールの所属者' "SELECT m.rolname AS member FROM pg_auth_members am JOIN pg_roles r ON r.oid = am.roleid JOIN pg_roles m ON m.oid = am.member WHERE r.rolname = 'app_restricted' ORDER BY 1;"
+            section '利用者の表の RLS' "SELECT t.table_name, (c.relrowsecurity IS TRUE) AS rls_enabled, (c.relforcerowsecurity IS TRUE) AS rls_forced FROM (VALUES ('admin_login_views'), ('asset_balances'), ('csv_import_history'), ('dividends'), ('domestic_stocks'), ('fund_balances'), ('login_events'), ('login_notify_tokens'), ('mutualfunds'), ('sessions'), ('users')) AS t(table_name) LEFT JOIN pg_class c ON c.relname = t.table_name AND c.relnamespace = 'public'::regnamespace ORDER BY 1;"
+            section 'マイグレーションの最新版' "SELECT version AS latest_version, success FROM _sqlx_migrations ORDER BY version DESC LIMIT 1;"
+            section '接続ロール' "SELECT CURRENT_USER AS connected_role, (SELECT rolcreaterole FROM pg_roles WHERE rolname = CURRENT_USER) AS can_create_role;"
+          } | tee -a "${GITHUB_STEP_SUMMARY}"

@@ -447,3 +447,7 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
 - 付随する修正: `0026_sessions_users_rls.sql` が `migrate.rs` に未登録だったため、
   この PR で 0026 と 0027 の登録を足した(過去ファイル自体の書き換えなし)。
   未登録のままでは `sessions`・`users` の RLS が適用されず、第四段階の結合テストが空振りになる。
+
+## 15. 本番の状態確認(#1749)
+
+- 本番の `app_restricted` と RLS の状態は、GitHub の Actions 画面から `DB RLS State` ワークフローを手動実行して読み取りだけで確かめる(main ブランチから実行する)。
