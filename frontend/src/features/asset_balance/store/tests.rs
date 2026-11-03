@@ -6,7 +6,7 @@ use crate::features::asset_balance::store::DataOps;
 use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::SessionStore;
-use crate::support::csv_flow::CsvTabMeta;
+use crate::support::csv_flow::CsvTabState;
 use crate::support::pagination::collect_list_pages;
 use crate::testing::asset_balance::*;
 use crate::testing::block_on;
@@ -413,7 +413,7 @@ fn csv_meta_returns_default_without_user() {
         let store =
             AssetBalanceCsvStore::new(session, balances, funds, dividends, lookup, data_ops);
 
-        assert_eq!(store.csv_meta(), CsvTabMeta::default());
+        assert_eq!(store.csv_meta(), CsvTabState::default());
     });
 }
 
@@ -459,14 +459,14 @@ fn csv_meta_is_scoped_to_session_generation() {
         session.mark_unauthenticated();
         assert_eq!(
             store.csv_meta(),
-            CsvTabMeta::default(),
+            CsvTabState::default(),
             "ログアウトでCSV状態は見えなくなる"
         );
 
         session.user.set(Some(user("bob")));
         assert_eq!(
             store.csv_meta(),
-            CsvTabMeta::default(),
+            CsvTabState::default(),
             "別ユーザーでも見えない"
         );
     });

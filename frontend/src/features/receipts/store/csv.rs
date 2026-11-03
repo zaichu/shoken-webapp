@@ -1,16 +1,16 @@
 use super::ReceiptsStore;
 use crate::features::receipts::{ReceiptTabData, ReceiptsTab, TabState};
 use crate::session::Generation;
-use crate::support::csv_flow::{CsvTabMeta, CsvTabState};
+use crate::support::csv_flow::CsvTabState;
 use leptos::prelude::*;
 
 impl ReceiptsStore {
     // 共通 CSV UI が読むのはメタ情報だけ
-    pub fn csv_meta(&self, tab: ReceiptsTab) -> CsvTabMeta {
+    pub fn csv_meta(&self, tab: ReceiptsTab) -> CsvTabState {
         let generation = self.session.generation.get();
         self.tabs.with(|map| {
             map.get(&(generation, tab))
-                .map(|entry| entry.csv.meta())
+                .map(|entry| entry.csv.clone())
                 .unwrap_or_default()
         })
     }

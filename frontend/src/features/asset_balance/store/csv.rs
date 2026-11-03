@@ -9,7 +9,7 @@ use crate::features::asset_balance::fund::FundBalanceRow;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
-use crate::support::csv_flow::{CsvTabMeta, CsvTabState};
+use crate::support::csv_flow::CsvTabState;
 use crate::ui::format::format_price_date;
 use leptos::prelude::*;
 
@@ -70,8 +70,8 @@ impl AssetBalanceCsvStore {
         });
     }
 
-    fn csv_tab_meta(&self, slot: RwSignal<AssetCsvSlot>) -> CsvTabMeta {
-        self.with_slot(slot, |slot| slot.map(CsvTabState::meta).unwrap_or_default())
+    fn csv_tab_meta(&self, slot: RwSignal<AssetCsvSlot>) -> CsvTabState {
+        self.with_slot(slot, |slot| slot.cloned().unwrap_or_default())
     }
 
     fn loaded_total<T: Send + Sync + 'static, S: Send + Sync + 'static>(
@@ -128,11 +128,11 @@ impl AssetBalanceCsvStore {
     }
 
     // 共通 CSV UI が読むのはメタ情報だけ
-    pub(crate) fn csv_meta(&self) -> CsvTabMeta {
+    pub(crate) fn csv_meta(&self) -> CsvTabState {
         self.csv_tab_meta(self.csv)
     }
 
-    pub(crate) fn fund_csv_meta(&self) -> CsvTabMeta {
+    pub(crate) fn fund_csv_meta(&self) -> CsvTabState {
         self.csv_tab_meta(self.csv_fund)
     }
 

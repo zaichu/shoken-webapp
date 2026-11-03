@@ -2,7 +2,7 @@ use crate::features::receipts::filter::{ReceiptSearch, ReceiptSortOrder};
 use crate::features::receipts::store::{TabCacheEntry, mark_tab_for_refresh, tab_settled};
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
-use crate::support::csv_flow::{CsvTabMeta, CsvTabState};
+use crate::support::csv_flow::CsvTabState;
 use crate::testing::receipts::dividends;
 use leptos::prelude::*;
 use std::cell::RefCell;
@@ -134,7 +134,7 @@ fn csv_meta_is_scoped_to_generation_and_cleared_by_logout() {
         let session = SessionStore::new();
         let tab = ReceiptsTab::Dividend;
         let store = test_store(&session, HashMap::new(), HashMap::new());
-        assert_eq!(store.csv_meta(tab), CsvTabMeta::default());
+        assert_eq!(store.csv_meta(tab), CsvTabState::default());
 
         session.user.set(Some(user("alice")));
         store.open_delete_confirm(tab);
@@ -143,14 +143,14 @@ fn csv_meta_is_scoped_to_generation_and_cleared_by_logout() {
         session.mark_unauthenticated();
         assert_eq!(
             store.csv_meta(tab),
-            CsvTabMeta::default(),
+            CsvTabState::default(),
             "世代が進むとCSV状態は見えなくなる"
         );
 
         session.user.set(Some(user("bob")));
         assert_eq!(
             store.csv_meta(tab),
-            CsvTabMeta::default(),
+            CsvTabState::default(),
             "別ユーザーでも見えない"
         );
     });
