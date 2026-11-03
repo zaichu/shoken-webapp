@@ -1,6 +1,8 @@
 name: Backend DB Integration
 
 on:
+  pull_request:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "17 18 * * *"
@@ -10,11 +12,45 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Detect backend changes
+    runs-on: ubuntu-latest
+    # paths-filter は pull_request で REST API を使うため pull-requests: read が要る
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 https://github.com/actions/checkout/releases/tag/v7
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3 https://github.com/dorny/paths-filter/releases/tag/v4.0.3
+        with:
+          predicate-quantifier: some-with-excludes
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'shared/**'
+              - 'rust-toolchain.toml'
+              - 'docs/openapi.json'
+              - 'scripts/check-openapi.sh'
+              - '.github/workflows/backend.yml'
+              - '.github/workflows/backend-db-integration.yml'
+              - '.github/actions/rust-cache/**'
+              - '!**/*.md'
+
   db-integration:
     name: Docker ignored integration tests
+    needs: changes
+    # PR は backend 変更時のみ実行し、夜間・手動実行は常に対象にする
+    if: github.event_name != 'pull_request' || needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -39,3 +75,58 @@ jobs:
 
       - name: Run ignored DB integration tests
         run: make test-ignored
+
+  ci:
+    name: DB integration gate
+    needs: [changes, db-integration]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs succeeded
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BACKEND_CHANGED: ${{ needs.changes.outputs.backend }}
+          DB_RESULT: ${{ needs.db-integration.result }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          ok=true
+          report() {
+            echo "$1: $2"
+            if [ "$2" != "success" ]; then ok=false; fi
+          }
+          report changes "$CHANGES_RESULT"
+          if [ "$EVENT_NAME" = "pull_request" ] && [ "$BACKEND_CHANGED" != "true" ]; then
+            echo "backend changes not detected; db-integration skipped"
+          else
+            report db-integration "$DB_RESULT"
+          fi
+          $ok || { echo "::error::required jobs did not succeed"; exit 1; }
+
+  report-failure:
+    name: Report nightly failure
+    needs: [db-integration]
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Create issue for nightly failure
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 https://github.com/actions/github-script/releases/tag/v9.0.0
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const sha = context.sha.substring(0, 7);
+            await github.rest.issues.create({
+              ...context.repo,
+              title: `Backend DB Integration の夜間失敗 (${sha})`,
+              body: [
+                `夜間の結合テストが失敗しました。`,
+                ``,
+                `- run: ${runUrl}`,
+                `- sha: ${context.sha}`,
+                `- workflow: Backend DB Integration`,
+                ``,
+                `直近の db_integration.rs の失敗を確認し、原因の修正またはテスト期待値の見直しを検討してください。`,
+              ].join('\n'),
+            });
