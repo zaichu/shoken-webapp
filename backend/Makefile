@@ -53,6 +53,7 @@ test:
 test-ignored:
 	@echo "🧪 Docker が必要な ignored 統合テストを実行します..."
 	$(CARGO) test --test db_integration -- --ignored
+	$(CARGO) test --test login_rls -- --ignored
 	$(CARGO) test --lib -- --ignored --skip real_api --skip timing_csv_util
 
 # データベース関連
