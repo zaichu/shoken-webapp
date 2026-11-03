@@ -2169,7 +2169,7 @@ async fn search_facets_group_by_domain_fields() {
             .iter()
             .map(|f| (f.value.as_str(), f.count))
             .collect::<Vec<_>>(),
-        vec![("9931", Some(1)), ("9901", Some(1))]
+        vec![("9901", Some(1)), ("9931", Some(1))]
     );
     assert!(facets.products.is_none());
     assert!(facets.accounts.is_none());
@@ -3848,8 +3848,8 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     assert_eq!(
         asset_balance_rows(&pool, user_id).await,
         vec![
-            ("9931".to_string(), "100".to_string()),
             ("9901".to_string(), "200".to_string()),
+            ("9931".to_string(), "100".to_string()),
         ]
     );
 
