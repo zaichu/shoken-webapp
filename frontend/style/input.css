@@ -1805,15 +1805,15 @@
   }
 
   .holding-tiles {
-    @apply grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4;
+    @apply grid grid-cols-2 gap-2 lg:gap-3 lg:grid-cols-4;
   }
 
   .holding-tile {
-    @apply rounded-lg border border-border bg-surface-sunken px-3 py-2;
+    @apply flex min-h-16 flex-col justify-center rounded-lg border border-border bg-surface-sunken px-3 py-2;
   }
 
   .holding-tile-wide {
-    @apply col-span-2;
+    @apply col-span-2 border-border-strong bg-surface shadow-card;
   }
 
   .holding-tile-label {
@@ -1821,7 +1821,7 @@
   }
 
   .holding-tile-value {
-    @apply mt-1 font-bold tabular-nums text-text-deep;
+    @apply mt-1 font-bold break-words tabular-nums text-text-deep;
   }
 
   .holding-tile-wide .holding-tile-value {

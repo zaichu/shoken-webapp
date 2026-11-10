@@ -416,15 +416,15 @@ fn StockInfo(stock: Stock) -> impl IntoView {
     let name = normalize_display_name(&stock.name);
     view! {
         <div>
-            <Card variant=CardVariant::Panel class="mb-4 overflow-hidden">
-                <div class="border-b border-ink/10 bg-ink px-5 py-4 text-page">
+            <Card variant=CardVariant::Panel class="mb-6 overflow-hidden">
+                <div class="border-b border-ink/10 bg-ink px-4 py-4 text-page sm:px-5">
                     <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h2 class="text-xl font-black leading-tight">{name}</h2>
+                        <h2 class="min-w-0 flex-1 break-words text-xl font-black leading-tight">{name}</h2>
                         <CodeBadge>{code_badge}</CodeBadge>
                     </div>
                 </div>
                 <div>
-                    <dl class="grid grid-cols-1 gap-px bg-fill text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <dl class="grid grid-cols-2 gap-px bg-fill text-sm lg:grid-cols-4">
                         {meta
                             .into_iter()
                             .map(|(label, value)| {
@@ -434,11 +434,11 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                                     value
                                 };
                                 view! {
-                                    <div class="bg-surface px-4 py-3">
+                                    <div class="flex min-h-16 flex-col justify-center bg-surface px-4 py-3">
                                         <dt class="text-xs font-medium text-text-muted">
                                             {label}
                                         </dt>
-                                        <dd class="mt-1 font-bold text-text-deep">{display}</dd>
+                                        <dd class="mt-1 break-words font-bold tabular-nums text-text-deep">{display}</dd>
                                     </div>
                                 }
                             })
@@ -456,7 +456,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
 #[component]
 fn StockInfoLinks(code: String) -> impl IntoView {
     view! {
-        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+        <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {STOCK_LINKS
                 .iter()
                 .map(|(name, template)| {
@@ -499,8 +499,8 @@ fn HoldingSection(group: HoldingGroup, dividends: RwSignal<DividendMaps>) -> imp
     let multi = group.rows.len() > 1;
     let badges: Vec<Option<String>> = group.rows.iter().map(|row| row.account.clone()).collect();
     view! {
-        <section aria-label=labels::STOCK_HOLDING_SECTION class="mb-4">
-            <h2 class="mb-2 text-sm font-bold text-text-deep">
+        <section aria-label=labels::STOCK_HOLDING_SECTION class="mb-6">
+            <h2 class="mb-3 text-base font-bold text-text-deep">
                 {labels::STOCK_HOLDING_SECTION}
             </h2>
             {move || {
@@ -514,11 +514,11 @@ fn HoldingSection(group: HoldingGroup, dividends: RwSignal<DividendMaps>) -> imp
                     .collect();
                 if multi {
                     view! {
-                        <h3 class="mb-2 text-xs font-bold text-text-muted">
+                        <h3 class="mb-2 text-sm font-bold text-text-muted">
                             {labels::STOCK_HOLDING_TOTAL}
                         </h3>
                         <HoldingTilesView data=total />
-                        <div class="mt-3 space-y-3">
+                        <div class="mt-4 space-y-4">
                             {accounts
                                 .into_iter()
                                 .zip(badges.clone())
@@ -707,14 +707,17 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
             <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>
                 <span class="tabular-nums">{data.purchase}</span>
             </HoldingTile>
-            {data
-                .account
-                .map(|account| {
-                    view! {
-                        <HoldingTile label=labels::ACCOUNT.to_string()>
-                            <AccountBadge label=account />
-                        </HoldingTile>
-                    }
+            {(show_common && data.account.is_some())
+                .then(|| {
+                    data.account
+                        .clone()
+                        .map(|account| {
+                            view! {
+                                <HoldingTile label=labels::ACCOUNT.to_string()>
+                                    <AccountBadge label=account />
+                                </HoldingTile>
+                            }
+                        })
                 })}
             {show_common
                 .then(|| {
