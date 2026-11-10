@@ -12,11 +12,15 @@ mod view;
 // CSV 最新取得(自動取り込み)が既存の取り込み経路を使う
 pub(crate) use csv::{CSV_CHUNKING, IMPORT_PATH, LIST_PATH, PREVIEW_PATH};
 pub(crate) use format::{
-    dec_to_f64, format_signed_row_valuation_amount, format_signed_valuation_amount,
-    format_signed_valuation_rate, format_valuation_amount, is_negative_rate, is_negative_valuation,
-    is_positive_rate, is_positive_valuation,
+    dec_to_f64, format_row_valuation_amount, format_signed_row_valuation_amount,
+    format_signed_valuation_amount, format_signed_valuation_rate, format_valuation_amount,
+    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
 };
 pub(crate) use fund::{FUND_CSV_CHUNKING, FUND_IMPORT_PATH, FUND_LIST_PATH, FUND_PREVIEW_PATH};
+pub(crate) use holdings::{
+    HoldingGroup, HoldingView, format_dividend_annual, format_dividend_per_share,
+    format_dividend_yield, group_holdings_by_code, holding_dividend, holding_stock_href,
+};
 pub(crate) use lookup::{fetch_single_asset_balance, find_by_code};
 pub(crate) use model::{
     KpiHolding, PortfolioKpi, ValuationInput, calculate_portfolio_kpi, holding_valuation,
@@ -24,8 +28,10 @@ pub(crate) use model::{
 };
 pub(crate) use portfolio::{SortKey, SortOrder};
 pub(crate) use store::csv::AssetBalanceCsvStore;
+pub(crate) use store::csv::resolve_asset_balance;
 pub(crate) use store::{
-    LoadedAssetBalances, LoadedFundBalances, fetch_asset_balances, fetch_fund_balances,
+    LoadedAssetBalances, LoadedFundBalances, all_portfolio_views, fetch_asset_balances,
+    fetch_fund_balances, load_asset_balances,
 };
 pub(crate) use view::{
     AssetBalanceCompositionPage, AssetBalanceHoldingPage, AssetBalancePage, AssetBalanceState,

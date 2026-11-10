@@ -111,5 +111,32 @@ fn read_query_value(key: &str) -> Option<String> {
     None
 }
 
+/// URL の `?code=` から銘柄コードを読む。更新・戻る・リンクで開いた画面の
+/// 保有解決と、名前検索の成功同期の比較に使う
+pub(crate) fn url_stock_code() -> String {
+    read_code_param().0
+}
+
+/// 検索した銘柄コードを URL(`?code=`)に載せる。更新・戻る・リンクで同じ画面に
+/// 戻れるよう履歴へ積み、アプリの現在パスを進めて再マウントさせる。
+/// 名前検索などコードにならない入力は URL に載せない。
+/// 遷移できたとき true(呼び出し側の直接 dispatch は要らない)を返す
+pub(crate) fn sync_code_param(code: &str) -> bool {
+    if !is_searchable_code(code) {
+        return false;
+    }
+    let Some(current) = use_context::<crate::app::CurrentPath>() else {
+        return false;
+    };
+    let path = format!("/search?code={}", urlencoding::encode(code));
+    if let Some(window) = web_sys::window()
+        && let Ok(history) = window.history()
+    {
+        let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&path));
+    }
+    current.0.set(path);
+    true
+}
+
 #[cfg(test)]
 mod tests;

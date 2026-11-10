@@ -180,6 +180,7 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                                     right=right.clone()
                                     on_close=move || open_for_dialog.set(false)
                                     testid="asset-holding-dialog"
+                                    link_code=dialog_code.clone()
                                 />
                             </Show>
                         </li>

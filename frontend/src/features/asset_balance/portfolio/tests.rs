@@ -229,7 +229,7 @@ fn composition_sources_map_stock_and_fund_rows() {
     let sources = composition_sources(&views, &funds);
     assert_eq!(sources.len(), 2);
     assert_eq!(sources[0].sub, "9904");
-    assert_eq!(sources[0].href.as_deref(), Some("/assetbalance/holdings/1"));
+    assert_eq!(sources[0].href.as_deref(), Some("/search?code=9904"));
     assert_eq!(sources[1].sub, "再投資型");
     assert_eq!(
         sources[1].href.as_deref(),

@@ -89,6 +89,7 @@
 | リンク | `ui/more_link.rs` `MoreLink` + `more-link`、上バーの枠つき小は `page-secondary-link-sm`、戻りは `page-back-link`、銘柄は `ui/security_link.rs` `SecurityCodeLink`・`CopyableInstrumentName` + `security-code-link`・`copyable-name`・`copy-icon` | 本文内の移動は `MoreLink` に寄せる。下線付きは外部リンクだけ |
 | バッジの種別 | `ui/badge.rs` `Badge`(`BadgeVariant::Positive`・`Info`・`Accent`・`Danger`・`AccountSpecific`・`AccountGeneral`・`AccountNisa`・`AccountOldNisa`・`Code`・`CodeFlush`・`Count`)・`AccountBadge`・`CodeBadge`。クラスは `badge` + `badge-positive`・`badge-info`・`badge-accent`・`badge-danger`・`badge-account`・`badge-account-specific`・`badge-account-nisa`・`badge-account-old-nisa`・`badge-code`・`badge-code-flush`・`badge-count`。表の薄字コードは `table-code` | 小さな札は `Badge` の種別で表す。角丸・余白の差は variant に集める |
 | 金額の種別 | `ui/amount.rs` `Amount`(`AmountKind::Plain`・`Delta`、`block`)。`Delta` は `text-positive`・`data-negative="true"`、紺帯では明色に寄せる | 出入り・損益・税の3つ(税引前・税額・税引後)だけ `Delta`、残高・価格・元額は `Plain`。画面ごとに色を書かない |
+| 保有のタイル | `ui/holding_tiles.rs` `HoldingTiles` + `holding-tiles`・`holding-tile`(`holding-tile-wide` で2列幅)・`holding-tile-label`・`holding-tile-value`。ラベルを上・値を下にしたタイルのグリッド(PC 4列・タブレット 3列・スマホ 2列)。主役(評価額・評価損益)は `wide` で2列幅 | 銘柄画面の保有情報・投資信託の詳細で使う。タイルの並べ方は画面ごとに作らない |
 
 ## 例外として認めるもの
 

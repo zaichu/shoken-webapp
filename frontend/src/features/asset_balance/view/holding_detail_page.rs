@@ -1,25 +1,15 @@
 use super::use_asset_balance_state;
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation, is_positive_valuation,
-};
-use crate::features::asset_balance::holdings::{
-    format_dividend_annual, format_dividend_per_share, format_dividend_yield, holding_dividend,
-};
-use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
+use crate::app::CurrentPath;
+use crate::features::asset_balance::store::load_asset_balances;
 use crate::session::use_session;
-use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::badge::AccountBadge;
 use crate::ui::empty_state::EmptyState;
-use crate::ui::format::{
-    format_currency, format_iso_date, format_number_value, unit_price_decimals,
-};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
-use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 
+/// 旧 `/assetbalance/holdings/:id` は銘柄画面(`/search?code=`)へ置き換える。
+/// 保存済み行の ID から銘柄コードを引いて同じ銘柄の画面を開く
 #[component]
 pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
     let session = use_session();
@@ -29,7 +19,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
     let lookup = state.lookup;
     let data_ops = state.data_ops;
     if session.user.get_untracked().is_some() {
-        crate::features::asset_balance::store::load_asset_balances(
+        load_asset_balances(
             session,
             session.generation.get_untracked(),
             balances,
@@ -49,7 +39,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
             return;
         }
         balances.set(None);
-        crate::features::asset_balance::store::load_asset_balances(
+        load_asset_balances(
             session,
             session.generation.get_untracked(),
             balances,
@@ -57,6 +47,23 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
             lookup,
             data_ops,
         );
+    };
+    // 行が見つかれば銘柄画面へ置き換える(履歴は残さない)。描画の副作用で1度だけ行う
+    let redirected = std::cell::Cell::new(false);
+    let redirect_to_search = move |code: &str| {
+        if redirected.get() {
+            return;
+        }
+        redirected.set(true);
+        let path = format!("/search?code={}", urlencoding::encode(code));
+        if let Some(window) = web_sys::window()
+            && let Ok(history) = window.history()
+        {
+            let _ = history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&path));
+        }
+        if let Some(current) = use_context::<CurrentPath>() {
+            current.0.set(path);
+        }
     };
     view! {
         <PageFrame
@@ -96,8 +103,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                     match view {
                         None => view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any(),
                         Some(view) => {
-                            let rows = view.rows;
-                            let found = rows.iter().find(|row| {
+                            let found = view.rows.iter().find(|row| {
                                 row.id.to_string() == id
                             });
                             match found {
@@ -110,122 +116,9 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                                         .into_any()
                                 }
                                 Some(row) => {
-                                    let holding_view = crate::features::asset_balance::holdings::holding_view(row);
-                                    let valuation = holding_valuation(&ValuationInput::from(&holding_view));
-                                    let market_text = format_row_valuation_amount(valuation.market_value);
-                                    let pnl_text = format_signed_row_valuation_amount(valuation.profit_loss.amount);
-                                    let pnl_rate_text = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
-                                    let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
-                                    let pnl_positive = is_positive_valuation(valuation.profit_loss.amount);
-                                    let dividend = holding_dividend(
-                                        &holding_view.code,
-                                        holding_view.shares,
-                                        holding_view.average_price,
-                                        &dividends.get(),
-                                    );
-                                    let dividend_per_share = format_dividend_per_share(
-                                        &dividend,
-                                        unit_price_decimals(dividend.per_share.into_iter()),
-                                    );
-                                    let dividend_annual = format_dividend_annual(&dividend);
-                                    let dividend_yield = format_dividend_yield(&dividend);
-                                    let shares_text = labels::stock_shares_label(&format_number_value(holding_view.shares));
-                                    let average_price_text = format_currency(holding_view.average_price);
-                                    let purchase_text = format_currency(holding_view.purchase);
-                                    let current_price_text = format_currency(holding_view.current_price);
-                                    let price_as_of = holding_view.price_as_of.clone();
-                                    view! {
-                                        <div class="asset-panel">
-                                            <div class="border-b border-border p-4">
-                                                <h2 class="text-lg font-bold text-text">
-                                                    {holding_view.name.clone()}
-                                                </h2>
-                                                <p class="mt-1 text-sm text-text-muted">
-                                                    {holding_view.code.clone()}
-                                                </p>
-                                            </div>
-                                            <dl class="divide-y divide-border-faint">
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::CURRENT_PRICE}</dt>
-                                                    <dd class="tabular-nums text-text">
-                                                        {current_price_text}
-                                                    </dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::PRICE_AS_OF}</dt>
-                                                    <dd class="text-text">
-                                                        {price_as_of
-                                                            .map_or_else(
-                                                                || labels::MISSING.to_string(),
-                                                                |date| format_iso_date(&date),
-                                                            )}
-                                                    </dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::ACCOUNT}</dt>
-                                                    <dd class="text-text">
-                                                        {holding_view
-                                                            .account
-                                                            .clone()
-                                                            .map(|value| {
-                                                                view! { <AccountBadge label=value /> }
-                                                                    .into_any()
-                                                            })
-                                                            .unwrap_or_else(|| labels::MISSING.into_any())}
-                                                    </dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::QUANTITY}</dt>
-                                                    <dd class="tabular-nums text-text">{shares_text}</dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::AVERAGE_PRICE}</dt>
-                                                    <dd class="tabular-nums text-text">{average_price_text}</dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::TOTAL_ACQUISITION}</dt>
-                                                    <dd class="tabular-nums text-text">{purchase_text}</dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::MARKET_VALUE}</dt>
-                                                    <dd class="tabular-nums font-bold text-text">{market_text}</dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::VALUATION_PROFIT_LOSS}</dt>
-                                                    <dd>
-                                                        <Amount
-                                                            kind=AmountKind::Delta
-                                                            class="tabular-nums"
-                                                            text=pnl_text
-                                                            negative=pnl_negative
-                                                            positive=pnl_positive
-                                                        />
-                                                        <span class="ml-1 text-xs text-text-muted tabular-nums">
-                                                            {pnl_rate_text}
-                                                        </span>
-                                                    </dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::PER_SHARE_DIVIDEND}</dt>
-                                                    <dd class="tabular-nums text-text">{dividend_per_share}</dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::ANNUAL_DIVIDEND_REFERENCE}</dt>
-                                                    <dd class="tabular-nums text-text">{dividend_annual}</dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::ACQUISITION_BASIS_YIELD}</dt>
-                                                    <dd class="tabular-nums text-text">{dividend_yield}</dd>
-                                                </div>
-                                            </dl>
-                                            <div class="border-t border-border p-4">
-                                                <SecurityCodeLink
-                                                    value=holding_view.code.clone()
-                                                    variant=SecurityLinkVariant::Details
-                                                />
-                                            </div>
-                                        </div>
-                                    }
+                                    let code = row.security_code.to_string();
+                                    redirect_to_search(&code);
+                                    view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
                                         .into_any()
                                 }
                             }

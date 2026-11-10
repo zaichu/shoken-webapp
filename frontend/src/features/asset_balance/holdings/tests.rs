@@ -121,3 +121,41 @@ fn daily_change_total_is_none_when_all_rows_lack_prev_close() {
     assert_eq!(stock_daily_change_total(&views), None);
     assert_eq!(stock_daily_change_total(&[]), None);
 }
+
+#[test]
+fn stock_href_points_to_search_page_with_code() {
+    assert_eq!(holding_stock_href("9904"), "/search?code=9904");
+}
+
+fn grouped_view(code: &str, account: Option<&str>, shares: f64, purchase: f64) -> HoldingView {
+    HoldingView {
+        id: None,
+        code: code.to_string(),
+        name: "架空自動車".to_string(),
+        account: account.map(str::to_string),
+        shares,
+        average_price: 2500.0,
+        purchase,
+        current_price: 2600.0,
+        day_change: None,
+        price_as_of: Some("2024-01-16".to_string()),
+    }
+}
+
+#[test]
+fn group_holdings_collects_same_code_keeping_first_order() {
+    let views = vec![
+        grouped_view("9904", Some("特定"), 100.0, 250_000.0),
+        grouped_view("9914", Some("特定"), 50.0, 150_000.0),
+        grouped_view("9904", Some("NISA成長"), 50.0, 130_000.0),
+    ];
+    let groups = group_holdings_by_code(&views);
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].code, "9904");
+    assert_eq!(groups[0].rows.len(), 2);
+    assert_eq!(groups[0].total_shares, 150.0);
+    assert_eq!(groups[0].total_purchase, 380_000.0);
+    assert_eq!(groups[0].average_price(), 380_000.0 / 150.0);
+    assert_eq!(groups[1].code, "9914");
+    assert_eq!(groups[1].rows.len(), 1);
+}
