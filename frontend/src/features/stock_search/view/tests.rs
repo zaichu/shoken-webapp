@@ -44,6 +44,21 @@ fn holding_total_tiles_sum_accounts_without_unit_price() {
     assert!(data.purchase.contains("380,000"));
     assert!(data.average_price.is_none());
     assert!(data.account.is_none());
+    assert!(data.show_common);
+}
+
+#[test]
+fn holding_account_tiles_hide_common_items() {
+    let group = tile_group(vec![
+        tile_row("特定", 100.0, 250_000.0),
+        tile_row("NISA成長", 50.0, 130_000.0),
+    ]);
+    let total = HoldingTilesData::total(&group, &DividendMaps::default());
+    assert!(total.show_common);
+    for row in &group.rows {
+        let account = HoldingTilesData::account(row, &group, &DividendMaps::default());
+        assert!(!account.show_common);
+    }
 }
 
 #[test]
@@ -52,6 +67,7 @@ fn holding_single_account_tiles_keep_unit_price_and_badge() {
     let data = HoldingTilesData::total(&group, &DividendMaps::default());
     assert!(data.average_price.is_some());
     assert_eq!(data.account.as_deref(), Some("特定"));
+    assert!(data.show_common);
 
     let account = HoldingTilesData::account(&group.rows[0], &group, &DividendMaps::default());
     assert!(account.average_price.is_some());
