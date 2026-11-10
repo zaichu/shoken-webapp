@@ -734,7 +734,7 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
             <HoldingDetailItem label=labels::ANNUAL_DIVIDEND_REFERENCE.to_string()>
                 <span class="tabular-nums">{data.annual}</span>
             </HoldingDetailItem>
-            <HoldingDetailItem label=labels::ACQUISITION_BASIS_YIELD.to_string()>
+            <HoldingDetailItem label=labels::ACQUISITION_BASIS_YIELD.to_string() wide=true>
                 <span class="tabular-nums">{data.yield_text}</span>
             </HoldingDetailItem>
         </HoldingDetails>

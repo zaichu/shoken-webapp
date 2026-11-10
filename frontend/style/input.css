@@ -1828,9 +1828,6 @@
     @apply text-xl;
   }
 
-  /* 銘柄画面の保有情報。大きなカードは評価額・評価損益の2枚だけにし、
-     ほかの項目は枠なしの「ラベルと値」の並び(PC 4列・モバイル 2列)で
-     1つのセクションにまとめる。区切りは余白と薄い罫線だけ */
   .holding-summary {
     @apply grid grid-cols-1 gap-3 lg:grid-cols-2;
   }
@@ -1853,6 +1850,10 @@
 
   .holding-detail-item {
     @apply border-t border-border pt-2;
+  }
+
+  .holding-detail-item-wide {
+    @apply col-span-2 lg:col-span-4;
   }
 
   .holding-detail-label {
