@@ -96,3 +96,11 @@ fn empty_search_description_differs_for_initial_and_no_results() {
         "銘柄コードまたは銘柄名を確認してください。"
     );
 }
+
+#[test]
+fn yield_tile_wide_only_for_odd_detail_counts() {
+    assert!(super::yield_tile_wide(true, true, true));
+    assert!(!super::yield_tile_wide(true, true, false));
+    assert!(super::yield_tile_wide(true, false, false));
+    assert!(super::yield_tile_wide(false, true, false));
+}

@@ -657,9 +657,23 @@ struct TileInput<'a> {
     show_common: bool,
 }
 
+/// 詳細が奇数項目だと末尾が1つ残るため利回りだけ全幅にする
+fn yield_tile_wide(show_common: bool, has_average: bool, has_account: bool) -> bool {
+    let count = 4
+        + usize::from(show_common) * 3
+        + usize::from(has_average)
+        + usize::from(show_common && has_account);
+    count % 2 == 1
+}
+
 #[component]
 fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
     let show_common = data.show_common;
+    let wide_yield = yield_tile_wide(
+        show_common,
+        data.average_price.is_some(),
+        data.account.is_some(),
+    );
     let current_price = data.current_price.clone();
     let price_as_of = data.price_as_of.clone();
     let per_share = data.per_share.clone();
@@ -734,7 +748,7 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
             <HoldingDetailItem label=labels::ANNUAL_DIVIDEND_REFERENCE.to_string()>
                 <span class="tabular-nums">{data.annual}</span>
             </HoldingDetailItem>
-            <HoldingDetailItem label=labels::ACQUISITION_BASIS_YIELD.to_string() wide=true>
+            <HoldingDetailItem label=labels::ACQUISITION_BASIS_YIELD.to_string() wide=wide_yield>
                 <span class="tabular-nums">{data.yield_text}</span>
             </HoldingDetailItem>
         </HoldingDetails>
