@@ -4406,7 +4406,7 @@ async fn fund_nav_view_prefers_fresh_csv_over_stale_shared() {
 async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let e = fund_price::expected_nav_date(Utc::now());
     let far_past_ts = NaiveDate::from_ymd_opt(2020, 1, 1)
         .unwrap()
         .and_hms_opt(0, 0, 0)
@@ -4430,7 +4430,7 @@ async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
         Some(dec!(5)),
         dec!(100000),
         dec!(0),
-        today,
+        e,
         far_past_ts,
     )
     .await;
@@ -4439,7 +4439,7 @@ async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
         "90000002",
         "11000",
         "100",
-        today - chrono::Duration::days(4),
+        e - chrono::Duration::days(4),
     )
     .await;
 
@@ -4450,7 +4450,7 @@ async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
     assert_eq!(row.base_price_day_change, Some(dec!(5)));
     assert_eq!(row.market_value, dec!(100000));
     assert_eq!(row.profit_loss, dec!(0));
-    assert_eq!(row.price_as_of, today);
+    assert_eq!(row.price_as_of, e);
 
     // ちょうど3日前の共有値は採用する(境界値)が、更新待ちのまま
     put_fund_price(
@@ -4458,7 +4458,7 @@ async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
         "90000002",
         "11000",
         "100",
-        today - chrono::Duration::days(3),
+        e - chrono::Duration::days(3),
     )
     .await;
     let row = view_fund_row(&pool, user_id).await;
