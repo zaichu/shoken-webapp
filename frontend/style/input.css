@@ -1805,15 +1805,15 @@
   }
 
   .holding-tiles {
-    @apply grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4;
+    @apply grid grid-cols-2 gap-2 lg:gap-3 lg:grid-cols-4;
   }
 
   .holding-tile {
-    @apply rounded-lg border border-border bg-surface-sunken px-3 py-2;
+    @apply flex min-h-16 flex-col justify-center rounded-lg border border-border bg-surface-sunken px-3 py-2;
   }
 
   .holding-tile-wide {
-    @apply col-span-2;
+    @apply col-span-2 border-border-strong bg-surface shadow-card;
   }
 
   .holding-tile-label {
@@ -1821,11 +1821,47 @@
   }
 
   .holding-tile-value {
-    @apply mt-1 font-bold tabular-nums text-text-deep;
+    @apply mt-1 font-bold break-words tabular-nums text-text-deep;
   }
 
   .holding-tile-wide .holding-tile-value {
     @apply text-xl;
+  }
+
+  .holding-summary {
+    @apply grid grid-cols-1 gap-3 lg:grid-cols-2;
+  }
+
+  .holding-summary-card {
+    @apply rounded-lg border border-border-strong bg-surface px-4 py-3 shadow-card;
+  }
+
+  .holding-summary-label {
+    @apply text-xs font-medium text-text-muted;
+  }
+
+  .holding-summary-value {
+    @apply mt-1 text-xl font-bold tabular-nums text-text-deep;
+  }
+
+  .holding-details {
+    @apply mt-4 grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4;
+  }
+
+  .holding-detail-item {
+    @apply border-t border-border pt-2;
+  }
+
+  .holding-detail-item-wide {
+    @apply col-span-2 lg:col-span-4;
+  }
+
+  .holding-detail-label {
+    @apply text-xs font-medium text-text-muted;
+  }
+
+  .holding-detail-value {
+    @apply mt-1 font-bold break-words tabular-nums text-text-deep;
   }
 
   .asset-panel-padded {

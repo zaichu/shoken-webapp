@@ -24,3 +24,43 @@ pub fn HoldingTile(
         </div>
     }
 }
+
+#[component]
+pub fn HoldingSummary(children: Children) -> impl IntoView {
+    view! {
+        <dl class="holding-summary">{children()}</dl>
+    }
+}
+
+#[component]
+pub fn HoldingSummaryItem(#[prop(into)] label: String, children: Children) -> impl IntoView {
+    view! {
+        <div class="holding-summary-card">
+            <dt class="holding-summary-label">{label}</dt>
+            <dd class="holding-summary-value">{children()}</dd>
+        </div>
+    }
+}
+
+#[component]
+pub fn HoldingDetails(children: Children) -> impl IntoView {
+    view! {
+        <dl class="holding-details">{children()}</dl>
+    }
+}
+
+#[component]
+pub fn HoldingDetailItem(
+    #[prop(into)] label: String,
+    /// 末尾だけ段に残さないよう全幅で出す
+    #[prop(optional)]
+    wide: bool,
+    children: Children,
+) -> impl IntoView {
+    view! {
+        <div class=if wide { "holding-detail-item holding-detail-item-wide" } else { "holding-detail-item" }>
+            <dt class="holding-detail-label">{label}</dt>
+            <dd class="holding-detail-value">{children()}</dd>
+        </div>
+    }
+}
