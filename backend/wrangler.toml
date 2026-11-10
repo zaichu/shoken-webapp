@@ -8,14 +8,19 @@ workers_dev = true
 # カットオーバー時に [env.<name>] や CI の --var / wrangler secret で注入する。
 # GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET は backend/.dev.vars に置く(gitignore 済み)
 
+# Smart Placement を有効にし、DB への往復が多い Worker を DB 寄りで実行させる
+[placement]
+mode = "smart"
+
 # id は実デプロイ前に `wrangler hyperdrive create` で発行した値に置き換える
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "00000000000000000000000000000000"
 
 # DB 1往復の計測ログ(db_rtt)の頻度。何回に1回出すか。0で停止。未設定は100
+# 測定後に 100 に戻す
 [vars]
-DB_RTT_SAMPLE_EVERY = "100"
+DB_RTT_SAMPLE_EVERY = "1"
 
 # Cloudflare のレート制限は simple { limit, period(10 or 60s) } でしか設定できないため、
 # Fly 側の「リクエスト/秒」を 10 秒窓に換算する(auth 10rps -> 100/10s など)。
@@ -66,7 +71,7 @@ command = "worker-build --release"
 APP_ENV = "development"
 BACKEND_URL = "http://localhost:8787"
 FRONTEND_URL = "http://localhost:8081"
-DB_RTT_SAMPLE_EVERY = "100"
+DB_RTT_SAMPLE_EVERY = "1"
 
 # `wrangler dev` では localConnectionString へ直接接続する(docker-compose の PG と同一資格情報)
 [[env.dev.hyperdrive]]
