@@ -944,7 +944,11 @@ pub const STOCK_SEARCH_META_MARKET: &str = "市場";
 pub const STOCK_SEARCH_META_INDUSTRY_33: &str = "33業種";
 /// 銘柄検索: 詳細の項目名(17業種)
 pub const STOCK_SEARCH_META_INDUSTRY_17: &str = "17業種";
-/// 銘柄検索: 詳細の項目名(規模)
+/// 銘柄検索: 保有情報の区画見出し(持っている銘柄だけに出す)
+pub const STOCK_HOLDING_SECTION: &str = "保有情報";
+/// 銘柄検索: 口座が複数ある銘柄の合計の区画見出し
+pub const STOCK_HOLDING_TOTAL: &str = "合計";
+/// 銘柄検索: 評価損益の率の読み上げ(金額と率を並べるときに使う)
 pub const STOCK_SEARCH_META_SIZE: &str = "規模";
 /// 銘柄検索: 外部リンク名
 pub const STOCK_LINK_RAKUTEN: &str = "楽天証券";

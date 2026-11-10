@@ -5,8 +5,8 @@ use crate::api::dto::{
 };
 use crate::features::asset_balance::{
     KpiHolding, PortfolioKpi, ValuationInput, calculate_portfolio_kpi, dec_to_f64,
-    format_valuation_amount, holding_valuation, normalize_display_name, summary_valuation,
-    valuation_has_pending,
+    format_valuation_amount, holding_stock_href, holding_valuation, normalize_display_name,
+    summary_valuation, valuation_has_pending,
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::account_display_name;
@@ -346,7 +346,7 @@ pub(crate) fn holding_pnls(stocks: &[AssetBalance], funds: &[FundBalance]) -> Ve
         Some(HoldingPnl {
             code: row.security_code.to_string(),
             name,
-            href: format!("/assetbalance/holdings/{}", row.id),
+            href: holding_stock_href(row.security_code.as_ref()),
             profit_loss,
             rate: valuation.profit_loss.rate,
         })

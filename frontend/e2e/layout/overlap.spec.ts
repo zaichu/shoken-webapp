@@ -67,10 +67,22 @@ async function mockReceipts(page: Page) {
   );
 }
 
-test('保有銘柄詳細: 最下端でも本文がフッターに重ならない', async ({ page }) => {
+test('旧保有銘柄詳細は銘柄画面に置き換わる: 最下端でも本文がフッターに重ならない', async ({ page }) => {
   await mockBase(page);
   await mockAssetBalances(page, [SYN_GAME]);
+  await page.route(/\/api\/v1\/stocks(?:\?.*)?$/, (route) =>
+    route.fulfill(
+      json({
+        code: '9905',
+        name: '架空ゲーム株式会社',
+        date: '2026-10-16',
+        market_category: 'プライム',
+        industry_category_33: '情報・通信業',
+      }),
+    ),
+  );
   await page.goto('/assetbalance/holdings/asset-balance-1');
+  await expect(page).toHaveURL('/search?code=9905');
   await expect(page.getByRole('heading', { name: '架空ゲーム株式会社' })).toBeVisible();
 
   // 前提: 本文が画面より高いこと(低いと検査が空振りする)
