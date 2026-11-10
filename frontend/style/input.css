@@ -1828,6 +1828,41 @@
     @apply text-xl;
   }
 
+  /* 銘柄画面の保有情報。大きなカードは評価額・評価損益の2枚だけにし、
+     ほかの項目は枠なしの「ラベルと値」の並び(PC 4列・モバイル 2列)で
+     1つのセクションにまとめる。区切りは余白と薄い罫線だけ */
+  .holding-summary {
+    @apply grid grid-cols-1 gap-3 lg:grid-cols-2;
+  }
+
+  .holding-summary-card {
+    @apply rounded-lg border border-border-strong bg-surface px-4 py-3 shadow-card;
+  }
+
+  .holding-summary-label {
+    @apply text-xs font-medium text-text-muted;
+  }
+
+  .holding-summary-value {
+    @apply mt-1 text-xl font-bold tabular-nums text-text-deep;
+  }
+
+  .holding-details {
+    @apply mt-4 grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4;
+  }
+
+  .holding-detail-item {
+    @apply border-t border-border pt-2;
+  }
+
+  .holding-detail-label {
+    @apply text-xs font-medium text-text-muted;
+  }
+
+  .holding-detail-value {
+    @apply mt-1 font-bold break-words tabular-nums text-text-deep;
+  }
+
   .asset-panel-padded {
     @apply bg-surface border border-border rounded-lg p-6;
   }

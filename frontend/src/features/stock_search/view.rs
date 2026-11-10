@@ -16,7 +16,9 @@ use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use crate::ui::format::{
     format_currency, format_iso_date, format_number_value, unit_price_decimals,
 };
-use crate::ui::holding_tiles::{HoldingTile, HoldingTiles};
+use crate::ui::holding_tiles::{
+    HoldingDetailItem, HoldingDetails, HoldingSummary, HoldingSummaryItem,
+};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::search_controls::{SearchBox, SearchSubmitButton, SearchTextInput};
@@ -662,11 +664,11 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
     let price_as_of = data.price_as_of.clone();
     let per_share = data.per_share.clone();
     view! {
-        <HoldingTiles>
-            <HoldingTile label=labels::MARKET_VALUE.to_string() wide=true>
+        <HoldingSummary>
+            <HoldingSummaryItem label=labels::MARKET_VALUE.to_string()>
                 <span class="tabular-nums">{data.market}</span>
-            </HoldingTile>
-            <HoldingTile label=labels::VALUATION_PROFIT_LOSS.to_string() wide=true>
+            </HoldingSummaryItem>
+            <HoldingSummaryItem label=labels::VALUATION_PROFIT_LOSS.to_string()>
                 <Amount
                     kind=AmountKind::Delta
                     class="tabular-nums"
@@ -675,65 +677,67 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
                     positive=data.pnl_positive
                 />
                 <span class="ml-1 text-xs text-text-muted tabular-nums">{data.pnl_rate}</span>
-            </HoldingTile>
+            </HoldingSummaryItem>
+        </HoldingSummary>
+        <HoldingDetails>
             {show_common
                 .then(|| {
                     view! {
-                        <HoldingTile label=labels::CURRENT_PRICE.to_string()>
+                        <HoldingDetailItem label=labels::CURRENT_PRICE.to_string()>
                             <span class="tabular-nums">{current_price}</span>
-                        </HoldingTile>
+                        </HoldingDetailItem>
                     }
                 })}
             {show_common
                 .then(|| {
                     view! {
-                        <HoldingTile label=labels::PRICE_AS_OF.to_string()>
+                        <HoldingDetailItem label=labels::PRICE_AS_OF.to_string()>
                             {price_as_of}
-                        </HoldingTile>
+                        </HoldingDetailItem>
                     }
                 })}
-            <HoldingTile label=labels::QUANTITY.to_string()>
+            <HoldingDetailItem label=labels::QUANTITY.to_string()>
                 <span class="tabular-nums">{data.quantity}</span>
-            </HoldingTile>
+            </HoldingDetailItem>
             {data
                 .average_price
                 .map(|average| {
                     view! {
-                        <HoldingTile label=labels::AVERAGE_PRICE.to_string()>
+                        <HoldingDetailItem label=labels::AVERAGE_PRICE.to_string()>
                             <span class="tabular-nums">{average}</span>
-                        </HoldingTile>
+                        </HoldingDetailItem>
                     }
                 })}
-            <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>
+            <HoldingDetailItem label=labels::TOTAL_ACQUISITION.to_string()>
                 <span class="tabular-nums">{data.purchase}</span>
-            </HoldingTile>
+            </HoldingDetailItem>
             {(show_common && data.account.is_some())
                 .then(|| {
                     data.account
                         .clone()
                         .map(|account| {
                             view! {
-                                <HoldingTile label=labels::ACCOUNT.to_string()>
+                                <HoldingDetailItem label=labels::ACCOUNT.to_string()>
                                     <AccountBadge label=account />
-                                </HoldingTile>
+                                </HoldingDetailItem>
                             }
                         })
                 })}
             {show_common
                 .then(|| {
                     view! {
-                        <HoldingTile label=labels::PER_SHARE_DIVIDEND.to_string()>
+                        <HoldingDetailItem label=labels::PER_SHARE_DIVIDEND.to_string()>
                             <span class="tabular-nums">{per_share}</span>
-                        </HoldingTile>
+                        </HoldingDetailItem>
                     }
                 })}
-            <HoldingTile label=labels::ANNUAL_DIVIDEND_REFERENCE.to_string()>
+            <HoldingDetailItem label=labels::ANNUAL_DIVIDEND_REFERENCE.to_string()>
                 <span class="tabular-nums">{data.annual}</span>
-            </HoldingTile>
-            <HoldingTile label=labels::ACQUISITION_BASIS_YIELD.to_string()>
+            </HoldingDetailItem>
+            <HoldingDetailItem label=labels::ACQUISITION_BASIS_YIELD.to_string()>
                 <span class="tabular-nums">{data.yield_text}</span>
-            </HoldingTile>
-        </HoldingTiles>
+            </HoldingDetailItem>
+        </HoldingDetails>
     }
 }
 

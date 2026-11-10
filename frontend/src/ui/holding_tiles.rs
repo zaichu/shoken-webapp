@@ -24,3 +24,41 @@ pub fn HoldingTile(
         </div>
     }
 }
+
+/// 評価額・評価損益の2枚だけの大きなカード並び。銘柄画面の保有情報で使い、
+/// ほかの項目は枠なしの HoldingDetails に置く
+#[component]
+pub fn HoldingSummary(children: Children) -> impl IntoView {
+    view! {
+        <dl class="holding-summary">{children()}</dl>
+    }
+}
+
+#[component]
+pub fn HoldingSummaryItem(#[prop(into)] label: String, children: Children) -> impl IntoView {
+    view! {
+        <div class="holding-summary-card">
+            <dt class="holding-summary-label">{label}</dt>
+            <dd class="holding-summary-value">{children()}</dd>
+        </div>
+    }
+}
+
+/// 枠なしの「ラベルと値」の並び。区切りは余白と薄い罫線だけにし、
+/// 項目数が端数でも崩れないよう列の結合はしない
+#[component]
+pub fn HoldingDetails(children: Children) -> impl IntoView {
+    view! {
+        <dl class="holding-details">{children()}</dl>
+    }
+}
+
+#[component]
+pub fn HoldingDetailItem(#[prop(into)] label: String, children: Children) -> impl IntoView {
+    view! {
+        <div class="holding-detail-item">
+            <dt class="holding-detail-label">{label}</dt>
+            <dd class="holding-detail-value">{children()}</dd>
+        </div>
+    }
+}
