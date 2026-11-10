@@ -8,7 +8,7 @@ use crate::features::asset_balance::format::{
 };
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::holdings::{
-    HoldingDividend, HoldingView, format_dividend_per_share, holding_dividend,
+    HoldingDividend, HoldingView, format_dividend_per_share, holding_dividend, holding_stock_href,
 };
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::SortOrder;
@@ -73,10 +73,7 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
         market: valuation.market_value,
         profit: valuation.profit_loss.amount,
         rate: valuation.profit_loss.rate,
-        href: view
-            .id
-            .clone()
-            .map(|id| format!("/assetbalance/holdings/{id}")),
+        href: Some(holding_stock_href(&view.code)),
         dividend: Some(holding_dividend(
             &view.code,
             view.shares,
@@ -503,6 +500,7 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                                     right=right.clone()
                                     on_close=move || open_for_dialog.set(false)
                                     testid="asset-merged-dialog"
+                                    link_code=dialog_row.code.clone().unwrap_or_default()
                                 />
                             </Show>
                         </li>

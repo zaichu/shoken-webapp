@@ -1,7 +1,7 @@
 //! 資産管理の構成比一覧と並べ替えの純粋ロジック。
 
 use crate::features::asset_balance::fund::FundView;
-use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
+use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView, holding_stock_href};
 use crate::features::asset_balance::model::{ValuationInput, chart_percentages, holding_valuation};
 use crate::ui::badge::account_display_name;
 use crate::ui::labels::{
@@ -236,10 +236,7 @@ pub fn composition_sources(views: &[HoldingView], funds: &[FundView]) -> Vec<Com
             sub: view.code.clone(),
             account: view.account.clone(),
             product: CompositionProduct::Stock,
-            href: view
-                .id
-                .as_ref()
-                .map(|id| format!("/assetbalance/holdings/{id}")),
+            href: Some(holding_stock_href(&view.code)),
         })
         .chain(funds.iter().map(|view| {
             CompositionSource {

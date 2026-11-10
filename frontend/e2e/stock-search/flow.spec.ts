@@ -131,3 +131,109 @@ test('検索ボタンの読み込み属性がリクエストの開始と完了�
   await expect(ready).toBeEnabled();
   await expect(ready).not.toHaveAttribute('data-loading', 'true');
 });
+
+const ASSET_ROUTES = {
+  assetBalances: /\/api\/v1\/asset-balances(?:\?.*)?$/,
+  dividendBatch: /\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/,
+};
+
+function holdingRow(id: string, account: string | null, shares = 100) {
+  return {
+    id,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    security_code: '9905',
+    security_name: '架空ゲーム',
+    account,
+    shares,
+    average_purchase_price: 2500,
+    total_purchase_amount: 2500 * shares,
+    current_price: 2600,
+    daily_change: 50,
+    market_value: 2600 * shares,
+    profit_loss_rate: 4.0,
+  };
+}
+
+async function setupHoldingMocks(page: Page, rows: ReturnType<typeof holdingRow>[]) {
+  await mockSession(page);
+  await page.route(ROUTES.stock, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_STOCK),
+    }),
+  );
+  await page.route(ASSET_ROUTES.assetBalances, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: rows, total: rows.length, page: 1, per_page: rows.length }),
+    }),
+  );
+  await page.route(ASSET_ROUTES.dividendBatch, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [] }),
+    }),
+  );
+}
+
+test('持っている銘柄は結果の上に保有情報と資産管理への戻りが出る', async ({ page }) => {
+  await setupHoldingMocks(page, [holdingRow('holding-1', '特定')]);
+
+  await page.goto('/search?code=9905');
+  await expect(page.getByText('架空ゲーム')).toBeVisible();
+
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+  await expect(page.getByRole('link', { name: '資産管理に戻る' })).toBeVisible();
+  const section = page.getByLabel('保有情報', { exact: true });
+  await expect(section.getByText('評価額')).toBeVisible();
+  await expect(section.getByText('評価損益')).toBeVisible();
+});
+
+test('持っていない銘柄は保有情報が出ない', async ({ page }) => {
+  await setupHoldingMocks(page, []);
+
+  await page.goto('/search?code=9905');
+  await expect(page.getByText('架空ゲーム')).toBeVisible();
+
+  await expect(page.getByRole('heading', { name: '保有情報' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '資産管理に戻る' })).toHaveCount(0);
+});
+
+test('口座が複数の銘柄は合計と口座ごとの保有情報が出る', async ({ page }) => {
+  await setupHoldingMocks(page, [
+    holdingRow('holding-1', '特定'),
+    holdingRow('holding-2', 'NISA成長', 50),
+  ]);
+
+  await page.goto('/search?code=9905');
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+
+  await expect(page.getByText('合計')).toBeVisible();
+  const section = page.getByLabel('保有情報', { exact: true });
+  await expect(section.getByText('150株')).toBeVisible();
+  await expect(section.getByText('取得単価')).toHaveCount(2);
+});
+
+test('資産管理の行から銘柄画面を開ける', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await setupHoldingMocks(page, [holdingRow('holding-1', '特定')]);
+
+  await page.goto('/assetbalance');
+  await expect(page.getByTestId('asset-holdings-table')).toBeVisible();
+  await page.getByTestId('asset-holdings-table').getByText('架空ゲーム').click();
+
+  await expect(page).toHaveURL('/search?code=9905');
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+});
+
+test('旧保有詳細URLは同じ銘柄の銘柄画面を開く', async ({ page }) => {
+  await setupHoldingMocks(page, [holdingRow('holding-1', '特定')]);
+
+  await page.goto('/assetbalance/holdings/holding-1');
+  await expect(page).toHaveURL('/search?code=9905');
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+});

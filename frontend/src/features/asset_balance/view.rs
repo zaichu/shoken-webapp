@@ -146,6 +146,24 @@ pub(crate) struct AssetBalanceState {
 }
 
 impl AssetBalanceState {
+    /// 銘柄画面が保有情報を出すときに使う。取得の仕組みは増やさず、
+    /// この状態と `load_asset_balances` をそのまま再利用する
+    pub(crate) fn balances(&self) -> RwSignal<BalanceSlot> {
+        self.balances
+    }
+
+    pub(crate) fn dividends(&self) -> RwSignal<DividendMaps> {
+        self.dividends
+    }
+
+    pub(crate) fn lookup(&self) -> RwSignal<AssetBalanceLookupStore> {
+        self.lookup
+    }
+
+    pub(crate) fn data_ops(&self) -> RwSignal<DataOps> {
+        self.data_ops
+    }
+
     /// CSV 最新取得など画面の保存操作を通らない取り込みのあと、保存済み一覧を取り直す
     pub(crate) fn reload_lists(&self, session: SessionStore, stock: bool, fund: bool) {
         if session.user.get_untracked().is_none() {

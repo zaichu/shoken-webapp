@@ -148,5 +148,55 @@ pub(crate) fn format_dividend_yield(dividend: &HoldingDividend) -> String {
     format_dividend_value(dividend, dividend.yield_value, format_percentage_value)
 }
 
+/// 銘柄画面(`/search?code=`)へのパス。資産管理の行・構成比・ホームの順位から使う
+pub(crate) fn holding_stock_href(code: &str) -> String {
+    format!("/search?code={}", urlencoding::encode(code))
+}
+
+/// 同一銘柄の保有行の集まり。口座が複数の銘柄は合計と口座ごとの内訳を出す
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct HoldingGroup {
+    pub(crate) code: String,
+    pub(crate) name: String,
+    pub(crate) current_price: f64,
+    pub(crate) price_as_of: Option<String>,
+    pub(crate) rows: Vec<HoldingView>,
+    pub(crate) total_shares: f64,
+    pub(crate) total_purchase: f64,
+}
+
+impl HoldingGroup {
+    pub(crate) fn average_price(&self) -> f64 {
+        if self.total_shares > 0.0 {
+            self.total_purchase / self.total_shares
+        } else {
+            0.0
+        }
+    }
+}
+
+/// 保有行を銘柄コードごとにまとめる。順番は最初の行の並びを保つ
+pub(crate) fn group_holdings_by_code(views: &[HoldingView]) -> Vec<HoldingGroup> {
+    let mut groups: Vec<HoldingGroup> = Vec::new();
+    for view in views {
+        if let Some(group) = groups.iter_mut().find(|group| group.code == view.code) {
+            group.total_shares += view.shares;
+            group.total_purchase += view.purchase;
+            group.rows.push(view.clone());
+        } else {
+            groups.push(HoldingGroup {
+                code: view.code.clone(),
+                name: view.name.clone(),
+                current_price: view.current_price,
+                price_as_of: view.price_as_of.clone(),
+                rows: vec![view.clone()],
+                total_shares: view.shares,
+                total_purchase: view.purchase,
+            });
+        }
+    }
+    groups
+}
+
 #[cfg(test)]
 mod tests;

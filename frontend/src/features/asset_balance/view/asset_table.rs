@@ -7,7 +7,7 @@ use crate::features::asset_balance::format::{
 };
 use crate::features::asset_balance::holdings::{
     HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
-    holding_dividend,
+    holding_dividend, holding_stock_href,
 };
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
@@ -108,10 +108,7 @@ pub fn AssetHoldingsTable(
                             let dividend_per_share =
                                 format_dividend_per_share(&dividend, dividend_decimals);
                             let dividend_yield = format_dividend_yield(&dividend);
-                            let href = view
-                                .id
-                                .clone()
-                                .map(|id| format!("/assetbalance/holdings/{id}"));
+                            let href = Some(holding_stock_href(&view.code));
                             let outlier_date = if is_outlier {
                                 view.price_as_of.clone()
                             } else {

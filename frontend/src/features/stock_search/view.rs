@@ -1,8 +1,22 @@
-use super::use_stock_search;
+use super::{sync_code_param, use_stock_search};
 use crate::api::dto::Stock;
-use crate::ui::badge::CodeBadge;
+use crate::features::asset_balance::{
+    HoldingGroup, HoldingView, ValuationInput, all_portfolio_views, format_dividend_annual,
+    format_dividend_per_share, format_dividend_yield, format_row_valuation_amount,
+    format_signed_row_valuation_amount, format_signed_valuation_rate, group_holdings_by_code,
+    holding_dividend, holding_valuation, is_negative_valuation, is_positive_valuation,
+    load_asset_balances, resolve_asset_balance, use_asset_balance_state,
+};
+use crate::features::dividend_per_share::DividendMaps;
+use crate::session::use_session;
+use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::badge::{AccountBadge, CodeBadge};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::format::{
+    format_currency, format_iso_date, format_number_value, unit_price_decimals,
+};
+use crate::ui::holding_tiles::{HoldingTile, HoldingTiles};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::search_controls::{SearchBox, SearchSubmitButton, SearchTextInput};
@@ -51,76 +65,184 @@ const STOCK_LINKS: &[(&str, &str)] = &[
 #[component]
 pub(crate) fn StockSearchPage() -> impl IntoView {
     let stock_search = use_stock_search();
+    let session = use_session();
+    let balance_state = use_asset_balance_state(session);
+    let balances = balance_state.balances();
+    let dividends = balance_state.dividends();
+    let lookup = balance_state.lookup();
+    let data_ops = balance_state.data_ops();
+    if session.user.get_untracked().is_some() {
+        load_asset_balances(
+            session,
+            session.generation.get_untracked(),
+            balances,
+            dividends,
+            lookup,
+            data_ops,
+        );
+    }
     let loading = stock_search.search.pending();
     let has_invalid = stock_search.has_invalid_code_param;
 
+    // 検索した銘柄コードを URL に載せ、更新・戻る・リンクで同じ画面に戻れるようにする。
+    // URL 遷移できたときは再マウント時の読み直しに任せ、できなかったときだけ直接取り直す
     let on_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
-        if !loading.get_untracked() && !stock_search.stock_code.get_untracked().is_empty() {
-            stock_search
-                .search
-                .dispatch(stock_search.stock_code.get_untracked());
+        if loading.get_untracked() || stock_search.stock_code.get_untracked().is_empty() {
+            return;
+        }
+        let code = stock_search.stock_code.get_untracked();
+        if !sync_code_param(&code) {
+            stock_search.search.dispatch(code);
         }
     };
 
-    // 検索欄はスマホが下部操作帯、PC が本文の直上。どちらも同じ入力を共有する
-    let action_bar = view! {
-        <div class="py-2" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
-            <SearchForm
-                stock_code=stock_search.stock_code
-                loading=loading.into()
-                icon_size="h-5 w-5"
-                on_submit=on_submit
-            />
-        </div>
-    }
-    .into_any();
+    // 持っている銘柄だけ、結果カードの上に保有情報を出す
+    let holding_group = Memo::new(move |_| {
+        session.user.get()?;
+        let code = stock_search.stock_data()?.code.clone();
+        let generation = session.generation.get();
+        let rows = balances
+            .with(|slot| resolve_asset_balance(generation, slot).map(|resolved| resolved.rows))?;
+        let views = all_portfolio_views(&rows, lookup, generation);
+        group_holdings_by_code(&views)
+            .into_iter()
+            .find(|group| group.code == code)
+    });
+    let has_holding = Memo::new(move |_| holding_group.get().is_some());
 
     view! {
-        <PageFrame title=labels::STOCK_SEARCH_TITLE action_bar=action_bar action_bar_mobile_only=true>
-            <div class="hidden lg:block lg:pb-4" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
-                <SearchForm
-                    stock_code=stock_search.stock_code
-                    loading=loading.into()
-                    on_submit=on_submit
-                />
-            </div>
-            <Show when=move || has_invalid>
-                <Alert variant=AlertVariant::Warning>{labels::STOCK_SEARCH_INVALID}</Alert>
-            </Show>
-            {move || {
-                let data = stock_search.stock_data();
-                let error = stock_search.error_message();
-                let not_found = stock_search.is_not_found();
-                let is_loading = loading.get();
-                if let Some(message) = error {
-                    view! {
-                        <ListLoadError message=message on_retry=move || {
-                            let code = stock_search.stock_code.get_untracked();
-                            if !code.is_empty() && !stock_search.search.pending().get_untracked() {
-                                stock_search.search.dispatch(code);
-                            }
-                        } />
-                    }
-                        .into_any()
-                } else if let Some(stock) = data {
-                    view! { <StockInfo stock=stock /> }.into_any()
-                } else if not_found {
-                    view! {
-                        <EmptySearch title=labels::STOCK_SEARCH_NOT_FOUND_TITLE />
-                    }
-                        .into_any()
-                } else if !is_loading {
-                    view! {
-                        <EmptySearch title=labels::STOCK_SEARCH_INITIAL_TITLE />
-                    }
-                        .into_any()
-                } else {
-                    view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
-                        .into_any()
+        {move || {
+            // 持っているときだけ画面の上部に資産管理への戻りも出す
+            if has_holding.get() {
+                view! {
+                    <PageFrame
+                        title=labels::STOCK_SEARCH_TITLE
+                        action_bar=view! {
+                            <div class="py-2" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
+                                <SearchForm
+                                    stock_code=stock_search.stock_code
+                                    loading=loading.into()
+                                    icon_size="h-5 w-5"
+                                    on_submit=on_submit
+                                />
+                            </div>
+                        }
+                            .into_any()
+                        action_bar_mobile_only=true
+                        back_href="/assetbalance"
+                        back_label=labels::ASSET_BALANCE_BACK
+                    >
+                        <SearchPageBody
+                            stock_search=stock_search
+                            loading=loading
+                            has_invalid=has_invalid
+                            holding_group=holding_group
+                            dividends=dividends
+                        />
+                    </PageFrame>
                 }
-            }}
-        </PageFrame>
+                    .into_any()
+            } else {
+                view! {
+                    <PageFrame
+                        title=labels::STOCK_SEARCH_TITLE
+                        action_bar=view! {
+                            <div class="py-2" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
+                                <SearchForm
+                                    stock_code=stock_search.stock_code
+                                    loading=loading.into()
+                                    icon_size="h-5 w-5"
+                                    on_submit=on_submit
+                                />
+                            </div>
+                        }
+                            .into_any()
+                        action_bar_mobile_only=true
+                    >
+                        <SearchPageBody
+                            stock_search=stock_search
+                            loading=loading
+                            has_invalid=has_invalid
+                            holding_group=holding_group
+                            dividends=dividends
+                        />
+                    </PageFrame>
+                }
+                    .into_any()
+            }
+        }}
+    }
+}
+
+/// 検索欄(PC の本文直上)・結果・保有情報をまとめた本文。戻りの有無で枠を
+/// 作り分けても中身は同じものを使う
+#[component]
+fn SearchPageBody(
+    stock_search: super::StockSearch,
+    loading: Memo<bool>,
+    has_invalid: bool,
+    holding_group: Memo<Option<HoldingGroup>>,
+    dividends: RwSignal<DividendMaps>,
+) -> impl IntoView {
+    // 検索欄はスマホが下部操作帯、PC が本文の直上。どちらも同じ入力を共有する
+    let on_submit = move |ev: web_sys::SubmitEvent| {
+        ev.prevent_default();
+        if loading.get_untracked() || stock_search.stock_code.get_untracked().is_empty() {
+            return;
+        }
+        let code = stock_search.stock_code.get_untracked();
+        if !sync_code_param(&code) {
+            stock_search.search.dispatch(code);
+        }
+    };
+    view! {
+        <div class="hidden lg:block lg:pb-4" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
+            <SearchForm stock_code=stock_search.stock_code loading=loading.into() on_submit=on_submit />
+        </div>
+        <Show when=move || has_invalid>
+            <Alert variant=AlertVariant::Warning>{labels::STOCK_SEARCH_INVALID}</Alert>
+        </Show>
+        {move || {
+            let data = stock_search.stock_data();
+            let error = stock_search.error_message();
+            let not_found = stock_search.is_not_found();
+            let is_loading = loading.get();
+            if let Some(message) = error {
+                view! {
+                    <ListLoadError message=message on_retry=move || {
+                        let code = stock_search.stock_code.get_untracked();
+                        if !code.is_empty() && !stock_search.search.pending().get_untracked() {
+                            stock_search.search.dispatch(code);
+                        }
+                    } />
+                }
+                    .into_any()
+            } else if let Some(stock) = data {
+                let group = holding_group.get();
+                view! {
+                    {group
+                        .map(|group| {
+                            view! { <HoldingSection group=group dividends=dividends /> }
+                        })}
+                    <StockInfo stock=stock />
+                }
+                    .into_any()
+            } else if not_found {
+                view! {
+                    <EmptySearch title=labels::STOCK_SEARCH_NOT_FOUND_TITLE />
+                }
+                    .into_any()
+            } else if !is_loading {
+                view! {
+                    <EmptySearch title=labels::STOCK_SEARCH_INITIAL_TITLE />
+                }
+                    .into_any()
+            } else {
+                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
+                    .into_any()
+            }
+        }}
     }
 }
 
@@ -278,6 +400,219 @@ fn StockInfoLinks(code: String) -> impl IntoView {
                 })
                 .collect_view()}
         </div>
+    }
+}
+
+/// 結果カードの上に出す保有情報。口座が複数ある銘柄は合計の下に口座ごとを並べる。
+/// 取得単価は口座ごとにだけ出す
+#[component]
+fn HoldingSection(group: HoldingGroup, dividends: RwSignal<DividendMaps>) -> impl IntoView {
+    let multi = group.rows.len() > 1;
+    let badges: Vec<Option<String>> = group.rows.iter().map(|row| row.account.clone()).collect();
+    view! {
+        <section aria-label=labels::STOCK_HOLDING_SECTION class="mb-4">
+            <h2 class="mb-2 text-sm font-bold text-text-deep">
+                {labels::STOCK_HOLDING_SECTION}
+            </h2>
+            {move || {
+                // 配当は保有一覧より遅れて届くため、ここで読み直してタイルを作り直す
+                let maps = dividends.get();
+                let total = HoldingTilesData::total(&group, &maps);
+                let accounts: Vec<HoldingTilesData> = group
+                    .rows
+                    .iter()
+                    .map(|row| HoldingTilesData::account(row, &group, &maps))
+                    .collect();
+                if multi {
+                    view! {
+                        <h3 class="mb-2 text-xs font-bold text-text-muted">
+                            {labels::STOCK_HOLDING_TOTAL}
+                        </h3>
+                        <HoldingTilesView data=total />
+                        <div class="mt-3 space-y-3">
+                            {accounts
+                                .into_iter()
+                                .zip(badges.clone())
+                                .map(|(data, badge)| {
+                                    view! {
+                                        <div>
+                                            <p class="mb-2">
+                                                {badge
+                                                    .map(|label| {
+                                                        view! { <AccountBadge label=label /> }.into_any()
+                                                    })
+                                                    .unwrap_or_else(|| labels::MISSING.into_any())}
+                                            </p>
+                                            <HoldingTilesView data=data />
+                                        </div>
+                                    }
+                                })
+                                .collect_view()}
+                        </div>
+                    }
+                        .into_any()
+                } else {
+                    view! { <HoldingTilesView data=total /> }.into_any()
+                }
+            }}
+        </section>
+    }
+}
+
+/// タイルに載せる文言の集まり。表示の組み立て(`HoldingTilesView`)と分けて
+/// 挙動の単体テストができるようにする
+#[derive(Clone, Debug, PartialEq)]
+struct HoldingTilesData {
+    market: String,
+    pnl: String,
+    pnl_rate: String,
+    pnl_negative: bool,
+    pnl_positive: bool,
+    current_price: String,
+    price_as_of: String,
+    quantity: String,
+    average_price: Option<String>,
+    purchase: String,
+    per_share: String,
+    annual: String,
+    yield_text: String,
+    account: Option<String>,
+}
+
+impl HoldingTilesData {
+    fn of(input: TileInput<'_>) -> Self {
+        let valuation = holding_valuation(&ValuationInput {
+            current_price: input.current_price,
+            shares: input.shares,
+            total_purchase_amount: input.purchase,
+        });
+        let dividend = holding_dividend(input.code, input.shares, input.average_basis, input.maps);
+        Self {
+            market: format_row_valuation_amount(valuation.market_value),
+            pnl: format_signed_row_valuation_amount(valuation.profit_loss.amount),
+            pnl_rate: format_signed_valuation_rate(valuation.profit_loss.rate, 1),
+            pnl_negative: is_negative_valuation(valuation.profit_loss.amount),
+            pnl_positive: is_positive_valuation(valuation.profit_loss.amount),
+            current_price: format_currency(input.current_price),
+            price_as_of: input.price_as_of.map_or_else(
+                || labels::MISSING.to_string(),
+                |date| format_iso_date(&date),
+            ),
+            quantity: labels::stock_shares_label(&format_number_value(input.shares)),
+            average_price: input.average_tile.map(format_currency),
+            purchase: format_currency(input.purchase),
+            per_share: format_dividend_per_share(
+                &dividend,
+                unit_price_decimals(dividend.per_share.into_iter()),
+            ),
+            annual: format_dividend_annual(&dividend),
+            yield_text: format_dividend_yield(&dividend),
+            account: input.account,
+        }
+    }
+
+    fn total(group: &HoldingGroup, maps: &DividendMaps) -> Self {
+        let account = (group.rows.len() == 1)
+            .then(|| group.rows.first().and_then(|row| row.account.clone()))
+            .flatten();
+        Self::of(TileInput {
+            code: &group.code,
+            current_price: group.current_price,
+            price_as_of: group.price_as_of.clone(),
+            shares: group.total_shares,
+            average_tile: None,
+            average_basis: group.average_price(),
+            purchase: group.total_purchase,
+            maps,
+            account,
+        })
+    }
+
+    fn account(row: &HoldingView, group: &HoldingGroup, maps: &DividendMaps) -> Self {
+        Self::of(TileInput {
+            code: &group.code,
+            current_price: row.current_price,
+            price_as_of: group.price_as_of.clone(),
+            shares: row.shares,
+            average_tile: Some(row.average_price),
+            average_basis: row.average_price,
+            purchase: row.purchase,
+            maps,
+            account: row.account.clone(),
+        })
+    }
+}
+
+/// `HoldingTilesData::of` への入力。引数が増えすぎないよう1つにまとめる
+struct TileInput<'a> {
+    code: &'a str,
+    current_price: f64,
+    price_as_of: Option<String>,
+    shares: f64,
+    /// 取得単価のタイルに出す値。合計では出さないため None
+    average_tile: Option<f64>,
+    /// 配当利回りの分母。合計では加重平均を使う
+    average_basis: f64,
+    purchase: f64,
+    maps: &'a DividendMaps,
+    account: Option<String>,
+}
+
+#[component]
+fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
+    view! {
+        <HoldingTiles>
+            <HoldingTile label=labels::MARKET_VALUE.to_string() wide=true>
+                <span class="tabular-nums">{data.market}</span>
+            </HoldingTile>
+            <HoldingTile label=labels::VALUATION_PROFIT_LOSS.to_string() wide=true>
+                <Amount
+                    kind=AmountKind::Delta
+                    class="tabular-nums"
+                    text=data.pnl
+                    negative=data.pnl_negative
+                    positive=data.pnl_positive
+                />
+                <span class="ml-1 text-xs text-text-muted tabular-nums">{data.pnl_rate}</span>
+            </HoldingTile>
+            <HoldingTile label=labels::CURRENT_PRICE.to_string()>
+                <span class="tabular-nums">{data.current_price}</span>
+            </HoldingTile>
+            <HoldingTile label=labels::PRICE_AS_OF.to_string()>{data.price_as_of}</HoldingTile>
+            <HoldingTile label=labels::QUANTITY.to_string()>
+                <span class="tabular-nums">{data.quantity}</span>
+            </HoldingTile>
+            {data
+                .average_price
+                .map(|average| {
+                    view! {
+                        <HoldingTile label=labels::AVERAGE_PRICE.to_string()>
+                            <span class="tabular-nums">{average}</span>
+                        </HoldingTile>
+                    }
+                })}
+            <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>
+                <span class="tabular-nums">{data.purchase}</span>
+            </HoldingTile>
+            {data
+                .account
+                .map(|account| {
+                    view! {
+                        <HoldingTile label=labels::ACCOUNT.to_string()>
+                            <AccountBadge label=account />
+                        </HoldingTile>
+                    }
+                })}
+            <HoldingTile label=labels::PER_SHARE_DIVIDEND.to_string()>
+                <span class="tabular-nums">{data.per_share}</span>
+            </HoldingTile>
+            <HoldingTile label=labels::ANNUAL_DIVIDEND_REFERENCE.to_string()>
+                <span class="tabular-nums">{data.annual}</span>
+            </HoldingTile>
+            <HoldingTile label=labels::ACQUISITION_BASIS_YIELD.to_string()>
+                <span class="tabular-nums">{data.yield_text}</span>
+            </HoldingTile>
+        </HoldingTiles>
     }
 }
 

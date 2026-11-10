@@ -3,6 +3,7 @@ use crate::ui::badge::AccountBadge;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::dialog::DialogShell;
 use crate::ui::labels::DIALOG_CLOSE;
+use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
 use leptos::prelude::*;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -153,6 +154,9 @@ pub fn DetailDialog(
     right: Vec<DetailCell>,
     on_close: impl Fn() + Clone + Send + 'static,
     #[prop(optional)] testid: Option<&'static str>,
+    /// 保有銘柄の行だけ銘柄画面へのリンクを出す。投資信託の行は空文字
+    #[prop(into, optional)]
+    link_code: String,
 ) -> impl IntoView {
     let panel_testid = testid.unwrap_or("detail-dialog");
     let dialog_title = name.clone();
@@ -162,6 +166,7 @@ pub fn DetailDialog(
     let account_text = account.clone();
     let code_view = (!code_text.trim().is_empty()).then(|| code_text.clone());
     let account_view = (!account_text.trim().is_empty()).then_some(account_text.clone());
+    let link_view = (!link_code.trim().is_empty()).then(|| link_code.clone());
     view! {
         <DialogShell title=dialog_title on_close=on_close testid=panel_testid>
             <div class="detail-dialog-head">
@@ -184,6 +189,15 @@ pub fn DetailDialog(
                 </div>
             </div>
             <div class="detail-dialog-footer">
+                {link_view
+                    .map(|code| {
+                        view! {
+                            <SecurityCodeLink
+                                value=code
+                                variant=SecurityLinkVariant::Details
+                            />
+                        }
+                    })}
                 <Button
                     variant=ButtonVariant::Secondary(ButtonSize::Md)
                     class="detail-dialog-close-button".to_string()

@@ -11,6 +11,7 @@ pub(crate) mod disclosure;
 pub(crate) mod empty_state;
 pub(crate) mod focus;
 pub(crate) mod format;
+pub(crate) mod holding_tiles;
 pub(crate) mod labels;
 pub(crate) mod list_row;
 pub(crate) mod login_prompt;

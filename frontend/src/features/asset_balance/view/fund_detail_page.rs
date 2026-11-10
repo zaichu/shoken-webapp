@@ -10,19 +10,11 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{format_currency, format_iso_date, format_number_value};
+use crate::ui::holding_tiles::{HoldingTile, HoldingTiles};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
-
-fn detail_row(label: &'static str, value: String) -> impl IntoView {
-    view! {
-        <div class="flex justify-between px-4 py-3">
-            <dt class="text-text-muted">{label}</dt>
-            <dd class="tabular-nums text-text">{value}</dd>
-        </div>
-    }
-}
 
 #[component]
 pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
@@ -172,45 +164,12 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                         .map(|course| labels::course_with_dot(&course))}
                                                 </p>
                                             </div>
-                                            <dl class="divide-y divide-border-faint">
-                                                {detail_row(labels::BASE_PRICE, base_price_text)}
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::BASE_PRICE_DAY_CHANGE}</dt>
-                                                    <dd>
-                                                        <Amount
-                                                            kind=AmountKind::Delta
-                                                            class="tabular-nums"
-                                                            text=day_text
-                                                            negative=day_negative
-                                                            positive=day_positive
-                                                        />
-                                                    </dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::BASE_PRICE_MONTH_CHANGE}</dt>
-                                                    <dd>
-                                                        <Amount
-                                                            kind=AmountKind::Delta
-                                                            class="tabular-nums"
-                                                            text=month_text
-                                                            negative=month_negative
-                                                            positive=month_positive
-                                                        />
-                                                    </dd>
-                                                </div>
-                                                {detail_row(asof_label, asof_text)}
-                                                {detail_row(labels::FUND_SHARES, shares_text)}
-                                                {detail_row(labels::AVERAGE_ACQUISITION_PRICE, average_price_text)}
-                                                {detail_row(labels::TOTAL_ACQUISITION, purchase_text)}
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::MARKET_VALUE}</dt>
-                                                    <dd class="tabular-nums font-bold text-text">
-                                                        {market_text}
-                                                    </dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::VALUATION_PROFIT_LOSS}</dt>
-                                                    <dd>
+                                            <div class="p-4">
+                                                <HoldingTiles>
+                                                    <HoldingTile label=labels::MARKET_VALUE.to_string() wide=true>
+                                                        <span class="tabular-nums">{market_text}</span>
+                                                    </HoldingTile>
+                                                    <HoldingTile label=labels::VALUATION_PROFIT_LOSS.to_string() wide=true>
                                                         <Amount
                                                             kind=AmountKind::Delta
                                                             class="tabular-nums"
@@ -221,11 +180,39 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                         <span class="ml-1 text-xs text-text-muted tabular-nums">
                                                             {pnl_rate_text}
                                                         </span>
-                                                    </dd>
-                                                </div>
-                                                <div class="flex justify-between px-4 py-3">
-                                                    <dt class="text-text-muted">{labels::TOTAL_RETURN}</dt>
-                                                    <dd>
+                                                    </HoldingTile>
+                                                    <HoldingTile label=labels::BASE_PRICE.to_string()>
+                                                        <span class="tabular-nums">{base_price_text}</span>
+                                                    </HoldingTile>
+                                                    <HoldingTile label=labels::BASE_PRICE_DAY_CHANGE.to_string()>
+                                                        <Amount
+                                                            kind=AmountKind::Delta
+                                                            class="tabular-nums"
+                                                            text=day_text
+                                                            negative=day_negative
+                                                            positive=day_positive
+                                                        />
+                                                    </HoldingTile>
+                                                    <HoldingTile label=labels::BASE_PRICE_MONTH_CHANGE.to_string()>
+                                                        <Amount
+                                                            kind=AmountKind::Delta
+                                                            class="tabular-nums"
+                                                            text=month_text
+                                                            negative=month_negative
+                                                            positive=month_positive
+                                                        />
+                                                    </HoldingTile>
+                                                    <HoldingTile label=asof_label.to_string()>{asof_text}</HoldingTile>
+                                                    <HoldingTile label=labels::FUND_SHARES.to_string()>
+                                                        <span class="tabular-nums">{shares_text}</span>
+                                                    </HoldingTile>
+                                                    <HoldingTile label=labels::AVERAGE_ACQUISITION_PRICE.to_string()>
+                                                        <span class="tabular-nums">{average_price_text}</span>
+                                                    </HoldingTile>
+                                                    <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>
+                                                        <span class="tabular-nums">{purchase_text}</span>
+                                                    </HoldingTile>
+                                                    <HoldingTile label=labels::TOTAL_RETURN.to_string()>
                                                         <Amount
                                                             kind=AmountKind::Delta
                                                             class="tabular-nums"
@@ -233,9 +220,9 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                             negative=total_negative
                                                             positive=total_positive
                                                         />
-                                                    </dd>
-                                                </div>
-                                            </dl>
+                                                    </HoldingTile>
+                                                </HoldingTiles>
+                                            </div>
                                         </div>
                                     }
                                         .into_any()
