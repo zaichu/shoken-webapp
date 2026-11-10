@@ -658,12 +658,14 @@ struct TileInput<'a> {
 }
 
 /// 詳細が奇数項目だと末尾が1つ残るため利回りだけ全幅にする
-fn yield_tile_wide(show_common: bool, has_average: bool, has_account: bool) -> bool {
-    let count = 4
-        + usize::from(show_common) * 3
+fn detail_item_count(show_common: bool, has_average: bool, has_account: bool) -> usize {
+    4 + usize::from(show_common) * 3
         + usize::from(has_average)
-        + usize::from(show_common && has_account);
-    count % 2 == 1
+        + usize::from(show_common && has_account)
+}
+
+fn yield_tile_wide(show_common: bool, has_average: bool, has_account: bool) -> bool {
+    detail_item_count(show_common, has_average, has_account) % 2 == 1
 }
 
 #[component]

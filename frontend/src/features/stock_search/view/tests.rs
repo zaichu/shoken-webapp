@@ -99,6 +99,10 @@ fn empty_search_description_differs_for_initial_and_no_results() {
 
 #[test]
 fn yield_tile_wide_only_for_odd_detail_counts() {
+    assert_eq!(super::detail_item_count(true, true, true), 9);
+    assert_eq!(super::detail_item_count(true, true, false), 8);
+    assert_eq!(super::detail_item_count(true, false, false), 7);
+    assert_eq!(super::detail_item_count(false, true, false), 5);
     assert!(super::yield_tile_wide(true, true, true));
     assert!(!super::yield_tile_wide(true, true, false));
     assert!(super::yield_tile_wide(true, false, false));
