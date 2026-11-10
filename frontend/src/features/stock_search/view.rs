@@ -98,14 +98,23 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
     };
 
     // 持っている銘柄だけ、結果カードの上に保有情報を出す。
-    // 銘柄マスタに無い保有銘柄も URL のコードから解決し、検索結果と独立して出す
+    // 銘柄マスタに無い保有銘柄も URL のコードから解決し、検索結果と独立して出す。
+    // ただし別名の検索失敗に前の銘柄を流用しないよう、フォールバックは
+    // 入力がそのコードのとき(コード検索・URL直開き)だけ使う
     let holding_group = Memo::new(move |_| {
         session.user.get()?;
         let code = stock_search
             .stock_data()
             .map(|stock| stock.code)
             .filter(|code| !code.is_empty())
-            .unwrap_or_else(super::url_stock_code);
+            .unwrap_or_else(|| {
+                let url = super::url_stock_code();
+                if !url.is_empty() && stock_search.stock_code.get() == url {
+                    url
+                } else {
+                    String::new()
+                }
+            });
         if code.is_empty() {
             return None;
         }
@@ -231,7 +240,8 @@ fn SearchPageBody(
     on_retry_balances: impl Fn() + Send + Sync + Copy + 'static,
 ) -> impl IntoView {
     // 名前検索の成功も銘柄コードで URL に載せ、更新・共有で同じ銘柄に戻れるようにする。
-    // 履歴は置き換える(積まない)ため再マウントせず、取り直しの循環も起きない
+    // コード検索の送信と同じく履歴に積んで再マウントするため、戻るで前の銘柄に戻れる。
+    // 載せ替え後は URL とコードが一致して何もしないため循環も起きない
     Effect::new(move |_| {
         let Some(stock) = stock_search.stock_data() else {
             return;
@@ -242,12 +252,7 @@ fn SearchPageBody(
         {
             return;
         }
-        let path = format!("/search?code={}", urlencoding::encode(&code));
-        if let Some(window) = web_sys::window()
-            && let Ok(history) = window.history()
-        {
-            let _ = history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&path));
-        }
+        sync_code_param(&code);
     });
     view! {
         <div class="hidden lg:block lg:pb-4" role="search" aria-label=labels::STOCK_SEARCH_TITLE>

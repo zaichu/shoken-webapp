@@ -332,3 +332,107 @@ test('銘柄マスタに無い保有銘柄も保有情報が出る', async ({ pa
   await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
   await expect(page.getByText('該当する銘柄が見つかりませんでした')).toBeVisible();
 });
+
+const MOCK_STOCK_2 = {
+  date: '2024-03-01',
+  code: '9906',
+  name: '架空エレクトロニクス',
+  market_category: 'プライム',
+  industry_category_33: '電気機器',
+  industry_category_17: '情報通信・サービスその他',
+  size_category: 'TOPIX Large70',
+};
+
+async function setupTwoStockMocks(page: Page) {
+  await mockSession(page);
+  await page.route(ROUTES.stock, (route) => {
+    const url = route.request().url();
+    // 日本語名の検索は URL エンコードされるため % を含む
+    const body = url.includes('query=9905') ? MOCK_STOCK : MOCK_STOCK_2;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    });
+  });
+  await page.route(ASSET_ROUTES.assetBalances, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [holdingRow('holding-1', '特定')],
+        total: 1,
+        page: 1,
+        per_page: 1,
+      }),
+    }),
+  );
+  await page.route(ASSET_ROUTES.dividendBatch, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [] }),
+    }),
+  );
+}
+
+test('存在しない銘柄名の検索失敗では前の銘柄の保有情報を出さない', async ({ page }) => {
+  await mockSession(page);
+  await page.route(ROUTES.stock, (route) => {
+    if (route.request().url().includes('query=9905')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_STOCK),
+      });
+    }
+    return route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'not found' }),
+    });
+  });
+  await page.route(ASSET_ROUTES.assetBalances, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [holdingRow('holding-1', '特定')],
+        total: 1,
+        page: 1,
+        per_page: 1,
+      }),
+    }),
+  );
+  await page.route(ASSET_ROUTES.dividendBatch, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [] }),
+    }),
+  );
+
+  await page.goto('/search?code=9905');
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+
+  await page.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' }).fill('存在しない架空の名前');
+  await page.getByRole('button', { name: '銘柄を検索' }).click();
+  await expect(page.getByText('該当する銘柄が見つかりませんでした')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '保有情報' })).toHaveCount(0);
+});
+
+test('銘柄名検索の成功後は戻るで前の銘柄に戻れる', async ({ page }) => {
+  await setupTwoStockMocks(page);
+
+  await page.goto('/search?code=9905');
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+
+  await page.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' }).fill('架空エレクトロニクス');
+  await page.getByRole('button', { name: '銘柄を検索' }).click();
+  await expect(page).toHaveURL('/search?code=9906');
+  await expect(page.getByText('架空エレクトロニクス')).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL('/search?code=9905');
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+});
