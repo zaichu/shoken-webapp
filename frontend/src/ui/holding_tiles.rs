@@ -24,13 +24,3 @@ pub fn HoldingTile(
         </div>
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn tile_grid_class_names_stay_stable_for_tests() {
-        for class in ["holding-tiles", "holding-tile", "holding-tile-wide"] {
-            assert!(!class.is_empty());
-        }
-    }
-}

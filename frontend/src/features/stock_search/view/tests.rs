@@ -50,7 +50,7 @@ fn holding_total_tiles_sum_accounts_without_unit_price() {
 fn holding_single_account_tiles_keep_unit_price_and_badge() {
     let group = tile_group(vec![tile_row("特定", 100.0, 250_000.0)]);
     let data = HoldingTilesData::total(&group, &DividendMaps::default());
-    assert!(data.average_price.is_none());
+    assert!(data.average_price.is_some());
     assert_eq!(data.account.as_deref(), Some("特定"));
 
     let account = HoldingTilesData::account(&group.rows[0], &group, &DividendMaps::default());

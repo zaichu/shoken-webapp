@@ -97,10 +97,18 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
         }
     };
 
-    // 持っている銘柄だけ、結果カードの上に保有情報を出す
+    // 持っている銘柄だけ、結果カードの上に保有情報を出す。
+    // 銘柄マスタに無い保有銘柄も URL のコードから解決し、検索結果と独立して出す
     let holding_group = Memo::new(move |_| {
         session.user.get()?;
-        let code = stock_search.stock_data()?.code.clone();
+        let code = stock_search
+            .stock_data()
+            .map(|stock| stock.code)
+            .filter(|code| !code.is_empty())
+            .unwrap_or_else(super::url_stock_code);
+        if code.is_empty() {
+            return None;
+        }
         let generation = session.generation.get();
         let rows = balances
             .with(|slot| resolve_asset_balance(generation, slot).map(|resolved| resolved.rows))?;
@@ -110,6 +118,31 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
             .find(|group| group.code == code)
     });
     let has_holding = Memo::new(move |_| holding_group.get().is_some());
+
+    // 保有一覧の取得失敗は非保有と区別し、再試行できるようにする
+    let balance_error = Memo::new(move |_| {
+        session.user.get()?;
+        let generation = session.generation.get();
+        balances.with(|slot| match slot {
+            Some((cached, Err(message))) if *cached == generation => Some(message.clone()),
+            _ => None,
+        })
+    });
+    let refresh_error = Memo::new(move |_| data_ops.with(|ops| ops.refresh_error.clone()));
+    let reload_balances = move || {
+        if session.user.get_untracked().is_none() {
+            return;
+        }
+        balances.set(None);
+        load_asset_balances(
+            session,
+            session.generation.get_untracked(),
+            balances,
+            dividends,
+            lookup,
+            data_ops,
+        );
+    };
 
     view! {
         {move || {
@@ -136,9 +169,13 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
                         <SearchPageBody
                             stock_search=stock_search
                             loading=loading
+                            on_submit=on_submit
                             has_invalid=has_invalid
                             holding_group=holding_group
                             dividends=dividends
+                            balance_error=balance_error
+                            refresh_error=refresh_error
+                            on_retry_balances=reload_balances
                         />
                     </PageFrame>
                 }
@@ -163,9 +200,13 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
                         <SearchPageBody
                             stock_search=stock_search
                             loading=loading
+                            on_submit=on_submit
                             has_invalid=has_invalid
                             holding_group=holding_group
                             dividends=dividends
+                            balance_error=balance_error
+                            refresh_error=refresh_error
+                            on_retry_balances=reload_balances
                         />
                     </PageFrame>
                 }
@@ -181,21 +222,33 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
 fn SearchPageBody(
     stock_search: super::StockSearch,
     loading: Memo<bool>,
+    on_submit: impl Fn(web_sys::SubmitEvent) + Send + Sync + Copy + 'static,
     has_invalid: bool,
     holding_group: Memo<Option<HoldingGroup>>,
     dividends: RwSignal<DividendMaps>,
+    balance_error: Memo<Option<String>>,
+    refresh_error: Memo<Option<String>>,
+    on_retry_balances: impl Fn() + Send + Sync + Copy + 'static,
 ) -> impl IntoView {
-    // 検索欄はスマホが下部操作帯、PC が本文の直上。どちらも同じ入力を共有する
-    let on_submit = move |ev: web_sys::SubmitEvent| {
-        ev.prevent_default();
-        if loading.get_untracked() || stock_search.stock_code.get_untracked().is_empty() {
+    // 名前検索の成功も銘柄コードで URL に載せ、更新・共有で同じ銘柄に戻れるようにする。
+    // 履歴は置き換える(積まない)ため再マウントせず、取り直しの循環も起きない
+    Effect::new(move |_| {
+        let Some(stock) = stock_search.stock_data() else {
+            return;
+        };
+        let code = stock.code.clone();
+        if !crate::support::list_search::is_searchable_code(&code)
+            || super::url_stock_code() == code
+        {
             return;
         }
-        let code = stock_search.stock_code.get_untracked();
-        if !sync_code_param(&code) {
-            stock_search.search.dispatch(code);
+        let path = format!("/search?code={}", urlencoding::encode(&code));
+        if let Some(window) = web_sys::window()
+            && let Ok(history) = window.history()
+        {
+            let _ = history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&path));
         }
-    };
+    });
     view! {
         <div class="hidden lg:block lg:pb-4" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
             <SearchForm stock_code=stock_search.stock_code loading=loading.into() on_submit=on_submit />
@@ -203,6 +256,21 @@ fn SearchPageBody(
         <Show when=move || has_invalid>
             <Alert variant=AlertVariant::Warning>{labels::STOCK_SEARCH_INVALID}</Alert>
         </Show>
+        {move || {
+            refresh_error
+                .get()
+                .map(|message| {
+                    view! {
+                        <div class="no-print mb-3">
+                            <Alert variant=AlertVariant::Danger>
+                                <strong>{labels::ERROR_PREFIX}</strong>
+                                " "
+                                {message}
+                            </Alert>
+                        </div>
+                    }
+                })
+        }}
         {move || {
             let data = stock_search.stock_data();
             let error = stock_search.error_message();
@@ -218,6 +286,17 @@ fn SearchPageBody(
                     } />
                 }
                     .into_any()
+            } else if let Some(balance_message) = balance_error.get() {
+                view! {
+                    <div class="mb-3">
+                        <ListLoadError message=balance_message on_retry=on_retry_balances />
+                    </div>
+                    {data
+                        .map(|stock| {
+                            view! { <StockInfo stock=stock /> }.into_any()
+                        })}
+                }
+                    .into_any()
             } else if let Some(stock) = data {
                 let group = holding_group.get();
                 view! {
@@ -229,7 +308,12 @@ fn SearchPageBody(
                 }
                     .into_any()
             } else if not_found {
+                let group = holding_group.get();
                 view! {
+                    {group
+                        .map(|group| {
+                            view! { <HoldingSection group=group dividends=dividends /> }
+                        })}
                     <EmptySearch title=labels::STOCK_SEARCH_NOT_FOUND_TITLE />
                 }
                     .into_any()
@@ -512,7 +596,8 @@ impl HoldingTilesData {
     }
 
     fn total(group: &HoldingGroup, maps: &DividendMaps) -> Self {
-        let account = (group.rows.len() == 1)
+        let single = group.rows.len() == 1;
+        let account = single
             .then(|| group.rows.first().and_then(|row| row.account.clone()))
             .flatten();
         Self::of(TileInput {
@@ -520,7 +605,7 @@ impl HoldingTilesData {
             current_price: group.current_price,
             price_as_of: group.price_as_of.clone(),
             shares: group.total_shares,
-            average_tile: None,
+            average_tile: single.then(|| group.average_price()),
             average_basis: group.average_price(),
             purchase: group.total_purchase,
             maps,

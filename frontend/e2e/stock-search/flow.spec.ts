@@ -191,6 +191,7 @@ test('持っている銘柄は結果の上に保有情報と資産管理への�
   const section = page.getByLabel('保有情報', { exact: true });
   await expect(section.getByText('評価額')).toBeVisible();
   await expect(section.getByText('評価損益')).toBeVisible();
+  await expect(section.getByText('取得単価')).toBeVisible();
 });
 
 test('持っていない銘柄は保有情報が出ない', async ({ page }) => {
@@ -236,4 +237,98 @@ test('旧保有詳細URLは同じ銘柄の銘柄画面を開く', async ({ page 
   await page.goto('/assetbalance/holdings/holding-1');
   await expect(page).toHaveURL('/search?code=9905');
   await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+});
+
+test('銘柄名で検索しても成功した銘柄コードがURLに載る', async ({ page }) => {
+  await setupHoldingMocks(page, [holdingRow('holding-1', '特定')]);
+
+  await page.goto('/search');
+  await page.getByRole('searchbox', { name: '銘柄コードまたは銘柄名で検索' }).fill('架空ゲーム');
+  await page.getByRole('button', { name: '銘柄を検索' }).click();
+
+  await expect(page.getByText('架空ゲーム')).toBeVisible();
+  await expect(page).toHaveURL('/search?code=9905');
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+});
+
+test('保有一覧の取得失敗は再試行できる', async ({ page }) => {
+  await mockSession(page);
+  await page.route(ROUTES.stock, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_STOCK),
+    }),
+  );
+  let listCalls = 0;
+  await page.route(ASSET_ROUTES.assetBalances, (route) => {
+    listCalls += 1;
+    // 500 はクライアント側でリトライされ、銘柄画面では取得が2回走るため、
+    // 初回表示の2回分(最大4リクエスト)を失敗させる
+    if (listCalls <= 4) {
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'server error' }),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [holdingRow('holding-1', '特定')],
+        total: 1,
+        page: 1,
+        per_page: 1,
+      }),
+    });
+  });
+  await page.route(ASSET_ROUTES.dividendBatch, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [] }),
+    }),
+  );
+
+  await page.goto('/search?code=9905');
+  await expect(page.getByText('架空ゲーム')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '保有情報' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: '再読み込み' }).click();
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+});
+
+test('銘柄マスタに無い保有銘柄も保有情報が出る', async ({ page }) => {
+  await mockSession(page);
+  await page.route(ROUTES.stock, (route) =>
+    route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'not found' }),
+    }),
+  );
+  await page.route(ASSET_ROUTES.assetBalances, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [holdingRow('holding-1', '特定')],
+        total: 1,
+        page: 1,
+        per_page: 1,
+      }),
+    }),
+  );
+  await page.route(ASSET_ROUTES.dividendBatch, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [] }),
+    }),
+  );
+
+  await page.goto('/search?code=9905');
+  await expect(page.getByRole('heading', { name: '保有情報' })).toBeVisible();
+  await expect(page.getByText('該当する銘柄が見つかりませんでした')).toBeVisible();
 });
