@@ -566,6 +566,8 @@ struct HoldingTilesData {
     annual: String,
     yield_text: String,
     account: Option<String>,
+    /// 銘柄共通の項目(現在値・価格基準日・1株配当)を出すか。合計だけに出し、口座ごとには出さない
+    show_common: bool,
 }
 
 impl HoldingTilesData {
@@ -597,6 +599,7 @@ impl HoldingTilesData {
             annual: format_dividend_annual(&dividend),
             yield_text: format_dividend_yield(&dividend),
             account: input.account,
+            show_common: input.show_common,
         }
     }
 
@@ -615,6 +618,7 @@ impl HoldingTilesData {
             purchase: group.total_purchase,
             maps,
             account,
+            show_common: true,
         })
     }
 
@@ -629,6 +633,7 @@ impl HoldingTilesData {
             purchase: row.purchase,
             maps,
             account: row.account.clone(),
+            show_common: false,
         })
     }
 }
@@ -646,10 +651,16 @@ struct TileInput<'a> {
     purchase: f64,
     maps: &'a DividendMaps,
     account: Option<String>,
+    /// 銘柄共通の項目(現在値・価格基準日・1株配当)を出すか
+    show_common: bool,
 }
 
 #[component]
 fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
+    let show_common = data.show_common;
+    let current_price = data.current_price.clone();
+    let price_as_of = data.price_as_of.clone();
+    let per_share = data.per_share.clone();
     view! {
         <HoldingTiles>
             <HoldingTile label=labels::MARKET_VALUE.to_string() wide=true>
@@ -665,10 +676,22 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
                 />
                 <span class="ml-1 text-xs text-text-muted tabular-nums">{data.pnl_rate}</span>
             </HoldingTile>
-            <HoldingTile label=labels::CURRENT_PRICE.to_string()>
-                <span class="tabular-nums">{data.current_price}</span>
-            </HoldingTile>
-            <HoldingTile label=labels::PRICE_AS_OF.to_string()>{data.price_as_of}</HoldingTile>
+            {show_common
+                .then(|| {
+                    view! {
+                        <HoldingTile label=labels::CURRENT_PRICE.to_string()>
+                            <span class="tabular-nums">{current_price}</span>
+                        </HoldingTile>
+                    }
+                })}
+            {show_common
+                .then(|| {
+                    view! {
+                        <HoldingTile label=labels::PRICE_AS_OF.to_string()>
+                            {price_as_of}
+                        </HoldingTile>
+                    }
+                })}
             <HoldingTile label=labels::QUANTITY.to_string()>
                 <span class="tabular-nums">{data.quantity}</span>
             </HoldingTile>
@@ -693,9 +716,14 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
                         </HoldingTile>
                     }
                 })}
-            <HoldingTile label=labels::PER_SHARE_DIVIDEND.to_string()>
-                <span class="tabular-nums">{data.per_share}</span>
-            </HoldingTile>
+            {show_common
+                .then(|| {
+                    view! {
+                        <HoldingTile label=labels::PER_SHARE_DIVIDEND.to_string()>
+                            <span class="tabular-nums">{per_share}</span>
+                        </HoldingTile>
+                    }
+                })}
             <HoldingTile label=labels::ANNUAL_DIVIDEND_REFERENCE.to_string()>
                 <span class="tabular-nums">{data.annual}</span>
             </HoldingTile>
