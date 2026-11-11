@@ -15,6 +15,7 @@ use crate::ui::format::{
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use crate::ui::security_link::TableNameLink;
+use crate::urls::fund_holding_href;
 use leptos::prelude::*;
 
 #[component]
@@ -69,10 +70,7 @@ pub fn FundHoldingsTable(
                                 is_negative_rate(view.profit_loss_rate);
                             let rate_positive =
                                 is_positive_rate(view.profit_loss_rate);
-                            let href = view
-                                .id
-                                .clone()
-                                .map(|id| format!("/assetbalance/funds/{id}"));
+                            let href = view.id.as_ref().map(fund_holding_href);
                             let shares_text = labels::fund_units_label(
                                 &format_number_value(view.shares),
                             );

@@ -8,6 +8,7 @@ mod support;
 #[cfg(test)]
 mod testing;
 mod ui;
+mod urls;
 
 use app::App;
 

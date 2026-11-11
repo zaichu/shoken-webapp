@@ -22,6 +22,7 @@ use crate::ui::format::{
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
+use crate::urls::fund_holding_href;
 use leptos::prelude::*;
 
 /// 株とファンドをまとめる一覧行。sub はスマホの行メタ(コード・コース)、残りは表の列
@@ -103,10 +104,7 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
         market: Some(view.market_value),
         profit: Some(view.profit_loss),
         rate: view.profit_loss_rate,
-        href: view
-            .id
-            .clone()
-            .map(|id| format!("/assetbalance/funds/{id}")),
+        href: view.id.as_ref().map(fund_holding_href),
         dividend: None,
         current_price: Some(view.base_price),
         average_price: Some(view.average_purchase_price),

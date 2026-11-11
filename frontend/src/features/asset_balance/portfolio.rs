@@ -9,6 +9,7 @@ use crate::ui::labels::{
     COMPOSITION_GROUP_HOLDING, COMPOSITION_GROUP_PRODUCT, DOMESTIC_STOCK, MARKET_VALUE, MISSING,
     MUTUAL_FUND, VALUATION_PROFIT_LOSS,
 };
+use crate::urls::fund_holding_href;
 use std::cmp::Ordering;
 
 /// 並べ替えの指標。
@@ -238,17 +239,12 @@ pub fn composition_sources(views: &[HoldingView], funds: &[FundView]) -> Vec<Com
             product: CompositionProduct::Stock,
             href: Some(holding_stock_href(&view.code)),
         })
-        .chain(funds.iter().map(|view| {
-            CompositionSource {
-                name: view.name.clone(),
-                sub: view.course.clone().unwrap_or_default(),
-                account: Some(view.account.clone()),
-                product: CompositionProduct::Fund,
-                href: view
-                    .id
-                    .as_ref()
-                    .map(|id| format!("/assetbalance/funds/{id}")),
-            }
+        .chain(funds.iter().map(|view| CompositionSource {
+            name: view.name.clone(),
+            sub: view.course.clone().unwrap_or_default(),
+            account: Some(view.account.clone()),
+            product: CompositionProduct::Fund,
+            href: view.id.as_ref().map(fund_holding_href),
         }))
         .collect()
 }
