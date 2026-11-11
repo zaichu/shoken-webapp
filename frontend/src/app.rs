@@ -14,6 +14,7 @@ use crate::session::provide_session;
 use crate::ui::labels;
 use crate::ui::site::{AccountDeleteConfirm, AccountDeleteDialog, BottomNav, SiteFooter};
 use crate::ui::state::Loading;
+use crate::urls::{FUND_HOLDINGS_PREFIX, HOLDINGS_PREFIX, detail_id};
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -66,16 +67,18 @@ impl Route {
             Route::NotFound => labels::NOT_FOUND_TITLE,
         }
     }
+
+    fn shows_bottom_nav(self) -> bool {
+        !matches!(self, Route::Login | Route::NotFound)
+    }
 }
 
 fn holding_id(path: &str) -> Option<&str> {
-    let id = path.strip_prefix("/assetbalance/holdings/")?;
-    (!id.is_empty() && !id.contains('/')).then_some(id)
+    detail_id(path, HOLDINGS_PREFIX)
 }
 
 fn fund_holding_id(path: &str) -> Option<&str> {
-    let id = path.strip_prefix("/assetbalance/funds/")?;
-    (!id.is_empty() && !id.contains('/')).then_some(id)
+    detail_id(path, FUND_HOLDINGS_PREFIX)
 }
 
 fn route_for_path(path: &str) -> Route {
@@ -103,7 +106,9 @@ fn route_for_path(path: &str) -> Route {
     }
 }
 
-// 取引明細・資産管理・設定配下は未ログインで開けない(新設ルートもプレフィックスで保護する)
+// 取引明細・資産管理・設定配下は未ログインで開けない(新設ルートもプレフィックスで保護する)。
+// 前方一致にしているのは、2段目の不明パス(例: /assetbalance/holdings/a/b)も
+// route 上は NotFound だが未ログインでは開かせないため
 fn protected_path(path: &str) -> bool {
     let path = pathname_of(path);
     matches!(path, "/receipts" | "/assetbalance" | "/settings" | "/csv")
@@ -249,7 +254,7 @@ fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
 }
 
 fn show_bottom_nav_for(route: Route) -> bool {
-    !matches!(route, Route::Login | Route::NotFound)
+    route.shows_bottom_nav()
 }
 
 #[component]

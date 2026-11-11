@@ -1,5 +1,6 @@
 use super::use_asset_balance_state;
 use crate::app::CurrentPath;
+use crate::features::asset_balance::holdings::holding_stock_href;
 use crate::features::asset_balance::store::load_asset_balances;
 use crate::session::use_session;
 use crate::ui::empty_state::EmptyState;
@@ -55,7 +56,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
             return;
         }
         redirected.set(true);
-        let path = format!("/search?code={}", urlencoding::encode(code));
+        let path = holding_stock_href(code);
         if let Some(window) = web_sys::window()
             && let Ok(history) = window.history()
         {

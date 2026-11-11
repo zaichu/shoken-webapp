@@ -1,4 +1,5 @@
 use super::*;
+use crate::urls::fund_holding_href;
 
 #[test]
 fn route_for_known_and_unknown_paths() {
@@ -44,6 +45,44 @@ fn route_for_designed_sub_paths() {
 fn old_delete_paths_open_csv_pages() {
     assert_eq!(route_for_path("/receipts/csv/delete"), Route::Csv);
     assert_eq!(route_for_path("/assetbalance/csv/delete"), Route::Csv);
+}
+
+#[test]
+fn detail_wrappers_extract_single_segment_only() {
+    assert_eq!(
+        holding_id("/assetbalance/holdings/abc-123"),
+        Some("abc-123")
+    );
+    assert_eq!(
+        fund_holding_id("/assetbalance/funds/fund-1"),
+        Some("fund-1")
+    );
+    assert_eq!(holding_id("/assetbalance/holdings/"), None);
+    assert_eq!(holding_id("/assetbalance/holdings/a/b"), None);
+    assert_eq!(fund_holding_id("/assetbalance/funds/"), None);
+    assert_eq!(fund_holding_id("/assetbalance/funds/a/b"), None);
+    assert_eq!(holding_id("/assetbalance/funds/abc"), None);
+    assert_eq!(fund_holding_id("/assetbalance/holdings/abc"), None);
+}
+
+#[test]
+fn fund_holding_link_resolves_to_fund_route() {
+    assert_eq!(
+        route_for_path(&fund_holding_href("fund-1")),
+        Route::AssetFundHolding
+    );
+}
+
+#[test]
+fn protected_path_covers_unknown_sub_paths() {
+    // route 上は NotFound だが未ログインでは開かせない
+    assert_eq!(
+        route_for_path("/assetbalance/holdings/a/b"),
+        Route::NotFound
+    );
+    assert!(protected_path("/assetbalance/holdings/a/b"));
+    assert!(protected_path("/assetbalance/funds/"));
+    assert!(protected_path("/receipts/conditions/extra"));
 }
 
 #[test]

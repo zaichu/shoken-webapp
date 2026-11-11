@@ -14,6 +14,7 @@ use crate::ui::format::date_parts;
 use crate::ui::labels::{
     self, DOMESTIC_STOCK, HOME_REMAINING_EMPTY, MUTUAL_FUND, home_remaining, home_remaining_over,
 };
+use crate::urls::fund_holding_href;
 use rust_decimal::Decimal;
 use shared::tax::TAX_RATE;
 
@@ -354,7 +355,7 @@ pub(crate) fn holding_pnls(stocks: &[AssetBalance], funds: &[FundBalance]) -> Ve
     let fund_rows = funds.iter().map(|row| HoldingPnl {
         code: String::new(),
         name: normalize_display_name(&row.fund_name),
-        href: format!("/assetbalance/funds/{}", row.id),
+        href: fund_holding_href(&row.id),
         profit_loss: dec_to_f64(&row.profit_loss),
         rate: row.profit_loss_rate.as_ref().map(dec_to_f64),
     });
