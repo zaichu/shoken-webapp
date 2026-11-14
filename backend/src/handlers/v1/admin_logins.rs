@@ -115,7 +115,10 @@ mod tests {
                     (body["page"].as_i64(), body["per_page"].as_i64()),
                     (Some(1), Some(1000))
                 );
-                assert!(body["data"].as_array().unwrap().is_empty());
+                assert_eq!(
+                    body["data"].as_array().unwrap().as_slice(),
+                    [] as [serde_json::Value; 0]
+                );
             }
         }
         let recorded: i64 = db::query_scalar(
