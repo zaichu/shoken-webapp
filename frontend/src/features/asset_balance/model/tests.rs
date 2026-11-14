@@ -1,5 +1,6 @@
 use super::*;
 use crate::ui::format::intl_fixed;
+use rust_decimal::prelude::ToPrimitive;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -498,7 +499,7 @@ proptest::proptest! {
         proptest::prop_assert_eq!(percentages.len(), values.len());
         let sum: f64 = percentages.iter().sum();
         proptest::prop_assert!(
-            (sum - 100.0).abs() <= 0.006 * percentages.len() as f64 + 1e-9,
+            (sum - 100.0).abs() <= 0.006 * percentages.len().to_f64().unwrap_or(f64::MAX) + 1e-9,
             "sum={sum}"
         );
     }

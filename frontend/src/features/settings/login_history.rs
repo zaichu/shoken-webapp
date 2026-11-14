@@ -131,7 +131,8 @@ pub fn SectionLoginHistory() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match fetch_history_page(HISTORY_PAGE_SIZE, 0).await {
                 Ok(rows) => {
-                    has_more.set(rows.len() as i64 == HISTORY_PAGE_SIZE);
+                    has_more
+                        .set(i64::try_from(rows.len()).unwrap_or(i64::MAX) == HISTORY_PAGE_SIZE);
                     entries.set(rows);
                     initial.set(Some(Ok(())));
                 }
@@ -146,10 +147,11 @@ pub fn SectionLoginHistory() -> impl IntoView {
         loading_more.set(true);
         more_error.set(None);
         leptos::task::spawn_local(async move {
-            let offset = entries.with_untracked(Vec::len) as i64;
+            let offset = i64::try_from(entries.with_untracked(Vec::len)).unwrap_or(i64::MAX);
             match fetch_history_page(HISTORY_PAGE_SIZE, offset).await {
                 Ok(rows) => {
-                    let exhausted = rows.len() as i64 != HISTORY_PAGE_SIZE;
+                    let exhausted =
+                        i64::try_from(rows.len()).unwrap_or(i64::MAX) != HISTORY_PAGE_SIZE;
                     entries.update(|all| {
                         all.extend(rows);
                         all.truncate(HISTORY_MAX_TOTAL);

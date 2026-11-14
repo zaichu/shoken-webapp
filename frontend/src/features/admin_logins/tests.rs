@@ -7,6 +7,21 @@ fn more_button_needs_successful_first_load_and_remaining_rows() {
     assert!(can_load_more(true, 50, Some(64)));
     assert!(!can_load_more(true, 64, Some(64)));
     assert!(!can_load_more(true, 70, Some(64)));
+    assert!(!can_load_more(
+        true,
+        loaded_count_beyond_i64(),
+        Some(i64::MAX)
+    ));
+}
+
+#[cfg(target_pointer_width = "32")]
+fn loaded_count_beyond_i64() -> usize {
+    usize::MAX
+}
+
+#[cfg(target_pointer_width = "64")]
+fn loaded_count_beyond_i64() -> usize {
+    i64::MAX as usize + 1
 }
 
 #[test]

@@ -15,6 +15,7 @@ use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fe
 use crate::ui::format::format_number_value;
 use crate::ui::labels;
 use leptos::prelude::*;
+use rust_decimal::prelude::ToPrimitive;
 use std::collections::HashSet;
 
 #[derive(Clone, Debug)]
@@ -106,7 +107,9 @@ pub(crate) async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiErr
 
 pub(crate) fn truncated_list_warning() -> String {
     labels::asset_truncated_warning(&format_number_value(
-        (LIST_PER_PAGE * LIST_MAX_PAGES) as f64,
+        (LIST_PER_PAGE * LIST_MAX_PAGES)
+            .to_f64()
+            .unwrap_or(f64::MAX),
     ))
 }
 
