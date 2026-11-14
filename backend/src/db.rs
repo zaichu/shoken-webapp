@@ -1105,9 +1105,7 @@ mod tests {
     #[tokio::test]
     async fn close_only_closes_pool_when_future_is_polled() {
         let db = connect_pool_lazy("postgres://user:pass@localhost/db", 1).unwrap();
-        let pool = match &*db.inner {
-            DbInner::Pool(pool) => pool,
-        };
+        let DbInner::Pool(pool) = &*db.inner;
 
         let closing = db.close();
         assert!(!pool.is_closed());
