@@ -39,9 +39,18 @@ impl CsvTabState {
 
 fn csv_form_data(file: &web_sys::File) -> Result<web_sys::FormData, ApiError> {
     let form = web_sys::FormData::new().map_err(|_| ApiError::Network)?;
-    form.append_with_blob("file", file)
+    form.append_with_blob_and_filename("file", file, &ensure_csv_filename(&file.name()))
         .map_err(|_| ApiError::Network)?;
     Ok(form)
+}
+
+/// 環境により File の名前が multipart に載らないため backend の拡張子ガードに合わせて名前を明示する
+pub(crate) fn ensure_csv_filename(original: &str) -> String {
+    if original.to_lowercase().ends_with(".csv") {
+        original.to_string()
+    } else {
+        format!("{original}.csv")
+    }
 }
 
 fn chunk_form_data(chunk: &web_sys::Blob, filename: &str) -> Result<web_sys::FormData, ApiError> {

@@ -5,6 +5,7 @@ mod port;
 mod tests;
 mod view;
 
+pub(crate) use import::with_csv_extension;
 pub(crate) use view::CsvSyncBody;
 
 use crate::ui::labels;

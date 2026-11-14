@@ -1,6 +1,14 @@
 use super::*;
 
 #[test]
+fn ensure_csv_filename_appends_csv_only_when_missing() {
+    assert_eq!(ensure_csv_filename("positions"), "positions.csv");
+    assert_eq!(ensure_csv_filename("positions.txt"), "positions.txt.csv");
+    assert_eq!(ensure_csv_filename("positions.csv"), "positions.csv");
+    assert_eq!(ensure_csv_filename("POSITIONS.CSV"), "POSITIONS.CSV");
+}
+
+#[test]
 fn begin_delete_requires_confirm_and_is_busy_gated() {
     let mut state = CsvTabState::default();
     assert!(!state.begin_delete());

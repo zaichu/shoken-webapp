@@ -1,6 +1,6 @@
 use crate::features::asset_balance::AssetBalanceCsvStore;
 use crate::features::csv_page::CsvKind;
-use crate::features::csv_sync::{CsvSyncStore, KindStatus};
+use crate::features::csv_sync::{CsvSyncStore, KindStatus, with_csv_extension};
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::session::use_session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
@@ -397,7 +397,7 @@ fn CsvKindRow(
             .and_then(|files| files.get(0));
         input.set_value("");
         if let Some(file) = file {
-            csv_sync.import_file(kind.sync_kind(), file);
+            csv_sync.import_file(kind.sync_kind(), with_csv_extension(&file));
         }
     };
 

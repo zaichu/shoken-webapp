@@ -10,7 +10,7 @@ use crate::features::asset_balance::{
     IMPORT_PATH, LIST_PATH, PREVIEW_PATH,
 };
 use crate::features::receipts::{ReceiptsTab, chunking_for};
-use crate::support::csv_flow::{CsvChunking, preview_csv, upload_csv_while};
+use crate::support::csv_flow::{CsvChunking, ensure_csv_filename, preview_csv, upload_csv_while};
 use crate::ui::labels;
 use leptos::prelude::*;
 
@@ -253,6 +253,16 @@ fn csv_to_file(csv: &ReceivedCsv) -> Option<web_sys::File> {
 
 fn file_name(kind: CsvKind) -> String {
     format!("sync-{}.csv", kind.request_value())
+}
+
+/// 中身はそのままに名前だけ .csv 付きの File にする。失敗時は元の File を返す
+pub(crate) fn with_csv_extension(file: &web_sys::File) -> web_sys::File {
+    let name = ensure_csv_filename(&file.name());
+    if name == file.name() {
+        return file.clone();
+    }
+    let parts = js_sys::Array::of1(file);
+    web_sys::File::new_with_blob_sequence(&parts, &name).unwrap_or_else(|_| file.clone())
 }
 
 /// 必須列なしの失敗理由。渡されたファイルの切り分けに使うため先頭行も添える
