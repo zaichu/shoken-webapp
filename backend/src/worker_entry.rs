@@ -189,7 +189,14 @@ async fn fetch(
     env: Env,
     _ctx: Context,
 ) -> Result<axum::http::Response<axum::body::Body>> {
-    let state = build_state(&env)?;
+    let mut state = build_state(&env)?;
+    #[cfg(target_arch = "wasm32")]
+    let colo = req.extensions().get::<worker::Cf>().map(worker::Cf::colo);
+    #[cfg(not(target_arch = "wasm32"))]
+    let colo: Option<String> = None;
+    state.pool = state
+        .pool
+        .with_rtt_context(crate::db::DbRttOrigin::Fetch, colo.as_deref());
     #[cfg(target_arch = "wasm32")]
     insert_cf_region_header(&mut req);
     Ok(router(state, &env).call(req).await?)
@@ -238,7 +245,12 @@ fn log_cron_outcome(
 async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
     let total = CronTimer::start();
     let state = match build_state(&env) {
-        Ok(state) => state,
+        Ok(mut state) => {
+            state.pool = state
+                .pool
+                .with_rtt_context(crate::db::DbRttOrigin::Scheduled, None);
+            state
+        }
         Err(e) => {
             console_error!("scheduled イベントエラー: state 構築: {e}");
             return;
