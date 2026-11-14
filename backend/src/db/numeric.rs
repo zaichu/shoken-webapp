@@ -51,9 +51,7 @@ fn encode_numeric(d: &Decimal, out: &mut Vec<u8>) -> Result<(), Box<dyn Error + 
             - i32::try_from(frac_groups).map_err(|_| err("NUMERIC の桁数が上限を超えた"))?
             - 1;
         // 後続の 0 グループは値を変えないので削る
-        while digits.last() == Some(&0) {
-            digits.pop();
-        }
+        while digits.pop_if(|digit| *digit == 0).is_some() {}
     }
 
     out.put_i16(i16::try_from(digits.len()).map_err(|_| err("NUMERIC の桁数が上限を超えた"))?);

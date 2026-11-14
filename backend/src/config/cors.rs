@@ -41,7 +41,7 @@ pub fn build_cors_layer(cors_origins: &[String], allow_preview_origins: bool) ->
         .allow_methods(allowed_methods)
         .allow_headers(allowed_headers)
         .allow_credentials(true)
-        .max_age(Duration::from_secs(3600))
+        .max_age(Duration::from_hours(1))
 }
 
 pub fn parse_cors_origins(raw: &str) -> Vec<String> {
