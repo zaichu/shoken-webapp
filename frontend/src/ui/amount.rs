@@ -67,7 +67,7 @@ fn amount_classes(kind: AmountKind, negative: bool, positive: bool, extra: &str)
     }
 }
 
-fn amount_negative_attr(kind: AmountKind, negative: bool) -> Option<&'static str> {
+const fn amount_negative_attr(kind: AmountKind, negative: bool) -> Option<&'static str> {
     match kind {
         AmountKind::Delta if negative => Some("true"),
         _ => None,

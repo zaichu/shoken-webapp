@@ -11,7 +11,7 @@ fn retry_delay_ms(attempt: u32) -> u32 {
 }
 
 // 401(サーバー側でセッションが既に無い)も成功扱いにして再試行を止める
-pub fn is_finished(result: &Result<(), ApiError>) -> bool {
+pub const fn is_finished(result: &Result<(), ApiError>) -> bool {
     match result {
         Ok(()) => true,
         Err(error) => error.is_unauthorized(),

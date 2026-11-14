@@ -9,7 +9,7 @@ pub struct CsvTabState {
 }
 
 impl CsvTabState {
-    pub fn open_delete_confirm(&mut self) {
+    pub const fn open_delete_confirm(&mut self) {
         self.show_delete_confirm = true;
     }
 

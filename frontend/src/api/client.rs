@@ -35,18 +35,18 @@ pub enum ApiError {
 
 impl ApiError {
     #[cfg(test)]
-    pub fn http(status: u16) -> Self {
+    pub const fn http(status: u16) -> Self {
         Self::Http {
             status,
             server_message: None,
         }
     }
 
-    pub fn is_unauthorized(&self) -> bool {
+    pub const fn is_unauthorized(&self) -> bool {
         matches!(self, Self::Http { status: 401, .. })
     }
 
-    pub fn is_retryable(&self) -> bool {
+    pub const fn is_retryable(&self) -> bool {
         match self {
             Self::Network | Self::Timeout => true,
             Self::Http { status, .. } => *status >= 500,
@@ -119,7 +119,7 @@ pub struct ApiClient {
 }
 
 impl ApiClient {
-    pub fn new(
+    pub const fn new(
         base_url: String,
         timeout_ms: u64,
         max_retries: u32,

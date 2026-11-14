@@ -125,7 +125,7 @@ pub enum AmountUnit {
 }
 
 impl AmountUnit {
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::Yen => labels::YEN,
             Self::Sen => labels::THOUSAND_YEN,
@@ -133,7 +133,7 @@ impl AmountUnit {
         }
     }
 
-    pub(crate) fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::Yen => "yen",
             Self::Sen => "sen",
@@ -158,7 +158,7 @@ impl AmountUnit {
         }
     }
 
-    pub(crate) fn divisor_f64(self) -> f64 {
+    pub(crate) const fn divisor_f64(self) -> f64 {
         match self {
             Self::Yen => 1.0,
             Self::Sen => 1_000.0,
@@ -177,7 +177,7 @@ pub enum Theme {
 }
 
 impl Theme {
-    pub(crate) fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::System => "system",
             Self::Light => "light",
