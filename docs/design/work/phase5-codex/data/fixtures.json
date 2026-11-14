@@ -11,7 +11,7 @@
       "account": "特定口座",
       "previousValue": 1180000,
       "class": "国内株式",
-      "annualDividendPerShare": 1800
+      "annualDividendPerShare": 360
     },
     {
       "id": "stock-b",
@@ -24,7 +24,7 @@
       "account": "NISA",
       "previousValue": 7969807,
       "class": "国内株式",
-      "annualDividendPerShare": 13634.38
+      "annualDividendPerShare": 39339.07
     },
     {
       "id": "fund-a",
@@ -43,62 +43,62 @@
     {
       "month": 1,
       "beforeTax": 12000,
-      "tax": 0
+      "tax": 2438
     },
     {
       "month": 2,
       "beforeTax": 8000,
-      "tax": 0
+      "tax": 1625
     },
     {
       "month": 3,
       "beforeTax": 180000,
-      "tax": 36000
+      "tax": 36566
     },
     {
       "month": 4,
       "beforeTax": 11000,
-      "tax": 0
+      "tax": 2235
     },
     {
       "month": 5,
       "beforeTax": 13000,
-      "tax": 0
+      "tax": 2641
     },
     {
       "month": 6,
-      "beforeTax": 1138438,
-      "tax": 0
+      "beforeTax": 3564907,
+      "tax": 724195
     },
     {
       "month": 7,
       "beforeTax": 9000,
-      "tax": 0
+      "tax": 1828
     },
     {
       "month": 8,
       "beforeTax": 7000,
-      "tax": 0
+      "tax": 1422
     },
     {
       "month": 9,
       "beforeTax": 15000,
-      "tax": 0
+      "tax": 3047
     },
     {
       "month": 10,
       "beforeTax": 10000,
-      "tax": 0
+      "tax": 2031
     },
     {
       "month": 11,
       "beforeTax": 96250,
-      "tax": 19250
+      "tax": 19553
     },
     {
       "month": 12,
       "beforeTax": 43750,
-      "tax": 9250
+      "tax": 8888
     }
   ],
   "recentDividends": [
@@ -106,14 +106,14 @@
       "holdingId": "stock-a",
       "month": 11,
       "beforeTax": 56250,
-      "tax": 11250,
+      "tax": 11427,
       "date": "2026/11/10"
     },
     {
       "holdingId": "stock-b",
       "month": 11,
       "beforeTax": 40000,
-      "tax": 8000,
+      "tax": 8126,
       "date": "2026/11/08"
     }
   ]
