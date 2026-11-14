@@ -157,13 +157,13 @@ OpenCode 監査（`ux-audit-opencode.md`。H-2 は統合判定で取下げのた
 - 未作成: `B-PC-取引明細1280`・`B-SP-取引明細390`（Figma MCP スタータープランのレート制限到達のため前 PR 時点で未作成。本 PR 方針により追加しない）。
 - Figma ボードのスクリーンショット確認は未確認（同制限で `get_screenshot` が呼べないため。Canvas 上の重なり・文字切れの目視検証は未実施）。
 - 代替（本 PR に含む）: `docs/design/work/phase3-opencode/html/` の共通 `b.css`＋ HTML 7 件と、Playwright（Chromium・`--no-sandbox`）のフルページ PNG 7 枚。目視で文字切れ・重なりなしを確認済み。表の溢れは `scrollWidth/clientWidth` でも確認（資産 PC・取引 PC とも溢れなし）。画像はすべて 150KB 以下。
-  - ホーム PC: `b-home-pc.html` → `shots/B-home-pc.png`（約 54KB）
-  - ホーム SP: `b-home-sp.html` → `shots/B-home-sp.png`（約 97KB）
-  - ホーム PC ダーク: `b-home-pc-dark.html` → `shots/B-home-pc-dark.png`（約 53KB。`body.dark` のみで面・文字・罫線を反転。新規トークンなし）
-  - 資産管理（すべて）PC: `b-asset-pc.html` → `shots/B-asset-pc.png`（約 54KB）
-  - 資産管理（すべて）SP: `b-asset-sp.html` → `shots/B-asset-sp.png`（約 89KB）
-  - 取引明細（配当金）PC: `b-receipts-pc.html` → `shots/B-receipts-pc.png`（約 116KB）
-  - 取引明細（配当金）SP: `b-receipts-sp.html` → `shots/B-receipts-sp.png`（約 72KB）
+  - ホーム PC: `b-home-pc.html` → `shots/B-home-pc.png`（約 56KB）
+  - ホーム SP: `b-home-sp.html` → `shots/B-home-sp.png`（約 103KB）
+  - ホーム PC ダーク: `b-home-pc-dark.html` → `shots/B-home-pc-dark.png`（約 56KB。`body.dark` のみで面・文字・罫線を反転。新規トークンなし）
+  - 資産管理（すべて）PC: `b-asset-pc.html` → `shots/B-asset-pc.png`（約 55KB）
+  - 資産管理（すべて）SP: `b-asset-sp.html` → `shots/B-asset-sp.png`（約 94KB）
+  - 取引明細（配当金）PC: `b-receipts-pc.html` → `shots/B-receipts-pc.png`（約 137KB）
+  - 取引明細（配当金）SP: `b-receipts-sp.html` → `shots/B-receipts-sp.png`（約 86KB）
 
 ## 11. Devin 指摘への対応と数値の型統一
 
@@ -180,3 +180,6 @@ OpenCode 監査（`ux-audit-opencode.md`。H-2 は統合判定で取下げのた
   - 紺帯の上も同決まり（明色に寄せた緑/赤。`positive` 系・`negative` 系トークン）
   - データ時点: 価格基準日 `2026/10/20`（年付き）・取込 `データ: 2026/1/1 取り込み`・配当期間 `2026/01 〜 2026/12` を全画面で同じ文言にする
   - 日付: 一覧は `YYYY/MM/DD`（`format_iso_date`）、行内は `M/D`（`format_short_date`）、小計行は `2026年12月 ｜ 3件の合計`
+- 追加対応（PR #1897 の未解決 2 スレッド）:
+  - `pos`＋`sub` 併用が灰色になる: `.band .sub`・`.rows .sub` が後の規則で `.pos` を上書きしていた。`b.css` に `.rows .sub.pos, .sub.pos`（緑）・`.band .sub.pos`（帯用明緑）・`neg` 版を追加し、ダーク用も `body.dark` 付きで追加。ついでにホーム帯の `+5.7%` にも `pos` を付けて資産管理帯・SP とそろえた。
+  - 月別内訳の合計不一致（`¥3,099,249` ≠ 年間 `¥3,163,438`）: 差 `¥64,189` を 2026年10月（税引前 `+¥80,535`・税 `-¥16,346`・税引後 `+¥64,189`）として全 7 画面（ホーム PC/SP/ダークの月別表、取引 PC/SP の月グループ）に追加し、3 方向（税引前・税・税引後）すべてで帯合計と一致させた。架空データだが合計は合わせている。あわせて取引明細 11 月の不足 1 行（`+¥1,400`/`-¥284`/`+¥1,116`、小計「3件」と行数不一致）を補い、ホーム「最近の配当入金」を 12 月明細の 3 行にそろえた。一覧が抜粋の画面（資産 72 件中 7/5 件、取引 36 件中 7 件）には「のみ表示」の注記を付けた。なお取得総額＋評価損益＝評価額（`¥27,040,660`＋`¥1,552,488`＝`¥28,593,148`）、口座別割合の合計 100%、予想倍率 16.1 倍・上回り額 `¥2,967,065` は一致済み。

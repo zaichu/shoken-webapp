@@ -121,6 +121,11 @@ body {
 .rows > .rowline:first-child { border-top: none; }
 .rows .name { font-weight: 700; }
 .rows .sub, .sub { color: var(--muted); font-size: 11px; }
+/* pos/neg を併せ持つ sub は補助色ではなく符号の色を優先する（.band/.rows の sub 規則による上書きを防ぐ） */
+.rows .sub.pos, .sub.pos { color: var(--pos); }
+.rows .sub.neg, .sub.neg { color: var(--neg); }
+.band .sub.pos { color: var(--pos-band); }
+.band .sub.neg { color: var(--neg-band); }
 /* 段階開示: 詳細は閉じた状態が既定。summaryには必ず文字ラベルを付ける */
 details.more { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 8px; }
 details.more summary { cursor: pointer; color: var(--accent); font-size: 12px; }
@@ -192,4 +197,6 @@ body.dark .header { background: #0a1a30; }
 body.dark .band { background: #12294a; }
 body.dark .pos { color: #4ade80; }
 body.dark .neg { color: #f87171; }
+body.dark .rows .sub.pos, body.dark .sub.pos { color: #4ade80; }
+body.dark .rows .sub.neg, body.dark .sub.neg { color: #f87171; }
 body.dark .pill { background: var(--group); }
