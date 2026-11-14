@@ -2,7 +2,7 @@
 
 ## 実際に見た画像
 
-実画像を開いて確認したのは **31枚**（Codex 撮影 15枚、OpenCode 撮影 16枚）。画像パスは本書の各項目に記した。PC/スマホ、ライト/ダークを含む。撮影資料に記載された架空データだけを対象とした。
+実画像を開いて確認したのは **30枚**（Codex 撮影 15枚、OpenCode 撮影 15枚）。対象画像は末尾の一覧にリポジトリルートからの相対パスで全件列挙した。PC/スマホ、ライト/ダークを含む。撮影資料に記載された架空データだけを対象とした。
 
 **未確認の画面・状態:** 構成比の PC/ダーク・他基準、投信詳細のスマホ/ライト、株保有詳細の PC、明細の条件別展開（PC/スマホ）、資産/明細の空・エラー全組み合わせ、検索0件（資産/明細）、CSV の行メニュー・削除確認・取込結果、ホームの配当詳細、アカウント削除確認、ローディング、設定の全セクション（アカウント/表示/データ/セキュリティ/端末）、実機ブラウザ。スクリーンショットがないことは撮影 INDEX の理由も参照した。
 
@@ -17,56 +17,56 @@ Codex の `phase1-codex/screen-inventory.md` と OpenCode の `phase1-opencode/s
 ### 1. 金融データの時点が短い日付だけで示される（重要度: 高）
 
 - **観点:** 金融データの表示精度、情報の見つけやすさ
-- **根拠:** `phase1-codex/shots/home-pc-light.png` は上部に「データ: 2026/1/1 取り込み」、評価額には「価格基準日 10/20」と表示。`phase1-codex/shots/asset-all-1440x900-pc-light.png` の集計にも「価格基準日 10/20」。年を含む取込日と年なしの価格基準日が同時に見える。
+- **根拠:** `docs/design/work/phase1-codex/shots/home-pc-light.png` は上部に「データ: 2026/1/1 取り込み」、評価額には「価格基準日 10/20」と表示。`docs/design/work/phase1-codex/shots/asset-all-1440x900-pc-light.png` の集計にも「価格基準日 10/20」。年を含む取込日と年なしの価格基準日が同時に見える。
 - **課題:** 画面上で異なる種類の時点が隣り合い、価格がいつ時点かを年まで含めて素早く特定できない。資産判断に使う値なので、表示幅が狭くても時点の意味と年月日を取り違えない形が必要。
 - **改善方針:** 取込時点と価格/基準価額の時点を別ラベルで明示し、価格基準日は年を含む日付に統一する。詳細な根拠や対象データがあれば注記行に集約する。
 
 ### 2. ホームのモバイル上部が他の集計画面と異なる構造（重要度: 中）
 
 - **観点:** 情報の見つけやすさ、情報密度、画面間の一貫性、レスポンシブ
-- **根拠:** `phase1-codex/shots/home-mobile-light.png` と `home-mobile-dark.png` では評価額/評価損益が上バー直下にあり、評価額だけの開閉ボタン、別カードの配当グラフ、別カードの資産内訳が続く。対して `phase1-codex/shots/receipts-dividend-mobile-dark.png` と `phase1-opencode/shots/asset-error-default-mobile-light.png` はページ名・全幅タブ・集計/状態が明確に縦の帯として続く。
+- **根拠:** `docs/design/work/phase1-codex/shots/home-mobile-light.png` と `home-mobile-dark.png` では評価額/評価損益が上バー直下にあり、評価額だけの開閉ボタン、別カードの配当グラフ、別カードの資産内訳が続く。対して `docs/design/work/phase1-codex/shots/receipts-dividend-mobile-dark.png` と `docs/design/work/phase1-opencode/shots/asset-error-default-mobile-light.png` はページ名・全幅タブ・集計/状態が明確に縦の帯として続く。
 - **課題:** ホームだけ要約値のまとまり方が違い、配当カード・内訳カードまでスクロールして主要情報と周辺情報を行き来する。暗色表示では配当カードが初期画面の大部分を占め、資産内訳の凡例が下部ナビに近い。
 - **改善方針:** ホームも共通の集計帯の規則に合わせ、評価額・評価損益・配当サマリーの優先順と開閉対象を明確にする。グラフと内訳は要約の下に置き、モバイル初期画面で主要数値が見比べられるようにする。
 
 ### 3. 長い銘柄名が一覧で省略され、同名商品の識別が難しい（重要度: 中）
 
 - **観点:** 情報の見つけやすさ、可読性、金融データの識別
-- **根拠:** `phase1-codex/shots/asset-all-1440x900-pc-light.png` では長いファンド名が末尾「…」で省略されている。`phase1-codex/shots/asset-all-scrolled-mobile-light.png` と `phase1-codex/shots/receipts-fund-mobile-light.png` ではモバイルで折返し表示されるが、初期画面では1〜2件目が多くの縦幅を使う。
+- **根拠:** `docs/design/work/phase1-codex/shots/asset-all-1440x900-pc-light.png` では長いファンド名が末尾「…」で省略されている。`docs/design/work/phase1-codex/shots/asset-all-scrolled-mobile-light.png` と `docs/design/work/phase1-codex/shots/receipts-fund-mobile-light.png` ではモバイルで折返し表示されるが、初期画面では1〜2件目が多くの縦幅を使う。
 - **課題:** 同じ接頭辞の長い商品名は PC で区別しづらく、モバイルでは読むために一覧密度が下がる。名前が識別キーとなる場面では省略だけでは不十分。
 - **改善方針:** PC は名称列に十分な幅を割り当て、完全名を行詳細またはフォーカス可能な補助表示で確認できるようにする。スマホは完全名の折返しを許容しつつ、行内の優先情報を固定して金額との視線移動を減らす。
 
 ### 4. 明細の情報密度が高く、一覧と詳細の役割が曖昧（重要度: 中）
 
 - **観点:** 情報密度と可読性、操作の分かりやすさ、金融データの表示
-- **根拠:** `phase1-codex/shots/receipts-stock-scrolled-1440x900-pc-light.png` の PC 表は日付、コード、銘柄、口座、数量、売却額、取得額、実現損益、税額、税引後を横一列に表示。対して `phase1-opencode/shots/receipts-detail-dialog-default-mobile-light.png` は同一種別の税引前・税額・税引後などを詳細ダイアログに配置し、一覧の行は少数情報に絞る。
+- **根拠:** `docs/design/work/phase1-codex/shots/receipts-stock-scrolled-1440x900-pc-light.png` の PC 表は日付、コード、銘柄、口座、数量、売却額、取得額、実現損益、税額、税引後を横一列に表示。対して `docs/design/work/phase1-opencode/shots/receipts-detail-dialog-default-mobile-light.png` は同一種別の税引前・税額・税引後などを詳細ダイアログに配置し、一覧の行は少数情報に絞る。
 - **課題:** PC では比較できる一方で列数が多く、一覧を読む際に目的の数値へ視線を移しにくい。モバイルではダイアログを開いて初めて詳細な金額内訳が見えるため、重要な値を一覧だけで比較する利用者には発見性が低い。
 - **改善方針:** 一覧では主要値（税引後損益/受取額）を強調し、補助値は列のグルーピングと整列を明確にする。モバイルでは詳細を開く操作を行全体で一貫させ、詳細内の項目順を PC の列順に揃える。
 
 ### 5. 構成比チャートのラベルが狭い幅で切れ、凡例と一覧の対応が弱い（重要度: 中）
 
 - **観点:** 情報の見つけやすさ、情報密度、レスポンシブ、金融データ表示精度
-- **根拠:** `phase1-opencode/shots/asset-composition-default-mobile-light.png` では凡例の銘柄名が「…」で省略され、チャート色と順位表示はあるが長い名前を識別できない。下の順位一覧ではフルネームが複数行に折り返される。
+- **根拠:** `docs/design/work/phase1-opencode/shots/asset-composition-default-mobile-light.png` では凡例の銘柄名が「…」で省略され、チャート色と順位表示はあるが長い名前を識別できない。下の順位一覧ではフルネームが複数行に折り返される。
 - **課題:** チャート凡例で上位商品の識別が困難で、色だけを頼りに下の一覧と照合する必要がある。多数銘柄の小さな円図も単独では詳細比較しにくい。
 - **改善方針:** 凡例は名称を一意に判別できる情報（短縮名+コード等）を残し、割合と順位一覧を同じ順序・同じ値表記で対応させる。全件の構成確認を優先する場合は、円図を補助的に扱う。
 
 ### 6. CSV 管理の更新状態が色と小さな時刻情報に依存する（重要度: 中）
 
 - **観点:** 操作の分かりやすさ、アクセシビリティ、データ時点
-- **根拠:** `phase1-codex/shots/csv-asset-1024x768-pc-dark.png` と `phase1-opencode/shots/csv-mutualfund-default-mobile-light.png` では「要更新・15日前(10/31 09:12)に更新」が橙色で表示される。0件の未取得は「まだ取得していません」と別表現。
+- **根拠:** `docs/design/work/phase1-codex/shots/csv-asset-1024x768-pc-dark.png` と `docs/design/work/phase1-opencode/shots/csv-mutualfund-default-mobile-light.png` では「要更新・15日前(10/31 09:12)に更新」が橙色で表示される。0件の未取得は「まだ取得していません」と別表現。
 - **課題:** 要更新の状態が色付きの長い文にまとまり、更新時刻（年なし）と次の操作が一読で分かれない。色覚や低コントラスト環境では状態の区別を色だけで補えない。
 - **改善方針:** 状態名（要更新/未取得/更新済み）と最終取得時点を別項目として表示し、日付形式を全画面で統一する。各行のメニュー操作は状態と独立して明示する。
 
 ### 7. 設定画面の長いブラウザ名がテーブルとカードで異なる見え方（重要度: 低）
 
 - **観点:** 可読性、レスポンシブ、一貫性
-- **根拠:** `phase1-codex/shots/settings-login-history-scrolled-1440x900-pc-light.png` ではブラウザ/OS名が末尾省略、`phase1-opencode/shots/settings-login-history-default-mobile-dark.png` では複数行に折返した後に省略される。
+- **根拠:** `docs/design/work/phase1-codex/shots/settings-login-history-scrolled-1440x900-pc-light.png` ではブラウザ/OS名が末尾省略、`docs/design/work/phase1-opencode/shots/settings-login-history-default-mobile-dark.png` では複数行に折返した後に省略される。
 - **課題:** 端末を見分ける情報が PC とスマホで異なる長さだけ見え、同じ履歴の比較がしづらい。
 - **改善方針:** 表示名を短いブラウザ/OS名に正規化し、完全な user agent が必要なら詳細操作で参照できるようにする。
 
 ### 8. 画面ごとに空・エラー表示後の次の行動が異なる（重要度: 低）
 
 - **観点:** 操作の分かりやすさ、画面遷移、視覚的一貫性
-- **根拠:** `phase1-opencode/shots/receipts-empty-default-mobile-light.png` は CSV 取込ボタン付き空状態、`phase1-opencode/shots/asset-empty-default-mobile-light.png` は説明と CSV 導線付き。`phase1-opencode/shots/receipts-error-default-pc-dark.png` と `asset-error-default-mobile-light.png` は再読込ボタン付きだが、パネル/枠や背景が異なる。
+- **根拠:** `docs/design/work/phase1-opencode/shots/receipts-empty-default-mobile-light.png` は CSV 取込ボタン付き空状態、`docs/design/work/phase1-opencode/shots/asset-empty-default-mobile-light.png` は説明と CSV 導線付き。`docs/design/work/phase1-opencode/shots/receipts-error-default-pc-dark.png` と `asset-error-default-mobile-light.png` は再読込ボタン付きだが、パネル/枠や背景が異なる。
 - **課題:** 同じ一覧画面でも空状態の誘導文とエラー枠の見え方に差があり、失敗から再試行する場所が画面ごとに変わる。
 - **改善方針:** 空は「登録/取込」の次の行動、失敗は「再読み込み」を共通部品・共通位置で提示し、説明文だけ画面固有にする。
 
@@ -97,42 +97,40 @@ Codex の `phase1-codex/screen-inventory.md` と OpenCode の `phase1-opencode/s
 - **アクセシビリティ:** 画像で見えるラベル付きボタンと色・フォーカス枠のみ観察。キーボード順、フォーカス可視性の全状態、コントラスト比、実タップ領域、スクリーンリーダー名は画像から確認できず未確認。
 - **実装と保守の容易さ:** 画像から実装の重複や保守性は判定できない。設計ルールは共通部品を定めているため、改善時は `docs/design/mobile-ui-rules.md` と `docs/ui-design.md` の共通部品へ集約する。
 
-## 画像パス一覧（実際に開いて確認した31枚）
+## 画像パス一覧（実際に開いて確認した30枚）
 
 ### Codex 撮影（15枚）
 
-- `phase1-codex/shots/home-pc-light.png`
-- `phase1-codex/shots/home-mobile-light.png`
-- `phase1-codex/shots/home-mobile-dark.png`
-- `phase1-codex/shots/asset-all-1440x900-pc-light.png`
-- `phase1-codex/shots/asset-all-scrolled-mobile-light.png`
-- `phase1-codex/shots/asset-fund-scrolled-mobile-dark.png`
-- `phase1-codex/shots/receipts-stock-scrolled-1440x900-pc-light.png`
-- `phase1-codex/shots/receipts-dividend-mobile-dark.png`
-- `phase1-codex/shots/receipts-fund-mobile-light.png`
-- `phase1-codex/shots/search-mobile-light.png`
-- `phase1-codex/shots/csv-asset-1024x768-pc-dark.png`
-- `phase1-codex/shots/csv-scrolled-mobile-light.png`
-- `phase1-codex/shots/settings-login-history-scrolled-1440x900-pc-light.png`
-- `phase1-codex/shots/admin-logins-1024x768-scrolled-pc-dark.png`
-- `phase1-codex/shots/admin-logins-empty-1920x1080-pc-light.png`
+- `docs/design/work/phase1-codex/shots/home-pc-light.png`
+- `docs/design/work/phase1-codex/shots/home-mobile-light.png`
+- `docs/design/work/phase1-codex/shots/home-mobile-dark.png`
+- `docs/design/work/phase1-codex/shots/asset-all-1440x900-pc-light.png`
+- `docs/design/work/phase1-codex/shots/asset-all-scrolled-mobile-light.png`
+- `docs/design/work/phase1-codex/shots/asset-fund-scrolled-mobile-dark.png`
+- `docs/design/work/phase1-codex/shots/receipts-stock-scrolled-1440x900-pc-light.png`
+- `docs/design/work/phase1-codex/shots/receipts-dividend-mobile-dark.png`
+- `docs/design/work/phase1-codex/shots/receipts-fund-mobile-light.png`
+- `docs/design/work/phase1-codex/shots/search-mobile-light.png`
+- `docs/design/work/phase1-codex/shots/csv-asset-1024x768-pc-dark.png`
+- `docs/design/work/phase1-codex/shots/csv-scrolled-mobile-light.png`
+- `docs/design/work/phase1-codex/shots/settings-login-history-scrolled-1440x900-pc-light.png`
+- `docs/design/work/phase1-codex/shots/admin-logins-1024x768-scrolled-pc-dark.png`
+- `docs/design/work/phase1-codex/shots/admin-logins-empty-1920x1080-pc-light.png`
 
-### OpenCode 撮影（16枚）
+### OpenCode 撮影（15枚）
 
-- `phase1-opencode/shots/asset-composition-default-mobile-light.png`
-- `phase1-opencode/shots/asset-holding-fund-default-pc-dark.png`
-- `phase1-opencode/shots/asset-holding-stock-default-mobile-dark.png`
-- `phase1-opencode/shots/asset-empty-default-mobile-light.png`
-- `phase1-opencode/shots/asset-error-default-mobile-light.png`
-- `phase1-opencode/shots/asset-search-ui-default-pc-light.png`
-- `phase1-opencode/shots/receipts-empty-default-mobile-light.png`
-- `phase1-opencode/shots/receipts-error-default-pc-dark.png`
-- `phase1-opencode/shots/receipts-search-ui-default-mobile-dark.png`
-- `phase1-opencode/shots/receipts-detail-dialog-default-mobile-light.png`
-- `phase1-opencode/shots/csv-mutualfund-default-mobile-light.png`
-- `phase1-opencode/shots/settings-login-history-default-mobile-dark.png`
-- `phase1-opencode/shots/account-menu-default-mobile-light.png`
-- `phase1-opencode/shots/login-default-mobile-dark.png`
-- `phase1-opencode/shots/search-empty-default-mobile-dark.png`
-
-ファイルパスはそれぞれ `/home/zaichu/project/.worktrees/shoken-webapp-1890-codex/docs/design/work/phase1-codex/` と `/home/zaichu/project/.worktrees/shoken-webapp-1890-opencode/docs/design/work/phase1-opencode/` を基点とする。
+- `docs/design/work/phase1-opencode/shots/asset-composition-default-mobile-light.png`
+- `docs/design/work/phase1-opencode/shots/asset-holding-fund-default-pc-dark.png`
+- `docs/design/work/phase1-opencode/shots/asset-holding-stock-default-mobile-dark.png`
+- `docs/design/work/phase1-opencode/shots/asset-empty-default-mobile-light.png`
+- `docs/design/work/phase1-opencode/shots/asset-error-default-mobile-light.png`
+- `docs/design/work/phase1-opencode/shots/asset-search-ui-default-pc-light.png`
+- `docs/design/work/phase1-opencode/shots/receipts-empty-default-mobile-light.png`
+- `docs/design/work/phase1-opencode/shots/receipts-error-default-pc-dark.png`
+- `docs/design/work/phase1-opencode/shots/receipts-search-ui-default-mobile-dark.png`
+- `docs/design/work/phase1-opencode/shots/receipts-detail-dialog-default-mobile-light.png`
+- `docs/design/work/phase1-opencode/shots/csv-mutualfund-default-mobile-light.png`
+- `docs/design/work/phase1-opencode/shots/settings-login-history-default-mobile-dark.png`
+- `docs/design/work/phase1-opencode/shots/account-menu-default-mobile-light.png`
+- `docs/design/work/phase1-opencode/shots/login-default-mobile-dark.png`
+- `docs/design/work/phase1-opencode/shots/search-empty-default-mobile-dark.png`
