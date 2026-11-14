@@ -337,6 +337,8 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
 }
 
 /// 予定時刻（UTC エポックミリ秒）の分が5の倍数なら現在値更新を実行するかを返す
+// JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None→false になる
+#[allow(clippy::cast_possible_truncation)]
 pub fn should_refresh_at(scheduled_ms: f64) -> bool {
     DateTime::from_timestamp_millis(scheduled_ms as i64).is_some_and(|t| t.minute() % 5 == 0)
 }
@@ -572,7 +574,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::cast_precision_loss)]
     fn test_should_refresh_at_runs_every_five_minutes() {
+        // epoch ミリ秒は f64 でも 2^53 未満では正確に表せるため精度は落ちない
         let ms = |h: u32, m: u32, s: u32| {
             NaiveDate::from_ymd_opt(2026, 10, 14)
                 .unwrap()
@@ -589,5 +593,14 @@ mod tests {
         // 予定時刻の秒・ミリ秒がずれていても分で判定する
         assert!(!should_refresh_at(ms(10, 4, 59)));
         assert!(should_refresh_at(ms(10, 5, 30)));
+    }
+
+    #[test]
+    fn test_should_refresh_at_boundary_floats() {
+        // 範囲外の f64 は飽和する。NaN は 0（epoch）に飽和し、分 0 のため true になる
+        assert!(should_refresh_at(f64::NAN));
+        assert!(!should_refresh_at(f64::INFINITY));
+        assert!(!should_refresh_at(f64::NEG_INFINITY));
+        assert!(!should_refresh_at(-1.0));
     }
 }

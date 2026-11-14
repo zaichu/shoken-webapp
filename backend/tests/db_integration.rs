@@ -302,6 +302,8 @@ async fn master_refresh_gate(pool: &Db) -> Option<chrono::DateTime<Utc>> {
     .unwrap()
 }
 
+// epoch ミリ秒は f64 でも 2^53 未満では正確に表せるため精度は落ちない
+#[allow(clippy::cast_precision_loss)]
 fn scheduled_now_ms() -> f64 {
     Utc::now().timestamp_millis() as f64
 }
