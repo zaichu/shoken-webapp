@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>設定 | 証券Web</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="site.css">
+<style>
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) 0;border-bottom:1px solid var(--border)}
+.setrow:last-child{border-bottom:0}
+@media (max-width:1023px){.setrow{flex-direction:column;align-items:stretch}.setrow .ctl{margin-top:var(--space-2)}}
+.muted{color:var(--text-muted);font-size:var(--text-sm)}
+.switch{display:inline-flex;align-items:center;gap:var(--space-2);min-height:44px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">メインコンテンツへスキップ</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand-logo" href="index.html">証券Web</a>
+    <nav class="mainnav" aria-label="メインナビゲーション">
+      <a href="#">ホーム</a><a href="#">資産管理</a>
+      <a href="receipts-opencode.html">取引明細</a><a href="#">銘柄検索</a>
+    </nav>
+    <a class="account-btn" href="account-opencode.html">● アカウント</a>
+  </div>
+</header>
+<main class="page" id="main">
+  <div class="page-head"><h1>設定</h1></div>
+  <div class="minindex" aria-label="設定セクション">
+    <a class="btn" href="#account">アカウント</a><a class="btn" href="#display">表示</a><a class="btn" href="#data">データ</a><a class="btn" href="#security">セキュリティ</a><a class="btn" href="#devices">登録端末</a><a class="btn" href="#login-history">ログイン履歴</a><a class="btn" href="#danger">危険な操作</a>
+  </div>
+  <div class="setlayout">
+    <nav class="toc only-pc" aria-label="設定セクション">
+      <ul>
+        <li><a href="#account" aria-current="true">アカウント</a></li>
+        <li><a href="#display">表示</a></li>
+        <li><a href="#data">データ</a></li>
+        <li><a href="#security">セキュリティ</a></li>
+        <li><a href="#devices">登録した端末</a></li>
+        <li><a href="#login-history">ログイン履歴</a></li>
+        <li><a href="#danger">危険な操作</a></li>
+      </ul>
+    </nav>
+    <div>
+      <section class="card" id="account" aria-labelledby="account-h" style="margin-bottom:16px">
+        <h2 id="account-h">アカウント</h2>
+        <p style="margin-bottom:0"><strong>かくう たろう</strong></p>
+        <p class="muted long" style="margin-top:4px">kakutest9901@example.com<br>Google でログイン中</p>
+      </section>
+      <section class="card" id="display" aria-labelledby="display-h" style="margin-bottom:16px">
+        <h2 id="display-h">表示</h2>
+        <div class="setrow"><div><div>テーマ</div></div><div class="ctl seg" role="group" aria-label="テーマ"><button aria-pressed="true">端末に合わせる</button><button aria-pressed="false">ライト</button><button aria-pressed="false">ダーク</button></div></div>
+        <div class="setrow"><div><div>資産管理の並び順</div></div><div class="ctl"><select aria-label="資産管理の初期の並び順" style="min-height:44px"><option>評価額の高い順</option><option>評価損益の高い順</option><option>あいうえお順</option></select></div></div>
+        <div class="setrow"><div><div>取引明細の初期タブ</div></div><div class="ctl"><select aria-label="取引明細の初期タブ" style="min-height:44px"><option>配当金</option><option>国内株式</option><option>投資信託</option></select></div></div>
+        <div class="setrow"><div><div>金額の表示単位</div></div><div class="ctl seg" role="group" aria-label="金額の表示単位"><button aria-pressed="true">円</button><button aria-pressed="false">千円</button><button aria-pressed="false">万円</button></div></div>
+      </section>
+      <section class="card" id="data" aria-labelledby="data-h" style="margin-bottom:16px">
+        <h2 id="data-h">データ</h2>
+        <div class="setrow"><div><div>CSVでエクスポート</div><div class="muted">資産残高・売買履歴を保存します</div></div><div class="ctl"><a class="btn" href="settings-opencode.html">資産残高</a> <a class="btn" href="settings-opencode.html">売買履歴</a></div></div>
+        <p class="banner ok" role="status" style="margin-top:12px">資産残高.csv を保存しました</p>
+        <div class="setrow"><div><div>CSVの取り込み・保存済みデータの削除</div></div><div class="ctl"><a class="btn" href="csv-opencode.html">CSV管理へ</a></div></div>
+      </section>
+      <section class="card" id="security" aria-labelledby="security-h" style="margin-bottom:16px">
+        <h2 id="security-h">セキュリティ</h2>
+        <div class="setrow"><div><div>新しい端末からログインしたときに通知する</div><div class="muted">オフでも、ログインの記録は残ります</div></div><div class="ctl"><label class="switch"><input type="checkbox" checked style="width:24px;height:24px"> オン</label></div></div>
+        <div class="setrow"><div><div>操作がないときの自動ログアウト</div></div><div class="ctl"><select aria-label="自動ログアウトまでの時間" style="min-height:44px"><option>15分</option><option selected>30分</option><option>60分</option></select></div></div>
+      </section>
+      <section class="card" id="devices" aria-labelledby="devices-h" style="margin-bottom:16px">
+        <h2 id="devices-h">登録した端末</h2>
+        <p class="muted">Cookie を消すと同じ端末でも新しい端末として登録されます</p>
+        <table class="tbl only-pc" aria-label="登録した端末">
+          <thead><tr><th>場所</th><th>ブラウザ・OS</th><th>最終利用</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td>東京都 <span class="badge info">この端末</span></td><td>Chrome / Windows</td><td>2026/11/14 09:10</td><td><span class="muted">利用中</span></td></tr>
+            <tr><td>大阪府</td><td>Safari / iOS</td><td>2026/11/09 21:40</td><td><a class="btn ghost" href="settings-opencode.html">解除</a></td></tr>
+          </tbody>
+        </table>
+        <ul class="mrows only-sp" aria-label="登録した端末">
+          <li><div class="r1"><span class="t">東京都 <span class="badge info">この端末</span></span><span class="amt">利用中</span></div><div class="r2"><span>Chrome / Windows</span><span>11/14 09:10</span></div></li>
+          <li><div class="r1"><span class="t">大阪府</span><span class="amt"><a class="btn ghost" href="settings-opencode.html">解除</a></span></div><div class="r2"><span>Safari / iOS</span><span>11/09 21:40</span></div></li>
+        </ul>
+        <p style="margin-bottom:0"><a class="btn ghost" href="settings-opencode.html">すべての端末をログアウト</a></p>
+      </section>
+      <section class="card" id="login-history" aria-labelledby="login-history-h" style="margin-bottom:16px">
+        <h2 id="login-history-h">ログイン履歴</h2>
+        <table class="tbl only-pc" aria-label="ログイン履歴">
+          <thead><tr><th>日時</th><th>結果</th><th>場所</th><th>ブラウザ・OS</th></tr></thead>
+          <tbody>
+            <tr><td>2026/11/14 09:10</td><td><span class="badge ok">成功</span></td><td>東京都</td><td>Chrome / Windows</td></tr>
+            <tr><td>2026/11/09 21:40</td><td><span class="badge warn">新しい端末</span></td><td>大阪府</td><td>Safari / iOS</td></tr>
+            <tr><td>2026/11/02 02:15</td><td><span class="badge err">失敗</span></td><td>不明</td><td>Chrome / Android</td></tr>
+          </tbody>
+        </table>
+        <ul class="mrows only-sp" aria-label="ログイン履歴">
+          <li><div class="r1"><span class="t">11/14 09:10</span><span class="badge ok">成功</span></div><div class="r2"><span>東京都 · Chrome / Windows</span><span></span></div></li>
+          <li><div class="r1"><span class="t">11/09 21:40</span><span class="badge warn">新しい端末</span></div><div class="r2"><span>大阪府 · Safari / iOS</span><span></span></div></li>
+          <li><div class="r1"><span class="t">11/02 02:15</span><span class="badge err">失敗</span></div><div class="r2"><span>不明 · Chrome / Android</span><span></span></div></li>
+        </ul>
+        <p style="margin-bottom:0"><a class="btn ghost" href="settings-opencode.html">もっと見る</a></p>
+      </section>
+      <section class="card" id="danger" aria-labelledby="danger-h">
+        <h2 id="danger-h">危険な操作</h2>
+        <div class="setrow"><div><div>取引明細：配当金を削除</div><div class="muted">取り込んだ配当金データ。アカウントは残ります。取り消せません</div></div><div class="ctl"><a class="btn ghost" href="csv-opencode.html#csv-delete-div">配当金データを削除</a></div></div>
+        <div class="setrow"><div><div>取引明細：国内株式を削除</div><div class="muted">取り込んだ国内株式売買データ。アカウントは残ります。取り消せません</div></div><div class="ctl"><a class="btn ghost" href="csv-opencode.html#csv-delete">国内株式データを削除</a></div></div>
+        <div class="setrow"><div><div>取引明細：投資信託を削除</div><div class="muted">取り込んだ投資信託売買データ。アカウントは残ります。取り消せません</div></div><div class="ctl"><a class="btn ghost" href="csv-opencode.html#csv-delete-fund">投資信託データを削除</a></div></div>
+        <div class="setrow"><div><div>資産管理データを削除</div><div class="muted">保存済みの保有銘柄データ。アカウントは残ります。取り消せません</div></div><div class="ctl"><a class="btn ghost" href="csv-opencode.html#csv-delete-hold">削除…</a></div></div>
+        <div class="setrow"><div><div>アカウントを削除</div><div class="muted">データもすべて消えます。取り消せません</div></div><div class="ctl"><a class="btn danger" href="account-opencode.html#account-delete">削除…</a></div></div>
+      </section>
+    </div>
+  </div>
+  <footer class="footer"><div class="in"><span>証券Web(試作)</span><a href="#">プライバシーポリシー</a><a href="#">利用規約</a><a href="#">Cookie ポリシー</a></div></footer>
+</main>
+<nav class="bottomnav" aria-label="メインナビゲーション">
+  <a href="#">ホーム</a><a href="#">資産管理</a><a href="receipts-opencode.html">取引明細</a><a href="#">銘柄検索</a>
+</nav>
+<script>if(new URLSearchParams(location.search).has("dark"))document.documentElement.dataset.theme="dark";</script>
+</body>
+</html>
