@@ -21,7 +21,7 @@ impl StockSearch {
         if !self.session.is_current(self.fetch_generation.get()) {
             return None;
         }
-        self.search.value().get().and_then(|result| result.ok())
+        self.search.value().get().and_then(std::result::Result::ok)
     }
 
     pub fn error_message(&self) -> Option<String> {
@@ -31,7 +31,7 @@ impl StockSearch {
         self.search
             .value()
             .get()
-            .and_then(|result| result.err())
+            .and_then(std::result::Result::err)
             .filter(|error| !is_not_found(error))
             .map(|error| error.message())
     }
@@ -43,7 +43,7 @@ impl StockSearch {
         self.search
             .value()
             .get()
-            .and_then(|result| result.err())
+            .and_then(std::result::Result::err)
             .is_some_and(|error| is_not_found(&error))
     }
 
@@ -105,7 +105,9 @@ fn read_query_value(key: &str) -> Option<String> {
         let mut parts = pair.splitn(2, '=');
         if parts.next() == Some(key) {
             let raw = parts.next().unwrap_or("").replace('+', " ");
-            return urlencoding::decode(&raw).ok().map(|s| s.into_owned());
+            return urlencoding::decode(&raw)
+                .ok()
+                .map(std::borrow::Cow::into_owned);
         }
     }
     None

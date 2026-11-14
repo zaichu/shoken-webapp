@@ -139,7 +139,12 @@ fn csv_line(fields: &[String]) -> String {
 }
 
 fn header(fields: &[&str]) -> String {
-    csv_line(&fields.iter().map(|f| f.to_string()).collect::<Vec<_>>())
+    csv_line(
+        &fields
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect::<Vec<_>>(),
+    )
 }
 
 fn num(value: Decimal) -> String {
@@ -151,13 +156,12 @@ fn derived_num(value: Option<f64>) -> String {
     value
         .filter(|value| value.is_finite())
         .and_then(|value| Decimal::from_str_exact(&value.to_string()).ok())
-        .map(|value| {
+        .map_or_default(|value| {
             value
                 .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
                 .normalize()
                 .to_string()
         })
-        .unwrap_or_default()
 }
 
 fn dividends_csv(rows: &[Dividend]) -> String {
@@ -242,8 +246,7 @@ fn asset_balances_csv(rows: &[AssetBalance]) -> String {
             num(row.current_price),
             row.price_as_of
                 .as_ref()
-                .map(|date| date.to_string())
-                .unwrap_or_default(),
+                .map_or_default(std::string::ToString::to_string),
             derived_num(valuation.market_value),
             derived_num(valuation.profit_loss.amount),
         ]));

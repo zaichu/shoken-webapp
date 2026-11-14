@@ -93,7 +93,8 @@ impl AssetBalanceCsvStore {
         let fetch_unresolved = self
             .data_ops
             .with(|ops| ops.list_fetch_in_flight() || ops.refresh_error.is_some());
-        !fetch_unresolved && self.with_slot(slot, |slot| slot.is_some_and(|result| result.is_ok()))
+        !fetch_unresolved
+            && self.with_slot(slot, |slot| slot.is_some_and(std::result::Result::is_ok))
     }
 
     // 件数が確定できない理由(一覧取得・取り直しの失敗)を削除ページに出す
@@ -246,7 +247,10 @@ impl AssetBalanceCsvStore {
 
     pub(crate) fn fund_open_delete_confirm(&self) {
         if let Some(generation) = self.current_generation() {
-            self.update_csv_fund(generation, |state| state.open_delete_confirm());
+            self.update_csv_fund(
+                generation,
+                crate::support::csv_flow::CsvTabState::open_delete_confirm,
+            );
         }
     }
 
@@ -330,7 +334,10 @@ impl AssetBalanceCsvStore {
 
     pub(crate) fn open_delete_confirm(&self) {
         if let Some(generation) = self.current_generation() {
-            self.update_csv(generation, |state| state.open_delete_confirm());
+            self.update_csv(
+                generation,
+                crate::support::csv_flow::CsvTabState::open_delete_confirm,
+            );
         }
     }
 
@@ -362,7 +369,9 @@ impl AssetBalanceCsvStore {
                 }),
             )));
             store.dividends.set(DividendMaps::default());
-            store.lookup.update(|store| store.clear());
+            store
+                .lookup
+                .update(super::super::lookup::AssetBalanceLookupStore::clear);
         });
     }
 }
@@ -384,10 +393,12 @@ fn loaded_counts<T, S>(
     slot: &LoadedSlotValue<T, S>,
 ) -> Option<(usize, usize)> {
     let result = slot_value(slot, generation)?;
-    Some(match result {
-        Err(_) => (0, 0),
-        Ok(loaded) => (loaded.rows.len(), loaded.total),
-    })
+    Some(
+        result
+            .as_ref()
+            .ok()
+            .map_or((0, 0), |loaded| (loaded.rows.len(), loaded.total)),
+    )
 }
 
 /// タブ件数・並べ替え欄の有無用。行の複製はしない
@@ -411,13 +422,13 @@ fn resolve_balance<T: Clone, S: Clone>(
     slot: &LoadedSlotValue<T, S>,
 ) -> Option<ResolvedRows<T, S>> {
     let result = slot_value(slot, generation)?;
-    Some(match result {
-        Err(_) => ResolvedRows {
+    Some(result.as_ref().ok().map_or_else(
+        || ResolvedRows {
             rows: Vec::new(),
             warning: None,
             fallback_totals: None,
         },
-        Ok(loaded) => ResolvedRows {
+        |loaded| ResolvedRows {
             rows: loaded.rows.to_vec(),
             warning: loaded.truncated.then(truncated_list_warning),
             fallback_totals: if loaded.truncated {
@@ -426,7 +437,7 @@ fn resolve_balance<T: Clone, S: Clone>(
                 None
             },
         },
-    })
+    ))
 }
 
 pub(crate) fn resolve_fund_balance(
