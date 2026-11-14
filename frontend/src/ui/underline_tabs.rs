@@ -190,7 +190,7 @@ pub fn swipe_commit_index(
 
 /// 下線の滑り量(タブ何個分)。指の進み具合そのまま
 pub fn tab_ink_offset(current: usize, progress: f64) -> f64 {
-    current as f64 + progress.clamp(-1.0, 1.0)
+    current.to_f64().unwrap_or(f64::MAX) + progress.clamp(-1.0, 1.0)
 }
 
 /// タブ番号方向の進み具合。左スワイプ(指は負)を正(次へ)で表す
@@ -204,7 +204,7 @@ pub fn swipe_progress(drag: f64, width: f64) -> f64 {
 
 /// 確定後に面が止まる位置。離した側の外へ流すため指の移動とは逆符号になる
 pub fn swipe_settle_offset(current: usize, target: usize, width: f64) -> f64 {
-    (current as f64 - target as f64) * width
+    (current.to_f64().unwrap_or(f64::MAX) - target.to_f64().unwrap_or(f64::MAX)) * width
 }
 
 /// 画面の左右の端から始めた接触か。ブラウザの戻る操作とぶつかるため無視する
@@ -320,7 +320,7 @@ fn slide_position(element: &web_sys::HtmlElement) -> f64 {
 
 fn place_slides(track: &web_sys::HtmlDivElement, current: usize, drag: f64, width: f64) {
     for element in slide_elements(track) {
-        let base = (slide_position(&element) - current as f64) * width;
+        let base = (slide_position(&element) - current.to_f64().unwrap_or(f64::MAX)) * width;
         let _ = element
             .style()
             .set_property("transform", &format!("translateX({}px)", base + drag));

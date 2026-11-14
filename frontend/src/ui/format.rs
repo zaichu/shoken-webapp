@@ -310,7 +310,7 @@ fn days_from_civil(year: i32, month: u32, day: u32) -> i64 {
 
 /// 「1970-01-01 からの日数」を暦日(年・月・日)に戻す
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-const fn civil_from_days(days: i64) -> (i32, u32, u32) {
+const fn civil_from_days(days: i64) -> (i64, i64, i64) {
     let shifted = days + 719_468;
     let era = if shifted >= 0 {
         shifted
@@ -330,7 +330,7 @@ const fn civil_from_days(days: i64) -> (i32, u32, u32) {
         shifted_month - 9
     };
     let year = if month <= 2 { year + 1 } else { year };
-    (year as i32, month as u32, day as u32)
+    (year, month, day)
 }
 
 /// 2つの暦日の差(to − from)。後なら正、前でなければ負
@@ -356,7 +356,12 @@ fn today_jst_from_timestamp(timestamp: f64) -> Option<(i32, u32, u32)> {
             }
         })
         .saturating_add(9 * 3600);
-    Some(civil_from_days(jst_seconds.div_euclid(86_400)))
+    let (year, month, day) = civil_from_days(jst_seconds.div_euclid(86_400));
+    Some((
+        i32::try_from(year).unwrap_or(if year < 0 { i32::MIN } else { i32::MAX }),
+        u32::try_from(month).unwrap_or(u32::MAX),
+        u32::try_from(day).unwrap_or(u32::MAX),
+    ))
 }
 
 /// 今日(JST)の年月日。ネイティブでは None

@@ -180,9 +180,14 @@ fn jst_date_rolls_over_at_nine_am_boundary() {
 
 #[test]
 fn today_jst_saturates_at_i64_upper_bound() {
+    let (_, month, day) = civil_from_days(i64::MAX.div_euclid(86_400));
     assert_eq!(
-        today_jst_from_timestamp(i64::MAX as f64),
-        Some(civil_from_days(i64::MAX.div_euclid(86_400)))
+        today_jst_from_timestamp(i64::MAX.to_f64().unwrap_or(f64::MAX)),
+        Some((
+            i32::MAX,
+            u32::try_from(month).unwrap_or(u32::MAX),
+            u32::try_from(day).unwrap_or(u32::MAX),
+        ))
     );
 }
 
