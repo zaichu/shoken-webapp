@@ -2,7 +2,7 @@
 
 ## 採用する骨格
 
-Phase 3 の採用方針に従い、C の上部ナビゲーションと要点の集計カードを全体の骨格にする。スマホは B の1列構成・大きな数字・下部ナビゲーションを優先し、PC の資産管理と取引明細には A の一覧と右詳細パネルを採用する。縦ナビは作らない。根拠: [採用決定](../../../../../.requests/design-decision-p3.md)、[C の見本](../../../phase3-codex/shots/concept-c-home-pc-light.png)、[B のスマホ見本](../../../../../../shoken-webapp-1890-p3-opencode/docs/design/work/phase3-opencode/shots/B-home-sp.png)、[A の資産見本](../../../phase3-codex/shots/concept-a-asset-pc.png)。
+Phase 3 の採用方針に従い、C の上部ナビゲーションと要点の集計カードを全体の骨格にする。スマホは B の1列構成・大きな数字・下部ナビゲーションを優先し、PC の資産管理と取引明細には A の一覧と右詳細パネルを採用する。縦ナビは作らない。根拠: [採用決定](../phase3-decision.md)、[C の見本](../phase3-codex/shots/concept-c-home-pc-light.png)、[B のスマホ見本](../phase3-opencode/shots/B-home-sp.png)、[A の資産見本](../phase3-codex/shots/concept-a-asset-pc.png)。
 
 ## 色
 
@@ -12,21 +12,28 @@ Phase 3 の採用方針に従い、C の上部ナビゲーションと要点の�
 
 | テーマ | 文字色 / 背景色 | 比率 | 用途 |
 |---|---|---:|---|
-| 明 | `#111827` / `#ffffff` | 17.74:1 | 本文 / 面 |
-| 明 | `#5f6b7a` / `#ffffff` | 5.43:1 | 補助文字 / 面 |
-| 明 | `#0f2a4a` / `#ffffff` | 14.48:1 | 紺文字 / 面 |
-| 明 | `#1d4ed8` / `#ffffff` | 6.70:1 | 強調リンク / 面 |
-| 明 | `#0b7a4b` / `#ffffff` | 5.39:1 | 増加 / 面 |
-| 明 | `#c0362c` / `#ffffff` | 5.52:1 | 減少 / 面 |
-| 明 | `#92400e` / `#fff8e6` | 6.69:1 | 注意 / 注意面 |
-| 明 | `#ffffff` / `#0f2a4a` | 14.48:1 | 紺ナビ / 紺面 |
-| 明 | `#f2b33d` / `#0f2a4a` | 7.78:1 | 橙アクセント / 紺面 |
-| 暗 | `#f2f5fa` / `#121b2c` | 15.77:1 | 本文 / 面 |
-| 暗 | `#c2cddf` / `#121b2c` | 10.74:1 | 補助文字 / 面 |
-| 暗 | `#a9c4fa` / `#121b2c` | 9.82:1 | 強調リンク / 面 |
-| 暗 | `#7ce8ab` / `#121b2c` | 11.48:1 | 増加 / 面 |
-| 暗 | `#f5a49b` / `#121b2c` | 8.75:1 | 減少 / 面 |
-| 暗 | `#f2c066` / `#292112` | 9.47:1 | 注意 / 注意面 |
+| light | `--text` `#111827` / `--page` `#f3f5f8` | 16.24:1 | |
+| light | `--text` `#111827` / `--surface` `#ffffff` | 17.74:1 | |
+| light | `--text-muted` `#5f6b7a` / `--surface` `#ffffff` | 5.43:1 | |
+| light | `--accent` `#1d4ed8` / `--surface` `#ffffff` | 6.70:1 | |
+| light | `--positive` `#0b7a4b` / `--surface` `#ffffff` | 5.39:1 | |
+| light | `--negative` `#c0362c` / `--surface` `#ffffff` | 5.52:1 | |
+| light | `--success` `#0b7a4b` / `--positive-soft` `#e7f6ee` | 4.82:1 | |
+| light | `--warning` `#92400e` / `--warning-soft` `#fff8e6` | 6.69:1 | |
+| light | `--error` `#9f2d25` / `--negative-soft` `#fdecea` | 6.38:1 | |
+| light | `--info` `#1d4ed8` / `--info-soft` `#eff4ff` | 6.08:1 | |
+| light | `--on-error` `#ffffff` / `--error` `#9f2d25` | 7.30:1 | |
+| dark | `--text` `#f2f5fa` / `--page` `#0b1220` | 17.13:1 | |
+| dark | `--text` `#f2f5fa` / `--surface` `#121b2c` | 15.77:1 | |
+| dark | `--text-muted` `#c2cddf` / `--surface` `#121b2c` | 10.74:1 | |
+| dark | `--accent` `#a9c4fa` / `--surface` `#121b2c` | 9.82:1 | |
+| dark | `--positive` `#7ce8ab` / `--surface` `#121b2c` | 11.48:1 | |
+| dark | `--negative` `#f5a49b` / `--surface` `#121b2c` | 8.75:1 | |
+| dark | `--success` `#7ce8ab` / `--positive-soft` `#10301f` | 9.55:1 | |
+| dark | `--warning` `#f2c066` / `--warning-soft` `#292112` | 9.47:1 | |
+| dark | `--error` `#f5a49b` / `--negative-soft` `#3a1d1c` | 7.77:1 | |
+| dark | `--info` `#a9c4fa` / `--info-soft` `#16233f` | 8.89:1 | |
+| dark | `--on-error` `#111827` / `--error` `#f5a49b` | 9.01:1 | |
 
 紺面の上の白文字は 14.48:1。フォーカスリングは明テーマ `#1d4ed8`、暗テーマ `#a9c4fa` を使い、3px 幅で表示する。罫線やグラフ記号など非テキストの識別では 3:1 を確保する。
 
