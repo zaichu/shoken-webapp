@@ -117,7 +117,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                 Some(crate::features::receipts::view::summary::header_summary(
                     tab,
                     &ReceiptTabData {
-                        rows: filtered_rows.with(|rows| rows.clone()),
+                        rows: filtered_rows.with(std::clone::Clone::clone),
                         total: None,
                         summary: data.summary.clone(),
                         truncated: false,
@@ -136,10 +136,10 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
     });
     // 絞り込み中の件数。検索条件が無いときは注記に出さない
     let filtered_count = Memo::new(move |_| {
-        let filtering = search.with(|state| state.has_any_filter());
+        let filtering = search.with(super::super::filter::ReceiptSearch::has_any_filter);
         tab_state.with(|state| match state {
             TabState::Ready(data) => {
-                derive_filtered_count(data, filtered_rows.with(|rows| rows.len()), filtering)
+                derive_filtered_count(data, filtered_rows.with(std::vec::Vec::len), filtering)
             }
             _ => FilteredCount {
                 filtered: 0,

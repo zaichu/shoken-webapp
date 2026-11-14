@@ -225,7 +225,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     Effect::new(move |_| {
         let generation = session.generation.get();
         if session.user.get().is_none() {
-            lookup.update(|store| store.clear());
+            lookup.update(super::lookup::AssetBalanceLookupStore::clear);
             balances.set(None);
             funds.set(None);
             dividends.set(DividendMaps::default());
@@ -302,22 +302,22 @@ pub fn AssetBalancePage() -> impl IntoView {
         let generation = rail_session.generation.get();
         balances
             .with(|slot| asset_balance_counts(generation, slot))
-            .map(|(rows_len, _)| rows_len)
-            .unwrap_or(0)
+            .map_or(0, |(rows_len, _)| rows_len)
     });
     let fund_count = Signal::derive(move || {
         let generation = rail_session.generation.get();
         funds
             .with(|slot| fund_balance_counts(generation, slot))
-            .map(|(rows_len, total)| summary::fund_tab_count(rows_len, total))
-            .unwrap_or(0)
+            .map_or(0, |(rows_len, total)| {
+                summary::fund_tab_count(rows_len, total)
+            })
     });
     if session.user.get_untracked().is_some()
         && has_current_balances(
             &balances.get_untracked(),
             session.generation.get_untracked(),
         )
-        && !data_ops.with_untracked(|ops| ops.list_fetch_in_flight())
+        && !data_ops.with_untracked(super::store::DataOps::list_fetch_in_flight)
     {
         load_asset_balances(
             session,

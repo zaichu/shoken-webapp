@@ -89,145 +89,135 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                             let found = view.rows.iter().find(|row| {
                                 row.id.to_string() == id
                             });
-                            match found {
-                                None => {
-                                    view! {
-                                        <div class="px-4 py-4">
-                                            <EmptyState title=labels::ASSET_FUND_NOT_FOUND />
-                                        </div>
-                                    }
-                                        .into_any()
+                            let Some(row) = found else {
+                                return view! {
+                                    <div class="px-4 py-4">
+                                        <EmptyState title=labels::ASSET_FUND_NOT_FOUND />
+                                    </div>
                                 }
-                                Some(row) => {
-                                    let view = fund_view(row);
-                                    let shares_text =
-                                        labels::fund_units_label(&format_number_value(view.shares));
-                                    let average_price_text =
-                                        format_currency(view.average_purchase_price);
-                                    let purchase_text = format_currency(view.purchase);
-                                    let base_price_text = format_currency(view.base_price);
-                                    let market_text =
-                                        format_row_valuation_amount(Some(view.market_value));
-                                    let pnl_text =
-                                        format_signed_row_valuation_amount(Some(view.profit_loss));
-                                    let pnl_rate_text =
-                                        format_signed_valuation_rate(view.profit_loss_rate, 1);
-                                    let pnl_negative =
-                                        is_negative_valuation(Some(view.profit_loss));
-                                    let pnl_positive =
-                                        is_positive_valuation(Some(view.profit_loss));
-                                    let day_text = if view.nav_pending() {
-                                        labels::PENDING_UPDATE.to_string()
-                                    } else {
-                                        view.base_price_day_change
-                                            .map(|value| {
-                                                format_signed_row_valuation_amount(Some(value))
-                                            })
-                                            .unwrap_or_else(|| labels::MISSING.to_string())
-                                    };
-                                    let month_text = view
-                                        .base_price_month_change
-                                        .map(|value| {
+                                    .into_any();
+                            };
+                                let view = fund_view(row);
+                                let shares_text =
+                                    labels::fund_units_label(&format_number_value(view.shares));
+                                let average_price_text =
+                                    format_currency(view.average_purchase_price);
+                                let purchase_text = format_currency(view.purchase);
+                                let base_price_text = format_currency(view.base_price);
+                                let market_text =
+                                    format_row_valuation_amount(Some(view.market_value));
+                                let pnl_text =
+                                    format_signed_row_valuation_amount(Some(view.profit_loss));
+                                let pnl_rate_text =
+                                    format_signed_valuation_rate(view.profit_loss_rate, 1);
+                                let pnl_negative =
+                                    is_negative_valuation(Some(view.profit_loss));
+                                let pnl_positive =
+                                    is_positive_valuation(Some(view.profit_loss));
+                                let day_text = if view.nav_pending() {
+                                    labels::PENDING_UPDATE.to_string()
+                                } else {
+                                    view.base_price_day_change.map_or_else(|| labels::MISSING.to_string(), |value| {
                                             format_signed_row_valuation_amount(Some(value))
                                         })
-                                        .unwrap_or_else(|| labels::MISSING.to_string());
-                                    let total_return_text = view
-                                        .total_return
-                                        .map(|value| {
-                                            format_signed_row_valuation_amount(Some(value))
-                                        })
-                                        .unwrap_or_else(|| labels::MISSING.to_string());
-                                    let day_negative = is_negative_valuation(view.base_price_day_change);
-                                    let day_positive = is_positive_valuation(view.base_price_day_change);
-                                    let month_negative = is_negative_valuation(view.base_price_month_change);
-                                    let month_positive = is_positive_valuation(view.base_price_month_change);
-                                    let total_negative = is_negative_valuation(view.total_return);
-                                    let total_positive = is_positive_valuation(view.total_return);
-                                    let asof_text = view
-                                        .price_as_of
-                                        .map_or_else(|| labels::MISSING.to_string(), |date| format_iso_date(&date));
-                                    let asof_label = match view.price_source {
-                                        FundPriceSource::Api => labels::BASE_PRICE_AS_OF,
-                                        FundPriceSource::Csv => labels::CSV_IMPORTED_AT,
-                                    };
-                                    view! {
-                                        <div class="asset-panel">
-                                            <div class="border-b border-border p-4">
-                                                <h2 class="text-lg font-bold text-text">
-                                                    {view.name.clone()}
-                                                </h2>
-                                                <p class="mt-1 flex items-center gap-1 text-sm text-text-muted">
-                                                    <AccountBadge label=view.account.clone() />
-                                                    {view
-                                                        .course
-                                                        .clone()
-                                                        .map(|course| labels::course_with_dot(&course))}
-                                                </p>
-                                            </div>
-                                            <div class="p-4">
-                                                <HoldingTiles>
-                                                    <HoldingTile label=labels::MARKET_VALUE.to_string() wide=true>
-                                                        <span class="tabular-nums">{market_text}</span>
-                                                    </HoldingTile>
-                                                    <HoldingTile label=labels::VALUATION_PROFIT_LOSS.to_string() wide=true>
-                                                        <Amount
-                                                            kind=AmountKind::Delta
-                                                            class="tabular-nums"
-                                                            text=pnl_text
-                                                            negative=pnl_negative
-                                                            positive=pnl_positive
-                                                        />
-                                                        <span class="ml-1 text-xs text-text-muted tabular-nums">
-                                                            {pnl_rate_text}
-                                                        </span>
-                                                    </HoldingTile>
-                                                    <HoldingTile label=labels::BASE_PRICE.to_string()>
-                                                        <span class="tabular-nums">{base_price_text}</span>
-                                                    </HoldingTile>
-                                                    <HoldingTile label=labels::BASE_PRICE_DAY_CHANGE.to_string()>
-                                                        <Amount
-                                                            kind=AmountKind::Delta
-                                                            class="tabular-nums"
-                                                            text=day_text
-                                                            negative=day_negative
-                                                            positive=day_positive
-                                                        />
-                                                    </HoldingTile>
-                                                    <HoldingTile label=labels::BASE_PRICE_MONTH_CHANGE.to_string()>
-                                                        <Amount
-                                                            kind=AmountKind::Delta
-                                                            class="tabular-nums"
-                                                            text=month_text
-                                                            negative=month_negative
-                                                            positive=month_positive
-                                                        />
-                                                    </HoldingTile>
-                                                    <HoldingTile label=asof_label.to_string()>{asof_text}</HoldingTile>
-                                                    <HoldingTile label=labels::FUND_SHARES.to_string()>
-                                                        <span class="tabular-nums">{shares_text}</span>
-                                                    </HoldingTile>
-                                                    <HoldingTile label=labels::AVERAGE_ACQUISITION_PRICE.to_string()>
-                                                        <span class="tabular-nums">{average_price_text}</span>
-                                                    </HoldingTile>
-                                                    <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>
-                                                        <span class="tabular-nums">{purchase_text}</span>
-                                                    </HoldingTile>
-                                                    <HoldingTile label=labels::TOTAL_RETURN.to_string()>
-                                                        <Amount
-                                                            kind=AmountKind::Delta
-                                                            class="tabular-nums"
-                                                            text=total_return_text
-                                                            negative=total_negative
-                                                            positive=total_positive
-                                                        />
-                                                    </HoldingTile>
-                                                </HoldingTiles>
-                                            </div>
+                                };
+                                let month_text = view
+                                    .base_price_month_change.map_or_else(|| labels::MISSING.to_string(), |value| {
+                                        format_signed_row_valuation_amount(Some(value))
+                                    });
+                                let total_return_text = view
+                                    .total_return.map_or_else(|| labels::MISSING.to_string(), |value| {
+                                        format_signed_row_valuation_amount(Some(value))
+                                    });
+                                let day_negative = is_negative_valuation(view.base_price_day_change);
+                                let day_positive = is_positive_valuation(view.base_price_day_change);
+                                let month_negative = is_negative_valuation(view.base_price_month_change);
+                                let month_positive = is_positive_valuation(view.base_price_month_change);
+                                let total_negative = is_negative_valuation(view.total_return);
+                                let total_positive = is_positive_valuation(view.total_return);
+                                let asof_text = view
+                                    .price_as_of
+                                    .map_or_else(|| labels::MISSING.to_string(), |date| format_iso_date(&date));
+                                let asof_label = match view.price_source {
+                                    FundPriceSource::Api => labels::BASE_PRICE_AS_OF,
+                                    FundPriceSource::Csv => labels::CSV_IMPORTED_AT,
+                                };
+                                view! {
+                                    <div class="asset-panel">
+                                        <div class="border-b border-border p-4">
+                                            <h2 class="text-lg font-bold text-text">
+                                                {view.name.clone()}
+                                            </h2>
+                                            <p class="mt-1 flex items-center gap-1 text-sm text-text-muted">
+                                                <AccountBadge label=view.account.clone() />
+                                                {view
+                                                    .course
+                                                    .clone()
+                                                    .map(|course| labels::course_with_dot(&course))}
+                                            </p>
                                         </div>
-                                    }
-                                        .into_any()
+                                        <div class="p-4">
+                                            <HoldingTiles>
+                                                <HoldingTile label=labels::MARKET_VALUE.to_string() wide=true>
+                                                    <span class="tabular-nums">{market_text}</span>
+                                                </HoldingTile>
+                                                <HoldingTile label=labels::VALUATION_PROFIT_LOSS.to_string() wide=true>
+                                                    <Amount
+                                                        kind=AmountKind::Delta
+                                                        class="tabular-nums"
+                                                        text=pnl_text
+                                                        negative=pnl_negative
+                                                        positive=pnl_positive
+                                                    />
+                                                    <span class="ml-1 text-xs text-text-muted tabular-nums">
+                                                        {pnl_rate_text}
+                                                    </span>
+                                                </HoldingTile>
+                                                <HoldingTile label=labels::BASE_PRICE.to_string()>
+                                                    <span class="tabular-nums">{base_price_text}</span>
+                                                </HoldingTile>
+                                                <HoldingTile label=labels::BASE_PRICE_DAY_CHANGE.to_string()>
+                                                    <Amount
+                                                        kind=AmountKind::Delta
+                                                        class="tabular-nums"
+                                                        text=day_text
+                                                        negative=day_negative
+                                                        positive=day_positive
+                                                    />
+                                                </HoldingTile>
+                                                <HoldingTile label=labels::BASE_PRICE_MONTH_CHANGE.to_string()>
+                                                    <Amount
+                                                        kind=AmountKind::Delta
+                                                        class="tabular-nums"
+                                                        text=month_text
+                                                        negative=month_negative
+                                                        positive=month_positive
+                                                    />
+                                                </HoldingTile>
+                                                <HoldingTile label=asof_label.to_string()>{asof_text}</HoldingTile>
+                                                <HoldingTile label=labels::FUND_SHARES.to_string()>
+                                                    <span class="tabular-nums">{shares_text}</span>
+                                                </HoldingTile>
+                                                <HoldingTile label=labels::AVERAGE_ACQUISITION_PRICE.to_string()>
+                                                    <span class="tabular-nums">{average_price_text}</span>
+                                                </HoldingTile>
+                                                <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>
+                                                    <span class="tabular-nums">{purchase_text}</span>
+                                                </HoldingTile>
+                                                <HoldingTile label=labels::TOTAL_RETURN.to_string()>
+                                                    <Amount
+                                                        kind=AmountKind::Delta
+                                                        class="tabular-nums"
+                                                        text=total_return_text
+                                                        negative=total_negative
+                                                        positive=total_positive
+                                                    />
+                                                </HoldingTile>
+                                            </HoldingTiles>
+                                        </div>
+                                    </div>
                                 }
-                            }
+                                    .into_any()
                         }
                     }
                 }}
