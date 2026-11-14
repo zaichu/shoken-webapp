@@ -51,7 +51,8 @@ jobs:
             backend:
               - "backend/**/*.rs"
               - "backend/Cargo.toml"
-              - "backend/Cargo.lock"
+              - "Cargo.toml"
+              - "Cargo.lock"
               - "backend/.cargo/**"
               - "rust-toolchain.toml"
               - ".github/workflows/mutation-testing.yml"
@@ -69,6 +70,8 @@ jobs:
             shared:
               - "shared/**/*.rs"
               - "shared/Cargo.toml"
+              - "Cargo.toml"
+              - "Cargo.lock"
               - "shared/.cargo/**"
               - "rust-toolchain.toml"
               - ".github/workflows/mutation-testing.yml"
@@ -104,7 +107,7 @@ jobs:
       - name: Cache Cargo
         uses: ./.github/actions/rust-cache
         with:
-          workspaces: ${{ matrix.crate }} -> target
+          workspaces: ${{ matrix.crate == 'frontend' && 'frontend -> target' || '. -> target' }}
 
       # rust-cache は既定で ~/.cargo/bin をキャッシュするため、同一バージョンでは
       # コンパイルを再実行せず即終了する
@@ -242,7 +245,7 @@ jobs:
       - name: Cache Cargo
         uses: ./.github/actions/rust-cache
         with:
-          workspaces: ${{ matrix.crate }} -> target
+          workspaces: ${{ matrix.crate == 'frontend' && 'frontend -> target' || '. -> target' }}
           shared-key: mutants-${{ matrix.crate }}
 
       - name: Install cargo-mutants

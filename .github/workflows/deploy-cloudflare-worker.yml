@@ -8,6 +8,8 @@ on:
     paths:
       - 'backend/**'
       - 'shared/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'rust-toolchain.toml'
       - 'docs/openapi.json'
       - 'scripts/check-openapi.sh'
@@ -76,7 +78,7 @@ jobs:
       - name: Cache Cargo
         uses: ./.github/actions/rust-cache
         with:
-          workspaces: backend -> target
+          workspaces: . -> target
           shared-key: deploy-cloudflare-worker
 
       - name: Check formatting
@@ -144,7 +146,7 @@ jobs:
       - name: Cache Cargo
         uses: ./.github/actions/rust-cache
         with:
-          workspaces: backend -> target
+          workspaces: . -> target
           shared-key: deploy-cloudflare-worker
 
       - name: Setup Node

@@ -9,7 +9,8 @@ on:
     branches: [main]
     paths:
       - "backend/Cargo.toml"
-      - "backend/Cargo.lock"
+      - "Cargo.toml"
+      - "Cargo.lock"
       - "backend/.cargo/audit.toml"
       - "frontend/.cargo/audit.toml"
       - "frontend/Cargo.toml"
@@ -22,7 +23,8 @@ on:
     branches: [main]
     paths:
       - "backend/Cargo.toml"
-      - "backend/Cargo.lock"
+      - "Cargo.toml"
+      - "Cargo.lock"
       - "backend/.cargo/audit.toml"
       - "frontend/.cargo/audit.toml"
       - "frontend/Cargo.toml"
@@ -58,7 +60,8 @@ jobs:
           filters: |
             cargo:
               - "backend/Cargo.toml"
-              - "backend/Cargo.lock"
+              - "Cargo.toml"
+              - "Cargo.lock"
               - "backend/.cargo/audit.toml"
               - "frontend/.cargo/audit.toml"
               - "frontend/Cargo.toml"
@@ -93,7 +96,7 @@ jobs:
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0 https://github.com/rustsec/audit-check/releases/tag/v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          working-directory: backend
+          working-directory: .
           ignore: ${{ steps.ignore.outputs.backend }}
       - name: Run cargo audit (frontend)
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0 https://github.com/rustsec/audit-check/releases/tag/v2.0.0

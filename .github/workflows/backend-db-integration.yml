@@ -38,6 +38,8 @@ jobs:
             backend:
               - 'backend/**'
               - 'shared/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
               - 'rust-toolchain.toml'
               - 'docs/openapi.json'
               - 'scripts/check-openapi.sh'
@@ -70,7 +72,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: ./.github/actions/rust-cache
         with:
-          workspaces: backend
+          workspaces: . -> target
           shared-key: backend-db-integration
 
       - name: Run ignored DB integration tests
