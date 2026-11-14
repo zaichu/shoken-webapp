@@ -101,9 +101,7 @@ const fundGain = sum(fundTrades, 'gain');
 const fundTax = sum(fundTrades, 'tax');
 eq(stockTrades.length, 3, '株式行数');
 eq(fundTrades.length, 2, '投信行数');
-// 月は降順、月内は日付昇順(従来の表の並び)
-const descMonths = rows => [...rows].sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0))
-  .sort((x, y) => y.date.slice(0, 7).localeCompare(x.date.slice(0, 7)) || x.date.localeCompare(y.date));
+const descMonths = rows => [...rows].sort((x, y) => y.date.localeCompare(x.date));
 const divRows = descMonths(dividendTxs);
 const stkRows = [...stockTrades].sort((x, y) => y.date.localeCompare(x.date));
 const fndRows = [...fundTrades].sort((x, y) => y.date.localeCompare(x.date));
@@ -121,7 +119,7 @@ const monthGroup = (ym, rows, kind) => {
       sp: `<li class="mgrp">${label} · ${rows.length}件 <span class="sub">受取 ${yen(after)}</span></li>`,
     };
   }
-  const after = sum(rows.map(row => row.gain - row.tax));
+  const after = sum(rows, 'gain') - sum(rows, 'tax');
   const gain = sum(rows, 'gain');
   const tax = sum(rows, 'tax');
   return {
@@ -129,7 +127,6 @@ const monthGroup = (ym, rows, kind) => {
     sp: `<li class="mgrp">${label} · ${rows.length}件 <span class="sub">損益 ${signedYen(after)}</span></li>`,
   };
 };
-// ダイアログ番号は表示順(月降順・月内昇順)に d1 から振る
 let dialogNo = 0;
 const divPcRows = [];
 const divSpRows = [];
@@ -164,7 +161,6 @@ for (const ym of divMonths) {
   }
 }
 eq(dialogNo, 18, '配当ダイアログ数');
-// 行の詳細(PCの aside)は最新の行
 const newest = divRows[0];
 const divAside = `<h2>行の詳細</h2>
       <p style="margin-top:0"><strong>${newest.code} ${newest.name}</strong> <span class="badge">${shortBadge(newest.account)}</span></p>
@@ -248,7 +244,7 @@ const fndCount = fundTrades.length;
 const holdStockCount = stocks.length;
 const holdFundCount = funds.length;
 const holdCount = holdings.length;
-const txTotal = divCount + stkCount + fndCount;
+const txTotal = stkCount + fndCount;
 const CSV_FUND_OK = 1;
 const CSV_FUND_SKIP = 1;
 const CSV_PLUNGE_NEXT = 4;
@@ -306,6 +302,10 @@ const generated = Object.fromEntries(await Promise.all(
 ));
 for (const [file, html] of Object.entries(generated)) {
   ok(!/\{\{/.test(html), `${file}: プレースホルダ残存`);
+  ok(!html.includes('NaN'), `${file}: NaN混入`);
+  ok(!html.includes('undefined'), `${file}: undefined混入`);
+  ok(!html.includes('null'), `${file}: null混入`);
+  ok(!html.includes('[object'), `${file}: [object混入`);
 }
 const receipts = generated['receipts-opencode.html'];
 ok(receipts.includes(values.DIV_BAND_AFTER), 'receipts 集計帯 税引後');
