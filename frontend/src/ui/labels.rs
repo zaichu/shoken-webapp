@@ -384,7 +384,7 @@ pub fn csv_manage_delete_confirm_description(
     range: Option<&str>,
     total: usize,
 ) -> String {
-    let range = range.map(|range| format!("({range})")).unwrap_or_default();
+    let range = range.map_or_default(|range| format!("({range})"));
     format!(
         "{kind}の保存済み {}{}を削除します。元に戻せません",
         count(total),

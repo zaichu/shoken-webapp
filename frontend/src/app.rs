@@ -214,8 +214,7 @@ pub(crate) fn page_state<T: Copy + 'static>(
         return state;
     }
     let owner = use_context::<AppOwner>()
-        .map(|app| app.0)
-        .unwrap_or_default()
+        .map_or_default(|app| app.0)
         .child();
     let state = owner.with(build);
     slot.set(Some((owner, state)));

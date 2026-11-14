@@ -244,7 +244,7 @@ pub fn SummaryBand(
                             expanded=expanded
                             controls=controls_id.clone()
                             testid=testid_toggle
-                            on_toggle=move || expanded.update(|open| open.toggle())
+                            on_toggle=move || expanded.update(bool::toggle)
                         >
                             <span class="sr-only">
                                 {move || if expanded.get() {
