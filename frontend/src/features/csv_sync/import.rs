@@ -255,6 +255,25 @@ fn file_name(kind: CsvKind) -> String {
     format!("sync-{}.csv", kind.request_value())
 }
 
+/// Android の手動選択では名前に .csv が付かないことがあるため backend の拡張子ガードに合わせて補う
+pub(crate) fn ensure_csv_filename(original: &str) -> String {
+    if original.to_lowercase().ends_with(".csv") {
+        original.to_string()
+    } else {
+        format!("{original}.csv")
+    }
+}
+
+/// 中身はそのままに名前だけ .csv 付きの File にする。失敗時は元の File を返す
+pub(crate) fn with_csv_extension(file: &web_sys::File) -> web_sys::File {
+    let name = ensure_csv_filename(&file.name());
+    if name == file.name() {
+        return file.clone();
+    }
+    let parts = js_sys::Array::of1(file);
+    web_sys::File::new_with_blob_sequence(&parts, &name).unwrap_or_else(|_| file.clone())
+}
+
 /// 必須列なしの失敗理由。渡されたファイルの切り分けに使うため先頭行も添える
 pub(crate) fn columns_failure_reason(kind: CsvKind, content: &str) -> String {
     labels::csv_columns_failure(

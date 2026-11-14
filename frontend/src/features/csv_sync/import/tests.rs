@@ -1,6 +1,14 @@
 use super::*;
 
 #[test]
+fn ensure_csv_filename_appends_csv_only_when_missing() {
+    assert_eq!(ensure_csv_filename("positions"), "positions.csv");
+    assert_eq!(ensure_csv_filename("positions.txt"), "positions.txt.csv");
+    assert_eq!(ensure_csv_filename("positions.csv"), "positions.csv");
+    assert_eq!(ensure_csv_filename("POSITIONS.CSV"), "POSITIONS.CSV");
+}
+
+#[test]
 fn columns_reason_includes_received_first_line() {
     let content = "約定日,受渡日,銘柄コード,口座\n2026/10/01,2026/10/03,9901,特定\n";
     assert_eq!(
