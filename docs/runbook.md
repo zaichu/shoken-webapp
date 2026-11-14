@@ -156,6 +156,7 @@ git fetch origin --prune
 - **自動マージ後のデプロイ**: `GITHUB_TOKEN` によるマージでは push イベントが発火しないため、main への push CI / デプロイは走りません。frontend/shared 変更を含むマージでは `dependabot-auto-merge.yml` がマージ完了後に Frontend CI を自動 dispatch します（デプロイは CI 成功後に CI 側から呼び出されます）。backend の依存がマージされたら `gh workflow run deploy-cloudflare-worker.yml` で手動デプロイしてください
 - **メジャー更新**: 自動マージしません。エージェントが破壊的変更を確認して対応します
 - **セキュリティ更新**: `priority: P1` として扱い、優先して対応します
+- **依存のクールダウン**: リポジトリ直下の `.cargo/config.toml` で `registry.global-min-publish-age = "7 days"` を設定しています。新しく解決するときは公開から 7 日未満の版を選びません(Cargo.lock にある版はそのまま使うため、Dependabot PR は通常どおり扱えます)。脆弱性修正をすぐ取り込むときは `CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow cargo update -p <crate>` を使ってください
 - **CI が red の PR**: 失敗原因を調査して対応方針を決定（修正 / 保留 / close）
 - **生成物以外のコードまで直す大きな修正になった場合**: 作業前に Issue を作って PR に紐づけます
 

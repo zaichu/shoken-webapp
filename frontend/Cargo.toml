@@ -8,6 +8,9 @@ license = "MIT"
 [lints.clippy]
 mod_module_files = "warn"
 
+[lints.cargo]
+unused_dependencies = "warn"
+
 [dependencies]
 leptos = { version = "0.8", features = ["csr"] }
 gloo-net = { version = "0.6", features = ["http"] }
