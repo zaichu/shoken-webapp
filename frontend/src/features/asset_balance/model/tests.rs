@@ -434,8 +434,8 @@ fn huge_values_do_not_panic() {
 
 #[test]
 fn chart_percentages_match_component_conditions() {
-    assert!(chart_percentages(&[]).is_empty());
-    assert!(chart_percentages(&[0.0, 0.0]).is_empty());
+    assert_eq!(chart_percentages(&[]), [] as [Option<f64>; 0]);
+    assert_eq!(chart_percentages(&[0.0, 0.0]), [] as [Option<f64>; 0]);
     let percentages = chart_percentages(&[250000.0, 600000.0]);
     assert_eq!(percentages.len(), 2);
     let total = 850000.0;

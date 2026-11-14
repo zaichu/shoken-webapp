@@ -83,7 +83,7 @@ fn filter_by_accounts_and_courses() {
         courses: vec!["再投資型".to_string()],
         ..Default::default()
     };
-    assert!(filter_fund_rows(&rows, &search).is_empty());
+    assert_eq!(filter_fund_rows(&rows, &search), [] as [&FundBalanceRow; 0]);
 }
 
 #[test]
@@ -96,8 +96,8 @@ fn text_only_search_keeps_text_and_drops_conditions() {
     };
     let text_only = text_only_search(&search);
     assert_eq!(text_only.text, "インデックス");
-    assert!(text_only.accounts.is_empty());
-    assert!(text_only.courses.is_empty());
+    assert_eq!(text_only.accounts, [] as [String; 0]);
+    assert_eq!(text_only.courses, [] as [String; 0]);
 }
 
 #[test]

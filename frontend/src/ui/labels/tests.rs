@@ -13,7 +13,7 @@ fn previous_dividend_span_collapses_single_month_and_ends_in_december() {
     assert!(single_month.contains("12"));
     assert!(single_month.contains(amount));
     assert!(!single_month.contains('〜'));
-    assert!(previous_dividend_span(12, amount).is_empty());
+    assert_eq!(previous_dividend_span(12, amount), "");
 }
 
 fn source_root() -> PathBuf {

@@ -102,7 +102,7 @@ fn composition_group_and_basis_labels_are_distinct() {
         .map(|group| group.label())
         .collect();
     for (index, label) in labels.iter().enumerate() {
-        assert!(!label.is_empty());
+        assert_ne!(*label, "");
         assert!(
             !labels[..index].contains(label),
             "区分のラベルが重複している: {label}"

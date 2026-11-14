@@ -46,7 +46,7 @@ fn unique_sorted_codes_dedupes() {
         unique_sorted_codes(&["9914".to_string(), "9904".to_string(), "9914".to_string()]),
         vec!["9904".to_string(), "9914".to_string()]
     );
-    assert!(unique_sorted_codes(&[]).is_empty());
+    assert_eq!(unique_sorted_codes(&[]), [] as [String; 0]);
 }
 
 #[test]

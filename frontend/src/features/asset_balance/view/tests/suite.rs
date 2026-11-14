@@ -434,7 +434,7 @@ fn price_date_representative_picks_the_most_common_date() {
 fn sort_key_value_round_trips() {
     for key in SortKey::ALL {
         assert_eq!(SortKey::from_value(key.value()), Some(key));
-        assert!(!key.label().is_empty());
+        assert_ne!(key.label(), "");
     }
     assert_eq!(SortKey::from_value("unknown"), None);
 }
@@ -447,8 +447,8 @@ fn sort_labels_distinguish_each_option() {
         assert!(!labels[..index].contains(label), "{label}");
     }
     assert_ne!(SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH);
-    assert!(!SORT_HIGH_TO_LOW.is_empty());
-    assert!(!SORT_LOW_TO_HIGH.is_empty());
+    assert_ne!(SORT_HIGH_TO_LOW, "");
+    assert_ne!(SORT_LOW_TO_HIGH, "");
 }
 
 #[test]
@@ -457,7 +457,7 @@ fn asset_dialog_single_select_replaces_value() {
     super::search_bar::set_dialog_single(&mut list, "NISA".to_string());
     assert_eq!(list, vec!["NISA".to_string()]);
     super::search_bar::set_dialog_single(&mut list, String::new());
-    assert!(list.is_empty());
+    assert_eq!(list, [] as [String; 0]);
     assert_eq!(super::search_bar::dialog_single_value(&list), String::new());
 }
 
@@ -698,7 +698,7 @@ fn fund_counts_prefer_api_total_like_tab_counts() {
         let counts = fund_balance_counts(generation, &slot).expect("counts");
         assert_eq!(counts.1.max(counts.0), 7);
         let resolved = resolve_fund_balance(generation, &slot).expect("resolved");
-        assert!(resolved.rows.is_empty());
+        assert_eq!(resolved.rows, [] as [FundBalanceRow; 0]);
 
         let empty: FundSlot = None;
         assert_eq!(fund_balance_counts(generation, &empty), None);
