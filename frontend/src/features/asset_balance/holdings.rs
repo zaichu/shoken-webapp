@@ -25,7 +25,7 @@ pub(crate) struct HoldingView {
 
 impl From<&HoldingView> for ValuationInput {
     fn from(view: &HoldingView) -> Self {
-        ValuationInput {
+        Self {
             current_price: view.current_price,
             shares: view.shares,
             total_purchase_amount: view.purchase,

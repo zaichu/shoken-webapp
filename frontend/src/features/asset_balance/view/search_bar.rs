@@ -26,22 +26,22 @@ pub(crate) enum ConditionKind {
 impl ConditionKind {
     fn label(self) -> &'static str {
         match self {
-            ConditionKind::Account => labels::ACCOUNT,
-            ConditionKind::Course => labels::DISTRIBUTION_COURSE,
+            Self::Account => labels::ACCOUNT,
+            Self::Course => labels::DISTRIBUTION_COURSE,
         }
     }
 
     fn title(self) -> String {
         match self {
-            ConditionKind::Account => labels::pick_title(labels::ACCOUNT),
-            ConditionKind::Course => labels::pick_title(labels::DISTRIBUTION_COURSE),
+            Self::Account => labels::pick_title(labels::ACCOUNT),
+            Self::Course => labels::pick_title(labels::DISTRIBUTION_COURSE),
         }
     }
 
     fn testid(self) -> &'static str {
         match self {
-            ConditionKind::Account => "asset-condition-account",
-            ConditionKind::Course => "asset-condition-course",
+            Self::Account => "asset-condition-account",
+            Self::Course => "asset-condition-course",
         }
     }
 }

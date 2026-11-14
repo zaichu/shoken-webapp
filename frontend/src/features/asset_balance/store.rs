@@ -32,7 +32,7 @@ pub(crate) type LoadedFundBalances = LoadedRows<FundBalance, FundBalanceSummary>
 
 /// 資産残高一覧のエンドポイント。
 impl ListEndpoint for AssetBalance {
-    type Row = AssetBalance;
+    type Row = Self;
     type Summary = AssetBalanceSummary;
 
     const PATH: &'static str = super::csv::LIST_PATH;
@@ -40,7 +40,7 @@ impl ListEndpoint for AssetBalance {
 
 /// 投資信託残高一覧のエンドポイント。
 impl ListEndpoint for FundBalance {
-    type Row = FundBalance;
+    type Row = Self;
     type Summary = FundBalanceSummary;
 
     const PATH: &'static str = super::fund::FUND_LIST_PATH;

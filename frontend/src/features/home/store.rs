@@ -31,13 +31,13 @@ pub(crate) enum SummaryKind {
 
 impl SummaryKind {
     /// 部分失敗の案内に数える取得
-    pub(crate) const ALL: &'static [SummaryKind] = &[
-        SummaryKind::Assets,
-        SummaryKind::Funds,
-        SummaryKind::DividendsCurrent,
-        SummaryKind::DividendsPrevious,
-        SummaryKind::Recent,
-        SummaryKind::Estimates,
+    pub(crate) const ALL: &'static [Self] = &[
+        Self::Assets,
+        Self::Funds,
+        Self::DividendsCurrent,
+        Self::DividendsPrevious,
+        Self::Recent,
+        Self::Estimates,
     ];
 }
 

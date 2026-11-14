@@ -27,7 +27,7 @@ pub(crate) enum CsvKind {
 
 impl CsvKind {
     /// 依頼する順序(Issue の5種類)
-    pub(crate) const ALL: [CsvKind; 5] = [
+    pub(crate) const ALL: [Self; 5] = [
         Self::AssetBalance,
         Self::FundBalance,
         Self::Dividend,

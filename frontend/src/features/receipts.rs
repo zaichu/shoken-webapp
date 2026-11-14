@@ -27,11 +27,7 @@ pub enum ReceiptsTab {
 }
 
 impl ReceiptsTab {
-    pub const ALL: [ReceiptsTab; 3] = [
-        ReceiptsTab::Dividend,
-        ReceiptsTab::DomesticStock,
-        ReceiptsTab::MutualFund,
-    ];
+    pub const ALL: [Self; 3] = [Self::Dividend, Self::DomesticStock, Self::MutualFund];
 
     /// 取引明細の種別値(タブの初期値・設定の選択肢で使う)
     pub fn kind_param(self) -> &'static str {
@@ -72,9 +68,9 @@ impl ReceiptItem {
     /// 保存済み行の DB id。行単位の DOM キーに使う。
     pub fn id(&self) -> &str {
         match self {
-            ReceiptItem::Dividend(row) => row.id.as_str(),
-            ReceiptItem::DomesticStock(row) => row.id.as_str(),
-            ReceiptItem::MutualFund(row) => row.id.as_str(),
+            Self::Dividend(row) => row.id.as_str(),
+            Self::DomesticStock(row) => row.id.as_str(),
+            Self::MutualFund(row) => row.id.as_str(),
         }
     }
 }

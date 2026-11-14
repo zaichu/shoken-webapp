@@ -23,37 +23,37 @@ pub enum SortKey {
 
 impl SortKey {
     /// 絞り込み行の選択肢
-    pub(crate) const ALL: [SortKey; 4] = [
-        SortKey::MarketValue,
-        SortKey::ProfitLoss,
-        SortKey::Dividend,
-        SortKey::Yield,
+    pub(crate) const ALL: [Self; 4] = [
+        Self::MarketValue,
+        Self::ProfitLoss,
+        Self::Dividend,
+        Self::Yield,
     ];
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            SortKey::MarketValue => MARKET_VALUE,
-            SortKey::ProfitLoss => VALUATION_PROFIT_LOSS,
-            SortKey::Dividend => ANNUAL_DIVIDEND,
-            SortKey::Yield => ACQUISITION_YIELD,
+            Self::MarketValue => MARKET_VALUE,
+            Self::ProfitLoss => VALUATION_PROFIT_LOSS,
+            Self::Dividend => ANNUAL_DIVIDEND,
+            Self::Yield => ACQUISITION_YIELD,
         }
     }
 
     pub(crate) fn value(self) -> &'static str {
         match self {
-            SortKey::MarketValue => "market_value",
-            SortKey::ProfitLoss => "profit_loss",
-            SortKey::Dividend => "dividend",
-            SortKey::Yield => "yield",
+            Self::MarketValue => "market_value",
+            Self::ProfitLoss => "profit_loss",
+            Self::Dividend => "dividend",
+            Self::Yield => "yield",
         }
     }
 
     pub(crate) fn from_value(value: &str) -> Option<Self> {
         match value {
-            "market_value" => Some(SortKey::MarketValue),
-            "profit_loss" => Some(SortKey::ProfitLoss),
-            "dividend" => Some(SortKey::Dividend),
-            "yield" => Some(SortKey::Yield),
+            "market_value" => Some(Self::MarketValue),
+            "profit_loss" => Some(Self::ProfitLoss),
+            "dividend" => Some(Self::Dividend),
+            "yield" => Some(Self::Yield),
             _ => None,
         }
     }
@@ -70,15 +70,15 @@ impl SortOrder {
     /// localStorage への保存値
     pub(crate) fn value(self) -> &'static str {
         match self {
-            SortOrder::Desc => "desc",
-            SortOrder::Asc => "asc",
+            Self::Desc => "desc",
+            Self::Asc => "asc",
         }
     }
 
     pub(crate) fn from_value(value: &str) -> Option<Self> {
         match value {
-            "desc" => Some(SortOrder::Desc),
-            "asc" => Some(SortOrder::Asc),
+            "desc" => Some(Self::Desc),
+            "asc" => Some(Self::Asc),
             _ => None,
         }
     }
@@ -155,25 +155,21 @@ pub enum CompositionGroup {
 }
 
 impl CompositionGroup {
-    pub(crate) const ALL: [CompositionGroup; 3] = [
-        CompositionGroup::Holding,
-        CompositionGroup::Product,
-        CompositionGroup::Account,
-    ];
+    pub(crate) const ALL: [Self; 3] = [Self::Holding, Self::Product, Self::Account];
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            CompositionGroup::Holding => COMPOSITION_GROUP_HOLDING,
-            CompositionGroup::Product => COMPOSITION_GROUP_PRODUCT,
-            CompositionGroup::Account => COMPOSITION_GROUP_ACCOUNT,
+            Self::Holding => COMPOSITION_GROUP_HOLDING,
+            Self::Product => COMPOSITION_GROUP_PRODUCT,
+            Self::Account => COMPOSITION_GROUP_ACCOUNT,
         }
     }
 
     pub(crate) fn value(self) -> &'static str {
         match self {
-            CompositionGroup::Holding => "holding",
-            CompositionGroup::Product => "product",
-            CompositionGroup::Account => "account",
+            Self::Holding => "holding",
+            Self::Product => "product",
+            Self::Account => "account",
         }
     }
 }
@@ -188,15 +184,15 @@ pub enum CompositionBasis {
 impl CompositionBasis {
     pub(crate) fn label(self) -> &'static str {
         match self {
-            CompositionBasis::MarketValue => MARKET_VALUE,
-            CompositionBasis::Dividend => COMPOSITION_DIVIDEND_BASIS,
+            Self::MarketValue => MARKET_VALUE,
+            Self::Dividend => COMPOSITION_DIVIDEND_BASIS,
         }
     }
 
     pub(crate) fn value(self) -> &'static str {
         match self {
-            CompositionBasis::MarketValue => "market_value",
-            CompositionBasis::Dividend => "dividend",
+            Self::MarketValue => "market_value",
+            Self::Dividend => "dividend",
         }
     }
 }
@@ -211,8 +207,8 @@ pub enum CompositionProduct {
 impl CompositionProduct {
     pub(crate) fn label(self) -> &'static str {
         match self {
-            CompositionProduct::Stock => DOMESTIC_STOCK,
-            CompositionProduct::Fund => MUTUAL_FUND,
+            Self::Stock => DOMESTIC_STOCK,
+            Self::Fund => MUTUAL_FUND,
         }
     }
 }
