@@ -8,10 +8,11 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 
-/// 順に試す拡張機能 ID(公開版 → 手元のテスト版)。公開用の値で秘密ではない
-const EXTENSION_IDS: [&str; 2] = [
+/// 順に試す拡張機能 ID(公開版 → 手元のテスト版 → 固定 ID のテスト版)。公開用の値で秘密ではない
+pub(crate) const EXTENSION_IDS: [&str; 3] = [
     "hneplimfghlcckeielonpeklmjagmceh",
     "kmmhlbafephbeepealpilibeollofeip",
+    "npceiidkedfjhcmjjocmcncfoidjjogm",
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

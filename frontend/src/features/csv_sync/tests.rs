@@ -339,3 +339,15 @@ fn prepare_file_import_initializes_kinds_and_blocks_concurrent_runs() {
         KindStatus::Importing
     );
 }
+
+#[test]
+fn extension_ids_are_tried_in_order() {
+    assert_eq!(
+        super::port::EXTENSION_IDS,
+        [
+            "hneplimfghlcckeielonpeklmjagmceh",
+            "kmmhlbafephbeepealpilibeollofeip",
+            "npceiidkedfjhcmjjocmcncfoidjjogm",
+        ]
+    );
+}
