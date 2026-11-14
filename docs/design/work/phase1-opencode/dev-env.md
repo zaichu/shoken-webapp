@@ -30,6 +30,8 @@ node docs/design/work/phase1-opencode/tools/shoot-dialogs.mjs
 node docs/design/work/phase1-opencode/tools/shoot-admin-empty.mjs
 ```
 
+- 各スクリプトは自身の場所を基準にリポジトリルートを解決するため、チェックアウトの場所が変わってもそのまま実行できる。
+
 各スクリプトは Playwright Chromium で `http://127.0.0.1:8170` に接続し、`screens.mjs` の架空モックを適用して PNG を `shots/` に保存する。
 
 ## モック
@@ -42,7 +44,7 @@ node docs/design/work/phase1-opencode/tools/shoot-admin-empty.mjs
 
 ```bash
 cd docs/design/work/phase1-opencode/shots
-find . -name '*.png' -size +300k   # 超過がないこと
+find . -name '*.png' -size +100k   # 超過がないこと
 ls | wc -l
 ```
 

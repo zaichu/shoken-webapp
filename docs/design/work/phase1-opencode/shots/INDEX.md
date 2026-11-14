@@ -8,9 +8,9 @@
 - ライト/ダーク両方
 - データは `frontend/scripts/ui-shots/data.mjs` と `screens.mjs` の架空モック。実データ・本番 API は不使用
 - 配信: `trunk build --release` → `prepare-dist.mjs` → `serve-dist.mjs` (localhost)
-- 各 PNG は 300KB 以下 (確認済み、超過 0 枚)
+- 各 PNG は量子化済み (256 色)。最大 71KB、平均 31KB、合計 5.1MB
 
-## 撮影済み (170 枚: 基本 126 + スクロール後 44)
+## 撮影済み (166 枚: 基本 122 + スクロール後 44)
 
 | 画面キー | 状態 | 説明 | ファイル例 |
 |---|---|---|---|

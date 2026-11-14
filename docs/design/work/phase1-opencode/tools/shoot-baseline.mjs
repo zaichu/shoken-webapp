@@ -1,9 +1,16 @@
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(__dirname, '../../../../..');
 const require = createRequire(import.meta.url);
-const { chromium } = require('/home/zaichu/project/.worktrees/shoken-webapp-1890-opencode/frontend/node_modules/playwright');
-import { SCREENS, prepareContext } from '/home/zaichu/project/.worktrees/shoken-webapp-1890-opencode/frontend/scripts/ui-shots/screens.mjs';
+const { chromium } = require(resolve(ROOT, 'frontend/node_modules/playwright'));
+
+const { SCREENS, prepareContext } = await import(
+  resolve(ROOT, 'frontend/scripts/ui-shots/screens.mjs')
+);
 
 const VIEWPORTS = [
   { key: 'pc', width: 1280, height: 800 },
@@ -11,7 +18,7 @@ const VIEWPORTS = [
 ];
 const THEMES = ['light', 'dark'];
 
-const options = { port: 8170, out: '/home/zaichu/project/.worktrees/shoken-webapp-1890-opencode/docs/design/work/phase1-opencode/shots' };
+const options = { port: 8170, out: resolve(__dirname, '../shots') };
 mkdirSync(options.out, { recursive: true });
 const baseUrl = `http://127.0.0.1:${options.port}`;
 const browser = await chromium.launch();
@@ -42,7 +49,7 @@ for (const screen of SCREENS) {
         if (screen.scroll) {
           const scroller = await page.$('.app-scroll');
           if (scroller) {
-            await page.evaluate(() => { const s=document.querySelector('.app-scroll'); if(s) s.scrollTop=s.scrollHeight-s.clientHeight; });
+            await page.evaluate(() => { const s = document.querySelector('.app-scroll'); if (s) s.scrollTop = s.scrollHeight - s.clientHeight; });
             await page.waitForTimeout(300);
             await page.screenshot({ path: join(options.out, `${name}-scrolled.png`) });
             count++;
