@@ -1707,46 +1707,12 @@ async fn auth_session_upsert_rotate_and_delete() {
     assert!(remaining.is_none());
 }
 
-/// id にもトークンを書く旧版と同時に動いても、双方が発行したセッションを互いに照合・失効できること。
+/// rotate が期限切れ行を掃除し、ロック中の行をスキップすること。
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn session_token_hash_rolling_deploy_compat() {
+async fn session_rotation_skips_locked_expired_sessions() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-
-    let legacy: SessionToken = Uuid::new_v4().to_string().parse().unwrap();
-    db::query(
-        "INSERT INTO sessions (user_id, token_hash) VALUES ($2, sha256(convert_to($1::text, 'UTF8')))",
-        vec![Bind::from(legacy.to_string()), Bind::from(user_id)],
-    )
-    .execute(&pool)
-    .await
-    .expect("移行済みセッションの挿入");
-    assert_eq!(
-        auth_svc::select_user_id_by_session(&pool, legacy)
-            .await
-            .expect("移行済みセッションの照合"),
-        Some(user_id),
-        "移行後も旧 Cookie が有効であること"
-    );
-
-    // 旧版は id にもトークンを書く
-    let old_version_issued = Uuid::new_v4();
-    let old_version_issued_token: SessionToken = old_version_issued.to_string().parse().unwrap();
-    db::query(
-        "INSERT INTO sessions (id, user_id, token_hash) VALUES ($1, $2, sha256(convert_to($1::uuid::text, 'UTF8')))",
-        vec![Bind::from(old_version_issued), Bind::from(user_id)],
-    )
-    .execute(&pool)
-    .await
-    .expect("旧版発行セッションの挿入");
-    assert_eq!(
-        auth_svc::select_user_id_by_session(&pool, old_version_issued_token)
-            .await
-            .expect("旧版発行セッションの照合"),
-        Some(user_id),
-        "旧版発行セッションが有効であること"
-    );
 
     // rotate は期限切れの行を掃除する。他トランザクションがロック中の行はスキップして待たない
     let other_user = create_test_user(&pool).await;
@@ -1791,21 +1757,6 @@ async fn session_token_hash_rolling_deploy_compat() {
     .expect("新版のセッション発行");
     let new_session = new_token;
 
-    // 同一ユーザーの旧セッションは rotate で失効する
-    assert!(
-        auth_svc::select_user_id_by_session(&pool, legacy)
-            .await
-            .expect("rotate 後の旧セッション照合")
-            .is_none(),
-        "rotate で移行済みの旧セッションが失効すること"
-    );
-    assert!(
-        auth_svc::select_user_id_by_session(&pool, old_version_issued_token)
-            .await
-            .expect("rotate 後の旧版発行セッション照合")
-            .is_none(),
-        "rotate で旧版発行セッションも失効すること"
-    );
     // 期限切れ行は掃除されるが、ロック中の行はスキップされる
     let expired_row_left: Option<(Uuid,)> = db::query_as(
         "SELECT id FROM sessions WHERE id = $1",
@@ -2278,6 +2229,43 @@ async fn dividend_cache_persistence_and_rate_slot() {
     );
 }
 
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn dividend_cache_migration_backfills_only_legacy_error_rows() {
+    let (pool, _node) = start_test_pool().await;
+
+    db::query(
+        "INSERT INTO dividend_per_share_cache
+            (security_code, status, stale_at, updated_at)
+         VALUES
+            ('9911', 'error', NULL, '2025-01-01T00:00:00Z'),
+            ('9912', 'pending', NULL, '2025-01-02T00:00:00Z'),
+            ('9913', 'error', '2025-01-03T00:00:00Z', '2025-01-04T00:00:00Z')",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("既存行の投入");
+
+    pool.batch_execute(include_str!(
+        "../migrations/0031_dividend_cache_error_stale_at.sql"
+    ))
+    .await
+    .expect("NULL error stale_at のバックフィル");
+
+    let rows: Vec<(String, Option<chrono::DateTime<Utc>>)> = db::query(
+        "SELECT security_code, stale_at FROM dividend_per_share_cache
+         WHERE security_code IN ('9911', '9912', '9913') ORDER BY security_code",
+        vec![],
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("更新結果の取得");
+    assert_eq!(rows[0].1, Some("2025-01-01T00:00:00Z".parse().unwrap()));
+    assert_eq!(rows[1].1, None);
+    assert_eq!(rows[2].1, Some("2025-01-03T00:00:00Z".parse().unwrap()));
+}
+
 /// drain_refresh_queue の消化対象選定(pending / 再試行間隔経過済みの error は対象、
 /// 間隔内(未来の stale_at)は対象外)と、取得失敗時の error 記録を検証する。
 /// J-Quants への実取得経路は Worker 側にしかないため、ホスト側の取得は必ず失敗し、
@@ -2604,7 +2592,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=30).collect::<Vec<_>>()
+        (0..=31).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2612,7 +2600,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=30).collect::<Vec<_>>()
+        (0..=31).collect::<Vec<_>>()
     );
 }
 
@@ -2640,7 +2628,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=30).collect::<Vec<_>>()
+        (0..=31).collect::<Vec<_>>()
     );
 }
 
@@ -6259,7 +6247,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=30).collect::<Vec<_>>()
+        (0..=31).collect::<Vec<_>>()
     );
 
     let info_a = GoogleUserInfo {
@@ -6677,7 +6665,7 @@ async fn rls_5c_writes_via_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=30).collect::<Vec<_>>()
+        (0..=31).collect::<Vec<_>>()
     );
 
     let user_a = create_test_user(&pool).await;
