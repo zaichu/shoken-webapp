@@ -18,7 +18,7 @@ pub struct DetailCell {
 }
 
 impl DetailCell {
-    pub fn plain(label: String, value: String) -> Self {
+    pub const fn plain(label: String, value: String) -> Self {
         Self {
             label,
             value,
@@ -30,7 +30,7 @@ impl DetailCell {
         }
     }
 
-    pub fn with_sub(
+    pub const fn with_sub(
         label: String,
         value: String,
         sub: String,
@@ -48,7 +48,7 @@ impl DetailCell {
         }
     }
 
-    pub fn strong_sub(
+    pub const fn strong_sub(
         label: String,
         value: String,
         sub: String,
@@ -66,7 +66,7 @@ impl DetailCell {
         }
     }
 
-    pub fn strong(
+    pub const fn strong(
         label: String,
         value: String,
         negative: bool,

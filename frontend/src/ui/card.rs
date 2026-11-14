@@ -32,7 +32,7 @@ impl CardVariant {
         class.to_string()
     }
 
-    fn section_tag(self) -> bool {
+    const fn section_tag(self) -> bool {
         matches!(self, Self::Collapsible)
     }
 }
