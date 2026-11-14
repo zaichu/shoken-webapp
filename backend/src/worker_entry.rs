@@ -163,8 +163,7 @@ fn build_state(env: &Env) -> Result<AppState> {
     let jquants_client = secrets.jquants_api_key.clone().map(|key| {
         let url_or = |name: &str, default: &str| {
             env.var(name)
-                .map(|v| v.to_string())
-                .unwrap_or_else(|_| default.to_string())
+                .map_or_else(|_| default.to_string(), |v| v.to_string())
         };
         JQuantsClient::with_urls(
             key,

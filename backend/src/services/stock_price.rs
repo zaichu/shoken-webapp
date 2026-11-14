@@ -347,6 +347,7 @@ pub fn should_refresh_at(scheduled_ms: f64) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use chrono::NaiveDate;

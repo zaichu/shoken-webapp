@@ -355,10 +355,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     || (busy_session.user.get().is_some()
                         && balances
                             .get()
-                            .filter(|(cached, _)| {
-                                *cached == busy_session.generation.get()
-                            })
-                            .is_none()) {
+                            .is_none_or(|(cached, _)| cached != busy_session.generation.get())) {
                     "true"
                 } else {
                     "false"

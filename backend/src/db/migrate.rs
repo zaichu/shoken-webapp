@@ -195,7 +195,7 @@ fn sql_line_at_position(sql: &str, position: u32) -> Option<&str> {
     (!line.is_empty()).then_some(line)
 }
 
-fn format_migration_error(error: tokio_postgres::Error, sql: &str) -> String {
+fn format_migration_error(error: &tokio_postgres::Error, sql: &str) -> String {
     let Some(db_error) = error.as_db_error() else {
         return error.to_string();
     };
@@ -327,7 +327,7 @@ async fn apply(client: &mut tokio_postgres::Client, m: &Migration) -> Result<(),
         client
             .batch_execute(m.sql)
             .await
-            .map_err(|e| format_migration_error(e, m.sql))?;
+            .map_err(|e| format_migration_error(&e, m.sql))?;
         let elapsed = i64::try_from(started.elapsed().as_nanos()).unwrap_or(i64::MAX);
         client
             .execute(
@@ -349,7 +349,7 @@ async fn apply(client: &mut tokio_postgres::Client, m: &Migration) -> Result<(),
     let started = Instant::now();
     tx.batch_execute(m.sql)
         .await
-        .map_err(|e| format_migration_error(e, m.sql))?;
+        .map_err(|e| format_migration_error(&e, m.sql))?;
     let elapsed = i64::try_from(started.elapsed().as_nanos()).unwrap_or(i64::MAX);
     insert_migration_tx(&tx, m, &sum, elapsed).await?;
     tx.commit()
@@ -407,6 +407,7 @@ async fn insert_migration_tx(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::MIGRATION_FILES;
     use super::sql_line_at_position;

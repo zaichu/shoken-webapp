@@ -64,12 +64,13 @@ export const SCREENS = [
     ready: ['[data-testid="empty-state"]'],
     admin: true,
     prepare: async (page) => {
-      if (page.viewportSize().width < 1024) {
+      const pcSearch = page.getByRole('searchbox', { name: 'メール・場所で検索' });
+      if (await pcSearch.count()) {
+        await pcSearch.fill('no-matching-login');
+      } else {
         await page.getByTestId('admin-login-search-entry').click();
         await page.getByTestId('admin-login-search-input').fill('no-matching-login');
         await page.getByTestId('search-dialog-search').click();
-      } else {
-        await page.getByRole('searchbox', { name: 'メール・場所で検索' }).fill('no-matching-login');
       }
     },
   },

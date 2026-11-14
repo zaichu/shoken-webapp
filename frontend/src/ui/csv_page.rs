@@ -99,7 +99,7 @@ impl KindFlag {
     }
 }
 
-fn receipts_tab_of(kind: CsvKind) -> Option<ReceiptsTab> {
+const fn receipts_tab_of(kind: CsvKind) -> Option<ReceiptsTab> {
     kind.receipt_tab()
 }
 

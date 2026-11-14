@@ -66,7 +66,7 @@ impl Config {
     #[cfg(target_arch = "wasm32")]
     pub fn from_worker_env(env: &worker::Env) -> Self {
         let get = |name: &str| env.var(name).ok().map(|v| v.to_string());
-        let mut config = Config::default();
+        let mut config = Self::default();
 
         config.admin_emails = env
             .secret("ADMIN_EMAILS")
@@ -107,6 +107,7 @@ impl Config {
     }
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use {
         super::*,

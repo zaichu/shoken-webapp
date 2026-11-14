@@ -64,6 +64,7 @@ impl CsvKind {
 
     /// ALL 内の位置。進行表示の配列添字に使う
     pub fn index(self) -> usize {
+        #[expect(clippy::expect_used, reason = "ALL contains every CsvKind variant")]
         Self::ALL
             .iter()
             .position(|kind| *kind == self)
@@ -510,17 +511,15 @@ impl CsvSyncStore {
                 | port::Event::Unavailable
         );
         // CSV 本文は表示状態に載せず、取り込みタスクへそのまま渡す
-        let mut result_csvs = None;
-        if let port::Event::Result { ref csvs, .. } = event {
-            result_csvs = Some(csvs.clone());
-        }
+        let result_csvs = match &event {
+            port::Event::Result { csvs, .. } => Some(csvs.clone()),
+            _ => None,
+        };
         self.state.update(|state| state.apply(event));
         if finish {
             self.stop_active();
         }
-        if let Some(csvs) = result_csvs
-            && !csvs.is_empty()
-        {
+        if let Some(csvs) = result_csvs.filter(|csvs| !csvs.is_empty()) {
             let epoch = self.epoch.get_untracked();
             let generation = self.session.generation.get_untracked();
             let store = *self;

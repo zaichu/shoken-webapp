@@ -185,7 +185,7 @@ pub fn parse_required_string(
 }
 
 /// 必須文字列フィールドを newtype として取得（空・形式不正はエラー）
-fn parse_required_typed<T, E>(s: String, col: &str, row_num: RowNumber) -> Result<T, CsvRowError>
+fn parse_required_typed<T, E>(s: &str, col: &str, row_num: RowNumber) -> Result<T, CsvRowError>
 where
     T: FromStr<Err = E>,
     E: fmt::Display,
@@ -216,7 +216,8 @@ pub fn parse_required_account(
     col: &str,
     row_num: RowNumber,
 ) -> Result<Account, CsvRowError> {
-    parse_required_typed(parse_required_string(row, col, row_num)?, col, row_num)
+    let value = parse_required_string(row, col, row_num)?;
+    parse_required_typed(&value, col, row_num)
 }
 
 /// 必須銘柄コードフィールドを取得
@@ -225,7 +226,8 @@ pub fn parse_required_security_code(
     col: &str,
     row_num: RowNumber,
 ) -> Result<SecurityCode, CsvRowError> {
-    parse_required_typed(parse_required_string(row, col, row_num)?, col, row_num)
+    let value = parse_required_string(row, col, row_num)?;
+    parse_required_typed(&value, col, row_num)
 }
 
 /// 必須数値フィールドを取得（空またはパース失敗でエラー）
@@ -260,6 +262,7 @@ pub fn parse_required_date(
     parse_date(raw).map_err(|e| cell_error(row_num, format!("{col}: {e}")))
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use shared::{normalize::normalize_security_name, tax::compute_taxes};
     use {super::*, rust_decimal_macros::dec};

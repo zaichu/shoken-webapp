@@ -236,6 +236,7 @@ pub async fn fetch_if_included<T>(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::{
         DateAxisFilter, escape_like_pattern, fetch_if_included, parse_date_param,

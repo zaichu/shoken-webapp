@@ -23,11 +23,16 @@ use leptos::prelude::*;
 pub fn AssetHoldingsTable(
     views: Vec<HoldingView>,
     /// 見出しに出している代表の基準日("YYYY-MM-DD")。違う行だけ日付を出す
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "Leptos component props are owned by the view"
+    )]
     price_date_rep: Option<String>,
     dividends: RwSignal<DividendMaps>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
+    let price_date_rep = price_date_rep.clone();
     let date_outliers = price_date_outliers(
         &views
             .iter()

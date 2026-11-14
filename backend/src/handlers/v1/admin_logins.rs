@@ -45,6 +45,7 @@ pub async fn list(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::{config::Config, db::connect_pool_lazy, models::user::User, state::Secrets};

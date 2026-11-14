@@ -109,7 +109,17 @@ fn sort_order_label(sort_by: &str, descending: bool) -> &'static str {
 /// 読み込み済み件数が総件数より少なければ出す。絞り込み直後の読み込み中・
 /// 失敗中は旧結果の件数で出さない(押すと新条件の続きを旧一覧に混ぜるため)
 fn can_load_more(ready: bool, loaded: usize, total: Option<i64>) -> bool {
-    ready && total.is_some_and(|total| i64::try_from(loaded).unwrap_or(i64::MAX) < total)
+    ready
+        && total.is_some_and(|total| {
+            i128::try_from(loaded).is_ok_and(|loaded| loaded_count_is_below_total(loaded, total))
+        })
+}
+
+fn loaded_count_is_below_total(loaded: i128, total: i64) -> bool {
+    usize::try_from(loaded).map_or_else(
+        |_| false,
+        |loaded| i64::try_from(loaded).unwrap_or(i64::MAX) < total,
+    )
 }
 
 /// スマホのダイアログの中身。キーワードの入力と並べ替えの選択を
