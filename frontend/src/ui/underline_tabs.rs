@@ -335,7 +335,6 @@ fn clear_slides(track: &web_sys::HtmlDivElement) {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn request_frame(
     gesture: &Rc<RefCell<SwipeGesture>>,
     mounted: &Arc<AtomicBool>,
@@ -437,7 +436,6 @@ fn cancel_frame(gesture: &Rc<RefCell<SwipeGesture>>) {
     gesture.borrow_mut().settle = None;
 }
 
-#[allow(clippy::too_many_arguments)]
 fn arm_settle_guard(
     gesture: &Rc<RefCell<SwipeGesture>>,
     mounted: &Arc<AtomicBool>,
@@ -487,7 +485,7 @@ enum TickAction {
     Finish { target: usize },
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn finish_swipe(
     gesture: &Rc<RefCell<SwipeGesture>>,
     mounted: &Arc<AtomicBool>,

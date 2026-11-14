@@ -174,7 +174,7 @@ fn settling_ignores_new_swipe_and_second_finger() {
 }
 
 #[test]
-#[allow(clippy::assertions_on_constants)]
+#[expect(clippy::assertions_on_constants)]
 fn guard_releases_after_settle() {
     assert!(SWIPE_SETTLE_GUARD_MS > SWIPE_SETTLE_MS);
 }

@@ -206,10 +206,10 @@ fn insert_cf_region_header(req: &mut HttpRequest) {
         .extensions()
         .get::<worker::Cf>()
         .and_then(worker::Cf::region);
-    if let Some(region) = region {
-        if let Ok(value) = axum::http::HeaderValue::from_str(&region) {
-            req.headers_mut().insert("cf-region", value);
-        }
+    if let Some(region) = region
+        && let Ok(value) = axum::http::HeaderValue::from_str(&region)
+    {
+        req.headers_mut().insert("cf-region", value);
     }
 }
 

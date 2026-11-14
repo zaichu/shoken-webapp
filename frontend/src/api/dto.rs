@@ -1,10 +1,8 @@
-// FacetOption・SearchFacets はテスト（cfg(test)）からのみ参照されるため bin クレートでは unused 警告が出る
-#[allow(unused_imports)]
+#[cfg(test)]
 pub use shared::common::{FacetOption, SearchFacets};
 pub use shared::common::{MessageResponse, PaginatedSearchResponse, SessionUser, Stock};
 pub use shared::csv_import::{CsvPreviewResponse, CsvUploadResponse};
-#[allow(unused_imports)]
-pub use shared::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse};
+pub use shared::csv_kind_stats::CsvKindStatsResponse;
 pub use shared::domain::{
     AssetBalance, AssetBalanceSummary, Dividend, DividendSummary, DomesticStock,
     DomesticStockSummary, FundBalance, FundBalanceSummary, FundPriceSource, Mutualfund,

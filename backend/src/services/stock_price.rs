@@ -338,7 +338,7 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
 
 /// 予定時刻（UTC エポックミリ秒）の分が5の倍数なら現在値更新を実行するかを返す
 // JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None→false になる
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 pub fn should_refresh_at(scheduled_ms: f64) -> bool {
     DateTime::from_timestamp_millis(scheduled_ms as i64).is_some_and(|t| t.minute() % 5 == 0)
 }
@@ -574,7 +574,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     fn test_should_refresh_at_runs_every_five_minutes() {
         // epoch ミリ秒は f64 でも 2^53 未満では正確に表せるため精度は落ちない
         let ms = |h: u32, m: u32, s: u32| {

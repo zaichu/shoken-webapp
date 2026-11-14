@@ -162,7 +162,7 @@ async fn postpone_refresh_slot(pool: &Db) -> Result<(), ApiError> {
 /// `scheduled_ms`(UTC エポックミリ秒)から UTC 時刻を得る。
 /// `Utc::now()` には依存しない(テスト可能なように scheduled イベント時刻のみを使う)
 // JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None になる
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 const fn scheduled_time(scheduled_ms: f64) -> Option<DateTime<Utc>> {
     DateTime::from_timestamp_millis(scheduled_ms as i64)
 }

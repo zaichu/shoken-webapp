@@ -153,7 +153,7 @@ impl ReceiptSearch {
         }
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub const fn is_default(&self) -> bool {
         self.query.is_empty() && self.selected_queries.is_empty()
     }

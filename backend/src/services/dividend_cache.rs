@@ -169,7 +169,7 @@ pub async fn drain_refresh_queue(
     Ok(processed)
 }
 
-#[allow(clippy::needless_lifetimes)]
+#[expect(clippy::needless_lifetimes)]
 fn build_batch_items<'a>(
     codes: &'a [SecurityCode],
     cache_map: &std::collections::HashMap<&str, &DividendCache>,
