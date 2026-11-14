@@ -164,7 +164,7 @@ fn migrations() -> Vec<Migration> {
 }
 
 /// sqlx と同じ lock ID: `0x3d32ad9e * CRC32_ISO_HDLC(db名)`
-fn lock_id(database: &str) -> i64 {
+const fn lock_id(database: &str) -> i64 {
     0x3d32ad9e_i64.wrapping_mul(
         crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC).checksum(database.as_bytes()) as i64,
     )

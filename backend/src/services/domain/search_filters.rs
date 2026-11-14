@@ -103,7 +103,7 @@ impl FilterField {
     pub const COUNT: usize = 6;
 
     /// 対応する SQL カラム名（固定文字列）
-    pub fn column(self) -> &'static str {
+    pub const fn column(self) -> &'static str {
         match self {
             Self::Product => "product",
             Self::Account => "account",
@@ -132,7 +132,7 @@ pub struct SearchFilter {
 
 impl SearchFilter {
     /// フィールドの完全一致条件（対象外フィールドは None）
-    pub fn value(&self, field: FilterField) -> &Option<String> {
+    pub const fn value(&self, field: FilterField) -> &Option<String> {
         &self.values[field as usize]
     }
 }

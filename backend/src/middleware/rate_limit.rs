@@ -47,7 +47,7 @@ fn client_ip_key_from_header(
 
 /// バインディング失敗時に拒否すべきか。本番だけ拒否し、開発・テストは通過させる。
 #[cfg(any(target_arch = "wasm32", test))]
-pub(crate) fn binding_failure_should_reject(is_production: bool) -> bool {
+pub(crate) const fn binding_failure_should_reject(is_production: bool) -> bool {
     is_production
 }
 

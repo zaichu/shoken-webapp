@@ -32,7 +32,7 @@ impl RuntimeEnv {
         }
     }
 
-    pub fn is_production(self) -> bool {
+    pub const fn is_production(self) -> bool {
         matches!(self, Self::Production)
     }
 }

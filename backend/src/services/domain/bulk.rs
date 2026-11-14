@@ -17,7 +17,7 @@ impl RowLimit {
         Self(value)
     }
 
-    pub fn get(self) -> i64 {
+    pub const fn get(self) -> i64 {
         self.0
     }
 }

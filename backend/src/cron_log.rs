@@ -11,7 +11,7 @@ pub enum CronStep {
 }
 
 impl CronStep {
-    pub fn name(self) -> &'static str {
+    pub const fn name(self) -> &'static str {
         match self {
             Self::DividendCache => "dividend_cache",
             Self::StockPrice => "stock_price",

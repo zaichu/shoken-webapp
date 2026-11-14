@@ -70,7 +70,7 @@ pub fn clamp_history_limit(limit: Option<i64>) -> i64 {
     }
 }
 
-pub fn clamp_history_offset(offset: Option<i64>) -> i64 {
+pub const fn clamp_history_offset(offset: Option<i64>) -> i64 {
     match offset {
         Some(n) if n > 0 => n,
         _ => 0,
@@ -197,7 +197,7 @@ pub enum LoginOutcome {
 }
 
 impl LoginOutcome {
-    pub fn as_str(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::Success => "success",
             Self::NewDevice => "new_device",

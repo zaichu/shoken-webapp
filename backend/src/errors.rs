@@ -59,14 +59,14 @@ pub enum UpstreamError {
 }
 
 impl UpstreamError {
-    fn status(&self) -> StatusCode {
+    const fn status(&self) -> StatusCode {
         match self {
             Self::RateLimited => StatusCode::TOO_MANY_REQUESTS,
             _ => StatusCode::BAD_GATEWAY,
         }
     }
 
-    fn code(&self) -> &'static str {
+    const fn code(&self) -> &'static str {
         match self {
             Self::RateLimited => "RATE_LIMIT_EXCEEDED",
             _ => "UPSTREAM_ERROR",
