@@ -21,7 +21,7 @@ fn loaded_count_beyond_i64() -> usize {
 
 #[cfg(target_pointer_width = "64")]
 fn loaded_count_beyond_i64() -> usize {
-    i64::MAX as usize + 1
+    usize::try_from(i64::MAX).unwrap_or(usize::MAX)
 }
 
 #[test]

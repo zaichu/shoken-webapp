@@ -58,6 +58,10 @@ const fn delta_or_plain(negative: bool, positive: bool) -> AmountKind {
 /// 集計帯の1項目。ラベルと数字の組。
 /// 全項目でラベルの上端と数字の基準線をそろえるために、帯の中で同じ作りを使う
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn SummaryItem(
     #[prop(into)] label: String,
     #[prop(into)] value: String,
@@ -124,6 +128,10 @@ pub struct SummaryBreakdownEntry {
 /// PCは従来の横並びを残し、スマホだけ開閉にする(PCの見た目を変えない)。
 /// 開閉の状態は画面内だけで持つ。
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn SummaryBand(
     #[prop(into)] primary_label: String,
     #[prop(into)] primary_value: String,

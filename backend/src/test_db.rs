@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use crate::db::Db;
 use crate::test_constants::POSTGRES_TAG;
 use testcontainers::ImageExt;

@@ -70,6 +70,10 @@ impl BulkTimer {
         #[cfg(not(target_arch = "wasm32"))]
         let elapsed_ms = self.start.elapsed().as_secs_f64() * 1000.0;
         #[cfg(target_arch = "wasm32")]
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "Elapsed time is used for logging only"
+        )]
         let elapsed_ms = worker::Date::now()
             .as_millis()
             .saturating_sub(self.start_ms) as f64;
@@ -224,6 +228,7 @@ pub async fn delete_all<D: Domain>(pool: &Db, user_id: UserId) -> Result<u64, Ap
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::{BulkTimer, RowLimit, exceeds_user_row_limit, user_ids_for_bulk_insert};
     use crate::services::domain::WriteMode;

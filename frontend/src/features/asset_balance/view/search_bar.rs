@@ -167,7 +167,7 @@ pub(crate) fn AssetSearchBar(
     };
     let account_options = to_options(account_options, account_display_name);
     let course_options = to_options(course_options, |value| value);
-    let placeholder_pc = placeholder.clone();
+    let placeholder_pc = placeholder;
 
     let condition_button = move |kind: ConditionKind, node_ref: NodeRef<leptos::html::Button>| {
         view! {
@@ -306,7 +306,7 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
         };
         format!("{} {order}", key_label(sort_key.get()))
     };
-    let sheet_placeholder = placeholder.clone();
+    let sheet_placeholder = placeholder;
     let sort_summary = Signal::derive(sort_summary);
     view! {
         <MobileSearchEntryShell

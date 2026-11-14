@@ -58,6 +58,7 @@ pub struct GoogleUserInfo {
     pub picture_url: Option<String>,
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     #[test]

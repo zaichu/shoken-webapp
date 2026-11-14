@@ -62,6 +62,7 @@ pub async fn handle_import_csv<D: CsvImport>(
     Ok((StatusCode::CREATED, Json(response)))
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::errors::ErrorResponse;

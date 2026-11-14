@@ -279,6 +279,7 @@ impl IntoResponse for ApiError {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use {super::*, crate::db::DbError, crate::db::SqlState, axum::http::StatusCode};
 

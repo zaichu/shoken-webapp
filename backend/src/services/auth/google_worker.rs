@@ -87,6 +87,7 @@ pub async fn verify_code_with_google(
 ) -> Result<GoogleUserInfo, ApiError> {
     let id_token = exchange_code_for_id_token(oauth_client, code, pkce_verifier).await?;
     let claims = fetch_tokeninfo_claims(oauth_client, &id_token).await?;
-    let now_unix = (worker::js_sys::Date::now() / 1000.0) as i64;
+    let now_unix = worker::Date::now().as_millis() / 1000;
+    let now_unix = i64::try_from(now_unix).unwrap_or(i64::MAX);
     validate_tokeninfo_claims(&claims, &oauth_client.client_id, nonce, now_unix)
 }

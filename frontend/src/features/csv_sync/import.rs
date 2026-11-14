@@ -30,7 +30,7 @@ struct ImportPlan {
     receipts_tab: Option<ReceiptsTab>,
 }
 
-fn plan_of(kind: CsvKind) -> ImportPlan {
+const fn plan_of(kind: CsvKind) -> ImportPlan {
     match kind {
         CsvKind::AssetBalance => ImportPlan {
             preview_path: PREVIEW_PATH,
@@ -48,18 +48,18 @@ fn plan_of(kind: CsvKind) -> ImportPlan {
             replace: true,
             receipts_tab: None,
         },
-        CsvKind::Dividend => receipts_plan(ReceiptsTab::Dividend),
-        CsvKind::DomesticStock => receipts_plan(ReceiptsTab::DomesticStock),
-        CsvKind::MutualFund => receipts_plan(ReceiptsTab::MutualFund),
+        CsvKind::Dividend => receipt_plan(ReceiptsTab::Dividend),
+        CsvKind::DomesticStock => receipt_plan(ReceiptsTab::DomesticStock),
+        CsvKind::MutualFund => receipt_plan(ReceiptsTab::MutualFund),
     }
 }
 
 /// 取り込み後に再取得する明細タブ(保有残高は別の一覧を持つので None)
-pub(crate) fn receipts_tab_of(kind: CsvKind) -> Option<ReceiptsTab> {
+pub(crate) const fn receipts_tab_of(kind: CsvKind) -> Option<ReceiptsTab> {
     plan_of(kind).receipts_tab
 }
 
-fn receipts_plan(tab: ReceiptsTab) -> ImportPlan {
+const fn receipt_plan(tab: ReceiptsTab) -> ImportPlan {
     ImportPlan {
         preview_path: tab.preview_path(),
         import_path: tab.import_path(),

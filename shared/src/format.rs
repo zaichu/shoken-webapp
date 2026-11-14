@@ -87,6 +87,7 @@ pub fn format_percentage_value(value: Decimal, decimals: u32) -> String {
 }
 
 #[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
 mod tests {
     use super::*;
     use proptest::strategy::Strategy;
