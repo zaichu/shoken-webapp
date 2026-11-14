@@ -22,6 +22,10 @@ const KEY_IDLE_MINUTES: &str = "setting_auto_logout_minutes";
 const KEY_THEME: &str = "setting_theme";
 
 // 非 wasm(単体テスト)では window が無いため常に None を返す
+#[allow(
+    clippy::missing_const_for_fn,
+    reason = "wasm32 calls the browser localStorage API"
+)]
 fn storage() -> Option<web_sys::Storage> {
     #[cfg(target_arch = "wasm32")]
     {

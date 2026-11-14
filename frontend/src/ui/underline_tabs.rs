@@ -551,12 +551,13 @@ fn finish_swipe(
         reset_view();
         return;
     }
-    let mut width = width;
-    if !locked {
-        width = track
+    let width = if !locked {
+        track
             .get()
-            .map_or(0.0, |track| f64::from(track.client_width()));
-    }
+            .map_or(0.0, |track| f64::from(track.client_width()))
+    } else {
+        width
+    };
     let from = if locked {
         clamp_drag_offset(dx, count_value, current_value, width)
     } else {

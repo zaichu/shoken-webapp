@@ -152,13 +152,13 @@ pub struct SearchFacets {
 /// 検索・集計付きページネーションレスポンス。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-pub struct PaginatedSearchResponse<T, Summary> {
-    pub data: Vec<T>,
+pub struct PaginatedSearchResponse<Item, Aggregate> {
+    pub data: Vec<Item>,
     pub total: i64,
     pub page: i64,
     pub per_page: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub summary: Option<Summary>,
+    pub summary: Option<Aggregate>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub facets: Option<SearchFacets>,
 }

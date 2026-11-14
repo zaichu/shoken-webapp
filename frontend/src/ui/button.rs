@@ -242,6 +242,10 @@ pub fn LinkButton(
 
 /// ON/OFF の切替スイッチ。`role="switch"` と `aria-checked` で状態を伝える
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn Switch(
     #[prop(into)] checked: Signal<bool>,
     #[prop(into)] label: String,

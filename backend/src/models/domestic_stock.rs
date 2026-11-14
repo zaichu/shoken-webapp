@@ -112,6 +112,7 @@ impl Validate for CreateDomesticStockRequest {
     }
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use {super::*, rust_decimal_macros::dec};
 

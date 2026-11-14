@@ -21,14 +21,14 @@ impl QueryBuilder {
     }
 
     pub fn push(&mut self, sql: impl Display) -> &mut Self {
-        write!(self.sql, "{sql}").expect("Stringへの書き込みは失敗しない");
+        let _ = write!(self.sql, "{sql}");
         self
     }
 
     /// `$N` を追記して値をパラメータとして登録する
     pub fn push_bind(&mut self, value: impl Into<Bind>) -> &mut Self {
         self.params.push(value.into());
-        write!(self.sql, "${}", self.params.len()).expect("Stringへの書き込みは失敗しない");
+        let _ = write!(self.sql, "${}", self.params.len());
         self
     }
 

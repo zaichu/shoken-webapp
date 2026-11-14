@@ -67,6 +67,10 @@ fn compact_tiers(
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn ReceiptTable(
     tab: ReceiptsTab,
     rows: Vec<ReceiptRow>,

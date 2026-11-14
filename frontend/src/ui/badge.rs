@@ -48,6 +48,10 @@ impl BadgeVariant {
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn Badge(
     variant: BadgeVariant,
     #[prop(into, optional)] class: Signal<String>,
@@ -92,6 +96,10 @@ pub fn account_display_name(value: &str) -> &str {
 /// 口座区分のバッジ。配色は input.css の --color-badge-* トークンで決まる。
 /// 対応表にない口座名は一般と同じ中立色にする
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn AccountBadge(#[prop(into)] label: String) -> impl IntoView {
     let label = account_display_name(&label).to_string();
     let variant = account_badge_variant(&label);

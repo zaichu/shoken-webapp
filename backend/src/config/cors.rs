@@ -89,6 +89,7 @@ pub fn is_localhost_origin(origin: &str) -> bool {
     matches!(host, "localhost" | "localhost." | "127.0.0.1")
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use {
         super::{

@@ -71,7 +71,7 @@ const REGION_TABLE: &[(&str, &str)] = &[
     ("okinawa", "沖縄県"),
 ];
 
-fn prefecture_by_number(number: u32) -> Option<&'static str> {
+const fn prefecture_by_number(number: u32) -> Option<&'static str> {
     match number {
         1 => Some("北海道"),
         2 => Some("青森県"),
@@ -155,17 +155,14 @@ pub fn region_name(region: &str) -> &str {
 
 fn capitalize_first(value: &str) -> String {
     let mut chars = value.chars();
-    match chars.next() {
-        None => String::new(),
-        Some(first) => {
-            let mut out = String::with_capacity(value.len());
-            for upper in first.to_uppercase() {
-                out.push(upper);
-            }
-            out.push_str(chars.as_str());
-            out
+    chars.next().map_or_else(String::new, |first| {
+        let mut out = String::with_capacity(value.len());
+        for upper in first.to_uppercase() {
+            out.push(upper);
         }
-    }
+        out.push_str(chars.as_str());
+        out
+    })
 }
 
 fn shorten_unknown_label(value: &str) -> String {
@@ -246,7 +243,7 @@ pub fn format_agent(browser: Option<&str>, os: Option<&str>) -> String {
 }
 
 #[must_use]
-pub fn days_in_month(year: i32, month: u32) -> u32 {
+pub const fn days_in_month(year: i32, month: u32) -> u32 {
     let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
     match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -257,7 +254,7 @@ pub fn days_in_month(year: i32, month: u32) -> u32 {
 }
 
 #[must_use]
-pub fn shift_utc_to_jst(
+pub const fn shift_utc_to_jst(
     year: i32,
     month: u32,
     day: u32,

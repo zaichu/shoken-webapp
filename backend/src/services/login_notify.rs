@@ -246,11 +246,6 @@ async fn send_via_gmail(
     message: &str,
 ) -> Result<(), String> {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-    let socket = worker::Socket::builder()
-        .secure_transport(worker::SecureTransport::On)
-        .connect("smtp.gmail.com", 465)
-        .map_err(|e| format!("SMTP connect 失敗: {e:?}"))?;
-    let mut stream = tokio::io::BufReader::new(socket);
     async fn read_reply(
         stream: &mut tokio::io::BufReader<worker::Socket>,
     ) -> Result<String, String> {
@@ -266,8 +261,8 @@ async fn send_via_gmail(
             let last = buf.trim_end().to_string();
             if last.len() >= 4 && last.as_bytes()[3] == b' ' {
                 return reply_code(&last)
-                    .filter(|code| (200..400).contains(code))
-                    .is_some()
+                    .as_ref()
+                    .is_some_and(|code| (200..400).contains(code))
                     .then_some(last)
                     .ok_or_else(|| "SMTP 応答が不正です".to_string());
             }
@@ -289,6 +284,11 @@ async fn send_via_gmail(
             .map_err(|e| format!("SMTP write 失敗: {e}"))?;
         Ok(())
     }
+    let socket = worker::Socket::builder()
+        .secure_transport(worker::SecureTransport::On)
+        .connect("smtp.gmail.com", 465)
+        .map_err(|e| format!("SMTP connect 失敗: {e:?}"))?;
+    let mut stream = tokio::io::BufReader::new(socket);
     let greeting = read_reply(&mut stream).await?;
     if !greeting.starts_with("220") {
         return Err("SMTP 応答が不正です".to_string());
@@ -446,6 +446,7 @@ pub fn maybe_notify_on_login(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
