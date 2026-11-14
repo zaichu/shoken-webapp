@@ -36,9 +36,11 @@
   .band .pos { color: var(--color-profit-bright); }
   .band .neg { color: var(--color-loss-bright); }
   .bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; border-bottom: 2px solid var(--color-border-strong); padding-top: 8px; }
-  .bars .b { flex: 1; background: var(--color-chart-2); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .bars .b { flex: 1; background: var(--color-chart-3); border-radius: 4px 4px 0 0; min-height: 2px; }
   .bars .b.zero { background: var(--color-border-strong); }
   .bars .b.prev { background: var(--color-chart-previous); }
+  .donut { width: 120px; height: 120px; border-radius: 50%; background: conic-gradient(var(--color-chart-1) 0 63.1%, var(--color-chart-2) 63.1% 100%); position: relative; flex: none; }
+  .donut::after { content: ""; position: absolute; inset: 30px; background: var(--color-surface); border-radius: 50%; }
   .months { display: flex; gap: 4px; font-size: 11px; color: var(--color-text-muted); }
   .months span { flex: 1; text-align: center; }
   .legend { font-size: 13px; margin-top: 8px; }
@@ -122,12 +124,19 @@
     <p class="note">finance-data.md §5。曲線禁止。凡例は色+名前+金額+割合。前年は比較色。</p>
     <div class="pair">
       <div class="good"><span class="tag">良い例(棒+凡例)</span>
-        <div class="num" style="font-size:12px">月別配当(2026/01 〜 2026/12)・合計 ¥300,000</div>
+        <div class="num" style="font-size:12px">月別配当(2026/01 〜 2026/12)・合計 ¥300,000(単一の系列)</div>
         <div class="bars" role="img" aria-label="月別配当の棒グラフ">
           <div class="b" style="height:20%"></div><div class="b zero" style="height:2%"></div><div class="b" style="height:74%"></div><div class="b" style="height:13%"></div><div class="b" style="height:25%"></div><div class="b" style="height:36%"></div><div class="b" style="height:30%"></div><div class="b" style="height:15%"></div><div class="b" style="height:62%"></div><div class="b" style="height:20%"></div><div class="b" style="height:98%"></div><div class="b" style="height:100%"></div>
         </div>
         <div class="months"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span></div>
-        <div class="legend"><span class="sw" style="background:var(--color-chart-1)"></span>国内株式 ¥2,111,000 63.1%　<span class="sw" style="background:var(--color-chart-2)"></span>投資信託 ¥1,234,000 36.9%</div>
+        <div class="legend"><span class="sw" style="background:var(--color-chart-3)"></span>月別配当(配当金の受取額) 合計 ¥300,000</div>
+        <p class="note">単一の系列のため棒は1色(`chart-3`)。資産構成の系列色(`chart-1`/`chart-2`)は使わない。</p>
+        <div class="num" style="font-size:12px;margin-top:12px">資産構成(評価額基準)・合計 ¥3,345,000</div>
+        <div class="donut-row">
+          <div class="donut" role="img" aria-label="資産構成の円グラフ"></div>
+          <div class="legend"><span class="sw" style="background:var(--color-chart-1)"></span>国内株式 ¥2,111,000 63.1%<br><span class="sw" style="background:var(--color-chart-2)"></span>投資信託 ¥1,234,000 36.9%</div>
+        </div>
+        <p class="note">構成は円グラフ+凡例(金額と割合)。円の色・順序と凡例を一致させる。</p>
       </div>
       <div class="bad"><span class="tag">悪い例</span>
         <div class="num" style="font-size:12px">月別配当(期間なし・合計なし)</div>
