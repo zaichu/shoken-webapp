@@ -3,7 +3,7 @@
 - Section: `9:9`（Concept B シンプル(OpenCode)）
 - Figma: https://www.figma.com/design/cENMDi4g6IiBx79io0kOil/?node-id=9-9
 - 使用フォント: Noto Sans JP（Regular / Medium / Bold。`listAvailableFontsAsync` で確認済み）
-- 状態: ボードはホーム PC/SP・資産管理 PC/SP を作成済み。取引明細 PC/SP は Figma MCP レート制限のため未作成（回復後に追加する。代替として本文 §10 に HTML 代替案の方針を記す）
+- 状態: Figma ボードはホーム PC/SP・資産管理 PC/SP の4件のまま（本 PR では Figma に書かない）。HTML+PNG で 6 画面＋ダーク 1 枚を揃えた。詳細は §10。
 
 ## 1. 名前・理念
 
@@ -153,9 +153,30 @@ OpenCode 監査（`ux-audit-opencode.md`。H-2 は統合判定で取下げのた
 
 ## 10. Figma ボードの状態と代替方針
 
-- 作成済み: `B-PC-ホーム1280`・`B-SP-ホーム390`・`B-PC-資産管理1280`・`B-SP-資産管理390`（いずれも編集可能テキスト＋フレーム部品。スクリーンショット貼付けなし）。
-- 未作成: `B-PC-取引明細1280`・`B-SP-取引明細390`（Figma MCP スタータープランのレート制限到達のため。`use_figma`・`get_metadata`・`get_screenshot` の呼出しが `Upgrade your plan` で失敗。回復待ちで再試行したが本 PR 時点で未回復）。
+- 作成済み（4 件のまま。本 PR では Figma に書き足さない）: `B-PC-ホーム1280`・`B-SP-ホーム390`・`B-PC-資産管理1280`・`B-SP-資産管理390`（いずれも編集可能テキスト＋フレーム部品。スクリーンショット貼付けなし）。
+- 未作成: `B-PC-取引明細1280`・`B-SP-取引明細390`（Figma MCP スタータープランのレート制限到達のため前 PR 時点で未作成。本 PR 方針により追加しない）。
 - Figma ボードのスクリーンショット確認は未確認（同制限で `get_screenshot` が呼べないため。Canvas 上の重なり・文字切れの目視検証は未実施）。
-- 代替（本 PR に含む）: `docs/design/work/phase3-opencode/html/b-receipts-pc.html`・`b-receipts-sp.html`（共通 `b.css`）＋ Playwright PNG 2 枚。目視で文字切れ・重なりなしを確認済み。
-  - `docs/design/work/phase3-opencode/shots/B-receipts-pc.png`（約 110KB）
-  - `docs/design/work/phase3-opencode/shots/B-receipts-sp.png`（約 64KB）
+- 代替（本 PR に含む）: `docs/design/work/phase3-opencode/html/` の共通 `b.css`＋ HTML 7 件と、Playwright（Chromium・`--no-sandbox`）のフルページ PNG 7 枚。目視で文字切れ・重なりなしを確認済み。表の溢れは `scrollWidth/clientWidth` でも確認（資産 PC・取引 PC とも溢れなし）。画像はすべて 150KB 以下。
+  - ホーム PC: `b-home-pc.html` → `shots/B-home-pc.png`（約 54KB）
+  - ホーム SP: `b-home-sp.html` → `shots/B-home-sp.png`（約 97KB）
+  - ホーム PC ダーク: `b-home-pc-dark.html` → `shots/B-home-pc-dark.png`（約 53KB。`body.dark` のみで面・文字・罫線を反転。新規トークンなし）
+  - 資産管理（すべて）PC: `b-asset-pc.html` → `shots/B-asset-pc.png`（約 54KB）
+  - 資産管理（すべて）SP: `b-asset-sp.html` → `shots/B-asset-sp.png`（約 89KB）
+  - 取引明細（配当金）PC: `b-receipts-pc.html` → `shots/B-receipts-pc.png`（約 116KB）
+  - 取引明細（配当金）SP: `b-receipts-sp.html` → `shots/B-receipts-sp.png`（約 72KB）
+
+## 11. Devin 指摘への対応と数値の型統一
+
+- 指摘（PR #1897 の inline コメント）: 取引明細モックが配当に `pos`・税額に `neg` を付けているが、`frontend/README.md:167` の「税額・配当・利回りは色なし」・「プラスに符号なし」と食い違う。
+- 判断: モックは現行の正本どおり（`pos` 維持）とする。理由は次の 3 点。
+  1. `frontend/README.md` の該当 2 行は #1066 時点（2026-09）の古い記述で、その後の #1689（配当の受取額をプラス表記・緑に統一）・#1693（税引前・税額・税引後の符号と色をそろえる）・#1735（帯の内訳も同決まり）の更新が反映されていない。現行の正本は `docs/design/mobile-ui-rules.md:53,91` と `frontend/src/ui/amount.rs`（`AmountKind::Delta`＝出入り・損益・税の 3 つだけ符号＋色、`Plain`＝残高・価格・元額は通常色）であり、実装（`receipts/view/cards.rs`・`summary.rs`・`table.rs` のテスト群）もすべてこの決まりで緑/赤を付けている。
+  2. `docs/ui-design.md:17` の「色は意味のあるもの（損益の正負・選択状態・警告/危険）だけ」は受取額・税の着色を禁じていない（受取額の増減・税の出入りは「意味のあるもの」に当たる）。`frontend/src/ui/format.rs` は書式（桁区切り・符号文字・日付）の置き場所であり色の規則は持たないため、色の正本は上記 `mobile-ui-rules.md` に従う。
+  3. モックを README 旧記述に合わせると実装と食い違い、新たな二重基準を作る。README 側の更新は本 PR の範囲外（別 Issue で「税額・配当・利回りは色なし」→現行決まりへの修正を提案する）。
+- 全 7 画面の数値の型（`mobile-ui-rules.md:53,91` に一本化。`format.rs` は書式のみ、色は `Amount` が持つ）:
+  - 金額: `¥12,345`・マイナス `-¥1,234`・桁区切り・右揃え・`tabular-nums`・欠測 `—`（`shared::format` と同じ）
+  - 損益・受取額（評価損益・前日比・配当金・税引後）: 正は `+`＋緑、負は `-`＋赤、0 は符号・色なし（Delta）
+  - 税額: 出ていくお金として符号反転（正の税→`-`＋赤、還付の負の税→`+`＋緑、0 は `¥0` 通常色）
+  - 残高・価格・元額（評価額・取得総額・現在値・1 株配当・数量・予想額）: 符号・色なし（Plain）。1 株配当など小数ありは列内で桁そろえ、整数のみの列は小数なし
+  - 紺帯の上も同決まり（明色に寄せた緑/赤。`positive` 系・`negative` 系トークン）
+  - データ時点: 価格基準日 `2026/10/20`（年付き）・取込 `データ: 2026/1/1 取り込み`・配当期間 `2026/01 〜 2026/12` を全画面で同じ文言にする
+  - 日付: 一覧は `YYYY/MM/DD`（`format_iso_date`）、行内は `M/D`（`format_short_date`）、小計行は `2026年12月 ｜ 3件の合計`
