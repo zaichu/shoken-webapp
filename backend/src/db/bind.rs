@@ -32,7 +32,7 @@ pub enum Bind {
 impl Bind {
     /// `Option` をそのまま束縛する。`None` は untyped NULL（列型で推論される）
     pub fn opt<T: Into<Self>>(value: Option<T>) -> Self {
-        value.map(Into::into).unwrap_or(Self::Null)
+        value.map_or(Self::Null, Into::into)
     }
 
     /// `ty` を明示して値を束縛する。`Vec<T>` の配列は専用 `From` impl 側で型を決める

@@ -117,13 +117,13 @@ async fn collect_facets<D: Search + ?Sized>(
         let options = match spec.kind {
             FacetKind::Group { field, order } => {
                 facets::fetch_group_facets(pool, D::TABLE, field.as_sql_expr(), order, |qb| {
-                    D::push_filters(qb, user_id, filter)
+                    D::push_filters(qb, user_id, filter);
                 })
                 .await?
             }
             FacetKind::Security { label_order } => {
                 facets::fetch_security_facets(pool, D::TABLE, label_order, |qb| {
-                    D::push_filters(qb, user_id, filter)
+                    D::push_filters(qb, user_id, filter);
                 })
                 .await?
             }

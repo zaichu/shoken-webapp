@@ -122,7 +122,7 @@ mod tests {
             ValidatedJson::<TestData>::from_request(
                 json_request(
                     serde_json::to_string(&TestData {
-                        name: "".to_string(),
+                        name: String::new(),
                         age: 30
                     })
                     .unwrap()

@@ -166,11 +166,8 @@ mod tests {
 
     #[test]
     fn test_parse_csv_skips_empty_lines() {
-        let table = parse_csv_with_config(
-            "name,amount\nfoo,100\n,\nbar,200\n".as_bytes(),
-            &BASIC_CONFIG,
-        )
-        .unwrap();
+        let table =
+            parse_csv_with_config(b"name,amount\nfoo,100\n,\nbar,200\n", &BASIC_CONFIG).unwrap();
         let rows = collect(&table);
 
         assert_eq!(rows.len(), 2);
@@ -192,7 +189,7 @@ mod tests {
     #[test]
     fn test_parse_csv_with_config() {
         let table = parse_csv_with_config(
-            "meta\nname,amount\nfoo,100\nbar\n,\n".as_bytes(),
+            b"meta\nname,amount\nfoo,100\nbar\n,\n",
             &CsvParserConfig {
                 skip_header_rows: 1,
                 ..BASIC_CONFIG
@@ -373,8 +370,7 @@ mod tests {
                 for (index, header) in headers.iter().enumerate() {
                     let expected_cell = record
                         .get(index)
-                        .map(|c| c.trim())
-                        .unwrap_or_default();
+                        .map_or_default(|c| c.trim());
                     proptest::prop_assert_eq!(
                         actual.cell(header),
                         expected_cell,

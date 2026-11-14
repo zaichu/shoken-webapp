@@ -32,10 +32,9 @@ pub fn build_cors_layer(cors_origins: &[String], allow_preview_origins: bool) ->
                     return true;
                 }
                 cors_origins.iter().any(|allowed_origin| {
-                    match allowed_origin.parse::<HeaderValue>() {
-                        Ok(header_value) => origin.eq(&header_value),
-                        _ => false,
-                    }
+                    allowed_origin
+                        .parse::<HeaderValue>()
+                        .is_ok_and(|header_value| origin.eq(&header_value))
                 })
             },
         ))
@@ -47,9 +46,9 @@ pub fn build_cors_layer(cors_origins: &[String], allow_preview_origins: bool) ->
 
 pub fn parse_cors_origins(raw: &str) -> Vec<String> {
     raw.split(',')
-        .map(|origin| origin.trim())
+        .map(str::trim)
         .filter(|origin| !origin.is_empty())
-        .map(|origin| origin.to_string())
+        .map(std::string::ToString::to_string)
         .collect()
 }
 

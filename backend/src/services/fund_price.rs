@@ -250,7 +250,7 @@ async fn record_fetch_failure(pool: &Db, association_fund_cd: &str, reason: &str
             "基準価額の失敗記録に失敗: cd={}, err={}",
             association_fund_cd,
             e
-        )
+        );
     }
 }
 
@@ -272,7 +272,7 @@ async fn clear_fetch_error(pool: &Db, association_fund_cd: &str) {
             "基準価額の失敗記録の削除に失敗: cd={}, err={}",
             association_fund_cd,
             e
-        )
+        );
     }
 }
 
@@ -391,7 +391,7 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
                     Err(e) => {
                         failed += 1;
                         record_fetch_failure(pool, code, &short_failure_reason(&e)).await;
-                        svc_log!(error, "基準価額の反映に失敗: cd={}, err={}", code, e)
+                        svc_log!(error, "基準価額の反映に失敗: cd={}, err={}", code, e);
                     }
                 }
             }
@@ -399,7 +399,7 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
                 excluded += 1;
                 // 対象外のコードは取得失敗ではないので、直前の失敗記録を消す
                 clear_fetch_error(pool, code).await;
-                svc_log!(info, "投信情報APIの対象外(前回値を維持): cd={}", code)
+                svc_log!(info, "投信情報APIの対象外(前回値を維持): cd={}", code);
             }
             Err(e) => {
                 failed += 1;
@@ -409,7 +409,7 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
                     "基準価額の取得に失敗（前回値を維持）: cd={}, err={}",
                     code,
                     e
-                )
+                );
             }
         }
     }
@@ -542,7 +542,7 @@ mod tests {
         for status in [404, 500] {
             match nav_status_error(status, "bad".to_string()) {
                 ApiError::Upstream(UpstreamError::Http { status: s, .. }) => {
-                    assert_eq!(s, status)
+                    assert_eq!(s, status);
                 }
                 other => panic!("expected Http error, got {other}"),
             }
