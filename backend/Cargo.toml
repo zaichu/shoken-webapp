@@ -24,7 +24,6 @@ axum-extra = { version = "0.12", features = ["cookie"] }
 tower-service = "0.3"
 tower-http = { version = "0.7.0", features = ["cors", "limit", "request-id"] }
 worker = { version = "0.9", features = ["http", "axum", "tokio-postgres"] }
-worker-macros = { version = "0.9", features = ["http"] }
 tokio-postgres = { version = "0.7", default-features = false, features = [
     "with-chrono-0_4",
     "with-uuid-1",

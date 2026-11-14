@@ -211,7 +211,6 @@ dependencies = [
  "validator",
  "wasm-bindgen-futures",
  "worker",
- "worker-macros",
 ]
 
 [[package]]
