@@ -50,9 +50,9 @@ pub enum DbError {
 impl DbError {
     pub fn sql_state(&self) -> Option<SqlState> {
         match self {
-            DbError::Pg(e) => e.as_db_error().map(|e| e.code().clone()),
-            DbError::State { state, .. } => Some(state.clone()),
-            DbError::RowNotFound | DbError::Other(_) => None,
+            Self::Pg(e) => e.as_db_error().map(|e| e.code().clone()),
+            Self::State { state, .. } => Some(state.clone()),
+            Self::RowNotFound | Self::Other(_) => None,
         }
     }
 
@@ -70,10 +70,10 @@ impl DbError {
 impl std::fmt::Display for DbError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DbError::Pg(e) => write!(f, "{e}"),
-            DbError::RowNotFound => f.write_str("no rows returned by a query that expected one"),
-            DbError::Other(m) => f.write_str(m),
-            DbError::State { message, .. } => f.write_str(message),
+            Self::Pg(e) => write!(f, "{e}"),
+            Self::RowNotFound => f.write_str("no rows returned by a query that expected one"),
+            Self::Other(m) => f.write_str(m),
+            Self::State { message, .. } => f.write_str(message),
         }
     }
 }
@@ -82,7 +82,7 @@ impl std::error::Error for DbError {}
 
 impl From<tokio_postgres::Error> for DbError {
     fn from(e: tokio_postgres::Error) -> Self {
-        DbError::Pg(e)
+        Self::Pg(e)
     }
 }
 
@@ -854,7 +854,7 @@ impl TxConn {
     async fn batch_execute(&self, sql: &str) -> Result<(), DbError> {
         match self {
             #[cfg(not(target_arch = "wasm32"))]
-            TxConn::Native(obj) => obj
+            Self::Native(obj) => obj
                 .batch_execute(sql)
                 .await
                 .map_err(|e| db_err("batch", sql, e)),
@@ -872,7 +872,7 @@ impl TxConn {
     fn rollback_and_release(self) {
         match self {
             #[cfg(not(target_arch = "wasm32"))]
-            TxConn::Native(obj) => {
+            Self::Native(obj) => {
                 if let Ok(handle) = tokio::runtime::Handle::try_current() {
                     handle.spawn(async move {
                         if let Err(e) = obj.batch_execute("ROLLBACK").await {
@@ -905,7 +905,7 @@ struct TxGuard(Option<TxConn>);
 
 impl TxGuard {
     fn new(conn: TxConn) -> Self {
-        TxGuard(Some(conn))
+        Self(Some(conn))
     }
 
     fn conn(&self) -> &TxConn {

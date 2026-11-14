@@ -13,7 +13,7 @@ pub struct Numeric(pub Decimal);
 
 impl From<Decimal> for Numeric {
     fn from(v: Decimal) -> Self {
-        Numeric(v)
+        Self(v)
     }
 }
 

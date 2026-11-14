@@ -326,6 +326,9 @@ mod tests {
         assert_eq!(result.len(), 3);
         assert!(result.iter().all(|&v| v == id));
 
-        assert!(user_ids_for_bulk_insert(id, 0).is_empty());
+        assert_eq!(
+            user_ids_for_bulk_insert(id, 0),
+            [] as [shared::value::UserId; 0]
+        );
     }
 }

@@ -285,7 +285,7 @@ async fn backup_roundtrip_keeps_all_table_counts() {
         String::from_utf8_lossy(&backup.stderr)
     );
     let stored = fs::read(&encrypted).expect("暗号化ファイルがありません");
-    assert!(!stored.is_empty());
+    assert_ne!(stored, [] as [u8; 0]);
     assert!(
         !String::from_utf8_lossy(&stored).contains("架空バックアップ銘柄A"),
         "暗号化ファイルに平文が残っています"

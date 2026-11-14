@@ -47,7 +47,7 @@ where
             .map_err(|_| ApiError::Unauthorized("セッション検証に失敗しました"))?
             .ok_or(ApiError::Unauthorized("セッションが無効または期限切れです"))?;
 
-        Ok(AuthenticatedUser(user))
+        Ok(Self(user))
     }
 }
 #[cfg(test)]

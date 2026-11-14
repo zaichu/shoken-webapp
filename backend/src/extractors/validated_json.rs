@@ -34,7 +34,7 @@ where
             ApiError::Validation(msg)
         })?;
 
-        Ok(ValidatedJson(value))
+        Ok(Self(value))
     }
 }
 #[cfg(test)]

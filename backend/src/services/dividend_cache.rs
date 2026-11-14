@@ -311,7 +311,7 @@ mod tests {
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, fixed_now());
 
         assert!(items.is_empty());
-        assert!(refresh_codes.is_empty());
+        assert_eq!(refresh_codes, [] as [shared::value::SecurityCode; 0]);
     }
 
     #[test]
@@ -342,7 +342,7 @@ mod tests {
 
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, now);
 
-        assert!(refresh_codes.is_empty());
+        assert_eq!(refresh_codes, [] as [shared::value::SecurityCode; 0]);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].status, DividendCacheStatus::Ok);
         assert!(!items[0].is_stale);
@@ -397,7 +397,7 @@ mod tests {
 
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, now);
 
-        assert!(refresh_codes.is_empty());
+        assert_eq!(refresh_codes, [] as [shared::value::SecurityCode; 0]);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].status, DividendCacheStatus::Error);
         assert!(!items[0].is_stale);
@@ -445,7 +445,7 @@ mod tests {
 
         let (items, refresh_codes) = build_batch_items(&codes, &cache_map, now);
 
-        assert!(refresh_codes.is_empty());
+        assert_eq!(refresh_codes, [] as [shared::value::SecurityCode; 0]);
         assert_eq!(
             items
                 .iter()

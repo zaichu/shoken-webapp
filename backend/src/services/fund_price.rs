@@ -583,7 +583,7 @@ mod tests {
         }
         // 想定外のエラーでも空や詳細の無い文言になる
         let fallback = short_failure_reason(&ApiError::NotFound);
-        assert!(!fallback.is_empty());
+        assert_ne!(fallback, "");
         assert!(!fallback.contains("Not found"));
     }
 
