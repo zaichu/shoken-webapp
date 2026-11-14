@@ -175,8 +175,8 @@ pub fn SettingsPage() -> impl IntoView {
                             view! {
                                 <li>
                                     <a
-                                        href={format!("/settings#{}", id)}
-                                        data-testid={format!("settings-toc-{}", id)}
+                                        href={format!("/settings#{id}")}
+                                        data-testid={format!("settings-toc-{id}")}
                                         aria-current=move || (active.get() == link_id).then_some("true")
                                         on:click=move |_| {
                                             active.set(click_id.clone());

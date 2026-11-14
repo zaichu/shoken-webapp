@@ -424,7 +424,7 @@ fn UserMenu(
                             picture_url=user_picture.clone()
                             name=user_name.clone()
                             email=user_email.clone()
-                            alt="".to_string()
+                            alt=String::new()
                         />
                     </span>
                     {" "}
