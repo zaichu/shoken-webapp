@@ -296,7 +296,7 @@ proptest::proptest! {
         let expected: Vec<String> = query
             .split(is_js_whitespace)
             .filter(|token| !token.is_empty())
-            .map(|token| token.to_lowercase())
+            .map(str::to_lowercase)
             .collect();
         proptest::prop_assert_eq!(tokens, expected);
     }

@@ -502,7 +502,7 @@ fn asset_dialog_clear_resets_search_but_keeps_sort() {
         sort_key.set(SortKey::ProfitLoss);
         sort_order.set(SortOrder::Asc);
         super::search_bar::clear_asset_dialog_draft(draft);
-        assert!(draft.with(|s| s.is_empty()));
+        assert!(draft.with(super::super::fund::AssetSearch::is_empty));
         assert_eq!(sort_key.get_untracked(), SortKey::ProfitLoss);
         assert_eq!(sort_order.get_untracked(), SortOrder::Asc);
     });
