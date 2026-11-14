@@ -219,10 +219,7 @@ fn receipt_item_delegates_all_accessors() {
     assert_eq!(item.account(), "特定");
     assert_eq!(item.product(), "NISA");
     assert!(item.is_specific());
-    assert_ne!(
-        item.cells(),
-        [] as [crate::features::receipts::ReceiptCell; 0]
-    );
+    assert_ne!(item.cells(), [] as [ReceiptCell; 0]);
     assert_ne!(item.raw_key(), "");
     assert_eq!(item.search_amount(0), Decimal::new(15000, 2));
     let (a, b, c) = item.summary_amounts();
@@ -242,10 +239,7 @@ fn receipt_row_saved_delegates_all_accessors() {
     assert_eq!(row.account(), "NISA");
     assert_eq!(row.product(), "");
     assert!(!row.is_specific());
-    assert_ne!(
-        row.cells(),
-        [] as [crate::features::receipts::ReceiptCell; 0]
-    );
+    assert_ne!(row.cells(), [] as [ReceiptCell; 0]);
     assert_ne!(row.raw_key(), "");
     assert_eq!(row.search_amount(0), Decimal::new(100, 0));
     let (a, b, c) = row.summary_amounts();
@@ -266,10 +260,7 @@ fn receipt_row_dividend_saved_delegates_all_accessors() {
     assert_eq!(row.account(), "特定");
     assert_eq!(row.product(), "NISA");
     assert!(row.is_specific());
-    assert_ne!(
-        row.cells(),
-        [] as [crate::features::receipts::ReceiptCell; 0]
-    );
+    assert_ne!(row.cells(), [] as [ReceiptCell; 0]);
     assert_ne!(row.raw_key(), "");
     assert_eq!(row.search_amount(0), Decimal::from(150));
     let (a, b, c) = row.summary_amounts();
@@ -310,10 +301,7 @@ fn mutualfund_item_delegates_all_accessors() {
     assert_eq!(item.account(), "特定");
     assert_eq!(item.product(), "");
     assert!(item.is_specific());
-    assert_ne!(
-        item.cells(),
-        [] as [crate::features::receipts::ReceiptCell; 0]
-    );
+    assert_ne!(item.cells(), [] as [ReceiptCell; 0]);
     assert_ne!(item.raw_key(), "");
     assert_eq!(item.search_amount(0), Decimal::ZERO);
     let (a, b, c) = item.summary_amounts();

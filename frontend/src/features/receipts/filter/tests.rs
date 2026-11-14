@@ -185,21 +185,12 @@ fn categories_use_latest_name_sorted_dates_and_tab_fields() {
         ["2024", "2026"]
     );
     let stock = search_categories(ReceiptsTab::DomesticStock, &domestic());
-    assert_eq!(
-        stock.products,
-        [] as [crate::support::list_search::SearchOption; 0]
-    );
+    assert_eq!(stock.products, [] as [SearchOption; 0]);
     assert_eq!(stock.accounts[0].value, "特定");
     let fund = search_categories(ReceiptsTab::MutualFund, &funds());
     assert_eq!(fund.securities[0].value, "Alpha Fund A");
-    assert_eq!(
-        fund.products,
-        [] as [crate::support::list_search::SearchOption; 0]
-    );
-    assert_eq!(
-        fund.accounts,
-        [] as [crate::support::list_search::SearchOption; 0]
-    );
+    assert_eq!(fund.products, [] as [SearchOption; 0]);
+    assert_eq!(fund.accounts, [] as [SearchOption; 0]);
 }
 #[test]
 fn category_selections_quote_spaces_and_combine_with_year() {
