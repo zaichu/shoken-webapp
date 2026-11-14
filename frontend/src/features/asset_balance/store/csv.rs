@@ -80,7 +80,7 @@ impl AssetBalanceCsvStore {
     ) -> usize {
         self.with_slot(slot, |slot| {
             slot.and_then(|result| result.as_ref().ok())
-                .map_or(0, |loaded| loaded.total)
+                .map_or_default(|loaded| loaded.total)
         })
     }
 

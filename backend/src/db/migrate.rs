@@ -179,7 +179,7 @@ fn sql_line_at_position(sql: &str, position: u32) -> Option<&str> {
     let byte_index = sql.char_indices().nth(character_index)?.0;
     let start = sql[..byte_index]
         .rfind('\n')
-        .map_or(0, |newline| newline + 1);
+        .map_or_default(|newline| newline + 1);
     let end = sql[byte_index..]
         .find('\n')
         .map_or(sql.len(), |newline| byte_index + newline);

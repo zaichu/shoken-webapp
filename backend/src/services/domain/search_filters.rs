@@ -391,7 +391,7 @@ mod tests {
     }
 
     fn unescape_like_pattern(escaped: &str) -> Option<String> {
-        let inner = escaped.strip_prefix('%')?.strip_suffix('%')?;
+        let inner = escaped.strip_circumfix('%', '%')?;
         let mut chars = inner.chars();
         let mut recovered = String::new();
         while let Some(c) = chars.next() {

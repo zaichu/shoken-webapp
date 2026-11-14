@@ -29,7 +29,7 @@ pub fn format_number_with_options(
             .rev()
             .enumerate()
             .flat_map(|(index, character)| {
-                if (index + 1) % 3 == 0 && index + 1 < integer.len() {
+                if (index + 1).is_multiple_of(3) && index + 1 < integer.len() {
                     vec![character, ',']
                 } else {
                     vec![character]

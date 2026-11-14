@@ -340,7 +340,8 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
 // JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None→false になる
 #[expect(clippy::cast_possible_truncation)]
 pub fn should_refresh_at(scheduled_ms: f64) -> bool {
-    DateTime::from_timestamp_millis(scheduled_ms as i64).is_some_and(|t| t.minute() % 5 == 0)
+    DateTime::from_timestamp_millis(scheduled_ms as i64)
+        .is_some_and(|t| t.minute().is_multiple_of(5))
 }
 
 #[cfg(test)]

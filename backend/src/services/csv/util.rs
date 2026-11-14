@@ -598,7 +598,7 @@ mod tests {
             .map_or((unsigned, None), |(i, f)| (i, Some(f)));
         let mut grouped = String::new();
         for (index, c) in integer.chars().enumerate() {
-            if index > 0 && (integer.len() - index) % 3 == 0 {
+            if index > 0 && (integer.len() - index).is_multiple_of(3) {
                 grouped.push(',');
             }
             grouped.push(c);
@@ -648,9 +648,7 @@ mod tests {
         fn prop_parse_number_matches_naive_model_or_errors(input in ".*") {
             let naive = {
                 let trimmed = input.trim();
-                let inner = trimmed
-                    .strip_prefix('(')
-                    .and_then(|s| s.strip_suffix(')'));
+                let inner = trimmed.strip_circumfix('(', ')');
                 let (negative, body) = inner.map_or((false, trimmed), |s| (true, s));
                 let sanitized = body.replace(',', "");
                 sanitized
