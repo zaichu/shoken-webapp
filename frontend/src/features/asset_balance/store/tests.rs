@@ -93,7 +93,7 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
         let loaded = balances
             .get_untracked()
             .and_then(|(cached, result)| (cached == generation).then_some(result))
-            .and_then(|result| result.ok())
+            .and_then(std::result::Result::ok)
             .expect("loaded");
         assert_eq!(loaded.rows.len(), 1);
         assert_eq!(loaded.rows[0].id.as_str(), "id-9904");
@@ -178,7 +178,7 @@ fn list_error_keeps_cached_rows_and_reports_refresh_error() {
         let loaded = balances
             .get_untracked()
             .and_then(|(cached, result)| (cached == generation).then_some(result))
-            .and_then(|result| result.ok());
+            .and_then(std::result::Result::ok);
         assert_eq!(
             loaded.map(|loaded| loaded.rows.len()),
             Some(1),

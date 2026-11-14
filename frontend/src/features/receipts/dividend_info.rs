@@ -153,29 +153,26 @@ impl DividendInfoStore {
                 return;
             }
             self.per_share_loading.set(true);
-            match fetch_dividend_batch(&codes, post_dividend_batch).await {
-                Ok(batch) => {
-                    let (maps, has_pending) = dividend_maps_from_batch(&batch);
-                    if !self.is_poll_active(generation, revision, &code) {
-                        return;
-                    }
-                    self.per_share.set(maps.per_share.get(&code).copied());
-                    self.per_share_loading.set(false);
-                    if !has_pending || pending_used >= max_pending {
-                        return;
-                    }
-                    pending_used += 1;
+            if let Ok(batch) = fetch_dividend_batch(&codes, post_dividend_batch).await {
+                let (maps, has_pending) = dividend_maps_from_batch(&batch);
+                if !self.is_poll_active(generation, revision, &code) {
+                    return;
                 }
-                Err(_) => {
-                    if !self.is_poll_active(generation, revision, &code) {
-                        return;
-                    }
-                    self.per_share_loading.set(false);
-                    if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
-                        return;
-                    }
-                    network_used += 1;
+                self.per_share.set(maps.per_share.get(&code).copied());
+                self.per_share_loading.set(false);
+                if !has_pending || pending_used >= max_pending {
+                    return;
                 }
+                pending_used += 1;
+            } else {
+                if !self.is_poll_active(generation, revision, &code) {
+                    return;
+                }
+                self.per_share_loading.set(false);
+                if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
+                    return;
+                }
+                network_used += 1;
             }
             gloo_timers::future::TimeoutFuture::new(DIVIDEND_RETRY_DELAY_MS).await;
         }
@@ -340,7 +337,7 @@ pub(crate) fn DividendSummarySection(
                     controls="receipt-summary-body".to_string()
                     testid="receipt-header"
                     hint=true
-                    on_toggle=move || expanded.update(|open| open.toggle())
+                    on_toggle=move || expanded.update(bool::toggle)
                 >
                     <div class="flex items-center gap-2">
                         <h2 class="text-sm font-black text-ink">{title}</h2>

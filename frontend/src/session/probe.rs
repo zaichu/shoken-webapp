@@ -54,8 +54,8 @@ pub async fn take() -> Probe {
     let Some(promise) = probe_promise() else {
         return Probe::Missing;
     };
-    match JsFuture::from(promise).await {
-        Ok(value) => parse_result(&value),
-        Err(_) => Probe::Retry,
-    }
+    JsFuture::from(promise)
+        .await
+        .ok()
+        .map_or(Probe::Retry, |value| parse_result(&value))
 }

@@ -63,13 +63,14 @@ async fn call(
     uri: &str,
     body: Option<Value>,
 ) -> axum::response::Response {
+    let (body, content_type) = body.map_or_else(
+        || (Body::empty(), None),
+        |payload| (Body::from(payload.to_string()), Some("application/json")),
+    );
     let mut request = Request::builder().method(method).uri(uri);
-    let body = if let Some(payload) = body {
-        request = request.header("content-type", "application/json");
-        Body::from(payload.to_string())
-    } else {
-        Body::empty()
-    };
+    if let Some(value) = content_type {
+        request = request.header("content-type", value);
+    }
 
     app.oneshot(request.body(body).unwrap()).await.unwrap()
 }

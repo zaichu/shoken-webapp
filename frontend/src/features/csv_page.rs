@@ -187,7 +187,7 @@ pub(crate) fn CsvPage() -> impl IntoView {
                         asset_csv=asset_state.csv
                         receipts_store=receipts
                         csv_sync=csv_sync
-                        on_stats_changed=Callback::new(move |_| refresh_stats(false))
+                        on_stats_changed=Callback::new(move |()| refresh_stats(false))
                     />
                 </section>
             </div>

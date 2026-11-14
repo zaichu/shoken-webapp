@@ -178,22 +178,37 @@ pub async fn consume_token(pool: &Db, plaintext: &str) -> Result<Option<UserId>,
 
 #[allow(async_fn_in_trait)]
 pub trait MailSender {
-    async fn send_raw(&self, from: &str, to: &str, message: &str) -> Result<(), String>;
+    fn send_raw(
+        &self,
+        from: &str,
+        to: &str,
+        message: &str,
+    ) -> impl Future<Output = Result<(), String>>;
 }
 
 pub struct NoopSender;
 
 impl MailSender for NoopSender {
-    async fn send_raw(&self, _from: &str, _to: &str, _message: &str) -> Result<(), String> {
-        Ok(())
+    fn send_raw(
+        &self,
+        _from: &str,
+        _to: &str,
+        _message: &str,
+    ) -> impl Future<Output = Result<(), String>> {
+        std::future::ready(Ok(()))
     }
 }
 
 pub struct FailingSender;
 
 impl MailSender for FailingSender {
-    async fn send_raw(&self, _from: &str, _to: &str, _message: &str) -> Result<(), String> {
-        Err("送信に失敗しました".to_string())
+    fn send_raw(
+        &self,
+        _from: &str,
+        _to: &str,
+        _message: &str,
+    ) -> impl Future<Output = Result<(), String>> {
+        std::future::ready(Err("送信に失敗しました".to_string()))
     }
 }
 
@@ -418,7 +433,7 @@ pub async fn maybe_notify_on_login(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn maybe_notify_on_login(
+pub fn maybe_notify_on_login(
     _pool: &Db,
     _gmail_user: Option<&str>,
     _gmail_pass: Option<&str>,
@@ -426,7 +441,8 @@ pub async fn maybe_notify_on_login(
     _user: &User,
     _outcome: LoginOutcome,
     _client: &ClientInfo,
-) {
+) -> impl Future<Output = ()> {
+    std::future::ready(())
 }
 
 #[cfg(test)]

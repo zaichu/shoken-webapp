@@ -124,7 +124,7 @@ pub(crate) fn first_line_snippet(content: &str) -> Option<String> {
         .chars()
         .filter(|c| *c != ',' && *c != '，' && *c != '、' && !c.is_whitespace())
         .collect();
-    if !without_separators.is_empty() && without_separators.chars().all(|c| c.is_numeric()) {
+    if !without_separators.is_empty() && without_separators.chars().all(char::is_numeric) {
         return None;
     }
     if line.chars().nth(80).is_some() {

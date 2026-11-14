@@ -27,17 +27,17 @@ pub(crate) fn merged_asset_summary(
     if stock.is_none() && fund.is_none() {
         return None;
     }
-    let pick = |f: &dyn Fn(&AssetBalanceSummary) -> Decimal| stock.map(f).unwrap_or_default();
-    let fund_market = fund.map(|s| s.total_market_value).unwrap_or_default();
-    let fund_purchase = fund.map(|s| s.total_purchase_amount).unwrap_or_default();
-    let fund_daily = fund.map(|s| s.total_daily_change).unwrap_or_default();
+    let pick = |f: &dyn Fn(&AssetBalanceSummary) -> Decimal| stock.map_or_default(f);
+    let fund_market = fund.map_or_default(|s| s.total_market_value);
+    let fund_purchase = fund.map_or_default(|s| s.total_purchase_amount);
+    let fund_daily = fund.map_or_default(|s| s.total_daily_change);
     Some(AssetBalanceSummary {
         total_market_value: pick(&|s| s.total_market_value) + fund_market,
         total_purchase_amount: pick(&|s| s.total_purchase_amount) + fund_purchase,
         total_daily_change: pick(&|s| s.total_daily_change) + fund_daily,
         priced_market_value: pick(&|s| s.priced_market_value) + fund_market,
         priced_purchase_amount: pick(&|s| s.priced_purchase_amount) + fund_purchase,
-        has_missing_daily_change: stock.map(|s| s.has_missing_daily_change).unwrap_or(false),
+        has_missing_daily_change: stock.is_some_and(|s| s.has_missing_daily_change),
     })
 }
 

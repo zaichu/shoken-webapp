@@ -44,9 +44,9 @@ pub(crate) fn use_page_scroll_lock() {
             .ok()
             .flatten()
             .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok());
-        let body_style = body.as_ref().map(|body| body.style());
-        let html_style = html.as_ref().map(|html| html.style());
-        let app_style = app_scroll.as_ref().map(|scroller| scroller.style());
+        let body_style = body.as_ref().map(web_sys::HtmlElement::style);
+        let html_style = html.as_ref().map(web_sys::HtmlElement::style);
+        let app_style = app_scroll.as_ref().map(web_sys::HtmlElement::style);
         let body_overflow = body_style
             .as_ref()
             .and_then(|style| style.get_property_value("overflow").ok())
@@ -60,7 +60,7 @@ pub(crate) fn use_page_scroll_lock() {
             .and_then(|style| style.get_property_value("overflow").ok())
             .unwrap_or_default();
         let page_y = window.scroll_y().unwrap_or_default();
-        let app_top = app_scroll.as_ref().map(|scroller| scroller.scroll_top());
+        let app_top = app_scroll.as_ref().map(web_sys::HtmlElement::scroll_top);
         if let Some(style) = body_style.as_ref() {
             let _ = style.set_property("overflow", "hidden");
         }

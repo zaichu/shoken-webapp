@@ -363,5 +363,5 @@ async fn saved_total(path: &'static str) -> Result<usize, crate::api::ApiError> 
                 ],
             )
             .await?;
-    Ok(response.total.max(0) as usize)
+    Ok(usize::try_from(response.total.max(0)).unwrap_or(usize::MAX))
 }

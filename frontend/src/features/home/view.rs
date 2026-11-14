@@ -70,10 +70,7 @@ fn account_chart_index(label: &str) -> Option<usize> {
 const CHART_COLOR_OTHER: (&str, &str) = ("var(--color-text-muted)", "bg-text-muted");
 
 fn chart_color(label: &str, fixed: impl Fn(&str) -> Option<usize>) -> (&'static str, &'static str) {
-    match fixed(label) {
-        Some(i) => CHART_COLORS[i % CHART_COLORS.len()],
-        None => CHART_COLOR_OTHER,
-    }
+    fixed(label).map_or(CHART_COLOR_OTHER, |i| CHART_COLORS[i % CHART_COLORS.len()])
 }
 
 #[component]
@@ -300,9 +297,7 @@ fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
 }
 
 fn daily_rate_text(market: Option<f64>, daily: Option<f64>) -> String {
-    daily_rate(market, daily)
-        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-        .unwrap_or_default()
+    daily_rate(market, daily).map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1))
 }
 
 #[component]
@@ -332,16 +327,15 @@ fn BandTiles(
     let profit_text = if loading {
         labels::MISSING.to_string()
     } else {
-        valuation
-            .as_ref()
-            .map(|valuation| format_signed_valuation_amount(valuation.profit_loss.amount))
-            .unwrap_or_else(|| labels::MISSING.to_string())
+        valuation.as_ref().map_or_else(
+            || labels::MISSING.to_string(),
+            |valuation| format_signed_valuation_amount(valuation.profit_loss.amount),
+        )
     };
     let profit_rate = valuation
         .as_ref()
         .and_then(|valuation| valuation.profit_loss.rate)
-        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-        .unwrap_or_default();
+        .map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
     let daily_value = daily;
     let daily_text = if loading {
         labels::MISSING.to_string()
@@ -533,10 +527,10 @@ fn DividendCardBody(
         .unwrap_or_default();
     let received_value = Some(dec_to_f64(&model.received));
     let received = format_signed_valuation_amount(received_value);
-    let forecast = model
-        .forecast_net
-        .map(|v| format_valuation_amount(Some(v)))
-        .unwrap_or_else(|| labels::MISSING.to_string());
+    let forecast = model.forecast_net.map_or_else(
+        || labels::MISSING.to_string(),
+        |v| format_valuation_amount(Some(v)),
+    );
     let progress_pct = model.progress.map(|p| p * 100.0);
     let progress_text =
         progress_pct.map_or_else(|| labels::MISSING.to_string(), format_integer_percent);
@@ -550,10 +544,10 @@ fn DividendCardBody(
                 &format_valuation_amount(Some(dec_to_f64(&remaining))),
             )
         });
-    let yoy_text = model
-        .yoy_diff
-        .map(|diff| format_signed_valuation_amount(Some(dec_to_f64(&diff))))
-        .unwrap_or_else(|| labels::MISSING.to_string());
+    let yoy_text = model.yoy_diff.map_or_else(
+        || labels::MISSING.to_string(),
+        |diff| format_signed_valuation_amount(Some(dec_to_f64(&diff))),
+    );
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
             <span class="text-sm">
@@ -1147,10 +1141,10 @@ fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
     let code = holding.code.clone();
     let href = holding.href.clone();
     let amount_text = format_signed_row_valuation_amount(Some(holding.profit_loss));
-    let rate_text = holding
-        .rate
-        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-        .unwrap_or_else(|| labels::MISSING.to_string());
+    let rate_text = holding.rate.map_or_else(
+        || labels::MISSING.to_string(),
+        |rate| format_signed_valuation_rate(Some(rate), 1),
+    );
     view! {
         <li class="list-row-item">
             <ListRowLink

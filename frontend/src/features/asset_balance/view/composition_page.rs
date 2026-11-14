@@ -307,7 +307,7 @@ fn CompositionContent(
                                         };
                                         let amount = row
                                             .value
-                                            .map_or(labels::MISSING.to_string(), format_currency);
+                                            .map_or_else(|| labels::MISSING.to_string(), format_currency);
                                         let bar_width = if row.computable {
                                             format!("{}%", row.percentage.min(100.0))
                                         } else {
@@ -346,17 +346,10 @@ fn CompositionContent(
                                                 class="list-row-item"
                                                 data-testid="comp-row"
                                             >
-                                                {match href {
-                                                    Some(href) => view! {
-                                                        <a href=href class="list-row-action">
-                                                            {row_body}
-                                                        </a>
-                                                    }
-                                                        .into_any(),
-                                                    None => view! {
+                                                {href.map_or_else(|| view! {
                                                         <ListRowStatic
                                                             name=move || static_name.clone()
-                                                            primary=move || static_value.map_or(labels::MISSING.to_string(), format_currency)
+                                                            primary=move || static_value.map_or_else(|| labels::MISSING.to_string(), format_currency)
                                                             meta=move || static_sub.clone()
                                                             secondary=move || if static_computable { format_fixed_percent(static_percentage, 1) } else { labels::MISSING.to_string() }
                                                         />
@@ -367,8 +360,12 @@ fn CompositionContent(
                                                             />
                                                         </div>
                                                     }
-                                                        .into_any(),
-                                                }}
+                                                        .into_any(), |href| view! {
+                                                        <a href=href class="list-row-action">
+                                                            {row_body}
+                                                        </a>
+                                                    }
+                                                        .into_any())}
                                             </li>
                                         }
                                     })
@@ -404,26 +401,7 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
     let radius = geometry.radius;
     let inner = geometry.inner();
     let outer = geometry.outer();
-    let gaps: Vec<(f64, f64, f64, f64)> = slices
-        .iter()
-        .enumerate()
-        .filter_map(|(index, (row, start))| {
-            let previous = &slices[(index + slices.len() - 1) % slices.len()].0;
-            if row.percentage < 1.0 || previous.percentage < 1.0 {
-                return None;
-            }
-            let angle = (start / 100.0 * 360.0 - 90.0).to_radians();
-            let (sine, cosine) = angle.sin_cos();
-            Some((
-                center_x + inner * cosine,
-                center_y + inner * sine,
-                center_x + outer * cosine,
-                center_y + outer * sine,
-            ))
-        })
-        .collect();
     let (visible, others) = composition_legend_split(rows.len());
-    let legend: Vec<CompositionRow> = rows.into_iter().take(visible).collect();
     view! {
         <div class="comp-donut-row">
             <div class="comp-donut-wrap">
@@ -467,8 +445,23 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                             }
                         })
                         .collect_view()}
-                    {gaps
-                        .into_iter()
+                    {slices
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, (row, start))| {
+                            let previous = &slices[(index + slices.len() - 1) % slices.len()].0;
+                            if row.percentage < 1.0 || previous.percentage < 1.0 {
+                                return None;
+                            }
+                            let angle = (start / 100.0 * 360.0 - 90.0).to_radians();
+                            let (sine, cosine) = angle.sin_cos();
+                            Some((
+                                center_x + inner * cosine,
+                                center_y + inner * sine,
+                                center_x + outer * cosine,
+                                center_y + outer * sine,
+                            ))
+                        })
                         .map(|(x1, y1, x2, y2)| {
                             view! {
                                 <line
@@ -487,8 +480,9 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                 </div>
             </div>
             <ul class="comp-legend" data-testid="asset-composition-legend">
-                {legend
+                {rows
                     .into_iter()
+                    .take(visible)
                     .map(|row| {
                         let fill = color_fill_class(row.color);
                         let rate = if row.computable {

@@ -214,14 +214,11 @@ pub fn AssetMergedTable(
                                         </td>
                                         <td class="col-text text-text-soft">{row.kind}</td>
                                         <td class="col-text">
-                                            {match &row.account {
-                                                Some(account) => view! {
+                                            {row.account.as_ref().map_or_else(|| view! { <span class="text-text-soft">"—"</span> }
+                                                    .into_any(), |account| view! {
                                                     <AccountBadge label=account.clone() />
                                                 }
-                                                    .into_any(),
-                                                None => view! { <span class="text-text-soft">"—"</span> }
-                                                    .into_any(),
-                                            }}
+                                                    .into_any())}
                                         </td>
                                         <td class="col-text text-text-soft">
                                             {row.course.clone().unwrap_or_else(|| "—".to_string())}
@@ -229,14 +226,12 @@ pub fn AssetMergedTable(
                                         <td class="col-num">
                                             {row
                                                 .dividend
-                                                .as_ref()
-                                                .map(|dividend| {
+                                                .as_ref().map_or_else(|| "—".to_string(), |dividend| {
                                                     format_dividend_per_share(
                                                         dividend,
                                                         dividend_decimals,
                                                     )
-                                                })
-                                                .unwrap_or_else(|| "—".to_string())}
+                                                })}
                                         </td>
                                         <td
                                             class="col-num"
@@ -302,8 +297,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     };
     let price_text = row
         .current_price
-        .map(format_currency)
-        .unwrap_or_else(|| "—".to_string());
+        .map_or_else(|| "—".to_string(), format_currency);
     let day_text = if row.nav_pending {
         labels::PENDING_UPDATE.to_string()
     } else {
@@ -313,12 +307,10 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     let day_positive = is_positive_valuation(row.day_change);
     let average_text = row
         .average_price
-        .map(format_currency)
-        .unwrap_or_else(|| "—".to_string());
+        .map_or_else(|| "—".to_string(), format_currency);
     let purchase_text = row
         .purchase
-        .map(format_currency)
-        .unwrap_or_else(|| "—".to_string());
+        .map_or_else(|| "—".to_string(), format_currency);
     let market_text = format_row_valuation_amount(row.market);
     let pnl_text = format_signed_row_valuation_amount(row.profit);
     let pnl_rate = format_signed_valuation_rate(row.rate, 1);
@@ -348,18 +340,16 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             row.course.clone().unwrap_or_else(|| "—".to_string()),
         ));
     } else {
-        let per_share = row
-            .dividend
-            .as_ref()
-            .map(|dividend| {
+        let per_share = row.dividend.as_ref().map_or_else(
+            || "—".to_string(),
+            |dividend| {
                 crate::features::asset_balance::holdings::format_dividend_per_share(dividend, 0)
-            })
-            .unwrap_or_else(|| "—".to_string());
-        let yield_text = row
-            .dividend
-            .as_ref()
-            .map(crate::features::asset_balance::holdings::format_dividend_yield)
-            .unwrap_or_else(|| "—".to_string());
+            },
+        );
+        let yield_text = row.dividend.as_ref().map_or_else(
+            || "—".to_string(),
+            crate::features::asset_balance::holdings::format_dividend_yield,
+        );
         left.push(DetailCell::plain(
             labels::ACQUISITION_YIELD.to_string(),
             yield_text,
@@ -392,11 +382,10 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
         market_cell,
     ];
     if !is_fund {
-        let annual = row
-            .dividend
-            .as_ref()
-            .map(crate::features::asset_balance::holdings::format_dividend_annual)
-            .unwrap_or_else(|| "—".to_string());
+        let annual = row.dividend.as_ref().map_or_else(
+            || "—".to_string(),
+            crate::features::asset_balance::holdings::format_dividend_annual,
+        );
         right.push(DetailCell::plain(
             labels::ANNUAL_DIVIDEND.to_string(),
             annual,

@@ -90,16 +90,14 @@ fn track_toc(active: RwSignal<String>, locked: RwSignal<bool>) {
             .query_selector(".pc-header")
             .ok()
             .flatten()
-            .map(|header| header.get_bounding_client_rect().height())
-            .unwrap_or_default();
+            .map_or_default(|header| header.get_bounding_client_rect().height());
         let line = main.get_bounding_client_rect().top() + header_bottom + 8.0;
         let ids = toc_ids_in_dom_order(&document);
-        let mut current = ids.first().map(String::as_str).unwrap_or(SECTION_IDS[0]);
+        let mut current = ids.first().map_or(SECTION_IDS[0], String::as_str);
         for id in &ids {
             let top = document
                 .get_element_by_id(id)
-                .map(|section| section.get_bounding_client_rect().top())
-                .unwrap_or(f64::MAX);
+                .map_or(f64::MAX, |section| section.get_bounding_client_rect().top());
             if top <= line {
                 current = id;
             }
@@ -195,8 +193,7 @@ pub fn SettingsPage() -> impl IntoView {
                 <div class="flex-1 min-w-0 space-y-4">
                     <SectionNotifyLogout />
                     {move || {
-                        if let Some(user) = user() {
-                            view! {
+                        user().map_or_else(|| view! { <div class="text-center py-12">{labels::LOGIN_REQUIRED_TITLE}</div> }.into_any(), |user| view! {
                                 <SectionAccount user=user />
                                 <SectionDisplay />
                                 <SectionData />
@@ -204,10 +201,7 @@ pub fn SettingsPage() -> impl IntoView {
                                 <login_history::SectionDevices />
                                 <login_history::SectionLoginHistory />
                                 <SectionDanger />
-                            }.into_any()
-                        } else {
-                            view! { <div class="text-center py-12">{labels::LOGIN_REQUIRED_TITLE}</div> }.into_any()
-                        }
+                            }.into_any())
                     }}
                 </div>
             </div>
@@ -691,8 +685,7 @@ const THEME_SEGMENTS: [(&str, &str); 3] = [
 #[component]
 fn SectionDanger() -> impl IntoView {
     let delete_confirm_open = use_context::<crate::ui::site::AccountDeleteConfirm>()
-        .map(|confirm| confirm.0)
-        .unwrap_or_else(|| RwSignal::new(false));
+        .map_or_else(|| RwSignal::new(false), |confirm| confirm.0);
 
     view! {
         <section id="danger" aria-labelledby="danger-heading" class="scroll-mt-18">

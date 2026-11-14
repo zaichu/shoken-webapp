@@ -153,7 +153,7 @@ fn delete_success_clears_result_and_empties_cached_list() {
         let loaded = balances
             .get_untracked()
             .and_then(|(cached, result)| (cached == generation).then_some(result))
-            .and_then(|result| result.ok());
+            .and_then(std::result::Result::ok);
         assert_eq!(
             loaded.map(|loaded| loaded.rows.len()),
             Some(0),
@@ -180,7 +180,7 @@ fn delete_success_without_cached_list_sets_empty() {
         let loaded = balances
             .get_untracked()
             .and_then(|(cached, result)| (cached == generation).then_some(result))
-            .and_then(|result| result.ok());
+            .and_then(std::result::Result::ok);
         assert_eq!(
             loaded.map(|loaded| (loaded.rows.len(), loaded.total)),
             Some((0, 0)),

@@ -42,8 +42,7 @@ fn is_nav_active(path: &str, to: &str) -> bool {
 
 fn current_path() -> RwSignal<String> {
     use_context::<CurrentPath>()
-        .map(|current| current.0)
-        .unwrap_or_else(|| RwSignal::new(current_location()))
+        .map_or_else(|| RwSignal::new(current_location()), |current| current.0)
 }
 
 /// ナビのリンク。現在ページを指すものだけ aria-current を付ける
@@ -292,9 +291,12 @@ fn UserMenu(
                 if let Some(ul) = menu_items_ref.get() {
                     let items = collect_menuitems(&ul);
                     if !items.is_empty() {
-                        let next = (focused_index.get() + 1).min(items.len() as i32 - 1);
+                        let next = (focused_index.get() + 1)
+                            .min(i32::try_from(items.len()).unwrap_or(i32::MAX) - 1);
                         focused_index.set(next);
-                        let _ = items[next as usize].focus();
+                        if let Some(item) = items.get(usize::try_from(next).unwrap_or(usize::MAX)) {
+                            let _ = item.focus();
+                        }
                     }
                 }
             }
@@ -305,7 +307,9 @@ fn UserMenu(
                     if !items.is_empty() {
                         let next = (focused_index.get() - 1).max(0);
                         focused_index.set(next);
-                        let _ = items[next as usize].focus();
+                        if let Some(item) = items.get(usize::try_from(next).unwrap_or(usize::MAX)) {
+                            let _ = item.focus();
+                        }
                     }
                 }
             }
@@ -325,7 +329,8 @@ fn UserMenu(
                                 ev.prevent_default();
                                 if let Some(last) = items.last() {
                                     let _ = last.focus();
-                                    focused_index.set((items.len() - 1) as i32);
+                                    focused_index
+                                        .set(i32::try_from(items.len() - 1).unwrap_or(i32::MAX));
                                 }
                             } else if !ev.shift_key() && pos == items.len() - 1 {
                                 ev.prevent_default();
@@ -413,7 +418,7 @@ fn UserMenu(
                     class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2 max-sm:h-11 max-sm:w-auto max-sm:gap-2 max-sm:pr-3"
                     node_ref=trigger_ref
                     on:click=move |_| {
-                        menu_open.update(|open| open.toggle());
+                        menu_open.update(bool::toggle);
                         if !menu_open.get() {
                             focused_index.set(-1);
                         } else {

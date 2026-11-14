@@ -105,7 +105,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                     count=Signal::derive(move || ReceiptsTab::ALL.len())
                     current=current_tab
                     on_select=Callback::new(move |next: usize| {
-                        store.select_tab(ReceiptsTab::ALL[next])
+                        store.select_tab(ReceiptsTab::ALL[next]);
                     })
                     motion=motion
                 >

@@ -109,15 +109,16 @@ fn format_valuation_with(
 ) -> String {
     match amount {
         Some(value) if !value.is_finite() => "—".to_string(),
-        Some(value) => f64_to_decimal(value)
-            .map(|value| {
+        Some(value) => f64_to_decimal(value).map_or_else(
+            || format_beyond(value),
+            |value| {
                 format_yen(
                     value
                         .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
                         .normalize(),
                 )
-            })
-            .unwrap_or_else(|| format_beyond(value)),
+            },
+        ),
         None => "—".to_string(),
     }
 }

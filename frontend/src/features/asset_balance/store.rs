@@ -15,6 +15,7 @@ use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fe
 use crate::ui::format::format_number_value;
 use crate::ui::labels;
 use leptos::prelude::*;
+use rust_decimal::prelude::ToPrimitive;
 use std::collections::HashSet;
 
 #[derive(Clone, Debug)]
@@ -106,7 +107,9 @@ pub(crate) async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiErr
 
 pub(crate) fn truncated_list_warning() -> String {
     labels::asset_truncated_warning(&format_number_value(
-        (LIST_PER_PAGE * LIST_MAX_PAGES) as f64,
+        (LIST_PER_PAGE * LIST_MAX_PAGES)
+            .to_f64()
+            .unwrap_or(f64::MAX),
     ))
 }
 
@@ -149,23 +152,20 @@ pub(crate) async fn poll_dividend_maps(
         if !is_current() {
             break;
         }
-        match fetch_dividend_batch(&codes, post_dividend_batch).await {
-            Ok(batch) => {
-                let (maps, has_pending) = dividend_maps_from_batch(&batch);
-                if is_current() {
-                    apply_dividend_maps(&balances, &dividends, generation, maps);
-                }
-                if !has_pending || pending_used >= max_pending {
-                    break;
-                }
-                pending_used += 1;
+        if let Ok(batch) = fetch_dividend_batch(&codes, post_dividend_batch).await {
+            let (maps, has_pending) = dividend_maps_from_batch(&batch);
+            if is_current() {
+                apply_dividend_maps(&balances, &dividends, generation, maps);
             }
-            Err(_) => {
-                if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
-                    break;
-                }
-                network_used += 1;
+            if !has_pending || pending_used >= max_pending {
+                break;
             }
+            pending_used += 1;
+        } else {
+            if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
+                break;
+            }
+            network_used += 1;
         }
         gloo_timers::future::TimeoutFuture::new(DIVIDEND_RETRY_DELAY_MS).await;
     }

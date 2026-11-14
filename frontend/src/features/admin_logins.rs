@@ -83,8 +83,7 @@ fn sort_label(sort_by: &str) -> &'static str {
     SORT_COLUMNS
         .iter()
         .find(|(column, _)| *column == sort_by)
-        .map(|(_, label)| *label)
-        .unwrap_or(labels::LOGIN_HISTORY_COL_DATETIME)
+        .map_or(labels::LOGIN_HISTORY_COL_DATETIME, |(_, label)| *label)
 }
 
 /// 並べ替え対象ごとの順序の言葉(降順・昇順の順)。日時は新しい順・古い順、
@@ -110,7 +109,7 @@ fn sort_order_label(sort_by: &str, descending: bool) -> &'static str {
 /// 読み込み済み件数が総件数より少なければ出す。絞り込み直後の読み込み中・
 /// 失敗中は旧結果の件数で出さない(押すと新条件の続きを旧一覧に混ぜるため)
 fn can_load_more(ready: bool, loaded: usize, total: Option<i64>) -> bool {
-    ready && total.is_some_and(|total| (loaded as i64) < total)
+    ready && total.is_some_and(|total| i64::try_from(loaded).unwrap_or(i64::MAX) < total)
 }
 
 /// スマホのダイアログの中身。キーワードの入力と並べ替えの選択を
@@ -121,7 +120,7 @@ fn AdminDialogFields(
     draft: RwSignal<ListQuery>,
     on_search: impl Fn() + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
-    let search_callback = Callback::new(move |_| on_search());
+    let search_callback = Callback::new(move |()| on_search());
     let draft_text = move || draft.with(|query| query.q.clone());
     let set_draft_text = move |value: String| draft.update(|query| query.q = value);
     view! {
@@ -156,8 +155,7 @@ fn AdminDialogFields(
                                     let next: &'static str = SORT_COLUMNS
                                         .iter()
                                         .find(|(column, _)| *column == next)
-                                        .map(|(column, _)| *column)
-                                        .unwrap_or("occurred_at");
+                                        .map_or("occurred_at", |(column, _)| *column);
                                     draft.update(|query| query.sort_by = next);
                                 }
                             >
@@ -312,7 +310,8 @@ pub fn AdminLoginsPage() -> impl IntoView {
     };
     let email_tag = Memo::new(move |_| query.with(|query| query.email.clone()));
     let place_tag = Memo::new(move |_| query.with(|query| query.place.clone()));
-    let search_count_total = move || total.get().unwrap_or(0).max(0) as usize;
+    let search_count_total =
+        move || usize::try_from(total.get().unwrap_or(0).max(0)).unwrap_or(usize::MAX);
     let sort_summary = move || {
         format!(
             "{} {}",
@@ -363,7 +362,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
                             }
                         })}
                         <ConditionRowEnd>
-                            <span class="receipts-search-count" role="status" aria-live="polite">{move || total.get().map(|total| labels::count(total.max(0) as usize))}</span>
+                            <span class="receipts-search-count" role="status" aria-live="polite">{move || total.get().map(|total| labels::count(usize::try_from(total.max(0)).unwrap_or(usize::MAX)))}</span>
                             <SearchClearButton disabled=move || query.with(|query| query.q.is_empty() && query.email.is_empty() && query.place.is_empty())
                                 on_clear=move || { query.update(|query| { query.q.clear(); query.email.clear(); query.place.clear(); query.page = 1; }); load_first(); } />
                         </ConditionRowEnd>
@@ -410,7 +409,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
                     }
                 })
             }}
-            <div aria-busy=move || initial.with(|state| state.is_none()).to_string()>
+            <div aria-busy=move || initial.with(std::option::Option::is_none).to_string()>
                 {move || match initial.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => view! { <ListLoadError message=message on_retry=load_first /> }.into_any(),

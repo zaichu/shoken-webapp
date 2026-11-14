@@ -153,8 +153,8 @@ fn year_rows(pages: &[(Vec<usize>, i64)]) -> Result<Option<Vec<usize>>, ApiError
             ready(Ok(PaginatedSearchResponse {
                 data: rows.clone(),
                 total: *total,
-                page: page_no as i64,
-                per_page: LIST_PER_PAGE as i64,
+                page: i64::try_from(page_no).unwrap_or(i64::MAX),
+                per_page: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX),
                 summary: None::<()>,
                 facets: None,
             }))
@@ -167,7 +167,7 @@ fn year_rows(pages: &[(Vec<usize>, i64)]) -> Result<Option<Vec<usize>>, ApiError
 fn dividend_year_joins_multiple_pages_in_order() {
     let full: Vec<usize> = (0..LIST_PER_PAGE).collect();
     let rest: Vec<usize> = (LIST_PER_PAGE..LIST_PER_PAGE + 3).collect();
-    let total = (LIST_PER_PAGE + 3) as i64;
+    let total = i64::try_from(LIST_PER_PAGE + 3).unwrap_or(i64::MAX);
     let rows = year_rows(&[(full, total), (rest, total)]).expect("fetch");
     assert_eq!(rows, Some((0..LIST_PER_PAGE + 3).collect()));
 }
@@ -187,9 +187,9 @@ fn dividend_year_mid_page_error_fails_whole_fetch() {
             if page_no == 1 {
                 ready(Ok(PaginatedSearchResponse {
                     data: (0..LIST_PER_PAGE).collect(),
-                    total: LIST_PER_PAGE as i64 + 1,
+                    total: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX) + 1,
                     page: 1,
-                    per_page: LIST_PER_PAGE as i64,
+                    per_page: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX),
                     summary: None::<()>,
                     facets: None,
                 }))

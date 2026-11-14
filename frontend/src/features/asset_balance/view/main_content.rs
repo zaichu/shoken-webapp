@@ -46,7 +46,7 @@ fn filtered_count(
         FilteredCount {
             filtered,
             total,
-            filtering: !search.with(|search| search.is_empty()),
+            filtering: !search.with(super::super::fund::AssetSearch::is_empty),
         }
     })
 }
@@ -139,7 +139,7 @@ fn StockContent(
     });
     search_count.set((filtered_views.get_untracked().len(), total_count));
     Effect::new(move |_| {
-        search_count.set((filtered_views.with(|views| views.len()), total_count));
+        search_count.set((filtered_views.with(std::vec::Vec::len), total_count));
     });
     // 見出しの基準日と同じ代表を表の日付出し分けにも使う(絞り込み前の全行で決める)
     let date_rep = {
@@ -259,12 +259,12 @@ fn StockContent(
                 </div>
             </div>
             {move || {
-                (!empty && filtered_views.with(|views| views.is_empty())).then(|| {
+                (!empty && filtered_views.with(std::vec::Vec::is_empty)).then(|| {
                     view! {
                         <EmptyFilteredPanel
                             title=EMPTY_FILTERED_TITLE
                             on_clear=move || {
-                                search.update(|s| *s = AssetSearch::default())
+                                search.update(|s| *s = AssetSearch::default());
                             }
                         />
                     }
@@ -301,22 +301,27 @@ fn FundContent(
     let all_views: Vec<_> = resolved.rows.iter().map(fund_view).collect();
     let totals = fund_totals(&all_views);
     let fallback = resolved.fallback_totals.clone();
-    let (market, purchase, profit, daily) = match &fallback {
-        Some(summary) => (
-            crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
-            crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
-            crate::features::asset_balance::dec_to_f64(&summary.total_market_value)
-                - crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
-            (summary.latest_nav_count > 0)
-                .then(|| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change)),
-        ),
-        None => (
-            totals.market,
-            totals.purchase,
-            totals.profit,
-            totals.has_daily_change.then_some(totals.daily_change),
-        ),
-    };
+    let (market, purchase, profit, daily) = fallback.as_ref().map_or_else(
+        || {
+            (
+                totals.market,
+                totals.purchase,
+                totals.profit,
+                totals.has_daily_change.then_some(totals.daily_change),
+            )
+        },
+        |summary| {
+            (
+                crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
+                crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
+                crate::features::asset_balance::dec_to_f64(&summary.total_market_value)
+                    - crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
+                (summary.latest_nav_count > 0).then(|| {
+                    crate::features::asset_balance::dec_to_f64(&summary.total_daily_change)
+                }),
+            )
+        },
+    );
     let profit_rate = (purchase != 0.0).then_some(profit / purchase * 100.0);
     let filtered_count = filtered_count(search, search_count);
     let empty = total_count == 0;
@@ -394,12 +399,12 @@ fn FundContent(
                 </div>
             </div>
             {move || {
-                (filtered.with(|views| views.is_empty()) && total_count > 0).then(|| {
+                (filtered.with(std::vec::Vec::is_empty) && total_count > 0).then(|| {
                     view! {
                         <EmptyFilteredPanel
                             title=EMPTY_FILTERED_TITLE
                             on_clear=move || {
-                                search.update(|s| *s = AssetSearch::default())
+                                search.update(|s| *s = AssetSearch::default());
                             }
                         />
                     }
@@ -478,14 +483,15 @@ fn AllContent(
         stock_all_views.iter().map(ValuationInput::from).collect();
     let stock_valuation = crate::features::asset_balance::model::portfolio_valuation(&stock_inputs);
     let stock_rows_purchase: f64 = stock_inputs.iter().map(|i| i.total_purchase_amount).sum();
-    let stock_market = stock_fallback
-        .as_ref()
-        .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_market_value))
-        .unwrap_or_else(|| stock_valuation.market_value.unwrap_or(0.0));
+    let stock_market = stock_fallback.as_ref().map_or_else(
+        || stock_valuation.market_value.unwrap_or(0.0),
+        |summary| crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
+    );
     let stock_purchase = stock_fallback
         .as_ref()
-        .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount))
-        .unwrap_or(stock_rows_purchase);
+        .map_or(stock_rows_purchase, |summary| {
+            crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount)
+        });
     let stock_daily = stock_fallback
         .as_ref()
         .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change))
@@ -493,25 +499,32 @@ fn AllContent(
     let fund_rows = fund_resolved.rows.clone();
     let fund_views: Vec<_> = fund_rows.iter().map(fund_view).collect();
     let fund_totals_value = fund_totals(&fund_views);
-    let (fund_market, fund_purchase, fund_profit, fund_daily) = match &fund_resolved.fallback_totals
-    {
-        Some(summary) => (
-            crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
-            crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
-            crate::features::asset_balance::dec_to_f64(&summary.total_market_value)
-                - crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
-            (summary.latest_nav_count > 0)
-                .then(|| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change)),
-        ),
-        None => (
-            fund_totals_value.market,
-            fund_totals_value.purchase,
-            fund_totals_value.profit,
-            fund_totals_value
-                .has_daily_change
-                .then_some(fund_totals_value.daily_change),
-        ),
-    };
+    let (fund_market, fund_purchase, fund_profit, fund_daily) =
+        fund_resolved.fallback_totals.as_ref().map_or_else(
+            || {
+                (
+                    fund_totals_value.market,
+                    fund_totals_value.purchase,
+                    fund_totals_value.profit,
+                    fund_totals_value
+                        .has_daily_change
+                        .then_some(fund_totals_value.daily_change),
+                )
+            },
+            |summary| {
+                (
+                    crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
+                    crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
+                    crate::features::asset_balance::dec_to_f64(&summary.total_market_value)
+                        - crate::features::asset_balance::dec_to_f64(
+                            &summary.total_purchase_amount,
+                        ),
+                    (summary.latest_nav_count > 0).then(|| {
+                        crate::features::asset_balance::dec_to_f64(&summary.total_daily_change)
+                    }),
+                )
+            },
+        );
     let pending = valuation_has_pending(
         stock_pending_from_parts(&stock_rows, stock_fallback.as_ref()),
         fund_has_pending(&fund_resolved),
@@ -597,12 +610,12 @@ fn AllContent(
                 </div>
             </div>
             {move || {
-                (filtered.with(|rows| rows.is_empty()) && total_count > 0).then(|| {
+                (filtered.with(std::vec::Vec::is_empty) && total_count > 0).then(|| {
                     view! {
                         <EmptyFilteredPanel
                             title=EMPTY_FILTERED_TITLE
                             on_clear=move || {
-                                search.update(|s| *s = AssetSearch::default())
+                                search.update(|s| *s = AssetSearch::default());
                             }
                         />
                     }

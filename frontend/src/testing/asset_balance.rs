@@ -44,7 +44,7 @@ pub(crate) fn balance_page(
         data: range.map(balance_row).collect(),
         total,
         page: 1,
-        per_page: LIST_PER_PAGE as i64,
+        per_page: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX),
         summary: summary_total.map(|total_purchase_amount| AssetBalanceSummary {
             total_market_value: rust_decimal_macros::dec!(0),
             total_purchase_amount,

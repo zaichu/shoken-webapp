@@ -299,6 +299,8 @@ mod tests {
     }
     #[test]
     fn test_parse_utilities() {
+        use encoding_rs::SHIFT_JIS;
+
         for (input, expected) in [
             ("1,234", dec!(1234)),
             ("500", dec!(500)),
@@ -334,7 +336,6 @@ mod tests {
                 }
             );
         }
-        use encoding_rs::SHIFT_JIS;
         assert_eq!(decode_bytes("テスト".as_bytes()), "テスト");
         assert_eq!(
             decode_bytes(b"\xEF\xBB\xBF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"),

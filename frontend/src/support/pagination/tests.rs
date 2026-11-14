@@ -20,8 +20,8 @@ fn collect(
         ready(Ok(PaginatedSearchResponse {
             data: rows(range.clone()),
             total: *total,
-            page: page_no as i64,
-            per_page: per_page as i64,
+            page: i64::try_from(page_no).unwrap_or(i64::MAX),
+            per_page: i64::try_from(per_page).unwrap_or(i64::MAX),
             summary: None,
             facets: None,
         }))
@@ -109,4 +109,14 @@ fn unknown_total_stops_at_a_short_page_or_the_cap() {
 fn zero_page_cap_still_fetches_the_first_page() {
     assert!(collect(&[(0..3, 4)], 3, 0).truncated);
     assert!(!collect(&[(0..3, 3)], 3, 0).truncated);
+}
+
+#[test]
+fn huge_total_saturates_instead_of_truncating() {
+    let page = collect(&[(0..3, i64::MAX), (3..6, i64::MAX)], 3, 2);
+    assert_eq!(
+        page.total,
+        Some(usize::try_from(i64::MAX).unwrap_or(usize::MAX))
+    );
+    assert!(page.truncated);
 }

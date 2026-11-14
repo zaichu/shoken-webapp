@@ -316,11 +316,11 @@ pub fn ReceiptTable(
                                                 .rows
                                                 .iter()
                                                 .map(|(_, _, cells)| {
-                                                    let cells: Vec<_> = desktop_order.iter().map(|i| cells[*i].clone()).collect();
                                                     view! {
                                                         <tr>
-                                                            {cells
-                                                                .into_iter()
+                                                            {desktop_order
+                                                                .iter()
+                                                                .map(|i| cells[*i].clone())
                                                                 .enumerate()
                                                                 .map(|(col_index, cell)| {
                                                                     let align = cell_classes[col_index].clone();

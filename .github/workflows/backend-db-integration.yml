@@ -73,7 +73,9 @@ jobs:
         uses: ./.github/actions/rust-cache
         with:
           workspaces: . -> target
-          shared-key: backend-db-integration
+          # backend 系と鍵を共有する。保存は main(schedule)時のみにし、PR 側の重複保存を抑止する
+          shared-key: backend
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run ignored DB integration tests
         run: make test-ignored

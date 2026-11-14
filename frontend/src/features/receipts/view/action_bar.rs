@@ -303,17 +303,17 @@ fn PeriodDraftContent(
                             on_click=move |_| {
                                 draft.update(|s| {
                                     if opt == ALL {
-                                        s.clear_key(SearchKey::Date, has_years())
+                                        s.clear_key(SearchKey::Date, has_years());
                                     } else if opt == PERIOD_YEAR {
-                                        s.change_date_segment(DateSegment::Year)
+                                        s.change_date_segment(DateSegment::Year);
                                     } else if opt == PERIOD_YEAR_MONTH {
-                                        s.change_date_segment(DateSegment::Month)
+                                        s.change_date_segment(DateSegment::Month);
                                     } else if opt == PERIOD_DAY {
-                                        s.change_date_segment(DateSegment::Date)
+                                        s.change_date_segment(DateSegment::Date);
                                     } else {
-                                        s.change_date_segment(DateSegment::Range)
+                                        s.change_date_segment(DateSegment::Range);
                                     }
-                                })
+                                });
                             }
                         >
                             {opt}
@@ -729,7 +729,7 @@ fn ReceiptDialogFields(
 ) -> impl IntoView {
     let draft_text = move || draft.with(|s| s.selected_queries.securities.clone());
     let set_draft_text = move |value: String| draft.update(|s| s.set_securities_query(value));
-    let search_callback = Callback::new(move |_| on_search());
+    let search_callback = Callback::new(move |()| on_search());
     let date_label = move || receipt_date_label(tab.get());
     let period_value = Memo::new(move |_| {
         let date = draft.with(|s| {

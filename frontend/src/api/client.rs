@@ -18,6 +18,12 @@ const AUTH_MAX_RETRIES: u32 = 1;
 const AUTH_RETRY_DELAY_MS: u64 = 500;
 const AUTH_RETRY_DELAY_MULTIPLIER: u64 = 1;
 
+/// `TimeoutFuture::new` は u32 ミリ秒。設定値は秒オーダーのため通常は範囲内だが、
+/// 範囲外のリトライ遅延が来ても切り捨て(短待ち化)ではなく飽和(最大待ち)に倒す
+fn timeout_ms_u32(ms: u64) -> u32 {
+    u32::try_from(ms).unwrap_or(u32::MAX)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ApiError {
     Network,
@@ -233,7 +239,7 @@ impl ApiClient {
         let timer_flag = Rc::clone(&timed_out);
         let timeout_ms = self.timeout_ms;
         leptos::task::spawn_local(async move {
-            TimeoutFuture::new(timeout_ms as u32).await;
+            TimeoutFuture::new(timeout_ms_u32(timeout_ms)).await;
             timer_flag.set(true);
             controller.abort();
         });
@@ -295,7 +301,7 @@ impl ApiClient {
                     let delay = self
                         .retry_delay_ms
                         .saturating_mul(self.retry_multiplier.saturating_pow(attempt));
-                    TimeoutFuture::new(delay as u32).await;
+                    TimeoutFuture::new(timeout_ms_u32(delay)).await;
                     attempt += 1;
                 }
                 Err(error) => return Err(error),

@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use rust_decimal::prelude::ToPrimitive;
 use send_wrapper::SendWrapper;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -59,12 +60,12 @@ pub const SWIPE_VELOCITY_WINDOW_MS: f64 = 100.0;
 const MOBILE_MAX_WIDTH_PX: f64 = 1024.0;
 
 /// 動いている間の入力無視が必要か。動きを減らす設定では動きが無いため今のまま受け付ける
-pub fn swipe_should_ignore_input(settling: bool, reduced_motion: bool) -> bool {
+pub const fn swipe_should_ignore_input(settling: bool, reduced_motion: bool) -> bool {
     settling && !reduced_motion
 }
 
 /// 新しい接触の開始を無視するか。動いている間のタップ・新しいスワイプと2本目の指を無視する
-pub fn swipe_should_ignore_touchstart(
+pub const fn swipe_should_ignore_touchstart(
     settling: bool,
     reduced_motion: bool,
     touch_count: usize,
@@ -145,10 +146,7 @@ pub fn swipe_lock_allowed(
     if suppressed || dialog_open {
         return false;
     }
-    match viewport {
-        Some(width) => !is_edge_start(start_x, width),
-        None => false,
-    }
+    viewport.is_some_and(|width| !is_edge_start(start_x, width))
 }
 
 /// 指の移動量を面の動きに変える。端では抵抗をつけて少しだけ伸びる
@@ -192,7 +190,7 @@ pub fn swipe_commit_index(
 
 /// 下線の滑り量(タブ何個分)。指の進み具合そのまま
 pub fn tab_ink_offset(current: usize, progress: f64) -> f64 {
-    current as f64 + progress.clamp(-1.0, 1.0)
+    current.to_f64().unwrap_or(f64::MAX) + progress.clamp(-1.0, 1.0)
 }
 
 /// タブ番号方向の進み具合。左スワイプ(指は負)を正(次へ)で表す
@@ -206,7 +204,7 @@ pub fn swipe_progress(drag: f64, width: f64) -> f64 {
 
 /// 確定後に面が止まる位置。離した側の外へ流すため指の移動とは逆符号になる
 pub fn swipe_settle_offset(current: usize, target: usize, width: f64) -> f64 {
-    (current as f64 - target as f64) * width
+    (current.to_f64().unwrap_or(f64::MAX) - target.to_f64().unwrap_or(f64::MAX)) * width
 }
 
 /// 画面の左右の端から始めた接触か。ブラウザの戻る操作とぶつかるため無視する
@@ -322,7 +320,7 @@ fn slide_position(element: &web_sys::HtmlElement) -> f64 {
 
 fn place_slides(track: &web_sys::HtmlDivElement, current: usize, drag: f64, width: f64) {
     for element in slide_elements(track) {
-        let base = (slide_position(&element) - current as f64) * width;
+        let base = (slide_position(&element) - current.to_f64().unwrap_or(f64::MAX)) * width;
         let _ = element
             .style()
             .set_property("transform", &format!("translateX({}px)", base + drag));
@@ -446,36 +444,39 @@ fn arm_settle_guard(
 ) {
     let guard_gesture = gesture.clone();
     let guard_mounted = mounted.clone();
-    gloo_timers::callback::Timeout::new(SWIPE_SETTLE_GUARD_MS as u32, move || {
-        if !guard_mounted.load(Ordering::Relaxed) {
-            return;
-        }
-        if !motion.settling.get_untracked() {
-            return;
-        }
-        let target = {
-            let mut gesture = guard_gesture.borrow_mut();
-            let Some(settle) = gesture.settle.take() else {
+    gloo_timers::callback::Timeout::new(
+        SWIPE_SETTLE_GUARD_MS.to_u32().unwrap_or(u32::MAX),
+        move || {
+            if !guard_mounted.load(Ordering::Relaxed) {
                 return;
-            };
-            if let Some(id) = gesture.frame.take()
-                && let Some(window) = web_sys::window()
-            {
-                let _ = window.cancel_animation_frame(id);
             }
-            gesture.locked = false;
-            settle.target
-        };
-        if let Some(track) = track.get() {
-            clear_slides(&track);
-        }
-        motion.progress.set(0.0);
-        motion.dragging.set(false);
-        motion.settling.set(false);
-        if target != current.get_untracked() {
-            on_select.run(target);
-        }
-    })
+            if !motion.settling.get_untracked() {
+                return;
+            }
+            let target = {
+                let mut gesture = guard_gesture.borrow_mut();
+                let Some(settle) = gesture.settle.take() else {
+                    return;
+                };
+                if let Some(id) = gesture.frame.take()
+                    && let Some(window) = web_sys::window()
+                {
+                    let _ = window.cancel_animation_frame(id);
+                }
+                gesture.locked = false;
+                settle.target
+            };
+            if let Some(track) = track.get() {
+                clear_slides(&track);
+            }
+            motion.progress.set(0.0);
+            motion.dragging.set(false);
+            motion.settling.set(false);
+            if target != current.get_untracked() {
+                on_select.run(target);
+            }
+        },
+    )
     .forget();
 }
 
@@ -554,8 +555,7 @@ fn finish_swipe(
     if !locked {
         width = track
             .get()
-            .map(|track| f64::from(track.client_width()))
-            .unwrap_or(0.0);
+            .map_or(0.0, |track| f64::from(track.client_width()));
     }
     let from = if locked {
         clamp_drag_offset(dx, count_value, current_value, width)
@@ -742,8 +742,7 @@ pub fn SwipeArea(
                 locked.locked = true;
                 locked.width = track
                     .get()
-                    .map(|track| f64::from(track.client_width()))
-                    .unwrap_or(0.0);
+                    .map_or(0.0, |track| f64::from(track.client_width()));
                 if locked.width <= 0.0 {
                     locked.locked = false;
                     locked.vertical = true;

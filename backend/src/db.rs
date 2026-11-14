@@ -45,6 +45,8 @@ pub enum DbError {
     Other(String),
     /// SQLSTATE を直接保持するエラー（Worker 経路・テスト用）
     State { state: SqlState, message: String },
+    /// トランザクション接続を利用できない
+    TransactionUnavailable,
 }
 
 impl DbError {
@@ -52,7 +54,7 @@ impl DbError {
         match self {
             Self::Pg(e) => e.as_db_error().map(|e| e.code().clone()),
             Self::State { state, .. } => Some(state.clone()),
-            Self::RowNotFound | Self::Other(_) => None,
+            Self::RowNotFound | Self::Other(_) | Self::TransactionUnavailable => None,
         }
     }
 
@@ -74,6 +76,7 @@ impl std::fmt::Display for DbError {
             Self::RowNotFound => f.write_str("no rows returned by a query that expected one"),
             Self::Other(m) => f.write_str(m),
             Self::State { message, .. } => f.write_str(message),
+            Self::TransactionUnavailable => f.write_str("トランザクションの接続がありません"),
         }
     }
 }
@@ -243,6 +246,7 @@ impl DbError {
             Self::RowNotFound => "row_not_found",
             Self::Other(_) => "other",
             Self::State { .. } => "database",
+            Self::TransactionUnavailable => "transaction_unavailable",
         };
         let state = self.sql_state();
         let sqlstate = state.as_ref().map_or("-", SqlState::code);
@@ -495,12 +499,13 @@ fn tls_mode_from_url(url: &str) -> Result<TlsMode, String> {
 /// PEM ファイルから証明書をすべて読み込む（Dashboard 配布の CA など複数入りに対応）
 #[cfg(not(target_arch = "wasm32"))]
 fn load_pem_certs(path: &str) -> Result<Vec<native_tls::Certificate>, String> {
+    const BEGIN: &str = "-----BEGIN CERTIFICATE-----";
+    const END: &str = "-----END CERTIFICATE-----";
+
     let bytes = std::fs::read(path)
         .map_err(|e| format!("sslrootcert の CA ファイルを読み込めませんでした: {e}"))?;
     let text = String::from_utf8(bytes)
         .map_err(|_| "sslrootcert の CA ファイルが PEM 形式ではありません".to_string())?;
-    const BEGIN: &str = "-----BEGIN CERTIFICATE-----";
-    const END: &str = "-----END CERTIFICATE-----";
     let mut certs = Vec::new();
     let mut rest = text.as_str();
     while let Some(start) = rest.find(BEGIN) {
@@ -651,6 +656,7 @@ mod worker_db {
 }
 
 impl Db {
+    #[allow(clippy::unused_async)]
     pub async fn close(&self) {
         match &*self.inner {
             #[cfg(not(target_arch = "wasm32"))]
@@ -918,10 +924,7 @@ impl Tx {
     }
 
     pub async fn commit(mut self) -> Result<(), DbError> {
-        let conn = self
-            .conn
-            .take()
-            .expect("トランザクションの接続がありません");
+        let conn = self.conn.take().ok_or(DbError::TransactionUnavailable)?;
         let guard = TxGuard::new(conn, TxConn::rollback_and_release);
         guard.batch_execute("COMMIT").await?;
         drop(TxGuard::dismiss(guard));
@@ -930,10 +933,7 @@ impl Tx {
 
     /// 明示ロールバック。`Drop` の非同期 ROLLBACK と違い完了を待てる
     pub async fn rollback(mut self) -> Result<(), DbError> {
-        let conn = self
-            .conn
-            .take()
-            .expect("トランザクションの接続がありません");
+        let conn = self.conn.take().ok_or(DbError::TransactionUnavailable)?;
         let guard = TxGuard::new(conn, TxConn::rollback_and_release);
         guard.batch_execute("ROLLBACK").await?;
         drop(TxGuard::dismiss(guard));
@@ -962,11 +962,10 @@ macro_rules! impl_executor_for_tx {
                 db_future(async move {
                     let timer = DbTimer::start();
                     let sample_every = self.rtt.sample_every;
-                    let out = match self
-                        .conn
-                        .as_ref()
-                        .expect("トランザクションの接続がありません")
-                    {
+                    let Some(conn) = self.conn.as_ref() else {
+                        return Err(DbError::TransactionUnavailable);
+                    };
+                    let out = match conn {
                         #[cfg(not(target_arch = "wasm32"))]
                         TxConn::Native(obj) => obj
                             .query_typed(sql, &typed_params(params))
@@ -991,11 +990,10 @@ macro_rules! impl_executor_for_tx {
                 db_future(async move {
                     let timer = DbTimer::start();
                     let sample_every = self.rtt.sample_every;
-                    let out = match self
-                        .conn
-                        .as_ref()
-                        .expect("トランザクションの接続がありません")
-                    {
+                    let Some(conn) = self.conn.as_ref() else {
+                        return Err(DbError::TransactionUnavailable);
+                    };
+                    let out = match conn {
                         #[cfg(not(target_arch = "wasm32"))]
                         TxConn::Native(obj) => obj
                             .execute_typed(sql, &typed_params(params))
@@ -1016,12 +1014,10 @@ macro_rules! impl_executor_for_tx {
                 db_future(async move {
                     let timer = DbTimer::start();
                     let sample_every = self.rtt.sample_every;
-                    let out = self
-                        .conn
-                        .as_ref()
-                        .expect("トランザクションの接続がありません")
-                        .batch_execute(sql)
-                        .await;
+                    let Some(conn) = self.conn.as_ref() else {
+                        return Err(DbError::TransactionUnavailable);
+                    };
+                    let out = conn.batch_execute(sql).await;
                     timer.finish(query_tag(sql), sample_every);
                     out
                 })
@@ -1101,6 +1097,20 @@ fn validate_database_url(url: &str) -> Result<(), String> {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn close_only_closes_pool_when_future_is_polled() {
+        let db = connect_pool_lazy("postgres://user:pass@localhost/db", 1).unwrap();
+        let DbInner::Pool(pool) = &*db.inner;
+
+        let closing = db.close();
+        assert!(!pool.is_closed());
+        drop(closing);
+        assert!(!pool.is_closed());
+
+        db.close().await;
+        assert!(pool.is_closed());
+    }
 
     #[derive(Clone, Default)]
     struct LogCapture(Arc<std::sync::Mutex<Vec<String>>>);

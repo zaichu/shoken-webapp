@@ -111,7 +111,7 @@ pub fn unit_price_decimals(values: impl Iterator<Item = f64>) -> u32 {
 
 fn decimal_places(text: &str) -> Option<u32> {
     let (_, fraction) = text.split_once('.')?;
-    Some(fraction.len() as u32)
+    u32::try_from(fraction.len()).ok()
 }
 
 /// 1株・1口あたりの金額(取得単価・現在値・基準価額・1株配当)。
@@ -195,7 +195,19 @@ pub fn format_iso_date(value: &str) -> String {
 
 /// 率(整数%)
 pub fn format_integer_percent(value: f64) -> String {
-    format!("{}%", value.round() as i64)
+    let rounded = value.round();
+    let integer = if rounded.is_nan() {
+        0
+    } else {
+        rounded.to_i64().unwrap_or_else(|| {
+            if rounded.is_sign_negative() {
+                i64::MIN
+            } else {
+                i64::MAX
+            }
+        })
+    };
+    format!("{integer}%")
 }
 
 /// 日付の年月日を取り出す。日付として読めない値は None
@@ -216,7 +228,7 @@ pub fn date_parts(date: &str) -> Option<(i32, u32, u32)> {
     Some((year, month, day))
 }
 
-fn days_in_month(year: i32, month: u32) -> u32 {
+const fn days_in_month(year: i32, month: u32) -> u32 {
     let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
     match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -298,7 +310,7 @@ fn days_from_civil(year: i32, month: u32, day: u32) -> i64 {
 
 /// 「1970-01-01 からの日数」を暦日(年・月・日)に戻す
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-fn civil_from_days(days: i64) -> (i32, u32, u32) {
+const fn civil_from_days(days: i64) -> (i64, i64, i64) {
     let shifted = days + 719_468;
     let era = if shifted >= 0 {
         shifted
@@ -318,7 +330,7 @@ fn civil_from_days(days: i64) -> (i32, u32, u32) {
         shifted_month - 9
     };
     let year = if month <= 2 { year + 1 } else { year };
-    (year as i32, month as u32, day as u32)
+    (year, month, day)
 }
 
 /// 2つの暦日の差(to − from)。後なら正、前でなければ負
@@ -329,14 +341,32 @@ pub fn calendar_days_between(from: (i32, u32, u32), to: (i32, u32, u32)) -> i64 
 /// 今日(JST)の年月日
 #[cfg(target_arch = "wasm32")]
 fn today_jst() -> Option<(i32, u32, u32)> {
-    // epoch 秒を9時間進めて JST の暦日を出す
-    let jst_seconds = (js_sys::Date::now() / 1000.0) as i64 + 9 * 3600;
-    Some(civil_from_days(jst_seconds.div_euclid(86_400)))
+    today_jst_from_timestamp(js_sys::Date::now() / 1000.0)
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn today_jst_from_timestamp(timestamp: f64) -> Option<(i32, u32, u32)> {
+    let jst_seconds = timestamp
+        .to_i64()
+        .unwrap_or_else(|| {
+            if timestamp.is_sign_negative() {
+                i64::MIN
+            } else {
+                i64::MAX
+            }
+        })
+        .saturating_add(9 * 3600);
+    let (year, month, day) = civil_from_days(jst_seconds.div_euclid(86_400));
+    Some((
+        i32::try_from(year).unwrap_or(if year < 0 { i32::MIN } else { i32::MAX }),
+        u32::try_from(month).unwrap_or(u32::MAX),
+        u32::try_from(day).unwrap_or(u32::MAX),
+    ))
 }
 
 /// 今日(JST)の年月日。ネイティブでは None
 #[cfg(not(target_arch = "wasm32"))]
-fn today_jst() -> Option<(i32, u32, u32)> {
+const fn today_jst() -> Option<(i32, u32, u32)> {
     None
 }
 

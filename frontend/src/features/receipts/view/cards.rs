@@ -73,12 +73,11 @@ pub(crate) fn is_negative_text(value: &str) -> bool {
     if !valid_amount_digits(&normalized) {
         return false;
     }
-    match normalized.parse::<f64>() {
-        // 「-¥0」のような真のゼロは負としないが、小数部を持つ -0.0 は
-        // 丸め前の符号を残した表示なので負とする
-        Ok(n) => n < 0.0 || (n == 0.0 && normalized.starts_with('-') && normalized.contains('.')),
-        Err(_) => false,
-    }
+    // 「-¥0」のような真のゼロは負としないが、小数部を持つ -0.0 は
+    // 丸め前の符号を残した表示なので負とする
+    normalized.parse::<f64>().is_ok_and(|n| {
+        n < 0.0 || (n == 0.0 && normalized.starts_with('-') && normalized.contains('.'))
+    })
 }
 
 pub(crate) fn is_negative_labeled_value(tab: ReceiptsTab, label: &str, value: &str) -> bool {
@@ -167,33 +166,29 @@ pub(crate) fn card_detail_value(
     index: usize,
     cells: &[ReceiptCell],
 ) -> CardDetailValue {
-    match cells.get(index) {
-        Some(ReceiptCell::InstrumentName { name, code }) => {
-            let trimmed = name.trim();
-            let display = if trimmed.is_empty() {
-                "—".to_string()
-            } else {
-                trimmed.to_string()
-            };
-            let copy = code
-                .as_deref()
-                .map(crate::features::receipts::model::normalize_security_code)
-                .filter(|code| !code.is_empty())
-                .map_or_else(|| display.clone(), |code| format!("{display}({code})"));
-            CardDetailValue::CopyName { display, copy }
-        }
-        _ => {
-            let raw = cells
-                .get(index)
-                .map(|cell| cell.text().to_string())
-                .unwrap_or_default();
-            let text = signed_text_for_profit(tab, label, &raw);
-            CardDetailValue::Text {
-                negative: is_negative_labeled_value(tab, label, &raw),
-                positive: is_positive_labeled_value(tab, label, &raw),
-                is_profit: amount_kind_for_label(tab, label, &raw) == AmountKind::Delta,
-                text,
-            }
+    if let Some(ReceiptCell::InstrumentName { name, code }) = cells.get(index) {
+        let trimmed = name.trim();
+        let display = if trimmed.is_empty() {
+            "—".to_string()
+        } else {
+            trimmed.to_string()
+        };
+        let copy = code
+            .as_deref()
+            .map(crate::features::receipts::model::normalize_security_code)
+            .filter(|code| !code.is_empty())
+            .map_or_else(|| display.clone(), |code| format!("{display}({code})"));
+        CardDetailValue::CopyName { display, copy }
+    } else {
+        let raw = cells
+            .get(index)
+            .map_or_default(|cell| cell.text().to_string());
+        let text = signed_text_for_profit(tab, label, &raw);
+        CardDetailValue::Text {
+            negative: is_negative_labeled_value(tab, label, &raw),
+            positive: is_positive_labeled_value(tab, label, &raw),
+            is_profit: amount_kind_for_label(tab, label, &raw) == AmountKind::Delta,
+            text,
         }
     }
 }
@@ -210,8 +205,7 @@ pub(crate) fn card_row_data(
     let text = |index: usize| {
         cells
             .get(index)
-            .map(|cell| cell.text().to_string())
-            .unwrap_or_default()
+            .map_or_default(|cell| cell.text().to_string())
     };
     CardRowData {
         name: card_detail_value(tab, columns[fields.name].header, fields.name, cells),
@@ -298,7 +292,7 @@ fn compact_value(details: &[CardDetail], label: &str) -> (String, bool, bool) {
     details
         .iter()
         .find(|detail| detail.label == label)
-        .map(|detail| match &detail.value {
+        .map_or_default(|detail| match &detail.value {
             CardDetailValue::Text {
                 text,
                 negative,
@@ -307,14 +301,13 @@ fn compact_value(details: &[CardDetail], label: &str) -> (String, bool, bool) {
             } => (text.clone(), *negative, *positive),
             CardDetailValue::CopyName { display, .. } => (display.clone(), false, false),
         })
-        .unwrap_or_default()
 }
 
 fn detail_text(details: &[CardDetail], label: &str) -> (String, bool, bool, bool) {
     details
         .iter()
         .find(|detail| detail.label == label)
-        .map(|detail| match &detail.value {
+        .map_or_default(|detail| match &detail.value {
             CardDetailValue::Text {
                 text,
                 negative,
@@ -323,7 +316,6 @@ fn detail_text(details: &[CardDetail], label: &str) -> (String, bool, bool, bool
             } => (text.clone(), *negative, *positive, *is_profit),
             CardDetailValue::CopyName { display, .. } => (display.clone(), false, false, false),
         })
-        .unwrap_or_default()
 }
 
 pub(crate) fn receipt_detail_cells(
@@ -335,81 +327,78 @@ pub(crate) fn receipt_detail_cells(
         ReceiptsTab::Dividend => PAYMENT_DATE,
         _ => TRADE_DATE,
     };
-    match tab {
-        ReceiptsTab::Dividend => {
-            let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
-            let (per_share, _, _, _) = detail_text(&card.details, PER_SHARE_DIVIDEND);
-            let (gross, gross_neg, gross_pos, _) = detail_text(&card.details, DIVIDEND_AMOUNT);
-            let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, TAX);
-            let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
-            let left = vec![
-                DetailCell::plain(date_label.to_string(), date_text),
-                DetailCell::plain(QUANTITY.to_string(), qty),
-                DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
-            ];
-            let right = vec![
-                DetailCell {
-                    label: BEFORE_TAX.to_string(),
-                    value: gross,
-                    sub: None,
-                    negative: gross_neg,
-                    positive: gross_pos,
-                    bold: false,
-                    delta: true,
-                },
-                DetailCell {
-                    label: TAX.to_string(),
-                    value: tax,
-                    sub: None,
-                    negative: tax_neg,
-                    positive: tax_pos,
-                    bold: false,
-                    delta: tax_neg || tax_pos,
-                },
-                DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
-            ];
-            (left, right)
-        }
-        _ => {
-            let amount_label = match tab {
-                ReceiptsTab::DomesticStock => SELLING_AMOUNT,
-                _ => REDEMPTION_AMOUNT,
-            };
-            let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
-            let (amount, _, _, _) = detail_text(&card.details, amount_label);
-            let (cost, _, _, _) = detail_text(&card.details, ACQUISITION_PRICE);
-            let (pnl, pnl_neg, pnl_pos, _) = detail_text(&card.details, REALIZED_PROFIT_LOSS);
-            let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, TAX);
-            let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
-            let left = vec![
-                DetailCell::plain(date_label.to_string(), date_text),
-                DetailCell::plain(QUANTITY.to_string(), qty),
-                DetailCell::plain(amount_label.to_string(), amount),
-                DetailCell::plain(ACQUISITION_PRICE.to_string(), cost),
-            ];
-            let right = vec![
-                DetailCell {
-                    label: BEFORE_TAX.to_string(),
-                    value: pnl,
-                    sub: None,
-                    negative: pnl_neg,
-                    positive: pnl_pos,
-                    bold: false,
-                    delta: true,
-                },
-                DetailCell {
-                    label: TAX.to_string(),
-                    value: tax,
-                    sub: None,
-                    negative: tax_neg,
-                    positive: tax_pos,
-                    bold: false,
-                    delta: tax_neg || tax_pos,
-                },
-                DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
-            ];
-            (left, right)
-        }
+    if tab == ReceiptsTab::Dividend {
+        let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
+        let (per_share, _, _, _) = detail_text(&card.details, PER_SHARE_DIVIDEND);
+        let (gross, gross_neg, gross_pos, _) = detail_text(&card.details, DIVIDEND_AMOUNT);
+        let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, TAX);
+        let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
+        let left = vec![
+            DetailCell::plain(date_label.to_string(), date_text),
+            DetailCell::plain(QUANTITY.to_string(), qty),
+            DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
+        ];
+        let right = vec![
+            DetailCell {
+                label: BEFORE_TAX.to_string(),
+                value: gross,
+                sub: None,
+                negative: gross_neg,
+                positive: gross_pos,
+                bold: false,
+                delta: true,
+            },
+            DetailCell {
+                label: TAX.to_string(),
+                value: tax,
+                sub: None,
+                negative: tax_neg,
+                positive: tax_pos,
+                bold: false,
+                delta: tax_neg || tax_pos,
+            },
+            DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
+        ];
+        (left, right)
+    } else {
+        let amount_label = match tab {
+            ReceiptsTab::DomesticStock => SELLING_AMOUNT,
+            _ => REDEMPTION_AMOUNT,
+        };
+        let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
+        let (amount, _, _, _) = detail_text(&card.details, amount_label);
+        let (cost, _, _, _) = detail_text(&card.details, ACQUISITION_PRICE);
+        let (pnl, pnl_neg, pnl_pos, _) = detail_text(&card.details, REALIZED_PROFIT_LOSS);
+        let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, TAX);
+        let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
+        let left = vec![
+            DetailCell::plain(date_label.to_string(), date_text),
+            DetailCell::plain(QUANTITY.to_string(), qty),
+            DetailCell::plain(amount_label.to_string(), amount),
+            DetailCell::plain(ACQUISITION_PRICE.to_string(), cost),
+        ];
+        let right = vec![
+            DetailCell {
+                label: BEFORE_TAX.to_string(),
+                value: pnl,
+                sub: None,
+                negative: pnl_neg,
+                positive: pnl_pos,
+                bold: false,
+                delta: true,
+            },
+            DetailCell {
+                label: TAX.to_string(),
+                value: tax,
+                sub: None,
+                negative: tax_neg,
+                positive: tax_pos,
+                bold: false,
+                delta: tax_neg || tax_pos,
+            },
+            DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
+        ];
+        (left, right)
     }
 }
 
@@ -704,7 +693,7 @@ pub(crate) fn MobileCardGroup(
                             if !set.remove(&toggle_id) {
                                 set.insert(toggle_id.clone());
                             }
-                        })
+                        });
                     }
                 >
                     <span class="min-w-0 flex-1 truncate text-sm font-semibold text-text-soft">

@@ -114,11 +114,9 @@ pub fn select_header_summary<T: Clone>(
     search_query: &str,
     client_summary: T,
 ) -> T {
-    if let Some(summary) = api_summary.filter(|_| search_query.is_empty()) {
-        summary.clone()
-    } else {
-        client_summary
-    }
+    api_summary
+        .filter(|_| search_query.is_empty())
+        .map_or(client_summary, Clone::clone)
 }
 
 pub fn truncated_list_warning() -> String {

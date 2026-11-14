@@ -107,22 +107,18 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                             let found = view.rows.iter().find(|row| {
                                 row.id.to_string() == id
                             });
-                            match found {
-                                None => {
-                                    view! {
-                                        <div class="px-4 py-4">
-                                            <EmptyState title=labels::ASSET_HOLDING_NOT_FOUND />
-                                        </div>
-                                    }
-                                        .into_any()
+                            let Some(row) = found else {
+                                return view! {
+                                    <div class="px-4 py-4">
+                                        <EmptyState title=labels::ASSET_HOLDING_NOT_FOUND />
+                                    </div>
                                 }
-                                Some(row) => {
-                                    let code = row.security_code.to_string();
-                                    redirect_to_search(&code);
-                                    view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
-                                        .into_any()
-                                }
-                            }
+                                    .into_any();
+                            };
+                            let code = row.security_code.to_string();
+                            redirect_to_search(&code);
+                            view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
+                                .into_any()
                         }
                     }
                 }}

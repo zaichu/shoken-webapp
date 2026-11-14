@@ -290,13 +290,12 @@ pub fn composition_entries(
         let position = if is_new_holding {
             entries.len()
         } else {
-            match positions.get(&key) {
-                Some(&position) => position,
-                None => {
-                    let position = entries.len();
-                    positions.insert(key.clone(), position);
-                    position
-                }
+            if let Some(&position) = positions.get(&key) {
+                position
+            } else {
+                let position = entries.len();
+                positions.insert(key.clone(), position);
+                position
             }
         };
         if position == entries.len() {
@@ -307,8 +306,7 @@ pub fn composition_entries(
                     CompositionGroup::Account => source
                         .account
                         .as_deref()
-                        .map(account_display_name)
-                        .unwrap_or(MISSING)
+                        .map_or(MISSING, account_display_name)
                         .to_string(),
                 },
                 sub: match group {

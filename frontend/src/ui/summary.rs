@@ -39,7 +39,7 @@ pub enum SummaryTone {
     Loss,
 }
 
-fn tone_amount(tone: SummaryTone) -> (AmountKind, bool, bool) {
+const fn tone_amount(tone: SummaryTone) -> (AmountKind, bool, bool) {
     match tone {
         SummaryTone::Gain => (AmountKind::Delta, false, true),
         SummaryTone::Loss => (AmountKind::Delta, true, false),
@@ -47,7 +47,7 @@ fn tone_amount(tone: SummaryTone) -> (AmountKind, bool, bool) {
     }
 }
 
-fn delta_or_plain(negative: bool, positive: bool) -> AmountKind {
+const fn delta_or_plain(negative: bool, positive: bool) -> AmountKind {
     if negative || positive {
         AmountKind::Delta
     } else {
@@ -244,7 +244,7 @@ pub fn SummaryBand(
                             expanded=expanded
                             controls=controls_id.clone()
                             testid=testid_toggle
-                            on_toggle=move || expanded.update(|open| open.toggle())
+                            on_toggle=move || expanded.update(bool::toggle)
                         >
                             <span class="sr-only">
                                 {move || if expanded.get() {

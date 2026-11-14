@@ -87,13 +87,13 @@ pub(crate) fn settle_summary<T>(
     generation: Generation,
     result: Result<Option<T>, ApiError>,
 ) -> Option<(Generation, Option<T>)> {
-    match result {
-        Ok(summary) => Some((generation, summary)),
-        Err(_) => match current {
+    result.ok().map_or_else(
+        || match current {
             Some((cached, Some(_))) if *cached == generation => None,
             _ => Some((generation, None)),
         },
-    }
+        |summary| Some((generation, summary)),
+    )
 }
 
 fn load_summary<T: Clone + Send + Sync + 'static>(

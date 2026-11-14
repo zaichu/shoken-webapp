@@ -58,7 +58,7 @@ pub enum DisclosureStyle {
 }
 
 impl DisclosureStyle {
-    fn class(self) -> &'static str {
+    const fn class(self) -> &'static str {
         match self {
             Self::GroupCard => "group-card-trigger",
             Self::HeaderFlat => {

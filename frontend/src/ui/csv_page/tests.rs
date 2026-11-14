@@ -68,3 +68,20 @@ fn status_dot_appears_only_for_dated_or_active_status() {
         assert!(status_dot_class(key).is_none(), "{key} は点を出さない");
     }
 }
+
+#[test]
+fn saved_count_clamps_missing_and_negative_to_zero() {
+    let row = |count| CsvKindRowData {
+        kind: CsvKind::Dividend,
+        count,
+        latest_imported_at: None,
+        sync_status: None,
+    };
+    assert_eq!(row(None).saved_count(), 0);
+    assert_eq!(row(Some(-5)).saved_count(), 0);
+    assert_eq!(row(Some(12)).saved_count(), 12);
+    assert_eq!(
+        row(Some(i64::MAX)).saved_count(),
+        usize::try_from(i64::MAX).unwrap_or(usize::MAX)
+    );
+}
