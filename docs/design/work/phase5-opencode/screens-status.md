@@ -12,7 +12,7 @@
 |---|---|---|---|---|---|
 | 取引明細・配当金タブ(一覧・年/月グループ・集計帯) | 済み | ○ | ○ | RE-3(小計行「2026年12月 · 3件の合計」)、Codex-1(取込日は年付き)、Codex-4(詳細の項目順=表の列順) | shots/receipts-dividend-pc-light.png・shots/receipts-dividend-sp-light.png |
 | 取引明細・配当金タブ(条件パネル) | 済み | ○(ポップオーバー) | ○(シート) | Codex-1(期間・口座・商品。期間は下書き確定) | shots/receipts-dividend-cond-pc-light.png |
-| 取引明細・配当金タブ(行詳細) | 済み | ○(詳細パネル) | ○(シート: スマホ全 9 行をタップで #rcpt-d1) | RE-1(部分対応: スマホ行 2 段目に税引前の目安を追加。完全な内訳は詳細に集約) | shots/receipts-dividend-dialog-pc-dark.png(ダーク代表) |
+| 取引明細・配当金タブ(行詳細) | 済み | ○(詳細パネル) | ○(シート: 行ごと #rcpt-d1〜d9。スマホ全9行・PC全9行の税引後リンクが対応する行のシートを開く) | RE-1(部分対応: スマホ行 2 段目に税引前の目安を追加。完全な内訳は詳細に集約) | shots/receipts-dividend-dialog-pc-dark.png(ダーク代表) |
 | 取引明細・国内株式タブ | 済み | ○ | ○ | RE-3(月グループ小計)、X-4(右揃え・符号+色・欠測 —)。見出し件数はタブ選択で 3件に切替 | shots/receipts-stock-pc-light.png・shots/receipts-stock-sp-light.png |
 | 取引明細・投資信託タブ | 済み | ○ | ○ | RE-3、X-4。見出し件数はタブ選択で 2件に切替 | shots/receipts-fund-pc-light.png・shots/receipts-fund-sp-light.png |
 | CSV 管理(5 種類の表・取得カード・取込結果・部分失敗) | 済み | ○ | ○(2 段) | CSV-1(事実のみの状態文+時点を別項目)、Codex-6(状態名と時点を分離) | shots/csv-pc-light.png・shots/csv-sp-light.png |
