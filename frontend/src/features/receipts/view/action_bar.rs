@@ -43,7 +43,7 @@ enum ConditionKind {
 }
 
 impl ConditionKind {
-    fn label(self) -> &'static str {
+    const fn label(self) -> &'static str {
         match self {
             Self::Period => PERIOD,
             Self::Account => ACCOUNT,
@@ -633,7 +633,7 @@ pub(crate) fn clear_receipt_dialog_draft(draft: RwSignal<ReceiptSearch>, has_yea
 }
 
 /// タブの日付の列見出し。入口とシートの並べ替え表示で使う
-pub(crate) fn receipt_date_label(tab: ReceiptsTab) -> &'static str {
+pub(crate) const fn receipt_date_label(tab: ReceiptsTab) -> &'static str {
     match tab {
         ReceiptsTab::Dividend => PAYMENT_DATE,
         ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => TRADE_DATE,

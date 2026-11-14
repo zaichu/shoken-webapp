@@ -30,7 +30,7 @@ impl ReceiptsTab {
     pub const ALL: [Self; 3] = [Self::Dividend, Self::DomesticStock, Self::MutualFund];
 
     /// 取引明細の種別値(タブの初期値・設定の選択肢で使う)
-    pub fn kind_param(self) -> &'static str {
+    pub const fn kind_param(self) -> &'static str {
         match self {
             Self::Dividend => "dividend",
             Self::DomesticStock => "stock",

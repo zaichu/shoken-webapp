@@ -124,7 +124,7 @@ pub(crate) enum RowView<'a> {
 }
 
 impl<'a> RowView<'a> {
-    fn date(&self) -> &'a str {
+    const fn date(&self) -> &'a str {
         match self {
             Self::Dividend(row) => row.date,
             Self::DomesticStock(row) => row.date,
@@ -132,7 +132,7 @@ impl<'a> RowView<'a> {
         }
     }
 
-    fn code(&self) -> &'a str {
+    const fn code(&self) -> &'a str {
         match self {
             Self::Dividend(row) => row.code,
             Self::DomesticStock(row) => row.code,
@@ -140,7 +140,7 @@ impl<'a> RowView<'a> {
         }
     }
 
-    fn name(&self) -> &'a str {
+    const fn name(&self) -> &'a str {
         match self {
             Self::Dividend(row) => row.name,
             Self::DomesticStock(row) => row.name,
@@ -148,7 +148,7 @@ impl<'a> RowView<'a> {
         }
     }
 
-    fn account(&self) -> &'a str {
+    const fn account(&self) -> &'a str {
         match self {
             Self::Dividend(row) => row.account,
             Self::DomesticStock(row) => row.account,
@@ -156,7 +156,7 @@ impl<'a> RowView<'a> {
         }
     }
 
-    fn product(&self) -> &'a str {
+    const fn product(&self) -> &'a str {
         match self {
             Self::Dividend(row) => row.product,
             _ => "",
@@ -183,7 +183,7 @@ impl<'a> RowView<'a> {
         }
     }
 
-    fn search_amount(&self, index: usize) -> Decimal {
+    const fn search_amount(&self, index: usize) -> Decimal {
         match self {
             Self::Dividend(row) => row.search_amount(index),
             Self::DomesticStock(row) => row.search_amount(index),
@@ -191,7 +191,7 @@ impl<'a> RowView<'a> {
         }
     }
 
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
+    const fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
         match self {
             Self::Dividend(row) => row.summary_amounts(),
             Self::DomesticStock(row) => row.summary_amounts(),
@@ -199,7 +199,7 @@ impl<'a> RowView<'a> {
         }
     }
 
-    fn realized_pnl(&self) -> Decimal {
+    const fn realized_pnl(&self) -> Decimal {
         match self {
             Self::DomesticStock(row) => row.realized_profit_and_loss,
             _ => Decimal::ZERO,
@@ -256,7 +256,7 @@ impl DividendView<'_> {
         .join("\u{1f}")
     }
 
-    fn search_amount(&self, index: usize) -> Decimal {
+    const fn search_amount(&self, index: usize) -> Decimal {
         match index {
             0 => self.unit_price,
             1 => self.shares,
@@ -266,7 +266,7 @@ impl DividendView<'_> {
         }
     }
 
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
+    const fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
         (
             self.dividends_before_tax,
             self.taxes,
@@ -343,7 +343,7 @@ impl DomesticStockView<'_> {
         .join("\u{1f}")
     }
 
-    fn search_amount(&self, index: usize) -> Decimal {
+    const fn search_amount(&self, index: usize) -> Decimal {
         match index {
             0 => self.shares,
             1 => self.asked_price,
@@ -353,7 +353,7 @@ impl DomesticStockView<'_> {
         }
     }
 
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
+    const fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
         (
             self.realized_profit_and_loss,
             self.taxes,
@@ -430,7 +430,7 @@ impl MutualfundView<'_> {
         .join("\u{1f}")
     }
 
-    fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
+    const fn summary_amounts(&self) -> (Decimal, Decimal, Decimal) {
         (
             self.realized_profit_and_loss,
             self.taxes,
@@ -481,7 +481,7 @@ pub(crate) enum ColumnTier {
 }
 
 impl ColumnTier {
-    pub(crate) fn class(self) -> &'static str {
+    pub(crate) const fn class(self) -> &'static str {
         match self {
             Self::Core => "",
             Self::Md => " receipt-tier-md",
@@ -499,7 +499,7 @@ pub(crate) enum ColumnAlign {
 
 impl ColumnAlign {
     /// 見出しとセルで同じクラスを使う。位置は CSS 側の列の種別クラスが決める
-    pub(crate) fn class(self) -> &'static str {
+    pub(crate) const fn class(self) -> &'static str {
         match self {
             Self::Left => "col-text",
             Self::Right => "col-num",
@@ -783,27 +783,27 @@ fn mutual_fund_table_groups(
 }
 
 impl ReceiptsTab {
-    fn kind(self) -> &'static ReceiptKind {
+    const fn kind(self) -> &'static ReceiptKind {
         &RECEIPT_KINDS[self as usize]
     }
 
-    pub fn label(self) -> &'static str {
+    pub const fn label(self) -> &'static str {
         self.kind().label
     }
 
-    pub(crate) fn list_path(self) -> &'static str {
+    pub(crate) const fn list_path(self) -> &'static str {
         self.kind().list_path
     }
 
-    pub(crate) fn preview_path(self) -> &'static str {
+    pub(crate) const fn preview_path(self) -> &'static str {
         self.kind().preview_path
     }
 
-    pub(crate) fn import_path(self) -> &'static str {
+    pub(crate) const fn import_path(self) -> &'static str {
         self.kind().import_path
     }
 
-    pub(crate) fn columns(self) -> &'static [ColumnSpec] {
+    pub(crate) const fn columns(self) -> &'static [ColumnSpec] {
         self.kind().columns
     }
 
@@ -825,27 +825,27 @@ impl ReceiptsTab {
         self.kind().header_items.map(|(label, _)| label)
     }
 
-    pub(crate) fn header_items(self) -> [(&'static str, bool); 3] {
+    pub(crate) const fn header_items(self) -> [(&'static str, bool); 3] {
         self.kind().header_items
     }
 
-    pub(crate) fn empty_hint(self) -> &'static str {
+    pub(crate) const fn empty_hint(self) -> &'static str {
         self.kind().empty_hint
     }
 
-    pub(crate) fn product_category(self) -> bool {
+    pub(crate) const fn product_category(self) -> bool {
         self.kind().product_category
     }
 
-    pub(crate) fn account_category(self) -> bool {
+    pub(crate) const fn account_category(self) -> bool {
         self.kind().account_category
     }
 
-    pub(crate) fn reorder_rules(self) -> &'static [ColumnReorderRule<ReceiptRow>] {
+    pub(crate) const fn reorder_rules(self) -> &'static [ColumnReorderRule<ReceiptRow>] {
         self.kind().reorder_rules
     }
 
-    pub(crate) fn reorder_fixed(self) -> usize {
+    pub(crate) const fn reorder_fixed(self) -> usize {
         self.kind().reorder_fixed
     }
 
@@ -878,7 +878,7 @@ impl ReceiptsTab {
     }
 
     /// API の集計行をヘッダー表示用の 3 値に変換する。タブの組が違う集計は None。
-    pub(crate) fn api_summary_triple(self, summary: &ReceiptSummary) -> Option<[Decimal; 3]> {
+    pub(crate) const fn api_summary_triple(self, summary: &ReceiptSummary) -> Option<[Decimal; 3]> {
         match (self, summary) {
             (Self::Dividend, ReceiptSummary::Dividend(summary)) => Some([
                 summary.total_dividends_before_tax,
