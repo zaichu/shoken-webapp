@@ -291,8 +291,8 @@ mod tests {
 
     #[test]
     fn test_parse_csv_column_and_cell_limits() {
-        let header: Vec<String> = (0..MAX_CSV_COLUMNS).map(|i| format!("c{i}")).collect();
-        let row: Vec<String> = (0..MAX_CSV_COLUMNS).map(|i| format!("v{i}")).collect();
+        let header: Vec<String> = Vec::from_fn(MAX_CSV_COLUMNS, |i| format!("c{i}"));
+        let row: Vec<String> = Vec::from_fn(MAX_CSV_COLUMNS, |i| format!("v{i}"));
         let csv = format!("{}\n{}\n", header.join(","), row.join(","));
         assert_eq!(
             parse_csv_with_config(csv.as_bytes(), &BASIC_CONFIG)
@@ -302,7 +302,7 @@ mod tests {
             1
         );
 
-        let wide_header: Vec<String> = (0..MAX_CSV_COLUMNS + 1).map(|i| format!("c{i}")).collect();
+        let wide_header: Vec<String> = Vec::from_fn(MAX_CSV_COLUMNS + 1, |i| format!("c{i}"));
         let result = parse_csv_with_config(
             format!("{}\n", wide_header.join(",")).as_bytes(),
             &BASIC_CONFIG,

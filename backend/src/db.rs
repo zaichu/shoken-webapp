@@ -670,20 +670,20 @@ impl Db {
                     .get()
                     .await
                     .map_err(|e| DbError::Other(format!("pool からの接続取得に失敗: {e}")))?;
-                let guard = TxGuard::new(TxConn::Native(obj));
-                guard.conn().batch_execute("BEGIN").await?;
+                let guard = TxGuard::new(TxConn::Native(obj), TxConn::rollback_and_release);
+                guard.batch_execute("BEGIN").await?;
                 Ok(Tx {
-                    conn: Some(guard.disarm()),
+                    conn: Some(TxGuard::dismiss(guard)),
                     rtt: self.rtt,
                 })
             }
             #[cfg(target_arch = "wasm32")]
             DbInner::Worker(db) => {
                 let client = db.fresh_client().await?;
-                let guard = TxGuard::new(TxConn::Wasm(client));
-                guard.conn().batch_execute("BEGIN").await?;
+                let guard = TxGuard::new(TxConn::Wasm(client), TxConn::rollback_and_release);
+                guard.batch_execute("BEGIN").await?;
                 Ok(Tx {
-                    conn: Some(guard.disarm()),
+                    conn: Some(TxGuard::dismiss(guard)),
                     rtt: self.rtt,
                 })
             }
@@ -901,30 +901,7 @@ impl TxConn {
 /// 開いたトランザクションを残した接続がそのままプールへ戻り、次の借用者の
 /// クエリが他人のトランザクション内で実行される。完了確認まで接続を握って
 /// おくガード。Drop 時は ROLLBACK を送ってから接続を手放す
-struct TxGuard(Option<TxConn>);
-
-impl TxGuard {
-    const fn new(conn: TxConn) -> Self {
-        Self(Some(conn))
-    }
-
-    const fn conn(&self) -> &TxConn {
-        self.0.as_ref().expect("トランザクションの接続がありません")
-    }
-
-    /// トランザクション状態が確定した接続を取り出してガードを解除する
-    fn disarm(mut self) -> TxConn {
-        self.0.take().expect("トランザクションの接続がありません")
-    }
-}
-
-impl Drop for TxGuard {
-    fn drop(&mut self) {
-        if let Some(conn) = self.0.take() {
-            conn.rollback_and_release();
-        }
-    }
-}
+type TxGuard = core::mem::DropGuard<TxConn, fn(TxConn)>;
 
 impl Tx {
     /// 制限ロールへの切り替えと行分離の利用者 ID をこのトランザクション内に設定する。
@@ -945,9 +922,9 @@ impl Tx {
             .conn
             .take()
             .expect("トランザクションの接続がありません");
-        let guard = TxGuard::new(conn);
-        guard.conn().batch_execute("COMMIT").await?;
-        drop(guard.disarm());
+        let guard = TxGuard::new(conn, TxConn::rollback_and_release);
+        guard.batch_execute("COMMIT").await?;
+        drop(TxGuard::dismiss(guard));
         Ok(())
     }
 
@@ -957,9 +934,9 @@ impl Tx {
             .conn
             .take()
             .expect("トランザクションの接続がありません");
-        let guard = TxGuard::new(conn);
-        guard.conn().batch_execute("ROLLBACK").await?;
-        drop(guard.disarm());
+        let guard = TxGuard::new(conn, TxConn::rollback_and_release);
+        guard.batch_execute("ROLLBACK").await?;
+        drop(TxGuard::dismiss(guard));
         Ok(())
     }
 }
