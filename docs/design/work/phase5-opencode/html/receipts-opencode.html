@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>取引明細 | 証券Web</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="site.css">
+<style>
+.condwrap{position:relative}
+.condwrap .pop{display:none}
+.condwrap .pop:target{display:block}
+@media (max-width:1023px){
+  .condwrap .pop{position:static;box-shadow:none;margin-bottom:var(--space-3)}
+  .condwrap .pop:target{display:block}
+}
+.overlay{display:none}
+.overlay:target{display:flex}
+.period-opts{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-2)}
+.tblwrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
+.tblwrap .tbl{border:0;border-radius:0;min-width:760px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">メインコンテンツへスキップ</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand-logo" href="index.html">証券Web</a>
+    <nav class="mainnav" aria-label="メインナビゲーション">
+      <a href="#">ホーム</a><a href="#">資産管理</a>
+      <a href="receipts-opencode.html" aria-current="page">取引明細</a>
+      <a href="#">銘柄検索</a>
+    </nav>
+    <a class="account-btn" href="account-opencode.html">● アカウント</a>
+  </div>
+</header>
+<main class="page" id="main">
+  <div class="page-head">
+    <h1>取引明細</h1><span class="count">9件</span>
+    <span class="spacer"><a class="btn ghost" href="csv-opencode.html">CSV管理</a></span>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="明細の種類">
+    <a role="tab" href="receipts-opencode.html" data-tab="dividend" aria-selected="true">配当金 <span class="n">9件</span></a>
+    <a role="tab" href="receipts-opencode.html?tab=stock" data-tab="stock" aria-selected="false">国内株式 <span class="n">3件</span></a>
+    <a role="tab" href="receipts-opencode.html?tab=fund" data-tab="fund" aria-selected="false">投資信託 <span class="n">2件</span></a>
+  </div>
+
+  <!-- ============ 配当金タブ ============ -->
+  <section data-panel="dividend">
+    <div class="band" aria-label="集計">
+      <div class="band-item"><div class="k">受け取った配当金(税引後)</div><div class="v">¥3,163,438</div><div class="sub">2026/01 〜 2026/12</div></div>
+      <div class="band-item"><div class="k">配当金(税引前)</div><div class="v">¥3,815,546</div></div>
+      <div class="band-item"><div class="k">税額</div><div class="v">-¥652,108</div></div>
+    </div>
+    <p class="note"><span>データ: 2026/11/14 取り込み</span><span>配当入金のあった月のみ表示</span></p>
+    <div class="searchbar" role="search" aria-label="取引明細の検索">
+      <input type="search" placeholder="銘柄名・コードで検索" aria-label="銘柄名・コードで検索" value="">
+      <a class="btn" href="#cond-period">条件を足す</a>
+    </div>
+    <div class="chips">
+      <span>条件:</span>
+      <span class="chip">期間 2026年 <button aria-label="期間 2026年 を解除">×</button></span>
+      <button class="linkish">すべてクリア</button>
+    </div>
+    <div class="condwrap">
+      <div class="pop" id="cond-period" role="dialog" aria-label="期間を選ぶ">
+        <strong>期間の種類</strong>
+        <div class="period-opts">
+          <span class="chip">すべて</span><span class="chip">年</span><span class="chip">年月</span><span class="chip">日</span><span class="chip">範囲</span>
+        </div>
+        <div class="field"><label for="py">年</label>
+          <select id="py"><option>2026年</option><option>2025年</option></select>
+        </div>
+        <div class="field"><label for="pac">口座</label>
+          <select id="pac"><option>すべて</option><option>特定</option><option>一般</option><option>NISA成長</option></select>
+        </div>
+        <div class="field"><label for="ppr">商品</label>
+          <select id="ppr"><option>すべて</option><option>国内株式</option><option>投資信託</option></select>
+        </div>
+        <p><a class="btn primary" href="receipts-opencode.html">この期間で絞る</a> <a class="btn ghost" href="receipts-opencode.html">閉じる</a></p>
+      </div>
+    </div>
+    <div class="listwrap">
+      <div>
+        <div class="tblwrap only-pc"><table class="tbl" aria-label="配当金の一覧">
+          <thead><tr><th>入金日</th><th>コード</th><th>銘柄・ファンド</th><th>口座</th><th class="num">数量</th><th class="num">単価</th><th class="num">配当金(税引前)</th><th class="num">税額</th><th class="num">税引後</th></tr></thead>
+          <tbody>
+            <tr class="grp"><td colspan="6">2026年12月 · 3件の合計</td><td class="num">¥2,023,380</td><td class="num neg">-¥411,048</td><td class="num">¥1,612,332</td></tr>
+            <tr aria-selected="true"><td>2026/12/09</td><td class="code">9901</td><td>架空電機</td><td><span class="badge">特定</span></td><td class="num">20,000株</td><td class="num">¥60.00</td><td class="num">¥1,200,000</td><td class="num neg">-¥243,780</td><td class="num"><a href="#rcpt-d1">¥956,220</a></td></tr>
+            <tr><td>2026/12/10</td><td class="code">9907</td><td>架空フィナンシャル・グループ</td><td><span class="badge">特定</span></td><td class="num">10,000株</td><td class="num">¥50.00</td><td class="num">¥500,000</td><td class="num neg">-¥101,575</td><td class="num">¥398,425</td></tr>
+            <tr><td>2026/12/15</td><td class="code">9906</td><td>架空エレクトロン</td><td><span class="badge">一般</span></td><td class="num">2,000株</td><td class="num">¥161.69</td><td class="num">¥323,380</td><td class="num neg">-¥65,693</td><td class="num">¥257,687</td></tr>
+            <tr class="grp"><td colspan="6">2026年9月 · 2件の合計</td><td class="num">¥744,660</td><td class="num neg">-¥29,379</td><td class="num">¥715,281</td></tr>
+            <tr><td>2026/09/26</td><td class="code">9912</td><td>架空電力ホールディングス</td><td><span class="badge">NISA成長</span></td><td class="num">12,000株</td><td class="num">¥50.00</td><td class="num">¥600,000</td><td class="num zero">¥0</td><td class="num">¥600,000</td></tr>
+            <tr><td>2026/09/10</td><td class="code">9908</td><td>架空リース</td><td><span class="badge">特定</span></td><td class="num">1,607株</td><td class="num">¥90.00</td><td class="num">¥144,660</td><td class="num neg">-¥29,379</td><td class="num">¥115,281</td></tr>
+            <tr class="grp"><td colspan="6">2026年6月 · 2件の合計</td><td class="num">¥600,000</td><td class="num neg">-¥121,889</td><td class="num">¥478,111</td></tr>
+            <tr><td>2026/06/20</td><td class="code">9901</td><td>架空電機</td><td><span class="badge">特定</span></td><td class="num">7,000株</td><td class="num">¥50.00</td><td class="num">¥350,000</td><td class="num neg">-¥71,102</td><td class="num">¥278,898</td></tr>
+            <tr><td>2026/06/25</td><td class="code">9902</td><td>架空食品</td><td><span class="badge">一般</span></td><td class="num">5,000株</td><td class="num">¥50.00</td><td class="num">¥250,000</td><td class="num neg">-¥50,787</td><td class="num">¥199,213</td></tr>
+            <tr class="grp"><td colspan="6">2026年3月 · 2件の合計</td><td class="num">¥447,506</td><td class="num neg">-¥89,792</td><td class="num">¥357,714</td></tr>
+            <tr><td>2026/03/15</td><td class="code">—</td><td>架空成長ファンド</td><td><span class="badge">特定</span></td><td class="num">1,000,000口</td><td class="num">¥0.30</td><td class="num">¥300,000</td><td class="num neg">-¥60,945</td><td class="num">¥239,055</td></tr>
+            <tr><td>2026/03/28</td><td class="code">9905</td><td class="long">架空商事ホールディングス・インターナショナル</td><td><span class="badge">特定</span></td><td class="num">2,450株</td><td class="num">¥60.21</td><td class="num">¥147,506</td><td class="num neg">-¥28,847</td><td class="num">¥118,659</td></tr>
+          </tbody>
+        </table></div>
+        <ul class="mrows only-sp" aria-label="配当金の一覧">
+          <li class="mgrp">2026年12月 · 3件 <span class="sub">受取 ¥1,612,332</span></li>
+          <li><div class="r1"><span class="t">12/09 架空電機</span><span class="amt">¥956,220</span></div><div class="r2"><span>特定 · 税引前 ¥1,200,000</span><span>9901</span></div></li>
+          <li><div class="r1"><span class="t">12/10 架空フィナンシャル・グループ</span><span class="amt">¥398,425</span></div><div class="r2"><span>特定 · 税引前 ¥500,000</span><span>9907</span></div></li>
+          <li><div class="r1"><span class="t">12/15 架空エレクトロン</span><span class="amt">¥257,687</span></div><div class="r2"><span>一般 · 税引前 ¥323,380</span><span>9906</span></div></li>
+          <li class="mgrp">2026年9月 · 2件 <span class="sub">受取 ¥715,281</span></li>
+          <li><div class="r1"><span class="t">9/26 架空電力ホールディングス</span><span class="amt">¥600,000</span></div><div class="r2"><span>NISA成長 · 非課税</span><span>9912</span></div></li>
+          <li><div class="r1"><span class="t">9/10 架空リース</span><span class="amt">¥115,281</span></div><div class="r2"><span>特定 · 税引前 ¥144,660</span><span>9908</span></div></li>
+          <li class="mgrp">2026年6月 · 2件 <span class="sub">受取 ¥478,111</span></li>
+          <li><div class="r1"><span class="t">6/20 架空電機</span><span class="amt">¥278,898</span></div><div class="r2"><span>特定 · 税引前 ¥350,000</span><span>9901</span></div></li>
+          <li><div class="r1"><span class="t">6/25 架空食品</span><span class="amt">¥199,213</span></div><div class="r2"><span>一般 · 税引前 ¥250,000</span><span>9902</span></div></li>
+          <li class="mgrp">2026年3月 · 2件 <span class="sub">受取 ¥357,714</span></li>
+          <li><div class="r1"><span class="t">3/15 架空成長ファンド</span><span class="amt">¥239,055</span></div><div class="r2"><span>特定 · 税引前 ¥300,000</span><span>分配金</span></div></li>
+          <li><div class="r1"><span class="t">3/28 架空商事ホールディングス・インターナショナル</span><span class="amt">¥118,659</span></div><div class="r2"><span>特定 · 税引前 ¥147,506</span><span>9905</span></div></li>
+        </ul>
+      </div>
+      <aside class="detail" aria-label="行の詳細">
+        <h2>行の詳細</h2>
+        <p style="margin-top:0"><strong>9901 架空電機</strong> <span class="badge">特定</span></p>
+        <dl class="kv">
+          <dt>入金日</dt><dd class="l">2026年12月9日</dd>
+          <dt>数量</dt><dd>20,000株</dd>
+          <dt>単価</dt><dd>¥60.00</dd>
+          <dt>配当金(税引前)</dt><dd>¥1,200,000</dd>
+          <dt>税額</dt><dd class="neg">-¥243,780</dd>
+          <dt>税引後</dt><dd>¥956,220</dd>
+        </dl>
+        <p><a class="linkish" href="#">9901 の銘柄情報を見る</a></p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ 国内株式タブ ============ -->
+  <section data-panel="stock" hidden>
+    <div class="band" aria-label="集計">
+      <div class="band-item"><div class="k">実現損益(税引後)</div><div class="v pos">+¥71,969</div><div class="sub">2026/01 〜 2026/12</div></div>
+      <div class="band-item"><div class="k">実現損益(税引前)</div><div class="v pos">+¥74,000</div></div>
+      <div class="band-item"><div class="k">税額</div><div class="v">-¥2,031</div></div>
+    </div>
+    <p class="note"><span>データ: 2026/11/14 取り込み</span></p>
+    <div class="searchbar" role="search" aria-label="取引明細の検索">
+      <input type="search" placeholder="銘柄名・コードで検索" aria-label="銘柄名・コードで検索">
+      <a class="btn" href="receipts-opencode.html?tab=stock">条件を足す</a>
+    </div>
+    <div class="chips"><span>条件:</span><span class="chip">期間 2026年 <button aria-label="期間 2026年 を解除">×</button></span><button class="linkish">すべてクリア</button></div>
+    <div class="listwrap">
+      <div>
+        <div class="tblwrap only-pc"><table class="tbl" aria-label="国内株式の一覧">
+          <thead><tr><th>約定日</th><th>コード</th><th>銘柄</th><th>口座</th><th>取引</th><th class="num">数量</th><th class="num">売却額</th><th class="num">取得額</th><th class="num">実現損益</th><th class="num">税額</th><th class="num">税引後</th></tr></thead>
+          <tbody>
+            <tr class="grp"><td colspan="8">2026年3月 · 1件の合計</td><td class="num pos">+¥80,000</td><td class="num zero">¥0</td><td class="num pos">+¥80,000</td></tr>
+            <tr><td>2026/03/02</td><td class="code">9915</td><td>架空通信ホールディングス</td><td><span class="badge">NISA成長</span></td><td>売付</td><td class="num">50株</td><td class="num">¥500,000</td><td class="num">¥420,000</td><td class="num pos">+¥80,000</td><td class="num zero">¥0</td><td class="num pos">+¥80,000</td></tr>
+            <tr class="grp"><td colspan="8">2026年2月 · 1件の合計</td><td class="num pos">+¥10,000</td><td class="num neg">-¥2,031</td><td class="num pos">+¥7,969</td></tr>
+            <tr aria-selected="true"><td>2026/02/09</td><td class="code">9902</td><td>架空エネルギーホールディングス</td><td><span class="badge">特定</span></td><td>売付</td><td class="num">100株</td><td class="num">¥150,000</td><td class="num">¥140,000</td><td class="num pos">+¥10,000</td><td class="num neg">-¥2,031</td><td class="num pos">+¥7,969</td></tr>
+            <tr class="grp"><td colspan="8">2026年1月 · 1件の合計</td><td class="num neg">-¥16,000</td><td class="num zero">¥0</td><td class="num neg">-¥16,000</td></tr>
+            <tr><td>2026/01/15</td><td class="code">9912</td><td>架空電力ホールディングス</td><td><span class="badge">特定</span></td><td>売付</td><td class="num">200株</td><td class="num">¥120,000</td><td class="num">¥136,000</td><td class="num neg">-¥16,000</td><td class="num zero">¥0</td><td class="num neg">-¥16,000</td></tr>
+          </tbody>
+        </table></div>
+        <ul class="mrows only-sp" aria-label="国内株式の一覧">
+          <li class="mgrp">2026年3月 · 1件 <span class="sub">損益 +¥80,000</span></li>
+          <li><div class="r1"><span class="t">3/02 架空通信ホールディングス</span><span class="amt pos">+¥80,000</span></div><div class="r2"><span>NISA成長 · 売付 50株</span><span>9915</span></div></li>
+          <li class="mgrp">2026年2月 · 1件 <span class="sub">損益 +¥7,969</span></li>
+          <li><div class="r1"><span class="t">2/09 架空エネルギーホールディングス</span><span class="amt pos">+¥7,969</span></div><div class="r2"><span>特定 · 売付 100株</span><span>9902</span></div></li>
+          <li class="mgrp">2026年1月 · 1件 <span class="sub">損益 -¥16,000</span></li>
+          <li><div class="r1"><span class="t">1/15 架空電力ホールディングス</span><span class="amt neg">-¥16,000</span></div><div class="r2"><span>特定 · 売付 200株</span><span>9912</span></div></li>
+        </ul>
+      </div>
+      <aside class="detail" aria-label="行の詳細">
+        <h2>行の詳細</h2>
+        <p style="margin-top:0"><strong>9902 架空エネルギーホールディングス</strong> <span class="badge">特定</span></p>
+        <dl class="kv">
+          <dt>約定日</dt><dd class="l">2026年2月9日</dd>
+          <dt>取引</dt><dd class="l">売付 100株</dd>
+          <dt>売却額</dt><dd>¥150,000</dd>
+          <dt>取得額</dt><dd>¥140,000</dd>
+          <dt>実現損益</dt><dd class="pos">+¥10,000</dd>
+          <dt>税額</dt><dd class="neg">-¥2,031</dd>
+          <dt>税引後</dt><dd class="pos">+¥7,969</dd>
+        </dl>
+        <p><a class="linkish" href="#">9902 の銘柄情報を見る</a></p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ 投資信託タブ ============ -->
+  <section data-panel="fund" hidden>
+    <div class="band" aria-label="集計">
+      <div class="band-item"><div class="k">実現損益(税引後)</div><div class="v pos">+¥637,480</div><div class="sub">2026/01 〜 2026/12</div></div>
+      <div class="band-item"><div class="k">実現損益(税引前)</div><div class="v pos">+¥800,000</div></div>
+      <div class="band-item"><div class="k">税額</div><div class="v">-¥162,520</div></div>
+    </div>
+    <p class="note"><span>データ: 2026/11/14 取り込み</span></p>
+    <div class="searchbar" role="search" aria-label="取引明細の検索">
+      <input type="search" placeholder="銘柄名・コードで検索" aria-label="銘柄名・コードで検索">
+      <a class="btn" href="receipts-opencode.html?tab=fund">条件を足す</a>
+    </div>
+    <div class="listwrap">
+      <div>
+        <div class="tblwrap only-pc"><table class="tbl" aria-label="投資信託の一覧">
+          <thead><tr><th>約定日</th><th>ファンド</th><th>口座</th><th>取引</th><th class="num">数量</th><th class="num">解約額</th><th class="num">取得額</th><th class="num">実現損益</th><th class="num">税額</th><th class="num">税引後</th></tr></thead>
+          <tbody>
+            <tr class="grp"><td colspan="7">2026年7月 · 1件の合計</td><td class="num pos">+¥200,000</td><td class="num neg">-¥40,630</td><td class="num pos">+¥159,370</td></tr>
+            <tr><td>2026/07/22</td><td>架空全米株式インデックス・ファンド</td><td><span class="badge">特定</span></td><td>解約</td><td class="num">500,000口</td><td class="num">¥7,600,000</td><td class="num">¥7,400,000</td><td class="num pos">+¥200,000</td><td class="num neg">-¥40,630</td><td class="num pos">+¥159,370</td></tr>
+            <tr class="grp"><td colspan="7">2026年4月 · 1件の合計</td><td class="num pos">+¥600,000</td><td class="num neg">-¥121,890</td><td class="num pos">+¥478,110</td></tr>
+            <tr aria-selected="true"><td>2026/04/10</td><td>架空インデックス米国株式</td><td><span class="badge">特定</span></td><td>解約</td><td class="num">3,000,000口</td><td class="num">¥3,600,000</td><td class="num">¥3,000,000</td><td class="num pos">+¥600,000</td><td class="num neg">-¥121,890</td><td class="num pos">+¥478,110</td></tr>
+          </tbody>
+        </table></div>
+        <ul class="mrows only-sp" aria-label="投資信託の一覧">
+          <li class="mgrp">2026年7月 · 1件 <span class="sub">損益 +¥159,370</span></li>
+          <li><div class="r1"><span class="t">7/22 架空全米株式インデックス・ファンド</span><span class="amt pos">+¥159,370</span></div><div class="r2"><span>特定 · 解約 500,000口</span><span>—</span></div></li>
+          <li class="mgrp">2026年4月 · 1件 <span class="sub">損益 +¥478,110</span></li>
+          <li><div class="r1"><span class="t">4/10 架空インデックス米国株式</span><span class="amt pos">+¥478,110</span></div><div class="r2"><span>特定 · 解約 3,000,000口</span><span>—</span></div></li>
+        </ul>
+      </div>
+      <aside class="detail" aria-label="行の詳細">
+        <h2>行の詳細</h2>
+        <p style="margin-top:0"><strong>架空インデックス米国株式</strong> <span class="badge">特定</span></p>
+        <dl class="kv">
+          <dt>約定日</dt><dd class="l">2026年4月10日</dd>
+          <dt>取引</dt><dd class="l">解約 3,000,000口</dd>
+          <dt>解約額</dt><dd>¥3,600,000</dd>
+          <dt>取得額</dt><dd>¥3,000,000</dd>
+          <dt>実現損益</dt><dd class="pos">+¥600,000</dd>
+          <dt>税額</dt><dd class="neg">-¥121,890</dd>
+          <dt>税引後</dt><dd class="pos">+¥478,110</dd>
+        </dl>
+      </aside>
+    </div>
+  </section>
+
+  <footer class="footer"><div class="in"><span>証券Web(試作)</span><a href="#">プライバシーポリシー</a><a href="#">利用規約</a><a href="#">Cookie ポリシー</a></div></footer>
+</main>
+<nav class="bottomnav" aria-label="メインナビゲーション">
+  <a href="#">ホーム</a><a href="#">資産管理</a><a href="receipts-opencode.html" aria-current="page">取引明細</a><a href="#">銘柄検索</a>
+</nav>
+
+<div class="overlay" id="rcpt-d1" role="dialog" aria-modal="true" aria-labelledby="rcpt-d1-t">
+  <div class="dialog">
+    <h2 id="rcpt-d1-t">行の詳細</h2>
+    <p style="margin-top:0"><strong>9901 架空電機</strong> <span class="badge">特定</span></p>
+    <dl class="kv">
+      <dt>入金日</dt><dd class="l">2026年12月9日</dd>
+      <dt>数量</dt><dd>20,000株</dd>
+      <dt>単価</dt><dd>¥60.00</dd>
+      <dt>配当金(税引前)</dt><dd>¥1,200,000</dd>
+      <dt>税額</dt><dd class="neg">-¥243,780</dd>
+      <dt>税引後</dt><dd>¥956,220</dd>
+    </dl>
+    <p><a class="linkish" href="#">9901 の銘柄情報を見る</a></p>
+    <div class="actions"><a class="btn" href="receipts-opencode.html">閉じる</a></div>
+  </div>
+</div>
+<script>
+(function(){
+  if(new URLSearchParams(location.search).has("dark"))document.documentElement.dataset.theme="dark";
+  var tab=new URLSearchParams(location.search).get("tab")||"dividend";
+  document.querySelectorAll('[data-panel]').forEach(function(p){p.hidden=p.dataset.panel!==tab;});
+  document.querySelectorAll('.tabs [data-tab]').forEach(function(a){a.setAttribute("aria-selected",a.dataset.tab===tab?"true":"false");});
+})();
+</script>
+</body>
+</html>

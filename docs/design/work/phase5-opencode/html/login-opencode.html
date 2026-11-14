@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ログイン | 証券Web</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="site.css">
+<style>
+.center{min-height:60vh;display:flex;align-items:center;justify-content:center}
+.logincard{max-width:420px;width:100%;text-align:center}
+.logincard .btn{width:100%;margin-top:var(--space-3)}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">メインコンテンツへスキップ</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand-logo" href="index.html">証券Web</a>
+    <nav class="mainnav" aria-label="メインナビゲーション">
+      <a href="#">ホーム</a><a href="#">資産管理</a>
+      <a href="receipts-opencode.html">取引明細</a><a href="#">銘柄検索</a>
+    </nav>
+  </div>
+</header>
+<main class="page" id="main">
+  <div class="page-head"><h1>ログイン</h1></div>
+  <div class="center">
+    <section class="card logincard" aria-labelledby="login-h">
+      <h2 id="login-h">ログインしてください</h2>
+      <p class="muted" style="color:var(--text-muted);font-size:var(--text-sm)">資産の確認・CSVの取り込みにはログインが必要です</p>
+      <a class="btn primary" href="login-opencode.html">Googleでログイン</a>
+    </section>
+  </div>
+  <footer class="footer"><div class="in"><span>証券Web(試作)</span><a href="#">プライバシーポリシー</a><a href="#">利用規約</a><a href="#">Cookie ポリシー</a></div></footer>
+</main>
+<script>if(new URLSearchParams(location.search).has("dark"))document.documentElement.dataset.theme="dark";</script>
+</body>
+</html>

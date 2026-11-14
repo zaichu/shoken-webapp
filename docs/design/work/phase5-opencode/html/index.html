@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phase 5 画面一覧(OpenCode) | 証券Web</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<a class="skip" href="#main">メインコンテンツへスキップ</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand-logo" href="index.html">証券Web</a>
+    <nav class="mainnav" aria-label="メインナビゲーション">
+      <a href="#">ホーム</a><a href="#">資産管理</a>
+      <a href="receipts-opencode.html">取引明細</a><a href="#">銘柄検索</a>
+    </nav>
+    <a class="account-btn" href="account-opencode.html">● アカウント</a>
+  </div>
+</header>
+<main class="page" id="main">
+  <div class="page-head"><h1>Phase 5 画面一覧(OpenCode 担当分)</h1></div>
+  <p class="note"><span>採用方針: C を骨格・B のスマホ・A の PC 詳細パネル。すべて架空データ。PC 1280 / スマホ 390 のレスポンシブ(切替 1024px)。各画面の代表 1 枚はダーク対応(?dark=1)。</span></p>
+  <div class="cards">
+    <div class="card"><h3>取引明細(配当金)</h3><p><a href="receipts-opencode.html">receipts-opencode.html</a></p><p><a href="receipts-opencode.html?tab=stock">国内株式タブ</a> · <a href="receipts-opencode.html?tab=fund">投資信託タブ</a> · <a href="receipts-opencode.html#rcpt-d1">行詳細ダイアログ</a></p></div>
+    <div class="card"><h3>CSV管理</h3><p><a href="csv-opencode.html">csv-opencode.html</a></p><p><a href="csv-opencode.html#csv-delete">削除確認</a> · <a href="csv-opencode.html#csv-plunge">急減の確認</a></p></div>
+    <div class="card"><h3>設定(7セクション)</h3><p><a href="settings-opencode.html">settings-opencode.html</a></p></div>
+    <div class="card"><h3>管理者ログイン履歴</h3><p><a href="admin-logins-opencode.html">admin-logins-opencode.html</a></p></div>
+    <div class="card"><h3>ログイン</h3><p><a href="login-opencode.html">login-opencode.html</a></p></div>
+    <div class="card"><h3>404</h3><p><a href="notfound-opencode.html">notfound-opencode.html</a></p></div>
+    <div class="card"><h3>アカウントメニュー</h3><p><a href="account-opencode.html">account-opencode.html</a></p><p><a href="account-opencode.html#account-delete">アカウント削除確認</a></p></div>
+    <div class="card"><h3>状態ボード</h3><p><a href="states-opencode.html">states-opencode.html</a></p></div>
+  </div>
+  <footer class="footer"><div class="in"><span>証券Web(試作)</span></div></footer>
+</main>
+<nav class="bottomnav" aria-label="メインナビゲーション">
+  <a href="#">ホーム</a><a href="#">資産管理</a><a href="receipts-opencode.html">取引明細</a><a href="#">銘柄検索</a>
+</nav>
+<script>if(new URLSearchParams(location.search).has("dark"))document.documentElement.dataset.theme="dark";</script>
+</body>
+</html>
