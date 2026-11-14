@@ -1,0 +1,70 @@
+/* Phase 4 見本ページ用のトークン抜粋。
+ * 正本は frontend/style/input.css の @theme。本書執筆時点で
+ * Codex 担当の docs/design/work/phase4-codex/tokens.css は未作成のため、
+ * 現行トークンの値を写した(参照元を行末に記す)。Codex の成果物が出たら差し替える。 */
+:root {
+  color-scheme: light;
+  --color-page: #f3f5f8; /* input.css:6 */
+  --color-surface: #ffffff; /* input.css:7 */
+  --color-surface-sunken: #f9fafb; /* input.css:8 */
+  --color-surface-raised: #f8f9fb; /* input.css:9 */
+  --color-row-group: #eef2f8; /* input.css:11 */
+  --color-brand: #0f2a4a; /* input.css:14 */
+  --color-brand-deep: #0b1f38; /* input.css:15 */
+  --color-brand-line: #2e4c70; /* input.css:18 */
+  --color-brand-muted: #c9d3e1; /* input.css:19 */
+  --color-gold: #f2b33d; /* input.css:22 */
+  --color-profit-bright: #6ee7a8; /* input.css:28 */
+  --color-loss-bright: #f1a89d; /* input.css:29 */
+  --color-text: #111827; /* input.css:43 */
+  --color-text-deep: #111827; /* input.css:44 */
+  --color-text-soft: #4b5563; /* input.css:46 */
+  --color-text-muted: #5f6b7a; /* input.css:47 */
+  --color-text-inverse: #ffffff; /* input.css:50 */
+  --color-text-inverse-muted: #cbd5e1; /* input.css:51 (slate-300 相当) */
+  --color-border: #e5e7eb; /* input.css:58 */
+  --color-border-strong: #d1d5db; /* input.css:61 */
+  --color-negative: #c0362c; /* input.css:65 */
+  --color-negative-vivid: #c0362c; /* input.css:66 */
+  --color-negative-soft: #fdecea; /* input.css:68 */
+  --color-positive: #0b7a4b; /* input.css:71 */
+  --color-positive-soft: #e7f6ee; /* input.css:74 */
+  --color-accent: #1d4ed8; /* input.css:78 */
+  --color-accent-text: #1d4ed8; /* input.css:84 */
+  --color-accent-soft: #eff4ff; /* input.css:85 */
+  --color-chart-1: #0f2a4a; /* input.css:113 (var(--color-brand)) */
+  --color-chart-2: #1d4ed8; /* input.css:114 (var(--color-accent)) */
+  --color-chart-3: #f2b33d; /* input.css:115 (var(--color-gold)) */
+  --color-chart-4: #94a3b8; /* input.css:116 相当 (slate-400) */
+  --color-chart-5: #c9d3e1; /* input.css:117 (var(--color-brand-muted)) */
+  --color-chart-previous: #64748b; /* input.css:119 */
+  --font-sans: 'Noto Sans JP', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif; /* input.css:156 */
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-page: #0b1220; /* input.css:226 */
+  --color-surface: #121b2c; /* input.css:227 */
+  --color-surface-sunken: #0e1626; /* input.css:228 */
+  --color-surface-raised: #1a2537; /* input.css:229 */
+  --color-row-group: #1c2942; /* input.css:231 */
+  --color-text: #dfe6f2; /* input.css:239 */
+  --color-text-deep: #f2f5fa; /* input.css:240 */
+  --color-text-soft: #dfe6f2; /* input.css:242 */
+  --color-text-muted: #c2cddf; /* input.css:243 */
+  --color-border: #26334d; /* input.css:245 */
+  --color-border-strong: #3d4d70; /* input.css:248 */
+  --color-negative: #f0857a; /* input.css:264 */
+  --color-negative-vivid: #f0857a; /* input.css:265 */
+  --color-negative-soft: #3a1d1c; /* input.css:267 */
+  --color-positive: #53d28a; /* input.css:269 */
+  --color-positive-soft: #10301f; /* input.css:273 */
+  --color-accent: #8fb3f7; /* input.css:277 */
+  --color-accent-text: #a9c4fa; /* input.css:282 */
+  --color-accent-soft: #16233f; /* input.css:284 */
+  --color-chart-1: #3987e5; /* input.css:297 */
+  --color-chart-2: #d95926; /* input.css:298 */
+  --color-chart-3: #199e70; /* input.css:299 */
+  --color-chart-4: #c98500; /* input.css:300 */
+  --color-chart-5: #d55181; /* input.css:301 */
+  --color-chart-previous: #9fb0cf; /* input.css:302 */
+}
