@@ -59,7 +59,11 @@ if [ "$check_mutants" = 1 ] && [ "${SKIP_MUTANTS:-0}" != 1 ] && command -v cargo
         echo "⚠️  $crate(または依存する shared)に未コミットの変更があるため $crate の cargo-mutants をスキップします" >&2
         continue
       fi
-      (cd "$REPO_ROOT/$crate" && git diff --relative "$base" HEAD -- src > "$diff_file")
+      if [ "$crate" = frontend ]; then
+        (cd "$REPO_ROOT/$crate" && git diff --relative "$base" HEAD -- src > "$diff_file")
+      else
+        git diff "$base" HEAD -- "$crate/src" > "$diff_file"
+      fi
       if ! list=$(cd "$REPO_ROOT/$crate" && cargo mutants --list --in-diff "$diff_file"); then
         echo "cargo-mutants: $crate の変異の一覧を作れませんでした(SKIP_MUTANTS=1 で省略)" >&2
         exit 1
@@ -67,7 +71,7 @@ if [ "$check_mutants" = 1 ] && [ "${SKIP_MUTANTS:-0}" != 1 ] && command -v cargo
       count=$(printf '%s' "$list" | grep -c . || true)
       if [ "$count" -gt 0 ]; then
         echo "cargo-mutants: $crate の差分の変異 ${count} 件を確かめます(SKIP_MUTANTS=1 で省略)"
-        if ! (cd "$REPO_ROOT/$crate" && env SQLX_OFFLINE=true RUSTC_WRAPPER="${RUSTC_WRAPPER:-$(command -v sccache || true)}" cargo mutants -j "${MUTANTS_JOBS:-2}" --in-diff "$diff_file" --no-shuffle); then
+        if ! (cd "$REPO_ROOT/$crate" && env SQLX_OFFLINE=true RUSTC_WRAPPER="${RUSTC_WRAPPER:-$(command -v sccache || true)}" cargo mutants -j "${MUTANTS_JOBS:-2}" --output . --in-diff "$diff_file" --no-shuffle); then
           echo "cargo-mutants: 見逃し(MISSED)か時間切れ(TIMEOUT)があります。$crate/mutants.out/missed.txt と timeout.txt を見て直してください" >&2
           exit 1
         fi

@@ -43,6 +43,8 @@ jobs:
             backend:
               - 'backend/**'
               - 'shared/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
               - 'rust-toolchain.toml'
               - 'docs/openapi.json'
               - 'scripts/check-openapi.sh'
@@ -65,9 +67,7 @@ jobs:
         if: steps.gate.outputs.backend == 'true'
         uses: ./.github/actions/rust-cache
         with:
-          workspaces: |
-            backend -> target
-            shared -> target
+          workspaces: . -> target
           shared-key: backend-ci
 
       - name: Check formatting

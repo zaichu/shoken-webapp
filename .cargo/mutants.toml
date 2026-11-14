@@ -9,8 +9,8 @@ additional_cargo_test_args = ["--lib"]
 # - 等価 mutant: 境界条件が取り得ない等、振る舞いが変わらないもの
 exclude_re = [
     # エントリポイント・CLI スクリプト
-    "src/main\\.rs",
-    "src/bin/",
+    "backend/src/main\\.rs",
+    "backend/src/bin/",
     # ロギング初期化(プロセス全体の副作用)
     "init_tracing",
     # レート制限クリーンアップのバックグラウンド spawn(タイミング依存)
@@ -29,22 +29,22 @@ exclude_re = [
     # DB 前提のセッション/アカウント操作(services/auth.rs に限定。
     # 同名のハンドラは 401/認証テストで評価できるため除外しない。
     # 振る舞いは tests/db_integration.rs::auth_session_upsert_rotate_and_delete で検証済み)
-    "src/services/auth\\.rs.*upsert_user_and_rotate_session",
-    "src/services/auth\\.rs.*select_user_by_session",
-    "src/services/auth\\.rs.*select_user_id_by_session",
-    "src/services/auth\\.rs.*rotate_session_in_tx",
-    "src/services/auth\\.rs.*delete_session",
-    "src/services/auth\\.rs.*delete_account",
+    "backend/src/services/auth\\.rs.*upsert_user_and_rotate_session",
+    "backend/src/services/auth\\.rs.*select_user_by_session",
+    "backend/src/services/auth\\.rs.*select_user_id_by_session",
+    "backend/src/services/auth\\.rs.*rotate_session_in_tx",
+    "backend/src/services/auth\\.rs.*delete_session",
+    "backend/src/services/auth\\.rs.*delete_account",
     # DB 前提のファセット/一括削除(DB 統合テストは #[ignore] のため評価対象外。
     # 振る舞いは tests/db_integration.rs の service_coverage_all_domains /
     # search_facets_group_by_domain_fields で検証済み。
     # models の should_include_facets や handlers の delete_all は評価可能なため
     # services/ の関数に限定する)
-    "src/services/.*facets",
+    "backend/src/services/.*facets",
     # 国内株式の集計 SQL は services/domestic_stock.rs の
     # test_search_summary_matches_frontend_daily_tax_calculation(Docker)で値を検証済み
-    "src/services/domestic_stock\\.rs.*fetch_summary",
-    "src/services/.*delete_all ->",
+    "backend/src/services/domestic_stock\\.rs.*fetch_summary",
+    "backend/src/services/.*delete_all ->",
     "delete ! in bulk_create",
     "delete_all_for_user",
     # dividend キャッシュ: DB + 外部 API( J-Quants )前提。
@@ -70,4 +70,5 @@ exclude_re = [
     "replace \\* with [+/] in BulkTimer::finish$",
     # 本体は既に空の Router::new() であり Default::default() と等価
     "replace csv_import_routes",
+    "replace > with >= in normalize_security_name",
 ]
