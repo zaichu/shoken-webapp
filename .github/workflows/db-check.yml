@@ -31,11 +31,29 @@ jobs:
           set -euo pipefail
           [[ -n "${DATABASE_URL:-}" ]] || { echo "::error::secrets.DATABASE_URL が未設定です"; exit 1; }
 
+          err_file="$(mktemp)"
+          trap 'rm -f "${err_file}"' EXIT
           q() {
-            psql "${DATABASE_URL}" --no-psqlrc -v ON_ERROR_STOP=1 -c "$1"
+            psql "${DATABASE_URL}" --no-psqlrc -v ON_ERROR_STOP=1 -c "$1" 2>>"${err_file}" || {
+              echo "::error::読み取り専用問い合わせに失敗しました(接続情報やSQL本文は表示しません)" >&2
+              return 1
+            }
+          }
+          optional_q() {
+            psql "${DATABASE_URL}" --no-psqlrc -v ON_ERROR_STOP=1 -c "$1" 2>>"${err_file}" || {
+              echo "取得不可(拡張未導入または参照権限なし)"
+            }
           }
 
           {
+            echo '### クエリ統計拡張'
+            echo '```'
+            optional_q "SELECT extname FROM pg_extension WHERE extname = 'pg_stat_statements'"
+            echo '```'
+            echo '### pg_stat_statements 上位 (mean_exec_time 順)'
+            echo '```'
+            optional_q "SELECT userid::regrole AS db_role, queryid, calls, round(mean_exec_time::numeric, 2) AS mean_exec_ms, round(total_exec_time::numeric, 2) AS total_exec_ms, rows FROM pg_stat_statements WHERE query NOT ILIKE '%pg_stat_statements%' AND query ~* '^\\s*(SELECT|WITH)' ORDER BY mean_exec_time DESC LIMIT 20"
+            echo '```'
             echo '### マイグレーション履歴(_sqlx_migrations)'
             echo '```'
             q "SELECT version, success FROM _sqlx_migrations ORDER BY version"
