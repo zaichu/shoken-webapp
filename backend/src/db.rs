@@ -652,14 +652,14 @@ mod worker_db {
 }
 
 impl Db {
-    pub fn close(&self) -> impl Future<Output = ()> + '_ {
+    #[allow(clippy::unused_async)]
+    pub async fn close(&self) {
         match &*self.inner {
             #[cfg(not(target_arch = "wasm32"))]
             DbInner::Pool(pool) => pool.close(),
             #[cfg(target_arch = "wasm32")]
             DbInner::Worker(_) => {}
         }
-        std::future::ready(())
     }
 
     /// トランザクションを開始する。`BEGIN` は batch_execute で送り、
@@ -1101,6 +1101,22 @@ fn validate_database_url(url: &str) -> Result<(), String> {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn close_only_closes_pool_when_future_is_polled() {
+        let db = connect_pool_lazy("postgres://user:pass@localhost/db", 1).unwrap();
+        let pool = match &*db.inner {
+            DbInner::Pool(pool) => pool,
+        };
+
+        let closing = db.close();
+        assert!(!pool.is_closed());
+        drop(closing);
+        assert!(!pool.is_closed());
+
+        db.close().await;
+        assert!(pool.is_closed());
+    }
 
     #[derive(Clone, Default)]
     struct LogCapture(Arc<std::sync::Mutex<Vec<String>>>);

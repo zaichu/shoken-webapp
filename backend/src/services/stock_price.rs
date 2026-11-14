@@ -8,6 +8,7 @@ use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use shared::value::SecurityCode;
+#[cfg(not(target_arch = "wasm32"))]
 use std::future::Future;
 
 /// Yahoo Finance chart API（非公式）。`<code>.T` は東証銘柄。

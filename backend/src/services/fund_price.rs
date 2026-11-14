@@ -7,7 +7,10 @@ use crate::errors::{ApiError, UpstreamError};
 use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use rust_decimal::{Decimal, prelude::Signed};
 use serde::Deserialize;
-use std::{future::Future, str::FromStr};
+use std::str::FromStr;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::future::Future;
 
 /// 三菱UFJアセットマネジメントの投信情報API(公式)。
 /// `{BASE}/association_fund_cd/<協会コード>` で最新の基準価額を返す

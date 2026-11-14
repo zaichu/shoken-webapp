@@ -6,7 +6,10 @@ pub mod google_common;
 
 use sha2::{Digest, Sha256};
 use shared::value::UserId;
-use std::{fmt, future::Future, str::FromStr};
+use std::{fmt, str::FromStr};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::future::Future;
 
 use crate::db::{Bind, Db, DbError, Tx};
 use crate::errors::ApiError;
