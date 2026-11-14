@@ -918,10 +918,9 @@ impl Tx {
     }
 
     pub async fn commit(mut self) -> Result<(), DbError> {
-        let conn = self
-            .conn
-            .take()
-            .expect("トランザクションの接続がありません");
+        let conn = self.conn.take().expect(
+            "トランザクションの接続がありません: beginで必ずSomeになりcommit/rollbackはselfを消費する",
+        );
         let guard = TxGuard::new(conn, TxConn::rollback_and_release);
         guard.batch_execute("COMMIT").await?;
         drop(TxGuard::dismiss(guard));
@@ -930,10 +929,9 @@ impl Tx {
 
     /// 明示ロールバック。`Drop` の非同期 ROLLBACK と違い完了を待てる
     pub async fn rollback(mut self) -> Result<(), DbError> {
-        let conn = self
-            .conn
-            .take()
-            .expect("トランザクションの接続がありません");
+        let conn = self.conn.take().expect(
+            "トランザクションの接続がありません: beginで必ずSomeになりcommit/rollbackはselfを消費する",
+        );
         let guard = TxGuard::new(conn, TxConn::rollback_and_release);
         guard.batch_execute("ROLLBACK").await?;
         drop(TxGuard::dismiss(guard));
@@ -965,7 +963,7 @@ macro_rules! impl_executor_for_tx {
                     let out = match self
                         .conn
                         .as_ref()
-                        .expect("トランザクションの接続がありません")
+                        .expect("トランザクションの接続がありません: Executor呼び出し時はcommit/rollback前で接続を保持している")
                     {
                         #[cfg(not(target_arch = "wasm32"))]
                         TxConn::Native(obj) => obj
@@ -994,7 +992,7 @@ macro_rules! impl_executor_for_tx {
                     let out = match self
                         .conn
                         .as_ref()
-                        .expect("トランザクションの接続がありません")
+                        .expect("トランザクションの接続がありません: Executor呼び出し時はcommit/rollback前で接続を保持している")
                     {
                         #[cfg(not(target_arch = "wasm32"))]
                         TxConn::Native(obj) => obj
@@ -1019,7 +1017,7 @@ macro_rules! impl_executor_for_tx {
                     let out = self
                         .conn
                         .as_ref()
-                        .expect("トランザクションの接続がありません")
+                        .expect("トランザクションの接続がありません: Executor呼び出し時はcommit/rollback前で接続を保持している")
                         .batch_execute(sql)
                         .await;
                     timer.finish(query_tag(sql), sample_every);

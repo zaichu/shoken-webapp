@@ -152,17 +152,21 @@ struct Migration {
     no_tx: bool,
 }
 
-fn migrations() -> Vec<Migration> {
+fn migrations() -> Result<Vec<Migration>, String> {
     MIGRATION_FILES
         .iter()
         .map(|(name, sql)| {
-            let (version, description) = name.split_once('_').expect("migration 名の形式");
-            Migration {
-                version: version.parse().expect("migration version"),
+            let (version, description) = name
+                .split_once('_')
+                .ok_or_else(|| format!("マイグレーション名の形式が不正です: {name}"))?;
+            Ok(Migration {
+                version: version.parse().map_err(|_| {
+                    format!("マイグレーションのバージョンが数値ではありません: {name}")
+                })?,
                 description: description.replace('_', " "),
                 sql,
                 no_tx: sql.starts_with("-- no-transaction"),
-            }
+            })
         })
         .collect()
 }
@@ -279,7 +283,7 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
         .map(|row| (row.get(0), row.get(1)))
         .collect();
 
-    let local = migrations();
+    let local = migrations()?;
 
     for applied_version in applied.keys() {
         if !local.iter().any(|m| m.version == *applied_version) {
