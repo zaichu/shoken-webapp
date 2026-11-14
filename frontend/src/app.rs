@@ -53,23 +53,23 @@ enum Route {
 impl Route {
     fn title(&self) -> &'static str {
         match self {
-            Route::Home => labels::HOME_TITLE,
-            Route::Search => labels::STOCK_SEARCH_TITLE,
-            Route::Receipts => labels::RECEIPTS_TITLE,
-            Route::Csv => labels::CSV_MANAGE_TITLE,
-            Route::AssetBalance => labels::ASSET_BALANCE_TITLE,
-            Route::AssetBalanceComposition => labels::COMPOSITION,
-            Route::AssetBalanceHolding => labels::ASSET_HOLDING_DETAIL_TITLE,
-            Route::AssetFundHolding => labels::ASSET_FUND_DETAIL_TITLE,
-            Route::Settings => labels::SETTINGS_TITLE,
-            Route::AdminLogins => labels::ADMIN_LOGINS,
-            Route::Login => labels::LOGIN_TITLE,
-            Route::NotFound => labels::NOT_FOUND_TITLE,
+            Self::Home => labels::HOME_TITLE,
+            Self::Search => labels::STOCK_SEARCH_TITLE,
+            Self::Receipts => labels::RECEIPTS_TITLE,
+            Self::Csv => labels::CSV_MANAGE_TITLE,
+            Self::AssetBalance => labels::ASSET_BALANCE_TITLE,
+            Self::AssetBalanceComposition => labels::COMPOSITION,
+            Self::AssetBalanceHolding => labels::ASSET_HOLDING_DETAIL_TITLE,
+            Self::AssetFundHolding => labels::ASSET_FUND_DETAIL_TITLE,
+            Self::Settings => labels::SETTINGS_TITLE,
+            Self::AdminLogins => labels::ADMIN_LOGINS,
+            Self::Login => labels::LOGIN_TITLE,
+            Self::NotFound => labels::NOT_FOUND_TITLE,
         }
     }
 
     fn shows_bottom_nav(self) -> bool {
-        !matches!(self, Route::Login | Route::NotFound)
+        !matches!(self, Self::Login | Self::NotFound)
     }
 }
 

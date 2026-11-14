@@ -483,10 +483,10 @@ pub(crate) enum ColumnTier {
 impl ColumnTier {
     pub(crate) fn class(self) -> &'static str {
         match self {
-            ColumnTier::Core => "",
-            ColumnTier::Md => " receipt-tier-md",
-            ColumnTier::Wide => " receipt-tier-wide",
-            ColumnTier::Wider => " receipt-tier-wider",
+            Self::Core => "",
+            Self::Md => " receipt-tier-md",
+            Self::Wide => " receipt-tier-wide",
+            Self::Wider => " receipt-tier-wider",
         }
     }
 }
@@ -501,8 +501,8 @@ impl ColumnAlign {
     /// 見出しとセルで同じクラスを使う。位置は CSS 側の列の種別クラスが決める
     pub(crate) fn class(self) -> &'static str {
         match self {
-            ColumnAlign::Left => "col-text",
-            ColumnAlign::Right => "col-num",
+            Self::Left => "col-text",
+            Self::Right => "col-num",
         }
     }
 }
@@ -666,7 +666,7 @@ impl DomesticDailyRow for ReceiptItem {
 }
 
 impl ListEndpoint for Dividend {
-    type Row = Dividend;
+    type Row = Self;
     type Summary = DividendSummary;
     const PATH: &'static str = RECEIPT_KINDS[ReceiptsTab::Dividend as usize].list_path;
 }
@@ -736,7 +736,7 @@ fn dividend_table_groups(
 }
 
 impl ListEndpoint for DomesticStock {
-    type Row = DomesticStock;
+    type Row = Self;
     type Summary = DomesticStockSummary;
     const PATH: &'static str = RECEIPT_KINDS[ReceiptsTab::DomesticStock as usize].list_path;
 }
@@ -754,7 +754,7 @@ fn domestic_table_groups(
 }
 
 impl ListEndpoint for Mutualfund {
-    type Row = Mutualfund;
+    type Row = Self;
     type Summary = MutualfundSummary;
     const PATH: &'static str = RECEIPT_KINDS[ReceiptsTab::MutualFund as usize].list_path;
 }

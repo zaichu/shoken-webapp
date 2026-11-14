@@ -29,22 +29,22 @@ pub enum AssetKind {
 }
 
 impl AssetKind {
-    pub(crate) const ALL: [AssetKind; 3] = [AssetKind::All, AssetKind::Stock, AssetKind::Fund];
+    pub(crate) const ALL: [Self; 3] = [Self::All, Self::Stock, Self::Fund];
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            AssetKind::All => labels::ALL,
-            AssetKind::Stock => labels::DOMESTIC_STOCK,
-            AssetKind::Fund => labels::MUTUAL_FUND,
+            Self::All => labels::ALL,
+            Self::Stock => labels::DOMESTIC_STOCK,
+            Self::Fund => labels::MUTUAL_FUND,
         }
     }
 
     /// タブの testid など機械向けの値
     pub(crate) fn value(self) -> &'static str {
         match self {
-            AssetKind::All => "all",
-            AssetKind::Stock => "stock",
-            AssetKind::Fund => "fund",
+            Self::All => "all",
+            Self::Stock => "stock",
+            Self::Fund => "fund",
         }
     }
 }
@@ -237,40 +237,40 @@ pub enum FundSortKey {
 
 impl FundSortKey {
     /// 投資信託タブの選択肢
-    pub(crate) const ALL: [FundSortKey; 4] = [
-        FundSortKey::MarketValue,
-        FundSortKey::ProfitLoss,
-        FundSortKey::Shares,
-        FundSortKey::BasePrice,
+    pub(crate) const ALL: [Self; 4] = [
+        Self::MarketValue,
+        Self::ProfitLoss,
+        Self::Shares,
+        Self::BasePrice,
     ];
 
     /// 「すべて」タブでは両種別に共通する指標だけを出す
-    pub(crate) const MERGED: [FundSortKey; 2] = [FundSortKey::MarketValue, FundSortKey::ProfitLoss];
+    pub(crate) const MERGED: [Self; 2] = [Self::MarketValue, Self::ProfitLoss];
 
     pub(crate) fn label(self) -> &'static str {
         match self {
-            FundSortKey::MarketValue => labels::MARKET_VALUE,
-            FundSortKey::ProfitLoss => labels::VALUATION_PROFIT_LOSS,
-            FundSortKey::Shares => labels::FUND_SHARES,
-            FundSortKey::BasePrice => labels::BASE_PRICE,
+            Self::MarketValue => labels::MARKET_VALUE,
+            Self::ProfitLoss => labels::VALUATION_PROFIT_LOSS,
+            Self::Shares => labels::FUND_SHARES,
+            Self::BasePrice => labels::BASE_PRICE,
         }
     }
 
     pub(crate) fn value(self) -> &'static str {
         match self {
-            FundSortKey::MarketValue => "market_value",
-            FundSortKey::ProfitLoss => "profit_loss",
-            FundSortKey::Shares => "shares",
-            FundSortKey::BasePrice => "base_price",
+            Self::MarketValue => "market_value",
+            Self::ProfitLoss => "profit_loss",
+            Self::Shares => "shares",
+            Self::BasePrice => "base_price",
         }
     }
 
     pub(crate) fn from_value(value: &str) -> Option<Self> {
         match value {
-            "market_value" => Some(FundSortKey::MarketValue),
-            "profit_loss" => Some(FundSortKey::ProfitLoss),
-            "shares" => Some(FundSortKey::Shares),
-            "base_price" => Some(FundSortKey::BasePrice),
+            "market_value" => Some(Self::MarketValue),
+            "profit_loss" => Some(Self::ProfitLoss),
+            "shares" => Some(Self::Shares),
+            "base_price" => Some(Self::BasePrice),
             _ => None,
         }
     }

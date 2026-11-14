@@ -36,31 +36,31 @@ pub enum ApiError {
 impl ApiError {
     #[cfg(test)]
     pub fn http(status: u16) -> Self {
-        ApiError::Http {
+        Self::Http {
             status,
             server_message: None,
         }
     }
 
     pub fn is_unauthorized(&self) -> bool {
-        matches!(self, ApiError::Http { status: 401, .. })
+        matches!(self, Self::Http { status: 401, .. })
     }
 
     pub fn is_retryable(&self) -> bool {
         match self {
-            ApiError::Network | ApiError::Timeout => true,
-            ApiError::Http { status, .. } => *status >= 500,
-            ApiError::Cancelled | ApiError::Parse => false,
+            Self::Network | Self::Timeout => true,
+            Self::Http { status, .. } => *status >= 500,
+            Self::Cancelled | Self::Parse => false,
         }
     }
 
     pub fn user_message(&self) -> String {
         match self {
-            ApiError::Network => labels::API_CHECK_NETWORK.to_string(),
-            ApiError::Timeout => labels::API_RETRY_TIMEOUT.to_string(),
-            ApiError::Cancelled => labels::API_CANCELLED.to_string(),
-            ApiError::Parse => labels::API_DATA_LOAD_FAILED.to_string(),
-            ApiError::Http { status, .. } => match status {
+            Self::Network => labels::API_CHECK_NETWORK.to_string(),
+            Self::Timeout => labels::API_RETRY_TIMEOUT.to_string(),
+            Self::Cancelled => labels::API_CANCELLED.to_string(),
+            Self::Parse => labels::API_DATA_LOAD_FAILED.to_string(),
+            Self::Http { status, .. } => match status {
                 400 => labels::API_CHECK_INPUT.to_string(),
                 401 => labels::API_LOGIN_REQUIRED.to_string(),
                 403 => labels::API_FORBIDDEN.to_string(),
@@ -74,11 +74,11 @@ impl ApiError {
     // エラーバッジ用の生文言。user_message() の案内文とは別系統で、HTTP 既定文に直す
     pub fn message(&self) -> String {
         match self {
-            ApiError::Network => labels::API_NETWORK_ERROR.to_string(),
-            ApiError::Timeout => labels::API_TIMEOUT.to_string(),
-            ApiError::Cancelled => labels::API_CANCELLED.to_string(),
-            ApiError::Parse => labels::API_PARSE_FAILED.to_string(),
-            ApiError::Http {
+            Self::Network => labels::API_NETWORK_ERROR.to_string(),
+            Self::Timeout => labels::API_TIMEOUT.to_string(),
+            Self::Cancelled => labels::API_CANCELLED.to_string(),
+            Self::Parse => labels::API_PARSE_FAILED.to_string(),
+            Self::Http {
                 status,
                 server_message,
             } => match status {
@@ -126,7 +126,7 @@ impl ApiClient {
         retry_delay_ms: u64,
         retry_multiplier: u64,
     ) -> Self {
-        ApiClient {
+        Self {
             base_url,
             timeout_ms,
             max_retries,
@@ -158,7 +158,7 @@ impl ApiClient {
     }
 
     pub fn default_client() -> Self {
-        ApiClient::new(
+        Self::new(
             Self::base_url(),
             DEFAULT_TIMEOUT_MS,
             DEFAULT_MAX_RETRIES,
@@ -168,7 +168,7 @@ impl ApiClient {
     }
 
     pub fn read_client() -> Self {
-        ApiClient::new(
+        Self::new(
             Self::base_url(),
             READ_TIMEOUT_MS,
             READ_MAX_RETRIES,
@@ -178,7 +178,7 @@ impl ApiClient {
     }
 
     pub fn auth_client() -> Self {
-        ApiClient::new(
+        Self::new(
             Self::base_url(),
             AUTH_TIMEOUT_MS,
             AUTH_MAX_RETRIES,
@@ -188,14 +188,14 @@ impl ApiClient {
     }
 
     pub fn with_max_retries(&self, max_retries: u32) -> Self {
-        ApiClient {
+        Self {
             max_retries,
             ..self.clone()
         }
     }
 
     pub fn with_timeout_ms(&self, timeout_ms: u64) -> Self {
-        ApiClient {
+        Self {
             timeout_ms,
             ..self.clone()
         }

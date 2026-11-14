@@ -88,7 +88,7 @@ pub struct SessionStore {
 
 impl SessionStore {
     pub fn new() -> Self {
-        SessionStore {
+        Self {
             user: RwSignal::new(None),
             is_admin: RwSignal::new(false),
             loaded: RwSignal::new(false),

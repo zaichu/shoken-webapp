@@ -23,7 +23,7 @@ pub(crate) enum CsvKind {
 }
 
 impl CsvKind {
-    pub(crate) const ALL: [CsvKind; 5] = [
+    pub(crate) const ALL: [Self; 5] = [
         Self::AssetStock,
         Self::AssetFund,
         Self::Dividend,
