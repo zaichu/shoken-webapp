@@ -10,7 +10,7 @@ pub enum AlertVariant {
 }
 
 impl AlertVariant {
-    fn class(self) -> &'static str {
+    const fn class(self) -> &'static str {
         match self {
             Self::Warning => "border-accent-border bg-accent-soft text-accent-text",
             Self::Danger => "border-negative-border bg-negative-soft text-negative-vivid",
@@ -40,7 +40,7 @@ pub enum SpinnerSize {
 }
 
 impl SpinnerSize {
-    fn class(self) -> &'static str {
+    const fn class(self) -> &'static str {
         match self {
             Self::Sm => "h-4 w-4",
             Self::Lg => "h-8 w-8",

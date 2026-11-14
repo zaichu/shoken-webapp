@@ -113,7 +113,7 @@ impl ButtonVariant {
 }
 
 impl ButtonSize {
-    fn class(self) -> &'static str {
+    const fn class(self) -> &'static str {
         match self {
             Self::Xs => "px-2 py-1 text-xs max-sm:min-h-11",
             Self::Sm => "px-3 py-1.5 text-sm max-sm:min-h-11",

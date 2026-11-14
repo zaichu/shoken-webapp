@@ -59,12 +59,12 @@ pub const SWIPE_VELOCITY_WINDOW_MS: f64 = 100.0;
 const MOBILE_MAX_WIDTH_PX: f64 = 1024.0;
 
 /// 動いている間の入力無視が必要か。動きを減らす設定では動きが無いため今のまま受け付ける
-pub fn swipe_should_ignore_input(settling: bool, reduced_motion: bool) -> bool {
+pub const fn swipe_should_ignore_input(settling: bool, reduced_motion: bool) -> bool {
     settling && !reduced_motion
 }
 
 /// 新しい接触の開始を無視するか。動いている間のタップ・新しいスワイプと2本目の指を無視する
-pub fn swipe_should_ignore_touchstart(
+pub const fn swipe_should_ignore_touchstart(
     settling: bool,
     reduced_motion: bool,
     touch_count: usize,

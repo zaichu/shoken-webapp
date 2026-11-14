@@ -216,7 +216,7 @@ pub fn date_parts(date: &str) -> Option<(i32, u32, u32)> {
     Some((year, month, day))
 }
 
-fn days_in_month(year: i32, month: u32) -> u32 {
+const fn days_in_month(year: i32, month: u32) -> u32 {
     let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
     match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -298,7 +298,7 @@ fn days_from_civil(year: i32, month: u32, day: u32) -> i64 {
 
 /// 「1970-01-01 からの日数」を暦日(年・月・日)に戻す
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-fn civil_from_days(days: i64) -> (i32, u32, u32) {
+const fn civil_from_days(days: i64) -> (i32, u32, u32) {
     let shifted = days + 719_468;
     let era = if shifted >= 0 {
         shifted
@@ -336,7 +336,7 @@ fn today_jst() -> Option<(i32, u32, u32)> {
 
 /// 今日(JST)の年月日。ネイティブでは None
 #[cfg(not(target_arch = "wasm32"))]
-fn today_jst() -> Option<(i32, u32, u32)> {
+const fn today_jst() -> Option<(i32, u32, u32)> {
     None
 }
 
