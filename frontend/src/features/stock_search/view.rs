@@ -509,11 +509,6 @@ fn HoldingSection(group: HoldingGroup, dividends: RwSignal<DividendMaps>) -> imp
                 // 配当は保有一覧より遅れて届くため、ここで読み直してタイルを作り直す
                 let maps = dividends.get();
                 let total = HoldingTilesData::total(&group, &maps);
-                let accounts: Vec<HoldingTilesData> = group
-                    .rows
-                    .iter()
-                    .map(|row| HoldingTilesData::account(row, &group, &maps))
-                    .collect();
                 if multi {
                     view! {
                         <h3 class="mb-2 text-sm font-bold text-text-muted">
@@ -521,18 +516,18 @@ fn HoldingSection(group: HoldingGroup, dividends: RwSignal<DividendMaps>) -> imp
                         </h3>
                         <HoldingTilesView data=total />
                         <div class="mt-4 space-y-4">
-                            {accounts
-                                .into_iter()
+                            {group
+                                .rows
+                                .iter()
+                                .map(|row| HoldingTilesData::account(row, &group, &maps))
                                 .zip(badges.clone())
                                 .map(|(data, badge)| {
                                     view! {
                                         <div>
                                             <p class="mb-2">
-                                                {badge
-                                                    .map(|label| {
+                                                {badge.map_or_else(|| labels::MISSING.into_any(), |label| {
                                                         view! { <AccountBadge label=label /> }.into_any()
-                                                    })
-                                                    .unwrap_or_else(|| labels::MISSING.into_any())}
+                                                    })}
                                             </p>
                                             <HoldingTilesView data=data />
                                         </div>

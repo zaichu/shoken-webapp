@@ -532,40 +532,37 @@ proptest::proptest! {
         purchase in proptest::option::of(-1e15f64..1e15f64),
     ) {
         let result = calculate_valuation(market, purchase);
-        match (market, purchase) {
-            (Some(m), Some(p)) => {
-                let amount = result
-                    .amount
-                    .expect("finite inputs must produce an amount");
-                let diff = m - p;
-                proptest::prop_assert_eq!(amount.signum(), diff.signum());
-                proptest::prop_assert!(
-                    (amount - diff).abs() <= 1e-9 * m.abs().max(p.abs()).max(1.0)
+        if let (Some(m), Some(p)) = (market, purchase) {
+            let amount = result
+                .amount
+                .expect("finite inputs must produce an amount");
+            let diff = m - p;
+            proptest::prop_assert_eq!(amount.signum(), diff.signum());
+            proptest::prop_assert!(
+                (amount - diff).abs() <= 1e-9 * m.abs().max(p.abs()).max(1.0)
+            );
+            if p == 0.0 {
+                proptest::prop_assert_eq!(result.rate, None);
+            } else {
+                let rate = result
+                    .rate
+                    .expect("nonzero purchase must produce a rate");
+                proptest::prop_assert_eq!(
+                    rate.signum(),
+                    amount.signum() * p.signum()
                 );
-                if p == 0.0 {
-                    proptest::prop_assert_eq!(result.rate, None);
-                } else {
-                    let rate = result
-                        .rate
-                        .expect("nonzero purchase must produce a rate");
-                    proptest::prop_assert_eq!(
-                        rate.signum(),
-                        amount.signum() * p.signum()
+                if rate.is_finite() {
+                    let reconstructed = rate * p / 100.0;
+                    proptest::prop_assert!(
+                        (reconstructed - amount).abs()
+                            <= 1e-6 * amount.abs().max(1.0),
+                        "rate={rate} p={p} amount={amount}"
                     );
-                    if rate.is_finite() {
-                        let reconstructed = rate * p / 100.0;
-                        proptest::prop_assert!(
-                            (reconstructed - amount).abs()
-                                <= 1e-6 * amount.abs().max(1.0),
-                            "rate={rate} p={p} amount={amount}"
-                        );
-                    }
                 }
             }
-            _ => {
-                proptest::prop_assert_eq!(result.amount, None);
-                proptest::prop_assert_eq!(result.rate, None);
-            }
+        } else {
+            proptest::prop_assert_eq!(result.amount, None);
+            proptest::prop_assert_eq!(result.rate, None);
         }
     }
 
@@ -601,7 +598,7 @@ proptest::proptest! {
             .collect::<String>()
             .to_uppercase();
         proptest::prop_assert_eq!(output.clone(), expected);
-        proptest::prop_assert!(!output.chars().any(|c| c.is_whitespace()));
+        proptest::prop_assert!(!output.chars().any(char::is_whitespace));
         proptest::prop_assert_eq!(output.clone(), output.to_uppercase());
     }
 

@@ -71,15 +71,15 @@ fn resolve<'a>(
             .unwrap_or(&variants[0]);
         return resolve(schemas, inner);
     }
-    match schema.get("$ref").and_then(serde_json::Value::as_str) {
-        Some(reference) => {
+    schema
+        .get("$ref")
+        .and_then(serde_json::Value::as_str)
+        .map_or(schema, |reference| {
             let name = reference
                 .strip_prefix("#/components/schemas/")
                 .expect("local schema ref");
             &schemas[name]
-        }
-        None => schema,
-    }
+        })
 }
 
 fn sample_primitive(schema: &serde_json::Value) -> serde_json::Value {
@@ -150,17 +150,14 @@ fn check_contract(
         "{name} roundtrip"
     );
 
-    let required: BTreeSet<&str> = schema
-        .get("required")
-        .map(|required| {
-            required
-                .as_array()
-                .expect("required")
-                .iter()
-                .map(|v| v.as_str().expect("string"))
-                .collect()
-        })
-        .unwrap_or_default();
+    let required: BTreeSet<&str> = schema.get("required").map_or_default(|required| {
+        required
+            .as_array()
+            .expect("required")
+            .iter()
+            .map(|v| v.as_str().expect("string"))
+            .collect()
+    });
     for (field, property) in schema["properties"].as_object().expect("properties") {
         let mut partial = sample.clone();
         partial.as_object_mut().expect("object").remove(field);
