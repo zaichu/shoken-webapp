@@ -12,7 +12,7 @@ const CSV_CHUNKING: CsvChunking = CsvChunking {
 
 /// backend の配当CSVは表題行つき形式に対応するため見出しを自動検出する。
 /// 分割送信の前置行も同じ規則でファイルごとに求める
-pub fn chunking_for(tab: ReceiptsTab) -> CsvChunking {
+pub const fn chunking_for(tab: ReceiptsTab) -> CsvChunking {
     CsvChunking {
         header_marker: match tab {
             ReceiptsTab::Dividend => Some(PAYMENT_DATE),

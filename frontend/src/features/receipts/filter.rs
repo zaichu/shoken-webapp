@@ -47,7 +47,7 @@ impl SelectedQueries {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.securities.is_empty()
             && self.years.is_empty()
             && self.products.is_empty()
@@ -65,7 +65,7 @@ pub enum DateSegment {
 }
 
 impl DateSegment {
-    pub fn value(self) -> &'static str {
+    pub const fn value(self) -> &'static str {
         match self {
             Self::Year => PERIOD_YEAR,
             Self::Month => PERIOD_YEAR_MONTH,
@@ -117,7 +117,7 @@ fn build_combined_query(queries: &SelectedQueries) -> String {
     .join(" ")
 }
 
-fn initial_date_segment(has_years: bool) -> DateSegment {
+const fn initial_date_segment(has_years: bool) -> DateSegment {
     if has_years {
         DateSegment::Year
     } else {
@@ -154,11 +154,11 @@ impl ReceiptSearch {
     }
 
     #[allow(dead_code)]
-    pub fn is_default(&self) -> bool {
+    pub const fn is_default(&self) -> bool {
         self.query.is_empty() && self.selected_queries.is_empty()
     }
 
-    pub fn has_any_filter(&self) -> bool {
+    pub const fn has_any_filter(&self) -> bool {
         !self.query.is_empty() || !self.selected_queries.is_empty()
     }
 
@@ -247,7 +247,7 @@ pub enum ReceiptSortOrder {
 }
 
 impl ReceiptSortOrder {
-    pub(crate) fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::Newest => "newest",
             Self::Oldest => "oldest",
