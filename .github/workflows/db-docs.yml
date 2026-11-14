@@ -58,9 +58,7 @@ jobs:
         if: steps.gate.outputs.db-docs == 'true'
         uses: ./.github/actions/rust-cache
         with:
-          workspaces: |
-            backend -> target
-            shared -> target
+          workspaces: . -> target
           shared-key: backend-ci
 
       # バージョンを固定する(生成結果は tbls のバージョンで変わることがあるため)

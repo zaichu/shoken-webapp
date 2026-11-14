@@ -1,3 +1,4 @@
+pub use super::encoding::base64_encode;
 use crate::db::{Bind, Db, DbError};
 use crate::models::user::User;
 use crate::services::login_event::{ClientInfo, LoginOutcome};
@@ -47,27 +48,6 @@ pub fn email_safe(email: &str) -> bool {
         (parts.next(), parts.next(), parts.next()),
         (Some(_), Some(_), None)
     )
-}
-
-const BASE64_TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-pub fn base64_encode(input: &[u8]) -> String {
-    let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
-    for chunk in input.chunks(3) {
-        let mut n: u32 = 0;
-        for (i, &b) in chunk.iter().enumerate() {
-            n |= u32::from(b) << (16 - 8 * i);
-        }
-        let pad = 3 - chunk.len();
-        for i in 0..4 - pad {
-            let shift = 18 - 6 * i;
-            out.push(BASE64_TABLE[((n >> shift) & 0x3F) as usize] as char);
-        }
-        for _ in 0..pad {
-            out.push('=');
-        }
-    }
-    out
 }
 
 fn encode_subject(subject: &str) -> String {

@@ -104,21 +104,6 @@ shared = { path = "../shared", features = ["utoipa", "postgres", "validate"] }
 [dev-dependencies]
 rust_decimal_macros = "1.40.0"
 tower = "0.5.3"
-testcontainers = "0.27.3"
-testcontainers-modules = { version = "0.15.0", features = ["postgres"] }
+testcontainers = "0.28.0"
+testcontainers-modules = { git = "https://github.com/testcontainers/testcontainers-rs-modules-community", rev = "d69e3a09397532accea9d9e907fecc280b1513a8", features = ["postgres"] }
 proptest = "1.11.0"
-
-# 開発ビルドはパニック時の行番号が読める範囲までデバッグ情報を残し、target を小さく保つ
-[profile.dev]
-debug = "line-tables-only"
-
-# 依存クレートの中まで追うことはないので、依存のデバッグ情報は持たない
-[profile.dev.package."*"]
-debug = false
-
-# テストビルドも同じ方針にする
-[profile.test]
-debug = "line-tables-only"
-
-[profile.test.package."*"]
-debug = false

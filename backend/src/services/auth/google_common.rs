@@ -4,6 +4,9 @@
 
 use sha2::{Digest, Sha256};
 
+use super::super::encoding::base64url_nopad;
+pub use super::super::encoding::url_encode;
+
 use crate::errors::{ApiError, ConfigError};
 use crate::models::user::GoogleUserInfo;
 
@@ -80,47 +83,6 @@ pub(crate) fn begin_auth(client: &GoogleOAuthClient) -> GoogleAuthFlow {
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GOOGLE_TOKENINFO_URL: &str = "https://oauth2.googleapis.com/tokeninfo";
-
-/// RFC 3986 unreserved 以外を %XX にする最小のパーセントエンコード。
-/// tokeninfo のクエリと token 交換のフォームボディで使う
-pub fn url_encode(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for &b in value.as_bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char);
-            }
-            _ => {
-                out.push('%');
-                out.push_str(&format!("{b:02X}"));
-            }
-        }
-    }
-    out
-}
-
-/// base64url エンコード（パディングなし）。PKCE の code_challenge 用
-fn base64url_nopad(bytes: &[u8]) -> String {
-    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    let mut out = String::with_capacity(bytes.len() * 4 / 3);
-    for chunk in bytes.chunks(3) {
-        let b = [
-            chunk[0],
-            *chunk.get(1).unwrap_or(&0),
-            *chunk.get(2).unwrap_or(&0),
-        ];
-        let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
-        out.push(TABLE[(n >> 18) as usize & 0x3f] as char);
-        out.push(TABLE[(n >> 12) as usize & 0x3f] as char);
-        if chunk.len() > 1 {
-            out.push(TABLE[(n >> 6) as usize & 0x3f] as char);
-        }
-        if chunk.len() > 2 {
-            out.push(TABLE[n as usize & 0x3f] as char);
-        }
-    }
-    out
-}
 
 /// state/nonce 用のランダム値（UUID v4 の hex 32 文字）
 fn new_oauth_random() -> String {

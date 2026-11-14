@@ -9,7 +9,9 @@ on:
     branches: [main]
     paths:
       - "backend/Cargo.toml"
-      - "backend/Cargo.lock"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".cargo/audit.toml"
       - "frontend/.cargo/audit.toml"
       - "frontend/Cargo.toml"
       - "frontend/Cargo.lock"
@@ -21,7 +23,9 @@ on:
     branches: [main]
     paths:
       - "backend/Cargo.toml"
-      - "backend/Cargo.lock"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".cargo/audit.toml"
       - "frontend/.cargo/audit.toml"
       - "frontend/Cargo.toml"
       - "frontend/Cargo.lock"
@@ -56,7 +60,9 @@ jobs:
           filters: |
             cargo:
               - "backend/Cargo.toml"
-              - "backend/Cargo.lock"
+              - "Cargo.toml"
+              - "Cargo.lock"
+              - ".cargo/audit.toml"
               - "frontend/.cargo/audit.toml"
               - "frontend/Cargo.toml"
               - "frontend/Cargo.lock"
@@ -82,20 +88,13 @@ jobs:
       - name: Read ignored advisories
         id: ignore
         run: |
-          for dir in backend frontend; do
-            audit_config="$dir/.cargo/audit.toml"
-            if [[ -f "$audit_config" ]]; then
-              ignored=$(grep -oE 'RUSTSEC-[0-9]{4}-[0-9]{4}' "$audit_config" | paste -sd, -)
-            else
-              ignored=""
-            fi
-            echo "$dir=$ignored" >> "$GITHUB_OUTPUT"
-          done
+          echo "backend=$(grep -oE 'RUSTSEC-[0-9]{4}-[0-9]{4}' .cargo/audit.toml | paste -sd, -)" >> "$GITHUB_OUTPUT"
+          echo "frontend=$(grep -oE 'RUSTSEC-[0-9]{4}-[0-9]{4}' frontend/.cargo/audit.toml | paste -sd, -)" >> "$GITHUB_OUTPUT"
       - name: Run cargo audit (backend)
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0 https://github.com/rustsec/audit-check/releases/tag/v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          working-directory: backend
+          working-directory: .
           ignore: ${{ steps.ignore.outputs.backend }}
       - name: Run cargo audit (frontend)
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0 https://github.com/rustsec/audit-check/releases/tag/v2.0.0

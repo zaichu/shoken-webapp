@@ -6,7 +6,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use shared::format::{
     format_currency as format_currency_decimal, format_currency_with_options,
-    format_percentage_value as format_percentage_value_decimal,
+    format_percentage_value as format_percentage_value_decimal, group_integer_digits,
 };
 
 use crate::support::list_search::is_valid_iso_date;
@@ -43,14 +43,7 @@ pub fn intl_fixed(value: f64, decimals: u32) -> f64 {
 }
 
 fn group_thousands(digits: &str) -> String {
-    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
-    for (index, byte) in digits.bytes().enumerate() {
-        if index > 0 && (digits.len() - index).is_multiple_of(3) {
-            grouped.push(',');
-        }
-        grouped.push(byte as char);
-    }
-    grouped
+    group_integer_digits(digits)
 }
 
 // 符号は呼び出し側が丸め前の値で `value < 0` と判定する（`-0.0` は負としない）。
@@ -97,6 +90,8 @@ pub fn format_currency_beyond_decimal(value: f64) -> String {
 }
 
 /// 金額(円マーク・桁区切り・符号)
+/// f64 用の入口。丸め・桁区切りの核は `shared::format` に一本化し、
+/// ここでは f64→Decimal 変換と範囲外フォールバックだけを受け持つ
 pub fn format_currency(value: f64) -> String {
     f64_to_decimal(value).map_or_else(
         || format_currency_beyond_decimal(value),
