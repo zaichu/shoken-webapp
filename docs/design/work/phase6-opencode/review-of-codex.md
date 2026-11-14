@@ -54,7 +54,7 @@
 - 対象と根拠（いずれも `frontend/src/ui/labels.rs` が正）:
   1. `home.html` 集計帯「年間配当」＋小書き「税引前・2026年」→ 正は `ANNUAL_EXPECTED_DIVIDEND`「年間予想配当(税引前)」。「予想」の欠落は実績との混同を招く。
   2. `stock-search.html`・`holding-route.html`「年間配当(1株)」→ 正は `PER_SHARE_DIVIDEND`「1株配当」。
-  3. 同「配当利回り」→ 正は `ACQUISITION_YIELD`「取得額利回り」（または保有詳細用の定義を labels に追加）。
+  3. 同「配当利回り」→ 表示 3.00% は `data-check.md:12` の通り ¥360 ÷ ¥12,000（`fixtures.json` の `annualDividendPerShare` ÷ `currentPrice`）の株価基準であり取得額基準ではないため、`labels.rs` に保有詳細用の「配当利回り(株価基準)」の定義を追加するか、画面側に算出根拠を注記する。
   4. `fund-detail.html` 保有状況「価格基準日」→ 正は `BASE_PRICE_AS_OF`「基準価額の基準日」。同一画面の注記行は「基準価額の基準日」で表記ゆれしている（`shots/fund-detail-pc.png`）。
   5. `states-codex.html` 空カード「保有資産がありません」→ 正は `ASSET_EMPTY_TITLE`「資産管理データがありません」。
   6. `states-codex.html` エラーカード「一覧を読み込めませんでした」→ 正は `API_DATA_LOAD_FAILED` 系の文言。
