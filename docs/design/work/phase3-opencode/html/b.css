@@ -1,0 +1,133 @@
+/* Concept B 代替HTML用スタイル（Figma未作成分の代替）。トークンは既存 input.css と同値。 */
+:root {
+  --brand: #0f2a4a;
+  --page: #f3f5f8;
+  --surface: #ffffff;
+  --ink: #111827;
+  --soft: #4b5563;
+  --muted: #5f6b7a;
+  --border: #e5e7eb;
+  --accent: #1d4ed8;
+  --pos: #0b7a4b;
+  --neg: #c0362c;
+  --gold: #f2b33d;
+  --track: #e0e4ea;
+  --band-note: #c9d3e1;
+  --group: #eef2f7;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 13px;
+}
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pos { color: var(--pos); }
+.neg { color: var(--neg); }
+.header {
+  background: var(--brand);
+  color: #fff;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 32px;
+}
+.header .logo { font-weight: 700; font-size: 16px; }
+.header nav { display: flex; gap: 20px; font-size: 13px; }
+.header nav .on { color: var(--gold); font-weight: 700; }
+.header .user { margin-left: auto; font-size: 13px; }
+.body { padding: 16px 32px 32px; max-width: 1280px; margin: 0 auto; }
+.titlerow { display: flex; align-items: center; gap: 12px; margin: 4px 0 12px; }
+.titlerow h1 { font-size: 20px; margin: 0; }
+.titlerow .spacer { flex: 1; }
+.titlerow .data { color: var(--muted); font-size: 12px; }
+.btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  min-height: 32px;
+}
+.tabs { display: flex; gap: 24px; margin: 4px 0 12px; font-size: 14px; }
+.tabs .on { font-weight: 700; border-bottom: 3px solid var(--gold); padding-bottom: 4px; }
+.tabs .off { color: var(--muted); }
+.band {
+  background: var(--brand);
+  color: #fff;
+  border-radius: 12px;
+  display: flex;
+  gap: 0;
+  padding: 18px 32px;
+  margin-bottom: 8px;
+}
+.band .cell { flex: 1; }
+.band .label { font-size: 12px; color: var(--band-note); margin-bottom: 4px; }
+.band .value { font-size: 24px; font-weight: 700; }
+.note { color: var(--muted); font-size: 12px; margin: 4px 0 12px; }
+.searchrow { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.searchbox {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  width: 400px;
+  color: var(--muted);
+}
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+.count { margin-left: auto; color: var(--soft); font-size: 12px; }
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 12px;
+}
+table.grid th {
+  background: var(--group);
+  color: var(--soft);
+  font-weight: 500;
+  text-align: left;
+  padding: 10px 8px;
+}
+table.grid td { padding: 10px 8px; border-top: 1px solid var(--border); }
+table.grid td.r, table.grid th.r { text-align: right; }
+tr.group td { background: var(--group); font-weight: 700; border-left: 3px solid var(--gold); }
+/* SP */
+.sp { max-width: 390px; margin: 0 auto; background: var(--page); }
+.sp .body { padding: 12px 0 24px; }
+.sp .header { padding: 0 16px; }
+.sp .band { border-radius: 0; flex-direction: column; gap: 8px; padding: 16px; }
+.sp .band .value.hero { font-size: 30px; }
+.sp .card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 0 16px 12px;
+  padding: 12px;
+}
+.sp .rowline { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border); }
+.sp .rowline:first-of-type { border-top: none; }
+.sp .sub { color: var(--muted); font-size: 11px; }
+.bottomnav {
+  display: flex;
+  justify-content: space-around;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 0;
+  font-size: 11px;
+  color: var(--muted);
+  position: sticky;
+  bottom: 0;
+}
+.bottomnav .on { color: var(--accent); font-weight: 700; }
