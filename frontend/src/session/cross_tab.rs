@@ -3,6 +3,7 @@ use crate::session::local_storage;
 use crate::session::pending_logout;
 use leptos::ev;
 use leptos::prelude::*;
+use rust_decimal::prelude::ToPrimitive;
 use std::cell::{Cell, RefCell};
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
@@ -14,6 +15,12 @@ pub const ACTIVITY_KEY: &str = "last_activity_at";
 
 // 最終操作時刻の書き込みを間引く幅。取りこぼしは発火時の共有時刻確認で吸収する
 const ACTIVITY_THROTTLE_MS: u64 = 10_000;
+
+fn now_ms() -> u64 {
+    let now = js_sys::Date::now();
+    now.to_u64()
+        .unwrap_or_else(|| if now.is_sign_negative() { 0 } else { u64::MAX })
+}
 
 thread_local! {
     // None=未試行、Some(None)=構築不可、Some(Some)=利用中
@@ -34,7 +41,7 @@ pub fn notify_logout() {
     if let Some(channel) = broadcast_channel() {
         let _ = channel.post_message(&JsValue::from_str(LOGOUT_MESSAGE));
     } else if let Some(storage) = local_storage() {
-        let _ = storage.set_item(LOGOUT_NOTIFY_KEY, &(js_sys::Date::now() as u64).to_string());
+        let _ = storage.set_item(LOGOUT_NOTIFY_KEY, &now_ms().to_string());
     }
 }
 
@@ -76,7 +83,7 @@ const fn should_record(now_ms: u64, last_written_ms: u64) -> bool {
 }
 
 pub fn record_activity() {
-    let now = js_sys::Date::now() as u64;
+    let now = now_ms();
     if !LAST_WRITTEN_MS.with(|last| should_record(now, last.get())) {
         return;
     }
@@ -104,7 +111,7 @@ const fn is_recent_claim(now_ms: u64, claimed_at_ms: u64) -> bool {
 }
 
 fn try_claim() -> bool {
-    let now = js_sys::Date::now() as u64;
+    let now = now_ms();
     let recently_claimed = local_storage()
         .and_then(|storage| storage.get_item(LOGOUT_CLAIMED_KEY).ok().flatten())
         .and_then(|value| value.parse::<u64>().ok())
@@ -148,7 +155,7 @@ pub async fn claim_logout_once() -> bool {
             if let Some(window) = web_sys::window() {
                 let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
                     &release,
-                    RECENT_CLAIM_MS as i32,
+                    i32::try_from(RECENT_CLAIM_MS).unwrap_or(i32::MAX),
                 );
             }
         })
