@@ -109,7 +109,7 @@ fn sort_order_label(sort_by: &str, descending: bool) -> &'static str {
 /// 読み込み済み件数が総件数より少なければ出す。絞り込み直後の読み込み中・
 /// 失敗中は旧結果の件数で出さない(押すと新条件の続きを旧一覧に混ぜるため)
 fn can_load_more(ready: bool, loaded: usize, total: Option<i64>) -> bool {
-    ready && total.is_some_and(|total| (loaded as i64) < total)
+    ready && total.is_some_and(|total| i64::try_from(loaded).unwrap_or(i64::MAX) < total)
 }
 
 /// スマホのダイアログの中身。キーワードの入力と並べ替えの選択を
@@ -310,7 +310,8 @@ pub fn AdminLoginsPage() -> impl IntoView {
     };
     let email_tag = Memo::new(move |_| query.with(|query| query.email.clone()));
     let place_tag = Memo::new(move |_| query.with(|query| query.place.clone()));
-    let search_count_total = move || total.get().unwrap_or(0).max(0) as usize;
+    let search_count_total =
+        move || usize::try_from(total.get().unwrap_or(0).max(0)).unwrap_or(usize::MAX);
     let sort_summary = move || {
         format!(
             "{} {}",
@@ -361,7 +362,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
                             }
                         })}
                         <ConditionRowEnd>
-                            <span class="receipts-search-count" role="status" aria-live="polite">{move || total.get().map(|total| labels::count(total.max(0) as usize))}</span>
+                            <span class="receipts-search-count" role="status" aria-live="polite">{move || total.get().map(|total| labels::count(usize::try_from(total.max(0)).unwrap_or(usize::MAX)))}</span>
                             <SearchClearButton disabled=move || query.with(|query| query.q.is_empty() && query.email.is_empty() && query.place.is_empty())
                                 on_clear=move || { query.update(|query| { query.q.clear(); query.email.clear(); query.place.clear(); query.page = 1; }); load_first(); } />
                         </ConditionRowEnd>

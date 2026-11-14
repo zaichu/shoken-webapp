@@ -49,7 +49,9 @@ pub(crate) fn dividend_pending_max_retries(unique_count: usize) -> u32 {
         .saturating_mul(DIVIDEND_MILLIS_PER_CODE)
         .div_ceil(u64::from(DIVIDEND_RETRY_DELAY_MS));
     let dynamic = windows.saturating_add(u64::from(DIVIDEND_BASE_RETRIES));
-    DIVIDEND_BASE_RETRIES.max(dynamic.min(u64::from(DIVIDEND_PENDING_MAX_RETRIES)) as u32)
+    DIVIDEND_BASE_RETRIES.max(
+        u32::try_from(dynamic.min(u64::from(DIVIDEND_PENDING_MAX_RETRIES))).unwrap_or(u32::MAX),
+    )
 }
 
 pub(crate) fn dividend_maps_from_batch(batch: &DividendBatchResponse) -> (DividendMaps, bool) {

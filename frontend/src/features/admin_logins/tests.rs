@@ -7,6 +7,11 @@ fn more_button_needs_successful_first_load_and_remaining_rows() {
     assert!(can_load_more(true, 50, Some(64)));
     assert!(!can_load_more(true, 64, Some(64)));
     assert!(!can_load_more(true, 70, Some(64)));
+    assert!(!can_load_more(
+        true,
+        usize::try_from(i64::MAX).unwrap_or(usize::MAX),
+        Some(i64::MAX)
+    ));
 }
 
 #[test]

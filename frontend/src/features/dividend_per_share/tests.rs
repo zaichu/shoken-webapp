@@ -2,6 +2,15 @@ use super::*;
 use crate::testing::block_on;
 
 #[test]
+fn pending_max_retries_saturates_for_huge_holdings() {
+    assert_eq!(dividend_pending_max_retries(0), DIVIDEND_BASE_RETRIES);
+    assert_eq!(
+        dividend_pending_max_retries(usize::MAX),
+        DIVIDEND_PENDING_MAX_RETRIES
+    );
+}
+
+#[test]
 fn fetch_dividend_batch_uses_shared_request_without_changing_wire_codes() {
     let codes = vec![
         "9904".to_string(),
