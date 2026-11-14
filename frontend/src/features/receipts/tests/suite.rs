@@ -371,7 +371,7 @@ fn generation_change_resets_search_tab_and_visited() {
             "前ユーザーの選択タブは持ち越さない"
         );
         assert_eq!(
-            store.visited.with_untracked(|visited| visited.clone()),
+            store.visited.with_untracked(std::clone::Clone::clone),
             HashSet::from([ReceiptsTab::Dividend]),
             "前ユーザーの訪問済みは持ち越さない"
         );
@@ -422,7 +422,11 @@ fn expanded_state_is_cleared_on_generation_change() {
         session.user.set(Some(user("bob")));
         store.ensure(tab);
 
-        assert!(store.expanded.with_untracked(|set| set.is_empty()));
+        assert!(
+            store
+                .expanded
+                .with_untracked(std::collections::HashSet::is_empty)
+        );
         assert!(!store.mobile_summary_expanded.get_untracked());
     });
 }
