@@ -281,8 +281,11 @@ async fn split_file_chunks(
     chunk_record_groups(&bytes, data, max_rows)
         .iter()
         .map(|group| {
+            let Some((first, last)) = group.first().zip(group.last()) else {
+                return Err(ApiError::Network);
+            };
             let data_slice = file
-                .slice_with_f64_and_f64(group[0].0 as f64, group.last().unwrap().1 as f64)
+                .slice_with_f64_and_f64(first.0 as f64, last.1 as f64)
                 .map_err(|_| ApiError::Network)?;
             let parts = js_sys::Array::new();
             parts.push(&header);

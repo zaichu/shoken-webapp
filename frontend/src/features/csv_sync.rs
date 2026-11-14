@@ -64,7 +64,10 @@ impl CsvKind {
 
     /// ALL 内の位置。進行表示の配列添字に使う
     pub fn index(self) -> usize {
-        Self::ALL.iter().position(|kind| *kind == self).unwrap()
+        Self::ALL
+            .iter()
+            .position(|kind| *kind == self)
+            .expect("ALL はすべての CsvKind を含む")
     }
 }
 

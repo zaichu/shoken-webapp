@@ -53,8 +53,7 @@ const fn is_js_line_terminator(c: char) -> bool {
 /// 先頭が空白に当たるまでを1トークンとして切り出す
 fn unquoted_token(query: &str, start: usize) -> (String, usize) {
     let mut end = start;
-    while end < query.len() {
-        let c = query[end..].chars().next().unwrap();
+    while let Some(c) = query[end..].chars().next() {
         if is_js_whitespace(c) {
             break;
         }
@@ -117,8 +116,7 @@ pub fn parse_search_tokens(query: &str) -> Vec<String> {
     let mut index = 0;
 
     while index < query.len() {
-        while index < query.len() {
-            let current = query[index..].chars().next().unwrap();
+        while let Some(current) = query[index..].chars().next() {
             if !is_js_whitespace(current) {
                 break;
             }
@@ -129,7 +127,9 @@ pub fn parse_search_tokens(query: &str) -> Vec<String> {
         }
 
         let start = index;
-        let current = query[index..].chars().next().unwrap();
+        let Some(current) = query[index..].chars().next() else {
+            break;
+        };
         let (raw_token, next_index) = if current == '"' {
             parse_quoted_token(query, index + current.len_utf8())
                 .unwrap_or_else(|| unquoted_token(query, start))
@@ -192,11 +192,9 @@ fn matches_date(date: &str, query: &str) -> bool {
 }
 
 fn matches_date_range(date: &str, query: &str) -> bool {
-    let sep_idx = query.find("..");
-    if sep_idx.is_none() {
+    let Some(sep_idx) = query.find("..") else {
         return false;
-    }
-    let sep_idx = sep_idx.unwrap();
+    };
     let start = &query[..sep_idx];
     let end = &query[sep_idx + 2..];
     if !start.is_empty() && !is_valid_iso_date(start) {

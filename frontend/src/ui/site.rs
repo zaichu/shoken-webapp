@@ -323,8 +323,10 @@ fn UserMenu(
                         {
                             if ev.shift_key() && pos == 0 {
                                 ev.prevent_default();
-                                let _ = items.last().unwrap().focus();
-                                focused_index.set((items.len() - 1) as i32);
+                                if let Some(last) = items.last() {
+                                    let _ = last.focus();
+                                    focused_index.set((items.len() - 1) as i32);
+                                }
                             } else if !ev.shift_key() && pos == items.len() - 1 {
                                 ev.prevent_default();
                                 let _ = items[0].focus();
