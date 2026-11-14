@@ -59,7 +59,7 @@ pub(crate) fn SecurityCodeLink(
         let classes = format!(
             "more-link{}{}",
             if has_weight { "" } else { " font-bold" },
-            class.map(|extra| format!(" {extra}")).unwrap_or_default(),
+            class.map_or_default(|extra| format!(" {extra}")),
         );
         return view! {
             <a href=href class=classes data-search=code>
@@ -73,7 +73,7 @@ pub(crate) fn SecurityCodeLink(
     let classes = format!(
         "security-code-link{}{}",
         if has_weight { "" } else { " font-bold" },
-        class.map(|extra| format!(" {extra}")).unwrap_or_default(),
+        class.map_or_default(|extra| format!(" {extra}")),
     );
     view! { <a href=href class=classes data-search=code>{label}</a> }.into_any()
 }
@@ -150,7 +150,7 @@ pub(crate) async fn try_copy_to_clipboard(text: String) -> bool {
     };
     let Ok(promise) = write_text
         .call1(&clipboard, &JsValue::from_str(&text))
-        .and_then(|result| result.dyn_into::<js_sys::Promise>())
+        .and_then(wasm_bindgen::JsCast::dyn_into::<js_sys::Promise>)
     else {
         return false;
     };

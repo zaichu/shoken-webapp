@@ -273,8 +273,7 @@ async fn split_file_chunks(
     }
     let header_end = records
         .get(header_records.saturating_sub(1))
-        .map(|(_, end)| *end)
-        .unwrap_or(0) as f64;
+        .map_or(0, |(_, end)| *end) as f64;
     let header = file
         .slice_with_f64_and_f64(0.0, header_end)
         .map_err(|_| ApiError::Network)?;
