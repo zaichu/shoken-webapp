@@ -1,5 +1,18 @@
 use rust_decimal::{Decimal, RoundingStrategy};
 
+/// 整数部の桁区切り。呼び出し側の数値型（Decimal/f64 の表示文字列）によらず使う単一実装
+#[must_use]
+pub fn group_integer_digits(digits: &str) -> String {
+    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, byte) in digits.bytes().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(byte as char);
+    }
+    grouped
+}
+
 #[must_use]
 pub fn format_number(value: Decimal, maximum_fraction_digits: u32) -> String {
     format_number_with_options(value, 0, maximum_fraction_digits, true)
@@ -24,19 +37,7 @@ pub fn format_number_with_options(
         .split_once('.')
         .map_or((unsigned, None), |(i, f)| (i, Some(f)));
     let grouped = if use_grouping {
-        let reversed: String = integer
-            .chars()
-            .rev()
-            .enumerate()
-            .flat_map(|(index, character)| {
-                if (index + 1).is_multiple_of(3) && index + 1 < integer.len() {
-                    vec![character, ',']
-                } else {
-                    vec![character]
-                }
-            })
-            .collect();
-        reversed.chars().rev().collect()
+        group_integer_digits(integer)
     } else {
         integer.to_string()
     };
