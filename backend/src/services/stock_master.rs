@@ -161,6 +161,8 @@ async fn postpone_refresh_slot(pool: &Db) -> Result<(), ApiError> {
 
 /// `scheduled_ms`(UTC エポックミリ秒)から UTC 時刻を得る。
 /// `Utc::now()` には依存しない(テスト可能なように scheduled イベント時刻のみを使う)
+// JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None になる
+#[allow(clippy::cast_possible_truncation)]
 const fn scheduled_time(scheduled_ms: f64) -> Option<DateTime<Utc>> {
     DateTime::from_timestamp_millis(scheduled_ms as i64)
 }
@@ -315,5 +317,14 @@ mod tests {
             Some(now - chrono::Duration::seconds(1)),
             now
         ));
+    }
+
+    #[test]
+    fn test_scheduled_time_boundary_floats() {
+        // 範囲外の f64 は飽和する。NaN は 0（epoch）に飽和する
+        assert_eq!(scheduled_time(f64::NAN), DateTime::from_timestamp_millis(0));
+        assert_eq!(scheduled_time(f64::INFINITY), None);
+        assert_eq!(scheduled_time(f64::NEG_INFINITY), None);
+        assert!(scheduled_time(-1.0).is_some());
     }
 }

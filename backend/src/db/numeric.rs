@@ -47,7 +47,9 @@ fn encode_numeric(d: &Decimal, out: &mut Vec<u8>) -> Result<(), Box<dyn Error + 
             mantissa /= BASE;
         }
         digits.reverse();
-        weight = digits.len() as i32 - frac_groups as i32 - 1;
+        weight = i32::try_from(digits.len()).map_err(|_| err("NUMERIC の桁数が上限を超えた"))?
+            - i32::try_from(frac_groups).map_err(|_| err("NUMERIC の桁数が上限を超えた"))?
+            - 1;
         // 後続の 0 グループは値を変えないので削る
         while digits.last() == Some(&0) {
             digits.pop();
@@ -57,7 +59,7 @@ fn encode_numeric(d: &Decimal, out: &mut Vec<u8>) -> Result<(), Box<dyn Error + 
     out.put_i16(i16::try_from(digits.len()).map_err(|_| err("NUMERIC の桁数が上限を超えた"))?);
     out.put_i16(i16::try_from(weight).map_err(|_| err("NUMERIC の weight が範囲外"))?);
     out.put_u16(if neg { SIGN_NEGATIVE } else { 0 });
-    out.put_u16(scale as u16);
+    out.put_u16(u16::try_from(scale).map_err(|_| err("NUMERIC の scale が範囲外"))?);
     for digit in digits {
         out.put_u16(digit);
     }
@@ -71,10 +73,12 @@ fn decode_numeric(raw: &[u8]) -> Result<Decimal, Box<dyn Error + Sync + Send>> {
         return Err(err("NUMERIC のバイト列が短い"));
     }
     let ndigits = i16::from_be_bytes(raw[0..2].try_into().unwrap());
-    if ndigits < 0 || raw.len() != 8 + ndigits as usize * 2 {
+    let ndigits_len =
+        usize::try_from(ndigits).map_err(|_| err("NUMERIC の桁数とバイト長が不一致"))?;
+    if ndigits < 0 || raw.len() != 8 + ndigits_len * 2 {
         return Err(err("NUMERIC の桁数とバイト長が不一致"));
     }
-    let weight = i16::from_be_bytes(raw[2..4].try_into().unwrap()) as i32;
+    let weight = i32::from(i16::from_be_bytes(raw[2..4].try_into().unwrap()));
     let sign = u16::from_be_bytes(raw[4..6].try_into().unwrap());
     let dscale = u16::from_be_bytes(raw[6..8].try_into().unwrap());
     let neg = match sign {
@@ -87,27 +91,28 @@ fn decode_numeric(raw: &[u8]) -> Result<Decimal, Box<dyn Error + Sync + Send>> {
         .as_chunks::<2>()
         .0
         .iter()
-        .map(|&c| u16::from_be_bytes(c) as i64)
+        .map(|&c| i64::from(u16::from_be_bytes(c)))
         .collect();
     if digits.iter().any(|&d| !(0..10000).contains(&d)) {
         return Err(err("NUMERIC の digit が base-10000 範囲外"));
     }
 
     let mut digits = digits.into_iter();
-    let fractionals_part_count = digits.len() as i32 - weight - 1;
+    let digits_len =
+        i32::try_from(digits.len()).map_err(|_| err("NUMERIC が Decimal の範囲を超えた"))?;
+    let fractionals_part_count = digits_len - weight - 1;
     let integers_part_count = weight + 1;
 
     let mut result = Decimal::ZERO;
     if integers_part_count > 0 {
-        let (start_integers, last) = if integers_part_count > digits.len() as i32 {
-            (
-                integers_part_count - digits.len() as i32,
-                digits.len() as i32,
-            )
+        let (start_integers, last) = if integers_part_count > digits_len {
+            (integers_part_count - digits_len, digits_len)
         } else {
             (0, integers_part_count)
         };
-        for digit in (&mut digits).take(last as usize) {
+        let last_len =
+            usize::try_from(last).map_err(|_| err("NUMERIC が Decimal の範囲を超えた"))?;
+        for digit in (&mut digits).take(last_len) {
             result = result
                 .checked_mul(Decimal::from_i128_with_scale(10i128.pow(4), 0))
                 .ok_or_else(|| err("NUMERIC が Decimal の範囲を超えた"))?;
@@ -116,17 +121,28 @@ fn decode_numeric(raw: &[u8]) -> Result<Decimal, Box<dyn Error + Sync + Send>> {
                 .ok_or_else(|| err("NUMERIC が Decimal の範囲を超えた"))?;
         }
         let scale_pow = 10i128
-            .checked_pow(4 * start_integers as u32)
+            .checked_pow(
+                4 * u32::try_from(start_integers)
+                    .map_err(|_| err("NUMERIC が Decimal の範囲を超えた"))?,
+            )
             .ok_or_else(|| err("NUMERIC が Decimal の範囲を超えた"))?;
         result = result
             .checked_mul(Decimal::from_i128_with_scale(scale_pow, 0))
             .ok_or_else(|| err("NUMERIC が Decimal の範囲を超えた"))?;
     }
     if fractionals_part_count > 0 {
-        let start_fractionals = if weight < 0 { (-weight) as u32 - 1 } else { 0 };
+        let start_fractionals = if weight < 0 {
+            u32::try_from(-weight).map_err(|_| err("NUMERIC が Decimal の範囲を超えた"))? - 1
+        } else {
+            0
+        };
         for (i, digit) in digits.enumerate() {
             let fract_pow = 4_u32
-                .checked_mul(i as u32 + 1 + start_fractionals)
+                .checked_mul(
+                    u32::try_from(i).map_err(|_| err("NUMERIC が Decimal の範囲を超えた"))?
+                        + 1
+                        + start_fractionals,
+                )
                 .ok_or_else(|| err("NUMERIC が Decimal の範囲を超えた"))?;
             if fract_pow <= Decimal::MAX_SCALE {
                 result = result
@@ -148,7 +164,7 @@ fn decode_numeric(raw: &[u8]) -> Result<Decimal, Box<dyn Error + Sync + Send>> {
     }
 
     result.set_sign_negative(neg);
-    result.rescale((dscale as u32).min(Decimal::MAX_SCALE));
+    result.rescale(u32::from(dscale).min(Decimal::MAX_SCALE));
     Ok(result)
 }
 
@@ -237,5 +253,23 @@ mod tests {
         // ndigits=1, weight=0, sign=0, dscale=0, digit=10000
         let bad = [0, 1, 0, 0, 0, 0, 0, 0, 0x27, 0x10];
         assert!(decode_numeric(&bad).is_err());
+    }
+
+    #[test]
+    fn numeric_decode_rejects_negative_ndigits() {
+        // ndigits=-1 は桁数エラーになる（i16→usize の符号喪失をエラーで扱う）
+        let bad = [0xFF, 0xFF, 0, 0, 0, 0, 0, 0];
+        assert!(decode_numeric(&bad).is_err());
+    }
+
+    #[test]
+    fn numeric_decode_boundary_weights() {
+        // weight=i16::MAX: 整数部が桁数を大きく上回り、Decimal の範囲を超えてエラー
+        let max_weight = [0, 1, 0x7F, 0xFF, 0, 0, 0, 0, 0, 1];
+        assert!(decode_numeric(&max_weight).is_err());
+        // weight=i16::MIN: 小数部だけの 0 扱いになり、値・桁数は変わらない
+        let min_weight = [0, 1, 0x80, 0x00, 0, 0, 0, 0, 0, 1];
+        let back = decode_numeric(&min_weight).unwrap();
+        assert_eq!(back, Decimal::ZERO);
     }
 }

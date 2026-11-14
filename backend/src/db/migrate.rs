@@ -431,10 +431,12 @@ mod tests {
     #[test]
     fn extracts_sql_line_from_postgres_character_position() {
         let sql = "-- 日本語\nCREATE INDEX broken";
-        let position = sql
-            .chars()
-            .position(|character| character == 'b')
-            .expect("対象文字がある") as u32
+        let position = u32::try_from(
+            sql.chars()
+                .position(|character| character == 'b')
+                .expect("対象文字がある"),
+        )
+        .expect("対象文字の位置は u32 に収まる")
             + 1;
 
         assert_eq!(

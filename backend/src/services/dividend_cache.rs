@@ -224,7 +224,7 @@ pub async fn acquire_rate_slot(pool: &Db) -> Result<(), ApiError> {
     if let Some(slot_time) = slot_time {
         let now = Utc::now();
         if slot_time > now {
-            let wait_ms = (slot_time - now).num_milliseconds().max(0) as u64;
+            let wait_ms = u64::try_from((slot_time - now).num_milliseconds().max(0)).unwrap_or(0);
             if wait_ms > 0 {
                 tracing::debug!("レート制御: {}ms 待機", wait_ms);
                 sleep_millis(wait_ms).await;
