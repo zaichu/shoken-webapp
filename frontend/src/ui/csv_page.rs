@@ -24,7 +24,7 @@ pub(crate) struct CsvKindRowData {
 
 impl CsvKindRowData {
     fn saved_count(&self) -> usize {
-        self.count.unwrap_or(0).max(0) as usize
+        usize::try_from(self.count.unwrap_or(0).max(0)).unwrap_or(usize::MAX)
     }
 }
 
@@ -418,7 +418,10 @@ fn CsvKindRow(
                 class="px-4 py-3 whitespace-nowrap text-right text-text-muted max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:pr-2"
                 data-testid="saved-count"
             >
-                {count.map_or_else(|| labels::MISSING.to_string(), |count| labels::count(count.max(0) as usize))}
+                {count.map_or_else(
+                    || labels::MISSING.to_string(),
+                    |count| labels::count(usize::try_from(count.max(0)).unwrap_or(usize::MAX)),
+                )}
             </td>
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-xs">
                 <div class="csv-status-line">

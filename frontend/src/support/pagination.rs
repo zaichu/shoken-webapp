@@ -102,7 +102,7 @@ where
         let last_len = page.data.len();
         rows.extend(page.data);
         if page.total >= 0 {
-            total = Some(page.total as usize);
+            total = Some(usize::try_from(page.total).unwrap_or(usize::MAX));
         }
         // `total` が取得済み件数以下なら、ちょうど `per_page` 件で終わる場合の
         // 空振りリクエストを省いて打ち切る。`total` が実データより大きい等の
