@@ -59,7 +59,7 @@ fn color_fill_class(color: usize) -> String {
     format!("bg-chart-{}", color + 1)
 }
 
-fn color_slice_class(color: usize) -> &'static str {
+const fn color_slice_class(color: usize) -> &'static str {
     match color {
         0 => "comp-slice-0",
         1 => "comp-slice-1",

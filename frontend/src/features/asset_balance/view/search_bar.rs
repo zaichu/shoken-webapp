@@ -24,7 +24,7 @@ pub(crate) enum ConditionKind {
 }
 
 impl ConditionKind {
-    fn label(self) -> &'static str {
+    const fn label(self) -> &'static str {
         match self {
             Self::Account => labels::ACCOUNT,
             Self::Course => labels::DISTRIBUTION_COURSE,
@@ -38,7 +38,7 @@ impl ConditionKind {
         }
     }
 
-    fn testid(self) -> &'static str {
+    const fn testid(self) -> &'static str {
         match self {
             Self::Account => "asset-condition-account",
             Self::Course => "asset-condition-course",

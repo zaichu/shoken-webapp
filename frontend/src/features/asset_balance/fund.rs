@@ -31,7 +31,7 @@ pub enum AssetKind {
 impl AssetKind {
     pub(crate) const ALL: [Self; 3] = [Self::All, Self::Stock, Self::Fund];
 
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::All => labels::ALL,
             Self::Stock => labels::DOMESTIC_STOCK,
@@ -40,7 +40,7 @@ impl AssetKind {
     }
 
     /// タブの testid など機械向けの値
-    pub(crate) fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::All => "all",
             Self::Stock => "stock",
@@ -77,12 +77,12 @@ pub(crate) struct FundView {
 
 impl FundView {
     /// 「更新待ち」の行。前日比は最新の基準価額の日の変動でないため出さない
-    pub(crate) fn nav_pending(&self) -> bool {
+    pub(crate) const fn nav_pending(&self) -> bool {
         !self.is_nav_latest
     }
 
     /// 表の「前日比」セルに出す値。更新待ちの行は古い日の前日比を見せない
-    pub(crate) fn view_day_change(&self) -> Option<f64> {
+    pub(crate) const fn view_day_change(&self) -> Option<f64> {
         if self.is_nav_latest {
             self.base_price_day_change
         } else {
@@ -247,7 +247,7 @@ impl FundSortKey {
     /// 「すべて」タブでは両種別に共通する指標だけを出す
     pub(crate) const MERGED: [Self; 2] = [Self::MarketValue, Self::ProfitLoss];
 
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::MarketValue => labels::MARKET_VALUE,
             Self::ProfitLoss => labels::VALUATION_PROFIT_LOSS,
@@ -256,7 +256,7 @@ impl FundSortKey {
         }
     }
 
-    pub(crate) fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::MarketValue => "market_value",
             Self::ProfitLoss => "profit_loss",
@@ -277,7 +277,7 @@ impl FundSortKey {
 }
 
 /// 行から取り出す並べ替え値
-fn sort_key_value(view: &FundView, key: FundSortKey) -> f64 {
+const fn sort_key_value(view: &FundView, key: FundSortKey) -> f64 {
     match key {
         FundSortKey::MarketValue => view.market_value,
         FundSortKey::ProfitLoss => view.profit_loss,

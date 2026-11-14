@@ -231,7 +231,7 @@ impl DataOps {
         self.inflight.remove(&rev);
     }
 
-    pub(crate) fn is_current_list(&self, rev: u64) -> bool {
+    pub(crate) const fn is_current_list(&self, rev: u64) -> bool {
         self.list_rev == rev
     }
 
@@ -245,15 +245,15 @@ impl DataOps {
         self.inflight.remove(&rev);
     }
 
-    pub(crate) fn is_current_fund_list(&self, rev: u64) -> bool {
+    pub(crate) const fn is_current_fund_list(&self, rev: u64) -> bool {
         self.fund_list_rev == rev
     }
 
-    pub(crate) fn next_poll_rev(&mut self) {
+    pub(crate) const fn next_poll_rev(&mut self) {
         self.poll_rev += 1;
     }
 
-    pub(crate) fn is_current_poll(&self, rev: u64) -> bool {
+    pub(crate) const fn is_current_poll(&self, rev: u64) -> bool {
         self.poll_rev == rev
     }
 
@@ -261,7 +261,7 @@ impl DataOps {
         !self.inflight.is_empty()
     }
 
-    pub(crate) fn invalidate(&mut self) {
+    pub(crate) const fn invalidate(&mut self) {
         self.list_rev += 1;
         self.fund_list_rev += 1;
         self.poll_rev += 1;

@@ -8,7 +8,7 @@ use crate::ui::underline_tabs::{
 };
 use leptos::prelude::*;
 
-fn tab_id(kind: AssetKind) -> &'static str {
+const fn tab_id(kind: AssetKind) -> &'static str {
     match kind {
         AssetKind::All => "tab-asset-all",
         AssetKind::Stock => "tab-asset-stock",

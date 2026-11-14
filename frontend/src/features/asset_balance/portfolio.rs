@@ -30,7 +30,7 @@ impl SortKey {
         Self::Yield,
     ];
 
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::MarketValue => MARKET_VALUE,
             Self::ProfitLoss => VALUATION_PROFIT_LOSS,
@@ -39,7 +39,7 @@ impl SortKey {
         }
     }
 
-    pub(crate) fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::MarketValue => "market_value",
             Self::ProfitLoss => "profit_loss",
@@ -68,7 +68,7 @@ pub enum SortOrder {
 
 impl SortOrder {
     /// localStorage への保存値
-    pub(crate) fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::Desc => "desc",
             Self::Asc => "asc",
@@ -157,7 +157,7 @@ pub enum CompositionGroup {
 impl CompositionGroup {
     pub(crate) const ALL: [Self; 3] = [Self::Holding, Self::Product, Self::Account];
 
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::Holding => COMPOSITION_GROUP_HOLDING,
             Self::Product => COMPOSITION_GROUP_PRODUCT,
@@ -165,7 +165,7 @@ impl CompositionGroup {
         }
     }
 
-    pub(crate) fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::Holding => "holding",
             Self::Product => "product",
@@ -182,14 +182,14 @@ pub enum CompositionBasis {
 }
 
 impl CompositionBasis {
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::MarketValue => MARKET_VALUE,
             Self::Dividend => COMPOSITION_DIVIDEND_BASIS,
         }
     }
 
-    pub(crate) fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::MarketValue => "market_value",
             Self::Dividend => "dividend",
@@ -205,7 +205,7 @@ pub enum CompositionProduct {
 }
 
 impl CompositionProduct {
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::Stock => DOMESTIC_STOCK,
             Self::Fund => MUTUAL_FUND,
@@ -363,7 +363,7 @@ pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>
 pub const COMPOSITION_LEGEND_MAX: usize = 5;
 
 /// 区分の色番号。`[0, 2, 4, 1, 3]` を回して隣り合う区分の色が並ばないようにする
-pub fn composition_color(position: usize) -> usize {
+pub const fn composition_color(position: usize) -> usize {
     const ORDER: [usize; 5] = [0, 2, 4, 1, 3];
     ORDER[position % ORDER.len()]
 }
