@@ -484,10 +484,10 @@ fn tls_mode_from_url(url: &str) -> Result<TlsMode, String> {
     }
     match sslmode {
         "require" => Ok(TlsMode::Unverified),
-        "verify" => match sslrootcert {
-            Some(path) => Ok(TlsMode::WithExtraCa(path)),
-            None => Err("sslmode=verify-ca/verify-full には sslrootcert が必要です".to_string()),
-        },
+        "verify" => sslrootcert.map_or_else(
+            || Err("sslmode=verify-ca/verify-full には sslrootcert が必要です".to_string()),
+            |path| Ok(TlsMode::WithExtraCa(path)),
+        ),
         _ => Ok(TlsMode::System),
     }
 }
@@ -1078,32 +1078,26 @@ fn sanitize_database_url(url: &str) -> Result<String, String> {
     }
 
     // raw pair と decoded pair を zip し、decoded key が除去・読替対象の raw pair を処理する
-    let filtered_query = parsed
-        .query()
-        .map(|q| {
-            let raw_pairs: Vec<&str> = q.split('&').collect();
-            let decoded_pairs: Vec<_> = parsed.query_pairs().collect();
-            raw_pairs
-                .iter()
-                .zip(decoded_pairs.iter())
-                .filter_map(|(raw, (k, v))| {
-                    if k == "channel_binding" || k == "sslrootcert" {
-                        None
-                    } else if k == "sslmode" && (v == "verify-ca" || v == "verify-full") {
-                        Some("sslmode=require")
-                    } else {
-                        Some(*raw)
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("&")
-        })
-        .unwrap_or_default();
+    let filtered_query = parsed.query().map_or_default(|q| {
+        let raw_pairs: Vec<&str> = q.split('&').collect();
+        let decoded_pairs: Vec<_> = parsed.query_pairs().collect();
+        raw_pairs
+            .iter()
+            .zip(decoded_pairs.iter())
+            .filter_map(|(raw, (k, v))| {
+                if k == "channel_binding" || k == "sslrootcert" {
+                    None
+                } else if k == "sslmode" && (v == "verify-ca" || v == "verify-full") {
+                    Some("sslmode=require")
+                } else {
+                    Some(*raw)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("&")
+    });
 
-    let fragment = parsed
-        .fragment()
-        .map(|f| format!("#{f}"))
-        .unwrap_or_default();
+    let fragment = parsed.fragment().map_or_default(|f| format!("#{f}"));
     let base = url.find('?').map_or(url, |pos| &url[..pos]);
     if filtered_query.is_empty() {
         Ok(format!("{base}{fragment}"))
@@ -1360,7 +1354,7 @@ mod tests {
             "channel_binding が残っている"
         );
         assert!(
-            parsed.query().is_none_or(|q| q.is_empty()),
+            parsed.query().is_none_or(str::is_empty),
             "query が空でない: {:?}",
             parsed.query()
         );
@@ -1543,11 +1537,10 @@ mod tests {
     #[test]
     fn test_build_tls_connector_with_extra_ca() {
         // 存在しない CA ファイルは失敗する
-        let err = match build_tls_connector(&TlsMode::WithExtraCa(
+        let Err(err) = build_tls_connector(&TlsMode::WithExtraCa(
             "/tmp/shoken-test-ca-missing-1586.pem".to_string(),
-        )) {
-            Ok(_) => panic!("存在しない CA ファイルで構築できた"),
-            Err(err) => err,
+        )) else {
+            panic!("存在しない CA ファイルで構築できた")
         };
         assert!(err.contains("sslrootcert"), "案内がない: {err}");
 
@@ -1555,11 +1548,11 @@ mod tests {
         let bad =
             std::env::temp_dir().join(format!("shoken-test-ca-bad-{}.pem", std::process::id()));
         std::fs::write(&bad, "not a certificate").unwrap();
-        let err =
-            match build_tls_connector(&TlsMode::WithExtraCa(bad.to_string_lossy().into_owned())) {
-                Ok(_) => panic!("PEM でない中身で構築できた"),
-                Err(err) => err,
-            };
+        let Err(err) =
+            build_tls_connector(&TlsMode::WithExtraCa(bad.to_string_lossy().into_owned()))
+        else {
+            panic!("PEM でない中身で構築できた")
+        };
         assert!(err.contains("sslrootcert"), "案内がない: {err}");
         let _ = std::fs::remove_file(&bad);
 

@@ -173,9 +173,8 @@ pub async fn maybe_refresh(
     client: &JQuantsClient,
     scheduled_ms: f64,
 ) -> Result<Option<usize>, ApiError> {
-    let now = match scheduled_time(scheduled_ms) {
-        Some(t) => t,
-        None => return Ok(None),
+    let Some(now) = scheduled_time(scheduled_ms) else {
+        return Ok(None);
     };
     let next_available_at = refresh_gate_next_available_at(pool).await?;
     if !should_refresh(next_available_at, now) {

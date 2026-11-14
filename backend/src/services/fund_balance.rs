@@ -443,7 +443,7 @@ mod tests {
     #[test]
     fn test_preview_with_preamble_lines() {
         // 実際の出力ファイル同様に説明行が先頭にあっても見出しで検出する
-        let csv = format!("■投資信託残高\n\n{}\n{}", FUND_CSV_HEADER, ROW_A);
+        let csv = format!("■投資信託残高\n\n{FUND_CSV_HEADER}\n{ROW_A}");
         let preview = FundBalanceDomain::preview_csv(csv.as_bytes()).unwrap();
         assert_eq!(
             (

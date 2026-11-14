@@ -163,12 +163,12 @@ mod tests {
 
     #[test]
     fn test_validate_csv_rows() {
-        let table = parse_csv_with_config("key\na\nb".as_bytes(), &KEY_CONFIG).unwrap();
+        let table = parse_csv_with_config(b"key\na\nb", &KEY_CONFIG).unwrap();
         let (items, errors): (Vec<String>, _) =
             validate_csv_rows(&table, |row, _row_num| Ok(row.cell("key").to_string()));
         assert_eq!((items, errors.is_empty()), (strings(&["a", "b"]), true));
 
-        let table = parse_csv_with_config("key\nok\nbad".as_bytes(), &KEY_CONFIG).unwrap();
+        let table = parse_csv_with_config(b"key\nok\nbad", &KEY_CONFIG).unwrap();
         let (items, errors): (Vec<String>, _) = validate_csv_rows(&table, |row, row_num| {
             let value = row.cell("key").to_string();
             if value == "bad" {
@@ -186,9 +186,8 @@ mod tests {
             (1, Some(2))
         );
 
-        let table = parse_csv_with_config("key".as_bytes(), &KEY_CONFIG).unwrap();
-        let (items, errors): (Vec<String>, _) =
-            validate_csv_rows(&table, |_, _| Ok("".to_string()));
+        let table = parse_csv_with_config(b"key", &KEY_CONFIG).unwrap();
+        let (items, errors): (Vec<String>, _) = validate_csv_rows(&table, |_, _| Ok(String::new()));
         assert_eq!((items.is_empty(), errors.is_empty()), (true, true));
     }
 
@@ -243,7 +242,7 @@ mod tests {
     #[tokio::test]
     async fn test_run_csv_upload() {
         let response = run_csv_upload(
-            "name,amount\nfoo,1\n,2\nbar,3\n".as_bytes(),
+            b"name,amount\nfoo,1\n,2\nbar,3\n",
             &PREVIEW_TEST_CONFIG,
             collect_names,
             |_: &[String], _: &[CsvRowError]| Ok(()),
@@ -296,7 +295,7 @@ mod tests {
     async fn test_run_csv_upload_guard_rejects_before_bulk_create() {
         let bulk_invoked = std::cell::Cell::new(false);
         let result = run_csv_upload(
-            "name\nok\n".as_bytes(),
+            b"name\nok\n",
             &PREVIEW_TEST_CONFIG,
             collect_names,
             |_: &[String], _: &[CsvRowError]| {

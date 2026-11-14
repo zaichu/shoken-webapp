@@ -138,8 +138,7 @@ impl<'a> CsvRowView<'a> {
         self.index
             .get(name)
             .and_then(|i| self.record.get(i))
-            .map(str::trim)
-            .unwrap_or("")
+            .map_or("", str::trim)
     }
 
     /// 行の全セル値（トリム済み）を返す

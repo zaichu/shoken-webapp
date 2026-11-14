@@ -260,11 +260,10 @@ impl IntoResponse for ApiError {
             Self::Internal(msg) => tracing::error!("Internal error: {msg}"),
             Self::Upstream(e) => {
                 if is_production_env() {
-                    match e {
-                        UpstreamError::Http { status, .. } => {
-                            tracing::error!("Upstream error: status {status}")
-                        }
-                        _ => tracing::error!("Upstream error [{}]", e.code()),
+                    if let UpstreamError::Http { status, .. } = e {
+                        tracing::error!("Upstream error: status {status}");
+                    } else {
+                        tracing::error!("Upstream error [{}]", e.code());
                     }
                 } else {
                     tracing::error!("Upstream error: {e}");
