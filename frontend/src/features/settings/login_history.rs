@@ -111,6 +111,10 @@ async fn fetch_devices() -> Result<Vec<DeviceEntry>, ApiError> {
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub(crate) fn ResultBadge(result: String) -> impl IntoView {
     let label = result_label(&result);
     let variant = result_badge_variant(&result);

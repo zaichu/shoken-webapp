@@ -71,6 +71,7 @@ impl Validate for Stock {
     }
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use {super::*, chrono::NaiveDate};
     fn make_stock(code: &str, name: &str, market_category: &str) -> Stock {

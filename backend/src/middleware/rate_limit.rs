@@ -77,6 +77,7 @@ pub async fn binding_rate_limit(
     }
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use axum::http::{HeaderMap, HeaderValue};

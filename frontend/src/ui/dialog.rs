@@ -112,6 +112,10 @@ pub(crate) fn use_page_scroll_lock() {
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn DialogShell(
     #[prop(into)] title: String,
     on_close: impl Fn() + Clone + Send + 'static,

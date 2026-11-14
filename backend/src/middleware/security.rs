@@ -139,6 +139,7 @@ pub async fn validate_origin(
     }
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use axum::{Router, middleware, routing::post};

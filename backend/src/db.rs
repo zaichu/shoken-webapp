@@ -591,7 +591,7 @@ struct WorkerDb {
 impl Db {
     /// Hyperdrive バインディングから DB ハンドルを作る。接続自体は初回クエリ時に張る
     pub fn from_hyperdrive(hyperdrive: &worker::Hyperdrive, rtt: DbRttConfig) -> Self {
-        Db {
+        Self {
             inner: Arc::new(DbInner::Worker(WorkerDb {
                 connection_string: hyperdrive.connection_string(),
                 host: hyperdrive.host(),
@@ -656,7 +656,7 @@ mod worker_db {
 }
 
 impl Db {
-    #[allow(clippy::unused_async)]
+    #[allow(clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn close(&self) {
         match &*self.inner {
             #[cfg(not(target_arch = "wasm32"))]
@@ -865,7 +865,7 @@ impl TxConn {
                 .await
                 .map_err(|e| db_err("batch", sql, e)),
             #[cfg(target_arch = "wasm32")]
-            TxConn::Wasm(client) => client
+            Self::Wasm(client) => client
                 .batch_execute(sql)
                 .await
                 .map_err(|e| db_err("batch", sql, e)),
@@ -891,7 +891,7 @@ impl TxConn {
                 }
             }
             #[cfg(target_arch = "wasm32")]
-            TxConn::Wasm(client) => {
+            Self::Wasm(client) => {
                 wasm_bindgen_futures::spawn_local(async move {
                     if let Err(e) = client.batch_execute("ROLLBACK").await {
                         db_err("rollback", "ROLLBACK", e);
@@ -1095,6 +1095,7 @@ fn validate_database_url(url: &str) -> Result<(), String> {
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

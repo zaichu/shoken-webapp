@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use backend::{
     db::{self, Bind, Db, Executor, connect_pool_lazy, run_migrations},
     models::user::GoogleUserInfo,

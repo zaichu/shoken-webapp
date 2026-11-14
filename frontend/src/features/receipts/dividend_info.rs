@@ -214,6 +214,10 @@ fn StatCard(
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> impl IntoView {
     let asset = move || store.asset_balance.get();
     let per_share = move || store.per_share.get();

@@ -51,6 +51,7 @@ where
     }
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use {super::AuthenticatedUser, crate::models::user::User, chrono::Utc, shared::value::UserId};
     #[test]

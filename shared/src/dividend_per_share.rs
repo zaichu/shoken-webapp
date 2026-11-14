@@ -26,7 +26,7 @@ pub enum DividendCacheStatus {
 }
 
 impl DividendCacheStatus {
-    pub fn as_str(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::Ok => "ok",
             Self::Zero => "zero",
@@ -66,15 +66,12 @@ mod pg_impls {
     }
 
     impl<'a> FromSql<'a> for DividendCacheStatus {
-        fn from_sql(
-            ty: &Type,
-            raw: &'a [u8],
-        ) -> Result<DividendCacheStatus, Box<dyn Error + Sync + Send>> {
+        fn from_sql(ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn Error + Sync + Send>> {
             match <&str as FromSql>::from_sql(ty, raw)? {
-                "ok" => Ok(DividendCacheStatus::Ok),
-                "zero" => Ok(DividendCacheStatus::Zero),
-                "error" => Ok(DividendCacheStatus::Error),
-                "pending" => Ok(DividendCacheStatus::Pending),
+                "ok" => Ok(Self::Ok),
+                "zero" => Ok(Self::Zero),
+                "error" => Ok(Self::Error),
+                "pending" => Ok(Self::Pending),
                 other => Err(format!("不明な dividend cache status: {other}").into()),
             }
         }

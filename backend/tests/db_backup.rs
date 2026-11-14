@@ -1,4 +1,5 @@
 #![cfg(target_os = "linux")]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use backend::db::{self, Bind, Db, connect_pool_lazy, run_migrations};
 use chrono::NaiveDate;

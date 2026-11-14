@@ -41,6 +41,10 @@ pub enum SecurityLinkVariant {
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub(crate) fn SecurityCodeLink(
     #[prop(into)] value: String,
     #[prop(optional)] class: Option<String>,
@@ -80,6 +84,10 @@ pub(crate) fn SecurityCodeLink(
 
 /// 表のコード列の中身。コードを持たない行(投資信託など)は空欄にする
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub(crate) fn TableSecurityCode(#[prop(into)] code: String) -> impl IntoView {
     let code = normalize_security_code(&code);
     if code.is_empty() {
@@ -167,6 +175,10 @@ pub(crate) async fn try_copy_to_clipboard(text: String) -> bool {
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub(crate) fn CopyableInstrumentName(
     #[prop(into)] name: String,
     #[prop(optional)] code: Option<String>,

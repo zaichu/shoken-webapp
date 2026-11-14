@@ -814,8 +814,20 @@ impl ReceiptsTab {
                 .position(|column| column.card_role == role)
         };
         CardFields {
+            #[expect(
+                clippy::expect_used,
+                reason = "Each ReceiptsTab column definition includes a name heading"
+            )]
             name: find(CardRole::Name).expect("カード見出しの列が設定に存在する"),
+            #[expect(
+                clippy::expect_used,
+                reason = "Each ReceiptsTab column definition includes a date heading"
+            )]
             date: find(CardRole::Date).expect("カード見出しの列が設定に存在する"),
+            #[expect(
+                clippy::expect_used,
+                reason = "Each ReceiptsTab column definition includes an account heading"
+            )]
             account: find(CardRole::Account).expect("カード見出しの列が設定に存在する"),
             code: find(CardRole::Code),
         }

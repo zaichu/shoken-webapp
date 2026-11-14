@@ -70,17 +70,16 @@ fn decode_numeric(raw: &[u8]) -> Result<Decimal, Box<dyn Error + Sync + Send>> {
     if raw.len() < 8 {
         return Err(err("NUMERIC のバイト列が短い"));
     }
-    let ndigits = i16::from_be_bytes(raw[0..2].try_into().expect("2バイト取り出し: len>=8で保証"));
+    let header = raw.as_chunks::<2>().0;
+    let ndigits = i16::from_be_bytes(header[0]);
     let ndigits_len =
         usize::try_from(ndigits).map_err(|_| err("NUMERIC の桁数とバイト長が不一致"))?;
     if ndigits < 0 || raw.len() != 8 + ndigits_len * 2 {
         return Err(err("NUMERIC の桁数とバイト長が不一致"));
     }
-    let weight = i32::from(i16::from_be_bytes(
-        raw[2..4].try_into().expect("2バイト取り出し: len>=8で保証"),
-    ));
-    let sign = u16::from_be_bytes(raw[4..6].try_into().expect("2バイト取り出し: len>=8で保証"));
-    let dscale = u16::from_be_bytes(raw[6..8].try_into().expect("2バイト取り出し: len>=8で保証"));
+    let weight = i32::from(i16::from_be_bytes(header[1]));
+    let sign = u16::from_be_bytes(header[2]);
+    let dscale = u16::from_be_bytes(header[3]);
     let neg = match sign {
         0 => false,
         SIGN_NEGATIVE => true,
@@ -210,6 +209,7 @@ impl fmt::Display for Numeric {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use rust_decimal_macros::dec;

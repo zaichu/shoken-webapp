@@ -283,7 +283,34 @@ fn SearchPageBody(
             let error = stock_search.error_message();
             let not_found = stock_search.is_not_found();
             let is_loading = loading.get();
-            if let Some(message) = error {
+            error.map_or_else(
+                || {
+            if let Some(message) = balance_error.get() {
+                view! {
+                    <div class="mb-3">
+                        <ListLoadError message=message on_retry=on_retry_balances />
+                    </div>
+                    {data.map(|stock| view! { <StockInfo stock=stock /> }.into_any())}
+                }.into_any()
+            } else if let Some(stock) = data {
+                let group = holding_group.get();
+                view! {
+                    {group.map(|group| view! { <HoldingSection group=group dividends=dividends /> })}
+                    <StockInfo stock=stock />
+                }.into_any()
+            } else if not_found {
+                let group = holding_group.get();
+                view! {
+                    {group.map(|group| view! { <HoldingSection group=group dividends=dividends /> })}
+                    <EmptySearch title=labels::STOCK_SEARCH_NOT_FOUND_TITLE />
+                }.into_any()
+            } else if !is_loading {
+                view! { <EmptySearch title=labels::STOCK_SEARCH_INITIAL_TITLE /> }.into_any()
+            } else {
+                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any()
+            }
+                },
+                |message| {
                 view! {
                     <ListLoadError message=message on_retry=move || {
                         let code = stock_search.stock_code.get_untracked();
@@ -293,46 +320,8 @@ fn SearchPageBody(
                     } />
                 }
                     .into_any()
-            } else if let Some(balance_message) = balance_error.get() {
-                view! {
-                    <div class="mb-3">
-                        <ListLoadError message=balance_message on_retry=on_retry_balances />
-                    </div>
-                    {data
-                        .map(|stock| {
-                            view! { <StockInfo stock=stock /> }.into_any()
-                        })}
-                }
-                    .into_any()
-            } else if let Some(stock) = data {
-                let group = holding_group.get();
-                view! {
-                    {group
-                        .map(|group| {
-                            view! { <HoldingSection group=group dividends=dividends /> }
-                        })}
-                    <StockInfo stock=stock />
-                }
-                    .into_any()
-            } else if not_found {
-                let group = holding_group.get();
-                view! {
-                    {group
-                        .map(|group| {
-                            view! { <HoldingSection group=group dividends=dividends /> }
-                        })}
-                    <EmptySearch title=labels::STOCK_SEARCH_NOT_FOUND_TITLE />
-                }
-                    .into_any()
-            } else if !is_loading {
-                view! {
-                    <EmptySearch title=labels::STOCK_SEARCH_INITIAL_TITLE />
-                }
-                    .into_any()
-            } else {
-                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
-                    .into_any()
-            }
+                },
+            )
         }}
     }
 }
@@ -462,7 +451,7 @@ fn StockInfoLinks(code: String) -> impl IntoView {
             {STOCK_LINKS
                 .iter()
                 .map(|(name, template)| {
-                    let href = template.replace("{code}", &code);
+                    let href = template.replace(&format!("{{{}}}", "code"), code.as_str());
                     view! {
                         <a
                             class="stock-link-button"
