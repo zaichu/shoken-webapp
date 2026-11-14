@@ -70,7 +70,7 @@ pub(crate) fn inspect(kind: CsvKind, content: &str) -> Option<SkipReason> {
     if content.contains('\u{FFFD}') {
         return Some(SkipReason::Mojibake);
     }
-    let body = content.strip_prefix('\u{FEFF}').unwrap_or(content);
+    let body = content.trim_prefix('\u{FEFF}');
     // エラーページやログイン画面の HTML を CSV として受け付けない
     if body.trim_start().starts_with('<') {
         return Some(SkipReason::Html);
@@ -115,7 +115,7 @@ pub(crate) fn inspect(kind: CsvKind, content: &str) -> Option<SkipReason> {
 /// 口座番号や金額の可能性があるため数字・カンマ・空白だけの行は出さない。
 /// 80 文字を超えたら切り、改行・タブは空白に置き換える
 pub(crate) fn first_line_snippet(content: &str) -> Option<String> {
-    let body = content.strip_prefix('\u{FEFF}').unwrap_or(content);
+    let body = content.trim_prefix('\u{FEFF}');
     let line = body
         .lines()
         .map(|line| line.replace(['\t', '\r'], " ").trim().to_string())

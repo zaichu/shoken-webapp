@@ -11,6 +11,9 @@ crate-type = ["cdylib", "rlib"]
 [lints.clippy]
 mod_module_files = "warn"
 
+[lints.cargo]
+unused_dependencies = "warn"
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 axum = { version = "0.8.9", default-features = false, features = [
     "json",

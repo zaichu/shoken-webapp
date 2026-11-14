@@ -29,7 +29,7 @@ pub fn format_number_with_options(
             .rev()
             .enumerate()
             .flat_map(|(index, character)| {
-                if (index + 1) % 3 == 0 && index + 1 < integer.len() {
+                if (index + 1).is_multiple_of(3) && index + 1 < integer.len() {
                     vec![character, ',']
                 } else {
                     vec![character]
@@ -153,7 +153,7 @@ mod tests {
             let max = min_max.0.max(min_max.1);
             let output = format_number_with_options(value, min, max, use_grouping);
 
-            let unsigned = output.strip_prefix('-').unwrap_or(&output);
+            let unsigned = output.trim_prefix('-');
             let (integer, fraction) = unsigned
                 .split_once('.')
                 .map_or((unsigned, ""), |(i, f)| (i, f));

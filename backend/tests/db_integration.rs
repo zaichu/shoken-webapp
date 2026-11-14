@@ -3957,7 +3957,7 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
     // 失敗15件 + 正常1件 + 最新済み1件。失敗組は試行時刻が古く、正常銘柄は
     // それより新しい(先頭15件に埋もれる配置)。基準日も同順にしておき、
     // 修正前後で同じ15件が先に選ばれることを担保する
-    let bad_codes: Vec<String> = (0..15).map(|i| format!("90{i:02}")).collect();
+    let bad_codes: Vec<String> = Vec::from_fn(15, |i| format!("90{i:02}"));
     const GOOD: &str = "9919";
     const FRESH: &str = "9200";
 

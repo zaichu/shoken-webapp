@@ -53,7 +53,7 @@ const fn cell_error(row_num: RowNumber, message: String) -> CsvRowError {
 /// 正常な UTF-8 入力は借用のまま返し、アロケーションしない
 pub fn decode_bytes(bytes: &[u8]) -> Cow<'_, str> {
     if let Ok(s) = std::str::from_utf8(bytes) {
-        return Cow::Borrowed(s.strip_prefix('\u{FEFF}').unwrap_or(s));
+        return Cow::Borrowed(s.trim_prefix('\u{FEFF}'));
     }
     SHIFT_JIS.decode(bytes).0
 }
@@ -598,7 +598,7 @@ mod tests {
             .map_or((unsigned, None), |(i, f)| (i, Some(f)));
         let mut grouped = String::new();
         for (index, c) in integer.chars().enumerate() {
-            if index > 0 && (integer.len() - index) % 3 == 0 {
+            if index > 0 && (integer.len() - index).is_multiple_of(3) {
                 grouped.push(',');
             }
             grouped.push(c);
@@ -620,7 +620,7 @@ mod tests {
             let value = Decimal::new(mantissa, scale);
             let plain = value.to_string();
             let negative = plain.starts_with('-');
-            let unsigned = plain.strip_prefix('-').unwrap_or(&plain);
+            let unsigned = plain.trim_prefix('-');
             let body = if with_commas {
                 add_thousands_separators(unsigned)
             } else {
@@ -648,9 +648,7 @@ mod tests {
         fn prop_parse_number_matches_naive_model_or_errors(input in ".*") {
             let naive = {
                 let trimmed = input.trim();
-                let inner = trimmed
-                    .strip_prefix('(')
-                    .and_then(|s| s.strip_suffix(')'));
+                let inner = trimmed.strip_circumfix('(', ')');
                 let (negative, body) = inner.map_or((false, trimmed), |s| (true, s));
                 let sanitized = body.replace(',', "");
                 sanitized
@@ -732,7 +730,7 @@ mod tests {
 
         #[test]
         fn prop_decode_bytes_utf8_roundtrip(input in ".*") {
-            let expected = input.strip_prefix('\u{FEFF}').unwrap_or(&input).to_string();
+            let expected = input.trim_prefix('\u{FEFF}').to_string();
             proptest::prop_assert_eq!(decode_bytes(input.as_bytes()), expected);
             let with_bom = format!("\u{FEFF}{input}");
             proptest::prop_assert_eq!(decode_bytes(with_bom.as_bytes()), input);

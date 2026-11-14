@@ -222,7 +222,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
     let per_share = move || store.per_share.get();
     let loading = move || store.per_share_loading.get();
 
-    let investment = move || asset().map_or(0.0, |a| investment_amount(&a));
+    let investment = move || asset().map_or_default(|a| investment_amount(&a));
     let gross = totals.total_dividends_before_tax.to_f64().unwrap_or(0.0);
     let net = totals.total_net_amount_received.to_f64().unwrap_or(0.0);
     let gross_rate = move || dividend_rate(gross, investment());
@@ -340,7 +340,7 @@ pub(crate) fn DividendSummarySection(
                     controls="receipt-summary-body".to_string()
                     testid="receipt-header"
                     hint=true
-                    on_toggle=move || expanded.update(|open| *open = !*open)
+                    on_toggle=move || expanded.update(|open| open.toggle())
                 >
                     <div class="flex items-center gap-2">
                         <h2 class="text-sm font-black text-ink">{title}</h2>
