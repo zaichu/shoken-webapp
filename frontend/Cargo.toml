@@ -13,7 +13,7 @@ unused_dependencies = "warn"
 
 [dependencies]
 leptos = { version = "0.8", features = ["csr"] }
-gloo-net = { version = "0.6", features = ["http"] }
+gloo-net = { version = "0.7", features = ["http"] }
 gloo-timers = { version = "0.4", features = ["futures"] }
 http = "1"
 serde = { version = "1", features = ["derive"] }
@@ -29,7 +29,7 @@ shared = { path = "../shared" }
 send_wrapper = "0.6"
 
 [dev-dependencies]
-rust_decimal_macros = "1"
+rust_decimal_macros = "1.40.0"
 any_spawner = { version = "0.3", features = ["futures-executor"] }
 # fork/timeout が wasm32 非対応の wait-timeout 等を引くため切る。
 proptest = { version = "1.11.0", default-features = false, features = ["std", "bit-set"] }

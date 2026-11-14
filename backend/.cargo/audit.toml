@@ -1,9 +1,0 @@
-[advisories]
-ignore = [
-    # rsa の Marvin Attack。公開鍵での署名検証にしか使わないため影響しない
-    "RUSTSEC-2023-0071",
-    # astral-tokio-tar は unmaintained。dev-dependencies の testcontainers 経由のみで本番コードに含まれない。
-    # testcontainers 0.28.0 も astral-tokio-tar 依存が残り、testcontainers-modules 0.15.0 は testcontainers ^0.27 固定のため更新では解消できない。
-    # testcontainers / bollard が tar-codec 等へ移行したら ignore を外す
-    "RUSTSEC-2026-0440",
-]

@@ -88,7 +88,7 @@ https://developers.cloudflare.com/workers/platform/limits/ (ともに確認日 2
 
 ## 4. 移し先の構成
 
-`workers-rs` (`worker` 0.8.7) で Rust を wasm32 にビルドし、Axum ルーターと
+`workers-rs` (`worker` 0.9) で Rust を wasm32 にビルドし、Axum ルーターと
 tokio-postgres + Hyperdrive で Neon を使い続ける構成:
 
 ```
