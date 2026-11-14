@@ -57,7 +57,7 @@
           <div class="menu" role="menu" aria-label="取引明細(配当金)の操作">
             <a href="csv-opencode.html" role="menuitem">楽天証券から再取得</a>
             <a href="csv-opencode.html" role="menuitem">ファイルから取り込み</a>
-            <a href="#csv-delete" role="menuitem" class="danger">削除</a>
+            <a href="#csv-delete-div" role="menuitem" class="danger">削除</a>
           </div>
         </td></tr>
       <tr><td>取引明細(国内株式)</td><td class="num">3件</td><td>今日 08:59 に更新</td>
@@ -76,7 +76,7 @@
       <div class="menu" role="menu" aria-label="取引明細(配当金)の操作" style="margin-top:8px">
         <a href="csv-opencode.html" role="menuitem">楽天証券から再取得</a>
         <a href="csv-opencode.html" role="menuitem">ファイルから取り込み</a>
-        <a href="#csv-delete" role="menuitem" class="danger">削除</a>
+        <a href="#csv-delete-div" role="menuitem" class="danger">削除</a>
       </div></li>
     <li><div class="r1"><span class="t">取引明細(国内株式)</span><span class="amt">3件</span></div><div class="r2"><span>今日 08:59 に更新</span><span><a class="btn ghost" href="#csv-delete" aria-label="取引明細(国内株式)のメニュー">⋯</a></span></div></li>
     <li><div class="r1"><span class="t">取引明細(投資信託)</span><span class="amt">2件</span></div><div class="r2"><span>取得できず <a class="btn ghost" href="csv-opencode.html">詳細</a></span><span><a class="btn ghost" href="csv-opencode.html" aria-label="取引明細(投資信託)のメニュー">⋯</a></span></div>
@@ -94,6 +94,41 @@
     <h2 id="csv-del-t">取引明細(国内株式)を削除しますか?</h2>
     <p id="csv-del-d">取引明細(国内株式)の保存済み 3件(2026/01〜2026/03)を削除します。元に戻せません。この操作は取り消せません。</p>
     <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">3件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-div" role="dialog" aria-modal="true" aria-labelledby="csv-del-div-t">
+  <div class="dialog">
+    <h2 id="csv-del-div-t">取引明細(配当金)を削除しますか?</h2>
+    <p id="csv-del-div-d">取引明細(配当金)の保存済み 9件(2026/01〜2026/12)を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">9件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-fund" role="dialog" aria-modal="true" aria-labelledby="csv-del-fund-t">
+  <div class="dialog">
+    <h2 id="csv-del-fund-t">取引明細(投資信託)を削除しますか?</h2>
+    <p id="csv-del-fund-d">取引明細(投資信託)の保存済み 2件(2026/04〜2026/07)を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">2件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-hold-stock" role="dialog" aria-modal="true" aria-labelledby="csv-del-hold-stock-t">
+  <div class="dialog">
+    <h2 id="csv-del-hold-stock-t">資産管理(国内株式)を削除しますか?</h2>
+    <p id="csv-del-hold-stock-d">資産管理(国内株式)の保存済み 10件を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">10件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-hold-fund" role="dialog" aria-modal="true" aria-labelledby="csv-del-hold-fund-t">
+  <div class="dialog">
+    <h2 id="csv-del-hold-fund-t">資産管理(投資信託)を削除しますか?</h2>
+    <p id="csv-del-hold-fund-d">資産管理(投資信託)の保存済み 6件を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">6件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-hold" role="dialog" aria-modal="true" aria-labelledby="csv-del-hold-t">
+  <div class="dialog">
+    <h2 id="csv-del-hold-t">資産管理データを削除しますか?</h2>
+    <p id="csv-del-hold-d">資産管理データの保存済み 16件(国内株式 10件・投資信託 6件)を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">16件を削除する</a></div>
   </div>
 </div>
 <div class="overlay" id="csv-plunge" role="dialog" aria-modal="true" aria-labelledby="csv-pl-t">

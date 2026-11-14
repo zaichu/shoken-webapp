@@ -3,7 +3,7 @@
 - 採用方針: `docs/design/work/phase3-decision.md`(C を骨格・B のスマホ・A の PC 詳細パネル。縦ナビなし、月次は棒、円は A 方式、全桁表示)。
 - 部品・色の根拠: `docs/design/work/phase4-codex/`(tokens.css・foundations.md・components.md)、`docs/design/work/phase4-opencode/`(finance-data.md・layout.md。PR #1899)。
 - 文言の根拠: `frontend/src/ui/labels.rs` の定数のみ使用。架空データのみ(コードは 9900 番台、社名は架空)。
-- 共通値(2 担当で同じ値。合計と内訳は検算済み): 評価額 ¥28,593,148、取得総額 ¥27,040,660、評価損益 +¥1,552,488(28,593,148 − 27,040,660)、年の配当 税引後 ¥3,163,438(内訳: 税引前 ¥3,815,546 − 税額 ¥652,108。月別 12月 ¥1,612,332・9月 ¥715,281・6月 ¥478,111・3月 ¥357,714 の合計)。
+- 共通値(2 担当で同じ値。合計と内訳は検算済み。検算表は `docs/design/work/phase5-opencode/data-check.md`): 評価額 ¥28,593,148、取得総額 ¥27,040,660、評価損益 +¥1,552,488(28,593,148 − 27,040,660)、年の配当 税引後 ¥3,163,392(内訳: 税引前 ¥3,815,500 − 税額 ¥652,108。月別 12月 ¥1,612,332・9月 ¥715,251・6月 ¥478,111・3月 ¥357,698 の合計)。
 - 見方: 1 行=画面の 1 状態。PC=1280 幅、スマホ=390 幅(切替 1024px)。ダークは各画面の代表 1 枚(PC)。
 
 ## 画面・状態一覧(担当分)
@@ -12,11 +12,11 @@
 |---|---|---|---|---|---|
 | 取引明細・配当金タブ(一覧・年/月グループ・集計帯) | 済み | ○ | ○ | RE-3(小計行「2026年12月 · 3件の合計」)、Codex-1(取込日は年付き)、Codex-4(詳細の項目順=表の列順) | shots/receipts-dividend-pc-light.png・shots/receipts-dividend-sp-light.png |
 | 取引明細・配当金タブ(条件パネル) | 済み | ○(ポップオーバー) | ○(シート) | Codex-1(期間・口座・商品。期間は下書き確定) | shots/receipts-dividend-cond-pc-light.png |
-| 取引明細・配当金タブ(行詳細) | 済み | ○(詳細パネル) | ○(シート) | RE-1(部分対応: スマホ行 2 段目に税引前の目安を追加。完全な内訳は詳細に集約) | shots/receipts-dividend-dialog-pc-dark.png(ダーク代表) |
-| 取引明細・国内株式タブ | 済み | ○ | ○ | RE-3(月グループ小計)、X-4(右揃え・符号+色・欠測 —) | shots/receipts-stock-pc-light.png・shots/receipts-stock-sp-light.png |
-| 取引明細・投資信託タブ | 済み | ○ | ○ | RE-3、X-4 | shots/receipts-fund-pc-light.png・shots/receipts-fund-sp-light.png |
+| 取引明細・配当金タブ(行詳細) | 済み | ○(詳細パネル) | ○(シート: スマホ全 9 行をタップで #rcpt-d1) | RE-1(部分対応: スマホ行 2 段目に税引前の目安を追加。完全な内訳は詳細に集約) | shots/receipts-dividend-dialog-pc-dark.png(ダーク代表) |
+| 取引明細・国内株式タブ | 済み | ○ | ○ | RE-3(月グループ小計)、X-4(右揃え・符号+色・欠測 —)。見出し件数はタブ選択で 3件に切替 | shots/receipts-stock-pc-light.png・shots/receipts-stock-sp-light.png |
+| 取引明細・投資信託タブ | 済み | ○ | ○ | RE-3、X-4。見出し件数はタブ選択で 2件に切替 | shots/receipts-fund-pc-light.png・shots/receipts-fund-sp-light.png |
 | CSV 管理(5 種類の表・取得カード・取込結果・部分失敗) | 済み | ○ | ○(2 段) | CSV-1(事実のみの状態文+時点を別項目)、Codex-6(状態名と時点を分離) | shots/csv-pc-light.png・shots/csv-sp-light.png |
-| CSV 管理(行メニュー・削除確認) | 済み | ○ | ○ | CSV-2(行メニュー・削除確認・取込結果を掲載) | shots/csv-delete-pc-dark.png(ダーク代表) |
+| CSV 管理(行メニュー・削除確認) | 済み | ○ | ○ | CSV-2(行メニュー・削除確認・取込結果を掲載。削除確認は対象ごと: 配当 9件 #csv-delete-div・国内株式 3件 #csv-delete・投信 2件 #csv-delete-fund・資産管理 10件/6件/16件) | shots/csv-delete-pc-dark.png(ダーク代表) |
 | CSV 管理(急減の確認) | 済み | ○ | ○(共通ダイアログ) | CSV-2 | shots/csv-plunge-pc-light.png |
 | 設定(7 セクション: アカウント・表示・データ・セキュリティ・登録端末・ログイン履歴・危険操作) | 済み | ○(左目次) | ○(簡易目次+縦積み) | ST-1(スマホ簡易目次)、ST-2(ブラウザ/OS を短い表示名に正規化)、ST-3(危険操作への到達可) | shots/settings-pc-light.png・shots/settings-sp-light.png・shots/settings-pc-dark.png(ダーク代表) |
 | 管理者ログイン履歴(表・検索・条件パネル・並べ替え) | 済み | ○ | ○(カード) | AD-2(部分対応: メール 1 行+日時・場所の 2 段に短縮)、AD-4(アカウントメニューに管理者導線) | shots/admin-logins-pc-light.png・shots/admin-logins-sp-light.png・shots/admin-logins-pc-dark.png(ダーク代表) |

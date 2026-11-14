@@ -20,6 +20,8 @@
 .period-opts{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-2)}
 .tblwrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
 .tblwrap .tbl{border:0;border-radius:0;min-width:760px}
+.mrows .rowlink{display:block;color:inherit;text-decoration:none;border-radius:var(--radius-md)}
+.mrows .rowlink:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -50,8 +52,8 @@
   <!-- ============ 配当金タブ ============ -->
   <section data-panel="dividend">
     <div class="band" aria-label="集計">
-      <div class="band-item"><div class="k">受け取った配当金(税引後)</div><div class="v">¥3,163,438</div><div class="sub">2026/01 〜 2026/12</div></div>
-      <div class="band-item"><div class="k">配当金(税引前)</div><div class="v">¥3,815,546</div></div>
+      <div class="band-item"><div class="k">受け取った配当金(税引後)</div><div class="v">¥3,163,392</div><div class="sub">2026/01 〜 2026/12</div></div>
+      <div class="band-item"><div class="k">配当金(税引前)</div><div class="v">¥3,815,500</div></div>
       <div class="band-item"><div class="k">税額</div><div class="v">-¥652,108</div></div>
     </div>
     <p class="note"><span>データ: 2026/11/14 取り込み</span><span>配当入金のあった月のみ表示</span></p>
@@ -91,31 +93,31 @@
             <tr aria-selected="true"><td>2026/12/09</td><td class="code">9901</td><td>架空電機</td><td><span class="badge">特定</span></td><td class="num">20,000株</td><td class="num">¥60.00</td><td class="num">¥1,200,000</td><td class="num neg">-¥243,780</td><td class="num"><a href="#rcpt-d1">¥956,220</a></td></tr>
             <tr><td>2026/12/10</td><td class="code">9907</td><td>架空フィナンシャル・グループ</td><td><span class="badge">特定</span></td><td class="num">10,000株</td><td class="num">¥50.00</td><td class="num">¥500,000</td><td class="num neg">-¥101,575</td><td class="num">¥398,425</td></tr>
             <tr><td>2026/12/15</td><td class="code">9906</td><td>架空エレクトロン</td><td><span class="badge">一般</span></td><td class="num">2,000株</td><td class="num">¥161.69</td><td class="num">¥323,380</td><td class="num neg">-¥65,693</td><td class="num">¥257,687</td></tr>
-            <tr class="grp"><td colspan="6">2026年9月 · 2件の合計</td><td class="num">¥744,660</td><td class="num neg">-¥29,379</td><td class="num">¥715,281</td></tr>
+            <tr class="grp"><td colspan="6">2026年9月 · 2件の合計</td><td class="num">¥744,630</td><td class="num neg">-¥29,379</td><td class="num">¥715,251</td></tr>
             <tr><td>2026/09/26</td><td class="code">9912</td><td>架空電力ホールディングス</td><td><span class="badge">NISA成長</span></td><td class="num">12,000株</td><td class="num">¥50.00</td><td class="num">¥600,000</td><td class="num zero">¥0</td><td class="num">¥600,000</td></tr>
-            <tr><td>2026/09/10</td><td class="code">9908</td><td>架空リース</td><td><span class="badge">特定</span></td><td class="num">1,607株</td><td class="num">¥90.00</td><td class="num">¥144,660</td><td class="num neg">-¥29,379</td><td class="num">¥115,281</td></tr>
+            <tr><td>2026/09/10</td><td class="code">9908</td><td>架空リース</td><td><span class="badge">特定</span></td><td class="num">1,607株</td><td class="num">¥90.00</td><td class="num">¥144,630</td><td class="num neg">-¥29,379</td><td class="num">¥115,251</td></tr>
             <tr class="grp"><td colspan="6">2026年6月 · 2件の合計</td><td class="num">¥600,000</td><td class="num neg">-¥121,889</td><td class="num">¥478,111</td></tr>
             <tr><td>2026/06/20</td><td class="code">9901</td><td>架空電機</td><td><span class="badge">特定</span></td><td class="num">7,000株</td><td class="num">¥50.00</td><td class="num">¥350,000</td><td class="num neg">-¥71,102</td><td class="num">¥278,898</td></tr>
             <tr><td>2026/06/25</td><td class="code">9902</td><td>架空食品</td><td><span class="badge">一般</span></td><td class="num">5,000株</td><td class="num">¥50.00</td><td class="num">¥250,000</td><td class="num neg">-¥50,787</td><td class="num">¥199,213</td></tr>
-            <tr class="grp"><td colspan="6">2026年3月 · 2件の合計</td><td class="num">¥447,506</td><td class="num neg">-¥89,792</td><td class="num">¥357,714</td></tr>
+            <tr class="grp"><td colspan="6">2026年3月 · 2件の合計</td><td class="num">¥447,490</td><td class="num neg">-¥89,792</td><td class="num">¥357,698</td></tr>
             <tr><td>2026/03/15</td><td class="code">—</td><td>架空成長ファンド</td><td><span class="badge">特定</span></td><td class="num">1,000,000口</td><td class="num">¥0.30</td><td class="num">¥300,000</td><td class="num neg">-¥60,945</td><td class="num">¥239,055</td></tr>
-            <tr><td>2026/03/28</td><td class="code">9905</td><td class="long">架空商事ホールディングス・インターナショナル</td><td><span class="badge">特定</span></td><td class="num">2,450株</td><td class="num">¥60.21</td><td class="num">¥147,506</td><td class="num neg">-¥28,847</td><td class="num">¥118,659</td></tr>
+            <tr><td>2026/03/28</td><td class="code">9905</td><td class="long">架空商事ホールディングス・インターナショナル</td><td><span class="badge">特定</span></td><td class="num">2,450株</td><td class="num">¥60.20</td><td class="num">¥147,490</td><td class="num neg">-¥28,847</td><td class="num">¥118,643</td></tr>
           </tbody>
         </table></div>
         <ul class="mrows only-sp" aria-label="配当金の一覧">
           <li class="mgrp">2026年12月 · 3件 <span class="sub">受取 ¥1,612,332</span></li>
-          <li><div class="r1"><span class="t">12/09 架空電機</span><span class="amt">¥956,220</span></div><div class="r2"><span>特定 · 税引前 ¥1,200,000</span><span>9901</span></div></li>
-          <li><div class="r1"><span class="t">12/10 架空フィナンシャル・グループ</span><span class="amt">¥398,425</span></div><div class="r2"><span>特定 · 税引前 ¥500,000</span><span>9907</span></div></li>
-          <li><div class="r1"><span class="t">12/15 架空エレクトロン</span><span class="amt">¥257,687</span></div><div class="r2"><span>一般 · 税引前 ¥323,380</span><span>9906</span></div></li>
-          <li class="mgrp">2026年9月 · 2件 <span class="sub">受取 ¥715,281</span></li>
-          <li><div class="r1"><span class="t">9/26 架空電力ホールディングス</span><span class="amt">¥600,000</span></div><div class="r2"><span>NISA成長 · 非課税</span><span>9912</span></div></li>
-          <li><div class="r1"><span class="t">9/10 架空リース</span><span class="amt">¥115,281</span></div><div class="r2"><span>特定 · 税引前 ¥144,660</span><span>9908</span></div></li>
+          <li><a class="rowlink" href="#rcpt-d1" aria-label="12/09 架空電機の詳細を見る"><div class="r1"><span class="t">12/09 架空電機</span><span class="amt">¥956,220</span></div><div class="r2"><span>特定 · 税引前 ¥1,200,000</span><span>9901</span></div></a></li>
+          <li><a class="rowlink" href="#rcpt-d1" aria-label="12/10 架空フィナンシャル・グループの詳細を見る"><div class="r1"><span class="t">12/10 架空フィナンシャル・グループ</span><span class="amt">¥398,425</span></div><div class="r2"><span>特定 · 税引前 ¥500,000</span><span>9907</span></div></a></li>
+          <li><a class="rowlink" href="#rcpt-d1" aria-label="12/15 架空エレクトロンの詳細を見る"><div class="r1"><span class="t">12/15 架空エレクトロン</span><span class="amt">¥257,687</span></div><div class="r2"><span>一般 · 税引前 ¥323,380</span><span>9906</span></div></a></li>
+          <li class="mgrp">2026年9月 · 2件 <span class="sub">受取 ¥715,251</span></li>
+          <li><a class="rowlink" href="#rcpt-d1" aria-label="9/26 架空電力ホールディングスの詳細を見る"><div class="r1"><span class="t">9/26 架空電力ホールディングス</span><span class="amt">¥600,000</span></div><div class="r2"><span>NISA成長 · 非課税</span><span>9912</span></div></a></li>
+          <li><a class="rowlink" href="#rcpt-d1" aria-label="9/10 架空リースの詳細を見る"><div class="r1"><span class="t">9/10 架空リース</span><span class="amt">¥115,251</span></div><div class="r2"><span>特定 · 税引前 ¥144,630</span><span>9908</span></div></a></li>
           <li class="mgrp">2026年6月 · 2件 <span class="sub">受取 ¥478,111</span></li>
-          <li><div class="r1"><span class="t">6/20 架空電機</span><span class="amt">¥278,898</span></div><div class="r2"><span>特定 · 税引前 ¥350,000</span><span>9901</span></div></li>
-          <li><div class="r1"><span class="t">6/25 架空食品</span><span class="amt">¥199,213</span></div><div class="r2"><span>一般 · 税引前 ¥250,000</span><span>9902</span></div></li>
-          <li class="mgrp">2026年3月 · 2件 <span class="sub">受取 ¥357,714</span></li>
-          <li><div class="r1"><span class="t">3/15 架空成長ファンド</span><span class="amt">¥239,055</span></div><div class="r2"><span>特定 · 税引前 ¥300,000</span><span>分配金</span></div></li>
-          <li><div class="r1"><span class="t">3/28 架空商事ホールディングス・インターナショナル</span><span class="amt">¥118,659</span></div><div class="r2"><span>特定 · 税引前 ¥147,506</span><span>9905</span></div></li>
+          <li><a class="rowlink" href="#rcpt-d1" aria-label="6/20 架空電機の詳細を見る"><div class="r1"><span class="t">6/20 架空電機</span><span class="amt">¥278,898</span></div><div class="r2"><span>特定 · 税引前 ¥350,000</span><span>9901</span></div></a></li>
+          <li><a class="rowlink" href="#rcpt-d1" aria-label="6/25 架空食品の詳細を見る"><div class="r1"><span class="t">6/25 架空食品</span><span class="amt">¥199,213</span></div><div class="r2"><span>一般 · 税引前 ¥250,000</span><span>9902</span></div></a></li>
+          <li class="mgrp">2026年3月 · 2件 <span class="sub">受取 ¥357,698</span></li>
+          <li><a class="rowlink" href="#rcpt-d1" aria-label="3/15 架空成長ファンドの詳細を見る"><div class="r1"><span class="t">3/15 架空成長ファンド</span><span class="amt">¥239,055</span></div><div class="r2"><span>特定 · 税引前 ¥300,000</span><span>分配金</span></div></a></li>
+          <li><a class="rowlink" href="#rcpt-d1" aria-label="3/28 架空商事ホールディングス・インターナショナルの詳細を見る"><div class="r1"><span class="t">3/28 架空商事ホールディングス・インターナショナル</span><span class="amt">¥118,643</span></div><div class="r2"><span>特定 · 税引前 ¥147,490</span><span>9905</span></div></a></li>
         </ul>
       </div>
       <aside class="detail" aria-label="行の詳細">
@@ -258,6 +260,9 @@
 (function(){
   if(new URLSearchParams(location.search).has("dark"))document.documentElement.dataset.theme="dark";
   var tab=new URLSearchParams(location.search).get("tab")||"dividend";
+  var counts={dividend:"9件",stock:"3件",fund:"2件"};
+  var head=document.querySelector(".page-head .count");
+  if(head&&counts[tab])head.textContent=counts[tab];
   document.querySelectorAll('[data-panel]').forEach(function(p){p.hidden=p.dataset.panel!==tab;});
   document.querySelectorAll('.tabs [data-tab]').forEach(function(a){a.setAttribute("aria-selected",a.dataset.tab===tab?"true":"false");});
 })();
