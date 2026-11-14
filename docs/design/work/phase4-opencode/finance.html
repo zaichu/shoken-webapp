@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 4 見本:金融データの表示規則(架空データ)</title>
+<link rel="stylesheet" href="./tokens.css">
+<style>
+  body { background: var(--color-page); color: var(--color-text-deep); font-family: var(--font-sans); margin: 0; line-height: 1.5; }
+  .page { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+  .topbar { background: var(--color-brand); color: var(--color-text-inverse); padding: 12px 16px; }
+  .topbar .inner { max-width: 960px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .topbar h1 { font-size: 17px; margin: 0; }
+  .topbar button { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--color-brand-muted); background: transparent; color: var(--color-text-inverse); font-size: 13px; }
+  .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; margin-top: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 8px; }
+  .card p.note { font-size: 12px; color: var(--color-text-muted); margin: 0 0 12px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+  .good, .bad { border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; background: var(--color-surface-sunken); }
+  .good { border-left: 4px solid var(--color-positive); }
+  .bad { border-left: 4px solid var(--color-negative); }
+  .tag { display: inline-block; font-size: 12px; font-weight: bold; border-radius: 999px; padding: 2px 10px; margin-bottom: 8px; }
+  .good .tag { background: var(--color-positive-soft); color: var(--color-positive); }
+  .bad .tag { background: var(--color-negative-soft); color: var(--color-negative-vivid); }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.nums { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.nums th { font-size: 12px; color: var(--color-text-soft); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--color-border-strong); }
+  table.nums th.r, table.nums td.r { text-align: right; }
+  table.nums td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); }
+  .pos { color: var(--color-positive); }
+  .neg { color: var(--color-negative); }
+  .band { background: var(--color-brand); color: var(--color-text-inverse); border-radius: 10px; padding: 16px; display: flex; gap: 24px; flex-wrap: wrap; }
+  .band .item .lb { font-size: 12px; color: var(--color-brand-muted); }
+  .band .item .vl { font-size: 24px; font-weight: bold; }
+  .band .pos { color: var(--color-profit-bright); }
+  .band .neg { color: var(--color-loss-bright); }
+  .bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; border-bottom: 2px solid var(--color-border-strong); padding-top: 8px; }
+  .bars .b { flex: 1; background: var(--color-chart-2); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .bars .b.zero { background: var(--color-border-strong); }
+  .bars .b.prev { background: var(--color-chart-previous); }
+  .months { display: flex; gap: 4px; font-size: 11px; color: var(--color-text-muted); }
+  .months span { flex: 1; text-align: center; }
+  .legend { font-size: 13px; margin-top: 8px; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+  .donut-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .status { font-size: 13px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 8px; margin-top: 8px; background: var(--color-surface); }
+  .grouphead { background: var(--color-row-group); border-left: 3px solid var(--color-gold); padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 0 8px 8px 0; margin-top: 8px; }
+  footer { margin-top: 24px; font-size: 12px; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+<div class="topbar"><div class="inner">
+  <h1>Phase 4 見本:金融データの表示規則(架空データ)</h1>
+  <button id="theme" type="button">ダーク/ライト切替</button>
+</div></div>
+<div class="page">
+  <p class="note" style="font-size:13px">架空データ(9900 番台・規則的な値)。合計は一致させている。基礎トークンは <code>tokens.css</code>(正本 <code>frontend/style/input.css</code> の抜粋)。良い例・悪い例の対で示す。</p>
+
+  <div class="card"><h2>1. 数値:桁区切り・右そろえ・等幅 / 小数桁 / 全桁表示</h2>
+    <p class="note">finance-data.md §1。Amount + format_currency。¥28.6M のような省略は使わない。</p>
+    <div class="pair">
+      <div class="good"><span class="tag">良い例</span>
+        <table class="nums"><tr><th>銘柄</th><th class="r">評価額</th><th class="r">評価損益</th></tr>
+        <tr><td>9901 架空電機</td><td class="r num">¥1,234,500</td><td class="r num pos">+¥234,500</td></tr>
+        <tr><td>9902 架空食品</td><td class="r num">¥876,500</td><td class="r num neg">-¥23,500</td></tr></table>
+        <p class="note">右そろえ・等幅で 1 の位がそろう。1株配当は列内で桁そろえ:¥72.5 / ¥71.0 / ¥0.0。</p>
+      </div>
+      <div class="bad"><span class="tag">悪い例</span>
+        <table class="nums"><tr><th>銘柄</th><th>評価額</th><th>評価損益</th></tr>
+        <tr><td>9901 架空電機</td><td>¥1234500</td><td>¥1.23M</td></tr>
+        <tr><td>9902 架空食品</td><td>¥876500</td><td>▲23500</td></tr></table>
+        <p class="note">区切りなし・左そろえ・短縮・▲。桁を読み違える。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><h2>2. 増減:符号+色 / ゼロと欠測 —</h2>
+    <p class="note">finance-data.md §2。Delta=符号+色、Plain(残高・価格・予想)=通常色。▲▼禁止。</p>
+    <div class="pair">
+      <div class="good"><span class="tag">良い例</span>
+        <div class="num">評価損益 <span class="pos">+¥234,500</span> / <span class="neg">-¥23,500</span> / ¥0</div>
+        <div class="num">税額 <span class="neg">-¥16,346</span>(支払) / 還付 <span class="pos">+¥1,200</span></div>
+        <div class="num">評価額 ¥1,234,500(通常色・+なし) / 年間予想 ¥196,373(通常色)</div>
+        <div class="num">2月配当 ¥0(ゼロ) / 基準価額 —(欠測)</div>
+      </div>
+      <div class="bad"><span class="tag">悪い例</span>
+        <div class="num">評価損益 <span class="pos">¥234,500</span>(色のみ。印刷で正負不明)</div>
+        <div class="num">評価額 +¥1,234,500(残高に +。損益と紛らわしい)</div>
+        <div class="num">税額 ¥16,346(通常色。払ったお金に見えない)</div>
+        <div class="num">基準価額 ¥0(ゼロ円に見える。欠測は —)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><h2>3. データ時点:取込日と価格基準日を別ラベル・年付き</h2>
+    <p class="note">finance-data.md §3。price_as_of + home_import_label。10/20 のような年なし表記は使わない。</p>
+    <div class="pair">
+      <div class="good"><span class="tag">良い例</span>
+        <div class="num" style="font-size:13px">価格基準日 2026/10/20 ・ データ:2026/10/21 取り込み</div>
+        <div class="num" style="font-size:13px">月別配当(2026/01 〜 2026/12)</div>
+      </div>
+      <div class="bad"><span class="tag">悪い例</span>
+        <div class="num" style="font-size:13px">10/20 時点(何の時点か・何年か分からない)</div>
+        <div class="num" style="font-size:13px">データ:10/21 取り込み(価格基準日と混ざる)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><h2>4. 合計と内訳の一致 / 紺帯の決まり</h2>
+    <p class="note">finance-data.md §4。評価額 ¥3,345,000 = 内訳の和。帯の中も符号+色(明色)。</p>
+    <div class="band">
+      <div class="item"><div class="lb">評価額</div><div class="vl num">¥3,345,000</div></div>
+      <div class="item"><div class="lb">評価損益</div><div class="vl num pos">+¥345,000</div></div>
+      <div class="item"><div class="lb">取得総額</div><div class="vl num">¥3,000,000</div></div>
+    </div>
+    <div class="grouphead num">2026年12月 · 3件の合計 <span class="pos">+¥74,000</span> <span class="neg">-¥15,020</span> +¥58,980</div>
+    <p class="note">悪い例:年間合計 ¥3,163,438 に対して月別合計 ¥3,099,249、小計「3件」に行 2 行(不一致は不具合)。</p>
+  </div>
+
+  <div class="card"><h2>5. グラフ:月次=棒 / 構成=円+凡例(金額と割合)</h2>
+    <p class="note">finance-data.md §5。曲線禁止。凡例は色+名前+金額+割合。前年は比較色。</p>
+    <div class="pair">
+      <div class="good"><span class="tag">良い例(棒+凡例)</span>
+        <div class="num" style="font-size:12px">月別配当(2026/01 〜 2026/12)・合計 ¥300,000</div>
+        <div class="bars" role="img" aria-label="月別配当の棒グラフ">
+          <div class="b" style="height:20%"></div><div class="b zero" style="height:2%"></div><div class="b" style="height:74%"></div><div class="b" style="height:13%"></div><div class="b" style="height:25%"></div><div class="b" style="height:36%"></div><div class="b" style="height:30%"></div><div class="b" style="height:15%"></div><div class="b" style="height:62%"></div><div class="b" style="height:20%"></div><div class="b" style="height:98%"></div><div class="b" style="height:100%"></div>
+        </div>
+        <div class="months"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span></div>
+        <div class="legend"><span class="sw" style="background:var(--color-chart-1)"></span>国内株式 ¥2,111,000 63.1%　<span class="sw" style="background:var(--color-chart-2)"></span>投資信託 ¥1,234,000 36.9%</div>
+      </div>
+      <div class="bad"><span class="tag">悪い例</span>
+        <div class="num" style="font-size:12px">月別配当(期間なし・合計なし)</div>
+        <div class="num" style="font-size:13px">12か月を滑らかな曲線で結ぶ(月と月の間に値があるように誤読)</div>
+        <div class="legend"><span class="sw" style="background:var(--color-chart-1)"></span>国内株式 63%　<span class="sw" style="background:var(--color-chart-2)"></span>架空グロー…(金額なし・省略で識別不能)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><h2>6. ステータス表示 / 欠測・長い名前</h2>
+    <p class="note">finance-data.md §6・§7。状態名と時点を別項目に。色だけにしない。「最新です」と書かない。</p>
+    <div class="pair">
+      <div class="good"><span class="tag">良い例</span>
+        <div class="status">状態:今日 21:39 に更新</div>
+        <div class="status">状態:取得できず [詳細](理由全文を折り返し表示)</div>
+        <div class="status">評価額 ¥3,345,000(一部更新待ち)</div>
+        <div class="status">架空グローバル先端素材ソリューションファンド(2行まで表示。全文は行詳細で)</div>
+      </div>
+      <div class="bad"><span class="tag">悪い例</span>
+        <div class="status">要更新・15日前(10/31 09:12)に更新(意味が読み取れない)</div>
+        <div class="status">最新です(楽天証券側の新規有無は分からない)</div>
+        <div class="status">架空グローバル先端素材ソリュ…(全文の到達手段なし)</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>根拠: finance-data.md・layout.md。正本: frontend/src/ui/format.rs・labels.rs・amount.rs、frontend/style/input.css。Codex の tokens.css 未作成のため現行トークンで作成。</footer>
+</div>
+<script>
+  document.getElementById('theme').addEventListener('click', () => {
+    const r = document.documentElement;
+    r.dataset.theme = r.dataset.theme === 'dark' ? '' : 'dark';
+  });
+</script>
+</body>
+</html>
