@@ -71,7 +71,7 @@ if [ "$check_mutants" = 1 ] && [ "${SKIP_MUTANTS:-0}" != 1 ] && command -v cargo
       count=$(printf '%s' "$list" | grep -c . || true)
       if [ "$count" -gt 0 ]; then
         echo "cargo-mutants: $crate の差分の変異 ${count} 件を確かめます(SKIP_MUTANTS=1 で省略)"
-        if ! (cd "$REPO_ROOT/$crate" && env SQLX_OFFLINE=true RUSTC_WRAPPER="${RUSTC_WRAPPER:-$(command -v sccache || true)}" cargo mutants -j "${MUTANTS_JOBS:-2}" --output mutants.out --in-diff "$diff_file" --no-shuffle); then
+        if ! (cd "$REPO_ROOT/$crate" && env SQLX_OFFLINE=true RUSTC_WRAPPER="${RUSTC_WRAPPER:-$(command -v sccache || true)}" cargo mutants -j "${MUTANTS_JOBS:-2}" --output . --in-diff "$diff_file" --no-shuffle); then
           echo "cargo-mutants: 見逃し(MISSED)か時間切れ(TIMEOUT)があります。$crate/mutants.out/missed.txt と timeout.txt を見て直してください" >&2
           exit 1
         fi

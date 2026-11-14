@@ -142,7 +142,7 @@ jobs:
           set +e
           ln -sfn "$(realpath ../shared)" /tmp/shared
           ln -sfn "$(realpath ../docs)" /tmp/docs
-          cargo mutants -j 4 --output mutants.out --in-diff mutants.diff --shard ${{ matrix.shard }}/4
+          cargo mutants -j 4 --output . --in-diff mutants.diff --shard ${{ matrix.shard }}/4
           code=$?
           set -e
           if [ "$code" -eq 2 ] || [ "$code" -eq 3 ]; then exit 0; fi
@@ -263,7 +263,7 @@ jobs:
           # diff ジョブと同じく ../shared と ../../docs パス依存対策の symlink を張る
           ln -sfn "$(realpath ../shared)" /tmp/shared
           ln -sfn "$(realpath ../docs)" /tmp/docs
-          cargo mutants -j 4 --output mutants.out --shard ${{ matrix.shard }}/4
+          cargo mutants -j 4 --output . --shard ${{ matrix.shard }}/4
           code=$?
           set -e
           if [ "$code" -eq 2 ] || [ "$code" -eq 3 ]; then exit 0; fi
