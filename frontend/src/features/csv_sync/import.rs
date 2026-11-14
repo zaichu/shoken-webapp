@@ -10,7 +10,7 @@ use crate::features::asset_balance::{
     IMPORT_PATH, LIST_PATH, PREVIEW_PATH,
 };
 use crate::features::receipts::{ReceiptsTab, chunking_for};
-use crate::support::csv_flow::{CsvChunking, preview_csv, upload_csv_while};
+use crate::support::csv_flow::{CsvChunking, ensure_csv_filename, preview_csv, upload_csv_while};
 use crate::ui::labels;
 use leptos::prelude::*;
 
@@ -253,15 +253,6 @@ fn csv_to_file(csv: &ReceivedCsv) -> Option<web_sys::File> {
 
 fn file_name(kind: CsvKind) -> String {
     format!("sync-{}.csv", kind.request_value())
-}
-
-/// Android の手動選択では名前に .csv が付かないことがあるため backend の拡張子ガードに合わせて補う
-pub(crate) fn ensure_csv_filename(original: &str) -> String {
-    if original.to_lowercase().ends_with(".csv") {
-        original.to_string()
-    } else {
-        format!("{original}.csv")
-    }
 }
 
 /// 中身はそのままに名前だけ .csv 付きの File にする。失敗時は元の File を返す
