@@ -330,6 +330,7 @@ pub async fn prune_login_events(pool: &Db) -> Result<u64, ApiError> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -554,7 +555,7 @@ mod tests {
             device_opaque_id(&user_b, &hash)
         );
         let id = device_opaque_id(&user_a, &hash);
-        let raw_hex: String = hash.iter().map(|b| format!("{b:02x}")).collect();
+        let raw_hex = hex::encode(hash);
         assert!(!id.contains(&raw_hex));
     }
 

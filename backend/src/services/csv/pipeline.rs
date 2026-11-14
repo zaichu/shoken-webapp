@@ -50,7 +50,7 @@ pub fn parse_csv_with_config(bytes: &[u8], config: &CsvParserConfig) -> Result<C
         .headers()
         .map_err(|error| CsvError::HeaderRead(error.to_string()))?;
     check_columns(headers.len())?;
-    for field in headers.iter() {
+    for field in headers {
         check_cell_len(field)?;
     }
     let index = HeaderIndex::new(headers.iter());
@@ -64,7 +64,7 @@ pub fn parse_csv_with_config(bytes: &[u8], config: &CsvParserConfig) -> Result<C
             return Err(CsvError::TooManyRows(MAX_CSV_ROWS).into());
         }
         check_columns(record.len())?;
-        for field in record.iter() {
+        for field in &record {
             check_cell_len(field)?;
         }
 
@@ -137,6 +137,7 @@ fn is_all_empty_record(record: &csv::StringRecord) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

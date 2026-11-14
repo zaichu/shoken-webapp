@@ -237,6 +237,7 @@ pub async fn create_account_deletion_confirmation(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::{

@@ -86,6 +86,10 @@ pub fn SearchBox(
 
 /// 文字列の部分一致検索の入力欄
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn SearchTextInput(
     #[prop(into)] placeholder: String,
     #[prop(optional)] testid: Option<&'static str>,
@@ -261,6 +265,10 @@ pub fn AddConditionButton(
 /// スクロールを止めない。スマホは中央のダイアログで出し、後ろを暗くして
 /// 止める。出し分けはこの部品だけが持ち、画面ごとには書かない
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn ConditionPanel(
     #[prop(into)] title: String,
     on_close: impl Fn() + Copy + 'static + Send + Sync,

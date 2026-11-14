@@ -30,6 +30,10 @@ pub fn avatar_initials(name: Option<&str>, email: Option<&str>) -> String {
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn UserAvatar(
     picture_url: Option<String>,
     name: Option<String>,

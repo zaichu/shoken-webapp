@@ -342,6 +342,7 @@ pub async fn delete_account(pool: &Db, user_id: UserId) -> Result<(), DbError> {
     Ok(())
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -350,7 +351,7 @@ mod tests {
         let token: SessionToken = "550e8400-e29b-41d4-a716-446655440000".parse().unwrap();
         // SQL の sha256(convert_to(id::text, 'UTF8')) と同じ、
         // 小文字ハイフン付き正規形文字列への SHA-256 の固定値
-        let digest_hex: String = token.hash().iter().map(|b| format!("{b:02x}")).collect();
+        let digest_hex = hex::encode(token.hash());
         assert_eq!(
             digest_hex,
             "a3a9e1ed9732cab28868127be00f1ce921acaefdd5c3b23a6e9e0072bd9c1a34"

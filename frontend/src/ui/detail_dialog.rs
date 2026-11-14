@@ -146,6 +146,10 @@ fn detail_column(cells: Vec<DetailCell>) -> AnyView {
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn DetailDialog(
     #[prop(into)] name: String,
     #[prop(into, optional)] code: String,

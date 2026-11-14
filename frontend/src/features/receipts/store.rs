@@ -132,12 +132,10 @@ impl ReceiptsStore {
         let Some(generation) = self.current_generation() else {
             return;
         };
-        let mut tab = tab;
-        if self.expanded_epoch.get_untracked() != Some(generation) {
+        let tab = if self.expanded_epoch.get_untracked() != Some(generation) {
             self.expanded_epoch.set(Some(generation));
             self.expanded.update(HashSet::clear);
             self.mobile_summary_expanded.set(false);
-            // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
             self.search.set(ReceiptSearch::default());
             self.sort_order.set(ReceiptSortOrder::Newest);
             let initial = crate::settings::try_use_settings()
@@ -145,8 +143,10 @@ impl ReceiptsStore {
                 .get_untracked();
             self.active_tab.set(initial);
             self.visited.set(HashSet::new());
-            tab = initial;
-        }
+            initial
+        } else {
+            tab
+        };
         let needs_prune = self
             .tabs
             .with_untracked(|map| map.keys().any(|(cached, _)| *cached != generation));

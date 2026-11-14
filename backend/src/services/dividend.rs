@@ -250,6 +250,7 @@ fn parse_taxes(row: &CsvRowView<'_>, row_num: RowNumber) -> Result<Decimal, CsvR
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::models::csv_import::CsvPreviewResponse;

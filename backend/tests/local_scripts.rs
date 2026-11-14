@@ -1,4 +1,6 @@
 #![cfg(target_os = "linux")]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::literal_string_with_formatting_args)]
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt;

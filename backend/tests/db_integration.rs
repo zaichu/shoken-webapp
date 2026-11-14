@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use axum::{
     body::{Body, to_bytes},
     http::{Method, Request, StatusCode, header::ACCESS_CONTROL_ALLOW_ORIGIN},
@@ -502,21 +504,21 @@ fn make_mutualfund_item(fund_name: &str) -> CreateMutualfundRequest {
     }
 }
 
-fn make_mutualfund_csv() -> &'static str {
+const fn make_mutualfund_csv() -> &'static str {
     concat!(
         "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n",
         "\"2022/10/28\",\"2022/11/2\",\"架空インデックス 米国株式\",\"\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"600000\""
     )
 }
 
-fn make_dividend_csv() -> &'static str {
+const fn make_dividend_csv() -> &'static str {
     concat!(
         "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
         "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8592\",\"テスト配当\",\"円\",\"90.00\",\"200\",\"18000\",\"3656\",\"14344\""
     )
 }
 
-fn make_domestic_stock_csv() -> &'static str {
+const fn make_domestic_stock_csv() -> &'static str {
     concat!(
         "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]\n",
         "\"2026/02/09\",\"2026/02/12\",\"9902\",\"架空エネルギー\",\"特定\",\"-\",\"売付\",\"100\",\"1500.0\",\"150000\",\"1400.00\",\"10000\""

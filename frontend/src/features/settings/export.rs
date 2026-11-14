@@ -96,6 +96,10 @@ pub(crate) async fn fetch_csv(kind: ExportKind) -> Result<(String, String), Expo
     Ok((kind.filename(&today()), content))
 }
 
+#[allow(
+    clippy::missing_const_for_fn,
+    reason = "wasm32 Date API and format macros are not const"
+)]
 fn today() -> String {
     #[cfg(target_arch = "wasm32")]
     {

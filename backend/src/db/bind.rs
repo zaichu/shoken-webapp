@@ -217,6 +217,7 @@ impl From<shared::dividend_per_share::DividendCacheStatus> for Bind {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use shared::dividend_per_share::DividendCacheStatus;

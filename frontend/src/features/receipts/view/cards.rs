@@ -546,6 +546,10 @@ pub(crate) fn group_headline_summary(
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub(crate) fn CompactReceiptGroup(
     tab: ReceiptsTab,
     label: String,
@@ -630,6 +634,10 @@ fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
 }
 
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub(crate) fn MobileCardGroup(
     tab: ReceiptsTab,
     label: String,

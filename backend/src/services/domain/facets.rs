@@ -158,6 +158,7 @@ pub async fn fetch_security_facets(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::{FacetOrder, GroupField, build_group_facets_query, build_security_facets_query};
     use uuid::Uuid;

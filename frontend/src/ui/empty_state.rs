@@ -35,6 +35,10 @@ impl EmptyStateIcon {
 /// データが空の画面の見せ方を1種類にまとめる。
 /// icon は見出しの上、children は見出しの下(次の行動)に出る。
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub fn EmptyState(
     #[prop(into)] title: String,
     #[prop(into, optional)] description: Option<String>,

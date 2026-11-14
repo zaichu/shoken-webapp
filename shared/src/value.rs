@@ -44,7 +44,7 @@ impl SecurityCode {
     }
 
     /// 検証なしで包む。CSV プレビューなど、受け取った値をそのまま表示する用途専用
-    pub fn from_raw(value: String) -> Self {
+    pub const fn from_raw(value: String) -> Self {
         Self(value)
     }
 
@@ -154,7 +154,7 @@ impl Account {
     }
 
     /// 検証なしで包む。CSV プレビューなど、受け取った値をそのまま表示する用途専用
-    pub fn from_raw(value: String) -> Self {
+    pub const fn from_raw(value: String) -> Self {
         Self(value)
     }
 
@@ -220,7 +220,7 @@ pub struct RecordId(Uuid);
 
 impl RecordId {
     #[cfg(feature = "typed")]
-    pub fn get(self) -> Uuid {
+    pub const fn get(self) -> Uuid {
         self.0
     }
 
@@ -230,7 +230,7 @@ impl RecordId {
     }
 
     #[cfg(not(feature = "typed"))]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 }
@@ -261,7 +261,7 @@ pub struct UserId(Uuid);
 
 #[cfg(feature = "typed")]
 impl UserId {
-    pub fn get(self) -> Uuid {
+    pub const fn get(self) -> Uuid {
         self.0
     }
 }
