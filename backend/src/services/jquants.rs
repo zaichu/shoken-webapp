@@ -1,5 +1,8 @@
 mod response;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::future::Future;
+
 #[cfg(target_arch = "wasm32")]
 mod client_worker;
 
@@ -67,19 +70,21 @@ pub(crate) fn decode_error_summary(op: &'static str, body_len: usize) -> String 
 // される必要がある。J-Quants への問い合わせ経路は Worker にしか存在しない
 #[cfg(not(target_arch = "wasm32"))]
 impl JQuantsClient {
-    pub async fn get_fin_summary(
+    pub fn get_fin_summary(
         &self,
         _params: FinancialStatementsQuery,
-    ) -> Result<FinSummaryResponse, ApiError> {
-        Err(ApiError::Internal(
+    ) -> impl Future<Output = Result<FinSummaryResponse, ApiError>> {
+        std::future::ready(Err(ApiError::Internal(
             "J-Quants API の呼び出しは Workers 環境でのみ利用できます",
-        ))
+        )))
     }
 
-    pub async fn get_equities_master(&self) -> Result<EquitiesMasterResponse, ApiError> {
-        Err(ApiError::Internal(
+    pub fn get_equities_master(
+        &self,
+    ) -> impl Future<Output = Result<EquitiesMasterResponse, ApiError>> {
+        std::future::ready(Err(ApiError::Internal(
             "J-Quants API の呼び出しは Workers 環境でのみ利用できます",
-        ))
+        )))
     }
 }
 

@@ -113,21 +113,21 @@ mod tests {
             })
         }
 
-        async fn bulk_create(
+        fn bulk_create(
             _pool: &Db,
             user_id: UserId,
             items: &[Self::Row],
             limit: RowLimit,
-        ) -> Result<BulkCreateResponse, ApiError> {
+        ) -> impl Future<Output = Result<BulkCreateResponse, ApiError>> + Send {
             assert_eq!(user_id, UserId::default());
             assert_eq!(limit, RowLimit::new(100_000));
             if items.iter().any(|value| value == "fail") {
-                return Err(ApiError::Internal("test upload failure"));
+                return std::future::ready(Err(ApiError::Internal("test upload failure")));
             }
-            Ok(BulkCreateResponse {
+            std::future::ready(Ok(BulkCreateResponse {
                 inserted: items.len(),
                 skipped: 0,
-            })
+            }))
         }
     }
 
