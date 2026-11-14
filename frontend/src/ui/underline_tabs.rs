@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use rust_decimal::prelude::ToPrimitive;
 use send_wrapper::SendWrapper;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -443,36 +444,39 @@ fn arm_settle_guard(
 ) {
     let guard_gesture = gesture.clone();
     let guard_mounted = mounted.clone();
-    gloo_timers::callback::Timeout::new(SWIPE_SETTLE_GUARD_MS as u32, move || {
-        if !guard_mounted.load(Ordering::Relaxed) {
-            return;
-        }
-        if !motion.settling.get_untracked() {
-            return;
-        }
-        let target = {
-            let mut gesture = guard_gesture.borrow_mut();
-            let Some(settle) = gesture.settle.take() else {
+    gloo_timers::callback::Timeout::new(
+        SWIPE_SETTLE_GUARD_MS.to_u32().unwrap_or(u32::MAX),
+        move || {
+            if !guard_mounted.load(Ordering::Relaxed) {
                 return;
-            };
-            if let Some(id) = gesture.frame.take()
-                && let Some(window) = web_sys::window()
-            {
-                let _ = window.cancel_animation_frame(id);
             }
-            gesture.locked = false;
-            settle.target
-        };
-        if let Some(track) = track.get() {
-            clear_slides(&track);
-        }
-        motion.progress.set(0.0);
-        motion.dragging.set(false);
-        motion.settling.set(false);
-        if target != current.get_untracked() {
-            on_select.run(target);
-        }
-    })
+            if !motion.settling.get_untracked() {
+                return;
+            }
+            let target = {
+                let mut gesture = guard_gesture.borrow_mut();
+                let Some(settle) = gesture.settle.take() else {
+                    return;
+                };
+                if let Some(id) = gesture.frame.take()
+                    && let Some(window) = web_sys::window()
+                {
+                    let _ = window.cancel_animation_frame(id);
+                }
+                gesture.locked = false;
+                settle.target
+            };
+            if let Some(track) = track.get() {
+                clear_slides(&track);
+            }
+            motion.progress.set(0.0);
+            motion.dragging.set(false);
+            motion.settling.set(false);
+            if target != current.get_untracked() {
+                on_select.run(target);
+            }
+        },
+    )
     .forget();
 }
 

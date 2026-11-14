@@ -1,4 +1,5 @@
 use super::*;
+use rust_decimal::prelude::ToPrimitive;
 
 #[test]
 fn intl_fixed_matches_number_format_boundary_cases() {
@@ -112,6 +113,15 @@ fn integer_percent_rounds_to_whole_numbers() {
     assert_eq!(format_integer_percent(42.4), "42%");
     assert_eq!(format_integer_percent(42.5), "43%");
     assert_eq!(format_integer_percent(0.0), "0%");
+    assert_eq!(format_integer_percent(f64::NAN), "0%");
+    assert_eq!(
+        format_integer_percent(f64::INFINITY),
+        "9223372036854775807%"
+    );
+    assert_eq!(
+        format_integer_percent(f64::NEG_INFINITY),
+        "-9223372036854775808%"
+    );
 }
 
 #[test]
@@ -166,6 +176,14 @@ fn jst_date_rolls_over_at_nine_am_boundary() {
     assert_eq!(jst_date("2026-10-18"), Some((2026, 10, 18)));
     assert_eq!(jst_date("not-a-date"), None);
     assert_eq!(jst_date(""), None);
+}
+
+#[test]
+fn today_jst_saturates_at_i64_upper_bound() {
+    assert_eq!(
+        today_jst_from_timestamp(i64::MAX as f64),
+        Some(civil_from_days(i64::MAX.div_euclid(86_400)))
+    );
 }
 
 #[test]
@@ -233,10 +251,10 @@ proptest::proptest! {
         divisor in 1u32..=6u32,
         decimals in 0u32..=5u32,
     ) {
-        let value = mantissa as f64 / 10f64.powi(divisor as i32);
+        let value = mantissa.to_f64().unwrap() / 10f64.powi(divisor.cast_signed());
         let result = intl_fixed(value, decimals);
         proptest::prop_assert_eq!(intl_fixed(-value, decimals), -result);
-        let unit = 10f64.powi(-(decimals as i32));
+        let unit = 10f64.powi(-decimals.cast_signed());
         proptest::prop_assert!((result - value).abs() <= 0.6 * unit);
     }
 

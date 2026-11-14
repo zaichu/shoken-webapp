@@ -111,7 +111,7 @@ pub fn unit_price_decimals(values: impl Iterator<Item = f64>) -> u32 {
 
 fn decimal_places(text: &str) -> Option<u32> {
     let (_, fraction) = text.split_once('.')?;
-    Some(fraction.len() as u32)
+    u32::try_from(fraction.len()).ok()
 }
 
 /// 1株・1口あたりの金額(取得単価・現在値・基準価額・1株配当)。
@@ -195,7 +195,19 @@ pub fn format_iso_date(value: &str) -> String {
 
 /// 率(整数%)
 pub fn format_integer_percent(value: f64) -> String {
-    format!("{}%", value.round() as i64)
+    let rounded = value.round();
+    let integer = if rounded.is_nan() {
+        0
+    } else {
+        rounded.to_i64().unwrap_or_else(|| {
+            if rounded.is_sign_negative() {
+                i64::MIN
+            } else {
+                i64::MAX
+            }
+        })
+    };
+    format!("{integer}%")
 }
 
 /// 日付の年月日を取り出す。日付として読めない値は None
@@ -329,8 +341,21 @@ pub fn calendar_days_between(from: (i32, u32, u32), to: (i32, u32, u32)) -> i64 
 /// 今日(JST)の年月日
 #[cfg(target_arch = "wasm32")]
 fn today_jst() -> Option<(i32, u32, u32)> {
-    // epoch 秒を9時間進めて JST の暦日を出す
-    let jst_seconds = (js_sys::Date::now() / 1000.0) as i64 + 9 * 3600;
+    today_jst_from_timestamp(js_sys::Date::now() / 1000.0)
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn today_jst_from_timestamp(timestamp: f64) -> Option<(i32, u32, u32)> {
+    let jst_seconds = timestamp
+        .to_i64()
+        .unwrap_or_else(|| {
+            if timestamp.is_sign_negative() {
+                i64::MIN
+            } else {
+                i64::MAX
+            }
+        })
+        .saturating_add(9 * 3600);
     Some(civil_from_days(jst_seconds.div_euclid(86_400)))
 }
 
