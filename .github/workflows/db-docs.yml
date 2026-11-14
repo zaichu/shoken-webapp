@@ -59,7 +59,9 @@ jobs:
         uses: ./.github/actions/rust-cache
         with:
           workspaces: . -> target
-          shared-key: backend-ci
+          # backend 系と鍵を共有し、main で保存された warm cache を復元する(PR 側では保存しない)
+          shared-key: backend
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # バージョンを固定する(生成結果は tbls のバージョンで変わることがあるため)
       - name: Install tbls

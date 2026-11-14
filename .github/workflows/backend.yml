@@ -68,7 +68,10 @@ jobs:
         uses: ./.github/actions/rust-cache
         with:
           workspaces: . -> target
-          shared-key: backend-ci
+          # backend 系 workflow で鍵を共有する。保存は main で動く deploy 側だけにし、
+          # PR 側の重複保存(鍵の競合と cache 肥大化の元)を抑止する
+          shared-key: backend
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Check formatting
         if: steps.gate.outputs.backend == 'true'
@@ -95,6 +98,20 @@ jobs:
         if: steps.gate.outputs.backend == 'true'
         working-directory: ${{ github.workspace }}
         run: bash scripts/check-openapi.sh
+
+      # rust-cache の鍵は Cargo.lock 等の hash を含むため lock 変更直後は cold になる。
+      # worker-build 自体は安定鍵の別 cache に置き、cold 時の再 build(実測 2分超)を避ける。
+      # cargo が再 install を skip できるよう管理情報(.crates.toml 等)も一緒に残す
+      - name: Cache worker-build binary
+        if: steps.gate.outputs.backend == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 https://github.com/actions/cache/releases/tag/v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin/worker-build
+            ~/.cargo/bin/worker-codegen
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: worker-build-0.9.0-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install worker-build
         if: steps.gate.outputs.backend == 'true'
