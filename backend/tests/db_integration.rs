@@ -2231,7 +2231,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn dividend_cache_migration_backfills_only_legacy_error_rows() {
+async fn dividend_cache_migration_backfills_all_non_pending_rows_without_stale_at() {
     let (pool, _node) = start_test_pool().await;
 
     db::query(
@@ -2240,7 +2240,8 @@ async fn dividend_cache_migration_backfills_only_legacy_error_rows() {
          VALUES
             ('9911', 'error', NULL, '2025-01-01T00:00:00Z'),
             ('9912', 'pending', NULL, '2025-01-02T00:00:00Z'),
-            ('9913', 'error', '2025-01-03T00:00:00Z', '2025-01-04T00:00:00Z')",
+            ('9913', 'error', '2099-01-03T00:00:00Z', '2025-01-04T00:00:00Z'),
+            ('9914', 'ok', NULL, '2025-01-05T00:00:00Z')",
         vec![],
     )
     .execute(&pool)
@@ -2251,11 +2252,11 @@ async fn dividend_cache_migration_backfills_only_legacy_error_rows() {
         "../migrations/0031_dividend_cache_error_stale_at.sql"
     ))
     .await
-    .expect("NULL error stale_at のバックフィル");
+    .expect("NULL stale_at のバックフィル");
 
     let rows: Vec<(String, Option<chrono::DateTime<Utc>>)> = db::query(
         "SELECT security_code, stale_at FROM dividend_per_share_cache
-         WHERE security_code IN ('9911', '9912', '9913') ORDER BY security_code",
+         WHERE security_code IN ('9911', '9912', '9913', '9914') ORDER BY security_code",
         vec![],
     )
     .fetch_all(&pool)
@@ -2263,7 +2264,23 @@ async fn dividend_cache_migration_backfills_only_legacy_error_rows() {
     .expect("更新結果の取得");
     assert_eq!(rows[0].1, Some("2025-01-01T00:00:00Z".parse().unwrap()));
     assert_eq!(rows[1].1, None);
-    assert_eq!(rows[2].1, Some("2025-01-03T00:00:00Z".parse().unwrap()));
+    assert_eq!(rows[2].1, Some("2099-01-03T00:00:00Z".parse().unwrap()));
+    assert_eq!(rows[3].1, Some("2025-01-05T00:00:00Z".parse().unwrap()));
+
+    let selected: Vec<(String,)> = db::query(
+        "SELECT security_code FROM dividend_per_share_cache
+         WHERE security_code IN ('9911', '9912', '9913', '9914')
+           AND (status = 'pending' OR stale_at < NOW())
+         ORDER BY security_code",
+        vec![],
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("再取得対象の取得");
+    assert_eq!(
+        selected.into_iter().map(|(code,)| code).collect::<Vec<_>>(),
+        ["9911", "9912", "9914"]
+    );
 }
 
 /// drain_refresh_queue の消化対象選定(pending / 再試行間隔経過済みの error は対象、
