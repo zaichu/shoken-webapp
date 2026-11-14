@@ -21,7 +21,7 @@ updates:
       - "frontend"
   # Cargo（バックエンド）
   - package-ecosystem: "cargo"
-    directory: "/backend"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"

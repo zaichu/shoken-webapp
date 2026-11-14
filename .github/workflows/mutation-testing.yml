@@ -114,10 +114,14 @@ jobs:
       - name: Install cargo-mutants
         run: cargo install --locked cargo-mutants@27.1.0
 
-      # --relative はカレントディレクトリ基準でパスを書き換えるため、
-      # クレート内の --in-diff にそのまま渡せる
+      # backend/shared は root workspace なので、差分パスも repo root 基準にする。
       - name: Make PR diff
-        run: git diff --relative ${{ github.event.pull_request.base.sha }}...HEAD > mutants.diff
+        run: |
+          if [ "${{ matrix.crate }}" = frontend ]; then
+            git diff --relative ${{ github.event.pull_request.base.sha }}...HEAD -- frontend > mutants.diff
+          else
+            git diff ${{ github.event.pull_request.base.sha }}...HEAD -- "${{ matrix.crate }}/src" > mutants.diff
+          fi
 
       # 差分に mutant 対象がない場合でも件数が step summary と outputs に残る。
       # 空 diff では --json が何も出力しないためフォールバックする
@@ -138,7 +142,7 @@ jobs:
           set +e
           ln -sfn "$(realpath ../shared)" /tmp/shared
           ln -sfn "$(realpath ../docs)" /tmp/docs
-          cargo mutants -j 4 --in-diff mutants.diff --shard ${{ matrix.shard }}/4
+          cargo mutants -j 4 --output mutants.out --in-diff mutants.diff --shard ${{ matrix.shard }}/4
           code=$?
           set -e
           if [ "$code" -eq 2 ] || [ "$code" -eq 3 ]; then exit 0; fi
@@ -259,7 +263,7 @@ jobs:
           # diff ジョブと同じく ../shared と ../../docs パス依存対策の symlink を張る
           ln -sfn "$(realpath ../shared)" /tmp/shared
           ln -sfn "$(realpath ../docs)" /tmp/docs
-          cargo mutants -j 4 --shard ${{ matrix.shard }}/4
+          cargo mutants -j 4 --output mutants.out --shard ${{ matrix.shard }}/4
           code=$?
           set -e
           if [ "$code" -eq 2 ] || [ "$code" -eq 3 ]; then exit 0; fi
