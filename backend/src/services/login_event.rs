@@ -747,11 +747,11 @@ mod tests {
         crate::services::auth::delete_device_sessions(&pool, user_id, &hash)
             .await
             .expect("端末の解除失敗");
-        assert!(
+        assert_eq!(
             list_devices(&pool, user_id, &hash)
                 .await
-                .expect("解除後の取得失敗")
-                .is_empty()
+                .expect("解除後の取得失敗"),
+            [] as [DeviceEntry; 0]
         );
         assert_eq!(
             resolve_device_hash(&pool, user_id, &opaque)

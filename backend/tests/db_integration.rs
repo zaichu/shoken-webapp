@@ -576,7 +576,7 @@ async fn service_coverage_all_domains() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
 
-    assert!(
+    assert_eq!(
         domain_search::<mutualfund_svc::MutualfundDomain>(
             &pool,
             user_id,
@@ -584,8 +584,8 @@ async fn service_coverage_all_domains() {
         )
         .await
         .expect("initial mutualfund list failed")
-        .data
-        .is_empty()
+        .data,
+        [] as [shared::domain::Mutualfund; 0]
     );
     let mutualfund_empty =
         mutualfund_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
@@ -615,7 +615,10 @@ async fn service_coverage_all_domains() {
     .expect("mutualfund upload_csv failed");
     assert_eq!(mutualfund_uploaded.inserted, 1);
     assert_eq!(mutualfund_uploaded.skipped, 0);
-    assert!(mutualfund_uploaded.errors.is_empty());
+    assert_eq!(
+        mutualfund_uploaded.errors,
+        [] as [shared::csv_import::CsvRowError; 0]
+    );
 
     assert_eq!(
         domain_search::<mutualfund_svc::MutualfundDomain>(
@@ -635,7 +638,7 @@ async fn service_coverage_all_domains() {
             .expect("mutualfund delete_all failed"),
         3
     );
-    assert!(
+    assert_eq!(
         domain_search::<mutualfund_svc::MutualfundDomain>(
             &pool,
             user_id,
@@ -643,11 +646,11 @@ async fn service_coverage_all_domains() {
         )
         .await
         .expect("mutualfund list after delete failed")
-        .data
-        .is_empty()
+        .data,
+        [] as [shared::domain::Mutualfund; 0]
     );
 
-    assert!(
+    assert_eq!(
         domain_search::<dividend_svc::DividendDomain>(
             &pool,
             user_id,
@@ -655,8 +658,8 @@ async fn service_coverage_all_domains() {
         )
         .await
         .expect("initial dividend list failed")
-        .data
-        .is_empty()
+        .data,
+        [] as [shared::domain::Dividend; 0]
     );
     let dividend_empty = dividend_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
         .await
@@ -682,7 +685,10 @@ async fn service_coverage_all_domains() {
     .expect("dividend upload_csv failed");
     assert_eq!(dividend_uploaded.inserted, 1);
     assert_eq!(dividend_uploaded.skipped, 0);
-    assert!(dividend_uploaded.errors.is_empty());
+    assert_eq!(
+        dividend_uploaded.errors,
+        [] as [shared::csv_import::CsvRowError; 0]
+    );
 
     assert_eq!(
         domain_search::<dividend_svc::DividendDomain>(
@@ -702,7 +708,7 @@ async fn service_coverage_all_domains() {
             .expect("dividend delete_all failed"),
         3
     );
-    assert!(
+    assert_eq!(
         domain_search::<dividend_svc::DividendDomain>(
             &pool,
             user_id,
@@ -710,11 +716,11 @@ async fn service_coverage_all_domains() {
         )
         .await
         .expect("dividend list after delete failed")
-        .data
-        .is_empty()
+        .data,
+        [] as [shared::domain::Dividend; 0]
     );
 
-    assert!(
+    assert_eq!(
         domain_search::<domestic_stock_svc::DomesticStockDomain>(
             &pool,
             user_id,
@@ -722,8 +728,8 @@ async fn service_coverage_all_domains() {
         )
         .await
         .expect("initial domestic_stock list failed")
-        .data
-        .is_empty()
+        .data,
+        [] as [shared::domain::DomesticStock; 0]
     );
     let domestic_stock_empty =
         domestic_stock_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
@@ -757,7 +763,10 @@ async fn service_coverage_all_domains() {
     .expect("domestic_stock upload_csv failed");
     assert_eq!(domestic_stock_uploaded.inserted, 1);
     assert_eq!(domestic_stock_uploaded.skipped, 0);
-    assert!(domestic_stock_uploaded.errors.is_empty());
+    assert_eq!(
+        domestic_stock_uploaded.errors,
+        [] as [shared::csv_import::CsvRowError; 0]
+    );
 
     assert_eq!(
         domain_search::<domestic_stock_svc::DomesticStockDomain>(
@@ -777,7 +786,7 @@ async fn service_coverage_all_domains() {
             .expect("domestic_stock delete_all failed"),
         3
     );
-    assert!(
+    assert_eq!(
         domain_search::<domestic_stock_svc::DomesticStockDomain>(
             &pool,
             user_id,
@@ -785,11 +794,11 @@ async fn service_coverage_all_domains() {
         )
         .await
         .expect("domestic_stock list after delete failed")
-        .data
-        .is_empty()
+        .data,
+        [] as [shared::domain::DomesticStock; 0]
     );
 
-    assert!(
+    assert_eq!(
         domain_search::<asset_balance_svc::AssetBalanceDomain>(
             &pool,
             user_id,
@@ -797,8 +806,8 @@ async fn service_coverage_all_domains() {
         )
         .await
         .expect("initial asset_balance list failed")
-        .data
-        .is_empty()
+        .data,
+        [] as [shared::domain::AssetBalance; 0]
     );
     let asset_balance_empty =
         asset_balance_svc::bulk_create(&pool, user_id, &[], RowLimit::new(i64::MAX))
@@ -841,7 +850,10 @@ async fn service_coverage_all_domains() {
     .expect("asset_balance upload_csv failed");
     assert_eq!(asset_balance_uploaded.inserted, 1);
     assert_eq!(asset_balance_uploaded.skipped, 0);
-    assert!(asset_balance_uploaded.errors.is_empty());
+    assert_eq!(
+        asset_balance_uploaded.errors,
+        [] as [shared::csv_import::CsvRowError; 0]
+    );
 
     let asset_balance_rows = domain_search::<asset_balance_svc::AssetBalanceDomain>(
         &pool,
@@ -860,7 +872,7 @@ async fn service_coverage_all_domains() {
             .expect("asset_balance delete_all failed"),
         1
     );
-    assert!(
+    assert_eq!(
         domain_search::<asset_balance_svc::AssetBalanceDomain>(
             &pool,
             user_id,
@@ -868,8 +880,8 @@ async fn service_coverage_all_domains() {
         )
         .await
         .expect("asset_balance list after delete failed")
-        .data
-        .is_empty()
+        .data,
+        [] as [shared::domain::AssetBalance; 0]
     );
 }
 
@@ -1360,7 +1372,7 @@ async fn dividend_csv_keeps_same_detail_in_different_accounts() {
     .expect("dividend upload_csv failed");
     assert_eq!(first.inserted, 3);
     assert_eq!(first.skipped, 0);
-    assert!(first.errors.is_empty());
+    assert_eq!(first.errors, [] as [shared::csv_import::CsvRowError; 0]);
 
     // 同じ CSV の再取込では増えない
     let second = dividend_svc::DividendDomain::upload_csv(
@@ -1373,7 +1385,7 @@ async fn dividend_csv_keeps_same_detail_in_different_accounts() {
     .expect("dividend re-upload_csv failed");
     assert_eq!(second.inserted, 0);
     assert_eq!(second.skipped, 3);
-    assert!(second.errors.is_empty());
+    assert_eq!(second.errors, [] as [shared::csv_import::CsvRowError; 0]);
 }
 
 #[tokio::test]
@@ -1562,7 +1574,7 @@ async fn mutualfund_csv_keeps_same_trade_in_different_accounts() {
     .expect("mutualfund upload_csv failed");
     assert_eq!(first.inserted, 2);
     assert_eq!(first.skipped, 0);
-    assert!(first.errors.is_empty());
+    assert_eq!(first.errors, [] as [shared::csv_import::CsvRowError; 0]);
 
     // 同じ CSV の再取込では増えない
     let second = mutualfund_svc::MutualfundDomain::upload_csv(
@@ -1575,7 +1587,7 @@ async fn mutualfund_csv_keeps_same_trade_in_different_accounts() {
     .expect("mutualfund re-upload_csv failed");
     assert_eq!(second.inserted, 0);
     assert_eq!(second.skipped, 2);
-    assert!(second.errors.is_empty());
+    assert_eq!(second.errors, [] as [shared::csv_import::CsvRowError; 0]);
 }
 
 #[tokio::test]
@@ -5338,7 +5350,7 @@ async fn csv_import_failure_does_not_update_history() {
             let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
             let result: CsvUploadResponse = serde_json::from_slice(&body).unwrap();
             assert_eq!((result.inserted, result.skipped), (0, 0));
-            assert!(!result.errors.is_empty());
+            assert_ne!(result.errors, [] as [shared::csv_import::CsvRowError; 0]);
         }
         let last_imported_at: chrono::DateTime<Utc> = db::query_scalar(
             "SELECT last_imported_at FROM csv_import_history WHERE user_id = $1 AND kind = $2",
@@ -6782,7 +6794,7 @@ async fn rls_5c_writes_via_app_enter() {
     let token = issue_token(&pool, user_a)
         .await
         .expect("通知トークンの発行は通るはず");
-    assert!(!token.is_empty());
+    assert_ne!(token, "");
     assert_eq!(count_where(&pool, "login_notify_tokens", user_a).await, 1);
     assert_eq!(count_where(&pool, "login_notify_tokens", user_b).await, 0);
 

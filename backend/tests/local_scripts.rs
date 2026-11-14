@@ -200,13 +200,13 @@ fn scanner_no_matches_is_success_without_a_warning() {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
-        assert!(sandbox.text("killed").is_empty());
+        assert_eq!(sandbox.text("killed"), "");
     }
     // ss は該当なしを exit 0・空出力で返す
     let sandbox = Sandbox::new();
     let output = sandbox.run("stop-local.sh", &[("SCANNERS", "ss")]);
     assert_success(&output);
-    assert!(sandbox.text("killed").is_empty());
+    assert_eq!(sandbox.text("killed"), "");
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn scanner_failure_is_not_reported_as_no_matches() {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
-        assert!(sandbox.text("killed").is_empty());
+        assert_eq!(sandbox.text("killed"), "");
     }
 }
 
@@ -245,7 +245,7 @@ fn conflicting_port_and_url_are_rejected() {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
-        assert!(sandbox.text("killed").is_empty());
+        assert_eq!(sandbox.text("killed"), "");
     }
 }
 
@@ -299,7 +299,7 @@ fn valid_ledger_skips_port_scanning() {
     sandbox.ledger("backend.pid", 43);
     let output = sandbox.run("stop-local.sh", &[("LSOF_STATUS", "2")]);
     assert_success(&output);
-    assert!(sandbox.text("scan").is_empty());
+    assert_eq!(sandbox.text("scan"), "");
     assert_eq!(sandbox.text("killed"), "42\n43\n");
 }
 
@@ -332,7 +332,7 @@ fn ledger_cannot_stop_a_server_from_another_worktree() {
         &[("FRONT_CWD", "/other-worktree/frontend")],
     );
     assert_success(&output);
-    assert!(sandbox.text("killed").is_empty());
+    assert_eq!(sandbox.text("killed"), "");
 }
 
 #[test]
@@ -362,7 +362,7 @@ fn backend_fallback_rejects_foreign_worktrees_and_make_wrappers() {
         fs::write(sandbox.root.join("alive-43"), "").unwrap();
         let output = sandbox.run("stop-local.sh", &[("BACK_SCAN_PIDS", "43"), (name, value)]);
         assert_success(&output);
-        assert!(sandbox.text("killed").is_empty());
+        assert_eq!(sandbox.text("killed"), "");
     }
     let sandbox = Sandbox::new();
     fs::write(sandbox.root.join("alive-43"), "").unwrap();
@@ -395,7 +395,7 @@ fn missing_scanner_is_an_error_when_there_is_no_valid_ledger() {
     let sandbox = Sandbox::new();
     let output = sandbox.run("stop-local.sh", &[("SCANNERS", " ")]);
     assert!(!output.status.success());
-    assert!(sandbox.text("killed").is_empty());
+    assert_eq!(sandbox.text("killed"), "");
 }
 
 fn remove_tmp_files_containing(marker: &str) {
