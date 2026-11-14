@@ -56,7 +56,7 @@ pub fn base64_encode(input: &[u8]) -> String {
     for chunk in input.chunks(3) {
         let mut n: u32 = 0;
         for (i, &b) in chunk.iter().enumerate() {
-            n |= (b as u32) << (16 - 8 * i);
+            n |= u32::from(b) << (16 - 8 * i);
         }
         let pad = 3 - chunk.len();
         for i in 0..4 - pad {
