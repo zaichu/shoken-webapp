@@ -194,12 +194,19 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                 <SkeletonSummary>
                     <section id="receipts-summary">
                             {move || {
-                                // 銘柄を指定したときは配当情報のカードに置き換える
+                                // 銘柄を指定したときは配当情報のカードに置き換える。
+                                // 表示条件と値が揃わないときは帯を出さない
                                 if show_dividend_info.get() {
+                                    let Some(info) = dividend_info else {
+                                        return ().into_any();
+                                    };
+                                    let Some(totals) = dividend_totals_val.get() else {
+                                        return ().into_any();
+                                    };
                                     view! {
                                         <DividendSummarySection
-                                            store=dividend_info.unwrap()
-                                            totals=dividend_totals_val.get().unwrap()
+                                            store=info
+                                            totals=totals
                                             expanded=summary_expanded
                                             mobile_expanded=store.mobile_summary_expanded
                                         />
