@@ -1,0 +1,9 @@
+{
+  "name": "phase5-codex-design",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Phase 5 Codex 画面案: fixtures から HTML を生成し検算する",
+  "scripts": {
+    "build": "node data/build.mjs"
+  }
+}
