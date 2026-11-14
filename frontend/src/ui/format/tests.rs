@@ -178,12 +178,11 @@ fn jst_date_rolls_over_at_nine_am_boundary() {
     assert_eq!(jst_date(""), None);
 }
 
-#[cfg(target_arch = "wasm32")]
 #[test]
 fn today_jst_saturates_at_i64_upper_bound() {
     assert_eq!(
-        civil_from_days(i64::MAX.saturating_add(9 * 3600).div_euclid(86_400)),
-        civil_from_days(i64::MAX.div_euclid(86_400))
+        today_jst_from_timestamp(i64::MAX as f64),
+        Some(civil_from_days(i64::MAX.div_euclid(86_400)))
     );
 }
 

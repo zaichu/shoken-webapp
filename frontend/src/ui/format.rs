@@ -341,8 +341,11 @@ pub fn calendar_days_between(from: (i32, u32, u32), to: (i32, u32, u32)) -> i64 
 /// 今日(JST)の年月日
 #[cfg(target_arch = "wasm32")]
 fn today_jst() -> Option<(i32, u32, u32)> {
-    // epoch 秒を9時間進めて JST の暦日を出す
-    let timestamp = js_sys::Date::now() / 1000.0;
+    today_jst_from_timestamp(js_sys::Date::now() / 1000.0)
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn today_jst_from_timestamp(timestamp: f64) -> Option<(i32, u32, u32)> {
     let jst_seconds = timestamp
         .to_i64()
         .unwrap_or_else(|| {
