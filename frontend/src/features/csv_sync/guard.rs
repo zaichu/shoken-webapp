@@ -15,7 +15,7 @@ struct KindSpec {
     required: &'static [&'static str],
 }
 
-fn spec_of(kind: CsvKind) -> KindSpec {
+const fn spec_of(kind: CsvKind) -> KindSpec {
     match kind {
         CsvKind::AssetBalance => KindSpec {
             marker: Some(csv_input::COLUMN_SECURITY_CODE),
@@ -135,7 +135,7 @@ pub(crate) fn first_line_snippet(content: &str) -> Option<String> {
 }
 
 /// 「いまの件数の半分未満」の激減判定
-pub(crate) fn is_plunge(new_rows: usize, saved_rows: usize) -> bool {
+pub(crate) const fn is_plunge(new_rows: usize, saved_rows: usize) -> bool {
     new_rows * 2 < saved_rows
 }
 

@@ -49,7 +49,7 @@ pub(crate) enum ExportKind {
 impl ExportKind {
     pub(crate) const ALL: [Self; 3] = [Self::Dividend, Self::AssetBalance, Self::Transaction];
 
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::Dividend => labels::DIVIDEND_AMOUNT,
             Self::AssetBalance => labels::EXPORT_ASSET_BALANCE,
@@ -57,7 +57,7 @@ impl ExportKind {
         }
     }
 
-    fn stem(self) -> &'static str {
+    const fn stem(self) -> &'static str {
         match self {
             Self::Dividend => "dividends",
             Self::AssetBalance => "asset-balances",
@@ -342,4 +342,4 @@ pub(crate) fn download_csv(filename: &str, content: &str) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn download_csv(_filename: &str, _content: &str) {}
+pub(crate) const fn download_csv(_filename: &str, _content: &str) {}
