@@ -56,10 +56,11 @@ pub fn parse_cors_origins(raw: &str) -> Vec<String> {
 /// `<branch>.<project>.pages.dev` (ブランチ エイリアス) の 2 形式。
 /// `<project>` は `shoken-webapp` で固定。ホスト境界を厳密に検証し、偽装サブドメインを排除する。
 pub fn is_pages_preview_origin(origin: &str) -> bool {
+    const SUFFIX: &str = ".shoken-webapp.pages.dev";
+
     let Some(host) = origin.strip_prefix("https://") else {
         return false;
     };
-    const SUFFIX: &str = ".shoken-webapp.pages.dev";
     let Some(prefix) = host.strip_suffix(SUFFIX) else {
         return false;
     };

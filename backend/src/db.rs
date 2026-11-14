@@ -495,12 +495,13 @@ fn tls_mode_from_url(url: &str) -> Result<TlsMode, String> {
 /// PEM ファイルから証明書をすべて読み込む（Dashboard 配布の CA など複数入りに対応）
 #[cfg(not(target_arch = "wasm32"))]
 fn load_pem_certs(path: &str) -> Result<Vec<native_tls::Certificate>, String> {
+    const BEGIN: &str = "-----BEGIN CERTIFICATE-----";
+    const END: &str = "-----END CERTIFICATE-----";
+
     let bytes = std::fs::read(path)
         .map_err(|e| format!("sslrootcert の CA ファイルを読み込めませんでした: {e}"))?;
     let text = String::from_utf8(bytes)
         .map_err(|_| "sslrootcert の CA ファイルが PEM 形式ではありません".to_string())?;
-    const BEGIN: &str = "-----BEGIN CERTIFICATE-----";
-    const END: &str = "-----END CERTIFICATE-----";
     let mut certs = Vec::new();
     let mut rest = text.as_str();
     while let Some(start) = rest.find(BEGIN) {
@@ -651,13 +652,14 @@ mod worker_db {
 }
 
 impl Db {
-    pub async fn close(&self) {
+    pub fn close(&self) -> impl Future<Output = ()> + '_ {
         match &*self.inner {
             #[cfg(not(target_arch = "wasm32"))]
             DbInner::Pool(pool) => pool.close(),
             #[cfg(target_arch = "wasm32")]
             DbInner::Worker(_) => {}
         }
+        std::future::ready(())
     }
 
     /// トランザクションを開始する。`BEGIN` は batch_execute で送り、

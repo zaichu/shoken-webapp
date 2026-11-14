@@ -2379,9 +2379,10 @@ async fn user_row_limit_rejects_over_limit_inserts() {
     use backend::services::domain::bulk::ensure_user_row_limit_with;
     use backend::services::domestic_stock::DomesticStockDomain;
     use backend::services::mutualfund::MutualfundDomain;
+    const LIMIT: RowLimit = RowLimit::new(3);
+
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    const LIMIT: RowLimit = RowLimit::new(3);
 
     // 追記型(dividends): 既存行数 + 追加分が上限を超えると拒否
     let items = vec![make_dividend_item("9931"), make_dividend_item("9932")];
@@ -3463,6 +3464,24 @@ async fn trading_tables_rls_isolates_restricted_role() {
 #[ignore = "requires Docker to run Postgres container"]
 async fn rls_set_local_wiring_scopes_authenticated_paths() {
     use backend::services::login_event::admin::record_view as record_admin_view;
+
+    async fn current_setting(executor: &Db) -> Option<String> {
+        db::query_scalar::<Option<String>>(
+            "SELECT current_setting('app.current_user_id', true)",
+            vec![],
+        )
+        .fetch_one(executor)
+        .await
+        .expect("設定値の取得に失敗")
+    }
+    async fn assert_no_user_setting(executor: &Db) {
+        let setting = current_setting(executor).await;
+        assert!(
+            setting.as_deref().is_none_or(str::is_empty),
+            "別利用者の値が残ってはいけない: {setting:?}"
+        );
+    }
+
     use backend::services::login_event::list_login_history;
     use backend::services::login_notify::{
         consume_token, get_setting, issue_token, peek_token, set_setting,
@@ -3571,22 +3590,6 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
     let restricted_url = format!("postgres://rls_app:rls-test-password@127.0.0.1:{port}/postgres");
     let restricted = connect_with_retry(&restricted_url).await;
 
-    async fn current_setting(executor: &Db) -> Option<String> {
-        db::query_scalar::<Option<String>>(
-            "SELECT current_setting('app.current_user_id', true)",
-            vec![],
-        )
-        .fetch_one(executor)
-        .await
-        .expect("設定値の取得に失敗")
-    }
-    async fn assert_no_user_setting(executor: &Db) {
-        let setting = current_setting(executor).await;
-        assert!(
-            setting.as_deref().is_none_or(str::is_empty),
-            "別利用者の値が残ってはいけない: {setting:?}"
-        );
-    }
     assert_no_user_setting(&restricted).await;
 
     let mut tx = restricted
@@ -3838,17 +3841,17 @@ async fn security_price_rows(pool: &Db) -> Vec<(String, String)> {
 /// 置換型の資産CSVは、行エラー・有効行0件のとき保存前に拒否され、
 /// 既存残高と共有価格が変わらないことを確かめる(#1336)。
 /// 追記型CSVの部分成功は従来通り維持する
+const VALID_ROW_9931: &str = "\"9931\",\"架空水産\",\"100\",\"0\",\"100\",\"0\",\"500\",\"50000\",\"600\",\"5\",\"60000\",\"20.0\"";
+const VALID_ROW_9901: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2000\",\"400000\",\"3000\",\"50\",\"600000\",\"50.00\"";
+const BAD_SHARES_ROW: &str = "\"9905\",\"架空ゲーム\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,000.00\",\"5,000,000\",\"7,000.0\",\"100.0\",\"7,000,000\",\"40.00\"";
+const BAD_PRICE_ROW: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2,000.00\",\"400,000\",\"不明\",\"50.0\",\"600,000\",\"50.00\"";
+const SUMMARY_ONLY_ROW: &str = ",,,,,,特定口座合計,\"5,400,000\",,,\"7,600,000\",\"40.74\"";
+
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     use backend::services::asset_balance::AssetBalanceDomain;
     use backend::services::dividend::DividendDomain;
-
-    const VALID_ROW_9931: &str = "\"9931\",\"架空水産\",\"100\",\"0\",\"100\",\"0\",\"500\",\"50000\",\"600\",\"5\",\"60000\",\"20.0\"";
-    const VALID_ROW_9901: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2000\",\"400000\",\"3000\",\"50\",\"600000\",\"50.00\"";
-    const BAD_SHARES_ROW: &str = "\"9905\",\"架空ゲーム\",\"N/A\",\"0\",\"1,000\",\"0\",\"5,000.00\",\"5,000,000\",\"7,000.0\",\"100.0\",\"7,000,000\",\"40.00\"";
-    const BAD_PRICE_ROW: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2,000.00\",\"400,000\",\"不明\",\"50.0\",\"600,000\",\"50.00\"";
-    const SUMMARY_ONLY_ROW: &str = ",,,,,,特定口座合計,\"5,400,000\",,,\"7,600,000\",\"40.74\"";
 
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
@@ -3953,6 +3956,9 @@ async fn price_row(pool: &Db, code: &str) -> Option<(Option<NaiveDate>, chrono::
 /// ホスト実行では fetch_close_price が必ず失敗するため、各銘柄へ「試行が
 /// 到達したか」は security_prices.updated_at(試行時刻)の前進で観測する。
 /// 最新価格(price_as_of が最新終値日)の銘柄は対象外のまま再取得抑止も維持する
+const GOOD: &str = "9919";
+const FRESH: &str = "9200";
+
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn stock_price_refresh_cycles_past_failing_codes() {
@@ -3963,9 +3969,6 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
     // それより新しい(先頭15件に埋もれる配置)。基準日も同順にしておき、
     // 修正前後で同じ15件が先に選ばれることを担保する
     let bad_codes: Vec<String> = Vec::from_fn(15, |i| format!("90{i:02}"));
-    const GOOD: &str = "9919";
-    const FRESH: &str = "9200";
-
     let items: Vec<_> = bad_codes
         .iter()
         .map(|code| make_asset_item(code))
@@ -4288,7 +4291,6 @@ async fn put_fund_price(pool: &Db, cd: &str, nav: &str, change: &str, as_of: Nai
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn fund_name_normalize_unifies_width_space_and_paren() {
-    let (pool, _node) = start_test_pool().await;
     async fn norm(pool: &Db, s: &str) -> String {
         let (v,): (String,) = db::query("SELECT fund_name_normalize($1)", vec![Bind::from(s)])
             .fetch_one(pool)
@@ -4296,6 +4298,8 @@ async fn fund_name_normalize_unifies_width_space_and_paren() {
             .expect("normalize");
         v
     }
+
+    let (pool, _node) = start_test_pool().await;
     // 協会リスト名(全角)と CSV 名(半角)が同じ照合名になる
     let listed = norm(&pool, "ｅＭＡＸＩＳ　Ｓｌｉｍ　米国株式（Ｓ＆Ｐ５００）").await;
     for variant in [
@@ -4517,6 +4521,8 @@ async fn fund_nav_view_keeps_csv_for_unmapped_fund() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
+    use shared::domain::FundPriceSource::*;
+
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
     let e = fund_price::expected_nav_date(Utc::now());
@@ -4597,7 +4603,6 @@ async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
         let row = rows.iter().find(|r| r.fund_name == name).expect(name);
         (row.price_source, row.nav_is_latest)
     };
-    use shared::domain::FundPriceSource::*;
     assert_eq!(is("最新APIファンド"), (Api, true));
     assert_eq!(is("待ちAPIファンド"), (Api, false));
     assert_eq!(is("最新CSVファンド"), (Csv, true));
@@ -5949,6 +5954,21 @@ async fn sessions_users_rls_isolates_restricted_role() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn app_restricted_role_has_least_privilege() {
+    async fn restricted_tx_with_user(pool: &Db, user: UserId) -> backend::db::Tx {
+        let mut tx = pool.begin().await.expect("tx 開始に失敗");
+        db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
+            .execute(&mut tx)
+            .await
+            .expect("ロールの切り替えに失敗");
+        db::query(
+            "SELECT set_config('app.current_user_id', $1, true)",
+            vec![Bind::from(user.to_string())],
+        )
+        .execute(&mut tx)
+        .await
+        .expect("利用者 ID の設定に失敗");
+        tx
+    }
     let node = Postgres::default()
         .with_tag(POSTGRES_TAG)
         .start()
@@ -6128,22 +6148,6 @@ async fn app_restricted_role_has_least_privilege() {
         .unwrap();
     assert_eq!(count, 0, "利用者 ID 未設定の制限ロールは何も見えないはず");
     tx.rollback().await.expect("rollback に失敗");
-
-    async fn restricted_tx_with_user(pool: &Db, user: UserId) -> backend::db::Tx {
-        let mut tx = pool.begin().await.expect("tx 開始に失敗");
-        db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
-            .execute(&mut tx)
-            .await
-            .expect("ロールの切り替えに失敗");
-        db::query(
-            "SELECT set_config('app.current_user_id', $1, true)",
-            vec![Bind::from(user.to_string())],
-        )
-        .execute(&mut tx)
-        .await
-        .expect("利用者 ID の設定に失敗");
-        tx
-    }
 
     let mut tx = restricted_tx_with_user(&pool, user_a).await;
     let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM dividends", vec![])
@@ -6667,6 +6671,22 @@ async fn stage5b_definer_functions_and_app_enter() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn rls_5c_writes_via_app_enter() {
+    async fn count_where(pool: &Db, table: &str, user: UserId) -> i64 {
+        let sql = match table {
+            "dividends" => "SELECT COUNT(*) FROM dividends WHERE user_id = $1",
+            "csv_import_history" => "SELECT COUNT(*) FROM csv_import_history WHERE user_id = $1",
+            "asset_balances" => "SELECT COUNT(*) FROM asset_balances WHERE user_id = $1",
+            "login_events" => "SELECT COUNT(*) FROM login_events WHERE user_id = $1",
+            "login_notify_tokens" => "SELECT COUNT(*) FROM login_notify_tokens WHERE user_id = $1",
+            "admin_login_views" => "SELECT COUNT(*) FROM admin_login_views WHERE user_id = $1",
+            "sessions" => "SELECT COUNT(*) FROM sessions WHERE user_id = $1",
+            _ => panic!("対象外の表"),
+        };
+        db::query_scalar::<i64>(sql, vec![Bind::from(user)])
+            .fetch_one(pool)
+            .await
+            .expect("件数取得に失敗")
+    }
     use backend::services::login_event::admin::record_view as record_admin_view;
     use backend::services::login_event::{ClientInfo, LoginOutcome, insert_login_event_in_tx};
     use backend::services::login_notify::{issue_token, set_setting};
@@ -6687,23 +6707,6 @@ async fn rls_5c_writes_via_app_enter() {
 
     let user_a = create_test_user(&pool).await;
     let user_b = create_test_user(&pool).await;
-
-    async fn count_where(pool: &Db, table: &str, user: UserId) -> i64 {
-        let sql = match table {
-            "dividends" => "SELECT COUNT(*) FROM dividends WHERE user_id = $1",
-            "csv_import_history" => "SELECT COUNT(*) FROM csv_import_history WHERE user_id = $1",
-            "asset_balances" => "SELECT COUNT(*) FROM asset_balances WHERE user_id = $1",
-            "login_events" => "SELECT COUNT(*) FROM login_events WHERE user_id = $1",
-            "login_notify_tokens" => "SELECT COUNT(*) FROM login_notify_tokens WHERE user_id = $1",
-            "admin_login_views" => "SELECT COUNT(*) FROM admin_login_views WHERE user_id = $1",
-            "sessions" => "SELECT COUNT(*) FROM sessions WHERE user_id = $1",
-            _ => panic!("対象外の表"),
-        };
-        db::query_scalar::<i64>(sql, vec![Bind::from(user)])
-            .fetch_one(pool)
-            .await
-            .expect("件数取得に失敗")
-    }
 
     let mut tx = pool.begin_with_user(user_a).await.expect("tx 開始に失敗");
     let current = db::query_scalar::<String>("SELECT current_user", vec![])

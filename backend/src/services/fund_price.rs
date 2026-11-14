@@ -7,7 +7,7 @@ use crate::errors::{ApiError, UpstreamError};
 use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use rust_decimal::{Decimal, prelude::Signed};
 use serde::Deserialize;
-use std::str::FromStr;
+use std::{future::Future, str::FromStr};
 
 /// 三菱UFJアセットマネジメントの投信情報API(公式)。
 /// `{BASE}/association_fund_cd/<協会コード>` で最新の基準価額を返す
@@ -146,13 +146,13 @@ fn nav_status_error(status: u16, body: String) -> ApiError {
 /// 投信情報APIから基準価額を取得する。ホスト側では実行経路がないためエラー固定
 /// （テストは parse_mufg_nav / apply_fund_nav を直接検証する）
 #[cfg(not(target_arch = "wasm32"))]
-async fn fetch_fund_nav(
+fn fetch_fund_nav(
     _base_url: &str,
     _association_fund_cd: &str,
-) -> Result<Option<FundNav>, ApiError> {
-    Err(ApiError::Internal(
+) -> impl Future<Output = Result<Option<FundNav>, ApiError>> {
+    std::future::ready(Err(ApiError::Internal(
         "投信情報APIへの接続は Workers 環境でのみ利用できます",
-    ))
+    )))
 }
 
 #[cfg(target_arch = "wasm32")]

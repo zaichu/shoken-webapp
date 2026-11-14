@@ -6,7 +6,7 @@ pub mod google_common;
 
 use sha2::{Digest, Sha256};
 use shared::value::UserId;
-use std::{fmt, str::FromStr};
+use std::{fmt, future::Future, str::FromStr};
 
 use crate::db::{Bind, Db, DbError, Tx};
 use crate::errors::ApiError;
@@ -164,15 +164,15 @@ async fn verify_code_with_google(
 // openapi.json はホストで生成されるためコールバックハンドラ経由で本関数もホストで
 // コンパイルされる必要がある。Google への問い合わせ経路は Worker にしか存在しない
 #[cfg(not(target_arch = "wasm32"))]
-async fn verify_code_with_google(
+fn verify_code_with_google(
     _oauth_client: &GoogleOAuthClient,
     _code: &str,
     _pkce_verifier: &str,
     _nonce: &str,
-) -> Result<GoogleUserInfo, ApiError> {
-    Err(ApiError::Internal(
+) -> impl Future<Output = Result<GoogleUserInfo, ApiError>> {
+    std::future::ready(Err(ApiError::Internal(
         "Google OAuth のコード検証は Workers 環境でのみ利用できます",
-    ))
+    )))
 }
 
 // upsert の行ロックを回転まで保持し、同時ログインによる旧セッションの残留を防ぐ。

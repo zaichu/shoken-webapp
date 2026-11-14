@@ -8,6 +8,7 @@ use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use shared::value::SecurityCode;
+use std::future::Future;
 
 /// Yahoo Finance chart API（非公式）。`<code>.T` は東証銘柄。
 const CHART_BASE_URL: &str = "https://query2.finance.yahoo.com/v8/finance/chart";
@@ -130,14 +131,14 @@ fn chart_status_error(status: u16, body: String) -> ApiError {
 /// Yahoo chart API から終値を取得する。ホスト側では実行経路がないためエラー固定
 /// （テストは parse_chart_close / apply_close_price を直接検証する）
 #[cfg(not(target_arch = "wasm32"))]
-async fn fetch_close_price(
+fn fetch_close_price(
     _base_url: &str,
     _code: &SecurityCode,
     _max_as_of: NaiveDate,
-) -> Result<ClosePrice, ApiError> {
-    Err(ApiError::Internal(
+) -> impl Future<Output = Result<ClosePrice, ApiError>> {
+    std::future::ready(Err(ApiError::Internal(
         "Yahoo Finance への接続は Workers 環境でのみ利用できます",
-    ))
+    )))
 }
 
 #[cfg(target_arch = "wasm32")]
