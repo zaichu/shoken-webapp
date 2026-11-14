@@ -55,7 +55,7 @@ impl StockSearch {
     }
 }
 
-fn is_not_found(error: &ApiError) -> bool {
+const fn is_not_found(error: &ApiError) -> bool {
     matches!(error, ApiError::Http { status: 404, .. })
 }
 

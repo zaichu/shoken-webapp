@@ -35,7 +35,7 @@ impl CsvKind {
         Self::MutualFund,
     ];
 
-    pub fn request_value(self) -> &'static str {
+    pub const fn request_value(self) -> &'static str {
         match self {
             Self::AssetBalance => "assetbalance",
             Self::FundBalance => "fundbalance",
@@ -45,7 +45,7 @@ impl CsvKind {
         }
     }
 
-    fn label(self) -> &'static str {
+    const fn label(self) -> &'static str {
         match self {
             Self::AssetBalance => labels::CSV_KIND_STOCK_BALANCE,
             Self::FundBalance => labels::CSV_KIND_FUND_BALANCE,
@@ -106,7 +106,7 @@ pub(crate) enum SkipReason {
 }
 
 impl SkipReason {
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::Empty => labels::CSV_SKIP_EMPTY,
             Self::Html => labels::CSV_SKIP_HTML,

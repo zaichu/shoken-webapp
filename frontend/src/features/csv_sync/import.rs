@@ -264,7 +264,7 @@ pub(crate) fn columns_failure_reason(kind: CsvKind, content: &str) -> String {
 }
 
 /// 形式が合わないときに理由へ添える対応形式。成功前の案内には出さない
-fn format_hint(kind: CsvKind) -> &'static str {
+const fn format_hint(kind: CsvKind) -> &'static str {
     match kind {
         CsvKind::AssetBalance => labels::CSV_FORMAT_ASSET_BALANCE,
         CsvKind::FundBalance => labels::CSV_FORMAT_FUND_BALANCE,

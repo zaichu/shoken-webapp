@@ -31,7 +31,7 @@ impl CsvKind {
         Self::MutualFund,
     ];
 
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::AssetStock => labels::CSV_PAGE_ASSET_STOCK,
             Self::AssetFund => labels::CSV_PAGE_ASSET_FUND,
@@ -42,7 +42,7 @@ impl CsvKind {
     }
 
     /// API の kind 値。csv-kinds/stats と拡張機能の依頼で同じ値を使う
-    pub(crate) fn kind_param(self) -> &'static str {
+    pub(crate) const fn kind_param(self) -> &'static str {
         match self {
             Self::AssetStock => "assetbalance",
             Self::AssetFund => "fundbalance",
@@ -52,7 +52,7 @@ impl CsvKind {
         }
     }
 
-    pub(crate) fn receipt_tab(self) -> Option<ReceiptsTab> {
+    pub(crate) const fn receipt_tab(self) -> Option<ReceiptsTab> {
         match self {
             Self::Dividend => Some(ReceiptsTab::Dividend),
             Self::DomesticStock => Some(ReceiptsTab::DomesticStock),
@@ -62,7 +62,7 @@ impl CsvKind {
     }
 
     /// 取得(拡張機能)側の同じ種類
-    pub(crate) fn sync_kind(self) -> SyncKind {
+    pub(crate) const fn sync_kind(self) -> SyncKind {
         match self {
             Self::AssetStock => SyncKind::AssetBalance,
             Self::AssetFund => SyncKind::FundBalance,
@@ -74,7 +74,7 @@ impl CsvKind {
 
     /// 残高(資産管理2種)は当日だけが新しく、明細(取引3種)は7日以内が新しい。
     /// 日数の判定は呼び出し側が JST の暦日差で求めた値を渡す
-    pub(crate) fn is_fresh(self, days_ago: i64) -> bool {
+    pub(crate) const fn is_fresh(self, days_ago: i64) -> bool {
         match self {
             Self::AssetStock | Self::AssetFund => days_ago <= 0,
             Self::Dividend | Self::DomesticStock | Self::MutualFund => days_ago <= 7,
