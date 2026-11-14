@@ -96,7 +96,7 @@ impl ReceiptsStore {
     pub fn select_tab(&self, tab: ReceiptsTab) {
         if self.active_tab.get_untracked() != tab {
             self.search.set(ReceiptSearch::default());
-            self.expanded.update(std::collections::HashSet::clear);
+            self.expanded.update(HashSet::clear);
             self.mobile_summary_expanded.set(false);
         }
         self.visited.update(|visited| {
@@ -135,7 +135,7 @@ impl ReceiptsStore {
         let mut tab = tab;
         if self.expanded_epoch.get_untracked() != Some(generation) {
             self.expanded_epoch.set(Some(generation));
-            self.expanded.update(std::collections::HashSet::clear);
+            self.expanded.update(HashSet::clear);
             self.mobile_summary_expanded.set(false);
             // ユーザーが変わっても前の検索語・選択タブ・訪問済みを持ち越さない
             self.search.set(ReceiptSearch::default());
