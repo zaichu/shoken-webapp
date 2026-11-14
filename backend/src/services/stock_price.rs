@@ -302,7 +302,7 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
                     ),
                     Err(e) => {
                         failed += 1;
-                        svc_log!(error, "現在値の反映に失敗: code={}, err={}", code, e)
+                        svc_log!(error, "現在値の反映に失敗: code={}, err={}", code, e);
                     }
                 }
             }
@@ -313,7 +313,7 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
                     "現在値の取得に失敗（前回値を維持）: code={}, err={}",
                     code,
                     e
-                )
+                );
             }
         }
     }

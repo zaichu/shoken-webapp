@@ -3564,7 +3564,7 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
     async fn assert_no_user_setting(executor: &Db) {
         let setting = current_setting(executor).await;
         assert!(
-            setting.as_deref().is_none_or(|value| value.is_empty()),
+            setting.as_deref().is_none_or(str::is_empty),
             "別利用者の値が残ってはいけない: {setting:?}"
         );
     }
@@ -3778,9 +3778,7 @@ async fn rls_set_local_wiring_scopes_authenticated_paths() {
     .await
     .expect("設定値の取得に失敗");
     assert!(
-        owner_setting
-            .as_deref()
-            .is_none_or(|value| value.is_empty()),
+        owner_setting.as_deref().is_none_or(str::is_empty),
         "未認証経路では利用者の値が残ってはいけない: {owner_setting:?}"
     );
 
@@ -6944,5 +6942,5 @@ async fn rls_5c_writes_via_app_enter() {
     .fetch_one(&pool)
     .await
     .expect("設定値の取得に失敗");
-    assert!(setting.as_deref().is_none_or(|value| value.is_empty()));
+    assert!(setting.as_deref().is_none_or(str::is_empty));
 }

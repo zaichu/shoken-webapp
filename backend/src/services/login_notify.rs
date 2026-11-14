@@ -225,7 +225,7 @@ where
 {
     match future::select(Box::pin(send), Box::pin(timeout)).await {
         Either::Left((result, _)) => result,
-        Either::Right((_, _)) => Err("タイムアウトしました".to_string()),
+        Either::Right(((), _)) => Err("タイムアウトしました".to_string()),
     }
 }
 

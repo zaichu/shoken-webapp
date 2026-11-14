@@ -84,7 +84,7 @@ pub async fn validate_origin(
         .headers()
         .get("origin")
         .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string());
+        .map(std::string::ToString::to_string);
 
     match origin {
         Some(ref o)
@@ -104,7 +104,7 @@ pub async fn validate_origin(
                 .headers()
                 .get("referer")
                 .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string());
+                .map(std::string::ToString::to_string);
 
             match referer {
                 Some(ref r)

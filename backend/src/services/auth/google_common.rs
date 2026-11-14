@@ -199,7 +199,7 @@ pub fn validate_tokeninfo_claims(
     let get_str = |field: &str| claims.get(field).and_then(|v| v.as_str());
 
     match get_str("iss") {
-        Some("https://accounts.google.com") | Some("accounts.google.com") => {}
+        Some("https://accounts.google.com" | "accounts.google.com") => {}
         _ => return Err(invalid()),
     }
     if get_str("aud") != Some(client_id) {

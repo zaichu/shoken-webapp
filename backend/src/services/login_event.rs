@@ -275,9 +275,7 @@ pub fn parse_user_agent(ua: &str) -> (Option<String>, Option<String>) {
 }
 
 pub fn client_info_from_headers(headers: &HeaderMap) -> ClientInfo {
-    let (browser, os) = header_value(headers, "user-agent")
-        .map(parse_user_agent)
-        .unwrap_or((None, None));
+    let (browser, os) = header_value(headers, "user-agent").map_or((None, None), parse_user_agent);
     ClientInfo {
         country: header_value(headers, "cf-ipcountry").and_then(normalize_country),
         region: header_value(headers, "cf-region-code")

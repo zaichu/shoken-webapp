@@ -164,8 +164,7 @@ fn push_date_axis_filters(
 
 /// フリーワード検索欄をスペース区切りの token 配列へ変換する
 pub fn tokens_from_query(q: Option<&str>) -> Vec<String> {
-    q.map(|q| q.split_whitespace().map(str::to_string).collect())
-        .unwrap_or_default()
+    q.map_or_default(|q| q.split_whitespace().map(str::to_string).collect())
 }
 
 /// token ごとに columns（呼び出し側が渡す固定文字列配列のみ）への ILIKE OR 条件を

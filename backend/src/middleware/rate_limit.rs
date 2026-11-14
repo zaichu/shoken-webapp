@@ -42,8 +42,7 @@ fn client_ip_key_from_header(
         .and_then(|v| v.to_str().ok())
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .map(str::to_owned)
-        .unwrap_or_else(|| fallback.to_string())
+        .map_or_else(|| fallback.to_string(), str::to_owned)
 }
 
 /// バインディング失敗時に拒否すべきか。本番だけ拒否し、開発・テストは通過させる。
