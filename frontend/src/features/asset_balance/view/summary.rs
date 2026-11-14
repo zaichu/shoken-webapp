@@ -79,10 +79,10 @@ pub(crate) fn stock_pending_from_parts(
     if rows.is_empty() {
         return false;
     }
-    match fallback_totals {
-        Some(summary) => summary_valuation(summary).has_unpriced,
-        None => rows.iter().any(|row| row.current_price <= Decimal::ZERO),
-    }
+    fallback_totals.map_or_else(
+        || rows.iter().any(|row| row.current_price <= Decimal::ZERO),
+        |summary| summary_valuation(summary).has_unpriced,
+    )
 }
 
 /// 集計帯の補助項目(右側に並べる札)
@@ -118,9 +118,7 @@ pub(crate) fn stock_summary_values(
     let valuation_inputs: Vec<ValuationInput> =
         all_views.iter().map(ValuationInput::from).collect();
     let row_valuation = portfolio_valuation(&valuation_inputs);
-    let valuation = fallback_totals
-        .map(summary_valuation)
-        .unwrap_or(row_valuation);
+    let valuation = fallback_totals.map_or(row_valuation, summary_valuation);
     // 前日比の合計は API 集計(全件)を優先し、無ければ全行から計算する。
     // 前日終値なしの行は除く(全部なしなら「—」)
     let daily_change = fallback_totals
@@ -138,13 +136,13 @@ pub(crate) fn stock_summary_values(
             label: labels::ANNUAL_DIVIDEND_FORECAST,
             value: kpi
                 .total_annual_dividends
-                .map_or("—".to_string(), format_amount),
+                .map_or_else(|| "—".to_string(), format_amount),
         },
         SummaryTag {
             label: labels::ACQUISITION_YIELD,
             value: kpi
                 .dividend_yield
-                .map_or("—".to_string(), format_percentage_value),
+                .map_or_else(|| "—".to_string(), format_percentage_value),
         },
     ];
     (values, tags)
@@ -178,14 +176,11 @@ pub(crate) fn AssetSummaryBand(
 ) -> impl IntoView {
     let market_text = format_valuation_amount(market);
     let profit_text = format_signed_valuation_amount(profit);
-    let rate_text = profit_rate
-        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-        .unwrap_or_default();
+    let rate_text = profit_rate.map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
     // 前日比は表・カードと同じく表示単位を適用せず必ず円マーク付きで出す
     let daily_text = format_signed_row_valuation_amount(daily_change);
     let daily_rate_text = daily_rate(market, daily_change)
-        .map(|rate| format_signed_valuation_rate(Some(rate), 1))
-        .unwrap_or_default();
+        .map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
     let profit_negative = is_negative_valuation(profit);
     let profit_positive = is_positive_valuation(profit);
     let daily_negative = is_negative_valuation(daily_change);

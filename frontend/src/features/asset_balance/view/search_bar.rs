@@ -403,7 +403,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
 ) -> impl IntoView {
     let draft_text = move || draft.with(|s| s.text.clone());
     let set_draft_text = move |value: String| draft.update(|s| s.text = value);
-    let search_callback = Callback::new(move |_| on_search());
+    let search_callback = Callback::new(move |()| on_search());
     let hint = placeholder.clone();
     view! {
         <div class="flex flex-col gap-4">
@@ -462,10 +462,10 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                                                     on_change=move |next: String| {
                                                         draft.update(|s| match kind {
                                                             ConditionKind::Account => {
-                                                                set_dialog_single(&mut s.accounts, next)
+                                                                set_dialog_single(&mut s.accounts, next);
                                                             }
                                                             ConditionKind::Course => {
-                                                                set_dialog_single(&mut s.courses, next)
+                                                                set_dialog_single(&mut s.courses, next);
                                                             }
                                                         });
                                                     }

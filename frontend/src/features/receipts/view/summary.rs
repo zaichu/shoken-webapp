@@ -83,8 +83,8 @@ pub fn header_summary(
 
 /// 帯に出す小さな期間。「2026/01 〜 2026/12」。行の日付は YYYY-MM-DD のため年月だけ切り出す
 pub fn period_note_short(rows: &[ReceiptRow]) -> Option<String> {
-    let from = rows.iter().map(|row| row.date()).min()?;
-    let to = rows.iter().map(|row| row.date()).max()?;
+    let from = rows.iter().map(super::super::ReceiptItem::date).min()?;
+    let to = rows.iter().map(super::super::ReceiptItem::date).max()?;
     Some(receipt_period_short(&year_month(from)?, &year_month(to)?))
 }
 
@@ -150,7 +150,7 @@ pub fn SummaryStrip(
     let pc_items: Vec<SummarySubItem> = secondary.clone().into_iter().map(to_sub).collect();
     let breakdown: Vec<SummaryBreakdownEntry> = secondary.into_iter().map(to_breakdown).collect();
     let (primary_label, primary_value, primary_negative, primary_positive) = primary
-        .map(|(label, value, tone)| {
+        .map_or_default(|(label, value, tone)| {
             let display = match tab {
                 ReceiptsTab::Dividend => RECEIVED_DIVIDEND_AFTER_TAX,
                 _ => REALIZED_AFTER_TAX,
@@ -162,8 +162,7 @@ pub fn SummaryStrip(
                 tone == StatTone::Loss,
                 primary_mark && value > Decimal::ZERO,
             )
-        })
-        .unwrap_or_default();
+        });
     view! {
         <section
             data-testid="receipt-summary-strip"
