@@ -343,13 +343,16 @@ pub fn calendar_days_between(from: (i32, u32, u32), to: (i32, u32, u32)) -> i64 
 fn today_jst() -> Option<(i32, u32, u32)> {
     // epoch 秒を9時間進めて JST の暦日を出す
     let timestamp = js_sys::Date::now() / 1000.0;
-    let jst_seconds = timestamp.to_i64().unwrap_or_else(|| {
-        if timestamp.is_sign_negative() {
-            i64::MIN
-        } else {
-            i64::MAX
-        }
-    }) + 9 * 3600;
+    let jst_seconds = timestamp
+        .to_i64()
+        .unwrap_or_else(|| {
+            if timestamp.is_sign_negative() {
+                i64::MIN
+            } else {
+                i64::MAX
+            }
+        })
+        .saturating_add(9 * 3600);
     Some(civil_from_days(jst_seconds.div_euclid(86_400)))
 }
 

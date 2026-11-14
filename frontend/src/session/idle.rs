@@ -3,19 +3,12 @@ use crate::session::cross_tab;
 use gloo_timers::callback::Timeout;
 use leptos::ev;
 use leptos::prelude::*;
-use rust_decimal::prelude::ToPrimitive;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 const MS_PER_MINUTE: u32 = 60_000;
 
 type IdleTimer = Rc<RefCell<Option<Timeout>>>;
-
-fn now_ms() -> u64 {
-    let now = js_sys::Date::now();
-    now.to_u64()
-        .unwrap_or_else(|| if now.is_sign_negative() { 0 } else { u64::MAX })
-}
 
 fn timeout_ms(minutes: RwSignal<u32>) -> u32 {
     minutes.get_untracked().saturating_mul(MS_PER_MINUTE)
@@ -45,8 +38,8 @@ fn arm_timer(timer: &IdleTimer, session: SessionStore, minutes: RwSignal<u32>, d
 
 // 満了までの残り時間で張り直す。設定値の変更途中でも、共有された最終操作時刻から残りを引く
 fn arm_idle_timer(timer: &IdleTimer, session: SessionStore, minutes: RwSignal<u32>) {
-    let last = cross_tab::last_activity_ms().unwrap_or_else(now_ms);
-    let delay = idle_remaining_ms(last, now_ms(), u64::from(timeout_ms(minutes)));
+    let last = cross_tab::last_activity_ms().unwrap_or_else(cross_tab::now_ms);
+    let delay = idle_remaining_ms(last, cross_tab::now_ms(), u64::from(timeout_ms(minutes)));
     arm_timer(
         timer,
         session,
@@ -61,7 +54,7 @@ fn on_idle_timer(timer: &IdleTimer, session: SessionStore, minutes: RwSignal<u32
     }
     // 書き込みの間引きや取りこぼしで満了が前倒しになり得るので、共有された最終操作時刻で判定し直す
     let remaining = cross_tab::last_activity_ms()
-        .map(|last| idle_remaining_ms(last, now_ms(), u64::from(timeout_ms(minutes))));
+        .map(|last| idle_remaining_ms(last, cross_tab::now_ms(), u64::from(timeout_ms(minutes))));
     match remaining {
         Some(remaining) if remaining > 0 => {
             arm_timer(

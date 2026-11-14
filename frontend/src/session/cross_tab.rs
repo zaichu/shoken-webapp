@@ -16,7 +16,7 @@ pub const ACTIVITY_KEY: &str = "last_activity_at";
 // 最終操作時刻の書き込みを間引く幅。取りこぼしは発火時の共有時刻確認で吸収する
 const ACTIVITY_THROTTLE_MS: u64 = 10_000;
 
-fn now_ms() -> u64 {
+pub(crate) fn now_ms() -> u64 {
     let now = js_sys::Date::now();
     now.to_u64()
         .unwrap_or_else(|| if now.is_sign_negative() { 0 } else { u64::MAX })
