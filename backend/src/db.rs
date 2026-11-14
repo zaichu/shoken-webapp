@@ -45,6 +45,8 @@ pub enum DbError {
     Other(String),
     /// SQLSTATE を直接保持するエラー（Worker 経路・テスト用）
     State { state: SqlState, message: String },
+    /// トランザクション接続を利用できない
+    TransactionUnavailable,
 }
 
 impl DbError {
@@ -52,7 +54,7 @@ impl DbError {
         match self {
             Self::Pg(e) => e.as_db_error().map(|e| e.code().clone()),
             Self::State { state, .. } => Some(state.clone()),
-            Self::RowNotFound | Self::Other(_) => None,
+            Self::RowNotFound | Self::Other(_) | Self::TransactionUnavailable => None,
         }
     }
 
@@ -74,6 +76,7 @@ impl std::fmt::Display for DbError {
             Self::RowNotFound => f.write_str("no rows returned by a query that expected one"),
             Self::Other(m) => f.write_str(m),
             Self::State { message, .. } => f.write_str(message),
+            Self::TransactionUnavailable => f.write_str("トランザクションの接続がありません"),
         }
     }
 }
@@ -243,6 +246,7 @@ impl DbError {
             Self::RowNotFound => "row_not_found",
             Self::Other(_) => "other",
             Self::State { .. } => "database",
+            Self::TransactionUnavailable => "transaction_unavailable",
         };
         let state = self.sql_state();
         let sqlstate = state.as_ref().map_or("-", SqlState::code);
@@ -918,9 +922,7 @@ impl Tx {
     }
 
     pub async fn commit(mut self) -> Result<(), DbError> {
-        let conn = self.conn.take().expect(
-            "トランザクションの接続がありません: beginで必ずSomeになりcommit/rollbackはselfを消費する",
-        );
+        let conn = self.conn.take().ok_or(DbError::TransactionUnavailable)?;
         let guard = TxGuard::new(conn, TxConn::rollback_and_release);
         guard.batch_execute("COMMIT").await?;
         drop(TxGuard::dismiss(guard));
@@ -929,9 +931,7 @@ impl Tx {
 
     /// 明示ロールバック。`Drop` の非同期 ROLLBACK と違い完了を待てる
     pub async fn rollback(mut self) -> Result<(), DbError> {
-        let conn = self.conn.take().expect(
-            "トランザクションの接続がありません: beginで必ずSomeになりcommit/rollbackはselfを消費する",
-        );
+        let conn = self.conn.take().ok_or(DbError::TransactionUnavailable)?;
         let guard = TxGuard::new(conn, TxConn::rollback_and_release);
         guard.batch_execute("ROLLBACK").await?;
         drop(TxGuard::dismiss(guard));
@@ -960,11 +960,10 @@ macro_rules! impl_executor_for_tx {
                 db_future(async move {
                     let timer = DbTimer::start();
                     let sample_every = self.rtt.sample_every;
-                    let out = match self
-                        .conn
-                        .as_ref()
-                        .expect("トランザクションの接続がありません: Executor呼び出し時はcommit/rollback前で接続を保持している")
-                    {
+                    let Some(conn) = self.conn.as_ref() else {
+                        return Err(DbError::TransactionUnavailable);
+                    };
+                    let out = match conn {
                         #[cfg(not(target_arch = "wasm32"))]
                         TxConn::Native(obj) => obj
                             .query_typed(sql, &typed_params(params))
@@ -989,11 +988,10 @@ macro_rules! impl_executor_for_tx {
                 db_future(async move {
                     let timer = DbTimer::start();
                     let sample_every = self.rtt.sample_every;
-                    let out = match self
-                        .conn
-                        .as_ref()
-                        .expect("トランザクションの接続がありません: Executor呼び出し時はcommit/rollback前で接続を保持している")
-                    {
+                    let Some(conn) = self.conn.as_ref() else {
+                        return Err(DbError::TransactionUnavailable);
+                    };
+                    let out = match conn {
                         #[cfg(not(target_arch = "wasm32"))]
                         TxConn::Native(obj) => obj
                             .execute_typed(sql, &typed_params(params))
@@ -1014,12 +1012,10 @@ macro_rules! impl_executor_for_tx {
                 db_future(async move {
                     let timer = DbTimer::start();
                     let sample_every = self.rtt.sample_every;
-                    let out = self
-                        .conn
-                        .as_ref()
-                        .expect("トランザクションの接続がありません: Executor呼び出し時はcommit/rollback前で接続を保持している")
-                        .batch_execute(sql)
-                        .await;
+                    let Some(conn) = self.conn.as_ref() else {
+                        return Err(DbError::TransactionUnavailable);
+                    };
+                    let out = conn.batch_execute(sql).await;
                     timer.finish(query_tag(sql), sample_every);
                     out
                 })
