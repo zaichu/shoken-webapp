@@ -46,6 +46,39 @@ fn map_master(response: &EquitiesMasterResponse) -> Vec<StockRow> {
         .collect()
 }
 
+/// UNNEST 用の列ベクタ。`rows` を1回だけ走査して組み立てる
+struct MasterColumns {
+    dates: Vec<NaiveDate>,
+    codes: Vec<String>,
+    names: Vec<String>,
+    markets: Vec<String>,
+    industry33: Vec<Option<String>>,
+    industry17: Vec<Option<String>>,
+    sizes: Vec<Option<String>>,
+}
+
+fn columns(rows: &[StockRow]) -> MasterColumns {
+    let mut out = MasterColumns {
+        dates: Vec::with_capacity(rows.len()),
+        codes: Vec::with_capacity(rows.len()),
+        names: Vec::with_capacity(rows.len()),
+        markets: Vec::with_capacity(rows.len()),
+        industry33: Vec::with_capacity(rows.len()),
+        industry17: Vec::with_capacity(rows.len()),
+        sizes: Vec::with_capacity(rows.len()),
+    };
+    for row in rows {
+        out.dates.push(row.date);
+        out.codes.push(row.code.clone());
+        out.names.push(row.name.clone());
+        out.markets.push(row.market_category.clone());
+        out.industry33.push(row.industry_category_33.clone());
+        out.industry17.push(row.industry_category_17.clone());
+        out.sizes.push(row.size_category.clone());
+    }
+    out
+}
+
 /// stock を1トランザクションで全置換する。戻り値は投入件数
 pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiError> {
     let tx = pool.begin().await?;
@@ -53,6 +86,7 @@ pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiEr
         crate::db::query("DELETE FROM public.stock", vec![])
             .execute(&tx)
             .await?;
+        let cols = columns(rows);
         let inserted = crate::db::query(
             r#"
             INSERT INTO public.stock
@@ -63,29 +97,13 @@ pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiEr
             )
             "#,
             vec![
-                Bind::from(rows.iter().map(|r| r.date).collect::<Vec<_>>()),
-                Bind::from(rows.iter().map(|r| r.code.clone()).collect::<Vec<_>>()),
-                Bind::from(rows.iter().map(|r| r.name.clone()).collect::<Vec<_>>()),
-                Bind::from(
-                    rows.iter()
-                        .map(|r| r.market_category.clone())
-                        .collect::<Vec<_>>(),
-                ),
-                Bind::from(
-                    rows.iter()
-                        .map(|r| r.industry_category_33.clone())
-                        .collect::<Vec<_>>(),
-                ),
-                Bind::from(
-                    rows.iter()
-                        .map(|r| r.industry_category_17.clone())
-                        .collect::<Vec<_>>(),
-                ),
-                Bind::from(
-                    rows.iter()
-                        .map(|r| r.size_category.clone())
-                        .collect::<Vec<_>>(),
-                ),
+                Bind::from(cols.dates),
+                Bind::from(cols.codes),
+                Bind::from(cols.names),
+                Bind::from(cols.markets),
+                Bind::from(cols.industry33),
+                Bind::from(cols.industry17),
+                Bind::from(cols.sizes),
             ],
         )
         .execute(&tx)
@@ -283,6 +301,30 @@ mod tests {
         assert_eq!(r.industry_category_17, None);
         assert_eq!(r.industry_category_33, None);
         assert_eq!(r.size_category.as_deref(), Some("TOPIX Large70"));
+    }
+
+    #[test]
+    fn test_columns_builds_all_unnest_vectors_from_single_pass() {
+        let rows = map_master(&response(vec![
+            master_row("99310", "架空水産"),
+            master_row("99320", "架空飲料"),
+        ]));
+        let cols = columns(&rows);
+        assert_eq!(cols.dates.len(), 2);
+        assert_eq!(cols.codes, ["9931", "9932"]);
+        assert_eq!(cols.names, ["架空水産", "架空飲料"]);
+        assert_eq!(cols.markets, ["プライム", "プライム"]);
+        assert_eq!(cols.industry33.len(), 2);
+        assert_eq!(cols.industry17.len(), 2);
+        assert_eq!(cols.sizes.len(), 2);
+        assert!(
+            cols.industry33
+                .iter()
+                .all(|v| v.as_deref() == Some("情報・通信業"))
+        );
+        let empty = columns(&[]);
+        assert!(empty.dates.is_empty());
+        assert!(empty.codes.is_empty());
     }
 
     fn fixed_now() -> DateTime<Utc> {
