@@ -643,9 +643,8 @@ fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
 
 #[test]
 fn tax_outflow_uses_inverted_sign() {
-    let mut stock = match domestic().remove(0) {
-        ReceiptItem::DomesticStock(row) => row,
-        _ => unreachable!(),
+    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+        unreachable!()
     };
     stock.realized_profit_and_loss = rust_decimal::Decimal::from(-1000);
     stock.taxes = rust_decimal::Decimal::from(-203);
@@ -668,9 +667,8 @@ fn tax_outflow_uses_inverted_sign() {
     assert!(detail_negative(&card, "税額"));
     assert_eq!(detail_value(&card, "税額").0, "-¥203");
 
-    let mut dividend = match dividends().remove(0) {
-        ReceiptItem::Dividend(row) => row,
-        _ => unreachable!(),
+    let ReceiptItem::Dividend(mut dividend) = dividends().remove(0) else {
+        unreachable!()
     };
     dividend.taxes = rust_decimal::Decimal::from(-100);
     dividend.net_amount_received = rust_decimal::Decimal::from(-50);
@@ -1093,9 +1091,8 @@ fn unit_suffixed_amounts_keep_sign_detection() {
 
 #[test]
 fn profit_zero_keeps_delta_without_sign() {
-    let mut stock = match domestic().remove(0) {
-        ReceiptItem::DomesticStock(row) => row,
-        _ => unreachable!(),
+    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+        unreachable!()
     };
     stock.realized_profit_and_loss = dec!(0);
     stock.taxes = dec!(0);
@@ -1113,9 +1110,8 @@ fn profit_zero_keeps_delta_without_sign() {
 
 #[test]
 fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
-    let mut stock = match domestic().remove(0) {
-        ReceiptItem::DomesticStock(row) => row,
-        _ => unreachable!(),
+    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+        unreachable!()
     };
     stock.realized_profit_and_loss = dec!(1000);
     stock.taxes = dec!(203);
@@ -1143,9 +1139,8 @@ fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
 
 #[test]
 fn tax_zero_uses_plain_and_refund_uses_plus() {
-    let mut stock = match domestic().remove(0) {
-        ReceiptItem::DomesticStock(row) => row,
-        _ => unreachable!(),
+    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+        unreachable!()
     };
     stock.realized_profit_and_loss = dec!(1000);
     stock.taxes = dec!(0);
@@ -1180,9 +1175,8 @@ fn tax_zero_uses_plain_and_refund_uses_plus() {
 
 #[test]
 fn before_tax_loss_uses_minus_and_delta() {
-    let mut stock = match domestic().remove(0) {
-        ReceiptItem::DomesticStock(row) => row,
-        _ => unreachable!(),
+    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+        unreachable!()
     };
     stock.realized_profit_and_loss = dec!(-1000);
     stock.taxes = dec!(0);
@@ -1209,9 +1203,8 @@ fn before_tax_loss_uses_minus_and_delta() {
 
 #[test]
 fn dividend_receipt_gets_plus_as_inflow() {
-    let mut dividend = match dividends().remove(0) {
-        ReceiptItem::Dividend(row) => row,
-        _ => unreachable!(),
+    let ReceiptItem::Dividend(mut dividend) = dividends().remove(0) else {
+        unreachable!()
     };
     dividend.dividends_before_tax = dec!(500);
     dividend.net_amount_received = dec!(400);

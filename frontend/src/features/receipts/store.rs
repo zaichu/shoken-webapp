@@ -226,7 +226,7 @@ pub(crate) fn tab_settled(store: &ReceiptsStore, generation: Generation, tab: Re
     store.tabs.with(|map| {
         matches!(
             tab_list(map, generation, tab),
-            Some(TabState::Ready(_)) | Some(TabState::Failed(_))
+            Some(TabState::Ready(_) | TabState::Failed(_))
         )
     })
 }

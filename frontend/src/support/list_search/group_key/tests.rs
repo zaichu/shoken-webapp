@@ -99,13 +99,13 @@ fn security_data() -> Vec<TestItem> {
         TestItem {
             code: "9904".to_string(),
             name: "架空自動車".to_string(),
-            product: "".to_string(),
+            product: String::new(),
             date: String::new(),
         },
         TestItem {
             code: "9915".to_string(),
             name: "架空通信ホールディングス".to_string(),
-            product: "".to_string(),
+            product: String::new(),
             date: String::new(),
         },
     ]
@@ -207,7 +207,7 @@ fn derive_security_code_case_insensitive() {
     let mixed_case = vec![TestItem {
         code: "ABC1".to_string(),
         name: "テスト銘柄".to_string(),
-        product: "".to_string(),
+        product: String::new(),
         date: String::new(),
     }];
     assert_eq!(

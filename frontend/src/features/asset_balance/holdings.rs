@@ -87,7 +87,7 @@ pub(crate) fn holding_dividend(
 ) -> HoldingDividend {
     let status = maps.status.get(code).cloned();
     match status.as_deref() {
-        Some("pending") | Some("error") => HoldingDividend {
+        Some("pending" | "error") => HoldingDividend {
             per_share: None,
             annual: None,
             yield_value: None,

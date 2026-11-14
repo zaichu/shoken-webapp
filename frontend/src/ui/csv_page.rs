@@ -217,14 +217,12 @@ fn CsvKindRow(
     });
     let was_importing = RwSignal::new(false);
     Effect::new(move |_| match live_status.get() {
-        Some(KindStatus::Importing) | Some(KindStatus::Confirming) => {
+        Some(KindStatus::Importing | KindStatus::Confirming) => {
             was_importing.set(true);
         }
-        Some(KindStatus::Imported { .. })
-        | Some(KindStatus::Skipped { .. })
-        | Some(KindStatus::Failed { .. })
-            if was_importing.get_untracked() =>
-        {
+        Some(
+            KindStatus::Imported { .. } | KindStatus::Skipped { .. } | KindStatus::Failed { .. },
+        ) if was_importing.get_untracked() => {
             was_importing.set(false);
             on_stats_changed.run(());
         }

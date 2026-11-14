@@ -202,7 +202,7 @@ fn category_selections_quote_spaces_and_combine_with_year() {
         filter_receipts(ReceiptsTab::MutualFund, &funds(), &state.query),
         funds()
     );
-    state.select_quick(SearchKey::Securities, "".into());
+    state.select_quick(SearchKey::Securities, String::new());
     assert_eq!(state.query, "2024");
 }
 

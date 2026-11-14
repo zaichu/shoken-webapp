@@ -6,7 +6,7 @@ fn fetch_dividend_batch_uses_shared_request_without_changing_wire_codes() {
     let codes = vec![
         "9904".to_string(),
         "9904".to_string(),
-        "".to_string(),
+        String::new(),
         "9904-1".to_string(),
     ];
     let result = block_on(fetch_dividend_batch(

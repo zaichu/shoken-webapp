@@ -369,7 +369,7 @@ fn YearPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -
 
 #[component]
 fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -> impl IntoView {
-    let months = (1..=12).map(|m| format!("{:02}", m)).collect::<Vec<_>>();
+    let months = (1..=12).map(|m| format!("{m:02}")).collect::<Vec<_>>();
     let selected_month = Memo::new(move |_| search.with(|s| s.date_inputs.month_value.clone()));
     let selected_year = Memo::new(move |_| search.with(|s| s.date_inputs.year_value.clone()));
 
@@ -394,7 +394,7 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                                                 s.date_inputs.month_value = m_value.clone();
                                                 let year = s.date_inputs.year_value.clone();
                                                 if !year.is_empty() {
-                                                    s.set_date_query(format!("{}-{}", year, m_value));
+                                                    s.set_date_query(format!("{year}-{m_value}"));
                                                 }
                                             });
                                         }
@@ -431,14 +431,14 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                                     if year.is_empty() || month.is_empty() {
                                         s.set_date_query(year);
                                     } else {
-                                        s.set_date_query(format!("{}-{}", year, month));
+                                        s.set_date_query(format!("{year}-{month}"));
                                     }
                                 });
                             }
                         >
                             <option value="">{RECEIPT_MONTH_SELECT}</option>
                             {(1..=12).map(|m| {
-                                let m_str = format!("{:02}", m);
+                                let m_str = format!("{m:02}");
                                 let m_label = receipt_month_label(m);
                                 view! { <option value={m_str.clone()}>{m_label}</option> }
                             }).collect_view()}
