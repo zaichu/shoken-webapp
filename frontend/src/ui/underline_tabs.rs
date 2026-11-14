@@ -496,7 +496,7 @@ fn finish_swipe(
     current: Signal<usize>,
     on_select: Callback<usize>,
     motion: SwipeMotion,
-    event: web_sys::TouchEvent,
+    event: &web_sys::TouchEvent,
     cancelled: bool,
 ) {
     cancel_frame(gesture);
@@ -772,7 +772,7 @@ pub fn SwipeArea(
                 return;
             }
             finish_swipe(
-                &gesture, &mounted, track, count, current, on_select, motion, event, false,
+                &gesture, &mounted, track, count, current, on_select, motion, &event, false,
             );
         }
     };
@@ -784,7 +784,7 @@ pub fn SwipeArea(
                 return;
             }
             finish_swipe(
-                &gesture, &mounted, track, count, current, on_select, motion, event, true,
+                &gesture, &mounted, track, count, current, on_select, motion, &event, true,
             );
         }
     };
