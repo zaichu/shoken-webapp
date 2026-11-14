@@ -145,10 +145,7 @@ pub fn swipe_lock_allowed(
     if suppressed || dialog_open {
         return false;
     }
-    match viewport {
-        Some(width) => !is_edge_start(start_x, width),
-        None => false,
-    }
+    viewport.is_some_and(|width| !is_edge_start(start_x, width))
 }
 
 /// 指の移動量を面の動きに変える。端では抵抗をつけて少しだけ伸びる
@@ -554,8 +551,7 @@ fn finish_swipe(
     if !locked {
         width = track
             .get()
-            .map(|track| f64::from(track.client_width()))
-            .unwrap_or(0.0);
+            .map_or(0.0, |track| f64::from(track.client_width()));
     }
     let from = if locked {
         clamp_drag_offset(dx, count_value, current_value, width)
@@ -742,8 +738,7 @@ pub fn SwipeArea(
                 locked.locked = true;
                 locked.width = track
                     .get()
-                    .map(|track| f64::from(track.client_width()))
-                    .unwrap_or(0.0);
+                    .map_or(0.0, |track| f64::from(track.client_width()));
                 if locked.width <= 0.0 {
                     locked.locked = false;
                     locked.vertical = true;

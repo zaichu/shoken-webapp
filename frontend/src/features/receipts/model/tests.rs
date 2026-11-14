@@ -818,7 +818,7 @@ proptest::proptest! {
             .collect::<String>()
             .to_uppercase();
         proptest::prop_assert_eq!(output.clone(), expected);
-        proptest::prop_assert!(!output.chars().any(|c| c.is_whitespace()));
+        proptest::prop_assert!(!output.chars().any(char::is_whitespace));
         proptest::prop_assert_eq!(output.clone(), output.to_uppercase());
     }
 }

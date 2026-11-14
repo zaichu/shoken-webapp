@@ -83,8 +83,7 @@ fn sort_label(sort_by: &str) -> &'static str {
     SORT_COLUMNS
         .iter()
         .find(|(column, _)| *column == sort_by)
-        .map(|(_, label)| *label)
-        .unwrap_or(labels::LOGIN_HISTORY_COL_DATETIME)
+        .map_or(labels::LOGIN_HISTORY_COL_DATETIME, |(_, label)| *label)
 }
 
 /// 並べ替え対象ごとの順序の言葉(降順・昇順の順)。日時は新しい順・古い順、
@@ -121,7 +120,7 @@ fn AdminDialogFields(
     draft: RwSignal<ListQuery>,
     on_search: impl Fn() + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
-    let search_callback = Callback::new(move |_| on_search());
+    let search_callback = Callback::new(move |()| on_search());
     let draft_text = move || draft.with(|query| query.q.clone());
     let set_draft_text = move |value: String| draft.update(|query| query.q = value);
     view! {
@@ -156,8 +155,7 @@ fn AdminDialogFields(
                                     let next: &'static str = SORT_COLUMNS
                                         .iter()
                                         .find(|(column, _)| *column == next)
-                                        .map(|(column, _)| *column)
-                                        .unwrap_or("occurred_at");
+                                        .map_or("occurred_at", |(column, _)| *column);
                                     draft.update(|query| query.sort_by = next);
                                 }
                             >
@@ -410,7 +408,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
                     }
                 })
             }}
-            <div aria-busy=move || initial.with(|state| state.is_none()).to_string()>
+            <div aria-busy=move || initial.with(std::option::Option::is_none).to_string()>
                 {move || match initial.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => view! { <ListLoadError message=message on_retry=load_first /> }.into_any(),

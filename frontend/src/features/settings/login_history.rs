@@ -187,8 +187,8 @@ pub fn SectionLoginHistory() -> impl IntoView {
                             view! { <EmptyState title=LOGIN_HISTORY_EMPTY.to_string() /> }
                                 .into_any()
                         } else {
-                            let desktop_rows = entries.with(|rows| rows.clone());
-                            let mobile_rows = entries.with(|rows| rows.clone());
+                            let desktop_rows = entries.with(std::clone::Clone::clone);
+                            let mobile_rows = entries.with(std::clone::Clone::clone);
                             view! {
                                 <div class="table-frame overflow-clip max-sm:hidden">
                                     <table class="asset-table login-history-table">

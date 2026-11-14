@@ -622,7 +622,7 @@ fn detail_value(card: &CardRowData, label: &str) -> (String, bool, bool, bool) {
     card.details
         .iter()
         .find(|detail| detail.label == label)
-        .map(|detail| match &detail.value {
+        .map_or_default(|detail| match &detail.value {
             CardDetailValue::Text {
                 text,
                 negative,
@@ -631,7 +631,6 @@ fn detail_value(card: &CardRowData, label: &str) -> (String, bool, bool, bool) {
             } => (text.clone(), *negative, *positive, *is_profit),
             CardDetailValue::CopyName { display, .. } => (display.clone(), false, false, false),
         })
-        .unwrap_or_default()
 }
 
 fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
@@ -1271,7 +1270,7 @@ fn summary_band_pc_and_mobile_share_tax_basis_labels() {
         match tab {
             ReceiptsTab::Dividend => assert_eq!(pc, [DIVIDEND_BEFORE_TAX, TAX]),
             ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => {
-                assert_eq!(pc, [REALIZED_BEFORE_TAX, TAX])
+                assert_eq!(pc, [REALIZED_BEFORE_TAX, TAX]);
             }
         }
     }
