@@ -19,7 +19,7 @@ pub struct AuthCallbackQuery {
     state: String,
 }
 
-pub fn same_site(secure: bool) -> SameSite {
+pub const fn same_site(secure: bool) -> SameSite {
     if secure {
         SameSite::None
     } else {

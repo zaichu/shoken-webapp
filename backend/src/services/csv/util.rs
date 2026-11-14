@@ -15,11 +15,11 @@ use unicode_normalization::UnicodeNormalization;
 pub struct RowNumber(usize);
 
 impl RowNumber {
-    pub fn new(n: usize) -> Self {
+    pub const fn new(n: usize) -> Self {
         Self(n)
     }
 
-    pub(crate) fn get(self) -> usize {
+    pub(crate) const fn get(self) -> usize {
         self.0
     }
 }
@@ -41,7 +41,7 @@ pub enum CellError {
     InvalidDate(String),
 }
 
-fn cell_error(row_num: RowNumber, message: String) -> CsvRowError {
+const fn cell_error(row_num: RowNumber, message: String) -> CsvRowError {
     CsvRowError {
         row: row_num.get(),
         message,
@@ -129,7 +129,7 @@ pub struct CsvRowView<'a> {
 }
 
 impl<'a> CsvRowView<'a> {
-    pub fn new(record: &'a csv::StringRecord, index: &'a HeaderIndex) -> Self {
+    pub const fn new(record: &'a csv::StringRecord, index: &'a HeaderIndex) -> Self {
         Self { record, index }
     }
 

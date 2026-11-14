@@ -10,7 +10,7 @@ pub enum FacetOrder {
 }
 
 impl FacetOrder {
-    fn as_sql(self) -> &'static str {
+    const fn as_sql(self) -> &'static str {
         match self {
             Self::Asc => "ASC",
             Self::Desc => "DESC",
@@ -33,7 +33,7 @@ pub enum GroupField {
 
 impl GroupField {
     /// SQL に埋め込む式（固定の &'static str のみを返す）
-    pub fn as_sql_expr(self) -> &'static str {
+    pub const fn as_sql_expr(self) -> &'static str {
         match self {
             Self::Account => "account",
             Self::Product => "product",

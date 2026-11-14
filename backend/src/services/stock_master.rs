@@ -161,7 +161,7 @@ async fn postpone_refresh_slot(pool: &Db) -> Result<(), ApiError> {
 
 /// `scheduled_ms`(UTC エポックミリ秒)から UTC 時刻を得る。
 /// `Utc::now()` には依存しない(テスト可能なように scheduled イベント時刻のみを使う)
-fn scheduled_time(scheduled_ms: f64) -> Option<DateTime<Utc>> {
+const fn scheduled_time(scheduled_ms: f64) -> Option<DateTime<Utc>> {
     DateTime::from_timestamp_millis(scheduled_ms as i64)
 }
 

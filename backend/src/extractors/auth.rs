@@ -12,7 +12,7 @@ use shared::value::UserId;
 pub struct AuthenticatedUser(pub User);
 
 impl AuthenticatedUser {
-    pub fn id(&self) -> UserId {
+    pub const fn id(&self) -> UserId {
         self.0.id
     }
 }

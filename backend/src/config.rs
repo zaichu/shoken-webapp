@@ -102,7 +102,7 @@ impl Config {
         config
     }
 
-    pub fn is_production(&self) -> bool {
+    pub const fn is_production(&self) -> bool {
         self.runtime_env.is_production()
     }
 }

@@ -26,7 +26,10 @@ where
     (items, errors)
 }
 
-fn build_preview_response<T>(items: Vec<T>, errors: Vec<CsvRowError>) -> CsvPreviewResponse<T> {
+const fn build_preview_response<T>(
+    items: Vec<T>,
+    errors: Vec<CsvRowError>,
+) -> CsvPreviewResponse<T> {
     CsvPreviewResponse {
         total_rows: items.len() + errors.len(),
         valid_rows: items.len(),
@@ -36,7 +39,10 @@ fn build_preview_response<T>(items: Vec<T>, errors: Vec<CsvRowError>) -> CsvPrev
 }
 
 /// bulk_create 結果と行エラーから CsvUploadResponse を構築
-fn finish_csv_upload(result: &BulkCreateResponse, errors: Vec<CsvRowError>) -> CsvUploadResponse {
+const fn finish_csv_upload(
+    result: &BulkCreateResponse,
+    errors: Vec<CsvRowError>,
+) -> CsvUploadResponse {
     CsvUploadResponse {
         inserted: result.inserted,
         skipped: result.skipped,

@@ -142,7 +142,7 @@ pub struct DbRttConfig {
 impl DbRttConfig {
     pub const DEFAULT_SAMPLE_EVERY: u64 = 100;
 
-    pub fn new(sample_every: u64) -> Self {
+    pub const fn new(sample_every: u64) -> Self {
         Self { sample_every }
     }
 
@@ -167,7 +167,7 @@ impl DbRttConfig {
 
 static DB_RTT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-fn sample_hit(count: u64, sample_every: u64) -> bool {
+const fn sample_hit(count: u64, sample_every: u64) -> bool {
     sample_every > 0 && count.is_multiple_of(sample_every)
 }
 
@@ -904,11 +904,11 @@ impl TxConn {
 struct TxGuard(Option<TxConn>);
 
 impl TxGuard {
-    fn new(conn: TxConn) -> Self {
+    const fn new(conn: TxConn) -> Self {
         Self(Some(conn))
     }
 
-    fn conn(&self) -> &TxConn {
+    const fn conn(&self) -> &TxConn {
         self.0.as_ref().expect("トランザクションの接続がありません")
     }
 

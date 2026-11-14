@@ -99,7 +99,7 @@ pub fn reply_code(line: &str) -> Option<u16> {
     line.get(..3)?.parse().ok()
 }
 
-pub fn login_notification_subject() -> &'static str {
+pub const fn login_notification_subject() -> &'static str {
     "新しい端末からのログインがありました"
 }
 

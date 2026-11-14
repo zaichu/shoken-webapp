@@ -42,7 +42,7 @@ impl JQuantsClient {
     }
 
     /// dev/検証用に fins/summary と equities/master の両エンドポイントを差し替える
-    pub fn with_urls(api_key: String, fin_summary_url: String, master_url: String) -> Self {
+    pub const fn with_urls(api_key: String, fin_summary_url: String, master_url: String) -> Self {
         Self {
             api_key,
             base_url: fin_summary_url,
