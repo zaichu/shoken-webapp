@@ -107,7 +107,7 @@ impl Search for DividendDomain {
     ) -> Result<DividendSummary, ApiError> {
         Ok(Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<DividendSummary>()
-            .fetch_one(pool)
+            .fetch_one_with_user(pool, user_id)
             .await?)
     }
 }

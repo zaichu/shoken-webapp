@@ -116,13 +116,17 @@ fn build_group_facets_query(
 /// table / group_expr / order は呼び出し側が定義する固定値のみを渡すこと。
 pub async fn fetch_group_facets(
     pool: &Db,
+    user_id: shared::value::UserId,
     table: &'static str,
     group_expr: &'static str,
     order: FacetOrder,
     push_filters: impl FnOnce(&mut QueryBuilder),
 ) -> Result<Vec<FacetOption>, ApiError> {
     let mut qb = build_group_facets_query(table, group_expr, order, push_filters);
-    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
+    Ok(qb
+        .build_query_as::<FacetOption>()
+        .fetch_all_with_user(pool, user_id)
+        .await?)
 }
 
 /// table / label_order（呼び出し側が渡す固定の &'static str のみ）を使って
@@ -149,12 +153,16 @@ fn build_security_facets_query(
 /// table / label_order は呼び出し側が定義する固定値のみを渡すこと。
 pub async fn fetch_security_facets(
     pool: &Db,
+    user_id: shared::value::UserId,
     table: &'static str,
     label_order: &'static str,
     push_filters: impl FnOnce(&mut QueryBuilder),
 ) -> Result<Vec<FacetOption>, ApiError> {
     let mut qb = build_security_facets_query(table, label_order, push_filters);
-    Ok(qb.build_query_as::<FacetOption>().fetch_all(pool).await?)
+    Ok(qb
+        .build_query_as::<FacetOption>()
+        .fetch_all_with_user(pool, user_id)
+        .await?)
 }
 
 #[cfg(test)]

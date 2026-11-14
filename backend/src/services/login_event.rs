@@ -88,7 +88,7 @@ pub async fn list_login_history(
          WHERE user_id = $1 ORDER BY occurred_at DESC, id DESC LIMIT $2 OFFSET $3",
         vec![Bind::from(user_id), Bind::from(limit), Bind::from(offset)],
     )
-    .fetch_all(pool)
+    .fetch_all_with_user(pool, user_id)
     .await
 }
 
@@ -135,7 +135,7 @@ pub async fn list_devices(
          ORDER BY s.device_hash, last_used_at DESC",
         vec![Bind::from(user_id)],
     )
-    .fetch_all(pool)
+    .fetch_all_with_user(pool, user_id)
     .await?;
     let mut devices: Vec<DeviceEntry> = rows
         .into_iter()
@@ -173,7 +173,7 @@ pub async fn resolve_device_hash(
          WHERE user_id = $1 AND expires_at > NOW() AND device_hash IS NOT NULL",
         vec![Bind::from(user_id)],
     )
-    .fetch_all(pool)
+    .fetch_all_with_user(pool, user_id)
     .await?;
     Ok(rows
         .into_iter()

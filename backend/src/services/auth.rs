@@ -215,10 +215,7 @@ pub async fn select_user_id_by_session(
     token: SessionToken,
 ) -> Result<Option<UserId>, DbError> {
     crate::db::query_scalar::<UserId>(
-        r#"
-        SELECT user_id FROM sessions
-        WHERE token_hash = $1 AND expires_at > NOW()
-        "#,
+        "SELECT auth_lookup_user_id_by_session($1)",
         vec![Bind::Bytes(token.hash())],
     )
     .fetch_optional(pool)

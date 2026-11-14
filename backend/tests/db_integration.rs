@@ -6968,3 +6968,84 @@ async fn rls_5c_writes_via_app_enter() {
     .expect("設定値の取得に失敗");
     assert!(setting.as_deref().is_none_or(str::is_empty));
 }
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn rls_5d_reads_via_app_enter() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&database_url).await;
+    run_migrations(&pool).await.expect("migrations failed");
+
+    let user_a = create_test_user(&pool).await;
+    let user_b = create_test_user(&pool).await;
+    dividend_svc::bulk_create(
+        &pool,
+        user_a,
+        &[make_dividend_item("9931")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("利用者 A の配当を登録できるはず");
+    dividend_svc::bulk_create(
+        &pool,
+        user_b,
+        &[make_dividend_item("9932")],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("利用者 B の配当を登録できるはず");
+
+    let mut params = dividend_search_params_with_pagination(PaginationParams::default());
+    params.search.include_summary = Some(true);
+    params.search.include_facets = Some(true);
+    let result = domain_search::<dividend_svc::DividendDomain>(&pool, user_a, params)
+        .await
+        .expect("制限ロールでの一覧読み取りは成功するはず");
+    assert_eq!(result.total, 1, "利用者 A の件数だけ返るはず");
+    assert_eq!(result.data.len(), 1, "利用者 A のデータだけ返るはず");
+    assert!(result.data.iter().all(|row| row.user_id == user_a));
+
+    let count = db::query_scalar::<i64>("SELECT COUNT(*) FROM dividends", vec![])
+        .fetch_one_with_user(&pool, user_a)
+        .await
+        .expect("RLS 読み取りは成功するはず");
+    assert_eq!(count, 1, "RLS が別利用者の行を隠すはず");
+
+    let user = db::query_scalar::<String>("SELECT current_user", vec![])
+        .fetch_one(&pool)
+        .await
+        .expect("利用者名の取得に失敗");
+    assert_eq!(user, "postgres", "Tx 終了後は所有者に戻るはず");
+    let setting = db::query_scalar::<Option<String>>(
+        "SELECT NULLIF(current_setting('app.current_user_id', true), '')",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("利用者 ID 設定の取得に失敗");
+    assert!(setting.is_none(), "Tx 終了後に利用者 ID が残らないはず");
+
+    let token = "5d-test-token";
+    let token_hash = backend::services::login_notify::token_hash(token);
+    db::query(
+        "INSERT INTO login_notify_tokens (user_id, token_hash) VALUES ($1, $2)",
+        vec![Bind::from(user_a), Bind::Bytes(token_hash.clone())],
+    )
+    .execute(&pool)
+    .await
+    .expect("通知 token を登録できるはず");
+    let peeked = backend::services::login_notify::peek_token(&pool, token)
+        .await
+        .expect("通知 token の照会は成功するはず");
+    assert_eq!(peeked.map(|(id, _)| id), Some(user_a));
+    let consumed = backend::services::login_notify::consume_token(&pool, token)
+        .await
+        .expect("通知 token の消費は成功するはず");
+    assert_eq!(consumed, Some(user_a));
+}

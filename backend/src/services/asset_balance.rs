@@ -147,7 +147,7 @@ impl Search for AssetBalanceDomain {
     ) -> Result<AssetBalanceSummary, ApiError> {
         Ok(Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<AssetBalanceSummary>()
-            .fetch_one(pool)
+            .fetch_one_with_user(pool, user_id)
             .await?)
     }
 }

@@ -132,7 +132,7 @@ impl crate::db::FromRow for NavStatusRow {
 /// 基準価額の自動更新の状態を返す。取得できた/失敗した件数と、直近の失敗理由を出す
 async fn fetch_nav_status(pool: &Db, user_id: UserId) -> Result<FundNavStatus, ApiError> {
     let row = crate::db::query(NAV_STATUS_SQL, vec![Bind::from(user_id)])
-        .fetch_one::<NavStatusRow, _>(pool)
+        .fetch_one_with_user::<NavStatusRow>(pool, user_id)
         .await?;
     Ok(FundNavStatus {
         updated_at: row.updated_at.map(jst_minute),
@@ -185,7 +185,7 @@ impl Search for FundBalanceDomain {
     ) -> Result<FundBalanceSummary, ApiError> {
         let mut summary = Self::filtered_query(SUMMARY_SQL, user_id, filter)
             .build_query_as::<FundBalanceSummary>()
-            .fetch_one(pool)
+            .fetch_one_with_user(pool, user_id)
             .await?;
         // 自動更新の状況は検索条件に依らないので別のクエリで取る
         summary.nav_status = fetch_nav_status(pool, user_id).await?;

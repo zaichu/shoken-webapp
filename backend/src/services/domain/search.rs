@@ -116,13 +116,20 @@ async fn collect_facets<D: Search + ?Sized>(
     let fetches = D::FACETS.iter().map(|spec| async move {
         let options = match spec.kind {
             FacetKind::Group { field, order } => {
-                facets::fetch_group_facets(pool, D::TABLE, field.as_sql_expr(), order, |qb| {
-                    D::push_filters(qb, user_id, filter);
-                })
+                facets::fetch_group_facets(
+                    pool,
+                    user_id,
+                    D::TABLE,
+                    field.as_sql_expr(),
+                    order,
+                    |qb| {
+                        D::push_filters(qb, user_id, filter);
+                    },
+                )
                 .await?
             }
             FacetKind::Security { label_order } => {
-                facets::fetch_security_facets(pool, D::TABLE, label_order, |qb| {
+                facets::fetch_security_facets(pool, user_id, D::TABLE, label_order, |qb| {
                     D::push_filters(qb, user_id, filter);
                 })
                 .await?
@@ -168,7 +175,10 @@ pub async fn search<D: Search>(
     let mut count_qb = QueryBuilder::new(format!("SELECT COUNT(*) FROM {}", D::TABLE));
     D::push_filters(&mut count_qb, user_id, &filter);
     let count_fut = async move {
-        let total: i64 = count_qb.build_query_scalar().fetch_one(pool).await?;
+        let total: i64 = count_qb
+            .build_query_scalar()
+            .fetch_one_with_user(pool, user_id)
+            .await?;
         Ok::<_, ApiError>(total)
     };
 
@@ -178,7 +188,10 @@ pub async fn search<D: Search>(
     data_qb.push(" LIMIT ").push_bind(per_page);
     data_qb.push(" OFFSET ").push_bind(offset);
     let data_fut = async move {
-        let data = data_qb.build_query_as::<D::Data>().fetch_all(pool).await?;
+        let data = data_qb
+            .build_query_as::<D::Data>()
+            .fetch_all_with_user(pool, user_id)
+            .await?;
         Ok::<_, ApiError>(data)
     };
 

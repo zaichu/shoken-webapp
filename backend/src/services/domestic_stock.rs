@@ -128,7 +128,7 @@ impl Search for DomesticStockDomain {
             );
         Ok(qb
             .build_query_as::<DomesticStockSummary>()
-            .fetch_one(pool)
+            .fetch_one_with_user(pool, user_id)
             .await?)
     }
 }
