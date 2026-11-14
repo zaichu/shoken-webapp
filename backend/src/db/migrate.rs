@@ -137,6 +137,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0030_auth_rotate_session_skip_locked",
         include_str!("../../migrations/0030_auth_rotate_session_skip_locked.sql"),
     ),
+    (
+        "0031_dividend_cache_error_stale_at",
+        include_str!("../../migrations/0031_dividend_cache_error_stale_at.sql"),
+    ),
 ];
 
 struct Migration {

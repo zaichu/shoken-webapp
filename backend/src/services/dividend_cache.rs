@@ -115,12 +115,11 @@ pub async fn drain_refresh_queue(
     jquants_client: &JQuantsClient,
 ) -> Result<usize, ApiError> {
     // error 行は再試行間隔(429 cooldown または ERROR_RETRY_INTERVAL_SECS)が
-    // stale_at に入り、経過するまで対象外。旧実装が残した error+NULL 行は
-    // stale_at IS NULL で一度だけ拾われ、失敗記録の更新で間隔が付く
+    // stale_at に入り、経過するまで対象外。pending 行は stale_at が NULL。
     let codes: Vec<SecurityCode> = crate::db::query(
         r#"
         SELECT security_code FROM dividend_per_share_cache
-        WHERE status = 'pending' OR stale_at IS NULL OR stale_at < NOW()
+        WHERE status = 'pending' OR stale_at < NOW()
         ORDER BY stale_at ASC NULLS FIRST, updated_at ASC
         LIMIT $1
         "#,
