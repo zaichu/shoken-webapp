@@ -294,7 +294,7 @@ fn add_listener(target: &JsValue, name: &str, listener: &Closure<dyn FnMut(JsVal
         return false;
     };
     let Ok(add) = js_sys::Reflect::get(&emitter, &JsValue::from_str("addListener"))
-        .and_then(|add| add.dyn_into::<js_sys::Function>())
+        .and_then(wasm_bindgen::JsCast::dyn_into::<js_sys::Function>)
     else {
         return false;
     };
@@ -304,7 +304,7 @@ fn add_listener(target: &JsValue, name: &str, listener: &Closure<dyn FnMut(JsVal
 
 fn post(port: &JsValue, message: &JsValue) {
     let Ok(post) = js_sys::Reflect::get(port, &JsValue::from_str("postMessage"))
-        .and_then(|post| post.dyn_into::<js_sys::Function>())
+        .and_then(wasm_bindgen::JsCast::dyn_into::<js_sys::Function>)
     else {
         return;
     };
@@ -313,7 +313,7 @@ fn post(port: &JsValue, message: &JsValue) {
 
 fn call0(target: &JsValue, name: &str) {
     let Ok(call) = js_sys::Reflect::get(target, &JsValue::from_str(name))
-        .and_then(|call| call.dyn_into::<js_sys::Function>())
+        .and_then(wasm_bindgen::JsCast::dyn_into::<js_sys::Function>)
     else {
         return;
     };

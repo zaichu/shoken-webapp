@@ -10,8 +10,7 @@ impl ReceiptsStore {
         let generation = self.session.generation.get();
         self.tabs.with(|map| {
             map.get(&(generation, tab))
-                .map(|entry| entry.csv.clone())
-                .unwrap_or_default()
+                .map_or_default(|entry| entry.csv.clone())
         })
     }
 
@@ -27,7 +26,7 @@ impl ReceiptsStore {
 
     pub fn open_delete_confirm(&self, tab: ReceiptsTab) {
         if let Some(generation) = self.current_generation() {
-            self.update_csv_state(generation, tab, |state| state.open_delete_confirm());
+            self.update_csv_state(generation, tab, CsvTabState::open_delete_confirm);
         }
     }
 

@@ -149,23 +149,20 @@ pub(crate) async fn poll_dividend_maps(
         if !is_current() {
             break;
         }
-        match fetch_dividend_batch(&codes, post_dividend_batch).await {
-            Ok(batch) => {
-                let (maps, has_pending) = dividend_maps_from_batch(&batch);
-                if is_current() {
-                    apply_dividend_maps(&balances, &dividends, generation, maps);
-                }
-                if !has_pending || pending_used >= max_pending {
-                    break;
-                }
-                pending_used += 1;
+        if let Ok(batch) = fetch_dividend_batch(&codes, post_dividend_batch).await {
+            let (maps, has_pending) = dividend_maps_from_batch(&batch);
+            if is_current() {
+                apply_dividend_maps(&balances, &dividends, generation, maps);
             }
-            Err(_) => {
-                if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
-                    break;
-                }
-                network_used += 1;
+            if !has_pending || pending_used >= max_pending {
+                break;
             }
+            pending_used += 1;
+        } else {
+            if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
+                break;
+            }
+            network_used += 1;
         }
         gloo_timers::future::TimeoutFuture::new(DIVIDEND_RETRY_DELAY_MS).await;
     }

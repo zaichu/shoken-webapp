@@ -342,7 +342,7 @@ impl CsvSyncStore {
         if self.running() {
             return;
         }
-        self.state.update(|state| state.prepare_file_import());
+        self.state.update(SyncState::prepare_file_import);
         let epoch = self.epoch.get_untracked();
         let generation = self.session.generation.get_untracked();
         let store = *self;
@@ -380,7 +380,7 @@ impl CsvSyncStore {
     }
 
     fn stop_active(&self) {
-        if let Some(active) = self.active.try_update(|slot| slot.take()).flatten() {
+        if let Some(active) = self.active.try_update(Option::take).flatten() {
             active.disconnect();
         }
     }
@@ -435,7 +435,7 @@ impl CsvSyncStore {
     /// 激減の確認への回答。「はい」は件数判定を飛ばして同じ種類から、「いいえ」は
     /// その種類を取り込まず、どちらも残りの取り込みを続ける
     pub(crate) fn answer_confirm(&self, yes: bool) {
-        let Some(pending) = self.pending.try_update(|slot| slot.take()).flatten() else {
+        let Some(pending) = self.pending.try_update(Option::take).flatten() else {
             return;
         };
         if !self.alive(pending.epoch, pending.generation) {
