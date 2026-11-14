@@ -130,15 +130,13 @@ fn CsvKindRow(
     let meta = Memo::new(move |_| match kind {
         CsvKind::AssetStock => asset_csv.csv_meta(),
         CsvKind::AssetFund => asset_csv.fund_csv_meta(),
-        _ => tab
-            .map(|tab| receipts_store.csv_meta(tab))
-            .unwrap_or_default(),
+        _ => tab.map_or_default(|tab| receipts_store.csv_meta(tab)),
     });
     let deleting = Memo::new(move |_| meta.get().deleting);
     let delete_count = Memo::new(move |_| match kind {
         CsvKind::AssetStock => asset_csv.db_count(),
         CsvKind::AssetFund => asset_csv.fund_db_count(),
-        _ => tab.map(|tab| receipts_store.count(tab)).unwrap_or(0),
+        _ => tab.map_or(0, |tab| receipts_store.count(tab)),
     });
     let delete_count_ready = Memo::new(move |_| match kind {
         CsvKind::AssetStock => asset_csv.saved_count_ready(),
@@ -162,7 +160,11 @@ fn CsvKindRow(
         CsvKind::AssetFund => asset_csv.fund_date_range(),
         _ => tab.and_then(|tab| {
             if let TabState::Ready(data) = receipts_store.tab_state(tab) {
-                let dates: Vec<&str> = data.rows.iter().map(|row| row.date()).collect();
+                let dates: Vec<&str> = data
+                    .rows
+                    .iter()
+                    .map(super::super::features::receipts::ReceiptItem::date)
+                    .collect();
                 if dates.is_empty() {
                     return None;
                 }
@@ -361,12 +363,11 @@ fn CsvKindRow(
         }
         was_deleting.set(false);
         on_stats_changed.run(());
-        match meta.get().error {
-            Some(message) => delete_error.set(Some(message)),
-            None => {
-                show_delete_confirm.set(false);
-                delete_error.set(None);
-            }
+        if let Some(message) = meta.get().error {
+            delete_error.set(Some(message));
+        } else {
+            show_delete_confirm.set(false);
+            delete_error.set(None);
         }
     });
 
@@ -417,10 +418,7 @@ fn CsvKindRow(
                 class="px-4 py-3 whitespace-nowrap text-right text-text-muted max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:pr-2"
                 data-testid="saved-count"
             >
-                {match count {
-                    Some(count) => labels::count(count.max(0) as usize),
-                    None => labels::MISSING.to_string(),
-                }}
+                {count.map_or_else(|| labels::MISSING.to_string(), |count| labels::count(count.max(0) as usize))}
             </td>
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-xs">
                 <div class="csv-status-line">
