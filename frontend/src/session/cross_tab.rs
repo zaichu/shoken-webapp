@@ -71,7 +71,7 @@ thread_local! {
     static LAST_WRITTEN_MS: Cell<u64> = const { Cell::new(0) };
 }
 
-fn should_record(now_ms: u64, last_written_ms: u64) -> bool {
+const fn should_record(now_ms: u64, last_written_ms: u64) -> bool {
     now_ms.saturating_sub(last_written_ms) >= ACTIVITY_THROTTLE_MS
 }
 
@@ -99,7 +99,7 @@ const LOGOUT_CLAIMED_KEY: &str = "logout_claimed_at";
 // 次の無操作ログアウトは最短でも30分後なので、この幅なら次回と取り違えない
 const RECENT_CLAIM_MS: u64 = 60_000;
 
-fn is_recent_claim(now_ms: u64, claimed_at_ms: u64) -> bool {
+const fn is_recent_claim(now_ms: u64, claimed_at_ms: u64) -> bool {
     now_ms.saturating_sub(claimed_at_ms) < RECENT_CLAIM_MS
 }
 

@@ -28,7 +28,7 @@ pub(crate) fn is_searchable_code(code: &str) -> bool {
             .all(|character| character.is_ascii_alphanumeric() || character == '.')
 }
 
-pub(crate) fn is_js_whitespace(c: char) -> bool {
+pub(crate) const fn is_js_whitespace(c: char) -> bool {
     matches!(
         c,
         '\u{0009}'
@@ -46,7 +46,7 @@ pub(crate) fn is_js_whitespace(c: char) -> bool {
     )
 }
 
-fn is_js_line_terminator(c: char) -> bool {
+const fn is_js_line_terminator(c: char) -> bool {
     matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}')
 }
 

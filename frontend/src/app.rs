@@ -51,7 +51,7 @@ enum Route {
 }
 
 impl Route {
-    fn title(&self) -> &'static str {
+    const fn title(&self) -> &'static str {
         match self {
             Self::Home => labels::HOME_TITLE,
             Self::Search => labels::STOCK_SEARCH_TITLE,
@@ -68,7 +68,7 @@ impl Route {
         }
     }
 
-    fn shows_bottom_nav(self) -> bool {
+    const fn shows_bottom_nav(self) -> bool {
         !matches!(self, Self::Login | Self::NotFound)
     }
 }
@@ -253,7 +253,7 @@ fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
     focus_main(&window);
 }
 
-fn show_bottom_nav_for(route: Route) -> bool {
+const fn show_bottom_nav_for(route: Route) -> bool {
     route.shows_bottom_nav()
 }
 

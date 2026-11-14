@@ -68,11 +68,11 @@ async fn delete_with_verification(client: &ApiClient) -> Result<(), ApiError> {
 pub struct Generation(u64);
 
 impl Generation {
-    pub fn next(self) -> Self {
+    pub const fn next(self) -> Self {
         Self(self.0 + 1)
     }
 
-    fn advance(&mut self) {
+    const fn advance(&mut self) {
         *self = self.next();
     }
 }

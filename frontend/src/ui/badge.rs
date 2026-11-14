@@ -30,7 +30,7 @@ pub enum BadgeVariant {
 }
 
 impl BadgeVariant {
-    fn class(self) -> &'static str {
+    const fn class(self) -> &'static str {
         match self {
             Self::Positive => "badge badge-positive",
             Self::Info => "badge badge-info",
