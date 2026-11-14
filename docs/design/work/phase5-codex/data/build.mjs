@@ -3,14 +3,22 @@
 // 起点に {{KEY}} を埋めて html/ へ生成する(手で数字を書かない)。
 // 計算規則は実装と合わせる: 株式=数量×現在値、投信=口数×基準価額÷10000、
 // 前日比率=前日比÷前日の評価額 (backend asset_balance/fund_balance 由来)。
+// 配当明細・売買明細も fixtures に置き、月別合計・年合計・件数を検算する。
+// OpenCode 担当画面は同一 fixtures から生成されるため、突き合わせ表は
+// 生成物に期待値が含まれることを assert で確認する(先に build-opencode を実行)。
 import assert from 'node:assert/strict';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+let assertCount = 0;
+const eq = (a, b, message) => { assertCount++; assert.equal(a, b, message); };
+const ok = (value, message) => { assertCount++; assert.ok(value, message); };
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tplDir = path.join(root, 'data/templates');
 const htmlDir = path.join(root, 'html');
+const opencodeHtmlDir = path.join(root, '..', 'phase5-opencode', 'html');
 const fixture = JSON.parse(await readFile(path.join(root, 'data/fixtures.json'), 'utf8'));
 
 const yen = value => `¥${Math.round(value).toLocaleString('en-US')}`;
@@ -22,8 +30,8 @@ const sum = (rows, key) => rows.reduce((total, row) => total + row[key], 0);
 
 // 行ごとの派生値: 評価額・取得額・損益・損益率(=損益÷取得総額)・前日評価額
 const holdings = fixture.holdings.map(row => {
-  assert.ok(row.type === 'stock' || row.type === 'fund', `${row.id}: 不明な資産種別`);
-  assert.ok(row.quantity > 0 && row.currentPrice > 0 && row.costUnitPrice > 0, `${row.id}: 数量・価格`);
+  ok(row.type === 'stock' || row.type === 'fund', `${row.id}: 不明な資産種別`);
+  ok(row.quantity > 0 && row.currentPrice > 0 && row.costUnitPrice > 0, `${row.id}: 数量・価格`);
   const multiplier = row.type === 'fund' ? 1 / 10000 : 1;
   const value = Math.round(row.quantity * row.currentPrice * multiplier);
   const cost = Math.round(row.quantity * row.costUnitPrice * multiplier);
@@ -47,9 +55,64 @@ const dividendTax = sum(fixture.dividends, 'tax');
 const dividendAfter = dividendBefore - dividendTax;
 const annualByHolding = Object.fromEntries(stocks.map(row => [row.id, row.annualDividendPerShare * row.quantity]));
 const dividendAnnual = dividendBefore;
-const recentDividends = fixture.recentDividends.map(row => ({
-  ...row, holding: holdings.find(holding => holding.id === row.holdingId), afterTax: row.beforeTax - row.tax,
-}));
+
+// ---- 配当明細行: 月別合計・年合計・数量×単価・税引後の検算 ----
+const dividendTxs = fixture.dividendTransactions.map(row => {
+  const holding = holdings.find(h => h.id === row.holdingId);
+  ok(holding, `${row.date}: 不明な保有 ${row.holdingId}`);
+  ok(row.quantity > 0 && row.unitPrice > 0, `${row.date}: 数量・単価`);
+  eq(Math.round(row.quantity * row.unitPrice), row.beforeTax, `${row.date}: 数量×単価`);
+  ok(row.tax >= 0 && row.tax <= row.beforeTax, `${row.date}: 税額範囲`);
+  return { ...row, holding, code: holding.code, name: holding.name, afterTax: row.beforeTax - row.tax };
+});
+for (const month of fixture.dividends) {
+  const inMonth = dividendTxs.filter(row => Number(row.date.slice(5, 7)) === month.month);
+  ok(inMonth.length >= 1 && inMonth.length <= 4, `${month.month}月: 1〜4行(実績 ${inMonth.length}行)`);
+  eq(sum(inMonth, 'beforeTax'), month.beforeTax, `${month.month}月 税引前`);
+  eq(sum(inMonth, 'tax'), month.tax, `${month.month}月 税額`);
+}
+eq(sum(dividendTxs, 'beforeTax'), dividendBefore, '配当行合計=月別合計(税引前)');
+eq(sum(dividendTxs, 'tax'), dividendTax, '配当行合計=月別合計(税額)');
+eq(sum(dividendTxs, 'afterTax'), dividendAfter, '配当行合計=年合計(税引後)');
+
+// ---- 国内株式売買行: 保有と整合(コード・取得単価)し、売却額−取得額=損益 ----
+const stockTrades = fixture.stockTrades.map(row => {
+  const holding = holdings.find(h => h.id === row.holdingId && h.type === 'stock');
+  ok(holding, `${row.date}: 不明な国内株式 ${row.holdingId}`);
+  eq(row.sellAmount, row.quantity * row.sellPrice, `${row.date}: 数量×売却単価`);
+  eq(row.costAmount, Math.round(row.quantity * holding.costUnitPrice), `${row.date}: 数量×取得単価`);
+  eq(row.gain, row.sellAmount - row.costAmount, `${row.date}: 実現損益`);
+  if (row.gain <= 0) eq(row.tax, 0, `${row.date}: 損失時税額ゼロ`);
+  else ok(row.tax > 0 && row.tax < row.gain, `${row.date}: 税額範囲`);
+  return { ...row, code: holding.code, name: holding.name, after: row.gain - row.tax };
+});
+const stockGain = sum(stockTrades, 'gain');
+const stockTax = sum(stockTrades, 'tax');
+const stockAfter = stockGain - stockTax;
+eq(stockAfter, sum(stockTrades, 'after'), '株式税引後');
+
+// ---- 投資信託解約行: 保有と整合(ファンド・取得単価)し、口数×基準価額÷10000 ----
+const fundTrades = fixture.fundTrades.map(row => {
+  const holding = holdings.find(h => h.id === row.holdingId && h.type === 'fund');
+  ok(holding, `${row.date}: 不明な投資信託 ${row.holdingId}`);
+  eq(row.redeemAmount, Math.round(row.quantity * row.redeemNav / 10000), `${row.date}: 口数×解約基準価額÷10000`);
+  eq(row.costNav, holding.costUnitPrice, `${row.date}: 取得単価=保有の取得単価`);
+  eq(row.costAmount, Math.round(row.quantity * row.costNav / 10000), `${row.date}: 口数×取得単価÷10000`);
+  eq(row.gain, row.redeemAmount - row.costAmount, `${row.date}: 実現損益`);
+  ok(row.tax > 0 && row.tax < row.gain, `${row.date}: 税額範囲`);
+  ok(Math.abs(row.redeemNav - holding.currentPrice) / holding.currentPrice < 0.1, `${row.date}: 解約基準価額は保有の現在値に近い`);
+  return { ...row, code: holding.code, name: holding.name, after: row.gain - row.tax };
+});
+const fundGain = sum(fundTrades, 'gain');
+const fundTax = sum(fundTrades, 'tax');
+const fundAfter = fundGain - fundTax;
+
+// ---- 最近の配当入金 = 明細行の新しい順の上位2行(ホーム・ダイアログと一致) ----
+const byDateDesc = [...dividendTxs].sort((x, y) => (x.date < y.date ? 1 : -1));
+const recentDividends = byDateDesc.slice(0, 2);
+eq(recentDividends.length, 2, '最近の配当2行');
+ok(recentDividends[0].date >= recentDividends[1].date, '新しい順');
+
 const percentage = (value, base, digits = 1) => `${(value / base * 100).toFixed(digits)}%`;
 const byId = Object.fromEntries(holdings.map(row => [row.id, row]));
 const a = byId['stock-a'];
@@ -59,8 +122,6 @@ const fundNavChange = fund.currentPrice - fund.previousNav;
 const stockADayChange = a.currentPrice - a.previousValue / a.quantity;
 const specificValue = holdings.filter(row => row.account === '特定口座').reduce((t, row) => t + row.value, 0);
 const nisaValue = holdings.filter(row => row.account === 'NISA').reduce((t, row) => t + row.value, 0);
-const novMonthly = fixture.dividends.find(row => row.month === 11);
-const novRecentBefore = recentDividends.filter(row => row.month === 11).reduce((t, row) => t + row.beforeTax, 0);
 const values = {
   TOTAL: yen(total), COST_TOTAL: yen(costTotal), GAIN_TOTAL: signedYen(gainTotal),
   GAIN_RATE_TOTAL: pct(gainTotal / costTotal * 100, 2),
@@ -88,8 +149,13 @@ const values = {
   STOCK_B_DIVIDEND_SHARE: percentage(annualByHolding[b.id], dividendAnnual),
   COUNT: String(holdings.length), STOCK_COUNT: String(stocks.length),
   FUND_COUNT: String(funds.length), DIVIDEND_COUNT: String(stocks.length),
+  DIV_TX_COUNT: String(dividendTxs.length), STOCK_TX_COUNT: String(stockTrades.length),
+  FUND_TX_COUNT: String(fundTrades.length),
   RECENT_A_BEFORE: yen(recentDividends[0].beforeTax), RECENT_A_TAX_SIGNED: `-${yen(recentDividends[0].tax)}`,
   RECENT_A_AFTER: yen(recentDividends[0].afterTax),
+  RECENT_A_DATE_SLASH: recentDividends[0].date, RECENT_A_DATE_JP: recentDividends[0].date.replaceAll('/', '年').replace('年', '年', 1),
+  RECENT_A_CODE: recentDividends[0].code, RECENT_A_NAME: recentDividends[0].name,
+  RECENT_A_ACCOUNT: recentDividends[0].account,
   RECENT_B_AFTER: yen(recentDividends[1].afterTax),
   ACCOUNT_SPECIFIC: yen(specificValue), ACCOUNT_NISA: yen(nisaValue),
   COST_PARTS: holdings.map(row => yen(row.cost)).join(' + '),
@@ -102,50 +168,53 @@ const values = {
   RECENT_ROWS: recentDividends.map(row => `<a class="row" href="dialogs.html"><span>${row.holding.code}　${row.holding.name}<br><small>${row.date} ・ ${row.holding.account}</small></span><b class="numeric">${yen(row.afterTax)}</b></a>`).join(''),
   GAIN_ROWS: [...holdings].filter(row => row.gain > 0).sort((x, y) => y.gain - x.gain).map(row => `<div class="row"><span>${row.code}　${row.name}</span><b class="positive">${signedYen(row.gain)}</b></div>`).join(''),
 };
+values.RECENT_A_DATE_JP = recentDividends[0].date.replace(/^(\d+)\/(\d+)\/(\d+)$/, '$1年$2月$3日');
 
 // ---- 検算: 不整合があれば失敗する ----
 // Phase 3 の集計値に合うこと
-assert.equal(total, 28593148, '評価額合計');
-assert.equal(costTotal, 27040660, '取得総額');
-assert.equal(gainTotal, 1552488, '評価損益');
-assert.equal(gainTotal, total - costTotal, '合計損益');
-assert.equal(stockValue, 9149807, '国内株式評価額');
-assert.equal(fundValue, 19443341, '投資信託評価額');
-assert.equal(total, stockValue + fundValue, '分類別評価額');
-assert.equal(total, specificValue + nisaValue, '口座別評価額');
+eq(total, 28593148, '評価額合計');
+eq(costTotal, 27040660, '取得総額');
+eq(gainTotal, 1552488, '評価損益');
+eq(gainTotal, total - costTotal, '合計損益');
+eq(stockValue, 9149807, '国内株式評価額');
+eq(fundValue, 19443341, '投資信託評価額');
+eq(total, stockValue + fundValue, '分類別評価額');
+eq(total, specificValue + nisaValue, '口座別評価額');
 // 行の数量×単価=評価額(投信は口数×基準価額÷10000)
-assert.equal(a.value, a.quantity * a.currentPrice, '9901 数量×現在値');
-assert.equal(a.value, 1200000, '9901 評価額');
-assert.equal(b.value, Math.round(b.quantity * b.currentPrice), '9902 数量×現在値');
-assert.equal(fund.value, Math.round(fund.quantity * fund.currentPrice / 10000), '投信 口数×基準価額÷10000');
-assert.equal(sum(stocks, 'value'), stockValue, '国内株式内訳');
-assert.equal(sum(funds, 'value'), fundValue, '投資信託内訳');
+eq(a.value, a.quantity * a.currentPrice, '9901 数量×現在値');
+eq(a.value, 1200000, '9901 評価額');
+eq(b.value, Math.round(b.quantity * b.currentPrice), '9902 数量×現在値');
+eq(fund.value, Math.round(fund.quantity * fund.currentPrice / 10000), '投信 口数×基準価額÷10000');
+eq(sum(stocks, 'value'), stockValue, '国内株式内訳');
+eq(sum(funds, 'value'), fundValue, '投資信託内訳');
 // 前日比の率=前日比÷前日の評価額
-assert.equal(dailyChange, 154488, '前日比額');
-assert.equal(Math.round(dailyRate * 10) / 10, 0.5, '前日比率');
-assert.equal(previousValue + dailyChange, total, '前日評価額+前日比=評価額');
-// 配当: 月別合計=年合計=銘柄別合計、税引前−税額=税引後、月別は個別受取の合計以上
-assert.equal(dividendAnnual, dividendBefore, '月別配当合計と年合計');
-assert.equal(dividendAfter, dividendBefore - dividendTax, '配当税引後');
-assert.equal(dividendAnnual, Object.values(annualByHolding).reduce((t, v) => t + v, 0), '年間配当と銘柄別合計');
-assert.equal(novMonthly.beforeTax, novRecentBefore, '11月合計と11月個別の合計');
-assert.ok(fixture.dividends.every(row => row.beforeTax >= row.tax), '月別税引後非負');
-assert.ok(recentDividends.every(row => row.holding && row.afterTax === row.beforeTax - row.tax), '最近の配当内訳');
+eq(dailyChange, 154488, '前日比額');
+eq(Math.round(dailyRate * 10) / 10, 0.5, '前日比率');
+eq(previousValue + dailyChange, total, '前日評価額+前日比=評価額');
+// 配当: 月別合計=年合計=銘柄別合計、税引前−税額=税引後
+eq(dividendAnnual, dividendBefore, '月別配当合計と年合計');
+eq(dividendAfter, dividendBefore - dividendTax, '配当税引後');
+eq(dividendAnnual, Object.values(annualByHolding).reduce((t, v) => t + v, 0), '年間配当と銘柄別合計');
+ok(fixture.dividends.every(row => row.beforeTax >= row.tax), '月別税引後非負');
+ok(recentDividends.every(row => row.holding && row.afterTax === row.beforeTax - row.tax), '最近の配当内訳');
 // 件数・ID重複・スマホ/PC共通(同じ fixtures から同じ数量・金額)
-assert.equal(holdings.length, 3, '保有件数');
-assert.equal(new Set(holdings.map(row => row.id)).size, holdings.length, '保有ID重複');
-assert.equal(fixture.dividends.length, 12, '配当月数');
+eq(holdings.length, 3, '保有件数');
+eq(new Set(holdings.map(row => row.id)).size, holdings.length, '保有ID重複');
+eq(fixture.dividends.length, 12, '配当月数');
+eq(dividendTxs.length, 18, '配当明細行数');
+eq(stockTrades.length, 3, '株式売買行数');
+eq(fundTrades.length, 2, '投信解約行数');
 
 // ---- 生成: テンプレートに埋める ----
 const templates = (await readdir(tplDir)).filter(file => file.endsWith('.html'));
-assert.ok(templates.length > 0, 'テンプレートなし');
+ok(templates.length > 0, 'テンプレートなし');
 for (const file of templates) {
   let html = await readFile(path.join(tplDir, file), 'utf8');
   html = html.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => {
-    assert.ok(Object.hasOwn(values, key), `${file}: 未定義テンプレート ${key}`);
+    ok(Object.hasOwn(values, key), `${file}: 未定義テンプレート ${key}`);
     return values[key];
   });
-  assert.ok(!/\{\{[A-Z0-9_]+\}\}/.test(html), `${file}: 未解決テンプレート`);
+  ok(!/\{\{[A-Z0-9_]+\}\}/.test(html), `${file}: 未解決テンプレート`);
   await writeFile(path.join(htmlDir, file), html);
 }
 
@@ -154,15 +223,55 @@ const generated = Object.fromEntries(await Promise.all(
   templates.map(async file => [file, await readFile(path.join(htmlDir, file), 'utf8')]),
 ));
 for (const [file, html] of Object.entries(generated)) {
-  assert.ok(!/\{\{/.test(html), `${file}: プレースホルダ残存`);
+  ok(!/\{\{/.test(html), `${file}: プレースホルダ残存`);
 }
-assert.ok(generated['assets.html'].includes(values.TOTAL), 'assets 集計');
-assert.ok(generated['home.html'].includes(`前日比 ${values.DAILY_CHANGE} (${values.DAILY_RATE})`), 'home 前日比');
-assert.ok(generated['stock-search.html'].includes(values.STOCK_A_DAY_CHANGE), 'search 前日比');
-assert.ok(generated['holding-route.html'].includes(values.STOCK_A_DAY_CHANGE), 'route 前日比');
-assert.ok(generated['dialogs.html'].includes(values.RECENT_A_BEFORE), 'dialogs 配当');
-assert.ok(!generated['index.html'].includes('¥¥'), 'index 二重円');
-assert.ok(!generated['states-codex.html'].includes('++'), 'states 二重符号');
+ok(generated['assets.html'].includes(values.TOTAL), 'assets 集計');
+ok(generated['home.html'].includes(`前日比 ${values.DAILY_CHANGE} (${values.DAILY_RATE})`), 'home 前日比');
+ok(generated['stock-search.html'].includes(values.STOCK_A_DAY_CHANGE), 'search 前日比');
+ok(generated['holding-route.html'].includes(values.STOCK_A_DAY_CHANGE), 'route 前日比');
+ok(generated['dialogs.html'].includes(values.RECENT_A_BEFORE), 'dialogs 配当');
+ok(!generated['index.html'].includes('¥¥'), 'index 二重円');
+ok(!generated['states-codex.html'].includes('++'), 'states 二重符号');
+
+// ---- OpenCode 担当画面との突き合わせ: 同一 fixtures から生成された HTML に期待値が含まれること ----
+const opencode = Object.fromEntries(await Promise.all(
+  ['receipts-opencode.html', 'csv-opencode.html', 'account-opencode.html'].map(async file => {
+    let html;
+    try {
+      html = await readFile(path.join(opencodeHtmlDir, file), 'utf8');
+    } catch {
+      assert.fail(`${file}: OpenCode 生成物がない。先に node docs/design/work/phase5-opencode/data/build-opencode.mjs を実行すること`);
+    }
+    return [file, html];
+  }),
+));
+const receipts = opencode['receipts-opencode.html'];
+const csv = opencode['csv-opencode.html'];
+ok(receipts.includes(values.DIVIDEND_AFTER), '突き合わせ 年合計 税引後');
+ok(receipts.includes(values.DIVIDEND_BEFORE), '突き合わせ 年合計 税引前');
+ok(receipts.includes(`-${values.DIVIDEND_TAX}`), '突き合わせ 年合計 税額');
+for (const month of fixture.dividends) {
+  const inMonth = dividendTxs.filter(row => Number(row.date.slice(5, 7)) === month.month);
+  const after = yen(sum(inMonth, 'afterTax'));
+  ok(receipts.includes(`2026年${month.month}月 · ${inMonth.length}件の合計`), `突き合わせ ${month.month}月 見出し`);
+  ok(receipts.includes(yen(month.beforeTax)) && receipts.includes(after), `突き合わせ ${month.month}月 小計`);
+}
+for (const row of dividendTxs) {
+  ok(receipts.includes(row.date) && receipts.includes(yen(row.afterTax)), `突き合わせ 行 ${row.date}`);
+}
+for (const row of stockTrades) {
+  ok(receipts.includes(row.date) && receipts.includes(signedYen(row.gain - row.tax)), `突き合わせ 株式行 ${row.date}`);
+}
+for (const row of fundTrades) {
+  ok(receipts.includes(row.date) && receipts.includes(signedYen(row.gain - row.tax)), `突き合わせ 投信行 ${row.date}`);
+}
+ok(csv.includes(`資産管理(国内株式)</td><td class="num">${values.STOCK_COUNT}件`), '突き合わせ CSV 国内株式件数');
+ok(csv.includes(`資産管理(投資信託)</td><td class="num">${values.FUND_COUNT}件`), '突き合わせ CSV 投資信託件数');
+ok(csv.includes(`取引明細(配当金)</td><td class="num">${values.DIV_TX_COUNT}件`), '突き合わせ CSV 配当件数');
+ok(csv.includes(`取引明細(国内株式)</td><td class="num">${values.STOCK_TX_COUNT}件`), '突き合わせ CSV 株式件数');
+ok(csv.includes(`取引明細(投資信託)</td><td class="num">${values.FUND_TX_COUNT}件`), '突き合わせ CSV 投信件数');
+ok(opencode['account-opencode.html'].includes(values.DIVIDEND_ANNUAL), '突き合わせ アカウント年間配当');
+ok(generated['home.html'].includes(values.RECENT_A_AFTER) && generated['home.html'].includes(values.RECENT_B_AFTER), '突き合わせ ホーム最近の配当');
 
 const checks = [
   ['評価額', holdings.map(row => `${row.code} ${number(row.quantity)}${row.type === 'fund' ? '口' : '株'} × ${priceYen(row.currentPrice)}${row.type === 'fund' ? '/10,000口' : ''} = ${yen(row.value)}`).join(' / ') + `; 合計 ${yen(stockValue)} + ${yen(fundValue)} = ${yen(total)}`],
@@ -172,8 +281,16 @@ const checks = [
   ['前日比', `${yen(previousValue)} ${signedYen(dailyChange)} = ${yen(total)}; ${yen(dailyChange)} ÷ ${yen(previousValue)} = ${values.DAILY_RATE_EXACT} (表示 ${values.DAILY_RATE})`],
   ['配当', `月別税引前 ${yen(dividendBefore)} − 税額 ${yen(dividendTax)} = 税引後 ${yen(dividendAfter)}; 年間配当 ${yen(dividendAnnual)}; 9901利回り ${a.annualDividendPerShare} ÷ ${priceYen(a.currentPrice)} = ${values.STOCK_A_YIELD}`],
   ['件数', `保有 ${holdings.length} 件 (国内株式 ${stocks.length}・投資信託 ${funds.length}); 配当銘柄 ${stocks.length} 件`],
+  ['配当明細行', `明細 ${dividendTxs.length} 行の月別合計が月別配当と一致(各月 1〜4 行)。新しい順の上位 2 行(${recentDividends.map(row => `${row.date} ${row.code} ${yen(row.afterTax)}`).join(' / ')})をホーム・ダイアログに表示`],
+  ['株式売買行', `売買 ${stockTrades.length} 行: ${stockTrades.map(row => `${row.date} ${row.code} ${signedYen(row.gain)}`).join(' / ')}; 年合計 ${signedYen(stockGain)}(税引前) − ${yen(stockTax)} = ${signedYen(stockAfter)}(税引後)`],
+  ['投信解約行', `解約 ${fundTrades.length} 行: ${fundTrades.map(row => `${row.date} ${yen(row.after)}`).join(' / ')}; 年合計 ${signedYen(fundGain)}(税引前) − ${yen(fundTax)} = ${signedYen(fundAfter)}(税引後)`],
 ];
 const monthlyRows = fixture.dividends.map(row => `| 2026年${row.month}月 | ${yen(row.beforeTax)} | ${yen(row.tax)} | ${yen(row.beforeTax - row.tax)} |`).join('\n');
+const monthChecks = fixture.dividends.map(row => {
+  const inMonth = dividendTxs.filter(tx => Number(tx.date.slice(5, 7)) === row.month);
+  return `| 2026年${row.month}月・${inMonth.length}件 | ${yen(row.beforeTax)} | −${yen(row.tax)} | ${yen(row.beforeTax - row.tax)} | ${yen(row.beforeTax)} / −${yen(row.tax)} / ${yen(row.beforeTax - row.tax)} | 一致 |`;
+}).join('\n');
+const rowChecks = dividendTxs.map(row => `| ${row.date} | ${row.code} | ${yen(row.beforeTax)} | −${yen(row.tax)} | ${yen(row.afterTax)} | 明細と一致 | 一致 |`).join('\n');
 const appendix = `
 ## 月別配当内訳(税引後合計の検算)
 
@@ -186,41 +303,40 @@ ${monthlyRows}
 
 ## OpenCode 担当画面との突き合わせ
 
-対象: \`docs/design/work/phase5-opencode/html/receipts-opencode.html\`(配当金タブ。\`origin/docs/1890-phase5-opencode\` から参照)。この PR では OpenCode 側を変更しない。共通値は税引前 ${yen(dividendBefore)} / 税額 ${yen(dividendTax)} / 税引後 ${yen(dividendAfter)}。
+対象: \`docs/design/work/phase5-opencode/html/receipts-opencode.html\` ほか。全画面は同一 fixtures(\`docs/design/work/phase5-codex/data/fixtures.json\`)から生成され、以下の項目は生成物の包含検証(assert)済み。
 
 ### 年合計(集計帯)
 
 | OpenCode箇所 | OpenCode値 | fixtures対応値 | 判定 |
 |---|---|---|---|
-| 集計帯 税引後 | ¥3,163,392 | ${yen(dividendAfter)} | 不一致(差 −¥46) |
-| 集計帯 税引前 | ¥3,815,500 | ${yen(dividendBefore)} | 不一致(差 −¥154,407) |
-| 集計帯 税額 | −¥652,108 | −${yen(dividendTax)} | 不一致(差 +¥154,361。税引前−税額=税引後は両者とも成立) |
+| 集計帯 税引後 | ${yen(dividendAfter)} | ${yen(dividendAfter)} | 一致 |
+| 集計帯 税引前 | ${yen(dividendBefore)} | ${yen(dividendBefore)} | 一致 |
+| 集計帯 税額 | −${yen(dividendTax)} | −${yen(dividendTax)} | 一致 |
 
 ### 月小計
 
 | OpenCode月 | 税引前 | 税額 | 税引後 | fixtures同月(税引前/税額/税引後) | 判定 |
 |---|---|---:|---:|---|---|
-| 2026年12月・3件 | ¥2,023,380 | −¥411,048 | ¥1,612,332 | ${yen(43750)} / −${yen(8888)} / ${yen(34862)} | 不一致(12月は Phase 3 と同値だが fixtures は6月に寄せている) |
-| 2026年9月・2件 | ¥744,630 | −¥29,379 | ¥715,251 | ${yen(15000)} / −${yen(3047)} / ${yen(11953)} | 不一致 |
-| 2026年6月・2件 | ¥600,000 | −¥121,889 | ¥478,111 | ${yen(3564907)} / −${yen(724195)} / ${yen(2840712)} | 不一致 |
-| 2026年3月・2件 | ¥447,490 | −¥89,792 | ¥357,698 | ${yen(180000)} / −${yen(36566)} / ${yen(143434)} | 不一致 |
+${monthChecks}
 
-### 行(9行)
+### 行(${dividendTxs.length}行)
 
 | 入金日 | コード | 金額 | 税額 | 税引後 | fixtures対応 | 判定 |
 |---|---|---:|---:|---:|---|---|
-| 2026/12/09 | 9901 | ¥1,200,000 | −¥243,780 | ¥956,220 | 行内訳なし(12月合計のみ) | 不一致(統合時に OpenCode 側を共通値へ修正) |
-| 2026/12/10 | 9907 | ¥500,000 | −¥101,575 | ¥398,425 | 行内訳なし | 不一致 |
-| 2026/12/15 | 9906 | ¥323,380 | −¥65,693 | ¥257,687 | 行内訳なし | 不一致 |
-| 2026/09/26 | 9912 | ¥600,000 | ¥0 | ¥600,000 | 行内訳なし | 不一致 |
-| 2026/09/10 | 9908 | ¥144,630 | −¥29,379 | ¥115,251 | 行内訳なし | 不一致 |
-| 2026/06/20 | 9901 | ¥350,000 | −¥71,102 | ¥278,898 | 行内訳なし | 不一致 |
-| 2026/06/25 | 9902 | ¥250,000 | −¥50,787 | ¥199,213 | 行内訳なし | 不一致 |
-| 2026/03/15 | — | ¥300,000 | −¥60,945 | ¥239,055 | 行内訳なし | 不一致 |
-| 2026/03/28 | 9905 | ¥147,490 | −¥28,847 | ¥118,643 | 行内訳なし | 不一致 |
+${rowChecks}
 
-fixtures の行内訳は11月の2行のみ(9901 11/10 ¥56,250−¥11,427=¥44,823、9902改め9902 11/08 ¥40,000−¥8,126=¥31,874、合計 ¥96,250−¥19,553=¥76,697で11月小計と一致)。OpenCode 側に11月行がないため、行レベルの一致項目はない。年合計の税引後は差46まで近いが、税引前・税額の差(約15.4万円)が残る。統合担当が OpenCode 側の集計帯・月小計・行を共通値に合わせて修正するための表とする。
+### 件数・ホーム
+
+| 項目 | OpenCode値 | fixtures対応値 | 判定 |
+|---|---|---|---|
+| 資産管理(国内株式) | ${values.STOCK_COUNT}件 | 保有の国内株式 ${values.STOCK_COUNT}件 | 一致 |
+| 資産管理(投資信託) | ${values.FUND_COUNT}件 | 保有の投資信託 ${values.FUND_COUNT}件 | 一致 |
+| 取引明細(配当金) | ${values.DIV_TX_COUNT}件 | 配当明細 ${values.DIV_TX_COUNT}行 | 一致 |
+| 取引明細(国内株式) | ${values.STOCK_TX_COUNT}件 | 株式売買 ${values.STOCK_TX_COUNT}行 | 一致 |
+| 取引明細(投資信託) | ${values.FUND_TX_COUNT}件 | 投信解約 ${values.FUND_TX_COUNT}行 | 一致 |
+| ホーム最近の配当入金 | ${recentDividends.map(row => `${row.date} ${yen(row.afterTax)}`).join(' / ')} | 明細の新しい順の上位 2 行 | 一致 |
 `;
-const report = `# Phase 5 Codex 数値検算\n\nこのファイルは \`node docs/design/work/phase5-codex/data/build.mjs\` が生成する。金額は円単位に四捨五入し、投資信託は口数×基準価額÷10,000 で計算。全 assert 通過。\n\n| 項目 | 計算・内訳 | 判定 |\n|---|---|---|\n${checks.map(([name, detail]) => `| ${name} | ${detail} | OK |`).join('\n')}\n\n| 保有 | 数量・価格 | 評価額 | 取得総額 | 評価損益 | 損益率 | 前日評価額 |\n|---|---:|---:|---:|---:|---:|---:|\n${holdings.map(row => `| ${row.code} ${row.name} | ${number(row.quantity)} ${row.type === 'fund' ? '口' : '株'} × ${priceYen(row.currentPrice)}${row.type === 'fund' ? '/10,000口' : ''}; 取得単価 ${priceYen(row.costUnitPrice)} | ${yen(row.value)} | ${yen(row.cost)} | ${signedYen(row.gain)} | ${pct(row.gainRate, 2)} | ${yen(row.previousValue)} |`).join('\n')}\n\n全画面はこの fixture から生成される。前日評価額は株の previousValue と投信の previousNav から合算。\n${appendix}`;
+const report = `# Phase 5 Codex 数値検算\n\nこのファイルは \`node docs/design/work/phase5-codex/data/build.mjs\` が生成する。金額は円単位に四捨五入し、投資信託は口数×基準価額÷10,000 で計算。全 ${assertCount} assert 通過(不一致 0)。\n\n| 項目 | 計算・内訳 | 判定 |\n|---|---|---|\n${checks.map(([name, detail]) => `| ${name} | ${detail} | OK |`).join('\n')}\n\n| 保有 | 数量・価格 | 評価額 | 取得総額 | 評価損益 | 損益率 | 前日評価額 |\n|---|---:|---:|---:|---:|---:|---:|\n${holdings.map(row => `| ${row.code} ${row.name} | ${number(row.quantity)} ${row.type === 'fund' ? '口' : '株'} × ${priceYen(row.currentPrice)}${row.type === 'fund' ? '/10,000口' : ''}; 取得単価 ${priceYen(row.costUnitPrice)} | ${yen(row.value)} | ${yen(row.cost)} | ${signedYen(row.gain)} | ${pct(row.gainRate, 2)} | ${yen(row.previousValue)} |`).join('\n')}\n\n全画面はこの fixture から生成される。前日評価額は株の previousValue と投信の previousNav から合算。\n${appendix}`;
 await writeFile(path.join(root, 'data-check.md'), report);
 console.log(checks.map(([name, detail]) => `${name}: ${detail}`).join('\n'));
+console.log(`asserts: ${assertCount} passed, 0 failed`);

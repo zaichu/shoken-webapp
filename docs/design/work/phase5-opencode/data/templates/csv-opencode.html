@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSV管理 | 証券Web</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="site.css">
+<style>
+.fetchcard{display:flex;gap:var(--space-3);align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--space-4);margin-bottom:var(--space-3);flex-wrap:wrap}
+.fetchcard h2{font-size:var(--text-md);margin:0}
+.kindrow-failed{background:var(--negative-soft)}
+.failbar{width:4px;background:var(--error);border-radius:2px;align-self:stretch}
+.reason{white-space:normal!important;text-align:left!important;font-family:var(--font-sans)!important}
+.cellmenu{position:relative}
+.cellmenu .menu{position:absolute;right:0;top:100%;z-index:30}
+@media (max-width:1023px){.cellmenu .menu{position:static;margin-top:var(--space-2)}}
+.overlay{display:none}
+.overlay:target{display:flex}
+.status-sub{display:block;font-size:var(--text-xs);color:var(--text-muted)}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">メインコンテンツへスキップ</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand-logo" href="index.html">証券Web</a>
+    <nav class="mainnav" aria-label="メインナビゲーション">
+      <a href="#">ホーム</a><a href="#">資産管理</a>
+      <a href="receipts-opencode.html">取引明細</a><a href="#">銘柄検索</a>
+    </nav>
+    <a class="account-btn" href="account-opencode.html">● アカウント</a>
+  </div>
+</header>
+<main class="page" id="main">
+  <div class="page-head"><h1>CSV管理</h1></div>
+  <p class="note"><span><a href="#">資産管理</a> › CSV管理</span></p>
+
+  <div class="fetchcard">
+    <div><h2>楽天証券から最新のデータを取得</h2>
+    <div class="note" style="margin:0"><span>5種類まとめて取得します</span></div></div>
+    <span style="margin-left:auto"><a class="btn primary" href="#csv-plunge">すべて取得</a></span>
+  </div>
+  <div class="banner ok" role="status">取引明細(配当金)を {{CSV_DIV}}件取り込みました(2026/11/14 09:15)</div>
+  <div class="banner warn" role="status">取引明細(投資信託)は {{CSV_FUND_TOTAL}}件中{{CSV_FUND_OK}}件を取り込み、{{CSV_FUND_SKIP}}件をスキップしました。理由: 必要な列が見つかりません。対応形式: 投資信託の取引履歴CSV(見出し行の先頭は「約定日」)。受け取った先頭行: 「日付,ファンド,金額」</div>
+
+  <table class="tbl only-pc" aria-label="CSVの種類ごとの状態">
+    <thead><tr><th>データの種類</th><th>保存済み</th><th>状態</th><th aria-label="メニュー">⋯</th></tr></thead>
+    <tbody>
+      <tr><td>資産管理(国内株式)</td><td class="num">{{CSV_HOLD_STOCK}}件</td><td>今日 09:12 に更新</td>
+        <td><a class="btn ghost" href="csv-opencode.html" aria-label="資産管理(国内株式)のメニュー">⋯</a></td></tr>
+      <tr><td>資産管理(投資信託)</td><td class="num">{{CSV_HOLD_FUND}}件</td><td>3日前(2026/11/11 21:10)に更新</td>
+        <td><a class="btn ghost" href="csv-opencode.html" aria-label="資産管理(投資信託)のメニュー">⋯</a></td></tr>
+      <tr><td>取引明細(配当金)</td><td class="num">{{CSV_DIV}}件</td><td>今日 09:15 に更新</td>
+        <td class="cellmenu"><a class="btn ghost" href="csv-opencode.html" aria-label="取引明細(配当金)のメニュー" aria-expanded="true">⋯</a>
+          <div class="menu" role="menu" aria-label="取引明細(配当金)の操作">
+            <a href="csv-opencode.html" role="menuitem">楽天証券から再取得</a>
+            <a href="csv-opencode.html" role="menuitem">ファイルから取り込み</a>
+            <a href="#csv-delete-div" role="menuitem" class="danger">削除</a>
+          </div>
+        </td></tr>
+      <tr><td>取引明細(国内株式)</td><td class="num">{{CSV_STOCK}}件</td><td>今日 08:59 に更新</td>
+        <td><a class="btn ghost" href="#csv-delete" aria-label="取引明細(国内株式)のメニュー">⋯</a></td></tr>
+      <tr class="kindrow-failed"><td><span class="failbar" style="display:inline-block;width:4px;height:1em;vertical-align:-2px;margin-right:6px"></span>取引明細(投資信託)</td><td class="num">{{CSV_FUND}}件</td>
+        <td>取得できず・楽天証券のタブを再読み込みしてください <a class="btn ghost" href="csv-opencode.html">詳細</a>
+          <span class="status-sub">理由: 拡張機能との通信が切れました。ネットワーク接続を確認してください</span></td>
+        <td><a class="btn ghost" href="csv-opencode.html" aria-label="取引明細(投資信託)のメニュー">⋯</a></td></tr>
+    </tbody>
+  </table>
+
+  <ul class="mrows only-sp" aria-label="CSVの種類ごとの状態">
+    <li><div class="r1"><span class="t">資産管理(国内株式)</span><span class="amt">{{CSV_HOLD_STOCK}}件</span></div><div class="r2"><span>今日 09:12 に更新</span><span><a class="btn ghost" href="csv-opencode.html" aria-label="資産管理(国内株式)のメニュー">⋯</a></span></div></li>
+    <li><div class="r1"><span class="t">資産管理(投資信託)</span><span class="amt">{{CSV_HOLD_FUND}}件</span></div><div class="r2"><span>3日前(2026/11/11 21:10)に更新</span><span><a class="btn ghost" href="csv-opencode.html" aria-label="資産管理(投資信託)のメニュー">⋯</a></span></div></li>
+    <li><div class="r1"><span class="t">取引明細(配当金)</span><span class="amt">{{CSV_DIV}}件</span></div><div class="r2"><span>今日 09:15 に更新</span><span><a class="btn ghost" href="csv-opencode.html" aria-label="取引明細(配当金)のメニュー">⋯</a></span></div>
+      <div class="menu" role="menu" aria-label="取引明細(配当金)の操作" style="margin-top:8px">
+        <a href="csv-opencode.html" role="menuitem">楽天証券から再取得</a>
+        <a href="csv-opencode.html" role="menuitem">ファイルから取り込み</a>
+        <a href="#csv-delete-div" role="menuitem" class="danger">削除</a>
+      </div></li>
+    <li><div class="r1"><span class="t">取引明細(国内株式)</span><span class="amt">{{CSV_STOCK}}件</span></div><div class="r2"><span>今日 08:59 に更新</span><span><a class="btn ghost" href="#csv-delete" aria-label="取引明細(国内株式)のメニュー">⋯</a></span></div></li>
+    <li><div class="r1"><span class="t">取引明細(投資信託)</span><span class="amt">{{CSV_FUND}}件</span></div><div class="r2"><span>取得できず <a class="btn ghost" href="csv-opencode.html">詳細</a></span><span><a class="btn ghost" href="csv-opencode.html" aria-label="取引明細(投資信託)のメニュー">⋯</a></span></div>
+      <p class="status-sub">理由: 拡張機能との通信が切れました。ネットワーク接続を確認してください</p></li>
+  </ul>
+
+  <footer class="footer"><div class="in"><span>証券Web(試作)</span><a href="#">プライバシーポリシー</a><a href="#">利用規約</a><a href="#">Cookie ポリシー</a></div></footer>
+</main>
+<nav class="bottomnav" aria-label="メインナビゲーション">
+  <a href="#">ホーム</a><a href="#">資産管理</a><a href="receipts-opencode.html">取引明細</a><a href="#">銘柄検索</a>
+</nav>
+
+<div class="overlay" id="csv-delete" role="dialog" aria-modal="true" aria-labelledby="csv-del-t">
+  <div class="dialog">
+    <h2 id="csv-del-t">取引明細(国内株式)を削除しますか?</h2>
+    <p id="csv-del-d">取引明細(国内株式)の保存済み {{CSV_STOCK}}件({{STOCK_RANGE}})を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">{{CSV_STOCK}}件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-div" role="dialog" aria-modal="true" aria-labelledby="csv-del-div-t">
+  <div class="dialog">
+    <h2 id="csv-del-div-t">取引明細(配当金)を削除しますか?</h2>
+    <p id="csv-del-div-d">取引明細(配当金)の保存済み {{CSV_DIV}}件({{DIV_RANGE}})を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">{{CSV_DIV}}件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-fund" role="dialog" aria-modal="true" aria-labelledby="csv-del-fund-t">
+  <div class="dialog">
+    <h2 id="csv-del-fund-t">取引明細(投資信託)を削除しますか?</h2>
+    <p id="csv-del-fund-d">取引明細(投資信託)の保存済み {{CSV_FUND}}件({{FUND_RANGE}})を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">{{CSV_FUND}}件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-hold-stock" role="dialog" aria-modal="true" aria-labelledby="csv-del-hold-stock-t">
+  <div class="dialog">
+    <h2 id="csv-del-hold-stock-t">資産管理(国内株式)を削除しますか?</h2>
+    <p id="csv-del-hold-stock-d">資産管理(国内株式)の保存済み {{CSV_HOLD_STOCK}}件を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">{{CSV_HOLD_STOCK}}件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-hold-fund" role="dialog" aria-modal="true" aria-labelledby="csv-del-hold-fund-t">
+  <div class="dialog">
+    <h2 id="csv-del-hold-fund-t">資産管理(投資信託)を削除しますか?</h2>
+    <p id="csv-del-hold-fund-d">資産管理(投資信託)の保存済み {{CSV_HOLD_FUND}}件を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">{{CSV_HOLD_FUND}}件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-delete-hold" role="dialog" aria-modal="true" aria-labelledby="csv-del-hold-t">
+  <div class="dialog">
+    <h2 id="csv-del-hold-t">資産管理データを削除しますか?</h2>
+    <p id="csv-del-hold-d">資産管理データの保存済み {{CSV_HOLD_TOTAL}}件(国内株式 {{CSV_HOLD_STOCK}}件・投資信託 {{CSV_HOLD_FUND}}件)を削除します。元に戻せません。この操作は取り消せません。</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">キャンセル</a><a class="btn danger" href="csv-opencode.html">{{CSV_HOLD_TOTAL}}件を削除する</a></div>
+  </div>
+</div>
+<div class="overlay" id="csv-plunge" role="dialog" aria-modal="true" aria-labelledby="csv-pl-t">
+  <div class="dialog">
+    <h2 id="csv-pl-t">件数の確認</h2>
+    <p>取引明細(配当金): 件数が大きく減っています(保存済み{{CSV_DIV}}件 → {{CSV_PLUNGE_NEXT}}件)。取り込みますか?</p>
+    <div class="actions"><a class="btn" href="csv-opencode.html">いいえ</a><a class="btn primary" href="csv-opencode.html">はい</a></div>
+  </div>
+</div>
+<script>if(new URLSearchParams(location.search).has("dark"))document.documentElement.dataset.theme="dark";</script>
+</body>
+</html>
