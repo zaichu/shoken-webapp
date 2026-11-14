@@ -143,6 +143,6 @@ fn resolve_list_error_returns_no_rows() {
     let Some(resolved) = resolve_asset_balance(Generation::new(5), &slot) else {
         panic!("expected ready");
     };
-    assert!(resolved.rows.is_empty());
+    assert_eq!(resolved.rows, [] as [AssetBalance; 0]);
     assert!(resolved.warning.is_none());
 }

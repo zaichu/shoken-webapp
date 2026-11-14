@@ -185,12 +185,12 @@ fn categories_use_latest_name_sorted_dates_and_tab_fields() {
         ["2024", "2026"]
     );
     let stock = search_categories(ReceiptsTab::DomesticStock, &domestic());
-    assert!(stock.products.is_empty());
+    assert_eq!(stock.products, [] as [SearchOption; 0]);
     assert_eq!(stock.accounts[0].value, "特定");
     let fund = search_categories(ReceiptsTab::MutualFund, &funds());
     assert_eq!(fund.securities[0].value, "Alpha Fund A");
-    assert!(fund.products.is_empty());
-    assert!(fund.accounts.is_empty());
+    assert_eq!(fund.products, [] as [SearchOption; 0]);
+    assert_eq!(fund.accounts, [] as [SearchOption; 0]);
 }
 #[test]
 fn category_selections_quote_spaces_and_combine_with_year() {
@@ -234,7 +234,7 @@ fn date_and_year_queries_keep_search_keys_separate() {
     let mut state = ReceiptSearch::new(true);
     state.select_year("2026".into());
     assert_eq!(state.query, "2026");
-    assert!(state.selected_queries.years.is_empty());
+    assert_eq!(state.selected_queries.years, "");
 
     state.select_quick(SearchKey::Years, "2025".into());
     assert_eq!(state.query, "2026 2025");
@@ -264,7 +264,7 @@ fn quick_buttons_toggle_and_date_condition_precedes_other_conditions() {
 
     state.select_quick(SearchKey::Products, "国内株式".into());
     assert_eq!(state.query, "2026-06 9911");
-    assert!(state.selected_queries.products.is_empty());
+    assert_eq!(state.selected_queries.products, "");
 }
 
 #[test]
@@ -293,7 +293,7 @@ fn range_inputs_and_clear_reset_search_state() {
     assert_eq!(state.query, "2026-06-01..2026-06-30");
 
     state.clear(false);
-    assert!(state.query.is_empty());
+    assert_eq!(state.query, "");
     assert_eq!(state.selected_queries, SelectedQueries::default());
     assert_eq!(state.date_inputs, DateInputs::default());
     assert_eq!(state.date_segment, DateSegment::Month);
@@ -337,7 +337,7 @@ fn date_all_separates_no_period_from_the_year_segment() {
     state.clear_key(SearchKey::Date, true);
     assert!(state.date_all);
     assert_eq!(state.date_segment, DateSegment::Year);
-    assert!(state.query.is_empty());
+    assert_eq!(state.query, "");
 
     state.select_year("2026".into());
     assert!(!state.date_all);

@@ -38,7 +38,7 @@ fn dividend_section_switch_needs_dividend_tab_and_exact_code() {
     assert!(!show_dividend_section(ReceiptsTab::Dividend, &rows, "架空"));
 
     let domestic_rows = filter_receipts(ReceiptsTab::DomesticStock, &domestic(), "9904");
-    assert!(!domestic_rows.is_empty());
+    assert_ne!(domestic_rows, [] as [ReceiptItem; 0]);
     assert!(!show_dividend_section(
         ReceiptsTab::DomesticStock,
         &domestic_rows,
@@ -46,7 +46,7 @@ fn dividend_section_switch_needs_dividend_tab_and_exact_code() {
     ));
 
     let fund_rows = filter_receipts(ReceiptsTab::MutualFund, &funds(), "Alpha");
-    assert!(!fund_rows.is_empty());
+    assert_ne!(fund_rows, [] as [ReceiptItem; 0]);
     assert!(!show_dividend_section(
         ReceiptsTab::MutualFund,
         &fund_rows,
@@ -119,7 +119,7 @@ fn receipt_sheet_draft_apply_matches_direct_filter() {
         let applied = filter_receipts(ReceiptsTab::Dividend, &rows, &query);
         let direct = filter_receipts(ReceiptsTab::Dividend, &rows, &draft.query);
         assert_eq!(applied.len(), direct.len());
-        assert!(!applied.is_empty());
+        assert_ne!(applied, [] as [ReceiptItem; 0]);
     });
 }
 
@@ -545,7 +545,7 @@ fn quantity_column_tiers_match_width_budget() {
 #[test]
 fn non_core_tiers_have_distinct_class_backed_by_a_css_rule() {
     let css = include_str!("../../../../style/input.css");
-    assert!(ColumnTier::Core.class().trim().is_empty());
+    assert_eq!(ColumnTier::Core.class().trim(), "");
 
     let classes: Vec<&str> = [ColumnTier::Md, ColumnTier::Wide, ColumnTier::Wider]
         .iter()
@@ -1389,7 +1389,7 @@ fn single_day_group_headline_uses_row_after_tax() {
     let card = card_for(ReceiptsTab::DomesticStock, domestic().remove(0));
     let headline = single_row_headline(std::slice::from_ref(&card));
     assert_eq!(headline, [(AFTER_TAX, "+¥112".to_string())]);
-    assert!(single_row_headline(&[]).is_empty());
+    assert_eq!(single_row_headline(&[]), [] as [(&str, String); 0]);
 }
 
 #[test]

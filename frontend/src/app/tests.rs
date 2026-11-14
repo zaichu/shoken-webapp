@@ -92,7 +92,7 @@ fn designed_routes_have_titles() {
         Route::AssetBalanceComposition,
         Route::AssetBalanceHolding,
     ] {
-        assert!(!route.title().is_empty());
+        assert_ne!(route.title(), "");
     }
 }
 

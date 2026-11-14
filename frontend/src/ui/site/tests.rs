@@ -17,7 +17,7 @@ fn nav_icons_cover_all_items() {
     let icons: Vec<&str> = NAV_ITEMS.iter().map(|(to, _)| nav_icon_inner(to)).collect();
     assert_eq!(icons.len(), 4);
     for icon in &icons {
-        assert!(!icon.is_empty());
+        assert_ne!(*icon, "");
         assert_eq!(icons.iter().filter(|other| *other == icon).count(), 1);
     }
 }

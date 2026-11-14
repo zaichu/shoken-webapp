@@ -188,7 +188,7 @@ fn delete_success_empties_cached_list_and_clears_state() {
 
         assert!(!store.csv_meta(tab).deleting);
         match store.tab_state(tab) {
-            TabState::Ready(data) => assert!(data.rows.is_empty()),
+            TabState::Ready(data) => assert_eq!(data.rows, [] as [ReceiptItem; 0]),
             _ => panic!("キャッシュは空の Ready に置き換わる"),
         }
     });

@@ -65,7 +65,7 @@ fn joins_more_than_two_pages_in_order() {
 fn empty_first_page_is_not_truncated() {
     let page = collect(&[(0..0, 0)], 1000, 100);
     assert!(!page.truncated);
-    assert!(page.rows.is_empty());
+    assert_eq!(page.rows, [] as [usize; 0]);
 }
 
 #[test]

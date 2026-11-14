@@ -77,9 +77,9 @@ fn holding_single_account_tiles_keep_unit_price_and_badge() {
 
 #[test]
 fn stock_links_contain_code_placeholder() {
-    assert!(!STOCK_LINKS.is_empty());
+    assert_ne!(STOCK_LINKS, []);
     for (name, template) in STOCK_LINKS {
-        assert!(!name.is_empty());
+        assert_ne!(*name, "");
         assert!(template.contains("{code}"));
         assert!(template.starts_with("https://"));
     }

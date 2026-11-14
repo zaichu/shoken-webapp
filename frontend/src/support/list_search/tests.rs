@@ -207,7 +207,10 @@ fn year_options_sorted_unique() {
 }
 #[test]
 fn year_options_empty() {
-    assert!(create_year_options::<&str>(&[], |r| r).is_empty());
+    assert_eq!(
+        create_year_options::<&str>(&[], |r| r),
+        [] as [SearchOption; 0]
+    );
 }
 #[test]
 fn unique_values_dedup_preserving_order() {
@@ -218,7 +221,7 @@ fn unique_values_dedup_preserving_order() {
 }
 #[test]
 fn unique_values_empty() {
-    assert!(get_unique_values::<&str>(&[], |r| r).is_empty());
+    assert_eq!(get_unique_values::<&str>(&[], |r| r), [] as [String; 0]);
 }
 #[test]
 fn year_matches() {

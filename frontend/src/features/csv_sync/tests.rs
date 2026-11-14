@@ -321,7 +321,7 @@ fn terminal_events_stop_running() {
 fn prepare_file_import_initializes_kinds_and_blocks_concurrent_runs() {
     // 最新取得を一度も実行していない状態でも行の状態を書ける
     let mut state = SyncState::default();
-    assert!(state.kinds.is_empty());
+    assert_eq!(state.kinds, [] as [(CsvKind, KindStatus); 0]);
     state.prepare_file_import();
     assert!(state.running);
     assert_eq!(state.kinds.len(), CsvKind::ALL.len());

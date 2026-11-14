@@ -219,8 +219,8 @@ fn receipt_item_delegates_all_accessors() {
     assert_eq!(item.account(), "特定");
     assert_eq!(item.product(), "NISA");
     assert!(item.is_specific());
-    assert!(!item.cells().is_empty());
-    assert!(!item.raw_key().is_empty());
+    assert_ne!(item.cells(), [] as [ReceiptCell; 0]);
+    assert_ne!(item.raw_key(), "");
     assert_eq!(item.search_amount(0), Decimal::new(15000, 2));
     let (a, b, c) = item.summary_amounts();
     assert_eq!(a, Decimal::new(5000, 2));
@@ -239,8 +239,8 @@ fn receipt_row_saved_delegates_all_accessors() {
     assert_eq!(row.account(), "NISA");
     assert_eq!(row.product(), "");
     assert!(!row.is_specific());
-    assert!(!row.cells().is_empty());
-    assert!(!row.raw_key().is_empty());
+    assert_ne!(row.cells(), [] as [ReceiptCell; 0]);
+    assert_ne!(row.raw_key(), "");
     assert_eq!(row.search_amount(0), Decimal::new(100, 0));
     let (a, b, c) = row.summary_amounts();
     assert_eq!(a, Decimal::new(5000000, 2));
@@ -260,8 +260,8 @@ fn receipt_row_dividend_saved_delegates_all_accessors() {
     assert_eq!(row.account(), "特定");
     assert_eq!(row.product(), "NISA");
     assert!(row.is_specific());
-    assert!(!row.cells().is_empty());
-    assert!(!row.raw_key().is_empty());
+    assert_ne!(row.cells(), [] as [ReceiptCell; 0]);
+    assert_ne!(row.raw_key(), "");
     assert_eq!(row.search_amount(0), Decimal::from(150));
     let (a, b, c) = row.summary_amounts();
     assert_eq!(a, Decimal::from(5000));
@@ -301,8 +301,8 @@ fn mutualfund_item_delegates_all_accessors() {
     assert_eq!(item.account(), "特定");
     assert_eq!(item.product(), "");
     assert!(item.is_specific());
-    assert!(!item.cells().is_empty());
-    assert!(!item.raw_key().is_empty());
+    assert_ne!(item.cells(), [] as [ReceiptCell; 0]);
+    assert_ne!(item.raw_key(), "");
     assert_eq!(item.search_amount(0), Decimal::ZERO);
     let (a, b, c) = item.summary_amounts();
     assert_eq!(a, Decimal::from(100000));
