@@ -340,7 +340,7 @@ pub(crate) fn DividendSummarySection(
                     controls="receipt-summary-body".to_string()
                     testid="receipt-header"
                     hint=true
-                    on_toggle=move || expanded.update(|open| *open = !*open)
+                    on_toggle=move || expanded.update(|open| open.toggle())
                 >
                     <div class="flex items-center gap-2">
                         <h2 class="text-sm font-black text-ink">{title}</h2>

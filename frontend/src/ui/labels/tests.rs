@@ -34,12 +34,12 @@ fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) {
 
 /// 検査そのものと用語集(禁止語の一覧を含む)は検査対象から外す
 fn is_glossary_file(path: &Path) -> bool {
-    let relative = path.strip_prefix(source_root()).unwrap_or(path);
+    let relative = path.trim_prefix(source_root());
     relative == Path::new("ui/labels.rs") || relative.starts_with("ui/labels")
 }
 
 fn is_csv_input_file(path: &Path) -> bool {
-    let relative = path.strip_prefix(source_root()).unwrap_or(path);
+    let relative = path.trim_prefix(source_root());
     relative == Path::new("csv_input.rs")
 }
 
@@ -299,7 +299,7 @@ fn collect_japanese_entries() -> Vec<String> {
         if is_glossary_file(&file) || is_csv_input_file(&file) {
             continue;
         }
-        let relative = file.strip_prefix(source_root()).unwrap_or(&file);
+        let relative = file.trim_prefix(source_root());
         if is_test_code_path(relative) {
             continue;
         }

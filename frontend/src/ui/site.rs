@@ -411,7 +411,7 @@ fn UserMenu(
                     class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2 max-sm:h-11 max-sm:w-auto max-sm:gap-2 max-sm:pr-3"
                     node_ref=trigger_ref
                     on:click=move |_| {
-                        menu_open.update(|open| *open = !*open);
+                        menu_open.update(|open| open.toggle());
                         if !menu_open.get() {
                             focused_index.set(-1);
                         } else {
