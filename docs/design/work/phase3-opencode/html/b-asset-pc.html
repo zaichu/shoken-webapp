@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Concept B: 資産管理（すべて）PC</title>
+<link rel="stylesheet" href="b.css">
+</head>
+<body>
+<div class="header">
+  <span class="logo">証券Web</span>
+  <nav><span>ホーム</span><span class="on">資産管理</span><span>取引明細</span><span>銘柄検索</span></nav>
+  <span class="user">テストユーザー</span>
+</div>
+<div class="body">
+  <div class="titlerow">
+    <h1>資産管理</h1>
+    <span class="spacer"></span>
+    <span class="data num">データ: 2026/1/1 取り込み</span>
+    <button class="btn" type="button">CSV管理</button>
+  </div>
+  <div class="tabs"><span class="on">すべて 72</span><span class="off">国内株式 36</span><span class="off">投資信託 36</span></div>
+  <div class="band">
+    <div class="cell"><div class="label">評価額 ｜ 価格基準日 2026/10/20</div><div class="value num">¥28,593,148</div></div>
+    <div class="cell"><div class="label">評価損益</div><div class="value num pos">+¥1,552,488</div><div class="sub num pos">+5.7%</div></div>
+    <div class="cell"><div class="label">前日比</div><div class="value num pos">+¥232,318</div></div>
+    <div class="cell"><div class="label">取得総額</div><div class="value num">¥27,040,660</div></div>
+  </div>
+  <div class="note">帯の項目順は固定（評価額・評価損益・前日比・取得総額）。タブ固有項目は末尾追加。</div>
+  <div class="searchrow">
+    <div class="searchbox">銘柄・ファンド名・コード・口座で検索</div>
+    <span class="count"><span class="num">72件 / 72件（評価額の上位7件のみ表示）</span><span class="link">構成比を見る ›</span></span>
+  </div>
+  <table class="grid">
+    <tr><th>コード</th><th>銘柄・ファンド</th><th>種別</th><th>口座</th><th>分配金</th><th class="r">1株配当</th><th class="r">前日比</th><th class="r">評価額</th><th class="r">評価損益</th></tr>
+    <tr><td class="num">—</td><td>架空定期預金型ファンド</td><td>投資信託</td><td>特定・一般</td><td>再投資型</td><td class="r num">—</td><td class="r num pos">+¥124</td><td class="r num">¥3,337,500</td><td class="r num pos">+¥212,500 +6.8%</td></tr>
+    <tr><td class="num">—</td><td>架空人生設計・長期安全感・資産形成ファンド</td><td>投資信託</td><td>旧NISA</td><td>再投資型</td><td class="r num">—</td><td class="r num pos">+¥123</td><td class="r num">¥3,177,600</td><td class="r num pos">+¥201,600 +6.8%</td></tr>
+    <tr><td class="num">—</td><td>架空先端産業技術研究開発機構テーマファンド</td><td>投資信託</td><td>NISAつみたて</td><td>受取型</td><td class="r num">—</td><td class="r num pos">+¥121</td><td class="r num">¥3,019,900</td><td class="r num pos">+¥190,900 +6.8%</td></tr>
+    <tr><td class="num">9936</td><td>架空先端産業技術研究開発機構</td><td>国内株式</td><td>特定・一般</td><td>—</td><td class="r num">¥72.5</td><td class="r num pos">+¥32</td><td class="r num">¥2,970,500</td><td class="r num pos">+¥110,500 +3.9%</td></tr>
+    <tr><td class="num">—</td><td>架空環境技術・再生可能エネルギーセクターファンド</td><td>投資信託</td><td>NISA成長</td><td>再投資型</td><td class="r num">—</td><td class="r num neg">-¥55</td><td class="r num">¥2,864,400</td><td class="r num pos">+¥180,400 +6.7%</td></tr>
+    <tr><td class="num">9935</td><td>架空グローバル先端素材ソリューションホールディングス</td><td>国内株式</td><td>旧NISA</td><td>—</td><td class="r num">¥71.0</td><td class="r num pos">+¥32</td><td class="r num">¥2,716,800</td><td class="r num pos">+¥100,800 +3.9%</td></tr>
+    <tr><td class="num">9934</td><td>架空バイオテクノロジー</td><td>国内株式</td><td>NISAつみたて</td><td>—</td><td class="r num">¥69.5</td><td class="r num neg">-¥13</td><td class="r num">¥192,898</td><td class="r num pos">+¥7,138 +3.8%</td></tr>
+  </table>
+  <div class="note">ファンド名は2行まで表示・金額列は右揃え・桁区切り・符号＋色。欠測は —。</div>
+</div>
+</body>
+</html>

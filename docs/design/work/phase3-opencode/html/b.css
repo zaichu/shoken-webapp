@@ -1,0 +1,202 @@
+/* Concept B モック用スタイル（Figma未作成分の代替）。トークンは既存 input.css と同値。
+   Bの骨格: 上バー簡素・1カラムでカード中心・余白広め・主要数字大きめ・詳細は段階開示。
+   数値規則は docs/design/mobile-ui-rules.md（正本）に準拠:
+   受取額・損益・税の3つ(税引前・税額・税引後)だけ符号(+/-)と色(緑/赤)=Delta、
+   残高・価格・元額(評価額・現在値・取得総額・数量・1株配当・予想額)は通常色=Plain。
+   frontend/README.md の「税額・配当・利回りは色なし」は旧記述のため従わない（concept-B.md §11に理由を記載）。 */
+:root {
+  --brand: #0f2a4a;
+  --brand-deep: #0c2340;
+  --page: #f3f5f8;
+  --surface: #ffffff;
+  --ink: #111827;
+  --soft: #4b5563;
+  --muted: #5f6b7a;
+  --border: #e5e7eb;
+  --accent: #1d4ed8;
+  --pos: #0b7a4b;
+  --neg: #c0362c;
+  --pos-band: #6ee7b7;
+  --neg-band: #fca5a5;
+  --gold: #f2b33d;
+  --track: #e0e4ea;
+  --band-note: #c9d3e1;
+  --group: #eef2f7;
+  --bar-a: #1d4ed8;
+  --bar-b: #93b4f5;
+  --bar-c: #c7d6f2;
+  --radius: 12px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: "Noto Sans JP", sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pos { color: var(--pos); }
+.neg { color: var(--neg); }
+/* 上バーは簡素に: ロゴ+テキストナビ+利用者名のみ。装飾メニューは置かない */
+.header {
+  background: var(--brand);
+  color: #fff;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 32px;
+}
+.header .logo { font-weight: 700; font-size: 16px; }
+.header nav { display: flex; gap: 20px; font-size: 13px; }
+.header nav .on { color: var(--gold); font-weight: 700; }
+.header .user { margin-left: auto; font-size: 13px; color: #dbe4f0; }
+/* Bは1カラム: 本文は最大880pxに寄せ、カードを縦に積む。PCでも2列に割らない */
+.body { padding: 16px 32px 32px; max-width: 880px; margin: 0 auto; }
+.titlerow { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
+.titlerow h1 { font-size: 20px; margin: 0; }
+.titlerow .spacer { flex: 1; }
+.titlerow .data { color: var(--muted); font-size: 12px; }
+.btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  min-height: 32px;
+}
+.tabs { display: flex; gap: 24px; margin: 4px 0 16px; font-size: 14px; }
+.tabs .on { font-weight: 700; border-bottom: 3px solid var(--gold); padding-bottom: 4px; }
+.tabs .off { color: var(--muted); }
+/* 集計帯: 紺の1枚。主要な数字を大きく（主額28〜32px） */
+.band {
+  background: var(--brand);
+  color: #fff;
+  border-radius: var(--radius);
+  display: flex;
+  gap: 0;
+  padding: 20px 32px;
+  margin-bottom: 8px;
+}
+.band .cell { flex: 1; }
+.band .cell + .cell { border-left: 1px solid rgba(255,255,255,.16); padding-left: 24px; margin-left: 24px; }
+.band .label { font-size: 12px; color: var(--band-note); margin-bottom: 4px; }
+.band .value { font-size: 24px; font-weight: 700; }
+.band .value.hero { font-size: 32px; }
+.band .pos { color: var(--pos-band); }
+.band .neg { color: var(--neg-band); }
+.band .sub { font-size: 12px; color: var(--band-note); }
+.note { color: var(--muted); font-size: 12px; margin: 4px 0 12px; }
+/* Bのカード: 1カラムに縦積み。カード間24px、カード内20〜24pxと余白を広めに取る */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 0 0 24px;
+}
+.card h2 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.card h2 .spacer { flex: 1; }
+.card h2 .link { font-size: 12px; color: var(--accent); font-weight: 400; }
+.kv { display: flex; align-items: baseline; gap: 8px; }
+.kv .hero { font-size: 30px; font-weight: 700; }
+.kv .mid { font-size: 20px; font-weight: 700; }
+.meter { height: 8px; background: var(--track); border-radius: 999px; overflow: hidden; margin: 12px 0 8px; }
+.meter > span { display: block; height: 100%; background: var(--bar-a); border-radius: 999px; }
+.pill {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  background: var(--group);
+}
+.bars { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--track); margin: 12px 0 8px; }
+.bars > span { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--soft); }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
+.rows > .rowline { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.rows > .rowline:first-child { border-top: none; }
+.rows .name { font-weight: 700; }
+.rows .sub, .sub { color: var(--muted); font-size: 11px; }
+/* pos/neg を併せ持つ sub は補助色ではなく符号の色を優先する（.band/.rows の sub 規則による上書きを防ぐ） */
+.rows .sub.pos, .sub.pos { color: var(--pos); }
+.rows .sub.neg, .sub.neg { color: var(--neg); }
+.band .sub.pos { color: var(--pos-band); }
+.band .sub.neg { color: var(--neg-band); }
+/* 段階開示: 詳細は閉じた状態が既定。summaryには必ず文字ラベルを付ける */
+details.more { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 8px; }
+details.more summary { cursor: pointer; color: var(--accent); font-size: 12px; }
+details.more table.mini { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+details.more table.mini td { padding: 6px 4px; border-top: 1px solid var(--border); }
+details.more table.mini td.r { text-align: right; }
+.searchrow { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.searchbox {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  width: 400px;
+  color: var(--muted);
+}
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+.count { margin-left: auto; color: var(--soft); font-size: 12px; display: flex; gap: 16px; align-items: center; }
+.count .link { color: var(--accent); }
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 12px;
+}
+table.grid th {
+  background: var(--group);
+  color: var(--soft);
+  font-weight: 500;
+  text-align: left;
+  padding: 10px 6px;
+  white-space: nowrap;
+}
+table.grid td { padding: 10px 6px; border-top: 1px solid var(--border); vertical-align: top; }
+table.grid td.r, table.grid th.r { text-align: right; }
+table.grid td:nth-child(3), table.grid td:nth-child(4), table.grid td:nth-child(5) { white-space: nowrap; }
+tr.group td { background: var(--group); font-weight: 700; border-left: 3px solid var(--gold); }
+/* SP: 下部ナビ+1カラム */
+.sp { max-width: 390px; margin: 0 auto; background: var(--page); }
+.sp .body { padding: 12px 0 24px; max-width: none; }
+.sp .header { padding: 0 16px; gap: 12px; }
+.sp .band { border-radius: 0; flex-direction: column; gap: 12px; padding: 20px 16px; }
+.sp .band .cell + .cell { border-left: none; padding-left: 0; margin-left: 0; border-top: 1px solid rgba(255,255,255,.16); padding-top: 12px; }
+.sp .band .value.hero { font-size: 30px; }
+.sp .card { border-radius: var(--radius); margin: 0 16px 16px; padding: 16px; }
+.sp .rowline { display: flex; justify-content: space-between; gap: 8px; padding: 12px 0; border-top: 1px solid var(--border); }
+.sp .rowline:first-of-type { border-top: none; }
+.sp .searchcard { margin: 0 16px 8px; }
+.bottomnav {
+  display: flex;
+  justify-content: space-around;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.bottomnav .on { color: var(--accent); font-weight: 700; }
+/* ダーク: 新規トークンを増やさず面・文字・罫線の反転に乗せる（concept-B §2の方針） */
+body.dark { --page: #0b1220; --surface: #16202f; --ink: #f1f5f9; --soft: #c3cfdd; --muted: #93a3b8; --border: #2a3a4f; --group: #1d2a3d; --track: #2a3a4f; --band-note: #9db1c9; --bar-b: #5b87d8; --bar-c: #3b5878; background: var(--page); color: var(--ink); }
+body.dark .header { background: #0a1a30; }
+body.dark .band { background: #12294a; }
+body.dark .pos { color: #4ade80; }
+body.dark .neg { color: #f87171; }
+body.dark .rows .sub.pos, body.dark .sub.pos { color: #4ade80; }
+body.dark .rows .sub.neg, body.dark .sub.neg { color: #f87171; }
+body.dark .pill { background: var(--group); }
