@@ -178,12 +178,53 @@ fn should_emit_rtt(sample_every: u64) -> bool {
     sample_hit(DB_RTT_COUNTER.fetch_add(1, Ordering::Relaxed), sample_every)
 }
 
-fn format_db_rtt(statement: &'static str, elapsed_ms: u64) -> String {
-    format!("db_rtt statement={statement} elapsed_ms={elapsed_ms}")
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DbRttOrigin {
+    Fetch,
+    Scheduled,
+    Unknown,
 }
 
-fn emit_db_rtt(statement: &'static str, elapsed_ms: u64) {
-    let line = format_db_rtt(statement, elapsed_ms);
+impl DbRttOrigin {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Fetch => "fetch",
+            Self::Scheduled => "scheduled",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DbRttContext {
+    origin: DbRttOrigin,
+    colo: Option<[u8; 3]>,
+}
+
+impl DbRttContext {
+    fn new(origin: DbRttOrigin, colo: Option<&str>) -> Self {
+        let colo = colo.and_then(|value| {
+            let bytes = value.as_bytes();
+            (bytes.len() == 3 && bytes.iter().all(u8::is_ascii_alphabetic))
+                .then(|| [bytes[0], bytes[1], bytes[2]])
+        });
+        Self { origin, colo }
+    }
+}
+
+fn format_db_rtt(statement: &'static str, elapsed_ms: u64, context: DbRttContext) -> String {
+    let colo = context.colo.map_or_else(
+        || "unknown".to_string(),
+        |code| String::from_utf8_lossy(&code).into_owned(),
+    );
+    format!(
+        "db_rtt origin={} colo={colo} statement={statement} elapsed_ms={elapsed_ms}",
+        context.origin.as_str()
+    )
+}
+
+fn emit_db_rtt(statement: &'static str, elapsed_ms: u64, context: DbRttContext) {
+    let line = format_db_rtt(statement, elapsed_ms, context);
     #[cfg(target_arch = "wasm32")]
     worker::console_warn!("{line}");
     #[cfg(not(target_arch = "wasm32"))]
@@ -224,12 +265,12 @@ impl DbTimer {
     }
 
     /// 計測の唯一の出口。`Executor` の各実装は問い合わせの前後で
-    /// この関数を通すだけで、種別と ms 以外を出さない
-    fn finish(self, statement: &'static str, sample_every: u64) {
+    /// この関数を通すだけで、SQL 本文等を含めず計測する
+    fn finish(self, statement: &'static str, sample_every: u64, context: DbRttContext) {
         if !should_emit_rtt(sample_every) {
             return;
         }
-        emit_db_rtt(statement, self.elapsed_ms());
+        emit_db_rtt(statement, self.elapsed_ms(), context);
     }
 }
 
@@ -437,6 +478,14 @@ where
 pub struct Db {
     inner: Arc<DbInner>,
     rtt: DbRttConfig,
+    rtt_context: DbRttContext,
+}
+
+impl Db {
+    pub fn with_rtt_context(mut self, origin: DbRttOrigin, colo: Option<&str>) -> Self {
+        self.rtt_context = DbRttContext::new(origin, colo);
+        self
+    }
 }
 
 impl std::fmt::Debug for Db {
@@ -572,6 +621,7 @@ pub fn connect_pool_lazy(database_url: &str, max_connections: u32) -> Result<Db,
     Ok(Db {
         inner: Arc::new(DbInner::Pool(pool)),
         rtt: DbRttConfig::from_host_env(),
+        rtt_context: DbRttContext::new(DbRttOrigin::Unknown, None),
     })
 }
 
@@ -599,6 +649,7 @@ impl Db {
                 client: worker::send::SendWrapper::new(std::cell::RefCell::new(None)),
             })),
             rtt,
+            rtt_context: DbRttContext::new(DbRttOrigin::Unknown, None),
         }
     }
 }
@@ -681,6 +732,7 @@ impl Db {
                 Ok(Tx {
                     conn: Some(TxGuard::dismiss(guard)),
                     rtt: self.rtt,
+                    rtt_context: self.rtt_context,
                 })
             }
             #[cfg(target_arch = "wasm32")]
@@ -691,6 +743,7 @@ impl Db {
                 Ok(Tx {
                     conn: Some(TxGuard::dismiss(guard)),
                     rtt: self.rtt,
+                    rtt_context: self.rtt_context,
                 })
             }
         }
@@ -715,6 +768,7 @@ impl Executor for Db {
     ) -> DbFuture<'a, Result<Vec<Row>, DbError>> {
         db_future(async move {
             let sample_every = self.rtt.sample_every;
+            let rtt_context = self.rtt_context;
             // 計時は接続取得の後に開始する。Worker の Db はリクエストごとに作られ、
             // 初回の問い合わせでは接続確立・認証の待ちが入るため、含めると
             // SQL 1往復の計測が汚れる
@@ -730,7 +784,7 @@ impl Executor for Db {
                         .query_typed(sql, &typed_params(params))
                         .await
                         .map_err(|e| db_err("query", sql, e));
-                    timer.finish(query_tag(sql), sample_every);
+                    timer.finish(query_tag(sql), sample_every, rtt_context);
                     out
                 }
                 #[cfg(target_arch = "wasm32")]
@@ -741,7 +795,7 @@ impl Executor for Db {
                         .query_typed(sql, &typed_params(params))
                         .await
                         .map_err(|e| db_err("query", sql, e));
-                    timer.finish(query_tag(sql), sample_every);
+                    timer.finish(query_tag(sql), sample_every, rtt_context);
                     out
                 }
             }
@@ -755,6 +809,7 @@ impl Executor for Db {
     ) -> DbFuture<'a, Result<u64, DbError>> {
         db_future(async move {
             let sample_every = self.rtt.sample_every;
+            let rtt_context = self.rtt_context;
             match &*self.inner {
                 #[cfg(not(target_arch = "wasm32"))]
                 DbInner::Pool(pool) => {
@@ -767,7 +822,7 @@ impl Executor for Db {
                         .execute_typed(sql, &typed_params(params))
                         .await
                         .map_err(|e| db_err("execute", sql, e));
-                    timer.finish(query_tag(sql), sample_every);
+                    timer.finish(query_tag(sql), sample_every, rtt_context);
                     out
                 }
                 #[cfg(target_arch = "wasm32")]
@@ -778,7 +833,7 @@ impl Executor for Db {
                         .execute_typed(sql, &typed_params(params))
                         .await
                         .map_err(|e| db_err("execute", sql, e));
-                    timer.finish(query_tag(sql), sample_every);
+                    timer.finish(query_tag(sql), sample_every, rtt_context);
                     out
                 }
             }
@@ -788,6 +843,7 @@ impl Executor for Db {
     fn batch_execute<'a>(&'a self, sql: &'a str) -> DbFuture<'a, Result<(), DbError>> {
         db_future(async move {
             let sample_every = self.rtt.sample_every;
+            let rtt_context = self.rtt_context;
             match &*self.inner {
                 #[cfg(not(target_arch = "wasm32"))]
                 DbInner::Pool(pool) => {
@@ -800,7 +856,7 @@ impl Executor for Db {
                         .batch_execute(sql)
                         .await
                         .map_err(|e| db_err("batch", sql, e));
-                    timer.finish(query_tag(sql), sample_every);
+                    timer.finish(query_tag(sql), sample_every, rtt_context);
                     out
                 }
                 #[cfg(target_arch = "wasm32")]
@@ -811,7 +867,7 @@ impl Executor for Db {
                         .batch_execute(sql)
                         .await
                         .map_err(|e| db_err("batch", sql, e));
-                    timer.finish(query_tag(sql), sample_every);
+                    timer.finish(query_tag(sql), sample_every, rtt_context);
                     out
                 }
             }
@@ -847,6 +903,7 @@ impl Executor for &Db {
 pub struct Tx {
     conn: Option<TxConn>,
     rtt: DbRttConfig,
+    rtt_context: DbRttContext,
 }
 
 enum TxConn {
@@ -962,6 +1019,7 @@ macro_rules! impl_executor_for_tx {
                 db_future(async move {
                     let timer = DbTimer::start();
                     let sample_every = self.rtt.sample_every;
+                    let rtt_context = (**self).rtt_context;
                     let Some(conn) = self.conn.as_ref() else {
                         return Err(DbError::TransactionUnavailable);
                     };
@@ -977,7 +1035,7 @@ macro_rules! impl_executor_for_tx {
                             .await
                             .map_err(|e| db_err("query", sql, e)),
                     };
-                    timer.finish(query_tag(sql), sample_every);
+                    timer.finish(query_tag(sql), sample_every, rtt_context);
                     out
                 })
             }
@@ -990,6 +1048,7 @@ macro_rules! impl_executor_for_tx {
                 db_future(async move {
                     let timer = DbTimer::start();
                     let sample_every = self.rtt.sample_every;
+                    let rtt_context = (**self).rtt_context;
                     let Some(conn) = self.conn.as_ref() else {
                         return Err(DbError::TransactionUnavailable);
                     };
@@ -1005,7 +1064,7 @@ macro_rules! impl_executor_for_tx {
                             .await
                             .map_err(|e| db_err("execute", sql, e)),
                     };
-                    timer.finish(query_tag(sql), sample_every);
+                    timer.finish(query_tag(sql), sample_every, rtt_context);
                     out
                 })
             }
@@ -1014,11 +1073,12 @@ macro_rules! impl_executor_for_tx {
                 db_future(async move {
                     let timer = DbTimer::start();
                     let sample_every = self.rtt.sample_every;
+                    let rtt_context = (**self).rtt_context;
                     let Some(conn) = self.conn.as_ref() else {
                         return Err(DbError::TransactionUnavailable);
                     };
                     let out = conn.batch_execute(sql).await;
-                    timer.finish(query_tag(sql), sample_every);
+                    timer.finish(query_tag(sql), sample_every, rtt_context);
                     out
                 })
             }
@@ -1180,12 +1240,24 @@ mod tests {
     #[test]
     fn db_rtt_format_carries_only_fixed_statement_and_ms() {
         assert_eq!(
-            format_db_rtt("SELECT", 3),
-            "db_rtt statement=SELECT elapsed_ms=3"
+            format_db_rtt(
+                "SELECT",
+                3,
+                DbRttContext::new(DbRttOrigin::Fetch, Some("NRT"))
+            ),
+            "db_rtt origin=fetch colo=NRT statement=SELECT elapsed_ms=3"
         );
         assert_eq!(
-            format_db_rtt("app_enter", 0),
-            "db_rtt statement=app_enter elapsed_ms=0"
+            format_db_rtt(
+                "app_enter",
+                0,
+                DbRttContext::new(DbRttOrigin::Scheduled, None)
+            ),
+            "db_rtt origin=scheduled colo=unknown statement=app_enter elapsed_ms=0"
+        );
+        assert_eq!(
+            DbRttContext::new(DbRttOrigin::Fetch, Some("user input")).colo,
+            None
         );
     }
 
