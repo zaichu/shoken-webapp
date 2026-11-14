@@ -291,9 +291,12 @@ fn UserMenu(
                 if let Some(ul) = menu_items_ref.get() {
                     let items = collect_menuitems(&ul);
                     if !items.is_empty() {
-                        let next = (focused_index.get() + 1).min(items.len() as i32 - 1);
+                        let next = (focused_index.get() + 1)
+                            .min(i32::try_from(items.len()).unwrap_or(i32::MAX) - 1);
                         focused_index.set(next);
-                        let _ = items[next as usize].focus();
+                        if let Some(item) = items.get(usize::try_from(next).unwrap_or(usize::MAX)) {
+                            let _ = item.focus();
+                        }
                     }
                 }
             }
@@ -304,7 +307,9 @@ fn UserMenu(
                     if !items.is_empty() {
                         let next = (focused_index.get() - 1).max(0);
                         focused_index.set(next);
-                        let _ = items[next as usize].focus();
+                        if let Some(item) = items.get(usize::try_from(next).unwrap_or(usize::MAX)) {
+                            let _ = item.focus();
+                        }
                     }
                 }
             }
@@ -324,7 +329,8 @@ fn UserMenu(
                                 ev.prevent_default();
                                 if let Some(last) = items.last() {
                                     let _ = last.focus();
-                                    focused_index.set((items.len() - 1) as i32);
+                                    focused_index
+                                        .set(i32::try_from(items.len() - 1).unwrap_or(i32::MAX));
                                 }
                             } else if !ev.shift_key() && pos == items.len() - 1 {
                                 ev.prevent_default();

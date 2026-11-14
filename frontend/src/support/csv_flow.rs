@@ -1,5 +1,6 @@
 use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
 use crate::api::{ApiClient, ApiError};
+use rust_decimal::prelude::ToPrimitive;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CsvTabState {
@@ -273,7 +274,7 @@ async fn split_file_chunks(
     }
     let header_end = records
         .get(header_records.saturating_sub(1))
-        .map_or(0, |(_, end)| *end) as f64;
+        .map_or(0.0, |(_, end)| end.to_f64().unwrap_or(f64::MAX));
     let header = file
         .slice_with_f64_and_f64(0.0, header_end)
         .map_err(|_| ApiError::Network)?;
@@ -284,7 +285,10 @@ async fn split_file_chunks(
                 return Err(ApiError::Network);
             };
             let data_slice = file
-                .slice_with_f64_and_f64(first.0 as f64, last.1 as f64)
+                .slice_with_f64_and_f64(
+                    first.0.to_f64().unwrap_or(f64::MAX),
+                    last.1.to_f64().unwrap_or(f64::MAX),
+                )
                 .map_err(|_| ApiError::Network)?;
             let parts = js_sys::Array::new();
             parts.push(&header);

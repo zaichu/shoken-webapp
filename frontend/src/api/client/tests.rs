@@ -150,3 +150,11 @@ fn url_building() {
         "https://example.test/api/v1/session"
     );
 }
+
+#[test]
+fn timeout_conversion_saturates_out_of_range() {
+    assert_eq!(timeout_ms_u32(1_000), 1_000);
+    assert_eq!(timeout_ms_u32(u64::from(u32::MAX)), u32::MAX);
+    assert_eq!(timeout_ms_u32(u64::from(u32::MAX) + 1), u32::MAX);
+    assert_eq!(timeout_ms_u32(u64::MAX), u32::MAX);
+}
