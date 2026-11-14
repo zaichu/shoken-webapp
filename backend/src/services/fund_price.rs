@@ -435,7 +435,7 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
 /// 予定時刻（UTC エポックミリ秒）が JST 20:00/23:00 ちょうどなら基準価額更新を
 /// 実行するかを返す。cron は1分おきに飛ぶため、回りすぎないよう1日2回の時刻に絞る
 // JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None→false になる
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 pub fn should_fund_refresh_at(scheduled_ms: f64) -> bool {
     DateTime::from_timestamp_millis(scheduled_ms as i64).is_some_and(|t| {
         let jst = t + chrono::Duration::hours(9);
@@ -639,7 +639,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     fn test_should_fund_refresh_at_runs_at_jst_20_and_23() {
         // epoch ミリ秒は f64 でも 2^53 未満では正確に表せるため精度は落ちない
         let ms = |y: i32, mo: u32, d: u32, h: u32, mi: u32| {
@@ -661,7 +661,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     fn test_should_fund_refresh_at_boundary_floats() {
         // 範囲外の f64 は飽和して None→false になり、小数は切り捨てられる
         assert!(!should_fund_refresh_at(f64::NAN));

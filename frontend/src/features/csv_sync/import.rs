@@ -190,10 +190,12 @@ async fn import_with_file(
     content: &str,
     confirmed: bool,
 ) -> Outcome {
-    if let Some(reason) = guard::inspect(kind, content) {
-        if reason == SkipReason::Columns {
-            return Outcome::Failed(columns_failure_reason(kind, content));
-        }
+    let reason = guard::inspect(kind, content);
+    if let Some(reason) = reason
+        && reason == SkipReason::Columns
+    {
+        return Outcome::Failed(columns_failure_reason(kind, content));
+    } else if let Some(reason) = reason {
         return Outcome::Skipped(reason);
     }
     let plan = plan_of(kind);

@@ -303,7 +303,7 @@ async fn master_refresh_gate(pool: &Db) -> Option<chrono::DateTime<Utc>> {
 }
 
 // epoch ミリ秒は f64 でも 2^53 未満では正確に表せるため精度は落ちない
-#[allow(clippy::cast_precision_loss)]
+#[expect(clippy::cast_precision_loss)]
 fn scheduled_now_ms() -> f64 {
     Utc::now().timestamp_millis() as f64
 }
@@ -4214,7 +4214,7 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
 
 /// fund_balances に1行だけ足す。price_as_of(CSV 取込日)と created_at を固定できる
 /// ため、「更新待ち」や共有値の鮮度判定を実行時刻に依らず確かめられる
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn insert_fund_row(
     pool: &Db,
     user_id: UserId,
