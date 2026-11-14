@@ -1,7 +1,7 @@
 use super::*;
 use serde_json::json;
 
-fn dividend(fields: serde_json::Value) -> Dividend {
+fn dividend(fields: &serde_json::Value) -> Dividend {
     let mut base = json!({
         "id": "550e8400-e29b-41d4-a716-446655440001",
         "settlement_date": "2024-03-01",
@@ -23,7 +23,7 @@ fn dividend(fields: serde_json::Value) -> Dividend {
     serde_json::from_value(base).expect("dividend")
 }
 
-fn stock(fields: serde_json::Value) -> DomesticStock {
+fn stock(fields: &serde_json::Value) -> DomesticStock {
     let mut base = json!({
         "id": "550e8400-e29b-41d4-a716-446655440002",
         "trade_date": "2024-04-10",
@@ -47,7 +47,7 @@ fn stock(fields: serde_json::Value) -> DomesticStock {
     serde_json::from_value(base).expect("stock")
 }
 
-fn fund(fields: serde_json::Value) -> Mutualfund {
+fn fund(fields: &serde_json::Value) -> Mutualfund {
     let mut base = json!({
         "id": "550e8400-e29b-41d4-a716-446655440003",
         "trade_date": "2024-05-20",
@@ -72,7 +72,7 @@ fn fund(fields: serde_json::Value) -> Mutualfund {
     serde_json::from_value(base).expect("fund")
 }
 
-fn balance(fields: serde_json::Value) -> AssetBalance {
+fn balance(fields: &serde_json::Value) -> AssetBalance {
     let mut base = json!({
         "id": "550e8400-e29b-41d4-a716-446655440004",
         "security_code": "9904",
@@ -94,13 +94,13 @@ fn balance(fields: serde_json::Value) -> AssetBalance {
 
 #[test]
 fn dividends_csv_has_screen_columns_in_date_desc_order() {
-    let older = dividend(json!({"settlement_date": "2024-01-05"}));
-    let newer = dividend(json!({
+    let older = dividend(&json!({"settlement_date": "2024-01-05"}));
+    let newer = dividend(&json!({
         "settlement_date": "2024-05-10",
         "security_code": "9999",
         "security_name": "架空商事"
     }));
-    let same_day_lower_code = dividend(json!({
+    let same_day_lower_code = dividend(&json!({
         "settlement_date": "2024-05-10",
         "security_code": "1301",
         "security_name": "架空水産"
@@ -124,20 +124,20 @@ fn dividends_csv_has_screen_columns_in_date_desc_order() {
 
 #[test]
 fn asset_balances_csv_sorts_by_market_value_desc() {
-    let low = balance(json!({
+    let low = balance(&json!({
         "security_code": "1301",
         "security_name": "架空水産",
         "shares": 10,
         "total_purchase_amount": 10000,
         "current_price": 1000
     }));
-    let unpriced = balance(json!({
+    let unpriced = balance(&json!({
         "security_code": "9999",
         "security_name": "架空商事",
         "current_price": 0,
         "price_as_of": null
     }));
-    let high = balance(json!({
+    let high = balance(&json!({
         "security_code": "9910",
         "security_name": "架空エレクトロニクス",
         "shares": 100,
@@ -165,8 +165,8 @@ fn asset_balances_csv_sorts_by_market_value_desc() {
 
 #[test]
 fn transactions_csv_combines_stocks_and_funds() {
-    let stock_row = stock(json!({}));
-    let fund_row = fund(json!({"trade_date": "2024-04-25"}));
+    let stock_row = stock(&json!({}));
+    let fund_row = fund(&json!({"trade_date": "2024-04-25"}));
 
     let csv = transactions_csv(&[stock_row], &[fund_row]);
     let lines: Vec<&str> = csv.lines().collect();
@@ -188,7 +188,7 @@ fn transactions_csv_combines_stocks_and_funds() {
 
 #[test]
 fn csv_escapes_commas_quotes_and_newlines() {
-    let row = dividend(json!({
+    let row = dividend(&json!({
         "security_name": "架空\"重工\",株式会社\n第二"
     }));
     let csv = dividends_csv(&[row]);
@@ -198,21 +198,21 @@ fn csv_escapes_commas_quotes_and_newlines() {
 #[test]
 fn csv_neutralizes_text_cells_that_look_like_formulas() {
     // 銘柄名などの文字列が = + - @ 始まりだと表計算ソフトで式として実行されるため ' で逃がす
-    let csv = dividends_csv(&[dividend(json!({"security_name": "=cmd|' /C calc'!A0"}))]);
+    let csv = dividends_csv(&[dividend(&json!({"security_name": "=cmd|' /C calc'!A0"}))]);
     assert!(csv.contains("'=cmd|' /C calc'!A0"));
-    let csv = asset_balances_csv(&[balance(json!({"security_name": "@x"}))]);
+    let csv = asset_balances_csv(&[balance(&json!({"security_name": "@x"}))]);
     assert!(csv.contains("'@x"));
     // タブ・CR 始まりも表計算ソフトに取り込まれるため逃がす
-    let csv = dividends_csv(&[dividend(json!({"security_name": "\t=1+1"}))]);
+    let csv = dividends_csv(&[dividend(&json!({"security_name": "\t=1+1"}))]);
     assert!(csv.contains("'\t=1+1"));
-    let csv = dividends_csv(&[dividend(json!({"security_name": "\r=1+1"}))]);
+    let csv = dividends_csv(&[dividend(&json!({"security_name": "\r=1+1"}))]);
     assert!(csv.contains("'\r=1+1"));
-    let csv = dividends_csv(&[dividend(json!({"security_name": "\n=1+1"}))]);
+    let csv = dividends_csv(&[dividend(&json!({"security_name": "\n=1+1"}))]);
     assert!(csv.contains("'\n=1+1"));
-    let csv = dividends_csv(&[dividend(json!({}))]);
+    let csv = dividends_csv(&[dividend(&json!({}))]);
     assert!(csv.contains(",架空自動車,"));
     // 数値の負値は数値として扱わせるため逃がさない
-    let csv = transactions_csv(&[stock(json!({"realized_profit_and_loss": -12345}))], &[]);
+    let csv = transactions_csv(&[stock(&json!({"realized_profit_and_loss": -12345}))], &[]);
     assert!(csv.contains(",-12345,"));
 }
 
@@ -238,9 +238,9 @@ fn csv_exports_never_contain_auth_or_identity_fields() {
     // メールアドレス等の認証情報は行の取得元(DTO)にそもそも含まれないが、
     // 列名に個人情報系の名前が混ざっていないことを併せて確かめる
     let csv_set = [
-        dividends_csv(&[dividend(json!({}))]),
-        asset_balances_csv(&[balance(json!({}))]),
-        transactions_csv(&[stock(json!({}))], &[fund(json!({}))]),
+        dividends_csv(&[dividend(&json!({}))]),
+        asset_balances_csv(&[balance(&json!({}))]),
+        transactions_csv(&[stock(&json!({}))], &[fund(&json!({}))]),
     ];
     for csv in csv_set {
         assert!(!csv.contains("550e8400"), "{csv}");

@@ -33,8 +33,8 @@ fn probe_promise() -> Option<js_sys::Promise> {
     value.and_then(|value| value.dyn_into::<js_sys::Promise>().ok())
 }
 
-fn parse_result(value: JsValue) -> Probe {
-    let Ok(text) = js_sys::JSON::stringify(&value) else {
+fn parse_result(value: &JsValue) -> Probe {
+    let Ok(text) = js_sys::JSON::stringify(value) else {
         return Probe::Retry;
     };
     let Some(text) = text.as_string() else {
@@ -55,7 +55,7 @@ pub async fn take() -> Probe {
         return Probe::Missing;
     };
     match JsFuture::from(promise).await {
-        Ok(value) => parse_result(value),
+        Ok(value) => parse_result(&value),
         Err(_) => Probe::Retry,
     }
 }
