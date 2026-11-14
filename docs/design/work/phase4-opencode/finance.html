@@ -83,8 +83,8 @@
       <div class="good"><span class="tag">良い例</span>
         <div class="num">評価損益 <span class="pos">+¥234,500</span> / <span class="neg">-¥23,500</span> / ¥0</div>
         <div class="num">税額 <span class="neg">-¥16,346</span>(支払) / 還付 <span class="pos">+¥1,200</span></div>
-        <div class="num">評価額 ¥1,234,500(通常色・+なし) / 年間予想 ¥196,373(通常色)</div>
-        <div class="num">2月配当 ¥0(ゼロ) / 基準価額 —(欠測)</div>
+        <div class="num">評価額 ¥1,234,500(通常色・+なし) / 年間予想配当(税引前) ¥196,373(通常色)</div>
+        <div class="num">2月の配当金(税引後) ¥0(ゼロ) / 基準価額 —(欠測)</div>
       </div>
       <div class="bad"><span class="tag">悪い例</span>
         <div class="num">評価損益 <span class="pos">¥234,500</span>(色のみ。印刷で正負不明)</div>
@@ -100,7 +100,7 @@
     <div class="pair">
       <div class="good"><span class="tag">良い例</span>
         <div class="num" style="font-size:13px">価格基準日 2026/10/20 ・ データ:2026/10/21 取り込み</div>
-        <div class="num" style="font-size:13px">月別配当(2026/01 〜 2026/12)</div>
+        <div class="num" style="font-size:13px">月別配当金(税引後)(2026/01 〜 2026/12)</div>
       </div>
       <div class="bad"><span class="tag">悪い例</span>
         <div class="num" style="font-size:13px">10/20 時点(何の時点か・何年か分からない)</div>
@@ -124,12 +124,12 @@
     <p class="note">finance-data.md §5。曲線禁止。凡例は色+名前+金額+割合。前年は比較色。</p>
     <div class="pair">
       <div class="good"><span class="tag">良い例(棒+凡例)</span>
-        <div class="num" style="font-size:12px">月別配当(2026/01 〜 2026/12)・合計 ¥300,000(単一の系列)</div>
-        <div class="bars" role="img" aria-label="月別配当の棒グラフ">
+        <div class="num" style="font-size:12px">月別配当金(税引後)(2026/01 〜 2026/12)・合計 ¥300,000(単一の系列)</div>
+        <div class="bars" role="img" aria-label="月別の税引後配当の棒グラフ">
           <div class="b" style="height:20%"></div><div class="b zero" style="height:2%"></div><div class="b" style="height:74%"></div><div class="b" style="height:13%"></div><div class="b" style="height:25%"></div><div class="b" style="height:36%"></div><div class="b" style="height:30%"></div><div class="b" style="height:15%"></div><div class="b" style="height:62%"></div><div class="b" style="height:20%"></div><div class="b" style="height:98%"></div><div class="b" style="height:100%"></div>
         </div>
         <div class="months"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span></div>
-        <div class="legend"><span class="sw" style="background:var(--color-chart-3)"></span>月別配当(配当金の受取額) 合計 ¥300,000</div>
+        <div class="legend"><span class="sw" style="background:var(--color-chart-3)"></span>配当金(税引後) 合計 ¥300,000</div>
         <p class="note">単一の系列のため棒は1色(`chart-3`)。資産構成の系列色(`chart-1`/`chart-2`)は使わない。</p>
         <div class="num" style="font-size:12px;margin-top:12px">資産構成(評価額基準)・合計 ¥3,345,000</div>
         <div class="donut-row">
@@ -139,7 +139,7 @@
         <p class="note">構成は円グラフ+凡例(金額と割合)。円の色・順序と凡例を一致させる。</p>
       </div>
       <div class="bad"><span class="tag">悪い例</span>
-        <div class="num" style="font-size:12px">月別配当(期間なし・合計なし)</div>
+        <div class="num" style="font-size:12px">月別配当金(税引後)(期間なし・合計なし)</div>
         <div class="num" style="font-size:13px">12か月を滑らかな曲線で結ぶ(月と月の間に値があるように誤読)</div>
         <div class="legend"><span class="sw" style="background:var(--color-chart-1)"></span>国内株式 63%　<span class="sw" style="background:var(--color-chart-2)"></span>架空グロー…(金額なし・省略で識別不能)</div>
       </div>
