@@ -1,0 +1,120 @@
+{
+  "holdings": [
+    {
+      "id": "stock-a",
+      "type": "stock",
+      "code": "9901",
+      "name": "架空青空電機",
+      "quantity": 100,
+      "costUnitPrice": 10000,
+      "currentPrice": 12000,
+      "account": "特定口座",
+      "previousValue": 1180000,
+      "class": "国内株式",
+      "annualDividendPerShare": 1800
+    },
+    {
+      "id": "stock-b",
+      "type": "stock",
+      "code": "9902",
+      "name": "架空食品ホールディングス",
+      "quantity": 100,
+      "costUnitPrice": 65973.19,
+      "currentPrice": 79498.07,
+      "account": "NISA",
+      "previousValue": 7969807,
+      "class": "国内株式",
+      "annualDividendPerShare": 13634.38
+    },
+    {
+      "id": "fund-a",
+      "type": "fund",
+      "code": "—",
+      "name": "架空成長インデックス・ファンド",
+      "quantity": 10000000,
+      "costUnitPrice": 19443.341,
+      "currentPrice": 19443.341,
+      "account": "特定口座",
+      "previousNav": 19288.853,
+      "class": "投資信託"
+    }
+  ],
+  "dividends": [
+    {
+      "month": 1,
+      "beforeTax": 12000,
+      "tax": 0
+    },
+    {
+      "month": 2,
+      "beforeTax": 8000,
+      "tax": 0
+    },
+    {
+      "month": 3,
+      "beforeTax": 180000,
+      "tax": 36000
+    },
+    {
+      "month": 4,
+      "beforeTax": 11000,
+      "tax": 0
+    },
+    {
+      "month": 5,
+      "beforeTax": 13000,
+      "tax": 0
+    },
+    {
+      "month": 6,
+      "beforeTax": 1138438,
+      "tax": 0
+    },
+    {
+      "month": 7,
+      "beforeTax": 9000,
+      "tax": 0
+    },
+    {
+      "month": 8,
+      "beforeTax": 7000,
+      "tax": 0
+    },
+    {
+      "month": 9,
+      "beforeTax": 15000,
+      "tax": 0
+    },
+    {
+      "month": 10,
+      "beforeTax": 10000,
+      "tax": 0
+    },
+    {
+      "month": 11,
+      "beforeTax": 96250,
+      "tax": 19250
+    },
+    {
+      "month": 12,
+      "beforeTax": 43750,
+      "tax": 9250
+    }
+  ],
+  "recentDividends": [
+    {
+      "holdingId": "stock-a",
+      "month": 11,
+      "beforeTax": 56250,
+      "tax": 11250,
+      "date": "2026/11/10"
+    },
+    {
+      "holdingId": "stock-b",
+      "month": 11,
+      "beforeTax": 40000,
+      "tax": 8000,
+      "date": "2026/11/08"
+    }
+  ]
+}
