@@ -198,6 +198,23 @@ eq(dividendAfter, dividendBefore - dividendTax, '配当税引後');
 eq(fixture.annualForecast.beforeTax, dividendBefore, '年間予想(税引前)=月別合計');
 eq(fixture.annualForecast.afterTax, dividendBefore - dividendTax, '年間予想(税引後)=税引前−税額');
 eq(fixture.annualForecast.afterTax, dividendAfter, '年間予想(税引後)=税引後合計');
+// ---- 基準日(価格基準日)までの受取と基準日以前の直近3件(ホーム表示用) ----
+const cutoff = fixture.priceDate;
+eq(cutoff, '2026/11/13', '基準日');
+const cutoffTxs = dividendTxs.filter(row => row.date <= cutoff);
+const receivedCutoff = sum(cutoffTxs, 'afterTax');
+eq(receivedCutoff, 3128576, '基準日までの受取');
+ok(receivedCutoff <= fixture.annualForecast.afterTax, '受取≤予想');
+const recentCutoff = [...cutoffTxs].sort((x, y) => (x.date < y.date ? 1 : -1)).slice(0, 3);
+eq(recentCutoff.length, 3, '基準日以前の直近3件');
+eq(recentCutoff.map(row => row.date).join(','), '2026/11/10,2026/11/08,2026/10/20', '直近3件の日付');
+eq(recentCutoff.map(row => row.afterTax).join(','), '44823,31874,7969', '直近3件の税引後');
+ok(recentCutoff.every(row => row.date <= cutoff), '入金日≤基準日');
+// ---- 前年(税引後): 税引前−税額と一致、合計検算 ----
+for (const row of fixture.previousYearDividends) {
+  eq(row.afterTax, row.beforeTax - row.tax, `${row.month}月 前年税引後`);
+}
+eq(sum(fixture.previousYearDividends, 'afterTax'), 2660681, '前年税引後合計');
 eq(dividendAnnual, Object.values(annualByHolding).reduce((t, v) => t + v, 0), '年間配当と銘柄別合計');
 ok(fixture.dividends.every(row => row.beforeTax >= row.tax), '月別税引後非負');
 ok(recentDividends.every(row => row.holding && row.afterTax === row.beforeTax - row.tax), '最近の配当内訳');
@@ -283,7 +300,7 @@ const checks = [
   ['評価損益・損益率', `${yen(total)} − ${yen(costTotal)} = ${signedYen(gainTotal)} (全体 ${values.GAIN_RATE_TOTAL}); 行別率 ${holdings.map(row => `${row.code} ${pct(row.gainRate, 2)}`).join(' / ')}`],
   ['分類別割合', `${yen(stockValue)} ÷ ${yen(total)} = ${values.STOCK_CLASS_SHARE}; ${yen(fundValue)} ÷ ${yen(total)} = ${values.FUND_CLASS_SHARE}`],
   ['前日比', `${yen(previousValue)} ${signedYen(dailyChange)} = ${yen(total)}; ${yen(dailyChange)} ÷ ${yen(previousValue)} = ${values.DAILY_RATE_EXACT} (表示 ${values.DAILY_RATE})`],
-  ['配当', `月別税引前 ${yen(dividendBefore)} − 税額 ${yen(dividendTax)} = 税引後 ${yen(dividendAfter)}; 年間配当 ${yen(dividendAnnual)}; 年間予想(税引後) ${values.FORECAST_AFTER}(fixtures annualForecast); 9901利回り ${a.annualDividendPerShare} ÷ ${priceYen(a.currentPrice)} = ${values.STOCK_A_YIELD}`],
+  ['配当', `月別税引前 ${yen(dividendBefore)} − 税額 ${yen(dividendTax)} = 税引後 ${yen(dividendAfter)}; 年間配当 ${yen(dividendAnnual)}; 年間予想(税引後) ${values.FORECAST_AFTER}(fixtures annualForecast); 受取(基準日${cutoff}まで) ${yen(receivedCutoff)} ≤ 予想; 前年税引後合計 ${yen(sum(fixture.previousYearDividends, 'afterTax'))}; 9901利回り ${a.annualDividendPerShare} ÷ ${priceYen(a.currentPrice)} = ${values.STOCK_A_YIELD}`],
   ['件数', `保有 ${holdings.length} 件 (国内株式 ${stocks.length}・投資信託 ${funds.length}); 配当銘柄 ${stocks.length} 件`],
   ['配当明細行', `明細 ${dividendTxs.length} 行の月別合計が月別配当と一致(各月 1〜4 行)。新しい順の上位 2 行(${recentDividends.map(row => `${row.date} ${row.code} ${yen(row.afterTax)}`).join(' / ')})をホーム・ダイアログに表示`],
   ['株式売買行', `売買 ${stockTrades.length} 行: ${stockTrades.map(row => `${row.date} ${row.code} ${signedYen(row.gain)}`).join(' / ')}; 年合計 ${signedYen(stockGain)}(税引前) − ${yen(stockTax)} = ${signedYen(stockAfter)}(税引後)`],

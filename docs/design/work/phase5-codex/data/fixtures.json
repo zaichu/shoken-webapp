@@ -102,20 +102,21 @@
     }
   ],
   "previousYearDividends": [
-    { "month": 1, "beforeTax": 10000 },
-    { "month": 2, "beforeTax": 7000 },
-    { "month": 3, "beforeTax": 150000 },
-    { "month": 4, "beforeTax": 10000 },
-    { "month": 5, "beforeTax": 12000 },
-    { "month": 6, "beforeTax": 3000000 },
-    { "month": 7, "beforeTax": 8000 },
-    { "month": 8, "beforeTax": 6000 },
-    { "month": 9, "beforeTax": 12000 },
-    { "month": 10, "beforeTax": 9000 },
-    { "month": 11, "beforeTax": 80000 },
-    { "month": 12, "beforeTax": 35000 }
+    { "month": 1, "beforeTax": 10000, "tax": 2032, "afterTax": 7968 },
+    { "month": 2, "beforeTax": 7000, "tax": 1422, "afterTax": 5578 },
+    { "month": 3, "beforeTax": 150000, "tax": 30473, "afterTax": 119527 },
+    { "month": 4, "beforeTax": 10000, "tax": 2032, "afterTax": 7968 },
+    { "month": 5, "beforeTax": 12000, "tax": 2438, "afterTax": 9562 },
+    { "month": 6, "beforeTax": 3000000, "tax": 609450, "afterTax": 2390550 },
+    { "month": 7, "beforeTax": 8000, "tax": 1625, "afterTax": 6375 },
+    { "month": 8, "beforeTax": 6000, "tax": 1219, "afterTax": 4781 },
+    { "month": 9, "beforeTax": 12000, "tax": 2438, "afterTax": 9562 },
+    { "month": 10, "beforeTax": 9000, "tax": 1828, "afterTax": 7172 },
+    { "month": 11, "beforeTax": 80000, "tax": 16252, "afterTax": 63748 },
+    { "month": 12, "beforeTax": 35000, "tax": 7110, "afterTax": 27890 }
   ],
   "annualForecast": { "beforeTax": 3969907, "afterTax": 3163438 },
+  "priceDate": "2026/11/13",
   "dividendTransactions": [
     {
       "date": "2026/01/20",
