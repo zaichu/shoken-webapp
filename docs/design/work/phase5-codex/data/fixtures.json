@@ -101,6 +101,21 @@
       "tax": 8888
     }
   ],
+  "previousYearDividends": [
+    { "month": 1, "beforeTax": 10000 },
+    { "month": 2, "beforeTax": 7000 },
+    { "month": 3, "beforeTax": 150000 },
+    { "month": 4, "beforeTax": 10000 },
+    { "month": 5, "beforeTax": 12000 },
+    { "month": 6, "beforeTax": 3000000 },
+    { "month": 7, "beforeTax": 8000 },
+    { "month": 8, "beforeTax": 6000 },
+    { "month": 9, "beforeTax": 12000 },
+    { "month": 10, "beforeTax": 9000 },
+    { "month": 11, "beforeTax": 80000 },
+    { "month": 12, "beforeTax": 35000 }
+  ],
+  "annualForecast": { "beforeTax": 3969907, "afterTax": 3163438 },
   "dividendTransactions": [
     {
       "date": "2026/01/20",
