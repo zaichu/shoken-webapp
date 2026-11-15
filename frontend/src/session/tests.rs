@@ -64,6 +64,43 @@ fn alice() -> Option<SessionUser> {
     })
 }
 
+fn alice_response() -> SessionResponse {
+    SessionResponse {
+        user: alice().unwrap(),
+        is_admin: true,
+    }
+}
+
+#[test]
+fn session_check_failure_preserves_login_state() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let session = SessionStore::new();
+        session.set_user(alice());
+        session.is_admin.set(true);
+        for error in [
+            ApiError::http(500),
+            ApiError::http(503),
+            ApiError::http(403),
+            ApiError::Network,
+            ApiError::Timeout,
+        ] {
+            session.apply_fetched(None, Some(error));
+            assert_eq!(session.user.get_untracked(), alice());
+            assert!(session.is_admin.get_untracked());
+            assert!(session.connection_error.get_untracked().is_some());
+        }
+        session.apply_fetched(Some(alice_response()), None);
+        assert_eq!(session.user.get_untracked(), alice());
+        assert!(session.is_admin.get_untracked());
+        assert!(session.connection_error.get_untracked().is_none());
+        session.apply_fetched(None, None);
+        assert!(session.user.get_untracked().is_none());
+        assert!(!session.is_admin.get_untracked());
+        assert!(session.connection_error.get_untracked().is_none());
+    });
+}
+
 #[test]
 fn identity_comparison() {
     assert!(SessionStore::same_identity(None, None));

@@ -196,8 +196,18 @@
               }
             }
           },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "403": {
-            "description": "管理者権限が必要（未認証・ADMIN_EMAILS 未設定を含む）",
+            "description": "管理者権限が必要",
             "content": {
               "application/json": {
                 "schema": {
