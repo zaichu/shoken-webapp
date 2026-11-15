@@ -11,35 +11,42 @@
 - **なぜ問題か:** Phase 5 の根拠である Phase 4 Codex の `tokens.css`・`components.md` と Phase 4 の「新しいトークン名を作らない」という規則に反し、色・余白の変更が画面ごとに分岐する。フォーカス色・タップ寸法も一元管理できない。
 - **どう直すか:** 直接値を既存トークンに置き換え、必要な値はデザインシステム側で合意してからトークンに追加する。検索結果を再確認し、例外値が残る場合は理由を記す。
 
-### 2. [高] Phase 4 OpenCode と Phase 5 OpenCode のトークン名・値が Codex デザインシステムと別系統
+### 2. [高] Phase 5 OpenCode のトークンが Phase 4 OpenCode の金融表示ルールと対応していない
 
-- **何が:** Phase 4 OpenCode は独自 `--color-*` (`tokens.css:7-40`) を定義し、Phase 5 は別の `--page`・`--space-*`・`--brand` 等 (`phase5-opencode/html/tokens.css:3-17`) を再定義している。一方、参照先として示される Phase 4 Codex のトークン・コンポーネント体系との対応表がない。Phase 5 はさらに `--font-mono` を定義して金額表示に使う (`tokens.css:9,34`) が、金融データ規則は `font-mono` を使わないとしている (`phase4-opencode/finance-data.md` §1.1)。
-- **どこで:** `docs/design/work/phase4-opencode/tokens.css:1-40`、`docs/design/work/phase5-opencode/html/tokens.css:1-37`、`docs/design/work/phase5-opencode/html/components.css:34,47,69,81`。
-- **なぜ問題か:** Phase 4 の規則と Phase 5 の実装が同じデザインシステムを参照しておらず、実装時にどちらを正とするか決め直す必要がある。等幅数字の指定が `font-mono` によって本文フォントまで変える点も金融表示ルールに反する。
-- **どう直すか:** Phase 4 Codex の `tokens.css`・`components.md` を正として変数名と値を統一し、数値は本文書体の `tabular-nums` でそろえる。Phase 4/5 の HTML が同じ変数を参照することを検索で確かめる。
+- **何が:** Phase 5 OpenCode の `tokens.css` は Phase 4 Codex の `tokens.css` とバイト単位で一致する(`cmp` で確認)。一方、Phase 4 OpenCode の `finance-data.md` は色・余白を `frontend/style/input.css` の `@theme` に対応づけ、新しいトークン名を作らないとしている(§冒頭)。Phase 5 の CSS がその規則に沿う対応を示しているかは確認できない。
+- **どこで:** `docs/design/work/phase4-opencode/finance-data.md` 冒頭、`docs/design/work/phase5-opencode/html/tokens.css:1-37`。
+- **なぜ問題か:** Phase 4 OpenCode の金融データ規則と Phase 5 のトークン利用との対応が不明で、実装者がどの定義を参照するか判断できない。
+- **どう直すか:** Phase 4 OpenCode の規則に対する Phase 5 のトークン対応を明記し、既存定義を使うことを確認する。
 
-### 3. [高] 危険操作の確認ダイアログにキーボード操作の設計がなく、削除確定のフォーカスも不明
+### 3. [高] 金融数値に `font-mono` を指定している
+
+- **何が:** Phase 4 OpenCode の金融データ規則は、金額・数量・率を `tabular-nums` で等幅にし、`font-mono` は使わないとしている(`finance-data.md` §1.1)。Phase 5 の金額表示コンポーネントは `font-mono` を指定している。
+- **どこで:** `docs/design/work/phase4-opencode/finance-data.md:16-19`、`docs/design/work/phase5-opencode/html/components.css:34,47,69,81`。
+- **なぜ問題か:** `font-mono` は数字だけでなく本文書体も等幅にし、金融表示規則に反する。
+- **どう直すか:** `font-mono` を外し、本文書体のまま `tabular-nums` を使う。
+
+### 4. [高] 危険操作の確認ダイアログにキーボード操作の設計がなく、削除確定のフォーカスも不明
 
 - **何が:** アカウント削除確認は `role="dialog" aria-modal="true"` とタイトル紐付けはあるが、フォーカス初期位置・フォーカス移動制御・Esc で閉じる操作がない。表示は `:target` だけで行い、削除・取消リンクはいずれも同じ画面へのリンクで、確認の確定挙動も見本から分からない。
-- **どこで:** `docs/design/work/phase5-opencode/html/account-opencode.html:11-12,51-56`。同様に削除確認は `receipts-opencode.html:277-` の各 dialog。
+- **どこで:** `docs/design/work/phase5-opencode/html/account-opencode.html:11-12,51-56`、CSV 削除確認は `docs/design/work/phase5-opencode/html/csv-opencode.html:92-132` の各 dialog。
 - **なぜ問題か:** 破壊的操作をキーボード・読み上げ利用者が安全に確認できず、実装者に必要なダイアログ挙動が伝わらない。状況表でもキーボード/フォーカス未検証と記載 (`screens-status.md`「未確認」)。
 - **どう直すか:** ダイアログを開いた時のフォーカス先、Tab の範囲、閉じた後の復帰先、Esc/取消、削除ボタンでのみ確定する挙動を設計に明記し、PC/スマホのキーボード確認画像または操作記録を添える。
 
-### 4. [中] インベントリで列挙された複数の状態が OpenCode 担当画面に反映されていない
+### 5. [中] インベントリで列挙された複数の状態が OpenCode 担当画面に反映されていない
 
 - **何が:** Phase 1 は CSV 同期/取込の待機・取得中・取込中・急減確認・完了/失敗、設定の読込/保存中/保存失敗、端末失効確認、検索後の条件0件等を個別状態として挙げる。Phase 5 状態ボードは一般的な読込・空・再試行・部分失敗・未ログイン・権限なしを載せるだけで、CSV の取込中/失敗、設定保存失敗、端末失効/全端末ログアウトの確認・失敗状態は見当たらない。設定画面は成功メッセージのみを表示している。
 - **どこで:** `docs/design/work/phase1-codex/screen-inventory.md`「ページ内画面・操作状態」「共通状態の分岐」、`docs/design/work/phase5-opencode/html/states-opencode.html:31-87`、`settings-opencode.html:60-85`。
 - **なぜ問題か:** Phase 1 が要求する既存機能・エラー時の振る舞いを実装者が画面見本から確認できず、主要な設定・CSV操作の失敗時 UX が未設計のまま残る。
 - **どう直すか:** 状況ボードに CSV 取込/同期/削除の処理中・失敗・急減確認、設定保存失敗、端末失効/全端末ログアウトの確認と失敗を追加する。Phase 1 の状態項目ごとに根拠ショットを対応づける。
 
-### 5. [中] 管理者検索の「＋ 場所」が操作可能なコントロールとして表現されていない
+### 6. [中] 管理者検索の「＋ 場所」が操作可能なコントロールとして表現されていない
 
 - **何が:** 条件パネルを開くように見える `＋ 場所` は `span` で、ボタンでもリンクでもない。画面上ではチップに見えるがキーボード操作もアクセシブル名もない。
 - **どこで:** `docs/design/work/phase5-opencode/html/admin-logins-opencode.html:29-34`。
 - **なぜ問題か:** 検索条件追加という既存操作の入口が、見た目だけの静的ラベルになっている。操作可能かどうかを支援技術が判別できない。
 - **どう直すか:** 実際に開くボタンとして表現し、開閉状態とパネルとの関連を aria で示す。PC/スマホのパネル状態もショットに含める。
 
-### 6. [低] Phase 4 の金融データ例は Phase 5 の共通 fixtures と異なる数値セット
+### 7. [低] Phase 4 の金融データ例は Phase 5 の共通 fixtures と異なる数値セット
 
 - **何が:** Phase 4 の例は評価額合計 ¥3,345,000、年間配当 ¥300,000 (`finance-data.md` §1)、Phase 5 では評価額 ¥28,593,148、年配当税引前 ¥3,969,907 を使う。Phase 4 の文書は共通例として合計一致を明記しているため誤計算ではないが、Phase 5 データとの連続性はなく、仕様例と画面例の照合が難しい。
 - **どこで:** `docs/design/work/phase4-opencode/finance-data.md` 冒頭・§1、`docs/design/work/phase5-opencode/screens-status.md` 冒頭。
