@@ -49,44 +49,67 @@ pub struct AdminLoginQuery {
 const FROM: &str = " FROM login_events le JOIN users u ON u.id = le.user_id";
 const PLACE: &str = "CONCAT_WS(' ', le.country, le.region)";
 
-fn filtered_query(select: &'static str, params: &AdminLoginQuery) -> QueryBuilder {
-    let mut qb = QueryBuilder::new(select);
+/// SELECT 用の固定列リスト。data クエリの SELECT 句に使う
+const DATA_SELECT: &str = "SELECT le.occurred_at, u.email::text AS email, le.result, le.country, le.region, le.browser, le.os";
+
+/// フィルター条件（FROM + WHERE + ILIKE）を QueryBuilder に積む。
+/// 検索語・メール・場所の各フィルターを独立して組み立てる。
+fn push_filters(qb: &mut QueryBuilder, params: &AdminLoginQuery) {
     qb.push(FROM).push(" WHERE TRUE");
     push_token_ilike_filters(
-        &mut qb,
+        qb,
         &tokens_from_query(params.search.q.as_deref()),
         &["u.email", PLACE],
     );
     push_token_ilike_filters(
-        &mut qb,
+        qb,
         &tokens_from_query(params.email.as_deref()),
         &["u.email"],
     );
-    push_token_ilike_filters(
-        &mut qb,
-        &tokens_from_query(params.place.as_deref()),
-        &[PLACE],
-    );
+    push_token_ilike_filters(qb, &tokens_from_query(params.place.as_deref()), &[PLACE]);
+}
+
+fn filtered_query(select: &'static str, params: &AdminLoginQuery) -> QueryBuilder {
+    let mut qb = QueryBuilder::new(select);
+    push_filters(&mut qb, params);
     qb
 }
 
+/// sort_by の値を許可リストに照らして SQL 列名へ変換する。
+/// 許可リスト外は Validation エラー（SQL インジェクションを防ぐ）。
+fn sort_column(sort_by: Option<&str>) -> Result<&'static str, ApiError> {
+    match sort_by.unwrap_or("occurred_at") {
+        "occurred_at" => Ok("le.occurred_at"),
+        "email" => Ok("u.email"),
+        "result" => Ok("le.result"),
+        "place" => Ok(PLACE),
+        _ => Err(ApiError::Validation("sort_by の値が不正です".into())),
+    }
+}
+
+/// sort_order の値を許可リストに照らして SQL 方向へ変換する。
+fn sort_direction(sort_order: Option<&str>) -> Result<&'static str, ApiError> {
+    match sort_order.unwrap_or("desc") {
+        "asc" => Ok(" ASC"),
+        "desc" => Ok(" DESC"),
+        _ => Err(ApiError::Validation("sort_order の値が不正です".into())),
+    }
+}
+
 fn push_order(qb: &mut QueryBuilder, params: &AdminLoginQuery) -> Result<(), ApiError> {
-    let column = match params.sort_by.as_deref().unwrap_or("occurred_at") {
-        "occurred_at" => "le.occurred_at",
-        "email" => "u.email",
-        "result" => "le.result",
-        "place" => PLACE,
-        _ => return Err(ApiError::Validation("sort_by の値が不正です".into())),
-    };
-    let direction = match params.sort_order.as_deref().unwrap_or("desc") {
-        "asc" => " ASC",
-        "desc" => " DESC",
-        _ => return Err(ApiError::Validation("sort_order の値が不正です".into())),
-    };
+    let column = sort_column(params.sort_by.as_deref())?;
+    let direction = sort_direction(params.sort_order.as_deref())?;
     qb.push(" ORDER BY ")
         .push(column)
         .push(direction)
         .push(", le.occurred_at DESC, le.id DESC");
+    Ok(())
+}
+
+/// ソート条件の検証だけを行う（QueryBuilder を触らない）。
+fn validate_sort(params: &AdminLoginQuery) -> Result<(), ApiError> {
+    sort_column(params.sort_by.as_deref())?;
+    sort_direction(params.sort_order.as_deref())?;
     Ok(())
 }
 
@@ -102,31 +125,62 @@ pub async fn record_view(pool: &Db, user_id: UserId) -> Result<(), ApiError> {
     Ok(())
 }
 
-pub async fn search(
-    pool: &Db,
-    params: AdminLoginQuery,
-) -> Result<AdminLoginListResponse, ApiError> {
+/// ページング情報を取り出し、offset のオーバーフローを検証する。
+fn page_info(params: &AdminLoginQuery) -> Result<(i64, i64, i64), ApiError> {
     let page = params.search.page();
     let per_page = params.search.per_page();
     let offset = (page - 1)
         .checked_mul(per_page)
         .ok_or_else(|| ApiError::Validation("page の値が大きすぎます".into()))?;
-    let mut data_qb = filtered_query(
-        "SELECT le.occurred_at, u.email::text AS email, le.result, le.country, le.region, le.browser, le.os",
-        &params,
-    );
+    Ok((page, per_page, offset))
+}
+
+/// count/data クエリを並行取得する。
+async fn fetch_count_and_data(
+    pool: &Db,
+    data_qb: QueryBuilder,
+    count_qb: QueryBuilder,
+) -> Result<(Vec<AdminLoginEntry>, i64), ApiError> {
+    let data_fut = async {
+        let mut qb = data_qb;
+        qb.build_query_as::<AdminLoginEntry>()
+            .fetch_all(pool)
+            .await
+            .map_err(Into::into)
+    };
+    let count_fut = async {
+        let mut qb = count_qb;
+        qb.build_query_scalar::<i64>()
+            .fetch_one(pool)
+            .await
+            .map_err(Into::into)
+    };
+    futures_util::future::try_join(data_fut, count_fut).await
+}
+
+pub async fn search(
+    pool: &Db,
+    params: AdminLoginQuery,
+) -> Result<AdminLoginListResponse, ApiError> {
+    // 1. 条件作成: ページング情報の取り出しと検証
+    let (page, per_page, offset) = page_info(&params)?;
+    // ソート条件の検証（QueryBuilder 構築前に失敗させる）
+    validate_sort(&params)?;
+
+    // 2. クエリ作成: フィルター + ソート + ページング
+    let mut data_qb = filtered_query(DATA_SELECT, &params);
     push_order(&mut data_qb, &params)?;
     data_qb
         .push(" LIMIT ")
         .push_bind(per_page)
         .push(" OFFSET ")
         .push_bind(offset);
-    let mut count_qb = filtered_query("SELECT COUNT(*)", &params);
-    let (data, total) = futures_util::future::try_join(
-        data_qb.build_query_as::<AdminLoginEntry>().fetch_all(pool),
-        count_qb.build_query_scalar::<i64>().fetch_one(pool),
-    )
-    .await?;
+    let count_qb = filtered_query("SELECT COUNT(*)", &params);
+
+    // 3. 並行取得
+    let (data, total) = fetch_count_and_data(pool, data_qb, count_qb).await?;
+
+    // 4. 応答組立
     Ok(PaginatedSearchResponse {
         data,
         total,
@@ -294,6 +348,93 @@ mod tests {
                 "region",
                 "result"
             ]
+        );
+    }
+
+    #[test]
+    fn sort_column_accepts_allowlist_and_rejects_others() {
+        for key in ["occurred_at", "email", "result", "place"] {
+            assert!(sort_column(Some(key)).is_ok(), "key={key}");
+        }
+        assert!(sort_column(None).is_ok());
+        for invalid in ["id", "email; DROP TABLE users", "", "occurred_at DESC"] {
+            assert!(
+                matches!(sort_column(Some(invalid)), Err(ApiError::Validation(_))),
+                "invalid={invalid}"
+            );
+        }
+    }
+
+    #[test]
+    fn sort_direction_accepts_asc_desc_and_rejects_others() {
+        assert_eq!(sort_direction(Some("asc")).unwrap(), " ASC");
+        assert_eq!(sort_direction(Some("desc")).unwrap(), " DESC");
+        assert_eq!(sort_direction(None).unwrap(), " DESC");
+        for invalid in ["sideways", "ASC", "up", ""] {
+            assert!(
+                matches!(sort_direction(Some(invalid)), Err(ApiError::Validation(_))),
+                "invalid={invalid}"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_sort_checks_both_fields() {
+        let ok = AdminLoginQuery {
+            sort_by: Some("email".into()),
+            sort_order: Some("asc".into()),
+            ..Default::default()
+        };
+        assert!(validate_sort(&ok).is_ok());
+
+        let bad_col = AdminLoginQuery {
+            sort_by: Some("unknown".into()),
+            ..Default::default()
+        };
+        assert!(matches!(
+            validate_sort(&bad_col),
+            Err(ApiError::Validation(_))
+        ));
+
+        let bad_dir = AdminLoginQuery {
+            sort_order: Some("sideways".into()),
+            ..Default::default()
+        };
+        assert!(matches!(
+            validate_sort(&bad_dir),
+            Err(ApiError::Validation(_))
+        ));
+    }
+
+    #[test]
+    fn filtered_query_builds_filter_clauses_per_input() {
+        let params = AdminLoginQuery {
+            search: SearchQueryParams {
+                q: Some("tokyo".into()),
+                ..Default::default()
+            },
+            email: Some("beta".into()),
+            place: Some("osaka".into()),
+            ..Default::default()
+        };
+        let qb = filtered_query("SELECT 1", &params);
+        let sql = qb.sql();
+        // 3 つのフィルター（検索語・メール・場所）がそれぞれ AND (...) として積まれる
+        assert_eq!(sql.matches(" AND (").count(), 3, "sql={sql}");
+        assert!(sql.contains("u.email ILIKE"), "sql={sql}");
+        assert!(
+            sql.contains("CONCAT_WS(' ', le.country, le.region) ILIKE"),
+            "sql={sql}"
+        );
+    }
+
+    #[test]
+    fn filtered_query_builds_no_filter_clauses_when_empty() {
+        let params = AdminLoginQuery::default();
+        let qb = filtered_query("SELECT 1", &params);
+        assert_eq!(
+            qb.sql(),
+            "SELECT 1 FROM login_events le JOIN users u ON u.id = le.user_id WHERE TRUE"
         );
     }
 
