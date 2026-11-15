@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
-/* 数値は docs/design/work/phase5-codex/data/fixtures.json の架空データ(評価額 ¥28,593,148、評価損益 +¥1,552,488 +5.74%、年間予想配当(税引前) ¥3,969,907、受取(税引後) ¥3,163,438)。色は frontend/style/input.css の現行トークンのみ。面の塗りは棒グラフと割合の横棒だけ。 */
+/* 数値は docs/design/work/phase5-codex/data/fixtures.json の架空データ(評価額 ¥28,593,148、評価損益 +¥1,552,488 +5.74%、年間予想配当(税引後) ¥3,163,438、受取(税引後) ¥3,163,438)。色は frontend/style/input.css の現行トークンのみ。面の塗りは棒グラフと割合の横棒だけ。 */
 :root{
   --page:#ffffff; --card:#ffffff; --ink:#111827; --mut:#5f6b7a; --line:#e5e7eb;
   --navy:#0f2a4a; --accent:#1d4ed8; --up:#0b7a4b; --down:#c0362c;
@@ -104,7 +104,7 @@ body{margin:0; background:var(--page); color:var(--ink);
 
   <section class="card" aria-label="今年の配当金">
     <div class="hrow"><h2>今年の配当金(税引後)</h2><span class="more">取引明細で見る ›</span></div>
-    <div class="sum"><span class="recv num">受取 ¥3,163,438</span><span class="fore num">予想 ¥3,969,907</span></div>
+    <div class="sum"><span class="recv num">受取 ¥3,163,438</span><span class="fore num">予想 ¥3,163,438</span></div>
     <div class="legend"><span><span class="sw" style="background:var(--bar-cur)"></span>今年</span><span><span class="sw" style="background:var(--bar-prev)"></span>前年</span></div>
     <div class="bars" role="img" aria-label="月別配当: 6月に集中">
       <div class="g"><div class="pair"><span class="b cur" style="height:3px"></span><span class="b prev" style="height:3px"></span></div><span class="m">1月</span></div>
@@ -151,7 +151,7 @@ body{margin:0; background:var(--page); color:var(--ink);
     <div class="rows">
       <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">100株 ・ NISA</span></div><span class="amt num up">+¥1,352,488<span class="rate num">+20.50%</span></span></div>
       <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">100株 ・ 特定口座</span></div><span class="amt num up">+¥200,000<span class="rate num">+20.00%</span></span></div>
-      <div class="row"><div class="left"><div class="name">架空成長インデックス・ファンド</div><span class="sub num">10,000,000口 ・ 特定口座</span></div><span class="amt num">¥0<span class="rate num">+0.00%</span></span></div>
+      <div class="row"><div class="left"><div class="name">架空成長インデックス・ファンド</div><span class="sub num">10,000,000口 ・ 特定口座</span></div><span class="amt num">¥0<span class="rate num">0.00%</span></span></div>
     </div>
   </section>
 

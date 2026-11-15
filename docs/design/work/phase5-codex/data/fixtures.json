@@ -115,6 +115,7 @@
     { "month": 11, "beforeTax": 80000 },
     { "month": 12, "beforeTax": 35000 }
   ],
+  "annualForecast": { "beforeTax": 3969907, "afterTax": 3163438 },
   "dividendTransactions": [
     {
       "date": "2026/01/20",
