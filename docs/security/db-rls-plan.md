@@ -581,9 +581,21 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
 
 ## 20. 読み取りの制限ロール切替(第五段階5d)
 
-- `backend/src/db.rs` に利用者 ID 付きの読み取り API を追加した。各問い合わせは `BEGIN` → `app_enter($1)` → 本文 SELECT の順に同じ接続で実行し、Tx drop 時に非同期 `ROLLBACK` で設定を捨てる。共有 `Db` 上で他の並行クエリとトランザクションが混ざらないよう、Worker は書き込みと同じく独立接続を使う。
+- `backend/src/db.rs` に利用者 ID 付きの読み取り API を追加した。各問い合わせは `BEGIN` → `app_enter($1)` → 本文 SELECT の順に同じ接続で実行し、Tx drop 時に非同期 `ROLLBACK` で設定を捨てる。
 - 対象は本人のデータを読む検索一覧(count/data/summary/facets を含む)、CSV 種別統計、ログイン履歴・端末、通知設定・送信数。通知 token の peek/consume とセッションの利用者 ID 照合は既存の5b `SECURITY DEFINER` 関数を使う。認証前のユーザー情報取得、管理者横断検索、共有表、cron は所有者経路のまま。
-- 往復回数: SELECT 1件あたり従来1往復から本文待ち3往復(`BEGIN`・`app_enter`・SELECT)で +2。並行一覧の応答待ちは約+2往復、実際に送信する往復数の増分は切替対象クエリ数あたり+2(各クエリに BEGIN と app_enter を追加)。`ROLLBACK` は結果返却後に非同期で送る。1文にまとめるには、対象SQLを覆う個別のDB関数化が必要となり任意条件の検索・facetを保てないため、今回の実装では行っていない。
+- 一覧の接続数を抑えるため、検索の count/data/summary/facets は1つの利用者 Tx・接続で順に実行する。接続は1本にできるが並行性は下がる。
+- 一覧1リクエスト中の読み取り DB 接続数とクエリ数(コード上の最大値):
+
+  | エンドポイント | facets 数 | summary 無効/有効 | summary+facets 時の SELECT 数 | 最大同時読み取り接続 |
+  |---|---:|---:|---:|---:|
+  | `GET /api/v1/dividends` | 5 | 2 / 3 | 8 | 1 |
+  | `GET /api/v1/domestic-stocks` | 4 | 2 / 3 | 7 | 1 |
+  | `GET /api/v1/mutual-funds` | 4 | 2 / 3 | 7 | 1 |
+  | `GET /api/v1/asset-balances` | 1 | 2 / 3 | 4 | 1 |
+  | `GET /api/v1/fund-balances` | 2 | 2 / 3 | 5 | 1 |
+
+  いずれも count+data+summary(有効時)+FACETS 定義分。fund-balances の summary は nav 状態の SELECT も含む。Workers 設計資料の「同時アウトバウンド接続6/呼び出し」はプラットフォームの一般上限であり、今回の一覧最大1接続はこれを下回る。認証のセッション照合は一覧 Tx の前段で終わる。
+- 往復回数と性能計測: 旧一覧は独立した SELECT を並行していた。切替後は1接続上で `BEGIN` → `app_enter` → count/data/summary/facets の各 SELECT を順番に実行し、`ROLLBACK` を送る。SELECT 1件あたりの追加往復を単純に一覧応答時間の +2 と見積もることはできず、接続確立コストに加え、並列待ちから最大8 SQLの直列待ちに変わる。変更前 tail(`/home/zaichu/project/.worktrees/.requests/baseline-5d/tail-before-5d-20261115.jsonl`)は `origin=fetch` の `db_rtt` のみで、NRTのSELECTは13件(p50 9ms、p95 30ms、範囲7〜37ms)。エンドポイント応答時間は含まない。一時Workerからの独自SQL計測はRLS付き一覧APIと同等でないため、前後比較として採用しない。認証秘密を複製しない条件では認証済み一覧を一時Workerから呼べず、+50ms以内は未確認。マージ前に同一利用者・同一coloの一覧応答計測を取得する。
 - 結合テスト(`backend/tests/db_integration.rs` の `rls_5d_reads_via_app_enter`)で制限ロールの一覧・集計・facet、RLSによる別ユーザー行の遮断、通知token照会・消費、Tx後のロール/利用者設定の復元を確認する。
 - migration の追加はない。既存の0023〜0026のRLSポリシーと0028の関数を使う。
 
@@ -619,8 +631,7 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
 1. マージ後に統合担当が `Worker Tail` ワークフローを回し、`filtered.jsonl` を得る。
 2. `db_rtt` 行だけを抜き、種別ごとに `elapsed_ms` を集める。
    `SELECT` の p50 を「1往復の目安」とする。p95 も併せて見て外れ値の有無を確認する。
-3. 増加見込みは `+2往復 × 1往復の目安`(§13.2 の表より一覧は待ち +2往復)で出す。
-   計算例: p50 が 10ms なら増加見込みは約 +20ms。
-4. 5dデプロイ後に同じ方法・同じ `origin=fetch`・同じ `colo` 条件で前後比較し、応答時間増分が +50ms を超えた場合は読み取り切替のロールバックを検討する。
+3. 今回の5dは一覧を直列化して接続を1本にしたため、`+2往復 × p50` では応答時間を見積もらない。切替前後の同等リクエストの実測差を直接比較する。
+4. 5dの変更前 tail は応答時間を含まないため、本番と別Workerで変更後の認証済み一覧応答を測っても前後差を算出できない。認証秘密を複製しない条件で変更前後を比較するには、マージ後に同一利用者・同一coloの一覧応答を計測する必要がある。差分が +50ms を超えた場合は読み取り切替の並行度/接続方式を再検討する。
 5. `app_enter` の種別の値は、書き込み Tx の設定コストの実測として 5c の振り返りに使う。
    一覧の `SELECT` とは混ぜずに見る。

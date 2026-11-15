@@ -1,10 +1,9 @@
 use super::Domain;
 use super::facets::{self, FacetKind, FacetSlot, FacetSpec};
 use super::search_filters::{
-    DateAxisFilter, FilterField, SearchFilter, fetch_if_included, push_search_filters,
-    tokens_from_query,
+    DateAxisFilter, FilterField, SearchFilter, push_search_filters, tokens_from_query,
 };
-use crate::db::{Db, FromRow, QueryBuilder};
+use crate::db::{Db, FromRow, QueryBuilder, Tx};
 use crate::errors::ApiError;
 use crate::models::common::{PaginatedSearchResponse, SearchFacets, SearchParamsAccessor};
 use serde::Serialize;
@@ -92,32 +91,33 @@ pub trait Search: Domain {
     }
 
     fn fetch_summary(
-        pool: &Db,
+        tx: &mut Tx,
         user_id: UserId,
         filter: &SearchFilter,
     ) -> impl Future<Output = Result<Self::Summary, ApiError>> + Send;
 
-    /// FACETS の指定どおりに各 facet を並行取得して SearchFacets を組み立てる
+    /// FACETS の指定どおりに各 facet を順に取得して SearchFacets を組み立てる
     fn fetch_facets(
-        pool: &Db,
+        tx: &mut Tx,
         user_id: UserId,
         filter: &SearchFilter,
     ) -> impl Future<Output = Result<SearchFacets, ApiError>> + Send {
-        collect_facets::<Self>(pool, user_id, filter)
+        collect_facets::<Self>(tx, user_id, filter)
     }
 }
 
-/// FACETS 指定どおりに各 facet を並行取得して SearchFacets を組み立てる
+/// FACETS 指定どおりに各 facet を順に取得して SearchFacets を組み立てる
 async fn collect_facets<D: Search + ?Sized>(
-    pool: &Db,
+    tx: &mut Tx,
     user_id: UserId,
     filter: &SearchFilter,
 ) -> Result<SearchFacets, ApiError> {
-    let fetches = D::FACETS.iter().map(|spec| async move {
+    let mut result = SearchFacets::default();
+    for spec in D::FACETS {
         let options = match spec.kind {
             FacetKind::Group { field, order } => {
                 facets::fetch_group_facets(
-                    pool,
+                    tx,
                     user_id,
                     D::TABLE,
                     field.as_sql_expr(),
@@ -129,18 +129,13 @@ async fn collect_facets<D: Search + ?Sized>(
                 .await?
             }
             FacetKind::Security { label_order } => {
-                facets::fetch_security_facets(pool, user_id, D::TABLE, label_order, |qb| {
+                facets::fetch_security_facets(tx, user_id, D::TABLE, label_order, |qb| {
                     D::push_filters(qb, user_id, filter);
                 })
                 .await?
             }
         };
-        Ok::<_, ApiError>((spec.slot, options))
-    });
-
-    let mut result = SearchFacets::default();
-    for (slot, options) in futures_util::future::try_join_all(fetches).await? {
-        match slot {
+        match spec.slot {
             FacetSlot::Products => result.products = Some(options),
             FacetSlot::Accounts => result.accounts = Some(options),
             FacetSlot::Securities => result.securities = Some(options),
@@ -153,7 +148,7 @@ async fn collect_facets<D: Search + ?Sized>(
 }
 
 /// 4ドメイン共通の検索制御フロー。
-/// count/data/summary/facets は相互に依存しないため並行実行する
+/// 一覧の読み取りは1つの利用者Txで順に実行する
 pub async fn search<D: Search>(
     pool: &Db,
     user_id: UserId,
@@ -168,35 +163,32 @@ pub async fn search<D: Search>(
     let include_facets = params.should_include_facets();
     let filter = D::make_filter(&params)?;
 
-    // summary/facets は include_* が true の場合だけ実クエリを発行する
-    let summary_fut = fetch_if_included(include_summary, D::fetch_summary(pool, user_id, &filter));
-    let facets_fut = fetch_if_included(include_facets, D::fetch_facets(pool, user_id, &filter));
+    let mut tx = pool.begin_with_user(user_id).await?;
 
     let mut count_qb = QueryBuilder::new(format!("SELECT COUNT(*) FROM {}", D::TABLE));
     D::push_filters(&mut count_qb, user_id, &filter);
-    let count_fut = async move {
-        let total: i64 = count_qb
-            .build_query_scalar()
-            .fetch_one_with_user(pool, user_id)
-            .await?;
-        Ok::<_, ApiError>(total)
-    };
+    let total: i64 = count_qb.build_query_scalar().fetch_one(&mut tx).await?;
 
     let mut data_qb = QueryBuilder::new(format!("SELECT {} FROM {}", D::COLUMNS, D::FROM));
     D::push_filters(&mut data_qb, user_id, &filter);
     data_qb.push(D::ORDER_BY);
     data_qb.push(" LIMIT ").push_bind(per_page);
     data_qb.push(" OFFSET ").push_bind(offset);
-    let data_fut = async move {
-        let data = data_qb
-            .build_query_as::<D::Data>()
-            .fetch_all_with_user(pool, user_id)
-            .await?;
-        Ok::<_, ApiError>(data)
+    let data = data_qb
+        .build_query_as::<D::Data>()
+        .fetch_all(&mut tx)
+        .await?;
+    let summary = if include_summary {
+        Some(D::fetch_summary(&mut tx, user_id, &filter).await?)
+    } else {
+        None
     };
-
-    let (total, data, summary, facets) =
-        futures_util::future::try_join4(count_fut, data_fut, summary_fut, facets_fut).await?;
+    let facets = if include_facets {
+        Some(D::fetch_facets(&mut tx, user_id, &filter).await?)
+    } else {
+        None
+    };
+    tx.rollback().await?;
 
     Ok(PaginatedSearchResponse {
         data,

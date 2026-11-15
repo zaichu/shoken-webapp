@@ -50,7 +50,7 @@ fn account_delete_confirmation_mac(
     Ok(mac)
 }
 
-fn issue_account_delete_confirmation(
+pub fn issue_account_delete_confirmation(
     session_token: &str,
     issued_at: i64,
 ) -> Result<String, ApiError> {

@@ -1947,6 +1947,153 @@ async fn account_delete_confirmation_http_lifecycle() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+async fn account_delete_with_invalid_session_returns_unauthorized() {
+    let (pool, _node) = start_test_pool().await;
+    let info = GoogleUserInfo {
+        sub: format!("google-sub-invalid-delete-{}", Uuid::new_v4()),
+        email: "invalid-delete@example.com".to_string(),
+        name: None,
+        picture_url: None,
+    };
+    let token = auth_svc::upsert_user_and_rotate_session(&pool, &info)
+        .await
+        .expect("セッション発行");
+    let state = AppState {
+        pool: pool.clone(),
+        secrets: Arc::new(Secrets {
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "http://localhost:8080".to_string(),
+            gmail_user: None,
+            gmail_app_password: None,
+        }),
+        config: Arc::new(Config::default()),
+        google_oauth: None,
+        jquants_client: None,
+    };
+    let app = backend::handlers::v1::auth_routes().with_state(state);
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/account-deletion-confirmations")
+                .header("cookie", format!("session_token={token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let confirmation = response
+        .headers()
+        .get_all(axum::http::header::SET_COOKIE)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .find(|cookie| cookie.starts_with("account_delete_confirmation="))
+        .and_then(|cookie| cookie.split(';').next())
+        .and_then(|cookie| cookie.split_once('='))
+        .map(|(_, value)| value.to_string())
+        .expect("確認 Cookie が発行される");
+
+    let revoked_token = auth_svc::upsert_user_and_rotate_session(
+        &pool,
+        &GoogleUserInfo {
+            sub: format!("google-sub-revoked-{}", Uuid::new_v4()),
+            email: "revoked-delete@example.com".to_string(),
+            name: None,
+            picture_url: None,
+        },
+    )
+    .await
+    .expect("失効用セッション発行");
+    let unknown_token = SessionToken::new();
+    let unknown_confirmation = backend::handlers::v1::auth::issue_account_delete_confirmation(
+        &unknown_token.to_string(),
+        chrono::Utc::now().timestamp(),
+    )
+    .expect("未知 token 用確認 Cookie");
+    for (invalid_token, expire, revoke, confirmation) in [
+        (token, true, false, confirmation.clone()),
+        (
+            revoked_token,
+            false,
+            true,
+            backend::handlers::v1::auth::issue_account_delete_confirmation(
+                &revoked_token.to_string(),
+                chrono::Utc::now().timestamp(),
+            )
+            .expect("失効 token 用確認 Cookie"),
+        ),
+        (unknown_token, false, false, unknown_confirmation),
+    ] {
+        if expire {
+            db::query(
+                "UPDATE sessions SET expires_at = NOW() - INTERVAL '1 hour' WHERE token_hash = $1",
+                vec![Bind::Bytes(token.hash())],
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        if revoke {
+            auth_svc::delete_session(&pool, invalid_token)
+                .await
+                .expect("セッション失効");
+        }
+        assert!(
+            auth_svc::select_user_id_by_session(&pool, invalid_token)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::DELETE)
+                    .uri("/api/v1/account")
+                    .header(
+                        "cookie",
+                        format!("session_token={invalid_token}; account_delete_confirmation={confirmation}"),
+                    )
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn select_user_id_by_unknown_session_returns_none() {
+    let (pool, _node) = start_test_pool().await;
+    assert_eq!(
+        auth_svc::select_user_id_by_session(&pool, SessionToken::new())
+            .await
+            .expect("未知セッションの照会は成功する"),
+        None
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn nullable_scalar_optional_flattens_sql_null() {
+    let (pool, _node) = start_test_pool().await;
+    assert_eq!(
+        db::query_scalar::<i32>("SELECT NULL::integer", vec![])
+            .fetch_nullable_optional(&pool)
+            .await
+            .expect("NULL scalar を読み取れる"),
+        None
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
 async fn search_facets_group_by_domain_fields() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;

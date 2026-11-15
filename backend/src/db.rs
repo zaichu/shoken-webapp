@@ -461,6 +461,18 @@ impl Query {
             .map(|row| row.try_get::<_, S>(0).map_err(DbError::from))
             .transpose()
     }
+
+    pub async fn fetch_nullable_scalar_optional<S, E>(
+        &self,
+        executor: E,
+    ) -> Result<Option<S>, DbError>
+    where
+        S: for<'a> FromSql<'a>,
+        E: Executor,
+    {
+        let value = self.fetch_scalar_optional::<Option<S>, E>(executor).await?;
+        Ok(value.flatten())
+    }
 }
 
 impl<T: FromRow> QueryAs<T> {
@@ -539,6 +551,15 @@ where
 
     pub async fn fetch_optional<E: Executor>(&self, executor: E) -> Result<Option<S>, DbError> {
         self.inner.fetch_scalar_optional::<S, E>(executor).await
+    }
+
+    pub async fn fetch_nullable_optional<E: Executor>(
+        &self,
+        executor: E,
+    ) -> Result<Option<S>, DbError> {
+        self.inner
+            .fetch_nullable_scalar_optional::<S, E>(executor)
+            .await
     }
 
     pub async fn fetch_optional_with_user(

@@ -218,7 +218,7 @@ pub async fn select_user_id_by_session(
         "SELECT auth_lookup_user_id_by_session($1)",
         vec![Bind::Bytes(token.hash())],
     )
-    .fetch_optional(pool)
+    .fetch_nullable_optional(pool)
     .await
 }
 
