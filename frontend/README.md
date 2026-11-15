@@ -145,12 +145,12 @@ src/
 | `TabButton`(同) | `role="tab"` のタブ | 見た目は `PageTab`。矢印キー移動は呼び出し側の `on_keydown` が担う |
 | `Switch`(同) | ON/OFF の切替 | `role="switch"` と `aria-checked` で状態を伝える |
 | `Card`(`ui/card.rs`) | カード状の面 | Panel・Collapsible・Item・Group・Sunken・GroupLabel |
-| `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | GroupCard・HeaderFlat・SummaryBand。`hint=true` で末尾に「開く/閉じる」 |
+| `DisclosureToggle` / `ChevronIcon` / `DisclosureHint`(`ui/disclosure.rs`) | 開閉トリガーと回る山形 | GroupCard・HeaderFlat。`hint=true` で末尾に「開く/閉じる」 |
 | `EmptyState`(`ui/empty_state.rs`) | データが空の画面 | `icon`・`as_h1`・children(次の行動)を持つ |
 | `Badge` / `AccountBadge` / `CodeBadge`(`ui/badge.rs`) | 押せない小さなバッジ | Positive・Info・Accent・Danger・AccountSpecific・AccountGeneral・AccountNisa・AccountOldNisa・Code・CodeFlush・Count |
 | `Segmented`(`ui/segmented.rs`) | 少数択一の横並び | 選択肢は `ButtonVariant::Segmented`(`segment-option`) |
 | `ListRow`・`ListRowButton`・`ListRowLink`・`ListRowStatic`・`ListGroupHeader`(`ui/list_row.rs`) | 一覧の2行の行とグループ見出し | 行全体がボタンなら `ButtonVariant::RowButton`、遷移なら `ListRowLink` |
-| `SummaryBand`・`SummaryItem`(`ui/summary.rs`) | 集計の紺帯 | 大きさは `SummarySize::Primary`・`Secondary`、色は `SummaryTone::Neutral`・`Gain`・`Loss` |
+| `SummaryBand`・`SummaryItem`(`ui/summary.rs`) | 集計(地の上に置き色は文字だけ) | 主役1つ・ほかは同じ大きさ、色は `SummaryTone::Neutral`・`Gain`・`Loss` |
 | `DialogShell`(`ui/dialog.rs`)・`DetailDialog`(`ui/detail_dialog.rs`) | 中央ダイアログ・行の詳細 | 枠は `dialog-panel`、題は `dialog-title` |
 | `MoreLink`(`ui/more_link.rs`) | 本文内の移動リンク | `more-link`。下線なし・強調色に「›」 |
 | `Amount`(`ui/amount.rs`) | 金額・率の値 | `tabular-nums` と `[data-negative]` をまとめる。`block=true` で `<p>` として出す |

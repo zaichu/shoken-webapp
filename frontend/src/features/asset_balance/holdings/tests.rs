@@ -48,21 +48,6 @@ fn saved(prev_close: Option<rust_decimal::Decimal>) -> AssetBalanceRow {
     }
 }
 
-fn view(day_change: Option<f64>, shares: f64) -> HoldingView {
-    HoldingView {
-        id: None,
-        code: "9904".to_string(),
-        name: "架空自動車".to_string(),
-        account: None,
-        shares,
-        average_price: 2500.0,
-        purchase: 250_000.0,
-        current_price: 2600.0,
-        day_change,
-        price_as_of: Some("2024-01-16".to_string()),
-    }
-}
-
 #[test]
 fn day_change_maps_per_share_value() {
     let view = holding_view(&saved(Some(dec!(2550))));
@@ -96,30 +81,6 @@ fn day_change_keeps_present_value_and_none_without_it() {
     without_prev_close.prev_close = None;
     without_prev_close.daily_change = dec!(30);
     assert_eq!(holding_view(&without_prev_close).day_change, None);
-}
-
-#[test]
-fn daily_change_total_is_weighted_by_shares() {
-    let views = vec![
-        view(Some(50.0), 100.0),
-        view(Some(-20.0), 50.0),
-        view(Some(30.0), 1.0),
-    ];
-    // 50×100 + (-20)×50 + 30×1 = 4030
-    assert_eq!(stock_daily_change_total(&views), Some(4030.0));
-}
-
-#[test]
-fn daily_change_total_skips_rows_without_prev_close() {
-    let views = vec![view(Some(50.0), 100.0), view(None, 50.0)];
-    assert_eq!(stock_daily_change_total(&views), Some(5000.0));
-}
-
-#[test]
-fn daily_change_total_is_none_when_all_rows_lack_prev_close() {
-    let views = vec![view(None, 100.0), view(None, 50.0)];
-    assert_eq!(stock_daily_change_total(&views), None);
-    assert_eq!(stock_daily_change_total(&[]), None);
 }
 
 #[test]

@@ -71,27 +71,6 @@ pub(crate) fn fund_summary_from_rows(rows: &[FundBalance]) -> FundBalanceSummary
     summary
 }
 
-/// ホーム帯の前日比。株式0件の正常応答(COALESCEのゼロ集計)も欠測として扱い、
-/// 投信側は基準価額の取得件数が0のとき欠測にする。
-/// 株式・投信のどちらも算出できないときは全体も欠測にする(0と断定しない)。
-/// 株式側は資産管理の国内株式タブと同じく API 集計の値をそのまま使う
-pub(crate) fn merged_daily_change(
-    stock: Option<&AssetBalanceSummary>,
-    has_stocks: bool,
-    fund: Option<&FundBalanceSummary>,
-) -> Option<f64> {
-    let stock_daily = has_stocks
-        .then(|| stock.map(|summary| dec_to_f64(&summary.total_daily_change)))
-        .flatten();
-    let fund_daily = fund.and_then(|summary| {
-        (summary.latest_nav_count > 0).then(|| dec_to_f64(&summary.total_daily_change))
-    });
-    match (stock_daily, fund_daily) {
-        (Some(stock), Some(fund)) => Some(stock + fund),
-        (stock, fund) => stock.or(fund),
-    }
-}
-
 /// ホーム帯の時点。株と投信を合わせ、最も古い日を出す(嘘の新しさを見せない)。
 /// 価格なし株は時点と結びつかないため除く
 pub(crate) fn oldest_home_as_of(stocks: &[AssetBalance], funds: &[FundBalance]) -> Option<String> {

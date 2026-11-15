@@ -1,33 +1,11 @@
 use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::labels;
 use leptos::prelude::*;
 
 #[cfg(test)]
 mod tests;
 
-/// 集計帯の数字の大きさ。主は1つだけ、従はすべて同じ大きさにする
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum SummarySize {
-    /// 主
-    Primary,
-    /// 従
-    #[default]
-    Secondary,
-}
-
-/// 前日比の率。前日時点の評価額(当日評価額−前日比)を分母にする。
-/// 分母が無い・0以下・欠測のときは None(「—」表示にするため空にしない)。
-pub fn daily_rate(market: Option<f64>, daily: Option<f64>) -> Option<f64> {
-    match (market, daily) {
-        (Some(market), Some(daily)) if market - daily > 0.0 => {
-            Some(daily / (market - daily) * 100.0)
-        }
-        _ => None,
-    }
-}
-
-/// 集計帯の数字の色
+/// 集計の1項目の数字の色
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SummaryTone {
     /// 中立
@@ -47,294 +25,138 @@ const fn tone_amount(tone: SummaryTone) -> (AmountKind, bool, bool) {
     }
 }
 
-const fn delta_or_plain(negative: bool, positive: bool) -> AmountKind {
-    if negative || positive {
-        AmountKind::Delta
+/// 帯の基準日。更新待ちの行があるときは小さな表示を添える
+pub fn with_pending_note(as_of: &str, show_pending: bool) -> String {
+    if !show_pending {
+        return as_of.to_string();
+    }
+    if as_of.is_empty() {
+        labels::PARTIAL_PENDING_UPDATE.to_string()
     } else {
-        AmountKind::Plain
+        format!(
+            "{}{}{}",
+            as_of,
+            labels::TAG_SEPARATOR,
+            labels::PARTIAL_PENDING_UPDATE
+        )
     }
 }
 
-/// 集計帯の1項目。ラベルと数字の組。
-/// 全項目でラベルの上端と数字の基準線をそろえるために、帯の中で同じ作りを使う
-#[component]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Leptos component props are owned by the view"
-)]
-pub fn SummaryItem(
-    #[prop(into)] label: String,
-    #[prop(into)] value: String,
-    #[prop(optional)] size: SummarySize,
-    /// 数字の右に添える補足(率など)。値より小さいサイズで出す
-    #[prop(optional)]
-    note: String,
-    /// 数字の横に小さく出す補足(読み込み中など)
-    #[prop(optional)]
-    status: String,
-    /// ラベルの横に小さく出す補足(基準日・更新待ちなど)。空なら出さない
-    #[prop(optional, into)]
-    label_note: String,
-    #[prop(optional)] tone: SummaryTone,
-    /// 項目ごとに付けたいクラス
-    #[prop(optional, into)]
-    extra_class: String,
-) -> impl IntoView {
-    let (kind, negative, positive) = tone_amount(tone);
-    let size_class = match size {
-        SummarySize::Primary => "summary-value-primary",
-        SummarySize::Secondary => "summary-value-secondary",
-    };
-    view! {
-        <div class=format!("summary-item {extra_class}")>
-            <dt class="summary-label">
-                {label}
-                {(!label_note.is_empty())
-                    .then(|| view! { <span class="summary-label-note">{label_note.clone()}</span> })}
-            </dt>
-            <dd class=format!("summary-value {size_class}")>
-                <Amount text=value kind=kind negative=negative positive=positive />
-                {(!note.is_empty())
-                    .then(|| view! { <span class="summary-note">{note.clone()}</span> })}
-                {(!status.is_empty())
-                    .then(|| view! { <span class="summary-status">{status.clone()}</span> })}
-            </dd>
-        </div>
-    }
-}
-
-/// PCの帯に残す従項目(スマホの内訳と同じ値・違う並べ方)
+/// 集計の1項目。ラベルと数字の組。スマホの主役の次の行とPCの2項目め以降で同じ値を使う
 #[derive(Clone, Debug, PartialEq)]
-pub struct SummarySubItem {
+pub struct SummaryStat {
     pub label: String,
     pub value: String,
     pub note: String,
     pub tone: SummaryTone,
-    pub extra_class: String,
 }
 
-/// スマホの縦リストの1行。ラベル左・金額右・区切り線つき
-#[derive(Clone, Debug, PartialEq)]
-pub struct SummaryBreakdownEntry {
-    pub label: String,
-    pub value: String,
-    pub negative: bool,
-    pub positive: bool,
-    pub rate: String,
+/// 数字と補足(率)の組。補足は数字と同じ大きさ・同じ色で出す
+fn stat_value(value: String, note: String, tone: SummaryTone) -> impl IntoView {
+    let (kind, negative, positive) = tone_amount(tone);
+    view! {
+        <Amount text=value kind=kind negative=negative positive=positive />
+        {(!note.is_empty())
+            .then(|| view! {
+                <Amount text=note kind=kind negative=negative positive=positive />
+            })}
+    }
 }
 
-/// 紺帯サマリーの共通形。主役1つ・補助1行・主役行右端の丸いシェブロンで開閉する。
-/// 帯全体が開閉ボタンになり、開くと帯の下に縦リストを出す(初期は閉)。
-/// PCは従来の横並びを残し、スマホだけ開閉にする(PCの見た目を変えない)。
-/// 開閉の状態は画面内だけで持つ。
+/// 集計の1項目。ラベルを上、数字を下に置く
+#[component]
+pub fn SummaryItem(
+    #[prop(into)] label: String,
+    #[prop(into)] value: String,
+    #[prop(optional, into)] note: String,
+    #[prop(optional)] tone: SummaryTone,
+) -> impl IntoView {
+    view! {
+        <div class="summary-stat">
+            <dt class="summary-stat-label">{label}</dt>
+            <dd class="summary-stat-value">{stat_value(value, note, tone)}</dd>
+        </div>
+    }
+}
+
+/// 画面上部の集計。面の塗りはなく、地の上に置き、色は文字だけにする
+/// (紺=主役の数字、緑/赤=損益、灰=ラベル・補足)。
+/// スマホは主役と次の1項目と基準日だけ出し、3項目め以降はPCだけに出す。
 #[component]
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Leptos component props are owned by the view"
 )]
 pub fn SummaryBand(
-    #[prop(into)] primary_label: String,
-    #[prop(into)] primary_value: String,
-    #[prop(optional)] primary_negative: bool,
-    /// スマホ主値の正色用。PCは変更前の配色(負のみ赤)を保つため使わない
+    primary: SummaryStat,
+    /// スマホの主役の次の行とPCの2項目め。ラベルはPCだけに出す
     #[prop(optional)]
-    primary_positive: bool,
-    /// 主ラベルの下に小さく出す期間(取引明細の帯用。空なら出さない)
-    #[prop(optional, into)]
-    primary_sub: String,
-    /// 補助1行(ホーム・資産管理の評価損益と率。取引明細はなし)
-    #[prop(optional, into)]
-    aux_label: String,
-    #[prop(optional, into)] aux_value: String,
-    #[prop(optional, into)] aux_rate: String,
-    #[prop(optional)] aux_negative: bool,
-    #[prop(optional)] aux_positive: bool,
-    /// PCの横並びに残す項目(従来どおり・スマホでは出さない)
-    #[prop(optional, into)]
-    pc_items: Vec<SummarySubItem>,
-    /// スマホの縦リスト(初期は閉)
-    #[prop(optional, into)]
-    breakdown: Vec<SummaryBreakdownEntry>,
-    /// 主ラベルの横に小さく出す基準日(「価格基準日 10/20」。空なら出さない)
-    #[prop(optional, into)]
-    primary_as_of: String,
-    /// 基準日が古い行・更新待ちの行があるときの小さな表示
+    secondary: Option<SummaryStat>,
+    /// PCだけに出す3項目め以降
     #[prop(optional)]
-    show_pending: bool,
+    pc_items: Vec<SummaryStat>,
+    /// スマホの主役の下に出す基準日
+    #[prop(into)]
+    mobile_dates: String,
+    /// PCの右端に出す基準日・取り込み日
+    #[prop(optional)]
+    pc_dates: Vec<String>,
     #[prop(optional)] testid_band: Option<&'static str>,
-    testid_toggle: &'static str,
 ) -> impl IntoView {
-    let expanded = RwSignal::new(false);
-    let controls_id = format!("{}-breakdown", testid_band.unwrap_or("summary"));
-    let as_of_note = {
-        let mut text = primary_as_of.clone();
-        if show_pending {
-            if !text.is_empty() {
-                text.push('・');
-            }
-            text.push_str(labels::PARTIAL_PENDING_UPDATE);
-        }
-        text
-    };
-    let has_breakdown = !breakdown.is_empty();
-    let has_aux = !aux_label.is_empty();
-    let label_note = if !primary_sub.is_empty() && !as_of_note.is_empty() {
-        format!("{}{}{}", primary_sub, labels::TAG_SEPARATOR, as_of_note)
-    } else if !primary_sub.is_empty() {
-        primary_sub.clone()
-    } else {
-        as_of_note.clone()
-    };
-    let label_open = labels::SUMMARY_OPEN.to_string();
-    let label_close = labels::SUMMARY_CLOSE.to_string();
     view! {
-        <div
-            class="summary-band-grid"
-            data-testid=testid_band
-        >
-            <div class="summary-band-pc max-lg:hidden">
-                <dl class="summary-band-group summary-band-group-main">
-                    <SummaryItem
-                        label=primary_label.clone()
-                        value=primary_value.clone()
-                        size=SummarySize::Primary
-                        label_note=label_note.clone()
-                        tone=if primary_negative {
-                            SummaryTone::Loss
-                        } else if primary_positive {
-                            SummaryTone::Gain
-                        } else {
-                            SummaryTone::Neutral
-                        }
-                    />
-                    {has_aux
-                        .then(|| view! {
-                            <SummaryItem
-                                label=aux_label.clone()
-                                value=aux_value.clone()
-                                note=aux_rate.clone()
-                                tone=if aux_negative {
-                                    SummaryTone::Loss
-                                } else if aux_positive {
-                                    SummaryTone::Gain
-                                } else {
-                                    SummaryTone::Neutral
-                                }
-                            />
-                        })}
-                </dl>
-                {(!pc_items.is_empty())
+        <div class="summary-band-grid" data-testid=testid_band>
+            <div class="summary-hero">
+                <p class="summary-hero-label">{primary.label.clone()}</p>
+                <p class="summary-hero-primary">
+                    {stat_value(primary.value.clone(), String::new(), primary.tone)}
+                </p>
+                {secondary
+                    .clone()
+                    .map(|stat| view! {
+                        <p class="summary-hero-secondary">
+                            {stat_value(stat.value, stat.note, stat.tone)}
+                        </p>
+                    })}
+                {(!mobile_dates.is_empty())
                     .then(|| view! {
-                        <div class="summary-band-group summary-band-group-sub">
-                            <dl class="summary-band-items">
-                                {pc_items
-                                    .into_iter()
-                                    .map(|item| view! {
-                                        <SummaryItem
-                                            label=item.label
-                                            value=item.value
-                                            size=SummarySize::Secondary
-                                            note=item.note
-                                            tone=item.tone
-                                            extra_class=item.extra_class
-                                        />
-                                    })
-                                    .collect_view()}
-                            </dl>
-                        </div>
+                        <p class="summary-hero-dates">{mobile_dates.clone()}</p>
                     })}
             </div>
-            <div class="summary-band-mobile lg:hidden">
-                {has_breakdown
+            <div class="summary-stats">
+                <dl class="summary-stats-group">
+                    <SummaryItem
+                        label=primary.label
+                        value=primary.value
+                        tone=primary.tone
+                    />
+                    {secondary
+                        .map(|stat| view! {
+                            <SummaryItem
+                                label=stat.label
+                                value=stat.value
+                                note=stat.note
+                                tone=stat.tone
+                            />
+                        })}
+                    {pc_items
+                        .into_iter()
+                        .map(|item| view! {
+                            <SummaryItem
+                                label=item.label
+                                value=item.value
+                                note=item.note
+                                tone=item.tone
+                            />
+                        })
+                        .collect_view()}
+                </dl>
+                {(!pc_dates.is_empty())
                     .then(|| view! {
-                        <DisclosureToggle
-                            style=DisclosureStyle::SummaryBand
-                            expanded=expanded
-                            controls=controls_id.clone()
-                            testid=testid_toggle
-                            on_toggle=move || expanded.update(bool::toggle)
-                        >
-                            <span class="sr-only">
-                                {move || if expanded.get() {
-                                    label_close.clone()
-                                } else {
-                                    label_open.clone()
-                                }}
-                            </span>
-                            <span class="summary-band-top-row">
-                                <span class="summary-label">{primary_label.clone()}</span>
-                                {(!primary_sub.is_empty() || !as_of_note.is_empty())
-                                    .then(|| view! {
-                                        <span class="summary-label-note">
-                                            {label_note.clone()}
-                                        </span>
-                                    })}
-                            </span>
-                            <span class="summary-band-hero-row">
-                                <span class="summary-value summary-value-primary">
-                                    <Amount
-                                        text=primary_value.clone()
-                                        kind=delta_or_plain(primary_negative, primary_positive)
-                                        negative=primary_negative
-                                        positive=primary_positive
-                                    />
-                                </span>
-                                <span class="summary-band-chevron-circle" aria-hidden="true">
-                                    <ChevronIcon
-                                        expanded=expanded
-                                        class="summary-band-toggle-chevron"
-                                    />
-                                </span>
-                            </span>
-                            {has_aux
-                                .then(|| view! {
-                                    <span class="summary-value summary-value-secondary">
-                                        <span class="summary-label">
-                                            {aux_label.clone()}
-                                        </span>
-                                        <Amount
-                                            text=aux_value.clone()
-                                            kind=delta_or_plain(aux_negative, aux_positive)
-                                            negative=aux_negative
-                                            positive=aux_positive
-                                        />
-                                        {(!aux_rate.is_empty())
-                                            .then(|| view! {
-                                                <span class="summary-note">{aux_rate.clone()}</span>
-                                            })}
-                                    </span>
-                                })}
-                        </DisclosureToggle>
-                        <div id=controls_id.clone() hidden=move || !expanded.get()>
-                            <dl class="summary-band-breakdown">
-                                {breakdown
-                                    .into_iter()
-                                    .map(|entry| {
-                                        let kind = delta_or_plain(entry.negative, entry.positive);
-                                        let negative = entry.negative;
-                                        let positive = entry.positive;
-                                        view! {
-                                            <div class="summary-band-breakdown-row">
-                                                <dt class="summary-label">
-                                                    {entry.label}
-                                                </dt>
-                                                <dd class="summary-band-breakdown-value">
-                                                    <Amount
-                                                        text=entry.value
-                                                        kind=kind
-                                                        negative=negative
-                                                        positive=positive
-                                                    />
-                                                    {(!entry.rate.is_empty())
-                                                        .then(|| view! {
-                                                            <span class="summary-note">{entry.rate}</span>
-                                                        })}
-                                                </dd>
-                                            </div>
-                                        }
-                                    })
-                                    .collect_view()}
-                            </dl>
+                        <div class="summary-dates">
+                            {pc_dates
+                                .into_iter()
+                                .map(|line| view! { <p>{line}</p> })
+                                .collect_view()}
                         </div>
                     })}
             </div>

@@ -57,20 +57,6 @@ pub(crate) fn holding_view(row: &AssetBalanceRow) -> HoldingView {
     }
 }
 
-/// 保有数で重み付けした前日比の合計(円)。前日比なしの行は除き、
-/// 対象が1行もないときは None
-pub(crate) fn stock_daily_change_total(views: &[HoldingView]) -> Option<f64> {
-    let mut total = 0.0;
-    let mut has = false;
-    for view in views {
-        if let Some(change) = view.day_change {
-            total += change * view.shares;
-            has = true;
-        }
-    }
-    has.then_some(total)
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct HoldingDividend {
     pub(crate) per_share: Option<f64>,

@@ -14,8 +14,6 @@ pub const DAY_CHANGE: &str = "前日比";
 pub const TOTAL_ACQUISITION: &str = "取得総額";
 /// 年間配当
 pub const ANNUAL_DIVIDEND: &str = "年間配当";
-/// 年間配当(会社予想)
-pub const ANNUAL_DIVIDEND_FORECAST: &str = "年間配当(予想)";
 /// 年間予想配当(税引前)(ホームの集計帯)
 pub const ANNUAL_EXPECTED_DIVIDEND: &str = "年間予想配当(税引前)";
 /// 年間配当参考額(保有銘柄詳細)
@@ -38,8 +36,6 @@ pub const DIVIDEND_AMOUNT_AND_YIELD: &str = "配当金額 (配当利回り)";
 pub const AFTER_TAX_AND_YIELD: &str = "税引後 (累積利回り)";
 /// 配当金(取引明細の配当金タブ・列見出し)
 pub const DIVIDEND_AMOUNT: &str = "配当金";
-/// 配当金(税引前)(取引明細の帯の内訳用)
-pub const DIVIDEND_BEFORE_TAX: &str = "配当金(税引前)";
 /// 入金日(配当の入金日)
 pub const PAYMENT_DATE: &str = "入金日";
 /// 約定日(売買・解約の成立日)
@@ -64,8 +60,6 @@ pub const TAX: &str = "税額";
 pub const AFTER_TAX: &str = "税引後";
 /// 実現損益(売却・解約の損益)
 pub const REALIZED_PROFIT_LOSS: &str = "実現損益";
-/// 実現損益(税引前)(取引明細の帯の内訳用)
-pub const REALIZED_BEFORE_TAX: &str = "実現損益(税引前)";
 /// 銘柄名
 pub const SECURITY_NAME: &str = "銘柄名";
 /// 銘柄コード
@@ -552,6 +546,15 @@ pub fn receipt_period_short(from: &str, to: &str) -> String {
     format!("{from} 〜 {to}")
 }
 
+/// 帯に出す期間と件数の書き方(「2026/01 〜 2026/11 ・ 16件」)。期間が無いときは件数だけ
+pub fn receipt_summary_dates(period: &str, count: &str) -> String {
+    if period.is_empty() {
+        count.to_string()
+    } else {
+        format!("{period} {TAG_SEPARATOR} {count}")
+    }
+}
+
 /// コピー操作の読み上げ文言(「◯◯ をコピー」)
 pub fn copy_aria_label(text: &str) -> String {
     format!("{text} をコピー")
@@ -874,8 +877,6 @@ pub const HOME_ACCOUNT_FUND_LABEL: &str = "口座別(投資信託)";
 pub const HOME_CURRENT_MONTH: &str = "(今月)";
 /// ホーム: 受取額の頭に付ける文言(後ろに空白あり)
 pub const HOME_RECEIVED_LABEL: &str = "受取 ";
-/// ホーム: 予想の取得待ち(帯の内訳)
-pub const HOME_ESTIMATE_PENDING: &str = "予想を取得中です";
 /// ホーム: 予想の取得待ち(配当カードの予想欄)
 pub const HOME_FORECAST_LOADING: &str = "/ 予想を取得中";
 /// ホーム: 月別グラフの差の見出し
@@ -1081,11 +1082,6 @@ pub const LIST_LOADING_MESSAGE: &str = "データを読み込んでいます…"
 pub fn user_menu_button_label(initials: &str, aria_name: &str) -> String {
     format!("{initials} {ACCOUNT_BUTTON} {aria_name}のアカウントメニュー")
 }
-
-/// 集計帯の内訳を開く操作
-pub const SUMMARY_OPEN: &str = "内訳を開く";
-/// 集計帯の内訳を閉じる操作
-pub const SUMMARY_CLOSE: &str = "内訳を閉じる";
 
 #[cfg(test)]
 mod tests;

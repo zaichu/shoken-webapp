@@ -15,8 +15,8 @@ use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::amount::AmountKind;
 use crate::ui::card::StatTone;
 use crate::ui::labels::{
-    AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX, PAYMENT_DATE, REALIZED_BEFORE_TAX,
-    REALIZED_PROFIT_LOSS, REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX, TRADE_DATE,
+    AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, PAYMENT_DATE, REDEMPTION_AMOUNT, SELLING_AMOUNT,
+    TRADE_DATE,
 };
 use crate::ui::page_skeleton::FilteredCount;
 use leptos::prelude::*;
@@ -1249,61 +1249,6 @@ fn summary_band_keeps_primary_last_and_breakdown_order() {
             }
         }
     }
-}
-
-#[test]
-fn summary_breakdown_labels_show_tax_basis() {
-    assert_eq!(breakdown_label(DIVIDEND_AMOUNT), DIVIDEND_BEFORE_TAX);
-    assert_eq!(breakdown_label(REALIZED_PROFIT_LOSS), REALIZED_BEFORE_TAX);
-    assert_eq!(breakdown_label(TAX), TAX);
-    assert_eq!(breakdown_label(AFTER_TAX), AFTER_TAX);
-}
-
-#[test]
-fn summary_band_pc_and_mobile_share_tax_basis_labels() {
-    for tab in ReceiptsTab::ALL {
-        let items: Vec<(&str, bool)> = tab.header_items().into_iter().collect();
-        let pc: Vec<&str> = items[..2]
-            .iter()
-            .map(|(label, _)| breakdown_label(label))
-            .collect();
-        match tab {
-            ReceiptsTab::Dividend => assert_eq!(pc, [DIVIDEND_BEFORE_TAX, TAX]),
-            ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => {
-                assert_eq!(pc, [REALIZED_BEFORE_TAX, TAX]);
-            }
-        }
-    }
-}
-
-#[test]
-fn band_breakdown_signs_match_detail_dialog() {
-    use crate::ui::summary::SummaryTone;
-    let (text, negative, positive, tone) = band_value(DIVIDEND_AMOUNT, dec!(2000));
-    assert_eq!(text, "+¥2,000");
-    assert!(!negative);
-    assert!(positive);
-    assert_eq!(tone, SummaryTone::Gain);
-    let (text, negative, positive, tone) = band_value(REALIZED_PROFIT_LOSS, dec!(-500));
-    assert_eq!(text, "-¥500");
-    assert!(negative);
-    assert!(!positive);
-    assert_eq!(tone, SummaryTone::Loss);
-    let (text, negative, positive, tone) = band_value(TAX, dec!(406));
-    assert_eq!(text, "-¥406");
-    assert!(negative);
-    assert!(!positive);
-    assert_eq!(tone, SummaryTone::Loss);
-    let (text, negative, positive, tone) = band_value(TAX, dec!(-100));
-    assert_eq!(text, "+¥100");
-    assert!(!negative);
-    assert!(positive);
-    assert_eq!(tone, SummaryTone::Gain);
-    let (text, negative, positive, tone) = band_value(TAX, Decimal::ZERO);
-    assert_eq!(text, "¥0");
-    assert!(!negative);
-    assert!(!positive);
-    assert_eq!(tone, SummaryTone::Neutral);
 }
 
 #[test]

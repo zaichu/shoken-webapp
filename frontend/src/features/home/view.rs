@@ -80,15 +80,6 @@ pub fn HomePage() -> impl IntoView {
     });
     let links: Children = Box::new(move || {
         view! {
-            {move || {
-                import_label.get().map(|label| {
-                    view! {
-                        <span class="hidden text-xs font-medium text-text-muted lg:inline">
-                            {labels::home_import_label(&label)}
-                        </span>
-                    }
-                })
-            }}
             // ログイン前の画面に、ログインが要る操作を出さない
             {move || {
                 session.user.get().is_some().then(|| {
@@ -104,13 +95,13 @@ pub fn HomePage() -> impl IntoView {
     });
     view! {
         <PageFrame title=labels::HOME_TITLE full_bleed=true links=links>
-            <HomeDashboard data=data />
+            <HomeDashboard data=data import_label=import_label />
         </PageFrame>
     }
 }
 
 #[component]
-fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
+fn HomeDashboard(data: HomeOverviewData, import_label: Signal<Option<String>>) -> impl IntoView {
     let session = use_session();
     let snapshot = move || {
         let generation = session.generation.get();
@@ -166,7 +157,7 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
             </div>
             <div class="content-gutter lg:mt-3">
                 <SkeletonSummary>
-                    <SummaryBand data=data />
+                    <SummaryBand data=data import_label=import_label />
                 </SkeletonSummary>
             </div>
             <div class="page-gutter flex flex-1 flex-col pb-4">

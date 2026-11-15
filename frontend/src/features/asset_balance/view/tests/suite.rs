@@ -258,9 +258,6 @@ fn summary_band_renders_without_values() {
                 .market(None)
                 .profit(None)
                 .profit_rate(None)
-                .daily_change(None)
-                .tags(Vec::new())
-                .purchase(None)
                 .build(),
         );
     });

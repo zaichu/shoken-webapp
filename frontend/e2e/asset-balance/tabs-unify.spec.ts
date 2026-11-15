@@ -162,11 +162,9 @@ test.describe('資産管理のタブ', () => {
       const band = page.getByTestId('asset-portfolio-summary');
       await expect(band).toBeVisible();
 
-      // 帯の主要3項目(評価額・損益・前日比)が2タブで同じ
+      // 帯の主要2項目(評価額・評価損益)が2タブで同じ
       bandLabels.push(
-        await band
-          .locator('.summary-band-group-main dt, .summary-band-item-daily dt')
-          .allTextContents(),
+        await band.locator('.summary-stat-label').allTextContents(),
       );
 
       // 検索欄の文言は同じ

@@ -77,10 +77,10 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
   const unpriced = table.getByRole('row', { name: /架空エレクトロニクス/ });
   await expect(unpriced).toContainText('—');
 
-  // 集計の前日比は前日終値あり銘柄だけの合計(50×100株=5,000)
+  // 集計帯は評価額と評価損益だけ出す(前日比の合計は帯に出さない)
   const kpi = page.getByTestId('portfolio-kpi-grid');
-  await expect(kpi).toContainText('前日比');
-  await expect(kpi).toContainText('+¥5,000');
+  await expect(kpi).toBeVisible();
+  await expect(kpi).not.toContainText('前日比');
 
   // 件数はタブと件数行に出す(タイトル横には出さない)。基準日は帯のラベル横に小さく出す
   await expect(page.getByTestId('page-title-count')).toHaveCount(0);
