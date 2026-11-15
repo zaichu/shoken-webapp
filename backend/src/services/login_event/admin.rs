@@ -49,11 +49,8 @@ pub struct AdminLoginQuery {
 const FROM: &str = " FROM login_events le JOIN users u ON u.id = le.user_id";
 const PLACE: &str = "CONCAT_WS(' ', le.country, le.region)";
 
-/// SELECT 用の固定列リスト。data クエリの SELECT 句に使う
 const DATA_SELECT: &str = "SELECT le.occurred_at, u.email::text AS email, le.result, le.country, le.region, le.browser, le.os";
 
-/// フィルター条件（FROM + WHERE + ILIKE）を QueryBuilder に積む。
-/// 検索語・メール・場所の各フィルターを独立して組み立てる。
 fn push_filters(qb: &mut QueryBuilder, params: &AdminLoginQuery) {
     qb.push(FROM).push(" WHERE TRUE");
     push_token_ilike_filters(
@@ -75,8 +72,7 @@ fn filtered_query(select: &'static str, params: &AdminLoginQuery) -> QueryBuilde
     qb
 }
 
-/// sort_by の値を許可リストに照らして SQL 列名へ変換する。
-/// 許可リスト外は Validation エラー（SQL インジェクションを防ぐ）。
+/// 許可リスト外の sort_by は SQL インジェクションを防ぐため Validation エラーにする。
 fn sort_column(sort_by: Option<&str>) -> Result<&'static str, ApiError> {
     match sort_by.unwrap_or("occurred_at") {
         "occurred_at" => Ok("le.occurred_at"),
@@ -87,7 +83,6 @@ fn sort_column(sort_by: Option<&str>) -> Result<&'static str, ApiError> {
     }
 }
 
-/// sort_order の値を許可リストに照らして SQL 方向へ変換する。
 fn sort_direction(sort_order: Option<&str>) -> Result<&'static str, ApiError> {
     match sort_order.unwrap_or("desc") {
         "asc" => Ok(" ASC"),
@@ -106,7 +101,6 @@ fn push_order(qb: &mut QueryBuilder, params: &AdminLoginQuery) -> Result<(), Api
     Ok(())
 }
 
-/// ソート条件の検証だけを行う（QueryBuilder を触らない）。
 fn validate_sort(params: &AdminLoginQuery) -> Result<(), ApiError> {
     sort_column(params.sort_by.as_deref())?;
     sort_direction(params.sort_order.as_deref())?;
@@ -125,7 +119,6 @@ pub async fn record_view(pool: &Db, user_id: UserId) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// ページング情報を取り出し、offset のオーバーフローを検証する。
 fn page_info(params: &AdminLoginQuery) -> Result<(i64, i64, i64), ApiError> {
     let page = params.search.page();
     let per_page = params.search.per_page();
@@ -135,7 +128,6 @@ fn page_info(params: &AdminLoginQuery) -> Result<(i64, i64, i64), ApiError> {
     Ok((page, per_page, offset))
 }
 
-/// count/data クエリを並行取得する。
 async fn fetch_count_and_data(
     pool: &Db,
     data_qb: QueryBuilder,
@@ -162,12 +154,9 @@ pub async fn search(
     pool: &Db,
     params: AdminLoginQuery,
 ) -> Result<AdminLoginListResponse, ApiError> {
-    // 1. 条件作成: ページング情報の取り出しと検証
     let (page, per_page, offset) = page_info(&params)?;
-    // ソート条件の検証（QueryBuilder 構築前に失敗させる）
     validate_sort(&params)?;
 
-    // 2. クエリ作成: フィルター + ソート + ページング
     let mut data_qb = filtered_query(DATA_SELECT, &params);
     push_order(&mut data_qb, &params)?;
     data_qb
@@ -177,10 +166,8 @@ pub async fn search(
         .push_bind(offset);
     let count_qb = filtered_query("SELECT COUNT(*)", &params);
 
-    // 3. 並行取得
     let (data, total) = fetch_count_and_data(pool, data_qb, count_qb).await?;
 
-    // 4. 応答組立
     Ok(PaginatedSearchResponse {
         data,
         total,
