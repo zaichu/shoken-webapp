@@ -66,6 +66,17 @@ h2.sec::before{content:""; width:10px; height:10px; border-radius:3px; backgroun
 .bars .c.hl .b{background:var(--green); border-color:var(--green)}
 .bars .m{font-size:11.5px; color:var(--muted)}
 .bars .t{font-size:10.5px; color:var(--muted); white-space:nowrap}
+.m-axis{display:none}
+@media(max-width:720px){
+  /* 月ラベルは数字だけにし、軸の下に「月」を1回 */
+  .bars .m .u{display:none}
+  .bars .c:not(.hl) .t{display:none}
+  .m-axis{display:block; text-align:right; font-size:11.5px; color:var(--muted); margin-top:6px}
+  /* 保有一覧: 名前1行 + 金額行に分ける */
+  .hold .row{grid-template-columns:1fr; gap:2px}
+  .hold .name{grid-column:1/-1}
+  .hold .val{grid-column:1/-1; text-align:left; font-size:19px}
+}
 .recent{margin-top:14px; border-top:1px dashed var(--line); padding-top:6px}
 .recent .r{display:flex; justify-content:space-between; gap:12px; padding:9px 0; font-size:13.5px}
 /* 保有一覧カード */
@@ -121,19 +132,20 @@ h2.sec::before{content:""; width:10px; height:10px; border-radius:3px; backgroun
     <h3>年間 ¥3,969,907(税引前)</h3>
     <p class="cap">2026年1月 〜 12月 ・ 6月に集中 ・ 税引後 ¥3,163,438</p>
     <div class="bars">
-      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">1月</span></div>
-      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">2月</span></div>
-      <div class="c"><span class="t">18.0万</span><span class="b" style="height:16px"></span><span class="m">3月</span></div>
-      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">4月</span></div>
-      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">5月</span></div>
-      <div class="c hl"><span class="t">356.5万</span><span class="b" style="height:190px"></span><span class="m">6月</span></div>
-      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">7月</span></div>
-      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">8月</span></div>
-      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">9月</span></div>
-      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">10月</span></div>
-      <div class="c"><span class="t">9.6万</span><span class="b" style="height:10px"></span><span class="m">11月</span></div>
-      <div class="c"><span class="t">4.4万</span><span class="b" style="height:7px"></span><span class="m">12月</span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">1<span class="u">月</span></span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">2<span class="u">月</span></span></div>
+      <div class="c"><span class="t">18.0万</span><span class="b" style="height:16px"></span><span class="m">3<span class="u">月</span></span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">4<span class="u">月</span></span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">5<span class="u">月</span></span></div>
+      <div class="c hl"><span class="t">356.5万</span><span class="b" style="height:190px"></span><span class="m">6<span class="u">月</span></span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">7<span class="u">月</span></span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">8<span class="u">月</span></span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">9<span class="u">月</span></span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">10<span class="u">月</span></span></div>
+      <div class="c"><span class="t">9.6万</span><span class="b" style="height:10px"></span><span class="m">11<span class="u">月</span></span></div>
+      <div class="c"><span class="t">4.4万</span><span class="b" style="height:7px"></span><span class="m">12<span class="u">月</span></span></div>
     </div>
+    <div class="m-axis">月</div>
     <div class="recent">
       <div class="r"><span>2026/12/24 ・ 9901 架空青空電機</span><span>¥10,957</span></div>
       <div class="r"><span>2026/12/10 ・ 9901 架空青空電機</span><span>¥23,905</span></div>

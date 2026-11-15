@@ -83,7 +83,19 @@ table.hold td .code{color:var(--muted); font-size:12.5px; margin-right:10px}
   .hero{padding:48px 0 40px}
   .hero .total{font-size:42px}
   section.block{padding:40px 0}
-  table.hold th:nth-child(2), table.hold td:nth-child(2){display:none}
+  /* 保有一覧: 表をやめて銘柄ごとの2段(コード+名前 / 評価額・損益・損益率) */
+  table.hold thead{display:none}
+  table.hold, table.hold tbody, table.hold tr, table.hold td{display:block}
+  table.hold tr{display:grid; grid-template-columns:1fr auto auto; gap:2px 14px; padding:14px 0; border-top:1px solid var(--line)}
+  table.hold tbody tr:first-child{border-top:1px solid var(--line)}
+  table.hold td{padding:2px 0; border:none}
+  table.hold td:nth-child(2){display:none}
+  table.hold td:first-child{grid-column:1/-1; font-size:15px}
+  table.hold td:nth-child(3){font-weight:700; text-align:left}
+  .recent .acc::before{content:" ・ "}
+  .recent .r{flex-wrap:wrap}
+  .recent .acc{display:block; flex-basis:100%; font-size:12.5px; color:var(--muted)}
+  .recent .acc::before{content:none}
 }
 </style>
 </head>
@@ -136,8 +148,8 @@ table.hold td .code{color:var(--muted); font-size:12.5px; margin-right:10px}
       <div class="m-col"><span class="v">4.4万</span><span class="b" style="height:4px"></span><span class="m">12月</span></div>
     </div>
     <div class="recent">
-      <div class="r"><span>2026/12/24 ・ 9901 架空青空電機 ・ 特定口座</span><span>¥10,957</span></div>
-      <div class="r"><span>2026/12/10 ・ 9901 架空青空電機 ・ 特定口座</span><span>¥23,905</span></div>
+      <div class="r"><span>2026/12/24 ・ 9901 架空青空電機<span class="acc">特定口座</span></span><span>¥10,957</span></div>
+      <div class="r"><span>2026/12/10 ・ 9901 架空青空電機<span class="acc">特定口座</span></span><span>¥23,905</span></div>
     </div>
   </section>
 
