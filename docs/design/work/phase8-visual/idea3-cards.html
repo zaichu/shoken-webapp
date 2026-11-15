@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ホーム 案3 カード型 | 証券Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e9efe9; --card:#ffffff; --ink:#22301f; --muted:#64705f;
+  --line:#d8e0d5; --green:#1f6b44; --green-soft:#e0ecdf; --orange:#c05f1e;
+  --up:#1f6b44; --down:#b3261e; --max:1120px; --r:14px;
+}
+html[data-theme="dark"]{
+  --bg:#131a14; --card:#1b241c; --ink:#e7eee4; --muted:#a7b3a2;
+  --line:#2c3a2d; --green:#7fd0a0; --green-soft:#24402e; --orange:#e89a55;
+  --up:#7fd0a0; --down:#f08780;
+}
+@media (prefers-color-scheme: dark){
+  html:not([data-theme]){ --bg:#131a14; --card:#1b241c; --ink:#e7eee4; --muted:#a7b3a2; --line:#2c3a2d; --green:#7fd0a0; --green-soft:#24402e; --orange:#e89a55; --up:#7fd0a0; --down:#f08780; }
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+  font-feature-settings:"tnum" 1; font-variant-numeric:tabular-nums}
+.wrap{max-width:var(--max); margin:0 auto; padding:0 24px 72px}
+.top{display:flex; align-items:center; justify-content:space-between; padding:20px 0}
+.top .brand{font-weight:700}
+.top .tabs{display:flex; gap:8px; font-size:13px}
+.top .tabs span{padding:8px 14px; border-radius:999px; color:var(--muted)}
+.top .tabs .here{background:var(--green); color:#fff}
+html[data-theme="dark"] .top .tabs .here{color:#101511}
+@media (prefers-color-scheme: dark){ html:not([data-theme]) .top .tabs .here{color:#101511} }
+@media(max-width:720px){ .top .tabs .opt{display:none} }
+.card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:24px}
+/* 集計帯: 大きなカード */
+.hero{margin-top:8px; padding:36px 32px; display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:24px; align-items:center}
+.hero .k{font-size:13px; color:var(--muted); margin-bottom:6px}
+.hero .total{font-size:52px; font-weight:700; line-height:1.15; margin:0; letter-spacing:-.01em}
+.hero .cell .v{font-size:22px; font-weight:700}
+.hero .cell .s{font-size:12.5px; color:var(--muted); margin-top:4px}
+.up{color:var(--up)} .down{color:var(--down)}
+@media(max-width:860px){ .hero{grid-template-columns:1fr; padding:28px 22px} .hero .total{font-size:40px} }
+h2.sec{font-size:15px; margin:32px 0 12px; display:flex; align-items:center; gap:10px}
+h2.sec::before{content:""; width:10px; height:10px; border-radius:3px; background:var(--green)}
+.grid2{display:grid; grid-template-columns:5fr 7fr; gap:16px}
+@media(max-width:860px){ .grid2{grid-template-columns:1fr} }
+.card h3{margin:0 0 2px; font-size:13px; color:var(--muted); font-weight:500}
+.card .big{font-size:26px; font-weight:700; margin:0}
+.card .cap{font-size:12.5px; color:var(--muted); margin:4px 0 16px}
+/* ドーナツ */
+.donut{display:flex; gap:20px; align-items:center; margin-top:6px}
+.legend{font-size:13.5px; display:grid; gap:10px}
+.legend .dot{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:8px}
+.legend .n{font-weight:700; margin-left:8px}
+/* 棒グラフ(大きめ) */
+.bars{display:flex; align-items:flex-end; gap:8px; height:230px}
+.bars .c{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:6px; min-width:0; height:100%}
+.bars .b{width:100%; max-width:40px; border-radius:6px 6px 3px 3px; background:var(--green-soft); border:1px solid var(--line); border-bottom:none; min-height:3px}
+.bars .c.hl .b{background:var(--green); border-color:var(--green)}
+.bars .m{font-size:11.5px; color:var(--muted)}
+.bars .t{font-size:10.5px; color:var(--muted); white-space:nowrap}
+.recent{margin-top:14px; border-top:1px dashed var(--line); padding-top:6px}
+.recent .r{display:flex; justify-content:space-between; gap:12px; padding:9px 0; font-size:13.5px}
+/* 保有一覧カード */
+.hold{display:grid; gap:12px}
+.hold .row{display:grid; grid-template-columns:1fr auto; gap:4px 16px; padding:16px 4px; border-top:1px solid var(--line)}
+.hold .row:first-child{border-top:none; padding-top:4px}
+.hold .name{font-weight:700; font-size:15px}
+.hold .code{font-size:12px; color:var(--muted); margin-right:8px}
+.hold .val{text-align:right; font-weight:700; font-size:17px}
+.hold .detail{font-size:12.5px; color:var(--muted); grid-column:1/-1; display:flex; flex-wrap:wrap; gap:4px 18px}
+.foot{color:var(--muted); font-size:12px; margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">証券Web</div>
+    <div class="tabs"><span class="here">ホーム</span><span class="opt">資産管理</span><span class="opt">取引明細</span><span>銘柄検索</span></div>
+  </header>
+
+  <!-- 1 集計帯 -->
+  <div class="card hero">
+    <div><div class="k">評価額 ・ 2026/11/13基準</div><p class="total">¥28,593,148</p><div class="cell s" style="font-size:12.5px;color:var(--muted)">取得総額 ¥27,040,660 ・ 前日比 <span class="up">+¥154,488 (+0.5%)</span></div></div>
+    <div class="cell"><div class="k">評価損益</div><div class="v up">+¥1,552,488</div><div class="s">損益率 +5.74%</div></div>
+    <div class="cell"><div class="k">年間配当(2026年・税引前)</div><div class="v">¥3,969,907</div><div class="s">税引後 ¥3,163,438</div></div>
+  </div>
+
+  <!-- 2 資産の構成 -->
+  <h2 class="sec">資産の構成</h2>
+  <div class="card">
+    <h3>合計 ¥28,593,148</h3>
+    <p class="cap">2分類 ・ 投資信託 68.0% / 国内株式 32.0%</p>
+    <div class="donut">
+      <svg width="168" height="168" viewBox="0 0 168 168" role="img" aria-label="資産構成ドーナツ">
+        <circle cx="84" cy="84" r="62" fill="none" stroke="var(--line)" stroke-width="26"/>
+        <circle cx="84" cy="84" r="62" fill="none" stroke="var(--green)" stroke-width="26"
+          stroke-dasharray="264.9 124.7" stroke-linecap="butt" transform="rotate(-90 84 84)"/>
+        <text x="84" y="80" text-anchor="middle" font-size="16" font-weight="700" fill="var(--ink)">¥28,593,148</text>
+        <text x="84" y="100" text-anchor="middle" font-size="11" fill="var(--muted)">合計</text>
+      </svg>
+      <div class="legend">
+        <div><span class="dot" style="background:var(--green)"></span>投資信託<span class="n">¥19,443,341</span><span style="color:var(--muted)"> 68.0%</span></div>
+        <div><span class="dot" style="background:var(--muted)"></span>国内株式<span class="n">¥9,149,807</span><span style="color:var(--muted)"> 32.0%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 月別配当 -->
+  <h2 class="sec">月別配当</h2>
+  <div class="card">
+    <h3>年間 ¥3,969,907(税引前)</h3>
+    <p class="cap">2026年1月 〜 12月 ・ 6月に集中 ・ 税引後 ¥3,163,438</p>
+    <div class="bars">
+      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">1月</span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">2月</span></div>
+      <div class="c"><span class="t">18.0万</span><span class="b" style="height:16px"></span><span class="m">3月</span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">4月</span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">5月</span></div>
+      <div class="c hl"><span class="t">356.5万</span><span class="b" style="height:190px"></span><span class="m">6月</span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">7月</span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">8月</span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:4px"></span><span class="m">9月</span></div>
+      <div class="c"><span class="t"></span><span class="b" style="height:3px"></span><span class="m">10月</span></div>
+      <div class="c"><span class="t">9.6万</span><span class="b" style="height:10px"></span><span class="m">11月</span></div>
+      <div class="c"><span class="t">4.4万</span><span class="b" style="height:7px"></span><span class="m">12月</span></div>
+    </div>
+    <div class="recent">
+      <div class="r"><span>2026/12/24 ・ 9901 架空青空電機</span><span>¥10,957</span></div>
+      <div class="r"><span>2026/12/10 ・ 9901 架空青空電機</span><span>¥23,905</span></div>
+    </div>
+  </div>
+
+  <!-- 4 保有一覧 -->
+  <h2 class="sec">保有一覧</h2>
+  <div class="card hold">
+    <div class="row"><div class="name"><span class="code">9902</span>架空食品ホールディングス</div><div class="val">¥7,949,807</div>
+      <div class="detail"><span>100株 ・ ¥79,498.07</span><span class="up">+¥1,352,488 (+20.50%)</span></div></div>
+    <div class="row"><div class="name"><span class="code">9901</span>架空青空電機</div><div class="val">¥1,200,000</div>
+      <div class="detail"><span>100株 ・ ¥12,000</span><span class="up">+¥200,000 (+20.00%)</span></div></div>
+    <div class="row"><div class="name"><span class="code">—</span>架空成長インデックス・ファンド</div><div class="val">¥19,443,341</div>
+      <div class="detail"><span>10,000,000口 ・ ¥19,443.341</span><span>¥0 (0.00%)</span></div></div>
+  </div>
+
+  <div class="foot">数値は fixtures.json の架空データ。合計 ¥28,593,148 = 国内株式 ¥9,149,807 + 投資信託 ¥19,443,341。データ: 2026/11/14 取り込み。</div>
+</div>
+<script>
+try{const t=new URLSearchParams(location.search).get('theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
+</script>
+</body>
+</html>
