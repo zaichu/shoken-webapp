@@ -1,3 +1,4 @@
+use crate::db::DbError;
 use crate::errors::ApiError;
 use crate::models::user::User;
 use crate::services::auth::{self as auth_service, SessionToken};
@@ -5,6 +6,18 @@ use crate::state::AppState;
 use axum::extract::FromRef;
 use axum_extra::extract::CookieJar;
 use shared::value::UserId;
+
+fn session_lookup_error(error: DbError) -> ApiError {
+    let error_kind = match &error {
+        DbError::Pg(_) => "postgres",
+        DbError::RowNotFound => "row_not_found",
+        DbError::Other(_) => "other",
+        DbError::State { .. } => "sql_state",
+        DbError::TransactionUnavailable => "transaction_unavailable",
+    };
+    tracing::warn!(error_kind, "session lookup failed");
+    ApiError::Database(error)
+}
 
 /// 認証済みユーザーを表すエクストラクター
 /// ハンドラーの引数に指定することで、認証チェックを自動的に行う
@@ -44,7 +57,7 @@ where
         // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
         let user = auth_service::select_user_by_session(&app_state.pool, token)
             .await
-            .map_err(|_| ApiError::Unauthorized("セッション検証に失敗しました"))?
+            .map_err(session_lookup_error)?
             .ok_or(ApiError::Unauthorized("セッションが無効または期限切れです"))?;
 
         Ok(Self(user))
@@ -53,7 +66,61 @@ where
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use {super::AuthenticatedUser, crate::models::user::User, chrono::Utc, shared::value::UserId};
+    use {
+        super::AuthenticatedUser,
+        crate::{
+            config::Config,
+            db::connect_pool_lazy,
+            errors::ApiError,
+            models::user::User,
+            services::auth::{SESSION_COOKIE_NAME, SessionToken},
+            state::{AppState, Secrets},
+        },
+        axum::extract::FromRequestParts,
+        axum::http::StatusCode,
+        chrono::Utc,
+        shared::value::UserId,
+        std::sync::Arc,
+    };
+
+    #[tokio::test]
+    async fn session_lookup_database_error_is_not_unauthorized() {
+        let pool = connect_pool_lazy(
+            "postgresql://user:password@127.0.0.1:1/test_db?connect_timeout=1",
+            1,
+        )
+        .expect("pool should be created lazily");
+        let state = AppState {
+            pool,
+            secrets: Arc::new(Secrets {
+                jquants_api_key: None,
+                google_client_id: None,
+                google_client_secret: None,
+                frontend_url: "http://localhost".to_string(),
+                gmail_user: None,
+                gmail_app_password: None,
+            }),
+            config: Arc::new(Config::default()),
+            google_oauth: None,
+            jquants_client: None,
+        };
+        let request = axum::http::Request::builder()
+            .header(
+                axum::http::header::COOKIE,
+                format!("{SESSION_COOKIE_NAME}={}", SessionToken::default()),
+            )
+            .body(())
+            .expect("request should be built");
+        let (mut parts, ()) = request.into_parts();
+
+        let error = AuthenticatedUser::from_request_parts(&mut parts, &state)
+            .await
+            .expect_err("database connection failure should reject extraction");
+
+        assert!(matches!(error, ApiError::Database(_)));
+        assert_eq!(error.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
     #[test]
     fn id_returns_wrapped_user_id() {
         let user = User {

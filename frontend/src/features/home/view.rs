@@ -127,7 +127,23 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
     view! {
         <Show
             when=move || session.user.get().is_some()
-            fallback=|| view! { <LoginPrompt class="mx-auto w-full max-w-md" /> }
+            fallback=move || {
+                session.connection_error.get().map_or_else(
+                    || view! { <LoginPrompt class="mx-auto w-full max-w-md" /> }.into_any(),
+                    |error| {
+                        view! {
+                            <crate::ui::state::ListLoadError
+                                message=error.user_message()
+                                on_retry=move || {
+                                    let session = session;
+                                    leptos::task::spawn_local(async move { session.check().await; });
+                                }
+                            />
+                        }
+                        .into_any()
+                    },
+                )
+            }
         >
             <div class="page-gutter">
                 <p
