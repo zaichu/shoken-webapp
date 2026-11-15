@@ -1,8 +1,8 @@
 <!doctype html>
 <!-- 現行ホーム(before/current-home-*.png)からの変更3点:
-  1. 紺帯・青アクセント・利益緑など現行の色のまま、縦1列(最大720px)で読む形にした
+  1. 紺帯をやめ、地の上に評価額と評価損益の大きな数字を置いた(紺は見出しと主役数字の文字色に使う)
   2. 月別配当は現行と同じ内容(受取額・前年比較・2本並び棒)にし、明細は直近の入金2行だけにした
-  3. 操作(上ナビ・CSV管理・アカウント・下ナビ)は残し、明細はすべて「左=名前・右=金額」の同じ行に統一した -->
+  3. 操作は残し、CSVは保有一覧末尾の1行に一本化。明細はすべて「左=名前・右=金額」の同じ行に統一した -->
 <html lang="ja" data-theme="light">
 <head>
 <meta charset="utf-8">
@@ -14,35 +14,39 @@
 <style>
 /* 色は frontend/style/input.css の現行トークンのみ。新色なし */
 :root{
-  --page:#f3f5f8; --surface:#ffffff; --ink:#111827; --mut:#5f6b7a; --line:#e5e7eb;
-  --band:#0f2a4a; --band-ink:#ffffff; --band-mut:#c9d3e1; --gold:#f2b33d;
+  --page:#f3f5f8; --ink:#111827; --mut:#5f6b7a; --line:#e5e7eb;
+  --gold:#f2b33d;
   --accent:#1d4ed8; --up:#0b7a4b; --down:#c0362c;
   --bar-cur:#0f2a4a; --bar-prev:#64748b;
   --comp-a:#1d4ed8; --comp-b:#0f2a4a;
+  --headline:#0f2a4a;
   --btn-border:#d1d5db;
 }
 html[data-theme="dark"]{
-  --page:#0b1220; --surface:#121b2c; --ink:#dfe6f2; --mut:#c2cddf; --line:#26334d;
-  --band:#0f2a4a; --band-ink:#ffffff; --band-mut:#c9d3e1; --gold:#f2b33d;
+  --page:#0b1220; --ink:#dfe6f2; --mut:#c2cddf; --line:#26334d;
+  --gold:#f2b33d;
   --accent:#8fb3f7; --up:#53d28a; --down:#f0857a;
   --bar-cur:#3987e5; --bar-prev:#9fb0cf;
   --comp-a:#3987e5; --comp-b:#56719a;
+  --headline:#dfe6f2;
   --btn-border:#3d4d70;
 }
 @media (prefers-color-scheme: dark){
-  html:not([data-theme]){ --page:#0b1220; --surface:#121b2c; --ink:#dfe6f2; --mut:#c2cddf; --line:#26334d;
-    --band:#0f2a4a; --band-ink:#ffffff; --band-mut:#c9d3e1; --gold:#f2b33d;
+  html:not([data-theme]){ --page:#0b1220; --ink:#dfe6f2; --mut:#c2cddf; --line:#26334d;
+    --gold:#f2b33d;
     --accent:#8fb3f7; --up:#53d28a; --down:#f0857a;
     --bar-cur:#3987e5; --bar-prev:#9fb0cf;
     --comp-a:#3987e5; --comp-b:#56719a;
+  --headline:#dfe6f2;
     --btn-border:#3d4d70; }
 }
+/* 面の塗りはグラフの棒と割合の横棒だけ。ヘッダー・ナビは地のまま線で区切る */
 *{box-sizing:border-box}
 body{margin:0; background:var(--page); color:var(--ink);
   font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN",Meiryo,sans-serif; font-weight:400}
 .wrap{max-width:720px; margin:0 auto; padding:0 20px 80px}
 /* 現行の上部: ロゴ・ナビ・CSV管理・アカウント */
-.top{background:var(--surface); border-bottom:1px solid var(--line)}
+.top{background:transparent; border-bottom:1px solid var(--line)}
 .top .inner{max-width:720px; margin:0 auto; padding:0 20px}
 .top .row1{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0}
 .top .brand{font-weight:700; white-space:nowrap}
@@ -51,21 +55,14 @@ body{margin:0; background:var(--page); color:var(--ink);
 .top nav{display:flex; gap:20px; font-size:14px; padding-bottom:10px}
 .top nav span{white-space:nowrap; color:var(--mut)}
 .top nav .here{color:var(--ink); font-weight:700; border-bottom:2px solid var(--gold); padding-bottom:8px}
-/* 現行の紺の集計帯(中身は1列の行) */
-.band{background:var(--band); color:var(--band-ink)}
-.band .inner{max-width:720px; margin:0 auto; padding:26px 20px 10px}
-.band .kicker{font-size:13px; color:var(--band-mut); margin:0 0 8px; white-space:nowrap}
-.band .total{font-size:clamp(36px,10vw,52px); font-weight:700; text-align:right; margin:0; white-space:nowrap;
-  font-feature-settings:"tnum" 1; font-variant-numeric:tabular-nums}
-.band .row{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:12px 0; border-top:1px solid rgba(255,255,255,.22)}
-.band .row .left{min-width:0; flex:1 1 auto}
-.band .row .name{font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.band .row .sub{display:block; font-size:12.5px; color:var(--band-mut); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.band .row .amt{flex:none; font-size:15px; font-weight:700; text-align:right; white-space:nowrap;
+/* 紺帯はやめ、地の上に大きな数字。紺は見出しと主役数字の文字色に使う */
+.hero{padding:26px 0 8px}
+.hero .kicker{font-size:13px; color:var(--mut); margin:0 0 8px; white-space:nowrap}
+.hero .total{font-size:clamp(36px,10vw,52px); font-weight:700; color:var(--headline); text-align:right; margin:0; white-space:nowrap;
   font-feature-settings:"tnum" 1; font-variant-numeric:tabular-nums}
 /* idea4 の型: 見出し→要約→明細 */
 section{padding:36px 0 8px; border-top:1px solid var(--line); margin-top:36px}
-section h2{font-size:13px; font-weight:700; margin:0; white-space:nowrap}
+section h2{font-size:13px; font-weight:700; margin:0; white-space:nowrap; color:var(--headline)}
 .hrow{display:flex; justify-content:space-between; align-items:baseline; gap:16px}
 .hrow .more{font-size:13px; color:var(--accent); white-space:nowrap}
 .cap{font-size:12px; color:var(--mut); margin:18px 0 0}
@@ -102,7 +99,7 @@ section h2{font-size:13px; font-weight:700; margin:0; white-space:nowrap}
 .bottomnav{display:none}
 @media(max-width:720px){
   .top nav{display:none}
-  .bottomnav{display:flex; background:var(--surface); border-top:1px solid var(--line)}
+  .bottomnav{display:flex; background:transparent; border-top:1px solid var(--line)}
   .bottomnav span{flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; text-align:center; font-size:11px; padding:10px 0 16px; color:var(--mut); white-space:nowrap}
   .bottomnav .here{color:var(--accent); font-weight:700}
   .wrap{padding-bottom:40px}
@@ -115,15 +112,16 @@ section h2{font-size:13px; font-weight:700; margin:0; white-space:nowrap}
   <nav><span class="here">ホーム</span><span>資産管理</span><span>取引明細</span><span>銘柄検索</span></nav>
 </div></header>
 
-<div class="band"><div class="inner">
-  <p class="kicker">評価額 ・ 価格基準日 2026/11/13</p>
-  <p class="total">¥28,593,148</p>
-  <div class="row"><div class="left"><div class="name">評価損益</div><span class="sub">+5.74% ・ 取得総額 ¥27,040,660</span></div><span class="amt" style="color:var(--up)">+¥1,552,488</span></div>
-  <div class="row"><div class="left"><div class="name">前日比</div><span class="sub">+0.5% ・ 前日 ¥28,438,660</span></div><span class="amt" style="color:var(--up)">+¥154,488</span></div>
-  <div class="row"><div class="left"><div class="name">年間配当(2026年・税引前)</div><span class="sub">税引後 ¥3,163,438</span></div><span class="amt">¥3,969,907</span></div>
-</div></div>
-
 <div class="wrap">
+  <div class="hero">
+    <p class="kicker">評価額 ・ 価格基準日 2026/11/13</p>
+    <p class="total">¥28,593,148</p>
+    <div class="rows">
+      <div class="row"><div class="left"><div class="name">評価損益</div><span class="sub">+5.74% ・ 取得総額 ¥27,040,660</span></div><span class="amt up">+¥1,552,488</span></div>
+      <div class="row"><div class="left"><div class="name">前日比</div><span class="sub">+0.5% ・ 前日 ¥28,438,660</span></div><span class="amt up">+¥154,488</span></div>
+      <div class="row"><div class="left"><div class="name">年間配当(2026年・税引前)</div><span class="sub">税引後 ¥3,163,438</span></div><span class="amt">¥3,969,907</span></div>
+    </div>
+  </div>
   <section>
     <div class="hrow"><h2>資産の構成</h2><span class="more">資産管理 ›</span></div>
     <div class="sum"><span class="label">合計</span><span class="amt">¥28,593,148</span></div>
