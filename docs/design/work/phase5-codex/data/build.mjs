@@ -216,6 +216,12 @@ for (const row of fixture.previousYearDividends) {
 }
 eq(sum(fixture.previousYearDividends, 'afterTax'), 2660681, '前年税引後合計');
 eq(dividendAnnual, Object.values(annualByHolding).reduce((t, v) => t + v, 0), '年間配当と銘柄別合計');
+// ---- 構成比(年間配当・銘柄別): 投信は算出不可、国内株式2銘柄の内訳 ----
+eq(annualByHolding['stock-a'], 36000, '銘柄別年間配当 9901');
+eq(annualByHolding['stock-b'], 3933907, '銘柄別年間配当 9902');
+eq(percentage(annualByHolding['stock-b'], dividendAnnual), '99.1%', '構成比 年間配当 9902');
+eq(percentage(annualByHolding['stock-a'], dividendAnnual), '0.9%', '構成比 年間配当 9901');
+ok(!('fund-a' in annualByHolding), '投信の年間配当は算出不可');
 ok(fixture.dividends.every(row => row.beforeTax >= row.tax), '月別税引後非負');
 ok(recentDividends.every(row => row.holding && row.afterTax === row.beforeTax - row.tax), '最近の配当内訳');
 // 件数・ID重複・スマホ/PC共通(同じ fixtures から同じ数量・金額)

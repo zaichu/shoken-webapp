@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -56,6 +56,11 @@ body{margin:0; background:var(--page); color:var(--ink);
 .search .ph{font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .sortbtn{display:flex; align-items:center; justify-content:space-between; gap:8px; border:1px solid var(--line); border-radius:8px; padding:0 12px; min-height:44px; margin-top:8px; font-size:14px; background:var(--card); white-space:nowrap}
 .countrow{display:flex; justify-content:space-between; align-items:center; gap:12px; margin:12px 0 0}
+.basisline{display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:13px}
+.basisline .cur{color:var(--navy); font-weight:700; white-space:nowrap}
+.basisline .opt{color:var(--accent); white-space:nowrap; min-height:44px; display:flex; align-items:center}
+.basisline .lbl{color:var(--mut); white-space:nowrap}
+.basisline .sep{color:var(--mut)}
 .countrow .n{font-size:13px; color:var(--mut); white-space:nowrap}
 .countrow .link{font-size:13px; color:var(--accent); white-space:nowrap; min-height:44px; display:flex; align-items:center}
 /* 横棒: 高さ8px。3区分までは紺・青・灰 */
@@ -70,7 +75,7 @@ body{margin:0; background:var(--page); color:var(--ink);
 html[data-theme="dark"] .btn.primary{color:#0b1220}
 html[data-theme="dark"] .btn.primary{background:var(--accent); border-color:var(--accent)}
 .btn.danger{color:var(--down); border-color:var(--down)}
-.backlink{display:inline-flex; align-items:center; min-height:44px; font-size:13px; color:var(--accent); white-space:nowrap}
+.backlink{display:inline-flex; align-items:center; min-height:44px; font-size:13px; color:var(--accent); white-space:nowrap; text-decoration:none}
 .pagetitle{font-size:20px; font-weight:700; color:var(--navy); margin:0; white-space:nowrap}
 .seg{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-top:12px}
 .seg span{flex:1; text-align:center; font-size:14px; padding:10px 0; min-height:44px; display:flex; align-items:center; justify-content:center; color:var(--mut); white-space:nowrap}
@@ -116,13 +121,13 @@ table.grid{width:100%}
   <div class="tabs"><span class="here">すべて 3</span><span>国内株式 2</span><span>投資信託 1</span></div>
 <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄・ファンド名・コード・口座で検索</span></div>
   <div class="sortbtn"><span>並べ替え: 評価額の高い順</span><span aria-hidden="true">›</span></div>
-  <div class="countrow"><span class="n num">3件 / 3件</span><span class="link">構成比を見る ›</span></div>
+  <div class="countrow"><span class="n num">3件 / 3件</span></div>
   <section class="card" aria-label="保有の一覧">
     <div class="hrow"><h2>保有の一覧</h2><span class="more">構成比を見る ›</span></div>
-    <div class="sum"><span class="state-note num">評価額の合計 ¥28,593,148(税引前)</span></div>
+    <div class="sum"><span class="state-note num">評価額の合計 ¥28,593,148</span></div>
 <div class="rows">
-      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">100株 ・ NISA</span></div><span class="amt num">¥7,949,807<span class="rate num up">+¥1,352,488 +20.50%</span></span></div>
       <div class="row"><div class="left"><div class="name">架空成長インデックス・ファンド</div><span class="sub num">10,000,000口 ・ 特定口座 ›</span></div><span class="amt num">¥19,443,341<span class="rate num">¥0 0.00%</span></span></div>
+      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">100株 ・ NISA</span></div><span class="amt num">¥7,949,807<span class="rate num up">+¥1,352,488 +20.50%</span></span></div>
       <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">100株 ・ 特定口座</span></div><span class="amt num">¥1,200,000<span class="rate num up">+¥200,000 +20.00%</span></span></div>
     </div>
   </section>
@@ -141,7 +146,7 @@ table.grid{width:100%}
   <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>銘柄検索</a>
 </nav></div>
 <script>
-try{const t=new URLSearchParams(location.search).get('theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
+try{const t=new URLSearchParams(location.search).get('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}
 </script>
 </body>
 </html>

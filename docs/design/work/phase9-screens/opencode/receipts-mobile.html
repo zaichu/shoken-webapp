@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -56,6 +56,11 @@ body{margin:0; background:var(--page); color:var(--ink);
 .search .ph{font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .sortbtn{display:flex; align-items:center; justify-content:space-between; gap:8px; border:1px solid var(--line); border-radius:8px; padding:0 12px; min-height:44px; margin-top:8px; font-size:14px; background:var(--card); white-space:nowrap}
 .countrow{display:flex; justify-content:space-between; align-items:center; gap:12px; margin:12px 0 0}
+.basisline{display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:13px}
+.basisline .cur{color:var(--navy); font-weight:700; white-space:nowrap}
+.basisline .opt{color:var(--accent); white-space:nowrap; min-height:44px; display:flex; align-items:center}
+.basisline .lbl{color:var(--mut); white-space:nowrap}
+.basisline .sep{color:var(--mut)}
 .countrow .n{font-size:13px; color:var(--mut); white-space:nowrap}
 .countrow .link{font-size:13px; color:var(--accent); white-space:nowrap; min-height:44px; display:flex; align-items:center}
 /* 横棒: 高さ8px。3区分までは紺・青・灰 */
@@ -70,7 +75,7 @@ body{margin:0; background:var(--page); color:var(--ink);
 html[data-theme="dark"] .btn.primary{color:#0b1220}
 html[data-theme="dark"] .btn.primary{background:var(--accent); border-color:var(--accent)}
 .btn.danger{color:var(--down); border-color:var(--down)}
-.backlink{display:inline-flex; align-items:center; min-height:44px; font-size:13px; color:var(--accent); white-space:nowrap}
+.backlink{display:inline-flex; align-items:center; min-height:44px; font-size:13px; color:var(--accent); white-space:nowrap; text-decoration:none}
 .pagetitle{font-size:20px; font-weight:700; color:var(--navy); margin:0; white-space:nowrap}
 .seg{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-top:12px}
 .seg span{flex:1; text-align:center; font-size:14px; padding:10px 0; min-height:44px; display:flex; align-items:center; justify-content:center; color:var(--mut); white-space:nowrap}
@@ -110,41 +115,27 @@ table.grid{width:100%}
 
   <div class="hero" style="padding-bottom:0">
     <p class="label">受け取った配当金(税引後)</p>
-    <p class="total num">¥3,163,438</p>
-    <p class="date num">2026/01 〜 2026/12 ・ 18件</p>
+    <p class="total num">¥3,128,576</p>
+    <p class="date num">2026/01 〜 2026/11 ・ 16件</p>
   </div>
-  <div class="tabs"><span class="here">配当金 18</span><span>国内株式 3</span><span>投資信託 2</span></div>
+  <div class="tabs"><span class="here">配当金 16</span><span>国内株式 3</span><span>投資信託 2</span></div>
   <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄名・コードで検索</span></div>
   <div class="sortbtn"><span>並べ替え: 入金日の新しい順</span><span aria-hidden="true">›</span></div>
-  <div class="countrow"><span class="n num">絞り込み中(18件 / 18件)</span></div>
-  <section class="card" aria-label="2026年12月の配当">
-    <div class="hrow"><h2>2026年12月 ・ 2件</h2><span class="more num">受取 ¥34,862</span></div>
-<div class="rows">
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">12/24 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥10,957</span></div>
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">12/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥23,905</span></div>
-    </div>
-  </section>
+  <div class="countrow"><span class="n num">16件</span></div>
   <section class="card" aria-label="2026年11月の配当">
     <div class="hrow"><h2>2026年11月 ・ 2件</h2><span class="more num">受取 ¥76,697</span></div>
 <div class="rows">
+      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">11/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥44,823</span></div>
       <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥31,874</span></div>
     </div>
-    <dl style="margin:4px 0 0; border-top:1px solid var(--line); padding-top:4px">
-      <div class="dl"><dt>配当金(税引前)</dt><dd class="num">¥40,000</dd></div>
-      <div class="dl"><dt>税額</dt><dd class="num">¥8,126</dd></div>
-      <div class="dl"><dt>税引後</dt><dd class="num">¥31,874</dd></div>
-    </dl>
+  </section>
+  <section class="card" aria-label="2026年10月の配当">
+    <div class="hrow"><h2>2026年10月 ・ 1件</h2><span class="more num">受取 ¥7,969</span></div>
     <div class="rows">
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">11/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥44,823</span></div>
+      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">10/20 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥7,969</span></div>
     </div>
   </section>
-<section class="card" aria-label="ほかのタブの帯">
-    <div class="hrow"><h2>ほかのタブの帯</h2></div>
-    <div class="rows">
-      <div class="row"><div class="left"><div class="name">国内株式の実現損益(税引後)</div><span class="sub num">2026/01 〜 2026/12 ・ 3件</span></div><span class="amt num up">+¥99,017</span></div>
-      <div class="row"><div class="left"><div class="name">投資信託の実現損益(税引後)</div><span class="sub num">2026/01 〜 2026/12 ・ 2件</span></div><span class="amt num up">+¥147,282</span></div>
-    </div>
-  </section><section class="card" aria-label="状態の例">
+<section class="card" aria-label="状態の例">
     <div class="hrow"><h2>状態の例</h2></div>
     <p class="subhead">空</p>
     <div class="rows"><div class="row"><div class="left"><div class="name">データがありません</div><span class="sub">配当金明細をCSVで追加してください</span></div></div></div>
@@ -152,6 +143,16 @@ table.grid{width:100%}
     <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
     <p class="subhead">取得失敗</p>
     <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+
+    <p class="subhead">行詳細の例</p>
+    <div class="rows">
+      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥31,874</span></div>
+    </div>
+    <dl style="margin:4px 0 0; border-top:1px solid var(--line); padding-top:4px">
+      <div class="dl"><dt>配当金(税引前)</dt><dd class="num">¥40,000</dd></div>
+      <div class="dl"><dt>税額</dt><dd class="num">¥8,126</dd></div>
+      <div class="dl"><dt>税引後</dt><dd class="num">¥31,874</dd></div>
+    </dl>
   </section><nav class="bottomnav" aria-label="下ナビ">
   <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg>ホーム</a>
   <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-8"/><path d="M22 20H2"/></svg>資産管理</a>
@@ -159,7 +160,7 @@ table.grid{width:100%}
   <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>銘柄検索</a>
 </nav></div>
 <script>
-try{const t=new URLSearchParams(location.search).get('theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
+try{const t=new URLSearchParams(location.search).get('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}
 </script>
 </body>
 </html>

@@ -54,6 +54,11 @@ body{margin:0; background:var(--page); color:var(--ink);
 .search .ph{font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .sortbtn{display:flex; align-items:center; justify-content:space-between; gap:8px; border:1px solid var(--line); border-radius:8px; padding:0 12px; min-height:44px; margin-top:8px; font-size:14px; background:var(--card); white-space:nowrap}
 .countrow{display:flex; justify-content:space-between; align-items:center; gap:12px; margin:12px 0 0}
+.basisline{display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:13px}
+.basisline .cur{color:var(--navy); font-weight:700; white-space:nowrap}
+.basisline .opt{color:var(--accent); white-space:nowrap; min-height:44px; display:flex; align-items:center}
+.basisline .lbl{color:var(--mut); white-space:nowrap}
+.basisline .sep{color:var(--mut)}
 .countrow .n{font-size:13px; color:var(--mut); white-space:nowrap}
 .countrow .link{font-size:13px; color:var(--accent); white-space:nowrap; min-height:44px; display:flex; align-items:center}
 /* 横棒: 高さ8px。3区分までは紺・青・灰 */
@@ -68,7 +73,7 @@ body{margin:0; background:var(--page); color:var(--ink);
 html[data-theme="dark"] .btn.primary{color:#0b1220}
 html[data-theme="dark"] .btn.primary{background:var(--accent); border-color:var(--accent)}
 .btn.danger{color:var(--down); border-color:var(--down)}
-.backlink{display:inline-flex; align-items:center; min-height:44px; font-size:13px; color:var(--accent); white-space:nowrap}
+.backlink{display:inline-flex; align-items:center; min-height:44px; font-size:13px; color:var(--accent); white-space:nowrap; text-decoration:none}
 .pagetitle{font-size:20px; font-weight:700; color:var(--navy); margin:0; white-space:nowrap}
 .seg{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-top:12px}
 .seg span{flex:1; text-align:center; font-size:14px; padding:10px 0; min-height:44px; display:flex; align-items:center; justify-content:center; color:var(--mut); white-space:nowrap}
@@ -154,11 +159,11 @@ def nav_m(here):
 NAV_M = ""  # 旧テンプレは使わない(nav_mを使う)
 
 SCRIPT = """<script>
-try{const t=new URLSearchParams(location.search).get('theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
+try{const t=new URLSearchParams(location.search).get('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}
 </script>"""
 
 HEAD = """<!doctype html>
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -200,8 +205,8 @@ def write(name, title, is_mobile, body):
 
 # ---------- 資産管理 ----------
 ASSET_ROWS_M = """<div class="rows">
-      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">100株 ・ NISA</span></div><span class="amt num">¥7,949,807<span class="rate num up">+¥1,352,488 +20.50%</span></span></div>
       <div class="row"><div class="left"><div class="name">架空成長インデックス・ファンド</div><span class="sub num">10,000,000口 ・ 特定口座 ›</span></div><span class="amt num">¥19,443,341<span class="rate num">¥0 0.00%</span></span></div>
+      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">100株 ・ NISA</span></div><span class="amt num">¥7,949,807<span class="rate num up">+¥1,352,488 +20.50%</span></span></div>
       <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">100株 ・ 特定口座</span></div><span class="amt num">¥1,200,000<span class="rate num up">+¥200,000 +20.00%</span></span></div>
     </div>"""
 
@@ -214,7 +219,7 @@ ASSET_HERO_M = """<div class="hero">
 
 ASSET_SEARCH_M = """<div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄・ファンド名・コード・口座で検索</span></div>
   <div class="sortbtn"><span>並べ替え: 評価額の高い順</span><span aria-hidden="true">›</span></div>
-  <div class="countrow"><span class="n num">3件 / 3件</span><span class="link">構成比を見る ›</span></div>"""
+  <div class="countrow"><span class="n num">3件 / 3件</span></div>"""
 
 ASSET_STATES = """<section class="card" aria-label="状態の例">
     <div class="hrow"><h2>状態の例</h2></div>
@@ -231,7 +236,7 @@ asset_m = (mobile_top() + ASSET_HERO_M + """
 """ + ASSET_SEARCH_M + """
   <section class="card" aria-label="保有の一覧">
     <div class="hrow"><h2>保有の一覧</h2><span class="more">構成比を見る ›</span></div>
-    <div class="sum"><span class="state-note num">評価額の合計 ¥28,593,148(税引前)</span></div>
+    <div class="sum"><span class="state-note num">評価額の合計 ¥28,593,148</span></div>
 """ + ASSET_ROWS_M + """
   </section>
 """ + ASSET_STATES + nav_m("資産管理"))
@@ -250,8 +255,8 @@ asset_p = (pc_top("資産管理") + ASSET_HERO_P + """
     <div class="countrow"><span class="n num">3件 / 3件(列名クリックで並べ替え)</span></div>
     <table class="grid" style="margin-top:8px">
       <tr><th class="sortable">銘柄・ファンド ▲</th><th>口座</th><th class="r">数量</th><th class="r sortable">評価額 ▼</th><th class="r">評価損益</th></tr>
-      <tr><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">NISA</span></td><td class="r num">100株</td><td class="r num">¥7,949,807</td><td class="r num up">+¥1,352,488 +20.50%</td></tr>
       <tr><td><div class="nm">架空成長インデックス・ファンド ›</div></td><td><span class="sb">特定口座</span></td><td class="r num">10,000,000口</td><td class="r num">¥19,443,341</td><td class="r num">¥0 0.00%</td></tr>
+      <tr><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">NISA</span></td><td class="r num">100株</td><td class="r num">¥7,949,807</td><td class="r num up">+¥1,352,488 +20.50%</td></tr>
       <tr><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥1,200,000</td><td class="r num up">+¥200,000 +20.00%</td></tr>
     </table>
   </section>
@@ -273,18 +278,18 @@ COMP_STATES = """<section class="card" aria-label="状態の例">
     <div class="hrow"><h2>状態の例</h2></div>
     <p class="subhead">空</p>
     <div class="rows"><div class="row"><div class="left"><div class="name">データがありません</div><span class="sub">保有残高をCSVで登録すると表示されます</span></div></div></div>
-    <p class="subhead">算出不可(基準額0など)</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">算出不可</div><span class="sub">合計が0のため割合を出せません</span></div><span class="amt num">—</span></div></div>
     <p class="subhead">読み込み中</p>
     <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
     <p class="subhead">取得失敗</p>
     <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+    <p class="subhead">算出不可の例</p>
+    <div class="rows"><div class="row"><div class="left"><div class="name">算出不可</div><span class="sub">合計が0のため割合を出せません</span></div><span class="amt num">—</span></div></div>
   </section>"""
 
 comp_m = (mobile_top() + """
   <a class="backlink" href="#">‹ 資産管理に戻る</a>
   <h1 class="pagetitle">構成比</h1>
-  <div class="seg" role="group" aria-label="構成比の基準"><span class="here">評価額</span><span>年間配当(税引前)</span></div>
+  <div class="basisline" role="group" aria-label="構成比の基準"><span class="lbl">基準:</span><span class="cur">評価額</span><span class="sep">｜</span><span class="opt">年間配当(税引前)</span></div>
   <div class="tabs"><span class="here">銘柄別 3</span><span>商品別 2</span><span>口座別 2</span></div>
   <section class="card" aria-label="構成比の一覧">
     <div class="hrow"><h2>銘柄別</h2></div>
@@ -292,7 +297,7 @@ comp_m = (mobile_top() + """
 """ + COMP_M_BAR + COMP_ROWS_M + """
   </section>
   <section class="card" aria-label="基準を年間配当に替えた例">
-    <div class="hrow"><h2>年間配当(税引前)の例</h2></div>
+    <div class="hrow"><h2>年間配当(税引前)</h2></div>
     <div class="sum"><span class="state-note num">年間配当(税引前)の比率・合計 ¥3,969,907・保有全体</span></div>
 """ + COMP_DIV_ROWS + """
   </section>
@@ -301,7 +306,7 @@ comp_m = (mobile_top() + """
 comp_p = (pc_top("資産管理") + """
   <a class="backlink" href="#">‹ 資産管理に戻る</a>
   <h1 class="pagetitle">構成比</h1>
-  <div class="seg" role="group" aria-label="構成比の基準" style="max-width:480px"><span class="here">評価額</span><span>年間配当(税引前)</span></div>
+  <div class="basisline" role="group" aria-label="構成比の基準"><span class="lbl">基準:</span><span class="cur">評価額</span><span class="sep">｜</span><span class="opt">年間配当(税引前)</span></div>
   <div class="tabs"><span class="here">銘柄別 3</span><span>商品別 2</span><span>口座別 2</span></div>
   <div class="grid2" style="margin-top:12px">
     <section class="card" aria-label="構成比の一覧">
@@ -311,7 +316,7 @@ comp_p = (pc_top("資産管理") + """
     </section>
     <div class="col">
       <section class="card" aria-label="基準を年間配当に替えた例">
-        <div class="hrow"><h2>年間配当(税引前)の例</h2></div>
+        <div class="hrow"><h2>年間配当(税引前)</h2></div>
         <div class="sum"><span class="state-note num">合計 ¥3,969,907・保有全体</span></div>
 """ + COMP_DIV_ROWS + """
       </section>
@@ -334,13 +339,14 @@ FUND_DL = """<dl style="margin:12px 0 0">
     </dl>"""
 FUND_STATES = """<section class="card" aria-label="状態の例">
     <div class="hrow"><h2>状態の例</h2></div>
-    <p class="subhead">更新待ち</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">基準価額(前日比)</div><span class="sub">更新待ち: 最新は11/13・この値は11/12</span></div><span class="amt num">更新待ち</span></div></div>
+    <p class="subhead">空</p>
+    <div class="rows"><div class="row"><div class="left"><div class="name">ファンドが見つかりません</div></div></div></div>
     <p class="subhead">読み込み中</p>
     <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
-    <p class="subhead">見つからない・取得失敗</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">ファンドが見つかりません</div></div></div></div>
+    <p class="subhead">取得失敗</p>
     <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+    <p class="subhead">更新待ちの例</p>
+    <div class="rows"><div class="row"><div class="left"><div class="name">基準価額(前日比)</div><span class="sub">更新待ち: 最新は11/13・この値は11/12</span></div><span class="amt num">更新待ち</span></div></div>
   </section>"""
 
 fund_m = (mobile_top() + """
@@ -373,16 +379,19 @@ RECEIPT_ROWS_M = """<div class="rows">
       <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">12/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥23,905</span></div>
     </div>"""
 RECEIPT_DETAIL_M = """<div class="rows">
+      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">11/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥44,823</span></div>
+      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥31,874</span></div>
+    </div>"""
+RECEIPT_DETAIL_EXAMPLE = """
+    <p class="subhead">行詳細の例</p>
+    <div class="rows">
       <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥31,874</span></div>
     </div>
     <dl style="margin:4px 0 0; border-top:1px solid var(--line); padding-top:4px">
       <div class="dl"><dt>配当金(税引前)</dt><dd class="num">¥40,000</dd></div>
       <div class="dl"><dt>税額</dt><dd class="num">¥8,126</dd></div>
       <div class="dl"><dt>税引後</dt><dd class="num">¥31,874</dd></div>
-    </dl>
-    <div class="rows">
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">11/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥44,823</span></div>
-    </div>"""
+    </dl>"""
 RECEIPT_STATES_M = """<section class="card" aria-label="状態の例">
     <div class="hrow"><h2>状態の例</h2></div>
     <p class="subhead">空</p>
@@ -391,8 +400,9 @@ RECEIPT_STATES_M = """<section class="card" aria-label="状態の例">
     <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
     <p class="subhead">取得失敗</p>
     <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+""" + RECEIPT_DETAIL_EXAMPLE + """
   </section>"""
-RECEIPT_OTHER = """<section class="card" aria-label="ほかのタブの帯">
+_UNUSED_RECEIPT_OTHER = """<section class="card" aria-label="ほかのタブの帯">
     <div class="hrow"><h2>ほかのタブの帯</h2></div>
     <div class="rows">
       <div class="row"><div class="left"><div class="name">国内株式の実現損益(税引後)</div><span class="sub num">2026/01 〜 2026/12 ・ 3件</span></div><span class="amt num up">+¥99,017</span></div>
@@ -403,44 +413,46 @@ RECEIPT_OTHER = """<section class="card" aria-label="ほかのタブの帯">
 receipt_m = (mobile_top() + """
   <div class="hero" style="padding-bottom:0">
     <p class="label">受け取った配当金(税引後)</p>
-    <p class="total num">¥3,163,438</p>
-    <p class="date num">2026/01 〜 2026/12 ・ 18件</p>
+    <p class="total num">¥3,128,576</p>
+    <p class="date num">2026/01 〜 2026/11 ・ 16件</p>
   </div>
-  <div class="tabs"><span class="here">配当金 18</span><span>国内株式 3</span><span>投資信託 2</span></div>
+  <div class="tabs"><span class="here">配当金 16</span><span>国内株式 3</span><span>投資信託 2</span></div>
   <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄名・コードで検索</span></div>
   <div class="sortbtn"><span>並べ替え: 入金日の新しい順</span><span aria-hidden="true">›</span></div>
-  <div class="countrow"><span class="n num">絞り込み中(18件 / 18件)</span></div>
-  <section class="card" aria-label="2026年12月の配当">
-    <div class="hrow"><h2>2026年12月 ・ 2件</h2><span class="more num">受取 ¥34,862</span></div>
-""" + RECEIPT_ROWS_M + """
-  </section>
+  <div class="countrow"><span class="n num">16件</span></div>
   <section class="card" aria-label="2026年11月の配当">
     <div class="hrow"><h2>2026年11月 ・ 2件</h2><span class="more num">受取 ¥76,697</span></div>
 """ + RECEIPT_DETAIL_M + """
   </section>
-""" + RECEIPT_OTHER + RECEIPT_STATES_M + nav_m("取引明細"))
+  <section class="card" aria-label="2026年10月の配当">
+    <div class="hrow"><h2>2026年10月 ・ 1件</h2><span class="more num">受取 ¥7,969</span></div>
+    <div class="rows">
+      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">10/20 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥7,969</span></div>
+    </div>
+  </section>
+""" + RECEIPT_STATES_M + nav_m("取引明細"))
 
 receipt_p = (pc_top("取引明細") + """
   <div class="hero">
-    <div class="stat"><p class="label">受け取った配当金(税引後)</p><p class="v1 num">¥3,163,438</p></div>
-    <div class="stat"><p class="label">期間</p><p class="v2 num">2026/01 〜 2026/12</p></div>
-    <div class="dates num">18件</div>
+    <div class="stat"><p class="label">受け取った配当金(税引後)</p><p class="v1 num">¥3,128,576</p></div>
+    <div class="stat"><p class="label">期間</p><p class="v2 num">2026/01 〜 2026/11</p></div>
+    <div class="dates num">16件</div>
   </div>
-  <div class="tabs"><span class="here">配当金 18</span><span>国内株式 3</span><span>投資信託 2</span></div>
+  <div class="tabs"><span class="here">配当金 16</span><span>国内株式 3</span><span>投資信託 2</span></div>
   <section class="card" aria-label="取引明細の一覧" style="margin-top:12px">
     <div class="hrow"><h2>配当金の一覧</h2></div>
     <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄名・コードで検索</span></div>
-    <div class="countrow"><span class="n num">絞り込み中(18件 / 18件・列名クリックで並べ替え)</span></div>
+    <div class="countrow"><span class="n num">16件(列名クリックで並べ替え)</span></div>
     <table class="grid" style="margin-top:8px">
       <tr><th class="sortable">入金日 ▼</th><th>銘柄</th><th>口座</th><th class="r">数量</th><th class="r">配当金(税引前)</th><th class="r">税額</th><th class="r">税引後</th></tr>
-      <tr><td class="num">12/24</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥13,750</td><td class="r num">¥2,793</td><td class="r num">¥10,957</td></tr>
-      <tr><td class="num">12/10</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥30,000</td><td class="r num">¥6,095</td><td class="r num">¥23,905</td></tr>
       <tr><td class="num">11/10</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥56,250</td><td class="r num">¥11,427</td><td class="r num">¥44,823</td></tr>
       <tr><td class="num">11/08</td><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥40,000</td><td class="r num">¥8,126</td><td class="r num">¥31,874</td></tr>
       <tr><td class="num">10/20</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥10,000</td><td class="r num">¥2,031</td><td class="r num">¥7,969</td></tr>
+      <tr><td class="num">09/26</td><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥5,000</td><td class="r num">¥1,016</td><td class="r num">¥3,984</td></tr>
+      <tr><td class="num">09/10</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥10,000</td><td class="r num">¥2,031</td><td class="r num">¥7,969</td></tr>
     </table>
   </section>
-  <div class="grid2" style="margin-top:24px"><div class="col">""" + RECEIPT_OTHER + """</div><div class="col">""" + RECEIPT_STATES_M + """</div></div>""")
+  <div style="margin-top:24px; max-width:720px">""" + RECEIPT_STATES_M + """</div>""")
 
 # ---------- CSV管理 ----------
 CSV_ROWS = """<div class="rows">
@@ -468,13 +480,15 @@ CSV_DIALOG = """<section class="card" aria-label="削除確認の例">
   </section>"""
 CSV_STATES = """<section class="card" aria-label="状態の例">
     <div class="hrow"><h2>状態の例</h2></div>
-    <p class="subhead">取得中・取り込み中・確認待ち</p>
+    <p class="subhead">空</p>
+    <div class="rows"><div class="row"><div class="left"><div class="name">データがありません</div><span class="sub">楽天証券から取得すると表示されます</span></div></div></div>
+    <p class="subhead">読み込み中</p>
     <div class="rows">
       <div class="row"><div class="left"><div class="name">資産管理(国内株式)</div><span class="sub">取得中…</span></div><span class="amt num">22件</span></div>
       <div class="row"><div class="left"><div class="name">取引明細(配当金)</div><span class="sub">取り込み中…</span></div><span class="amt num">64件</span></div>
       <div class="row"><div class="left"><div class="name">取引明細(投資信託)</div><span class="sub">確認待ち</span></div><span class="amt num">0件</span></div>
     </div>
-    <p class="subhead">エラー</p>
+    <p class="subhead">取得失敗</p>
     <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 拡張機能との通信が切れました</div><span class="sub">ネットワーク接続を確認してください</span></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
   </section>"""
 

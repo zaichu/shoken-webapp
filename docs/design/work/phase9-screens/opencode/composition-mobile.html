@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -56,6 +56,11 @@ body{margin:0; background:var(--page); color:var(--ink);
 .search .ph{font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .sortbtn{display:flex; align-items:center; justify-content:space-between; gap:8px; border:1px solid var(--line); border-radius:8px; padding:0 12px; min-height:44px; margin-top:8px; font-size:14px; background:var(--card); white-space:nowrap}
 .countrow{display:flex; justify-content:space-between; align-items:center; gap:12px; margin:12px 0 0}
+.basisline{display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:13px}
+.basisline .cur{color:var(--navy); font-weight:700; white-space:nowrap}
+.basisline .opt{color:var(--accent); white-space:nowrap; min-height:44px; display:flex; align-items:center}
+.basisline .lbl{color:var(--mut); white-space:nowrap}
+.basisline .sep{color:var(--mut)}
 .countrow .n{font-size:13px; color:var(--mut); white-space:nowrap}
 .countrow .link{font-size:13px; color:var(--accent); white-space:nowrap; min-height:44px; display:flex; align-items:center}
 /* 横棒: 高さ8px。3区分までは紺・青・灰 */
@@ -70,7 +75,7 @@ body{margin:0; background:var(--page); color:var(--ink);
 html[data-theme="dark"] .btn.primary{color:#0b1220}
 html[data-theme="dark"] .btn.primary{background:var(--accent); border-color:var(--accent)}
 .btn.danger{color:var(--down); border-color:var(--down)}
-.backlink{display:inline-flex; align-items:center; min-height:44px; font-size:13px; color:var(--accent); white-space:nowrap}
+.backlink{display:inline-flex; align-items:center; min-height:44px; font-size:13px; color:var(--accent); white-space:nowrap; text-decoration:none}
 .pagetitle{font-size:20px; font-weight:700; color:var(--navy); margin:0; white-space:nowrap}
 .seg{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-top:12px}
 .seg span{flex:1; text-align:center; font-size:14px; padding:10px 0; min-height:44px; display:flex; align-items:center; justify-content:center; color:var(--mut); white-space:nowrap}
@@ -110,7 +115,7 @@ table.grid{width:100%}
 
   <a class="backlink" href="#">‹ 資産管理に戻る</a>
   <h1 class="pagetitle">構成比</h1>
-  <div class="seg" role="group" aria-label="構成比の基準"><span class="here">評価額</span><span>年間配当(税引前)</span></div>
+  <div class="basisline" role="group" aria-label="構成比の基準"><span class="lbl">基準:</span><span class="cur">評価額</span><span class="sep">｜</span><span class="opt">年間配当(税引前)</span></div>
   <div class="tabs"><span class="here">銘柄別 3</span><span>商品別 2</span><span>口座別 2</span></div>
   <section class="card" aria-label="構成比の一覧">
     <div class="hrow"><h2>銘柄別</h2></div>
@@ -122,7 +127,7 @@ table.grid{width:100%}
     </div>
   </section>
   <section class="card" aria-label="基準を年間配当に替えた例">
-    <div class="hrow"><h2>年間配当(税引前)の例</h2></div>
+    <div class="hrow"><h2>年間配当(税引前)</h2></div>
     <div class="sum"><span class="state-note num">年間配当(税引前)の比率・合計 ¥3,969,907・保有全体</span></div>
 <div class="rows">
       <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">99.1% ・ NISA</span></div><span class="amt num">¥3,933,907</span></div>
@@ -134,12 +139,12 @@ table.grid{width:100%}
     <div class="hrow"><h2>状態の例</h2></div>
     <p class="subhead">空</p>
     <div class="rows"><div class="row"><div class="left"><div class="name">データがありません</div><span class="sub">保有残高をCSVで登録すると表示されます</span></div></div></div>
-    <p class="subhead">算出不可(基準額0など)</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">算出不可</div><span class="sub">合計が0のため割合を出せません</span></div><span class="amt num">—</span></div></div>
     <p class="subhead">読み込み中</p>
     <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
     <p class="subhead">取得失敗</p>
     <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+    <p class="subhead">算出不可の例</p>
+    <div class="rows"><div class="row"><div class="left"><div class="name">算出不可</div><span class="sub">合計が0のため割合を出せません</span></div><span class="amt num">—</span></div></div>
   </section><nav class="bottomnav" aria-label="下ナビ">
   <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg>ホーム</a>
   <a class="here" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-8"/><path d="M22 20H2"/></svg>資産管理</a>
@@ -147,7 +152,7 @@ table.grid{width:100%}
   <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>銘柄検索</a>
 </nav></div>
 <script>
-try{const t=new URLSearchParams(location.search).get('theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
+try{const t=new URLSearchParams(location.search).get('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}
 </script>
 </body>
 </html>
