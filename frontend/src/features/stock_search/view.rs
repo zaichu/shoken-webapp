@@ -227,8 +227,6 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
     }
 }
 
-/// 検索結果の本文に載せる状態。表示の優先順は
-/// [`resolve_search_body_state`] の1か所にまとめる
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SearchBodyState {
     SearchFailed,
