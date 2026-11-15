@@ -113,7 +113,7 @@ fn receipt_sheet_draft_apply_matches_direct_filter() {
         let search = RwSignal::new(ReceiptSearch::new(true));
         let mut draft = ReceiptSearch::new(true);
         draft.set_securities_query("9904".to_string());
-        super::action_bar::apply_receipt_sheet_draft(search, &draft);
+        super::action_bar::dialog::apply_receipt_sheet_draft(search, &draft);
         let rows = dividends();
         let query = search.with(|s| s.query.clone());
         let applied = filter_receipts(ReceiptsTab::Dividend, &rows, &query);
@@ -136,7 +136,7 @@ fn receipt_dialog_clear_resets_search() {
             );
             search
         });
-        super::action_bar::clear_receipt_dialog_draft(draft, true);
+        super::action_bar::dialog::clear_receipt_dialog_draft(draft, true);
         assert!(draft.with(|s| s.query.is_empty()));
     });
 }
@@ -158,15 +158,15 @@ fn receipt_sort_order_round_trips() {
 #[test]
 fn receipt_sheet_date_label_matches_tab() {
     assert_eq!(
-        super::action_bar::receipt_date_label(ReceiptsTab::Dividend),
+        super::action_bar::dialog::receipt_date_label(ReceiptsTab::Dividend),
         PAYMENT_DATE
     );
     assert_eq!(
-        super::action_bar::receipt_date_label(ReceiptsTab::DomesticStock),
+        super::action_bar::dialog::receipt_date_label(ReceiptsTab::DomesticStock),
         TRADE_DATE
     );
     assert_eq!(
-        super::action_bar::receipt_date_label(ReceiptsTab::MutualFund),
+        super::action_bar::dialog::receipt_date_label(ReceiptsTab::MutualFund),
         TRADE_DATE
     );
 }
@@ -1045,7 +1045,7 @@ fn single_specific_row_keeps_band_group_and_row_after_tax_equal() {
 
 #[test]
 fn condition_count_covers_structured_filters_only() {
-    use super::action_bar::condition_count;
+    use super::action_bar::condition::condition_count;
     use crate::features::receipts::filter::{ReceiptSearch, SearchKey};
 
     let mut search = ReceiptSearch::new(false);
@@ -1412,4 +1412,70 @@ fn detail_dialog_keeps_aux_amounts_removed_from_row() {
             "{tab:?}: ダイアログは行と同じ補助の金額"
         );
     }
+}
+
+#[test]
+fn period_draft_apply_carries_segment_and_inputs_to_search() {
+    use super::action_bar::popover::apply_period_draft;
+    use crate::features::receipts::filter::{DateSegment, ReceiptSearch};
+    let owner = Owner::new();
+    owner.with(|| {
+        let search = RwSignal::new(ReceiptSearch::new(true));
+        let mut draft = ReceiptSearch::new(true);
+        draft.change_date_segment(DateSegment::Month);
+        draft.select_year("2024".to_string());
+        draft.date_inputs.month_value = "06".to_string();
+        draft.set_date_query("2024-06".to_string());
+        apply_period_draft(search, &draft, true);
+        search.with(|s| {
+            assert!(!s.date_all);
+            assert_eq!(s.date_segment, DateSegment::Month);
+            assert_eq!(s.date_inputs.year_value, "2024");
+            assert_eq!(s.date_inputs.month_value, "06");
+            assert_eq!(s.selected_queries.date, "2024-06");
+            assert!(s.query.contains("2024-06"));
+        });
+    });
+}
+
+#[test]
+fn period_draft_apply_with_all_clears_date_condition() {
+    use super::action_bar::popover::apply_period_draft;
+    use crate::features::receipts::filter::{ReceiptSearch, SearchKey};
+    let owner = Owner::new();
+    owner.with(|| {
+        let search = RwSignal::new({
+            let mut initial = ReceiptSearch::new(true);
+            initial.set_date_query("2024".to_string());
+            initial
+        });
+        let mut draft = ReceiptSearch::new(true);
+        draft.clear_key(SearchKey::Date, true);
+        assert!(draft.date_all);
+        apply_period_draft(search, &draft, true);
+        search.with(|s| {
+            assert!(s.date_all);
+            assert!(s.selected_queries.date.is_empty());
+            assert!(!s.query.contains("2024"));
+        });
+    });
+}
+
+#[test]
+fn date_tag_text_splits_range_ends_into_parts() {
+    use super::action_bar::search_row::date_tag_text;
+    let full = date_tag_text("2024..2025");
+    assert!(full.contains("2024"));
+    assert!(full.contains("2025"));
+    let until = date_tag_text("..2025");
+    assert!(!until.contains("2024"));
+    assert!(until.contains("2025"));
+    let from = date_tag_text("2024..");
+    assert!(from.contains("2024"));
+    assert!(!from.contains("2025"));
+    assert_ne!(full, until);
+    assert_ne!(full, from);
+    assert_ne!(until, from);
+    assert!(date_tag_text("2024").contains("2024"));
+    assert_eq!(date_tag_text(""), "");
 }
