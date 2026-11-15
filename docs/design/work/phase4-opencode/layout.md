@@ -130,6 +130,6 @@
 ## 未確認
 
 - 本番ブラウザでの実表示の確認はしていない(見本は Phase 3 の HTML・PNG の目視のみ)。
-- Codex 担当の `tokens.css`(`docs/design/work/phase4-codex/tokens.css`)は本書執筆時点で未作成のため、トークンの根拠は現行の `frontend/style/input.css` に寄せた。Codex の成果物が出たら突き合わせる。
+- Codex 担当の `tokens.css`(`docs/design/work/phase4-codex/tokens.css`)は共有トークンとして確定し、Phase 5 両担当の `html/tokens.css` とバイト同一であることを `cmp` で確認した。Phase 4 OpenCode の抜粋(`docs/design/work/phase4-opencode/tokens.css`)との対応は同ファイル先頭の対応表を正とし、新規実装は共有トークンの名前・値を正とする。共有トークンの `--page` に対する抜粋の `--color-page` 等の名前差と、ダーク正数色の値差(抜粋 `#53d28a` に対し共有 `#7ce8ab` を正)は、Phase 4 見本の表示を変えないため抜粋側に残す(高-2 対応済み)。
 - マスター・ディテール(PC 詳細パネル)の操作後状態(行選択・フォーカス移動・Esc)の実機確認はしていない。フォーカス可視性・キーボード操作は実装時に `frontend/README.md:114-122` の a11y 決まりで確かめる。
 - 1024〜1279px の表の収まり(`input.css:1121-1127` の調整)の実機確認はしていない。

@@ -7,48 +7,50 @@
 <link rel="stylesheet" href="./tokens.css">
 <style>
   body { background: var(--color-page); color: var(--color-text-deep); font-family: var(--font-sans); margin: 0; line-height: 1.5; }
-  .page { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
-  .topbar { background: var(--color-brand); color: var(--color-text-inverse); padding: 12px 16px; }
-  .topbar .inner { max-width: 960px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .topbar h1 { font-size: 17px; margin: 0; }
-  .topbar button { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--color-brand-muted); background: transparent; color: var(--color-text-inverse); font-size: 13px; }
-  .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; margin-top: 16px; }
-  .card h2 { font-size: 15px; margin: 0 0 8px; }
-  .card p.note { font-size: 12px; color: var(--color-text-muted); margin: 0 0 12px; }
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .page { max-width: 960px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-16); }
+  .topbar { background: var(--color-brand); color: var(--color-text-inverse); padding: var(--space-3) var(--space-4); }
+  .topbar .inner { max-width: 960px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+  .topbar h1 { font-size: var(--text-md); margin: 0; }
+  .topbar button { min-height: 44px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-brand-muted); background: transparent; color: var(--color-text-inverse); font-size: var(--text-sm); }
+  .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-4); margin-top: var(--space-4); }
+  .card h2 { font-size: var(--text-md); margin: 0 0 var(--space-2); }
+  .card p.note { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 var(--space-3); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
   @media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
-  .good, .bad { border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; background: var(--color-surface-sunken); }
-  .good { border-left: 4px solid var(--color-positive); }
-  .bad { border-left: 4px solid var(--color-negative); }
-  .tag { display: inline-block; font-size: 12px; font-weight: bold; border-radius: 999px; padding: 2px 10px; margin-bottom: 8px; }
+  .good, .bad { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); background: var(--color-surface-sunken); }
+  .good { border-left: var(--space-1) solid var(--color-positive); }
+  .bad { border-left: var(--space-1) solid var(--color-negative); }
+  .tag { display: inline-block; font-size: var(--text-xs); font-weight: bold; border-radius: var(--radius-pill); padding: var(--space-1) var(--space-2); margin-bottom: var(--space-2); }
   .good .tag { background: var(--color-positive-soft); color: var(--color-positive); }
   .bad .tag { background: var(--color-negative-soft); color: var(--color-negative-vivid); }
   .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-  table.nums { width: 100%; border-collapse: collapse; font-size: 14px; }
-  table.nums th { font-size: 12px; color: var(--color-text-soft); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--color-border-strong); }
+  .note-line { font-size: var(--text-sm); }
+  .note-line-xs { font-size: var(--text-xs); }
+  table.nums { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  table.nums th { font-size: var(--text-xs); color: var(--color-text-soft); text-align: left; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--color-border-strong); }
   table.nums th.r, table.nums td.r { text-align: right; }
-  table.nums td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); }
+  table.nums td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--color-border); }
   .pos { color: var(--color-positive); }
   .neg { color: var(--color-negative); }
-  .band { background: var(--color-brand); color: var(--color-text-inverse); border-radius: 10px; padding: 16px; display: flex; gap: 24px; flex-wrap: wrap; }
-  .band .item .lb { font-size: 12px; color: var(--color-brand-muted); }
-  .band .item .vl { font-size: 24px; font-weight: bold; }
+  .band { background: var(--color-brand); color: var(--color-text-inverse); border-radius: var(--radius-lg); padding: var(--space-4); display: flex; gap: var(--space-6); flex-wrap: wrap; }
+  .band .item .lb { font-size: var(--text-xs); color: var(--color-brand-muted); }
+  .band .item .vl { font-size: var(--text-2xl); font-weight: bold; }
   .band .pos { color: var(--color-profit-bright); }
   .band .neg { color: var(--color-loss-bright); }
-  .bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; border-bottom: 2px solid var(--color-border-strong); padding-top: 8px; }
-  .bars .b { flex: 1; background: var(--color-chart-3); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .bars { display: flex; align-items: flex-end; gap: var(--space-1); height: 120px; border-bottom: 2px solid var(--color-border-strong); padding-top: var(--space-2); }
+  .bars .b { flex: 1; background: var(--color-chart-3); border-radius: var(--radius-sm) var(--radius-sm) 0 0; min-height: 2px; }
   .bars .b.zero { background: var(--color-border-strong); }
   .bars .b.prev { background: var(--color-chart-previous); }
   .donut { width: 120px; height: 120px; border-radius: 50%; background: conic-gradient(var(--color-chart-1) 0 63.1%, var(--color-chart-2) 63.1% 100%); position: relative; flex: none; }
   .donut::after { content: ""; position: absolute; inset: 30px; background: var(--color-surface); border-radius: 50%; }
-  .months { display: flex; gap: 4px; font-size: 11px; color: var(--color-text-muted); }
+  .months { display: flex; gap: var(--space-1); font-size: var(--text-xs); color: var(--color-text-muted); }
   .months span { flex: 1; text-align: center; }
-  .legend { font-size: 13px; margin-top: 8px; }
-  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
-  .donut-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-  .status { font-size: 13px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 8px; margin-top: 8px; background: var(--color-surface); }
-  .grouphead { background: var(--color-row-group); border-left: 3px solid var(--color-gold); padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 0 8px 8px 0; margin-top: 8px; }
-  footer { margin-top: 24px; font-size: 12px; color: var(--color-text-muted); }
+  .legend { font-size: var(--text-sm); margin-top: var(--space-2); }
+  .sw { display: inline-block; width: var(--space-2); height: var(--space-2); border-radius: var(--radius-sm); margin-right: var(--space-1); }
+  .donut-row { display: flex; gap: var(--space-4); align-items: center; flex-wrap: wrap; }
+  .status { font-size: var(--text-sm); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-top: var(--space-2); background: var(--color-surface); }
+  .grouphead { background: var(--color-row-group); border-left: 3px solid var(--color-gold); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); font-weight: bold; border-radius: 0 var(--radius-md) var(--radius-md) 0; margin-top: var(--space-2); }
+  footer { margin-top: var(--space-6); font-size: var(--text-xs); color: var(--color-text-muted); }
 </style>
 </head>
 <body>
@@ -57,7 +59,7 @@
   <button id="theme" type="button">ダーク/ライト切替</button>
 </div></div>
 <div class="page">
-  <p class="note" style="font-size:13px">架空データ(9900 番台・規則的な値)。合計は一致させている。基礎トークンは <code>tokens.css</code>(正本 <code>frontend/style/input.css</code> の抜粋)。良い例・悪い例の対で示す。</p>
+  <p class="note note-line">架空データ(9900 番台・規則的な値)。合計は一致させている。基礎トークンは <code>tokens.css</code>(正本 <code>frontend/style/input.css</code> の抜粋)。良い例・悪い例の対で示す。</p>
 
   <div class="card"><h2>1. 数値:桁区切り・右そろえ・等幅 / 小数桁 / 全桁表示</h2>
     <p class="note">finance-data.md §1。Amount + format_currency。¥28.6M のような省略は使わない。</p>
@@ -99,12 +101,12 @@
     <p class="note">finance-data.md §3。price_as_of + home_import_label。10/20 のような年なし表記は使わない。</p>
     <div class="pair">
       <div class="good"><span class="tag">良い例</span>
-        <div class="num" style="font-size:13px">価格基準日 2026/10/20 ・ データ:2026/10/21 取り込み</div>
-        <div class="num" style="font-size:13px">月別配当金(税引後)(2026/01 〜 2026/12)</div>
+        <div class="num note-line">価格基準日 2026/10/20 ・ データ:2026/10/21 取り込み</div>
+        <div class="num note-line">月別配当金(税引後)(2026/01 〜 2026/12)</div>
       </div>
       <div class="bad"><span class="tag">悪い例</span>
-        <div class="num" style="font-size:13px">10/20 時点(何の時点か・何年か分からない)</div>
-        <div class="num" style="font-size:13px">データ:10/21 取り込み(価格基準日と混ざる)</div>
+        <div class="num note-line">10/20 時点(何の時点か・何年か分からない)</div>
+        <div class="num note-line">データ:10/21 取り込み(価格基準日と混ざる)</div>
       </div>
     </div>
   </div>
@@ -124,14 +126,14 @@
     <p class="note">finance-data.md §5。曲線禁止。凡例は色+名前+金額+割合。前年は比較色。</p>
     <div class="pair">
       <div class="good"><span class="tag">良い例(棒+凡例)</span>
-        <div class="num" style="font-size:12px">月別配当金(税引後)(2026/01 〜 2026/12)・合計 ¥300,000(単一の系列)</div>
+        <div class="num note-line-xs">月別配当金(税引後)(2026/01 〜 2026/12)・合計 ¥300,000(単一の系列)</div>
         <div class="bars" role="img" aria-label="2026年の月別配当金(税引後)の棒グラフ">
           <div class="b" style="height:20%"></div><div class="b zero" style="height:2%"></div><div class="b" style="height:74%"></div><div class="b" style="height:13%"></div><div class="b" style="height:25%"></div><div class="b" style="height:36%"></div><div class="b" style="height:30%"></div><div class="b" style="height:15%"></div><div class="b" style="height:62%"></div><div class="b" style="height:20%"></div><div class="b" style="height:98%"></div><div class="b" style="height:100%"></div>
         </div>
         <div class="months"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span></div>
         <div class="legend"><span class="sw" style="background:var(--color-chart-3)"></span>配当金(税引後) 合計 ¥300,000</div>
         <p class="note">単一の系列のため棒は1色(`chart-3`)。資産構成の系列色(`chart-1`/`chart-2`)は使わない。読み上げは「2026年の月別配当金(税引後)」(単一年度のため `home_monthly_aria` は使わない)。ホームの2年比較グラフでは `home_monthly_aria`「月別の税引後配当(2026年と2025年)」を使い、凡例「■ 2026年(実績) □ 2025年(前年)」と合わせる。</p>
-        <div class="num" style="font-size:12px;margin-top:12px">資産構成(評価額基準)・合計 ¥3,345,000</div>
+        <div class="num note-line-xs" style="margin-top:var(--space-3)">資産構成(評価額基準)・合計 ¥3,345,000</div>
         <div class="donut-row">
           <div class="donut" role="img" aria-label="資産構成の円グラフ"></div>
           <div class="legend"><span class="sw" style="background:var(--color-chart-1)"></span>国内株式 ¥2,111,000 63.1%<br><span class="sw" style="background:var(--color-chart-2)"></span>投資信託 ¥1,234,000 36.9%</div>
@@ -139,8 +141,8 @@
         <p class="note">構成は円グラフ+凡例(金額と割合)。円の色・順序と凡例を一致させる。</p>
       </div>
       <div class="bad"><span class="tag">悪い例</span>
-        <div class="num" style="font-size:12px">月別配当金(税引後)(期間なし・合計なし)</div>
-        <div class="num" style="font-size:13px">12か月を滑らかな曲線で結ぶ(月と月の間に値があるように誤読)</div>
+        <div class="num note-line-xs">月別配当金(税引後)(期間なし・合計なし)</div>
+        <div class="num note-line">12か月を滑らかな曲線で結ぶ(月と月の間に値があるように誤読)</div>
         <div class="legend"><span class="sw" style="background:var(--color-chart-1)"></span>国内株式 63%　<span class="sw" style="background:var(--color-chart-2)"></span>架空グロー…(金額なし・省略で識別不能)</div>
       </div>
     </div>

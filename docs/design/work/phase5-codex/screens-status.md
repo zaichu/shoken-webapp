@@ -11,7 +11,7 @@
 | 画面・状態 | 状況 | HTML | PC / スマホ画像 | 備考 |
 |---|---|---|---|---|
 | ホーム | デザイン済み | [home.html](html/home.html) | [PC](shots/home-pc.png) / [スマホ](shots/home-mobile.png) / [ダーク](shots/home-dark.png) | 集計帯、配当、資産構成、最近の配当(明細行の新しい順の上位 2 行) |
-| 資産管理・すべて | デザイン済み | [assets.html](html/assets.html) | [PC](shots/assets-pc.png) / [スマホ](shots/assets-mobile.png) / [ダーク](shots/assets-dark.png) | 一覧・詳細パネル |
+| 資産管理・すべて | デザイン済み | [assets.html](html/assets.html) | [PC](shots/assets-pc.png) / [スマホ](shots/assets-mobile.png) / [ダーク](shots/assets-dark.png) | 一覧・詳細パネル。投信の評価損益は fixtures 由来の ¥0 を符号なし・色なしで表示。投信行コード欄の「—」はコードなしの正規表示で、欠測 `MISSING` の「—」(価格・損益の未取得)とは別 |
 | 資産管理・国内株式 | デザイン済み | [assets.html#stocks](html/assets.html#stocks) | [PC](shots/assets-pc.png) / [スマホ](shots/assets-mobile.png) | 2件の行と小計を表示 |
 | 資産管理・投資信託 | デザイン済み | [assets.html#funds](html/assets.html#funds) | [PC](shots/assets-pc.png) / [スマホ](shots/assets-mobile.png) | 1件の行と小計を表示 |
 | 構成比・評価額基準 | デザイン済み | [composition.html](html/composition.html) | [PC](shots/composition-pc.png) / [スマホ](shots/composition-mobile.png) / [ダーク](shots/composition-dark.png) | クラス別の評価額・割合 |
@@ -28,4 +28,4 @@
 - 全体評価額 ¥28,593,148 = 国内株式 ¥9,149,807 + 投資信託 ¥19,443,341。
 - 画面案の評価額・取得総額・損益等の検算は [data-check.md](data-check.md)。
 - 配当明細 18 行・株式売買 3 行・投信解約 2 行を fixtures に持ち、月別合計・年合計・件数を検算。ホームの最近の配当は明細の新しい順の上位 2 行。
-- 画像は架空データで build.mjs 生成後に撮り直し済み(各 120KB 以下)。数値の出典は data/fixtures.json、派生値の検算は `npm run build`(node data/build.mjs)。OpenCode 側の生成は `npm run build`(docs/design/work/phase5-opencode で node data/build-opencode.mjs)。
+- 画像は架空データで build.mjs 生成後に撮り直し済み(各 120KB 以下。Phase 7 で全28枚を撮り直し)。数値の出典は data/fixtures.json、派生値の検算は `npm run build`(node data/build.mjs)。OpenCode 側の生成は `npm run build`(docs/design/work/phase5-opencode で node data/build-opencode.mjs)。

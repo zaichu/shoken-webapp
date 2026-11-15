@@ -23,6 +23,9 @@ Phase 3 の採用方針に従い、C の上部ナビゲーションと要点の�
 | light | `--error` `#9f2d25` / `--negative-soft` `#fdecea` | 6.38:1 | |
 | light | `--info` `#1d4ed8` / `--info-soft` `#eff4ff` | 6.08:1 | |
 | light | `--on-error` `#ffffff` / `--error` `#9f2d25` | 7.30:1 | |
+| light | `--on-brand` `#ffffff` / `--brand` `#0f2a4a` | 14.48:1 | |
+| light | `--on-brand-positive` `#8fe2bc` / `--brand` `#0f2a4a` | 9.50:1 | |
+| light | `--on-brand-negative` `#fdecea` / `--brand` `#0f2a4a` | 12.66:1 | |
 | dark | `--text` `#f2f5fa` / `--page` `#0b1220` | 17.13:1 | |
 | dark | `--text` `#f2f5fa` / `--surface` `#121b2c` | 15.77:1 | |
 | dark | `--text-muted` `#c2cddf` / `--surface` `#121b2c` | 10.74:1 | |
@@ -34,6 +37,9 @@ Phase 3 の採用方針に従い、C の上部ナビゲーションと要点の�
 | dark | `--error` `#f5a49b` / `--negative-soft` `#3a1d1c` | 7.77:1 | |
 | dark | `--info` `#a9c4fa` / `--info-soft` `#16233f` | 8.89:1 | |
 | dark | `--on-error` `#111827` / `--error` `#f5a49b` | 9.01:1 | |
+| dark | `--on-brand` `#ffffff` / `--brand` `#0f2a4a` | 14.48:1 | |
+| dark | `--on-brand-positive` `#7ce8ab` / `--brand` `#0f2a4a` | 9.64:1 | |
+| dark | `--on-brand-negative` `#f5a49b` / `--brand` `#0f2a4a` | 7.35:1 | |
 
 紺面の上の白文字は 14.48:1。フォーカスリングは明テーマ `#1d4ed8`、暗テーマ `#a9c4fa` を使い、3px 幅で表示する。罫線やグラフ記号など非テキストの識別では 3:1 を確保する。
 
@@ -43,7 +49,7 @@ Phase 3 の採用方針に従い、C の上部ナビゲーションと要点の�
 
 ## 余白・角丸・影
 
-4px 基準の `--space-*` を使う。スマホ左右余白は 16px。角丸は小 4px、標準 8px、大 12px、ピル形とする。影はカードと重ね合わせ面に限定し、境界線を消す用途にしない。
+4px 基準の `--space-*` を使う。スマホ左右余白は 16px。角丸は小 4px、標準 8px、大 12px、ピル形とする。影はカードと重ね合わせ面に限定し、境界線を消す用途にしない。月別棒グラフの月軸ラベルは `--text-xs`(12px)を下限とし、11px 以下は使わない。スマホ幅で 12 か月が潰れる場合は偶数月のみ表示する間引き(奇数月ラベルを非表示)を使い、金額ブロックは `white-space:nowrap` で符号と金額の分断を防ぐ(H-5 対応)。
 
 ## グリッドと幅
 

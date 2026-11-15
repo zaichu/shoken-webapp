@@ -3,7 +3,7 @@ import re
 
 root = Path(__file__).resolve().parents[1]
 tokens = (root / "tokens.css").read_text()
-pairs = [("text", "page"), ("text", "surface"), ("text-muted", "surface"), ("accent", "surface"), ("positive", "surface"), ("negative", "surface"), ("success", "positive-soft"), ("warning", "warning-soft"), ("error", "negative-soft"), ("info", "info-soft"),  ("on-error", "error")]
+pairs = [("text", "page"), ("text", "surface"), ("text-muted", "surface"), ("accent", "surface"), ("positive", "surface"), ("negative", "surface"), ("success", "positive-soft"), ("warning", "warning-soft"), ("error", "negative-soft"), ("info", "info-soft"),  ("on-error", "error"), ("on-brand", "brand"), ("on-brand-positive", "brand"), ("on-brand-negative", "brand")]
 names = sorted({name for pair in pairs for name in pair})
 
 def colors(theme):

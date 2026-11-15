@@ -1,7 +1,10 @@
 /* Phase 4 見本ページ用のトークン抜粋。
- * 正本は frontend/style/input.css の @theme。本書執筆時点で
- * Codex 担当の docs/design/work/phase4-codex/tokens.css は未作成のため、
- * 現行トークンの値を写した(参照元を行末に記す)。Codex の成果物が出たら差し替える。 */
+ * 正本は frontend/style/input.css の @theme(参照元を行末に記す)。
+ * 共有トークンは docs/design/work/phase4-codex/tokens.css(= Phase 5 両担当の html/tokens.css とバイト同一)が正。
+ * 対応: --color-page→--page、--color-surface→--surface、--color-text-deep/--color-text→--text、
+ * --color-text-muted/--color-text-soft→--text-muted、--color-brand→--brand、--color-accent→--accent、
+ * ダーク正数色は現行抜粋 #53d28a に対し共有 #7ce8ab を正とする(Phase 7 で現行値のまま残すと決めた差分)。
+ * 本ファイルは Phase 4 見本専用の抜粋として残し、新規実装は共有トークンを使う。 */
 :root {
   color-scheme: light;
   --color-page: #f3f5f8; /* input.css:6 */
@@ -39,6 +42,11 @@
   --color-chart-5: #c9d3e1; /* input.css:117 (var(--color-brand-muted)) */
   --color-chart-previous: #64748b; /* input.css:119 */
   --font-sans: 'Noto Sans JP', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif; /* input.css:156 */
+  --text-xs: .75rem; --text-sm: .875rem; --text-md: 1rem; /* 共有 tokens.css と同値(追加判断。高-1) */
+  --text-lg: 1.125rem; --text-xl: 1.25rem; --text-2xl: 1.5rem; /* 共有 tokens.css と同値(追加判断。高-1) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px; /* 共有 tokens.css と同値(追加判断。高-1) */
+  --content-max: 1440px; /* 共有 tokens.css と同値(追加判断。高-1) */
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px; --radius-pill: 999px; /* 共有 tokens.css と同値(追加判断。高-1) */
 }
 :root[data-theme="dark"] {
   color-scheme: dark;

@@ -6,7 +6,7 @@
 
 - 正本: `docs/design/work/phase4-codex/tokens.css`(Phase 5 両担当でバイト同一。`cmp` 終了コード0)。Phase 4 OpenCode の `docs/design/work/phase4-opencode/tokens.css` は Codex 作成前の現行抜粋であり、名前(`--color-page` 対 `--page` 等)とダーク正数色(`#53d28a` 対 `#7ce8ab`)が異なるため、新規実装は Codex 側の名前・値を正とする。差分整理は `review-results.md` の高-2 に記録。
 - 対応表: `docs/design/work/phase4-codex/foundations.md`(現行 `frontend/style/input.css:5-154,220-300` との対応表あり)。
-- 未解決(実装時に決める): 帯上の損失色トークンなし(現行案は増加色と同一・直書き `#8fe2bc`。高-3)、系列色のテーマ不変対応(M-1)、11px 等の直書き残り(M-7)。いずれも `review-results.md` に繰越。
+- 未解決(実装時に決める): 系列色のテーマ不変対応(M-1)、11px 等の直書き残り(M-7)。帯上の損失色は Phase 7 で `--on-brand-negative`/`--on-brand-positive` を追加し light/dark とも 4.5:1 を検算済み(高-3 対応)。いずれも `review-results.md` に記録。
 - 見本: `docs/design/work/phase4-codex/html/foundations.html`(shots 8枚: `docs/design/work/phase4-codex/shots/foundations-pc-light.png` 他)。
 
 ## 2. 部品
@@ -20,16 +20,15 @@
 
 - 正本: `docs/design/work/phase4-opencode/finance-data.md`。見本 `docs/design/work/phase4-opencode/finance.html`(shots 3枚: `docs/design/work/phase4-opencode/shots/finance-pc-light.png` 他)。
 - 要点: 3桁区切り・右揃え・`tabular-nums`(本文書体のまま。`font-mono` は使わない。`frontend/README.md:166`)、整数円・列内小数桁揃え・率は2桁、単位は `labels.rs` 関数、省略形(`¥28.6M`)禁止・全文表示、損益は符号+色・残高は符号なし・税額は出ていくお金として `-¥`+赤、0は `¥0`(符号・色なし)・欠測は `—`(`MISSING`)で混ぜない、時点は取込日と価格基準日を別ラベル年付き、合計と内訳の一致(不一致は不具合)、月次は棒・構成は円+凡例(金額+割合)・6系列以降は「ほか◯件」、状態名と時点を分離。
-- 注意: Phase 4 OpenCode の数値例(評価額 ¥3,345,000、配当 ¥300,000)は本書内の共通例であり Phase 5 fixtures(¥28,593,148、¥3,163,438)とは別データ。混同しないこと(Phase 6 低-7相当)。Phase 5 の実装値は fixtures を正とする。
-- 未解決: `font-mono` 指定が共有 CSS(`tokens.css:9,34`)と OpenCode `site.css` に残り規則と矛盾(高-3相当)。実装時に本文書体+`tabular-nums` に統一する。
+- 注意: Phase 4 OpenCode の数値例(評価額 ¥3,345,000、配当 ¥300,000)は本書内の共通例であり Phase 5 fixtures(¥28,593,148、¥3,163,438)とは別データ。混同しないこと(Phase 6 低-7相当)。Phase 5 の実装値は fixtures を正とする。金額の `font-mono` 指定は Phase 7 で共有 CSS と OpenCode `site.css` から除去し本文書体+`tabular-nums` に統一済み(高-3 対応)。
 
 ## 4. レイアウト規則
 
 - 正本: `docs/design/work/phase4-opencode/layout.md`。型の正本は `docs/design/mobile-ui-rules.md`・`docs/ui-design.md`。
 - 要点: 画面の型は上バー→戻る→タブ→集計帯→注記→検索入口→一覧/詳細/フォーム→フッター→下部ナビ(スマホのみ)の順で変えない。切替点は 1024px(`lg`)のみ。PC(1280〜)の資産・明細に右詳細パネル。スマホは1カラム・帯は全幅・表は出さない・タブは下線+スワイプ。画面ごとの配置(ホーム・資産・明細・検索・CSV・設定・管理者)は `layout.md` §3 が正本。
-- 未解決: スマホ集計帯の符号分断・月軸11px潰れ(H-5)、並べ替え UI の重なり(M-6)、条件チップ・件数なし(M-10)。実装時に直す。
+- 未解決: 並べ替え UI の重なり(M-6)、条件チップ・件数なし(M-10)。スマホ集計帯の符号分断・月軸11px潰れ(H-5)は Phase 7 で修正済み(集計帯 `nowrap`・月軸12px+偶月間引き)。
 
 ## 5. 既知の矛盾と正の扱い
 
 - 用語: work 内の表記ゆれは `labels.rs` を正とする(例: 「年間配当」→`ANNUAL_EXPECTED_DIVIDEND`「年間予想配当(税引前)」、「年間配当(1株)」→`PER_SHARE_DIVIDEND`「1株配当」、投信「価格基準日」→`BASE_PRICE_AS_OF`「基準価額の基準日」、空・エラー文言→`ASSET_EMPTY_TITLE`・`API_DATA_LOAD_FAILED` 系)。一覧は `review-results.md` M-2 に記録。
-- アクセシビリティ: ダイアログの `role`・`aria`・フォーカス・Esc は Phase 5 時点で Codex 側なし・OpenCode 側は危険操作のみ部分的(高-4・H-4)。実装時に一元化する。
+- アクセシビリティ: ダイアログの `role`・`aria`・フォーカス・Esc は Phase 7 で見本に反映(Codex 側2ダイアログに `role="dialog"` 等とキーボード注記、OpenCode 側危険操作7件に `aria-describedby` とキーボード注記)。実装時の一元化は `implementation-plan.md` で扱う。
