@@ -47,8 +47,7 @@ body{margin:0; background:var(--page); color:var(--ink);
 .top .row1{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0}
 .top .brand{font-weight:700; white-space:nowrap}
 .top .ops{display:flex; align-items:center; gap:10px}
-.top .csv{font-size:13px; border:1px solid var(--btn-border); border-radius:6px; padding:6px 12px; white-space:nowrap; background:transparent; color:var(--ink)}
-.top .avatar{width:30px; height:30px; border-radius:50%; background:var(--gold); color:var(--band); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none}
+.top .account{font-size:13px; color:var(--mut); white-space:nowrap}
 .top nav{display:flex; gap:20px; font-size:14px; padding-bottom:10px}
 .top nav span{white-space:nowrap; color:var(--mut)}
 .top nav .here{color:var(--ink); font-weight:700; border-bottom:2px solid var(--gold); padding-bottom:8px}
@@ -67,6 +66,9 @@ body{margin:0; background:var(--page); color:var(--ink);
 /* idea4 の型: 見出し→要約→明細 */
 section{padding:36px 0 8px; border-top:1px solid var(--line); margin-top:36px}
 section h2{font-size:13px; font-weight:700; margin:0; white-space:nowrap}
+.hrow{display:flex; justify-content:space-between; align-items:baseline; gap:16px}
+.hrow .more{font-size:13px; color:var(--accent); white-space:nowrap}
+.cap{font-size:12px; color:var(--mut); margin:18px 0 0}
 .sum{display:flex; justify-content:space-between; align-items:baseline; gap:16px; margin:10px 0 0}
 .sum .label{font-size:13px; color:var(--mut); white-space:nowrap}
 .sum .amt{font-size:22px; font-weight:700; white-space:nowrap;
@@ -95,12 +97,13 @@ section h2{font-size:13px; font-weight:700; margin:0; white-space:nowrap}
 .bars .m{font-size:11px; color:var(--mut)}
 .m-axis{text-align:right; font-size:11px; color:var(--mut); margin-top:4px}
 .foot{margin-top:36px; padding-top:16px; border-top:1px solid var(--line); color:var(--mut); font-size:12px}
+.entry{display:flex; justify-content:space-between; align-items:center; gap:16px; margin-top:20px; padding:12px 0; border-top:1px solid var(--line); font-size:14px; color:var(--accent); white-space:nowrap}
 /* 現行の下ナビ(スマホだけ)。静的htmlの撮影で写り込まないようフロー配置 */
 .bottomnav{display:none}
 @media(max-width:720px){
   .top nav{display:none}
   .bottomnav{display:flex; background:var(--surface); border-top:1px solid var(--line)}
-  .bottomnav span{flex:1; text-align:center; font-size:12px; padding:12px 0 20px; color:var(--mut); white-space:nowrap}
+  .bottomnav span{flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; text-align:center; font-size:11px; padding:10px 0 16px; color:var(--mut); white-space:nowrap}
   .bottomnav .here{color:var(--accent); font-weight:700}
   .wrap{padding-bottom:40px}
 }
@@ -108,7 +111,7 @@ section h2{font-size:13px; font-weight:700; margin:0; white-space:nowrap}
 </head>
 <body>
 <header class="top"><div class="inner">
-  <div class="row1"><span class="brand">証券Web</span><span class="ops"><span class="csv">CSV管理</span><span class="avatar">ア</span></span></div>
+  <div class="row1"><span class="brand">証券Web</span><span class="ops"><span class="account">アカウント</span></span></div>
   <nav><span class="here">ホーム</span><span>資産管理</span><span>取引明細</span><span>銘柄検索</span></nav>
 </div></header>
 
@@ -122,20 +125,26 @@ section h2{font-size:13px; font-weight:700; margin:0; white-space:nowrap}
 
 <div class="wrap">
   <section>
-    <h2>資産の構成</h2>
+    <div class="hrow"><h2>資産の構成</h2><span class="more">資産管理 ›</span></div>
     <div class="sum"><span class="label">合計</span><span class="amt">¥28,593,148</span></div>
     <div class="bar100"><span class="a"></span><span class="b"></span></div>
     <div class="rows">
       <div class="row"><div class="left"><div class="name">投資信託</div><span class="sub">68.0% ・ 1件</span></div><span class="amt">¥19,443,341</span></div>
       <div class="row"><div class="left"><div class="name">国内株式</div><span class="sub">32.0% ・ 2件</span></div><span class="amt">¥9,149,807</span></div>
     </div>
+    <p class="cap">口座別(fixtures の口座区分: 特定口座・NISA の2区分)</p>
+    <div class="rows">
+      <div class="row"><div class="left"><div class="name">特定口座</div><span class="sub">72.2%</span></div><span class="amt">¥20,643,341</span></div>
+      <div class="row"><div class="left"><div class="name">NISA</div><span class="sub">27.8%</span></div><span class="amt">¥7,949,807</span></div>
+    </div>
   </section>
 
   <section>
-    <h2>今年の配当金(税引後)</h2>
+    <div class="hrow"><h2>今年の配当金(税引後)</h2><span class="more">取引明細で見る ›</span></div>
     <div class="sum"><span class="label">受取額</span><span class="amt">¥3,163,438</span></div>
     <div class="rows">
-      <div class="row"><div class="left"><div class="name">前年との比較</div><span class="sub">前年 ¥3,339,000 → 今年 +18.9%</span></div><span class="amt up">+¥630,907</span></div>
+      <div class="row"><div class="left"><div class="name">前年実績</div><span class="sub">2025年 ・ 税引前</span></div><span class="amt">¥3,339,000</span></div>
+      <div class="row"><div class="left"><div class="name">前年との差</div><span class="sub">+18.9%</span></div><span class="amt up">+¥630,907</span></div>
     </div>
     <div class="legend"><span><span class="sw" style="background:var(--bar-cur)"></span>2026年</span><span><span class="sw" style="background:var(--bar-prev)"></span>前年</span></div>
     <div class="bars">
@@ -160,19 +169,25 @@ section h2{font-size:13px; font-weight:700; margin:0; white-space:nowrap}
   </section>
 
   <section>
-    <h2>保有一覧</h2>
+    <div class="hrow"><h2>保有一覧</h2><span class="more">資産管理 ›</span></div>
     <div class="sum"><span class="label">合計(3件)</span><span class="amt">¥28,593,148</span></div>
     <div class="rows">
       <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub">100株 ・ +¥1,352,488 (+20.50%)</span></div><span class="amt">¥7,949,807</span></div>
       <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub">100株 ・ +¥200,000 (+20.00%)</span></div><span class="amt">¥1,200,000</span></div>
       <div class="row"><div class="left"><div class="name">— 架空成長インデックス・ファンド</div><span class="sub">10,000,000口 ・ ¥0 (0.00%)</span></div><span class="amt">¥19,443,341</span></div>
     </div>
+    <div class="entry"><span>CSVファイルの取り込み</span><span>›</span></div>
   </section>
 
   <div class="foot">数値は fixtures.json の架空データ。前年配当は同ファイルの previousYearDividends(2025年・税引前、合計 ¥3,339,000)。合計 ¥28,593,148 = 国内株式 ¥9,149,807 + 投資信託 ¥19,443,341。データ: 2026/11/14 取り込み。</div>
 </div>
 
-<nav class="bottomnav"><span class="here">ホーム</span><span>資産管理</span><span>取引明細</span><span>銘柄検索</span></nav>
+<nav class="bottomnav">
+<span class="here"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg>ホーム</span>
+<span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-8"/><path d="M22 20H2"/></svg>資産管理</span>
+<span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>取引明細</span>
+<span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>銘柄検索</span>
+</nav>
 <script>
 try{const t=new URLSearchParams(location.search).get('theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
 </script>
