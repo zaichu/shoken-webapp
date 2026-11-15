@@ -1,4 +1,8 @@
 <!doctype html>
+<!-- 現行ホーム(before/current-home-*.png)からの変更3点:
+  1. 紺の帯は残し、金額を右そろえの表にして内訳列で検算できる形にした
+  2. 配当は12か月バー+主要月だけの表に集約し、予想・達成率をなくした
+  3. 保有一覧に合計行を付け、口座別バーは削った -->
 <html lang="ja" data-theme="light">
 <head>
 <meta charset="utf-8">
@@ -53,6 +57,7 @@ th{font-size:12px; font-weight:500; color:var(--muted); text-align:left; padding
 td{padding:8px; border-bottom:1px solid var(--grid); vertical-align:top}
 tr:last-child td{border-bottom:none}
 .num{text-align:right; white-space:nowrap}
+.code{color:var(--muted); font-size:12px; margin-right:6px}
 td.num, td .n{font-weight:500}
 .sub{color:var(--muted); font-size:12px}
 .cols{display:grid; grid-template-columns:7fr 5fr; gap:20px}
@@ -75,6 +80,16 @@ td.num, td .n{font-weight:500}
   table{font-size:12.5px}
   th{white-space:nowrap}
   th, td{padding:7px 4px}
+  /* 保有一覧は縦積み(金額1行を保つ) */
+  table.holdings thead{display:none}
+  table.holdings, table.holdings tbody, table.holdings tr, table.holdings td{display:block}
+  table.holdings tr{border-bottom:1px solid var(--line); padding:8px 0}
+  table.holdings td{border:none; padding:3px 0; display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+  table.holdings td::before{content:attr(data-th); color:var(--muted); font-size:12px; flex:none}
+  table.holdings td[data-th=""]::before{content:none}
+  table.holdings td:empty{display:none}
+  .band .v{white-space:nowrap; font-size:clamp(20px,5.6vw,22px)}
+  .band .v.small{font-size:clamp(16px,4.8vw,19px)}
   .wrap{padding:0 12px 48px}
   .band .inner{padding:0 12px}
   .band .cell{flex:1 1 45%; padding:8px 12px 8px 0; border-left:none; border-top:1px solid rgba(255,255,255,.18)}
@@ -161,13 +176,13 @@ td.num, td .n{font-weight:500}
   <!-- 4 保有一覧 -->
   <div class="panel">
     <h2>保有一覧 <span class="r">3件 ・ 国内株式 2件 / 投資信託 1件</span></h2>
-    <div class="body"><table>
-      <thead><tr><th>コード</th><th>銘柄</th><th class="num">数量</th><th class="num hide-m">単価</th><th class="num">評価額</th><th class="num">評価損益</th><th class="num">損益率</th></tr></thead>
+    <div class="body"><table class="holdings">
+      <thead><tr><th>銘柄</th><th class="num">数量</th><th class="num hide-m">単価</th><th class="num">評価額</th><th class="num">評価損益</th><th class="num">損益率</th></tr></thead>
       <tbody>
-        <tr><td>9902</td><td>架空食品ホールディングス</td><td class="num">100株</td><td class="num hide-m">¥79,498.07</td><td class="num">¥7,949,807</td><td class="num up">+¥1,352,488</td><td class="num up">+20.50%</td></tr>
-        <tr><td>9901</td><td>架空青空電機</td><td class="num">100株</td><td class="num hide-m">¥12,000</td><td class="num">¥1,200,000</td><td class="num up">+¥200,000</td><td class="num up">+20.00%</td></tr>
-        <tr><td>—</td><td>架空成長インデックス・ファンド</td><td class="num">10,000,000口</td><td class="num hide-m">¥19,443.341</td><td class="num">¥19,443,341</td><td class="num">¥0</td><td class="num">0.00%</td></tr>
-        <tr><td colspan="4" class="sub">合計</td><td class="num"><strong>¥28,593,148</strong></td><td class="num up">+¥1,552,488</td><td class="num">+5.74%</td></tr>
+        <tr><td data-th="銘柄"><span class="code">9902 </span>架空食品ホールディングス</td><td class="num" data-th="数量">100株</td><td class="num hide-m" data-th="単価">¥79,498.07</td><td class="num" data-th="評価額">¥7,949,807</td><td class="num up" data-th="評価損益">+¥1,352,488</td><td class="num up" data-th="損益率">+20.50%</td></tr>
+        <tr><td data-th="銘柄"><span class="code">9901 </span>架空青空電機</td><td class="num" data-th="数量">100株</td><td class="num hide-m" data-th="単価">¥12,000</td><td class="num" data-th="評価額">¥1,200,000</td><td class="num up" data-th="評価損益">+¥200,000</td><td class="num up" data-th="損益率">+20.00%</td></tr>
+        <tr><td data-th="銘柄"><span class="code">— </span>架空成長インデックス・ファンド</td><td class="num" data-th="数量">10,000,000口</td><td class="num hide-m" data-th="単価">¥19,443.341</td><td class="num" data-th="評価額">¥19,443,341</td><td class="num" data-th="評価損益">¥0</td><td class="num" data-th="損益率">0.00%</td></tr>
+        <tr class="total"><td data-th="">合計</td><td class="num" data-th=""></td><td class="num hide-m" data-th=""></td><td class="num" data-th="評価額">¥28,593,148</td><td class="num up" data-th="評価損益">+¥1,552,488</td><td class="num" data-th="損益率">+5.74%</td></tr>
       </tbody>
     </table>
     <div class="sub" style="padding:10px 8px 6px">最近の配当入金: 2026/12/24 9901 ¥10,957(税引後) ・ 2026/12/10 9901 ¥23,905(税引後)</div></div>

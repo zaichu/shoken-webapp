@@ -1,4 +1,8 @@
 <!doctype html>
+<!-- 現行ホーム(before/current-home-*.png)からの変更3点:
+  1. 紺の3分割集計帯をやめ、白地に評価額1点だけを大きく置いた
+  2. 配当グラフを「予想vs実績・達成率」から「12か月の実績のみ」の細棒に変えた
+  3. 口座別バーと銘柄リストをなくし、構成→月別→保有を線区切りで一直線に並べた -->
 <html lang="ja" data-theme="light">
 <head>
 <meta charset="utf-8">
@@ -36,12 +40,14 @@ body{
 /* 集計帯: 大きな評価額が主役。区切りは線だけ */
 .hero{padding:72px 0 56px; border-bottom:1px solid var(--line)}
 .hero .kicker{font-size:13px; letter-spacing:.22em; color:var(--muted); margin-bottom:16px}
-.hero .total{font-size:64px; font-weight:700; letter-spacing:-.01em; line-height:1.15; margin:0}
+.hero .total{font-size:clamp(34px,11vw,64px); font-weight:700; letter-spacing:-.01em; line-height:1.15; margin:0; white-space:nowrap}
 .hero .total small{font-size:20px; font-weight:500; margin-right:6px}
 .hero .sub{display:flex; flex-wrap:wrap; gap:8px 40px; margin-top:20px; font-size:15px}
+.hero .sub span{white-space:nowrap}
 .hero .sub .m{color:var(--muted)}
 .up{color:var(--up)} .down{color:var(--down)}
-.meta{padding:14px 0; border-bottom:1px solid var(--line); color:var(--muted); font-size:12.5px; display:flex; gap:24px; flex-wrap:wrap}
+.meta{padding:14px 0; border-bottom:1px solid var(--line); color:var(--muted); font-size:12.5px; display:flex; gap:6px 24px; flex-wrap:wrap}
+.meta span{white-space:nowrap}
 section.block{padding:56px 0; border-bottom:1px solid var(--line)}
 section.block h2{font-size:13px; letter-spacing:.22em; color:var(--muted); font-weight:500; margin:0 0 8px}
 section.block .big{font-size:30px; font-weight:700; margin:0 0 4px}
@@ -49,7 +55,7 @@ section.block .note{color:var(--muted); font-size:13px; margin:0 0 32px}
 /* 構成: 線だけの横棒 */
 .bar-row{display:grid; grid-template-columns:110px 1fr 150px; gap:16px; align-items:baseline; padding:16px 0; border-top:1px solid var(--line); font-size:15px}
 .bar-row:last-child{border-bottom:1px solid var(--line)}
-.bar-row .n{text-align:right; font-weight:700}
+.bar-row .n{text-align:right; font-weight:700; white-space:nowrap}
 .bar-row .track{height:8px; background:transparent; border:1px solid var(--line); position:relative}
 .bar-row .fill{position:absolute; inset:0; background:var(--ink)}
 .bar-row .pct{color:var(--muted); font-size:13px}
