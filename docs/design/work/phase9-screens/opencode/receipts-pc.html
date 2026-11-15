@@ -139,7 +139,7 @@ table.grid .sb{font-size:12px; color:var(--mut); white-space:nowrap}
     <div class="hrow"><h2>配当金の一覧</h2></div>
     <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄名・コードで検索</span></div>
     <div class="countrow"><span class="n num">16件(列名クリックで並べ替え)</span></div>
-    <table class="grid" style="margin-top:8px">
+<table class="grid" style="margin-top:8px">
       <tr><th class="sortable">入金日 ▼</th><th>銘柄</th><th>口座</th><th class="r">数量</th><th class="r">配当金(税引前)</th><th class="r">税額</th><th class="r">税引後</th></tr>
       <tr><td class="num">11/10</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥56,250</td><td class="r num">¥11,427</td><td class="r num">¥44,823</td></tr>
       <tr><td class="num">11/08</td><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥40,000</td><td class="r num">¥8,126</td><td class="r num">¥31,874</td></tr>
@@ -147,26 +147,7 @@ table.grid .sb{font-size:12px; color:var(--mut); white-space:nowrap}
       <tr><td class="num">09/26</td><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥5,000</td><td class="r num">¥1,016</td><td class="r num">¥3,984</td></tr>
       <tr><td class="num">09/10</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥10,000</td><td class="r num">¥2,031</td><td class="r num">¥7,969</td></tr>
     </table>
-  </section>
-  <div style="margin-top:24px; max-width:720px"><section class="card" aria-label="状態の例">
-    <div class="hrow"><h2>状態の例</h2></div>
-    <p class="subhead">空</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">データがありません</div><span class="sub">配当金明細をCSVで追加してください</span></div></div></div>
-    <p class="subhead">読み込み中</p>
-    <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
-    <p class="subhead">取得失敗</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
-
-    <p class="subhead">行詳細の例</p>
-    <div class="rows">
-      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥31,874</span></div>
-    </div>
-    <dl style="margin:4px 0 0; border-top:1px solid var(--line); padding-top:4px">
-      <div class="dl"><dt>配当金(税引前)</dt><dd class="num">¥40,000</dd></div>
-      <div class="dl"><dt>税額</dt><dd class="num">¥8,126</dd></div>
-      <div class="dl"><dt>税引後</dt><dd class="num">¥31,874</dd></div>
-    </dl>
-  </section></div></div>
+  </section></div>
 <script>
 try{const t=new URLSearchParams(location.search).get('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}
 </script>

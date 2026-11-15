@@ -1,6 +1,6 @@
 # Phase 8 ホーム新案(スマホ・PC)
 
-`home-mobile.html`(390px)と `home-pc.html`(1280/1440px)の2ファイル。数値はすべて `../phase5-codex/data/fixtures.json` の架空データを直書き(評価額 ¥28,593,148 = 国内株式 ¥9,149,807 + 投資信託 ¥19,443,341、評価損益 +¥1,552,488 +5.74%、年間予想配当(税引後) ¥3,163,438、受取(税引後) ¥3,163,438、最近の配当入金3件、評価損益の大きい銘柄3件)。受取と予想はどちらも税引後にそろえている(並べる2つの数字は同じ基準にする)。年間予想(税引後)は fixtures の `annualForecast.afterTax`(税引前 ¥3,969,907 − 税額 ¥806,469 = ¥3,163,438)に足し、`node data/build.mjs` の検査(382 asserts)を通過。fixture上は通年の配当実績が予想と一致するため、予想と受取は同額になる。現行のホームに載っている内容だけを載せ、保有一覧の全件・前日比は足していない。`?theme=light|dark` と `prefers-color-scheme` でライト/ダーク切替。撮影は `tools/shoot.py`(Playwright)。
+`home-mobile.html`(390px)と `home-pc.html`(1280px)の2ファイル。数値はすべて `../phase5-codex/data/fixtures.json` の架空データを直書き(評価額 ¥28,593,148 = 国内株式 ¥9,149,807 + 投資信託 ¥19,443,341、評価損益 +¥1,552,488 +5.74%、年間予想配当(税引後) ¥3,163,438、受取(税引後) ¥3,163,438、最近の配当入金3件、評価損益の大きい銘柄3件)。受取と予想はどちらも税引後にそろえている(並べる2つの数字は同じ基準にする)。年間予想(税引後)は fixtures の `annualForecast.afterTax`(税引前 ¥3,969,907 − 税額 ¥806,469 = ¥3,163,438)に足し、`node data/build.mjs` の検査(382 asserts)を通過。fixture上は通年の配当実績が予想と一致するため、予想と受取は同額になる。現行のホームに載っている内容だけを載せ、保有一覧の全件・前日比は足していない。`?theme=light|dark` と `prefers-color-scheme` でライト/ダーク切替。撮影は `tools/shoot.py`(Playwright)。
 
 ## 現行から変えた点
 
@@ -44,11 +44,11 @@ PC:
 
 | # | 規則 | 合否 | 根拠の画像 |
 |---|---|---|---|
-| P1 | 上に横並びのナビ(現行と同じ4項目)とアカウント。帯の塗りなし、下に1pxの線だけ | ○ | `home-pc-1280-light.png`、`home-pc-1440-dark.png` |
-| P2 | 一番上は3数字横並び(評価額32px・評価損益24px・年間予想配当(税引後)24px、ラベル13px灰)。区切りは縦の細い線。帯やカードで囲まない。価格基準日・取り込み日は右端13px灰 | ○ | `home-pc-1280-light.png`、`home-pc-1440-light.png` |
-| P3 | 下は2列(左2:右1、間24px)。左=配当(棒高さ240px・税引後の単棒・月1〜12月すべて12px・6月に税引後値ラベル)+最近の配当入金、右=内訳+損益銘柄 | ○ | `home-pc-1280-light.png`、`home-pc-1280-dark.png` |
-| P4 | カード・行・文字の型はスマホと同じ(見出し17px、行15px、行の高さ52px) | ○ | `home-pc-1440-light.png`、`home-pc-1440-dark.png` |
-| P5 | 最大幅1200px・中央 | ○ | `home-pc-1440-light.png`(左右の余白が均等) |
+| P1 | 上に横並びのナビ(現行と同じ4項目)とアカウント。帯の塗りなし、下に1pxの線だけ | ○ | `home-pc-light.png`、`home-pc-dark.png` |
+| P2 | 一番上は3数字横並び(評価額32px・評価損益24px・年間予想配当(税引後)24px、ラベル13px灰)。区切りは縦の細い線。帯やカードで囲まない。価格基準日・取り込み日は右端13px灰 | ○ | `home-pc-light.png`、`home-pc-light.png` |
+| P3 | 下は2列(左2:右1、間24px)。左=配当(棒高さ240px・税引後の単棒・月1〜12月すべて12px・6月に税引後値ラベル)+最近の配当入金、右=内訳+損益銘柄 | ○ | `home-pc-light.png`、`home-pc-dark.png` |
+| P4 | カード・行・文字の型はスマホと同じ(見出し17px、行15px、行の高さ52px) | ○ | `home-pc-light.png`、`home-pc-dark.png` |
+| P5 | 最大幅1200px・中央 | ○ | `home-pc-light.png`(左右の余白が均等) |
 
 スマホ規則(R1〜R6、`research/rules-for-shoken.md`)との対応:
 
@@ -64,7 +64,7 @@ PC:
 ## 成果物
 
 - `home-mobile.html` — スマホ案(390px)
-- `home-pc.html` — PC案(1280/1440px)
-- `shots/`: `home-mobile-light.png`、`home-mobile-dark.png`、`home-pc-1280-light.png`、`home-pc-1280-dark.png`、`home-pc-1440-light.png`、`home-pc-1440-dark.png`(全6枚、改行崩れ・重なり・はみ出し・文字サイズを目視済み)
+- `home-pc.html` — PC案(1280px)
+- `shots/`: 完成形4枚(`home-mobile-light.png`、`home-mobile-dark.png`、`home-pc-light.png`、`home-pc-dark.png`)+ 状態6枚(`home-state-empty/loading/failed-mobile/pc.png`、ライトのみ)(全10枚、改行崩れ・重なり・はみ出し・文字サイズを目視済み。状態の一覧は `../phase9-screens/INDEX.md`)
 - `before/`: 現行ホームの撮影4枚(比較用、編集なし)
 - `tools/shoot.py`: 撮影スクリプト(モバイルは固定ナビが合成途中に写り込まないよう、同一HTMLのまま高さを広げて撮る)

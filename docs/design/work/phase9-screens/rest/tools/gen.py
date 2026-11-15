@@ -5,6 +5,7 @@ phase9-screens/opencode (gen.py の共通CSS) と同じにする。新しい色�
 対象: search / settings / login / loginprompt(未ログイン時ホーム) / notfound(404) /
 admin-logins / dialogs(9種)。各 *-mobile(390px) / *-pc(1280px)。"""
 from pathlib import Path
+import re
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent
@@ -213,12 +214,22 @@ def pc_top_nonavi():
             '</div></header>\n<div class="wrap">\n')
 
 
-def write(name, title, body):
+def write(name, title, body, css=""):
     is_mobile = name.endswith("-mobile")
-    extra = MOBILE_EXTRA if is_mobile else PC_EXTRA
+    extra = (MOBILE_EXTRA if is_mobile else PC_EXTRA) + css
     html = HEAD.format(title=title, vars=CSS_VARS, base=BASE, extra=extra) + body + "</div>\n" + SCRIPT + "\n</body>\n</html>\n"
     (OUT / f"{name}.html").write_text(html, encoding="utf-8")
     print("wrote", name, len(html))
+
+OVL_M = """.ovl{position:fixed; inset:0; background:rgba(17,24,39,.45); z-index:50; display:flex; align-items:flex-end; justify-content:center}
+.ovl .sheet{width:100%; max-width:480px; margin:0 auto; background:var(--page); border-radius:16px 16px 0 0; padding:8px 8px calc(16px + env(safe-area-inset-bottom)); max-height:88vh; overflow:auto}
+.ovl .sheet .card{margin-top:8px}"""
+OVL_P = """.ovl{position:fixed; inset:0; background:rgba(17,24,39,.45); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px}
+.ovl .sheet{width:min(560px,100%); max-height:calc(100vh - 48px); overflow:auto}
+.ovl .sheet .card{margin-top:0}"""
+
+def ovl(dialog, label):
+    return '<div class="ovl" role="dialog" aria-modal="true" aria-label="' + label + '"><div class="sheet">' + dialog + "</div></div>"
 
 
 # ---------- 銘柄検索 ----------
@@ -279,20 +290,18 @@ SEARCH_STATES = """<section class="card" aria-label="状態の例">
 
 search_m = (mobile_top() + """
   <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
-""" + SEARCH_FORM + "\n  " + HOLDING_CARD + "\n  " + RESULT_CARD + "\n  " + SEARCH_STATES + nav_m("銘柄検索"))
+""" + SEARCH_FORM + "\n  " + HOLDING_CARD + "\n  " + RESULT_CARD + nav_m("銘柄検索"))
+
+SEARCH_CARD_P = """<section class="card" aria-label="検索">
+        <div class="hrow"><h2>銘柄コードまたは銘柄名で検索</h2></div>
+""" + SEARCH_FORM + """
+      </section>"""
 
 search_p = (pc_top("銘柄検索") + """
   <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
   <div class="grid2" style="margin-top:12px">
     <div class="col">
-      <section class="card" aria-label="検索">
-        <div class="hrow"><h2>銘柄コードまたは銘柄名で検索</h2></div>
-""" + SEARCH_FORM + """
-      </section>
-""" + HOLDING_CARD + "\n" + RESULT_CARD + """
-    </div>
-    <div class="col">
-""" + SEARCH_STATES + """
+""" + SEARCH_CARD_P + "\n" + HOLDING_CARD + "\n" + RESULT_CARD + """
     </div>
   </div>""")
 
@@ -394,7 +403,7 @@ settings_m = (mobile_top() + """
   <h1 class="pagetitle" style="margin-top:12px">設定</h1>
 """ + SETTINGS_TOC + "\n  " + SETTINGS_ACCOUNT + "\n  " + SETTINGS_DISPLAY + "\n  "
  + SETTINGS_DATA + "\n  " + SETTINGS_SECURITY + "\n  " + SETTINGS_DEVICES + "\n  "
- + SETTINGS_HISTORY + "\n  " + SETTINGS_DANGER + "\n  " + SETTINGS_STATES + nav_m(""))
+ + SETTINGS_HISTORY + "\n  " + SETTINGS_DANGER + nav_m(""))
 
 settings_p = (pc_top("") + """
   <h1 class="pagetitle" style="margin-top:12px">設定</h1>
@@ -411,7 +420,7 @@ settings_p = (pc_top("") + """
 """ + SETTINGS_DEVICES + "\n" + SETTINGS_HISTORY + """
     </div>
     <div class="col">
-""" + SETTINGS_DANGER + "\n" + SETTINGS_STATES + """
+""" + SETTINGS_DANGER + """
     </div>
   </div>""")
 
@@ -432,8 +441,8 @@ LOGIN_STATES = """<section class="card" aria-label="状態の例">
     <div class="rows"><div class="row"><div class="left"><div class="name">すでにログインしています</div><span class="sub">ホームに移動します</span></div><span class="amt" style="color:var(--accent)">ホームへ</span></div></div>
   </section>"""
 
-login_m = (mobile_top_nonavi() + '<div class="center">\n  ' + LOGIN_CARD + "\n  " + LOGIN_STATES + "\n</div>")
-login_p = (pc_top_nonavi() + '<div class="center">\n  ' + LOGIN_CARD + "\n  " + LOGIN_STATES + "\n</div>")
+login_m = (mobile_top_nonavi() + '<div class="center">\n  ' + LOGIN_CARD + "\n</div>")
+login_p = (pc_top_nonavi() + '<div class="center">\n  ' + LOGIN_CARD + "\n</div>")
 
 # ---------- 未ログイン時のホーム(LoginPrompt) ----------
 PROMPT_HERO = """<div class="hero" style="display:block">
@@ -460,8 +469,8 @@ PROMPT_STATES = """<section class="card" aria-label="状態の例">
     <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
   </section>"""
 
-loginprompt_m = (mobile_top_nonavi() + PROMPT_HERO + "\n  " + PROMPT_CARD + "\n  " + PROMPT_PUBLIC + "\n  " + PROMPT_STATES)
-loginprompt_p = (pc_top_nonavi() + PROMPT_HERO + "\n  " + PROMPT_CARD + "\n  " + PROMPT_PUBLIC + "\n  " + PROMPT_STATES)
+loginprompt_m = (mobile_top_nonavi() + PROMPT_HERO + "\n  " + PROMPT_CARD + "\n  " + PROMPT_PUBLIC)
+loginprompt_p = (pc_top_nonavi() + PROMPT_HERO + "\n  " + PROMPT_CARD + "\n  " + PROMPT_PUBLIC)
 
 # ---------- 404 ----------
 NOTFOUND_CARD = """<section class="card" aria-label="ページが見つかりません">
@@ -513,7 +522,15 @@ admin_m = (mobile_top() + """
     <div class="hrow"><h2>ログイン記録</h2></div>
 """ + ADMIN_ROWS + """
   </section>
-""" + ADMIN_STATES + nav_m(""))
+""" + nav_m(""))
+
+ADMIN_COND_P = """<section class="card" aria-label="検索パネル">
+        <div class="hrow"><h2>条件</h2><span class="more">クリア</span></div>
+        <div class="field">メール: kakuu</div>
+        <div class="field">場所: 東京</div>
+        <div class="field">並べ替え: 日時の新しい順</div>
+        <div class="btn primary" style="margin-top:12px">この条件で絞る</div>
+      </section>"""
 
 admin_p = (pc_top("") + """
   <h1 class="pagetitle" style="margin-top:12px">ログイン一覧(管理者)</h1>
@@ -530,14 +547,7 @@ admin_p = (pc_top("") + """
       </table>
     </section>
     <div class="col">
-      <section class="card" aria-label="検索パネル">
-        <div class="hrow"><h2>条件</h2><span class="more">クリア</span></div>
-        <div class="field">メール: kakuu</div>
-        <div class="field">場所: 東京</div>
-        <div class="field">並べ替え: 日時の新しい順</div>
-        <div class="btn primary" style="margin-top:12px">この条件で絞る</div>
-      </section>
-""" + ADMIN_STATES + """
+""" + ADMIN_COND_P + """
     </div>
   </div>""")
 
@@ -638,22 +648,38 @@ D10 = """<section class="card" aria-label="通知リンクのログアウト確�
     <div class="btn primary" style="margin-top:12px">すべての端末をログアウトする</div>
   </section>"""
 
-dialogs_m = (mobile_top() + """
-  <h1 class="pagetitle" style="margin-top:12px">ダイアログ・パネル類</h1>
-  <div class="statenote-wrap">スマホは下部シート、PCは中央・ポップオーバーで出す。型はカードと同じ。</div>
-""" + "\n  ".join([D1, D2, D3, D4, D5, D6, D7, D8, D9, D10]) + nav_m(""))
+OP = OUT.parent / "opencode"
+VISUAL = OUT.parent.parent / "phase8-visual"
 
-dialogs_p = (pc_top("") + """
-  <h1 class="pagetitle" style="margin-top:12px">ダイアログ・パネル類</h1>
-  <div class="statenote-wrap">PCは中央ダイアログ・表内メニュー・右パネル・ポップオーバーで出す。型はカードと同じ。</div>
-  <div class="grid2" style="margin-top:12px">
-    <div class="col">
-""" + "\n".join([D1, D2, D3, D4, D5]) + """
-    </div>
-    <div class="col">
-""" + "\n".join([D6, D7, D8, D9, D10]) + """
-    </div>
-  </div>""")
+def dialog_state(name, title, parent, dialog, label, css):
+    html = parent.read_text(encoding="utf-8")
+    html = html.replace("</style>", css + "\n</style>", 1)
+    html = re.sub(r"<title>.*?</title>", "<title>" + title + " | 証券Web</title>", html, count=1)
+    html = html.replace("</body>", ovl(dialog, label) + "\n</body>", 1)
+    (OUT / (name + ".html")).write_text(html, encoding="utf-8")
+    print("wrote", name, len(html))
+
+for key, title, parent_tpl, dialog, label in [
+    ("holding", "ダイアログ(保有株詳細) 新案", str(OP / "assetbalance-{}.html"), D1, "保有株詳細ダイアログ"),
+    ("receipt-detail", "ダイアログ(取引明細の行詳細) 新案", str(OP / "receipts-{}.html"), D2, "取引明細の行詳細"),
+    ("dividend-detail", "ダイアログ(ホーム配当詳細) 新案", str(VISUAL / "home-{}.html"), D3, "ホーム配当詳細ダイアログ"),
+    ("filter", "ダイアログ(条件追加パネル) 新案", str(OP / "receipts-{}.html"), D4, "検索・条件追加パネル"),
+    ("csv-menu", "ダイアログ(CSV行メニュー) 新案", str(OP / "csv-{}.html"), D5, "CSV行メニュー"),
+    ("delete-confirm", "ダイアログ(削除確認) 新案", str(OP / "csv-{}.html"), D6, "削除確認"),
+    ("account-menu", "ダイアログ(アカウントメニュー) 新案", str(VISUAL / "home-{}.html"), D7, "サイト共通アカウントメニュー"),
+    ("account-delete", "ダイアログ(アカウント削除確認) 新案", str(OUT / "settings-{}.html"), D8, "アカウント削除確認"),
+    ("admin-search", "ダイアログ(管理者検索パネル) 新案", str(OUT / "admin-logins-{}.html"), D9, "管理者検索パネル"),
+    ("logout-all", "ダイアログ(全端末ログアウト確認) 新案", str(OUT / "settings-{}.html"), D10, "通知リンクのログアウト確認"),
+]:
+    for dev in ("mobile", "pc"):
+        dialog_state(
+            "dialogs-state-" + key + "-" + dev,
+            title + (" スマホ" if dev == "mobile" else " PC"),
+            Path(parent_tpl.format(dev)),
+            dialog,
+            label,
+            OVL_M if dev == "mobile" else OVL_P,
+        )
 
 write("search-mobile", "銘柄検索 新案 スマホ", search_m)
 write("search-pc", "銘柄検索 新案 PC", search_p)
@@ -667,5 +693,242 @@ write("notfound-mobile", "ページが見つかりません 新案 スマホ", n
 write("notfound-pc", "ページが見つかりません 新案 PC", notfound_p)
 write("admin-logins-mobile", "ログイン一覧(管理者) 新案 スマホ", admin_m)
 write("admin-logins-pc", "ログイン一覧(管理者) 新案 PC", admin_p)
-write("dialogs-mobile", "ダイアログ類 新案 スマホ", dialogs_m)
-write("dialogs-pc", "ダイアログ類 新案 PC", dialogs_p)
+
+SEARCH_INITIAL = """<section class="card" aria-label="検索結果">
+    <div class="hrow"><h2>銘柄を検索</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">銘柄コードまたは銘柄名を入力してください</div><span class="sub">4桁の銘柄コードで検索できます（例：7203, 9984）</span></div></div></div>
+  </section>"""
+SEARCH_NOMATCH = """<section class="card" aria-label="検索結果">
+    <div class="hrow"><h2>検索結果</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">該当する銘柄が見つかりませんでした</div><span class="sub">銘柄コードまたは銘柄名を確認してください</span></div></div></div>
+  </section>"""
+SEARCH_LOADING = """<section class="card" aria-label="検索結果">
+    <div class="hrow"><h2>検索結果</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
+  </section>"""
+SEARCH_FAILED = """<section class="card" aria-label="検索結果">
+    <div class="hrow"><h2>検索結果</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div><span class="sub">ネットワーク接続を確認してください</span></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+  </section>"""
+SEARCH_INVALID = """<section class="card" aria-label="検索結果">
+    <div class="hrow"><h2>検索結果</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">不正な銘柄コードが指定されています</div></div></div></div>
+  </section>"""
+
+SETTINGS_SKELETON = """<section class="card" aria-label="表示">
+    <div class="hrow"><h2>表示</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
+  </section>"""
+SETTINGS_SAVING = """<section class="card" aria-label="表示">
+    <div class="hrow"><h2>表示</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">表示の設定</div><span class="sub">保存中…</span></div></div></div>
+  </section>"""
+SETTINGS_SAVED = """<section class="card" aria-label="表示">
+    <div class="hrow"><h2>表示</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">表示の設定</div><span class="sub">保存しました</span></div></div></div>
+  </section>"""
+SETTINGS_SAVEFAILED = """<section class="card" aria-label="表示">
+    <div class="hrow"><h2>表示</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 保存に失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+  </section>"""
+SETTINGS_EMPTY_DEVICES = """<section class="card" aria-label="登録した端末">
+    <div class="hrow"><h2>登録した端末</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">登録した端末はありません</div></div></div></div>
+  </section>"""
+SETTINGS_EMPTY_HISTORY = """<section class="card" aria-label="ログイン履歴">
+    <div class="hrow"><h2>ログイン履歴</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">ログイン履歴はまだありません</div></div></div></div>
+  </section>"""
+
+LOGIN_LOADING = """<section class="card" aria-label="ログイン">
+    <div class="hrow"><h2>ログイン</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div></div></div>
+  </section>"""
+LOGIN_FAILED = """<section class="card" aria-label="ログイン">
+    <div class="hrow"><h2>ログイン</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div><span class="sub">ネットワーク接続を確認してください</span></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+  </section>"""
+LOGIN_LOGGEDIN = """<section class="card" aria-label="ログイン">
+    <div class="hrow"><h2>ログイン</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">すでにログインしています</div><span class="sub">ホームに移動します</span></div><span class="amt" style="color:var(--accent)">ホームへ</span></div></div>
+  </section>"""
+
+PROMPT_LOADING = """<section class="card" aria-label="ログインの案内">
+    <div class="hrow"><h2>ログインしてください</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div></div></div>
+  </section>"""
+PROMPT_FAILED = """<section class="card" aria-label="ログインの案内">
+    <div class="hrow"><h2>ログインしてください</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+  </section>"""
+
+ADMIN_LIST_OPEN = '<section class="card" aria-label="ログイン記録の一覧">\n    <div class="hrow"><h2>ログイン記録</h2></div>\n'
+ADMIN_EMPTY = ADMIN_LIST_OPEN + """<div class="rows"><div class="row"><div class="left"><div class="name">条件に一致するログイン記録はありません</div></div></div></div>
+  </section>"""
+ADMIN_LOADING = ADMIN_LIST_OPEN + """<div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
+  </section>"""
+ADMIN_FAILED = ADMIN_LIST_OPEN + """<div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
+  </section>"""
+
+write("search-state-initial-mobile", "銘柄検索(初期) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+""" + SEARCH_FORM + "\n  " + SEARCH_INITIAL + nav_m("銘柄検索"))
+write("search-state-initial-pc", "銘柄検索(初期) 新案 PC", pc_top("銘柄検索") + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+  <div class="grid2" style="margin-top:12px">
+    <div class="col">
+""" + SEARCH_CARD_P + "\n" + SEARCH_INITIAL + """
+    </div>
+  </div>""")
+write("search-state-nomatch-mobile", "銘柄検索(該当なし) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+""" + SEARCH_FORM + "\n  " + SEARCH_NOMATCH + nav_m("銘柄検索"))
+write("search-state-nomatch-pc", "銘柄検索(該当なし) 新案 PC", pc_top("銘柄検索") + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+  <div class="grid2" style="margin-top:12px">
+    <div class="col">
+""" + SEARCH_CARD_P + "\n" + SEARCH_NOMATCH + """
+    </div>
+  </div>""")
+write("search-state-loading-mobile", "銘柄検索(読み込み中) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+""" + SEARCH_FORM + "\n  " + SEARCH_LOADING + nav_m("銘柄検索"))
+write("search-state-loading-pc", "銘柄検索(読み込み中) 新案 PC", pc_top("銘柄検索") + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+  <div class="grid2" style="margin-top:12px">
+    <div class="col">
+""" + SEARCH_CARD_P + "\n" + SEARCH_LOADING + """
+    </div>
+  </div>""")
+write("search-state-failed-mobile", "銘柄検索(取得失敗) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+""" + SEARCH_FORM + "\n  " + SEARCH_FAILED + nav_m("銘柄検索"))
+write("search-state-failed-pc", "銘柄検索(取得失敗) 新案 PC", pc_top("銘柄検索") + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+  <div class="grid2" style="margin-top:12px">
+    <div class="col">
+""" + SEARCH_CARD_P + "\n" + SEARCH_FAILED + """
+    </div>
+  </div>""")
+write("search-state-invalid-mobile", "銘柄検索(不正なコード) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+""" + SEARCH_FORM + "\n  " + SEARCH_INVALID + nav_m("銘柄検索"))
+write("search-state-invalid-pc", "銘柄検索(不正なコード) 新案 PC", pc_top("銘柄検索") + """
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
+  <div class="grid2" style="margin-top:12px">
+    <div class="col">
+""" + SEARCH_CARD_P + "\n" + SEARCH_INVALID + """
+    </div>
+  </div>""")
+
+write("settings-state-loading-mobile", "設定(読み込み中) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+""" + SETTINGS_TOC + "\n  " + SETTINGS_SKELETON + nav_m(""))
+write("settings-state-loading-pc", "設定(読み込み中) 新案 PC", pc_top("") + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+  <div class="grid2" style="margin-top:12px; grid-template-columns:220px 1fr">
+    <div class="col">
+""" + SETTINGS_TOC + """
+    </div>
+    <div class="col">
+""" + SETTINGS_SKELETON + """
+    </div>
+  </div>""")
+write("settings-state-saving-mobile", "設定(保存中) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+""" + SETTINGS_TOC + "\n  " + SETTINGS_SAVING + nav_m(""))
+write("settings-state-saving-pc", "設定(保存中) 新案 PC", pc_top("") + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+  <div class="grid2" style="margin-top:12px; grid-template-columns:220px 1fr">
+    <div class="col">
+""" + SETTINGS_TOC + """
+    </div>
+    <div class="col">
+""" + SETTINGS_SAVING + """
+    </div>
+  </div>""")
+write("settings-state-saved-mobile", "設定(保存済み) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+""" + SETTINGS_TOC + "\n  " + SETTINGS_SAVED + nav_m(""))
+write("settings-state-saved-pc", "設定(保存済み) 新案 PC", pc_top("") + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+  <div class="grid2" style="margin-top:12px; grid-template-columns:220px 1fr">
+    <div class="col">
+""" + SETTINGS_TOC + """
+    </div>
+    <div class="col">
+""" + SETTINGS_SAVED + """
+    </div>
+  </div>""")
+write("settings-state-savefailed-mobile", "設定(保存失敗) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+""" + SETTINGS_TOC + "\n  " + SETTINGS_SAVEFAILED + nav_m(""))
+write("settings-state-savefailed-pc", "設定(保存失敗) 新案 PC", pc_top("") + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+  <div class="grid2" style="margin-top:12px; grid-template-columns:220px 1fr">
+    <div class="col">
+""" + SETTINGS_TOC + """
+    </div>
+    <div class="col">
+""" + SETTINGS_SAVEFAILED + """
+    </div>
+  </div>""")
+write("settings-state-empty-mobile", "設定(空) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+""" + SETTINGS_TOC + "\n  " + SETTINGS_EMPTY_DEVICES + "\n  " + SETTINGS_EMPTY_HISTORY + nav_m(""))
+write("settings-state-empty-pc", "設定(空) 新案 PC", pc_top("") + """
+  <h1 class="pagetitle" style="margin-top:12px">設定</h1>
+  <div class="grid2" style="margin-top:12px; grid-template-columns:220px 1fr">
+    <div class="col">
+""" + SETTINGS_TOC + """
+    </div>
+    <div class="col">
+""" + SETTINGS_EMPTY_DEVICES + "\n" + SETTINGS_EMPTY_HISTORY + """
+    </div>
+  </div>""")
+
+write("login-state-loading-mobile", "ログイン(読み込み中) 新案 スマホ", mobile_top_nonavi() + '<div class="center">\n  ' + LOGIN_LOADING + "\n</div>")
+write("login-state-loading-pc", "ログイン(読み込み中) 新案 PC", pc_top_nonavi() + '<div class="center">\n  ' + LOGIN_LOADING + "\n</div>")
+write("login-state-failed-mobile", "ログイン(取得失敗) 新案 スマホ", mobile_top_nonavi() + '<div class="center">\n  ' + LOGIN_FAILED + "\n</div>")
+write("login-state-failed-pc", "ログイン(取得失敗) 新案 PC", pc_top_nonavi() + '<div class="center">\n  ' + LOGIN_FAILED + "\n</div>")
+write("login-state-loggedin-mobile", "ログイン(ログイン済み) 新案 スマホ", mobile_top_nonavi() + '<div class="center">\n  ' + LOGIN_LOGGEDIN + "\n</div>")
+write("login-state-loggedin-pc", "ログイン(ログイン済み) 新案 PC", pc_top_nonavi() + '<div class="center">\n  ' + LOGIN_LOGGEDIN + "\n</div>")
+
+write("loginprompt-state-loading-mobile", "未ログイン時のホーム(読み込み中) 新案 スマホ", mobile_top_nonavi() + PROMPT_HERO + "\n  " + PROMPT_LOADING + "\n  " + PROMPT_PUBLIC)
+write("loginprompt-state-loading-pc", "未ログイン時のホーム(読み込み中) 新案 PC", pc_top_nonavi() + PROMPT_HERO + "\n  " + PROMPT_LOADING + "\n  " + PROMPT_PUBLIC)
+write("loginprompt-state-failed-mobile", "未ログイン時のホーム(取得失敗) 新案 スマホ", mobile_top_nonavi() + PROMPT_HERO + "\n  " + PROMPT_FAILED + "\n  " + PROMPT_PUBLIC)
+write("loginprompt-state-failed-pc", "未ログイン時のホーム(取得失敗) 新案 PC", pc_top_nonavi() + PROMPT_HERO + "\n  " + PROMPT_FAILED + "\n  " + PROMPT_PUBLIC)
+
+write("admin-logins-state-empty-mobile", "ログイン一覧(データなし) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">ログイン一覧(管理者)</h1>
+""" + ADMIN_FORM_M + "\n  " + ADMIN_EMPTY + nav_m(""))
+write("admin-logins-state-empty-pc", "ログイン一覧(データなし) 新案 PC", pc_top("") + """
+  <h1 class="pagetitle" style="margin-top:12px">ログイン一覧(管理者)</h1>
+  <div class="grid2" style="margin-top:12px">
+""" + ADMIN_EMPTY + """
+    <div class="col">
+""" + ADMIN_COND_P + """
+    </div>
+  </div>""")
+write("admin-logins-state-loading-mobile", "ログイン一覧(読み込み中) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">ログイン一覧(管理者)</h1>
+""" + ADMIN_FORM_M + "\n  " + ADMIN_LOADING + nav_m(""))
+write("admin-logins-state-loading-pc", "ログイン一覧(読み込み中) 新案 PC", pc_top("") + """
+  <h1 class="pagetitle" style="margin-top:12px">ログイン一覧(管理者)</h1>
+  <div class="grid2" style="margin-top:12px">
+""" + ADMIN_LOADING + """
+    <div class="col">
+""" + ADMIN_COND_P + """
+    </div>
+  </div>""")
+write("admin-logins-state-failed-mobile", "ログイン一覧(取得失敗) 新案 スマホ", mobile_top() + """
+  <h1 class="pagetitle" style="margin-top:12px">ログイン一覧(管理者)</h1>
+""" + ADMIN_FORM_M + "\n  " + ADMIN_FAILED + nav_m(""))
+write("admin-logins-state-failed-pc", "ログイン一覧(取得失敗) 新案 PC", pc_top("") + """
+  <h1 class="pagetitle" style="margin-top:12px">ログイン一覧(管理者)</h1>
+  <div class="grid2" style="margin-top:12px">
+""" + ADMIN_FAILED + """
+    <div class="col">
+""" + ADMIN_COND_P + """
+    </div>
+  </div>""")

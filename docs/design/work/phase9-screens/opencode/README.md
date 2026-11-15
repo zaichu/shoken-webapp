@@ -55,7 +55,7 @@ CSV管理3点:
 | C4 | 金額・見出しは改行させない。長い名前は1行で「…」省略 | ○ | 全20枚。「9902 架空食品ホールディングス」などは `white-space:nowrap` + `ellipsis`。対話の説明文だけ折り返し可 |
 | C5 | CSVの取り込みは見出し帯に置かず、控えめな扱いに。アカウントは右上の文字だけ | ○ | 全20枚。CSV画面は取得カード+「すべて取得」ボタン、他画面は最下部に置かない(ホームのみ)。右上 `アカウント` のみ |
 | C6 | 検索・並べ替えは全画面で同じ部品(スマホは「並べ替え」ボタン1つ、PCは列名クリック) | ○ | 全20枚。資産・明細ともスマホは検索欄+並べ替えボタン、PCは検索欄+ `▲▼` の列名 |
-| C7 | 空・読み込み中・取得失敗は全画面で同じ見出し・同じ並びで例示(明細は末尾に行詳細、組成比は末尾に算出不可、ファンドは末尾に更新待ち、CSVは行メニュー・削除確認を別カードで例示) | ○ | 全20枚。各画面に「状態の例」カード(空/読み込み中(線の箱)/取得失敗+再試行)。組成比は算出不可、ファンドは更新待ち・見つからない、CSVは取得中・確認待ち・削除確認も例示 |
+| C7 | 空・読み込み中・取得失敗は全画面で同じ見出し・同じ並びの別画面で出す(明細は行詳細を開いた例、組成比は算出不可、ファンドは更新待ち・見つからない、CSVは行メニュー・削除確認も別画面で例示)。一覧は `../INDEX.md` | ○ | 全60枚。各画面に空/読み込み中(線の箱)/取得失敗+再試行。組成比は算出不可、ファンドは更新待ち・見つからない、CSVは行メニュー・削除確認も別画面 |
 
 スマホ:
 
@@ -78,10 +78,10 @@ PC:
 
 ## 成果物
 
-- `assetbalance-mobile.html` / `assetbalance-pc.html`、 shots 4枚
-- `composition-mobile.html` / `composition-pc.html`、 shots 4枚
-- `fund-detail-mobile.html` / `fund-detail-pc.html`、 shots 4枚
-- `receipts-mobile.html` / `receipts-pc.html`、 shots 4枚
-- `csv-mobile.html` / `csv-pc.html`、 shots 4枚
-- (全20枚、改行崩れ・重なり・はみ出し・文字サイズ・ダークのコントラストを目視済み)
+- `assetbalance-mobile.html` / `assetbalance-pc.html`、 shots 完成形4枚 + 状態6枚(データなし・読み込み中・読み込み失敗)
+- `composition-mobile.html` / `composition-pc.html`、 shots 完成形4枚 + 状態8枚(データなし・読み込み中・読み込み失敗・算出不可)
+- `fund-detail-mobile.html` / `fund-detail-pc.html`、 shots 完成形4枚 + 状態8枚(見つからない・読み込み中・読み込み失敗・更新待ち)
+- `receipts-mobile.html` / `receipts-pc.html`、 shots 完成形4枚 + 状態8枚(データなし・読み込み中・読み込み失敗・行詳細を開いた例)
+- `csv-mobile.html` / `csv-pc.html`、 shots 完成形4枚 + 状態10枚(データなし・取得中・取得失敗・行メニュー・削除確認)
+- (全60枚、改行崩れ・重なり・はみ出し・文字サイズ・ダークのコントラストを目視済み。状態の一覧は `../INDEX.md`)
 - `tools/gen.py`(生成)、`tools/shoot.py`(撮影)

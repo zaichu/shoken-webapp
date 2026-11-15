@@ -138,21 +138,12 @@ table.grid .sb{font-size:12px; color:var(--mut); white-space:nowrap}
     <div class="hrow"><h2>保有の一覧</h2><span class="more">構成比を見る ›</span></div>
     <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄・ファンド名・コード・口座で検索</span></div>
     <div class="countrow"><span class="n num">3件 / 3件(列名クリックで並べ替え)</span></div>
-    <table class="grid" style="margin-top:8px">
+<table class="grid" style="margin-top:8px">
       <tr><th class="sortable">銘柄・ファンド ▲</th><th>口座</th><th class="r">数量</th><th class="r sortable">評価額 ▼</th><th class="r">評価損益</th></tr>
       <tr><td><div class="nm">架空成長インデックス・ファンド ›</div></td><td><span class="sb">特定口座</span></td><td class="r num">10,000,000口</td><td class="r num">¥19,443,341</td><td class="r num">¥0 0.00%</td></tr>
       <tr><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">NISA</span></td><td class="r num">100株</td><td class="r num">¥7,949,807</td><td class="r num up">+¥1,352,488 +20.50%</td></tr>
       <tr><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥1,200,000</td><td class="r num up">+¥200,000 +20.00%</td></tr>
     </table>
-  </section>
-<section class="card" aria-label="状態の例">
-    <div class="hrow"><h2>状態の例</h2></div>
-    <p class="subhead">空</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">資産管理データがありません</div><span class="sub">CSVファイルを取り込むと表示されます</span></div></div></div>
-    <p class="subhead">読み込み中</p>
-    <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div><div class="sub"><span class="sk" style="display:inline-block;width:40%">&nbsp;</span></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
-    <p class="subhead">取得失敗</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div><span class="sub">時間をおいて再度お試しください</span></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
   </section></div>
 <script>
 try{const t=new URLSearchParams(location.search).get('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}
