@@ -3,7 +3,7 @@
   1. 紺の帯は残し、金額を右そろえの表にして内訳列で検算できる形にした
   2. 配当は12か月バー+主要月だけの表に集約し、予想・達成率をなくした
   3. 保有一覧に合計行を付け、口座別バーは削った -->
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -191,7 +191,7 @@ td.num, td .n{font-weight:500}
   <div class="foot">数値は fixtures.json の架空データ。各金額は円単位に四捨五入。損益率 = 評価損益 ÷ 取得総額。</div>
 </div>
 <script>
-try{const t=new URLSearchParams(location.search).get('theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
+try{const t=new URLSearchParams(location.search).get('theme');if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}
 </script>
 </body>
 </html>

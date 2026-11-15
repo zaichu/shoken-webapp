@@ -3,7 +3,7 @@
   1. 紺の3分割集計帯をやめ、白地に評価額1点だけを大きく置いた
   2. 配当グラフを「予想vs実績・達成率」から「12か月の実績のみ」の細棒に変えた
   3. 口座別バーと銘柄リストをなくし、構成→月別→保有を線区切りで一直線に並べた -->
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -152,6 +152,7 @@ table.hold td .code{color:var(--muted); font-size:12.5px; margin-right:10px}
         <tr><td><span class="code">9902</span>架空食品ホールディングス</td><td>100株 ・ ¥79,498.07</td><td class="n">¥7,949,807</td><td class="n up">+¥1,352,488</td><td class="n up">+20.50%</td></tr>
         <tr><td><span class="code">9901</span>架空青空電機</td><td>100株 ・ ¥12,000</td><td class="n">¥1,200,000</td><td class="n up">+¥200,000</td><td class="n up">+20.00%</td></tr>
         <tr><td><span class="code">—</span>架空成長インデックス・ファンド</td><td>10,000,000口 ・ ¥19,443.341</td><td class="n">¥19,443,341</td><td class="n">¥0</td><td class="n">0.00%</td></tr>
+        <tr><td>合計</td><td>3件</td><td class="n"><strong>¥28,593,148</strong></td><td class="n up">+¥1,552,488</td><td class="n">+5.74%</td></tr>
       </tbody>
     </table>
   </section>
@@ -159,7 +160,7 @@ table.hold td .code{color:var(--muted); font-size:12.5px; margin-right:10px}
   <div class="foot">数値は fixtures.json の架空データ。合計 ¥28,593,148 = 国内株式 ¥9,149,807 + 投資信託 ¥19,443,341。</div>
 </div>
 <script>
-try{const t=new URLSearchParams(location.search).get('theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
+try{const t=new URLSearchParams(location.search).get('theme');if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}
 </script>
 </body>
 </html>
