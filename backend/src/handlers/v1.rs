@@ -170,7 +170,7 @@ mod tests {
         let router = data_routes().with_state(make_test_state());
         assert_eq!(
             check_status(router, Method::GET, "/api/v1/admin/logins").await,
-            StatusCode::FORBIDDEN
+            StatusCode::UNAUTHORIZED
         );
     }
 

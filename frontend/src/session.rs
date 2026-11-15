@@ -83,6 +83,7 @@ pub struct SessionStore {
     pub is_admin: RwSignal<bool>,
     pub loaded: RwSignal<bool>,
     pub generation: RwSignal<Generation>,
+    pub connection_error: RwSignal<Option<ApiError>>,
     logout_epoch: RwSignal<u64>,
 }
 
@@ -93,6 +94,7 @@ impl SessionStore {
             is_admin: RwSignal::new(false),
             loaded: RwSignal::new(false),
             generation: RwSignal::new(Generation::default()),
+            connection_error: RwSignal::new(None),
             logout_epoch: RwSignal::new(0),
         }
     }
@@ -125,28 +127,33 @@ impl SessionStore {
         let epoch = self.logout_epoch.get_untracked();
         let client = ApiClient::auth_client();
         // プローブの結果は起動時の1回だけ使う。4xx の確定した拒否以外は撃ち直す
-        let fetched = match probe::take().await {
-            probe::Probe::Authenticated(user) => Some(user),
-            probe::Probe::Anonymous => None,
+        let fetched: Result<Option<SessionResponse>, ApiError> = match probe::take().await {
+            probe::Probe::Authenticated(user) => Ok(Some(user)),
+            probe::Probe::Anonymous => Ok(None),
             probe::Probe::Retry => client
                 .with_timeout_ms(PROBE_FOLLOWUP_TIMEOUT_MS)
                 .with_max_retries(0)
                 .get_json::<SessionResponse>("/api/v1/session", &[])
                 .await
-                .ok(),
+                .map(Some),
             probe::Probe::Missing => client
                 .get_json::<SessionResponse>("/api/v1/session", &[])
                 .await
-                .ok(),
+                .map(Some),
         };
-        let response = fetched.filter(|response| !response.user.id.is_empty());
+        let (response, error) = match fetched {
+            Ok(response) => (
+                response.filter(|response| !response.user.id.is_empty()),
+                None,
+            ),
+            Err(error) => (None, Some(error)),
+        };
         batch(|| {
             if self.check_result_applies(epoch, pending_logout::is_pending()) {
-                let is_admin = response.as_ref().is_some_and(|response| response.is_admin);
-                self.set_user(response.map(|response| response.user));
-                self.is_admin.set(is_admin);
+                self.apply_fetched(response, error);
             } else {
                 self.set_user(None);
+                self.connection_error.set(None);
             }
             self.loaded.set(true);
         });
@@ -158,7 +165,29 @@ impl SessionStore {
 
     pub fn mark_unauthenticated(&self) {
         self.logout_epoch.update(|epoch| *epoch += 1);
+        self.connection_error.set(None);
         self.set_user(None);
+    }
+
+    pub fn apply_fetched(&self, response: Option<SessionResponse>, error: Option<ApiError>) {
+        if let Some(error) = error {
+            if error.is_server_error() {
+                self.connection_error.set(Some(error));
+            } else {
+                self.connection_error.set(None);
+                self.set_user(None);
+            }
+            return;
+        }
+        self.connection_error.set(None);
+        if let Some(response) = response.filter(|response| !response.user.id.is_empty()) {
+            let is_admin = response.is_admin;
+            self.set_user(Some(response.user));
+            self.is_admin.set(is_admin);
+        } else {
+            self.set_user(None);
+            self.is_admin.set(false);
+        }
     }
 
     pub async fn logout(&self) {
