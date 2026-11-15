@@ -14,6 +14,8 @@ use std::fmt::Display;
 use std::future::Future;
 use tracing::info;
 
+pub type AggregateResult<S> = (i64, Option<S>, Option<SearchFacets>);
+
 /// 検索・集計付き一覧を持つドメイン。
 /// ドメインごとに持つのは SELECT 列・ORDER BY・フィルタ/facets の指定・summary の SQL と、
 /// params 上のドメイン固有フィールドの取り出しだけ
@@ -133,6 +135,16 @@ pub trait Search: Domain {
     ) -> impl Future<Output = Result<SearchFacets, ApiError>> + Send {
         collect_facets::<Self>(tx, user_id, filter)
     }
+
+    fn fetch_aggregates(
+        tx: &mut Tx,
+        user_id: UserId,
+        filter: &SearchFilter,
+        include_summary: bool,
+        include_facets: bool,
+    ) -> impl Future<Output = Result<AggregateResult<Self::Summary>, ApiError>> + Send {
+        collect_aggregates::<Self>(tx, user_id, filter, include_summary, include_facets)
+    }
 }
 
 /// FACETS の1件分を取得する。Group/Security の違いだけをここで吸収する
@@ -181,6 +193,28 @@ async fn collect_facets<D: Search + ?Sized>(
     Ok(result)
 }
 
+async fn collect_aggregates<D: Search + ?Sized>(
+    tx: &mut Tx,
+    user_id: UserId,
+    filter: &SearchFilter,
+    include_summary: bool,
+    include_facets: bool,
+) -> Result<AggregateResult<D::Summary>, ApiError> {
+    let mut count_qb = D::count_query(user_id, filter);
+    let total: i64 = count_qb.build_query_scalar().fetch_one(&mut *tx).await?;
+    let summary = if include_summary {
+        Some(D::fetch_summary(&mut *tx, user_id, filter).await?)
+    } else {
+        None
+    };
+    let facets = if include_facets {
+        Some(D::fetch_facets(&mut *tx, user_id, filter).await?)
+    } else {
+        None
+    };
+    Ok((total, summary, facets))
+}
+
 /// 4ドメイン共通の検索制御フロー。
 /// 一覧の読み取りは1つの利用者Txで順に実行する
 pub async fn search<D: Search>(
@@ -198,27 +232,15 @@ pub async fn search<D: Search>(
     let include_facets = params.should_include_facets();
     let filter = D::make_filter(&params)?;
 
-    // 2. クエリ作成: count/data の SELECT 文に共通の WHERE 句を積む
-    let mut count_qb = D::count_query(user_id, &filter);
     let mut data_qb = D::data_query(user_id, &filter, per_page, offset);
 
-    // 3. 順次取得: 1つの利用者Txで count→data→summary→facets を直列に実行する
     let mut tx = pool.begin_with_user(user_id).await?;
-    let total: i64 = count_qb.build_query_scalar().fetch_one(&mut tx).await?;
     let data = data_qb
         .build_query_as::<D::Data>()
         .fetch_all(&mut tx)
         .await?;
-    let summary = if include_summary {
-        Some(D::fetch_summary(&mut tx, user_id, &filter).await?)
-    } else {
-        None
-    };
-    let facets = if include_facets {
-        Some(D::fetch_facets(&mut tx, user_id, &filter).await?)
-    } else {
-        None
-    };
+    let (total, summary, facets) =
+        D::fetch_aggregates(&mut tx, user_id, &filter, include_summary, include_facets).await?;
     tx.rollback().await?;
 
     // 4. 応答組立

@@ -1,6 +1,6 @@
-use crate::db::{Bind, Db, Tx};
+use crate::db::{Bind, Db, FromRow, Tx};
 use crate::errors::ApiError;
-use crate::models::common::BulkCreateResponse;
+use crate::models::common::{BulkCreateResponse, FacetOption, SearchFacets};
 use crate::models::csv_import::CsvRowError;
 use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
@@ -14,7 +14,7 @@ use crate::services::csv::util::{
 };
 use crate::services::domain::bulk::{RowLimit, bulk_insert, user_ids_for_bulk_insert};
 use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
-use crate::services::domain::search::Search;
+use crate::services::domain::search::{AggregateResult, Search};
 use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
@@ -57,6 +57,37 @@ const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(dividends_before_tax), 0) AS tota
      COALESCE(SUM(taxes), 0) AS total_taxes, \
      COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received \
      FROM dividends";
+
+const AGGREGATE_SELECT_SQL: &str = "SELECT slot, value, label, count, total_dividends_before_tax, total_taxes, total_net_amount_received FROM (SELECT CASE WHEN GROUPING(product) = 0 THEN 0 WHEN GROUPING(account) = 0 THEN 1 WHEN GROUPING(security_code) = 0 THEN 2 WHEN GROUPING(EXTRACT(YEAR FROM settlement_date)::integer::text) = 0 THEN 3 WHEN GROUPING(TO_CHAR(settlement_date, 'YYYY-MM')) = 0 THEN 4 ELSE 5 END AS slot, COALESCE(product, account, security_code, EXTRACT(YEAR FROM settlement_date)::integer::text, TO_CHAR(settlement_date, 'YYYY-MM')) AS value, CASE WHEN GROUPING(security_code) = 0 THEN (ARRAY_AGG(security_name ORDER BY settlement_date DESC, id DESC))[1] ELSE COALESCE(product, account, security_code, EXTRACT(YEAR FROM settlement_date)::integer::text, TO_CHAR(settlement_date, 'YYYY-MM')) END AS label, COUNT(*) AS count, COALESCE(SUM(dividends_before_tax), 0) AS total_dividends_before_tax, COALESCE(SUM(taxes), 0) AS total_taxes, COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received FROM dividends";
+
+const AGGREGATE_GROUP_SQL: &str = " GROUP BY GROUPING SETS ((product), (account), (security_code), (EXTRACT(YEAR FROM settlement_date)::integer::text), (TO_CHAR(settlement_date, 'YYYY-MM')), ())";
+
+const AGGREGATE_ORDER_SQL: &str =
+    " ) AS aggregates ORDER BY slot, CASE WHEN slot IN (3, 4) THEN value END DESC, value ASC";
+
+struct DividendAggregateRow {
+    slot: i32,
+    value: Option<String>,
+    label: Option<String>,
+    count: i64,
+    total_dividends_before_tax: crate::db::Numeric,
+    total_taxes: crate::db::Numeric,
+    total_net_amount_received: crate::db::Numeric,
+}
+
+impl FromRow for DividendAggregateRow {
+    fn from_row(row: &crate::db::Row) -> Result<Self, crate::db::DbError> {
+        Ok(Self {
+            slot: row.try_get("slot")?,
+            value: row.try_get("value")?,
+            label: row.try_get("label")?,
+            count: row.try_get("count")?,
+            total_dividends_before_tax: row.try_get("total_dividends_before_tax")?,
+            total_taxes: row.try_get("total_taxes")?,
+            total_net_amount_received: row.try_get("total_net_amount_received")?,
+        })
+    }
+}
 
 impl Search for DividendDomain {
     type Data = Dividend;
@@ -109,6 +140,73 @@ impl Search for DividendDomain {
             .build_query_as::<DividendSummary>()
             .fetch_one(&mut *tx)
             .await?)
+    }
+
+    async fn fetch_aggregates(
+        tx: &mut Tx,
+        user_id: UserId,
+        filter: &SearchFilter,
+        include_summary: bool,
+        include_facets: bool,
+    ) -> Result<AggregateResult<DividendSummary>, ApiError> {
+        if !include_summary && !include_facets {
+            let mut count_qb = Self::count_query(user_id, filter);
+            let total: i64 = count_qb.build_query_scalar().fetch_one(&mut *tx).await?;
+            return Ok((total, None, None));
+        }
+        let mut aggregate_qb = Self::filtered_query(AGGREGATE_SELECT_SQL, user_id, filter);
+        aggregate_qb.push(AGGREGATE_GROUP_SQL);
+        aggregate_qb.push(AGGREGATE_ORDER_SQL);
+        let rows = aggregate_qb
+            .build_query_as::<DividendAggregateRow>()
+            .fetch_all(&mut *tx)
+            .await?;
+        let mut total = 0;
+        let mut summary = None;
+        let mut products = Vec::new();
+        let mut accounts = Vec::new();
+        let mut securities = Vec::new();
+        let mut years = Vec::new();
+        let mut year_months = Vec::new();
+        for row in rows {
+            if row.slot == 5 {
+                total = row.count;
+                if include_summary {
+                    summary = Some(DividendSummary {
+                        total_dividends_before_tax: row.total_dividends_before_tax.0,
+                        total_taxes: row.total_taxes.0,
+                        total_net_amount_received: row.total_net_amount_received.0,
+                    });
+                }
+            } else if include_facets {
+                let option = FacetOption {
+                    value: row.value.ok_or(crate::db::DbError::RowNotFound)?,
+                    label: row.label.ok_or(crate::db::DbError::RowNotFound)?,
+                    count: Some(row.count),
+                };
+                match row.slot {
+                    0 => products.push(option),
+                    1 => accounts.push(option),
+                    2 => securities.push(option),
+                    3 => years.push(option),
+                    4 => year_months.push(option),
+                    _ => {}
+                }
+            }
+        }
+        let facets = if include_facets {
+            Some(SearchFacets {
+                products: Some(products),
+                accounts: Some(accounts),
+                securities: Some(securities),
+                funds: None,
+                years: Some(years),
+                year_months: Some(year_months),
+            })
+        } else {
+            None
+        };
+        Ok((total, summary, facets))
     }
 }
 
