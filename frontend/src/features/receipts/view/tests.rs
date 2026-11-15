@@ -1477,5 +1477,5 @@ fn date_tag_text_splits_range_ends_into_parts() {
     assert_ne!(full, from);
     assert_ne!(until, from);
     assert!(date_tag_text("2024").contains("2024"));
-    assert_eq!(date_tag_text(""), date_tag_text(""));
+    assert_eq!(date_tag_text(""), "");
 }

@@ -4,6 +4,8 @@ use crate::support::list_search::SearchOption;
 use crate::ui::labels::{self, ACCOUNT, PERIOD, PRODUCT};
 use leptos::prelude::*;
 
+// 銘柄名・コードの文字列検索は入力欄で行うため、条件として数えるのは
+// 期間・商品・口座の3種類だけにする
 pub(crate) const CONDITION_KEYS: [SearchKey; 3] =
     [SearchKey::Date, SearchKey::Products, SearchKey::Accounts];
 
