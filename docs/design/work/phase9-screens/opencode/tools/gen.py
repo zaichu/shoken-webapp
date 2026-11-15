@@ -71,7 +71,9 @@ body{margin:0; background:var(--page); color:var(--ink);
 .btn{display:flex; align-items:center; justify-content:center; min-height:48px; border-radius:8px; font-size:15px; font-weight:700; white-space:nowrap; border:1px solid var(--line); background:var(--card); color:var(--ink)}
 .btn.primary{background:var(--navy); border-color:var(--navy); color:#ffffff}
 html[data-theme="dark"] .btn.primary{color:#0b1220}
+@media (prefers-color-scheme: dark){ html:not([data-theme]) .btn.primary{color:#0b1220} }
 html[data-theme="dark"] .btn.primary{background:var(--accent); border-color:var(--accent)}
+@media (prefers-color-scheme: dark){ html:not([data-theme]) .btn.primary{background:var(--accent); border-color:var(--accent)} }
 .btn.danger{color:var(--down); border-color:var(--down)}
 .backlink{display:inline-flex; align-items:center; min-height:44px; font-size:13px; color:var(--accent); white-space:nowrap; text-decoration:none}
 .pagetitle{font-size:20px; font-weight:700; color:var(--navy); margin:0; white-space:nowrap}
