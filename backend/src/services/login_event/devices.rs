@@ -185,14 +185,13 @@ mod tests {
         let user_id = UserId::from(uuid::Uuid::new_v4());
         let older = chrono::TimeZone::with_ymd_and_hms(&Utc, 2026, 1, 1, 0, 0, 0).unwrap();
         let newer = chrono::TimeZone::with_ymd_and_hms(&Utc, 2026, 1, 2, 0, 0, 0).unwrap();
-        let entries =
-            to_device_entries(&user_id, vec![row(1, older), row(2, newer)], &vec![1u8; 32]);
+        let entries = to_device_entries(&user_id, vec![row(1, older), row(2, newer)], &[1u8; 32]);
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].last_used_at, newer);
         assert!(!entries[0].is_current);
         assert_eq!(entries[1].last_used_at, older);
         assert!(entries[1].is_current);
-        assert_eq!(entries[1].id, device_opaque_id(&user_id, &vec![1u8; 32]));
+        assert_eq!(entries[1].id, device_opaque_id(&user_id, &[1u8; 32]));
     }
 
     #[test]
