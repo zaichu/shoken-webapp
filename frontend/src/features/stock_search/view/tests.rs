@@ -108,3 +108,47 @@ fn yield_tile_wide_only_for_odd_detail_counts() {
     assert!(super::yield_tile_wide(true, false, false));
     assert!(super::yield_tile_wide(false, true, false));
 }
+
+#[test]
+fn search_body_state_prefers_search_error_first() {
+    assert_eq!(
+        super::resolve_search_body_state(true, true, true, true, true),
+        super::SearchBodyState::SearchFailed
+    );
+    assert_eq!(
+        super::resolve_search_body_state(true, false, false, false, false),
+        super::SearchBodyState::SearchFailed
+    );
+}
+
+#[test]
+fn search_body_state_prefers_balance_error_over_result() {
+    assert_eq!(
+        super::resolve_search_body_state(false, true, true, false, false),
+        super::SearchBodyState::BalanceFailed
+    );
+    assert_eq!(
+        super::resolve_search_body_state(false, true, false, true, false),
+        super::SearchBodyState::BalanceFailed
+    );
+}
+
+#[test]
+fn search_body_state_orders_found_not_found_initial_loading() {
+    assert_eq!(
+        super::resolve_search_body_state(false, false, true, true, true),
+        super::SearchBodyState::Found
+    );
+    assert_eq!(
+        super::resolve_search_body_state(false, false, false, true, true),
+        super::SearchBodyState::NotFound
+    );
+    assert_eq!(
+        super::resolve_search_body_state(false, false, false, false, false),
+        super::SearchBodyState::Initial
+    );
+    assert_eq!(
+        super::resolve_search_body_state(false, false, false, false, true),
+        super::SearchBodyState::Loading
+    );
+}
