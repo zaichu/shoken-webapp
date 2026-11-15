@@ -227,6 +227,39 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
     }
 }
 
+/// 検索結果の本文に載せる状態。表示の優先順は
+/// [`resolve_search_body_state`] の1か所にまとめる
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SearchBodyState {
+    SearchFailed,
+    BalanceFailed,
+    Found,
+    NotFound,
+    Initial,
+    Loading,
+}
+
+const fn resolve_search_body_state(
+    has_search_error: bool,
+    has_balance_error: bool,
+    has_data: bool,
+    is_not_found: bool,
+    is_loading: bool,
+) -> SearchBodyState {
+    if has_search_error {
+        SearchBodyState::SearchFailed
+    } else if has_balance_error {
+        SearchBodyState::BalanceFailed
+    } else if has_data {
+        SearchBodyState::Found
+    } else if is_not_found {
+        SearchBodyState::NotFound
+    } else if !is_loading {
+        SearchBodyState::Initial
+    } else {
+        SearchBodyState::Loading
+    }
+}
 /// 検索欄(PC の本文直上)・結果・保有情報をまとめた本文。戻りの有無で枠を
 /// 作り分けても中身は同じものを使う
 #[component]
@@ -279,50 +312,114 @@ fn SearchPageBody(
                 })
         }}
         {move || {
+            let search_error = stock_search.error_message();
+            let balance_message = balance_error.get();
             let data = stock_search.stock_data();
-            let error = stock_search.error_message();
-            let not_found = stock_search.is_not_found();
-            let is_loading = loading.get();
-            error.map_or_else(
-                || {
-            if let Some(message) = balance_error.get() {
-                view! {
-                    <div class="mb-3">
-                        <ListLoadError message=message on_retry=on_retry_balances />
-                    </div>
-                    {data.map(|stock| view! { <StockInfo stock=stock /> }.into_any())}
-                }.into_any()
-            } else if let Some(stock) = data {
-                let group = holding_group.get();
-                view! {
-                    {group.map(|group| view! { <HoldingSection group=group dividends=dividends /> })}
-                    <StockInfo stock=stock />
-                }.into_any()
-            } else if not_found {
-                let group = holding_group.get();
-                view! {
-                    {group.map(|group| view! { <HoldingSection group=group dividends=dividends /> })}
-                    <EmptySearch title=labels::STOCK_SEARCH_NOT_FOUND_TITLE />
-                }.into_any()
-            } else if !is_loading {
-                view! { <EmptySearch title=labels::STOCK_SEARCH_INITIAL_TITLE /> }.into_any()
-            } else {
-                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any()
-            }
-                },
-                |message| {
-                view! {
-                    <ListLoadError message=message on_retry=move || {
-                        let code = stock_search.stock_code.get_untracked();
-                        if !code.is_empty() && !stock_search.search.pending().get_untracked() {
-                            stock_search.search.dispatch(code);
-                        }
-                    } />
+            let state = resolve_search_body_state(
+                search_error.is_some(),
+                balance_message.is_some(),
+                data.is_some(),
+                stock_search.is_not_found(),
+                loading.get(),
+            );
+            match state {
+                SearchBodyState::SearchFailed => {
+                    view! {
+                        <SearchFailedBody
+                            message=search_error.clone().unwrap_or_default()
+                            stock_search=stock_search
+                        />
+                    }
+                        .into_any()
                 }
-                    .into_any()
-                },
-            )
+                SearchBodyState::BalanceFailed => {
+                    view! {
+                        <BalanceFailedBody
+                            stock=data.clone()
+                            message=balance_message.clone().unwrap_or_default()
+                            on_retry_balances=on_retry_balances
+                        />
+                    }
+                        .into_any()
+                }
+                SearchBodyState::Found => {
+                    data.clone()
+                        .map_or_else(
+                            || {
+                                view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
+                                    .into_any()
+                            },
+                            |stock| {
+                                view! {
+                                    <FoundBody stock=stock holding=holding_group.get() dividends=dividends />
+                                }
+                                    .into_any()
+                            },
+                        )
+                }
+                SearchBodyState::NotFound => {
+                    view! {
+                        <NotFoundBody holding=holding_group.get() dividends=dividends />
+                    }
+                        .into_any()
+                }
+                SearchBodyState::Initial => {
+                    view! { <EmptySearch title=labels::STOCK_SEARCH_INITIAL_TITLE /> }.into_any()
+                }
+                SearchBodyState::Loading => {
+                    view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any()
+                }
+            }
         }}
+    }
+}
+
+#[component]
+fn SearchFailedBody(message: String, stock_search: super::StockSearch) -> impl IntoView {
+    view! {
+        <ListLoadError
+            message=message
+            on_retry=move || {
+                let code = stock_search.stock_code.get_untracked();
+                if !code.is_empty() && !stock_search.search.pending().get_untracked() {
+                    stock_search.search.dispatch(code);
+                }
+            }
+        />
+    }
+}
+
+#[component]
+fn BalanceFailedBody(
+    stock: Option<Stock>,
+    message: String,
+    on_retry_balances: impl Fn() + Send + Sync + Copy + 'static,
+) -> impl IntoView {
+    view! {
+        <div class="mb-3">
+            <ListLoadError message=message on_retry=on_retry_balances />
+        </div>
+        {stock.map(|stock| view! { <StockInfo stock=stock /> })}
+    }
+}
+
+#[component]
+fn FoundBody(
+    stock: Stock,
+    holding: Option<HoldingGroup>,
+    dividends: RwSignal<DividendMaps>,
+) -> impl IntoView {
+    view! {
+        {holding.map(|group| view! { <HoldingSection group=group dividends=dividends /> })}
+        <StockInfo stock=stock />
+    }
+}
+
+#[component]
+fn NotFoundBody(holding: Option<HoldingGroup>, dividends: RwSignal<DividendMaps>) -> impl IntoView {
+    view! {
+        {holding.map(|group| view! { <HoldingSection group=group dividends=dividends /> })}
+        <EmptySearch title=labels::STOCK_SEARCH_NOT_FOUND_TITLE />
     }
 }
 
@@ -654,15 +751,15 @@ fn yield_tile_wide(show_common: bool, has_average: bool, has_account: bool) -> b
 
 #[component]
 fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
-    let show_common = data.show_common;
-    let wide_yield = yield_tile_wide(
-        show_common,
-        data.average_price.is_some(),
-        data.account.is_some(),
-    );
-    let current_price = data.current_price.clone();
-    let price_as_of = data.price_as_of.clone();
-    let per_share = data.per_share.clone();
+    let summary = data.clone();
+    view! {
+        <HoldingSummaryTiles data=summary />
+        <HoldingDetailTiles data=data />
+    }
+}
+
+#[component]
+fn HoldingSummaryTiles(data: HoldingTilesData) -> impl IntoView {
     view! {
         <HoldingSummary>
             <HoldingSummaryItem label=labels::MARKET_VALUE.to_string()>
@@ -679,23 +776,53 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
                 <span class="ml-1 text-xs text-text-muted tabular-nums">{data.pnl_rate}</span>
             </HoldingSummaryItem>
         </HoldingSummary>
+    }
+}
+
+#[component]
+fn CommonDetailTiles(current_price: String, price_as_of: String) -> impl IntoView {
+    view! {
+        <HoldingDetailItem label=labels::CURRENT_PRICE.to_string()>
+            <span class="tabular-nums">{current_price}</span>
+        </HoldingDetailItem>
+        <HoldingDetailItem label=labels::PRICE_AS_OF.to_string()>
+            {price_as_of}
+        </HoldingDetailItem>
+    }
+}
+
+#[component]
+fn PerShareDetailTile(per_share: String) -> impl IntoView {
+    view! {
+        <HoldingDetailItem label=labels::PER_SHARE_DIVIDEND.to_string()>
+            <span class="tabular-nums">{per_share}</span>
+        </HoldingDetailItem>
+    }
+}
+
+#[component]
+fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
+    let show_common = data.show_common;
+    let show_account = show_common && data.account.is_some();
+    let wide_yield = yield_tile_wide(
+        show_common,
+        data.average_price.is_some(),
+        data.account.is_some(),
+    );
+    let price_tiles = show_common.then(|| {
+        view! {
+            <CommonDetailTiles
+                current_price=data.current_price.clone()
+                price_as_of=data.price_as_of.clone()
+            />
+        }
+    });
+    let per_share_tile = show_common.then(|| {
+        view! { <PerShareDetailTile per_share=data.per_share.clone() /> }
+    });
+    view! {
         <HoldingDetails>
-            {show_common
-                .then(|| {
-                    view! {
-                        <HoldingDetailItem label=labels::CURRENT_PRICE.to_string()>
-                            <span class="tabular-nums">{current_price}</span>
-                        </HoldingDetailItem>
-                    }
-                })}
-            {show_common
-                .then(|| {
-                    view! {
-                        <HoldingDetailItem label=labels::PRICE_AS_OF.to_string()>
-                            {price_as_of}
-                        </HoldingDetailItem>
-                    }
-                })}
+            {price_tiles}
             <HoldingDetailItem label=labels::QUANTITY.to_string()>
                 <span class="tabular-nums">{data.quantity}</span>
             </HoldingDetailItem>
@@ -711,7 +838,7 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
             <HoldingDetailItem label=labels::TOTAL_ACQUISITION.to_string()>
                 <span class="tabular-nums">{data.purchase}</span>
             </HoldingDetailItem>
-            {(show_common && data.account.is_some())
+            {show_account
                 .then(|| {
                     data.account
                         .clone()
@@ -723,14 +850,7 @@ fn HoldingTilesView(data: HoldingTilesData) -> impl IntoView {
                             }
                         })
                 })}
-            {show_common
-                .then(|| {
-                    view! {
-                        <HoldingDetailItem label=labels::PER_SHARE_DIVIDEND.to_string()>
-                            <span class="tabular-nums">{per_share}</span>
-                        </HoldingDetailItem>
-                    }
-                })}
+            {per_share_tile}
             <HoldingDetailItem label=labels::ANNUAL_DIVIDEND_REFERENCE.to_string()>
                 <span class="tabular-nums">{data.annual}</span>
             </HoldingDetailItem>
