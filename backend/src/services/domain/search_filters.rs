@@ -5,6 +5,8 @@ use chrono::NaiveDate;
 use shared::value::UserId;
 use std::future::Future;
 
+// ── 入力変換: クエリパラメータの文字列 → SearchFilter ──
+
 fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
     NaiveDate::parse_from_str(value, "%Y-%m-%d")
         .map_err(|_| ApiError::Validation(format!("{field} の形式が不正です（YYYY-MM-DD）")))
@@ -88,6 +90,13 @@ impl TryFrom<&SearchQueryParams> for DateAxisFilter {
     }
 }
 
+/// フリーワード検索欄をスペース区切りの token 配列へ変換する
+pub fn tokens_from_query(q: Option<&str>) -> Vec<String> {
+    q.map_or_default(|q| q.split_whitespace().map(str::to_string).collect())
+}
+
+// ── SQL 組み立て: SearchFilter → WHERE 句 ──
+
 /// 検索条件に使えるドメイン固有フィールド。SQL カラム名と1対1で対応する
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FilterField {
@@ -137,6 +146,17 @@ impl SearchFilter {
     }
 }
 
+/// date_column（呼び出し側が渡す固定文字列のみ）を使って単一の日付境界条件を push する
+fn push_date_bound(
+    qb: &mut QueryBuilder,
+    date_column: &'static str,
+    op: &'static str,
+    value: NaiveDate,
+) {
+    qb.push(format!(" AND {date_column} {op} "))
+        .push_bind(value);
+}
+
 /// date_column（呼び出し側が渡す固定文字列のみ）を使って date 条件を WHERE 句へ push する
 fn push_date_axis_filters(
     qb: &mut QueryBuilder,
@@ -144,27 +164,22 @@ fn push_date_axis_filters(
     filter: &DateAxisFilter,
 ) {
     if let Some(v) = filter.date_eq {
-        qb.push(format!(" AND {date_column} = ")).push_bind(v);
+        push_date_bound(qb, date_column, "=", v);
     }
     if let Some(v) = filter.date_from {
-        qb.push(format!(" AND {date_column} >= ")).push_bind(v);
+        push_date_bound(qb, date_column, ">=", v);
     }
     if let Some(v) = filter.date_to {
-        qb.push(format!(" AND {date_column} <= ")).push_bind(v);
+        push_date_bound(qb, date_column, "<=", v);
     }
     if let Some((start, end)) = filter.year_range {
-        qb.push(format!(" AND {date_column} >= ")).push_bind(start);
-        qb.push(format!(" AND {date_column} < ")).push_bind(end);
+        push_date_bound(qb, date_column, ">=", start);
+        push_date_bound(qb, date_column, "<", end);
     }
     if let Some((start, end)) = filter.year_month_range {
-        qb.push(format!(" AND {date_column} >= ")).push_bind(start);
-        qb.push(format!(" AND {date_column} < ")).push_bind(end);
+        push_date_bound(qb, date_column, ">=", start);
+        push_date_bound(qb, date_column, "<", end);
     }
-}
-
-/// フリーワード検索欄をスペース区切りの token 配列へ変換する
-pub fn tokens_from_query(q: Option<&str>) -> Vec<String> {
-    q.map_or_default(|q| q.split_whitespace().map(str::to_string).collect())
 }
 
 /// token ごとに columns（呼び出し側が渡す固定文字列配列のみ）への ILIKE OR 条件を
@@ -563,6 +578,56 @@ mod tests {
         fn test_push_filters_always_scopes_to_user() {
             let sql = filter_sql::<FundBalanceDomain>(&FundBalanceSearchQueryParams::default());
             assert!(sql.contains("user_id = "), "sql={sql}");
+        }
+
+        /// count/data クエリ組み立てが search() 本体と同じ WHERE 条件になることを固定する
+        #[test]
+        fn test_count_and_data_queries_share_filter_conditions() {
+            let params = DividendSearchQueryParams {
+                search: search_with_q("AA"),
+                ..Default::default()
+            };
+            let filter =
+                DividendDomain::make_filter(&params).expect("正常な params はフィルタ化できる");
+            let user = UserId::default();
+
+            let count_sql = DividendDomain::count_query(user, &filter).sql().to_string();
+            assert!(count_sql.starts_with("SELECT COUNT(*) FROM dividends"));
+            assert!(count_sql.contains("user_id = "), "sql={count_sql}");
+            assert_eq!(count_sql.matches(" AND (").count(), 1, "sql={count_sql}");
+
+            let data_sql = DividendDomain::data_query(user, &filter, 20, 0)
+                .sql()
+                .to_string();
+            assert!(data_sql.contains(" FROM dividends"), "sql={data_sql}");
+            assert!(
+                data_sql.contains(" ORDER BY settlement_date DESC, id DESC"),
+                "sql={data_sql}"
+            );
+            assert!(data_sql.contains(" LIMIT "), "sql={data_sql}");
+            assert!(data_sql.contains(" OFFSET "), "sql={data_sql}");
+            assert_eq!(data_sql.matches(" AND (").count(), 1, "sql={data_sql}");
+        }
+
+        /// FROM を上書きするドメインは一覧を view から読むが、count は TABLE から数える
+        #[test]
+        fn test_data_query_uses_from_override() {
+            let filter = AssetBalanceDomain::make_filter(&AssetBalanceSearchQueryParams::default())
+                .expect("既定 params はフィルタ化できる");
+            let user = UserId::default();
+
+            let count_sql = AssetBalanceDomain::count_query(user, &filter)
+                .sql()
+                .to_string();
+            assert!(count_sql.starts_with("SELECT COUNT(*) FROM asset_balances"));
+
+            let data_sql = AssetBalanceDomain::data_query(user, &filter, 20, 0)
+                .sql()
+                .to_string();
+            assert!(
+                data_sql.contains(" FROM asset_balances_view"),
+                "sql={data_sql}"
+            );
         }
 
         /// date 系パラメータが DATE_COLUMN への条件になること（日付軸を持つ3ドメイン）

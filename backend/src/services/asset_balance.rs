@@ -44,22 +44,7 @@ impl CsvImport for AssetBalanceDomain {
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
         let rows: Vec<CsvRowView<'_>> = table.rows().collect();
         let accounts = assign_row_accounts(&rows);
-        let mut items = Vec::new();
-        let mut errors = Vec::new();
-        for (index, (row, account)) in rows.iter().zip(&accounts).enumerate() {
-            if classify_row(row) != RowKind::Holding {
-                continue;
-            }
-            match transform_asset_balance_row(row, RowNumber::new(index + 1)) {
-                Ok(Some(item)) => items.push(CreateAssetBalanceRequest {
-                    account: account.clone(),
-                    ..item
-                }),
-                Ok(None) => {}
-                Err(error) => errors.push(error),
-            }
-        }
-        (items, errors)
+        convert_holding_rows(&rows, &accounts)
     }
 
     async fn bulk_create(
@@ -219,7 +204,7 @@ fn is_account_summary_row(row: &CsvRowView<'_>) -> bool {
     row.cell("銘柄コード").trim().is_empty() && row.values().any(|value| value.contains("口座合計"))
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum RowKind {
     /// 保有行
     Holding,
@@ -266,35 +251,135 @@ fn heading_account_name(row: &CsvRowView<'_>) -> Option<Account> {
 ///
 /// 実際の証券会社 CSV は「■口座名」見出し → 列見出し → 保有行 → 「口座合計」集計行の
 /// ブロック構造なので、見出し・区切りのどちらが出てもその口座名を後続の保有行へ付ける。
-/// 末尾の「口座合計」だけは直前の未割当の保有行を閉じる集計行として扱う。直後に別の
-/// 口座ブロック(■見出し・区切り)や保有行が続く区切りは前後どちらの区切りか分からない
-/// ため、直前の行にはさかのぼって付けない
 fn assign_row_accounts(rows: &[CsvRowView<'_>]) -> Vec<Option<Account>> {
     let kinds: Vec<RowKind> = rows.iter().map(classify_row).collect();
+    let mut cursor = AccountCursor::default();
     let mut accounts: Vec<Option<Account>> = vec![None; rows.len()];
-    let mut current: Option<Account> = None;
     for (index, row) in rows.iter().enumerate() {
         match kinds[index] {
-            RowKind::Heading => current = heading_account_name(row),
+            RowKind::Heading => cursor.apply_heading(row),
             RowKind::Separator => {
-                let name = separator_account_name(row);
-                let trailing_summary =
-                    matches!(kinds.get(index + 1), None | Some(RowKind::Structural));
-                if trailing_summary && let Some(name) = &name {
-                    for i in (0..index).rev() {
-                        if kinds[i] != RowKind::Holding || accounts[i].is_some() {
-                            break;
-                        }
-                        accounts[i] = Some(name.clone());
-                    }
-                }
-                current = name;
+                apply_separator(&mut accounts, &kinds, &mut cursor, rows[index], index);
             }
             RowKind::Structural => {}
-            RowKind::Holding => accounts[index] = current.clone(),
+            RowKind::Holding => accounts[index] = cursor.holding_account(),
         }
     }
     accounts
+}
+
+#[derive(Default)]
+struct AccountCursor {
+    current: Option<Account>,
+}
+
+impl AccountCursor {
+    fn apply_heading(&mut self, row: &CsvRowView<'_>) {
+        self.current = heading_account_name(row);
+    }
+
+    fn holding_account(&self) -> Option<Account> {
+        self.current.clone()
+    }
+}
+
+/// 区切り行を現在口座へ反映する。末尾の区切りは直前の未割当の保有行を閉じる集計行と
+/// みなし、後続ブロック(■見出し・保有行)が続く区切りは前後どちらの区切りか分からない
+/// ため直前の行にはさかのぼって付けない
+fn apply_separator(
+    accounts: &mut [Option<Account>],
+    kinds: &[RowKind],
+    cursor: &mut AccountCursor,
+    row: CsvRowView<'_>,
+    index: usize,
+) {
+    let name = separator_account_name(&row);
+    if is_trailing_summary(kinds, index)
+        && let Some(name) = &name
+    {
+        backfill_unassigned_holdings(accounts, kinds, index, name);
+    }
+    cursor.current = name;
+}
+
+fn is_trailing_summary(kinds: &[RowKind], index: usize) -> bool {
+    matches!(kinds.get(index + 1), None | Some(RowKind::Structural))
+}
+
+fn backfill_unassigned_holdings(
+    accounts: &mut [Option<Account>],
+    kinds: &[RowKind],
+    separator_index: usize,
+    name: &Account,
+) {
+    for i in (0..separator_index).rev() {
+        if kinds[i] != RowKind::Holding || accounts[i].is_some() {
+            break;
+        }
+        accounts[i] = Some(name.clone());
+    }
+}
+
+/// 保有行だけを変換する。行番号は表全体での位置を通す
+fn convert_holding_rows(
+    rows: &[CsvRowView<'_>],
+    accounts: &[Option<Account>],
+) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
+    let mut items = Vec::new();
+    let mut errors = Vec::new();
+    for (index, (row, account)) in rows.iter().zip(accounts).enumerate() {
+        if classify_row(row) != RowKind::Holding {
+            continue;
+        }
+        match transform_asset_balance_row(row, RowNumber::new(index + 1)) {
+            Ok(Some(item)) => items.push(CreateAssetBalanceRequest {
+                account: account.clone(),
+                ..item
+            }),
+            Ok(None) => {}
+            Err(error) => errors.push(error),
+        }
+    }
+    (items, errors)
+}
+
+fn required_amount(
+    row: &CsvRowView<'_>,
+    col: &str,
+    row_num: RowNumber,
+) -> Result<Decimal, CsvRowError> {
+    let raw = parse_optional_string(row, col);
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed == "-" {
+        return Err(CsvRowError {
+            row: row_num.get(),
+            message: format!("必須列 '{col}' が空または値なし"),
+        });
+    }
+    parse_number(trimmed).map_err(|e| CsvRowError {
+        row: row_num.get(),
+        message: format!("{col}: {e}"),
+    })
+}
+
+fn fallback_amount(row: &CsvRowView<'_>, col: &str) -> Decimal {
+    parse_number(&parse_optional_string(row, col)).unwrap_or(Decimal::ZERO)
+}
+
+fn holding_security_code(
+    row: &CsvRowView<'_>,
+    row_num: RowNumber,
+) -> Result<Option<SecurityCode>, CsvRowError> {
+    let code_raw = parse_optional_string(row, "銘柄コード").replace('"', "");
+    if code_raw.trim().is_empty() {
+        return Ok(None);
+    }
+    SecurityCode::try_from(code_raw.as_str())
+        .map(Some)
+        .map_err(|e| CsvRowError {
+            row: row_num.get(),
+            message: format!("銘柄コード: {e}"),
+        })
 }
 
 /// 保有銘柄 CSV の1行をパースして CreateAssetBalanceRequest に変換
@@ -307,37 +392,17 @@ fn transform_asset_balance_row(
     row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<Option<CreateAssetBalanceRequest>, CsvRowError> {
-    let num = |col: &str| {
-        let raw = parse_optional_string(row, col);
-        let trimmed = raw.trim();
-        if trimmed.is_empty() || trimmed == "-" {
-            return Err(CsvRowError {
-                row: row_num.get(),
-                message: format!("必須列 '{col}' が空または値なし"),
-            });
-        }
-        parse_number(trimmed).map_err(|e| CsvRowError {
-            row: row_num.get(),
-            message: format!("{col}: {e}"),
-        })
-    };
-
     // 必須の数値を先に検証し、銘柄コードが空でも不正な行はエラーとして報告する
-    let shares = num("保有数量［株］")?;
-    let average_purchase_price = num("平均取得価額［円］")?;
-    let total_purchase_amount = num("取得総額［円］")?;
-    let current_price = num("現在値［円］")?;
-    let market_value = num("時価評価額［円］")?;
+    let shares = required_amount(row, "保有数量［株］", row_num)?;
+    let average_purchase_price = required_amount(row, "平均取得価額［円］", row_num)?;
+    let total_purchase_amount = required_amount(row, "取得総額［円］", row_num)?;
+    let current_price = required_amount(row, "現在値［円］", row_num)?;
+    let market_value = required_amount(row, "時価評価額［円］", row_num)?;
 
     // 銘柄コードが空の行（「口座合計」以外の集計・罫線行）は取り込み対象外
-    let code_raw = parse_optional_string(row, "銘柄コード").replace('"', "");
-    if code_raw.trim().is_empty() {
+    let Some(security_code) = holding_security_code(row, row_num)? else {
         return Ok(None);
-    }
-    let security_code = SecurityCode::try_from(code_raw.as_str()).map_err(|e| CsvRowError {
-        row: row_num.get(),
-        message: format!("銘柄コード: {e}"),
-    })?;
+    };
     Ok(Some(CreateAssetBalanceRequest {
         security_code,
         // 口座は行単位では持たず、区切り行からの付与で transform_rows が上書きする
@@ -353,12 +418,10 @@ fn transform_asset_balance_row(
         total_purchase_amount,
         current_price,
         // 前日比は変動なし時に 0 または "-" が仕様上ありうるため 0.0 フォールバック
-        daily_change: parse_number(&parse_optional_string(row, "現在値（前日比）［円］"))
-            .unwrap_or(Decimal::ZERO),
+        daily_change: fallback_amount(row, "現在値（前日比）［円］"),
         market_value,
         // 評価損益は NISA 等で表示されない場合に "-" が仕様上ありうるため 0.0 フォールバック
-        profit_loss_rate: parse_number(&parse_optional_string(row, "評価損益［％］"))
-            .unwrap_or(Decimal::ZERO),
+        profit_loss_rate: fallback_amount(row, "評価損益［％］"),
     }))
 }
 
@@ -680,5 +743,101 @@ mod tests {
         assert!(!is_summary("9999", "口座合計を含む名称"));
         assert!(!is_summary("", "普通株式"));
         assert!(!is_summary("9904", "架空自動車"));
+    }
+
+    #[test]
+    fn test_classify_row() {
+        use crate::services::csv::util::HeaderIndex;
+
+        let index = HeaderIndex::new(["銘柄コード", "銘柄名"]);
+        let kind_of = |code: &str, name: &str| {
+            let record = csv::StringRecord::from(vec![code, name]);
+            classify_row(&CsvRowView::new(&record, &index))
+        };
+
+        assert_eq!(kind_of("■特定口座", ""), RowKind::Heading);
+        assert_eq!(kind_of("銘柄コード", ""), RowKind::Structural);
+        assert_eq!(kind_of("", "特定口座合計"), RowKind::Separator);
+        assert_eq!(kind_of("9901", "架空資源開発"), RowKind::Holding);
+        // コード入りで銘柄名に「口座合計」を含めても保有行のまま
+        assert_eq!(kind_of("9999", "口座合計を含む名称"), RowKind::Holding);
+        // コードも集計文言も無い行は保有行として変換側へ回す
+        assert_eq!(kind_of("", "普通株式"), RowKind::Holding);
+        assert_eq!(kind_of("", ""), RowKind::Holding);
+    }
+
+    #[test]
+    fn test_row_accounts_with_headings_blank_and_invalid_rows() {
+        const SEP_TOKUTEI: &str = ",,,,,,特定口座合計,,,,,";
+        const BAD_SHARES_ROW: &str =
+            "9905,架空ゲーム,N/A,0,1000,5000,5000000,7000,100,7000000,40.00";
+
+        let accounts_and_errors = |lines: &[&str]| {
+            let table = parse_csv_with_config(
+                format!("{HEADER}\n{}", lines.join("\n")).as_bytes(),
+                &AssetBalanceDomain::CSV_CONFIG,
+            )
+            .unwrap();
+            let (items, errors) = AssetBalanceDomain::transform_rows(&table);
+            (
+                items
+                    .iter()
+                    .map(|item| {
+                        (
+                            item.security_code.as_str().to_string(),
+                            item.account.as_ref().map(|a| a.as_str().to_string()),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                errors.len(),
+            )
+        };
+
+        // 空行はパース段階で除かれるため口座割当に影響しない
+        let (items, errors) = accounts_and_errors(&[
+            "■特定口座",
+            HEADER,
+            TEST_ROW_1,
+            "",
+            ",,,,,,,,,,,",
+            TEST_ROW_2,
+        ]);
+        assert_eq!(errors, 0);
+        assert_eq!(
+            items,
+            [
+                ("9931".to_string(), Some("特定".to_string())),
+                ("9932".to_string(), Some("特定".to_string())),
+            ]
+        );
+
+        // 不正行はエラーになり、有効な前後の行の口座は変わらない
+        let (items, errors) =
+            accounts_and_errors(&[SEP_TOKUTEI, BAD_SHARES_ROW, TEST_ROW_1, TEST_ROW_2]);
+        assert_eq!(errors, 1);
+        assert_eq!(
+            items,
+            [
+                ("9931".to_string(), Some("特定".to_string())),
+                ("9932".to_string(), Some("特定".to_string())),
+            ]
+        );
+
+        // 口座名の取れない見出しは現在口座をリセットする
+        let (items, errors) =
+            accounts_and_errors(&["■特定口座", HEADER, TEST_ROW_1, "■メモ", HEADER, TEST_ROW_2]);
+        assert_eq!(errors, 0);
+        assert_eq!(
+            items,
+            [
+                ("9931".to_string(), Some("特定".to_string())),
+                ("9932".to_string(), None),
+            ]
+        );
+
+        // 見出し直後の列見出し繰り返しは取り込み行にならない
+        let (items, errors) = accounts_and_errors(&["■特定口座", HEADER, HEADER, TEST_ROW_1]);
+        assert_eq!(errors, 0);
+        assert_eq!(items, [("9931".to_string(), Some("特定".to_string())),]);
     }
 }

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>取引明細 | 証券Web</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="site.css">
+<style>
+.condwrap{position:relative}
+.condwrap .pop{display:none}
+.condwrap .pop:target{display:block}
+@media (max-width:1023px){
+  .condwrap .pop{position:static;box-shadow:none;margin-bottom:var(--space-3)}
+  .condwrap .pop:target{display:block}
+}
+.overlay{display:none}
+.overlay:target{display:flex}
+.period-opts{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-2)}
+.tblwrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
+.tblwrap .tbl{border:0;border-radius:0;min-width:760px}
+.mrows .rowlink{display:block;color:inherit;text-decoration:none;border-radius:var(--radius-md)}
+.mrows .rowlink:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">メインコンテンツへスキップ</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand-logo" href="index.html">証券Web</a>
+    <nav class="mainnav" aria-label="メインナビゲーション">
+      <a href="#">ホーム</a><a href="#">資産管理</a>
+      <a href="receipts-opencode.html" aria-current="page">取引明細</a>
+      <a href="#">銘柄検索</a>
+    </nav>
+    <a class="account-btn" href="account-opencode.html">● アカウント</a>
+  </div>
+</header>
+<main class="page" id="main">
+  <div class="page-head">
+    <h1>取引明細</h1><span class="count">{{RECEIPTS_HEAD_COUNT}}</span>
+    <span class="spacer"><a class="btn ghost" href="csv-opencode.html">CSV管理</a></span>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="明細の種類">
+    <a role="tab" href="receipts-opencode.html" data-tab="dividend" aria-selected="true">配当金 <span class="n">{{DIV_TAB_COUNT}}</span></a>
+    <a role="tab" href="receipts-opencode.html?tab=stock" data-tab="stock" aria-selected="false">国内株式 <span class="n">{{STOCK_TAB_COUNT}}</span></a>
+    <a role="tab" href="receipts-opencode.html?tab=fund" data-tab="fund" aria-selected="false">投資信託 <span class="n">{{FUND_TAB_COUNT}}</span></a>
+  </div>
+
+  <!-- ============ 配当金タブ ============ -->
+  <section data-panel="dividend">
+    <div class="band" aria-label="集計">
+      <div class="band-item"><div class="k">受け取った配当金(税引後)</div><div class="v">{{DIV_BAND_AFTER}}</div><div class="sub">{{DIV_RANGE}}</div></div>
+      <div class="band-item"><div class="k">配当金(税引前)</div><div class="v">{{DIV_BAND_BEFORE}}</div></div>
+      <div class="band-item"><div class="k">税額</div><div class="v">{{DIV_BAND_TAX}}</div></div>
+    </div>
+    <p class="note"><span>データ: 2026/11/14 取り込み</span><span>配当入金のあった月のみ表示</span></p>
+    <div class="searchbar" role="search" aria-label="取引明細の検索">
+      <input type="search" placeholder="銘柄名・コードで検索" aria-label="銘柄名・コードで検索" value="">
+      <a class="btn" href="#cond-period">条件を足す</a>
+    </div>
+    <div class="chips">
+      <span>条件:</span>
+      <span class="chip">期間 2026年 <button aria-label="期間 2026年 を解除">×</button></span>
+      <button class="linkish">すべてクリア</button>
+    </div>
+    <div class="condwrap">
+      <div class="pop" id="cond-period" role="dialog" aria-label="期間を選ぶ">
+        <strong>期間の種類</strong>
+        <div class="period-opts">
+          <span class="chip">すべて</span><span class="chip">年</span><span class="chip">年月</span><span class="chip">日</span><span class="chip">範囲</span>
+        </div>
+        <div class="field"><label for="py">年</label>
+          <select id="py"><option>2026年</option><option>2025年</option></select>
+        </div>
+        <div class="field"><label for="pac">口座</label>
+          <select id="pac"><option>すべて</option><option>特定</option><option>一般</option><option>NISA成長</option></select>
+        </div>
+        <div class="field"><label for="ppr">商品</label>
+          <select id="ppr"><option>すべて</option><option>国内株式</option><option>投資信託</option></select>
+        </div>
+        <p><a class="btn primary" href="receipts-opencode.html">この期間で絞る</a> <a class="btn ghost" href="receipts-opencode.html">閉じる</a></p>
+      </div>
+    </div>
+    <div class="listwrap">
+      <div>
+        <div class="tblwrap only-pc"><table class="tbl" aria-label="配当金の一覧">
+          <thead><tr><th>入金日</th><th>コード</th><th>銘柄・ファンド</th><th>口座</th><th class="num">数量</th><th class="num">単価</th><th class="num">配当金(税引前)</th><th class="num">税額</th><th class="num">税引後</th></tr></thead>
+          <tbody>
+            {{DIV_ROWS_PC}}
+          </tbody>
+        </table></div>
+        <ul class="mrows only-sp" aria-label="配当金の一覧">
+          {{DIV_ROWS_SP}}
+        </ul>
+      </div>
+      <aside class="detail" aria-label="行の詳細">
+      {{DIV_ASIDE}}
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ 国内株式タブ ============ -->
+  <section data-panel="stock" hidden>
+    <div class="band" aria-label="集計">
+      <div class="band-item"><div class="k">実現損益(税引後)</div><div class="v pos">{{STOCK_BAND_AFTER}}</div><div class="sub">{{STOCK_RANGE}}</div></div>
+      <div class="band-item"><div class="k">実現損益(税引前)</div><div class="v pos">{{STOCK_BAND_BEFORE}}</div></div>
+      <div class="band-item"><div class="k">税額</div><div class="v">{{STOCK_BAND_TAX}}</div></div>
+    </div>
+    <p class="note"><span>データ: 2026/11/14 取り込み</span></p>
+    <div class="searchbar" role="search" aria-label="取引明細の検索">
+      <input type="search" placeholder="銘柄名・コードで検索" aria-label="銘柄名・コードで検索">
+      <a class="btn" href="receipts-opencode.html?tab=stock">条件を足す</a>
+    </div>
+    <div class="chips"><span>条件:</span><span class="chip">期間 2026年 <button aria-label="期間 2026年 を解除">×</button></span><button class="linkish">すべてクリア</button></div>
+    <div class="listwrap">
+      <div>
+        <div class="tblwrap only-pc"><table class="tbl" aria-label="国内株式の一覧">
+          <thead><tr><th>約定日</th><th>コード</th><th>銘柄</th><th>口座</th><th>取引</th><th class="num">数量</th><th class="num">売却額</th><th class="num">取得額</th><th class="num">実現損益</th><th class="num">税額</th><th class="num">税引後</th></tr></thead>
+          <tbody>
+            {{STOCK_ROWS_PC}}
+          </tbody>
+        </table></div>
+        <ul class="mrows only-sp" aria-label="国内株式の一覧">
+          {{STOCK_ROWS_SP}}
+        </ul>
+      </div>
+      <aside class="detail" aria-label="行の詳細">
+      {{STOCK_ASIDE}}
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ 投資信託タブ ============ -->
+  <section data-panel="fund" hidden>
+    <div class="band" aria-label="集計">
+      <div class="band-item"><div class="k">実現損益(税引後)</div><div class="v pos">{{FUND_BAND_AFTER}}</div><div class="sub">{{FUND_RANGE}}</div></div>
+      <div class="band-item"><div class="k">実現損益(税引前)</div><div class="v pos">{{FUND_BAND_BEFORE}}</div></div>
+      <div class="band-item"><div class="k">税額</div><div class="v">{{FUND_BAND_TAX}}</div></div>
+    </div>
+    <p class="note"><span>データ: 2026/11/14 取り込み</span></p>
+    <div class="searchbar" role="search" aria-label="取引明細の検索">
+      <input type="search" placeholder="銘柄名・コードで検索" aria-label="銘柄名・コードで検索">
+      <a class="btn" href="receipts-opencode.html?tab=fund">条件を足す</a>
+    </div>
+    <div class="listwrap">
+      <div>
+        <div class="tblwrap only-pc"><table class="tbl" aria-label="投資信託の一覧">
+          <thead><tr><th>約定日</th><th>ファンド</th><th>口座</th><th>取引</th><th class="num">数量</th><th class="num">解約額</th><th class="num">取得額</th><th class="num">実現損益</th><th class="num">税額</th><th class="num">税引後</th></tr></thead>
+          <tbody>
+            {{FUND_ROWS_PC}}
+          </tbody>
+        </table></div>
+        <ul class="mrows only-sp" aria-label="投資信託の一覧">
+          {{FUND_ROWS_SP}}
+        </ul>
+      </div>
+      <aside class="detail" aria-label="行の詳細">
+      {{FUND_ASIDE}}
+      </aside>
+    </div>
+  </section>
+
+  <footer class="footer"><div class="in"><span>証券Web(試作)</span><a href="#">プライバシーポリシー</a><a href="#">利用規約</a><a href="#">Cookie ポリシー</a></div></footer>
+</main>
+<nav class="bottomnav" aria-label="メインナビゲーション">
+  <a href="#">ホーム</a><a href="#">資産管理</a><a href="receipts-opencode.html" aria-current="page">取引明細</a><a href="#">銘柄検索</a>
+</nav>
+
+{{DIV_DIALOGS}}
+<script>
+(function(){
+  if(new URLSearchParams(location.search).has("dark"))document.documentElement.dataset.theme="dark";
+  var tab=new URLSearchParams(location.search).get("tab")||"dividend";
+  var counts={dividend:"{{DIV_TAB_COUNT}}",stock:"{{STOCK_TAB_COUNT}}",fund:"{{FUND_TAB_COUNT}}"};
+  var head=document.querySelector(".page-head .count");
+  if(head&&counts[tab])head.textContent=counts[tab];
+  document.querySelectorAll('[data-panel]').forEach(function(p){p.hidden=p.dataset.panel!==tab;});
+  document.querySelectorAll('.tabs [data-tab]').forEach(function(a){a.setAttribute("aria-selected",a.dataset.tab===tab?"true":"false");});
+})();
+</script>
+</body>
+</html>

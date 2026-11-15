@@ -1,0 +1,9 @@
+{
+  "name": "phase5-opencode-design",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Phase 5 OpenCode 画面案: Codex 側と同一 fixtures から HTML を生成し検算する",
+  "scripts": {
+    "build": "node data/build-opencode.mjs"
+  }
+}

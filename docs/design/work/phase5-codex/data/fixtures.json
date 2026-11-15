@@ -1,0 +1,334 @@
+{
+  "holdings": [
+    {
+      "id": "stock-a",
+      "type": "stock",
+      "code": "9901",
+      "name": "架空青空電機",
+      "quantity": 100,
+      "costUnitPrice": 10000,
+      "currentPrice": 12000,
+      "account": "特定口座",
+      "previousValue": 1180000,
+      "class": "国内株式",
+      "annualDividendPerShare": 360
+    },
+    {
+      "id": "stock-b",
+      "type": "stock",
+      "code": "9902",
+      "name": "架空食品ホールディングス",
+      "quantity": 100,
+      "costUnitPrice": 65973.19,
+      "currentPrice": 79498.07,
+      "account": "NISA",
+      "previousValue": 7969807,
+      "class": "国内株式",
+      "annualDividendPerShare": 39339.07
+    },
+    {
+      "id": "fund-a",
+      "type": "fund",
+      "code": "—",
+      "name": "架空成長インデックス・ファンド",
+      "quantity": 10000000,
+      "costUnitPrice": 19443.341,
+      "currentPrice": 19443.341,
+      "account": "特定口座",
+      "previousNav": 19288.853,
+      "class": "投資信託"
+    }
+  ],
+  "dividends": [
+    {
+      "month": 1,
+      "beforeTax": 12000,
+      "tax": 2438
+    },
+    {
+      "month": 2,
+      "beforeTax": 8000,
+      "tax": 1625
+    },
+    {
+      "month": 3,
+      "beforeTax": 180000,
+      "tax": 36566
+    },
+    {
+      "month": 4,
+      "beforeTax": 11000,
+      "tax": 2235
+    },
+    {
+      "month": 5,
+      "beforeTax": 13000,
+      "tax": 2641
+    },
+    {
+      "month": 6,
+      "beforeTax": 3564907,
+      "tax": 724195
+    },
+    {
+      "month": 7,
+      "beforeTax": 9000,
+      "tax": 1828
+    },
+    {
+      "month": 8,
+      "beforeTax": 7000,
+      "tax": 1422
+    },
+    {
+      "month": 9,
+      "beforeTax": 15000,
+      "tax": 3047
+    },
+    {
+      "month": 10,
+      "beforeTax": 10000,
+      "tax": 2031
+    },
+    {
+      "month": 11,
+      "beforeTax": 96250,
+      "tax": 19553
+    },
+    {
+      "month": 12,
+      "beforeTax": 43750,
+      "tax": 8888
+    }
+  ],
+  "dividendTransactions": [
+    {
+      "date": "2026/01/20",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 120.0,
+      "beforeTax": 12000,
+      "tax": 2438
+    },
+    {
+      "date": "2026/02/19",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 80.0,
+      "beforeTax": 8000,
+      "tax": 1625
+    },
+    {
+      "date": "2026/03/15",
+      "holdingId": "fund-a",
+      "account": "特定口座",
+      "quantity": 1000000,
+      "unitPrice": 0.12,
+      "beforeTax": 120000,
+      "tax": 24377
+    },
+    {
+      "date": "2026/03/28",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 600.0,
+      "beforeTax": 60000,
+      "tax": 12189
+    },
+    {
+      "date": "2026/04/18",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 110.0,
+      "beforeTax": 11000,
+      "tax": 2235
+    },
+    {
+      "date": "2026/05/20",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 130.0,
+      "beforeTax": 13000,
+      "tax": 2641
+    },
+    {
+      "date": "2026/06/20",
+      "holdingId": "stock-b",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 35000.0,
+      "beforeTax": 3500000,
+      "tax": 711009
+    },
+    {
+      "date": "2026/06/25",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 600.0,
+      "beforeTax": 60000,
+      "tax": 12189
+    },
+    {
+      "date": "2026/06/29",
+      "holdingId": "fund-a",
+      "account": "特定口座",
+      "quantity": 49070,
+      "unitPrice": 0.1,
+      "beforeTax": 4907,
+      "tax": 997
+    },
+    {
+      "date": "2026/07/18",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 90.0,
+      "beforeTax": 9000,
+      "tax": 1828
+    },
+    {
+      "date": "2026/08/19",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 70.0,
+      "beforeTax": 7000,
+      "tax": 1422
+    },
+    {
+      "date": "2026/09/10",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 100.0,
+      "beforeTax": 10000,
+      "tax": 2031
+    },
+    {
+      "date": "2026/09/26",
+      "holdingId": "stock-b",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 50.0,
+      "beforeTax": 5000,
+      "tax": 1016
+    },
+    {
+      "date": "2026/10/20",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 100.0,
+      "beforeTax": 10000,
+      "tax": 2031
+    },
+    {
+      "date": "2026/11/08",
+      "holdingId": "stock-b",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 400.0,
+      "beforeTax": 40000,
+      "tax": 8126
+    },
+    {
+      "date": "2026/11/10",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 562.5,
+      "beforeTax": 56250,
+      "tax": 11427
+    },
+    {
+      "date": "2026/12/10",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 300.0,
+      "beforeTax": 30000,
+      "tax": 6095
+    },
+    {
+      "date": "2026/12/24",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "quantity": 100,
+      "unitPrice": 137.5,
+      "beforeTax": 13750,
+      "tax": 2793
+    }
+  ],
+  "stockTrades": [
+    {
+      "date": "2026/01/15",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "side": "売付",
+      "quantity": 10,
+      "sellPrice": 9500,
+      "sellAmount": 95000,
+      "costAmount": 100000,
+      "gain": -5000,
+      "tax": 0
+    },
+    {
+      "date": "2026/02/09",
+      "holdingId": "stock-b",
+      "account": "特定口座",
+      "side": "売付",
+      "quantity": 20,
+      "sellPrice": 70000,
+      "sellAmount": 1400000,
+      "costAmount": 1319464,
+      "gain": 80536,
+      "tax": 16361
+    },
+    {
+      "date": "2026/03/02",
+      "holdingId": "stock-a",
+      "account": "特定口座",
+      "side": "売付",
+      "quantity": 50,
+      "sellPrice": 11000,
+      "sellAmount": 550000,
+      "costAmount": 500000,
+      "gain": 50000,
+      "tax": 10158
+    }
+  ],
+  "fundTrades": [
+    {
+      "date": "2026/04/10",
+      "holdingId": "fund-a",
+      "account": "特定口座",
+      "side": "解約",
+      "quantity": 3000000,
+      "redeemNav": 20000,
+      "redeemAmount": 6000000,
+      "costNav": 19443.341,
+      "costAmount": 5833002,
+      "gain": 166998,
+      "tax": 33926
+    },
+    {
+      "date": "2026/07/22",
+      "holdingId": "fund-a",
+      "account": "特定口座",
+      "side": "解約",
+      "quantity": 500000,
+      "redeemNav": 19800,
+      "redeemAmount": 990000,
+      "costNav": 19443.341,
+      "costAmount": 972167,
+      "gain": 17833,
+      "tax": 3623
+    }
+  ]
+}

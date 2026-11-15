@@ -5,7 +5,9 @@ use super::search_filters::{
 };
 use crate::db::{Db, FromRow, QueryBuilder, Tx};
 use crate::errors::ApiError;
-use crate::models::common::{PaginatedSearchResponse, SearchFacets, SearchParamsAccessor};
+use crate::models::common::{
+    FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
+};
 use serde::Serialize;
 use shared::value::UserId;
 use std::fmt::Display;
@@ -90,6 +92,33 @@ pub trait Search: Domain {
         qb
     }
 
+    /// count 用の SELECT COUNT(*) クエリに共通の WHERE 句を積む
+    fn count_query(user_id: UserId, filter: &SearchFilter) -> QueryBuilder {
+        Self::filtered_query(
+            format!("SELECT COUNT(*) FROM {}", Self::TABLE),
+            user_id,
+            filter,
+        )
+    }
+
+    /// 一覧 data 用の SELECT クエリに共通の WHERE 句・ORDER BY・LIMIT/OFFSET を積む
+    fn data_query(
+        user_id: UserId,
+        filter: &SearchFilter,
+        per_page: i64,
+        offset: i64,
+    ) -> QueryBuilder {
+        let mut qb = Self::filtered_query(
+            format!("SELECT {} FROM {}", Self::COLUMNS, Self::FROM),
+            user_id,
+            filter,
+        );
+        qb.push(Self::ORDER_BY);
+        qb.push(" LIMIT ").push_bind(per_page);
+        qb.push(" OFFSET ").push_bind(offset);
+        qb
+    }
+
     fn fetch_summary(
         tx: &mut Tx,
         user_id: UserId,
@@ -106,7 +135,32 @@ pub trait Search: Domain {
     }
 }
 
-/// FACETS 指定どおりに各 facet を順に取得して SearchFacets を組み立てる
+/// FACETS の1件分を取得する。Group/Security の違いだけをここで吸収する
+async fn fetch_facet_option<D: Search + ?Sized>(
+    tx: &mut Tx,
+    user_id: UserId,
+    filter: &SearchFilter,
+    spec: &FacetSpec,
+) -> Result<(FacetSlot, Vec<FacetOption>), ApiError> {
+    let push = |qb: &mut QueryBuilder| D::push_filters(qb, user_id, filter);
+    let options = match spec.kind {
+        FacetKind::Group { field, order } => {
+            facets::fetch_group_facets(
+                &mut *tx,
+                user_id,
+                D::TABLE,
+                field.as_sql_expr(),
+                order,
+                push,
+            )
+            .await?
+        }
+        FacetKind::Security { label_order } => {
+            facets::fetch_security_facets(&mut *tx, user_id, D::TABLE, label_order, push).await?
+        }
+    };
+    Ok((spec.slot, options))
+}
 async fn collect_facets<D: Search + ?Sized>(
     tx: &mut Tx,
     user_id: UserId,
@@ -114,28 +168,8 @@ async fn collect_facets<D: Search + ?Sized>(
 ) -> Result<SearchFacets, ApiError> {
     let mut result = SearchFacets::default();
     for spec in D::FACETS {
-        let options = match spec.kind {
-            FacetKind::Group { field, order } => {
-                facets::fetch_group_facets(
-                    tx,
-                    user_id,
-                    D::TABLE,
-                    field.as_sql_expr(),
-                    order,
-                    |qb| {
-                        D::push_filters(qb, user_id, filter);
-                    },
-                )
-                .await?
-            }
-            FacetKind::Security { label_order } => {
-                facets::fetch_security_facets(tx, user_id, D::TABLE, label_order, |qb| {
-                    D::push_filters(qb, user_id, filter);
-                })
-                .await?
-            }
-        };
-        match spec.slot {
+        let (slot, options) = fetch_facet_option::<D>(&mut *tx, user_id, filter, spec).await?;
+        match slot {
             FacetSlot::Products => result.products = Some(options),
             FacetSlot::Accounts => result.accounts = Some(options),
             FacetSlot::Securities => result.securities = Some(options),
@@ -156,6 +190,7 @@ pub async fn search<D: Search>(
 ) -> Result<PaginatedSearchResponse<D::Data, D::Summary>, ApiError> {
     info!("[{}.search] リクエスト受信", D::NAME);
 
+    // 1. 条件作成: page 情報を取り出し、params を検証して共通の検索条件へ変換する
     let page = params.page();
     let per_page = params.per_page();
     let offset = params.offset();
@@ -163,17 +198,13 @@ pub async fn search<D: Search>(
     let include_facets = params.should_include_facets();
     let filter = D::make_filter(&params)?;
 
+    // 2. クエリ作成: count/data の SELECT 文に共通の WHERE 句を積む
+    let mut count_qb = D::count_query(user_id, &filter);
+    let mut data_qb = D::data_query(user_id, &filter, per_page, offset);
+
+    // 3. 順次取得: 1つの利用者Txで count→data→summary→facets を直列に実行する
     let mut tx = pool.begin_with_user(user_id).await?;
-
-    let mut count_qb = QueryBuilder::new(format!("SELECT COUNT(*) FROM {}", D::TABLE));
-    D::push_filters(&mut count_qb, user_id, &filter);
     let total: i64 = count_qb.build_query_scalar().fetch_one(&mut tx).await?;
-
-    let mut data_qb = QueryBuilder::new(format!("SELECT {} FROM {}", D::COLUMNS, D::FROM));
-    D::push_filters(&mut data_qb, user_id, &filter);
-    data_qb.push(D::ORDER_BY);
-    data_qb.push(" LIMIT ").push_bind(per_page);
-    data_qb.push(" OFFSET ").push_bind(offset);
     let data = data_qb
         .build_query_as::<D::Data>()
         .fetch_all(&mut tx)
@@ -190,6 +221,7 @@ pub async fn search<D: Search>(
     };
     tx.rollback().await?;
 
+    // 4. 応答組立
     Ok(PaginatedSearchResponse {
         data,
         total,
