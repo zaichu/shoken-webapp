@@ -71,86 +71,103 @@ const REGION_TABLE: &[(&str, &str)] = &[
     ("okinawa", "沖縄県"),
 ];
 
-const fn prefecture_by_number(number: u32) -> Option<&'static str> {
-    match number {
-        1 => Some("北海道"),
-        2 => Some("青森県"),
-        3 => Some("岩手県"),
-        4 => Some("宮城県"),
-        5 => Some("秋田県"),
-        6 => Some("山形県"),
-        7 => Some("福島県"),
-        8 => Some("茨城県"),
-        9 => Some("栃木県"),
-        10 => Some("群馬県"),
-        11 => Some("埼玉県"),
-        12 => Some("千葉県"),
-        13 => Some("東京都"),
-        14 => Some("神奈川県"),
-        15 => Some("新潟県"),
-        16 => Some("富山県"),
-        17 => Some("石川県"),
-        18 => Some("福井県"),
-        19 => Some("山梨県"),
-        20 => Some("長野県"),
-        21 => Some("岐阜県"),
-        22 => Some("静岡県"),
-        23 => Some("愛知県"),
-        24 => Some("三重県"),
-        25 => Some("滋賀県"),
-        26 => Some("京都府"),
-        27 => Some("大阪府"),
-        28 => Some("兵庫県"),
-        29 => Some("奈良県"),
-        30 => Some("和歌山県"),
-        31 => Some("鳥取県"),
-        32 => Some("島根県"),
-        33 => Some("岡山県"),
-        34 => Some("広島県"),
-        35 => Some("山口県"),
-        36 => Some("徳島県"),
-        37 => Some("香川県"),
-        38 => Some("愛媛県"),
-        39 => Some("高知県"),
-        40 => Some("福岡県"),
-        41 => Some("佐賀県"),
-        42 => Some("長崎県"),
-        43 => Some("熊本県"),
-        44 => Some("大分県"),
-        45 => Some("宮崎県"),
-        46 => Some("鹿児島県"),
-        47 => Some("沖縄県"),
-        _ => None,
+const PREFECTURE_TABLE: [&str; 47] = [
+    "北海道",
+    "青森県",
+    "岩手県",
+    "宮城県",
+    "秋田県",
+    "山形県",
+    "福島県",
+    "茨城県",
+    "栃木県",
+    "群馬県",
+    "埼玉県",
+    "千葉県",
+    "東京都",
+    "神奈川県",
+    "新潟県",
+    "富山県",
+    "石川県",
+    "福井県",
+    "山梨県",
+    "長野県",
+    "岐阜県",
+    "静岡県",
+    "愛知県",
+    "三重県",
+    "滋賀県",
+    "京都府",
+    "大阪府",
+    "兵庫県",
+    "奈良県",
+    "和歌山県",
+    "鳥取県",
+    "島根県",
+    "岡山県",
+    "広島県",
+    "山口県",
+    "徳島県",
+    "香川県",
+    "愛媛県",
+    "高知県",
+    "福岡県",
+    "佐賀県",
+    "長崎県",
+    "熊本県",
+    "大分県",
+    "宮崎県",
+    "鹿児島県",
+    "沖縄県",
+];
+
+const BROWSER_TABLE: &[(&str, &str)] = &[
+    ("chrome", "Chrome"),
+    ("edge", "Edge"),
+    ("firefox", "Firefox"),
+    ("safari", "Safari"),
+];
+
+const OS_TABLE: &[(&str, &str)] = &[
+    ("windows", "Windows"),
+    ("macos", "macOS"),
+    ("mac os", "macOS"),
+    ("macosx", "macOS"),
+    ("ios", "iOS"),
+    ("android", "Android"),
+    ("linux", "Linux"),
+];
+
+const UNKNOWN_LABEL: &str = "—";
+
+fn lookup<'a>(table: &[(&str, &'a str)], key: &str) -> Option<&'a str> {
+    table
+        .iter()
+        .find_map(|(code, name)| key.eq_ignore_ascii_case(code).then_some(*name))
+}
+
+fn prefecture_name(trimmed: &str) -> Option<&'static str> {
+    if !trimmed.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
     }
+    let number = trimmed.parse::<u32>().ok()?;
+    PREFECTURE_TABLE
+        .get(number.checked_sub(1)? as usize)
+        .copied()
 }
 
 #[must_use]
 pub fn country_name(code: &str) -> &str {
-    let trimmed = code.trim();
-    for (key, name) in COUNTRY_TABLE {
-        if trimmed.eq_ignore_ascii_case(key) {
-            return name;
-        }
-    }
-    code
+    lookup(COUNTRY_TABLE, code.trim()).unwrap_or(code)
 }
 
 #[must_use]
 pub fn region_name(region: &str) -> &str {
     let trimmed = region.trim();
-    if !trimmed.is_empty()
-        && trimmed.bytes().all(|b| b.is_ascii_digit())
-        && let Ok(number) = trimmed.parse::<u32>()
-        && let Some(name) = prefecture_by_number(number)
-    {
+    if let Some(name) = prefecture_name(trimmed) {
         return name;
     }
-    for (key, name) in REGION_TABLE {
-        if trimmed.eq_ignore_ascii_case(key) {
-            return name;
-        }
-    }
-    region
+    lookup(REGION_TABLE, trimmed).unwrap_or(region)
 }
 
 fn capitalize_first(value: &str) -> String {
@@ -178,36 +195,17 @@ fn shorten_unknown_label(value: &str) -> String {
 
 #[must_use]
 pub fn browser_label(browser: &str) -> String {
-    let mut lower = String::with_capacity(browser.len());
-    for c in browser.chars() {
-        for l in c.to_lowercase() {
-            lower.push(l);
-        }
-    }
-    match lower.as_str() {
-        "chrome" => "Chrome".to_string(),
-        "edge" => "Edge".to_string(),
-        "firefox" => "Firefox".to_string(),
-        "safari" => "Safari".to_string(),
-        _ => shorten_unknown_label(browser),
+    match lookup(BROWSER_TABLE, &browser.to_lowercase()) {
+        Some(name) => name.to_string(),
+        None => shorten_unknown_label(browser),
     }
 }
 
 #[must_use]
 pub fn os_label(os: &str) -> String {
-    let mut lower = String::with_capacity(os.len());
-    for c in os.chars() {
-        for l in c.to_lowercase() {
-            lower.push(l);
-        }
-    }
-    match lower.as_str() {
-        "windows" => "Windows".to_string(),
-        "macos" | "mac os" | "macosx" => "macOS".to_string(),
-        "ios" => "iOS".to_string(),
-        "android" => "Android".to_string(),
-        "linux" => "Linux".to_string(),
-        _ => shorten_unknown_label(os),
+    match lookup(OS_TABLE, &os.to_lowercase()) {
+        Some(name) => name.to_string(),
+        None => shorten_unknown_label(os),
     }
 }
 
@@ -218,39 +216,59 @@ fn present(value: Option<&str>) -> Option<&str> {
     }
 }
 
+fn join_with(first: Option<String>, second: Option<String>, separator: &str) -> String {
+    match (first, second) {
+        (Some(first), Some(second)) => format!("{first}{separator}{second}"),
+        (Some(only), None) | (None, Some(only)) => only,
+        (None, None) => UNKNOWN_LABEL.to_string(),
+    }
+}
+
 #[must_use]
 pub fn format_place(country: Option<&str>, region: Option<&str>) -> String {
-    match (present(country), present(region)) {
-        (Some(country), Some(region)) => {
-            format!("{}, {}", region_name(region), country_name(country))
-        }
-        (Some(country), None) => country_name(country).trim().to_string(),
-        (None, Some(region)) => region_name(region).trim().to_string(),
-        (None, None) => "—".to_string(),
-    }
+    join_with(
+        present(region).map(|value| region_name(value).trim().to_string()),
+        present(country).map(|code| country_name(code).trim().to_string()),
+        ", ",
+    )
 }
 
 #[must_use]
 pub fn format_agent(browser: Option<&str>, os: Option<&str>) -> String {
-    match (present(browser), present(os)) {
-        (Some(browser), Some(os)) => {
-            format!("{} / {}", browser_label(browser), os_label(os))
-        }
-        (Some(browser), None) => browser_label(browser),
-        (None, Some(os)) => os_label(os),
-        (None, None) => "—".to_string(),
-    }
+    join_with(
+        present(browser).map(browser_label),
+        present(os).map(os_label),
+        " / ",
+    )
+}
+
+const JST_OFFSET_HOURS: u32 = 9;
+const HOURS_PER_DAY: u32 = 24;
+
+const fn is_leap_year(year: i32) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
 
 #[must_use]
 pub const fn days_in_month(year: i32, month: u32) -> u32 {
-    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    if month == 2 && is_leap_year(year) {
+        return 29;
+    }
     match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
         4 | 6 | 9 | 11 => 30,
-        2 if leap => 29,
         _ => 28,
     }
+}
+
+const fn next_day(year: i32, month: u32, day: u32) -> (i32, u32, u32) {
+    if day < days_in_month(year, month) {
+        return (year, month, day + 1);
+    }
+    if month < 12 {
+        return (year, month + 1, 1);
+    }
+    (year + 1, 1, 1)
 }
 
 #[must_use]
@@ -261,23 +279,12 @@ pub const fn shift_utc_to_jst(
     hour: u32,
     minute: u32,
 ) -> (i32, u32, u32, u32, u32) {
-    let mut year = year;
-    let mut month = month;
-    let mut day = day;
-    let mut hour = hour + 9;
-    if hour >= 24 {
-        hour -= 24;
-        day += 1;
-        if day > days_in_month(year, month) {
-            day = 1;
-            month += 1;
-            if month > 12 {
-                month = 1;
-                year += 1;
-            }
-        }
+    let shifted = hour + JST_OFFSET_HOURS;
+    if shifted < HOURS_PER_DAY {
+        return (year, month, day, shifted, minute);
     }
-    (year, month, day, hour, minute)
+    let (year, month, day) = next_day(year, month, day);
+    (year, month, day, shifted - HOURS_PER_DAY, minute)
 }
 
 #[must_use]
@@ -285,16 +292,23 @@ pub fn format_ymd_hm(year: i32, month: u32, day: u32, hour: u32, minute: u32) ->
     format!("{year:04}/{month:02}/{day:02} {hour:02}:{minute:02}")
 }
 
+const fn has_iso_separators(bytes: &[u8]) -> bool {
+    bytes.len() >= 16
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && (bytes[10] == b'T' || bytes[10] == b' ')
+        && bytes[13] == b':'
+}
+
+fn in_ymd_hm_range(month: u32, day: u32, hour: u32, minute: u32) -> bool {
+    (1..=12).contains(&month)
+        && (1..=31).contains(&day)
+        && (0..=23).contains(&hour)
+        && (0..=59).contains(&minute)
+}
+
 fn parse_ymd_hm(iso: &str) -> Option<(i32, u32, u32, u32, u32)> {
-    let bytes = iso.as_bytes();
-    if bytes.len() < 16 || bytes[4] != b'-' || bytes[7] != b'-' {
-        return None;
-    }
-    let sep = bytes[10];
-    if sep != b'T' && sep != b' ' {
-        return None;
-    }
-    if bytes[13] != b':' {
+    if !has_iso_separators(iso.as_bytes()) {
         return None;
     }
     let year: i32 = iso[..4].parse().ok()?;
@@ -302,7 +316,7 @@ fn parse_ymd_hm(iso: &str) -> Option<(i32, u32, u32, u32, u32)> {
     let day: u32 = iso[8..10].parse().ok()?;
     let hour: u32 = iso[11..13].parse().ok()?;
     let minute: u32 = iso[14..16].parse().ok()?;
-    if !(1..=12).contains(&month) || day == 0 || day > 31 || hour > 23 || minute > 59 {
+    if !in_ymd_hm_range(month, day, hour, minute) {
         return None;
     }
     Some((year, month, day, hour, minute))
@@ -414,5 +428,117 @@ mod tests {
     fn invalid_iso_returns_none() {
         assert_eq!(format_iso_utc_as_jst("not-a-date"), None);
         assert_eq!(format_iso_utc_as_jst(""), None);
+    }
+
+    #[test]
+    fn unknown_os_keeps_value_with_leading_capital() {
+        assert_eq!(format_agent(None, Some("plan9")), "Plan9");
+        assert_eq!(
+            format_agent(Some("vivaldi"), Some("haiku")),
+            "Vivaldi / Haiku"
+        );
+    }
+
+    #[test]
+    fn os_aliases_use_official_name() {
+        assert_eq!(
+            format_agent(Some("chrome"), Some("Mac OS")),
+            "Chrome / macOS"
+        );
+        assert_eq!(
+            format_agent(Some("chrome"), Some("MACOSX")),
+            "Chrome / macOS"
+        );
+    }
+
+    #[test]
+    fn browser_names_match_case_insensitively() {
+        assert_eq!(
+            format_agent(Some("CHROME"), Some("WINDOWS")),
+            "Chrome / Windows"
+        );
+    }
+
+    #[test]
+    fn place_trims_and_matches_case_insensitively() {
+        assert_eq!(format_place(Some(" jp "), Some(" tokyo ")), "東京都, 日本");
+        assert_eq!(format_place(Some("JP"), Some(" 13 ")), "東京都, 日本");
+    }
+
+    #[test]
+    fn blank_place_parts_become_placeholder() {
+        assert_eq!(format_place(Some("  "), None), "—");
+        assert_eq!(format_place(None, Some("  ")), "—");
+        assert_eq!(format_place(Some("JP"), Some("  ")), "日本");
+    }
+
+    #[test]
+    fn out_of_range_region_numbers_pass_through() {
+        assert_eq!(format_place(Some("JP"), Some("0")), "0, 日本");
+        assert_eq!(format_place(Some("JP"), Some("48")), "48, 日本");
+    }
+
+    #[test]
+    fn prefecture_number_boundaries_resolve() {
+        assert_eq!(format_place(Some("JP"), Some("1")), "北海道, 日本");
+        assert_eq!(format_place(Some("JP"), Some("47")), "沖縄県, 日本");
+    }
+
+    #[test]
+    fn iso_utc_rolls_over_month_end() {
+        assert_eq!(
+            format_iso_utc_as_jst("2026-01-31T15:00:00Z"),
+            Some("2026/02/01 00:00".to_string())
+        );
+    }
+
+    #[test]
+    fn iso_utc_handles_february_boundaries() {
+        assert_eq!(
+            format_iso_utc_as_jst("2023-02-28T15:00:00Z"),
+            Some("2023/03/01 00:00".to_string())
+        );
+        assert_eq!(
+            format_iso_utc_as_jst("2024-02-28T15:00:00Z"),
+            Some("2024/02/29 00:00".to_string())
+        );
+        assert_eq!(
+            format_iso_utc_as_jst("2024-02-29T15:00:00Z"),
+            Some("2024/03/01 00:00".to_string())
+        );
+    }
+
+    #[test]
+    fn iso_with_space_separator_converts_to_jst() {
+        assert_eq!(
+            format_iso_utc_as_jst("2026-10-31 07:38:00"),
+            Some("2026/10/31 16:38".to_string())
+        );
+    }
+
+    #[test]
+    fn iso_out_of_range_returns_none() {
+        assert_eq!(format_iso_utc_as_jst("2026-13-01T00:00:00Z"), None);
+        assert_eq!(format_iso_utc_as_jst("2026-01-00T00:00:00Z"), None);
+        assert_eq!(format_iso_utc_as_jst("2026-01-01T24:00:00Z"), None);
+        assert_eq!(format_iso_utc_as_jst("2026-01-01T00:60:00Z"), None);
+        assert_eq!(format_iso_utc_as_jst_with_zone("not-a-date"), None);
+    }
+
+    #[test]
+    fn days_in_month_handles_leap_years() {
+        assert_eq!(days_in_month(2024, 2), 29);
+        assert_eq!(days_in_month(2023, 2), 28);
+        assert_eq!(days_in_month(2000, 2), 29);
+        assert_eq!(days_in_month(1900, 2), 28);
+    }
+
+    #[test]
+    fn days_in_month_returns_fixed_lengths() {
+        assert_eq!(days_in_month(2026, 1), 31);
+        assert_eq!(days_in_month(2026, 4), 30);
+        assert_eq!(days_in_month(2026, 2), 28);
+        assert_eq!(days_in_month(2026, 0), 28);
+        assert_eq!(days_in_month(2026, 13), 28);
     }
 }
