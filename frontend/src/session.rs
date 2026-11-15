@@ -38,9 +38,6 @@ const DELETE_ACCOUNT_RETRY_DELAY_MS: u32 = 1_000;
 // プローブ(3秒で打ち切り)に続く撃ち直しの時間予算
 const PROBE_FOLLOWUP_TIMEOUT_MS: u64 = 7_000;
 
-const SESSION_CHECK_MAX_RETRIES: u32 = 3;
-const SESSION_CHECK_RETRY_DELAY_MS: u64 = 1_000;
-
 // 応答喪失はセッションの生死で再送可否を分ける(HTTP拒否は確定失敗)
 async fn delete_with_verification(client: &ApiClient) -> Result<(), ApiError> {
     let mut retries = 0;
@@ -64,27 +61,6 @@ async fn delete_with_verification(client: &ApiClient) -> Result<(), ApiError> {
         }
         gloo_timers::future::TimeoutFuture::new(DELETE_ACCOUNT_RETRY_DELAY_MS << retries).await;
         retries += 1;
-    }
-}
-
-async fn fetch_session(client: ApiClient) -> Result<Option<SessionResponse>, ApiError> {
-    let mut retries = 0;
-    loop {
-        match client
-            .get_json::<SessionResponse>("/api/v1/session", &[])
-            .await
-        {
-            Ok(response) => return Ok(Some(response)),
-            Err(error) if error.is_unauthorized() => return Ok(None),
-            Err(error) if retries < SESSION_CHECK_MAX_RETRIES && error.is_retryable() => {
-                gloo_timers::future::TimeoutFuture::new(
-                    u32::try_from(SESSION_CHECK_RETRY_DELAY_MS << retries).unwrap_or(u32::MAX),
-                )
-                .await;
-                retries += 1;
-            }
-            Err(error) => return Err(error),
-        }
     }
 }
 
@@ -151,23 +127,25 @@ impl SessionStore {
         let epoch = self.logout_epoch.get_untracked();
         let client = ApiClient::auth_client();
         // プローブの結果は起動時の1回だけ使う。4xx の確定した拒否以外は撃ち直す
-        let fetched = match probe::take().await {
+        let fetched: Result<Option<SessionResponse>, ApiError> = match probe::take().await {
             probe::Probe::Authenticated(user) => Ok(Some(user)),
             probe::Probe::Anonymous => Ok(None),
-            probe::Probe::Retry => {
-                fetch_session(
-                    client
-                        .with_timeout_ms(PROBE_FOLLOWUP_TIMEOUT_MS)
-                        .with_max_retries(0),
-                )
+            probe::Probe::Retry => client
+                .with_timeout_ms(PROBE_FOLLOWUP_TIMEOUT_MS)
+                .with_max_retries(0)
+                .get_json::<SessionResponse>("/api/v1/session", &[])
                 .await
-            }
-            probe::Probe::Missing => fetch_session(client.with_max_retries(0)).await,
+                .map(Some),
+            probe::Probe::Missing => client
+                .get_json::<SessionResponse>("/api/v1/session", &[])
+                .await
+                .map(Some),
         };
         let (response, error) = match fetched {
-            Ok(Some(response)) if !response.user.id.is_empty() => (Some(response), None),
-            Ok(Some(_)) => (None, None),
-            Ok(None) => (None, None),
+            Ok(response) => (
+                response.filter(|response| !response.user.id.is_empty()),
+                None,
+            ),
             Err(error) => (None, Some(error)),
         };
         batch(|| {
@@ -193,12 +171,11 @@ impl SessionStore {
 
     pub fn apply_fetched(&self, response: Option<SessionResponse>, error: Option<ApiError>) {
         if let Some(error) = error {
-            if error.is_unauthorized() {
+            if error.is_server_error() {
+                self.connection_error.set(Some(error));
+            } else {
                 self.connection_error.set(None);
                 self.set_user(None);
-                self.is_admin.set(false);
-            } else {
-                self.connection_error.set(Some(error));
             }
             return;
         }

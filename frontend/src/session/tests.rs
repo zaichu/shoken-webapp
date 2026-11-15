@@ -72,19 +72,13 @@ fn alice_response() -> SessionResponse {
 }
 
 #[test]
-fn session_check_failure_preserves_login_state() {
+fn session_check_server_error_preserves_login_state() {
     let owner = Owner::new();
     owner.with(|| {
         let session = SessionStore::new();
         session.set_user(alice());
         session.is_admin.set(true);
-        for error in [
-            ApiError::http(500),
-            ApiError::http(503),
-            ApiError::http(403),
-            ApiError::Network,
-            ApiError::Timeout,
-        ] {
+        for error in [ApiError::http(500), ApiError::http(503)] {
             session.apply_fetched(None, Some(error));
             assert_eq!(session.user.get_untracked(), alice());
             assert!(session.is_admin.get_untracked());
@@ -98,6 +92,27 @@ fn session_check_failure_preserves_login_state() {
         assert!(session.user.get_untracked().is_none());
         assert!(!session.is_admin.get_untracked());
         assert!(session.connection_error.get_untracked().is_none());
+    });
+}
+
+#[test]
+fn session_check_non_server_error_clears_to_anonymous() {
+    let owner = Owner::new();
+    owner.with(|| {
+        for error in [
+            ApiError::http(401),
+            ApiError::http(403),
+            ApiError::Network,
+            ApiError::Timeout,
+        ] {
+            let session = SessionStore::new();
+            session.set_user(alice());
+            session.is_admin.set(true);
+            session.apply_fetched(None, Some(error));
+            assert!(session.user.get_untracked().is_none());
+            assert!(!session.is_admin.get_untracked());
+            assert!(session.connection_error.get_untracked().is_none());
+        }
     });
 }
 
