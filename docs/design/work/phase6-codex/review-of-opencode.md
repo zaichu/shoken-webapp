@@ -27,8 +27,9 @@
 
 ### 4. [高] 危険操作の確認ダイアログにキーボード操作の設計がなく、削除確定のフォーカスも不明
 
-- **何が:** アカウント削除確認と CSV 削除確認は `role="dialog" aria-modal="true"` とタイトル紐付けはあるが、フォーカス初期位置・フォーカス移動制御・Esc で閉じる操作がない。表示は `:target` だけで行い、削除・取消リンクはいずれも各一覧と同じ画面へのリンクで、確認の確定挙動も見本から分からない。
-- **どこで:** `docs/design/work/phase5-opencode/html/account-opencode.html:11-12,51-56`、`csv-opencode.html:19-20,92-112`(国内株式・配当金・投資信託の削除確認)。`receipts-opencode.html:277-291` の `rcpt-d1` は配当の行詳細であり、この危険操作の指摘対象には含めない。
+- **何が:** アカウント削除確認と CSV 削除確認(取引明細3種類、資産管理の国内株式・投資信託の個別削除と一括削除)は `role="dialog" aria-modal="true"` とタイトル紐付けはあるが、フォーカス初期位置・フォーカス移動制御・Esc で閉じる操作がない。表示は `:target` だけで行い、削除・取消リンクはいずれも各一覧と同じ画面へのリンクで、確認の確定挙動も見本から分からない。
+- **どこで:** `docs/design/work/phase5-opencode/html/account-opencode.html:11-12,51-56`、`csv-opencode.html:19-20,92-112`(取引明細の国内株式・配当金・投資信託)、同 `113-119`(`csv-delete-hold-stock`: 資産管理の国内株式)、`120-126`(`csv-delete-hold-fund`: 資産管理の投資信託)、`127-133`(`csv-delete-hold`: 資産管理の一括削除)。`receipts-opencode.html:277-291` の `rcpt-d1` は配当の行詳細であり、この危険操作の指摘対象には含めない。
+- **網羅確認:** `grep -RnE --include='*.html' '削除|delete|confirm\(' docs/design/work/phase4-opencode docs/design/work/phase5-opencode/html` で削除操作と導線を照合した。削除確認は CSV の6件とアカウントの1件の計7件。`settings-opencode.html:106-110` と `index.html:28,33` は同じ確認へのリンクで、別の削除確認はない。404 の「削除された可能性」は操作ではなく、`csv-opencode.html:134-140` は取込件数急減の確認として区別した。
 - **なぜ問題か:** 破壊的操作をキーボード・読み上げ利用者が安全に確認できず、実装者に必要なダイアログ挙動が伝わらない。状況表でもキーボード/フォーカス未検証と記載 (`screens-status.md`「未確認」)。
 - **どう直すか:** ダイアログを開いた時のフォーカス先、Tab の範囲、閉じた後の復帰先、Esc/取消、削除ボタンでのみ確定する挙動を設計に明記し、PC/スマホのキーボード確認画像または操作記録を添える。
 
@@ -93,7 +94,7 @@
 | 404・未知パス | ○ | HTML、PC/SP/dark shots |
 | アカウントメニュー | △ | PC/SP shots と `account-opencode.html:27` の `aria-expanded="true"` はあり。開閉時の属性更新・キーボード動作は未提示 |
 | アカウント削除確認 | △ | PC dark shot と dialog HTML あり。フォーカス/確定操作が未設計 |
-| CSV行メニュー・削除確認 | △ | CSV PC dark shot と `csv-opencode.html:92-112` の削除確認あり。指摘4のフォーカス/確定操作が未設計 |
+| CSV行メニュー・削除確認 | △ | CSV PC dark shot と `csv-opencode.html:92-133` の削除確認6件(取引明細3種類、資産管理の国内株式・投資信託の個別削除と一括削除)あり。指摘4のフォーカス/確定操作が未設計 |
 | ホーム配当詳細ダイアログ | 担当外 | Phase 1 のホーム画面内状態。Codex 担当 |
 | 保有株詳細ダイアログ | 担当外 | 資産管理の画面内状態。Codex 担当 |
 | 検索・条件の共通パネル | △ | 明細条件はあり。管理者「＋ 場所」は操作要素でなく、他担当画面は担当外 |
