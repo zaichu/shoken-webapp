@@ -25,7 +25,8 @@ use axum::{
     responses(
         (status = 200, description = "全利用者のログイン記録。閲覧者と日時を監査表に記録する。IP・端末識別子・財産のデータは含まない", body = AdminLoginListResponse),
         (status = 400, description = "検索条件が不正", body = ErrorResponse),
-        (status = 403, description = "管理者権限が必要（未認証・ADMIN_EMAILS 未設定を含む）", body = ErrorResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
+        (status = 403, description = "管理者権限が必要", body = ErrorResponse),
         (status = 500, description = "サーバーエラー", body = ErrorResponse),
     ),
     security(("cookieAuth" = []))
@@ -35,7 +36,7 @@ pub async fn list(
     auth_user: Result<AuthenticatedUser, ApiError>,
     query: Result<Query<AdminLoginQuery>, axum::extract::rejection::QueryRejection>,
 ) -> Result<Json<AdminLoginListResponse>, ApiError> {
-    let auth_user = auth_user.map_err(|_| ApiError::Forbidden)?;
+    let auth_user = auth_user?;
     if !state.config.is_admin_email(&auth_user.0.email) {
         return Err(ApiError::Forbidden);
     }
@@ -130,6 +131,47 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(recorded, 1);
+    }
+
+    #[tokio::test]
+    async fn extractor_rejection_preserves_database_and_unauthorized() {
+        use crate::db::DbError;
+        let state = || AppState {
+            pool: connect_pool_lazy("postgres://user:password@localhost/test_db", 1).unwrap(),
+            secrets: Arc::new(Secrets {
+                jquants_api_key: None,
+                google_client_id: None,
+                google_client_secret: None,
+                frontend_url: "http://localhost:8080".into(),
+                gmail_user: None,
+                gmail_app_password: None,
+            }),
+            config: Arc::new(Config {
+                admin_emails: Some("admin@example.com".to_owned()),
+                ..Config::default()
+            }),
+            google_oauth: None,
+            jquants_client: None,
+        };
+        for (rejection, expected) in [
+            (
+                ApiError::Database(DbError::Other("db down".into())),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+            (
+                ApiError::Unauthorized("ログインが必要です"),
+                StatusCode::UNAUTHORIZED,
+            ),
+        ] {
+            let response = list(
+                State(state()),
+                Err(rejection),
+                Ok(Query(AdminLoginQuery::default())),
+            )
+            .await
+            .into_response();
+            assert_eq!(response.status(), expected);
+        }
     }
 
     #[tokio::test]
