@@ -137,8 +137,14 @@ table.grid .sb{font-size:12px; color:var(--mut); white-space:nowrap}
     <div class="col">
 <section class="card" aria-label="設定セクション">
     <div class="hrow"><h2>設定セクション</h2></div>
-    <div class="toc">
-      <span class="chip">アカウント</span><span class="chip">表示</span><span class="chip">データ</span><span class="chip">セキュリティ</span><span class="chip">登録した端末</span><span class="chip">ログイン履歴</span><span class="chip">危険な操作</span>
+    <div class="rows">
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">アカウント</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">表示</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">データ</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">セキュリティ</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">登録した端末</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">ログイン履歴</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">危険な操作</div></div></div>
     </div>
   </section>
     </div>
@@ -157,7 +163,6 @@ table.grid .sb{font-size:12px; color:var(--mut); white-space:nowrap}
       <div class="dl"><dt>取引明細の初期タブ</dt><dd>配当金</dd></div>
       <div class="dl"><dt>金額の表示単位</dt><dd>円</dd></div>
     </dl>
-    <div class="seg" role="group" aria-label="テーマ"><span class="here">端末に合わせる</span><span>ライト</span><span>ダーク</span></div>
   </section>
 <section class="card" aria-label="データ">
     <div class="hrow"><h2>データ</h2></div>
@@ -190,9 +195,9 @@ table.grid .sb{font-size:12px; color:var(--mut); white-space:nowrap}
 <section class="card" aria-label="ログイン履歴">
     <div class="hrow"><h2>ログイン履歴</h2><span class="more">もっと見る ›</span></div>
     <div class="rows">
-      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">12/02 09:12 ・ 東京 ・ 成功</span></div><span class="amt"><span class="badge ok">成功</span></span></div>
-      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">11/28 18:04 ・ 大阪 ・ 新しい端末</span></div><span class="amt"><span class="badge">新しい端末</span></span></div>
-      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">11/10 07:55 ・ 東京 ・ 失敗</span></div><span class="amt"><span class="badge ng">失敗</span></span></div>
+      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">12/02 09:12 ・ 東京 ・ 成功</span></div></div>
+      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">11/28 18:04 ・ 大阪 ・ 新しい端末</span></div></div>
+      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">11/10 07:55 ・ 東京 ・ <span style="color:var(--down)">失敗</span></span></div></div>
     </div>
     <div class="statenote-wrap">Cookie を消すと同じ端末でも新しい端末として登録されます</div>
   </section>

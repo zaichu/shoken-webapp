@@ -278,13 +278,11 @@ SEARCH_STATES = """<section class="card" aria-label="状態の例">
   </section>"""
 
 search_m = (mobile_top() + """
-  <a class="backlink" href="#">‹ 資産管理に戻る</a>
-  <h1 class="pagetitle">銘柄検索</h1>
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
 """ + SEARCH_FORM + "\n  " + HOLDING_CARD + "\n  " + RESULT_CARD + "\n  " + SEARCH_STATES + nav_m("銘柄検索"))
 
 search_p = (pc_top("銘柄検索") + """
-  <a class="backlink" href="#">‹ 資産管理に戻る</a>
-  <h1 class="pagetitle">銘柄検索</h1>
+  <h1 class="pagetitle" style="margin-top:12px">銘柄検索</h1>
   <div class="grid2" style="margin-top:12px">
     <div class="col">
       <section class="card" aria-label="検索">
@@ -301,8 +299,14 @@ search_p = (pc_top("銘柄検索") + """
 # ---------- 設定 ----------
 SETTINGS_TOC = """<section class="card" aria-label="設定セクション">
     <div class="hrow"><h2>設定セクション</h2></div>
-    <div class="toc">
-      <span class="chip">アカウント</span><span class="chip">表示</span><span class="chip">データ</span><span class="chip">セキュリティ</span><span class="chip">登録した端末</span><span class="chip">ログイン履歴</span><span class="chip">危険な操作</span>
+    <div class="rows">
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">アカウント</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">表示</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">データ</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">セキュリティ</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">登録した端末</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">ログイン履歴</div></div></div>
+      <div class="row"><div class="left"><div class="name" style="color:var(--accent)">危険な操作</div></div></div>
     </div>
   </section>"""
 
@@ -321,7 +325,6 @@ SETTINGS_DISPLAY = """<section class="card" aria-label="表示">
       <div class="dl"><dt>取引明細の初期タブ</dt><dd>配当金</dd></div>
       <div class="dl"><dt>金額の表示単位</dt><dd>円</dd></div>
     </dl>
-    <div class="seg" role="group" aria-label="テーマ"><span class="here">端末に合わせる</span><span>ライト</span><span>ダーク</span></div>
   </section>"""
 
 SETTINGS_DATA = """<section class="card" aria-label="データ">
@@ -354,9 +357,9 @@ SETTINGS_DEVICES = """<section class="card" aria-label="登録した端末">
 SETTINGS_HISTORY = """<section class="card" aria-label="ログイン履歴">
     <div class="hrow"><h2>ログイン履歴</h2><span class="more">もっと見る ›</span></div>
     <div class="rows">
-      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">12/02 09:12 ・ 東京 ・ 成功</span></div><span class="amt"><span class="badge ok">成功</span></span></div>
-      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">11/28 18:04 ・ 大阪 ・ 新しい端末</span></div><span class="amt"><span class="badge">新しい端末</span></span></div>
-      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">11/10 07:55 ・ 東京 ・ 失敗</span></div><span class="amt"><span class="badge ng">失敗</span></span></div>
+      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">12/02 09:12 ・ 東京 ・ 成功</span></div></div>
+      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">11/28 18:04 ・ 大阪 ・ 新しい端末</span></div></div>
+      <div class="row"><div class="left"><div class="name">kakuu.taro@example.jp</div><span class="sub num">11/10 07:55 ・ 東京 ・ <span style="color:var(--down)">失敗</span></span></div></div>
     </div>
     <div class="statenote-wrap">Cookie を消すと同じ端末でも新しい端末として登録されます</div>
   </section>"""
@@ -531,7 +534,6 @@ admin_p = (pc_top("") + """
         <div class="hrow"><h2>条件</h2><span class="more">クリア</span></div>
         <div class="field">メール: kakuu</div>
         <div class="field">場所: 東京</div>
-        <div class="field">期間: 11/01〜12/02</div>
         <div class="field">並べ替え: 日時の新しい順</div>
         <div class="btn primary" style="margin-top:12px">この条件で絞る</div>
       </section>
@@ -576,7 +578,7 @@ D3 = """<section class="card" aria-label="ホーム配当詳細ダイアログ">
 D4 = """<section class="card" aria-label="検索・条件追加パネル">
     <div class="hrow"><h2>条件</h2><span class="more">クリア</span></div>
     <p class="subhead">期間の種類</p>
-    <div class="seg" role="group" aria-label="期間"><span>全期間</span><span class="here">年</span><span>年月</span><span>日</span><span>範囲</span></div>
+    <div class="tabs" role="group" aria-label="期間"><span>全期間</span><span class="here">年</span><span>年月</span><span>日</span><span>範囲</span></div>
     <div class="field">年を選択: 2026年</div>
     <div class="field">口座: 特定口座 ・ NISA成長口座</div>
     <div class="field">商品: 国内株式 ・ 投資信託</div>
@@ -615,8 +617,7 @@ D7 = """<section class="card" aria-label="サイト共通アカウントメニ�
 
 D8 = """<section class="card" aria-label="アカウント削除確認">
     <div class="hrow"><h2>アカウント削除の確認</h2><span class="more">閉じる</span></div>
-    <p class="statenote-wrap">データもすべて消えます。取り消せません。続けるにはパスワードを入力してください。</p>
-    <div class="field">パスワードを入力</div>
+    <p class="statenote-wrap">アカウントを削除すると、資産管理・配当金・取引履歴などすべてのデータが削除されます。この操作は取り消せません。削除されたデータは復元できません。</p>
     <div style="display:flex; gap:12px; margin-top:12px">
       <div class="btn" style="flex:1">キャンセル</div>
       <div class="btn danger" style="flex:1">削除する</div>
@@ -627,14 +628,13 @@ D9 = """<section class="card" aria-label="管理者検索パネル">
     <div class="hrow"><h2>管理者の検索</h2><span class="more">クリア</span></div>
     <div class="field">メール: kakuu</div>
     <div class="field">場所: 東京</div>
-    <div class="field">期間: 11/01〜12/02</div>
     <div class="field">並べ替え: 日時の新しい順</div>
     <div class="btn primary" style="margin-top:12px">この条件で絞る</div>
   </section>"""
 
 D10 = """<section class="card" aria-label="通知リンクのログアウト確認">
     <div class="hrow"><h2>心当たりのないログインがありましたか</h2><span class="more">閉じる</span></div>
-    <p class="statenote-wrap">次の操作でこのアカウントのすべての端末をログアウトします。リンクが無効か期限切れです、のときは再発行してください。</p>
+    <p class="statenote-wrap">次の操作でこのアカウントのすべての端末をログアウトします。</p>
     <div class="btn primary" style="margin-top:12px">すべての端末をログアウトする</div>
   </section>"""
 
