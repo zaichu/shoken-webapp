@@ -60,6 +60,10 @@ impl ApiError {
         }
     }
 
+    pub const fn is_server_error(&self) -> bool {
+        matches!(self, Self::Http { status, .. } if *status >= 500)
+    }
+
     pub fn user_message(&self) -> String {
         match self {
             Self::Network => labels::API_CHECK_NETWORK.to_string(),

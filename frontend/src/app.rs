@@ -13,7 +13,7 @@ use crate::features::stock_search::StockSearchPage;
 use crate::session::provide_session;
 use crate::ui::labels;
 use crate::ui::site::{AccountDeleteConfirm, AccountDeleteDialog, BottomNav, SiteFooter};
-use crate::ui::state::Loading;
+use crate::ui::state::{ListLoadError, Loading};
 use crate::urls::{FUND_HOLDINGS_PREFIX, HOLDINGS_PREFIX, detail_id};
 use leptos::ev;
 use leptos::prelude::*;
@@ -373,7 +373,7 @@ pub fn App() -> impl IntoView {
         }
         let authed = session.user.get().is_some();
         let current = path.get();
-        if protected_path(&current) && !authed {
+        if protected_path(&current) && !authed && session.connection_error.get().is_none() {
             navigate(path, "/login", true);
         } else if route.get() == Route::Login && authed {
             navigate(path, "/", true);
@@ -400,6 +400,19 @@ pub fn App() -> impl IntoView {
                         return view! { <Loading /> }.into_any();
                     }
                     if protected_path(&path.get()) && session.user.get().is_none() {
+                        if let Some(error) = session.connection_error.get() {
+                            let message = error.user_message();
+                            return view! {
+                                <ListLoadError
+                                    message=message
+                                    on_retry=move || {
+                                        let session = session;
+                                        leptos::task::spawn_local(async move { session.check().await; });
+                                    }
+                                />
+                            }
+                            .into_any();
+                        }
                         return view! { <Loading /> }.into_any();
                     }
                     match route.get() {
