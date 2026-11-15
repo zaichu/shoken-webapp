@@ -66,7 +66,7 @@ pub async fn list_login_history(
          WHERE user_id = $1 ORDER BY occurred_at DESC, id DESC LIMIT $2 OFFSET $3",
         vec![Bind::from(user_id), Bind::from(limit), Bind::from(offset)],
     )
-    .fetch_all(pool)
+    .fetch_all_with_user(pool, user_id)
     .await
 }
 

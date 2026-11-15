@@ -1,10 +1,9 @@
 use super::Domain;
 use super::facets::{self, FacetKind, FacetSlot, FacetSpec};
 use super::search_filters::{
-    DateAxisFilter, FilterField, SearchFilter, fetch_if_included, push_search_filters,
-    tokens_from_query,
+    DateAxisFilter, FilterField, SearchFilter, push_search_filters, tokens_from_query,
 };
-use crate::db::{Db, FromRow, QueryBuilder};
+use crate::db::{Db, FromRow, QueryBuilder, Tx};
 use crate::errors::ApiError;
 use crate::models::common::{
     FacetOption, PaginatedSearchResponse, SearchFacets, SearchParamsAccessor,
@@ -14,6 +13,8 @@ use shared::value::UserId;
 use std::fmt::Display;
 use std::future::Future;
 use tracing::info;
+
+pub type AggregateResult<S> = (i64, Option<S>, Option<SearchFacets>);
 
 /// 検索・集計付き一覧を持つドメイン。
 /// ドメインごとに持つのは SELECT 列・ORDER BY・フィルタ/facets の指定・summary の SQL と、
@@ -121,24 +122,34 @@ pub trait Search: Domain {
     }
 
     fn fetch_summary(
-        pool: &Db,
+        tx: &mut Tx,
         user_id: UserId,
         filter: &SearchFilter,
     ) -> impl Future<Output = Result<Self::Summary, ApiError>> + Send;
 
-    /// FACETS の指定どおりに各 facet を並行取得して SearchFacets を組み立てる
+    /// FACETS の指定どおりに各 facet を順に取得して SearchFacets を組み立てる
     fn fetch_facets(
-        pool: &Db,
+        tx: &mut Tx,
         user_id: UserId,
         filter: &SearchFilter,
     ) -> impl Future<Output = Result<SearchFacets, ApiError>> + Send {
-        collect_facets::<Self>(pool, user_id, filter)
+        collect_facets::<Self>(tx, user_id, filter)
+    }
+
+    fn fetch_aggregates(
+        tx: &mut Tx,
+        user_id: UserId,
+        filter: &SearchFilter,
+        include_summary: bool,
+        include_facets: bool,
+    ) -> impl Future<Output = Result<AggregateResult<Self::Summary>, ApiError>> + Send {
+        collect_aggregates::<Self>(tx, user_id, filter, include_summary, include_facets)
     }
 }
 
 /// FACETS の1件分を取得する。Group/Security の違いだけをここで吸収する
 async fn fetch_facet_option<D: Search + ?Sized>(
-    pool: &Db,
+    tx: &mut Tx,
     user_id: UserId,
     filter: &SearchFilter,
     spec: &FacetSpec,
@@ -146,27 +157,30 @@ async fn fetch_facet_option<D: Search + ?Sized>(
     let push = |qb: &mut QueryBuilder| D::push_filters(qb, user_id, filter);
     let options = match spec.kind {
         FacetKind::Group { field, order } => {
-            facets::fetch_group_facets(pool, D::TABLE, field.as_sql_expr(), order, push).await?
+            facets::fetch_group_facets(
+                &mut *tx,
+                user_id,
+                D::TABLE,
+                field.as_sql_expr(),
+                order,
+                push,
+            )
+            .await?
         }
         FacetKind::Security { label_order } => {
-            facets::fetch_security_facets(pool, D::TABLE, label_order, push).await?
+            facets::fetch_security_facets(&mut *tx, user_id, D::TABLE, label_order, push).await?
         }
     };
     Ok((spec.slot, options))
 }
-
-/// FACETS 指定どおりに各 facet を並行取得して SearchFacets を組み立てる
 async fn collect_facets<D: Search + ?Sized>(
-    pool: &Db,
+    tx: &mut Tx,
     user_id: UserId,
     filter: &SearchFilter,
 ) -> Result<SearchFacets, ApiError> {
-    let fetches = D::FACETS
-        .iter()
-        .map(|spec| fetch_facet_option::<D>(pool, user_id, filter, spec));
-
     let mut result = SearchFacets::default();
-    for (slot, options) in futures_util::future::try_join_all(fetches).await? {
+    for spec in D::FACETS {
+        let (slot, options) = fetch_facet_option::<D>(&mut *tx, user_id, filter, spec).await?;
         match slot {
             FacetSlot::Products => result.products = Some(options),
             FacetSlot::Accounts => result.accounts = Some(options),
@@ -179,9 +193,30 @@ async fn collect_facets<D: Search + ?Sized>(
     Ok(result)
 }
 
+async fn collect_aggregates<D: Search + ?Sized>(
+    tx: &mut Tx,
+    user_id: UserId,
+    filter: &SearchFilter,
+    include_summary: bool,
+    include_facets: bool,
+) -> Result<AggregateResult<D::Summary>, ApiError> {
+    let mut count_qb = D::count_query(user_id, filter);
+    let total: i64 = count_qb.build_query_scalar().fetch_one(&mut *tx).await?;
+    let summary = if include_summary {
+        Some(D::fetch_summary(&mut *tx, user_id, filter).await?)
+    } else {
+        None
+    };
+    let facets = if include_facets {
+        Some(D::fetch_facets(&mut *tx, user_id, filter).await?)
+    } else {
+        None
+    };
+    Ok((total, summary, facets))
+}
+
 /// 4ドメイン共通の検索制御フロー。
-/// 条件作成→クエリ作成→並行取得→応答組立の順に追える形にし、
-/// 並行取得の実行方式（try_join4・fetch_if_included の遅延実行）は変えない
+/// 一覧の読み取りは1つの利用者Txで順に実行する
 pub async fn search<D: Search>(
     pool: &Db,
     user_id: UserId,
@@ -197,25 +232,16 @@ pub async fn search<D: Search>(
     let include_facets = params.should_include_facets();
     let filter = D::make_filter(&params)?;
 
-    // 2. クエリ作成: count/data の SELECT 文に共通の WHERE 句を積む
-    let mut count_qb = D::count_query(user_id, &filter);
     let mut data_qb = D::data_query(user_id, &filter, per_page, offset);
 
-    // 3. 並行取得: count/data/summary/facets は相互に依存しない。
-    // summary/facets は include_* が true の場合だけ実クエリを発行する
-    let count_fut = async move {
-        let total: i64 = count_qb.build_query_scalar().fetch_one(pool).await?;
-        Ok::<_, ApiError>(total)
-    };
-    let data_fut = async move {
-        let data = data_qb.build_query_as::<D::Data>().fetch_all(pool).await?;
-        Ok::<_, ApiError>(data)
-    };
-    let summary_fut = fetch_if_included(include_summary, D::fetch_summary(pool, user_id, &filter));
-    let facets_fut = fetch_if_included(include_facets, D::fetch_facets(pool, user_id, &filter));
-
-    let (total, data, summary, facets) =
-        futures_util::future::try_join4(count_fut, data_fut, summary_fut, facets_fut).await?;
+    let mut tx = pool.begin_with_user(user_id).await?;
+    let data = data_qb
+        .build_query_as::<D::Data>()
+        .fetch_all(&mut tx)
+        .await?;
+    let (total, summary, facets) =
+        D::fetch_aggregates(&mut tx, user_id, &filter, include_summary, include_facets).await?;
+    tx.rollback().await?;
 
     // 4. 応答組立
     Ok(PaginatedSearchResponse {

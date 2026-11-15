@@ -68,7 +68,7 @@ pub async fn collect_csv_kind_stats(
     user_id: UserId,
 ) -> Result<CsvKindStatsResponse, ApiError> {
     let rows = crate::db::query(STATS_SQL, vec![Bind::from(user_id)])
-        .fetch_all::<CsvKindStatRow, _>(pool)
+        .fetch_all_with_user::<CsvKindStatRow>(pool, user_id)
         .await?;
     let labels: std::collections::HashMap<&str, &str> = KIND_LABELS.into_iter().collect();
     let kinds = rows

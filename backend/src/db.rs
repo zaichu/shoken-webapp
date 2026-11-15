@@ -394,6 +394,17 @@ impl Query {
         rows.iter().map(T::from_row).collect()
     }
 
+    pub async fn fetch_all_with_user<T: FromRow>(
+        &self,
+        db: &Db,
+        user_id: shared::value::UserId,
+    ) -> Result<Vec<T>, DbError> {
+        let rows = db
+            .query_rows_with_user(user_id, &self.sql, &self.params)
+            .await?;
+        rows.iter().map(T::from_row).collect()
+    }
+
     pub async fn fetch_optional<T: FromRow, E: Executor>(
         &self,
         executor: E,
@@ -402,8 +413,29 @@ impl Query {
         rows.first().map(T::from_row).transpose()
     }
 
+    pub async fn fetch_optional_with_user<T: FromRow>(
+        &self,
+        db: &Db,
+        user_id: shared::value::UserId,
+    ) -> Result<Option<T>, DbError> {
+        let rows = db
+            .query_rows_with_user(user_id, &self.sql, &self.params)
+            .await?;
+        rows.first().map(T::from_row).transpose()
+    }
+
     pub async fn fetch_one<T: FromRow, E: Executor>(&self, executor: E) -> Result<T, DbError> {
         self.fetch_optional(executor)
+            .await?
+            .ok_or(DbError::RowNotFound)
+    }
+
+    pub async fn fetch_one_with_user<T: FromRow>(
+        &self,
+        db: &Db,
+        user_id: shared::value::UserId,
+    ) -> Result<T, DbError> {
+        self.fetch_optional_with_user(db, user_id)
             .await?
             .ok_or(DbError::RowNotFound)
     }
@@ -429,6 +461,18 @@ impl Query {
             .map(|row| row.try_get::<_, S>(0).map_err(DbError::from))
             .transpose()
     }
+
+    pub async fn fetch_nullable_scalar_optional<S, E>(
+        &self,
+        executor: E,
+    ) -> Result<Option<S>, DbError>
+    where
+        S: for<'a> FromSql<'a>,
+        E: Executor,
+    {
+        let value = self.fetch_scalar_optional::<Option<S>, E>(executor).await?;
+        Ok(value.flatten())
+    }
 }
 
 impl<T: FromRow> QueryAs<T> {
@@ -447,8 +491,32 @@ impl<T: FromRow> QueryAs<T> {
         self.inner.fetch_one::<T, E>(executor).await
     }
 
+    pub async fn fetch_one_with_user(
+        &self,
+        db: &Db,
+        user_id: shared::value::UserId,
+    ) -> Result<T, DbError> {
+        self.inner.fetch_one_with_user(db, user_id).await
+    }
+
     pub async fn fetch_optional<E: Executor>(&self, executor: E) -> Result<Option<T>, DbError> {
         self.inner.fetch_optional::<T, E>(executor).await
+    }
+
+    pub async fn fetch_all_with_user(
+        &self,
+        db: &Db,
+        user_id: shared::value::UserId,
+    ) -> Result<Vec<T>, DbError> {
+        self.inner.fetch_all_with_user(db, user_id).await
+    }
+
+    pub async fn fetch_optional_with_user(
+        &self,
+        db: &Db,
+        user_id: shared::value::UserId,
+    ) -> Result<Option<T>, DbError> {
+        self.inner.fetch_optional_with_user(db, user_id).await
     }
 }
 
@@ -467,8 +535,44 @@ where
         self.inner.fetch_scalar::<S, E>(executor).await
     }
 
+    pub async fn fetch_one_with_user(
+        &self,
+        db: &Db,
+        user_id: shared::value::UserId,
+    ) -> Result<S, DbError> {
+        let rows = db
+            .query_rows_with_user(user_id, &self.inner.sql, &self.inner.params)
+            .await?;
+        rows.first()
+            .ok_or(DbError::RowNotFound)?
+            .try_get(0)
+            .map_err(DbError::from)
+    }
+
     pub async fn fetch_optional<E: Executor>(&self, executor: E) -> Result<Option<S>, DbError> {
         self.inner.fetch_scalar_optional::<S, E>(executor).await
+    }
+
+    pub async fn fetch_nullable_optional<E: Executor>(
+        &self,
+        executor: E,
+    ) -> Result<Option<S>, DbError> {
+        self.inner
+            .fetch_nullable_scalar_optional::<S, E>(executor)
+            .await
+    }
+
+    pub async fn fetch_optional_with_user(
+        &self,
+        db: &Db,
+        user_id: shared::value::UserId,
+    ) -> Result<Option<S>, DbError> {
+        let rows = db
+            .query_rows_with_user(user_id, &self.inner.sql, &self.inner.params)
+            .await?;
+        rows.first()
+            .map(|row| row.try_get(0).map_err(DbError::from))
+            .transpose()
     }
 }
 
@@ -757,6 +861,18 @@ impl Db {
         let mut tx = self.begin().await?;
         tx.set_local_user(user_id).await?;
         Ok(tx)
+    }
+
+    pub async fn query_rows_with_user(
+        &self,
+        user_id: shared::value::UserId,
+        sql: &str,
+        params: &[Bind],
+    ) -> Result<Vec<Row>, DbError> {
+        let tx = self.begin_with_user(user_id).await?;
+        let rows = (&tx).query_rows(sql, params).await?;
+        drop(tx);
+        Ok(rows)
     }
 }
 

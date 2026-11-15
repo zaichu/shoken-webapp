@@ -117,7 +117,7 @@ pub async fn get_setting(pool: &Db, user_id: UserId) -> Result<bool, DbError> {
         "SELECT login_notify_enabled FROM users WHERE id = $1",
         vec![Bind::from(user_id)],
     )
-    .fetch_one(pool)
+    .fetch_one_with_user(pool, user_id)
     .await
 }
 
@@ -138,7 +138,7 @@ pub async fn recent_send_count(pool: &Db, user_id: UserId) -> Result<i64, DbErro
         "SELECT COUNT(*) FROM login_notify_tokens WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'",
         vec![Bind::from(user_id)],
     )
-    .fetch_one(pool)
+    .fetch_one_with_user(pool, user_id)
     .await
 }
 
@@ -160,7 +160,7 @@ pub async fn peek_token(
     plaintext: &str,
 ) -> Result<Option<(UserId, DateTime<Utc>)>, DbError> {
     crate::db::query(
-        "SELECT user_id, expires_at FROM login_notify_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()",
+        "SELECT * FROM login_notify_peek_by_token($1)",
         vec![Bind::Bytes(token_hash(plaintext))],
     )
     .fetch_optional::<(UserId, DateTime<Utc>), _>(pool)
@@ -168,11 +168,11 @@ pub async fn peek_token(
 }
 
 pub async fn consume_token(pool: &Db, plaintext: &str) -> Result<Option<UserId>, DbError> {
-    crate::db::query_scalar::<UserId>(
-        "UPDATE login_notify_tokens SET used_at = NOW() WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW() RETURNING user_id",
+    crate::db::query_scalar::<Option<UserId>>(
+        "SELECT login_notify_consume_by_token($1)",
         vec![Bind::Bytes(token_hash(plaintext))],
     )
-    .fetch_optional(pool)
+    .fetch_one(pool)
     .await
 }
 

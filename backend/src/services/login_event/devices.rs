@@ -81,7 +81,7 @@ pub fn device_opaque_id(user_id: &UserId, device_hash: &[u8]) -> String {
 
 async fn fetch_device_rows(pool: &Db, user_id: UserId) -> Result<Vec<DeviceRow>, DbError> {
     crate::db::query_as::<DeviceRow>(DEVICE_LIST_SQL, vec![Bind::from(user_id)])
-        .fetch_all(pool)
+        .fetch_all_with_user(pool, user_id)
         .await
 }
 
@@ -117,7 +117,7 @@ pub async fn list_devices(
 
 async fn fetch_device_hashes(pool: &Db, user_id: UserId) -> Result<Vec<Vec<u8>>, DbError> {
     let rows = crate::db::query_as::<HashRow>(ACTIVE_DEVICE_HASHES_SQL, vec![Bind::from(user_id)])
-        .fetch_all(pool)
+        .fetch_all_with_user(pool, user_id)
         .await?;
     Ok(rows.into_iter().map(|row| row.device_hash).collect())
 }
