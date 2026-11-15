@@ -8,7 +8,7 @@ VISUAL = HERE.parent
 SHOTS = VISUAL / "shots"
 SHOTS.mkdir(exist_ok=True)
 
-IDEAS = ["idea1-minimal", "idea2-finance", "idea3-cards", "idea4-simple"]
+IDEAS = ["idea1-minimal", "idea2-finance", "idea3-cards", "idea4-simple", "idea5-current-color"]
 VIEWPORTS = {"pc": (1440, 900), "mobile": (390, 844)}
 
 with sync_playwright() as p:
