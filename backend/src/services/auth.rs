@@ -132,8 +132,15 @@ pub async fn upsert_user_rotate_session_with_login_event(
     DbError,
 > {
     let mut tx = pool.begin().await?;
-    let user = upsert_user_via_function(&mut tx, user_info).await?;
-    tx.set_local_user(user.id).await?;
+    let user_id = upsert_user_id_via_function(&mut tx, user_info).await?;
+    tx.set_local_user(user_id).await?;
+    let user = crate::db::query_as::<User>(
+        "SELECT id, google_id, email, name, picture_url, created_at, updated_at
+         FROM users WHERE id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one(&mut tx)
+    .await?;
     let prior_row = crate::db::query(
         "SELECT country, region FROM login_events
          WHERE user_id = $1 AND device_hash = $2 ORDER BY occurred_at DESC LIMIT 1",
@@ -198,12 +205,7 @@ pub async fn select_user_by_session(
     token: SessionToken,
 ) -> Result<Option<User>, DbError> {
     crate::db::query_as::<User>(
-        r#"
-        SELECT u.id, u.google_id, u.email, u.name, u.picture_url, u.created_at, u.updated_at
-        FROM users u
-        INNER JOIN sessions s ON u.id = s.user_id
-        WHERE s.token_hash = $1 AND s.expires_at > NOW()
-        "#,
+        "SELECT * FROM auth_session_user_by_token($1)",
         vec![Bind::Bytes(token.hash())],
     )
     .fetch_optional(pool)
@@ -234,21 +236,6 @@ async fn upsert_user_id_via_function(
             Bind::from(user_info.name.as_deref()),
             Bind::from(user_info.picture_url.as_deref()),
         ],
-    )
-    .fetch_one(&mut *tx)
-    .await
-}
-
-async fn upsert_user_via_function(
-    tx: &mut Tx,
-    user_info: &GoogleUserInfo,
-) -> Result<User, DbError> {
-    let user_id = upsert_user_id_via_function(tx, user_info).await?;
-    // 関数が挿入した新規行は、同じ文の外側のスナップショットでは見えない。
-    crate::db::query_as::<User>(
-        "SELECT id, google_id, email, name, picture_url, created_at, updated_at
-         FROM users WHERE id = $1",
-        vec![Bind::from(user_id)],
     )
     .fetch_one(&mut *tx)
     .await
@@ -319,7 +306,7 @@ pub async fn delete_device_sessions(
 
 pub async fn delete_session(pool: &Db, token: SessionToken) -> Result<(), DbError> {
     crate::db::query(
-        "DELETE FROM sessions WHERE token_hash = $1",
+        "SELECT auth_delete_session_by_token($1)",
         vec![Bind::Bytes(token.hash())],
     )
     .execute(pool)

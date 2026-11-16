@@ -509,3 +509,252 @@ async fn login_rls_transaction_settings_reset() {
     drop(tx);
     assert_owner_reset(&pool).await;
 }
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn auth_paths_use_limited_functions() {
+    let (pool, _node) = owner_pool().await;
+
+    let (is_super, can_bypass): (bool, bool) = db::query(
+        "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = CURRENT_USER",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(!is_super, "通常接続ロールは NOSUPERUSER であること");
+    assert!(!can_bypass, "通常接続ロールは NOBYPASSRLS であること");
+
+    for signature in [
+        "public.auth_session_user_by_token(bytea)",
+        "public.auth_lookup_user_id_by_session(bytea)",
+        "public.auth_delete_session_by_token(bytea)",
+    ] {
+        let executable = db::query_scalar::<bool>(
+            format!("SELECT has_function_privilege('app_restricted', '{signature}', 'EXECUTE')"),
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(executable, "{signature} は app_restricted が実行できるはず");
+        let public = db::query_scalar::<bool>(
+            format!("SELECT has_function_privilege('public', '{signature}', 'EXECUTE')"),
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(!public, "{signature} は public から実行できないはず");
+        let is_definer = db::query_scalar::<bool>(
+            "SELECT prosecdef FROM pg_proc WHERE oid = $1::regprocedure",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(is_definer, "{signature} は DEFINER のはず");
+    }
+    let volatile = db::query_scalar::<String>(
+        "SELECT provolatile::text FROM pg_proc WHERE oid = 'public.auth_session_user_by_token(bytea)'::regprocedure",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(volatile, "s", "照会関数は STABLE のはず");
+    let config = db::query(
+        "SELECT unnest(proconfig) FROM pg_proc WHERE oid = 'public.auth_session_user_by_token(bytea)'::regprocedure",
+        vec![],
+    )
+    .fetch_all::<(String,), _>(&pool)
+    .await
+    .unwrap();
+    assert!(
+        config.contains(&("search_path=public, pg_temp".to_string(),)),
+        "照会関数は search_path を固定するはず"
+    );
+
+    let mut info = GoogleUserInfo {
+        sub: "auth-paths-google".into(),
+        email: "auth-paths@example.com".into(),
+        name: Some("架空の認証経路利用者".into()),
+        picture_url: None,
+    };
+    let token = auth::upsert_user_and_rotate_session(&pool, &info)
+        .await
+        .expect("新規ログインは通るはず");
+    let user = auth::select_user_by_session(&pool, token)
+        .await
+        .expect("通常認証の照会は通るはず")
+        .expect("新規ログインのセッションがあるはず");
+    assert_eq!(user.email, info.email);
+    let user_id = auth::select_user_id_by_session(&pool, token)
+        .await
+        .expect("利用者特定は通るはず")
+        .expect("利用者 ID があるはず");
+    assert_eq!(user.id, user_id);
+
+    let unknown: auth::SessionToken = "550e8400-e29b-41d4-a716-446655440000".parse().unwrap();
+    assert!(
+        auth::select_user_by_session(&pool, unknown)
+            .await
+            .expect("未知トークンの照会は通るはず")
+            .is_none(),
+        "未知のトークンは未認証扱いであること"
+    );
+    assert!(
+        auth::select_user_id_by_session(&pool, unknown)
+            .await
+            .expect("未知トークンの特定は通るはず")
+            .is_none(),
+        "未知のトークンから利用者は特定できないこと"
+    );
+
+    let info_expired = GoogleUserInfo {
+        sub: "auth-paths-expired".into(),
+        email: "auth-paths-expired@example.com".into(),
+        name: None,
+        picture_url: None,
+    };
+    let expired_token = auth::upsert_user_and_rotate_session(&pool, &info_expired)
+        .await
+        .expect("期限切れ検証用のログインは通るはず");
+    db::query(
+        "UPDATE sessions SET expires_at = NOW() - INTERVAL '1 second' WHERE token_hash = $1",
+        vec![Bind::Bytes(expired_token.hash())],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert!(
+        auth::select_user_by_session(&pool, expired_token)
+            .await
+            .expect("期限切れトークンの照会は通るはず")
+            .is_none(),
+        "期限切れのトークンは未認証扱いであること"
+    );
+
+    info.name = Some("更新した架空の認証経路利用者".into());
+    let device_token = auth::upsert_user_rotate_session_with_login_event(
+        &pool,
+        &info,
+        vec![22; 32],
+        &ClientInfo {
+            country: Some("JP".into()),
+            region: Some("13".into()),
+            browser: Some("chrome".into()),
+            os: Some("windows".into()),
+        },
+    )
+    .await
+    .expect("端末付きの再ログインは通るはず")
+    .0;
+    assert!(
+        auth::select_user_by_session(&pool, token)
+            .await
+            .expect("失効トークンの照会は通るはず")
+            .is_none(),
+        "再ログインで旧トークンは失効すること"
+    );
+    let relogin_user = auth::select_user_by_session(&pool, device_token)
+        .await
+        .expect("再ログイン後の照会は通るはず")
+        .expect("再ログインのセッションがあるはず");
+    assert_eq!(relogin_user.id, user_id);
+    assert_eq!(relogin_user.name, info.name);
+
+    auth::delete_session(&pool, device_token)
+        .await
+        .expect("ログアウトは通るはず");
+    let count: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM sessions WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(count, 0, "ログアウトでセッション行が消えること");
+    assert!(
+        auth::select_user_by_session(&pool, device_token)
+            .await
+            .expect("ログアウト後の照会は通るはず")
+            .is_none(),
+        "ログアウト後は未認証扱いであること"
+    );
+    auth::delete_session(&pool, device_token)
+        .await
+        .expect("二重ログアウトも冪等に成功すること");
+
+    let retoken = auth::upsert_user_and_rotate_session(&pool, &info)
+        .await
+        .expect("削除前のログインは通るはず");
+    assert_eq!(
+        auth::select_user_id_by_session(&pool, retoken)
+            .await
+            .expect("削除前の特定は通るはず"),
+        Some(user_id)
+    );
+    auth::delete_account(&pool, user_id)
+        .await
+        .expect("アカウント削除は通るはず");
+    assert!(
+        auth::select_user_by_session(&pool, retoken)
+            .await
+            .expect("削除後の照会は通るはず")
+            .is_none(),
+        "アカウント削除後は未認証扱いであること"
+    );
+    assert!(
+        auth::select_user_id_by_session(&pool, retoken)
+            .await
+            .expect("削除後の特定は通るはず")
+            .is_none(),
+        "アカウント削除後は利用者を特定できないこと"
+    );
+    let users: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM users WHERE id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(users, 0, "アカウント削除で利用者行が消えること");
+
+    let info_c = GoogleUserInfo {
+        sub: "auth-paths-restricted".into(),
+        email: "auth-paths-restricted@example.com".into(),
+        name: None,
+        picture_url: None,
+    };
+    let (token_c, id_c) = login(&pool, &info_c, false).await;
+    let mut tx = pool.begin().await.unwrap();
+    db::query("SELECT app_enter($1)", vec![Bind::from(id_c)])
+        .execute(&mut tx)
+        .await
+        .expect("app_enter は通るはず");
+    let (role,): (String,) = db::query("SELECT current_user::text", vec![])
+        .fetch_one(&mut tx)
+        .await
+        .unwrap();
+    assert_eq!(role, "app_restricted");
+    let restricted_user = db::query_as::<backend::models::user::User>(
+        "SELECT * FROM auth_session_user_by_token($1)",
+        vec![Bind::Bytes(token_c.hash())],
+    )
+    .fetch_optional(&mut tx)
+    .await
+    .expect("制限ロールで照会関数は呼べるはず")
+    .expect("本人のセッションがあるはず");
+    assert_eq!(restricted_user.id, id_c);
+    let restricted_id = db::query_scalar::<Option<UserId>>(
+        "SELECT auth_lookup_user_id_by_session($1)",
+        vec![Bind::Bytes(token_c.hash())],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .expect("制限ロールで特定関数は呼べるはず");
+    assert_eq!(restricted_id, Some(id_c));
+    tx.rollback().await.unwrap();
+    assert_owner_reset(&pool).await;
+}
