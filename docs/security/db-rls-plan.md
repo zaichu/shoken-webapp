@@ -696,9 +696,9 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
 
 `backend/tests/login_rls.rs` の `force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths` を既存の Docker (`postgres:16-alpine`) 結合テストで実行する。migration を適用した `NOSUPERUSER NOBYPASSRLS` の非特権テーブル所有者を使い、11表すべてに一時的に FORCE を設定する。検証では実データや本番設定を使わない。
 
-- FORCE 前後で `asset_balances` / `fund_balances` から価格更新候補を選ぶ SELECT を直接実行し、前は各候補が返り、後は0行になることを確認する。価格更新関数の成功件数は外部価格取得の成否に左右されるため、遮断判定には使わない。加えて、通常 owner によるセッション照会は行を返さず、OAuth upsert はポリシー違反になり、直接ログアウト DELETE は成功応答でも行を消さず、通知 token 照会/消費は見つからず、管理者横断検索は0行、cron の履歴掃除は0件となることを確認する。
+- FORCE 前後で `asset_balances` / `fund_balances` から価格更新候補を選ぶ SELECT を直接実行し、FORCE 前の通常 owner では各候補が返り、FORCE 後の通常 owner では0行、`app_enter` 後の `app_restricted` では各候補が返ることを確認する。価格更新関数の成功件数は外部価格取得の成否に左右されるため、遮断判定には使わない。投信の対応行は `fund_name_normalize` で求めた値で投入する。加えて、通常 owner によるセッション照会は行を返さず、OAuth upsert はポリシー違反になり、直接ログアウト DELETE は成功応答でも行を消さず、通知 token 照会/消費は見つからず、管理者横断検索は0行、cron の履歴掃除は0件となることを確認する。
 - `row_security=off` の owner 読み取りは SQLSTATE `42501` となることを確認する。これは `pg_dump` が既定で不完全なダンプを避ける挙動に対応する。
-- 同じ FORCE 状態で `app_enter` を通した本人のログイン履歴読み取りとセッション削除は通ることを確認する。適用済み migration 履歴の再確認も通るが、将来の data migration は未検証。
+- 同じ FORCE 状態で `app_enter` を通した本人のログイン履歴読み取りとセッション削除に加え、価格更新候補の列挙も通ることを確認する。適用済み migration 履歴の再確認も通るが、将来の data migration は未検証。
 - `FORCE` の変更はテストコンテナ内だけで破棄する。migration ファイル・本番設定・本番 DB は変更しない。
 
 結果: 上記の所有者経路は現状のままでは動かず、5c/5d の利用者設定付き制限ロール経路は動くことを再現した。`row_security=off` によるバックアップと同等の読み取りは SQLSTATE `42501` で失敗し、既存 migration 履歴の検査は通った。よって全経路の再配線を完了する前の FORCE 導入はしない。

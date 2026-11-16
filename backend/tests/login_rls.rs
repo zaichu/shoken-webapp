@@ -57,6 +57,49 @@ async fn fund_price_targets(pool: &Db) -> Vec<String> {
     .collect()
 }
 
+async fn stock_price_targets_as(pool: &Db, user_id: UserId) -> Vec<String> {
+    db::query(
+        r#"
+        SELECT ab.security_code
+        FROM asset_balances ab
+        LEFT JOIN security_prices sp ON sp.security_code = ab.security_code
+        GROUP BY ab.security_code
+        HAVING BOOL_OR(sp.price_as_of IS NULL) OR MIN(sp.price_as_of) < CURRENT_DATE
+        ORDER BY MIN(sp.updated_at) ASC NULLS FIRST
+        LIMIT 15
+        "#,
+        vec![],
+    )
+    .fetch_all_with_user(pool, user_id)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|(code,)| code)
+    .collect()
+}
+
+async fn fund_price_targets_as(pool: &Db, user_id: UserId) -> Vec<String> {
+    db::query(
+        r#"
+        SELECT fc.association_fund_cd
+        FROM fund_balances fb
+        JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name
+        LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd
+        GROUP BY fc.association_fund_cd
+        HAVING BOOL_OR(fp.price_as_of IS NULL) OR MIN(fp.price_as_of) < CURRENT_DATE
+        ORDER BY MIN(fp.updated_at) ASC NULLS FIRST
+        LIMIT 30
+        "#,
+        vec![],
+    )
+    .fetch_all_with_user(pool, user_id)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|(code,)| code)
+    .collect()
+}
+
 async fn owner_pool() -> (Db, impl Drop) {
     let node = Postgres::default()
         .with_tag(POSTGRES_TAG)
@@ -217,6 +260,8 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     assert_eq!(login_event::prune_login_events(&pool).await.unwrap(), 0);
     assert!(stock_price_targets(&pool).await.is_empty());
     assert!(fund_price_targets(&pool).await.is_empty());
+    assert_eq!(stock_price_targets_as(&pool, user_id).await, ["99999"]);
+    assert_eq!(fund_price_targets_as(&pool, user_id).await, ["99999999"]);
     run_migrations(&pool)
         .await
         .expect("適用済み migration 履歴の確認は FORCE 下でも通る");
