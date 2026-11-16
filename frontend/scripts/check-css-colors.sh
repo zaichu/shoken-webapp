@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Rust 側・CSS 側の色の直書きと、Rust の style 属性での色・寸法の指定を検出する。
+# Rust 側の色の直書きと、Rust の style 属性での色・寸法の指定を検出する。
 # 色は style/input.css の @theme トークン経由(var(--color-*))だけを使い、
 # 16進・rgb/hsl 系の直書きと style 属性での色・寸法は増やさないこと。
+# CSS ファイル側(style/input.css)の宣言は Stylelint が見る。
 # 既存の違反は css-color-baseline.txt(検査種別・ファイル・件数)で許し、
 # 新しい違反(基準超え)だけを落とす。基準は減る方向にだけ変える。
 # 使い方: frontend/ で `bash scripts/check-css-colors.sh`
@@ -19,7 +20,6 @@ STYLE_PROP='style:(background|background-color|color|border-color|border-top-col
 STYLE_ATTR='(^|[^[:alnum:]_:.-])style[[:space:]]*=|(^|[^[:alnum:]_])attr:style[[:space:]]*='
 
 RS_FILES=(src/**/*.rs)
-CSS_FILE="style/input.css"
 
 fail=0
 
@@ -58,26 +58,6 @@ check_func_src() {
   [ -z "$deny" ] && { echo "  OK: 関数色直書き(src)"; return 0; }
   echo "  INFO: 関数色直書き(src: 基準で管理)" >&2
   printf '%s\n' "$deny" >&2
-}
-
-check_hex_css() {
-  local hits deny
-  hits=$(grep -HnE -e "$HEX" "$CSS_FILE" 2>/dev/null || true)
-  deny=$(printf '%s\n' "$hits" | grep -vE ':[0-9]+:[[:space:]]*--' || true)
-  [ -z "$deny" ] && { echo "  OK: 16進色直書き(style)"; return 0; }
-  echo "ERROR: 16進色直書き(style)" >&2
-  printf '%s\n' "$deny" >&2
-  fail=1
-}
-
-check_func_css() {
-  local hits deny
-  hits=$(grep -HnE -e "$FUNC_COLOR" "$CSS_FILE" 2>/dev/null || true)
-  deny=$(printf '%s\n' "$hits" | grep -vE ':[0-9]+:[[:space:]]*--' | grep -vF 'var(--color-' || true)
-  [ -z "$deny" ] && { echo "  OK: 関数色直書き(style)"; return 0; }
-  echo "ERROR: 関数色直書き(style)" >&2
-  printf '%s\n' "$deny" >&2
-  fail=1
 }
 
 check_style_prop() {
@@ -146,18 +126,6 @@ collect_func_src() {
   local hits
   hits=$(grep -HnE -e "$FUNC_COLOR" "${RS_FILES[@]}" 2>/dev/null || true)
   printf '%s\n' "$hits" | filter_comments | grep -vF 'var(--color-' || true
-}
-
-collect_hex_css() {
-  local hits
-  hits=$(grep -HnE -e "$HEX" "$CSS_FILE" 2>/dev/null || true)
-  printf '%s\n' "$hits" | grep -vE ':[0-9]+:[[:space:]]*--' || true
-}
-
-collect_func_css() {
-  local hits
-  hits=$(grep -HnE -e "$FUNC_COLOR" "$CSS_FILE" 2>/dev/null || true)
-  printf '%s\n' "$hits" | grep -vE ':[0-9]+:[[:space:]]*--' | grep -vF 'var(--color-' || true
 }
 
 collect_style_prop() {
@@ -235,15 +203,11 @@ fi
 
 check_hex_src
 check_func_src
-check_hex_css
-check_func_css
 check_style_prop
 check_style_attr
 
 check_baseline "hex-src" "$(collect_hex_src)"
 check_baseline "func-src" "$(collect_func_src)"
-check_baseline "hex-css" "$(collect_hex_css)"
-check_baseline "func-css" "$(collect_func_css)"
 check_baseline "style-prop" "$(collect_style_prop)"
 check_baseline "style-attr" "$(collect_style_attr)"
 

@@ -1,3 +1,4 @@
+/* stylelint-disable-next-line import-notation -- tailwind v4 は文字列形式の @import を要求するため */
 @import "tailwindcss" source(none);
 
 @source "../src/**/*.rs";
@@ -159,6 +160,7 @@
   /* 上部ヘッダーと本文の端をそろえる共通の本文幅(page-gutter / content-gutter) */
   --container-page: 90rem;
 
+  /* stylelint-disable-next-line value-keyword-case -- 書体の固有名詞の表記のため */
   --font-sans: 'Noto Sans JP', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
 }
 
@@ -1083,6 +1085,7 @@
     .receipts-table th {
       @apply whitespace-nowrap;
     }
+
     .receipts-table td.receipt-instrument-cell {
       min-width: 10em;
     }
@@ -2017,10 +2020,12 @@
     line-height: 1.25;
   }
 
+  /* stylelint-disable no-descending-specificity -- 印刷ブロックは層なしで末尾に置く必要があり、対象の表が別(.receipt-table と .receipts-table)のため */
   .receipts-table th,
   .receipts-table td {
     padding: 2px !important;
   }
+  /* stylelint-enable no-descending-specificity */
 }
 
 /* utilities 層の指定に勝つよう層の外に置く */

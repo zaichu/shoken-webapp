@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json.schemastore.org/stylelintrc",
+  "extends": ["stylelint-config-standard"],
+  "plugins": ["stylelint-declaration-strict-value"],
+  "ignoreFiles": ["scripts/fixtures/**", "style/output.css"],
+  "rules": {
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": ["theme", "source", "apply", "utility", "variant", "custom-variant"]
+      }
+    ],
+    "at-rule-prelude-no-invalid": [
+      true,
+      {
+        "ignoreAtRules": ["theme", "source", "apply", "utility", "variant", "custom-variant"]
+      }
+    ],
+    "declaration-empty-line-before": null,
+    "custom-property-empty-line-before": null,
+    "comment-empty-line-before": null,
+    "color-function-notation": null,
+    "color-function-alias-notation": null,
+    "alpha-value-notation": null,
+    "media-feature-range-notation": null,
+    "scale-unlimited/declaration-strict-value": [
+      [
+        "/color$/",
+        "background",
+        "border",
+        "/^border-(top|right|bottom|left)$/",
+        "outline",
+        "fill",
+        "stroke",
+        "box-shadow",
+        "text-shadow",
+        "font-size",
+        "/^margin/",
+        "/^padding/",
+        "gap",
+        "/^(row|column)-gap$/"
+      ],
+      {
+        "ignoreFunctions": false,
+        "ignoreValues": {
+          "": ["transparent", "currentColor", "inherit", "none", "0"],
+          "background": ["transparent", "currentColor", "inherit", "none", "0", "/^color-mix\\(in srgb, var\\(--color-/"],
+          "/^border-(top|right|bottom|left)$/": ["transparent", "currentColor", "inherit", "none", "0", "3px", "solid"],
+          "box-shadow": ["transparent", "currentColor", "inherit", "none", "0", "inset", "3px", "-3px"],
+          "/^margin/": ["transparent", "currentColor", "inherit", "none", "0", "calc(var(--space-page) * -1)"],
+          "/^padding/": ["transparent", "currentColor", "inherit", "none", "0", "clamp(1rem, 3.5vw, 3rem)", "env(safe-area-inset-bottom)"]
+        },
+        "ignoreAtRules": {
+          "/^@media print/": [
+            "/color$/",
+            "background",
+            "border",
+            "/^border-(top|right|bottom|left)$/",
+            "outline",
+            "fill",
+            "stroke",
+            "box-shadow",
+            "text-shadow",
+            "font-size",
+            "/^margin/",
+            "/^padding/",
+            "gap",
+            "/^(row|column)-gap$/"
+          ]
+        }
+      }
+    ]
+  }
+}

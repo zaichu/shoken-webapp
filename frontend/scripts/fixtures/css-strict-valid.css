@@ -1,0 +1,26 @@
+/* トークン検査の正常例(Stylelint が通すこと)。check:css の対象外 */
+.valid-token {
+  color: var(--color-text);
+  background: var(--color-page);
+  border-left: 3px solid var(--color-gold);
+  box-shadow: inset 0 -3px 0 var(--color-gold);
+  font-size: var(--text-body);
+  margin-top: var(--space-note);
+  padding-inline: clamp(1rem, 3.5vw, 3rem);
+  padding-bottom: env(safe-area-inset-bottom);
+  margin-inline: calc(var(--space-page) * -1);
+}
+
+.valid-keyword {
+  color: inherit;
+  background: transparent;
+  border: 0;
+  fill: none;
+}
+
+@media print {
+  .valid-print {
+    font-size: 9px;
+    padding: 2px;
+  }
+}

@@ -4,7 +4,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "check:css": "bash scripts/check-css-tokens.sh",
+    "check:css": "stylelint \"style/**/*.css\" && node --test scripts/check-css.test.mjs && bash scripts/check-css-tokens.sh",
+    "test:css": "node --test scripts/check-css.test.mjs",
     "check:test-layout": "node scripts/check-test-layout.mjs",
     "test:test-layout": "node --test scripts/check-test-layout.test.mjs",
     "e2e:deploy": "env -u NO_COLOR playwright test --config playwright.deploy.config.ts"
@@ -13,6 +14,9 @@
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.65.0",
     "@tailwindcss/cli": "^4.3.5",
+    "stylelint": "17.16.0",
+    "stylelint-config-standard": "40.0.0",
+    "stylelint-declaration-strict-value": "1.12.1",
     "tailwindcss": "^4.3.3"
   }
 }
