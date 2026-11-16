@@ -1,6 +1,4 @@
--- 5e-1:セッション認証の利用者行取得を引数と返却値を限定した照会関数へ移す。
--- token_hash だけを受け取り、期限切れでない本人行の最小列だけを返す。
--- STABLE/SECURITY DEFINER、search_path 固定、PUBLIC からは取り上げる。
+-- 利用者 ID 確定前の認証入口のため token_hash 照合と利用者行取得を所有者権限の関数に閉じ込める。
 CREATE FUNCTION public.auth_session_user_by_token(p_token_hash bytea)
 RETURNS TABLE(id uuid, google_id text, email text, name text, picture_url text, created_at timestamptz, updated_at timestamptz)
     LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp

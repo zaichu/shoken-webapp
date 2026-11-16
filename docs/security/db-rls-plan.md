@@ -731,6 +731,10 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
   期待値は `NOSUPERUSER NOBYPASSRLS`。異なる場合は FORCE 適用(5e-4)の前に
   実行ロールと管理用ロールの分離が必要で、本 Issue では分離用の migration を追加しない。
   関数所有者を分ける専用ロールの新設も FORCE 導入時(5e-4)の対象とし、本 Issue では行わない。
+- 本番の通常接続ロールの確認は未実施。本 Issue の実装範囲は確認手段の用意までとし、
+  マージ後に統合担当が main から `DB RLS State` ワークフローを手動実行して結果を記録する。
+  期待値は `NOSUPERUSER NOBYPASSRLS` で、外れた場合は FORCE 適用(5e-4)の前に
+  実行ロールと管理用ロールの分離が必要になる。
 - 結合テスト(`backend/tests/login_rls.rs` の `auth_paths_use_limited_functions`):
   非特権所有者が `NOSUPERUSER NOBYPASSRLS` であること、新旧照会関数の権限カタログ
   (`app_restricted` は実行可・`public` は不可)・`DEFINER` 属性・`STABLE`・`search_path` 固定、
