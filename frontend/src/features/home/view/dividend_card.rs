@@ -124,7 +124,7 @@ fn DividendCardBody(
                     labels::home_forecast(&forecast)
                 }}
             </span>
-            <span class="ml-auto text-subhero font-bold tabular-nums">{progress_text}</span>
+            <span class="ml-auto text-label font-bold tabular-nums">{progress_text}</span>
         </div>
         <div class="home-progress">
             {progress_pct.map(|pct| {
@@ -136,7 +136,7 @@ fn DividendCardBody(
                 }
             })}
         </div>
-        <p class="px-4 pt-1.5 text-label text-text-muted">
+        <p class="break-keep px-4 pt-1.5 text-label text-text-muted">
             {labels::home_dividend_summary(&remaining_text, &previous_span, &yoy_text)}
         </p>
         <DividendMonthlyChart
