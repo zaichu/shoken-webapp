@@ -605,13 +605,13 @@ fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
                         }
                     })}
                     <div
-                        class="min-w-0 break-words text-base font-semibold text-ink"
+                        class="min-w-0 break-words text-body font-semibold text-ink"
                         title=name_title
                     >
                         {name_view}
                     </div>
                 </div>
-                <div class="flex items-center gap-2 text-xs text-text-muted">
+                <div class="flex items-center gap-2 text-cell text-text-muted">
                     <span class="shrink-0">{date}</span>
                     {(!account.is_empty()).then(|| view! { <AccountBadge label=account /> })}
                 </div>
@@ -665,8 +665,8 @@ pub(crate) fn MobileCardGroup(
         return view! {
             <section data-testid="receipt-card-group">
                 <Card variant=CardVariant::GroupLabel>
-                    <span class="text-sm font-semibold text-text-soft">{label}</span>
-                    <span class="ml-2 text-xs font-medium text-text-muted">
+                    <span class="text-label font-semibold text-text-soft">{label}</span>
+                    <span class="ml-2 text-cell font-medium text-text-muted">
                         {labels::count(count)}
                     </span>
                 </Card>
@@ -704,9 +704,9 @@ pub(crate) fn MobileCardGroup(
                         });
                     }
                 >
-                    <span class="min-w-0 flex-1 truncate text-sm font-semibold text-text-soft">
+                    <span class="min-w-0 flex-1 truncate text-label font-semibold text-text-soft">
                         {label}
-                        <span class="ml-2 text-xs font-medium text-text-muted">
+                        <span class="ml-2 text-cell font-medium text-text-muted">
                             {labels::count(count)}
                         </span>
                     </span>
@@ -714,13 +714,13 @@ pub(crate) fn MobileCardGroup(
                         class="flex shrink-0 items-baseline gap-1 whitespace-nowrap"
                         aria-hidden="true"
                     >
-                        <span class="text-xs text-text-muted">{primary_label}</span>
+                        <span class="text-cell text-text-muted">{primary_label}</span>
                         <Amount
                             kind=primary_kind
                             text=primary_value.clone()
                             negative=primary_negative
                             positive=primary_positive
-                            class="text-sm font-semibold"
+                            class="text-body font-semibold"
                         />
                         <ChevronIcon
                             expanded=Signal::derive(move || expanded.get())

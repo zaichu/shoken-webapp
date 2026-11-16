@@ -39,7 +39,7 @@ fn DialogFieldSelect(
 ) -> impl IntoView {
     view! {
         <div class="search-dialog-field">
-            <label class="mb-1 block text-sm font-medium text-text-deep">
+            <label class="mb-1 block text-label font-medium text-text-deep">
                 {label}
                 <Select
                     value=value
@@ -196,7 +196,7 @@ fn DialogSortSection(
             <p class="search-dialog-section-title">{SORT_BY}</p>
             <div class="search-dialog-sort-row">
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-text-deep">
+                    <label class="mb-1 block text-label font-medium text-text-deep">
                         {SORT_TARGET}
                         <Select
                             value=Signal::derive(move || "date".to_string())
@@ -210,7 +210,7 @@ fn DialogSortSection(
                     </label>
                 </div>
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-text-deep">
+                    <label class="mb-1 block text-label font-medium text-text-deep">
                         {SORT_ORDER_LABEL}
                         <Select
                             value=Signal::derive(move || draft_order.get().value().to_string())

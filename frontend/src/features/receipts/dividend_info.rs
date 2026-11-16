@@ -195,9 +195,9 @@ fn StatCard(
 ) -> impl IntoView {
     view! {
         <Card variant=CardVariant::Sunken>
-            <p class="text-xs font-medium text-text-muted mb-1">{label}</p>
+            <p class="text-cell font-medium text-text-muted mb-1">{label}</p>
             <p
-                class="text-2xl font-bold tabular-nums text-text-deep"
+                class="text-summary-secondary font-bold tabular-nums text-text-deep"
                 title=move || {
                     title_hint.then(|| hint.and_then(|hint| hint.get())).flatten()
                 }
@@ -206,7 +206,7 @@ fn StatCard(
             </p>
             {move || {
                 hint.and_then(|hint| hint.get()).map(|text| {
-                    view! { <p class="mt-0.5 text-xs text-text-subtle">{text}</p> }
+                    view! { <p class="mt-0.5 text-cell text-text-subtle">{text}</p> }
                 })
             }}
         </Card>
@@ -267,14 +267,14 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-border-subtle">
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">{DIVIDEND_AMOUNT_AND_YIELD}</p>
-                    <p class="text-2xl font-bold tabular-nums text-ink">
+                    <p class="text-cell font-medium text-text-muted mb-1">{DIVIDEND_AMOUNT_AND_YIELD}</p>
+                    <p class="text-summary-secondary font-bold tabular-nums text-ink">
                         {format_amount(totals.total_dividends_before_tax)}
                         {move || {
                             let rate = gross_rate();
                             (rate > 0.0).then(|| {
                                 view! {
-                                    <span class="text-sm font-normal text-text-subtle ml-1">
+                                    <span class="text-cell font-normal text-text-subtle ml-1">
                                         {format!("({})", format_percentage_value(rate))}
                                     </span>
                                 }
@@ -283,20 +283,20 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">{TAX}</p>
-                    <p class="text-2xl font-bold tabular-nums text-ink">
+                    <p class="text-cell font-medium text-text-muted mb-1">{TAX}</p>
+                    <p class="text-summary-secondary font-bold tabular-nums text-ink">
                         {format_amount(totals.total_taxes)}
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-xs font-medium text-text-muted mb-1">{AFTER_TAX_AND_YIELD}</p>
-                    <p class="text-2xl font-bold tabular-nums text-ink">
+                    <p class="text-cell font-medium text-text-muted mb-1">{AFTER_TAX_AND_YIELD}</p>
+                    <p class="text-summary-secondary font-bold tabular-nums text-ink">
                         {format_amount(totals.total_net_amount_received)}
                         {move || {
                             let rate = net_rate();
                             (rate > 0.0).then(|| {
                                 view! {
-                                    <span class="text-sm font-normal text-text-subtle ml-1">
+                                    <span class="text-cell font-normal text-text-subtle ml-1">
                                         {format!("({})", format_percentage_value(rate))}
                                     </span>
                                 }
@@ -344,7 +344,7 @@ pub(crate) fn DividendSummarySection(
                     on_toggle=move || expanded.update(bool::toggle)
                 >
                     <div class="flex items-center gap-2">
-                        <h2 class="text-sm font-black text-ink">{title}</h2>
+                        <h2 class="text-heading font-black text-ink">{title}</h2>
                         {move || store.asset_balance.get().is_some().then(AssetBadge)}
                     </div>
                 </DisclosureToggle>
