@@ -635,3 +635,77 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
 4. 5dの変更前 tail は応答時間を含まないため、本番と別Workerで変更後の認証済み一覧応答を測っても前後差を算出できない。認証秘密を複製しない条件で変更前後を比較するには、マージ後に同一利用者・同一coloの一覧応答を計測する必要がある。差分が +50ms を超えた場合は読み取り切替の並行度/接続方式を再検討する。
 5. `app_enter` の種別の値は、書き込み Tx の設定コストの実測として 5c の振り返りに使う。
    一覧の `SELECT` とは混ぜずに見る。
+
+## 22. 第五段階(5e) FORCE ROW LEVEL SECURITY の検討(#1954)
+
+### 結論
+
+**条件つきで導入を推奨する。ただし現行の接続構成のまま全表へ一括導入しない。**
+
+FORCE は、RLS を迂回するテーブル所有者が誤って利用者表へ触れた場合にもポリシーを適用できる。一方、現在は認証前・管理者横断・cron・migration・バックアップに所有者経路が残る。これらは利用者 ID の設定がないか、全利用者を読む必要があり、今のポリシーのまま FORCE すると認証・ログアウト・通知リンク・管理者検索・履歴掃除が失敗または空振りする。`SECURITY DEFINER` は関数所有者として実行する属性であり、FORCE を迂回する属性ではない。
+
+FORCE はテーブル所有者自身が `ALTER TABLE ... NO FORCE ROW LEVEL SECURITY` を実行することを防がず、SUPERUSER / `BYPASSRLS` も常に迂回する。したがって、所有者資格情報の窃取や悪意ある DB 管理者に対する防御とは数えない。価値は、特権を使って DDL やロールを変更しない通常の SQL 経路で、利用者条件の欠落をポリシーが止めることに限られる。
+
+導入条件は、(1) Workers の通常接続ロールが `NOSUPERUSER NOBYPASSRLS` であることを読み取り専用で確認する、(2)下表の残存所有者経路を、最小権限の専用ロールまたは入力・戻り値を限定した関数へ移す、(3) migration とバックアップにはアプリ接続と分離した管理経路を用意する、(4) Docker 結合テストで FORCE 下の全経路とロール属性を確かめる、の4点。通常接続ロールが SUPERUSER または `BYPASSRLS` なら FORCE だけではその接続の RLS 強制にならず、先にロールを分離する。現行の本番接続ロールの属性はこの Issue では読み取りにも触れておらず未確認。
+
+### FORCE が及ぶ所有者経路
+
+対象表は RLS 有効な11表: `users`・`sessions`・`dividends`・`domestic_stocks`・`mutualfunds`・`asset_balances`・`fund_balances`・`csv_import_history`・`login_events`・`login_notify_tokens`・`admin_login_views`。根拠は `backend/migrations/0023_csv_import_history_rls.sql`・`0024_audit_tables_rls.sql`・`0025_trading_tables_rls.sql`・`0026_sessions_users_rls.sql`。次の8経路をコード検索で確認した。
+
+| # | 所有者経路(根拠) | FORCE 下の予測 | 必要な扱い |
+|---:|---|---|---|
+| 1 | 認証済みリクエストと `GET /api/v1/session`: [extractors/auth.rs](../../backend/src/extractors/auth.rs) の `select_user_by_session`、[auth.rs](../../backend/src/handlers/v1/auth.rs) の同じ照会 | `users`・`sessions` に利用者 ID を設定する前に検索するため、セッションが見えず未認証扱いになる | token hash から必要最小限の利用者情報を返す照会関数を、専用の非ログイン関数所有ロールへ分離する。単なる `SECURITY DEFINER` では不十分 |
+| 2 | OAuth ログイン: [services/auth.rs](../../backend/src/services/auth.rs) の `auth_upsert_user` と関数後の `users` 読み取り | 利用者 ID 確定前の upsert は `WITH CHECK` に通らず失敗。後続の利用者行読み取りも ID 設定前 | upsert の責務・列を限定した専用関数/ロール経路を設計し、成功後は既存 `app_enter` の利用者 Tx へ移す |
+| 3 | ログアウト: [services/auth.rs](../../backend/src/services/auth.rs) の `delete_session`。同ファイルの `select_user_id_by_session` はアカウント削除の入口でも呼ぶ | 直接 DELETE は行が見えずセッションを消せない。アカウント削除の入口照会も NULL となる | ログアウトは token hash だけを受ける限定関数へ移す。アカウント削除は認証照会の解決後、既存の利用者 Tx を使う |
+| 4 | 通知解除リンク: [services/login_notify.rs](../../backend/src/services/login_notify.rs) と [handlers/v1/login_history.rs](../../backend/src/handlers/v1/login_history.rs) の peek/consume 関数 | 利用者 ID 設定前の `SECURITY DEFINER` 関数も `login_notify_tokens` のポリシーで行が見えず、リンクが無効扱いになる | token hash に限定した peek/consume 専用ロールまたは、必要な列だけを返す制御関数を用意する |
+| 5 | 管理者の全利用者検索: [services/login_event/admin.rs](../../backend/src/services/login_event/admin.rs) の `search` と [handlers/v1/admin_logins.rs](../../backend/src/handlers/v1/admin_logins.rs) | 横断 SELECT が RLS で空になり、検索結果が欠落する。閲覧監査の INSERT は `begin_with_user` で `app_restricted` に入るため別途維持できる | 管理者専用ロール/関数へ検索だけを分離し、管理者認証後にのみ呼べる権限にする |
+| 6 | scheduled の個人表アクセス: [services/stock_price.rs](../../backend/src/services/stock_price.rs) は `asset_balances` から更新銘柄を選び、[services/fund_price.rs](../../backend/src/services/fund_price.rs) は `fund_balances` から更新ファンドを選ぶ。[services/login_event/history.rs](../../backend/src/services/login_event/history.rs) の `prune_login_events` も [worker_entry.rs](../../backend/src/worker_entry.rs) から呼ぶ | 利用者 ID がない SELECT は更新対象を0件にし価格キャッシュが古いままになる。履歴 DELETE も対象行が見えず、エラーなしで削除件数0となる可能性がある | 価格更新対象の抽出は保守専用の最小列関数/ロールへ、90日より古い履歴の削除は削除専用経路へ分離する。scheduled の共有表(`security_prices`・`fund_prices`・`stock`・各キャッシュ)へのアクセス自体は RLS 対象外 |
+| 7 | migration: [bin/migrate.rs](../../backend/src/bin/migrate.rs) と [db/migrate.rs](../../backend/src/db/migrate.rs) | DDL と migration 履歴の読み書きは表 owner のまま実行できる。利用者表を読む/更新する将来の data migration は FORCE と通常ポリシーの対象 | migration 専用の管理接続を Workers の通常接続から分離する。data migration は対象表ごとの検証を加える |
+| 8 | バックアップ: [scripts/db-backup.sh](../../scripts/db-backup.sh)、[docs/db-backup.md](../db-backup.md) | `pg_dump` は既定で `row_security=off` にし、RLS がデータを落とす場合は dump をエラーにする。owner だが `BYPASSRLS` でない実行ロールではバックアップが失敗する。SUPERUSER/BYPASSRLS なら FORCE も迂回する | バックアップ専用の管理権限・資格情報をアプリ実行経路と分離し、失敗を監視する |
+
+PostgreSQL は、テーブル所有者に対する FORCE と、SUPERUSER / `BYPASSRLS` の常時迂回を定義している([行セキュリティ](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)、[`pg_dump`](https://www.postgresql.org/docs/current/app-pgdump.html))。`SECURITY DEFINER` は実行権限主体を関数所有者にするが、それ自体は `BYPASSRLS` を付けない。
+
+検索根拠: `rg` で RLS 対象11表の SELECT/INSERT/UPDATE/DELETE と関数呼び出しを `backend/src` 全体に検索し、RLS 有効化は上記4 migration に限定されることを確認した。個人データや接続情報の値は検索・記録していない。DB 状態確認 workflow はカタログと共有表のみを照会し、利用者行を読まないため別経路として追加しない。
+
+### 導入/非導入の比較
+
+| 選択 | 利点 | 残る危険・費用 |
+|---|---|---|
+| FORCE を入れる | 非 BYPASSRLS のテーブル所有者が通常の DML 経路で利用者条件を誤った場合、policy で行を制限できる | 8つの所有者経路の再配線が必要。管理者・auth 用の例外ロール/関数の権限と戻り値の監査が必要。所有者が FORCE を解除できるため、所有者資格情報の漏えいには防御にならない。`BYPASSRLS` / superuser にも効かない |
+| FORCE を入れない | 現在の auth・管理者・cron・migration・backup の挙動を維持し、追加ロールと性能差分を避けられる | owner 接続の SQL 誤りや漏えいでは、RLS がある表でも全行に届く。RLS は通常のアプリ利用者経路に限った防御となる |
+
+脅威モデル `docs/security/threat-model.md` の「DB に直接触れる者(管理者・漏洩した接続情報)」は別境界である。FORCE は誤った DML に対する防御を増やすが、テーブル所有者は FORCE を解除でき、`BYPASSRLS` / superuser も迂回する。接続ロールの分離と DDL 権限の縮小を先行条件とし、資格情報の窃取や DB 管理者からデータを隠す機能とは位置付けない。
+
+### 推奨手順と戻し方
+
+1. 本番変更を伴わない別 Issue で、本番接続ロール属性を読み取り専用手段で確認する。結果を秘密・個人データなしで記録し、Workers の現在ロールが superuser/BYPASSRLS なら、まず通常実行ロールと管理用ロールを分ける。
+2. 認証前照会・ログイン upsert/ログアウト・通知 token・管理者検索・cron の更新対象抽出と履歴掃除を、それぞれ専用の `NOLOGIN` 関数所有ロール/限定関数か別の接続ロールへ分ける。関数は `search_path` 固定、`PUBLIC` の EXECUTE を剥奪し、引数と返却列を最小にする。`SECURITY DEFINER` だけで FORCE を回避できる前提にしない。
+3. migration とバックアップを Workers の通常接続から分け、別資格情報が RLS 有効全表の完全な dump/restore と data migration をできることを Docker で確認する。
+4. RLS 有効11表のうち1表を選び、既存の権限・policyを保ったまま `ALTER TABLE ... FORCE ROW LEVEL SECURITY` を追加する。表 owner・app_restricted・例外関数ロールで成功/拒否/行数が期待通りであることを結合テストで確認する。移行中はその表を触る API/cron のエラー監視を行う。
+5. 安定後に次の表へ進む。auth/session と管理者/cron が触る表は、それらの経路を本番に先行配信してから FORCE を有効にする。全11表を個別に確認し、最後に本番のアプリ操作・cron・バックアップ・migration の結果を比較する。
+
+停止時は、対象表だけに対する**新しい増分 migration**で `ALTER TABLE <table> NO FORCE ROW LEVEL SECURITY` を適用する。`ENABLE ROW LEVEL SECURITY`・policy・権限は残す。前の表まで戻さず、失敗した表だけ戻せるようにする。FORCE migration 自体を含むPRは本 Issue の対象外である。
+
+### 性能の見込み
+
+FORCE の DDL 自体はリクエストごとの DB 往復を追加しない。既に `app_restricted` として利用者 ID を設定している 5c/5d の個人経路では、policy の適用は FORCE 前から行われているため、原則として影響は owner バイパス状態から RLS 適用状態へ変わる経路に限る。管理者検索・login event prune・認証前照会では実行計画や返却行が変わる。専用関数/ロールや接続分離を追加すれば、その実装分の往復と直列化が発生し得る。
+
+Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、fetch の SELECT は p50 44ms / p95 60ms。scheduled は複数の共有表処理に加え login event prune を含むため、この総値を prune 単体の増分とはみなさない。Docker で FORCE 前後の `EXPLAIN (ANALYZE, BUFFERS)` と各経路の経過時間を比較し、本番に進む場合は同等操作の前後値で確認する。現時点では専用経路の設計も本番比較もしておらず、+50ms 以内とは判定しない。
+
+### 使い捨て DB での検証(#1954)
+
+`backend/tests/login_rls.rs` の `force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths` を既存の Docker (`postgres:16-alpine`) 結合テストで実行する。migration を適用した `NOSUPERUSER NOBYPASSRLS` の非特権テーブル所有者を使い、11表すべてに一時的に FORCE を設定する。検証では実データや本番設定を使わない。
+
+- FORCE 前後で `asset_balances` / `fund_balances` から価格更新候補を選ぶ SELECT を直接実行し、FORCE 前の通常 owner では各候補が返り、FORCE 後の通常 owner では0行、`app_enter` 後の `app_restricted` では各候補が返ることを確認する。価格更新関数の成功件数は外部価格取得の成否に左右されるため、遮断判定には使わない。投信の対応行は `fund_name_normalize` で求めた値で投入する。加えて、通常 owner によるセッション照会は行を返さず、OAuth upsert はポリシー違反になり、直接ログアウト DELETE は成功応答でも行を消さず、通知 token 照会/消費は見つからず、管理者横断検索は0行、cron の履歴掃除は0件となることを確認する。
+- `row_security=off` の owner 読み取りは SQLSTATE `42501` となることを確認する。これは `pg_dump` が既定で不完全なダンプを避ける挙動に対応する。
+- 同じ FORCE 状態で `app_enter` を通した本人のログイン履歴読み取りとセッション削除に加え、価格更新候補の列挙も通ることを確認する。適用済み migration 履歴の再確認も通るが、将来の data migration は未検証。
+- `FORCE` の変更はテストコンテナ内だけで破棄する。migration ファイル・本番設定・本番 DB は変更しない。
+
+結果: 上記の所有者経路は現状のままでは動かず、5c/5d の利用者設定付き制限ロール経路は動くことを再現した。`row_security=off` によるバックアップと同等の読み取りは SQLSTATE `42501` で失敗し、既存 migration 履歴の検査は通った。よって全経路の再配線を完了する前の FORCE 導入はしない。
+
+### 実装 Issue の下書き
+
+1. `security: FORCE 前提のアプリ接続ロールと認証前照会の分離` — Workers の通常接続が `NOSUPERUSER NOBYPASSRLS` であることを確認し、必要ならロールを分ける。セッション認証・OAuth upsert/利用者特定を引数と返却値を限定した関数経路へ移す。ログイン・通常認証・ログアウト・アカウント削除を Docker で検証する。
+2. `security: 通知 token・管理者横断検索・cron を FORCE 対応` — token peek/consume、管理者の全利用者検索、保有資産を使った価格更新対象の抽出、90日経過 login event 掃除を専用の限定権限経路に移す。権限拒否と監査記録を検証する。
+3. `security: migration とバックアップの管理接続を分離` — migration と `pg_dump` / restore の資格情報・権限を通常 Workers 接続から分け、全表の完全なバックアップと data migration を使い捨て DB で検証する。
+4. `security: RLS 対象表へ FORCE を段階適用` — 前提3件の完了後、11表に1表ずつ FORCE を追加する migration と Docker 結合テストを実装し、段階ごとの停止/`NO FORCE` 戻し手順を記録する。本番確認は個別の実施判断・承認のもとで行う。

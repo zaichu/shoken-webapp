@@ -5,13 +5,100 @@ use backend::{
     models::user::GoogleUserInfo,
     services::{
         auth,
-        login_event::{self, ClientInfo, LoginOutcome},
+        login_event::{self, ClientInfo, LoginOutcome, admin},
+        login_notify,
     },
     test_constants::POSTGRES_TAG,
 };
 use shared::value::UserId;
 use testcontainers::{ImageExt, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
+
+async fn stock_price_targets(pool: &Db) -> Vec<String> {
+    db::query(
+        r#"
+        SELECT ab.security_code
+        FROM asset_balances ab
+        LEFT JOIN security_prices sp ON sp.security_code = ab.security_code
+        GROUP BY ab.security_code
+        HAVING BOOL_OR(sp.price_as_of IS NULL) OR MIN(sp.price_as_of) < CURRENT_DATE
+        ORDER BY MIN(sp.updated_at) ASC NULLS FIRST
+        LIMIT 15
+        "#,
+        vec![],
+    )
+    .fetch_all::<(String,), _>(pool)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|(code,)| code)
+    .collect()
+}
+
+async fn fund_price_targets(pool: &Db) -> Vec<String> {
+    db::query(
+        r#"
+        SELECT fc.association_fund_cd
+        FROM fund_balances fb
+        JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name
+        LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd
+        GROUP BY fc.association_fund_cd
+        HAVING BOOL_OR(fp.price_as_of IS NULL) OR MIN(fp.price_as_of) < CURRENT_DATE
+        ORDER BY MIN(fp.updated_at) ASC NULLS FIRST
+        LIMIT 30
+        "#,
+        vec![],
+    )
+    .fetch_all::<(String,), _>(pool)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|(code,)| code)
+    .collect()
+}
+
+async fn stock_price_targets_as(pool: &Db, user_id: UserId) -> Vec<String> {
+    db::query(
+        r#"
+        SELECT ab.security_code
+        FROM asset_balances ab
+        LEFT JOIN security_prices sp ON sp.security_code = ab.security_code
+        GROUP BY ab.security_code
+        HAVING BOOL_OR(sp.price_as_of IS NULL) OR MIN(sp.price_as_of) < CURRENT_DATE
+        ORDER BY MIN(sp.updated_at) ASC NULLS FIRST
+        LIMIT 15
+        "#,
+        vec![],
+    )
+    .fetch_all_with_user(pool, user_id)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|(code,)| code)
+    .collect()
+}
+
+async fn fund_price_targets_as(pool: &Db, user_id: UserId) -> Vec<String> {
+    db::query(
+        r#"
+        SELECT fc.association_fund_cd
+        FROM fund_balances fb
+        JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name
+        LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd
+        GROUP BY fc.association_fund_cd
+        HAVING BOOL_OR(fp.price_as_of IS NULL) OR MIN(fp.price_as_of) < CURRENT_DATE
+        ORDER BY MIN(fp.updated_at) ASC NULLS FIRST
+        LIMIT 30
+        "#,
+        vec![],
+    )
+    .fetch_all_with_user(pool, user_id)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|(code,)| code)
+    .collect()
+}
 
 async fn owner_pool() -> (Db, impl Drop) {
     let node = Postgres::default()
@@ -48,6 +135,168 @@ async fn owner_pool() -> (Db, impl Drop) {
     assert!(member, "CREATEROLE による自動所属がある");
     assert!(can_set, "所属だけでなく SET ROLE の許可が必要");
     (pool, node)
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths() {
+    let (pool, _node) = owner_pool().await;
+    let info = GoogleUserInfo {
+        sub: "force-rls-synthetic".into(),
+        email: "force-rls@example.com".into(),
+        name: None,
+        picture_url: None,
+    };
+    let token = auth::upsert_user_and_rotate_session(&pool, &info)
+        .await
+        .expect("FORCE 前の所有者ログイン");
+    let user_id = auth::select_user_id_by_session(&pool, token)
+        .await
+        .unwrap()
+        .expect("FORCE 前のセッション照会");
+    let notification_token = login_notify::issue_token(&pool, user_id)
+        .await
+        .expect("利用者スコープで通知 token を発行");
+    db::query(
+        "INSERT INTO login_events (user_id, result, device_hash, occurred_at) VALUES ($1, 'success', $2, NOW() - INTERVAL '100 days')",
+        vec![Bind::from(user_id), Bind::Bytes(vec![9; 32])],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    db::query(
+        "INSERT INTO asset_balances (user_id, security_code, security_name, shares, average_purchase_price, total_purchase_amount) VALUES ($1, '99999', '架空のFORCE検証銘柄', 1, 1, 1)",
+        vec![Bind::from(user_id)],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    db::query(
+        "INSERT INTO fund_codes (normalized_name, association_fund_cd, fund_name) VALUES (fund_name_normalize('架空のFORCE検証ファンド'), '99999999', '架空のFORCE検証ファンド')",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    db::query(
+        "INSERT INTO fund_balances (user_id, fund_name, account, shares, average_purchase_price, total_purchase_amount, base_price, market_value, profit_loss, price_as_of) VALUES ($1, '架空のFORCE検証ファンド', '検証口座', 1, 1, 1, 1, 1, 0, CURRENT_DATE)",
+        vec![Bind::from(user_id)],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let holdings: i64 = db::query_scalar(
+        "SELECT (SELECT COUNT(*) FROM asset_balances WHERE user_id = $1) + (SELECT COUNT(*) FROM fund_balances WHERE user_id = $1)",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(holdings, 2);
+    assert_eq!(stock_price_targets(&pool).await, ["99999"]);
+    assert_eq!(fund_price_targets(&pool).await, ["99999999"]);
+
+    pool.batch_execute(
+        "ALTER TABLE users FORCE ROW LEVEL SECURITY;
+         ALTER TABLE sessions FORCE ROW LEVEL SECURITY;
+         ALTER TABLE dividends FORCE ROW LEVEL SECURITY;
+         ALTER TABLE domestic_stocks FORCE ROW LEVEL SECURITY;
+         ALTER TABLE mutualfunds FORCE ROW LEVEL SECURITY;
+         ALTER TABLE asset_balances FORCE ROW LEVEL SECURITY;
+         ALTER TABLE fund_balances FORCE ROW LEVEL SECURITY;
+         ALTER TABLE csv_import_history FORCE ROW LEVEL SECURITY;
+         ALTER TABLE login_events FORCE ROW LEVEL SECURITY;
+         ALTER TABLE login_notify_tokens FORCE ROW LEVEL SECURITY;
+         ALTER TABLE admin_login_views FORCE ROW LEVEL SECURITY;",
+    )
+    .await
+    .unwrap();
+
+    let forced: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relforcerowsecurity",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(forced, 11);
+
+    assert!(
+        auth::select_user_id_by_session(&pool, token)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        auth::select_user_by_session(&pool, token)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let error = auth::upsert_user_and_rotate_session(&pool, &info)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error.sql_state(),
+        Some(db::SqlState::INSUFFICIENT_PRIVILEGE)
+    );
+    assert!(
+        login_notify::peek_token(&pool, &notification_token)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        login_notify::consume_token(&pool, &notification_token)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    auth::delete_session(&pool, token).await.unwrap();
+    let admin_results = admin::search(&pool, admin::AdminLoginQuery::default())
+        .await
+        .unwrap();
+    assert_eq!(admin_results.total, 0);
+    assert_eq!(login_event::prune_login_events(&pool).await.unwrap(), 0);
+    assert!(stock_price_targets(&pool).await.is_empty());
+    assert!(fund_price_targets(&pool).await.is_empty());
+    assert_eq!(stock_price_targets_as(&pool, user_id).await, ["99999"]);
+    assert_eq!(fund_price_targets_as(&pool, user_id).await, ["99999999"]);
+    run_migrations(&pool)
+        .await
+        .expect("適用済み migration 履歴の確認は FORCE 下でも通る");
+
+    let visible: i64 = db::query_scalar("SELECT COUNT(*) FROM users", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(visible, 0);
+    pool.batch_execute("SET row_security = off").await.unwrap();
+    let error = db::query_scalar::<i64>("SELECT COUNT(*) FROM users", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error.sql_state(),
+        Some(db::SqlState::INSUFFICIENT_PRIVILEGE)
+    );
+    pool.batch_execute("RESET row_security").await.unwrap();
+
+    let history = login_event::list_login_history(&pool, user_id, 10, 0)
+        .await
+        .unwrap();
+    assert_eq!(history.len(), 1);
+    pool.batch_execute("ALTER TABLE sessions NO FORCE ROW LEVEL SECURITY")
+        .await
+        .unwrap();
+    assert_eq!(
+        auth::select_user_id_by_session(&pool, token).await.unwrap(),
+        Some(user_id)
+    );
+    pool.batch_execute("ALTER TABLE sessions FORCE ROW LEVEL SECURITY")
+        .await
+        .unwrap();
+    assert_eq!(auth::delete_all_sessions(&pool, user_id).await.unwrap(), 1);
 }
 
 async fn login(
