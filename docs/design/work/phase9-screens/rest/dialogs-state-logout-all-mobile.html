@@ -113,6 +113,11 @@ table.grid{width:100%}
 .ovl{position:fixed; inset:0; background:rgba(17,24,39,.45); z-index:50; display:flex; align-items:flex-end; justify-content:center}
 .ovl .sheet{width:100%; max-width:480px; margin:0 auto; background:var(--page); border-radius:16px 16px 0 0; padding:8px 8px calc(16px + env(safe-area-inset-bottom)); max-height:88vh; overflow:auto}
 .ovl .sheet .card{margin-top:8px}
+.dl{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:9px 0; border-top:1px solid var(--line)}
+.dl:first-child{border-top:none}
+.dl dt{font-size:14px; color:var(--mut); white-space:nowrap}
+.dl dd{margin:0; font-size:15px; font-weight:700; text-align:right; white-space:nowrap}
+.field{display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:8px; padding:0 12px; min-height:48px; margin-top:12px; font-size:14px; color:var(--mut); background:var(--card); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 </style>
 </head>
 <body>

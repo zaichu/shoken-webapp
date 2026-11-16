@@ -231,6 +231,12 @@ OVL_P = """.ovl{position:fixed; inset:0; background:rgba(17,24,39,.45); z-index:
 def ovl(dialog, label):
     return '<div class="ovl" role="dialog" aria-modal="true" aria-label="' + label + '"><div class="sheet">' + dialog + "</div></div>"
 
+FRAG_CSS = """.dl{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:9px 0; border-top:1px solid var(--line)}
+.dl:first-child{border-top:none}
+.dl dt{font-size:14px; color:var(--mut); white-space:nowrap}
+.dl dd{margin:0; font-size:15px; font-weight:700; text-align:right; white-space:nowrap}
+.field{display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:8px; padding:0 12px; min-height:48px; margin-top:12px; font-size:14px; color:var(--mut); background:var(--card); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}"""
+
 
 # ---------- 銘柄検索 ----------
 SEARCH_FORM = """<div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄コードまたは銘柄名で検索</span></div>
@@ -653,7 +659,7 @@ VISUAL = OUT.parent.parent / "phase8-visual"
 
 def dialog_state(name, title, parent, dialog, label, css):
     html = parent.read_text(encoding="utf-8")
-    html = html.replace("</style>", css + "\n</style>", 1)
+    html = html.replace("</style>", css + "\n" + FRAG_CSS + "\n</style>", 1)
     html = re.sub(r"<title>.*?</title>", "<title>" + title + " | 証券Web</title>", html, count=1)
     html = html.replace("</body>", ovl(dialog, label) + "\n</body>", 1)
     (OUT / (name + ".html")).write_text(html, encoding="utf-8")

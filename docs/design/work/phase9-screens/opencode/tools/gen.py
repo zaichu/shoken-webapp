@@ -289,6 +289,18 @@ COMP_STATES = """<section class="card" aria-label="状態の例">
     <div class="rows"><div class="row"><div class="left"><div class="name">算出不可</div><span class="sub">合計が0のため割合を出せません</span></div><span class="amt num">—</span></div></div>
   </section>"""
 
+COMP_DIV_SECTION_M = """  <section class="card" aria-label="基準を年間配当に替えた例">
+    <div class="hrow"><h2>年間配当(税引前)</h2></div>
+    <div class="sum"><span class="state-note num">年間配当(税引前)の比率・合計 ¥3,969,907・保有全体</span></div>
+""" + COMP_DIV_ROWS + """
+  </section>"""
+
+COMP_DIV_SECTION_P = """      <section class="card" aria-label="基準を年間配当に替えた例">
+        <div class="hrow"><h2>年間配当(税引前)</h2></div>
+        <div class="sum"><span class="state-note num">合計 ¥3,969,907・保有全体</span></div>
+""" + COMP_DIV_ROWS + """
+      </section>"""
+
 comp_m = (mobile_top() + """
   <a class="backlink" href="#">‹ 資産管理に戻る</a>
   <h1 class="pagetitle">構成比</h1>
@@ -299,11 +311,7 @@ comp_m = (mobile_top() + """
     <div class="sum"><span class="state-note num">評価額の比率・合計 ¥28,593,148・保有全体</span></div>
 """ + COMP_M_BAR + COMP_ROWS_M + """
   </section>
-  <section class="card" aria-label="基準を年間配当に替えた例">
-    <div class="hrow"><h2>年間配当(税引前)</h2></div>
-    <div class="sum"><span class="state-note num">年間配当(税引前)の比率・合計 ¥3,969,907・保有全体</span></div>
-""" + COMP_DIV_ROWS + """
-  </section>
+""" + COMP_DIV_SECTION_M + """
 """ + nav_m("資産管理"))
 
 comp_p = (pc_top("資産管理") + """
@@ -318,11 +326,7 @@ comp_p = (pc_top("資産管理") + """
 """ + COMP_M_BAR + COMP_ROWS_M + """
     </section>
     <div class="col">
-      <section class="card" aria-label="基準を年間配当に替えた例">
-        <div class="hrow"><h2>年間配当(税引前)</h2></div>
-        <div class="sum"><span class="state-note num">合計 ¥3,969,907・保有全体</span></div>
-""" + COMP_DIV_ROWS + """
-      </section>
+""" + COMP_DIV_SECTION_P + """
     </div>
   </div>""")
 
@@ -592,6 +596,7 @@ RECEIPT_FAILED = """<section class="card" aria-label="取引明細の一覧">
 RECEIPT_NOV_OPEN_M = """<section class="card" aria-label="2026年11月の配当">
     <div class="hrow"><h2>2026年11月 ・ 2件</h2><span class="more num">受取 ¥76,697</span></div>
     <div class="rows">
+      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">11/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥44,823</span></div>
       <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥31,874</span></div>
     </div>
     <dl style="margin:4px 0 0; border-top:1px solid var(--line); padding-top:4px">
@@ -615,14 +620,23 @@ write("assetbalance-state-loading-mobile", "資産管理(読み込み中) 新案
 write("assetbalance-state-loading-pc", "資産管理(読み込み中) 新案 PC", False, asset_p.replace(ASSET_TABLE_P, ASSET_LOADING))
 write("assetbalance-state-failed-mobile", "資産管理(読み込み失敗) 新案 スマホ", True, asset_m.replace(ASSET_ROWS_M, ASSET_FAILED))
 write("assetbalance-state-failed-pc", "資産管理(読み込み失敗) 新案 PC", False, asset_p.replace(ASSET_TABLE_P, ASSET_FAILED))
-write("composition-state-empty-mobile", "構成比(データなし) 新案 スマホ", True, comp_m.replace(COMP_M_BAR + COMP_ROWS_M, COMP_EMPTY))
-write("composition-state-empty-pc", "構成比(データなし) 新案 PC", False, comp_p.replace(COMP_M_BAR + COMP_ROWS_M, COMP_EMPTY))
-write("composition-state-loading-mobile", "構成比(読み込み中) 新案 スマホ", True, comp_m.replace(COMP_M_BAR + COMP_ROWS_M, COMP_LOADING))
-write("composition-state-loading-pc", "構成比(読み込み中) 新案 PC", False, comp_p.replace(COMP_M_BAR + COMP_ROWS_M, COMP_LOADING))
-write("composition-state-failed-mobile", "構成比(読み込み失敗) 新案 スマホ", True, comp_m.replace(COMP_M_BAR + COMP_ROWS_M, COMP_FAILED))
-write("composition-state-failed-pc", "構成比(読み込み失敗) 新案 PC", False, comp_p.replace(COMP_M_BAR + COMP_ROWS_M, COMP_FAILED))
-write("composition-state-uncalculable-mobile", "構成比(算出不可) 新案 スマホ", True, comp_m.replace(COMP_M_BAR + COMP_ROWS_M, COMP_UNCALC))
-write("composition-state-uncalculable-pc", "構成比(算出不可) 新案 PC", False, comp_p.replace(COMP_M_BAR + COMP_ROWS_M, COMP_UNCALC))
+COMP_DIV_EMPTY_M = """  <section class="card" aria-label="基準を年間配当に替えた例">
+    <div class="hrow"><h2>年間配当(税引前)</h2></div>
+    <div class="rows"><div class="row"><div class="left"><div class="name">データがありません</div><span class="sub">保有残高をCSVで登録すると表示されます</span></div></div></div>
+  </section>"""
+COMP_DIV_EMPTY_P = """      <section class="card" aria-label="基準を年間配当に替えた例">
+        <div class="hrow"><h2>年間配当(税引前)</h2></div>
+        <div class="rows"><div class="row"><div class="left"><div class="name">データがありません</div><span class="sub">保有残高をCSVで登録すると表示されます</span></div></div></div>
+      </section>"""
+
+write("composition-state-empty-mobile", "構成比(データなし) 新案 スマホ", True, comp_m.replace(COMP_M_BAR + COMP_ROWS_M, COMP_EMPTY).replace(COMP_DIV_SECTION_M, COMP_DIV_EMPTY_M))
+write("composition-state-empty-pc", "構成比(データなし) 新案 PC", False, comp_p.replace(COMP_M_BAR + COMP_ROWS_M, COMP_EMPTY).replace(COMP_DIV_SECTION_P, COMP_DIV_EMPTY_P))
+write("composition-state-loading-mobile", "構成比(読み込み中) 新案 スマホ", True, comp_m.replace(COMP_M_BAR + COMP_ROWS_M, COMP_LOADING).replace(COMP_DIV_ROWS, COMP_LOADING))
+write("composition-state-loading-pc", "構成比(読み込み中) 新案 PC", False, comp_p.replace(COMP_M_BAR + COMP_ROWS_M, COMP_LOADING).replace(COMP_DIV_ROWS, COMP_LOADING))
+write("composition-state-failed-mobile", "構成比(読み込み失敗) 新案 スマホ", True, comp_m.replace(COMP_M_BAR + COMP_ROWS_M, COMP_FAILED).replace(COMP_DIV_ROWS, COMP_FAILED))
+write("composition-state-failed-pc", "構成比(読み込み失敗) 新案 PC", False, comp_p.replace(COMP_M_BAR + COMP_ROWS_M, COMP_FAILED).replace(COMP_DIV_ROWS, COMP_FAILED))
+write("composition-state-uncalculable-mobile", "構成比(算出不可) 新案 スマホ", True, comp_m.replace(COMP_M_BAR + COMP_ROWS_M, COMP_UNCALC).replace(COMP_DIV_ROWS, COMP_UNCALC))
+write("composition-state-uncalculable-pc", "構成比(算出不可) 新案 PC", False, comp_p.replace(COMP_M_BAR + COMP_ROWS_M, COMP_UNCALC).replace(COMP_DIV_ROWS, COMP_UNCALC))
 write("fund-detail-state-empty-mobile", "保有ファンド詳細(見つからない) 新案 スマホ", True, fund_m.replace(FUND_DL, FUND_EMPTY))
 write("fund-detail-state-empty-pc", "保有ファンド詳細(見つからない) 新案 PC", False, fund_p.replace(FUND_DL, FUND_EMPTY))
 write("fund-detail-state-loading-mobile", "保有ファンド詳細(読み込み中) 新案 スマホ", True, fund_m.replace(FUND_DL, FUND_LOADING))
