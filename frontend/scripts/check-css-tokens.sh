@@ -91,11 +91,14 @@ collect_type_rs() {
 }
 
 collect_font_css() {
-  grep -HoE -e "${FONT_PROP}[^;}]*" style/input.css 2>/dev/null || true
+  # 印刷は紙幅に収める固定値のためトークン対象外(9px は印刷の表専用)
+  grep -HoE -e "${FONT_PROP}[^;}]*" style/input.css 2>/dev/null | grep -v 'font-size: 9px' || true
 }
 
 collect_space_css() {
-  grep -HoE -e "${SPACE_PROP}[^;}]*" style/input.css 2>/dev/null | grep -v 'var(--space' || true
+  # 印刷は紙幅に収める固定値のためトークン対象外(10mm は印刷の用紙余白、2px は印刷の表セル詰め)
+  # 画面の clamp は端末幅に応じた本文 gutter、env は端末のセーフエリアのためトークン対象外
+  grep -HoE -e "${SPACE_PROP}[^;}]*" style/input.css 2>/dev/null | grep -v 'var(--space' | grep -vE '10mm|padding: 2px|clamp\(|env\(' || true
 }
 
 check_type_baseline() {

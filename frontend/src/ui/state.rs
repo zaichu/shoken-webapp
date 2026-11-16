@@ -24,7 +24,7 @@ pub fn Alert(variant: AlertVariant, children: Children) -> impl IntoView {
     view! {
         <div
             class={format!(
-                "rounded-lg border px-4 py-3 text-sm font-medium shadow-sm {variant_class}"
+                "rounded-lg border px-4 py-3 text-body font-medium shadow-sm {variant_class}"
             )}
             role="alert"
         >
@@ -92,7 +92,7 @@ pub fn ListLoadError(
     view! {
         <Card variant=CardVariant::Panel class="p-4" testid="list-load-error">
             <div
-                class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-sm font-medium text-negative-vivid"
+                class="rounded-lg border border-negative-border bg-negative-soft px-4 py-3 text-body font-medium text-negative-vivid"
                 role="alert"
             >
                 <strong>{labels::ERROR_PREFIX}</strong>

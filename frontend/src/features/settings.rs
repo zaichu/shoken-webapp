@@ -65,7 +65,7 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
     view! {
         <section id="account" aria-labelledby="account-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="account-heading" class="text-lg font-bold mb-4">{labels::ACCOUNT_BUTTON}</h2>
+                <h2 id="account-heading" class="text-heading font-bold mb-4">{labels::ACCOUNT_BUTTON}</h2>
                 <div class="flex items-center gap-4">
                     <UserAvatar
                         picture_url=user.picture_url.clone()
@@ -75,9 +75,9 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
                         alt=display_name.clone()
                     />
                     <div class="min-w-0">
-                        <div class="font-bold text-lg break-words">{display_name}</div>
-                        <div class="text-sm text-text-muted break-all">{user.email.clone()}</div>
-                        <div class="text-sm text-text-muted">{login_method_text}</div>
+                        <div class="font-bold text-heading break-words">{display_name}</div>
+                        <div class="text-label text-text-muted break-all">{user.email.clone()}</div>
+                        <div class="text-label text-text-muted">{login_method_text}</div>
                     </div>
                 </div>
             </Card>
@@ -109,7 +109,7 @@ fn SectionDisplay() -> impl IntoView {
     view! {
         <section id="display" aria-labelledby="display-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="display-heading" class="text-lg font-bold mb-4">{labels::SETTINGS_DISPLAY_SECTION}</h2>
+                <h2 id="display-heading" class="text-heading font-bold mb-4">{labels::SETTINGS_DISPLAY_SECTION}</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
                     <SettingRow title=labels::SETTINGS_THEME>
                         <Segmented
@@ -129,7 +129,7 @@ fn SectionDisplay() -> impl IntoView {
                             value=Signal::derive(move || asset_sort.get().value())
                             aria_label=labels::SETTINGS_ASSET_SORT_INITIAL.to_string()
                             testid="setting-asset-sort"
-                            class="min-w-44 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11".to_string()
+                            class="min-w-44 rounded-md border border-border-strong bg-surface px-3 py-2 text-label max-sm:min-h-11".to_string()
                             on_change=move |value| {
                                 if let Some(sort) = AssetSort::parse(&value) {
                                     asset_sort.set(sort);
@@ -148,7 +148,7 @@ fn SectionDisplay() -> impl IntoView {
                             value=Signal::derive(move || initial_tab.get().kind_param().to_string())
                             aria_label=labels::SETTINGS_RECEIPTS_TAB.to_string()
                             testid="setting-receipts-tab"
-                            class="min-w-44 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm max-sm:min-h-11".to_string()
+                            class="min-w-44 rounded-md border border-border-strong bg-surface px-3 py-2 text-label max-sm:min-h-11".to_string()
                             on_change=move |value| {
                                 if let Some(tab) = crate::features::receipts::ReceiptsTab::ALL
                                     .iter()
@@ -220,7 +220,7 @@ fn SectionData() -> impl IntoView {
     view! {
         <section id="data" aria-labelledby="data-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="data-heading" class="text-lg font-bold mb-4">{labels::SETTINGS_DATA_SECTION}</h2>
+                <h2 id="data-heading" class="text-heading font-bold mb-4">{labels::SETTINGS_DATA_SECTION}</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
                     <SettingRow title=labels::SETTINGS_EXPORT_CSV>
                         {ExportKind::ALL.iter().map(|kind| {
@@ -255,7 +255,7 @@ fn SectionData() -> impl IntoView {
                             } else {
                                 "text-text-muted"
                             };
-                            view! { <p class=format!("pb-2 text-xs {tone}")>{message}</p> }
+                            view! { <p class=format!("pb-2 text-cell {tone}")>{message}</p> }
                         })
                     }}
                     <SettingRow title=labels::SETTINGS_CSV_IMPORT_DELETE>
@@ -309,7 +309,7 @@ fn SectionSecurity() -> impl IntoView {
     view! {
         <section id="security" aria-labelledby="security-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="security-heading" class="text-lg font-bold mb-4">{labels::SETTINGS_SECURITY_SECTION}</h2>
+                <h2 id="security-heading" class="text-heading font-bold mb-4">{labels::SETTINGS_SECURITY_SECTION}</h2>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
                     <SettingRow title=labels::SETTINGS_IDLE_LOGOUT>
                         <Segmented
@@ -353,7 +353,7 @@ fn SectionSecurity() -> impl IntoView {
                         }}
                     </SettingRow>
                 </div>
-                <p class="pt-2 text-xs text-text-muted">{labels::LOGIN_NOTIFY_NOTE}</p>
+                <p class="pt-2 text-cell text-text-muted">{labels::LOGIN_NOTIFY_NOTE}</p>
             </Card>
         </section>
     }
@@ -449,10 +449,10 @@ fn SectionNotifyLogout() -> impl IntoView {
                 view! {
                     <section id="notify-logout" aria-labelledby="notify-logout-heading">
                         <Card variant=CardVariant::Panel class="p-5 border-negative-border">
-                            <h2 id="notify-logout-heading" class="text-lg font-bold mb-2">
+                            <h2 id="notify-logout-heading" class="text-heading font-bold mb-2">
                                 {labels::NOTIFY_LOGOUT_TITLE}
                             </h2>
-                            <p class="pb-3 text-sm">{labels::NOTIFY_LOGOUT_DESCRIPTION}</p>
+                            <p class="pb-3 text-body">{labels::NOTIFY_LOGOUT_DESCRIPTION}</p>
                             {move || {
                                 if done.get() {
                                     view! { <p role="status">{labels::NOTIFY_LOGOUT_DONE}</p> }.into_any()
@@ -534,12 +534,12 @@ fn SectionDanger() -> impl IntoView {
     view! {
         <section id="danger" aria-labelledby="danger-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5 border-negative-border bg-negative/5">
-                <h2 id="danger-heading" class="text-lg font-bold text-negative mb-4">{labels::SETTINGS_DANGER_SECTION}</h2>
+                <h2 id="danger-heading" class="text-heading font-bold text-negative mb-4">{labels::SETTINGS_DANGER_SECTION}</h2>
                 <div class="space-y-3 border-t border-negative-border/50">
                     <div class="flex items-center justify-between py-3">
                         <div>
                             <div class="font-medium text-negative">{labels::SETTINGS_DELETE_DIVIDEND}</div>
-                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_DIVIDEND_NOTE}</div>
+                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_DIVIDEND_NOTE}</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
@@ -553,7 +553,7 @@ fn SectionDanger() -> impl IntoView {
                     <div class="flex items-center justify-between py-3">
                         <div>
                             <div class="font-medium text-negative">{labels::SETTINGS_DELETE_STOCK}</div>
-                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_STOCK_NOTE}</div>
+                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_STOCK_NOTE}</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
@@ -567,7 +567,7 @@ fn SectionDanger() -> impl IntoView {
                     <div class="flex items-center justify-between py-3">
                         <div>
                             <div class="font-medium text-negative">{labels::SETTINGS_DELETE_FUND}</div>
-                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_FUND_NOTE}</div>
+                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_FUND_NOTE}</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
@@ -581,7 +581,7 @@ fn SectionDanger() -> impl IntoView {
                     <div class="flex items-center justify-between py-3">
                         <div>
                             <div class="font-medium text-negative">{labels::SETTINGS_DELETE_ASSETS}</div>
-                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_ASSETS_NOTE}</div>
+                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_ASSETS_NOTE}</div>
                         </div>
                         <LinkButton
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)
@@ -595,7 +595,7 @@ fn SectionDanger() -> impl IntoView {
                     <div class="flex items-center justify-between py-3">
                         <div>
                             <div class="font-medium text-negative">{labels::SETTINGS_DELETE_ACCOUNT}</div>
-                            <div class="text-xs text-text-muted">{labels::SETTINGS_DELETE_ACCOUNT_NOTE}</div>
+                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_ACCOUNT_NOTE}</div>
                         </div>
                         <Button
                             variant=ButtonVariant::Secondary(ButtonSize::Sm)

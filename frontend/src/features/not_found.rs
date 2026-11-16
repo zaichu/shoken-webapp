@@ -29,7 +29,7 @@ pub fn NotFoundPage() -> impl IntoView {
                                 .iter()
                                 .map(|(to, label)| {
                                     view! {
-                                        <a href={*to} class="security-code-link text-base">
+                                        <a href={*to} class="security-code-link text-body">
                                             {*label}
                                         </a>
                                     }

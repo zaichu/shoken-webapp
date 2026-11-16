@@ -149,7 +149,7 @@ pub fn AccountMenu(
             {move || {
                 if !session.loaded.get() {
                     view! {
-                        <span class="text-sm font-semibold text-brand-muted">{labels::LOADING}</span>
+                        <span class="text-label font-semibold text-brand-muted">{labels::LOADING}</span>
                     }
                         .into_any()
                 } else if let Some(user) = session.user.get() {
@@ -404,7 +404,7 @@ fn UserMenu(
     view! {
         <div class="flex items-center gap-3">
             <Show when=move || !hide_name>
-                <span class="hidden max-w-64 truncate text-sm font-semibold text-brand-muted lg:inline">
+                <span class="hidden max-w-64 truncate text-label font-semibold text-brand-muted lg:inline">
                     {display_name.get()}
                 </span>
             </Show>
@@ -435,7 +435,7 @@ fn UserMenu(
                         />
                     </span>
                     {" "}
-                    <span class="hidden text-sm font-semibold text-text-inverse max-sm:inline">
+                    <span class="hidden text-label font-semibold text-text-inverse max-sm:inline">
                         {labels::ACCOUNT_BUTTON}
                     </span>
                 </button>
@@ -456,8 +456,8 @@ fn UserMenu(
                                     alt=display_name.get()
                                 />
                                 <div class="min-w-0">
-                                    <div class="font-semibold text-sm truncate">{display_name.get()}</div>
-                                    <div class="text-xs text-text-muted truncate">{user_email.clone()}</div>
+                                    <div class="font-semibold text-body truncate">{display_name.get()}</div>
+                                    <div class="text-cell text-text-muted truncate">{user_email.clone()}</div>
                                     <div class="text-[11px] text-text-muted">{login_method_text}</div>
                                 </div>
                             </div>
@@ -465,7 +465,7 @@ fn UserMenu(
                         <li role="none">
                             <a
                                 href="/settings"
-                                class="flex min-h-11 items-center gap-3 px-3 py-2 text-sm font-semibold text-text-deep hover:bg-surface-raised no-underline"
+                                class="flex min-h-11 items-center gap-3 px-3 py-2 text-body font-semibold text-text-deep hover:bg-surface-raised no-underline"
                                 role="menuitem"
                                 tabindex="0"
                                 on:click=move |_| menu_open.set(false)
@@ -480,7 +480,7 @@ fn UserMenu(
                         <li role="none">
                             <a
                                 href="/settings#data"
-                                class="flex min-h-11 items-center gap-3 px-3 py-2 text-sm font-semibold text-text-deep hover:bg-surface-raised no-underline"
+                                class="flex min-h-11 items-center gap-3 px-3 py-2 text-body font-semibold text-text-deep hover:bg-surface-raised no-underline"
                                 role="menuitem"
                                 tabindex="0"
                                 on:click=move |_| menu_open.set(false)
@@ -496,7 +496,7 @@ fn UserMenu(
                         <Show when=move || session.is_admin.get()>
                             <li role="none">
                                 <a href="/admin/logins" role="menuitem" tabindex="0"
-                                    class="flex min-h-11 items-center gap-3 px-3 py-2 text-sm font-semibold text-text-deep hover:bg-surface-raised no-underline"
+                                    class="flex min-h-11 items-center gap-3 px-3 py-2 text-body font-semibold text-text-deep hover:bg-surface-raised no-underline"
                                     on:click=move |_| menu_open.set(false)>
                                     {labels::ADMIN_LOGINS}
                                 </a>
@@ -534,7 +534,7 @@ fn UserMenu(
 pub fn SiteFooter() -> impl IntoView {
     view! {
         <footer class="mt-auto border-t border-border-subtle bg-surface py-4">
-            <div class="page-gutter flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-text-subtle">
+            <div class="page-gutter flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-label text-text-subtle">
                 {FOOTER_LINKS
                     .iter()
                     .map(|(label, href)| {
