@@ -69,7 +69,7 @@ pub fn PageFrame(
         >
             <PcHeader />
             <header class="page-frame-head no-print">
-                <div class="page-gutter flex flex-wrap items-center gap-x-4 gap-y-2">
+                <div class="page-gutter flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
                     <h1 class="page-frame-title order-1 shrink-0">{title}</h1>
                     <div class="order-2 ml-auto flex shrink-0 items-center gap-3 lg:order-3">
                         {links.map(|links| links())}
