@@ -1,0 +1,14 @@
+/* トークン検査の違反例(Stylelint が止めること)。check:css の対象外 */
+.invalid-color {
+  color: #c0362c;
+}
+
+.invalid-font-size {
+  font-size: 14px;
+}
+
+@media print { .invalid-print-inner { font-size: 9px; } }
+
+.invalid-after-print {
+  padding: 4px;
+}
