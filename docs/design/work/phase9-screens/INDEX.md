@@ -27,6 +27,15 @@
 完成形: `opencode/shots/assetbalance-mobile-light.png`、`assetbalance-mobile-dark.png`、
 `assetbalance-pc-light.png`、`assetbalance-pc-dark.png`
 
+既存(`../phase1-codex/shots/asset-all-1440x900-pc-light.png`・`asset-all-mobile-light.png`)との対応:
+
+| 既存から残したもの | 新しく取り入れたもの |
+|---|---|
+| 表・一覧はカードで囲まない(見出し行の下線と行の区切りだけ) | 上部の集計は帯なし・紺の文字(評価額・評価損益・価格基準日) |
+| PCの表は既存の9列・順序・列名クリックの並べ替え(コード・銘柄/ファンド・種別・口座・分配金・1株配当・前日比・評価額・評価損益) | 文字の大きさの段・余白(見出し20px・行15px・補足12px) |
+| スマホの行の型(1段目 名前と評価額、2段目 口座・数量、右に損益と率、名前は2行まで折り返し) | タブの下線・検索欄と並べ替えボタンの形と余白 |
+| 構成比を見る・CSV管理への入口(見出しの右に文字リンクで) | 口座の札は色付きをやめ灰色の文字に |
+
 | 状態 | 画像(mobile / pc) | いつ出るか |
 |---|---|---|
 | empty(データなし) | `assetbalance-state-empty-mobile.png` / `assetbalance-state-empty-pc.png` | CSV未取り込みで保有がないとき |
@@ -61,6 +70,15 @@
 
 完成形: `opencode/shots/receipts-mobile-light.png`、`receipts-mobile-dark.png`、
 `receipts-pc-light.png`、`receipts-pc-dark.png`
+
+既存(`../phase1-codex/shots/receipts-dividend-1440x900-pc-light.png`・`receipts-dividend-mobile-light.png`)との対応:
+
+| 既存から残したもの | 新しく取り入れたもの |
+|---|---|
+| 表・一覧はカードで囲まない(見出し行の下線と行の区切りだけ) | 上部の集計は帯なし・紺の文字(受け取った配当金(税引後)・期間) |
+| PCの表は既存の8列・月見出し行・列名クリックの並べ替え(入金日・銘柄コード・銘柄・口座・数量・配当金・税額・税引後) | 文字の大きさの段・余白(見出し20px・行15px・補足12px) |
+| スマホの行の型(月見出し+1段目 名前と金額、2段目 日付・口座・数量、名前は2行まで折り返し) | タブの下線・検索欄と並べ替えボタンの形と余白 |
+| CSV管理への入口(見出しの右に文字リンクで) | 口座の札は色付きをやめ灰色の文字に |
 
 | 状態 | 画像(mobile / pc) | いつ出るか |
 |---|---|---|

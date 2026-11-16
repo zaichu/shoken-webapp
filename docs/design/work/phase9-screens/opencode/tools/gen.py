@@ -86,6 +86,14 @@ html[data-theme="dark"] .seg .here{background:var(--accent); color:#0b1220}
 .dl:first-child{border-top:none}
 .dl dt{font-size:14px; color:var(--mut); white-space:nowrap}
 .dl dd{margin:0; font-size:15px; font-weight:700; text-align:right; white-space:nowrap}
+.tlinks{display:flex; gap:16px; align-items:center}
+.mblock{margin-top:20px}
+.rows.loose .name{white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.mrow td{background:var(--seg); font-weight:700}
+.mrow td:first-child{border-left:3px solid var(--gold)}
+.mrow .mt{font-size:14px; white-space:nowrap}
+.mrow .ms{font-size:13px; color:var(--mut); white-space:nowrap}
+table.grid .nm{overflow:hidden; text-overflow:ellipsis}
 """
 
 MOBILE_EXTRA = """.top{border-bottom:1px solid var(--line)}
@@ -206,11 +214,14 @@ def write(name, title, is_mobile, body, css=""):
 
 
 # ---------- 資産管理 ----------
-ASSET_ROWS_M = """<div class="rows">
-      <div class="row"><div class="left"><div class="name">架空成長インデックス・ファンド</div><span class="sub num">10,000,000口 ・ 特定口座 ›</span></div><span class="amt num">¥19,443,341<span class="rate num">¥0 0.00%</span></span></div>
-      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">100株 ・ NISA</span></div><span class="amt num">¥7,949,807<span class="rate num up">+¥1,352,488 +20.50%</span></span></div>
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">100株 ・ 特定口座</span></div><span class="amt num">¥1,200,000<span class="rate num up">+¥200,000 +20.00%</span></span></div>
+ASSET_ROWS_M = """<div class="rows loose">
+      <div class="row"><div class="left"><div class="name">架空成長インデックス・ファンド ›</div><span class="sub num">特定口座 ・ 10,000,000口</span></div><span class="amt num">¥19,443,341<span class="rate num">¥0 0.00%</span></span></div>
+      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">NISA ・ 100株</span></div><span class="amt num">¥7,949,807<span class="rate num up">+¥1,352,488 +20.50%</span></span></div>
+      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">特定口座 ・ 100株</span></div><span class="amt num">¥1,200,000<span class="rate num up">+¥200,000 +20.00%</span></span></div>
     </div>"""
+
+ASSET_TITLE_M = """<div class="hrow" style="margin-top:12px"><h1 class="pagetitle">資産管理</h1><span class="tlinks"><span class="more">構成比を見る ›</span><span class="more">CSV管理 ›</span></span></div>"""
+ASSET_TITLE_P = """<div class="hrow" style="margin-top:12px"><h1 class="pagetitle">資産管理</h1><span class="tlinks"><span class="more">構成比を見る ›</span><span class="more">CSV管理 ›</span></span></div>"""
 
 ASSET_HERO_M = """<div class="hero">
     <p class="label">評価額</p>
@@ -233,14 +244,10 @@ ASSET_STATES = """<section class="card" aria-label="状態の例">
     <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div><span class="sub">時間をおいて再度お試しください</span></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
   </section>"""
 
-asset_m = (mobile_top() + ASSET_HERO_M + """
+asset_m = (mobile_top() + ASSET_TITLE_M + ASSET_HERO_M + """
   <div class="tabs"><span class="here">すべて 3</span><span>国内株式 2</span><span>投資信託 1</span></div>
 """ + ASSET_SEARCH_M + """
-  <section class="card" aria-label="保有の一覧">
-    <div class="hrow"><h2>保有の一覧</h2><span class="more">構成比を見る ›</span></div>
-    <div class="sum"><span class="state-note num">評価額の合計 ¥28,593,148</span></div>
 """ + ASSET_ROWS_M + """
-  </section>
 """ + nav_m("資産管理"))
 
 ASSET_HERO_P = """<div class="hero">
@@ -250,20 +257,17 @@ ASSET_HERO_P = """<div class="hero">
   </div>"""
 
 ASSET_TABLE_P = """<table class="grid" style="margin-top:8px">
-      <tr><th class="sortable">銘柄・ファンド ▲</th><th>口座</th><th class="r">数量</th><th class="r sortable">評価額 ▼</th><th class="r">評価損益</th></tr>
-      <tr><td><div class="nm">架空成長インデックス・ファンド ›</div></td><td><span class="sb">特定口座</span></td><td class="r num">10,000,000口</td><td class="r num">¥19,443,341</td><td class="r num">¥0 0.00%</td></tr>
-      <tr><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">NISA</span></td><td class="r num">100株</td><td class="r num">¥7,949,807</td><td class="r num up">+¥1,352,488 +20.50%</td></tr>
-      <tr><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥1,200,000</td><td class="r num up">+¥200,000 +20.00%</td></tr>
+      <tr><th>コード</th><th class="sortable">銘柄・ファンド ▲</th><th>種別</th><th>口座</th><th>分配金</th><th class="r">1株配当</th><th class="r">前日比</th><th class="r sortable">評価額 ▼</th><th class="r">評価損益</th></tr>
+      <tr><td><span class="sb">—</span></td><td><div class="nm">架空成長インデックス・ファンド ›</div></td><td><span class="sb">投資信託</span></td><td><span class="sb">特定口座</span></td><td><span class="sb">—</span></td><td class="r num">—</td><td class="r num">—</td><td class="r num">¥19,443,341</td><td class="r num">¥0 0.00%</td></tr>
+      <tr><td class="num">9902</td><td><div class="nm">架空食品ホールディングス</div></td><td><span class="sb">国内株式</span></td><td><span class="sb">NISA</span></td><td><span class="sb">—</span></td><td class="r num">¥39,339.07</td><td class="r num down">-¥20,000</td><td class="r num">¥7,949,807</td><td class="r num up">+¥1,352,488 +20.50%</td></tr>
+      <tr><td class="num">9901</td><td><div class="nm">架空青空電機</div></td><td><span class="sb">国内株式</span></td><td><span class="sb">特定口座</span></td><td><span class="sb">—</span></td><td class="r num">¥360</td><td class="r num up">+¥20,000</td><td class="r num">¥1,200,000</td><td class="r num up">+¥200,000 +20.00%</td></tr>
     </table>"""
 
-asset_p = (pc_top("資産管理") + ASSET_HERO_P + """
+asset_p = (pc_top("資産管理") + ASSET_TITLE_P + ASSET_HERO_P + """
   <div class="tabs"><span class="here">すべて 3</span><span>国内株式 2</span><span>投資信託 1</span></div>
-  <section class="card" aria-label="保有の一覧" style="margin-top:12px">
-    <div class="hrow"><h2>保有の一覧</h2><span class="more">構成比を見る ›</span></div>
-    <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄・ファンド名・コード・口座で検索</span></div>
-    <div class="countrow"><span class="n num">3件 / 3件(列名クリックで並べ替え)</span></div>
-""" + ASSET_TABLE_P + """
-  </section>""")
+  <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄・ファンド名・コード・口座で検索</span></div>
+  <div class="countrow"><span class="n num">3件 / 3件(列名クリックで並べ替え)</span></div>
+""" + ASSET_TABLE_P)
 
 # ---------- 構成比 ----------
 COMP_M_BAR = """<div class="bar100" role="img" aria-label="架空成長インデックス・ファンド68.0%・9902 27.8%・9901 4.2%"><span class="a" style="width:68.0%"></span><span class="b" style="width:27.8%"></span><span class="c" style="width:4.2%"></span></div>"""
@@ -379,55 +383,73 @@ fund_p = (pc_top("資産管理") + """
   </div>""")
 
 # ---------- 取引明細 ----------
-RECEIPT_ROWS_M = """<div class="rows">
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">12/24 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥10,957</span></div>
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">12/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥23,905</span></div>
-    </div>"""
-RECEIPT_DETAIL_M = """<div class="rows">
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">11/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥44,823</span></div>
-      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥31,874</span></div>
-    </div>"""
+RECEIPT_TITLE_M = """<div class="hrow" style="margin-top:12px"><h1 class="pagetitle">取引明細</h1><span class="tlinks"><span class="more">CSV管理 ›</span></span></div>"""
+RECEIPT_TITLE_P = """<div class="hrow" style="margin-top:12px"><h1 class="pagetitle">取引明細</h1><span class="tlinks"><span class="more">CSV管理 ›</span></span></div>"""
 
-RECEIPT_NOV_M = """<section class="card" aria-label="2026年11月の配当">
-    <div class="hrow"><h2>2026年11月 ・ 2件</h2><span class="more num">受取 ¥76,697</span></div>
-""" + RECEIPT_DETAIL_M + """
-  </section>"""
+RECEIPT_MONTHS = [
+    ("2026年11月", [("11/10", "9901", "架空青空電機", "特定口座", "100株", 56250, 11427, 44823), ("11/08", "9902", "架空食品ホールディングス", "特定口座", "100株", 40000, 8126, 31874)]),
+    ("2026年10月", [("10/20", "9901", "架空青空電機", "特定口座", "100株", 10000, 2031, 7969)]),
+    ("2026年9月", [("09/26", "9902", "架空食品ホールディングス", "特定口座", "100株", 5000, 1016, 3984), ("09/10", "9901", "架空青空電機", "特定口座", "100株", 10000, 2031, 7969)]),
+    ("2026年8月", [("08/19", "9901", "架空青空電機", "特定口座", "100株", 7000, 1422, 5578)]),
+    ("2026年7月", [("07/18", "9901", "架空青空電機", "特定口座", "100株", 9000, 1828, 7172)]),
+    ("2026年6月", [("06/29", "—", "架空成長インデックス・ファンド", "特定口座", "49070口", 4907, 997, 3910), ("06/25", "9901", "架空青空電機", "特定口座", "100株", 60000, 12189, 47811), ("06/20", "9902", "架空食品ホールディングス", "特定口座", "100株", 3500000, 711009, 2788991)]),
+    ("2026年5月", [("05/20", "9901", "架空青空電機", "特定口座", "100株", 13000, 2641, 10359)]),
+    ("2026年4月", [("04/18", "9901", "架空青空電機", "特定口座", "100株", 11000, 2235, 8765)]),
+    ("2026年3月", [("03/28", "9901", "架空青空電機", "特定口座", "100株", 60000, 12189, 47811), ("03/15", "—", "架空成長インデックス・ファンド", "特定口座", "1000000口", 120000, 24377, 95623)]),
+    ("2026年2月", [("02/19", "9901", "架空青空電機", "特定口座", "100株", 8000, 1625, 6375)]),
+    ("2026年1月", [("01/20", "9901", "架空青空電機", "特定口座", "100株", 12000, 2438, 9562)]),
+]
 
-RECEIPT_OCT_M = """<section class="card" aria-label="2026年10月の配当">
-    <div class="hrow"><h2>2026年10月 ・ 1件</h2><span class="more num">受取 ¥7,969</span></div>
-    <div class="rows">
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">10/20 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥7,969</span></div>
-    </div>
-  </section>"""
-RECEIPT_DETAIL_EXAMPLE = """
-    <p class="subhead">行詳細の例</p>
-    <div class="rows">
-      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥31,874</span></div>
-    </div>
-    <dl style="margin:4px 0 0; border-top:1px solid var(--line); padding-top:4px">
-      <div class="dl"><dt>配当金(税引前)</dt><dd class="num">¥40,000</dd></div>
-      <div class="dl"><dt>税額</dt><dd class="num">¥8,126</dd></div>
-      <div class="dl"><dt>税引後</dt><dd class="num">¥31,874</dd></div>
-    </dl>"""
-RECEIPT_STATES_M = """<section class="card" aria-label="状態の例">
-    <div class="hrow"><h2>状態の例</h2></div>
-    <p class="subhead">空</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">データがありません</div><span class="sub">配当金明細をCSVで追加してください</span></div></div></div>
-    <p class="subhead">読み込み中</p>
-    <div class="rows"><div class="row"><div class="left"><div class="sk" style="width:60%"></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
-    <p class="subhead">取得失敗</p>
-    <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
-""" + RECEIPT_DETAIL_EXAMPLE + """
-  </section>"""
-_UNUSED_RECEIPT_OTHER = """<section class="card" aria-label="ほかのタブの帯">
-    <div class="hrow"><h2>ほかのタブの帯</h2></div>
-    <div class="rows">
-      <div class="row"><div class="left"><div class="name">国内株式の実現損益(税引後)</div><span class="sub num">2026/01 〜 2026/12 ・ 3件</span></div><span class="amt num up">+¥99,017</span></div>
-      <div class="row"><div class="left"><div class="name">投資信託の実現損益(税引後)</div><span class="sub num">2026/01 〜 2026/12 ・ 2件</span></div><span class="amt num up">+¥147,282</span></div>
-    </div>
-  </section>"""
 
-receipt_m = (mobile_top() + """
+def receipt_row_m(date, code, name, account, qty, at):
+    disp = name if code == "—" else code + " " + name
+    return '<div class="row"><div class="left"><div class="name">' + disp + '</div><span class="sub num">' + date + ' ・ ' + account + ' ・ ' + qty + '</span></div><span class="amt num up">+¥' + f"{at:,}" + '</span></div>'
+
+
+def receipt_month_m(label, txns):
+    tot = sum(t[7] for t in txns)
+    rows = "\n      ".join(receipt_row_m(t[0], t[1], t[2], t[3], t[4], t[7]) for t in txns)
+    return '<div class="mblock">\n    <div class="hrow"><h2>' + label + ' ・ ' + str(len(txns)) + '件</h2><span class="num up" style="font-size:13px; white-space:nowrap">受取 +¥' + f"{tot:,}" + '</span></div>\n    <div class="rows loose">\n      ' + rows + '\n    </div>\n  </div>'
+
+
+def receipt_row_p(t):
+    date, code, name, account, qty, bt, tax, at = t
+    nm = name + " ›" if code == "—" else name
+    return '<tr><td class="num">' + date + '</td><td class="num">' + code + '</td><td><div class="nm">' + nm + '</div></td><td><span class="sb">' + account + '</span></td><td class="r num">' + qty + '</td><td class="r num up">+¥' + f"{bt:,}" + '</td><td class="r num down">-¥' + f"{tax:,}" + '</td><td class="r num up">+¥' + f"{at:,}" + '</td></tr>'
+
+
+def receipt_mrow_p(label, txns):
+    tot_bt = sum(t[5] for t in txns)
+    tot_tax = sum(t[6] for t in txns)
+    tot_at = sum(t[7] for t in txns)
+    return '<tr class="mrow"><td colspan="5"><span class="mt">' + label + ' ・ ' + str(len(txns)) + '件</span></td><td class="r"><span class="ms num up">+¥' + f"{tot_bt:,}" + '</span></td><td class="r"><span class="ms num down">-¥' + f"{tot_tax:,}" + '</span></td><td class="r"><span class="ms num up">+¥' + f"{tot_at:,}" + '</span></td></tr>'
+
+
+def receipt_table_p():
+    out = ['<table class="grid" style="margin-top:8px">',
+           '      <tr><th class="sortable">入金日 ▼</th><th>銘柄コード</th><th>銘柄</th><th>口座</th><th class="r">数量</th><th class="r">配当金(税引前)</th><th class="r">税額</th><th class="r">税引後</th></tr>']
+    for label, txns in RECEIPT_MONTHS:
+        out.append("      " + receipt_mrow_p(label, txns))
+        for t in txns:
+            out.append("      " + receipt_row_p(t))
+    out.append("    </table>")
+    return "\n".join(out)
+
+
+RECEIPT_TABLE_P = receipt_table_p()
+RECEIPT_MONTHS_M = "\n".join(receipt_month_m(label, txns) for label, txns in RECEIPT_MONTHS)
+RECEIPT_NOV_M = receipt_month_m(RECEIPT_MONTHS[0][0], RECEIPT_MONTHS[0][1])
+RECEIPT_NOV_OPEN_M = (
+    '<div class="mblock">\n    <div class="hrow"><h2>2026年11月 ・ 2件</h2><span class="num up" style="font-size:13px; white-space:nowrap">受取 +¥76,697</span></div>\n'
+    '    <div class="rows loose">\n      '
+    + receipt_row_m("11/10", "9901", "架空青空電機", "特定口座", "100株", 44823)
+    + '\n      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num up">+¥31,874</span></div>\n    </div>\n'
+    '    <dl style="margin:4px 0 0; border-top:1px solid var(--line); padding-top:4px">\n'
+    '      <div class="dl"><dt>配当金(税引前)</dt><dd class="num up">+¥40,000</dd></div>\n'
+    '      <div class="dl"><dt>税額</dt><dd class="num down">-¥8,126</dd></div>\n'
+    '      <div class="dl"><dt>税引後</dt><dd class="num up">+¥31,874</dd></div>\n    </dl>\n  </div>')
+
+receipt_m = (mobile_top() + RECEIPT_TITLE_M + """
   <div class="hero" style="padding-bottom:0">
     <p class="label">受け取った配当金(税引後)</p>
     <p class="total num">¥3,128,576</p>
@@ -437,30 +459,18 @@ receipt_m = (mobile_top() + """
   <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄名・コードで検索</span></div>
   <div class="sortbtn"><span>並べ替え: 入金日の新しい順</span><span aria-hidden="true">›</span></div>
   <div class="countrow"><span class="n num">16件</span></div>
-""" + RECEIPT_NOV_M + "\n" + RECEIPT_OCT_M + nav_m("取引明細"))
+""" + RECEIPT_MONTHS_M + nav_m("取引明細"))
 
-RECEIPT_TABLE_P = """<table class="grid" style="margin-top:8px">
-      <tr><th class="sortable">入金日 ▼</th><th>銘柄</th><th>口座</th><th class="r">数量</th><th class="r">配当金(税引前)</th><th class="r">税額</th><th class="r">税引後</th></tr>
-      <tr><td class="num">11/10</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥56,250</td><td class="r num">¥11,427</td><td class="r num">¥44,823</td></tr>
-      <tr><td class="num">11/08</td><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥40,000</td><td class="r num">¥8,126</td><td class="r num">¥31,874</td></tr>
-      <tr><td class="num">10/20</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥10,000</td><td class="r num">¥2,031</td><td class="r num">¥7,969</td></tr>
-      <tr><td class="num">09/26</td><td><div class="nm">9902 架空食品ホールディングス</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥5,000</td><td class="r num">¥1,016</td><td class="r num">¥3,984</td></tr>
-      <tr><td class="num">09/10</td><td><div class="nm">9901 架空青空電機</div></td><td><span class="sb">特定口座</span></td><td class="r num">100株</td><td class="r num">¥10,000</td><td class="r num">¥2,031</td><td class="r num">¥7,969</td></tr>
-    </table>"""
-
-receipt_p = (pc_top("取引明細") + """
+receipt_p = (pc_top("取引明細") + RECEIPT_TITLE_P + """
   <div class="hero">
     <div class="stat"><p class="label">受け取った配当金(税引後)</p><p class="v1 num">¥3,128,576</p></div>
     <div class="stat"><p class="label">期間</p><p class="v2 num">2026/01 〜 2026/11</p></div>
     <div class="dates num">16件</div>
   </div>
   <div class="tabs"><span class="here">配当金 16</span><span>国内株式 3</span><span>投資信託 2</span></div>
-  <section class="card" aria-label="取引明細の一覧" style="margin-top:12px">
-    <div class="hrow"><h2>配当金の一覧</h2></div>
-    <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄名・コードで検索</span></div>
-    <div class="countrow"><span class="n num">16件(列名クリックで並べ替え)</span></div>
-""" + RECEIPT_TABLE_P + """
-  </section>""")
+  <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄名・コードで検索</span></div>
+  <div class="countrow"><span class="n num">16件(列名クリックで並べ替え)</span></div>
+""" + RECEIPT_TABLE_P)
 
 # ---------- CSV管理 ----------
 CSV_ROWS = """<div class="rows">
@@ -593,19 +603,6 @@ RECEIPT_FAILED = """<section class="card" aria-label="取引明細の一覧">
     <div class="hrow"><h2>配当金の一覧</h2></div>
     <div class="rows"><div class="row"><div class="left"><div class="name">エラー: 読み込みに失敗しました</div></div><span class="amt" style="color:var(--accent)">再試行</span></div></div>
   </section>"""
-RECEIPT_NOV_OPEN_M = """<section class="card" aria-label="2026年11月の配当">
-    <div class="hrow"><h2>2026年11月 ・ 2件</h2><span class="more num">受取 ¥76,697</span></div>
-    <div class="rows">
-      <div class="row"><div class="left"><div class="name">9901 架空青空電機</div><span class="sub num">11/10 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥44,823</span></div>
-      <div class="row"><div class="left"><div class="name">9902 架空食品ホールディングス</div><span class="sub num">11/08 ・ 特定口座 ・ 100株</span></div><span class="amt num">¥31,874</span></div>
-    </div>
-    <dl style="margin:4px 0 0; border-top:1px solid var(--line); padding-top:4px">
-      <div class="dl"><dt>配当金(税引前)</dt><dd class="num">¥40,000</dd></div>
-      <div class="dl"><dt>税額</dt><dd class="num">¥8,126</dd></div>
-      <div class="dl"><dt>税引後</dt><dd class="num">¥31,874</dd></div>
-    </dl>
-  </section>"""
-
 CSV_EMPTY = """<div class="rows"><div class="row"><div class="left"><div class="name">データがありません</div><span class="sub">楽天証券から取得すると表示されます</span></div></div></div>"""
 CSV_LOADING = """<div class="rows">
       <div class="row"><div class="left"><div class="name">資産管理(国内株式)</div><span class="sub">取得中…</span></div><span class="amt num">2件</span></div>
@@ -645,13 +642,13 @@ write("fund-detail-state-failed-mobile", "保有ファンド詳細(読み込み�
 write("fund-detail-state-failed-pc", "保有ファンド詳細(読み込み失敗) 新案 PC", False, fund_p.replace(FUND_DL, FUND_FAILED))
 write("fund-detail-state-waiting-mobile", "保有ファンド詳細(更新待ち) 新案 スマホ", True, fund_m.replace(FUND_DL, FUND_WAITING))
 write("fund-detail-state-waiting-pc", "保有ファンド詳細(更新待ち) 新案 PC", False, fund_p.replace(FUND_DL, FUND_WAITING))
-write("receipts-state-empty-mobile", "取引明細(データなし) 新案 スマホ", True, receipt_m.replace(RECEIPT_NOV_M + "\n" + RECEIPT_OCT_M, RECEIPT_EMPTY))
+write("receipts-state-empty-mobile", "取引明細(データなし) 新案 スマホ", True, receipt_m.replace(RECEIPT_MONTHS_M, RECEIPT_EMPTY))
 write("receipts-state-empty-pc", "取引明細(データなし) 新案 PC", False, receipt_p.replace(RECEIPT_TABLE_P, RECEIPT_EMPTY))
-write("receipts-state-loading-mobile", "取引明細(読み込み中) 新案 スマホ", True, receipt_m.replace(RECEIPT_NOV_M + "\n" + RECEIPT_OCT_M, RECEIPT_LOADING))
+write("receipts-state-loading-mobile", "取引明細(読み込み中) 新案 スマホ", True, receipt_m.replace(RECEIPT_MONTHS_M, RECEIPT_LOADING))
 write("receipts-state-loading-pc", "取引明細(読み込み中) 新案 PC", False, receipt_p.replace(RECEIPT_TABLE_P, RECEIPT_LOADING))
-write("receipts-state-failed-mobile", "取引明細(読み込み失敗) 新案 スマホ", True, receipt_m.replace(RECEIPT_NOV_M + "\n" + RECEIPT_OCT_M, RECEIPT_FAILED))
+write("receipts-state-failed-mobile", "取引明細(読み込み失敗) 新案 スマホ", True, receipt_m.replace(RECEIPT_MONTHS_M, RECEIPT_FAILED))
 write("receipts-state-failed-pc", "取引明細(読み込み失敗) 新案 PC", False, receipt_p.replace(RECEIPT_TABLE_P, RECEIPT_FAILED))
-write("receipts-state-detail-mobile", "取引明細(行詳細を開いた例) 新案 スマホ", True, receipt_m.replace(RECEIPT_NOV_M + "\n" + RECEIPT_OCT_M, RECEIPT_NOV_OPEN_M + "\n" + RECEIPT_OCT_M))
+write("receipts-state-detail-mobile", "取引明細(行詳細を開いた例) 新案 スマホ", True, receipt_m.replace(RECEIPT_NOV_M, RECEIPT_NOV_OPEN_M))
 write("receipts-state-detail-pc", "取引明細(行詳細を開いた例) 新案 PC", False, receipt_p.replace(RECEIPT_TABLE_P, RECEIPT_TABLE_P + RECEIPT_NOV_OPEN_M))
 write("csv-state-empty-mobile", "CSV管理(データなし) 新案 スマホ", True, csv_m.replace(CSV_ROWS, CSV_EMPTY))
 write("csv-state-empty-pc", "CSV管理(データなし) 新案 PC", False, csv_p.replace(CSV_TABLE_P, CSV_EMPTY))
