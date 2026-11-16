@@ -8,7 +8,8 @@ use super::holdings_list::HoldingsList;
 use super::search_bar::{AssetMobileSearchEntry, AssetSearchBar, ConditionKind};
 use super::summary::{
     AssetSummaryBand, fund_has_pending, oldest_combined_as_of, oldest_fund_as_of,
-    oldest_stock_as_of, stock_pending_from_parts, stock_price_dates, stock_summary_values,
+    oldest_stock_as_of, purchase_summary_tag, stock_pending_from_parts, stock_price_dates,
+    stock_summary_values,
 };
 use crate::api::dto::{AssetBalanceSummary, FundBalanceSummary};
 use crate::features::asset_balance::csv::AssetBalanceRow;
@@ -17,7 +18,9 @@ use crate::features::asset_balance::fund::{
     AssetKind, AssetSearch, FundBalanceRow, FundSortKey, FundView, filter_fund_rows, fund_accounts,
     fund_courses, fund_totals, fund_view, sort_fund_views, text_only_search,
 };
-use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
+use crate::features::asset_balance::holdings::{
+    HoldingView, holding_dividend, stock_daily_change_total,
+};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder, sort_holdings};
@@ -98,17 +101,38 @@ fn profit_rate(profit: f64, purchase: f64) -> Option<f64> {
     (purchase != 0.0).then_some(profit / purchase * 100.0)
 }
 
+/// 株と投信の前日比を合算する。片方だけあるときはある方を使う
+fn combined_daily(stock: Option<f64>, fund: Option<f64>) -> Option<f64> {
+    match (stock, fund) {
+        (Some(stock), Some(fund)) => Some(stock + fund),
+        (stock, fund) => stock.or(fund),
+    }
+}
+
 /// 投信の集計値。API集計があるときはそれを使い、無ければ行から求める
-fn fund_summary(views: &[FundView], fallback: Option<&FundBalanceSummary>) -> (f64, f64, f64) {
+fn fund_summary(
+    views: &[FundView],
+    fallback: Option<&FundBalanceSummary>,
+) -> (f64, f64, f64, Option<f64>) {
     let totals = fund_totals(views);
     fallback.map_or_else(
-        || (totals.market, totals.purchase, totals.profit),
+        || {
+            (
+                totals.market,
+                totals.purchase,
+                totals.profit,
+                totals.has_daily_change.then_some(totals.daily_change),
+            )
+        },
         |summary| {
             (
                 crate::features::asset_balance::dec_to_f64(&summary.total_market_value),
                 crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
                 crate::features::asset_balance::dec_to_f64(&summary.total_market_value)
                     - crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount),
+                (summary.latest_nav_count > 0).then(|| {
+                    crate::features::asset_balance::dec_to_f64(&summary.total_daily_change)
+                }),
             )
         },
     )
@@ -206,14 +230,27 @@ fn StockContent(
     // 集計は絞り込み前の全保有分で求める(検索中も全件のまま)
     let summary_fallback = fallback_totals.clone();
     let summary = Memo::new(move |_| {
-        all_views.with(|views| stock_summary_values(views, summary_fallback.as_ref()))
+        let (values, tags) = all_views
+            .with(|views| stock_summary_values(views, summary_fallback.as_ref(), &dividends.get()));
+        let purchase = summary_fallback
+            .as_ref()
+            .map(|summary| {
+                crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount)
+            })
+            .or_else(|| {
+                all_views.with(|views| {
+                    let total: f64 = views.iter().map(|view| view.purchase).sum();
+                    Some(total)
+                })
+            });
+        (values, tags, purchase)
     });
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
         <section id="assetbalance-stock-list" hidden=empty>
             {move || {
                 (!empty).then(|| {
-                    let values = summary.get();
+                    let (values, tags, purchase) = summary.get();
                     let as_of = oldest_stock_as_of(&rows).unwrap_or_default();
                     let pending = valuation_has_pending(
                         stock_pending_from_parts(&rows, fallback_totals.as_ref()),
@@ -225,6 +262,9 @@ fn StockContent(
                                 market=values.market
                                 profit=values.profit
                                 profit_rate=values.profit_rate
+                                daily_change=values.daily_change
+                                tags=tags
+                                purchase=purchase
                                 as_of=as_of
                                 show_pending=pending
                             />
@@ -326,7 +366,8 @@ fn FundContent(
     });
     // 集計は絞り込み前の全行で求め、検索中も全保有分を維持する
     let all_views: Vec<_> = resolved.rows.iter().map(fund_view).collect();
-    let (market, purchase, profit) = fund_summary(&all_views, resolved.fallback_totals.as_ref());
+    let (market, purchase, profit, daily) =
+        fund_summary(&all_views, resolved.fallback_totals.as_ref());
     let profit_rate = profit_rate(profit, purchase);
     let filtered_count = filtered_count(search, search_count);
     let empty = total_count == 0;
@@ -340,6 +381,9 @@ fn FundContent(
                     market=Some(market)
                     profit=Some(profit)
                     profit_rate=profit_rate
+                    daily_change=daily
+                    tags=vec![purchase_summary_tag(purchase)]
+                    purchase=Some(purchase)
                     as_of=as_of
                     show_pending=pending
                 />
@@ -479,10 +523,13 @@ fn AllContent(
         .map_or(stock_rows_purchase, |summary| {
             crate::features::asset_balance::dec_to_f64(&summary.total_purchase_amount)
         });
-
+    let stock_daily = stock_fallback
+        .as_ref()
+        .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change))
+        .or_else(|| stock_daily_change_total(&stock_all_views));
     let fund_rows = fund_resolved.rows.clone();
     let fund_views: Vec<_> = fund_rows.iter().map(fund_view).collect();
-    let (fund_market, fund_purchase, fund_profit) =
+    let (fund_market, fund_purchase, fund_profit, fund_daily) =
         fund_summary(&fund_views, fund_resolved.fallback_totals.as_ref());
     let pending = valuation_has_pending(
         stock_pending_from_parts(&stock_rows, stock_fallback.as_ref()),
@@ -493,6 +540,7 @@ fn AllContent(
     let market = stock_market + fund_market;
     let purchase = stock_purchase + fund_purchase;
     let profit = stock_profit + fund_profit;
+    let daily = combined_daily(stock_daily, fund_daily);
     let profit_rate = profit_rate(profit, purchase);
     let empty = total_count == 0;
     let filtered_count = filtered_count(search, search_count);
@@ -506,6 +554,9 @@ fn AllContent(
                     market=Some(market)
                     profit=Some(profit)
                     profit_rate=profit_rate
+                    daily_change=daily
+                    tags=vec![purchase_summary_tag(purchase)]
+                    purchase=Some(purchase)
                     as_of=as_of
                     show_pending=pending
                 />
@@ -682,13 +733,22 @@ mod tests {
     }
 
     #[test]
+    fn combined_daily_prefers_sum_then_either_side() {
+        assert_eq!(combined_daily(Some(10.0), Some(20.0)), Some(30.0));
+        assert_eq!(combined_daily(Some(10.0), None), Some(10.0));
+        assert_eq!(combined_daily(None, Some(20.0)), Some(20.0));
+        assert_eq!(combined_daily(None, None), None);
+    }
+
+    #[test]
     fn fund_summary_uses_rows_when_no_fallback() {
         let rows = [fund_row("100", "10", None), fund_row("300", "-5", None)];
         let views: Vec<_> = rows.iter().map(fund_view).collect();
-        let (market, purchase, profit) = fund_summary(&views, None);
+        let (market, purchase, profit, daily) = fund_summary(&views, None);
         assert_eq!(market, 400.0);
         assert_eq!(purchase, 2000.0);
         assert_eq!(profit, 5.0);
+        assert_eq!(daily, None);
     }
 
     #[test]

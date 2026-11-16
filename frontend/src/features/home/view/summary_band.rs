@@ -3,22 +3,20 @@ use super::super::store::{self, HomeOverviewData};
 use super::{funds_of, stocks_of};
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::{
-    dec_to_f64, format_signed_valuation_amount, format_signed_valuation_rate,
-    format_valuation_amount, is_negative_valuation, is_positive_valuation, summary_valuation,
+    dec_to_f64, format_signed_row_valuation_amount, format_signed_valuation_amount,
+    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
+    is_positive_valuation, summary_valuation,
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::labels;
 use crate::ui::summary::{
-    SummaryBand as UiSummaryBand, SummaryStat, SummaryTone, with_pending_note,
+    SummaryBand as UiSummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
 };
 use leptos::prelude::*;
 
 #[component]
-pub(super) fn SummaryBand(
-    data: HomeOverviewData,
-    import_label: Signal<Option<String>>,
-) -> impl IntoView {
+pub(super) fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
     let session = use_session();
     let state = move || {
         let generation = session.generation.get();
@@ -45,8 +43,8 @@ pub(super) fn SummaryBand(
             {move || {
                 let (assets, funds, estimates) = state();
                 let loading = assets.is_none() || funds.is_none();
-                let (merged, as_of, pending) = if loading {
-                    (None, String::new(), false)
+                let (merged, daily, as_of, pending) = if loading {
+                    (None, None, String::new(), false)
                 } else {
                     let stock_summary = assets.as_ref().and_then(|slot| {
                         slot.as_ref().map(|loaded| {
@@ -62,6 +60,11 @@ pub(super) fn SummaryBand(
                             })
                         })
                     });
+                    let daily = model::merged_daily_change(
+                        stock_summary.as_ref(),
+                        stocks_of(&assets).is_some_and(|rows| !rows.is_empty()),
+                        fund_summary.as_ref(),
+                    );
                     let merged = model::merged_asset_summary(
                         stock_summary.as_ref(),
                         fund_summary.as_ref(),
@@ -75,17 +78,17 @@ pub(super) fn SummaryBand(
                         fund_rows,
                         stock_summary.as_ref(),
                     );
-                    (merged, as_of, pending)
+                    (merged, daily, as_of, pending)
                 };
                 view! {
                     <BandTiles
                         merged=merged
+                        daily=daily
                         estimates=estimates
                         stocks=stocks_of(&assets).unwrap_or(&[]).to_vec()
                         loading=loading
                         as_of=as_of
                         show_pending=pending
-                        import_label=import_label
                     />
                 }
             }}
@@ -93,15 +96,19 @@ pub(super) fn SummaryBand(
     }
 }
 
+fn daily_rate_text(market: Option<f64>, daily: Option<f64>) -> String {
+    daily_rate(market, daily).map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1))
+}
+
 #[component]
 fn BandTiles(
     merged: Option<AssetBalanceSummary>,
+    daily: Option<f64>,
     estimates: Option<Option<DividendMaps>>,
     stocks: Vec<crate::api::dto::AssetBalance>,
     loading: bool,
     #[prop(optional, into)] as_of: String,
     #[prop(optional)] show_pending: bool,
-    import_label: Signal<Option<String>>,
 ) -> impl IntoView {
     let market_value = merged
         .as_ref()
@@ -129,6 +136,27 @@ fn BandTiles(
         .as_ref()
         .and_then(|valuation| valuation.profit_loss.rate)
         .map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
+    let daily_value = daily;
+    let daily_text = if loading {
+        labels::MISSING.to_string()
+    } else {
+        format_signed_row_valuation_amount(daily_value)
+    };
+    let daily_rate = if loading {
+        String::new()
+    } else {
+        daily_rate_text(market_value, daily_value)
+    };
+    let daily_negative = is_negative_valuation(daily_value);
+    let daily_positive = is_positive_valuation(daily_value);
+    let purchase_value = merged
+        .as_ref()
+        .map(|summary| dec_to_f64(&summary.total_purchase_amount));
+    let purchase_text = if loading {
+        labels::MISSING.to_string()
+    } else {
+        format_valuation_amount(purchase_value)
+    };
     let estimates_pending = estimates.is_none();
     let maps = estimates.as_ref().and_then(|slot| slot.as_ref());
     let kpi = maps.map(|maps| model::annual_dividend_forecast(&stocks, maps));
@@ -142,49 +170,56 @@ fn BandTiles(
                 |amount| format_valuation_amount(Some(amount)),
             )
     };
-    let dates_note = with_pending_note(&as_of, show_pending);
-    let import_text = import_label
-        .get()
-        .map_or_else(String::new, |label| labels::home_import_label(&label));
-    let mut pc_dates = vec![dates_note.clone()];
-    if !import_text.is_empty() {
-        pc_dates.push(import_text);
-    }
-    let pc_dates: Vec<String> = pc_dates
-        .into_iter()
-        .filter(|line| !line.is_empty())
-        .collect();
-    let pnl_tone = if pnl_negative {
-        SummaryTone::Loss
-    } else if pnl_positive {
-        SummaryTone::Gain
-    } else {
-        SummaryTone::Neutral
+    let estimate_pending_text = match (maps, kpi.as_ref().and_then(|k| k.dividend_yield)) {
+        (Some(maps), None) if model::has_pending_estimate(maps) => {
+            labels::HOME_ESTIMATE_PENDING.to_string()
+        }
+        _ => String::new(),
     };
     view! {
         <UiSummaryBand
-            primary=SummaryStat {
-                label: labels::MARKET_VALUE.to_string(),
-                value: market_text,
-                note: String::new(),
-                tone: SummaryTone::Neutral,
-            }
-            secondary=SummaryStat {
-                label: labels::VALUATION_PROFIT_LOSS.to_string(),
-                value: profit_text,
-                note: profit_rate,
-                tone: pnl_tone,
-            }
+            primary_label=labels::MARKET_VALUE
+            primary_value=market_text
+            primary_as_of=as_of
+            show_pending=show_pending
+            aux_label=labels::VALUATION_PROFIT_LOSS
+            aux_value=profit_text
+            aux_rate=profit_rate
+            aux_negative=pnl_negative
+            aux_positive=pnl_positive
             pc_items=vec![
-                SummaryStat {
+                SummarySubItem {
                     label: labels::ANNUAL_EXPECTED_DIVIDEND.to_string(),
-                    value: dividend_text,
+                    value: dividend_text.clone(),
                     note: String::new(),
                     tone: SummaryTone::Neutral,
+                    extra_class: String::new(),
                 },
             ]
-            mobile_dates=dates_note
-            pc_dates=pc_dates
+            breakdown=vec![
+                SummaryBreakdownEntry {
+                    label: labels::DAY_CHANGE.to_string(),
+                    value: daily_text,
+                    negative: daily_negative,
+                    positive: daily_positive,
+                    rate: daily_rate,
+                },
+                SummaryBreakdownEntry {
+                    label: labels::ANNUAL_EXPECTED_DIVIDEND.to_string(),
+                    value: dividend_text,
+                    negative: false,
+                    positive: false,
+                    rate: estimate_pending_text,
+                },
+                SummaryBreakdownEntry {
+                    label: labels::TOTAL_ACQUISITION.to_string(),
+                    value: purchase_text,
+                    negative: false,
+                    positive: false,
+                    rate: String::new(),
+                },
+            ]
+            testid_toggle="summary-details-toggle"
         />
     }
 }

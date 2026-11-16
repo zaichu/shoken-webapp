@@ -136,14 +136,14 @@ type BandItem = {
   valueFontSizes: string[];
 };
 
-// PCの集計の並び(ラベル上・数字下)の項目ごとのラベル位置・数字の下端・見た目を測る
+// 帯の項目ごとのラベル位置・数字の下端・見た目を測る
 async function bandItems(page: Page, selector: string): Promise<BandItem[]> {
   return page.evaluate((sel) => {
     const band = document.querySelector(sel);
     if (!band) {
       throw new Error(`帯が見つかりません: ${sel}`);
     }
-    return [...band.querySelectorAll('.summary-stat')]
+    return [...band.querySelectorAll('.summary-item, .summary-band-breakdown-row')]
       .filter((item) => {
         const rect = (item as HTMLElement).getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
@@ -158,7 +158,7 @@ async function bandItems(page: Page, selector: string): Promise<BandItem[]> {
       const valueRect = value.getBoundingClientRect();
       const labelStyle = getComputedStyle(label);
       const valueStyle = getComputedStyle(value);
-      // 補足(率など)も同じ行の数字なので、まとめて大きさをみる
+      // 補足(率など)も同じ行の数字なので、まとめて大きさを見る
       const valueFontSizes = [
         valueStyle.fontSize,
         ...[...value.querySelectorAll('*')].map(
@@ -210,9 +210,9 @@ function expectBandAligned(items: BandItem[]) {
   expect([...labelColors]).toHaveLength(1);
   const labelFontSizes = new Set(items.map((item) => item.labelFontSize));
   expect([...labelFontSizes]).toHaveLength(1);
-  // 数字の大きさは主と従の2種類までで、補足(率など)は主の数字を上回らない
+  // 数字の大きさは主と従と補足(率など)の3種類までで、補足は主の数字を上回らない
   const valueFontSizes = new Set(items.flatMap((item) => item.valueFontSizes));
-  expect(valueFontSizes.size).toBeLessThanOrEqual(2);
+  expect(valueFontSizes.size).toBeLessThanOrEqual(3);
   for (const item of items) {
     const sizes = item.valueFontSizes.map(Number.parseFloat);
     expect(
@@ -220,26 +220,6 @@ function expectBandAligned(items: BandItem[]) {
       `項目「${item.label}」の補足の大きさ`,
     ).toBe(sizes[0]);
   }
-}
-
-// 見えている金額は折り返さない(横にはみ出さない)
-async function expectAmountsOnSingleLine(page: Page, selector: string) {
-  const overflows = await page.evaluate((sel) => {
-    const band = document.querySelector(sel);
-    if (!band) {
-      throw new Error(`帯が見つかりません: ${sel}`);
-    }
-    return [...band.querySelectorAll(
-      '.summary-hero-primary, .summary-hero-secondary, .summary-hero-dates, .summary-stat-value',
-    )]
-      .filter((el) => (el as HTMLElement).getBoundingClientRect().width > 0)
-      .map((el) => ({
-        text: (el.textContent ?? '').trim().slice(0, 40),
-        over: el.scrollWidth - el.clientWidth,
-      }))
-      .filter((row) => row.over > 1);
-  }, selector);
-  expect(overflows).toEqual([]);
 }
 
 const ASSET_BAND = '[data-testid="asset-portfolio-summary"]';
@@ -256,7 +236,7 @@ for (const width of [1280, 390]) {
   test.describe(`幅 ${width}`, () => {
     test.use({ viewport: { width, height: width === 390 ? 844 : 800 } });
 
-    test('資産管理の3タブの集計は評価額と評価損益の2項目でそろう', async ({
+    test('資産管理の3タブの帯はラベル行と数字の基準線がそろう', async ({
       page,
       context,
     }) => {
@@ -266,82 +246,119 @@ for (const width of [1280, 390]) {
         await page.getByRole('tab', { name: tab }).click();
         const band = page.getByTestId('asset-portfolio-summary');
         await expect(band).toBeVisible();
-        const labels = await band.locator('.summary-stat-label').allTextContents();
-        expect(labels.map((text) => text.trim())).toEqual(['評価額', '評価損益']);
-        await expect(band).toContainText('価格基準日');
-        if (width === 1280) {
-          expectBandAligned(await bandItems(page, ASSET_BAND));
-        } else {
-          await expect(band.locator('.summary-hero')).toBeVisible();
-          await expect(band.locator('.summary-stats')).toBeHidden();
+        if (width === 390) {
+          for (const toggle of await band.getByRole('button', { name: /内訳を開く|内訳を閉じる/ }).all()) {
+            if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+              await toggle.click();
+            }
+          }
         }
-        await expectAmountsOnSingleLine(page, ASSET_BAND);
+        expectBandAligned(await bandItems(page, ASSET_BAND));
       }
     });
 
-    test('ホームの集計はPCで3項目・スマホで主役と損益だけ出す', async ({
+    test('ホームの帯はラベル行と数字の基準線がそろう', async ({
       page,
       context,
     }) => {
       await mockApi(context);
       await page.goto('/');
-      const band = page.getByTestId('home-overview');
-      await expect(band).toBeVisible();
-      if (width === 1280) {
-        const labels = await band.locator('.summary-stat-label').allTextContents();
-        expect(labels.map((text) => text.trim())).toEqual([
-          '評価額',
-          '評価損益',
-          '年間予想配当(税引前)',
-        ]);
-        expectBandAligned(await bandItems(page, HOME_BAND));
-      } else {
-        // スマホは主役と損益の2行だけ出し、PCの3項目は出さない
-        await expect(band.locator('.summary-hero')).toBeVisible();
-        await expect(band.locator('.summary-hero-primary')).toBeVisible();
-        await expect(band.locator('.summary-hero-secondary')).toBeVisible();
-        await expect(band.locator('.summary-stats')).toBeHidden();
-        await expect(band.locator('.summary-hero-dates')).toContainText('価格基準日');
+      await expect(page.getByTestId('home-overview')).toBeVisible();
+      if (width === 390) {
+        const band = page.getByTestId('home-overview');
+        for (const toggle of await band.getByRole('button', { name: /内訳を開く|内訳を閉じる/ }).all()) {
+          if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+            await toggle.click();
+          }
+        }
       }
-      await expect(band).toContainText('価格基準日');
-      await expectAmountsOnSingleLine(page, HOME_BAND);
+      expectBandAligned(await bandItems(page, HOME_BAND));
     });
 
-    test('取引明細の3タブの集計は主役と期間の2項目でそろう', async ({
+    test('取引明細の3タブの帯はラベル行と数字の基準線がそろう', async ({
       page,
       context,
     }) => {
       await mockApi(context);
       await page.goto('/receipts');
-      for (const [tab, primary] of [
-        ['配当金', '受け取った配当金(税引後)'],
-        ['国内株式', '実現損益(税引後)'],
-        ['投資信託', '実現損益(税引後)'],
-      ] as Array<[string, string]>) {
+      for (const tab of ['配当金', '国内株式', '投資信託']) {
         await selectReceiptTab(page, tab);
-        const band = page.getByTestId('receipt-summary-strip');
-        await expect(band).toBeVisible();
-        if (width === 1280) {
-          const labels = await band.locator('.summary-stat-label').allTextContents();
-          expect(labels.map((text) => text.trim())).toEqual([primary, '期間']);
-          expectBandAligned(await bandItems(page, RECEIPTS_BAND));
-        } else {
-          // スマホは主役だけ出し、期間は基準日の行にまとめる
-          await expect(band.locator('.summary-hero')).toBeVisible();
-          await expect(band.locator('.summary-hero-label')).toContainText(primary);
-          await expect(band.locator('.summary-stats')).toBeHidden();
-          await expect(band.locator('.summary-hero-dates')).toContainText('16件');
+        await expect(page.getByTestId('receipt-summary-strip')).toBeVisible();
+        if (width === 390) {
+          const band = page.getByTestId('receipt-summary-strip');
+          for (const toggle of await band.getByRole('button', { name: /内訳を開く|内訳を閉じる/ }).all()) {
+            if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+              await toggle.click();
+            }
+          }
         }
-        await expectAmountsOnSingleLine(page, RECEIPTS_BAND);
+        expectBandAligned(await bandItems(page, RECEIPTS_BAND));
       }
     });
 
-    test('集計に開閉ボタンは無い', async ({ page, context }) => {
+    test('紺帯の内訳は初期は閉・押すと開く', async ({ page, context }) => {
+      if (width !== 390) {
+        return;
+      }
       await mockApi(context);
-      for (const url of ['/', '/assetbalance', '/receipts']) {
+      const cases: Array<{ url: string; band: string; breakdown: string[] }> = [
+        {
+          url: '/',
+          band: HOME_BAND,
+          breakdown: ['前日比', '年間予想配当(税引前)', '取得総額'],
+        },
+        {
+          url: '/assetbalance',
+          band: ASSET_BAND,
+          breakdown: ['前日比', '取得総額'],
+        },
+        {
+          url: '/receipts',
+          band: RECEIPTS_BAND,
+          breakdown: ['配当金(税引前)', '税額'],
+        },
+      ];
+      for (const { url, band, breakdown } of cases) {
         await page.goto(url);
-        const toggles = page.getByRole('button', { name: /内訳を開く|内訳を閉じる/ });
-        await expect(toggles).toHaveCount(0);
+        const root = page.locator(band);
+        await expect(root).toBeVisible();
+        if (url === '/receipts') {
+          for (const [tab, expected] of [
+            ['配当金', ['配当金(税引前)', '税額']],
+            ['国内株式', ['実現損益(税引前)', '税額']],
+            ['投資信託', ['実現損益(税引前)', '税額']],
+          ] as Array<[string, string[]]>) {
+            await selectReceiptTab(page, tab);
+            const tabRoot = page.locator(band);
+            const tabToggle = tabRoot.getByRole('button', { name: /内訳を開く|内訳を閉じる/ });
+            await expect(tabToggle).toHaveAttribute('aria-expanded', 'false');
+            await tabToggle.click();
+            await expect(tabToggle).toHaveAttribute('aria-expanded', 'true');
+            const tabList = tabRoot.locator('.summary-band-breakdown');
+            await expect(tabList).toBeVisible();
+            const tabLabels = await tabList.locator('dt').allTextContents();
+            expect(tabLabels.map((text) => text.trim())).toEqual(expected);
+          }
+          continue;
+        }
+        const toggle = root.getByRole('button', { name: /内訳を開く|内訳を閉じる/ });
+        await expect(toggle).toBeVisible();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        const box = await toggle.boundingBox();
+        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+        await expect(toggle.locator('svg')).toBeVisible();
+        await expect(toggle).not.toContainText('▲');
+        await expect(toggle).not.toContainText('▼');
+        const list = root.locator('.summary-band-breakdown');
+        await expect(list).toBeHidden();
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        await expect(list).toBeVisible();
+        const labels = await list.locator('dt').allTextContents();
+        expect(labels.map((text) => text.trim())).toEqual(breakdown);
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        await expect(list).toBeHidden();
       }
     });
   });

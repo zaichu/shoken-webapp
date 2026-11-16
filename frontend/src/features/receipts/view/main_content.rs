@@ -218,12 +218,11 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                                         .first()
                                         .cloned()
                                         .unwrap_or_default();
-                                    let strip_count = filtered_rows.with(std::vec::Vec::len);
                                     header
                                         .get()
                                         .map(|items| {
                                             view! {
-                                                <SummaryStrip tab=tab items=items period=period_text.clone() count=strip_count />
+                                                <SummaryStrip tab=tab items=items period=period_text.clone() />
                                             }
                                         })
                                         .into_any()

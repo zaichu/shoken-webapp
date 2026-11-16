@@ -149,8 +149,9 @@ test('国内株式の表に1株配当の列があり、1株配当と年間配当
   const missing = table.getByRole('row', { name: /架空総合化学/ });
   await expect(missing.getByRole('cell').nth(perShareIndex)).toHaveText('—');
 
-  // 年間配当の合計は帯に出さない(行の年間配当の列だけ見る)
-  await expect(page.getByTestId('portfolio-kpi-grid')).not.toContainText('¥12,500');
+  // 合計は取得できた銘柄だけ(90×100 + 70×50)
+  const kpi = page.getByTestId('portfolio-kpi-grid');
+  await expect(kpi).toContainText('¥12,500');
 });
 
 test('スマホの行は名前と評価額・損益を出し配当の内訳は詳細に回す', async ({ page }) => {
