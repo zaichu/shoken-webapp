@@ -1,6 +1,6 @@
 # Phase 5 Codex 数値検算
 
-このファイルは `node docs/design/work/phase5-codex/data/build.mjs` が生成する。金額は円単位に四捨五入し、投資信託は口数×基準価額÷10,000 で計算。全 409 assert 通過(不一致 0)。
+このファイルは `node docs/design/work/phase5-codex/data/build.mjs` が生成する。金額は円単位に四捨五入し、投資信託は口数×基準価額÷10,000 で計算。全 412 assert 通過(不一致 0)。
 
 | 項目 | 計算・内訳 | 判定 |
 |---|---|---|

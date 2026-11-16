@@ -274,7 +274,7 @@ ASSET_HERO_P = """<div class="hero">
 ASSET_TABLE_P = """<table class="grid" style="margin-top:8px">
       <tr><th>コード</th><th>銘柄・ファンド</th><th>種別</th><th>口座</th><th>分配金</th><th class="r">1株配当</th><th class="r">前日比</th><th class="r sortable">評価額 ▼</th><th class="r">評価損益</th></tr>
       <tr><td><span class="sb">—</span></td><td><div class="nm">架空成長インデックス・ファンド ›</div></td><td><span class="sb">投資信託</span></td><td><span class="sb">特定口座</span></td><td><span class="sb">—</span></td><td class="r num">—</td><td class="r num up">+¥154,488</td><td class="r num">¥19,443,341</td><td class="r num">¥0 0.00%</td></tr>
-      <tr><td class="num">9902</td><td><div class="nm">架空食品ホールディングス</div></td><td><span class="sb">国内株式</span></td><td><span class="sb">NISA</span></td><td><span class="sb">—</span></td><td class="r num">¥400</td><td class="r num down">-¥20,000</td><td class="r num">¥7,949,807</td><td class="r num up">+¥1,352,488 +20.50%</td></tr>
+      <tr><td class="num">9902</td><td><div class="nm">架空食品ホールディングス</div></td><td><span class="sb">国内株式</span></td><td><span class="sb">NISA</span></td><td><span class="sb">—</span></td><td class="r num">¥39,339.07</td><td class="r num down">-¥20,000</td><td class="r num">¥7,949,807</td><td class="r num up">+¥1,352,488 +20.50%</td></tr>
       <tr><td class="num">9901</td><td><div class="nm">架空青空電機</div></td><td><span class="sb">国内株式</span></td><td><span class="sb">特定口座</span></td><td><span class="sb">—</span></td><td class="r num">¥360</td><td class="r num up">+¥20,000</td><td class="r num">¥1,200,000</td><td class="r num up">+¥200,000 +20.00%</td></tr>
     </table>"""
 

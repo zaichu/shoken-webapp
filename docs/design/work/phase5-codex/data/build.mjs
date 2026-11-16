@@ -55,6 +55,8 @@ const dividendBefore = sum(fixture.dividends, 'beforeTax');
 const dividendTax = sum(fixture.dividends, 'tax');
 const dividendAfter = dividendBefore - dividendTax;
 const annualByHolding = Object.fromEntries(stocks.map(row => [row.id, row.annualDividendPerShare * row.quantity]));
+ok(Object.values(annualByHolding).reduce((a, b) => a + b, 0) === fixture.annualForecast.beforeTax, '銘柄別年間配当の合計=ホームの年間予想配当');
+for (const row of stocks) eq(annualByHolding[row.id], row.annualDividendPerShare * row.quantity, `${row.id}: 年間配当=1株配当×株数`);
 const dividendAnnual = dividendBefore;
 
 // ---- 配当明細行: 月別合計・年合計・数量×単価・税引後の検算 ----
