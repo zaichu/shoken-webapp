@@ -92,7 +92,7 @@ fn YearPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -
             {move || {
                 let years = years.get();
                 if years.is_empty() {
-                    return view! { <span class="text-sm text-text-muted">{RECEIPT_NO_YEARS}</span> }.into_any();
+                    return view! { <span class="text-label text-text-muted">{RECEIPT_NO_YEARS}</span> }.into_any();
                 }
                 view! {
                     {years.iter().map(|y| {
@@ -174,7 +174,7 @@ fn MonthYearSelects(
     view! {
         <div class="flex items-center gap-1">
             <select
-                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm max-sm:min-h-11"
+                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-label max-sm:min-h-11"
                 aria-label=PERIOD_YEAR
                 prop:value=move || selected_year.get()
                 on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
@@ -191,7 +191,7 @@ fn MonthYearSelects(
                 }}
             </select>
             <select
-                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-sm max-sm:min-h-11"
+                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-label max-sm:min-h-11"
                 aria-label=MONTH
                 prop:value=move || selected_month.get()
                 on:change=move |ev| {
@@ -224,10 +224,10 @@ fn DatePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
 
     view! {
         <div class="mt-2 max-w-xs">
-            <label class="block text-xs text-text-muted mb-1">{DATE}</label>
+            <label class="block text-cell text-text-muted mb-1">{DATE}</label>
             <input
                 type="date"
-                class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full max-sm:min-h-11"
+                class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-label w-full max-sm:min-h-11"
                 aria-label=DATE
                 data-empty=move || selected_date.get().is_empty().then_some("true")
                 prop:value=move || selected_date.get()
@@ -250,10 +250,10 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     view! {
         <div class="mt-2 flex flex-wrap gap-2 items-end">
             <div class="flex-1 min-w-40">
-                <label class="block text-xs text-text-muted mb-1">{START_DATE}</label>
+                <label class="block text-cell text-text-muted mb-1">{START_DATE}</label>
                 <input
                     type="date"
-                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full max-sm:min-h-11"
+                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-label w-full max-sm:min-h-11"
                     aria-label=START_DATE
                     data-empty=move || range_start.get().is_empty().then_some("true")
                     prop:value=move || range_start.get()
@@ -267,10 +267,10 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
             </div>
             <span class="text-text-muted">{RANGE_SEPARATOR}</span>
             <div class="flex-1 min-w-40">
-                <label class="block text-xs text-text-muted mb-1">{END_DATE}</label>
+                <label class="block text-cell text-text-muted mb-1">{END_DATE}</label>
                 <input
                     type="date"
-                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-sm w-full max-sm:min-h-11"
+                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-label w-full max-sm:min-h-11"
                     aria-label=END_DATE
                     data-empty=move || range_end.get().is_empty().then_some("true")
                     prop:value=move || range_end.get()
