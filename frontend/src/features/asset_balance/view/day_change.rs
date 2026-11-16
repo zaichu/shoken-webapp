@@ -23,7 +23,7 @@ pub(crate) fn day_change_cell(change: Option<f64>, date: Option<String>) -> impl
         />
         {date_text.map(|date| {
             view! {
-                <span class="ml-1 whitespace-nowrap text-xs text-text-muted tabular-nums">
+                <span class="ml-1 whitespace-nowrap text-cell text-text-muted tabular-nums">
                     {format!("({date})")}
                 </span>
             }
@@ -36,7 +36,7 @@ pub(crate) fn day_change_cell(change: Option<f64>, date: Option<String>) -> impl
 pub(crate) fn pending_day_change_cell() -> impl IntoView {
     view! {
         <span class="font-bold tabular-nums whitespace-nowrap text-text-soft">{labels::MISSING}</span>
-        <span class="ml-1 whitespace-nowrap text-xs text-text-muted tabular-nums">
+        <span class="ml-1 whitespace-nowrap text-cell text-text-muted tabular-nums">
             {labels::PENDING_UPDATE}
         </span>
     }

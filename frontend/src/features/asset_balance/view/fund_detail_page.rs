@@ -145,10 +145,10 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                 view! {
                                     <div class="asset-panel">
                                         <div class="border-b border-border p-4">
-                                            <h2 class="text-lg font-bold text-text">
+                                            <h2 class="text-heading font-bold text-text">
                                                 {view.name.clone()}
                                             </h2>
-                                            <p class="mt-1 flex items-center gap-1 text-sm text-text-muted">
+                                            <p class="mt-1 flex items-center gap-1 text-label text-text-muted">
                                                 <AccountBadge label=view.account.clone() />
                                                 {view
                                                     .course
@@ -169,7 +169,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                         negative=pnl_negative
                                                         positive=pnl_positive
                                                     />
-                                                    <span class="ml-1 text-xs text-text-muted tabular-nums">
+                                                    <span class="ml-1 text-cell text-text-muted tabular-nums">
                                                         {pnl_rate_text}
                                                     </span>
                                                 </HoldingTile>

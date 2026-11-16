@@ -267,7 +267,7 @@ pub fn AssetMergedTable(
                                                                 text=rate_text.clone()
                                                                 negative=rate_negative
                                                                 positive=rate_positive
-                                                                class="ml-1 text-xs"
+                                                                class="ml-1 text-cell"
                                                             />
                                                         }
                                                     })}
