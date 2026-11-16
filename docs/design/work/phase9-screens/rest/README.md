@@ -59,7 +59,7 @@
 | C4 | 金額・見出しは改行させない。長い名前は1行で「…」省略 | ○ | 全28枚。「9902 架空食品ホールディングス」「tanaka.jiro.verylongname@example.jp」は `white-space:nowrap` + `ellipsis`。対話の説明文だけ折り返し可 |
 | C5 | CSVの取り込みは見出し帯に置かず、控えめな扱いに。アカウントは右上の文字だけ | ○ | 全28枚。設定は「CSV管理へ」の文字リンクのみ。右上 `アカウント` のみ |
 | C6 | 検索・並べ替えは全画面で同じ部品(スマホは検索欄+「並べ替え」ボタン1つ、PCは列名クリック) | ○ | 全28枚。検索・管理者ともスマホは検索欄+並べ替えボタン、PCは検索欄+ `▲▼` の列名 |
-| C7 | 空・読み込み中・取得失敗は全画面で同じ見出し・同じ並びで例示(ダイアログは各カードが現行のまま) | ○ | 全28枚。各画面に「状態の例」カード(初期/空/読み込み中(線の箱)/取得失敗+再試行)。404は振り分け行、ダイアログは10カード |
+| C7 | 空・読み込み中・取得失敗は全画面で同じ見出し・同じ並びの別画面で出す(ダイアログは開いている状態の画面全体で1つずつ)。一覧は `../INDEX.md` | ○ | 全80枚。各画面に空/読み込み中(線の箱)/取得失敗+再試行の別画面。404は振り分けなし、ダイアログは10種を開いた状態で |
 | C8 | 長い名前・2桁の月・複数口座・小数の端を必ず含める | ○ | 全28枚。長い名前(9902・長いメール)、2桁の月(12/02・11/10)、複数口座(特定+NISA成長・東京+大阪・メール+場所)、小数(取得単価 ¥10,123.46・¥65,973.19)。`search-mobile-light.png`、`admin-logins-mobile-light.png` |
 
 スマホ:
@@ -67,7 +67,7 @@
 | # | 規則 | 合否 | 根拠の画像 |
 |---|---|---|---|
 | M1 | 一番上は帯なし(ホームの3要素型・戻るリンク+見出しにそろえる)。ログイン・未ログイン・404は中央カードのみ | ○ | `search-mobile-light.png`(戻る+見出し)、`login-mobile-light.png` |
-| M2 | 各セクションは白いカード(角丸12px、影なし、1px線、内側16px、カード間12px)。中は見出し16px太字+右に入口リンク13px青→要約→明細 | ○ | 全14枚。`settings-mobile-light.png`(10カード)、`dialogs-mobile-light.png`(10カード) |
+| M2 | 各セクションは白いカード(角丸12px、影なし、1px線、内側16px、カード間12px)。中は見出し16px太字+右に入口リンク13px青→要約→明細 | ○ | 全14枚。`settings-mobile-light.png`(10カード)、`admin-logins-mobile-light.png` |
 | M3 | 明細の行の型(全画面共通): 高さ56px以上。左=名前15px(2段目補足12px灰)、右=金額15px太字・右そろえ | ○ | 全14枚。`admin-logins-mobile-light.png` |
 | M4 | 下部ナビは現行と同じ4項目(ログイン・未ログイン・404は付けない)。各44px以上 | ○ | `search-mobile-light.png`、`settings-mobile-light.png`(なしハイライト)、`login-mobile-light.png`(なし) |
 | M5 | 表はスマホでは行の型に置き換える(横スクロールの表にしない) | ○ | 全14枚。管理者のPC表はスマホでは行カード |
@@ -83,13 +83,13 @@ PC:
 
 ## 成果物
 
-- `search-mobile.html` / `search-pc.html`、 shots 4枚
-- `settings-mobile.html` / `settings-pc.html`、 shots 4枚
-- `login-mobile.html` / `login-pc.html`、 shots 4枚
-- `loginprompt-mobile.html` / `loginprompt-pc.html`、 shots 4枚
-- `notfound-mobile.html` / `notfound-pc.html`、 shots 4枚
-- `admin-logins-mobile.html` / `admin-logins-pc.html`、 shots 4枚
-- `dialogs-mobile.html` / `dialogs-pc.html`、 shots 4枚
-- (全28枚、改行崩れ・重なり・はみ出し・文字サイズ・ダークのコントラストを目視済み)
-- `shots/os-check/`: `?theme` なし・OSライト/ダークでの確認用6枚(search-mobile・settings-pc・dialogs-pc)。主ボタン等の文字が読めることを目視済み
+- `search-mobile.html` / `search-pc.html`、 shots 完成形4枚 + 状態10枚(初期・該当なし・読み込み中・取得失敗・不正なコード)
+- `settings-mobile.html` / `settings-pc.html`、 shots 完成形4枚 + 状態10枚(読み込み中・保存中・保存済み・保存失敗・空)
+- `login-mobile.html` / `login-pc.html`、 shots 完成形4枚 + 状態6枚(読み込み中・取得失敗・ログイン済み)
+- `loginprompt-mobile.html` / `loginprompt-pc.html`、 shots 完成形4枚 + 状態4枚(読み込み中・取得失敗)
+- `notfound-mobile.html` / `notfound-pc.html`、 shots 完成形4枚(404自体が状態のため状態画面なし)
+- `admin-logins-mobile.html` / `admin-logins-pc.html`、 shots 完成形4枚 + 状態6枚(データなし・読み込み中・取得失敗)
+- ダイアログ10種は開いている状態の画面全体で1つずつ(`dialogs-state-*-mobile/pc.html`、shots 20枚)
+- (全80枚、改行崩れ・重なり・はみ出し・文字サイズ・ダークのコントラストを目視済み。状態の一覧は `../INDEX.md`)
+- `shots/os-check/`: `?theme` なし・OSライト/ダークでの確認用4枚(search-mobile・settings-pc)。主ボタン等の文字が読めることを目視済み
 - `tools/gen.py`(生成)、`tools/shoot.py`(撮影)
