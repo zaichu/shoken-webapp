@@ -176,10 +176,10 @@ pub fn SectionLoginHistory() -> impl IntoView {
     view! {
         <section id="login-history" aria-labelledby="login-history-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="login-history-heading" class="text-lg font-bold mb-4">
+                <h2 id="login-history-heading" class="text-heading font-bold mb-4">
                     {LOGIN_HISTORY_SECTION}
                 </h2>
-                <p class="pb-3 text-xs text-text-muted">{LOGIN_HISTORY_COOKIE_NOTE}</p>
+                <p class="pb-3 text-cell text-text-muted">{LOGIN_HISTORY_COOKIE_NOTE}</p>
                 {move || match initial.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => {
@@ -369,10 +369,10 @@ pub fn SectionDevices() -> impl IntoView {
     view! {
         <section id="devices" aria-labelledby="devices-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="devices-heading" class="text-lg font-bold mb-4">
+                <h2 id="devices-heading" class="text-heading font-bold mb-4">
                     {REGISTERED_DEVICES_SECTION}
                 </h2>
-                <p class="pb-3 text-xs text-text-muted">{LOGIN_HISTORY_COOKIE_NOTE}</p>
+                <p class="pb-3 text-cell text-text-muted">{LOGIN_HISTORY_COOKIE_NOTE}</p>
                 {move || match devices.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => {
@@ -397,7 +397,7 @@ pub fn SectionDevices() -> impl IntoView {
                                                 <li class="flex items-center justify-between gap-3 py-3 max-sm:flex-col max-sm:items-stretch">
                                                     <div class="min-w-0">
                                                         <div class="flex flex-wrap items-center gap-2">
-                                                            <span class="tabular-nums text-sm font-medium">
+                                                            <span class="tabular-nums text-cell font-medium">
                                                                 {format_datetime(&entry.last_used_at)}
                                                             </span>
                                                             {entry
@@ -410,10 +410,10 @@ pub fn SectionDevices() -> impl IntoView {
                                                                     }
                                                                 })}
                                                         </div>
-                                                        <div class="mt-1 text-sm break-words">
+                                                        <div class="mt-1 text-body break-words">
                                                             {format!("{place} · {agent}")}
                                                         </div>
-                                                        <div class="text-xs text-text-muted">
+                                                        <div class="text-cell text-text-muted">
                                                             {DEVICE_COL_LAST_USED}
                                                         </div>
                                                     </div>

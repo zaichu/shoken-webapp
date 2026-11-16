@@ -154,7 +154,7 @@ fn AdminDialogFields(
                 <p class="search-dialog-section-title">{labels::SORT_BY}</p>
                 <div class="search-dialog-sort-row">
                     <div>
-                        <label class="mb-1 block text-sm font-medium text-text-deep">
+                        <label class="mb-1 block text-label font-medium text-text-deep">
                             {labels::SORT_TARGET}
                             <Select
                                 value=Signal::derive(move || draft.with(|query| query.sort_by.to_string()))
@@ -179,7 +179,7 @@ fn AdminDialogFields(
                         </label>
                     </div>
                     <div>
-                        <label class="mb-1 block text-sm font-medium text-text-deep">
+                        <label class="mb-1 block text-label font-medium text-text-deep">
                             {labels::SORT_ORDER_LABEL}
                             <Select
                                 value=Signal::derive(move || if draft.with(|query| query.descending) { "desc".to_string() } else { "asc".to_string() })

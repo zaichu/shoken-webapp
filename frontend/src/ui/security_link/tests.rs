@@ -19,9 +19,9 @@ fn copy_text_formats_display_and_code() {
 #[test]
 fn font_weight_detection_recognizes_weight_utilities() {
     assert!(has_font_weight_class("font-semibold"));
-    assert!(has_font_weight_class("text-xs sm:font-medium"));
+    assert!(has_font_weight_class("text-cell sm:font-medium"));
     assert!(has_font_weight_class("hover:font-bold"));
-    assert!(!has_font_weight_class("text-xs"));
+    assert!(!has_font_weight_class("text-cell"));
     assert!(!has_font_weight_class("font-boldx"));
     assert!(!has_font_weight_class("font-bold_x"));
     assert!(!has_font_weight_class("font-bold1"));

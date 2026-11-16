@@ -941,7 +941,7 @@
   @media (width >= 64rem) {
     .summary-band-grid {
       @apply flex-row items-stretch;
-      padding: 20px 0;
+      padding-block: var(--space-card);
     }
 
     .summary-band-group,
@@ -1252,7 +1252,7 @@
 
   @media (width < 64rem) {
     .page-skeleton-note {
-      margin-bottom: 0.625rem;
+      margin-bottom: var(--space-table);
     }
   }
 
@@ -1267,7 +1267,7 @@
   @media (width < 64rem) {
     .page-skeleton-search {
       @apply px-4;
-      margin-bottom: 0.625rem;
+      margin-bottom: var(--space-table);
     }
   }
 
@@ -1606,7 +1606,7 @@
 
   @media (width < 64rem) {
     .comp-tab-row {
-      margin-inline: -1rem;
+      margin-inline: calc(var(--space-page) * -1);
     }
   }
 

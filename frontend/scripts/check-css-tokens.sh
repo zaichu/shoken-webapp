@@ -90,12 +90,64 @@ collect_type_rs() {
   grep -HoE -e "$TYPE_SIZE" "${RS_FILES[@]}" 2>/dev/null || true
 }
 
+# @media print ブロックを除いた CSS を出力する(印刷は紙幅の固定値でトークン対象外)。
+# 開始行で閉じる1行完結の印刷ブロックや、同一行に続く画面ルールも扱う
+without_print() {
+  awk '
+    {
+      was_in = in_print
+      orig_empty = ($0 == "")
+      line = $0
+      out = ""
+      while (length(line) > 0) {
+        if (!in_print) {
+          if (match(line, /@media[[:space:]]+print/)) {
+            out = out substr(line, 1, RSTART-1)
+            rest = substr(line, RSTART + RLENGTH)
+            br = index(rest, "{")
+            if (br == 0) {
+              in_print = 1
+              nest = 0
+              line = ""
+              break
+            }
+            in_print = 1
+            nest = 1
+            line = substr(rest, br + 1)
+          } else {
+            out = out line
+            line = ""
+          }
+        } else {
+          closed_at = 0
+          for (i = 1; i <= length(line); i++) {
+            c = substr(line, i, 1)
+            if (c == "{") nest++
+            else if (c == "}") {
+              nest--
+              if (nest <= 0) { closed_at = i; break }
+            }
+          }
+          if (closed_at > 0) {
+            in_print = 0
+            line = substr(line, closed_at + 1)
+          } else {
+            line = ""
+          }
+        }
+      }
+      if (out != "" || (orig_empty && !was_in)) print out
+    }
+  ' "${1:-style/input.css}"
+}
+
 collect_font_css() {
-  grep -HoE -e "${FONT_PROP}[^;}]*" style/input.css 2>/dev/null || true
+  without_print | grep -oE -e "${FONT_PROP}[^;}]*" | sed 's|^|style/input.css:|' || true
 }
 
 collect_space_css() {
-  grep -HoE -e "${SPACE_PROP}[^;}]*" style/input.css 2>/dev/null | grep -v 'var(--space' || true
+  # 画面の clamp は端末幅に応じた本文 gutter、env は端末のセーフエリアのため対象外(用途が特定できる完全形でのみ除外)
+  without_print | grep -oE -e "${SPACE_PROP}[^;}]*" | grep -v 'var(--space' | grep -vE 'padding-inline:[^;}]*clamp\(|padding-bottom:[^;}]*env\(' | sed 's|^|style/input.css:|' || true
 }
 
 check_type_baseline() {
@@ -192,6 +244,32 @@ if [ "$(grep -HoE -e "${SPACE_PROP}[^;}]*" "$tmp_ts/two.css" | grep -v 'var(--sp
 fi
 rm -rf "$tmp_ts"
 echo "  OK: 件数・宣言単位の自己テスト"
+
+tmp_print=$(mktemp -d)
+printf '@media print {\n  .a {\n    font-size: 9px;\n    padding: 2px;\n  }\n}\n.b {\n  font-size: 9px;\n}\n' >"$tmp_print/print.css"
+if [ "$(without_print "$tmp_print/print.css" | grep -c 'font-size: 9px')" -ne 1 ]; then
+  echo "ERROR: 印刷ブロック限定除外が画面の font-size を数えません" >&2
+  rm -rf "$tmp_print"
+  exit 1
+fi
+if [ "$(without_print "$tmp_print/print.css" | grep -c 'padding: 2px')" -ne 0 ]; then
+  echo "ERROR: 印刷ブロック限定除外が印刷の padding を残しています" >&2
+  rm -rf "$tmp_print"
+  exit 1
+fi
+printf '@media print { .a { font-size: 9px; } }\n.b { font-size: 14px; padding: 4px; }\n' >"$tmp_print/single.css"
+if [ "$(without_print "$tmp_print/single.css" | grep -c 'font-size: 14px')" -ne 1 ]; then
+  echo "ERROR: 1行完結の印刷ブロックが後続の画面ルールを除外しています" >&2
+  rm -rf "$tmp_print"
+  exit 1
+fi
+if [ "$(without_print "$tmp_print/single.css" | grep -c 'font-size: 9px')" -ne 0 ]; then
+  echo "ERROR: 1行完結の印刷ブロックが印刷の font-size を残しています" >&2
+  rm -rf "$tmp_print"
+  exit 1
+fi
+rm -rf "$tmp_print"
+echo "  OK: 印刷ブロック限定除外の自己テスト"
 echo "OK: 違反はありません"
 
 # 続けて features/ の直書きマークアップ検査を実行する

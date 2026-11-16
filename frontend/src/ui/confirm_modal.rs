@@ -76,19 +76,19 @@ pub fn ConfirmDeleteModal(
                             {labels::DIALOG_CLOSE}
                         </Button>
                     </div>
-                    <div id="confirm-delete-desc" class="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-base text-text-deep">
+                    <div id="confirm-delete-desc" class="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-body text-text-deep">
                         <p>{description}</p>
                         {item_count
                             .map(|count| {
                                 view! {
-                                    <p class="mt-2 text-sm text-text-quiet">
+                                    <p class="mt-2 text-cell text-text-quiet">
                                         {labels::CONFIRM_TARGET_PREFIX}
                                         <strong class="text-negative">{labels::count(count)}</strong>
                                         {labels::CONFIRM_TARGET_SUFFIX}
                                     </p>
                                 }
                             })}
-                        <div class="mt-3 flex items-start gap-2 rounded-md bg-negative/10 px-3 py-2 text-sm text-negative">
+                        <div class="mt-3 flex items-start gap-2 rounded-md bg-negative/10 px-3 py-2 text-body text-negative">
                             <svg
                                 class="mt-0.5 h-4 w-4 shrink-0"
                                 fill="none"
@@ -114,7 +114,7 @@ pub fn ConfirmDeleteModal(
                                 .map(|message| {
                                     view! {
                                         <p
-                                            class="mt-3 rounded-md border border-negative-border bg-negative-soft px-3 py-2 text-sm text-negative-vivid"
+                                            class="mt-3 rounded-md border border-negative-border bg-negative-soft px-3 py-2 text-body text-negative-vivid"
                                             role="alert"
                                         >
                                             {message}

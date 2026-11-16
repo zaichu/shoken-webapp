@@ -83,12 +83,12 @@ pub fn EmptyState(
                 }
             })}
             {if as_h1 {
-                view! { <h1 class="text-balance text-2xl font-black text-ink">{title.clone()}</h1> }.into_any()
+                view! { <h1 class="text-balance text-heading font-black text-ink">{title.clone()}</h1> }.into_any()
             } else {
-                view! { <h3 class="text-balance text-base font-black text-ink">{title.clone()}</h3> }.into_any()
+                view! { <h3 class="text-balance text-body font-black text-ink">{title.clone()}</h3> }.into_any()
             }}
             {description.clone().map(|description| {
-                view! { <p class="mt-1.5 max-w-md text-sm font-medium text-text-muted">{description}</p> }
+                view! { <p class="mt-1.5 max-w-md text-body font-medium text-text-muted">{description}</p> }
             })}
             {children.map(|children| children())}
         </div>

@@ -17,7 +17,7 @@ fn PcHeader() -> impl IntoView {
                             <rect x="17" y="7" width="4" height="16" rx="1" fill="#F2B33D"/>
                         </svg>
                     </div>
-                    <span class="text-base font-bold text-text-inverse">{labels::APP_NAME}</span>
+                    <span class="text-body font-bold text-text-inverse">{labels::APP_NAME}</span>
                 </a>
                 <nav class="flex gap-1 h-14" aria-label=labels::PAGE_MAIN_NAV>
                     {NAV_ITEMS.iter().map(|(to, label)| {
