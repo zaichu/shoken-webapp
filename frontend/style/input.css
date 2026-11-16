@@ -13,9 +13,7 @@
   /* v3 配色: ヘッダー・集計の帯・選択状態は紺、現在位置・強調は金 */
   --color-brand: #0f2a4a;
   --color-brand-deep: #0b1f38;
-  --color-brand-lift: #1b3f69;
   --color-brand-border: #3b5675;
-  --color-brand-line: #2e4c70;
   --color-brand-muted: #c9d3e1;
   /* 面の上に置くブランド色の文字。ダークでは brand(紺塗りに使う)を残せないため別トークンにする */
   --color-brand-text: var(--color-brand);
@@ -25,8 +23,6 @@
   --color-band-border: #f5dfa6;
   --color-warn-ink: #92400e;
   --color-nisa-soft: #fef3c7;
-  --color-profit-bright: #6ee7a8;
-  --color-loss-bright: #f1a89d;
   --color-fill: var(--color-slate-200);
   --color-fill-strong: var(--color-slate-400);
   --color-scrollbar-track: #e5e7eb;
