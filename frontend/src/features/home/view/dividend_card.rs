@@ -106,9 +106,9 @@ fn DividendCardBody(
     );
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
-            <span class="text-sm">
+            <span class="text-subhero">
                 {labels::HOME_RECEIVED_LABEL}
-                <strong class="text-lg">
+                <strong class="text-subhero">
                     <Amount
                         kind=AmountKind::Delta
                         text=received
@@ -117,14 +117,14 @@ fn DividendCardBody(
                     />
                 </strong>
             </span>
-            <span class="text-sm text-text-muted">
+            <span class="text-label text-text-muted">
                 {if pending {
                     labels::HOME_FORECAST_LOADING.to_string()
                 } else {
                     labels::home_forecast(&forecast)
                 }}
             </span>
-            <span class="ml-auto text-sm font-bold tabular-nums">{progress_text}</span>
+            <span class="ml-auto text-subhero font-bold tabular-nums">{progress_text}</span>
         </div>
         <div class="home-progress">
             {progress_pct.map(|pct| {
@@ -136,7 +136,7 @@ fn DividendCardBody(
                 }
             })}
         </div>
-        <p class="px-4 pt-1.5 text-xs text-text-muted">
+        <p class="px-4 pt-1.5 text-label text-text-muted">
             {labels::home_dividend_summary(&remaining_text, &previous_span, &yoy_text)}
         </p>
         <DividendMonthlyChart
@@ -207,7 +207,7 @@ fn DividendMonthlyChart(
                     .collect_view()}
             </div>
         </div>
-        <div class="mt-2 flex justify-center gap-4 px-4 text-xs text-text-muted">
+        <div class="mt-2 flex justify-center gap-4 px-4 text-cell text-text-muted">
             <span class="flex items-center gap-1">
                 <span class="home-swatch bg-chart-1"></span>
                 {labels::receipt_year_label(&year.to_string())}

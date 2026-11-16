@@ -83,7 +83,7 @@ pub fn HomePage() -> impl IntoView {
             {move || {
                 import_label.get().map(|label| {
                     view! {
-                        <span class="hidden text-xs font-medium text-text-muted lg:inline">
+                        <span class="hidden text-label font-medium text-text-muted lg:inline">
                             {labels::home_import_label(&label)}
                         </span>
                     }
@@ -147,7 +147,7 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
         >
             <div class="page-gutter">
                 <p
-                    class="text-xs font-medium text-text-muted"
+                    class="text-label font-medium text-text-muted"
                     role="status"
                     aria-live="polite"
                 >

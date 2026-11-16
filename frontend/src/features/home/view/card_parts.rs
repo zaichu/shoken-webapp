@@ -11,7 +11,7 @@ pub(super) fn CardHead(
 ) -> impl IntoView {
     view! {
         <div class="flex items-center gap-3 px-4 pt-3.5">
-            <h2 class="text-sm font-bold text-text">{title}</h2>
+            <h2 class="text-heading font-bold text-text">{title}</h2>
             <MoreLink href=href.to_string() label=link_label.to_string() />
         </div>
     }
