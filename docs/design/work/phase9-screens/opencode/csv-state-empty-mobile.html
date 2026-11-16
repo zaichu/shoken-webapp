@@ -95,6 +95,15 @@ html[data-theme="dark"] .seg .here{background:var(--accent); color:#0b1220}
 .mrow td:first-child{border-left:3px solid var(--gold)}
 .mrow .mt{font-size:14px; white-space:nowrap}
 .mrow .ms{font-size:13px; color:var(--mut); white-space:nowrap}
+.mrow .ms.up{color:var(--up)} .mrow .ms.down{color:var(--down)}
+.herod{margin:4px 0 0}
+.herod summary{list-style:none; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; min-height:44px}
+.herod summary::-webkit-details-marker{display:none}
+.herod .chev{font-size:13px; color:var(--mut)}
+.herod[open] .chev{transform:rotate(180deg)}
+.herod .xrow{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:8px 0; border-top:1px solid var(--line)}
+.herod .xrow .k{font-size:14px; color:var(--mut); white-space:nowrap}
+.herod .xrow .v{font-size:15px; font-weight:700; white-space:nowrap}
 table.grid .nm{overflow:hidden; text-overflow:ellipsis}
 
 .top{border-bottom:1px solid var(--line)}

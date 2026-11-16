@@ -93,6 +93,15 @@ html[data-theme="dark"] .seg .here{background:var(--accent); color:#0b1220}
 .mrow td:first-child{border-left:3px solid var(--gold)}
 .mrow .mt{font-size:14px; white-space:nowrap}
 .mrow .ms{font-size:13px; color:var(--mut); white-space:nowrap}
+.mrow .ms.up{color:var(--up)} .mrow .ms.down{color:var(--down)}
+.herod{margin:4px 0 0}
+.herod summary{list-style:none; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; min-height:44px}
+.herod summary::-webkit-details-marker{display:none}
+.herod .chev{font-size:13px; color:var(--mut)}
+.herod[open] .chev{transform:rotate(180deg)}
+.herod .xrow{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:8px 0; border-top:1px solid var(--line)}
+.herod .xrow .k{font-size:14px; color:var(--mut); white-space:nowrap}
+.herod .xrow .v{font-size:15px; font-weight:700; white-space:nowrap}
 table.grid .nm{overflow:hidden; text-overflow:ellipsis}
 """
 
@@ -225,7 +234,11 @@ ASSET_TITLE_P = """<div class="hrow" style="margin-top:12px"><h1 class="pagetitl
 
 ASSET_HERO_M = """<div class="hero">
     <p class="label">評価額</p>
-    <p class="total num">¥28,593,148</p>
+    <details class="herod">
+      <summary><span class="total num">¥28,593,148</span><span class="chev" aria-hidden="true">∨</span></summary>
+      <div class="xrow"><span class="k">前日比</span><span class="v num up">+¥154,488</span></div>
+      <div class="xrow"><span class="k">取得総額</span><span class="v num">¥27,040,660</span></div>
+    </details>
     <p class="pl num up">+¥1,552,488 +5.74%</p>
     <p class="date num">価格基準日 2026/11/13</p>
   </div>"""
@@ -253,13 +266,15 @@ asset_m = (mobile_top() + ASSET_TITLE_M + ASSET_HERO_M + """
 ASSET_HERO_P = """<div class="hero">
     <div class="stat"><p class="label">評価額</p><p class="v1 num">¥28,593,148</p></div>
     <div class="stat"><p class="label">評価損益</p><p class="v2 num up">+¥1,552,488 +5.74%</p></div>
+    <div class="stat"><p class="label">前日比</p><p class="v2 num up">+¥154,488</p></div>
+    <div class="stat"><p class="label">取得総額</p><p class="v2 num">¥27,040,660</p></div>
     <div class="dates num">価格基準日 2026/11/13<br>データ 2026/11/14取り込み</div>
   </div>"""
 
 ASSET_TABLE_P = """<table class="grid" style="margin-top:8px">
-      <tr><th>コード</th><th class="sortable">銘柄・ファンド ▲</th><th>種別</th><th>口座</th><th>分配金</th><th class="r">1株配当</th><th class="r">前日比</th><th class="r sortable">評価額 ▼</th><th class="r">評価損益</th></tr>
-      <tr><td><span class="sb">—</span></td><td><div class="nm">架空成長インデックス・ファンド ›</div></td><td><span class="sb">投資信託</span></td><td><span class="sb">特定口座</span></td><td><span class="sb">—</span></td><td class="r num">—</td><td class="r num">—</td><td class="r num">¥19,443,341</td><td class="r num">¥0 0.00%</td></tr>
-      <tr><td class="num">9902</td><td><div class="nm">架空食品ホールディングス</div></td><td><span class="sb">国内株式</span></td><td><span class="sb">NISA</span></td><td><span class="sb">—</span></td><td class="r num">¥39,339.07</td><td class="r num down">-¥20,000</td><td class="r num">¥7,949,807</td><td class="r num up">+¥1,352,488 +20.50%</td></tr>
+      <tr><th>コード</th><th>銘柄・ファンド</th><th>種別</th><th>口座</th><th>分配金</th><th class="r">1株配当</th><th class="r">前日比</th><th class="r sortable">評価額 ▼</th><th class="r">評価損益</th></tr>
+      <tr><td><span class="sb">—</span></td><td><div class="nm">架空成長インデックス・ファンド ›</div></td><td><span class="sb">投資信託</span></td><td><span class="sb">特定口座</span></td><td><span class="sb">—</span></td><td class="r num">—</td><td class="r num up">+¥154,488</td><td class="r num">¥19,443,341</td><td class="r num">¥0 0.00%</td></tr>
+      <tr><td class="num">9902</td><td><div class="nm">架空食品ホールディングス</div></td><td><span class="sb">国内株式</span></td><td><span class="sb">NISA</span></td><td><span class="sb">—</span></td><td class="r num">¥400</td><td class="r num down">-¥20,000</td><td class="r num">¥7,949,807</td><td class="r num up">+¥1,352,488 +20.50%</td></tr>
       <tr><td class="num">9901</td><td><div class="nm">架空青空電機</div></td><td><span class="sb">国内株式</span></td><td><span class="sb">特定口座</span></td><td><span class="sb">—</span></td><td class="r num">¥360</td><td class="r num up">+¥20,000</td><td class="r num">¥1,200,000</td><td class="r num up">+¥200,000 +20.00%</td></tr>
     </table>"""
 
@@ -464,6 +479,8 @@ receipt_m = (mobile_top() + RECEIPT_TITLE_M + """
 receipt_p = (pc_top("取引明細") + RECEIPT_TITLE_P + """
   <div class="hero">
     <div class="stat"><p class="label">受け取った配当金(税引後)</p><p class="v1 num">¥3,128,576</p></div>
+    <div class="stat"><p class="label">配当金(税引前)</p><p class="v2 num up">+¥3,926,157</p></div>
+    <div class="stat"><p class="label">税額</p><p class="v2 num down">-¥797,581</p></div>
     <div class="stat"><p class="label">期間</p><p class="v2 num">2026/01 〜 2026/11</p></div>
     <div class="dates num">16件</div>
   </div>

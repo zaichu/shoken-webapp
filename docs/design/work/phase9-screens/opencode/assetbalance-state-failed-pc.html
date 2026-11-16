@@ -95,6 +95,15 @@ html[data-theme="dark"] .seg .here{background:var(--accent); color:#0b1220}
 .mrow td:first-child{border-left:3px solid var(--gold)}
 .mrow .mt{font-size:14px; white-space:nowrap}
 .mrow .ms{font-size:13px; color:var(--mut); white-space:nowrap}
+.mrow .ms.up{color:var(--up)} .mrow .ms.down{color:var(--down)}
+.herod{margin:4px 0 0}
+.herod summary{list-style:none; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; min-height:44px}
+.herod summary::-webkit-details-marker{display:none}
+.herod .chev{font-size:13px; color:var(--mut)}
+.herod[open] .chev{transform:rotate(180deg)}
+.herod .xrow{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:8px 0; border-top:1px solid var(--line)}
+.herod .xrow .k{font-size:14px; color:var(--mut); white-space:nowrap}
+.herod .xrow .v{font-size:15px; font-weight:700; white-space:nowrap}
 table.grid .nm{overflow:hidden; text-overflow:ellipsis}
 
 .top{border-bottom:1px solid var(--line)}
@@ -139,6 +148,8 @@ table.grid .sb{font-size:12px; color:var(--mut); white-space:nowrap}
 <div class="hrow" style="margin-top:12px"><h1 class="pagetitle">資産管理</h1><span class="tlinks"><span class="more">構成比を見る ›</span><span class="more">CSV管理 ›</span></span></div><div class="hero">
     <div class="stat"><p class="label">評価額</p><p class="v1 num">¥28,593,148</p></div>
     <div class="stat"><p class="label">評価損益</p><p class="v2 num up">+¥1,552,488 +5.74%</p></div>
+    <div class="stat"><p class="label">前日比</p><p class="v2 num up">+¥154,488</p></div>
+    <div class="stat"><p class="label">取得総額</p><p class="v2 num">¥27,040,660</p></div>
     <div class="dates num">価格基準日 2026/11/13<br>データ 2026/11/14取り込み</div>
   </div>
   <div class="tabs"><span class="here">すべて 3</span><span>国内株式 2</span><span>投資信託 1</span></div>

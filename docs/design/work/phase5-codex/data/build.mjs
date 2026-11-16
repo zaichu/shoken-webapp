@@ -32,6 +32,7 @@ const sum = (rows, key) => rows.reduce((total, row) => total + row[key], 0);
 const holdings = fixture.holdings.map(row => {
   ok(row.type === 'stock' || row.type === 'fund', `${row.id}: 不明な資産種別`);
   ok(row.quantity > 0 && row.currentPrice > 0 && row.costUnitPrice > 0, `${row.id}: 数量・価格`);
+  if (row.type === 'stock') ok(row.annualDividendPerShare < row.currentPrice, `${row.id}: 1株配当<株価`);
   const multiplier = row.type === 'fund' ? 1 / 10000 : 1;
   const value = Math.round(row.quantity * row.currentPrice * multiplier);
   const cost = Math.round(row.quantity * row.costUnitPrice * multiplier);
