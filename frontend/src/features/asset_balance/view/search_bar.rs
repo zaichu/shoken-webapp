@@ -452,7 +452,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                                     };
                                     view! {
                                         <div class="search-dialog-field">
-                                            <label class="mb-1 block text-sm font-medium text-text-deep">
+                                            <label class="mb-1 block text-label font-medium text-text-deep">
                                                 {label}
                                                 <Select
                                                     value=Signal::derive(move || value.get())
@@ -497,7 +497,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                 <p class="search-dialog-section-title">{labels::SORT_BY}</p>
                 <div class="search-dialog-sort-row">
                     <div>
-                        <label class="mb-1 block text-sm font-medium text-text-deep">
+                        <label class="mb-1 block text-label font-medium text-text-deep">
                             {labels::SORT_TARGET}
                             <Select
                                 value=Signal::derive(move || key_value(draft_key.get()).to_string())
@@ -522,7 +522,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                         </label>
                     </div>
                     <div>
-                        <label class="mb-1 block text-sm font-medium text-text-deep">
+                        <label class="mb-1 block text-label font-medium text-text-deep">
                             {labels::SORT_ORDER_LABEL}
                             <Select
                                 value=Signal::derive(move || draft_order.get().value().to_string())
