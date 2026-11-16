@@ -39,7 +39,7 @@ pub(crate) fn CsvManageFetchCard(
         <section class="rounded-lg border border-border bg-surface-sunken p-4">
             <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 class="text-sm font-bold text-text">{labels::CSV_MANAGE_FETCH_TITLE}</h2>
+                    <h2 class="text-heading font-bold text-text">{labels::CSV_MANAGE_FETCH_TITLE}</h2>
                 </div>
                 <div class="csv-manage-fetch-actions">
                     {move || {
@@ -423,7 +423,7 @@ fn CsvKindRow(
                     |count| labels::count(usize::try_from(count.max(0)).unwrap_or(usize::MAX)),
                 )}
             </td>
-            <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-xs">
+            <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-cell">
                 <div class="csv-status-line">
                     <span class="inline-flex items-center gap-1.5">
                         {status_dot_class(status_key)
@@ -436,7 +436,7 @@ fn CsvKindRow(
                         view! {
                             <button
                                 type="button"
-                                class="more-link text-xs"
+                                class="more-link"
                                 data-testid="status-detail"
                                 on:click=move |_| detail_open.toggle()
                             >
@@ -471,7 +471,7 @@ fn CsvKindRow(
                         on_click=move |_| menu_open.toggle()
                         node_ref=menu_trigger
                     >
-                        <span class="text-lg font-mono">{labels::CSV_MANAGE_COL_MENU}</span>
+                        <span class="text-subhero font-mono">{labels::CSV_MANAGE_COL_MENU}</span>
                     </Button>
                     {move || menu_open.get().then(|| {
                         view! {
@@ -708,16 +708,16 @@ pub(crate) fn CsvKindTable(
                 </colgroup>
                 <thead class="bg-surface-sunken border-b border-border max-sm:hidden">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                        <th class="px-4 py-3 text-left text-cell font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
                             {labels::CSV_MANAGE_COL_KIND}
                         </th>
-                        <th class="px-4 py-3 text-right text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                        <th class="px-4 py-3 text-right text-cell font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
                             {labels::CSV_MANAGE_COL_COUNT}
                         </th>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                        <th class="px-4 py-3 text-left text-cell font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
                             {labels::CSV_MANAGE_COL_STATUS}
                         </th>
-                        <th class="px-4 py-3 text-right text-xs font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                        <th class="px-4 py-3 text-right text-cell font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
                             {labels::CSV_MANAGE_COL_MENU}
                         </th>
                     </tr>
