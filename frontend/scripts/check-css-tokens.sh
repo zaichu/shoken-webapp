@@ -90,15 +90,27 @@ collect_type_rs() {
   grep -HoE -e "$TYPE_SIZE" "${RS_FILES[@]}" 2>/dev/null || true
 }
 
+# @media print ブロックを除いた CSS を出力する(印刷は紙幅の固定値でトークン対象外)。
+# 波括弧の数で行を数えるため、1行完結の規則があっても数え間違えない
+without_print() {
+  awk '
+    /^[[:space:]]*@media print[[:space:]]*{/ { in_print=1; nest=1; next }
+    in_print {
+      nest += gsub(/{/, "{") - gsub(/}/, "}")
+      if (nest <= 0) in_print=0
+      next
+    }
+    { print }
+  ' "${1:-style/input.css}"
+}
+
 collect_font_css() {
-  # 印刷は紙幅に収める固定値のためトークン対象外(9px は印刷の表専用)
-  grep -HoE -e "${FONT_PROP}[^;}]*" style/input.css 2>/dev/null | grep -v 'font-size: 9px' || true
+  without_print | grep -oE -e "${FONT_PROP}[^;}]*" | sed 's|^|style/input.css:|' || true
 }
 
 collect_space_css() {
-  # 印刷は紙幅に収める固定値のためトークン対象外(10mm は印刷の用紙余白、2px は印刷の表セル詰め)
-  # 画面の clamp は端末幅に応じた本文 gutter、env は端末のセーフエリアのためトークン対象外
-  grep -HoE -e "${SPACE_PROP}[^;}]*" style/input.css 2>/dev/null | grep -v 'var(--space' | grep -vE '10mm|padding: 2px|clamp\(|env\(' || true
+  # 画面の clamp は端末幅に応じた本文 gutter、env は端末のセーフエリアのため対象外(用途が特定できる完全形でのみ除外)
+  without_print | grep -oE -e "${SPACE_PROP}[^;}]*" | grep -v 'var(--space' | grep -vE 'padding-inline:[^;}]*clamp\(|padding-bottom:[^;}]*env\(' | sed 's|^|style/input.css:|' || true
 }
 
 check_type_baseline() {
@@ -195,6 +207,21 @@ if [ "$(grep -HoE -e "${SPACE_PROP}[^;}]*" "$tmp_ts/two.css" | grep -v 'var(--sp
 fi
 rm -rf "$tmp_ts"
 echo "  OK: 件数・宣言単位の自己テスト"
+
+tmp_print=$(mktemp -d)
+printf '@media print {\n  .a {\n    font-size: 9px;\n    padding: 2px;\n  }\n}\n.b {\n  font-size: 9px;\n}\n' >"$tmp_print/print.css"
+if [ "$(without_print "$tmp_print/print.css" | grep -c 'font-size: 9px')" -ne 1 ]; then
+  echo "ERROR: 印刷ブロック限定除外が画面の font-size を数えません" >&2
+  rm -rf "$tmp_print"
+  exit 1
+fi
+if [ "$(without_print "$tmp_print/print.css" | grep -c 'padding: 2px')" -ne 0 ]; then
+  echo "ERROR: 印刷ブロック限定除外が印刷の padding を残しています" >&2
+  rm -rf "$tmp_print"
+  exit 1
+fi
+rm -rf "$tmp_print"
+echo "  OK: 印刷ブロック限定除外の自己テスト"
 echo "OK: 違反はありません"
 
 # 続けて features/ の直書きマークアップ検査を実行する
