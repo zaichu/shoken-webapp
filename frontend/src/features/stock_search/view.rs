@@ -468,7 +468,7 @@ fn EmptySearch(title: &'static str) -> impl IntoView {
             description=description
             icon=EmptyStateIcon::Search
         >
-            <ul class="mt-4 space-y-1 text-sm font-medium text-text-muted">
+            <ul class="mt-4 space-y-1 text-body font-medium text-text-muted">
                 <li>{labels::STOCK_SEARCH_TIP_CODE}</li>
                 <li>{labels::STOCK_SEARCH_TIP_NAME}</li>
                 <li>{labels::STOCK_SEARCH_TIP_LINKS}</li>
@@ -505,12 +505,12 @@ fn StockInfo(stock: Stock) -> impl IntoView {
             <Card variant=CardVariant::Panel class="mb-6 overflow-hidden">
                 <div class="border-b border-ink/10 bg-ink px-4 py-4 text-page sm:px-5">
                     <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h2 class="min-w-0 flex-1 break-words text-xl font-black leading-tight">{name}</h2>
+                        <h2 class="min-w-0 flex-1 break-words text-subhero font-black leading-tight">{name}</h2>
                         <CodeBadge>{code_badge}</CodeBadge>
                     </div>
                 </div>
                 <div>
-                    <dl class="grid grid-cols-2 gap-px bg-fill text-sm lg:grid-cols-4">
+                    <dl class="grid grid-cols-2 gap-px bg-fill text-body lg:grid-cols-4">
                         {meta
                             .into_iter()
                             .map(|(label, value)| {
@@ -521,7 +521,7 @@ fn StockInfo(stock: Stock) -> impl IntoView {
                                 };
                                 view! {
                                     <div class="flex min-h-16 flex-col justify-center bg-surface px-4 py-3">
-                                        <dt class="text-xs font-medium text-text-muted">
+                                        <dt class="text-cell font-medium text-text-muted">
                                             {label}
                                         </dt>
                                         <dd class="mt-1 break-words font-bold tabular-nums text-text-deep">{display}</dd>
@@ -586,7 +586,7 @@ fn HoldingSection(group: HoldingGroup, dividends: RwSignal<DividendMaps>) -> imp
     let badges: Vec<Option<String>> = group.rows.iter().map(|row| row.account.clone()).collect();
     view! {
         <section aria-label=labels::STOCK_HOLDING_SECTION class="mb-6">
-            <h2 class="mb-3 text-base font-bold text-text-deep">
+            <h2 class="mb-3 text-heading font-bold text-text-deep">
                 {labels::STOCK_HOLDING_SECTION}
             </h2>
             {move || {
@@ -595,7 +595,7 @@ fn HoldingSection(group: HoldingGroup, dividends: RwSignal<DividendMaps>) -> imp
                 let total = HoldingTilesData::total(&group, &maps);
                 if multi {
                     view! {
-                        <h3 class="mb-2 text-sm font-bold text-text-muted">
+                        <h3 class="mb-2 text-label font-bold text-text-muted">
                             {labels::STOCK_HOLDING_TOTAL}
                         </h3>
                         <HoldingTilesView data=total />
@@ -771,7 +771,7 @@ fn HoldingSummaryTiles(data: HoldingTilesData) -> impl IntoView {
                     negative=data.pnl_negative
                     positive=data.pnl_positive
                 />
-                <span class="ml-1 text-xs text-text-muted tabular-nums">{data.pnl_rate}</span>
+                <span class="ml-1 text-cell text-text-muted tabular-nums">{data.pnl_rate}</span>
             </HoldingSummaryItem>
         </HoldingSummary>
     }

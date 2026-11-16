@@ -336,7 +336,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--space-table);
     width: 100%;
   }
 
@@ -382,12 +382,12 @@
      行に収まらない長い語だけ途中で切る。幅は PC の固定列に収める上限(20rem)と
      cell 幅の小さい方に留め、列位置を動かさない。色は negative-vivid(両テーマで検証済み) */
   .csv-detail-reason {
-    margin-top: 0.25rem;
+    @apply text-cell;
+    margin-top: var(--space-note);
     max-width: min(20rem, 100%);
     min-width: 0;
     white-space: normal;
     overflow-wrap: break-word;
-    font-size: 0.75rem;
     line-height: 1.5;
     color: var(--color-negative-vivid);
   }
@@ -398,7 +398,7 @@
   .csv-status-line {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-condition);
     flex-wrap: wrap;
   }
 
@@ -553,8 +553,7 @@
   }
 
   .badge-count {
-    @apply font-medium tabular-nums;
-    font-size: 11px;
+    @apply font-medium tabular-nums text-eyebrow;
   }
 
   /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す */
@@ -575,11 +574,10 @@
 
   @media (width >= 64rem) {
     .badge-count {
-      @apply bg-row-group text-text-soft;
+      @apply bg-row-group text-cell text-text-soft;
       border-radius: 9px;
-      padding: 0 7px;
+      padding-inline: var(--space-condition);
       line-height: 18px;
-      font-size: 12px;
     }
 
     .page-tab[aria-selected="true"] .badge-count {
@@ -1233,14 +1231,7 @@
   }
 
   .page-frame-title {
-    @apply font-bold leading-tight tracking-normal text-text-inverse lg:text-text-deep;
-    font-size: 17px;
-  }
-
-  @media (width >= 64rem) {
-    .page-frame-title {
-      font-size: 22px;
-    }
+    @apply font-bold leading-tight tracking-normal text-heading text-text-inverse lg:text-text-deep;
   }
 
   /* ページの骨格(資産管理・取引明細で同じ順序・同じ余白で並べる)。
