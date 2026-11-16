@@ -232,6 +232,130 @@ async function selectReceiptTab(page: Page, name: string) {
   await expect(tab).toHaveAttribute('aria-selected', 'true');
 }
 
+// PC の集計の縦線と並び(#1946)。位置だけで確かめ、色・クラス名は固定しない
+type DividerItem = {
+  label: string;
+  top: number;
+  boxLeft: number;
+  boxRight: number;
+  contentLeft: number;
+  contentRight: number;
+  dividerLeft: number;
+  dividerRight: number;
+};
+
+async function dividerItems(
+  page: Page,
+  selector: string,
+): Promise<DividerItem[]> {
+  return page.evaluate((sel) => {
+    const band = document.querySelector(sel);
+    if (!band) {
+      throw new Error(`帯が見つかりません: ${sel}`);
+    }
+    return [...band.querySelectorAll('.summary-item')]
+      .filter((item) => {
+        const rect = (item as HTMLElement).getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      })
+      .map((item) => {
+        const element = item as HTMLElement;
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const texts = [...element.querySelectorAll('dt, dd')].map((node) =>
+          (node as HTMLElement).getBoundingClientRect(),
+        );
+        return {
+          label: (element.querySelector('dt')?.textContent ?? '').trim(),
+          top: rect.top,
+          boxLeft: rect.left,
+          boxRight: rect.right,
+          contentLeft: Math.min(...texts.map((r) => r.left)),
+          contentRight: Math.max(...texts.map((r) => r.right)),
+          dividerLeft: Number.parseFloat(style.borderLeftWidth),
+          dividerRight: Number.parseFloat(style.borderRightWidth),
+        };
+      });
+  }, selector);
+}
+
+// 線は項目の間だけに1本ずつあり、線の左右の余白が同じ。全項目は同じ並びに詰める
+function expectDividersAligned(items: DividerItem[]) {
+  expect(items.length).toBeGreaterThan(1);
+  const rows = new Map<number, DividerItem[]>();
+  for (const item of items) {
+    const key = Math.round(item.top);
+    const group = rows.get(key);
+    if (group) {
+      group.push(item);
+    } else {
+      rows.set(key, [item]);
+    }
+  }
+  for (const row of rows.values()) {
+    row.sort((a, b) => a.boxLeft - b.boxLeft);
+    for (const item of row) {
+      // 中身のない項目は出さない
+      expect(item.label.length).toBeGreaterThan(0);
+    }
+    // 行頭の左・行末の右に線はない
+    expect(row[0].dividerLeft).toBe(0);
+    for (const item of row) {
+      expect(item.dividerRight).toBe(0);
+    }
+    const gaps: number[] = [];
+    for (let index = 1; index < row.length; index += 1) {
+      const prev = row[index - 1];
+      const next = row[index];
+      // 項目の間の線は1本だけ
+      expect(next.dividerLeft).toBeGreaterThan(0);
+      const dividerCenter = next.boxLeft + next.dividerLeft / 2;
+      const gapLeft = dividerCenter - prev.contentRight;
+      const gapRight = next.contentLeft - dividerCenter;
+      // 線の左右の余白は同じ
+      expect(Math.abs(gapLeft - gapRight)).toBeLessThanOrEqual(1);
+      gaps.push(next.contentLeft - prev.contentRight);
+    }
+    // 離して置く項目があると余白がばらつく
+    if (gaps.length > 1) {
+      expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThanOrEqual(2);
+    }
+  }
+}
+
+for (const width of [1280, 1440, 1920]) {
+  test.describe(`集計の縦線と並び 幅 ${width}`, () => {
+    test.use({ viewport: { width, height: 800 } });
+
+    test('資産管理の3タブ', async ({ page, context }) => {
+      await mockApi(context);
+      await page.goto('/assetbalance');
+      for (const tab of ['国内株式', '投資信託', 'すべて']) {
+        await page.getByRole('tab', { name: tab }).click();
+        await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+        expectDividersAligned(await dividerItems(page, ASSET_BAND));
+      }
+    });
+
+    test('ホーム', async ({ page, context }) => {
+      await mockApi(context);
+      await page.goto('/');
+      await expect(page.getByTestId('home-overview')).toBeVisible();
+      expectDividersAligned(await dividerItems(page, HOME_BAND));
+    });
+
+    test('取引明細の3タブ', async ({ page, context }) => {
+      await mockApi(context);
+      await page.goto('/receipts');
+      for (const tab of ['配当金', '国内株式', '投資信託']) {
+        await selectReceiptTab(page, tab);
+        await expect(page.getByTestId('receipt-summary-strip')).toBeVisible();
+        expectDividersAligned(await dividerItems(page, RECEIPTS_BAND));
+      }
+    });
+  });
+}
+
 for (const width of [1280, 390]) {
   test.describe(`幅 ${width}`, () => {
     test.use({ viewport: { width, height: width === 390 ? 844 : 800 } });

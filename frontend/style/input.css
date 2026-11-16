@@ -949,34 +949,21 @@
       padding-block: var(--space-card);
     }
 
-    .summary-band-group,
-    .summary-band-items {
+    .summary-band-pc {
       display: contents;
+    }
+
+    .summary-band-items {
+      @apply flex items-stretch gap-x-0;
     }
 
     .summary-band .summary-item {
-      @apply whitespace-nowrap border-r border-border px-8;
+      @apply whitespace-nowrap border-l border-border;
+      padding-inline: var(--space-summary);
     }
 
     .summary-band .summary-item:first-child {
-      @apply pl-0;
-    }
-
-    .summary-band-group-sub > .summary-band-items > .summary-item:last-child {
-      @apply border-r-0;
-    }
-  }
-
-  /* 補助項目は主項目から離して右に寄せる */
-  @media (width >= 64rem) {
-    .summary-band-item-tag1 {
-      @apply ml-auto;
-    }
-  }
-
-  @media (width >= 64rem) {
-    .summary-band-pc {
-      display: contents;
+      @apply border-l-0 pl-0;
     }
   }
 

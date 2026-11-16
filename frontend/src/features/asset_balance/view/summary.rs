@@ -200,17 +200,13 @@ pub(crate) fn AssetSummaryBand(
             },
             extra_class: String::new(),
         }];
-        for (index, tag) in tags.into_iter().take(2).enumerate() {
+        for tag in tags.into_iter().take(2) {
             items.push(SummarySubItem {
                 label: tag.label.to_string(),
                 value: tag.value,
                 note: String::new(),
                 tone: SummaryTone::Neutral,
-                extra_class: if index == 0 {
-                    "summary-band-item-tag1".to_string()
-                } else {
-                    String::new()
-                },
+                extra_class: String::new(),
             });
         }
         items

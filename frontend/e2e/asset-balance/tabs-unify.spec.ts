@@ -164,9 +164,9 @@ test.describe('資産管理のタブ', () => {
 
       // 帯の主要3項目(評価額・損益・前日比)が2タブで同じ
       bandLabels.push(
-        await band
-          .locator('.summary-band-group-main dt, .summary-band-item-daily dt')
-          .allTextContents(),
+        (await band
+          .locator('.summary-band-pc .summary-item dt')
+          .allTextContents()).slice(0, 3),
       );
 
       // 検索欄の文言は同じ

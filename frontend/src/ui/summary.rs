@@ -193,7 +193,7 @@ pub fn SummaryBand(
             data-testid=testid_band
         >
             <div class="summary-band-pc max-lg:hidden">
-                <dl class="summary-band-group summary-band-group-main">
+                <dl class="summary-band-items">
                     <SummaryItem
                         label=primary_label.clone()
                         value=primary_value.clone()
@@ -207,42 +207,34 @@ pub fn SummaryBand(
                             SummaryTone::Neutral
                         }
                     />
-                    {has_aux
-                        .then(|| view! {
-                            <SummaryItem
-                                label=aux_label.clone()
-                                value=aux_value.clone()
-                                note=aux_rate.clone()
-                                tone=if aux_negative {
-                                    SummaryTone::Loss
-                                } else if aux_positive {
-                                    SummaryTone::Gain
-                                } else {
-                                    SummaryTone::Neutral
-                                }
-                            />
-                        })}
-                </dl>
-                {(!pc_items.is_empty())
-                    .then(|| view! {
-                        <div class="summary-band-group summary-band-group-sub">
-                            <dl class="summary-band-items">
-                                {pc_items
-                                    .into_iter()
-                                    .map(|item| view! {
-                                        <SummaryItem
-                                            label=item.label
-                                            value=item.value
-                                            size=SummarySize::Secondary
-                                            note=item.note
-                                            tone=item.tone
-                                            extra_class=item.extra_class
-                                        />
-                                    })
-                                    .collect_view()}
-                            </dl>
-                        </div>
+                    {has_aux.then(|| view! {
+                        <SummaryItem
+                            label=aux_label.clone()
+                            value=aux_value.clone()
+                            note=aux_rate.clone()
+                            tone=if aux_negative {
+                                SummaryTone::Loss
+                            } else if aux_positive {
+                                SummaryTone::Gain
+                            } else {
+                                SummaryTone::Neutral
+                            }
+                        />
                     })}
+                    {pc_items
+                        .into_iter()
+                        .map(|item| view! {
+                            <SummaryItem
+                                label=item.label
+                                value=item.value
+                                size=SummarySize::Secondary
+                                note=item.note
+                                tone=item.tone
+                                extra_class=item.extra_class
+                            />
+                        })
+                        .collect_view()}
+                </dl>
             </div>
             <div class="summary-band-mobile lg:hidden">
                 {has_breakdown
