@@ -15,6 +15,10 @@ OLD_TOKEN='(text|bg|border|border-[trblxyse]|divide|ring|outline|placeholder|fro
 MONO='([^[:space:]"]+:)*(text|bg|border|border-[trblxyse]|divide|ring|outline|placeholder|from|via|to|fill|stroke|caret|decoration|shadow|ring-offset|accent)-(white|black)\b'
 # `-[...]` 形式の任意値・`-(var)` 形式の CSS 変数省略記法・`[property:value]` 形式の任意プロパティ
 ARBITRARY='([a-z][a-z-]*-\[[^]]*\]|\[[a-z-]+:[^]]+\]|[a-z][a-z-]*-\([^)]*\))'
+TYPE_SIZE='text-(xs|sm|base|lg|xl|2xl)\b'
+FONT_PROP='font-size:'
+SPACE_PROP='(padding|margin|gap)(-(top|right|bottom|left|inline|block))?[[:space:]]*:'
+TYPE_BASELINE="scripts/css-type-spacing-baseline.txt"
 
 # 許可リスト: 追加するときは理由を添える。形式は grep -E の正規表現(一致する行を除外)。
 ALLOWED_SRC=(
@@ -82,11 +86,52 @@ check_arbitrary() {
   fail=1
 }
 
+collect_type_rs() {
+  grep -HnE -e "$TYPE_SIZE" "${RS_FILES[@]}" 2>/dev/null || true
+}
+
+collect_font_css() {
+  grep -HnE -e "$FONT_PROP" style/input.css 2>/dev/null || true
+}
+
+collect_space_css() {
+  grep -HnE -e "$SPACE_PROP" style/input.css 2>/dev/null | grep -v 'var(--space' || true
+}
+
+check_type_baseline() {
+  local kind="$1" hits="$2" tmp_current tmp_base
+  [ -z "$hits" ] && return 0
+  tmp_current=$(mktemp)
+  tmp_base=$(mktemp)
+  awk -F: '{n=$1; c[n]++} END {for (f in c) print f"\t"c[f]}' <<<"$hits" | sort >"$tmp_current"
+  awk -v k="$kind" -F'\t' '$1==k {print $2"\t"$3}' "$TYPE_BASELINE" | sort >"$tmp_base"
+  local over=0
+  while IFS=$'\t' read -r file cnt; do
+    [ -z "$file" ] && continue
+    base=$(awk -F'\t' -v f="$file" '$1==f {print $2}' "$tmp_base")
+    base=${base:-0}
+    if [ "$cnt" -gt "$base" ]; then
+      echo "ERROR: 基準超え($kind $file: 基準 $base 件 < 現状 $cnt 件)" >&2
+      over=1
+    fi
+  done <"$tmp_current"
+  rm -f "$tmp_current" "$tmp_base"
+  if [ "$over" -ne 0 ]; then
+    fail=1
+    return 1
+  fi
+  echo "  OK: 基準内($kind)"
+  return 0
+}
+
 if [ "$#" -gt 0 ]; then
   check "生パレット(自己テスト)" "$PALETTE" "$@"
   check "旧トークン(自己テスト)" "$OLD_TOKEN" "$@"
   check_allowed "白・黒の直書き(自己テスト)" "$MONO" "$ALLOWED_MONO_CSS" "$@"
   check_arbitrary "自己テスト" '^$' "$@"
+  check "文字サイズ直書き(自己テスト)" "$TYPE_SIZE" "$@"
+  check "font-size直書き(自己テスト)" "$FONT_PROP" "$@"
+  check "余白直書き(自己テスト)" "$SPACE_PROP" "$@"
   [ "$fail" -ne 0 ] && exit 1
   exit 0
 fi
@@ -99,6 +144,9 @@ check "生パレット(style/input.css)" "$PALETTE" style/input.css
 check "旧トークン(style/input.css)" "$OLD_TOKEN" style/input.css
 check_allowed "白・黒の直書き(style/input.css)" "$MONO" "$ALLOWED_MONO_CSS" style/input.css
 check_arbitrary "style/input.css" "$(join_or "${ALLOWED_CSS[@]}")" style/input.css
+check_type_baseline "type-rs" "$(collect_type_rs)"
+check_type_baseline "font-css" "$(collect_font_css)"
+check_type_baseline "space-css" "$(collect_space_css)"
 
 [ "$fail" -ne 0 ] && exit 1
 
@@ -115,7 +163,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in 'bg-white' 'text-slate-500' 'shadow-[0_1px_2px_#000]' 'text-primary' '[min-height:44px]' 'text-(--color-red-700)'; do
+for expected in 'bg-white' 'text-slate-500' 'shadow-[0_1px_2px_#000]' 'text-primary' '[min-height:44px]' 'text-(--color-red-700)' 'text-sm' 'font-size:' 'padding:'; do
   if ! grep -Fq "$expected" <<<"$self_test_output"; then
     echo "ERROR: CSS トークン検査の自己テストが $expected を検出しません" >&2
     exit 1
