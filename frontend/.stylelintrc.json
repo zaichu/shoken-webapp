@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/stylelintrc",
   "extends": ["stylelint-config-standard"],
   "plugins": ["stylelint-declaration-strict-value"],
-  "ignoreFiles": ["scripts/fixtures/**"],
+  "ignoreFiles": ["scripts/fixtures/**", "style/output.css"],
   "rules": {
     "at-rule-no-unknown": [
       true,
