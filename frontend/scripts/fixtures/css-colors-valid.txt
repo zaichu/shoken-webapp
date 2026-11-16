@@ -1,0 +1,11 @@
+// 正常fixture: トークン定義・トークン経由・コメント・部品propは検出しない
+// #1634 のようなコメント中の番号は色ではない
+/// fill="#FFFFFF" と書いてもコメント行は違反ではない
+--color-page: #f3f5f8;
+--color-brand: #0f2a4a;
+view! { <DisclosureToggle style=DisclosureStyle::RowToggle /> }
+let style = panel.style();
+view! { <div style:overflow="hidden">"対象外のプロパティ"</div> }
+view! { <div data-style="width: 10%">"data- 属性は別物"</div> }
+<span>var(--color-chart-1) と var(--color-surface) はトークン経由</span>
+<p>color-mix(in srgb, var(--color-accent) 24%, transparent) はトークン経由</p>

@@ -131,7 +131,7 @@ src/
 - 生のパレット(`slate-500`・`amber-50`・`red-700` など色名+番号)と白・黒の直書き(`bg-white`・`text-black` など)、任意値(`shadow-[...]`・`text-[10px]`・`min-h-[44px]` など `[...]` 指定)を `src/` のクラスに直書きしない。同じ見た目が必要ならトークンを追加するか、`ui/` か `input.css` の `@layer components` の部品(`.panel-card`・`.empty-state`・`.page-tab`・`.security-code-link` など)を使う
 - `@apply` は `@layer base` と、コンポーネント化できない最小限にとどめる
 - 1つのクラス内で同じプロパティを二度指定しない(打ち消し合う指定は効いている方だけ残す)
-- `npm run check:css`(Stylelint)が `style/input.css` の宣言で色・文字の大きさ・余白の直書きを検出し、CI(`frontend.yml`)でも実行する。トークン(`@theme` の `var(--*)`)以外の値は止まる。印刷(`@media print`)・初期化系キーワード(`transparent`・`inherit`・`none`・`0`)・用途が特定できる完全形(`clamp`・`env`・`calc`の既存の1件ずつ)は例外。既存の違反は `.stylelintrc.json` の許可リスト(`ignoreValues`・無効化した規則)と行単位の無効化に理由付きで載せる
+- `npm run check:css`が検査する。`style/input.css` の宣言の色・文字の大きさ・余白の直書きは Stylelint(`.stylelintrc.json` の許可リスト・行単位の無効化に理由付きで載せる)が検出し、CI(`frontend.yml`)でも実行する。Rust 側(`src/` のクラス文字列の生パレット・旧トークン・白黒直書き・任意値・`text-*`・16進色・`style:`)は `check-css-tokens.sh`(続けて `check-ui-primitives.sh`・`check-css-colors.sh` を実行)が baseline 付きで検出する
 - 同じ検査で `scripts/check-ui-primitives.sh` も動き、`features/` での `<button>`/`<select>` の直書き、コンポーネントクラスの直書き、カードに相当するユーティリティの組み合わせ(`rounded-*`+`border`+`bg-surface`)、`aria-expanded` を持つ独自の開閉要素を落とす。違反が出たら下の画面部品を使う
 
 ### 画面の基本部品(`src/ui/`)
