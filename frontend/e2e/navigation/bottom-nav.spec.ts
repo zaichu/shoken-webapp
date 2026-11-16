@@ -98,7 +98,7 @@ test('CSV管理へは資産管理の見出し右とアカウントメニュー�
 }) => {
   await mockApi(page);
   await page.goto('/');
-  await page.getByRole('link', { name: '資産管理' }).click();
+  await bottomNav(page).getByRole('link', { name: '資産管理' }).click();
   await expect(page).toHaveURL('/assetbalance');
   await page.getByRole('link', { name: 'CSV管理', exact: true }).click();
   await expect(page).toHaveURL('/csv');
