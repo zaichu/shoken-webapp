@@ -17,7 +17,7 @@ MONO='([^[:space:]"]+:)*(text|bg|border|border-[trblxyse]|divide|ring|outline|pl
 ARBITRARY='([a-z][a-z-]*-\[[^]]*\]|\[[a-z-]+:[^]]+\]|[a-z][a-z-]*-\([^)]*\))'
 TYPE_SIZE='text-(xs|sm|base|lg|xl|2xl)\b'
 FONT_PROP='font-size:'
-SPACE_PROP='(padding|margin|gap)(-(top|right|bottom|left|inline|block))?[[:space:]]*:'
+SPACE_PROP='(padding|margin|gap)(-(top|right|bottom|left|inline|block)(-(start|end))?)?[[:space:]]*:'
 TYPE_BASELINE="scripts/css-type-spacing-baseline.txt"
 
 # 許可リスト: 追加するときは理由を添える。形式は grep -E の正規表現(一致する行を除外)。
@@ -87,15 +87,15 @@ check_arbitrary() {
 }
 
 collect_type_rs() {
-  grep -HnE -e "$TYPE_SIZE" "${RS_FILES[@]}" 2>/dev/null || true
+  grep -HoE -e "$TYPE_SIZE" "${RS_FILES[@]}" 2>/dev/null || true
 }
 
 collect_font_css() {
-  grep -HnE -e "$FONT_PROP" style/input.css 2>/dev/null || true
+  grep -HoE -e "${FONT_PROP}[^;}]*" style/input.css 2>/dev/null || true
 }
 
 collect_space_css() {
-  grep -HnE -e "$SPACE_PROP" style/input.css 2>/dev/null | grep -v 'var(--space' || true
+  grep -HoE -e "${SPACE_PROP}[^;}]*" style/input.css 2>/dev/null | grep -v 'var(--space' || true
 }
 
 check_type_baseline() {
@@ -176,6 +176,22 @@ if grep -Fq 'print:border-black' <<<"$self_test_output"; then
 fi
 
 echo "  OK: 違反fixtureの自己テスト"
+
+tmp_ts=$(mktemp -d)
+printf '<div class="text-sm max-sm:text-xs"></div>\n' >"$tmp_ts/two.rs"
+if [ "$(grep -HoE -e "$TYPE_SIZE" "$tmp_ts/two.rs" | wc -l)" -ne 2 ]; then
+  echo "ERROR: 1行2件の文字サイズ直書きを2件と数えません" >&2
+  rm -rf "$tmp_ts"
+  exit 1
+fi
+printf '.a{margin:var(--space-page);padding:4px}.b{padding-inline-start:4px}\n' >"$tmp_ts/two.css"
+if [ "$(grep -HoE -e "${SPACE_PROP}[^;}]*" "$tmp_ts/two.css" | grep -v 'var(--space' | wc -l)" -ne 2 ]; then
+  echo "ERROR: トークン行に混ざった余白直書き・論理辺の余白を数えません" >&2
+  rm -rf "$tmp_ts"
+  exit 1
+fi
+rm -rf "$tmp_ts"
+echo "  OK: 件数・宣言単位の自己テスト"
 echo "OK: 違反はありません"
 
 # 続けて features/ の直書きマークアップ検査を実行する
