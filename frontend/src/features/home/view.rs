@@ -89,16 +89,6 @@ pub fn HomePage() -> impl IntoView {
                     }
                 })
             }}
-            // ログイン前の画面に、ログインが要る操作を出さない
-            {move || {
-                session.user.get().is_some().then(|| {
-                    view! {
-                        <a class="page-secondary-link-sm" href="/csv">
-                            {labels::CSV_MANAGE_TITLE}
-                        </a>
-                    }
-                })
-            }}
         }
         .into_any()
     });

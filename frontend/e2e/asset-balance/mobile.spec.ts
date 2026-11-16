@@ -115,8 +115,8 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
   // モバイルはコンパクト行、PC 表は出さない
   await expect(page.getByTestId('asset-holdings-table')).toBeHidden();
 
-  // CSV 管理ページにはヘッダーのリンクから入る
-  await page.getByRole('link', { name: 'CSV管理' }).click();
+  // CSV 管理ページには本文の文字リンクから入る
+  await page.getByTestId('asset-csv-link').click();
   await expect(page).toHaveURL('/csv');
   await expect(csvRow(page, 'assetbalance')).toBeVisible();
   await page.getByRole('link', { name: '資産管理に戻る' }).click();

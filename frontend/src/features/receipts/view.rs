@@ -44,7 +44,7 @@ pub fn ReceiptsPage() -> impl IntoView {
 
     let csv_link: Children = Box::new(move || {
         view! {
-            <a class="page-secondary-link-sm" href="/csv">{CSV_MANAGE_TITLE}</a>
+            <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{CSV_MANAGE_TITLE}</a>
         }
         .into_any()
     });

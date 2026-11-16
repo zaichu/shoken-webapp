@@ -26,6 +26,7 @@ test('メニューボタンでユーザーメニューが開閉し、aria-expand
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   await expect(menu).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: '設定' })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'CSV管理' })).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: 'データをエクスポート' })).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: 'ログアウト' })).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: 'アカウント削除' })).toHaveCount(0);
@@ -66,13 +67,16 @@ test('キーボード操作でメニュー項目を移動できる', async ({ pa
   // 開いたとき先頭項目（設定）にフォーカスがある
   await expect(page.getByRole('menuitem', { name: '設定' })).toBeFocused();
 
-  // ArrowDown でデータをエクスポート → ログアウトの順に移動
+  // ArrowDown で CSV管理 → データをエクスポート → ログアウトの順に移動
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'CSV管理' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitem', { name: 'データをエクスポート' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitem', { name: 'ログアウト' })).toBeFocused();
 
   // ArrowUp で設定に戻る
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
   await expect(page.getByRole('menuitem', { name: '設定' })).toBeFocused();
