@@ -339,7 +339,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         view! {
             <span class="flex items-center gap-2">
                 <a class="page-secondary-link-sm max-lg:hidden" href="/assetbalance/composition">{labels::COMPOSITION_VIEW_LINK}</a>
-                <a class="page-secondary-link-sm" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
+                <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
             </span>
         }
         .into_any()

@@ -306,8 +306,8 @@ test('資産管理の検索とCSV管理ページに390pxでもアクセスでき
   await page.getByTestId('asset-search-sheet-entry').click();
   await expect(page.getByTestId('asset-search-input')).toBeEditable();
   await page.keyboard.press('Escape');
-  // CSV 操作は専用ページに置く
-  await page.getByRole('link', { name: 'CSV管理' }).click();
+  // CSV 操作は専用ページに置く(本文の文字リンクから入る)
+  await page.getByTestId('asset-csv-link').click();
   await expect(page).toHaveURL('/csv');
   await expect(csvRow(page, 'assetbalance')).toBeVisible();
   await page.getByRole('link', { name: '資産管理に戻る' }).click();

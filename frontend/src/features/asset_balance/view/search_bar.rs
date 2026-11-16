@@ -331,15 +331,22 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                     total=move || search_count.get().1
                     testid="asset-search-count-mobile"
                 />
-                {composition.then(|| {
-                    view! {
-                        <MoreLink
-                            href="/assetbalance/composition".to_string()
-                            label=labels::COMPOSITION_VIEW_LINK.to_string()
-                            testid="asset-composition-link".to_string()
-                        />
-                    }
-                })}
+                <span class="flex items-center gap-4">
+                    {composition.then(|| {
+                        view! {
+                            <MoreLink
+                                href="/assetbalance/composition".to_string()
+                                label=labels::COMPOSITION_VIEW_LINK.to_string()
+                                testid="asset-composition-link".to_string()
+                            />
+                        }
+                    })}
+                    <MoreLink
+                        href="/csv".to_string()
+                        label=labels::CSV_MANAGE_TITLE.to_string()
+                        testid="asset-csv-link".to_string()
+                    />
+                </span>
             </div>
         </MobileSearchEntryShell>
         {move || {

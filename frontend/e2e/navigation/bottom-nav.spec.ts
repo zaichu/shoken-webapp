@@ -77,30 +77,37 @@ test('上バーのアカウントボタンは丸いアイコンと「アカウ�
   await expect(page.getByRole('menu', { name: 'ユーザーメニュー' })).toBeVisible();
 });
 
-test('CSV管理は資産管理の見出し右にだけ出てホーム・取引明細には出ない', async ({
+test('スマホではCSV管理は見出し帯に出ず資産管理の本文とアカウントメニューにある', async ({
   page,
 }) => {
   await mockApi(page);
+  // 見出し帯(ページ名の横)にCSV管理ボタンは全画面で出ない
+  for (const path of ['/', '/assetbalance', '/receipts']) {
+    await page.goto(path);
+    const header = page.locator('.page-frame-head');
+    await expect(
+      header.getByRole('link', { name: 'CSV管理', exact: true }),
+    ).toHaveCount(0);
+  }
+  // 資産管理の本文にCSV管理›の文字リンクがある
   await page.goto('/assetbalance');
-  await expect(
-    page.getByRole('link', { name: 'CSV管理', exact: true }).first(),
-  ).toBeVisible();
+  await expect(page.getByTestId('asset-csv-link')).toBeVisible();
+  await expect(page.getByTestId('asset-csv-link')).toHaveAttribute('href', '/csv');
+  // ホーム・取引明細の本文にはない
   for (const path of ['/', '/receipts', '/search', '/settings']) {
     await page.goto(path);
-    await expect(
-      page.getByRole('link', { name: 'CSV管理', exact: true }),
-    ).toHaveCount(0);
+    await expect(page.getByTestId('asset-csv-link')).toHaveCount(0);
   }
 });
 
-test('CSV管理へは資産管理の見出し右とアカウントメニューから2操作で行ける', async ({
+test('CSV管理へは資産管理の本文リンクとアカウントメニューから2操作で行ける', async ({
   page,
 }) => {
   await mockApi(page);
   await page.goto('/');
   await bottomNav(page).getByRole('link', { name: '資産管理' }).click();
   await expect(page).toHaveURL('/assetbalance');
-  await page.getByRole('link', { name: 'CSV管理', exact: true }).click();
+  await page.getByTestId('asset-csv-link').click();
   await expect(page).toHaveURL('/csv');
 
   await page.goto('/');
