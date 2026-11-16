@@ -696,7 +696,7 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
 
 `backend/tests/login_rls.rs` の `force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths` を既存の Docker (`postgres:16-alpine`) 結合テストで実行する。migration を適用した `NOSUPERUSER NOBYPASSRLS` の非特権テーブル所有者を使い、11表すべてに一時的に FORCE を設定する。検証では実データや本番設定を使わない。
 
-- FORCE 後、通常 owner によるセッション照会は行を返さず、OAuth upsert はポリシー違反になり、直接ログアウト DELETE は成功応答でも行を消さず、通知 token 照会/消費は見つからず、管理者横断検索は0行、保有銘柄/ファンドの scheduled 価格更新対象と cron の履歴掃除は0件となることを確認する。
+- FORCE 前後で `asset_balances` / `fund_balances` から価格更新候補を選ぶ SELECT を直接実行し、前は各候補が返り、後は0行になることを確認する。価格更新関数の成功件数は外部価格取得の成否に左右されるため、遮断判定には使わない。加えて、通常 owner によるセッション照会は行を返さず、OAuth upsert はポリシー違反になり、直接ログアウト DELETE は成功応答でも行を消さず、通知 token 照会/消費は見つからず、管理者横断検索は0行、cron の履歴掃除は0件となることを確認する。
 - `row_security=off` の owner 読み取りは SQLSTATE `42501` となることを確認する。これは `pg_dump` が既定で不完全なダンプを避ける挙動に対応する。
 - 同じ FORCE 状態で `app_enter` を通した本人のログイン履歴読み取りとセッション削除は通ることを確認する。適用済み migration 履歴の再確認も通るが、将来の data migration は未検証。
 - `FORCE` の変更はテストコンテナ内だけで破棄する。migration ファイル・本番設定・本番 DB は変更しない。
