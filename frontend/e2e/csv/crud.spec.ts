@@ -454,11 +454,8 @@ test.describe('取引明細 CSV 取込・削除', () => {
       };
       const deleteCounts = await setupMocks(page, db);
 
-      // 一覧から CSV 管理ページへ移動する
-      await page.goto('/receipts');
-      if (scenario.tab !== 'dividend') {
-        await page.getByRole('tab', { name: scenario.label }).click();
-      }
+      // 一覧から CSV 管理ページへ移動する(資産管理の見出し右の入口から)
+      await page.goto('/assetbalance');
       await page.getByRole('link', { name: 'CSV管理' }).click();
       await expect(page).toHaveURL('/csv');
 

@@ -479,6 +479,23 @@ fn UserMenu(
                         </li>
                         <li role="none">
                             <a
+                                href="/csv"
+                                class="flex min-h-11 items-center gap-3 px-3 py-2 text-body font-semibold text-text-deep hover:bg-surface-raised no-underline"
+                                role="menuitem"
+                                tabindex="0"
+                                on:click=move |_| menu_open.set(false)
+                            >
+                                <svg class="shrink-0 w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="9" y1="13" x2="15" y2="13"/>
+                                    <line x1="9" y1="17" x2="15" y2="17"/>
+                                </svg>
+                                <span>{labels::CSV_MANAGE_TITLE}</span>
+                            </a>
+                        </li>
+                        <li role="none">
+                            <a
                                 href="/settings#data"
                                 class="flex min-h-11 items-center gap-3 px-3 py-2 text-body font-semibold text-text-deep hover:bg-surface-raised no-underline"
                                 role="menuitem"

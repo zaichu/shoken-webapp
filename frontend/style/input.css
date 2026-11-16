@@ -905,6 +905,11 @@
 
   .search-sort-entry-tags {
     @apply flex w-full flex-wrap gap-1.5;
+    margin-top: var(--space-condition);
+  }
+
+  .search-sort-entry-tags:empty {
+    display: none;
   }
 
   /* シートの中の並べ替えは Select 部品で選ぶ。旧 `sort-option` 系の定義は使わない */
