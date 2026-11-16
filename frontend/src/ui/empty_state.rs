@@ -9,13 +9,6 @@ pub enum EmptyStateIcon {
 }
 
 impl EmptyStateIcon {
-    const fn svg_class(self) -> &'static str {
-        match self {
-            Self::Warning => "h-16 w-16",
-            Self::Search | Self::Tray | Self::Lock => "h-10 w-10",
-        }
-    }
-
     const fn path(self) -> &'static str {
         match self {
             Self::Warning => {
@@ -33,7 +26,8 @@ impl EmptyStateIcon {
 }
 
 /// データが空の画面の見せ方を1種類にまとめる。
-/// icon は見出しの上、children は見出しの下(次の行動)に出る。
+/// 見本の空行の型: 1行目に見出し、2行目に補足(灰)。次の行動(children)は行の下に出る。
+/// icon は渡されたときだけ行頭に小さく出す。見出しの要素(h1/h3)は変えない。
 #[component]
 #[expect(
     clippy::needless_pass_by_value,
@@ -55,41 +49,53 @@ pub fn EmptyState(
             class=move || {
                 let extra = class.get();
                 if extra.is_empty() {
-                    "empty-state".to_string()
+                    "flex flex-col gap-3 px-4 py-3".to_string()
                 } else {
-                    format!("empty-state {extra}")
+                    format!("flex flex-col gap-3 px-4 py-3 {extra}")
                 }
             }
             data-testid=testid
         >
-            {icon.map(|icon| {
-                view! {
-                    <div class="mb-3 text-text-faint" aria-hidden="true">
-                        <svg
-                            class=icon.svg_class()
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            aria-hidden="true"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.5"
-                                d=icon.path()
-                            />
-                        </svg>
-                    </div>
-                }
-            })}
-            {if as_h1 {
-                view! { <h1 class="text-balance text-heading font-black text-ink">{title.clone()}</h1> }.into_any()
-            } else {
-                view! { <h3 class="text-balance text-body font-black text-ink">{title.clone()}</h3> }.into_any()
-            }}
-            {description.clone().map(|description| {
-                view! { <p class="mt-1.5 max-w-md text-body font-medium text-text-muted">{description}</p> }
-            })}
+            <div class="flex min-w-0 items-start gap-2">
+                {icon.map(|icon| {
+                    view! {
+                        <span class="mt-0.5 shrink-0 text-text-faint" aria-hidden="true">
+                            <svg
+                                class="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="1.5"
+                                    d=icon.path()
+                                />
+                            </svg>
+                        </span>
+                    }
+                })}
+                <div class="min-w-0 flex-1">
+                    {if as_h1 {
+                        view! {
+                            <h1 class="text-body font-bold text-text-deep">{title.clone()}</h1>
+                        }
+                            .into_any()
+                    } else {
+                        view! {
+                            <h3 class="text-body font-bold text-text-deep">{title.clone()}</h3>
+                        }
+                            .into_any()
+                    }}
+                    {description.clone().map(|description| {
+                        view! {
+                            <p class="mt-0.5 text-cell font-medium text-text-muted">{description}</p>
+                        }
+                    })}
+                </div>
+            </div>
             {children.map(|children| children())}
         </div>
     }

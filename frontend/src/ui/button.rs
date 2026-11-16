@@ -3,21 +3,22 @@ use leptos::prelude::*;
 
 /// features/ では <button> を直書きしない。種類は enum の props で受け、
 /// 誤った組み合わせを型で防ぐ。見た目の変更は各 variant のクラスで行う。
-/// ボタンは主(Primary=塗り)・副(Secondary=枠線)・無効(disabled prop=薄い・押せない)の3種。
+/// 操作ボタンは主(Primary=紺塗り)・通常(Secondary=白地に線)・危険(DangerSolid=白地に赤の線と赤文字)の3種。
+/// いずれも高さ 44px 以上(min-h-11)を保つ。無効は disabled prop で表す(薄い・押せない)。
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ButtonVariant {
     /// 紺塗りの主ボタン
     Primary(ButtonSize),
-    /// 枠線の副ボタン
+    /// 枠線の通常ボタン
     Secondary(ButtonSize),
     /// 紺のヘッダー上の枠線ボタン(PC・スマホの上部帯)
     Header(ButtonSize),
-    /// 赤塗りの危険確定ボタン(確認モーダル)
+    /// 白地に赤の線と赤文字の危険ボタン(確認モーダル)
     DangerSolid(ButtonSize),
     /// 文字だけの静かな操作(絞り込みの解除など)
     Ghost,
-    /// 読み込みエラーの再読み込み(独自ベース)
+    /// 読み込みエラーの再読み込み。失敗行の右に出す青い文字ボタン
     Retry,
     /// メニュー項目(role="menuitem" と一緒に使う)
     MenuItem,
@@ -57,7 +58,7 @@ pub enum ButtonSize {
     Md,
 }
 
-const BASE: &str = "inline-flex items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+const BASE: &str = "inline-flex min-h-11 items-center justify-center rounded-md font-bold transition-[background-color,border-color,color,box-shadow,transform] focus:outline-none focus:ring-2 focus:ring-accent-bright/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
 fn sized(variant: &'static str, size: ButtonSize) -> String {
     format!("{BASE} {variant} {}", size.class())
@@ -79,13 +80,13 @@ impl ButtonVariant {
                 size,
             ),
             Self::DangerSolid(size) => sized(
-                // ink・negative 塗り面はダークで明転するため、上の文字は page 色にする(text-inverse は白固定)
-                "border border-negative bg-negative text-page shadow-sm hover:border-negative-strong hover:bg-negative-strong",
+                // 危険は白地に赤の線と赤文字(見本の削除ボタン)。塗りは使わない
+                "border border-negative bg-surface text-negative-vivid hover:bg-negative-soft",
                 size,
             ),
             Self::Ghost => "text-body text-text-deep hover:underline".to_string(),
             Self::Retry => {
-                "inline-flex min-h-11 items-center justify-center rounded-md border border-ink bg-ink px-4 text-body font-bold text-page transition-colors hover:bg-ink-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2".to_string()
+                "inline-flex min-h-11 shrink-0 items-center justify-center px-3 text-body font-bold text-accent-text hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2".to_string()
             }
             Self::MenuItem => {
                 "w-full px-3 py-2 text-left text-body font-semibold hover:bg-surface-raised"
@@ -115,9 +116,9 @@ impl ButtonVariant {
 impl ButtonSize {
     const fn class(self) -> &'static str {
         match self {
-            Self::Xs => "px-2 py-1 text-cell max-sm:min-h-11",
-            Self::Sm => "px-3 py-1.5 text-body max-sm:min-h-11",
-            Self::Md => "px-4 py-2 text-body max-sm:min-h-11",
+            Self::Xs => "px-2 py-1 text-cell",
+            Self::Sm => "px-3 py-1.5 text-body",
+            Self::Md => "px-4 py-2 text-body",
         }
     }
 }
