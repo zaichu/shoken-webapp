@@ -91,16 +91,53 @@ collect_type_rs() {
 }
 
 # @media print ブロックを除いた CSS を出力する(印刷は紙幅の固定値でトークン対象外)。
-# 波括弧の数で行を数えるため、1行完結の規則があっても数え間違えない
+# 開始行で閉じる1行完結の印刷ブロックや、同一行に続く画面ルールも扱う
 without_print() {
   awk '
-    /^[[:space:]]*@media print[[:space:]]*{/ { in_print=1; nest=1; next }
-    in_print {
-      nest += gsub(/{/, "{") - gsub(/}/, "}")
-      if (nest <= 0) in_print=0
-      next
+    {
+      was_in = in_print
+      orig_empty = ($0 == "")
+      line = $0
+      out = ""
+      while (length(line) > 0) {
+        if (!in_print) {
+          if (match(line, /@media[[:space:]]+print/)) {
+            out = out substr(line, 1, RSTART-1)
+            rest = substr(line, RSTART + RLENGTH)
+            br = index(rest, "{")
+            if (br == 0) {
+              in_print = 1
+              nest = 0
+              line = ""
+              break
+            }
+            in_print = 1
+            nest = 1
+            line = substr(rest, br + 1)
+          } else {
+            out = out line
+            line = ""
+          }
+        } else {
+          closed_at = 0
+          for (i = 1; i <= length(line); i++) {
+            c = substr(line, i, 1)
+            if (c == "{") nest++
+            else if (c == "}") {
+              nest--
+              if (nest <= 0) { closed_at = i; break }
+            }
+          }
+          if (closed_at > 0) {
+            in_print = 0
+            line = substr(line, closed_at + 1)
+          } else {
+            line = ""
+          }
+        }
+      }
+      if (out != "" || (orig_empty && !was_in)) print out
     }
-    { print }
   ' "${1:-style/input.css}"
 }
 
@@ -217,6 +254,17 @@ if [ "$(without_print "$tmp_print/print.css" | grep -c 'font-size: 9px')" -ne 1 
 fi
 if [ "$(without_print "$tmp_print/print.css" | grep -c 'padding: 2px')" -ne 0 ]; then
   echo "ERROR: 印刷ブロック限定除外が印刷の padding を残しています" >&2
+  rm -rf "$tmp_print"
+  exit 1
+fi
+printf '@media print { .a { font-size: 9px; } }\n.b { font-size: 14px; padding: 4px; }\n' >"$tmp_print/single.css"
+if [ "$(without_print "$tmp_print/single.css" | grep -c 'font-size: 14px')" -ne 1 ]; then
+  echo "ERROR: 1行完結の印刷ブロックが後続の画面ルールを除外しています" >&2
+  rm -rf "$tmp_print"
+  exit 1
+fi
+if [ "$(without_print "$tmp_print/single.css" | grep -c 'font-size: 9px')" -ne 0 ]; then
+  echo "ERROR: 1行完結の印刷ブロックが印刷の font-size を残しています" >&2
   rm -rf "$tmp_print"
   exit 1
 fi
