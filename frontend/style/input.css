@@ -1553,11 +1553,11 @@
   }
 
   .list-row-name {
-    @apply min-w-0 flex-1 break-words text-body font-bold text-text-deep;
+    @apply min-w-0 flex-1 break-words text-base font-bold text-text-deep;
   }
 
   .list-row-primary {
-    @apply shrink-0 whitespace-nowrap text-right text-body font-bold tabular-nums;
+    @apply shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums;
   }
 
   .list-row-sub {
