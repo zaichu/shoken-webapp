@@ -88,6 +88,23 @@ html[data-theme="dark"] .seg .here{background:var(--accent); color:#0b1220}
 .dl:first-child{border-top:none}
 .dl dt{font-size:14px; color:var(--mut); white-space:nowrap}
 .dl dd{margin:0; font-size:15px; font-weight:700; text-align:right; white-space:nowrap}
+.tlinks{display:flex; gap:16px; align-items:center}
+.mblock{margin-top:20px}
+.rows.loose .name{white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.mrow td{background:var(--seg); font-weight:700}
+.mrow td:first-child{border-left:3px solid var(--gold)}
+.mrow .mt{font-size:14px; white-space:nowrap}
+.mrow .ms{font-size:13px; color:var(--mut); white-space:nowrap}
+.mrow .ms.up{color:var(--up)} .mrow .ms.down{color:var(--down)}
+.herod{margin:4px 0 0}
+.herod summary{list-style:none; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; min-height:44px}
+.herod summary::-webkit-details-marker{display:none}
+.herod .chev{font-size:13px; color:var(--mut)}
+.herod[open] .chev{transform:rotate(180deg)}
+.herod .xrow{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:8px 0; border-top:1px solid var(--line)}
+.herod .xrow .k{font-size:14px; color:var(--mut); white-space:nowrap}
+.herod .xrow .v{font-size:15px; font-weight:700; white-space:nowrap}
+table.grid .nm{overflow:hidden; text-overflow:ellipsis}
 
 .top{border-bottom:1px solid var(--line)}
 .top .inner{max-width:480px; margin:0 auto; padding:0 16px; display:flex; align-items:center; justify-content:space-between; min-height:52px; gap:12px}
@@ -114,9 +131,13 @@ table.grid{width:100%}
   <span class="brand">証券Web</span><span class="account">アカウント</span>
 </div></header>
 <div class="wrap">
-<div class="hero">
+<div class="hrow" style="margin-top:12px"><h1 class="pagetitle">資産管理</h1><span class="tlinks"><span class="more">構成比を見る ›</span><span class="more">CSV管理 ›</span></span></div><div class="hero">
     <p class="label">評価額</p>
-    <p class="total num">¥28,593,148</p>
+    <details class="herod">
+      <summary><span class="total num">¥28,593,148</span><span class="chev" aria-hidden="true">∨</span></summary>
+      <div class="xrow"><span class="k">前日比</span><span class="v num up">+¥154,488</span></div>
+      <div class="xrow"><span class="k">取得総額</span><span class="v num">¥27,040,660</span></div>
+    </details>
     <p class="pl num up">+¥1,552,488 +5.74%</p>
     <p class="date num">価格基準日 2026/11/13</p>
   </div>
@@ -124,13 +145,9 @@ table.grid{width:100%}
 <div class="search"><span aria-hidden="true">⌕</span><span class="ph">銘柄・ファンド名・コード・口座で検索</span></div>
   <div class="sortbtn"><span>並べ替え: 評価額の高い順</span><span aria-hidden="true">›</span></div>
   <div class="countrow"><span class="n num">3件 / 3件</span></div>
-  <section class="card" aria-label="保有の一覧">
-    <div class="hrow"><h2>保有の一覧</h2><span class="more">構成比を見る ›</span></div>
-    <div class="sum"><span class="state-note num">評価額の合計 ¥28,593,148</span></div>
 <div class="rows">
       <div class="row"><div class="left"><div class="sk" style="width:60%"></div><div class="sub"><span class="sk" style="display:inline-block;width:40%">&nbsp;</span></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div>
       <div class="row"><div class="left"><div class="sk" style="width:50%"></div><div class="sub"><span class="sk" style="display:inline-block;width:30%">&nbsp;</span></div></div><span class="amt"><span class="sk" style="display:inline-block;width:90px">&nbsp;</span></span></div></div>
-  </section>
 <nav class="bottomnav" aria-label="下ナビ">
   <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg>ホーム</a>
   <a class="here" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-8"/><path d="M22 20H2"/></svg>資産管理</a>
