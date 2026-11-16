@@ -139,9 +139,18 @@
   --space-search: 0.75rem;
   --space-condition: 0.5rem;
   --space-table: 0.75rem;
+  --space-page: 1rem;
+  --space-card: 1rem;
+  --space-row: 3.5rem;
+  --space-row-compact: 3.25rem;
+  --space-tap: 2.75rem;
 
   --text-eyebrow: 0.6875rem;
   --text-cell: 0.75rem;
+  --text-body: 0.9375rem;
+  --text-label: 0.8125rem;
+  --text-heading: 1.0625rem;
+  --text-subhero: 1.125rem;
 
   /* 集計帯の金額の段。主は1つだけ、従はすべて同じ大きさにする。
      PC は主 32px・従 24px、スマホは主 30px・従 16px */
