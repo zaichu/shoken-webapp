@@ -123,6 +123,15 @@ fn query_tag(sql: &str) -> &'static str {
             Some(s) if s.starts_with("app_enter(") => "app_enter",
             Some(s) if s.starts_with("auth_upsert_user(") => "auth_upsert_user",
             Some(s) if s.starts_with("auth_rotate_session(") => "auth_rotate_session",
+            Some(s) if s.starts_with("auth_lookup_user_id_by_session(") => {
+                "auth_lookup_user_id_by_session"
+            }
+            Some(s) if s.starts_with("auth_delete_session_by_token(") => {
+                "auth_delete_session_by_token"
+            }
+            Some(s) if s.starts_with("* FROM auth_session_user_by_token(") => {
+                "auth_session_user_by_token"
+            }
             _ => "SELECT",
         },
         Some("INSERT") => "INSERT",
@@ -1385,6 +1394,18 @@ mod tests {
             (
                 "SELECT auth_upsert_user($1, $2, $3, $4)",
                 "auth_upsert_user",
+            ),
+            (
+                "SELECT auth_lookup_user_id_by_session($1)",
+                "auth_lookup_user_id_by_session",
+            ),
+            (
+                "SELECT auth_delete_session_by_token($1)",
+                "auth_delete_session_by_token",
+            ),
+            (
+                "SELECT * FROM auth_session_user_by_token($1)",
+                "auth_session_user_by_token",
             ),
             ("INSERT INTO users (id) VALUES ($1)", "INSERT"),
             ("UPDATE users SET email = $1", "UPDATE"),

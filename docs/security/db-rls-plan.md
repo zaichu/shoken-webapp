@@ -709,3 +709,40 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
 2. `security: 通知 token・管理者横断検索・cron を FORCE 対応` — token peek/consume、管理者の全利用者検索、保有資産を使った価格更新対象の抽出、90日経過 login event 掃除を専用の限定権限経路に移す。権限拒否と監査記録を検証する。
 3. `security: migration とバックアップの管理接続を分離` — migration と `pg_dump` / restore の資格情報・権限を通常 Workers 接続から分け、全表の完全なバックアップと data migration を使い捨て DB で検証する。
 4. `security: RLS 対象表へ FORCE を段階適用` — 前提3件の完了後、11表に1表ずつ FORCE を追加する migration と Docker 結合テストを実装し、段階ごとの停止/`NO FORCE` 戻し手順を記録する。本番確認は個別の実施判断・承認のもとで行う。
+
+## 23. 第五段階(5e-1)の記録(#1956)
+
+- `backend/migrations/0032_auth_session_user_function.sql`: セッション認証の利用者行取得を
+  引数(token_hash のみ)・返却値(利用者行の最小 7 列)に限定した
+  `auth_session_user_by_token(bytea)`(`STABLE`/`SECURITY DEFINER`、`search_path` 固定)へ移す土台にした。
+  `EXECUTE` は `app_restricted` にだけ与え、`PUBLIC` からは取り上げる(0028 と同じ定型)。
+  ロール不在時は `NOTICE` に留めデプロイを止めない。`FORCE` なしのため所有者の挙動は変わらない。
+  過去の migration は書き換えていない。
+- アプリの変更は `backend/src/services/auth.rs` のみ。`select_user_by_session` は直接の JOIN の代わりに
+  上記関数を1回呼び、`delete_session` は直接の DELETE の代わりに既存の
+  `auth_delete_session_by_token` を呼ぶ。`select_user_id_by_session`(利用者特定)・
+  upsert(`auth_upsert_user`)・回転(`auth_rotate_session`)は 5b/5c で関数化済みのため変更なし。
+  アカウント削除は認証照会の解決後に既存の利用者 Tx を使う向きを維持する。
+  ログイン Tx(`upsert_user_rotate_session_with_login_event`)の利用者行取得は
+  upsert 直後の所有者読み取りから `app_enter` 後の制限 Tx 内の読み取りへ移し、文数は変えていない。
+  ログイン・通常認証・ログアウト・アカウント削除の挙動は変えない。
+- 通常接続ロールの読み取り専用確認: `DB RLS State` ワークフローの「接続ロール」欄に
+  `rolsuper`・`rolbypassrls`・`rolcanlogin` を追加し、`BEGIN READ ONLY` のまま確かめられるようにした。
+  期待値は `NOSUPERUSER NOBYPASSRLS`。異なる場合は FORCE 適用(5e-4)の前に
+  実行ロールと管理用ロールの分離が必要で、本 Issue では分離用の migration を追加しない。
+  関数所有者を分ける専用ロールの新設も FORCE 導入時(5e-4)の対象とし、本 Issue では行わない。
+- 本番の通常接続ロールの確認は未実施。本 Issue の実装範囲は確認手段の用意までとし、
+  マージ後に統合担当が main から `DB RLS State` ワークフローを手動実行して結果を記録する。
+  期待値は `NOSUPERUSER NOBYPASSRLS` で、外れた場合は FORCE 適用(5e-4)の前に
+  実行ロールと管理用ロールの分離が必要になる。
+- 結合テスト(`backend/tests/login_rls.rs` の `auth_paths_use_limited_functions`):
+  非特権所有者が `NOSUPERUSER NOBYPASSRLS` であること、新旧照会関数の権限カタログ
+  (`app_restricted` は実行可・`public` は不可)・`DEFINER` 属性・`STABLE`・`search_path` 固定、
+  新規・端末付き再ログインを含むログインと通常認証、未知・期限切れ・失効トークンの未認証扱い、
+  ログアウトの冪等な成功と行の消去、アカウント削除後の未認証化と利用者行の消去を、
+  所有者接続と `app_enter` 後の `app_restricted` の両経路で固定する。
+- 往復回数(1リクエストあたり): 認証照会は変更前後とも関数呼び出し1往復(+0)、
+  ログアウトの消去も1往復(+0)、ログイン Tx は文の順序のみ変更で文数不変(+0)。
+  性能基準 +50ms 以内の追加なし。
+- 戻し方はコードの revert が正本。0032 の関数は残しても所有者の挙動を変えず、
+  取り消す場合は新しい増分 migration で `DROP FUNCTION` を行う。

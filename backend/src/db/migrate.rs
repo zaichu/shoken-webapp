@@ -141,6 +141,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0031_dividend_cache_error_stale_at",
         include_str!("../../migrations/0031_dividend_cache_error_stale_at.sql"),
     ),
+    (
+        "0032_auth_session_user_function",
+        include_str!("../../migrations/0032_auth_session_user_function.sql"),
+    ),
 ];
 
 struct Migration {
