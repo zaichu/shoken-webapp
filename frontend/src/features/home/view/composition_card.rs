@@ -167,7 +167,7 @@ fn ProductDonut(products: Vec<CompositionSlice>) -> impl IntoView {
                 <li class="flex items-center gap-1.5">
                     <span class=format!("home-swatch {class}")></span>
                     <span class="truncate text-text-soft">{slice.label.clone()}</span>
-                    <span class="tabular-nums text-text-muted">
+                    <span class="text-cell tabular-nums text-text-muted">
                         {format_integer_percent(*pct)}
                     </span>
                 </li>
@@ -184,7 +184,7 @@ fn ProductDonut(products: Vec<CompositionSlice>) -> impl IntoView {
             >
                 <div class="home-donut-hole"></div>
             </div>
-            <ul class="grid gap-2 text-sm">{rows}</ul>
+            <ul class="grid gap-2 text-body">{rows}</ul>
         </div>
     }
 }
@@ -214,7 +214,7 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
                 <li class="flex items-center gap-1">
                     <span class=format!("home-swatch {class}")></span>
                     <AccountBadge label=slice.label.clone() />
-                    <span class="tabular-nums text-text-muted">
+                    <span class="text-cell tabular-nums text-text-muted">
                         {format_integer_percent(pct)}
                     </span>
                 </li>
@@ -223,11 +223,11 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
         .collect_view();
     view! {
         <div class="px-4 pt-4">
-            <p class="text-xs font-medium text-text-muted">
+            <p class="text-label font-medium text-text-muted">
                 {labels::HOME_ACCOUNT_FUND_LABEL}
             </p>
             <div class="home-stacked-bar mt-1.5">{bars}</div>
-            <ul class="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">{legend}</ul>
+            <ul class="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-cell">{legend}</ul>
         </div>
     }
 }
