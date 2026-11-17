@@ -52,7 +52,7 @@ PORT="$(docker port "${CONTAINER_NAME}" 5432/tcp | head -n 1 | sed 's/.*://')"
 DSN="postgresql://${DB_USER}:${DB_PASSWORD}@127.0.0.1:${PORT}/${DB_NAME}"
 
 echo "2/3 migration を適用..."
-(cd backend && DATABASE_URL="${DSN}" cargo run --bin migrate)
+(cd backend && MIGRATION_DATABASE_URL="${DSN}" DATABASE_URL="${DSN}" cargo run --bin migrate)
 
 echo "3/3 tbls doc を実行..."
 # --rm-dist: 消えたテーブルなどの古い生成物を残さない

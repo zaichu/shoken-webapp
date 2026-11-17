@@ -199,7 +199,6 @@ fn run_backup(pgurl: &str, recipient: &Path, out: &Path) -> std::process::Output
         .arg(out)
         .env("PATH", path)
         .env("DB_ADMIN_URL", pgurl)
-        .env("DB_BACKUP_ROLE", "backup_operator")
         .env("RECIPIENT_FILE", recipient)
         .output()
         .expect("バックアップスクリプトの起動に失敗")
@@ -308,12 +307,10 @@ async fn backup_roundtrip_keeps_all_table_counts() {
     seed_dummy(&source_pool).await;
     source_pool
         .batch_execute(
-            "CREATE ROLE backup_operator LOGIN NOSUPERUSER BYPASSRLS; \
-             GRANT CREATE ON DATABASE postgres TO backup_operator; \
-             GRANT CREATE ON SCHEMA public TO backup_operator; \
-             DO $$ DECLARE item record; BEGIN FOR item IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP EXECUTE format('ALTER TABLE public.%I OWNER TO backup_operator', item.tablename); END LOOP; END $$; \
-             DO $$ DECLARE item record; BEGIN FOR item IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public' LOOP EXECUTE format('ALTER SEQUENCE public.%I OWNER TO backup_operator', item.sequence_name); END LOOP; END $$; \
-             DO $$ DECLARE item record; BEGIN FOR item IN SELECT viewname FROM pg_views WHERE schemaname='public' LOOP EXECUTE format('ALTER VIEW public.%I OWNER TO backup_operator', item.viewname); END LOOP; END $$;",
+            "CREATE ROLE backup_operator LOGIN PASSWORD 'backup-test' NOSUPERUSER BYPASSRLS; \
+             GRANT USAGE ON SCHEMA public TO backup_operator; \
+             GRANT SELECT ON ALL TABLES IN SCHEMA public TO backup_operator; \
+             GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO backup_operator;",
         )
         .await
         .unwrap();
@@ -336,8 +333,23 @@ async fn backup_roundtrip_keeps_all_table_counts() {
     let expected = table_counts(&source_pool).await;
     assert_eq!(count_for(&expected, "users"), 1);
     assert_eq!(count_for(&expected, "stock"), 2);
+    let probe_access: bool = db::query_scalar(
+        "SELECT has_table_privilege('backup_operator', 'stock', 'SELECT')",
+        vec![],
+    )
+    .fetch_one(&source_admin)
+    .await
+    .unwrap();
+    assert!(
+        probe_access,
+        "テーブル所有者と異なる backup_operator に SELECT がある"
+    );
 
-    let backup = run_backup(&source_url, &recipient, &encrypted);
+    let backup = run_backup(
+        &format!("postgres://backup_operator:backup-test@127.0.0.1:{source_port}/postgres"),
+        &recipient,
+        &encrypted,
+    );
     assert!(
         backup.status.success(),
         "バックアップに失敗しました: {} / {}",
@@ -394,7 +406,7 @@ async fn backup_roundtrip_keeps_all_table_counts() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres containers"]
-async fn migration_role_runs_all_migrations_and_force_data_migration() {
+async fn migration_role_runs_all_migrations_and_force_rls_is_verified_separately() {
     let node = Postgres::default().with_tag("17").start().await.unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
     let admin_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
@@ -424,18 +436,30 @@ async fn migration_role_runs_all_migrations_and_force_data_migration() {
         .fetch_one(&admin)
         .await
         .unwrap();
-    assert_eq!(regular, 0, "通常接続では FORCE 下の users が見えない");
+    assert_eq!(regular, 0, "admin 接続では users が空である");
 
     let forced: i64 = db::query_scalar(
-        "SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity",
+        "SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relforcerowsecurity",
         vec![],
     )
     .fetch_one(&role_pool)
     .await
     .unwrap();
-    assert_eq!(forced, 11);
+    assert_eq!(forced, 0, "migration の全表で FORCE RLS は無効である");
     db::query(
         "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(Uuid::new_v4()),
+            Bind::from("force-policy-probe"),
+            Bind::from("force-policy-probe@example.invalid"),
+        ],
+    )
+    .execute(&role_pool)
+    .await
+    .unwrap();
+    db::query(
+        "ALTER TABLE users FORCE ROW LEVEL SECURITY; \
+         INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
         vec![
             Bind::from(Uuid::new_v4()),
             Bind::from("admin-migration-probe"),
@@ -444,7 +468,19 @@ async fn migration_role_runs_all_migrations_and_force_data_migration() {
     )
     .execute(&role_pool)
     .await
-    .expect("管理ロールによる FORCE 下の data migration 模擬");
+    .expect_err("RLS を FORCE した通常 migration role の INSERT は拒否される");
+    role_pool
+        .batch_execute("ALTER TABLE users FORCE ROW LEVEL SECURITY")
+        .await
+        .unwrap();
+    let force_enabled: bool = db::query_scalar(
+        "SELECT relforcerowsecurity FROM pg_class WHERE relname = 'users'",
+        vec![],
+    )
+    .fetch_one(&role_pool)
+    .await
+    .unwrap();
+    assert!(force_enabled, "users の FORCE RLS 属性が有効になっている");
 
     let owner = Postgres::default().with_tag("17").start().await.unwrap();
     let owner_port = owner.get_host_port_ipv4(5432).await.unwrap();
@@ -453,12 +489,16 @@ async fn migration_role_runs_all_migrations_and_force_data_migration() {
     owner_admin
         .batch_execute(
             "CREATE ROLE dump_owner LOGIN PASSWORD 'test' NOSUPERUSER NOBYPASSRLS; \
-             CREATE ROLE backup_operator LOGIN NOSUPERUSER BYPASSRLS; \
-             GRANT backup_operator TO dump_owner WITH INHERIT FALSE, SET TRUE; \
+             CREATE ROLE backup_operator LOGIN PASSWORD 'backup-test' NOSUPERUSER BYPASSRLS; \
              GRANT CREATE ON DATABASE postgres TO dump_owner; \
              GRANT CREATE ON SCHEMA public TO dump_owner; \
              CREATE ROLE app_restricted NOLOGIN; \
-             GRANT app_restricted TO dump_owner WITH ADMIN TRUE, SET TRUE;",
+             GRANT app_restricted TO dump_owner WITH ADMIN TRUE, SET TRUE; \
+             GRANT USAGE ON SCHEMA public TO backup_operator; \
+             ALTER DEFAULT PRIVILEGES FOR ROLE dump_owner IN SCHEMA public GRANT SELECT ON TABLES TO backup_operator; \
+             ALTER DEFAULT PRIVILEGES FOR ROLE dump_owner IN SCHEMA public GRANT SELECT ON SEQUENCES TO backup_operator; \
+             GRANT SELECT ON ALL TABLES IN SCHEMA public TO backup_operator; \
+             GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO backup_operator;",
         )
         .await
         .unwrap();
@@ -480,14 +520,6 @@ async fn migration_role_runs_all_migrations_and_force_data_migration() {
     .unwrap();
     owner_admin
         .batch_execute(
-            "DO $$ DECLARE item record; BEGIN FOR item IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP EXECUTE format('ALTER TABLE public.%I OWNER TO backup_operator', item.tablename); END LOOP; END $$; \
-             DO $$ DECLARE item record; BEGIN FOR item IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public' LOOP EXECUTE format('ALTER SEQUENCE public.%I OWNER TO backup_operator', item.sequence_name); END LOOP; END $$; \
-             DO $$ DECLARE item record; BEGIN FOR item IN SELECT viewname FROM pg_views WHERE schemaname='public' LOOP EXECUTE format('ALTER VIEW public.%I OWNER TO backup_operator', item.viewname); END LOOP; END $$;",
-        )
-        .await
-        .unwrap();
-    owner_admin
-        .batch_execute(
             "ALTER TABLE users FORCE ROW LEVEL SECURITY; \
              ALTER TABLE sessions FORCE ROW LEVEL SECURITY; \
              ALTER TABLE dividends FORCE ROW LEVEL SECURITY; \
@@ -505,7 +537,8 @@ async fn migration_role_runs_all_migrations_and_force_data_migration() {
     let workdir = Workdir::new();
     let recipient = generate_recipient(&workdir);
     let encrypted = workdir.file("restore.sql.gz.age");
-    let backup_url = format!("postgres://dump_owner:test@127.0.0.1:{owner_port}/postgres");
+    let backup_url =
+        format!("postgres://backup_operator:backup-test@127.0.0.1:{owner_port}/postgres");
     let backup = run_backup(&backup_url, &recipient, &encrypted);
     assert!(
         backup.status.success(),

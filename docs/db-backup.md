@@ -30,8 +30,8 @@ Supabase の DB を毎日 artifact に残す。Neon 時代の反省 (データ�
 # 1. artifact をダウンロード・展開し、復号する (検証用の空 DB にそのまま流し込む場合)
 #    --schema=public の dump には CREATE SCHEMA public が含まれるが拡張の定義は含まれないため、
 #    検証用の空 DB では先に 3 つの拡張を入れてから、スキーマ作成だけ IF NOT EXISTS に読み替えて流し込む
-#    (平文をディスクに残さないようパイプで渡す。backup_operator は restore_owner の membership と CREATE 権限を持たせる)
-{ printf 'SET ROLE backup_operator;\n'; age -d -i <秘密鍵ファイル> db-backup-YYYYMMDDTHHMMSSZ.sql.gz.age | gunzip -c | sed 's/^CREATE SCHEMA public;/CREATE SCHEMA IF NOT EXISTS public;/'; } | psql "<backup_operator の membership を持つ新しい DB 接続文字列>"
+#    (平文をディスクに残さないようパイプで渡す。復元先のオブジェクトを所有する復元用ロールで接続する)
+{ age -d -i <秘密鍵ファイル> db-backup-YYYYMMDDTHHMMSSZ.sql.gz.age | gunzip -c | sed 's/^CREATE SCHEMA public;/CREATE SCHEMA IF NOT EXISTS public;/'; } | psql "<復元先のオブジェクト所有者となる新しい DB 接続文字列>"
 # 事前に検証用 DB へ: CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 # pg_trgm・pgcrypto も同様 (0000_extensions.sql と同じ)
 
@@ -42,22 +42,37 @@ psql "<新しい DB の接続文字列>" -c "SELECT table_name FROM information_
 ## Supabase 側の準備
 
 - `pg_dump` に PostgreSQL 17 以上のクライアントを使う (PGDG の apt で `postgresql-client-17`)
-- `BACKUP_DATABASE_URL` 未登録時は `DATABASE_URL` が backup に使われる。管理接続へ切り替える場合はユーザーが `BACKUP_DATABASE_URL` を GitHub secrets に登録する。接続先は同じ DB の Session pooler を使う
+- `BACKUP_DATABASE_URL` 未登録時は `DATABASE_URL` が backup に使われる。専用接続へ切り替える場合はユーザーが `BACKUP_DATABASE_URL` を GitHub secrets に登録する。接続先は同じ DB の Session pooler を使う
 
 ## 管理用接続への切り替え(ユーザーの作業)
 
-アプリの Workers 接続 (`DATABASE_URL`) は変更しない。`BACKUP_DATABASE_URL` に backup/restore 専用ロールの接続文字列を登録すると、次の backup から管理接続が使われる。secret が未登録なら既存 `DATABASE_URL` のまま動作する。
+アプリの Workers 接続 (`DATABASE_URL`) は変更しない。`BACKUP_DATABASE_URL` には `backup_operator` ロールでログインする接続文字列を登録する。`postgres` の接続文字列を登録すると、アプリと同じ強い資格情報を CI に保存することになり分離にならない。専用 secret が未登録なら既存 `DATABASE_URL` が使われる。
 
-Supabase SQL Editor で DB owner として次を実行する。パスワードは SQL に書かず、Dashboard で設定する。ロール名が既存なら作成文を飛ばし、属性と membership を確認する。
+Supabase SQL Editor で DB owner として次を実行する。`backup_operator` のパスワードは SQL に書かず、Supabase Dashboard の Database Settings でこのログインロールに設定する。設定したパスワードの `backup_operator` 接続文字列を GitHub Actions の `BACKUP_DATABASE_URL` secret に登録する。pooler を使う場合もユーザー部分は `backup_operator` とする。ロールが既存なら作成文を飛ばし、属性と権限を確認する。
 
 ```sql
 CREATE ROLE backup_operator LOGIN NOINHERIT NOSUPERUSER BYPASSRLS;
-GRANT backup_operator TO postgres WITH INHERIT FALSE, SET TRUE;
+GRANT USAGE ON SCHEMA public TO backup_operator;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO backup_operator;
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO backup_operator;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT SELECT ON TABLES TO backup_operator;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT SELECT ON SEQUENCES TO backup_operator;
 ```
 
-`backup_operator` は RLS 全表を完全に読むため `BYPASSRLS` を持つ。既存のテーブル所有ロールが `postgres` 以外の場合は、その owner にも `backup_operator` への `SET` membership を付ける。GitHub Actions は `pg_dump --role=backup_operator` で接続直後に明示的な `SET ROLE` を行う。接続の `current_user` が `backup_operator` となることを最初の手動実行で確認する。`BYPASSRLS` を持つ URL は Workers の Hyperdrive に設定しない。
+`backup_operator` は RLS と FORCE RLS を迂回して完全な dump を取るため `BYPASSRLS` を持つ一方、テーブル所有権や migration 権限は持たず、既存表・シーケンスへの SELECT だけを持つ。default privileges は各オブジェクトを作成するロールごとに必要である。マイグレーション接続が `MIGRATION_DATABASE_URL` の `migration_admin` なら、既存オブジェクトへの GRANT に加え、次を `migration_admin` として実行する。
 
-復元は空の disposable DB で行い、暗号化 dump を復号して `psql` に流すときも `SET ROLE backup_operator` を実行してから流す。既存スキーマを置換する場合、実行者が対象オブジェクトを所有し、拡張の作成・削除権限も持つことを事前に確認する。復元完了後に全 public base table の件数を照合する。
+```sql
+ALTER DEFAULT PRIVILEGES FOR ROLE migration_admin IN SCHEMA public
+  GRANT SELECT ON TABLES TO backup_operator;
+ALTER DEFAULT PRIVILEGES FOR ROLE migration_admin IN SCHEMA public
+  GRANT SELECT ON SEQUENCES TO backup_operator;
+```
+
+GitHub Actions は URL のログインロールで直接 `pg_dump` を実行する。最初の手動実行で専用 URL による dump が成功することを確かめる。`BYPASSRLS` を持つ URL は Workers の Hyperdrive に設定しない。
+
+復元は空の disposable DB で行い、暗号化 dump を復号して `psql` に流すときは復元先のオブジェクトを所有する復元用ロールで接続する。`backup_operator` は読み取り専用のため復元に使わない。既存スキーマを置換する場合、実行者が対象オブジェクトを所有し、拡張の作成・削除権限も持つことを事前に確認する。復元完了後に全 public base table の件数を照合する。
 
 ## 実際に復元を試す手順
 

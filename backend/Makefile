@@ -65,7 +65,7 @@ migrate:
 .PHONY: migrate-local
 migrate-local:
 	@echo "📦 ローカルDocker DBにマイグレーションを実行します..."
-	env DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) run --bin migrate
+	env MIGRATION_DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db DATABASE_URL=postgresql://user:password@localhost:5432/shoken_db $(CARGO) run --bin migrate
 
 # Docker関連
 .PHONY: db-up

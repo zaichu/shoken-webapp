@@ -44,7 +44,6 @@ jobs:
       - name: Dump and encrypt
         env:
           DB_ADMIN_URL: ${{ secrets.BACKUP_DATABASE_URL != '' && secrets.BACKUP_DATABASE_URL || secrets.DATABASE_URL }}
-          DB_BACKUP_ROLE: ${{ secrets.BACKUP_DATABASE_URL != '' && 'backup_operator' || '' }}
         run: |
           set -euo pipefail
           set +x
