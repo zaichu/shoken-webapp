@@ -1494,17 +1494,33 @@
 
   /* 帯の直下の注記行は「ページの骨格」(page-skeleton-note) が持つ */
 
-  /* ホームのカード列。配当カード側は明細ページから見返したとき面積を持たせる。
-     列を暗黙の auto に任せると最長の nowrap 行まで列が膨らむため、
-     1 列でも grid-cols-1(minmax(0,1fr))を明示してコンテナ幅に留める */
-  .home-card-row {
-    @apply grid grid-cols-1 lg:grid-cols-2;
+  /* ホームのカード置き場。PCは左列(2fr)に配当・最近、右列(1fr)に内訳・損益。
+     スマホは DOM 順(配当→内訳→最近→損益)にそのまま積む */
+  .home-card-grid {
+    @apply grid grid-cols-1 lg:grid-cols-[2fr_1fr];
     gap: var(--space-card);
     margin-top: var(--space-card);
   }
 
-  .home-card-row-dividend {
-    @apply lg:grid-cols-[2fr_1fr];
+  /* ホーム最下部の CSV 導線。MoreLink の左寄せを打ち消して中央に置く */
+  .home-footlink {
+    @apply mt-3 flex items-center justify-center;
+  }
+
+  .home-footlink .more-link {
+    margin-left: 0;
+  }
+
+  .home-pnl-list .list-row-main {
+    @apply items-start;
+  }
+
+  .home-pnl-list .list-row-primary {
+    @apply max-w-[45%] whitespace-normal break-words;
+  }
+
+  .home-pnl-list .list-row-secondary {
+    @apply max-w-[45%] whitespace-normal break-words;
   }
 
   .more-link {

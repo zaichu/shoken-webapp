@@ -837,6 +837,8 @@ pub const HOME_RECEIPTS_VIEW_LINK: &str = "取引明細で見る";
 pub const HOME_RECENT_DIVIDENDS: &str = "最近の配当入金";
 /// ホーム: カードの右に出すすべてへのリンク名
 pub const HOME_SEE_ALL: &str = "すべて見る";
+/// ホーム: CSV取り込みへの導線のリンク名
+pub const HOME_CSV_IMPORT_LINK: &str = "CSVファイルの取り込み";
 /// ホーム: 損益ランキングの見出し
 pub const HOME_PNL_TITLE: &str = "評価損益の大きい銘柄";
 /// ホーム: 内訳カードの見出し

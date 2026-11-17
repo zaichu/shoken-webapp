@@ -21,6 +21,7 @@ use crate::session::use_session;
 use crate::ui::format::format_latest_import_date;
 use crate::ui::labels;
 use crate::ui::login_prompt::LoginPrompt;
+use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonSummary;
 use leptos::prelude::*;
@@ -160,13 +161,17 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
                 </SkeletonSummary>
             </div>
             <div class="page-gutter flex flex-1 flex-col pb-4">
-                <div class="home-card-row home-card-row-dividend">
+                <div class="home-card-grid">
                     <DividendCard data=data />
                     <CompositionCard data=data />
-                </div>
-                <div class="home-card-row">
                     <RecentDividendsCard data=data />
                     <PnlRankingCard data=data />
+                </div>
+                <div class="home-footlink">
+                    <MoreLink
+                        href="/csv".to_string()
+                        label=labels::HOME_CSV_IMPORT_LINK.to_string()
+                    />
                 </div>
             </div>
         </Show>
