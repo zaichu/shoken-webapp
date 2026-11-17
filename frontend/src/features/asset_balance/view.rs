@@ -300,6 +300,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         prev_kind.set(next);
         search.update(|search| *search = text_only_search(search));
     });
+    // タブ行をページレベルで描く
     if session.user.get_untracked().is_some()
         && has_current_balances(
             &balances.get_untracked(),
