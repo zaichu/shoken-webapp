@@ -2,7 +2,7 @@ use super::super::model::{self, CompositionSlice, ProductCompositionSlice};
 use super::super::store::{self, HomeOverviewData};
 use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{fund_market, funds_of, stock_market, stocks_of};
-use crate::features::asset_balance::format_row_valuation_amount;
+use crate::features::asset_balance::format_valuation_amount;
 use crate::session::use_session;
 use crate::ui::badge::account_display_name;
 use crate::ui::card::{Card, CardVariant};
@@ -147,7 +147,7 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
                         "{}{}{}",
                         format_integer_percent(pct),
                         labels::HOME_COMPOSITION_DETAIL_SEPARATOR,
-                        format!("{}{}", slice.item_count, labels::HOME_COMPOSITION_ITEM_COUNT_UNIT)
+                        labels::count(slice.item_count)
                     )
                 />
             }
@@ -170,7 +170,7 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
         <div class="px-4 pt-3.5">
             <div class="home-composition-total">
                 <span class="text-text-muted">{labels::HOME_COMPOSITION_TOTAL}</span>
-                <span class="font-bold tabular-nums">{format_row_valuation_amount(Some(product_total))}</span>
+                <span class="font-bold tabular-nums">{format_valuation_amount(Some(product_total))}</span>
             </div>
             <div class="home-stacked-bar mt-3">{bar}</div>
             <ul class="home-composition-rows mt-1.5">{rows}</ul>
@@ -227,7 +227,7 @@ fn CompositionRow(label: String, amount: f64, detail: String) -> impl IntoView {
                 <span class="block text-cell tabular-nums text-text-muted">{detail}</span>
             </div>
             <span class="shrink-0 text-right text-body font-bold tabular-nums text-text">
-                {format_row_valuation_amount(Some(amount))}
+                {format_valuation_amount(Some(amount))}
             </span>
         </li>
     }

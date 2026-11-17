@@ -845,8 +845,6 @@ pub const HOME_PNL_TITLE: &str = "評価損益の大きい銘柄";
 pub const HOME_COMPOSITION_TITLE: &str = "資産の内訳";
 pub const HOME_COMPOSITION_TOTAL: &str = "合計";
 pub const HOME_COMPOSITION_DETAIL_SEPARATOR: &str = " ・ ";
-/// ホーム: 商品別内訳の件数単位
-pub const HOME_COMPOSITION_ITEM_COUNT_UNIT: &str = "件";
 /// ホーム: 概要帯の領域名
 pub const HOME_OVERVIEW_LABEL: &str = "資産の概要";
 /// ホーム: 一部の集計が取れなかったときの注意
