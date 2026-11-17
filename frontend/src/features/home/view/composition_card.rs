@@ -4,6 +4,7 @@ use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{fund_market, funds_of, stock_market, stocks_of};
 use crate::features::asset_balance;
 use crate::session;
+use crate::ui::amount::Amount;
 use crate::ui::badge;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
@@ -143,12 +144,8 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
                 <CompositionRow
                     label=slice.label.clone()
                     amount=slice.amount
-                    detail=format!(
-                        "{}{}{}",
-                        format::format_integer_percent(pct),
-                        labels::HOME_COMPOSITION_DETAIL_SEPARATOR,
-                        labels::count(slice.item_count)
-                    )
+                    detail_rate=pct
+                    detail_suffix=labels::count(slice.item_count)
                 />
             }
         })
@@ -170,7 +167,7 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
         <div class="px-4 pt-3.5">
             <div class="home-composition-total">
                 <span class="text-text-muted">{labels::HOME_COMPOSITION_TOTAL}</span>
-                <span class="font-bold tabular-nums">{asset_balance::format_valuation_amount(Some(product_total))}</span>
+                <Amount class="font-bold" text=asset_balance::format_valuation_amount(Some(product_total)) />
             </div>
             <div class="home-stacked-bar mt-3">{bar}</div>
             <ul class="home-composition-rows mt-1.5">{rows}</ul>
@@ -202,7 +199,8 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
                 <CompositionRow
                     label=slice.label.clone()
                     amount=slice.amount
-                    detail=format::format_integer_percent(pct)
+                    detail_rate=pct
+                    detail_suffix=String::new()
                 />
             }
         })
@@ -219,15 +217,29 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
 }
 
 #[component]
-fn CompositionRow(label: String, amount: f64, detail: String) -> impl IntoView {
+fn CompositionRow(
+    label: String,
+    amount: f64,
+    detail_rate: f64,
+    detail_suffix: String,
+) -> impl IntoView {
     view! {
         <li class="home-composition-row">
             <div class="min-w-0 flex-1">
                 <span class="block truncate text-body text-text">{label}</span>
-                <span class="block text-cell tabular-nums text-text-muted">{detail}</span>
+                <span class="block text-cell tabular-nums text-text-muted">
+                    <Amount
+                        text=format::format_integer_percent(detail_rate)
+                    />
+                    {(!detail_suffix.is_empty()).then(|| view! {
+                        {labels::HOME_COMPOSITION_DETAIL_SEPARATOR}{detail_suffix}
+                    })}
+                </span>
             </div>
             <span class="shrink-0 text-right text-body font-bold tabular-nums text-text">
-                {asset_balance::format_valuation_amount(Some(amount))}
+                <Amount
+                    text=asset_balance::format_valuation_amount(Some(amount))
+                />
             </span>
         </li>
     }

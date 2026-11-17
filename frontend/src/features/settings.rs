@@ -13,6 +13,7 @@ use crate::ui::card::CardVariant;
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
+use crate::ui::section_heading::{SectionHeading, SectionHeadingTone};
 use crate::ui::segmented::Segmented;
 use crate::ui::select::Select;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
@@ -66,7 +67,7 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
     view! {
         <section id="account" aria-labelledby="account-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="account-heading" class="text-heading font-bold mb-4">{labels::ACCOUNT_BUTTON}</h2>
+                <SectionHeading id="account-heading">{labels::ACCOUNT_BUTTON}</SectionHeading>
                 <div class="flex items-center gap-4">
                     <UserAvatar
                         picture_url=user.picture_url.clone()
@@ -110,7 +111,7 @@ fn SectionDisplay() -> impl IntoView {
     view! {
         <section id="display" aria-labelledby="display-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="display-heading" class="text-heading font-bold mb-4">{labels::SETTINGS_DISPLAY_SECTION}</h2>
+                <SectionHeading id="display-heading">{labels::SETTINGS_DISPLAY_SECTION}</SectionHeading>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
                     <SettingRow title=labels::SETTINGS_THEME>
                         <Segmented
@@ -221,7 +222,7 @@ fn SectionData() -> impl IntoView {
     view! {
         <section id="data" aria-labelledby="data-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="data-heading" class="text-heading font-bold mb-4">{labels::SETTINGS_DATA_SECTION}</h2>
+                <SectionHeading id="data-heading">{labels::SETTINGS_DATA_SECTION}</SectionHeading>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
                     <SettingRow title=labels::SETTINGS_EXPORT_CSV>
                         {ExportKind::ALL.iter().map(|kind| {
@@ -310,7 +311,7 @@ fn SectionSecurity() -> impl IntoView {
     view! {
         <section id="security" aria-labelledby="security-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="security-heading" class="text-heading font-bold mb-4">{labels::SETTINGS_SECURITY_SECTION}</h2>
+                <SectionHeading id="security-heading">{labels::SETTINGS_SECURITY_SECTION}</SectionHeading>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
                     <SettingRow title=labels::SETTINGS_IDLE_LOGOUT>
                         <Segmented
@@ -535,7 +536,7 @@ fn SectionDanger() -> impl IntoView {
     view! {
         <section id="danger" aria-labelledby="danger-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5 border-negative-border bg-negative/5">
-                <h2 id="danger-heading" class="text-heading font-bold text-negative mb-4">{labels::SETTINGS_DANGER_SECTION}</h2>
+                <SectionHeading id="danger-heading" tone=SectionHeadingTone::Danger>{labels::SETTINGS_DANGER_SECTION}</SectionHeading>
                 <div class="space-y-3 border-t border-negative-border/50">
                     <div class="flex items-center justify-between py-3">
                         <div>

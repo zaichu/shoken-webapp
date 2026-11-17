@@ -86,6 +86,7 @@
   違いは実行ボタン(`SearchSubmitButton`)があるかだけ。文言は `labels::search_placeholder(対象名)`の「〇〇で検索」の型
 - **ボタン**(`ui/button.rs`): 3種類だけ。主(`Primary`=塗り・強調色)・副(`Secondary`=枠線)・無効(`disabled`=薄い・押せない)。
   検索の実行ボタンは入力が空のあいだ無効、入力すると主の色
+- 部品(`Card`・`ListRow`・`SummaryBand`・`PageTab`・`SearchField`・`ShowMoreButton`・`EmptyState`・`Badge`・`Amount`)の見た目(余白・文字サイズ・色・枠)は `frontend/src/ui` の部品の中だけで決め、`features/` では部品の内側の性質を変えるクラスを付けない。外余白だけ部品の props で渡す
 
 ## 1. 資産管理トップ `/assetbalance`
 

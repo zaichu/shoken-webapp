@@ -632,14 +632,22 @@ struct HoldingTilesData {
     pnl_rate: String,
     pnl_negative: bool,
     pnl_positive: bool,
+    pnl_rate_negative: bool,
+    pnl_rate_positive: bool,
     current_price: String,
     price_as_of: String,
     quantity: String,
     average_price: Option<String>,
     purchase: String,
     per_share: String,
+    per_share_negative: bool,
+    per_share_positive: bool,
     annual: String,
+    annual_negative: bool,
+    annual_positive: bool,
     yield_text: String,
+    yield_negative: bool,
+    yield_positive: bool,
     account: Option<String>,
     /// 銘柄共通の項目(現在値・価格基準日・1株配当)を出すか。合計だけに出し、口座ごとには出さない
     show_common: bool,
@@ -664,6 +672,8 @@ impl HoldingTilesData {
             pnl_rate: asset_balance::format_signed_valuation_rate(valuation.profit_loss.rate, 1),
             pnl_negative: asset_balance::is_negative_valuation(valuation.profit_loss.amount),
             pnl_positive: asset_balance::is_positive_valuation(valuation.profit_loss.amount),
+            pnl_rate_negative: asset_balance::is_negative_rate(valuation.profit_loss.rate),
+            pnl_rate_positive: asset_balance::is_positive_rate(valuation.profit_loss.rate),
             current_price: format::format_currency(input.current_price),
             price_as_of: input.price_as_of.map_or_else(
                 || labels::MISSING.to_string(),
@@ -676,8 +686,14 @@ impl HoldingTilesData {
                 &dividend,
                 format::unit_price_decimals(dividend.per_share.into_iter()),
             ),
+            per_share_negative: dividend.per_share.is_some_and(|value| value < 0.0),
+            per_share_positive: dividend.per_share.is_some_and(|value| value > 0.0),
             annual: asset_balance::format_dividend_annual(&dividend),
+            annual_negative: dividend.annual.is_some_and(|value| value < 0.0),
+            annual_positive: dividend.annual.is_some_and(|value| value > 0.0),
             yield_text: asset_balance::format_dividend_yield(&dividend),
+            yield_negative: asset_balance::is_negative_rate(dividend.yield_value),
+            yield_positive: asset_balance::is_positive_rate(dividend.yield_value),
             account: input.account,
             show_common: input.show_common,
         }
@@ -760,7 +776,7 @@ fn HoldingSummaryTiles(data: HoldingTilesData) -> impl IntoView {
     view! {
         <HoldingSummary>
             <HoldingSummaryItem label=labels::MARKET_VALUE.to_string()>
-                <span class="tabular-nums">{data.market}</span>
+                <Amount text=data.market />
             </HoldingSummaryItem>
             <HoldingSummaryItem label=labels::VALUATION_PROFIT_LOSS.to_string()>
                 <Amount
@@ -770,7 +786,13 @@ fn HoldingSummaryTiles(data: HoldingTilesData) -> impl IntoView {
                     negative=data.pnl_negative
                     positive=data.pnl_positive
                 />
-                <span class="ml-1 text-cell text-text-muted tabular-nums">{data.pnl_rate}</span>
+                <Amount
+                    kind=AmountKind::Delta
+                    class="ml-1 text-cell"
+                    text=data.pnl_rate
+                    negative=data.pnl_rate_negative
+                    positive=data.pnl_rate_positive
+                />
             </HoldingSummaryItem>
         </HoldingSummary>
     }
@@ -780,7 +802,7 @@ fn HoldingSummaryTiles(data: HoldingTilesData) -> impl IntoView {
 fn CommonDetailTiles(current_price: String, price_as_of: String) -> impl IntoView {
     view! {
         <HoldingDetailItem label=labels::CURRENT_PRICE.to_string()>
-            <span class="tabular-nums">{current_price}</span>
+            <Amount text=current_price />
         </HoldingDetailItem>
         <HoldingDetailItem label=labels::PRICE_AS_OF.to_string()>
             {price_as_of}
@@ -789,10 +811,15 @@ fn CommonDetailTiles(current_price: String, price_as_of: String) -> impl IntoVie
 }
 
 #[component]
-fn PerShareDetailTile(per_share: String) -> impl IntoView {
+fn PerShareDetailTile(per_share: String, negative: bool, positive: bool) -> impl IntoView {
     view! {
         <HoldingDetailItem label=labels::PER_SHARE_DIVIDEND.to_string()>
-            <span class="tabular-nums">{per_share}</span>
+            <Amount
+                kind=AmountKind::Delta
+                text=per_share
+                negative=negative
+                positive=positive
+            />
         </HoldingDetailItem>
     }
 }
@@ -815,7 +842,13 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
         }
     });
     let per_share_tile = show_common.then(|| {
-        view! { <PerShareDetailTile per_share=data.per_share.clone() /> }
+        view! {
+            <PerShareDetailTile
+                per_share=data.per_share.clone()
+                negative=data.per_share_negative
+                positive=data.per_share_positive
+            />
+        }
     });
     view! {
         <HoldingDetails>
@@ -828,12 +861,12 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
                 .map(|average| {
                     view! {
                         <HoldingDetailItem label=labels::AVERAGE_PRICE.to_string()>
-                            <span class="tabular-nums">{average}</span>
+                            <Amount text=average />
                         </HoldingDetailItem>
                     }
                 })}
             <HoldingDetailItem label=labels::TOTAL_ACQUISITION.to_string()>
-                <span class="tabular-nums">{data.purchase}</span>
+                <Amount text=data.purchase />
             </HoldingDetailItem>
             {show_account
                 .then(|| {
@@ -849,10 +882,20 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
                 })}
             {per_share_tile}
             <HoldingDetailItem label=labels::ANNUAL_DIVIDEND_REFERENCE.to_string()>
-                <span class="tabular-nums">{data.annual}</span>
+                <Amount
+                    kind=AmountKind::Delta
+                    text=data.annual
+                    negative=data.annual_negative
+                    positive=data.annual_positive
+                />
             </HoldingDetailItem>
             <HoldingDetailItem label=labels::ACQUISITION_BASIS_YIELD.to_string() wide=wide_yield>
-                <span class="tabular-nums">{data.yield_text}</span>
+                <Amount
+                    kind=AmountKind::Delta
+                    text=data.yield_text
+                    negative=data.yield_negative
+                    positive=data.yield_positive
+                />
             </HoldingDetailItem>
         </HoldingDetails>
     }

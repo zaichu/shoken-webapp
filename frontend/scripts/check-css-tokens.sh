@@ -19,7 +19,12 @@ ARBITRARY='([a-z][a-z-]*-\[[^]]*\]|\[[a-z-]+:[^]]+\]|[a-z][a-z-]*-\([^)]*\))'
 TYPE_SIZE='text-(xs|sm|base|lg|xl|2xl)\b'
 FONT_PROP='font-size:'
 SPACE_PROP='(padding|margin|gap)(-(top|right|bottom|left|inline|block)(-(start|end))?)?[[:space:]]*:'
+# features/ の余白ユーティリティ直書き(margin/padding/gap/space 系)を数える。
+# 部品の見た目は ui/ の部品の中だけで決め、features/ では足さない決まりのため件数を凍結する。
+# `whitespace-nowrap`・`min-w-*`・`max-sm:*` は数えない。`scroll-mt-*` は mt 部分で数える
+SPACING_RS='(^|[^A-Za-z0-9_])(m[trblxyse]?|p[trblxyse]?|gap(-[xy])?|space-[xy])-'
 TYPE_BASELINE="scripts/css-type-spacing-baseline.txt"
+SPACING_BASELINE="scripts/css-spacing-baseline.txt"
 
 # 許可リスト: 追加するときは理由を添える。形式は grep -E の正規表現(一致する行を除外)。
 ALLOWED_SRC=(
@@ -33,6 +38,7 @@ ALLOWED_SRC=(
 )
 fail=0
 RS_FILES=(src/**/*.rs)
+FEATURE_RS_FILES=(src/features/**/*.rs)
 
 join_or() {
   local IFS='|'
@@ -82,13 +88,17 @@ collect_type_rs() {
   grep -HoE -e "$TYPE_SIZE" "${RS_FILES[@]}" 2>/dev/null || true
 }
 
+collect_spacing_rs() {
+  grep -HoE -e "$SPACING_RS" "${FEATURE_RS_FILES[@]}" 2>/dev/null || true
+}
+
 check_type_baseline() {
-  local kind="$1" hits="$2" tmp_current tmp_base
+  local kind="$1" hits="$2" baseline="${3:-$TYPE_BASELINE}" tmp_current tmp_base
   [ -z "$hits" ] && return 0
   tmp_current=$(mktemp)
   tmp_base=$(mktemp)
   awk -F: '{n=$1; c[n]++} END {for (f in c) print f"\t"c[f]}' <<<"$hits" | sort >"$tmp_current"
-  awk -v k="$kind" -F'\t' '$1==k {print $2"\t"$3}' "$TYPE_BASELINE" | sort >"$tmp_base"
+  awk -v k="$kind" -F'\t' '$1==k {print $2"\t"$3}' "$baseline" | sort >"$tmp_base"
   local over=0
   while IFS=$'\t' read -r file cnt; do
     [ -z "$file" ] && continue
@@ -116,6 +126,7 @@ if [ "$#" -gt 0 ]; then
   check "文字サイズ直書き(自己テスト)" "$TYPE_SIZE" "$@"
   check "font-size直書き(自己テスト)" "$FONT_PROP" "$@"
   check "余白直書き(自己テスト)" "$SPACE_PROP" "$@"
+  check "余白ユーティリティ直書き(自己テスト)" "$SPACING_RS" "$@"
   [ "$fail" -ne 0 ] && exit 1
   exit 0
 fi
@@ -125,6 +136,7 @@ check "旧トークン(src/**/*.rs)" "$OLD_TOKEN" "${RS_FILES[@]}"
 check "白・黒の直書き(src/**/*.rs)" "$MONO" "${RS_FILES[@]}"
 check_arbitrary "src/**/*.rs" "$(join_or "${ALLOWED_SRC[@]}")" "${RS_FILES[@]}"
 check_type_baseline "type-rs" "$(collect_type_rs)"
+check_type_baseline "spacing-features" "$(collect_spacing_rs)" "$SPACING_BASELINE"
 
 [ "$fail" -ne 0 ] && exit 1
 
@@ -141,7 +153,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in 'bg-white' 'text-slate-500' 'shadow-[0_1px_2px_#000]' 'text-primary' '[min-height:44px]' 'text-(--color-red-700)' 'text-sm' 'font-size:' 'padding:'; do
+for expected in 'bg-white' 'text-slate-500' 'shadow-[0_1px_2px_#000]' 'text-primary' '[min-height:44px]' 'text-(--color-red-700)' 'text-sm' 'font-size:' 'padding:' 'mt-'; do
   if ! grep -Fq "$expected" <<<"$self_test_output"; then
     echo "ERROR: CSS トークン検査の自己テストが $expected を検出しません" >&2
     exit 1
@@ -170,6 +182,23 @@ if [ "$(grep -HoE -e "${SPACE_PROP}[^;}]*" "$tmp_ts/two.css" | grep -v 'var(--sp
 fi
 rm -rf "$tmp_ts"
 echo "  OK: 件数・宣言単位の自己テスト"
+
+tmp_sp=$(mktemp -d)
+printf '<div class="mt-4 px-3 gap-2 space-y-4 p-5 scroll-mt-18 lg:mx-0"></div>\n<div class="whitespace-nowrap min-w-0 max-sm:flex-col"></div>\n' >"$tmp_sp/sp.rs"
+if [ "$(grep -HoE -e "$SPACING_RS" "$tmp_sp/sp.rs" | wc -l)" -ne 7 ]; then
+  echo "ERROR: 余白ユーティリティ7件を数えません(whitespace/min-w/max-sm は対象外)" >&2
+  rm -rf "$tmp_sp"
+  exit 1
+fi
+printf 'spacing-features\t%s\t1\n' "$tmp_sp/sp.rs" >"$tmp_sp/baseline.txt"
+if check_type_baseline "spacing-features" "$(grep -HoE -e "$SPACING_RS" "$tmp_sp/sp.rs")" "$tmp_sp/baseline.txt"; then
+  echo "ERROR: 余白ユーティリティの基準超えを検出しません" >&2
+  rm -rf "$tmp_sp"
+  exit 1
+fi
+fail=0
+rm -rf "$tmp_sp"
+echo "  OK: 余白ユーティリティの自己テスト"
 echo "OK: 違反はありません"
 
 # 続けて features/ の直書きマークアップ検査を実行する

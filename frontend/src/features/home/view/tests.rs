@@ -102,7 +102,7 @@ fn dividend_dialog_shows_signed_trio() {
         .find(|cell| cell.label == "税額")
         .expect("ダイアログに税額がある");
     assert_eq!(tax.value, "-¥406");
-    assert_eq!(tax.kind, AmountKind::NeutralDelta);
+    assert_eq!(tax.kind, AmountKind::Delta);
     assert!(tax.negative);
     assert!(!tax.positive);
     let net = right
@@ -148,7 +148,7 @@ fn dividend_dialog_tax_refund_uses_plus() {
         .find(|cell| cell.label == "税額")
         .expect("ダイアログに税額がある");
     assert_eq!(tax.value, "+¥100");
-    assert_eq!(tax.kind, AmountKind::NeutralDelta);
+    assert_eq!(tax.kind, AmountKind::Delta);
     assert!(!tax.negative);
     assert!(tax.positive);
 }

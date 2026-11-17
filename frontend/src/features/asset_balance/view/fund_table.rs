@@ -158,7 +158,8 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
     let market_text = balance_format::format_row_valuation_amount(Some(view.market_value));
     let pnl_text = balance_format::format_signed_row_valuation_amount(Some(view.profit_loss));
     let pnl_rate = balance_format::format_signed_valuation_rate(view.profit_loss_rate, 1);
-    let pnl_sub = format!("{pnl_text} {pnl_rate}");
+    let pnl_rate_negative = balance_format::is_negative_rate(view.profit_loss_rate);
+    let pnl_rate_positive = balance_format::is_positive_rate(view.profit_loss_rate);
     let pnl_negative = balance_format::is_negative_valuation(Some(view.profit_loss));
     let pnl_positive = balance_format::is_positive_valuation(Some(view.profit_loss));
     let as_of = view
@@ -177,6 +178,9 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
             label: labels::BASE_PRICE_MONTH_CHANGE.to_string(),
             value: month_text,
             sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
             negative: month_negative,
             positive: month_positive,
             bold: false,
@@ -185,16 +189,20 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
         DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
         DetailCell::plain(labels::DISTRIBUTION.to_string(), course_text),
     ];
+    let mut pnl_cell = DetailCell::strong_sub(
+        labels::MARKET_VALUE.to_string(),
+        market_text,
+        pnl_text,
+        pnl_negative,
+        pnl_positive,
+    );
+    pnl_cell.sub_rate = Some(pnl_rate);
+    pnl_cell.sub_rate_negative = pnl_rate_negative;
+    pnl_cell.sub_rate_positive = pnl_rate_positive;
     let right = vec![
         DetailCell::plain(labels::FUND_SHARES.to_string(), shares_text),
         DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
-        DetailCell::strong_sub(
-            labels::MARKET_VALUE.to_string(),
-            market_text,
-            pnl_sub,
-            pnl_negative,
-            pnl_positive,
-        ),
+        pnl_cell,
         DetailCell::plain(labels::PRICE_AS_OF.to_string(), as_of),
     ];
     (left, right)

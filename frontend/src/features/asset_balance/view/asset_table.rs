@@ -110,6 +110,8 @@ pub fn AssetHoldingsTable(
                             let dividend_per_share =
                                 holdings::format_dividend_per_share(&dividend, dividend_decimals);
                             let dividend_yield = holdings::format_dividend_yield(&dividend);
+                            let dividend_yield_negative = balance_format::is_negative_rate(dividend.yield_value);
+                            let dividend_yield_positive = balance_format::is_positive_rate(dividend.yield_value);
                             let href = Some(holdings::holding_stock_href(&view.code));
                             let outlier_date = if is_outlier {
                                 view.price_as_of.clone()
@@ -138,15 +140,15 @@ pub fn AssetHoldingsTable(
                                         )}
                                     </td>
                                     <td class="col-num text-text-soft hidden xl:table-cell print:table-cell">
-                                        {format::format_unit_price(view.average_price, average_price_decimals)}
+                                        <Amount text=format::format_unit_price(view.average_price, average_price_decimals) />
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        {format::format_unit_price(view.current_price, current_price_decimals)}
+                                        <Amount text=format::format_unit_price(view.current_price, current_price_decimals) />
                                     </td>
                                     <td class="col-num">
                                         {day_change_cell(view.day_change, outlier_date)}
                                     </td>
-                                    <td class="col-num font-bold text-text-deep">{market_text}</td>
+                                    <td class="col-num font-bold text-text-deep"><Amount text=market_text /></td>
                                     <td class="col-num">
                                         {if valuation.profit_loss.amount.is_some() {
                                             view! {
@@ -175,9 +177,30 @@ pub fn AssetHoldingsTable(
                                             view! { "—" }.into_any()
                                         }}
                                     </td>
-                                    <td class="col-num hidden xl:table-cell print:table-cell">{dividend_per_share}</td>
-                                    <td class="col-num">{dividend_annual}</td>
-                                    <td class="col-num text-text-deep">{dividend_yield}</td>
+                                    <td class="col-num hidden xl:table-cell print:table-cell">
+                                        <Amount
+                                            kind=AmountKind::Delta
+                                            text=dividend_per_share
+                                            negative=balance_format::is_negative_rate(dividend.per_share)
+                                            positive=balance_format::is_positive_rate(dividend.per_share)
+                                        />
+                                    </td>
+                                    <td class="col-num">
+                                        <Amount
+                                            kind=AmountKind::Delta
+                                            text=dividend_annual
+                                            negative=balance_format::is_negative_valuation(dividend.annual)
+                                            positive=balance_format::is_positive_valuation(dividend.annual)
+                                        />
+                                    </td>
+                                    <td class="col-num">
+                                        <Amount
+                                            kind=AmountKind::Delta
+                                            text=dividend_yield
+                                            negative=dividend_yield_negative
+                                            positive=dividend_yield_positive
+                                        />
+                                    </td>
                                 </tr>
                             }
                         })

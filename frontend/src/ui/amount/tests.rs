@@ -1,54 +1,106 @@
-use super::{AmountKind, amount_classes, amount_negative_attr};
+use super::{AmountColor, AmountKind, amount_color, amount_negative_attr};
 
 #[test]
-fn delta_positive_uses_green_without_negative_attr() {
-    let class = amount_classes(AmountKind::Delta, false, true, "");
-    assert!(class.contains("tabular-nums"));
-    assert!(class.contains("whitespace-nowrap"));
-    assert!(class.contains("text-positive"));
-    assert!(!class.contains("text-text-soft"));
-    assert_eq!(amount_negative_attr(AmountKind::Delta, false), None);
-}
-
-#[test]
-fn delta_negative_uses_data_negative_without_green() {
-    let class = amount_classes(AmountKind::Delta, true, false, "");
-    assert!(class.contains("tabular-nums"));
-    assert!(class.contains("whitespace-nowrap"));
-    assert!(!class.contains("text-positive"));
-    assert_eq!(amount_negative_attr(AmountKind::Delta, true), Some("true"));
-}
-
-#[test]
-fn delta_zero_has_no_sign_color() {
-    let class = amount_classes(AmountKind::Delta, false, false, "");
-    assert!(!class.contains("text-text-soft"));
-    assert!(!class.contains("text-positive"));
-    assert_eq!(amount_negative_attr(AmountKind::Delta, false), None);
-}
-
-#[test]
-fn plain_amount_never_colors_green_or_negative() {
-    for (negative, positive) in [(false, true), (true, false), (false, false)] {
-        let class = amount_classes(AmountKind::Plain, negative, positive, "");
-        assert!(!class.contains("text-positive"), "plain must not be green");
-        assert!(
-            !class.contains("text-text-soft"),
-            "plain zero keeps neutral color"
-        );
-        assert_eq!(amount_negative_attr(AmountKind::Plain, negative), None);
+fn negative_display_is_negative_for_both_kinds() {
+    for text in ["-¥1", "-¥1,000", "-1.0千円", "-1.0万円", "-1.0%", "(-1.0%)"] {
+        for kind in [AmountKind::Plain, AmountKind::Delta] {
+            for (negative, positive) in [(false, false), (true, false), (false, true)] {
+                assert_eq!(
+                    amount_color(kind, negative, positive, text),
+                    AmountColor::Negative,
+                    "{text:?} {kind:?}"
+                );
+            }
+        }
     }
 }
 
 #[test]
-fn neutral_delta_keeps_sign_without_negative_color() {
-    let class = amount_classes(AmountKind::NeutralDelta, true, false, "");
-    assert!(class.contains("text-text-soft"));
-    assert_eq!(amount_negative_attr(AmountKind::NeutralDelta, true), None);
+fn positive_display_is_positive_only_for_delta_or_explicit_hint() {
+    for text in [
+        "¥1,000",
+        "1.0千円",
+        "1.0万円",
+        "1.0%",
+        "(+1.0%)",
+        "+¥1,000",
+        "+1.0%",
+    ] {
+        assert_eq!(
+            amount_color(AmountKind::Delta, false, false, text),
+            AmountColor::Positive,
+            "{text}"
+        );
+        assert_eq!(
+            amount_color(AmountKind::Plain, false, false, text),
+            AmountColor::Neutral,
+            "{text}"
+        );
+        assert_eq!(
+            amount_color(AmountKind::Plain, false, true, text),
+            AmountColor::Positive,
+            "{text}"
+        );
+    }
 }
 
 #[test]
-fn unit_stays_in_same_nowrap_chunk() {
-    let class = amount_classes(AmountKind::Plain, false, false, "");
-    assert!(class.contains("whitespace-nowrap"));
+fn signed_values_use_positive_negative_or_neutral_color() {
+    assert_eq!(
+        amount_color(AmountKind::Delta, false, true, "¥1"),
+        AmountColor::Positive
+    );
+    assert_eq!(
+        amount_color(AmountKind::Delta, true, false, "-¥1"),
+        AmountColor::Negative
+    );
+    assert_eq!(
+        amount_color(AmountKind::Plain, false, false, "¥0"),
+        AmountColor::Neutral
+    );
+    assert_eq!(
+        amount_color(AmountKind::Delta, false, false, "+0.0%"),
+        AmountColor::Neutral
+    );
+    assert_eq!(
+        amount_color(AmountKind::Delta, false, false, "-0.0%"),
+        AmountColor::Neutral
+    );
+    assert_eq!(
+        amount_color(AmountKind::Delta, false, false, "+1.0%"),
+        AmountColor::Positive
+    );
+    assert_eq!(
+        amount_color(AmountKind::Plain, false, false, "-1.0%"),
+        AmountColor::Negative
+    );
+    assert_eq!(amount_negative_attr(AmountColor::Positive), None);
+    assert_eq!(amount_negative_attr(AmountColor::Negative), Some("true"));
+    assert_eq!(amount_negative_attr(AmountColor::Neutral), None);
+}
+
+#[test]
+fn unsigned_zero_and_missing_values_stay_neutral() {
+    for text in ["¥0", "-¥0", "0.0万円", "+0.0%", "-0.0%", "(-0.0%)", "—"] {
+        for kind in [AmountKind::Plain, AmountKind::Delta] {
+            for (negative, positive) in [(false, false), (true, false), (false, true)] {
+                assert_eq!(
+                    amount_color(kind, negative, positive, text),
+                    AmountColor::Neutral,
+                    "{text}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn quantities_dates_and_labels_remain_neutral() {
+    for text in ["100株", "10,000口", "2026/11/18", "特定", "100"] {
+        assert_eq!(
+            amount_color(AmountKind::Plain, false, false, text),
+            AmountColor::Neutral,
+            "{text}"
+        );
+    }
 }

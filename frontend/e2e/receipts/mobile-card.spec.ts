@@ -154,9 +154,10 @@ test('マイナスの損益は符号と色を保つ', async ({ page }) => {
   await expect(card.locator('.list-row-primary')).toContainText('-¥5,000');
   // 金額の下に税引前を小さく添える(国内株式・投資信託のみ)
   await expect(card.locator('.receipt-before-tax-sub')).toHaveText('税引前 -¥5,000');
+  // 主役と税引前の補助の両方がマイナス表示(赤の目印付き)になる
   await expect(
     card.locator('.list-row-primary [data-negative="true"]'),
-  ).toHaveCount(1);
+  ).toHaveCount(2);
   // 補助の売却額は行に出さない
   await expect(card.locator('.list-row-secondary')).toHaveCount(0);
   // 詳細ダイアログには売却額を出す

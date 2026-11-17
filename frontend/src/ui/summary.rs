@@ -70,6 +70,8 @@ pub fn SummaryItem(
     /// 数字の右に添える補足(率など)。値より小さいサイズで、値と同じ正負の色で出す
     #[prop(optional)]
     note: String,
+    #[prop(optional)] note_negative: bool,
+    #[prop(optional)] note_positive: bool,
     /// 数字の横に小さく出す補足(読み込み中など)
     #[prop(optional)]
     status: String,
@@ -98,7 +100,7 @@ pub fn SummaryItem(
                 {(!note.is_empty())
                     .then(|| view! {
                         <span class="summary-note">
-                            <Amount text=note.clone() kind=kind negative=negative positive=positive />
+                            <Amount text=note.clone() negative=note_negative positive=note_positive />
                         </span>
                     })}
                 {(!status.is_empty())
@@ -115,6 +117,8 @@ pub struct SummarySubItem {
     pub value: String,
     pub note: String,
     pub tone: SummaryTone,
+    pub note_negative: bool,
+    pub note_positive: bool,
     pub extra_class: String,
 }
 
@@ -126,6 +130,8 @@ pub struct SummaryBreakdownEntry {
     pub negative: bool,
     pub positive: bool,
     pub rate: String,
+    pub rate_negative: bool,
+    pub rate_positive: bool,
 }
 
 /// 集計帯の共通形。主役1つ・補助1行・従項目。
@@ -144,6 +150,8 @@ pub fn SummaryBand(
     aux_label: String,
     #[prop(optional, into)] aux_value: String,
     #[prop(optional, into)] aux_rate: String,
+    #[prop(optional)] aux_rate_negative: bool,
+    #[prop(optional)] aux_rate_positive: bool,
     #[prop(optional)] aux_negative: bool,
     #[prop(optional)] aux_positive: bool,
     /// PCの横並びに出す従項目(スマホでは breakdown を出す)
@@ -196,6 +204,8 @@ pub fn SummaryBand(
                             label=aux_label.clone()
                             value=aux_value.clone()
                             note=aux_rate.clone()
+                            note_negative=aux_rate_negative
+                            note_positive=aux_rate_positive
                             tone=aux_tone
                         />
                     })}
@@ -207,6 +217,8 @@ pub fn SummaryBand(
                                 value=item.value
                                 size=SummarySize::Secondary
                                 note=item.note
+                                note_negative=item.note_negative
+                                note_positive=item.note_positive
                                 tone=item.tone
                                 extra_class=item.extra_class
                             />
@@ -227,6 +239,8 @@ pub fn SummaryBand(
                         label=aux_label
                         value=aux_value
                         note=aux_rate
+                        note_negative=aux_rate_negative
+                        note_positive=aux_rate_positive
                         tone=aux_tone
                     />
                 })}
@@ -238,6 +252,8 @@ pub fn SummaryBand(
                             value=entry.value
                             size=SummarySize::Secondary
                             note=entry.rate
+                            note_negative=entry.rate_negative
+                            note_positive=entry.rate_positive
                             tone=tone_of(entry.negative, entry.positive)
                         />
                     })

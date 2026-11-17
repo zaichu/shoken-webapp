@@ -22,6 +22,7 @@ pub(crate) mod page_skeleton;
 pub(crate) mod search_controls;
 pub(crate) mod search_dialog;
 pub(crate) mod search_entry;
+pub(crate) mod section_heading;
 pub(crate) mod security_link;
 pub(crate) mod segmented;
 pub(crate) mod select;
