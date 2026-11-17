@@ -57,8 +57,30 @@ pub(crate) fn holding_detail_cells(
             day_positive,
         ),
         DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
-        DetailCell::plain(labels::ACQUISITION_YIELD.to_string(), yield_text),
-        DetailCell::plain(labels::PER_SHARE_DIVIDEND.to_string(), per_share),
+        DetailCell {
+            label: labels::ACQUISITION_YIELD.to_string(),
+            value: yield_text,
+            sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
+            negative: is_negative_rate(dividend.yield_value),
+            positive: is_positive_rate(dividend.yield_value),
+            bold: false,
+            kind: AmountKind::Delta,
+        },
+        DetailCell {
+            label: labels::PER_SHARE_DIVIDEND.to_string(),
+            value: per_share,
+            sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
+            negative: is_negative_rate(dividend.per_share),
+            positive: is_positive_rate(dividend.per_share),
+            bold: false,
+            kind: AmountKind::Delta,
+        },
     ];
     let market_cell = match pnl_sub {
         Some(sub) => DetailCell::strong_sub(

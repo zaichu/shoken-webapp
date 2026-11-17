@@ -2,8 +2,8 @@ use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::format::{
     dec_to_f64, format_amount, format_signed_row_valuation_amount, format_signed_valuation_amount,
-    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
-    is_positive_valuation,
+    format_signed_valuation_rate, format_valuation_amount, is_negative_rate, is_negative_valuation,
+    is_positive_rate, is_positive_valuation,
 };
 use crate::features::asset_balance::holdings::{HoldingView, stock_daily_change_total};
 use crate::features::asset_balance::model::{
@@ -173,8 +173,9 @@ pub(crate) fn AssetSummaryBand(
     let rate_text = profit_rate.map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
     // 前日比は表・カードと同じく表示単位を適用せず必ず円マーク付きで出す
     let daily_text = format_signed_row_valuation_amount(daily_change);
-    let daily_rate_text = daily_rate(market, daily_change)
-        .map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
+    let daily_rate_value = daily_rate(market, daily_change);
+    let daily_rate_text =
+        daily_rate_value.map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
     let profit_negative = is_negative_valuation(profit);
     let profit_positive = is_positive_valuation(profit);
     let daily_negative = is_negative_valuation(daily_change);
@@ -192,6 +193,8 @@ pub(crate) fn AssetSummaryBand(
             } else {
                 SummaryTone::Neutral
             },
+            note_negative: false,
+            note_positive: false,
             extra_class: String::new(),
         }];
         for tag in tags.into_iter().take(2) {
@@ -200,6 +203,8 @@ pub(crate) fn AssetSummaryBand(
                 value: tag.value,
                 note: String::new(),
                 tone: SummaryTone::Neutral,
+                note_negative: false,
+                note_positive: false,
                 extra_class: String::new(),
             });
         }
@@ -221,6 +226,8 @@ pub(crate) fn AssetSummaryBand(
                 aux_label=labels::VALUATION_PROFIT_LOSS
                 aux_value=profit_text
                 aux_rate=rate_text
+                aux_rate_negative=profit_rate.is_some_and(|rate| is_negative_rate(Some(rate)))
+                aux_rate_positive=profit_rate.is_some_and(|rate| is_positive_rate(Some(rate)))
                 aux_negative=profit_negative
                 aux_positive=profit_positive
                 pc_items=pc_items
@@ -231,6 +238,8 @@ pub(crate) fn AssetSummaryBand(
                         negative: daily_negative,
                         positive: daily_positive,
                         rate: daily_rate_text,
+                        rate_negative: daily_rate_value.is_some_and(|rate| is_negative_rate(Some(rate))),
+                        rate_positive: daily_rate_value.is_some_and(|rate| is_positive_rate(Some(rate))),
                     },
                     SummaryBreakdownEntry {
                         label: labels::TOTAL_ACQUISITION.to_string(),
@@ -238,6 +247,8 @@ pub(crate) fn AssetSummaryBand(
                         negative: false,
                         positive: false,
                         rate: String::new(),
+                        rate_negative: false,
+                        rate_positive: false,
                     },
                 ]
                 testid_band="portfolio-kpi-grid"

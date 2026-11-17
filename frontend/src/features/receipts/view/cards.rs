@@ -120,7 +120,7 @@ pub(crate) fn signed_text_for_profit(tab: ReceiptsTab, label: &str, value: &str)
 pub(crate) fn amount_kind_for_label(tab: ReceiptsTab, label: &str, value: &str) -> AmountKind {
     if is_tax_label(label) {
         if is_positive_text(value) || is_negative_text(value) {
-            return AmountKind::NeutralDelta;
+            return AmountKind::Delta;
         }
         return AmountKind::Plain;
     }
@@ -350,6 +350,9 @@ pub(crate) fn receipt_detail_cells(
                 label: BEFORE_TAX.to_string(),
                 value: gross,
                 sub: None,
+                sub_rate: None,
+                sub_rate_negative: false,
+                sub_rate_positive: false,
                 negative: gross_neg,
                 positive: gross_pos,
                 bold: false,
@@ -359,11 +362,14 @@ pub(crate) fn receipt_detail_cells(
                 label: TAX.to_string(),
                 value: tax,
                 sub: None,
+                sub_rate: None,
+                sub_rate_negative: false,
+                sub_rate_positive: false,
                 negative: tax_neg,
                 positive: tax_pos,
                 bold: false,
                 kind: if tax_neg || tax_pos {
-                    AmountKind::NeutralDelta
+                    AmountKind::Delta
                 } else {
                     AmountKind::Plain
                 },
@@ -399,6 +405,9 @@ pub(crate) fn receipt_detail_cells(
                 label: BEFORE_TAX.to_string(),
                 value: pnl,
                 sub: None,
+                sub_rate: None,
+                sub_rate_negative: false,
+                sub_rate_positive: false,
                 negative: pnl_neg,
                 positive: pnl_pos,
                 bold: false,
@@ -408,11 +417,14 @@ pub(crate) fn receipt_detail_cells(
                 label: TAX.to_string(),
                 value: tax,
                 sub: None,
+                sub_rate: None,
+                sub_rate_negative: false,
+                sub_rate_positive: false,
                 negative: tax_neg,
                 positive: tax_pos,
                 bold: false,
                 kind: if tax_neg || tax_pos {
-                    AmountKind::NeutralDelta
+                    AmountKind::Delta
                 } else {
                     AmountKind::Plain
                 },

@@ -110,7 +110,36 @@ pub struct SummarySubItem {
     pub value: String,
     pub note: String,
     pub tone: SummaryTone,
+    pub note_negative: bool,
+    pub note_positive: bool,
     pub extra_class: String,
+}
+
+#[component]
+fn SummarySubAmount(item: SummarySubItem) -> impl IntoView {
+    let negative = item.note_negative;
+    let positive = item.note_positive;
+    view! {
+        <span class="summary-value summary-value-secondary">
+            <span class="summary-label">{item.label}</span>
+            <Amount
+                text=item.value
+                kind=tone_amount(item.tone).0
+                negative=tone_amount(item.tone).1
+                positive=tone_amount(item.tone).2
+            />
+            {(!item.note.is_empty()).then(|| view! {
+                <span class="summary-note">
+                    <Amount
+                        kind=delta_or_plain(negative, positive)
+                        text=item.note
+                        negative=negative
+                        positive=positive
+                    />
+                </span>
+            })}
+        </span>
+    }
 }
 
 /// スマホの縦リストの1行。ラベル左・金額右・区切り線つき
@@ -121,6 +150,8 @@ pub struct SummaryBreakdownEntry {
     pub negative: bool,
     pub positive: bool,
     pub rate: String,
+    pub rate_negative: bool,
+    pub rate_positive: bool,
 }
 
 /// 紺帯サマリーの共通形。主役1つ・補助1行・主役行右端の丸いシェブロンで開閉する。
@@ -147,6 +178,8 @@ pub fn SummaryBand(
     aux_label: String,
     #[prop(optional, into)] aux_value: String,
     #[prop(optional, into)] aux_rate: String,
+    #[prop(optional)] aux_rate_negative: bool,
+    #[prop(optional)] aux_rate_positive: bool,
     #[prop(optional)] aux_negative: bool,
     #[prop(optional)] aux_positive: bool,
     /// PCの横並びに残す項目(従来どおり・スマホでは出さない)
@@ -178,6 +211,8 @@ pub fn SummaryBand(
     };
     let has_breakdown = !breakdown.is_empty();
     let has_aux = !aux_label.is_empty();
+    let aux_rate_negative = aux_rate_negative;
+    let aux_rate_positive = aux_rate_positive;
     let label_note = if !primary_sub.is_empty() && !as_of_note.is_empty() {
         format!("{}{}{}", primary_sub, labels::TAG_SEPARATOR, as_of_note)
     } else if !primary_sub.is_empty() {
@@ -223,16 +258,7 @@ pub fn SummaryBand(
                     })}
                     {pc_items
                         .into_iter()
-                        .map(|item| view! {
-                            <SummaryItem
-                                label=item.label
-                                value=item.value
-                                size=SummarySize::Secondary
-                                note=item.note
-                                tone=item.tone
-                                extra_class=item.extra_class
-                            />
-                        })
+                        .map(|item| view! { <SummarySubAmount item=item /> })
                         .collect_view()}
                 </dl>
             </div>
@@ -292,7 +318,14 @@ pub fn SummaryBand(
                                         />
                                         {(!aux_rate.is_empty())
                                             .then(|| view! {
-                                                <span class="summary-note">{aux_rate.clone()}</span>
+                                                <span class="summary-note">
+                                                    <Amount
+                                                        text=aux_rate.clone()
+                                                        kind=delta_or_plain(aux_rate_negative, aux_rate_positive)
+                                                        negative=aux_rate_negative
+                                                        positive=aux_rate_positive
+                                                    />
+                                                </span>
                                             })}
                                     </span>
                                 })}
@@ -305,6 +338,8 @@ pub fn SummaryBand(
                                         let kind = delta_or_plain(entry.negative, entry.positive);
                                         let negative = entry.negative;
                                         let positive = entry.positive;
+                                        let rate_negative = entry.rate_negative;
+                                        let rate_positive = entry.rate_positive;
                                         view! {
                                             <div class="summary-band-breakdown-row">
                                                 <dt class="summary-label">
@@ -319,7 +354,14 @@ pub fn SummaryBand(
                                                     />
                                                     {(!entry.rate.is_empty())
                                                         .then(|| view! {
-                                                            <span class="summary-note">{entry.rate}</span>
+                                                            <span class="summary-note">
+                                                                <Amount
+                                                                    text=entry.rate
+                                                                    kind=delta_or_plain(rate_negative, rate_positive)
+                                                                    negative=rate_negative
+                                                                    positive=rate_positive
+                                                                />
+                                                            </span>
                                                         })}
                                                 </dd>
                                             </div>

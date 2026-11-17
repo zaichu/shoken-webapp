@@ -1,5 +1,7 @@
 use super::use_asset_balance_state;
-use crate::features::asset_balance::format::format_amount;
+use crate::features::asset_balance::format::{
+    format_amount, is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
+};
 use crate::features::asset_balance::fund::{FundView, fund_view};
 use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
 use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
@@ -12,6 +14,7 @@ use crate::features::asset_balance::store::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::button::TabButton;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format::{format_currency, format_fixed_percent};
@@ -301,14 +304,9 @@ fn CompositionContent(
                                     .into_iter()
                                     .map(|row| {
                                         let fill = color_fill_class(row.color);
-                                        let percentage = if row.computable {
-                                            format_fixed_percent(row.percentage, 1)
-                                        } else {
-                                            labels::MISSING.to_string()
-                                        };
-                                        let amount = row
-                                            .value
-                                            .map_or_else(|| labels::MISSING.to_string(), format_currency);
+                                        let static_computable = row.computable;
+                                        let static_percentage = row.percentage;
+                                        let row_value = row.value;
                                         let bar_width = if row.computable {
                                             format!("{}%", row.percentage.min(100.0))
                                         } else {
@@ -319,9 +317,32 @@ fn CompositionContent(
                                         let row_body = view! {
                                             <ListRow
                                                 name=move || name.clone()
-                                                primary=move || amount.clone()
+                                                primary=move || row_value.map_or_else(
+                                                    || view! { {labels::MISSING} }.into_any(),
+                                                    |value| view! {
+                                                        <Amount
+                                                            kind=AmountKind::Delta
+                                                            text=format_currency(value)
+                                                            negative=is_negative_valuation(Some(value))
+                                                            positive=is_positive_valuation(Some(value))
+                                                        />
+                                                    }.into_any(),
+                                                )
                                                 meta=move || sub.clone()
-                                                secondary=move || percentage.clone()
+                                                secondary=move || view! {
+                                                    {if static_computable {
+                                                        view! {
+                                                            <Amount
+                                                                kind=AmountKind::Delta
+                                                                text=format_fixed_percent(static_percentage, 1)
+                                                                negative=is_negative_rate(Some(static_percentage))
+                                                                positive=is_positive_rate(Some(static_percentage))
+                                                            />
+                                                        }.into_any()
+                                                    } else {
+                                                        view! { {labels::MISSING} }.into_any()
+                                                    }}
+                                                }
                                             />
                                             <div class="comp-bar" aria-hidden="true">
                                                 <span
@@ -333,9 +354,7 @@ fn CompositionContent(
                                         let href = row.href.clone();
                                         let static_name = row.name.clone();
                                         let static_sub = row.sub.clone();
-                                        let static_value = row.value;
-                                        let static_computable = row.computable;
-                                        let static_percentage = row.percentage;
+                                        let static_value = row_value;
                                         let static_fill = color_fill_class(row.color);
                                         let static_bar_width = if static_computable {
                                             format!("{}%", static_percentage.min(100.0))
@@ -350,9 +369,26 @@ fn CompositionContent(
                                                 {href.map_or_else(|| view! {
                                                         <ListRowStatic
                                                             name=move || static_name.clone()
-                                                            primary=move || static_value.map_or_else(|| labels::MISSING.to_string(), format_currency)
+                                                            primary=move || static_value.map_or_else(
+                                                                || view! { {labels::MISSING} }.into_any(),
+                                                                |value| view! {
+                                                                    <Amount
+                                                                        kind=AmountKind::Delta
+                                                                        text=format_currency(value)
+                                                                        negative=is_negative_valuation(Some(value))
+                                                                        positive=is_positive_valuation(Some(value))
+                                                                    />
+                                                                }.into_any(),
+                                                            )
                                                             meta=move || static_sub.clone()
-                                                            secondary=move || if static_computable { format_fixed_percent(static_percentage, 1) } else { labels::MISSING.to_string() }
+                                                            secondary=move || if static_computable { view! {
+                                                                <Amount
+                                                                    kind=AmountKind::Delta
+                                                                    text=format_fixed_percent(static_percentage, 1)
+                                                                    negative=is_negative_rate(Some(static_percentage))
+                                                                    positive=is_positive_rate(Some(static_percentage))
+                                                                />
+                                                            }.into_any() } else { view! { {labels::MISSING} }.into_any() }
                                                         />
                                                         <div class="comp-bar" aria-hidden="true">
                                                             <span
@@ -491,6 +527,8 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                         } else {
                             labels::MISSING.to_string()
                         };
+                        let rate_negative = row.computable && is_negative_rate(Some(row.percentage));
+                        let rate_positive = row.computable && is_positive_rate(Some(row.percentage));
                         let name = row.name.clone();
                         view! {
                             <li class="comp-legend-item" data-testid="comp-legend-item">
@@ -499,7 +537,14 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                                     aria-hidden="true"
                                 />
                                 <span class="comp-legend-name lg:whitespace-normal">{name}</span>
-                                <span class="comp-legend-rate">{rate}</span>
+                                <span class="comp-legend-rate">
+                                    <Amount
+                                        kind=AmountKind::Delta
+                                        text=rate
+                                        negative=rate_negative
+                                        positive=rate_positive
+                                    />
+                                </span>
                             </li>
                         }
                     })

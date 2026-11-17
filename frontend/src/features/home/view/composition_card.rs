@@ -2,8 +2,12 @@ use super::super::model::{self, CompositionSlice, ProductCompositionSlice};
 use super::super::store::{self, HomeOverviewData};
 use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{fund_market, funds_of, stock_market, stocks_of};
-use crate::features::asset_balance::format_valuation_amount;
+use crate::features::asset_balance::{
+    format_valuation_amount, is_negative_rate, is_negative_valuation, is_positive_rate,
+    is_positive_valuation,
+};
 use crate::session::use_session;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::account_display_name;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
@@ -143,12 +147,8 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
                 <CompositionRow
                     label=slice.label.clone()
                     amount=slice.amount
-                    detail=format!(
-                        "{}{}{}",
-                        format_integer_percent(pct),
-                        labels::HOME_COMPOSITION_DETAIL_SEPARATOR,
-                        labels::count(slice.item_count)
-                    )
+                    detail_rate=pct
+                    detail_suffix=labels::count(slice.item_count)
                 />
             }
         })
@@ -202,7 +202,8 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
                 <CompositionRow
                     label=slice.label.clone()
                     amount=slice.amount
-                    detail=format_integer_percent(pct)
+                    detail_rate=pct
+                    detail_suffix=String::new()
                 />
             }
         })
@@ -219,15 +220,36 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
 }
 
 #[component]
-fn CompositionRow(label: String, amount: f64, detail: String) -> impl IntoView {
+fn CompositionRow(
+    label: String,
+    amount: f64,
+    detail_rate: f64,
+    detail_suffix: String,
+) -> impl IntoView {
+    let amount_color = amount < 0.0 || amount > 0.0;
     view! {
         <li class="home-composition-row">
             <div class="min-w-0 flex-1">
                 <span class="block truncate text-body text-text">{label}</span>
-                <span class="block text-cell tabular-nums text-text-muted">{detail}</span>
+                <span class="block text-cell tabular-nums text-text-muted">
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=format_integer_percent(detail_rate)
+                        negative=is_negative_rate(Some(detail_rate))
+                        positive=is_positive_rate(Some(detail_rate))
+                    />
+                    {(!detail_suffix.is_empty()).then(|| view! {
+                        {labels::HOME_COMPOSITION_DETAIL_SEPARATOR}{detail_suffix}
+                    })}
+                </span>
             </div>
-            <span class="shrink-0 text-right text-body font-bold tabular-nums text-text">
-                {format_valuation_amount(Some(amount))}
+            <span class="shrink-0 text-right text-body font-bold tabular-nums">
+                <Amount
+                    kind=if amount_color { AmountKind::Delta } else { AmountKind::Plain }
+                    text=format_valuation_amount(Some(amount))
+                    negative=is_negative_valuation(Some(amount))
+                    positive=is_positive_valuation(Some(amount))
+                />
             </span>
         </li>
     }

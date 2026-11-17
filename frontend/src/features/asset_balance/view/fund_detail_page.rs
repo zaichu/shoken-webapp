@@ -2,7 +2,7 @@ use super::use_asset_balance_state;
 use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::format::{
     format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation, is_positive_valuation,
+    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
 };
 use crate::features::asset_balance::fund::fund_view;
 use crate::session::use_session;
@@ -110,6 +110,8 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                     format_signed_row_valuation_amount(Some(view.profit_loss));
                                 let pnl_rate_text =
                                     format_signed_valuation_rate(view.profit_loss_rate, 1);
+                                let pnl_rate_negative = is_negative_rate(view.profit_loss_rate);
+                                let pnl_rate_positive = is_positive_rate(view.profit_loss_rate);
                                 let pnl_negative =
                                     is_negative_valuation(Some(view.profit_loss));
                                 let pnl_positive =
@@ -169,9 +171,13 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                         negative=pnl_negative
                                                         positive=pnl_positive
                                                     />
-                                                    <span class="ml-1 text-cell text-text-muted tabular-nums">
-                                                        {pnl_rate_text}
-                                                    </span>
+                                                    <Amount
+                                                        kind=AmountKind::Delta
+                                                        class="ml-1 text-cell"
+                                                        text=pnl_rate_text
+                                                        negative=pnl_rate_negative
+                                                        positive=pnl_rate_positive
+                                                    />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::BASE_PRICE.to_string()>
                                                     <span class="tabular-nums">{base_price_text}</span>

@@ -135,6 +135,8 @@ pub fn SummaryStrip(
             negative,
             positive,
             rate: String::new(),
+            rate_negative: false,
+            rate_positive: false,
         }
     };
     let to_sub = |(label, value, _): (&'static str, Decimal, StatTone)| {
@@ -144,6 +146,8 @@ pub fn SummaryStrip(
             value: text,
             note: String::new(),
             tone,
+            note_negative: false,
+            note_positive: false,
             extra_class: String::new(),
         }
     };

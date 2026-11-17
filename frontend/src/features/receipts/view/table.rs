@@ -303,7 +303,6 @@ pub fn ReceiptTable(
                                                                     if bold { " font-bold" } else { "" },
                                                                 )
                                                                 title=text.clone()
-                                                                data-negative=(*label != TAX && negative).then_some("true")
                                                             >
                                                                 <Amount
                                                                     kind=kind
@@ -424,7 +423,6 @@ pub fn ReceiptTable(
                                                                                         "{align}{bold_class}{muted_class}{account_class}",
                                                                                     )
                                                                                     title=title
-                                                                                    data-negative=(header != TAX && negative).then_some("true")
                                                                                 >
                                                                                     {content}
                                                                                 </td>

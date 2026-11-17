@@ -11,6 +11,7 @@ use crate::session::{Generation, SessionStore};
 use crate::settings::format_amount;
 use crate::support::list_search::group_key::derive_security_code_from_query;
 use crate::support::list_search::is_searchable_code;
+use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
@@ -226,6 +227,12 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
     let investment = move || asset().map_or_default(|a| investment_amount(&a));
     let gross = totals.total_dividends_before_tax.to_f64().unwrap_or(0.0);
     let net = totals.total_net_amount_received.to_f64().unwrap_or(0.0);
+    let gross_negative = totals.total_dividends_before_tax < Decimal::ZERO;
+    let gross_positive = totals.total_dividends_before_tax > Decimal::ZERO;
+    let tax_negative = totals.total_taxes < Decimal::ZERO;
+    let tax_positive = totals.total_taxes > Decimal::ZERO;
+    let net_negative = totals.total_net_amount_received < Decimal::ZERO;
+    let net_positive = totals.total_net_amount_received > Decimal::ZERO;
     let gross_rate = move || dividend_rate(gross, investment());
     let net_rate = move || dividend_rate(net, investment());
 
@@ -269,14 +276,25 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                 <Card variant=CardVariant::Sunken>
                     <p class="text-cell font-medium text-text-muted mb-1">{DIVIDEND_AMOUNT_AND_YIELD}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
-                        {format_amount(totals.total_dividends_before_tax)}
+                        <Amount
+                            kind=AmountKind::Delta
+                            text=format_amount(totals.total_dividends_before_tax)
+                            negative=gross_negative
+                            positive=gross_positive
+                        />
                         {move || {
                             let rate = gross_rate();
-                            (rate > 0.0).then(|| {
+                            (rate != 0.0).then(|| {
                                 view! {
-                                    <span class="text-cell font-normal text-text-subtle ml-1">
-                                        {format!("({})", format_percentage_value(rate))}
-                                    </span>
+                                    " ("
+                                    <Amount
+                                        kind=AmountKind::Delta
+                                        class="text-cell font-normal ml-1"
+                                        text=format_percentage_value(rate)
+                                        negative=rate.is_sign_negative()
+                                        positive=rate.is_sign_positive()
+                                    />
+                                    ")"
                                 }
                             })
                         }}
@@ -285,20 +303,36 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                 <Card variant=CardVariant::Sunken>
                     <p class="text-cell font-medium text-text-muted mb-1">{TAX}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
-                        {format_amount(totals.total_taxes)}
+                        <Amount
+                            kind=AmountKind::Delta
+                            text=format_amount(totals.total_taxes)
+                            negative=tax_negative
+                            positive=tax_positive
+                        />
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
                     <p class="text-cell font-medium text-text-muted mb-1">{AFTER_TAX_AND_YIELD}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
-                        {format_amount(totals.total_net_amount_received)}
+                        <Amount
+                            kind=AmountKind::Delta
+                            text=format_amount(totals.total_net_amount_received)
+                            negative=net_negative
+                            positive=net_positive
+                        />
                         {move || {
                             let rate = net_rate();
-                            (rate > 0.0).then(|| {
+                            (rate != 0.0).then(|| {
                                 view! {
-                                    <span class="text-cell font-normal text-text-subtle ml-1">
-                                        {format!("({})", format_percentage_value(rate))}
-                                    </span>
+                                    " ("
+                                    <Amount
+                                        kind=AmountKind::Delta
+                                        class="text-cell font-normal ml-1"
+                                        text=format_percentage_value(rate)
+                                        negative=rate.is_sign_negative()
+                                        positive=rate.is_sign_positive()
+                                    />
+                                    ")"
                                 }
                             })
                         }}

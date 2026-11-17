@@ -890,6 +890,8 @@ pub const HOME_ESTIMATE_PENDING: &str = "予想を取得中です";
 pub const HOME_FORECAST_LOADING: &str = "/ 予想を取得中";
 /// ホーム: 月別グラフの差の見出し
 pub const HOME_DIFF_LABEL: &str = "差";
+/// ホーム: 配当カードの前年同期差ラベル
+pub const HOME_DIVIDEND_YOY_LABEL: &str = "・ 前年同期より ";
 
 /// ホーム: 取込日の表示(「データ: 10/21 12:00 取り込み」)
 pub fn home_import_label(label: &str) -> String {
@@ -899,11 +901,6 @@ pub fn home_import_label(label: &str) -> String {
 /// ホーム: 予想額の表示(「/ 予想 ¥12,000」)
 pub fn home_forecast(forecast: &str) -> String {
     format!("/ 予想 {forecast}")
-}
-
-/// ホーム: 配当カードの要約行(「残り … ・ 前年同期より …」)
-pub fn home_dividend_summary(remaining_text: &str, previous_span: &str, yoy_text: &str) -> String {
-    format!("{remaining_text} {previous_span}・ 前年同期より {yoy_text}")
 }
 
 /// ホーム: 月別グラフの領域名(「月別の税引後配当(2026年と2025年)」)

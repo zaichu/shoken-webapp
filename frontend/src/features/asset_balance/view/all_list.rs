@@ -340,6 +340,14 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             row.course.clone().unwrap_or_else(|| "—".to_string()),
         ));
     } else {
+        let per_share_value = row
+            .dividend
+            .as_ref()
+            .and_then(|dividend| dividend.per_share);
+        let yield_value = row
+            .dividend
+            .as_ref()
+            .and_then(|dividend| dividend.yield_value);
         let per_share = row.dividend.as_ref().map_or_else(
             || "—".to_string(),
             |dividend| {
@@ -350,14 +358,30 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             || "—".to_string(),
             crate::features::asset_balance::holdings::format_dividend_yield,
         );
-        left.push(DetailCell::plain(
-            labels::ACQUISITION_YIELD.to_string(),
-            yield_text,
-        ));
-        left.push(DetailCell::plain(
-            labels::PER_SHARE_DIVIDEND.to_string(),
-            per_share,
-        ));
+        left.push(DetailCell {
+            label: labels::ACQUISITION_YIELD.to_string(),
+            value: yield_text,
+            sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
+            negative: is_negative_rate(yield_value),
+            positive: is_positive_rate(yield_value),
+            bold: false,
+            kind: AmountKind::Delta,
+        });
+        left.push(DetailCell {
+            label: labels::PER_SHARE_DIVIDEND.to_string(),
+            value: per_share,
+            sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
+            negative: is_negative_rate(per_share_value),
+            positive: is_positive_rate(per_share_value),
+            bold: false,
+            kind: AmountKind::Delta,
+        });
     }
     let market_cell = match pnl_sub {
         Some(sub) => DetailCell::strong_sub(

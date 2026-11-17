@@ -11,6 +11,9 @@ pub struct DetailCell {
     pub label: String,
     pub value: String,
     pub sub: Option<String>,
+    pub sub_rate: Option<String>,
+    pub sub_rate_negative: bool,
+    pub sub_rate_positive: bool,
     pub negative: bool,
     pub positive: bool,
     pub bold: bool,
@@ -23,6 +26,9 @@ impl DetailCell {
             label,
             value,
             sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
             negative: false,
             positive: false,
             bold: false,
@@ -41,6 +47,9 @@ impl DetailCell {
             label,
             value,
             sub: Some(sub),
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
             negative,
             positive,
             bold: false,
@@ -59,6 +68,9 @@ impl DetailCell {
             label,
             value,
             sub: Some(sub),
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
             negative,
             positive,
             bold: true,
@@ -77,6 +89,9 @@ impl DetailCell {
             label,
             value,
             sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
             negative,
             positive,
             bold: true,
@@ -102,6 +117,9 @@ fn detail_value(cell: &DetailCell) -> AnyView {
 
 fn detail_sub(cell: &DetailCell) -> Option<AnyView> {
     cell.sub.clone().map(|sub| {
+        let sub_rate = cell.sub_rate.clone();
+        let sub_rate_negative = cell.sub_rate_negative;
+        let sub_rate_positive = cell.sub_rate_positive;
         view! {
             <span class="detail-dialog-sub">
                 <Amount
@@ -110,6 +128,15 @@ fn detail_sub(cell: &DetailCell) -> Option<AnyView> {
                     negative=cell.negative
                     positive=cell.positive
                 />
+                {sub_rate.map(|rate| view! {
+                    " "
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=rate
+                        negative=sub_rate_negative
+                        positive=sub_rate_positive
+                    />
+                })}
             </span>
         }
         .into_any()

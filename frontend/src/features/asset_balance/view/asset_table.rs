@@ -113,6 +113,8 @@ pub fn AssetHoldingsTable(
                             let dividend_per_share =
                                 format_dividend_per_share(&dividend, dividend_decimals);
                             let dividend_yield = format_dividend_yield(&dividend);
+                            let dividend_yield_negative = is_negative_rate(dividend.yield_value);
+                            let dividend_yield_positive = is_positive_rate(dividend.yield_value);
                             let href = Some(holding_stock_href(&view.code));
                             let outlier_date = if is_outlier {
                                 view.price_as_of.clone()
@@ -178,9 +180,30 @@ pub fn AssetHoldingsTable(
                                             view! { "—" }.into_any()
                                         }}
                                     </td>
-                                    <td class="col-num hidden xl:table-cell print:table-cell">{dividend_per_share}</td>
-                                    <td class="col-num">{dividend_annual}</td>
-                                    <td class="col-num text-text-deep">{dividend_yield}</td>
+                                    <td class="col-num hidden xl:table-cell print:table-cell">
+                                        <Amount
+                                            kind=AmountKind::Delta
+                                            text=dividend_per_share
+                                            negative=is_negative_rate(dividend.per_share)
+                                            positive=is_positive_rate(dividend.per_share)
+                                        />
+                                    </td>
+                                    <td class="col-num">
+                                        <Amount
+                                            kind=AmountKind::Delta
+                                            text=dividend_annual
+                                            negative=is_negative_valuation(dividend.annual)
+                                            positive=is_positive_valuation(dividend.annual)
+                                        />
+                                    </td>
+                                    <td class="col-num">
+                                        <Amount
+                                            kind=AmountKind::Delta
+                                            text=dividend_yield
+                                            negative=dividend_yield_negative
+                                            positive=dividend_yield_positive
+                                        />
+                                    </td>
                                 </tr>
                             }
                         })

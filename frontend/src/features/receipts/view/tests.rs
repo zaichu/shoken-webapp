@@ -688,7 +688,7 @@ fn dividend_receipt_counts_as_inflow() {
     assert!(!is_profit_label(ReceiptsTab::DomesticStock, "税額"));
     assert_eq!(
         amount_kind_for_label(ReceiptsTab::Dividend, "税額", "¥100"),
-        AmountKind::NeutralDelta
+        AmountKind::Delta
     );
     assert_eq!(
         amount_kind_for_label(ReceiptsTab::Dividend, "税額", "¥0"),
@@ -1031,8 +1031,8 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
         );
         assert!(!right[0].bold, "{tab:?}: 税引前は太字にしない");
         assert!(
-            right[1].kind == AmountKind::NeutralDelta || right[1].kind == AmountKind::Plain,
-            "{tab:?}: 税額は中立色で出す"
+            right[1].kind == AmountKind::Delta || right[1].kind == AmountKind::Plain,
+            "{tab:?}: 税額は符号に応じて色を出す"
         );
         let (hero, _, _, _) = detail_value(&card, "税引後");
         assert!(!hero.is_empty(), "{tab:?}: 行の主役が無い");

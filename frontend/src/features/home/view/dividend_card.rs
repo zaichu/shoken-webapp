@@ -100,9 +100,10 @@ fn DividendCardBody(
                 &format_valuation_amount(Some(dec_to_f64(&remaining))),
             )
         });
-    let yoy_text = model.yoy_diff.map_or_else(
+    let yoy_value = model.yoy_diff.map(|diff| dec_to_f64(&diff));
+    let yoy_text = yoy_value.map_or_else(
         || labels::MISSING.to_string(),
-        |diff| format_signed_valuation_amount(Some(dec_to_f64(&diff))),
+        |value| format_signed_valuation_amount(Some(value)),
     );
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
@@ -137,7 +138,15 @@ fn DividendCardBody(
             })}
         </div>
         <p class="break-keep px-4 pt-1.5 text-label text-text-muted">
-            {labels::home_dividend_summary(&remaining_text, &previous_span, &yoy_text)}
+            {remaining_text}
+            {previous_span}
+            {labels::HOME_DIVIDEND_YOY_LABEL}
+            <Amount
+                kind=AmountKind::Delta
+                text=yoy_text
+                negative=is_negative_valuation(yoy_value)
+                positive=is_positive_valuation(yoy_value)
+            />
         </p>
         <DividendMonthlyChart
             monthly=model.monthly
@@ -232,8 +241,8 @@ fn DividendMonthCell(
     let prev = model::bar_height(pair.previous, max);
     let cur_text = format_currency(dec_to_f64(&pair.current));
     let prev_text = format_currency(dec_to_f64(&pair.previous));
-    let diff_text =
-        format_signed_valuation_amount(Some(dec_to_f64(&(pair.current - pair.previous))));
+    let diff_value = dec_to_f64(&(pair.current - pair.previous));
+    let diff_text = format_signed_valuation_amount(Some(diff_value));
     let current_note = if pair.month == current_month {
         labels::HOME_CURRENT_MONTH
     } else {
@@ -279,7 +288,14 @@ fn DividendMonthCell(
                     </div>
                     <div class="flex items-center gap-1.5">
                         <dt class="text-text-muted">{labels::HOME_DIFF_LABEL}</dt>
-                        <dd class="tabular-nums">{diff_text.clone()}</dd>
+                        <dd>
+                            <Amount
+                                kind=AmountKind::Delta
+                                text=diff_text.clone()
+                                negative=is_negative_valuation(Some(diff_value))
+                                positive=is_positive_valuation(Some(diff_value))
+                            />
+                        </dd>
                     </div>
                 </dl>
             </div>
