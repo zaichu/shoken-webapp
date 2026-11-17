@@ -21,6 +21,7 @@
 - 用語は `frontend/src/ui/labels.rs`、書式は `frontend/src/ui/format.rs` に置く
 - 新しい文言は用語集に足してから使う。画面側に同じ意味の文言を書かない
 - 規則の詳細は `docs/ui-design.md` の「用語と書式(全画面の共通ルール)」
+- 部品(`Card`・`ListRow`・`SummaryBand`・`PageTab`・`SearchField`・`ShowMoreButton`・`EmptyState`・`Badge`・`Amount`)の見た目は `frontend/src/ui` の部品の中だけで決め、`features/` では部品の内側の性質(余白・文字の大きさ・色・枠)を変えるクラスを付けない。外余白だけ部品の props で渡す
 
 ## 開発フロー（標準）
 
