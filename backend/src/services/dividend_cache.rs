@@ -16,6 +16,16 @@ use std::time::Duration;
 use logic::compute_is_stale;
 use persistence::{fetch_and_cache, update_cache_error};
 
+#[cfg(target_arch = "wasm32")]
+macro_rules! cache_log {
+    ($($arg:tt)*) => { worker::console_log!($($arg)*) };
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! cache_log {
+    ($($arg:tt)*) => { tracing::info!($($arg)*) };
+}
+
 /// 429 発生時の全インスタンス共有 cooldown 期間（秒）
 const RATE_LIMIT_COOLDOWN_SECS: i32 = 60;
 
@@ -42,21 +52,57 @@ pub async fn get_batch(
     codes: &[SecurityCode],
 ) -> Result<Vec<DividendPerShareItem>, ApiError> {
     let (items, refresh_codes) = fetch_cached_items(pool, codes).await?;
+    let mut pending = 0;
+    let mut ok = 0;
+    let mut error = 0;
+    let mut none = 0;
+    for item in &items {
+        match item.status {
+            DividendCacheStatus::Pending => pending += 1,
+            DividendCacheStatus::Ok | DividendCacheStatus::Zero => ok += 1,
+            DividendCacheStatus::Error => error += 1,
+        }
+        if item.dividend_per_share.is_none() {
+            none += 1;
+        }
+    }
 
     if !refresh_codes.is_empty() {
         if jquants_client.is_some() {
             enqueue_refresh(pool, &refresh_codes).await?;
-            tracing::info!(
-                "配当キャッシュ要求: requested={}, refresh={}, enqueued={}",
+            cache_log!(
+                "配当キャッシュ要求: requested={}, cached={}, pending={}, ok={}, error={}, none={}, refresh={}, enqueue=true",
                 codes.len(),
+                items.len().saturating_sub(refresh_codes.len()),
+                pending,
+                ok,
+                error,
+                none,
                 refresh_codes.len(),
-                refresh_codes.len()
             );
         } else {
-            tracing::warn!("JQUANTS_API_KEY が未設定のため更新キュー投入をスキップ");
+            cache_log!("JQUANTS_API_KEY が未設定のため更新キュー投入をスキップ");
+            cache_log!(
+                "配当キャッシュ要求: requested={}, cached={}, pending={}, ok={}, error={}, none={}, refresh={}, enqueue=false",
+                codes.len(),
+                items.len().saturating_sub(refresh_codes.len()),
+                pending,
+                ok,
+                error,
+                none,
+                refresh_codes.len()
+            );
         }
     } else {
-        tracing::info!("配当キャッシュ要求: requested={}, refresh=0", codes.len());
+        cache_log!(
+            "配当キャッシュ要求: requested={}, cached={}, pending={}, ok={}, error={}, none={}, refresh=0, enqueue=false",
+            codes.len(),
+            items.len(),
+            pending,
+            ok,
+            error,
+            none
+        );
     }
 
     Ok(items)
@@ -134,24 +180,31 @@ pub async fn drain_refresh_queue(
     .map(|(code,)| code)
     .collect();
 
-    tracing::info!("配当キャッシュ drain 対象: count={}", codes.len());
+    cache_log!("配当キャッシュ drain 対象: count={}", codes.len());
 
     let mut processed = 0;
+    let mut succeeded = 0;
+    let mut failed = 0;
+    let mut rate_limited = 0;
+    let mut waited_seconds = 0;
+    let mut gave_up = false;
     for code in codes {
-        if let Err(e) = acquire_rate_slot(pool).await {
-            tracing::error!("レート制御スロット取得エラー: {}", e);
+        if let Ok(waited) = acquire_rate_slot(pool).await {
+            waited_seconds += waited;
+        } else {
+            cache_log!("レート制御スロット取得失敗");
+            gave_up = true;
             break;
         }
         match fetch_and_cache(pool, jquants_client, &code).await {
             Ok(status) => {
                 processed += 1;
-                tracing::info!("配当キャッシュ更新完了: code={}, status={}", code, status);
+                succeeded += 1;
+                cache_log!("配当キャッシュ更新完了: status={}", status);
             }
             Err(e) if should_abort_on_error(&e) => {
-                tracing::warn!(
-                    "配当キャッシュ更新: レートリミット超過 code={}, 消化を中断",
-                    code
-                );
+                rate_limited += 1;
+                cache_log!("配当キャッシュ更新: レートリミット超過、消化を中断");
                 if let Err(err) =
                     update_cache_error(pool, &code, &e.to_string(), RATE_LIMIT_COOLDOWN_SECS).await
                 {
@@ -164,12 +217,22 @@ pub async fn drain_refresh_queue(
             }
             Err(e) => {
                 processed += 1;
-                tracing::error!("配当キャッシュ更新エラー: code={}, err={}", code, e);
+                failed += 1;
+                cache_log!("配当キャッシュ更新エラー");
                 let _ = update_cache_error(pool, &code, &e.to_string(), ERROR_RETRY_INTERVAL_SECS)
                     .await;
             }
         }
     }
+    cache_log!(
+        "配当キャッシュ drain 結果: selected={}, waited_seconds={}, gave_up={}, success={}, failure={}, rate_limited={}",
+        succeeded + failed + rate_limited,
+        waited_seconds,
+        gave_up,
+        succeeded,
+        failed,
+        rate_limited
+    );
     Ok(processed)
 }
 
@@ -208,7 +271,7 @@ fn build_batch_items<'a>(
 
 /// DBレート制御テーブルを使って次の実行スロットを予約し、必要なら待機する
 /// 1リクエスト = 12秒間隔（60秒 / 5回）を全インスタンスで原子的に保証
-pub async fn acquire_rate_slot(pool: &Db) -> Result<(), ApiError> {
+pub async fn acquire_rate_slot(pool: &Db) -> Result<u64, ApiError> {
     // UPSERT でスロットを予約し、前のスロット開始時刻を返す
     let slot_time = crate::db::query_scalar::<Option<chrono::DateTime<Utc>>>(
         "SELECT public.rate_control_acquire_jquants_v2()",
@@ -217,18 +280,19 @@ pub async fn acquire_rate_slot(pool: &Db) -> Result<(), ApiError> {
     .fetch_one(pool)
     .await?;
 
+    let mut waited_ms = 0;
     if let Some(slot_time) = slot_time {
         let now = Utc::now();
         if slot_time > now {
             let wait_ms = u64::try_from((slot_time - now).num_milliseconds().max(0)).unwrap_or(0);
             if wait_ms > 0 {
-                tracing::debug!("レート制御: {}ms 待機", wait_ms);
+                waited_ms = wait_ms;
                 sleep_millis(wait_ms).await;
             }
         }
     }
 
-    Ok(())
+    Ok(waited_ms.div_ceil(1000))
 }
 
 /// ホストは tokio タイマー、wasm は worker::Delay（ランタイム提供のタイマー）で待機する

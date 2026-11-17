@@ -101,7 +101,10 @@ port_in_use() {
 # 他の撮影とポートを競合すると相手のポートに接続してしまうため、プロセスまで確かめる
 server_owns_port() {
   if command -v ss >/dev/null 2>&1; then
-    ss -ltnpH "sport = :$1" 2>/dev/null | grep -q "pid=$SERVER_PID,"
+    local pid
+    pid="$(pgrep -P "$SERVER_PID" | while read -r child; do pgrep -P "$child"; done | head -n 1)"
+    [ -n "$pid" ] || return 1
+    ss -ltnpH "sport = :$1" 2>/dev/null | grep -q "pid=$pid,"
     return
   fi
   kill -0 "$SERVER_PID" 2>/dev/null

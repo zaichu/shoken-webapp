@@ -353,6 +353,7 @@ async fn refresh_stock_master(state: &AppState, scheduled_ms: f64) -> Result<Opt
 
 async fn drain_dividend_cache(state: &AppState) -> Result<Option<usize>> {
     let Some(client) = state.jquants_client.as_ref() else {
+        console_warn!("JQUANTS_API_KEY が未設定のため配当キャッシュ cron をスキップ");
         return Ok(None);
     };
     dividend_cache::drain_refresh_queue(&state.pool, client)
