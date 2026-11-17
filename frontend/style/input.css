@@ -1633,12 +1633,20 @@
     @apply h-full rounded bg-chart-1;
   }
 
-  .home-donut {
-    @apply flex h-24 w-24 shrink-0 items-center justify-center rounded-full;
+  .home-composition-total {
+    @apply flex items-baseline justify-between gap-3 text-body;
   }
 
-  .home-donut-hole {
-    @apply flex h-3/5 w-3/5 items-center justify-center rounded-full bg-surface;
+  .home-composition-rows {
+    @apply m-0 list-none p-0;
+  }
+
+  .home-composition-row {
+    @apply flex min-h-12 items-center gap-3 border-b border-border py-2;
+  }
+
+  .home-composition-row:last-child {
+    @apply border-b-0;
   }
 
   .home-chart-previous {

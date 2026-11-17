@@ -1,20 +1,10 @@
-use super::composition_card::{
-    CHART_COLORS, account_chart_index, product_chart_index, slice_style,
-};
+use super::composition_card::{account_chart_index, product_chart_index};
 use super::recent_dividends::{
     home_dividend_dialog_cells, home_dividend_row_texts, signed_gross_text, signed_tax_text,
 };
 use crate::api::dto::Dividend;
-use crate::features::home::model::CompositionSlice;
 use crate::ui::amount::AmountKind;
 use crate::ui::labels::ACCOUNT_SPECIFIC_GENERAL;
-
-fn composition_slice(label: &str, amount: f64) -> CompositionSlice {
-    CompositionSlice {
-        label: label.to_string(),
-        amount,
-    }
-}
 
 fn test_dividend(code: &str, net: i64, before: i64, tax: i64) -> Dividend {
     serde_json::from_value(serde_json::json!({
@@ -60,37 +50,6 @@ fn account_chart_index_normalizes_csv_names() {
         assert_eq!(account_chart_index(input), Some(expected), "{input}");
     }
     assert_eq!(account_chart_index("NISA"), None);
-}
-
-#[test]
-fn slice_style_renders_single_slice_without_gap() {
-    let (background, legend) = slice_style(
-        &[composition_slice("国内株式", 600.0)],
-        600.0,
-        product_chart_index,
-    );
-    assert!(background.starts_with("conic-gradient("));
-    assert!(!background.contains("var(--color-surface)"));
-    assert_eq!(legend, vec![(CHART_COLORS[0].1, 100.0)]);
-}
-
-#[test]
-fn slice_style_separates_multiple_slices_with_gap() {
-    let (background, legend) = slice_style(
-        &[
-            composition_slice("国内株式", 300.0),
-            composition_slice("投資信託", 100.0),
-        ],
-        400.0,
-        product_chart_index,
-    );
-    // 系列の境目は表面色の隙間で区切る
-    assert!(background.contains("var(--color-surface)"));
-    assert_eq!(legend.len(), 2);
-    assert_eq!(legend[0].0, CHART_COLORS[0].1);
-    assert_eq!(legend[1].0, CHART_COLORS[1].1);
-    let total: f64 = legend.iter().map(|(_, pct)| pct).sum();
-    assert!((total - 100.0).abs() < 1e-9);
 }
 
 #[test]
