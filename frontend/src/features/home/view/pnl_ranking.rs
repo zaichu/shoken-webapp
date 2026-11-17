@@ -53,7 +53,7 @@ pub(super) fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                 let (gains, losses) = model::pnl_extremes(&holdings, 3, 2);
                 view! {
                     <ul
-                        class="asset-compact-list"
+                        class="asset-compact-list home-pnl-list"
                         data-testid="home-pnl-list"
                     >
                         {gains
