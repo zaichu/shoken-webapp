@@ -1,1 +1,1 @@
-<div class="bg-white text-slate-500 shadow-[0_1px_2px_#000] text-primary text-sm [min-height:44px] print:border-black text-(--color-red-700) bg-(--color-slate-50)" style="font-size:12px;padding:4px"></div>
+<div class="bg-white text-slate-500 shadow-[0_1px_2px_#000] text-primary text-sm [min-height:44px] print:border-black text-(--color-red-700) bg-(--color-slate-50) mt-4" style="font-size:12px;padding:4px"></div>
