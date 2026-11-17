@@ -1,5 +1,7 @@
 //! cron 実行の処理時間ログの形式と計測。ログに出すのは処理名・件数・経過 ms だけ。
 
+use chrono::{DateTime, Timelike};
+
 /// cron で順に回す処理。ログ名は固定値だけを使い、呼び出し側が任意文字列を渡せないようにする
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CronStep {
@@ -31,6 +33,43 @@ pub fn format_cron_step(step: CronStep, count: usize, elapsed_ms: u64) -> String
 pub fn format_cron_noop(elapsed_ms: u64) -> String {
     format!("cron noop: {elapsed_ms}ms")
 }
+
+/// 接続ロールと共有表の RLS 状態を毎分出すと多いため、10 分に 1 回だけ出す
+#[expect(clippy::cast_possible_truncation)]
+pub fn should_log_db_access_at(scheduled_ms: f64) -> bool {
+    DateTime::from_timestamp_millis(scheduled_ms as i64)
+        .is_some_and(|t| t.minute().is_multiple_of(10))
+}
+
+/// 接続ロール・共有表の RLS・限定書き込み関数の所有者・event trigger を 1 行ずつ返す。
+/// 出すのはロール名・表名・関数名・真偽値・件数だけ
+pub const DB_ACCESS_STATE_SQL: &str = r"
+SELECT pg_catalog.format('session current_user=%s rolbypassrls=%s rolsuper=%s',
+           r.rolname, r.rolbypassrls::text, r.rolsuper::text)
+FROM pg_catalog.pg_roles r WHERE r.rolname = current_user
+UNION ALL
+SELECT CASE WHEN c.oid IS NULL THEN pg_catalog.format('table %s missing', t.name)
+       ELSE pg_catalog.format('table %s relrowsecurity=%s relforcerowsecurity=%s policies=%s select=%s',
+           t.name, c.relrowsecurity::text, c.relforcerowsecurity::text,
+           (SELECT pg_catalog.count(*) FROM pg_catalog.pg_policy p WHERE p.polrelid = c.oid),
+           pg_catalog.has_table_privilege(c.oid, 'SELECT')::text) END
+FROM pg_catalog.unnest(ARRAY['dividend_per_share_cache', 'market_data_provider_rate_control',
+         'stock', 'security_prices', 'fund_prices', 'fund_codes']) AS t(name)
+LEFT JOIN pg_catalog.pg_class c
+    ON c.relname = t.name AND c.relnamespace = 'public'::pg_catalog.regnamespace
+UNION ALL
+SELECT pg_catalog.format('function %s owner_bypassrls=%s', f.proname, o.rolbypassrls::text)
+FROM pg_catalog.pg_proc f JOIN pg_catalog.pg_roles o ON o.oid = f.proowner
+WHERE f.pronamespace = 'public'::pg_catalog.regnamespace
+  AND f.proname IN ('dividend_cache_enqueue_v2', 'dividend_cache_apply_success_v2',
+      'dividend_cache_apply_error_v2', 'rate_control_acquire_jquants_v2',
+      'rate_control_cooldown_v2', 'stock_master_claim_v2', 'stock_master_postpone_v2',
+      'stock_master_replace_v2')
+UNION ALL
+SELECT pg_catalog.format('event_triggers count=%s names=%s', pg_catalog.count(*),
+           COALESCE(pg_catalog.string_agg(e.evtname::text, ',' ORDER BY e.evtname), '-'))
+FROM pg_catalog.pg_event_trigger e
+";
 
 /// BulkTimer と同じ方式の計測。wasm では Instant が未対応のため epoch ミリ秒で保持する
 pub struct CronTimer {
@@ -140,6 +179,29 @@ mod tests {
         }
         let noop = format_cron_noop(u64::MAX);
         assert!(!noop.contains('@'));
+    }
+
+    #[test]
+    #[expect(clippy::cast_precision_loss)]
+    fn db_access_log_runs_every_ten_minutes() {
+        let at = |h: u32, m: u32| {
+            chrono::NaiveDate::from_ymd_opt(2026, 11, 17)
+                .unwrap()
+                .and_hms_opt(h, m, 0)
+                .unwrap()
+                .and_utc()
+                .timestamp_millis() as f64
+        };
+        assert!(should_log_db_access_at(at(12, 0)));
+        assert!(should_log_db_access_at(at(12, 50)));
+        assert!(!should_log_db_access_at(at(12, 1)));
+        assert!(!should_log_db_access_at(at(12, 9)));
+        assert_eq!(
+            (0..60)
+                .filter(|m| should_log_db_access_at(at(3, *m)))
+                .count(),
+            6
+        );
     }
 
     #[test]

@@ -190,3 +190,58 @@ test('「すべて」タブの株式行にも1株配当が出る', async ({ page
   const row = table.getByRole('row', { name: /架空自動車/ });
   await expect(row.getByRole('cell').nth(index)).toHaveText('¥90');
 });
+
+test('推定の初回レスポンス後に配当値が表示される(PC)', async ({ page }) => {
+  await mockSession(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ data: STOCKS.slice(0, 1), total: 1, page: 1, per_page: 1000 })),
+  );
+  await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ data: [], total: 0, page: 1, per_page: 0 })),
+  );
+  let releaseEstimate!: () => void;
+  const estimateResponse = new Promise<void>((resolve) => { releaseEstimate = resolve; });
+  await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, async (route) => {
+    await estimateResponse;
+    await route.fulfill(json({ items: [DIVIDEND_ITEMS[0]] }));
+  });
+  await page.goto('/assetbalance');
+  const table = page.getByTestId('asset-holdings-table');
+  const row = table.getByRole('row', { name: /架空自動車/ });
+  const perShareIndex = await columnIndex(table, '1株配当');
+  const annualIndex = await columnIndex(table, '年間配当');
+  await expect(row.getByRole('cell').nth(perShareIndex)).toHaveText('—');
+  await expect(row.getByRole('cell').nth(annualIndex)).toHaveText('—');
+  releaseEstimate();
+  await expect(row.getByRole('cell').nth(perShareIndex)).toHaveText('¥90');
+  await expect(row.getByRole('cell').nth(annualIndex)).toHaveText('¥9,000');
+  await expect(page.getByTestId('portfolio-kpi-grid')).toContainText('¥9,000');
+  await expect(page.getByTestId('portfolio-kpi-grid')).toContainText('3.60%');
+});
+
+test('推定の初回レスポンス後に配当値が表示される(スマホ)', async ({ page }) => {
+  await mockSession(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ data: STOCKS.slice(0, 1), total: 1, page: 1, per_page: 1000 })),
+  );
+  await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ data: [], total: 0, page: 1, per_page: 0 })),
+  );
+  let releaseEstimate!: () => void;
+  const estimateResponse = new Promise<void>((resolve) => { releaseEstimate = resolve; });
+  await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, async (route) => {
+    await estimateResponse;
+    await route.fulfill(json({ items: [DIVIDEND_ITEMS[0]] }));
+  });
+  await page.goto('/assetbalance');
+  const row = page.getByTestId('asset-compact-row').filter({ hasText: '架空自動車' });
+  await expect(row).toBeVisible();
+  await expect(page.getByTestId('asset-holding-dialog')).toHaveCount(0);
+  releaseEstimate();
+  await row.getByTestId('asset-row-button').click();
+  const dialog = page.getByTestId('asset-holding-dialog');
+  await expect(dialog).toContainText('¥90');
+  await expect(dialog).toContainText('¥9,000');
+});

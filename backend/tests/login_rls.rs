@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use backend::{
+    cron_log,
     db::{self, Bind, Db, Executor, connect_pool_lazy, run_migrations},
     models::user::GoogleUserInfo,
     services::{
@@ -135,6 +136,16 @@ async fn fund_price_targets_as(pool: &Db, user_id: UserId) -> Vec<String> {
     .collect()
 }
 
+async fn visible_cache_rows(pool: &Db, code: &str) -> i64 {
+    db::query_scalar::<i64>(
+        "SELECT count(*) FROM public.dividend_per_share_cache WHERE security_code = $1",
+        vec![Bind::from(code)],
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap()
+}
+
 async fn owner_pool() -> (Db, Db, Db, impl Drop) {
     let node = Postgres::default()
         .with_tag(POSTGRES_TAG)
@@ -190,6 +201,28 @@ async fn owner_pool() -> (Db, Db, Db, impl Drop) {
         1,
     )
     .unwrap();
+    // 本番の障害の再現: RLS が有効でポリシーが無いと、行があっても app_worker からは 0 行に見える。
+    pool.batch_execute(
+        "INSERT INTO public.dividend_per_share_cache (security_code, status) VALUES ('0000', 'ok');
+         DROP POLICY app_worker_shared_read ON public.dividend_per_share_cache;
+         DROP POLICY app_worker_shared_read ON public.market_data_provider_rate_control;
+         DROP POLICY app_worker_shared_read ON public.stock;
+         DROP POLICY app_worker_shared_read ON public.security_prices;
+         DROP POLICY app_worker_shared_read ON public.fund_prices;
+         DROP POLICY app_worker_shared_read ON public.fund_codes",
+    )
+    .await
+    .unwrap();
+    assert_eq!(visible_cache_rows(&worker, "0000").await, 0);
+    pool.batch_execute(include_str!(
+        "../migrations/0036_shared_table_worker_rls.sql"
+    ))
+    .await
+    .expect("RLS 有効化後に共有表 policy を適用");
+    assert_eq!(visible_cache_rows(&worker, "0000").await, 1);
+    pool.batch_execute("DELETE FROM public.dividend_per_share_cache WHERE security_code = '0000'")
+        .await
+        .unwrap();
     let (member, can_set) = db::query(
         "SELECT pg_has_role(current_user, 'app_restricted', 'MEMBER'), pg_has_role(current_user, 'app_restricted', 'SET')",
         vec![],
@@ -272,6 +305,30 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         .await
         .unwrap();
         assert!(readable, "app_worker は {table} を読める");
+        let rls_enabled = db::query_scalar::<bool>(
+            "SELECT relrowsecurity FROM pg_catalog.pg_class WHERE oid = $1::regclass",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        let policy_count = db::query_scalar::<i64>(
+            "SELECT count(*) FROM pg_catalog.pg_policies WHERE schemaname = 'public' AND tablename = split_part($1, '.', 2) AND policyname = 'app_worker_shared_read' AND roles @> ARRAY['app_worker', 'app_restricted']::name[]",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(rls_enabled, "{table} は RLS 有効");
+        assert!(policy_count > 0, "{table} は RLS ポリシーを持つ");
+        let force_rls = db::query_scalar::<bool>(
+            "SELECT relforcerowsecurity FROM pg_catalog.pg_class WHERE oid = $1::regclass",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(!force_rls, "{table} は FORCE RLS ではない");
         for privilege in ["INSERT", "UPDATE", "DELETE"] {
             let writable = db::query_scalar::<bool>(
                 "SELECT has_table_privilege('app_worker', $1, $2)",
@@ -283,8 +340,62 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
             assert!(!writable, "app_worker は {table} へ {privilege} できない");
         }
     }
-    // 残高ビューは所有者権限で動くため app_worker 直からは読めない。
-    // 利用者の残高読み取りは app_restricted 経由(WHERE user_id 付き)の既存経路だけを使う。
+    let personal_table_policy_count = db::query_scalar::<i64>(
+        "SELECT count(*) FROM pg_catalog.pg_policies WHERE schemaname = 'public' AND tablename IN ('asset_balances', 'fund_balances', 'dividends', 'mutualfunds') AND policyname = 'app_worker_shared_read'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        personal_table_policy_count, 0,
+        "個人表に共有ポリシーを付けない"
+    );
+    let state_lines: Vec<String> = db::query(cron_log::DB_ACCESS_STATE_SQL, vec![])
+        .fetch_all::<(String,), _>(&worker)
+        .await
+        .expect("app_worker から接続状態を読める")
+        .into_iter()
+        .map(|(line,)| line)
+        .collect();
+    assert!(
+        state_lines
+            .contains(&"session current_user=app_worker rolbypassrls=false rolsuper=false".into())
+    );
+    for table in [
+        "dividend_per_share_cache",
+        "market_data_provider_rate_control",
+        "stock",
+        "security_prices",
+        "fund_prices",
+        "fund_codes",
+    ] {
+        let expected = format!(
+            "table {table} relrowsecurity=true relforcerowsecurity=false policies=1 select=true"
+        );
+        assert!(
+            state_lines.contains(&expected),
+            "{expected}: {state_lines:?}"
+        );
+    }
+    let functions: Vec<&String> = state_lines
+        .iter()
+        .filter(|line| line.starts_with("function "))
+        .collect();
+    assert_eq!(functions.len(), 8, "{state_lines:?}");
+    assert!(
+        functions
+            .iter()
+            .all(|line| line.ends_with(" owner_bypassrls=true")),
+        "{functions:?}"
+    );
+    assert!(
+        state_lines
+            .iter()
+            .any(|line| line.starts_with("event_triggers count=")),
+        "{state_lines:?}"
+    );
+    // 利用者の残高読み取りは app_restricted 経由の経路だけを使い、app_worker 直には付与しない。
     for view in ["public.asset_balances_view", "public.fund_balances_view"] {
         let readable = db::query_scalar::<bool>(
             "SELECT has_table_privilege('app_worker', $1, 'SELECT')",
@@ -1521,4 +1632,188 @@ async fn auth_paths_use_limited_functions() {
     assert_eq!(restricted_id, Some(id_c));
     tx.rollback().await.unwrap();
     assert_owner_reset(&pool).await;
+}
+
+async fn insert_balance_user(pool: &Db, label: &str) -> UserId {
+    let user_id = UserId::from(uuid::Uuid::new_v4());
+    db::query(
+        "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(user_id),
+            Bind::from(format!("balance-view-{label}")),
+            Bind::from(format!("balance-view-{label}@example.com")),
+        ],
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+    for code in ["99001", "99002"] {
+        db::query(
+            "INSERT INTO asset_balances (user_id, security_code, security_name, shares, average_purchase_price, total_purchase_amount, account) VALUES ($1, $2, '架空の検証銘柄', 100, 1000, 100000, '特定口座')",
+            vec![Bind::from(user_id), Bind::from(code)],
+        )
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+    db::query(
+        "INSERT INTO fund_balances (user_id, fund_name, account, shares, average_purchase_price, total_purchase_amount, base_price, market_value, profit_loss, price_as_of) VALUES ($1, '架空の検証ファンド', '特定口座', 10000, 10000, 10000, 11000, 11000, 1000, CURRENT_DATE)",
+        vec![Bind::from(user_id)],
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+    user_id
+}
+
+async fn count_in_tx(tx: &mut db::Tx, sql: &str) -> i64 {
+    db::query_scalar::<i64>(sql, vec![])
+        .fetch_one(&mut *tx)
+        .await
+        .unwrap_or_else(|e| panic!("{sql}: {e}"))
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn balance_views_and_user_policies_isolate_rows_for_app_restricted() {
+    let (pool, worker, _admin, _node) = owner_pool().await;
+
+    let tables_without_rls: Vec<(String,)> = db::query(
+        "SELECT c.relname::text FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity
+           AND c.relname <> '_sqlx_migrations'",
+        vec![],
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        tables_without_rls,
+        Vec::<(String,)>::new(),
+        "本番と同じく共有表を含む全表で RLS が有効"
+    );
+
+    let user_a = insert_balance_user(&pool, "a").await;
+    let user_b = insert_balance_user(&pool, "b").await;
+    db::query(
+        "INSERT INTO security_prices (security_code, current_price, price_as_of, prev_close) VALUES ('99001', 1200, CURRENT_DATE, 1100)",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    db::query(
+        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) VALUES ($1, CURRENT_DATE, '国内株式', '特定口座', '99001', '架空の検証銘柄', 10, 100, 1000, 200, 800)",
+        vec![Bind::from(user_b)],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let other_rows_sql = format!(
+        "SELECT (SELECT count(*) FROM asset_balances_view WHERE user_id = '{user_b}')
+              + (SELECT count(*) FROM fund_balances_view WHERE user_id = '{user_b}')"
+    );
+
+    // 0037 の前の状態(所有者権限のビュー)では、WHERE user_id を外すと他人の行が見えていた。
+    pool.batch_execute(
+        "ALTER VIEW public.asset_balances_view RESET (security_invoker);
+         ALTER VIEW public.fund_balances_view RESET (security_invoker);",
+    )
+    .await
+    .unwrap();
+    let mut tx = worker.begin_with_user(user_a).await.unwrap();
+    assert_eq!(count_in_tx(&mut tx, &other_rows_sql).await, 3);
+    tx.rollback().await.unwrap();
+    pool.batch_execute(include_str!(
+        "../migrations/0037_rls_views_invoker_and_indexable_policies.sql"
+    ))
+    .await
+    .expect("0037 は再適用できる");
+
+    let mut tx = worker.begin_with_user(user_a).await.unwrap();
+    assert_eq!(count_in_tx(&mut tx, &other_rows_sql).await, 0);
+    assert_eq!(
+        count_in_tx(&mut tx, "SELECT count(*) FROM asset_balances_view").await,
+        2
+    );
+    assert_eq!(
+        count_in_tx(&mut tx, "SELECT count(*) FROM fund_balances_view").await,
+        1
+    );
+    assert_eq!(
+        count_in_tx(&mut tx, "SELECT count(*) FROM dividends").await,
+        0
+    );
+    assert_eq!(count_in_tx(&mut tx, "SELECT count(*) FROM users").await, 1);
+    let shared_price: String = db::query_scalar(
+        "SELECT current_price::text FROM asset_balances_view WHERE security_code = '99001'",
+        vec![],
+    )
+    .fetch_one(&mut tx)
+    .await
+    .unwrap();
+    assert_eq!(
+        shared_price, "1200",
+        "呼び出し側の権限でも共有株価を結合できる"
+    );
+    tx.commit().await.unwrap();
+
+    // 直前のトランザクションが設定した値は接続に空文字として残る。エラーにせず 0 件にする。
+    let mut tx = worker.begin_restricted().await.unwrap();
+    db::query("SELECT set_config('app.current_user_id', '', true)", vec![])
+        .execute(&mut tx)
+        .await
+        .unwrap();
+    for sql in [
+        "SELECT count(*) FROM users",
+        "SELECT count(*) FROM sessions",
+        "SELECT count(*) FROM dividends",
+        "SELECT count(*) FROM asset_balances",
+        "SELECT count(*) FROM fund_balances",
+        "SELECT count(*) FROM csv_import_history",
+        "SELECT count(*) FROM asset_balances_view",
+        "SELECT count(*) FROM fund_balances_view",
+    ] {
+        assert_eq!(count_in_tx(&mut tx, sql).await, 0, "{sql}");
+    }
+    tx.rollback().await.unwrap();
+
+    let mut tx = worker.begin_with_user(user_a).await.unwrap();
+    let foreign_insert = db::query(
+        "INSERT INTO csv_import_history (user_id, kind) VALUES ($1, 'dividend')",
+        vec![Bind::from(user_b)],
+    )
+    .execute(&mut tx)
+    .await;
+    assert!(
+        foreign_insert.is_err(),
+        "別の利用者名義の INSERT は RLS で拒否される"
+    );
+    tx.rollback().await.unwrap();
+    let mut tx = worker.begin_with_user(user_a).await.unwrap();
+    let foreign_dividend = db::query(
+        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) VALUES ($1, CURRENT_DATE, '国内株式', '特定口座', '99002', '架空の検証銘柄', 10, 100, 1000, 200, 800)",
+        vec![Bind::from(user_b)],
+    )
+    .execute(&mut tx)
+    .await;
+    assert!(foreign_dividend.is_err());
+    tx.rollback().await.unwrap();
+
+    let assets = backend::services::domain::search::search::<
+        backend::services::asset_balance::AssetBalanceDomain,
+    >(&worker, user_a, Default::default())
+    .await
+    .expect("app_worker から保有銘柄一覧を読める");
+    assert_eq!(assets.total, 2);
+    assert!(assets.data.iter().all(|row| row.user_id == user_a));
+    let funds = backend::services::domain::search::search::<
+        backend::services::fund_balance::FundBalanceDomain,
+    >(&worker, user_a, Default::default())
+    .await
+    .expect("app_worker から投信の保有一覧を読める");
+    assert_eq!(funds.total, 1);
+    assert!(funds.data.iter().all(|row| row.user_id == user_a));
 }

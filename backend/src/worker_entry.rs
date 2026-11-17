@@ -10,8 +10,11 @@ use worker::*;
 
 use crate::{
     config::{self, Config},
-    cron_log::{CronStep, CronTimer, format_cron_noop, format_cron_step},
-    handlers,
+    cron_log::{
+        CronStep, CronTimer, DB_ACCESS_STATE_SQL, format_cron_noop, format_cron_step,
+        should_log_db_access_at,
+    },
+    db, handlers,
     middleware::{add_security_headers, binding_rate_limit, validate_origin},
     services::{
         auth, dividend_cache, fund_price, jquants, jquants::JQuantsClient, login_event,
@@ -256,6 +259,9 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             return;
         }
     };
+    if should_log_db_access_at(event.schedule()) {
+        log_db_access_state(&state).await;
+    }
     let mut ran = false;
     {
         let timer = CronTimer::start();
@@ -322,6 +328,20 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
     }
 }
 
+async fn log_db_access_state(state: &AppState) {
+    match db::query(DB_ACCESS_STATE_SQL, vec![])
+        .fetch_all::<(String,), _>(&state.pool)
+        .await
+    {
+        Ok(lines) => {
+            for (line,) in lines {
+                console_log!("cron db access: {line}");
+            }
+        }
+        Err(_) => console_log!("cron db access: inspection failed"),
+    }
+}
+
 /// 保有銘柄の現在値を Yahoo chart API から取得して更新する。
 /// dev/検証用に vars の YAHOO_CHART_BASE_URL でモックへ差し替えられる
 async fn refresh_stock_prices(env: &Env, state: &AppState) -> Result<usize> {
@@ -353,6 +373,7 @@ async fn refresh_stock_master(state: &AppState, scheduled_ms: f64) -> Result<Opt
 
 async fn drain_dividend_cache(state: &AppState) -> Result<Option<usize>> {
     let Some(client) = state.jquants_client.as_ref() else {
+        console_warn!("JQUANTS_API_KEY が未設定のため配当キャッシュ cron をスキップ");
         return Ok(None);
     };
     dividend_cache::drain_refresh_queue(&state.pool, client)

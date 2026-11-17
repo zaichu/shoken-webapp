@@ -141,11 +141,14 @@
   --radius-note: 1.35rem;
 
   /* ページの骨格の余白。見出し行・タブ行・帯・注記・検索・条件・表の間隔を
-     1セットのトークンで決め、資産管理・取引明細で同じ値を使う */
+     1セットのトークンで決め、資産管理・取引明細で同じ値を使う。
+     PC の値は変えない。スマホだけ別値が必要な箇所は -mobile 側を使う */
   --space-tabs: 0.75rem;
+  --space-tabs-mobile: 1rem;
   --space-summary: 0.75rem;
   --space-note: 0.25rem;
   --space-search: 0.75rem;
+  --space-search-mobile: 0.5rem;
   --space-condition: 0.5rem;
   --space-table: 0.75rem;
   --space-page: 1rem;
@@ -600,6 +603,12 @@
     position: relative;
   }
 
+  @media (width < 64rem) {
+    .page-tab-list {
+      @apply px-4;
+    }
+  }
+
   .page-tab {
     /* 選択の色差が大きいため transition を付けると遷移途中が
        コントラスト不足になる(a11y の計測が落ちる)ので付けない */
@@ -1002,7 +1011,7 @@
   }
 
   .mobile-search-box {
-    @apply min-h-12;
+    @apply min-h-12 px-3;
   }
 
   .receipts-mobile-summary-order {
@@ -1010,7 +1019,7 @@
   }
 
   .mobile-sort-entry {
-    @apply min-h-11 w-full justify-start gap-1 rounded-none border-0 border-b border-border bg-transparent px-0 text-left text-text hover:bg-transparent lg:hidden;
+    @apply min-h-11 w-full justify-start gap-1 rounded-lg border border-border bg-surface px-3 text-left text-text hover:bg-surface-raised lg:hidden;
   }
 
   .mobile-sort-entry-value {
@@ -1383,7 +1392,24 @@
   @media (width < 64rem) {
     .page-skeleton-search {
       @apply px-4;
+      /* タブ→検索は16px。共通トークンは PC の値のまま残し、スマホだけ別トークンを使う */
+      margin-top: var(--space-tabs-mobile);
       margin-bottom: var(--space-table);
+    }
+
+    .mobile-sort-entry {
+      /* 検索→並べ替えは8px。共通トークンは PC の値のまま残し、スマホだけ別トークンを使う */
+      margin-top: var(--space-search-mobile);
+    }
+
+    /* タブ操作域の左右16pxは .page-tab-list 側が持つ。ここで重ねると
+       資産管理だけ32pxになるため付けない(.asset-mobile-tabs-links に余白は付けない) */
+
+    /* 資産管理の一覧行は class ではなく data-testid="asset-compact-row" を
+       持つ(li.list-row-item)。class セレクタでは一致しないため属性で指定する */
+    .list-row-item[data-testid="asset-compact-row"] .list-row-action,
+    .list-row-item[data-testid="receipt-card"] .list-row-action {
+      @apply py-2;
     }
   }
 
@@ -1511,6 +1537,22 @@
     @apply grid grid-cols-1 lg:grid-cols-[2fr_1fr];
     gap: var(--space-card);
     margin-top: var(--space-card);
+  }
+
+  @media (width < 64rem) {
+    .home-card-grid {
+      @apply px-0;
+      margin-top: 0;
+      gap: var(--space-table);
+    }
+
+    .home-card-grid > * {
+      @apply rounded-xl border border-border-subtle bg-surface;
+    }
+
+    .home-card-grid .list-row-action {
+      @apply py-2;
+    }
   }
 
   /* ホーム最下部の CSV 導線。MoreLink の左寄せを打ち消して中央に置く */
