@@ -20,9 +20,9 @@ fn delta_negative_uses_data_negative_without_green() {
 }
 
 #[test]
-fn delta_zero_has_no_sign_color_and_stays_gray() {
+fn delta_zero_has_no_sign_color() {
     let class = amount_classes(AmountKind::Delta, false, false, "");
-    assert!(class.contains("text-text-soft"));
+    assert!(!class.contains("text-text-soft"));
     assert!(!class.contains("text-positive"));
     assert_eq!(amount_negative_attr(AmountKind::Delta, false), None);
 }

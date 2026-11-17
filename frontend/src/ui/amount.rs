@@ -12,7 +12,7 @@ pub enum AmountKind {
 
 /// 金額・率の表示。書式は呼び出し側の format 関数で作った文字列を
 /// 受け取り、この部品が tabular-nums・nowrap と正負の色をまとめる。
-/// Delta は正が緑・負が赤( data-negative )・0 が灰、NeutralDelta は符号を残して灰。
+/// Delta は正が緑・負が赤( data-negative )・0 は色なし、NeutralDelta は符号を残して灰。
 /// block=true のときこの部品が p を出すので、呼び出し側で p で包まない。
 /// block=false(既定)はインラインの span を出し、周囲の要素(dd/td 等)はそのまま残す。
 #[component]
@@ -65,7 +65,7 @@ fn amount_classes(kind: AmountKind, negative: bool, positive: bool, extra: &str)
                 base.push_str(" text-positive");
                 base
             } else {
-                base.push_str(" text-text-soft");
+                // 0 は色なし(マイナス赤・プラス緑の決まりに合わせる)
                 base
             }
         }
