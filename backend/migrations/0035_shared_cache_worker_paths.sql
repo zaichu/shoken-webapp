@@ -21,10 +21,12 @@ GRANT SELECT, INSERT, UPDATE ON public.market_data_provider_rate_control TO app_
 GRANT SELECT, INSERT, DELETE ON public.stock TO app_shared_write_executor;
 
 -- 共有表の読み取り(利用者の行なし)。個人表の権限は付けない。
+-- 残高ビュー(asset_balances_view / fund_balances_view)は所有者権限で動くため
+-- 利用者 ID なしの app_worker 直からは読めないようにし、利用者 Tx 内の
+-- app_restricted 経由(WHERE user_id 付き)の既存経路だけを使う。よって GRANT しない。
 GRANT SELECT ON public.stock, public.security_prices,
     public.dividend_per_share_cache, public.market_data_provider_rate_control,
     public.fund_codes, public.fund_prices TO app_worker;
-GRANT SELECT ON public.asset_balances_view, public.fund_balances_view TO app_worker;
 GRANT EXECUTE ON FUNCTION public.fund_name_normalize(text),
     public.fund_expected_nav_date(timestamptz) TO app_worker;
 

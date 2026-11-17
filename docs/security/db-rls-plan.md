@@ -815,12 +815,19 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
 - `0035_shared_cache_worker_paths.sql` は、Hyperdrive を `app_worker` に切り替えた後に
   動かなくなる共有表の経路(銘柄検索・配当見積もりと更新・マスタ更新)を限定経路に移す。
   共有表(`stock`・`security_prices`・`dividend_per_share_cache`・
-  `market_data_provider_rate_control`・`fund_codes`・`fund_prices`、2 ビュー、
-  2 計算関数)は利用者の行を持たないため、`app_worker` に読み取り(`SELECT`/`EXECUTE`)だけを与え、
-  個人表の権限は付けない。書き込みは `NOLOGIN BYPASSRLS` の専用ロール
-  `app_shared_write_executor` が所有する 8 つの `SECURITY DEFINER` 関数に閉じ込め、
-  `EXECUTE` は `app_worker` と移行期の旧接続(`SESSION_USER`)にだけ付ける
+  `market_data_provider_rate_control`・`fund_codes`・`fund_prices`)と
+  2 計算関数は利用者の行を持たないため、`app_worker` に読み取り(`SELECT`/`EXECUTE`)だけを与え、
+  個人表の権限は付けない。読み取りを直接付与にしたのは、共有表の読み取りに
+  利用者 ID が要らないため。書き込みは `NOLOGIN BYPASSRLS` の専用ロール
+  `app_shared_write_executor` が所有する 9 つの `SECURITY DEFINER` 関数に閉じ込め、
+  0033 の方針(Worker から共有表へ直接書き込まない)を維持する。
+  `EXECUTE` は `app_worker` と移行期の旧接続(`SESSION_USER`)にだけ付け
   (`app_restricted` には付けない)。旧接続でも新 Worker でも同じ呼び方で動く。
+- 残高ビュー(`asset_balances_view`・`fund_balances_view`)は対象外にした。
+  両ビューは `security_invoker` なし=所有者権限で動くため、利用者 ID なしの
+  `app_worker` 直に `SELECT` を付けると全利用者の残高が見えてしまう。
+  アプリの残高読み取りは利用者 Tx 内の `app_restricted` 経由(`WHERE user_id` 付き)の
+  既存経路のまま変えない。
 - 関数は配当キュー投入・取得反映・失敗記録、レート枠の取得と延長、
   マスタの枠取り・再試行延期・全置換に対応する。再試行延期は枠取りの 7 日後を
   上書きする(延長と違い `GREATEST` にしない)。置換は複数引数の `unnest` のため

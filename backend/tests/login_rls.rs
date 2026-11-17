@@ -282,6 +282,18 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
             assert!(!writable, "app_worker は {table} へ {privilege} できない");
         }
     }
+    // 残高ビューは所有者権限で動くため app_worker 直からは読めない。
+    // 利用者の残高読み取りは app_restricted 経由(WHERE user_id 付き)の既存経路だけを使う。
+    for view in ["public.asset_balances_view", "public.fund_balances_view"] {
+        let readable = db::query_scalar::<bool>(
+            "SELECT has_table_privilege('app_worker', $1, 'SELECT')",
+            vec![Bind::from(view)],
+        )
+        .fetch_one(&worker)
+        .await
+        .unwrap();
+        assert!(!readable, "app_worker は {view} を読めてはならない");
+    }
     for signature in [
         "public.admin_login_search_data_v2(text[],text[],text[],text,text,bigint,bigint)",
         "public.admin_login_search_count_v2(text[],text[],text[])",
