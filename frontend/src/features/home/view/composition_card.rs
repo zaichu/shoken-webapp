@@ -1,4 +1,4 @@
-use super::super::model::{self, CompositionSlice};
+use super::super::model::{self, CompositionSlice, ProductCompositionSlice};
 use super::super::store::{self, HomeOverviewData};
 use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{fund_market, funds_of, stock_market, stocks_of};
@@ -100,7 +100,12 @@ pub(super) fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                 }
                 let stock_market = stock_market(&assets);
                 let fund_market = fund_market(&funds);
-                let products = model::product_slices(stock_market, fund_market);
+                let products = model::product_slices(
+                    stocks_of(&assets).unwrap_or_default(),
+                    funds_of(&funds).unwrap_or_default(),
+                    stock_market,
+                    fund_market,
+                );
                 let accounts =
                     funds_of(&funds).map_or_else(Vec::new, model::account_slices);
                 let product_total: f64 = products.iter().map(|s| s.amount).sum();
@@ -128,7 +133,7 @@ pub(super) fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
 }
 
 #[component]
-fn ProductDonut(products: Vec<CompositionSlice>) -> impl IntoView {
+fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
     let product_total: f64 = products.iter().map(|slice| slice.amount).sum();
     let rows = products
         .iter()
@@ -142,7 +147,7 @@ fn ProductDonut(products: Vec<CompositionSlice>) -> impl IntoView {
                         "{}{}{}",
                         format_integer_percent(pct),
                         labels::HOME_COMPOSITION_DETAIL_SEPARATOR,
-                        labels::HOME_COMPOSITION_ITEM_COUNT
+                        format!("{}{}", slice.item_count, labels::HOME_COMPOSITION_ITEM_COUNT_UNIT)
                     )
                 />
             }
