@@ -750,23 +750,62 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
 ## 24. 第五段階(5e-2)の記録(#1957)
 
 - `backend/migrations/0033_force_limited_maintenance_paths.sql` で、
-  通知 token・管理者検索・価格候補抽出・履歴掃除の限定関数を追加した。
-  `PUBLIC` の `EXECUTE` を剥奪し、実行権限は `app_restricted` に付与する。
-  各関数は固定 `search_path` と `row_security=off` を持つ。
+  通知 token・管理者検索・価格候補抽出・履歴掃除の新しい限定関数を追加した。
+  株価/基準価額の試行時刻、取得値の反映、投信の取得失敗記録と解除も限定関数にし、
+  Worker から共有価格表へ直接書き込まない。
+  旧関数と既存の権限は変更せず、`PUBLIC` の `EXECUTE` を剥奪した新関数には
+  固定 `search_path` と `row_security=off` を設定する。
 - FORCE は `SECURITY DEFINER` の関数所有者にも適用されるため、関数所有者として
-  `NOLOGIN BYPASSRLS` の専用ロールを4つ作成した。各ロールは担当表の必要列だけを
-  読み書きできる。`app_restricted` の所属はなく、migration 終了後にアプリ接続ロールから
+  `NOLOGIN BYPASSRLS` の専用ロールを4つ作成した。各ロールは担当表の必要な読み取り列と
+  更新権限だけを持つ。`app_restricted` の所属はなく、migration 終了後にアプリ接続ロールから
   SET/INHERIT できない。PostgreSQL は `CREATEROLE` による作成者へ ADMIN membership を
-  自動付与するため、その ADMIN option は残る。現行通常接続ロールは既に
-  `BYPASSRLS` と `CREATEROLE` を持つ(#1956 の読み取り確認)ため、接続ロールの分離は
-  5e-1/5e-4 で別途扱う。
+  自動付与するため、その ADMIN option は残る。
 - migration 中は所有権移譲に必要な SET/INHERIT と schema CREATE を与え、関数 owner と
   ACL を設定した後、接続ロールの SET/INHERIT と schema CREATE を取り上げる。
-- token peek/consume、管理者のデータ・件数検索、価格対象列挙、90日経過履歴の削除は
-  `app_enter(NULL)` 後のトランザクションから呼ぶ。検索フィルターの wildcard escape、
+- 通知 token peek/consume は `app_restricted` から呼ぶ。管理者検索・価格対象列挙/更新・
+  失敗記録と解除・90日経過履歴の削除は `app_worker` から直接限定関数を呼ぶ。
+  `app_restricted` には管理者検索と cron 関数の `EXECUTE` を付けない。
+  検索フィルターの wildcard escape、
   sort・page、価格の対象日・優先順・上限、履歴の90日境界、削除件数を従来どおり保つ。
   管理者閲覧監査は既存の利用者 Tx を維持する。
 - 使い捨て Postgres で全 RLS 表にテスト中だけ FORCE を設定し、旧 owner 経路の空振り/
   拒否、新経路の結果、関数権限・`search_path`・ロール属性、閲覧監査を検証する。
-  FORCE を設定する migration は追加していない。本番の資格情報や設定の変更はなく、
-  利用者の作業もない。
+  FORCE を設定する migration は追加していない。
+
+## 25. Workers 接続ロールの切り替え(#1956)
+
+- `0034_app_worker_role.sql` は `app_worker` を `LOGIN NOSUPERUSER NOBYPASSRLS`
+  で作成し、パスワードは設定しない。`app_worker` は表の所有者にせず、
+  `app_restricted` へ `SET ROLE` できる所属だけを持つ。必要な管理者・cron 関数は
+  `app_worker` にだけ直接 `EXECUTE` を付け、表権限は SECURITY DEFINER の所有ロールに限定する。
+- `app_restricted` に管理者検索と cron 関数の実行権は付けない。通知 token の関数は
+  引き続き app_restricted が呼び出せる。管理者検索を別接続に分けるかは選ばず、
+  アプリ側で管理者を確認する方針とする。
+- 認証開始時の upsert、セッション照会・削除も、既存関数とその権限を変えず、
+  `app_restricted` に切り替えて呼ぶ。旧 Worker が接続する `postgres` の権限や旧関数は
+  この PR で変更しない。旧関数の削除は別 PR とする。
+- 本番切り替えは利用者が行う。先に Supabase Dashboard の Database > Roles で
+  `app_worker` を選び、パスワードを設定する。
+- 次に Hyperdrive の既存設定でユーザーとパスワードを更新する。接続先 ID を設定した後、
+  シェルのトレースを無効にして `read -s` でパスワードを入力し、画面に表示しない。
+  ```bash
+  set +x
+  read -r -s -p 'app_worker password: ' APP_WORKER_PASSWORD
+  printf '\n'
+  npx wrangler hyperdrive update <HYPERDRIVE_ID> --origin-user app_worker --origin-password "$APP_WORKER_PASSWORD"
+  unset APP_WORKER_PASSWORD
+  ```
+  パスワードをコマンドへ直接書かず、ログにも貼らない。
+- 切り替え後、本番の `/ready` とログインを確認する。戻す場合は同じ Hyperdrive ID に
+  `postgres` の資格情報を設定し直す。
+  ```bash
+  set +x
+  read -r -s -p 'postgres password: ' POSTGRES_PASSWORD
+  printf '\n'
+  npx wrangler hyperdrive update <HYPERDRIVE_ID> --origin-user postgres --origin-password "$POSTGRES_PASSWORD"
+  unset POSTGRES_PASSWORD
+  ```
+- Docker の使い捨て DB で migration と app_worker のログイン、ログアウト、通知解除、
+  管理者検索、cron の価格対象抽出/価格反映/失敗記録/履歴掃除、利用者の読み書きを確認する。
+  app_restricted から管理者・cron 関数が権限エラーになること、および旧関数が従来の
+  呼び方で動くことも確かめる。本番 DB には接続しない。

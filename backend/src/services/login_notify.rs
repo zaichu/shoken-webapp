@@ -159,7 +159,7 @@ pub async fn peek_token(
     pool: &Db,
     plaintext: &str,
 ) -> Result<Option<(UserId, DateTime<Utc>)>, DbError> {
-    let mut tx = pool.begin_as_role("app_notify_token_v2_executor").await?;
+    let mut tx = pool.begin_restricted().await?;
     let token = crate::db::query(
         "SELECT * FROM login_notify_peek_v2($1)",
         vec![Bind::Bytes(token_hash(plaintext))],
@@ -171,7 +171,7 @@ pub async fn peek_token(
 }
 
 pub async fn consume_token(pool: &Db, plaintext: &str) -> Result<Option<UserId>, DbError> {
-    let mut tx = pool.begin_as_role("app_notify_token_v2_executor").await?;
+    let mut tx = pool.begin_restricted().await?;
     let user_id = crate::db::query_scalar::<Option<UserId>>(
         "SELECT login_notify_consume_v2($1)",
         vec![Bind::Bytes(token_hash(plaintext))],

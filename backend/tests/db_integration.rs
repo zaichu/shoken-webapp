@@ -2759,7 +2759,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=33).collect::<Vec<_>>()
+        (0..=34).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2767,7 +2767,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=33).collect::<Vec<_>>()
+        (0..=34).collect::<Vec<_>>()
     );
 }
 
@@ -2795,7 +2795,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=33).collect::<Vec<_>>()
+        (0..=34).collect::<Vec<_>>()
     );
 }
 
@@ -6445,7 +6445,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=33).collect::<Vec<_>>()
+        (0..=34).collect::<Vec<_>>()
     );
 
     let info_a = GoogleUserInfo {
@@ -6570,21 +6570,11 @@ async fn stage5b_definer_functions_and_app_enter() {
         .fetch_all::<(String,), _>(&pool)
         .await
         .expect("設定の取得に失敗");
-        let expected_search_path = if signature.starts_with("public.login_notify_") {
-            "search_path=pg_catalog, public, pg_temp"
-        } else {
-            "search_path=public, pg_temp"
-        };
-        if signature == "public.login_notify_peek_by_token(bytea)"
-            || signature == "public.login_notify_consume_by_token(bytea)"
-        {
-            assert!(config.is_empty(), "{signature} の旧設定は変更しない");
-        } else {
-            assert!(
-                config.contains(&(expected_search_path.to_string(),)),
-                "{signature} は search_path を固定するはず"
-            );
-        }
+        let expected_search_path = "search_path=public, pg_temp";
+        assert!(
+            config.contains(&(expected_search_path.to_string(),)),
+            "{signature} の search_path を変更しない"
+        );
     }
 
     pool.batch_execute("CREATE ROLE fn_nogrant WITH LOGIN PASSWORD 'fn-nogrant-password'")
@@ -6890,7 +6880,7 @@ async fn rls_5c_writes_via_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=33).collect::<Vec<_>>()
+        (0..=34).collect::<Vec<_>>()
     );
 
     let user_a = create_test_user(&pool).await;

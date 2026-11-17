@@ -131,9 +131,9 @@ pub async fn upsert_user_rotate_session_with_login_event(
     ),
     DbError,
 > {
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_restricted().await?;
     let user_id = upsert_user_id_via_function(&mut tx, user_info).await?;
-    tx.set_local_user(user_id).await?;
+    tx.set_local_user_id(user_id).await?;
     let user = crate::db::query_as::<User>(
         "SELECT id, google_id, email, name, picture_url, created_at, updated_at
          FROM users WHERE id = $1",
@@ -191,9 +191,9 @@ pub async fn upsert_user_and_rotate_session(
     pool: &Db,
     user_info: &GoogleUserInfo,
 ) -> Result<SessionToken, DbError> {
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_restricted().await?;
     let user_id = upsert_user_id_via_function(&mut tx, user_info).await?;
-    tx.set_local_user(user_id).await?;
+    tx.set_local_user_id(user_id).await?;
     let session_token = rotate_session_via_function(&mut tx, user_id).await?;
     tx.commit().await?;
 
@@ -204,24 +204,30 @@ pub async fn select_user_by_session(
     pool: &Db,
     token: SessionToken,
 ) -> Result<Option<User>, DbError> {
-    crate::db::query_as::<User>(
+    let mut tx = pool.begin_restricted().await?;
+    let user = crate::db::query_as::<User>(
         "SELECT * FROM auth_session_user_by_token($1)",
         vec![Bind::Bytes(token.hash())],
     )
-    .fetch_optional(pool)
-    .await
+    .fetch_optional(&mut tx)
+    .await?;
+    tx.commit().await?;
+    Ok(user)
 }
 
 pub async fn select_user_id_by_session(
     pool: &Db,
     token: SessionToken,
 ) -> Result<Option<UserId>, DbError> {
-    crate::db::query_scalar::<UserId>(
+    let mut tx = pool.begin_restricted().await?;
+    let user_id = crate::db::query_scalar::<UserId>(
         "SELECT auth_lookup_user_id_by_session($1)",
         vec![Bind::Bytes(token.hash())],
     )
-    .fetch_nullable_optional(pool)
-    .await
+    .fetch_nullable_optional(&mut tx)
+    .await?;
+    tx.commit().await?;
+    Ok(user_id)
 }
 
 async fn upsert_user_id_via_function(
@@ -305,12 +311,14 @@ pub async fn delete_device_sessions(
 }
 
 pub async fn delete_session(pool: &Db, token: SessionToken) -> Result<(), DbError> {
+    let mut tx = pool.begin_restricted().await?;
     crate::db::query(
         "SELECT auth_delete_session_by_token($1)",
         vec![Bind::Bytes(token.hash())],
     )
-    .execute(pool)
+    .execute(&mut tx)
     .await?;
+    tx.commit().await?;
 
     Ok(())
 }

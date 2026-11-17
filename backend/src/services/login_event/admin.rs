@@ -136,7 +136,7 @@ async fn fetch_count_and_data(
     let query_patterns = patterns(params.search.q.as_deref());
     let email_patterns = patterns(params.email.as_deref());
     let place_patterns = patterns(params.place.as_deref());
-    let mut tx = pool.begin_as_role("app_admin_login_executor").await?;
+    let mut tx = pool.begin().await?;
     let data = db::query(
         "SELECT * FROM public.admin_login_search_data_v2($1, $2, $3, $4, $5, $6, $7)",
         vec![

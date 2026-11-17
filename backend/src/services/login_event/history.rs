@@ -120,7 +120,7 @@ pub async fn insert_login_event_in_tx(
 }
 
 pub async fn prune_login_events(pool: &Db) -> Result<u64, ApiError> {
-    let mut tx = pool.begin_as_role("app_login_event_prune_executor").await?;
+    let mut tx = pool.begin().await?;
     let deleted = crate::db::query_scalar::<i64>(
         "SELECT public.prune_login_events_older_than_90_days_v2()",
         vec![],

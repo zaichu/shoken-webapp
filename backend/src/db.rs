@@ -879,12 +879,6 @@ impl Db {
         Ok(tx)
     }
 
-    pub async fn begin_as_role(&self, role: &str) -> Result<Tx, DbError> {
-        let mut tx = self.begin().await?;
-        tx.set_local_role(role).await?;
-        Ok(tx)
-    }
-
     pub async fn query_rows_with_user(
         &self,
         user_id: shared::value::UserId,
@@ -1118,20 +1112,23 @@ impl Tx {
         Ok(())
     }
 
+    pub(crate) async fn set_local_user_id(
+        &mut self,
+        user_id: shared::value::UserId,
+    ) -> Result<(), DbError> {
+        query(
+            "SELECT set_config('app.current_user_id', $1, true)",
+            vec![Bind::from(user_id.to_string())],
+        )
+        .execute(&mut *self)
+        .await?;
+        Ok(())
+    }
+
     pub(crate) async fn set_local_restricted(&mut self) -> Result<(), DbError> {
         query("SELECT app_enter(NULL::uuid)", vec![])
             .execute(&mut *self)
             .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn set_local_role(&mut self, role: &str) -> Result<(), DbError> {
-        query(
-            "SELECT set_config('role', $1, true)",
-            vec![Bind::from(role)],
-        )
-        .execute(&mut *self)
-        .await?;
         Ok(())
     }
 

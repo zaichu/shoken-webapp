@@ -149,6 +149,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0033_force_limited_maintenance_paths",
         include_str!("../../migrations/0033_force_limited_maintenance_paths.sql"),
     ),
+    (
+        "0034_app_worker_role",
+        include_str!("../../migrations/0034_app_worker_role.sql"),
+    ),
 ];
 
 struct Migration {

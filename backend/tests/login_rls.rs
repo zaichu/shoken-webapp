@@ -5,12 +5,14 @@ use backend::{
     models::user::GoogleUserInfo,
     services::{
         auth,
+        fund_price::{self, FundNav},
         login_event::{self, ClientInfo, LoginOutcome, admin},
         login_notify,
+        stock_price::{self, ClosePrice},
     },
     test_constants::POSTGRES_TAG,
 };
-use shared::value::UserId;
+use shared::value::{SecurityCode, UserId};
 use testcontainers::{ImageExt, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
 
@@ -59,13 +61,6 @@ async fn fund_price_targets(pool: &Db) -> Vec<String> {
 
 async fn stock_price_targets_limited(pool: &Db) -> Vec<String> {
     let mut tx = pool.begin().await.unwrap();
-    db::query(
-        "SELECT set_config('role', 'app_price_target_executor', true)",
-        vec![],
-    )
-    .execute(&mut tx)
-    .await
-    .unwrap();
     let codes = db::query(
         "SELECT security_code FROM scheduled_stock_price_targets_v2(CURRENT_DATE, 15)",
         vec![],
@@ -82,13 +77,6 @@ async fn stock_price_targets_limited(pool: &Db) -> Vec<String> {
 
 async fn fund_price_targets_limited(pool: &Db) -> Vec<String> {
     let mut tx = pool.begin().await.unwrap();
-    db::query(
-        "SELECT set_config('role', 'app_price_target_executor', true)",
-        vec![],
-    )
-    .execute(&mut tx)
-    .await
-    .unwrap();
     let codes = db::query(
         "SELECT association_fund_cd FROM scheduled_fund_price_targets_v2(CURRENT_DATE, 30)",
         vec![],
@@ -146,7 +134,7 @@ async fn fund_price_targets_as(pool: &Db, user_id: UserId) -> Vec<String> {
     .collect()
 }
 
-async fn owner_pool() -> (Db, impl Drop) {
+async fn owner_pool() -> (Db, Db, Db, impl Drop) {
     let node = Postgres::default()
         .with_tag(POSTGRES_TAG)
         .start()
@@ -165,7 +153,7 @@ async fn owner_pool() -> (Db, impl Drop) {
          GRANT CREATE ON DATABASE postgres TO login_test_owner;
          GRANT CREATE ON SCHEMA public TO login_test_owner WITH GRANT OPTION;
          CREATE ROLE app_restricted NOLOGIN;
-         GRANT app_restricted TO login_test_owner WITH ADMIN TRUE;",
+         GRANT app_restricted TO login_test_owner WITH ADMIN TRUE, SET TRUE, INHERIT FALSE;",
         )
         .await
         .unwrap();
@@ -178,38 +166,116 @@ async fn owner_pool() -> (Db, impl Drop) {
         .await
         .expect("非 superuser のテスト用 owner で migration を適用");
     admin
-        .batch_execute("ALTER ROLE login_test_owner NOBYPASSRLS; GRANT app_restricted TO login_test_owner WITH SET TRUE, INHERIT FALSE")
+        .batch_execute(
+            "ALTER FUNCTION public.auth_lookup_user_id_by_session(bytea) OWNER TO postgres;
+             ALTER FUNCTION public.auth_session_user_by_token(bytea) OWNER TO postgres;
+             ALTER FUNCTION public.auth_delete_session_by_token(bytea) OWNER TO postgres;
+             ALTER FUNCTION public.auth_upsert_user(text, text, text, text) OWNER TO postgres;
+             ALTER FUNCTION public.auth_rotate_session(uuid, bytea, bytea) OWNER TO postgres;
+             ALTER FUNCTION public.login_notify_peek_by_token(bytea) OWNER TO postgres;
+             ALTER FUNCTION public.login_notify_consume_by_token(bytea) OWNER TO postgres",
+        )
         .await
         .unwrap();
+    admin
+        .batch_execute("ALTER ROLE login_test_owner NOBYPASSRLS")
+        .await
+        .unwrap();
+    admin
+        .batch_execute("ALTER ROLE app_worker PASSWORD 'test'")
+        .await
+        .unwrap();
+    let worker = connect_pool_lazy(
+        &format!("postgres://app_worker:test@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
     let (member, can_set) = db::query(
         "SELECT pg_has_role(current_user, 'app_restricted', 'MEMBER'), pg_has_role(current_user, 'app_restricted', 'SET')",
         vec![],
     ).fetch_one::<(bool, bool), _>(&pool).await.unwrap();
     assert!(member, "CREATEROLE による自動所属がある");
     assert!(can_set, "所属だけでなく SET ROLE の許可が必要");
-    (pool, node)
+    (pool, worker, admin, node)
 }
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths() {
-    let (pool, _node) = owner_pool().await;
+    let (pool, worker, _admin, _node) = owner_pool().await;
     let info = GoogleUserInfo {
         sub: "force-rls-synthetic".into(),
         email: "force-rls@example.com".into(),
         name: None,
         picture_url: None,
     };
-    let token = auth::upsert_user_and_rotate_session(&pool, &info)
+    let worker_role: bool = db::query_scalar(
+        "SELECT rolcanlogin AND NOT rolsuper AND NOT rolbypassrls AND NOT rolcreaterole
+         FROM pg_catalog.pg_roles WHERE rolname = current_user",
+        vec![],
+    )
+    .fetch_one(&worker)
+    .await
+    .unwrap();
+    assert!(worker_role);
+    let worker_membership: bool = db::query_scalar(
+        "SELECT pg_has_role('app_worker', 'app_restricted', 'SET')
+            AND NOT pg_has_role('app_worker', 'app_restricted', 'USAGE')
+            AND NOT EXISTS (
+                SELECT 1 FROM pg_catalog.pg_roles r
+                WHERE r.rolname IN (
+                    'app_notify_token_v2_executor', 'app_admin_login_executor',
+                    'app_price_target_executor', 'app_login_event_prune_executor'
+                ) AND pg_has_role('app_worker', r.oid, 'MEMBER')
+            )
+            AND NOT EXISTS (
+                SELECT 1 FROM pg_catalog.pg_class c
+                JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public'
+                  AND c.relkind IN ('r', 'p', 'v', 'm')
+                  AND c.relowner = (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'app_worker')
+            )",
+        vec![],
+    )
+    .fetch_one(&worker)
+    .await
+    .unwrap();
+    assert!(worker_membership);
+    for signature in [
+        "public.admin_login_search_data_v2(text[],text[],text[],text,text,bigint,bigint)",
+        "public.admin_login_search_count_v2(text[],text[],text[])",
+        "public.scheduled_stock_price_targets_v2(date,bigint)",
+        "public.scheduled_fund_price_targets_v2(date,bigint)",
+        "public.scheduled_stock_price_mark_attempted_v2(text[])",
+        "public.scheduled_stock_price_apply_v2(text,numeric,numeric,date)",
+        "public.scheduled_fund_price_mark_attempted_v2(text[])",
+        "public.scheduled_fund_price_apply_v2(text,numeric,numeric,date)",
+        "public.scheduled_fund_price_record_failure_v2(text,text)",
+        "public.scheduled_fund_price_clear_failure_v2(text)",
+        "public.prune_login_events_older_than_90_days_v2()",
+    ] {
+        let executable = db::query_scalar::<bool>(
+            "SELECT has_function_privilege('app_worker', $1, 'EXECUTE')",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&worker)
         .await
-        .expect("FORCE 前の所有者ログイン");
-    let user_id = auth::select_user_id_by_session(&pool, token)
+        .unwrap();
+        assert!(executable, "{signature}");
+    }
+    let token = auth::upsert_user_and_rotate_session(&worker, &info)
+        .await
+        .expect("app_worker でログイン");
+    let user_id = auth::select_user_id_by_session(&worker, token)
         .await
         .unwrap()
-        .expect("FORCE 前のセッション照会");
-    let notification_token = login_notify::issue_token(&pool, user_id)
+        .expect("app_worker でセッション照会");
+    let notification_token = login_notify::issue_token(&worker, user_id)
         .await
-        .expect("利用者スコープで通知 token を発行");
+        .expect("app_worker で通知 token を発行");
+    let legacy_notification_token = login_notify::issue_token(&worker, user_id)
+        .await
+        .expect("旧関数互換性の通知 token を発行");
     db::query(
         "INSERT INTO login_events (user_id, result, device_hash, occurred_at) VALUES ($1, 'success', $2, NOW() - INTERVAL '100 days')",
         vec![Bind::from(user_id), Bind::Bytes(vec![9; 32])],
@@ -281,6 +347,34 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     .unwrap();
     assert_eq!(forced, 11);
 
+    let force_info = GoogleUserInfo {
+        sub: "force-login-after-rls".into(),
+        email: "force-login-after-rls@example.com".into(),
+        name: Some("FORCE 後ログイン".into()),
+        picture_url: None,
+    };
+    let (force_token, force_user, _) = auth::upsert_user_rotate_session_with_login_event(
+        &worker,
+        &force_info,
+        vec![7; 32],
+        &ClientInfo {
+            country: Some("JP".into()),
+            region: Some("13".into()),
+            browser: Some("chrome".into()),
+            os: Some("linux".into()),
+        },
+    )
+    .await
+    .expect("FORCE 下の app_worker ログイン");
+    assert_eq!(force_user.email, "force-login-after-rls@example.com");
+    assert_eq!(
+        auth::select_user_id_by_session(&worker, force_token)
+            .await
+            .unwrap(),
+        Some(force_user.id)
+    );
+    auth::delete_session(&worker, force_token).await.unwrap();
+
     let executor_roles_are_limited: bool = db::query_scalar(
         "SELECT COUNT(*) = 4 AND bool_and(NOT rolcanlogin AND rolbypassrls)
          FROM pg_catalog.pg_roles WHERE rolname = ANY($1)",
@@ -330,6 +424,12 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
                     WHEN 'admin_login_search_count_v2' THEN 'app_admin_login_executor'
                     WHEN 'scheduled_stock_price_targets_v2' THEN 'app_price_target_executor'
                     WHEN 'scheduled_fund_price_targets_v2' THEN 'app_price_target_executor'
+                    WHEN 'scheduled_stock_price_mark_attempted_v2' THEN 'app_price_target_executor'
+                    WHEN 'scheduled_stock_price_apply_v2' THEN 'app_price_target_executor'
+                    WHEN 'scheduled_fund_price_mark_attempted_v2' THEN 'app_price_target_executor'
+                    WHEN 'scheduled_fund_price_apply_v2' THEN 'app_price_target_executor'
+                    WHEN 'scheduled_fund_price_record_failure_v2' THEN 'app_price_target_executor'
+                    WHEN 'scheduled_fund_price_clear_failure_v2' THEN 'app_price_target_executor'
                     ELSE 'app_login_event_prune_executor'
                 END, p.oid, 'EXECUTE')::text || ':' ||
             EXISTS (
@@ -355,6 +455,12 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
                         WHEN 'admin_login_search_count_v2' THEN 'app_admin_login_executor'
                         WHEN 'scheduled_stock_price_targets_v2' THEN 'app_price_target_executor'
                         WHEN 'scheduled_fund_price_targets_v2' THEN 'app_price_target_executor'
+                        WHEN 'scheduled_stock_price_mark_attempted_v2' THEN 'app_price_target_executor'
+                        WHEN 'scheduled_stock_price_apply_v2' THEN 'app_price_target_executor'
+                        WHEN 'scheduled_fund_price_mark_attempted_v2' THEN 'app_price_target_executor'
+                        WHEN 'scheduled_fund_price_apply_v2' THEN 'app_price_target_executor'
+                        WHEN 'scheduled_fund_price_record_failure_v2' THEN 'app_price_target_executor'
+                        WHEN 'scheduled_fund_price_clear_failure_v2' THEN 'app_price_target_executor'
                         ELSE 'app_login_event_prune_executor'
                     END, p.oid, 'EXECUTE')
                 AND NOT EXISTS (
@@ -364,6 +470,17 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
                       AND acl.grantee <> p.proowner
                       AND acl.grantee <> 0
                       AND acl.grantee <> (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'app_restricted')
+                      AND NOT (
+                          p.proname IN (
+                              'admin_login_search_data_v2', 'admin_login_search_count_v2',
+                              'scheduled_stock_price_targets_v2', 'scheduled_fund_price_targets_v2',
+                              'scheduled_stock_price_mark_attempted_v2', 'scheduled_stock_price_apply_v2',
+                              'scheduled_fund_price_mark_attempted_v2', 'scheduled_fund_price_apply_v2',
+                              'scheduled_fund_price_record_failure_v2', 'scheduled_fund_price_clear_failure_v2',
+                              'prune_login_events_older_than_90_days_v2'
+                          )
+                          AND acl.grantee = (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'app_worker')
+                      )
                 ))",
         vec![Bind::from(vec![
             "login_notify_peek_v2".to_string(),
@@ -372,6 +489,12 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
             "admin_login_search_count_v2".to_string(),
             "scheduled_stock_price_targets_v2".to_string(),
             "scheduled_fund_price_targets_v2".to_string(),
+            "scheduled_stock_price_mark_attempted_v2".to_string(),
+            "scheduled_stock_price_apply_v2".to_string(),
+            "scheduled_fund_price_mark_attempted_v2".to_string(),
+            "scheduled_fund_price_apply_v2".to_string(),
+            "scheduled_fund_price_record_failure_v2".to_string(),
+            "scheduled_fund_price_clear_failure_v2".to_string(),
             "prune_login_events_older_than_90_days_v2".to_string(),
         ])],
     )
@@ -388,9 +511,15 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         "SELECT public.admin_login_search_count_v2(ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[])",
         "SELECT * FROM public.scheduled_stock_price_targets_v2(CURRENT_DATE, 10)",
         "SELECT * FROM public.scheduled_fund_price_targets_v2(CURRENT_DATE, 10)",
+        "SELECT public.scheduled_stock_price_mark_attempted_v2(ARRAY['99999'])",
+        "SELECT public.scheduled_stock_price_apply_v2('99999', 10, 9, CURRENT_DATE)",
+        "SELECT public.scheduled_fund_price_mark_attempted_v2(ARRAY['99999999'])",
+        "SELECT public.scheduled_fund_price_apply_v2('99999999', 1.2, 0.01, CURRENT_DATE)",
+        "SELECT public.scheduled_fund_price_record_failure_v2('99999999', 'test')",
+        "SELECT public.scheduled_fund_price_clear_failure_v2('99999999')",
         "SELECT public.prune_login_events_older_than_90_days_v2()",
     ] {
-        let mut restricted = pool.begin().await.unwrap();
+        let mut restricted = worker.begin().await.unwrap();
         db::query("SELECT set_config('role', 'app_restricted', true)", vec![])
             .execute(&mut restricted)
             .await
@@ -408,6 +537,21 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
                 .await
                 .unwrap();
         assert_eq!(role_state.0, "app_restricted");
+        let can_execute: bool = db::query_scalar(
+            "SELECT has_function_privilege(current_user, $1, 'EXECUTE')",
+            vec![Bind::from(
+                "public.admin_login_search_data_v2(text[],text[],text[],text,text,bigint,bigint)",
+            )],
+        )
+        .fetch_one(&mut restricted)
+        .await
+        .unwrap();
+        assert!(!can_execute, "app_restricted must not execute admin search");
+        let role_setting: String = db::query_scalar("SELECT current_setting('role')", vec![])
+            .fetch_one(&mut restricted)
+            .await
+            .unwrap();
+        assert_eq!(role_setting, "app_restricted");
         let err = if statement.contains("admin_login_search_data") {
             db::query(statement, vec![])
                 .fetch_all::<admin::AdminLoginEntry, _>(&mut restricted)
@@ -438,7 +582,9 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     assert_eq!(
         db::query(
             "SELECT user_id FROM public.login_notify_peek_by_token($1)",
-            vec![Bind::Bytes(login_notify::token_hash(&notification_token))],
+            vec![Bind::Bytes(login_notify::token_hash(
+                &legacy_notification_token
+            ))],
         )
         .fetch_optional::<(UserId,), _>(&mut legacy_notification_tx)
         .await
@@ -451,7 +597,9 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     assert_eq!(
         db::query(
             "SELECT user_id FROM public.login_notify_peek_v2($1)",
-            vec![Bind::Bytes(login_notify::token_hash(&notification_token))],
+            vec![Bind::Bytes(login_notify::token_hash(
+                &legacy_notification_token
+            ))],
         )
         .fetch_optional::<(UserId,), _>(&mut v2_notification_tx)
         .await
@@ -464,7 +612,9 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     assert_eq!(
         db::query(
             "SELECT public.login_notify_consume_by_token($1)",
-            vec![Bind::Bytes(login_notify::token_hash(&notification_token))],
+            vec![Bind::Bytes(login_notify::token_hash(
+                &legacy_notification_token
+            ))],
         )
         .fetch_scalar::<Option<UserId>, _>(&mut legacy_notification_tx)
         .await
@@ -489,50 +639,51 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     .unwrap();
     assert_eq!(owner_pruned, 0);
 
-    assert!(
-        auth::select_user_id_by_session(&pool, token)
-            .await
-            .unwrap()
-            .is_none()
-    );
-    assert!(
-        auth::select_user_by_session(&pool, token)
-            .await
-            .unwrap()
-            .is_none()
-    );
-    let error = auth::upsert_user_and_rotate_session(&pool, &info)
-        .await
-        .unwrap_err();
     assert_eq!(
-        error.sql_state(),
-        Some(db::SqlState::INSUFFICIENT_PRIVILEGE)
+        auth::select_user_id_by_session(&worker, token)
+            .await
+            .unwrap(),
+        Some(user_id)
     );
+    let token_exists: bool = db::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM login_notify_tokens WHERE token_hash = $1)",
+        vec![Bind::Bytes(login_notify::token_hash(&notification_token))],
+    )
+    .fetch_one_with_user(&worker, user_id)
+    .await
+    .unwrap();
+    assert!(token_exists);
     assert_eq!(
-        login_notify::peek_token(&pool, &notification_token)
+        login_notify::peek_token(&worker, &notification_token)
             .await
             .unwrap()
             .map(|(id, _)| id),
         Some(user_id)
     );
     assert_eq!(
-        login_notify::consume_token(&pool, &notification_token)
+        login_notify::consume_token(&worker, &notification_token)
             .await
             .unwrap(),
         Some(user_id)
     );
     assert!(
-        login_notify::consume_token(&pool, &notification_token)
+        login_notify::consume_token(&worker, &notification_token)
             .await
             .unwrap()
             .is_none()
     );
-    auth::delete_session(&pool, token).await.unwrap();
-    let admin_results = admin::search(&pool, admin::AdminLoginQuery::default())
+    auth::delete_session(&worker, token).await.unwrap();
+    assert!(
+        auth::select_user_id_by_session(&worker, token)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let admin_results = admin::search(&worker, admin::AdminLoginQuery::default())
         .await
         .unwrap();
-    assert_eq!(admin_results.total, 2);
-    admin::record_view(&pool, user_id).await.unwrap();
+    assert_eq!(admin_results.total, 3);
+    admin::record_view(&worker, user_id).await.unwrap();
     let audit_count: i64 = db::query_scalar(
         "SELECT COUNT(*) FROM admin_login_views WHERE user_id = $1",
         vec![Bind::from(user_id)],
@@ -541,13 +692,81 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     .await
     .unwrap();
     assert_eq!(audit_count, 1);
-    assert_eq!(login_event::prune_login_events(&pool).await.unwrap(), 1);
+    assert_eq!(login_event::prune_login_events(&worker).await.unwrap(), 1);
     assert!(stock_price_targets(&pool).await.is_empty());
     assert!(fund_price_targets(&pool).await.is_empty());
-    assert_eq!(stock_price_targets_limited(&pool).await, ["99999"]);
-    assert_eq!(fund_price_targets_limited(&pool).await, ["99999999"]);
-    assert_eq!(stock_price_targets_as(&pool, user_id).await, ["99999"]);
-    assert_eq!(fund_price_targets_as(&pool, user_id).await, ["99999999"]);
+    assert_eq!(stock_price_targets_limited(&worker).await, ["99999"]);
+    assert_eq!(fund_price_targets_limited(&worker).await, ["99999999"]);
+    let fund_write_access: bool = db::query_scalar(
+        "SELECT has_table_privilege('app_price_target_executor', 'public.fund_prices', 'INSERT')
+            AND has_table_privilege('app_price_target_executor', 'public.fund_prices', 'UPDATE')
+            AND
+            (SELECT rolname = 'app_price_target_executor' FROM pg_catalog.pg_roles WHERE oid =
+                (SELECT proowner FROM pg_catalog.pg_proc WHERE proname = 'scheduled_fund_price_record_failure_v2'))",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(fund_write_access);
+    db::query(
+        "SELECT public.scheduled_stock_price_mark_attempted_v2(ARRAY['99999'])",
+        vec![],
+    )
+    .execute(&worker)
+    .await
+    .unwrap();
+    assert_eq!(
+        stock_price::apply_close_price(
+            &worker,
+            &SecurityCode::from_raw("99999".into()),
+            &ClosePrice {
+                close: rust_decimal::Decimal::new(12345, 2),
+                as_of: chrono::Utc::now().date_naive(),
+                prev_close: Some(rust_decimal::Decimal::new(12000, 2)),
+            },
+        )
+        .await
+        .unwrap(),
+        1
+    );
+    db::query(
+        "SELECT public.scheduled_fund_price_mark_attempted_v2(ARRAY['99999999'])",
+        vec![],
+    )
+    .execute(&worker)
+    .await
+    .unwrap();
+    db::query(
+        "SELECT public.scheduled_fund_price_record_failure_v2('99999999', 'test failure')",
+        vec![],
+    )
+    .execute(&worker)
+    .await
+    .unwrap();
+    db::query(
+        "SELECT public.scheduled_fund_price_clear_failure_v2('99999999')",
+        vec![],
+    )
+    .execute(&worker)
+    .await
+    .unwrap();
+    assert_eq!(
+        fund_price::apply_fund_nav(
+            &worker,
+            "99999999",
+            &FundNav {
+                nav: rust_decimal::Decimal::new(125, 2),
+                prev_day_change: rust_decimal::Decimal::new(1, 2),
+                base_date: chrono::Utc::now().date_naive(),
+            },
+        )
+        .await
+        .unwrap(),
+        1
+    );
+    assert!(stock_price_targets_as(&pool, user_id).await.is_empty());
+    assert!(fund_price_targets_as(&pool, user_id).await.is_empty());
     run_migrations(&pool)
         .await
         .expect("適用済み migration 履歴の確認は FORCE 下でも通る");
@@ -577,17 +796,14 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         .unwrap();
     assert_eq!(
         auth::select_user_id_by_session(&pool, token).await.unwrap(),
-        Some(user_id)
+        None
     );
     pool.batch_execute("ALTER TABLE sessions FORCE ROW LEVEL SECURITY")
         .await
         .unwrap();
     assert_eq!(
-        auth::delete_all_sessions(&pool, user_id)
-            .await
-            .expect_err("所有者相当ロールは利用者データを直接削除できないはず")
-            .sql_state(),
-        Some(db::SqlState::INSUFFICIENT_PRIVILEGE)
+        auth::delete_all_sessions(&worker, user_id).await.unwrap(),
+        0
     );
 }
 
@@ -637,7 +853,7 @@ async fn assert_owner_reset(pool: &Db) {
 }
 
 async fn login_case(existing: bool, with_device: bool) {
-    let (pool, _node) = owner_pool().await;
+    let (pool, _, _, _node) = owner_pool().await;
     let mut info = GoogleUserInfo {
         sub: "login-rls-synthetic".into(),
         email: "login-rls@example.com".into(),
@@ -720,8 +936,12 @@ async fn login_rls_existing_with_device() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn login_rls_repairs_existing_membership_without_inheriting() {
-    let (pool, _node) = owner_pool().await;
-    pool.batch_execute("GRANT app_restricted TO CURRENT_USER WITH SET FALSE, INHERIT FALSE")
+    let (pool, _, admin, _node) = owner_pool().await;
+    admin
+        .batch_execute(
+            "REVOKE app_restricted FROM login_test_owner CASCADE;
+             GRANT app_restricted TO login_test_owner WITH ADMIN TRUE, SET FALSE, INHERIT FALSE",
+        )
         .await
         .unwrap();
     let (member_without_inherit, can_set) = db::query(
@@ -769,7 +989,7 @@ async fn login_rls_repairs_existing_membership_without_inheriting() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn login_rls_transaction_settings_reset() {
-    let (pool, _node) = owner_pool().await;
+    let (pool, _, _, _node) = owner_pool().await;
     for commit in [true, false] {
         let mut tx = pool.begin().await.unwrap();
         let before = db::query_scalar::<i32>("SELECT pg_backend_pid()", vec![])
@@ -805,7 +1025,7 @@ async fn login_rls_transaction_settings_reset() {
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn auth_paths_use_limited_functions() {
-    let (pool, _node) = owner_pool().await;
+    let (pool, _, _, _node) = owner_pool().await;
 
     let (is_super, can_bypass): (bool, bool) = db::query(
         "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = CURRENT_USER",

@@ -45,13 +45,15 @@ GRANT SELECT (id, occurred_at, user_id, result, country, region, browser, os)
 GRANT SELECT (id, email) ON public.users TO app_admin_login_executor;
 GRANT USAGE ON SCHEMA public TO app_price_target_executor;
 GRANT SELECT (security_code) ON public.asset_balances TO app_price_target_executor;
-GRANT SELECT (security_code, price_as_of, updated_at)
+GRANT SELECT (security_code, current_price, prev_close, price_as_of, updated_at)
     ON public.security_prices TO app_price_target_executor;
+GRANT INSERT, UPDATE ON public.security_prices TO app_price_target_executor;
 GRANT SELECT (normalized_fund_name) ON public.fund_balances TO app_price_target_executor;
 GRANT SELECT (normalized_name, association_fund_cd)
     ON public.fund_codes TO app_price_target_executor;
-GRANT SELECT (association_fund_cd, price_as_of, updated_at)
+GRANT SELECT (association_fund_cd, nav, prev_day_change, price_as_of, updated_at, fetch_error, fetch_failed_at)
     ON public.fund_prices TO app_price_target_executor;
+GRANT INSERT, UPDATE ON public.fund_prices TO app_price_target_executor;
 GRANT USAGE ON SCHEMA public TO app_login_event_prune_executor;
 GRANT SELECT (occurred_at), DELETE ON public.login_events TO app_login_event_prune_executor;
 
@@ -67,9 +69,9 @@ AS $$
       AND t.used_at IS NULL
       AND t.expires_at > pg_catalog.now()
 $$;
-ALTER FUNCTION public.login_notify_peek_v2(bytea) OWNER TO app_notify_token_v2_executor;
 REVOKE ALL ON FUNCTION public.login_notify_peek_v2(bytea) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.login_notify_peek_v2(bytea) TO app_restricted;
+ALTER FUNCTION public.login_notify_peek_v2(bytea) OWNER TO app_notify_token_v2_executor;
 
 CREATE FUNCTION public.login_notify_consume_v2(p_token_hash bytea)
     RETURNS uuid
@@ -84,9 +86,9 @@ AS $$
       AND t.expires_at > pg_catalog.now()
     RETURNING t.user_id
 $$;
-ALTER FUNCTION public.login_notify_consume_v2(bytea) OWNER TO app_notify_token_v2_executor;
 REVOKE ALL ON FUNCTION public.login_notify_consume_v2(bytea) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.login_notify_consume_v2(bytea) TO app_restricted;
+ALTER FUNCTION public.login_notify_consume_v2(bytea) OWNER TO app_notify_token_v2_executor;
 
 CREATE FUNCTION public.admin_login_search_data_v2(
     p_query_patterns text[], p_email_patterns text[], p_place_patterns text[],
@@ -126,12 +128,10 @@ AS $$
         le.occurred_at DESC, le.id DESC
     LIMIT p_limit OFFSET p_offset
 $$;
-ALTER FUNCTION public.admin_login_search_data_v2(text[], text[], text[], text, text, bigint, bigint)
-    OWNER TO app_admin_login_executor;
 REVOKE ALL ON FUNCTION public.admin_login_search_data_v2(text[], text[], text[], text, text, bigint, bigint)
     FROM PUBLIC, app_restricted, CURRENT_USER;
-GRANT EXECUTE ON FUNCTION public.admin_login_search_data_v2(text[], text[], text[], text, text, bigint, bigint)
-    TO app_admin_login_executor;
+ALTER FUNCTION public.admin_login_search_data_v2(text[], text[], text[], text, text, bigint, bigint)
+    OWNER TO app_admin_login_executor;
 
 CREATE FUNCTION public.admin_login_search_count_v2(
     p_query_patterns text[], p_email_patterns text[], p_place_patterns text[]
@@ -158,11 +158,10 @@ AS $$
         WHERE pg_catalog.concat_ws(' ', le.country, le.region) NOT ILIKE q.pattern ESCAPE '\'
     )
 $$;
+REVOKE ALL ON FUNCTION public.admin_login_search_count_v2(text[], text[], text[])
+    FROM PUBLIC, app_restricted, CURRENT_USER;
 ALTER FUNCTION public.admin_login_search_count_v2(text[], text[], text[])
     OWNER TO app_admin_login_executor;
-REVOKE ALL ON FUNCTION public.admin_login_search_count_v2(text[], text[], text[]) FROM PUBLIC, app_restricted, CURRENT_USER;
-GRANT EXECUTE ON FUNCTION public.admin_login_search_count_v2(text[], text[], text[])
-    TO app_admin_login_executor;
 
 CREATE FUNCTION public.scheduled_stock_price_targets_v2(p_target_date date, p_limit bigint)
 RETURNS TABLE(security_code character varying)
@@ -179,9 +178,9 @@ AS $$
     ORDER BY pg_catalog.min(sp.updated_at) ASC NULLS FIRST
     LIMIT p_limit
 $$;
+REVOKE ALL ON FUNCTION public.scheduled_stock_price_targets_v2(date, bigint)
+    FROM PUBLIC, app_restricted, CURRENT_USER;
 ALTER FUNCTION public.scheduled_stock_price_targets_v2(date, bigint) OWNER TO app_price_target_executor;
-REVOKE ALL ON FUNCTION public.scheduled_stock_price_targets_v2(date, bigint) FROM PUBLIC, app_restricted, CURRENT_USER;
-GRANT EXECUTE ON FUNCTION public.scheduled_stock_price_targets_v2(date, bigint) TO app_price_target_executor;
 
 CREATE FUNCTION public.scheduled_fund_price_targets_v2(p_target_date date, p_limit bigint)
 RETURNS TABLE(association_fund_cd character varying)
@@ -199,10 +198,136 @@ AS $$
     ORDER BY pg_catalog.min(fp.updated_at) ASC NULLS FIRST
     LIMIT p_limit
 $$;
+REVOKE ALL ON FUNCTION public.scheduled_fund_price_targets_v2(date, bigint)
+    FROM PUBLIC, app_restricted, CURRENT_USER;
 ALTER FUNCTION public.scheduled_fund_price_targets_v2(date, bigint)
     OWNER TO app_price_target_executor;
-REVOKE ALL ON FUNCTION public.scheduled_fund_price_targets_v2(date, bigint) FROM PUBLIC, app_restricted, CURRENT_USER;
-GRANT EXECUTE ON FUNCTION public.scheduled_fund_price_targets_v2(date, bigint) TO app_price_target_executor;
+
+CREATE FUNCTION public.scheduled_stock_price_mark_attempted_v2(p_codes text[])
+RETURNS void
+LANGUAGE sql VOLATILE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+SET row_security = off
+AS $$
+    INSERT INTO public.security_prices (security_code, updated_at)
+    SELECT code, pg_catalog.now() FROM pg_catalog.unnest(p_codes) AS t(code)
+    ON CONFLICT (security_code) DO UPDATE SET updated_at = pg_catalog.now()
+$$;
+REVOKE ALL ON FUNCTION public.scheduled_stock_price_mark_attempted_v2(text[])
+    FROM PUBLIC, app_restricted, CURRENT_USER;
+ALTER FUNCTION public.scheduled_stock_price_mark_attempted_v2(text[])
+    OWNER TO app_price_target_executor;
+
+CREATE FUNCTION public.scheduled_stock_price_apply_v2(
+    p_code text, p_current_price numeric, p_prev_close numeric, p_price_as_of date
+)
+RETURNS bigint
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+SET row_security = off
+AS $$
+DECLARE
+    affected bigint;
+BEGIN
+    INSERT INTO public.security_prices (security_code, current_price, prev_close, price_as_of)
+    VALUES (p_code, p_current_price, p_prev_close, p_price_as_of)
+    ON CONFLICT (security_code) DO UPDATE SET
+        current_price = EXCLUDED.current_price,
+        prev_close = CASE
+            WHEN security_prices.price_as_of = EXCLUDED.price_as_of
+                THEN COALESCE(EXCLUDED.prev_close, security_prices.prev_close)
+            ELSE EXCLUDED.prev_close
+        END,
+        price_as_of = EXCLUDED.price_as_of,
+        updated_at = pg_catalog.now()
+    WHERE security_prices.price_as_of IS NULL
+       OR security_prices.price_as_of <= EXCLUDED.price_as_of;
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    RETURN affected;
+END
+$$;
+REVOKE ALL ON FUNCTION public.scheduled_stock_price_apply_v2(text, numeric, numeric, date)
+    FROM PUBLIC, app_restricted, CURRENT_USER;
+ALTER FUNCTION public.scheduled_stock_price_apply_v2(text, numeric, numeric, date)
+    OWNER TO app_price_target_executor;
+
+CREATE FUNCTION public.scheduled_fund_price_mark_attempted_v2(p_codes text[])
+RETURNS void
+LANGUAGE sql VOLATILE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+SET row_security = off
+AS $$
+    INSERT INTO public.fund_prices (association_fund_cd, updated_at)
+    SELECT code, pg_catalog.now() FROM pg_catalog.unnest(p_codes) AS t(code)
+    ON CONFLICT (association_fund_cd) DO UPDATE SET updated_at = pg_catalog.now()
+$$;
+REVOKE ALL ON FUNCTION public.scheduled_fund_price_mark_attempted_v2(text[])
+    FROM PUBLIC, app_restricted, CURRENT_USER;
+ALTER FUNCTION public.scheduled_fund_price_mark_attempted_v2(text[])
+    OWNER TO app_price_target_executor;
+
+CREATE FUNCTION public.scheduled_fund_price_apply_v2(
+    p_code text, p_nav numeric, p_prev_day_change numeric, p_price_as_of date
+)
+RETURNS bigint
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+SET row_security = off
+AS $$
+DECLARE
+    affected bigint;
+BEGIN
+    INSERT INTO public.fund_prices (association_fund_cd, nav, prev_day_change, price_as_of)
+    VALUES (p_code, p_nav, p_prev_day_change, p_price_as_of)
+    ON CONFLICT (association_fund_cd) DO UPDATE SET
+        nav = EXCLUDED.nav,
+        prev_day_change = EXCLUDED.prev_day_change,
+        price_as_of = EXCLUDED.price_as_of,
+        updated_at = pg_catalog.now(),
+        fetch_error = NULL,
+        fetch_failed_at = NULL
+    WHERE fund_prices.price_as_of IS NULL
+       OR fund_prices.price_as_of <= EXCLUDED.price_as_of;
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    RETURN affected;
+END
+$$;
+REVOKE ALL ON FUNCTION public.scheduled_fund_price_apply_v2(text, numeric, numeric, date)
+    FROM PUBLIC, app_restricted, CURRENT_USER;
+ALTER FUNCTION public.scheduled_fund_price_apply_v2(text, numeric, numeric, date)
+    OWNER TO app_price_target_executor;
+
+CREATE FUNCTION public.scheduled_fund_price_record_failure_v2(p_code text, p_reason text)
+RETURNS void
+LANGUAGE sql VOLATILE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+SET row_security = off
+AS $$
+    INSERT INTO public.fund_prices (association_fund_cd, updated_at, fetch_error, fetch_failed_at)
+    VALUES (p_code, pg_catalog.now(), p_reason, pg_catalog.now())
+    ON CONFLICT (association_fund_cd) DO UPDATE SET
+        fetch_error = EXCLUDED.fetch_error,
+        fetch_failed_at = EXCLUDED.fetch_failed_at
+$$;
+REVOKE ALL ON FUNCTION public.scheduled_fund_price_record_failure_v2(text, text)
+    FROM PUBLIC, app_restricted, CURRENT_USER;
+ALTER FUNCTION public.scheduled_fund_price_record_failure_v2(text, text)
+    OWNER TO app_price_target_executor;
+
+CREATE FUNCTION public.scheduled_fund_price_clear_failure_v2(p_code text)
+RETURNS void
+LANGUAGE sql VOLATILE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+SET row_security = off
+AS $$
+    UPDATE public.fund_prices
+       SET fetch_error = NULL, fetch_failed_at = NULL
+     WHERE association_fund_cd = p_code
+$$;
+REVOKE ALL ON FUNCTION public.scheduled_fund_price_clear_failure_v2(text)
+    FROM PUBLIC, app_restricted, CURRENT_USER;
+ALTER FUNCTION public.scheduled_fund_price_clear_failure_v2(text)
+    OWNER TO app_price_target_executor;
 
 CREATE FUNCTION public.prune_login_events_older_than_90_days_v2()
 RETURNS bigint
@@ -217,11 +342,10 @@ AS $$
     )
     SELECT pg_catalog.count(*) FROM deleted
 $$;
+REVOKE ALL ON FUNCTION public.prune_login_events_older_than_90_days_v2()
+    FROM PUBLIC, app_restricted, CURRENT_USER;
 ALTER FUNCTION public.prune_login_events_older_than_90_days_v2()
     OWNER TO app_login_event_prune_executor;
-REVOKE ALL ON FUNCTION public.prune_login_events_older_than_90_days_v2() FROM PUBLIC, app_restricted, CURRENT_USER;
-GRANT EXECUTE ON FUNCTION public.prune_login_events_older_than_90_days_v2()
-    TO app_login_event_prune_executor;
 
 REVOKE CREATE ON SCHEMA public FROM app_notify_token_v2_executor,
     app_admin_login_executor, app_price_target_executor, app_login_event_prune_executor;
