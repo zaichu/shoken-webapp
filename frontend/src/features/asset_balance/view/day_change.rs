@@ -2,7 +2,7 @@ use crate::features::asset_balance::format::{
     format_signed_row_valuation_amount, is_negative_valuation, is_positive_valuation,
 };
 use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::format::format_price_date;
+use crate::ui::format;
 use crate::ui::labels;
 use leptos::prelude::*;
 
@@ -12,7 +12,7 @@ pub(crate) fn day_change_cell(change: Option<f64>, date: Option<String>) -> impl
     let negative = is_negative_valuation(change);
     let positive = is_positive_valuation(change);
     let text = format_signed_row_valuation_amount(change);
-    let date_text = date.map(|date| format_price_date(&date));
+    let date_text = date.map(|date| format::format_price_date(&date));
     view! {
         <Amount
             kind=AmountKind::Delta

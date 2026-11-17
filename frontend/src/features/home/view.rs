@@ -18,7 +18,7 @@ use super::store::{self, HomeOverviewData};
 use crate::api::dto::{AssetBalance, FundBalance};
 use crate::features::asset_balance::{LoadedAssetBalances, LoadedFundBalances, dec_to_f64};
 use crate::session::use_session;
-use crate::ui::format::format_latest_import_date;
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::more_link::MoreLink;
@@ -77,7 +77,7 @@ pub fn HomePage() -> impl IntoView {
         if let Some(loaded) = store::current_summary(data.funds, generation).flatten() {
             stamps.extend(loaded.rows.iter().map(|row| row.updated_at.clone()));
         }
-        format_latest_import_date(stamps.iter().map(String::as_str))
+        format::format_latest_import_date(stamps.iter().map(String::as_str))
     });
     let links: Children = Box::new(move || {
         view! {

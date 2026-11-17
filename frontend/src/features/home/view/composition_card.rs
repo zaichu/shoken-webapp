@@ -7,7 +7,7 @@ use crate::session::use_session;
 use crate::ui::badge::account_display_name;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
-use crate::ui::format::format_integer_percent;
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use leptos::prelude::*;
@@ -145,7 +145,7 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
                     amount=slice.amount
                     detail=format!(
                         "{}{}{}",
-                        format_integer_percent(pct),
+                        format::format_integer_percent(pct),
                         labels::HOME_COMPOSITION_DETAIL_SEPARATOR,
                         labels::count(slice.item_count)
                     )
@@ -202,7 +202,7 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
                 <CompositionRow
                     label=slice.label.clone()
                     amount=slice.amount
-                    detail=format_integer_percent(pct)
+                    detail=format::format_integer_percent(pct)
                 />
             }
         })

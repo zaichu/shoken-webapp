@@ -10,10 +10,8 @@ use crate::features::asset_balance::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::account_display_name;
-use crate::ui::format::date_parts;
-use crate::ui::labels::{
-    self, DOMESTIC_STOCK, HOME_REMAINING_EMPTY, MUTUAL_FUND, home_remaining, home_remaining_over,
-};
+use crate::ui::format;
+use crate::ui::labels;
 use crate::urls::fund_holding_href;
 use rust_decimal::Decimal;
 use shared::tax::TAX_RATE;
@@ -143,7 +141,7 @@ pub(crate) fn has_pending_estimate(maps: &DividendMaps) -> bool {
 }
 
 fn month_of(settlement_date: &str) -> Option<u32> {
-    date_parts(settlement_date).map(|(_, month, _)| month)
+    format::date_parts(settlement_date).map(|(_, month, _)| month)
 }
 
 /// 税引後入金額の月別合計(1月..12月)
@@ -261,9 +259,11 @@ pub(crate) fn build_dividend_card(
 /// 「予想を N 上回り」に書き分ける
 pub(crate) fn remaining_label(remaining: Option<f64>) -> String {
     match remaining {
-        Some(value) if value < 0.0 => home_remaining_over(&format_valuation_amount(Some(-value))),
-        Some(value) => home_remaining(&format_valuation_amount(Some(value))),
-        None => HOME_REMAINING_EMPTY.to_string(),
+        Some(value) if value < 0.0 => {
+            labels::home_remaining_over(&format_valuation_amount(Some(-value)))
+        }
+        Some(value) => labels::home_remaining(&format_valuation_amount(Some(value))),
+        None => labels::HOME_REMAINING_EMPTY.to_string(),
     }
 }
 
@@ -296,12 +296,12 @@ pub(crate) fn product_slices(
 ) -> Vec<ProductCompositionSlice> {
     let mut slices = vec![
         ProductCompositionSlice {
-            label: DOMESTIC_STOCK.to_string(),
+            label: labels::DOMESTIC_STOCK.to_string(),
             amount: stock_market,
             item_count: stocks.len(),
         },
         ProductCompositionSlice {
-            label: MUTUAL_FUND.to_string(),
+            label: labels::MUTUAL_FUND.to_string(),
             amount: fund_market,
             item_count: funds.len(),
         },

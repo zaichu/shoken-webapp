@@ -14,12 +14,8 @@ use crate::support::list_search::is_searchable_code;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
-use crate::ui::format::format_percentage_value;
-use crate::ui::labels::{
-    AFTER_TAX_AND_YIELD, AVERAGE_PURCHASE_PRICE, CSV_MANAGE_FETCH_RUNNING,
-    DIVIDEND_AMOUNT_AND_YIELD, DIVIDEND_AUTO_HINT, DIVIDEND_BALANCE_HINT, DIVIDEND_HELD_BADGE,
-    DIVIDEND_SUMMARY_TITLE, HOLDING_QUANTITY_CARD, MISSING, PER_SHARE_DIVIDEND_CARD, TAX,
-};
+use crate::ui::format;
+use crate::ui::labels;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
@@ -49,11 +45,11 @@ fn dividend_rate(amount: f64, investment: f64) -> f64 {
 
 fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
     if loading {
-        CSV_MANAGE_FETCH_RUNNING.to_string()
+        labels::CSV_MANAGE_FETCH_RUNNING.to_string()
     } else {
         per_share
             .and_then(|value| value.to_string().parse::<Decimal>().ok())
-            .map_or_else(|| MISSING.to_string(), format_currency)
+            .map_or_else(|| labels::MISSING.to_string(), format_currency)
     }
 }
 
@@ -181,7 +177,7 @@ impl DividendInfoStore {
 
 #[component]
 fn AssetBadge() -> impl IntoView {
-    view! { <Badge variant=BadgeVariant::Positive>{DIVIDEND_HELD_BADGE}</Badge> }
+    view! { <Badge variant=BadgeVariant::Positive>{labels::DIVIDEND_HELD_BADGE}</Badge> }
 }
 
 #[component]
@@ -231,35 +227,39 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
 
     let average_price_text = move || {
         asset().map_or_else(
-            || MISSING.to_string(),
+            || labels::MISSING.to_string(),
             |a| format_currency(a.average_purchase_price),
         )
     };
-    let shares_text =
-        move || asset().map_or_else(|| MISSING.to_string(), |a| format_number(a.shares, 2));
+    let shares_text = move || {
+        asset().map_or_else(
+            || labels::MISSING.to_string(),
+            |a| format_number(a.shares, 2),
+        )
+    };
     let per_share_text = move || per_share_display(per_share(), loading());
 
     view! {
         <div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <StatCard
-                    label=AVERAGE_PURCHASE_PRICE
+                    label=labels::AVERAGE_PURCHASE_PRICE
                     title_hint=true
-                    hint=Some(Signal::derive(move || asset().is_none().then_some(DIVIDEND_BALANCE_HINT)))
+                    hint=Some(Signal::derive(move || asset().is_none().then_some(labels::DIVIDEND_BALANCE_HINT)))
                 >
                     {average_price_text}
                 </StatCard>
                 <StatCard
-                    label=HOLDING_QUANTITY_CARD
+                    label=labels::HOLDING_QUANTITY_CARD
                     title_hint=true
-                    hint=Some(Signal::derive(move || asset().is_none().then_some(DIVIDEND_BALANCE_HINT)))
+                    hint=Some(Signal::derive(move || asset().is_none().then_some(labels::DIVIDEND_BALANCE_HINT)))
                 >
                     {shares_text}
                 </StatCard>
                 <StatCard
-                    label=PER_SHARE_DIVIDEND_CARD
+                    label=labels::PER_SHARE_DIVIDEND_CARD
                     hint=Some(Signal::derive(move || {
-                        (!loading() && per_share().is_none()).then_some(DIVIDEND_AUTO_HINT)
+                        (!loading() && per_share().is_none()).then_some(labels::DIVIDEND_AUTO_HINT)
                     }))
                 >
                     {per_share_text}
@@ -267,7 +267,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-border-subtle">
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-cell font-medium text-text-muted mb-1">{DIVIDEND_AMOUNT_AND_YIELD}</p>
+                    <p class="text-cell font-medium text-text-muted mb-1">{labels::DIVIDEND_AMOUNT_AND_YIELD}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
                         {format_amount(totals.total_dividends_before_tax)}
                         {move || {
@@ -275,7 +275,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                             (rate > 0.0).then(|| {
                                 view! {
                                     <span class="text-cell font-normal text-text-subtle ml-1">
-                                        {format!("({})", format_percentage_value(rate))}
+                                        {format!("({})", format::format_percentage_value(rate))}
                                     </span>
                                 }
                             })
@@ -283,13 +283,13 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-cell font-medium text-text-muted mb-1">{TAX}</p>
+                    <p class="text-cell font-medium text-text-muted mb-1">{labels::TAX}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
                         {format_amount(totals.total_taxes)}
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-cell font-medium text-text-muted mb-1">{AFTER_TAX_AND_YIELD}</p>
+                    <p class="text-cell font-medium text-text-muted mb-1">{labels::AFTER_TAX_AND_YIELD}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
                         {format_amount(totals.total_net_amount_received)}
                         {move || {
@@ -297,7 +297,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                             (rate > 0.0).then(|| {
                                 view! {
                                     <span class="text-cell font-normal text-text-subtle ml-1">
-                                        {format!("({})", format_percentage_value(rate))}
+                                        {format!("({})", format::format_percentage_value(rate))}
                                     </span>
                                 }
                             })
@@ -317,7 +317,7 @@ pub(crate) fn DividendSummarySection(
     expanded: RwSignal<bool>,
     mobile_expanded: RwSignal<bool>,
 ) -> impl IntoView {
-    let title = DIVIDEND_SUMMARY_TITLE;
+    let title = labels::DIVIDEND_SUMMARY_TITLE;
     let totals_mobile = totals.clone();
     view! {
         <Card variant=CardVariant::Collapsible testid="receipt-summary-strip" class=Signal::derive(move || {

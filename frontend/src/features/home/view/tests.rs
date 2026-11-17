@@ -4,7 +4,7 @@ use super::recent_dividends::{
 };
 use crate::api::dto::Dividend;
 use crate::ui::amount::AmountKind;
-use crate::ui::labels::ACCOUNT_SPECIFIC_GENERAL;
+use crate::ui::labels;
 use leptos::prelude::Set;
 
 #[test]
@@ -60,7 +60,7 @@ fn account_chart_index_normalizes_csv_names() {
         ("NISA成長", 1),
         ("NISA成長投資枠", 1),
         ("旧NISA", 2),
-        (ACCOUNT_SPECIFIC_GENERAL, 3),
+        (labels::ACCOUNT_SPECIFIC_GENERAL, 3),
         ("NISAつみたて", 4),
         ("NISAつみたて投資枠", 4),
         ("一般", 5),

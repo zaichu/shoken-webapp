@@ -11,7 +11,7 @@ use crate::features::asset_balance::model::{
 };
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::format::format_percentage_value;
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::summary::{
     SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
@@ -136,7 +136,7 @@ pub(crate) fn stock_summary_values(
             label: labels::ACQUISITION_YIELD,
             value: kpi
                 .dividend_yield
-                .map_or_else(|| "—".to_string(), format_percentage_value),
+                .map_or_else(|| "—".to_string(), format::format_percentage_value),
         },
     ];
     (values, tags)

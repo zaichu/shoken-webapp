@@ -1,6 +1,6 @@
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::dialog::DialogShell;
-use crate::ui::labels::{DIALOG_CLOSE, SEARCH, SHEET_CLEAR};
+use crate::ui::labels;
 use leptos::prelude::*;
 
 #[component]
@@ -27,7 +27,7 @@ pub fn SearchDialog(
                     testid="search-dialog-clear"
                     on_click=move |_| on_clear()
                 >
-                    {SHEET_CLEAR}
+                    {labels::SHEET_CLEAR}
                 </Button>
                 <span class="search-dialog-footer-actions">
                     <Button
@@ -35,14 +35,14 @@ pub fn SearchDialog(
                         testid="search-dialog-close"
                         on_click=move |_| footer_close()
                     >
-                        {DIALOG_CLOSE}
+                        {labels::DIALOG_CLOSE}
                     </Button>
                     <Button
                         variant=ButtonVariant::Primary(ButtonSize::Md)
                         testid="search-dialog-search"
                         on_click=move |_| on_search()
                     >
-                        {SEARCH}
+                        {labels::SEARCH}
                     </Button>
                 </span>
             </div>

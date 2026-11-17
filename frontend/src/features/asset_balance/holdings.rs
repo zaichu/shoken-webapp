@@ -2,7 +2,7 @@ use super::format::dec_to_f64;
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::model::{ValuationInput, normalize_display_name};
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::format::{format_currency, format_percentage_value, format_unit_price};
+use crate::ui::format;
 use crate::ui::labels;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -135,17 +135,21 @@ fn format_dividend_value(
 /// 1株配当。列の中で小数桁がそろうよう decimals を渡す
 pub(crate) fn format_dividend_per_share(dividend: &HoldingDividend, decimals: u32) -> String {
     format_dividend_value(dividend, dividend.per_share, |value| {
-        format_unit_price(value, decimals)
+        format::format_unit_price(value, decimals)
     })
 }
 
 pub(crate) fn format_dividend_annual(dividend: &HoldingDividend) -> String {
     // 行ごとの年間配当は1円単位。表示単位は集計(サマリー)だけに使う
-    format_dividend_value(dividend, dividend.annual, format_currency)
+    format_dividend_value(dividend, dividend.annual, format::format_currency)
 }
 
 pub(crate) fn format_dividend_yield(dividend: &HoldingDividend) -> String {
-    format_dividend_value(dividend, dividend.yield_value, format_percentage_value)
+    format_dividend_value(
+        dividend,
+        dividend.yield_value,
+        format::format_percentage_value,
+    )
 }
 
 /// 銘柄画面(`/search?code=`)へのパス。資産管理の行・構成比・ホームの順位から使う

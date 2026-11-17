@@ -14,7 +14,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session::use_session;
 use crate::ui::button::TabButton;
 use crate::ui::empty_state::EmptyState;
-use crate::ui::format::{format_currency, format_fixed_percent};
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::{ListRow, ListRowStatic};
 use crate::ui::page_frame::PageFrame;
@@ -302,13 +302,13 @@ fn CompositionContent(
                                     .map(|row| {
                                         let fill = color_fill_class(row.color);
                                         let percentage = if row.computable {
-                                            format_fixed_percent(row.percentage, 1)
+                                            format::format_fixed_percent(row.percentage, 1)
                                         } else {
                                             labels::MISSING.to_string()
                                         };
                                         let amount = row
                                             .value
-                                            .map_or_else(|| labels::MISSING.to_string(), format_currency);
+                                            .map_or_else(|| labels::MISSING.to_string(), format::format_currency);
                                         let bar_width = if row.computable {
                                             format!("{}%", row.percentage.min(100.0))
                                         } else {
@@ -350,9 +350,9 @@ fn CompositionContent(
                                                 {href.map_or_else(|| view! {
                                                         <ListRowStatic
                                                             name=move || static_name.clone()
-                                                            primary=move || static_value.map_or_else(|| labels::MISSING.to_string(), format_currency)
+                                                            primary=move || static_value.map_or_else(|| labels::MISSING.to_string(), format::format_currency)
                                                             meta=move || static_sub.clone()
-                                                            secondary=move || if static_computable { format_fixed_percent(static_percentage, 1) } else { labels::MISSING.to_string() }
+                                                            secondary=move || if static_computable { format::format_fixed_percent(static_percentage, 1) } else { labels::MISSING.to_string() }
                                                         />
                                                         <div class="comp-bar" aria-hidden="true">
                                                             <span
@@ -487,7 +487,7 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                     .map(|row| {
                         let fill = color_fill_class(row.color);
                         let rate = if row.computable {
-                            format_fixed_percent(row.percentage, 1)
+                            format::format_fixed_percent(row.percentage, 1)
                         } else {
                             labels::MISSING.to_string()
                         };

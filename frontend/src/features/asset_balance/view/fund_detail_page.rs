@@ -9,7 +9,7 @@ use crate::session::use_session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::empty_state::EmptyState;
-use crate::ui::format::{format_currency, format_iso_date, format_number_value};
+use crate::ui::format;
 use crate::ui::holding_tiles::{HoldingTile, HoldingTiles};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
@@ -99,11 +99,11 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                             };
                                 let view = fund_view(row);
                                 let shares_text =
-                                    labels::fund_units_label(&format_number_value(view.shares));
+                                    labels::fund_units_label(&format::format_number_value(view.shares));
                                 let average_price_text =
-                                    format_currency(view.average_purchase_price);
-                                let purchase_text = format_currency(view.purchase);
-                                let base_price_text = format_currency(view.base_price);
+                                    format::format_currency(view.average_purchase_price);
+                                let purchase_text = format::format_currency(view.purchase);
+                                let base_price_text = format::format_currency(view.base_price);
                                 let market_text =
                                     format_row_valuation_amount(Some(view.market_value));
                                 let pnl_text =
@@ -137,7 +137,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                 let total_positive = is_positive_valuation(view.total_return);
                                 let asof_text = view
                                     .price_as_of
-                                    .map_or_else(|| labels::MISSING.to_string(), |date| format_iso_date(&date));
+                                    .map_or_else(|| labels::MISSING.to_string(), |date| format::format_iso_date(&date));
                                 let asof_label = match view.price_source {
                                     FundPriceSource::Api => labels::BASE_PRICE_AS_OF,
                                     FundPriceSource::Csv => labels::CSV_IMPORTED_AT,

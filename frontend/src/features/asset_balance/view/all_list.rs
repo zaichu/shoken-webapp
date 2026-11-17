@@ -16,9 +16,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
-use crate::ui::format::{
-    format_currency, format_iso_date, format_number_value, unit_price_decimals,
-};
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
@@ -65,7 +63,7 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
         code: Some(view.code.clone()),
         account: view.account.clone(),
         course: None,
-        quantity: labels::stock_shares_label(&format_number_value(view.shares)),
+        quantity: labels::stock_shares_label(&format::format_number_value(view.shares)),
         day_change: view.day_change,
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
@@ -95,7 +93,7 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
         code: None,
         account: Some(view.account.clone()),
         course: view.course.clone(),
-        quantity: labels::fund_units_label(&format_number_value(view.shares)),
+        quantity: labels::fund_units_label(&format::format_number_value(view.shares)),
         day_change: view.view_day_change(),
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
@@ -148,7 +146,7 @@ pub fn AssetMergedTable(
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
     // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let dividend_decimals = unit_price_decimals(
+    let dividend_decimals = format::unit_price_decimals(
         rows.iter()
             .filter_map(|row| row.dividend.as_ref()?.per_share),
     );
@@ -297,7 +295,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     };
     let price_text = row
         .current_price
-        .map_or_else(|| "—".to_string(), format_currency);
+        .map_or_else(|| "—".to_string(), format::format_currency);
     let day_text = if row.nav_pending {
         labels::PENDING_UPDATE.to_string()
     } else {
@@ -307,10 +305,10 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     let day_positive = is_positive_valuation(row.day_change);
     let average_text = row
         .average_price
-        .map_or_else(|| "—".to_string(), format_currency);
+        .map_or_else(|| "—".to_string(), format::format_currency);
     let purchase_text = row
         .purchase
-        .map_or_else(|| "—".to_string(), format_currency);
+        .map_or_else(|| "—".to_string(), format::format_currency);
     let market_text = format_row_valuation_amount(row.market);
     let pnl_text = format_signed_row_valuation_amount(row.profit);
     let pnl_rate = format_signed_valuation_rate(row.rate, 1);
@@ -323,7 +321,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     let as_of = row
         .price_as_of
         .clone()
-        .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
+        .map_or_else(|| "—".to_string(), |date| format::format_iso_date(&date));
     let mut left = vec![
         DetailCell::with_sub(
             price_label.to_string(),

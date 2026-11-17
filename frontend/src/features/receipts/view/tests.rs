@@ -14,10 +14,7 @@ use crate::features::receipts::{
 use crate::testing::receipts::{dividends, domestic, funds};
 use crate::ui::amount::AmountKind;
 use crate::ui::card::StatTone;
-use crate::ui::labels::{
-    AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX, PAYMENT_DATE, REALIZED_BEFORE_TAX,
-    REALIZED_PROFIT_LOSS, REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX, TRADE_DATE,
-};
+use crate::ui::labels;
 use crate::ui::page_skeleton::FilteredCount;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -159,15 +156,15 @@ fn receipt_sort_order_round_trips() {
 fn receipt_sheet_date_label_matches_tab() {
     assert_eq!(
         super::action_bar::dialog::receipt_date_label(ReceiptsTab::Dividend),
-        PAYMENT_DATE
+        labels::PAYMENT_DATE
     );
     assert_eq!(
         super::action_bar::dialog::receipt_date_label(ReceiptsTab::DomesticStock),
-        TRADE_DATE
+        labels::TRADE_DATE
     );
     assert_eq!(
         super::action_bar::dialog::receipt_date_label(ReceiptsTab::MutualFund),
-        TRADE_DATE
+        labels::TRADE_DATE
     );
 }
 
@@ -1073,7 +1070,7 @@ fn single_specific_row_keeps_band_group_and_row_after_tax_equal() {
     let card = card_for(ReceiptsTab::DomesticStock, filtered[0].clone());
     assert_eq!(
         single_row_headline(std::slice::from_ref(&card)),
-        vec![(AFTER_TAX, "+¥3,985".to_string())]
+        vec![(labels::AFTER_TAX, "+¥3,985".to_string())]
     );
     assert_eq!(detail_value(&card, "税引後").0, "+¥3,985");
     let (left, right) = receipt_detail_cells(ReceiptsTab::DomesticStock, &card);
@@ -1295,10 +1292,16 @@ fn summary_band_keeps_primary_last_and_breakdown_order() {
 
 #[test]
 fn summary_breakdown_labels_show_tax_basis() {
-    assert_eq!(breakdown_label(DIVIDEND_AMOUNT), DIVIDEND_BEFORE_TAX);
-    assert_eq!(breakdown_label(REALIZED_PROFIT_LOSS), REALIZED_BEFORE_TAX);
-    assert_eq!(breakdown_label(TAX), TAX);
-    assert_eq!(breakdown_label(AFTER_TAX), AFTER_TAX);
+    assert_eq!(
+        breakdown_label(labels::DIVIDEND_AMOUNT),
+        labels::DIVIDEND_BEFORE_TAX
+    );
+    assert_eq!(
+        breakdown_label(labels::REALIZED_PROFIT_LOSS),
+        labels::REALIZED_BEFORE_TAX
+    );
+    assert_eq!(breakdown_label(labels::TAX), labels::TAX);
+    assert_eq!(breakdown_label(labels::AFTER_TAX), labels::AFTER_TAX);
 }
 
 #[test]
@@ -1310,9 +1313,9 @@ fn summary_band_pc_and_mobile_share_tax_basis_labels() {
             .map(|(label, _)| breakdown_label(label))
             .collect();
         match tab {
-            ReceiptsTab::Dividend => assert_eq!(pc, [DIVIDEND_BEFORE_TAX, TAX]),
+            ReceiptsTab::Dividend => assert_eq!(pc, [labels::DIVIDEND_BEFORE_TAX, labels::TAX]),
             ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => {
-                assert_eq!(pc, [REALIZED_BEFORE_TAX, TAX]);
+                assert_eq!(pc, [labels::REALIZED_BEFORE_TAX, labels::TAX]);
             }
         }
     }
@@ -1321,27 +1324,27 @@ fn summary_band_pc_and_mobile_share_tax_basis_labels() {
 #[test]
 fn band_breakdown_signs_match_detail_dialog() {
     use crate::ui::summary::SummaryTone;
-    let (text, negative, positive, tone) = band_value(DIVIDEND_AMOUNT, dec!(2000));
+    let (text, negative, positive, tone) = band_value(labels::DIVIDEND_AMOUNT, dec!(2000));
     assert_eq!(text, "+¥2,000");
     assert!(!negative);
     assert!(positive);
     assert_eq!(tone, SummaryTone::Gain);
-    let (text, negative, positive, tone) = band_value(REALIZED_PROFIT_LOSS, dec!(-500));
+    let (text, negative, positive, tone) = band_value(labels::REALIZED_PROFIT_LOSS, dec!(-500));
     assert_eq!(text, "-¥500");
     assert!(negative);
     assert!(!positive);
     assert_eq!(tone, SummaryTone::Loss);
-    let (text, negative, positive, tone) = band_value(TAX, dec!(406));
+    let (text, negative, positive, tone) = band_value(labels::TAX, dec!(406));
     assert_eq!(text, "-¥406");
     assert!(!negative);
     assert!(!positive);
     assert_eq!(tone, SummaryTone::Neutral);
-    let (text, negative, positive, tone) = band_value(TAX, dec!(-100));
+    let (text, negative, positive, tone) = band_value(labels::TAX, dec!(-100));
     assert_eq!(text, "+¥100");
     assert!(!negative);
     assert!(!positive);
     assert_eq!(tone, SummaryTone::Neutral);
-    let (text, negative, positive, tone) = band_value(TAX, Decimal::ZERO);
+    let (text, negative, positive, tone) = band_value(labels::TAX, Decimal::ZERO);
     assert_eq!(text, "¥0");
     assert!(!negative);
     assert!(!positive);
@@ -1422,7 +1425,7 @@ fn single_day_group_headline_uses_row_after_tax() {
     // 集計が無い単発の日はその行の税引後を見出しに出す
     let card = card_for(ReceiptsTab::DomesticStock, domestic().remove(0));
     let headline = single_row_headline(std::slice::from_ref(&card));
-    assert_eq!(headline, [(AFTER_TAX, "+¥112".to_string())]);
+    assert_eq!(headline, [(labels::AFTER_TAX, "+¥112".to_string())]);
     assert_eq!(single_row_headline(&[]), [] as [(&str, String); 0]);
 }
 
@@ -1437,11 +1440,18 @@ fn detail_dialog_keeps_aux_amounts_removed_from_row() {
         let card = card_for(tab, rows.remove(0));
         let (left, right) = receipt_detail_cells(tab, &card);
         let (label, expected) = match tab {
-            ReceiptsTab::Dividend => (BEFORE_TAX, detail_value(&card, DIVIDEND_AMOUNT).0),
-            ReceiptsTab::DomesticStock => (SELLING_AMOUNT, detail_value(&card, SELLING_AMOUNT).0),
-            ReceiptsTab::MutualFund => {
-                (REDEMPTION_AMOUNT, detail_value(&card, REDEMPTION_AMOUNT).0)
-            }
+            ReceiptsTab::Dividend => (
+                labels::BEFORE_TAX,
+                detail_value(&card, labels::DIVIDEND_AMOUNT).0,
+            ),
+            ReceiptsTab::DomesticStock => (
+                labels::SELLING_AMOUNT,
+                detail_value(&card, labels::SELLING_AMOUNT).0,
+            ),
+            ReceiptsTab::MutualFund => (
+                labels::REDEMPTION_AMOUNT,
+                detail_value(&card, labels::REDEMPTION_AMOUNT).0,
+            ),
         };
         assert!(!expected.is_empty(), "{tab:?}: 行の補助の金額が無い");
         let shown = left

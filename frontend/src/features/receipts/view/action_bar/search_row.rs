@@ -3,10 +3,7 @@ use crate::features::receipts::filter::{ReceiptSearch, SearchKey, filter_receipt
 use crate::features::receipts::kind::group_label;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::ui::badge::account_display_name;
-use crate::ui::labels::{
-    self, ACCOUNT, PERIOD, PRODUCT, RECEIPT_SEARCH_TARGET, receipt_range_between,
-    receipt_range_from, receipt_range_until, receipt_year_label,
-};
+use crate::ui::labels;
 use crate::ui::search_controls::{SearchClearButton, SearchCount, SearchTag, SearchTextInput};
 use leptos::prelude::*;
 
@@ -14,9 +11,9 @@ pub(crate) fn date_tag_text(value: &str) -> String {
     if let Some((start, end)) = value.split_once("..") {
         let (start, end) = (date_part_text(start), date_part_text(end));
         return match (start.is_empty(), end.is_empty()) {
-            (true, _) => receipt_range_until(&end),
-            (_, true) => receipt_range_from(&start),
-            (false, false) => receipt_range_between(&start, &end),
+            (true, _) => labels::receipt_range_until(&end),
+            (_, true) => labels::receipt_range_from(&start),
+            (false, false) => labels::receipt_range_between(&start, &end),
         };
     }
     date_part_text(value)
@@ -24,7 +21,7 @@ pub(crate) fn date_tag_text(value: &str) -> String {
 
 fn date_part_text(value: &str) -> String {
     if value.len() == 4 {
-        receipt_year_label(value)
+        labels::receipt_year_label(value)
     } else {
         group_label(value)
     }
@@ -45,17 +42,17 @@ pub(crate) fn ConditionTags(
     });
     view! {
         <SearchTag
-            label=PERIOD
+            label=labels::PERIOD
             value=date_value
             on_clear=move || search.update(|s| s.clear_key(SearchKey::Date, has_years()))
         />
         <SearchTag
-            label=PRODUCT
+            label=labels::PRODUCT
             value=products_value
             on_clear=move || search.update(|s| s.clear_key(SearchKey::Products, has_years()))
         />
         <SearchTag
-            label=ACCOUNT
+            label=labels::ACCOUNT
             value=accounts_value
             on_clear=move || search.update(|s| s.clear_key(SearchKey::Accounts, has_years()))
         />
@@ -66,7 +63,7 @@ pub(crate) fn ConditionTags(
 pub(crate) fn SecuritiesInput(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     view! {
         <SearchTextInput
-            placeholder=labels::search_placeholder(RECEIPT_SEARCH_TARGET)
+            placeholder=labels::search_placeholder(labels::RECEIPT_SEARCH_TARGET)
             value=move || search.with(|s| s.selected_queries.get(SearchKey::Securities).to_string())
             on_input=move |value| search.update(|s| s.set_securities_query(value))
         />

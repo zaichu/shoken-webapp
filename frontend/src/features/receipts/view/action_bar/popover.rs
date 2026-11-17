@@ -5,7 +5,7 @@ use crate::features::receipts::filter::{ReceiptSearch, SearchKey};
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::labels::RECEIPT_APPLY_PERIOD;
+use crate::ui::labels;
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, ConditionRowEnd,
     SearchBox,
@@ -83,7 +83,7 @@ fn ConditionPopover(
                     <PeriodDraftContent draft=draft years=years has_years=has_years />
                     <div class="condition-panel-actions">
                         <Button variant=ButtonVariant::Primary(ButtonSize::Md) on_click=apply_period>
-                            {RECEIPT_APPLY_PERIOD}
+                            {labels::RECEIPT_APPLY_PERIOD}
                         </Button>
                     </div>
                 }
