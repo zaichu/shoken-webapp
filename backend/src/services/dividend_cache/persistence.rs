@@ -23,19 +23,7 @@ pub async fn fetch_and_cache(
     let (dividend_per_share, status) = extract_dividend(&response.data);
 
     crate::db::query(
-        r#"
-        INSERT INTO dividend_per_share_cache
-            (security_code, dividend_per_share, status, fetched_at, stale_at, provider, updated_at)
-        VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '7 days', 'jquants', NOW())
-        ON CONFLICT (security_code) DO UPDATE
-            SET dividend_per_share = EXCLUDED.dividend_per_share,
-                status             = EXCLUDED.status,
-                fetched_at         = EXCLUDED.fetched_at,
-                stale_at           = NOW() + INTERVAL '7 days',
-                provider           = EXCLUDED.provider,
-                error_message      = NULL,
-                updated_at         = NOW()
-        "#,
+        "SELECT public.dividend_cache_apply_success_v2($1, $2, $3)",
         vec![
             Bind::from(code.as_str()),
             Bind::from(dividend_per_share),
@@ -60,16 +48,7 @@ pub async fn update_cache_error(
     let truncated = truncate_error_message(error_msg);
 
     crate::db::query(
-        r#"
-        INSERT INTO dividend_per_share_cache
-            (security_code, dividend_per_share, status, error_message, stale_at, provider, updated_at)
-        VALUES ($1, NULL, 'error', $2, NOW() + $3::int4 * INTERVAL '1 second', 'jquants', NOW())
-        ON CONFLICT (security_code) DO UPDATE
-            SET status        = 'error',
-                error_message = EXCLUDED.error_message,
-                stale_at      = NOW() + $3::int4 * INTERVAL '1 second',
-                updated_at    = NOW()
-        "#,
+        "SELECT public.dividend_cache_apply_error_v2($1, $2, $3)",
         vec![
             Bind::from(code.as_str()),
             Bind::from(truncated),

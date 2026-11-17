@@ -188,23 +188,8 @@ pub async fn apply_close_price(
     code: &SecurityCode,
     price: &ClosePrice,
 ) -> Result<u64, ApiError> {
-    crate::db::query(
-        r#"
-        INSERT INTO security_prices (security_code, current_price, prev_close, price_as_of)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (security_code) DO UPDATE SET
-            current_price = EXCLUDED.current_price,
-            -- 前日終値は同一基準日なら既知の値を維持し、基準日が変われば取得値で置き換える
-            prev_close = CASE
-                WHEN security_prices.price_as_of = EXCLUDED.price_as_of
-                    THEN COALESCE(EXCLUDED.prev_close, security_prices.prev_close)
-                ELSE EXCLUDED.prev_close
-            END,
-            price_as_of = EXCLUDED.price_as_of,
-            updated_at = NOW()
-        WHERE security_prices.price_as_of IS NULL
-           OR security_prices.price_as_of <= EXCLUDED.price_as_of
-        "#,
+    let affected = crate::db::query_scalar::<i64>(
+        "SELECT public.scheduled_stock_price_apply_v2($1, $2, $3, $4)",
         vec![
             Bind::from(code.as_str()),
             Bind::from(price.close),
@@ -212,9 +197,10 @@ pub async fn apply_close_price(
             Bind::from(price.as_of),
         ],
     )
-    .execute(pool)
+    .fetch_one(pool)
     .await
-    .map_err(ApiError::from)
+    .map_err(ApiError::from)?;
+    u64::try_from(affected).map_err(|_| ApiError::Internal("株価更新件数が負の値です"))
 }
 
 /// 1つ前の平日を返す（土日・月曜は直前の金曜。祝日は扱わない）
@@ -245,34 +231,24 @@ fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let latest = latest_close_date(Utc::now());
+    let mut tx = pool.begin().await?;
     let codes: Vec<SecurityCode> = crate::db::query(
-        r#"
-        SELECT ab.security_code
-        FROM asset_balances ab
-        LEFT JOIN security_prices sp ON sp.security_code = ab.security_code
-        GROUP BY ab.security_code
-        HAVING BOOL_OR(sp.price_as_of IS NULL) OR MIN(sp.price_as_of) < $1
-        ORDER BY MIN(sp.updated_at) ASC NULLS FIRST
-        LIMIT $2
-        "#,
+        "SELECT security_code FROM public.scheduled_stock_price_targets_v2($1, $2)",
         vec![Bind::from(latest), Bind::from(MAX_CODES_PER_RUN)],
     )
-    .fetch_all::<(SecurityCode,), _>(pool)
+    .fetch_all::<(SecurityCode,), _>(&mut tx)
     .await?
     .into_iter()
     .map(|(code,)| code)
     .collect();
+    tx.commit().await?;
 
     // 選んだ銘柄の試行時刻を先に進めておく。取得に失敗しても順位が末尾へ回るため、
     // 連続して失敗する銘柄が後続の更新を永久に塞ぐことを防ぐ（#1338）。
     // 未取得(行なし)の銘柄には基準日なしの行を作り、次回以降も対象のままにする
     if !codes.is_empty() {
         crate::db::query(
-            r#"
-            INSERT INTO security_prices (security_code, updated_at)
-            SELECT code, NOW() FROM UNNEST($1::text[]) AS t(code)
-            ON CONFLICT (security_code) DO UPDATE SET updated_at = NOW()
-            "#,
+            "SELECT public.scheduled_stock_price_mark_attempted_v2($1)",
             vec![Bind::from(
                 codes
                     .iter()

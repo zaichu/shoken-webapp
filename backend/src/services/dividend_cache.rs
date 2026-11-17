@@ -62,12 +62,7 @@ pub async fn get_batch(
 /// （status が pending の間は compute_is_stale=false で再投入も起きない）
 async fn enqueue_refresh(pool: &Db, codes: &[SecurityCode]) -> Result<(), ApiError> {
     crate::db::query(
-        r#"
-        INSERT INTO dividend_per_share_cache (security_code, status, provider, updated_at)
-        SELECT c.code, 'pending', 'jquants', NOW()
-        FROM unnest($1::varchar[]) AS c(code)
-        ON CONFLICT (security_code) DO NOTHING
-        "#,
+        "SELECT public.dividend_cache_enqueue_v2($1)",
         vec![Bind::from(codes.to_vec())],
     )
     .execute(pool)
@@ -206,16 +201,8 @@ fn build_batch_items<'a>(
 pub async fn acquire_rate_slot(pool: &Db) -> Result<(), ApiError> {
     // UPSERT でスロットを予約し、前のスロット開始時刻を返す
     let slot_time = crate::db::query_scalar::<Option<chrono::DateTime<Utc>>>(
-        r#"
-        INSERT INTO market_data_provider_rate_control (provider, next_available_at)
-            VALUES ($1, NOW() + INTERVAL '12 seconds')
-        ON CONFLICT (provider) DO UPDATE
-            SET next_available_at =
-                GREATEST(market_data_provider_rate_control.next_available_at, NOW()) + INTERVAL '12 seconds'
-        RETURNING
-            GREATEST(next_available_at - INTERVAL '12 seconds', NOW() - INTERVAL '1 second')
-        "#,
-        vec![Bind::from(JQUANTS_PROVIDER)],
+        "SELECT public.rate_control_acquire_jquants_v2()",
+        vec![],
     )
     .fetch_one(pool)
     .await?;
@@ -246,13 +233,7 @@ pub(crate) async fn sleep_millis(ms: u64) {
 /// 既存の future 値がある場合は後退させず、GREATEST で大きい方を維持する
 async fn push_rate_control_cooldown(pool: &Db) -> Result<(), ApiError> {
     crate::db::query(
-        r#"
-        INSERT INTO market_data_provider_rate_control (provider, next_available_at)
-            VALUES ($1, NOW() + $2::int4 * INTERVAL '1 second')
-        ON CONFLICT (provider) DO UPDATE
-            SET next_available_at =
-                GREATEST(market_data_provider_rate_control.next_available_at, NOW() + $2::int4 * INTERVAL '1 second')
-        "#,
+        "SELECT public.rate_control_cooldown_v2($1, $2)",
         vec![
             Bind::from(JQUANTS_PROVIDER),
             Bind::from(RATE_LIMIT_COOLDOWN_SECS),

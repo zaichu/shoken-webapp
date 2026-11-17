@@ -83,19 +83,9 @@ fn columns(rows: &[StockRow]) -> MasterColumns {
 pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiError> {
     let tx = pool.begin().await?;
     let result = async {
-        crate::db::query("DELETE FROM public.stock", vec![])
-            .execute(&tx)
-            .await?;
         let cols = columns(rows);
-        let inserted = crate::db::query(
-            r#"
-            INSERT INTO public.stock
-                (date, code, name, market_category,
-                 industry_category_33, industry_category_17, size_category)
-            SELECT * FROM unnest(
-                $1::date[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[]
-            )
-            "#,
+        let inserted = crate::db::query_scalar::<i64>(
+            "SELECT public.stock_master_replace_v2($1, $2, $3, $4, $5, $6, $7)",
             vec![
                 Bind::from(cols.dates),
                 Bind::from(cols.codes),
@@ -106,9 +96,9 @@ pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiEr
                 Bind::from(cols.sizes),
             ],
         )
-        .execute(&tx)
+        .fetch_one(&tx)
         .await?;
-        Ok::<u64, ApiError>(inserted)
+        Ok::<i64, ApiError>(inserted)
     }
     .await;
 
@@ -147,33 +137,18 @@ async fn refresh_gate_next_available_at(pool: &Db) -> Result<Option<DateTime<Utc
 /// 更新の実行権を原子的に取る。取れた(true)回だけ更新を実行するため、
 /// 同時に動いても1回だけになる。行が無ければ INSERT して初回として取る
 async fn claim_refresh_slot(pool: &Db) -> Result<bool, ApiError> {
-    crate::db::query_scalar::<i32>(
-        r#"
-        INSERT INTO market_data_provider_rate_control (provider, next_available_at)
-            VALUES ($1, NOW() + INTERVAL '7 days')
-        ON CONFLICT (provider) DO UPDATE
-            SET next_available_at = NOW() + INTERVAL '7 days'
-            WHERE market_data_provider_rate_control.next_available_at <= NOW()
-        RETURNING 1
-        "#,
-        vec![Bind::from(MASTER_PROVIDER)],
-    )
-    .fetch_optional(pool)
-    .await
-    .map(|v| v.is_some())
-    .map_err(ApiError::from)
+    crate::db::query_scalar::<i32>("SELECT public.stock_master_claim_v2()", vec![])
+        .fetch_optional(pool)
+        .await
+        .map(|v| v.is_some())
+        .map_err(ApiError::from)
 }
 
 /// 更新失敗時の再試行を1時間後に遅らせる(毎分のやり直しを止める)
 async fn postpone_refresh_slot(pool: &Db) -> Result<(), ApiError> {
-    crate::db::query(
-        "UPDATE market_data_provider_rate_control
-         SET next_available_at = NOW() + INTERVAL '1 hour'
-         WHERE provider = $1",
-        vec![Bind::from(MASTER_PROVIDER)],
-    )
-    .execute(pool)
-    .await?;
+    crate::db::query("SELECT public.stock_master_postpone_v2()", vec![])
+        .execute(pool)
+        .await?;
     Ok(())
 }
 

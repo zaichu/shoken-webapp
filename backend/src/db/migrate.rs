@@ -145,6 +145,18 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0032_auth_session_user_function",
         include_str!("../../migrations/0032_auth_session_user_function.sql"),
     ),
+    (
+        "0033_force_limited_maintenance_paths",
+        include_str!("../../migrations/0033_force_limited_maintenance_paths.sql"),
+    ),
+    (
+        "0034_app_worker_role",
+        include_str!("../../migrations/0034_app_worker_role.sql"),
+    ),
+    (
+        "0035_shared_cache_worker_paths",
+        include_str!("../../migrations/0035_shared_cache_worker_paths.sql"),
+    ),
 ];
 
 struct Migration {

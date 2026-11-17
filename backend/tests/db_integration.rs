@@ -2759,7 +2759,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=35).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2767,7 +2767,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=35).collect::<Vec<_>>()
     );
 }
 
@@ -2795,7 +2795,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=35).collect::<Vec<_>>()
     );
 }
 
@@ -6163,6 +6163,34 @@ async fn app_restricted_role_has_least_privilege() {
     .expect("スキーマ権限の取得に失敗");
     assert!(schema_usage, "app_restricted は public の USAGE を持つはず");
 
+    for (signature, expected) in [
+        ("public.login_notify_peek_v2(bytea)", true),
+        ("public.login_notify_consume_v2(bytea)", true),
+        (
+            "public.admin_login_search_data_v2(text[],text[],text[],text,text,bigint,bigint)",
+            false,
+        ),
+        (
+            "public.admin_login_search_count_v2(text[],text[],text[])",
+            false,
+        ),
+        (
+            "public.scheduled_stock_price_targets_v2(date,bigint)",
+            false,
+        ),
+        ("public.scheduled_fund_price_targets_v2(date,bigint)", false),
+        ("public.prune_login_events_older_than_90_days_v2()", false),
+    ] {
+        let executable = db::query_scalar::<bool>(
+            "SELECT has_function_privilege('app_restricted', $1, 'EXECUTE')",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数権限の取得に失敗");
+        assert_eq!(executable, expected, "{signature}");
+    }
+
     let grants = db::query(
         "SELECT table_name, privilege_type FROM information_schema.role_table_grants WHERE grantee = 'app_restricted' AND table_schema = 'public'",
         vec![],
@@ -6417,7 +6445,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=35).collect::<Vec<_>>()
     );
 
     let info_a = GoogleUserInfo {
@@ -6542,9 +6570,10 @@ async fn stage5b_definer_functions_and_app_enter() {
         .fetch_all::<(String,), _>(&pool)
         .await
         .expect("設定の取得に失敗");
+        let expected_search_path = "search_path=public, pg_temp";
         assert!(
-            config.contains(&("search_path=public, pg_temp".to_string(),)),
-            "{signature} は search_path を固定するはず"
+            config.contains(&(expected_search_path.to_string(),)),
+            "{signature} の search_path を変更しない"
         );
     }
 
@@ -6851,7 +6880,7 @@ async fn rls_5c_writes_via_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=35).collect::<Vec<_>>()
     );
 
     let user_a = create_test_user(&pool).await;

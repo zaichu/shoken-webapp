@@ -206,20 +206,8 @@ pub async fn apply_fund_nav(
     association_fund_cd: &str,
     nav: &FundNav,
 ) -> Result<u64, ApiError> {
-    crate::db::query(
-        r#"
-        INSERT INTO fund_prices (association_fund_cd, nav, prev_day_change, price_as_of)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (association_fund_cd) DO UPDATE SET
-            nav = EXCLUDED.nav,
-            prev_day_change = EXCLUDED.prev_day_change,
-            price_as_of = EXCLUDED.price_as_of,
-            updated_at = NOW(),
-            fetch_error = NULL,
-            fetch_failed_at = NULL
-        WHERE fund_prices.price_as_of IS NULL
-           OR fund_prices.price_as_of <= EXCLUDED.price_as_of
-        "#,
+    let affected = crate::db::query_scalar::<i64>(
+        "SELECT public.scheduled_fund_price_apply_v2($1, $2, $3, $4)",
         vec![
             Bind::from(association_fund_cd),
             Bind::from(nav.nav),
@@ -227,22 +215,17 @@ pub async fn apply_fund_nav(
             Bind::from(nav.base_date),
         ],
     )
-    .execute(pool)
+    .fetch_one(pool)
     .await
-    .map_err(ApiError::from)
+    .map_err(ApiError::from)?;
+    u64::try_from(affected).map_err(|_| ApiError::Internal("基準価額更新件数が負の値です"))
 }
 
 /// 取得失敗の理由と時刻を共有値の行に残す。直前の失敗理由を上書きする。
 /// 記録に失敗しても他のファンドの取得は止めない(ログに残すだけ)
 async fn record_fetch_failure(pool: &Db, association_fund_cd: &str, reason: &str) {
     if let Err(e) = crate::db::query(
-        r#"
-        INSERT INTO fund_prices (association_fund_cd, updated_at, fetch_error, fetch_failed_at)
-        VALUES ($1, NOW(), $2, NOW())
-        ON CONFLICT (association_fund_cd) DO UPDATE SET
-            fetch_error = EXCLUDED.fetch_error,
-            fetch_failed_at = EXCLUDED.fetch_failed_at
-        "#,
+        "SELECT public.scheduled_fund_price_record_failure_v2($1, $2)",
         vec![Bind::from(association_fund_cd), Bind::from(reason)],
     )
     .execute(pool)
@@ -260,11 +243,7 @@ async fn record_fetch_failure(pool: &Db, association_fund_cd: &str, reason: &str
 /// 失敗記録を消す。取得できたとき・対象外のとき使う
 async fn clear_fetch_error(pool: &Db, association_fund_cd: &str) {
     if let Err(e) = crate::db::query(
-        r#"
-        UPDATE fund_prices
-           SET fetch_error = NULL, fetch_failed_at = NULL
-         WHERE association_fund_cd = $1
-        "#,
+        "SELECT public.scheduled_fund_price_clear_failure_v2($1)",
         vec![Bind::from(association_fund_cd)],
     )
     .execute(pool)
@@ -331,35 +310,24 @@ fn nav_publication_date(now: DateTime<Utc>) -> NaiveDate {
 /// 戻り値は取得に成功したコード数（ログ用）
 pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let target = nav_publication_date(Utc::now());
+    let mut tx = pool.begin().await?;
     let codes: Vec<String> = crate::db::query(
-        r#"
-        SELECT fc.association_fund_cd
-        FROM fund_balances fb
-        JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name
-        LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd
-        GROUP BY fc.association_fund_cd
-        HAVING BOOL_OR(fp.price_as_of IS NULL) OR MIN(fp.price_as_of) < $1
-        ORDER BY MIN(fp.updated_at) ASC NULLS FIRST
-        LIMIT $2
-        "#,
+        "SELECT association_fund_cd FROM public.scheduled_fund_price_targets_v2($1, $2)",
         vec![Bind::from(target), Bind::from(MAX_CODES_PER_RUN)],
     )
-    .fetch_all::<(String,), _>(pool)
+    .fetch_all::<(String,), _>(&mut tx)
     .await?
     .into_iter()
     .map(|(code,)| code)
     .collect();
+    tx.commit().await?;
 
     // 選んだコードの試行時刻を先に進めておく。取得に失敗しても順位が末尾へ回るため、
     // 連続して失敗するコードが後続の更新を永久に塞ぐことを防ぐ。
     // 未取得(行なし)のコードには値なしの行を作り、次回以降も対象のままにする
     if !codes.is_empty() {
         crate::db::query(
-            r#"
-            INSERT INTO fund_prices (association_fund_cd, updated_at)
-            SELECT code, NOW() FROM UNNEST($1::text[]) AS t(code)
-            ON CONFLICT (association_fund_cd) DO UPDATE SET updated_at = NOW()
-            "#,
+            "SELECT public.scheduled_fund_price_mark_attempted_v2($1)",
             vec![Bind::from(codes.clone())],
         )
         .execute(pool)

@@ -120,13 +120,15 @@ pub async fn insert_login_event_in_tx(
 }
 
 pub async fn prune_login_events(pool: &Db) -> Result<u64, ApiError> {
-    let deleted = crate::db::query(
-        "DELETE FROM login_events WHERE occurred_at < NOW() - INTERVAL '90 days'",
+    let mut tx = pool.begin().await?;
+    let deleted = crate::db::query_scalar::<i64>(
+        "SELECT public.prune_login_events_older_than_90_days_v2()",
         vec![],
     )
-    .execute(pool)
+    .fetch_one(&mut tx)
     .await?;
-    Ok(deleted)
+    tx.commit().await?;
+    u64::try_from(deleted).map_err(|_| ApiError::Internal("履歴削除件数が不正です"))
 }
 
 #[cfg(test)]

@@ -1,8 +1,10 @@
+#[cfg(test)]
+use crate::{db::QueryBuilder, services::domain::search_filters::push_token_ilike_filters};
 use crate::{
-    db::{self, Bind, Db, DbError, QueryBuilder},
+    db::{self, Bind, Db, DbError},
     errors::ApiError,
     models::common::{PaginatedSearchResponse, SearchQueryParams},
-    services::domain::search_filters::{push_token_ilike_filters, tokens_from_query},
+    services::domain::search_filters::{escape_like_pattern, tokens_from_query},
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -46,11 +48,11 @@ pub struct AdminLoginQuery {
     pub sort_order: Option<String>,
 }
 
+#[cfg(test)]
 const FROM: &str = " FROM login_events le JOIN users u ON u.id = le.user_id";
 const PLACE: &str = "CONCAT_WS(' ', le.country, le.region)";
 
-const DATA_SELECT: &str = "SELECT le.occurred_at, u.email::text AS email, le.result, le.country, le.region, le.browser, le.os";
-
+#[cfg(test)]
 fn push_filters(qb: &mut QueryBuilder, params: &AdminLoginQuery) {
     qb.push(FROM).push(" WHERE TRUE");
     push_token_ilike_filters(
@@ -66,6 +68,7 @@ fn push_filters(qb: &mut QueryBuilder, params: &AdminLoginQuery) {
     push_token_ilike_filters(qb, &tokens_from_query(params.place.as_deref()), &[PLACE]);
 }
 
+#[cfg(test)]
 fn filtered_query(select: &'static str, params: &AdminLoginQuery) -> QueryBuilder {
     let mut qb = QueryBuilder::new(select);
     push_filters(&mut qb, params);
@@ -89,16 +92,6 @@ fn sort_direction(sort_order: Option<&str>) -> Result<&'static str, ApiError> {
         "desc" => Ok(" DESC"),
         _ => Err(ApiError::Validation("sort_order の値が不正です".into())),
     }
-}
-
-fn push_order(qb: &mut QueryBuilder, params: &AdminLoginQuery) -> Result<(), ApiError> {
-    let column = sort_column(params.sort_by.as_deref())?;
-    let direction = sort_direction(params.sort_order.as_deref())?;
-    qb.push(" ORDER BY ")
-        .push(column)
-        .push(direction)
-        .push(", le.occurred_at DESC, le.id DESC");
-    Ok(())
 }
 
 fn validate_sort(params: &AdminLoginQuery) -> Result<(), ApiError> {
@@ -130,24 +123,46 @@ fn page_info(params: &AdminLoginQuery) -> Result<(i64, i64, i64), ApiError> {
 
 async fn fetch_count_and_data(
     pool: &Db,
-    data_qb: QueryBuilder,
-    count_qb: QueryBuilder,
+    params: &AdminLoginQuery,
+    per_page: i64,
+    offset: i64,
 ) -> Result<(Vec<AdminLoginEntry>, i64), ApiError> {
-    let data_fut = async {
-        let mut qb = data_qb;
-        qb.build_query_as::<AdminLoginEntry>()
-            .fetch_all(pool)
-            .await
-            .map_err(Into::into)
+    let patterns = |query: Option<&str>| {
+        tokens_from_query(query)
+            .iter()
+            .map(|token| escape_like_pattern(token))
+            .collect::<Vec<_>>()
     };
-    let count_fut = async {
-        let mut qb = count_qb;
-        qb.build_query_scalar::<i64>()
-            .fetch_one(pool)
-            .await
-            .map_err(Into::into)
-    };
-    futures_util::future::try_join(data_fut, count_fut).await
+    let query_patterns = patterns(params.search.q.as_deref());
+    let email_patterns = patterns(params.email.as_deref());
+    let place_patterns = patterns(params.place.as_deref());
+    let mut tx = pool.begin().await?;
+    let data = db::query(
+        "SELECT * FROM public.admin_login_search_data_v2($1, $2, $3, $4, $5, $6, $7)",
+        vec![
+            Bind::from(query_patterns.clone()),
+            Bind::from(email_patterns.clone()),
+            Bind::from(place_patterns.clone()),
+            Bind::from(params.sort_by.as_deref().unwrap_or("occurred_at")),
+            Bind::from(params.sort_order.as_deref().unwrap_or("desc")),
+            Bind::from(per_page),
+            Bind::from(offset),
+        ],
+    )
+    .fetch_all::<AdminLoginEntry, _>(&mut tx)
+    .await?;
+    let total = db::query_scalar::<i64>(
+        "SELECT public.admin_login_search_count_v2($1, $2, $3)",
+        vec![
+            Bind::from(query_patterns),
+            Bind::from(email_patterns),
+            Bind::from(place_patterns),
+        ],
+    )
+    .fetch_one(&mut tx)
+    .await?;
+    tx.commit().await?;
+    Ok((data, total))
 }
 
 pub async fn search(
@@ -157,16 +172,7 @@ pub async fn search(
     let (page, per_page, offset) = page_info(&params)?;
     validate_sort(&params)?;
 
-    let mut data_qb = filtered_query(DATA_SELECT, &params);
-    push_order(&mut data_qb, &params)?;
-    data_qb
-        .push(" LIMIT ")
-        .push_bind(per_page)
-        .push(" OFFSET ")
-        .push_bind(offset);
-    let count_qb = filtered_query("SELECT COUNT(*)", &params);
-
-    let (data, total) = fetch_count_and_data(pool, data_qb, count_qb).await?;
+    let (data, total) = fetch_count_and_data(pool, &params, per_page, offset).await?;
 
     Ok(PaginatedSearchResponse {
         data,
