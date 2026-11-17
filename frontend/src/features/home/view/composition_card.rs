@@ -20,7 +20,9 @@ pub(super) const CHART_COLORS: &[(&str, &str)] = &[
     ("var(--color-chart-3)", "bg-chart-3"),
     ("var(--color-chart-4)", "bg-chart-4"),
     ("var(--color-chart-5)", "bg-chart-5"),
+    ("var(--color-chart-6)", "bg-chart-6"),
 ];
+const NON_AQUA_CHART_COLORS: [usize; 5] = [0, 1, 2, 4, 5];
 
 /// 商品別ドーナツの系列番号。商品名に固定で対応させ、絞り込みや並べ替えで色が変わらないようにする
 pub(super) fn product_chart_index(label: &str) -> Option<usize> {
@@ -37,21 +39,25 @@ pub(super) fn account_chart_index(label: &str) -> Option<usize> {
         labels::ACCOUNT_SPECIFIC => Some(0),
         labels::ACCOUNT_NISA_GROWTH => Some(1),
         labels::ACCOUNT_OLD_NISA => Some(2),
-        labels::ACCOUNT_NISA_TSUMITATE => Some(3),
-        labels::ACCOUNT_GENERAL => Some(4),
+        labels::ACCOUNT_SPECIFIC_GENERAL => Some(3),
+        labels::ACCOUNT_NISA_TSUMITATE => Some(4),
+        labels::ACCOUNT_GENERAL => Some(5),
         _ => None,
     }
 }
-
-/// 対応表にない系列の色。表外はすべて同じ中立色で、ほかの系列の増減や
-/// 表示の並び(評価額順)で色が変わらない。複数出ても同色で、凡例の名前で区別する
-pub(super) const CHART_COLOR_OTHER: (&str, &str) = ("var(--color-text-muted)", "bg-text-muted");
 
 pub(super) fn chart_color(
     label: &str,
     fixed: impl Fn(&str) -> Option<usize>,
 ) -> (&'static str, &'static str) {
-    fixed(label).map_or(CHART_COLOR_OTHER, |i| CHART_COLORS[i % CHART_COLORS.len()])
+    if let Some(index) = fixed(label) {
+        return CHART_COLORS[index % CHART_COLORS.len()];
+    }
+    let index = label.bytes().fold(2_166_136_261_u32, |hash, byte| {
+        (hash ^ u32::from(byte)).wrapping_mul(16_777_619)
+    }) as usize
+        % NON_AQUA_CHART_COLORS.len();
+    CHART_COLORS[NON_AQUA_CHART_COLORS[index]]
 }
 
 pub(super) fn slice_style(
@@ -184,7 +190,7 @@ fn ProductDonut(products: Vec<CompositionSlice>) -> impl IntoView {
             >
                 <div class="home-donut-hole"></div>
             </div>
-            <ul class="grid gap-2 text-body">{rows}</ul>
+            <ul class="home-composition-legend grid gap-2 text-body">{rows}</ul>
         </div>
     }
 }
@@ -227,7 +233,7 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
                 {labels::HOME_ACCOUNT_FUND_LABEL}
             </p>
             <div class="home-stacked-bar mt-1.5">{bars}</div>
-            <ul class="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-cell">{legend}</ul>
+            <ul class="home-account-legend mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-cell">{legend}</ul>
         </div>
     }
 }

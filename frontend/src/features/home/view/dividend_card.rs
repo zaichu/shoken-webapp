@@ -213,7 +213,7 @@ fn DividendMonthlyChart(
                 {labels::receipt_year_label(&year.to_string())}
             </span>
             <span class="flex items-center gap-1">
-                <span class="home-swatch bg-chart-previous"></span>
+                <span class="home-swatch home-chart-previous"></span>
                 {labels::receipt_year_label(&previous_year.to_string())}
             </span>
         </div>
@@ -256,7 +256,7 @@ fn DividendMonthCell(
         >
             <div class="home-chart-bars">
                 <span
-                    class="home-month-bar bg-chart-previous"
+                    class="home-month-bar home-chart-previous"
                     style:height=format!("{prev}%")
                 />
                 <span
@@ -274,7 +274,7 @@ fn DividendMonthCell(
                         <dd>{labels::home_year_amount(year, &cur_text)}</dd>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <dt class="home-swatch bg-chart-previous"></dt>
+                        <dt class="home-swatch home-chart-previous"></dt>
                         <dd>{labels::home_year_amount(previous_year, &prev_text)}</dd>
                     </div>
                     <div class="flex items-center gap-1.5">

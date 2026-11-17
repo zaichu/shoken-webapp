@@ -119,13 +119,13 @@
 
   /* グラフの系列色は面・部品の色と別に持ち、商品・口座ごとに固定で割り当てる。
      前年の棒は系列ではなく比較の基準として落ち着いた色にする */
-  --color-chart-1: var(--color-brand);
-  --color-chart-2: var(--color-accent);
-  --color-chart-3: var(--color-gold);
-  --color-chart-4: var(--color-fill-strong);
-  --color-chart-5: var(--color-brand-muted);
-  /* 前年は系列ではなく比較の基準。ライトの面でも 3:1 を満たす中間色にする */
-  --color-chart-previous: #64748b;
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #6250d6;
+  --color-chart-4: #1baf7a;
+  --color-chart-5: #eda100;
+  --color-chart-6: #e87ba4;
+  --color-chart-previous: var(--color-chart-1);
 
   --shadow-elevation-1: 0 12px 34px -30px rgba(15, 23, 42, 0.85);
   --shadow-elevation-2: 0 16px 44px -36px rgba(15, 23, 42, 0.9);
@@ -313,13 +313,13 @@
       --color-info-border: #3c5586;
       --color-info-focus: #a9c4fa;
 
-      /* 暗い面の上で区別が付く検証済みの系列色。前年は比較の基準として落ち着いた色 */
       --color-chart-1: #3987e5;
       --color-chart-2: #d95926;
-      --color-chart-3: #199e70;
-      --color-chart-4: #c98500;
-      --color-chart-5: #d55181;
-      --color-chart-previous: #9fb0cf;
+      --color-chart-3: #9085e9;
+      --color-chart-4: #199e70;
+      --color-chart-5: #c98500;
+      --color-chart-6: #d55181;
+      --color-chart-previous: var(--color-chart-1);
 
       --color-band: #292112;
       --color-band-border: #6b5518;
@@ -1502,6 +1502,10 @@
     @apply block min-w-px flex-1 rounded-t;
   }
 
+  .home-month-bar.home-chart-previous {
+    background-image: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-page) 3px 5px);
+  }
+
   .home-chart-month-labels {
     @apply mt-1.5 flex;
   }
@@ -1557,6 +1561,11 @@
 
   .home-donut-hole {
     @apply flex h-3/5 w-3/5 items-center justify-center rounded-full bg-surface;
+  }
+
+  .home-chart-previous {
+    background-color: var(--color-chart-previous);
+    background-image: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-page) 3px 5px);
   }
 
   /* 系列の境目は面の色の隙間にする(gap の下を面と同じ色で透かす) */
@@ -1702,10 +1711,15 @@
     stroke: var(--color-chart-5);
   }
 
+  .comp-slice-5 {
+    stroke: var(--color-chart-6);
+  }
+
   .comp-slice-gap {
     fill: none;
     stroke: var(--color-page);
-    stroke-width: 2;
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
   }
 
   .comp-donut-center {

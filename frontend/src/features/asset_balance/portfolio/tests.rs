@@ -415,7 +415,7 @@ fn composition_rows_keep_every_entry_without_other() {
     assert!(!rows.iter().any(|row| row.name.contains("その他")));
     assert_eq!(rows[0].name, "A");
     assert!(rows[0].computable);
-    assert_eq!(rows[2].color, composition_color(2));
+    assert_eq!(rows[2].color, composition_color("9920"));
     assert_eq!(rows[4].name, "E");
     assert!(rows[4].computable);
 }
@@ -539,14 +539,37 @@ fn composition_legend_keeps_ratio_order_for_uncomputable_last() {
 }
 
 #[test]
-fn composition_color_keeps_neighbors_different() {
-    for position in 0..20 {
-        assert_ne!(
-            composition_color(position),
-            composition_color(position + 1),
-            "{position}"
-        );
-        assert!(composition_color(position) < 5, "{position}");
+fn composition_color_stays_with_item_key() {
+    let (sources, basis) = composition_stock_sources();
+    let entries = composition_entries(&sources, CompositionGroup::Holding, &basis);
+    let (_, percentages) =
+        composition_percentages(&entries.iter().map(|entry| entry.value).collect::<Vec<_>>());
+    let original = composition_rows(&entries, &percentages);
+    let changed_order_basis = [Some(2.1), Some(8.9), Some(9.0), Some(30.0), Some(50.0)];
+    let reordered_entries =
+        composition_entries(&sources, CompositionGroup::Holding, &changed_order_basis);
+    let (_, reordered_percentages) = composition_percentages(
+        &reordered_entries
+            .iter()
+            .map(|entry| entry.value)
+            .collect::<Vec<_>>(),
+    );
+    let reordered = composition_rows(&reordered_entries, &reordered_percentages);
+    for row in original {
+        let matching = reordered
+            .iter()
+            .find(|candidate| candidate.name == row.name)
+            .unwrap();
+        assert_eq!(row.color, matching.color, "{}", row.name);
+    }
+}
+
+#[test]
+fn composition_color_fallback_matches_home_for_unknown_account() {
+    // ホーム内訳帯の chart_color と同じハッシュ・同じ除外色で、同じキーは同じ色になる
+    assert_eq!(composition_color("NISA"), 2);
+    for key in ["NISA", "外国株式", "9920", "テスト口座"] {
+        assert_ne!(composition_color(key), 3, "{key}");
     }
 }
 
