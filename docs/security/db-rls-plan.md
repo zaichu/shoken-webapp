@@ -839,3 +839,48 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
   マスタの新旧接続での動作、枠取りの空振り、置換の件数を固定する。
   `backend/tests/db_integration.rs` の履歴期待値を `0..=35` に更新し、失敗時の
   再試行延期が 1 時間後になることを固定する。
+
+## 27. 残高ビューの RLS 迂回と、索引の効くポリシー式(#1990)
+
+- 問題 1(セキュリティ): `asset_balances_view`・`fund_balances_view` は `security_invoker` なしで、
+  所有者(移行ロール)の権限で参照先を読んでいた。`app_enter` 後の `app_restricted` でも、
+  ビューを `WHERE user_id` なしで読むと他人の行が見えた(使い捨て DB で再現)。
+  アプリは必ず `WHERE user_id = $1` を付けているため実際の漏えいは確認していないが、
+  「SQL の書き間違いでも漏れない」という本計画の目的がビューでは成り立っていなかった。
+  所有者が BYPASSRLS のため FORCE では塞がらない。
+- 問題 2(性能): ポリシー `user_id::text = current_setting(...)` は列側を変換するため索引に使えず、
+  不透明な関数で件数の見積もりも崩れる。制限ロールの配当一覧(1 ページ目)は利用者の全行を
+  Bitmap Heap Scan で読んでから並べ替えていた(§10・§11 の申し送りの事象)。
+  §11 は `::uuid` 形を「空文字が残るとエラーになる」ため不採用にしたが、
+  `NULLIF(..., '')` で空文字を NULL にすれば 0 件(fail-closed)のままエラーにならない。
+- `backend/migrations/0037_rls_views_invoker_and_indexable_policies.sql`:
+  残高ビュー 2 件に `security_invoker = true` を付け、利用者表 11 件のポリシーを
+  `user_id = (SELECT NULLIF(current_setting('app.current_user_id', true), '')::uuid)`
+  (`users` は `id`)へ `ALTER POLICY` で置き換える(`USING`・`WITH CHECK` とも)。
+  先頭に `SET LOCAL lock_timeout = '5s'`。列・権限・ロールは変えない。
+  ビューが読む共有表(`security_prices`・`fund_codes`・`fund_prices`)は 0036 で
+  `app_restricted` 向けの読み取りポリシーを持つため、呼び出し側の権限でも結合できる。
+- 旧 Worker との共存: 旧 `postgres` 接続は BYPASSRLS の所有者なので、ビューを呼び出し側の権限にしても
+  これまでと同じ行を読む。`app_worker` 経路は `app_enter` が設定する値の形が変わらないため、
+  同じ行を返す(式が索引に効くようになるだけ)。
+- 性能(使い捨て `postgres:17`、利用者 3 人 × 配当 3 万行、`app_enter` 後の `app_restricted`、
+  `ORDER BY settlement_date DESC, id DESC LIMIT 50`):
+  0036 まで 12.5〜13.8ms(Bitmap Heap Scan 3 万行 + top-N 並べ替え、1959 buffers)→
+  0037 後 0.25ms(`idx_dividends_user_settlement_date_id` の Index Scan 50 行、53 buffers)。
+- 結合テスト(`backend/tests/login_rls.rs` の
+  `balance_views_and_user_policies_isolate_rows_for_app_restricted`): 本番と同じく共有表を含む全表で
+  RLS が有効な状態で、0037 前のビューでは他人の行が見えること、0037 適用後は
+  ビューを `WHERE user_id` なしで読んでも他人の行が 0 件であること、空文字の設定で
+  利用者表とビューが 0 件・エラーなしであること、別の利用者名義の INSERT が拒否されること、
+  `app_worker` から保有銘柄・投信の一覧(今の検索経路)が本人の行だけで読めることを固定する。
+  `backend/tests/db_integration.rs` の履歴期待値は `0..=37`。
+
+### 以後の決まり
+
+- ビューを作る・変えるときは `WITH (security_invoker = true)` を必ず付ける。
+  `CREATE OR REPLACE VIEW` を WITH 句なしで書くと付いていた `security_invoker` も外れる。
+- 本番には `public` の新しい表へ RLS を自動で有効にする event trigger `ensure_rls` があるため、
+  新しい表には読み書きするロール向けのポリシーを同じ migration で必ず付ける
+  (無いと NOBYPASSRLS の接続からはエラーなしで 0 行に見える)。利用者の表は 0037 の式、
+  共有の表は 0036 の `FOR SELECT TO app_worker, app_restricted USING (true)` に揃える。
+- 詳細は `backend/migrations/README.md` の「ビューと新しい表の RLS の決まり」。

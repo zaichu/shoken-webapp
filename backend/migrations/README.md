@@ -73,6 +73,24 @@ baseline(`0000〜0010`)は適用済み環境があるため編集しない。
 誤検出があり得る。逆に検出漏れ(例: `DROP` 以外の手段で列を実質消す手口)もある。
 そういう場合には `-- contract:` 印(意図した縮退のとき)で回避できる。
 
+## ビューと新しい表の RLS の決まり
+
+- **ビューを作る・変えるときは `WITH (security_invoker = true)` を必ず付ける。**
+  付けないビューは所有者(移行ロール)の権限で動き、参照先の表の RLS を迂回する。
+  `CREATE OR REPLACE VIEW` を WITH 句なしで書くと、付いていた `security_invoker` も外れる
+  (0037 で残高ビュー 2 件に付けた。使い捨て DB で確認済み)。
+- **新しい表には、読み書きするロール向けの RLS ポリシーを同じ migration で必ず付ける。**
+  本番(Supabase)には `public` の新しい表へ RLS を自動で有効にする event trigger `ensure_rls` がある。
+  ポリシーが無いと、NOBYPASSRLS の `app_worker` / `app_restricted` からはエラーなしで 0 行に見える(0036 の障害)。
+  どの環境でも同じ状態になるよう、`ENABLE ROW LEVEL SECURITY` も migration に明示する。
+  - 利用者の表は `user_id` を持たせ、0037 と同じ式のポリシーにする:
+    `USING (user_id = (SELECT NULLIF(current_setting('app.current_user_id', true), '')::uuid))`
+    (`WITH CHECK` も同じ式)。`user_id::text = ...` のように列側を変換すると索引が使えず、一覧が全行読みになる。
+  - 共有の表(利用者の行なし)は 0036 と同じく `FOR SELECT TO app_worker, app_restricted USING (true)` にし、
+    書き込みは BYPASSRLS の限定関数に閉じ込める。
+- ロックを取る DDL(`ALTER POLICY`・`ALTER VIEW ... SET`・`ALTER TABLE` など)の先頭には
+  `SET LOCAL lock_timeout = '5s';` を置く(ランナーは 1 ファイル 1 トランザクション)。
+
 ## 破壊的変更(列の削除・改名)は2リリースに分ける
 
 列の削除・改名(破壊的変更)を含む schema 変更は、デプロイの仕組みと組み合わせて

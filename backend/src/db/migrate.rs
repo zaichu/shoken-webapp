@@ -161,6 +161,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0036_shared_table_worker_rls",
         include_str!("../../migrations/0036_shared_table_worker_rls.sql"),
     ),
+    (
+        "0037_rls_views_invoker_and_indexable_policies",
+        include_str!("../../migrations/0037_rls_views_invoker_and_indexable_policies.sql"),
+    ),
 ];
 
 struct Migration {
