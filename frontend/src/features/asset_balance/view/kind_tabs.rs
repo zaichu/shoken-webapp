@@ -1,5 +1,4 @@
 use crate::features::asset_balance::fund::AssetKind;
-use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::TabButton;
 use crate::ui::labels;
 use crate::ui::underline_tabs::{
@@ -17,21 +16,9 @@ const fn tab_id(kind: AssetKind) -> &'static str {
 }
 
 /// 保有種別の切り替えピル(すべて/国内株式/投資信託)。
-/// 取引明細のタブと同じ構造で、件数はラベルの横に出す
-/// 件数は Signal<usize> で受け取り、データ読み込み完了時に更新されるようにする
+/// 取引明細のタブと同じ構造
 #[component]
-pub(crate) fn AssetKindTabs(
-    kind: RwSignal<AssetKind>,
-    all_count: Signal<usize>,
-    stock_count: Signal<usize>,
-    fund_count: Signal<usize>,
-    motion: SwipeMotion,
-) -> impl IntoView {
-    let count = move |k: AssetKind| match k {
-        AssetKind::All => all_count.get(),
-        AssetKind::Stock => stock_count.get(),
-        AssetKind::Fund => fund_count.get(),
-    };
+pub(crate) fn AssetKindTabs(kind: RwSignal<AssetKind>, motion: SwipeMotion) -> impl IntoView {
     view! {
         <div
             class="page-tab-list no-print relative"
@@ -76,9 +63,6 @@ pub(crate) fn AssetKindTabs(
                             }
                         >
                             {item.label()}
-                            <Badge variant=BadgeVariant::Count>
-                                {move || count(item)}
-                            </Badge>
                         </TabButton>
                     }
                 })

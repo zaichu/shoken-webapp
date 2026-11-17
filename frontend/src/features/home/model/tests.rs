@@ -247,14 +247,26 @@ fn dividend_card_hides_yoy_when_previous_fetch_failed() {
 
 #[test]
 fn product_slices_sort_desc_and_drop_empty() {
-    let slices = product_slices(1_000_000.0, 500_000.0);
+    let stocks = vec![
+        stock("9901", "架空株A", 10, 100_000, 500_000),
+        stock("9902", "架空株B", 10, 100_000, 500_000),
+    ];
+    let funds = vec![
+        fund("架空投信A", "特定", 500_000, 0),
+        fund("架空投信B", "NISA", 500_000, 0),
+        fund("架空投信C", "NISA", 500_000, 0),
+    ];
+    let slices = product_slices(&stocks, &funds, 1_000_000.0, 500_000.0);
     assert_eq!(slices.len(), 2);
     assert_eq!(slices[0].label, "国内株式");
     assert_eq!(slices[1].label, "投資信託");
-    let slices = product_slices(0.0, 500_000.0);
+    assert_eq!(slices[0].item_count, 2);
+    assert_eq!(slices[1].item_count, 3);
+    let slices = product_slices(&[], &funds, 0.0, 500_000.0);
     assert_eq!(slices.len(), 1);
     assert_eq!(slices[0].label, "投資信託");
-    assert!(product_slices(0.0, 0.0).is_empty());
+    assert_eq!(slices[0].item_count, 3);
+    assert!(product_slices(&[], &[], 0.0, 0.0).is_empty());
 }
 
 #[test]

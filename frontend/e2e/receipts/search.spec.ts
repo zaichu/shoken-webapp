@@ -51,7 +51,13 @@ async function gotoReceipts(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
   await mockReceipts(page);
   await page.goto('/receipts');
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+  if (width >= 1024) {
+    await expect(page.getByRole('table')).toBeVisible();
+    await expect(pcSearch(page)).toContainText('2件 / 2件');
+  } else {
+    await expect(page.getByTestId('receipt-card-list')).toBeVisible();
+    await expect(page.getByTestId('receipts-search-sheet-entry')).toBeVisible();
+  }
 }
 
 function pcSearch(page: Page) {
@@ -137,7 +143,6 @@ test('PC: 口座の条件を足すとタグが出て一覧・件数・集計が�
   // 選ぶとすぐ反映され、小窓が閉じてタグが出る
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('button', { name: '口座 SBI証券 を解除' })).toBeVisible();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(pcSearch(page)).toContainText('1件 / 2件');
 
   const table = page.getByRole('table');
@@ -164,10 +169,10 @@ test('PC: タグの × で条件を外す', async ({ page }) => {
     .getByRole('dialog', { name: '口座を選ぶ' })
     .getByRole('button', { name: 'SBI証券', exact: true })
     .click();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  await expect(pcSearch(page)).toContainText('1件 / 2件');
 
   await page.getByRole('button', { name: '口座 SBI証券 を解除' }).click();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+  await expect(pcSearch(page)).toContainText('2件 / 2件');
   await expect(page.getByRole('button', { name: '口座 SBI証券 を解除' })).toHaveCount(0);
 });
 
@@ -184,10 +189,9 @@ test('PC: すべてクリアで全条件を外す', async ({ page }) => {
     .getByRole('dialog', { name: '商品を選ぶ' })
     .getByRole('button', { name: '特定口座', exact: true })
     .click();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  await expect(pcSearch(page)).toContainText('1件 / 2件');
 
   await pcSearch(page).getByRole('button', { name: 'すべてクリア' }).click();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
   await expect(pcSearch(page)).toContainText('2件 / 2件');
 });
 
@@ -202,7 +206,7 @@ test('PC: 期間の小窓で「年」を選んで絞り込める', async ({ page
 
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('button', { name: '期間 2024年 を解除' })).toBeVisible();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  await expect(pcSearch(page)).toContainText('1件 / 2件');
   await expect(page.getByRole('table')).toContainText('架空自動車');
 });
 
@@ -217,7 +221,7 @@ test('PC: 期間の小窓で「年月」を選んで絞り込める', async ({ p
   await dialog.getByRole('button', { name: 'この期間で絞る' }).click();
 
   await expect(page.getByRole('button', { name: '期間 2023年6月 を解除' })).toBeVisible();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  await expect(pcSearch(page)).toContainText('1件 / 2件');
   await expect(page.getByRole('table')).toContainText('架空電信電話');
 });
 
@@ -231,7 +235,7 @@ test('PC: 期間の小窓で「日」を選んで絞り込める', async ({ page
   await dialog.getByRole('button', { name: 'この期間で絞る' }).click();
 
   await expect(page.getByRole('button', { name: '期間 2024年3月1日 を解除' })).toBeVisible();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  await expect(pcSearch(page)).toContainText('1件 / 2件');
 });
 
 test('PC: 期間の小窓で「範囲」を選んで絞り込める', async ({ page }) => {
@@ -247,7 +251,7 @@ test('PC: 期間の小窓で「範囲」を選んで絞り込める', async ({ p
   await expect(
     page.getByRole('button', { name: '期間 2023年1月1日〜2023年12月31日 を解除' }),
   ).toBeVisible();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  await expect(pcSearch(page)).toContainText('1件 / 2件');
 });
 
 test('PC: 期間の小窓で「すべて」に戻すと期間の条件が外れる', async ({ page }) => {
@@ -258,14 +262,14 @@ test('PC: 期間の小窓で「すべて」に戻すと期間の条件が外れ�
   await dialog.getByRole('button', { name: '年', exact: true }).click();
   await dialog.getByRole('button', { name: '2024年', exact: true }).click();
   await dialog.getByRole('button', { name: 'この期間で絞る' }).click();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  await expect(pcSearch(page)).toContainText('1件 / 2件');
 
   await pcSearch(page).getByRole('button', { name: '＋ 期間' }).click();
   const reopened = page.getByRole('dialog', { name: '期間を選ぶ' });
   await reopened.getByRole('button', { name: 'すべて', exact: true }).click();
   await reopened.getByRole('button', { name: 'この期間で絞る' }).click();
 
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+  await expect(pcSearch(page)).toContainText('2件 / 2件');
   await expect(page.getByRole('button', { name: /期間 .* を解除/ })).toHaveCount(0);
 });
 
@@ -278,7 +282,7 @@ test('PC: Esc で小窓が閉じ、条件は反映されない', async ({ page }
   await page.keyboard.press('Escape');
 
   await expect(dialog).toBeHidden();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+  await expect(pcSearch(page)).toContainText('2件 / 2件');
   await expect(page.getByRole('button', { name: /期間 .* を解除/ })).toHaveCount(0);
 });
 
@@ -317,7 +321,6 @@ test('PC: 銘柄名の入力で絞り込める', async ({ page }) => {
   await gotoReceipts(page, 1280, 800);
 
   await pcSearch(page).getByPlaceholder('銘柄名・コード').fill('架空電信電話');
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(pcSearch(page)).toContainText('1件 / 2件');
   await expect(page.getByRole('table')).toContainText('架空電信電話');
 });
@@ -336,12 +339,12 @@ test('PC: キーボードだけで条件を足して外せる', async ({ page })
   // 選ぶと小窓が閉じてトリガーにフォーカスが戻る
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  await expect(pcSearch(page)).toContainText('1件 / 2件');
 
   // 検索欄のタグまで戻って Enter で外せる
   await shiftTabTo(page, '口座 SBI証券 を解除');
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+  await expect(pcSearch(page)).toContainText('2件 / 2件');
 });
 
 test('スマホ: ダイアログで期間を選べる', async ({ page }) => {
@@ -356,7 +359,6 @@ test('スマホ: ダイアログで期間を選べる', async ({ page }) => {
   await expect(sheet).toBeHidden();
   await expect(page.getByTestId('receipts-search-sheet-entry')).toBeFocused();
   await expect(page.getByRole('button', { name: '期間 2024年 を解除' })).toBeVisible();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(page.getByRole('search', { name: '検索', exact: true })).toContainText(
     '1件 / 2件',
   );
@@ -372,7 +374,6 @@ test('スマホ: 口座のダイアログで選んで絞り込める', async ({ 
 
   await expect(sheet).toBeHidden();
   await expect(page.getByRole('button', { name: '口座 楽天証券 を解除' })).toBeVisible();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
   await expect(page.getByTestId('receipt-card')).toHaveCount(1);
 });
 
@@ -385,13 +386,13 @@ test('スマホ: Enter で検索し、閉じるは捨て、クリアは下書き
   await sheet.getByPlaceholder('銘柄名・コード').fill('9910');
   await sheet.getByPlaceholder('銘柄名・コード').press('Enter');
   await expect(sheet).toBeHidden();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
+  await expect(page.getByTestId('receipt-card')).toHaveCount(1);
   // ダイアログを開き直してクリアして検索すると元に戻る
   await page.getByTestId('receipts-search-sheet-entry').click();
   const reset = page.getByTestId('receipts-search-sheet');
   await reset.getByTestId('search-dialog-clear').click();
   await reset.getByTestId('search-dialog-search').click();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+  await expect(page.getByTestId('receipt-card')).toHaveCount(2);
 
   // 閉じるは捨てる
   await page.getByTestId('receipts-search-sheet-entry').click();
@@ -399,7 +400,7 @@ test('スマホ: Enter で検索し、閉じるは捨て、クリアは下書き
   await dialog.getByPlaceholder('銘柄名・コード').fill('9910');
   await dialog.getByTestId('search-dialog-close').click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+  await expect(page.getByTestId('receipt-card')).toHaveCount(2);
 
   // クリアは下書きだけ消す
   await page.getByTestId('receipts-search-sheet-entry').click();
@@ -409,7 +410,7 @@ test('スマホ: Enter で検索し、閉じるは捨て、クリアは下書き
   await expect(cleared.getByPlaceholder('銘柄名・コード')).toHaveValue('');
   await cleared.getByTestId('search-dialog-search').click();
   await expect(cleared).toBeHidden();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('2');
+  await expect(page.getByTestId('receipt-card')).toHaveCount(2);
 });
 
 test('スマホ: 並べ替えの順序で古い順にできる', async ({ page }) => {

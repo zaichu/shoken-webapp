@@ -163,7 +163,7 @@ test('帯は3項目で株式と投信を合算し、カード群が埋まる', a
   await expect(composition).toContainText('国内株式');
   await expect(composition).toContainText('投資信託');
 
-  // グラフの棒・進捗・ドーナツ・凡例・口座別の帯は本番 CSP 下でも描画される
+  // グラフの棒・進捗・商品別の帯・口座別の帯は本番 CSP 下でも描画される
   const monthBars = dividend.locator('.home-month-bar');
   expect(
     await monthBars.evaluateAll((els) =>
@@ -172,14 +172,20 @@ test('帯は3項目で株式と投信を合算し、カード群が埋まる', a
   ).toBe(true);
   const progress = dividend.locator('.home-progress > div');
   expect((await progress.boundingBox())?.width).toBeGreaterThan(0);
-  await expect(composition.locator('.home-swatch').first()).toHaveCSS(
-    'background-color',
-    /^rgb\(/,
-  );
-  await expect(composition.locator('.home-donut')).toHaveCSS(
-    'background-image',
-    /conic-gradient/,
-  );
+  const compositionRows = composition.locator('.home-composition-rows').first().locator('li');
+  await expect(compositionRows).toHaveCount(2);
+  const compositionAmounts = await compositionRows.locator('> span').allTextContents();
+  expect(compositionAmounts).toEqual(['¥360,000', '¥300,000']);
+  const compositionTotal = composition.locator('.home-composition-total > span').last();
+  await expect(compositionTotal).toHaveText('¥660,000');
+  expect(
+    compositionAmounts.reduce((sum, amount) => sum + Number(amount.replace(/[^\d-]/g, '')), 0),
+  ).toBe(Number((await compositionTotal.textContent())?.replace(/[^\d-]/g, '')));
+  await expect(compositionRows.nth(0)).toContainText('2件');
+  await expect(compositionRows.nth(1)).toContainText('1件');
+  const productBar = composition.locator('.home-stacked-bar').first().locator('> span');
+  expect(await productBar.count()).toBeGreaterThan(0);
+  expect((await productBar.first().boundingBox())?.width).toBeGreaterThan(0);
   const accountBar = composition.locator('.home-stacked-bar > span').first();
   expect((await accountBar.boundingBox())?.width).toBeGreaterThan(0);
 

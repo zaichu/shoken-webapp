@@ -13,7 +13,6 @@ fn badge_variant_classes_are_distinguishable() {
         BadgeVariant::AccountOldNisa,
         BadgeVariant::Code,
         BadgeVariant::CodeFlush,
-        BadgeVariant::Count,
     ];
     let classes: Vec<&str> = variants.iter().map(|variant| variant.class()).collect();
     for (i, class) in classes.iter().enumerate() {

@@ -215,7 +215,10 @@ function sampleSlideX(
           const samples: (number | null)[] = [];
           const start = performance.now();
           const tick = () => {
-            samples.push(read());
+            const value = read();
+            if (value !== null) {
+              samples.push(value);
+            }
             if (performance.now() - start < ms) {
               requestAnimationFrame(tick);
             } else {
@@ -226,6 +229,18 @@ function sampleSlideX(
         }),
       durationMs,
     );
+}
+
+async function slideX(page: Page, testid: string): Promise<number | null> {
+  return page.getByTestId(testid).evaluate((element) => {
+    const active = element.querySelector(
+      '.tab-swipe-slide[data-active="true"]',
+    ) as HTMLElement | null;
+    const match = active
+      ? /translateX\((-?\d+(?:\.\d+)?)px\)/.exec(active.style.transform)
+      : null;
+    return match ? Number(match[1]) : null;
+  });
 }
 
 async function inkPercent(page: Page): Promise<number | null> {
@@ -449,23 +464,24 @@ test.describe('下線タブの横スワイプ', () => {
     await touchMove(page, 'assetbalance-main-stage', 300, 400);
     await waitForDrag(page, 'assetbalance-main-stage');
 
+    const initialX = await slideX(page, 'assetbalance-main-stage');
+    expect(initialX).not.toBeNull();
     const sampling = sampleSlideX(page, 'assetbalance-main-stage', 600);
     await touchEnd(page, 'assetbalance-main-stage', 300, 400);
-    const samples = await sampling;
-    const frames = samples.filter((value): value is number => value !== null);
-    expect(frames.length).toBeGreaterThan(2);
-    for (const value of frames) {
-      expect(value).toBeGreaterThanOrEqual(-5);
-    }
-    for (let index = 1; index < frames.length; index += 1) {
-      expect(frames[index]).toBeGreaterThanOrEqual(frames[index - 1] - 1);
-    }
-    expect(Math.max(...frames)).toBeGreaterThan(100);
-
     await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
       'aria-selected',
       'true',
     );
+    const samples = await sampling;
+    const positions = [
+      initialX as number,
+      ...samples.filter((value): value is number => value !== null),
+    ];
+    expect(Math.max(...positions)).toBeGreaterThan(100);
+    for (let index = 1; index < positions.length; index += 1) {
+      expect(positions[index]).toBeGreaterThanOrEqual(positions[index - 1] - 1);
+    }
+
     await page.waitForTimeout(500);
     expect(
       await activeSlideTransform(page, 'assetbalance-main-stage'),

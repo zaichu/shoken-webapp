@@ -611,10 +611,6 @@
     anchor-name: --selected-page-tab;
   }
 
-  .page-tab[aria-selected="true"] .badge-count {
-    @apply bg-accent-softer text-accent-text;
-  }
-
   .page-tab-list::after {
     content: "";
     position: absolute;
@@ -663,10 +659,6 @@
     }
   }
 
-  .badge-count {
-    @apply font-medium tabular-nums text-eyebrow;
-  }
-
   /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す */
   @media (width < 64rem) {
     .page-tab-list {
@@ -679,19 +671,6 @@
 
     .page-tab[aria-selected="true"] {
       @apply bg-transparent font-bold text-text-deep;
-    }
-  }
-
-  @media (width >= 64rem) {
-    .badge-count {
-      @apply bg-row-group text-cell text-text-soft;
-      border-radius: 9px;
-      padding-inline: var(--space-condition);
-      line-height: 18px;
-    }
-
-    .page-tab[aria-selected="true"] .badge-count {
-      @apply bg-accent font-bold text-page;
     }
   }
 
@@ -1494,17 +1473,33 @@
 
   /* 帯の直下の注記行は「ページの骨格」(page-skeleton-note) が持つ */
 
-  /* ホームのカード列。配当カード側は明細ページから見返したとき面積を持たせる。
-     列を暗黙の auto に任せると最長の nowrap 行まで列が膨らむため、
-     1 列でも grid-cols-1(minmax(0,1fr))を明示してコンテナ幅に留める */
-  .home-card-row {
-    @apply grid grid-cols-1 lg:grid-cols-2;
+  /* ホームのカード置き場。PCは左列(2fr)に配当・最近、右列(1fr)に内訳・損益。
+     スマホは DOM 順(配当→内訳→最近→損益)にそのまま積む */
+  .home-card-grid {
+    @apply grid grid-cols-1 lg:grid-cols-[2fr_1fr];
     gap: var(--space-card);
     margin-top: var(--space-card);
   }
 
-  .home-card-row-dividend {
-    @apply lg:grid-cols-[2fr_1fr];
+  /* ホーム最下部の CSV 導線。MoreLink の左寄せを打ち消して中央に置く */
+  .home-footlink {
+    @apply mt-3 flex items-center justify-center;
+  }
+
+  .home-footlink .more-link {
+    margin-left: 0;
+  }
+
+  .home-pnl-list .list-row-main {
+    @apply items-start;
+  }
+
+  .home-pnl-list .list-row-primary {
+    @apply max-w-[45%] whitespace-normal break-words;
+  }
+
+  .home-pnl-list .list-row-secondary {
+    @apply max-w-[45%] whitespace-normal break-words;
   }
 
   .more-link {
@@ -1617,12 +1612,20 @@
     @apply h-full rounded bg-chart-1;
   }
 
-  .home-donut {
-    @apply flex h-24 w-24 shrink-0 items-center justify-center rounded-full;
+  .home-composition-total {
+    @apply flex items-baseline justify-between gap-3 text-body;
   }
 
-  .home-donut-hole {
-    @apply flex h-3/5 w-3/5 items-center justify-center rounded-full bg-surface;
+  .home-composition-rows {
+    @apply m-0 list-none p-0;
+  }
+
+  .home-composition-row {
+    @apply flex min-h-12 items-center gap-3 border-b border-border py-2;
+  }
+
+  .home-composition-row:last-child {
+    @apply border-b-0;
   }
 
   .home-chart-previous {

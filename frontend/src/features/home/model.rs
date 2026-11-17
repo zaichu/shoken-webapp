@@ -281,16 +281,29 @@ pub(crate) struct CompositionSlice {
     pub(crate) amount: f64,
 }
 
+pub(crate) struct ProductCompositionSlice {
+    pub(crate) label: String,
+    pub(crate) amount: f64,
+    pub(crate) item_count: usize,
+}
+
 /// 商品別の資産内訳(時価ベース)。0 以下の区分は落とし、大きい順に並べる
-pub(crate) fn product_slices(stock_market: f64, fund_market: f64) -> Vec<CompositionSlice> {
+pub(crate) fn product_slices(
+    stocks: &[AssetBalance],
+    funds: &[FundBalance],
+    stock_market: f64,
+    fund_market: f64,
+) -> Vec<ProductCompositionSlice> {
     let mut slices = vec![
-        CompositionSlice {
+        ProductCompositionSlice {
             label: DOMESTIC_STOCK.to_string(),
             amount: stock_market,
+            item_count: stocks.len(),
         },
-        CompositionSlice {
+        ProductCompositionSlice {
             label: MUTUAL_FUND.to_string(),
             amount: fund_market,
+            item_count: funds.len(),
         },
     ];
     slices.retain(|slice| slice.amount > 0.0);
