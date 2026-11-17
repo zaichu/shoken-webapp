@@ -6,6 +6,7 @@ use backend::{
     services::{
         auth, dividend_cache,
         fund_price::{self, FundNav},
+        jquants::JQuantsClient,
         login_event::{self, ClientInfo, LoginOutcome, admin},
         login_notify, stock, stock_master,
         stock_price::{self, ClosePrice},
@@ -914,11 +915,39 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     .execute(&pool)
     .await
     .unwrap();
+    let mut dividend_codes = Vec::new();
     for db_pool in [&pool, &worker] {
+        let dividend_code = if std::ptr::eq(db_pool, &pool) {
+            "9998"
+        } else {
+            "9997"
+        };
+        dividend_codes.push(dividend_code);
         let found = stock::search(db_pool, "9999")
             .await
             .expect("銘柄検索は通る");
         assert_eq!(found.code.as_str(), "9999");
+        let client = JQuantsClient::new("test-key".to_string());
+        let items = dividend_cache::get_batch(
+            db_pool,
+            Some(&client),
+            &[SecurityCode::from_raw(dividend_code.into())],
+        )
+        .await
+        .expect("未取得配当の取得とキュー投入は通る");
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            items[0].status,
+            shared::dividend_per_share::DividendCacheStatus::Pending
+        );
+        let pending: Vec<(String,)> = db::query(
+            "SELECT security_code FROM dividend_per_share_cache WHERE security_code = $1 AND status = 'pending'",
+            vec![Bind::from(dividend_code)],
+        )
+        .fetch_all(db_pool)
+        .await
+        .unwrap();
+        assert_eq!(pending.len(), 1, "pending 行をどちらの接続からも確認できる");
         db::query(
             "SELECT public.dividend_cache_enqueue_v2($1)",
             vec![Bind::from(vec![SecurityCode::from_raw("9999".into())])],
@@ -933,6 +962,21 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         .execute(db_pool)
         .await
         .expect("配当エラー記録は通る");
+    }
+    let client = JQuantsClient::new("test-key".to_string());
+    let processed = dividend_cache::drain_refresh_queue(&worker, &client)
+        .await
+        .expect("app_worker の cron drain は enqueue 行を選定できる");
+    assert_eq!(processed, 2, "app_worker cron drain が2件を処理対象にする");
+    for code in dividend_codes {
+        let status: (String,) = db::query(
+            "SELECT status FROM dividend_per_share_cache WHERE security_code = $1",
+            vec![Bind::from(code)],
+        )
+        .fetch_one(&worker)
+        .await
+        .unwrap();
+        assert_eq!(status.0, "error", "テスト環境の上流取得失敗を記録する");
     }
     let cached: Vec<(String,)> = db::query(
         "SELECT security_code FROM dividend_per_share_cache WHERE security_code = '9999'",
