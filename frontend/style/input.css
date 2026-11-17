@@ -83,6 +83,8 @@
   --color-accent-softer: #e5edff;
   --color-accent-border: #a9bff4;
   --color-accent-border-strong: #7396ea;
+  --color-avatar: #1d4ed8;
+  --color-avatar-ink: #fff;
 
   --color-info: #1d4ed8;
   --color-info-strong: #1e3a8a;
@@ -273,6 +275,8 @@
       --color-accent-bright: #8fb3f7;
       --color-accent-ring: #8fb3f7;
       --color-accent-strong: #a9c4fa;
+      --color-avatar: #8fb3f7;
+      --color-avatar-ink: #111827;
       --color-accent-vivid: #a9c4fa;
       --color-accent-text: #a9c4fa;
       --color-accent-text-soft: #a9c4fa;

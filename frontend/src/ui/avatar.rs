@@ -46,13 +46,13 @@ pub fn UserAvatar(
     let initials = avatar_initials(name.as_deref(), Some(email.as_str()));
     let (badge_class, img_class, size) = if large {
         (
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gold text-brand font-bold text-summary-secondary",
+            "flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-avatar text-avatar-ink font-bold text-summary-secondary",
             "h-14 w-14 shrink-0 rounded-full object-cover",
             (56, 56),
         )
     } else {
         (
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold text-brand font-bold text-subhero",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-avatar text-avatar-ink font-bold text-subhero",
             "h-10 w-10 shrink-0 rounded-full object-cover",
             (40, 40),
         )

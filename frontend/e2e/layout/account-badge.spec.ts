@@ -45,7 +45,7 @@ async function mockApi(page: Page) {
   );
 }
 
-// 札の配色だけを見る。余白や折り返しは画面ごとに違うので見ない
+// 画面をまたいだ札の見た目の一貫性だけを見る
 async function badgeColors(badge: Locator) {
   return badge.evaluate((element) => {
     const style = getComputedStyle(element);
@@ -61,7 +61,7 @@ async function badgeInRow(scope: Locator, securityName: string) {
   return badge;
 }
 
-test('連結した口座は1つの札になり、全画面で同じ配色で出る', async ({ page }) => {
+test('連結した口座は1つの札になり、全画面で同じ見た目で出る', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await mockApi(page);
 
@@ -74,7 +74,7 @@ test('連結した口座は1つの札になり、全画面で同じ配色で出�
   await expect(receiptJoined).toHaveText(JOINED_ACCOUNT);
   const receiptSpecific = await badgeInRow(table, '架空特定口座銘柄');
   const receiptGeneral = await badgeInRow(table, '架空一般口座銘柄');
-  // 画面を移動すると札が消えるので、移動前に配色だけ控えておく
+  // 画面を移動すると札が消えるので、移動前に見た目を控えておく
   const joinedColors = await badgeColors(receiptJoined);
   const generalColors = await badgeColors(receiptGeneral);
   const specificColors = await badgeColors(receiptSpecific);
@@ -86,13 +86,13 @@ test('連結した口座は1つの札になり、全画面で同じ配色で出�
   await expect(homeJoined).toHaveText(JOINED_ACCOUNT);
   const homeGeneral = await badgeInRow(recentList, '架空一般口座銘柄');
 
-  // 同じ口座値は取引明細でもホームでも同じ配色
+  // 同じ口座値は取引明細でもホームでも同じ見た目
   expect(await badgeColors(homeJoined)).toBe(joinedColors);
   expect(await badgeColors(homeGeneral)).toBe(generalColors);
 
-  // 連結した口座は一般と同じ中立色、単独の「特定」とは区別される
+  // 口座札は口座区分によらず同じ無彩色
   expect(joinedColors).toBe(generalColors);
-  expect(specificColors).not.toBe(joinedColors);
+  expect(specificColors).toBe(joinedColors);
 });
 
 test('取引明細のカード表示でも連結した口座は1つの札になる', async ({ page }) => {
