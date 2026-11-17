@@ -187,7 +187,7 @@ pub(crate) fn TocNav(active: RwSignal<String>, locked: RwSignal<bool>) -> impl I
                                     active.set(click_id.clone());
                                     locked.set(true);
                                 }
-                                class="settings-toc-link flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-label font-medium text-text-deep transition-colors no-underline hover:bg-surface-raised"
+                                class="settings-toc-link"
                             >
                                 {label}
                             </a>

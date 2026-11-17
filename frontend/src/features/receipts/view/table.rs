@@ -201,11 +201,7 @@ pub fn ReceiptTable(
     } else {
         "sm:hidden print:hidden"
     };
-    let table_frame_class = if compact_mobile {
-        ""
-    } else {
-        "table-frame overflow-clip"
-    };
+    let table_card_class = if compact_mobile { "" } else { "table-card" };
     let table_class = if compact_mobile {
         "receipts-table"
     } else {
@@ -215,7 +211,7 @@ pub fn ReceiptTable(
         <div class=surface_class data-testid="receipt-table-card">
             <div class="p-0" data-testid="receipt-table-body">
                 <div class=desktop_class>
-                    <div class=table_frame_class>
+                    <div class=table_card_class>
                         <table class=table_class>
                             <thead>
                                 <tr>

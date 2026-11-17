@@ -579,7 +579,12 @@
     border-block-end: 3px solid var(--color-design-header-mark);
   }
 
-  /* 設定の左目次。押した項目・読んでいる項目だけ aria-current を付ける */
+  /* 設定の左目次。押した項目・読んでいる項目だけ aria-current を付ける。
+     基本の並び・余白・文字はここに寄せ、呼び出し側に直書きしない */
+  .settings-toc-link {
+    @apply flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-label font-medium text-text-deep transition-colors no-underline hover:bg-surface-raised;
+  }
+
   .settings-toc-link[aria-current="true"] {
     @apply bg-surface-raised font-bold text-text-deep;
   }
@@ -1117,11 +1122,7 @@
     @apply flex w-full items-center justify-between gap-3 whitespace-nowrap;
   }
 
-  /* 帯の補助行は旧定義どおり本文の行の高さにする。共通の summary-value は行の高さを1に詰める */
-  .summary-band-main-toggle .summary-value-secondary {
-    @apply leading-normal;
-  }
-
+  /* 帯の補助行は旧定義どおり本文の行の高さにする */
   .summary-band-chevron-circle {
     @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-strong;
   }
@@ -1272,7 +1273,8 @@
     @apply text-text-deep;
   }
 
-  /* Mobile Compact Receipts List */
+  /* スマホの2行リストの入れ物。資産・明細で同じ役割のため1つの定義に寄せる */
+  .asset-compact-list,
   .receipt-compact-list {
     @apply list-none m-0 p-0;
   }
@@ -1463,16 +1465,6 @@
     @apply rounded p-0.5 text-icon opacity-100 group-hover:text-icon-hover group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100;
   }
 
-  .asset-search-count {
-    @apply mt-1.5 px-1 text-right text-xs font-medium text-text-subtle;
-  }
-
-  .table-frame {
-    @apply relative w-full bg-surface;
-    border: 0;
-    box-shadow: none;
-  }
-
   /* 集計の帯で使う共通の項目部品(資産管理・ホーム・取引明細で同じものを使う)。
      項目はラベルを上、数字を下に置き、全項目のラベル行と数字の基準線をそろえる。
      主値の数字は紺、それ以外の数字は紺(損益は Amount の緑/赤が付く)、ラベルは灰 */
@@ -1489,7 +1481,8 @@
     @apply ml-1 text-cell font-normal text-text-muted;
   }
 
-  /* 数字は下端をそろえるため行の高さを1に固定し、項目の底にそろえる */
+  /* 数字は用途別の高さで出す。帯の項目・主値は下端をそろえるため1に詰め、
+     開閉帯の補助行(roomy)は本文と同じ高さにする */
   .summary-value {
     @apply mt-auto flex flex-wrap items-baseline gap-x-1.5 leading-none text-brand-text;
   }
@@ -1500,6 +1493,10 @@
 
   .summary-value-secondary {
     @apply text-summary-secondary font-semibold;
+  }
+
+  .summary-value-roomy {
+    @apply leading-normal;
   }
 
   /* 補足(率)は値の補足情報なので、値より小さいサイズで出す */
@@ -1555,13 +1552,9 @@
     }
   }
 
-  /* ホーム最下部の CSV 導線。MoreLink の左寄せを打ち消して中央に置く */
+  /* ホーム最下部の CSV 導線。中央に置く */
   .home-footlink {
     @apply mt-3 flex items-center justify-center;
-  }
-
-  .home-footlink .more-link {
-    margin-left: 0;
   }
 
   .home-pnl-list .list-row-main {
@@ -1576,8 +1569,14 @@
     @apply max-w-[45%] whitespace-normal break-words;
   }
 
+  /* 一覧の行末・カード内の「詳しく見る」導線。行の右端に寄せるのが既定で、
+     中央に置くときは呼び出し側が more-link-centered を足す */
   .more-link {
     @apply ml-auto inline-flex min-h-11 items-center whitespace-nowrap text-label font-medium text-accent-text no-underline hover:text-accent-text-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-h-6;
+  }
+
+  .more-link-centered {
+    margin-left: 0;
   }
 
   /* チャートの凡例スウォッチ。塗りは呼び出し側がクラスで渡す(style 属性は本番 CSP で止まる) */
@@ -1716,14 +1715,6 @@
     /* overflow-clip はスクロールコンテナを作らないため、中の見出しの sticky が
        main のスクロールに追従する */
     @apply overflow-clip bg-surface lg:rounded-lg lg:border lg:border-border;
-  }
-
-  .asset-compact-list {
-    @apply list-none m-0 p-0;
-  }
-
-  .asset-compact-row {
-    @apply border-b border-border;
   }
 
   /* 資産管理・取引明細・ホームの配当入金で共通の2行の行。
