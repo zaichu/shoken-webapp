@@ -51,10 +51,13 @@ async function gotoReceipts(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
   await mockReceipts(page);
   await page.goto('/receipts');
-  await expect(page.getByRole('table').or(page.getByTestId('receipt-card'))).toBeVisible();
-  await expect(pcSearch(page).or(page.getByTestId('receipts-search-sheet-entry'))).toContainText(
-    '2件 / 2件',
-  );
+  if (width >= 1024) {
+    await expect(page.getByRole('table')).toBeVisible();
+    await expect(pcSearch(page)).toContainText('2件 / 2件');
+  } else {
+    await expect(page.getByTestId('receipt-card-list')).toBeVisible();
+    await expect(page.getByTestId('receipts-search-sheet-entry')).toBeVisible();
+  }
 }
 
 function pcSearch(page: Page) {
