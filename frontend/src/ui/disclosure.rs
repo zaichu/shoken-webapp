@@ -53,8 +53,6 @@ pub enum DisclosureStyle {
     GroupCard,
     /// 見出しの下線についた開閉(集計情報デスクトップ)
     HeaderFlat,
-    /// 紺帯サマリーの内訳開閉(帯全体がボタン・主役行右端に丸いシェブロン)
-    SummaryBand,
 }
 
 impl DisclosureStyle {
@@ -64,7 +62,6 @@ impl DisclosureStyle {
             Self::HeaderFlat => {
                 "flex w-full items-start justify-between gap-3 border-b border-ink/10 pb-2.5 text-left max-sm:min-h-11 max-sm:items-center"
             }
-            Self::SummaryBand => "summary-band-main-toggle",
         }
     }
 }

@@ -1066,14 +1066,34 @@
     @apply flex flex-col gap-y-0.5;
   }
 
-  /* 帯の中の段。段はスマホでは積み、PC では1列に並べる */
-  .summary-band-items {
-    @apply flex items-stretch gap-x-3;
+  /* スマホはラベル左・数字右端の行。全項目を常時表示し、行を罫線で区切る */
+  .summary-band-rows {
+    @apply flex flex-col;
   }
 
   @media (width < 64rem) {
     .summary-band {
       @apply px-4 py-3;
+    }
+
+    .summary-band-rows .summary-item {
+      @apply min-h-11 flex-row items-baseline justify-between gap-x-3 border-b border-border py-2;
+    }
+
+    .summary-band-rows .summary-item:last-child {
+      @apply border-b-0;
+    }
+
+    .summary-band-rows .summary-label {
+      @apply min-w-0;
+    }
+
+    .summary-band-rows .summary-label-note {
+      @apply ml-0 block;
+    }
+
+    .summary-band-rows .summary-value {
+      @apply mt-0 shrink-0 justify-end text-right leading-tight;
     }
   }
 
@@ -1087,64 +1107,29 @@
       display: contents;
     }
 
+    /* ラベル段と数字段を全項目で共有し、ラベル上端と数字の基準線をそろえる */
     .summary-band-items {
-      @apply flex items-stretch gap-x-0;
+      @apply grid grid-flow-col justify-start;
+      grid-template-rows: auto auto;
     }
 
     .summary-band .summary-item {
-      @apply whitespace-nowrap border-l border-border;
+      @apply row-span-2 grid whitespace-nowrap border-l border-border;
+      grid-template-rows: subgrid;
       padding-inline: var(--space-summary);
+    }
+
+    .summary-band .summary-label {
+      @apply self-start;
+    }
+
+    .summary-band .summary-value {
+      @apply mt-0 self-baseline;
     }
 
     .summary-band .summary-item:first-child {
       @apply border-l-0 pl-0;
     }
-  }
-
-  /* 紺帯の開閉(スマホ)。帯全体がボタンで、主役行の右端に44pxの丸いシェブロン */
-  .summary-band-main-toggle {
-    @apply flex w-full min-h-11 flex-col justify-center gap-y-0 text-left;
-  }
-
-  .summary-band-top-row {
-    @apply flex w-full items-baseline justify-between gap-2 whitespace-nowrap;
-  }
-
-  .summary-band-top-row .summary-label {
-    @apply shrink-0;
-  }
-
-  .summary-band-top-row .summary-label-note {
-    @apply ml-auto min-w-0 shrink truncate text-right;
-  }
-
-  .summary-band-hero-row {
-    @apply flex w-full items-center justify-between gap-3 whitespace-nowrap;
-  }
-
-  /* 帯の補助行は旧定義どおり本文の行の高さにする */
-  .summary-band-chevron-circle {
-    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-strong;
-  }
-
-  .summary-band-toggle-chevron {
-    @apply h-4 w-4 shrink-0 transition-transform duration-200;
-  }
-
-  .summary-band-breakdown {
-    @apply mt-3 divide-y divide-border border-t border-border;
-  }
-
-  .summary-band-breakdown-row {
-    @apply flex min-w-0 items-center justify-between gap-3 py-2;
-  }
-
-  .summary-band-breakdown-row .summary-label {
-    @apply shrink-0;
-  }
-
-  .summary-band-breakdown-value {
-    @apply flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right text-base font-bold tabular-nums text-brand-text;
   }
 
   /* PC Receipts Table (compact mobile desktop view) */
@@ -1356,6 +1341,35 @@
     background: var(--color-design-header);
   }
 
+  /* スマホは下へスクロールで隠し、上へ戻すと出す。表示中は transform を持たせない
+     (子孫の fixed の基準になるため)。z-index は sticky の表見出し(z-10)より上、ダイアログより下 */
+  @media (width < 64rem) {
+    .page-frame-head {
+      @apply sticky top-0 z-20;
+    }
+
+    .page-frame-head.is-scrolled-away {
+      transform: translateY(-100%);
+    }
+
+    /* JS の更新やアニメーションを待たず、フォーカス中は即座に見せる */
+    .page-frame-head:focus-within {
+      transform: none;
+      transition: none;
+    }
+
+    /* 固定したヘッダーの下にフォーカス・アンカーの移動先が隠れないようにする */
+    .app-scroll {
+      scroll-padding-block-start: 3rem;
+    }
+  }
+
+  @media (width < 64rem) and (prefers-reduced-motion: no-preference) {
+    .page-frame-head {
+      transition: transform 200ms ease;
+    }
+  }
+
   .page-frame-title {
     @apply font-bold leading-tight tracking-normal text-heading;
     color: var(--color-design-page-title);
@@ -1481,8 +1495,7 @@
     @apply ml-1 text-cell font-normal text-text-muted;
   }
 
-  /* 数字は用途別の高さで出す。帯の項目・主値は下端をそろえるため1に詰め、
-     開閉帯の補助行(roomy)は本文と同じ高さにする */
+  /* 数字は行の高さを1に詰め、項目の底にそろえる */
   .summary-value {
     @apply mt-auto flex flex-wrap items-baseline gap-x-1.5 leading-none text-brand-text;
   }
@@ -1493,10 +1506,6 @@
 
   .summary-value-secondary {
     @apply text-summary-secondary font-semibold;
-  }
-
-  .summary-value-roomy {
-    @apply leading-normal;
   }
 
   /* 補足(率)は値の補足情報なので、値より小さいサイズで出す */

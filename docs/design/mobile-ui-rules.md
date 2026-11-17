@@ -9,7 +9,7 @@
 | 用語 | 意味 |
 | --- | --- |
 | 上バー | ページ名・件数・低頻度リンク・アカウントを並べる紺の帯(`PageFrame` の見出し) |
-| 帯 | 集計を出す紺の面(`SummaryBand`)。主の数字1つと補助1行、開くと内訳 |
+| 帯 | 集計を出す共通部品(`SummaryBand`)。ラベル左・数字右端の行で全項目を表示する |
 | 注記行 | 帯の直下の小さい文字の行(`SkeletonNote`)。時点・対象外・絞り込み中と「計算基準を見る」 |
 | 検索入口 | 「検索・並べ替え」のボタンと、その下の条件タグ・件数の段 |
 | 行 | 一覧の1件(`ListRow`)。1段目=名前と主の金額、2段目=補助情報と補助の金額 |
@@ -36,11 +36,11 @@
 
 | 観点 | 決まり | 守らせる部品 |
 | --- | --- | --- |
-| 上バー | ページ名は `PageFrame` の `title` だけで出す。一覧の全件数は `title_count` に1つだけ。右端は低頻度リンク(枠つきの小ボタン)→アカウントの順 | `ui/page_frame.rs` `PageFrame` |
+| 上バー | ページ名は `PageFrame` の `title` だけで出す。一覧の全件数は `title_count` に1つだけ。右端は低頻度リンク(枠つきの小ボタン)→アカウントの順。下へスクロールすると隠し、上へ戻すと表示する。ヘッダー内のフォーカスは常に見せ、動きを減らす設定ではアニメーションしない | `ui/page_frame.rs` `PageFrame`、`ui/header_scroll.rs` |
 | 戻る | 詳細画面の戻りは `PageFrame` の `back_href`/`back_label` だけで出す。パンくず・独自の戻るリンクは作らない | `PageFrame`(`page-back-link`) |
 | 下部ナビ | ログイン後の全画面で出す。出さない画面(ログイン・404)を列挙する方式にする | `ui/site.rs` `BottomNav`、`app.rs` の表示判定 |
 | タブ | 種別の切り替えは全幅の下線タブ。タブの行は `SkeletonTabs` に入れ、タブ1つは `.page-tab`。下線タブの下でさらに切り替えるもの(基準など)は `Segmented` | `ui/page_skeleton.rs` `SkeletonTabs`、`ui/underline_tabs.rs`、`ui/segmented.rs` |
-| 帯 | 全幅・角丸なしでページと一緒に流れる(張り付かない)。主ラベルの下に時点か期間を1つ出し、補助1行は開閉で中身を変えない。開閉は帯全体を押す | `ui/summary.rs` `SummaryBand` を `SkeletonSummary` に入れる |
+| 帯 | 全幅・角丸なしでページと一緒に流れる(張り付かない)。ラベル左・数字右端の行を積み、全項目を常時表示する。時点か期間は主ラベルの下に出す。PCは既存項目の縦線区切り横並びで、ラベル上端と数字のベースラインをそろえる | `ui/summary.rs` `SummaryBand` を `SkeletonSummary` に入れる |
 | 注記行 | 帯の直下に1つ。左に事実の文、右端に「計算基準を見る」。出す文も計算基準も無いときは行ごと出さない | `SkeletonNote` |
 | 検索・並べ替えの入口 | 一覧を絞れる画面は、スマホでは本文内の「検索・並べ替え」ボタン1つにまとめる。押すと検索ダイアログ。並べ替えの見出しクリックや「＋条件」の横並びはスマホに出さない。例外は銘柄検索(検索が目的のため下部操作帯の入力) | `SkeletonSearch` + 共通の入口部品、`ui/search_dialog.rs` |
 | 件数 | 全件数は上バー、絞り込み後の件数は検索入口の下の左端に「N件 / M件」。一覧の見出しに件数を重ねて出さない | `PageFrame.title_count`、`ui/search_controls.rs` `SearchCount` |
@@ -81,7 +81,7 @@
 | --- | --- | --- |
 | 一覧の行 | `ui/list_row.rs` `ListRow`・`ListRowButton`・`ListRowLink`・`ListRowStatic`。器は `list-row`・`list-row-main`・`list-row-name`・`list-row-primary`・`list-row-sub`・`list-row-meta`・`list-row-secondary`、行は `list-row-item` + `list-row-action`(押せる)・`list-row-action-static`(押せない) | 全一覧で使う。行全体がボタンなら `ButtonVariant::RowButton`(`ListRowButton`)、遷移なら `ListRowLink` |
 | グループ見出し | `ListGroupHeader` + `list-group-header`・`list-group-title`・`list-group-summary`。表の行は `receipts-table-group` + `receipts-table-group-label` | 同じトークン(`bg-row-group`・金の左線 `--color-gold`)。表と行で別名を作らない |
-| 帯 | `ui/summary.rs` `SummaryBand`・`SummaryItem`(`SummarySize::Primary`・`Secondary`、`SummaryTone::Neutral`・`Gain`・`Loss`)。枠は `summary-band`・`summary-band-grid`・`summary-band-items`、項目は `summary-item`・`summary-label`・`summary-label-note`・`summary-value`・`summary-value-primary`・`summary-value-secondary`・`summary-note`・`summary-status`、スマホ開閉は `summary-band-main-toggle`・`summary-band-top-row`・`summary-band-hero-row`・`summary-band-chevron-circle`・`summary-band-toggle-chevron`・`summary-band-breakdown`・`summary-band-breakdown-row`・`summary-band-breakdown-value`、PC 残存は `summary-band-pc`・`summary-band-item-tag1` | 主1つ+補助1行。色は `SummaryTone` だけで選び、帯独自の色名は作らない |
+| 帯 | `ui/summary.rs` `SummaryBand`・`SummaryItem`(`SummarySize::Primary`・`Secondary`、`SummaryTone::Neutral`・`Gain`・`Loss`)。枠は `summary-band`・`summary-band-grid`、スマホは `summary-band-rows`、PCは `summary-band-pc`・`summary-band-items`。項目は `summary-item`・`summary-label`・`summary-label-note`・`summary-value`・`summary-value-primary`・`summary-value-secondary`・`summary-note`・`summary-status` | 主1つと従項目。色は `SummaryTone` と `Amount` で選び、帯独自の色名は作らない |
 | ダイアログ枠とタイトル | 枠は `dialog-panel`(角丸・枠・影・`max-height:88vh`)、題は `dialog-title`。中央は `DialogShell` + `search-dialog-root`・`search-dialog-backdrop`・`search-dialog-panel`・`search-dialog-head`・`search-dialog-body`・`search-dialog-footer`、条件は `condition-panel`・`condition-backdrop`・`condition-panel-title`・`condition-panel-actions`、詳細は `ui/detail_dialog.rs` `DetailDialog` + `detail-dialog-*`、削除確認は `ConfirmDeleteModal` | 枠と題は共通。配置・幅・内側スクロールだけ個別に残す |
 | ボタンの種別 | `ui/button.rs` `Button`・`LinkButton`・`TabButton`(`ButtonVariant::PageTab`)・`Switch`。大きさは `ButtonSize::Xs`・`Sm`・`Md`。種別は `Primary`・`Secondary`・`Header`・`DangerSolid`(確認の確定)・`Ghost`(解除など静かな操作)・`Retry`(再読み込み)・`MenuItem`・`MenuItemDanger`(削除)・`CopyName`・`AssetSortColumn`・`ConditionChip`・`AddCondition`・`ConditionOption`・`YearOption`・`SearchClear`・`Segmented`・`PageTab`・`ConditionSegment`・`RowButton` | `features/` で `<button>` を直書きしない。行全体は `RowButton`、種別切替のタブは `PageTab`(`TabButton`) |
 | 切り替え | `ui/segmented.rs` `Segmented` + `segmented`・`segment-option`、条件は `condition-segment`・`condition-option`・`condition-option-list`、年・月は `year-option`、種別タブは `page-tab-list`・`page-tab`・`badge-count`、下線タブの横 swipe は `tab-swipe-area`・`tab-swipe-track`・`tab-swipe-slide`・`tab-swipe-ink` | `Segmented` と条件の切り替えは同じ `segment-option`。`flex-1` は容器側だけに置く |
@@ -102,7 +102,7 @@
 
 - 画面の文言は `ui/labels.rs` から使う。`labels.rs`・テスト・受信CSV値(`csv_input.rs`)の外の日本語の直書きは `labels/tests.rs` の検査で落とす
 - 新しい画面は `PageFrame` を使い、`page-gutter` を本文に自分で書かない(`full_bleed` の画面だけ `content-gutter` を使う)
-- 撮影(`frontend/scripts/ui-shots.sh`)でスマホ390・ダークの上端・下端・帯を開いた後を撮り、基準の資産管理と並べて比べる
+- 撮影(`frontend/scripts/ui-shots.sh`)でスマホ390・ダークの上端・下端・スクロール方向による上バーの表示を撮り、基準の資産管理と並べて比べる
 - 見た目の値を固定するテストは書かない。部品を使っているか(例: 一覧の `li` が `ListRow` を含む)だけを確かめる
 
 根拠:
@@ -111,7 +111,7 @@
 - [`frontend/src/app.rs`](../../frontend/src/app.rs): 現在パスと表示判定。下部ナビ・フッター・本文スクロールの持ち主。
 - [`frontend/src/ui/site.rs`](../../frontend/src/ui/site.rs): 共通ナビ・下部ナビ・アカウントメニュー・フッター。
 - [`frontend/src/ui/page_skeleton.rs`](../../frontend/src/ui/page_skeleton.rs): タブ行・帯・注記行・検索行の順序と余白。
-- [`frontend/src/ui/summary.rs`](../../frontend/src/ui/summary.rs): 集計の帯。開閉で内訳を出す。
+- [`frontend/src/ui/summary.rs`](../../frontend/src/ui/summary.rs): 集計の帯。スマホは全項目を行で表示し、PCは縦線区切りの横並び。
 - [`frontend/src/features/asset_balance/view.rs`](../../frontend/src/features/asset_balance/view.rs): 基準画面の組み立て(上バー・タブ・帯・注記・検索入口・一覧)。
 - [`frontend/src/features/receipts/view.rs`](../../frontend/src/features/receipts/view.rs): 同じ骨組みで組み立てる取引明細側。
 

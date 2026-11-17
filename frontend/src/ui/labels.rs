@@ -1092,10 +1092,5 @@ pub fn user_menu_button_label(initials: &str, aria_name: &str) -> String {
     format!("{initials} {ACCOUNT_BUTTON} {aria_name}のアカウントメニュー")
 }
 
-/// 集計帯の内訳を開く操作
-pub const SUMMARY_OPEN: &str = "内訳を開く";
-/// 集計帯の内訳を閉じる操作
-pub const SUMMARY_CLOSE: &str = "内訳を閉じる";
-
 #[cfg(test)]
 mod tests;

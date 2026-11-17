@@ -217,7 +217,6 @@ fn BandTiles(
                     rate: String::new(),
                 },
             ]
-            testid_toggle="summary-details-toggle"
         />
     }
 }

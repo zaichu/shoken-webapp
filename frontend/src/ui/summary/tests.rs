@@ -1,29 +1,29 @@
-use super::{SummaryBreakdownEntry, SummaryTone, daily_rate, delta_or_plain, tone_amount};
+use super::{SummaryBreakdownEntry, SummaryTone};
 use crate::ui::amount::AmountKind;
 
 #[test]
 fn daily_rate_uses_previous_market_as_denominator() {
-    let rate = daily_rate(Some(110.0), Some(10.0)).expect("率が出る");
+    let rate = super::daily_rate(Some(110.0), Some(10.0)).expect("率が出る");
     assert!((rate - 10.0).abs() < 1e-9);
 }
 
 #[test]
 fn daily_rate_returns_none_without_base() {
-    assert_eq!(daily_rate(None, Some(10.0)), None);
-    assert_eq!(daily_rate(Some(100.0), None), None);
-    assert_eq!(daily_rate(Some(100.0), Some(100.0)), None);
-    assert_eq!(daily_rate(Some(90.0), Some(100.0)), None);
+    assert_eq!(super::daily_rate(None, Some(10.0)), None);
+    assert_eq!(super::daily_rate(Some(100.0), None), None);
+    assert_eq!(super::daily_rate(Some(100.0), Some(100.0)), None);
+    assert_eq!(super::daily_rate(Some(90.0), Some(100.0)), None);
 }
 
 #[test]
 fn daily_rate_keeps_sign_of_daily_change() {
-    let rate = daily_rate(Some(90.0), Some(-10.0)).expect("率が出る");
+    let rate = super::daily_rate(Some(90.0), Some(-10.0)).expect("率が出る");
     assert!(rate < 0.0);
 }
 
 #[test]
 fn gain_maps_to_delta_positive() {
-    let (kind, negative, positive) = tone_amount(SummaryTone::Gain);
+    let (kind, negative, positive) = super::tone_amount(SummaryTone::Gain);
     assert_eq!(kind, AmountKind::Delta);
     assert!(!negative);
     assert!(positive);
@@ -31,7 +31,7 @@ fn gain_maps_to_delta_positive() {
 
 #[test]
 fn loss_maps_to_delta_negative() {
-    let (kind, negative, positive) = tone_amount(SummaryTone::Loss);
+    let (kind, negative, positive) = super::tone_amount(SummaryTone::Loss);
     assert_eq!(kind, AmountKind::Delta);
     assert!(negative);
     assert!(!positive);
@@ -39,17 +39,17 @@ fn loss_maps_to_delta_negative() {
 
 #[test]
 fn neutral_maps_to_plain_without_sign() {
-    let (kind, negative, positive) = tone_amount(SummaryTone::Neutral);
+    let (kind, negative, positive) = super::tone_amount(SummaryTone::Neutral);
     assert_eq!(kind, AmountKind::Plain);
     assert!(!negative);
     assert!(!positive);
 }
 
 #[test]
-fn delta_or_plain_needs_sign_for_delta() {
-    assert_eq!(delta_or_plain(true, false), AmountKind::Delta);
-    assert_eq!(delta_or_plain(false, true), AmountKind::Delta);
-    assert_eq!(delta_or_plain(false, false), AmountKind::Plain);
+fn tone_of_maps_sign_and_zero() {
+    assert_eq!(super::tone_of(true, false), SummaryTone::Loss);
+    assert_eq!(super::tone_of(false, true), SummaryTone::Gain);
+    assert_eq!(super::tone_of(false, false), SummaryTone::Neutral);
 }
 
 #[test]

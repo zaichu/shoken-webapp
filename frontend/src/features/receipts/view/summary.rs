@@ -23,13 +23,13 @@ pub(crate) fn band_value(label: &'static str, value: Decimal) -> (String, bool, 
     let text = settings::format_amount(value);
     if is_band_tax(label) {
         if value > Decimal::ZERO {
-            (format!("-{text}"), false, false, SummaryTone::Neutral)
+            (format!("-{text}"), true, false, SummaryTone::Loss)
         } else if value < Decimal::ZERO {
             (
                 format!("+{}", settings::format_amount(-value)),
                 false,
-                false,
-                SummaryTone::Neutral,
+                true,
+                SummaryTone::Gain,
             )
         } else {
             (text, false, false, SummaryTone::Neutral)
@@ -45,6 +45,10 @@ pub(crate) fn band_value(label: &'static str, value: Decimal) -> (String, bool, 
     } else {
         (text, false, false, SummaryTone::Neutral)
     }
+}
+
+pub(crate) fn value_signs(value: Decimal) -> (bool, bool) {
+    (value < Decimal::ZERO, value > Decimal::ZERO)
 }
 
 pub fn profit_tone(value: Decimal) -> StatTone {
@@ -152,17 +156,18 @@ pub fn SummaryStrip(
     let pc_items: Vec<SummarySubItem> = secondary.clone().into_iter().map(to_sub).collect();
     let breakdown: Vec<SummaryBreakdownEntry> = secondary.into_iter().map(to_breakdown).collect();
     let (primary_label, primary_value, primary_negative, primary_positive) = primary
-        .map_or_default(|(label, value, tone)| {
+        .map_or_default(|(label, value, _)| {
             let display = match tab {
                 ReceiptsTab::Dividend => labels::RECEIVED_DIVIDEND_AFTER_TAX,
                 _ => labels::REALIZED_AFTER_TAX,
             };
             let _ = label;
+            let (negative, positive) = value_signs(value);
             (
                 display.to_string(),
                 format_signed(value, primary_mark),
-                tone == StatTone::Loss,
-                primary_mark && value > Decimal::ZERO,
+                negative,
+                positive,
             )
         });
     view! {
@@ -181,7 +186,6 @@ pub fn SummaryStrip(
                 pc_items=pc_items
                 breakdown=breakdown
                 testid_band="kpi-grid"
-                testid_toggle="receipt-summary-details-toggle"
             />
         </section>
     }

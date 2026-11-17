@@ -1326,6 +1326,13 @@ fn summary_band_pc_and_mobile_share_tax_basis_labels() {
 }
 
 #[test]
+fn primary_value_signs_follow_value_for_dividend_too() {
+    assert_eq!(super::summary::value_signs(dec!(-1200)), (true, false));
+    assert_eq!(super::summary::value_signs(dec!(1200)), (false, true));
+    assert_eq!(super::summary::value_signs(Decimal::ZERO), (false, false));
+}
+
+#[test]
 fn band_breakdown_signs_match_detail_dialog() {
     use crate::ui::summary::SummaryTone;
     let (text, negative, positive, tone) = band_value(labels::DIVIDEND_AMOUNT, dec!(2000));
@@ -1340,14 +1347,14 @@ fn band_breakdown_signs_match_detail_dialog() {
     assert_eq!(tone, SummaryTone::Loss);
     let (text, negative, positive, tone) = band_value(labels::TAX, dec!(406));
     assert_eq!(text, "-¥406");
-    assert!(!negative);
+    assert!(negative);
     assert!(!positive);
-    assert_eq!(tone, SummaryTone::Neutral);
+    assert_eq!(tone, SummaryTone::Loss);
     let (text, negative, positive, tone) = band_value(labels::TAX, dec!(-100));
     assert_eq!(text, "+¥100");
     assert!(!negative);
-    assert!(!positive);
-    assert_eq!(tone, SummaryTone::Neutral);
+    assert!(positive);
+    assert_eq!(tone, SummaryTone::Gain);
     let (text, negative, positive, tone) = band_value(labels::TAX, Decimal::ZERO);
     assert_eq!(text, "¥0");
     assert!(!negative);

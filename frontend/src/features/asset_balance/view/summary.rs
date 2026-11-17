@@ -237,7 +237,6 @@ pub(crate) fn AssetSummaryBand(
                     },
                 ]
                 testid_band="portfolio-kpi-grid"
-                testid_toggle="asset-summary-details-toggle"
             />
         </section>
     }
