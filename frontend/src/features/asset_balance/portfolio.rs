@@ -377,6 +377,9 @@ pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>
 pub const COMPOSITION_LEGEND_MAX: usize = 5;
 
 /// 区分色は商品・口座名、または保有商品の識別子に固定する
+/// 表外はホーム内訳帯のフォールバックとそろえ、同じキーなら同じ色にする
+const FALLBACK_CHART_COLORS: [usize; 5] = [0, 1, 2, 4, 5];
+
 pub fn composition_color(key: &str) -> usize {
     match key {
         DOMESTIC_STOCK | ACCOUNT_SPECIFIC => 0,
@@ -386,10 +389,11 @@ pub fn composition_color(key: &str) -> usize {
         ACCOUNT_NISA_TSUMITATE => 4,
         ACCOUNT_GENERAL => 5,
         _ => {
-            key.bytes().fold(2_166_136_261_u32, |hash, byte| {
+            let index = key.bytes().fold(2_166_136_261_u32, |hash, byte| {
                 (hash ^ u32::from(byte)).wrapping_mul(16_777_619)
             }) as usize
-                % 6
+                % FALLBACK_CHART_COLORS.len();
+            FALLBACK_CHART_COLORS[index]
         }
     }
 }

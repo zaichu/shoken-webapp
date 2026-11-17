@@ -565,6 +565,15 @@ fn composition_color_stays_with_item_key() {
 }
 
 #[test]
+fn composition_color_fallback_matches_home_for_unknown_account() {
+    // ホーム内訳帯の chart_color と同じハッシュ・同じ除外色で、同じキーは同じ色になる
+    assert_eq!(composition_color("NISA"), 2);
+    for key in ["NISA", "外国株式", "9920", "テスト口座"] {
+        assert_ne!(composition_color(key), 3, "{key}");
+    }
+}
+
+#[test]
 fn sort_holdings_allows_other_keys_while_dividend_pending() {
     let mut pending = sort_input("0001", 100.0, 80.0, None);
     let pending_dividend = Box::leak(Box::new(HoldingDividend {
