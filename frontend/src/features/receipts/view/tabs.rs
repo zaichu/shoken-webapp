@@ -7,7 +7,7 @@ use crate::ui::button::TabButton;
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{
     SwipeMotion, focus_tab_by_id, next_tab_index as shared_next_tab_index, prefers_reduced_motion,
-    swipe_should_ignore_input,
+    swipe_should_ignore_input, tab_ink_offset,
 };
 use leptos::prelude::*;
 
@@ -75,6 +75,38 @@ pub fn ReceiptsTabButton(
 }
 
 #[component]
+pub fn ReceiptsTabNav(store: ReceiptsStore, motion: SwipeMotion) -> impl IntoView {
+    let active_tab = store.active_tab;
+    view! {
+        <nav aria-label=crate::ui::labels::KIND>
+            <div
+                class="page-tab-list relative"
+                role="tablist"
+                data-swiping=move || motion.dragging.get().to_string()
+            >
+                {ReceiptsTab::ALL
+                    .iter()
+                    .copied()
+            .map(|tab| view! { <ReceiptsTabButton store=store tab=tab motion=motion /> })
+                    .collect_view()}
+                <span
+                    class="tab-swipe-ink"
+                    data-on=move || motion.dragging.get().to_string()
+                    style:width=format!("calc(100% / {})", ReceiptsTab::ALL.len())
+                    style:transform=move || {
+                        let position = ReceiptsTab::ALL
+                            .iter()
+                            .position(|tab| *tab == active_tab.get())
+                            .unwrap_or(0);
+                        format!("translateX({}%)", tab_ink_offset(position, motion.progress.get()) * 100.0)
+                    }
+                ></span>
+            </div>
+        </nav>
+    }
+}
+
+#[component]
 pub fn TabPanel(
     store: ReceiptsStore,
     tab: ReceiptsTab,
@@ -115,7 +147,7 @@ pub fn TabPanel(
                 if !store.is_authenticated() {
                     return view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any();
                 }
-                view! { <ReceiptsMainContent store=store tab=tab /> }.into_any()
+                view! { <ReceiptsMainContent store=store tab=tab motion=motion /> }.into_any()
             }}
         </div>
     }

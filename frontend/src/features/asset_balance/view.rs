@@ -57,6 +57,7 @@ struct KindContent {
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     data_ops: RwSignal<DataOps>,
+    motion: SwipeMotion,
 }
 
 impl KindContent {
@@ -122,6 +123,9 @@ impl KindContent {
                     dividends=self.dividends
                     lookup=self.lookup
                     generation=generation
+                    motion=self.motion
+                    stock_count=Signal::derive(move || self.counts[1].get().1)
+                    fund_count=Signal::derive(move || self.counts[2].get().1)
                 />
             }
             .into_any(),
@@ -285,6 +289,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         dividends,
         lookup,
         data_ops,
+        motion,
     };
     // 口座・コースの選択肢はタブごとに語彙が違うため、切替時は選択条件だけ消す
     // (テキストは全タブ共通で引き継ぐ)
@@ -337,9 +342,13 @@ pub fn AssetBalancePage() -> impl IntoView {
     });
     let csv_link: Children = Box::new(move || {
         view! {
-            <span class="flex items-center gap-2">
+            <span class="hidden items-center gap-2 lg:flex">
                 <a class="page-secondary-link-sm max-lg:hidden" href="/assetbalance/composition">{labels::COMPOSITION_VIEW_LINK}</a>
                 <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
+            </span>
+            <span class="flex items-center gap-2 lg:hidden">
+                <a class="page-secondary-link-sm" href="/assetbalance/composition">{labels::COMPOSITION_VIEW_LINK}</a>
+                <a class="page-secondary-link-sm" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
             </span>
         }
         .into_any()
@@ -362,8 +371,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 }
             }
         >
-            {/* タブ行: 固定上部 */}
-            <div class="content-gutter no-print">
+            <div class="content-gutter no-print max-lg:hidden">
                 <SkeletonTabs>
                     <AssetKindTabs
                         kind=state.kind
@@ -436,9 +444,12 @@ pub fn AssetBalancePage() -> impl IntoView {
                     .enumerate()
                     .map(|(index, kind)| {
                         let kind = *kind;
+                        let first = index == 0;
                         view! {
                             <SwipeSlide index=index current=current_tab motion=motion>
-                                {move || content.render(kind)}
+                                <div class:asset-mobile-summary-order=first>
+                                    {move || content.render(kind)}
+                                </div>
                             </SwipeSlide>
                         }
                     })

@@ -5,6 +5,7 @@ use super::all_list::{
 use super::asset_table::AssetHoldingsTable;
 use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
+use super::kind_tabs::AssetKindTabs;
 use super::search_bar::{AssetMobileSearchEntry, AssetSearchBar, ConditionKind};
 use super::summary::{
     AssetSummaryBand, fund_has_pending, oldest_combined_as_of, oldest_fund_as_of,
@@ -33,7 +34,10 @@ use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels;
-use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
+use crate::ui::page_skeleton::{
+    FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary, SkeletonTabs,
+};
+use crate::ui::underline_tabs::SwipeMotion;
 use leptos::prelude::*;
 
 /// 絞り込みの件数。検索条件が無いときは注記に出さない
@@ -49,6 +53,25 @@ fn filtered_count(
             filtering: !search.with(super::super::fund::AssetSearch::is_empty),
         }
     })
+}
+
+fn asset_tabs(
+    kind: RwSignal<AssetKind>,
+    motion: SwipeMotion,
+    stock_count: Signal<usize>,
+    fund_count: Signal<usize>,
+) -> impl IntoView {
+    view! {
+        <SkeletonTabs>
+            <AssetKindTabs
+                kind=kind
+                all_count=Signal::derive(move || stock_count.get() + fund_count.get())
+                stock_count=stock_count
+                fund_count=fund_count
+                motion=motion
+            />
+        </SkeletonTabs>
+    }
 }
 
 fn sorted_views(
@@ -201,9 +224,13 @@ fn StockContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
+    kind: RwSignal<AssetKind>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
+    motion: SwipeMotion,
+    stock_count: Signal<usize>,
+    fund_count: Signal<usize>,
 ) -> impl IntoView {
     let total_count = rows.len();
     let empty = rows.is_empty();
@@ -269,6 +296,9 @@ fn StockContent(
                                 show_pending=pending
                             />
                         </SkeletonSummary>
+                        <div class="asset-mobile-tabs-links lg:hidden">
+                            {asset_tabs(kind, motion, stock_count, fund_count)}
+                        </div>
                         <SkeletonNote filtered=filtered_count />
                     }
                 })
@@ -295,7 +325,6 @@ fn StockContent(
                     key_from_value=|value: &str| SortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
-                    composition=true
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">
@@ -349,6 +378,10 @@ fn FundContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
+    kind: RwSignal<AssetKind>,
+    motion: SwipeMotion,
+    stock_count: Signal<usize>,
+    fund_count: Signal<usize>,
 ) -> impl IntoView {
     let total_count = resolved.rows.len();
     let account_rows = resolved.rows.clone();
@@ -389,6 +422,7 @@ fn FundContent(
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />
+            <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(kind, motion, stock_count, fund_count)}</div>
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -411,7 +445,6 @@ fn FundContent(
                     key_from_value=|value: &str| FundSortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
-                    composition=true
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">
@@ -462,9 +495,13 @@ fn AllContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
+    kind: RwSignal<AssetKind>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
+    motion: SwipeMotion,
+    stock_count: Signal<usize>,
+    fund_count: Signal<usize>,
 ) -> impl IntoView {
     let stock_total = stock_rows.len();
     let fund_total = fund_resolved.rows.len();
@@ -562,6 +599,7 @@ fn AllContent(
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />
+            <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(kind, motion, stock_count, fund_count)}</div>
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -584,7 +622,6 @@ fn AllContent(
                     key_from_value=|value: &str| FundSortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
-                    composition=true
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">
@@ -634,6 +671,9 @@ pub(crate) fn AssetBalanceMainContent(
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
+    motion: SwipeMotion,
+    stock_count: Signal<usize>,
+    fund_count: Signal<usize>,
 ) -> impl IntoView {
     view! {
         {move || match kind.get() {
@@ -646,9 +686,13 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=sort_key
                         sort_order=sort_order
+                        kind=kind
                         dividends=dividends
                         lookup=lookup
                         generation=generation
+                        motion=motion
+                        stock_count=stock_count
+                        fund_count=fund_count
                     />
                 }
                     .into_any()
@@ -661,6 +705,10 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=fund_sort_key
                         sort_order=fund_sort_order
+                        kind=kind
+                        motion=motion
+                        stock_count=stock_count
+                        fund_count=fund_count
                     />
                 }
                     .into_any()
@@ -675,9 +723,13 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=fund_sort_key
                         sort_order=fund_sort_order
+                        kind=kind
                         dividends=dividends
                         lookup=lookup
                         generation=generation
+                        motion=motion
+                        stock_count=stock_count
+                        fund_count=fund_count
                     />
                 }
                     .into_any()

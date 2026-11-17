@@ -7,7 +7,6 @@ use crate::support::list_search::SearchOption;
 use crate::ui::badge::account_display_name;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels;
-use crate::ui::more_link::MoreLink;
 use crate::ui::search_controls::{
     AddConditionButton, AddConditionRow, ConditionOptionList, ConditionPanel, SearchBox,
     SearchCount, SearchTag, SearchTextInput,
@@ -268,8 +267,7 @@ pub(crate) fn clear_asset_dialog_draft(draft: RwSignal<AssetSearch>) {
     });
 }
 
-/// スマホの検索・並べ替えの入口とダイアログ。PC の検索欄・条件の行は変えず、
-/// スマホ幅ではこの1行と条件タグだけを出し、中身は中央のダイアログで編集する
+/// スマホの検索欄と並べ替えのダイアログ。PC の検索欄・条件の行は変えない
 #[component]
 pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static>(
     search: RwSignal<AssetSearch>,
@@ -284,9 +282,6 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
     key_from_value: fn(&str) -> Option<K>,
     sort_key: RwSignal<K>,
     sort_order: RwSignal<SortOrder>,
-    /// true のとき件数の行の右端に構成比への入口を出す
-    #[prop(optional)]
-    composition: bool,
 ) -> impl IntoView {
     let open = RwSignal::new(false);
     let accounts_tag = Memo::new(move |_| {
@@ -312,6 +307,10 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
         <MobileSearchEntryShell
             entry_testid="asset-search-sheet-entry"
             search_label=labels::ASSET_SEARCH_REGION.to_string()
+            placeholder=sheet_placeholder.clone()
+            value=Signal::derive(move || search.with(|s| s.text.clone()))
+            on_input=Callback::new(move |value| search.update(|s| s.text = value))
+            search_input_testid="asset-search-input"
             sort_summary=sort_summary
             open=open
         >
@@ -325,29 +324,11 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                 value=courses_tag
                 on_clear=move || search.update(|s| s.courses.clear())
             />
-            <div class="flex w-full items-center justify-between gap-2">
-                <SearchCount
-                    filtered=move || search_count.get().0
-                    total=move || search_count.get().1
-                    testid="asset-search-count-mobile"
-                />
-                <span class="flex items-center gap-4">
-                    {composition.then(|| {
-                        view! {
-                            <MoreLink
-                                href="/assetbalance/composition".to_string()
-                                label=labels::COMPOSITION_VIEW_LINK.to_string()
-                                testid="asset-composition-link".to_string()
-                            />
-                        }
-                    })}
-                    <MoreLink
-                        href="/csv".to_string()
-                        label=labels::CSV_MANAGE_TITLE.to_string()
-                        testid="asset-csv-link".to_string()
-                    />
-                </span>
-            </div>
+            <SearchCount
+                filtered=move || search_count.get().0
+                total=move || search_count.get().1
+                testid="asset-search-count-mobile"
+            />
         </MobileSearchEntryShell>
         {move || {
             let sheet_text = sheet_placeholder.clone();

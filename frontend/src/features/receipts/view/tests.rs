@@ -751,6 +751,34 @@ fn tax_signed_text_inverts_outflow() {
 }
 
 #[test]
+fn after_tax_row_subtitle_is_limited_to_stock_and_fund() {
+    for tab in [ReceiptsTab::DomesticStock, ReceiptsTab::MutualFund] {
+        let card = card_for(
+            tab,
+            if tab == ReceiptsTab::DomesticStock {
+                domestic().remove(0)
+            } else {
+                funds().remove(0)
+            },
+        );
+        let expected = if tab == ReceiptsTab::DomesticStock {
+            "税引後 +¥112"
+        } else {
+            "税引後 +¥900"
+        };
+        assert_eq!(
+            after_tax_subtext(tab, &card.details).as_deref(),
+            Some(expected)
+        );
+    }
+    let dividend = card_for(ReceiptsTab::Dividend, dividends().remove(0));
+    assert_eq!(
+        after_tax_subtext(ReceiptsTab::Dividend, &dividend.details),
+        None
+    );
+}
+
+#[test]
 fn card_header_carries_code_badge_value_and_copy_name() {
     let rows = dividends();
     let cells = rows[0].cells();

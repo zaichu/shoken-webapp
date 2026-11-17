@@ -313,20 +313,25 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
     let products = categories.products;
     let accounts = categories.accounts;
     let has_years = move || categories.has_years();
-    let sort_summary = move || {
-        let order = match sort_order.get() {
-            ReceiptSortOrder::Newest => SORT_NEWEST_FIRST,
-            ReceiptSortOrder::Oldest => SORT_OLDEST_FIRST,
-        };
-        format!("{} {order}", receipt_date_label(tab.get()))
+    let sort_summary = move || match sort_order.get() {
+        ReceiptSortOrder::Newest => labels::RECEIPT_SORT_NEWEST.to_string(),
+        ReceiptSortOrder::Oldest => {
+            format!("{} {SORT_OLDEST_FIRST}", receipt_date_label(tab.get()))
+        }
     };
 
     let sort_summary = Signal::derive(sort_summary);
+    let placeholder = labels::search_placeholder(RECEIPT_SEARCH_TARGET);
     let close = move || open.set(false);
+    let sheet_placeholder = placeholder.clone();
     view! {
         <MobileSearchEntryShell
             entry_testid="receipts-search-sheet-entry"
             search_label=SEARCH.to_string()
+            placeholder=sheet_placeholder.clone()
+            value=Signal::derive(move || search.with(|s| s.selected_queries.securities.clone()))
+            on_input=Callback::new(move |value| search.update(|s| s.set_securities_query(value)))
+            search_input_testid="receipts-search-input"
             sort_summary=sort_summary
             open=open
         >

@@ -3,9 +3,9 @@ use crate::features::receipts::dividend_info::{
 };
 use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::kind::dividend_totals;
-use crate::features::receipts::view::ReceiptsMobileSearchEntry;
 use crate::features::receipts::view::ReceiptsSearchBar;
 use crate::features::receipts::view::{ReceiptTable, SummaryStrip};
+use crate::features::receipts::view::{ReceiptsMobileSearchEntry, ReceiptsTabNav};
 use crate::features::receipts::{
     ReceiptRow, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState, truncated_list_warning,
 };
@@ -13,8 +13,11 @@ use crate::session::use_session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use crate::ui::labels::{CSV_IMPORT, ERROR_PREFIX, NO_DATA, RECEIPT_SEARCH_REGION};
-use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
+use crate::ui::page_skeleton::{
+    FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary, SkeletonTabs,
+};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::underline_tabs::SwipeMotion;
 use leptos::ev;
 use leptos::prelude::*;
 
@@ -41,7 +44,11 @@ pub(crate) fn derive_filtered_count(
 }
 
 #[component]
-pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
+pub fn ReceiptsMainContent(
+    store: ReceiptsStore,
+    tab: ReceiptsTab,
+    motion: SwipeMotion,
+) -> impl IntoView {
     let search = store.search;
     let summary_expanded = RwSignal::new(true);
 
@@ -191,6 +198,7 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                 return ().into_any();
             }
             view! {
+                <div class="receipts-mobile-summary-order">
                 <SkeletonSummary>
                     <section id="receipts-summary">
                             {move || {
@@ -230,16 +238,27 @@ pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoV
                             }}
                         </section>
                     </SkeletonSummary>
-                <SkeletonNote filtered=filtered_count.into() />
+                </div>
             }
                 .into_any()
+        }}
+        {move || (store.active_tab.get() == tab).then(|| view! {
+            <SkeletonTabs><div class="lg:hidden">
+                <ReceiptsTabNav store=store motion=motion />
+            </div></SkeletonTabs>
+        })}
+        {move || {
+            let ready = tab_state.with(|state| matches!(state, TabState::Ready(_))) && !is_empty.get();
+            ready.then(|| view! { <SkeletonNote filtered=filtered_count.into() /> })
         }}
         // 検索欄は帯と表の間に固定で置く(読み込み中や空でも操作できるようにする)
         <SkeletonSearch>
             <div class="hidden lg:block" role="search" aria-label=RECEIPT_SEARCH_REGION>
                 <ReceiptsSearchBar store=store tab=Signal::stored(tab) />
             </div>
-            <ReceiptsMobileSearchEntry store=store />
+            <div class="receipts-mobile-search">
+                <ReceiptsMobileSearchEntry store=store />
+            </div>
         </SkeletonSearch>
         {move || {
             tab_state.with(|state| match state {

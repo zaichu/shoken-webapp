@@ -503,6 +503,8 @@ pub const PERIOD_RANGE: &str = "範囲";
 pub const PERIOD_KIND_LABEL: &str = "期間の種類";
 /// 取引明細の検索領域名
 pub const RECEIPT_SEARCH_REGION: &str = "取引明細の検索";
+/// 取引明細の並べ替え初期値
+pub const RECEIPT_SORT_NEWEST: &str = "約定日の新しい順";
 /// 期間の絞り込みを確定するボタン
 pub const RECEIPT_APPLY_PERIOD: &str = "この期間で絞る";
 /// 年の選択肢が無いときの表示
