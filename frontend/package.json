@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "check:css": "stylelint \"style/**/*.css\" && node --test scripts/check-css.test.mjs && bash scripts/check-css-tokens.sh",
+    "check:css": "stylelint \"style/**/*.css\" && node --test scripts/check-css.test.mjs && bash scripts/check-css-tokens.sh && bash scripts/check-css-unused.sh",
     "test:css": "node --test scripts/check-css.test.mjs",
     "check:test-layout": "node scripts/check-test-layout.mjs",
     "test:test-layout": "node --test scripts/check-test-layout.test.mjs",

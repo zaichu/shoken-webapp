@@ -465,7 +465,7 @@ fn LoginEntries(
 ) -> impl IntoView {
     let mobile = entries.clone();
     view! {
-        <div class="table-frame hidden lg:block">
+        <div class="table-card hidden lg:block">
             <table class="asset-table login-history-table table-fixed" data-testid="admin-login-table">
                 <thead><tr>
                     {SORT_COLUMNS.map(|(column, label)| view! {

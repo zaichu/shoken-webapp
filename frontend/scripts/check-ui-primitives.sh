@@ -29,6 +29,8 @@ STYLE_ATTR='(^|[^[:alnum:]_:.-])style[[:space:]]*=|(^|[^[:alnum:]_])attr:style[[
 ALLOWED=(
   "src/features/receipts/view/action_bar/period.rs"  # 新規: 受信明細PC検索バーの select 部品化は別PRで対応(ボタンは Button 化済み)
   "src/features/receipts/view/table.rs"        # 新規: テーブルカードの部品化は別PRで対応
+  "src/features/admin_logins.rs"               # 案C: 表の面を table-card に一本化(部品化は案Aで対応)
+  "src/features/settings/login_history.rs"     # 案C: 表の面を table-card に一本化(部品化は案Aで対応)
   "src/features/csv_page.rs"                     # 新規: role="tab"+aria-selected のタブ部品化は別PRで対応
 )
 

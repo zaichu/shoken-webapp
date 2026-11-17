@@ -180,6 +180,7 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
                     <MoreLink
                         href="/csv".to_string()
                         label=labels::HOME_CSV_IMPORT_LINK.to_string()
+                        extra_class="more-link-centered"
                     />
                 </div>
             </div>

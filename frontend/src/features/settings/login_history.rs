@@ -189,7 +189,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
                             let desktop_rows = entries.with(std::clone::Clone::clone);
                             let mobile_rows = entries.with(std::clone::Clone::clone);
                             view! {
-                                <div class="table-frame overflow-clip max-sm:hidden">
+                                <div class="table-card max-sm:hidden">
                                     <table class="asset-table login-history-table">
                                         <thead>
                                             <tr>
