@@ -307,7 +307,7 @@ pub(crate) fn before_tax_subtext(tab: ReceiptsTab, details: &[CardDetail]) -> Op
         return None;
     }
     let (value, _, _) = compact_value(details, REALIZED_PROFIT_LOSS);
-    (!value.is_empty()).then(|| format!("{BEFORE_TAX} {value}"))
+    (!value.is_empty()).then_some(value)
 }
 
 fn detail_text(details: &[CardDetail], label: &str) -> (String, bool, bool, bool) {
@@ -501,7 +501,10 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                             positive=hero_positive
                         />
                         {before_tax_sub.clone().map(|text| view! {
-                            <span class="receipt-before-tax-sub">{text}</span>
+                            <span class="receipt-before-tax-sub">
+                                {BEFORE_TAX}" "
+                                <Amount text=text />
+                            </span>
                         })}
                     </span>
                 }

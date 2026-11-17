@@ -764,9 +764,9 @@ fn before_tax_row_subtitle_is_limited_to_stock_and_fund() {
             },
         );
         let expected = if tab == ReceiptsTab::DomesticStock {
-            "税引前 +¥1,000"
+            "+¥1,000"
         } else {
-            "税引前 +¥900"
+            "+¥900"
         };
         assert_eq!(
             before_tax_subtext(tab, &card.details).as_deref(),

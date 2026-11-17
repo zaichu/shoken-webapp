@@ -24,11 +24,6 @@ pub(crate) fn holding_detail_cells(
     let market_text = format_row_valuation_amount(valuation.market_value);
     let pnl_text = format_signed_row_valuation_amount(valuation.profit_loss.amount);
     let pnl_rate = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
-    let pnl_sub = valuation
-        .profit_loss
-        .rate
-        .map(|_| format!("{pnl_text} {pnl_rate}"))
-        .or_else(|| valuation.profit_loss.amount.map(|_| pnl_text.clone()));
     let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
     let pnl_positive = is_positive_valuation(valuation.profit_loss.amount);
     let (day_text, day_negative, day_positive) = (
@@ -82,16 +77,19 @@ pub(crate) fn holding_detail_cells(
             kind: AmountKind::Delta,
         },
     ];
-    let market_cell = match pnl_sub {
-        Some(sub) => DetailCell::strong_sub(
+    let mut market_cell = match valuation.profit_loss.amount {
+        Some(_) => DetailCell::strong_sub(
             labels::MARKET_VALUE.to_string(),
             market_text,
-            sub,
+            pnl_text,
             pnl_negative,
             pnl_positive,
         ),
         None => DetailCell::plain(labels::MARKET_VALUE.to_string(), market_text),
     };
+    market_cell.sub_rate = valuation.profit_loss.rate.map(|_| pnl_rate);
+    market_cell.sub_rate_negative = is_negative_rate(valuation.profit_loss.rate);
+    market_cell.sub_rate_positive = is_positive_rate(valuation.profit_loss.rate);
     let right = vec![
         DetailCell::plain(labels::QUANTITY.to_string(), shares_text),
         DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),

@@ -161,7 +161,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                         <div class="p-4">
                                             <HoldingTiles>
                                                 <HoldingTile label=labels::MARKET_VALUE.to_string() wide=true>
-                                                    <span class="tabular-nums">{market_text}</span>
+                                                    <Amount text=market_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::VALUATION_PROFIT_LOSS.to_string() wide=true>
                                                     <Amount
@@ -180,7 +180,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                     />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::BASE_PRICE.to_string()>
-                                                    <span class="tabular-nums">{base_price_text}</span>
+                                                    <Amount text=base_price_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::BASE_PRICE_DAY_CHANGE.to_string()>
                                                     <Amount
@@ -205,10 +205,10 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                     <span class="tabular-nums">{shares_text}</span>
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::AVERAGE_ACQUISITION_PRICE.to_string()>
-                                                    <span class="tabular-nums">{average_price_text}</span>
+                                                    <Amount text=average_price_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>
-                                                    <span class="tabular-nums">{purchase_text}</span>
+                                                    <Amount text=purchase_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::TOTAL_RETURN.to_string()>
                                                     <Amount

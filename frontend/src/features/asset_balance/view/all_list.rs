@@ -224,14 +224,14 @@ pub fn AssetMergedTable(
                                             {row.course.clone().unwrap_or_else(|| "—".to_string())}
                                         </td>
                                         <td class="col-num">
-                                            {row
+                                            <Amount text=row
                                                 .dividend
                                                 .as_ref().map_or_else(|| "—".to_string(), |dividend| {
                                                     format_dividend_per_share(
                                                         dividend,
                                                         dividend_decimals,
                                                     )
-                                                })}
+                                                }) />
                                         </td>
                                         <td
                                             class="col-num"
@@ -314,10 +314,6 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     let market_text = format_row_valuation_amount(row.market);
     let pnl_text = format_signed_row_valuation_amount(row.profit);
     let pnl_rate = format_signed_valuation_rate(row.rate, 1);
-    let pnl_sub = row
-        .rate
-        .map(|_| format!("{pnl_text} {pnl_rate}"))
-        .or_else(|| row.profit.map(|_| pnl_text.clone()));
     let pnl_negative = is_negative_valuation(row.profit);
     let pnl_positive = is_positive_valuation(row.profit);
     let as_of = row
@@ -383,16 +379,19 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             kind: AmountKind::Delta,
         });
     }
-    let market_cell = match pnl_sub {
-        Some(sub) => DetailCell::strong_sub(
+    let mut market_cell = match row.profit {
+        Some(_) => DetailCell::strong_sub(
             labels::MARKET_VALUE.to_string(),
             market_text,
-            sub,
+            pnl_text,
             pnl_negative,
             pnl_positive,
         ),
         None => DetailCell::plain(labels::MARKET_VALUE.to_string(), market_text),
     };
+    market_cell.sub_rate = row.rate.map(|_| pnl_rate);
+    market_cell.sub_rate_negative = is_negative_rate(row.rate);
+    market_cell.sub_rate_positive = is_positive_rate(row.rate);
     let mut right = vec![
         DetailCell::plain(
             if is_fund {

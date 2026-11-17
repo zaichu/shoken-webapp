@@ -11,9 +11,7 @@ use crate::features::asset_balance::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::badge::account_display_name;
 use crate::ui::format::date_parts;
-use crate::ui::labels::{
-    self, DOMESTIC_STOCK, HOME_REMAINING_EMPTY, MUTUAL_FUND, home_remaining, home_remaining_over,
-};
+use crate::ui::labels::{self, DOMESTIC_STOCK, MUTUAL_FUND};
 use crate::urls::fund_holding_href;
 use rust_decimal::Decimal;
 use shared::tax::TAX_RATE;
@@ -259,11 +257,23 @@ pub(crate) fn build_dividend_card(
 
 /// 「残り」欄の表示文。受取が予想を超えたとき負の残りではなく
 /// 「予想を N 上回り」に書き分ける
-pub(crate) fn remaining_label(remaining: Option<f64>) -> String {
+pub(crate) fn remaining_label(remaining: Option<f64>) -> (&'static str, String, &'static str) {
     match remaining {
-        Some(value) if value < 0.0 => home_remaining_over(&format_valuation_amount(Some(-value))),
-        Some(value) => home_remaining(&format_valuation_amount(Some(value))),
-        None => HOME_REMAINING_EMPTY.to_string(),
+        Some(value) if value < 0.0 => (
+            labels::HOME_REMAINING_OVER_PREFIX,
+            format_valuation_amount(Some(-value)),
+            labels::HOME_REMAINING_OVER_SUFFIX,
+        ),
+        Some(value) => (
+            labels::HOME_REMAINING_PREFIX,
+            format_valuation_amount(Some(value)),
+            "",
+        ),
+        None => (
+            labels::HOME_REMAINING_PREFIX,
+            labels::MISSING.to_string(),
+            "",
+        ),
     }
 }
 

@@ -69,6 +69,8 @@ pub fn SummaryItem(
     /// 数字の右に添える補足(率など)。値より小さいサイズで出す
     #[prop(optional)]
     note: String,
+    #[prop(optional)] note_negative: bool,
+    #[prop(optional)] note_positive: bool,
     /// 数字の横に小さく出す補足(読み込み中など)
     #[prop(optional)]
     status: String,
@@ -95,7 +97,11 @@ pub fn SummaryItem(
             <dd class=format!("summary-value {size_class}")>
                 <Amount text=value kind=kind negative=negative positive=positive />
                 {(!note.is_empty())
-                    .then(|| view! { <span class="summary-note">{note.clone()}</span> })}
+                    .then(|| view! {
+                        <span class="summary-note">
+                            <Amount text=note.clone() negative=note_negative positive=note_positive />
+                        </span>
+                    })}
                 {(!status.is_empty())
                     .then(|| view! { <span class="summary-status">{status.clone()}</span> })}
             </dd>
@@ -113,33 +119,6 @@ pub struct SummarySubItem {
     pub note_negative: bool,
     pub note_positive: bool,
     pub extra_class: String,
-}
-
-#[component]
-fn SummarySubAmount(item: SummarySubItem) -> impl IntoView {
-    let negative = item.note_negative;
-    let positive = item.note_positive;
-    view! {
-        <span class="summary-value summary-value-secondary">
-            <span class="summary-label">{item.label}</span>
-            <Amount
-                text=item.value
-                kind=tone_amount(item.tone).0
-                negative=tone_amount(item.tone).1
-                positive=tone_amount(item.tone).2
-            />
-            {(!item.note.is_empty()).then(|| view! {
-                <span class="summary-note">
-                    <Amount
-                        kind=delta_or_plain(negative, positive)
-                        text=item.note
-                        negative=negative
-                        positive=positive
-                    />
-                </span>
-            })}
-        </span>
-    }
 }
 
 /// スマホの縦リストの1行。ラベル左・金額右・区切り線つき
@@ -211,8 +190,6 @@ pub fn SummaryBand(
     };
     let has_breakdown = !breakdown.is_empty();
     let has_aux = !aux_label.is_empty();
-    let aux_rate_negative = aux_rate_negative;
-    let aux_rate_positive = aux_rate_positive;
     let label_note = if !primary_sub.is_empty() && !as_of_note.is_empty() {
         format!("{}{}{}", primary_sub, labels::TAG_SEPARATOR, as_of_note)
     } else if !primary_sub.is_empty() {
@@ -258,7 +235,18 @@ pub fn SummaryBand(
                     })}
                     {pc_items
                         .into_iter()
-                        .map(|item| view! { <SummarySubAmount item=item /> })
+                        .map(|item| view! {
+                            <SummaryItem
+                                label=item.label
+                                value=item.value
+                                size=SummarySize::Secondary
+                                note=item.note
+                                note_negative=item.note_negative
+                                note_positive=item.note_positive
+                                tone=item.tone
+                                extra_class=item.extra_class
+                            />
+                        })
                         .collect_view()}
                 </dl>
             </div>

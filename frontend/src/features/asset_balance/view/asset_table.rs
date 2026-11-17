@@ -143,15 +143,15 @@ pub fn AssetHoldingsTable(
                                         )}
                                     </td>
                                     <td class="col-num text-text-soft hidden xl:table-cell print:table-cell">
-                                        {format_unit_price(view.average_price, average_price_decimals)}
+                                        <Amount text=format_unit_price(view.average_price, average_price_decimals) />
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        {format_unit_price(view.current_price, current_price_decimals)}
+                                        <Amount text=format_unit_price(view.current_price, current_price_decimals) />
                                     </td>
                                     <td class="col-num">
                                         {day_change_cell(view.day_change, outlier_date)}
                                     </td>
-                                    <td class="col-num font-bold text-text-deep">{market_text}</td>
+                                    <td class="col-num font-bold text-text-deep"><Amount text=market_text /></td>
                                     <td class="col-num">
                                         {if valuation.profit_loss.amount.is_some() {
                                             view! {

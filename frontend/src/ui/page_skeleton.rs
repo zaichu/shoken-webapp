@@ -40,6 +40,7 @@ pub fn SkeletonNote(
     /// 絞り込み中の表示。条件が無いときは出さない
     #[prop(optional)]
     filtered: Option<Signal<FilteredCount>>,
+    #[prop(optional)] children: Option<ChildrenFn>,
 ) -> impl IntoView {
     let show = move || {
         filtered
@@ -51,12 +52,15 @@ pub fn SkeletonNote(
     view! {
         {move || {
             let text = show();
-            let has_note = !note.is_empty();
+            let has_note = !note.is_empty() || children.is_some();
             (has_note || text.is_some()).then(|| view! {
                 <div class="page-skeleton-note">
                     <div class="page-skeleton-note-body">
                         {has_note.then(|| view! {
-                            <p data-testid="page-skeleton-note-text">{note.clone()}</p>
+                            <p data-testid="page-skeleton-note-text">
+                                {note.clone()}
+                                {children.as_ref().map(|children| children())}
+                            </p>
                         })}
                         {text.map(|text| view! {
                             <p data-testid="page-filtering-count">{text}</p>

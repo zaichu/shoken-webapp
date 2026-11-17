@@ -348,9 +348,14 @@ fn annual_forecast_uses_per_share_and_shares() {
 #[test]
 fn remaining_label_writes_overage_as_exceeding() {
     // 受取が予想を超えたら負の残りではなく「上回り」に書き分ける
-    assert_eq!(remaining_label(Some(-17_500.0)), "予想を ¥17,500 上回り");
-    assert_eq!(remaining_label(Some(12_000.0)), "残り ¥12,000");
-    assert_eq!(remaining_label(None), "残り —");
+    let (prefix, amount, suffix) = remaining_label(Some(-17_500.0));
+    assert_eq!(amount, "¥17,500");
+    assert!(!prefix.is_empty());
+    assert!(!suffix.is_empty());
+    let (_, amount, suffix) = remaining_label(Some(12_000.0));
+    assert_eq!(amount, "¥12,000");
+    assert!(suffix.is_empty());
+    assert_eq!(remaining_label(None).1, labels::MISSING);
 }
 
 #[test]

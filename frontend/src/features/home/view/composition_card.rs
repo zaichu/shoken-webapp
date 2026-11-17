@@ -170,7 +170,7 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
         <div class="px-4 pt-3.5">
             <div class="home-composition-total">
                 <span class="text-text-muted">{labels::HOME_COMPOSITION_TOTAL}</span>
-                <span class="font-bold tabular-nums">{format_valuation_amount(Some(product_total))}</span>
+                <Amount class="font-bold" text=format_valuation_amount(Some(product_total)) />
             </div>
             <div class="home-stacked-bar mt-3">{bar}</div>
             <ul class="home-composition-rows mt-1.5">{rows}</ul>
@@ -226,7 +226,6 @@ fn CompositionRow(
     detail_rate: f64,
     detail_suffix: String,
 ) -> impl IntoView {
-    let amount_color = amount < 0.0 || amount > 0.0;
     view! {
         <li class="home-composition-row">
             <div class="min-w-0 flex-1">
@@ -245,7 +244,6 @@ fn CompositionRow(
             </div>
             <span class="shrink-0 text-right text-body font-bold tabular-nums">
                 <Amount
-                    kind=if amount_color { AmountKind::Delta } else { AmountKind::Plain }
                     text=format_valuation_amount(Some(amount))
                     negative=is_negative_valuation(Some(amount))
                     positive=is_positive_valuation(Some(amount))

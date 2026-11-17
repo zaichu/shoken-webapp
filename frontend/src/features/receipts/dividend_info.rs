@@ -254,7 +254,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     title_hint=true
                     hint=Some(Signal::derive(move || asset().is_none().then_some(DIVIDEND_BALANCE_HINT)))
                 >
-                    {average_price_text}
+                    <Amount text=Signal::derive(average_price_text) />
                 </StatCard>
                 <StatCard
                     label=HOLDING_QUANTITY_CARD
@@ -269,7 +269,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                         (!loading() && per_share().is_none()).then_some(DIVIDEND_AUTO_HINT)
                     }))
                 >
-                    {per_share_text}
+                    <Amount text=Signal::derive(per_share_text) />
                 </StatCard>
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-border-subtle">

@@ -282,10 +282,10 @@ fn CompositionContent(
                     CompositionGroup::Account => labels::composition_accounts(entries.len()),
                 };
                 view! {
-                    <SkeletonNote note=labels::composition_basis_note(
-                        current_basis.label(),
-                        &format_amount(total),
-                    ) />
+                    <SkeletonNote note=labels::composition_basis_note(current_basis.label())>
+                        <Amount text=format_amount(total) />
+                        {labels::COMPOSITION_NOTE_SUFFIX}
+                    </SkeletonNote>
                     {if total <= 0.0 {
                         view! {
                             <div class="px-4 py-4">

@@ -95,9 +95,10 @@ pub const COMPOSITION_BASIS_LABEL: &str = "構成比の基準";
 /// 構成比の基準: 年間配当(税引前)
 pub const COMPOSITION_DIVIDEND_BASIS: &str = "年間配当(税引前)";
 /// 構成比の基準注記(「評価額の比率・合計 ¥… ・保有全体」)
-pub fn composition_basis_note(basis: &str, total: &str) -> String {
-    format!("{basis}の比率・合計 {total} ・保有全体")
+pub fn composition_basis_note(basis: &str) -> String {
+    format!("{basis}の比率・合計 ")
 }
+pub const COMPOSITION_NOTE_SUFFIX: &str = " ・保有全体";
 
 /// 構成比の中央に出す全体の件数(「36銘柄」)
 pub fn composition_total(count: usize) -> String {
@@ -308,13 +309,15 @@ pub fn sort_summary(target: &str, order: &str) -> String {
     format!("{target}の{order}")
 }
 
-pub fn previous_dividend_span(current_month: u32, amount: &str) -> String {
+pub const HOME_DEPOSIT_SUFFIX: &str = " 入金 ";
+
+pub fn previous_dividend_span(current_month: u32) -> String {
     let months = match current_month {
         1..=10 => format!("{}〜12月", current_month + 1),
         11 => "12月".to_string(),
         _ => return String::new(),
     };
-    format!("・ 前年の{months}は {amount} 入金 ")
+    format!("・ 前年の{months}は ")
 }
 
 /// 条件を選ぶ小窓の見出し。対象名だけを引数にして画面ごとに使い回す
@@ -686,18 +689,12 @@ pub fn settings_export_failed(kind: &str, error: &str) -> String {
     format!("{kind}のエクスポートに失敗しました: {error}")
 }
 
-/// ホームの残りが無いときの表示
-pub const HOME_REMAINING_EMPTY: &str = "残り —";
-
 /// ホームの残りの書き方(「残り ¥12,000」)
-pub fn home_remaining(amount: &str) -> String {
-    format!("残り {amount}")
-}
+pub const HOME_REMAINING_PREFIX: &str = "残り ";
 
 /// ホームで受取が予想を超えたときの書き方(「予想を ¥17,500 上回り」)
-pub fn home_remaining_over(amount: &str) -> String {
-    format!("予想を {amount} 上回り")
-}
+pub const HOME_REMAINING_OVER_PREFIX: &str = "予想を ";
+pub const HOME_REMAINING_OVER_SUFFIX: &str = " 上回り";
 
 /// 資産管理: 画面名
 pub const ASSET_BALANCE_TITLE: &str = "資産管理";

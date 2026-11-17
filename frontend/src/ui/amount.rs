@@ -1,6 +1,6 @@
+use crate::ui::labels::{TEN_THOUSAND_YEN, THOUSAND_YEN, YEN};
 use leptos::prelude::*;
 
-/// 金額・率の表示種別。正負の色は明示符号と表示文字列から共通判定する。
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AmountKind {
     #[default]
@@ -31,7 +31,7 @@ pub fn Amount(
     block: bool,
     #[prop(into, optional)] class: Signal<String>,
 ) -> impl IntoView {
-    let sign_text = text.clone();
+    let sign_text = text;
     let color = move || amount_color(kind, negative.get(), positive.get(), &sign_text.get());
     let classes = move || amount_classes(color(), &class.get());
     let negative_attr = move || amount_negative_attr(color());
@@ -54,23 +54,30 @@ pub fn Amount(
 }
 
 fn amount_color(kind: AmountKind, negative: bool, positive: bool, text: &str) -> AmountColor {
-    let negative = negative || signed_text_is_nonzero(text, '-');
-    let positive = positive || signed_text_is_nonzero(text, '+');
-    match kind {
-        AmountKind::Plain | AmountKind::Delta if negative => AmountColor::Negative,
-        AmountKind::Plain | AmountKind::Delta if positive => AmountColor::Positive,
-        AmountKind::Plain | AmountKind::Delta => AmountColor::Neutral,
+    let text = text
+        .trim()
+        .trim_start_matches('(')
+        .trim_end_matches(')')
+        .trim();
+    let mut numeric = text.replace(['¥', ','], "");
+    let mut financial = text.contains('¥');
+    for suffix in [THOUSAND_YEN, TEN_THOUSAND_YEN, YEN, "%"] {
+        if let Some(value) = numeric.strip_suffix(suffix) {
+            numeric = value.to_string();
+            financial = true;
+            break;
+        }
     }
-}
-
-fn signed_text_is_nonzero(text: &str, sign: char) -> bool {
-    let Some(value) = text.trim_start().strip_prefix(sign) else {
-        return false;
+    let Ok(value) = numeric.parse::<f64>() else {
+        return AmountColor::Neutral;
     };
-    let value = value.trim_start_matches('¥').replace(',', "");
-    let numeric =
-        value.trim_end_matches(|character: char| !character.is_ascii_digit() && character != '.');
-    numeric.parse::<f64>().map_or(true, |value| value != 0.0)
+    if value < 0.0 {
+        AmountColor::Negative
+    } else if value > 0.0 && (financial || kind == AmountKind::Delta || negative || positive) {
+        AmountColor::Positive
+    } else {
+        AmountColor::Neutral
+    }
 }
 
 fn amount_classes(color: AmountColor, extra: &str) -> String {

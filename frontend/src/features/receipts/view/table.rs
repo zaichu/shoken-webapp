@@ -399,7 +399,7 @@ pub fn ReceiptTable(
                                                                             let content = if header == ACCOUNT {
                                                                                 view! { <AccountBadge label=value.clone() /> }
                                                                                     .into_any()
-                                                                            } else if is_trio {
+                                                                            } else {
                                                                                 view! {
                                                                                     <Amount
                                                                                         kind=kind
@@ -409,8 +409,6 @@ pub fn ReceiptTable(
                                                                                     />
                                                                                 }
                                                                                     .into_any()
-                                                                            } else {
-                                                                                text.clone().into_any()
                                                                             };
                                                                             let account_class = if header == ACCOUNT {
                                                                                 " receipt-account-col"

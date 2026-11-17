@@ -777,7 +777,7 @@ fn HoldingSummaryTiles(data: HoldingTilesData) -> impl IntoView {
     view! {
         <HoldingSummary>
             <HoldingSummaryItem label=labels::MARKET_VALUE.to_string()>
-                <span class="tabular-nums">{data.market}</span>
+                <Amount text=data.market />
             </HoldingSummaryItem>
             <HoldingSummaryItem label=labels::VALUATION_PROFIT_LOSS.to_string()>
                 <Amount
@@ -803,7 +803,7 @@ fn HoldingSummaryTiles(data: HoldingTilesData) -> impl IntoView {
 fn CommonDetailTiles(current_price: String, price_as_of: String) -> impl IntoView {
     view! {
         <HoldingDetailItem label=labels::CURRENT_PRICE.to_string()>
-            <span class="tabular-nums">{current_price}</span>
+            <Amount text=current_price />
         </HoldingDetailItem>
         <HoldingDetailItem label=labels::PRICE_AS_OF.to_string()>
             {price_as_of}
@@ -862,12 +862,12 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
                 .map(|average| {
                     view! {
                         <HoldingDetailItem label=labels::AVERAGE_PRICE.to_string()>
-                            <span class="tabular-nums">{average}</span>
+                            <Amount text=average />
                         </HoldingDetailItem>
                     }
                 })}
             <HoldingDetailItem label=labels::TOTAL_ACQUISITION.to_string()>
-                <span class="tabular-nums">{data.purchase}</span>
+                <Amount text=data.purchase />
             </HoldingDetailItem>
             {show_account
                 .then(|| {

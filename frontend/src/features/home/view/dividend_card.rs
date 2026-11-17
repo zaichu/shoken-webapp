@@ -90,16 +90,14 @@ fn DividendCardBody(
     let progress_pct = model.progress.map(|p| p * 100.0);
     let progress_text =
         progress_pct.map_or_else(|| labels::MISSING.to_string(), format_integer_percent);
-    let remaining_text = model::remaining_label(model.remaining);
+    let (remaining_prefix, remaining_amount, remaining_suffix) =
+        model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
-    let previous_span = model
+    let previous_span = labels::previous_dividend_span(current_month);
+    let previous_remaining = model
         .previous_remaining
-        .map_or_else(String::new, |remaining| {
-            labels::previous_dividend_span(
-                current_month,
-                &format_valuation_amount(Some(dec_to_f64(&remaining))),
-            )
-        });
+        .filter(|_| !previous_span.is_empty())
+        .map(|remaining| format_valuation_amount(Some(dec_to_f64(&remaining))));
     let yoy_value = model.yoy_diff.map(|diff| dec_to_f64(&diff));
     let yoy_text = yoy_value.map_or_else(
         || labels::MISSING.to_string(),
@@ -120,12 +118,15 @@ fn DividendCardBody(
             </span>
             <span class="text-label text-text-muted">
                 {if pending {
-                    labels::HOME_FORECAST_LOADING.to_string()
+                    view! { {labels::HOME_FORECAST_LOADING} }.into_any()
                 } else {
-                    labels::home_forecast(&forecast)
+                    view! {
+                        {labels::home_forecast("")}
+                        <Amount text=forecast />
+                    }.into_any()
                 }}
             </span>
-            <span class="ml-auto text-label font-bold tabular-nums">{progress_text}</span>
+            <Amount class="ml-auto text-label font-bold" text=progress_text />
         </div>
         <div class="home-progress">
             {progress_pct.map(|pct| {
@@ -138,8 +139,14 @@ fn DividendCardBody(
             })}
         </div>
         <p class="break-keep px-4 pt-1.5 text-label text-text-muted">
-            {remaining_text}
-            {previous_span}
+            {remaining_prefix}
+            <Amount text=remaining_amount />
+            {remaining_suffix}
+            {previous_remaining.map(|amount| view! {
+                {previous_span.clone()}
+                <Amount text=amount />
+                {labels::HOME_DEPOSIT_SUFFIX}
+            })}
             {labels::HOME_DIVIDEND_YOY_LABEL}
             <Amount
                 kind=AmountKind::Delta
@@ -190,7 +197,7 @@ fn DividendMonthlyChart(
             role="group"
             aria-label=labels::home_monthly_aria(year, previous_year)
         >
-            <p class="home-chart-max">{format_valuation_amount(Some(dec_to_f64(&max)))}</p>
+            <p class="home-chart-max"><Amount text=format_valuation_amount(Some(dec_to_f64(&max))) /></p>
             <div class="home-chart-plot">
                 <div class="home-chart-grid" aria-hidden="true">
                     <span class="home-chart-grid-line" data-level="top"></span>
@@ -280,11 +287,11 @@ fn DividendMonthCell(
                 <dl class="mt-1 space-y-0.5">
                     <div class="flex items-center gap-1.5">
                         <dt class="home-swatch bg-chart-1"></dt>
-                        <dd>{labels::home_year_amount(year, &cur_text)}</dd>
+                        <dd>{labels::home_year_amount(year, "")}<Amount text=cur_text.clone() /></dd>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <dt class="home-swatch home-chart-previous"></dt>
-                        <dd>{labels::home_year_amount(previous_year, &prev_text)}</dd>
+                        <dd>{labels::home_year_amount(previous_year, "")}<Amount text=prev_text.clone() /></dd>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <dt class="text-text-muted">{labels::HOME_DIFF_LABEL}</dt>
