@@ -91,7 +91,13 @@ for (const width of [1024, 1280, 1440]) {
 
     for (const tab of RECEIPT_TABS) {
       await page.getByRole('tab', { name: tab.label }).click();
-      await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
+      await expect(page.getByRole('tab', { name: tab.label })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      await expect(
+        page.getByRole('search', { name: '取引明細の検索' }),
+      ).toContainText(`${tab.count}件 / ${tab.count}件`);
       const table = page.getByRole('table');
       await expect(table).toBeVisible();
       const fits = await table.evaluate((element) => {
@@ -116,16 +122,18 @@ test('PC の検索欄で口座を絞ると一覧・件数・集計が同じ対�
   await expect(page.getByRole('button', { name: '口座 SBI証券 を解除' })).toBeVisible();
 
   const expected = DIVIDENDS.filter((row) => row.account === 'SBI証券').length;
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText(String(expected));
+  await expect(
+    page.getByRole('search', { name: '取引明細の検索' }),
+  ).toContainText(`${expected}件 / ${DIVIDENDS.length}件`);
   const table = page.getByRole('table');
   await expect(table).toContainText('SBI証券');
   await expect(table).not.toContainText('楽天証券');
 
   // すべてクリアで条件を外すと件数と一覧が元に戻る
   await page.getByRole('button', { name: 'すべてクリア' }).click();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText(
-    String(DIVIDENDS.length),
-  );
+  await expect(
+    page.getByRole('search', { name: '取引明細の検索' }),
+  ).toContainText(`${DIVIDENDS.length}件 / ${DIVIDENDS.length}件`);
   await expect(table).toContainText('楽天証券');
 });
 
@@ -182,7 +190,13 @@ test('A4の印字可能領域に全タブが収まり、操作バーは印刷に
   for (const tab of RECEIPT_TABS) {
     await page.emulateMedia({ media: 'screen' });
     await page.getByRole('tab', { name: tab.label }).click();
-    await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
+    await expect(page.getByRole('tab', { name: tab.label })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(
+      page.getByRole('search', { name: '取引明細の検索' }),
+    ).toContainText(`${tab.count}件 / ${tab.count}件`);
     await page.emulateMedia({ media: 'print' });
 
     const table = page.getByRole('table');
@@ -223,7 +237,13 @@ test('PCの数値列は折り返さず1行で表示され、表は枠に収ま�
 
     for (const tab of RECEIPT_TABS) {
       await page.getByRole('tab', { name: tab.label }).click();
-      await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
+      await expect(page.getByRole('tab', { name: tab.label })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      await expect(
+        page.getByRole('search', { name: '取引明細の検索' }),
+      ).toContainText(`${tab.count}件 / ${tab.count}件`);
       const table = page.getByRole('table');
       await expect(table).toBeVisible();
 
@@ -269,9 +289,9 @@ test('長い銘柄名でも表が枠に収まり右端の税引後列まで見�
   await gotoReceipts(page);
 
   await page.getByRole('tab', { name: '投資信託' }).click();
-  await expect(page.getByTestId('tab-count-mutualfund')).toHaveText(
-    String(MUTUAL_FUNDS.length),
-  );
+  await expect(
+    page.getByRole('search', { name: '取引明細の検索' }),
+  ).toContainText(`${MUTUAL_FUNDS.length}件 / ${MUTUAL_FUNDS.length}件`);
   const table = page.getByRole('table');
   await expect(table).toBeVisible();
   await expect(table).toContainText(LONG_FUND_NAME);

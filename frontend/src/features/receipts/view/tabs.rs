@@ -1,8 +1,6 @@
 use super::TAB_IDS;
-use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
-use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
-use crate::ui::badge::{Badge, BadgeVariant};
+use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::ui::button::TabButton;
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{
@@ -31,7 +29,6 @@ pub fn ReceiptsTabButton(
     let keyed = store;
     let clicked = store;
     let guard = motion;
-    let counted_store = store;
     view! {
         <TabButton
             id=format!("tab-{slug}")
@@ -61,15 +58,6 @@ pub fn ReceiptsTabButton(
             }
         >
             {label}
-            <Badge variant=BadgeVariant::Count testid=format!("tab-count-{slug}")>
-                {move || match counted_store.tab_state(tab) {
-                    TabState::Ready(data) => {
-                        let query = counted_store.search.with(|s| s.query.clone());
-                        filter_receipts(tab, &data.rows, &query).len().to_string()
-                    }
-                    TabState::Loading | TabState::Failed(_) => "—".to_string(),
-                }}
-            </Badge>
         </TabButton>
     }
 }

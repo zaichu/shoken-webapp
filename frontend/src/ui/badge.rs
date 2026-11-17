@@ -25,8 +25,6 @@ pub enum BadgeVariant {
     Code,
     /// 背景なしの銘柄コード
     CodeFlush,
-    /// タブ横の件数
-    Count,
 }
 
 impl BadgeVariant {
@@ -42,7 +40,6 @@ impl BadgeVariant {
             Self::AccountOldNisa => "badge badge-account badge-account-old-nisa",
             Self::Code => "badge badge-code",
             Self::CodeFlush => "badge badge-code-flush",
-            Self::Count => "badge badge-count",
         }
     }
 }

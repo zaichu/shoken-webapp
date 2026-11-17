@@ -19,12 +19,6 @@ use crate::ui::summary::{
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
-/// 投資信託タブの件数。行が取り切れていないときは API 集計の総件数を使い、
-/// 集計欄と食い違わないようにする
-pub(crate) fn fund_tab_count(rows_len: usize, total: usize) -> usize {
-    total.max(rows_len)
-}
-
 /// 見出しの基準日と表の日付出し分けで共通に使う、価格あり行の基準日一覧
 /// (価格が出ていない行の日付は「その時点の株価」と結びつかないので除く)
 pub(crate) fn stock_price_dates(rows: &[AssetBalanceRow]) -> Vec<&str> {

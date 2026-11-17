@@ -290,7 +290,7 @@ test('旧検索条件ページの URL はクエリを引き継いで取引明細
 
   await expect(page).toHaveURL(/\/receipts\/conditions\?kind=stock$/);
   await expect(page.getByRole('search', { name: '取引明細の検索' })).toBeVisible();
-  await expect(page.getByTestId('tab-count-dividend')).toBeVisible();
+  await expect(page.getByRole('tab', { name: '配当金' })).toBeVisible();
 });
 
 test('スキップリンクは同一ページ内の移動のまま余計な API を出さない', async ({ page }) => {

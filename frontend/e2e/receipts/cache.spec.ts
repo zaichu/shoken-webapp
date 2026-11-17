@@ -163,9 +163,10 @@ test('選択中タブを優先取得し、完了後に非表示タブをバッ�
   await page.goto('/receipts');
 
   await expect(page.getByRole('cell', { name: '架空自動車' })).toBeVisible();
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
-  await expect(page.getByTestId('tab-count-domesticstock')).toHaveText('1');
-  await expect(page.getByTestId('tab-count-mutualfund')).toHaveText('1');
+  // 非表示タブは裏で取得されるまで待つ(タブに件数は出さない)
+  await expect.poll(() => logs.dividends.count).toBe(1);
+  await expect.poll(() => logs.domestic.count).toBe(1);
+  await expect.poll(() => logs.funds.count).toBe(1);
 
   expect(logs.dividends.count).toBe(1);
   expect(logs.domestic.count).toBe(1);
@@ -181,7 +182,7 @@ test('タブ切替で再フェッチが走らずキャッシュが使われる',
   await setupMocks(page, logs, { dividends: () => 50, domestic: 50, funds: 50 }, () => [DIVIDEND_A], session);
 
   await page.goto('/receipts');
-  await expect(page.getByTestId('tab-count-mutualfund')).toHaveText('1');
+  await expect(page.getByRole('cell', { name: '架空自動車' })).toBeVisible();
 
   await page.getByRole('tab', { name: /国内株式/ }).click();
   await expect(page.getByRole('cell', { name: '架空ゲーム' })).toBeVisible();
