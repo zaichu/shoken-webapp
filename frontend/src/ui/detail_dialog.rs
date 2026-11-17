@@ -252,7 +252,6 @@ pub fn DetailDialog(
 #[cfg(test)]
 mod tests {
     use super::DetailCell;
-    use super::detail_main_flags;
     use crate::ui::amount::AmountKind;
 
     #[test]
@@ -272,7 +271,7 @@ mod tests {
             true,
             false,
         );
-        assert_eq!(detail_main_flags(&cell), (false, false));
+        assert_eq!(super::detail_main_flags(&cell), (false, false));
     }
 
     #[test]
@@ -289,7 +288,7 @@ mod tests {
             bold: false,
             kind: AmountKind::Plain,
         };
-        assert_eq!(detail_main_flags(&cell), (false, true));
+        assert_eq!(super::detail_main_flags(&cell), (false, true));
     }
 
     #[test]
