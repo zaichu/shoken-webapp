@@ -9,7 +9,7 @@ use crate::features::asset_balance::{
 use crate::session::use_session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::format::{format_currency, format_integer_percent};
+use crate::ui::format;
 use crate::ui::labels;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -88,8 +88,10 @@ fn DividendCardBody(
         |v| format_valuation_amount(Some(v)),
     );
     let progress_pct = model.progress.map(|p| p * 100.0);
-    let progress_text =
-        progress_pct.map_or_else(|| labels::MISSING.to_string(), format_integer_percent);
+    let progress_text = progress_pct.map_or_else(
+        || labels::MISSING.to_string(),
+        format::format_integer_percent,
+    );
     let remaining_text = model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
     let previous_span = model
@@ -230,8 +232,8 @@ fn DividendMonthCell(
 ) -> impl IntoView {
     let cur = model::bar_height(pair.current, max);
     let prev = model::bar_height(pair.previous, max);
-    let cur_text = format_currency(dec_to_f64(&pair.current));
-    let prev_text = format_currency(dec_to_f64(&pair.previous));
+    let cur_text = format::format_currency(dec_to_f64(&pair.current));
+    let prev_text = format::format_currency(dec_to_f64(&pair.previous));
     let diff_text =
         format_signed_valuation_amount(Some(dec_to_f64(&(pair.current - pair.previous))));
     let current_note = if pair.month == current_month {

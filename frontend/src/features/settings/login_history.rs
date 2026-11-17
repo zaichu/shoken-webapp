@@ -7,14 +7,7 @@ use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::empty_state::EmptyState;
-use crate::ui::labels::{
-    DEVICE_COL_LAST_USED, DEVICE_CURRENT, DEVICE_EMPTY, DEVICE_LOGOUT_ALL, DEVICE_REVOKE,
-    LOGIN_HISTORY_COL_AGENT, LOGIN_HISTORY_COL_DATETIME, LOGIN_HISTORY_COL_PLACE,
-    LOGIN_HISTORY_COL_RESULT, LOGIN_HISTORY_COOKIE_NOTE, LOGIN_HISTORY_EMPTY,
-    LOGIN_HISTORY_SECTION, LOGIN_RESULT_FAILURE, LOGIN_RESULT_LOCATION_CHANGED,
-    LOGIN_RESULT_NEW_DEVICE, LOGIN_RESULT_SUCCESS, REGISTERED_DEVICES_SECTION,
-    device_revoke_confirm_button,
-};
+use crate::ui::labels;
 use crate::ui::list_row::ListRowStatic;
 use crate::ui::search_entry::ShowMoreButton;
 use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
@@ -65,10 +58,10 @@ fn result_badge_variant(result: &str) -> BadgeVariant {
 
 fn result_label(result: &str) -> &'static str {
     match result {
-        "new_device" => LOGIN_RESULT_NEW_DEVICE,
-        "location_changed" => LOGIN_RESULT_LOCATION_CHANGED,
-        "failure" => LOGIN_RESULT_FAILURE,
-        _ => LOGIN_RESULT_SUCCESS,
+        "new_device" => labels::LOGIN_RESULT_NEW_DEVICE,
+        "location_changed" => labels::LOGIN_RESULT_LOCATION_CHANGED,
+        "failure" => labels::LOGIN_RESULT_FAILURE,
+        _ => labels::LOGIN_RESULT_SUCCESS,
     }
 }
 
@@ -177,9 +170,9 @@ pub fn SectionLoginHistory() -> impl IntoView {
         <section id="login-history" aria-labelledby="login-history-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="login-history-heading" class="text-heading font-bold mb-4">
-                    {LOGIN_HISTORY_SECTION}
+                    {labels::LOGIN_HISTORY_SECTION}
                 </h2>
-                <p class="pb-3 text-cell text-text-muted">{LOGIN_HISTORY_COOKIE_NOTE}</p>
+                <p class="pb-3 text-cell text-text-muted">{labels::LOGIN_HISTORY_COOKIE_NOTE}</p>
                 {move || match initial.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => {
@@ -190,7 +183,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
                     }
                     Some(Ok(())) => {
                         if entries.with(Vec::is_empty) {
-                            view! { <EmptyState title=LOGIN_HISTORY_EMPTY.to_string() /> }
+                            view! { <EmptyState title=labels::LOGIN_HISTORY_EMPTY.to_string() /> }
                                 .into_any()
                         } else {
                             let desktop_rows = entries.with(std::clone::Clone::clone);
@@ -200,10 +193,10 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                     <table class="asset-table login-history-table">
                                         <thead>
                                             <tr>
-                                                <th scope="col">{LOGIN_HISTORY_COL_DATETIME}</th>
-                                                <th scope="col">{LOGIN_HISTORY_COL_RESULT}</th>
-                                                <th scope="col">{LOGIN_HISTORY_COL_PLACE}</th>
-                                                <th scope="col">{LOGIN_HISTORY_COL_AGENT}</th>
+                                                <th scope="col">{labels::LOGIN_HISTORY_COL_DATETIME}</th>
+                                                <th scope="col">{labels::LOGIN_HISTORY_COL_RESULT}</th>
+                                                <th scope="col">{labels::LOGIN_HISTORY_COL_PLACE}</th>
+                                                <th scope="col">{labels::LOGIN_HISTORY_COL_AGENT}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -370,9 +363,9 @@ pub fn SectionDevices() -> impl IntoView {
         <section id="devices" aria-labelledby="devices-heading" class="scroll-mt-18">
             <Card variant=CardVariant::Panel class="p-5">
                 <h2 id="devices-heading" class="text-heading font-bold mb-4">
-                    {REGISTERED_DEVICES_SECTION}
+                    {labels::REGISTERED_DEVICES_SECTION}
                 </h2>
-                <p class="pb-3 text-cell text-text-muted">{LOGIN_HISTORY_COOKIE_NOTE}</p>
+                <p class="pb-3 text-cell text-text-muted">{labels::LOGIN_HISTORY_COOKIE_NOTE}</p>
                 {move || match devices.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => {
@@ -381,7 +374,7 @@ pub fn SectionDevices() -> impl IntoView {
                     }
                     Some(Ok(entries)) => {
                         if entries.is_empty() {
-                            view! { <EmptyState title=DEVICE_EMPTY.to_string() /> }
+                            view! { <EmptyState title=labels::DEVICE_EMPTY.to_string() /> }
                                 .into_any()
                         } else {
                             view! {
@@ -405,7 +398,7 @@ pub fn SectionDevices() -> impl IntoView {
                                                                 .then(|| {
                                                                     view! {
                                                                         <Badge variant=BadgeVariant::Info>
-                                                                            {DEVICE_CURRENT}
+                                                                            {labels::DEVICE_CURRENT}
                                                                         </Badge>
                                                                     }
                                                                 })}
@@ -414,7 +407,7 @@ pub fn SectionDevices() -> impl IntoView {
                                                             {format!("{place} · {agent}")}
                                                         </div>
                                                         <div class="text-cell text-text-muted">
-                                                            {DEVICE_COL_LAST_USED}
+                                                            {labels::DEVICE_COL_LAST_USED}
                                                         </div>
                                                     </div>
                                                     <div class="shrink-0">
@@ -423,7 +416,7 @@ pub fn SectionDevices() -> impl IntoView {
                                                             testid="device-revoke"
                                                             on_click=move |_| start_revoke(revoke_entry.clone())
                                                         >
-                                                            {DEVICE_REVOKE}
+                                                            {labels::DEVICE_REVOKE}
                                                         </Button>
                                                     </div>
                                                 </li>
@@ -446,7 +439,7 @@ pub fn SectionDevices() -> impl IntoView {
                             logout_confirm_open.set(true);
                         }
                     >
-                        {DEVICE_LOGOUT_ALL}
+                        {labels::DEVICE_LOGOUT_ALL}
                     </Button>
                 </div>
             </Card>
@@ -455,9 +448,9 @@ pub fn SectionDevices() -> impl IntoView {
                     let place = format_place(&entry.device_place().0, &entry.device_place().1);
                     view! {
                         <ConfirmDeleteModal
-                            title=REGISTERED_DEVICES_SECTION.to_string()
+                            title=labels::REGISTERED_DEVICES_SECTION.to_string()
                             description=place.clone()
-                            confirm_label=device_revoke_confirm_button(&place)
+                            confirm_label=labels::device_revoke_confirm_button(&place)
                             loading=revoke_loading
                             error=revoke_failed
                             on_confirm=confirm_revoke
@@ -470,9 +463,9 @@ pub fn SectionDevices() -> impl IntoView {
                 logout_confirm_open.get().then(|| {
                     view! {
                         <ConfirmDeleteModal
-                            title=DEVICE_LOGOUT_ALL.to_string()
-                            description=LOGIN_HISTORY_COOKIE_NOTE.to_string()
-                            confirm_label=DEVICE_LOGOUT_ALL.to_string()
+                            title=labels::DEVICE_LOGOUT_ALL.to_string()
+                            description=labels::LOGIN_HISTORY_COOKIE_NOTE.to_string()
+                            confirm_label=labels::DEVICE_LOGOUT_ALL.to_string()
                             loading=logout_loading
                             error=logout_failed
                             on_confirm=confirm_logout_all

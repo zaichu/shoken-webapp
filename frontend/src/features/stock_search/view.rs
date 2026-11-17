@@ -13,9 +13,7 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{AccountBadge, CodeBadge};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
-use crate::ui::format::{
-    format_currency, format_iso_date, format_number_value, unit_price_decimals,
-};
+use crate::ui::format;
 use crate::ui::holding_tiles::{
     HoldingDetailItem, HoldingDetails, HoldingSummary, HoldingSummaryItem,
 };
@@ -665,17 +663,17 @@ impl HoldingTilesData {
             pnl_rate: format_signed_valuation_rate(valuation.profit_loss.rate, 1),
             pnl_negative: is_negative_valuation(valuation.profit_loss.amount),
             pnl_positive: is_positive_valuation(valuation.profit_loss.amount),
-            current_price: format_currency(input.current_price),
+            current_price: format::format_currency(input.current_price),
             price_as_of: input.price_as_of.map_or_else(
                 || labels::MISSING.to_string(),
-                |date| format_iso_date(&date),
+                |date| format::format_iso_date(&date),
             ),
-            quantity: labels::stock_shares_label(&format_number_value(input.shares)),
-            average_price: input.average_tile.map(format_currency),
-            purchase: format_currency(input.purchase),
+            quantity: labels::stock_shares_label(&format::format_number_value(input.shares)),
+            average_price: input.average_tile.map(format::format_currency),
+            purchase: format::format_currency(input.purchase),
             per_share: format_dividend_per_share(
                 &dividend,
-                unit_price_decimals(dividend.per_share.into_iter()),
+                format::unit_price_decimals(dividend.per_share.into_iter()),
             ),
             annual: format_dividend_annual(&dividend),
             yield_text: format_dividend_yield(&dividend),

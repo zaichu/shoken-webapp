@@ -1,6 +1,6 @@
 use crate::features::receipts::ReceiptsTab;
 use crate::support::csv_flow::CsvChunking;
-use crate::ui::labels::PAYMENT_DATE;
+use crate::ui::labels;
 
 // backend の各 receipts 系 CsvParserConfig は skip_header_rows=0(先頭行がヘッダ)
 const CSV_CHUNKING: CsvChunking = CsvChunking {
@@ -15,7 +15,7 @@ const CSV_CHUNKING: CsvChunking = CsvChunking {
 pub const fn chunking_for(tab: ReceiptsTab) -> CsvChunking {
     CsvChunking {
         header_marker: match tab {
-            ReceiptsTab::Dividend => Some(PAYMENT_DATE),
+            ReceiptsTab::Dividend => Some(labels::PAYMENT_DATE),
             _ => None,
         },
         ..CSV_CHUNKING

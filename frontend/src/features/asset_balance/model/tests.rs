@@ -1,5 +1,5 @@
 use super::*;
-use crate::ui::format::intl_fixed;
+use crate::ui::format;
 use rust_decimal::prelude::ToPrimitive;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -38,7 +38,7 @@ fn calculate_composition_percentage(value: f64, total: f64) -> f64 {
     if total == 0.0 {
         0.0
     } else {
-        intl_fixed(value / total * 100.0, 2)
+        format::intl_fixed(value / total * 100.0, 2)
     }
 }
 
@@ -429,7 +429,7 @@ fn huge_values_do_not_panic() {
     assert_eq!(precision.amount, Some(0.0));
     let overflow = safe_add(1e308, 1e308);
     assert!(overflow.is_infinite());
-    assert_eq!(intl_fixed(f64::INFINITY, 2), f64::INFINITY);
+    assert_eq!(format::intl_fixed(f64::INFINITY, 2), f64::INFINITY);
     assert!(calculate_composition_percentage(1e308, 1e308).is_finite());
 }
 

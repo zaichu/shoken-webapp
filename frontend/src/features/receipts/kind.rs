@@ -22,8 +22,8 @@ use crate::support::list_search::FilterConfig;
 use crate::support::list_search::group_key::{GroupKeyRule, create_group_key_fn};
 use crate::support::list_search::support::{ColumnReorderRule, group_and_summarize};
 use crate::support::pagination::{ListEndpoint, fetch_all_pages};
-use crate::ui::format::format_iso_date;
-use crate::ui::labels::{receipt_year_month_day_label, receipt_year_month_label};
+use crate::ui::format;
+use crate::ui::labels;
 use shared::format::{format_currency, format_number};
 
 /// 取引明細の一覧行。保存済み(DB の行)を包む。
@@ -223,7 +223,7 @@ pub(crate) struct DividendView<'a> {
 impl DividendView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
-            ReceiptCell::Text(format_iso_date(self.date)),
+            ReceiptCell::Text(format::format_iso_date(self.date)),
             ReceiptCell::SecurityCode(self.code.to_string()),
             ReceiptCell::InstrumentName {
                 name: normalize_display_name(self.name),
@@ -309,7 +309,7 @@ pub(crate) struct DomesticStockView<'a> {
 impl DomesticStockView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
-            ReceiptCell::Text(format_iso_date(self.date)),
+            ReceiptCell::Text(format::format_iso_date(self.date)),
             ReceiptCell::SecurityCode(self.code.to_string()),
             ReceiptCell::InstrumentName {
                 name: normalize_display_name(self.name),
@@ -397,7 +397,7 @@ pub(crate) struct MutualfundView<'a> {
 impl MutualfundView<'_> {
     fn cells(&self) -> Vec<ReceiptCell> {
         vec![
-            ReceiptCell::Text(format_iso_date(self.date)),
+            ReceiptCell::Text(format::format_iso_date(self.date)),
             ReceiptCell::InstrumentName {
                 name: normalize_display_name(self.name),
                 code: None,
@@ -560,12 +560,12 @@ pub(crate) fn group_label(key: &str) -> String {
     }
     let parts: Vec<_> = key.split('-').collect();
     match parts.as_slice() {
-        [year, month, day] => receipt_year_month_day_label(
+        [year, month, day] => labels::receipt_year_month_day_label(
             year,
             month.parse::<u32>().unwrap_or(0),
             day.parse::<u32>().unwrap_or(0),
         ),
-        [year, month] => receipt_year_month_label(year, month.parse::<u32>().unwrap_or(0)),
+        [year, month] => labels::receipt_year_month_label(year, month.parse::<u32>().unwrap_or(0)),
         _ => key.to_string(),
     }
 }

@@ -1,5 +1,5 @@
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::labels::{LOGIN_HISTORY_SHOW_MORE, SEARCH_AND_SORT, SORT_BY};
+use crate::ui::labels;
 use crate::ui::search_controls::{
     ConditionRowEnd, SearchBox, SearchClearButton, SearchCount, SearchTextInput,
 };
@@ -41,7 +41,7 @@ pub fn MobileSearchEntryShell(
                         testid=entry_testid
                         on_click=move |_| open.set(true)
                     >
-                        <span>{SORT_BY}</span>
+                        <span>{labels::SORT_BY}</span>
                         <span class="mobile-sort-entry-value">{move || sort_summary.get()}</span>
                         <svg aria-hidden="true" class="mobile-sort-entry-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
                             <path d="m5 7 5 5 5-5"></path>
@@ -62,7 +62,7 @@ pub fn MobileSearchEntryShell(
                                 <circle cx="11" cy="11" r="7"></circle>
                                 <path d="M20 20l-3.5-3.5"></path>
                             </svg>
-                            {SEARCH_AND_SORT}
+                            {labels::SEARCH_AND_SORT}
                         </span>
                         <span class="search-sort-entry-sub">{move || sort_summary.get()}</span>
                     </Button>
@@ -109,7 +109,7 @@ pub fn ShowMoreButton(
                 disabled=disabled
                 on_click=move |_| on_click()
             >
-                {LOGIN_HISTORY_SHOW_MORE}
+                {labels::LOGIN_HISTORY_SHOW_MORE}
             </Button>
         </div>
     }

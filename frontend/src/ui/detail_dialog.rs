@@ -2,7 +2,7 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::dialog::DialogShell;
-use crate::ui::labels::DIALOG_CLOSE;
+use crate::ui::labels;
 use crate::ui::security_link::{SecurityCodeLink, SecurityLinkVariant};
 use leptos::prelude::*;
 
@@ -204,7 +204,7 @@ pub fn DetailDialog(
                     testid="detail-dialog-close"
                     on_click=move |_| footer_close()
                 >
-                    {DIALOG_CLOSE}
+                    {labels::DIALOG_CLOSE}
                 </Button>
             </div>
         </DialogShell>

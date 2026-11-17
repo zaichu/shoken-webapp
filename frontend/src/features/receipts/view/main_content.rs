@@ -12,7 +12,7 @@ use crate::features::receipts::{
 use crate::session::use_session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
-use crate::ui::labels::{CSV_IMPORT, ERROR_PREFIX, NO_DATA, RECEIPT_SEARCH_REGION};
+use crate::ui::labels;
 use crate::ui::page_skeleton::{
     FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary, SkeletonTabs,
 };
@@ -172,7 +172,7 @@ pub fn ReceiptsMainContent(
             };
             view! {
                 <Alert variant=AlertVariant::Danger>
-                    <strong>{ERROR_PREFIX}</strong>
+                    <strong>{labels::ERROR_PREFIX}</strong>
                     " "
                     {message}
                 </Alert>
@@ -255,7 +255,7 @@ pub fn ReceiptsMainContent(
         }}
         // 検索欄は帯と表の間に固定で置く(読み込み中や空でも操作できるようにする)
         <SkeletonSearch>
-            <div class="hidden lg:block" role="search" aria-label=RECEIPT_SEARCH_REGION>
+            <div class="hidden lg:block" role="search" aria-label=labels::RECEIPT_SEARCH_REGION>
                 <ReceiptsSearchBar store=store tab=Signal::stored(tab) />
             </div>
             <div class="receipts-mobile-search">
@@ -275,7 +275,7 @@ pub fn ReceiptsMainContent(
                 TabState::Ready(_) if is_empty.get() => {
                 view! {
                     <EmptyState
-                        title=NO_DATA
+                        title=labels::NO_DATA
                         description=tab.empty_hint()
                         icon=EmptyStateIcon::Tray
                     >
@@ -283,7 +283,7 @@ pub fn ReceiptsMainContent(
                             variant=ButtonVariant::Primary(ButtonSize::Md)
                             href=csv_href
                         >
-                            {CSV_IMPORT}
+                            {labels::CSV_IMPORT}
                         </LinkButton>
                     </EmptyState>
                 }

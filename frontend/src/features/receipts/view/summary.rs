@@ -1,23 +1,20 @@
 use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab, select_header_summary};
 use crate::settings::format_amount;
 use crate::ui::card::StatTone;
-use crate::ui::format::date_parts;
-use crate::ui::labels::{
-    DIVIDEND_AMOUNT, DIVIDEND_BEFORE_TAX, REALIZED_AFTER_TAX, REALIZED_BEFORE_TAX,
-    REALIZED_PROFIT_LOSS, RECEIVED_DIVIDEND_AFTER_TAX, SUMMARY, TAX, receipt_period_short,
-};
+use crate::ui::format;
+use crate::ui::labels;
 use crate::ui::summary::{SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
 /// 帯の内訳に出す項目が税額かどうか。税額は出ていくお金として符号を反転する
 fn is_band_tax(label: &str) -> bool {
-    label == TAX
+    label == labels::TAX
 }
 
 /// 帯の内訳に出す項目が税引前・受取額・損益かどうか。詳細ダイアログ・PCの表と同じ決まりで符号と色を付ける
 fn is_band_profit(label: &str) -> bool {
-    label == DIVIDEND_AMOUNT || label == REALIZED_PROFIT_LOSS
+    label == labels::DIVIDEND_AMOUNT || label == labels::REALIZED_PROFIT_LOSS
 }
 
 /// 帯の内訳の表示値・正負・PC用の種別。税額は正を「-」・還付(負)を「+」に反転し、0は通常色にする
@@ -71,7 +68,7 @@ pub fn header_summary(
         .into_iter()
         .enumerate()
         .map(|(index, (label, marks_profit))| {
-            let tone = if label != TAX && marks_profit {
+            let tone = if label != labels::TAX && marks_profit {
                 profit_tone(values[index])
             } else {
                 StatTone::Neutral
@@ -85,19 +82,22 @@ pub fn header_summary(
 pub fn period_note_short(rows: &[ReceiptRow]) -> Option<String> {
     let from = rows.iter().map(super::super::ReceiptItem::date).min()?;
     let to = rows.iter().map(super::super::ReceiptItem::date).max()?;
-    Some(receipt_period_short(&year_month(from)?, &year_month(to)?))
+    Some(labels::receipt_period_short(
+        &year_month(from)?,
+        &year_month(to)?,
+    ))
 }
 
 fn year_month(date: &str) -> Option<String> {
-    date_parts(date).map(|(year, month, _)| format!("{year}/{month:02}"))
+    format::date_parts(date).map(|(year, month, _)| format!("{year}/{month:02}"))
 }
 
 /// 内訳のラベルは税の基準を明記する。PCの列見出しは変えない。
 pub(crate) fn breakdown_label(label: &'static str) -> &'static str {
-    if label == DIVIDEND_AMOUNT {
-        DIVIDEND_BEFORE_TAX
-    } else if label == REALIZED_PROFIT_LOSS {
-        REALIZED_BEFORE_TAX
+    if label == labels::DIVIDEND_AMOUNT {
+        labels::DIVIDEND_BEFORE_TAX
+    } else if label == labels::REALIZED_PROFIT_LOSS {
+        labels::REALIZED_BEFORE_TAX
     } else {
         label
     }
@@ -152,8 +152,8 @@ pub fn SummaryStrip(
     let (primary_label, primary_value, primary_negative, primary_positive) = primary
         .map_or_default(|(label, value, tone)| {
             let display = match tab {
-                ReceiptsTab::Dividend => RECEIVED_DIVIDEND_AFTER_TAX,
-                _ => REALIZED_AFTER_TAX,
+                ReceiptsTab::Dividend => labels::RECEIVED_DIVIDEND_AFTER_TAX,
+                _ => labels::REALIZED_AFTER_TAX,
             };
             let _ = label;
             (
@@ -167,7 +167,7 @@ pub fn SummaryStrip(
         <section
             data-testid="receipt-summary-strip"
             role="region"
-            aria-label=SUMMARY
+            aria-label=labels::SUMMARY
             class="summary-band"
         >
             <SummaryBand

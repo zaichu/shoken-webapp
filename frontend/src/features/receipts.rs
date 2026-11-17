@@ -11,7 +11,7 @@ pub use view::ReceiptsPage;
 use rust_decimal::Decimal;
 use shared::format::format_number;
 
-use crate::ui::labels::receipt_truncated_warning;
+use crate::ui::labels;
 
 pub use kind::ReceiptRow;
 pub use store::{ReceiptsStore, use_receipts_data};
@@ -120,7 +120,7 @@ pub fn select_header_summary<T: Clone>(
 }
 
 pub fn truncated_list_warning() -> String {
-    receipt_truncated_warning(&format_number(
+    labels::receipt_truncated_warning(&format_number(
         Decimal::from(
             crate::support::pagination::LIST_PER_PAGE * crate::support::pagination::LIST_MAX_PAGES,
         ),

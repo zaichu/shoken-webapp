@@ -5,7 +5,7 @@ use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::session::use_session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::format::{days_since_jst_date, format_iso_date, format_jst_time, format_short_date};
+use crate::ui::format;
 use crate::ui::labels;
 use leptos::ev;
 use leptos::html;
@@ -170,7 +170,7 @@ fn CsvKindRow(
                 }
                 let min = dates.iter().min()?;
                 let max = dates.iter().max()?;
-                Some((format_iso_date(min), format_iso_date(max)))
+                Some((format::format_iso_date(min), format::format_iso_date(max)))
             } else {
                 None
             }
@@ -622,10 +622,14 @@ fn compute_status(
 
     // 最終取込日時から状態を判定する。時刻は日本時間で出す
     if let Some(ts) = latest_imported_at
-        && let Some(days_ago) = days_since_jst_date(ts)
+        && let Some(days_ago) = format::days_since_jst_date(ts)
     {
-        let (text, class, key) =
-            dated_status(kind, days_ago, &format_short_date(ts), &format_jst_time(ts));
+        let (text, class, key) = dated_status(
+            kind,
+            days_ago,
+            &format::format_short_date(ts),
+            &format::format_jst_time(ts),
+        );
         return (text, class.to_string(), false, String::new(), key);
     }
 

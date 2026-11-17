@@ -3,11 +3,7 @@ use super::search_row::{ConditionTags, ReceiptSearchCount};
 use crate::features::receipts::filter::{DateSegment, ReceiptSearch, ReceiptSortOrder, SearchKey};
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::support::list_search::SearchOption;
-use crate::ui::labels::{
-    self, ACCOUNT, ALL, CONDITION, CSV_MANAGE_TITLE, PAYMENT_DATE, PERIOD, PRODUCT,
-    RECEIPT_SEARCH_TARGET, SEARCH, SEARCH_AND_SORT, SORT_BY, SORT_NEWEST_FIRST, SORT_OLDEST_FIRST,
-    SORT_ORDER_LABEL, SORT_TARGET, TRADE_DATE,
-};
+use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use crate::ui::search_controls::{SearchBox, SearchTextInput};
 use crate::ui::search_dialog::SearchDialog;
@@ -25,8 +21,8 @@ pub(crate) fn clear_receipt_dialog_draft(draft: RwSignal<ReceiptSearch>, has_yea
 
 pub(crate) const fn receipt_date_label(tab: ReceiptsTab) -> &'static str {
     match tab {
-        ReceiptsTab::Dividend => PAYMENT_DATE,
-        ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => TRADE_DATE,
+        ReceiptsTab::Dividend => labels::PAYMENT_DATE,
+        ReceiptsTab::DomesticStock | ReceiptsTab::MutualFund => labels::TRADE_DATE,
     }
 }
 
@@ -49,7 +45,7 @@ fn DialogFieldSelect(
                     class="search-dialog-select".to_string()
                     on_change=on_select
                 >
-                    <option value="">{ALL}</option>
+                    <option value="">{labels::ALL}</option>
                     {move || {
                         options
                             .get()
@@ -74,19 +70,19 @@ fn DialogSearchSection(
     let set_draft_text = move |value: String| draft.update(|s| s.set_securities_query(value));
     let search_callback = Callback::new(move |()| on_search());
     view! {
-        <section aria-label=SEARCH>
-            <p class="search-dialog-section-title">{SEARCH}</p>
+        <section aria-label=labels::SEARCH>
+            <p class="search-dialog-section-title">{labels::SEARCH}</p>
             <div class="search-dialog-field">
                 <SearchBox>
                     <SearchTextInput
-                        placeholder=labels::search_placeholder(RECEIPT_SEARCH_TARGET)
+                        placeholder=labels::search_placeholder(labels::RECEIPT_SEARCH_TARGET)
                         testid="receipts-search-input"
                         value=draft_text
                         on_input=set_draft_text
                         on_enter=search_callback
                     />
                 </SearchBox>
-                <p class="search-dialog-hint">{labels::search_placeholder(RECEIPT_SEARCH_TARGET)}</p>
+                <p class="search-dialog-hint">{labels::search_placeholder(labels::RECEIPT_SEARCH_TARGET)}</p>
             </div>
         </section>
     }
@@ -117,10 +113,10 @@ fn DialogConditionSection(
     let account_value = Memo::new(move |_| draft.with(|s| s.selected_queries.accounts.clone()));
     let product_value = Memo::new(move |_| draft.with(|s| s.selected_queries.products.clone()));
     view! {
-        <section aria-label=CONDITION>
-            <p class="search-dialog-section-title">{CONDITION}</p>
+        <section aria-label=labels::CONDITION>
+            <p class="search-dialog-section-title">{labels::CONDITION}</p>
             <DialogFieldSelect
-                label=PERIOD
+                label=labels::PERIOD
                 testid="receipts-dialog-period"
                 value=period_value
                 options=years
@@ -141,7 +137,7 @@ fn DialogConditionSection(
                     .then(|| {
                         view! {
                             <DialogFieldSelect
-                                label=ACCOUNT
+                                label=labels::ACCOUNT
                                 testid="receipts-dialog-account"
                                 value=account_value
                                 options=accounts
@@ -164,7 +160,7 @@ fn DialogConditionSection(
                     .then(|| {
                         view! {
                             <DialogFieldSelect
-                                label=PRODUCT
+                                label=labels::PRODUCT
                                 testid="receipts-dialog-product"
                                 value=product_value
                                 options=products
@@ -193,15 +189,15 @@ fn DialogSortSection(
 ) -> impl IntoView {
     let date_label = move || receipt_date_label(tab.get());
     view! {
-        <section aria-label=SORT_BY.to_string()>
-            <p class="search-dialog-section-title">{SORT_BY}</p>
+        <section aria-label=labels::SORT_BY.to_string()>
+            <p class="search-dialog-section-title">{labels::SORT_BY}</p>
             <div class="search-dialog-sort-row">
                 <div>
                     <label class="mb-1 block text-label font-medium text-text-deep">
-                        {SORT_TARGET}
+                        {labels::SORT_TARGET}
                         <Select
                             value=Signal::derive(move || "date".to_string())
-                            aria_label=SORT_TARGET.to_string()
+                            aria_label=labels::SORT_TARGET.to_string()
                             testid="receipts-dialog-sort-target"
                             class="search-dialog-select".to_string()
                             on_change=move |_| {}
@@ -212,10 +208,10 @@ fn DialogSortSection(
                 </div>
                 <div>
                     <label class="mb-1 block text-label font-medium text-text-deep">
-                        {SORT_ORDER_LABEL}
+                        {labels::SORT_ORDER_LABEL}
                         <Select
                             value=Signal::derive(move || draft_order.get().value().to_string())
-                            aria_label=SORT_ORDER_LABEL.to_string()
+                            aria_label=labels::SORT_ORDER_LABEL.to_string()
                             testid="receipts-dialog-sort-order"
                             class="search-dialog-select".to_string()
                             on_change=move |next: String| {
@@ -224,8 +220,8 @@ fn DialogSortSection(
                                 }
                             }
                         >
-                            <option value="newest">{SORT_NEWEST_FIRST}</option>
-                            <option value="oldest">{SORT_OLDEST_FIRST}</option>
+                            <option value="newest">{labels::SORT_NEWEST_FIRST}</option>
+                            <option value="oldest">{labels::SORT_OLDEST_FIRST}</option>
                         </Select>
                     </label>
                 </div>
@@ -282,7 +278,7 @@ fn ReceiptSearchDialog(
     let do_clear = move || clear_receipt_dialog_draft(draft, years_flag);
     view! {
         <SearchDialog
-            title=SEARCH_AND_SORT.to_string()
+            title=labels::SEARCH_AND_SORT.to_string()
             on_close=on_close
             on_search=do_search
             on_clear=do_clear
@@ -317,19 +313,19 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
     let sort_summary = move || {
         let date = receipt_date_label(tab.get());
         match sort_order.get() {
-            ReceiptSortOrder::Newest => labels::sort_summary(date, SORT_NEWEST_FIRST),
-            ReceiptSortOrder::Oldest => format!("{date} {SORT_OLDEST_FIRST}"),
+            ReceiptSortOrder::Newest => labels::sort_summary(date, labels::SORT_NEWEST_FIRST),
+            ReceiptSortOrder::Oldest => format!("{date} {}", labels::SORT_OLDEST_FIRST),
         }
     };
 
     let sort_summary = Signal::derive(sort_summary);
-    let placeholder = labels::search_placeholder(RECEIPT_SEARCH_TARGET);
+    let placeholder = labels::search_placeholder(labels::RECEIPT_SEARCH_TARGET);
     let close = move || open.set(false);
     let sheet_placeholder = placeholder.clone();
     view! {
         <MobileSearchEntryShell
             entry_testid="receipts-search-sheet-entry"
-            search_label=SEARCH.to_string()
+            search_label=labels::SEARCH.to_string()
             placeholder=sheet_placeholder.clone()
             value=Signal::derive(move || search.with(|s| s.selected_queries.securities.clone()))
             on_input=Callback::new(move |value| search.update(|s| s.set_securities_query(value)))
@@ -342,7 +338,7 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
                 <ReceiptSearchCount store=store tab=tab />
                 <MoreLink
                     href="/csv".to_string()
-                    label=CSV_MANAGE_TITLE.to_string()
+                    label=labels::CSV_MANAGE_TITLE.to_string()
                     testid="receipts-csv-link".to_string()
                 />
             </div>

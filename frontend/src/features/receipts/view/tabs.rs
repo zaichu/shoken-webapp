@@ -2,6 +2,7 @@ use super::TAB_IDS;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::ui::button::TabButton;
+use crate::ui::labels;
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{
     SwipeMotion, focus_tab_by_id_after_paint, next_tab_index as shared_next_tab_index,
@@ -73,7 +74,7 @@ pub fn ReceiptsTabNav(
 ) -> impl IntoView {
     let active_tab = store.active_tab;
     view! {
-        <nav aria-label=crate::ui::labels::KIND>
+        <nav aria-label=labels::KIND>
             <div
                 class="page-tab-list relative"
                 role="tablist"

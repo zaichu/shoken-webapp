@@ -11,7 +11,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
-use crate::ui::format::{format_currency, format_iso_date, format_number_value};
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use leptos::prelude::*;
@@ -37,17 +37,17 @@ pub(crate) fn holding_detail_cells(
         is_positive_valuation(view.day_change),
     );
     let dividend = holding_dividend(&view.code, view.shares, view.average_price, dividends);
-    let current_text = format_currency(view.current_price);
-    let average_text = format_currency(view.average_price);
-    let purchase_text = format_currency(view.purchase);
-    let shares_text = labels::stock_shares_label(&format_number_value(view.shares));
+    let current_text = format::format_currency(view.current_price);
+    let average_text = format::format_currency(view.average_price);
+    let purchase_text = format::format_currency(view.purchase);
+    let shares_text = labels::stock_shares_label(&format::format_number_value(view.shares));
     let per_share = format_dividend_per_share(&dividend, 0);
     let annual = format_dividend_annual(&dividend);
     let yield_text = format_dividend_yield(&dividend);
     let as_of = view
         .price_as_of
         .clone()
-        .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
+        .map_or_else(|| "—".to_string(), |date| format::format_iso_date(&date));
     let left = vec![
         DetailCell::with_sub(
             labels::CURRENT_PRICE.to_string(),
@@ -101,7 +101,7 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                     let rate_negative = is_negative_rate(valuation.profit_loss.rate);
                     let rate_positive = is_positive_rate(valuation.profit_loss.rate);
                     let shares_text =
-                        labels::stock_shares_label(&format_number_value(view.shares));
+                        labels::stock_shares_label(&format::format_number_value(view.shares));
                     let code = view.code.clone();
                     let name = view.name.clone();
                     let account = view.account.clone();

@@ -10,7 +10,7 @@ use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
-use crate::ui::format::format_price_date;
+use crate::ui::format;
 use leptos::prelude::*;
 
 // 一覧キャッシュと同じく世代で区切り、ログアウト・ユーザー切替で自動的に無効化する
@@ -41,7 +41,10 @@ fn min_max_dates(dates: impl Iterator<Item = String>) -> Option<(String, String)
     let dates: Vec<String> = dates.collect();
     let min = dates.iter().min()?;
     let max = dates.iter().max()?;
-    Some((format_price_date(min), format_price_date(max)))
+    Some((
+        format::format_price_date(min),
+        format::format_price_date(max),
+    ))
 }
 
 impl AssetBalanceCsvStore {

@@ -14,7 +14,7 @@ use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
@@ -41,8 +41,10 @@ pub fn AssetHoldingsTable(
         price_date_rep.as_deref(),
     );
     // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let average_price_decimals = unit_price_decimals(views.iter().map(|view| view.average_price));
-    let current_price_decimals = unit_price_decimals(views.iter().map(|view| view.current_price));
+    let average_price_decimals =
+        format::unit_price_decimals(views.iter().map(|view| view.average_price));
+    let current_price_decimals =
+        format::unit_price_decimals(views.iter().map(|view| view.current_price));
     let row_dividends: Vec<_> = views
         .iter()
         .map(|view| {
@@ -54,7 +56,7 @@ pub fn AssetHoldingsTable(
             )
         })
         .collect();
-    let dividend_decimals = unit_price_decimals(
+    let dividend_decimals = format::unit_price_decimals(
         row_dividends
             .iter()
             .filter_map(|dividend| dividend.per_share),
@@ -137,14 +139,14 @@ pub fn AssetHoldingsTable(
                                     </td>
                                     <td class="col-num text-text-soft">
                                         {labels::stock_shares_label(
-                                            &format_number_value(view.shares),
+                                            &format::format_number_value(view.shares),
                                         )}
                                     </td>
                                     <td class="col-num text-text-soft hidden xl:table-cell print:table-cell">
-                                        {format_unit_price(view.average_price, average_price_decimals)}
+                                        {format::format_unit_price(view.average_price, average_price_decimals)}
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        {format_unit_price(view.current_price, current_price_decimals)}
+                                        {format::format_unit_price(view.current_price, current_price_decimals)}
                                     </td>
                                     <td class="col-num">
                                         {day_change_cell(view.day_change, outlier_date)}
