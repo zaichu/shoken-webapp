@@ -2128,6 +2128,8 @@
     display: inline;
     overflow: visible;
     -webkit-line-clamp: unset;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   /* 集計行の見出しは帯別の colspan を1つだけ出す設計。印刷は全列なので

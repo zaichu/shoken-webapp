@@ -345,7 +345,7 @@ pub(crate) fn receipt_detail_cells(
                 negative: gross_neg,
                 positive: gross_pos,
                 bold: false,
-                delta: true,
+                kind: AmountKind::Delta,
             },
             DetailCell {
                 label: TAX.to_string(),
@@ -354,9 +354,19 @@ pub(crate) fn receipt_detail_cells(
                 negative: tax_neg,
                 positive: tax_pos,
                 bold: false,
-                delta: tax_neg || tax_pos,
+                kind: if tax_neg || tax_pos {
+                    AmountKind::NeutralDelta
+                } else {
+                    AmountKind::Plain
+                },
             },
-            DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
+            DetailCell::strong(
+                AFTER_TAX.to_string(),
+                net,
+                net_neg,
+                net_pos,
+                AmountKind::Delta,
+            ),
         ];
         (left, right)
     } else {
@@ -384,7 +394,7 @@ pub(crate) fn receipt_detail_cells(
                 negative: pnl_neg,
                 positive: pnl_pos,
                 bold: false,
-                delta: true,
+                kind: AmountKind::Delta,
             },
             DetailCell {
                 label: TAX.to_string(),
@@ -393,9 +403,19 @@ pub(crate) fn receipt_detail_cells(
                 negative: tax_neg,
                 positive: tax_pos,
                 bold: false,
-                delta: tax_neg || tax_pos,
+                kind: if tax_neg || tax_pos {
+                    AmountKind::NeutralDelta
+                } else {
+                    AmountKind::Plain
+                },
             },
-            DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
+            DetailCell::strong(
+                AFTER_TAX.to_string(),
+                net,
+                net_neg,
+                net_pos,
+                AmountKind::Delta,
+            ),
         ];
         (left, right)
     }

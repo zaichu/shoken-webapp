@@ -196,6 +196,7 @@ mod tests {
     use super::holding_detail_cells;
     use crate::features::asset_balance::holdings::HoldingView;
     use crate::features::dividend_per_share::DividendMaps;
+    use crate::ui::amount::AmountKind;
     use crate::ui::labels;
 
     fn sample_view() -> HoldingView {
@@ -256,12 +257,12 @@ mod tests {
         view.purchase = 250000.0;
         let (left, right) = holding_detail_cells(&view, &DividendMaps::default());
         let price = &left[0];
-        assert!(!price.delta);
+        assert_eq!(price.kind, AmountKind::Plain);
         assert!(!price.bold);
         assert_eq!(price.sub.as_deref(), Some("-¥30"));
         assert!(price.negative);
         let market = &right[2];
-        assert!(!market.delta);
+        assert_eq!(market.kind, AmountKind::Plain);
         assert!(market.bold);
         assert!(
             market

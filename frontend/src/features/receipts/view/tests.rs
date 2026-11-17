@@ -989,9 +989,21 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
             }
         }
         assert!(right[2].bold, "{tab:?}: 税引後は太字");
-        assert!(right[2].delta, "{tab:?}: 税引後は損益として符号と色");
-        assert!(right[0].delta, "{tab:?}: 税引前は損益として符号と色");
+        assert_eq!(
+            right[2].kind,
+            AmountKind::Delta,
+            "{tab:?}: 税引後は損益として符号と色"
+        );
+        assert_eq!(
+            right[0].kind,
+            AmountKind::Delta,
+            "{tab:?}: 税引前は損益として符号と色"
+        );
         assert!(!right[0].bold, "{tab:?}: 税引前は太字にしない");
+        assert!(
+            right[1].kind == AmountKind::NeutralDelta || right[1].kind == AmountKind::Plain,
+            "{tab:?}: 税額は中立色で出す"
+        );
         let (hero, _, _, _) = detail_value(&card, "税引後");
         assert!(!hero.is_empty(), "{tab:?}: 行の主役が無い");
         assert_eq!(right[2].value, hero, "{tab:?}: ダイアログは行と同じ基準");
@@ -1196,7 +1208,7 @@ fn before_tax_loss_uses_minus_and_delta() {
         .find(|cell| cell.label == "税引前")
         .expect("税引前がある");
     assert_eq!(before.value, "-¥1,000");
-    assert!(before.delta);
+    assert_eq!(before.kind, AmountKind::Delta);
     assert!(before.negative);
 }
 
