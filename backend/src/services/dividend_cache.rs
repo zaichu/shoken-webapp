@@ -46,9 +46,17 @@ pub async fn get_batch(
     if !refresh_codes.is_empty() {
         if jquants_client.is_some() {
             enqueue_refresh(pool, &refresh_codes).await?;
+            tracing::info!(
+                "配当キャッシュ要求: requested={}, refresh={}, enqueued={}",
+                codes.len(),
+                refresh_codes.len(),
+                refresh_codes.len()
+            );
         } else {
             tracing::warn!("JQUANTS_API_KEY が未設定のため更新キュー投入をスキップ");
         }
+    } else {
+        tracing::info!("配当キャッシュ要求: requested={}, refresh=0", codes.len());
     }
 
     Ok(items)
@@ -125,6 +133,8 @@ pub async fn drain_refresh_queue(
     .into_iter()
     .map(|(code,)| code)
     .collect();
+
+    tracing::info!("配当キャッシュ drain 対象: count={}", codes.len());
 
     let mut processed = 0;
     for code in codes {
