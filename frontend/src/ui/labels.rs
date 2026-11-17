@@ -843,6 +843,8 @@ pub const HOME_CSV_IMPORT_LINK: &str = "CSVファイルの取り込み";
 pub const HOME_PNL_TITLE: &str = "評価損益の大きい銘柄";
 /// ホーム: 内訳カードの見出し
 pub const HOME_COMPOSITION_TITLE: &str = "資産の内訳";
+pub const HOME_COMPOSITION_TOTAL: &str = "合計";
+pub const HOME_COMPOSITION_DETAIL_SEPARATOR: &str = " ・ ";
 /// ホーム: 概要帯の領域名
 pub const HOME_OVERVIEW_LABEL: &str = "資産の概要";
 /// ホーム: 一部の集計が取れなかったときの注意
@@ -871,7 +873,6 @@ pub const HOME_NO_PNL: &str = "評価損益を出せる銘柄がありません"
 /// ホーム: 含み損区切りの見出し
 pub const HOME_LOSS_GROUP: &str = "含み損";
 /// ホーム: 商品別内訳の図の読み上げ名
-pub const HOME_PRODUCT_BREAKDOWN_LABEL: &str = "商品別の資産内訳";
 /// ホーム: 口座別内訳の見出し
 pub const HOME_ACCOUNT_FUND_LABEL: &str = "口座別(投資信託)";
 /// ホーム: 当月を示す印
