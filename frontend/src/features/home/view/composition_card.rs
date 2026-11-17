@@ -4,7 +4,7 @@ use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{fund_market, funds_of, stock_market, stocks_of};
 use crate::features::asset_balance;
 use crate::session;
-use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::amount::Amount;
 use crate::ui::badge;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
@@ -229,7 +229,6 @@ fn CompositionRow(
                 <span class="block truncate text-body text-text">{label}</span>
                 <span class="block text-cell tabular-nums text-text-muted">
                     <Amount
-                        kind=AmountKind::Delta
                         text=format::format_integer_percent(detail_rate)
                     />
                     {(!detail_suffix.is_empty()).then(|| view! {

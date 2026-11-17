@@ -100,15 +100,26 @@ impl DetailCell {
     }
 }
 
+/// 主値の明示の正負。内訳(sub)付きの行の正負は内訳の符号なので主値には渡さない。
+/// 主値は表示文字列の符号だけで色を決める(負は赤・正の Plain は無色)
+const fn detail_main_flags(cell: &DetailCell) -> (bool, bool) {
+    if cell.sub.is_none() {
+        (cell.negative, cell.positive)
+    } else {
+        (false, false)
+    }
+}
+
 fn detail_value(cell: &DetailCell) -> AnyView {
     let kind = cell.kind;
     let class = if cell.bold { "font-bold" } else { "" };
+    let (negative, positive) = detail_main_flags(cell);
     view! {
         <Amount
             kind=kind
             text=cell.value.clone()
-            negative=cell.negative
-            positive=cell.positive
+            negative=negative
+            positive=positive
             class=class.to_string()
         />
     }
@@ -241,6 +252,7 @@ pub fn DetailDialog(
 #[cfg(test)]
 mod tests {
     use super::DetailCell;
+    use super::detail_main_flags;
     use crate::ui::amount::AmountKind;
 
     #[test]
@@ -249,6 +261,35 @@ mod tests {
         assert_eq!(cell.kind, AmountKind::Plain);
         assert!(!cell.bold);
         assert!(cell.sub.is_none());
+    }
+
+    #[test]
+    fn sub_flags_do_not_leak_to_main_value() {
+        let cell = DetailCell::with_sub(
+            "現在値".to_string(),
+            "¥1,000".to_string(),
+            "-¥10".to_string(),
+            true,
+            false,
+        );
+        assert_eq!(detail_main_flags(&cell), (false, false));
+    }
+
+    #[test]
+    fn plain_cell_without_sub_keeps_its_flags() {
+        let cell = DetailCell {
+            label: "取得利回り".to_string(),
+            value: "5.0%".to_string(),
+            sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
+            negative: false,
+            positive: true,
+            bold: false,
+            kind: AmountKind::Plain,
+        };
+        assert_eq!(detail_main_flags(&cell), (false, true));
     }
 
     #[test]

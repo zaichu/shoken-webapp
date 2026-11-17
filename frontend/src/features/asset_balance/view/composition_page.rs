@@ -13,7 +13,7 @@ use crate::features::asset_balance::portfolio::{
 use crate::features::asset_balance::store;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session;
-use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::amount::Amount;
 use crate::ui::button::TabButton;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format;
@@ -321,7 +321,6 @@ fn CompositionContent(
                                                     || view! { {labels::MISSING} }.into_any(),
                                                     |value| view! {
                                                         <Amount
-                                                            kind=AmountKind::Delta
                                                             text=format::format_currency(value)
                                                         />
                                                     }.into_any(),
@@ -331,7 +330,6 @@ fn CompositionContent(
                                                     {if static_computable {
                                                         view! {
                                                             <Amount
-                                                                kind=AmountKind::Delta
                                                                 text=format::format_fixed_percent(static_percentage, 1)
                                                             />
                                                         }.into_any()
@@ -369,7 +367,6 @@ fn CompositionContent(
                                                                 || view! { {labels::MISSING} }.into_any(),
                                                                 |value| view! {
                                                                     <Amount
-                                                                        kind=AmountKind::Delta
                                                                         text=format::format_currency(value)
                                                                     />
                                                                 }.into_any(),
@@ -377,7 +374,6 @@ fn CompositionContent(
                                                             meta=move || static_sub.clone()
                                                             secondary=move || if static_computable { view! {
                                                                 <Amount
-                                                                    kind=AmountKind::Delta
                                                                     text=format::format_fixed_percent(static_percentage, 1)
                                                                 />
                                                             }.into_any() } else { view! { {labels::MISSING} }.into_any() }
@@ -528,10 +524,7 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                                 />
                                 <span class="comp-legend-name lg:whitespace-normal">{name}</span>
                                 <span class="comp-legend-rate">
-                                    <Amount
-                                        kind=AmountKind::Delta
-                                        text=rate
-                                    />
+                                    <Amount text=rate />
                                 </span>
                             </li>
                         }

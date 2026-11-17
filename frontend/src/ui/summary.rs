@@ -224,6 +224,8 @@ pub fn SummaryBand(
                             label=aux_label.clone()
                             value=aux_value.clone()
                             note=aux_rate.clone()
+                            note_negative=aux_rate_negative
+                            note_positive=aux_rate_positive
                             tone=if aux_negative {
                                 SummaryTone::Loss
                             } else if aux_positive {
