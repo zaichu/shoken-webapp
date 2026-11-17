@@ -268,8 +268,7 @@ pub(crate) fn clear_asset_dialog_draft(draft: RwSignal<AssetSearch>) {
     });
 }
 
-/// スマホの検索・並べ替えの入口とダイアログ。PC の検索欄・条件の行は変えず、
-/// スマホ幅ではこの1行と条件タグだけを出し、中身は中央のダイアログで編集する
+/// スマホの検索欄と並べ替えのダイアログ。PC の検索欄・条件の行は変えない
 #[component]
 pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static>(
     search: RwSignal<AssetSearch>,
@@ -304,7 +303,7 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
             SortOrder::Desc => labels::SORT_HIGH_TO_LOW,
             SortOrder::Asc => labels::SORT_LOW_TO_HIGH,
         };
-        format!("{} {order}", key_label(sort_key.get()))
+        labels::sort_summary(key_label(sort_key.get()), order)
     };
     let sheet_placeholder = placeholder;
     let sort_summary = Signal::derive(sort_summary);
@@ -312,6 +311,10 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
         <MobileSearchEntryShell
             entry_testid="asset-search-sheet-entry"
             search_label=labels::ASSET_SEARCH_REGION.to_string()
+            placeholder=sheet_placeholder.clone()
+            value=Signal::derive(move || search.with(|s| s.text.clone()))
+            on_input=Callback::new(move |value| search.update(|s| s.text = value))
+            search_input_testid="asset-search-input-inline"
             sort_summary=sort_summary
             open=open
         >

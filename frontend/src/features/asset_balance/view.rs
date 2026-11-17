@@ -49,6 +49,7 @@ struct KindContent {
     search: RwSignal<AssetSearch>,
     counts: [RwSignal<(usize, usize)>; 3],
     kinds: [RwSignal<AssetKind>; 3],
+    page_kind: RwSignal<AssetKind>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
     fund_sort_key: RwSignal<FundSortKey>,
@@ -56,6 +57,7 @@ struct KindContent {
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     data_ops: RwSignal<DataOps>,
+    motion: SwipeMotion,
 }
 
 impl KindContent {
@@ -118,9 +120,11 @@ impl KindContent {
                     fund_sort_key=self.fund_sort_key
                     fund_sort_order=self.fund_sort_order
                     kind=self.kinds[index]
+                    page_kind=self.page_kind
                     dividends=self.dividends
                     lookup=self.lookup
                     generation=generation
+                    motion=self.motion
                 />
             }
             .into_any(),
@@ -277,6 +281,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         search,
         counts: std::array::from_fn(|_| RwSignal::new((0usize, 0usize))),
         kinds: std::array::from_fn(|index| RwSignal::new(AssetKind::ALL[index])),
+        page_kind: state.kind,
         sort_key: state.sort_key,
         sort_order: state.sort_order,
         fund_sort_key: state.fund_sort_key,
@@ -284,6 +289,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         dividends,
         lookup,
         data_ops,
+        motion,
     };
     // 口座・コースの選択肢はタブごとに語彙が違うため、切替時は選択条件だけ消す
     // (テキストは全タブ共通で引き継ぐ)
@@ -347,8 +353,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 }
             }
         >
-            {/* タブ行: 固定上部 */}
-            <div class="content-gutter no-print">
+            <div class="content-gutter no-print max-lg:hidden">
                 <SkeletonTabs>
                     <AssetKindTabs kind=state.kind motion=motion />
                 </SkeletonTabs>

@@ -338,15 +338,15 @@ test.describe('スマホの構成比', () => {
     await page.goto('/assetbalance');
 
     // 『保有銘柄 ◯件』の見出し行は無い
-    await page.getByTestId('asset-kind-tab-stock').click();
+    await page.getByTestId('asset-kind-tab-stock-mobile').click();
     await expect(page.getByTestId('asset-stock-heading')).toHaveCount(0);
     await expect(page.getByText('保有銘柄')).toHaveCount(0);
 
     // 3タブとも件数と同じ行の右端に入口があり、押せる高さを持つ
     const tabs = [
-      { tab: 'asset-kind-tab-stock', count: '3件 / 3件' },
-      { tab: 'asset-kind-tab-fund', count: '2件 / 2件' },
-      { tab: 'asset-kind-tab-all', count: '5件 / 5件' },
+      { tab: 'asset-kind-tab-stock-mobile', count: '3件 / 3件' },
+      { tab: 'asset-kind-tab-fund-mobile', count: '2件 / 2件' },
+      { tab: 'asset-kind-tab-all-mobile', count: '5件 / 5件' },
     ] as const;
     for (const { tab, count } of tabs) {
       await page.getByTestId(tab).click();
@@ -367,7 +367,7 @@ test.describe('スマホの構成比', () => {
       }
     }
 
-    await page.getByTestId('asset-kind-tab-stock').click();
+    await page.getByTestId('asset-kind-tab-stock-mobile').click();
     await page.getByTestId('asset-composition-link').click();
     await expect(page).toHaveURL('/assetbalance/composition');
     await expect(page.getByRole('link', { name: '資産管理に戻る' })).toBeVisible();

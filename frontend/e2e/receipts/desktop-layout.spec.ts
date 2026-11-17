@@ -146,14 +146,14 @@ test('390px では2行の行表示になり表とPCの検索バーは隠れる',
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(DIVIDENDS.length);
   await expect(page.getByRole('table')).toBeHidden();
   await expect(page.getByRole('search', { name: '取引明細の検索' })).toBeHidden();
-  // 検索・並べ替えは入口の1行にまとめ、中身はシートで操作する
+  // 検索入力は常時表示し、並べ替えは入口の1行にまとめる。条件はシートで付ける
   await expect(page.getByTestId('receipts-search-sheet-entry')).toBeVisible();
   await expect(page.getByTestId('receipts-search-sheet-entry')).toContainText(
-    '検索・並べ替え',
+    '並べ替え',
   );
   await expect(
     page.getByRole('search', { name: '検索', exact: true }).getByPlaceholder('銘柄名・コード'),
-  ).toHaveCount(0);
+  ).toHaveCount(1);
   await expect(
     page.getByRole('search', { name: '検索', exact: true }).getByRole('button', { name: '＋ 期間' }),
   ).toHaveCount(0);

@@ -302,6 +302,14 @@ fn compact_value(details: &[CardDetail], label: &str) -> (String, bool, bool) {
         })
 }
 
+pub(crate) fn before_tax_subtext(tab: ReceiptsTab, details: &[CardDetail]) -> Option<String> {
+    if tab == ReceiptsTab::Dividend {
+        return None;
+    }
+    let (value, _, _) = compact_value(details, REALIZED_PROFIT_LOSS);
+    (!value.is_empty()).then(|| format!("{BEFORE_TAX} {value}"))
+}
+
 fn detail_text(details: &[CardDetail], label: &str) -> (String, bool, bool, bool) {
     details
         .iter()
@@ -432,6 +440,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         ..
     } = card;
     let (hero_value, hero_negative, hero_positive) = compact_value(&details, AFTER_TAX);
+    let before_tax_sub = before_tax_subtext(tab, &details);
     let hero_is_profit = is_profit_label(tab, AFTER_TAX);
     let hero_kind = if hero_is_profit {
         AmountKind::Delta
@@ -472,12 +481,17 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                 on_click=move |_| sheet_open.set(true)
                 name=move || row_name.clone()
                 primary=move || view! {
-                    <Amount
-                        kind=hero_kind
-                        text=hero_value_for_row.clone()
-                        negative=hero_negative
-                        positive=hero_positive
-                    />
+                    <span class="receipt-compact-value">
+                        <Amount
+                            kind=hero_kind
+                            text=hero_value_for_row.clone()
+                            negative=hero_negative
+                            positive=hero_positive
+                        />
+                        {before_tax_sub.clone().map(|text| view! {
+                            <span class="receipt-before-tax-sub">{text}</span>
+                        })}
+                    </span>
                 }
                 meta=move || view! {
                     {short_date_for_meta.clone()}

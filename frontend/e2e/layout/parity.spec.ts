@@ -307,7 +307,7 @@ test('資産管理の検索とCSV管理ページに390pxでもアクセスでき
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
-  // 検索・並べ替えは入口の1行にまとめ、入力欄はシートの中にある
+  // 検索入力は常時表示し、並べ替えは入口の1行にまとめる。条件はシートで付ける
   await page.getByTestId('asset-search-sheet-entry').click();
   await expect(page.getByTestId('asset-search-input')).toBeEditable();
   await page.keyboard.press('Escape');
@@ -418,7 +418,8 @@ type Box = { y: number; height: number };
 
 async function skeletonBox(page: Page, selector: string): Promise<Box> {
   await page.evaluate(() => window.scrollTo(0, 0));
-  const locator = page.locator(selector).first();
+  // タブは PC 用とスマホ用が両方描かれるため、見えている側だけを比べる
+  const locator = page.locator(`${selector}:visible`).first();
   await expect(locator).toBeVisible();
   const box = await locator.boundingBox();
   expect(box).not.toBeNull();
@@ -493,14 +494,15 @@ test.describe('資産管理と取引明細の上部 parity', () => {
       await other.goto('/receipts');
       await other.getByTestId('receipt-summary-strip').first().waitFor();
       // 資産管理の上バーは構成比リンクを出すため取引明細より背が高く、
-      // タブの絶対位置は一致しない。骨組みの間隔が同じなのを確かめる
+      // タブの絶対位置は一致しない。骨組みの間隔が同じなのを確かめる。
+      // タブは集計の下に置くため、集計の下端からタブの上端までを比べる
       const assetTabs = await skeletonBox(page, '.page-skeleton-tabs');
       const receiptTabs = await skeletonBox(other, '.page-skeleton-tabs');
       expect(Math.abs(assetTabs.height - receiptTabs.height), 'タブの高さ').toBeLessThanOrEqual(1);
       const assetSummary = await skeletonBox(page, '.page-skeleton-summary');
       const receiptSummary = await skeletonBox(other, '.page-skeleton-summary');
-      const assetGap = assetSummary.y - (assetTabs.y + assetTabs.height);
-      const receiptGap = receiptSummary.y - (receiptTabs.y + receiptTabs.height);
+      const assetGap = assetTabs.y - (assetSummary.y + assetSummary.height);
+      const receiptGap = receiptTabs.y - (receiptSummary.y + receiptSummary.height);
       expect(Math.abs(assetGap - receiptGap), 'タブと帯の間隔').toBeLessThanOrEqual(2);
       await expectNoPageOverflow(page, 390);
       await expectNoPageOverflow(other, 390);

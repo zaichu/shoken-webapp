@@ -137,7 +137,7 @@ test('スマホ: 検索・並べ替えダイアログは中央に小さく出る
   await setupMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
-  await page.getByTestId('asset-kind-tab-fund').click();
+  await page.getByTestId('asset-kind-tab-fund-mobile').click();
   await expect(page.getByTestId('asset-fund-list')).toBeVisible();
 
   await page.getByTestId('asset-search-sheet-entry').click();

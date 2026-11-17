@@ -9,14 +9,14 @@ pub use action_bar::{ReceiptsMobileSearchEntry, ReceiptsSearchBar};
 pub use main_content::ReceiptsMainContent;
 pub use summary::SummaryStrip;
 pub use table::ReceiptTable;
-pub use tabs::{ReceiptsTabButton, TabPanel};
+pub use tabs::{ReceiptsTabNav, TabPanel};
 
 use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
-use crate::ui::labels::{CSV_MANAGE_TITLE, KIND, RECEIPTS_TITLE};
+use crate::ui::labels::{CSV_MANAGE_TITLE, RECEIPTS_TITLE};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
-use crate::ui::underline_tabs::{SwipeArea, SwipeMotion, tab_ink_offset};
+use crate::ui::underline_tabs::{SwipeArea, SwipeMotion};
 use leptos::prelude::*;
 
 pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
@@ -49,42 +49,6 @@ pub fn ReceiptsPage() -> impl IntoView {
         .into_any()
     });
     // タブはページ名の下の行に置く(資産管理と同じ順序)
-    let tabs = move || {
-        view! {
-            <nav aria-label=KIND>
-                <div
-                    class="page-tab-list relative"
-                    role="tablist"
-                    data-swiping=move || motion.dragging.get().to_string()
-                >
-                    {ReceiptsTab::ALL
-                        .iter()
-                        .copied()
-                        .map(|tab| {
-                            view! { <ReceiptsTabButton store=store tab=tab motion=motion /> }
-                        })
-                        .collect_view()}
-                    <span
-                        class="tab-swipe-ink"
-                        data-on=move || motion.dragging.get().to_string()
-                        style:width=format!("calc(100% / {})", ReceiptsTab::ALL.len())
-                        style:transform=move || {
-                            let position = ReceiptsTab::ALL
-                                .iter()
-                                .position(|tab| *tab == active_tab.get())
-                                .unwrap_or(0);
-                            format!(
-                                "translateX({}%)",
-                                tab_ink_offset(position, motion.progress.get()) * 100.0
-                            )
-                        }
-                    ></span>
-                </div>
-            </nav>
-        }
-        .into_any()
-    };
-
     view! {
         <PageFrame title=RECEIPTS_TITLE links=csv_link full_bleed=true>
             <div
@@ -97,8 +61,8 @@ pub fn ReceiptsPage() -> impl IntoView {
                     }
                 }
             >
-                <div class="content-gutter no-print">
-                    <SkeletonTabs>{tabs}</SkeletonTabs>
+                <div class="content-gutter no-print max-lg:hidden">
+                    <SkeletonTabs><ReceiptsTabNav store=store motion=motion /></SkeletonTabs>
                 </div>
                 <SwipeArea
                     testid="receipts-workspace"

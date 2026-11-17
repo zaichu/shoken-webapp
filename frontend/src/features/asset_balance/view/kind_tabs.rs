@@ -2,7 +2,7 @@ use crate::features::asset_balance::fund::AssetKind;
 use crate::ui::button::TabButton;
 use crate::ui::labels;
 use crate::ui::underline_tabs::{
-    SwipeMotion, focus_tab_by_id, next_tab_index, prefers_reduced_motion,
+    SwipeMotion, focus_tab_by_id_after_paint, next_tab_index, prefers_reduced_motion,
     swipe_should_ignore_input, tab_ink_offset,
 };
 use leptos::prelude::*;
@@ -16,15 +16,22 @@ const fn tab_id(kind: AssetKind) -> &'static str {
 }
 
 /// 保有種別の切り替えピル(すべて/国内株式/投資信託)。
-/// 取引明細のタブと同じ構造
+/// 取引明細のタブと同じ構造。
+/// スマホでは集計の下にもう1組出すため、その分は suffix="-mobile" で
+/// id と testid を分け、隠れている側と取り違えないようにする
 #[component]
-pub(crate) fn AssetKindTabs(kind: RwSignal<AssetKind>, motion: SwipeMotion) -> impl IntoView {
+pub(crate) fn AssetKindTabs(
+    kind: RwSignal<AssetKind>,
+    motion: SwipeMotion,
+    #[prop(optional)] suffix: Option<&'static str>,
+) -> impl IntoView {
+    let suffix = suffix.unwrap_or("");
     view! {
         <div
             class="page-tab-list no-print relative"
             role="tablist"
             aria-label=labels::ASSET_KIND_TABS_LABEL
-            data-testid="asset-kind-tabs"
+            data-testid=format!("asset-kind-tabs{suffix}")
             data-swiping=move || motion.dragging.get().to_string()
         >
             {AssetKind::ALL
@@ -36,9 +43,9 @@ pub(crate) fn AssetKindTabs(kind: RwSignal<AssetKind>, motion: SwipeMotion) -> i
                     let guard = motion;
                     view! {
                         <TabButton
-                            id=tab_id(item).to_string()
+                            id=format!("{}{}", tab_id(item), suffix)
                             selected=selected
-                            testid=format!("asset-kind-tab-{}", item.value())
+                            testid=format!("asset-kind-tab-{}{}", item.value(), suffix)
                             on_click=move |event| {
                                 if event.detail() != 0
                                     && swipe_should_ignore_input(
@@ -58,7 +65,11 @@ pub(crate) fn AssetKindTabs(kind: RwSignal<AssetKind>, motion: SwipeMotion) -> i
                                 if let Some(next) = next_tab_index(3, current, &event.key()) {
                                     event.prevent_default();
                                     keyed.set(AssetKind::ALL[next]);
-                                    focus_tab_by_id(tab_id(AssetKind::ALL[next]));
+                                    focus_tab_by_id_after_paint(format!(
+                                        "{}{}",
+                                        tab_id(AssetKind::ALL[next]),
+                                        suffix
+                                    ));
                                 }
                             }
                         >

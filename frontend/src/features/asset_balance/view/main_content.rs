@@ -5,6 +5,7 @@ use super::all_list::{
 use super::asset_table::AssetHoldingsTable;
 use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
+use super::kind_tabs::AssetKindTabs;
 use super::search_bar::{AssetMobileSearchEntry, AssetSearchBar, ConditionKind};
 use super::summary::{
     AssetSummaryBand, fund_has_pending, oldest_combined_as_of, oldest_fund_as_of,
@@ -33,7 +34,10 @@ use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels;
-use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
+use crate::ui::page_skeleton::{
+    FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary, SkeletonTabs,
+};
+use crate::ui::underline_tabs::SwipeMotion;
 use leptos::prelude::*;
 
 /// 絞り込みの件数。検索条件が無いときは注記に出さない
@@ -49,6 +53,14 @@ fn filtered_count(
             filtering: !search.with(super::super::fund::AssetSearch::is_empty),
         }
     })
+}
+
+fn asset_tabs(page_kind: RwSignal<AssetKind>, motion: SwipeMotion) -> impl IntoView {
+    view! {
+        <SkeletonTabs>
+            <AssetKindTabs kind=page_kind motion=motion suffix="-mobile" />
+        </SkeletonTabs>
+    }
 }
 
 fn sorted_views(
@@ -201,9 +213,11 @@ fn StockContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
+    page_kind: RwSignal<AssetKind>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
+    motion: SwipeMotion,
 ) -> impl IntoView {
     let total_count = rows.len();
     let empty = rows.is_empty();
@@ -247,7 +261,7 @@ fn StockContent(
     });
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
-        <section id="assetbalance-stock-list" hidden=empty>
+        <section id="assetbalance-stock-list">
             {move || {
                 (!empty).then(|| {
                     let (values, tags, purchase) = summary.get();
@@ -273,6 +287,15 @@ fn StockContent(
                     }
                 })
             }}
+            // 空のときもタブは出す。株式0件・投信のみでも投信へ移れるようにする。
+            // 前面のスライドだけに描く(横スワイプ中に隣の面まで出すと重複する)
+            {move || (page_kind.get() == AssetKind::Stock).then(|| view! {
+                <div class="asset-mobile-tabs-links lg:hidden">
+                    {asset_tabs(page_kind, motion)}
+                </div>
+            })}
+            {(!empty).then(|| view! {
+                <>
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -337,6 +360,8 @@ fn StockContent(
                     view! { <EmptyFilteredSearch search=search /> }
                 })
             }}
+                </>
+            })}
         </section>
     }
     .into_any()
@@ -349,6 +374,8 @@ fn FundContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
+    page_kind: RwSignal<AssetKind>,
+    motion: SwipeMotion,
 ) -> impl IntoView {
     let total_count = resolved.rows.len();
     let account_rows = resolved.rows.clone();
@@ -375,7 +402,9 @@ fn FundContent(
     let pending = valuation_has_pending(false, fund_has_pending(&resolved));
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
-        <section id="assetbalance-fund-list" hidden=empty>
+        <section id="assetbalance-fund-list">
+            {(!empty).then(|| view! {
+                <>
             <SkeletonSummary>
                 <AssetSummaryBand
                     market=Some(market)
@@ -388,6 +417,11 @@ fn FundContent(
                     show_pending=pending
                 />
             </SkeletonSummary>
+            // 空のときもタブは出す。投信0件・株式のみでも株式へ移れるようにする。
+            // 前面のスライドだけに描く(横スワイプ中に隣の面まで出すと重複する)
+            {move || (page_kind.get() == AssetKind::Fund).then(|| view! {
+                <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(page_kind, motion)}</div>
+            })}
             <SkeletonNote filtered=filtered_count />
             <SkeletonSearch>
                 <AssetSearchBar
@@ -441,6 +475,8 @@ fn FundContent(
                     view! { <EmptyFilteredSearch search=search /> }
                 })
             }}
+                </>
+            })}
         </section>
     }
     .into_any()
@@ -462,9 +498,11 @@ fn AllContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
+    page_kind: RwSignal<AssetKind>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
+    motion: SwipeMotion,
 ) -> impl IntoView {
     let stock_total = stock_rows.len();
     let fund_total = fund_resolved.rows.len();
@@ -548,7 +586,9 @@ fn AllContent(
     let course_options = Memo::new(|_| Vec::<String>::new());
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
-        <section id="assetbalance-all-list" hidden=empty>
+        <section id="assetbalance-all-list">
+            {(!empty).then(|| view! {
+                <>
             <SkeletonSummary>
                 <AssetSummaryBand
                     market=Some(market)
@@ -561,6 +601,11 @@ fn AllContent(
                     show_pending=pending
                 />
             </SkeletonSummary>
+            // 空のときもタブは出す。どちらか0件でも行き来できるようにする。
+            // 前面のスライドだけに描く(横スワイプ中に隣の面まで出すと重複する)
+            {move || (page_kind.get() == AssetKind::All).then(|| view! {
+                <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(page_kind, motion)}</div>
+            })}
             <SkeletonNote filtered=filtered_count />
             <SkeletonSearch>
                 <AssetSearchBar
@@ -614,6 +659,8 @@ fn AllContent(
                     view! { <EmptyFilteredSearch search=search /> }
                 })
             }}
+                </>
+            })}
         </section>
     }
     .into_any()
@@ -631,9 +678,11 @@ pub(crate) fn AssetBalanceMainContent(
     fund_sort_key: RwSignal<FundSortKey>,
     fund_sort_order: RwSignal<SortOrder>,
     kind: RwSignal<AssetKind>,
+    page_kind: RwSignal<AssetKind>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
+    motion: SwipeMotion,
 ) -> impl IntoView {
     view! {
         {move || match kind.get() {
@@ -646,9 +695,11 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=sort_key
                         sort_order=sort_order
+                        page_kind=page_kind
                         dividends=dividends
                         lookup=lookup
                         generation=generation
+                        motion=motion
                     />
                 }
                     .into_any()
@@ -661,6 +712,8 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=fund_sort_key
                         sort_order=fund_sort_order
+                        page_kind=page_kind
+                        motion=motion
                     />
                 }
                     .into_any()
@@ -675,9 +728,11 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=fund_sort_key
                         sort_order=fund_sort_order
+                        page_kind=page_kind
                         dividends=dividends
                         lookup=lookup
                         generation=generation
+                        motion=motion
                     />
                 }
                     .into_any()

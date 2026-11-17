@@ -158,7 +158,7 @@ test('スマホの行は名前と評価額・損益を出し配当の内訳は�
   await setupMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
-  await page.getByTestId('asset-kind-tab-stock').click();
+  await page.getByTestId('asset-kind-tab-stock-mobile').click();
 
   const row = page.getByTestId('asset-compact-row').filter({ hasText: '架空自動車' });
   await expect(row).toBeVisible();

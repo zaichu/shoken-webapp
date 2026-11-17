@@ -303,6 +303,11 @@ pub fn search_placeholder(target: &str) -> String {
     format!("{target}で検索")
 }
 
+/// スマホの並べ替え1行(「評価額の高い順」「約定日の新しい順」)
+pub fn sort_summary(target: &str, order: &str) -> String {
+    format!("{target}の{order}")
+}
+
 pub fn previous_dividend_span(current_month: u32, amount: &str) -> String {
     let months = match current_month {
         1..=10 => format!("{}〜12月", current_month + 1),

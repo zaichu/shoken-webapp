@@ -751,6 +751,36 @@ fn tax_signed_text_inverts_outflow() {
 }
 
 #[test]
+fn before_tax_row_subtitle_is_limited_to_stock_and_fund() {
+    // 主の金額は税引後のまま、その下に税引前を小さく出す。
+    // 特定口座で税額がある行は税引前と税引後が違う値になる
+    for tab in [ReceiptsTab::DomesticStock, ReceiptsTab::MutualFund] {
+        let card = card_for(
+            tab,
+            if tab == ReceiptsTab::DomesticStock {
+                domestic().remove(0)
+            } else {
+                funds().remove(0)
+            },
+        );
+        let expected = if tab == ReceiptsTab::DomesticStock {
+            "税引前 +¥1,000"
+        } else {
+            "税引前 +¥900"
+        };
+        assert_eq!(
+            before_tax_subtext(tab, &card.details).as_deref(),
+            Some(expected)
+        );
+    }
+    let dividend = card_for(ReceiptsTab::Dividend, dividends().remove(0));
+    assert_eq!(
+        before_tax_subtext(ReceiptsTab::Dividend, &dividend.details),
+        None
+    );
+}
+
+#[test]
 fn card_header_carries_code_badge_value_and_copy_name() {
     let rows = dividends();
     let cells = rows[0].cells();

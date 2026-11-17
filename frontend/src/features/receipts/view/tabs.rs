@@ -4,8 +4,8 @@ use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::ui::button::TabButton;
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{
-    SwipeMotion, focus_tab_by_id, next_tab_index as shared_next_tab_index, prefers_reduced_motion,
-    swipe_should_ignore_input,
+    SwipeMotion, focus_tab_by_id_after_paint, next_tab_index as shared_next_tab_index,
+    prefers_reduced_motion, swipe_should_ignore_input, tab_ink_offset,
 };
 use leptos::prelude::*;
 
@@ -13,8 +13,8 @@ pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
     shared_next_tab_index(TAB_IDS.len(), current, key)
 }
 
-fn focus_tab(index: usize) {
-    focus_tab_by_id(&format!("tab-{}", TAB_IDS[index]));
+fn focus_tab(index: usize, suffix: &str) {
+    focus_tab_by_id_after_paint(format!("tab-{}{}", TAB_IDS[index], suffix));
 }
 
 #[component]
@@ -22,8 +22,11 @@ pub fn ReceiptsTabButton(
     store: ReceiptsStore,
     tab: ReceiptsTab,
     motion: SwipeMotion,
+    #[prop(optional)] suffix: Option<&'static str>,
 ) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
+    let suffix = suffix.unwrap_or("");
+    let id = format!("tab-{slug}{suffix}");
     let label = tab.label();
     let selected = store;
     let keyed = store;
@@ -31,7 +34,7 @@ pub fn ReceiptsTabButton(
     let guard = motion;
     view! {
         <TabButton
-            id=format!("tab-{slug}")
+            id=id
             controls=format!("tabpanel-{slug}")
             selected=move || selected.active_tab.get() == tab
             on_click=move |event| {
@@ -53,12 +56,57 @@ pub fn ReceiptsTabButton(
                 if let Some(next) = next_tab_index(current, &event.key()) {
                     event.prevent_default();
                     keyed.select_tab(ReceiptsTab::ALL[next]);
-                    focus_tab(next);
+                    focus_tab(next, suffix);
                 }
             }
         >
             {label}
         </TabButton>
+    }
+}
+
+#[component]
+pub fn ReceiptsTabNav(
+    store: ReceiptsStore,
+    motion: SwipeMotion,
+    #[prop(optional)] suffix: Option<&'static str>,
+) -> impl IntoView {
+    let active_tab = store.active_tab;
+    view! {
+        <nav aria-label=crate::ui::labels::KIND>
+            <div
+                class="page-tab-list relative"
+                role="tablist"
+                data-swiping=move || motion.dragging.get().to_string()
+            >
+                {ReceiptsTab::ALL
+                    .iter()
+                    .copied()
+            .map(|tab| {
+                        view! {
+                            <ReceiptsTabButton
+                                store=store
+                                tab=tab
+                                motion=motion
+                                suffix=suffix.unwrap_or("")
+                            />
+                        }
+                    })
+                    .collect_view()}
+                <span
+                    class="tab-swipe-ink"
+                    data-on=move || motion.dragging.get().to_string()
+                    style:width=format!("calc(100% / {})", ReceiptsTab::ALL.len())
+                    style:transform=move || {
+                        let position = ReceiptsTab::ALL
+                            .iter()
+                            .position(|tab| *tab == active_tab.get())
+                            .unwrap_or(0);
+                        format!("translateX({}%)", tab_ink_offset(position, motion.progress.get()) * 100.0)
+                    }
+                ></span>
+            </div>
+        </nav>
     }
 }
 
@@ -103,7 +151,7 @@ pub fn TabPanel(
                 if !store.is_authenticated() {
                     return view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any();
                 }
-                view! { <ReceiptsMainContent store=store tab=tab /> }.into_any()
+                view! { <ReceiptsMainContent store=store tab=tab motion=motion /> }.into_any()
             }}
         </div>
     }

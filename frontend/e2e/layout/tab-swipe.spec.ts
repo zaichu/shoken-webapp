@@ -244,8 +244,9 @@ async function slideX(page: Page, testid: string): Promise<number | null> {
 }
 
 async function inkPercent(page: Page): Promise<number | null> {
+  // PC 用とスマホ用の下線が両方あるため、見えている側を読む
   const transform = await page
-    .locator('.tab-swipe-ink')
+    .locator('.asset-mobile-tabs-links .tab-swipe-ink')
     .evaluate((element) => (element as HTMLElement).style.transform);
   return parseTranslateXPercent(transform);
 }
@@ -259,48 +260,48 @@ test.describe('下線タブの横スワイプ', () => {
     await setupAssetMocks(page);
     await page.goto('/assetbalance');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
 
     await swipe(page, 'assetbalance-main-stage', 300, 90);
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
 
     await swipe(page, 'assetbalance-main-stage', 90, 300);
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
 
     // 端から始めた接触・短い移動・縦方向の移動では切り替わらない
     await swipe(page, 'assetbalance-main-stage', 5, 200);
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
     await swipe(page, 'assetbalance-main-stage', 300, 270);
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
     await swipe(page, 'assetbalance-main-stage', 300, 280, 400, 200);
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
 
     // 端のタブ(投資信託)では外向きのスワイプで動かない
     await swipe(page, 'assetbalance-main-stage', 300, 90);
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
     await swipe(page, 'assetbalance-main-stage', 300, 90);
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -310,7 +311,7 @@ test.describe('下線タブの横スワイプ', () => {
     await setupAssetMocks(page);
     await page.goto('/assetbalance');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -329,7 +330,7 @@ test.describe('下線タブの横スワイプ', () => {
       );
     });
     // 離す前は切り替わらず、隣の中身が端からのぞく
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -337,10 +338,10 @@ test.describe('下線タブの横スワイプ', () => {
       .locator('#assetbalance-fund-list')
       .evaluate((element) => element.getBoundingClientRect().left);
     expect(fundLeft).toBeLessThan(390);
-    await expect(page.locator('.tab-swipe-ink[data-on="true"]')).toHaveCount(1);
+    await expect(page.locator('.tab-swipe-ink[data-on="true"]:visible')).toHaveCount(1);
 
     await touchEnd(page, 'assetbalance-main-stage', 100, 400);
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -364,7 +365,7 @@ test.describe('下線タブの横スワイプ', () => {
     await page.waitForTimeout(300);
     expect(await currentTransform()).toBe('');
     await touchEnd(page, 'assetbalance-main-stage', 200, 400);
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -377,7 +378,7 @@ test.describe('下線タブの横スワイプ', () => {
     await page.waitForTimeout(300);
     expect(await currentTransform()).toBe('');
     await touchEnd(page, 'assetbalance-main-stage', 190, 400);
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -411,7 +412,7 @@ test.describe('下線タブの横スワイプ', () => {
     await setupAssetMocks(page);
     await page.goto('/assetbalance');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -434,7 +435,7 @@ test.describe('下線タブの横スワイプ', () => {
     }
     expect(Math.min(...frames)).toBeLessThan(-100);
 
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -442,7 +443,7 @@ test.describe('下線タブの横スワイプ', () => {
     expect(
       await activeSlideTransform(page, 'assetbalance-main-stage'),
     ).toBe('');
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -454,7 +455,7 @@ test.describe('下線タブの横スワイプ', () => {
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
 
     await swipe(page, 'assetbalance-main-stage', 300, 90);
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -468,7 +469,7 @@ test.describe('下線タブの横スワイプ', () => {
     expect(initialX).not.toBeNull();
     const sampling = sampleSlideX(page, 'assetbalance-main-stage', 600);
     await touchEnd(page, 'assetbalance-main-stage', 300, 400);
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -486,7 +487,7 @@ test.describe('下線タブの横スワイプ', () => {
     expect(
       await activeSlideTransform(page, 'assetbalance-main-stage'),
     ).toBe('');
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -496,7 +497,7 @@ test.describe('下線タブの横スワイプ', () => {
     await setupAssetMocks(page);
     await page.goto('/assetbalance');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -506,7 +507,7 @@ test.describe('下線タブの横スワイプ', () => {
     await waitForDrag(page, 'assetbalance-main-stage');
     await touchEnd(page, 'assetbalance-main-stage', 270, 400);
 
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -538,7 +539,7 @@ test.describe('下線タブの横スワイプ', () => {
     expect(during as number).toBeGreaterThan(before as number);
 
     await touchEnd(page, 'assetbalance-main-stage', 190, 400);
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -549,13 +550,13 @@ test.describe('下線タブの横スワイプ', () => {
     await setupAssetMocks(page);
     await page.goto('/assetbalance');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
 
     await swipe(page, 'assetbalance-main-stage', 300, 90);
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -570,7 +571,7 @@ test.describe('下線タブの横スワイプ', () => {
     await setupAssetMocks(page);
     await page.goto('/assetbalance');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -593,7 +594,7 @@ test.describe('下線タブの横スワイプ', () => {
         );
       touch('touchend', { changedTouches: [point(90)] });
       document
-        .querySelector('[data-testid="asset-kind-tab-stock"]')
+        .querySelector('[data-testid="asset-kind-tab-stock-mobile"]')
         ?.dispatchEvent(
           new MouseEvent('click', {
             bubbles: true,
@@ -608,7 +609,7 @@ test.describe('下線タブの横スワイプ', () => {
     });
 
     // 動きの最中の前のタブへのタップと逆向きの新しいスワイプは無視され、隣へ切り替わる
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -619,8 +620,8 @@ test.describe('下線タブの横スワイプ', () => {
       'false',
       { timeout: 2_000 },
     );
-    await page.getByTestId('asset-kind-tab-stock').click();
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await page.getByTestId('asset-kind-tab-stock-mobile').click();
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -630,7 +631,7 @@ test.describe('下線タブの横スワイプ', () => {
     await setupAssetMocks(page);
     await page.goto('/assetbalance');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-    await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -645,7 +646,7 @@ test.describe('下線タブの横スワイプ', () => {
     await touchStart(page, 'assetbalance-main-stage', 250, 400);
     await touchMove(page, 'assetbalance-main-stage', 90, 400);
     await touchEnd(page, 'assetbalance-main-stage', 90, 400);
-    await expect(page.getByTestId('asset-kind-tab-fund')).toHaveAttribute(
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
       'aria-selected',
       'true',
     );

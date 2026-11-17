@@ -19,7 +19,7 @@ pub struct FilteredCount {
 #[component]
 pub fn SkeletonTabs(children: Children) -> impl IntoView {
     view! {
-        <div class="page-skeleton-tabs no-print">{children()}</div>
+        <div class="page-skeleton-tabs no-print max-lg:mt-0 max-lg:mb-0">{children()}</div>
     }
 }
 

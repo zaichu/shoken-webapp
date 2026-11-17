@@ -1001,6 +1001,38 @@
     display: none;
   }
 
+  .mobile-search-box {
+    @apply min-h-12;
+  }
+
+  .receipts-mobile-summary-order {
+    display: contents;
+  }
+
+  .mobile-sort-entry {
+    @apply min-h-11 w-full justify-start gap-1 rounded-none border-0 border-b border-border bg-transparent px-0 text-left text-text hover:bg-transparent lg:hidden;
+  }
+
+  .mobile-sort-entry-value {
+    @apply min-w-0 flex-1 truncate font-normal text-text-soft;
+  }
+
+  .mobile-sort-entry-chevron {
+    @apply h-4 w-4 shrink-0 text-text-muted;
+  }
+
+  .receipts-mobile-search {
+    @apply lg:hidden;
+  }
+
+  .receipt-compact-value {
+    @apply flex flex-col items-end gap-0.5 whitespace-normal;
+  }
+
+  .receipt-before-tax-sub {
+    @apply text-xs font-normal text-text-soft;
+  }
+
   /* シートの中の並べ替えは Select 部品で選ぶ。旧 `sort-option` 系の定義は使わない */
 
   /* type=date は未入力だと「年/月/日 ()」のような形式表示が出る。入力中は
