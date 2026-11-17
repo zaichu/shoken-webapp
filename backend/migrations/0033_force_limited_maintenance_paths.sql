@@ -129,7 +129,7 @@ AS $$
     LIMIT p_limit OFFSET p_offset
 $$;
 REVOKE ALL ON FUNCTION public.admin_login_search_data_v2(text[], text[], text[], text, text, bigint, bigint)
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.admin_login_search_data_v2(text[], text[], text[], text, text, bigint, bigint)
     OWNER TO app_admin_login_executor;
 
@@ -159,7 +159,7 @@ AS $$
     )
 $$;
 REVOKE ALL ON FUNCTION public.admin_login_search_count_v2(text[], text[], text[])
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.admin_login_search_count_v2(text[], text[], text[])
     OWNER TO app_admin_login_executor;
 
@@ -179,7 +179,7 @@ AS $$
     LIMIT p_limit
 $$;
 REVOKE ALL ON FUNCTION public.scheduled_stock_price_targets_v2(date, bigint)
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.scheduled_stock_price_targets_v2(date, bigint) OWNER TO app_price_target_executor;
 
 CREATE FUNCTION public.scheduled_fund_price_targets_v2(p_target_date date, p_limit bigint)
@@ -199,7 +199,7 @@ AS $$
     LIMIT p_limit
 $$;
 REVOKE ALL ON FUNCTION public.scheduled_fund_price_targets_v2(date, bigint)
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.scheduled_fund_price_targets_v2(date, bigint)
     OWNER TO app_price_target_executor;
 
@@ -214,7 +214,7 @@ AS $$
     ON CONFLICT (security_code) DO UPDATE SET updated_at = pg_catalog.now()
 $$;
 REVOKE ALL ON FUNCTION public.scheduled_stock_price_mark_attempted_v2(text[])
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.scheduled_stock_price_mark_attempted_v2(text[])
     OWNER TO app_price_target_executor;
 
@@ -247,7 +247,7 @@ BEGIN
 END
 $$;
 REVOKE ALL ON FUNCTION public.scheduled_stock_price_apply_v2(text, numeric, numeric, date)
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.scheduled_stock_price_apply_v2(text, numeric, numeric, date)
     OWNER TO app_price_target_executor;
 
@@ -262,7 +262,7 @@ AS $$
     ON CONFLICT (association_fund_cd) DO UPDATE SET updated_at = pg_catalog.now()
 $$;
 REVOKE ALL ON FUNCTION public.scheduled_fund_price_mark_attempted_v2(text[])
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.scheduled_fund_price_mark_attempted_v2(text[])
     OWNER TO app_price_target_executor;
 
@@ -293,7 +293,7 @@ BEGIN
 END
 $$;
 REVOKE ALL ON FUNCTION public.scheduled_fund_price_apply_v2(text, numeric, numeric, date)
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.scheduled_fund_price_apply_v2(text, numeric, numeric, date)
     OWNER TO app_price_target_executor;
 
@@ -310,7 +310,7 @@ AS $$
         fetch_failed_at = EXCLUDED.fetch_failed_at
 $$;
 REVOKE ALL ON FUNCTION public.scheduled_fund_price_record_failure_v2(text, text)
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.scheduled_fund_price_record_failure_v2(text, text)
     OWNER TO app_price_target_executor;
 
@@ -325,7 +325,7 @@ AS $$
      WHERE association_fund_cd = p_code
 $$;
 REVOKE ALL ON FUNCTION public.scheduled_fund_price_clear_failure_v2(text)
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.scheduled_fund_price_clear_failure_v2(text)
     OWNER TO app_price_target_executor;
 
@@ -343,7 +343,7 @@ AS $$
     SELECT pg_catalog.count(*) FROM deleted
 $$;
 REVOKE ALL ON FUNCTION public.prune_login_events_older_than_90_days_v2()
-    FROM PUBLIC, app_restricted, CURRENT_USER;
+    FROM PUBLIC, app_restricted;
 ALTER FUNCTION public.prune_login_events_older_than_90_days_v2()
     OWNER TO app_login_event_prune_executor;
 

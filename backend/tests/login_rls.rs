@@ -4,10 +4,10 @@ use backend::{
     db::{self, Bind, Db, Executor, connect_pool_lazy, run_migrations},
     models::user::GoogleUserInfo,
     services::{
-        auth,
+        auth, dividend_cache,
         fund_price::{self, FundNav},
         login_event::{self, ClientInfo, LoginOutcome, admin},
-        login_notify,
+        login_notify, stock, stock_master,
         stock_price::{self, ClosePrice},
     },
     test_constants::POSTGRES_TAG,
@@ -172,8 +172,7 @@ async fn owner_pool() -> (Db, Db, Db, impl Drop) {
              ALTER FUNCTION public.auth_delete_session_by_token(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_upsert_user(text, text, text, text) OWNER TO postgres;
              ALTER FUNCTION public.auth_rotate_session(uuid, bytea, bytea) OWNER TO postgres;
-             ALTER FUNCTION public.login_notify_peek_by_token(bytea) OWNER TO postgres;
-             ALTER FUNCTION public.login_notify_consume_by_token(bytea) OWNER TO postgres",
+             ALTER FUNCTION public.login_notify_peek_by_token(bytea) OWNER TO postgres",
         )
         .await
         .unwrap();
@@ -196,6 +195,18 @@ async fn owner_pool() -> (Db, Db, Db, impl Drop) {
     ).fetch_one::<(bool, bool), _>(&pool).await.unwrap();
     assert!(member, "CREATEROLE による自動所属がある");
     assert!(can_set, "所属だけでなく SET ROLE の許可が必要");
+    let owner_is_non_superuser = db::query_scalar::<bool>(
+        "SELECT rolcanlogin AND NOT rolsuper AND NOT rolbypassrls
+         FROM pg_catalog.pg_roles WHERE rolname = current_user",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(
+        owner_is_non_superuser,
+        "旧 postgres 接続相当は非 superuser のはず"
+    );
     (pool, worker, admin, node)
 }
 
@@ -225,7 +236,8 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
                 SELECT 1 FROM pg_catalog.pg_roles r
                 WHERE r.rolname IN (
                     'app_notify_token_v2_executor', 'app_admin_login_executor',
-                    'app_price_target_executor', 'app_login_event_prune_executor'
+                    'app_price_target_executor', 'app_login_event_prune_executor',
+                    'app_shared_write_executor'
                 ) AND pg_has_role('app_worker', r.oid, 'MEMBER')
             )
             AND NOT EXISTS (
@@ -241,6 +253,35 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     .await
     .unwrap();
     assert!(worker_membership);
+    // app_worker は共有表(利用者の行なし)の読み取りだけを持ち、個人表の権限は持たない。
+    // 共有表への書き込みは限定関数の EXECUTE に限る。
+    for table in [
+        "public.stock",
+        "public.security_prices",
+        "public.dividend_per_share_cache",
+        "public.market_data_provider_rate_control",
+        "public.fund_codes",
+        "public.fund_prices",
+    ] {
+        let readable = db::query_scalar::<bool>(
+            "SELECT has_table_privilege('app_worker', $1, 'SELECT')",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&worker)
+        .await
+        .unwrap();
+        assert!(readable, "app_worker は {table} を読める");
+        for privilege in ["INSERT", "UPDATE", "DELETE"] {
+            let writable = db::query_scalar::<bool>(
+                "SELECT has_table_privilege('app_worker', $1, $2)",
+                vec![Bind::from(table), Bind::from(privilege)],
+            )
+            .fetch_one(&worker)
+            .await
+            .unwrap();
+            assert!(!writable, "app_worker は {table} へ {privilege} できない");
+        }
+    }
     for signature in [
         "public.admin_login_search_data_v2(text[],text[],text[],text,text,bigint,bigint)",
         "public.admin_login_search_count_v2(text[],text[],text[])",
@@ -253,6 +294,14 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         "public.scheduled_fund_price_record_failure_v2(text,text)",
         "public.scheduled_fund_price_clear_failure_v2(text)",
         "public.prune_login_events_older_than_90_days_v2()",
+        "public.dividend_cache_enqueue_v2(varchar[])",
+        "public.dividend_cache_apply_success_v2(text,numeric,varchar)",
+        "public.dividend_cache_apply_error_v2(text,text,bigint)",
+        "public.rate_control_acquire_jquants_v2()",
+        "public.rate_control_cooldown_v2(text,bigint)",
+        "public.stock_master_claim_v2()",
+        "public.stock_master_postpone_v2()",
+        "public.stock_master_replace_v2(date[],text[],text[],text[],text[],text[],text[])",
     ] {
         let executable = db::query_scalar::<bool>(
             "SELECT has_function_privilege('app_worker', $1, 'EXECUTE')",
@@ -262,8 +311,46 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         .await
         .unwrap();
         assert!(executable, "{signature}");
+        let restricted = db::query_scalar::<bool>(
+            "SELECT has_function_privilege('app_restricted', $1, 'EXECUTE')",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(!restricted, "app_restricted は {signature} を実行できない");
     }
-    let token = auth::upsert_user_and_rotate_session(&worker, &info)
+    for signature in [
+        "public.admin_login_search_data_v2(text[],text[],text[],text,text,bigint,bigint)",
+        "public.admin_login_search_count_v2(text[],text[],text[])",
+        "public.scheduled_stock_price_targets_v2(date,bigint)",
+        "public.scheduled_fund_price_targets_v2(date,bigint)",
+        "public.scheduled_stock_price_mark_attempted_v2(text[])",
+        "public.scheduled_stock_price_apply_v2(text,numeric,numeric,date)",
+        "public.scheduled_fund_price_mark_attempted_v2(text[])",
+        "public.scheduled_fund_price_apply_v2(text,numeric,numeric,date)",
+        "public.scheduled_fund_price_record_failure_v2(text,text)",
+        "public.scheduled_fund_price_clear_failure_v2(text)",
+        "public.prune_login_events_older_than_90_days_v2()",
+        "public.dividend_cache_enqueue_v2(varchar[])",
+        "public.dividend_cache_apply_success_v2(text,numeric,varchar)",
+        "public.dividend_cache_apply_error_v2(text,text,bigint)",
+        "public.rate_control_acquire_jquants_v2()",
+        "public.rate_control_cooldown_v2(text,bigint)",
+        "public.stock_master_claim_v2()",
+        "public.stock_master_postpone_v2()",
+        "public.stock_master_replace_v2(date[],text[],text[],text[],text[],text[],text[])",
+    ] {
+        let executable = db::query_scalar::<bool>(
+            "SELECT has_function_privilege(current_user, $1, 'EXECUTE')",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(executable, "旧 postgres 接続で {signature} を実行できる");
+    }
+    let mut token = auth::upsert_user_and_rotate_session(&worker, &info)
         .await
         .expect("app_worker でログイン");
     let user_id = auth::select_user_id_by_session(&worker, token)
@@ -273,9 +360,50 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     let notification_token = login_notify::issue_token(&worker, user_id)
         .await
         .expect("app_worker で通知 token を発行");
-    let legacy_notification_token = login_notify::issue_token(&worker, user_id)
+    for db_pool in [&pool, &worker] {
+        let token = login_notify::issue_token(db_pool, user_id)
+            .await
+            .expect("通知 token を発行");
+        assert_eq!(
+            login_notify::peek_token(db_pool, &token)
+                .await
+                .unwrap()
+                .map(|(id, _)| id),
+            Some(user_id)
+        );
+        assert_eq!(
+            login_notify::consume_token(db_pool, &token).await.unwrap(),
+            Some(user_id)
+        );
+    }
+    let owner_login = auth::upsert_user_and_rotate_session(&pool, &info)
         .await
-        .expect("旧関数互換性の通知 token を発行");
+        .expect("旧 postgres 接続でログイン");
+    assert_eq!(
+        auth::select_user_id_by_session(&pool, owner_login)
+            .await
+            .unwrap(),
+        Some(user_id)
+    );
+    auth::delete_session(&pool, owner_login)
+        .await
+        .expect("旧 postgres 接続でログアウト");
+    let worker_login = auth::upsert_user_and_rotate_session(&worker, &info)
+        .await
+        .expect("app_worker でログイン");
+    assert_eq!(
+        auth::select_user_id_by_session(&worker, worker_login)
+            .await
+            .unwrap(),
+        Some(user_id)
+    );
+    auth::delete_session(&worker, worker_login)
+        .await
+        .expect("app_worker でログアウト");
+    // 上のログイン/ログアウトで元のセッションは回転により消えるため取り直す。
+    token = auth::upsert_user_and_rotate_session(&worker, &info)
+        .await
+        .expect("app_worker で再ログイン");
     db::query(
         "INSERT INTO login_events (user_id, result, device_hash, occurred_at) VALUES ($1, 'success', $2, NOW() - INTERVAL '100 days')",
         vec![Bind::from(user_id), Bind::Bytes(vec![9; 32])],
@@ -376,13 +504,14 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     auth::delete_session(&worker, force_token).await.unwrap();
 
     let executor_roles_are_limited: bool = db::query_scalar(
-        "SELECT COUNT(*) = 4 AND bool_and(NOT rolcanlogin AND rolbypassrls)
+        "SELECT COUNT(*) = 5 AND bool_and(NOT rolcanlogin AND rolbypassrls)
          FROM pg_catalog.pg_roles WHERE rolname = ANY($1)",
         vec![Bind::from(vec![
             "app_notify_token_v2_executor".to_string(),
             "app_admin_login_executor".to_string(),
             "app_price_target_executor".to_string(),
             "app_login_event_prune_executor".to_string(),
+            "app_shared_write_executor".to_string(),
         ])],
     )
     .fetch_one(&pool)
@@ -404,6 +533,7 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
             "app_admin_login_executor".to_string(),
             "app_price_target_executor".to_string(),
             "app_login_event_prune_executor".to_string(),
+            "app_shared_write_executor".to_string(),
         ])],
     )
     .fetch_one(&pool)
@@ -430,6 +560,14 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
                     WHEN 'scheduled_fund_price_apply_v2' THEN 'app_price_target_executor'
                     WHEN 'scheduled_fund_price_record_failure_v2' THEN 'app_price_target_executor'
                     WHEN 'scheduled_fund_price_clear_failure_v2' THEN 'app_price_target_executor'
+                    WHEN 'dividend_cache_enqueue_v2' THEN 'app_shared_write_executor'
+                    WHEN 'dividend_cache_apply_success_v2' THEN 'app_shared_write_executor'
+                    WHEN 'dividend_cache_apply_error_v2' THEN 'app_shared_write_executor'
+                    WHEN 'rate_control_acquire_jquants_v2' THEN 'app_shared_write_executor'
+                    WHEN 'rate_control_cooldown_v2' THEN 'app_shared_write_executor'
+                    WHEN 'stock_master_claim_v2' THEN 'app_shared_write_executor'
+                    WHEN 'stock_master_postpone_v2' THEN 'app_shared_write_executor'
+                    WHEN 'stock_master_replace_v2' THEN 'app_shared_write_executor'
                     ELSE 'app_login_event_prune_executor'
                 END, p.oid, 'EXECUTE')::text || ':' ||
             EXISTS (
@@ -461,6 +599,14 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
                         WHEN 'scheduled_fund_price_apply_v2' THEN 'app_price_target_executor'
                         WHEN 'scheduled_fund_price_record_failure_v2' THEN 'app_price_target_executor'
                         WHEN 'scheduled_fund_price_clear_failure_v2' THEN 'app_price_target_executor'
+                        WHEN 'dividend_cache_enqueue_v2' THEN 'app_shared_write_executor'
+                        WHEN 'dividend_cache_apply_success_v2' THEN 'app_shared_write_executor'
+                        WHEN 'dividend_cache_apply_error_v2' THEN 'app_shared_write_executor'
+                        WHEN 'rate_control_acquire_jquants_v2' THEN 'app_shared_write_executor'
+                        WHEN 'rate_control_cooldown_v2' THEN 'app_shared_write_executor'
+                        WHEN 'stock_master_claim_v2' THEN 'app_shared_write_executor'
+                        WHEN 'stock_master_postpone_v2' THEN 'app_shared_write_executor'
+                        WHEN 'stock_master_replace_v2' THEN 'app_shared_write_executor'
                         ELSE 'app_login_event_prune_executor'
                     END, p.oid, 'EXECUTE')
                 AND NOT EXISTS (
@@ -471,13 +617,20 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
                       AND acl.grantee <> 0
                       AND acl.grantee <> (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'app_restricted')
                       AND NOT (
+                          acl.grantee = (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'login_test_owner')
+                          OR
                           p.proname IN (
                               'admin_login_search_data_v2', 'admin_login_search_count_v2',
                               'scheduled_stock_price_targets_v2', 'scheduled_fund_price_targets_v2',
                               'scheduled_stock_price_mark_attempted_v2', 'scheduled_stock_price_apply_v2',
                               'scheduled_fund_price_mark_attempted_v2', 'scheduled_fund_price_apply_v2',
                               'scheduled_fund_price_record_failure_v2', 'scheduled_fund_price_clear_failure_v2',
-                              'prune_login_events_older_than_90_days_v2'
+                              'prune_login_events_older_than_90_days_v2',
+                              'dividend_cache_enqueue_v2', 'dividend_cache_apply_success_v2',
+                              'dividend_cache_apply_error_v2', 'rate_control_acquire_jquants_v2',
+                              'rate_control_cooldown_v2', 'stock_master_claim_v2',
+                              'stock_master_postpone_v2',
+                              'stock_master_replace_v2'
                           )
                           AND acl.grantee = (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'app_worker')
                       )
@@ -496,6 +649,14 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
             "scheduled_fund_price_record_failure_v2".to_string(),
             "scheduled_fund_price_clear_failure_v2".to_string(),
             "prune_login_events_older_than_90_days_v2".to_string(),
+            "dividend_cache_enqueue_v2".to_string(),
+            "dividend_cache_apply_success_v2".to_string(),
+            "dividend_cache_apply_error_v2".to_string(),
+            "rate_control_acquire_jquants_v2".to_string(),
+            "rate_control_cooldown_v2".to_string(),
+            "stock_master_claim_v2".to_string(),
+            "stock_master_postpone_v2".to_string(),
+            "stock_master_replace_v2".to_string(),
         ])],
     )
     .fetch_all(&pool)
@@ -578,50 +739,6 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         restricted.rollback().await.unwrap();
     }
 
-    let mut legacy_notification_tx = pool.begin_restricted().await.unwrap();
-    assert_eq!(
-        db::query(
-            "SELECT user_id FROM public.login_notify_peek_by_token($1)",
-            vec![Bind::Bytes(login_notify::token_hash(
-                &legacy_notification_token
-            ))],
-        )
-        .fetch_optional::<(UserId,), _>(&mut legacy_notification_tx)
-        .await
-        .unwrap()
-        .map(|(id,)| id),
-        Some(user_id)
-    );
-    legacy_notification_tx.rollback().await.unwrap();
-    let mut v2_notification_tx = pool.begin_restricted().await.unwrap();
-    assert_eq!(
-        db::query(
-            "SELECT user_id FROM public.login_notify_peek_v2($1)",
-            vec![Bind::Bytes(login_notify::token_hash(
-                &legacy_notification_token
-            ))],
-        )
-        .fetch_optional::<(UserId,), _>(&mut v2_notification_tx)
-        .await
-        .unwrap()
-        .map(|(id,)| id),
-        Some(user_id)
-    );
-    v2_notification_tx.rollback().await.unwrap();
-    let mut legacy_notification_tx = pool.begin_restricted().await.unwrap();
-    assert_eq!(
-        db::query(
-            "SELECT public.login_notify_consume_by_token($1)",
-            vec![Bind::Bytes(login_notify::token_hash(
-                &legacy_notification_token
-            ))],
-        )
-        .fetch_scalar::<Option<UserId>, _>(&mut legacy_notification_tx)
-        .await
-        .unwrap(),
-        Some(user_id)
-    );
-    legacy_notification_tx.commit().await.unwrap();
     let owner_admin_count: i64 = db::query_scalar(
         "SELECT COUNT(*) FROM login_events le JOIN users u ON u.id = le.user_id",
         vec![],
@@ -693,6 +810,16 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     .unwrap();
     assert_eq!(audit_count, 1);
     assert_eq!(login_event::prune_login_events(&worker).await.unwrap(), 1);
+    assert_eq!(
+        admin::search(&pool, admin::AdminLoginQuery::default())
+            .await
+            .unwrap()
+            .total,
+        2
+    );
+    assert_eq!(login_event::prune_login_events(&pool).await.unwrap(), 0);
+    assert_eq!(stock_price_targets_limited(&pool).await, ["99999"]);
+    assert_eq!(fund_price_targets_limited(&pool).await, ["99999999"]);
     assert!(stock_price_targets(&pool).await.is_empty());
     assert!(fund_price_targets(&pool).await.is_empty());
     assert_eq!(stock_price_targets_limited(&worker).await, ["99999"]);
@@ -767,6 +894,75 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     );
     assert!(stock_price_targets_as(&pool, user_id).await.is_empty());
     assert!(fund_price_targets_as(&pool, user_id).await.is_empty());
+    // 共有表の読み書きは app_worker・旧 postgres のどちらの接続でも限定経路で動く。
+    db::query(
+        "INSERT INTO stock (date, code, name, market_category) VALUES (CURRENT_DATE, '9999', '架空の銘柄', 'プライム')",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    for db_pool in [&pool, &worker] {
+        let found = stock::search(db_pool, "9999")
+            .await
+            .expect("銘柄検索は通る");
+        assert_eq!(found.code.as_str(), "9999");
+        db::query(
+            "SELECT public.dividend_cache_enqueue_v2($1)",
+            vec![Bind::from(vec![SecurityCode::from_raw("9999".into())])],
+        )
+        .execute(db_pool)
+        .await
+        .expect("配当キュー投入は通る");
+        db::query(
+            "SELECT public.dividend_cache_apply_error_v2($1, $2, $3)",
+            vec![Bind::from("9999"), Bind::from("test"), Bind::from(60i64)],
+        )
+        .execute(db_pool)
+        .await
+        .expect("配当エラー記録は通る");
+    }
+    let cached: Vec<(String,)> = db::query(
+        "SELECT security_code FROM dividend_per_share_cache WHERE security_code = '9999'",
+        vec![],
+    )
+    .fetch_all(&worker)
+    .await
+    .unwrap();
+    assert_eq!(cached.len(), 1, "app_worker は共有キャッシュを読める");
+    dividend_cache::acquire_rate_slot(&worker)
+        .await
+        .expect("レート枠の取得は通る");
+    let claimed = db::query_scalar::<i32>("SELECT public.stock_master_claim_v2()", vec![])
+        .fetch_optional(&worker)
+        .await
+        .unwrap();
+    assert!(claimed.is_some(), "初回の銘柄マスタ枠取りは通る");
+    let claimed_again = db::query_scalar::<i32>("SELECT public.stock_master_claim_v2()", vec![])
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+    assert!(
+        claimed_again.is_none(),
+        "枠取り済みのため旧 postgres 接続の2回目は空振り"
+    );
+    for db_pool in [&pool, &worker] {
+        let replaced = stock_master::replace_master(
+            db_pool,
+            &[stock_master::StockRow {
+                date: chrono::Utc::now().date_naive(),
+                code: "9999".to_string(),
+                name: "架空の銘柄".to_string(),
+                market_category: "プライム".to_string(),
+                industry_category_33: None,
+                industry_category_17: None,
+                size_category: None,
+            }],
+        )
+        .await
+        .expect("銘柄マスタ置換は通る");
+        assert_eq!(replaced, 1);
+    }
     run_migrations(&pool)
         .await
         .expect("適用済み migration 履歴の確認は FORCE 下でも通る");

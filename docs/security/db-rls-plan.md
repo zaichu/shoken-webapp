@@ -809,3 +809,26 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
   管理者検索、cron の価格対象抽出/価格反映/失敗記録/履歴掃除、利用者の読み書きを確認する。
   app_restricted から管理者・cron 関数が権限エラーになること、および旧関数が従来の
   呼び方で動くことも確かめる。本番 DB には接続しない。
+
+## 26. 共有表の読み取りと配当・レート制御・マスタの限定書き込み(#1957 レビュー対応)
+
+- `0035_shared_cache_worker_paths.sql` は、Hyperdrive を `app_worker` に切り替えた後に
+  動かなくなる共有表の経路(銘柄検索・配当見積もりと更新・マスタ更新)を限定経路に移す。
+  共有表(`stock`・`security_prices`・`dividend_per_share_cache`・
+  `market_data_provider_rate_control`・`fund_codes`・`fund_prices`、2 ビュー、
+  2 計算関数)は利用者の行を持たないため、`app_worker` に読み取り(`SELECT`/`EXECUTE`)だけを与え、
+  個人表の権限は付けない。書き込みは `NOLOGIN BYPASSRLS` の専用ロール
+  `app_shared_write_executor` が所有する 8 つの `SECURITY DEFINER` 関数に閉じ込め、
+  `EXECUTE` は `app_worker` と移行期の旧接続(`SESSION_USER`)にだけ付ける
+  (`app_restricted` には付けない)。旧接続でも新 Worker でも同じ呼び方で動く。
+- 関数は配当キュー投入・取得反映・失敗記録、レート枠の取得と延長、
+  マスタの枠取り・再試行延期・全置換に対応する。再試行延期は枠取りの 7 日後を
+  上書きする(延長と違い `GREATEST` にしない)。置換は複数引数の `unnest` のため
+  修飾なしで書く(`pg_catalog.unnest` は単一引数しか持たない)。
+- 新 owner への `ALTER FUNCTION ... OWNER` には新 owner の schema `CREATE` が要るため、
+  0033 と同じく所有権の移譲前だけ与え、最後に取り上げる。
+- `backend/tests/login_rls.rs` で `app_worker` の共有表読み取りと直接書き込み不可、
+  新関数の新旧接続での実行可と `app_restricted` での実行不可、銘柄検索・配当・
+  マスタの新旧接続での動作、枠取りの空振り、置換の件数を固定する。
+  `backend/tests/db_integration.rs` の履歴期待値を `0..=35` に更新し、失敗時の
+  再試行延期が 1 時間後になることを固定する。
