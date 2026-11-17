@@ -12,7 +12,7 @@ pub enum ButtonVariant {
     Primary(ButtonSize),
     /// 枠線の通常ボタン
     Secondary(ButtonSize),
-    /// 紺のヘッダー上の枠線ボタン(PC・スマホの上部帯)
+    /// ヘッダー上の操作ボタン(PC・スマホの上部帯)
     Header(ButtonSize),
     /// 白地に赤の線と赤文字の危険ボタン(確認モーダル)
     DangerSolid(ButtonSize),
@@ -72,7 +72,7 @@ impl ButtonVariant {
                 size,
             ),
             Self::Header(size) => sized(
-                "border border-brand-border bg-transparent text-text-inverse hover:bg-brand-deep",
+                "border border-design-header-border bg-design-header text-design-header-text hover:bg-surface-sunken",
                 size,
             ),
             Self::Secondary(size) => sized(
