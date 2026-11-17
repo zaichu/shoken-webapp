@@ -872,6 +872,13 @@ impl Db {
         Ok(tx)
     }
 
+    /// 利用者 ID を設定せず、制限ロールへ切り替えるトランザクションを開始する。
+    pub async fn begin_restricted(&self) -> Result<Tx, DbError> {
+        let mut tx = self.begin().await?;
+        tx.set_local_restricted().await?;
+        Ok(tx)
+    }
+
     pub async fn query_rows_with_user(
         &self,
         user_id: shared::value::UserId,
@@ -1100,6 +1107,13 @@ impl Tx {
         user_id: shared::value::UserId,
     ) -> Result<(), DbError> {
         query("SELECT app_enter($1)", vec![Bind::from(user_id)])
+            .execute(&mut *self)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn set_local_restricted(&mut self) -> Result<(), DbError> {
+        query("SELECT app_enter(NULL::uuid)", vec![])
             .execute(&mut *self)
             .await?;
         Ok(())

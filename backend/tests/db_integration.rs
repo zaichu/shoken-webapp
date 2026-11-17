@@ -2759,7 +2759,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("空 DB への全適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=33).collect::<Vec<_>>()
     );
 
     run_migrations(&pool)
@@ -2767,7 +2767,7 @@ async fn fresh_database_applies_all_migrations() {
         .expect("適用済み DB の再実行は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=33).collect::<Vec<_>>()
     );
 }
 
@@ -2795,7 +2795,7 @@ async fn baseline_applied_database_applies_increments() {
         .expect("baseline 済み DB への増分適用は成功するはず");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=33).collect::<Vec<_>>()
     );
 }
 
@@ -6417,7 +6417,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=33).collect::<Vec<_>>()
     );
 
     let info_a = GoogleUserInfo {
@@ -6542,8 +6542,13 @@ async fn stage5b_definer_functions_and_app_enter() {
         .fetch_all::<(String,), _>(&pool)
         .await
         .expect("設定の取得に失敗");
+        let expected_search_path = if signature.starts_with("public.login_notify_") {
+            "search_path=pg_catalog, public, pg_temp"
+        } else {
+            "search_path=public, pg_temp"
+        };
         assert!(
-            config.contains(&("search_path=public, pg_temp".to_string(),)),
+            config.contains(&(expected_search_path.to_string(),)),
             "{signature} は search_path を固定するはず"
         );
     }
@@ -6851,7 +6856,7 @@ async fn rls_5c_writes_via_app_enter() {
     run_migrations(&pool).await.expect("migrations failed");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=32).collect::<Vec<_>>()
+        (0..=33).collect::<Vec<_>>()
     );
 
     let user_a = create_test_user(&pool).await;

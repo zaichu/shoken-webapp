@@ -57,6 +57,38 @@ async fn fund_price_targets(pool: &Db) -> Vec<String> {
     .collect()
 }
 
+async fn stock_price_targets_limited(pool: &Db) -> Vec<String> {
+    let mut tx = pool.begin_restricted().await.unwrap();
+    let codes = db::query(
+        "SELECT security_code FROM scheduled_stock_price_targets(CURRENT_DATE, 15)",
+        vec![],
+    )
+    .fetch_all::<(String,), _>(&mut tx)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|(code,)| code)
+    .collect();
+    tx.commit().await.unwrap();
+    codes
+}
+
+async fn fund_price_targets_limited(pool: &Db) -> Vec<String> {
+    let mut tx = pool.begin_restricted().await.unwrap();
+    let codes = db::query(
+        "SELECT association_fund_cd FROM scheduled_fund_price_targets(CURRENT_DATE, 30)",
+        vec![],
+    )
+    .fetch_all::<(String,), _>(&mut tx)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|(code,)| code)
+    .collect();
+    tx.commit().await.unwrap();
+    codes
+}
+
 async fn stock_price_targets_as(pool: &Db, user_id: UserId) -> Vec<String> {
     db::query(
         r#"
@@ -112,11 +144,12 @@ async fn owner_pool() -> (Db, impl Drop) {
         1,
     )
     .unwrap();
+    // BYPASSRLS 関数所有ロールを作るため、実行ロールを migration 中だけ BYPASS にする。
     admin
         .batch_execute(
-            "CREATE ROLE login_test_owner LOGIN PASSWORD 'test' CREATEROLE NOSUPERUSER NOBYPASSRLS;
+            "CREATE ROLE login_test_owner LOGIN PASSWORD 'test' CREATEROLE NOSUPERUSER BYPASSRLS;
          GRANT CREATE ON DATABASE postgres TO login_test_owner;
-         GRANT CREATE ON SCHEMA public TO login_test_owner;",
+         GRANT CREATE ON SCHEMA public TO login_test_owner WITH GRANT OPTION;",
         )
         .await
         .unwrap();
@@ -127,7 +160,11 @@ async fn owner_pool() -> (Db, impl Drop) {
     .unwrap();
     run_migrations(&pool)
         .await
-        .expect("非特権の所有者で migration を適用");
+        .expect("テスト用 owner で migration を適用");
+    admin
+        .batch_execute("ALTER ROLE login_test_owner NOBYPASSRLS")
+        .await
+        .unwrap();
     let (member, can_set) = db::query(
         "SELECT pg_has_role(current_user, 'app_restricted', 'MEMBER'), pg_has_role(current_user, 'app_restricted', 'SET')",
         vec![],
@@ -160,6 +197,13 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     db::query(
         "INSERT INTO login_events (user_id, result, device_hash, occurred_at) VALUES ($1, 'success', $2, NOW() - INTERVAL '100 days')",
         vec![Bind::from(user_id), Bind::Bytes(vec![9; 32])],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    db::query(
+        "INSERT INTO login_events (user_id, result, device_hash, occurred_at) VALUES ($1, 'success', $2, NOW())",
+        vec![Bind::from(user_id), Bind::Bytes(vec![8; 32])],
     )
     .execute(&pool)
     .await
@@ -221,6 +265,105 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     .unwrap();
     assert_eq!(forced, 11);
 
+    let executor_roles_are_limited: bool = db::query_scalar(
+        "SELECT COUNT(*) = 4 AND bool_and(NOT rolcanlogin AND rolbypassrls)
+         FROM pg_catalog.pg_roles WHERE rolname = ANY($1)",
+        vec![Bind::from(vec![
+            "app_notify_token_executor".to_string(),
+            "app_admin_login_executor".to_string(),
+            "app_price_target_executor".to_string(),
+            "app_login_event_prune_executor".to_string(),
+        ])],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(executor_roles_are_limited);
+    let executor_role_memberships: String = db::query_scalar(
+        "SELECT COALESCE(string_agg(rolname || ':'
+            || pg_catalog.pg_has_role('app_restricted', oid, 'MEMBER')::text || ':'
+            || pg_catalog.pg_has_role('login_test_owner', oid, 'SET')::text || ':'
+            || pg_catalog.pg_has_role('login_test_owner', oid, 'USAGE')::text, ', '), '')
+         FROM pg_catalog.pg_roles
+         WHERE rolname = ANY($1)
+           AND (pg_catalog.pg_has_role('app_restricted', oid, 'MEMBER')
+                OR pg_catalog.pg_has_role('login_test_owner', oid, 'SET')
+                OR pg_catalog.pg_has_role('login_test_owner', oid, 'USAGE'))",
+        vec![Bind::from(vec![
+            "app_notify_token_executor".to_string(),
+            "app_admin_login_executor".to_string(),
+            "app_price_target_executor".to_string(),
+            "app_login_event_prune_executor".to_string(),
+        ])],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(
+        executor_role_memberships.is_empty(),
+        "{executor_role_memberships}"
+    );
+    let function_acl_is_limited: bool = db::query_scalar(
+        "SELECT COUNT(*) = 7
+            AND bool_and(p.prosecdef
+                AND p.proconfig @> ARRAY['search_path=pg_catalog, public, pg_temp', 'row_security=off']::text[]
+                AND owner.rolbypassrls
+                AND NOT owner.rolcanlogin
+                AND has_function_privilege('app_restricted', p.oid, 'EXECUTE')
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM pg_catalog.aclexplode(COALESCE(p.proacl, pg_catalog.acldefault('f', p.proowner))) acl
+                    WHERE acl.privilege_type = 'EXECUTE'
+                      AND acl.grantee NOT IN (p.proowner, (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'app_restricted'))
+                ))
+         FROM pg_catalog.pg_proc p
+         JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+         JOIN pg_catalog.pg_roles owner ON owner.oid = p.proowner
+         WHERE n.nspname = 'public'
+           AND p.proname = ANY($1)",
+        vec![Bind::from(vec![
+            "login_notify_peek_by_token".to_string(),
+            "login_notify_consume_by_token".to_string(),
+            "admin_login_search_data".to_string(),
+            "admin_login_search_count".to_string(),
+            "scheduled_stock_price_targets".to_string(),
+            "scheduled_fund_price_targets".to_string(),
+            "prune_login_events_older_than_90_days".to_string(),
+        ])],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(function_acl_is_limited);
+
+    let direct_function_error = db::query(
+        "SELECT * FROM public.login_notify_peek_by_token($1)",
+        vec![Bind::Bytes(login_notify::token_hash(&notification_token))],
+    )
+    .fetch_optional::<(UserId, chrono::DateTime<chrono::Utc>), _>(&pool)
+    .await
+    .unwrap_err();
+    assert_eq!(
+        direct_function_error.sql_state(),
+        Some(db::SqlState::INSUFFICIENT_PRIVILEGE)
+    );
+    let owner_admin_count: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM login_events le JOIN users u ON u.id = le.user_id",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(owner_admin_count, 0);
+    let owner_pruned = db::query(
+        "DELETE FROM login_events WHERE occurred_at < NOW() - INTERVAL '90 days'",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert_eq!(owner_pruned, 0);
+
     assert!(
         auth::select_user_id_by_session(&pool, token)
             .await
@@ -240,11 +383,18 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         error.sql_state(),
         Some(db::SqlState::INSUFFICIENT_PRIVILEGE)
     );
-    assert!(
+    assert_eq!(
         login_notify::peek_token(&pool, &notification_token)
             .await
             .unwrap()
-            .is_none()
+            .map(|(id, _)| id),
+        Some(user_id)
+    );
+    assert_eq!(
+        login_notify::consume_token(&pool, &notification_token)
+            .await
+            .unwrap(),
+        Some(user_id)
     );
     assert!(
         login_notify::consume_token(&pool, &notification_token)
@@ -256,10 +406,21 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
     let admin_results = admin::search(&pool, admin::AdminLoginQuery::default())
         .await
         .unwrap();
-    assert_eq!(admin_results.total, 0);
-    assert_eq!(login_event::prune_login_events(&pool).await.unwrap(), 0);
+    assert_eq!(admin_results.total, 2);
+    admin::record_view(&pool, user_id).await.unwrap();
+    let audit_count: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM admin_login_views WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one_with_user(&pool, user_id)
+    .await
+    .unwrap();
+    assert_eq!(audit_count, 1);
+    assert_eq!(login_event::prune_login_events(&pool).await.unwrap(), 1);
     assert!(stock_price_targets(&pool).await.is_empty());
     assert!(fund_price_targets(&pool).await.is_empty());
+    assert_eq!(stock_price_targets_limited(&pool).await, ["99999"]);
+    assert_eq!(fund_price_targets_limited(&pool).await, ["99999999"]);
     assert_eq!(stock_price_targets_as(&pool, user_id).await, ["99999"]);
     assert_eq!(fund_price_targets_as(&pool, user_id).await, ["99999999"]);
     run_migrations(&pool)

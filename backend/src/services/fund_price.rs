@@ -331,24 +331,17 @@ fn nav_publication_date(now: DateTime<Utc>) -> NaiveDate {
 /// 戻り値は取得に成功したコード数（ログ用）
 pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let target = nav_publication_date(Utc::now());
+    let mut tx = pool.begin_restricted().await?;
     let codes: Vec<String> = crate::db::query(
-        r#"
-        SELECT fc.association_fund_cd
-        FROM fund_balances fb
-        JOIN fund_codes fc ON fc.normalized_name = fb.normalized_fund_name
-        LEFT JOIN fund_prices fp ON fp.association_fund_cd = fc.association_fund_cd
-        GROUP BY fc.association_fund_cd
-        HAVING BOOL_OR(fp.price_as_of IS NULL) OR MIN(fp.price_as_of) < $1
-        ORDER BY MIN(fp.updated_at) ASC NULLS FIRST
-        LIMIT $2
-        "#,
+        "SELECT association_fund_cd FROM public.scheduled_fund_price_targets($1, $2)",
         vec![Bind::from(target), Bind::from(MAX_CODES_PER_RUN)],
     )
-    .fetch_all::<(String,), _>(pool)
+    .fetch_all::<(String,), _>(&mut tx)
     .await?
     .into_iter()
     .map(|(code,)| code)
     .collect();
+    tx.commit().await?;
 
     // 選んだコードの試行時刻を先に進めておく。取得に失敗しても順位が末尾へ回るため、
     // 連続して失敗するコードが後続の更新を永久に塞ぐことを防ぐ。

@@ -245,23 +245,17 @@ fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let latest = latest_close_date(Utc::now());
+    let mut tx = pool.begin_restricted().await?;
     let codes: Vec<SecurityCode> = crate::db::query(
-        r#"
-        SELECT ab.security_code
-        FROM asset_balances ab
-        LEFT JOIN security_prices sp ON sp.security_code = ab.security_code
-        GROUP BY ab.security_code
-        HAVING BOOL_OR(sp.price_as_of IS NULL) OR MIN(sp.price_as_of) < $1
-        ORDER BY MIN(sp.updated_at) ASC NULLS FIRST
-        LIMIT $2
-        "#,
+        "SELECT security_code FROM public.scheduled_stock_price_targets($1, $2)",
         vec![Bind::from(latest), Bind::from(MAX_CODES_PER_RUN)],
     )
-    .fetch_all::<(SecurityCode,), _>(pool)
+    .fetch_all::<(SecurityCode,), _>(&mut tx)
     .await?
     .into_iter()
     .map(|(code,)| code)
     .collect();
+    tx.commit().await?;
 
     // 選んだ銘柄の試行時刻を先に進めておく。取得に失敗しても順位が末尾へ回るため、
     // 連続して失敗する銘柄が後続の更新を永久に塞ぐことを防ぐ（#1338）。
