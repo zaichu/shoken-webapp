@@ -17,13 +17,33 @@ use logic::compute_is_stale;
 use persistence::{fetch_and_cache, update_cache_error};
 
 #[cfg(target_arch = "wasm32")]
-macro_rules! cache_log {
+macro_rules! cache_info {
     ($($arg:tt)*) => { worker::console_log!($($arg)*) };
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-macro_rules! cache_log {
+macro_rules! cache_info {
     ($($arg:tt)*) => { tracing::info!($($arg)*) };
+}
+
+#[cfg(target_arch = "wasm32")]
+macro_rules! cache_warn {
+    ($($arg:tt)*) => { worker::console_warn!($($arg)*) };
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! cache_warn {
+    ($($arg:tt)*) => { tracing::warn!($($arg)*) };
+}
+
+#[cfg(target_arch = "wasm32")]
+macro_rules! cache_error {
+    ($($arg:tt)*) => { worker::console_error!($($arg)*) };
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! cache_error {
+    ($($arg:tt)*) => { tracing::error!($($arg)*) };
 }
 
 /// 429 発生時の全インスタンス共有 cooldown 期間（秒）
@@ -52,6 +72,7 @@ pub async fn get_batch(
     codes: &[SecurityCode],
 ) -> Result<Vec<DividendPerShareItem>, ApiError> {
     let (items, refresh_codes) = fetch_cached_items(pool, codes).await?;
+    let (requested, cached) = count_requested_and_cached(codes, &refresh_codes);
     let mut pending = 0;
     let mut ok = 0;
     let mut error = 0;
@@ -70,10 +91,10 @@ pub async fn get_batch(
     if !refresh_codes.is_empty() {
         if jquants_client.is_some() {
             enqueue_refresh(pool, &refresh_codes).await?;
-            cache_log!(
+            cache_info!(
                 "配当キャッシュ要求: requested={}, cached={}, pending={}, ok={}, error={}, none={}, refresh={}, enqueue=true",
-                codes.len(),
-                items.len().saturating_sub(refresh_codes.len()),
+                requested,
+                cached,
                 pending,
                 ok,
                 error,
@@ -81,11 +102,11 @@ pub async fn get_batch(
                 refresh_codes.len(),
             );
         } else {
-            cache_log!("JQUANTS_API_KEY が未設定のため更新キュー投入をスキップ");
-            cache_log!(
+            cache_warn!("JQUANTS_API_KEY が未設定のため更新キュー投入をスキップ");
+            cache_info!(
                 "配当キャッシュ要求: requested={}, cached={}, pending={}, ok={}, error={}, none={}, refresh={}, enqueue=false",
-                codes.len(),
-                items.len().saturating_sub(refresh_codes.len()),
+                requested,
+                cached,
                 pending,
                 ok,
                 error,
@@ -94,10 +115,10 @@ pub async fn get_batch(
             );
         }
     } else {
-        cache_log!(
+        cache_info!(
             "配当キャッシュ要求: requested={}, cached={}, pending={}, ok={}, error={}, none={}, refresh=0, enqueue=false",
-            codes.len(),
-            items.len(),
+            requested,
+            cached,
             pending,
             ok,
             error,
@@ -180,9 +201,10 @@ pub async fn drain_refresh_queue(
     .map(|(code,)| code)
     .collect();
 
-    cache_log!("配当キャッシュ drain 対象: count={}", codes.len());
+    cache_info!("配当キャッシュ drain 対象: count={}", codes.len());
 
-    let mut processed = 0;
+    let selected = codes.len();
+    let mut attempted = 0;
     let mut succeeded = 0;
     let mut failed = 0;
     let mut rate_limited = 0;
@@ -192,48 +214,48 @@ pub async fn drain_refresh_queue(
         if let Ok(waited) = acquire_rate_slot(pool).await {
             waited_seconds += waited;
         } else {
-            cache_log!("レート制御スロット取得失敗");
+            cache_error!("レート制御スロット取得失敗");
             gave_up = true;
             break;
         }
+        attempted += 1;
         match fetch_and_cache(pool, jquants_client, &code).await {
             Ok(status) => {
-                processed += 1;
                 succeeded += 1;
-                cache_log!("配当キャッシュ更新完了: status={}", status);
+                cache_info!("配当キャッシュ更新完了: status={}", status);
             }
             Err(e) if should_abort_on_error(&e) => {
                 rate_limited += 1;
-                cache_log!("配当キャッシュ更新: レートリミット超過、消化を中断");
+                cache_warn!("配当キャッシュ更新: レートリミット超過、消化を中断");
                 if let Err(err) =
                     update_cache_error(pool, &code, &e.to_string(), RATE_LIMIT_COOLDOWN_SECS).await
                 {
-                    tracing::error!("配当キャッシュ エラー記録失敗: code={}, err={}", code, err);
+                    cache_error!("配当キャッシュ エラー記録失敗: code={}, err={}", code, err);
                 }
                 if let Err(err) = push_rate_control_cooldown(pool).await {
-                    tracing::error!("レートリミット cooldown 設定失敗: err={}", err);
+                    cache_error!("レートリミット cooldown 設定失敗: err={}", err);
                 }
                 break;
             }
             Err(e) => {
-                processed += 1;
                 failed += 1;
-                cache_log!("配当キャッシュ更新エラー");
+                cache_error!("配当キャッシュ更新エラー");
                 let _ = update_cache_error(pool, &code, &e.to_string(), ERROR_RETRY_INTERVAL_SECS)
                     .await;
             }
         }
     }
-    cache_log!(
-        "配当キャッシュ drain 結果: selected={}, waited_seconds={}, gave_up={}, success={}, failure={}, rate_limited={}",
-        succeeded + failed + rate_limited,
+    cache_info!(
+        "配当キャッシュ drain 結果: selected={}, attempted={}, waited_seconds={}, gave_up={}, success={}, failure={}, rate_limited={}",
+        selected,
+        attempted,
         waited_seconds,
         gave_up,
         succeeded,
         failed,
         rate_limited
     );
-    Ok(processed)
+    Ok(attempted)
 }
 
 #[expect(clippy::needless_lifetimes)]
@@ -267,6 +289,17 @@ fn build_batch_items<'a>(
     }
 
     (items, refresh_codes)
+}
+
+fn count_requested_and_cached(
+    codes: &[SecurityCode],
+    refresh_codes: &[SecurityCode],
+) -> (usize, usize) {
+    let requested: std::collections::HashSet<_> = codes.iter().map(SecurityCode::as_str).collect();
+    let refresh: std::collections::HashSet<_> =
+        refresh_codes.iter().map(SecurityCode::as_str).collect();
+    let cached = requested.difference(&refresh).count();
+    (requested.len(), cached)
 }
 
 /// DBレート制御テーブルを使って次の実行スロットを予約し、必要なら待機する
@@ -473,6 +506,7 @@ mod tests {
 
         assert_eq!(items.len(), 2);
         assert_eq!(refresh_codes, vec![code("9931")]);
+        assert_eq!(count_requested_and_cached(&codes, &refresh_codes), (1, 0));
     }
 
     #[test]
