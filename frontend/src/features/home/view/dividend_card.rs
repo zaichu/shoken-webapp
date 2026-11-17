@@ -85,8 +85,10 @@ fn DividendCardBody(
         |v| asset_balance::format_valuation_amount(Some(v)),
     );
     let progress_pct = model.progress.map(|p| p * 100.0);
-    let progress_text =
-        progress_pct.map_or_else(|| labels::MISSING.to_string(), format::format_integer_percent);
+    let progress_text = progress_pct.map_or_else(
+        || labels::MISSING.to_string(),
+        format::format_integer_percent,
+    );
     let (remaining_prefix, remaining_amount, remaining_suffix) =
         model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
@@ -94,7 +96,9 @@ fn DividendCardBody(
     let previous_remaining = model
         .previous_remaining
         .filter(|_| !previous_span.is_empty())
-        .map(|remaining| asset_balance::format_valuation_amount(Some(asset_balance::dec_to_f64(&remaining))));
+        .map(|remaining| {
+            asset_balance::format_valuation_amount(Some(asset_balance::dec_to_f64(&remaining)))
+        });
     let yoy_value = model.yoy_diff.map(|diff| asset_balance::dec_to_f64(&diff));
     let yoy_text = yoy_value.map_or_else(
         || labels::MISSING.to_string(),

@@ -323,8 +323,6 @@ fn CompositionContent(
                                                         <Amount
                                                             kind=AmountKind::Delta
                                                             text=format::format_currency(value)
-                                                            negative=balance_format::is_negative_valuation(Some(value))
-                                                            positive=balance_format::is_positive_valuation(Some(value))
                                                         />
                                                     }.into_any(),
                                                 )
@@ -335,8 +333,6 @@ fn CompositionContent(
                                                             <Amount
                                                                 kind=AmountKind::Delta
                                                                 text=format::format_fixed_percent(static_percentage, 1)
-                                                                negative=balance_format::is_negative_rate(Some(static_percentage))
-                                                                positive=balance_format::is_positive_rate(Some(static_percentage))
                                                             />
                                                         }.into_any()
                                                     } else {
@@ -375,8 +371,6 @@ fn CompositionContent(
                                                                     <Amount
                                                                         kind=AmountKind::Delta
                                                                         text=format::format_currency(value)
-                                                                        negative=balance_format::is_negative_valuation(Some(value))
-                                                                        positive=balance_format::is_positive_valuation(Some(value))
                                                                     />
                                                                 }.into_any(),
                                                             )
@@ -385,8 +379,6 @@ fn CompositionContent(
                                                                 <Amount
                                                                     kind=AmountKind::Delta
                                                                     text=format::format_fixed_percent(static_percentage, 1)
-                                                                    negative=balance_format::is_negative_rate(Some(static_percentage))
-                                                                    positive=balance_format::is_positive_rate(Some(static_percentage))
                                                                 />
                                                             }.into_any() } else { view! { {labels::MISSING} }.into_any() }
                                                         />
@@ -527,8 +519,6 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                         } else {
                             labels::MISSING.to_string()
                         };
-                        let rate_negative = row.computable && balance_format::is_negative_rate(Some(row.percentage));
-                        let rate_positive = row.computable && balance_format::is_positive_rate(Some(row.percentage));
                         let name = row.name.clone();
                         view! {
                             <li class="comp-legend-item" data-testid="comp-legend-item">
@@ -541,8 +531,6 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                                     <Amount
                                         kind=AmountKind::Delta
                                         text=rate
-                                        negative=rate_negative
-                                        positive=rate_positive
                                     />
                                 </span>
                             </li>

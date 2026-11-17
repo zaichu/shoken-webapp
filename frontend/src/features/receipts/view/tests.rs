@@ -1340,14 +1340,14 @@ fn band_breakdown_signs_match_detail_dialog() {
     assert_eq!(tone, SummaryTone::Loss);
     let (text, negative, positive, tone) = band_value(labels::TAX, dec!(406));
     assert_eq!(text, "-¥406");
-    assert!(!negative);
+    assert!(negative);
     assert!(!positive);
-    assert_eq!(tone, SummaryTone::Neutral);
+    assert_eq!(tone, SummaryTone::Loss);
     let (text, negative, positive, tone) = band_value(labels::TAX, dec!(-100));
     assert_eq!(text, "+¥100");
     assert!(!negative);
-    assert!(!positive);
-    assert_eq!(tone, SummaryTone::Neutral);
+    assert!(positive);
+    assert_eq!(tone, SummaryTone::Gain);
     let (text, negative, positive, tone) = band_value(labels::TAX, Decimal::ZERO);
     assert_eq!(text, "¥0");
     assert!(!negative);

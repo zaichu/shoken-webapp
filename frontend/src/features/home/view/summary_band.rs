@@ -140,7 +140,8 @@ fn BandTiles(
     let daily_rate_text = if loading {
         String::new()
     } else {
-        daily_rate_value.map_or_default(|rate| asset_balance::format_signed_valuation_rate(Some(rate), 1))
+        daily_rate_value
+            .map_or_default(|rate| asset_balance::format_signed_valuation_rate(Some(rate), 1))
     };
     let daily_negative = asset_balance::is_negative_valuation(daily_value);
     let daily_positive = asset_balance::is_positive_valuation(daily_value);

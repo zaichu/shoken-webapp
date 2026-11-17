@@ -1,4 +1,4 @@
-use crate::ui::labels::{TEN_THOUSAND_YEN, THOUSAND_YEN, YEN};
+use crate::ui::labels;
 use leptos::prelude::*;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -17,7 +17,8 @@ enum AmountColor {
 
 /// 金額・率の表示。書式は呼び出し側の format 関数で作った文字列を
 /// 受け取り、この部品が tabular-nums・nowrap と正負の色をまとめる。
-/// 正は緑・負は赤( data-negative )・0 は色なし。
+/// 表示文字列の符号で色を決める。負は種類を問わず赤・正は Delta のとき緑・
+/// 0 と欠損は色なし。残高・価格などの Plain は正でも通常色のままにする。
 /// block=true のときこの部品が p を出すので、呼び出し側で p で包まない。
 /// block=false(既定)はインラインの span を出し、周囲の要素(dd/td 等)はそのまま残す。
 #[component]
@@ -60,20 +61,26 @@ fn amount_color(kind: AmountKind, negative: bool, positive: bool, text: &str) ->
         .trim_end_matches(')')
         .trim();
     let mut numeric = text.replace(['¥', ','], "");
-    let mut financial = text.contains('¥');
-    for suffix in [THOUSAND_YEN, TEN_THOUSAND_YEN, YEN, "%"] {
+    for suffix in [
+        labels::THOUSAND_YEN,
+        labels::TEN_THOUSAND_YEN,
+        labels::YEN,
+        "%",
+    ] {
         if let Some(value) = numeric.strip_suffix(suffix) {
             numeric = value.to_string();
-            financial = true;
             break;
         }
     }
     let Ok(value) = numeric.parse::<f64>() else {
         return AmountColor::Neutral;
     };
+    // マイナス表示は種類・明示の符号を問わず赤にする。プラス表示は
+    // 損益・出入りの Delta(または明示の正)のときだけ緑にし、残高・価格などの
+    // Plain は通常色のままにする。0・欠損は常に色なし
     if value < 0.0 {
         AmountColor::Negative
-    } else if value > 0.0 && (financial || kind == AmountKind::Delta || negative || positive) {
+    } else if value > 0.0 && (kind == AmountKind::Delta || negative || positive) {
         AmountColor::Positive
     } else {
         AmountColor::Neutral

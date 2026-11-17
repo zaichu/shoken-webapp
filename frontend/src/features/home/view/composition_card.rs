@@ -231,8 +231,6 @@ fn CompositionRow(
                     <Amount
                         kind=AmountKind::Delta
                         text=format::format_integer_percent(detail_rate)
-                        negative=asset_balance::is_negative_rate(Some(detail_rate))
-                        positive=asset_balance::is_positive_rate(Some(detail_rate))
                     />
                     {(!detail_suffix.is_empty()).then(|| view! {
                         {labels::HOME_COMPOSITION_DETAIL_SEPARATOR}{detail_suffix}
@@ -242,8 +240,6 @@ fn CompositionRow(
             <span class="shrink-0 text-right text-body font-bold tabular-nums text-text">
                 <Amount
                     text=asset_balance::format_valuation_amount(Some(amount))
-                    negative=asset_balance::is_negative_valuation(Some(amount))
-                    positive=asset_balance::is_positive_valuation(Some(amount))
                 />
             </span>
         </li>
