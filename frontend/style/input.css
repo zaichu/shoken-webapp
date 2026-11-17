@@ -1400,6 +1400,11 @@
     .asset-mobile-tabs-links {
       @apply px-4;
     }
+
+    .asset-compact-row .list-row-action,
+    .list-row-item[data-testid="receipt-card"] .list-row-action {
+      @apply py-2;
+    }
   }
 
   .page-back-link {
@@ -1537,6 +1542,10 @@
 
     .home-card-grid > * {
       @apply rounded-xl border border-border-subtle bg-surface;
+    }
+
+    .home-card-grid .list-row-action {
+      @apply py-2;
     }
   }
 
