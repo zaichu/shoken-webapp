@@ -225,7 +225,6 @@ fn BandTiles(
                     rate_positive: false,
                 },
             ]
-            testid_toggle="summary-details-toggle"
         />
     }
 }

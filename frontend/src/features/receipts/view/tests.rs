@@ -1326,6 +1326,13 @@ fn summary_band_pc_and_mobile_share_tax_basis_labels() {
 }
 
 #[test]
+fn primary_value_signs_follow_value_for_dividend_too() {
+    assert_eq!(super::summary::value_signs(dec!(-1200)), (true, false));
+    assert_eq!(super::summary::value_signs(dec!(1200)), (false, true));
+    assert_eq!(super::summary::value_signs(Decimal::ZERO), (false, false));
+}
+
+#[test]
 fn band_breakdown_signs_match_detail_dialog() {
     use crate::ui::summary::SummaryTone;
     let (text, negative, positive, tone) = band_value(labels::DIVIDEND_AMOUNT, dec!(2000));

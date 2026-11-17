@@ -1,3 +1,4 @@
+use crate::ui::header_scroll;
 use crate::ui::labels;
 use crate::ui::site;
 use crate::ui::site::{AccountMenu, NavLink};
@@ -62,6 +63,8 @@ pub fn PageFrame(
 ) -> impl IntoView {
     let body = children();
     let has_action_bar = action_bar.is_some();
+    let head = NodeRef::<leptos::html::Header>::new();
+    let head_hidden = header_scroll::use_header_hidden(head);
 
     view! {
         <div
@@ -69,7 +72,11 @@ pub fn PageFrame(
             class:has-action-bar=has_action_bar
         >
             <PcHeader />
-            <header class="page-frame-head no-print">
+            <header
+                class="page-frame-head no-print"
+                class:is-scrolled-away=move || head_hidden.get()
+                node_ref=head
+            >
                 <div class="page-gutter flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
                     <h1 class="page-frame-title order-1 shrink-0">{title}</h1>
                     <div class="order-2 ml-auto flex shrink-0 items-center gap-3 lg:order-3">
