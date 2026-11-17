@@ -1,12 +1,8 @@
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
-};
-use crate::features::asset_balance::holdings::{
-    HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
-    holding_dividend,
-};
-use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
+use crate::features::asset_balance::format as balance_format;
+use crate::features::asset_balance::holdings;
+use crate::features::asset_balance::holdings::HoldingView;
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::ValuationInput;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
@@ -20,30 +16,31 @@ pub(crate) fn holding_detail_cells(
     view: &HoldingView,
     dividends: &DividendMaps,
 ) -> (Vec<DetailCell>, Vec<DetailCell>) {
-    let valuation = holding_valuation(&ValuationInput::from(view));
-    let market_text = format_row_valuation_amount(valuation.market_value);
-    let pnl_text = format_signed_row_valuation_amount(valuation.profit_loss.amount);
-    let pnl_rate = format_signed_valuation_rate(valuation.profit_loss.rate, 1);
+    let valuation = model::holding_valuation(&ValuationInput::from(view));
+    let market_text = balance_format::format_row_valuation_amount(valuation.market_value);
+    let pnl_text = balance_format::format_signed_row_valuation_amount(valuation.profit_loss.amount);
+    let pnl_rate = balance_format::format_signed_valuation_rate(valuation.profit_loss.rate, 1);
     let pnl_sub = valuation
         .profit_loss
         .rate
         .map(|_| format!("{pnl_text} {pnl_rate}"))
         .or_else(|| valuation.profit_loss.amount.map(|_| pnl_text.clone()));
-    let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
-    let pnl_positive = is_positive_valuation(valuation.profit_loss.amount);
+    let pnl_negative = balance_format::is_negative_valuation(valuation.profit_loss.amount);
+    let pnl_positive = balance_format::is_positive_valuation(valuation.profit_loss.amount);
     let (day_text, day_negative, day_positive) = (
-        format_signed_row_valuation_amount(view.day_change),
-        is_negative_valuation(view.day_change),
-        is_positive_valuation(view.day_change),
+        balance_format::format_signed_row_valuation_amount(view.day_change),
+        balance_format::is_negative_valuation(view.day_change),
+        balance_format::is_positive_valuation(view.day_change),
     );
-    let dividend = holding_dividend(&view.code, view.shares, view.average_price, dividends);
+    let dividend =
+        holdings::holding_dividend(&view.code, view.shares, view.average_price, dividends);
     let current_text = format::format_currency(view.current_price);
     let average_text = format::format_currency(view.average_price);
     let purchase_text = format::format_currency(view.purchase);
     let shares_text = labels::stock_shares_label(&format::format_number_value(view.shares));
-    let per_share = format_dividend_per_share(&dividend, 0);
-    let annual = format_dividend_annual(&dividend);
-    let yield_text = format_dividend_yield(&dividend);
+    let per_share = holdings::format_dividend_per_share(&dividend, 0);
+    let annual = holdings::format_dividend_annual(&dividend);
+    let yield_text = holdings::format_dividend_yield(&dividend);
     let as_of = view
         .price_as_of
         .clone()
@@ -87,19 +84,19 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
             {views
                 .into_iter()
                 .map(|view| {
-                    let valuation = holding_valuation(&ValuationInput::from(&view));
-                    let market_text = format_row_valuation_amount(valuation.market_value);
-                    let pnl_text = format_signed_row_valuation_amount(
+                    let valuation = model::holding_valuation(&ValuationInput::from(&view));
+                    let market_text = balance_format::format_row_valuation_amount(valuation.market_value);
+                    let pnl_text = balance_format::format_signed_row_valuation_amount(
                         valuation.profit_loss.amount,
                     );
-                    let pnl_rate_text = format_signed_valuation_rate(
+                    let pnl_rate_text = balance_format::format_signed_valuation_rate(
                         valuation.profit_loss.rate,
                         1,
                     );
-                    let pnl_negative = is_negative_valuation(valuation.profit_loss.amount);
-                    let pnl_positive = is_positive_valuation(valuation.profit_loss.amount);
-                    let rate_negative = is_negative_rate(valuation.profit_loss.rate);
-                    let rate_positive = is_positive_rate(valuation.profit_loss.rate);
+                    let pnl_negative = balance_format::is_negative_valuation(valuation.profit_loss.amount);
+                    let pnl_positive = balance_format::is_positive_valuation(valuation.profit_loss.amount);
+                    let rate_negative = balance_format::is_negative_rate(valuation.profit_loss.rate);
+                    let rate_positive = balance_format::is_positive_rate(valuation.profit_loss.rate);
                     let shares_text =
                         labels::stock_shares_label(&format::format_number_value(view.shares));
                     let code = view.code.clone();

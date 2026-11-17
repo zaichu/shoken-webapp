@@ -3,8 +3,9 @@ mod login_history;
 mod toc;
 pub(crate) use login_history::{ResultBadge, format_agent, format_datetime, format_place};
 
-use crate::session::use_session;
-use crate::settings::{AmountUnit, AssetSort, IDLE_LOGOUT_CHOICES, Theme, use_settings};
+use crate::session;
+use crate::settings;
+use crate::settings::{AmountUnit, AssetSort, Theme};
 use crate::ui::avatar::UserAvatar;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton, Switch};
 use crate::ui::card::Card;
@@ -20,7 +21,7 @@ use leptos::prelude::*;
 
 #[component]
 pub fn SettingsPage() -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let user = move || session.user.get();
 
     let active = RwSignal::new(toc::initial_section());
@@ -100,7 +101,7 @@ fn SettingRow(title: &'static str, children: Children) -> impl IntoView {
 
 #[component]
 fn SectionDisplay() -> impl IntoView {
-    let settings = use_settings();
+    let settings = settings::use_settings();
     let asset_sort = settings.asset_sort;
     let initial_tab = settings.receipts_initial_tab;
     let amount_unit = settings.amount_unit;
@@ -269,7 +270,7 @@ fn SectionData() -> impl IntoView {
 
 #[component]
 fn SectionSecurity() -> impl IntoView {
-    let settings = use_settings();
+    let settings = settings::use_settings();
     let idle_minutes = settings.idle_logout_minutes;
     let notify = RwSignal::new(Option::<Result<bool, String>>::None);
     let notify_pending = RwSignal::new(false);
@@ -319,7 +320,7 @@ fn SectionSecurity() -> impl IntoView {
                             testid="setting-idle-minutes"
                             on_change=move |value| {
                                 if let Ok(minutes) = value.parse::<u32>()
-                                    && IDLE_LOGOUT_CHOICES.contains(&minutes)
+                                    && settings::IDLE_LOGOUT_CHOICES.contains(&minutes)
                                 {
                                     idle_minutes.set(minutes);
                                 }
@@ -383,7 +384,7 @@ fn notify_token_from_search() -> Option<String> {
 
 #[component]
 fn SectionNotifyLogout() -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let token = RwSignal::new(notify_token_from_search());
     let state = RwSignal::new(Option::<Result<bool, String>>::None);
     let running = RwSignal::new(false);

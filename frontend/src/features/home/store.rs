@@ -3,15 +3,13 @@
 
 use crate::api::dto::{Dividend, DividendListResponse};
 use crate::api::{ApiClient, ApiError};
-use crate::features::asset_balance::{
-    LoadedAssetBalances, LoadedFundBalances, fetch_asset_balances, fetch_fund_balances,
-};
-use crate::features::dividend_per_share::{
-    DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS, DividendMaps, dividend_maps_from_batch,
-    dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch, unique_sorted_codes,
-};
+use crate::features::asset_balance;
+use crate::features::asset_balance::{LoadedAssetBalances, LoadedFundBalances};
+use crate::features::dividend_per_share;
+use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
-use crate::support::pagination::{LIST_MAX_PAGES, ListEndpoint, fetch_all_pages_filtered};
+use crate::support::pagination;
+use crate::support::pagination::ListEndpoint;
 use leptos::prelude::*;
 use std::collections::HashMap;
 use std::future::Future;
@@ -161,18 +159,21 @@ pub(crate) fn refresh_failed(
 }
 
 async fn fetch_stock_rows() -> Result<Option<LoadedAssetBalances>, ApiError> {
-    fetch_asset_balances().await.map(Some)
+    asset_balance::fetch_asset_balances().await.map(Some)
 }
 
 async fn fetch_fund_rows() -> Result<Option<LoadedFundBalances>, ApiError> {
-    fetch_fund_balances().await.map(Some)
+    asset_balance::fetch_fund_balances().await.map(Some)
 }
 
 /// 決済日が `year` の配当を全ページ取る。月別・前年同期・実効税率の材料にする
 async fn fetch_dividend_year(year: u32) -> Result<Option<Vec<Dividend>>, ApiError> {
     let year = year.to_string();
-    let page =
-        fetch_all_pages_filtered::<Dividend>(&[("year", year.as_str())], LIST_MAX_PAGES).await?;
+    let page = pagination::fetch_all_pages_filtered::<Dividend>(
+        &[("year", year.as_str())],
+        pagination::LIST_MAX_PAGES,
+    )
+    .await?;
     Ok(Some(page.rows))
 }
 
@@ -258,13 +259,15 @@ fn build_home_overview(session: SessionStore) -> HomeOverviewData {
             Some(true) => {}
         }
         let codes = data.assets.with(|slot| match slot {
-            Some((cached, Some(loaded))) if *cached == generation => unique_sorted_codes(
-                &loaded
-                    .rows
-                    .iter()
-                    .map(|row| row.security_code.to_string())
-                    .collect::<Vec<_>>(),
-            ),
+            Some((cached, Some(loaded))) if *cached == generation => {
+                dividend_per_share::unique_sorted_codes(
+                    &loaded
+                        .rows
+                        .iter()
+                        .map(|row| row.security_code.to_string())
+                        .collect::<Vec<_>>(),
+                )
+            }
             _ => Vec::new(),
         });
         if codes.is_empty() {
@@ -340,17 +343,22 @@ fn load_estimates(
     let estimates = data.estimates;
     let fetch_state = data.fetch_state;
     leptos::task::spawn_local(async move {
-        let max_pending = dividend_pending_max_retries(codes.len());
+        let max_pending = dividend_per_share::dividend_pending_max_retries(codes.len());
         let mut pending_used = 0u32;
         let mut network_used = 0u32;
         let mut received_any = false;
         loop {
-            match fetch_dividend_batch(&codes, post_dividend_batch).await {
+            match dividend_per_share::fetch_dividend_batch(
+                &codes,
+                dividend_per_share::post_dividend_batch,
+            )
+            .await
+            {
                 Ok(batch) => {
                     if !session.is_current(generation) {
                         return;
                     }
-                    let (maps, has_pending) = dividend_maps_from_batch(&batch);
+                    let (maps, has_pending) = dividend_per_share::dividend_maps_from_batch(&batch);
                     received_any = true;
                     estimates.set(Some((generation, Some(maps))));
                     if !has_pending || pending_used >= max_pending {
@@ -363,13 +371,14 @@ fn load_estimates(
                         session.mark_unauthenticated();
                         return;
                     }
-                    if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
+                    if network_used >= dividend_per_share::DIVIDEND_NETWORK_MAX_RETRIES {
                         break;
                     }
                     network_used += 1;
                 }
             }
-            gloo_timers::future::TimeoutFuture::new(DIVIDEND_RETRY_DELAY_MS).await;
+            gloo_timers::future::TimeoutFuture::new(dividend_per_share::DIVIDEND_RETRY_DELAY_MS)
+                .await;
         }
         let is_current = fetch_state
             .try_update(|map| finish_summary_fetch(map, generation, SummaryKind::Estimates, rev))

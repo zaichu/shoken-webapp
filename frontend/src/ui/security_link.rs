@@ -1,4 +1,4 @@
-use crate::support::list_search::is_searchable_code;
+use crate::support::list_search;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::labels;
 use leptos::prelude::*;
@@ -54,7 +54,7 @@ pub(crate) fn SecurityCodeLink(
     if code.is_empty() {
         return view! { <span>{labels::MISSING}</span> }.into_any();
     }
-    if !is_searchable_code(&code) {
+    if !list_search::is_searchable_code(&code) {
         return view! { <span>{code}</span> }.into_any();
     }
     let href = format!("/search?code={}", urlencoding::encode(&code));

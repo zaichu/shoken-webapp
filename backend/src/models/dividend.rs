@@ -1,4 +1,5 @@
-use crate::models::common::{SearchParamsAccessor, SearchQueryParams, validate_length_field};
+use crate::models::common;
+use crate::models::common::{SearchParamsAccessor, SearchQueryParams};
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -93,15 +94,15 @@ pub struct CreateDividendRequest {
 impl Validate for CreateDividendRequest {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
-        validate_length_field(&mut errors, "product", &self.product, Some(1), Some(100));
-        validate_length_field(
+        common::validate_length_field(&mut errors, "product", &self.product, Some(1), Some(100));
+        common::validate_length_field(
             &mut errors,
             "security_code",
             &self.security_code,
             None,
             Some(10),
         );
-        validate_length_field(
+        common::validate_length_field(
             &mut errors,
             "security_name",
             &self.security_name,

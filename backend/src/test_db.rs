@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::db::Db;
-use crate::test_constants::POSTGRES_TAG;
+use crate::test_constants;
 use testcontainers::ImageExt;
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
@@ -24,7 +24,7 @@ async fn connect_with_retry(database_url: &str) -> Db {
 /// 各テストが別コンテナ・DB を持つ隔離は維持し、返す node でコンテナを生存させる。
 pub async fn start_test_pool() -> (Db, impl Drop) {
     let node = Postgres::default()
-        .with_tag(POSTGRES_TAG)
+        .with_tag(test_constants::POSTGRES_TAG)
         .start()
         .await
         .unwrap();

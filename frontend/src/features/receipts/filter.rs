@@ -1,9 +1,8 @@
 use crate::features::receipts::{ReceiptRow, ReceiptsTab};
-use crate::support::list_search::support::{create_search_options, reorder_columns_by_search};
-use crate::support::list_search::{
-    SearchOption, create_year_options, filter_by_config, get_unique_values, is_js_whitespace,
-};
-use crate::ui::badge::account_display_name;
+use crate::support::list_search;
+use crate::support::list_search::SearchOption;
+use crate::support::list_search::support;
+use crate::ui::badge;
 use crate::ui::labels;
 use shared::normalize::normalize_display_name;
 use std::collections::HashSet;
@@ -93,8 +92,8 @@ fn build_range_query(start: &str, end: &str) -> String {
 }
 
 fn format_query_token(value: &str) -> String {
-    let trimmed = value.trim_matches(is_js_whitespace);
-    if trimmed.chars().any(is_js_whitespace) {
+    let trimmed = value.trim_matches(list_search::is_js_whitespace);
+    if trimmed.chars().any(list_search::is_js_whitespace) {
         format!("\"{}\"", trimmed.replace('"', "\\\""))
     } else {
         trimmed.to_string()
@@ -110,7 +109,7 @@ fn build_combined_query(queries: &SelectedQueries) -> String {
         SearchKey::Accounts,
     ]
     .into_iter()
-    .map(|key| queries.get(key).trim_matches(is_js_whitespace))
+    .map(|key| queries.get(key).trim_matches(list_search::is_js_whitespace))
     .filter(|value| !value.is_empty())
     .map(format_query_token)
     .collect::<Vec<_>>()
@@ -272,7 +271,7 @@ pub(crate) struct SearchCategories {
 }
 
 pub fn filter_receipts(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Vec<ReceiptRow> {
-    filter_by_config(rows, query, &tab.filter_config())
+    list_search::filter_by_config(rows, query, &tab.filter_config())
         .into_iter()
         .cloned()
         .collect()
@@ -293,7 +292,7 @@ pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptRow]) -> SearchCategor
     SearchCategories {
         securities: {
             let mut seen = HashSet::new();
-            create_search_options(
+            support::create_search_options(
                 &sorted,
                 ReceiptRow::code,
                 ReceiptRow::name,
@@ -311,29 +310,29 @@ pub fn search_categories(tab: ReceiptsTab, rows: &[ReceiptRow]) -> SearchCategor
             .collect()
         },
         products: if tab.product_category() {
-            to_options(get_unique_values(&sorted, ReceiptRow::product))
+            to_options(list_search::get_unique_values(&sorted, ReceiptRow::product))
         } else {
             vec![]
         },
         accounts: if tab.account_category() {
-            get_unique_values(&sorted, ReceiptRow::account)
+            list_search::get_unique_values(&sorted, ReceiptRow::account)
                 .into_iter()
                 .map(|value| SearchOption {
-                    label: account_display_name(&value).to_string(),
+                    label: badge::account_display_name(&value).to_string(),
                     value,
                 })
                 .collect()
         } else {
             vec![]
         },
-        years: create_year_options(&sorted, ReceiptRow::date),
+        years: list_search::create_year_options(&sorted, ReceiptRow::date),
         dates: true,
     }
 }
 
 pub fn column_order(tab: ReceiptsTab, rows: &[ReceiptRow], query: &str) -> Vec<usize> {
     let base: Vec<_> = (0..tab.columns().len()).collect();
-    reorder_columns_by_search(&base, rows, query, tab.reorder_rules(), tab.reorder_fixed())
+    support::reorder_columns_by_search(&base, rows, query, tab.reorder_rules(), tab.reorder_fixed())
 }
 
 /// 検索に一致して前に出す列。column_order と同じ規則で最初に一致したもの

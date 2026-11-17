@@ -3,7 +3,7 @@
 
 use super::portfolio::SortOrder;
 use crate::api::dto::{FundBalance, FundPriceSource};
-use crate::features::asset_balance::format::dec_to_f64;
+use crate::features::asset_balance::format;
 use crate::support::csv_flow::CsvChunking;
 use crate::ui::labels;
 pub const FUND_LIST_PATH: &str = "/api/v1/fund-balances";
@@ -128,16 +128,16 @@ pub(crate) fn fund_view(row: &FundBalanceRow) -> FundView {
         name: row.fund_name.clone(),
         account: row.account.as_str().to_string(),
         course: row.dividends_course.clone(),
-        shares: dec_to_f64(&row.shares),
-        average_purchase_price: dec_to_f64(&row.average_purchase_price),
-        purchase: dec_to_f64(&row.total_purchase_amount),
-        base_price: dec_to_f64(&row.base_price),
-        base_price_day_change: row.base_price_day_change.as_ref().map(dec_to_f64),
-        base_price_month_change: row.base_price_month_change.as_ref().map(dec_to_f64),
-        market_value: dec_to_f64(&row.market_value),
-        profit_loss: dec_to_f64(&row.profit_loss),
-        profit_loss_rate: row.profit_loss_rate.as_ref().map(dec_to_f64),
-        total_return: row.total_return.as_ref().map(dec_to_f64),
+        shares: format::dec_to_f64(&row.shares),
+        average_purchase_price: format::dec_to_f64(&row.average_purchase_price),
+        purchase: format::dec_to_f64(&row.total_purchase_amount),
+        base_price: format::dec_to_f64(&row.base_price),
+        base_price_day_change: row.base_price_day_change.as_ref().map(format::dec_to_f64),
+        base_price_month_change: row.base_price_month_change.as_ref().map(format::dec_to_f64),
+        market_value: format::dec_to_f64(&row.market_value),
+        profit_loss: format::dec_to_f64(&row.profit_loss),
+        profit_loss_rate: row.profit_loss_rate.as_ref().map(format::dec_to_f64),
+        total_return: row.total_return.as_ref().map(format::dec_to_f64),
         price_as_of: Some(row.price_as_of.clone()),
         price_source: row.price_source,
         is_nav_latest: row.nav_is_latest,

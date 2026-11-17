@@ -1,6 +1,7 @@
-use crate::config::{MAX_CSV_CELL_CHARS, MAX_CSV_COLUMNS, MAX_CSV_ROWS};
+use crate::config;
 use crate::errors::{ApiError, CsvError};
-use crate::services::csv::util::{CsvRowView, HeaderIndex, decode_bytes};
+use crate::services::csv::util;
+use crate::services::csv::util::{CsvRowView, HeaderIndex};
 
 /// ヘッダー共有索引と StringRecord の行をそのまま保持する CSV テーブル。
 /// 行ごとに HashMap<String, String> へ複製しない
@@ -34,7 +35,7 @@ pub fn parse_csv_with_config(bytes: &[u8], config: &CsvParserConfig) -> Result<C
         return Err(CsvError::Empty.into());
     }
 
-    let content = decode_bytes(bytes);
+    let content = util::decode_bytes(bytes);
     let stripped = match config.header_marker {
         Some(marker) => match find_header_offset(&content, marker) {
             Some(offset) => &content[offset..],
@@ -60,8 +61,8 @@ pub fn parse_csv_with_config(bytes: &[u8], config: &CsvParserConfig) -> Result<C
     for record in reader.records() {
         let record = record.map_err(|error| CsvError::RowRead(error.to_string()))?;
         seen_rows += 1;
-        if seen_rows > MAX_CSV_ROWS {
-            return Err(CsvError::TooManyRows(MAX_CSV_ROWS).into());
+        if seen_rows > config::MAX_CSV_ROWS {
+            return Err(CsvError::TooManyRows(config::MAX_CSV_ROWS).into());
         }
         check_columns(record.len())?;
         for field in &record {
@@ -86,15 +87,15 @@ pub fn parse_csv_with_config(bytes: &[u8], config: &CsvParserConfig) -> Result<C
 }
 
 fn check_columns(count: usize) -> Result<(), ApiError> {
-    if count > MAX_CSV_COLUMNS {
-        return Err(CsvError::TooManyColumns(MAX_CSV_COLUMNS).into());
+    if count > config::MAX_CSV_COLUMNS {
+        return Err(CsvError::TooManyColumns(config::MAX_CSV_COLUMNS).into());
     }
     Ok(())
 }
 
 fn check_cell_len(field: &str) -> Result<(), ApiError> {
-    if field.chars().count() > MAX_CSV_CELL_CHARS {
-        return Err(CsvError::CellTooLong(MAX_CSV_CELL_CHARS).into());
+    if field.chars().count() > config::MAX_CSV_CELL_CHARS {
+        return Err(CsvError::CellTooLong(config::MAX_CSV_CELL_CHARS).into());
     }
     Ok(())
 }
@@ -271,7 +272,7 @@ mod tests {
     #[test]
     fn test_parse_csv_row_limit_boundary() {
         let mut csv = String::from("name\n");
-        for i in 0..MAX_CSV_ROWS {
+        for i in 0..config::MAX_CSV_ROWS {
             csv.push_str(&format!("a{i}\n"));
         }
         assert_eq!(
@@ -279,21 +280,21 @@ mod tests {
                 .unwrap()
                 .rows()
                 .count(),
-            MAX_CSV_ROWS
+            config::MAX_CSV_ROWS
         );
 
         csv.push_str("overflow\n");
         let result = parse_csv_with_config(csv.as_bytes(), &BASIC_CONFIG);
         assert!(matches!(
             result,
-            Err(ApiError::Csv(CsvError::TooManyRows(limit))) if limit == MAX_CSV_ROWS
+            Err(ApiError::Csv(CsvError::TooManyRows(limit))) if limit == config::MAX_CSV_ROWS
         ));
     }
 
     #[test]
     fn test_parse_csv_column_and_cell_limits() {
-        let header: Vec<String> = Vec::from_fn(MAX_CSV_COLUMNS, |i| format!("c{i}"));
-        let row: Vec<String> = Vec::from_fn(MAX_CSV_COLUMNS, |i| format!("v{i}"));
+        let header: Vec<String> = Vec::from_fn(config::MAX_CSV_COLUMNS, |i| format!("c{i}"));
+        let row: Vec<String> = Vec::from_fn(config::MAX_CSV_COLUMNS, |i| format!("v{i}"));
         let csv = format!("{}\n{}\n", header.join(","), row.join(","));
         assert_eq!(
             parse_csv_with_config(csv.as_bytes(), &BASIC_CONFIG)
@@ -303,24 +304,25 @@ mod tests {
             1
         );
 
-        let wide_header: Vec<String> = Vec::from_fn(MAX_CSV_COLUMNS + 1, |i| format!("c{i}"));
+        let wide_header: Vec<String> =
+            Vec::from_fn(config::MAX_CSV_COLUMNS + 1, |i| format!("c{i}"));
         let result = parse_csv_with_config(
             format!("{}\n", wide_header.join(",")).as_bytes(),
             &BASIC_CONFIG,
         );
         assert!(matches!(
             result,
-            Err(ApiError::Csv(CsvError::TooManyColumns(limit))) if limit == MAX_CSV_COLUMNS
+            Err(ApiError::Csv(CsvError::TooManyColumns(limit))) if limit == config::MAX_CSV_COLUMNS
         ));
 
-        let long_cell = "x".repeat(MAX_CSV_CELL_CHARS + 1);
+        let long_cell = "x".repeat(config::MAX_CSV_CELL_CHARS + 1);
         let result =
             parse_csv_with_config(format!("name\n{long_cell}\n").as_bytes(), &BASIC_CONFIG);
         assert!(matches!(
             result,
-            Err(ApiError::Csv(CsvError::CellTooLong(limit))) if limit == MAX_CSV_CELL_CHARS
+            Err(ApiError::Csv(CsvError::CellTooLong(limit))) if limit == config::MAX_CSV_CELL_CHARS
         ));
-        let ok_cell = "x".repeat(MAX_CSV_CELL_CHARS);
+        let ok_cell = "x".repeat(config::MAX_CSV_CELL_CHARS);
         assert_eq!(
             parse_csv_with_config(format!("name\n{ok_cell}\n").as_bytes(), &BASIC_CONFIG)
                 .unwrap()

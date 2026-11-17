@@ -1,4 +1,5 @@
-use crate::models::common::{SearchParamsAccessor, SearchQueryParams, validate_length_field};
+use crate::models::common;
+use crate::models::common::{SearchParamsAccessor, SearchQueryParams};
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -105,14 +106,14 @@ impl SearchParamsAccessor for MutualfundSearchQueryParams {
 impl Validate for CreateMutualfundRequest {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
-        validate_length_field(
+        common::validate_length_field(
             &mut errors,
             "fund_name",
             &self.fund_name,
             Some(1),
             Some(300),
         );
-        validate_length_field(&mut errors, "dividends", &self.dividends, None, Some(100));
+        common::validate_length_field(&mut errors, "dividends", &self.dividends, None, Some(100));
         if errors.is_empty() {
             Ok(())
         } else {

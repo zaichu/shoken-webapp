@@ -1,5 +1,5 @@
 use super::*;
-use crate::features::receipts::kind::product_matches;
+use crate::features::receipts::kind;
 use crate::features::receipts::kind::{ReceiptItem, ReceiptRow};
 use rust_decimal::Decimal;
 
@@ -314,5 +314,5 @@ fn mutualfund_item_delegates_all_accessors() {
 #[test]
 fn product_matches_returns_true_for_matching_product() {
     let row = saved_dividend_row();
-    assert!(product_matches(&row, "nisa"));
+    assert!(kind::product_matches(&row, "nisa"));
 }

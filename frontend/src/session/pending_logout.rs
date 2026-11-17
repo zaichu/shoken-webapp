@@ -1,5 +1,5 @@
 use crate::api::{ApiClient, ApiError};
-use crate::session::local_storage;
+use crate::session;
 use gloo_timers::future::TimeoutFuture;
 use std::cell::Cell;
 
@@ -29,19 +29,19 @@ struct LocalStore;
 
 impl FlagStore for LocalStore {
     fn is_set(&self) -> bool {
-        local_storage()
+        session::local_storage()
             .and_then(|storage| storage.get_item(STORAGE_KEY).ok().flatten())
             .is_some()
     }
 
     fn set(&self) {
-        if let Some(storage) = local_storage() {
+        if let Some(storage) = session::local_storage() {
             let _ = storage.set_item(STORAGE_KEY, "1");
         }
     }
 
     fn clear(&self) {
-        if let Some(storage) = local_storage() {
+        if let Some(storage) = session::local_storage() {
             let _ = storage.remove_item(STORAGE_KEY);
         }
     }

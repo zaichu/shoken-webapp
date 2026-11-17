@@ -1,13 +1,12 @@
 pub mod oauth;
 
-use crate::{
-    errors::{ApiError, ErrorResponse},
-    extractors::auth::AuthenticatedUser,
-    handlers::v1::auth::oauth::{clear_session_cookie, get_session_id_from_jar, same_site},
-    models::{common::MessageResponse, user::UserResponse},
-    services::auth::{self as auth_service, SessionToken},
-    state::AppState,
-};
+use crate::errors::{ApiError, ErrorResponse};
+use crate::extractors::auth::AuthenticatedUser;
+use crate::handlers::v1::auth::oauth as auth_oauth;
+use crate::models::common::MessageResponse;
+use crate::models::user::UserResponse;
+use crate::services::auth::{self as auth_service, SessionToken};
+use crate::state::AppState;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -32,7 +31,7 @@ fn build_account_delete_confirmation_cookie(value: String, secure: bool) -> Cook
         .path("/api/v1/account")
         .http_only(true)
         .secure(secure)
-        .same_site(same_site(secure))
+        .same_site(auth_oauth::same_site(secure))
         .max_age(time::Duration::seconds(
             ACCOUNT_DELETE_CONFIRMATION_TTL_SECONDS,
         ))
@@ -85,7 +84,7 @@ fn clear_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
         .path("/api/v1/account")
         .http_only(true)
         .secure(secure)
-        .same_site(same_site(secure))
+        .same_site(auth_oauth::same_site(secure))
         .max_age(time::Duration::seconds(0))
         .build()
 }
@@ -105,7 +104,7 @@ pub async fn get_session(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<Json<SessionResponse>, ApiError> {
-    let token = get_session_id_from_jar(&jar)?;
+    let token = auth_oauth::get_session_id_from_jar(&jar)?;
 
     // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
     let user = auth_service::select_user_by_session(&state.pool, token)
@@ -137,7 +136,7 @@ pub async fn delete_session(State(state): State<AppState>, jar: CookieJar) -> im
         let _ = auth_service::delete_session(&state.pool, token).await;
     }
 
-    let cookie = clear_session_cookie(state.config.secure_cookie);
+    let cookie = auth_oauth::clear_session_cookie(state.config.secure_cookie);
 
     let jar = jar.remove(cookie);
 
@@ -240,18 +239,16 @@ pub async fn create_account_deletion_confirmation(
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::{
-        db::connect_pool_lazy,
-        extractors::auth::AuthenticatedUser,
-        models::user::User,
-        state::{AppState, Secrets},
-    };
+    use crate::db;
+    use crate::extractors::auth::AuthenticatedUser;
+    use crate::models::user::User;
+    use crate::state::{AppState, Secrets};
     use axum_extra::extract::cookie::SameSite;
     use std::sync::Arc;
 
     fn make_test_state() -> AppState {
         AppState {
-            pool: connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
+            pool: db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1)
                 .expect("pool"),
             secrets: Arc::new(Secrets {
                 jquants_api_key: None,
@@ -337,7 +334,7 @@ mod tests {
                             assert_eq!(cookie.path(), Some("/"));
                             assert_eq!(cookie.http_only(), Some(true));
                             assert_eq!(cookie.secure().unwrap_or(false), secure);
-                            assert_eq!(cookie.same_site(), Some(same_site(secure)));
+                            assert_eq!(cookie.same_site(), Some(auth_oauth::same_site(secure)));
                             assert_eq!(cookie.max_age(), Some(time::Duration::ZERO));
                         }
                         let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();

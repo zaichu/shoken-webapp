@@ -9,7 +9,7 @@ use shared::format::{
     format_percentage_value as format_percentage_value_decimal, group_integer_digits,
 };
 
-use crate::support::list_search::is_valid_iso_date;
+use crate::support::list_search;
 
 /// 1株・1口あたりの金額(取得単価・現在値・基準価額・1株配当)の小数桁の上限
 const UNIT_PRICE_DECIMALS_MAX: u32 = 2;
@@ -186,7 +186,7 @@ pub fn format_price_date(as_of: &str) -> String {
 
 /// 日付("YYYY-MM-DD")を "YYYY/MM/DD" にする。日付として読めない値は「—」
 pub fn format_iso_date(value: &str) -> String {
-    if is_valid_iso_date(value) {
+    if list_search::is_valid_iso_date(value) {
         format!("{}/{}/{}", &value[..4], &value[5..7], &value[8..])
     } else {
         "—".to_string()

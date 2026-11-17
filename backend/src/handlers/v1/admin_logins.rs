@@ -49,7 +49,10 @@ pub async fn list(
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::{config::Config, db::connect_pool_lazy, models::user::User, state::Secrets};
+    use crate::config::Config;
+    use crate::db;
+    use crate::models::user::User;
+    use crate::state::Secrets;
     use axum::{http::StatusCode, response::IntoResponse};
     use std::sync::Arc;
 
@@ -137,7 +140,7 @@ mod tests {
     async fn extractor_rejection_preserves_database_and_unauthorized() {
         use crate::db::DbError;
         let state = || AppState {
-            pool: connect_pool_lazy("postgres://user:password@localhost/test_db", 1).unwrap(),
+            pool: db::connect_pool_lazy("postgres://user:password@localhost/test_db", 1).unwrap(),
             secrets: Arc::new(Secrets {
                 jquants_api_key: None,
                 google_client_id: None,
@@ -200,7 +203,8 @@ mod tests {
                 StatusCode::INTERNAL_SERVER_ERROR,
             ),
         ] {
-            let pool = connect_pool_lazy("postgres://user:password@localhost/test_db", 1).unwrap();
+            let pool =
+                db::connect_pool_lazy("postgres://user:password@localhost/test_db", 1).unwrap();
             pool.close().await;
             let state = AppState {
                 pool,

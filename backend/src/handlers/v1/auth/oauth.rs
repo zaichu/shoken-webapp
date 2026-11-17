@@ -1,6 +1,6 @@
 use crate::errors::{ApiError, ConfigError, ErrorResponse};
 use crate::services::auth::{self as auth_service, GoogleOAuthClient, SessionToken};
-use crate::services::login_event::client_info_from_headers;
+use crate::services::login_event;
 use crate::state::AppState;
 use axum::{
     extract::{Query, State},
@@ -205,7 +205,7 @@ pub async fn google_callback(
     let nonce = nonce.ok_or_else(|| ApiError::Unauthorized("OAuth nonce が見つかりません"))?;
 
     let device_token = get_device_token_from_jar(&jar);
-    let client_info = client_info_from_headers(&headers);
+    let client_info = login_event::client_info_from_headers(&headers);
 
     let (session_token, user, outcome) =
         auth_service::authenticate_with_google_code_and_login_event(
@@ -247,12 +247,10 @@ pub async fn google_callback(
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::{
-        db::connect_pool_lazy,
-        errors::ErrorResponse,
-        models::common::MessageResponse,
-        state::{AppState, Secrets},
-    };
+    use crate::db;
+    use crate::errors::ErrorResponse;
+    use crate::models::common::MessageResponse;
+    use crate::state::{AppState, Secrets};
     use axum::{
         Router,
         body::{Body, to_bytes},
@@ -267,7 +265,7 @@ mod tests {
     const BODY_LIMIT: usize = 1024 * 1024;
     fn make_test_state() -> AppState {
         let pool =
-            connect_pool_lazy("postgresql://user:password@localhost/test_db", 1).expect("pool");
+            db::connect_pool_lazy("postgresql://user:password@localhost/test_db", 1).expect("pool");
         let secrets = Arc::new(Secrets {
             jquants_api_key: None,
             google_client_id: None,
@@ -325,18 +323,18 @@ mod tests {
     }
     #[test]
     fn test_cookie_helpers() {
-        use crate::services::auth::{OAUTH_STATE_COOKIE_NAME, SESSION_COOKIE_NAME};
+        use crate::services::auth;
         let token: SessionToken = "550e8400-e29b-41d4-a716-446655440000".parse().unwrap();
         for (secure, expected_secure) in [(true, true), (false, false)] {
             for (cookie, expected_name, expected_value) in [
                 (
                     build_state_cookie("test_state", secure),
-                    OAUTH_STATE_COOKIE_NAME,
+                    auth::OAUTH_STATE_COOKIE_NAME,
                     "test_state",
                 ),
                 (
                     build_session_cookie(token, secure),
-                    SESSION_COOKIE_NAME,
+                    auth::SESSION_COOKIE_NAME,
                     "550e8400-e29b-41d4-a716-446655440000",
                 ),
             ] {
@@ -357,8 +355,8 @@ mod tests {
             }
         }
         for (cookie, expected_name) in [
-            (clear_state_cookie(true), OAUTH_STATE_COOKIE_NAME),
-            (clear_session_cookie(true), SESSION_COOKIE_NAME),
+            (clear_state_cookie(true), auth::OAUTH_STATE_COOKIE_NAME),
+            (clear_session_cookie(true), auth::SESSION_COOKIE_NAME),
         ] {
             assert_eq!((cookie.name(), cookie.value()), (expected_name, ""));
         }
@@ -384,9 +382,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_google_callback_matching_state_proceeds_past_state_check() {
-        use crate::services::auth::OAUTH_STATE_COOKIE_NAME;
+        use crate::services::auth;
         // state が一致する場合は Unauthorized にならず、後段の OAuth クライアント確認へ進む
-        let jar = CookieJar::new().add(Cookie::new(OAUTH_STATE_COOKIE_NAME, "test-state"));
+        let jar = CookieJar::new().add(Cookie::new(auth::OAUTH_STATE_COOKIE_NAME, "test-state"));
         let result = google_callback(
             State(make_test_state()),
             HeaderMap::default(),
@@ -406,8 +404,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_google_callback_mismatched_state_is_unauthorized() {
-        use crate::services::auth::OAUTH_STATE_COOKIE_NAME;
-        let jar = CookieJar::new().add(Cookie::new(OAUTH_STATE_COOKIE_NAME, "stored-state"));
+        use crate::services::auth;
+        let jar = CookieJar::new().add(Cookie::new(auth::OAUTH_STATE_COOKIE_NAME, "stored-state"));
         let result = google_callback(
             State(make_test_state()),
             HeaderMap::default(),
@@ -436,18 +434,18 @@ mod tests {
 
     #[test]
     fn test_jar_helpers() {
-        use crate::services::auth::SESSION_COOKIE_NAME;
+        use crate::services::auth;
         assert!(get_session_id_from_jar(&CookieJar::new()).is_err());
         assert!(
             get_session_id_from_jar(
-                &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, "invalid-uuid"))
+                &CookieJar::new().add(Cookie::new(auth::SESSION_COOKIE_NAME, "invalid-uuid"))
             )
             .is_err()
         );
         let token = SessionToken::new();
         assert_eq!(
             get_session_id_from_jar(
-                &CookieJar::new().add(Cookie::new(SESSION_COOKIE_NAME, token.to_string()))
+                &CookieJar::new().add(Cookie::new(auth::SESSION_COOKIE_NAME, token.to_string()))
             )
             .unwrap(),
             token
@@ -456,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_device_cookie_helpers() {
-        use crate::services::auth::DEVICE_COOKIE_NAME;
+        use crate::services::auth;
         for secure in [true, false] {
             let cookie = build_device_cookie(auth_service::DeviceToken::new(), secure);
             assert_eq!(
@@ -469,7 +467,7 @@ mod tests {
                     cookie.max_age(),
                 ),
                 (
-                    DEVICE_COOKIE_NAME,
+                    auth::DEVICE_COOKIE_NAME,
                     Some("/"),
                     Some(true),
                     Some(secure),
@@ -480,13 +478,13 @@ mod tests {
         }
         let missing = get_device_token_from_jar(&CookieJar::new());
         let invalid = get_device_token_from_jar(
-            &CookieJar::new().add(Cookie::new(DEVICE_COOKIE_NAME, "invalid-uuid")),
+            &CookieJar::new().add(Cookie::new(auth::DEVICE_COOKIE_NAME, "invalid-uuid")),
         );
         assert_ne!(missing, invalid);
         let token = auth_service::DeviceToken::new();
         assert_eq!(
             get_device_token_from_jar(
-                &CookieJar::new().add(Cookie::new(DEVICE_COOKIE_NAME, token.to_string()))
+                &CookieJar::new().add(Cookie::new(auth::DEVICE_COOKIE_NAME, token.to_string()))
             ),
             token
         );

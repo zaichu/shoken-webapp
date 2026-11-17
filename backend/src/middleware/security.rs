@@ -7,7 +7,7 @@ use axum::{
     response::Response,
 };
 
-use crate::errors::simple_error_response;
+use crate::errors;
 
 /// セキュリティヘッダー付与ミドルウェア
 ///
@@ -52,7 +52,7 @@ fn extract_origin(url: &str) -> Option<&str> {
 
 /// CSRF 検証失敗レスポンスを生成する
 fn csrf_error() -> Response {
-    simple_error_response(
+    errors::simple_error_response(
         StatusCode::FORBIDDEN,
         "CSRF_ERROR",
         "不正なリクエスト元です".to_string(),

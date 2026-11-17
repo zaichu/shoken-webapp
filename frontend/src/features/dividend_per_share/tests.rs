@@ -1,5 +1,5 @@
 use super::*;
-use crate::testing::block_on;
+use crate::testing;
 
 #[test]
 fn pending_max_retries_saturates_for_huge_holdings() {
@@ -18,7 +18,7 @@ fn fetch_dividend_batch_uses_shared_request_without_changing_wire_codes() {
         String::new(),
         "9904-1".to_string(),
     ];
-    let result = block_on(fetch_dividend_batch(
+    let result = testing::block_on(fetch_dividend_batch(
         &codes,
         |request: shared::dividend_per_share::DividendPerShareBatchRequest| {
             assert_eq!(
@@ -110,7 +110,7 @@ fn dividend_batch_maps_match_hook() {
 fn fetch_dividend_batch_forwards_codes_and_returns_response() {
     let captured = std::cell::RefCell::new(Vec::new());
     let codes = vec!["9914".to_string(), "9904".to_string(), "9914".to_string()];
-    let result = block_on(fetch_dividend_batch(&codes, |request| {
+    let result = testing::block_on(fetch_dividend_batch(&codes, |request| {
         *captured.borrow_mut() = request
             .security_codes
             .into_iter()
@@ -130,7 +130,7 @@ fn fetch_dividend_batch_forwards_codes_and_returns_response() {
 
 #[test]
 fn fetch_dividend_batch_propagates_http_error() {
-    let result = block_on(fetch_dividend_batch(&["9904".to_string()], |_request| {
+    let result = testing::block_on(fetch_dividend_batch(&["9904".to_string()], |_request| {
         std::future::ready(Err(ApiError::Parse))
     }));
     assert_eq!(result.unwrap_err(), ApiError::Parse);

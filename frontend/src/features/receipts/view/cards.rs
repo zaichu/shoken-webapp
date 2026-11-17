@@ -9,7 +9,8 @@ use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::{GroupSummary, ListGroupHeader, ListRowButtonWithoutSecondary};
-use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
+use crate::ui::security_link;
+use crate::ui::security_link::SecurityCodeLink;
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
 use std::collections::HashSet;
@@ -257,7 +258,7 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
                         variant=ButtonVariant::CopyName
                         class="group min-h-11 min-w-11 items-center"
                         aria_label=aria_label
-                        on_click=move |_| copy_to_clipboard(copy_text.clone())
+                        on_click=move |_| security_link::copy_to_clipboard(copy_text.clone())
                     >
                         <span class="min-w-0 break-words">{move || display.clone()}</span>
                         <svg

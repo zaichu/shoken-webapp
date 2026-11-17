@@ -1,14 +1,9 @@
 use super::{sync_code_param, use_stock_search};
 use crate::api::dto::Stock;
-use crate::features::asset_balance::{
-    HoldingGroup, HoldingView, ValuationInput, all_portfolio_views, format_dividend_annual,
-    format_dividend_per_share, format_dividend_yield, format_row_valuation_amount,
-    format_signed_row_valuation_amount, format_signed_valuation_rate, group_holdings_by_code,
-    holding_dividend, holding_valuation, is_negative_valuation, is_positive_valuation,
-    load_asset_balances, resolve_asset_balance, use_asset_balance_state,
-};
+use crate::features::asset_balance;
+use crate::features::asset_balance::{HoldingGroup, HoldingView, ValuationInput};
 use crate::features::dividend_per_share::DividendMaps;
-use crate::session::use_session;
+use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{AccountBadge, CodeBadge};
 use crate::ui::card::{Card, CardVariant};
@@ -65,14 +60,14 @@ const STOCK_LINKS: &[(&str, &str)] = &[
 #[component]
 pub(crate) fn StockSearchPage() -> impl IntoView {
     let stock_search = use_stock_search();
-    let session = use_session();
-    let balance_state = use_asset_balance_state(session);
+    let session = session::use_session();
+    let balance_state = asset_balance::use_asset_balance_state(session);
     let balances = balance_state.balances();
     let dividends = balance_state.dividends();
     let lookup = balance_state.lookup();
     let data_ops = balance_state.data_ops();
     if session.user.get_untracked().is_some() {
-        load_asset_balances(
+        asset_balance::load_asset_balances(
             session,
             session.generation.get_untracked(),
             balances,
@@ -119,10 +114,11 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
             return None;
         }
         let generation = session.generation.get();
-        let rows = balances
-            .with(|slot| resolve_asset_balance(generation, slot).map(|resolved| resolved.rows))?;
-        let views = all_portfolio_views(&rows, lookup, generation);
-        group_holdings_by_code(&views)
+        let rows = balances.with(|slot| {
+            asset_balance::resolve_asset_balance(generation, slot).map(|resolved| resolved.rows)
+        })?;
+        let views = asset_balance::all_portfolio_views(&rows, lookup, generation);
+        asset_balance::group_holdings_by_code(&views)
             .into_iter()
             .find(|group| group.code == code)
     });
@@ -143,7 +139,7 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
             return;
         }
         balances.set(None);
-        load_asset_balances(
+        asset_balance::load_asset_balances(
             session,
             session.generation.get_untracked(),
             balances,
@@ -651,18 +647,23 @@ struct HoldingTilesData {
 
 impl HoldingTilesData {
     fn of(input: TileInput<'_>) -> Self {
-        let valuation = holding_valuation(&ValuationInput {
+        let valuation = asset_balance::holding_valuation(&ValuationInput {
             current_price: input.current_price,
             shares: input.shares,
             total_purchase_amount: input.purchase,
         });
-        let dividend = holding_dividend(input.code, input.shares, input.average_basis, input.maps);
+        let dividend = asset_balance::holding_dividend(
+            input.code,
+            input.shares,
+            input.average_basis,
+            input.maps,
+        );
         Self {
-            market: format_row_valuation_amount(valuation.market_value),
-            pnl: format_signed_row_valuation_amount(valuation.profit_loss.amount),
-            pnl_rate: format_signed_valuation_rate(valuation.profit_loss.rate, 1),
-            pnl_negative: is_negative_valuation(valuation.profit_loss.amount),
-            pnl_positive: is_positive_valuation(valuation.profit_loss.amount),
+            market: asset_balance::format_row_valuation_amount(valuation.market_value),
+            pnl: asset_balance::format_signed_row_valuation_amount(valuation.profit_loss.amount),
+            pnl_rate: asset_balance::format_signed_valuation_rate(valuation.profit_loss.rate, 1),
+            pnl_negative: asset_balance::is_negative_valuation(valuation.profit_loss.amount),
+            pnl_positive: asset_balance::is_positive_valuation(valuation.profit_loss.amount),
             current_price: format::format_currency(input.current_price),
             price_as_of: input.price_as_of.map_or_else(
                 || labels::MISSING.to_string(),
@@ -671,12 +672,12 @@ impl HoldingTilesData {
             quantity: labels::stock_shares_label(&format::format_number_value(input.shares)),
             average_price: input.average_tile.map(format::format_currency),
             purchase: format::format_currency(input.purchase),
-            per_share: format_dividend_per_share(
+            per_share: asset_balance::format_dividend_per_share(
                 &dividend,
                 format::unit_price_decimals(dividend.per_share.into_iter()),
             ),
-            annual: format_dividend_annual(&dividend),
-            yield_text: format_dividend_yield(&dividend),
+            annual: asset_balance::format_dividend_annual(&dividend),
+            yield_text: asset_balance::format_dividend_yield(&dividend),
             account: input.account,
             show_common: input.show_common,
         }

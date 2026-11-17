@@ -1,7 +1,7 @@
 use crate::api::{ApiClient, ApiError};
 #[cfg(test)]
 mod tests;
-use crate::session::use_session;
+use crate::session;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
@@ -284,7 +284,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
 
 #[component]
 pub fn SectionDevices() -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let devices = RwSignal::new(Option::<Result<Vec<DeviceEntry>, String>>::None);
     let load = move || {
         devices.set(None);

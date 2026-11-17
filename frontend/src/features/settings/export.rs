@@ -7,8 +7,10 @@ mod tests;
 
 use crate::api::ApiError;
 use crate::api::dto::{AssetBalance, Dividend, DomesticStock, Mutualfund};
-use crate::features::asset_balance::{ValuationInput, holding_valuation};
-use crate::support::pagination::{ListPage, fetch_all_pages_with};
+use crate::features::asset_balance;
+use crate::features::asset_balance::ValuationInput;
+use crate::support::pagination;
+use crate::support::pagination::ListPage;
 use crate::ui::labels;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
@@ -83,14 +85,14 @@ fn rows_of<T, S>(result: ListPage<T, S>) -> Result<Vec<T>, ExportError> {
 pub(crate) async fn fetch_csv(kind: ExportKind) -> Result<(String, String), ExportError> {
     let content = match kind {
         ExportKind::Dividend => dividends_csv(&rows_of(
-            fetch_all_pages_with::<Dividend>(EXPORT_MAX_PAGES).await?,
+            pagination::fetch_all_pages_with::<Dividend>(EXPORT_MAX_PAGES).await?,
         )?),
         ExportKind::AssetBalance => asset_balances_csv(&rows_of(
-            fetch_all_pages_with::<AssetBalance>(EXPORT_MAX_PAGES).await?,
+            pagination::fetch_all_pages_with::<AssetBalance>(EXPORT_MAX_PAGES).await?,
         )?),
         ExportKind::Transaction => transactions_csv(
-            &rows_of(fetch_all_pages_with::<DomesticStock>(EXPORT_MAX_PAGES).await?)?,
-            &rows_of(fetch_all_pages_with::<Mutualfund>(EXPORT_MAX_PAGES).await?)?,
+            &rows_of(pagination::fetch_all_pages_with::<DomesticStock>(EXPORT_MAX_PAGES).await?)?,
+            &rows_of(pagination::fetch_all_pages_with::<Mutualfund>(EXPORT_MAX_PAGES).await?)?,
         ),
     };
     Ok((kind.filename(&today()), content))
@@ -209,7 +211,7 @@ fn asset_balances_csv(rows: &[AssetBalance]) -> String {
     let valuations: Vec<_> = rows
         .iter()
         .map(|row| {
-            holding_valuation(&ValuationInput {
+            asset_balance::holding_valuation(&ValuationInput {
                 current_price: row.current_price.to_f64().unwrap_or(0.0),
                 shares: row.shares.to_f64().unwrap_or(0.0),
                 total_purchase_amount: row.total_purchase_amount.to_f64().unwrap_or(0.0),

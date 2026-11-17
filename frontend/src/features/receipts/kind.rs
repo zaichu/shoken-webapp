@@ -13,15 +13,18 @@ use crate::api::dto::{
     Dividend, DividendSummary, DomesticStock, DomesticStockSummary, Mutualfund, MutualfundSummary,
 };
 
-use crate::features::receipts::model::create_year_month_key;
+use crate::features::receipts::model;
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
-use crate::settings::format_amount;
+use crate::settings;
 use crate::support::list_search::FilterConfig;
-use crate::support::list_search::group_key::{GroupKeyRule, create_group_key_fn};
-use crate::support::list_search::support::{ColumnReorderRule, group_and_summarize};
-use crate::support::pagination::{ListEndpoint, fetch_all_pages};
+use crate::support::list_search::group_key;
+use crate::support::list_search::group_key::GroupKeyRule;
+use crate::support::list_search::support;
+use crate::support::list_search::support::ColumnReorderRule;
+use crate::support::pagination;
+use crate::support::pagination::ListEndpoint;
 use crate::ui::format;
 use crate::ui::labels;
 use shared::format::{format_currency, format_number};
@@ -607,7 +610,7 @@ fn summarize_groups(
     key: impl Fn(&ReceiptRow) -> String,
     descending: bool,
 ) -> Vec<TableGroup> {
-    group_and_summarize(
+    support::group_and_summarize(
         sorted,
         &key,
         &[
@@ -630,7 +633,7 @@ fn summarize_groups(
             summary: summary
                 .values
                 .iter()
-                .map(|value| format_amount(*value))
+                .map(|value| settings::format_amount(*value))
                 .collect(),
             rows: group_rows,
         }
@@ -727,7 +730,11 @@ fn dividend_table_groups(
             key_fn: &|row: &ReceiptRow| normalize_display_name(row.account()),
         },
     ];
-    let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
+    let key = group_key::create_group_key_fn(
+        query,
+        |row| model::create_year_month_key(row.date()),
+        &rules,
+    );
     summarize_groups(
         &sorted,
         key,
@@ -748,7 +755,7 @@ fn domestic_table_groups(
     let sorted = sorted_rows(rows, order);
     summarize_groups(
         &sorted,
-        |row| create_year_month_key(row.date()),
+        |row| model::create_year_month_key(row.date()),
         order == crate::features::receipts::filter::ReceiptSortOrder::Newest,
     )
 }
@@ -774,7 +781,11 @@ fn mutual_fund_table_groups(
         // 見出しは半角化して出すのでキーも揃え、全角・半角だけ違う名をまとめる
         key_fn: &|row: &ReceiptRow| normalize_display_name(row.name()),
     }];
-    let key = create_group_key_fn(query, |row| create_year_month_key(row.date()), &rules);
+    let key = group_key::create_group_key_fn(
+        query,
+        |row| model::create_year_month_key(row.date()),
+        &rules,
+    );
     summarize_groups(
         &sorted,
         key,
@@ -943,7 +954,7 @@ async fn load_tab<E: ListEndpoint>(
 where
     E::Row: Into<ReceiptItem>,
 {
-    let page = fetch_all_pages::<E>().await?;
+    let page = pagination::fetch_all_pages::<E>().await?;
     Ok(ReceiptTabData {
         total: page.total,
         rows: page.rows.into_iter().map(Into::into).collect(),

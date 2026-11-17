@@ -4,7 +4,7 @@
 use crate::features::asset_balance::fund::AssetSearch;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::support::list_search::SearchOption;
-use crate::ui::badge::account_display_name;
+use crate::ui::badge;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
@@ -143,7 +143,7 @@ pub(crate) fn AssetSearchBar(
         search.with(|s| {
             s.accounts
                 .iter()
-                .map(|value| account_display_name(value))
+                .map(|value| badge::account_display_name(value))
                 .collect::<Vec<_>>()
                 .join(labels::TAG_SEPARATOR)
         })
@@ -165,7 +165,7 @@ pub(crate) fn AssetSearchBar(
                 .collect()
         })
     };
-    let account_options = to_options(account_options, account_display_name);
+    let account_options = to_options(account_options, badge::account_display_name);
     let course_options = to_options(course_options, |value| value);
     let placeholder_pc = placeholder;
 
@@ -292,7 +292,7 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
         search.with(|s| {
             s.accounts
                 .iter()
-                .map(|value| account_display_name(value))
+                .map(|value| badge::account_display_name(value))
                 .collect::<Vec<_>>()
                 .join(labels::TAG_SEPARATOR)
         })
@@ -457,7 +457,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                                         ConditionKind::Course => "asset-dialog-course",
                                     };
                                     let to_label: fn(&str) -> &str = match kind {
-                                        ConditionKind::Account => account_display_name,
+                                        ConditionKind::Account => badge::account_display_name,
                                         ConditionKind::Course => |v| v,
                                     };
                                     view! {

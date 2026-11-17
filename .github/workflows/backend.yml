@@ -81,6 +81,10 @@ jobs:
         if: steps.gate.outputs.backend == 'true'
         run: cargo clippy --all-targets -- -D warnings
 
+      - name: Check use paths
+        if: steps.gate.outputs.backend == 'true'
+        run: bash scripts/check-use-paths.sh
+
       - name: Run tests
         if: steps.gate.outputs.backend == 'true'
         run: cargo test

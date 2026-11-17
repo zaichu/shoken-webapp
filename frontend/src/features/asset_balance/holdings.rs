@@ -1,6 +1,7 @@
 use super::format::dec_to_f64;
 use crate::features::asset_balance::csv::AssetBalanceRow;
-use crate::features::asset_balance::model::{ValuationInput, normalize_display_name};
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::ValuationInput;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::format;
 use crate::ui::labels;
@@ -42,7 +43,7 @@ pub(crate) fn holding_view(row: &AssetBalanceRow) -> HoldingView {
     HoldingView {
         id: None,
         code: row.security_code.as_str().to_string(),
-        name: normalize_display_name(name_source),
+        name: model::normalize_display_name(name_source),
         account: row.account.as_ref().map(|a| a.as_str().to_string()),
         shares: dec_to_f64(&row.shares),
         average_price: dec_to_f64(&row.average_purchase_price),

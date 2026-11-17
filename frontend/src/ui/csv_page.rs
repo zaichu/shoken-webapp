@@ -1,8 +1,9 @@
 use crate::features::asset_balance::AssetBalanceCsvStore;
 use crate::features::csv_page::CsvKind;
-use crate::features::csv_sync::{CsvSyncStore, KindStatus, with_csv_extension};
+use crate::features::csv_sync;
+use crate::features::csv_sync::{CsvSyncStore, KindStatus};
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
-use crate::session::use_session;
+use crate::session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::format;
@@ -34,7 +35,7 @@ pub(crate) fn CsvManageFetchCard(
     running: ReadSignal<bool>,
     on_fetch: Callback<web_sys::MouseEvent>,
 ) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     view! {
         <section class="rounded-lg border border-border bg-surface-sunken p-4">
             <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
@@ -396,7 +397,7 @@ fn CsvKindRow(
             .and_then(|files| files.get(0));
         input.set_value("");
         if let Some(file) = file {
-            csv_sync.import_file(kind.sync_kind(), with_csv_extension(&file));
+            csv_sync.import_file(kind.sync_kind(), csv_sync::with_csv_extension(&file));
         }
     };
 

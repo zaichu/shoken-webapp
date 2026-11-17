@@ -1,6 +1,6 @@
 //! ログインが要る画面に出す案内。ログイン画面とログアウト中のホームが同じ部品を使う。
 
-use crate::session::use_session;
+use crate::session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use crate::ui::labels;
@@ -10,7 +10,7 @@ use leptos::prelude::*;
 /// ログイン画面・銘柄検索の空状態と同じ空状態部品の上に、Googleでログインの操作を置く
 #[component]
 pub fn LoginPrompt(#[prop(into, optional)] class: Signal<String>) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let login = move |_| session.login();
     view! {
         <EmptyState

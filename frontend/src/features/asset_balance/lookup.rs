@@ -1,6 +1,6 @@
 use crate::api::dto::{AssetBalance, AssetBalanceListResponse};
 use crate::api::{ApiClient, ApiError};
-use crate::features::asset_balance::model::normalize_security_code;
+use crate::features::asset_balance::model;
 use crate::session::Generation;
 use std::collections::HashMap;
 
@@ -21,7 +21,7 @@ impl AssetBalanceLookupStore {
             self.generation = Some(generation);
         }
         for row in rows {
-            let code = normalize_security_code(row.security_code.as_str());
+            let code = model::normalize_security_code(row.security_code.as_str());
             if code.is_empty() {
                 continue;
             }
@@ -40,7 +40,7 @@ impl AssetBalanceLookupStore {
         if self.generation != Some(generation) {
             return None;
         }
-        let normalized = normalize_security_code(row.security_code.as_str());
+        let normalized = model::normalize_security_code(row.security_code.as_str());
         if normalized.is_empty() {
             return None;
         }
@@ -53,7 +53,7 @@ impl AssetBalanceLookupStore {
         if !authenticated {
             return false;
         }
-        let normalized = normalize_security_code(code);
+        let normalized = model::normalize_security_code(code);
         if normalized.is_empty() {
             return false;
         }
@@ -65,7 +65,7 @@ impl AssetBalanceLookupStore {
             self.entries.clear();
             self.generation = Some(generation);
         }
-        let normalized = normalize_security_code(code);
+        let normalized = model::normalize_security_code(code);
         if !normalized.is_empty() {
             self.entries.insert(normalized, rows);
         }
@@ -85,19 +85,19 @@ impl AssetBalanceLookupStore {
 
 /// コードだけで照合する用途(配当情報など口座を区別しないもの)向けの先頭行検索
 pub fn find_by_code<'a>(rows: &'a [AssetBalance], code: &str) -> Option<&'a AssetBalance> {
-    let wanted = normalize_security_code(code);
+    let wanted = model::normalize_security_code(code);
     if wanted.is_empty() {
         return None;
     }
     rows.iter()
-        .find(|row| normalize_security_code(row.security_code.as_str()) == wanted)
+        .find(|row| model::normalize_security_code(row.security_code.as_str()) == wanted)
 }
 
 pub async fn fetch_single_asset_balance(
     client: &ApiClient,
     code: &str,
 ) -> Result<Vec<AssetBalance>, ApiError> {
-    let normalized = normalize_security_code(code);
+    let normalized = model::normalize_security_code(code);
     client
         .get_json::<AssetBalanceListResponse>(
             super::csv::LIST_PATH,

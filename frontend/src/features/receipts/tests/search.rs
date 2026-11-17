@@ -1,8 +1,8 @@
-use crate::features::receipts::filter::filter_receipts;
+use crate::features::receipts::filter;
 use crate::features::receipts::filter::{ReceiptSearch, ReceiptSortOrder};
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
-use crate::testing::receipts::dividends;
+use crate::testing::receipts;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -25,7 +25,7 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
             tabs: RwSignal::new(HashMap::from([(
                 (Generation::new(0), ReceiptsTab::Dividend),
                 TabState::Ready(ReceiptTabData {
-                    rows: dividends(),
+                    rows: receipts::dividends(),
                     total: None,
                     summary: None,
                     truncated: false,
@@ -36,7 +36,7 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
         };
         assert_eq!(
             leptos::prelude::untrack(|| {
-                filter_receipts(
+                filter::filter_receipts(
                     ReceiptsTab::Dividend,
                     &store.rows(ReceiptsTab::Dividend),
                     &store.search.get().query,
@@ -64,7 +64,7 @@ fn tab_switch_resets_search_but_same_tab_and_cache_keep_it() {
         store.select_tab(ReceiptsTab::Dividend);
         assert_eq!(
             leptos::prelude::untrack(|| {
-                filter_receipts(
+                filter::filter_receipts(
                     ReceiptsTab::Dividend,
                     &store.rows(ReceiptsTab::Dividend),
                     &store.search.get().query,

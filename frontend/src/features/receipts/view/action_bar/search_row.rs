@@ -1,8 +1,9 @@
 use super::condition::condition_count;
-use crate::features::receipts::filter::{ReceiptSearch, SearchKey, filter_receipts};
-use crate::features::receipts::kind::group_label;
+use crate::features::receipts::filter;
+use crate::features::receipts::filter::{ReceiptSearch, SearchKey};
+use crate::features::receipts::kind;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
-use crate::ui::badge::account_display_name;
+use crate::ui::badge;
 use crate::ui::labels;
 use crate::ui::search_controls::{SearchClearButton, SearchCount, SearchTag, SearchTextInput};
 use leptos::prelude::*;
@@ -23,7 +24,7 @@ fn date_part_text(value: &str) -> String {
     if value.len() == 4 {
         labels::receipt_year_label(value)
     } else {
-        group_label(value)
+        kind::group_label(value)
     }
 }
 
@@ -37,7 +38,7 @@ pub(crate) fn ConditionTags(
     let products_value = Memo::new(move |_| search.with(|s| s.selected_queries.products.clone()));
     let accounts_value = Memo::new(move |_| {
         search.with(|s| {
-            account_display_name(s.selected_queries.accounts.trim_matches('"')).to_string()
+            badge::account_display_name(s.selected_queries.accounts.trim_matches('"')).to_string()
         })
     });
     view! {
@@ -79,7 +80,10 @@ pub(crate) fn ReceiptSearchCount(
         TabState::Ready(data) => {
             let query = store.search.with(|s| s.query.clone());
             let total = data.total.unwrap_or(data.rows.len());
-            Some((filter_receipts(tab.get(), &data.rows, &query).len(), total))
+            Some((
+                filter::filter_receipts(tab.get(), &data.rows, &query).len(),
+                total,
+            ))
         }
         _ => None,
     });
