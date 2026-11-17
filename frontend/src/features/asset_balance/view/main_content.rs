@@ -13,22 +13,22 @@ use super::summary::{
     stock_summary_values,
 };
 use crate::api::dto::{AssetBalanceSummary, FundBalanceSummary};
+use crate::features::asset_balance;
 use crate::features::asset_balance::csv::AssetBalanceRow;
-use crate::features::asset_balance::format::{price_date_is_outlier, price_date_representative};
+use crate::features::asset_balance::format;
+use crate::features::asset_balance::fund;
 use crate::features::asset_balance::fund::{
-    AssetKind, AssetSearch, FundBalanceRow, FundSortKey, FundView, filter_fund_rows, fund_accounts,
-    fund_courses, fund_totals, fund_view, sort_fund_views, text_only_search,
+    AssetKind, AssetSearch, FundBalanceRow, FundSortKey, FundView,
 };
-use crate::features::asset_balance::holdings::{
-    HoldingView, holding_dividend, stock_daily_change_total,
-};
+use crate::features::asset_balance::holdings;
+use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::model::ValuationInput;
-use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder, sort_holdings};
-use crate::features::asset_balance::search::stock_accounts;
+use crate::features::asset_balance::portfolio;
+use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder};
+use crate::features::asset_balance::search;
+use crate::features::asset_balance::store;
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
-use crate::features::asset_balance::store::{all_portfolio_views, filtered_portfolio_views};
-use crate::features::asset_balance::valuation_has_pending;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::ui::button::{Button, ButtonVariant};
@@ -71,7 +71,9 @@ fn sorted_views(
 ) -> Vec<usize> {
     let dividends_vec: Vec<_> = views
         .iter()
-        .map(|view| holding_dividend(&view.code, view.shares, view.average_price, dividends))
+        .map(|view| {
+            holdings::holding_dividend(&view.code, view.shares, view.average_price, dividends)
+        })
         .collect();
     let inputs: Vec<_> = views
         .iter()
@@ -82,7 +84,7 @@ fn sorted_views(
             dividend,
         })
         .collect();
-    sort_holdings(inputs, key, order)
+    portfolio::sort_holdings(inputs, key, order)
 }
 
 /// 並べ替え結果の添字を行データに適用する。PC/モバイルの両表示で同じ順序を使う
@@ -105,7 +107,7 @@ fn sorted_stock_views(
 
 /// 投信行を並べ替えた結果。PC表とモバイル一覧で共有する
 fn sorted_fund_views(views: &[FundView], key: FundSortKey, order: SortOrder) -> Vec<FundView> {
-    apply_order(views, sort_fund_views(views, key, order))
+    apply_order(views, fund::sort_fund_views(views, key, order))
 }
 
 /// 損益率。取得総額が0のときは出さない
@@ -126,7 +128,7 @@ fn fund_summary(
     views: &[FundView],
     fallback: Option<&FundBalanceSummary>,
 ) -> (f64, f64, f64, Option<f64>) {
-    let totals = fund_totals(views);
+    let totals = fund::fund_totals(views);
     fallback.map_or_else(
         || {
             (
@@ -224,10 +226,11 @@ fn StockContent(
     let option_rows = rows.clone();
     // 全保有分の変換は検索語に依存させない。検索入力では絞り込みだけ再計算する
     let rows_for_all = rows.clone();
-    let all_views = Memo::new(move |_| all_portfolio_views(&rows_for_all, lookup, generation));
+    let all_views =
+        Memo::new(move |_| store::all_portfolio_views(&rows_for_all, lookup, generation));
     let rows_for_filtered = rows.clone();
     let filtered_views = Memo::new(move |_| {
-        filtered_portfolio_views(&rows_for_filtered, &search.get(), lookup, generation)
+        store::filtered_portfolio_views(&rows_for_filtered, &search.get(), lookup, generation)
     });
     search_count.set((filtered_views.get_untracked().len(), total_count));
     Effect::new(move |_| {
@@ -236,9 +239,9 @@ fn StockContent(
     // 見出しの基準日と同じ代表を表の日付出し分けにも使う(絞り込み前の全行で決める)
     let date_rep = {
         let dates = stock_price_dates(&rows);
-        price_date_representative(dates.into_iter()).map(str::to_string)
+        format::price_date_representative(dates.into_iter()).map(str::to_string)
     };
-    let account_options = Memo::new(move |_| stock_accounts(&option_rows));
+    let account_options = Memo::new(move |_| search::stock_accounts(&option_rows));
     let course_options = Memo::new(|_| Vec::<String>::new());
     let filtered_count = filtered_count(search, search_count);
     // 集計は絞り込み前の全保有分で求める(検索中も全件のまま)
@@ -266,7 +269,7 @@ fn StockContent(
                 (!empty).then(|| {
                     let (values, tags, purchase) = summary.get();
                     let as_of = oldest_stock_as_of(&rows).unwrap_or_default();
-                    let pending = valuation_has_pending(
+                    let pending = asset_balance::valuation_has_pending(
                         stock_pending_from_parts(&rows, fallback_totals.as_ref()),
                         false,
                     );
@@ -379,9 +382,9 @@ fn FundContent(
 ) -> impl IntoView {
     let total_count = resolved.rows.len();
     let account_rows = resolved.rows.clone();
-    let account_options = Memo::new(move |_| fund_accounts(&account_rows));
+    let account_options = Memo::new(move |_| fund::fund_accounts(&account_rows));
     let course_rows = resolved.rows.clone();
-    let course_options = Memo::new(move |_| fund_courses(&course_rows));
+    let course_options = Memo::new(move |_| fund::fund_courses(&course_rows));
     let rows_for_filter = resolved.rows.clone();
     let initial = filtered_fund_views(&rows_for_filter, &search.get_untracked());
     search_count.set((initial.len(), total_count));
@@ -392,14 +395,14 @@ fn FundContent(
         filtered.set(next);
     });
     // 集計は絞り込み前の全行で求め、検索中も全保有分を維持する
-    let all_views: Vec<_> = resolved.rows.iter().map(fund_view).collect();
+    let all_views: Vec<_> = resolved.rows.iter().map(fund::fund_view).collect();
     let (market, purchase, profit, daily) =
         fund_summary(&all_views, resolved.fallback_totals.as_ref());
     let profit_rate = profit_rate(profit, purchase);
     let filtered_count = filtered_count(search, search_count);
     let empty = total_count == 0;
     let as_of = oldest_fund_as_of(&resolved).unwrap_or_default();
-    let pending = valuation_has_pending(false, fund_has_pending(&resolved));
+    let pending = asset_balance::valuation_has_pending(false, fund_has_pending(&resolved));
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
         <section id="assetbalance-fund-list">
@@ -483,9 +486,9 @@ fn FundContent(
 }
 
 fn filtered_fund_views(rows: &[FundBalanceRow], search: &AssetSearch) -> Vec<FundView> {
-    filter_fund_rows(rows, search)
+    fund::filter_fund_rows(rows, search)
         .into_iter()
-        .map(fund_view)
+        .map(fund::fund_view)
         .collect()
 }
 
@@ -513,28 +516,35 @@ fn AllContent(
     // 投信の行は日付を出さない(基準日は title にだけ入れる)
     let stock_date_rep = {
         let dates = stock_price_dates(&stock_rows_for_search);
-        price_date_representative(dates.into_iter()).map(str::to_string)
+        format::price_date_representative(dates.into_iter()).map(str::to_string)
     };
     let build_rows = move |search: &AssetSearch| -> Vec<UnifiedRow> {
         // 「すべて」はテキストのみ。口座・コースの選択条件はタブごとに語彙が
         // 違うためここでは使わない(テキストは株の口座・ファンド口座も部分一致する)
-        let text_search = text_only_search(search);
-        let views =
-            filtered_portfolio_views(&stock_rows_for_search, &text_search, lookup, generation);
+        let text_search = fund::text_only_search(search);
+        let views = store::filtered_portfolio_views(
+            &stock_rows_for_search,
+            &text_search,
+            lookup,
+            generation,
+        );
         let dividend_maps = dividends.get();
         let mut rows: Vec<UnifiedRow> = views
             .iter()
             .map(|view| unified_from_stock(view, &dividend_maps))
             .collect();
         for row in &mut rows {
-            row.date_outlier =
-                price_date_is_outlier(row.price_as_of.as_deref(), stock_date_rep.as_deref());
+            row.date_outlier = format::price_date_is_outlier(
+                row.price_as_of.as_deref(),
+                stock_date_rep.as_deref(),
+            );
         }
-        let fund_rows: Vec<UnifiedRow> = filter_fund_rows(&fund_rows_for_search, &text_search)
-            .into_iter()
-            .map(fund_view)
-            .map(|view| unified_from_fund(&view))
-            .collect();
+        let fund_rows: Vec<UnifiedRow> =
+            fund::filter_fund_rows(&fund_rows_for_search, &text_search)
+                .into_iter()
+                .map(fund::fund_view)
+                .map(|view| unified_from_fund(&view))
+                .collect();
         rows.extend(fund_rows);
         rows
     };
@@ -547,7 +557,7 @@ fn AllContent(
         filtered.set(next);
     });
     // 集計は両種別を合算。株側は銘柄ごとの現在値評価を使う
-    let stock_all_views = all_portfolio_views(&stock_rows, lookup, generation);
+    let stock_all_views = store::all_portfolio_views(&stock_rows, lookup, generation);
     let stock_inputs: Vec<ValuationInput> =
         stock_all_views.iter().map(ValuationInput::from).collect();
     let stock_valuation = crate::features::asset_balance::model::portfolio_valuation(&stock_inputs);
@@ -564,12 +574,12 @@ fn AllContent(
     let stock_daily = stock_fallback
         .as_ref()
         .map(|summary| crate::features::asset_balance::dec_to_f64(&summary.total_daily_change))
-        .or_else(|| stock_daily_change_total(&stock_all_views));
+        .or_else(|| holdings::stock_daily_change_total(&stock_all_views));
     let fund_rows = fund_resolved.rows.clone();
-    let fund_views: Vec<_> = fund_rows.iter().map(fund_view).collect();
+    let fund_views: Vec<_> = fund_rows.iter().map(fund::fund_view).collect();
     let (fund_market, fund_purchase, fund_profit, fund_daily) =
         fund_summary(&fund_views, fund_resolved.fallback_totals.as_ref());
-    let pending = valuation_has_pending(
+    let pending = asset_balance::valuation_has_pending(
         stock_pending_from_parts(&stock_rows, stock_fallback.as_ref()),
         fund_has_pending(&fund_resolved),
     );
@@ -798,7 +808,7 @@ mod tests {
     #[test]
     fn fund_summary_uses_rows_when_no_fallback() {
         let rows = [fund_row("100", "10", None), fund_row("300", "-5", None)];
-        let views: Vec<_> = rows.iter().map(fund_view).collect();
+        let views: Vec<_> = rows.iter().map(fund::fund_view).collect();
         let (market, purchase, profit, daily) = fund_summary(&views, None);
         assert_eq!(market, 400.0);
         assert_eq!(purchase, 2000.0);
@@ -809,7 +819,7 @@ mod tests {
     #[test]
     fn sorted_fund_views_keeps_table_and_list_order_same() {
         let rows = [fund_row("100", "10", None), fund_row("300", "-5", None)];
-        let views: Vec<_> = rows.iter().map(fund_view).collect();
+        let views: Vec<_> = rows.iter().map(fund::fund_view).collect();
         let sorted = sorted_fund_views(&views, FundSortKey::MarketValue, SortOrder::Desc);
         assert_eq!(sorted[0].market_value, 300.0);
         assert_eq!(sorted[1].market_value, 100.0);

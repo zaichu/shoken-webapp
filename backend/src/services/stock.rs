@@ -1,7 +1,7 @@
 use crate::db::{Bind, Db};
 use crate::errors::ApiError;
 use crate::models::stock::Stock;
-use crate::services::domain::search_filters::escape_like_pattern;
+use crate::services::domain::search_filters;
 
 /// 検索クエリの半角英字を全角に統一する。
 /// 銘柄マスタの名前は全角英字を含むため、ユーザー入力の半角を補正して
@@ -16,7 +16,7 @@ fn halfwidth_to_fullwidth(c: char) -> char {
 
 pub async fn search(pool: &Db, query: &str) -> Result<Stock, ApiError> {
     let search_query: String = query.chars().map(halfwidth_to_fullwidth).collect();
-    let escaped = escape_like_pattern(&search_query);
+    let escaped = search_filters::escape_like_pattern(&search_query);
     let stock = crate::db::query_as::<Stock>(
         r#"SELECT date, code, name, market_category,
                   industry_category_33, industry_category_17, size_category

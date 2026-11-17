@@ -2,22 +2,19 @@ use super::super::model;
 use super::super::store::{self, HomeOverviewData};
 use super::{funds_of, stocks_of};
 use crate::api::dto::AssetBalanceSummary;
-use crate::features::asset_balance::{
-    dec_to_f64, format_signed_row_valuation_amount, format_signed_valuation_amount,
-    format_signed_valuation_rate, format_valuation_amount, is_negative_valuation,
-    is_positive_valuation, summary_valuation,
-};
+use crate::features::asset_balance;
 use crate::features::dividend_per_share::DividendMaps;
-use crate::session::use_session;
+use crate::session;
 use crate::ui::labels;
+use crate::ui::summary;
 use crate::ui::summary::{
-    SummaryBand as UiSummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
+    SummaryBand as UiSummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone,
 };
 use leptos::prelude::*;
 
 #[component]
 pub(super) fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let state = move || {
         let generation = session.generation.get();
         let assets = store::current_summary(data.assets, generation);
@@ -97,7 +94,8 @@ pub(super) fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
 }
 
 fn daily_rate_text(market: Option<f64>, daily: Option<f64>) -> String {
-    daily_rate(market, daily).map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1))
+    summary::daily_rate(market, daily)
+        .map_or_default(|rate| asset_balance::format_signed_valuation_rate(Some(rate), 1))
 }
 
 #[component]
@@ -112,50 +110,50 @@ fn BandTiles(
 ) -> impl IntoView {
     let market_value = merged
         .as_ref()
-        .map(|summary| dec_to_f64(&summary.total_market_value));
+        .map(|summary| asset_balance::dec_to_f64(&summary.total_market_value));
     let market_text = if loading {
         labels::MISSING.to_string()
     } else {
-        format_valuation_amount(market_value)
+        asset_balance::format_valuation_amount(market_value)
     };
-    let valuation = merged.as_ref().map(summary_valuation);
+    let valuation = merged.as_ref().map(asset_balance::summary_valuation);
     let pnl_amount = valuation
         .as_ref()
         .and_then(|valuation| valuation.profit_loss.amount);
-    let pnl_negative = is_negative_valuation(pnl_amount);
-    let pnl_positive = is_positive_valuation(pnl_amount);
+    let pnl_negative = asset_balance::is_negative_valuation(pnl_amount);
+    let pnl_positive = asset_balance::is_positive_valuation(pnl_amount);
     let profit_text = if loading {
         labels::MISSING.to_string()
     } else {
         valuation.as_ref().map_or_else(
             || labels::MISSING.to_string(),
-            |valuation| format_signed_valuation_amount(valuation.profit_loss.amount),
+            |valuation| asset_balance::format_signed_valuation_amount(valuation.profit_loss.amount),
         )
     };
     let profit_rate = valuation
         .as_ref()
         .and_then(|valuation| valuation.profit_loss.rate)
-        .map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
+        .map_or_default(|rate| asset_balance::format_signed_valuation_rate(Some(rate), 1));
     let daily_value = daily;
     let daily_text = if loading {
         labels::MISSING.to_string()
     } else {
-        format_signed_row_valuation_amount(daily_value)
+        asset_balance::format_signed_row_valuation_amount(daily_value)
     };
     let daily_rate = if loading {
         String::new()
     } else {
         daily_rate_text(market_value, daily_value)
     };
-    let daily_negative = is_negative_valuation(daily_value);
-    let daily_positive = is_positive_valuation(daily_value);
+    let daily_negative = asset_balance::is_negative_valuation(daily_value);
+    let daily_positive = asset_balance::is_positive_valuation(daily_value);
     let purchase_value = merged
         .as_ref()
-        .map(|summary| dec_to_f64(&summary.total_purchase_amount));
+        .map(|summary| asset_balance::dec_to_f64(&summary.total_purchase_amount));
     let purchase_text = if loading {
         labels::MISSING.to_string()
     } else {
-        format_valuation_amount(purchase_value)
+        asset_balance::format_valuation_amount(purchase_value)
     };
     let estimates_pending = estimates.is_none();
     let maps = estimates.as_ref().and_then(|slot| slot.as_ref());
@@ -167,7 +165,7 @@ fn BandTiles(
             .and_then(|kpi| kpi.total_annual_dividends)
             .map_or_else(
                 || labels::MISSING.to_string(),
-                |amount| format_valuation_amount(Some(amount)),
+                |amount| asset_balance::format_valuation_amount(Some(amount)),
             )
     };
     let estimate_pending_text = match (maps, kpi.as_ref().and_then(|k| k.dividend_yield)) {

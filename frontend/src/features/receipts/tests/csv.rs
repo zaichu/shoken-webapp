@@ -1,9 +1,10 @@
 use crate::features::receipts::filter::{ReceiptSearch, ReceiptSortOrder};
-use crate::features::receipts::store::{TabCacheEntry, mark_tab_for_refresh, tab_settled};
+use crate::features::receipts::store;
+use crate::features::receipts::store::TabCacheEntry;
 use crate::features::receipts::*;
 use crate::session::{Generation, SessionStore};
 use crate::support::csv_flow::CsvTabState;
-use crate::testing::receipts::dividends;
+use crate::testing::receipts;
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -69,7 +70,7 @@ fn count_uses_api_total_over_loaded_rows() {
         // 取得上限で行が欠けても削除確認は保存済み全件数を示す
         assert_eq!(store.count(tab), 100_001);
 
-        let rows = dividends();
+        let rows = receipts::dividends();
         let loaded = rows.len();
         store.tabs.set(HashMap::from([(
             (generation, tab),
@@ -169,7 +170,7 @@ fn delete_success_empties_cached_list_and_clears_state() {
             HashMap::from([(
                 (generation, tab),
                 TabState::Ready(ReceiptTabData {
-                    rows: vec![dividends()[0].clone()],
+                    rows: vec![receipts::dividends()[0].clone()],
                     total: None,
                     summary: None,
                     truncated: false,
@@ -320,7 +321,7 @@ fn refresh_tab_list_marks_cached_tab_loading_only() {
 #[test]
 fn mark_tab_for_refresh_marks_only_existing_entry() {
     let mut map: HashMap<(Generation, ReceiptsTab), TabCacheEntry> = HashMap::new();
-    assert!(!mark_tab_for_refresh(
+    assert!(!store::mark_tab_for_refresh(
         &mut map,
         Generation::new(0),
         ReceiptsTab::Dividend
@@ -333,7 +334,7 @@ fn mark_tab_for_refresh_marks_only_existing_entry() {
         summary: None,
         truncated: false,
     }));
-    assert!(mark_tab_for_refresh(
+    assert!(store::mark_tab_for_refresh(
         &mut map,
         Generation::new(0),
         ReceiptsTab::Dividend
@@ -343,12 +344,12 @@ fn mark_tab_for_refresh_marks_only_existing_entry() {
             .and_then(|e| e.list.as_ref()),
         Some(TabState::Loading)
     ));
-    assert!(!mark_tab_for_refresh(
+    assert!(!store::mark_tab_for_refresh(
         &mut map,
         Generation::new(1),
         ReceiptsTab::Dividend
     ));
-    assert!(!mark_tab_for_refresh(
+    assert!(!store::mark_tab_for_refresh(
         &mut map,
         Generation::new(0),
         ReceiptsTab::MutualFund
@@ -356,7 +357,7 @@ fn mark_tab_for_refresh_marks_only_existing_entry() {
     // CSV 側の操作だけで作られたエントリ(一覧未取得)も再取得対象にしない
     map.entry((Generation::new(0), ReceiptsTab::MutualFund))
         .or_default();
-    assert!(!mark_tab_for_refresh(
+    assert!(!store::mark_tab_for_refresh(
         &mut map,
         Generation::new(0),
         ReceiptsTab::MutualFund
@@ -450,16 +451,16 @@ fn tab_settled_only_for_ready_or_failed() {
         session.user.set(Some(user("alice")));
         let store = test_store(&session, HashMap::new(), HashMap::new());
         let tab = ReceiptsTab::Dividend;
-        assert!(!tab_settled(&store, Generation::new(0), tab));
+        assert!(!store::tab_settled(&store, Generation::new(0), tab));
         store.tabs.update(|map| {
             map.entry((Generation::new(0), tab)).or_default().list = Some(TabState::Loading);
         });
-        assert!(!tab_settled(&store, Generation::new(0), tab));
+        assert!(!store::tab_settled(&store, Generation::new(0), tab));
         store.tabs.update(|map| {
             map.entry((Generation::new(0), tab)).or_default().list =
                 Some(TabState::Failed("x".to_string()));
         });
-        assert!(tab_settled(&store, Generation::new(0), tab));
+        assert!(store::tab_settled(&store, Generation::new(0), tab));
         store.tabs.update(|map| {
             map.entry((Generation::new(0), tab)).or_default().list =
                 Some(TabState::Ready(ReceiptTabData {
@@ -469,7 +470,7 @@ fn tab_settled_only_for_ready_or_failed() {
                     truncated: false,
                 }));
         });
-        assert!(tab_settled(&store, Generation::new(0), tab));
+        assert!(store::tab_settled(&store, Generation::new(0), tab));
     });
 }
 

@@ -5,17 +5,19 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::fund_balance::{
     CreateFundBalanceRequest, FundBalance, FundBalanceSearchQueryParams, FundBalanceSummary,
 };
-use crate::services::csv::import::{CsvImport, validate_csv_rows};
+use crate::services::csv::import;
+use crate::services::csv::import::CsvImport;
 #[cfg(test)]
-use crate::services::csv::pipeline::parse_csv_with_config;
+use crate::services::csv::pipeline;
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
-use crate::services::csv::util::{
-    CsvRowView, RowNumber, check_max_chars, parse_number, parse_optional_string,
-};
-use crate::services::domain::bulk::{RowLimit, bulk_replace, user_ids_for_bulk_insert};
+use crate::services::csv::util;
+use crate::services::csv::util::{CsvRowView, RowNumber};
+use crate::services::domain::bulk;
+use crate::services::domain::bulk::RowLimit;
 use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
 use crate::services::domain::search::Search;
-use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
+use crate::services::domain::search_filters;
+use crate::services::domain::search_filters::{FilterField, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
@@ -42,7 +44,7 @@ impl CsvImport for FundBalanceDomain {
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        let (items, errors) = validate_csv_rows(table, transform_fund_balance_row);
+        let (items, errors) = import::validate_csv_rows(table, transform_fund_balance_row);
         (items.into_iter().flatten().collect(), errors)
     }
 
@@ -173,7 +175,7 @@ impl Search for FundBalanceDomain {
         match field {
             FilterField::FundName => &params.fund_name,
             FilterField::Account => &params.account,
-            _ => &NO_FIELD,
+            _ => &search_filters::NO_FIELD,
         }
     }
 
@@ -200,7 +202,7 @@ pub async fn bulk_create(
     items: &[CreateFundBalanceRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let user_ids = user_ids_for_bulk_insert(user_id, items.len());
+    let user_ids = bulk::user_ids_for_bulk_insert(user_id, items.len());
     let fund_names: Vec<String> = items.iter().map(|i| i.fund_name.clone()).collect();
     let accounts: Vec<String> = items
         .iter()
@@ -224,7 +226,7 @@ pub async fn bulk_create(
         items.iter().map(|i| i.profit_loss_rate).collect();
     let total_returns: Vec<Option<Decimal>> = items.iter().map(|i| i.total_return).collect();
 
-    bulk_replace::<FundBalanceDomain>(
+    bulk::bulk_replace::<FundBalanceDomain>(
         pool,
         user_id,
         items.len(),
@@ -282,7 +284,7 @@ fn transform_fund_balance_row(
     row_num: RowNumber,
 ) -> Result<Option<CreateFundBalanceRequest>, CsvRowError> {
     let required_num = |col: &str| -> Result<Decimal, CsvRowError> {
-        let raw = parse_optional_string(row, col);
+        let raw = util::parse_optional_string(row, col);
         let trimmed = raw.trim();
         if trimmed.is_empty() || trimmed == "-" {
             return Err(CsvRowError {
@@ -290,24 +292,26 @@ fn transform_fund_balance_row(
                 message: format!("必須列 '{col}' が空または値なし"),
             });
         }
-        parse_number(trimmed).map_err(|e| CsvRowError {
+        util::parse_number(trimmed).map_err(|e| CsvRowError {
             row: row_num.get(),
             message: format!("{col}: {e}"),
         })
     };
     let optional_num = |col: &str| -> Result<Option<Decimal>, CsvRowError> {
-        let raw = parse_optional_string(row, col);
+        let raw = util::parse_optional_string(row, col);
         let trimmed = raw.trim();
         if trimmed.is_empty() || trimmed == "-" {
             return Ok(None);
         }
-        parse_number(trimmed).map(Some).map_err(|e| CsvRowError {
-            row: row_num.get(),
-            message: format!("{col}: {e}"),
-        })
+        util::parse_number(trimmed)
+            .map(Some)
+            .map_err(|e| CsvRowError {
+                row: row_num.get(),
+                message: format!("{col}: {e}"),
+            })
     };
     let optional_str = |col: &str| -> String {
-        let raw = parse_optional_string(row, col);
+        let raw = util::parse_optional_string(row, col);
         let trimmed = raw.trim();
         if trimmed.is_empty() || trimmed == "-" {
             String::new()
@@ -316,7 +320,7 @@ fn transform_fund_balance_row(
         }
     };
 
-    let fund_name = check_max_chars(
+    let fund_name = util::check_max_chars(
         normalize_security_name(&optional_str("ファンド")),
         "ファンド",
         200,
@@ -370,7 +374,7 @@ mod tests {
     }
 
     fn transform(rows: &[&str]) -> (Vec<CreateFundBalanceRequest>, Vec<CsvRowError>) {
-        let table = parse_csv_with_config(
+        let table = pipeline::parse_csv_with_config(
             make_fund_csv(rows).as_bytes(),
             &FundBalanceDomain::CSV_CONFIG,
         )

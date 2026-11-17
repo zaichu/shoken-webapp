@@ -2,9 +2,11 @@ mod view;
 
 pub(crate) use view::StockSearchPage;
 
-use crate::api::{ApiError, Stock, fetch_stock};
-use crate::session::{Generation, use_session};
-use crate::support::list_search::is_searchable_code;
+use crate::api;
+use crate::api::{ApiError, Stock};
+use crate::session;
+use crate::session::Generation;
+use crate::support::list_search;
 use leptos::prelude::*;
 
 #[derive(Clone, Copy)]
@@ -61,12 +63,12 @@ const fn is_not_found(error: &ApiError) -> bool {
 
 pub fn use_stock_search() -> StockSearch {
     let (initial, has_invalid_code_param) = read_code_param();
-    let session = use_session();
+    let session = session::use_session();
     let stock_code = RwSignal::new(initial.clone());
     let fetch_generation = RwSignal::new(session.generation.get_untracked());
     let search = Action::new_unsync(move |query: &String| {
         let query = query.clone();
-        async move { fetch_stock(&query).await }
+        async move { api::fetch_stock(&query).await }
     });
     let stock_search = StockSearch {
         stock_code,
@@ -90,7 +92,7 @@ fn read_code_param() -> (String, bool) {
     if trimmed.is_empty() {
         return (String::new(), false);
     }
-    if is_searchable_code(&trimmed) {
+    if list_search::is_searchable_code(&trimmed) {
         (trimmed, false)
     } else {
         (String::new(), true)
@@ -124,7 +126,7 @@ pub(crate) fn url_stock_code() -> String {
 /// 名前検索などコードにならない入力は URL に載せない。
 /// 遷移できたとき true(呼び出し側の直接 dispatch は要らない)を返す
 pub(crate) fn sync_code_param(code: &str) -> bool {
-    if !is_searchable_code(code) {
+    if !list_search::is_searchable_code(code) {
         return false;
     }
     let Some(current) = use_context::<crate::app::CurrentPath>() else {

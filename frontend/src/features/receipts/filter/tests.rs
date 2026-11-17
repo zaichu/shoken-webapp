@@ -1,10 +1,10 @@
 use super::*;
 use crate::features::receipts::ReceiptItem;
-use crate::testing::receipts::{dividends, domestic, funds};
+use crate::testing::receipts;
 
 #[test]
 fn dividend_filter_uses_exact_fields_and_all_amount_fields() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     for query in [
         "9910 2024",
         "架空電信電話",
@@ -28,7 +28,7 @@ fn dividend_filter_uses_exact_fields_and_all_amount_fields() {
 }
 #[test]
 fn domestic_filter_matches_trade_date_and_amount_fields() {
-    let rows = domestic();
+    let rows = receipts::domestic();
     for query in [
         "9904",
         "架空自動車",
@@ -60,7 +60,7 @@ fn domestic_filter_matches_trade_date_and_amount_fields() {
 }
 #[test]
 fn mutual_fund_filter_is_exact_and_has_no_amount_search() {
-    let rows = funds();
+    let rows = receipts::funds();
     for query in [
         "\"Alpha Fund A\"",
         "nisa",
@@ -86,7 +86,7 @@ fn mutual_fund_filter_is_exact_and_has_no_amount_search() {
 }
 #[test]
 fn full_width_names_match_half_width_query() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     assert_eq!(
         filter_receipts(ReceiptsTab::Dividend, &rows, "TELE"),
         rows[1..2]
@@ -99,7 +99,7 @@ fn full_width_names_match_half_width_query() {
 
 #[test]
 fn fund_options_merge_names_differing_only_by_width() {
-    let mut rows = funds();
+    let mut rows = receipts::funds();
     let mut twin = match &rows[0] {
         ReceiptItem::MutualFund(row) => row.clone(),
         _ => panic!("fund row"),
@@ -136,7 +136,7 @@ fn fund_options_merge_names_differing_only_by_width() {
 
 #[test]
 fn promoted_column_matches_full_width_query() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     assert_eq!(
         promoted_column(ReceiptsTab::Dividend, &rows, "ｎｉｓａ"),
         Some(3)
@@ -148,16 +148,16 @@ fn promoted_column_matches_full_width_query() {
 #[test]
 fn whitespace_returns_all_three_tabs() {
     for (tab, rows) in [
-        (ReceiptsTab::Dividend, dividends()),
-        (ReceiptsTab::DomesticStock, domestic()),
-        (ReceiptsTab::MutualFund, funds()),
+        (ReceiptsTab::Dividend, receipts::dividends()),
+        (ReceiptsTab::DomesticStock, receipts::domestic()),
+        (ReceiptsTab::MutualFund, receipts::funds()),
     ] {
         assert_eq!(filter_receipts(tab, &rows, " \t　\u{feff}"), rows);
     }
 }
 #[test]
 fn categories_use_latest_name_sorted_dates_and_tab_fields() {
-    let result = search_categories(ReceiptsTab::Dividend, &dividends());
+    let result = search_categories(ReceiptsTab::Dividend, &receipts::dividends());
     assert!(result.dates);
     assert_eq!(
         result
@@ -184,10 +184,10 @@ fn categories_use_latest_name_sorted_dates_and_tab_fields() {
             .collect::<Vec<_>>(),
         ["2024", "2026"]
     );
-    let stock = search_categories(ReceiptsTab::DomesticStock, &domestic());
+    let stock = search_categories(ReceiptsTab::DomesticStock, &receipts::domestic());
     assert_eq!(stock.products, [] as [SearchOption; 0]);
     assert_eq!(stock.accounts[0].value, "特定");
-    let fund = search_categories(ReceiptsTab::MutualFund, &funds());
+    let fund = search_categories(ReceiptsTab::MutualFund, &receipts::funds());
     assert_eq!(fund.securities[0].value, "Alpha Fund A");
     assert_eq!(fund.products, [] as [SearchOption; 0]);
     assert_eq!(fund.accounts, [] as [SearchOption; 0]);
@@ -199,8 +199,8 @@ fn category_selections_quote_spaces_and_combine_with_year() {
     state.select_year("2024".into());
     assert_eq!(state.query, "2024 \"Alpha Fund A\"");
     assert_eq!(
-        filter_receipts(ReceiptsTab::MutualFund, &funds(), &state.query),
-        funds()
+        filter_receipts(ReceiptsTab::MutualFund, &receipts::funds(), &state.query),
+        receipts::funds()
     );
     state.select_quick(SearchKey::Securities, String::new());
     assert_eq!(state.query, "2024");
@@ -385,19 +385,23 @@ fn year_segment_ignores_leftover_month_input() {
 #[test]
 fn tab_column_rules_use_whole_query_not_tokens() {
     assert_eq!(
-        column_order(ReceiptsTab::Dividend, &dividends(), "特定"),
+        column_order(ReceiptsTab::Dividend, &receipts::dividends(), "特定"),
         [0, 3, 1, 2, 4, 5, 6, 7, 8, 9]
     );
     assert_eq!(
-        column_order(ReceiptsTab::Dividend, &dividends(), "国内株式 特定"),
+        column_order(
+            ReceiptsTab::Dividend,
+            &receipts::dividends(),
+            "国内株式 特定"
+        ),
         (0..10).collect::<Vec<_>>()
     );
     assert_eq!(
-        column_order(ReceiptsTab::DomesticStock, &domestic(), "特定"),
+        column_order(ReceiptsTab::DomesticStock, &receipts::domestic(), "特定"),
         [0, 1, 3, 2, 4, 5, 6, 7, 8, 9, 10]
     );
     assert_eq!(
-        column_order(ReceiptsTab::MutualFund, &funds(), "NISA"),
+        column_order(ReceiptsTab::MutualFund, &receipts::funds(), "NISA"),
         (0..10).collect::<Vec<_>>()
     );
 }

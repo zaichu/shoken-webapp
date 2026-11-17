@@ -5,17 +5,17 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
 };
-use crate::services::csv::import::{CsvImport, validate_csv_rows};
+use crate::services::csv::import;
+use crate::services::csv::import::CsvImport;
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
-use crate::services::csv::util::{
-    CellError, CsvRowView, RowNumber, check_max_chars, parse_optional_number,
-    parse_optional_string, parse_required_account, parse_required_date, parse_required_number,
-    parse_required_string,
-};
-use crate::services::domain::bulk::{RowLimit, bulk_insert, user_ids_for_bulk_insert};
+use crate::services::csv::util;
+use crate::services::csv::util::{CellError, CsvRowView, RowNumber};
+use crate::services::domain::bulk;
+use crate::services::domain::bulk::RowLimit;
 use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
 use crate::services::domain::search::{AggregateResult, Search};
-use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
+use crate::services::domain::search_filters;
+use crate::services::domain::search_filters::{FilterField, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
@@ -40,7 +40,7 @@ impl CsvImport for DividendDomain {
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        validate_csv_rows(table, transform_dividend_row)
+        import::validate_csv_rows(table, transform_dividend_row)
     }
 
     async fn bulk_create(
@@ -127,7 +127,7 @@ impl Search for DividendDomain {
             FilterField::Account => &params.account,
             FilterField::SecurityCode => &params.security_code,
             FilterField::SecurityName => &params.security_name,
-            _ => &NO_FIELD,
+            _ => &search_filters::NO_FIELD,
         }
     }
 
@@ -217,7 +217,7 @@ pub async fn bulk_create(
     items: &[CreateDividendRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let user_ids = user_ids_for_bulk_insert(user_id, items.len());
+    let user_ids = bulk::user_ids_for_bulk_insert(user_id, items.len());
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
     let products: Vec<String> = items.iter().map(|i| i.product.clone()).collect();
@@ -234,7 +234,7 @@ pub async fn bulk_create(
     let taxes: Vec<Decimal> = items.iter().map(|i| i.taxes).collect();
     let net_amounts: Vec<Decimal> = items.iter().map(|i| i.net_amount_received).collect();
 
-    bulk_insert::<DividendDomain, _>(
+    bulk::bulk_insert::<DividendDomain, _>(
         pool,
         user_id,
         items,
@@ -303,31 +303,35 @@ fn transform_dividend_row(
     }
 
     Ok(CreateDividendRequest {
-        settlement_date: parse_required_date(row, row.resolve_col(COL_DATE), row_num)?,
-        product: check_max_chars(
-            parse_required_string(row, "商品", row_num)?,
+        settlement_date: util::parse_required_date(row, row.resolve_col(COL_DATE), row_num)?,
+        product: util::check_max_chars(
+            util::parse_required_string(row, "商品", row_num)?,
             "商品",
             100,
             row_num,
         )?,
-        account: parse_required_account(row, "口座", row_num)?,
-        security_code: check_max_chars(
-            parse_optional_string(row, "銘柄コード"),
+        account: util::parse_required_account(row, "口座", row_num)?,
+        security_code: util::check_max_chars(
+            util::parse_optional_string(row, "銘柄コード"),
             "銘柄コード",
             10,
             row_num,
         )?,
-        security_name: check_max_chars(
-            normalize_security_name(&parse_required_string(row, "銘柄", row_num)?),
+        security_name: util::check_max_chars(
+            normalize_security_name(&util::parse_required_string(row, "銘柄", row_num)?),
             "銘柄",
             200,
             row_num,
         )?,
-        unit_price: parse_required_number(row, "単価[円/現地通貨]", row_num)?,
-        shares: parse_required_number(row, row.resolve_col(COL_SHARES), row_num)?,
-        dividends_before_tax: parse_required_number(row, row.resolve_col(COL_BEFORE_TAX), row_num)?,
+        unit_price: util::parse_required_number(row, "単価[円/現地通貨]", row_num)?,
+        shares: util::parse_required_number(row, row.resolve_col(COL_SHARES), row_num)?,
+        dividends_before_tax: util::parse_required_number(
+            row,
+            row.resolve_col(COL_BEFORE_TAX),
+            row_num,
+        )?,
         taxes: parse_taxes(row, row_num)?,
-        net_amount_received: parse_required_number(row, row.resolve_col(COL_NET), row_num)?,
+        net_amount_received: util::parse_required_number(row, row.resolve_col(COL_NET), row_num)?,
     })
 }
 
@@ -335,7 +339,7 @@ fn transform_dividend_row(
 /// (いずれの列も無いファイルは税額合計の必須列エラーとする)
 fn parse_taxes(row: &CsvRowView<'_>, row_num: RowNumber) -> Result<Decimal, CsvRowError> {
     if row.has_column(COL_TAX_TOTAL) {
-        return parse_required_number(row, COL_TAX_TOTAL, row_num);
+        return util::parse_required_number(row, COL_TAX_TOTAL, row_num);
     }
     if !row.has_column(COL_TAX_FOREIGN) && !row.has_column(COL_TAX_DOMESTIC) {
         return Err(CsvRowError {
@@ -343,8 +347,8 @@ fn parse_taxes(row: &CsvRowView<'_>, row_num: RowNumber) -> Result<Decimal, CsvR
             message: CellError::MissingRequired(COL_TAX_TOTAL.to_string()).to_string(),
         });
     }
-    Ok(parse_optional_number(row, COL_TAX_FOREIGN, row_num)?
-        + parse_optional_number(row, COL_TAX_DOMESTIC, row_num)?)
+    Ok(util::parse_optional_number(row, COL_TAX_FOREIGN, row_num)?
+        + util::parse_optional_number(row, COL_TAX_DOMESTIC, row_num)?)
 }
 
 #[cfg(test)]

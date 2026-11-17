@@ -3,7 +3,7 @@ use super::cards::{
     CardRowData, CompactReceiptGroup, MobileCardGroup, amount_kind_for_label, card_row_data,
     is_negative_labeled_value, is_positive_labeled_value, signed_text_for_profit,
 };
-use crate::features::receipts::filter::{column_order, promoted_column};
+use crate::features::receipts::filter;
 use crate::features::receipts::kind::CardRole;
 use crate::features::receipts::kind::ColumnSpec;
 use crate::features::receipts::kind::ColumnTier;
@@ -82,8 +82,8 @@ pub fn ReceiptTable(
     let columns = tab.columns();
     let order = sort_order.unwrap_or_default();
     let groups: Vec<TableGroup> = tab.table_groups(&rows, &all_rows, &query, order);
-    let order = column_order(tab, &rows, &query);
-    let promoted = promoted_column(tab, &rows, &query);
+    let order = filter::column_order(tab, &rows, &query);
+    let promoted = filter::promoted_column(tab, &rows, &query);
     let fields = tab.card_fields();
     let labels = tab.summary_labels();
     let slug = TAB_IDS[tab as usize];

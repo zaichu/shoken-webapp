@@ -1,12 +1,11 @@
 use crate::api::ApiError;
 use crate::api::dto::{AssetBalance, AssetBalanceListResponse, AssetBalanceSummary};
-use crate::features::asset_balance::store::csv::resolve_asset_balance;
-use crate::features::asset_balance::store::{
-    BalanceSlot, LoadedAssetBalances, truncated_list_warning,
-};
+use crate::features::asset_balance::store;
+use crate::features::asset_balance::store::csv;
+use crate::features::asset_balance::store::{BalanceSlot, LoadedAssetBalances};
 use crate::session::Generation;
-use crate::support::pagination::{LIST_PER_PAGE, collect_list_pages};
-use crate::testing::block_on;
+use crate::support::pagination;
+use crate::testing;
 use std::future::{Ready, ready};
 
 fn balance(id: usize) -> AssetBalance {
@@ -32,7 +31,7 @@ fn page(range: std::ops::Range<usize>, total: i64) -> AssetBalanceListResponse {
         data: range.map(balance).collect(),
         total,
         page: 1,
-        per_page: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX),
+        per_page: i64::try_from(pagination::LIST_PER_PAGE).unwrap_or(i64::MAX),
         summary: None,
         facets: None,
     }
@@ -46,7 +45,7 @@ fn page_cap_marks_loaded_balances_truncated() {
             _ => page(3..6, 100),
         }))
     };
-    let loaded = block_on(collect_list_pages(3, 2, fetch)).expect("fetch");
+    let loaded = testing::block_on(pagination::collect_list_pages(3, 2, fetch)).expect("fetch");
     assert!(loaded.truncated);
     assert_eq!(loaded.rows.len(), 6);
 }
@@ -54,7 +53,7 @@ fn page_cap_marks_loaded_balances_truncated() {
 #[test]
 fn truncated_warning_uses_the_same_wording_as_db_warning() {
     assert_eq!(
-        truncated_list_warning(),
+        store::truncated_list_warning(),
         "一覧は最大100,000件まで表示しています。未表示の銘柄がある可能性があります。"
     );
 }
@@ -71,10 +70,10 @@ fn loaded(rows: Vec<AssetBalance>, truncated: bool) -> LoadedAssetBalances {
 #[test]
 fn resolve_loading_for_missing_or_stale_slot() {
     let empty: BalanceSlot = None;
-    assert!(resolve_asset_balance(Generation::new(1), &empty).is_none());
+    assert!(csv::resolve_asset_balance(Generation::new(1), &empty).is_none());
 
     let stale: BalanceSlot = Some((Generation::new(1), Ok(loaded(vec![balance(1)], false))));
-    assert!(resolve_asset_balance(Generation::new(2), &stale).is_none());
+    assert!(csv::resolve_asset_balance(Generation::new(2), &stale).is_none());
 }
 
 #[test]
@@ -83,17 +82,17 @@ fn resolve_ready_uses_db_rows_and_warns_truncation() {
         Generation::new(7),
         Ok(loaded(vec![balance(1), balance(2)], true)),
     ));
-    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot) else {
+    let Some(resolved) = csv::resolve_asset_balance(Generation::new(7), &slot) else {
         panic!("expected ready");
     };
     assert_eq!(resolved.rows.len(), 2);
-    assert_eq!(resolved.warning, Some(truncated_list_warning()));
+    assert_eq!(resolved.warning, Some(store::truncated_list_warning()));
 }
 
 #[test]
 fn resolve_without_truncation_has_no_warning() {
     let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded(vec![balance(1)], false))));
-    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot) else {
+    let Some(resolved) = csv::resolve_asset_balance(Generation::new(7), &slot) else {
         panic!("expected ready");
     };
     assert!(resolved.warning.is_none());
@@ -112,7 +111,7 @@ fn resolve_truncated_uses_summary_as_fallback_totals() {
     let mut loaded_balances = loaded(vec![balance(1)], true);
     loaded_balances.summary = Some(summary.clone());
     let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));
-    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot) else {
+    let Some(resolved) = csv::resolve_asset_balance(Generation::new(7), &slot) else {
         panic!("expected ready");
     };
     assert_eq!(resolved.fallback_totals, Some(summary));
@@ -131,7 +130,7 @@ fn resolve_full_rows_skips_fallback_totals() {
         has_missing_daily_change: false,
     });
     let slot: BalanceSlot = Some((Generation::new(7), Ok(loaded_balances)));
-    let Some(resolved) = resolve_asset_balance(Generation::new(7), &slot) else {
+    let Some(resolved) = csv::resolve_asset_balance(Generation::new(7), &slot) else {
         panic!("expected ready");
     };
     assert!(resolved.fallback_totals.is_none());
@@ -140,7 +139,7 @@ fn resolve_full_rows_skips_fallback_totals() {
 #[test]
 fn resolve_list_error_returns_no_rows() {
     let slot: BalanceSlot = Some((Generation::new(5), Err("取得失敗".to_string())));
-    let Some(resolved) = resolve_asset_balance(Generation::new(5), &slot) else {
+    let Some(resolved) = csv::resolve_asset_balance(Generation::new(5), &slot) else {
         panic!("expected ready");
     };
     assert_eq!(resolved.rows, [] as [AssetBalance; 0]);

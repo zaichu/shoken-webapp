@@ -3,7 +3,7 @@
 
 use super::{CsvKind, SkipReason};
 use crate::csv_input;
-use crate::support::csv_flow::{csv_fields, decode_csv_bytes, record_ranges};
+use crate::support::csv_flow;
 
 /// 種類ごとの見出しの見つけ方と、形式を見分ける必須の列。
 /// marker は backend の CsvParserConfig.header_marker と同じ値。
@@ -61,7 +61,7 @@ const fn spec_of(kind: CsvKind) -> KindSpec {
 }
 
 fn record_fields(bytes: &[u8], range: (usize, usize)) -> Vec<String> {
-    csv_fields(decode_csv_bytes(&bytes[range.0..range.1]).as_ref())
+    csv_flow::csv_fields(csv_flow::decode_csv_bytes(&bytes[range.0..range.1]).as_ref())
 }
 
 /// 取り込み不可なら理由を返す。None なら既存の preview/import へ進んでよい
@@ -76,7 +76,7 @@ pub(crate) fn inspect(kind: CsvKind, content: &str) -> Option<SkipReason> {
         return Some(SkipReason::Html);
     }
     let bytes = body.as_bytes();
-    let records = record_ranges(bytes);
+    let records = csv_flow::record_ranges(bytes);
     if records.is_empty() {
         return Some(SkipReason::Empty);
     }

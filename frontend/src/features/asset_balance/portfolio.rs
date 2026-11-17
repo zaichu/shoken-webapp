@@ -1,11 +1,13 @@
 //! 資産管理の構成比一覧と並べ替えの純粋ロジック。
 
 use crate::features::asset_balance::fund::FundView;
-use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView, holding_stock_href};
-use crate::features::asset_balance::model::{ValuationInput, chart_percentages, holding_valuation};
-use crate::ui::badge::account_display_name;
+use crate::features::asset_balance::holdings;
+use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::ValuationInput;
+use crate::ui::badge;
 use crate::ui::labels;
-use crate::urls::fund_holding_href;
+use crate::urls;
 use std::cmp::Ordering;
 
 /// 並べ替えの指標。
@@ -91,8 +93,12 @@ pub struct SortInput<'a> {
 /// 並べ替えの比較値。算出不能は `None`。
 fn sort_value(input: &SortInput<'_>, key: SortKey) -> Option<f64> {
     match key {
-        SortKey::MarketValue => holding_valuation(&input.valuation).market_value,
-        SortKey::ProfitLoss => holding_valuation(&input.valuation).profit_loss.amount,
+        SortKey::MarketValue => model::holding_valuation(&input.valuation).market_value,
+        SortKey::ProfitLoss => {
+            model::holding_valuation(&input.valuation)
+                .profit_loss
+                .amount
+        }
         SortKey::Dividend => input.dividend.annual,
         SortKey::Yield => input.dividend.yield_value,
     }
@@ -229,14 +235,14 @@ pub fn composition_sources(views: &[HoldingView], funds: &[FundView]) -> Vec<Com
             sub: view.code.clone(),
             account: view.account.clone(),
             product: CompositionProduct::Stock,
-            href: Some(holding_stock_href(&view.code)),
+            href: Some(holdings::holding_stock_href(&view.code)),
         })
         .chain(funds.iter().map(|view| CompositionSource {
             name: view.name.clone(),
             sub: view.course.clone().unwrap_or_default(),
             account: Some(view.account.clone()),
             product: CompositionProduct::Fund,
-            href: view.id.as_ref().map(fund_holding_href),
+            href: view.id.as_ref().map(urls::fund_holding_href),
         }))
         .collect()
 }
@@ -292,7 +298,7 @@ pub fn composition_entries(
             CompositionGroup::Account => source
                 .account
                 .as_deref()
-                .map_or(labels::MISSING, account_display_name)
+                .map_or(labels::MISSING, badge::account_display_name)
                 .to_string(),
         };
         let is_new_holding = matches!(group, CompositionGroup::Holding);
@@ -316,7 +322,7 @@ pub fn composition_entries(
                     CompositionGroup::Account => source
                         .account
                         .as_deref()
-                        .map_or(labels::MISSING, account_display_name)
+                        .map_or(labels::MISSING, badge::account_display_name)
                         .to_string(),
                 },
                 sub: match group {
@@ -353,7 +359,7 @@ pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>
     if total <= 0.0 {
         return (total, vec![None; values.len()]);
     }
-    let percentages = chart_percentages(&raw);
+    let percentages = model::chart_percentages(&raw);
     let percentages = percentages
         .into_iter()
         .enumerate()

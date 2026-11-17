@@ -1,4 +1,4 @@
-use crate::ui::focus::trap_focus;
+use crate::ui::focus;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -167,7 +167,7 @@ pub fn DialogShell(
                         return;
                     }
                     if event.key() == "Tab" {
-                        trap_focus(&event);
+                        focus::trap_focus(&event);
                     }
                 }
             >

@@ -1,6 +1,6 @@
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::dialog::{focus_without_scroll, move_root_to_body, use_page_scroll_lock};
-use crate::ui::focus::trap_focus;
+use crate::ui::dialog;
+use crate::ui::focus;
 use crate::ui::labels;
 use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::prelude::*;
@@ -21,11 +21,11 @@ pub fn ConfirmDeleteModal(
 ) -> impl IntoView {
     let cancel_button_ref = NodeRef::<leptos::html::Button>::new();
     let root_ref = NodeRef::<leptos::html::Div>::new();
-    use_page_scroll_lock();
-    move_root_to_body(root_ref);
+    dialog::use_page_scroll_lock();
+    dialog::move_root_to_body(root_ref);
     Effect::new(move |_| {
         if let Some(button) = cancel_button_ref.get() {
-            focus_without_scroll(&button);
+            dialog::focus_without_scroll(&button);
         }
     });
     // 削除要求が飛んでいる間に閉じると結果を追えなくなるため、閉じ操作は完了まで無効化する
@@ -49,7 +49,7 @@ pub fn ConfirmDeleteModal(
                     return;
                 }
                 if event.key() == "Tab" {
-                    trap_focus(&event);
+                    focus::trap_focus(&event);
                 }
             }
             role="dialog"

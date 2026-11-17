@@ -4,14 +4,14 @@ use super::holdings::{HoldingView, holding_view};
 use crate::api::dto::{AssetBalance, AssetBalanceSummary, FundBalance, FundBalanceSummary};
 use crate::api::{ApiClient, ApiError};
 use crate::features::asset_balance::csv::AssetBalanceRow;
-use crate::features::asset_balance::lookup::{AssetBalanceLookupStore, fetch_single_asset_balance};
-use crate::features::asset_balance::search::filter_asset_balances;
-use crate::features::dividend_per_share::{
-    DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS, DividendMaps, dividend_maps_from_batch,
-    dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch, unique_sorted_codes,
-};
+use crate::features::asset_balance::lookup;
+use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
+use crate::features::asset_balance::search;
+use crate::features::dividend_per_share;
+use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
-use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, fetch_all_pages};
+use crate::support::pagination;
+use crate::support::pagination::ListEndpoint;
 use crate::ui::format;
 use crate::ui::labels;
 use leptos::prelude::*;
@@ -48,7 +48,7 @@ impl ListEndpoint for FundBalance {
 }
 
 async fn fetch_loaded<E: ListEndpoint>() -> Result<LoadedRows<E::Row, E::Summary>, ApiError> {
-    let page = fetch_all_pages::<E>().await?;
+    let page = pagination::fetch_all_pages::<E>().await?;
     Ok(LoadedRows {
         total: page.total.unwrap_or(page.rows.len()),
         rows: page.rows,
@@ -107,7 +107,7 @@ pub(crate) async fn fetch_asset_balances() -> Result<LoadedAssetBalances, ApiErr
 
 pub(crate) fn truncated_list_warning() -> String {
     labels::asset_truncated_warning(&format::format_number_value(
-        (LIST_PER_PAGE * LIST_MAX_PAGES)
+        (pagination::LIST_PER_PAGE * pagination::LIST_MAX_PAGES)
             .to_f64()
             .unwrap_or(f64::MAX),
     ))
@@ -145,15 +145,20 @@ pub(crate) async fn poll_dividend_maps(
         session.is_current(generation)
             && data_ops.with_untracked(|ops| ops.is_current_poll(poll_rev))
     };
-    let max_pending = dividend_pending_max_retries(codes.len());
+    let max_pending = dividend_per_share::dividend_pending_max_retries(codes.len());
     let mut pending_used = 0u32;
     let mut network_used = 0u32;
     loop {
         if !is_current() {
             break;
         }
-        if let Ok(batch) = fetch_dividend_batch(&codes, post_dividend_batch).await {
-            let (maps, has_pending) = dividend_maps_from_batch(&batch);
+        if let Ok(batch) = dividend_per_share::fetch_dividend_batch(
+            &codes,
+            dividend_per_share::post_dividend_batch,
+        )
+        .await
+        {
+            let (maps, has_pending) = dividend_per_share::dividend_maps_from_batch(&batch);
             if is_current() {
                 apply_dividend_maps(&balances, &dividends, generation, maps);
             }
@@ -162,12 +167,12 @@ pub(crate) async fn poll_dividend_maps(
             }
             pending_used += 1;
         } else {
-            if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
+            if network_used >= dividend_per_share::DIVIDEND_NETWORK_MAX_RETRIES {
                 break;
             }
             network_used += 1;
         }
-        gloo_timers::future::TimeoutFuture::new(DIVIDEND_RETRY_DELAY_MS).await;
+        gloo_timers::future::TimeoutFuture::new(dividend_per_share::DIVIDEND_RETRY_DELAY_MS).await;
     }
 }
 
@@ -204,7 +209,7 @@ pub(crate) fn filtered_portfolio_views(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
 ) -> Vec<HoldingView> {
-    filter_asset_balances(rows, search)
+    search::filter_asset_balances(rows, search)
         .into_iter()
         .map(|row| resolve_view(row, lookup, generation))
         .collect()
@@ -315,7 +320,8 @@ pub(crate) fn load_asset_balances(
                                 break;
                             }
                             if let Ok(rows) =
-                                fetch_single_asset_balance(&ApiClient::read_client(), &code).await
+                                lookup::fetch_single_asset_balance(&ApiClient::read_client(), &code)
+                                    .await
                             {
                                 if !session.is_current(generation)
                                     || !data_ops.with_untracked(|ops| ops.is_current_list(rev))
@@ -375,7 +381,7 @@ pub(crate) fn apply_loaded_asset_balances(
         store.clear();
         store.seed(generation, &loaded.rows);
     });
-    let codes = unique_sorted_codes(
+    let codes = dividend_per_share::unique_sorted_codes(
         &loaded
             .rows
             .iter()

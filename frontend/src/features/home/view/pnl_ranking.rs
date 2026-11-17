@@ -2,11 +2,8 @@ use super::super::model;
 use super::super::store::{self, HomeOverviewData};
 use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{funds_of, stocks_of};
-use crate::features::asset_balance::{
-    format_signed_row_valuation_amount, format_signed_valuation_rate, is_negative_rate,
-    is_negative_valuation, is_positive_rate, is_positive_valuation,
-};
-use crate::session::use_session;
+use crate::features::asset_balance;
+use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
@@ -16,7 +13,7 @@ use leptos::prelude::*;
 
 #[component]
 pub(super) fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let card = move || {
         let generation = session.generation.get();
         let assets = store::current_summary(data.assets, generation);
@@ -92,21 +89,21 @@ pub(super) fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
 
 #[component]
 fn PnlRow(holding: model::HoldingPnl) -> impl IntoView {
-    let negative = is_negative_valuation(Some(holding.profit_loss));
-    let positive = is_positive_valuation(Some(holding.profit_loss));
+    let negative = asset_balance::is_negative_valuation(Some(holding.profit_loss));
+    let positive = asset_balance::is_positive_valuation(Some(holding.profit_loss));
     let rate_negative = holding
         .rate
-        .is_some_and(|rate| is_negative_rate(Some(rate)));
+        .is_some_and(|rate| asset_balance::is_negative_rate(Some(rate)));
     let rate_positive = holding
         .rate
-        .is_some_and(|rate| is_positive_rate(Some(rate)));
+        .is_some_and(|rate| asset_balance::is_positive_rate(Some(rate)));
     let name = holding.name.clone();
     let code = holding.code.clone();
     let href = holding.href.clone();
-    let amount_text = format_signed_row_valuation_amount(Some(holding.profit_loss));
+    let amount_text = asset_balance::format_signed_row_valuation_amount(Some(holding.profit_loss));
     let rate_text = holding.rate.map_or_else(
         || labels::MISSING.to_string(),
-        |rate| format_signed_valuation_rate(Some(rate), 1),
+        |rate| asset_balance::format_signed_valuation_rate(Some(rate), 1),
     );
     view! {
         <li class="list-row-item">

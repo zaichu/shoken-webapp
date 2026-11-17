@@ -5,16 +5,17 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::mutualfund::{
     CreateMutualfundRequest, Mutualfund, MutualfundSearchQueryParams, MutualfundSummary,
 };
-use crate::services::csv::import::{CsvImport, validate_csv_rows};
+use crate::services::csv::import;
+use crate::services::csv::import::CsvImport;
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
-use crate::services::csv::util::{
-    CsvRowView, RowNumber, check_max_chars, parse_required_account, parse_required_date,
-    parse_required_number, parse_required_string,
-};
-use crate::services::domain::bulk::{RowLimit, bulk_insert, user_ids_for_bulk_insert};
+use crate::services::csv::util;
+use crate::services::csv::util::{CsvRowView, RowNumber};
+use crate::services::domain::bulk;
+use crate::services::domain::bulk::RowLimit;
 use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
 use crate::services::domain::search::Search;
-use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
+use crate::services::domain::search_filters;
+use crate::services::domain::search_filters::{FilterField, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::tax::compute_taxes;
@@ -38,7 +39,7 @@ impl CsvImport for MutualfundDomain {
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        validate_csv_rows(table, transform_mutualfund_row)
+        import::validate_csv_rows(table, transform_mutualfund_row)
     }
 
     async fn bulk_create(
@@ -92,7 +93,7 @@ impl Search for MutualfundDomain {
             FilterField::Account => &params.account,
             FilterField::FundName => &params.fund_name,
             FilterField::Dividends => &params.dividends,
-            _ => &NO_FIELD,
+            _ => &search_filters::NO_FIELD,
         }
     }
 
@@ -116,7 +117,7 @@ pub async fn bulk_create(
     items: &[CreateMutualfundRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let user_ids = user_ids_for_bulk_insert(user_id, items.len());
+    let user_ids = bulk::user_ids_for_bulk_insert(user_id, items.len());
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
@@ -145,7 +146,7 @@ pub async fn bulk_create(
         .map(|i| i.realized_profit_and_loss_after_tax)
         .collect();
 
-    bulk_insert::<MutualfundDomain, _>(
+    bulk::bulk_insert::<MutualfundDomain, _>(
         pool,
         user_id,
         items,
@@ -189,10 +190,10 @@ fn transform_mutualfund_row(
     row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<CreateMutualfundRequest, CsvRowError> {
-    let trade_date = parse_required_date(row, "約定日", row_num)?;
-    let settlement_date = parse_required_date(row, "受渡日", row_num)?;
-    let account = parse_required_account(row, "口座", row_num)?;
-    let realized_pnl = parse_required_number(row, "実現損益［円］", row_num)?;
+    let trade_date = util::parse_required_date(row, "約定日", row_num)?;
+    let settlement_date = util::parse_required_date(row, "受渡日", row_num)?;
+    let account = util::parse_required_account(row, "口座", row_num)?;
+    let realized_pnl = util::parse_required_number(row, "実現損益［円］", row_num)?;
     let tax = compute_taxes(&account, realized_pnl);
     let dividends_raw = row.cell("分配金");
     let dividends = if dividends_raw.trim().is_empty() {
@@ -203,19 +204,23 @@ fn transform_mutualfund_row(
     Ok(CreateMutualfundRequest {
         trade_date,
         settlement_date,
-        fund_name: check_max_chars(
-            parse_required_string(row, "ファンド名", row_num)?,
+        fund_name: util::check_max_chars(
+            util::parse_required_string(row, "ファンド名", row_num)?,
             "ファンド名",
             300,
             row_num,
         )?,
         dividends,
         account,
-        shares: parse_required_number(row, "数量[口]", row_num)?,
-        exchange_rate: parse_required_number(row, "為替レート［円］", row_num)?,
-        cancellation_unit_price_yen: parse_required_number(row, "解約単価［円］", row_num)?,
-        cancellation_amount_yen: parse_required_number(row, "解約額［円］", row_num)?,
-        average_acquisition_price_yen: parse_required_number(row, "平均取得価額［円］", row_num)?,
+        shares: util::parse_required_number(row, "数量[口]", row_num)?,
+        exchange_rate: util::parse_required_number(row, "為替レート［円］", row_num)?,
+        cancellation_unit_price_yen: util::parse_required_number(row, "解約単価［円］", row_num)?,
+        cancellation_amount_yen: util::parse_required_number(row, "解約額［円］", row_num)?,
+        average_acquisition_price_yen: util::parse_required_number(
+            row,
+            "平均取得価額［円］",
+            row_num,
+        )?,
         realized_profit_and_loss: realized_pnl,
         taxes: tax.taxes,
         realized_profit_and_loss_after_tax: tax.realized_profit_and_loss_after_tax,

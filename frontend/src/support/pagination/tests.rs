@@ -1,5 +1,5 @@
 use super::*;
-use crate::testing::block_on;
+use crate::testing;
 use std::future::ready;
 use std::ops::Range;
 
@@ -13,7 +13,7 @@ fn collect(
     max_pages: usize,
 ) -> ListPage<usize, ()> {
     let calls = std::cell::Cell::new(0);
-    let result = block_on(collect_list_pages(per_page, max_pages, |page_no| {
+    let result = testing::block_on(collect_list_pages(per_page, max_pages, |page_no| {
         calls.set(calls.get() + 1);
         assert_eq!(page_no, calls.get());
         let (range, total) = &pages[page_no - 1];

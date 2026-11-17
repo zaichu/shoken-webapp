@@ -3,15 +3,16 @@ use super::main_content::{derive_filtered_count, show_dividend_section};
 use super::summary::*;
 use super::tabs::*;
 use crate::api::dto::{DividendSummary, DomesticStockSummary, MutualfundSummary};
+use crate::features::receipts::filter;
 use crate::features::receipts::filter::ReceiptSearch;
-use crate::features::receipts::filter::{column_order, filter_receipts};
-use crate::features::receipts::kind::{
-    ColumnTier, dividend_totals, group_label, is_date_group_key,
-};
+
+use crate::features::receipts::kind;
+use crate::features::receipts::kind::ColumnTier;
+use crate::features::receipts::view::table;
 use crate::features::receipts::{
     ReceiptCell, ReceiptItem, ReceiptRow, ReceiptSummary, ReceiptTabData, ReceiptsTab,
 };
-use crate::testing::receipts::{dividends, domestic, funds};
+use crate::testing::receipts;
 use crate::ui::amount::AmountKind;
 use crate::ui::card::StatTone;
 use crate::ui::labels;
@@ -23,8 +24,8 @@ use rust_decimal_macros::dec;
 // 絞り込み結果の共有先(配当情報の切り替え・集計・期間・件数・表)は同じ入力から同じ値を出す
 #[test]
 fn dividend_section_switch_needs_dividend_tab_and_exact_code() {
-    let rows = dividends();
-    let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9904");
+    let rows = receipts::dividends();
+    let filtered = filter::filter_receipts(ReceiptsTab::Dividend, &rows, "9904");
     assert!(show_dividend_section(
         ReceiptsTab::Dividend,
         &filtered,
@@ -34,7 +35,8 @@ fn dividend_section_switch_needs_dividend_tab_and_exact_code() {
     assert!(!show_dividend_section(ReceiptsTab::Dividend, &rows, ""));
     assert!(!show_dividend_section(ReceiptsTab::Dividend, &rows, "架空"));
 
-    let domestic_rows = filter_receipts(ReceiptsTab::DomesticStock, &domestic(), "9904");
+    let domestic_rows =
+        filter::filter_receipts(ReceiptsTab::DomesticStock, &receipts::domestic(), "9904");
     assert_ne!(domestic_rows, [] as [ReceiptItem; 0]);
     assert!(!show_dividend_section(
         ReceiptsTab::DomesticStock,
@@ -42,7 +44,7 @@ fn dividend_section_switch_needs_dividend_tab_and_exact_code() {
         "9904"
     ));
 
-    let fund_rows = filter_receipts(ReceiptsTab::MutualFund, &funds(), "Alpha");
+    let fund_rows = filter::filter_receipts(ReceiptsTab::MutualFund, &receipts::funds(), "Alpha");
     assert_ne!(fund_rows, [] as [ReceiptItem; 0]);
     assert!(!show_dividend_section(
         ReceiptsTab::MutualFund,
@@ -53,13 +55,13 @@ fn dividend_section_switch_needs_dividend_tab_and_exact_code() {
 
 #[test]
 fn dividend_totals_match_filtered_rows_when_section_shows() {
-    let filtered = filter_receipts(ReceiptsTab::Dividend, &dividends(), "9904");
+    let filtered = filter::filter_receipts(ReceiptsTab::Dividend, &receipts::dividends(), "9904");
     assert!(show_dividend_section(
         ReceiptsTab::Dividend,
         &filtered,
         "9904"
     ));
-    let totals = dividend_totals(&filtered);
+    let totals = kind::dividend_totals(&filtered);
     assert_eq!(
         (
             totals.total_dividends_before_tax,
@@ -72,7 +74,7 @@ fn dividend_totals_match_filtered_rows_when_section_shows() {
 
 #[test]
 fn filtered_count_keeps_api_total_and_filtering_flag() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     let with_total = ReceiptTabData {
         rows: rows.clone(),
         total: Some(100),
@@ -111,10 +113,10 @@ fn receipt_sheet_draft_apply_matches_direct_filter() {
         let mut draft = ReceiptSearch::new(true);
         draft.set_securities_query("9904".to_string());
         super::action_bar::dialog::apply_receipt_sheet_draft(search, &draft);
-        let rows = dividends();
+        let rows = receipts::dividends();
         let query = search.with(|s| s.query.clone());
-        let applied = filter_receipts(ReceiptsTab::Dividend, &rows, &query);
-        let direct = filter_receipts(ReceiptsTab::Dividend, &rows, &draft.query);
+        let applied = filter::filter_receipts(ReceiptsTab::Dividend, &rows, &query);
+        let direct = filter::filter_receipts(ReceiptsTab::Dividend, &rows, &draft.query);
         assert_eq!(applied.len(), direct.len());
         assert_ne!(applied, [] as [ReceiptItem; 0]);
     });
@@ -170,13 +172,14 @@ fn receipt_sheet_date_label_matches_tab() {
 
 #[test]
 fn period_note_short_spans_filtered_rows() {
-    let filtered = filter_receipts(ReceiptsTab::Dividend, &dividends(), "9910");
+    let filtered = filter::filter_receipts(ReceiptsTab::Dividend, &receipts::dividends(), "9910");
     assert_eq!(filtered.len(), 2);
     assert_eq!(
         period_note_short(&filtered),
         Some("2024/06 〜 2026/06".to_string())
     );
-    let single = filter_receipts(ReceiptsTab::Dividend, &dividends(), "9904 2026");
+    let single =
+        filter::filter_receipts(ReceiptsTab::Dividend, &receipts::dividends(), "9904 2026");
     assert_eq!(single.len(), 1);
     assert_eq!(
         period_note_short(&single),
@@ -189,7 +192,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
     let cases = [
         (
             ReceiptsTab::Dividend,
-            dividends(),
+            receipts::dividends(),
             ReceiptSummary::Dividend(DividendSummary {
                 total_dividends_before_tax: dec!(9999),
                 total_taxes: dec!(9999),
@@ -200,7 +203,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
         ),
         (
             ReceiptsTab::DomesticStock,
-            domestic(),
+            receipts::domestic(),
             ReceiptSummary::DomesticStock(DomesticStockSummary {
                 total_realized_profit_and_loss: dec!(9999),
                 total_taxes: dec!(9999),
@@ -211,7 +214,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
         ),
         (
             ReceiptsTab::MutualFund,
-            funds(),
+            receipts::funds(),
             ReceiptSummary::MutualFund(MutualfundSummary {
                 total_realized_profit_and_loss: dec!(9999),
                 total_taxes: dec!(9999),
@@ -235,7 +238,7 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
                 .collect::<Vec<_>>(),
             [dec!(9999); 3]
         );
-        data.rows = filter_receipts(tab, &rows, query);
+        data.rows = filter::filter_receipts(tab, &rows, query);
         assert_eq!(
             header_summary(tab, &data, query)
                 .iter()
@@ -243,9 +246,9 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
                 .collect::<Vec<_>>(),
             expected
         );
-        data.rows = filter_receipts(tab, &rows, "　");
+        data.rows = filter::filter_receipts(tab, &rows, "　");
         assert_ne!(header_summary(tab, &data, "　")[0].1, dec!(9999));
-        data.rows = filter_receipts(tab, &rows, "該当なし");
+        data.rows = filter::filter_receipts(tab, &rows, "該当なし");
         assert_eq!(
             header_summary(tab, &data, "該当なし")
                 .iter()
@@ -262,11 +265,11 @@ fn headers_use_api_when_empty_and_filtered_client_for_search_and_whitespace() {
 fn period_note_short_spans_first_to_last_year_month() {
     assert_eq!(period_note_short(&[]), None);
     assert_eq!(
-        period_note_short(&dividends()),
+        period_note_short(&receipts::dividends()),
         Some("2024/06 〜 2026/06".to_string())
     );
     assert_eq!(
-        period_note_short(&domestic()),
+        period_note_short(&receipts::domestic()),
         Some("2024/03 〜 2024/03".to_string())
     );
 }
@@ -301,8 +304,8 @@ fn header_tones_mark_negative_profit_only() {
 }
 #[test]
 fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
-    let rows = dividends();
-    let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9910 2024");
+    let rows = receipts::dividends();
+    let filtered = filter::filter_receipts(ReceiptsTab::Dividend, &rows, "9910 2024");
     let groups = ReceiptsTab::Dividend.table_groups(
         &filtered,
         &rows,
@@ -312,7 +315,7 @@ fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].label, "TELE");
     assert_eq!(groups[0].summary, ["¥500", "¥100", "¥400"]);
-    let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, "9910");
+    let filtered = filter::filter_receipts(ReceiptsTab::Dividend, &rows, "9910");
     let groups = ReceiptsTab::Dividend.table_groups(
         &filtered,
         &rows,
@@ -327,9 +330,10 @@ fn dividend_search_groups_by_latest_name_from_unfiltered_rows() {
 // 表示単位は合計欄(グループ小計)だけに使い、明細の行は1円単位のまま出す
 #[test]
 fn receipt_rows_stay_in_yen_while_group_summary_follows_the_unit() {
-    use crate::settings::{AmountUnit, amount_unit_signal};
+    use crate::settings;
+    use crate::settings::AmountUnit;
     use leptos::prelude::Set;
-    let unit = amount_unit_signal();
+    let unit = settings::amount_unit_signal();
     unit.set(AmountUnit::Man);
     let texts = |rows: &[ReceiptRow]| {
         rows[0]
@@ -341,17 +345,17 @@ fn receipt_rows_stay_in_yen_while_group_summary_follows_the_unit() {
             })
             .collect::<Vec<_>>()
     };
-    let dividend_texts = texts(&dividends());
+    let dividend_texts = texts(&receipts::dividends());
     assert!(dividend_texts.iter().any(|text| text == "¥500"));
     assert!(dividend_texts.iter().any(|text| text == "¥400"));
     assert!(!dividend_texts.iter().any(|text| text.contains("万円")));
-    let domestic_texts = texts(&domestic());
+    let domestic_texts = texts(&receipts::domestic());
     assert!(domestic_texts.iter().any(|text| text == "¥200,000"));
     assert!(!domestic_texts.iter().any(|text| text.contains("万円")));
-    let fund_texts = texts(&funds());
+    let fund_texts = texts(&receipts::funds());
     assert!(!fund_texts.iter().any(|text| text.contains("万円")));
     // 合計欄は単位に従う
-    let rows = dividends();
+    let rows = receipts::dividends();
     let groups = ReceiptsTab::Dividend.table_groups(
         &rows,
         &rows,
@@ -367,13 +371,13 @@ fn receipt_rows_stay_in_yen_while_group_summary_follows_the_unit() {
 }
 #[test]
 fn dividend_product_and_account_group_keys_follow_priority() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     for (query, expected) in [
         ("国内株式 特定", "国内株式"),
         ("特定", "特定"),
         ("2024", "2024年6月"),
     ] {
-        let filtered = filter_receipts(ReceiptsTab::Dividend, &rows, query);
+        let filtered = filter::filter_receipts(ReceiptsTab::Dividend, &rows, query);
         let groups = ReceiptsTab::Dividend.table_groups(
             &filtered,
             &rows,
@@ -386,7 +390,7 @@ fn dividend_product_and_account_group_keys_follow_priority() {
 }
 #[test]
 fn mutual_fund_name_groups_and_domestic_monthly_groups() {
-    let rows = funds();
+    let rows = receipts::funds();
     assert_eq!(
         ReceiptsTab::MutualFund.table_groups(
             &rows,
@@ -397,7 +401,7 @@ fn mutual_fund_name_groups_and_domestic_monthly_groups() {
         .label,
         "Alpha Fund A"
     );
-    let rows = domestic();
+    let rows = receipts::domestic();
     let groups = ReceiptsTab::DomesticStock.table_groups(
         &rows,
         &rows,
@@ -410,7 +414,7 @@ fn mutual_fund_name_groups_and_domestic_monthly_groups() {
 
 #[test]
 fn domestic_monthly_summary_groups_by_month() {
-    let mut rows = domestic();
+    let mut rows = receipts::domestic();
     let mut second = match &rows[0] {
         ReceiptItem::DomesticStock(row) => row.clone(),
         _ => unreachable!(),
@@ -434,10 +438,10 @@ fn domestic_monthly_summary_groups_by_month() {
 #[test]
 fn hyphenated_instrument_names_are_not_formatted_as_dates() {
     assert_eq!(
-        group_label("架空インデックス-Slim"),
+        kind::group_label("架空インデックス-Slim"),
         "架空インデックス-Slim"
     );
-    assert_eq!(group_label("Alpha-Fund-A"), "Alpha-Fund-A");
+    assert_eq!(kind::group_label("Alpha-Fund-A"), "Alpha-Fund-A");
 }
 #[test]
 fn next_tab_index_cycles_through_tabs() {
@@ -501,7 +505,10 @@ fn card_fields_point_at_expected_columns() {
             expected
         );
     }
-    for (cells, index) in [(dividends()[0].cells(), 1), (domestic()[0].cells(), 1)] {
+    for (cells, index) in [
+        (receipts::dividends()[0].cells(), 1),
+        (receipts::domestic()[0].cells(), 1),
+    ] {
         assert!(matches!(cells[index], ReceiptCell::SecurityCode(_)));
         // 銘柄コードのすぐ右が銘柄名
         assert!(matches!(
@@ -510,7 +517,7 @@ fn card_fields_point_at_expected_columns() {
         ));
     }
     assert!(
-        !funds()[0]
+        !receipts::funds()[0]
             .cells()
             .iter()
             .any(|cell| matches!(cell, ReceiptCell::SecurityCode(_)))
@@ -574,9 +581,9 @@ fn column_tier_declares_core_as_narrowest_then_widening() {
 
 #[test]
 fn card_row_data_maps_card_fields() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     let cells = rows[0].cells();
-    let order = column_order(ReceiptsTab::Dividend, &rows, "");
+    let order = filter::column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
@@ -633,13 +640,13 @@ fn detail_value(card: &CardRowData, label: &str) -> (String, bool, bool, bool) {
 fn card_for(tab: ReceiptsTab, row: ReceiptRow) -> CardRowData {
     let rows = vec![row];
     let cells = rows[0].cells();
-    let order = column_order(tab, &rows, "");
+    let order = filter::column_order(tab, &rows, "");
     card_row_data(tab, &cells, &order, tab.card_fields())
 }
 
 #[test]
 fn tax_outflow_uses_inverted_sign() {
-    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+    let ReceiptItem::DomesticStock(mut stock) = receipts::domestic().remove(0) else {
         unreachable!()
     };
     stock.realized_profit_and_loss = rust_decimal::Decimal::from(-1000);
@@ -663,7 +670,7 @@ fn tax_outflow_uses_inverted_sign() {
     assert!(detail_negative(&card, "税額"));
     assert_eq!(detail_value(&card, "税額").0, "-¥203");
 
-    let ReceiptItem::Dividend(mut dividend) = dividends().remove(0) else {
+    let ReceiptItem::Dividend(mut dividend) = receipts::dividends().remove(0) else {
         unreachable!()
     };
     dividend.taxes = rust_decimal::Decimal::from(-100);
@@ -755,9 +762,9 @@ fn before_tax_row_subtitle_is_limited_to_stock_and_fund() {
         let card = card_for(
             tab,
             if tab == ReceiptsTab::DomesticStock {
-                domestic().remove(0)
+                receipts::domestic().remove(0)
             } else {
-                funds().remove(0)
+                receipts::funds().remove(0)
             },
         );
         let expected = if tab == ReceiptsTab::DomesticStock {
@@ -770,7 +777,7 @@ fn before_tax_row_subtitle_is_limited_to_stock_and_fund() {
             Some(expected)
         );
     }
-    let dividend = card_for(ReceiptsTab::Dividend, dividends().remove(0));
+    let dividend = card_for(ReceiptsTab::Dividend, receipts::dividends().remove(0));
     assert_eq!(
         before_tax_subtext(ReceiptsTab::Dividend, &dividend.details),
         None
@@ -779,9 +786,9 @@ fn before_tax_row_subtitle_is_limited_to_stock_and_fund() {
 
 #[test]
 fn card_header_carries_code_badge_value_and_copy_name() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     let cells = rows[0].cells();
-    let order = column_order(ReceiptsTab::Dividend, &rows, "");
+    let order = filter::column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
@@ -808,9 +815,9 @@ fn card_header_carries_code_badge_value_and_copy_name() {
             .any(|detail| matches!(&detail.value, CardDetailValue::CopyName { .. }))
     );
 
-    let rows = funds();
+    let rows = receipts::funds();
     let cells = rows[0].cells();
-    let order = column_order(ReceiptsTab::MutualFund, &rows, "");
+    let order = filter::column_order(ReceiptsTab::MutualFund, &rows, "");
     let card = card_row_data(
         ReceiptsTab::MutualFund,
         &cells,
@@ -833,7 +840,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
     .unwrap();
     let rows = vec![ReceiptItem::Dividend(row)];
     let cells = rows[0].cells();
-    let order = column_order(ReceiptsTab::Dividend, &rows, "");
+    let order = filter::column_order(ReceiptsTab::Dividend, &rows, "");
     let card = card_row_data(
         ReceiptsTab::Dividend,
         &cells,
@@ -845,7 +852,7 @@ fn card_header_carries_code_badge_value_and_copy_name() {
 
 #[test]
 fn table_groups_carry_group_key_and_row_ids() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     let groups = ReceiptsTab::Dividend.table_groups(
         &rows,
         &rows,
@@ -863,20 +870,20 @@ fn table_groups_carry_group_key_and_row_ids() {
 
 #[test]
 fn group_label_formats_iso_keys_only() {
-    assert!(is_date_group_key("2026-06"));
-    assert!(is_date_group_key("2024-03-05"));
-    assert!(!is_date_group_key("架空電信電話"));
-    assert!(!is_date_group_key("SBI証券"));
-    assert!(!is_date_group_key("2026-6"));
-    assert_eq!(group_label("2026-06"), "2026年6月");
-    assert_eq!(group_label("2024-03-05"), "2024年3月5日");
-    assert_eq!(group_label("特定"), "特定");
-    assert_eq!(group_label("2026-6"), "2026-6");
+    assert!(kind::is_date_group_key("2026-06"));
+    assert!(kind::is_date_group_key("2024-03-05"));
+    assert!(!kind::is_date_group_key("架空電信電話"));
+    assert!(!kind::is_date_group_key("SBI証券"));
+    assert!(!kind::is_date_group_key("2026-6"));
+    assert_eq!(kind::group_label("2026-06"), "2026年6月");
+    assert_eq!(kind::group_label("2024-03-05"), "2024年3月5日");
+    assert_eq!(kind::group_label("特定"), "特定");
+    assert_eq!(kind::group_label("2026-6"), "2026-6");
 }
 
 #[test]
 fn latest_name_uses_newest_settlement_per_code() {
-    let mut rows = dividends();
+    let mut rows = receipts::dividends();
     let mut same_date = match &rows[1] {
         ReceiptItem::Dividend(row) => row.clone(),
         _ => panic!("dividend row"),
@@ -894,7 +901,7 @@ fn latest_name_uses_newest_settlement_per_code() {
 
 #[test]
 fn cells_normalize_full_width_security_names() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     assert!(rows[1].cells().iter().any(|cell| matches!(
         cell,
         ReceiptCell::InstrumentName { name, .. } if name == "TELE"
@@ -903,7 +910,7 @@ fn cells_normalize_full_width_security_names() {
 
 #[test]
 fn group_rows_contain_only_matching_rows() {
-    let domestic_rows = domestic();
+    let domestic_rows = receipts::domestic();
     let groups = ReceiptsTab::DomesticStock.table_groups(
         &domestic_rows,
         &domestic_rows,
@@ -911,7 +918,7 @@ fn group_rows_contain_only_matching_rows() {
         crate::features::receipts::filter::ReceiptSortOrder::Newest,
     );
     assert_eq!(groups[0].rows.len(), 1);
-    let fund_rows = funds();
+    let fund_rows = receipts::funds();
     let groups = ReceiptsTab::MutualFund.table_groups(
         &fund_rows,
         &fund_rows,
@@ -923,18 +930,15 @@ fn group_rows_contain_only_matching_rows() {
 
 #[test]
 fn displayed_tiers_returns_non_empty_for_each_tab() {
-    use crate::features::receipts::filter::{column_order, promoted_column};
-    use crate::features::receipts::view::table::displayed_tiers;
-
     for tab in ReceiptsTab::ALL {
         let rows = match tab {
-            ReceiptsTab::Dividend => dividends(),
-            ReceiptsTab::DomesticStock => domestic(),
-            ReceiptsTab::MutualFund => funds(),
+            ReceiptsTab::Dividend => receipts::dividends(),
+            ReceiptsTab::DomesticStock => receipts::domestic(),
+            ReceiptsTab::MutualFund => receipts::funds(),
         };
-        let order = column_order(tab, &rows, "");
-        let promoted = promoted_column(tab, &rows, "");
-        let tiers = displayed_tiers(tab, &order, promoted);
+        let order = filter::column_order(tab, &rows, "");
+        let promoted = filter::promoted_column(tab, &rows, "");
+        let tiers = table::displayed_tiers(tab, &order, promoted);
         assert_eq!(tiers.len(), order.len());
         assert!(
             !tiers.is_empty(),
@@ -949,14 +953,14 @@ fn displayed_tiers_returns_non_empty_for_each_tab() {
 
 #[test]
 fn displayed_tiers_promotes_column_to_core() {
-    use crate::features::receipts::filter::{column_order, promoted_column};
-    use crate::features::receipts::view::table::displayed_tiers;
+    use crate::features::receipts::filter;
+    use crate::features::receipts::view::table;
 
-    let rows = domestic();
+    let rows = receipts::domestic();
     let tab = ReceiptsTab::DomesticStock;
-    let order = column_order(tab, &rows, "特定");
-    let promoted = promoted_column(tab, &rows, "特定");
-    let tiers = displayed_tiers(tab, &order, promoted);
+    let order = filter::column_order(tab, &rows, "特定");
+    let promoted = filter::promoted_column(tab, &rows, "特定");
+    let tiers = table::displayed_tiers(tab, &order, promoted);
     if let Some(p) = promoted {
         // promoted は列 id なので、order 内の位置で tiers を引く
         let pos = order.iter().position(|&c| c == p).unwrap();
@@ -966,9 +970,9 @@ fn displayed_tiers_promotes_column_to_core() {
 
 #[test]
 fn card_row_data_details_follow_column_reorder() {
-    let rows = dividends();
+    let rows = receipts::dividends();
     let query = "特定";
-    let order = column_order(ReceiptsTab::Dividend, &rows, query);
+    let order = filter::column_order(ReceiptsTab::Dividend, &rows, query);
     assert_eq!(order[1], 3);
     let cells = rows[0].cells();
     let card = card_row_data(
@@ -991,12 +995,12 @@ fn card_row_data_details_follow_column_reorder() {
 fn receipt_dialog_follows_specified_order_and_uses_row_values() {
     for tab in ReceiptsTab::ALL {
         let rows = match tab {
-            ReceiptsTab::Dividend => dividends(),
-            ReceiptsTab::DomesticStock => domestic(),
-            ReceiptsTab::MutualFund => funds(),
+            ReceiptsTab::Dividend => receipts::dividends(),
+            ReceiptsTab::DomesticStock => receipts::domestic(),
+            ReceiptsTab::MutualFund => receipts::funds(),
         };
         let cells = rows[0].cells();
-        let order = column_order(tab, &rows, "");
+        let order = filter::column_order(tab, &rows, "");
         let card = card_row_data(tab, &cells, &order, tab.card_fields());
         let (left, right) = receipt_detail_cells(tab, &card);
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
@@ -1044,7 +1048,7 @@ fn single_specific_row_keeps_band_group_and_row_after_tax_equal() {
     let row: DomesticStock = serde_json::from_value(serde_json::json!({"id":"single", "trade_date":"2024-03-18", "settlement_date":"2024-03-18", "security_code":"9905", "security_name":"架空ゲーム", "account":"特定口座", "shares":10, "asked_price":5500, "proceeds":55000, "purchase_price":5000, "realized_profit_and_loss":5000, "taxes":1015, "realized_profit_and_loss_after_tax":3985, "created_at":"", "updated_at":""})).unwrap();
     let rows = vec![ReceiptItem::DomesticStock(row)];
     let query = "9905";
-    let filtered = filter_receipts(ReceiptsTab::DomesticStock, &rows, query);
+    let filtered = filter::filter_receipts(ReceiptsTab::DomesticStock, &rows, query);
     assert_eq!(filtered.len(), 1);
     let data = ReceiptTabData {
         rows: filtered.clone(),
@@ -1129,7 +1133,7 @@ fn unit_suffixed_amounts_keep_sign_detection() {
 
 #[test]
 fn profit_zero_keeps_delta_without_sign() {
-    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+    let ReceiptItem::DomesticStock(mut stock) = receipts::domestic().remove(0) else {
         unreachable!()
     };
     stock.realized_profit_and_loss = dec!(0);
@@ -1148,7 +1152,7 @@ fn profit_zero_keeps_delta_without_sign() {
 
 #[test]
 fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
-    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+    let ReceiptItem::DomesticStock(mut stock) = receipts::domestic().remove(0) else {
         unreachable!()
     };
     stock.realized_profit_and_loss = dec!(1000);
@@ -1177,7 +1181,7 @@ fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
 
 #[test]
 fn tax_zero_uses_plain_and_refund_uses_plus() {
-    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+    let ReceiptItem::DomesticStock(mut stock) = receipts::domestic().remove(0) else {
         unreachable!()
     };
     stock.realized_profit_and_loss = dec!(1000);
@@ -1213,7 +1217,7 @@ fn tax_zero_uses_plain_and_refund_uses_plus() {
 
 #[test]
 fn before_tax_loss_uses_minus_and_delta() {
-    let ReceiptItem::DomesticStock(mut stock) = domestic().remove(0) else {
+    let ReceiptItem::DomesticStock(mut stock) = receipts::domestic().remove(0) else {
         unreachable!()
     };
     stock.realized_profit_and_loss = dec!(-1000);
@@ -1241,7 +1245,7 @@ fn before_tax_loss_uses_minus_and_delta() {
 
 #[test]
 fn dividend_receipt_gets_plus_as_inflow() {
-    let ReceiptItem::Dividend(mut dividend) = dividends().remove(0) else {
+    let ReceiptItem::Dividend(mut dividend) = receipts::dividends().remove(0) else {
         unreachable!()
     };
     dividend.dividends_before_tax = dec!(500);
@@ -1354,7 +1358,7 @@ fn band_breakdown_signs_match_detail_dialog() {
 #[test]
 fn row_group_band_share_after_tax_total() {
     // 行の主役・月見出し・帯はすべて税引後。行を足すと帯に合う
-    let mut domestic_row = domestic().remove(0);
+    let mut domestic_row = receipts::domestic().remove(0);
     if let ReceiptItem::DomesticStock(row) = &mut domestic_row {
         row.taxes = dec!(203);
         row.realized_profit_and_loss_after_tax = dec!(797);
@@ -1362,14 +1366,14 @@ fn row_group_band_share_after_tax_total() {
     let domestic_rows = vec![domestic_row];
     let domestic_card = card_for(ReceiptsTab::DomesticStock, domestic_rows[0].clone());
     assert_eq!(detail_value(&domestic_card, "税引後").0, "+¥797");
-    let fund_card = card_for(ReceiptsTab::MutualFund, funds().remove(0));
+    let fund_card = card_for(ReceiptsTab::MutualFund, receipts::funds().remove(0));
     assert_eq!(detail_value(&fund_card, "税引後").0, "+¥900");
-    let dividend_card = card_for(ReceiptsTab::Dividend, dividends().remove(0));
+    let dividend_card = card_for(ReceiptsTab::Dividend, receipts::dividends().remove(0));
     assert_eq!(detail_value(&dividend_card, "税引後").0, "+¥400");
     for (tab, rows) in [
-        (ReceiptsTab::Dividend, dividends()),
+        (ReceiptsTab::Dividend, receipts::dividends()),
         (ReceiptsTab::DomesticStock, domestic_rows),
-        (ReceiptsTab::MutualFund, funds()),
+        (ReceiptsTab::MutualFund, receipts::funds()),
     ] {
         let band_after_tax = tab.client_summary_triple(&rows)[2];
         let row_sum: Decimal = rows.iter().map(|row| row.summary_amounts().2).sum();
@@ -1423,7 +1427,7 @@ fn group_headline_amount_uses_delta_kind() {
 #[test]
 fn single_day_group_headline_uses_row_after_tax() {
     // 集計が無い単発の日はその行の税引後を見出しに出す
-    let card = card_for(ReceiptsTab::DomesticStock, domestic().remove(0));
+    let card = card_for(ReceiptsTab::DomesticStock, receipts::domestic().remove(0));
     let headline = single_row_headline(std::slice::from_ref(&card));
     assert_eq!(headline, [(labels::AFTER_TAX, "+¥112".to_string())]);
     assert_eq!(single_row_headline(&[]), [] as [(&str, String); 0]);
@@ -1433,9 +1437,9 @@ fn single_day_group_headline_uses_row_after_tax() {
 fn detail_dialog_keeps_aux_amounts_removed_from_row() {
     for tab in ReceiptsTab::ALL {
         let mut rows = match tab {
-            ReceiptsTab::Dividend => dividends(),
-            ReceiptsTab::DomesticStock => domestic(),
-            ReceiptsTab::MutualFund => funds(),
+            ReceiptsTab::Dividend => receipts::dividends(),
+            ReceiptsTab::DomesticStock => receipts::domestic(),
+            ReceiptsTab::MutualFund => receipts::funds(),
         };
         let card = card_for(tab, rows.remove(0));
         let (left, right) = receipt_detail_cells(tab, &card);

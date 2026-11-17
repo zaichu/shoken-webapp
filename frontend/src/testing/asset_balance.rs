@@ -4,7 +4,7 @@ use crate::features::asset_balance::{
 };
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::SessionStore;
-use crate::support::pagination::LIST_PER_PAGE;
+use crate::support::pagination;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
@@ -44,7 +44,7 @@ pub(crate) fn balance_page(
         data: range.map(balance_row).collect(),
         total,
         page: 1,
-        per_page: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX),
+        per_page: i64::try_from(pagination::LIST_PER_PAGE).unwrap_or(i64::MAX),
         summary: summary_total.map(|total_purchase_amount| AssetBalanceSummary {
             total_market_value: rust_decimal_macros::dec!(0),
             total_purchase_amount,

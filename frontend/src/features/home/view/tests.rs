@@ -9,18 +9,25 @@ use leptos::prelude::Set;
 
 #[test]
 fn composition_amounts_follow_the_selected_unit_for_total_and_rows() {
-    use crate::features::asset_balance::format_valuation_amount;
-    use crate::settings::{AmountUnit, amount_unit_signal};
+    use crate::features::asset_balance;
+    use crate::settings;
+    use crate::settings::AmountUnit;
 
-    let unit = amount_unit_signal();
+    let unit = settings::amount_unit_signal();
     for (selected, expected_total, expected_row) in [
         (AmountUnit::Yen, "¥660,000", "¥360,000"),
         (AmountUnit::Sen, "660千円", "360千円"),
         (AmountUnit::Man, "66万円", "36万円"),
     ] {
         unit.set(selected);
-        assert_eq!(format_valuation_amount(Some(660_000.0)), expected_total);
-        assert_eq!(format_valuation_amount(Some(360_000.0)), expected_row);
+        assert_eq!(
+            asset_balance::format_valuation_amount(Some(660_000.0)),
+            expected_total
+        );
+        assert_eq!(
+            asset_balance::format_valuation_amount(Some(360_000.0)),
+            expected_row
+        );
     }
     unit.set(AmountUnit::Yen);
 }

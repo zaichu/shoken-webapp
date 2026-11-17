@@ -1,4 +1,5 @@
-use crate::support::list_search::{SearchOption, is_valid_iso_date};
+use crate::support::list_search;
+use crate::support::list_search::SearchOption;
 use rust_decimal::Decimal;
 use shared::normalize::normalize_display_name;
 use std::collections::HashMap;
@@ -79,7 +80,9 @@ pub fn create_search_options<T>(
         } else {
             label(row).to_string()
         };
-        let item_date = date.map(|get| get(row)).filter(|d| is_valid_iso_date(d));
+        let item_date = date
+            .map(|get| get(row))
+            .filter(|d| list_search::is_valid_iso_date(d));
         match entries.get_mut(key) {
             Some((old_label, old_date)) if item_date.is_some() && item_date > *old_date => {
                 *old_label = text;

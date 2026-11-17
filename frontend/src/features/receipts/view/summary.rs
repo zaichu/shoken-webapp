@@ -1,5 +1,6 @@
-use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab, select_header_summary};
-use crate::settings::format_amount;
+use crate::features::receipts;
+use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsTab};
+use crate::settings;
 use crate::ui::card::StatTone;
 use crate::ui::format;
 use crate::ui::labels;
@@ -19,13 +20,13 @@ fn is_band_profit(label: &str) -> bool {
 
 /// 帯の内訳の表示値・正負・PC用の種別。税額は正を「-」・還付(負)を「+」に反転し、0は通常色にする
 pub(crate) fn band_value(label: &'static str, value: Decimal) -> (String, bool, bool, SummaryTone) {
-    let text = format_amount(value);
+    let text = settings::format_amount(value);
     if is_band_tax(label) {
         if value > Decimal::ZERO {
             (format!("-{text}"), false, false, SummaryTone::Neutral)
         } else if value < Decimal::ZERO {
             (
-                format!("+{}", format_amount(-value)),
+                format!("+{}", settings::format_amount(-value)),
                 false,
                 false,
                 SummaryTone::Neutral,
@@ -63,7 +64,8 @@ pub fn header_summary(
         .summary
         .as_ref()
         .and_then(|s| tab.api_summary_triple(s));
-    let values = select_header_summary(api.as_ref(), query, tab.client_summary_triple(&data.rows));
+    let values =
+        receipts::select_header_summary(api.as_ref(), query, tab.client_summary_triple(&data.rows));
     tab.header_items()
         .into_iter()
         .enumerate()
@@ -120,7 +122,7 @@ pub fn SummaryStrip(
     let primary = secondary.pop();
     let primary_mark = marks.pop().unwrap_or(false);
     let format_signed = |value: Decimal, is_profit: bool| {
-        let text = format_amount(value);
+        let text = settings::format_amount(value);
         if is_profit && value > Decimal::ZERO {
             format!("+{text}")
         } else {

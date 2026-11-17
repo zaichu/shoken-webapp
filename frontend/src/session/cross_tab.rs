@@ -1,5 +1,5 @@
+use crate::session;
 use crate::session::SessionStore;
-use crate::session::local_storage;
 use crate::session::pending_logout;
 use leptos::ev;
 use leptos::prelude::*;
@@ -40,7 +40,7 @@ fn broadcast_channel() -> Option<web_sys::BroadcastChannel> {
 pub fn notify_logout() {
     if let Some(channel) = broadcast_channel() {
         let _ = channel.post_message(&JsValue::from_str(LOGOUT_MESSAGE));
-    } else if let Some(storage) = local_storage() {
+    } else if let Some(storage) = session::local_storage() {
         let _ = storage.set_item(LOGOUT_NOTIFY_KEY, &now_ms().to_string());
     }
 }
@@ -88,13 +88,13 @@ pub fn record_activity() {
         return;
     }
     LAST_WRITTEN_MS.with(|last| last.set(now));
-    if let Some(storage) = local_storage() {
+    if let Some(storage) = session::local_storage() {
         let _ = storage.set_item(ACTIVITY_KEY, &now.to_string());
     }
 }
 
 pub fn last_activity_ms() -> Option<u64> {
-    local_storage()?
+    session::local_storage()?
         .get_item(ACTIVITY_KEY)
         .ok()
         .flatten()
@@ -112,7 +112,7 @@ const fn is_recent_claim(now_ms: u64, claimed_at_ms: u64) -> bool {
 
 fn try_claim() -> bool {
     let now = now_ms();
-    let recently_claimed = local_storage()
+    let recently_claimed = session::local_storage()
         .and_then(|storage| storage.get_item(LOGOUT_CLAIMED_KEY).ok().flatten())
         .and_then(|value| value.parse::<u64>().ok())
         .is_some_and(|claimed_at| is_recent_claim(now, claimed_at));
@@ -120,7 +120,7 @@ fn try_claim() -> bool {
         return false;
     }
     pending_logout::mark();
-    if let Some(storage) = local_storage() {
+    if let Some(storage) = session::local_storage() {
         let _ = storage.set_item(LOGOUT_CLAIMED_KEY, &now.to_string());
     }
     true

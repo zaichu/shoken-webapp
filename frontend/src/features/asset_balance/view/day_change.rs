@@ -1,6 +1,4 @@
-use crate::features::asset_balance::format::{
-    format_signed_row_valuation_amount, is_negative_valuation, is_positive_valuation,
-};
+use crate::features::asset_balance::format as balance_format;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::format;
 use crate::ui::labels;
@@ -9,9 +7,9 @@ use leptos::prelude::*;
 /// 前日比の列セル。単位あたり(株は1株・投信は基準価額)の円マーク付き金額で、
 /// 前日終値がない行は「—」。基準日が他の行と違うときだけ横に日付を小さく出す
 pub(crate) fn day_change_cell(change: Option<f64>, date: Option<String>) -> impl IntoView {
-    let negative = is_negative_valuation(change);
-    let positive = is_positive_valuation(change);
-    let text = format_signed_row_valuation_amount(change);
+    let negative = balance_format::is_negative_valuation(change);
+    let positive = balance_format::is_positive_valuation(change);
+    let text = balance_format::format_signed_row_valuation_amount(change);
     let date_text = date.map(|date| format::format_price_date(&date));
     view! {
         <Amount

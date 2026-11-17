@@ -1,17 +1,18 @@
 use super::use_asset_balance_state;
-use crate::features::asset_balance::format::format_amount;
-use crate::features::asset_balance::fund::{FundView, fund_view};
-use crate::features::asset_balance::holdings::{HoldingView, holding_dividend};
-use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
+use crate::features::asset_balance::format as balance_format;
+use crate::features::asset_balance::fund;
+use crate::features::asset_balance::fund::FundView;
+use crate::features::asset_balance::holdings;
+use crate::features::asset_balance::holdings::HoldingView;
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::ValuationInput;
+use crate::features::asset_balance::portfolio;
 use crate::features::asset_balance::portfolio::{
-    CompositionBasis, CompositionGroup, CompositionRow, DonutGeometry, composition_entries,
-    composition_legend_split, composition_percentages, composition_rows, composition_sources,
+    CompositionBasis, CompositionGroup, CompositionRow, DonutGeometry,
 };
-use crate::features::asset_balance::store::{
-    all_portfolio_views, load_asset_balances, load_fund_balances,
-};
+use crate::features::asset_balance::store;
 use crate::features::dividend_per_share::DividendMaps;
-use crate::session::use_session;
+use crate::session;
 use crate::ui::button::TabButton;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format;
@@ -21,7 +22,7 @@ use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonNote;
 use crate::ui::segmented::Segmented;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
-use crate::ui::underline_tabs::{focus_tab_by_id, next_tab_index};
+use crate::ui::underline_tabs;
 use leptos::prelude::*;
 
 const BASIS_OPTIONS: &[(&str, &str)] = &[
@@ -41,10 +42,11 @@ fn basis_values(
         .iter()
         .map(|view| match basis {
             CompositionBasis::MarketValue => {
-                holding_valuation(&ValuationInput::from(view)).market_value
+                model::holding_valuation(&ValuationInput::from(view)).market_value
             }
             CompositionBasis::Dividend => {
-                holding_dividend(&view.code, view.shares, view.average_price, dividends).annual
+                holdings::holding_dividend(&view.code, view.shares, view.average_price, dividends)
+                    .annual
             }
         })
         .chain(funds.iter().map(|view| match basis {
@@ -72,7 +74,7 @@ const fn color_slice_class(color: usize) -> &'static str {
 
 #[component]
 pub fn AssetBalanceCompositionPage() -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let state = use_asset_balance_state(session);
     let balances = state.balances;
     let funds = state.funds;
@@ -84,7 +86,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
         crate::features::asset_balance::store::load_asset_balances(
             session, generation, balances, dividends, lookup, data_ops,
         );
-        load_fund_balances(session, generation, funds, data_ops);
+        store::load_fund_balances(session, generation, funds, data_ops);
     }
     let resolved = move || {
         let generation = session.generation.get();
@@ -104,9 +106,9 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
         }
         let generation = session.generation.get_untracked();
         balances.set(None);
-        load_asset_balances(session, generation, balances, dividends, lookup, data_ops);
+        store::load_asset_balances(session, generation, balances, dividends, lookup, data_ops);
         funds.set(None);
-        load_fund_balances(session, generation, funds, data_ops);
+        store::load_fund_balances(session, generation, funds, data_ops);
     };
     view! {
         <PageFrame title=labels::COMPOSITION back_href="/assetbalance" back_label=labels::ASSET_BALANCE_BACK>
@@ -150,7 +152,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                         (None, _) | (_, None) => view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }.into_any(),
                         (Some(view), Some(fund_data)) => {
                             let generation = session.generation.get();
-                            let views = all_portfolio_views(
+                            let views = store::all_portfolio_views(
                                 &view.rows,
                                 lookup,
                                 generation,
@@ -158,7 +160,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                             let fund_views: Vec<FundView> = fund_data
                                 .rows
                                 .iter()
-                                .map(fund_view)
+                                .map(fund::fund_view)
                                 .collect();
                             if views.is_empty() && fund_views.is_empty() {
                                 return view! {
@@ -195,7 +197,7 @@ fn CompositionContent(
     let group = RwSignal::new(CompositionGroup::Holding);
     let basis = RwSignal::new(CompositionBasis::MarketValue);
     let basis_value = Signal::derive(move || basis.get().value().to_string());
-    let sources = composition_sources(&views, &funds);
+    let sources = portfolio::composition_sources(&views, &funds);
     view! {
         <div class="mx-auto w-full max-w-2xl" data-testid="asset-composition">
             <div
@@ -224,14 +226,14 @@ fn CompositionContent(
                                             *candidate == group.get_untracked()
                                         })
                                         .unwrap_or(0);
-                                    if let Some(next) = next_tab_index(
+                                    if let Some(next) = underline_tabs::next_tab_index(
                                         CompositionGroup::ALL.len(),
                                         current,
                                         &event.key(),
                                     ) {
                                         event.prevent_default();
                                         group.set(CompositionGroup::ALL[next]);
-                                        focus_tab_by_id(
+                                        underline_tabs::focus_tab_by_id(
                                             &format!(
                                                 "comp-tab-{}",
                                                 CompositionGroup::ALL[next].value()
@@ -266,13 +268,13 @@ fn CompositionContent(
                 let current_basis = basis.get();
                 let current_group = group.get();
                 let values = basis_values(&views, &funds, current_basis, &dividends.get());
-                let entries = composition_entries(&sources, current_group, &values);
+                let entries = portfolio::composition_entries(&sources, current_group, &values);
                 let raw: Vec<Option<f64>> = entries
                     .iter()
                     .map(|entry| entry.value)
                     .collect();
-                let (total, percentages) = composition_percentages(&raw);
-                let rows = composition_rows(&entries, &percentages);
+                let (total, percentages) = portfolio::composition_percentages(&raw);
+                let rows = portfolio::composition_rows(&entries, &percentages);
                 let center = match current_group {
                     CompositionGroup::Holding => labels::composition_total(entries.len()),
                     CompositionGroup::Product => labels::composition_kinds(entries.len()),
@@ -281,7 +283,7 @@ fn CompositionContent(
                 view! {
                     <SkeletonNote note=labels::composition_basis_note(
                         current_basis.label(),
-                        &format_amount(total),
+                        &balance_format::format_amount(total),
                     ) />
                     {if total <= 0.0 {
                         view! {
@@ -402,7 +404,7 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
     let radius = geometry.radius;
     let inner = geometry.inner();
     let outer = geometry.outer();
-    let (visible, others) = composition_legend_split(rows.len());
+    let (visible, others) = portfolio::composition_legend_split(rows.len());
     view! {
         <div class="comp-donut-row">
             <div class="comp-donut-wrap">

@@ -1,9 +1,8 @@
-use crate::{
-    errors::{ApiError, ErrorResponse},
-    models::{common::validate_length_field, stock::Stock},
-    services::stock as stock_service,
-    state::AppState,
-};
+use crate::errors::{ApiError, ErrorResponse};
+use crate::models::common;
+use crate::models::stock::Stock;
+use crate::services::stock as stock_service;
+use crate::state::AppState;
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -24,7 +23,7 @@ impl Validate for StockSearchQuery {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
         // 上限100は `Stock.name` の上限に合わせる（それより長い文字列は一致し得ない）
-        validate_length_field(&mut errors, "query", &self.query, Some(1), Some(100));
+        common::validate_length_field(&mut errors, "query", &self.query, Some(1), Some(100));
         if errors.is_empty() {
             Ok(())
         } else {

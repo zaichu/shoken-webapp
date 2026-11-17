@@ -1,4 +1,5 @@
-use crate::features::receipts::filter::{ReceiptSearch, SearchKey, search_categories};
+use crate::features::receipts::filter;
+use crate::features::receipts::filter::{ReceiptSearch, SearchKey};
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::support::list_search::SearchOption;
 use crate::ui::labels;
@@ -88,7 +89,7 @@ pub(crate) fn search_category_memos(
         TabState::Ready(data) => data.rows.clone(),
         _ => Vec::new(),
     });
-    let categories = Memo::new(move |_| search_categories(tab.get(), &display_rows.get()));
+    let categories = Memo::new(move |_| filter::search_categories(tab.get(), &display_rows.get()));
     SearchCategories {
         years: Memo::new(move |_| categories.with(|c| c.years.clone())),
         products: Memo::new(move |_| categories.with(|c| c.products.clone())),

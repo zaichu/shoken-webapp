@@ -2,11 +2,8 @@ use super::super::model;
 use super::super::store::{self, HomeOverviewData};
 use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::stocks_of;
-use crate::features::asset_balance::{
-    dec_to_f64, format_signed_valuation_amount, format_valuation_amount, is_negative_valuation,
-    is_positive_valuation,
-};
-use crate::session::use_session;
+use crate::features::asset_balance;
+use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::format;
@@ -16,7 +13,7 @@ use rust_decimal::Decimal;
 
 #[component]
 pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let card = move || {
         let generation = session.generation.get();
         let current = store::current_summary(data.dividends_current, generation);
@@ -81,11 +78,11 @@ fn DividendCardBody(
     previous_year: u32,
     pending: bool,
 ) -> impl IntoView {
-    let received_value = Some(dec_to_f64(&model.received));
-    let received = format_signed_valuation_amount(received_value);
+    let received_value = Some(asset_balance::dec_to_f64(&model.received));
+    let received = asset_balance::format_signed_valuation_amount(received_value);
     let forecast = model.forecast_net.map_or_else(
         || labels::MISSING.to_string(),
-        |v| format_valuation_amount(Some(v)),
+        |v| asset_balance::format_valuation_amount(Some(v)),
     );
     let progress_pct = model.progress.map(|p| p * 100.0);
     let progress_text = progress_pct.map_or_else(
@@ -99,12 +96,16 @@ fn DividendCardBody(
         .map_or_else(String::new, |remaining| {
             labels::previous_dividend_span(
                 current_month,
-                &format_valuation_amount(Some(dec_to_f64(&remaining))),
+                &asset_balance::format_valuation_amount(Some(asset_balance::dec_to_f64(
+                    &remaining,
+                ))),
             )
         });
     let yoy_text = model.yoy_diff.map_or_else(
         || labels::MISSING.to_string(),
-        |diff| format_signed_valuation_amount(Some(dec_to_f64(&diff))),
+        |diff| {
+            asset_balance::format_signed_valuation_amount(Some(asset_balance::dec_to_f64(&diff)))
+        },
     );
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
@@ -114,8 +115,8 @@ fn DividendCardBody(
                     <Amount
                         kind=AmountKind::Delta
                         text=received
-                        negative=is_negative_valuation(received_value)
-                        positive=is_positive_valuation(received_value)
+                        negative=asset_balance::is_negative_valuation(received_value)
+                        positive=asset_balance::is_positive_valuation(received_value)
                     />
                 </strong>
             </span>
@@ -183,7 +184,7 @@ fn DividendMonthlyChart(
             role="group"
             aria-label=labels::home_monthly_aria(year, previous_year)
         >
-            <p class="home-chart-max">{format_valuation_amount(Some(dec_to_f64(&max)))}</p>
+            <p class="home-chart-max">{asset_balance::format_valuation_amount(Some(asset_balance::dec_to_f64(&max)))}</p>
             <div class="home-chart-plot">
                 <div class="home-chart-grid" aria-hidden="true">
                     <span class="home-chart-grid-line" data-level="top"></span>
@@ -232,10 +233,11 @@ fn DividendMonthCell(
 ) -> impl IntoView {
     let cur = model::bar_height(pair.current, max);
     let prev = model::bar_height(pair.previous, max);
-    let cur_text = format::format_currency(dec_to_f64(&pair.current));
-    let prev_text = format::format_currency(dec_to_f64(&pair.previous));
-    let diff_text =
-        format_signed_valuation_amount(Some(dec_to_f64(&(pair.current - pair.previous))));
+    let cur_text = format::format_currency(asset_balance::dec_to_f64(&pair.current));
+    let prev_text = format::format_currency(asset_balance::dec_to_f64(&pair.previous));
+    let diff_text = asset_balance::format_signed_valuation_amount(Some(asset_balance::dec_to_f64(
+        &(pair.current - pair.previous),
+    )));
     let current_note = if pair.month == current_month {
         labels::HOME_CURRENT_MONTH
     } else {

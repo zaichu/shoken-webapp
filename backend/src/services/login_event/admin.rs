@@ -1,11 +1,9 @@
 #[cfg(test)]
-use crate::{db::QueryBuilder, services::domain::search_filters::push_token_ilike_filters};
-use crate::{
-    db::{self, Bind, Db, DbError},
-    errors::ApiError,
-    models::common::{PaginatedSearchResponse, SearchQueryParams},
-    services::domain::search_filters::{escape_like_pattern, tokens_from_query},
-};
+use crate::db::QueryBuilder;
+use crate::db::{self, Bind, Db, DbError};
+use crate::errors::ApiError;
+use crate::models::common::{PaginatedSearchResponse, SearchQueryParams};
+use crate::services::domain::search_filters;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use shared::value::UserId;
@@ -55,17 +53,21 @@ const PLACE: &str = "CONCAT_WS(' ', le.country, le.region)";
 #[cfg(test)]
 fn push_filters(qb: &mut QueryBuilder, params: &AdminLoginQuery) {
     qb.push(FROM).push(" WHERE TRUE");
-    push_token_ilike_filters(
+    search_filters::push_token_ilike_filters(
         qb,
-        &tokens_from_query(params.search.q.as_deref()),
+        &search_filters::tokens_from_query(params.search.q.as_deref()),
         &["u.email", PLACE],
     );
-    push_token_ilike_filters(
+    search_filters::push_token_ilike_filters(
         qb,
-        &tokens_from_query(params.email.as_deref()),
+        &search_filters::tokens_from_query(params.email.as_deref()),
         &["u.email"],
     );
-    push_token_ilike_filters(qb, &tokens_from_query(params.place.as_deref()), &[PLACE]);
+    search_filters::push_token_ilike_filters(
+        qb,
+        &search_filters::tokens_from_query(params.place.as_deref()),
+        &[PLACE],
+    );
 }
 
 #[cfg(test)]
@@ -128,9 +130,9 @@ async fn fetch_count_and_data(
     offset: i64,
 ) -> Result<(Vec<AdminLoginEntry>, i64), ApiError> {
     let patterns = |query: Option<&str>| {
-        tokens_from_query(query)
+        search_filters::tokens_from_query(query)
             .iter()
-            .map(|token| escape_like_pattern(token))
+            .map(|token| search_filters::escape_like_pattern(token))
             .collect::<Vec<_>>()
     };
     let query_patterns = patterns(params.search.q.as_deref());

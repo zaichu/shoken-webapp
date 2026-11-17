@@ -1,6 +1,6 @@
 use crate::db::Db;
 use crate::errors::{ApiError, CsvError};
-use crate::handlers::common::ok_message;
+use crate::handlers::common;
 use crate::models::common::MessageResponse;
 use crate::models::csv_import::CsvUploadResponse;
 use crate::services::csv::import::CsvImport;
@@ -45,7 +45,7 @@ pub async fn handle_delete_all<D: Domain>(
     message: &str,
 ) -> Result<(StatusCode, Json<MessageResponse>), ApiError> {
     bulk::delete_all::<D>(pool, user_id).await?;
-    Ok(ok_message(message))
+    Ok(common::ok_message(message))
 }
 
 /// 戻り値を具体型にすることで、呼び出し元の借用（`&state.pool`）が戻り値に漏れ出さないようにする。
@@ -68,7 +68,7 @@ mod tests {
     use crate::errors::ErrorResponse;
     use crate::models::common::BulkCreateResponse;
     use crate::models::csv_import::CsvRowError;
-    use crate::services::csv::import::validate_csv_rows;
+    use crate::services::csv::import;
     use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
     use axum::{
         Router,
@@ -101,7 +101,7 @@ mod tests {
         };
 
         fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-            validate_csv_rows(table, |row, row_num| {
+            import::validate_csv_rows(table, |row, row_num| {
                 let value = row.cell("a");
                 if value.is_empty() {
                     Err(CsvRowError {

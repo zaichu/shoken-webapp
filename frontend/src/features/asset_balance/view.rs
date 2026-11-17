@@ -20,17 +20,17 @@ pub use composition_page::AssetBalanceCompositionPage;
 pub use fund_detail_page::AssetFundHoldingPage;
 pub use holding_detail_page::AssetBalanceHoldingPage;
 
-use crate::features::asset_balance::fund::{AssetKind, AssetSearch, FundSortKey, text_only_search};
+use crate::features::asset_balance::fund;
+use crate::features::asset_balance::fund::{AssetKind, AssetSearch, FundSortKey};
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
-use crate::features::asset_balance::store::csv::{
-    AssetBalanceCsvStore, resolve_asset_balance, resolve_fund_balance,
-};
-use crate::features::asset_balance::store::{
-    BalanceSlot, DataOps, FundSlot, has_current_balances, load_asset_balances, load_fund_balances,
-};
+use crate::features::asset_balance::store;
+use crate::features::asset_balance::store::csv;
+use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
+use crate::features::asset_balance::store::{BalanceSlot, DataOps, FundSlot};
 use crate::features::dividend_per_share::DividendMaps;
-use crate::session::{SessionStore, use_session};
+use crate::session;
+use crate::session::SessionStore;
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
@@ -66,7 +66,7 @@ impl KindContent {
             return;
         }
         self.balances.set(None);
-        load_asset_balances(
+        store::load_asset_balances(
             self.session,
             self.session.generation.get_untracked(),
             self.balances,
@@ -75,7 +75,7 @@ impl KindContent {
             self.data_ops,
         );
         self.funds.set(None);
-        load_fund_balances(
+        store::load_fund_balances(
             self.session,
             self.session.generation.get_untracked(),
             self.funds,
@@ -91,10 +91,10 @@ impl KindContent {
         });
         let resolved = self
             .balances
-            .with(|slot| resolve_asset_balance(generation, slot));
+            .with(|slot| csv::resolve_asset_balance(generation, slot));
         let resolved_fund = self
             .funds
-            .with(|slot| resolve_fund_balance(generation, slot));
+            .with(|slot| csv::resolve_fund_balance(generation, slot));
         let index = AssetKind::ALL
             .iter()
             .position(|item| *item == kind)
@@ -174,7 +174,7 @@ impl AssetBalanceState {
         }
         let generation = session.generation.get_untracked();
         if stock {
-            load_asset_balances(
+            store::load_asset_balances(
                 session,
                 generation,
                 self.balances,
@@ -184,7 +184,7 @@ impl AssetBalanceState {
             );
         }
         if fund {
-            load_fund_balances(session, generation, self.funds, self.data_ops);
+            store::load_fund_balances(session, generation, self.funds, self.data_ops);
         }
     }
 }
@@ -237,11 +237,11 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
             return;
         }
         lookup.update(|store| store.clear_if_stale(generation));
-        if !has_current_balances(&balances.get_untracked(), generation) {
-            load_asset_balances(session, generation, balances, dividends, lookup, data_ops);
+        if !store::has_current_balances(&balances.get_untracked(), generation) {
+            store::load_asset_balances(session, generation, balances, dividends, lookup, data_ops);
         }
         if !matches!(funds.get_untracked(), Some((cached, _)) if cached == generation) {
-            load_fund_balances(session, generation, funds, data_ops);
+            store::load_fund_balances(session, generation, funds, data_ops);
         }
     });
     AssetBalanceState {
@@ -262,7 +262,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
 
 #[component]
 pub fn AssetBalancePage() -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let busy_session = session;
     let rail_session = session;
     let state = use_asset_balance_state(session);
@@ -300,17 +300,17 @@ pub fn AssetBalancePage() -> impl IntoView {
             return;
         }
         prev_kind.set(next);
-        search.update(|search| *search = text_only_search(search));
+        search.update(|search| *search = fund::text_only_search(search));
     });
     // タブ行をページレベルで描く
     if session.user.get_untracked().is_some()
-        && has_current_balances(
+        && store::has_current_balances(
             &balances.get_untracked(),
             session.generation.get_untracked(),
         )
         && !data_ops.with_untracked(super::store::DataOps::list_fetch_in_flight)
     {
-        load_asset_balances(
+        store::load_asset_balances(
             session,
             session.generation.get_untracked(),
             balances,
@@ -318,7 +318,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             lookup,
             data_ops,
         );
-        load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
+        store::load_fund_balances(session, session.generation.get_untracked(), funds, data_ops);
     }
     let current_tab = Signal::derive(move || {
         AssetKind::ALL
@@ -384,7 +384,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 {move || {
                     let generation = rail_session.generation.get();
                     balances
-                        .with(|slot| resolve_asset_balance(generation, slot))
+                        .with(|slot| csv::resolve_asset_balance(generation, slot))
                         .and_then(|view| view.warning)
                         .map(|message| {
                         view! {
@@ -401,7 +401,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                 {move || {
                     let generation = rail_session.generation.get();
                     funds
-                        .with(|slot| resolve_fund_balance(generation, slot))
+                        .with(|slot| csv::resolve_fund_balance(generation, slot))
                         .and_then(|view| view.warning)
                         .map(|message| {
                         view! {

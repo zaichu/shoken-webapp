@@ -3,16 +3,13 @@
 use crate::api::dto::{
     AssetBalance, AssetBalanceSummary, Dividend, FundBalance, FundBalanceSummary,
 };
-use crate::features::asset_balance::{
-    KpiHolding, PortfolioKpi, ValuationInput, calculate_portfolio_kpi, dec_to_f64,
-    format_valuation_amount, holding_stock_href, holding_valuation, normalize_display_name,
-    summary_valuation, valuation_has_pending,
-};
+use crate::features::asset_balance;
+use crate::features::asset_balance::{KpiHolding, PortfolioKpi, ValuationInput};
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::badge::account_display_name;
+use crate::ui::badge;
 use crate::ui::format;
 use crate::ui::labels;
-use crate::urls::fund_holding_href;
+use crate::urls;
 use rust_decimal::Decimal;
 use shared::tax::TAX_RATE;
 
@@ -79,10 +76,11 @@ pub(crate) fn merged_daily_change(
     fund: Option<&FundBalanceSummary>,
 ) -> Option<f64> {
     let stock_daily = has_stocks
-        .then(|| stock.map(|summary| dec_to_f64(&summary.total_daily_change)))
+        .then(|| stock.map(|summary| asset_balance::dec_to_f64(&summary.total_daily_change)))
         .flatten();
     let fund_daily = fund.and_then(|summary| {
-        (summary.latest_nav_count > 0).then(|| dec_to_f64(&summary.total_daily_change))
+        (summary.latest_nav_count > 0)
+            .then(|| asset_balance::dec_to_f64(&summary.total_daily_change))
     });
     match (stock_daily, fund_daily) {
         (Some(stock), Some(fund)) => Some(stock + fund),
@@ -111,11 +109,13 @@ pub(crate) fn home_has_pending(
     stock_summary: Option<&AssetBalanceSummary>,
 ) -> bool {
     let stock_unpriced = match stock_summary {
-        Some(summary) if !stocks.is_empty() => summary_valuation(summary).has_unpriced,
+        Some(summary) if !stocks.is_empty() => {
+            asset_balance::summary_valuation(summary).has_unpriced
+        }
         _ => stocks.iter().any(|row| row.current_price <= Decimal::ZERO),
     };
     let fund_stale = funds.iter().any(|row| !row.nav_is_latest);
-    valuation_has_pending(stock_unpriced, fund_stale)
+    asset_balance::valuation_has_pending(stock_unpriced, fund_stale)
 }
 
 /// 年間予想配当(税引前)と取得額に対する率。資産管理の KPI と同じく
@@ -128,11 +128,11 @@ pub(crate) fn annual_dividend_forecast(
         .iter()
         .map(|row| KpiHolding {
             security_code: row.security_code.to_string(),
-            shares: dec_to_f64(&row.shares),
-            total_purchase_amount: dec_to_f64(&row.total_purchase_amount),
+            shares: asset_balance::dec_to_f64(&row.shares),
+            total_purchase_amount: asset_balance::dec_to_f64(&row.total_purchase_amount),
         })
         .collect();
-    calculate_portfolio_kpi(&holdings, &maps.per_share)
+    asset_balance::calculate_portfolio_kpi(&holdings, &maps.per_share)
 }
 
 /// 予想配当の推定値がまだ計算中(pending)の銘柄が残っているか
@@ -222,8 +222,8 @@ pub(crate) fn build_dividend_card(
     let previous_rows = previous_rows.unwrap_or(&[]);
     let received: Decimal = current_rows.iter().map(|row| row.net_amount_received).sum();
     let rate = effective_tax_rate(current_rows, previous_rows).unwrap_or(TAX_RATE);
-    let forecast_net = forecast_gross.map(|gross| gross * (1.0 - dec_to_f64(&rate)));
-    let received_f64 = dec_to_f64(&received);
+    let forecast_net = forecast_gross.map(|gross| gross * (1.0 - asset_balance::dec_to_f64(&rate)));
+    let received_f64 = asset_balance::dec_to_f64(&received);
     let progress = forecast_net
         .filter(|forecast| *forecast > 0.0)
         .map(|forecast| received_f64 / forecast);
@@ -260,9 +260,9 @@ pub(crate) fn build_dividend_card(
 pub(crate) fn remaining_label(remaining: Option<f64>) -> String {
     match remaining {
         Some(value) if value < 0.0 => {
-            labels::home_remaining_over(&format_valuation_amount(Some(-value)))
+            labels::home_remaining_over(&asset_balance::format_valuation_amount(Some(-value)))
         }
-        Some(value) => labels::home_remaining(&format_valuation_amount(Some(value))),
+        Some(value) => labels::home_remaining(&asset_balance::format_valuation_amount(Some(value))),
         None => labels::HOME_REMAINING_EMPTY.to_string(),
     }
 }
@@ -272,7 +272,7 @@ pub(crate) fn bar_height(value: Decimal, max: Decimal) -> f64 {
     if value.is_zero() || max.is_zero() {
         return 0.0;
     }
-    (dec_to_f64(&value) / dec_to_f64(&max) * 100.0).max(3.0)
+    (asset_balance::dec_to_f64(&value) / asset_balance::dec_to_f64(&max) * 100.0).max(3.0)
 }
 
 /// 内訳チャートの1区分
@@ -316,8 +316,8 @@ pub(crate) fn product_slices(
 pub(crate) fn account_slices(funds: &[FundBalance]) -> Vec<CompositionSlice> {
     let mut by_account: Vec<(String, f64)> = Vec::new();
     for fund in funds {
-        let account = account_display_name(fund.account.as_ref()).to_string();
-        let amount = dec_to_f64(&fund.market_value);
+        let account = badge::account_display_name(fund.account.as_ref()).to_string();
+        let amount = asset_balance::dec_to_f64(&fund.market_value);
         match by_account.iter_mut().find(|(label, _)| *label == account) {
             Some((_, total)) => *total += amount,
             None => by_account.push((account, amount)),
@@ -346,31 +346,31 @@ pub(crate) struct HoldingPnl {
 /// 価格のある保有を含み損益の行に変換する。価格なし株式は損益が出せないため除外
 pub(crate) fn holding_pnls(stocks: &[AssetBalance], funds: &[FundBalance]) -> Vec<HoldingPnl> {
     let stock_rows = stocks.iter().filter_map(|row| {
-        let valuation = holding_valuation(&ValuationInput {
-            current_price: dec_to_f64(&row.current_price),
-            shares: dec_to_f64(&row.shares),
-            total_purchase_amount: dec_to_f64(&row.total_purchase_amount),
+        let valuation = asset_balance::holding_valuation(&ValuationInput {
+            current_price: asset_balance::dec_to_f64(&row.current_price),
+            shares: asset_balance::dec_to_f64(&row.shares),
+            total_purchase_amount: asset_balance::dec_to_f64(&row.total_purchase_amount),
         });
         let profit_loss = valuation.profit_loss.amount?;
         let name = if row.security_name.is_empty() {
             row.security_code.to_string()
         } else {
-            normalize_display_name(&row.security_name)
+            asset_balance::normalize_display_name(&row.security_name)
         };
         Some(HoldingPnl {
             code: row.security_code.to_string(),
             name,
-            href: holding_stock_href(row.security_code.as_ref()),
+            href: asset_balance::holding_stock_href(row.security_code.as_ref()),
             profit_loss,
             rate: valuation.profit_loss.rate,
         })
     });
     let fund_rows = funds.iter().map(|row| HoldingPnl {
         code: String::new(),
-        name: normalize_display_name(&row.fund_name),
-        href: fund_holding_href(&row.id),
-        profit_loss: dec_to_f64(&row.profit_loss),
-        rate: row.profit_loss_rate.as_ref().map(dec_to_f64),
+        name: asset_balance::normalize_display_name(&row.fund_name),
+        href: urls::fund_holding_href(&row.id),
+        profit_loss: asset_balance::dec_to_f64(&row.profit_loss),
+        rate: row.profit_loss_rate.as_ref().map(asset_balance::dec_to_f64),
     });
     stock_rows.chain(fund_rows).collect()
 }

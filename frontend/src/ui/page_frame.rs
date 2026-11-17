@@ -1,5 +1,6 @@
 use crate::ui::labels;
-use crate::ui::site::{AccountMenu, NAV_ITEMS, NavLink};
+use crate::ui::site;
+use crate::ui::site::{AccountMenu, NavLink};
 use leptos::prelude::*;
 
 /// PC 用ヘッダー: ロゴ・グローバルナビ・アカウントメニュー
@@ -20,7 +21,7 @@ fn PcHeader() -> impl IntoView {
                     <span class="header-wordmark text-body font-bold">{labels::APP_NAME}</span>
                 </a>
                 <nav class="flex gap-1 h-14" aria-label=labels::PAGE_MAIN_NAV>
-                    {NAV_ITEMS.iter().map(|(to, label)| {
+                    {site::NAV_ITEMS.iter().map(|(to, label)| {
                         view! { <NavLink to=*to label=*label class="pc-nav-link" /> }
                     }).collect_view()}
                 </nav>

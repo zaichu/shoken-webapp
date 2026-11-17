@@ -11,8 +11,9 @@ pub use summary::SummaryStrip;
 pub use table::ReceiptTable;
 pub use tabs::{ReceiptsTabNav, TabPanel};
 
-use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
-use crate::session::use_session;
+use crate::features::receipts;
+use crate::features::receipts::{ReceiptsTab, TabState};
+use crate::session;
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
@@ -23,8 +24,8 @@ pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"
 
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
-    let store = use_receipts_data(
-        use_session(),
+    let store = receipts::use_receipts_data(
+        session::use_session(),
         crate::settings::try_use_settings().receipts_initial_tab,
     );
     // 再訪ではストアのキャッシュがそのまま出るので、鮮度だけ裏で更新する

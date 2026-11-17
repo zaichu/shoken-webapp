@@ -1,16 +1,13 @@
 use super::ReceiptRow;
 use crate::api::ApiClient;
 use crate::api::dto::AssetBalance;
-use crate::features::asset_balance::{fetch_single_asset_balance, find_by_code};
-use crate::features::dividend_per_share::{
-    DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS, dividend_maps_from_batch,
-    dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch,
-};
+use crate::features::asset_balance;
+use crate::features::dividend_per_share;
 use crate::features::receipts::model::DividendTotals;
 use crate::session::{Generation, SessionStore};
-use crate::settings::format_amount;
-use crate::support::list_search::group_key::derive_security_code_from_query;
-use crate::support::list_search::is_searchable_code;
+use crate::settings;
+use crate::support::list_search;
+use crate::support::list_search::group_key;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
@@ -23,8 +20,9 @@ use shared::format::{format_currency, format_number};
 use shared::normalize::normalize_security_code;
 
 pub(crate) fn search_security_code(rows: &[ReceiptRow], query: &str) -> String {
-    let code = derive_security_code_from_query(query, rows, |row| row.code(), |row| row.name());
-    if is_searchable_code(&code) {
+    let code =
+        group_key::derive_security_code_from_query(query, rows, |row| row.code(), |row| row.name());
+    if list_search::is_searchable_code(&code) {
         code
     } else {
         String::new()
@@ -80,7 +78,8 @@ impl DividendInfoStore {
 
     pub fn set_code(&self, generation: Generation, authenticated: bool, raw_code: &str) {
         let code = normalize_security_code(raw_code);
-        let next = (authenticated && is_searchable_code(&code)).then_some((generation, code));
+        let next =
+            (authenticated && list_search::is_searchable_code(&code)).then_some((generation, code));
         if self.current.get_untracked() == next {
             return;
         }
@@ -114,10 +113,12 @@ impl DividendInfoStore {
         let store = *self;
         leptos::task::spawn_local(async move {
             let client = ApiClient::read_client();
-            if let Ok(rows) = fetch_single_asset_balance(&client, &code).await
+            if let Ok(rows) = asset_balance::fetch_single_asset_balance(&client, &code).await
                 && store.is_balance_active(generation, revision, &code)
             {
-                store.asset_balance.set(find_by_code(&rows, &code).cloned());
+                store
+                    .asset_balance
+                    .set(asset_balance::find_by_code(&rows, &code).cloned());
             }
         });
     }
@@ -141,7 +142,7 @@ impl DividendInfoStore {
     /// pending（バックエンド処理待ち）と通信失敗は別カウンタで打ち切る
     async fn poll_dividend(&self, generation: Generation, revision: u64, code: String) {
         let codes = vec![code.clone()];
-        let max_pending = dividend_pending_max_retries(1);
+        let max_pending = dividend_per_share::dividend_pending_max_retries(1);
         let mut pending_used = 0u32;
         let mut network_used = 0u32;
         loop {
@@ -149,8 +150,13 @@ impl DividendInfoStore {
                 return;
             }
             self.per_share_loading.set(true);
-            if let Ok(batch) = fetch_dividend_batch(&codes, post_dividend_batch).await {
-                let (maps, has_pending) = dividend_maps_from_batch(&batch);
+            if let Ok(batch) = dividend_per_share::fetch_dividend_batch(
+                &codes,
+                dividend_per_share::post_dividend_batch,
+            )
+            .await
+            {
+                let (maps, has_pending) = dividend_per_share::dividend_maps_from_batch(&batch);
                 if !self.is_poll_active(generation, revision, &code) {
                     return;
                 }
@@ -165,12 +171,13 @@ impl DividendInfoStore {
                     return;
                 }
                 self.per_share_loading.set(false);
-                if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
+                if network_used >= dividend_per_share::DIVIDEND_NETWORK_MAX_RETRIES {
                     return;
                 }
                 network_used += 1;
             }
-            gloo_timers::future::TimeoutFuture::new(DIVIDEND_RETRY_DELAY_MS).await;
+            gloo_timers::future::TimeoutFuture::new(dividend_per_share::DIVIDEND_RETRY_DELAY_MS)
+                .await;
         }
     }
 }
@@ -269,7 +276,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                 <Card variant=CardVariant::Sunken>
                     <p class="text-cell font-medium text-text-muted mb-1">{labels::DIVIDEND_AMOUNT_AND_YIELD}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
-                        {format_amount(totals.total_dividends_before_tax)}
+                        {settings::format_amount(totals.total_dividends_before_tax)}
                         {move || {
                             let rate = gross_rate();
                             (rate > 0.0).then(|| {
@@ -285,13 +292,13 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                 <Card variant=CardVariant::Sunken>
                     <p class="text-cell font-medium text-text-muted mb-1">{labels::TAX}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
-                        {format_amount(totals.total_taxes)}
+                        {settings::format_amount(totals.total_taxes)}
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
                     <p class="text-cell font-medium text-text-muted mb-1">{labels::AFTER_TAX_AND_YIELD}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
-                        {format_amount(totals.total_net_amount_received)}
+                        {settings::format_amount(totals.total_net_amount_received)}
                         {move || {
                             let rate = net_rate();
                             (rate > 0.0).then(|| {

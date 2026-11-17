@@ -9,10 +9,8 @@ use crate::features::asset_balance::format::*;
 use crate::features::asset_balance::fund::{AssetSearch, FundBalanceRow};
 use crate::features::asset_balance::holdings::*;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
-use crate::features::asset_balance::model::{
-    KpiHolding, ValuationInput, calculate_portfolio_kpi, normalize_display_name,
-    normalize_security_code, portfolio_valuation, total_purchase_amount,
-};
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::{KpiHolding, ValuationInput};
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::asset_balance::store::*;
@@ -135,9 +133,9 @@ fn holding_dividend_matches_component_cases() {
 
 #[test]
 fn security_name_normalization_cases() {
-    assert_eq!(normalize_display_name("ＸＹＺ"), "XYZ");
-    assert_eq!(normalize_display_name("架空自動車"), "架空自動車");
-    assert_eq!(normalize_security_code(" 9904: 架空自動車 "), "9904");
+    assert_eq!(model::normalize_display_name("ＸＹＺ"), "XYZ");
+    assert_eq!(model::normalize_display_name("架空自動車"), "架空自動車");
+    assert_eq!(model::normalize_security_code(" 9904: 架空自動車 "), "9904");
 }
 
 #[test]
@@ -189,13 +187,14 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
                 total_purchase_amount: view.purchase,
             })
             .collect();
-        let total_purchase = total_purchase_amount(&kpi_holdings);
+        let total_purchase = model::total_purchase_amount(&kpi_holdings);
         let dividends = RwSignal::new(DividendMaps {
             per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
         });
-        let kpi =
-            Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
+        let kpi = Memo::new(move |_| {
+            model::calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share)
+        });
 
         // 検索中も合計取得総額・含み損益は全保有分のまま
         assert_eq!(format::format_currency(total_purchase), "¥300,000");
@@ -205,7 +204,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
             assert_eq!(kpi.dividend_yield, Some(5000.0 / 300000.0 * 100.0));
             assert_eq!(kpi.holdings_count, 2);
         });
-        let valuation = portfolio_valuation(
+        let valuation = model::portfolio_valuation(
             &all_views
                 .iter()
                 .map(ValuationInput::from)
@@ -238,7 +237,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
                 total_purchase_amount: view.purchase,
             })
             .collect();
-        let decimal_total = total_purchase_amount(&decimal_holdings);
+        let decimal_total = model::total_purchase_amount(&decimal_holdings);
         assert_eq!(format::format_currency(decimal_total), "¥3,000.2");
     });
 }
@@ -349,8 +348,9 @@ fn valuation_formatters_treat_nan_as_missing() {
 // 表示単位は集計(サマリー)だけに使い、明細の行は1円単位のまま出す
 #[test]
 fn row_valuation_stays_in_yen_while_summary_follows_the_amount_unit() {
-    use crate::settings::{AmountUnit, amount_unit_signal};
-    let unit = amount_unit_signal();
+    use crate::settings;
+    use crate::settings::AmountUnit;
+    let unit = settings::amount_unit_signal();
     unit.set(AmountUnit::Man);
     assert_eq!(format_row_valuation_amount(Some(60000.0)), "¥60,000");
     assert_eq!(format_row_valuation_amount(Some(400.0)), "¥400");
@@ -981,7 +981,7 @@ fn oldest_combined_as_of_picks_oldest_across_stock_and_fund() {
 
 #[test]
 fn combined_band_pending_unifies_stock_and_fund_flags() {
-    use crate::features::asset_balance::model::valuation_has_pending;
+    use crate::features::asset_balance::model;
     let owner = Owner::new();
     owner.with(|| {
         let priced = balance_row(9904);
@@ -1018,15 +1018,15 @@ fn combined_band_pending_unifies_stock_and_fund_flags() {
         assert!(stock_missing);
         assert!(!super::summary::fund_has_pending(&latest_fund));
         assert!(super::summary::fund_has_pending(&stale_fund));
-        assert!(!valuation_has_pending(
+        assert!(!model::valuation_has_pending(
             stock_ok,
             super::summary::fund_has_pending(&latest_fund)
         ));
-        assert!(valuation_has_pending(
+        assert!(model::valuation_has_pending(
             stock_missing,
             super::summary::fund_has_pending(&latest_fund)
         ));
-        assert!(valuation_has_pending(
+        assert!(model::valuation_has_pending(
             stock_ok,
             super::summary::fund_has_pending(&stale_fund)
         ));

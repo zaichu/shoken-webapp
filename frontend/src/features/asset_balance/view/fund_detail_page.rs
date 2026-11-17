@@ -1,11 +1,8 @@
 use super::use_asset_balance_state;
 use crate::api::dto::FundPriceSource;
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_valuation, is_positive_valuation,
-};
-use crate::features::asset_balance::fund::fund_view;
-use crate::session::use_session;
+use crate::features::asset_balance::format as balance_format;
+use crate::features::asset_balance::fund;
+use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::empty_state::EmptyState;
@@ -18,7 +15,7 @@ use leptos::prelude::*;
 
 #[component]
 pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let state = use_asset_balance_state(session);
     let funds = state.funds;
     let data_ops = state.data_ops;
@@ -97,7 +94,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                 }
                                     .into_any();
                             };
-                                let view = fund_view(row);
+                                let view = fund::fund_view(row);
                                 let shares_text =
                                     labels::fund_units_label(&format::format_number_value(view.shares));
                                 let average_price_text =
@@ -105,36 +102,36 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                 let purchase_text = format::format_currency(view.purchase);
                                 let base_price_text = format::format_currency(view.base_price);
                                 let market_text =
-                                    format_row_valuation_amount(Some(view.market_value));
+                                    balance_format::format_row_valuation_amount(Some(view.market_value));
                                 let pnl_text =
-                                    format_signed_row_valuation_amount(Some(view.profit_loss));
+                                    balance_format::format_signed_row_valuation_amount(Some(view.profit_loss));
                                 let pnl_rate_text =
-                                    format_signed_valuation_rate(view.profit_loss_rate, 1);
+                                    balance_format::format_signed_valuation_rate(view.profit_loss_rate, 1);
                                 let pnl_negative =
-                                    is_negative_valuation(Some(view.profit_loss));
+                                    balance_format::is_negative_valuation(Some(view.profit_loss));
                                 let pnl_positive =
-                                    is_positive_valuation(Some(view.profit_loss));
+                                    balance_format::is_positive_valuation(Some(view.profit_loss));
                                 let day_text = if view.nav_pending() {
                                     labels::PENDING_UPDATE.to_string()
                                 } else {
                                     view.base_price_day_change.map_or_else(|| labels::MISSING.to_string(), |value| {
-                                            format_signed_row_valuation_amount(Some(value))
+                                            balance_format::format_signed_row_valuation_amount(Some(value))
                                         })
                                 };
                                 let month_text = view
                                     .base_price_month_change.map_or_else(|| labels::MISSING.to_string(), |value| {
-                                        format_signed_row_valuation_amount(Some(value))
+                                        balance_format::format_signed_row_valuation_amount(Some(value))
                                     });
                                 let total_return_text = view
                                     .total_return.map_or_else(|| labels::MISSING.to_string(), |value| {
-                                        format_signed_row_valuation_amount(Some(value))
+                                        balance_format::format_signed_row_valuation_amount(Some(value))
                                     });
-                                let day_negative = is_negative_valuation(view.base_price_day_change);
-                                let day_positive = is_positive_valuation(view.base_price_day_change);
-                                let month_negative = is_negative_valuation(view.base_price_month_change);
-                                let month_positive = is_positive_valuation(view.base_price_month_change);
-                                let total_negative = is_negative_valuation(view.total_return);
-                                let total_positive = is_positive_valuation(view.total_return);
+                                let day_negative = balance_format::is_negative_valuation(view.base_price_day_change);
+                                let day_positive = balance_format::is_positive_valuation(view.base_price_day_change);
+                                let month_negative = balance_format::is_negative_valuation(view.base_price_month_change);
+                                let month_positive = balance_format::is_positive_valuation(view.base_price_month_change);
+                                let total_negative = balance_format::is_negative_valuation(view.total_return);
+                                let total_positive = balance_format::is_positive_valuation(view.total_return);
                                 let asof_text = view
                                     .price_as_of
                                     .map_or_else(|| labels::MISSING.to_string(), |date| format::format_iso_date(&date));

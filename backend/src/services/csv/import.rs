@@ -2,7 +2,8 @@ use crate::db::Db;
 use crate::errors::ApiError;
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::{CsvPreviewResponse, CsvRowError, CsvUploadResponse};
-use crate::services::csv::pipeline::{CsvParserConfig, CsvTable, parse_csv_with_config};
+use crate::services::csv::pipeline;
+use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
 use crate::services::csv::util::{CsvRowView, RowNumber};
 use crate::services::domain::bulk::RowLimit;
 use shared::value::UserId;
@@ -59,7 +60,7 @@ fn build_csv_preview<T, F>(
 where
     F: FnOnce(&CsvTable) -> (Vec<T>, Vec<CsvRowError>),
 {
-    let table = parse_csv_with_config(bytes, config)?;
+    let table = pipeline::parse_csv_with_config(bytes, config)?;
     let (items, errors) = transform_rows(&table);
     Ok(build_preview_response(items, errors))
 }
@@ -78,7 +79,7 @@ where
     BulkFn: FnOnce(Vec<T>) -> BulkFut,
     BulkFut: Future<Output = Result<BulkCreateResponse, ApiError>>,
 {
-    let table = parse_csv_with_config(bytes, config)?;
+    let table = pipeline::parse_csv_with_config(bytes, config)?;
     let (items, errors) = transform_rows(&table);
     ensure_importable(&items, &errors)?;
     let result = bulk_create(items).await?;
@@ -170,12 +171,12 @@ mod tests {
 
     #[test]
     fn test_validate_csv_rows() {
-        let table = parse_csv_with_config(b"key\na\nb", &KEY_CONFIG).unwrap();
+        let table = pipeline::parse_csv_with_config(b"key\na\nb", &KEY_CONFIG).unwrap();
         let (items, errors): (Vec<String>, _) =
             validate_csv_rows(&table, |row, _row_num| Ok(row.cell("key").to_string()));
         assert_eq!((items, errors.is_empty()), (strings(&["a", "b"]), true));
 
-        let table = parse_csv_with_config(b"key\nok\nbad", &KEY_CONFIG).unwrap();
+        let table = pipeline::parse_csv_with_config(b"key\nok\nbad", &KEY_CONFIG).unwrap();
         let (items, errors): (Vec<String>, _) = validate_csv_rows(&table, |row, row_num| {
             let value = row.cell("key").to_string();
             if value == "bad" {
@@ -193,7 +194,7 @@ mod tests {
             (1, Some(2))
         );
 
-        let table = parse_csv_with_config(b"key", &KEY_CONFIG).unwrap();
+        let table = pipeline::parse_csv_with_config(b"key", &KEY_CONFIG).unwrap();
         let (items, errors): (Vec<String>, _) = validate_csv_rows(&table, |_, _| Ok(String::new()));
         assert_eq!((items.is_empty(), errors.is_empty()), (true, true));
     }

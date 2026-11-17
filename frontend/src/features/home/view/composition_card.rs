@@ -2,9 +2,9 @@ use super::super::model::{self, CompositionSlice, ProductCompositionSlice};
 use super::super::store::{self, HomeOverviewData};
 use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{fund_market, funds_of, stock_market, stocks_of};
-use crate::features::asset_balance::format_valuation_amount;
-use crate::session::use_session;
-use crate::ui::badge::account_display_name;
+use crate::features::asset_balance;
+use crate::session;
+use crate::ui::badge;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format;
@@ -34,7 +34,7 @@ pub(super) fn product_chart_index(label: &str) -> Option<usize> {
 
 /// 口座別の系列番号。口座名はバッジと同じ表示名に正規化してから対応表に当てる
 pub(super) fn account_chart_index(label: &str) -> Option<usize> {
-    match account_display_name(label) {
+    match badge::account_display_name(label) {
         labels::ACCOUNT_SPECIFIC => Some(0),
         labels::ACCOUNT_NISA_GROWTH => Some(1),
         labels::ACCOUNT_OLD_NISA => Some(2),
@@ -61,7 +61,7 @@ pub(super) fn chart_color(
 
 #[component]
 pub(super) fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let card = move || {
         let generation = session.generation.get();
         let assets = store::current_summary(data.assets, generation);
@@ -170,7 +170,7 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
         <div class="px-4 pt-3.5">
             <div class="home-composition-total">
                 <span class="text-text-muted">{labels::HOME_COMPOSITION_TOTAL}</span>
-                <span class="font-bold tabular-nums">{format_valuation_amount(Some(product_total))}</span>
+                <span class="font-bold tabular-nums">{asset_balance::format_valuation_amount(Some(product_total))}</span>
             </div>
             <div class="home-stacked-bar mt-3">{bar}</div>
             <ul class="home-composition-rows mt-1.5">{rows}</ul>
@@ -227,7 +227,7 @@ fn CompositionRow(label: String, amount: f64, detail: String) -> impl IntoView {
                 <span class="block text-cell tabular-nums text-text-muted">{detail}</span>
             </div>
             <span class="shrink-0 text-right text-body font-bold tabular-nums text-text">
-                {format_valuation_amount(Some(amount))}
+                {asset_balance::format_valuation_amount(Some(amount))}
             </span>
         </li>
     }
